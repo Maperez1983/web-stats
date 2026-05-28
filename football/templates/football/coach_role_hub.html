@@ -1533,6 +1533,12 @@
           href="{% url 'coach-matches' %}{% if active_team %}?team={{ active_team.id }}{% endif %}"
           title="Editar partidos, borrar duplicados y completar datos manuales"
         >Partidos</a>
+        <a
+          class="workspace-tab"
+          role="tab"
+          href="{% url 'coach-rivals' %}{% if active_team %}?team={{ active_team.id }}{% endif %}"
+          title="Fichas de rivales, estadio, escudo, equipaciones, plantillas y análisis"
+        >Rivales</a>
       </div>
 
       <section class="workspace-panel is-active" data-tab-panel="summary">

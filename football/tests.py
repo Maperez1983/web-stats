@@ -1017,6 +1017,94 @@ class MatchdayQuickButtonsTests(TestCase):
         self.assertIn('Falta', labels)
 
 
+class CoachRivalsManagementTests(TestCase):
+    def setUp(self):
+        self._media_dir = tempfile.mkdtemp()
+        self._override = override_settings(MEDIA_ROOT=self._media_dir)
+        self._override.enable()
+        self.competition = Competition.objects.create(name='CompRivals', slug='comp-rivals')
+        self.season = Season.objects.create(competition=self.competition, name='2025/2026', is_current=True)
+        self.group = Group.objects.create(season=self.season, name='GrupoRivals', slug='grupo-rivals')
+        self.team = Team.objects.create(
+            name='Málaga CF',
+            slug='malaga-cf-rivals',
+            short_name='Málaga',
+            group=self.group,
+            is_primary=True,
+        )
+        self.rival = Team.objects.create(
+            name='Rival Gestión',
+            slug='rival-gestion',
+            short_name='Rival',
+            group=self.group,
+            is_primary=False,
+        )
+        self.user = get_user_model().objects.create_user(
+            username='coach-rivals',
+            email='coach-rivals@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)
+        self.workspace = Workspace.objects.create(
+            name='Club Rivales',
+            slug='club-rivales',
+            kind=Workspace.KIND_CLUB,
+            is_active=True,
+            primary_team=self.team,
+            enabled_modules={'coach_overview': True, 'analysis': True},
+        )
+        WorkspaceMembership.objects.create(workspace=self.workspace, user=self.user, role=WorkspaceMembership.ROLE_OWNER)
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.team, is_default=True)
+        self.client.force_login(self.user)
+        session = self.client.session
+        session['active_workspace_id'] = int(self.workspace.id)
+        session['active_team_by_workspace'] = {str(self.workspace.id): int(self.team.id)}
+        session.save()
+
+    def tearDown(self):
+        self._override.disable()
+        shutil.rmtree(self._media_dir, ignore_errors=True)
+
+    def test_trainer_page_exposes_rivals_tab(self):
+        response = self.client.get(reverse('coach-role-trainer'), secure=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse('coach-rivals'))
+        self.assertContains(response, 'Rivales')
+
+    def test_rival_profile_saves_crest_and_kit2d_uploads(self):
+        png = (
+            b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01'
+            b'\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89'
+            b'\x00\x00\x00\nIDATx\x9cc`\x00\x00\x00\x02\x00\x01'
+            b'\xe2!\xbc3\x00\x00\x00\x00IEND\xaeB`\x82'
+        )
+        response = self.client.post(
+            reverse('coach-rival-profile', args=[self.rival.id]),
+            data={
+                'form_action': 'save_identity',
+                'short_name': 'RIV',
+                'home_stadium': 'Estadio Rival',
+                'crest_image': SimpleUploadedFile('escudo.png', png, content_type='image/png'),
+                'kit2d_home': SimpleUploadedFile('home.png', png, content_type='image/png'),
+                'kit2d_gk2': SimpleUploadedFile('gk2.png', png, content_type='image/png'),
+            },
+            secure=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.rival.refresh_from_db()
+        self.assertEqual(self.rival.short_name, 'RIV')
+        self.assertEqual(self.rival.home_stadium, 'Estadio Rival')
+        self.assertTrue(self.rival.crest_image)
+        pref = WorkspacePreference.objects.get(
+            workspace=self.workspace,
+            key=f'rival_kit2d:{self.rival.id}',
+        )
+        self.assertTrue(pref.value.get('home_club_data_url', '').startswith('data:image/png;base64,'))
+        self.assertTrue(pref.value.get('gk2_club_data_url', '').startswith('data:image/png;base64,'))
+        response = self.client.get(reverse('coach-rivals'), secure=True)
+        self.assertContains(response, 'data:image/png;base64,')
+
+
 class SessionsAssignTaskSmokeTests(TestCase):
     def setUp(self):
         self.competition = Competition.objects.create(name='CompSes', slug='comp-ses')

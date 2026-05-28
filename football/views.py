@@ -5241,6 +5241,91 @@ def _workspace_home_kit2d_url(workspace):
     return ''
 
 
+RIVAL_KIT2D_SLOTS = (
+    ('home', '1ª equipación'),
+    ('away', '2ª equipación'),
+    ('third', '3ª equipación'),
+    ('gk', 'Portero 1'),
+    ('gk2', 'Portero 2'),
+    ('gk3', 'Portero 3'),
+)
+
+
+def _rival_kit2d_pref_key(team_id):
+    try:
+        return f'rival_kit2d:{int(team_id)}'
+    except Exception:
+        return 'rival_kit2d:0'
+
+
+def _rival_kit2d_value(workspace, rival_team):
+    if not workspace or not rival_team:
+        return {}
+    try:
+        pref = WorkspacePreference.objects.filter(
+            workspace=workspace,
+            key=_rival_kit2d_pref_key(getattr(rival_team, 'id', 0) or 0),
+        ).only('value').first()
+    except Exception:
+        pref = None
+    value = getattr(pref, 'value', None) if pref else None
+    return value if isinstance(value, dict) else {}
+
+
+def _rival_kit2d_url(workspace, rival_team, slot='home'):
+    value = _rival_kit2d_value(workspace, rival_team)
+    slot_key = str(slot or 'home').strip() or 'home'
+    for key in (
+        f'{slot_key}_club_data_url',
+        f'{slot_key}_editor_data_url',
+        f'{slot_key}_data_url',
+    ):
+        url = _is_valid_kit2d_url(value.get(key))
+        if url:
+            return url
+    return ''
+
+
+def _rival_kit2d_slots_for_template(workspace, rival_team):
+    value = _rival_kit2d_value(workspace, rival_team)
+    slots = []
+    for slot, label in RIVAL_KIT2D_SLOTS:
+        url = _rival_kit2d_url(workspace, rival_team, slot)
+        slots.append({
+            'slot': slot,
+            'label': label,
+            'url': url,
+            'file_name': str(value.get(f'{slot}_file_name') or '').strip(),
+        })
+    return slots
+
+
+def _uploaded_image_as_data_url(uploaded_file):
+    if not uploaded_file:
+        return ''
+    content_type = str(getattr(uploaded_file, 'content_type', '') or '').strip().lower()
+    suffix = Path(str(getattr(uploaded_file, 'name', '') or '')).suffix.lower()
+    if content_type not in {'image/png', 'image/webp', 'image/jpeg', 'image/jpg', 'image/svg+xml'}:
+        content_type = {
+            '.png': 'image/png',
+            '.webp': 'image/webp',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.svg': 'image/svg+xml',
+        }.get(suffix, 'image/png')
+    try:
+        uploaded_file.seek(0)
+    except Exception:
+        pass
+    try:
+        raw = uploaded_file.read() or b''
+    except Exception:
+        raw = b''
+    if not raw:
+        return ''
+    return f'data:{content_type};base64,' + base64.b64encode(raw).decode('ascii')
+
+
 @lru_cache(maxsize=512)
 def _generated_team_kit2d_svg_url(team_name):
     label = str(team_name or '').strip() or 'Rival'
@@ -25010,7 +25095,7 @@ def coach_rivals_page(request):
             'name': str(getattr(team, 'name', '') or label).strip(),
             'display_name': label,
             'crest_url': crest_image_url or str(getattr(team, 'crest_url', '') or standing.get('crest_url') or '').strip(),
-            'kit2d_url': _kit2d_url_for_team_name(label, workspace=workspace, primary_team=primary_team, own_kit2d_url=_workspace_home_kit2d_url(workspace)),
+            'kit2d_url': _rival_kit2d_url(workspace, team, 'home') or _kit2d_url_for_team_name(label, workspace=workspace, primary_team=primary_team, own_kit2d_url=_workspace_home_kit2d_url(workspace)),
             'home_stadium': str(getattr(team, 'home_stadium', '') or standing.get('location') or '').strip(),
             'rank': _safe_int(standing.get('rank'), default=0) or '',
             'points': _safe_int(standing.get('points'), default=0) if standing else '',
@@ -40570,6 +40655,7 @@ def analysis_rival_profile_page(request, rival_id):
     forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
     if forbidden:
         return forbidden
+    workspace = _get_active_workspace(request)
     primary_team = _get_primary_team_for_request(request)
     rival = Team.objects.filter(id=int(rival_id)).first()
     if not rival:
@@ -40694,14 +40780,55 @@ def analysis_rival_profile_page(request, rival_id):
             if short_name and str(getattr(rival, 'short_name', '') or '').strip() != short_name:
                 rival.short_name = short_name
                 changed_fields.append('short_name')
+            if str(request.POST.get('clear_crest_image') or '').strip().lower() in {'1', 'true', 'yes', 'on', 'si'}:
+                if getattr(rival, 'crest_image', None):
+                    rival.crest_image = None
+                    changed_fields.append('crest_image')
+            uploaded_crest = request.FILES.get('crest_image')
+            if uploaded_crest:
+                rival.crest_image = uploaded_crest
+                changed_fields.append('crest_image')
             if changed_fields:
                 try:
-                    rival.save(update_fields=changed_fields)
+                    rival.save(update_fields=sorted(set(changed_fields)))
                     message = 'Ficha del rival actualizada.'
                 except Exception:
                     error = 'No se pudo guardar la ficha del rival.'
             else:
                 message = 'Ficha del rival sin cambios.'
+            if workspace:
+                kit_value = dict(_rival_kit2d_value(workspace, rival))
+                kit_changed = False
+                for slot, _label in RIVAL_KIT2D_SLOTS:
+                    if str(request.POST.get(f'clear_kit2d_{slot}') or '').strip().lower() in {'1', 'true', 'yes', 'on', 'si'}:
+                        for key in (
+                            f'{slot}_club_data_url',
+                            f'{slot}_editor_data_url',
+                            f'{slot}_data_url',
+                            f'{slot}_file_name',
+                        ):
+                            if key in kit_value:
+                                kit_value.pop(key, None)
+                                kit_changed = True
+                    uploaded_kit = request.FILES.get(f'kit2d_{slot}')
+                    if uploaded_kit:
+                        data_url = _uploaded_image_as_data_url(uploaded_kit)
+                        if data_url:
+                            kit_value[f'{slot}_club_data_url'] = data_url
+                            kit_value[f'{slot}_editor_data_url'] = data_url
+                            kit_value[f'{slot}_file_name'] = str(getattr(uploaded_kit, 'name', '') or '').strip()[:160]
+                            kit_changed = True
+                if kit_changed:
+                    try:
+                        WorkspacePreference.objects.update_or_create(
+                            workspace=workspace,
+                            key=_rival_kit2d_pref_key(getattr(rival, 'id', 0) or 0),
+                            defaults={'value': kit_value},
+                        )
+                        if not error:
+                            message = 'Ficha del rival actualizada.'
+                    except Exception:
+                        error = 'No se pudo guardar la equipación del rival.'
         elif form_action == 'refresh_roster':
             roster_rows = []
             roster_provider = ''
@@ -40886,6 +41013,7 @@ def analysis_rival_profile_page(request, rival_id):
             'manual_reports': manual_reports,
             'match_reports': match_reports,
             'rival_videos': rival_videos,
+            'rival_kit2d_slots': _rival_kit2d_slots_for_template(workspace, rival),
         },
     )
 

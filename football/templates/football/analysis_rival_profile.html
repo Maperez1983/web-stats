@@ -211,6 +211,9 @@
         gap: 0.65rem;
         align-items: end;
       }
+      .identity-form .wide {
+        grid-column: 1 / -1;
+      }
       .identity-form label {
         display: block;
         margin-bottom: 0.25rem;
@@ -231,10 +234,42 @@
         font: inherit;
         font-weight: 700;
       }
+      .upload-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.65rem;
+      }
+      .upload-card {
+        border-radius: 16px;
+        border: 1px solid rgba(255,255,255,0.10);
+        background: rgba(2, 6, 23, 0.35);
+        padding: 0.7rem;
+      }
+      .kit-preview {
+        width: 72px;
+        height: 72px;
+        object-fit: contain;
+        display: block;
+        margin-bottom: 0.45rem;
+        filter: drop-shadow(0 8px 12px rgba(0,0,0,0.3));
+      }
+      .check-row {
+        margin-top: 0.45rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        color: rgba(248,250,252,0.76);
+        font-size: 0.82rem;
+        font-weight: 700;
+      }
+      .check-row input {
+        width: auto;
+      }
       @media (max-width: 820px) {
         .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
         .roster-list { grid-template-columns: 1fr; }
         .identity-form { grid-template-columns: 1fr; }
+        .upload-grid { grid-template-columns: 1fr; }
       }
     </style>
   </head>
@@ -289,7 +324,7 @@
             {% if error %}<div class="alert bad"><div class="t">Revisar</div><div class="meta">{{ error }}</div></div>{% endif %}
           </div>
         {% endif %}
-        <form class="identity-form" method="post">
+        <form class="identity-form" method="post" enctype="multipart/form-data">
           {% csrf_token %}
           <input type="hidden" name="form_action" value="save_identity" />
           <div>
@@ -299,6 +334,31 @@
           <div>
             <label for="homeStadiumInput">Estadio / campo habitual</label>
             <input id="homeStadiumInput" name="home_stadium" value="{{ rival.home_stadium|default:'' }}" placeholder="Ej. Campo municipal..." />
+          </div>
+          <div class="wide upload-card">
+            <label for="crestImageInput">Escudo del rival</label>
+            {% if rival.crest_image %}
+              <img class="crest" src="{{ rival.crest_image.url }}" alt="" loading="lazy" />
+              <label class="check-row"><input type="checkbox" name="clear_crest_image" /> Quitar escudo cargado</label>
+            {% elif rival.crest_url %}
+              <img class="crest" src="{{ rival.crest_url }}" alt="" loading="lazy" />
+            {% endif %}
+            <input id="crestImageInput" name="crest_image" type="file" accept="image/*" />
+          </div>
+          <div class="wide">
+            <label>Kits 2D del rival</label>
+            <div class="upload-grid">
+              {% for kit in rival_kit2d_slots %}
+                <div class="upload-card">
+                  <label for="kit2dInput{{ kit.slot }}">{{ kit.label }}</label>
+                  {% if kit.url %}
+                    <img class="kit-preview" src="{{ kit.url }}" alt="" loading="lazy" />
+                    <label class="check-row"><input type="checkbox" name="clear_kit2d_{{ kit.slot }}" /> Quitar kit</label>
+                  {% endif %}
+                  <input id="kit2dInput{{ kit.slot }}" name="kit2d_{{ kit.slot }}" type="file" accept="image/png,image/webp,image/*" />
+                </div>
+              {% endfor %}
+            </div>
           </div>
           <button class="button" type="submit">Guardar ficha</button>
         </form>
