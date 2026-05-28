@@ -16238,9 +16238,12 @@
 	      const parsed = sanitizeLoadedState(rawState);
 	      const sourceWidth = Number(options?.sourceWidth) || 0;
 	      const sourceHeight = Number(options?.sourceHeight) || 0;
-	      if (sourceWidth > 0 && sourceHeight > 0) {
+	      const hasSourceWorld = sourceWidth > 0 && sourceHeight > 0;
+	      if (hasSourceWorld) {
 	        worldWidth = sourceWidth;
 	        worldHeight = sourceHeight;
+	        if (widthInput) widthInput.value = String(Math.round(sourceWidth));
+	        if (heightInput) heightInput.value = String(Math.round(sourceHeight));
 	      }
 	      canvas.__loading = true;
 	      canvas.loadFromJSON(parsed, () => {
@@ -16250,7 +16253,9 @@
 	          scaleLoadedObjects(sourceWidth, sourceHeight);
 	        } else {
 	          // En modo viewport, NO mutamos coordenadas: ajustamos el viewport para encajar el "mundo" guardado.
-	          try { syncWorldFromInputs(); } catch (e) { /* ignore */ }
+	          if (!hasSourceWorld) {
+	            try { syncWorldFromInputs(); } catch (e) { /* ignore */ }
+	          }
 	          try { applyViewportTransformToWorld(); } catch (e) { /* ignore */ }
 	        }
 	        // Compat: algunas tareas antiguas guardaron chapas tipo "camiseta". Al abrirlas,
@@ -16341,6 +16346,9 @@
 	        } catch (e) { /* ignore */ }
 	        canvas.__loading = false;
 	        canvas.requestRenderAll();
+	        try {
+	          if (stateInput) stateInput.value = JSON.stringify(serializeCanvasOnly());
+	        } catch (e) { /* ignore */ }
 	        syncInspector();
 	        refreshLivePreview();
         if (typeof callback === 'function') callback();
