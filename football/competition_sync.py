@@ -12,6 +12,7 @@ from .match_payload_services import (
 from .models import Team, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot
 from .query_helpers import _normalize_team_lookup_key
 from .team_media_services import sync_team_crest_from_sources
+from .universo_catalog_services import build_universo_competition_catalog
 from .universo_client import fetch_universo_live_classification
 from .universo_competition_services import (
     serialize_universo_live_classification,
@@ -28,7 +29,6 @@ def sync_workspace_competition_context(workspace, primary_team=None):
 
     _ensure_universo_context_binding = core_views._ensure_universo_context_binding
     _ensure_universo_group_models_from_live = core_views._ensure_universo_group_models_from_live
-    _build_universo_competition_catalog = core_views._build_universo_competition_catalog
     _ensure_universo_group_models_from_candidate = core_views._ensure_universo_group_models_from_candidate
     _resolve_standings_for_team = core_views._resolve_standings_for_team
     _build_next_match_from_convocation = core_views._build_next_match_from_convocation
@@ -70,7 +70,7 @@ def sync_workspace_competition_context(workspace, primary_team=None):
                     )
                 else:
                     # Fallback sin red: usa el catálogo local (universo-rfaf-capture.json) si existe.
-                    catalog = _build_universo_competition_catalog()
+                    catalog = build_universo_competition_catalog()
                     groups = catalog.get('groups') or {}
                     competitions = catalog.get('competitions') or {}
                     found = None
