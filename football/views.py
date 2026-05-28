@@ -3334,6 +3334,45 @@ def _image_file_as_small_data_uri(file_path, max_width=1200, max_height=800, qua
         return _file_as_data_uri(file_path)
 
 
+def _image_url_as_small_data_uri_for_pdf(request, image_url, *, max_width=240, max_height=240, quality=76):
+    """
+    Embed team crests in PDFs from local static/media URLs or trusted remote URLs.
+    WeasyPrint can miss external assets; data URIs make the player report deterministic.
+    """
+    raw_url = str(image_url or '').strip()
+    if not raw_url:
+        return ''
+    if raw_url.startswith('data:image/'):
+        return raw_url
+    try:
+        parsed = urlparse(raw_url)
+    except Exception:
+        parsed = None
+    path = getattr(parsed, 'path', '') if parsed else raw_url
+    try:
+        static_url = str(getattr(settings, 'STATIC_URL', '/static/') or '/static/')
+        media_url = str(getattr(settings, 'MEDIA_URL', '/media/') or '/media/')
+        if path.startswith(static_url):
+            rel = path[len(static_url):].lstrip('/')
+            return _image_file_as_small_data_uri(Path(settings.BASE_DIR) / 'static' / rel, max_width=max_width, max_height=max_height, quality=quality)
+        if path.startswith(media_url):
+            rel = path[len(media_url):].lstrip('/')
+            return _image_file_as_small_data_uri(Path(getattr(settings, 'MEDIA_ROOT', '')) / rel, max_width=max_width, max_height=max_height, quality=quality)
+    except Exception:
+        pass
+    if parsed and parsed.scheme in {'http', 'https'} and requests is not None:
+        try:
+            response = requests.get(raw_url, timeout=4)
+            if response.status_code == 200:
+                content_type = str(response.headers.get('Content-Type') or '').split(';', 1)[0].strip() or 'image/png'
+                raw = response.content or b''
+                if raw and len(raw) <= 4 * 1024 * 1024 and content_type.startswith('image/'):
+                    return _image_bytes_as_small_data_uri(raw, mime_type=content_type, max_width=max_width, max_height=max_height, quality=quality)
+        except Exception:
+            return ''
+    return ''
+
+
 def resolve_team_photo_for_pdf(request, *, team=None):
     default_path = Path(settings.BASE_DIR) / 'static' / 'football' / 'images' / 'team-01.jpg'
     fallback_url = request.build_absolute_uri(static('football/images/team-01.jpg'))
@@ -51058,7 +51097,6 @@ def player_pdf(request, player_id):
         player_display_name = fn or nm or 'Jugador'
 
     static_base_dir = Path(settings.BASE_DIR) / 'static'
-    logo_data_uri = _file_as_data_uri(static_base_dir / 'football' / 'images' / 'cdb-logo.png')
     avatar_data_uri = _file_as_data_uri(static_base_dir / 'football' / 'images' / 'player-avatar.svg')
     brand_mark_data_uri = _file_as_data_uri(static_base_dir / 'football' / 'images' / '2j-mark.svg')
 
@@ -51135,6 +51173,20 @@ def player_pdf(request, player_id):
         except Exception:
             crest_src = ''
     if not crest_src:
+        resolved_crest_url = ''
+        try:
+            resolved_crest_url = resolve_team_crest_url(request, primary_team, fallback_static=None, sync=True)
+        except Exception:
+            resolved_crest_url = ''
+        if resolved_crest_url:
+            crest_src = _image_url_as_small_data_uri_for_pdf(
+                request,
+                resolved_crest_url,
+                max_width=240,
+                max_height=240,
+                quality=78,
+            )
+    if not crest_src:
         # En PDF evitamos URLs externas o SVG generados (pueden fallar en WeasyPrint / romper el render).
         # Preferimos un escudo local embebido para Benagalbón; para el resto, un SVG neutro
         # del propio equipo para no heredar el CDB por defecto.
@@ -51147,9 +51199,9 @@ def player_pdf(request, player_id):
         crest_src = _team_fallback_crest_data_uri(primary_team, fallback_label=getattr(primary_team, 'display_name', '') or getattr(primary_team, 'name', '')) or ''
     if not crest_src:
         try:
-            initials = ''.join([c for c in str(primary_team.display_name or primary_team.name or '').upper() if c.isalpha()])[:2] or '2J'
+            initials = ''.join([c for c in str(primary_team.display_name or primary_team.name or '').upper() if c.isalpha()])[:2] or 'CL'
             svg = f"""<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><rect width='100%' height='100%' rx='90' ry='90' fill='#0f172a'/><text x='50%' y='54%' text-anchor='middle' dominant-baseline='middle' font-family='Arial' font-size='72' font-weight='900' fill='#f8fafc'>{initials}</text></svg>"""
-            crest_src = 'data:image/svg+xml;charset=utf-8,' + urllib.parse.quote(svg)
+            crest_src = 'data:image/svg+xml;charset=utf-8,' + quote(svg)
         except Exception:
             crest_src = ''
 
@@ -52114,6 +52166,22 @@ def player_pdf(request, player_id):
 
     pdf_style = 'club'
     pdf_palette = _team_pdf_palette(primary_team, pdf_style)
+    team_display_name = (
+        str(getattr(primary_team, 'display_name', '') or '').strip()
+        or str(getattr(primary_team, 'name', '') or '').strip()
+        or 'Equipo'
+    )
+    def _rgb_tuple_for_css(hex_color, fallback='#0f7a35'):
+        safe = _normalize_hex_color(hex_color, fallback)
+        try:
+            return f'{int(safe[1:3], 16)}, {int(safe[3:5], 16)}, {int(safe[5:7], 16)}'
+        except Exception:
+            return '15, 122, 53'
+    pdf_palette_css = {
+        'primary_rgb': _rgb_tuple_for_css(pdf_palette.get('primary'), '#0f7a35'),
+        'secondary_rgb': _rgb_tuple_for_css(pdf_palette.get('secondary'), '#f4b400'),
+        'accent_rgb': _rgb_tuple_for_css(pdf_palette.get('accent'), '#102734'),
+    }
     staff_percentiles = {}
     radar_data = {'axes': [], 'path_d': '', 'points': [], 'labels': []}
     card_radar_data = {'axes': [], 'polygon_points': '', 'labels': []}
@@ -52553,12 +52621,14 @@ def player_pdf(request, player_id):
             'matches_for_report_pages': matches_for_report_pages,
             'staff_report': staff_report,
             'primary_team': primary_team,
+            'team_display_name': team_display_name,
             'season_label': season_label,
             'division_label': division_label,
             'team_points': team_points,
             'team_rank': team_rank,
             'pdf_style': pdf_style,
             'pdf_palette': pdf_palette,
+            'pdf_palette_css': pdf_palette_css,
             'general_kpis': general_kpis,
             'advanced_kpis': advanced_kpis,
             'visual_kpis': visual_kpis,

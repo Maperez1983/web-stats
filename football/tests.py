@@ -4945,6 +4945,58 @@ class PlayerDetailStatsFallbackTests(TestCase):
         self.assertNotContains(response, 'type="file"', html=False)
         self.assertNotContains(response, 'Guardar comunicación')
 
+    @patch('football.views.compute_player_dashboard')
+    @override_settings(MEDIA_URL='/media-test/')
+    def test_player_pdf_html_uses_player_team_branding(self, mocked_dashboard):
+        png_bytes = base64.b64decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7Zl4QAAAAASUVORK5CYII='
+        )
+        media_root = tempfile.mkdtemp()
+        try:
+            with override_settings(MEDIA_ROOT=media_root):
+                team = self.player.team
+                team.name = 'Málaga Club de Fútbol'
+                team.slug = 'malaga-cf-detail'
+                team.short_name = ''
+                team.crest_image.save(
+                    'malaga.png',
+                    SimpleUploadedFile('malaga.png', png_bytes, content_type='image/png'),
+                    save=False,
+                )
+                team.save(update_fields=['name', 'slug', 'short_name', 'crest_image'])
+                mocked_dashboard.return_value = [
+                    {
+                        'player_id': self.player.id,
+                        'name': self.player.name,
+                        'pj': 1,
+                        'pt': 1,
+                        'minutes': 90,
+                        'goals': 0,
+                        'assists': 0,
+                        'success_rate': 0,
+                        'importance_score': 0,
+                        'influence_score': 0,
+                        'total_actions': 0,
+                        'successes': 0,
+                        'matches': [],
+                    }
+                ]
+
+                self.client.force_login(self.user)
+                response = self.client.get(
+                    reverse('player-pdf', args=[self.player.id]),
+                    {'format': 'html', 'snapshot': '0'},
+                )
+
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, '--club-primary: #6bc4e8')
+                self.assertContains(response, 'Escudo Málaga Club de Fútbol')
+                self.assertContains(response, 'Málaga Club de Fútbol · Informe final de temporada')
+                self.assertContains(response, 'data:image/jpeg;base64,')
+                self.assertNotContains(response, 'alt="2J"', html=False)
+        finally:
+            shutil.rmtree(media_root, ignore_errors=True)
+
     @override_settings(MEDIA_URL='/media-test/')
     def test_player_detail_profile_upload_stores_photo_in_media(self):
         self.client.force_login(self.user)

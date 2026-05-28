@@ -16,6 +16,15 @@
         --pdf-card: #ffffff;
         --pdf-chip: #f1f5f9;
         --pdf-chip-ink: #0b1220;
+        --club-primary: {{ pdf_palette.primary|default:"#0f7a35" }};
+        --club-secondary: {{ pdf_palette.secondary|default:"#f4b400" }};
+        --club-accent: {{ pdf_palette.accent|default:"#102734" }};
+        --club-panel: {{ pdf_palette.panel|default:"#f8fafc" }};
+        --club-primary-rgb: {{ pdf_palette_css.primary_rgb|default:"15, 122, 53" }};
+        --club-secondary-rgb: {{ pdf_palette_css.secondary_rgb|default:"244, 180, 0" }};
+        --club-accent-rgb: {{ pdf_palette_css.accent_rgb|default:"16, 39, 52" }};
+        --print-accent: var(--club-primary);
+        --print-accent-2: var(--club-secondary);
       }
       body {
         margin: 0;
@@ -38,7 +47,7 @@
         display: table;
         width: 100%;
         border-bottom: 1px solid #d5dde7;
-        background: {{ pdf_palette.primary|default:"#007050" }};
+        background: var(--club-primary);
         color: #ffffff;
       }
       .brand-logo,
@@ -48,22 +57,21 @@
         vertical-align: middle;
         padding: 10px 12px;
       }
-      .brand-logo { width: 116px; }
+      .brand-logo { width: 78px; }
       .brand-logo img {
-        width: 44px;
-        height: 44px;
+        width: 52px;
+        height: 52px;
         object-fit: contain;
         display: inline-block;
         vertical-align: middle;
       }
       .brand-logo img.crest {
-        width: 44px;
-        height: 44px;
+        width: 52px;
+        height: 52px;
         border-radius: 999px;
         background: rgba(255,255,255,0.92);
         border: 1px solid rgba(255,255,255,0.38);
         padding: 3px;
-        margin-left: 8px;
       }
       .brand-copy h1 {
         margin: 0;
@@ -89,7 +97,7 @@
         padding: 7px 10px;
         border: 1px solid rgba(11,18,32,0.10);
         border-radius: 10px;
-        background: rgba(15, 122, 53, 0.95);
+        background: var(--club-primary);
         color: #ffffff;
         font-weight: 900;
         text-transform: uppercase;
@@ -175,7 +183,7 @@
       .stats-big { font-size: 34px; font-weight: 1000; letter-spacing: -0.02em; }
       .stats-small { margin-top: 2px; font-size: 11px; font-weight: 1000; letter-spacing: 0.10em; text-transform: uppercase; color: var(--pdf-muted); }
       .stats-center-title { font-size: 18px; font-weight: 1000; letter-spacing: 0.04em; text-transform: uppercase; }
-      .stats-center-sub { margin-top: 4px; color: #f4b400; font-weight: 1000; letter-spacing: 0.12em; text-transform: uppercase; }
+      .stats-center-sub { margin-top: 4px; color: var(--club-accent); font-weight: 1000; letter-spacing: 0.12em; text-transform: uppercase; }
       .stats-center-crest { margin-top: 10px; }
       .stats-center-crest img { width: 72px; height: 72px; object-fit: contain; }
 
@@ -207,8 +215,8 @@
         margin-top: 12px;
         padding: 12px;
         border-radius: 16px;
-        background: rgba(15, 122, 53, 0.14);
-        border: 1px solid rgba(15, 122, 53, 0.22);
+        background: rgba(var(--club-primary-rgb), 0.14);
+        border: 1px solid rgba(var(--club-primary-rgb), 0.22);
       }
       .season-kpis-grid { display: table; width: 100%; table-layout: fixed; }
       .season-kpis-row { display: table-row; }
@@ -440,14 +448,14 @@
         width: 8px;
         height: 8px;
         border-radius: 999px;
-        background: rgba(244, 180, 0, 0.95);
+        background: rgba(var(--club-secondary-rgb), 0.95);
         border: 1px solid rgba(11,18,32,0.12);
         vertical-align: middle;
         margin-right: 8px;
       }
       .radar-axis-label { font-weight: 1000; letter-spacing: 0.02em; vertical-align: middle; }
       .radar-axis-meta { color: var(--pdf-muted); font-weight: 900; }
-      .radar-axis-rank { color: rgba(47,125,50,0.95); font-weight: 1000; margin-left: 6px; }
+      .radar-axis-rank { color: var(--club-primary); font-weight: 1000; margin-left: 6px; }
       .radar-label {
         font-size: 12px;
         font-weight: 1000;
@@ -522,7 +530,7 @@
       .radar-axes { list-style: none; padding: 0; margin: 10px 0 0; }
       .radar-axis-row { display:flex; justify-content: space-between; align-items: baseline; gap: 10px; }
       .radar-axis-left { display:flex; align-items: baseline; gap: 8px; }
-      .radar-dot { width: 10px; height: 10px; border-radius: 999px; background: rgba(244,180,0,0.92); border: 1px solid rgba(226,232,240,0.20); flex: 0 0 auto; }
+      .radar-dot { width: 10px; height: 10px; border-radius: 999px; background: rgba(var(--club-secondary-rgb),0.92); border: 1px solid rgba(226,232,240,0.20); flex: 0 0 auto; }
       .radar-axis-label { font-weight: 1000; letter-spacing: 0.06em; color: #f8fafc; }
       .radar-axis-meta { color: #aab4c6; font-weight: 900; }
       .radar-axis-rank { color: #aab4c6; font-weight: 1000; margin-left: 6px; }
@@ -570,7 +578,7 @@
       .matches-table th, .matches-table td { padding: 5px 8px; font-size: 10.1px; }
       .matches-table th { font-size: 9.4px; }
       .group-row td {
-        background: rgba(15, 122, 53, 0.18);
+        background: rgba(var(--club-primary-rgb), 0.18);
         font-weight: 900;
         text-transform: uppercase;
         letter-spacing: 0.08em;
@@ -589,8 +597,8 @@
       .chart-legend { display: table-cell; text-align: right; vertical-align: middle; }
       .legend-item { display: inline-block; margin-left: 10px; font-size: 9.6px; font-weight: 1000; letter-spacing: 0.08em; text-transform: uppercase; color: var(--pdf-muted); }
       .legend-swatch { display:inline-block; width: 10px; height: 10px; border-radius: 999px; margin-right: 6px; vertical-align: middle; border: 1px solid rgba(11,18,32,0.18); }
-      .legend-swatch.goal { background: rgba(15, 122, 53, 0.92); }
-      .legend-swatch.assist { background: rgba(255, 181, 0, 0.92); }
+      .legend-swatch.goal { background: rgba(var(--club-primary-rgb), 0.92); }
+      .legend-swatch.assist { background: rgba(var(--club-secondary-rgb), 0.92); }
       .spark-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 8px; }
       .spark-table td { padding: 0; vertical-align: bottom; text-align: center; }
       .spark-wrap { height: 62px; position: relative; }
@@ -605,14 +613,14 @@
         gap: 2px;
         align-items: stretch;
       }
-      .spark-bar { width: 10px; display: block; border-radius: 999px; background: rgba(15, 122, 53, 0.88); }
-      .spark-bar.assist { background: rgba(255, 181, 0, 0.92); }
-      .spark-bar.goal { background: rgba(15, 122, 53, 0.92); }
+      .spark-bar { width: 10px; display: block; border-radius: 999px; background: rgba(var(--club-primary-rgb), 0.88); }
+      .spark-bar.assist { background: rgba(var(--club-secondary-rgb), 0.92); }
+      .spark-bar.goal { background: rgba(var(--club-primary-rgb), 0.92); }
       .spark-bar.zero { background: rgba(148, 163, 184, 0.45); }
       .spark-label { margin-top: 4px; font-size: 9px; color: var(--pdf-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .spark-value { margin-top: 2px; font-size: 9px; font-weight: 900; color: var(--pdf-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .spark-value .g { color: rgba(15, 122, 53, 0.98); }
-      .spark-value .a { color: rgba(255, 181, 0, 0.98); }
+      .spark-value .g { color: var(--club-primary); }
+      .spark-value .a { color: var(--club-secondary); }
       .spark-empty .spark-label,
       .spark-empty .spark-value { color: transparent; }
       .spark-zero .spark-value { color: transparent; }
@@ -632,13 +640,13 @@
       .lc-tick { fill: rgba(71,85,105,0.92); font-size: 9.4px; font-weight: 900; }
       .lc-xlab { fill: rgba(71,85,105,0.90); font-size: 9.2px; font-weight: 900; letter-spacing: 0.02em; }
       .lc-line { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-      .lc-line.minutes { stroke: rgba(15, 122, 53, 0.92); }
-      .lc-line.goals { stroke: rgba(15, 122, 53, 0.92); }
-      .lc-line.assists { stroke: rgba(255, 181, 0, 0.92); }
+      .lc-line.minutes { stroke: var(--club-primary); }
+      .lc-line.goals { stroke: var(--club-primary); }
+      .lc-line.assists { stroke: var(--club-secondary); }
       .lc-dot { stroke: rgba(11,18,32,0.20); stroke-width: 1; }
-      .lc-dot.minutes { fill: rgba(15, 122, 53, 0.92); }
-      .lc-dot.goals { fill: rgba(15, 122, 53, 0.92); }
-      .lc-dot.assists { fill: rgba(255, 181, 0, 0.92); }
+      .lc-dot.minutes { fill: var(--club-primary); }
+      .lc-dot.goals { fill: var(--club-primary); }
+      .lc-dot.assists { fill: var(--club-secondary); }
       .lc-val { fill: rgba(11,18,32,0.78); font-size: 9.2px; font-weight: 1000; }
       .foot {
         margin-top: 10px;
@@ -649,7 +657,7 @@
         align-items: center;
       }
       .foot .brandline { display:flex; align-items:center; gap: 8px; }
-      .foot .brandline img { width: 28px; height: auto; }
+      .foot .brandline img { width: 28px; height: 28px; object-fit: contain; border-radius: 999px; background: #fff; padding: 2px; border: 1px solid rgba(11,18,32,0.10); }
       .foot .fine { font-size: 10px; color: var(--pdf-muted); }
     </style>
   </head>
@@ -657,12 +665,11 @@
     <section class="sheet">
       <div class="brand">
         <div class="brand-logo">
-          <img src="{{ brand_mark_src }}" alt="2J" />
-          <img class="crest" src="{{ crest_src }}" alt="Escudo" />
+          <img class="crest" src="{{ crest_src }}" alt="Escudo {{ team_display_name }}" />
         </div>
         <div class="brand-copy">
           <h1>Informe de temporada · {{ player_display_name|default:player.name }}</h1>
-          <p>{{ primary_team.display_name }}{% if division_label %} · {{ division_label }}{% endif %} · {{ season_label }}</p>
+          <p>{{ team_display_name }}{% if division_label %} · {{ division_label }}{% endif %} · {{ season_label }}</p>
         </div>
         <div class="brand-meta">
           <div>Puntos: <strong>{{ team_points|default:0 }}</strong></div>
@@ -785,7 +792,7 @@
                   <div class="stats-small">Puntos</div>
                 </div>
                 <div class="stats-head-center">
-                  <div class="stats-center-title">{{ primary_team.display_name }}</div>
+                  <div class="stats-center-title">{{ team_display_name }}</div>
                   <div class="stats-center-sub">{% if division_label %}{{ division_label }}{% endif %}</div>
                   <div class="stats-center-crest"><img src="{{ crest_src }}" alt="Escudo" /></div>
                 </div>
@@ -881,8 +888,8 @@
 		        </div>
 			        <div class="foot">
           <div class="brandline">
-            <img src="{{ brand_mark_src }}" alt="2J" />
-            <div class="fine">PDF Club · Informe final de temporada</div>
+            <img src="{{ crest_src }}" alt="Escudo {{ team_display_name }}" />
+            <div class="fine">{{ team_display_name }} · Informe final de temporada</div>
           </div>
           <div class="fine">{{ player.name }}</div>
         </div>
@@ -892,12 +899,11 @@
 	    <section class="sheet">
 	      <div class="brand">
 	        <div class="brand-logo">
-	          <img src="{{ brand_mark_src }}" alt="2J" />
-	          <img class="crest" src="{{ crest_src }}" alt="Escudo" />
+	          <img class="crest" src="{{ crest_src }}" alt="Escudo {{ team_display_name }}" />
 	        </div>
 	        <div class="brand-copy">
 	          <h1>Rendimiento · {{ player.name }}</h1>
-	          <p>{{ primary_team.display_name }}{% if division_label %} · {{ division_label }}{% endif %} · {{ season_label }}</p>
+	          <p>{{ team_display_name }}{% if division_label %} · {{ division_label }}{% endif %} · {{ season_label }}</p>
 	        </div>
 	        <div class="brand-meta">
 	          <div>Ámbito: <strong>{% if scope_label %}{{ scope_label }}{% else %}Global{% endif %}</strong></div>
@@ -926,7 +932,7 @@
                           <div class="perf-donut">
                             <svg viewBox="0 0 42 42" aria-hidden="true">
                               <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="5"></circle>
-                              <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(47,125,50,0.95)" stroke-width="5" pathLength="100"
+                              <circle cx="21" cy="21" r="15.915" fill="none" stroke="{{ pdf_palette.primary|default:'#0f7a35' }}" stroke-width="5" pathLength="100"
                                 stroke-dasharray="{{ rendimiento.success_rate|default:0|floatformat:0 }} 100" stroke-dashoffset="25"></circle>
                             </svg>
                             <div class="val">{{ rendimiento.success_rate|default:0|floatformat:-1 }}%</div>
@@ -952,7 +958,7 @@
                           <div class="perf-donut">
                             <svg viewBox="0 0 42 42" aria-hidden="true">
                               <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="5"></circle>
-                              <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(47,125,50,0.95)" stroke-width="5" pathLength="100"
+                              <circle cx="21" cy="21" r="15.915" fill="none" stroke="{{ pdf_palette.primary|default:'#0f7a35' }}" stroke-width="5" pathLength="100"
                                 stroke-dasharray="{{ rendimiento.pass_accuracy|default:0|floatformat:0 }} 100" stroke-dashoffset="25"></circle>
                             </svg>
                             <div class="val">{{ rendimiento.pass_accuracy|default:0|floatformat:-1 }}%</div>
@@ -1010,7 +1016,7 @@
 	                                  <defs>
 	                                    <linearGradient id="radarFillPdf" x1="0%" y1="0%" x2="100%" y2="100%">
 	                                      <stop offset="0%" stop-color="rgba(244,180,0,0.55)"></stop>
-	                                      <stop offset="100%" stop-color="rgba(47,125,50,0.45)"></stop>
+	                                      <stop offset="100%" stop-color="{{ pdf_palette.primary|default:'#0f7a35' }}"></stop>
 	                                    </linearGradient>
 	                                  </defs>
 	                                  <circle cx="180" cy="180" r="30" fill="none" stroke="rgba(226,232,240,0.16)" stroke-width="1" />
@@ -1086,7 +1092,7 @@
 	                                      <div class="radar-spark-title">% Éxito (últimos 6)</div>
 	                                      <svg viewBox="0 0 {{ radar_success_spark.w }} {{ radar_success_spark.h }}" role="img" aria-label="% Éxito últimos 6">
 	                                        {% if radar_success_spark.area_d %}
-	                                          <path d="{{ radar_success_spark.area_d }}" fill="rgba(47,125,50,0.16)" stroke="none"></path>
+	                                          <path d="{{ radar_success_spark.area_d }}" fill="rgba({{ pdf_palette_css.primary_rgb|default:'15, 122, 53' }},0.16)" stroke="none"></path>
 	                                        {% endif %}
 	                                        <path d="{{ radar_success_spark.path_d }}" fill="none" stroke="rgba(226,232,240,0.28)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
 	                                      </svg>
@@ -1188,9 +1194,9 @@
 		        {% endif %}
 
 		        <div class="foot">
-	          <div class="brandline">
-	            <img src="{{ brand_mark_src }}" alt="2J" />
-	            <div class="fine">PDF Club · Informe final de temporada</div>
+          <div class="brandline">
+	            <img src="{{ crest_src }}" alt="Escudo {{ team_display_name }}" />
+	            <div class="fine">{{ team_display_name }} · Informe final de temporada</div>
 	          </div>
 	          <div class="fine">{{ player.name }}</div>
 	        </div>
@@ -1200,12 +1206,11 @@
 	    <section class="sheet">
 	      <div class="brand">
 	        <div class="brand-logo">
-	          <img src="{{ brand_mark_src }}" alt="2J" />
-	          <img class="crest" src="{{ crest_src }}" alt="Escudo" />
+	          <img class="crest" src="{{ crest_src }}" alt="Escudo {{ team_display_name }}" />
 	        </div>
 	        <div class="brand-copy">
 	          <h1>Disponibilidad · {{ player.name }}</h1>
-	          <p>{{ primary_team.display_name }} · {{ season_label }}</p>
+	          <p>{{ team_display_name }} · {{ season_label }}</p>
 	        </div>
 	        <div class="brand-meta">
 	          <div>Periodo:</div>
@@ -1305,8 +1310,8 @@
 
 	        <div class="foot">
 	          <div class="brandline">
-	            <img src="{{ brand_mark_src }}" alt="2J" />
-	            <div class="fine">Disponibilidad · Lesiones, entrenamientos y disciplina</div>
+	            <img src="{{ crest_src }}" alt="Escudo {{ team_display_name }}" />
+	            <div class="fine">{{ team_display_name }} · Disponibilidad</div>
 	          </div>
 	          <div class="fine">{{ player.name }}</div>
 	        </div>
@@ -1317,12 +1322,11 @@
           <section class="sheet">
             <div class="brand">
               <div class="brand-logo">
-                <img src="{{ brand_mark_src }}" alt="2J" />
-                <img class="crest" src="{{ crest_src }}" alt="Escudo" />
+                <img class="crest" src="{{ crest_src }}" alt="Escudo {{ team_display_name }}" />
               </div>
               <div class="brand-copy">
                 <h1>Partidos · {{ player.name }}</h1>
-                <p>{{ primary_team.display_name }} · {{ season_label }}</p>
+                <p>{{ team_display_name }} · {{ season_label }}</p>
               </div>
               <div class="brand-meta">
                 <div>Goles: <strong>{{ season_overview.goals|default:0 }}</strong></div>
@@ -1358,18 +1362,18 @@
                             <line x1="{{ matchday_minutes_line.ml }}" y1="{{ matchday_minutes_line.h|add:'-42' }}" x2="{{ matchday_minutes_line.w|add:'-18' }}" y2="{{ matchday_minutes_line.h|add:'-42' }}" stroke="rgba(148,163,184,0.55)" stroke-width="1.2"></line>
                             {% if matchday_minutes_line.chart_type == 'area' %}
                               {% if matchday_minutes_line.area_d %}
-                                <path d="{{ matchday_minutes_line.area_d }}" fill="rgba(15, 122, 53, 0.18)" stroke="none"></path>
+                                <path d="{{ matchday_minutes_line.area_d }}" fill="rgba({{ pdf_palette_css.primary_rgb|default:'15, 122, 53' }},0.18)" stroke="none"></path>
                               {% endif %}
                               {% if matchday_minutes_line.area2_d %}
-                                <path d="{{ matchday_minutes_line.area2_d }}" fill="rgba(255, 181, 0, 0.14)" stroke="none"></path>
+                                <path d="{{ matchday_minutes_line.area2_d }}" fill="rgba({{ pdf_palette_css.secondary_rgb|default:'244, 180, 0' }},0.14)" stroke="none"></path>
                               {% endif %}
                             {% endif %}
-                            <path d="{{ matchday_minutes_line.path_d }}" fill="none" style="fill:none;" stroke="rgba(15, 122, 53, 0.92)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+                            <path d="{{ matchday_minutes_line.path_d }}" fill="none" style="fill:none;" stroke="{{ pdf_palette.primary|default:'#0f7a35' }}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
                             {% if matchday_minutes_line.path2_d %}
-                              <path d="{{ matchday_minutes_line.path2_d }}" fill="none" style="fill:none;" stroke="rgba(255, 181, 0, 0.92)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+                              <path d="{{ matchday_minutes_line.path2_d }}" fill="none" style="fill:none;" stroke="{{ pdf_palette.secondary|default:'#f4b400' }}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
                             {% endif %}
 		                            {% for p in matchday_minutes_line.points %}
-		                              <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.6" fill="rgba(15, 122, 53, 0.92)" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
+		                              <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.6" fill="{{ pdf_palette.primary|default:'#0f7a35' }}" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
 		                              {% if matchday_minutes_line.show_values == 'all' or matchday_minutes_line.show_values == 'last' %}
 		                                {% if matchday_minutes_line.show_values == 'all' or forloop.last %}
 		                                  {% if p.value and p.value|floatformat:0 != '0' %}
@@ -1385,7 +1389,7 @@
 		                            {% endfor %}
                             {% if matchday_minutes_line.points2 %}
                               {% for p in matchday_minutes_line.points2 %}
-                                <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.4" fill="rgba(255, 181, 0, 0.92)" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
+                                <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.4" fill="{{ pdf_palette.secondary|default:'#f4b400' }}" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
                               {% endfor %}
                             {% endif %}
                           </svg>
@@ -1451,15 +1455,15 @@
                             <line x1="{{ matchday_ga_line.ml }}" y1="{{ matchday_ga_line.h|add:'-42' }}" x2="{{ matchday_ga_line.w|add:'-18' }}" y2="{{ matchday_ga_line.h|add:'-42' }}" stroke="rgba(148,163,184,0.55)" stroke-width="1.2"></line>
                             {% if matchday_ga_line.chart_type == 'area' %}
                               {% if matchday_ga_line.area_a_d %}
-                                <path d="{{ matchday_ga_line.area_a_d }}" fill="rgba(15, 122, 53, 0.18)" stroke="none"></path>
+                                <path d="{{ matchday_ga_line.area_a_d }}" fill="rgba({{ pdf_palette_css.primary_rgb|default:'15, 122, 53' }},0.18)" stroke="none"></path>
                               {% endif %}
                               {% if matchday_ga_line.area_b_d %}
-                                <path d="{{ matchday_ga_line.area_b_d }}" fill="rgba(255, 181, 0, 0.14)" stroke="none"></path>
+                                <path d="{{ matchday_ga_line.area_b_d }}" fill="rgba({{ pdf_palette_css.secondary_rgb|default:'244, 180, 0' }},0.14)" stroke="none"></path>
                               {% endif %}
                             {% endif %}
-                            <path d="{{ matchday_ga_line.path_a_d }}" fill="none" style="fill:none;" stroke="rgba(15, 122, 53, 0.92)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+                            <path d="{{ matchday_ga_line.path_a_d }}" fill="none" style="fill:none;" stroke="{{ pdf_palette.primary|default:'#0f7a35' }}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
                             {% if matchday_ga_line.path_b_d %}
-                              <path d="{{ matchday_ga_line.path_b_d }}" fill="none" style="fill:none;" stroke="rgba(255, 181, 0, 0.92)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+                              <path d="{{ matchday_ga_line.path_b_d }}" fill="none" style="fill:none;" stroke="{{ pdf_palette.secondary|default:'#f4b400' }}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
                             {% endif %}
 		                            {% for p in matchday_ga_line.x_points %}
 		                              {% if p.show_label %}
@@ -1469,7 +1473,7 @@
 		                              {% endif %}
 		                            {% endfor %}
                             {% for p in matchday_ga_line.a_points %}
-                              <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.4" fill="rgba(15, 122, 53, 0.92)" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
+                              <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.4" fill="{{ pdf_palette.primary|default:'#0f7a35' }}" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
                               {% if matchday_ga_line.show_values == 'all' or matchday_ga_line.show_values == 'last' %}
                                 {% if matchday_ga_line.show_values == 'all' or forloop.last %}
                                   {% if p.value and p.value|floatformat:0 != '0' %}
@@ -1479,7 +1483,7 @@
                               {% endif %}
                             {% endfor %}
                             {% for p in matchday_ga_line.b_points %}
-                              <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.4" fill="rgba(255, 181, 0, 0.92)" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
+                              <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.4" fill="{{ pdf_palette.secondary|default:'#f4b400' }}" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
                               {% if matchday_ga_line.show_values == 'all' or matchday_ga_line.show_values == 'last' %}
                                 {% if matchday_ga_line.show_values == 'all' or forloop.last %}
                                   {% if p.value and p.value|floatformat:0 != '0' %}
@@ -1540,8 +1544,8 @@
 
               <div class="foot">
                 <div class="brandline">
-                  <img src="{{ brand_mark_src }}" alt="2J" />
-                  <div class="fine">Generado desde 2J · {{ season_label }}</div>
+                  <img src="{{ crest_src }}" alt="Escudo {{ team_display_name }}" />
+                  <div class="fine">{{ team_display_name }} · {{ season_label }}</div>
                 </div>
                 <div class="fine">Uso interno / entrega jugador</div>
               </div>
@@ -1553,12 +1557,11 @@
         <section class="sheet">
           <div class="brand">
             <div class="brand-logo">
-              <img src="{{ brand_mark_src }}" alt="2J" />
-              <img class="crest" src="{{ crest_src }}" alt="Escudo" />
+              <img class="crest" src="{{ crest_src }}" alt="Escudo {{ team_display_name }}" />
             </div>
             <div class="brand-copy">
               <h1>Detalle por partido · {{ player.name }}</h1>
-              <p>{{ primary_team.display_name }} · {{ season_label }}</p>
+              <p>{{ team_display_name }} · {{ season_label }}</p>
             </div>
             <div class="brand-meta">
               <div>Goles: <strong>{{ season_overview.goals|default:0 }}</strong></div>
@@ -1606,8 +1609,8 @@
 
             <div class="foot">
               <div class="brandline">
-                <img src="{{ brand_mark_src }}" alt="2J" />
-                <div class="fine">Generado desde 2J · {{ season_label }}</div>
+                <img src="{{ crest_src }}" alt="Escudo {{ team_display_name }}" />
+                <div class="fine">{{ team_display_name }} · {{ season_label }}</div>
               </div>
               <div class="fine">Uso interno / entrega jugador</div>
             </div>
@@ -1618,12 +1621,11 @@
     <section class="sheet">
       <div class="brand">
         <div class="brand-logo">
-          <img src="{{ brand_mark_src }}" alt="2J" />
-          <img class="crest" src="{{ crest_src }}" alt="Escudo" />
+          <img class="crest" src="{{ crest_src }}" alt="Escudo {{ team_display_name }}" />
         </div>
         <div class="brand-copy">
           <h1>Valoración cuerpo técnico · {{ player.name }}</h1>
-          <p>{{ primary_team.display_name }} · {{ season_label }}</p>
+          <p>{{ team_display_name }} · {{ season_label }}</p>
         </div>
         <div class="brand-meta">
           <div>Versión: <strong>{% if staff_report and staff_report.is_final %}Final{% else %}Borrador{% endif %}</strong></div>
@@ -1702,8 +1704,8 @@
 
         <div class="foot">
           <div class="brandline">
-            <img src="{{ brand_mark_src }}" alt="2J" />
-            <div class="fine">Valoración staff · Documento interno</div>
+            <img src="{{ crest_src }}" alt="Escudo {{ team_display_name }}" />
+            <div class="fine">{{ team_display_name }} · Valoración staff</div>
           </div>
           <div class="fine">Firma: ____________________</div>
         </div>
