@@ -1,4 +1,4 @@
-{% load static football_extras %}
+{% load static football_extras l10n %}
 <!DOCTYPE html>
 <html lang="es">
   <head>
@@ -749,7 +749,7 @@
                 <input type="number" name="height_cm" min="100" max="240" value="{{ player.height_cm|default:'' }}" />
               </label>
               <label>Peso base (kg)
-                <input type="number" step="0.01" min="0" name="weight_kg_base" value="{{ player.weight_kg|default:'' }}" />
+                <input type="number" step="0.01" min="0" name="weight_kg_base" value="{{ player.weight_kg|unlocalize|default:'' }}" />
               </label>
               <label>Foto del jugador
                 <input type="file" name="player_photo" accept="image/*" />

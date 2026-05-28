@@ -4960,6 +4960,40 @@ class PlayerDetailStatsFallbackTests(TestCase):
         self.assertContains(response, reverse('team-crest-svg', args=[team.id]))
         self.assertNotContains(response, 'football/images/cdb-logo.png')
 
+    def test_player_detail_profile_weight_persists_and_renders_number_value(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse('player-detail', args=[self.player.id]),
+            {
+                'form_action': 'profile',
+                'full_name': 'Jugador Detail',
+                'nickname': '',
+                'birth_date': '',
+                'height_cm': '181',
+                'weight_kg_base': '76,50',
+                'number': '',
+                'position': '',
+                'injury': '',
+                'injury_type': '',
+                'injury_zone': '',
+                'injury_side': '',
+                'injury_date': '',
+                'injury_return_date': '',
+                'injury_notes': '',
+                'manual_sanction_active': '0',
+                'manual_sanction_reason': '',
+                'manual_sanction_until': '',
+                'injury_record_mode': 'update',
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.player.refresh_from_db()
+        self.assertEqual(str(self.player.weight_kg), '76.50')
+        self.assertContains(response, 'name="weight_kg_base" value="76.50"', html=False)
+
     @patch('football.views.compute_player_dashboard')
     @override_settings(MEDIA_URL='/media-test/')
     def test_player_pdf_html_uses_player_team_branding(self, mocked_dashboard):
