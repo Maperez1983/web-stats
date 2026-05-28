@@ -38,7 +38,7 @@ from football.healthchecks import run_system_healthcheck
 from football.manual_stats import get_manual_player_base_overrides, save_manual_player_base_overrides, season_display_name
 from football.query_helpers import _team_match_queryset, get_active_injury_player_ids, get_current_convocation_record, is_injury_record_active, is_manual_sanction_active
 from football.injuries import categorize_time_loss, estimate_return_date, time_loss_days
-from football import next_match_services, session_pdf, team_media_services
+from football import next_match_services, session_pdf, team_media_services, workspace_context
 from football import dashboard_pending_services
 from football.session_plan_fields import parse_session_plan_fields, serialize_session_plan_fields
 from football.models import AppUserRole
@@ -1878,8 +1878,8 @@ class WorkspaceOwnerPermissionTests(TestCase):
             owner_user=user,
             is_active=True,
         )
-        self.assertTrue(football_views._can_manage_workspace(user, workspace))
-        self.assertTrue(football_views._can_view_workspace(user, workspace))
+        self.assertTrue(workspace_context.can_manage_workspace(user, workspace))
+        self.assertTrue(workspace_context.can_view_workspace(user, workspace))
 
 
 class ClubSeasonWizardQuestionnaireTests(TestCase):
