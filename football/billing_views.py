@@ -25,16 +25,20 @@ except Exception:  # pragma: no cover
     stripe = None
 
 
+def _stripe_env(name: str) -> str:
+    return str(os.getenv(name, '') or '').strip()
+
+
 def _stripe_secret_key():
-    return str(os.getenv('STRIPE_SECRET_KEY', '') or '').strip()
+    return _stripe_env('STRIPE_SECRET_KEY')
 
 
 def _stripe_webhook_secret():
-    return str(os.getenv('STRIPE_WEBHOOK_SECRET', '') or '').strip()
+    return _stripe_env('STRIPE_WEBHOOK_SECRET')
 
 
 def _stripe_public_key():
-    return str(os.getenv('STRIPE_PUBLISHABLE_KEY', '') or '').strip()
+    return _stripe_env('STRIPE_PUBLISHABLE_KEY')
 
 
 def _stripe_price_map():
@@ -43,19 +47,19 @@ def _stripe_price_map():
     """
     return {
         # Bundle legacy: todo incluido.
-        ('pro', 'month'): str(os.getenv('STRIPE_PRICE_PRO_MONTHLY', '') or '').strip(),
-        ('pro', 'year'): str(os.getenv('STRIPE_PRICE_PRO_YEARLY', '') or '').strip(),
+        ('pro', 'month'): _stripe_env('STRIPE_PRICE_PRO_MONTHLY'),
+        ('pro', 'year'): _stripe_env('STRIPE_PRICE_PRO_YEARLY'),
         # Modular (Core + add-ons).
-        ('core', 'month'): str(os.getenv('STRIPE_PRICE_CORE_MONTHLY', '') or '').strip(),
-        ('core', 'year'): str(os.getenv('STRIPE_PRICE_CORE_YEARLY', '') or '').strip(),
-        ('live', 'month'): str(os.getenv('STRIPE_PRICE_LIVE_MONTHLY', '') or '').strip(),
-        ('live', 'year'): str(os.getenv('STRIPE_PRICE_LIVE_YEARLY', '') or '').strip(),
-        ('studio', 'month'): str(os.getenv('STRIPE_PRICE_STUDIO_MONTHLY', '') or '').strip(),
-        ('studio', 'year'): str(os.getenv('STRIPE_PRICE_STUDIO_YEARLY', '') or '').strip(),
-        ('analysis', 'month'): str(os.getenv('STRIPE_PRICE_ANALYSIS_MONTHLY', '') or '').strip(),
-        ('analysis', 'year'): str(os.getenv('STRIPE_PRICE_ANALYSIS_YEARLY', '') or '').strip(),
-        ('tactics', 'month'): str(os.getenv('STRIPE_PRICE_TACTICS_MONTHLY', '') or '').strip(),
-        ('tactics', 'year'): str(os.getenv('STRIPE_PRICE_TACTICS_YEARLY', '') or '').strip(),
+        ('core', 'month'): _stripe_env('STRIPE_PRICE_CORE_MONTHLY'),
+        ('core', 'year'): _stripe_env('STRIPE_PRICE_CORE_YEARLY'),
+        ('live', 'month'): _stripe_env('STRIPE_PRICE_LIVE_MONTHLY'),
+        ('live', 'year'): _stripe_env('STRIPE_PRICE_LIVE_YEARLY'),
+        ('studio', 'month'): _stripe_env('STRIPE_PRICE_STUDIO_MONTHLY'),
+        ('studio', 'year'): _stripe_env('STRIPE_PRICE_STUDIO_YEARLY'),
+        ('analysis', 'month'): _stripe_env('STRIPE_PRICE_ANALYSIS_MONTHLY'),
+        ('analysis', 'year'): _stripe_env('STRIPE_PRICE_ANALYSIS_YEARLY'),
+        ('tactics', 'month'): _stripe_env('STRIPE_PRICE_TACTICS_MONTHLY'),
+        ('tactics', 'year'): _stripe_env('STRIPE_PRICE_TACTICS_YEARLY'),
     }
 
 
