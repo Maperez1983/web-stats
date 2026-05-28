@@ -70,8 +70,7 @@ except Exception:  # pragma: no cover
     PdfReader = None
 
 
-def apply_analysis_to_task(*args, **kwargs):
-    return session_task_pdf_parser._apply_analysis_to_task(*args, **kwargs)
+apply_analysis_to_task = session_task_pdf_parser._apply_analysis_to_task
 
 
 def assistant_document_suffix(value) -> str:
@@ -998,8 +997,7 @@ def maybe_recreate_board_from_preview_bytes(task, preview_bytes):
         return False
 
 
-def extract_tasks_from_pdf_text(*args, **kwargs):
-    return session_task_pdf_parser._extract_tasks_from_pdf_text(*args, **kwargs)
+extract_tasks_from_pdf_text = session_task_pdf_parser._extract_tasks_from_pdf_text
 
 
 def get_or_create_inbox_microcycle(*args, **kwargs):
@@ -1073,8 +1071,7 @@ def get_or_create_week_microcycle(*args, **kwargs):
         return None
 
 
-def learn_task_blueprint_from_pdf_import(*args, **kwargs):
-    return task_library_services.learn_task_blueprint_from_pdf_import(*args, **kwargs)
+learn_task_blueprint_from_pdf_import = task_library_services.learn_task_blueprint_from_pdf_import
 
 
 def next_session_task_order(*args, **kwargs):
@@ -1128,8 +1125,7 @@ def parse_pdf_session_header_fields(*args, **kwargs):
     return out
 
 
-def suggest_blocks_for_session_pdf_segments(*args, **kwargs):
-    return session_task_pdf_parser._suggest_blocks_for_session_pdf_segments(*args, **kwargs)
+suggest_blocks_for_session_pdf_segments = session_task_pdf_parser._suggest_blocks_for_session_pdf_segments
 
 
 def suggest_session_plan_fields_from_pdf_text(*args, **kwargs):
