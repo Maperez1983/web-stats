@@ -3939,39 +3939,13 @@ def _build_active_workspace_badge(request):
 
 
 def _should_use_team_cover_image(request, workspace, team) -> bool:
-    """
-    Decide si debe usarse `Team.cover_image` como "hero" en la UI.
-
-    Problema real: en setups multi-categoría es habitual clonar una categoría desde Senior y
-    quedarse con la misma portada, lo que hace que "da igual el equipo que elijas" se vea la foto
-    del Senior. Para evitarlo, en multi-equipo solo usamos la portada si fue subida explícitamente
-    (indicada por `cover_updated_at`).
-    """
-    if not team or not getattr(team, 'cover_image', None):
-        return False
-    # Producto comercial (multicliente): si NO hay workspace activo, nunca usamos la portada del equipo
-    # porque puede caer al Team.is_primary global (p.ej. Benagalbón) y mezclar identidades entre clientes.
-    # Si se desea comportamiento legacy monoclub, se debe activar explícitamente ALLOW_SINGLE_CLUB_FALLBACK.
-    if not workspace:
-        try:
-            if request and getattr(request, 'user', None) and request.user.is_authenticated and _can_access_platform(request.user):
-                return True
-        except Exception:
-            pass
-        return bool(_single_club_fallback_enabled())
-    try:
-        if getattr(team, 'cover_updated_at', None):
-            return True
-    except Exception:
-        pass
-    # Backcompat: si no es un workspace club (p.ej. Task Studio), permitimos usar la portada igualmente.
-    if getattr(workspace, 'kind', None) != Workspace.KIND_CLUB:
-        return True
-    try:
-        other_links_exist = WorkspaceTeam.objects.filter(workspace=workspace).exclude(team=team).exists()
-    except Exception:
-        other_links_exist = False
-    return not bool(other_links_exist)
+    return team_media_services.should_use_team_cover_image(
+        request,
+        workspace,
+        team,
+        can_access_platform_func=_can_access_platform,
+        single_club_fallback_func=_single_club_fallback_enabled,
+    )
 
 
 def _unique_workspace_slug(base_text, *, exclude_id=None):

@@ -280,6 +280,42 @@ def _team_initials(label):
     return team_initials(label)
 
 
+def should_use_team_cover_image(request, workspace, team, *, can_access_platform_func=None, single_club_fallback_func=None) -> bool:
+    """
+    Decide if Team.cover_image is safe to use as a UI hero image.
+
+    In multi-team club workspaces, legacy cloned teams may share the senior cover image.
+    We only trust that cover when it has been explicitly updated for the selected team.
+    """
+    if not team or not getattr(team, 'cover_image', None):
+        return False
+    if not workspace:
+        try:
+            user = getattr(request, 'user', None) if request else None
+            if user and getattr(user, 'is_authenticated', False) and callable(can_access_platform_func) and can_access_platform_func(user):
+                return True
+        except Exception:
+            pass
+        try:
+            return bool(single_club_fallback_func()) if callable(single_club_fallback_func) else False
+        except Exception:
+            return False
+    try:
+        if getattr(team, 'cover_updated_at', None):
+            return True
+    except Exception:
+        pass
+    try:
+        from .models import Workspace, WorkspaceTeam
+
+        if getattr(workspace, 'kind', None) != Workspace.KIND_CLUB:
+            return True
+        other_links_exist = WorkspaceTeam.objects.filter(workspace=workspace).exclude(team=team).exists()
+    except Exception:
+        other_links_exist = False
+    return not bool(other_links_exist)
+
+
 def team_color_seed(team):
     base = str(getattr(team, 'slug', '') or getattr(team, 'name', '') or '').strip().lower()
     if not base:

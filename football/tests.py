@@ -9083,10 +9083,10 @@ class TeamCoverGuardrailTests(TestCase):
                 WorkspaceTeam.objects.create(workspace=workspace, team=team1, is_default=True)
                 WorkspaceTeam.objects.create(workspace=workspace, team=team2, is_default=False)
 
-                self.assertFalse(football_views._should_use_team_cover_image(None, workspace, team1))
+                self.assertFalse(team_media_services.should_use_team_cover_image(None, workspace, team1))
                 team1.cover_updated_at = timezone.now()
                 team1.save(update_fields=['cover_updated_at'])
-                self.assertTrue(football_views._should_use_team_cover_image(None, workspace, team1))
+                self.assertTrue(team_media_services.should_use_team_cover_image(None, workspace, team1))
         finally:
             shutil.rmtree(media_root, ignore_errors=True)
 
@@ -9104,7 +9104,7 @@ class TeamCoverGuardrailTests(TestCase):
                 team1.save(update_fields=['cover_image'])
                 workspace = Workspace.objects.create(name='Club único', slug='club-unico-cover-guard', kind=Workspace.KIND_CLUB, primary_team=team1)
                 WorkspaceTeam.objects.create(workspace=workspace, team=team1, is_default=True)
-                self.assertTrue(football_views._should_use_team_cover_image(None, workspace, team1))
+                self.assertTrue(team_media_services.should_use_team_cover_image(None, workspace, team1))
         finally:
             shutil.rmtree(media_root, ignore_errors=True)
 
