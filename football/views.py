@@ -83,6 +83,7 @@ from . import next_match_services
 from . import player_documents
 from . import player_media
 from . import pdf_services
+from . import assistant_blueprint_services
 from . import standings_services
 from . import stats_services
 from . import task_library_services
@@ -58286,100 +58287,7 @@ def tactical_playbook_versions_api(request):
 
 
 def _assistant_goal_specs():
-    # Keywords mínimos para clasificar bullets a objetivos del Asistente.
-    # (No intentamos ser perfectos; sirve para extraer ideas útiles de documentos subidos.)
-    return {
-        'warmup': {
-            'label': 'Calentamiento',
-            'keywords': ['calent', 'activac', 'movil', 'prevenci', 'carrera', 'técnica de carrera', 'injury', 'warm up'],
-            'category': TaskBlueprint.CATEGORY_PHYSICAL,
-            'block': SessionTask.BLOCK_ACTIVATION,
-        },
-        'build_up': {
-            'label': 'Salida de balón',
-            'keywords': ['salida', 'portero', 'central', 'centrales', 'lateral', 'pivote', 'primer pase', 'reinicio', 'build up'],
-            'category': TaskBlueprint.CATEGORY_BUILD,
-            'block': SessionTask.BLOCK_MAIN_1,
-        },
-        'progression': {
-            'label': 'Progresión',
-            'keywords': [
-                'progres', 'superar', 'línea', 'linea', 'romper', 'ruptura', 'line-breaking', 'romper líneas', 'romper lineas',
-                'cambio de orientación', 'orientación', 'tercer hombre', 'entre líneas', 'between lines', 'switch',
-                'carril interior', 'half space', 'intervalo', 'intervalos', 'perfil', 'perfilado', 'escalon',
-                'fijar', 'soltar', 'apoyo', 'ángulo', 'angulo', 'apoyos',
-            ],
-            'category': TaskBlueprint.CATEGORY_BUILD,
-            'block': SessionTask.BLOCK_MAIN_1,
-        },
-        'positional_play': {
-            'label': 'Juego de posición',
-            'keywords': [
-                'juego de posición', 'juego de posicion', 'posicional', 'positional play', 'rondo', 'conservación', 'conservacion',
-                'amplitud', 'profundidad', 'ocupación', 'ocupacion', 'altura', 'anchura', 'pasillo', 'carril',
-                'tercer hombre', 'fijar', 'soltar', 'escalon', 'perfiles', 'perfilado', 'línea de pase', 'linea de pase',
-            ],
-            'category': TaskBlueprint.CATEGORY_BUILD,
-            'block': SessionTask.BLOCK_MAIN_1,
-        },
-        'final_third': {
-            'label': 'Último tercio / finalización',
-            'keywords': ['finaliz', 'remate', 'tiro', 'disparo', 'centro', 'pase atrás', 'cutback', 'área', 'area', 'último tercio', 'final third'],
-            'category': TaskBlueprint.CATEGORY_FINISH,
-            'block': SessionTask.BLOCK_MAIN_2,
-        },
-        'pressing': {
-            'label': 'Presión organizada',
-            'keywords': ['presión', 'presion', 'press', 'trigger', 'triggers', 'orientar', 'cobertura', 'salt', 'sombra'],
-            'category': TaskBlueprint.CATEGORY_PRESS,
-            'block': SessionTask.BLOCK_MAIN_1,
-        },
-        'counterpress': {
-            'label': 'Presión tras pérdida',
-            'keywords': ['tras pérdida', 'tras perdida', 'pérdida', 'perdida', 'contra presión', 'contrapresión', '5s', '6s', 'counterpress'],
-            'category': TaskBlueprint.CATEGORY_PRESS,
-            'block': SessionTask.BLOCK_MAIN_1,
-        },
-        'defending': {
-            'label': 'Defensa en bloque',
-            'keywords': [
-                'bloque', 'replieg', 'bascul', 'tempor', 'cerrar', 'líneas', 'lineas', 'coberturas', 'rest-defense', 'defend',
-                'bloque alto', 'bloque medio', 'bloque bajo', 'compact', 'compacto', 'compactación', 'compactacion', 'distancias',
-            ],
-            'category': TaskBlueprint.CATEGORY_PRESS,
-            'block': SessionTask.BLOCK_MAIN_1,
-        },
-        'transition_atd': {
-            'label': 'Transición A→D',
-            'keywords': ['transición ataque', 'transicion ataque', 'pérdida', 'perdida', 'reacción', 'reaccion', 'replegar', 'delay'],
-            'category': TaskBlueprint.CATEGORY_TRANSITION,
-            'block': SessionTask.BLOCK_MAIN_2,
-        },
-        'transition_dta': {
-            'label': 'Transición D→A',
-            'keywords': ['transición defensa', 'transicion defensa', 'recuper', 'contraataque', 'atacar espacio', 'first pass', 'counterattack'],
-            'category': TaskBlueprint.CATEGORY_TRANSITION,
-            'block': SessionTask.BLOCK_MAIN_2,
-        },
-        'duels': {
-            'label': 'Duelos',
-            'keywords': ['duelo', '1v1', '2v1', 'regate', 'entrada', 'tackle', 'protección', 'proteccion'],
-            'category': TaskBlueprint.CATEGORY_FINISH,
-            'block': SessionTask.BLOCK_MAIN_2,
-        },
-        'set_pieces': {
-            'label': 'ABP',
-            'keywords': ['abp', 'córner', 'corner', 'falta', 'saque de banda', 'kickoff', 'segundas jugadas', 'balón parado', 'balon parado'],
-            'category': TaskBlueprint.CATEGORY_ABP,
-            'block': SessionTask.BLOCK_SET_PIECES,
-        },
-        'coord': {
-            'label': 'Coordinación / prevención',
-            'keywords': ['coordin', 'prevenci', 'estabilidad', 'fuerza', 'core', 'equilibrio', 'balance', 'agilidad'],
-            'category': TaskBlueprint.CATEGORY_PHYSICAL,
-            'block': SessionTask.BLOCK_CONDITIONING,
-        },
-    }
+    return assistant_blueprint_services.assistant_goal_specs()
 
 
 def _extract_pdf_text_via_pdftotext(pdf_bytes: bytes) -> str:
@@ -58697,62 +58605,15 @@ def _assistant_extract_canvas_state_from_pitch_diagram(image_bytes: bytes):
 
 
 def _assistant_extract_bullets(text: str):
-    lines = []
-    try:
-        raw_lines = str(text or '').splitlines()
-    except Exception:
-        raw_lines = []
-    for raw in raw_lines:
-        s = str(raw or '').strip()
-        if not s:
-            continue
-        s = re.sub(r'\s+', ' ', s).strip()
-        if len(s) < 8 or len(s) > 260:
-            continue
-        if re.match(r'^(\-|\•|\*|\–|\—|▪|■|▸|▶|✅|✔|☑)\s+', s) or re.match(r'^\d+(\.|\))\s+', s):
-            s = re.sub(r'^(\-|\•|\*|\–|\—)\s+', '', s).strip()
-            s = re.sub(r'^(▪|■|▸|▶|✅|✔|☑)\s+', '', s).strip()
-            s = re.sub(r'^\d+(\.|\))\s+', '', s).strip()
-            if s:
-                lines.append(s)
-                continue
-        # Algunas exportaciones no respetan bullets; nos quedamos con frases cortas.
-        if len(s) <= 140 and any(ch in s for ch in ('.', ';', ':')) and not s.isupper():
-            lines.append(s)
-    # Dedup (casefold) manteniendo orden.
-    seen = set()
-    out = []
-    for item in lines:
-        key = item.casefold()
-        if key in seen:
-            continue
-        seen.add(key)
-        out.append(item)
-    return out[:800]
+    return assistant_blueprint_services.extract_assistant_bullets(text)
 
 
 def _assistant_pick_bullets_for_goal(bullets, keywords, limit=7):
-    keys = [str(k or '').casefold() for k in (keywords or []) if str(k or '').strip()]
-    picked = []
-    for item in (bullets or []):
-        low = str(item or '').casefold()
-        if not low:
-            continue
-        if any(k in low for k in keys):
-            picked.append(str(item).strip())
-        if len(picked) >= limit:
-            break
-    # Si hay poco, devolvemos vacío (para no crear blueprints ruido).
-    if len(picked) < 3:
-        return []
-    return picked
+    return assistant_blueprint_services.pick_assistant_bullets_for_goal(bullets, keywords, limit=limit)
 
 
 def _assistant_html_list(items):
-    safe = [html.escape(str(v or '').strip()) for v in (items or []) if str(v or '').strip()]
-    if not safe:
-        return ''
-    return '<ul>' + ''.join(f'<li>{item}</li>' for item in safe[:10]) + '</ul>'
+    return assistant_blueprint_services.assistant_html_list(items)
 
 
 def _assistant_create_blueprints_from_document(team, doc: AssistantKnowledgeDocument):
