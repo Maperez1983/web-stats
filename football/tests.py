@@ -39,6 +39,7 @@ from football.manual_stats import get_manual_player_base_overrides, save_manual_
 from football.query_helpers import _team_match_queryset, get_active_injury_player_ids, get_current_convocation_record, is_injury_record_active, is_manual_sanction_active
 from football.injuries import categorize_time_loss, estimate_return_date, time_loss_days
 from football import session_pdf, team_media_services
+from football.session_plan_fields import parse_session_plan_fields, serialize_session_plan_fields
 from football.models import AppUserRole
 from football.services import find_roster_entry
 from football.staff_briefing import build_weekly_staff_brief
@@ -8551,7 +8552,7 @@ class ClubOnboardingImportTests(TestCase):
 
 class SessionPlanFieldsSerializationTests(TestCase):
     def test_parse_and_serialize_supports_session_extras(self):
-        raw = football_views._serialize_session_plan_fields(
+        raw = serialize_session_plan_fields(
             {
                 'warmup': 'Calentamiento',
                 'activation': 'Activación',
@@ -8563,7 +8564,7 @@ class SessionPlanFieldsSerializationTests(TestCase):
                 'notes': 'Notas generales',
             }
         )
-        parsed = football_views._parse_session_plan_fields(raw)
+        parsed = parse_session_plan_fields(raw)
         self.assertEqual(parsed.get('player_count'), '18')
         self.assertEqual(parsed.get('materials'), 'Conos, petos')
         self.assertEqual(parsed.get('absences'), 'Juan (tobillo)')
