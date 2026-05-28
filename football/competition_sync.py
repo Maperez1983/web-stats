@@ -13,6 +13,10 @@ from .models import Team, Workspace, WorkspaceCompetitionContext, WorkspaceCompe
 from .query_helpers import _normalize_team_lookup_key
 from .team_media_services import sync_team_crest_from_sources
 from .universo_client import fetch_universo_live_classification
+from .universo_competition_services import (
+    serialize_universo_live_classification,
+    universo_payload_matches_category,
+)
 from .universo_snapshot_services import load_universo_snapshot
 
 logger = logging.getLogger(__name__)
@@ -26,8 +30,6 @@ def sync_workspace_competition_context(workspace, primary_team=None):
     _ensure_universo_group_models_from_live = core_views._ensure_universo_group_models_from_live
     _build_universo_competition_catalog = core_views._build_universo_competition_catalog
     _ensure_universo_group_models_from_candidate = core_views._ensure_universo_group_models_from_candidate
-    _universo_payload_matches_category = core_views._universo_payload_matches_category
-    _serialize_universo_live_classification = core_views._serialize_universo_live_classification
     _resolve_standings_for_team = core_views._resolve_standings_for_team
     _build_next_match_from_convocation = core_views._build_next_match_from_convocation
     _find_universo_next_match_for_context = core_views._find_universo_next_match_for_context
@@ -117,7 +119,7 @@ def sync_workspace_competition_context(workspace, primary_team=None):
                 if isinstance(live_classification, dict) and live_classification.get('clasificacion'):
                     # Guardrail: si la categoría no coincide, no aceptamos la clasificación (evita mezclar Senior/Prebenjamín).
                     team_category = str(getattr(primary_team, 'category', '') or '').strip()
-                    if team_category and not _universo_payload_matches_category(live_classification, team_category):
+                    if team_category and not universo_payload_matches_category(live_classification, team_category):
                         live_classification = {}
                     else:
                         # Asegurar que Competition/Season/Group en BD reflejan la competición real del grupo.
@@ -127,7 +129,7 @@ def sync_workspace_competition_context(workspace, primary_team=None):
                             primary_team=primary_team,
                             context=context,
                         )
-                        standings_payload = _serialize_universo_live_classification(live_classification)
+                        standings_payload = serialize_universo_live_classification(live_classification)
             except Exception:
                 logger.exception('No se pudo sincronizar clasificación Universo para workspace %s', getattr(workspace, 'id', None))
                 standings_payload = []

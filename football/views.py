@@ -85,6 +85,7 @@ from . import pdf_services
 from . import stats_services
 from . import task_library_services
 from . import team_media_services
+from . import universo_competition_services
 from . import universo_snapshot_services
 from . import workspace_subscription
 from . import workspace_context
@@ -6706,74 +6707,11 @@ def _fetch_universo_live_results(group_id, round_id=''):
 
 
 def _universo_category_hints(category: str) -> list[str]:
-    """
-    Devuelve tokens (normalizados) para validar que una competición/grupo corresponde
-    a una categoría del club (Prebenjamín, Cadete, Senior, etc).
-    """
-    raw = normalize_label(category or '')
-    if not raw:
-        return []
-    mapping = [
-        ('prebenjamin', 'prebenjam'),
-        ('pre-benjamin', 'prebenjam'),
-        ('benjamin', 'benjam'),
-        ('alevin', 'alevin'),
-        ('infantil', 'infantil'),
-        ('cadete', 'cadete'),
-        ('juvenil', 'juvenil'),
-        ('senior', 'senior'),
-        ('sénior', 'senior'),
-    ]
-    hints = []
-    for needle, token in mapping:
-        if needle in raw and token not in hints:
-            hints.append(token)
-    # Fallback: primer término útil
-    if not hints:
-        first = raw.split(' ', 1)[0].strip()
-        if first and len(first) >= 4:
-            hints.append(first)
-    return hints
+    return universo_competition_services.universo_category_hints(category)
 
 
 def _universo_payload_matches_category(live_payload: dict, category: str) -> bool:
-    hints = _universo_category_hints(category)
-    if not hints:
-        return True
-    # "Senior" rara vez aparece en el nombre de la competición/grupo en Universo/RFAF
-    # (p.ej. "1ª Andaluza Jaén"). Si aplicamos el guardrail para Senior podemos ocultar
-    # la clasificación correcta y parecer que "no se actualiza".
-    hints = [hint for hint in hints if hint != 'senior']
-    if not hints:
-        return True
-    if not isinstance(live_payload, dict):
-        return False
-    # Universo no siempre devuelve la categoría explícita en `competicion`/`grupo` (sobre todo en base).
-    # Metemos más campos para aumentar recall sin depender de un único nombre.
-    candidates = []
-    for key in (
-        'competicion',
-        'competition',
-        'competition_name',
-        'NombreCategoria',
-        'categoria',
-        'category',
-        'tipo_competicion',
-        'tipoCompeticion',
-        'grupo',
-        'group',
-        'group_name',
-    ):
-        value = live_payload.get(key)
-        if value:
-            candidates.append(str(value))
-    combined = normalize_label(' '.join(candidates))
-    # Universo (especialmente en fútbol base) a veces no incluye en la respuesta
-    # ningún campo "competición/grupo/categoría" fiable para validar. En ese caso,
-    # no podemos aplicar el guardrail sin riesgo de ocultar la clasificación correcta.
-    if not combined:
-        return True
-    return any(hint in combined for hint in hints)
+    return universo_competition_services.universo_payload_matches_category(live_payload, category)
 
 
 def _universo_extract_ids_from_html(html: str) -> dict:
@@ -8140,70 +8078,11 @@ def load_universo_snapshot():
 
 
 def _safe_int(value, default=0):
-    try:
-        return int(str(value).strip())
-    except Exception:
-        return default
+    return universo_competition_services.safe_int(value, default=default)
 
 
 def _serialize_universo_live_classification(payload):
-    """
-    Normaliza el JSON de `competition/get-classification` (Universo RFAF) al formato
-    de standings que usa el dashboard.
-
-    Universo puede variar los nombres de las claves; soportamos varias.
-    """
-    if not isinstance(payload, dict):
-        return []
-    rows = payload.get('clasificacion') or payload.get('rows')
-    if not isinstance(rows, list):
-        return []
-    crest_lookup = _build_team_crest_lookup()
-    normalized = []
-    for row in rows:
-        if not isinstance(row, dict):
-            continue
-        team = str(
-            row.get('nombre')
-            or row.get('Nombre_equipo')
-            or row.get('equipo')
-            or row.get('team')
-            or ''
-        ).strip()
-        if not team:
-            continue
-        team_code = str(row.get('codequipo') or row.get('CodEquipo') or row.get('team_code') or '').strip()
-        crest_url = str(
-            row.get('url_img')
-            or row.get('url_escudo')
-            or row.get('escudo')
-            or row.get('crest_url')
-            or ''
-        ).strip()
-        crest_url = _sanitize_universo_external_image(_absolute_universo_url(crest_url)) if crest_url else ''
-        gf = _safe_int(row.get('gf') or row.get('goles_favor') or row.get('goals_for') or row.get('favor') or row.get('golesFavor'))
-        ga = _safe_int(row.get('gc') or row.get('goles_contra') or row.get('goals_against') or row.get('contra') or row.get('golesContra'))
-        gd = row.get('dg') or row.get('dif') or row.get('goal_difference') or row.get('diferencia') or row.get('diferencia_goles')
-        if gd in (None, ''):
-            gd = gf - ga
-        normalized.append(
-            {
-                'rank': _safe_int(row.get('posicion') or row.get('pos') or row.get('position') or row.get('rank'), default=0),
-                'team': team.strip().upper(),
-                'full_name': team,
-                'crest_url': crest_url or crest_lookup.get(_normalize_team_lookup_key(team)) or '',
-                'team_code': team_code,
-                'played': _safe_int(row.get('pj') or row.get('jugados') or row.get('played')),
-                'wins': _safe_int(row.get('pg') or row.get('ganados') or row.get('wins')),
-                'draws': _safe_int(row.get('pe') or row.get('empatados') or row.get('draws')),
-                'losses': _safe_int(row.get('pp') or row.get('perdidos') or row.get('losses')),
-                'goals_for': gf,
-                'goals_against': ga,
-                'goal_difference': _safe_int(gd),
-                'points': _safe_int(row.get('puntos') or row.get('pts') or row.get('points')),
-            }
-        )
-    return sorted(normalized, key=lambda x: (x['rank'] <= 0, x['rank'], -x['points'], x['full_name']))
+    return universo_competition_services.serialize_universo_live_classification(payload)
 
 
 def _serialize_universo_standings(snapshot):
