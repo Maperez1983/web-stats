@@ -5947,6 +5947,86 @@ def _team_color_seed(team):
     return total
 
 
+def _fold_team_identity(value):
+    text = str(value or '').strip().lower()
+    if not text:
+        return ''
+    normalized = unicodedata.normalize('NFKD', text)
+    return ''.join(ch for ch in normalized if not unicodedata.combining(ch))
+
+
+def _is_malaga_team(team):
+    if not team:
+        return False
+    labels = (
+        getattr(team, 'slug', ''),
+        getattr(team, 'name', ''),
+        getattr(team, 'display_name', ''),
+        getattr(team, 'short_name', ''),
+    )
+    return any('malaga' in _fold_team_identity(label) for label in labels)
+
+
+def _hsl_to_hex(hue, saturation=0.68, lightness=0.38):
+    try:
+        h = (float(hue or 0) % 360.0) / 60.0
+        s = max(0.0, min(float(saturation), 1.0))
+        l = max(0.0, min(float(lightness), 1.0))
+        c = (1.0 - abs((2.0 * l) - 1.0)) * s
+        x = c * (1.0 - abs((h % 2.0) - 1.0))
+        m = l - (c / 2.0)
+        r1, g1, b1 = (0.0, 0.0, 0.0)
+        if 0 <= h < 1:
+            r1, g1, b1 = c, x, 0
+        elif 1 <= h < 2:
+            r1, g1, b1 = x, c, 0
+        elif 2 <= h < 3:
+            r1, g1, b1 = 0, c, x
+        elif 3 <= h < 4:
+            r1, g1, b1 = 0, x, c
+        elif 4 <= h < 5:
+            r1, g1, b1 = x, 0, c
+        else:
+            r1, g1, b1 = c, 0, x
+        return '#%02x%02x%02x' % (
+            int(round((r1 + m) * 255)),
+            int(round((g1 + m) * 255)),
+            int(round((b1 + m) * 255)),
+        )
+    except Exception:
+        return '#102734'
+
+
+def _team_fallback_crest_data_uri(team, fallback_label=''):
+    label = (
+        str(getattr(team, 'display_name', '') or '').strip()
+        or str(getattr(team, 'name', '') or '').strip()
+        or str(fallback_label or '').strip()
+        or 'Equipo'
+    )
+    initials = _team_initials(label)
+    if _is_malaga_team(team):
+        primary = '#6bc4e8'
+        accent = '#004b93'
+    else:
+        hue = _team_color_seed(team)
+        primary = _hsl_to_hex(hue, 0.68, 0.42)
+        accent = _hsl_to_hex((hue + 35) % 360, 0.72, 0.32)
+    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="{primary}"/>
+      <stop offset="100%" stop-color="{accent}"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="160" height="160" rx="32" fill="url(#g)"/>
+  <rect x="10" y="10" width="140" height="140" rx="28" fill="rgba(2, 6, 23, 0.18)" stroke="rgba(255,255,255,0.40)" stroke-width="2"/>
+  <text x="80" y="92" text-anchor="middle" font-family="Arial, sans-serif" font-size="56" font-weight="900" fill="rgba(255,255,255,0.94)" letter-spacing="2">{html.escape(initials)}</text>
+</svg>"""
+    encoded = base64.b64encode(svg.encode('utf-8')).decode('ascii')
+    return f'data:image/svg+xml;base64,{encoded}'
+
+
 @login_required
 def team_crest_svg(request, team_id):
     team = Team.objects.filter(id=team_id).first()
@@ -22641,9 +22721,9 @@ def _task_pdf_lines(value):
 
 
 def _team_pdf_palette(team_obj, style_key='uefa'):
-    primary = str(getattr(team_obj, 'primary_color', '') or '').strip() or '#0f7a35'
-    secondary = str(getattr(team_obj, 'secondary_color', '') or '').strip() or '#facc15'
-    accent = str(getattr(team_obj, 'accent_color', '') or '').strip() or '#102734'
+    primary = _normalize_hex_color(getattr(team_obj, 'primary_color', ''), '#0f7a35')
+    secondary = _normalize_hex_color(getattr(team_obj, 'secondary_color', ''), '#facc15')
+    accent = _normalize_hex_color(getattr(team_obj, 'accent_color', ''), '#102734')
     if style_key in {'club', 'hybrid'}:
         if _is_benagalbon_team(team_obj):
             # Paleta corporativa C.D. Benagalbón (derivada de recursos oficiales: dragón + escudo).
@@ -22659,6 +22739,21 @@ def _team_pdf_palette(team_obj, style_key='uefa'):
                 'ink': '#0b1f1a',
                 'muted': '#3b5a54',
             }
+        if _is_malaga_team(team_obj):
+            return {
+                'primary': '#6bc4e8',
+                'secondary': '#ffffff',
+                'accent': '#004b93',
+                'panel': '#eef8fc',
+                'sheet': '#f5fbff' if style_key == 'hybrid' else '#ffffff',
+                'ink': '#082f49',
+                'muted': '#436074',
+            }
+        if primary == '#0f7a35' and secondary in {'#facc15', '#f8fafc'}:
+            hue = _team_color_seed(team_obj)
+            primary = _hsl_to_hex(hue, 0.68, 0.38)
+            secondary = _hsl_to_hex((hue + 35) % 360, 0.70, 0.48)
+            accent = _hsl_to_hex((hue + 210) % 360, 0.62, 0.24)
         return {
             'primary': primary,
             'secondary': secondary,
@@ -51014,6 +51109,8 @@ def player_pdf(request, player_id):
         raise Http404('Equipo principal no configurado')
     if not player:
         raise Http404('Jugador no encontrado')
+    if getattr(player, 'team', None):
+        primary_team = player.team
     forbidden = _forbid_if_no_player_access(request.user, player, primary_team=primary_team)
     if forbidden:
         return forbidden
@@ -51161,18 +51258,15 @@ def player_pdf(request, player_id):
             crest_src = ''
     if not crest_src:
         # En PDF evitamos URLs externas o SVG generados (pueden fallar en WeasyPrint / romper el render).
-        # Preferimos un escudo local embebido (data URI) o, como último recurso, un SVG simple de iniciales.
+        # Preferimos un escudo local embebido para Benagalbón; para el resto, un SVG neutro
+        # del propio equipo para no heredar el CDB por defecto.
         try:
-            local_primary = (
-                'football/images/cdb-benagalbon-crest-contrast.png'
-                if _is_benagalbon_team(primary_team)
-                else 'football/images/cdb-logo.png'
-            )
-            crest_src = _file_as_data_uri(static_base_dir / local_primary) or ''
+            if _is_benagalbon_team(primary_team):
+                crest_src = _file_as_data_uri(static_base_dir / 'football/images/cdb-benagalbon-crest-contrast.png') or ''
         except Exception:
             crest_src = ''
     if not crest_src:
-        crest_src = logo_data_uri or ''
+        crest_src = _team_fallback_crest_data_uri(primary_team, fallback_label=getattr(primary_team, 'display_name', '') or getattr(primary_team, 'name', '')) or ''
     if not crest_src:
         try:
             initials = ''.join([c for c in str(primary_team.display_name or primary_team.name or '').upper() if c.isalpha()])[:2] or '2J'

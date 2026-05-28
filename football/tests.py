@@ -89,6 +89,18 @@ class TeamMediaServicesTests(TestCase):
         team = Team(name='C.D. Benagalbón', slug='cd-benagalbon')
         self.assertTrue(team_media_services.is_benagalbon_team(team))
 
+    def test_player_pdf_palette_uses_malaga_identity(self):
+        team = Team(name='Málaga Club de Fútbol', slug='malaga-cf', is_primary=True)
+        palette = football_views._team_pdf_palette(team, 'club')
+        self.assertEqual(palette['primary'], '#6bc4e8')
+        self.assertEqual(palette['accent'], '#004b93')
+
+    def test_non_benagalbon_fallback_crest_is_team_specific(self):
+        team = Team(name='Málaga Club de Fútbol', slug='malaga-cf', is_primary=True)
+        crest = football_views._team_fallback_crest_data_uri(team)
+        self.assertTrue(crest.startswith('data:image/svg+xml;base64,'))
+        self.assertNotIn('cdb-benagalbon', crest)
+
     def test_dashboard_page_requires_login(self):
         response = self.client.get(reverse('dashboard-home'))
         self.assertEqual(response.status_code, 200)
