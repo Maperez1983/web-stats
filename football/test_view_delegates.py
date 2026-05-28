@@ -53,6 +53,11 @@ class ViewDelegateTests(SimpleTestCase):
             '',
         )
 
+    def test_team_media_services_expose_initials_and_color_seed_for_view_wrappers(self):
+        team = SimpleNamespace(id=7, slug='benagalbon-a', name='Benagalbon A')
+        self.assertEqual(team_media_services.team_initials('CD Benagalbon'), views._team_initials('CD Benagalbon'))
+        self.assertEqual(team_media_services.team_color_seed(team), views._team_color_seed(team))
+
     def test_session_pdf_uses_extracted_crest_service(self):
         team = SimpleNamespace(id=7, crest_image=None, crest_url='', is_primary=False, slug='demo', name='Demo', short_name='DM')
         self.assertEqual(

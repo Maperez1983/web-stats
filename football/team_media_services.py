@@ -264,7 +264,7 @@ def is_malaga_team(team):
     return any('malaga' in _fold_team_label(label) for label in labels)
 
 
-def _team_initials(label):
+def team_initials(label):
     text = ' '.join(str(label or '').split()).strip()
     if not text:
         return '??'
@@ -274,6 +274,10 @@ def _team_initials(label):
     if len(tokens) == 1:
         return (tokens[0][:2] if len(tokens[0]) >= 2 else tokens[0]).upper()
     return (tokens[0][0] + tokens[1][0]).upper()
+
+
+def _team_initials(label):
+    return team_initials(label)
 
 
 def team_color_seed(team):
@@ -390,7 +394,7 @@ def team_fallback_crest_data_uri(team, fallback_label=''):
         or str(fallback_label or '').strip()
         or 'Equipo'
     )
-    initials = _team_initials(label)
+    initials = team_initials(label)
     if is_malaga_team(team):
         primary = '#6bc4e8'
         accent = '#004b93'
