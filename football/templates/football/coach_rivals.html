@@ -63,6 +63,7 @@
                   <div style="min-width:0;">
                     <div class="name">{{ rival.display_name }}</div>
                     <div class="meta">{{ rival.home_stadium|default:"Estadio por configurar" }}</div>
+                    {% if rival.home_stadium_address %}<div class="meta">{{ rival.home_stadium_address }}</div>{% endif %}
                   </div>
                 </div>
                 <div class="stats">
@@ -73,6 +74,11 @@
                   <div class="stat"><span>Informes</span><strong>{{ rival.reports_ready|default:"0" }}/{{ rival.reports_total|default:"0" }}</strong></div>
                   <div class="stat"><span>Vídeos</span><strong>{{ rival.videos_count|default:"0" }}</strong></div>
                 </div>
+                {% if rival.home_stadium_maps_url %}
+                  <div style="margin-top:0.2rem;">
+                    <span class="btn" style="padding:0.42rem 0.68rem;font-size:0.74rem;">Ubicación guardada</span>
+                  </div>
+                {% endif %}
             {% if rival.profile_url %}
               </a>
             {% else %}

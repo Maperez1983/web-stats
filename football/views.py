@@ -19,6 +19,7 @@ import random
 import threading
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, time, date
+from decimal import Decimal, InvalidOperation
 from html.parser import HTMLParser
 from functools import lru_cache, wraps
 from pathlib import Path
@@ -5355,6 +5356,43 @@ def _uploaded_image_as_data_url(uploaded_file):
     if not raw:
         return ''
     return f'data:{content_type};base64,' + base64.b64encode(raw).decode('ascii')
+
+
+def _parse_stadium_coordinate(raw_value, *, minimum, maximum):
+    raw = str(raw_value or '').strip().replace(',', '.')
+    if not raw:
+        return None
+    try:
+        value = Decimal(raw)
+    except (InvalidOperation, ValueError):
+        return None
+    try:
+        if value < Decimal(str(minimum)) or value > Decimal(str(maximum)):
+            return None
+    except Exception:
+        return None
+    return value.quantize(Decimal('0.000001'))
+
+
+def _team_stadium_maps_url(team):
+    if not team:
+        return ''
+    direct = str(getattr(team, 'home_stadium_maps_url', '') or '').strip()
+    if direct:
+        return direct
+    lat = getattr(team, 'home_stadium_latitude', None)
+    lng = getattr(team, 'home_stadium_longitude', None)
+    if lat is not None and lng is not None:
+        return f'https://www.google.com/maps/search/?api=1&query={quote(str(lat))},{quote(str(lng))}'
+    query_parts = [
+        str(getattr(team, 'home_stadium', '') or '').strip(),
+        str(getattr(team, 'home_stadium_address', '') or '').strip(),
+        str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or '').strip(),
+    ]
+    query = ' '.join(part for part in query_parts if part).strip()
+    if query:
+        return f'https://www.google.com/maps/search/?api=1&query={quote(query)}'
+    return ''
 
 
 @lru_cache(maxsize=512)
@@ -24874,6 +24912,10 @@ def coach_rivals_page(request):
         'crest_image',
         'external_id',
         'home_stadium',
+        'home_stadium_address',
+        'home_stadium_latitude',
+        'home_stadium_longitude',
+        'home_stadium_maps_url',
         'group_id',
     ))
 
@@ -25016,6 +25058,8 @@ def coach_rivals_page(request):
             'crest_url': crest_image_url or str(getattr(team, 'crest_url', '') or standing.get('crest_url') or '').strip(),
             'kit2d_url': _rival_kit2d_url(workspace, team, 'home') or _kit2d_url_for_team_name(label, workspace=workspace, primary_team=primary_team, own_kit2d_url=_workspace_home_kit2d_url(workspace)),
             'home_stadium': str(getattr(team, 'home_stadium', '') or standing.get('location') or '').strip(),
+            'home_stadium_address': str(getattr(team, 'home_stadium_address', '') or '').strip(),
+            'home_stadium_maps_url': _team_stadium_maps_url(team),
             'rank': _safe_int(standing.get('rank'), default=0) or '',
             'points': _safe_int(standing.get('points'), default=0) if standing else '',
             'played': _safe_int(standing.get('played'), default=0) if standing else '',
@@ -40692,11 +40736,27 @@ def analysis_rival_profile_page(request, rival_id):
         form_action = str(request.POST.get('form_action') or '').strip().lower()
         if form_action == 'save_identity':
             home_stadium = str(request.POST.get('home_stadium') or '').strip()[:200]
+            home_stadium_address = str(request.POST.get('home_stadium_address') or '').strip()[:260]
+            home_stadium_maps_url = str(request.POST.get('home_stadium_maps_url') or '').strip()[:600]
+            home_stadium_latitude = _parse_stadium_coordinate(request.POST.get('home_stadium_latitude'), minimum=-90, maximum=90)
+            home_stadium_longitude = _parse_stadium_coordinate(request.POST.get('home_stadium_longitude'), minimum=-180, maximum=180)
             short_name = str(request.POST.get('short_name') or '').strip()[:60]
             changed_fields = []
             if str(getattr(rival, 'home_stadium', '') or '').strip() != home_stadium:
                 rival.home_stadium = home_stadium
                 changed_fields.append('home_stadium')
+            if str(getattr(rival, 'home_stadium_address', '') or '').strip() != home_stadium_address:
+                rival.home_stadium_address = home_stadium_address
+                changed_fields.append('home_stadium_address')
+            if str(getattr(rival, 'home_stadium_maps_url', '') or '').strip() != home_stadium_maps_url:
+                rival.home_stadium_maps_url = home_stadium_maps_url
+                changed_fields.append('home_stadium_maps_url')
+            if getattr(rival, 'home_stadium_latitude', None) != home_stadium_latitude:
+                rival.home_stadium_latitude = home_stadium_latitude
+                changed_fields.append('home_stadium_latitude')
+            if getattr(rival, 'home_stadium_longitude', None) != home_stadium_longitude:
+                rival.home_stadium_longitude = home_stadium_longitude
+                changed_fields.append('home_stadium_longitude')
             if short_name and str(getattr(rival, 'short_name', '') or '').strip() != short_name:
                 rival.short_name = short_name
                 changed_fields.append('short_name')
@@ -40934,6 +40994,7 @@ def analysis_rival_profile_page(request, rival_id):
             'match_reports': match_reports,
             'rival_videos': rival_videos,
             'rival_kit2d_slots': _rival_kit2d_slots_for_template(workspace, rival),
+            'rival_stadium_maps_url': _team_stadium_maps_url(rival),
         },
     )
 

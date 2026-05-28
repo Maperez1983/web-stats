@@ -1095,6 +1095,9 @@ class CoachRivalsManagementTests(TestCase):
                 'form_action': 'save_identity',
                 'short_name': 'RIV',
                 'home_stadium': 'Estadio Rival',
+                'home_stadium_address': 'Calle Rival 1, Málaga',
+                'home_stadium_latitude': '36.721302',
+                'home_stadium_longitude': '-4.421637',
                 'crest_image': SimpleUploadedFile('escudo.png', png, content_type='image/png'),
                 'kit2d_home': SimpleUploadedFile('home.png', png, content_type='image/png'),
                 'kit2d_gk2': SimpleUploadedFile('gk2.png', png, content_type='image/png'),
@@ -1105,6 +1108,9 @@ class CoachRivalsManagementTests(TestCase):
         self.rival.refresh_from_db()
         self.assertEqual(self.rival.short_name, 'RIV')
         self.assertEqual(self.rival.home_stadium, 'Estadio Rival')
+        self.assertEqual(self.rival.home_stadium_address, 'Calle Rival 1, Málaga')
+        self.assertEqual(str(self.rival.home_stadium_latitude), '36.721302')
+        self.assertEqual(str(self.rival.home_stadium_longitude), '-4.421637')
         self.assertTrue(self.rival.crest_image)
         pref = WorkspacePreference.objects.get(
             workspace=self.workspace,
@@ -1114,6 +1120,7 @@ class CoachRivalsManagementTests(TestCase):
         self.assertTrue(pref.value.get('gk2_club_data_url', '').startswith('data:image/png;base64,'))
         response = self.client.get(reverse('coach-rivals'), secure=True)
         self.assertContains(response, 'data:image/png;base64,')
+        self.assertContains(response, 'Ubicación guardada')
 
 
 class SessionsAssignTaskSmokeTests(TestCase):
