@@ -57601,6 +57601,7 @@ def tactical_playbook_clips_api(request):
         payload.append(
             {
                 'id': int(obj.id),
+                'team_id': int(obj.team_id),
                 'name': str(obj.name or '').strip(),
                 'folder': str(obj.folder or '').strip(),
                 'tags': obj.tags if isinstance(obj.tags, list) else [],
@@ -58339,6 +58340,21 @@ def tactical_playbook_clip_clone_api(request):
     tags = clip.tags if isinstance(clip.tags, list) else []
     username = request.user.get_username()[:80]
 
+    def _unique_copy_name(base_name):
+        base = (str(base_name or '').strip()[:140] or 'Clip').rstrip()
+        first = f'{base} copia'[:160]
+        if not TacticalPlaybookClip.objects.filter(team=to_team, name=first, is_latest=True).exists():
+            return first
+        for idx in range(2, 100):
+            candidate = f'{base} copia {idx}'[:160]
+            if not TacticalPlaybookClip.objects.filter(team=to_team, name=candidate, is_latest=True).exists():
+                return candidate
+        return f'{base} copia {timezone.now().strftime("%H%M%S")}'[:160]
+
+    same_team_copy = bool(int(to_team.id) == int(clip.team_id) and not overwrite and not new_version)
+    if same_team_copy:
+        name = _unique_copy_name(name)
+
     existing = TacticalPlaybookClip.objects.filter(team=to_team, name=name, is_latest=True).order_by('-updated_at', '-id').first()
     if existing and not overwrite and not new_version:
         return JsonResponse({'ok': False, 'error': 'exists', 'existing_id': int(existing.id)}, status=409)
@@ -58376,7 +58392,7 @@ def tactical_playbook_clip_clone_api(request):
             )
     except Exception:
         return JsonResponse({'ok': False, 'error': 'No se pudo clonar.'}, status=500)
-    return JsonResponse({'ok': True, 'id': int(obj.id), 'team_id': int(to_team.id)})
+    return JsonResponse({'ok': True, 'id': int(obj.id), 'team_id': int(to_team.id), 'name': str(obj.name or '')})
 
 
 @login_required

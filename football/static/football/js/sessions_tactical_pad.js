@@ -12893,15 +12893,19 @@
 				      }
 				      if (btn.hasAttribute('data-playbook-clone')) {
 				        try {
+				          const clip = (playbookClips || []).find((it) => Number(it?.id) === id);
 				          const teams = await fetchPlaybookTeams({ force: false, silent: true });
 				          const list = (teams || []).map((t) => `${Number(t?.id) || ''}: ${safeText(t?.name)}`).filter(Boolean).join('\n');
-				          const defId = Number((teams || []).find((t) => !!t?.is_default)?.id) || Number((teams || [])[0]?.id) || 0;
+				          const defId = Number(clip?.team_id) || Number((teams || []).find((t) => !!t?.is_default)?.id) || Number((teams || [])[0]?.id) || 0;
 				          const raw = __safePrompt(`Clonar a equipo (id):\n${list}`, defId ? String(defId) : '');
 				          const toId = Number(raw || 0);
 				          if (!toId) return true;
 				          const res = await clonePlaybookClip(id, toId, {});
 				          if (res?.canceled) return true;
-				          setStatus('Clip clonado.');
+				          playbookFilters.version_group = '';
+				          await fetchPlaybookClips({ force: true, silent: true });
+				          renderClipsLibrary();
+				          setStatus(`Clip clonado${safeText(res?.name) ? `: ${safeText(res.name)}` : '.'}`);
 				        } catch (e) {
 				          setStatus(e?.message || 'No se pudo clonar.', true);
 				        }
@@ -13340,15 +13344,19 @@
 				          const id = Number(btn.getAttribute('data-playbook-clone') || 0);
 				          if (!id) return;
 				          try {
+				            const clip = (playbookClips || []).find((it) => Number(it?.id) === id);
 				            const teams = await fetchPlaybookTeams({ force: false, silent: true });
 				            const list = (teams || []).map((t) => `${Number(t?.id) || ''}: ${safeText(t?.name)}`).filter(Boolean).join('\\n');
-				            const defId = Number((teams || []).find((t) => !!t?.is_default)?.id) || Number((teams || [])[0]?.id) || 0;
+				            const defId = Number(clip?.team_id) || Number((teams || []).find((t) => !!t?.is_default)?.id) || Number((teams || [])[0]?.id) || 0;
 				            const raw = __safePrompt(`Clonar a equipo (id):\\n${list}`, defId ? String(defId) : '');
 				            const toId = Number(raw || 0);
 				            if (!toId) return;
 				            const res = await clonePlaybookClip(id, toId, {});
 				            if (res?.canceled) return;
-				            setStatus('Clip clonado.');
+				            playbookFilters.version_group = '';
+				            await fetchPlaybookClips({ force: true, silent: true });
+				            renderClipsLibrary();
+				            setStatus(`Clip clonado${safeText(res?.name) ? `: ${safeText(res.name)}` : '.'}`);
 				          } catch (e) {
 				            setStatus(e?.message || 'No se pudo clonar.', true);
 				          }
