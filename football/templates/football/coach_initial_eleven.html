@@ -19,9 +19,9 @@
         color: #f8fafc;
       }
       .page {
-        max-width: 1380px;
+        max-width: 1520px;
         margin: 0 auto;
-        padding: 1.1rem;
+        padding: clamp(0.75rem, 1.4vw, 1.25rem);
       }
       .top {
         position: sticky;
@@ -117,8 +117,9 @@
       .layout {
         margin-top: 1rem;
         display: grid;
-        grid-template-columns: 360px minmax(0, 1fr);
-        gap: 1rem;
+        grid-template-columns: minmax(310px, 350px) minmax(0, 1fr);
+        gap: clamp(0.8rem, 1.4vw, 1.2rem);
+        align-items: start;
       }
       body.is-presentation .layout {
         grid-template-columns: minmax(0, 1fr);
@@ -132,6 +133,18 @@
         background: linear-gradient(180deg, rgba(18, 30, 50, 0.92), rgba(12, 22, 40, 0.88));
         padding: 0.9rem;
       }
+      .lineup-sidebar {
+        position: sticky;
+        top: 6rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.62rem;
+        max-height: calc(100vh - 7rem);
+        overflow: hidden;
+      }
+      .lineup-field-panel {
+        min-width: 0;
+      }
       .panel h3 {
         margin: 0 0 0.65rem;
         letter-spacing: 0.12em;
@@ -141,7 +154,7 @@
       .panel .field-row {
         display: grid;
         gap: 0.35rem;
-        margin: 0.55rem 0 0.65rem;
+        margin: 0;
       }
       .panel .field-row label {
         font-size: 0.78rem;
@@ -171,6 +184,48 @@
         gap: 0.5rem;
         max-height: 720px;
         overflow: auto;
+      }
+      .lineup-sidebar #player-list {
+        flex: 1 1 auto;
+        min-height: 190px;
+        max-height: none;
+        padding-right: 0.15rem;
+      }
+      .lineup-sidebar details {
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 14px;
+        background: rgba(2, 6, 23, 0.32);
+        padding: 0.62rem;
+      }
+      .lineup-sidebar details summary {
+        cursor: pointer;
+        list-style: none;
+        margin: 0;
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .lineup-sidebar details summary::-webkit-details-marker {
+        display: none;
+      }
+      .lineup-sidebar details summary::after {
+        content: "+";
+        float: right;
+        color: rgba(186, 230, 253, 0.9);
+        font-weight: 900;
+      }
+      .lineup-sidebar details[open] summary::after {
+        content: "-";
+      }
+      .lineup-rival-preview .players {
+        margin-top: 0.55rem;
+        max-height: 220px;
+      }
+      .lineup-help {
+        flex: 0 0 auto;
+      }
+      .lineup-help .field-help {
+        margin-top: 0.55rem;
       }
       .player-card {
         display: grid;
@@ -242,7 +297,7 @@
         grid-template-rows: var(--tpad-stand) auto var(--tpad-stand);
         align-items: center;
         justify-items: center;
-        width: fit-content;
+        width: min(100%, 900px);
         max-width: 100%;
         margin: 0 auto;
         border-radius: clamp(18px, 2.2vmin, 28px);
@@ -264,7 +319,7 @@
       .xi-stadium-center {
         grid-area: center;
         position: relative;
-        width: fit-content;
+        width: 100%;
         min-width: 0;
         display: flex;
         align-items: center;
@@ -664,6 +719,12 @@
         gap: 0.5rem;
         flex-wrap: wrap;
       }
+      .lineup-sidebar .toolbar {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.5rem;
+        margin-top: 0;
+      }
       .toolbar button {
         border: 1px solid rgba(148, 163, 184, 0.35);
         background: rgba(8, 19, 44, 0.7);
@@ -674,6 +735,14 @@
         letter-spacing: 0.08em;
         text-transform: uppercase;
         cursor: pointer;
+      }
+      .lineup-sidebar .toolbar button {
+        width: 100%;
+        min-height: 38px;
+        padding: 0.44rem 0.58rem;
+      }
+      .lineup-sidebar .toolbar .primary {
+        grid-column: 1 / -1;
       }
       .toolbar .primary {
         border-color: rgba(56, 189, 248, 0.8);
@@ -714,6 +783,14 @@
       }
       @media (max-width: 980px) {
         .layout { grid-template-columns: 1fr; }
+        .lineup-sidebar {
+          position: static;
+          max-height: none;
+          overflow: visible;
+        }
+        .lineup-sidebar #player-list {
+          max-height: 380px;
+        }
         .field { width: min(100%, 560px); }
       }
       .field .rival-layer {
@@ -802,7 +879,7 @@
         </div>
       </header>
       <section class="layout">
-        <aside class="panel">
+        <aside class="panel lineup-sidebar">
           <h3>Convocados</h3>
           {% if has_pending_convocation %}
           <p class="helper-note">Próximo partido guardado. Falta cerrar la convocatoria para poder construir la alineación inicial.</p>
@@ -827,10 +904,10 @@
             <p>No hay jugadores convocados.</p>
             {% endfor %}
           </div>
-          <details style="margin-top:0.85rem;">
-            <summary class="field-help" style="cursor:pointer; font-weight:900; letter-spacing:0.12em; text-transform:uppercase;">11 rival (preview)</summary>
-            <div class="players" id="rival-lineup-list" style="margin-top:0.55rem; max-height: 260px;"></div>
-            <p class="field-help" style="margin-top:0.55rem;">Se alimenta de “Preparar rival”. Activa “Rival: ON” para superponerlo en el campo.</p>
+          <details class="lineup-rival-preview">
+            <summary class="field-help">11 rival (preview)</summary>
+            <div class="players" id="rival-lineup-list"></div>
+            <p class="field-help">Se alimenta de “Preparar rival”. Activa “Rival: ON” para superponerlo en el campo.</p>
           </details>
 	          <div class="toolbar">
 	            <button type="button" id="auto-fill-btn" {% if has_pending_convocation %}class="is-disabled"{% endif %}>Auto completar</button>
@@ -851,12 +928,15 @@
           <p class="field-help">
             En categorías de niños es normal que un jugador marcado como “POR” juegue en cualquier posición. Selecciona aquí quién ocupa la casilla de portero en el 11 inicial.
           </p>
-	          <p class="field-help" style="margin-top:-0.25rem;">
-	            Modo libre: toca un jugador en la lista y luego toca el campo para colocarlo. Después puedes arrastrar su ficha para ajustar la posición (ideal para iPad + Pencil).
-	          </p>
-            <p class="field-help" style="margin-top:-0.25rem;">
-              Tip: con el “Imán” activo, al soltar una ficha cerca de una posición del esquema se ajusta automáticamente. Para quitar un titular, arrastra su ficha fuera del campo o haz doble toque.
+          <details class="lineup-help">
+            <summary class="field-help">Guía rápida</summary>
+            <p class="field-help">
+              Modo libre: toca un jugador en la lista y luego toca el campo para colocarlo. Después puedes arrastrar su ficha para ajustar la posición.
             </p>
+            <p class="field-help">
+              Con el “Imán” activo, al soltar una ficha cerca de una posición del esquema se ajusta automáticamente. Para quitar un titular, arrastra su ficha fuera del campo o haz doble toque.
+            </p>
+          </details>
 	          <p class="status {% if has_pending_convocation or has_pending_lineup %}warn{% endif %}" id="status-msg">
 	            {% if has_pending_convocation %}
 	              Convocatoria pendiente. La alineación inicial se activará cuando haya jugadores convocados.
@@ -867,7 +947,7 @@
             {% endif %}
           </p>
         </aside>
-        <article class="panel">
+        <article class="panel lineup-field-panel">
           <h3>Campo</h3>
           <div class="xi-stadium">
             <div class="xi-stand xi-stand-top" aria-hidden="true">
