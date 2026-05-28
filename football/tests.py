@@ -38,7 +38,7 @@ from football.healthchecks import run_system_healthcheck
 from football.manual_stats import get_manual_player_base_overrides, save_manual_player_base_overrides, season_display_name
 from football.query_helpers import _team_match_queryset, get_active_injury_player_ids, get_current_convocation_record, is_injury_record_active, is_manual_sanction_active
 from football.injuries import categorize_time_loss, estimate_return_date, time_loss_days
-from football import session_pdf, team_media_services
+from football import next_match_services, session_pdf, team_media_services
 from football import dashboard_pending_services
 from football.session_plan_fields import parse_session_plan_fields, serialize_session_plan_fields
 from football.models import AppUserRole
@@ -48,7 +48,7 @@ from football.task_library import filter_task_library, prepare_task_library
 from football.stats_audit import run_stats_audit
 from football.dashboard_services import SCRAPE_LOCK_KEY, compute_player_cards_for_match, compute_player_dashboard, compute_player_metrics, compute_team_metrics_for_match
 from django.test import override_settings
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 import requests
 
 
@@ -2588,15 +2588,10 @@ class PlatformWorkspaceTests(TestCase):
             ).exists()
         )
 
-    @patch('football.views.load_cached_next_match')
-    @patch('football.views.load_universo_snapshot')
-    @patch('football.views._find_universo_next_match_for_context')
-    def test_preferred_next_match_uses_workspace_provider_before_global_cache(
-        self,
-        mocked_provider_next,
-        mocked_snapshot,
-        mocked_cached_next,
-    ):
+    @patch('football.next_match_services.load_universo_snapshot')
+    def test_preferred_next_match_uses_workspace_provider_before_global_cache(self, mocked_snapshot):
+        mocked_provider_next = Mock()
+        mocked_cached_next = Mock()
         future_date = (timezone.localdate() + timedelta(days=7)).isoformat()
         context = WorkspaceCompetitionContext.objects.create(
             workspace=Workspace.objects.create(
@@ -2635,9 +2630,11 @@ class PlatformWorkspaceTests(TestCase):
             'status': 'next',
         }
 
-        payload = football_views.load_preferred_next_match_payload(
+        payload = next_match_services.load_preferred_next_match_payload(
             primary_team=self.team,
             competition_context=context,
+            find_provider_func=mocked_provider_next,
+            load_cached_func=mocked_cached_next,
         )
 
         self.assertEqual(payload['opponent']['name'], 'Rival real')
@@ -2657,14 +2654,15 @@ class PlatformWorkspaceTests(TestCase):
             provider=WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
         )
 
-        with patch('football.views._ensure_universo_context_binding') as mocked_bind, \
-            patch('football.views._find_universo_next_match_for_context', return_value={}), \
-            patch('football.views.load_universo_snapshot', return_value={}), \
-            patch('football.views.load_cached_next_match', return_value=None):
-            payload = football_views.load_preferred_next_match_payload(
+        mocked_bind = Mock()
+        with patch('football.next_match_services.load_universo_snapshot', return_value={}):
+            payload = next_match_services.load_preferred_next_match_payload(
                 primary_team=self.team,
                 competition_context=context,
                 bind_context=False,
+                bind_context_func=mocked_bind,
+                find_provider_func=Mock(return_value={}),
+                load_cached_func=Mock(return_value=None),
             )
 
         self.assertIsNone(payload)
