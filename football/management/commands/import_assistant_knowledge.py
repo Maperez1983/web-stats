@@ -12,7 +12,7 @@ from football.models import AssistantKnowledgeDocument, Team
 
 
 class Command(BaseCommand):
-    help = "Importa documentos (PDF/TXT/MD/PNG/JPG/WEBP) como base de conocimiento del Asistente de tareas para un equipo."
+    help = "Importa documentos (PDF/TXT/MD/PNG/JPG/WEBP/HEIC/HEIF) como base de conocimiento del Asistente de tareas para un equipo."
 
     def add_arguments(self, parser):
         parser.add_argument("--team-slug", dest="team_slug", help="Slug del equipo (Team.slug).")
@@ -21,7 +21,7 @@ class Command(BaseCommand):
             "--path",
             dest="path",
             required=True,
-            help="Ruta a un fichero o carpeta (se importan PDFs/TXT/MD e imágenes PNG/JPG/WEBP).",
+            help="Ruta a un fichero o carpeta (se importan PDFs/TXT/MD e imágenes PNG/JPG/WEBP/HEIC/HEIF).",
         )
         parser.add_argument(
             "--recursive",
@@ -42,7 +42,7 @@ class Command(BaseCommand):
             dest="images_only",
             action="store_true",
             default=False,
-            help="Importa únicamente imágenes (png/jpg/jpeg/webp). Útil para evitar importar .txt/.pdf de carpetas temporales.",
+            help="Importa únicamente imágenes (png/jpg/jpeg/webp/heic/heif). Útil para evitar importar .txt/.pdf de carpetas temporales.",
         )
         parser.add_argument(
             "--dry-run",
@@ -79,24 +79,24 @@ class Command(BaseCommand):
         skip_extract = bool(options.get("skip_extract"))
         images_only = bool(options.get("images_only"))
 
-        allowed = {".pdf", ".txt", ".md", ".png", ".jpg", ".jpeg", ".webp"}
-        if images_only:
-            allowed = {".png", ".jpg", ".jpeg", ".webp"}
         paths = []
         if root.is_file():
-            paths = [root]
+            paths = [root] if session_import_services.is_supported_assistant_document(root, images_only=images_only) else []
         else:
             iterator = root.rglob("*") if recursive else root.glob("*")
             for p in iterator:
                 if not p.is_file():
                     continue
-                if p.suffix.lower() not in allowed:
+                if not session_import_services.is_supported_assistant_document(p, images_only=images_only):
                     continue
                 paths.append(p)
 
         paths = sorted(paths)[:max_files]
         if not paths:
-            raise CommandError("No se encontraron ficheros soportados (.pdf/.txt/.md/.png/.jpg/.jpeg/.webp) en la ruta indicada.")
+            raise CommandError(
+                f"No se encontraron ficheros soportados ({session_import_services.ASSISTANT_KNOWLEDGE_SUPPORTED_LABEL}) "
+                "en la ruta indicada."
+            )
 
         extracted = 0
         saved = 0
@@ -143,9 +143,8 @@ class Command(BaseCommand):
                 mime = mime or "text/plain"
 
             extracted_text = ""
-            suffix = path.suffix.lower()
-            is_pdf = suffix == ".pdf"
-            is_image = suffix in {".png", ".jpg", ".jpeg", ".webp"}
+            is_pdf = session_import_services.is_assistant_pdf_document(path, mime)
+            is_image = session_import_services.is_assistant_image_document(path, mime)
             if not skip_extract:
                 try:
                     if is_pdf:

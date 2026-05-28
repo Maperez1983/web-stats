@@ -94,9 +94,8 @@ class Command(BaseCommand):
                         if raw:
                             title = str(getattr(doc, "title", "") or "")
                             mime = str(getattr(doc, "mime_type", "") or "")
-                            lower = title.lower()
-                            is_pdf = lower.endswith(".pdf") or mime == "application/pdf"
-                            is_image = mime.startswith("image/") or lower.endswith((".png", ".jpg", ".jpeg", ".webp"))
+                            is_pdf = session_import_services.is_assistant_pdf_document(title, mime)
+                            is_image = session_import_services.is_assistant_image_document(title, mime)
                             extracted_text = ""
                             try:
                                 if is_pdf:

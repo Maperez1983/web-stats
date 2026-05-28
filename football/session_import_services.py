@@ -42,6 +42,16 @@ from .task_library_services import (
 
 logger = logging.getLogger(__name__)
 
+ASSISTANT_KNOWLEDGE_PDF_SUFFIXES = frozenset({'.pdf'})
+ASSISTANT_KNOWLEDGE_TEXT_SUFFIXES = frozenset({'.txt', '.md'})
+ASSISTANT_KNOWLEDGE_IMAGE_SUFFIXES = frozenset({'.png', '.jpg', '.jpeg', '.webp', '.heic', '.heif'})
+ASSISTANT_KNOWLEDGE_SUPPORTED_SUFFIXES = (
+    ASSISTANT_KNOWLEDGE_PDF_SUFFIXES
+    | ASSISTANT_KNOWLEDGE_TEXT_SUFFIXES
+    | ASSISTANT_KNOWLEDGE_IMAGE_SUFFIXES
+)
+ASSISTANT_KNOWLEDGE_SUPPORTED_LABEL = '.pdf/.txt/.md/.png/.jpg/.jpeg/.webp/.heic/.heif'
+
 try:
     from PIL import Image, ImageFilter, ImageOps
 except Exception:  # pragma: no cover
@@ -62,6 +72,32 @@ except Exception:  # pragma: no cover
 
 def apply_analysis_to_task(*args, **kwargs):
     return session_task_pdf_parser._apply_analysis_to_task(*args, **kwargs)
+
+
+def assistant_document_suffix(value) -> str:
+    try:
+        return Path(str(value or '')).suffix.lower()
+    except Exception:
+        return ''
+
+
+def is_assistant_pdf_document(value, mime_type: str = '') -> bool:
+    suffix = assistant_document_suffix(value)
+    mime = str(mime_type or '').lower()
+    return bool(suffix in ASSISTANT_KNOWLEDGE_PDF_SUFFIXES or mime == 'application/pdf')
+
+
+def is_assistant_image_document(value, mime_type: str = '') -> bool:
+    suffix = assistant_document_suffix(value)
+    mime = str(mime_type or '').lower()
+    return bool(suffix in ASSISTANT_KNOWLEDGE_IMAGE_SUFFIXES or mime.startswith('image/'))
+
+
+def is_supported_assistant_document(value, *, images_only: bool = False) -> bool:
+    suffix = assistant_document_suffix(value)
+    if images_only:
+        return suffix in ASSISTANT_KNOWLEDGE_IMAGE_SUFFIXES
+    return suffix in ASSISTANT_KNOWLEDGE_SUPPORTED_SUFFIXES
 
 
 def extract_pdf_text_via_pdftotext(pdf_bytes: bytes) -> str:
