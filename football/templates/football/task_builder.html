@@ -5019,6 +5019,119 @@
 	        opacity: 0.9;
 	        font-size: 0.92rem;
 	      }
+
+      /* Auditoria UX 2J: orden visual sin tocar la logica del editor. */
+      .panel-head > div,
+      .pitch-main,
+      .pitch-side,
+      .resource-details,
+      .resource-panel,
+      .resource-strip,
+      .player-bank {
+        min-width: 0;
+      }
+      body:not(.tactics-mode) .builder {
+        grid-template-columns: minmax(0, 1fr) minmax(320px, 390px);
+      }
+      body:not(.tactics-mode) .panel-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: start;
+      }
+      body:not(.tactics-mode) .pitch-toolbar {
+        justify-content: flex-end;
+        align-items: center;
+        max-width: 100%;
+      }
+      body:not(.tactics-mode) .pitch-toolbar > * {
+        min-width: 0;
+      }
+      body:not(.tactics-mode) .pitch-toolbar .surface-trigger {
+        min-width: min(220px, 100%);
+      }
+      body:not(.tactics-mode) .pitch-side .resource-tabs {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      body:not(.tactics-mode).library-collapsed .pitch-side .resource-tabs {
+        grid-template-columns: 1fr;
+      }
+      .library-head {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+      }
+      .library-title,
+      .library-current {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      body.tactics-mode .pitch-side .resource-tabs {
+        grid-template-columns: repeat(auto-fit, minmax(42px, 1fr));
+      }
+      body.tactics-mode .pitch-side .resource-tab {
+        min-width: 0;
+      }
+      .resource-strip button,
+      .player-bank button,
+      .resource-tab,
+      .surface-trigger,
+      .command-menu button {
+        overflow-wrap: anywhere;
+      }
+      .command-bar {
+        max-width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: thin;
+      }
+      .command-bar > button {
+        flex: 0 0 auto;
+      }
+      .pitch-view-menu-body,
+      .surface-menu,
+      .pattern-popover,
+      .layers-popover,
+      .scenarios-popover {
+        max-width: calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right));
+      }
+      .pitch-view-menu-body {
+        grid-template-columns: repeat(auto-fit, minmax(150px, max-content));
+      }
+      .pitch-view-menu-body .pitch-zoom,
+      .pitch-view-menu-body .pitch-size {
+        min-width: 0;
+      }
+      @media (max-width: 1180px) {
+        body:not(.tactics-mode) .builder {
+          grid-template-columns: 1fr;
+        }
+        body:not(.tactics-mode) .panel-head {
+          grid-template-columns: 1fr;
+        }
+        body:not(.tactics-mode) .pitch-toolbar {
+          justify-content: flex-start;
+        }
+        body:not(.tactics-mode) .pitch-side {
+          position: relative;
+          top: auto;
+          max-height: none;
+          overflow: visible;
+        }
+      }
+      @media (max-width: 760px) {
+        body:not(.tactics-mode) .pitch-side .resource-tabs {
+          grid-template-columns: 1fr;
+        }
+        .library-head {
+          grid-template-columns: auto minmax(0, 1fr);
+        }
+        .library-current {
+          grid-column: 1 / -1;
+          max-width: 100%;
+          margin-left: 0;
+        }
+      }
 	    </style>
 	  </head>
 				  <body
