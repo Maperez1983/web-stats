@@ -123,6 +123,11 @@
         align-items: center;
         gap: 0.6rem;
       }
+      .match-actions {
+        display: grid;
+        grid-template-columns: minmax(190px, auto) repeat(4, minmax(150px, auto)) minmax(180px, 1fr);
+        align-items: center;
+      }
       .button {
         border: 1px solid var(--line);
         border-radius: 999px;
@@ -134,6 +139,8 @@
         text-transform: uppercase;
         letter-spacing: 0.06em;
         cursor: pointer;
+        text-align: center;
+        white-space: nowrap;
       }
       .button.primary {
         border-color: rgba(56, 189, 248, 0.5);
@@ -144,6 +151,11 @@
         color: var(--ok);
         font-size: 0.92rem;
         letter-spacing: 0.02em;
+      }
+      .match-actions .status {
+        justify-self: end;
+        min-height: 1.2rem;
+        text-align: right;
       }
       .status.warn {
         color: var(--warn);
@@ -206,6 +218,7 @@
         display: grid;
         grid-template-columns: 1.35fr 1fr;
         gap: 1rem;
+        align-items: start;
       }
       .block {
         padding: 1rem 1.1rem 1.1rem;
@@ -319,6 +332,10 @@
         display: grid;
         gap: 0.7rem;
       }
+      .selected-panel {
+        position: sticky;
+        top: 1rem;
+      }
       .selected-list {
         list-style: none;
         margin: 0;
@@ -405,6 +422,46 @@
         color: var(--muted);
         font-size: 0.9rem;
       }
+      .whatsapp-panel {
+        margin-top: 0.85rem;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 16px;
+        background: rgba(2, 6, 23, 0.26);
+        overflow: hidden;
+      }
+      .whatsapp-panel summary {
+        cursor: pointer;
+        list-style: none;
+        padding: 0.72rem 0.85rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.86);
+      }
+      .whatsapp-panel summary::-webkit-details-marker {
+        display: none;
+      }
+      .whatsapp-panel summary::after {
+        content: "+";
+        float: right;
+        color: rgba(56, 189, 248, 0.95);
+      }
+      .whatsapp-panel[open] summary::after {
+        content: "-";
+      }
+      .whatsapp-panel textarea {
+        width: 100%;
+        min-height: 128px;
+        resize: vertical;
+        border: 0;
+        border-top: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(2, 6, 23, 0.42);
+        color: var(--text);
+        padding: 0.85rem;
+        font: inherit;
+        line-height: 1.45;
+        outline: none;
+      }
       @media (max-width: 1080px) {
         .layout {
           grid-template-columns: 1fr;
@@ -417,6 +474,17 @@
         }
         .control-grid {
           grid-template-columns: 1fr 1fr;
+        }
+        .match-actions {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .match-actions .status {
+          grid-column: 1 / -1;
+          justify-self: stretch;
+          text-align: left;
+        }
+        .selected-panel {
+          position: static;
         }
       }
 	      @media (max-width: 680px) {
@@ -436,6 +504,12 @@
         }
         .control-grid {
           grid-template-columns: 1fr;
+        }
+        .match-actions {
+          grid-template-columns: 1fr;
+        }
+        .button {
+          width: 100%;
         }
 	      }
 
@@ -534,7 +608,7 @@
 	            <input id="match-location-manual" type="text" placeholder="Escribe campo manual..." style="display:none;margin-top:0.35rem;" />
 	          </label>
 	        </div>
-        <div class="actions">
+        <div class="actions match-actions">
           <button id="save-convocation" class="button primary" type="button">Guardar convocatoria</button>
           <a href="{% url 'convocation-pdf' %}?team={{ primary_team_id }}{% if active_match_id %}&match_id={{ active_match_id }}{% endif %}" class="button {% if not can_generate_convocation_pdf %}is-disabled{% endif %}" id="pdf-convocation">Generar PDF</a>
           <a href="{% url 'convocation-referee-pdf' %}?team={{ primary_team_id }}{% if active_match_id %}&match_id={{ active_match_id }}{% endif %}" class="button {% if not can_generate_convocation_pdf %}is-disabled{% endif %}" id="pdf-referee">Ficha árbitro PDF</a>
@@ -542,10 +616,10 @@
           <button id="copy-convocation-whatsapp" class="button {% if not convocation_whatsapp_text %}is-disabled{% endif %}" type="button">Copiar WhatsApp</button>
           <span id="convocation-message" class="status"></span>
         </div>
-        <div style="margin-top:0.85rem;">
-          <label for="convocation-whatsapp-text" style="display:block;font-weight:900;letter-spacing:0.04em;text-transform:uppercase;color:var(--muted);font-size:0.78rem;margin-bottom:0.35rem;">Mensaje WhatsApp</label>
-          <textarea id="convocation-whatsapp-text" readonly rows="7" style="width:100%;resize:vertical;border-radius:16px;border:1px solid rgba(148,163,184,0.22);background:rgba(2,6,23,0.42);color:var(--text);padding:0.85rem;font:inherit;line-height:1.45;">{{ convocation_whatsapp_text }}</textarea>
-        </div>
+        <details class="whatsapp-panel" id="convocation-whatsapp-panel">
+          <summary>Mensaje WhatsApp</summary>
+          <textarea id="convocation-whatsapp-text" readonly rows="6">{{ convocation_whatsapp_text }}</textarea>
+        </details>
         {% if has_pending_convocation %}
         <p class="pending-note">Próximo partido guardado. La convocatoria sigue pendiente y el PDF se activará cuando cierres la lista.</p>
         {% endif %}
@@ -606,7 +680,7 @@
           </div>
         </article>
 
-        <article class="panel block">
+        <article class="panel block selected-panel">
           <h2>Convocados</h2>
           <div class="selected-wrap">
             <ul id="selected-list" class="selected-list"></ul>
@@ -1012,6 +1086,7 @@
       const refereePdfButton = document.querySelector('#pdf-referee');
       const sharePdfButton = document.querySelector('#share-convocation-pdf');
       const whatsappButton = document.querySelector('#copy-convocation-whatsapp');
+      const whatsappPanel = document.querySelector('#convocation-whatsapp-panel');
       const whatsappText = document.querySelector('#convocation-whatsapp-text');
 
       const updatePdfState = () => {
@@ -1043,6 +1118,7 @@
           showMessage('Mensaje de WhatsApp copiado.', 'ok');
         } catch (error) {
           try {
+            if (whatsappPanel) whatsappPanel.open = true;
             whatsappText?.focus();
             whatsappText?.select();
             document.execCommand('copy');
