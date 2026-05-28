@@ -34641,18 +34641,9 @@ def _build_tactical_player_catalog(request, primary_team):
         .order_by('number', 'name')[:60]
     )
     for player in players:
-        # Rendimiento: evitar `default_storage.exists()` / metadatos de storage por jugador aquí.
         photo_url = ''
         try:
-            updated_at = getattr(player, 'photo_updated_at', None)
-            if updated_at:
-                photo_url = reverse('player-photo-file', args=[int(player.id)])
-                try:
-                    version = str(int(updated_at.timestamp()))
-                    if version:
-                        photo_url = f'{photo_url}?v={version}'
-                except Exception:
-                    pass
+            photo_url = str(resolve_player_photo_url(request, player) or '').strip()
         except Exception:
             photo_url = ''
         catalog.append(

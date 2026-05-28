@@ -4444,6 +4444,15 @@ class ConvocationWorkflowTests(TestCase):
         session['active_workspace_id'] = self.workspace.id
         session.save()
 
+    @patch('football.views.resolve_player_photo_url', return_value='/player/123/photo/?v=99')
+    def test_tactical_player_catalog_uses_resolved_photo_url(self, _mock_photo):
+        request = Mock()
+
+        catalog = football_views._build_tactical_player_catalog(request, self.team)
+
+        self.assertTrue(catalog)
+        self.assertEqual(catalog[0]['photo_url'], '/player/123/photo/?v=99')
+
     def test_save_convocation_allows_pending_match_without_players(self):
         self.client.force_login(self.user)
         response = self.client.post(
