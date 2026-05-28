@@ -16266,9 +16266,8 @@
 	          }
 	          try { applyViewportTransformToWorld(); } catch (e) { /* ignore */ }
 	        }
-	        // Compat: algunas tareas antiguas guardaron chapas tipo "camiseta". Al abrirlas,
-	        // las convertimos a estilo "disco" para que se parezcan a la plantilla disponible.
-        // Solo afecta a objetos con data.kind='token' y token_kind de jugadores.
+	        // Compat: algunas tareas muy antiguas no guardaban token_style. Solo esas se normalizan.
+	        // Si una tarea ya guardó "camiseta", "foto" o "chapa", respetamos exactamente su formato.
         try {
           const playerTokenKinds = new Set(['player_local', 'player_away', 'player_rival', 'goalkeeper_local', 'goalkeeper_rival']);
           const current = canvas.getObjects().slice();
@@ -16284,6 +16283,7 @@
               return role && role.startsWith('token_');
             });
           const shouldConvertToken = (obj, tokenKind) => {
+            if (safeText(obj?.data?.token_style)) return false;
             // player_local: siempre convertimos si NO lleva el grupo de stripes nuevo.
             // Esto arregla tareas existentes creadas con el clip por-rect (que se veía como "camiseta")
             // sin tocar el estilo ya migrado.
@@ -18093,6 +18093,36 @@
 			          baseCircle.data = { role: isAway ? 'token_fill' : 'token_base' };
 			          tokenParts.push(baseCircle);
 
+			          const roundKitImageEl = kit2dImageForTokenKind(kind, tokenKitSlot);
+			          const canUseRoundKit = !!(roundKitImageEl && (roundKitImageEl.naturalWidth || roundKitImageEl.width));
+			          if (canUseRoundKit) {
+			            const naturalW = Number(roundKitImageEl.naturalWidth || roundKitImageEl.width || 1);
+			            const naturalH = Number(roundKitImageEl.naturalHeight || roundKitImageEl.height || 1);
+			            const target = (radius - 1.5) * 2;
+			            const baseScale = target / Math.max(1, Math.min(naturalW, naturalH));
+			            const kitRound = new fabric.Image(roundKitImageEl, {
+			              left: 0,
+			              top: 0,
+			              originX: 'center',
+			              originY: 'center',
+			              scaleX: baseScale,
+			              scaleY: baseScale,
+			              selectable: false,
+			              evented: false,
+			            });
+			            try { kitRound.objectCaching = false; } catch (e) { /* ignore */ }
+			            try { kitRound.noScaleCache = true; } catch (e) { /* ignore */ }
+			            kitRound.clipPath = new fabric.Circle({
+			              radius: radius - 2,
+			              originX: 'center',
+			              originY: 'center',
+			              left: 0,
+			              top: 0,
+			            });
+			            kitRound.data = { role: 'token_kit2d_round' };
+			            tokenParts.push(kitRound);
+			          }
+
 			          const innerRing = new fabric.Circle({
 			            radius: Math.max(2, radius - 3),
 			            fill: '',
@@ -18139,7 +18169,7 @@
 	          });
 		          highlight.data = { role: 'token_highlight' };
 		          tokenParts.push(highlight);
-		        } else if (!isAway) {
+		        } else if (!isAway && !canUseRoundKit) {
 		          const stripeWidth = 8;
 	          const stripeHeight = 46;
 	          const stripeCount = Math.ceil((radius * 2) / stripeWidth) + 1;
@@ -24786,7 +24816,7 @@
 		        if (tokenColorGrid) tokenColorGrid.hidden = style === 'photo';
 		        if (tokenPatternActions) tokenPatternActions.hidden = !hasStripes || style === 'photo';
 		        if (tokenKitActions) {
-		          tokenKitActions.hidden = style !== 'jersey';
+		          tokenKitActions.hidden = style === 'photo';
 		          const currentKitSlot = normalizeKit2dSlot(active?.data?.token_kit_slot || '') || kit2dSlotForTokenKind(safeText(active?.data?.token_kind));
 		          Array.from(tokenKitActions.querySelectorAll('button[data-token-kit-slot]') || []).forEach((btn) => {
 		            const btnSlot = normalizeKit2dSlot(btn.dataset.tokenKitSlot);
