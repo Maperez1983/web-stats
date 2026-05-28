@@ -1308,7 +1308,7 @@
       body.tactics-mode .tactics-quickbar {
         display: flex;
         flex-wrap: wrap;
-        gap: 0.28rem;
+        gap: 0.36rem;
         align-items: center;
         margin-left: 0;
         flex: 1 1 300px;
@@ -1367,9 +1367,12 @@
         display: inline-flex !important;
       }
       body.tactics-mode .tactics-quickbar .tactics-chip {
-        border-radius: 999px;
-        padding: 0.46rem 0.58rem;
-        font-size: 0.68rem;
+        border-radius: 14px;
+        padding: 0.52rem 0.72rem;
+        min-width: 76px;
+        max-width: none;
+        color: rgba(248, 250, 252, 0.96);
+        font-size: 0.7rem;
         font-weight: 900;
         letter-spacing: 0.06em;
         text-transform: uppercase;
@@ -1378,6 +1381,24 @@
         gap: 0.45rem;
         flex: 0 0 auto;
         justify-content: center;
+        white-space: nowrap;
+        overflow: visible;
+        text-overflow: clip;
+      }
+      body.tactics-mode .tactics-quickbar #tactics-overlays-open,
+      body.tactics-mode .tactics-quickbar #tactics-zones-open,
+      body.tactics-mode .tactics-quickbar #task-tactics-layout-toggle {
+        min-width: 108px;
+      }
+      body.tactics-mode .tactics-quickbar #tactics-zones-open {
+        min-width: 148px;
+      }
+      body.tactics-mode .tactics-quickbar #tactics-mode-toggle {
+        flex: 0 0 auto;
+      }
+      body.tactics-mode .tactics-quickbar #tactics-mode-toggle button {
+        min-width: 104px;
+        white-space: nowrap;
       }
       body.tactics-mode .tactics-quickbar .tactics-chip .dot {
         width: 10px;
@@ -5342,8 +5363,8 @@
                     <button type="button" class="surface-trigger tactics-chip" data-tactics-tool="cone" id="tactics-tool-cone" title="Insertar cono" aria-label="Insertar cono">Cono</button>
 	                    <button type="button" class="surface-trigger tactics-chip" data-tactics-only="interactive" data-tactics-tool="route_move" id="tactics-tool-route" title="Ruta de movimiento (Interactiva)" aria-label="Ruta de movimiento (Interactiva)">Ruta</button>
 	                    <button type="button" class="surface-trigger tactics-chip" data-tactics-only="interactive" data-tactics-tool="route_play" id="tactics-tool-route-play" title="Reproducir rutas (Interactiva)" aria-label="Reproducir rutas (Interactiva)">▶</button>
-	                    <button type="button" class="surface-trigger tactics-chip" id="tactics-overlays-open" title="Overlays tácticos (carriles, sectores, half-spaces, etc)" aria-label="Overlays tácticos" onclick="try{window.__tpadOpenOverlaysPopover&&window.__tpadOpenOverlaysPopover(this);}catch(e){}">Overlays</button>
-	                  <button type="button" class="surface-trigger tactics-chip" id="tactics-zones-open" title="Zonas/carriles manuales + plantillas" aria-label="Zonas" onclick="try{window.__tpadOpenZonesPopover&&window.__tpadOpenZonesPopover();}catch(e){}">Zonas</button>
+	                    <button type="button" class="surface-trigger tactics-chip" id="tactics-overlays-open" title="Carriles, sectores, half-spaces y zona 14" aria-label="Carriles y sectores" onclick="try{window.__tpadOpenOverlaysPopover&&window.__tpadOpenOverlaysPopover(this);}catch(e){}">Carriles</button>
+	                  <button type="button" class="surface-trigger tactics-chip" id="tactics-zones-open" title="Zonas/carriles manuales + plantillas" aria-label="Zonas y plantillas" onclick="try{window.__tpadOpenZonesPopover&&window.__tpadOpenZonesPopover();}catch(e){}">Zonas / Plantillas</button>
 	                  <button type="button" class="surface-trigger tactics-chip" id="task-tactics-layout-toggle" title="Alterna layout: recursos arriba / recursos a la derecha" aria-label="Alternar layout" aria-pressed="false">Layout</button>
 		                    <details class="tactics-menu" id="tactics-interactive-menu" data-tactics-only="interactive">
 		                      <summary class="surface-trigger" aria-label="Opciones de táctica interactiva">
