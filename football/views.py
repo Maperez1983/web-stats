@@ -6538,20 +6538,16 @@ def _universo_find_group_for_team_from_url(*, universo_url: str, category: str, 
     return fallback_candidate or result
 
 
-def _parse_capture_form_payload(raw_payload):
-    return universo_catalog_services.parse_capture_form_payload(raw_payload)
+_parse_capture_form_payload = universo_catalog_services.parse_capture_form_payload
 
 
-def _derive_season_label_from_dates(start_value, end_value):
-    return universo_catalog_services.derive_season_label_from_dates(start_value, end_value)
+_derive_season_label_from_dates = universo_catalog_services.derive_season_label_from_dates
 
 
-def _extract_region_from_competition_name(name):
-    return universo_catalog_services.extract_region_from_competition_name(name)
+_extract_region_from_competition_name = universo_catalog_services.extract_region_from_competition_name
 
 
-def _build_universo_competition_catalog():
-    return universo_catalog_services.build_universo_competition_catalog()
+_build_universo_competition_catalog = universo_catalog_services.build_universo_competition_catalog
 
 
 def _search_universo_competition_candidates(*, team_query='', competition_query='', group_query=''):
@@ -6923,12 +6919,10 @@ def _import_universo_competition_candidate(*, competition_key, group_key, team_k
     return selected_team, ''
 
 
-def _universo_snapshot_supports_team(snapshot, primary_team):
-    return standings_services.universo_snapshot_supports_team(snapshot, primary_team)
+_universo_snapshot_supports_team = standings_services.universo_snapshot_supports_team
 
 
-def _resolve_standings_for_team(primary_team, snapshot=None, provider=None):
-    return standings_services.resolve_standings_for_team(primary_team, snapshot=snapshot, provider=provider)
+_resolve_standings_for_team = standings_services.resolve_standings_for_team
 
 
 def _build_rival_options_for_team(primary_team, *, cache_days: int = 14, max_items: int = 60):
@@ -22823,8 +22817,7 @@ def _task_pdf_lines(value):
     return lines or ['-']
 
 
-def _team_pdf_palette(team_obj, style_key='uefa'):
-    return team_media_services.team_pdf_palette(team_obj, style_key=style_key)
+_team_pdf_palette = team_media_services.team_pdf_palette
 
 
 def _build_task_pdf_tokens(request, tactical_layout):
@@ -53999,25 +53992,10 @@ def _unique_team_slug(base_name):
 _unique_group_slug_for_season = universo_group_services.unique_group_slug_for_season
 
 
-def _ensure_universo_group_models_from_live(*, group_key, live_payload, primary_team, context):
-    return universo_group_services.ensure_universo_group_models_from_live(
-        group_key=group_key,
-        live_payload=live_payload,
-        primary_team=primary_team,
-        context=context,
-    )
+_ensure_universo_group_models_from_live = universo_group_services.ensure_universo_group_models_from_live
 
 
-def _ensure_universo_group_models_from_candidate(*, group_key: str, competition_name: str = '', group_name: str = '', season_name: str = '', competition_code: str = '', primary_team=None, context=None):
-    return universo_group_services.ensure_universo_group_models_from_candidate(
-        group_key=group_key,
-        competition_name=competition_name,
-        group_name=group_name,
-        season_name=season_name,
-        competition_code=competition_code,
-        primary_team=primary_team,
-        context=context,
-    )
+_ensure_universo_group_models_from_candidate = universo_group_services.ensure_universo_group_models_from_candidate
 
 
 def _ensure_platform_team(team_name, *, region=''):
