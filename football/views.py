@@ -16118,8 +16118,22 @@ def match_action_page(request):
     if not primary_team:
         raise Http404('Equipo principal no configurado')
     starters_limit = _required_starters_for_team(primary_team)
+    explicit_match_id = _parse_int(request.GET.get('match_id') or request.POST.get('match_id'))
+    default_stage = str(request.GET.get('stage') or '').strip().lower()
+    if default_stage not in {'pre', 'live', 'close'}:
+        default_stage = ''
     # Match "activo" del flujo matchday (robusto ante refrescos/reinicios en iPad).
     active_match = _resolve_active_match_for_flow(request, primary_team)
+    just_finalized_active_match = False
+    if active_match and not explicit_match_id and hasattr(request, 'session'):
+        try:
+            finalized_mapping = request.session.get('finalized_match_by_team')
+            finalized_id = _parse_int(
+                finalized_mapping.get(str(primary_team.id)) if isinstance(finalized_mapping, dict) else None
+            )
+            just_finalized_active_match = bool(finalized_id and int(finalized_id) == int(active_match.id))
+        except Exception:
+            just_finalized_active_match = False
     convocation_record = None
     if active_match:
         convocation_record = _get_convocation_record_for_match(primary_team, active_match)
@@ -16167,39 +16181,19 @@ def match_action_page(request):
         else:
             message = "Completa el jugador y el tipo de acción."
     # Persistencia de registro en vivo:
-    # - Mientras el partido está activo, mostramos pendientes (touch-field) y también las ya guardadas
-    #   (touch-field-final) para que el usuario vea "qué se ha guardado" tras pulsar Guardar.
-    # - Orden: pendientes primero (más recientes), luego guardadas (más recientes).
+    # - En el panel de registro solo deben reaparecer acciones pendientes (touch-field).
+    # - Las guardadas (touch-field-final) quedan en histórico/KPI/informes, pero no se vuelven a pintar
+    #   como "trabajo pendiente" al arrancar limpio después de Guardar partido.
     if active_match:
-        try:
-            from django.db.models import Case, IntegerField, Value, When  # noqa: WPS433 (local import)
-
-            system_order = Case(
-                When(system='touch-field', then=Value(0)),
-                When(system='touch-field-final', then=Value(1)),
-                default=Value(2),
-                output_field=IntegerField(),
+        recent_events = (
+            MatchEvent.objects.filter(
+                match=active_match,
+                source_file='registro-acciones',
+                system='touch-field',
             )
-            recent_events = (
-                MatchEvent.objects.filter(
-                    match=active_match,
-                    source_file='registro-acciones',
-                    system__in=['touch-field', 'touch-field-final'],
-                )
-                .select_related('player')
-                .annotate(_sys_order=system_order)
-                .order_by('_sys_order', '-id')[:120]
-            )
-        except Exception:
-            recent_events = (
-                MatchEvent.objects.filter(
-                    match=active_match,
-                    source_file='registro-acciones',
-                    system__in=['touch-field', 'touch-field-final'],
-                )
-                .select_related('player')
-                .order_by('-created_at', '-id')[:120]
-            )
+            .select_related('player')
+            .order_by('-created_at', '-id')[:120]
+        )
     else:
         recent_match_ids = list(
             Match.objects.filter(Q(home_team=primary_team) | Q(away_team=primary_team))
@@ -16217,9 +16211,9 @@ def match_action_page(request):
     if active_match:
         try:
             base_actions = MatchEvent.objects.filter(match=active_match, source_file='registro-acciones')
-            actions_total_count = base_actions.count()
             actions_pending_count = base_actions.filter(system='touch-field').count()
-            actions_final_count = base_actions.filter(system='touch-field-final').count()
+            actions_final_count = 0 if just_finalized_active_match else base_actions.filter(system='touch-field-final').count()
+            actions_total_count = actions_pending_count + actions_final_count
         except Exception:
             actions_total_count = 0
             actions_pending_count = 0
@@ -16243,10 +16237,6 @@ def match_action_page(request):
 
     substitution_history = []
     match_info = None
-    explicit_match_id = _parse_int(request.GET.get('match_id') or request.POST.get('match_id'))
-    default_stage = str(request.GET.get('stage') or '').strip().lower()
-    if default_stage not in {'pre', 'live', 'close'}:
-        default_stage = ''
     if active_match:
         opponent = active_match.away_team if active_match.home_team == primary_team else active_match.home_team
         is_home = active_match.home_team_id == primary_team.id
@@ -16314,7 +16304,7 @@ def match_action_page(request):
             .select_related('player')
             .order_by('created_at', 'id')
         )
-        substitution_events = list(confirmed_subs) + pending_subs
+        substitution_events = pending_subs if just_finalized_active_match else (list(confirmed_subs) + pending_subs)
         for event in substitution_events:
             if not (
                 is_substitution_event(event.event_type, event.zone)
@@ -16331,7 +16321,7 @@ def match_action_page(request):
                 has_any_actions = MatchEvent.objects.filter(match=active_match, source_file='registro-acciones').exists()
             except Exception:
                 has_any_actions = False
-            default_stage = 'live' if has_any_actions else 'pre'
+            default_stage = 'pre' if just_finalized_active_match else ('live' if has_any_actions else 'pre')
     if not default_stage:
         default_stage = 'pre' if not active_match else 'live'
     universo_lookup = _build_universo_standings_lookup(load_universo_snapshot())
@@ -17430,6 +17420,12 @@ def finalize_match_actions(request):
                     mapping.pop(str(primary_team.id), None)
                     request.session['active_match_by_team'] = mapping
                     request.session.modified = True
+                finalized_mapping = request.session.get('finalized_match_by_team')
+                if not isinstance(finalized_mapping, dict):
+                    finalized_mapping = {}
+                finalized_mapping[str(primary_team.id)] = int(match.id)
+                request.session['finalized_match_by_team'] = finalized_mapping
+                request.session.modified = True
         except Exception:
             pass
         # Reinicio total (matchday): al guardar el partido, la convocatoria "actual" ya no debe

@@ -6342,6 +6342,11 @@ class MatchActionWorkflowTests(TestCase):
             self.client.session.get('active_match_by_team', {}).get(str(self.team.id)),
             None,
         )
+        page = self.client.get(reverse('match-action-page'), {'stage': 'pre'})
+        self.assertEqual(page.status_code, 200)
+        self.assertEqual(page.context['actions_pending_count'], 0)
+        self.assertEqual(page.context['actions_final_count'], 0)
+        self.assertEqual(list(page.context['recent_events']), [])
         dashboard = compute_player_dashboard(self.team, force_refresh=True)
         detail = next(item for item in dashboard if item['player_id'] == player.id)
         self.assertEqual(detail['goals'], baseline_goals + 1)
