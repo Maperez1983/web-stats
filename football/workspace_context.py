@@ -112,7 +112,7 @@ def get_active_workspace(request):
                     request.session['active_workspace_id'] = preferred.id
                     return _cache_active_workspace(request, preferred)
             except Exception:
-                pass
+                logger.debug('No se pudo resolver workspace club preferido para usuario %s', getattr(request.user, 'id', None), exc_info=True)
         try:
             club_ws = list(
                 available_qs
@@ -124,7 +124,7 @@ def get_active_workspace(request):
                 request.session['active_workspace_id'] = workspace.id
                 return _cache_active_workspace(request, workspace)
         except Exception:
-            pass
+            logger.debug('No se pudo autoasignar el unico workspace club disponible', exc_info=True)
         if single_club_fallback_enabled():
             try:
                 club_ws = list(
@@ -137,7 +137,7 @@ def get_active_workspace(request):
                     request.session['active_workspace_id'] = workspace.id
                     return _cache_active_workspace(request, workspace)
             except Exception:
-                pass
+                logger.debug('No se pudo aplicar fallback monoclub para workspace activo', exc_info=True)
         return _cache_active_workspace(request, None)
 
     if single_club_fallback_enabled():
@@ -154,7 +154,7 @@ def get_active_workspace(request):
                             defaults={'role': WorkspaceMembership.ROLE_VIEWER},
                         )
         except Exception:
-            pass
+            logger.debug('No se pudo crear membresia viewer de fallback para usuario %s', getattr(request.user, 'id', None), exc_info=True)
     fallback_workspace = available_qs.order_by('kind', 'name', 'id').first()
     if fallback_workspace:
         request.session['active_workspace_id'] = fallback_workspace.id
@@ -172,7 +172,7 @@ def get_active_workspace(request):
                         defaults={'role': WorkspaceMembership.ROLE_MEMBER},
                     )
                 except Exception:
-                    pass
+                    logger.debug('No se pudo crear membresia member de fallback para usuario %s', getattr(request.user, 'id', None), exc_info=True)
                 request.session['active_workspace_id'] = workspace.id
                 return _cache_active_workspace(request, workspace)
     return _cache_active_workspace(request, None)
@@ -246,7 +246,7 @@ def user_can_access_team(request, team: "Team") -> bool:
         if can_access_platform(request.user):
             return True
     except Exception:
-        pass
+        logger.debug('No se pudo evaluar acceso platform del usuario %s', getattr(request.user, 'id', None), exc_info=True)
     allowed_team_ids = allowed_team_ids_for_request(request)
     if allowed_team_ids:
         try:
@@ -257,7 +257,12 @@ def user_can_access_team(request, team: "Team") -> bool:
         if WorkspaceTeamAccess.objects.filter(user=request.user, team=team).exists():
             return True
     except Exception:
-        pass
+        logger.debug(
+            'No se pudo comprobar acceso explicito del usuario %s al equipo %s',
+            getattr(request.user, 'id', None),
+            getattr(team, 'id', None),
+            exc_info=True,
+        )
     try:
         if WorkspaceTeam.objects.filter(team=team, workspace__is_active=True, workspace__owner_user=request.user).exists():
             return True
@@ -282,7 +287,12 @@ def team_from_request_param(request):
                     mapping[str(workspace.id)] = int(team.id)
                     request.session["active_team_by_workspace"] = mapping
                 except Exception:
-                    pass
+                    logger.debug(
+                        'No se pudo recordar equipo activo %s para workspace %s',
+                        getattr(team, 'id', None),
+                        getattr(workspace, 'id', None),
+                        exc_info=True,
+                    )
             return team
     team_slug = str(request.GET.get("team_slug") or request.POST.get("team_slug") or "").strip()
     if team_slug:
@@ -352,7 +362,7 @@ def get_active_team_for_request(request):
                     team = team_lookup[int(preferred_team_id)]
                     return _cache_active_team(request, team)
         except Exception:
-            pass
+            logger.debug('No se pudo resolver equipo preferido para workspace %s', getattr(workspace, 'id', None), exc_info=True)
         default_link = next((link for link in links if getattr(link, 'is_default', False)), None)
         if default_link and getattr(default_link, 'team', None):
             team = default_link.team
@@ -369,13 +379,14 @@ def get_active_team_for_request(request):
         try:
             explicit_team = team_from_request_param(request)
         except Exception:
+            logger.debug('No se pudo resolver equipo explicito desde request', exc_info=True)
             explicit_team = None
         if explicit_team:
             try:
                 if hasattr(request, 'session'):
                     request.session['active_team_id'] = int(explicit_team.id)
             except Exception:
-                pass
+                logger.debug('No se pudo guardar active_team_id %s en sesion', getattr(explicit_team, 'id', None), exc_info=True)
             return _cache_active_team(request, explicit_team)
         remembered_team_id = None
         try:
@@ -387,17 +398,17 @@ def get_active_team_for_request(request):
         try:
             team_ids.update(WorkspaceTeamAccess.objects.filter(user=request.user).values_list('team_id', flat=True))
         except Exception:
-            pass
+            logger.debug('No se pudo cargar accesos directos a equipos para usuario %s', getattr(request.user, 'id', None), exc_info=True)
         if not team_ids:
             try:
                 team_ids.update(WorkspaceTeam.objects.filter(workspace__is_active=True, workspace__owner_user=request.user).values_list('team_id', flat=True))
             except Exception:
-                pass
+                logger.debug('No se pudo cargar equipos por ownership para usuario %s', getattr(request.user, 'id', None), exc_info=True)
         if not team_ids:
             try:
                 team_ids.update(WorkspaceTeam.objects.filter(workspace__is_active=True, workspace__memberships__user=request.user).values_list('team_id', flat=True))
             except Exception:
-                pass
+                logger.debug('No se pudo cargar equipos por membresia para usuario %s', getattr(request.user, 'id', None), exc_info=True)
         team_ids = {int(tid) for tid in team_ids if tid}
         if remembered_team_id and int(remembered_team_id) in team_ids:
             team = Team.objects.filter(id=int(remembered_team_id)).first()
@@ -410,7 +421,7 @@ def get_active_team_for_request(request):
                     if hasattr(request, 'session'):
                         request.session['active_team_id'] = int(team.id)
                 except Exception:
-                    pass
+                    logger.debug('No se pudo guardar unico active_team_id %s en sesion', getattr(team, 'id', None), exc_info=True)
             return _cache_active_team(request, team)
         if team_ids:
             try:
@@ -424,7 +435,7 @@ def get_active_team_for_request(request):
                         if hasattr(request, 'session'):
                             request.session['active_team_id'] = int(team.id)
                     except Exception:
-                        pass
+                        logger.debug('No se pudo guardar fallback active_team_id %s en sesion', getattr(team, 'id', None), exc_info=True)
                     return _cache_active_team(request, team)
         if single_club_fallback_enabled():
             team = Team.objects.filter(is_primary=True).first()
