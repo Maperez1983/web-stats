@@ -11,31 +11,59 @@
     <style>
       body {
         margin: 0;
-        font-family: Arial, sans-serif;
-        background: #0f172a;
+        font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", sans-serif);
+        background:
+          radial-gradient(circle at 10% -10%, rgba(244, 180, 0, 0.12), transparent 36%),
+          radial-gradient(circle at 95% 0%, rgba(34, 211, 238, 0.12), transparent 34%),
+          linear-gradient(180deg, #030712 0%, #0f172a 100%);
         color: #e2e8f0;
       }
+      *, *::before, *::after {
+        box-sizing: border-box;
+      }
       .page {
-        max-width: 980px;
+        width: min(100%, 1120px);
         margin: 0 auto;
-        padding: 1.5rem;
+        padding: clamp(0.85rem, 1.4vw, 1.5rem);
       }
       .head {
-        display: flex;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
         justify-content: space-between;
-        align-items: center;
+        align-items: start;
         gap: 1rem;
         margin-bottom: 1rem;
       }
+      .head h1 {
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: clamp(1rem, 1.4vw, 1.35rem);
+        overflow-wrap: anywhere;
+      }
+      .head p { color: rgba(226, 232, 240, 0.74); }
       .head a {
-        color: #7dd3fc;
+        min-height: 38px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        border: 1px solid rgba(125, 211, 252, 0.26);
+        background: rgba(2, 6, 23, 0.45);
+        color: #e0f2fe;
+        padding: 0.55rem 0.85rem;
         text-decoration: none;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 0.72rem;
+        white-space: nowrap;
       }
       .card {
-        background: #111827;
-        border: 1px solid #334155;
-        border-radius: 12px;
+        background: rgba(17, 24, 39, 0.92);
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 18px;
         padding: 1rem;
+        box-shadow: 0 22px 54px rgba(0, 0, 0, 0.32);
       }
       .msg {
         background: #064e3b;
@@ -45,34 +73,74 @@
         border-radius: 8px;
         margin-bottom: 1rem;
       }
+      .msg.err {
+        background: #4c0519;
+        border-color: #fb7185;
+        color: #ffe4e6;
+      }
+      .table-wrap {
+        overflow: auto;
+        scrollbar-gutter: stable;
+        border-radius: 14px;
+        border: 1px solid rgba(51, 65, 85, 0.72);
+      }
       table {
         width: 100%;
+        min-width: 780px;
         border-collapse: collapse;
       }
       th, td {
         border-bottom: 1px solid #334155;
         padding: 0.5rem;
         text-align: left;
+        overflow-wrap: anywhere;
+      }
+      th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: rgba(15, 23, 42, 0.98);
+        color: rgba(226, 232, 240, 0.76);
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      td:first-child {
+        font-weight: 900;
+        min-width: 180px;
       }
       input[type="number"] {
-        width: 90px;
+        width: 82px;
         padding: 0.35rem 0.4rem;
-        border-radius: 6px;
+        border-radius: 10px;
         border: 1px solid #475569;
         background: #0b1220;
         color: #e2e8f0;
+        font-size: 1rem;
+        font-weight: 800;
       }
       .actions {
         margin-top: 1rem;
+        display: flex;
+        justify-content: flex-end;
       }
       button {
+        min-height: 40px;
         padding: 0.6rem 1rem;
         border: 0;
-        border-radius: 8px;
-        background: #0ea5e9;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #38bdf8, #facc15);
         color: #082f49;
-        font-weight: 700;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
         cursor: pointer;
+      }
+      @media (max-width: 720px) {
+        .head { grid-template-columns: 1fr; }
+        .head a,
+        button { width: 100%; }
+        .card { padding: 0.85rem; border-radius: 16px; }
       }
     </style>
   </head>
@@ -92,38 +160,40 @@
           <div class="msg">{{ message }}</div>
         {% endif %}
         {% if error %}
-          <div class="msg" style="background:#4c0519; border-color:#fb7185; color:#ffe4e6;">{{ error }}</div>
+          <div class="msg err">{{ error }}</div>
         {% endif %}
         <form method="post">
           {% csrf_token %}
-          <table>
-            <thead>
-	              <tr>
-	                <th>Jugador</th>
-	                <th>PJ</th>
-	                <th>PT</th>
-	                <th>Min</th>
-	                <th>Goles</th>
-	                <th>Asist</th>
-	                <th>Amarillas</th>
-	                <th>Rojas</th>
-	              </tr>
-            </thead>
-            <tbody>
-              {% for row in rows %}
+          <div class="table-wrap">
+            <table>
+              <thead>
                 <tr>
-                  <td>{{ row.player.name }}</td>
-                  <td><input type="number" min="0" name="pj_{{ row.player.id }}" value="{{ row.pj }}" /></td>
-                  <td><input type="number" min="0" name="pt_{{ row.player.id }}" value="{{ row.pt }}" /></td>
-	                  <td><input type="number" min="0" name="minutes_{{ row.player.id }}" value="{{ row.minutes }}" /></td>
-	                  <td><input type="number" min="0" name="goals_{{ row.player.id }}" value="{{ row.goals }}" /></td>
-	                  <td><input type="number" min="0" name="assists_{{ row.player.id }}" value="{{ row.assists|default:0 }}" /></td>
-	                  <td><input type="number" min="0" name="yellow_{{ row.player.id }}" value="{{ row.yellow_cards }}" /></td>
-	                  <td><input type="number" min="0" name="red_{{ row.player.id }}" value="{{ row.red_cards }}" /></td>
-	                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+                  <th>Jugador</th>
+                  <th>PJ</th>
+                  <th>PT</th>
+                  <th>Min</th>
+                  <th>Goles</th>
+                  <th>Asist</th>
+                  <th>Amarillas</th>
+                  <th>Rojas</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in rows %}
+                  <tr>
+                    <td>{{ row.player.name }}</td>
+                    <td><input type="number" min="0" name="pj_{{ row.player.id }}" value="{{ row.pj }}" /></td>
+                    <td><input type="number" min="0" name="pt_{{ row.player.id }}" value="{{ row.pt }}" /></td>
+                    <td><input type="number" min="0" name="minutes_{{ row.player.id }}" value="{{ row.minutes }}" /></td>
+                    <td><input type="number" min="0" name="goals_{{ row.player.id }}" value="{{ row.goals }}" /></td>
+                    <td><input type="number" min="0" name="assists_{{ row.player.id }}" value="{{ row.assists|default:0 }}" /></td>
+                    <td><input type="number" min="0" name="yellow_{{ row.player.id }}" value="{{ row.yellow_cards }}" /></td>
+                    <td><input type="number" min="0" name="red_{{ row.player.id }}" value="{{ row.red_cards }}" /></td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
           <div class="actions">
             <button type="submit">Guardar ajustes</button>
           </div>
