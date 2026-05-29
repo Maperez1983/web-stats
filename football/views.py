@@ -21,7 +21,7 @@ from collections import Counter, defaultdict
 from datetime import datetime, timedelta, time, date
 from decimal import Decimal, InvalidOperation
 from html.parser import HTMLParser
-from functools import lru_cache, wraps
+from functools import lru_cache, partial, wraps
 from pathlib import Path
 import unicodedata
 import re
@@ -366,8 +366,7 @@ def _team_standings_last_updated(group):
         return None
 
 
-def _latest_standings_group_for_team(primary_team):
-    return standings_services.latest_standings_group_for_team(primary_team)
+_latest_standings_group_for_team = standings_services.latest_standings_group_for_team
 
 
 def _refresh_rfaf_standings_inline(*, allow_fallback=False):
@@ -1357,16 +1356,13 @@ def _extract_ig_task_fields_from_caption_images(uploaded_images) -> dict:
     return _extract_ig_task_fields_from_text(merged) or {}
 
 
-def _get_or_create_inbox_microcycle(team):
-    return session_import_services.get_or_create_inbox_microcycle(team)
+_get_or_create_inbox_microcycle = session_import_services.get_or_create_inbox_microcycle
 
 
-def _week_bounds_for_date(value):
-    return session_import_services.week_bounds_for_date(value)
+_week_bounds_for_date = session_import_services.week_bounds_for_date
 
 
-def _get_or_create_week_microcycle(team, session_date, *, title_hint=''):
-    return session_import_services.get_or_create_week_microcycle(team, session_date, title_hint=title_hint)
+_get_or_create_week_microcycle = session_import_services.get_or_create_week_microcycle
 TASK_TEMPLATE_LIBRARY = [
     {
         'key': 'none',
@@ -4016,49 +4012,22 @@ def _workspace_competition_provider_choices():
     return WorkspaceCompetitionContext.PROVIDER_CHOICES
 
 
-def _bootstrap_workspace_competition_context(
-    workspace,
-    *,
-    primary_team=None,
-    provider=None,
-    external_competition_key=None,
-    external_group_key=None,
-    external_team_key=None,
-    external_team_name=None,
-    external_source_url=None,
-    auto_sync_enabled=None,
-):
-    return workspace_competition_context_services.bootstrap_workspace_competition_context(
-        workspace,
-        primary_team=primary_team,
-        provider=provider,
-        external_competition_key=external_competition_key,
-        external_group_key=external_group_key,
-        external_team_key=external_team_key,
-        external_team_name=external_team_name,
-        external_source_url=external_source_url,
-        auto_sync_enabled=auto_sync_enabled,
-    )
+_bootstrap_workspace_competition_context = workspace_competition_context_services.bootstrap_workspace_competition_context
 
 
-def _build_workspace_schedule_payload(primary_team):
-    return match_payload_services.build_workspace_schedule_payload(primary_team)
+_build_workspace_schedule_payload = match_payload_services.build_workspace_schedule_payload
 
 
-def _expand_team_lookup_variants(raw_value):
-    return universo_group_services.expand_team_lookup_variants(raw_value)
+_expand_team_lookup_variants = universo_group_services.expand_team_lookup_variants
 
 
-def _context_team_lookup_keys(context, primary_team):
-    return universo_context_services.context_team_lookup_keys(context, primary_team)
+_context_team_lookup_keys = universo_context_services.context_team_lookup_keys
 
 
-def _ensure_universo_context_binding(context, primary_team):
-    return universo_context_services.ensure_universo_context_binding(context, primary_team)
+_ensure_universo_context_binding = universo_context_services.ensure_universo_context_binding
 
 
-def _find_universo_next_match_for_context(context, primary_team):
-    return next_match_services.find_universo_next_match_for_context(context, primary_team)
+_find_universo_next_match_for_context = next_match_services.find_universo_next_match_for_context
 
 
 def _search_workspace_competition_candidates(provider, *, team_query='', competition_query='', group_query=''):
@@ -5217,12 +5186,10 @@ def authenticated_write(view_func):
     return _wrapped
 
 
-def load_cached_next_match():
-    return next_match_services.load_cached_next_match(NEXT_MATCH_CACHE)
+load_cached_next_match = partial(next_match_services.load_cached_next_match, NEXT_MATCH_CACHE)
 
 
-def normalize_next_match_payload(payload):
-    return match_payload_services.normalize_next_match_payload(payload)
+normalize_next_match_payload = match_payload_services.normalize_next_match_payload
 
 
 def _is_valid_kit2d_url(value):
