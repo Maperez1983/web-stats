@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import re
 from urllib.parse import quote, urlparse
@@ -16,12 +17,14 @@ from .workspace_context import can_access_platform as workspace_can_access_platf
 from .workspace_context import get_user_role as workspace_get_user_role
 
 
-def _get_user_role(user):
-    return workspace_get_user_role(user)
+logger = logging.getLogger(__name__)
+auth_logger = logging.getLogger("webstats.auth")
 
 
-def _can_access_platform(user):
-    return workspace_can_access_platform(user)
+_get_user_role = workspace_get_user_role
+
+
+_can_access_platform = workspace_can_access_platform
 
 
 def _split_csv(raw: str) -> list[str]:
@@ -61,7 +64,7 @@ def _resolve_app_base_url(request) -> str:
             if parsed.scheme and parsed.netloc:
                 return f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
         except Exception:
-            pass
+            logger.debug("APP_PUBLIC_BASE_URL no se pudo parsear como URL: %s", explicit, exc_info=True)
         # Fallback defensivo: elimina cualquier path accidental.
         cleaned = explicit.strip().rstrip("/")
         if "://" in cleaned:
@@ -174,22 +177,22 @@ class RoleAwareLoginView(auth_views.LoginView):
         # Diagnóstico opcional: loguea señales de sesión/cookies para depurar bucles de login.
         try:
             if str(os.getenv("LOGIN_DEBUG") or "").strip().lower() in {"1", "true", "yes", "on"}:
-                import logging
-
-                logger = logging.getLogger("webstats.auth")
                 try:
                     host = str(self.request.get_host() or "")
                 except Exception:
+                    logger.debug("No se pudo leer host durante diagnostico de login", exc_info=True)
                     host = ""
                 try:
                     ua = str(getattr(self.request, "META", {}).get("HTTP_USER_AGENT") or "")
                 except Exception:
+                    logger.debug("No se pudo leer user agent durante diagnostico de login", exc_info=True)
                     ua = ""
                 try:
                     cookie_header = str(getattr(self.request, "META", {}).get("HTTP_COOKIE") or "")
                 except Exception:
+                    logger.debug("No se pudo leer cookies durante diagnostico de login", exc_info=True)
                     cookie_header = ""
-                logger.warning(
+                auth_logger.warning(
                     "login_valid user=%s host=%s ua=%s cookie_header_len=%s js_redirect=%s",
                     str(getattr(self.request.user, "username", "") or ""),
                     host,
@@ -198,7 +201,7 @@ class RoleAwareLoginView(auth_views.LoginView):
                     _should_login_js_redirect(self.request),
                 )
         except Exception:
-            pass
+            logger.debug("No se pudo emitir diagnostico de login", exc_info=True)
         # UX: "Mantener sesión" para iPad/WKWebView (evita pedir contraseña cada vez).
         # No guardamos contraseñas: solo extendemos la validez de la cookie de sesión.
         try:
@@ -214,7 +217,7 @@ class RoleAwareLoginView(auth_views.LoginView):
                 days = max(1, min(days, 365))
                 self.request.session.set_expiry(days * 86400)
         except Exception:
-            pass
+            logger.debug("No se pudo aplicar expiracion extendida de sesion", exc_info=True)
 
         # Safari/WebKit: evita loop de login si el navegador ignora Set-Cookie en 302.
         # En lugar de redirigir con 302, devolvemos 200 + JS/meta refresh (manteniendo cookies).
@@ -225,6 +228,7 @@ class RoleAwareLoginView(auth_views.LoginView):
             try:
                 target = str(getattr(response, "url", "") or response.get("Location") or "").strip()
             except Exception:
+                logger.debug("No se pudo leer destino de respuesta de login", exc_info=True)
                 target = ""
             if not target:
                 target = str(self.get_success_url() or "").strip()
@@ -255,11 +259,13 @@ class RoleAwareLoginView(auth_views.LoginView):
                                 if v not in (None, "", False):
                                     js_response.cookies[name][k] = v
                         except Exception:
+                            logger.debug("No se pudo copiar cookie %s en respuesta JS de login", name, exc_info=True)
                             continue
             except Exception:
-                pass
+                logger.debug("No se pudieron copiar cookies a respuesta JS de login", exc_info=True)
             return js_response
         except Exception:
+            logger.debug("No se pudo construir respuesta JS de login; usando respuesta original", exc_info=True)
             return response
         return response
 
@@ -303,7 +309,7 @@ class RoleAwareLoginView(auth_views.LoginView):
                 except Resolver404:
                     requested_next = ""
                 except Exception:
-                    pass
+                    logger.debug("No se pudo resolver next post-login %s", path, exc_info=True)
         if requested_next:
             return requested_next
         # Producto: usuario de plataforma aterriza en /platform/ para elegir cliente/espacio.
@@ -313,6 +319,6 @@ class RoleAwareLoginView(auth_views.LoginView):
                 if hasattr(self.request, "session") and int(self.request.session.get("active_workspace_id") or 0) > 0:
                     return f"{reverse('dashboard-home')}?home=club"
             except Exception:
-                pass
+                logger.debug("No se pudo leer active_workspace_id post-login", exc_info=True)
             return reverse("platform-overview")
         return reverse("dashboard-home")
