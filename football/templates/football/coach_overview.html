@@ -80,13 +80,14 @@
         gap: 1rem;
       }
       .primary-grid {
-        grid-template-columns: 1.4fr 0.85fr;
+        grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.85fr);
       }
       .secondary-grid {
         margin-top: 1rem;
         grid-template-columns: 1fr;
       }
       .card {
+        min-width: 0;
         border-radius: 22px;
         border: 1px solid var(--line);
         background: var(--panel-soft);
@@ -137,8 +138,9 @@
         gap: 0.65rem;
       }
       .metric-list li {
-        display: flex;
-        justify-content: space-between;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: baseline;
         gap: 0.7rem;
         padding-bottom: 0.45rem;
         border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -188,7 +190,7 @@
       }
       .standing-highlight {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
         gap: 0.65rem;
       }
       .standing-highlight .mini {
@@ -211,6 +213,7 @@
       }
       .standings-table {
         width: 100%;
+        min-width: 520px;
         border-collapse: collapse;
         margin-top: 0.8rem;
       }
@@ -243,7 +246,7 @@
       }
       .hub-grid {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
         gap: 0.65rem;
         margin-top: 0.85rem;
       }
@@ -251,6 +254,7 @@
         margin-top: 0.95rem;
       }
       .hub-link {
+        min-width: 0;
         display: grid;
         gap: 0.2rem;
         padding: 0.85rem 0.9rem;
@@ -274,12 +278,14 @@
         font-size: 0.86rem;
         letter-spacing: 0.06em;
         text-transform: uppercase;
+        overflow-wrap: anywhere;
       }
       .hub-link span {
         color: var(--muted);
         font-size: 0.84rem;
         letter-spacing: 0;
         text-transform: none;
+        overflow-wrap: anywhere;
       }
       .hero-kicker {
         display: inline-flex;
@@ -319,14 +325,15 @@
         display: block;
         margin-top: 0.18rem;
         color: var(--ink);
+        overflow-wrap: anywhere;
+      }
+      .secondary-grid .card {
+        overflow-x: auto;
       }
       @media (max-width: 1120px) {
         .primary-grid,
         .secondary-grid {
           grid-template-columns: 1fr;
-        }
-        .hub-grid {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
         }
       }
       @media (max-width: 760px) {
@@ -346,9 +353,6 @@
         }
         .primary-grid,
         .secondary-grid {
-          grid-template-columns: 1fr;
-        }
-        .hub-grid {
           grid-template-columns: 1fr;
         }
         .headline {
