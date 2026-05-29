@@ -24203,6 +24203,11 @@
                 clearTokensBySide('local');
                 clearTokensBySide('rival');
                 clearInteractiveRoutes();
+                (canvas.getObjects() || []).forEach((obj) => {
+                  if (safeText(obj?.data?.kind) === 'ball') {
+                    try { canvas.remove(obj); } catch (e) { /* ignore */ }
+                  }
+                });
                 const { w, h } = worldSize();
                 const at = (x, y) => ({ x: (Number(x) || 0) * w, y: (Number(y) || 0) * h });
                 const created = [];
