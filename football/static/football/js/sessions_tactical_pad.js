@@ -23539,6 +23539,7 @@
               const tacticsInteractiveMenu = document.getElementById('tactics-interactive-menu');
               const tacticsBallFollowInput = document.getElementById('tactics-interactive-ball-follow');
               const tacticsRouteSummary = document.getElementById('tactics-route-summary');
+              const tacticsRouteCountEls = document.querySelectorAll('[data-tactics-route-count]');
               const tacticsFormationMenu = document.getElementById('tactics-formation-menu');
               const tacticsFormationClear = document.getElementById('tactics-formation-clear');
               const tacticsFormationNumbers = document.getElementById('tactics-formation-numbers');
@@ -23689,9 +23690,11 @@
                 return count;
               };
               const syncRouteSummary = () => {
-                if (!tacticsRouteSummary) return;
                 const n = countInteractiveRoutes();
-                tacticsRouteSummary.textContent = `Rutas: ${n}`;
+                if (tacticsRouteSummary) tacticsRouteSummary.textContent = `Rutas: ${n}`;
+                tacticsRouteCountEls.forEach((el) => {
+                  try { el.textContent = `${n} ruta${n === 1 ? '' : 's'}`; } catch (e) { /* ignore */ }
+                });
               };
 
 	              const setTacticsInteractiveEnabled = (enabled, { persist = true } = {}) => {

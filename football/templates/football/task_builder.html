@@ -1370,6 +1370,49 @@
       body.tactics-mode.tactics-interactive .tactics-quickbar #tactics-demo-build-up {
         display: inline-flex !important;
       }
+      body.tactics-mode .tactics-interactive-dock {
+        display: none;
+      }
+      body.tactics-mode.tactics-interactive .tactics-interactive-dock {
+        display: flex;
+        flex: 1 0 100%;
+        align-items: center;
+        gap: 0.42rem;
+        padding: 0.48rem;
+        border: 1px solid rgba(34, 211, 238, 0.24);
+        border-radius: 16px;
+        background: rgba(8, 47, 73, 0.18);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+      }
+      body.tactics-mode .tactics-interactive-dock button,
+      body.tactics-mode .tactics-interactive-dock .route-meter {
+        min-height: 38px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 12px;
+        background: rgba(15, 23, 42, 0.78);
+        color: rgba(241, 245, 249, 0.94);
+        padding: 0.48rem 0.68rem;
+        font-size: 0.68rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      body.tactics-mode .tactics-interactive-dock button {
+        cursor: pointer;
+      }
+      body.tactics-mode .tactics-interactive-dock .primary {
+        border-color: rgba(250, 204, 21, 0.54);
+        background: rgba(250, 204, 21, 0.16);
+        color: rgba(255, 251, 235, 0.98);
+      }
+      body.tactics-mode .tactics-interactive-dock .route-meter {
+        margin-left: auto;
+        color: rgba(186, 230, 253, 0.92);
+      }
       body.tactics-mode .tactics-quickbar .tactics-chip {
         border-radius: 14px;
         padding: 0.52rem 0.72rem;
@@ -5481,9 +5524,18 @@
                     <button type="button" class="surface-trigger tactics-chip" data-tactics-tool="text" id="tactics-tool-text" title="Insertar texto" aria-label="Insertar texto">Texto</button>
 	                    <button type="button" class="surface-trigger tactics-chip" data-tactics-only="interactive" data-tactics-tool="route_move" id="tactics-tool-route" title="Ruta de movimiento (Interactiva)" aria-label="Ruta de movimiento (Interactiva)">Ruta</button>
 	                    <button type="button" class="surface-trigger tactics-chip" data-tactics-only="interactive" data-tactics-tool="route_play" id="tactics-tool-route-play" title="Reproducir rutas (Interactiva)" aria-label="Reproducir rutas (Interactiva)">▶</button>
-	                    <button type="button" class="surface-trigger tactics-chip" id="tactics-overlays-open" title="Carriles, sectores, half-spaces y zona 14" aria-label="Carriles y sectores" onclick="try{window.__tpadOpenOverlaysPopover&&window.__tpadOpenOverlaysPopover(this);}catch(e){}">Carriles</button>
+                    <button type="button" class="surface-trigger tactics-chip" id="tactics-overlays-open" title="Carriles, sectores, half-spaces y zona 14" aria-label="Carriles y sectores" onclick="try{window.__tpadOpenOverlaysPopover&&window.__tpadOpenOverlaysPopover(this);}catch(e){}">Carriles</button>
 	                  <button type="button" class="surface-trigger tactics-chip" id="tactics-zones-open" title="Zonas/carriles manuales + plantillas" aria-label="Zonas y plantillas" onclick="try{window.__tpadOpenZonesPopover&&window.__tpadOpenZonesPopover();}catch(e){}">Zonas / Plantillas</button>
 	                  <button type="button" class="surface-trigger tactics-chip" id="task-tactics-layout-toggle" title="Alterna layout: recursos arriba / recursos a la derecha" aria-label="Alternar layout" aria-pressed="false">Layout</button>
+                    <div class="tactics-interactive-dock" data-tactics-only="interactive" aria-label="Controles de táctica interactiva">
+                      <button type="button" class="primary" data-tactics-demo="build_up">Demo</button>
+                      <button type="button" data-tactics-tool="route_move">Ruta</button>
+                      <button type="button" data-tactics-tool="route_play">Reproducir</button>
+                      <button type="button" data-tactics-generate="seq">Secuencia</button>
+                      <button type="button" data-tactics-generate="simul">A la vez</button>
+                      <button type="button" data-tactics-clear-routes="1">Borrar</button>
+                      <span class="route-meter" data-tactics-route-count>0 rutas</span>
+                    </div>
 		                    <details class="tactics-menu" id="tactics-interactive-menu" data-tactics-only="interactive">
 		                      <summary class="surface-trigger" aria-label="Opciones de táctica interactiva">
 		                        <span>Avanzado</span>
