@@ -10,6 +10,9 @@ from django.shortcuts import redirect
 from django.utils.deprecation import MiddlewareMixin
 
 
+logger = logging.getLogger(__name__)
+
+
 class CanonicalHostMiddleware(MiddlewareMixin):
     """
     Evita redirecciones rotas / bucles de login por mezcla de hostnames en producción.
@@ -35,6 +38,7 @@ class CanonicalHostMiddleware(MiddlewareMixin):
             canonical_host = (parsed.netloc or "").split(":", 1)[0].strip().lower()
             canonical_scheme = (parsed.scheme or "https").strip().lower() or "https"
         except Exception:
+            logger.debug("APP_PUBLIC_BASE_URL invalido para canonical host: %s", explicit, exc_info=True)
             return None
 
         if not canonical_host or canonical_host in {"localhost", "127.0.0.1"}:
@@ -131,7 +135,7 @@ class CookieDomainSanitizerMiddleware(MiddlewareMixin):
                     try:
                         morsel["domain"] = ""
                     except Exception:
-                        pass
+                        logger.debug("No se pudo limpiar domain de cookie %s", name, exc_info=True)
 
         return response
 
@@ -157,6 +161,7 @@ class StickyTeamContextMiddleware(MiddlewareMixin):
             if team_id > 0:
                 request.session["active_team_id"] = team_id
         except Exception:
+            logger.debug("No se pudo persistir active_team_id desde request", exc_info=True)
             return None
         return None
 
@@ -216,13 +221,14 @@ class SlowRequestLoggingMiddleware:
                     try:
                         managers.append(conn.execute_wrapper(_sql_wrapper))
                     except Exception:
+                        self.logger.debug("slow_request_execute_wrapper_failed", exc_info=True)
                         continue
                 # Enter wrappers.
                 for m in managers:
                     try:
                         m.__enter__()
                     except Exception:
-                        pass
+                        self.logger.debug("slow_request_wrapper_enter_failed", exc_info=True)
                 response = self.get_response(request)
             finally:
                 # Exit wrappers.
@@ -231,9 +237,9 @@ class SlowRequestLoggingMiddleware:
                         try:
                             m.__exit__(None, None, None)
                         except Exception:
-                            pass
+                            self.logger.debug("slow_request_wrapper_exit_failed", exc_info=True)
                 except Exception:
-                    pass
+                    self.logger.debug("slow_request_wrapper_cleanup_failed", exc_info=True)
         else:
             response = self.get_response(request)
         elapsed_ms = int((time.perf_counter() - started) * 1000)
@@ -265,7 +271,7 @@ class SlowRequestLoggingMiddleware:
                     worst,
                 )
         except Exception:
-            pass
+            self.logger.debug("slow_request_logging_failed", exc_info=True)
         return response
 
 
@@ -313,6 +319,7 @@ class ServerTimingMiddleware:
                     try:
                         managers.append(conn.execute_wrapper(_sql_wrapper))
                     except Exception:
+                        self.logger.debug("server_timing_execute_wrapper_failed", exc_info=True)
                         continue
 
         try:
@@ -320,14 +327,14 @@ class ServerTimingMiddleware:
                 try:
                     m.__enter__()
                 except Exception:
-                    pass
+                    self.logger.debug("server_timing_wrapper_enter_failed", exc_info=True)
             response = self.get_response(request)
         finally:
             for m in reversed(managers):
                 try:
                     m.__exit__(None, None, None)
                 except Exception:
-                    pass
+                    self.logger.debug("server_timing_wrapper_exit_failed", exc_info=True)
 
         total_ms = int((time.perf_counter() - started) * 1000)
         try:
@@ -338,7 +345,7 @@ class ServerTimingMiddleware:
             response["Server-Timing"] = ", ".join(parts)
         except Exception:
             try:
-                self.logger.debug("server_timing_failed")
+                self.logger.debug("server_timing_failed", exc_info=True)
             except Exception:
-                pass
+                logger.debug("No se pudo registrar fallo de Server-Timing", exc_info=True)
         return response
