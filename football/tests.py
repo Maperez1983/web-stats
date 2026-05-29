@@ -303,6 +303,31 @@ class ManualOverridesAndKpiConsistencyTests(TestCase):
         self.assertEqual(int(row.get('assists') or 0), expected['assists'])
         self.assertEqual(len([m for m in row.get('matches', []) if m.get('played')]), expected['pj'])
 
+    @patch('football.views.get_competition_total_rounds', return_value=10)
+    def test_participation_uses_full_season_minutes(self, _mock_rounds):
+        competition = Competition.objects.create(name='Comp C', slug='comp-c', level=1, region='test')
+        season = Season.objects.create(
+            competition=competition,
+            name='2025/2026',
+            start_date=date(2025, 9, 1),
+            end_date=date(2026, 6, 30),
+            is_current=True,
+        )
+        group = Group.objects.create(season=season, name='Grupo C', slug='grupo-c')
+        team = Team.objects.create(name='Equipo C', slug='equipo-c-kpi', group=group, is_primary=True)
+        player = Player.objects.create(team=team, name='Jugador Media Temporada', number=8)
+
+        PlayerStatistic.objects.create(player=player, season=season, match=None, context='manual-base', name='manual_pj', value=5)
+        PlayerStatistic.objects.create(player=player, season=season, match=None, context='manual-base', name='manual_pt', value=5)
+        PlayerStatistic.objects.create(player=player, season=season, match=None, context='manual-base', name='manual_minutes', value=450)
+
+        rows = compute_player_dashboard(team, force_refresh=True, scope=Match.CONTEXT_LEAGUE)
+        row = next((item for item in rows if int(item.get('player_id') or 0) == player.id), None)
+
+        self.assertIsNotNone(row)
+        self.assertEqual(float(row.get('participation_pct') or 0), 50.0)
+        self.assertEqual(float(row.get('participation_matches_pct') or 0), 100.0)
+
 
 class AnalysisVideoReportPdfExportTests(TestCase):
     def setUp(self):

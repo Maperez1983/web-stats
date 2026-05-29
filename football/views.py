@@ -56403,16 +56403,16 @@ def compute_player_dashboard(
             )
         )
         merged['is_apercibido'] = yellow_cards_value in {4, 9, 14}
+        possible_minutes_season = max(0, int(total_possible_minutes or 0))
         possible_minutes_played = max(0, int(team_played_matches or 0)) * int(match_regulation_minutes or 0)
-        if possible_minutes_played > 0:
+        if possible_minutes_season > 0:
             merged['participation_pct'] = round(
-                min((int(stats.get('minutes') or 0) / possible_minutes_played) * 100, 100),
+                min((int(stats.get('minutes') or 0) / possible_minutes_season) * 100, 100),
                 1,
             )
-        elif competition_total_rounds > 0:
-            # Fallback legacy: si no sabemos jugados, mantenemos el cálculo por calendario.
+        elif possible_minutes_played > 0:
             merged['participation_pct'] = round(
-                min((int(stats.get('pj') or 0) / competition_total_rounds) * 100, 100),
+                min((int(stats.get('minutes') or 0) / possible_minutes_played) * 100, 100),
                 1,
             )
         else:
