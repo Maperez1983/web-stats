@@ -1,6 +1,6 @@
+import logging
 import os
 import re
-import logging
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -89,14 +89,14 @@ def _stripe_extract_workspace_id(obj) -> int:
         if isinstance(meta, dict) and meta.get('workspace_id'):
             return int(meta.get('workspace_id') or 0)
     except Exception:
-        pass
+        logger.debug('No se pudo extraer workspace_id desde metadata Stripe', exc_info=True)
     # client_reference_id en Checkout Session
     try:
         ref = getattr(obj, 'client_reference_id', None)
         if ref:
             return int(str(ref))
     except Exception:
-        pass
+        logger.debug('No se pudo extraer workspace_id desde client_reference_id Stripe', exc_info=True)
     return 0
 
 
@@ -123,12 +123,14 @@ def _stripe_sync_workspace_from_subscription(workspace, subscription, *, price_i
         if period_end:
             period_end_dt = timezone.datetime.fromtimestamp(int(period_end), tz=timezone.utc)
     except Exception:
+        logger.debug('No se pudo parsear current_period_end Stripe: %s', period_end, exc_info=True)
         period_end_dt = None
     canceled_dt = None
     try:
         if canceled_at:
             canceled_dt = timezone.datetime.fromtimestamp(int(canceled_at), tz=timezone.utc)
     except Exception:
+        logger.debug('No se pudo parsear canceled_at Stripe: %s', canceled_at, exc_info=True)
         canceled_dt = None
 
     workspace.subscription_status = status if status else (workspace.subscription_status or 'trial')
@@ -137,6 +139,7 @@ def _stripe_sync_workspace_from_subscription(workspace, subscription, *, price_i
     try:
         entitlements = _stripe_entitlements_from_subscription(subscription)
     except Exception:
+        logger.debug('No se pudieron calcular entitlements Stripe para workspace %s', getattr(workspace, 'id', None), exc_info=True)
         entitlements = {}
 
     if status == 'active':
@@ -298,10 +301,11 @@ def stripe_webhook(request):
                     try:
                         price_id = str(sub.items.data[0].price.id) if getattr(sub, 'items', None) and sub.items.data else ''
                     except Exception:
+                        logger.debug('No se pudo leer price_id de subscription Stripe %s', subscription_id, exc_info=True)
                         price_id = ''
                     _stripe_sync_workspace_from_subscription(workspace, sub, price_id=price_id)
                 except Exception:
-                    pass
+                    logger.debug('No se pudo recuperar subscription Stripe %s tras checkout', subscription_id, exc_info=True)
             ok = True
 
         elif event_type in {'customer.subscription.updated', 'customer.subscription.created'}:
@@ -314,6 +318,7 @@ def stripe_webhook(request):
                 try:
                     sub_full = stripe.Subscription.retrieve(sub_id, expand=['items.data.price'])
                 except Exception:
+                    logger.debug('No se pudo recuperar subscription Stripe expandida %s', sub_id, exc_info=True)
                     sub_full = sub
             price_id = ''
             try:
@@ -321,6 +326,7 @@ def stripe_webhook(request):
                     price = getattr(sub_full.items.data[0], 'price', None)
                     price_id = str(getattr(price, 'id', '') or '')
             except Exception:
+                logger.debug('No se pudo leer price_id de subscription Stripe %s', sub_id, exc_info=True)
                 price_id = ''
             if workspace:
                 if customer:
@@ -403,7 +409,7 @@ def stripe_webhook(request):
             obj.payload = {'type': event_type, 'workspace_id': workspace_id}
             obj.save(update_fields=['event_type', 'workspace', 'ok', 'payload'])
     except Exception:
-        pass
+        logger.debug('No se pudo actualizar StripeEventLog para evento %s', event_type, exc_info=True)
 
     return JsonResponse({'ok': bool(ok)})
 
