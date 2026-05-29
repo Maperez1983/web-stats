@@ -704,8 +704,8 @@ def kpi_audit(request):
             issues.append('NEGATIVO')
         if total_rounds < 0 or match_minutes < 0 or total_possible < 0:
             issues.append('DENOM_NEGATIVO')
-        if total_rounds > 0:
-            expected_participation = round(min((pj / total_rounds) * 100, 100), 1)
+        if total_possible > 0:
+            expected_participation = round(min((minutes / total_possible) * 100, 100), 1)
             if abs(expected_participation - participation) > 0.11:
                 issues.append('PARTICIPACION_MISMATCH')
         if not totals_locked:
@@ -19904,7 +19904,7 @@ def _build_player_radar_data(detail_row, *, player_percentiles=None, attendance_
         except Exception:
             return lo
 
-    participation_pct = _clamp(_num(detail_row.get('participation_matches_pct') or detail_row.get('participation_pct')))
+    participation_pct = _clamp(_num(detail_row.get('participation_pct')))
     availability_pct = _clamp(_num(detail_row.get('availability_pct')))
     attendance_value = _clamp(_num(attendance_pct)) if attendance_pct is not None else _clamp(_num(detail_row.get('attendance_completion_pct')))
 
@@ -20106,10 +20106,9 @@ def _build_player_staff_percentiles(detail_row, population_rows, *, attendance_p
         return round((total_actions / minutes) * 90.0, 1) if minutes > 0 else 0.0
 
     def _commitment(row):
-        part_matches = _num(row.get('participation_matches_pct'))
         participation = _num(row.get('participation_pct'))
         availability = _num(row.get('availability_pct'))
-        part = part_matches if part_matches > 0 else participation
+        part = participation
         attendance = _num(row.get('attendance_completion_pct'))
         coverage = _num(row.get('attendance_coverage'))
         total_sessions = _num(row.get('attendance_total_sessions'))
@@ -20175,9 +20174,8 @@ def _build_player_card_radar_data(detail_row, population_rows):
         return round((total_actions / minutes) * 90.0, 1) if minutes > 0 else 0.0
 
     def _part_pct(row):
-        part_matches = _num(row.get('participation_matches_pct'))
         participation = _num(row.get('participation_pct'))
-        return part_matches if part_matches > 0 else participation
+        return participation
 
     pop_a90 = [_actions_per90(r) for r in rows]
     pop_sr = [_num(r.get('success_rate')) for r in rows]
@@ -50453,10 +50451,9 @@ def player_detail_page(request, player_id):
                 return round((total_actions / minutes) * 90.0, 1) if minutes > 0 else 0.0
 
             def _commitment(row):
-                part_matches = _row_num(row, 'participation_matches_pct') or 0.0
                 participation = _row_num(row, 'participation_pct') or 0.0
                 availability = _row_num(row, 'availability_pct') or 0.0
-                part = part_matches if part_matches > 0 else participation
+                part = participation
                 attendance = _row_num(row, 'attendance_completion_pct') or 0.0
                 coverage = _row_num(row, 'attendance_coverage') or 0.0
                 has_attendance = attendance > 0 and coverage >= 0.6 and (_row_num(row, 'attendance_total_sessions') or 0) >= 4
@@ -50696,7 +50693,7 @@ def player_detail_page(request, player_id):
         )
         importance_help = (
             'Importancia (0–100): cuánto cuenta el jugador en el equipo hasta la fecha.\n'
-            'Disponibilidad = minutos ÷ minutos posibles ya jugados × 100.\n'
+            'Disponibilidad = minutos ÷ minutos posibles de la temporada × 100.\n'
             'Rendimiento = 0.6×(percentil volumen decisivo/90) + 0.4×(percentil % éxito).\n'
             'Importancia = 0.7×disponibilidad + 0.3×rendimiento.'
         )
@@ -50709,7 +50706,7 @@ def player_detail_page(request, player_id):
             {'label': 'Asistencias', 'value': assists, 'pct': round((assists / pj) * 100, 1) if pj else 0},
             {'label': 'Media goles/partido', 'value': goals_per_match, 'pct': round(min(goals_per_match * 100, 100), 1)},
             {'label': '% participación', 'value': participation_pct, 'pct': participation_pct},
-            {'label': '% participación (PJ)', 'value': participation_matches_pct, 'pct': participation_matches_pct},
+            {'label': '% partidos jugados', 'value': participation_matches_pct, 'pct': participation_matches_pct},
             {'label': '% titularidad', 'value': starter_pct, 'pct': starter_pct},
             {'label': 'Importancia', 'value': importance_score, 'pct': importance_score, 'help': importance_help},
             {'label': 'Influencia', 'value': influence_score, 'pct': influence_score, 'help': influence_help},

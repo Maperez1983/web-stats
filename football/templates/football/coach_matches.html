@@ -33,7 +33,7 @@
 		      table.matches-table { width:100%; min-width:1180px; border-collapse:collapse; table-layout:fixed; }
 	      .matches-table th,
 	      .matches-table td { padding: 0.78rem 0.75rem; border-bottom: 1px solid rgba(148,163,184,0.16); vertical-align: middle; }
-	      .matches-table th {
+      .matches-table th {
 	        position:sticky;
 	        top:0;
 	        z-index:2;
@@ -48,6 +48,18 @@
 	        overflow:hidden;
 	        text-overflow:ellipsis;
 	      }
+      .matches-table th[role="columnheader"] {
+        display: table-cell;
+        min-height: 0;
+        padding: 0.78rem 0.75rem;
+        border-radius: 0;
+        background: rgba(15,23,42,0.98) !important;
+        box-shadow: none;
+        white-space: nowrap;
+        overflow-wrap: normal;
+        text-align: left;
+        line-height: 1.1;
+      }
 	      th.sortable { user-select:none; }
 	      th.sortable:hover { color:#e2e8f0; }
 	      th.sortable:focus { outline: 2px solid rgba(250,204,21,0.55); outline-offset: 2px; border-radius: 10px; }
@@ -238,7 +250,7 @@
 	          th.style.cursor = 'pointer';
 	          th.title = 'Ordenar';
 	          th.tabIndex = 0;
-	          th.setAttribute('role', 'button');
+	          th.setAttribute('role', 'columnheader');
 	          if (key && currentSort && key === currentSort) th.classList.add(`sorted-${currentDir}`);
 	          th.addEventListener('click', () => {
 	            try {
