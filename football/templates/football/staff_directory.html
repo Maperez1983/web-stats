@@ -20,17 +20,17 @@
         font-family: "Avenir Next", "Segoe UI", sans-serif;
       }
       .shell {
-        max-width: 1160px;
+        width: min(100%, 1180px);
         margin: 0 auto;
-        padding: 1.2rem;
+        padding: clamp(0.85rem, 1.25vw, 1.2rem);
       }
       .header {
         margin-top: 0.9rem;
-        display: flex;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
         align-items: flex-start;
         justify-content: space-between;
         gap: 1rem;
-        flex-wrap: wrap;
         border: 1px solid rgba(255, 255, 255, 0.15);
         border-radius: 18px;
         padding: 0.9rem 1rem;
@@ -42,6 +42,7 @@
         font-size: 1rem;
         letter-spacing: 0.14em;
         text-transform: uppercase;
+        overflow-wrap: anywhere;
       }
       .header p {
         margin: 0.35rem 0 0;
@@ -51,6 +52,7 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        min-height: 38px;
         text-decoration: none;
         border-radius: 999px;
         padding: 0.55rem 0.85rem;
@@ -61,6 +63,13 @@
         letter-spacing: 0.14em;
         text-transform: uppercase;
         font-size: 0.7rem;
+        white-space: nowrap;
+      }
+      .head-actions {
+        display: flex;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+        justify-content: flex-end;
       }
       .btn.primary {
         background: linear-gradient(135deg, rgba(244, 180, 0, 0.22), rgba(47, 125, 50, 0.18));
@@ -73,12 +82,11 @@
       .grid {
         margin-top: 1rem;
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
         gap: 0.85rem;
       }
-      @media (max-width: 980px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-      @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
       .card {
+        min-width: 0;
         border-radius: 18px;
         border: 1px solid rgba(255, 255, 255, 0.14);
         background: rgba(7, 16, 30, 0.72);
@@ -105,6 +113,7 @@
         font-weight: 900;
         letter-spacing: 0.06em;
         text-transform: uppercase;
+        overflow-wrap: anywhere;
       }
       .meta {
         margin-top: 0.15rem;
@@ -112,6 +121,7 @@
         font-weight: 700;
         letter-spacing: 0.02em;
         text-transform: none;
+        overflow-wrap: anywhere;
       }
       .muted {
         opacity: 0.65;
@@ -129,6 +139,12 @@
         color: rgba(255, 242, 199, 0.92);
         font-weight: 800;
       }
+      @media (max-width: 720px) {
+        .header { grid-template-columns: 1fr; }
+        .head-actions { justify-content: flex-start; }
+        .head-actions .btn { width: 100%; }
+        .card { align-items: flex-start; }
+      }
     </style>
   </head>
   <body class="prod-commercial">
@@ -140,7 +156,7 @@
           <h1>Staff</h1>
           <p>{{ team_label }}</p>
         </div>
-        <div style="display:flex; gap:0.55rem; flex-wrap:wrap;">
+        <div class="head-actions">
           <a class="btn" href="{% url 'coach-cards' %}">Áreas</a>
           {% if can_manage_workspace %}
           <a class="btn primary" href="{% url 'staff-member-create' %}">Añadir</a>
