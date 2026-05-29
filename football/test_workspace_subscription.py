@@ -5,6 +5,7 @@ from django.test import SimpleTestCase
 from django.utils import timezone
 
 from football import workspace_subscription
+from football import permissions
 from football.models import Workspace
 
 
@@ -29,3 +30,16 @@ class WorkspaceSubscriptionTests(SimpleTestCase):
         workspace = SimpleNamespace(kind='personal', subscription_status='expired', trial_expires_at=None)
 
         self.assertFalse(workspace_subscription.requires_subscription(workspace))
+
+    def test_apple_modular_paid_modules_limit_billable_access(self):
+        workspace = SimpleNamespace(
+            kind=Workspace.KIND_CLUB,
+            subscription_status='active',
+            plan_key='apple_modular',
+            enabled_modules={},
+            paid_modules={'tactics': True},
+        )
+
+        self.assertTrue(permissions.workspace_has_module_for_user(workspace, 'tactics'))
+        self.assertFalse(permissions.workspace_has_module_for_user(workspace, 'sessions'))
+        self.assertTrue(permissions.workspace_has_module_for_user(workspace, 'dashboard'))

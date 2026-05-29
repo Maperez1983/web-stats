@@ -10,6 +10,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+import requests
 
 from .api_utils import api_error, api_ok
 from .models import StripeEventLog, Workspace
@@ -39,6 +40,139 @@ def _stripe_webhook_secret():
 
 def _stripe_public_key():
     return _stripe_env('STRIPE_PUBLISHABLE_KEY')
+
+
+def _apple_env(name: str) -> str:
+    return str(os.getenv(name, '') or '').strip()
+
+
+def _apple_shared_secret() -> str:
+    return _apple_env('APPLE_SHARED_SECRET') or _apple_env('APP_STORE_SHARED_SECRET')
+
+
+def _apple_product_map() -> dict:
+    """
+    Product ID Apple -> módulos internos.
+
+    Los IDs por defecto son estables para App Store Connect. Se pueden sobrescribir
+    con env vars si Apple ya tiene otros IDs creados.
+    """
+    defaults = {
+        'trainer': _apple_env('APPLE_PRODUCT_TRAINER') or 'sj_entrenador_monthly',
+        'trainer_year': _apple_env('APPLE_PRODUCT_TRAINER_YEARLY') or 'sj_entrenador_yearly',
+        'tactics': _apple_env('APPLE_PRODUCT_TACTICS') or 'sj_tactica_monthly',
+        'tactics_year': _apple_env('APPLE_PRODUCT_TACTICS_YEARLY') or 'sj_tactica_yearly',
+        'video': _apple_env('APPLE_PRODUCT_VIDEO') or 'sj_video_monthly',
+        'video_year': _apple_env('APPLE_PRODUCT_VIDEO_YEARLY') or 'sj_video_yearly',
+        'training': _apple_env('APPLE_PRODUCT_TRAINING') or 'sj_entrenamiento_monthly',
+        'training_year': _apple_env('APPLE_PRODUCT_TRAINING_YEARLY') or 'sj_entrenamiento_yearly',
+        'match': _apple_env('APPLE_PRODUCT_MATCH') or 'sj_partido_monthly',
+        'match_year': _apple_env('APPLE_PRODUCT_MATCH_YEARLY') or 'sj_partido_yearly',
+    }
+    return {
+        defaults['trainer']: {
+            'dashboard': True,
+            'coach_overview': True,
+            'players': True,
+            'manual_stats': True,
+            'convocation': True,
+        },
+        defaults['trainer_year']: {
+            'dashboard': True,
+            'coach_overview': True,
+            'players': True,
+            'manual_stats': True,
+            'convocation': True,
+        },
+        defaults['tactics']: {'tactics': True},
+        defaults['tactics_year']: {'tactics': True},
+        defaults['video']: {'analysis': True},
+        defaults['video_year']: {'analysis': True},
+        defaults['training']: {'sessions': True, 'abp_board': True},
+        defaults['training_year']: {'sessions': True, 'abp_board': True},
+        defaults['match']: {'match_actions': True, 'convocation': True},
+        defaults['match_year']: {'match_actions': True, 'convocation': True},
+    }
+
+
+def _apple_public_products() -> list:
+    product_map = _apple_product_map()
+    labels = {
+        'sj_entrenador': 'Entrenador',
+        'sj_tactica': 'Táctica',
+        'sj_video': 'Video',
+        'sj_entrenamiento': 'Entrenamiento',
+        'sj_partido': 'Partido',
+    }
+    rows = []
+    for product_id in product_map.keys():
+        base = product_id.replace('_monthly', '').replace('_yearly', '')
+        label = labels.get(base, base.replace('sj_', '').replace('_', ' ').title())
+        interval = 'Anual' if product_id.endswith('_yearly') else 'Mensual'
+        rows.append({'product_id': product_id, 'label': f'{label} · {interval}'})
+    return rows
+
+
+def _apple_verify_receipt(receipt_data: str) -> dict:
+    secret = _apple_shared_secret()
+    if not secret:
+        raise RuntimeError('apple_shared_secret_missing')
+    payload = {
+        'receipt-data': receipt_data,
+        'password': secret,
+        'exclude-old-transactions': True,
+    }
+    urls = [
+        'https://buy.itunes.apple.com/verifyReceipt',
+        'https://sandbox.itunes.apple.com/verifyReceipt',
+    ]
+    last = {}
+    for idx, url in enumerate(urls):
+        resp = requests.post(url, json=payload, timeout=15)
+        data = resp.json()
+        last = data if isinstance(data, dict) else {}
+        status = int(last.get('status') or 0)
+        if status == 21007 and idx == 0:
+            continue
+        return last
+    return last
+
+
+def _apple_active_product_ids(receipt_payload: dict) -> set:
+    now_ms = int(timezone.now().timestamp() * 1000)
+    rows = []
+    latest = receipt_payload.get('latest_receipt_info')
+    if isinstance(latest, list):
+        rows.extend([r for r in latest if isinstance(r, dict)])
+    receipt = receipt_payload.get('receipt') if isinstance(receipt_payload.get('receipt'), dict) else {}
+    in_app = receipt.get('in_app')
+    if isinstance(in_app, list):
+        rows.extend([r for r in in_app if isinstance(r, dict)])
+
+    active = set()
+    for row in rows:
+        product_id = str(row.get('product_id') or '').strip()
+        if not product_id:
+            continue
+        expires_raw = str(row.get('expires_date_ms') or '').strip()
+        if expires_raw:
+            try:
+                if int(expires_raw) <= now_ms:
+                    continue
+            except Exception:
+                continue
+        active.add(product_id)
+    return active
+
+
+def _apple_entitlements_from_products(product_ids) -> dict:
+    product_map = _apple_product_map()
+    entitlements = {}
+    for product_id in product_ids or []:
+        modules = product_map.get(str(product_id).strip())
+        if isinstance(modules, dict):
+            entitlements.update({key: bool(value) for key, value in modules.items() if value})
+    return entitlements
 
 
 def _stripe_price_map():
@@ -525,11 +659,63 @@ def billing_page(request):
             'stripe_modular_ready': bool((_stripe_price_map().get(('core', 'month')) or '').strip()),
             'stripe_modular_enabled': _stripe_modular_billing_enabled(),
             'stripe_addons_available': addons_available,
+            'apple_iap_ready': bool(_apple_shared_secret()),
+            'apple_iap_products': _apple_public_products(),
             'allow_manual_billing': allow_manual,
             'manual_billing_message': manual_msg,
             'manual_billing_error': manual_err,
         },
     )
+
+
+@login_required
+@require_POST
+def apple_receipt_api(request):
+    workspace, error = _workspace_from_request_for_billing(request)
+    if error:
+        return error
+    receipt_data = str(request.POST.get('receipt_data') or '').strip()
+    requested_product_id = str(request.POST.get('product_id') or '').strip()
+    transaction_id = str(request.POST.get('transaction_id') or '').strip()
+    if not receipt_data:
+        return api_error('Falta el recibo de Apple.', status=400, code='apple_receipt_missing')
+    if not _apple_shared_secret():
+        return api_error('Apple IAP no está configurado.', status=501, code='apple_iap_not_configured')
+
+    try:
+        verified = _apple_verify_receipt(receipt_data)
+    except RuntimeError:
+        return api_error('Apple IAP no está configurado.', status=501, code='apple_iap_not_configured')
+    except Exception as exc:
+        logger.exception('No se pudo validar recibo Apple para workspace %s', getattr(workspace, 'id', None))
+        return api_error(f'No se pudo validar con Apple: {exc.__class__.__name__}', status=502, code='apple_verify_failed')
+
+    status = int(verified.get('status') or 0)
+    if status != 0:
+        return api_error(f'Apple rechazó el recibo ({status}).', status=400, code='apple_receipt_invalid')
+
+    active_product_ids = _apple_active_product_ids(verified)
+    if requested_product_id and requested_product_id in _apple_product_map():
+        # Si Apple devuelve el recibo con retraso pero la compra acaba de finalizar,
+        # aceptamos el producto solicitado solo si pertenece a nuestro catálogo.
+        active_product_ids.add(requested_product_id)
+    entitlements = _apple_entitlements_from_products(active_product_ids)
+    if not entitlements:
+        return api_error('No hay suscripciones Apple activas para este club.', status=402, code='apple_no_active_products')
+
+    current = getattr(workspace, 'paid_modules', None)
+    current = dict(current) if isinstance(current, dict) else {}
+    current.update(entitlements)
+    current['apple_iap'] = {
+        'product_ids': sorted(active_product_ids),
+        'last_transaction_id': transaction_id,
+        'verified_at': timezone.now().isoformat(),
+    }
+    workspace.subscription_status = 'active'
+    workspace.plan_key = 'apple_modular'
+    workspace.paid_modules = current
+    workspace.save(update_fields=['subscription_status', 'plan_key', 'paid_modules', 'updated_at'])
+    return api_ok({'subscription_status': 'active', 'paid_modules': entitlements, 'product_ids': sorted(active_product_ids)})
 
 
 @login_required

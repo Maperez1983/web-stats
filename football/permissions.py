@@ -77,6 +77,27 @@ def workspace_has_module_for_user(workspace, module_key, *, user=None):
                 getattr(workspace, 'id', None),
                 exc_info=True,
             )
+    paid = getattr(workspace, 'paid_modules', None)
+    plan_key = str(getattr(workspace, 'plan_key', '') or '').strip().lower()
+    status = str(getattr(workspace, 'subscription_status', '') or '').strip().lower()
+    if status == 'active' and isinstance(paid, dict) and paid and plan_key not in {'pro', 'club_pro', 'bundle'}:
+        billable = {
+            'coach_overview',
+            'players',
+            'convocation',
+            'manual_stats',
+            'match_actions',
+            'sessions',
+            'analysis',
+            'abp_board',
+            'tactics',
+        }
+        for key in billable:
+            modules[key] = False
+        for key, value in paid.items():
+            if key in modules:
+                modules[key] = bool(value)
+        modules['dashboard'] = True
     if user is not None and not workspace_member_allows_module(workspace, user, module_key):
         return False
     return bool(modules.get(str(module_key), False))

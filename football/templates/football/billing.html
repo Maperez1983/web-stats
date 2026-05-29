@@ -108,6 +108,21 @@
         border-radius: 14px;
         padding: 0.75rem 0.85rem;
       }
+      .apple-iap-panel { display: none; }
+      .apple-iap-panel.is-native { display: block; }
+      .apple-product-grid {
+        margin-top: 0.75rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 0.6rem;
+      }
+      .apple-product-btn {
+        width: 100%;
+        min-height: 52px;
+        justify-content: space-between;
+        text-align: left;
+      }
+      .apple-native .stripe-panel { display: none; }
       #billing-msg { overflow-wrap: anywhere; }
       @media (max-width: 640px) {
         .panel { border-radius: 16px; padding: 0.85rem; }
@@ -140,8 +155,36 @@
           {% endif %}
         </div>
 
+        {% if apple_iap_products %}
+        <div class="panel billing-subpanel apple-iap-panel" id="apple-iap-panel">
+          <h2 style="margin:0 0 0.35rem; font-size:1rem; letter-spacing:0.08em; text-transform:uppercase;">Suscripción Apple</h2>
+          <p class="billing-copy">
+            Compra o restaura los módulos desde App Store. La activación se aplica al club activo.
+          </p>
+          {% if not apple_iap_ready %}
+          <div class="billing-note">
+            Falta configurar `APPLE_SHARED_SECRET` en el servidor para validar las compras de Apple.
+          </div>
+          {% endif %}
+          <div class="apple-product-grid">
+            {% for product in apple_iap_products %}
+            <button class="btn apple-product-btn" type="button" data-apple-product="{{ product.product_id }}">
+              <span>{{ product.label }}</span>
+              <code>{{ product.product_id }}</code>
+            </button>
+            {% endfor %}
+          </div>
+          <div class="cta">
+            <button class="btn" id="apple-restore-btn" type="button">Restaurar compras</button>
+            <a class="btn" href="{% url 'dashboard-home' %}">Volver</a>
+          </div>
+          <p id="apple-iap-msg" style="margin-top:0.7rem; color:rgba(148,163,184,0.92);"></p>
+        </div>
+        {{ apple_iap_products|json_script:"apple-iap-products-data" }}
+        {% endif %}
+
         {% if stripe_ready %}
-        <div class="panel billing-subpanel">
+        <div class="panel billing-subpanel stripe-panel">
           {% if stripe_modular_ready %}
             <h2 style="margin:0 0 0.35rem; font-size:1rem; letter-spacing:0.08em; text-transform:uppercase;">Suscripción por módulos</h2>
             <p class="billing-copy">
@@ -223,6 +266,82 @@
         </p>
         {% endif %}
       </section>
+      {% if apple_iap_products %}
+      <script>
+        (function() {
+          const hasNativeIap = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.segundaJugadaIAP);
+          const panel = document.getElementById('apple-iap-panel');
+          const msg = document.getElementById('apple-iap-msg');
+          const setMsg = (text) => { if (msg) msg.textContent = text || ''; };
+          const csrftoken = (document.cookie || '').split(';').map(s => s.trim()).find(s => s.startsWith('csrftoken='))?.split('=')[1] || '';
+
+          if (!hasNativeIap || !panel) return;
+          document.body.classList.add('apple-native');
+          panel.classList.add('is-native');
+
+          const postReceipt = async (detail) => {
+            const params = new URLSearchParams({
+              product_id: String(detail.productId || ''),
+              transaction_id: String(detail.transactionId || ''),
+              receipt_data: String(detail.receiptData || ''),
+            });
+            const res = await fetch("{% url 'billing-apple-receipt' %}", {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                'X-CSRFToken': csrftoken,
+              },
+              body: params.toString(),
+              credentials: 'same-origin',
+            });
+            const data = await res.json().catch(() => null);
+            if (!res.ok || !data || data.ok === false) {
+              throw new Error((data && data.error) || `HTTP ${res.status}`);
+            }
+            return data;
+          };
+
+          window.addEventListener('SegundaJugadaIAPResult', async (event) => {
+            const detail = event.detail || {};
+            if (!detail.ok) {
+              setMsg(`Apple: ${detail.error || 'compra cancelada o no completada.'}`);
+              document.querySelectorAll('[data-apple-product], #apple-restore-btn').forEach((btn) => { btn.disabled = false; });
+              return;
+            }
+            if (!detail.receiptData) {
+              setMsg('Apple no devolvió recibo. Usa Restaurar compras o vuelve a intentarlo.');
+              document.querySelectorAll('[data-apple-product], #apple-restore-btn').forEach((btn) => { btn.disabled = false; });
+              return;
+            }
+            setMsg('Validando compra con Apple...');
+            try {
+              await postReceipt(detail);
+              setMsg('Suscripción activada. Recargando permisos...');
+              window.setTimeout(() => window.location.reload(), 900);
+            } catch (e) {
+              setMsg(`No se pudo activar: ${e && e.message ? e.message : 'error de validación.'}`);
+              document.querySelectorAll('[data-apple-product], #apple-restore-btn').forEach((btn) => { btn.disabled = false; });
+            }
+          });
+
+          document.querySelectorAll('[data-apple-product]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+              const productId = String(btn.getAttribute('data-apple-product') || '');
+              if (!productId) return;
+              setMsg('Abriendo compra de App Store...');
+              document.querySelectorAll('[data-apple-product], #apple-restore-btn').forEach((b) => { b.disabled = true; });
+              window.webkit.messageHandlers.segundaJugadaIAP.postMessage({ action: 'purchase', productId });
+            });
+          });
+
+          document.getElementById('apple-restore-btn')?.addEventListener('click', () => {
+            setMsg('Restaurando compras de App Store...');
+            document.querySelectorAll('[data-apple-product], #apple-restore-btn').forEach((b) => { b.disabled = true; });
+            window.webkit.messageHandlers.segundaJugadaIAP.postMessage({ action: 'restore' });
+          });
+        })();
+      </script>
+      {% endif %}
       {% if stripe_ready %}
       <script>
         (function() {

@@ -2,6 +2,7 @@ import UIKit
 import Capacitor
 import WebKit
 import Security
+import StoreKit
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -68,10 +69,12 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 }
 
 @objc(MainViewController)
-class MainViewController: CAPBridgeViewController, WKHTTPCookieStoreObserver {
+class MainViewController: CAPBridgeViewController, WKHTTPCookieStoreObserver, WKScriptMessageHandler, SKPaymentTransactionObserver {
     private let cookieHostSuffix = "segundajugada.es"
     private let persistedCookiesKeychainAccount = "persistedCookies.v1"
     private let lastUrlDefaultsKey = "lastWebUrl.v1"
+    private let iapMessageHandlerName = "segundaJugadaIAP"
+    private var restoreDeliveredTransactions = 0
     // Persistimos cookies del dominio para mantener sesión en WKWebView incluso si iOS “olvida” el store.
     // Importante: no persistimos contraseñas, solo cookies http.
     private let cookieNamesToExclude: Set<String> = []
@@ -285,6 +288,105 @@ class MainViewController: CAPBridgeViewController, WKHTTPCookieStoreObserver {
         schedulePersistCookiesSoon()
     }
 
+    private func appStoreReceiptBase64() -> String {
+        guard let receiptUrl = Bundle.main.appStoreReceiptURL else { return "" }
+        guard let data = try? Data(contentsOf: receiptUrl) else { return "" }
+        return data.base64EncodedString()
+    }
+
+    private func dispatchIapResult(_ payload: [String: Any]) {
+        guard let data = try? JSONSerialization.data(withJSONObject: payload, options: []),
+              let json = String(data: data, encoding: .utf8) else {
+            return
+        }
+        let js = "window.dispatchEvent(new CustomEvent('SegundaJugadaIAPResult', { detail: \(json) }));"
+        DispatchQueue.main.async { [weak self] in
+            self?.webView?.evaluateJavaScript(js, completionHandler: nil)
+        }
+    }
+
+    private func startApplePurchase(productId: String) {
+        let cleanProductId = productId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanProductId.isEmpty else {
+            dispatchIapResult(["ok": false, "error": "missing_product_id"])
+            return
+        }
+        guard SKPaymentQueue.canMakePayments() else {
+            dispatchIapResult(["ok": false, "error": "iap_disabled"])
+            return
+        }
+        let payment = SKMutablePayment()
+        payment.productIdentifier = cleanProductId
+        SKPaymentQueue.default().add(payment)
+    }
+
+    private func restoreApplePurchases() {
+        restoreDeliveredTransactions = 0
+        SKPaymentQueue.default().restoreCompletedTransactions()
+    }
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.name == iapMessageHandlerName else { return }
+        guard let body = message.body as? [String: Any] else {
+            dispatchIapResult(["ok": false, "error": "invalid_message"])
+            return
+        }
+        let action = String(body["action"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if action == "purchase" {
+            startApplePurchase(productId: String(body["productId"] as? String ?? ""))
+        } else if action == "restore" {
+            restoreApplePurchases()
+        } else {
+            dispatchIapResult(["ok": false, "error": "unknown_action"])
+        }
+    }
+
+    func paymentQueue(_ queue: SKPaymentQueue, updatedTransactions transactions: [SKPaymentTransaction]) {
+        for transaction in transactions {
+            switch transaction.transactionState {
+            case .purchased, .restored:
+                let payment = transaction.payment
+                let receipt = appStoreReceiptBase64()
+                if transaction.transactionState == .restored {
+                    restoreDeliveredTransactions += 1
+                }
+                dispatchIapResult([
+                    "ok": true,
+                    "productId": payment.productIdentifier,
+                    "transactionId": transaction.transactionIdentifier ?? "",
+                    "receiptData": receipt,
+                    "restored": transaction.transactionState == .restored,
+                ])
+                queue.finishTransaction(transaction)
+            case .failed:
+                let nsError = transaction.error as NSError?
+                let cancelled = nsError?.code == SKError.paymentCancelled.rawValue
+                dispatchIapResult([
+                    "ok": false,
+                    "error": cancelled ? "cancelled" : (transaction.error?.localizedDescription ?? "purchase_failed"),
+                ])
+                queue.finishTransaction(transaction)
+            case .deferred:
+                dispatchIapResult(["ok": false, "error": "purchase_deferred"])
+            case .purchasing:
+                break
+            @unknown default:
+                dispatchIapResult(["ok": false, "error": "unknown_transaction_state"])
+                queue.finishTransaction(transaction)
+            }
+        }
+    }
+
+    func paymentQueueRestoreCompletedTransactionsFinished(_ queue: SKPaymentQueue) {
+        if restoreDeliveredTransactions == 0 {
+            dispatchIapResult(["ok": false, "error": "no_restored_purchases"])
+        }
+    }
+
+    func paymentQueue(_ queue: SKPaymentQueue, restoreCompletedTransactionsFailedWithError error: Error) {
+        dispatchIapResult(["ok": false, "error": error.localizedDescription])
+    }
+
     override func capacitorDidLoad() {
         super.capacitorDidLoad()
 
@@ -298,6 +400,8 @@ class MainViewController: CAPBridgeViewController, WKHTTPCookieStoreObserver {
         if #available(iOS 11.0, *) {
             webView?.configuration.websiteDataStore.httpCookieStore.add(self)
         }
+        SKPaymentQueue.default().add(self)
+        webView?.configuration.userContentController.add(self, name: iapMessageHandlerName)
 
         restorePersistedCookies { [weak self] restored in
             guard let self = self else { return }

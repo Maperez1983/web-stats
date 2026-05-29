@@ -35,6 +35,7 @@ urlpatterns = [
     path('billing/', billing_views.billing_page, name='billing'),
     path('api/billing/checkout/', billing_views.billing_checkout_session_api, name='billing-checkout-session'),
     path('api/billing/portal/', billing_views.billing_portal_session_api, name='billing-portal-session'),
+    path('api/billing/apple/receipt/', billing_views.apple_receipt_api, name='billing-apple-receipt'),
     path('stripe/webhook/', billing_views.stripe_webhook, name='stripe-webhook'),
     path('api/workspace/active/', workspace_views.workspace_set_active_workspace, name='workspace-active'),
     path('api/workspace/active-team/', workspace_views.workspace_set_active_team, name='workspace-active-team'),

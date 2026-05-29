@@ -60,3 +60,33 @@ class BillingViewsTests(TestCase):
         self.assertEqual(response.status_code, 501)
         payload = response.json()
         self.assertFalse(payload.get('ok'))
+
+    @patch.dict(os.environ, {'APPLE_SHARED_SECRET': 'test-secret'})
+    @patch('football.billing_views._apple_verify_receipt')
+    def test_apple_receipt_activates_matching_modules(self, verify_receipt):
+        verify_receipt.return_value = {
+            'status': 0,
+            'latest_receipt_info': [
+                {
+                    'product_id': 'sj_tactica_monthly',
+                    'expires_date_ms': '4102444800000',
+                }
+            ],
+        }
+
+        response = self.client.post(
+            reverse('billing-apple-receipt'),
+            data={
+                'product_id': 'sj_tactica_monthly',
+                'transaction_id': 'tx-1',
+                'receipt_data': 'receipt',
+            },
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.workspace.refresh_from_db()
+        self.assertEqual(self.workspace.subscription_status, 'active')
+        self.assertEqual(self.workspace.plan_key, 'apple_modular')
+        self.assertTrue(self.workspace.paid_modules.get('tactics'))
+        self.assertIn('apple_iap', self.workspace.paid_modules)
