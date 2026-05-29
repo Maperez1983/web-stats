@@ -67,7 +67,7 @@ def save_player_license(player, uploaded_license):
                             try:
                                 img = ImageOps.exif_transpose(img)
                             except Exception:
-                                pass
+                                logger.debug('No se pudo aplicar EXIF transpose a la licencia del jugador %s', getattr(player, 'id', None), exc_info=True)
                         if img.mode in ('RGBA', 'LA', 'P'):
                             converted = img.convert('RGBA')
                             background = Image.new('RGBA', converted.size, (255, 255, 255, 255))
@@ -80,6 +80,7 @@ def save_player_license(player, uploaded_license):
                         content = ContentFile(buffer.getvalue())
                         target_ext = '.jpg'
                 except Exception:
+                    logger.exception('No se pudo normalizar la imagen de licencia del jugador %s', getattr(player, 'id', None))
                     return ''
 
         target_name = f'player-licenses/player-{player.id}{target_ext}'

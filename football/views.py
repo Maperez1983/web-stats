@@ -1565,12 +1565,10 @@ def _player_photo_storage_candidates(player):
     ]
 
 
-def _player_license_storage_candidates(player):
-    return player_documents.player_license_storage_candidates(player)
+_player_license_storage_candidates = player_documents.player_license_storage_candidates
 
 
-def save_player_license(player, uploaded_license):
-    return player_documents.save_player_license(player, uploaded_license)
+save_player_license = player_documents.save_player_license
 
 
 def resolve_player_license_url(request, player):
@@ -6011,8 +6009,7 @@ _team_color_seed = team_media_services.team_color_seed
 _is_malaga_team = team_media_services.is_malaga_team
 
 
-def _team_fallback_crest_data_uri(team, fallback_label=''):
-    return team_media_services.team_fallback_crest_data_uri(team, fallback_label=fallback_label)
+_team_fallback_crest_data_uri = team_media_services.team_fallback_crest_data_uri
 
 
 @login_required
