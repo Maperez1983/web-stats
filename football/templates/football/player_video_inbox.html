@@ -10,33 +10,45 @@
     {% include 'football/pwa_head.html' %}
     <style>
       body { margin:0; background: linear-gradient(180deg, #020417 0%, #050b1c 100%); color:#f8fafc; font-family: Inter, system-ui, sans-serif; }
-      .page { max-width: 1100px; margin:0 auto; padding: 1.2rem; }
-      .head { display:flex; align-items:flex-start; justify-content:space-between; gap:0.9rem; flex-wrap:wrap; margin-bottom:1rem; }
+      .page { width:min(100%, 1240px); margin:0 auto; padding: clamp(0.85rem, 1.25vw, 1.2rem); }
+      .head { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:flex-start; gap:0.85rem; margin-bottom:1rem; }
+      .head-main { min-width:0; display:grid; gap:0.18rem; }
+      .head-actions { display:flex; gap:0.45rem; flex-wrap:wrap; justify-content:flex-end; }
       h1 { margin:0; font-size:1.05rem; letter-spacing:0.08em; text-transform:uppercase; }
-      .meta { color: rgba(226,232,240,0.72); font-weight:800; }
+      .meta { color: rgba(226,232,240,0.72); font-weight:800; overflow-wrap:anywhere; }
       .card { background: rgba(12, 20, 34, 0.92); border: 1px solid rgba(145, 161, 185, 0.18); border-radius: 22px; box-shadow: 0 22px 52px rgba(0,0,0,0.28); padding: 0.95rem; }
-      .row { display:flex; align-items:flex-start; justify-content:space-between; gap:0.6rem; padding:0.75rem; border-radius: 16px; border:1px solid rgba(148,163,184,0.14); background: rgba(255,255,255,0.03); }
+      .row { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:flex-start; gap:0.6rem; padding:0.75rem; border-radius: 16px; border:1px solid rgba(148,163,184,0.14); background: rgba(255,255,255,0.03); }
       .row strong { font-weight:900; }
       .row small { color: rgba(226,232,240,0.7); font-weight:800; }
-      .button { border-radius: 999px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.72rem 0.98rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; }
+      .row-title { min-width:0; display:flex; flex-direction:column; gap:0.1rem; }
+      .row-title strong { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+      .row-actions { display:flex; gap:0.45rem; flex-wrap:wrap; justify-content:flex-end; }
+      .button { min-height:38px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.62rem 0.88rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; white-space:nowrap; }
       .button.primary { background: linear-gradient(135deg, #22d3ee, #67e8f9); border:none; color:#03253c; }
       .k { display:inline-flex; align-items:center; justify-content:center; min-width: 26px; padding: 0.1rem 0.4rem; border-radius: 10px; border: 1px solid rgba(148,163,184,0.22); background: rgba(2, 6, 23, 0.35); font-weight: 900; font-size: 0.72rem; }
       .list { display:grid; gap:0.6rem; }
       .unread { box-shadow: 0 0 0 2px rgba(250,204,21,0.18) inset; }
       .msg { white-space: pre-wrap; color: rgba(226,232,240,0.86); font-weight:700; font-size:0.92rem; margin-top:0.45rem; }
+      @media (max-width:720px) {
+        .head { grid-template-columns:1fr; }
+        .head-actions { justify-content:flex-start; }
+        .card { border-radius:18px; padding:0.75rem; }
+        .row { grid-template-columns:1fr; }
+        .row-actions { justify-content:flex-start; }
+      }
     </style>
   </head>
   <body class="prod-commercial">
     <main class="page">
       <div class="head">
-        <div>
+        <div class="head-main">
           <h1>Mis vídeos</h1>
           <div class="meta">
             {% if team %}{{ team.display_name|default:team.name }}{% endif %}
             · <span class="k">{{ unread_count|default:0 }}</span> sin leer
           </div>
         </div>
-        <div style="display:flex; gap:0.55rem; flex-wrap:wrap;">
+        <div class="head-actions">
           <a class="button" href="{% if player_home_url %}{{ player_home_url }}{% else %}{% url 'player-dashboard' %}{% endif %}">Volver</a>
         </div>
       </div>
@@ -45,8 +57,8 @@
         <div class="list">
           {% for item in items %}
             <div class="row {% if not item.is_read %}unread{% endif %}">
-              <div style="display:flex; flex-direction:column; gap:0.1rem; min-width:0;">
-                <strong style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+              <div class="row-title">
+                <strong>
                   {{ item.title|default:item.get_kind_display }}
                   {% if not item.is_read %}<span class="k" style="margin-left:0.35rem;">NEW</span>{% endif %}
                 </strong>
@@ -59,7 +71,7 @@
                   <div class="msg">{{ item.message }}</div>
                 {% endif %}
               </div>
-              <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
+              <div class="row-actions">
                 <a class="button primary" href="{% url 'player-video-inbox-open' item.id %}">Abrir</a>
               </div>
             </div>
@@ -71,4 +83,3 @@
     </main>
   </body>
 </html>
-
