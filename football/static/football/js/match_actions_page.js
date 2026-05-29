@@ -306,10 +306,10 @@
       const popupCloseButtons = popupForm.querySelectorAll('.close-popup');
       const convocationCards = document.querySelectorAll('.convocation-card');
       const historyList = document.getElementById('history-list');
-      const historyFilterBar = document.getElementById('history-filter-bar');
-      const liveDock = document.getElementById('match-live-dock');
-      const dockPlayerEl = document.getElementById('dock-player');
-      const dockActionEl = document.getElementById('dock-action');
+      const historyFilterBar = document.getElementById('hf');
+      const liveDock = document.querySelector('.match-live-dock');
+      const dockPlayerEl = liveDock?.querySelector?.('div:first-child span') || null;
+      const dockActionEl = liveDock?.querySelector?.('div:first-child strong') || null;
       const actionCatalog = (() => {
         try {
           const raw = document.getElementById('match-action-catalog')?.textContent || '[]';
@@ -712,9 +712,9 @@
       };
       if (historyFilterBar) {
         historyFilterBar.addEventListener('click', (event) => {
-          const btn = event.target?.closest?.('.history-filter-btn[data-history-filter]');
+          const btn = event.target?.closest?.('[data-history-filter]');
           if (!btn) return;
-          historyFilterBar.querySelectorAll('.history-filter-btn').forEach((item) => {
+          historyFilterBar.querySelectorAll('[data-history-filter]').forEach((item) => {
             item.classList.toggle('is-active', item === btn);
           });
           filterHistoryItems(btn.dataset.historyFilter || 'all');
@@ -749,7 +749,7 @@
         try { flashActionSaved(); } catch (e) {}
         try { updateLiveDock('Acción registrada'); } catch (e) {}
         try {
-          const active = historyFilterBar?.querySelector?.('.history-filter-btn.is-active');
+          const active = historyFilterBar?.querySelector?.('[data-history-filter].is-active');
           filterHistoryItems(active?.dataset?.historyFilter || 'all');
         } catch (e) {}
       });

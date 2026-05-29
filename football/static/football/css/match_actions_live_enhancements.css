@@ -1,0 +1,171 @@
+.actions-sidebar .convocation-card {
+  padding: 0.62rem 0.7rem;
+}
+
+.actions-sidebar .convocation-card-body {
+  align-items: center;
+  flex-direction: row;
+  gap: 0.55rem;
+  margin-top: 0.25rem;
+  min-width: 0;
+}
+
+.actions-sidebar .convocation-card strong {
+  font-size: 0.84rem;
+  min-width: 0;
+  text-align: left;
+}
+
+#hf {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: -0.15rem 0 0.75rem;
+}
+
+#hf button {
+  appearance: none;
+  background: rgba(15, 23, 42, 0.68);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 999px;
+  color: rgba(226, 232, 240, 0.82);
+  cursor: pointer;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  padding: 0.45rem 0.7rem;
+  text-transform: uppercase;
+}
+
+#hf button.is-active {
+  background: rgba(250, 204, 21, 0.14);
+  border-color: rgba(250, 204, 21, 0.62);
+  color: rgba(255, 251, 235, 0.96);
+}
+
+.history-item.is-filter-hidden {
+  display: none;
+}
+
+.match-live-dock {
+  align-items: center;
+  backdrop-filter: blur(16px);
+  background: rgba(8, 13, 29, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 20px;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  box-shadow: 0 18px 58px rgba(0, 0, 0, 0.42);
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(180px, 0.7fr) minmax(0, 1.6fr);
+  left: max(14px, env(safe-area-inset-left));
+  padding: 0.72rem;
+  position: fixed;
+  right: max(14px, env(safe-area-inset-right));
+  z-index: 60;
+}
+
+.match-live-dock > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  min-width: 0;
+  padding: 0 0.35rem;
+}
+
+.match-live-dock > div:first-child span,
+.match-live-dock > div:first-child strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.match-live-dock > div:first-child span {
+  color: rgba(226, 232, 240, 0.72);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.match-live-dock > div:first-child strong {
+  color: rgba(248, 250, 252, 0.96);
+  font-size: 0.95rem;
+  letter-spacing: 0.05em;
+}
+
+.match-live-dock > div:last-child {
+  display: grid;
+  gap: 0.45rem;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.match-live-dock > div:last-child button {
+  background: rgba(15, 23, 42, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 14px;
+  color: rgba(241, 245, 249, 0.94);
+  cursor: pointer;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  min-height: 44px;
+  text-transform: uppercase;
+}
+
+.match-live-dock > div:last-child button.is-primary {
+  background: rgba(250, 204, 21, 0.18);
+  border-color: rgba(250, 204, 21, 0.5);
+  color: rgba(255, 251, 235, 0.98);
+}
+
+.match-live-dock > div:last-child button.is-save {
+  background: rgba(34, 197, 94, 0.14);
+  border-color: rgba(34, 197, 94, 0.42);
+}
+
+.field-surface.is-action-saved {
+  animation: actionSavedPulse 0.52s ease;
+}
+
+@keyframes actionSavedPulse {
+  0% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0); }
+  35% { box-shadow: 0 0 0 8px rgba(250, 204, 21, 0.2); }
+  100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0); }
+}
+
+@media (max-width: 900px) {
+  .action-screen {
+    padding-bottom: 96px;
+  }
+
+  .match-live-dock {
+    gap: 0.55rem;
+    grid-template-columns: 1fr;
+  }
+
+  .match-live-dock > div:last-child {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .actions-sidebar .convocation-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .match-live-dock {
+    border-radius: 16px;
+    bottom: 8px;
+    left: 8px;
+    padding: 0.58rem;
+    right: 8px;
+  }
+
+  .match-live-dock > div:last-child button {
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+    min-height: 40px;
+  }
+}
