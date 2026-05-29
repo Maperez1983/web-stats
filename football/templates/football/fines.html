@@ -9,21 +9,217 @@
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     {% include 'football/pwa_head.html' %}
     <style>
-      body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: #020617; color: #e2e8f0; }
-      .page { max-width: 1040px; margin: 0 auto; padding: 1.5rem 1.1rem 2rem; }
-      .panel { background: rgba(15, 23, 42, 0.96); border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 16px; padding: 1rem; }
-      .top { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 0.9rem; }
-      .btn { display: inline-block; border-radius: 999px; padding: 0.45rem 0.9rem; text-decoration: none; background: #0f766e; color: #fff; font-weight: 700; }
-      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.7rem; }
-      label { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.76rem; letter-spacing: 0.05em; text-transform: uppercase; color: #94a3b8; }
-      input, select { border-radius: 10px; border: 1px solid rgba(148, 163, 184, 0.35); background: rgba(2, 6, 23, 0.65); color: #f8fafc; padding: 0.6rem 0.7rem; }
-      button { border: none; border-radius: 999px; padding: 0.7rem 1rem; font-weight: 700; background: linear-gradient(135deg, #22d3ee, #2563eb); color: #fff; cursor: pointer; }
-      table { width: 100%; border-collapse: collapse; margin-top: 0.9rem; }
-      th, td { text-align: left; padding: 0.5rem 0.3rem; border-bottom: 1px solid rgba(148, 163, 184, 0.2); }
-      th { color: #94a3b8; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; }
-      .msg { margin: 0.5rem 0; font-weight: 700; }
-      .ok { color: #86efac; }
-      .err { color: #fecaca; }
+      *, *::before, *::after { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+        background:
+          radial-gradient(circle at 12% 0%, rgba(20, 184, 166, 0.16), transparent 30rem),
+          linear-gradient(180deg, #07111f 0%, #020617 100%);
+        color: #e2e8f0;
+      }
+      .page {
+        width: min(100%, 1160px);
+        margin: 0 auto;
+        padding: clamp(1rem, 2vw, 1.5rem) clamp(0.8rem, 2vw, 1.2rem) 2rem;
+      }
+      .top {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: end;
+        gap: 1rem;
+        margin: 1rem 0;
+      }
+      .eyebrow {
+        margin: 0;
+        color: #94a3b8;
+        font-size: 0.76rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      h1 {
+        margin: 0.2rem 0 0;
+        font-size: clamp(1.45rem, 3vw, 2.25rem);
+        line-height: 1;
+        letter-spacing: 0.02em;
+      }
+      .btn,
+      button {
+        min-height: 40px;
+        border: 0;
+        border-radius: 999px;
+        padding: 0.68rem 1rem;
+        text-decoration: none;
+        font: inherit;
+        font-weight: 900;
+        font-size: 0.78rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(148, 163, 184, 0.26);
+        background: rgba(15, 23, 42, 0.86);
+        color: #f8fafc;
+      }
+      button {
+        background: linear-gradient(135deg, #22d3ee, #2563eb);
+        color: #fff;
+      }
+      .panel {
+        overflow: hidden;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 18px;
+        background: rgba(15, 23, 42, 0.88);
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+      }
+      .panel-section {
+        padding: clamp(0.9rem, 2vw, 1.1rem);
+        border-top: 1px solid rgba(148, 163, 184, 0.16);
+      }
+      .panel-section:first-child { border-top: 0; }
+      .summary {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+      }
+      .metric {
+        min-width: 0;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 14px;
+        background: rgba(2, 6, 23, 0.34);
+        padding: 0.85rem 0.95rem;
+      }
+      .metric span {
+        display: block;
+        color: #94a3b8;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .metric strong {
+        display: block;
+        margin-top: 0.25rem;
+        color: #f8fafc;
+        font-size: 1.35rem;
+        line-height: 1;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.75rem;
+      }
+      label {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        gap: 0.35rem;
+        color: #94a3b8;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      input,
+      select {
+        width: 100%;
+        min-height: 42px;
+        border: 1px solid rgba(148, 163, 184, 0.34);
+        border-radius: 12px;
+        background: rgba(2, 6, 23, 0.68);
+        color: #f8fafc;
+        padding: 0.6rem 0.7rem;
+      }
+      .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 0.85rem;
+      }
+      .table-wrap {
+        overflow-x: auto;
+        scrollbar-gutter: stable;
+      }
+      table {
+        width: 100%;
+        min-width: 820px;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 0.72rem 0.65rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+        vertical-align: middle;
+      }
+      th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        background: rgba(15, 23, 42, 0.98);
+        color: #94a3b8;
+        font-size: 0.7rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.09em;
+      }
+      td:first-child,
+      th:first-child { padding-left: 1.1rem; }
+      td:last-child,
+      th:last-child {
+        padding-right: 1.1rem;
+        text-align: right;
+      }
+      .amount {
+        font-weight: 900;
+        color: #fbbf24;
+        white-space: nowrap;
+      }
+      .muted { color: #94a3b8; }
+      .msg {
+        margin: 0 0 0.75rem;
+        border-radius: 12px;
+        padding: 0.72rem 0.85rem;
+        font-weight: 800;
+      }
+      .ok {
+        border: 1px solid rgba(34, 197, 94, 0.35);
+        background: rgba(22, 101, 52, 0.2);
+        color: #bbf7d0;
+      }
+      .err {
+        border: 1px solid rgba(248, 113, 113, 0.35);
+        background: rgba(127, 29, 29, 0.24);
+        color: #fecaca;
+      }
+      .readonly { color: #bfdbfe; }
+      .danger {
+        min-height: 34px;
+        padding: 0.5rem 0.72rem;
+        border: 1px solid rgba(248, 113, 113, 0.24);
+        background: rgba(127, 29, 29, 0.72);
+      }
+      @media (max-width: 960px) {
+        .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+      @media (max-width: 640px) {
+        .top,
+        .summary,
+        .grid {
+          grid-template-columns: 1fr;
+        }
+        .top { align-items: stretch; }
+        .btn,
+        .form-actions button {
+          width: 100%;
+        }
+        .panel { border-radius: 16px; }
+      }
     </style>
   </head>
   <body class="prod-commercial">
@@ -31,16 +227,17 @@
       {% include 'football/includes/dragon_nav.html' %}
       <div class="top">
         <div>
-          <p style="margin:0;color:#94a3b8;">Cuerpo técnico · {{ team_name }}</p>
-          <h1 style="margin:0.2rem 0 0;">Multas</h1>
+          <p class="eyebrow">Cuerpo técnico · {{ team_name }}</p>
+          <h1>Multas</h1>
         </div>
         <a class="btn" href="{% url 'coach-detail' %}">Volver</a>
       </div>
       <section class="panel">
-        <div class="grid" style="margin-bottom:0.8rem;">
-          <div><strong>Total multas:</strong> {{ summary_count|default:0 }}</div>
-          <div><strong>Total importe:</strong> {{ summary_total|default:0 }}€</div>
+        <div class="panel-section summary">
+          <div class="metric"><span>Total multas</span><strong>{{ summary_count|default:0 }}</strong></div>
+          <div class="metric"><span>Total importe</span><strong>{{ summary_total|default:0 }}€</strong></div>
         </div>
+        <div class="panel-section">
         {% if message %}<p class="msg ok">{{ message }}</p>{% endif %}
         {% if error %}<p class="msg err">{{ error }}</p>{% endif %}
         {% if can_manage_fines %}
@@ -71,42 +268,45 @@
               <input type="text" name="note" maxlength="220" placeholder="Contexto de la multa" />
             </label>
           </div>
-          <div style="margin-top:0.75rem;">
+          <div class="form-actions">
             <button type="submit">Registrar multa</button>
           </div>
         </form>
         {% else %}
-        <p class="msg" style="color:#bfdbfe;">Modo solo lectura: solo administracion puede registrar o eliminar multas.</p>
+        <p class="msg readonly">Modo solo lectura: solo administracion puede registrar o eliminar multas.</p>
         {% endif %}
+        </div>
 
-        <table>
-          <thead>
-            <tr><th>Fecha</th><th>Jugador</th><th>Motivo</th><th>Cantidad</th><th>Nota</th><th></th></tr>
-          </thead>
-          <tbody>
-            {% for fine in fines %}
-            <tr>
-              <td>{{ fine.created_at|date:'d/m/Y H:i' }}</td>
-              <td>#{{ fine.player.number|default:"--" }} {{ fine.player.name }}</td>
-              <td>{{ fine.get_reason_display }}</td>
-              <td>{{ fine.amount }}€</td>
-              <td>{{ fine.note|default:'-' }}</td>
-              <td>
-                {% if can_manage_fines %}
-                <form method="post" style="margin:0;">
-                  {% csrf_token %}
-                  <input type="hidden" name="form_action" value="delete" />
-                  <input type="hidden" name="fine_id" value="{{ fine.id }}" />
-                  <button type="submit" style="background:#b91c1c;">Eliminar</button>
-                </form>
-                {% endif %}
-              </td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="6">Sin multas registradas.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Fecha</th><th>Jugador</th><th>Motivo</th><th>Cantidad</th><th>Nota</th><th></th></tr>
+            </thead>
+            <tbody>
+              {% for fine in fines %}
+              <tr>
+                <td>{{ fine.created_at|date:'d/m/Y H:i' }}</td>
+                <td>#{{ fine.player.number|default:"--" }} {{ fine.player.name }}</td>
+                <td>{{ fine.get_reason_display }}</td>
+                <td class="amount">{{ fine.amount }}€</td>
+                <td>{{ fine.note|default:'-' }}</td>
+                <td>
+                  {% if can_manage_fines %}
+                  <form method="post" style="margin:0;">
+                    {% csrf_token %}
+                    <input type="hidden" name="form_action" value="delete" />
+                    <input type="hidden" name="fine_id" value="{{ fine.id }}" />
+                    <button class="danger" type="submit">Eliminar</button>
+                  </form>
+                  {% endif %}
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="6" class="muted">Sin multas registradas.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </section>
     </div>
   </body>
