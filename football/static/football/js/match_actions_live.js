@@ -585,6 +585,58 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     refreshStatusCounters();
   };
 
+  const clearFinalizedMatchdayUiState = () => {
+    clearRegisterHistoryUI();
+    resetRegisterHudState();
+    resetClockExternal ? resetClockExternal() : resetClock();
+    try { redoStack.splice(0, redoStack.length); } catch (e) {}
+    try { updateRedoUi(); } catch (e) {}
+    try { writeOfflineQueue([]); } catch (e) {}
+    try { updateOfflineQueueUi(); } catch (e) {}
+    try {
+      if (canUseStorage) {
+        if (liveStateKey) window.localStorage.removeItem(liveStateKey);
+        if (offlineQueueKey) window.localStorage.removeItem(offlineQueueKey);
+        window.localStorage.removeItem('webstats:match_actions:clock_fallback:v1');
+        const mid = String(currentMatchId || '').trim();
+        if (mid) {
+          window.localStorage.removeItem(`touchFieldLineup:${mid}`);
+          window.localStorage.removeItem(`webstats:live:kpi_primary:v1:${mid}`);
+        }
+      }
+    } catch (e) {}
+    try {
+      document.body.classList.remove('pro-sidebar-open', 'is-dragging');
+      document.querySelectorAll('.convocation-card.selected, .lineup-chip.selected').forEach((el) => {
+        try { el.classList.remove('selected'); } catch (e) {}
+      });
+      document.querySelectorAll('.lineup-drop-area.is-drag-over').forEach((el) => {
+        try { el.classList.remove('is-drag-over'); } catch (e) {}
+      });
+    } catch (e) {}
+    try {
+      if (fieldPopup) fieldPopup.classList.remove('is-visible');
+      hideQuickHistoryModal?.();
+    } catch (e) {}
+    try {
+      popupForm?.reset?.();
+      const csrfInput = popupForm?.querySelector?.('input[name="csrfmiddlewaretoken"]');
+      if (csrfInput) csrfInput.value = csrfToken;
+      setEditingEventId('');
+      if (playerInput) playerInput.value = '';
+      if (actionInput) actionInput.value = '';
+      if (observationInput) observationInput.value = '';
+      if (resultSelect) resultSelect.selectedIndex = 0;
+      syncAutoFields();
+    } catch (e) {}
+    try {
+      document.dispatchEvent(new CustomEvent('webstats:match-actions:finalized-reset', {
+        detail: { matchId: currentMatchId || '' },
+      }));
+    } catch (e) {}
+    emitSummaryChange();
+  };
+
   const incrementQuickCounter = (dropKey) => {
     const counterKey =
       dropKey === 'amarilla'
@@ -1481,23 +1533,9 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
         renderMatchInfoState(matchInfoState);
         if (matchInfoCard) matchInfoCard.classList.remove('is-editing');
         emitSummaryChange();
-        // UX: al guardar, el staff espera que se "reinicie" el registro en vivo.
-        // Consolidamos en servidor y limpiamos el HUD/panel de pendientes sin tocar los datos ya guardados.
-        clearRegisterHistoryUI();
-        resetRegisterHudState();
-        resetClockExternal ? resetClockExternal() : resetClock();
-        try {
-          document.body.classList.remove('pro-sidebar-open');
-          document.querySelectorAll('.convocation-card.selected, .lineup-chip.selected').forEach((el) => {
-            try { el.classList.remove('selected'); } catch (e) {}
-          });
-          const playerInput = document.getElementById('selected-player');
-          if (playerInput) playerInput.value = '';
-          if (currentMatchId) {
-            try { localStorage.removeItem(`touchFieldLineup:${String(currentMatchId).trim()}`); } catch (e) {}
-          }
-        } catch (err) { /* ignore */ }
-        emitSummaryChange();
+        // UX: al guardar, el staff espera que se "reinicie" todo el registro en vivo.
+        // Consolidamos en servidor y limpiamos DOM, reloj, selección, cola local y alineación visible.
+        clearFinalizedMatchdayUiState();
         try {
           document.querySelector('[data-stage-tab="close"]')?.click();
         } catch (err) { /* ignore */ }

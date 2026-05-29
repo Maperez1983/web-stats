@@ -6347,6 +6347,30 @@ class MatchActionWorkflowTests(TestCase):
         self.assertEqual(detail['goals'], baseline_goals + 1)
         self.assertEqual(detail['assists'], baseline_assists + 1)
 
+    def test_finalize_resets_matchday_state_even_without_pending_actions(self):
+        session = self.client.session
+        session['active_match_by_team'] = {str(self.team.id): self.match.id}
+        session.save()
+        self.convocation.is_current = True
+        self.convocation.save(update_fields=['is_current'])
+
+        response = self.client.post(
+            reverse('match-action-finalize'),
+            data=json.dumps({'match_id': self.match.id, 'match_info': {'match_id': self.match.id}}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload.get('saved'))
+        self.assertEqual(payload.get('updated'), 0)
+        self.convocation.refresh_from_db()
+        self.assertFalse(self.convocation.is_current)
+        self.assertEqual(
+            self.client.session.get('active_match_by_team', {}).get(str(self.team.id)),
+            None,
+        )
+
     def test_finalize_can_store_final_score(self):
         self.assertIsNone(self.match.home_score)
         self.assertIsNone(self.match.away_score)

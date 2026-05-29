@@ -17419,6 +17419,36 @@ def finalize_match_actions(request):
     if not match:
         return JsonResponse({'error': 'No hay partido activo para guardar'}, status=400)
     _apply_match_info_overrides(match, primary_team, payload.get('match_info'))
+
+    def _reset_matchday_state_after_finalize():
+        # UX: al finalizar un partido, limpiamos el match "activo" en sesión para que el siguiente
+        # acceso arranque en un flujo nuevo (prepartido) en vez de volver al match ya cerrado.
+        try:
+            if hasattr(request, 'session'):
+                mapping = request.session.get('active_match_by_team')
+                if isinstance(mapping, dict) and str(primary_team.id) in mapping:
+                    mapping.pop(str(primary_team.id), None)
+                    request.session['active_match_by_team'] = mapping
+                    request.session.modified = True
+        except Exception:
+            pass
+        # Reinicio total (matchday): al guardar el partido, la convocatoria "actual" ya no debe
+        # quedar enganchada como `is_current`, porque bloquearía el siguiente partido.
+        # Conservamos el registro para histórico, solo desactivamos el flag current.
+        try:
+            record = get_current_convocation_record(primary_team, match=match, fallback_to_latest=False)
+        except Exception:
+            record = None
+        if record and bool(getattr(record, 'is_current', False)):
+            try:
+                record.is_current = False
+                record.save(update_fields=['is_current', 'updated_at'])
+            except Exception:
+                try:
+                    record.save(update_fields=['is_current'])
+                except Exception:
+                    pass
+
     pending_events = list(
         MatchEvent.objects.filter(
             match=match,
@@ -17439,6 +17469,8 @@ def finalize_match_actions(request):
             'score_against': '' if score_against is None else str(int(score_against)),
         }
     if not pending_events:
+        _reset_matchday_state_after_finalize()
+        _invalidate_team_dashboard_caches(primary_team)
         return JsonResponse(
             {
                 'saved': True,
@@ -17462,32 +17494,7 @@ def finalize_match_actions(request):
     except Exception:
         pass
     _invalidate_team_dashboard_caches(primary_team)
-    # UX: al finalizar un partido, limpiamos el match "activo" en sesión para que el siguiente
-    # acceso arranque en un flujo nuevo (prepartido) en vez de volver al match ya cerrado.
-    try:
-        if hasattr(request, 'session'):
-            mapping = request.session.get('active_match_by_team')
-            if isinstance(mapping, dict) and str(primary_team.id) in mapping:
-                mapping.pop(str(primary_team.id), None)
-                request.session['active_match_by_team'] = mapping
-    except Exception:
-        pass
-    # Reinicio total (matchday): al guardar el partido, la convocatoria "actual" ya no debe
-    # quedar enganchada como `is_current`, porque bloquearía el siguiente partido (p.ej. Marbella).
-    # Conservamos el registro para histórico, solo desactivamos el flag current.
-    try:
-        record = get_current_convocation_record(primary_team, match=match, fallback_to_latest=False)
-    except Exception:
-        record = None
-    if record and bool(getattr(record, 'is_current', False)):
-        try:
-            record.is_current = False
-            record.save(update_fields=['is_current', 'updated_at'])
-        except Exception:
-            try:
-                record.save(update_fields=['is_current'])
-            except Exception:
-                pass
+    _reset_matchday_state_after_finalize()
     try:
         is_home = match.home_team_id == primary_team.id
         score_for = match.home_score if is_home else match.away_score

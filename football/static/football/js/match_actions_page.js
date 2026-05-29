@@ -3644,6 +3644,33 @@ const urlWithMatchId = (baseUrl) => {
         clearPlayerSelection();
         renderLineup();
       };
+      const clearLineupUiAfterFinalize = () => {
+        const wasPersistDisabled = lineupPersistDisabled;
+        lineupPersistDisabled = true;
+        try {
+          if (lineupPersistTimer) {
+            clearTimeout(lineupPersistTimer);
+            lineupPersistTimer = null;
+          }
+          lineupState = { starters: [], bench: [] };
+          clearPlayerSelection();
+          renderLineup();
+          const emptySnapshot = JSON.stringify({ starters: [], bench: [] });
+          lastLineupSignature = lineupSignature(lineupState);
+          lastSavedLineupSnapshot = emptySnapshot;
+          if (lineupInput) lineupInput.value = emptySnapshot;
+          if (lineupStorageKey) {
+            try { localStorage.removeItem(lineupStorageKey); } catch (e) {}
+          }
+        } finally {
+          window.setTimeout(() => {
+            lineupPersistDisabled = wasPersistDisabled;
+          }, 0);
+        }
+      };
+      try {
+        document.addEventListener('webstats:match-actions:finalized-reset', clearLineupUiAfterFinalize);
+      } catch (e) {}
 		      hydrateLineupState();
 		      renderLineup();
 		      try { restoreProState(); } catch (e) {}
