@@ -341,7 +341,7 @@ def schedule_autocut_after_upload(*, video_id: int, team_id=None, owner_user_id=
                         job_event.payload = {'autocut': True, 'autocut_job': True, 'state': 'error'}
                         job_event.save(update_fields=['label', 'payload', 'updated_at'])
                 except Exception:
-                    pass
+                    logger.exception('AutoCut: no se pudo actualizar el evento de job.', extra={'video_id': video_id})
         except Exception:
             logger.exception('AutoCut after upload failed', extra={'video_id': video_id})
 
@@ -350,7 +350,7 @@ def schedule_autocut_after_upload(*, video_id: int, team_id=None, owner_user_id=
             thread = threading.Thread(target=_runner, name=f'autocut-video-{int(video_id)}', daemon=True)
             thread.start()
         except Exception:
-            pass
+            logger.exception('AutoCut: no se pudo arrancar el hilo de análisis.', extra={'video_id': video_id})
 
     try:
         transaction.on_commit(_start)
