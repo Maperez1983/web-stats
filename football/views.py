@@ -1547,8 +1547,7 @@ def _build_pdf_nav_urls(request):
     return {'platform_url': platform_url, 'pdf_return_url': platform_url}
 
 
-def resolve_player_photo_static_path(player):
-    return player_media.resolve_player_photo_static_path(player)
+resolve_player_photo_static_path = player_media.resolve_player_photo_static_path
 
 
 def _player_photo_storage_candidates(player):
@@ -3511,28 +3510,22 @@ TECHNICAL_ROLES = {
     AppUserRole.ROLE_ADMIN,
 }
 
-def _has_club_workspace_access(user):
-    return permissions.has_club_workspace_access(user)
+_has_club_workspace_access = permissions.has_club_workspace_access
 
 
-def _get_user_role(user):
-    return workspace_context.get_user_role(user)
+_get_user_role = workspace_context.get_user_role
 
 
-def _is_admin_user(user):
-    return workspace_context.is_admin_user(user)
+_is_admin_user = workspace_context.is_admin_user
 
 
-def _can_edit_match_actions(user):
-    return permissions.can_edit_match_actions(user)
+_can_edit_match_actions = permissions.can_edit_match_actions
 
 
-def _can_access_sessions_workspace(user):
-    return permissions.can_access_sessions_workspace(user)
+_can_access_sessions_workspace = permissions.can_access_sessions_workspace
 
 
-def _can_access_coach_workspace(user):
-    return permissions.can_access_coach_workspace(user)
+_can_access_coach_workspace = permissions.can_access_coach_workspace
 
 
 def _can_access_task_studio(user):
@@ -3616,12 +3609,10 @@ def _forbid_if_no_task_studio_access(user):
     return HttpResponse('No tienes permisos para acceder a Task Studio.', status=403)
 
 
-def _can_access_platform(user):
-    return workspace_context.can_access_platform(user)
+_can_access_platform = workspace_context.can_access_platform
 
 
-def _available_workspaces_for_user(user):
-    return workspace_context.available_workspaces_for_user(user)
+_available_workspaces_for_user = workspace_context.available_workspaces_for_user
 
 
 def _single_club_fallback_enabled() -> bool:
@@ -3663,12 +3654,10 @@ def _paywall_response(request, *, workspace=None):
     )
 
 
-def _get_active_workspace(request):
-    return workspace_context.get_active_workspace(request)
+_get_active_workspace = workspace_context.get_active_workspace
 
 
-def _workspace_team_links(workspace):
-    return workspace_context.workspace_team_links(workspace)
+_workspace_team_links = workspace_context.workspace_team_links
 
 
 def _workspace_team_links_for_user(workspace, user):
@@ -4894,20 +4883,16 @@ def _forbid_if_task_studio_module_disabled(request, owner, module_key, label='m√
     return HttpResponse(f'El {label} no est√° activo en este Task Studio.', status=403)
 
 
-def _workspace_entry_url(workspace, *, user=None):
-    return workspace_ui.workspace_entry_url(workspace, user=user)
+_workspace_entry_url = workspace_ui.workspace_entry_url
 
 
-def _workspace_membership_for_user(workspace, user):
-    return workspace_context.workspace_membership_for_user(workspace, user)
+_workspace_membership_for_user = workspace_context.workspace_membership_for_user
 
 
-def _can_view_workspace(user, workspace):
-    return workspace_context.can_view_workspace(user, workspace)
+_can_view_workspace = workspace_context.can_view_workspace
 
 
-def _can_manage_workspace(user, workspace):
-    return workspace_context.can_manage_workspace(user, workspace)
+_can_manage_workspace = workspace_context.can_manage_workspace
 
 
 def _workspace_links_for_user(user):
