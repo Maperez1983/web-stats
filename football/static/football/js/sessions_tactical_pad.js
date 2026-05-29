@@ -24193,6 +24193,89 @@
                 return true;
               };
 
+              const generateInteractiveDemo = () => {
+                if (isSimulating) {
+                  setStatus('Sal del simulador para generar una táctica interactiva.', true);
+                  return;
+                }
+                try { setTacticsInteractiveEnabled(true); } catch (e) { /* ignore */ }
+                stopInteractiveRoutesPlayback();
+                clearTokensBySide('local');
+                clearTokensBySide('rival');
+                clearInteractiveRoutes();
+                const { w, h } = worldSize();
+                const at = (x, y) => ({ x: (Number(x) || 0) * w, y: (Number(y) || 0) * h });
+                const created = [];
+                const localSpec = [
+                  ['goalkeeper_local', 1, 'GK', 0.09, 0.50],
+                  ['player_local', 4, 'DFC', 0.24, 0.38],
+                  ['player_local', 5, 'DFC', 0.24, 0.62],
+                  ['player_local', 2, 'LD', 0.34, 0.18],
+                  ['player_local', 3, 'LI', 0.34, 0.82],
+                  ['player_local', 6, 'Pivote', 0.45, 0.50],
+                  ['player_local', 8, 'Interior', 0.58, 0.38],
+                  ['player_local', 10, 'Mediapunta', 0.66, 0.58],
+                  ['player_local', 9, 'Punta', 0.78, 0.50],
+                ];
+                const rivalSpec = [
+                  ['goalkeeper_rival', 1, 'GK', 0.91, 0.50],
+                  ['player_rival', 9, 'Rival', 0.56, 0.50],
+                  ['player_rival', 7, 'Rival', 0.62, 0.28],
+                  ['player_rival', 11, 'Rival', 0.62, 0.72],
+                  ['player_rival', 6, 'Rival', 0.72, 0.50],
+                ];
+                const refs = {};
+                const makeToken = (tokenKind, number, name, x, y) => {
+                  const factory = playerTokenFactory(tokenKind, { number: String(number), name: safeText(name) }, { style: 'disk' });
+                  const obj = objectAtPointer(factory, at(x, y));
+                  if (obj) {
+                    refs[`${tokenKind}_${number}`] = obj;
+                    created.push(obj);
+                  }
+                };
+                localSpec.forEach((row) => makeToken(...row));
+                rivalSpec.forEach((row) => makeToken(...row));
+                let ball = null;
+                try {
+                  ball = objectAtPointer(simpleFactory('ball'), at(0.31, 0.50));
+                  if (ball) created.push(ball);
+                } catch (e) { /* ignore */ }
+                addObjectsBatch(created);
+                const routePairs = [
+                  [refs.player_local_4, at(0.36, 0.34)],
+                  [refs.player_local_5, at(0.36, 0.66)],
+                  [refs.player_local_6, at(0.53, 0.46)],
+                  [refs.player_local_8, at(0.68, 0.34)],
+                  [refs.player_local_10, at(0.74, 0.58)],
+                  [refs.player_local_9, at(0.84, 0.44)],
+                ];
+                routePairs.forEach(([obj, to]) => {
+                  if (!obj) return;
+                  addInteractiveRoute(obj, { x: Number(obj.left) || 0, y: Number(obj.top) || 0 }, to);
+                });
+                if (ball) {
+                  addInteractiveRoute(ball, { x: Number(ball.left) || 0, y: Number(ball.top) || 0 }, at(0.53, 0.46));
+                  addInteractiveRoute(ball, at(0.53, 0.46), at(0.74, 0.58));
+                  addInteractiveRoute(ball, at(0.74, 0.58), at(0.84, 0.44));
+                }
+                try {
+                  const arrow = buildRouteArrow(at(0.53, 0.46), at(0.84, 0.44), { for_uid: 'demo_progression', index: 0 });
+                  if (arrow) {
+                    arrow.data = arrow.data || {};
+                    arrow.data.kind = 'route_arrow';
+                    normalizeEditableObject(arrow);
+                    canvas.add(arrow);
+                    canvas.sendToBack(arrow);
+                  }
+                } catch (e) { /* ignore */ }
+                try { canvas.discardActiveObject(); } catch (e) { /* ignore */ }
+                try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+                try { pushHistory(); } catch (e) { /* ignore */ }
+                syncRouteSummary();
+                generateSimulationFromRoutes('seq');
+                setStatus('Demo interactiva generada: salida, tercer hombre y ataque al espacio.');
+              };
+
               const FORMATIONS = {
                 // Normalizadas sobre el rectángulo del campo (x: 0–1 izquierda→derecha, y: 0–1 arriba→abajo).
                 '11:433': [
@@ -24311,6 +24394,13 @@
                     if (!tacticsInteractiveEnabled) return;
                     const mode = safeText(genBtn.getAttribute('data-tactics-generate'));
                     generateSimulationFromRoutes(mode === 'seq' ? 'seq' : 'simul');
+                    try { if (tacticsInteractiveMenu) tacticsInteractiveMenu.open = false; } catch (e) { /* ignore */ }
+                    return;
+                  }
+                  const demoBtn = event.target.closest('[data-tactics-demo]');
+                  if (demoBtn) {
+                    event.preventDefault();
+                    generateInteractiveDemo();
                     try { if (tacticsInteractiveMenu) tacticsInteractiveMenu.open = false; } catch (e) { /* ignore */ }
                     return;
                   }
