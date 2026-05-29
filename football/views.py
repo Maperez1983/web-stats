@@ -113,6 +113,11 @@ from .ops_logging import log_exception
 from .session_plan_fields import parse_session_plan_fields, serialize_session_plan_fields
 from . import session_import_services
 from . import universo_client
+from .video_studio_services import (
+    apply_autocut_suggestions as _video_studio_apply_autocut_suggestions,
+    autocut_enabled as _video_studio_autocut_enabled,
+    schedule_autocut_after_upload as _video_studio_schedule_autocut_after_upload,
+)
 from .ai_trainer import ai_trainer_index_task, ai_trainer_tokenize, normalize_ai_trainer_text
 from .library_repositories import (
     INBOX_MICROCYCLE_WEEK_END,
@@ -48499,57 +48504,6 @@ def analysis_video_studio_export_server_api(request):
             'mime_type': str(getattr(asset, 'mime_type', '') or '').strip().lower(),
             'format': 'mp4',
         }
-    )
-
-
-def _video_studio_autocut_enabled() -> bool:
-    from .video_studio_services import autocut_enabled
-
-    return autocut_enabled()
-
-
-def _video_studio_apply_autocut_suggestions(
-    *,
-    video,
-    scope_team=None,
-    owner_user=None,
-    created_by: str = '',
-    profile: str = 'balanced',
-    include_kinds=None,
-    max_moments: int = 18,
-    min_gap_s: float = 25.0,
-    pre_s: float = 8.0,
-    post_s: float = 8.0,
-    max_scan_s=None,
-    replace: bool = True,
-) -> dict:
-    from .video_studio_services import apply_autocut_suggestions
-
-    return apply_autocut_suggestions(
-        video=video,
-        scope_team=scope_team,
-        owner_user=owner_user,
-        created_by=created_by,
-        profile=profile,
-        include_kinds=include_kinds,
-        max_moments=max_moments,
-        min_gap_s=min_gap_s,
-        pre_s=pre_s,
-        post_s=post_s,
-        max_scan_s=max_scan_s,
-        replace=replace,
-    )
-
-
-def _video_studio_schedule_autocut_after_upload(*, video_id: int, team_id=None, owner_user_id=None, workspace_id=None, created_by: str = '') -> None:
-    from .video_studio_services import schedule_autocut_after_upload
-
-    return schedule_autocut_after_upload(
-        video_id=video_id,
-        team_id=team_id,
-        owner_user_id=owner_user_id,
-        workspace_id=workspace_id,
-        created_by=created_by,
     )
 
 
