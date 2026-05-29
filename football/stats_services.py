@@ -1,4 +1,5 @@
 import os
+import logging
 from collections import Counter
 
 from django.core.cache import cache
@@ -12,6 +13,8 @@ from .models import Match, MatchEvent, Workspace
 from .player_media import resolve_player_photo_static_path
 from .query_helpers import confirmed_events_queryset
 
+
+logger = logging.getLogger(__name__)
 
 PLAYER_METRICS_CACHE_SECONDS = int(os.getenv('PLAYER_METRICS_CACHE_SECONDS', '900'))
 TEAM_METRICS_CACHE_SECONDS = int(os.getenv('TEAM_METRICS_CACHE_SECONDS', '900'))
@@ -96,7 +99,7 @@ def filter_stats_events(rows, preferred_sources=None):
             if isinstance(signature, tuple) and signature and isinstance(signature[0], int):
                 signature = (canonical_match_id(signature[0]), *signature[1:])
         except Exception:
-            pass
+            logger.debug('No se pudo normalizar la firma estadística.', exc_info=True)
         if signature in seen_signatures:
             continue
         seen_signatures.add(signature)
@@ -118,7 +121,7 @@ def active_club_season_date_bounds_from_request(request):
                 getattr(active_club_season, 'end_date', None),
             )
     except Exception:
-        pass
+        logger.debug('No se pudieron resolver límites de temporada activa.', exc_info=True)
     return None, None
 
 

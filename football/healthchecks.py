@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import contextlib
 import io
+import logging
 from pathlib import Path
 
 from django.conf import settings
 from django.db import connection
 
 from football import pdf_services
+
+
+logger = logging.getLogger(__name__)
 
 
 def _weasyprint_status():
@@ -77,11 +81,11 @@ def _s3_media_status():
             with default_storage.open(saved, 'rb') as fh:
                 _ = fh.read(8)
         except Exception:
-            pass
+            logger.debug('Healthcheck S3 read-back failed.', exc_info=True)
         try:
             default_storage.delete(saved)
         except Exception:
-            pass
+            logger.debug('Healthcheck S3 cleanup failed.', exc_info=True)
         detail['can_write'] = True
         return {'ok': True, 'detail': detail}
     except Exception as exc:
@@ -118,7 +122,7 @@ def run_system_healthcheck():
             try:
                 path.mkdir(parents=True, exist_ok=True)
             except Exception:
-                pass
+                logger.debug('Healthcheck could not create media_root.', exc_info=True)
         results['paths'][key] = {
             'ok': path.exists(),
             'detail': str(path),
