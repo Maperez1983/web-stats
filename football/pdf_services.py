@@ -39,7 +39,7 @@ def pydyf_compat_status():
             if len(params) < 2:
                 ok = False
         except Exception:
-            pass
+            logger.debug('No se pudo inspeccionar la firma de pydyf.PDF.', exc_info=True)
         return ok, version or 'unknown'
     except Exception:
         return False, 'not installed'
@@ -59,13 +59,13 @@ def _safe_url_fetcher(url, timeout=4, ssl_context=None):
                 content = urllib.parse.unquote_to_bytes(payload)
             return {'string': content, 'mime_type': mime}
     except Exception:
-        pass
+        logger.debug('No se pudo resolver URL embebida para PDF.', exc_info=True)
     try:
         default_fetcher = getattr(weasyprint, 'default_url_fetcher', None) if weasyprint else None
         if callable(default_fetcher):
             return default_fetcher(url, timeout=timeout, ssl_context=ssl_context)
     except Exception:
-        pass
+        logger.debug('WeasyPrint default_url_fetcher falló; usando respuesta vacía.', exc_info=True)
     return {'string': b'', 'mime_type': 'text/plain'}
 
 
