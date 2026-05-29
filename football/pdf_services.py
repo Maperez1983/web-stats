@@ -69,6 +69,24 @@ def _safe_url_fetcher(url, timeout=4, ssl_context=None):
     return {'string': b'', 'mime_type': 'text/plain'}
 
 
+def _write_pdf_bytes(request, html: str):
+    return weasyprint.HTML(
+        string=html,
+        base_url=request.build_absolute_uri('/'),
+        url_fetcher=_safe_url_fetcher,
+    ).write_pdf()
+
+
+def _current_build_id() -> str:
+    return (
+        os.getenv('RENDER_GIT_COMMIT')
+        or os.getenv('RENDER_DEPLOY_ID')
+        or os.getenv('SOURCE_VERSION')
+        or os.getenv('GIT_SHA')
+        or ''
+    ).strip()
+
+
 def render_pdf_bytes(request, html: str):
     if not weasyprint:
         return None
@@ -76,11 +94,7 @@ def render_pdf_bytes(request, html: str):
     if not pydyf_ok:
         return None
     try:
-        return weasyprint.HTML(
-            string=html,
-            base_url=request.build_absolute_uri('/'),
-            url_fetcher=_safe_url_fetcher,
-        ).write_pdf()
+        return _write_pdf_bytes(request, html)
     except Exception:
         logger.exception('WeasyPrint: error generando PDF')
         return None
@@ -93,12 +107,7 @@ def render_pdf_bytes_with_error(request, html: str):
     if not pydyf_ok:
         return None, f'pydyf incompatible ({pydyf_version}); requires 0.10.x for weasyprint 57.x'
     try:
-        pdf_bytes = weasyprint.HTML(
-            string=html,
-            base_url=request.build_absolute_uri('/'),
-            url_fetcher=_safe_url_fetcher,
-        ).write_pdf()
-        return pdf_bytes, ''
+        return _write_pdf_bytes(request, html), ''
     except Exception as exc:
         logger.exception('WeasyPrint: error generando PDF (debug)')
         return None, f'{exc.__class__.__name__}: {exc}'
@@ -123,18 +132,9 @@ def build_pdf_response_or_html_fallback(request, html: str, filename: str, *, in
         response['Cache-Control'] = 'no-store, max-age=0'
         response['Pragma'] = 'no-cache'
         response['Expires'] = '0'
-        try:
-            build_id = (
-                os.getenv('RENDER_GIT_COMMIT')
-                or os.getenv('RENDER_DEPLOY_ID')
-                or os.getenv('SOURCE_VERSION')
-                or os.getenv('GIT_SHA')
-                or ''
-            ).strip()
-            if build_id:
-                response['X-2J-Build'] = build_id
-        except Exception:
-            pass
+        build_id = _current_build_id()
+        if build_id:
+            response['X-2J-Build'] = build_id
         return response
     logger.exception('WeasyPrint: error generando PDF (response): %s', pdf_error or 'unknown')
     if force_pdf:
