@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -21,6 +22,9 @@ from .universo_context_services import context_team_lookup_keys
 from .universo_group_services import expand_team_lookup_variants
 from .universo_snapshot_services import load_universo_snapshot
 from .workspace_context import single_club_fallback_enabled
+
+
+logger = logging.getLogger(__name__)
 
 
 def _env_path(var_name: str, default_path: Path) -> Path:
@@ -379,7 +383,11 @@ def load_preferred_next_match_payload(
             if next_match_payload_is_reliable(snapshot_next):
                 return snapshot_next
     except Exception:
-        pass
+        logger.debug(
+            'No se pudo usar next_match_payload del snapshot del contexto %s',
+            getattr(competition_context, 'id', None),
+            exc_info=True,
+        )
 
     snapshot = load_universo_snapshot()
     if snapshot_supports_team_func:
