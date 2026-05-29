@@ -27863,52 +27863,31 @@ def coach_rival_page(request):
     )
 
 
-def _extract_pdf_text(pdf_file, max_chars=12000):
-    return session_import_services.extract_pdf_text(pdf_file, max_chars=max_chars)
+_extract_pdf_text = session_import_services.extract_pdf_text
 
 
-def _parse_pdf_session_header_fields(extracted_text):
-    return session_import_services.parse_pdf_session_header_fields(extracted_text)
+_parse_pdf_session_header_fields = session_import_services.parse_pdf_session_header_fields
 
 
-def _suggest_session_plan_fields_from_pdf_text(extracted_text, *, imported_doc_id=None):
-    return session_import_services.suggest_session_plan_fields_from_pdf_text(
-        extracted_text,
-        imported_doc_id=imported_doc_id,
-    )
-
-def _analyze_preview_image_bytes(raw_bytes):
-    return task_library_services.analyze_preview_image_bytes(raw_bytes)
+_suggest_session_plan_fields_from_pdf_text = session_import_services.suggest_session_plan_fields_from_pdf_text
 
 
-def _is_preview_quality_low(raw_bytes):
-    return task_library_services.is_preview_quality_low(raw_bytes)
+_analyze_preview_image_bytes = task_library_services.analyze_preview_image_bytes
 
 
-def _extract_preview_images_from_pdf(pdf_file, max_images=8, prefer_render=False):
-    return session_import_services.extract_preview_images_from_pdf(
-        pdf_file,
-        max_images=max_images,
-        prefer_render=prefer_render,
-    )
+_is_preview_quality_low = task_library_services.is_preview_quality_low
 
 
-def _extract_preview_image_from_pdf(pdf_file, prefer_render=False):
-    return session_import_services.extract_preview_image_from_pdf(pdf_file, prefer_render=prefer_render)
+_extract_preview_images_from_pdf = session_import_services.extract_preview_images_from_pdf
 
 
-def _extract_pdf_graphic_assets_from_pdf(pdf_file, max_assets=60):
-    return session_import_services.extract_pdf_graphic_assets_from_pdf(pdf_file, max_assets=max_assets)
+_extract_preview_image_from_pdf = session_import_services.extract_preview_image_from_pdf
 
 
-def _save_pdf_graphic_assets_to_library(*, team=None, owner=None, pdf_file=None, source_pdf_name='', max_assets=60):
-    return session_import_services.save_pdf_graphic_assets_to_library(
-        team=team,
-        owner=owner,
-        pdf_file=pdf_file,
-        source_pdf_name=source_pdf_name,
-        max_assets=max_assets,
-    )
+_extract_pdf_graphic_assets_from_pdf = session_import_services.extract_pdf_graphic_assets_from_pdf
+
+
+_save_pdf_graphic_assets_to_library = session_import_services.save_pdf_graphic_assets_to_library
 
 
 def _recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054, canvas_height=684):
@@ -27921,41 +27900,28 @@ def _recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054
     )
 
 
-def _maybe_recreate_board_from_preview_bytes(task, preview_bytes):
-    return session_import_services.maybe_recreate_board_from_preview_bytes(task, preview_bytes)
+_maybe_recreate_board_from_preview_bytes = session_import_services.maybe_recreate_board_from_preview_bytes
 
 
-def _render_pdf_preview_with_pdftoppm(pdf_file):
-    return session_import_services.render_pdf_preview_with_pdftoppm(pdf_file)
+_render_pdf_preview_with_pdftoppm = session_import_services.render_pdf_preview_with_pdftoppm
 
 
-def _split_board_page_image_bytes(raw_bytes, max_images=3):
-    return session_import_services.split_board_page_image_bytes(raw_bytes, max_images=max_images)
+_split_board_page_image_bytes = session_import_services.split_board_page_image_bytes
 
 
-def _render_pdf_previews_with_pdftoppm(pdf_file, max_images=1, max_pages=10, scale_to=3200):
-    return session_import_services.render_pdf_previews_with_pdftoppm(
-        pdf_file,
-        max_images=max_images,
-        max_pages=max_pages,
-        scale_to=scale_to,
-    )
+_render_pdf_previews_with_pdftoppm = session_import_services.render_pdf_previews_with_pdftoppm
 
 
-def _default_task_preview_payload():
-    return session_import_services.default_task_preview_payload()
+_default_task_preview_payload = session_import_services.default_task_preview_payload
 
 
-def _ensure_task_preview_image(task, prefer_render=False):
-    return task_library_services.ensure_task_preview_image(task, prefer_render=prefer_render)
+_ensure_task_preview_image = task_library_services.ensure_task_preview_image
 
 
-def _task_preview_needs_refresh(task):
-    return task_library_services.task_preview_needs_refresh(task)
+_task_preview_needs_refresh = task_library_services.task_preview_needs_refresh
 
 
-def _ensure_library_task_preview(task, force=False, prefer_render=False):
-    return task_library_services.ensure_library_task_preview(task, force=force, prefer_render=prefer_render)
+_ensure_library_task_preview = task_library_services.ensure_library_task_preview
 
 
 def _ensure_imported_session_preview(doc, force=False, prefer_render=True):
@@ -28298,8 +28264,7 @@ def _rich_html_from_plain_text(value, max_len=6000):
     return html.escape(raw).replace('\n', '<br>')
 
 
-def _text_has_quality_issues(value):
-    return task_library_services.text_has_quality_issues(value)
+_text_has_quality_issues = task_library_services.text_has_quality_issues
 
 
 MONTHS_ES = {
@@ -29554,11 +29519,10 @@ def _split_pdf_into_task_sections(pdf_text):
     return sections[:8]
 
 
-def _extract_tasks_from_pdf_text(pdf_text, fallback_title='Tarea desde PDF'):
-    return session_import_services.extract_tasks_from_pdf_text(pdf_text, fallback_title=fallback_title)
+_extract_tasks_from_pdf_text = session_import_services.extract_tasks_from_pdf_text
 
-def _suggest_blocks_for_session_pdf_segments(parsed_tasks, fallback_block):
-    return session_import_services.suggest_blocks_for_session_pdf_segments(parsed_tasks, fallback_block)
+
+_suggest_blocks_for_session_pdf_segments = session_import_services.suggest_blocks_for_session_pdf_segments
 
 def _parse_bulk_tasks_text(raw_text, default_block, default_minutes):
     """
@@ -29729,32 +29693,23 @@ def _persist_detected_resources_library(task_items, scope_key='coach'):
         return
 
 
-def _task_scope_for_item(task):
-    return task_library_services.task_scope_for_item(task)
+_task_scope_for_item = task_library_services.task_scope_for_item
 
 
 def _get_or_create_library_session(team, scope_key):
     return _get_or_create_library_session_with_repository(team, scope_key, repository=LIBRARY_REPOSITORY_TRADITIONAL)
 
 
-def _get_or_create_library_session_with_repository(team, scope_key, *, repository=LIBRARY_REPOSITORY_TRADITIONAL):
-    return session_import_services.get_or_create_library_session_with_repository(
-        team=team,
-        scope_key=scope_key,
-        repository=repository,
-    )
+_get_or_create_library_session_with_repository = session_import_services.get_or_create_library_session_with_repository
 
 
-def _cleanup_task_joined_text_fields(task):
-    return task_library_services.cleanup_task_joined_text_fields(task)
+_cleanup_task_joined_text_fields = task_library_services.cleanup_task_joined_text_fields
 
 
-def _task_analysis_needs_refresh(task):
-    return task_library_services.task_analysis_needs_refresh(task)
+_task_analysis_needs_refresh = task_library_services.task_analysis_needs_refresh
 
 
-def _refresh_task_from_pdf_analysis(task):
-    return task_library_services.refresh_task_from_pdf_analysis(task)
+_refresh_task_from_pdf_analysis = task_library_services.refresh_task_from_pdf_analysis
 
 
 def _update_library_task_from_post(task, post_data, scope_key=None):
@@ -30258,8 +30213,7 @@ def _sessions_tab_from_action(action):
     return 'library'
 
 
-def _next_session_task_order(session):
-    return session_import_services.next_session_task_order(session)
+_next_session_task_order = session_import_services.next_session_task_order
 
 
 def _clone_session_task_to_session(source_task, target_session, note=''):
