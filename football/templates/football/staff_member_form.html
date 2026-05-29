@@ -20,9 +20,9 @@
         font-family: "Avenir Next", "Segoe UI", sans-serif;
       }
       .shell {
-        max-width: 980px;
+        width: min(100%, 1040px);
         margin: 0 auto;
-        padding: 1.2rem;
+        padding: clamp(0.85rem, 1.25vw, 1.2rem);
       }
       .panel {
         margin-top: 0.9rem;
@@ -37,10 +37,12 @@
         font-size: 1rem;
         letter-spacing: 0.14em;
         text-transform: uppercase;
+        overflow-wrap: anywhere;
       }
       .sub {
         margin: 0.35rem 0 0;
         color: rgba(226, 232, 240, 0.74);
+        overflow-wrap: anywhere;
       }
       .grid {
         margin-top: 0.9rem;
@@ -62,6 +64,8 @@
         display: block;
       }
       input, textarea, select {
+        width: 100%;
+        min-width: 0;
         border-radius: 14px;
         padding: 0.7rem 0.8rem;
         border: 1px solid rgba(244, 180, 0, 0.18);
@@ -73,16 +77,19 @@
       textarea { min-height: 120px; resize: vertical; }
       .row {
         margin-top: 0.9rem;
-        display: flex;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
         gap: 0.6rem;
-        flex-wrap: wrap;
         align-items: center;
         justify-content: space-between;
       }
+      .row-actions { display:flex; gap:0.55rem; flex-wrap:wrap; justify-content:flex-end; }
+      .row-actions:first-child { justify-content:flex-start; }
       .btn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        min-height: 38px;
         text-decoration: none;
         border-radius: 999px;
         padding: 0.55rem 0.85rem;
@@ -94,6 +101,7 @@
         text-transform: uppercase;
         font-size: 0.7rem;
         cursor: pointer;
+        white-space: nowrap;
       }
       .btn.primary {
         background: linear-gradient(135deg, rgba(244, 180, 0, 0.22), rgba(47, 125, 50, 0.18));
@@ -121,7 +129,7 @@
       .preview {
         margin-top: 0.9rem;
         display: grid;
-        grid-template-columns: 72px 1fr;
+        grid-template-columns: auto minmax(0, 1fr);
         gap: 0.8rem;
         align-items: center;
         border: 1px solid rgba(255,255,255,0.12);
@@ -143,6 +151,25 @@
         border-bottom: 1px dashed rgba(244, 180, 0, 0.4);
         font-weight: 900;
       }
+      .file-links { min-width: 0; overflow-wrap: anywhere; }
+      .feedback {
+        margin-top: 0.75rem;
+        border-radius: 14px;
+        padding: 0.75rem 0.85rem;
+        background: rgba(47,125,50,0.14);
+        border: 1px solid rgba(47,125,50,0.28);
+        color: rgba(214,255,224,0.96);
+        font-weight: 900;
+        letter-spacing: 0.02em;
+      }
+      @media (max-width: 720px) {
+        .panel { border-radius: 16px; padding: 0.85rem; }
+        .row { grid-template-columns: 1fr; align-items: stretch; }
+        .row-actions { justify-content: flex-start; }
+        .row-actions .btn,
+        .row > .btn { width: 100%; }
+        .preview { grid-template-columns: 1fr; }
+      }
     </style>
   </head>
   <body class="prod-commercial">
@@ -159,7 +186,7 @@
             <p class="sub">{{ member.name }}{% if member.role_title %} · {{ member.role_title }}{% endif %}</p>
             {% endif %}
           </div>
-          <div style="display:flex; gap:0.55rem; flex-wrap:wrap;">
+          <div class="row-actions">
             <a class="btn" href="{% url 'staff-directory' %}">Volver</a>
             {% if mode != 'create' %}
             <a class="btn" href="{% url 'coach-cards' %}">Áreas</a>
@@ -171,7 +198,7 @@
         <div class="error">{{ error }}</div>
         {% endif %}
         {% if feedback %}
-        <div style="margin-top:0.75rem;border-radius:14px;padding:0.75rem 0.85rem;background:rgba(47,125,50,0.14);border:1px solid rgba(47,125,50,0.28);color:rgba(214,255,224,0.96);font-weight:900;letter-spacing:0.02em;">
+        <div class="feedback">
           {{ feedback }}
         </div>
         {% endif %}
@@ -282,7 +309,7 @@
           </div>
 
           <div class="row">
-            <div style="display:flex; gap:0.55rem; flex-wrap:wrap;">
+            <div class="row-actions">
               {% if mode == 'create' %}
               <button class="btn primary" type="submit">Crear</button>
               {% else %}
