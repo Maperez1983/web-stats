@@ -1,6 +1,10 @@
+import logging
 from datetime import date
 
 from django.db.models import Q
+
+
+logger = logging.getLogger(__name__)
 
 
 INBOX_MICROCYCLE_WEEK_START = date(2000, 1, 1)
@@ -54,6 +58,11 @@ def is_library_microcycle(microcycle):
             return True
         return False
     except Exception:
+        logger.debug(
+            'No se pudo detectar si el microciclo %s pertenece a biblioteca',
+            getattr(microcycle, 'id', None),
+            exc_info=True,
+        )
         return False
 
 
@@ -63,6 +72,11 @@ def is_library_session(session):
     try:
         return is_library_microcycle(getattr(session, 'microcycle', None))
     except Exception:
+        logger.debug(
+            'No se pudo detectar si la sesion %s pertenece a biblioteca',
+            getattr(session, 'id', None),
+            exc_info=True,
+        )
         return False
 
 
@@ -78,6 +92,7 @@ def exclude_library_sessions_qs(qs):
             | Q(microcycle__title__istartswith='Papelera')
         )
     except Exception:
+        logger.debug('No se pudo excluir sesiones de biblioteca de un queryset', exc_info=True)
         return qs
 
 
@@ -103,5 +118,9 @@ def library_repository_for_task(task):
         if repo in LIBRARY_REPOSITORY_CHOICES:
             return repo
     except Exception:
-        pass
+        logger.debug(
+            'No se pudo resolver el repositorio de la tarea %s desde su metadata',
+            getattr(task, 'id', None),
+            exc_info=True,
+        )
     return library_repository_for_session(getattr(task, 'session', None))

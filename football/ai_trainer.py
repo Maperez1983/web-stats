@@ -1,8 +1,12 @@
+import logging
 import re
 import unicodedata
 
 from .library_repositories import library_repository_for_task
 from .models import AiTrainerTaskIndex
+
+
+logger = logging.getLogger(__name__)
 
 
 def normalize_ai_trainer_text(value: str) -> str:
@@ -52,6 +56,11 @@ def ai_trainer_index_task(task, *, team=None):
     try:
         repo = library_repository_for_task(task)
     except Exception:
+        logger.debug(
+            'No se pudo resolver el repositorio de biblioteca de la tarea %s',
+            getattr(task, 'id', None),
+            exc_info=True,
+        )
         repo = ''
     chunks = [
         str(getattr(task, 'title', '') or ''),
@@ -67,7 +76,11 @@ def ai_trainer_index_task(task, *, team=None):
         if summary:
             chunks.append(summary)
     except Exception:
-        pass
+        logger.debug(
+            'No se pudo extraer el resumen tactico para indexar la tarea %s',
+            getattr(task, 'id', None),
+            exc_info=True,
+        )
     content = ' '.join([c for c in chunks if str(c or '').strip()]).strip()[:20000]
     content_norm = normalize_ai_trainer_text(content)[:20000]
     tokens = ai_trainer_tokenize(content_norm, limit=128)
@@ -84,4 +97,5 @@ def ai_trainer_index_task(task, *, team=None):
         )
         return idx
     except Exception:
+        logger.exception('No se pudo indexar la tarea IA %s', getattr(task, 'id', None))
         return None

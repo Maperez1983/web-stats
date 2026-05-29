@@ -1129,16 +1129,13 @@ def _restore_training_session_from_trash(session_obj) -> None:
     session_obj.save(update_fields=['microcycle', 'workflow_reason', 'status', 'focus', 'updated_at'])
 
 
-def _normalize_library_repository(value, *, fallback=LIBRARY_REPOSITORY_TRADITIONAL):
-    return normalize_library_repository(value, fallback=fallback)
+_normalize_library_repository = normalize_library_repository
 
 
-def _library_repository_for_session(session):
-    return library_repository_for_session(session)
+_library_repository_for_session = library_repository_for_session
 
 
-def _library_repository_for_task(task):
-    return library_repository_for_task(task)
+_library_repository_for_task = library_repository_for_task
 
 
 def _extract_ig_task_fields_from_text(full_text: str) -> dict:
@@ -37511,8 +37508,7 @@ def _ai_trainer_log_event(request, team, *, event_type: str, meta: dict = None):
         return
 
 
-def _ai_trainer_index_task(task, *, team=None):
-    return ai_trainer_index_task(task, team=team)
+_ai_trainer_index_task = ai_trainer_index_task
 
 
 def _ai_trainer_adjust_token_weights(team, *, workspace=None, tokens=None, delta: float = 1.0):
