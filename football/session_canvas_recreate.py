@@ -1,5 +1,8 @@
 import io
+import logging
 import math
+
+logger = logging.getLogger(__name__)
 
 try:
     from PIL import Image, ImageFilter
@@ -20,6 +23,7 @@ def recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054,
         img.load()
         img = img.convert('RGB')
     except Exception:
+        logger.debug('No se pudo abrir la imagen para recrear canvas.', exc_info=True)
         return None
 
     # Auto-crop al área del campo (dominante en verde) para mejorar el reconocimiento.
@@ -83,7 +87,7 @@ def recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054,
                     if crop_box[2] > crop_box[0] + 20 and crop_box[3] > crop_box[1] + 20:
                         img = img.crop(crop_box)
     except Exception:
-        pass
+        logger.debug('No se pudo recortar automáticamente el campo de la preview.', exc_info=True)
 
     try:
         world_w = max(320, int(canvas_width or 1054))
@@ -364,10 +368,11 @@ def recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054,
                 mask = mask.filter(ImageFilter.MaxFilter(3))
                 mp = mask.load()
             except Exception:
-                pass
+                logger.debug('No se pudo conectar trazos de máscara en preview.', exc_info=True)
         ink_lines = _iter_components_mask(mp, min_pixels=28, max_pixels=22000)
     except Exception:
         # Fallback sin máscara: no reconstruye flechas, pero no rompe el import.
+        logger.debug('No se pudo construir máscara de trazos en preview.', exc_info=True)
         ink_lines = []
 
     objects = []
@@ -729,5 +734,4 @@ def recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054,
     objects_sorted.extend([obj for obj in objects if str(obj.get('type')) == 'rect'])
     objects_sorted.extend([obj for obj in objects if str(obj.get('type')) != 'rect'])
     return {'version': '5.3.0', 'objects': objects_sorted}
-
 
