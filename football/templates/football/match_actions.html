@@ -29,12 +29,14 @@
 	      }
       .page {
         min-height: 100vh;
+        min-height: var(--app-vh, 100dvh);
         padding: 0;
       }
       .action-screen {
         min-height: 100vh;
+        min-height: var(--app-vh, 100dvh);
         display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
+        grid-template-columns: minmax(0, 1fr) clamp(280px, 24vw, 340px);
       }
       /* --- Modo Partido PRO (enfoque: 2-3 toques, menos ruido, más campo) --- */
       body.pro-mode .action-screen {
@@ -179,12 +181,13 @@
       }
       .field-column {
         background: linear-gradient(180deg, rgba(4, 8, 20, 0.95), rgba(8, 17, 29, 0.98));
-        padding: 2rem;
+        padding: clamp(1rem, 1.45vw, 2rem);
         display: flex;
         flex-direction: column;
-        gap: 1.5rem;
+        gap: clamp(0.85rem, 1.15vw, 1.5rem);
         border-radius: 32px;
         box-shadow: 0 40px 120px rgba(0, 0, 0, 0.8);
+        min-width: 0;
       }
       .match-header-panels {
         display: flex;
@@ -1044,11 +1047,15 @@
         background: rgba(15, 23, 42, 0.76);
         border: 1px solid rgba(148, 163, 184, 0.18);
         overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
       }
 	      .match-stage-tab {
 	        display: inline-flex;
 	        align-items: center;
 	        justify-content: center;
+	        flex: 0 0 auto;
 	        border: none;
 	        border-radius: 999px;
 	        padding: 0.9rem 1.2rem;
@@ -1498,6 +1505,7 @@
         justify-content: center;
         align-items: center;
         position: relative;
+        min-width: 0;
       }
       /* Estilo “gradas broadcast” (como en Táctica) aplicado al Registro de Acciones. */
       .ma-stadium {
@@ -1517,6 +1525,7 @@
         align-items: center;
         justify-items: center;
         width: 100%;
+        max-width: min(100%, calc(var(--app-vh, 100vh) * 1.62));
         margin: 0 auto;
         border-radius: clamp(20px, 2.2vmin, 32px);
         background-color: rgba(2, 6, 23, 0.96);
@@ -1629,7 +1638,7 @@
       }
       .field-surface {
         width: 100%;
-        min-height: 420px;
+        min-height: clamp(360px, calc(var(--app-vh, 100vh) - 23rem), 620px);
         border-radius: 32px;
         box-shadow: 0 45px 110px rgba(0, 0, 0, 0.8);
         position: relative;
@@ -2184,6 +2193,7 @@
         gap: 0.75rem;
         padding: 2rem 1.5rem;
         border-left: 1px solid rgba(255, 255, 255, 0.05);
+        min-width: 0;
       }
       .sidebar-header {
         display: flex;
@@ -2273,6 +2283,9 @@
         margin-top: 0;
         text-align: center;
         letter-spacing: 0.06em;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
       .convocation-card.selected {
         border-color: rgba(250, 204, 21, 0.8);
@@ -2641,7 +2654,19 @@
         text-transform: uppercase;
         font-size: 0.65rem;
       }
-      @media (max-width: 1100px) {
+      @media (min-width: 901px) {
+        .actions-sidebar {
+          position: sticky;
+          top: 0;
+          height: var(--app-vh, 100vh);
+          max-height: var(--app-vh, 100vh);
+          overflow: hidden;
+        }
+        .actions-sidebar .convocation-list {
+          min-height: 0;
+        }
+      }
+      @media (max-width: 900px) {
         .action-screen {
           grid-template-columns: 1fr;
         }
