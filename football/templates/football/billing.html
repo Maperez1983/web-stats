@@ -188,40 +188,31 @@
           {% if stripe_modular_ready %}
             <h2 style="margin:0 0 0.35rem; font-size:1rem; letter-spacing:0.08em; text-transform:uppercase;">Suscripción por módulos</h2>
             <p class="billing-copy">
-              Empieza con <strong>Core</strong> y añade módulos: <strong>Live</strong>, <strong>Studio</strong>, <strong>Analysis</strong>{% if stripe_addons_available.tactics|default:False %}, <strong>Táctica</strong>{% endif %}.
+              Elige los módulos que necesita el club: <strong>Entrenador</strong>, <strong>Partido</strong> y <strong>Análisis</strong>.
             </p>
             {% if stripe_modular_enabled %}
               <div class="addon-list">
                 <label class="addon-row">
-                  <input type="checkbox" id="billing-addon-live" />
+                  <input type="checkbox" id="billing-module-trainer" />
                   <div>
-                    <div class="addon-title">Live</div>
-                    <div class="addon-desc">Registro de acciones + KPIs + PDFs de partido.</div>
+                    <div class="addon-title">Entrenador</div>
+                    <div class="addon-desc">Jugadores, fichas, entrenamientos, sesiones, tareas y pizarra táctica.</div>
                   </div>
                 </label>
                 <label class="addon-row">
-                  <input type="checkbox" id="billing-addon-studio" />
+                  <input type="checkbox" id="billing-module-match" />
                   <div>
-                    <div class="addon-title">Studio</div>
-                    <div class="addon-desc">Tareas/sesiones + PDFs + biblioteca.</div>
+                    <div class="addon-title">Partido</div>
+                    <div class="addon-desc">Convocatorias, 11 inicial, rivales, calendario, acciones e informes de partido.</div>
                   </div>
                 </label>
                 <label class="addon-row">
-                  <input type="checkbox" id="billing-addon-analysis" />
+                  <input type="checkbox" id="billing-module-analysis" />
                   <div>
-                    <div class="addon-title">Analysis</div>
-                    <div class="addon-desc">Vídeo/estudio y análisis.</div>
+                    <div class="addon-title">Análisis</div>
+                    <div class="addon-desc">Video Studio, clips, informes de vídeo, análisis rival y biblioteca audiovisual.</div>
                   </div>
                 </label>
-                {% if stripe_addons_available.tactics|default:False %}
-                <label class="addon-row">
-                  <input type="checkbox" id="billing-addon-tactics" />
-                  <div>
-                    <div class="addon-title">Táctica</div>
-                    <div class="addon-desc">Playbook (pizarra, clips, export y compartir).</div>
-                  </div>
-                </label>
-                {% endif %}
               </div>
             {% else %}
               <div class="billing-note">
@@ -233,8 +224,8 @@
               {% if subscription_status == 'active' %}
                 <button class="btn primary" id="billing-portal-btn" type="button">Gestionar suscripción</button>
               {% else %}
-                <button class="btn primary" data-plan="core" data-interval="month" type="button">Activar (mensual)</button>
-                <button class="btn" data-plan="core" data-interval="year" type="button">Activar (anual)</button>
+                <button class="btn primary" data-plan="modular" data-interval="month" type="button">Activar selección (mensual)</button>
+                <button class="btn" data-plan="modular" data-interval="year" type="button">Activar selección (anual)</button>
               {% endif %}
               <a class="btn" href="{% url 'dashboard-home' %}">Volver</a>
             </div>
@@ -364,16 +355,14 @@
             return data;
           };
 
-          const readAddons = () => {
+          const readModules = () => {
             const list = [];
-            const live = document.getElementById('billing-addon-live');
-            const studio = document.getElementById('billing-addon-studio');
-            const analysis = document.getElementById('billing-addon-analysis');
-            const tactics = document.getElementById('billing-addon-tactics');
-            if (live && live.checked) list.push('live');
-            if (studio && studio.checked) list.push('studio');
+            const trainer = document.getElementById('billing-module-trainer');
+            const match = document.getElementById('billing-module-match');
+            const analysis = document.getElementById('billing-module-analysis');
+            if (trainer && trainer.checked) list.push('trainer');
+            if (match && match.checked) list.push('match');
             if (analysis && analysis.checked) list.push('analysis');
-            if (tactics && tactics.checked) list.push('tactics');
             return list;
           };
 
@@ -385,9 +374,12 @@
               setMsg('Abriendo pago seguro…');
               btn.disabled = true;
               try {
-                const addons = readAddons();
+                const modules = readModules();
+                if (plan === 'modular' && !modules.length) {
+                  throw new Error('Selecciona al menos un módulo.');
+                }
                 const body = { plan_key: plan, interval };
-                if (addons.length) body.addons = addons.join(',');
+                if (modules.length) body.modules = modules.join(',');
                 const data = await postJson("{% url 'billing-checkout-session' %}", body);
                 if (data && data.already_active) {
                   setMsg('La suscripción ya está activa.');

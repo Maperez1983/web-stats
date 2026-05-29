@@ -68,7 +68,7 @@ class BillingViewsTests(TestCase):
             'status': 0,
             'latest_receipt_info': [
                 {
-                    'product_id': 'sj_tactica_monthly',
+                    'product_id': 'sj_analisis_monthly',
                     'expires_date_ms': '4102444800000',
                 }
             ],
@@ -77,7 +77,7 @@ class BillingViewsTests(TestCase):
         response = self.client.post(
             reverse('billing-apple-receipt'),
             data={
-                'product_id': 'sj_tactica_monthly',
+                'product_id': 'sj_analisis_monthly',
                 'transaction_id': 'tx-1',
                 'receipt_data': 'receipt',
             },
@@ -88,5 +88,5 @@ class BillingViewsTests(TestCase):
         self.workspace.refresh_from_db()
         self.assertEqual(self.workspace.subscription_status, 'active')
         self.assertEqual(self.workspace.plan_key, 'apple_modular')
-        self.assertTrue(self.workspace.paid_modules.get('tactics'))
+        self.assertTrue(self.workspace.paid_modules.get('analysis'))
         self.assertIn('apple_iap', self.workspace.paid_modules)

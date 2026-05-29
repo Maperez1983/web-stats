@@ -37,9 +37,10 @@ class WorkspaceSubscriptionTests(SimpleTestCase):
             subscription_status='active',
             plan_key='apple_modular',
             enabled_modules={},
-            paid_modules={'tactics': True},
+            paid_modules={'coach_overview': True, 'players': True, 'sessions': True, 'abp_board': True, 'tactics': True},
         )
 
         self.assertTrue(permissions.workspace_has_module_for_user(workspace, 'tactics'))
-        self.assertFalse(permissions.workspace_has_module_for_user(workspace, 'sessions'))
+        self.assertTrue(permissions.workspace_has_module_for_user(workspace, 'sessions'))
+        self.assertFalse(permissions.workspace_has_module_for_user(workspace, 'match_actions'))
         self.assertTrue(permissions.workspace_has_module_for_user(workspace, 'dashboard'))

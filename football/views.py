@@ -4772,12 +4772,7 @@ def _workspace_member_allows_module(workspace, user, module_key):
 def _workspace_has_module_for_user(workspace, module_key, *, user=None):
     if not workspace or not module_key:
         return True
-    enabled_modules = _workspace_enabled_modules(workspace)
-    if not bool(enabled_modules.get(module_key, False)):
-        return False
-    if user is None:
-        return True
-    return _workspace_member_allows_module(workspace, user, module_key)
+    return permissions.workspace_has_module_for_user(workspace, module_key, user=user)
 
 
 def _forbid_if_workspace_module_disabled(request, module_key, label='módulo'):
@@ -4826,8 +4821,8 @@ def _forbid_if_workspace_module_disabled(request, module_key, label='módulo'):
                 return HttpResponse('El workspace activo no es de tipo club.', status=403)
             return None
         return None
-    # Entitlements modulares (Core + add-ons): si está activado, un club con suscripción activa
-    # sólo puede usar módulos que haya contratado. Guardrail: si aún no hay paid_modules, no bloqueamos.
+    # Entitlements modulares: tras pagar, un club sólo usa los módulos contratados.
+    # Durante trial se permite navegar todo; al expirar trial entra el paywall anterior.
     try:
         if (
             request
@@ -4835,13 +4830,12 @@ def _forbid_if_workspace_module_disabled(request, module_key, label='módulo'):
             and request.user.is_authenticated
             and not _can_access_platform(request.user)
             and module_key not in {'dashboard', 'billing'}
-            and str(os.getenv('STRIPE_MODULAR_BILLING', '0') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
         ):
             status = str(getattr(workspace, 'subscription_status', '') or '').strip().lower()
             if status == 'active':
                 paid = getattr(workspace, 'paid_modules', None)
                 if isinstance(paid, dict) and paid:
-                    if paid.get(module_key, False) is not True:
+                    if not permissions.workspace_has_module_for_user(workspace, module_key, user=getattr(request, 'user', None)):
                         # UX: HTML -> redirige a billing.
                         try:
                             accept = str(request.META.get('HTTP_ACCEPT') or '')

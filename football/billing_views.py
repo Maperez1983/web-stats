@@ -19,6 +19,35 @@ from . import workspace_context
 
 logger = logging.getLogger(__name__)
 
+
+BILLING_MODULE_ENTITLEMENTS = {
+    'trainer': {
+        'dashboard': True,
+        'coach_overview': True,
+        'players': True,
+        'manual_stats': True,
+        'sessions': True,
+        'abp_board': True,
+        'tactics': True,
+    },
+    'match': {
+        'dashboard': True,
+        'convocation': True,
+        'match_actions': True,
+    },
+    'analysis': {
+        'dashboard': True,
+        'analysis': True,
+    },
+}
+
+
+def _all_module_entitlements() -> dict:
+    entitlements = {}
+    for modules in BILLING_MODULE_ENTITLEMENTS.values():
+        entitlements.update(modules)
+    return entitlements
+
 # Stripe (opcional). No debe romper el sistema si no está configurado.
 try:  # pragma: no cover
     import stripe  # type: ignore
@@ -60,38 +89,18 @@ def _apple_product_map() -> dict:
     defaults = {
         'trainer': _apple_env('APPLE_PRODUCT_TRAINER') or 'sj_entrenador_monthly',
         'trainer_year': _apple_env('APPLE_PRODUCT_TRAINER_YEARLY') or 'sj_entrenador_yearly',
-        'tactics': _apple_env('APPLE_PRODUCT_TACTICS') or 'sj_tactica_monthly',
-        'tactics_year': _apple_env('APPLE_PRODUCT_TACTICS_YEARLY') or 'sj_tactica_yearly',
-        'video': _apple_env('APPLE_PRODUCT_VIDEO') or 'sj_video_monthly',
-        'video_year': _apple_env('APPLE_PRODUCT_VIDEO_YEARLY') or 'sj_video_yearly',
-        'training': _apple_env('APPLE_PRODUCT_TRAINING') or 'sj_entrenamiento_monthly',
-        'training_year': _apple_env('APPLE_PRODUCT_TRAINING_YEARLY') or 'sj_entrenamiento_yearly',
         'match': _apple_env('APPLE_PRODUCT_MATCH') or 'sj_partido_monthly',
         'match_year': _apple_env('APPLE_PRODUCT_MATCH_YEARLY') or 'sj_partido_yearly',
+        'analysis': _apple_env('APPLE_PRODUCT_ANALYSIS') or 'sj_analisis_monthly',
+        'analysis_year': _apple_env('APPLE_PRODUCT_ANALYSIS_YEARLY') or 'sj_analisis_yearly',
     }
     return {
-        defaults['trainer']: {
-            'dashboard': True,
-            'coach_overview': True,
-            'players': True,
-            'manual_stats': True,
-            'convocation': True,
-        },
-        defaults['trainer_year']: {
-            'dashboard': True,
-            'coach_overview': True,
-            'players': True,
-            'manual_stats': True,
-            'convocation': True,
-        },
-        defaults['tactics']: {'tactics': True},
-        defaults['tactics_year']: {'tactics': True},
-        defaults['video']: {'analysis': True},
-        defaults['video_year']: {'analysis': True},
-        defaults['training']: {'sessions': True, 'abp_board': True},
-        defaults['training_year']: {'sessions': True, 'abp_board': True},
-        defaults['match']: {'match_actions': True, 'convocation': True},
-        defaults['match_year']: {'match_actions': True, 'convocation': True},
+        defaults['trainer']: BILLING_MODULE_ENTITLEMENTS['trainer'],
+        defaults['trainer_year']: BILLING_MODULE_ENTITLEMENTS['trainer'],
+        defaults['match']: BILLING_MODULE_ENTITLEMENTS['match'],
+        defaults['match_year']: BILLING_MODULE_ENTITLEMENTS['match'],
+        defaults['analysis']: BILLING_MODULE_ENTITLEMENTS['analysis'],
+        defaults['analysis_year']: BILLING_MODULE_ENTITLEMENTS['analysis'],
     }
 
 
@@ -99,10 +108,8 @@ def _apple_public_products() -> list:
     product_map = _apple_product_map()
     labels = {
         'sj_entrenador': 'Entrenador',
-        'sj_tactica': 'Táctica',
-        'sj_video': 'Video',
-        'sj_entrenamiento': 'Entrenamiento',
         'sj_partido': 'Partido',
+        'sj_analisis': 'Análisis',
     }
     rows = []
     for product_id in product_map.keys():
@@ -183,17 +190,13 @@ def _stripe_price_map():
         # Bundle legacy: todo incluido.
         ('pro', 'month'): _stripe_env('STRIPE_PRICE_PRO_MONTHLY'),
         ('pro', 'year'): _stripe_env('STRIPE_PRICE_PRO_YEARLY'),
-        # Modular (Core + add-ons).
-        ('core', 'month'): _stripe_env('STRIPE_PRICE_CORE_MONTHLY'),
-        ('core', 'year'): _stripe_env('STRIPE_PRICE_CORE_YEARLY'),
-        ('live', 'month'): _stripe_env('STRIPE_PRICE_LIVE_MONTHLY'),
-        ('live', 'year'): _stripe_env('STRIPE_PRICE_LIVE_YEARLY'),
-        ('studio', 'month'): _stripe_env('STRIPE_PRICE_STUDIO_MONTHLY'),
-        ('studio', 'year'): _stripe_env('STRIPE_PRICE_STUDIO_YEARLY'),
+        # Modular comercial: Entrenador / Partido / Analisis.
+        ('trainer', 'month'): _stripe_env('STRIPE_PRICE_TRAINER_MONTHLY') or _stripe_env('STRIPE_PRICE_CORE_MONTHLY'),
+        ('trainer', 'year'): _stripe_env('STRIPE_PRICE_TRAINER_YEARLY') or _stripe_env('STRIPE_PRICE_CORE_YEARLY'),
+        ('match', 'month'): _stripe_env('STRIPE_PRICE_MATCH_MONTHLY') or _stripe_env('STRIPE_PRICE_LIVE_MONTHLY'),
+        ('match', 'year'): _stripe_env('STRIPE_PRICE_MATCH_YEARLY') or _stripe_env('STRIPE_PRICE_LIVE_YEARLY'),
         ('analysis', 'month'): _stripe_env('STRIPE_PRICE_ANALYSIS_MONTHLY'),
         ('analysis', 'year'): _stripe_env('STRIPE_PRICE_ANALYSIS_YEARLY'),
-        ('tactics', 'month'): _stripe_env('STRIPE_PRICE_TACTICS_MONTHLY'),
-        ('tactics', 'year'): _stripe_env('STRIPE_PRICE_TACTICS_YEARLY'),
     }
 
 
@@ -277,9 +280,9 @@ def _stripe_sync_workspace_from_subscription(workspace, subscription, *, price_i
         entitlements = {}
 
     if status == 'active':
-        # Si hay entitlements, asumimos core; si no, bundle legacy.
+        # Si hay entitlements, asumimos modular; si no, bundle legacy.
         if entitlements:
-            workspace.plan_key = workspace.plan_key or 'core'
+            workspace.plan_key = workspace.plan_key or 'modular'
         else:
             workspace.plan_key = workspace.plan_key or 'pro'
     # Precio "principal" (compatibilidad).
@@ -311,7 +314,7 @@ def _stripe_entitlements_from_subscription(subscription) -> dict:
     Devuelve dict módulo->bool según items del subscription.
 
     - Bundle Pro => todos los módulos.
-    - Modular => Core + add-ons (Live/Studio/Analysis).
+    - Modular => Entrenador / Partido / Análisis.
     """
     if not subscription:
         return {}
@@ -329,45 +332,29 @@ def _stripe_entitlements_from_subscription(subscription) -> dict:
         price_ids = []
 
     price_map = _stripe_price_map()
-    core_m = str(price_map.get(('core', 'month')) or '').strip()
-    core_y = str(price_map.get(('core', 'year')) or '').strip()
-    live_m = str(price_map.get(('live', 'month')) or '').strip()
-    live_y = str(price_map.get(('live', 'year')) or '').strip()
-    studio_m = str(price_map.get(('studio', 'month')) or '').strip()
-    studio_y = str(price_map.get(('studio', 'year')) or '').strip()
+    trainer_m = str(price_map.get(('trainer', 'month')) or '').strip()
+    trainer_y = str(price_map.get(('trainer', 'year')) or '').strip()
+    match_m = str(price_map.get(('match', 'month')) or '').strip()
+    match_y = str(price_map.get(('match', 'year')) or '').strip()
     analysis_m = str(price_map.get(('analysis', 'month')) or '').strip()
     analysis_y = str(price_map.get(('analysis', 'year')) or '').strip()
     pro_m = str(price_map.get(('pro', 'month')) or '').strip()
     pro_y = str(price_map.get(('pro', 'year')) or '').strip()
 
     is_bundle = bool(price_ids and ((pro_m and pro_m in price_ids) or (pro_y and pro_y in price_ids)))
-    is_modular = bool(price_ids and ((core_m and core_m in price_ids) or (core_y and core_y in price_ids)))
 
     ent = {}
     if is_bundle:
-        ent.update({
-            'dashboard': True,
-            'coach_overview': True,
-            'players': True,
-            'convocation': True,
-            'manual_stats': True,
-            'match_actions': True,
-            'sessions': True,
-            'analysis': True,
-            'abp_board': True,
-        })
+        ent.update(_all_module_entitlements())
         return ent
 
-    if is_modular:
-        # Core siempre.
-        ent.update({'dashboard': True, 'coach_overview': True, 'players': True, 'convocation': True, 'manual_stats': True})
-        if (live_m and live_m in price_ids) or (live_y and live_y in price_ids):
-            ent['match_actions'] = True
-        if (studio_m and studio_m in price_ids) or (studio_y and studio_y in price_ids):
-            ent['sessions'] = True
-            ent['abp_board'] = True
-        if (analysis_m and analysis_m in price_ids) or (analysis_y and analysis_y in price_ids):
-            ent['analysis'] = True
+    if (trainer_m and trainer_m in price_ids) or (trainer_y and trainer_y in price_ids):
+        ent.update(BILLING_MODULE_ENTITLEMENTS['trainer'])
+    if (match_m and match_m in price_ids) or (match_y and match_y in price_ids):
+        ent.update(BILLING_MODULE_ENTITLEMENTS['match'])
+    if (analysis_m and analysis_m in price_ids) or (analysis_y and analysis_y in price_ids):
+        ent.update(BILLING_MODULE_ENTITLEMENTS['analysis'])
+    if ent:
         return ent
 
     return {}
@@ -573,45 +560,25 @@ def billing_page(request):
         plan_key = str(plan_key or '').strip().lower()
         addons = {a.strip().lower() for a in str(addons_csv or '').split(',') if a.strip()}
 
-        if plan_key in {'basic', 'club_basic', 'core'}:
-            return {
-                'dashboard': True,
-                'coach_overview': True,
-                'players': True,
-                'convocation': True,
-                'manual_stats': True,
-            }
+        if plan_key in {'trainer', 'entrenador', 'basic', 'club_basic', 'core'}:
+            return dict(BILLING_MODULE_ENTITLEMENTS['trainer'])
+
+        if plan_key in {'match', 'partido'}:
+            return dict(BILLING_MODULE_ENTITLEMENTS['match'])
+
+        if plan_key in {'analysis', 'analisis'}:
+            return dict(BILLING_MODULE_ENTITLEMENTS['analysis'])
 
         if plan_key in {'pro', 'club_pro', 'bundle'}:
-            return {
-                'dashboard': True,
-                'coach_overview': True,
-                'players': True,
-                'convocation': True,
-                'manual_stats': True,
-                'match_actions': True,
-                'sessions': True,
-                'analysis': True,
-                'abp_board': True,
-                'tactics': True,
-            }
+            return _all_module_entitlements()
 
-        ent = {
-            'dashboard': True,
-            'coach_overview': True,
-            'players': True,
-            'convocation': True,
-            'manual_stats': True,
-        }
-        if 'live' in addons:
-            ent['match_actions'] = True
-        if 'studio' in addons:
-            ent['sessions'] = True
-            ent['abp_board'] = True
-        if 'analysis' in addons:
-            ent['analysis'] = True
-        if 'tactics' in addons:
-            ent['tactics'] = True
+        ent = {'dashboard': True}
+        if 'trainer' in addons or 'entrenador' in addons:
+            ent.update(BILLING_MODULE_ENTITLEMENTS['trainer'])
+        if 'match' in addons or 'partido' in addons:
+            ent.update(BILLING_MODULE_ENTITLEMENTS['match'])
+        if 'analysis' in addons or 'analisis' in addons:
+            ent.update(BILLING_MODULE_ENTITLEMENTS['analysis'])
         return ent
 
     if request.method == 'POST' and allow_manual:
@@ -643,7 +610,7 @@ def billing_page(request):
     price_map = _stripe_price_map()
     addons_available = {}
     try:
-        for key in ('live', 'studio', 'analysis', 'tactics'):
+        for key in ('trainer', 'match', 'analysis'):
             addons_available[key] = bool((price_map.get((key, 'month')) or '').strip() or (price_map.get((key, 'year')) or '').strip())
     except Exception:
         addons_available = {}
@@ -656,7 +623,10 @@ def billing_page(request):
             'trial_expires_at': expires_at,
             'trial_days_left': days_left,
             'stripe_ready': bool(str(os.getenv('STRIPE_SECRET_KEY', '') or '').strip()),
-            'stripe_modular_ready': bool((_stripe_price_map().get(('core', 'month')) or '').strip()),
+            'stripe_modular_ready': any(
+                bool((price_map.get((key, 'month')) or '').strip() or (price_map.get((key, 'year')) or '').strip())
+                for key in ('trainer', 'match', 'analysis')
+            ),
             'stripe_modular_enabled': _stripe_modular_billing_enabled(),
             'stripe_addons_available': addons_available,
             'apple_iap_ready': bool(_apple_shared_secret()),
@@ -733,23 +703,28 @@ def billing_checkout_session_api(request):
         interval = 'month'
     price_map = _stripe_price_map()
 
-    raw_addons = str(request.POST.get('addons') or request.GET.get('addons') or '').strip()
-    addons = []
-    if raw_addons:
-        addons = [a.strip().lower() for a in re.split(r'[, ]+', raw_addons) if a.strip()]
-    allowed_addons = {'live', 'studio', 'analysis', 'tactics'}
-    addons = [a for a in addons if a in allowed_addons]
-
     line_items = []
     uses_modular = False
-    core_price = (price_map.get(('core', interval)) or '').strip()
-    if core_price and (plan_key in {'core', 'starter', 'basic'} or addons):
+    selected_modules = []
+    raw_modules = str(request.POST.get('modules') or request.GET.get('modules') or '').strip()
+    if raw_modules:
+        selected_modules = [m.strip().lower() for m in re.split(r'[, ]+', raw_modules) if m.strip()]
+    elif plan_key in {'trainer', 'entrenador', 'core', 'starter', 'basic'}:
+        selected_modules = ['trainer']
+    elif plan_key in {'match', 'partido'}:
+        selected_modules = ['match']
+    elif plan_key in {'analysis', 'analisis'}:
+        selected_modules = ['analysis']
+    selected_modules = ['trainer' if m in {'entrenador', 'core', 'starter', 'basic'} else 'match' if m == 'partido' else 'analysis' if m == 'analisis' else m for m in selected_modules]
+    allowed_modules = {'trainer', 'match', 'analysis'}
+    selected_modules = [m for m in dict.fromkeys(selected_modules) if m in allowed_modules]
+
+    if selected_modules:
         uses_modular = True
-        line_items.append({'price': core_price, 'quantity': 1})
-        for addon in addons:
-            pid = (price_map.get((addon, interval)) or '').strip()
+        for module_key in selected_modules:
+            pid = (price_map.get((module_key, interval)) or '').strip()
             if not pid:
-                return api_error(f'Módulo no disponible: {addon}.', status=500, code='addon_price_missing')
+                return api_error(f'Módulo no disponible: {module_key}.', status=500, code='module_price_missing')
             line_items.append({'price': pid, 'quantity': 1})
 
     if not uses_modular:
@@ -775,7 +750,7 @@ def billing_checkout_session_api(request):
         'workspace_slug': str(getattr(workspace, 'slug', '') or ''),
         'plan_key': plan_key,
         'interval': interval,
-        'addons': ','.join(addons) if addons else '',
+        'modules': ','.join(selected_modules) if selected_modules else '',
         'billing_mode': 'modular' if uses_modular else 'bundle',
         'user_id': str(int(getattr(request.user, 'id', 0) or 0)),
     }
