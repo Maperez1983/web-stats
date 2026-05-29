@@ -28172,16 +28172,13 @@ def _split_joined_alpha_token(token):
     return ' '.join(words).strip()
 
 
-def _repair_joined_words_text(value):
-    return task_library_services.repair_joined_words_text(value)
+_repair_joined_words_text = task_library_services.repair_joined_words_text
 
 
-def _polish_spanish_text(value, multiline=True, max_len=None):
-    return task_library_services.polish_spanish_text(value, multiline=multiline, max_len=max_len)
+_polish_spanish_text = task_library_services.polish_spanish_text
 
 
-def _sanitize_task_text(value, multiline=True, max_len=None):
-    return task_library_services.sanitize_task_text(value, multiline=multiline, max_len=max_len)
+_sanitize_task_text = task_library_services.sanitize_task_text
 
 
 _RICH_ALLOWED_TAGS = {
@@ -28569,8 +28566,7 @@ def _analysis_needs_review(analysis):
     return False
 
 
-def _apply_analysis_to_task(task, analysis):
-    return session_import_services.apply_analysis_to_task(task, analysis)
+_apply_analysis_to_task = session_import_services.apply_analysis_to_task
 
 def _infer_blueprint_goal_from_pdf_analysis(task, analysis) -> str:
     """
@@ -30028,31 +30024,7 @@ def _timeline_totals(segments, *, now=None):
     return totals
 
 
-def _import_library_tasks_from_pdf_advanced(
-    *,
-    primary_team,
-    scope_key,
-    target_session,
-    pdf_files,
-    title,
-    objective,
-    block,
-    minutes,
-    recreate_board,
-    base_order,
-):
-    return session_import_services.import_library_tasks_from_pdf_advanced(
-        primary_team=primary_team,
-        scope_key=scope_key,
-        target_session=target_session,
-        pdf_files=pdf_files,
-        title=title,
-        objective=objective,
-        block=block,
-        minutes=minutes,
-        recreate_board=recreate_board,
-        base_order=base_order,
-    )
+_import_library_tasks_from_pdf_advanced = session_import_services.import_library_tasks_from_pdf_advanced
 
 
 def _restore_task_from_original_snapshot(task, scope_key=None):
@@ -30160,16 +30132,13 @@ def _embedded_preview_bytes_from_task(task_obj):
         return None
 
 
-def _coerce_json_dict(value):
-    return task_library_services.coerce_json_dict(value)
+_coerce_json_dict = task_library_services.coerce_json_dict
 
 
-def _extract_canvas_state_for_preview(task):
-    return task_library_services.extract_canvas_state_for_preview(task)
+_extract_canvas_state_for_preview = task_library_services.extract_canvas_state_for_preview
 
 
-def _maybe_render_task_preview_server_side(task, *, force=False):
-    return task_library_services.maybe_render_task_preview_server_side(task, force=force)
+_maybe_render_task_preview_server_side = task_library_services.maybe_render_task_preview_server_side
 
 
 def _sessions_tab_from_action(action):
@@ -53879,8 +53848,7 @@ def refresh_scraping(request):
     return response
 
 
-def serialize_standings(group):
-    return standings_services.serialize_standings(group)
+serialize_standings = standings_services.serialize_standings
 
 
 def get_next_match(primary_team, group, *, allow_external_fetch=None):
@@ -54028,8 +53996,7 @@ def _unique_team_slug(base_name):
     return slug
 
 
-def _unique_group_slug_for_season(season_obj, base_value):
-    return universo_group_services.unique_group_slug_for_season(season_obj, base_value)
+_unique_group_slug_for_season = universo_group_services.unique_group_slug_for_season
 
 
 def _ensure_universo_group_models_from_live(*, group_key, live_payload, primary_team, context):
@@ -58508,20 +58475,16 @@ def tactical_playbook_versions_api(request):
     return JsonResponse({'ok': True, 'items': payload})
 
 
-def _assistant_goal_specs():
-    return assistant_blueprint_services.assistant_goal_specs()
+_assistant_goal_specs = assistant_blueprint_services.assistant_goal_specs
 
 
-def _extract_pdf_text_via_pdftotext(pdf_bytes: bytes) -> str:
-    return session_import_services.extract_pdf_text_via_pdftotext(pdf_bytes)
+_extract_pdf_text_via_pdftotext = session_import_services.extract_pdf_text_via_pdftotext
 
 
-def _extract_image_text_via_tesseract(image_bytes: bytes) -> str:
-    return session_import_services.extract_image_text_via_tesseract(image_bytes)
+_extract_image_text_via_tesseract = session_import_services.extract_image_text_via_tesseract
 
 
-def _assistant__open_pil_rgb_from_bytes(image_bytes: bytes):
-    return session_import_services.open_pil_rgb_from_bytes(image_bytes)
+_assistant__open_pil_rgb_from_bytes = session_import_services.open_pil_rgb_from_bytes
 
 
 def _assistant__pitch_diagram_score(image_bytes: bytes) -> float:
@@ -58784,16 +58747,13 @@ def _assistant_extract_canvas_state_from_pitch_diagram(image_bytes: bytes):
     return canvas_state, int(dst_w), int(dst_h)
 
 
-def _assistant_extract_bullets(text: str):
-    return assistant_blueprint_services.extract_assistant_bullets(text)
+_assistant_extract_bullets = assistant_blueprint_services.extract_assistant_bullets
 
 
-def _assistant_pick_bullets_for_goal(bullets, keywords, limit=7):
-    return assistant_blueprint_services.pick_assistant_bullets_for_goal(bullets, keywords, limit=limit)
+_assistant_pick_bullets_for_goal = assistant_blueprint_services.pick_assistant_bullets_for_goal
 
 
-def _assistant_html_list(items):
-    return assistant_blueprint_services.assistant_html_list(items)
+_assistant_html_list = assistant_blueprint_services.assistant_html_list
 
 
 def _assistant_create_blueprints_from_document(team, doc: AssistantKnowledgeDocument):
@@ -58805,36 +58765,28 @@ def _assistant_create_blueprints_from_document(team, doc: AssistantKnowledgeDocu
     )
 
 
-def _assistant__strip_accents(s: str) -> str:
-    return assistant_blueprint_services.strip_accents(s)
+_assistant__strip_accents = assistant_blueprint_services.strip_accents
 
 
-def _assistant__norm_line(s: str) -> str:
-    return assistant_blueprint_services.normalize_ocr_line(s)
+_assistant__norm_line = assistant_blueprint_services.normalize_ocr_line
 
 
-def _assistant__split_sentences(text: str, limit: int = 12):
-    return assistant_blueprint_services.split_assistant_sentences(text, limit=limit)
+_assistant__split_sentences = assistant_blueprint_services.split_assistant_sentences
 
 
-def _assistant__derive_compact_task_title(text: str) -> str:
-    return assistant_blueprint_services.derive_compact_task_title(text)
+_assistant__derive_compact_task_title = assistant_blueprint_services.derive_compact_task_title
 
 
-def _assistant__derive_task_theme(text: str) -> str:
-    return assistant_blueprint_services.derive_task_theme(text)
+_assistant__derive_task_theme = assistant_blueprint_services.derive_task_theme
 
 
-def _assistant__extract_task_sheet_sections(text: str):
-    return assistant_blueprint_services.extract_task_sheet_sections(text)
+_assistant__extract_task_sheet_sections = assistant_blueprint_services.extract_task_sheet_sections
 
 
-def _assistant__guess_category_from_text(text: str) -> str:
-    return assistant_blueprint_services.guess_category_from_text(text)
+_assistant__guess_category_from_text = assistant_blueprint_services.guess_category_from_text
 
 
-def _assistant__infer_goal_key_from_text(text: str, category_hint: str = '') -> str:
-    return assistant_blueprint_services.infer_goal_key_from_text(text, category_hint=category_hint)
+_assistant__infer_goal_key_from_text = assistant_blueprint_services.infer_goal_key_from_text
 
 
 def _assistant_create_blueprint_from_task_sheet(
