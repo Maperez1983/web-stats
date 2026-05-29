@@ -5728,16 +5728,13 @@ def _build_recent_form_payload(primary_team, limit=5):
     }
 
 
-def _parse_payload_date(raw):
-    return match_payload_services.parse_payload_date(raw)
+_parse_payload_date = match_payload_services.parse_payload_date
 
 
-def _parse_payload_time(raw):
-    return match_payload_services.parse_payload_time(raw)
+_parse_payload_time = match_payload_services.parse_payload_time
 
 
-def _payload_opponent_name(payload):
-    return match_payload_services.payload_opponent_name(payload)
+_payload_opponent_name = match_payload_services.payload_opponent_name
 
 
 def _season_bounds_for_date(d: date):
@@ -5967,20 +5964,16 @@ def _build_team_pending_cards(primary_team, weekly_brief=None):
     )
 
 
-def _build_universo_standings_lookup(snapshot):
-    return next_match_services.build_universo_standings_lookup(snapshot)
+_build_universo_standings_lookup = next_match_services.build_universo_standings_lookup
 
 
-def _absolute_universo_url(path_or_url):
-    return team_media_services.absolute_universo_url(path_or_url)
+_absolute_universo_url = team_media_services.absolute_universo_url
 
 
-def _sanitize_universo_external_image(url):
-    return team_media_services.sanitize_universo_external_image(url)
+_sanitize_universo_external_image = team_media_services.sanitize_universo_external_image
 
 
-def _build_universo_capture_team_lookup():
-    return team_media_services.build_universo_capture_team_lookup()
+_build_universo_capture_team_lookup = team_media_services.build_universo_capture_team_lookup
 
 
 def _build_team_crest_lookup():
@@ -5995,8 +5988,7 @@ def _sync_team_crest_from_sources(team):
     )
 
 
-def _is_benagalbon_team(team):
-    return team_media_services.is_benagalbon_team(team)
+_is_benagalbon_team = team_media_services.is_benagalbon_team
 
 
 def resolve_team_crest_url(request, team, *, fallback_static='football/images/cdb-logo.png', sync=False):
@@ -6010,16 +6002,13 @@ def resolve_team_crest_url(request, team, *, fallback_static='football/images/cd
     )
 
 
-def _team_initials(label):
-    return team_media_services.team_initials(label)
+_team_initials = team_media_services.team_initials
 
 
-def _team_color_seed(team):
-    return team_media_services.team_color_seed(team)
+_team_color_seed = team_media_services.team_color_seed
 
 
-def _is_malaga_team(team):
-    return team_media_services.is_malaga_team(team)
+_is_malaga_team = team_media_services.is_malaga_team
 
 
 def _team_fallback_crest_data_uri(team, fallback_label=''):
@@ -6049,8 +6038,7 @@ def team_crest_svg(request, team_id):
     return response
 
 
-def load_universo_capture():
-    return universo_catalog_services.load_universo_capture()
+load_universo_capture = universo_catalog_services.load_universo_capture
 
 
 def _jwt_exp_timestamp(token: str) -> float:
@@ -7143,8 +7131,7 @@ def rival_roster_api(request):
     )
 
 
-def _resolve_rival_identity(rival_name, preferred_opponent=None):
-    return next_match_services.resolve_rival_identity(rival_name, preferred_opponent=preferred_opponent)
+_resolve_rival_identity = next_match_services.resolve_rival_identity
 
 
 def load_preferred_next_match_payload(primary_team=None, competition_context=None, *, bind_context=True):
@@ -7159,8 +7146,7 @@ def load_preferred_next_match_payload(primary_team=None, competition_context=Non
     )
 
 
-def _build_next_match_from_convocation(primary_team):
-    return next_match_services.build_next_match_from_convocation(primary_team)
+_build_next_match_from_convocation = next_match_services.build_next_match_from_convocation
 
 
 def _build_convocation_whatsapp_text(record, primary_team):
@@ -7279,8 +7265,7 @@ def _build_coach_rival_summary(primary_team):
     }
 
 
-def _next_match_payload_is_reliable(payload):
-    return next_match_services.next_match_payload_is_reliable(payload)
+_next_match_payload_is_reliable = next_match_services.next_match_payload_is_reliable
 
 
 def _dashboard_cache_key(team_id):
@@ -7390,20 +7375,16 @@ def _upsert_match_from_next_match_payload(primary_team, payload):
     return match
 
 
-def load_universo_snapshot():
-    return universo_snapshot_services.load_universo_snapshot()
+load_universo_snapshot = universo_snapshot_services.load_universo_snapshot
 
 
-def _safe_int(value, default=0):
-    return universo_competition_services.safe_int(value, default=default)
+_safe_int = universo_competition_services.safe_int
 
 
-def _serialize_universo_live_classification(payload):
-    return universo_competition_services.serialize_universo_live_classification(payload)
+_serialize_universo_live_classification = universo_competition_services.serialize_universo_live_classification
 
 
-def _serialize_universo_standings(snapshot):
-    return standings_services.serialize_universo_standings(snapshot)
+_serialize_universo_standings = standings_services.serialize_universo_standings
 
 
 def _is_demo_mode_for_request(request) -> bool:
