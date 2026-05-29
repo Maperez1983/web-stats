@@ -345,7 +345,7 @@ def workspace_access(request):
                     if request and hasattr(request, 'session'):
                         request.session['active_workspace_id'] = workspace.id
             except Exception:
-                pass
+                logger.debug('No se pudo fijar el unico workspace club para admin %s', getattr(request.user, 'id', None), exc_info=True)
     active_team = workspace_context.get_active_team_for_request(request)
     active_team_query = ''
     try:
@@ -521,7 +521,7 @@ def workspace_access(request):
             try:
                 cache.set(ws_cache_key, workspace_options, cache_ttl_s)
             except Exception:
-                pass
+                logger.debug('No se pudo guardar opciones de workspace en cache %s', ws_cache_key, exc_info=True)
     except Exception:
         workspace_options = []
 
@@ -546,5 +546,5 @@ def workspace_access(request):
             to_cache.pop('active_team_current_path', None)
             cache.set(ctx_cache_key, to_cache, cache_ttl_s)
         except Exception:
-            pass
+            logger.debug('No se pudo guardar payload de workspace access en cache %s', ctx_cache_key, exc_info=True)
     return payload

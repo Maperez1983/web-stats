@@ -347,7 +347,12 @@ def get_active_team_for_request(request):
                     mapping[str(workspace.id)] = int(desired_team_id)
                     request.session['active_team_by_workspace'] = mapping
                 except Exception:
-                    pass
+                    logger.debug(
+                        'No se pudo recordar equipo activo %s para workspace %s',
+                        desired_team_id,
+                        getattr(workspace, 'id', None),
+                        exc_info=True,
+                    )
             team = team_lookup[int(desired_team_id)]
             return _cache_active_team(request, team)
         try:
