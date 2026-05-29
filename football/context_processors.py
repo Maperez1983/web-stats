@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from functools import lru_cache
 from pathlib import Path
@@ -8,6 +9,9 @@ from django.core.cache import cache
 from django.urls import reverse
 
 from . import permissions, workspace_context, workspace_ui
+
+
+logger = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=1)
@@ -44,10 +48,12 @@ def _static_build_id() -> str:
                 if path.exists():
                     mtimes.append(int(path.stat().st_mtime))
             except Exception:
+                logger.debug('No se pudo leer mtime para el asset estatico %s', path, exc_info=True)
                 continue
         if mtimes:
             return str(max(mtimes))
     except Exception:
+        logger.debug('No se pudo calcular static_build_id local', exc_info=True)
         return ''
     return ''
 
@@ -103,6 +109,7 @@ def brand_theme(request):
     try:
         from football.models import WorkspacePreference  # noqa: WPS433 (lazy import)
     except Exception:
+        logger.debug('No se pudo cargar WorkspacePreference para brand_theme', exc_info=True)
         return {}
 
     if not request or not getattr(request, 'user', None) or not request.user.is_authenticated:
@@ -113,10 +120,12 @@ def brand_theme(request):
     try:
         workspace = workspace_context.get_active_workspace(request)
     except Exception:
+        logger.debug('No se pudo resolver workspace activo para brand_theme', exc_info=True)
         workspace = None
     try:
         team = workspace_context.get_active_team_for_request(request)
     except Exception:
+        logger.debug('No se pudo resolver equipo activo para brand_theme', exc_info=True)
         team = None
     if not workspace:
         return {}
@@ -125,6 +134,7 @@ def brand_theme(request):
     try:
         cache_ttl_s = max(5, int(os.getenv('PERF_CONTEXT_CACHE_SECONDS') or 60))
     except Exception:
+        logger.debug('PERF_CONTEXT_CACHE_SECONDS invalido; usando TTL por defecto', exc_info=True)
         cache_ttl_s = 60
 
     team_id = int(getattr(team, 'id', 0) or 0) if team else 0
@@ -133,18 +143,20 @@ def brand_theme(request):
     try:
         raw = cache.get(cache_key)
     except Exception:
+        logger.debug('No se pudo leer brand_theme de cache %s', cache_key, exc_info=True)
         raw = None
     if raw is None:
         pref = None
         try:
             pref = WorkspacePreference.objects.filter(workspace=workspace, key='brand_theme:v1').only('id', 'value').first()
         except Exception:
+            logger.debug('No se pudo leer brand_theme del workspace %s', getattr(workspace, 'id', None), exc_info=True)
             pref = None
         raw = pref.value if pref and isinstance(pref.value, dict) else {}
         try:
             cache.set(cache_key, raw, cache_ttl_s)
         except Exception:
-            pass
+            logger.debug('No se pudo guardar brand_theme en cache %s', cache_key, exc_info=True)
     default = raw.get('default') if isinstance(raw.get('default'), dict) else {}
     teams = raw.get('teams') if isinstance(raw.get('teams'), dict) else {}
     team_key = str(team_id or '').strip()
