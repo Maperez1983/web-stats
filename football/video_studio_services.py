@@ -47,6 +47,33 @@ def median(values):
     return (data[mid - 1] + data[mid]) / 2.0
 
 
+def _delete_autocut_queryset(queryset, *, label: str) -> None:
+    try:
+        queryset.delete()
+    except Exception:
+        logger.exception('AutoCut: no se pudo limpiar %s.', label)
+
+
+def _bulk_create_with_save_fallback(objects, *, max_items: int, label: str) -> int:
+    items = list(objects[: max_items])
+    if not items:
+        return 0
+    try:
+        type(items[0]).objects.bulk_create(items, ignore_conflicts=False)
+        return len(items)
+    except Exception:
+        logger.exception('AutoCut: bulk_create falló para %s; usando fallback individual.', label)
+
+    created = 0
+    for obj in items:
+        try:
+            obj.save()
+            created += 1
+        except Exception:
+            logger.exception('AutoCut: no se pudo guardar %s individual.', label)
+    return created
+
+
 def apply_autocut_suggestions(**kwargs):
     video = kwargs.get('video')
     scope_team = kwargs.get('scope_team')
@@ -115,6 +142,7 @@ def apply_autocut_suggestions(**kwargs):
             refine=True,
         )
     except Exception:
+        logger.exception('AutoCut: no se pudo analizar el vídeo.', extra={'video_id': getattr(video, 'id', None)})
         return {'ok': False, 'error': 'No se pudo analizar el vídeo (AutoCut).'}
 
     moments = result.get('moments') if isinstance(result, dict) else None
@@ -122,24 +150,24 @@ def apply_autocut_suggestions(**kwargs):
         return {'ok': True, 'created_events': 0, 'created_clips': 0, 'moments': []}
 
     if replace:
-        try:
+        _delete_autocut_queryset(
             VideoTimelineEvent.objects.filter(
                 video=video,
                 team=scope_team if scope_team else None,
                 owner_user=owner_user if owner_user else None,
                 payload__autocut=True,
-            ).delete()
-        except Exception:
-            pass
-        try:
+            ),
+            label='eventos previos',
+        )
+        _delete_autocut_queryset(
             VideoClip.objects.filter(
                 video=video,
                 team=scope_team if scope_team else None,
                 owner_user=owner_user if owner_user else None,
                 collection='AutoCut',
-            ).delete()
-        except Exception:
-            pass
+            ),
+            label='clips previos',
+        )
 
     ev_objs = []
     clip_objs = []
@@ -196,28 +224,10 @@ def apply_autocut_suggestions(**kwargs):
 
     created_events = 0
     created_clips = 0
-    try:
-        if ev_objs:
-            VideoTimelineEvent.objects.bulk_create(ev_objs[: max_moments], ignore_conflicts=False)
-            created_events = min(len(ev_objs), int(max_moments))
-    except Exception:
-        for obj in ev_objs[: max_moments]:
-            try:
-                obj.save()
-                created_events += 1
-            except Exception:
-                pass
-    try:
-        if clip_objs:
-            VideoClip.objects.bulk_create(clip_objs[: max_moments], ignore_conflicts=False)
-            created_clips = min(len(clip_objs), int(max_moments))
-    except Exception:
-        for obj in clip_objs[: max_moments]:
-            try:
-                obj.save()
-                created_clips += 1
-            except Exception:
-                pass
+    if ev_objs:
+        created_events = _bulk_create_with_save_fallback(ev_objs, max_items=int(max_moments), label='eventos')
+    if clip_objs:
+        created_clips = _bulk_create_with_save_fallback(clip_objs, max_items=int(max_moments), label='clips')
 
     return {
         'ok': True,
