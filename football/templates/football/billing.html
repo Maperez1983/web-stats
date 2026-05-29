@@ -16,15 +16,16 @@
         color: #e2e8f0;
       }
       .page {
-        max-width: 980px;
+        width: min(100%, 1040px);
         margin: 0 auto;
-        padding: 1.3rem;
+        padding: clamp(0.85rem, 1.25vw, 1.3rem);
       }
       h1 {
         margin: 0;
         letter-spacing: 0.09em;
         text-transform: uppercase;
         font-size: 1.3rem;
+        overflow-wrap: anywhere;
       }
       .panel {
         margin-top: 1rem;
@@ -32,6 +33,7 @@
         border: 1px solid rgba(255, 255, 255, 0.12);
         background: rgba(15, 23, 42, 0.92);
         padding: 1rem;
+        min-width: 0;
       }
       .kpi {
         display: grid;
@@ -55,6 +57,10 @@
         gap: 0.6rem;
       }
       .btn {
+        min-height: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         text-decoration: none;
         border-radius: 999px;
         padding: 0.7rem 1rem;
@@ -64,6 +70,8 @@
         border: 1px solid rgba(244, 180, 0, 0.2);
         background: rgba(2, 6, 23, 0.55);
         color: #e2e8f0;
+        cursor: pointer;
+        white-space: nowrap;
       }
       .btn.primary {
         border: none;
@@ -76,6 +84,35 @@
         padding: 0.1rem 0.35rem;
         border-radius: 10px;
         border: 1px solid rgba(255, 255, 255, 0.12);
+      }
+      .billing-subpanel { margin-top: 1rem; }
+      .billing-copy { margin: 0.35rem 0; color: rgba(148,163,184,0.92); line-height: 1.5; }
+      .addon-list { margin-top: 0.65rem; display: grid; gap: 0.55rem; }
+      .addon-row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 0.6rem;
+        align-items: flex-start;
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.10);
+        background: rgba(255,255,255,0.035);
+        padding: 0.65rem 0.75rem;
+      }
+      .addon-row input { margin-top: 0.2rem; }
+      .addon-title { font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+      .addon-desc { color: rgba(148,163,184,0.92); font-size: 0.92rem; line-height: 1.45; }
+      .billing-note {
+        margin-top: 0.65rem;
+        border: 1px solid rgba(251,191,36,0.25);
+        background: rgba(251,191,36,0.08);
+        border-radius: 14px;
+        padding: 0.75rem 0.85rem;
+      }
+      #billing-msg { overflow-wrap: anywhere; }
+      @media (max-width: 640px) {
+        .panel { border-radius: 16px; padding: 0.85rem; }
+        .cta .btn,
+        .cta button { width: 100%; }
       }
     </style>
   </head>
@@ -104,47 +141,47 @@
         </div>
 
         {% if stripe_ready %}
-        <div class="panel" style="margin-top:1rem;">
+        <div class="panel billing-subpanel">
           {% if stripe_modular_ready %}
             <h2 style="margin:0 0 0.35rem; font-size:1rem; letter-spacing:0.08em; text-transform:uppercase;">Suscripción por módulos</h2>
-            <p style="margin:0.35rem 0; color:rgba(148,163,184,0.92);">
+            <p class="billing-copy">
               Empieza con <strong>Core</strong> y añade módulos: <strong>Live</strong>, <strong>Studio</strong>, <strong>Analysis</strong>{% if stripe_addons_available.tactics|default:False %}, <strong>Táctica</strong>{% endif %}.
             </p>
             {% if stripe_modular_enabled %}
-              <div style="margin-top:0.65rem; display:grid; gap:0.55rem;">
-                <label style="display:flex; gap:0.6rem; align-items:flex-start;">
-                  <input type="checkbox" id="billing-addon-live" style="margin-top:0.2rem;" />
+              <div class="addon-list">
+                <label class="addon-row">
+                  <input type="checkbox" id="billing-addon-live" />
                   <div>
-                    <div style="font-weight:800; letter-spacing:0.06em; text-transform:uppercase;">Live</div>
-                    <div style="color:rgba(148,163,184,0.92); font-size:0.92rem;">Registro de acciones + KPIs + PDFs de partido.</div>
+                    <div class="addon-title">Live</div>
+                    <div class="addon-desc">Registro de acciones + KPIs + PDFs de partido.</div>
                   </div>
                 </label>
-                <label style="display:flex; gap:0.6rem; align-items:flex-start;">
-                  <input type="checkbox" id="billing-addon-studio" style="margin-top:0.2rem;" />
+                <label class="addon-row">
+                  <input type="checkbox" id="billing-addon-studio" />
                   <div>
-                    <div style="font-weight:800; letter-spacing:0.06em; text-transform:uppercase;">Studio</div>
-                    <div style="color:rgba(148,163,184,0.92); font-size:0.92rem;">Tareas/sesiones + PDFs + biblioteca.</div>
+                    <div class="addon-title">Studio</div>
+                    <div class="addon-desc">Tareas/sesiones + PDFs + biblioteca.</div>
                   </div>
                 </label>
-                <label style="display:flex; gap:0.6rem; align-items:flex-start;">
-                  <input type="checkbox" id="billing-addon-analysis" style="margin-top:0.2rem;" />
+                <label class="addon-row">
+                  <input type="checkbox" id="billing-addon-analysis" />
                   <div>
-                    <div style="font-weight:800; letter-spacing:0.06em; text-transform:uppercase;">Analysis</div>
-                    <div style="color:rgba(148,163,184,0.92); font-size:0.92rem;">Vídeo/estudio y análisis.</div>
+                    <div class="addon-title">Analysis</div>
+                    <div class="addon-desc">Vídeo/estudio y análisis.</div>
                   </div>
                 </label>
                 {% if stripe_addons_available.tactics|default:False %}
-                <label style="display:flex; gap:0.6rem; align-items:flex-start;">
-                  <input type="checkbox" id="billing-addon-tactics" style="margin-top:0.2rem;" />
+                <label class="addon-row">
+                  <input type="checkbox" id="billing-addon-tactics" />
                   <div>
-                    <div style="font-weight:800; letter-spacing:0.06em; text-transform:uppercase;">Táctica</div>
-                    <div style="color:rgba(148,163,184,0.92); font-size:0.92rem;">Playbook (pizarra, clips, export y compartir).</div>
+                    <div class="addon-title">Táctica</div>
+                    <div class="addon-desc">Playbook (pizarra, clips, export y compartir).</div>
                   </div>
                 </label>
                 {% endif %}
               </div>
             {% else %}
-              <div style="margin-top:0.65rem; border:1px solid rgba(251,191,36,0.25); background:rgba(251,191,36,0.08); border-radius:14px; padding:0.75rem 0.85rem;">
+              <div class="billing-note">
                 <strong>Nota:</strong> El modo modular está preparado pero no está activo todavía. Activa `STRIPE_MODULAR_BILLING=1` en Render.
               </div>
             {% endif %}
@@ -160,7 +197,7 @@
             </div>
           {% else %}
             <h2 style="margin:0 0 0.35rem; font-size:1rem; letter-spacing:0.08em; text-transform:uppercase;">Plan Pro</h2>
-            <p style="margin:0.35rem 0; color:rgba(148,163,184,0.92);">
+            <p class="billing-copy">
               Acceso completo a 2J Club + 2J Live + 2J Studio. Facturación recurrente.
             </p>
             <div class="cta">
