@@ -1,4 +1,5 @@
 import html
+import logging
 import re
 import unicodedata
 from pathlib import Path
@@ -6,6 +7,9 @@ from pathlib import Path
 from .models import SessionTask, TaskBlueprint
 from . import session_import_services
 from . import task_library_services
+
+
+logger = logging.getLogger(__name__)
 
 
 def assistant_goal_specs():
@@ -178,7 +182,7 @@ def strip_accents(value: str) -> str:
             if unicodedata.category(ch) == 'Mn':
                 continue
         except Exception:
-            pass
+            logger.debug('No se pudo clasificar caracter unicode en strip_accents', exc_info=True)
         out.append(ch)
     return ''.join(out)
 
@@ -427,7 +431,7 @@ def infer_goal_key_from_text(text: str, category_hint: str = '') -> str:
             if category_hint and str(spec.get('category') or '') == str(category_hint):
                 score += 30
         except Exception:
-            pass
+            logger.debug('No se pudo ponderar categoria al inferir objetivo de asistente', exc_info=True)
         if score > best_score:
             best_score = score
             best_key = goal_key
@@ -712,7 +716,11 @@ def create_task_sheet_blueprint_from_document(
                     if diagram_doc_id_clean <= 0:
                         diagram_doc_id_clean = int(getattr(doc, 'id', 0) or 0)
         except Exception:
-            pass
+            logger.debug(
+                'No se pudo extraer canvas desde diagrama OCR del documento %s',
+                getattr(doc, 'id', None),
+                exc_info=True,
+            )
 
     payload = {
         'tpl': tpl,
@@ -750,7 +758,7 @@ def _read_document_file_bytes(doc) -> bytes:
         try:
             file_obj.open('rb')
         except Exception:
-            pass
+            logger.debug('No se pudo abrir fichero del documento %s antes de leerlo', getattr(doc, 'id', None), exc_info=True)
         try:
             return file_obj.read() or b''
         except Exception:
