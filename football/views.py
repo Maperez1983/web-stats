@@ -54784,24 +54784,20 @@ def gather_team_fields_for_group(group):
     return fields
 
 
-def build_match_payload(match, primary_team, status):
-    return match_payload_services.build_match_payload(match, primary_team, status)
+build_match_payload = match_payload_services.build_match_payload
 
 
-def preferred_event_source_by_match(primary_team, scope=None):
-    return stats_services.preferred_event_source_by_match(primary_team, scope=scope)
+preferred_event_source_by_match = stats_services.preferred_event_source_by_match
 
 
 def _is_manual_event_source(source_file):
     return is_manual_event_source(source_file)
 
 
-def _event_matches_stats_source(event, preferred_sources=None):
-    return stats_services.event_matches_stats_source(event, preferred_sources=preferred_sources)
+_event_matches_stats_source = stats_services.event_matches_stats_source
 
 
-def _filter_stats_events(rows, preferred_sources=None):
-    return stats_services.filter_stats_events(rows, preferred_sources=preferred_sources)
+_filter_stats_events = stats_services.filter_stats_events
 
 
 def _build_zone_inference_profiles(events):
@@ -54848,20 +54844,16 @@ def _normalize_excel_header(value):
     return ''.join(ch.lower() for ch in str(value).strip() if ch.isalnum())
 
 
-def _active_club_season_date_bounds_from_request(request):
-    return stats_services.active_club_season_date_bounds_from_request(request)
+_active_club_season_date_bounds_from_request = stats_services.active_club_season_date_bounds_from_request
 
 
-def compute_team_metrics(primary_team, scope=Match.CONTEXT_LEAGUE, request=None):
-    return stats_services.compute_team_metrics(primary_team, scope=scope, request=request)
+compute_team_metrics = stats_services.compute_team_metrics
 
 
-def compute_team_metrics_for_match(match, primary_team=None):
-    return stats_services.compute_team_metrics_for_match(match, primary_team=primary_team)
+compute_team_metrics_for_match = stats_services.compute_team_metrics_for_match
 
 
-def _event_signature(event):
-    return event_signature(event)
+_event_signature = event_signature
 
 
 @lru_cache(maxsize=8192)
@@ -54882,21 +54874,13 @@ def _match_action_dedupe_signature(event):
     )
 
 
-def compute_player_cards_for_match(match, primary_team, source_file=None):
-    return stats_services.compute_player_cards_for_match(match, primary_team, source_file=source_file)
-
-def compute_player_metrics(primary_team, scope=Match.CONTEXT_LEAGUE, request=None):
-    return stats_services.compute_player_metrics(primary_team, scope=scope, request=request)
+compute_player_cards_for_match = stats_services.compute_player_cards_for_match
 
 
-def compute_player_cards(primary_team, *, force_refresh=False, scope=None, tournament_name=None, request=None):
-    return stats_services.compute_player_cards(
-        primary_team,
-        force_refresh=force_refresh,
-        scope=scope,
-        tournament_name=tournament_name,
-        request=request,
-    )
+compute_player_metrics = stats_services.compute_player_metrics
+
+
+compute_player_cards = stats_services.compute_player_cards
 
 
 def compute_player_dashboard(
