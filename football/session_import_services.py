@@ -115,11 +115,13 @@ def extract_pdf_text_via_pdftotext(pdf_bytes: bytes) -> str:
                     timeout=45,
                 )
             except Exception:
+                logger.debug('No se pudo ejecutar pdftotext para extraer PDF', exc_info=True)
                 proc = None
             if proc and proc.returncode == 0:
                 try:
                     text = (proc.stdout or b'').decode('utf-8', errors='ignore')
                 except Exception:
+                    logger.debug('No se pudo decodificar salida de pdftotext', exc_info=True)
                     text = ''
                 if text and len(text.strip()) >= 40:
                     return text
@@ -129,12 +131,14 @@ def extract_pdf_text_via_pdftotext(pdf_bytes: bytes) -> str:
     try:
         reader = PdfReader(io.BytesIO(pdf_bytes))
     except Exception:
+        logger.debug('No se pudo abrir PDF con pypdf', exc_info=True)
         return ''
     out = []
     for page in (getattr(reader, 'pages', None) or [])[:180]:
         try:
             chunk = page.extract_text() or ''
         except Exception:
+            logger.debug('No se pudo extraer texto de una pagina PDF con pypdf', exc_info=True)
             chunk = ''
         if chunk:
             out.append(chunk)
@@ -150,7 +154,7 @@ def extract_image_text_via_tesseract(image_bytes: bytes) -> str:
     try:
         img = _prepare_image_for_ocr(img)
     except Exception:
-        pass
+        logger.debug('No se pudo preparar imagen para OCR', exc_info=True)
 
     configs = ['--psm 6', '--psm 4']
     langs = ['spa', 'spa+eng']
@@ -173,6 +177,7 @@ def extract_image_text_via_tesseract(image_bytes: bytes) -> str:
                 try:
                     text = pytesseract.image_to_string(var_img, lang=lang, config=cfg) or ''
                 except Exception:
+                    logger.debug('Tesseract fallo con lang=%s config=%s', lang, cfg, exc_info=True)
                     text = ''
                 cleaned = str(text or '').strip()
                 if len(cleaned) < 40:
@@ -198,6 +203,7 @@ def open_pil_rgb_from_bytes(image_bytes: bytes):
     try:
         img = Image.open(io.BytesIO(image_bytes))
     except Exception:
+        logger.debug('PIL no pudo abrir imagen; intentando fallback magick', exc_info=True)
         proc = None
         try:
             if shutil.which('magick') is not None:
@@ -210,11 +216,13 @@ def open_pil_rgb_from_bytes(image_bytes: bytes):
                     check=False,
                 )
         except Exception:
+            logger.debug('No se pudo ejecutar magick para convertir imagen HEIC/HEIF', exc_info=True)
             proc = None
         if proc and proc.returncode == 0 and proc.stdout:
             try:
                 img = Image.open(io.BytesIO(proc.stdout))
             except Exception:
+                logger.debug('PIL no pudo abrir la imagen convertida por magick', exc_info=True)
                 return None
         else:
             return None
@@ -223,9 +231,10 @@ def open_pil_rgb_from_bytes(image_bytes: bytes):
             try:
                 img = ImageOps.exif_transpose(img)
             except Exception:
-                pass
+                logger.debug('No se pudo aplicar EXIF transpose a imagen importada', exc_info=True)
         return img.convert('RGB')
     except Exception:
+        logger.debug('No se pudo convertir imagen importada a RGB', exc_info=True)
         return None
 
 
@@ -237,6 +246,7 @@ def _prepare_image_for_ocr(img):
     try:
         max_side = max(int(img.size[0]), int(img.size[1]))
     except Exception:
+        logger.debug('No se pudo leer tamaño de imagen para OCR', exc_info=True)
         max_side = 0
     target_side = 1800
     if max_side and max_side < target_side:
@@ -246,10 +256,12 @@ def _prepare_image_for_ocr(img):
         try:
             resample = getattr(Image, 'Resampling', Image).LANCZOS
         except Exception:
+            logger.debug('No se pudo resolver resample LANCZOS moderno; usando fallback', exc_info=True)
             resample = getattr(Image, 'LANCZOS', 1)
         try:
             return img.resize((new_w, new_h), resample=resample)
         except Exception:
+            logger.debug('No se pudo redimensionar imagen para OCR', exc_info=True)
             return img
     return img
 
@@ -262,15 +274,15 @@ def _image_ocr_variants(img):
             try:
                 gray = ImageOps.autocontrast(gray)
             except Exception:
-                pass
+                logger.debug('No se pudo aplicar autocontrast a variante OCR', exc_info=True)
             variants.append(gray)
             if ImageFilter is not None:
                 try:
                     variants.append(gray.filter(ImageFilter.SHARPEN))
                 except Exception:
-                    pass
+                    logger.debug('No se pudo aplicar sharpen a variante OCR', exc_info=True)
         except Exception:
-            pass
+            logger.debug('No se pudieron generar variantes grayscale para OCR', exc_info=True)
     rotated_variants = []
     for variant in variants:
         rotated_variants.append(variant)
@@ -278,12 +290,12 @@ def _image_ocr_variants(img):
             rotated_variants.append(variant.rotate(90, expand=True))
             rotated_variants.append(variant.rotate(270, expand=True))
         except Exception:
-            pass
+            logger.debug('No se pudieron generar variantes rotadas para OCR', exc_info=True)
     if len(rotated_variants) > 4:
         try:
             rotated_variants = rotated_variants[-4:]
         except Exception:
-            pass
+            logger.debug('No se pudo limitar la lista de variantes OCR', exc_info=True)
     return rotated_variants
 
 
@@ -295,7 +307,7 @@ def _normalize_ocr_text(value):
             if unicodedata.category(ch) != 'Mn'
         )
     except Exception:
-        pass
+        logger.debug('No se pudo normalizar texto OCR con unicodedata', exc_info=True)
     return raw.casefold()
 
 
