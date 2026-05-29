@@ -306,8 +306,20 @@
       const popupCloseButtons = popupForm.querySelectorAll('.close-popup');
       const convocationCards = document.querySelectorAll('.convocation-card');
       const historyList = document.getElementById('history-list');
-      const historyFilterBar = document.getElementById('hf');
-      const liveDock = document.querySelector('.match-live-dock');
+      let historyFilterBar = document.getElementById('hf');
+      if (!historyFilterBar && historyList?.parentNode) {
+        historyFilterBar = document.createElement('div');
+        historyFilterBar.id = 'hf';
+        historyFilterBar.innerHTML = "<button type=\"button\" class=\"is-active\" data-history-filter=\"all\">Todos</button><button type=\"button\" data-history-filter=\"goals\">Goles</button><button type=\"button\" data-history-filter=\"cards\">Tarjetas</button><button type=\"button\" data-history-filter=\"subs\">Cambios</button><button type=\"button\" data-history-filter=\"errors\">Errores</button><button type=\"button\" data-history-filter=\"last5\">Últ. 5'</button>";
+        historyList.parentNode.insertBefore(historyFilterBar, historyList);
+      }
+      let liveDock = document.querySelector('.match-live-dock');
+      if (!liveDock) {
+        liveDock = document.createElement('div');
+        liveDock.className = 'match-live-dock';
+        liveDock.innerHTML = '<div><span>Sin jugador</span><strong>Elige acción</strong></div><div><button type="button" class="is-primary" data-dock-action="picker">Acción</button><button type="button" data-dock-result="OK">OK</button><button type="button" data-dock-result="Fallo">Fallo</button><button type="button" data-dock-result="A puerta">A puerta</button><button type="button" data-dock-action="undo">Deshacer</button><button type="button" class="is-save" data-dock-action="finalize">Guardar</button></div>';
+        document.querySelector('.action-register')?.appendChild(liveDock);
+      }
       const dockPlayerEl = liveDock?.querySelector?.('div:first-child span') || null;
       const dockActionEl = liveDock?.querySelector?.('div:first-child strong') || null;
       const actionCatalog = (() => {
