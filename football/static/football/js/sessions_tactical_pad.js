@@ -24019,7 +24019,13 @@
 	                  }
 	                  try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
 	                  if (t >= 1) {
-	                    stopInteractiveRoutesPlayback('Rutas reproducidas.');
+	                    interactiveRoutesPlaying = false;
+	                    if (interactiveRoutesAnimFrame) {
+	                      try { window.cancelAnimationFrame(interactiveRoutesAnimFrame); } catch (e) { /* ignore */ }
+	                      interactiveRoutesAnimFrame = null;
+	                    }
+	                    setStatus('Rutas reproducidas. Volviendo al inicio…');
+	                    window.setTimeout(() => stopInteractiveRoutesPlayback('Listo para repetir rutas.'), 950);
 	                    return;
 	                  }
 	                  interactiveRoutesAnimFrame = window.requestAnimationFrame(tick);
