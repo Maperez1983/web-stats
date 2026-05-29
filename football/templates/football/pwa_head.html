@@ -105,6 +105,31 @@
   })();
 </script>
 {% endif %}
+<script>
+  (function () {
+    try {
+      var root = document.documentElement;
+      var setViewportVars = function () {
+        try {
+          var vv = window.visualViewport;
+          var width = vv && vv.width ? vv.width : window.innerWidth;
+          var height = vv && vv.height ? vv.height : window.innerHeight;
+          root.style.setProperty('--app-vw', String(Math.max(1, Math.round(width))) + 'px');
+          root.style.setProperty('--app-vh', String(Math.max(1, Math.round(height))) + 'px');
+          root.style.setProperty('--app-dpr', String(window.devicePixelRatio || 1));
+        } catch (e) {}
+      };
+      setViewportVars();
+      window.addEventListener('resize', setViewportVars, { passive: true });
+      window.addEventListener('orientationchange', function () { window.setTimeout(setViewportVars, 120); }, { passive: true });
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', setViewportVars, { passive: true });
+        window.visualViewport.addEventListener('scroll', setViewportVars, { passive: true });
+      }
+      document.addEventListener('visibilitychange', function () { if (!document.hidden) setViewportVars(); });
+    } catch (e) {}
+  })();
+</script>
 <script src="{% static 'football/js/pdf_viewer.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
 {% if request.user.is_authenticated %}
 <script>
