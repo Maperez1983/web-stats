@@ -1,9 +1,13 @@
+import logging
 import os
 
 from django.http import HttpResponse
 
 from .models import AppUserRole, Workspace, WorkspaceMembership
 from . import workspace_context
+
+
+logger = logging.getLogger(__name__)
 
 
 TECHNICAL_ROLES = {
@@ -68,7 +72,11 @@ def workspace_has_module_for_user(workspace, module_key, *, user=None):
             if has_module_flags and 'module__tactics' not in raw and modules.get('tactics') is False:
                 modules['tactics'] = bool(defaults.get('tactics', False))
         except Exception:
-            pass
+            logger.debug(
+                'No se pudo normalizar los flags de modulos del workspace %s',
+                getattr(workspace, 'id', None),
+                exc_info=True,
+            )
     if user is not None and not workspace_member_allows_module(workspace, user, module_key):
         return False
     return bool(modules.get(str(module_key), False))

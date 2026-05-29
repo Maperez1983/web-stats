@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from pathlib import Path
 from datetime import timedelta
@@ -9,6 +10,9 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.urls import reverse
 from django.utils.cache import add_never_cache_headers
 from django.utils.timezone import now
+
+
+logger = logging.getLogger(__name__)
 
 
 def _build_id() -> str:
@@ -45,11 +49,12 @@ def _build_id() -> str:
                 if path.exists():
                     mtimes.append(int(path.stat().st_mtime))
             except Exception:
+                logger.debug('No se pudo leer mtime para el asset PWA %s', path, exc_info=True)
                 continue
         if mtimes:
             return str(max(mtimes))
     except Exception:
-        pass
+        logger.debug('No se pudo calcular build id local para PWA', exc_info=True)
     return "dev"
 
 

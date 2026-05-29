@@ -1,3 +1,4 @@
+import logging
 import os
 
 from django.db.models import Q
@@ -10,6 +11,7 @@ from .services import _parse_int
 
 
 _REQUEST_CACHE_MISSING = object()
+logger = logging.getLogger(__name__)
 
 
 def _request_cache_get(request, attr_name):
@@ -17,7 +19,7 @@ def _request_cache_get(request, attr_name):
         if request is not None and hasattr(request, attr_name):
             return getattr(request, attr_name)
     except Exception:
-        pass
+        logger.debug('No se pudo leer cache de request %s', attr_name, exc_info=True)
     return _REQUEST_CACHE_MISSING
 
 
@@ -26,7 +28,7 @@ def _request_cache_set(request, attr_name, value):
         if request is not None:
             setattr(request, attr_name, value)
     except Exception:
-        pass
+        logger.debug('No se pudo escribir cache de request %s', attr_name, exc_info=True)
     return value
 
 
