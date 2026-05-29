@@ -306,6 +306,10 @@
       const popupCloseButtons = popupForm.querySelectorAll('.close-popup');
       const convocationCards = document.querySelectorAll('.convocation-card');
       const historyList = document.getElementById('history-list');
+      const historyFilterBar = document.getElementById('history-filter-bar');
+      const liveDock = document.getElementById('match-live-dock');
+      const dockPlayerEl = document.getElementById('dock-player');
+      const dockActionEl = document.getElementById('dock-action');
       const actionCatalog = (() => {
         try {
           const raw = document.getElementById('match-action-catalog')?.textContent || '[]';
@@ -642,8 +646,8 @@
 		          event.preventDefault();
 		          openActionPicker({ focusSearch: false });
 		        });
-	        actionInput.addEventListener('input', () => { syncResultOptionsForAction(actionInput.value); persistActionPick(); });
-	        actionInput.addEventListener('change', () => { syncResultOptionsForAction(actionInput.value); persistActionPick(); });
+	        actionInput.addEventListener('input', () => { syncResultOptionsForAction(actionInput.value); persistActionPick(); try { updateLiveDock(); } catch (e) {} });
+	        actionInput.addEventListener('change', () => { syncResultOptionsForAction(actionInput.value); persistActionPick(); try { updateLiveDock(); } catch (e) {} });
 	      }
       if (resultSelect) {
         resultSelect.addEventListener('change', () => {
@@ -654,12 +658,100 @@
               result: String(resultSelect.value || '').trim(),
             });
           } catch (e) {}
+          try { updateLiveDock(); } catch (e) {}
         });
       }
+      const getSelectedConvocationName = () => {
+        try {
+          const card = document.querySelector('.convocation-card.selected[data-player-id]');
+          if (!card) return '';
+          const number = String(card.querySelector('header span')?.textContent || '').trim();
+          const name = String(card.querySelector('strong')?.textContent || '').trim();
+          return [number, name].filter(Boolean).join(' · ');
+        } catch (e) {
+          return '';
+        }
+      };
+      function updateLiveDock(message = '') {
+        if (!liveDock) return;
+        const player = getSelectedConvocationName();
+        const action = String(actionInput?.value || '').trim();
+        const result = String(resultSelect?.value || '').trim();
+        if (dockPlayerEl) dockPlayerEl.textContent = player || 'Sin jugador seleccionado';
+        if (dockActionEl) {
+          dockActionEl.textContent = message || [action || 'Elige acción', result].filter(Boolean).join(' · ');
+        }
+      }
+      const flashActionSaved = () => {
+        try {
+          fieldSurface.classList.remove('is-action-saved');
+          void fieldSurface.offsetWidth;
+          fieldSurface.classList.add('is-action-saved');
+          window.setTimeout(() => fieldSurface.classList.remove('is-action-saved'), 560);
+        } catch (e) {}
+      };
+      const filterHistoryItems = (filterKey) => {
+        if (!historyList) return;
+        const key = String(filterKey || 'all');
+        const items = Array.from(historyList.querySelectorAll('.history-item'));
+        const minutes = items
+          .map((item) => Number.parseInt(String(item.querySelector('.hist-minute')?.textContent || ''), 10))
+          .filter((minute) => Number.isFinite(minute));
+        const maxMinute = minutes.length ? Math.max(...minutes) : 0;
+        items.forEach((item) => {
+          const text = String(item.querySelector('.hist-text')?.textContent || '').toLowerCase();
+          const minute = Number.parseInt(String(item.querySelector('.hist-minute')?.textContent || ''), 10);
+          let show = true;
+          if (key === 'goals') show = /\bgol\b|goal/.test(text);
+          else if (key === 'cards') show = /tarjeta|amarilla|roja/.test(text);
+          else if (key === 'subs') show = /cambio|sustituci/.test(text);
+          else if (key === 'errors') show = /fallo|error|perdida|pérdida|no ok|mal/.test(text);
+          else if (key === 'last5') show = Number.isFinite(minute) && maxMinute > 0 && minute >= Math.max(0, maxMinute - 5);
+          item.classList.toggle('is-filter-hidden', !show);
+        });
+      };
+      if (historyFilterBar) {
+        historyFilterBar.addEventListener('click', (event) => {
+          const btn = event.target?.closest?.('.history-filter-btn[data-history-filter]');
+          if (!btn) return;
+          historyFilterBar.querySelectorAll('.history-filter-btn').forEach((item) => {
+            item.classList.toggle('is-active', item === btn);
+          });
+          filterHistoryItems(btn.dataset.historyFilter || 'all');
+        });
+      }
+      if (liveDock) {
+        liveDock.addEventListener('click', (event) => {
+          const btn = event.target?.closest?.('[data-dock-action], [data-dock-result]');
+          if (!btn) return;
+          const dockAction = String(btn.dataset.dockAction || '');
+          const dockResult = String(btn.dataset.dockResult || '');
+          if (dockAction === 'picker') {
+            try {
+              if (typeof openActionPicker === 'function') openActionPicker({ focusSearch: false });
+              else proOpenActionPickerBtn?.click?.();
+            } catch (e) {}
+          } else if (dockAction === 'undo') {
+            try { document.getElementById('undo-last-action-btn')?.click?.(); } catch (e) {}
+          } else if (dockAction === 'finalize') {
+            try { matchFinalizeBtn[0]?.click?.(); } catch (e) {}
+          } else if (dockResult) {
+            try { setResultValue(dockResult); } catch (e) {}
+          }
+          try { updateLiveDock(); } catch (e) {}
+        });
+      }
+      try { updateLiveDock(); } catch (e) {}
       // Favoritos rápidos (Modo PRO).
       try { renderProActionFavorites(); } catch (e) {}
       document.addEventListener('webstats:match-actions:recorded', () => {
         try { renderProActionFavorites(); } catch (e) {}
+        try { flashActionSaved(); } catch (e) {}
+        try { updateLiveDock('Acción registrada'); } catch (e) {}
+        try {
+          const active = historyFilterBar?.querySelector?.('.history-filter-btn.is-active');
+          filterHistoryItems(active?.dataset?.historyFilter || 'all');
+        } catch (e) {}
       });
       document.addEventListener('webstats:match-actions:lineup-changed', () => {
         try { renderProActionFavorites(); } catch (e) {}
@@ -2250,6 +2342,7 @@ const urlWithMatchId = (baseUrl) => {
 		          setSubTapMode(false);
 		        }
 		        try { writeProState({ player_id: '' }); } catch (e) {}
+		        try { updateLiveDock(); } catch (e) {}
 		      };
 		      const selectPlayer = (playerId) => {
 		        selectedPlayerId = playerId;
@@ -2266,6 +2359,7 @@ const urlWithMatchId = (baseUrl) => {
 		          card.classList.toggle('selected', card.dataset.playerId === playerId);
 		        });
 		        try { writeProState({ player_id: String(playerId || '').trim(), action: String(actionInput?.value || '').trim() }); } catch (e) {}
+		        try { updateLiveDock(); } catch (e) {}
 		        updatePlayerQuickPanel();
 		        try { renderProQuickPlayers(); } catch (e) {}
 		        try {

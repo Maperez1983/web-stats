@@ -1793,6 +1793,18 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       quickButtons.forEach((btn) => btn.classList.remove('quake-action-active'));
       resetPopupForm({ preserveFields });
       emitSummaryChange();
+      try {
+        document.dispatchEvent(new CustomEvent('webstats:match-actions:recorded', {
+          detail: {
+            id: data.id,
+            action: data.action,
+            result: data.result,
+            zone: data.zone,
+            minute: data.minute,
+            player: data.player,
+          },
+        }));
+      } catch (e) {}
       showPageStatus(
         `${source === 'pro_autosend' ? 'Auto-enviar:' : ''} Acción registrada${data.duplicate ? ' (duplicado detectado)' : ''}.`.trim(),
         data.duplicate ? 'warning' : 'success',

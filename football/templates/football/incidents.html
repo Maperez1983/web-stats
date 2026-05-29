@@ -11,71 +11,136 @@
     <style>
       :root {
         --brand-dark: #050816;
-        --brand-panel: rgba(14, 23, 41, 0.9);
+        --brand-panel: rgba(14, 23, 41, 0.86);
         --brand-accent: #facc15;
         --brand-accent-strong: #38bdf8;
       }
+      *, *::before, *::after { box-sizing: border-box; }
       body {
         margin: 0;
         font-family: 'Inter', system-ui, sans-serif;
-        background: var(--brand-dark);
+        background:
+          radial-gradient(circle at 14% 0%, rgba(56, 189, 248, 0.14), transparent 28rem),
+          linear-gradient(180deg, #08111f 0%, var(--brand-dark) 100%);
         color: #f8fafc;
         min-height: 100vh;
       }
       .page {
-        max-width: 960px;
+        width: min(100%, 1100px);
         margin: 0 auto;
-        padding: 2rem 1.25rem 3rem;
+        padding: clamp(1rem, 2vw, 1.6rem) clamp(0.85rem, 2vw, 1.25rem) 3rem;
       }
       header {
-        display: flex;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
         align-items: center;
         gap: 1rem;
-        margin-bottom: 2rem;
+        margin: 1rem 0;
       }
       header img {
-        width: 72px;
-        height: 72px;
+        width: 64px;
+        height: 64px;
         border-radius: 12px;
         border: 2px solid rgba(255, 255, 255, 0.25);
         background: rgba(255, 255, 255, 0.05);
       }
       header h1 {
         margin: 0;
-        font-size: 1.9rem;
-        letter-spacing: 0.12em;
+        font-size: clamp(1.55rem, 4vw, 2.25rem);
+        line-height: 1;
+        letter-spacing: 0.02em;
+      }
+      .eyebrow {
+        margin: 0 0 0.3rem;
+        color: rgba(248, 250, 252, 0.72);
+        font-size: 0.76rem;
+        font-weight: 800;
+        letter-spacing: 0.14em;
         text-transform: uppercase;
       }
       .panel {
         background: var(--brand-panel);
-        border-radius: 20px;
-        padding: 2rem;
+        border-radius: 18px;
+        padding: clamp(1rem, 2.5vw, 1.4rem);
         box-shadow: 0 20px 45px rgba(2, 6, 20, 0.8);
         border: 1px solid rgba(255, 255, 255, 0.08);
       }
+      .panel + .panel { margin-top: 1rem; }
       .panel h2 {
         margin-top: 0;
         text-transform: uppercase;
-        letter-spacing: 0.2em;
+        letter-spacing: 0.14em;
+        font-size: 0.9rem;
         color: var(--brand-accent);
       }
       .panel p {
         line-height: 1.6;
         color: rgba(248, 250, 252, 0.8);
       }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.85rem;
+        margin-top: 1rem;
+      }
+      .card {
+        min-height: 150px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 16px;
+        background: rgba(2, 6, 23, 0.34);
+        padding: 1rem;
+      }
+      .card h3 {
+        margin: 0;
+        font-size: 0.88rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .card p {
+        margin: 0.55rem 0 0;
+        font-size: 0.92rem;
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.7rem;
+        margin-top: 1rem;
+      }
       .button {
-        margin-top: 1.5rem;
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
-        padding: 0.9rem 1.4rem;
+        min-height: 42px;
+        padding: 0.72rem 1rem;
         border-radius: 999px;
         background: linear-gradient(135deg, #facc15, #f43f5e);
         color: #050816;
-        font-weight: 700;
+        font-weight: 900;
         text-transform: uppercase;
-        letter-spacing: 0.1em;
+        letter-spacing: 0.08em;
         text-decoration: none;
+      }
+      .button.secondary {
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        background: rgba(15, 23, 42, 0.88);
+        color: #f8fafc;
+      }
+      @media (max-width: 820px) {
+        .grid { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 560px) {
+        header {
+          grid-template-columns: 1fr;
+          align-items: start;
+        }
+        header img {
+          width: 56px;
+          height: 56px;
+        }
+        .button {
+          width: 100%;
+          justify-content: center;
+        }
       }
     </style>
   </head>
@@ -89,7 +154,7 @@
         <img src="{% static 'football/images/cdb-logo.png' %}" alt="Escudo {{ team_display_name }}" loading="lazy" />
         {% endif %}
         <div>
-          <p style="margin:0;">{{ team_display_name|default:'Club' }}</p>
+          <p class="eyebrow">{{ team_display_name|default:'Club' }}</p>
           <h1>Incidencias</h1>
         </div>
       </header>
@@ -97,19 +162,38 @@
       <article class="panel">
         <h2>Registro de incidencias</h2>
         <p>
-          Utiliza esta sección para documentar lesiones, cambios importantes, sanciones o
-          cualquier acontecimiento relevante ocurrido durante el partido. Cada incidencia irá
-          ligada al encuentro y al jugador correspondiente para que después puedas cruzarla con
-          los datos del evento.
+          Centraliza aquí el seguimiento de acontecimientos relevantes. Las incidencias de partido se incorporarán desde la toma de datos cuando esa interfaz esté conectada; mientras tanto, las rutas operativas siguen separadas para no duplicar información.
         </p>
+        <div class="actions">
+          <a class="button" href="{% url 'player-dashboard' %}">Panel de jugadores</a>
+          <a class="button secondary" href="{% url 'coach-injuries' %}">Lesiones</a>
+          <a class="button secondary" href="{% url 'fines' %}">Multas</a>
+        </div>
+      </article>
+
+      <section class="panel">
+        <h2>Qué revisar</h2>
+        <div class="grid">
+          <article class="card">
+            <h3>Jugador</h3>
+            <p>Estado individual, sanciones manuales y notas que afectan a disponibilidad o rendimiento.</p>
+          </article>
+          <article class="card">
+            <h3>Salud</h3>
+            <p>Lesiones, fechas de baja, retorno estimado y carga modificada desde el módulo médico.</p>
+          </article>
+          <article class="card">
+            <h3>Disciplina</h3>
+            <p>Multas del vestuario, motivo, importe y trazabilidad de registros eliminables por administración.</p>
+          </article>
+        </div>
+      </section>
+
+      <article class="panel">
+        <h2>Próxima conexión</h2>
         <p>
-          Cuando el sistema de toma de datos en partido esté listo, este panel se alimentará
-          automáticamente desde esa interfaz; por ahora puedes hacer anotaciones manuales que
-          se guardarán para su posterior análisis.
+          El objetivo de esta pantalla es actuar como índice estable de incidencias hasta que el registro en directo pueda alimentar automáticamente el histórico del encuentro y del jugador.
         </p>
-        <a class="button" href="{% url 'player-dashboard' %}">
-          IR AL PANEL DE JUGADORES
-        </a>
       </article>
     </div>
   </body>

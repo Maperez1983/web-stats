@@ -77,7 +77,12 @@
         font-weight: 800;
         font-size: 0.75rem;
       }
-      table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+      .table-wrap {
+        overflow-x: auto;
+        margin-top: 1rem;
+        scrollbar-gutter: stable;
+      }
+      table { width: 100%; min-width: 880px; border-collapse: collapse; }
       th, td { border-bottom: 1px solid rgba(255, 255, 255, 0.12); padding: 0.58rem 0.45rem; text-align:left; font-size:0.9rem; vertical-align: top; }
       th { text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.7rem; color: rgba(226, 232, 240, 0.75); }
       .num { opacity: 0.86; }
@@ -151,54 +156,56 @@
           </div>
         </div>
 
-        <table aria-label="Carga avanzada por jugador">
-          <thead>
-            <tr>
-              <th>Jugador</th>
-              <th>RPE 7d</th>
-              <th>RPE 28d</th>
-              <th>28d/sem</th>
-              <th>ACWR</th>
-              <th>Well 7d</th>
-              <th>RPE 3d</th>
-              <th>Well 3d</th>
-              <th>Alerta</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for row in advanced_rows %}
-              {% with p=row.player %}
+        <div class="table-wrap">
+          <table aria-label="Carga avanzada por jugador">
+            <thead>
               <tr>
-                <td><strong>#{{ p.number|default:"-" }} · {{ p.name }}</strong></td>
-                <td class="num">{{ row.rpe_7_sum|default:"—" }}</td>
-                <td class="num">{{ row.rpe_28_sum|default:"—" }}</td>
-                <td class="num">{{ row.rpe_28_weekly|default:"—" }}</td>
-                <td class="num">{% if row.acwr %}{{ row.acwr }}{% else %}—{% endif %}</td>
-                <td class="num">{{ row.wellness_7_avg|default:"—" }}</td>
-                <td class="num">{{ row.rpe_3_avg|default:"—" }}</td>
-                <td class="num">{{ row.wellness_3_avg|default:"—" }}</td>
-                <td>
-                  {% if row.alert == 'acwr_high' %}
-                    <span class="pill warn">ACWR alto</span>
-                  {% elif row.alert == 'acwr_low' %}
-                    <span class="pill warn">ACWR bajo</span>
-                  {% elif row.alert == 'wellness_low' %}
-                    <span class="pill warn">Bienestar bajo</span>
-                  {% elif row.alert == 'rpe_high' %}
-                    <span class="pill warn">RPE alto</span>
-                  {% elif row.alert == 'missing' %}
-                    <span class="pill warn">Sin datos</span>
-                  {% else %}
-                    <span class="pill ok">OK</span>
-                  {% endif %}
-                </td>
+                <th>Jugador</th>
+                <th>RPE 7d</th>
+                <th>RPE 28d</th>
+                <th>28d/sem</th>
+                <th>ACWR</th>
+                <th>Well 7d</th>
+                <th>RPE 3d</th>
+                <th>Well 3d</th>
+                <th>Alerta</th>
               </tr>
-              {% endwith %}
-            {% empty %}
-              <tr><td colspan="9" class="subtle">No hay datos suficientes para calcular carga avanzada.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {% for row in advanced_rows %}
+                {% with p=row.player %}
+                <tr>
+                  <td><strong>#{{ p.number|default:"-" }} · {{ p.name }}</strong></td>
+                  <td class="num">{{ row.rpe_7_sum|default:"—" }}</td>
+                  <td class="num">{{ row.rpe_28_sum|default:"—" }}</td>
+                  <td class="num">{{ row.rpe_28_weekly|default:"—" }}</td>
+                  <td class="num">{% if row.acwr %}{{ row.acwr }}{% else %}—{% endif %}</td>
+                  <td class="num">{{ row.wellness_7_avg|default:"—" }}</td>
+                  <td class="num">{{ row.rpe_3_avg|default:"—" }}</td>
+                  <td class="num">{{ row.wellness_3_avg|default:"—" }}</td>
+                  <td>
+                    {% if row.alert == 'acwr_high' %}
+                      <span class="pill warn">ACWR alto</span>
+                    {% elif row.alert == 'acwr_low' %}
+                      <span class="pill warn">ACWR bajo</span>
+                    {% elif row.alert == 'wellness_low' %}
+                      <span class="pill warn">Bienestar bajo</span>
+                    {% elif row.alert == 'rpe_high' %}
+                      <span class="pill warn">RPE alto</span>
+                    {% elif row.alert == 'missing' %}
+                      <span class="pill warn">Sin datos</span>
+                    {% else %}
+                      <span class="pill ok">OK</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endwith %}
+              {% empty %}
+                <tr><td colspan="9" class="subtle">No hay datos suficientes para calcular carga avanzada.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section class="panel">
@@ -213,43 +220,45 @@
             <button class="primary" type="submit">Guardar</button>
           </div>
 
-          <table aria-label="Carga diaria">
-            <thead>
-              <tr>
-                <th>Jugador</th>
-                <th>RPE</th>
-                <th>Well</th>
-                <th>Peso</th>
-                <th>Notas</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for row in player_rows %}
-                {% with p=row.player m=row.metric %}
+          <div class="table-wrap">
+            <table aria-label="Carga diaria">
+              <thead>
                 <tr>
-                  <td>
-                    <strong>#{{ p.number|default:"-" }} · {{ p.name }}</strong>
-                    <div class="subtle" style="margin:0.15rem 0 0; font-size:0.82rem;">{{ p.position|default:"" }}</div>
-                  </td>
-                  <td>
-                    <input class="cell-input" type="number" min="1" max="10" name="rpe_{{ p.id }}" value="{% if m %}{{ m.rpe|default:'' }}{% endif %}" />
-                  </td>
-                  <td>
-                    <input class="cell-input" type="number" min="1" max="10" name="wellness_{{ p.id }}" value="{% if m %}{{ m.wellness|default:'' }}{% endif %}" />
-                  </td>
-                  <td>
-                    <input class="cell-input" type="number" step="0.1" name="weight_{{ p.id }}" value="{% if m %}{{ m.weight_kg|default:'' }}{% endif %}" />
-                  </td>
-                  <td>
-                    <textarea class="cell-notes" name="notes_{{ p.id }}" placeholder="Fatiga, molestias, carga modificada…">{% if m %}{{ m.notes|default:'' }}{% endif %}</textarea>
-                  </td>
+                  <th>Jugador</th>
+                  <th>RPE</th>
+                  <th>Well</th>
+                  <th>Peso</th>
+                  <th>Notas</th>
                 </tr>
-                {% endwith %}
-              {% empty %}
-                <tr><td colspan="5" class="subtle">No hay jugadores activos.</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {% for row in player_rows %}
+                  {% with p=row.player m=row.metric %}
+                  <tr>
+                    <td>
+                      <strong>#{{ p.number|default:"-" }} · {{ p.name }}</strong>
+                      <div class="subtle" style="margin:0.15rem 0 0; font-size:0.82rem;">{{ p.position|default:"" }}</div>
+                    </td>
+                    <td>
+                      <input class="cell-input" type="number" min="1" max="10" name="rpe_{{ p.id }}" value="{% if m %}{{ m.rpe|default:'' }}{% endif %}" />
+                    </td>
+                    <td>
+                      <input class="cell-input" type="number" min="1" max="10" name="wellness_{{ p.id }}" value="{% if m %}{{ m.wellness|default:'' }}{% endif %}" />
+                    </td>
+                    <td>
+                      <input class="cell-input" type="number" step="0.1" name="weight_{{ p.id }}" value="{% if m %}{{ m.weight_kg|default:'' }}{% endif %}" />
+                    </td>
+                    <td>
+                      <textarea class="cell-notes" name="notes_{{ p.id }}" placeholder="Fatiga, molestias, carga modificada…">{% if m %}{{ m.notes|default:'' }}{% endif %}</textarea>
+                    </td>
+                  </tr>
+                  {% endwith %}
+                {% empty %}
+                  <tr><td colspan="5" class="subtle">No hay jugadores activos.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
         </form>
         {% else %}
           <div class="subtle">No tienes permisos para editar. Puedes exportar el CSV desde el botón de arriba.</div>
