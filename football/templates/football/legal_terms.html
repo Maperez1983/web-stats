@@ -19,7 +19,7 @@
         color: rgba(245, 247, 250, 0.92);
         font-family: "Avenir Next", "Segoe UI", sans-serif;
       }
-      .shell { max-width: 980px; margin: 0 auto; padding: 1.2rem; }
+      .shell { width: min(100%, 980px); margin: 0 auto; padding: clamp(0.85rem, 1.25vw, 1.2rem); }
       .panel {
         margin-top: 0.9rem;
         border-radius: 18px;
@@ -33,6 +33,7 @@
         font-size: 1rem;
         letter-spacing: 0.14em;
         text-transform: uppercase;
+        overflow-wrap: anywhere;
       }
       h2 {
         margin: 1.1rem 0 0.35rem;
@@ -41,6 +42,7 @@
         text-transform: uppercase;
       }
       p, li { color: rgba(226, 232, 240, 0.82); line-height: 1.55; }
+      ul { margin: 0.45rem 0 0; padding-left: 1.15rem; }
       a { color: rgba(244, 180, 0, 0.95); text-decoration: none; }
       a:hover { text-decoration: underline; }
       .muted { color: rgba(148, 163, 184, 0.75); font-size: 0.85rem; }
@@ -49,6 +51,7 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        min-height: 38px;
         text-decoration: none;
         border-radius: 999px;
         padding: 0.45rem 0.75rem;
@@ -59,6 +62,7 @@
         letter-spacing: 0.14em;
         text-transform: uppercase;
         font-size: 0.68rem;
+        white-space: nowrap;
       }
       .pill:hover { border-color: rgba(244, 180, 0, 0.45); }
       .legal-box {
@@ -67,6 +71,10 @@
         background: rgba(255,255,255,0.03);
         padding: 0.85rem 0.9rem;
         margin-top: 0.9rem;
+      }
+      @media (max-width: 640px) {
+        .panel { border-radius: 16px; padding: 0.85rem; }
+        .toplinks .pill { width: 100%; }
       }
     </style>
   </head>

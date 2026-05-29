@@ -447,13 +447,13 @@
         font-weight: 600;
       }
       .quick-action-columns {
-        display: flex;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(180px, 1fr));
         gap: 1rem;
-        flex-wrap: wrap;
+        min-width: 0;
       }
       .quick-action-column {
-        flex: 1;
-        min-width: 220px;
+        min-width: 0;
       }
       .quick-action-card {
         background: linear-gradient(135deg, rgba(6, 10, 24, 0.95), rgba(12, 18, 34, 0.84));
@@ -482,6 +482,7 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+        gap: 0.65rem;
         text-transform: uppercase;
         letter-spacing: 0.2em;
         font-size: 0.7rem;
@@ -980,6 +981,13 @@
         font-size: 0.75rem;
         gap: 0.75rem;
         flex-wrap: wrap;
+        position: sticky;
+        top: 0;
+        z-index: 35;
+        padding: 0.4rem 0;
+        background: linear-gradient(180deg, rgba(4, 8, 20, 0.98), rgba(4, 8, 20, 0.86));
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
       }
 	      .zone-overlay-toggle {
 	        border: 1px solid rgba(244, 180, 0, 0.28);
@@ -1002,6 +1010,7 @@
         flex-wrap: wrap;
         justify-content: flex-end;
         align-items: center;
+        min-width: 0;
       }
 	      .zone-overlay-toggle.finalize-top {
 	        border-color: rgba(244, 180, 0, 0.55);
@@ -1050,6 +1059,10 @@
         overflow-y: hidden;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: thin;
+        position: sticky;
+        top: 4.55rem;
+        z-index: 30;
+        box-shadow: 0 18px 36px rgba(0, 0, 0, 0.22);
       }
 	      .match-stage-tab {
 	        display: inline-flex;
@@ -2399,7 +2412,11 @@
         gap: 0.6rem;
       }
       .history-item {
-        padding: 0.9rem;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 0.55rem;
+        align-items: center;
+        padding: 0.72rem 0.78rem;
         border-radius: 12px;
         background: rgba(255, 255, 255, 0.02);
         border: 1px solid rgba(255, 255, 255, 0.08);
@@ -2423,9 +2440,13 @@
       }
       .history-item strong {
         display: block;
-        margin-bottom: 0.3rem;
+        margin-bottom: 0.12rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
       .history-item .hist-minute {
+        min-width: 3.2rem;
         font-size: 0.7rem;
         letter-spacing: 0.3em;
         color: rgba(248, 250, 252, 0.6);
@@ -2434,6 +2455,9 @@
         margin: 0;
         font-size: 0.8rem;
         color: rgba(248, 250, 252, 0.75);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
       .match-page-status {
         display: none;
@@ -2462,9 +2486,7 @@
         background: rgba(127, 29, 29, 0.35);
       }
       .history-actions {
-        position: absolute;
-        top: 0.35rem;
-        right: 0.35rem;
+        position: static;
         display: flex;
         gap: 0.35rem;
         align-items: center;
@@ -2666,9 +2688,40 @@
           min-height: 0;
         }
       }
+      @media (max-width: 1240px) {
+        .quick-action-columns {
+          display: flex;
+          flex-wrap: nowrap;
+          overflow-x: auto;
+          overflow-y: hidden;
+          padding-bottom: 0.25rem;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: thin;
+        }
+        .quick-action-column {
+          flex: 0 0 min(280px, 76vw);
+        }
+        .quick-action-card {
+          border-radius: 20px;
+          padding: 0.75rem 0.85rem;
+        }
+        .quick-action-header {
+          align-items: flex-start;
+        }
+        .quick-action-counts {
+          letter-spacing: 0.12em;
+          text-align: right;
+        }
+      }
       @media (max-width: 900px) {
         .action-screen {
           grid-template-columns: 1fr;
+        }
+        .field-header {
+          top: 0;
+        }
+        .match-stage-tabs {
+          top: 4.1rem;
         }
         .field-column {
           padding: 1.25rem;
@@ -2685,6 +2738,32 @@
         }
       }
       @media (max-width: 760px) {
+        .field-header {
+          position: static;
+          padding-top: 0;
+        }
+        .field-header .product-brand-strip {
+          margin-bottom: 0 !important;
+        }
+        .field-header .dragon-logo {
+          width: 108px !important;
+        }
+        .field-header-actions {
+          flex-wrap: nowrap;
+          justify-content: flex-start;
+          overflow-x: auto;
+          overflow-y: hidden;
+          width: 100%;
+          padding-bottom: 0.25rem;
+          -webkit-overflow-scrolling: touch;
+        }
+        .field-header-actions > * {
+          flex: 0 0 auto;
+        }
+        .match-stage-tabs {
+          position: sticky;
+          top: 0;
+        }
         .field-column,
         .actions-sidebar {
           padding: 0.9rem;
@@ -2781,6 +2860,14 @@
         .closure-actions button,
         .toolbar-pill {
           width: 100%;
+        }
+        .history-item {
+          grid-template-columns: auto minmax(0, 1fr);
+          padding-right: 0.7rem;
+        }
+        .history-actions {
+          grid-column: 1 / -1;
+          justify-content: flex-end;
         }
       }
 
