@@ -3644,24 +3644,19 @@ def _single_club_fallback_enabled() -> bool:
     return workspace_context.single_club_fallback_enabled()
 
 
-def _trial_days_default() -> int:
-    return workspace_subscription.trial_days_default()
+_trial_days_default = workspace_subscription.trial_days_default
 
 
-def _workspace_trial_expires_at_default():
-    return workspace_subscription.trial_expires_at_default()
+_workspace_trial_expires_at_default = workspace_subscription.trial_expires_at_default
 
 
-def _workspace_is_subscription_active(workspace) -> bool:
-    return workspace_subscription.is_subscription_active(workspace)
+_workspace_is_subscription_active = workspace_subscription.is_subscription_active
 
 
-def _workspace_is_trial_active(workspace) -> bool:
-    return workspace_subscription.is_trial_active(workspace)
+_workspace_is_trial_active = workspace_subscription.is_trial_active
 
 
-def _workspace_requires_subscription(workspace) -> bool:
-    return workspace_subscription.requires_subscription(workspace)
+_workspace_requires_subscription = workspace_subscription.requires_subscription
 
 
 def _paywall_response(request, *, workspace=None):
