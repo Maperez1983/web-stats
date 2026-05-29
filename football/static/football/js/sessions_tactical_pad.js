@@ -23713,6 +23713,11 @@
                   try { window.localStorage.setItem(TACTICS_INTERACTIVE_KEY, tacticsInteractiveEnabled ? '1' : '0'); } catch (e) { /* ignore */ }
                 }
                 syncRouteSummary();
+                try {
+                  setStatus(tacticsInteractiveEnabled
+                    ? 'Modo interactivo activo: usa Ruta, ▶ o Demo interactiva.'
+                    : 'Modo estático activo.');
+                } catch (e) { /* ignore */ }
               };
               try {
                 const stored = safeText(window.localStorage.getItem(TACTICS_INTERACTIVE_KEY));

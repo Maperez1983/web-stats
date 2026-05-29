@@ -1364,6 +1364,12 @@
       body.tactics-mode .tactics-quickbar #task-tactics-layout-toggle {
         display: inline-flex !important;
       }
+      body.tactics-mode.tactics-interactive .tactics-quickbar #tactics-tool-route,
+      body.tactics-mode.tactics-interactive .tactics-quickbar #tactics-tool-route-play,
+      body.tactics-mode.tactics-interactive .tactics-quickbar #tactics-interactive-menu,
+      body.tactics-mode.tactics-interactive .tactics-quickbar #tactics-demo-build-up {
+        display: inline-flex !important;
+      }
       body.tactics-mode .tactics-quickbar .tactics-chip {
         border-radius: 14px;
         padding: 0.52rem 0.72rem;
@@ -5456,6 +5462,7 @@
                       <button type="button" class="is-active" id="tactics-mode-static" data-tactics-board="static" role="tab" aria-selected="true">Estática</button>
                       <button type="button" id="tactics-mode-interactive" data-tactics-board="interactive" role="tab" aria-selected="false">Interactiva</button>
                     </div>
+                    <button type="button" class="surface-trigger tactics-chip" data-tactics-only="interactive" data-tactics-demo="build_up" id="tactics-demo-build-up" title="Generar demo interactiva" aria-label="Generar demo interactiva">Demo interactiva</button>
                     <button type="button" class="surface-trigger tactics-chip" data-tactics-tool="player_local" id="tactics-tool-local" title="Insertar ficha local" aria-label="Insertar ficha local">
                       <span class="dot" aria-hidden="true"></span>Local
                     </button>
