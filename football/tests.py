@@ -19,7 +19,7 @@ from django.test import SimpleTestCase, TestCase, TransactionTestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from football.models import AnalystVideoFolder, AnalysisVideoReport, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerFine, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, StaffMember, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, TrainingSessionAttendance, UserInvitation, VideoClip, VideoTimelineEvent, VideoTelestrationProject, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspacePreference, WorkspaceSeason, WorkspaceSeasonPlayer, WorkspaceTeam
+from football.models import AnalystVideoFolder, AnalysisVideoReport, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerFine, PlayerSeasonReport, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, StaffMember, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, TrainingSessionAttendance, UserInvitation, VideoClip, VideoTimelineEvent, VideoTelestrationProject, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspacePreference, WorkspaceSeason, WorkspaceSeasonPlayer, WorkspaceTeam
 from football import views as football_views
 from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.event_taxonomy import (
@@ -4848,6 +4848,36 @@ class ManualStatsTests(TestCase):
         self.assertEqual(overrides[self.player.id]['pj'], 11)
         self.assertEqual(overrides[self.player.id]['minutes'], 810)
         self.assertContains(response, 'Estadísticas manuales guardadas.')
+
+    def test_player_report_manual_stats_feed_dashboard_kpis(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse('player-season-report-edit', args=[self.player.id]),
+            {
+                'manual_pj': '12',
+                'manual_minutes': '720',
+                'manual_goals': '5',
+                'manual_assists': '4',
+                'manual_participation_pct': '66.5',
+                'manual_success_rate': '71',
+                'manual_importance_score': '82',
+                'manual_influence_score': '77',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        report = PlayerSeasonReport.objects.get(player=self.player, team=self.team)
+        self.assertEqual(report.manual_overrides['pj'], 12)
+        overrides = get_manual_player_base_overrides(self.team, self.season)
+        self.assertEqual(overrides[self.player.id]['pj'], 12)
+        self.assertEqual(overrides[self.player.id]['minutes'], 720)
+        rows = compute_player_dashboard(self.team, force_refresh=True)
+        detail = next(row for row in rows if row['player_id'] == self.player.id)
+        self.assertEqual(int(detail.get('pj') or 0), 12)
+        self.assertEqual(int(detail.get('minutes') or 0), 720)
+        self.assertEqual(int(detail.get('goals') or 0), 5)
+        self.assertEqual(int(detail.get('assists') or 0), 4)
 
     @patch('football.views.get_roster_stats_cache', side_effect=RuntimeError('snapshot roto'))
     def test_manual_stats_page_tolerates_roster_cache_errors(self, mocked_cache):

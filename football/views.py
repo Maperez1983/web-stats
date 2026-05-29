@@ -51072,7 +51072,24 @@ def player_season_report_edit_page(request, player_id):
 
         report.manual_overrides = manual
         report.updated_by = request.user if isinstance(request.user, User) else None
-        report.save()
+        with transaction.atomic():
+            report.save()
+            # Los ajustes agregados del informe deben alimentar también la fuente común de KPI.
+            # Si solo se quedan en PlayerSeasonReport, el PDF puede corregirse pero ficha/dashboard
+            # siguen mostrando los valores calculados anteriores.
+            season_obj = primary_team.group.season if primary_team.group else None
+            if season_obj:
+                save_manual_player_base_overrides(
+                    player=player,
+                    season=season_obj,
+                    values={
+                        'manual_pj': payload.get('manual_pj'),
+                        'manual_minutes': payload.get('manual_minutes'),
+                        'manual_goals': payload.get('manual_goals'),
+                        'manual_assists': payload.get('manual_assists'),
+                    },
+                )
+        _invalidate_team_dashboard_caches(primary_team)
         try:
             messages.success(request, 'Valoración guardada.')
         except Exception:
