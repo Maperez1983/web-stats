@@ -10,13 +10,16 @@
     {% include 'football/pwa_head.html' %}
     <style>
       body { margin: 0; background: linear-gradient(180deg, #020417 0%, #050b1c 100%); color: #f8fafc; font-family: 'Inter', system-ui, sans-serif; }
-      .page { max-width: 1200px; margin: 0 auto; padding: 1.1rem 1rem 2.5rem; }
-      .head { display:flex; justify-content:space-between; gap:0.8rem; flex-wrap:wrap; align-items:flex-end; }
+      .page { width: min(100%, 1280px); margin: 0 auto; padding: clamp(0.8rem, 1.2vw, 1.1rem) clamp(0.75rem, 1.2vw, 1rem) 2.5rem; }
+      .head { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:0.8rem; align-items:end; }
+      .head-main { min-width:0; display:grid; gap:0.18rem; }
+      .head-actions { display:flex; gap:0.45rem; flex-wrap:wrap; justify-content:flex-end; }
       .head h1 { margin:0; text-transform:uppercase; letter-spacing:0.14em; font-size:1rem; }
-      .meta { color: rgba(226, 232, 240, 0.72); font-weight: 800; }
+      .meta { color: rgba(226, 232, 240, 0.72); font-weight: 800; overflow-wrap:anywhere; }
       .card { margin-top: 1rem; background: rgba(12, 20, 34, 0.92); border: 1px solid rgba(145, 161, 185, 0.18); border-radius: 22px; box-shadow: 0 22px 52px rgba(0,0,0,0.28); padding: 0.95rem; }
-      .toolbar { display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center; justify-content:flex-start; margin-bottom:0.75rem; }
-      .button { border-radius: 999px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.72rem 0.98rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; text-decoration:none; }
+      .toolbar { min-width:0; display:flex; gap:0.45rem; flex-wrap:nowrap; align-items:center; justify-content:flex-start; margin-bottom:0.75rem; overflow-x:auto; scrollbar-width:thin; padding-bottom:0.08rem; }
+      .toolbar > * { flex:0 0 auto; }
+      .button { min-height:38px; display:inline-flex; align-items:center; justify-content:center; white-space:nowrap; border-radius: 999px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.62rem 0.88rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; text-decoration:none; }
       .button.primary { background: linear-gradient(135deg, #22d3ee, #67e8f9); border:none; color:#03253c; }
       .stage { position:relative; width:100%; border-radius: 18px; overflow:hidden; border: 1px solid rgba(148,163,184,0.18); background: rgba(0,0,0,0.22); }
       .stage video { display:block; width:100%; height:auto; position:relative; z-index: 1; }
@@ -31,16 +34,21 @@
       }
       textarea { min-height: 100px; resize: vertical; }
       .k { display:inline-flex; align-items:center; justify-content:center; min-width: 26px; padding: 0.1rem 0.4rem; border-radius: 10px; border: 1px solid rgba(148,163,184,0.22); background: rgba(2, 6, 23, 0.35); font-weight: 900; font-size: 0.72rem; }
+      @media (max-width: 720px) {
+        .head { grid-template-columns:1fr; align-items:start; }
+        .head-actions { justify-content:flex-start; }
+        .card { border-radius:18px; padding:0.75rem; }
+      }
     </style>
   </head>
   <body class="prod-commercial">
     <main class="page">
       <div class="head">
-        <div>
+        <div class="head-main">
           <h1>{{ clip.title|default:"Clip" }}</h1>
           <div class="meta">2J · Video Studio · {{ video.title }}</div>
         </div>
-        <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
+        <div class="head-actions">
           <a class="button" href="{{ video_stream_url }}" download>Descargar</a>
         </div>
       </div>
