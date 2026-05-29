@@ -1486,6 +1486,17 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
         clearRegisterHistoryUI();
         resetRegisterHudState();
         resetClockExternal ? resetClockExternal() : resetClock();
+        try {
+          document.body.classList.remove('pro-sidebar-open');
+          document.querySelectorAll('.convocation-card.selected, .lineup-chip.selected').forEach((el) => {
+            try { el.classList.remove('selected'); } catch (e) {}
+          });
+          const playerInput = document.getElementById('selected-player');
+          if (playerInput) playerInput.value = '';
+          if (currentMatchId) {
+            try { localStorage.removeItem(`touchFieldLineup:${String(currentMatchId).trim()}`); } catch (e) {}
+          }
+        } catch (err) { /* ignore */ }
         emitSummaryChange();
         try {
           document.querySelector('[data-stage-tab="close"]')?.click();

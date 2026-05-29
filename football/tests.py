@@ -6270,6 +6270,83 @@ class MatchActionWorkflowTests(TestCase):
         pending.refresh_from_db()
         self.assertEqual(pending.system, 'touch-field-final')
 
+    def test_finalize_consolidates_live_actions_and_resets_matchday_state(self):
+        player = Player.objects.create(team=self.team, name='Registro KPI Único', number=99, position='Interior')
+        self.convocation.players.add(player)
+        session = self.client.session
+        session['active_match_by_team'] = {str(self.team.id): self.match.id}
+        session.save()
+        self.convocation.lineup_data = {
+            'starters': [{'id': str(player.id), 'name': player.name, 'number': player.number}],
+            'bench': [],
+        }
+        self.convocation.is_current = True
+        self.convocation.save(update_fields=['lineup_data', 'is_current'])
+        baseline_dashboard = compute_player_dashboard(self.team, force_refresh=True)
+        baseline_detail = next(item for item in baseline_dashboard if item['player_id'] == player.id)
+        baseline_goals = int(baseline_detail.get('goals') or 0)
+        baseline_assists = int(baseline_detail.get('assists') or 0)
+        MatchEvent.objects.create(
+            match=self.match,
+            player=player,
+            event_type='Gol',
+            result='Gol',
+            zone='Ataque Centro',
+            tercio='Ataque',
+            minute=51,
+            period=2,
+            system='touch-field',
+            source_file='registro-acciones',
+        )
+        MatchEvent.objects.create(
+            match=self.match,
+            player=player,
+            event_type='Asistencia',
+            result='OK',
+            zone='Ataque Centro',
+            tercio='Ataque',
+            minute=52,
+            period=2,
+            system='touch-field',
+            source_file='registro-acciones',
+        )
+
+        response = self.client.post(
+            reverse('match-action-finalize'),
+            data=json.dumps({'match_id': self.match.id, 'match_info': {'match_id': self.match.id}}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload.get('saved'))
+        self.assertEqual(payload.get('updated'), 2)
+        self.assertFalse(
+            MatchEvent.objects.filter(
+                match=self.match,
+                system='touch-field',
+                source_file='registro-acciones',
+            ).exists()
+        )
+        self.assertEqual(
+            MatchEvent.objects.filter(
+                match=self.match,
+                system='touch-field-final',
+                source_file='registro-acciones',
+            ).count(),
+            2,
+        )
+        self.convocation.refresh_from_db()
+        self.assertFalse(self.convocation.is_current)
+        self.assertEqual(
+            self.client.session.get('active_match_by_team', {}).get(str(self.team.id)),
+            None,
+        )
+        dashboard = compute_player_dashboard(self.team, force_refresh=True)
+        detail = next(item for item in dashboard if item['player_id'] == player.id)
+        self.assertEqual(detail['goals'], baseline_goals + 1)
+        self.assertEqual(detail['assists'], baseline_assists + 1)
+
     def test_finalize_can_store_final_score(self):
         self.assertIsNone(self.match.home_score)
         self.assertIsNone(self.match.away_score)
