@@ -45,10 +45,20 @@
         -webkit-backdrop-filter: blur(10px) saturate(1.12);
         box-shadow: 0 18px 46px rgba(2, 6, 23, 0.34);
       }
-      .top h1 { margin: 0; font-size: 1.1rem; letter-spacing: 0.08em; text-transform: uppercase; }
+      .top h1 {
+        min-width: 0;
+        margin: 0;
+        font-size: clamp(0.95rem, 1.1vw, 1.1rem);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
       .top-actions {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, auto));
+        min-width: 0;
+        display: flex;
+        flex-wrap: wrap;
         gap: 0.55rem;
         align-items: center;
         justify-content: end;
@@ -58,7 +68,10 @@
         border: 1px solid var(--line); border-radius: 999px; padding: 0.55rem 1rem;
         color: var(--ink); background: rgba(255, 255, 255, 0.06); font-weight: 700;
         letter-spacing: 0.06em; text-transform: uppercase; font-size: 0.74rem;
+        min-height: 38px;
+        white-space: nowrap;
       }
+      .scope-meta { margin-top: -0.35rem; margin-bottom: 0.9rem; }
       .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
       .button.icon-btn { width: 2.8rem; height: 2.8rem; padding: 0; border-radius: 999px; }
       .button.icon-btn svg { width: 1.15rem; height: 1.15rem; display:block; }
@@ -74,9 +87,14 @@
       .panel h2 { margin: 0 0 0.75rem; font-size: 0.82rem; letter-spacing: 0.12em; text-transform: uppercase; }
       .hero-grid {
         display:grid;
-        grid-template-columns: 1.2fr .8fr;
+        grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr);
         gap: .85rem;
         margin-bottom: 1rem;
+      }
+      .hero-grid > *,
+      .workflow-grid > *,
+      .summary-grid > * {
+        min-width: 0;
       }
       .hero-panel {
         border-radius: 20px;
@@ -93,7 +111,7 @@
       .hero-panel p { color: rgba(225,236,255,.78); }
       .summary-grid {
         display:grid;
-        grid-template-columns: repeat(5, minmax(0,1fr));
+        grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
         gap: .6rem;
         margin-top: .85rem;
       }
@@ -129,7 +147,7 @@
       }
       .workflow-grid {
         display:grid;
-        grid-template-columns: repeat(2, minmax(0,1fr));
+        grid-template-columns: repeat(auto-fit, minmax(260px,1fr));
         gap:.8rem;
         margin-bottom: 1rem;
       }
@@ -286,8 +304,8 @@
         padding: 0.7rem;
       }
       .session-card-head {
-        display: flex;
-        justify-content: space-between;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
         align-items: flex-start;
         gap: 0.7rem;
       }
@@ -295,6 +313,7 @@
         margin: 0;
         font-size: 0.86rem;
         letter-spacing: 0.02em;
+        overflow-wrap: anywhere;
       }
       .session-chip-row {
         display: flex;
@@ -318,7 +337,9 @@
         flex-wrap: wrap;
         gap: 0.45rem;
         margin-top: 0.65rem;
+        align-items: center;
       }
+      .session-actions > * { flex: 0 0 auto; }
       .microcycle-plan-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -363,9 +384,12 @@
       }
       .microcycle-week-strip {
         display: grid;
-        grid-template-columns: repeat(7, minmax(0, 1fr));
+        grid-template-columns: repeat(7, minmax(150px, 1fr));
         gap: 0.55rem;
         margin: 0.75rem 0 0.95rem;
+        overflow-x: auto;
+        scrollbar-width: thin;
+        padding-bottom: 0.15rem;
       }
       .microcycle-day {
         min-height: 132px;
@@ -431,8 +455,8 @@
         margin-top: 0.65rem;
       }
       .session-sheet-title {
-        display: flex;
-        justify-content: space-between;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
         align-items: flex-start;
         gap: 0.6rem;
         margin-bottom: 0.55rem;
@@ -441,6 +465,7 @@
         margin: 0;
         font-size: 0.86rem;
         line-height: 1.2;
+        overflow-wrap: anywhere;
       }
       .session-sheet-meta {
         display: flex;
@@ -876,6 +901,35 @@
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
         gap: 0.45rem;
+      }
+      .filter-row,
+      .bulk-action-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        align-items: center;
+        margin: 0;
+        min-width: 0;
+      }
+      .filter-row input[type="search"] {
+        flex: 1 1 280px;
+        min-width: min(100%, 260px);
+      }
+      .filter-row select,
+      .bulk-action-row select {
+        flex: 0 1 260px;
+        min-width: min(100%, 210px);
+      }
+      .bulk-action-row > strong {
+        margin-right: 0.25rem;
+        white-space: nowrap;
+      }
+      .bulk-action-row .bulk-help {
+        margin-left: auto;
+      }
+      .bulk-action-row input[type="text"] {
+        flex: 1 1 260px;
+        min-width: min(100%, 240px);
       }
       .check-pill {
         display: inline-flex;
@@ -1496,16 +1550,11 @@
         .page {
           padding: 0.95rem;
         }
-        .hero-grid,
-        .summary-grid {
+        .hero-grid {
           grid-template-columns: 1fr;
         }
         .top {
           align-items: stretch;
-          flex-direction: column;
-        }
-        .top .button {
-          width: 100%;
         }
         .tabs {
           flex-wrap: nowrap;
@@ -1558,19 +1607,27 @@
           grid-template-columns: 1fr;
           align-items: stretch;
         }
+        .top h1 {
+          white-space: normal;
+        }
         .top-actions {
-          grid-template-columns: 1fr;
           justify-content: stretch;
         }
         .top-actions .button {
           width: 100%;
         }
+        .session-card-head,
+        .session-sheet-title {
+          grid-template-columns: 1fr;
+        }
+        .bulk-action-row .bulk-help {
+          margin-left: 0;
+          flex-basis: 100%;
+        }
       }
-      @media (max-width: 720px) { .summary-grid, .workflow-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
       @media (max-width: 520px) { .summary-grid { grid-template-columns: 1fr; } }
       @media (max-width: 520px) {
-        .workflow-grid,
-        .microcycle-week-strip {
+        .workflow-grid {
           grid-template-columns: 1fr;
         }
       }
@@ -1639,7 +1696,7 @@
               <a href="{% url 'dashboard-home' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}" class="button">Volver</a>
             </div>
 		      </div>
-	      <p class="meta" style="margin-top:-0.35rem; margin-bottom:0.9rem;">Espacio activo: <strong>{{ scope_title|default:"Sesiones" }}</strong> <span class="product-chip role">Sesiones · Microciclos · Biblioteca · Crear tarea</span></p>
+	      <p class="meta scope-meta">Espacio activo: <strong>{{ scope_title|default:"Sesiones" }}</strong> <span class="product-chip role">Sesiones · Microciclos · Biblioteca · Crear tarea</span></p>
 
       {% if messages %}
         {% for message in messages %}
@@ -3374,15 +3431,14 @@
                     {% if library_view == 'favorites' %}<input type="hidden" name="library_view" value="favorites" />{% endif %}
                     {% if library_collection_id %}<input type="hidden" name="collection_id" value="{{ library_collection_id }}" />{% endif %}
 
-                    <div style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center;">
+                    <div class="filter-row">
                       <input
                         type="search"
                         name="q"
                         value="{{ library_q }}"
                         placeholder="Buscar (título, objetivo, consignas, reglas, descripción…)"
-                        style="flex:1; min-width:260px;"
                       />
-                      <select name="sort" style="min-width:210px;">
+                      <select name="sort">
                         <option value="recent" {% if library_sort == 'recent' %}selected{% endif %}>Más recientes</option>
                         <option value="quality" {% if library_sort == 'quality' %}selected{% endif %}>Mayor calidad</option>
                         <option value="confidence" {% if library_sort == 'confidence' %}selected{% endif %}>Mayor confianza</option>
@@ -3544,7 +3600,7 @@
                 {% if library_bulk_mode %}
                 <div class="box" style="margin:0 0 1rem;">
                   {% if library_collections %}
-                  <form method="post" id="bulk-collection-form" style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center; margin:0;">
+                  <form method="post" id="bulk-collection-form" class="bulk-action-row">
                     {% csrf_token %}
                     <input type="hidden" name="planner_action" value="bulk_add_tasks_to_collection" />
                     <input type="hidden" name="planner_tab" value="library" />
@@ -3552,26 +3608,26 @@
                     <input type="hidden" name="library_key" value="{{ library_key }}" />
                     <input type="hidden" name="library_repo" value="{{ library_repository }}" />
                     <input type="hidden" name="task_ids_csv" id="bulk-collection-task-ids" value="" />
-                    <strong style="margin-right:0.25rem;">Acción masiva</strong>
-                    <select name="collection_id" style="min-width:240px;">
+                    <strong>Acción masiva</strong>
+                    <select name="collection_id">
                       {% for col in library_collections %}
                       <option value="{{ col.id }}">{{ col.name }}</option>
                       {% endfor %}
                     </select>
                     <button type="submit" class="primary" id="bulk-collection-submit" disabled>Añadir 0 a colección</button>
                     <button type="button" class="secondary" id="bulk-collection-clear" disabled>Limpiar</button>
-                    <span class="meta" style="margin-left:auto;">Marca tareas (checkbox) en las cards.</span>
+                    <span class="meta bulk-help">Marca tareas (checkbox) en las cards.</span>
                   </form>
                   {% else %}
-                  <form method="post" style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center; margin:0;">
+                  <form method="post" class="bulk-action-row">
                     {% csrf_token %}
                     <input type="hidden" name="planner_action" value="create_task_collection" />
                     <input type="hidden" name="planner_tab" value="library" />
                     <input type="hidden" name="library_repo" value="{{ library_repository }}" />
-                    <strong style="margin-right:0.25rem;">Acción masiva</strong>
-                    <input type="text" name="collection_name" placeholder="Nombre colección (ej: ‘ABP ofensivo’)…" style="min-width:260px;" />
+                    <strong>Acción masiva</strong>
+                    <input type="text" name="collection_name" placeholder="Nombre colección (ej: ‘ABP ofensivo’)…" />
                     <button type="submit" class="secondary">Crear colección</button>
-                    <span class="meta" style="margin-left:auto;">Crea una colección para poder agrupar tareas.</span>
+                    <span class="meta bulk-help">Crea una colección para poder agrupar tareas.</span>
                   </form>
                   {% endif %}
                 </div>
@@ -3580,7 +3636,7 @@
         {% if task_library_page_items %}
         {% if task_pick_mode and task_pick_kind == 'create_session' %}
         <div class="box" style="margin:0 0 0.9rem;">
-          <form method="post" id="pick-create-session-tasks" style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center; margin:0;">
+          <form method="post" id="pick-create-session-tasks" class="bulk-action-row">
             {% csrf_token %}
             <input type="hidden" name="planner_action" value="store_create_session_task_picks" />
             <input type="hidden" name="planner_tab" value="library" />
@@ -3592,16 +3648,16 @@
             <input type="hidden" name="library_repo" value="{{ library_repository }}" />
             <input type="hidden" name="picked_task_ids_csv" id="pick-session-task-ids" value="" />
             <input type="hidden" name="picked_task_assignments_csv" id="pick-session-task-assignments" value="" />
-            <strong style="margin-right:0.25rem;">Seleccionar tareas</strong>
+            <strong>Seleccionar tareas</strong>
             <button type="submit" class="primary" id="pick-session-submit" disabled>Guardar 0 tareas</button>
             <button type="button" class="secondary" id="pick-session-clear" disabled>Limpiar</button>
             <a class="button secondary" href="?{% qs_replace tab='create' create_page='session' pick_for=None %}">← Volver a crear sesión</a>
-            <span class="meta" style="margin-left:auto;">Marca tareas y asigna su segmento.</span>
+            <span class="meta bulk-help">Marca tareas y asigna su segmento.</span>
           </form>
         </div>
         {% elif session_hint_id and planning_session_items %}
         <div class="box" style="margin:0 0 0.9rem;">
-          <form method="post" id="bulk-add-library-tasks" style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center; margin:0;">
+          <form method="post" id="bulk-add-library-tasks" class="bulk-action-row">
             {% csrf_token %}
             <input type="hidden" name="planner_action" value="bulk_copy_library_tasks_to_session" />
             <input type="hidden" name="planner_tab" value="library" />
@@ -3614,15 +3670,15 @@
             <input type="hidden" name="source_task_ids_csv" id="bulk-add-task-ids" value="" />
             <input type="hidden" name="source_task_assignments_csv" id="bulk-add-task-assignments" value="" />
 
-            <strong style="margin-right:0.25rem;">Añadir a sesión</strong>
-            <select name="target_session_id" style="min-width:260px;">
+            <strong>Añadir a sesión</strong>
+            <select name="target_session_id">
               {% for session_item in planning_session_items %}
               <option value="{{ session_item.id }}" {% if session_hint_id and session_item.id == session_hint_id %}selected{% endif %}>{{ session_item.label }}</option>
               {% endfor %}
             </select>
             <button type="submit" class="primary" id="bulk-add-submit" disabled>Añadir 0 tareas</button>
             <button type="button" class="secondary" id="bulk-add-clear" disabled>Limpiar</button>
-            <span class="meta" style="margin-left:auto;">Marca tareas y asigna su segmento.</span>
+            <span class="meta bulk-help">Marca tareas y asigna su segmento.</span>
           </form>
         </div>
         {% endif %}
