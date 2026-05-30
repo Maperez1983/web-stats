@@ -5506,6 +5506,7 @@ class AdminActionsTests(TestCase):
             away_team=self.rival,
             date=date(2026, 3, 24),
         )
+        self.player = Player.objects.create(team=self.team, name='Jugador Admin', number=8)
 
     def test_actions_tab_renders_with_date_only_match(self):
         self.client.force_login(self.user)
@@ -5514,6 +5515,20 @@ class AdminActionsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Partido a editar')
+        self.assertContains(response, '<select name="action_type" required>', html=False)
+        self.assertContains(response, '<select name="result" required>', html=False)
+        self.assertContains(response, 'OK')
+
+    def test_match_editor_uses_select_catalogs_for_manual_actions(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('match-editor', args=[self.match.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<select name="event_type" required>', html=False)
+        self.assertContains(response, '<select name="result" required>', html=False)
+        self.assertContains(response, '<select name="zone">', html=False)
+        self.assertContains(response, 'OK')
 
     def test_actions_tab_saves_match_time_into_kickoff_field(self):
         self.client.force_login(self.user)

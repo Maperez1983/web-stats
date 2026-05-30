@@ -1423,6 +1423,18 @@ DEFAULT_QUICK_ACTIONS = [
     'Saque de esquina a favor',
     'Saque de esquina en contra',
 ]
+DEFAULT_MATCH_RESULTS = [
+    'GANADO',
+    'PERDIDO',
+    'NEUTRAL',
+    'OK',
+    'MAL',
+    'AP',
+    'GOL',
+    'FALLADO',
+    'A FAVOR',
+    'EN CONTRA',
+]
 
 def load_match_quick_actions():
     """
@@ -1453,4 +1465,12 @@ def load_match_actions():
 
 def load_match_results():
     _, results = _read_match_list_sheet()
-    return results or ['Ganado', 'Perdido', 'Neutral']
+    ordered = []
+    seen = set()
+    for result in [*(results or []), *DEFAULT_MATCH_RESULTS]:
+        normalized = str(result or '').strip().lower()
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        ordered.append(str(result).strip())
+    return ordered

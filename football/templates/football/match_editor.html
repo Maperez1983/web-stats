@@ -211,23 +211,6 @@
         </div>
 
         <h3 style="margin:0 0 0.55rem;font-size:1rem;">Añadir por volumen</h3>
-        <datalist id="editor-action-catalog">
-          {% for action in action_catalog %}
-            <option value="{{ action|escape }}"></option>
-          {% endfor %}
-        </datalist>
-        <datalist id="editor-result-catalog">
-          {% for result in result_options %}
-            <option value="{{ result|escape }}"></option>
-          {% endfor %}
-          <option value="OK"></option>
-          <option value="Mal"></option>
-        </datalist>
-        <datalist id="editor-zone-catalog">
-          {% for zone in zone_options %}
-            <option value="{{ zone|escape }}"></option>
-          {% endfor %}
-        </datalist>
         <form method="post" class="row-form" style="margin-bottom:0.9rem;">
           {% csrf_token %}
           <input type="hidden" name="form_action" value="events_bulk_add" />
@@ -250,15 +233,30 @@
           </div>
           <div>
             <label>Acción</label>
-            <input name="event_type" list="editor-action-catalog" placeholder="Ej. Pérdida no forzada" required />
+            <select name="event_type" required>
+              <option value="">Selecciona</option>
+              {% for action in action_catalog %}
+                <option value="{{ action }}">{{ action }}</option>
+              {% endfor %}
+            </select>
           </div>
           <div>
             <label>Resultado</label>
-            <input name="result" list="editor-result-catalog" placeholder="OK / Mal / Ganado..." required />
+            <select name="result" required>
+              <option value="">Selecciona</option>
+              {% for result in result_options %}
+                <option value="{{ result }}">{{ result }}</option>
+              {% endfor %}
+            </select>
           </div>
           <div>
             <label>Zona</label>
-            <input name="zone" list="editor-zone-catalog" placeholder="Ej. Medio Centro" />
+            <select name="zone">
+              <option value="">Sin zona</option>
+              {% for zone in zone_options %}
+                <option value="{{ zone }}">{{ zone }}</option>
+              {% endfor %}
+            </select>
           </div>
           <div>
             <label>Observación</label>
@@ -291,15 +289,30 @@
           </div>
           <div>
             <label>Acción</label>
-            <input name="event_type" list="editor-action-catalog" placeholder="Ej. GOL / ASISTENCIA / PASE" required />
+            <select name="event_type" required>
+              <option value="">Selecciona</option>
+              {% for action in action_catalog %}
+                <option value="{{ action }}">{{ action }}</option>
+              {% endfor %}
+            </select>
           </div>
           <div>
             <label>Resultado</label>
-            <input name="result" list="editor-result-catalog" placeholder="OK / FALLA / ..." />
+            <select name="result">
+              <option value="">Sin resultado</option>
+              {% for result in result_options %}
+                <option value="{{ result }}">{{ result }}</option>
+              {% endfor %}
+            </select>
           </div>
           <div>
             <label>Zona</label>
-            <input name="zone" list="editor-zone-catalog" placeholder="Ej. Área, Banda..." />
+            <select name="zone">
+              <option value="">Sin zona</option>
+              {% for zone in zone_options %}
+                <option value="{{ zone }}">{{ zone }}</option>
+              {% endfor %}
+            </select>
           </div>
           <div>
             <label>Observación</label>
@@ -343,15 +356,39 @@
                     </div>
                     <div>
                       <label>Acción</label>
-                      <input name="event_type" value="{{ ev.event_type|default:'' }}" />
+                      <select name="event_type">
+                        {% if ev.event_type and ev.event_type not in action_catalog %}
+                          <option value="{{ ev.event_type }}" selected>{{ ev.event_type }}</option>
+                        {% endif %}
+                        <option value="">Selecciona</option>
+                        {% for action in action_catalog %}
+                          <option value="{{ action }}" {% if ev.event_type == action %}selected{% endif %}>{{ action }}</option>
+                        {% endfor %}
+                      </select>
                     </div>
                     <div>
                       <label>Resultado</label>
-                      <input name="result" value="{{ ev.result|default:'' }}" />
+                      <select name="result">
+                        {% if ev.result and ev.result not in result_options %}
+                          <option value="{{ ev.result }}" selected>{{ ev.result }}</option>
+                        {% endif %}
+                        <option value="">Sin resultado</option>
+                        {% for result in result_options %}
+                          <option value="{{ result }}" {% if ev.result == result %}selected{% endif %}>{{ result }}</option>
+                        {% endfor %}
+                      </select>
                     </div>
                     <div>
                       <label>Zona</label>
-                      <input name="zone" value="{{ ev.zone|default:'' }}" />
+                      <select name="zone">
+                        {% if ev.zone and ev.zone not in zone_options %}
+                          <option value="{{ ev.zone }}" selected>{{ ev.zone }}</option>
+                        {% endif %}
+                        <option value="">Sin zona</option>
+                        {% for zone in zone_options %}
+                          <option value="{{ zone }}" {% if ev.zone == zone %}selected{% endif %}>{{ zone }}</option>
+                        {% endfor %}
+                      </select>
                     </div>
                     <div>
                       <label>Observación</label>
