@@ -5416,6 +5416,17 @@ class PlayerDetailStatsFallbackTests(TestCase):
                 'successes': 2,
                 'matches': [
                     {
+                        'round': 'Jornada 10',
+                        'opponent': 'Tercer Rival Con Nombre Muy Largo',
+                        'date': '2026-03-01',
+                        'played': True,
+                        'minutes': 45,
+                        'goals': 0,
+                        'assists': 0,
+                        'actions': 2,
+                        'successes': 1,
+                    },
+                    {
                         'round': 'Jornada 1',
                         'opponent': 'Rival Con Nombre Muy Largo',
                         'date': '2026-02-01',
@@ -5481,6 +5492,9 @@ class PlayerDetailStatsFallbackTests(TestCase):
         self.assertContains(response, 'Puntos: <strong>25</strong>', html=False)
         self.assertContains(response, 'Posición: <strong>4º</strong>', html=False)
         self.assertContains(response, '<span class="staff-radar-index">8</span>Conoc. juego', html=False)
+        content = response.content.decode()
+        self.assertLess(content.find('Rival Con Nombre Muy Largo'), content.find('Otro Rival Con Nombre Muy Largo'))
+        self.assertLess(content.find('Otro Rival Con Nombre Muy Largo'), content.find('Tercer Rival Con Nombre Muy Largo'))
         self.assertContains(response, '<th>Liderazgo</th>', html=False)
         self.assertContains(response, '<th>Conoc. juego</th>', html=False)
         self.assertNotContains(response, '>Global</text>', html=False)

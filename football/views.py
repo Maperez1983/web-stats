@@ -51781,7 +51781,6 @@ def player_pdf(request, player_id):
             base_played = bool(
                 (m.home_score is not None and m.away_score is not None)
                 or str(getattr(m, 'result', '') or '').strip()
-                or (getattr(m, 'date', None) and getattr(m, 'date', None) <= today)
             )
             base = {
                 'match_id': mid,
@@ -52769,19 +52768,40 @@ def player_pdf(request, player_id):
     # Paginación tabla "Partidos" del informe (incluye partidos sin acciones).
     matches_for_report_pages = []
     try:
+        def _match_natural_key(item):
+            if not isinstance(item, dict):
+                return None
+            mid = _parse_int(item.get('match_id'))
+            if mid:
+                return ('id', int(mid))
+            opponent = normalize_label(item.get('opponent') or item.get('rival') or '')
+            round_label = normalize_label(item.get('round') or '')
+            date_label = str(item.get('date') or item.get('date_obj') or '').strip()
+            if not opponent and not round_label and not date_label:
+                return None
+            return ('natural', date_label, round_label, opponent)
+
         def _report_sort_key(item):
             if not isinstance(item, dict):
-                return (True, 9999, True, date.max, 0)
+                return (1, date.max, 9999, 0)
             rnd = extract_round_number(item.get('round'))
-            rnd_is_none = rnd is None
             rnd_value = int(rnd) if rnd is not None else 9999
             d = item.get('date_obj')
-            d_is_none = d is None
             d_value = d if d is not None else date.max
             mid = _parse_int(item.get('match_id')) or 0
-            return (rnd_is_none, rnd_value, d_is_none, d_value, mid)
+            # Orden de informe: calendario real primero. La jornada solo desempata
+            # partidos sin fecha o varios partidos en el mismo día.
+            return (0 if d is not None else 1, d_value, rnd_value, mid)
 
-        matches_for_report = sorted([m for m in raw_matches if isinstance(m, dict)], key=_report_sort_key)
+        matches_for_report = []
+        seen_match_keys = set()
+        for match_row in sorted([m for m in raw_matches if isinstance(m, dict)], key=_report_sort_key):
+            dedupe_key = _match_natural_key(match_row)
+            if dedupe_key and dedupe_key in seen_match_keys:
+                continue
+            if dedupe_key:
+                seen_match_keys.add(dedupe_key)
+            matches_for_report.append(match_row)
         # Tabla de "Partidos": ajustado para aprovechar mejor la hoja (menos páginas / menos huecos).
         page_size = 34
         matches_for_report_pages = [
