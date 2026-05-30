@@ -2327,6 +2327,8 @@ class PlayerSeasonReport(models.Model):
     physical_rating = models.PositiveSmallIntegerField(null=True, blank=True, help_text='1-10 (opcional)')
     mental_rating = models.PositiveSmallIntegerField(null=True, blank=True, help_text='1-10 (opcional)')
     social_rating = models.PositiveSmallIntegerField(null=True, blank=True, help_text='1-10 (opcional)')
+    leadership_rating = models.PositiveSmallIntegerField(null=True, blank=True, help_text='1-10 (opcional)')
+    game_knowledge_rating = models.PositiveSmallIntegerField(null=True, blank=True, help_text='1-10 (opcional)')
 
     strengths = models.TextField(blank=True)
     improvements = models.TextField(blank=True)

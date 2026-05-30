@@ -4890,11 +4890,15 @@ class ManualStatsTests(TestCase):
                 'manual_influence_score': '77',
                 'most_used_position': 'Interior derecho',
                 'ideal_position': 'Mediocentro',
+                'leadership_rating': '8',
+                'game_knowledge_rating': '9',
             },
         )
 
         self.assertEqual(response.status_code, 302)
         report = PlayerSeasonReport.objects.get(player=self.player, team=self.team)
+        self.assertEqual(report.leadership_rating, 8)
+        self.assertEqual(report.game_knowledge_rating, 9)
         self.assertEqual(report.manual_overrides['pj'], 12)
         self.assertEqual(report.manual_overrides['most_used_position'], 'Interior derecho')
         self.assertEqual(report.manual_overrides['ideal_position'], 'Mediocentro')
@@ -4923,11 +4927,17 @@ class ManualStatsTests(TestCase):
             physical_rating=5,
             mental_rating=9,
             social_rating=10,
+            leadership_rating=8,
+            game_knowledge_rating=7,
         )
 
         radar = football_views._build_staff_rating_radar_data(report)
 
-        self.assertEqual([axis['display'] for axis in radar['axes']], ['8/10', '7/10', '6/10', '5/10', '9/10', '10/10'])
+        self.assertEqual(
+            [axis['display'] for axis in radar['axes']],
+            ['8/10', '7/10', '6/10', '5/10', '9/10', '10/10', '8/10', '7/10'],
+        )
+        self.assertEqual(radar['average_display'], '7.5/10')
         self.assertTrue(radar['polygon_points_svg'])
 
     def test_saved_manual_base_totals_override_manual_match_rows(self):
@@ -5429,6 +5439,20 @@ class PlayerDetailStatsFallbackTests(TestCase):
                 ],
             }
         ]
+        PlayerSeasonReport.objects.create(
+            player=self.player,
+            team=self.player.team,
+            season_label='2025/2026',
+            scope=Match.CONTEXT_LEAGUE,
+            overall_rating=8,
+            technical_rating=7,
+            tactical_rating=6,
+            physical_rating=5,
+            mental_rating=9,
+            social_rating=10,
+            leadership_rating=8,
+            game_knowledge_rating=7,
+        )
 
         self.client.force_login(self.user)
         response = self.client.get(
@@ -5445,6 +5469,10 @@ class PlayerDetailStatsFallbackTests(TestCase):
         self.assertContains(response, '<strong>1</strong> · Rival Con Nombre Muy Largo', html=False)
         self.assertContains(response, '<strong>2</strong> · Otro Rival Con Nombre Muy Largo', html=False)
         self.assertContains(response, '<div class="chart-key"', count=1, html=False)
+        self.assertContains(response, 'Media ratings staff')
+        self.assertContains(response, '7.5/10')
+        self.assertContains(response, '<th>Liderazgo</th>', html=False)
+        self.assertContains(response, '<th>Conoc. juego</th>', html=False)
         self.assertNotContains(response, 'rotate(-35', html=False)
         self.assertNotContains(response, '>1 · Rival', html=False)
 

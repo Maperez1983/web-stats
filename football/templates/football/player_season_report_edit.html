@@ -53,6 +53,15 @@
       .check { display:flex; gap: 10px; align-items: center; margin-top: 12px; opacity: 0.95; }
       .check input { width: 18px; height: 18px; }
       .hint { margin-top: 10px; opacity: 0.82; font-size: 0.92rem; }
+      .rating-average {
+        margin: 0 0 12px;
+        border-radius: 16px;
+        border: 1px solid rgba(250,204,21,0.28);
+        background: rgba(250,204,21,0.10);
+        padding: 12px 14px;
+        font-weight: 900;
+      }
+      .rating-average strong { font-size: 1.25rem; }
     </style>
   </head>
   <body class="prod-commercial">
@@ -125,24 +134,31 @@
 	              </label>
 	            </div>
 	          </div>
-	          <div class="grid">
+	          <div class="rating-average">Media calculada: <strong id="ratingAverageValue">—</strong></div>
+	          <div class="grid" id="ratingsGrid">
 	            <label>Valoración global (1-10)
-	              <input type="number" name="overall_rating" min="1" max="10" value="{{ report.overall_rating|default:'' }}" />
+	              <input type="number" name="overall_rating" min="1" max="10" value="{{ report.overall_rating|default:'' }}" data-rating-input />
 	            </label>
 	            <label>Técnica (1-10)
-              <input type="number" name="technical_rating" min="1" max="10" value="{{ report.technical_rating|default:'' }}" />
+              <input type="number" name="technical_rating" min="1" max="10" value="{{ report.technical_rating|default:'' }}" data-rating-input />
             </label>
             <label>Táctica (1-10)
-              <input type="number" name="tactical_rating" min="1" max="10" value="{{ report.tactical_rating|default:'' }}" />
+              <input type="number" name="tactical_rating" min="1" max="10" value="{{ report.tactical_rating|default:'' }}" data-rating-input />
             </label>
             <label>Físico (1-10)
-              <input type="number" name="physical_rating" min="1" max="10" value="{{ report.physical_rating|default:'' }}" />
+              <input type="number" name="physical_rating" min="1" max="10" value="{{ report.physical_rating|default:'' }}" data-rating-input />
             </label>
             <label>Mental (1-10)
-              <input type="number" name="mental_rating" min="1" max="10" value="{{ report.mental_rating|default:'' }}" />
+              <input type="number" name="mental_rating" min="1" max="10" value="{{ report.mental_rating|default:'' }}" data-rating-input />
             </label>
             <label>Social / equipo (1-10)
-              <input type="number" name="social_rating" min="1" max="10" value="{{ report.social_rating|default:'' }}" />
+              <input type="number" name="social_rating" min="1" max="10" value="{{ report.social_rating|default:'' }}" data-rating-input />
+            </label>
+            <label>Liderazgo (1-10)
+              <input type="number" name="leadership_rating" min="1" max="10" value="{{ report.leadership_rating|default:'' }}" data-rating-input />
+            </label>
+            <label>Conocimiento del juego (1-10)
+              <input type="number" name="game_knowledge_rating" min="1" max="10" value="{{ report.game_knowledge_rating|default:'' }}" data-rating-input />
             </label>
           </div>
 
@@ -171,5 +187,19 @@
         </form>
       </div>
     </main>
+    <script>
+      (() => {
+        const output = document.getElementById('ratingAverageValue');
+        const inputs = Array.from(document.querySelectorAll('[data-rating-input]'));
+        const update = () => {
+          const values = inputs
+            .map((input) => Number(String(input.value || '').replace(',', '.')))
+            .filter((value) => Number.isFinite(value) && value > 0);
+          output.textContent = values.length ? `${(values.reduce((a, b) => a + b, 0) / values.length).toFixed(1)}/10` : '—';
+        };
+        inputs.forEach((input) => input.addEventListener('input', update));
+        update();
+      })();
+    </script>
   </body>
 </html>

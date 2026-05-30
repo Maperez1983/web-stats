@@ -20363,7 +20363,11 @@ def _build_staff_rating_radar_data(staff_report):
         _axis('Físico', getattr(staff_report, 'physical_rating', None)),
         _axis('Mental', getattr(staff_report, 'mental_rating', None)),
         _axis('Social', getattr(staff_report, 'social_rating', None)),
+        _axis('Liderazgo', getattr(staff_report, 'leadership_rating', None)),
+        _axis('Conoc. juego', getattr(staff_report, 'game_knowledge_rating', None)),
     ]
+    rated_axes = [axis for axis in axes if float(axis.get('rating') or 0.0) > 0.0]
+    rating_average = round(sum(float(axis.get('rating') or 0.0) for axis in rated_axes) / len(rated_axes), 1) if rated_axes else 0.0
 
     try:
         import math  # noqa: WPS433
@@ -20402,11 +20406,13 @@ def _build_staff_rating_radar_data(staff_report):
             )
         return {
             'axes': axes,
+            'average': rating_average,
+            'average_display': f'{rating_average:.1f}/10' if rating_average else '-',
             'polygon_points_svg': ' '.join([f'{x:.1f},{y:.1f}' for (x, y) in pts]),
             'axis_svg': axis_svg,
         }
     except Exception:
-        return {'axes': axes, 'polygon_points_svg': '', 'axis_svg': []}
+        return {'axes': axes, 'average': rating_average, 'average_display': f'{rating_average:.1f}/10' if rating_average else '-', 'polygon_points_svg': '', 'axis_svg': []}
 
 
 @login_required
@@ -51221,6 +51227,8 @@ def player_season_report_edit_page(request, player_id):
         report.physical_rating = _clean_rating(payload.get('physical_rating'))
         report.mental_rating = _clean_rating(payload.get('mental_rating'))
         report.social_rating = _clean_rating(payload.get('social_rating'))
+        report.leadership_rating = _clean_rating(payload.get('leadership_rating'))
+        report.game_knowledge_rating = _clean_rating(payload.get('game_knowledge_rating'))
         report.strengths = str(payload.get('strengths') or '').strip()
         report.improvements = str(payload.get('improvements') or '').strip()
         report.objectives_next = str(payload.get('objectives_next') or '').strip()
