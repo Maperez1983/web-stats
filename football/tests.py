@@ -5551,6 +5551,66 @@ class AdminActionsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.match.kickoff_time.isoformat(timespec='minutes'), '18:30')
 
+    def test_coach_matches_shows_matches_from_other_seasons(self):
+        self.client.force_login(self.user)
+        old_competition = Competition.objects.create(name='Liga Historica', slug='liga-historica', region='Andalucia')
+        old_season = Season.objects.create(competition=old_competition, name='2024/2025', is_current=False)
+        old_group = Group.objects.create(season=old_season, name='Grupo Historico', slug='grupo-historico')
+        old_rival = Team.objects.create(name='Rival Historico', slug='rival-historico', group=old_group)
+        Match.objects.create(
+            season=old_season,
+            group=old_group,
+            home_team=old_rival,
+            away_team=self.team,
+            date=date(2025, 5, 12),
+            round='Jornada historica',
+        )
+
+        response = self.client.get(reverse('coach-matches'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Rival Historico')
+        self.assertContains(response, 'Rival Admin')
+
+    def test_coach_matches_clean_get_ignores_saved_registered_filter(self):
+        self.client.force_login(self.user)
+        unregistered_rival = Team.objects.create(name='Rival Sin Registro', slug='rival-sin-registro', group=self.team.group)
+        Match.objects.create(
+            season=self.match.season,
+            group=self.team.group,
+            home_team=self.team,
+            away_team=unregistered_rival,
+            date=date(2026, 4, 3),
+            round='Jornada libre',
+        )
+        MatchEvent.objects.create(
+            match=self.match,
+            player=self.player,
+            event_type='Pase',
+            result='OK',
+            source_file='test',
+        )
+        session = self.client.session
+        session[f'coach_matches_filters:v1:t{int(self.team.id)}'] = {'reg': '1', 'dir': 'desc'}
+        session.save()
+
+        response = self.client.get(reverse('coach-matches'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Rival Sin Registro')
+        self.assertContains(response, 'Rival Admin')
+
+    def test_coach_matches_renders_clickable_match_cards(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('coach-matches'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'match-card')
+        self.assertContains(response, reverse('match-editor', args=[self.match.id]))
+        self.assertContains(response, 'Ficha')
+        self.assertContains(response, 'Registro')
+
 
 class AdminPlatformRedirectTests(TestCase):
     def setUp(self):

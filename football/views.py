@@ -26759,31 +26759,15 @@ def coach_matches_page(request):
     except Exception:
         saved_filters = {}
 
+    persist_keys = ('q', 'context', 'reg', 'dup', 'sort', 'dir')
+    has_any_persist_key = any(k in request.GET for k in persist_keys)
+
     def _effective_query_param(key: str) -> str:
         if key in request.GET:
             return str(request.GET.get(key) or '')
-        if isinstance(saved_filters, dict) and key in saved_filters:
+        if has_any_persist_key and isinstance(saved_filters, dict) and key in saved_filters:
             return str(saved_filters.get(key) or '')
         return ''
-
-    if request.method == 'GET':
-        persist_keys = ('q', 'context', 'reg', 'dup', 'sort', 'dir')
-        has_any_persist_key = any(k in request.GET for k in persist_keys)
-        if (not has_any_persist_key) and isinstance(saved_filters, dict) and saved_filters:
-            payload = {}
-            for k in persist_keys:
-                v = saved_filters.get(k)
-                if v is None:
-                    continue
-                payload[k] = str(v)
-            team_param = request.GET.get('team') or request.GET.get('team_id')
-            if team_param:
-                payload['team'] = str(team_param)
-            try:
-                qs = urlencode(payload)
-                return redirect(f'{request.path}?{qs}' if qs else request.path)
-            except Exception:
-                pass
 
     if request.method == 'POST':
         action = str(request.POST.get('form_action') or '').strip()
@@ -26865,8 +26849,6 @@ def coach_matches_page(request):
     # Si el usuario interactúa (GET explícito), persistimos el estado.
     if request.method == 'GET':
         try:
-            persist_keys = ('q', 'context', 'reg', 'dup', 'sort', 'dir')
-            has_any_persist_key = any(k in request.GET for k in persist_keys)
             if has_any_persist_key:
                 payload = {
                     'q': q,
@@ -26885,8 +26867,6 @@ def coach_matches_page(request):
             pass
 
     qs = _team_match_queryset(primary_team).select_related('home_team', 'away_team').order_by('-date', '-id')
-    if season:
-        qs = qs.filter(season=season)
     if context_filter and context_filter in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY}:
         qs = qs.filter(context=context_filter)
     if q:
@@ -26899,7 +26879,14 @@ def coach_matches_page(request):
             | Q(tournament_name__icontains=q)
         )
 
-    raw = list(qs[:260])
+    total_matches = 0
+    try:
+        total_matches = int(qs.count() or 0)
+    except Exception:
+        total_matches = 0
+    raw_limit = 1000
+    raw = list(qs[:raw_limit])
+    is_truncated = bool(total_matches and total_matches > raw_limit)
     raw_ids = [int(m.id) for m in raw if getattr(m, 'id', None)]
     action_counts = {}
     manual_stat_counts = {}
@@ -26939,10 +26926,26 @@ def coach_matches_page(request):
     rows = []
     dup_counts = Counter()
     context_label_by_key = {k: v for (k, v) in (getattr(Match, 'CONTEXT_CHOICES', []) or []) if k and v}
+    team_crest_url = resolve_team_crest_url(request, primary_team, sync=False)
+    own_kit_url = _workspace_home_kit2d_url(workspace) or _kit2d_url_for_team_name(
+        getattr(primary_team, 'display_name', '') or getattr(primary_team, 'name', '') or 'Equipo',
+        workspace=workspace,
+        primary_team=primary_team,
+        own_kit2d_url='',
+    )
     for m in raw:
         is_home = bool(m.home_team_id == primary_team.id)
         opponent = m.away_team if is_home else m.home_team
         opponent_name = str(getattr(opponent, 'display_name', '') or getattr(opponent, 'name', '') or '').strip() or 'Rival'
+        opponent_kit_url = ''
+        if opponent:
+            opponent_kit_url = _rival_kit2d_url(workspace, opponent, 'home')
+        opponent_kit_url = opponent_kit_url or _kit2d_url_for_team_name(
+            opponent_name,
+            workspace=workspace,
+            primary_team=primary_team,
+            own_kit2d_url=own_kit_url,
+        )
         key = f"{m.date.isoformat() if m.date else 'no-date'}|{normalize_label(opponent_name)}|{str(m.context or '').strip()}|{normalize_label(str(m.tournament_name or '').strip())}"
         dup_counts[key] += 1
         rows.append(
@@ -26956,6 +26959,12 @@ def coach_matches_page(request):
                 'tournament_name': str(getattr(m, 'tournament_name', '') or '').strip(),
                 'tournament_stage': str(getattr(m, 'tournament_stage', '') or '').strip(),
                 'opponent': opponent_name,
+                'team_crest_url': team_crest_url,
+                'opponent_crest_url': resolve_team_crest_url(request, opponent, sync=False) if opponent else _team_fallback_crest_data_uri(None, fallback_label=opponent_name),
+                'own_kit_url': own_kit_url,
+                'opponent_kit_url': opponent_kit_url,
+                'location': str(getattr(m, 'location', '') or '').strip(),
+                'kickoff_time': getattr(m, 'kickoff_time', None),
                 'is_home': is_home,
                 'score': (
                     f"{m.home_score}-{m.away_score}"
@@ -27061,6 +27070,10 @@ def coach_matches_page(request):
             'context_options': context_options,
             'sort_key': sort_key,
             'sort_dir': sort_dir,
+            'total_matches': total_matches or len(raw),
+            'shown_matches': len(rows),
+            'is_truncated': is_truncated,
+            'active_team': primary_team,
         },
     )
 

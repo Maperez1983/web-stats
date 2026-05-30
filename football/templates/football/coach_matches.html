@@ -29,77 +29,43 @@
 	      label { display:block; font-weight:800; font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; color: rgba(148,163,184,0.95); }
 		      input, select { width:100%; padding:0.6rem 0.7rem; border-radius: 14px; border:1px solid rgba(148,163,184,0.22); background: rgba(2,6,23,0.45); color:#e2e8f0; }
       .filter-form { display:grid; grid-template-columns:minmax(240px, 1fr) minmax(160px, 0.6fr) minmax(220px, 0.7fr) minmax(190px, 0.7fr) auto; gap:0.65rem; align-items:end; }
-      .table-wrap { overflow:auto; max-width:100%; max-height:calc(100vh - 270px); scrollbar-gutter:stable; border-radius:16px; }
-		      table.matches-table { width:100%; min-width:1040px; border-collapse:collapse; table-layout:fixed; }
-	      .matches-table th,
-	      .matches-table td { padding: 0.72rem 0.58rem; border-bottom: 1px solid rgba(148,163,184,0.16); vertical-align: middle; }
-      .matches-table th {
-	        position:sticky;
-	        top:0;
-	        z-index:2;
-	        text-align:left;
-	        font-size:0.68rem;
-	        text-transform:uppercase;
-	        letter-spacing:0.08em;
-	        color: rgba(203,213,225,0.92);
-	        background:rgba(15,23,42,0.98);
-	        backdrop-filter:blur(10px);
-	        white-space:nowrap;
-	        overflow:hidden;
-	        text-overflow:ellipsis;
-	      }
-      .matches-table th[role="columnheader"] {
-        display: table-cell;
-        min-height: 0;
-        padding: 0.72rem 0.58rem;
-        border-radius: 0;
-        background: rgba(15,23,42,0.98) !important;
-        box-shadow: none;
-        white-space: nowrap;
-        overflow-wrap: normal;
-        text-align: left;
-        line-height: 1.1;
-      }
-	      th.sortable { user-select:none; }
-	      th.sortable:hover { color:#e2e8f0; }
-	      th.sortable:focus { outline: 2px solid rgba(250,204,21,0.55); outline-offset: 2px; border-radius: 10px; }
-	      th.sortable::after { content: ' ↕'; opacity:0.28; font-weight:900; }
-	      th.sortable.sorted-asc::after { content: ' ▲'; opacity:1; color: rgba(250,204,21,0.95); }
-	      th.sortable.sorted-desc::after { content: ' ▼'; opacity:1; color: rgba(250,204,21,0.95); }
-	      .matches-table td { color:rgba(226,232,240,0.94); line-height:1.2; overflow-wrap:normal; word-break:normal; }
-	      .matches-table td small { color: rgba(148,163,184,0.75); display:block; margin-top:0.22rem; line-height:1.2; }
-      .match-id { font-weight:900; white-space:nowrap; }
-      .match-date,
-      .match-round,
-      .match-score,
-      .match-context { white-space:nowrap; }
-      .match-opponent strong {
-        display:block;
-        line-height:1.12;
-        overflow-wrap:break-word;
-        word-break:normal;
-      }
-      .match-metric,
-      .match-status { text-align:center; }
-	      .chip { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-width:2rem; max-width:100%; padding: 0.28rem 0.5rem; border-radius:999px; border:1px solid rgba(148,163,184,0.18); background: rgba(2,6,23,0.45); color:#cbd5e1; font-weight:850; font-size:0.72rem; line-height:1; white-space:nowrap; }
-	      .chip.dup { border-color: rgba(248,113,113,0.32); background: rgba(127,29,29,0.22); color: #fecaca; }
-	      .row-actions { display:grid; grid-template-columns:1fr; gap:0.38rem; justify-content:end; align-items:center; }
-	      .row-actions .btn { min-height:32px; width:100%; padding:0.4rem 0.55rem; font-size:0.72rem; letter-spacing:0.05em; }
-      .delete-match-form { display:grid; grid-template-columns:minmax(0, 1fr) 34px; gap:0.35rem; align-items:center; }
+      .matches-toolbar { display:flex; justify-content:space-between; gap:0.75rem; align-items:center; margin-bottom:0.8rem; color:#94a3b8; font-weight:800; }
+      .match-card-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:0.85rem; }
+      .match-card { position:relative; display:flex; flex-direction:column; gap:0.8rem; min-width:0; border:1px solid rgba(148,163,184,0.18); border-radius:18px; background:linear-gradient(180deg, rgba(15,23,42,0.92), rgba(2,6,23,0.82)); padding:0.88rem; box-shadow:0 18px 44px rgba(0,0,0,0.22); }
+      .match-card-main { display:grid; grid-template-columns:64px minmax(0, 1fr) 64px; gap:0.75rem; align-items:center; color:inherit; text-decoration:none; }
+      .match-card-main:focus { outline:2px solid rgba(250,204,21,0.68); outline-offset:4px; border-radius:14px; }
+      .match-crest { width:54px; height:54px; border-radius:14px; object-fit:contain; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.14); padding:0.25rem; }
+      .match-card-center { min-width:0; text-align:center; }
+      .match-card-center h2 { margin:0; font-size:1.02rem; line-height:1.12; overflow-wrap:anywhere; }
+      .match-card-meta { margin-top:0.28rem; color:rgba(203,213,225,0.84); font-size:0.8rem; font-weight:750; line-height:1.35; }
+      .match-scoreline { display:inline-flex; align-items:center; justify-content:center; min-width:4.4rem; margin-top:0.45rem; padding:0.36rem 0.7rem; border-radius:999px; border:1px solid rgba(250,204,21,0.24); background:rgba(250,204,21,0.1); color:#fde68a; font-weight:950; }
+      .match-kit-row { display:grid; grid-template-columns:1fr 1fr; gap:0.55rem; }
+      .match-kit { display:flex; align-items:center; gap:0.5rem; min-width:0; border:1px solid rgba(148,163,184,0.14); border-radius:14px; padding:0.45rem 0.5rem; background:rgba(2,6,23,0.35); }
+      .match-kit img { width:34px; height:34px; object-fit:contain; flex:0 0 auto; }
+      .match-kit span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:rgba(226,232,240,0.88); font-size:0.78rem; font-weight:850; }
+      .match-card-stats { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:0.45rem; }
+      .match-card-actions { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:0.45rem; }
+      .delete-match-form { display:grid; grid-template-columns:minmax(0, 1fr) 34px; gap:0.35rem; align-items:center; grid-column:1 / -1; }
       .delete-match-form input { min-width:0; width:100%; padding:0.38rem 0.5rem; border-radius:12px; font-size:0.72rem; }
       .delete-match-form .btn { width:34px; min-width:34px; min-height:32px; padding:0; }
+	      .chip { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-width:2rem; max-width:100%; padding: 0.28rem 0.5rem; border-radius:999px; border:1px solid rgba(148,163,184,0.18); background: rgba(2,6,23,0.45); color:#cbd5e1; font-weight:850; font-size:0.72rem; line-height:1; white-space:nowrap; }
+	      .chip.dup { border-color: rgba(248,113,113,0.32); background: rgba(127,29,29,0.22); color: #fecaca; }
+      .empty-state { color:#94a3b8; font-weight:800; padding:1rem; border:1px dashed rgba(148,163,184,0.25); border-radius:16px; background:rgba(2,6,23,0.28); }
       @media (max-width: 980px) {
         header { grid-template-columns:1fr; }
         .header-actions { grid-template-columns:repeat(2, minmax(0, 1fr)); justify-content:stretch; }
         .header-actions .btn { width:100%; }
         .filter-form { grid-template-columns:repeat(2, minmax(0, 1fr)); }
         .filter-form .btn { width:100%; }
-        .row-actions { justify-content:flex-start; }
+        .match-card-actions { grid-template-columns:repeat(2, minmax(0, 1fr)); }
       }
       @media (max-width: 620px) {
         .header-actions,
         .filter-form { grid-template-columns:1fr; }
-        table.matches-table { min-width:980px; }
+        .match-card-grid { grid-template-columns:1fr; }
+        .match-card-main { grid-template-columns:48px minmax(0, 1fr) 48px; gap:0.55rem; }
+        .match-crest { width:46px; height:46px; }
+        .match-card-stats { grid-template-columns:repeat(2, minmax(0, 1fr)); }
       }
     </style>
   </head>
@@ -163,114 +129,71 @@
       </section>
 
       <section class="panel">
-        <div class="table-wrap">
-          <table class="matches-table">
-            <colgroup>
-              <col style="width:54px;" />
-              <col style="width:98px;" />
-              <col style="width:238px;" />
-              <col style="width:78px;" />
-              <col style="width:92px;" />
-              <col style="width:78px;" />
-              <col style="width:54px;" />
-              <col style="width:58px;" />
-              <col style="width:58px;" />
-              <col style="width:104px;" />
-              <col style="width:150px;" />
-            </colgroup>
-            <thead>
-              <tr>
-                <th class="sortable" data-sort="id">ID</th>
-                <th class="sortable" data-sort="date">Fecha</th>
-                <th class="sortable" data-sort="opponent">Rival</th>
-                <th class="sortable" data-sort="round">Jornada</th>
-                <th class="sortable" data-sort="context">Contexto</th>
-                <th class="sortable" data-sort="score">Marcador</th>
-                <th class="sortable" data-sort="acc">Acc</th>
-                <th class="sortable" data-sort="stats">Stats</th>
-                <th class="sortable" data-sort="video">Vídeo</th>
-                <th class="sortable" data-sort="status">Estado</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for r in rows %}
-              <tr>
-                <td class="match-id">#{{ r.id }}</td>
-                <td class="match-date">{% if r.date %}{{ r.date|date:"d/m/Y" }}{% else %}<span style="color:#94a3b8;">—</span>{% endif %}</td>
-                <td class="match-opponent">
-                  <strong>{{ r.opponent }}</strong>
-                  {% if r.tournament_name %}<small>Torneo: {{ r.tournament_name }}{% if r.tournament_stage %} · {{ r.tournament_stage }}{% endif %}</small>{% endif %}
-	                </td>
-	                <td class="match-round">{{ r.round|default:"-" }}</td>
-	                <td class="match-context">{{ r.context_label|default:"Liga" }}</td>
-	                <td class="match-score">{{ r.score|default:"" }}</td>
-	                <td class="match-metric"><span class="chip">{{ r.actions|default:0 }}</span></td>
-	                <td class="match-metric"><span class="chip">{{ r.manual_stats|default:0 }}</span></td>
-	                <td class="match-metric"><span class="chip">{{ r.videos|default:0 }}</span></td>
-	                <td class="match-status">
-                  {% if r.is_duplicate %}
-                    <span class="chip dup">Duplicado ×{{ r.dup_count }}</span>
-                  {% elif r.is_registered %}
-                    <span class="chip">Registrado</span>
-                  {% else %}
-                    <span class="chip">OK</span>
-                  {% endif %}
-                </td>
-                <td>
-                  <div class="row-actions">
-                    <a class="btn" href="{% url 'match-editor' r.id %}">Editar</a>
-                    <a class="btn" href="{% url 'match-hub' %}?match_id={{ r.id }}">Hub</a>
-                    <form method="post" class="delete-match-form">
-                      {% csrf_token %}
-                      <input type="hidden" name="form_action" value="delete" />
-                      <input type="hidden" name="match_id" value="{{ r.id }}" />
-                      <input name="confirm" placeholder="BORRAR" />
-                      <button class="btn danger" type="submit" title="Eliminar partido" onclick="return confirm('¿Eliminar partido #{{ r.id }}? Se borrarán también sus acciones y stats asociados.');">🗑️</button>
-                    </form>
+        <div class="matches-toolbar">
+          <span>{{ shown_matches }} de {{ total_matches }} partidos{% if is_truncated %} · listado limitado{% endif %}</span>
+          <a class="btn" href="{% url 'coach-matches' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Ver todos</a>
+        </div>
+        <div class="match-card-grid">
+          {% for r in rows %}
+            <article class="match-card">
+              <a class="match-card-main" href="{% url 'match-editor' r.id %}{% if active_team %}?team={{ active_team.id }}{% endif %}" aria-label="Abrir ficha del partido contra {{ r.opponent }}">
+                <img class="match-crest" src="{{ r.team_crest_url }}" alt="{{ team_name }}" loading="lazy" />
+                <div class="match-card-center">
+                  <h2>{{ team_name }} vs {{ r.opponent }}</h2>
+                  <div class="match-card-meta">
+                    #{{ r.id }} · {% if r.date %}{{ r.date|date:"d/m/Y" }}{% else %}Sin fecha{% endif %}{% if r.kickoff_time %} · {{ r.kickoff_time|time:"H:i" }}{% endif %}
+                    <br />
+                    {{ r.round|default:"Jornada sin definir" }} · {{ r.context_label|default:"Liga" }}
+                    {% if r.location %}<br />{{ r.location }}{% endif %}
                   </div>
-                </td>
-              </tr>
-              {% empty %}
-              <tr><td colspan="11" style="color:#94a3b8;">No hay partidos con estos filtros.</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
+                  <div class="match-scoreline">{{ r.score|default:"Marcador --" }}</div>
+                </div>
+                <img class="match-crest" src="{{ r.opponent_crest_url }}" alt="{{ r.opponent }}" loading="lazy" />
+              </a>
+              <div class="match-kit-row">
+                <div class="match-kit">
+                  <img src="{{ r.own_kit_url }}" alt="Equipación {{ team_name }}" loading="lazy" />
+                  <span>{{ team_name }}</span>
+                </div>
+                <div class="match-kit">
+                  <img src="{{ r.opponent_kit_url }}" alt="Equipación {{ r.opponent }}" loading="lazy" />
+                  <span>{{ r.opponent }}</span>
+                </div>
+              </div>
+              {% if r.tournament_name %}
+                <div class="match-card-meta">Torneo: {{ r.tournament_name }}{% if r.tournament_stage %} · {{ r.tournament_stage }}{% endif %}</div>
+              {% endif %}
+              <div class="match-card-stats">
+                <span class="chip">Acc {{ r.actions|default:0 }}</span>
+                <span class="chip">Stats {{ r.manual_stats|default:0 }}</span>
+                <span class="chip">Vídeo {{ r.videos|default:0 }}</span>
+                {% if r.is_duplicate %}
+                  <span class="chip dup">Duplicado ×{{ r.dup_count }}</span>
+                {% elif r.is_registered %}
+                  <span class="chip">Registrado</span>
+                {% else %}
+                  <span class="chip">OK</span>
+                {% endif %}
+              </div>
+              <div class="match-card-actions">
+                <a class="btn primary" href="{% url 'match-editor' r.id %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Ficha</a>
+                <a class="btn" href="{% url 'match-action-page' %}?match_id={{ r.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}">Registro</a>
+                <a class="btn" href="{% url 'match-stats' match_id=r.id %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Stats</a>
+                <a class="btn" href="{% url 'match-hub' %}?match_id={{ r.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}">Hub</a>
+                <form method="post" class="delete-match-form">
+                  {% csrf_token %}
+                  <input type="hidden" name="form_action" value="delete" />
+                  <input type="hidden" name="match_id" value="{{ r.id }}" />
+                  <input name="confirm" placeholder="BORRAR" />
+                  <button class="btn danger" type="submit" title="Eliminar partido" onclick="return confirm('¿Eliminar partido #{{ r.id }}? Se borrarán también sus acciones y stats asociados.');">🗑️</button>
+                </form>
+              </div>
+            </article>
+          {% empty %}
+            <div class="empty-state">No hay partidos con estos filtros.</div>
+          {% endfor %}
         </div>
       </section>
     </main>
-	    <script>
-	      (() => {
-	        const ths = Array.from(document.querySelectorAll('th.sortable[data-sort]'));
-	        if (!ths.length) return;
-	        const currentSort = "{{ sort_key|default:'' }}";
-	        const currentDir = "{{ sort_dir|default:'desc' }}";
-	        ths.forEach((th) => {
-	          const key = th.dataset.sort || '';
-	          th.style.cursor = 'pointer';
-	          th.title = 'Ordenar';
-	          th.tabIndex = 0;
-	          th.setAttribute('role', 'columnheader');
-	          if (key && currentSort && key === currentSort) th.classList.add(`sorted-${currentDir}`);
-	          th.addEventListener('click', () => {
-	            try {
-	              const url = new URL(window.location.href);
-	              const prevKey = url.searchParams.get('sort') || '';
-	              const prevDir = (url.searchParams.get('dir') || 'desc').toLowerCase();
-	              const nextDir = (prevKey === key && prevDir === 'desc') ? 'asc' : 'desc';
-	              url.searchParams.set('sort', key);
-	              url.searchParams.set('dir', nextDir);
-	              window.location.href = url.toString();
-	            } catch (e) {}
-	          });
-	          th.addEventListener('keydown', (evt) => {
-	            if (evt.key === 'Enter' || evt.key === ' ') {
-	              evt.preventDefault();
-	              th.click();
-	            }
-	          });
-	        });
-	      })();
-	    </script>
 	  </body>
 	</html>
