@@ -112,30 +112,14 @@
       <h2>Rendimiento, KPI y mapa de calor</h2>
 
       <div class="performance-rings">
-        <article class="kpi-ring">
-          <div class="kpi-ring-chart" style="--pct: {{ stats.success_rate|default:0 }};">
-            <span class="kpi-ring-value">{{ stats.success_rate|default:0|floatformat:-1 }}%</span>
-          </div>
-          <div class="kpi-ring-label">Tasa de éxito</div>
-        </article>
-        <article class="kpi-ring">
-          <div class="kpi-ring-chart" style="--pct: {{ stats.duel_rate|default:0 }};">
-            <span class="kpi-ring-value">{{ stats.duel_rate|default:0|floatformat:-1 }}%</span>
-          </div>
-          <div class="kpi-ring-label">Duelos ganados</div>
-        </article>
-        <article class="kpi-ring">
-          <div class="kpi-ring-chart" style="--pct: {{ stats.passes.accuracy|default:0 }};">
-            <span class="kpi-ring-value">{{ stats.passes.accuracy|default:0|floatformat:-1 }}%</span>
-          </div>
-          <div class="kpi-ring-label">Precisión de pase</div>
-        </article>
-        <article class="kpi-ring">
-          <div class="kpi-ring-chart" style="--pct: {{ stats.shots.accuracy|default:0 }};">
-            <span class="kpi-ring-value">{{ stats.shots.accuracy|default:0|floatformat:-1 }}%</span>
-          </div>
-          <div class="kpi-ring-label">Tiro a puerta</div>
-        </article>
+        {% for kpi in visual_kpis %}
+          <article class="kpi-ring">
+            <div class="kpi-ring-chart" style="--pct: {{ kpi.value|default:0 }};">
+              <span class="kpi-ring-value">{{ kpi.value|default:0|floatformat:-1 }}{{ kpi.unit }}</span>
+            </div>
+            <div class="kpi-ring-label">{{ kpi.label }}</div>
+          </article>
+        {% endfor %}
       </div>
 
       <div class="performance-blocks">

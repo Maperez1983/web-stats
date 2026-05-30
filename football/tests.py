@@ -5491,6 +5491,7 @@ class PlayerDetailStatsFallbackTests(TestCase):
             team=self.player.team,
             season_label='2025/2026',
             scope=Match.CONTEXT_LEAGUE,
+            ring_kpis=['participation_pct', 'importance_score', 'influence_score', 'aerial_duel_rate'],
             overall_rating=Decimal('8.5'),
             technical_rating=Decimal('7.5'),
             tactical_rating=Decimal('6.5'),
@@ -5524,6 +5525,11 @@ class PlayerDetailStatsFallbackTests(TestCase):
         self.assertNotContains(response, '<div class="chart-key"', html=False)
         self.assertContains(response, 'Media ratings staff')
         self.assertContains(response, '7.9/10')
+        self.assertContains(response, '<div class="perf-ring-label">Participación</div>', html=False)
+        self.assertContains(response, '<div class="perf-ring-label">Importancia</div>', html=False)
+        self.assertContains(response, '<div class="perf-ring-label">Influencia</div>', html=False)
+        self.assertContains(response, '<div class="perf-ring-label">Aéreos</div>', html=False)
+        self.assertNotContains(response, '<div class="perf-ring-label">Precisión de pase</div>', html=False)
         self.assertContains(response, 'Puntos: <strong>25</strong>', html=False)
         self.assertContains(response, 'Posición: <strong>4º</strong>', html=False)
         self.assertContains(response, '<span class="staff-radar-index">8</span>Conoc. juego', html=False)

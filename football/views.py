@@ -53075,6 +53075,7 @@ def player_pdf(request, player_id):
                     'player_percentiles': staff_percentiles,
                     'radar_data': radar_data,
                     'card_radar_data': card_radar_data,
+                    'visual_kpis': visual_kpis,
                     'pitch_src': pitch_src,
                 },
                 request=request,

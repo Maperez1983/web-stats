@@ -963,64 +963,27 @@
 		          <div class="perf-grid">
 		            <div class="perf-grid-row">
 		              <div class="perf-grid-left">
-	                <div class="perf-title">KPI de rendimiento</div>
+		                <div class="perf-title">KPI de rendimiento</div>
 
-	                <table class="kpi-table" style="border-spacing:8px 8px;">
-	                  <tr>
-	                    <td>
-                        <div class="perf-ring">
-                          <div class="perf-donut">
-                            <svg viewBox="0 0 42 42" aria-hidden="true">
-                              <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="5"></circle>
-                              <circle cx="21" cy="21" r="15.915" fill="none" stroke="{{ pdf_palette.primary|default:'#0f7a35' }}" stroke-width="5" pathLength="100"
-                                stroke-dasharray="{{ rendimiento.success_rate|default:0|floatformat:0 }} 100" stroke-dashoffset="25"></circle>
-                            </svg>
-                            <div class="val">{{ rendimiento.success_rate|default:0|floatformat:-1 }}%</div>
-                          </div>
-                          <div class="perf-ring-label">Tasa de éxito</div>
-                        </div>
-                      </td>
-	                    <td>
-                        <div class="perf-ring">
-                          <div class="perf-donut">
-                            <svg viewBox="0 0 42 42" aria-hidden="true">
-                              <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="5"></circle>
-                              <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(244,180,0,0.92)" stroke-width="5" pathLength="100"
-                                stroke-dasharray="{{ rendimiento.duel_rate|default:0|floatformat:0 }} 100" stroke-dashoffset="25"></circle>
-                            </svg>
-                            <div class="val">{{ rendimiento.duel_rate|default:0|floatformat:-1 }}%</div>
-                          </div>
-                          <div class="perf-ring-label">Duelos ganados</div>
-                        </div>
-                      </td>
-	                    <td>
-                        <div class="perf-ring">
-                          <div class="perf-donut">
-                            <svg viewBox="0 0 42 42" aria-hidden="true">
-                              <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="5"></circle>
-                              <circle cx="21" cy="21" r="15.915" fill="none" stroke="{{ pdf_palette.primary|default:'#0f7a35' }}" stroke-width="5" pathLength="100"
-                                stroke-dasharray="{{ rendimiento.pass_accuracy|default:0|floatformat:0 }} 100" stroke-dashoffset="25"></circle>
-                            </svg>
-                            <div class="val">{{ rendimiento.pass_accuracy|default:0|floatformat:-1 }}%</div>
-                          </div>
-                          <div class="perf-ring-label">Precisión de pase</div>
-                        </div>
-                      </td>
-	                    <td>
-                        <div class="perf-ring">
-                          <div class="perf-donut">
-                            <svg viewBox="0 0 42 42" aria-hidden="true">
-                              <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="5"></circle>
-                              <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(244,180,0,0.92)" stroke-width="5" pathLength="100"
-                                stroke-dasharray="{{ rendimiento.shot_accuracy|default:0|floatformat:0 }} 100" stroke-dashoffset="25"></circle>
-                            </svg>
-                            <div class="val">{{ rendimiento.shot_accuracy|default:0|floatformat:-1 }}%</div>
-                          </div>
-                          <div class="perf-ring-label">Tiro a puerta</div>
-                        </div>
-                      </td>
-	                  </tr>
-	                </table>
+		                <table class="kpi-table" style="border-spacing:8px 8px;">
+		                  <tr>
+		                    {% for kpi in visual_kpis %}
+		                      <td>
+	                          <div class="perf-ring">
+	                            <div class="perf-donut">
+	                              <svg viewBox="0 0 42 42" aria-hidden="true">
+	                                <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="5"></circle>
+	                                <circle cx="21" cy="21" r="15.915" fill="none" stroke="{% if forloop.counter|divisibleby:2 %}rgba(244,180,0,0.92){% else %}{{ pdf_palette.primary|default:'#0f7a35' }}{% endif %}" stroke-width="5" pathLength="100"
+	                                  stroke-dasharray="{{ kpi.value|default:0|floatformat:0 }} 100" stroke-dashoffset="25"></circle>
+	                              </svg>
+	                              <div class="val">{{ kpi.value|default:0|floatformat:-1 }}{{ kpi.unit }}</div>
+	                            </div>
+	                            <div class="perf-ring-label">{{ kpi.label }}</div>
+	                          </div>
+	                        </td>
+		                    {% endfor %}
+		                  </tr>
+		                </table>
 
 	                <table class="kpi-table" style="border-spacing:8px 8px;">
 	                  <tr>
