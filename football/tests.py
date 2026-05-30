@@ -4917,6 +4917,41 @@ class ManualStatsTests(TestCase):
         self.assertEqual(float(detail.get('importance_score') or 0), 82.0)
         self.assertEqual(float(detail.get('influence_score') or 0), 77.0)
 
+    def test_report_manual_overrides_survive_season_label_variants(self):
+        self.season.name = '2025/2026'
+        self.season.start_date = date(2025, 9, 1)
+        self.season.end_date = date(2026, 6, 30)
+        self.season.save(update_fields=['name', 'start_date', 'end_date'])
+        PlayerSeasonReport.objects.create(
+            player=self.player,
+            team=self.team,
+            season_label='2025-2026',
+            scope=Match.CONTEXT_LEAGUE,
+            tournament_name='',
+            manual_overrides={
+                'pj': 13,
+                'minutes': 845,
+                'goals': 6,
+                'assists': 5,
+                'participation_pct': 74.5,
+                'success_rate': 68.2,
+                'importance_score': 83.1,
+                'influence_score': 79.4,
+            },
+        )
+
+        rows = compute_player_dashboard(self.team, force_refresh=True)
+        detail = next(row for row in rows if row['player_id'] == self.player.id)
+
+        self.assertEqual(int(detail.get('pj') or 0), 13)
+        self.assertEqual(int(detail.get('minutes') or 0), 845)
+        self.assertEqual(int(detail.get('goals') or 0), 6)
+        self.assertEqual(int(detail.get('assists') or 0), 5)
+        self.assertEqual(float(detail.get('participation_pct') or 0), 74.5)
+        self.assertEqual(float(detail.get('success_rate') or 0), 68.2)
+        self.assertEqual(float(detail.get('importance_score') or 0), 83.1)
+        self.assertEqual(float(detail.get('influence_score') or 0), 79.4)
+
     def test_staff_rating_radar_uses_report_ratings(self):
         report = PlayerSeasonReport.objects.create(
             player=self.player,

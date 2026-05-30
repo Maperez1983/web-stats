@@ -20515,6 +20515,56 @@ def _resolve_report_team_standing_meta(request, primary_team):
     return result
 
 
+def _season_report_label_candidates(season, preferred_label=''):
+    labels = []
+
+    def _add(value):
+        value = str(value or '').strip()
+        if value and value not in labels:
+            labels.append(value)
+
+    _add(preferred_label)
+    _add(season_display_name(season))
+    if season:
+        _add(getattr(season, 'name', '') or '')
+        start_date = getattr(season, 'start_date', None)
+        end_date = getattr(season, 'end_date', None)
+        if start_date and end_date:
+            _add(f'{start_date.year}-{end_date.year}')
+            _add(f'{start_date.year}/{end_date.year}')
+        elif start_date:
+            _add(str(start_date.year))
+    _add('Temporada actual')
+    return labels
+
+
+def _pick_player_season_report(primary_team, player, *, season_labels, scope, tournament_name):
+    labels = [str(label or '').strip() for label in (season_labels or []) if str(label or '').strip()]
+    if not labels:
+        labels = ['Temporada actual']
+    try:
+        reports = list(
+            PlayerSeasonReport.objects
+            .filter(
+                team=primary_team,
+                player=player,
+                season_label__in=labels,
+                scope=str(scope or '').strip(),
+                tournament_name=str(tournament_name or '').strip(),
+            )
+            .order_by('-updated_at', '-id')
+        )
+    except Exception:
+        reports = []
+    if not reports:
+        return None
+    for label in labels:
+        for report in reports:
+            if str(getattr(report, 'season_label', '') or '').strip() == label:
+                return report
+    return reports[0]
+
+
 @login_required
 def match_staff_report_pdf(request):
     if not _can_edit_match_actions(request.user):
@@ -51197,6 +51247,7 @@ def player_season_report_edit_page(request, player_id):
 
     season_label = 'Temporada actual'
     division_label = primary_team.group.name if primary_team.group else ''
+    season = None
     try:
         season = primary_team.group.season if primary_team.group else None
         if season:
@@ -51208,16 +51259,13 @@ def player_season_report_edit_page(request, player_id):
         pass
 
     tournament_key = str(tournament_filter or '').strip()
-    report = (
-        PlayerSeasonReport.objects
-        .filter(
-            team=primary_team,
-            player=player,
-            season_label=season_label,
-            scope=str(scope or '').strip(),
-            tournament_name=tournament_key,
-        )
-        .first()
+    season_label_candidates = _season_report_label_candidates(season, preferred_label=season_label)
+    report = _pick_player_season_report(
+        primary_team,
+        player,
+        season_labels=season_label_candidates,
+        scope=scope,
+        tournament_name=tournament_key,
     )
 
     def _clean_rating(value):
@@ -51408,6 +51456,19 @@ def player_season_report_edit_page(request, player_id):
     except Exception:
         pass
 
+    try:
+        common_manual = get_manual_player_base_overrides(primary_team, season).get(player.id, {}) if season else {}
+    except Exception:
+        common_manual = {}
+    report_manual = report.manual_overrides if report and isinstance(getattr(report, 'manual_overrides', None), dict) else {}
+    manual_overrides_display = {
+        k: v
+        for k, v in (common_manual or {}).items()
+        if not str(k or '').startswith('_')
+    }
+    if isinstance(report_manual, dict):
+        manual_overrides_display.update(report_manual)
+
     return render(
         request,
         'football/player_season_report_edit.html',
@@ -51420,7 +51481,7 @@ def player_season_report_edit_page(request, player_id):
             'tournament_filter': tournament_filter,
             'report': report,
             'available_ring_kpis': available_ring_kpis,
-            'manual_overrides': report.manual_overrides if report and isinstance(getattr(report, 'manual_overrides', None), dict) else {},
+            'manual_overrides': manual_overrides_display,
             'pdf_url': pdf_url,
             'preview_url': preview_url,
             'back_url': back_url,
@@ -51632,6 +51693,7 @@ def player_pdf(request, player_id):
 
     season_label = 'Temporada actual'
     division_label = primary_team.group.name if primary_team.group else ''
+    season = None
     if club_season and getattr(club_season, 'label', None):
         season_label = str(club_season.label)
     try:
@@ -52646,21 +52708,13 @@ def player_pdf(request, player_id):
     except Exception:
         player_initials = ''
 
-    staff_report = None
-    try:
-        staff_report = (
-            PlayerSeasonReport.objects
-            .filter(
-                team=primary_team,
-                player=player,
-                season_label=season_label,
-                scope=str(scope or '').strip(),
-                tournament_name=str(tournament_filter or '').strip(),
-            )
-            .first()
-        )
-    except Exception:
-        staff_report = None
+    staff_report = _pick_player_season_report(
+        primary_team,
+        player,
+        season_labels=_season_report_label_candidates(season, preferred_label=season_label),
+        scope=scope,
+        tournament_name=tournament_filter,
+    )
 
     # Overrides manuales (si existen) para corregir el PDF cuando faltan datos.
     try:
@@ -55222,21 +55276,29 @@ def compute_player_dashboard(
     report_manual_overrides = {}
     if use_base_stats:
         try:
-            report_season_label = season_display_name(season_obj)
+            report_season_labels = _season_report_label_candidates(season_obj)
+            label_rank = {label: idx for idx, label in enumerate(report_season_labels)}
             report_rows = (
                 PlayerSeasonReport.objects.filter(
                     team=primary_team,
-                    season_label=report_season_label,
+                    season_label__in=report_season_labels,
                     scope=scope_value,
                     tournament_name=tournament_filter,
                 )
-                .values('player_id', 'manual_overrides')
+                .values('player_id', 'season_label', 'manual_overrides')
             )
             for report_row in report_rows:
                 report_player_id = _parse_int(report_row.get('player_id'))
                 report_manual = report_row.get('manual_overrides')
                 if report_player_id and isinstance(report_manual, dict) and report_manual:
-                    report_manual_overrides[int(report_player_id)] = dict(report_manual)
+                    current = report_manual_overrides.get(int(report_player_id))
+                    current_rank = current.get('_label_rank', 9999) if isinstance(current, dict) else 9999
+                    row_rank = label_rank.get(str(report_row.get('season_label') or '').strip(), 9999)
+                    if current is None or row_rank <= current_rank:
+                        report_manual_overrides[int(report_player_id)] = {
+                            **dict(report_manual),
+                            '_label_rank': row_rank,
+                        }
         except Exception:
             report_manual_overrides = {}
     universo_snapshot = (load_universo_snapshot() or {}) if use_base_stats else {}
