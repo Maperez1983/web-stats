@@ -191,10 +191,23 @@
 	          } catch (e) {}
 	        });
 	      }
-	      const matchFinalizeBtn = [
+      const matchFinalizeBtn = [
 	        document.getElementById('match-finalize-btn'),
 	        document.getElementById('match-finalize-btn-top'),
 	      ].filter(Boolean);
+      const fillClosePlayerSelect = (select) => {
+        if (!select || select.options.length > 1) return;
+        convocationCards.forEach((card) => {
+          const opt = document.createElement('option');
+          opt.value = String(card.dataset.playerId || '');
+          opt.textContent = `#${card.dataset.playerNumber || '--'} · ${card.dataset.playerName || 'Jugador'}`;
+          select.appendChild(opt);
+        });
+        const selected = String(select.dataset.selected || '').trim();
+        if (selected) select.value = selected;
+      };
+      fillClosePlayerSelect(document.getElementById('close-mvp-player'));
+      fillClosePlayerSelect(document.getElementById('close-captain-player'));
       const rivalToggleBtn = matchInfoCard?.querySelector('.rival-toggle') || null;
       const rivalDropdown = matchInfoCard?.querySelector('[data-rival-dropdown]') || null;
       const rivalOptions = matchInfoCard?.querySelectorAll('.rival-option') || [];

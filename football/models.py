@@ -862,6 +862,22 @@ class Match(models.Model):
     home_score = models.PositiveSmallIntegerField(null=True, blank=True)
     away_score = models.PositiveSmallIntegerField(null=True, blank=True)
     result = models.CharField(max_length=30, blank=True)
+    staff_captain = models.ForeignKey(
+        'Player',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='staff_captain_matches',
+        help_text='Capitán destacado por el staff al cerrar el registro de acciones.',
+    )
+    staff_mvp = models.ForeignKey(
+        'Player',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='staff_mvp_matches',
+        help_text='Mejor jugador elegido por el staff al cerrar el registro de acciones.',
+    )
     notes = models.TextField(blank=True)
     source = models.URLField(blank=True)
 

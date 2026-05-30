@@ -1490,11 +1490,21 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
           }
         }
 
+        const staffSelection = (() => {
+          try {
+            return {
+              best_player_id: String(document.getElementById('close-mvp-player')?.value || '').trim() || null,
+              captain_player_id: String(document.getElementById('close-captain-player')?.value || '').trim() || null,
+            };
+          } catch (error) {
+            return { best_player_id: null, captain_player_id: null };
+          }
+        })();
         const response = await fetch(finalizeUrl, {
           method: 'POST',
           credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, Accept: 'application/json' },
-          body: JSON.stringify({ match_id: currentMatchId, match_info: matchInfoState }),
+          body: JSON.stringify({ match_id: currentMatchId, match_info: matchInfoState, ...staffSelection }),
         });
         const rawText = await response.text().catch(() => '');
         const data = safeParseJson(rawText, {});

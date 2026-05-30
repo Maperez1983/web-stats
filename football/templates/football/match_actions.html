@@ -4254,6 +4254,8 @@
                 <ul id="close-summary-alerts">
                   <li>Sin revisar todavía.</li>
                 </ul>
+                <select id="close-mvp-player" name="best_player_id" data-selected="{{ match_staff_mvp_id|default:'' }}"><option value="">MVP</option></select>
+                <select id="close-captain-player" name="captain_player_id" data-selected="{{ match_staff_captain_id|default:'' }}"><option value="">CAP</option></select>
               </article>
 	              <div class="closure-actions">
 	                <button type="button" class="save" id="match-finalize-btn">Guardar partido</button>

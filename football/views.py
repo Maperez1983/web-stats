@@ -16143,6 +16143,20 @@ def match_action_page(request):
     convocation_players = list(convocation_players)
     for player in convocation_players:
         player.photo_url = resolve_player_photo_url(request, player)
+    match_staff_captain_id = ''
+    match_staff_mvp_id = ''
+    try:
+        if active_match and getattr(active_match, 'staff_captain_id', None):
+            match_staff_captain_id = str(int(active_match.staff_captain_id))
+        elif convocation_record and getattr(convocation_record, 'captain_id', None):
+            match_staff_captain_id = str(int(convocation_record.captain_id))
+    except Exception:
+        match_staff_captain_id = ''
+    try:
+        if active_match and getattr(active_match, 'staff_mvp_id', None):
+            match_staff_mvp_id = str(int(active_match.staff_mvp_id))
+    except Exception:
+        match_staff_mvp_id = ''
     initial_lineup_payload = {'starters': [], 'bench': []}
     if convocation_record:
         stored_lineup = convocation_record.lineup_data if isinstance(convocation_record.lineup_data, dict) else {}
@@ -16530,6 +16544,8 @@ def match_action_page(request):
             'rival_team_crest_url': rival_team_crest_url,
             'match_selector_options': match_selector_options,
             'selected_match_id': selected_match_id,
+            'match_staff_captain_id': match_staff_captain_id,
+            'match_staff_mvp_id': match_staff_mvp_id,
             'match_half_minutes': _half_minutes_for_team(primary_team),
             'match_regulation_minutes': _regulation_minutes_for_team(primary_team),
             'starters_limit': starters_limit,
@@ -17404,6 +17420,57 @@ def finalize_match_actions(request):
         return JsonResponse({'error': 'No hay partido activo para guardar'}, status=400)
     _apply_match_info_overrides(match, primary_team, payload.get('match_info'))
 
+    def _save_staff_match_selection():
+        if not isinstance(payload, dict):
+            return {}
+        staff_selection = payload.get('staff_selection') if isinstance(payload.get('staff_selection'), dict) else {}
+        captain_id = _parse_int(
+            payload.get('captain_player_id')
+            or payload.get('staff_captain_id')
+            or staff_selection.get('captain_player_id')
+        )
+        mvp_id = _parse_int(
+            payload.get('best_player_id')
+            or payload.get('mvp_player_id')
+            or payload.get('staff_mvp_id')
+            or staff_selection.get('mvp_player_id')
+        )
+        target_ids = {int(v) for v in (captain_id, mvp_id) if v}
+        if not target_ids:
+            return {}
+        allowed_players = {
+            int(p.id): p
+            for p in Player.objects.filter(id__in=target_ids, team=primary_team, is_active=True)
+        }
+        update_fields = []
+        if captain_id and int(captain_id) in allowed_players:
+            match.staff_captain_id = int(captain_id)
+            update_fields.append('staff_captain')
+            try:
+                record = get_current_convocation_record(primary_team, match=match, fallback_to_latest=False)
+            except Exception:
+                record = None
+            if record:
+                try:
+                    record.captain_id = int(captain_id)
+                    record.save(update_fields=['captain', 'updated_at'])
+                except Exception:
+                    try:
+                        record.save(update_fields=['captain'])
+                    except Exception:
+                        pass
+        if mvp_id and int(mvp_id) in allowed_players:
+            match.staff_mvp_id = int(mvp_id)
+            update_fields.append('staff_mvp')
+        if update_fields:
+            match.save(update_fields=sorted(set(update_fields)))
+        return {
+            'captain_player_id': int(match.staff_captain_id or 0) or '',
+            'mvp_player_id': int(match.staff_mvp_id or 0) or '',
+        }
+
+    staff_selection_payload = _save_staff_match_selection()
+
     def _reset_matchday_state_after_finalize():
         # UX: al finalizar un partido, limpiamos el match "activo" en sesión para que el siguiente
         # acceso arranque en un flujo nuevo (prepartido) en vez de volver al match ya cerrado.
@@ -17468,6 +17535,7 @@ def finalize_match_actions(request):
                 'match_label': str(match),
                 'updated': 0,
                 'deduplicated': 0,
+                'staff_selection': staff_selection_payload,
                 **_score_payload_for_match(),
             }
         )
@@ -17501,6 +17569,7 @@ def finalize_match_actions(request):
             'match_label': str(match),
             'score_for': '' if score_for is None else str(int(score_for)),
             'score_against': '' if score_against is None else str(int(score_against)),
+            'staff_selection': staff_selection_payload,
         }
     )
 
@@ -26866,7 +26935,11 @@ def coach_matches_page(request):
         except Exception:
             pass
 
-    qs = _team_match_queryset(primary_team).select_related('home_team', 'away_team').order_by('-date', '-id')
+    qs = (
+        _team_match_queryset(primary_team)
+        .select_related('home_team', 'away_team', 'staff_captain', 'staff_mvp')
+        .order_by('-date', '-id')
+    )
     if context_filter and context_filter in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY}:
         qs = qs.filter(context=context_filter)
     if q:
@@ -26948,6 +27021,25 @@ def coach_matches_page(request):
         )
         key = f"{m.date.isoformat() if m.date else 'no-date'}|{normalize_label(opponent_name)}|{str(m.context or '').strip()}|{normalize_label(str(m.tournament_name or '').strip())}"
         dup_counts[key] += 1
+        score_for = m.home_score if is_home else m.away_score
+        score_against = m.away_score if is_home else m.home_score
+        if score_for is not None and score_against is not None:
+            if int(score_for) > int(score_against):
+                outcome = 'win'
+                outcome_label = 'Victoria'
+            elif int(score_for) < int(score_against):
+                outcome = 'loss'
+                outcome_label = 'Derrota'
+            else:
+                outcome = 'draw'
+                outcome_label = 'Empate'
+            score_label = f"{int(score_for)}-{int(score_against)}"
+        else:
+            outcome = 'pending'
+            outcome_label = 'Pendiente'
+            score_label = str(getattr(m, 'result', '') or '').strip() or ''
+        captain_player = getattr(m, 'staff_captain', None)
+        mvp_player = getattr(m, 'staff_mvp', None)
         rows.append(
             {
                 'id': int(m.id),
@@ -26966,11 +27058,15 @@ def coach_matches_page(request):
                 'location': str(getattr(m, 'location', '') or '').strip(),
                 'kickoff_time': getattr(m, 'kickoff_time', None),
                 'is_home': is_home,
-                'score': (
-                    f"{m.home_score}-{m.away_score}"
-                    if (m.home_score is not None and m.away_score is not None)
-                    else (str(getattr(m, 'result', '') or '').strip() or '')
-                ),
+                'score': score_label,
+                'score_for': '' if score_for is None else int(score_for),
+                'score_against': '' if score_against is None else int(score_against),
+                'outcome': outcome,
+                'outcome_label': outcome_label,
+                'captain_label': str(getattr(captain_player, 'name', '') or '').strip(),
+                'captain_number': getattr(captain_player, 'number', None) if captain_player else None,
+                'mvp_label': str(getattr(mvp_player, 'name', '') or '').strip(),
+                'mvp_number': getattr(mvp_player, 'number', None) if mvp_player else None,
                 'key': key,
                 'actions': int(action_counts.get(int(m.id), 0) or 0),
                 'manual_stats': int(manual_stat_counts.get(int(m.id), 0) or 0),
