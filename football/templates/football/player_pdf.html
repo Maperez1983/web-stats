@@ -627,6 +627,24 @@
       .spark-empty .spark-value { color: transparent; }
       .spark-zero .spark-value { color: transparent; }
       .chart-note { margin-top: 6px; font-size: 9.4px; color: var(--pdf-muted); }
+      .chart-key {
+        margin-top: 6px;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 3px 7px;
+        font-size: 8.7px;
+        color: var(--pdf-muted);
+        line-height: 1.22;
+      }
+      .chart-key-item {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .chart-key-item strong {
+        color: var(--pdf-ink);
+        font-weight: 1000;
+      }
       .linechart {
         width: 100%;
         margin-top: 8px;
@@ -1397,6 +1415,11 @@
                           </svg>
                         </div>
                         <div class="chart-note">X: jornadas compactas · {{ matchday_minutes_metric_label|default:"Minutos" }} (eje Y hasta {{ matchday_minutes_line.y_max }}).</div>
+                        <div class="chart-key" aria-label="Leyenda de jornadas y rivales">
+                          {% for item in matchday_minutes_chart %}
+                            <div class="chart-key-item"><strong>{{ item.label_round }}</strong> · {{ item.label_opponent }}</div>
+                          {% endfor %}
+                        </div>
                       {% else %}
                         {% for row in matchday_minutes_chart_rows %}
                           <table class="spark-table">
@@ -1426,6 +1449,11 @@
                           </table>
                         {% endfor %}
                         <div class="chart-note">Cada barra representa {{ matchday_minutes_metric_label|default:"la variable" }} en esa jornada.</div>
+                        <div class="chart-key" aria-label="Leyenda de jornadas y rivales">
+                          {% for item in matchday_minutes_chart %}
+                            <div class="chart-key-item"><strong>{{ item.label_round }}</strong> · {{ item.label_opponent }}</div>
+                          {% endfor %}
+                        </div>
                       {% endif %}
                     {% else %}
                       <div class="muted" style="margin-top:8px;">Sin jornadas para graficar.</div>
@@ -1497,6 +1525,11 @@
                           </svg>
                         </div>
                         <div class="chart-note">X: jornadas compactas · {{ matchday_ga_metric_label|default:"Goles" }} / {{ matchday_ga_metric2_label|default:"Asist." }} (eje Y hasta {{ matchday_ga_line.y_max }}).</div>
+                        <div class="chart-key" aria-label="Leyenda de jornadas y rivales">
+                          {% for item in matchday_ga_chart %}
+                            <div class="chart-key-item"><strong>{{ item.label_round }}</strong> · {{ item.label_opponent }}</div>
+                          {% endfor %}
+                        </div>
                       {% else %}
                         {% for row in matchday_ga_chart_rows %}
                           <table class="spark-table">
@@ -1536,6 +1569,11 @@
                           </table>
                         {% endfor %}
                         <div class="chart-note">Series A/B. Altura = volumen.</div>
+                        <div class="chart-key" aria-label="Leyenda de jornadas y rivales">
+                          {% for item in matchday_ga_chart %}
+                            <div class="chart-key-item"><strong>{{ item.label_round }}</strong> · {{ item.label_opponent }}</div>
+                          {% endfor %}
+                        </div>
                       {% endif %}
                     {% else %}
                       <div class="muted" style="margin-top:8px;">Sin jornadas para graficar.</div>
