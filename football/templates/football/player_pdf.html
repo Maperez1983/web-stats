@@ -1661,6 +1661,22 @@
         </table>
 
         <div style="margin-top:12px;">
+          <div class="section-title">Perfil posicional</div>
+          <table class="table">
+            <tbody>
+              <tr>
+                <th style="width: 50%;">Posición más utilizada</th>
+                <th style="width: 50%;">Posición ideal</th>
+              </tr>
+              <tr>
+                <td><strong>{{ staff_position_summary.most_used_position|default:"—" }}</strong></td>
+                <td><strong>{{ staff_position_summary.ideal_position|default:"—" }}</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="margin-top:12px;">
           <div class="section-title">Fortalezas</div>
           <div class="card" style="margin-top:10px;">
             {% if staff_report and staff_report.strengths %}

@@ -4888,12 +4888,16 @@ class ManualStatsTests(TestCase):
                 'manual_success_rate': '71',
                 'manual_importance_score': '82',
                 'manual_influence_score': '77',
+                'most_used_position': 'Interior derecho',
+                'ideal_position': 'Mediocentro',
             },
         )
 
         self.assertEqual(response.status_code, 302)
         report = PlayerSeasonReport.objects.get(player=self.player, team=self.team)
         self.assertEqual(report.manual_overrides['pj'], 12)
+        self.assertEqual(report.manual_overrides['most_used_position'], 'Interior derecho')
+        self.assertEqual(report.manual_overrides['ideal_position'], 'Mediocentro')
         overrides = get_manual_player_base_overrides(self.team, self.season)
         self.assertEqual(overrides[self.player.id]['pj'], 12)
         self.assertEqual(overrides[self.player.id]['minutes'], 720)

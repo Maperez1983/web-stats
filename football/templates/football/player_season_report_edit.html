@@ -117,6 +117,12 @@
 	              <label>Influencia 0-100 (manual)
 	                <input type="number" step="0.1" name="manual_influence_score" min="0" max="100" value="{{ manual_overrides.influence_score|default:'' }}" />
 	              </label>
+	              <label>Posición más utilizada
+	                <input type="text" name="most_used_position" maxlength="60" value="{{ manual_overrides.most_used_position|default:'' }}" placeholder="Ej: MC, Interior derecho..." />
+	              </label>
+	              <label>Posición ideal
+	                <input type="text" name="ideal_position" maxlength="60" value="{{ manual_overrides.ideal_position|default:'' }}" placeholder="Ej: MCD, extremo izquierdo..." />
+	              </label>
 	            </div>
 	          </div>
 	          <div class="grid">

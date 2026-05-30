@@ -51010,6 +51010,16 @@ def player_season_report_edit_page(request, player_id):
         except Exception:
             return float(num)
 
+    def _clean_nullable_text(value, *, max_len=80):
+        try:
+            raw = str(value or '').strip()
+        except Exception:
+            raw = ''
+        raw = ' '.join(raw.split())
+        if not raw:
+            return None
+        return raw[: int(max_len or 80)]
+
     if request.method == 'POST':
         payload = request.POST
         if report is None:
@@ -51060,6 +51070,8 @@ def player_season_report_edit_page(request, player_id):
         _set_or_del('success_rate', _clean_nullable_float(payload.get('manual_success_rate'), min_value=0, max_value=100, ndigits=1))
         _set_or_del('importance_score', _clean_nullable_float(payload.get('manual_importance_score'), min_value=0, max_value=100, ndigits=1))
         _set_or_del('influence_score', _clean_nullable_float(payload.get('manual_influence_score'), min_value=0, max_value=100, ndigits=1))
+        _set_or_del('most_used_position', _clean_nullable_text(payload.get('most_used_position'), max_len=60))
+        _set_or_del('ideal_position', _clean_nullable_text(payload.get('ideal_position'), max_len=60))
 
         report.manual_overrides = manual
         report.updated_by = request.user if isinstance(request.user, User) else None
@@ -52343,6 +52355,10 @@ def player_pdf(request, player_id):
                     detail[dest] = manual.get(src)
                 except Exception:
                     pass
+    staff_position_summary = {
+        'most_used_position': str((manual or {}).get('most_used_position') or '').strip() if isinstance(manual, dict) else '',
+        'ideal_position': str((manual or {}).get('ideal_position') or '').strip() if isinstance(manual, dict) else '',
+    }
 
     # Bloque "Estadísticas temporada" (mismo contenido que la ficha del jugador).
     def _num_int(value, default=0):
@@ -52730,6 +52746,7 @@ def player_pdf(request, player_id):
             'pitch_src': pitch_src,
             'matches_for_report_pages': matches_for_report_pages,
             'staff_report': staff_report,
+            'staff_position_summary': staff_position_summary,
             'primary_team': primary_team,
             'team_display_name': team_display_name,
             'season_label': season_label,
