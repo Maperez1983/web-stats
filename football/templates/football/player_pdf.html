@@ -1661,6 +1661,51 @@
         </table>
 
         <div style="margin-top:12px;">
+          <div class="section-title">Radar ratings staff</div>
+          <div class="radar-layout" style="margin-top:8px;">
+            <div class="radar-layout-row">
+              <div class="radar-left">
+                <div class="radar-figure">
+                  <div class="radar-figure-wrap" style="width:260px; height:260px;">
+                    <svg viewBox="0 0 360 360" role="img" aria-label="Radar de ratings staff">
+                      <defs>
+                        <linearGradient id="staffRatingFillPdf" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stop-color="rgba(244,180,0,0.40)"></stop>
+                          <stop offset="100%" stop-color="rgba({{ pdf_palette_css.primary_rgb|default:'15, 122, 53' }},0.28)"></stop>
+                        </linearGradient>
+                      </defs>
+                      <polygon points="180,150.5 205.5,165.3 205.5,194.8 180,209.5 154.5,194.8 154.5,165.3" fill="none" stroke="rgba(11,18,32,0.12)" stroke-width="1"></polygon>
+                      <polygon points="180,121 231.1,150.5 231.1,209.5 180,239 128.9,209.5 128.9,150.5" fill="none" stroke="rgba(11,18,32,0.14)" stroke-width="1"></polygon>
+                      <polygon points="180,91.5 256.6,135.8 256.6,224.3 180,268.5 103.4,224.3 103.4,135.8" fill="none" stroke="rgba(11,18,32,0.16)" stroke-width="1"></polygon>
+                      <polygon points="180,62 282.2,121 282.2,239 180,298 77.8,239 77.8,121" fill="none" stroke="rgba(11,18,32,0.20)" stroke-width="1.2"></polygon>
+                      {% for ax in staff_rating_radar.axis_svg %}
+                        <line x1="180" y1="180" x2="{{ ax.axis_x }}" y2="{{ ax.axis_y }}" stroke="rgba(11,18,32,0.16)" stroke-width="1"></line>
+                        <text x="{{ ax.label_x }}" y="{{ ax.label_y }}" text-anchor="{{ ax.anchor }}" dominant-baseline="{{ ax.baseline }}" font-size="12" font-weight="900" fill="rgba(11,18,32,0.70)">{{ ax.text }}</text>
+                      {% endfor %}
+                      {% if staff_rating_radar.polygon_points_svg %}
+                        <polygon points="{{ staff_rating_radar.polygon_points_svg }}" fill="url(#staffRatingFillPdf)" stroke="rgba(244,180,0,0.92)" stroke-width="2.2"></polygon>
+                      {% endif %}
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              <div class="radar-right">
+                <table class="table">
+                  <tbody>
+                    {% for axis in staff_rating_radar.axes %}
+                      <tr>
+                        <th style="width: 58%;">{{ axis.key }}</th>
+                        <td><strong>{{ axis.display }}</strong></td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:12px;">
           <div class="section-title">Perfil posicional</div>
           <table class="table">
             <tbody>

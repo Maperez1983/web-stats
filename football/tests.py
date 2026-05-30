@@ -4912,6 +4912,24 @@ class ManualStatsTests(TestCase):
         self.assertEqual(float(detail.get('importance_score') or 0), 82.0)
         self.assertEqual(float(detail.get('influence_score') or 0), 77.0)
 
+    def test_staff_rating_radar_uses_report_ratings(self):
+        report = PlayerSeasonReport.objects.create(
+            player=self.player,
+            team=self.team,
+            season_label='Temporada actual',
+            overall_rating=8,
+            technical_rating=7,
+            tactical_rating=6,
+            physical_rating=5,
+            mental_rating=9,
+            social_rating=10,
+        )
+
+        radar = football_views._build_staff_rating_radar_data(report)
+
+        self.assertEqual([axis['display'] for axis in radar['axes']], ['8/10', '7/10', '6/10', '5/10', '9/10', '10/10'])
+        self.assertTrue(radar['polygon_points_svg'])
+
     def test_saved_manual_base_totals_override_manual_match_rows(self):
         save_manual_player_base_overrides(
             player=self.player,

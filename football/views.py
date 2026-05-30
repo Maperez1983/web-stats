@@ -20266,6 +20266,80 @@ def _build_player_card_radar_data(detail_row, population_rows):
         return {'axes': axes, 'polygon_points_svg': '', 'labels_svg': [], 'axis_svg': []}
 
 
+def _build_staff_rating_radar_data(staff_report):
+    """
+    Radar fijo para los ratings 1-10 de la valoración del cuerpo técnico.
+    """
+
+    def _rating(value):
+        try:
+            num = float(value or 0)
+        except Exception:
+            num = 0.0
+        return max(0.0, min(num, 10.0))
+
+    def _axis(key, value):
+        rating = _rating(value)
+        return {
+            'key': key,
+            'rating': rating,
+            'value': rating * 10.0,
+            'display': f'{rating:.0f}/10' if rating else '-',
+        }
+
+    axes = [
+        _axis('Global', getattr(staff_report, 'overall_rating', None)),
+        _axis('Técnica', getattr(staff_report, 'technical_rating', None)),
+        _axis('Táctica', getattr(staff_report, 'tactical_rating', None)),
+        _axis('Físico', getattr(staff_report, 'physical_rating', None)),
+        _axis('Mental', getattr(staff_report, 'mental_rating', None)),
+        _axis('Social', getattr(staff_report, 'social_rating', None)),
+    ]
+
+    try:
+        import math  # noqa: WPS433
+
+        cx, cy, rmax = 180.0, 180.0, 118.0
+        n = len(axes)
+        pts = []
+        axis_svg = []
+        for i, axis in enumerate(axes):
+            angle = (-math.pi / 2.0) + (i * 2.0 * math.pi / n)
+            value = max(0.0, min(float(axis.get('value', 0.0)), 100.0))
+            rr = rmax * (value / 100.0)
+            x = cx + math.cos(angle) * rr
+            y = cy + math.sin(angle) * rr
+            pts.append((x, y))
+            ax_x = cx + math.cos(angle) * rmax
+            ax_y = cy + math.sin(angle) * rmax
+            lr = 154.0
+            lx = cx + math.cos(angle) * lr
+            ly = cy + math.sin(angle) * lr
+            anchor = 'middle'
+            if lx < cx - 10:
+                anchor = 'start'
+            elif lx > cx + 10:
+                anchor = 'end'
+            axis_svg.append(
+                {
+                    'axis_x': round(float(ax_x), 1),
+                    'axis_y': round(float(ax_y), 1),
+                    'label_x': round(max(28.0, min(float(lx), 332.0)), 1),
+                    'label_y': round(max(30.0, min(float(ly), 330.0)), 1),
+                    'text': str(axis.get('key') or ''),
+                    'anchor': anchor,
+                    'baseline': 'middle',
+                }
+            )
+        return {
+            'axes': axes,
+            'polygon_points_svg': ' '.join([f'{x:.1f},{y:.1f}' for (x, y) in pts]),
+            'axis_svg': axis_svg,
+        }
+    except Exception:
+        return {'axes': axes, 'polygon_points_svg': '', 'axis_svg': []}
+
+
 @login_required
 def match_staff_report_pdf(request):
     if not _can_edit_match_actions(request.user):
@@ -52359,6 +52433,7 @@ def player_pdf(request, player_id):
         'most_used_position': str((manual or {}).get('most_used_position') or '').strip() if isinstance(manual, dict) else '',
         'ideal_position': str((manual or {}).get('ideal_position') or '').strip() if isinstance(manual, dict) else '',
     }
+    staff_rating_radar = _build_staff_rating_radar_data(staff_report)
 
     # Bloque "Estadísticas temporada" (mismo contenido que la ficha del jugador).
     def _num_int(value, default=0):
@@ -52747,6 +52822,7 @@ def player_pdf(request, player_id):
             'matches_for_report_pages': matches_for_report_pages,
             'staff_report': staff_report,
             'staff_position_summary': staff_position_summary,
+            'staff_rating_radar': staff_rating_radar,
             'primary_team': primary_team,
             'team_display_name': team_display_name,
             'season_label': season_label,
