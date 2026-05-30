@@ -54847,6 +54847,26 @@ def compute_player_dashboard(
         else {}
     )
     manual_overrides = get_manual_player_base_overrides(primary_team) if use_base_stats else {}
+    report_manual_overrides = {}
+    if use_base_stats:
+        try:
+            report_season_label = season_display_name(season_obj)
+            report_rows = (
+                PlayerSeasonReport.objects.filter(
+                    team=primary_team,
+                    season_label=report_season_label,
+                    scope=scope_value,
+                    tournament_name=tournament_filter,
+                )
+                .values('player_id', 'manual_overrides')
+            )
+            for report_row in report_rows:
+                report_player_id = _parse_int(report_row.get('player_id'))
+                report_manual = report_row.get('manual_overrides')
+                if report_player_id and isinstance(report_manual, dict) and report_manual:
+                    report_manual_overrides[int(report_player_id)] = dict(report_manual)
+        except Exception:
+            report_manual_overrides = {}
     universo_snapshot = (load_universo_snapshot() or {}) if use_base_stats else {}
     can_use_universo = _universo_snapshot_supports_team(universo_snapshot, primary_team) if use_base_stats else False
     universo_players = (universo_snapshot.get('players') if isinstance(universo_snapshot, dict) else []) if can_use_universo else []
@@ -54896,6 +54916,7 @@ def compute_player_dashboard(
 
     roster_entry_by_player_id = {player.id: (find_roster_entry(player.name, roster_cache) or {}) for player in roster_players}
     manual_entry_by_player_id = manual_overrides if isinstance(manual_overrides, dict) else {}
+    report_manual_entry_by_player_id = report_manual_overrides if isinstance(report_manual_overrides, dict) else {}
     universo_entry_by_player_id = {player.id: (_find_universo_entry(player) or {}) for player in roster_players}
     player_photo_url_by_id = {}
     for player in roster_players:
@@ -56264,10 +56285,20 @@ def compute_player_dashboard(
             pid = 0
         if pid:
             manual_entry = manual_entry_by_player_id.get(pid, {}) if isinstance(manual_entry_by_player_id, dict) else {}
-            if isinstance(manual_entry, dict) and manual_entry and pid not in manual_match_player_ids:
+            manual_is_locked = bool(manual_entry.get('_locked')) if isinstance(manual_entry, dict) else False
+            if isinstance(manual_entry, dict) and manual_entry and (pid not in manual_match_player_ids or manual_is_locked):
                 for key in ('pj', 'pt', 'minutes', 'goals', 'assists', 'yellow_cards', 'red_cards'):
                     if key in manual_entry and manual_entry.get(key) is not None:
                         stats[key] = manual_entry.get(key)
+                try:
+                    stats['pc'] = max(int(stats.get('pc', 0) or 0), int(stats.get('pj', 0) or 0))
+                except Exception:
+                    pass
+            report_manual_entry = report_manual_entry_by_player_id.get(pid, {}) if isinstance(report_manual_entry_by_player_id, dict) else {}
+            if isinstance(report_manual_entry, dict) and report_manual_entry:
+                for key in ('pj', 'minutes', 'goals', 'assists'):
+                    if key in report_manual_entry and report_manual_entry.get(key) is not None:
+                        stats[key] = report_manual_entry.get(key)
                 try:
                     stats['pc'] = max(int(stats.get('pc', 0) or 0), int(stats.get('pj', 0) or 0))
                 except Exception:
@@ -56448,6 +56479,16 @@ def compute_player_dashboard(
         merged['successes_per90'] = influence['successes_per90']
         merged['decisive_actions_per90'] = influence['decisive_actions_per90']
         merged['influence_score'] = influence['influence_score']
+        report_manual_entry = report_manual_entry_by_player_id.get(int(stats.get('player_id') or 0), {})
+        if isinstance(report_manual_entry, dict) and report_manual_entry:
+            for key in (
+                'participation_pct',
+                'success_rate',
+                'importance_score',
+                'influence_score',
+            ):
+                if key in report_manual_entry and report_manual_entry.get(key) is not None:
+                    merged[key] = report_manual_entry.get(key)
         profile, profile_label, smart_kpis = build_smart_kpis(stats)
         merged['profile'] = profile
         merged['profile_label'] = profile_label

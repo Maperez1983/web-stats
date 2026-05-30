@@ -13,6 +13,7 @@ MANUAL_BASE_STAT_NAMES = (
     'manual_yellow_cards',
     'manual_red_cards',
 )
+MANUAL_BASE_LOCK_NAME = 'manual_totals_lock'
 
 
 def resolve_stats_season(primary_team):
@@ -49,7 +50,7 @@ def get_manual_player_base_overrides(primary_team, season=None):
             season=season,
             match__isnull=True,
             context='manual-base',
-            name__in=MANUAL_BASE_STAT_NAMES,
+            name__in=(*MANUAL_BASE_STAT_NAMES, MANUAL_BASE_LOCK_NAME),
         )
         .select_related('player')
     )
@@ -71,12 +72,15 @@ def get_manual_player_base_overrides(primary_team, season=None):
             player_data['yellow_cards'] = value
         elif stat.name == 'manual_red_cards':
             player_data['red_cards'] = value
+        elif stat.name == MANUAL_BASE_LOCK_NAME:
+            player_data['_locked'] = value > 0
     return overrides
 
 
 def save_manual_player_base_overrides(*, player, season, values):
     if not player or not season:
         return
+    has_manual_value = False
     for stat_name, stat_value in values.items():
         queryset = PlayerStatistic.objects.filter(
             player=player,
@@ -92,6 +96,7 @@ def save_manual_player_base_overrides(*, player, season, values):
             if stat:
                 queryset.delete()
             continue
+        has_manual_value = True
         normalized_value = parsed
         if stat:
             duplicates = queryset.exclude(id=stat.id)
@@ -109,3 +114,30 @@ def save_manual_player_base_overrides(*, player, season, values):
                 context='manual-base',
                 value=normalized_value,
             )
+    lock_qs = PlayerStatistic.objects.filter(
+        player=player,
+        season=season,
+        match=None,
+        name=MANUAL_BASE_LOCK_NAME,
+        context='manual-base',
+    )
+    lock_stat = lock_qs.order_by('-id').first()
+    if has_manual_value:
+        if lock_stat:
+            duplicates = lock_qs.exclude(id=lock_stat.id)
+            if duplicates.exists():
+                duplicates.delete()
+            if lock_stat.value != 1:
+                lock_stat.value = 1
+                lock_stat.save(update_fields=['value'])
+        else:
+            PlayerStatistic.objects.create(
+                player=player,
+                season=season,
+                match=None,
+                name=MANUAL_BASE_LOCK_NAME,
+                context='manual-base',
+                value=1,
+            )
+    elif lock_stat:
+        lock_qs.delete()

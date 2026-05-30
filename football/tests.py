@@ -4903,6 +4903,45 @@ class ManualStatsTests(TestCase):
         self.assertEqual(int(detail.get('minutes') or 0), 720)
         self.assertEqual(int(detail.get('goals') or 0), 5)
         self.assertEqual(int(detail.get('assists') or 0), 4)
+        self.assertEqual(float(detail.get('participation_pct') or 0), 66.5)
+        self.assertEqual(float(detail.get('success_rate') or 0), 71.0)
+        self.assertEqual(float(detail.get('importance_score') or 0), 82.0)
+        self.assertEqual(float(detail.get('influence_score') or 0), 77.0)
+
+    def test_saved_manual_base_totals_override_manual_match_rows(self):
+        save_manual_player_base_overrides(
+            player=self.player,
+            season=self.season,
+            values={
+                'manual_pj': '10',
+                'manual_pt': '8',
+                'manual_minutes': '700',
+                'manual_goals': '12',
+                'manual_assists': '6',
+            },
+        )
+        opponent = Team.objects.create(name='Rival Manual', slug='rival-manual', group=self.team.group, is_primary=False)
+        match = Match.objects.create(
+            season=self.season,
+            group=self.team.group,
+            round='J1',
+            context=Match.CONTEXT_LEAGUE,
+            date=date(2026, 1, 1),
+            home_team=self.team,
+            away_team=opponent,
+        )
+        PlayerStatistic.objects.create(player=self.player, season=self.season, match=match, context='manual-match', name='manual_minutes', value=45)
+        PlayerStatistic.objects.create(player=self.player, season=self.season, match=match, context='manual-match', name='manual_goals', value=1)
+        PlayerStatistic.objects.create(player=self.player, season=self.season, match=match, context='manual-match', name='manual_assists', value=0)
+
+        rows = compute_player_dashboard(self.team, force_refresh=True)
+        detail = next(row for row in rows if row['player_id'] == self.player.id)
+
+        self.assertEqual(int(detail.get('pj') or 0), 10)
+        self.assertEqual(int(detail.get('pt') or 0), 8)
+        self.assertEqual(int(detail.get('minutes') or 0), 700)
+        self.assertEqual(int(detail.get('goals') or 0), 12)
+        self.assertEqual(int(detail.get('assists') or 0), 6)
 
     @patch('football.views.get_roster_stats_cache', side_effect=RuntimeError('snapshot roto'))
     def test_manual_stats_page_tolerates_roster_cache_errors(self, mocked_cache):
