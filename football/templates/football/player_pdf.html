@@ -655,34 +655,6 @@
       .spark-empty .spark-value { color: transparent; }
       .spark-zero .spark-value { color: transparent; }
       .chart-note { margin-top: 6px; font-size: 9.4px; color: var(--pdf-muted); }
-      .chart-key {
-        margin-top: 10px;
-        padding-top: 8px;
-        border-top: 1px solid rgba(148,163,184,0.24);
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 4px 10px;
-        font-size: 9px;
-        color: var(--pdf-muted);
-        line-height: 1.22;
-      }
-      .chart-key-title {
-        margin-top: 10px;
-        font-size: 9.4px;
-        font-weight: 1000;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: var(--pdf-muted);
-      }
-      .chart-key-item {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      .chart-key-item strong {
-        color: var(--pdf-ink);
-        font-weight: 1000;
-      }
       .linechart {
         width: 100%;
         margin-top: 8px;
@@ -1605,15 +1577,6 @@
                   </div>
                 </div>
               </div>
-              {% if matchday_chart_key %}
-                <div class="chart-key-title">Clave jornadas-rivales</div>
-                <div class="chart-key" aria-label="Clave de jornadas y rivales">
-                  {% for item in matchday_chart_key %}
-                    <div class="chart-key-item"><strong>{{ item.round }}</strong> · {{ item.opponent }}</div>
-                  {% endfor %}
-                </div>
-              {% endif %}
-
               <div class="foot">
                 <div class="brandline">
                   <img src="{{ crest_src }}" alt="Escudo {{ team_display_name }}" />

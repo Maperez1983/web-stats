@@ -51982,7 +51982,6 @@ def player_pdf(request, player_id):
     matchday_ga_chart = []
     matchday_minutes_chart_rows = []
     matchday_ga_chart_rows = []
-    matchday_chart_key = []
     matchday_minutes_line = None
     matchday_ga_line = None
     try:
@@ -52440,25 +52439,6 @@ def player_pdf(request, player_id):
         radar_actions_spark = None
         radar_success_spark = None
         try:
-            seen_chart_keys = set()
-            for item in list(matchday_minutes_chart or []) + list(matchday_ga_chart or []):
-                round_label = str(item.get('label_round') or '').strip()
-                opponent_label = str(item.get('key_opponent') or item.get('label_opponent') or '').strip()
-                if not round_label and not opponent_label:
-                    continue
-                dedupe_key = (round_label, normalize_label(opponent_label))
-                if dedupe_key in seen_chart_keys:
-                    continue
-                seen_chart_keys.add(dedupe_key)
-                matchday_chart_key.append(
-                    {
-                        'round': round_label or '-',
-                        'opponent': opponent_label or '-',
-                    }
-                )
-        except Exception:
-            matchday_chart_key = []
-        try:
             played_src = [m for m in (chart_matches or []) if m.get('is_played')]
             last6 = played_src[-6:] if len(played_src) >= 1 else []
             mini_items = []
@@ -52539,7 +52519,6 @@ def player_pdf(request, player_id):
         matchday_ga_chart = []
         matchday_minutes_chart_rows = []
         matchday_ga_chart_rows = []
-        matchday_chart_key = []
         matchday_minutes_line = None
         matchday_ga_line = None
         radar_actions_spark = None
@@ -53077,7 +53056,6 @@ def player_pdf(request, player_id):
             'next_scheduled_match': next_scheduled_match,
             'matchday_minutes_chart': matchday_minutes_chart,
             'matchday_ga_chart': matchday_ga_chart,
-            'matchday_chart_key': matchday_chart_key,
             'matchday_minutes_chart_rows': matchday_minutes_chart_rows,
             'matchday_ga_chart_rows': matchday_ga_chart_rows,
             'matchday_minutes_line': matchday_minutes_line,
