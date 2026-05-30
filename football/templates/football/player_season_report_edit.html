@@ -1,4 +1,4 @@
-{% load static %}
+{% load static l10n %}
 <!DOCTYPE html>
 <html lang="es">
   <head>
@@ -137,28 +137,28 @@
 	          <div class="rating-average">Media calculada: <strong id="ratingAverageValue">—</strong></div>
 	          <div class="grid" id="ratingsGrid">
 	            <label>Valoración global (1-10)
-	              <input type="number" name="overall_rating" min="1" max="10" value="{{ report.overall_rating|default:'' }}" data-rating-input />
+	              <input type="number" name="overall_rating" min="1" max="10" step="0.1" value="{{ report.overall_rating|default_if_none:''|unlocalize }}" data-rating-input />
 	            </label>
 	            <label>Técnica (1-10)
-              <input type="number" name="technical_rating" min="1" max="10" value="{{ report.technical_rating|default:'' }}" data-rating-input />
+	              <input type="number" name="technical_rating" min="1" max="10" step="0.1" value="{{ report.technical_rating|default_if_none:''|unlocalize }}" data-rating-input />
             </label>
             <label>Táctica (1-10)
-              <input type="number" name="tactical_rating" min="1" max="10" value="{{ report.tactical_rating|default:'' }}" data-rating-input />
+	              <input type="number" name="tactical_rating" min="1" max="10" step="0.1" value="{{ report.tactical_rating|default_if_none:''|unlocalize }}" data-rating-input />
             </label>
             <label>Físico (1-10)
-              <input type="number" name="physical_rating" min="1" max="10" value="{{ report.physical_rating|default:'' }}" data-rating-input />
+	              <input type="number" name="physical_rating" min="1" max="10" step="0.1" value="{{ report.physical_rating|default_if_none:''|unlocalize }}" data-rating-input />
             </label>
             <label>Mental (1-10)
-              <input type="number" name="mental_rating" min="1" max="10" value="{{ report.mental_rating|default:'' }}" data-rating-input />
+	              <input type="number" name="mental_rating" min="1" max="10" step="0.1" value="{{ report.mental_rating|default_if_none:''|unlocalize }}" data-rating-input />
             </label>
             <label>Social / equipo (1-10)
-              <input type="number" name="social_rating" min="1" max="10" value="{{ report.social_rating|default:'' }}" data-rating-input />
+	              <input type="number" name="social_rating" min="1" max="10" step="0.1" value="{{ report.social_rating|default_if_none:''|unlocalize }}" data-rating-input />
             </label>
             <label>Liderazgo (1-10)
-              <input type="number" name="leadership_rating" min="1" max="10" value="{{ report.leadership_rating|default:'' }}" data-rating-input />
+	              <input type="number" name="leadership_rating" min="1" max="10" step="0.1" value="{{ report.leadership_rating|default_if_none:''|unlocalize }}" data-rating-input />
             </label>
             <label>Conocimiento del juego (1-10)
-              <input type="number" name="game_knowledge_rating" min="1" max="10" value="{{ report.game_knowledge_rating|default:'' }}" data-rating-input />
+	              <input type="number" name="game_knowledge_rating" min="1" max="10" step="0.1" value="{{ report.game_knowledge_rating|default_if_none:''|unlocalize }}" data-rating-input />
             </label>
           </div>
 

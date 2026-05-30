@@ -20342,10 +20342,17 @@ def _build_staff_rating_radar_data(staff_report):
 
     def _rating(value):
         try:
-            num = float(value or 0)
+            raw = str(value or '').strip().replace(',', '.')
+            num = float(raw or 0)
         except Exception:
             num = 0.0
         return max(0.0, min(num, 10.0))
+
+    def _rating_display(value):
+        if not value:
+            return '-'
+        text = f'{value:.1f}'.rstrip('0').rstrip('.')
+        return f'{text}/10'
 
     def _axis(key, value):
         rating = _rating(value)
@@ -20353,7 +20360,7 @@ def _build_staff_rating_radar_data(staff_report):
             'key': key,
             'rating': rating,
             'value': rating * 10.0,
-            'display': f'{rating:.0f}/10' if rating else '-',
+            'display': _rating_display(rating),
         }
 
     axes = [
@@ -51122,20 +51129,20 @@ def player_season_report_edit_page(request, player_id):
 
     def _clean_rating(value):
         try:
-            raw = str(value or '').strip()
+            raw = str(value or '').strip().replace(',', '.')
         except Exception:
             raw = ''
         if not raw:
             return None
         try:
-            num = int(float(raw))
-        except Exception:
+            num = Decimal(raw)
+        except (InvalidOperation, ValueError):
             return None
         if num < 1:
-            return 1
+            return Decimal('1.0')
         if num > 10:
-            return 10
-        return num
+            return Decimal('10.0')
+        return num.quantize(Decimal('0.1'))
 
     available_ring_kpis = [
         {'key': 'participation_pct', 'label': 'Participación (%)'},
