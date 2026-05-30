@@ -564,6 +564,19 @@
         color: var(--pdf-muted);
         font-weight: 800;
       }
+      .staff-radar-index {
+        display: inline-block;
+        min-width: 18px;
+        height: 18px;
+        line-height: 18px;
+        text-align: center;
+        border-radius: 999px;
+        background: rgba(var(--club-secondary-rgb),0.96);
+        color: #0b1220;
+        font-size: 9px;
+        font-weight: 1000;
+        margin-right: 6px;
+      }
 
       /* Lista de ejes estilo "ficha": dos columnas para lectura rápida */
       .radar-axes-table { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0 10px; margin-top: 10px; }
@@ -702,8 +715,8 @@
           <p>{{ team_display_name }}{% if division_label %} · {{ division_label }}{% endif %} · {{ season_label }}</p>
         </div>
         <div class="brand-meta">
-          <div>Puntos: <strong>{{ team_points|default:0 }}</strong></div>
-          <div>Posición: <strong>{{ team_rank|default:0 }}º</strong></div>
+          <div>Puntos: <strong>{{ team_points_display|default:"—" }}</strong></div>
+          <div>Posición: <strong>{{ team_rank_display|default:"—" }}</strong></div>
         </div>
       </div>
 
@@ -818,7 +831,7 @@
             <div class="stats-head">
               <div class="stats-head-row">
                 <div class="stats-head-left">
-                  <div class="stats-big">{{ team_points|default:0 }}</div>
+                  <div class="stats-big">{{ team_points_display|default:"—" }}</div>
                   <div class="stats-small">Puntos</div>
                 </div>
                 <div class="stats-head-center">
@@ -827,7 +840,7 @@
                   <div class="stats-center-crest"><img src="{{ crest_src }}" alt="Escudo" /></div>
                 </div>
                 <div class="stats-head-right">
-                  <div class="stats-big">{{ team_rank|default:0 }}º</div>
+                  <div class="stats-big">{{ team_rank_display|default:"—" }}</div>
                   <div class="stats-small">Posición</div>
                 </div>
               </div>
@@ -1711,13 +1724,13 @@
                           <stop offset="100%" stop-color="rgba({{ pdf_palette_css.primary_rgb|default:'15, 122, 53' }},0.28)"></stop>
                         </linearGradient>
                       </defs>
-                      <polygon points="180,150.5 205.5,165.3 205.5,194.8 180,209.5 154.5,194.8 154.5,165.3" fill="none" stroke="rgba(11,18,32,0.12)" stroke-width="1"></polygon>
-                      <polygon points="180,121 231.1,150.5 231.1,209.5 180,239 128.9,209.5 128.9,150.5" fill="none" stroke="rgba(11,18,32,0.14)" stroke-width="1"></polygon>
-                      <polygon points="180,91.5 256.6,135.8 256.6,224.3 180,268.5 103.4,224.3 103.4,135.8" fill="none" stroke="rgba(11,18,32,0.16)" stroke-width="1"></polygon>
-                      <polygon points="180,62 282.2,121 282.2,239 180,298 77.8,239 77.8,121" fill="none" stroke="rgba(11,18,32,0.20)" stroke-width="1.2"></polygon>
+                      {% for ring in staff_rating_radar.ring_points_svg %}
+                        <polygon points="{{ ring }}" fill="none" stroke="rgba(11,18,32,0.16)" stroke-width="{% if forloop.last %}1.2{% else %}1{% endif %}"></polygon>
+                      {% endfor %}
                       {% for ax in staff_rating_radar.axis_svg %}
                         <line x1="180" y1="180" x2="{{ ax.axis_x }}" y2="{{ ax.axis_y }}" stroke="rgba(11,18,32,0.16)" stroke-width="1"></line>
-                        <text x="{{ ax.label_x }}" y="{{ ax.label_y }}" text-anchor="{{ ax.anchor }}" dominant-baseline="{{ ax.baseline }}" font-size="12" font-weight="900" fill="rgba(11,18,32,0.70)">{{ ax.text }}</text>
+                        <circle cx="{{ ax.label_x }}" cy="{{ ax.label_y }}" r="9.5" fill="rgba(244,180,0,0.96)" stroke="rgba(11,18,32,0.18)" stroke-width="1"></circle>
+                        <text x="{{ ax.label_x }}" y="{{ ax.label_y }}" text-anchor="middle" dominant-baseline="middle" font-size="9" font-weight="1000" fill="#0b1220">{{ ax.index }}</text>
                       {% endfor %}
                       {% if staff_rating_radar.polygon_points_svg %}
                         <polygon points="{{ staff_rating_radar.polygon_points_svg }}" fill="url(#staffRatingFillPdf)" stroke="rgba(244,180,0,0.92)" stroke-width="2.2"></polygon>
@@ -1736,7 +1749,7 @@
                   <tbody>
                     {% for axis in staff_rating_radar.axes %}
                       <tr>
-                        <th style="width: 58%;">{{ axis.key }}</th>
+                        <th style="width: 58%;"><span class="staff-radar-index">{{ axis.index }}</span>{{ axis.key }}</th>
                         <td><strong>{{ axis.display }}</strong></td>
                       </tr>
                     {% endfor %}

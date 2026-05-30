@@ -20373,6 +20373,8 @@ def _build_staff_rating_radar_data(staff_report):
         _axis('Liderazgo', getattr(staff_report, 'leadership_rating', None)),
         _axis('Conoc. juego', getattr(staff_report, 'game_knowledge_rating', None)),
     ]
+    for idx, axis in enumerate(axes, start=1):
+        axis['index'] = idx
     rated_axes = [axis for axis in axes if float(axis.get('rating') or 0.0) > 0.0]
     rating_average = round(sum(float(axis.get('rating') or 0.0) for axis in rated_axes) / len(rated_axes), 1) if rated_axes else 0.0
 
@@ -20383,6 +20385,13 @@ def _build_staff_rating_radar_data(staff_report):
         n = len(axes)
         pts = []
         axis_svg = []
+        ring_points_svg = []
+        for ratio in (0.25, 0.5, 0.75, 1.0):
+            ring_pts = []
+            for i in range(n):
+                angle = (-math.pi / 2.0) + (i * 2.0 * math.pi / n)
+                ring_pts.append(f'{cx + math.cos(angle) * rmax * ratio:.1f},{cy + math.sin(angle) * rmax * ratio:.1f}')
+            ring_points_svg.append(' '.join(ring_pts))
         for i, axis in enumerate(axes):
             angle = (-math.pi / 2.0) + (i * 2.0 * math.pi / n)
             value = max(0.0, min(float(axis.get('value', 0.0)), 100.0))
@@ -20402,6 +20411,7 @@ def _build_staff_rating_radar_data(staff_report):
                 anchor = 'end'
             axis_svg.append(
                 {
+                    'index': axis.get('index'),
                     'axis_x': round(float(ax_x), 1),
                     'axis_y': round(float(ax_y), 1),
                     'label_x': round(max(28.0, min(float(lx), 332.0)), 1),
@@ -20417,9 +20427,92 @@ def _build_staff_rating_radar_data(staff_report):
             'average_display': f'{rating_average:.1f}/10' if rating_average else '-',
             'polygon_points_svg': ' '.join([f'{x:.1f},{y:.1f}' for (x, y) in pts]),
             'axis_svg': axis_svg,
+            'ring_points_svg': ring_points_svg,
         }
     except Exception:
-        return {'axes': axes, 'average': rating_average, 'average_display': f'{rating_average:.1f}/10' if rating_average else '-', 'polygon_points_svg': '', 'axis_svg': []}
+        return {'axes': axes, 'average': rating_average, 'average_display': f'{rating_average:.1f}/10' if rating_average else '-', 'polygon_points_svg': '', 'axis_svg': [], 'ring_points_svg': []}
+
+
+def _resolve_report_team_standing_meta(request, primary_team):
+    def _nullable_int(value):
+        if value in (None, ''):
+            return None
+        try:
+            return int(float(str(value).strip().replace(',', '.')))
+        except Exception:
+            return None
+
+    result = {'points': None, 'rank': None}
+    if not primary_team:
+        return result
+
+    rows = []
+    try:
+        ws = _get_active_workspace(request)
+        competition_payload = _competition_payload_for_team(ws, primary_team, allow_auto_sync=False) if ws else {}
+        rows = competition_payload.get('standings') if isinstance(competition_payload, dict) else []
+    except Exception:
+        rows = []
+    if not rows:
+        try:
+            rows = _resolve_standings_for_team(primary_team, snapshot=load_universo_snapshot())
+        except Exception:
+            rows = []
+
+    team_keys = {
+        _normalize_team_lookup_key(getattr(primary_team, 'name', '') or ''),
+        _normalize_team_lookup_key(getattr(primary_team, 'display_name', '') or ''),
+        _normalize_team_lookup_key(getattr(primary_team, 'short_name', '') or ''),
+        _normalize_team_lookup_key(getattr(primary_team, 'slug', '') or ''),
+        _normalize_team_lookup_key(getattr(primary_team, 'external_id', '') or ''),
+    }
+    team_keys = {key for key in team_keys if key}
+    best_row = None
+    best_score = -1
+    for row in rows or []:
+        if not isinstance(row, dict):
+            continue
+        row_keys = {
+            _normalize_team_lookup_key(row.get('full_name')),
+            _normalize_team_lookup_key(row.get('team')),
+            _normalize_team_lookup_key(row.get('name')),
+            _normalize_team_lookup_key(row.get('team_code')),
+            _normalize_team_lookup_key(row.get('external_id')),
+        }
+        row_keys = {key for key in row_keys if key}
+        score = 0
+        if team_keys & row_keys:
+            score = 10_000
+        else:
+            for team_key in team_keys:
+                for row_key in row_keys:
+                    if team_key in row_key or row_key in team_key:
+                        score = max(score, min(len(team_key), len(row_key)))
+        if score > best_score:
+            best_row = row
+            best_score = score
+        if score >= 10_000:
+            break
+
+    if best_row:
+        result['points'] = _nullable_int(best_row.get('points'))
+        result['rank'] = _nullable_int(best_row.get('rank') if best_row.get('rank') not in (None, '') else best_row.get('position'))
+    if result['points'] is not None or result['rank'] is not None:
+        return result
+
+    try:
+        standing = (
+            TeamStanding.objects
+            .filter(team=primary_team)
+            .order_by('-last_updated', '-played', '-id')
+            .first()
+        )
+        if standing:
+            result['points'] = int(standing.points)
+            result['rank'] = int(standing.position)
+    except Exception:
+        pass
+    return result
 
 
 @login_required
@@ -51551,63 +51644,11 @@ def player_pdf(request, player_id):
     except Exception:
         pass
 
-    team_points = 0
-    team_rank = 0
-    try:
-        standings_rows = []
-        try:
-            ws = _get_active_workspace(request)
-            competition_payload = _competition_payload_for_team(ws, primary_team, allow_auto_sync=False) if ws else {}
-            standings_rows = competition_payload.get('standings') if isinstance(competition_payload, dict) else []
-        except Exception:
-            standings_rows = []
-        if not standings_rows:
-            standings_rows = _resolve_standings_for_team(primary_team, snapshot=load_universo_snapshot())
-
-        def _team_keys_for_lookup(team_obj):
-            keys = []
-            for raw in [
-                getattr(team_obj, 'name', ''),
-                getattr(team_obj, 'display_name', ''),
-                getattr(team_obj, 'short_name', ''),
-                getattr(team_obj, 'slug', ''),
-            ]:
-                key = _normalize_team_lookup_key(raw)
-                if key and key not in keys:
-                    keys.append(key)
-            return keys
-
-        team_keys = _team_keys_for_lookup(primary_team)
-        best_row = None
-        best_score = -1
-        for row in standings_rows or []:
-            if not isinstance(row, dict):
-                continue
-            candidate_raw = row.get('full_name') or row.get('team') or row.get('name') or ''
-            candidate_key = _normalize_team_lookup_key(candidate_raw)
-            if not candidate_key:
-                continue
-            for key in team_keys:
-                if not key:
-                    continue
-                if candidate_key == key:
-                    best_row = row
-                    best_score = 10_000
-                    break
-                # Match parcial: algunos proveedores añaden sufijos ("C.D.", "'A'", etc.)
-                if key in candidate_key or candidate_key in key:
-                    score = min(len(key), len(candidate_key))
-                    if score > best_score:
-                        best_row = row
-                        best_score = score
-            if best_score >= 10_000:
-                break
-        if best_row:
-            team_points = _parse_int(best_row.get('points')) or 0
-            team_rank = _parse_int(best_row.get('rank')) or 0
-    except Exception:
-        team_points = 0
-        team_rank = 0
+    standings_meta = _resolve_report_team_standing_meta(request, primary_team)
+    team_points = standings_meta.get('points')
+    team_rank = standings_meta.get('rank')
+    team_points_display = str(team_points) if team_points is not None else '—'
+    team_rank_display = f'{team_rank}º' if team_rank is not None else '—'
 
     general_kpis = [
         {'label': 'PJ', 'value': int(detail.get('pj') or 0)},
@@ -53044,6 +53085,8 @@ def player_pdf(request, player_id):
             'division_label': division_label,
             'team_points': team_points,
             'team_rank': team_rank,
+            'team_points_display': team_points_display,
+            'team_rank_display': team_rank_display,
             'pdf_style': pdf_style,
             'pdf_palette': pdf_palette,
             'pdf_palette_css': pdf_palette_css,

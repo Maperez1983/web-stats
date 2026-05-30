@@ -5454,6 +5454,14 @@ class PlayerDetailStatsFallbackTests(TestCase):
             leadership_rating=Decimal('8.5'),
             game_knowledge_rating=Decimal('7.5'),
         )
+        TeamStanding.objects.create(
+            season=self.player.team.group.season,
+            group=self.player.team.group,
+            team=self.player.team,
+            position=4,
+            played=12,
+            points=25,
+        )
 
         self.client.force_login(self.user)
         response = self.client.get(
@@ -5470,8 +5478,13 @@ class PlayerDetailStatsFallbackTests(TestCase):
         self.assertNotContains(response, '<div class="chart-key"', html=False)
         self.assertContains(response, 'Media ratings staff')
         self.assertContains(response, '7.9/10')
+        self.assertContains(response, 'Puntos: <strong>25</strong>', html=False)
+        self.assertContains(response, 'Posición: <strong>4º</strong>', html=False)
+        self.assertContains(response, '<span class="staff-radar-index">8</span>Conoc. juego', html=False)
         self.assertContains(response, '<th>Liderazgo</th>', html=False)
         self.assertContains(response, '<th>Conoc. juego</th>', html=False)
+        self.assertNotContains(response, '>Global</text>', html=False)
+        self.assertNotContains(response, '>Conoc. juego</text>', html=False)
         self.assertNotContains(response, 'rotate(-35', html=False)
         self.assertNotContains(response, '>1 · Rival', html=False)
 
