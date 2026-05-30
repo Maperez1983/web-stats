@@ -5440,7 +5440,9 @@ class PlayerDetailStatsFallbackTests(TestCase):
         self.assertContains(response, 'X: jornadas compactas')
         self.assertContains(response, 'stroke="#f4b400"', html=False)
         self.assertContains(response, '>1</text>', html=False)
+        self.assertContains(response, '>RIVA.LARG</text>', html=False)
         self.assertContains(response, '<strong>1</strong> · RIVA.LARG', html=False)
+        self.assertNotContains(response, 'rotate(-35', html=False)
         self.assertNotContains(response, '>1 · Rival', html=False)
 
     @override_settings(MEDIA_URL='/media-test/')

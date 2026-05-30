@@ -1402,8 +1402,11 @@
 		                                {% endif %}
 		                              {% endif %}
 		                              {% if p.show_label %}
-		                                {% with yl=matchday_minutes_line.h|add:'-16' %}
-		                                  <text x="{{ p.x }}" y="{{ yl }}" text-anchor="end" transform="rotate(-35 {{ p.x }} {{ yl }})" fill="rgba(71,85,105,0.92)" font-size="9.2" font-weight="900">{{ p.label }}</text>
+		                                {% with y1=matchday_minutes_line.h|add:'-38' y2=matchday_minutes_line.h|add:'-24' %}
+		                                  <text x="{{ p.x }}" y="{{ y1 }}" text-anchor="middle" fill="rgba(30,41,59,0.96)" font-size="9.6" font-weight="1000">{{ p.axis_round_label|default:p.label }}</text>
+		                                  {% if p.axis_opponent_label %}
+		                                    <text x="{{ p.x }}" y="{{ y2 }}" text-anchor="middle" fill="rgba(71,85,105,0.92)" font-size="8.2" font-weight="900">{{ p.axis_opponent_label }}</text>
+		                                  {% endif %}
 		                                {% endwith %}
 		                              {% endif %}
 		                            {% endfor %}
@@ -1497,8 +1500,11 @@
                             {% endif %}
 		                            {% for p in matchday_ga_line.x_points %}
 		                              {% if p.show_label %}
-		                                {% with yl=matchday_ga_line.h|add:'-16' %}
-		                                  <text x="{{ p.x }}" y="{{ yl }}" text-anchor="end" transform="rotate(-35 {{ p.x }} {{ yl }})" fill="rgba(71,85,105,0.92)" font-size="9.2" font-weight="900">{{ p.label }}</text>
+		                                {% with y1=matchday_ga_line.h|add:'-38' y2=matchday_ga_line.h|add:'-24' %}
+		                                  <text x="{{ p.x }}" y="{{ y1 }}" text-anchor="middle" fill="rgba(30,41,59,0.96)" font-size="9.6" font-weight="1000">{{ p.axis_round_label|default:p.label }}</text>
+		                                  {% if p.axis_opponent_label %}
+		                                    <text x="{{ p.x }}" y="{{ y2 }}" text-anchor="middle" fill="rgba(71,85,105,0.92)" font-size="8.2" font-weight="900">{{ p.axis_opponent_label }}</text>
+		                                  {% endif %}
 		                                {% endwith %}
 		                              {% endif %}
 		                            {% endfor %}

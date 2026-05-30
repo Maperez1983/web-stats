@@ -52104,6 +52104,19 @@ def player_pdf(request, player_id):
                     raw = raw[:13] + '…'
             return raw.upper()
 
+        def _axis_opponent_label(label: str) -> str:
+            raw = str(label or '').strip().upper()
+            if not raw:
+                return ''
+            if len(raw) <= 9:
+                return raw
+            if '.' in raw:
+                parts = [p for p in raw.split('.') if p]
+                if len(parts) >= 2:
+                    return f'{parts[0][:3]}.{parts[-1][:3]}'
+            compact = re.sub(r'[^A-Z0-9]+', '', raw)
+            return compact[:8] if compact else raw[:8]
+
         def _normalize_x_mode(value: str) -> str:
             v = str(value or '').strip().lower()
             if v in {'opponent', 'rival', 'club', 'team'}:
@@ -52116,6 +52129,20 @@ def player_pdf(request, player_id):
         pdf_ga_x_mode = _normalize_x_mode(pdf_ga_x)
         pdf_minutes_show_every = max(1, min(int(pdf_minutes_show_every or 2), 6))
         pdf_ga_show_every = max(1, min(int(pdf_ga_show_every or 2), 6))
+
+        def _resolved_show_every(configured: int, items_count: int) -> int:
+            try:
+                base = max(1, int(configured or 1))
+            except Exception:
+                base = 1
+            n = max(0, int(items_count or 0))
+            if n > 34:
+                return max(base, 5)
+            if n > 24:
+                return max(base, 4)
+            if n > 16:
+                return max(base, 3)
+            return base
 
         def _pick_label(label_round: str, label_opp: str, mode: str) -> str:
             if mode == 'opponent':
@@ -52162,6 +52189,8 @@ def player_pdf(request, player_id):
                 {
                     'label': _pick_label(label_round, label_opp, pdf_minutes_x_mode),
                     'axis_label': _axis_label(label_round, label_opp, pdf_minutes_x_mode),
+                    'axis_round_label': label_round,
+                    'axis_opponent_label': _axis_opponent_label(label_opp),
                     'label_round': label_round,
                     'label_opponent': label_opp,
                     'label_mode': pdf_minutes_x_mode,
@@ -52189,6 +52218,8 @@ def player_pdf(request, player_id):
                 {
                     'label': _pick_label(label_round, label_opp, pdf_ga_x_mode),
                     'axis_label': _axis_label(label_round, label_opp, pdf_ga_x_mode),
+                    'axis_round_label': label_round,
+                    'axis_opponent_label': _axis_opponent_label(label_opp),
                     'label_round': label_round,
                     'label_opponent': label_opp,
                     'label_mode': pdf_ga_x_mode,
@@ -52208,13 +52239,14 @@ def player_pdf(request, player_id):
 
         # Alternativa legible: charts tipo línea (SVG, sin JS) para PDF.
         def _build_line_series(items, *, get_value, y_max, show_every=2):
-            W, H = 980.0, 240.0
-            # Más margen inferior para etiquetas del eje X (rotadas) sin solaparse.
-            ml, mr, mt, mb = 40.0, 18.0, 26.0, 78.0
+            W, H = 980.0, 260.0
+            # Margen inferior para dos líneas horizontales: jornada y rival.
+            ml, mr, mt, mb = 40.0, 18.0, 26.0, 70.0
             pw = max(1.0, W - ml - mr)
             ph = max(1.0, H - mt - mb)
             n = max(1, len(items))
             denom = (n - 1) if n > 1 else 1
+            resolved_show_every = _resolved_show_every(show_every, len(items))
 
             pts = []
             for i, it in enumerate(items):
@@ -52235,9 +52267,11 @@ def player_pdf(request, player_id):
                         'y': round(y, 1),
                         'val_y': round(val_y, 1),
                         'label': str(it.get('axis_label') or it.get('label') or ''),
+                        'axis_round_label': str(it.get('axis_round_label') or it.get('label_round') or ''),
+                        'axis_opponent_label': str(it.get('axis_opponent_label') or it.get('label_opponent') or ''),
                         'full_label': str(it.get('label') or ''),
                         'value': v,
-                        'show_label': bool((i % max(1, int(show_every or 1)) == 0) or i == (n - 1)),
+                        'show_label': bool((i % resolved_show_every == 0) or i == (n - 1)),
                     }
                 )
             d = ''
