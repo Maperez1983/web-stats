@@ -5387,6 +5387,61 @@ class PlayerDetailStatsFallbackTests(TestCase):
         finally:
             shutil.rmtree(media_root, ignore_errors=True)
 
+    @patch('football.views.compute_player_dashboard')
+    def test_player_pdf_charts_use_compact_round_labels_and_distinct_ga_colors(self, mocked_dashboard):
+        mocked_dashboard.return_value = [
+            {
+                'player_id': self.player.id,
+                'name': self.player.name,
+                'pj': 2,
+                'pt': 2,
+                'minutes': 90,
+                'goals': 1,
+                'assists': 1,
+                'success_rate': 50,
+                'importance_score': 0,
+                'influence_score': 0,
+                'total_actions': 4,
+                'successes': 2,
+                'matches': [
+                    {
+                        'round': 'Jornada 1',
+                        'opponent': 'Rival Con Nombre Muy Largo',
+                        'date': '2026-02-01',
+                        'played': True,
+                        'minutes': 45,
+                        'goals': 1,
+                        'assists': 0,
+                        'actions': 2,
+                        'successes': 1,
+                    },
+                    {
+                        'round': 'Jornada 2',
+                        'opponent': 'Otro Rival Con Nombre Muy Largo',
+                        'date': '2026-02-08',
+                        'played': True,
+                        'minutes': 45,
+                        'goals': 0,
+                        'assists': 1,
+                        'actions': 2,
+                        'successes': 1,
+                    },
+                ],
+            }
+        ]
+
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('player-pdf', args=[self.player.id]),
+            {'format': 'html', 'snapshot': '0'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'X: jornadas compactas')
+        self.assertContains(response, 'stroke="#f4b400"', html=False)
+        self.assertContains(response, '>1</text>', html=False)
+        self.assertNotContains(response, '>1 · Rival', html=False)
+
     @override_settings(MEDIA_URL='/media-test/')
     def test_player_detail_profile_upload_stores_photo_in_media(self):
         self.client.force_login(self.user)

@@ -599,8 +599,8 @@
       .chart-legend { display: table-cell; text-align: right; vertical-align: middle; }
       .legend-item { display: inline-block; margin-left: 10px; font-size: 9.6px; font-weight: 1000; letter-spacing: 0.08em; text-transform: uppercase; color: var(--pdf-muted); }
       .legend-swatch { display:inline-block; width: 10px; height: 10px; border-radius: 999px; margin-right: 6px; vertical-align: middle; border: 1px solid rgba(11,18,32,0.18); }
-      .legend-swatch.goal { background: rgba(var(--club-primary-rgb), 0.92); }
-      .legend-swatch.assist { background: rgba(var(--club-secondary-rgb), 0.92); }
+      .legend-swatch.goal { background: {{ pdf_chart_palette.primary|default:"#0f7a35" }}; }
+      .legend-swatch.assist { background: {{ pdf_chart_palette.secondary|default:"#f4b400" }}; }
       .spark-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 8px; }
       .spark-table td { padding: 0; vertical-align: bottom; text-align: center; }
       .spark-wrap { height: 62px; position: relative; }
@@ -615,14 +615,14 @@
         gap: 2px;
         align-items: stretch;
       }
-      .spark-bar { width: 10px; display: block; border-radius: 999px; background: rgba(var(--club-primary-rgb), 0.88); }
-      .spark-bar.assist { background: rgba(var(--club-secondary-rgb), 0.92); }
-      .spark-bar.goal { background: rgba(var(--club-primary-rgb), 0.92); }
+      .spark-bar { width: 10px; display: block; border-radius: 999px; background: {{ pdf_chart_palette.primary|default:"#0f7a35" }}; }
+      .spark-bar.assist { background: {{ pdf_chart_palette.secondary|default:"#f4b400" }}; }
+      .spark-bar.goal { background: {{ pdf_chart_palette.primary|default:"#0f7a35" }}; }
       .spark-bar.zero { background: rgba(148, 163, 184, 0.45); }
       .spark-label { margin-top: 4px; font-size: 9px; color: var(--pdf-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .spark-value { margin-top: 2px; font-size: 9px; font-weight: 900; color: var(--pdf-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .spark-value .g { color: var(--club-primary); }
-      .spark-value .a { color: var(--club-secondary); }
+      .spark-value .g { color: {{ pdf_chart_palette.primary|default:"#0f7a35" }}; }
+      .spark-value .a { color: {{ pdf_chart_palette.secondary|default:"#f4b400" }}; }
       .spark-empty .spark-label,
       .spark-empty .spark-value { color: transparent; }
       .spark-zero .spark-value { color: transparent; }
@@ -642,13 +642,13 @@
       .lc-tick { fill: rgba(71,85,105,0.92); font-size: 9.4px; font-weight: 900; }
       .lc-xlab { fill: rgba(71,85,105,0.90); font-size: 9.2px; font-weight: 900; letter-spacing: 0.02em; }
       .lc-line { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-      .lc-line.minutes { stroke: {{ pdf_palette.primary|default:"#0f7a35" }}; stroke: var(--club-primary); }
-      .lc-line.goals { stroke: {{ pdf_palette.primary|default:"#0f7a35" }}; stroke: var(--club-primary); }
-      .lc-line.assists { stroke: {{ pdf_palette.secondary|default:"#f4b400" }}; stroke: var(--club-secondary); }
+      .lc-line.minutes { stroke: {{ pdf_chart_palette.primary|default:"#0f7a35" }}; }
+      .lc-line.goals { stroke: {{ pdf_chart_palette.primary|default:"#0f7a35" }}; }
+      .lc-line.assists { stroke: {{ pdf_chart_palette.secondary|default:"#f4b400" }}; }
       .lc-dot { stroke: rgba(11,18,32,0.20); stroke-width: 1; }
-      .lc-dot.minutes { fill: {{ pdf_palette.primary|default:"#0f7a35" }}; fill: var(--club-primary); }
-      .lc-dot.goals { fill: {{ pdf_palette.primary|default:"#0f7a35" }}; fill: var(--club-primary); }
-      .lc-dot.assists { fill: {{ pdf_palette.secondary|default:"#f4b400" }}; fill: var(--club-secondary); }
+      .lc-dot.minutes { fill: {{ pdf_chart_palette.primary|default:"#0f7a35" }}; }
+      .lc-dot.goals { fill: {{ pdf_chart_palette.primary|default:"#0f7a35" }}; }
+      .lc-dot.assists { fill: {{ pdf_chart_palette.secondary|default:"#f4b400" }}; }
       .lc-val { fill: rgba(11,18,32,0.78); font-size: 9.2px; font-weight: 1000; }
       .foot {
         margin-top: 10px;
@@ -1364,18 +1364,18 @@
                             <line x1="{{ matchday_minutes_line.ml }}" y1="{{ matchday_minutes_line.h|add:'-42' }}" x2="{{ matchday_minutes_line.w|add:'-18' }}" y2="{{ matchday_minutes_line.h|add:'-42' }}" stroke="rgba(148,163,184,0.55)" stroke-width="1.2"></line>
                             {% if matchday_minutes_line.chart_type == 'area' %}
                               {% if matchday_minutes_line.area_d %}
-                                <path d="{{ matchday_minutes_line.area_d }}" fill="rgba({{ pdf_palette_css.primary_rgb|default:'15, 122, 53' }},0.18)" stroke="none"></path>
+                                <path d="{{ matchday_minutes_line.area_d }}" fill="rgba({{ pdf_chart_palette.primary_rgb|default:'15, 122, 53' }},0.18)" stroke="none"></path>
                               {% endif %}
                               {% if matchday_minutes_line.area2_d %}
-                                <path d="{{ matchday_minutes_line.area2_d }}" fill="rgba({{ pdf_palette_css.secondary_rgb|default:'244, 180, 0' }},0.14)" stroke="none"></path>
+                                <path d="{{ matchday_minutes_line.area2_d }}" fill="rgba({{ pdf_chart_palette.secondary_rgb|default:'244, 180, 0' }},0.14)" stroke="none"></path>
                               {% endif %}
                             {% endif %}
-                            <path d="{{ matchday_minutes_line.path_d }}" fill="none" style="fill:none;" stroke="{{ pdf_palette.primary|default:'#0f7a35' }}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+                            <path d="{{ matchday_minutes_line.path_d }}" fill="none" style="fill:none;" stroke="{{ pdf_chart_palette.primary|default:'#0f7a35' }}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
                             {% if matchday_minutes_line.path2_d %}
-                              <path d="{{ matchday_minutes_line.path2_d }}" fill="none" style="fill:none;" stroke="{{ pdf_palette.secondary|default:'#f4b400' }}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+                              <path d="{{ matchday_minutes_line.path2_d }}" fill="none" style="fill:none;" stroke="{{ pdf_chart_palette.secondary|default:'#f4b400' }}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
                             {% endif %}
 		                            {% for p in matchday_minutes_line.points %}
-		                              <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.6" fill="{{ pdf_palette.primary|default:'#0f7a35' }}" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
+		                              <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.6" fill="{{ pdf_chart_palette.primary|default:'#0f7a35' }}" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
 		                              {% if matchday_minutes_line.show_values == 'all' or matchday_minutes_line.show_values == 'last' %}
 		                                {% if matchday_minutes_line.show_values == 'all' or forloop.last %}
 		                                  {% if p.value and p.value|floatformat:0 != '0' %}
@@ -1391,12 +1391,12 @@
 		                            {% endfor %}
                             {% if matchday_minutes_line.points2 %}
                               {% for p in matchday_minutes_line.points2 %}
-                                <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.4" fill="{{ pdf_palette.secondary|default:'#f4b400' }}" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
+                                <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.4" fill="{{ pdf_chart_palette.secondary|default:'#f4b400' }}" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
                               {% endfor %}
                             {% endif %}
                           </svg>
                         </div>
-                        <div class="chart-note">X: {{ matchday_minutes_x_label|default:"Jornada" }} · {{ matchday_minutes_metric_label|default:"Minutos" }} (eje Y hasta {{ matchday_minutes_line.y_max }}).</div>
+                        <div class="chart-note">X: jornadas compactas · {{ matchday_minutes_metric_label|default:"Minutos" }} (eje Y hasta {{ matchday_minutes_line.y_max }}).</div>
                       {% else %}
                         {% for row in matchday_minutes_chart_rows %}
                           <table class="spark-table">
@@ -1457,15 +1457,15 @@
                             <line x1="{{ matchday_ga_line.ml }}" y1="{{ matchday_ga_line.h|add:'-42' }}" x2="{{ matchday_ga_line.w|add:'-18' }}" y2="{{ matchday_ga_line.h|add:'-42' }}" stroke="rgba(148,163,184,0.55)" stroke-width="1.2"></line>
                             {% if matchday_ga_line.chart_type == 'area' %}
                               {% if matchday_ga_line.area_a_d %}
-                                <path d="{{ matchday_ga_line.area_a_d }}" fill="rgba({{ pdf_palette_css.primary_rgb|default:'15, 122, 53' }},0.18)" stroke="none"></path>
+                                <path d="{{ matchday_ga_line.area_a_d }}" fill="rgba({{ pdf_chart_palette.primary_rgb|default:'15, 122, 53' }},0.18)" stroke="none"></path>
                               {% endif %}
                               {% if matchday_ga_line.area_b_d %}
-                                <path d="{{ matchday_ga_line.area_b_d }}" fill="rgba({{ pdf_palette_css.secondary_rgb|default:'244, 180, 0' }},0.14)" stroke="none"></path>
+                                <path d="{{ matchday_ga_line.area_b_d }}" fill="rgba({{ pdf_chart_palette.secondary_rgb|default:'244, 180, 0' }},0.14)" stroke="none"></path>
                               {% endif %}
                             {% endif %}
-                            <path d="{{ matchday_ga_line.path_a_d }}" fill="none" style="fill:none;" stroke="{{ pdf_palette.primary|default:'#0f7a35' }}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+                            <path d="{{ matchday_ga_line.path_a_d }}" fill="none" style="fill:none;" stroke="{{ pdf_chart_palette.primary|default:'#0f7a35' }}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
                             {% if matchday_ga_line.path_b_d %}
-                              <path d="{{ matchday_ga_line.path_b_d }}" fill="none" style="fill:none;" stroke="{{ pdf_palette.secondary|default:'#f4b400' }}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+                              <path d="{{ matchday_ga_line.path_b_d }}" fill="none" style="fill:none;" stroke="{{ pdf_chart_palette.secondary|default:'#f4b400' }}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
                             {% endif %}
 		                            {% for p in matchday_ga_line.x_points %}
 		                              {% if p.show_label %}
@@ -1475,7 +1475,7 @@
 		                              {% endif %}
 		                            {% endfor %}
                             {% for p in matchday_ga_line.a_points %}
-                              <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.4" fill="{{ pdf_palette.primary|default:'#0f7a35' }}" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
+                              <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.4" fill="{{ pdf_chart_palette.primary|default:'#0f7a35' }}" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
                               {% if matchday_ga_line.show_values == 'all' or matchday_ga_line.show_values == 'last' %}
                                 {% if matchday_ga_line.show_values == 'all' or forloop.last %}
                                   {% if p.value and p.value|floatformat:0 != '0' %}
@@ -1485,7 +1485,7 @@
                               {% endif %}
                             {% endfor %}
                             {% for p in matchday_ga_line.b_points %}
-                              <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.4" fill="{{ pdf_palette.secondary|default:'#f4b400' }}" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
+                              <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.4" fill="{{ pdf_chart_palette.secondary|default:'#f4b400' }}" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
                               {% if matchday_ga_line.show_values == 'all' or matchday_ga_line.show_values == 'last' %}
                                 {% if matchday_ga_line.show_values == 'all' or forloop.last %}
                                   {% if p.value and p.value|floatformat:0 != '0' %}
@@ -1496,7 +1496,7 @@
                             {% endfor %}
                           </svg>
                         </div>
-                        <div class="chart-note">X: {{ matchday_ga_x_label|default:"Jornada" }} · Series A/B (eje Y hasta {{ matchday_ga_line.y_max }}).</div>
+                        <div class="chart-note">X: jornadas compactas · {{ matchday_ga_metric_label|default:"Goles" }} / {{ matchday_ga_metric2_label|default:"Asist." }} (eje Y hasta {{ matchday_ga_line.y_max }}).</div>
                       {% else %}
                         {% for row in matchday_ga_chart_rows %}
                           <table class="spark-table">

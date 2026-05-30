@@ -51767,9 +51767,9 @@ def player_pdf(request, player_id):
     pdf_charts_preset = {}
     pdf_minutes_chart_type = 'line'
     pdf_ga_chart_type = 'line'
-    # Por defecto mostramos jornada + rival (más informativo que solo la jornada).
-    pdf_minutes_x = 'both'
-    pdf_ga_x = 'both'
+    # En PDF las etiquetas largas se solapan con facilidad; por defecto usamos jornada.
+    pdf_minutes_x = 'round'
+    pdf_ga_x = 'round'
     pdf_minutes_show_every = 2
     pdf_ga_show_every = 2
     pdf_minutes_ymax_override = None
@@ -52028,6 +52028,13 @@ def player_pdf(request, player_id):
                 return f'{label_round} · {label_opp}'
             return label_round
 
+        def _axis_label(label_round: str, label_opp: str, mode: str) -> str:
+            # El eje X debe ser corto. Si el modo informativo es "jornada + rival",
+            # mantenemos el label completo en datos/tabla, pero en la línea pintamos sólo jornada.
+            if mode == 'opponent':
+                return label_opp
+            return label_round
+
         def _default_ymax_for_metric(metric: str, matches_rows, *, regulation_default: int):
             metric = str(metric or '').strip().lower()
             if metric in {'minutes', 'min'}:
@@ -52058,6 +52065,7 @@ def player_pdf(request, player_id):
             matchday_minutes_chart.append(
                 {
                     'label': _pick_label(label_round, label_opp, pdf_minutes_x_mode),
+                    'axis_label': _axis_label(label_round, label_opp, pdf_minutes_x_mode),
                     'label_round': label_round,
                     'label_opponent': label_opp,
                     'label_mode': pdf_minutes_x_mode,
@@ -52084,6 +52092,7 @@ def player_pdf(request, player_id):
             matchday_ga_chart.append(
                 {
                     'label': _pick_label(label_round, label_opp, pdf_ga_x_mode),
+                    'axis_label': _axis_label(label_round, label_opp, pdf_ga_x_mode),
                     'label_round': label_round,
                     'label_opponent': label_opp,
                     'label_mode': pdf_ga_x_mode,
@@ -52129,7 +52138,8 @@ def player_pdf(request, player_id):
                         'x': round(x, 1),
                         'y': round(y, 1),
                         'val_y': round(val_y, 1),
-                        'label': str(it.get('label') or ''),
+                        'label': str(it.get('axis_label') or it.get('label') or ''),
+                        'full_label': str(it.get('label') or ''),
                         'value': v,
                         'show_label': bool((i % max(1, int(show_every or 1)) == 0) or i == (n - 1)),
                     }
@@ -52390,6 +52400,25 @@ def player_pdf(request, player_id):
         'primary_rgb': _rgb_tuple_for_css(pdf_palette.get('primary'), '#0f7a35'),
         'secondary_rgb': _rgb_tuple_for_css(pdf_palette.get('secondary'), '#f4b400'),
         'accent_rgb': _rgb_tuple_for_css(pdf_palette.get('accent'), '#102734'),
+    }
+    chart_primary = _normalize_hex_color(pdf_palette.get('primary'), '#0f7a35')
+    chart_secondary = _normalize_hex_color(pdf_palette.get('secondary'), '#f4b400')
+    def _hex_distance(a: str, b: str) -> float:
+        try:
+            aa = _normalize_hex_color(a, '#000000')
+            bb = _normalize_hex_color(b, '#000000')
+            ar, ag, ab = int(aa[1:3], 16), int(aa[3:5], 16), int(aa[5:7], 16)
+            br, bg, bbv = int(bb[1:3], 16), int(bb[3:5], 16), int(bb[5:7], 16)
+            return ((ar - br) ** 2 + (ag - bg) ** 2 + (ab - bbv) ** 2) ** 0.5
+        except Exception:
+            return 999.0
+    if chart_secondary.lower() == chart_primary.lower() or _hex_distance(chart_primary, chart_secondary) < 80.0:
+        chart_secondary = '#f4b400' if chart_primary.lower() != '#f4b400' else '#2563eb'
+    pdf_chart_palette = {
+        'primary': chart_primary,
+        'secondary': chart_secondary,
+        'primary_rgb': _rgb_tuple_for_css(chart_primary, '#0f7a35'),
+        'secondary_rgb': _rgb_tuple_for_css(chart_secondary, '#f4b400'),
     }
     staff_percentiles = {}
     radar_data = {'axes': [], 'path_d': '', 'points': [], 'labels': []}
@@ -52845,6 +52874,7 @@ def player_pdf(request, player_id):
             'pdf_style': pdf_style,
             'pdf_palette': pdf_palette,
             'pdf_palette_css': pdf_palette_css,
+            'pdf_chart_palette': pdf_chart_palette,
             'general_kpis': general_kpis,
             'advanced_kpis': advanced_kpis,
             'visual_kpis': visual_kpis,
