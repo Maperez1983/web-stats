@@ -617,9 +617,6 @@
         font-size: 9.6px;
         color: var(--pdf-muted);
       }
-      .matches-table { margin-top: 8px; }
-      .matches-table th, .matches-table td { padding: 5px 8px; font-size: 10.1px; }
-      .matches-table th { font-size: 9.4px; }
       .group-row td {
         background: rgba(var(--club-primary-rgb), 0.18);
         font-weight: 900;
@@ -1600,71 +1597,6 @@
             </div>
           </section>
         {% endif %}
-
-		    {% for page in matches_for_report_pages %}
-        <section class="sheet">
-          <div class="brand">
-            <div class="brand-logo">
-              <img class="crest" src="{{ crest_src }}" alt="Escudo {{ team_display_name }}" />
-            </div>
-            <div class="brand-copy">
-              <h1>Detalle por partido · {{ player.name }}</h1>
-              <p>{{ team_display_name }} · {{ season_label }}</p>
-            </div>
-            <div class="brand-meta">
-              <div>Goles: <strong>{{ season_overview.goals|default:0 }}</strong></div>
-              <div>Asist: <strong>{{ season_overview.assists|default:0 }}</strong></div>
-            </div>
-          </div>
-
-          <div class="pad">
-            <div class="section-title">Partidos{% if matches_for_report_pages|length > 1 %} · Página {{ forloop.counter }}/{{ matches_for_report_pages|length }}{% endif %}</div>
-
-            <table class="table matches-table">
-              <thead>
-                <tr>
-                  <th style="width: 90px;">Jornada</th>
-                  <th>Rival</th>
-                  <th style="width: 90px;">Fecha</th>
-                  <th style="width: 90px;">Resultado</th>
-                  <th style="width: 68px;">🕒</th>
-                  <th style="width: 52px;">⚽</th>
-                  <th style="width: 52px;">🎯</th>
-                  <th style="width: 80px;">% Éxito</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for match in page %}
-                  <tr>
-                    <td>{{ match.round|default:"—" }}</td>
-                    <td>{{ match.opponent|default:"—" }}</td>
-                    <td class="muted">{% if match.date_obj %}{{ match.date_obj|date:"d/m/Y" }}{% else %}—{% endif %}</td>
-                    <td>
-                      {% if match.home_score != None and match.away_score != None %}
-                        {% if match.home %}{{ match.home_score }}{% else %}{{ match.away_score }}{% endif %}-{% if match.home %}{{ match.away_score }}{% else %}{{ match.home_score }}{% endif %}
-                      {% elif match.result %}
-                        {{ match.result }}
-                      {% else %}—{% endif %}
-                    </td>
-                    <td>{% if match.minutes != None %}{{ match.minutes }}'{% else %}—{% endif %}</td>
-                    <td>{{ match.goals|default:0 }}</td>
-                    <td>{{ match.assists|default:0 }}</td>
-                    <td>{% if match.actions|default:0 > 0 %}{{ match.success_rate|default:0 }}%{% else %}—{% endif %}</td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-
-            <div class="foot">
-              <div class="brandline">
-                <img src="{{ crest_src }}" alt="Escudo {{ team_display_name }}" />
-                <div class="fine">{{ team_display_name }} · {{ season_label }}</div>
-              </div>
-              <div class="fine">Uso interno / entrega jugador</div>
-            </div>
-          </div>
-        </section>
-      {% endfor %}
 
     <section class="sheet">
       <div class="brand">
