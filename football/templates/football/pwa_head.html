@@ -11,7 +11,7 @@
 <style id="brand-theme-vars">
   :root {
   {% for key, value in brand_theme.css_vars.items %}
-    {{ key }}: {{ value }};
+    {{ key }}: {{ value|safe }};
   {% endfor %}
   }
 </style>
@@ -20,7 +20,7 @@
 <style id="brand-theme-vars-light">
   :root[data-theme="light"] {
   {% for key, value in brand_theme.css_vars_light.items %}
-    {{ key }}: {{ value }};
+    {{ key }}: {{ value|safe }};
   {% endfor %}
   }
 </style>

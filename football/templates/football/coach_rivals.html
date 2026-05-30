@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     {% include 'football/pwa_head.html' %}
     <style>
-      body { margin:0; background:#030712; color:#e5e7eb; font-family:Inter, system-ui, -apple-system, sans-serif; }
+      body { margin:0; background:#030712; color:#e5e7eb; font-family:var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif); }
       .page { max-width:1180px; margin:0 auto; padding:1.2rem 1rem 2.4rem; }
       header { margin:1rem 0 1.2rem; display:flex; justify-content:space-between; gap:1rem; align-items:flex-start; flex-wrap:wrap; }
       h1 { margin:0.1rem 0 0; font-size:1.65rem; letter-spacing:0.01em; }

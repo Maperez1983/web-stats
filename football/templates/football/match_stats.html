@@ -9,7 +9,7 @@
     <script defer src="{% static 'football/js/match_stats_live.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>
     <style>
       body {
-        font-family: 'Inter', sans-serif;
+        font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif);
         background: #030712;
         color: #e2e8f0;
         margin: 0;
