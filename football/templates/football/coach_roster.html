@@ -1048,12 +1048,14 @@
                 {% endif %}
               </td>
               <td>
-                {% if active_club_season %}
-                  {% if player.season_confirmed %}
-                    <span class="badge ok">Confirmado</span>
-                  {% else %}
-                    <span class="badge off">Pendiente</span>
-                  {% endif %}
+	                {% if active_club_season %}
+	                  {% if player.season_confirmed %}
+	                    <span class="badge ok">Confirmado</span>
+	                  {% elif player.season_status == 'left' or player.season_status == 'inactive' %}
+	                    <span class="badge off">{{ player.season_status_label }}</span>
+	                  {% else %}
+	                    <span class="badge off">Pendiente</span>
+	                  {% endif %}
                 {% else %}
                   -
                 {% endif %}

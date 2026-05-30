@@ -21,6 +21,7 @@ from .models import (
     WorkspaceSeasonPlayer,
 )
 from .ops_logging import log_exception
+from .season_history_services import ensure_active_workspace_team_seasons, ensure_team_roster_season_memberships
 from .season_wizard import build_questionnaire_rating_summary, parse_questionnaire_ratings
 from .services import _parse_int
 
@@ -343,7 +344,10 @@ def club_season_wizard(request):
                 except Exception:
                     pass
 
-                # Hereda plantilla como pendiente de confirmar (solo jugadores del equipo seleccionado).
+                # Registra qué equipos participan en la nueva temporada y hereda plantilla
+                # como pendiente de confirmar (solo jugadores del equipo seleccionado).
+                ensure_active_workspace_team_seasons(workspace, season=new_season)
+
                 # Requisito producto: solo del equipo que se está gestionando (equipo activo).
                 inherit_team_id = int(getattr(active_team, 'id', 0) or 0)
                 player_ids = list(
@@ -351,9 +355,8 @@ def club_season_wizard(request):
                     .filter(team_id=inherit_team_id)
                     .values_list('id', flat=True)
                 )
-                memberships = [WorkspaceSeasonPlayer(season=new_season, player_id=int(pid), is_confirmed=False) for pid in player_ids if pid]
-                if memberships:
-                    WorkspaceSeasonPlayer.objects.bulk_create(memberships, ignore_conflicts=True)
+                if active_team:
+                    ensure_team_roster_season_memberships(new_season, active_team, include_inactive=True)
 
                 # Fases (opcionales).
                 phases = []

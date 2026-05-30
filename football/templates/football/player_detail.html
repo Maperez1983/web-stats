@@ -78,6 +78,54 @@
         width: auto;
         min-width: 220px;
       }
+      .season-context-card {
+        margin-top: 1rem;
+        border: 1px solid var(--prod-line, rgba(144, 161, 185, 0.28));
+        border-radius: 1rem;
+        padding: 0.9rem 1rem;
+        background: rgba(15, 23, 42, 0.42);
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.85rem;
+        align-items: center;
+      }
+      .season-context-card strong {
+        display: block;
+        font-size: 0.82rem;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+      }
+      .season-context-card .subtle { margin-top: 0.2rem; }
+      .season-context-form {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+      .season-context-form select {
+        min-width: 190px;
+        width: auto;
+      }
+      .season-history-grid {
+        margin-top: 0.9rem;
+        display: grid;
+        gap: 0.65rem;
+      }
+      .season-history-row {
+        border: 1px solid var(--prod-line, rgba(144, 161, 185, 0.28));
+        border-radius: 0.85rem;
+        padding: 0.8rem 0.9rem;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.75rem;
+        align-items: center;
+        background: rgba(2, 6, 23, 0.08);
+      }
+      .season-history-row h3 {
+        margin: 0;
+        font-size: 1rem;
+      }
       .tabs { display: flex; flex-wrap: nowrap; gap: 0.5rem; margin-top: 1rem; overflow-x: auto; scrollbar-gutter: stable; -webkit-overflow-scrolling: touch; }
       .tab-btn { border: 1px solid var(--prod-line, rgba(144, 161, 185, 0.28)); background: rgba(2, 6, 23, 0.08); color: var(--prod-muted-soft, rgba(15, 23, 42, 0.78)); border-radius: 999px; padding: 0.45rem 0.95rem; cursor: pointer; font-weight: 800; white-space: nowrap; flex: 0 0 auto; }
       .tab-btn.is-active { background: linear-gradient(120deg, var(--prod-secondary, #f4b400), #f5c538); color: var(--prod-midnight, #0b1626); border-color: var(--prod-line-strong, rgba(244, 180, 0, 0.28)); }
@@ -594,6 +642,11 @@
         .tabs { padding-bottom: 0.3rem; }
         .player-head-actions { grid-template-columns: 1fr; justify-content: stretch; }
         .player-head-actions .btn { width: 100%; }
+        .season-context-card,
+        .season-history-row { grid-template-columns: 1fr; }
+        .season-context-form { justify-content: stretch; }
+        .season-context-form select,
+        .season-context-form .btn { width: 100%; }
         .attendance-summary-head { grid-template-columns: 1fr; }
         .attendance-chip-row { justify-content: flex-start; }
         .personal-layout { grid-template-columns: 1fr; }
@@ -685,8 +738,41 @@
       </div>
       {% endif %}
 
+      {% if club_season_options %}
+      <div class="season-context-card">
+        <div>
+          <strong>Contexto de temporada</strong>
+          <div class="subtle">
+            {% if selected_club_season %}
+              Mostrando {{ selected_club_season.label }}{% if selected_club_season.is_active %} · temporada activa{% endif %}
+            {% else %}
+              Mostrando datos actuales
+            {% endif %}
+          </div>
+        </div>
+        <form class="season-context-form" method="get">
+          {% if active_tab %}<input type="hidden" name="tab" value="{{ active_tab }}" />{% endif %}
+          {% if scope_value %}<input type="hidden" name="scope" value="{{ scope_value }}" />{% endif %}
+          {% if tournament_filter %}<input type="hidden" name="tournament" value="{{ tournament_filter }}" />{% endif %}
+          {% if player_view_preview %}<input type="hidden" name="preview" value="player" />{% endif %}
+          <label for="clubSeasonSelect" style="margin:0;">
+            Temporada
+            <select id="clubSeasonSelect" name="club_season_id">
+              {% for season in club_season_options %}
+                <option value="{{ season.id }}" {% if selected_club_season_id == season.id %}selected{% endif %}>
+                  {{ season.label }}{% if season.is_active %} · actual{% endif %}
+                </option>
+              {% endfor %}
+            </select>
+          </label>
+          <button class="btn alt" type="submit">Ver</button>
+        </form>
+      </div>
+      {% endif %}
+
       <div class="tabs" role="tablist">
         <button class="tab-btn" data-tab="general" role="tab">Datos + Estadísticas</button>
+        <button class="tab-btn" data-tab="seasons" role="tab">Temporadas</button>
         <button class="tab-btn" data-tab="performance" role="tab">KPI + Mapa</button>
         <button class="tab-btn" data-tab="injuries" role="tab">Lesiones</button>
         <button class="tab-btn" data-tab="communication" role="tab">Comunicación</button>
@@ -1110,6 +1196,40 @@
         </form>
         {% endif %}
 
+      </section>
+
+      <section class="card tab-pane" data-pane="seasons">
+        <h2 style="margin-top:0;">Temporadas e histórico</h2>
+        <p class="subtle" style="margin-top:0;">
+          La ficha del jugador permanece aunque cambie de estado. Cada temporada conserva su pertenencia, confirmación y documentos filtrados por año.
+        </p>
+        {% if season_history_rows %}
+          <div class="season-history-grid">
+            {% for row in season_history_rows %}
+              <article class="season-history-row">
+                <div>
+                  <h3>{{ row.label }}{% if row.is_active %} <span class="pill ok">Actual</span>{% endif %}</h3>
+                  <div class="subtle" style="margin-top:0.35rem;">
+                    Estado: <strong>{{ row.status_label }}</strong>
+                    {% if row.is_confirmed %} · Confirmado{% endif %}
+                    {% if row.questionnaire_completed_at %} · Cuestionario completado{% endif %}
+                    {% if row.start_date %} · {{ row.start_date|date:"d/m/Y" }}{% endif %}
+                    {% if row.end_date %}–{{ row.end_date|date:"d/m/Y" }}{% endif %}
+                  </div>
+                </div>
+                <div style="display:flex; gap:0.45rem; flex-wrap:wrap; justify-content:flex-end;">
+                  <a class="btn alt" href="{% url 'player-detail' player.id %}?{% qs_replace club_season_id=row.id tab='general' %}">Abrir</a>
+                  <a class="btn" href="{{ row.pdf_url }}" target="_blank" rel="noopener">PDF</a>
+                </div>
+              </article>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="stat" style="margin-top:0.9rem;">
+            <div class="label">Histórico</div>
+            <div class="value" style="font-size:1rem;">Sin temporadas registradas todavía.</div>
+          </div>
+        {% endif %}
       </section>
 
       <section class="card tab-pane" data-pane="performance">

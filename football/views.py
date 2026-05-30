@@ -329,6 +329,13 @@ from football.manual_stats import (
     save_manual_player_base_overrides,
     season_display_name,
 )
+from football.season_history_services import (
+    ensure_active_workspace_team_seasons,
+    ensure_player_season_membership,
+    ensure_team_roster_season_memberships,
+    mark_player_left_current_season,
+    player_season_history,
+)
 from football.query_helpers import (
     _normalize_team_lookup_key,
     _team_match_queryset,
@@ -26509,6 +26516,9 @@ def coach_roster_page(request):
         active_club_season = getattr(workspace, 'active_season', None)
         if active_club_season and getattr(active_club_season, 'is_active', True) is False:
             active_club_season = None
+        if active_club_season:
+            ensure_active_workspace_team_seasons(workspace, season=active_club_season)
+            ensure_team_roster_season_memberships(active_club_season, primary_team, include_inactive=True)
     except Exception:
         active_club_season = None
 
@@ -26539,13 +26549,16 @@ def coach_roster_page(request):
                     membership.is_confirmed = True
                     membership.confirmed_at = timezone.now()
                     membership.confirmed_by = request.user
-                    membership.save(update_fields=['is_confirmed', 'confirmed_at', 'confirmed_by', 'updated_at'])
+                    membership.status = WorkspaceSeasonPlayer.STATUS_CONFIRMED
+                    membership.left_at = None
+                    membership.save(update_fields=['is_confirmed', 'confirmed_at', 'confirmed_by', 'status', 'left_at', 'updated_at'])
                     message = 'Jugador confirmado en la temporada.'
                 else:
                     membership.is_confirmed = False
                     membership.confirmed_at = None
                     membership.confirmed_by = None
-                    membership.save(update_fields=['is_confirmed', 'confirmed_at', 'confirmed_by', 'updated_at'])
+                    membership.status = WorkspaceSeasonPlayer.STATUS_PENDING
+                    membership.save(update_fields=['is_confirmed', 'confirmed_at', 'confirmed_by', 'status', 'updated_at'])
                     message = 'Jugador marcado como pendiente para la temporada.'
             elif action == 'deactivate':
                 if not player_id:
@@ -26555,6 +26568,8 @@ def coach_roster_page(request):
                     raise ValueError('Jugador no encontrado.')
                 player.is_active = False
                 player.save(update_fields=['is_active'])
+                if active_club_season:
+                    mark_player_left_current_season(active_club_season, player, notes='Marcado como inactivo desde plantilla.')
                 message = f'{player.name} marcado como inactivo.'
             else:
                 if not name:
@@ -26584,10 +26599,15 @@ def coach_roster_page(request):
                 # Si hay temporada activa, aseguramos ficha de temporada (pendiente por defecto).
                 try:
                     if active_club_season and target_player:
-                        WorkspaceSeasonPlayer.objects.get_or_create(
-                            season=active_club_season,
-                            player=target_player,
-                            defaults={'is_confirmed': False},
+                        ensure_player_season_membership(
+                            active_club_season,
+                            target_player,
+                            confirmed=False,
+                            status=(
+                                WorkspaceSeasonPlayer.STATUS_PENDING
+                                if target_player.is_active
+                                else WorkspaceSeasonPlayer.STATUS_INACTIVE
+                            ),
                         )
                 except Exception:
                     pass
@@ -26604,16 +26624,29 @@ def coach_roster_page(request):
                 WorkspaceSeasonPlayer.objects.filter(season=active_club_season, player_id__in=player_ids)
                 .values_list('player_id', flat=True)
             )
-            missing = [WorkspaceSeasonPlayer(season=active_club_season, player_id=pid, is_confirmed=False) for pid in player_ids if pid not in existing_ids]
+            missing = [
+                WorkspaceSeasonPlayer(
+                    season=active_club_season,
+                    player_id=pid,
+                    is_confirmed=False,
+                    status=WorkspaceSeasonPlayer.STATUS_PENDING,
+                )
+                for pid in player_ids if pid not in existing_ids
+            ]
             if missing:
                 WorkspaceSeasonPlayer.objects.bulk_create(missing, ignore_conflicts=True)
             memberships = {
-                int(row.player_id): bool(row.is_confirmed)
-                for row in WorkspaceSeasonPlayer.objects.filter(season=active_club_season, player_id__in=player_ids).only('player_id', 'is_confirmed')
+                int(row.player_id): row
+                for row in WorkspaceSeasonPlayer.objects.filter(season=active_club_season, player_id__in=player_ids).only('player_id', 'is_confirmed', 'status')
             }
+            status_labels = dict(WorkspaceSeasonPlayer.STATUS_CHOICES)
             for p in players:
-                confirmed = bool(memberships.get(int(p.id)))
+                membership = memberships.get(int(p.id))
+                confirmed = bool(getattr(membership, 'is_confirmed', False))
+                season_status = str(getattr(membership, 'status', '') or '').strip() if membership else ''
                 setattr(p, 'season_confirmed', confirmed)
+                setattr(p, 'season_status', season_status)
+                setattr(p, 'season_status_label', status_labels.get(season_status, 'Pendiente'))
                 if confirmed:
                     season_confirmed_total += 1
                 else:
@@ -26621,6 +26654,8 @@ def coach_roster_page(request):
         except Exception:
             for p in players:
                 setattr(p, 'season_confirmed', False)
+                setattr(p, 'season_status', '')
+                setattr(p, 'season_status_label', 'Pendiente')
     player_cards = []
     if active_tab == 'stats':
         try:
@@ -50612,6 +50647,41 @@ def player_detail_page(request, player_id):
                     )
                 return redirect(f"{reverse('player-detail', args=[player.id])}?tab=communication")
 
+        active_workspace = _get_active_workspace(request)
+        club_season_options = []
+        selected_club_season = None
+        selected_club_season_id = _parse_int(request.GET.get('club_season_id'))
+        club_date_start = None
+        club_date_end = None
+        try:
+            if active_workspace and getattr(active_workspace, 'kind', None) == Workspace.KIND_CLUB:
+                club_season_options = list(
+                    WorkspaceSeason.objects
+                    .filter(workspace=active_workspace)
+                    .order_by('-is_active', '-start_date', '-id')[:12]
+                )
+                if selected_club_season_id:
+                    selected_club_season = next(
+                        (s for s in club_season_options if int(s.id) == int(selected_club_season_id)),
+                        None,
+                    )
+                    if selected_club_season is None:
+                        selected_club_season = WorkspaceSeason.objects.filter(
+                            workspace=active_workspace,
+                            id=int(selected_club_season_id),
+                        ).first()
+                if selected_club_season is None:
+                    candidate = getattr(active_workspace, 'active_season', None)
+                    if candidate and getattr(candidate, 'is_active', True):
+                        selected_club_season = candidate
+                if selected_club_season:
+                    club_date_start = getattr(selected_club_season, 'start_date', None)
+                    club_date_end = getattr(selected_club_season, 'end_date', None) or timezone.localdate()
+        except Exception:
+            selected_club_season = None
+            club_date_start = None
+            club_date_end = None
+
         try:
             force_refresh_stats = str(request.GET.get('refresh') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
             scope = _get_stats_scope_for_request(request, primary_team)
@@ -50622,6 +50692,8 @@ def player_detail_page(request, player_id):
                 scope=scope,
                 tournament_name=tournament_filter,
                 refresh_photo_urls=False,
+                date_start=club_date_start,
+                date_end=club_date_end,
             )
             stats_error = ''
         except Exception:
@@ -51008,10 +51080,12 @@ def player_detail_page(request, player_id):
 
         season_label = ''
         division_label = ''
+        if selected_club_season:
+            season_label = str(getattr(selected_club_season, 'label', '') or '').strip()
         if primary_team.group:
             division_label = primary_team.group.name or ''
             season = primary_team.group.season
-            if season:
+            if season and not season_label:
                 if season.start_date and season.end_date:
                     season_label = f'{season.start_date.year}-{season.end_date.year}'
                 else:
@@ -51053,13 +51127,12 @@ def player_detail_page(request, player_id):
             {'label': 'Rojas', 'value': red_cards, 'pct': round(min(red_cards * 30, 100), 1)},
             {'label': 'Doble amarilla', 'value': second_yellow_cards, 'pct': round(min(second_yellow_cards * 30, 100), 1)},
         ]
-        active_workspace = _get_active_workspace(request)
         home_url = _workspace_entry_url(active_workspace, user=request.user) if active_workspace else reverse('dashboard-home')
 
         # Asistencia (temporada): conteo por estado + sesiones totales del equipo.
         season_obj = getattr(getattr(primary_team, 'group', None), 'season', None)
-        season_start = getattr(season_obj, 'start_date', None) if season_obj else None
-        season_end = getattr(season_obj, 'end_date', None) if season_obj else None
+        season_start = club_date_start or (getattr(season_obj, 'start_date', None) if season_obj else None)
+        season_end = club_date_end or (getattr(season_obj, 'end_date', None) if season_obj else None)
         if not season_start:
             season_start = timezone.localdate() - timedelta(days=365)
         if not season_end:
@@ -51152,6 +51225,31 @@ def player_detail_page(request, player_id):
             and int(player.user_id) == int(request.user.id)
         )
 
+        season_history_rows = []
+        try:
+            status_labels = dict(WorkspaceSeasonPlayer.STATUS_CHOICES)
+            for membership in player_season_history(player)[:12]:
+                season_row = getattr(membership, 'season', None)
+                if not season_row:
+                    continue
+                pdf_qs = f'club_season_id={int(season_row.id)}'
+                season_history_rows.append(
+                    {
+                        'id': int(season_row.id),
+                        'label': str(getattr(season_row, 'label', '') or '').strip() or 'Temporada',
+                        'is_active': bool(getattr(season_row, 'is_active', False)),
+                        'start_date': getattr(season_row, 'start_date', None),
+                        'end_date': getattr(season_row, 'end_date', None),
+                        'status': str(getattr(membership, 'status', '') or '').strip(),
+                        'status_label': status_labels.get(getattr(membership, 'status', ''), 'Pendiente'),
+                        'is_confirmed': bool(getattr(membership, 'is_confirmed', False)),
+                        'questionnaire_completed_at': getattr(membership, 'questionnaire_completed_at', None),
+                        'pdf_url': f"{reverse('player-pdf', args=[player.id])}?{pdf_qs}",
+                    }
+                )
+        except Exception:
+            season_history_rows = []
+
         # Radar mini tipo card (para contrastar con el radar staff, y reutilizar en PDF).
         try:
             card_radar_data = _build_player_card_radar_data(safe_stats, matches)
@@ -51190,6 +51288,10 @@ def player_detail_page(request, player_id):
                 'team_rank': team_rank,
                 'season_label': season_label,
                 'division_label': division_label,
+                'club_season_options': club_season_options,
+                'selected_club_season': selected_club_season,
+                'selected_club_season_id': int(getattr(selected_club_season, 'id', 0) or 0),
+                'season_history_rows': season_history_rows,
                 'fines_summary': fines_summary,
                 'fines_records': fines_records,
                 'stats_error': stats_error,
@@ -55215,19 +55317,21 @@ def compute_player_dashboard(
         primary_team,
         reference_match=active_match,
     )
-    # Las estadísticas base (Universo/La Preferente + overrides manuales) solo aplican a Liga.
-    # En Torneos/Amistosos, los KPI deben derivarse de acciones registradas para ese contexto.
-    use_base_stats = scope_value in {Match.CONTEXT_LEAGUE, 'all'} and not (date_start or date_end)
+    # Las estadísticas externas base (Universo/La Preferente) solo aplican a Liga y sin filtro de fechas.
+    # Los overrides manuales son fuente de verdad del usuario y deben seguir aplicando aunque la vista
+    # filtre por temporada activa (`date_start/date_end`).
+    use_external_base_stats = scope_value in {Match.CONTEXT_LEAGUE, 'all'} and not (date_start or date_end)
+    use_manual_base_stats = scope_value in {Match.CONTEXT_LEAGUE, 'all'}
     # La caché de La Preferente es legacy y solo aplica al equipo principal.
     # En multicategoría, evitar mezclar stats base entre equipos.
     roster_cache = (
         (get_roster_stats_cache() if bool(getattr(primary_team, 'is_primary', False)) else {})
-        if use_base_stats
+        if use_external_base_stats
         else {}
     )
-    manual_overrides = get_manual_player_base_overrides(primary_team) if use_base_stats else {}
+    manual_overrides = get_manual_player_base_overrides(primary_team, season_obj) if use_manual_base_stats else {}
     report_manual_overrides = {}
-    if use_base_stats:
+    if use_manual_base_stats:
         try:
             report_season_labels = _season_report_label_candidates(season_obj)
             label_rank = {label: idx for idx, label in enumerate(report_season_labels)}
@@ -55254,8 +55358,8 @@ def compute_player_dashboard(
                         }
         except Exception:
             report_manual_overrides = {}
-    universo_snapshot = (load_universo_snapshot() or {}) if use_base_stats else {}
-    can_use_universo = _universo_snapshot_supports_team(universo_snapshot, primary_team) if use_base_stats else False
+    universo_snapshot = (load_universo_snapshot() or {}) if use_external_base_stats else {}
+    can_use_universo = _universo_snapshot_supports_team(universo_snapshot, primary_team) if use_external_base_stats else False
     universo_players = (universo_snapshot.get('players') if isinstance(universo_snapshot, dict) else []) if can_use_universo else []
     universo_map = {}
     universo_by_number = {}
@@ -56662,34 +56766,44 @@ def compute_player_dashboard(
                 max_decisive_actions_per90,
                 round((decisive_actions / minutes_value) * match_regulation_minutes, 2),
             )
+
+    def _apply_manual_master_overrides(target, manual_entry=None, report_manual_entry=None, *, include_report_derived=False):
+        """
+        Jerarquía de dato maestro:
+        1) edición manual del técnico, 2) registro propio de partidos, 3) importado/fallback.
+        """
+        if not isinstance(target, dict):
+            return target
+        if isinstance(manual_entry, dict) and manual_entry:
+            for key in ('pj', 'pt', 'minutes', 'goals', 'assists', 'yellow_cards', 'red_cards'):
+                if key in manual_entry and manual_entry.get(key) is not None:
+                    target[key] = manual_entry.get(key)
+        if isinstance(report_manual_entry, dict) and report_manual_entry:
+            keys = ['pj', 'pt', 'minutes', 'goals', 'assists', 'yellow_cards', 'red_cards']
+            if include_report_derived:
+                keys.extend(('participation_pct', 'success_rate', 'importance_score', 'influence_score'))
+            for key in keys:
+                if key in report_manual_entry and report_manual_entry.get(key) is not None:
+                    target[key] = report_manual_entry.get(key)
+        try:
+            target['pc'] = max(int(target.get('pc', 0) or 0), int(target.get('pj', 0) or 0))
+        except Exception:
+            pass
+        return target
+
     for stats in player_stats.values():
-        # Manual-base (edición rápida en ficha del jugador):
-        # si el jugador NO usa ficha por partido (manual-match), aplicamos los overrides aquí para
-        # que prevalezcan sobre cálculos automáticos y se reflejen en KPIs.
         try:
             pid = int(stats.get('player_id') or 0)
         except Exception:
             pid = 0
+        manual_entry = {}
+        report_manual_entry = {}
         if pid:
             manual_entry = manual_entry_by_player_id.get(pid, {}) if isinstance(manual_entry_by_player_id, dict) else {}
             manual_is_locked = bool(manual_entry.get('_locked')) if isinstance(manual_entry, dict) else False
-            if isinstance(manual_entry, dict) and manual_entry and (pid not in manual_match_player_ids or manual_is_locked):
-                for key in ('pj', 'pt', 'minutes', 'goals', 'assists', 'yellow_cards', 'red_cards'):
-                    if key in manual_entry and manual_entry.get(key) is not None:
-                        stats[key] = manual_entry.get(key)
-                try:
-                    stats['pc'] = max(int(stats.get('pc', 0) or 0), int(stats.get('pj', 0) or 0))
-                except Exception:
-                    pass
             report_manual_entry = report_manual_entry_by_player_id.get(pid, {}) if isinstance(report_manual_entry_by_player_id, dict) else {}
-            if isinstance(report_manual_entry, dict) and report_manual_entry:
-                for key in ('pj', 'minutes', 'goals', 'assists'):
-                    if key in report_manual_entry and report_manual_entry.get(key) is not None:
-                        stats[key] = report_manual_entry.get(key)
-                try:
-                    stats['pc'] = max(int(stats.get('pc', 0) or 0), int(stats.get('pj', 0) or 0))
-                except Exception:
-                    pass
+            effective_manual_entry = manual_entry if (pid not in manual_match_player_ids or manual_is_locked) else {}
+            _apply_manual_master_overrides(stats, effective_manual_entry, report_manual_entry)
         matches = sorted(
             stats['matches'].values(),
             key=lambda entry: (
@@ -56866,17 +56980,8 @@ def compute_player_dashboard(
         merged['successes_per90'] = influence['successes_per90']
         merged['decisive_actions_per90'] = influence['decisive_actions_per90']
         merged['influence_score'] = influence['influence_score']
-        report_manual_entry = report_manual_entry_by_player_id.get(int(stats.get('player_id') or 0), {})
-        if isinstance(report_manual_entry, dict) and report_manual_entry:
-            for key in (
-                'participation_pct',
-                'success_rate',
-                'importance_score',
-                'influence_score',
-            ):
-                if key in report_manual_entry and report_manual_entry.get(key) is not None:
-                    merged[key] = report_manual_entry.get(key)
-        profile, profile_label, smart_kpis = build_smart_kpis(stats)
+        _apply_manual_master_overrides(merged, manual_entry, report_manual_entry, include_report_derived=True)
+        profile, profile_label, smart_kpis = build_smart_kpis(merged)
         merged['profile'] = profile
         merged['profile_label'] = profile_label
         merged['smart_kpis'] = smart_kpis

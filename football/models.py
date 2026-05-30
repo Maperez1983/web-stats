@@ -203,7 +203,58 @@ class WorkspaceSeason(models.Model):
         return f'{self.workspace.name} · {self.label}{suffix}'
 
 
+class WorkspaceSeasonTeam(models.Model):
+    """
+    Participación de un equipo/categoría en una temporada interna del club.
+
+    `Team` permanece como entidad estable. Esta tabla guarda si ese equipo existió
+    en una temporada concreta y si sigue operativo en ella, sin perder histórico.
+    """
+
+    STATUS_ACTIVE = 'active'
+    STATUS_ARCHIVED = 'archived'
+    STATUS_NOT_CONTINUING = 'not_continuing'
+    STATUS_CHOICES = [
+        (STATUS_ACTIVE, 'Activo en temporada'),
+        (STATUS_ARCHIVED, 'Archivado'),
+        (STATUS_NOT_CONTINUING, 'No continúa'),
+    ]
+
+    season = models.ForeignKey(WorkspaceSeason, on_delete=models.CASCADE, related_name='season_teams')
+    team = models.ForeignKey('Team', on_delete=models.CASCADE, related_name='season_memberships')
+    status = models.CharField(max_length=24, choices=STATUS_CHOICES, default=STATUS_ACTIVE, db_index=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-is_active', 'team__name', 'id']
+        unique_together = ('season', 'team')
+        indexes = [
+            models.Index(fields=['season', 'is_active'], name='wst_season_active_idx'),
+            models.Index(fields=['team', '-created_at'], name='wst_team_created_idx'),
+        ]
+        verbose_name = 'Equipo de temporada (club)'
+        verbose_name_plural = 'Equipos de temporada (club)'
+
+    def __str__(self):
+        return f'{self.season.label} · {self.team.display_name}'
+
+
 class WorkspaceSeasonPlayer(models.Model):
+    STATUS_PENDING = 'pending'
+    STATUS_CONFIRMED = 'confirmed'
+    STATUS_INACTIVE = 'inactive'
+    STATUS_LEFT = 'left'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pendiente'),
+        (STATUS_CONFIRMED, 'Confirmado'),
+        (STATUS_INACTIVE, 'Inactivo'),
+        (STATUS_LEFT, 'No continúa'),
+    ]
+
     season = models.ForeignKey(WorkspaceSeason, on_delete=models.CASCADE, related_name='season_players')
     player = models.ForeignKey('Player', on_delete=models.CASCADE, related_name='season_memberships')
     is_confirmed = models.BooleanField(default=False, db_index=True)
@@ -215,6 +266,9 @@ class WorkspaceSeasonPlayer(models.Model):
         on_delete=models.SET_NULL,
         related_name='season_player_confirmations',
     )
+    status = models.CharField(max_length=24, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
+    left_at = models.DateTimeField(null=True, blank=True)
+    status_notes = models.CharField(max_length=220, blank=True)
     # Cuestionario básico de inicio de temporada (por jugador).
     # Se guarda como JSON para poder añadir campos sin migraciones adicionales.
     questionnaire_v = models.PositiveSmallIntegerField(default=1)
@@ -224,8 +278,12 @@ class WorkspaceSeasonPlayer(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['-is_confirmed', 'player__name', 'id']
+        ordering = ['-is_confirmed', 'status', 'player__name', 'id']
         unique_together = ('season', 'player')
+        indexes = [
+            models.Index(fields=['season', 'status'], name='wsp_season_status_idx'),
+            models.Index(fields=['player', '-created_at'], name='wsp_player_created_idx'),
+        ]
         verbose_name = 'Jugador de temporada (club)'
         verbose_name_plural = 'Jugadores de temporada (club)'
 

@@ -20,7 +20,7 @@ from django.test import SimpleTestCase, TestCase, TransactionTestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from football.models import AnalystVideoFolder, AnalysisVideoReport, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerFine, PlayerSeasonReport, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, StaffMember, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, TrainingSessionAttendance, UserInvitation, VideoClip, VideoTimelineEvent, VideoTelestrationProject, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspacePreference, WorkspaceSeason, WorkspaceSeasonPlayer, WorkspaceTeam
+from football.models import AnalystVideoFolder, AnalysisVideoReport, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerFine, PlayerSeasonReport, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, StaffMember, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, TrainingSessionAttendance, UserInvitation, VideoClip, VideoTimelineEvent, VideoTelestrationProject, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspacePreference, WorkspaceSeason, WorkspaceSeasonPlayer, WorkspaceSeasonTeam, WorkspaceTeam
 from football import views as football_views
 from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.event_taxonomy import (
@@ -2059,6 +2059,76 @@ class SeasonWizardRatingHelperTests(SimpleTestCase):
         self.assertEqual(summary['overall'], 3.0)
         self.assertEqual(summary['category'], 'Categoría actual consolidada')
         self.assertEqual(summary['chart_values'], [2.5, 0.0, 0.0, 4.0])
+
+
+class SeasonHistoryServicesTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(username='history-owner', password='pass-1234')
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)
+        self.team = Team.objects.create(name='Equipo Histórico', slug='equipo-historico', short_name='Histórico')
+        self.workspace = Workspace.objects.create(
+            name='Club Histórico',
+            slug='club-historico',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.team,
+            owner_user=self.user,
+            is_active=True,
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.user,
+            role=WorkspaceMembership.ROLE_OWNER,
+        )
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.team, is_default=True)
+        self.season = WorkspaceSeason.objects.create(
+            workspace=self.workspace,
+            label='2026/2027',
+            start_date=date(2026, 7, 1),
+            is_active=True,
+        )
+        self.workspace.active_season = self.season
+        self.workspace.save(update_fields=['active_season', 'updated_at'])
+        self.player = Player.objects.create(team=self.team, name='Jugador Histórico', is_active=True)
+        self.client.force_login(self.user)
+        session = self.client.session
+        session['active_workspace_id'] = int(self.workspace.id)
+        session.save()
+
+    def test_workspace_season_keeps_team_and_player_history_when_player_deactivates(self):
+        from football.season_history_services import (
+            ensure_active_workspace_team_seasons,
+            ensure_team_roster_season_memberships,
+            mark_player_left_current_season,
+        )
+
+        ensure_active_workspace_team_seasons(self.workspace, season=self.season)
+        ensure_team_roster_season_memberships(self.season, self.team, include_inactive=True)
+        self.player.is_active = False
+        self.player.save(update_fields=['is_active'])
+        mark_player_left_current_season(self.season, self.player, notes='No continúa')
+        ensure_team_roster_season_memberships(self.season, self.team, include_inactive=True)
+
+        self.assertTrue(WorkspaceSeasonTeam.objects.filter(season=self.season, team=self.team, is_active=True).exists())
+        membership = WorkspaceSeasonPlayer.objects.get(season=self.season, player=self.player)
+        self.assertEqual(membership.status, WorkspaceSeasonPlayer.STATUS_LEFT)
+        self.assertFalse(membership.is_confirmed)
+        self.assertIsNotNone(membership.left_at)
+
+    def test_player_detail_exposes_season_context_and_history_tab(self):
+        from football.season_history_services import ensure_active_workspace_team_seasons, ensure_team_roster_season_memberships
+
+        ensure_active_workspace_team_seasons(self.workspace, season=self.season)
+        ensure_team_roster_season_memberships(self.season, self.team, include_inactive=True)
+
+        response = self.client.get(
+            f"{reverse('player-detail', args=[self.player.id])}?club_season_id={self.season.id}",
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Contexto de temporada')
+        self.assertContains(response, 'Temporadas e histórico')
+        self.assertContains(response, self.season.label)
 
 
 class WorkspaceAccessPolicyTests(TestCase):
@@ -5010,6 +5080,36 @@ class ManualStatsTests(TestCase):
         self.assertEqual(int(detail.get('minutes') or 0), 700)
         self.assertEqual(int(detail.get('goals') or 0), 12)
         self.assertEqual(int(detail.get('assists') or 0), 6)
+
+    def test_manual_base_totals_apply_with_active_season_date_filter(self):
+        self.season.start_date = date(2025, 9, 1)
+        self.season.end_date = date(2026, 6, 30)
+        self.season.save(update_fields=['start_date', 'end_date'])
+        save_manual_player_base_overrides(
+            player=self.player,
+            season=self.season,
+            values={
+                'manual_pj': '14',
+                'manual_pt': '11',
+                'manual_minutes': '930',
+                'manual_goals': '7',
+                'manual_assists': '5',
+            },
+        )
+
+        rows = compute_player_dashboard(
+            self.team,
+            force_refresh=True,
+            date_start=self.season.start_date,
+            date_end=self.season.end_date,
+        )
+        detail = next(row for row in rows if row['player_id'] == self.player.id)
+
+        self.assertEqual(int(detail.get('pj') or 0), 14)
+        self.assertEqual(int(detail.get('pt') or 0), 11)
+        self.assertEqual(int(detail.get('minutes') or 0), 930)
+        self.assertEqual(int(detail.get('goals') or 0), 7)
+        self.assertEqual(int(detail.get('assists') or 0), 5)
 
     @patch('football.views.get_roster_stats_cache', side_effect=RuntimeError('snapshot roto'))
     def test_manual_stats_page_tolerates_roster_cache_errors(self, mocked_cache):

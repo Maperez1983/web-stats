@@ -48,9 +48,34 @@ class WorkspaceAdmin(admin.ModelAdmin):
     inlines = (WorkspaceTeamInline,)
 
 
+@admin.register(models.WorkspaceSeason)
+class WorkspaceSeasonAdmin(admin.ModelAdmin):
+    list_display = ('label', 'workspace', 'start_date', 'end_date', 'is_active')
+    list_filter = ('is_active', 'workspace')
+    search_fields = ('label', 'workspace__name')
+    autocomplete_fields = ('workspace',)
+
+
+@admin.register(models.WorkspaceSeasonTeam)
+class WorkspaceSeasonTeamAdmin(admin.ModelAdmin):
+    list_display = ('season', 'team', 'status', 'is_active', 'confirmed_at')
+    list_filter = ('status', 'is_active', 'season')
+    search_fields = ('team__name', 'team__short_name', 'season__label', 'season__workspace__name')
+    autocomplete_fields = ('season', 'team')
+
+
+@admin.register(models.WorkspaceSeasonPlayer)
+class WorkspaceSeasonPlayerAdmin(admin.ModelAdmin):
+    list_display = ('season', 'player', 'status', 'is_confirmed', 'confirmed_at', 'left_at')
+    list_filter = ('status', 'is_confirmed', 'season')
+    search_fields = ('player__name', 'player__full_name', 'season__label', 'season__workspace__name')
+    autocomplete_fields = ('season', 'player', 'confirmed_by')
+
+
 @admin.register(models.Player)
 class PlayerAdmin(admin.ModelAdmin):
     list_display = ('name', 'team', 'number', 'position', 'injury', 'injury_date')
+    search_fields = ('name', 'full_name', 'nickname', 'team__name')
 
 
 @admin.register(models.InjuryCatalogEntry)
