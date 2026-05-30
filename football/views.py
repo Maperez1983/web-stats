@@ -51974,6 +51974,7 @@ def player_pdf(request, player_id):
     matchday_ga_chart = []
     matchday_minutes_chart_rows = []
     matchday_ga_chart_rows = []
+    matchday_chart_key = []
     matchday_minutes_line = None
     matchday_ga_line = None
     try:
@@ -52104,6 +52105,30 @@ def player_pdf(request, player_id):
                     raw = raw[:13] + '…'
             return raw.upper()
 
+        def _chart_key_opponent_label(match: dict, idx: int) -> str:
+            try:
+                raw = str(
+                    match.get('opponent')
+                    or match.get('rival')
+                    or match.get('opponent_name')
+                    or match.get('rival_name')
+                    or ''
+                ).strip()
+            except Exception:
+                raw = ''
+            if not raw:
+                return _safe_round_label(str(match.get('round') or '').strip(), idx)
+            raw = re.sub(r'\\s+', ' ', raw).strip()
+            raw = (
+                raw.replace('C.D.', '')
+                .replace('C.F.', '')
+                .replace('F.C.', '')
+                .replace('C. D.', '')
+                .replace('C. F.', '')
+                .replace('F. C.', '')
+            )
+            return re.sub(r'\\s+', ' ', raw).strip()
+
         def _axis_opponent_label(label: str) -> str:
             raw = str(label or '').strip().upper()
             if not raw:
@@ -52183,6 +52208,7 @@ def player_pdf(request, player_id):
             raw_round = str(m.get('round') or '').strip()
             label_round = _safe_round_label(raw_round, idx)
             label_opp = _safe_opponent_label(m, idx)
+            key_opp = _chart_key_opponent_label(m, idx)
             v1 = float(_metric_value(minutes_metric, m))
             v2 = float(_metric_value(minutes_metric2, m)) if minutes_metric2 else 0.0
             matchday_minutes_chart.append(
@@ -52193,6 +52219,7 @@ def player_pdf(request, player_id):
                     'axis_opponent_label': _axis_opponent_label(label_opp),
                     'label_round': label_round,
                     'label_opponent': label_opp,
+                    'key_opponent': key_opp,
                     'label_mode': pdf_minutes_x_mode,
                     'v1': v1,
                     'v2': v2,
@@ -52211,6 +52238,7 @@ def player_pdf(request, player_id):
             raw_round = str(m.get('round') or '').strip()
             label_round = _safe_round_label(raw_round, idx)
             label_opp = _safe_opponent_label(m, idx)
+            key_opp = _chart_key_opponent_label(m, idx)
             a1 = float(_metric_value(ga_metric, m))
             a2 = float(_metric_value(ga_metric2, m)) if ga_metric2 else 0.0
             total = a1 + a2
@@ -52222,6 +52250,7 @@ def player_pdf(request, player_id):
                     'axis_opponent_label': _axis_opponent_label(label_opp),
                     'label_round': label_round,
                     'label_opponent': label_opp,
+                    'key_opponent': key_opp,
                     'label_mode': pdf_ga_x_mode,
                     'v1': a1,
                     'v2': a2,
@@ -52403,6 +52432,25 @@ def player_pdf(request, player_id):
         radar_actions_spark = None
         radar_success_spark = None
         try:
+            seen_chart_keys = set()
+            for item in list(matchday_minutes_chart or []) + list(matchday_ga_chart or []):
+                round_label = str(item.get('label_round') or '').strip()
+                opponent_label = str(item.get('key_opponent') or item.get('label_opponent') or '').strip()
+                if not round_label and not opponent_label:
+                    continue
+                dedupe_key = (round_label, normalize_label(opponent_label))
+                if dedupe_key in seen_chart_keys:
+                    continue
+                seen_chart_keys.add(dedupe_key)
+                matchday_chart_key.append(
+                    {
+                        'round': round_label or '-',
+                        'opponent': opponent_label or '-',
+                    }
+                )
+        except Exception:
+            matchday_chart_key = []
+        try:
             played_src = [m for m in (chart_matches or []) if m.get('is_played')]
             last6 = played_src[-6:] if len(played_src) >= 1 else []
             mini_items = []
@@ -52483,6 +52531,7 @@ def player_pdf(request, player_id):
         matchday_ga_chart = []
         matchday_minutes_chart_rows = []
         matchday_ga_chart_rows = []
+        matchday_chart_key = []
         matchday_minutes_line = None
         matchday_ga_line = None
         radar_actions_spark = None
@@ -53020,6 +53069,7 @@ def player_pdf(request, player_id):
             'next_scheduled_match': next_scheduled_match,
             'matchday_minutes_chart': matchday_minutes_chart,
             'matchday_ga_chart': matchday_ga_chart,
+            'matchday_chart_key': matchday_chart_key,
             'matchday_minutes_chart_rows': matchday_minutes_chart_rows,
             'matchday_ga_chart_rows': matchday_ga_chart_rows,
             'matchday_minutes_line': matchday_minutes_line,

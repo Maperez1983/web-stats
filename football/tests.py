@@ -5441,7 +5441,10 @@ class PlayerDetailStatsFallbackTests(TestCase):
         self.assertContains(response, 'stroke="#f4b400"', html=False)
         self.assertContains(response, '>1</text>', html=False)
         self.assertContains(response, '>RIVA.LARG</text>', html=False)
-        self.assertContains(response, '<strong>1</strong> · RIVA.LARG', html=False)
+        self.assertContains(response, 'Clave jornadas-rivales')
+        self.assertContains(response, '<strong>1</strong> · Rival Con Nombre Muy Largo', html=False)
+        self.assertContains(response, '<strong>2</strong> · Otro Rival Con Nombre Muy Largo', html=False)
+        self.assertContains(response, '<div class="chart-key"', count=1, html=False)
         self.assertNotContains(response, 'rotate(-35', html=False)
         self.assertNotContains(response, '>1 · Rival', html=False)
 
