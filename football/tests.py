@@ -2154,6 +2154,44 @@ class SeasonHistoryServicesTests(TestCase):
         self.assertEqual(request.session[f'active_club_season_id:{self.workspace.id}'], previous.id)
         self.assertEqual(club_season_date_bounds(selected), (date(2025, 7, 1), date(2026, 6, 30)))
 
+    def test_roster_historical_season_is_read_only_and_does_not_backfill_current_players(self):
+        previous = WorkspaceSeason.objects.create(
+            workspace=self.workspace,
+            label='2025/2026',
+            start_date=date(2025, 7, 1),
+            end_date=date(2026, 6, 30),
+            is_active=False,
+        )
+
+        response = self.client.get(
+            f"{reverse('coach-roster')}?tab=manage&club_season_id={previous.id}",
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Vista histórica en solo lectura')
+        self.assertNotContains(response, 'Guardar jugador')
+        self.assertFalse(WorkspaceSeasonPlayer.objects.filter(season=previous, player=self.player).exists())
+
+    def test_team_can_be_marked_not_continuing_for_one_season_without_deleting_entity(self):
+        from football.season_history_services import ensure_season_team, set_team_season_status
+
+        membership = ensure_season_team(self.season, self.team)
+        self.assertTrue(membership.is_active)
+
+        updated = set_team_season_status(
+            self.season,
+            self.team,
+            status=WorkspaceSeasonTeam.STATUS_NOT_CONTINUING,
+            notes='No sale en esta temporada.',
+        )
+
+        self.team.refresh_from_db()
+        self.assertEqual(updated.status, WorkspaceSeasonTeam.STATUS_NOT_CONTINUING)
+        self.assertFalse(updated.is_active)
+        self.assertTrue(Team.objects.filter(id=self.team.id).exists())
+        self.assertTrue(WorkspaceTeam.objects.filter(workspace=self.workspace, team=self.team).exists())
+
 
 class WorkspaceAccessPolicyTests(TestCase):
     def test_workspace_owner_can_manage_without_membership(self):

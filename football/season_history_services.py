@@ -129,6 +129,44 @@ def ensure_season_team(season, team, *, status=WorkspaceSeasonTeam.STATUS_ACTIVE
     return membership
 
 
+def set_team_season_status(season, team, *, status=WorkspaceSeasonTeam.STATUS_ACTIVE, notes=''):
+    if not season or not team:
+        return None
+    valid_statuses = {choice[0] for choice in WorkspaceSeasonTeam.STATUS_CHOICES}
+    status = status if status in valid_statuses else WorkspaceSeasonTeam.STATUS_ACTIVE
+    is_active = status == WorkspaceSeasonTeam.STATUS_ACTIVE
+    membership = ensure_season_team(season, team, status=status, is_active=is_active)
+    if membership:
+        membership.notes = str(notes or '')[:500]
+        fields = ['notes', 'updated_at']
+        if is_active and not membership.confirmed_at:
+            membership.confirmed_at = timezone.now()
+            fields.append('confirmed_at')
+        membership.save(update_fields=sorted(set(fields)))
+    return membership
+
+
+def team_season_membership_map(season, teams):
+    if not season or not teams:
+        return {}
+    team_ids = []
+    for team in teams:
+        try:
+            team_id = int(getattr(team, 'id', None) or getattr(team, 'team_id', None) or 0)
+        except Exception:
+            team_id = 0
+        if team_id:
+            team_ids.append(team_id)
+    if not team_ids:
+        return {}
+    rows = (
+        WorkspaceSeasonTeam.objects
+        .filter(season=season, team_id__in=team_ids)
+        .select_related('team')
+    )
+    return {int(row.team_id): row for row in rows if getattr(row, 'team_id', None)}
+
+
 def ensure_active_workspace_team_seasons(workspace, *, season=None):
     season = season or active_club_season(workspace)
     if not workspace or not season:

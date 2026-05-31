@@ -835,6 +835,338 @@
       .field-token.is-rival .token-role {
         color: rgba(254, 202, 202, 0.92);
       }
+      .broadcast-infographic {
+        display: grid;
+        grid-template-columns: minmax(180px, 245px) minmax(0, 1fr);
+        gap: clamp(0.65rem, 1.2vw, 1rem);
+        align-items: stretch;
+      }
+      .broadcast-side {
+        display: grid;
+        align-content: stretch;
+        gap: 0.58rem;
+      }
+      .broadcast-box {
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: linear-gradient(180deg, rgba(224, 242, 254, 0.95), rgba(186, 230, 253, 0.88));
+        color: #0f172a;
+        overflow: hidden;
+        box-shadow: 0 16px 34px rgba(2, 6, 23, 0.22);
+      }
+      .broadcast-box-title {
+        margin: 0;
+        padding: 0.42rem 0.55rem;
+        background: rgba(248, 250, 252, 0.98);
+        color: #020617;
+        font-size: 0.74rem;
+        letter-spacing: 0.12em;
+        font-weight: 950;
+        text-align: center;
+        text-transform: uppercase;
+      }
+      .broadcast-box-body {
+        min-height: 54px;
+        padding: 0.58rem 0.62rem;
+        display: grid;
+        place-items: center;
+        text-align: center;
+        font-size: 0.72rem;
+        line-height: 1.24;
+        font-weight: 850;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+      }
+      .broadcast-box-body.is-list {
+        place-items: stretch;
+        gap: 0.36rem;
+        text-align: left;
+      }
+      .broadcast-box-body.is-list span {
+        display: block;
+      }
+      .broadcast-bajas {
+        display: flex;
+        justify-content: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+      .broadcast-baja-chip {
+        display: grid;
+        justify-items: center;
+        gap: 0.18rem;
+        min-width: 54px;
+      }
+      .broadcast-baja-chip img,
+      .broadcast-baja-avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 999px;
+        object-fit: cover;
+        object-position: 50% 20%;
+        border: 2px solid rgba(15, 23, 42, 0.15);
+        background: rgba(255, 255, 255, 0.85);
+      }
+      .broadcast-baja-avatar {
+        display: grid;
+        place-items: center;
+        font-size: 0.68rem;
+        font-weight: 950;
+      }
+      .broadcast-baja-mark {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: #ef4444;
+        color: #fff;
+        font-weight: 950;
+        margin-top: -0.35rem;
+        box-shadow: 0 8px 16px rgba(127, 29, 29, 0.25);
+      }
+      .recent-form {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        flex-wrap: wrap;
+      }
+      .recent-form-item {
+        position: relative;
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        background: rgba(255, 255, 255, 0.82);
+        border: 2px solid rgba(15, 23, 42, 0.1);
+        overflow: hidden;
+      }
+      .recent-form-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        padding: 3px;
+      }
+      .recent-form-item .recent-fallback {
+        font-weight: 950;
+        font-size: 0.66rem;
+      }
+      .recent-form-item::after {
+        content: attr(data-result);
+        position: absolute;
+        right: -2px;
+        bottom: -2px;
+        min-width: 15px;
+        height: 15px;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        background: #64748b;
+        color: #fff;
+        font-size: 0.52rem;
+        font-weight: 950;
+        border: 1px solid rgba(255,255,255,0.85);
+      }
+      .recent-form-item[data-kind="win"]::after { background: #16a34a; }
+      .recent-form-item[data-kind="draw"]::after { background: #f59e0b; }
+      .recent-form-item[data-kind="loss"]::after { background: #dc2626; }
+      .broadcast-main {
+        position: relative;
+        min-width: 0;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        overflow: hidden;
+        border-radius: 18px;
+        background:
+          linear-gradient(180deg, rgba(2, 6, 23, 0.18), rgba(2, 6, 23, 0.42)),
+          radial-gradient(120% 80% at 50% 0%, rgba(148, 163, 184, 0.18), transparent 58%);
+        isolation: isolate;
+      }
+      .broadcast-main::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background:
+          radial-gradient(ellipse at 50% 18%, rgba(248, 250, 252, 0.34) 0 5%, transparent 18%),
+          radial-gradient(ellipse at 18% 16%, rgba(248, 250, 252, 0.22) 0 4%, transparent 15%),
+          radial-gradient(ellipse at 82% 16%, rgba(248, 250, 252, 0.22) 0 4%, transparent 15%),
+          linear-gradient(180deg, rgba(15, 23, 42, 0.24) 0 18%, transparent 44%),
+          repeating-radial-gradient(ellipse at 50% 16%, rgba(226, 232, 240, 0.20) 0 2px, rgba(226, 232, 240, 0.04) 2px 8px, transparent 8px 16px),
+          radial-gradient(ellipse at 50% 13%, rgba(203, 213, 225, 0.40) 0 9%, rgba(71, 85, 105, 0.34) 25%, rgba(15, 23, 42, 0.14) 53%, transparent 68%),
+          linear-gradient(180deg, rgba(30, 41, 59, 0.78) 0 28%, rgba(15, 23, 42, 0.28) 28% 46%, transparent 72%);
+        filter: saturate(0.9);
+        opacity: 0.92;
+      }
+      .broadcast-main::after {
+        content: "";
+        position: absolute;
+        left: -8%;
+        right: -8%;
+        bottom: 5%;
+        height: 34%;
+        z-index: 1;
+        pointer-events: none;
+        background:
+          radial-gradient(ellipse at 50% 100%, rgba(22, 101, 52, 0.82), rgba(22, 101, 52, 0.18) 52%, transparent 72%),
+          linear-gradient(180deg, transparent, rgba(2, 6, 23, 0.30));
+        transform: perspective(520px) rotateX(58deg);
+        transform-origin: bottom center;
+        opacity: 0.82;
+      }
+      .broadcast-main.has-stadium-photo::before {
+        background:
+          linear-gradient(180deg, rgba(2, 6, 23, 0.22) 0%, rgba(2, 6, 23, 0.18) 34%, rgba(2, 6, 23, 0.58) 100%),
+          radial-gradient(ellipse at 50% 26%, rgba(248, 250, 252, 0.28), transparent 38%),
+          var(--stadium-bg);
+        background-size: cover, 100% 100%, cover;
+        background-position: center, center, center;
+        filter: saturate(1.08) contrast(1.02);
+        opacity: 0.9;
+      }
+      .broadcast-main.has-stadium-photo::after {
+        background:
+          radial-gradient(ellipse at 50% 100%, rgba(22, 101, 52, 0.64), rgba(22, 101, 52, 0.10) 52%, transparent 72%),
+          linear-gradient(180deg, transparent, rgba(2, 6, 23, 0.36));
+      }
+      .broadcast-stadium-label {
+        position: absolute;
+        right: clamp(0.75rem, 1.6vw, 1.2rem);
+        top: clamp(0.75rem, 1.6vw, 1.1rem);
+        z-index: 6;
+        max-width: min(42%, 320px);
+        padding: 0.24rem 0.56rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        background: rgba(2, 6, 23, 0.56);
+        color: rgba(248, 250, 252, 0.92);
+        font-size: 0.62rem;
+        font-weight: 850;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+      }
+      .broadcast-title {
+        position: relative;
+        z-index: 5;
+        display: grid;
+        justify-items: center;
+        gap: 0.18rem;
+        padding: 0.72rem 0.9rem 0.25rem;
+        text-align: center;
+        text-transform: uppercase;
+        text-shadow: 0 12px 34px rgba(0,0,0,0.62);
+      }
+      .broadcast-title h2 {
+        margin: 0;
+        color: #020617;
+        -webkit-text-stroke: 1px rgba(248, 250, 252, 0.82);
+        font-size: clamp(1.3rem, 3vw, 2.7rem);
+        font-weight: 1000;
+        letter-spacing: 0.02em;
+        line-height: 0.95;
+      }
+      .broadcast-title .round {
+        padding: 0.18rem 0.55rem;
+        border-radius: 999px;
+        background: rgba(2, 6, 23, 0.74);
+        color: rgba(248, 250, 252, 0.96);
+        font-size: 0.66rem;
+        font-weight: 950;
+        letter-spacing: 0.11em;
+      }
+      .broadcast-main .xi-stadium {
+        width: min(100%, 980px);
+        background-color: transparent;
+        box-shadow: none;
+        position: relative;
+        z-index: 3;
+      }
+      .broadcast-main .xi-stadium-center {
+        max-height: none;
+      }
+      .broadcast-main .xi-stadium .field {
+        width: min(100%, 620px, calc((100vh - 16rem) * 0.68));
+      }
+      .broadcast-subs {
+        position: relative;
+        z-index: 5;
+        margin: -0.15rem clamp(0.8rem, 2vw, 1.4rem) 0.85rem;
+      }
+      .broadcast-subs-title {
+        min-height: 24px;
+        display: grid;
+        place-items: center;
+        border-radius: 4px;
+        background: rgba(248, 250, 252, 0.96);
+        color: #0f172a;
+        font-size: 0.68rem;
+        letter-spacing: 0.12em;
+        font-weight: 950;
+        text-transform: uppercase;
+      }
+      .broadcast-subs-row {
+        display: flex;
+        justify-content: center;
+        align-items: end;
+        gap: 0.42rem;
+        min-height: 54px;
+        padding-top: 0.35rem;
+        overflow-x: auto;
+      }
+      .broadcast-sub-chip {
+        flex: 0 0 auto;
+        display: grid;
+        justify-items: center;
+        gap: 0.12rem;
+        min-width: 46px;
+        color: rgba(248, 250, 252, 0.95);
+        text-align: center;
+        text-shadow: 0 8px 20px rgba(0,0,0,0.62);
+        font-size: 0.58rem;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .broadcast-sub-chip img,
+      .broadcast-sub-avatar {
+        width: 38px;
+        height: 38px;
+        border-radius: 999px;
+        object-fit: cover;
+        object-position: 50% 20%;
+        border: 2px solid rgba(248, 250, 252, 0.68);
+        background: rgba(15, 23, 42, 0.78);
+      }
+      .broadcast-sub-avatar {
+        display: grid;
+        place-items: center;
+        font-size: 0.62rem;
+      }
+      @media (max-width: 1180px) {
+        .broadcast-infographic {
+          grid-template-columns: 1fr;
+        }
+        .broadcast-side {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      @media (max-width: 720px) {
+        .broadcast-side {
+          grid-template-columns: 1fr;
+        }
+        .broadcast-title h2 {
+          -webkit-text-stroke-width: 0;
+          color: rgba(248, 250, 252, 0.96);
+        }
+      }
     </style>
   </head>
   <body class="prod-commercial">
@@ -966,49 +1298,109 @@
           </p>
         </aside>
         <article class="panel lineup-field-panel">
-          <h3>Campo</h3>
-          <div class="xi-stadium">
-            <div class="xi-stand xi-stand-top" aria-hidden="true">
-              <div class="xi-stand-label xi-stand-label--top">
-                {% if team_crest_url %}
-                  <img class="xi-stand-crest" src="{{ team_crest_url|default_if_none:'' }}" alt="" loading="lazy" decoding="async" />
-                {% endif %}
-                <span class="xi-stand-name">{{ team_name|default:"EQUIPO" }}</span>
+          <h3>Infografía XI</h3>
+          <div class="broadcast-infographic">
+            <section class="broadcast-side" aria-label="Resumen del partido">
+              <div class="broadcast-box">
+                <h4 class="broadcast-box-title">Pros</h4>
+                <div class="broadcast-box-body is-list" id="broadcast-pros">
+                  <span>Once conectado al registro del partido</span>
+                  <span>Equipaciones y escudos disponibles</span>
+                </div>
               </div>
-            </div>
-            <div class="xi-stand xi-stand-left" aria-hidden="true">
-              <div class="xi-stand-label xi-stand-label--side">
-                {% if team_crest_url %}
-                  <img class="xi-stand-crest xi-stand-crest--mini" src="{{ team_crest_url|default_if_none:'' }}" alt="" loading="lazy" decoding="async" />
-                {% endif %}
-                <span class="xi-stand-name xi-stand-name--mini">{{ team_name|default:"EQUIPO" }}</span>
+              <div class="broadcast-box">
+                <h4 class="broadcast-box-title">Contras</h4>
+                <div class="broadcast-box-body is-list" id="broadcast-contras">
+                  <span>Completa el once para cerrar la previa</span>
+                </div>
               </div>
-            </div>
-            <div class="xi-stand xi-stand-right" aria-hidden="true">
-              <div class="xi-stand-label xi-stand-label--side">
-                {% if team_crest_url %}
-                  <img class="xi-stand-crest xi-stand-crest--mini" src="{{ team_crest_url|default_if_none:'' }}" alt="" loading="lazy" decoding="async" />
-                {% endif %}
-                <span class="xi-stand-name xi-stand-name--mini">{{ team_name|default:"EQUIPO" }}</span>
+              <div class="broadcast-box">
+                <h4 class="broadcast-box-title">Bajas</h4>
+                <div class="broadcast-box-body">
+                  <div class="broadcast-bajas" id="broadcast-bajas"></div>
+                </div>
               </div>
-            </div>
-            <div class="xi-stand xi-stand-bottom" aria-hidden="true">
-              <div class="xi-stand-label xi-stand-label--bottom">
-                {% if team_crest_url %}
-                  <img class="xi-stand-crest xi-stand-crest--mini" src="{{ team_crest_url|default_if_none:'' }}" alt="" loading="lazy" decoding="async" />
-                {% endif %}
-                <span class="xi-stand-name xi-stand-name--mini">{{ team_name|default:"EQUIPO" }}</span>
+              <div class="broadcast-box">
+                <h4 class="broadcast-box-title">Últimos 5 partidos</h4>
+                <div class="broadcast-box-body">
+                  <div class="recent-form">
+                    {% for item in recent_match_form %}
+                      <span class="recent-form-item" data-kind="{{ item.result_key }}" data-result="{{ item.result_label }}" title="{{ item.round|default:'Partido' }} · {{ item.opponent }}{% if item.score %} · {{ item.score }}{% endif %}">
+                        {% if item.crest_url %}
+                          <img src="{{ item.crest_url }}" alt="{{ item.opponent }}" loading="lazy" decoding="async" />
+                        {% else %}
+                          <span class="recent-fallback">{{ item.opponent|initials }}</span>
+                        {% endif %}
+                      </span>
+                    {% empty %}
+                      <span>Sin datos recientes</span>
+                    {% endfor %}
+                  </div>
+                </div>
               </div>
-            </div>
-            <div class="xi-stadium-center">
-              <div
-                class="field"
-                id="lineup-field"
-                data-pitch-preset="{{ lineup_pitch_preset|default:'full_pitch'|escape }}"
-                data-grass-style="{{ lineup_grass_style|default:'broadcast'|escape }}"
-                data-orientation="portrait"
-              ></div>
-            </div>
+            </section>
+            <section
+              class="broadcast-main{% if stadium_background_url %} has-stadium-photo{% endif %}"
+              aria-label="Once inicial tipo broadcast"
+              {% if stadium_background_url %}style="--stadium-bg: url('{{ stadium_background_url|escape }}');"{% endif %}
+            >
+              {% if stadium_background_label %}
+                <div class="broadcast-stadium-label">{{ stadium_background_label }}</div>
+              {% endif %}
+              <div class="broadcast-title">
+                <h2>{{ team_name|upper }} VS {{ rival_display_name|upper|default:"RIVAL" }}</h2>
+                <span class="round">{{ convocation_record.round|default:"Jornada por confirmar" }}</span>
+              </div>
+              <div class="xi-stadium">
+                <div class="xi-stand xi-stand-top" aria-hidden="true">
+                  <div class="xi-stand-label xi-stand-label--top">
+                    {% if team_crest_url %}
+                      <img class="xi-stand-crest" src="{{ team_crest_url|default_if_none:'' }}" alt="" loading="lazy" decoding="async" />
+                    {% endif %}
+                    <span class="xi-stand-name">{{ team_name|default:"EQUIPO" }}</span>
+                  </div>
+                </div>
+                <div class="xi-stand xi-stand-left" aria-hidden="true">
+                  <div class="xi-stand-label xi-stand-label--side">
+                    {% if team_crest_url %}
+                      <img class="xi-stand-crest xi-stand-crest--mini" src="{{ team_crest_url|default_if_none:'' }}" alt="" loading="lazy" decoding="async" />
+                    {% endif %}
+                    <span class="xi-stand-name xi-stand-name--mini">{{ team_name|default:"EQUIPO" }}</span>
+                  </div>
+                </div>
+                <div class="xi-stand xi-stand-right" aria-hidden="true">
+                  <div class="xi-stand-label xi-stand-label--side">
+                    {% if team_crest_url %}
+                      <img class="xi-stand-crest xi-stand-crest--mini" src="{{ team_crest_url|default_if_none:'' }}" alt="" loading="lazy" decoding="async" />
+                    {% endif %}
+                    <span class="xi-stand-name xi-stand-name--mini">{{ team_name|default:"EQUIPO" }}</span>
+                  </div>
+                </div>
+                <div class="xi-stand xi-stand-bottom" aria-hidden="true">
+                  <div class="xi-stand-label xi-stand-label--bottom">
+                    {% if team_crest_url %}
+                      <img class="xi-stand-crest xi-stand-crest--mini" src="{{ team_crest_url|default_if_none:'' }}" alt="" loading="lazy" decoding="async" />
+                    {% endif %}
+                    <span class="xi-stand-name xi-stand-name--mini">{{ team_name|default:"EQUIPO" }}</span>
+                  </div>
+                </div>
+                <div class="xi-stadium-center">
+                  <div
+                    class="field"
+                    id="lineup-field"
+                    data-pitch-preset="{{ lineup_pitch_preset|default:'full_pitch'|escape }}"
+                    data-grass-style="{{ lineup_grass_style|default:'broadcast'|escape }}"
+                    data-orientation="portrait"
+                  ></div>
+                </div>
+              </div>
+              <div class="broadcast-subs">
+                <div class="broadcast-subs-title">Suplentes clave</div>
+                <div class="broadcast-subs-row" id="broadcast-subs-row">
+                  <span class="field-help">Sin suplentes definidos</span>
+                </div>
+              </div>
+            </section>
           </div>
         </article>
       </section>
@@ -1041,6 +1433,24 @@
       const rivalKit2dDataUrl = '{{ rival_team_kit2d_url|default_if_none:""|escapejs }}';
 
       const STARTERS_REQUIRED = Number('{{ starters_limit|default:11 }}') || 11;
+      const broadcastProsEl = document.getElementById('broadcast-pros');
+      const broadcastContrasEl = document.getElementById('broadcast-contras');
+      const broadcastBajasEl = document.getElementById('broadcast-bajas');
+      const broadcastSubsRow = document.getElementById('broadcast-subs-row');
+      const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      }[ch] || ch));
+      const getInitials = (value) => String(value || '')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part.charAt(0).toUpperCase())
+        .join('') || 'J';
       const presentationToggleBtn = document.getElementById('presentation-toggle');
       presentationToggleBtn?.addEventListener('click', () => {
         document.body.classList.toggle('is-presentation');
@@ -1412,6 +1822,79 @@
         statusMsg.classList.remove('ok');
       };
 
+      const renderBroadcastInfographic = () => {
+        const starters = Array.isArray(lineupState?.starters) ? lineupState.starters.slice(0, STARTERS_REQUIRED) : [];
+        const bench = Array.isArray(lineupState?.bench) ? lineupState.bench : [];
+        const missing = Math.max(0, STARTERS_REQUIRED - starters.length);
+        const hasRival = Array.isArray(rivalLineupState?.starters) && rivalLineupState.starters.length > 0;
+
+        if (broadcastProsEl) {
+          const rows = [];
+          if (!missing) rows.push('Once inicial completo');
+          else rows.push(`${starters.length}/${STARTERS_REQUIRED} titulares colocados`);
+          rows.push(lineupKit2dDataUrl ? 'Equipación del equipo cargada' : 'Escudo y fichas de jugadores activos');
+          if (bench.length) rows.push(`${bench.length} suplente${bench.length === 1 ? '' : 's'} preparado${bench.length === 1 ? '' : 's'}`);
+          if (hasRival) rows.push('Once rival disponible para superponer');
+          broadcastProsEl.innerHTML = rows.map((row) => `<span>${escapeHtml(row)}</span>`).join('');
+        }
+
+        if (broadcastContrasEl) {
+          const rows = [];
+          if (missing) rows.push(`Faltan ${missing} titular${missing === 1 ? '' : 'es'} para cerrar la previa`);
+          if (!hasRival) rows.push('No hay once rival guardado');
+          if (!bench.length) rows.push('No hay suplentes marcados todavía');
+          if (!rows.length) rows.push('Sin alertas tácticas pendientes');
+          broadcastContrasEl.innerHTML = rows.map((row) => `<span>${escapeHtml(row)}</span>`).join('');
+        }
+
+        if (broadcastBajasEl) {
+          broadcastBajasEl.innerHTML = '';
+          const selectedIds = new Set(starters.concat(bench).map((row) => String(row?.id || '')).filter(Boolean));
+          const notSelected = playerCards.map(parseCard).filter((row) => row?.id && !selectedIds.has(String(row.id))).slice(0, 3);
+          if (!notSelected.length) {
+            const empty = document.createElement('span');
+            empty.textContent = 'Sin bajas registradas';
+            broadcastBajasEl.appendChild(empty);
+          } else {
+            notSelected.forEach((player) => {
+              const chip = document.createElement('span');
+              chip.className = 'broadcast-baja-chip';
+              const photo = String(player.photo || '').trim();
+              const name = String(player.name || 'Jugador');
+              chip.innerHTML = `
+                ${photo ? `<img src="${escapeHtml(photo)}" alt="${escapeHtml(name)}" loading="lazy" />` : `<span class="broadcast-baja-avatar">${escapeHtml(getInitials(name))}</span>`}
+                <span class="broadcast-baja-mark">+</span>
+              `;
+              broadcastBajasEl.appendChild(chip);
+            });
+          }
+        }
+
+        if (broadcastSubsRow) {
+          broadcastSubsRow.innerHTML = '';
+          const subs = bench.slice(0, 8);
+          if (!subs.length) {
+            const empty = document.createElement('span');
+            empty.className = 'field-help';
+            empty.textContent = 'Sin suplentes definidos';
+            broadcastSubsRow.appendChild(empty);
+          } else {
+            subs.forEach((player) => {
+              const chip = document.createElement('span');
+              chip.className = 'broadcast-sub-chip';
+              const photo = String(player.photo || '').trim();
+              const name = String(player.name || 'Jugador').toUpperCase();
+              const number = String(player.number || '--');
+              chip.innerHTML = `
+                ${photo ? `<img src="${escapeHtml(photo)}" alt="${escapeHtml(name)}" loading="lazy" />` : `<span class="broadcast-sub-avatar">${escapeHtml(getInitials(name))}</span>`}
+                <span>${escapeHtml(number !== '--' ? `#${number}` : getInitials(name))}</span>
+              `;
+              broadcastSubsRow.appendChild(chip);
+            });
+          }
+        }
+      };
+
       const renderField = () => {
         field.innerHTML = '';
         // Superficie SVG (misma estética que el módulo de Táctica).
@@ -1596,6 +2079,7 @@
           statusMsg.classList.toggle('warn', missing > 0);
           statusMsg.classList.toggle('ok', missing === 0);
         }
+        renderBroadcastInfographic();
       };
 
       const parseCard = (card) => ({

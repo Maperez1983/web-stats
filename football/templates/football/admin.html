@@ -510,6 +510,16 @@
               {% if link.is_default %}
               <span class="badge-active on" style="display:inline-block;margin-top:0.35rem;">Predeterminada</span>
               {% endif %}
+              {% if active_admin_club_season %}
+              <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.35rem;align-items:center;">
+                <span class="badge-active {% if link.season_status == 'active' %}on{% else %}off{% endif %}">
+                  {{ active_admin_club_season.label }} · {{ link.season_status_label }}
+                </span>
+                {% if not active_admin_club_season_is_current %}
+                <span style="font-size:0.78rem;color:rgba(203,213,225,0.76);">Histórico en solo lectura</span>
+                {% endif %}
+              </div>
+              {% endif %}
             </div>
             <form method="post" enctype="multipart/form-data" class="form-inline" style="display:grid;gap:0.35rem;justify-items:end;">
               {% csrf_token %}
@@ -548,7 +558,7 @@
                 <input type="text" name="universo_url" placeholder="Pega la URL (results/team) para autocompletar el ID de grupo" value="{% if link.competition_context %}{{ link.competition_context.external_source_url|default:'' }}{% endif %}" />
               </label>
               <label style="width:100%;">
-                <span>Portada (imagen)</span>
+                <span>Foto estadio / portada</span>
                 <input type="file" name="cover_image" accept="image/*" />
               </label>
               <div style="display:flex;gap:0.4rem;justify-content:flex-end;width:100%;flex-wrap:wrap;">
@@ -578,6 +588,30 @@
                 <input type="hidden" name="workspace_team_id" value="{{ link.id }}" />
                 <button class="button-danger" type="submit">Quitar</button>
               </form>
+            </div>
+            {% endif %}
+            {% if can_manage_workspace and active_admin_club_season and active_admin_club_season_is_current %}
+            <div style="display:flex;gap:0.4rem;justify-content:flex-end;flex-wrap:wrap;">
+              {% if link.season_status != 'active' %}
+              <form method="post" class="form-inline">
+                {% csrf_token %}
+                <input type="hidden" name="form_action" value="team_season_status" />
+                <input type="hidden" name="active_tab" value="teams" />
+                <input type="hidden" name="workspace_team_id" value="{{ link.id }}" />
+                <input type="hidden" name="season_team_status" value="active" />
+                <button class="pill-button" type="submit">Activar temporada</button>
+              </form>
+              {% endif %}
+              {% if link.season_status != 'not_continuing' %}
+              <form method="post" class="form-inline" onsubmit="return confirm('¿Marcar esta categoría como no continúa en la temporada actual? No se borrará el equipo ni su histórico.');">
+                {% csrf_token %}
+                <input type="hidden" name="form_action" value="team_season_status" />
+                <input type="hidden" name="active_tab" value="teams" />
+                <input type="hidden" name="workspace_team_id" value="{{ link.id }}" />
+                <input type="hidden" name="season_team_status" value="not_continuing" />
+                <button class="button-danger" type="submit">No continúa</button>
+              </form>
+              {% endif %}
             </div>
             {% endif %}
 

@@ -216,6 +216,7 @@ from football.models import (
     WorkspaceSeason,
     WorkspaceSeasonPlayer,
     WorkspaceSeasonPhase,
+    WorkspaceSeasonTeam,
     WorkspaceTeam,
     WorkspaceTeamAccess,
     WorkspaceMembership,
@@ -331,11 +332,15 @@ from football.manual_stats import (
     season_display_name,
 )
 from football.season_history_services import (
+    club_season_date_bounds,
     ensure_active_workspace_team_seasons,
     ensure_player_season_membership,
     ensure_team_roster_season_memberships,
     mark_player_left_current_season,
     player_season_history,
+    selected_club_season_for_request,
+    set_team_season_status,
+    team_season_history,
 )
 from football.query_helpers import (
     _normalize_team_lookup_key,
@@ -7265,6 +7270,32 @@ def _selected_club_season_payload(request, workspace=None):
     except Exception:
         return {}
 
+
+def _selected_club_season_bounds(request, workspace=None):
+    try:
+        season = selected_club_season_for_request(request, workspace=workspace)
+        if season:
+            return season, *club_season_date_bounds(season)
+    except Exception:
+        pass
+    return None, None, None
+
+
+def _apply_date_bounds(qs, field_name, date_start=None, date_end=None):
+    if date_start:
+        qs = qs.filter(**{f'{field_name}__gte': date_start})
+    if date_end:
+        qs = qs.filter(**{f'{field_name}__lte': date_end})
+    return qs
+
+
+def _apply_datetime_date_bounds(qs, field_name, date_start=None, date_end=None):
+    if date_start:
+        qs = qs.filter(**{f'{field_name}__date__gte': date_start})
+    if date_end:
+        qs = qs.filter(**{f'{field_name}__date__lte': date_end})
+    return qs
+
 def _team_metrics_cache_key(team_id):
     return team_metrics_cache_key(team_id)
 
@@ -8331,6 +8362,26 @@ def _dashboard_data_impl(request, *, _json):
         group_label = f'{competition_name} · {group_label}'
     corporate_parts = [competition_name, season_name, group.name]
     corporate_line = ' · '.join([part for part in corporate_parts if str(part or '').strip()])
+    team_history_rows = []
+    try:
+        team_status_labels = dict(WorkspaceSeasonTeam.STATUS_CHOICES)
+        for membership in team_season_history(primary_team)[:12]:
+            season_row = getattr(membership, 'season', None)
+            if not season_row:
+                continue
+            team_history_rows.append(
+                {
+                    'id': int(season_row.id),
+                    'label': str(getattr(season_row, 'label', '') or '').strip() or 'Temporada',
+                    'is_active': bool(getattr(season_row, 'is_active', False)),
+                    'status': str(getattr(membership, 'status', '') or '').strip(),
+                    'status_label': team_status_labels.get(getattr(membership, 'status', ''), 'Sin estado'),
+                    'start_date': season_row.start_date.isoformat() if getattr(season_row, 'start_date', None) else '',
+                    'end_date': season_row.end_date.isoformat() if getattr(season_row, 'end_date', None) else '',
+                }
+            )
+    except Exception:
+        team_history_rows = []
 
     payload = {
         'team': {
@@ -8357,6 +8408,7 @@ def _dashboard_data_impl(request, *, _json):
         'player_cards': player_cards,
         'player_cards_scope': player_cards_scope,
         'club_season': club_season_payload,
+        'team_season_history': team_history_rows,
     }
     try:
         weekly_staff_brief = _build_weekly_staff_brief_context(primary_team, player_cards=player_cards)
@@ -11457,6 +11509,19 @@ def admin_page(request):
         return redirect(f"{reverse('platform-overview')}{target_anchor}")
     if active_tab not in {'roster', 'actions', 'teams', 'tasks'}:
         active_tab = 'roster'
+    active_admin_club_season = None
+    active_admin_club_season_is_current = False
+    if workspace and getattr(workspace, 'kind', None) == Workspace.KIND_CLUB:
+        try:
+            active_admin_club_season = selected_club_season_for_request(request, workspace=workspace)
+            active_admin_club_season_is_current = bool(
+                active_admin_club_season
+                and int(getattr(active_admin_club_season, 'id', 0) or 0) == int(getattr(workspace, 'active_season_id', 0) or 0)
+                and bool(getattr(active_admin_club_season, 'is_active', False))
+            )
+        except Exception:
+            active_admin_club_season = None
+            active_admin_club_season_is_current = False
 
     if request.method == 'POST':
         form_action = (request.POST.get('form_action') or '').strip()
@@ -11845,7 +11910,7 @@ def admin_page(request):
                 else:
                     tasks_error = 'No se encontraron backups recientes para restaurar (o ya existen).'
 
-        elif form_action in {'team_create', 'team_update', 'team_set_default', 'team_unlink', 'team_split_workspace'}:
+        elif form_action in {'team_create', 'team_update', 'team_set_default', 'team_unlink', 'team_split_workspace', 'team_season_status'}:
             active_tab = 'teams'
             if not workspace or workspace.kind != Workspace.KIND_CLUB:
                 teams_error = 'No hay cliente club activo.'
@@ -11872,6 +11937,25 @@ def admin_page(request):
                             link.is_default = True
                             link.save(update_fields=['is_default'])
                         teams_message = 'Categoría predeterminada actualizada.'
+                    elif form_action == 'team_season_status':
+                        if not active_admin_club_season:
+                            raise ValueError('No hay temporada de club seleccionada.')
+                        if not active_admin_club_season_is_current:
+                            raise ValueError('Solo se puede cambiar el estado del equipo en la temporada activa.')
+                        link_id = _parse_int(request.POST.get('workspace_team_id'))
+                        link = WorkspaceTeam.objects.filter(id=link_id, workspace=workspace).select_related('team').first() if link_id else None
+                        if not link or not link.team:
+                            raise ValueError('Categoría no válida.')
+                        status = str(request.POST.get('season_team_status') or '').strip()
+                        if status not in {WorkspaceSeasonTeam.STATUS_ACTIVE, WorkspaceSeasonTeam.STATUS_NOT_CONTINUING, WorkspaceSeasonTeam.STATUS_ARCHIVED}:
+                            raise ValueError('Estado de temporada no válido.')
+                        set_team_season_status(
+                            active_admin_club_season,
+                            link.team,
+                            status=status,
+                            notes='Actualizado desde Admin · Categorías.',
+                        )
+                        teams_message = 'Estado del equipo actualizado para la temporada.'
                     elif form_action == 'team_split_workspace':
                         link_id = _parse_int(request.POST.get('workspace_team_id'))
                         link = (
@@ -12650,9 +12734,16 @@ def admin_page(request):
     team_warnings = []
     if active_tab == 'teams' and workspace and workspace.kind == Workspace.KIND_CLUB:
         workspace_team_links = _workspace_team_links(workspace)
+        if active_admin_club_season and active_admin_club_season_is_current:
+            try:
+                ensure_active_workspace_team_seasons(workspace, season=active_admin_club_season)
+            except Exception:
+                pass
         # Contexto competitivo por categoría para mostrar IDs externos (p.ej. Universo group id)
         # y detectar mezclas Senior/Prebenjamín.
         competition_context_map = {}
+        season_team_map = {}
+        team_ids = []
         try:
             team_ids = [
                 int(getattr(link, 'team_id', 0) or 0)
@@ -12672,12 +12763,30 @@ def admin_page(request):
                 }
         except Exception:
             competition_context_map = {}
+        try:
+            if active_admin_club_season:
+                season_team_map = {
+                    int(row.team_id): row
+                    for row in WorkspaceSeasonTeam.objects
+                    .filter(season=active_admin_club_season, team_id__in=team_ids)
+                    .only('team_id', 'status', 'is_active', 'notes')
+                }
+        except Exception:
+            season_team_map = {}
         for link in workspace_team_links:
             try:
                 team_id = int(getattr(link, 'team_id', 0) or 0)
                 link.competition_context = competition_context_map.get(team_id)
+                link.season_membership = season_team_map.get(team_id)
+                link.season_status = str(getattr(link.season_membership, 'status', '') or '').strip()
+                link.season_status_label = dict(WorkspaceSeasonTeam.STATUS_CHOICES).get(link.season_status, 'Sin estado')
+                link.season_is_active = bool(getattr(link.season_membership, 'is_active', False))
             except Exception:
                 link.competition_context = None
+                link.season_membership = None
+                link.season_status = ''
+                link.season_status_label = 'Sin estado'
+                link.season_is_active = False
         try:
             workspace_members = list(
                 WorkspaceMembership.objects
@@ -12764,6 +12873,9 @@ def admin_page(request):
 
     if active_tab == 'actions' and is_admin_user:
         admin_match_qs = _team_match_queryset(primary_team) if primary_team else Match.objects.none()
+        admin_selected_season, admin_season_start, admin_season_end = _selected_club_season_bounds(request, workspace=workspace)
+        if admin_selected_season:
+            admin_match_qs = _apply_date_bounds(admin_match_qs, 'date', admin_season_start, admin_season_end)
         # En Admin necesitamos ver también partidos importados aunque lleguen con
         # vínculos incompletos al equipo principal. Por eso unimos:
         # 1) partidos asociados al primer equipo (query normal)
@@ -12784,8 +12896,10 @@ def admin_page(request):
                     Match.objects
                     .filter(fallback_q)
                     .select_related('home_team', 'away_team')
-                    .order_by('-date', '-id')[:700]
                 )
+                if admin_selected_season:
+                    fallback_rows = _apply_date_bounds(fallback_rows, 'date', admin_season_start, admin_season_end)
+                fallback_rows = fallback_rows.order_by('-date', '-id')[:700]
                 for match in fallback_rows:
                     admin_map[int(match.id)] = match
         admin_matches = sorted(
@@ -12836,9 +12950,13 @@ def admin_page(request):
                 SessionTask.objects
                 .select_related('session__microcycle')
                 .filter(session__microcycle__team_id__in=team_ids, deleted_at__isnull=True)
-                .filter(created_at__date__gte=start_date)
-                .order_by('-created_at', '-id')[:200]
             )
+            task_selected_season, task_season_start, task_season_end = _selected_club_season_bounds(request, workspace=workspace)
+            if task_selected_season:
+                qs = _apply_date_bounds(qs, 'session__session_date', task_season_start, task_season_end)
+            else:
+                qs = qs.filter(created_at__date__gte=start_date)
+            qs = qs.order_by('-created_at', '-id')[:200]
             scope_label = {
                 'coach': 'Entrenador',
                 'goalkeeper': 'Porteros',
@@ -12919,6 +13037,8 @@ def admin_page(request):
             'primary_team_id': primary_team.id if primary_team else None,
             'is_admin_user': is_admin_user,
             'workspace_team_links': workspace_team_links,
+            'active_admin_club_season': active_admin_club_season,
+            'active_admin_club_season_is_current': active_admin_club_season_is_current,
             'teams_message': teams_message,
             'teams_error': teams_error,
             'tasks_message': tasks_message,
@@ -25273,6 +25393,7 @@ def coach_rivals_page(request):
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
+    rival_selected_season, rival_season_start, rival_season_end = _selected_club_season_bounds(request, workspace=workspace)
 
     standings_rows = []
     try:
@@ -25398,8 +25519,12 @@ def coach_rivals_page(request):
             report_rows = (
                 RivalAnalysisReport.objects
                 .filter(team=primary_team, rival_team_id__in=team_ids)
-                .values('rival_team_id')
-                .annotate(total=Count('id'), ready=Count('id', filter=Q(status=RivalAnalysisReport.STATUS_READY)))
+            )
+            if rival_selected_season:
+                report_rows = _apply_datetime_date_bounds(report_rows, 'created_at', rival_season_start, rival_season_end)
+            report_rows = report_rows.values('rival_team_id').annotate(
+                total=Count('id'),
+                ready=Count('id', filter=Q(status=RivalAnalysisReport.STATUS_READY)),
             )
             for row in report_rows:
                 reports_by_team_id[int(row.get('rival_team_id') or 0)] = {
@@ -25415,9 +25540,10 @@ def coach_rivals_page(request):
                     Q(team=primary_team) | Q(team__isnull=True, folder__team=primary_team),
                     rival_team_id__in=team_ids,
                 )
-                .values('rival_team_id')
-                .annotate(total=Count('id'))
             )
+            if rival_selected_season:
+                video_rows = _apply_datetime_date_bounds(video_rows, 'created_at', rival_season_start, rival_season_end)
+            video_rows = video_rows.values('rival_team_id').annotate(total=Count('id'))
             for row in video_rows:
                 videos_by_team_id[int(row.get('rival_team_id') or 0)] = int(row.get('total') or 0)
         except Exception:
@@ -25484,6 +25610,8 @@ def coach_role_trainer_page(request):
     if forbidden:
         return forbidden
     primary_team = _get_primary_team_for_request(request)
+    workspace = _get_active_workspace(request)
+    trainer_selected_season, trainer_season_start, trainer_season_end = _selected_club_season_bounds(request, workspace=workspace)
     stats_scope = _get_stats_scope_for_request(request, primary_team)
     tournament_filter = _get_tournament_filter_for_request(request, primary_team, scope=stats_scope)
 
@@ -25545,6 +25673,8 @@ def coach_role_trainer_page(request):
         base_events_qs = base_events_qs.filter(match__context=stats_scope)
     if primary_team and stats_scope == Match.CONTEXT_TOURNAMENT and tournament_filter:
         base_events_qs = base_events_qs.filter(match__tournament_name=tournament_filter)
+    if trainer_selected_season:
+        base_events_qs = _apply_date_bounds(base_events_qs, 'match__date', trainer_season_start, trainer_season_end)
     events = (
         _filter_stats_events(
             base_events_qs,
@@ -25556,11 +25686,17 @@ def coach_role_trainer_page(request):
     measured_match_ids = {event.match_id for event in events if event.match_id}
     measured_matches = len(measured_match_ids)
     total_actions = len(events) if primary_team else 0
-    total_matches = (
-        (_team_match_queryset(primary_team).filter(context=stats_scope).count() if stats_scope != 'all' else _team_match_queryset(primary_team).count())
-        if primary_team
-        else 0
-    )
+    total_matches = 0
+    if primary_team:
+        try:
+            total_match_qs = _team_match_queryset(primary_team)
+            if stats_scope != 'all':
+                total_match_qs = total_match_qs.filter(context=stats_scope)
+            if trainer_selected_season:
+                total_match_qs = _apply_date_bounds(total_match_qs, 'date', trainer_season_start, trainer_season_end)
+            total_matches = int(total_match_qs.count() or 0)
+        except Exception:
+            total_matches = 0
     goals_for = standing.goals_for if standing else 0
     goals_against = standing.goals_against if standing else 0
     points = standing.points if standing else 0
@@ -25976,7 +26112,10 @@ def coach_role_trainer_page(request):
     for event in team_events:
         if event.match_id:
             match_events_map[event.match_id].append(event)
-    match_qs = _team_match_queryset(primary_team).select_related('home_team', 'away_team').order_by('-date', '-id')
+    match_qs = _team_match_queryset(primary_team).select_related('home_team', 'away_team')
+    if trainer_selected_season:
+        match_qs = _apply_date_bounds(match_qs, 'date', trainer_season_start, trainer_season_end)
+    match_qs = match_qs.order_by('-date', '-id')
     if stats_scope != 'all':
         match_qs = match_qs.filter(context=stats_scope)
     if stats_scope == Match.CONTEXT_TOURNAMENT and tournament_filter:
@@ -26536,20 +26675,27 @@ def coach_roster_page(request):
     message = ''
     error = ''
     active_club_season = None
+    active_club_season_is_current = False
     try:
-        active_club_season = getattr(workspace, 'active_season', None)
-        if active_club_season and getattr(active_club_season, 'is_active', True) is False:
-            active_club_season = None
-        if active_club_season:
+        active_club_season = selected_club_season_for_request(request, workspace=workspace)
+        workspace_current_season_id = int(getattr(workspace, 'active_season_id', 0) or 0)
+        active_club_season_is_current = bool(
+            active_club_season
+            and int(getattr(active_club_season, 'id', 0) or 0) == workspace_current_season_id
+            and bool(getattr(active_club_season, 'is_active', False))
+        )
+        if active_club_season and active_club_season_is_current:
             ensure_active_workspace_team_seasons(workspace, season=active_club_season)
             ensure_team_roster_season_memberships(active_club_season, primary_team, include_inactive=True)
     except Exception:
         active_club_season = None
+        active_club_season_is_current = False
 
     season_confirmed_total = 0
     season_pending_total = 0
+    can_edit_current_season = bool(can_edit and (not active_club_season or active_club_season_is_current))
     if request.method == 'POST':
-        if not can_edit:
+        if not can_edit_current_season:
             return HttpResponse('No tienes permisos para editar la plantilla.', status=403)
         action = (request.POST.get('action') or 'add').strip()
         player_id = _parse_int(request.POST.get('player_id'))
@@ -26562,6 +26708,8 @@ def coach_roster_page(request):
             if action in {'confirm_season_player', 'unconfirm_season_player'}:
                 if not active_club_season:
                     raise ValueError('No hay temporada activa. Iníciala desde Configuración.')
+                if not active_club_season_is_current:
+                    raise ValueError('Solo se puede confirmar plantilla sobre la temporada activa.')
                 if not player_id:
                     raise ValueError('Jugador no válido.')
                 membership, _created = WorkspaceSeasonPlayer.objects.get_or_create(
@@ -26585,6 +26733,8 @@ def coach_roster_page(request):
                     membership.save(update_fields=['is_confirmed', 'confirmed_at', 'confirmed_by', 'status', 'updated_at'])
                     message = 'Jugador marcado como pendiente para la temporada.'
             elif action == 'deactivate':
+                if active_club_season and not active_club_season_is_current:
+                    raise ValueError('Solo se puede desactivar desde la temporada activa.')
                 if not player_id:
                     raise ValueError('Jugador no válido para desactivar.')
                 player = Player.objects.filter(id=player_id, team=primary_team).first()
@@ -26622,7 +26772,7 @@ def coach_roster_page(request):
 
                 # Si hay temporada activa, aseguramos ficha de temporada (pendiente por defecto).
                 try:
-                    if active_club_season and target_player:
+                    if active_club_season and active_club_season_is_current and target_player:
                         ensure_player_season_membership(
                             active_club_season,
                             target_player,
@@ -26644,21 +26794,22 @@ def coach_roster_page(request):
     if active_club_season and players:
         try:
             player_ids = [int(p.id) for p in players if getattr(p, 'id', None)]
-            existing_ids = set(
-                WorkspaceSeasonPlayer.objects.filter(season=active_club_season, player_id__in=player_ids)
-                .values_list('player_id', flat=True)
-            )
-            missing = [
-                WorkspaceSeasonPlayer(
-                    season=active_club_season,
-                    player_id=pid,
-                    is_confirmed=False,
-                    status=WorkspaceSeasonPlayer.STATUS_PENDING,
+            if active_club_season_is_current:
+                existing_ids = set(
+                    WorkspaceSeasonPlayer.objects.filter(season=active_club_season, player_id__in=player_ids)
+                    .values_list('player_id', flat=True)
                 )
-                for pid in player_ids if pid not in existing_ids
-            ]
-            if missing:
-                WorkspaceSeasonPlayer.objects.bulk_create(missing, ignore_conflicts=True)
+                missing = [
+                    WorkspaceSeasonPlayer(
+                        season=active_club_season,
+                        player_id=pid,
+                        is_confirmed=False,
+                        status=WorkspaceSeasonPlayer.STATUS_PENDING,
+                    )
+                    for pid in player_ids if pid not in existing_ids
+                ]
+                if missing:
+                    WorkspaceSeasonPlayer.objects.bulk_create(missing, ignore_conflicts=True)
             memberships = {
                 int(row.player_id): row
                 for row in WorkspaceSeasonPlayer.objects.filter(season=active_club_season, player_id__in=player_ids).only('player_id', 'is_confirmed', 'status')
@@ -26717,6 +26868,8 @@ def coach_roster_page(request):
         active_team_query.append(f'workspace={int(active_workspace.id)}')
     if primary_team and getattr(primary_team, 'id', None):
         active_team_query.append(f'team={int(primary_team.id)}')
+    if active_club_season and getattr(active_club_season, 'id', None):
+        active_team_query.append(f'club_season_id={int(active_club_season.id)}')
     if scope_value:
         active_team_query.append(f'scope={scope_value}')
     if scope_value == Match.CONTEXT_TOURNAMENT and tournament_filter:
@@ -26739,9 +26892,11 @@ def coach_roster_page(request):
             'players': players,
             'player_cards': player_cards,
             'active_club_season': active_club_season,
+            'active_club_season_is_current': active_club_season_is_current,
             'season_confirmed_total': season_confirmed_total,
             'season_pending_total': season_pending_total,
-            'can_edit': can_edit,
+            'can_edit': can_edit_current_season,
+            'can_manage_roster': can_edit,
             'active_tab': active_tab,
             'scope_value': scope_value,
             'tournament_filter': tournament_filter,
@@ -27969,6 +28124,98 @@ def _initial_eleven_page_impl(request):
     except Exception:
         rival_crest_url = ''
 
+    stadium_background_url = ''
+    stadium_background_label = ''
+    try:
+        def _cover_url_for_initial_eleven(team_obj):
+            if not team_obj or not getattr(team_obj, 'cover_image', None):
+                return ''
+            try:
+                if workspace and workspace.kind == Workspace.KIND_CLUB:
+                    if not WorkspaceTeam.objects.filter(workspace=workspace, team=team_obj).exists():
+                        return ''
+                version_dt = getattr(team_obj, 'cover_updated_at', None)
+                version = str(int(version_dt.timestamp())) if version_dt else ''
+                suffix = f'?v={version}&w=1800&h=1000&q=78' if version else '?w=1800&h=1000&q=78'
+                return f'{reverse("team-cover-image-file", args=[int(team_obj.id)])}{suffix}'
+            except Exception:
+                return ''
+
+        stadium_team = primary_team
+        if target_match and getattr(target_match, 'home_team_id', None) and getattr(target_match, 'away_team_id', None):
+            if int(getattr(target_match, 'home_team_id', 0) or 0) == int(getattr(primary_team, 'id', 0) or 0):
+                stadium_team = primary_team
+            elif int(getattr(target_match, 'away_team_id', 0) or 0) == int(getattr(primary_team, 'id', 0) or 0):
+                stadium_team = getattr(target_match, 'home_team', None) or primary_team
+        stadium_background_url = _cover_url_for_initial_eleven(stadium_team)
+        if not stadium_background_url and stadium_team is not primary_team:
+            stadium_background_url = _cover_url_for_initial_eleven(primary_team)
+            stadium_team = primary_team
+        if stadium_background_url:
+            stadium_background_label = (
+                str(getattr(stadium_team, 'home_stadium', '') or '').strip()
+                or str(getattr(stadium_team, 'display_name', '') or '').strip()
+                or str(getattr(stadium_team, 'name', '') or '').strip()
+            )
+    except Exception:
+        stadium_background_url = ''
+        stadium_background_label = ''
+
+    recent_match_form = []
+    try:
+        recent_qs = (
+            _team_match_queryset(primary_team)
+            .exclude(id=getattr(target_match, 'id', None))
+            .filter(date__isnull=False)
+            .order_by('-date', '-id')[:5]
+        )
+        for match in recent_qs:
+            is_home = bool(getattr(match, 'home_team_id', None) == getattr(primary_team, 'id', None))
+            opponent = match.away_team if is_home else match.home_team
+            opponent_name = (
+                str(getattr(opponent, 'display_name', '') or '').strip()
+                or str(getattr(opponent, 'name', '') or '').strip()
+                or 'Rival'
+            )
+            crest_url = ''
+            try:
+                if opponent:
+                    crest_url = resolve_team_crest_url(request, opponent, sync=False) or ''
+            except Exception:
+                crest_url = ''
+            if not crest_url:
+                try:
+                    crest_url = _absolute_universo_url(_resolve_rival_identity(opponent_name)[1]) if opponent_name else ''
+                except Exception:
+                    crest_url = ''
+            home_score = getattr(match, 'home_score', None)
+            away_score = getattr(match, 'away_score', None)
+            result_key = ''
+            result_label = ''
+            if home_score is not None and away_score is not None:
+                own_score = home_score if is_home else away_score
+                opp_score = away_score if is_home else home_score
+                if own_score > opp_score:
+                    result_key = 'win'
+                    result_label = 'G'
+                elif own_score < opp_score:
+                    result_key = 'loss'
+                    result_label = 'P'
+                else:
+                    result_key = 'draw'
+                    result_label = 'E'
+            recent_match_form.append({
+                'opponent': opponent_name,
+                'crest_url': crest_url,
+                'round': str(getattr(match, 'round', '') or '').strip(),
+                'date': getattr(match, 'date', None),
+                'score': f'{home_score}-{away_score}' if home_score is not None and away_score is not None else '',
+                'result_key': result_key,
+                'result_label': result_label,
+            })
+    except Exception:
+        recent_match_form = []
+
     return render(
         request,
         'football/coach_initial_eleven.html',
@@ -27994,6 +28241,9 @@ def _initial_eleven_page_impl(request):
             'has_pending_lineup': has_pending_lineup,
             'lineup_pitch_preset': lineup_pitch_preset,
             'lineup_grass_style': lineup_grass_style,
+            'recent_match_form': recent_match_form,
+            'stadium_background_url': stadium_background_url,
+            'stadium_background_label': stadium_background_label,
         },
     )
 
@@ -33829,7 +34079,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         if str(request.GET.get('tab') or '').strip():
             main_tab, active_tab = _normalize_nav(request.GET.get('tab') or '')
 
-    all_sessions = list(
+    all_sessions_qs = (
         TrainingSession.objects
         .select_related('microcycle')
         .filter(microcycle__team=primary_team)
@@ -33839,8 +34089,12 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             | Q(microcycle__objective__iexact='Repositorio de tareas en pdf')
             | Q(microcycle__title__istartswith='Biblioteca ')
         )
-        .order_by('-session_date', '-id')[:150]
-    ) if planner_tables_ready else []
+    ) if planner_tables_ready else TrainingSession.objects.none()
+    if planner_tables_ready:
+        _season_obj, _season_start, _season_end = _selected_club_season_bounds(request, workspace=_get_active_workspace(request))
+        if _season_obj:
+            all_sessions_qs = _apply_date_bounds(all_sessions_qs, 'session_date', _season_start, _season_end)
+    all_sessions = list(all_sessions_qs.order_by('-session_date', '-id')[:150]) if planner_tables_ready else []
 
     analyze_task_id = _parse_int(request.GET.get('analyze'))
     if planner_tables_ready and analyze_task_id and not analysis:
@@ -34125,6 +34379,9 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             .order_by('-microcycle__week_start', 'session_date', 'start_time', 'order', 'id')
         )
         planning_session_qs = _exclude_library_sessions_qs(planning_session_qs)
+        _season_obj, _season_start, _season_end = _selected_club_season_bounds(request, workspace=_get_active_workspace(request))
+        if _season_obj:
+            planning_session_qs = _apply_date_bounds(planning_session_qs, 'session_date', _season_start, _season_end)
         planning_sessions = list(planning_session_qs[:220])
         if inbox_microcycle:
             standalone_sessions = [
@@ -36828,17 +37085,21 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
     all_sessions = []
     player_catalog = []
     try:
-        cache_key = f'task_builder:v2:all_sessions:{int(primary_team.id)}'
+        task_builder_selected_season, task_builder_season_start, task_builder_season_end = _selected_club_season_bounds(request, workspace=_get_active_workspace(request))
+        season_cache_part = f':s{int(task_builder_selected_season.id)}' if task_builder_selected_season else ''
+        cache_key = f'task_builder:v2:all_sessions:{int(primary_team.id)}{season_cache_part}'
         cached = cache.get(cache_key)
         if isinstance(cached, list):
             all_sessions = cached
         else:
-            all_sessions = list(
+            all_sessions_qs = (
                 TrainingSession.objects
                 .filter(microcycle__team=primary_team)
                 .values('id', 'session_date', 'focus')
-                .order_by('-session_date', '-id')[:150]
             )
+            if task_builder_selected_season:
+                all_sessions_qs = _apply_date_bounds(all_sessions_qs, 'session_date', task_builder_season_start, task_builder_season_end)
+            all_sessions = list(all_sessions_qs.order_by('-session_date', '-id')[:150])
             cache.set(cache_key, all_sessions, context_cache_seconds)
     except Exception:
         logger.exception('sessions_task_builder: no se pudieron cargar sesiones', extra={'team_id': getattr(primary_team, 'id', None)})
@@ -39603,6 +39864,8 @@ def analysis_page(request):
     if forbidden:
         return forbidden
     primary_team = _get_primary_team_for_request(request)
+    workspace = _get_active_workspace(request)
+    analysis_selected_season, analysis_season_start, analysis_season_end = _selected_club_season_bounds(request, workspace=workspace)
     active_tab = str(request.GET.get('tab') or '').strip().lower() or 'videos'
     if active_tab not in {'reports', 'videos', 'studio', 'insights', 'rivals'}:
         active_tab = 'videos'
@@ -39644,7 +39907,6 @@ def analysis_page(request):
         home_rival_key = normalize_label(home_rival_name)
         guessed_qs = Team.objects.filter(is_primary=False)
         try:
-            workspace = _get_active_workspace(request)
             if workspace and workspace.kind == Workspace.KIND_CLUB:
                 workspace_team_ids = set(
                     WorkspaceTeam.objects.filter(workspace=workspace).values_list('team_id', flat=True)
@@ -40754,12 +41016,10 @@ def analysis_page(request):
             ready_map = {}
             ready_last_map = {}
             try:
-                ready_rows = list(
-                    RivalAnalysisReport.objects
-                    .filter(team=primary_team, rival_team_id__in=rival_team_ids, status=RivalAnalysisReport.STATUS_READY)
-                    .values('rival_team_id')
-                    .annotate(n=Count('id'), last=Max('updated_at'))
-                )
+                ready_qs = RivalAnalysisReport.objects.filter(team=primary_team, rival_team_id__in=rival_team_ids, status=RivalAnalysisReport.STATUS_READY)
+                if analysis_selected_season:
+                    ready_qs = _apply_datetime_date_bounds(ready_qs, 'created_at', analysis_season_start, analysis_season_end)
+                ready_rows = list(ready_qs.values('rival_team_id').annotate(n=Count('id'), last=Max('updated_at')))
                 for row in ready_rows:
                     rid = int(row.get('rival_team_id') or 0)
                     ready_map[rid] = int(row.get('n') or 0)
@@ -40771,15 +41031,13 @@ def analysis_page(request):
             videos_map = {}
             videos_last_map = {}
             try:
-                videos_rows = list(
-                    RivalVideo.objects
-                    .filter(
-                        Q(team=primary_team) | Q(team__isnull=True, folder__team=primary_team),
-                        rival_team_id__in=rival_team_ids,
-                    )
-                    .values('rival_team_id')
-                    .annotate(n=Count('id'), last=Max('created_at'))
+                videos_qs = RivalVideo.objects.filter(
+                    Q(team=primary_team) | Q(team__isnull=True, folder__team=primary_team),
+                    rival_team_id__in=rival_team_ids,
                 )
+                if analysis_selected_season:
+                    videos_qs = _apply_datetime_date_bounds(videos_qs, 'created_at', analysis_season_start, analysis_season_end)
+                videos_rows = list(videos_qs.values('rival_team_id').annotate(n=Count('id'), last=Max('created_at')))
                 for row in videos_rows:
                     rid = int(row.get('rival_team_id') or 0)
                     videos_map[rid] = int(row.get('n') or 0)
@@ -40802,6 +41060,8 @@ def analysis_page(request):
             manual_reports_qs = manual_reports_qs.filter(rival_team=selected_team)
         elif rival_name:
             manual_reports_qs = manual_reports_qs.filter(rival_name__icontains=rival_name[:18])
+        if analysis_selected_season:
+            manual_reports_qs = _apply_datetime_date_bounds(manual_reports_qs, 'created_at', analysis_season_start, analysis_season_end)
         manual_reports = list(manual_reports_qs.order_by('-updated_at', '-id')[:12])
         manual_report_latest = manual_reports[0] if manual_reports else None
 
@@ -40855,6 +41115,8 @@ def analysis_page(request):
         folders_qs = AnalystVideoFolder.objects.filter(team=primary_team).select_related('rival_team', 'base_video')
         if selected_team:
             folders_qs = folders_qs.filter(Q(rival_team=selected_team) | Q(rival_team__isnull=True))
+        if analysis_selected_season:
+            folders_qs = _apply_datetime_date_bounds(folders_qs, 'created_at', analysis_season_start, analysis_season_end)
         video_folders = list(folders_qs.order_by('name', '-created_at'))
     selected_video_folder = None
     if primary_team and selected_folder_id:
@@ -40895,6 +41157,8 @@ def analysis_page(request):
         rival_videos_qs = rival_videos_qs.filter(rival_team__isnull=True)
     if selected_folder_id:
         rival_videos_qs = rival_videos_qs.filter(folder_id=selected_folder_id)
+    if analysis_selected_season:
+        rival_videos_qs = _apply_datetime_date_bounds(rival_videos_qs, 'created_at', analysis_season_start, analysis_season_end)
     rival_videos = list(rival_videos_qs[:40])
     # Ordena poniendo el vídeo base de la carpeta (si existe) el primero.
     try:
@@ -40931,8 +41195,12 @@ def analysis_page(request):
     if primary_team:
         try:
             matches = list(
-                _team_match_queryset(primary_team)
-                .select_related('home_team', 'away_team')
+                _apply_date_bounds(
+                    _team_match_queryset(primary_team).select_related('home_team', 'away_team'),
+                    'date',
+                    analysis_season_start,
+                    analysis_season_end,
+                )
                 .order_by('-date', '-id')[:40]
             )
             for match in matches:
@@ -40951,6 +41219,8 @@ def analysis_page(request):
             match_options = []
         try:
             reports_qs = AnalystMatchReport.objects.filter(team=primary_team).select_related('match').order_by('-created_at', '-id')
+            if analysis_selected_season:
+                reports_qs = _apply_datetime_date_bounds(reports_qs, 'created_at', analysis_season_start, analysis_season_end)
             match_reports = list(reports_qs[:25])
         except Exception:
             match_reports = []
@@ -40961,8 +41231,10 @@ def analysis_page(request):
             folder_reports = list(
                 AnalysisVideoReport.objects
                 .filter(team=primary_team, folder_id=int(selected_folder_id))
-                .order_by('-updated_at', '-id')[:60]
             )
+            if analysis_selected_season:
+                reports_qs = _apply_datetime_date_bounds(reports_qs, 'created_at', analysis_season_start, analysis_season_end)
+            folder_reports = list(reports_qs.order_by('-updated_at', '-id')[:60])
         except Exception:
             folder_reports = []
 
@@ -51257,6 +51529,22 @@ def player_detail_page(request, player_id):
                 if not season_row:
                     continue
                 pdf_qs = f'club_season_id={int(season_row.id)}'
+                hist_start, hist_end = club_season_date_bounds(season_row)
+                hist_stats = {}
+                try:
+                    hist_rows = compute_player_dashboard(
+                        primary_team,
+                        request=request,
+                        date_start=hist_start,
+                        date_end=hist_end,
+                        refresh_photo_urls=False,
+                    )
+                    hist_stats = next(
+                        (item for item in hist_rows if int(item.get('player_id') or 0) == int(player.id)),
+                        {},
+                    )
+                except Exception:
+                    hist_stats = {}
                 season_history_rows.append(
                     {
                         'id': int(season_row.id),
@@ -51268,6 +51556,11 @@ def player_detail_page(request, player_id):
                         'status_label': status_labels.get(getattr(membership, 'status', ''), 'Pendiente'),
                         'is_confirmed': bool(getattr(membership, 'is_confirmed', False)),
                         'questionnaire_completed_at': getattr(membership, 'questionnaire_completed_at', None),
+                        'pj': int(hist_stats.get('pj', 0) or 0),
+                        'minutes': int(hist_stats.get('minutes', 0) or 0),
+                        'goals': int(hist_stats.get('goals', 0) or 0),
+                        'assists': int(hist_stats.get('assists', 0) or 0),
+                        'importance_score': round(float(hist_stats.get('importance_score', 0) or 0), 1),
                         'pdf_url': f"{reverse('player-pdf', args=[player.id])}?{pdf_qs}",
                     }
                 )
@@ -57034,7 +57327,12 @@ def match_hub_page(request):
     if not primary_team:
         raise Http404('Equipo no configurado')
 
+    workspace = _get_active_workspace(request)
+    match_selected_season, match_season_start, match_season_end = _selected_club_season_bounds(request, workspace=workspace)
     active_match = _resolve_active_match_for_flow(request, primary_team)
+    if match_selected_season and active_match and getattr(active_match, 'date', None):
+        if (match_season_start and active_match.date < match_season_start) or (match_season_end and active_match.date > match_season_end):
+            active_match = None
     convocation_record = None
     if active_match:
         convocation_record = get_current_convocation_record(
@@ -57166,6 +57464,8 @@ def match_hub_page(request):
                 match_qs = Match.objects.filter(Q(home_team=primary_team) | Q(away_team=primary_team))
                 if season_obj:
                     match_qs = match_qs.filter(season=season_obj)
+                if match_selected_season:
+                    match_qs = _apply_date_bounds(match_qs, 'date', match_season_start, match_season_end)
                 pair_ids = list(match_qs.values_list('home_team_id', 'away_team_id').distinct()[:600])
                 seen_ids = set()
                 for hid, aid in pair_ids:
@@ -58051,6 +58351,10 @@ def tactical_playbook_clips_api(request):
             team_ids.append(int(system_team.id))
 
     qs = TacticalPlaybookClip.objects.filter(team_id__in=team_ids)
+    workspace = _get_active_workspace(request)
+    selected_clip_season, clip_season_start, clip_season_end = _selected_club_season_bounds(request, workspace=workspace)
+    if selected_clip_season and scope != 'system':
+        qs = _apply_datetime_date_bounds(qs, 'created_at', clip_season_start, clip_season_end)
     if version_group:
         try:
             qs = qs.filter(version_group=version_group)
@@ -58122,7 +58426,6 @@ def tactical_playbook_clips_api(request):
             version_counts = {str(row['version_group']): int(row['cnt'] or 0) for row in rows if row.get('version_group')}
     except Exception:
         version_counts = {}
-    workspace = _get_active_workspace(request)
     can_manage_workspace = bool(_can_manage_workspace(request.user, workspace)) if workspace else bool(_can_access_platform(request.user))
     membership = _workspace_membership_for_user(workspace, request.user) if workspace else None
     can_write = bool(can_manage_workspace or (membership and membership.role in {WorkspaceMembership.ROLE_OWNER, WorkspaceMembership.ROLE_ADMIN, WorkspaceMembership.ROLE_MEMBER}))
@@ -58265,12 +58568,16 @@ def tactical_playbook_clip_save_api(request):
     try:
         obj = None
         created = False
+        workspace = _get_active_workspace(request)
+        selected_clip_season, clip_season_start, clip_season_end = _selected_club_season_bounds(request, workspace=workspace)
         if clip_id:
-            obj = TacticalPlaybookClip.objects.filter(id=clip_id, team=primary_team).first()
+            obj_qs = TacticalPlaybookClip.objects.filter(id=clip_id, team=primary_team)
+            if selected_clip_season and scope != 'system':
+                obj_qs = _apply_datetime_date_bounds(obj_qs, 'created_at', clip_season_start, clip_season_end)
+            obj = obj_qs.first()
             if not obj:
                 return JsonResponse({'ok': False, 'error': 'Clip no encontrado.'}, status=404)
             creator = str(obj.created_by or '').strip()
-            workspace = _get_active_workspace(request)
             can_manage = bool(_can_manage_workspace(request.user, workspace)) if workspace else bool(_can_access_platform(request.user))
             if not bool(getattr(request.user, 'is_superuser', False)) and not can_manage and creator and creator != username:
                 return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
@@ -58306,7 +58613,10 @@ def tactical_playbook_clip_save_api(request):
                 obj.is_latest = True
                 obj.save(update_fields=['name', 'folder', 'tags', 'steps', 'updated_at', 'created_by', 'is_latest'])
         else:
-            existing = TacticalPlaybookClip.objects.filter(team=primary_team, name=name, is_latest=True).order_by('-updated_at', '-id').first()
+            existing_qs = TacticalPlaybookClip.objects.filter(team=primary_team, name=name, is_latest=True)
+            if selected_clip_season and scope != 'system':
+                existing_qs = _apply_datetime_date_bounds(existing_qs, 'created_at', clip_season_start, clip_season_end)
+            existing = existing_qs.order_by('-updated_at', '-id').first()
             if existing and not overwrite and not new_version:
                 return JsonResponse(
                     {

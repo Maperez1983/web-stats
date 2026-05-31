@@ -989,14 +989,21 @@
 	        {% else %}
           {% if active_club_season %}
             <p style="margin:0 0 0.85rem;color:rgba(226,232,240,0.92);">
-              Temporada activa: <strong>{{ active_club_season.label }}</strong>
+              Temporada seleccionada: <strong>{{ active_club_season.label }}</strong>
+              {% if active_club_season_is_current %}· activa{% else %}· histórica{% endif %}
               · Confirmados {{ season_confirmed_total|default:0 }} · Pendientes {{ season_pending_total|default:0 }}
             </p>
+            {% if not active_club_season_is_current %}
+              <p style="margin:-0.35rem 0 0.85rem;color:var(--prod-muted, rgba(148, 163, 184, 0.82));">
+                Vista histórica en solo lectura. Cambia a la temporada activa para altas, bajas o confirmaciones.
+              </p>
+            {% endif %}
           {% else %}
             <p style="margin:0 0 0.85rem;color:var(--prod-muted, rgba(15, 23, 42, 0.64));">
               No hay temporada activa. Iníciala desde <a style="color:var(--prod-text, #f5f7fa);" href="{% url 'club-onboarding' %}">Configuración</a>.
             </p>
           {% endif %}
+          {% if can_edit %}
 	        <form method="post" class="add">
           {% csrf_token %}
           <input type="hidden" name="action" value="add" />
@@ -1021,6 +1028,7 @@
           </label>
           <button class="primary" type="submit">Guardar jugador</button>
         </form>
+        {% endif %}
 
         <div class="roster-table-wrap">
         <table>
@@ -1038,7 +1046,7 @@
             {% for player in players %}
             <tr>
               <td>{{ player.number|default:"--" }}</td>
-              <td><a style="color:var(--prod-text, #f5f7fa); text-decoration:none;" href="{% url 'player-detail' player_id=player.id %}">{{ player.name }}</a></td>
+              <td><a style="color:var(--prod-text, #f5f7fa); text-decoration:none;" href="{% url 'player-detail' player_id=player.id %}{% if active_club_season %}?club_season_id={{ active_club_season.id }}{% endif %}">{{ player.name }}</a></td>
               <td>{{ player.position|default:"-" }}</td>
               <td>
                 {% if player.is_active %}
@@ -1083,6 +1091,8 @@
                   <button class="inline" type="submit">Desactivar</button>
                   </form>
                 </div>
+                {% elif not can_edit and active_club_season and not active_club_season_is_current %}
+                Histórico
                 {% else %}
                 -
                 {% endif %}

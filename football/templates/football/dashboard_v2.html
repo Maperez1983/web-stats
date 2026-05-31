@@ -1493,6 +1493,14 @@
           </div>
         </details>
 
+        <details class="accordion span-2">
+          <summary>Histórico del equipo</summary>
+          <div class="accordion-body">
+            <div class="card-subtitle">Estado de la categoría por temporada del club.</div>
+            <div id="team-season-history" class="list" style="margin-top:0.7rem;"></div>
+          </div>
+        </details>
+
         <div id="loading" class="loading span-2">Cargando datos del dashboard…</div>
       </section>
     </div>
@@ -2209,6 +2217,22 @@
         }).filter(Boolean).join('') || '<div class="broadcast-line"><div class="broadcast-title">Once probable</div><div class="card-subtitle">Pendiente de carga de minutos.</div></div>';
       }
 
+      function renderTeamSeasonHistory(payload) {
+        const node = document.getElementById('team-season-history');
+        if (!node) return;
+        const rows = (payload && Array.isArray(payload.team_season_history)) ? payload.team_season_history : [];
+        if (!rows.length) {
+          node.innerHTML = '<div class="card-subtitle">Sin histórico de temporadas todavía.</div>';
+          return;
+        }
+        node.innerHTML = rows.slice(0, 8).map((row) => {
+          const label = String(row.label || 'Temporada').trim();
+          const status = String(row.status_label || 'Sin estado').trim();
+          const active = row.is_active ? ' · actual' : '';
+          return `<div class="list-item"><strong>${escapeHtml(label)}${active}</strong><span>${escapeHtml(status)}</span></div>`;
+        }).join('');
+      }
+
       async function renderDashboard({ fresh = false } = {}) {
         const loading = document.getElementById('loading');
         if (loading) {
@@ -2259,6 +2283,7 @@
           renderAgenda(payload);
           renderAvailability(payload);
           renderStandings(payload, standingInfo);
+          renderTeamSeasonHistory(payload);
 
           if (loading) loading.hidden = true;
         } catch (err) {

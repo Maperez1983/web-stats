@@ -601,7 +601,7 @@
         </div>
 
         <div class="notice" style="margin-top:1rem;">
-          <strong>Escudo e imagen de página:</strong> personaliza la identidad visual del club. La imagen de página se usa como portada de Home y vista de equipo.
+          <strong>Escudo y foto del estadio:</strong> personaliza la identidad visual del club. La foto del estadio/portada se usa en Home, vista de equipo e infografía del 11 inicial.
         </div>
         <form method="post" enctype="multipart/form-data" style="margin-top:0.8rem;">
           {% csrf_token %}
@@ -624,24 +624,24 @@
               </div>
             </div>
             <div>
-              <label for="id_cover_image">Imagen de página / portada</label>
+              <label for="id_cover_image">Foto del estadio / portada del equipo</label>
               <input id="id_cover_image" type="file" name="cover_image" accept="image/*" />
-              <p style="margin:0.35rem 0 0;color:rgba(226,232,240,0.76);">Recomendado: foto horizontal del equipo o instalación. Se previsualiza abajo antes de guardar.</p>
+              <p style="margin:0.35rem 0 0;color:rgba(226,232,240,0.76);">Recomendado: foto horizontal del campo/estadio. Se usará como fondo de la infografía XI y como portada visual del equipo.</p>
               <div style="margin-top:0.55rem;">
                 {% if cover_preview_url %}
                   <img
                     src="{{ cover_preview_url }}"
-                    alt="Portada actual"
+                    alt="Foto del estadio o portada actual"
                     id="cover-inline-preview"
                     style="width:100%;height:160px;border-radius:18px;border:1px solid rgba(255,255,255,0.16);object-fit:cover;background:rgba(0,0,0,0.22);"
                   />
                 {% else %}
                   <div id="cover-inline-empty" style="width:100%;height:160px;border-radius:18px;border:1px dashed rgba(255,255,255,0.16);background:rgba(0,0,0,0.18);display:flex;align-items:center;justify-content:center;color:rgba(226,232,240,0.7);">
-                    Sin portada subida
+                    Sin foto de estadio subida
                   </div>
                 {% endif %}
                 <label style="display:flex;align-items:center;gap:0.45rem;margin-top:0.55rem;text-transform:none;letter-spacing:0;font-size:0.88rem;color:rgba(226,232,240,0.86);">
-                  <input type="checkbox" name="clear_cover" /> Quitar portada
+                  <input type="checkbox" name="clear_cover" /> Quitar foto del estadio/portada
                 </label>
               </div>
             </div>
@@ -668,7 +668,7 @@
                   </div>
                   <div>
                     <h2 class="page-preview-title">{{ primary_team.display_name|default:primary_team.name|default:form.team_name|default:workspace.name }}</h2>
-                    <p class="page-preview-subtitle">Así se verá la portada principal del equipo con la imagen y el escudo seleccionados.</p>
+                    <p class="page-preview-subtitle">Así se verá la portada principal del equipo y el fondo de la infografía XI con la imagen y el escudo seleccionados.</p>
                   </div>
                 </div>
               </div>

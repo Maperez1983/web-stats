@@ -1216,6 +1216,9 @@
                     {% if row.start_date %} · {{ row.start_date|date:"d/m/Y" }}{% endif %}
                     {% if row.end_date %}–{{ row.end_date|date:"d/m/Y" }}{% endif %}
                   </div>
+                  <div class="subtle" style="margin-top:0.35rem;">
+                    PJ {{ row.pj|default:0 }} · Min {{ row.minutes|default:0 }} · G {{ row.goals|default:0 }} · A {{ row.assists|default:0 }} · Imp {{ row.importance_score|default:0 }}
+                  </div>
                 </div>
                 <div style="display:flex; gap:0.45rem; flex-wrap:wrap; justify-content:flex-end;">
                   <a class="btn alt" href="{% url 'player-detail' player.id %}?{% qs_replace club_season_id=row.id tab='general' %}">Abrir</a>
