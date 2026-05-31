@@ -257,6 +257,14 @@ class WorkspaceSeasonPlayer(models.Model):
 
     season = models.ForeignKey(WorkspaceSeason, on_delete=models.CASCADE, related_name='season_players')
     player = models.ForeignKey('Player', on_delete=models.CASCADE, related_name='season_memberships')
+    team = models.ForeignKey(
+        'Team',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='season_player_memberships',
+        help_text='Categoría/equipo del club en la que participa este jugador durante la temporada.',
+    )
     is_confirmed = models.BooleanField(default=False, db_index=True)
     confirmed_at = models.DateTimeField(null=True, blank=True)
     confirmed_by = models.ForeignKey(
@@ -282,6 +290,7 @@ class WorkspaceSeasonPlayer(models.Model):
         unique_together = ('season', 'player')
         indexes = [
             models.Index(fields=['season', 'status'], name='wsp_season_status_idx'),
+            models.Index(fields=['season', 'team', 'status'], name='wsp_season_team_status_idx'),
             models.Index(fields=['player', '-created_at'], name='wsp_player_created_idx'),
         ]
         verbose_name = 'Jugador de temporada (club)'
@@ -380,6 +389,42 @@ class WorkspaceTeam(models.Model):
 
     def __str__(self):
         return f'{self.workspace.name} · {self.team.display_name}'
+
+
+class WorkspacePlayer(models.Model):
+    """
+    Base estable de jugadores de un club/workspace.
+
+    `Player` conserva la ficha deportiva existente. Esta tabla limita qué jugadores
+    pertenecen a cada club para no mezclar plantillas entre clientes.
+    """
+
+    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name='players')
+    player = models.ForeignKey('Player', on_delete=models.CASCADE, related_name='workspace_links')
+    current_team = models.ForeignKey(
+        Team,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='workspace_player_current_links',
+        help_text='Categoría/equipo actual sugerido dentro del club.',
+    )
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-is_active', 'player__name', 'id']
+        unique_together = ('workspace', 'player')
+        indexes = [
+            models.Index(fields=['workspace', 'is_active'], name='wp_workspace_active_idx'),
+            models.Index(fields=['current_team', 'is_active'], name='wp_team_active_idx'),
+        ]
+        verbose_name = 'Jugador del workspace'
+        verbose_name_plural = 'Jugadores del workspace'
+
+    def __str__(self):
+        return f'{self.workspace.name} · {self.player.name}'
 
 
 class StripeEventLog(models.Model):

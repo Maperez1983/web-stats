@@ -336,6 +336,7 @@ from football.season_history_services import (
     ensure_active_workspace_team_seasons,
     ensure_player_season_membership,
     ensure_team_roster_season_memberships,
+    ensure_workspace_player,
     mark_player_left_current_season,
     player_season_history,
     selected_club_season_for_request,
@@ -7308,6 +7309,18 @@ def _apply_club_season_filter(qs, season, field_name, date_start=None, date_end=
         fallback &= Q(**{f'{date_lookup}__lte': date_end})
     return qs.filter(Q(club_season=season) | fallback)
 
+
+def _selected_club_season_is_read_only(request, workspace=None):
+    try:
+        season = selected_club_season_for_request(request, workspace=workspace)
+        return season_history_services.selected_club_season_is_read_only(season)
+    except Exception:
+        return False
+
+
+def _historical_club_season_write_message():
+    return 'Temporada histórica en solo lectura. Cambia a la temporada activa para crear o modificar datos.'
+
 def _team_metrics_cache_key(team_id):
     return team_metrics_cache_key(team_id)
 
@@ -11714,15 +11727,17 @@ def admin_page(request):
                         player.position = position
                         player.is_active = is_active
                         player.save(update_fields=['number', 'position', 'is_active'])
+                        ensure_workspace_player(workspace, player, current_team=primary_team, is_active=is_active)
                         roster_message = f'Jugador actualizado: {player.name}.'
                     else:
-                        Player.objects.create(
+                        player = Player.objects.create(
                             team=primary_team,
                             name=name,
                             number=number,
                             position=position,
                             is_active=is_active,
                         )
+                        ensure_workspace_player(workspace, player, current_team=primary_team, is_active=is_active)
                         roster_message = f'Jugador añadido: {name}.'
             except ValueError as exc:
                 roster_error = str(exc)
@@ -16750,6 +16765,9 @@ def match_video_links_api(request):
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+    workspace = _get_active_workspace(request)
+    if _selected_club_season_is_read_only(request, workspace=workspace):
+        return JsonResponse({'ok': False, 'error': _historical_club_season_write_message()}, status=409)
 
     match_id = _parse_int(request.GET.get('match_id')) or 0
     if match_id:
@@ -16784,6 +16802,9 @@ def match_video_marker_api(request):
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+    workspace = _get_active_workspace(request)
+    if _selected_club_season_is_read_only(request, workspace=workspace):
+        return JsonResponse({'ok': False, 'error': _historical_club_season_write_message()}, status=409)
 
     try:
         payload = json.loads((request.body or b'{}').decode('utf-8') or '{}')
@@ -21183,6 +21204,9 @@ def kpi_explorer_options_api(request):
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+    workspace = _get_active_workspace(request)
+    if _selected_club_season_is_read_only(request, workspace=workspace):
+        return JsonResponse({'ok': False, 'error': _historical_club_season_write_message()}, status=409)
     scope = str(request.GET.get('scope') or 'team').strip().lower()
     match_id = _parse_int(request.GET.get('match_id')) or 0
     player_id = _parse_int(request.GET.get('player_id')) or 0
@@ -26771,6 +26795,7 @@ def coach_roster_page(request):
                     target_player.position = position
                     target_player.is_active = is_active
                     target_player.save(update_fields=['number', 'position', 'is_active'])
+                    ensure_workspace_player(workspace, target_player, current_team=primary_team, is_active=is_active)
                     message = f'Jugador actualizado: {target_player.name}.'
                 else:
                     target_player = Player.objects.create(
@@ -26780,6 +26805,7 @@ def coach_roster_page(request):
                         position=position,
                         is_active=is_active,
                     )
+                    ensure_workspace_player(workspace, target_player, current_team=primary_team, is_active=is_active)
                     message = f'Jugador añadido: {name}.'
 
                 # Si hay temporada activa, aseguramos ficha de temporada (pendiente por defecto).
@@ -26788,6 +26814,7 @@ def coach_roster_page(request):
                         ensure_player_season_membership(
                             active_club_season,
                             target_player,
+                            team=primary_team,
                             confirmed=False,
                             status=(
                                 WorkspaceSeasonPlayer.STATUS_PENDING
@@ -39878,6 +39905,7 @@ def analysis_page(request):
     primary_team = _get_primary_team_for_request(request)
     workspace = _get_active_workspace(request)
     analysis_selected_season, analysis_season_start, analysis_season_end = _selected_club_season_bounds(request, workspace=workspace)
+    analysis_season_read_only = season_history_services.selected_club_season_is_read_only(analysis_selected_season)
     active_tab = str(request.GET.get('tab') or '').strip().lower() or 'videos'
     if active_tab not in {'reports', 'videos', 'studio', 'insights', 'rivals'}:
         active_tab = 'videos'
@@ -39930,7 +39958,15 @@ def analysis_page(request):
         guessed_team = guessed_qs.order_by('name').filter(name__icontains=home_rival_name[:12]).first()
         if guessed_team and not team_id:
             team_id = str(guessed_team.id)
-    if request.method == 'POST':
+    if request.method == 'POST' and analysis_season_read_only:
+        blocked_message = _historical_club_season_write_message()
+        video_error = blocked_message
+        folder_error = blocked_message
+        manual_report_error = blocked_message
+        match_report_error = blocked_message
+        rivals_error = blocked_message
+        report_error = blocked_message
+    elif request.method == 'POST':
         form_action = (request.POST.get('form_action') or 'analyze').strip()
         if form_action == 'create_video_folder':
             rival_team_id = _parse_int(request.POST.get('video_team_id'))
@@ -46307,6 +46343,9 @@ def analysis_video_studio_clip_delete_api(request):
             data = request.POST.dict() if hasattr(request, 'POST') else {}
     except Exception:
         data = {}
+    workspace = _get_active_workspace(request)
+    if _selected_club_season_is_read_only(request, workspace=workspace):
+        return JsonResponse({'ok': False, 'error': _historical_club_season_write_message()}, status=409)
     clip_id = _parse_int(data.get('id'))
     if not clip_id:
         return JsonResponse({'ok': False, 'error': 'id requerido.'}, status=400)
@@ -57603,6 +57642,9 @@ def match_hub_create_match(request):
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return HttpResponse('Equipo no configurado.', status=400)
+    workspace = _get_active_workspace(request)
+    if _selected_club_season_is_read_only(request, workspace=workspace):
+        return HttpResponse(_historical_club_season_write_message(), status=409)
     opponent_team_id = _parse_int(request.POST.get('opponent_team_id'))
     opponent_name = str(request.POST.get('opponent') or '').strip()
     rival_team = None
@@ -57676,8 +57718,10 @@ def match_hub_create_match(request):
     except Exception:
         match_obj = None
     if not match_obj:
+        selected_match_season = selected_club_season_for_request(request, workspace=workspace)
         match_obj = Match.objects.create(
             season=season_obj,
+            club_season=selected_match_season,
             group=primary_team.group,
             home_team=home_team,
             away_team=away_team,
@@ -58520,6 +58564,9 @@ def tactical_playbook_clip_save_api(request):
         data = request.POST.dict() if hasattr(request, 'POST') else {}
 
     scope = str(data.get('scope') or 'team').strip().lower()
+    workspace = _get_active_workspace(request)
+    if scope != 'system' and _selected_club_season_is_read_only(request, workspace=workspace):
+        return JsonResponse({'ok': False, 'error': _historical_club_season_write_message()}, status=409)
     overwrite = str(data.get('overwrite') or '').strip() in ('1', 'true', 'yes')
     new_version = str(data.get('new_version') or '').strip().lower() in ('1', 'true', 'yes', 'on')
     raw_id = data.get('id')
@@ -58545,7 +58592,6 @@ def tactical_playbook_clip_save_api(request):
         primary_team = _get_primary_team_for_request(request)
         if not primary_team:
             return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
-        workspace = _get_active_workspace(request)
         membership = _workspace_membership_for_user(workspace, request.user) if workspace else None
         if membership and membership.role == WorkspaceMembership.ROLE_VIEWER and not _can_manage_workspace(request.user, workspace):
             return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
@@ -58588,7 +58634,6 @@ def tactical_playbook_clip_save_api(request):
     try:
         obj = None
         created = False
-        workspace = _get_active_workspace(request)
         selected_clip_season, clip_season_start, clip_season_end = _selected_club_season_bounds(request, workspace=workspace)
         if clip_id:
             obj_qs = TacticalPlaybookClip.objects.filter(id=clip_id, team=primary_team)
@@ -59203,7 +59248,6 @@ def tactical_playbook_clip_clone_api(request):
     if not _user_can_access_team(request, to_team):
         return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
 
-    workspace = _get_active_workspace(request)
     membership = _workspace_membership_for_user(workspace, request.user) if workspace else None
     if membership and membership.role == WorkspaceMembership.ROLE_VIEWER and not _can_manage_workspace(request.user, workspace):
         return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)

@@ -20,7 +20,7 @@ from django.test import RequestFactory, SimpleTestCase, TestCase, TransactionTes
 from django.urls import reverse
 from django.utils import timezone
 
-from football.models import AnalystVideoFolder, AnalysisVideoReport, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerFine, PlayerSeasonReport, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, StaffMember, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, TrainingSessionAttendance, UserInvitation, VideoClip, VideoTimelineEvent, VideoTelestrationProject, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspacePreference, WorkspaceSeason, WorkspaceSeasonPlayer, WorkspaceSeasonTeam, WorkspaceTeam
+from football.models import AnalystVideoFolder, AnalysisVideoReport, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerFine, PlayerSeasonReport, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, StaffMember, TacticalPlaybookClip, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, TrainingSessionAttendance, UserInvitation, VideoClip, VideoTimelineEvent, VideoTelestrationProject, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspacePlayer, WorkspacePreference, WorkspaceSeason, WorkspaceSeasonPlayer, WorkspaceSeasonTeam, WorkspaceTeam
 from football import views as football_views
 from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.event_taxonomy import (
@@ -2110,9 +2110,34 @@ class SeasonHistoryServicesTests(TestCase):
 
         self.assertTrue(WorkspaceSeasonTeam.objects.filter(season=self.season, team=self.team, is_active=True).exists())
         membership = WorkspaceSeasonPlayer.objects.get(season=self.season, player=self.player)
+        self.assertEqual(membership.team, self.team)
         self.assertEqual(membership.status, WorkspaceSeasonPlayer.STATUS_LEFT)
         self.assertFalse(membership.is_confirmed)
         self.assertIsNotNone(membership.left_at)
+        self.assertTrue(WorkspacePlayer.objects.filter(workspace=self.workspace, player=self.player, current_team=self.team).exists())
+
+    def test_workspace_player_pool_is_scoped_to_club_and_category(self):
+        from football.season_history_services import ensure_workspace_player, workspace_players_for_team
+
+        other_team = Team.objects.create(name='Malaga Benjamin', slug='malaga-benjamin', short_name='Malaga B')
+        other_workspace = Workspace.objects.create(
+            name='Malaga CF',
+            slug='malaga-cf',
+            kind=Workspace.KIND_CLUB,
+            primary_team=other_team,
+            owner_user=self.user,
+            is_active=True,
+        )
+        WorkspaceTeam.objects.create(workspace=other_workspace, team=other_team, is_default=True)
+        other_player = Player.objects.create(team=other_team, name='Jugador Malaga', is_active=True)
+
+        ensure_workspace_player(self.workspace, self.player, current_team=self.team)
+        ensure_workspace_player(other_workspace, other_player, current_team=other_team)
+
+        rows = list(workspace_players_for_team(self.workspace, self.team))
+
+        self.assertEqual([row.player for row in rows], [self.player])
+        self.assertNotIn(other_player, [row.player for row in rows])
 
     def test_player_detail_exposes_season_context_and_history_tab(self):
         from football.season_history_services import ensure_active_workspace_team_seasons, ensure_team_roster_season_memberships
@@ -2324,6 +2349,59 @@ class SeasonHistoryServicesTests(TestCase):
         backfill_workspace_club_seasons(self.workspace, dry_run=False)
         session.refresh_from_db()
         self.assertEqual(session.club_season, self.season)
+
+    def test_historical_season_blocks_tactical_playbook_writes(self):
+        previous = WorkspaceSeason.objects.create(
+            workspace=self.workspace,
+            label='2025/2026',
+            start_date=date(2025, 7, 1),
+            end_date=date(2026, 6, 30),
+            is_active=False,
+        )
+
+        response = self.client.post(
+            f"{reverse('tactical-playbook-clip-save-api')}?club_season_id={previous.id}",
+            data=json.dumps({
+                'scope': 'team',
+                'name': 'Salida historica',
+                'steps': [{'players': []}],
+            }),
+            content_type='application/json',
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertFalse(TacticalPlaybookClip.objects.filter(team=self.team, name='Salida historica').exists())
+
+    def test_historical_season_blocks_match_creation(self):
+        previous = WorkspaceSeason.objects.create(
+            workspace=self.workspace,
+            label='2025/2026',
+            start_date=date(2025, 7, 1),
+            end_date=date(2026, 6, 30),
+            is_active=False,
+        )
+        competition = Competition.objects.create(name='Liga Bloqueo', slug='liga-bloqueo')
+        Season.objects.create(
+            competition=competition,
+            name='2026/2027',
+            start_date=date(2026, 7, 1),
+            end_date=date(2027, 6, 30),
+            is_current=True,
+        )
+
+        response = self.client.post(
+            f"{reverse('match-hub-create')}?club_season_id={previous.id}",
+            data={
+                'opponent': 'Rival no creado',
+                'date': '2026-09-20',
+                'home_away': 'home',
+            },
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertFalse(Team.objects.filter(name='Rival no creado').exists())
 
 
 class WorkspaceAccessPolicyTests(TestCase):

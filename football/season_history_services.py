@@ -6,7 +6,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from .models import Player, Workspace, WorkspaceSeason, WorkspaceSeasonPlayer, WorkspaceSeasonTeam, WorkspaceTeam
+from .models import Player, Workspace, WorkspacePlayer, WorkspaceSeason, WorkspaceSeasonPlayer, WorkspaceSeasonTeam, WorkspaceTeam
 
 
 def _int_or_none(value):
@@ -204,6 +204,47 @@ def ensure_active_workspace_team_seasons(workspace, *, season=None):
     return memberships
 
 
+def ensure_workspace_player(workspace, player, *, current_team=None, is_active=True):
+    if not workspace or not player:
+        return None
+    if current_team:
+        try:
+            allowed = WorkspaceTeam.objects.filter(workspace=workspace, team=current_team).exists()
+        except Exception:
+            allowed = False
+        if not allowed:
+            current_team = None
+    membership, created = WorkspacePlayer.objects.get_or_create(
+        workspace=workspace,
+        player=player,
+        defaults={
+            'current_team': current_team,
+            'is_active': bool(is_active),
+        },
+    )
+    updates = []
+    if not created:
+        if current_team and getattr(membership, 'current_team_id', None) != getattr(current_team, 'id', None):
+            membership.current_team = current_team
+            updates.append('current_team')
+        if membership.is_active != bool(is_active):
+            membership.is_active = bool(is_active)
+            updates.append('is_active')
+        if updates:
+            updates.append('updated_at')
+            membership.save(update_fields=sorted(set(updates)))
+    return membership
+
+
+def workspace_players_for_team(workspace, team, *, compatible_only=True):
+    if not workspace:
+        return WorkspacePlayer.objects.none()
+    qs = WorkspacePlayer.objects.filter(workspace=workspace, is_active=True).select_related('player', 'current_team')
+    if compatible_only and team:
+        qs = qs.filter(Q(current_team=team) | Q(player__team=team))
+    return qs.order_by('player__number', 'player__name', 'id')
+
+
 @transaction.atomic
 def close_workspace_season(workspace, *, season=None, end_date=None):
     season = season or active_club_season(workspace)
@@ -269,20 +310,33 @@ def open_workspace_season(
     return season
 
 
-def ensure_player_season_membership(season, player, *, confirmed=False, status=None):
+def ensure_player_season_membership(season, player, *, team=None, confirmed=False, status=None):
     if not season or not player:
         return None
+    workspace = getattr(season, 'workspace', None)
+    if workspace:
+        ensure_workspace_player(workspace, player, current_team=team or getattr(player, 'team', None), is_active=getattr(player, 'is_active', True))
+    if team and workspace:
+        try:
+            if not WorkspaceTeam.objects.filter(workspace=workspace, team=team).exists():
+                team = None
+        except Exception:
+            team = None
     status = status or (WorkspaceSeasonPlayer.STATUS_CONFIRMED if confirmed else WorkspaceSeasonPlayer.STATUS_PENDING)
     membership, created = WorkspaceSeasonPlayer.objects.get_or_create(
         season=season,
         player=player,
         defaults={
+            'team': team,
             'is_confirmed': bool(confirmed),
             'status': status,
             'confirmed_at': timezone.now() if confirmed else None,
         },
     )
     updates = []
+    if team and getattr(membership, 'team_id', None) != getattr(team, 'id', None):
+        membership.team = team
+        updates.append('team')
     terminal_statuses = {WorkspaceSeasonPlayer.STATUS_CONFIRMED, WorkspaceSeasonPlayer.STATUS_LEFT}
     should_preserve_status = not confirmed and membership.status in terminal_statuses
     if not should_preserve_status and membership.status != status:
@@ -307,7 +361,7 @@ def ensure_team_roster_season_memberships(season, team, *, include_inactive=True
     memberships = []
     for player in qs.only('id', 'is_active'):
         status = WorkspaceSeasonPlayer.STATUS_PENDING if player.is_active else WorkspaceSeasonPlayer.STATUS_INACTIVE
-        membership = ensure_player_season_membership(season, player, confirmed=False, status=status)
+        membership = ensure_player_season_membership(season, player, team=team, confirmed=False, status=status)
         if membership:
             memberships.append(membership)
     return memberships
@@ -316,7 +370,7 @@ def ensure_team_roster_season_memberships(season, team, *, include_inactive=True
 def mark_player_left_current_season(season, player, *, notes=''):
     if not season or not player:
         return None
-    membership = ensure_player_season_membership(season, player, confirmed=False, status=WorkspaceSeasonPlayer.STATUS_LEFT)
+    membership = ensure_player_season_membership(season, player, team=getattr(player, 'team', None), confirmed=False, status=WorkspaceSeasonPlayer.STATUS_LEFT)
     if membership:
         membership.is_confirmed = False
         membership.left_at = timezone.now()
@@ -342,7 +396,7 @@ def player_season_history(player):
     return (
         WorkspaceSeasonPlayer.objects
         .filter(player=player)
-        .select_related('season', 'season__workspace')
+        .select_related('season', 'season__workspace', 'team')
         .order_by('-season__start_date', '-season_id')
     )
 
