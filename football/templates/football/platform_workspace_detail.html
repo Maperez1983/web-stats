@@ -127,6 +127,38 @@
         text-decoration: none;
         font-weight: 700;
       }
+      .club-tabs {
+        margin-top: 1rem;
+        display: flex;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+        padding: 0.45rem;
+        border-radius: 18px;
+        border: 1px solid rgba(160, 180, 215, 0.14);
+        background: rgba(7, 13, 25, 0.42);
+      }
+      .club-tab {
+        border: 0;
+        border-radius: 999px;
+        background: transparent;
+        color: #cbd7ea;
+        padding: 0.7rem 1rem;
+        font: inherit;
+        font-weight: 850;
+        cursor: pointer;
+      }
+      .club-tab.is-active {
+        color: #fff;
+        background: rgba(52, 104, 205, 0.22);
+        box-shadow: inset 0 0 0 1px rgba(160, 180, 215, 0.2);
+      }
+      .tab-panel {
+        display: none;
+        margin-top: 1rem;
+      }
+      .tab-panel.is-active {
+        display: block;
+      }
       .grid {
         margin-top: 1rem;
         display: grid;
@@ -377,6 +409,70 @@
         background: rgba(7, 13, 25, 0.28);
         padding: 1rem;
       }
+      .card-grid {
+        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 0.85rem;
+      }
+      .club-data-card {
+        border-radius: 20px;
+        border: 1px solid rgba(160, 180, 215, 0.14);
+        background: rgba(12, 20, 34, 0.9);
+        padding: 1rem;
+        min-width: 0;
+      }
+      .club-data-head {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        min-width: 0;
+      }
+      .team-crest {
+        width: 48px;
+        height: 48px;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.04);
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        flex: 0 0 auto;
+        font-weight: 950;
+      }
+      .team-crest img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .club-data-card h3 {
+        margin: 0;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .club-data-meta {
+        margin-top: 0.75rem;
+        display: grid;
+        gap: 0.4rem;
+        color: #aab6c8;
+      }
+      .nested-team-list {
+        margin-top: 0.75rem;
+        display: grid;
+        gap: 0.45rem;
+      }
+      .nested-team-row {
+        border-radius: 14px;
+        border: 1px solid rgba(160, 180, 215, 0.12);
+        background: rgba(255, 255, 255, 0.03);
+        padding: 0.65rem 0.75rem;
+        display: flex;
+        justify-content: space-between;
+        gap: 0.65rem;
+      }
       .panel-block + .panel-block {
         margin-top: 1.15rem;
       }
@@ -453,73 +549,9 @@
             </div>
           </details>
           {% if is_multi_team_workspace %}
-          <details style="display:inline-block;">
-            <summary class="inline-btn" style="cursor:pointer;">Separar categorías</summary>
-            <div style="margin-top:0.6rem; padding:0.75rem; border-radius:12px; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); min-width:min(540px, 92vw);">
-              <p style="margin:0 0 0.55rem; font-weight:800;">
-                Este club tiene varias categorías/equipos dentro del mismo workspace.
-              </p>
-              <p style="margin:0 0 0.65rem; color:rgba(216,228,248,0.82);">
-                Recomendación comercial: <strong>1 club = 1 equipo</strong>. Esto evita mezclar rivales/estadísticas y simplifica la navegación.
-              </p>
-              {% if split_plan_rows %}
-              <div style="margin:0 0 0.75rem;">
-                <div style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; font-size:0.78rem; color:rgba(216,228,248,0.92);">
-                  Dry-run (plan)
-                </div>
-                <div style="margin-top:0.45rem; display:grid; gap:0.45rem;">
-                  {% for row in split_plan_rows %}
-                  <div style="border:1px solid rgba(255,255,255,0.10); border-radius:12px; padding:0.6rem 0.7rem; background:rgba(2,6,23,0.35);">
-                    <div style="display:flex; justify-content:space-between; gap:0.6rem; flex-wrap:wrap;">
-                      <div style="font-weight:900;">
-                        {{ row.team_category|default:"Categoría" }} · {{ row.team_name }}
-                      </div>
-                      <div style="color:rgba(216,228,248,0.75); font-size:0.9rem;">
-                        miembros: {{ row.member_user_ids|length }} · staff: {{ row.staff_count }} · contexto: {% if row.has_context %}sí{% else %}no{% endif %}
-                      </div>
-                    </div>
-                    <div style="margin-top:0.35rem; color:rgba(216,228,248,0.82);">
-                      Nuevo club: <strong>{{ row.new_workspace_name }}</strong>
-                      <span style="opacity:0.85;">(slug: {{ row.new_workspace_slug }})</span>
-                    </div>
-                  </div>
-                  {% endfor %}
-                </div>
-              </div>
-              {% endif %}
-              <p style="margin:0 0 0.45rem; color:rgba(216,228,248,0.82);">
-                Ejecuta este comando (dry-run primero, luego con <code>--apply</code>):
-              </p>
-              <pre style="margin:0; padding:0.65rem 0.75rem; border-radius:12px; background:rgba(2,6,23,0.55); border:1px solid rgba(255,255,255,0.10); overflow:auto;"><code>DEBUG=true SECRET_KEY=dev \
-python3 manage.py split_workspace_into_clubs --workspace-id {{ workspace.id }}
-
-DEBUG=true SECRET_KEY=dev \
-python3 manage.py split_workspace_into_clubs --workspace-id {{ workspace.id }} --apply</code></pre>
-              <p style="margin:0.65rem 0 0; color:rgba(216,228,248,0.75); font-size:0.85rem;">
-                No borra jugadores/partidos: crea nuevos clubs (workspaces) y mueve accesos/contexto competitivo.
-              </p>
-              {% if can_manage_workspace %}
-              <div style="margin-top:0.85rem; border-top:1px solid rgba(255,255,255,0.10); padding-top:0.85rem;">
-                <p style="margin:0 0 0.55rem; color:#ffedcc; font-weight:900;">
-                  Ejecutar desde Platform
-                </p>
-                <form method="post" onsubmit="return confirm('¿Separar definitivamente las categorías en clubs independientes?');" class="inline-form" style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center;">
-                  {% csrf_token %}
-                  <input type="hidden" name="form_action" value="split_workspace_categories" />
-                  <label style="display:flex; gap:0.5rem; align-items:center; color:rgba(216,228,248,0.82);">
-                    <input type="checkbox" name="disable_source_workspace" value="1" />
-                    Desactivar este club origen
-                  </label>
-                  <input type="text" name="confirm_phrase" placeholder="Escribe: SEPARAR" required style="min-width:220px;" />
-                  <button class="inline-btn danger" type="submit">Ejecutar separación</button>
-                </form>
-                <p style="margin:0.55rem 0 0; color:rgba(216,228,248,0.72); font-size:0.85rem;">
-                  Esto mueve el contexto competitivo de cada categoría al nuevo club y clona el staff global.
-                </p>
-              </div>
-              {% endif %}
-            </div>
-          </details>
+          <span class="inline-btn" aria-disabled="true" style="opacity:0.82; cursor:default;">
+            Club con categorías internas
+          </span>
           {% endif %}
           {% endif %}
         </div>
@@ -540,15 +572,13 @@ python3 manage.py split_workspace_into_clubs --workspace-id {{ workspace.id }} -
         {% endif %}
 	      </section>
 
-	      <nav class="subnav" aria-label="Secciones del club">
-	        <a href="#workspace-resumen">Resumen</a>
-	        {% if workspace.kind == 'club' %}
-	        <a href="#workspace-competition">Competición</a>
-        {% endif %}
-        <a href="#workspace-miembros">Miembros</a>
-        <a href="#workspace-modulos">Módulos</a>
+      <nav class="club-tabs" aria-label="Ficha del club">
+        <button class="club-tab is-active" type="button" data-tab-target="configuracion">Configuración</button>
+        <button class="club-tab" type="button" data-tab-target="categorias">Categorías</button>
+        <button class="club-tab" type="button" data-tab-target="equipos">Equipos</button>
       </nav>
 
+      <section class="tab-panel is-active" data-tab-panel="configuracion">
       <section class="grid">
 	        <article class="panel">
 	          <div class="summary-note">
@@ -948,6 +978,92 @@ python3 manage.py split_workspace_into_clubs --workspace-id {{ workspace.id }} -
           {% endfor %}
         </section>
       </section>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="categorias">
+        <article class="panel">
+          <div class="section-kicker">Categorías</div>
+          <h2 style="margin-top:0.55rem;">Categorías del club</h2>
+          <p>Las categorías viven dentro del club. Desde aquí se revisa qué equipos contiene cada una y el volumen de jugadores asociado.</p>
+          <div class="card-grid">
+            {% for category in workspace_category_cards %}
+            <article class="club-data-card">
+              <div class="club-data-head">
+                <div class="team-crest" aria-hidden="true">{{ category.label|slice:":1" }}</div>
+                <div style="min-width:0;">
+                  <h3>{{ category.label }}</h3>
+                  <div class="hero-subline" style="margin-top:0.35rem;">
+                    {% if category.has_default %}<span class="sub-chip">Principal</span>{% endif %}
+                    <span class="sub-chip">{{ category.team_count }} equipo{% if category.team_count != 1 %}s{% endif %}</span>
+                    <span class="sub-chip">{{ category.player_count }} jugadores</span>
+                  </div>
+                </div>
+              </div>
+              <div class="nested-team-list">
+                {% for item in category.teams %}
+                <div class="nested-team-row">
+                  <strong>{{ item.name }}</strong>
+                  <span>{{ item.player_count }} jug.</span>
+                </div>
+                {% endfor %}
+              </div>
+            </article>
+            {% empty %}
+            <article class="club-data-card">
+              <h3>Sin categorías</h3>
+              <p>Este club todavía no tiene categorías vinculadas.</p>
+            </article>
+            {% endfor %}
+          </div>
+        </article>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="equipos">
+        <article class="panel">
+          <div class="section-kicker">Equipos</div>
+          <h2 style="margin-top:0.55rem;">Equipos vinculados</h2>
+          <p>Listado operativo de equipos/categorías vinculados al club. Cada card representa un contexto al que se puede entrar sin crear otro club.</p>
+          <div class="card-grid">
+            {% for item in workspace_team_cards %}
+            <article class="club-data-card">
+              <div class="club-data-head">
+                <div class="team-crest" aria-hidden="true">
+                  {% if item.team.crest_image %}
+                  <img src="{{ item.team.crest_image.url }}" alt="" loading="lazy" />
+                  {% elif item.team.crest_url %}
+                  <img src="{{ item.team.crest_url }}" alt="" loading="lazy" />
+                  {% elif item.team.cover_image %}
+                  <img src="{{ item.team.cover_image.url }}" alt="" loading="lazy" />
+                  {% else %}
+                  {{ item.name|slice:":1" }}
+                  {% endif %}
+                </div>
+                <div style="min-width:0;">
+                  <h3>{{ item.name }}</h3>
+                  <div class="hero-subline" style="margin-top:0.35rem;">
+                    <span class="sub-chip">{{ item.category }}</span>
+                    {% if item.is_default %}<span class="sub-chip">Principal</span>{% endif %}
+                  </div>
+                </div>
+              </div>
+              <div class="club-data-meta">
+                <div><strong>Jugadores:</strong> {{ item.player_count }}</div>
+                <div><strong>Grupo:</strong> {{ item.group_name|default:"Sin grupo" }}</div>
+                <div><strong>Temporada:</strong> {{ item.season_name|default:"Sin temporada" }}</div>
+              </div>
+              <div class="hero-links">
+                <a class="primary-link" href="{% url 'platform-workspace-enter' workspace.id %}?team={{ item.team_id }}">Entrar al equipo</a>
+              </div>
+            </article>
+            {% empty %}
+            <article class="club-data-card">
+              <h3>Sin equipos</h3>
+              <p>Este club todavía no tiene equipos vinculados.</p>
+            </article>
+            {% endfor %}
+          </div>
+        </article>
+      </section>
     </main>
     <script>
       (function () {
@@ -968,6 +1084,28 @@ python3 manage.py split_workspace_into_clubs --workspace-id {{ workspace.id }} -
           toggle.addEventListener('change', syncDeliverables);
         });
         syncDeliverables();
+
+        const tabs = Array.from(document.querySelectorAll('[data-tab-target]'));
+        const panels = Array.from(document.querySelectorAll('[data-tab-panel]'));
+        function activateTab(key, updateHash) {
+          const targetKey = key || 'configuracion';
+          tabs.forEach((tab) => {
+            tab.classList.toggle('is-active', tab.dataset.tabTarget === targetKey);
+          });
+          panels.forEach((panel) => {
+            panel.classList.toggle('is-active', panel.dataset.tabPanel === targetKey);
+          });
+          if (updateHash) {
+            history.replaceState(null, '', `#${targetKey}`);
+          }
+        }
+        tabs.forEach((tab) => {
+          tab.addEventListener('click', () => activateTab(tab.dataset.tabTarget, true));
+        });
+        const initialTab = String(window.location.hash || '').replace('#', '');
+        if (initialTab && tabs.some((tab) => tab.dataset.tabTarget === initialTab)) {
+          activateTab(initialTab, false);
+        }
       })();
     </script>
   </body>

@@ -295,6 +295,18 @@
         min-width: 0;
       }
 
+      .workspace-main-link {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .workspace-main-link:hover h3 {
+        color: #ffffff;
+        text-decoration: underline;
+        text-decoration-thickness: 1px;
+        text-underline-offset: 3px;
+      }
+
       .workspace-avatar {
         width: 44px;
         height: 44px;
@@ -409,6 +421,53 @@
         text-transform: uppercase;
         font-weight: 900;
         color: rgba(148, 163, 184, 0.95);
+      }
+
+      .category-list {
+        margin-top: 0.55rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 0.5rem;
+      }
+
+      .category-link {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.55rem;
+        align-items: center;
+        padding: 0.62rem 0.72rem;
+        border-radius: 14px;
+        border: 1px solid rgba(160, 180, 215, 0.14);
+        background: rgba(15, 23, 42, 0.62);
+        color: #e5edf8;
+        text-decoration: none;
+        min-width: 0;
+      }
+
+      .category-link:hover {
+        border-color: rgba(91, 145, 255, 0.38);
+        background: rgba(30, 41, 59, 0.72);
+      }
+
+      .category-name {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-weight: 900;
+      }
+
+      .category-meta {
+        flex: 0 0 auto;
+        color: rgba(196, 208, 226, 0.78);
+        font-size: 0.78rem;
+        font-weight: 800;
+      }
+
+      .club-structure-note {
+        margin-top: 0.55rem;
+        color: rgba(196, 208, 226, 0.82);
+        font-size: 0.88rem;
       }
 
       .stack-section + .stack-section {
@@ -991,8 +1050,8 @@
 	          <div class="section-head">
 	            <div>
 	              <div class="section-kicker">Clubes</div>
-	              <h2>Clubes</h2>
-	              <p>Vista consolidada de clubes, responsables y estado operativo de cada club.</p>
+	              <h2>Clubes y categorías</h2>
+	              <p>Cada tarjeta es un club persistente; sus categorías/equipos aparecen dentro para entrar al contexto correcto.</p>
 	            </div>
 	            <div class="count-pill">{{ club_workspaces|length }}</div>
 	          </div>
@@ -1020,7 +1079,7 @@
             {% for workspace in club_workspaces %}
             <article class="workspace-card">
               <header>
-                <div class="workspace-head-left">
+                <a class="workspace-head-left workspace-main-link" href="{% url 'platform-workspace-detail' workspace.id %}" aria-label="Abrir ficha de {{ workspace.name }}">
                   <div class="workspace-avatar" aria-hidden="true">
                     {% if workspace.primary_team %}
                       {% if workspace.primary_team.crest_image %}
@@ -1059,32 +1118,35 @@
 	                    <h3>{{ workspace.name }}</h3>
 	                    <small>slug: {{ workspace.slug }}</small>
 	                  </div>
-	                </div>
+	                </a>
                 <div style="text-align:right;">
-                  {% if workspace.primary_team %}
+                  {% if workspace.platform_active_season_label %}
+                  <div><strong>{{ workspace.platform_active_season_label }}</strong></div>
+                  <small>Temporada activa</small>
+                  {% elif workspace.primary_team %}
                   <div><strong>{{ workspace.primary_team.display_name }}</strong></div>
-                  <small>Equipo principal</small>
+                  <small>Equipo por defecto</small>
                   {% else %}
-                  <small>Sin equipo asociado</small>
+                  <small>Sin temporada activa</small>
                   {% endif %}
                 </div>
               </header>
               <div class="workspace-meta">
                 <div class="metric">
+                  <span>Categorías</span>
+                  <strong>{{ workspace.platform_category_count|default:0 }}</strong>
+                </div>
+                <div class="metric">
+                  <span>Jugadores club</span>
+                  <strong>{{ workspace.platform_player_count|default:0 }}</strong>
+                </div>
+                <div class="metric">
+                  <span>Temporadas</span>
+                  <strong>{{ workspace.platform_season_count|default:0 }}</strong>
+                </div>
+                <div class="metric">
                   <span>Miembros</span>
                   <strong>{{ workspace.member_count }}</strong>
-                </div>
-                <div class="metric">
-                  <span>Módulos activos</span>
-                  <strong>{{ workspace.active_module_count }}</strong>
-                </div>
-                <div class="metric">
-                  <span>Jugadores</span>
-                  <strong>{{ workspace.primary_player_count|default:0 }}</strong>
-                </div>
-                <div class="metric">
-                  <span>Estado</span>
-                  <strong>{% if workspace.is_active %}Activo{% else %}Inactivo{% endif %}</strong>
                 </div>
               </div>
               {% if workspace.notes %}
@@ -1096,14 +1158,21 @@
 	              </div>
               {% if workspace.team_links %}
               <div class="workspace-team-links" style="margin-top:0.7rem;">
-                <div class="workspace-team-title">Clubs (equipos)</div>
-                <div class="actions-row" style="margin-top:0.45rem; opacity:0.92; flex-wrap:wrap;">
+                <div class="workspace-team-title">Categorías / equipos del club</div>
+                <div class="club-structure-note">Entra a una categoría sin duplicar el club ni mezclar plantillas.</div>
+                <div class="category-list">
                   {% for link in workspace.team_links %}
-                  <a class="link-btn" href="{% url 'platform-workspace-enter' workspace.id %}?team={{ link.team_id }}">
-                    Entrar · {{ link.label }}
+                  <a class="category-link" href="{% url 'platform-workspace-enter' workspace.id %}?team={{ link.team_id }}">
+                    <span class="category-name">{{ link.label }}</span>
+                    <span class="category-meta">{{ link.player_count|default:0 }} jug.{% if link.is_default %} · principal{% endif %}</span>
                   </a>
                   {% endfor %}
                 </div>
+              </div>
+              {% else %}
+              <div class="workspace-team-links" style="margin-top:0.7rem;">
+                <div class="workspace-team-title">Categorías / equipos del club</div>
+                <div class="club-structure-note">Sin categorías vinculadas todavía.</div>
               </div>
               {% endif %}
             </article>

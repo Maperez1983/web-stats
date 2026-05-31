@@ -213,6 +213,7 @@ from football.models import (
     TeamStatistic,
     TeamStanding,
     Workspace,
+    WorkspacePlayer,
     WorkspaceSeason,
     WorkspaceSeasonPlayer,
     WorkspaceSeasonPhase,
@@ -10461,10 +10462,7 @@ def platform_overview_page(request):
         workspaces_qs = (
             Workspace.objects
             .select_related('owner_user', 'primary_team')
-            .annotate(
-                member_count=Count('memberships', distinct=True),
-                primary_player_count=Count('primary_team__players', distinct=True),
-            )
+            .annotate(member_count=Count('memberships', distinct=True))
         )
         if active_tab == 'clients':
             if clients_query:
@@ -10499,7 +10497,19 @@ def platform_overview_page(request):
                     _workspace_selected_module_keys(workspace.kind, _workspace_enabled_modules(workspace))
                 )
             workspace_ids = [int(ws.id) for ws in club_workspaces if getattr(ws, 'id', None)]
+            team_links = []
+            linked_team_ids = {
+                int(getattr(ws, 'primary_team_id', 0) or 0)
+                for ws in club_workspaces
+                if int(getattr(ws, 'primary_team_id', 0) or 0)
+            }
             team_links_map = {}
+            workspace_player_count_map = {}
+            workspace_active_player_count_map = {}
+            workspace_season_count_map = {}
+            workspace_active_season_label_map = {}
+            workspace_team_player_count_map = {}
+            team_player_count_map = {}
             if workspace_ids:
                 try:
                     team_links = list(
@@ -10510,20 +10520,99 @@ def platform_overview_page(request):
                     )
                 except Exception:
                     team_links = []
+                linked_team_ids.update(
+                    int(getattr(link, 'team_id', 0) or 0)
+                    for link in team_links
+                    if int(getattr(link, 'team_id', 0) or 0)
+                )
+                try:
+                    workspace_player_count_map = {
+                        int(row['workspace_id']): int(row['count'] or 0)
+                        for row in (
+                            WorkspacePlayer.objects
+                            .filter(workspace_id__in=workspace_ids)
+                            .values('workspace_id')
+                            .annotate(count=Count('id'))
+                        )
+                    }
+                    workspace_active_player_count_map = {
+                        int(row['workspace_id']): int(row['count'] or 0)
+                        for row in (
+                            WorkspacePlayer.objects
+                            .filter(workspace_id__in=workspace_ids, is_active=True)
+                            .values('workspace_id')
+                            .annotate(count=Count('id'))
+                        )
+                    }
+                    workspace_team_player_count_map = {
+                        (int(row['workspace_id']), int(row['current_team_id'])): int(row['count'] or 0)
+                        for row in (
+                            WorkspacePlayer.objects
+                            .filter(workspace_id__in=workspace_ids, current_team_id__isnull=False)
+                            .values('workspace_id', 'current_team_id')
+                            .annotate(count=Count('id'))
+                        )
+                    }
+                except Exception:
+                    workspace_player_count_map = {}
+                    workspace_active_player_count_map = {}
+                    workspace_team_player_count_map = {}
+                try:
+                    workspace_season_count_map = {
+                        int(row['workspace_id']): int(row['count'] or 0)
+                        for row in (
+                            WorkspaceSeason.objects
+                            .filter(workspace_id__in=workspace_ids)
+                            .values('workspace_id')
+                            .annotate(count=Count('id'))
+                        )
+                    }
+                    for season in (
+                        WorkspaceSeason.objects
+                        .filter(workspace_id__in=workspace_ids, is_active=True)
+                        .order_by('workspace_id', '-start_date', '-id')
+                    ):
+                        workspace_active_season_label_map.setdefault(
+                            int(season.workspace_id),
+                            str(season.label or '').strip(),
+                        )
+                except Exception:
+                    workspace_season_count_map = {}
+                    workspace_active_season_label_map = {}
+                if linked_team_ids:
+                    try:
+                        team_player_count_map = {
+                            int(row['team_id']): int(row['count'] or 0)
+                            for row in (
+                                Player.objects
+                                .filter(team_id__in=linked_team_ids)
+                                .values('team_id')
+                                .annotate(count=Count('id'))
+                            )
+                        }
+                    except Exception:
+                        team_player_count_map = {}
                 for link in team_links:
                     team = getattr(link, 'team', None)
                     if not team:
                         continue
+                    workspace_id = int(link.workspace_id)
+                    team_id = int(team.id)
                     category = str(getattr(team, 'category', '') or '').strip()
                     name = str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or '').strip()
                     label = category or name or f'Equipo {team.id}'
-                    team_links_map.setdefault(int(link.workspace_id), []).append(
+                    player_count = workspace_team_player_count_map.get(
+                        (workspace_id, team_id),
+                        team_player_count_map.get(team_id, 0),
+                    )
+                    team_links_map.setdefault(workspace_id, []).append(
                         {
-                            'team_id': int(team.id),
+                            'team_id': team_id,
                             'label': label,
                             'category': category,
                             'name': name,
                             'is_default': bool(getattr(link, 'is_default', False)),
+                            'player_count': int(player_count or 0),
                         }
                     )
             for workspace in club_workspaces:
@@ -10537,6 +10626,10 @@ def platform_overview_page(request):
                         category = str(getattr(primary_team, 'category', '') or '').strip()
                         name = str(getattr(primary_team, 'display_name', '') or getattr(primary_team, 'name', '') or '').strip()
                         label = category or name or f'Equipo {primary_team_id}'
+                        player_count = workspace_team_player_count_map.get(
+                            (int(workspace.id), primary_team_id),
+                            team_player_count_map.get(primary_team_id, 0),
+                        )
                         links.insert(
                             0,
                             {
@@ -10545,6 +10638,7 @@ def platform_overview_page(request):
                                 'category': category,
                                 'name': name,
                                 'is_default': True,
+                                'player_count': int(player_count or 0),
                             },
                         )
                 except Exception:
@@ -10564,6 +10658,16 @@ def platform_overview_page(request):
                     pass
                 workspace.team_links = links
                 workspace.team_link_count = len(links)
+                workspace.platform_category_count = len(links)
+                fallback_player_count = sum(int(item.get('player_count') or 0) for item in links)
+                workspace.platform_player_count = int(
+                    workspace_player_count_map.get(int(workspace.id), fallback_player_count) or 0
+                )
+                workspace.platform_active_player_count = int(
+                    workspace_active_player_count_map.get(int(workspace.id), workspace.platform_player_count) or 0
+                )
+                workspace.platform_season_count = int(workspace_season_count_map.get(int(workspace.id), 0) or 0)
+                workspace.platform_active_season_label = workspace_active_season_label_map.get(int(workspace.id), '')
             primary_workspace = next(
                 (workspace for workspace in club_workspaces if workspace.primary_team_id),
                 None,
@@ -10805,43 +10909,52 @@ def platform_workspace_detail_page(request, workspace_id):
         if not can_manage_workspace:
             error = 'No tienes permisos para modificar este workspace.'
         elif form_action == 'split_workspace_categories':
-            confirm_phrase = str(request.POST.get('confirm_phrase') or '').strip().upper()
-            disable_source = str(request.POST.get('disable_source_workspace') or '').strip().lower() in {'1', 'true', 'on', 'yes'}
-            if confirm_phrase != 'SEPARAR':
-                error = 'Confirmación inválida. Escribe la palabra SEPARAR.'
+            allow_category_split = str(os.getenv('PLATFORM_ALLOW_CATEGORY_SPLIT', '0') or '').strip().lower() in {
+                '1',
+                'true',
+                'yes',
+                'on',
+            }
+            if not allow_category_split:
+                error = 'Arquitectura actual: las categorías permanecen dentro del club. No se separan en clubs independientes.'
             else:
-                try:
-                    from football.workspace_split import (
-                        apply_split_workspace_plan,
-                        build_split_workspace_plan,
-                    )
+                confirm_phrase = str(request.POST.get('confirm_phrase') or '').strip().upper()
+                disable_source = str(request.POST.get('disable_source_workspace') or '').strip().lower() in {'1', 'true', 'on', 'yes'}
+                if confirm_phrase != 'SEPARAR':
+                    error = 'Confirmación inválida. Escribe la palabra SEPARAR.'
+                else:
+                    try:
+                        from football.workspace_split import (
+                            apply_split_workspace_plan,
+                            build_split_workspace_plan,
+                        )
 
-                    plan_rows = build_split_workspace_plan(workspace)
-                    if not plan_rows:
-                        raise ValueError('Este club no tiene varias categorías que separar.')
-                    created = apply_split_workspace_plan(
-                        workspace,
-                        plan_rows,
-                        disable_source_workspace=disable_source,
-                        include_primary=False,
-                    )
-                    created_ids = [int(ws.id) for ws in created if getattr(ws, 'id', None)]
-                    created_slugs = [str(ws.slug or '').strip() for ws in created if str(getattr(ws, 'slug', '') or '').strip()]
-                    request.session['platform_feedback'] = (
-                        f'Separación completada. Clubs creados: {", ".join(created_slugs) if created_slugs else len(created_ids)}.'
-                    )
-                    _audit(
-                        request,
-                        'workspace_split',
-                        workspace=workspace,
-                        message='Separación de categorías ejecutada',
-                        payload={'created_ids': created_ids, 'created_slugs': created_slugs, 'disable_source': disable_source},
-                    )
-                    return redirect('platform-overview')
-                except ValueError as exc:
-                    error = str(exc)
-                except Exception:
-                    error = 'No se pudo separar el club. Revisa el log.'
+                        plan_rows = build_split_workspace_plan(workspace)
+                        if not plan_rows:
+                            raise ValueError('Este club no tiene varias categorías que separar.')
+                        created = apply_split_workspace_plan(
+                            workspace,
+                            plan_rows,
+                            disable_source_workspace=disable_source,
+                            include_primary=False,
+                        )
+                        created_ids = [int(ws.id) for ws in created if getattr(ws, 'id', None)]
+                        created_slugs = [str(ws.slug or '').strip() for ws in created if str(getattr(ws, 'slug', '') or '').strip()]
+                        request.session['platform_feedback'] = (
+                            f'Separación completada. Clubs creados: {", ".join(created_slugs) if created_slugs else len(created_ids)}.'
+                        )
+                        _audit(
+                            request,
+                            'workspace_split',
+                            workspace=workspace,
+                            message='Separación de categorías ejecutada',
+                            payload={'created_ids': created_ids, 'created_slugs': created_slugs, 'disable_source': disable_source},
+                        )
+                        return redirect('platform-overview')
+                    except ValueError as exc:
+                        error = str(exc)
+                    except Exception:
+                        error = 'No se pudo separar el club. Revisa el log.'
         elif form_action == 'update_workspace_identity':
             workspace_name = _sanitize_task_text((request.POST.get('workspace_name') or '').strip(), multiline=False, max_len=160)
             owner_username = _sanitize_username(request.POST.get('owner_username'), max_len=150)
@@ -11317,6 +11430,80 @@ def platform_workspace_detail_page(request, workspace_id):
         .select_related('team')
         .order_by('-is_default', 'id')
     )
+    workspace_team_ids = [
+        int(link.team_id)
+        for link in workspace_team_links
+        if int(getattr(link, 'team_id', 0) or 0)
+    ]
+    workspace_team_player_counts = {}
+    fallback_team_player_counts = {}
+    if workspace_team_ids:
+        try:
+            workspace_team_player_counts = {
+                int(row['current_team_id']): int(row['count'] or 0)
+                for row in (
+                    WorkspacePlayer.objects
+                    .filter(workspace=workspace, current_team_id__in=workspace_team_ids)
+                    .values('current_team_id')
+                    .annotate(count=Count('id'))
+                )
+            }
+        except Exception:
+            workspace_team_player_counts = {}
+        try:
+            fallback_team_player_counts = {
+                int(row['team_id']): int(row['count'] or 0)
+                for row in (
+                    Player.objects
+                    .filter(team_id__in=workspace_team_ids)
+                    .values('team_id')
+                    .annotate(count=Count('id'))
+                )
+            }
+        except Exception:
+            fallback_team_player_counts = {}
+    category_map = {}
+    workspace_team_cards = []
+    for link in workspace_team_links:
+        team = getattr(link, 'team', None)
+        if not team:
+            continue
+        team_id = int(getattr(team, 'id', 0) or 0)
+        player_count = int(workspace_team_player_counts.get(team_id, fallback_team_player_counts.get(team_id, 0)) or 0)
+        category_label = str(getattr(team, 'category', '') or '').strip() or str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or '').strip() or f'Equipo {team_id}'
+        team_card = {
+            'link': link,
+            'team': team,
+            'team_id': team_id,
+            'name': str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or '').strip() or f'Equipo {team_id}',
+            'category': category_label,
+            'player_count': player_count,
+            'is_default': bool(getattr(link, 'is_default', False)),
+            'group_name': str(getattr(getattr(team, 'group', None), 'name', '') or '').strip(),
+            'season_name': str(getattr(getattr(getattr(team, 'group', None), 'season', None), 'name', '') or '').strip(),
+        }
+        workspace_team_cards.append(team_card)
+        category_entry = category_map.setdefault(
+            category_label.lower(),
+            {
+                'label': category_label,
+                'teams': [],
+                'team_count': 0,
+                'player_count': 0,
+                'has_default': False,
+            },
+        )
+        category_entry['teams'].append(team_card)
+        category_entry['team_count'] += 1
+        category_entry['player_count'] += player_count
+        category_entry['has_default'] = bool(category_entry['has_default'] or team_card['is_default'])
+    workspace_category_cards = sorted(
+        category_map.values(),
+        key=lambda item: (
+            0 if item.get('has_default') else 1,
+            str(item.get('label') or '').lower(),
+        ),
+    )
     is_multi_team_workspace = len(workspace_team_links) > 1
     split_plan_rows = []
     if is_multi_team_workspace:
@@ -11351,6 +11538,8 @@ def platform_workspace_detail_page(request, workspace_id):
             'competition_search_results': competition_search_results,
             'invite_link': invite_link,
             'workspace_team_links': workspace_team_links,
+            'workspace_team_cards': workspace_team_cards,
+            'workspace_category_cards': workspace_category_cards,
             'is_multi_team_workspace': is_multi_team_workspace,
             'split_plan_rows': split_plan_rows,
         },
