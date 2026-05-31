@@ -226,9 +226,62 @@
   };
 
   const loadPitchBackground = async () => {
-    if (!pitchSvg) return;
+    const buildFallbackPitchSvg = () => {
+      const first = steps[0] || {};
+      const orientation = safeText(first.orientation, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
+      const grass = safeText(first.grass_style, 'broadcast').toLowerCase();
+      const w = orientation === 'portrait' ? 680 : 1050;
+      const h = orientation === 'portrait' ? 1050 : 680;
+      const colors = {
+        broadcast: ['#155e3a', '#0f4d2f'],
+        realistic: ['#4f7f3a', '#3f6e35'],
+        pro: ['#2f6a3a', '#245934'],
+        artificial: ['#2fb46d', '#1f8d55'],
+        dry: ['#7b9a45', '#6b8a3a'],
+        wet: ['#1f5a46', '#163f35'],
+        classic: ['#5f8f42', '#557f3c'],
+      };
+      const [c1, c2] = colors[grass] || colors.broadcast;
+      const stripeCount = orientation === 'portrait' ? 12 : 14;
+      const stripeSize = w / stripeCount;
+      const stripes = Array.from({ length: stripeCount }, (_, i) => {
+        const x = i * stripeSize;
+        const fill = i % 2 === 0 ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+        return `<rect x="${x.toFixed(2)}" y="0" width="${(stripeSize + 1).toFixed(2)}" height="${h}" fill="${fill}"/>`;
+      }).join('');
+      const line = 'rgba(248,250,252,0.88)';
+      const inset = 38;
+      const cx = w / 2;
+      const cy = h / 2;
+      const boxW = orientation === 'portrait' ? 300 : 145;
+      const boxH = orientation === 'portrait' ? 145 : 300;
+      const smallW = orientation === 'portrait' ? 140 : 58;
+      const smallH = orientation === 'portrait' ? 58 : 140;
+      const leftBox = orientation === 'portrait'
+        ? `<rect x="${cx - boxW / 2}" y="${inset}" width="${boxW}" height="${boxH}" fill="none" stroke="${line}" stroke-width="4"/><rect x="${cx - smallW / 2}" y="${inset}" width="${smallW}" height="${smallH}" fill="none" stroke="${line}" stroke-width="4"/>`
+        : `<rect x="${inset}" y="${cy - boxH / 2}" width="${boxW}" height="${boxH}" fill="none" stroke="${line}" stroke-width="4"/><rect x="${inset}" y="${cy - smallH / 2}" width="${smallW}" height="${smallH}" fill="none" stroke="${line}" stroke-width="4"/>`;
+      const rightBox = orientation === 'portrait'
+        ? `<rect x="${cx - boxW / 2}" y="${h - inset - boxH}" width="${boxW}" height="${boxH}" fill="none" stroke="${line}" stroke-width="4"/><rect x="${cx - smallW / 2}" y="${h - inset - smallH}" width="${smallW}" height="${smallH}" fill="none" stroke="${line}" stroke-width="4"/>`
+        : `<rect x="${w - inset - boxW}" y="${cy - boxH / 2}" width="${boxW}" height="${boxH}" fill="none" stroke="${line}" stroke-width="4"/><rect x="${w - inset - smallW}" y="${cy - smallH / 2}" width="${smallW}" height="${smallH}" fill="none" stroke="${line}" stroke-width="4"/>`;
+      const halfLine = orientation === 'portrait'
+        ? `<line x1="${inset}" y1="${cy}" x2="${w - inset}" y2="${cy}" stroke="${line}" stroke-width="4"/>`
+        : `<line x1="${cx}" y1="${inset}" x2="${cx}" y2="${h - inset}" stroke="${line}" stroke-width="4"/>`;
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">
+        <defs><linearGradient id="sg-share-pitch" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="${c1}"/><stop offset="100%" stop-color="${c2}"/></linearGradient></defs>
+        <rect width="${w}" height="${h}" rx="24" fill="url(#sg-share-pitch)"/>
+        ${stripes}
+        <rect x="${inset}" y="${inset}" width="${w - inset * 2}" height="${h - inset * 2}" fill="none" stroke="${line}" stroke-width="4"/>
+        ${halfLine}
+        <circle cx="${cx}" cy="${cy}" r="70" fill="none" stroke="${line}" stroke-width="4"/>
+        <circle cx="${cx}" cy="${cy}" r="5" fill="${line}"/>
+        ${leftBox}
+        ${rightBox}
+      </svg>`;
+    };
+    const markup = pitchSvg || buildFallbackPitchSvg();
+    if (!markup) return;
     try {
-      const blob = new Blob([pitchSvg], { type: 'image/svg+xml;charset=utf-8' });
+      const blob = new Blob([markup], { type: 'image/svg+xml;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const img = new Image();
       await new Promise((resolve) => {
@@ -253,6 +306,18 @@
     }
   };
 
+  const applyPitchBackground = () => {
+    if (!pitchBackgroundImg) return;
+    try {
+      const scaleX = (canvas.getWidth() || 1) / (pitchBackgroundImg.width || 1);
+      const scaleY = (canvas.getHeight() || 1) / (pitchBackgroundImg.height || 1);
+      pitchBackgroundImg.set({ left: 0, top: 0, originX: 'left', originY: 'top', scaleX, scaleY });
+      canvas.setBackgroundImage(pitchBackgroundImg, canvas.renderAll.bind(canvas));
+    } catch (error) {
+      // ignore
+    }
+  };
+
   const applyCanvasSizeForStep = async (step) => {
     const size = readStepSize(step);
     const nextW = size.w || (canvas.getWidth() || 960);
@@ -261,12 +326,7 @@
     if (!changed) return;
     canvas.setWidth(nextW);
     canvas.setHeight(nextH);
-    if (pitchBackgroundImg) {
-      const scaleX = nextW / (pitchBackgroundImg.width || 1);
-      const scaleY = nextH / (pitchBackgroundImg.height || 1);
-      pitchBackgroundImg.set({ scaleX, scaleY });
-      canvas.setBackgroundImage(pitchBackgroundImg, canvas.renderAll.bind(canvas));
-    }
+    applyPitchBackground();
     try { fitCanvasInWrap(); } catch (error) {}
   };
 
@@ -773,6 +833,7 @@
     return await new Promise((resolve) => {
       try {
         canvas.loadFromJSON(state, () => {
+          applyPitchBackground();
           setObjectsReadOnly();
           try { renderOverlaysForStep(step); } catch (error) {}
           canvas.renderAll();
