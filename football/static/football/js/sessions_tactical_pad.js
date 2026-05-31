@@ -24184,6 +24184,78 @@
                   });
                   return phases;
                 };
+                const triangleArea = (a, b, c) => Math.abs(
+                  ((Number(a.x) || 0) * ((Number(b.y) || 0) - (Number(c.y) || 0)))
+                  + ((Number(b.x) || 0) * ((Number(c.y) || 0) - (Number(a.y) || 0)))
+                  + ((Number(c.x) || 0) * ((Number(a.y) || 0) - (Number(b.y) || 0)))
+                ) / 2;
+                const findTriangleRotationPlan = () => {
+                  const text = [
+                    safeText(form.querySelector('[name="draw_task_title"]')?.value),
+                    safeText(trainerContext.objective),
+                    safeText(trainerContext.mainAction),
+                    safeText(trainerContext.sequence),
+                  ].join(' ').toLowerCase();
+                  if (!/(triangul|rueda\s+de\s+pases|tercer\s+hombre|rotaci[oó]n)/i.test(text)) return null;
+                  const tokens = all
+                    .filter((obj) => obj && safeText(obj?.data?.kind) === 'token' && tokenSide(obj) === 'local')
+                    .map((obj) => ({ obj, uid: getUidForObj(obj), point: objectCenter(obj) }))
+                    .filter((entry) => safeText(entry.uid));
+                  if (tokens.length < 3) return null;
+                  const ball = all.find((obj) => obj && isBallLikeObject(obj)) || null;
+                  const ballPoint = ball ? objectCenter(ball) : tokens[0].point;
+                  const groups = [];
+                  for (let i = 0; i < tokens.length; i += 1) {
+                    for (let j = i + 1; j < tokens.length; j += 1) {
+                      for (let k = j + 1; k < tokens.length; k += 1) {
+                        const tri = [tokens[i], tokens[j], tokens[k]];
+                        const perimeter = distance(tri[0].point, tri[1].point) + distance(tri[1].point, tri[2].point) + distance(tri[2].point, tri[0].point);
+                        const area = triangleArea(tri[0].point, tri[1].point, tri[2].point);
+                        const centerPoint = {
+                          x: (tri[0].point.x + tri[1].point.x + tri[2].point.x) / 3,
+                          y: (tri[0].point.y + tri[1].point.y + tri[2].point.y) / 3,
+                        };
+                        if (area < 900 || perimeter < 90) continue;
+                        groups.push({
+                          tri,
+                          score: distance(ballPoint, centerPoint) + (perimeter * 0.18) - Math.min(area / 900, 80),
+                        });
+                      }
+                    }
+                  }
+                  const selected = (groups.sort((a, b) => a.score - b.score)[0]?.tri || tokens.slice(0, 3)).slice();
+                  if (selected.length < 3) return null;
+                  selected.sort((a, b) => Math.atan2(a.point.y - ballPoint.y, a.point.x - ballPoint.x) - Math.atan2(b.point.y - ballPoint.y, b.point.x - ballPoint.x));
+                  let startIndex = 0;
+                  let startD = distance(ballPoint, selected[0].point);
+                  selected.forEach((entry, index) => {
+                    const d = distance(ballPoint, entry.point);
+                    if (d < startD) {
+                      startIndex = index;
+                      startD = d;
+                    }
+                  });
+                  const ordered = [selected[startIndex], selected[(startIndex + 1) % 3], selected[(startIndex + 2) % 3]];
+                  const labels = ['A', 'B', 'C'];
+                  const passes = [
+                    { from: 0, to: 1, title: 'Pase 1 · A hacia B' },
+                    { from: 1, to: 2, title: 'Pase 2 · B hacia C' },
+                    { from: 2, to: 0, title: 'Pase 3 · C vuelve al inicio' },
+                    { from: 0, to: 1, title: 'Nueva recepción · rueda preparada' },
+                  ];
+                  const ballUid = ball ? (getUidForObj(ball) || (() => {
+                    ball.data = ball.data || {};
+                    ball.data.layer_uid = `auto_ball_${Date.now()}`;
+                    return ball.data.layer_uid;
+                  })()) : '';
+                  return {
+                    ordered,
+                    ballUid,
+                    ballStart: ball ? ballPoint : ordered[0].point,
+                    labels,
+                    passes,
+                  };
+                };
                 const classifyAnnotationAction = (obj) => {
                   const kind = safeText(obj?.data?.kind).toLowerCase();
                   const color = objectColor(obj);
@@ -24347,8 +24419,43 @@
                 const steps = [];
                 // Paso 0: estado actual.
                 steps.push({ title: 'Inicio / estructura', duration: 3, description: safeText(trainerContext.objective), canvas_state: sanitizeLoadedState(snapshot), routes: {} });
+                const trianglePlan = findTriangleRotationPlan();
 
-                if (mode === 'seq') {
+                if (mode === 'seq' && trianglePlan) {
+                  const base = cloneState(steps[0].canvas_state);
+                  const currentPos = new Map(trianglePlan.ordered.map((entry) => [entry.uid, { ...entry.point }]));
+                  const ballRoute = [trianglePlan.ballStart];
+                  trianglePlan.passes.forEach((pass, i) => {
+                    const next = cloneState(base);
+                    const receiver = trianglePlan.ordered[pass.to];
+                    const passer = trianglePlan.ordered[pass.from];
+                    const passerStart = currentPos.get(passer.uid) || passer.point;
+                    const passerTarget = trianglePlan.ordered[(pass.from + 1) % 3].point;
+                    const receivePoint = currentPos.get(receiver.uid) || receiver.point;
+                    const target = i >= 3 ? currentPos.get(receiver.uid) || receiver.point : receivePoint;
+                    ballRoute.push({ x: Number(target.x) || 0, y: Number(target.y) || 0 });
+                    if (trianglePlan.ballUid) moveUidInState(next, trianglePlan.ballUid, target);
+                    else moveBallInState(next, target);
+                    const rotationRatio = i >= 3 ? 1 : 0.92;
+                    const passerMoveTo = {
+                      x: passerStart.x + ((passerTarget.x - passerStart.x) * rotationRatio),
+                      y: passerStart.y + ((passerTarget.y - passerStart.y) * rotationRatio),
+                    };
+                    moveUidInState(next, passer.uid, passerMoveTo);
+                    currentPos.set(passer.uid, passerMoveTo);
+                    const routes = {};
+                    if (trianglePlan.ballUid) routes[trianglePlan.ballUid] = { points: ballRoute.slice(-2), spline: false };
+                    routes[passer.uid] = { points: [passerStart, passerMoveTo], spline: false };
+                    steps.push({
+                      title: pass.title,
+                      duration: 3,
+                      description: 'Rueda triangular: pase al compañero y cambio de posición a la siguiente esquina.',
+                      canvas_state: sanitizeLoadedState(next),
+                      routes,
+                    });
+                    base.objects = next.objects;
+                  });
+                } else if (mode === 'seq') {
                   const base = cloneState(steps[0].canvas_state);
                   items.forEach((it, i) => {
                     const next = cloneState(base);
