@@ -181,6 +181,45 @@
         color: #d7e2f4;
       }
 
+      .dashboard-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+        gap: 1rem;
+        align-items: start;
+      }
+
+      .dashboard-card-grid {
+        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 0.85rem;
+      }
+
+      .dashboard-card {
+        border-radius: 18px;
+        border: 1px solid rgba(160, 180, 215, 0.14);
+        background: rgba(255, 255, 255, 0.03);
+        padding: 1rem;
+      }
+
+      .dashboard-card strong {
+        display: block;
+        font-size: 1.05rem;
+      }
+
+      .dashboard-card span {
+        display: block;
+        margin-top: 0.3rem;
+        color: #9aa8bf;
+      }
+
+      .config-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        gap: 0.85rem;
+        margin-top: 1rem;
+      }
+
       .hero-stats {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -912,6 +951,7 @@
         .quick-grid,
         .workspace-grid-two,
         .grid,
+        .dashboard-grid,
         .inline-grid {
           grid-template-columns: 1fr;
         }
@@ -965,8 +1005,8 @@
           <div class="hero-topline">
 	            <div class="hero-title-block">
 	              <div class="product-kicker">2J Platform</div>
-	              <h1>Clientes, usuarios y entregables</h1>
-	              <p>Plataforma es el centro de gobierno del sistema: aquí das de alta clubes, asignas usuarios y decides qué módulos y entregables puede usar cada espacio. El trabajo diario se hace dentro de cada club.</p>
+	              <h1>Platform</h1>
+	              <p>Vista de control para revisar el estado de los clubes, entrar a sus fichas y gestionar la configuración global sin mezclarlo con la operación diaria.</p>
 	            </div>
 	            <div class="hero-links">
 	              <a class="primary-link" href="{% url 'platform-overview' %}?tab=workspace-create">Crear club</a>
@@ -999,40 +1039,13 @@
               <strong>{% if active_workspace %}Activo{% else %}Global{% endif %}</strong>
             </div>
           </div>
-	          <div class="quick-grid">
-	            <a class="quick-card" href="{% url 'platform-overview' %}?tab=clients">
-	              <strong>Clubes</strong>
-	              <span>Consulta cada club, su estado operativo y entra a supervisarlo.</span>
-	            </a>
-	            <a class="quick-card" href="{% url 'platform-overview' %}?tab=users&subtab=list">
-	              <strong>Usuarios</strong>
-	              <span>Alta global, invitaciones y relación real de usuarios con cada club.</span>
-	            </a>
-            <a class="quick-card" href="{% url 'platform-overview' %}?tab=documents">
-              <strong>Documentos</strong>
-              <span>Revisa salidas PDF recientes de club y sesiones.</span>
-            </a>
-          </div>
-          <div class="attention-list">
-            {% for item in platform_attention_items %}
-            <div class="attention-item">{{ item }}</div>
-            {% endfor %}
-            {% if not platform_attention_items %}
-            <div class="attention-item">La plataforma no tiene incidencias abiertas ahora mismo.</div>
-            {% endif %}
-          </div>
         </div>
       </section>
 
 	      <nav class="subnav" aria-label="Secciones plataforma">
-	        <a class="{% if active_tab == 'clients' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=clients">Clubes</a>
-	        <a class="{% if active_tab == 'users' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=users&subtab=list">Usuarios</a>
-	        <a class="{% if active_tab == 'documents' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=documents">Documentos</a>
-	        {% if user.is_superuser %}
-	        <a href="{% url 'platform-assistant' %}">Asistente</a>
-	        {% endif %}
-	        <a class="{% if active_tab == 'home-global' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=home-global">Home global</a>
-	        <a class="{% if active_tab == 'workspace-create' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=workspace-create">Crear club</a>
+	        <a class="{% if active_tab == 'dashboard' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=dashboard">Dashboard</a>
+	        <a class="{% if active_tab == 'configuration' or active_tab == 'users' or active_tab == 'documents' or active_tab == 'home-global' or active_tab == 'workspace-create' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=configuration">Configuración</a>
+	        <a class="{% if active_tab == 'club' or active_tab == 'clients' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=club">Clubes</a>
 	      </nav>
 	      <section class="panel" style="margin-top:1rem;">
 	        <div class="governance-note">
@@ -1045,24 +1058,113 @@
         <div class="message error">{{ error }}</div>
         {% endif %}
 
-	        {% if active_tab == 'clients' %}
+	        {% if active_tab == 'dashboard' %}
+	        <div class="dashboard-grid">
+	          <section class="section-shell">
+	            <div class="section-head">
+	              <div>
+	                <div class="section-kicker">Dashboard</div>
+	                <h2>Estado general</h2>
+	                <p>Lectura rápida de la plataforma antes de entrar a configurar o abrir un club.</p>
+	              </div>
+	            </div>
+	            <div class="dashboard-card-grid">
+	              <article class="dashboard-card">
+	                <strong>{{ club_workspace_count }}</strong>
+	                <span>Clubes activos o en seguimiento.</span>
+	              </article>
+	              <article class="dashboard-card">
+	                <strong>{{ linked_club_user_count }}</strong>
+	                <span>Usuarios vinculados a clubes.</span>
+	              </article>
+	              <article class="dashboard-card">
+	                <strong>{{ club_workspaces_without_members }}</strong>
+	                <span>Clubes sin miembros asignados.</span>
+	              </article>
+	              <article class="dashboard-card">
+	                <strong>{{ club_workspaces_without_team }}</strong>
+	                <span>Clubes sin equipo principal.</span>
+	              </article>
+	            </div>
+	            <div class="attention-list">
+	              {% for item in platform_attention_items %}
+	              <div class="attention-item">{{ item }}</div>
+	              {% endfor %}
+	            </div>
+	          </section>
+	          <section class="section-shell">
+	            <div class="section-head">
+	              <div>
+	                <div class="section-kicker">Acceso rápido</div>
+	                <h2>Clubes recientes</h2>
+	                <p>Entra en la ficha del club para categorías, equipos y configuración propia.</p>
+	              </div>
+	            </div>
+	            <div class="simple-list">
+	              {% for workspace in club_workspaces|slice:":5" %}
+	              <div class="user-row">
+	                <div>
+	                  <strong>{{ workspace.name }}</strong>
+	                  <div class="user-card-sub">
+	                    {{ workspace.platform_category_count|default:0 }} categorías · {{ workspace.platform_player_count|default:0 }} jugadores
+	                  </div>
+	                </div>
+	                <a class="link-btn" href="{% url 'platform-workspace-detail' workspace.id %}">Abrir ficha</a>
+	              </div>
+	              {% empty %}
+	              <div class="user-row"><div>Sin clubes todavía.</div></div>
+	              {% endfor %}
+	            </div>
+	          </section>
+	        </div>
+
+	        {% elif active_tab == 'configuration' %}
+	        <div class="section-shell stack-section">
+	          <div class="section-head">
+	            <div>
+	              <div class="section-kicker">Configuración</div>
+	              <h2>Configuración global</h2>
+	              <p>Accesos de administración de Platform. La configuración específica de un club se realiza desde su ficha.</p>
+	            </div>
+	          </div>
+	          <div class="config-grid">
+	            <a class="quick-card" href="{% url 'platform-overview' %}?tab=workspace-create">
+	              <strong>Crear club</strong>
+	              <span>Alta de club, equipo inicial, módulos y entregables.</span>
+	            </a>
+	            <a class="quick-card" href="{% url 'platform-overview' %}?tab=users&subtab=list">
+	              <strong>Usuarios</strong>
+	              <span>Crear, invitar, activar y asignar usuarios a clubes.</span>
+	            </a>
+	            <a class="quick-card" href="{% url 'platform-overview' %}?tab=documents">
+	              <strong>Documentos</strong>
+	              <span>Revisar salidas recientes y actividad de auditoría.</span>
+	            </a>
+	            <a class="quick-card" href="{% url 'platform-overview' %}?tab=home-global">
+	              <strong>Home global</strong>
+	              <span>Gestionar carrusel y portada compartida.</span>
+	            </a>
+	            {% if user.is_superuser %}
+	            <a class="quick-card" href="{% url 'platform-assistant' %}">
+	              <strong>Asistente</strong>
+	              <span>Herramientas internas de soporte y gobierno.</span>
+	            </a>
+	            {% endif %}
+	          </div>
+	        </div>
+
+	        {% elif active_tab == 'club' or active_tab == 'clients' %}
 	        <div class="section-shell stack-section" id="clientes-club">
 	          <div class="section-head">
 	            <div>
 	              <div class="section-kicker">Clubes</div>
-	              <h2>Clubes y categorías</h2>
-	              <p>Cada tarjeta es un club persistente; sus categorías/equipos aparecen dentro para entrar al contexto correcto.</p>
+	              <h2>Clubes</h2>
+	              <p>Vista despejada de clubs. Abre la ficha para gestionar configuración, categorías y equipos.</p>
 	            </div>
 	            <div class="count-pill">{{ club_workspaces|length }}</div>
 	          </div>
-          {% if primary_workspace %}
-          <div class="actions-row" style="margin-top:1rem;">
-            <a class="link-btn" href="{% url 'platform-workspace-detail' primary_workspace.id %}">Ver {{ primary_workspace.name }}</a>
-            <a class="link-btn" href="{% url 'platform-workspace-enter' primary_workspace.id %}">Entrar en {{ primary_workspace.name }}</a>
-          </div>
-          {% endif %}
           <form class="actions-row" method="get" action="{% url 'platform-overview' %}" style="margin-top:0.75rem; gap: 0.6rem; flex-wrap: wrap;">
-            <input type="hidden" name="tab" value="clients" />
+            <input type="hidden" name="tab" value="club" />
             <input
 	              type="text"
 	              name="q_clients"
@@ -1072,7 +1174,7 @@
 	            />
             <button type="submit" class="link-btn">Buscar</button>
             {% if clients_query %}
-            <a class="link-btn" href="{% url 'platform-overview' %}?tab=clients">Limpiar</a>
+            <a class="link-btn" href="{% url 'platform-overview' %}?tab=club">Limpiar</a>
             {% endif %}
           </form>
           <div class="workspace-grid-two workspace-list">
@@ -1156,25 +1258,6 @@
 	                <a class="link-btn" href="{% url 'platform-workspace-enter' workspace.id %}">Entrar</a>
 	                <a class="link-btn" href="{% url 'platform-workspace-detail' workspace.id %}">Abrir ficha</a>
 	              </div>
-              {% if workspace.team_links %}
-              <div class="workspace-team-links" style="margin-top:0.7rem;">
-                <div class="workspace-team-title">Categorías / equipos del club</div>
-                <div class="club-structure-note">Entra a una categoría sin duplicar el club ni mezclar plantillas.</div>
-                <div class="category-list">
-                  {% for link in workspace.team_links %}
-                  <a class="category-link" href="{% url 'platform-workspace-enter' workspace.id %}?team={{ link.team_id }}">
-                    <span class="category-name">{{ link.label }}</span>
-                    <span class="category-meta">{{ link.player_count|default:0 }} jug.{% if link.is_default %} · principal{% endif %}</span>
-                  </a>
-                  {% endfor %}
-                </div>
-              </div>
-              {% else %}
-              <div class="workspace-team-links" style="margin-top:0.7rem;">
-                <div class="workspace-team-title">Categorías / equipos del club</div>
-                <div class="club-structure-note">Sin categorías vinculadas todavía.</div>
-              </div>
-              {% endif %}
             </article>
 	            {% empty %}
 	            <article class="workspace-card">

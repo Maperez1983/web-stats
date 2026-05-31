@@ -9954,10 +9954,10 @@ def _sanitize_username(value, *, max_len=150):
 def platform_overview_page(request):
     if not _can_access_platform(request.user):
         return HttpResponse('No tienes permisos para acceder a la plataforma.', status=403)
-    valid_tabs = {'clients', 'users', 'documents', 'workspace-create', 'home-global'}
-    active_tab = str(request.GET.get('tab') or 'clients').strip().lower()
+    valid_tabs = {'dashboard', 'configuration', 'club', 'clients', 'users', 'documents', 'workspace-create', 'home-global'}
+    active_tab = str(request.GET.get('tab') or 'dashboard').strip().lower()
     if active_tab not in valid_tabs:
-        active_tab = 'clients'
+        active_tab = 'dashboard'
     clients_query = _sanitize_task_text((request.GET.get('q_clients') or '').strip(), multiline=False, max_len=120)
     users_subtab = str(request.GET.get('subtab') or 'list').strip().lower()
     if users_subtab not in {'list', 'create'}:
@@ -10458,220 +10458,216 @@ def platform_overview_page(request):
     recent_documents = []
     recent_audit_events = []
 
-    if active_tab in {'clients'}:
+    if active_tab in {'dashboard', 'club', 'clients'}:
         workspaces_qs = (
             Workspace.objects
             .select_related('owner_user', 'primary_team')
             .annotate(member_count=Count('memberships', distinct=True))
         )
-        if active_tab == 'clients':
-            if clients_query:
-                club_filter = (
-                    Q(name__icontains=clients_query)
-                    | Q(slug__icontains=clients_query)
-                    | Q(primary_team__name__icontains=clients_query)
-                    | Q(primary_team__slug__icontains=clients_query)
-                    | Q(primary_team__category__icontains=clients_query)
-                )
-                workspaces_qs = workspaces_qs.filter(club_filter)
-            club_workspaces = list(
-                workspaces_qs
-                .filter(kind=Workspace.KIND_CLUB)
-                .order_by('name', 'id')
+        if clients_query:
+            club_filter = (
+                Q(name__icontains=clients_query)
+                | Q(slug__icontains=clients_query)
+                | Q(primary_team__name__icontains=clients_query)
+                | Q(primary_team__slug__icontains=clients_query)
+                | Q(primary_team__category__icontains=clients_query)
             )
-            studio_workspaces_qs = workspaces_qs.filter(kind=Workspace.KIND_TASK_STUDIO, owner_user__isnull=False)
-            if clients_query:
-                studio_workspaces_qs = studio_workspaces_qs.filter(
-                    Q(name__icontains=clients_query)
-                    | Q(slug__icontains=clients_query)
-                    | Q(owner_user__username__icontains=clients_query)
-                    | Q(owner_user__email__icontains=clients_query)
+            workspaces_qs = workspaces_qs.filter(club_filter)
+        club_workspaces = list(
+            workspaces_qs
+            .filter(kind=Workspace.KIND_CLUB)
+            .order_by('name', 'id')
+        )
+        studio_workspaces_qs = workspaces_qs.filter(kind=Workspace.KIND_TASK_STUDIO, owner_user__isnull=False)
+        if clients_query:
+            studio_workspaces_qs = studio_workspaces_qs.filter(
+                Q(name__icontains=clients_query)
+                | Q(slug__icontains=clients_query)
+                | Q(owner_user__username__icontains=clients_query)
+                | Q(owner_user__email__icontains=clients_query)
+            )
+        studio_workspaces = list(studio_workspaces_qs.order_by('name', 'id'))
+        for workspace in club_workspaces:
+            workspace.active_module_count = len(
+                _workspace_selected_module_keys(workspace.kind, _workspace_enabled_modules(workspace))
+            )
+        for workspace in studio_workspaces:
+            workspace.active_module_count = len(
+                _workspace_selected_module_keys(workspace.kind, _workspace_enabled_modules(workspace))
+            )
+        workspace_ids = [int(ws.id) for ws in club_workspaces if getattr(ws, 'id', None)]
+        team_links = []
+        linked_team_ids = {
+            int(getattr(ws, 'primary_team_id', 0) or 0)
+            for ws in club_workspaces
+            if int(getattr(ws, 'primary_team_id', 0) or 0)
+        }
+        team_links_map = {}
+        workspace_player_count_map = {}
+        workspace_active_player_count_map = {}
+        workspace_season_count_map = {}
+        workspace_active_season_label_map = {}
+        workspace_team_player_count_map = {}
+        team_player_count_map = {}
+        if workspace_ids:
+            try:
+                team_links = list(
+                    WorkspaceTeam.objects
+                    .filter(workspace_id__in=workspace_ids)
+                    .select_related('team')
+                    .order_by('workspace_id', '-is_default', 'team__category', 'team__name', 'id')
                 )
-            studio_workspaces = list(studio_workspaces_qs.order_by('name', 'id'))
-            for workspace in club_workspaces:
-                workspace.active_module_count = len(
-                    _workspace_selected_module_keys(workspace.kind, _workspace_enabled_modules(workspace))
-                )
-            for workspace in studio_workspaces:
-                workspace.active_module_count = len(
-                    _workspace_selected_module_keys(workspace.kind, _workspace_enabled_modules(workspace))
-                )
-            workspace_ids = [int(ws.id) for ws in club_workspaces if getattr(ws, 'id', None)]
-            team_links = []
-            linked_team_ids = {
-                int(getattr(ws, 'primary_team_id', 0) or 0)
-                for ws in club_workspaces
-                if int(getattr(ws, 'primary_team_id', 0) or 0)
-            }
-            team_links_map = {}
-            workspace_player_count_map = {}
-            workspace_active_player_count_map = {}
-            workspace_season_count_map = {}
-            workspace_active_season_label_map = {}
-            workspace_team_player_count_map = {}
-            team_player_count_map = {}
-            if workspace_ids:
-                try:
-                    team_links = list(
-                        WorkspaceTeam.objects
+            except Exception:
+                team_links = []
+            linked_team_ids.update(
+                int(getattr(link, 'team_id', 0) or 0)
+                for link in team_links
+                if int(getattr(link, 'team_id', 0) or 0)
+            )
+            try:
+                workspace_player_count_map = {
+                    int(row['workspace_id']): int(row['count'] or 0)
+                    for row in (
+                        WorkspacePlayer.objects
                         .filter(workspace_id__in=workspace_ids)
-                        .select_related('team')
-                        .order_by('workspace_id', '-is_default', 'team__category', 'team__name', 'id')
+                        .values('workspace_id')
+                        .annotate(count=Count('id'))
                     )
-                except Exception:
-                    team_links = []
-                linked_team_ids.update(
-                    int(getattr(link, 'team_id', 0) or 0)
-                    for link in team_links
-                    if int(getattr(link, 'team_id', 0) or 0)
-                )
-                try:
-                    workspace_player_count_map = {
-                        int(row['workspace_id']): int(row['count'] or 0)
-                        for row in (
-                            WorkspacePlayer.objects
-                            .filter(workspace_id__in=workspace_ids)
-                            .values('workspace_id')
-                            .annotate(count=Count('id'))
-                        )
-                    }
-                    workspace_active_player_count_map = {
-                        int(row['workspace_id']): int(row['count'] or 0)
-                        for row in (
-                            WorkspacePlayer.objects
-                            .filter(workspace_id__in=workspace_ids, is_active=True)
-                            .values('workspace_id')
-                            .annotate(count=Count('id'))
-                        )
-                    }
-                    workspace_team_player_count_map = {
-                        (int(row['workspace_id']), int(row['current_team_id'])): int(row['count'] or 0)
-                        for row in (
-                            WorkspacePlayer.objects
-                            .filter(workspace_id__in=workspace_ids, current_team_id__isnull=False)
-                            .values('workspace_id', 'current_team_id')
-                            .annotate(count=Count('id'))
-                        )
-                    }
-                except Exception:
-                    workspace_player_count_map = {}
-                    workspace_active_player_count_map = {}
-                    workspace_team_player_count_map = {}
-                try:
-                    workspace_season_count_map = {
-                        int(row['workspace_id']): int(row['count'] or 0)
-                        for row in (
-                            WorkspaceSeason.objects
-                            .filter(workspace_id__in=workspace_ids)
-                            .values('workspace_id')
-                            .annotate(count=Count('id'))
-                        )
-                    }
-                    for season in (
-                        WorkspaceSeason.objects
+                }
+                workspace_active_player_count_map = {
+                    int(row['workspace_id']): int(row['count'] or 0)
+                    for row in (
+                        WorkspacePlayer.objects
                         .filter(workspace_id__in=workspace_ids, is_active=True)
-                        .order_by('workspace_id', '-start_date', '-id')
-                    ):
-                        workspace_active_season_label_map.setdefault(
-                            int(season.workspace_id),
-                            str(season.label or '').strip(),
-                        )
-                except Exception:
-                    workspace_season_count_map = {}
-                    workspace_active_season_label_map = {}
-                if linked_team_ids:
-                    try:
-                        team_player_count_map = {
-                            int(row['team_id']): int(row['count'] or 0)
-                            for row in (
-                                Player.objects
-                                .filter(team_id__in=linked_team_ids)
-                                .values('team_id')
-                                .annotate(count=Count('id'))
-                            )
-                        }
-                    except Exception:
-                        team_player_count_map = {}
-                for link in team_links:
-                    team = getattr(link, 'team', None)
-                    if not team:
-                        continue
-                    workspace_id = int(link.workspace_id)
-                    team_id = int(team.id)
-                    category = str(getattr(team, 'category', '') or '').strip()
-                    name = str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or '').strip()
-                    label = category or name or f'Equipo {team.id}'
-                    player_count = workspace_team_player_count_map.get(
-                        (workspace_id, team_id),
-                        team_player_count_map.get(team_id, 0),
+                        .values('workspace_id')
+                        .annotate(count=Count('id'))
                     )
-                    team_links_map.setdefault(workspace_id, []).append(
+                }
+                workspace_team_player_count_map = {
+                    (int(row['workspace_id']), int(row['current_team_id'])): int(row['count'] or 0)
+                    for row in (
+                        WorkspacePlayer.objects
+                        .filter(workspace_id__in=workspace_ids, current_team_id__isnull=False)
+                        .values('workspace_id', 'current_team_id')
+                        .annotate(count=Count('id'))
+                    )
+                }
+            except Exception:
+                workspace_player_count_map = {}
+                workspace_active_player_count_map = {}
+                workspace_team_player_count_map = {}
+            try:
+                workspace_season_count_map = {
+                    int(row['workspace_id']): int(row['count'] or 0)
+                    for row in (
+                        WorkspaceSeason.objects
+                        .filter(workspace_id__in=workspace_ids)
+                        .values('workspace_id')
+                        .annotate(count=Count('id'))
+                    )
+                }
+                for season in (
+                    WorkspaceSeason.objects
+                    .filter(workspace_id__in=workspace_ids, is_active=True)
+                    .order_by('workspace_id', '-start_date', '-id')
+                ):
+                    workspace_active_season_label_map.setdefault(
+                        int(season.workspace_id),
+                        str(season.label or '').strip(),
+                    )
+            except Exception:
+                workspace_season_count_map = {}
+                workspace_active_season_label_map = {}
+            if linked_team_ids:
+                try:
+                    team_player_count_map = {
+                        int(row['team_id']): int(row['count'] or 0)
+                        for row in (
+                            Player.objects
+                            .filter(team_id__in=linked_team_ids)
+                            .values('team_id')
+                            .annotate(count=Count('id'))
+                        )
+                    }
+                except Exception:
+                    team_player_count_map = {}
+            for link in team_links:
+                team = getattr(link, 'team', None)
+                if not team:
+                    continue
+                workspace_id = int(link.workspace_id)
+                team_id = int(team.id)
+                category = str(getattr(team, 'category', '') or '').strip()
+                name = str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or '').strip()
+                label = category or name or f'Equipo {team.id}'
+                player_count = workspace_team_player_count_map.get(
+                    (workspace_id, team_id),
+                    team_player_count_map.get(team_id, 0),
+                )
+                team_links_map.setdefault(workspace_id, []).append(
+                    {
+                        'team_id': team_id,
+                        'label': label,
+                        'category': category,
+                        'name': name,
+                        'is_default': bool(getattr(link, 'is_default', False)),
+                        'player_count': int(player_count or 0),
+                    }
+                )
+        for workspace in club_workspaces:
+            links = list(team_links_map.get(int(workspace.id), []) or [])
+            try:
+                primary_team = getattr(workspace, 'primary_team', None)
+                primary_team_id = int(getattr(primary_team, 'id', 0) or 0) if primary_team else 0
+                if primary_team_id and primary_team_id not in {int(item.get('team_id') or 0) for item in links}:
+                    category = str(getattr(primary_team, 'category', '') or '').strip()
+                    name = str(getattr(primary_team, 'display_name', '') or getattr(primary_team, 'name', '') or '').strip()
+                    label = category or name or f'Equipo {primary_team_id}'
+                    player_count = workspace_team_player_count_map.get(
+                        (int(workspace.id), primary_team_id),
+                        team_player_count_map.get(primary_team_id, 0),
+                    )
+                    links.insert(
+                        0,
                         {
-                            'team_id': team_id,
+                            'team_id': primary_team_id,
                             'label': label,
                             'category': category,
                             'name': name,
-                            'is_default': bool(getattr(link, 'is_default', False)),
+                            'is_default': True,
                             'player_count': int(player_count or 0),
-                        }
+                        },
                     )
-            for workspace in club_workspaces:
-                # Backfill UX: si el workspace tiene `primary_team` pero no hay vínculo (WorkspaceTeam),
-                # lo mostramos igualmente para que Platform siempre tenga un "Entrar · <equipo>".
-                links = list(team_links_map.get(int(workspace.id), []) or [])
-                try:
-                    primary_team = getattr(workspace, 'primary_team', None)
-                    primary_team_id = int(getattr(primary_team, 'id', 0) or 0) if primary_team else 0
-                    if primary_team_id and primary_team_id not in {int(item.get('team_id') or 0) for item in links}:
-                        category = str(getattr(primary_team, 'category', '') or '').strip()
-                        name = str(getattr(primary_team, 'display_name', '') or getattr(primary_team, 'name', '') or '').strip()
-                        label = category or name or f'Equipo {primary_team_id}'
-                        player_count = workspace_team_player_count_map.get(
-                            (int(workspace.id), primary_team_id),
-                            team_player_count_map.get(primary_team_id, 0),
-                        )
-                        links.insert(
-                            0,
-                            {
-                                'team_id': primary_team_id,
-                                'label': label,
-                                'category': category,
-                                'name': name,
-                                'is_default': True,
-                                'player_count': int(player_count or 0),
-                            },
-                        )
-                except Exception:
-                    pass
-                # Orden: default primero, luego por categoría/nombre.
-                try:
-                    links = sorted(
-                        links,
-                        key=lambda item: (
-                            0 if item.get('is_default') else 1,
-                            str(item.get('category') or '').lower(),
-                            str(item.get('name') or item.get('label') or '').lower(),
-                            int(item.get('team_id') or 0),
-                        ),
-                    )
-                except Exception:
-                    pass
-                workspace.team_links = links
-                workspace.team_link_count = len(links)
-                workspace.platform_category_count = len(links)
-                fallback_player_count = sum(int(item.get('player_count') or 0) for item in links)
-                workspace.platform_player_count = int(
-                    workspace_player_count_map.get(int(workspace.id), fallback_player_count) or 0
+            except Exception:
+                pass
+            try:
+                links = sorted(
+                    links,
+                    key=lambda item: (
+                        0 if item.get('is_default') else 1,
+                        str(item.get('category') or '').lower(),
+                        str(item.get('name') or item.get('label') or '').lower(),
+                        int(item.get('team_id') or 0),
+                    ),
                 )
-                workspace.platform_active_player_count = int(
-                    workspace_active_player_count_map.get(int(workspace.id), workspace.platform_player_count) or 0
-                )
-                workspace.platform_season_count = int(workspace_season_count_map.get(int(workspace.id), 0) or 0)
-                workspace.platform_active_season_label = workspace_active_season_label_map.get(int(workspace.id), '')
-            primary_workspace = next(
-                (workspace for workspace in club_workspaces if workspace.primary_team_id),
-                None,
+            except Exception:
+                pass
+            workspace.team_links = links
+            workspace.team_link_count = len(links)
+            workspace.platform_category_count = len(links)
+            fallback_player_count = sum(int(item.get('player_count') or 0) for item in links)
+            workspace.platform_player_count = int(
+                workspace_player_count_map.get(int(workspace.id), fallback_player_count) or 0
             )
+            workspace.platform_active_player_count = int(
+                workspace_active_player_count_map.get(int(workspace.id), workspace.platform_player_count) or 0
+            )
+            workspace.platform_season_count = int(workspace_season_count_map.get(int(workspace.id), 0) or 0)
+            workspace.platform_active_season_label = workspace_active_season_label_map.get(int(workspace.id), '')
+        primary_workspace = next(
+            (workspace for workspace in club_workspaces if workspace.primary_team_id),
+            None,
+        )
 
     if active_tab == 'workspace-create':
         teams = list(Team.objects.order_by('name')[:250])
