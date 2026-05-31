@@ -24423,33 +24423,41 @@
 
                 if (mode === 'seq' && trianglePlan) {
                   const base = cloneState(steps[0].canvas_state);
+                  const startPos = new Map(trianglePlan.ordered.map((entry) => [entry.uid, { ...entry.point }]));
+                  const rotationTargetFor = (index) => trianglePlan.ordered[(index + 1) % 3].point;
+                  const posAtProgress = (entry, index, progress) => {
+                    const start = startPos.get(entry.uid) || entry.point;
+                    const target = rotationTargetFor(index);
+                    return {
+                      x: start.x + ((target.x - start.x) * progress),
+                      y: start.y + ((target.y - start.y) * progress),
+                    };
+                  };
                   const currentPos = new Map(trianglePlan.ordered.map((entry) => [entry.uid, { ...entry.point }]));
                   const ballRoute = [trianglePlan.ballStart];
                   trianglePlan.passes.forEach((pass, i) => {
                     const next = cloneState(base);
                     const receiver = trianglePlan.ordered[pass.to];
                     const passer = trianglePlan.ordered[pass.from];
-                    const passerStart = currentPos.get(passer.uid) || passer.point;
-                    const passerTarget = trianglePlan.ordered[(pass.from + 1) % 3].point;
-                    const receivePoint = currentPos.get(receiver.uid) || receiver.point;
-                    const target = i >= 3 ? currentPos.get(receiver.uid) || receiver.point : receivePoint;
-                    ballRoute.push({ x: Number(target.x) || 0, y: Number(target.y) || 0 });
-                    if (trianglePlan.ballUid) moveUidInState(next, trianglePlan.ballUid, target);
-                    else moveBallInState(next, target);
-                    const rotationRatio = i >= 3 ? 1 : 0.92;
-                    const passerMoveTo = {
-                      x: passerStart.x + ((passerTarget.x - passerStart.x) * rotationRatio),
-                      y: passerStart.y + ((passerTarget.y - passerStart.y) * rotationRatio),
-                    };
-                    moveUidInState(next, passer.uid, passerMoveTo);
-                    currentPos.set(passer.uid, passerMoveTo);
+                    const progress = [0.36, 0.68, 1, 1][i] || 1;
+                    const receiverPoint = currentPos.get(receiver.uid) || receiver.point;
+                    const ballTarget = i >= 3 ? posAtProgress(receiver, pass.to, 1) : receiverPoint;
+                    ballRoute.push({ x: Number(ballTarget.x) || 0, y: Number(ballTarget.y) || 0 });
+                    if (trianglePlan.ballUid) moveUidInState(next, trianglePlan.ballUid, ballTarget);
+                    else moveBallInState(next, ballTarget);
                     const routes = {};
                     if (trianglePlan.ballUid) routes[trianglePlan.ballUid] = { points: ballRoute.slice(-2), spline: false };
-                    routes[passer.uid] = { points: [passerStart, passerMoveTo], spline: false };
+                    trianglePlan.ordered.forEach((entry, entryIndex) => {
+                      const from = currentPos.get(entry.uid) || entry.point;
+                      const to = posAtProgress(entry, entryIndex, progress);
+                      moveUidInState(next, entry.uid, to);
+                      currentPos.set(entry.uid, to);
+                      if (distance(from, to) >= 4) routes[entry.uid] = { points: [from, to], spline: false };
+                    });
                     steps.push({
                       title: pass.title,
                       duration: 3,
-                      description: 'Rueda triangular: pase al compañero y cambio de posición a la siguiente esquina.',
+                      description: 'Rueda triangular: pase y rotación simultánea. A ocupa B, B ocupa C y C ocupa A.',
                       canvas_state: sanitizeLoadedState(next),
                       routes,
                     });
