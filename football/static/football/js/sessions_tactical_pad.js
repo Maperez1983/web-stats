@@ -24474,20 +24474,23 @@
                       desc: 'C juega sobre A, que ya aparece en la siguiente posición; B y C completan sus trayectorias.',
                     },
                     {
-                      title: 'Rotación completa',
+                      title: 'Ajuste final de posiciones',
                       ballFrom: posAtProgress(trianglePlan.ordered[0], 0, 0.86),
                       ballTo: posAtProgress(trianglePlan.ordered[0], 0, 1),
                       progress: [1, 1, 1],
-                      desc: 'A ocupa B, B ocupa C y C ocupa A. La rueda queda preparada para repetir.',
+                      desc: 'Sin nuevo pase: los jugadores terminan de ocupar B, C y A para dejar preparada la siguiente repetición.',
+                      holdBall: true,
                     },
                   ];
                   naturalPhases.forEach((phase, i) => {
                     const next = cloneState(base);
                     const ballTarget = phase.ballTo;
-                    if (trianglePlan.ballUid) moveUidInState(next, trianglePlan.ballUid, phase.ballTo);
-                    else moveBallInState(next, phase.ballTo);
+                    if (!phase.holdBall) {
+                      if (trianglePlan.ballUid) moveUidInState(next, trianglePlan.ballUid, phase.ballTo);
+                      else moveBallInState(next, phase.ballTo);
+                    }
                     const routes = {};
-                    if (trianglePlan.ballUid) routes[trianglePlan.ballUid] = { points: [phase.ballFrom, phase.ballTo], spline: false };
+                    if (trianglePlan.ballUid && !phase.holdBall) routes[trianglePlan.ballUid] = { points: [phase.ballFrom, phase.ballTo], spline: false };
                     trianglePlan.ordered.forEach((entry, entryIndex) => {
                       const from = currentPos.get(entry.uid) || entry.point;
                       const to = posAtProgress(entry, entryIndex, phase.progress[entryIndex] || 0);
