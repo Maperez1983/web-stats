@@ -165,6 +165,9 @@
         grid-template-columns: minmax(320px, 0.8fr) minmax(0, 1.2fr);
         gap: 1rem;
       }
+      .config-grid {
+        grid-template-columns: 1fr;
+      }
       .panel {
         padding: 1rem;
       }
@@ -296,6 +299,23 @@
         margin-top: 0.7rem;
         display: grid;
         gap: 0.45rem;
+      }
+
+      .deliverable-list > summary {
+        cursor: pointer;
+        width: max-content;
+        border-radius: 999px;
+        border: 1px solid rgba(160, 180, 215, 0.16);
+        background: rgba(255, 255, 255, 0.035);
+        color: #dbe6f6;
+        padding: 0.45rem 0.7rem;
+        font-size: 0.78rem;
+        font-weight: 850;
+      }
+
+      .advanced-stack {
+        display: grid;
+        gap: 0.8rem;
       }
 
       .deliverable-row {
@@ -735,13 +755,17 @@
 	      </section>
 
       <nav class="club-tabs" aria-label="Ficha del club">
-        <button class="club-tab is-active" type="button" data-tab-target="configuracion">Configuración</button>
+        <button class="club-tab is-active" type="button" data-tab-target="configuracion">General</button>
+        <button class="club-tab" type="button" data-tab-target="usuarios">Usuarios</button>
+        <button class="club-tab" type="button" data-tab-target="competicion">Competición</button>
+        <button class="club-tab" type="button" data-tab-target="modulos">Módulos</button>
         <button class="club-tab" type="button" data-tab-target="categorias">Categorías</button>
         <button class="club-tab" type="button" data-tab-target="equipos">Equipos</button>
+        <button class="club-tab" type="button" data-tab-target="avanzado">Avanzado</button>
       </nav>
 
       <section class="tab-panel is-active" data-tab-panel="configuracion">
-      <section class="grid">
+      <section class="grid config-grid">
 	        <article class="panel">
 	          <div class="summary-note">
 	            Este panel gobierna el club. La operación diaria de jugadores, tareas o sesiones se ejecuta dentro del propio espacio, no desde aquí.
@@ -893,9 +917,14 @@
               <p><strong>Equipo vinculado:</strong> {% if workspace.primary_team %}{{ workspace.primary_team.name }}{% else %}Sin equipo{% endif %}</p>
               <p><strong>División / grupo:</strong> {% if workspace.primary_team and workspace.primary_team.group %}{{ workspace.primary_team.group.name }}{% else %}Sin grupo{% endif %}</p>
               <p><strong>Temporada:</strong> {% if workspace.primary_team and workspace.primary_team.group and workspace.primary_team.group.season %}{{ workspace.primary_team.group.season.name|default:"Temporada actual" }}{% else %}Sin temporada{% endif %}</p>
-              <p><strong>Slug:</strong> {{ workspace.slug }}</p>
             </div>
           </div>
+        </article>
+      </section>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="competicion">
+        <article class="panel">
           {% if workspace.kind == 'club' %}
           <div class="section-shell panel-block" id="workspace-competition">
             <div class="section-kicker">Competición</div>
@@ -962,6 +991,8 @@
               </div>
               {% endif %}
             </div>
+            <details style="margin-top:1rem;">
+              <summary class="inline-btn" style="cursor:pointer; width:max-content;">Ajuste manual avanzado</summary>
             <form method="post" class="workspace-form" style="margin-top:1rem;">
               {% csrf_token %}
               <input type="hidden" name="form_action" value="update_competition_context" />
@@ -998,6 +1029,7 @@
                 <button class="submit-btn" type="submit">Guardar contexto</button>
               </div>
             </form>
+            </details>
             <form method="post" class="inline-form" style="margin-top:0.9rem;">
               {% csrf_token %}
               <input type="hidden" name="form_action" value="sync_competition_context" />
@@ -1040,6 +1072,11 @@
             </div>
           </div>
           {% endif %}
+        </article>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="usuarios">
+        <article class="panel">
           <div class="section-shell panel-block" id="workspace-miembros">
           <div class="section-kicker">Acceso</div>
           <h2 style="margin-top:1.1rem;">Usuarios con acceso</h2>
@@ -1159,6 +1196,9 @@
           </div>
         </article>
 
+      </section>
+
+      <section class="tab-panel" data-tab-panel="modulos">
         <section class="module-list" id="workspace-modulos">
           <article class="module-card">
             <div class="section-kicker">Módulos</div>
@@ -1180,7 +1220,8 @@
                         <span class="mini-pill">{{ module.enabled_deliverable_count }}/{{ module.deliverable_count }} entregables activos</span>
                       </span>
                       {% if module.deliverables %}
-                      <span class="deliverable-list">
+                      <details class="deliverable-list">
+                        <summary>Entregables</summary>
                         {% for deliverable in module.deliverables %}
                         <span class="deliverable-row">
                           <input type="checkbox" name="deliverable_{{ module.key }}__{{ deliverable.key }}" data-deliverable-toggle {% if deliverable.enabled %}checked{% endif %} />
@@ -1190,7 +1231,7 @@
                           </span>
                         </span>
                         {% endfor %}
-                      </span>
+                      </details>
                       {% endif %}
                     </span>
                   </label>
@@ -1216,6 +1257,33 @@
           {% endfor %}
         </section>
       </section>
+
+      <section class="tab-panel" data-tab-panel="avanzado">
+        <article class="panel">
+          <div class="section-kicker">Avanzado</div>
+          <h2 style="margin-top:0.55rem;">Información técnica</h2>
+          <p>Datos de administración interna y diagnóstico. No son necesarios para el trabajo diario del staff.</p>
+          <div class="advanced-stack">
+            <div class="section-shell panel-block">
+              <h3 style="margin-top:0;">Identificadores</h3>
+              <p><strong>Slug:</strong> {{ workspace.slug }}</p>
+              <p><strong>Tipo:</strong> {{ workspace.get_kind_display }}</p>
+              <p><strong>Propietario:</strong> {% if workspace.owner_user %}{{ workspace.owner_user.username }}{% else %}Sin propietario{% endif %}</p>
+              <p><strong>Equipo principal:</strong> {% if workspace.primary_team %}{{ workspace.primary_team.name }}{% else %}Sin equipo vinculado{% endif %}</p>
+            </div>
+            {% if workspace.kind == 'club' %}
+            <div class="section-shell panel-block">
+              <h3 style="margin-top:0;">Diagnóstico competición</h3>
+              <p><strong>Proveedor:</strong> {% if competition_context %}{{ competition_context.get_provider_display }}{% else %}Sin definir{% endif %}</p>
+              <p><strong>Última sync:</strong> {% if competition_context and competition_context.last_sync_at %}{{ competition_context.last_sync_at|date:"d/m/Y H:i" }}{% else %}Pendiente{% endif %}</p>
+              <p><strong>Estado:</strong> {% if competition_context %}{{ competition_context.get_sync_status_display }}{% else %}Pendiente{% endif %}</p>
+              {% if competition_context and competition_context.sync_error %}
+              <p><strong>Error último sync:</strong> {{ competition_context.sync_error }}</p>
+              {% endif %}
+            </div>
+            {% endif %}
+          </div>
+        </article>
       </section>
 
       <section class="tab-panel" data-tab-panel="categorias">
