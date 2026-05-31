@@ -1028,7 +1028,7 @@
 	          <div class="hero-stats">
 	            <div class="hero-stat">
 	              <span>Clubes</span>
-	              <strong>{{ club_workspace_count }}</strong>
+	              <strong>{{ visible_club_workspace_count|default:club_workspace_count }}</strong>
 	            </div>
             <div class="hero-stat">
               <span>Usuarios vinculados</span>
@@ -1070,7 +1070,7 @@
 	            </div>
 	            <div class="dashboard-card-grid">
 	              <article class="dashboard-card">
-	                <strong>{{ club_workspace_count }}</strong>
+	                <strong>{{ visible_club_workspace_count|default:club_workspace_count }}</strong>
 	                <span>Clubes activos o en seguimiento.</span>
 	              </article>
 	              <article class="dashboard-card">
@@ -1215,6 +1215,9 @@
 	                        {% else %}
 	                          <span class="ws-pill bad">{{ workspace.subscription_status }}</span>
 	                        {% endif %}
+	                      {% endif %}
+	                      {% if workspace.platform_grouped_workspace_count|default:1 > 1 %}
+	                        <span class="ws-pill warn">{{ workspace.platform_grouped_workspace_count }} espacios agrupados</span>
 	                      {% endif %}
 	                    </div>
 	                    <h3>{{ workspace.name }}</h3>

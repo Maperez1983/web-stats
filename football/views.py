@@ -10421,6 +10421,7 @@ def platform_overview_page(request):
                 carousel_message = 'Cambios guardados en Home global.'
 
     club_workspace_count = Workspace.objects.filter(kind=Workspace.KIND_CLUB).count()
+    visible_club_workspace_count = club_workspace_count
     studio_workspace_count = Workspace.objects.filter(kind=Workspace.KIND_TASK_STUDIO).count()
     linked_club_user_count = (
         WorkspaceMembership.objects
@@ -10664,6 +10665,108 @@ def platform_overview_page(request):
             )
             workspace.platform_season_count = int(workspace_season_count_map.get(int(workspace.id), 0) or 0)
             workspace.platform_active_season_label = workspace_active_season_label_map.get(int(workspace.id), '')
+        grouped_workspaces = defaultdict(list)
+        for workspace in club_workspaces:
+            raw_name = str(getattr(workspace, 'name', '') or '').strip()
+            raw_notes = str(getattr(workspace, 'notes', '') or '').strip()
+            source_match = re.search(r'Separado automáticamente desde\s+(.+?)(?:\.|$)', raw_notes, flags=re.IGNORECASE)
+            if source_match:
+                group_label = source_match.group(1).strip()
+            elif '·' in raw_name:
+                group_label = raw_name.split('·', 1)[0].strip()
+            else:
+                group_label = raw_name
+            group_key = _normalize_team_lookup_key(group_label) or _normalize_team_lookup_key(raw_name) or str(getattr(workspace, 'id', ''))
+            grouped_workspaces[group_key].append(workspace)
+        collapsed_workspaces = []
+        for group_key, group_items in grouped_workspaces.items():
+            if not group_items:
+                continue
+
+            def _platform_parent_score(item):
+                item_slug_key = _normalize_team_lookup_key(getattr(item, 'slug', '') or '')
+                item_name_key = _normalize_team_lookup_key(getattr(item, 'name', '') or '')
+                item_notes = str(getattr(item, 'notes', '') or '').lower()
+                score = 0
+                if item_slug_key == group_key:
+                    score += 100
+                if item_name_key == group_key:
+                    score += 45
+                if 'separado automáticamente' not in item_notes:
+                    score += 30
+                if getattr(item, 'primary_team_id', None):
+                    score += 10
+                score += min(int(getattr(item, 'platform_season_count', 0) or 0), 5) * 6
+                score += min(int(getattr(item, 'member_count', 0) or 0), 8)
+                return score
+
+            parent = sorted(
+                group_items,
+                key=lambda item: (-_platform_parent_score(item), int(getattr(item, 'id', 0) or 0)),
+            )[0]
+            child_items = [item for item in group_items if int(getattr(item, 'id', 0) or 0) != int(getattr(parent, 'id', 0) or 0)]
+            if child_items:
+                merged_links = []
+                seen_team_ids = set()
+                for item in [parent] + child_items:
+                    for link in list(getattr(item, 'team_links', []) or []):
+                        team_id = int(link.get('team_id') or 0)
+                        if team_id and team_id in seen_team_ids:
+                            continue
+                        if team_id:
+                            seen_team_ids.add(team_id)
+                        merged_links.append(link)
+                try:
+                    merged_links = sorted(
+                        merged_links,
+                        key=lambda item: (
+                            0 if item.get('is_default') else 1,
+                            str(item.get('category') or '').lower(),
+                            str(item.get('name') or item.get('label') or '').lower(),
+                            int(item.get('team_id') or 0),
+                        ),
+                    )
+                except Exception:
+                    pass
+                parent.team_links = merged_links
+                parent.team_link_count = len(merged_links)
+                parent.platform_category_count = len(merged_links)
+                parent.platform_player_count = sum(
+                    int(getattr(item, 'platform_player_count', 0) or 0)
+                    for item in group_items
+                )
+                parent.platform_active_player_count = sum(
+                    int(getattr(item, 'platform_active_player_count', 0) or 0)
+                    for item in group_items
+                )
+                parent.platform_season_count = sum(
+                    int(getattr(item, 'platform_season_count', 0) or 0)
+                    for item in group_items
+                )
+                if not getattr(parent, 'platform_active_season_label', ''):
+                    parent.platform_active_season_label = next(
+                        (
+                            str(getattr(item, 'platform_active_season_label', '') or '').strip()
+                            for item in group_items
+                            if str(getattr(item, 'platform_active_season_label', '') or '').strip()
+                        ),
+                        '',
+                    )
+                parent.platform_grouped_workspace_count = len(group_items)
+                parent.platform_grouped_workspace_names = [
+                    str(getattr(item, 'name', '') or '').strip()
+                    for item in child_items
+                    if str(getattr(item, 'name', '') or '').strip()
+                ]
+            else:
+                parent.platform_grouped_workspace_count = 1
+                parent.platform_grouped_workspace_names = []
+            collapsed_workspaces.append(parent)
+        club_workspaces = sorted(
+            collapsed_workspaces,
+            key=lambda item: (str(getattr(item, 'name', '') or '').lower(), int(getattr(item, 'id', 0) or 0)),
+        )
+        visible_club_workspace_count = len(club_workspaces)
         primary_workspace = next(
             (workspace for workspace in club_workspaces if workspace.primary_team_id),
             None,
@@ -10830,6 +10933,7 @@ def platform_overview_page(request):
             'invitation_links': invitation_links,
             'carousel_message': carousel_message,
             'club_workspace_count': club_workspace_count,
+            'visible_club_workspace_count': visible_club_workspace_count,
             'primary_workspace': primary_workspace,
             'club_workspaces': club_workspaces,
             'studio_workspaces': studio_workspaces,
