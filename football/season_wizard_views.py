@@ -1,4 +1,5 @@
 import logging
+import re
 from datetime import date
 from urllib.parse import urlencode
 
@@ -19,11 +20,14 @@ from .models import (
     WorkspaceSeason,
     WorkspaceSeasonPhase,
     WorkspaceSeasonPlayer,
+    WorkspaceTeam,
 )
 from .ops_logging import log_exception
+from .query_helpers import _normalize_team_lookup_key
 from .season_history_services import (
     close_workspace_season,
     ensure_active_workspace_team_seasons,
+    ensure_season_team,
     ensure_team_roster_season_memberships,
     open_workspace_season,
 )
@@ -64,12 +68,80 @@ def club_season_wizard(request):
     except Exception:
         active_club_season = None
 
-    # Equipos visibles (para elegir a qué plantilla generar informes).
-    active_team = workspace_context.get_active_team_for_request(request) or getattr(workspace, 'primary_team', None)
-    team_links = workspace_context.workspace_team_links_for_user(workspace, request.user)
-    teams = [link.team for link in team_links if getattr(link, 'team', None)]
+    def _club_group_workspaces(root_workspace):
+        group = [root_workspace]
+        if not root_workspace or getattr(root_workspace, 'kind', None) != Workspace.KIND_CLUB:
+            return group
+        root_key = _normalize_team_lookup_key(getattr(root_workspace, 'name', '') or '')
+        if not root_key:
+            return group
+        try:
+            candidates = list(
+                Workspace.objects
+                .filter(kind=Workspace.KIND_CLUB)
+                .exclude(id=root_workspace.id)
+                .select_related('primary_team', 'active_season')
+                .only('id', 'name', 'slug', 'notes', 'primary_team_id', 'active_season_id')
+            )
+        except Exception:
+            candidates = []
+        for candidate in candidates:
+            candidate_name = str(getattr(candidate, 'name', '') or '').strip()
+            candidate_notes = str(getattr(candidate, 'notes', '') or '').strip()
+            source_match = re.search(r'Separado automáticamente desde\s+(.+?)(?:\.|$)', candidate_notes, flags=re.IGNORECASE)
+            source_key = _normalize_team_lookup_key(source_match.group(1).strip()) if source_match else ''
+            split_parent_key = _normalize_team_lookup_key(candidate_name.split('·', 1)[0].strip()) if '·' in candidate_name else ''
+            if root_key and root_key in {source_key, split_parent_key}:
+                group.append(candidate)
+        return group
+
+    def _club_rollover_teams(root_workspace):
+        group_workspaces = _club_group_workspaces(root_workspace)
+        group_ids = [int(item.id) for item in group_workspaces if getattr(item, 'id', None)]
+        seen = set()
+        resolved = []
+        try:
+            links = (
+                WorkspaceTeam.objects
+                .filter(workspace_id__in=group_ids)
+                .select_related('workspace', 'team')
+                .order_by('workspace_id', '-is_default', 'id')
+            )
+        except Exception:
+            links = []
+        for link in links:
+            team = getattr(link, 'team', None)
+            team_id = int(getattr(team, 'id', 0) or 0)
+            if not team_id or team_id in seen:
+                continue
+            seen.add(team_id)
+            resolved.append(team)
+        fallback_team = getattr(root_workspace, 'primary_team', None)
+        fallback_id = int(getattr(fallback_team, 'id', 0) or 0)
+        if fallback_id and fallback_id not in seen:
+            resolved.insert(0, fallback_team)
+        return group_workspaces, resolved
+
+    def _player_ids_for_teams(team_list):
+        team_ids = [int(getattr(team, 'id', 0) or 0) for team in (team_list or []) if getattr(team, 'id', None)]
+        if not team_ids:
+            return []
+        return list(
+            Player.objects
+            .filter(team_id__in=team_ids)
+            .order_by('team__name', 'number', 'name', 'id')
+            .values_list('id', flat=True)
+        )
+
+    # Equipos/categorías del club, incluyendo workspaces legacy agrupados bajo el club.
+    workspace_group_members, teams = _club_rollover_teams(workspace)
     teams_by_id = {int(team.id): team for team in teams if getattr(team, 'id', None)}
-    if active_team and int(getattr(active_team, 'id', 0) or 0) not in teams_by_id and teams:
+    active_team = workspace_context.get_active_team_for_request(request) or getattr(workspace, 'primary_team', None)
+    if active_team and int(getattr(active_team, 'id', 0) or 0) not in teams_by_id:
+        active_team = getattr(workspace, 'primary_team', None)
+    if active_team and int(getattr(active_team, 'id', 0) or 0) not in teams_by_id:
+        active_team = None
+    if not active_team and teams:
         active_team = teams[0]
 
     def _parse_date(value):
@@ -120,19 +192,27 @@ def club_season_wizard(request):
                 end_date = _parse_date(request.POST.get('season_end_date')) or timezone.localdate()
                 closed = close_workspace_season(workspace, season=active_club_season, end_date=end_date)
 
-                # Preparar listado de jugadores para informes.
-                # Requisito producto: solo del equipo que se está gestionando (equipo activo).
-                report_team_id = int(getattr(active_team, 'id', 0) or 0)
-                player_ids = list(
-                    Player.objects
-                    .filter(team_id=report_team_id)
-                    .order_by('number', 'name', 'id')
-                    .values_list('id', flat=True)
-                )
+                closed_ids = [int(closed.id)]
+                for grouped_workspace in workspace_group_members:
+                    if int(getattr(grouped_workspace, 'id', 0) or 0) == int(workspace.id):
+                        continue
+                    grouped_season = getattr(grouped_workspace, 'active_season', None)
+                    if grouped_season and bool(getattr(grouped_season, 'is_active', True)):
+                        try:
+                            grouped_closed = close_workspace_season(grouped_workspace, season=grouped_season, end_date=end_date)
+                            closed_ids.append(int(grouped_closed.id))
+                        except Exception:
+                            pass
+
+                # Preparar listado de jugadores para informes de todas las categorías del club.
+                report_team_ids = [int(getattr(team, 'id', 0) or 0) for team in teams if getattr(team, 'id', None)]
+                player_ids = _player_ids_for_teams(teams)
 
                 state = {
                     'closed_season_id': int(closed.id),
-                    'report_team_id': int(report_team_id) if report_team_id else 0,
+                    'closed_season_ids': closed_ids,
+                    'report_team_id': int(getattr(active_team, 'id', 0) or 0),
+                    'report_team_ids': report_team_ids,
                     'player_ids': [int(pid) for pid in player_ids if pid],
                     'player_idx': 0,
                 }
@@ -140,18 +220,13 @@ def club_season_wizard(request):
                 return redirect(f"{reverse('club-season-wizard')}?step=reports")
 
             if action == 'reports_set_team':
-                # Por diseño: siempre el equipo activo (evita confusiones en multicategoría).
-                report_team_id = int(getattr(active_team, 'id', 0) or 0)
-                if not report_team_id:
-                    raise ValueError('No hay equipo activo para generar informes.')
-                player_ids = list(
-                    Player.objects
-                    .filter(team_id=int(report_team_id))
-                    .order_by('number', 'name', 'id')
-                    .values_list('id', flat=True)
-                )
+                report_team_ids = [int(getattr(team, 'id', 0) or 0) for team in teams if getattr(team, 'id', None)]
+                if not report_team_ids:
+                    raise ValueError('No hay categorías del club para generar informes.')
+                player_ids = _player_ids_for_teams(teams)
                 state = dict(state or {})
-                state['report_team_id'] = int(report_team_id)
+                state['report_team_id'] = int(getattr(active_team, 'id', 0) or 0)
+                state['report_team_ids'] = report_team_ids
                 state['player_ids'] = [int(pid) for pid in player_ids if pid]
                 state['player_idx'] = 0
                 _save_state(state)
@@ -271,7 +346,7 @@ def club_season_wizard(request):
                     label=season_label,
                     start_date=start_date,
                     team=active_team,
-                    inherit_teams=True,
+                    inherit_teams=False,
                     inherit_roster=False,
                 )
 
@@ -337,19 +412,25 @@ def club_season_wizard(request):
                 except Exception:
                     pass
 
-                # Registra qué equipos participan en la nueva temporada y hereda plantilla
-                # como pendiente de confirmar (solo jugadores del equipo seleccionado).
+                # Registra qué categorías participan en la nueva temporada del club y hereda sus plantillas
+                # como pendientes de confirmar. También consolida enlaces legacy en el workspace principal.
+                season_teams = teams or ([active_team] if active_team else [])
+                for season_team in season_teams:
+                    if not season_team:
+                        continue
+                    try:
+                        WorkspaceTeam.objects.get_or_create(
+                            workspace=workspace,
+                            team=season_team,
+                            defaults={'is_default': int(getattr(season_team, 'id', 0) or 0) == int(getattr(active_team, 'id', 0) or 0)},
+                        )
+                    except Exception:
+                        pass
+                    ensure_season_team(new_season, season_team)
+                    ensure_team_roster_season_memberships(new_season, season_team, include_inactive=True)
                 ensure_active_workspace_team_seasons(workspace, season=new_season)
 
-                # Requisito producto: solo del equipo que se está gestionando (equipo activo).
-                inherit_team_id = int(getattr(active_team, 'id', 0) or 0)
-                player_ids = list(
-                    Player.objects
-                    .filter(team_id=inherit_team_id)
-                    .values_list('id', flat=True)
-                )
-                if active_team:
-                    ensure_team_roster_season_memberships(new_season, active_team, include_inactive=True)
+                player_ids = _player_ids_for_teams(season_teams)
 
                 # Fases (opcionales).
                 phases = []
@@ -428,7 +509,9 @@ def club_season_wizard(request):
         player_idx = int(_parse_int((state or {}).get('player_idx')) or 0)
         if player_ids:
             player_idx = max(0, min(player_idx, len(player_ids) - 1))
-            current_player = Player.objects.filter(id=int(player_ids[player_idx])).first()
+            current_player = Player.objects.filter(id=int(player_ids[player_idx])).select_related('team').first()
+            if current_player and int(getattr(getattr(current_player, 'team', None), 'id', 0) or 0) in teams_by_id:
+                report_team = teams_by_id[int(current_player.team_id)]
     except Exception:
         report_team = report_team or active_team
         player_ids = []
@@ -497,6 +580,7 @@ def club_season_wizard(request):
             'active_club_season': active_club_season,
             'closed_season': closed_season,
             'teams': teams,
+            'team_count': len(teams or []),
             'active_team': active_team,
             'report_team': report_team,
             'current_player': current_player,

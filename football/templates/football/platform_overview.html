@@ -377,6 +377,29 @@
         text-transform: uppercase;
       }
 
+      .workspace-kit-preview {
+        display: flex;
+        justify-content: flex-end;
+        align-items: flex-end;
+        gap: 0.35rem;
+        margin-top: 0.45rem;
+        min-height: 42px;
+      }
+
+      .workspace-kit-preview img {
+        width: 44px;
+        height: 44px;
+        object-fit: contain;
+        filter: drop-shadow(0 10px 14px rgba(0,0,0,0.35));
+      }
+
+      .workspace-kit-preview img + img {
+        width: 34px;
+        height: 34px;
+        margin-left: -14px;
+        opacity: 0.82;
+      }
+
       .ws-pills {
         display: flex;
         gap: 0.4rem;
@@ -1234,6 +1257,10 @@
                   {% else %}
                   <small>Sin temporada activa</small>
                   {% endif %}
+                  <div class="workspace-kit-preview" aria-label="Equipaciones del club">
+                    {% if workspace.platform_home_kit_url %}<img src="{{ workspace.platform_home_kit_url }}" alt="" loading="lazy" />{% endif %}
+                    {% if workspace.platform_away_kit_url %}<img src="{{ workspace.platform_away_kit_url }}" alt="" loading="lazy" />{% endif %}
+                  </div>
                 </div>
               </header>
               <div class="workspace-meta">

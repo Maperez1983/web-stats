@@ -422,6 +422,38 @@
         padding: 1rem;
         min-width: 0;
       }
+      .team-card {
+        position: relative;
+        overflow: hidden;
+        padding: 0;
+      }
+      .team-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(circle at 18% 10%, rgba(244, 180, 0, 0.18), transparent 34%),
+          radial-gradient(circle at 88% 2%, rgba(81, 157, 255, 0.2), transparent 34%);
+        pointer-events: none;
+      }
+      .team-card-hero {
+        position: relative;
+        min-height: 138px;
+        padding: 1rem;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.85rem;
+        align-items: start;
+        background: linear-gradient(135deg, rgba(13, 23, 39, 0.78), rgba(6, 13, 24, 0.96));
+        border-bottom: 1px solid rgba(160, 180, 215, 0.12);
+      }
+      .team-card-identity {
+        position: relative;
+        display: flex;
+        gap: 0.82rem;
+        min-width: 0;
+        align-items: center;
+      }
       .club-data-head {
         display: flex;
         gap: 0.75rem;
@@ -440,6 +472,13 @@
         flex: 0 0 auto;
         font-weight: 950;
       }
+      .team-card .team-crest {
+        width: 74px;
+        height: 74px;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.08);
+        box-shadow: 0 16px 34px rgba(0, 0, 0, 0.32);
+      }
       .team-crest img {
         width: 100%;
         height: 100%;
@@ -453,11 +492,78 @@
         text-overflow: ellipsis;
         white-space: nowrap;
       }
+      .team-card-title {
+        min-width: 0;
+      }
+      .team-card-title h3 {
+        font-size: 1.05rem;
+      }
+      .team-full-name {
+        margin-top: 0.22rem;
+        color: #c9d5e8;
+        font-size: 0.86rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .kit-preview {
+        position: relative;
+        display: flex;
+        gap: 0.35rem;
+        align-items: flex-end;
+        justify-content: flex-end;
+        min-width: 86px;
+      }
+      .kit-preview img {
+        width: 54px;
+        height: 54px;
+        object-fit: contain;
+        filter: drop-shadow(0 12px 16px rgba(0,0,0,0.35));
+      }
+      .kit-preview img + img {
+        width: 42px;
+        height: 42px;
+        opacity: 0.82;
+        margin-left: -16px;
+      }
+      .team-card-body {
+        position: relative;
+        padding: 0.95rem 1rem 1rem;
+      }
       .club-data-meta {
         margin-top: 0.75rem;
         display: grid;
         gap: 0.4rem;
         color: #aab6c8;
+      }
+      .team-card-meta {
+        margin-top: 0.85rem;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.55rem;
+      }
+      .team-meta-box {
+        border-radius: 14px;
+        border: 1px solid rgba(160, 180, 215, 0.12);
+        background: rgba(255, 255, 255, 0.035);
+        padding: 0.62rem 0.7rem;
+        min-width: 0;
+      }
+      .team-meta-box span {
+        display: block;
+        color: #89a0c7;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 850;
+      }
+      .team-meta-box strong {
+        display: block;
+        margin-top: 0.18rem;
+        color: #edf4ff;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
       .nested-team-list {
         margin-top: 0.75rem;
@@ -473,6 +579,53 @@
         justify-content: space-between;
         gap: 0.65rem;
       }
+      .team-create-card {
+        margin-top: 1rem;
+        border-radius: 18px;
+        border: 1px solid rgba(121, 168, 255, 0.2);
+        background: rgba(7, 13, 25, 0.44);
+        padding: 1rem;
+      }
+      .team-create-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+      .team-create-head h3 {
+        margin: 0;
+      }
+      .team-create-form {
+        margin-top: 0.85rem;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+      }
+      .team-create-form label {
+        display: grid;
+        gap: 0.28rem;
+        color: #aab6c8;
+        font-size: 0.82rem;
+        font-weight: 800;
+      }
+      .team-create-form input,
+      .team-create-form select {
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid rgba(160, 180, 215, 0.22);
+        background: rgba(7, 13, 25, 0.95);
+        color: #eff4ff;
+        padding: 0.68rem 0.78rem;
+        font: inherit;
+      }
+      .team-create-form input[type="color"] {
+        min-height: 44px;
+        padding: 0.25rem;
+      }
+      .team-create-form .wide {
+        grid-column: span 2;
+      }
       .panel-block + .panel-block {
         margin-top: 1.15rem;
       }
@@ -482,6 +635,12 @@
         }
         .metrics {
           grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .team-create-form {
+          grid-template-columns: 1fr;
+        }
+        .team-create-form .wide {
+          grid-column: auto;
         }
       }
       @media (max-width: 640px) {
@@ -626,6 +785,82 @@
               <button class="submit-btn" type="submit">Guardar configuración</button>
             </form>
           </div>
+          {% if workspace.kind == 'club' %}
+          <div class="section-shell panel-block">
+            <div class="section-kicker">Identidad heredable</div>
+            <h2>Identidad del club padre</h2>
+            <p>Escudo, estadio y equipaciones base se definen una vez aquí. Las categorías los heredan salvo que tengan un dato propio.</p>
+            {% if workspace.primary_team %}
+            <form method="post" enctype="multipart/form-data" class="team-create-form">
+              {% csrf_token %}
+              <input type="hidden" name="form_action" value="platform_club_identity_update" />
+              <label>
+                Nombre oficial
+                <input type="text" name="club_team_name" value="{{ club_identity_form.team_name }}" required />
+              </label>
+              <label>
+                Nombre corto
+                <input type="text" name="club_short_name" value="{{ club_identity_form.short_name }}" />
+              </label>
+              <label>
+                Ciudad
+                <input type="text" name="club_city" value="{{ club_identity_form.city }}" />
+              </label>
+              <label>
+                Estadio / campo principal
+                <input type="text" name="club_stadium" value="{{ club_identity_form.stadium }}" />
+              </label>
+              <label class="wide">
+                Dirección
+                <input type="text" name="club_stadium_address" value="{{ club_identity_form.stadium_address }}" />
+              </label>
+              <label class="wide">
+                Google Maps
+                <input type="url" name="club_stadium_maps_url" value="{{ club_identity_form.stadium_maps_url }}" />
+              </label>
+              <label>
+                Escudo
+                <input type="file" name="club_crest_image" accept="image/*" />
+              </label>
+              <label>
+                Quitar escudo
+                <span class="sub-chip" style="justify-content:center;"><input type="checkbox" name="clear_club_crest" value="1" /> Limpiar imagen</span>
+              </label>
+              <label>
+                Kit local base
+                <input type="color" name="kit_home_main" value="{{ club_identity_form.kit.home_main }}" />
+              </label>
+              <label>
+                Detalle local
+                <input type="color" name="kit_home_trim" value="{{ club_identity_form.kit.home_trim }}" />
+              </label>
+              <label>
+                Kit visitante base
+                <input type="color" name="kit_away_main" value="{{ club_identity_form.kit.away_main }}" />
+              </label>
+              <label>
+                Detalle visitante
+                <input type="color" name="kit_away_trim" value="{{ club_identity_form.kit.away_trim }}" />
+              </label>
+              <label>
+                Kit portero base
+                <input type="color" name="kit_gk_main" value="{{ club_identity_form.kit.gk_main }}" />
+              </label>
+              <label>
+                Detalle portero
+                <input type="color" name="kit_gk_trim" value="{{ club_identity_form.kit.gk_trim }}" />
+              </label>
+              <div style="display:flex;align-items:end;">
+                <button class="submit-btn" type="submit" style="margin-top:0;">Guardar identidad</button>
+              </div>
+            </form>
+            {% else %}
+            <div class="message" style="background:rgba(255,255,255,0.04); border:1px solid rgba(160,180,215,0.12); color:#c7d3e8;">
+              Vincula un equipo principal para poder guardar la identidad heredable del club.
+            </div>
+            {% endif %}
+          </div>
+          {% endif %}
           {% endif %}
           <div class="section-shell panel-block" id="workspace-resumen">
             <div class="section-kicker">Resumen</div>
@@ -990,25 +1225,64 @@
           <p>Las categorías viven dentro del club. Desde aquí se revisa qué equipos contiene cada una y el volumen de jugadores asociado.</p>
           <div class="card-grid">
             {% for category in workspace_category_cards %}
-            <article class="club-data-card">
-              <div class="club-data-head">
-                <div class="team-crest" aria-hidden="true">{{ category.label|slice:":1" }}</div>
-                <div style="min-width:0;">
-                  <h3>{{ category.label }}</h3>
-                  <div class="hero-subline" style="margin-top:0.35rem;">
-                    {% if category.has_default %}<span class="sub-chip">Principal</span>{% endif %}
-                    <span class="sub-chip">{{ category.team_count }} equipo{% if category.team_count != 1 %}s{% endif %}</span>
-                    <span class="sub-chip">{{ category.player_count }} jugadores</span>
+            <article class="club-data-card team-card">
+              <div class="team-card-hero">
+                <div class="team-card-identity">
+                  <div class="team-crest" aria-hidden="true">
+                    {% if category.lead.team.crest_image %}
+                    <img src="{{ category.lead.team.crest_image.url }}" alt="" loading="lazy" />
+                    {% elif category.lead.team.crest_url %}
+                    <img src="{{ category.lead.team.crest_url }}" alt="" loading="lazy" />
+                    {% elif category.lead.inherited_crest_image_url %}
+                    <img src="{{ category.lead.inherited_crest_image_url }}" alt="" loading="lazy" />
+                    {% elif category.lead.inherited_crest_url %}
+                    <img src="{{ category.lead.inherited_crest_url }}" alt="" loading="lazy" />
+                    {% else %}
+                    {{ category.label|slice:":1" }}
+                    {% endif %}
+                  </div>
+                  <div class="team-card-title">
+                    <h3>{{ category.label }}</h3>
+                    <div class="team-full-name">{{ category.lead.full_name }}</div>
+                    <div class="hero-subline" style="margin-top:0.45rem;">
+                      {% if category.has_default %}<span class="sub-chip">Principal</span>{% endif %}
+                      <span class="sub-chip">{{ category.team_count }} equipo{% if category.team_count != 1 %}s{% endif %}</span>
+                      <span class="sub-chip">{{ category.player_count }} jugadores</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div class="nested-team-list">
-                {% for item in category.teams %}
-                <div class="nested-team-row">
-                  <strong>{{ item.name }}</strong>
-                  <span>{{ item.player_count }} jug.</span>
+                <div class="kit-preview" aria-label="Equipaciones">
+                  {% if category.lead.home_kit_url %}<img src="{{ category.lead.home_kit_url }}" alt="" loading="lazy" />{% endif %}
+                  {% if category.lead.away_kit_url %}<img src="{{ category.lead.away_kit_url }}" alt="" loading="lazy" />{% endif %}
                 </div>
-                {% endfor %}
+              </div>
+              <div class="team-card-body">
+                <div class="team-card-meta">
+                  <div class="team-meta-box">
+                    <span>División</span>
+                    <strong>{% if category.division_names %}{{ category.division_names|join:", " }}{% else %}{{ category.lead.competition_name|default:category.lead.group_name|default:"Sin división" }}{% endif %}</strong>
+                  </div>
+                  <div class="team-meta-box">
+                    <span>Estadio</span>
+                    <strong>{{ category.lead.stadium|default:"Sin campo" }}{% if category.lead.stadium_is_inherited %} · heredado{% endif %}</strong>
+                  </div>
+                  <div class="team-meta-box">
+                    <span>Temporada</span>
+                    <strong>{{ category.lead.season_name|default:"Sin temporada" }}</strong>
+                  </div>
+                  <div class="team-meta-box">
+                    <span>Formato</span>
+                    <strong>{{ category.lead.game_format_label }}</strong>
+                  </div>
+                </div>
+                <div class="nested-team-list">
+                  {% for item in category.teams %}
+                  <div class="nested-team-row">
+                    <strong>{{ item.name }}</strong>
+                    <span>{{ item.player_count }} jug.</span>
+                  </div>
+                  {% endfor %}
+                </div>
               </div>
             </article>
             {% empty %}
@@ -1024,41 +1298,137 @@
       <section class="tab-panel" data-tab-panel="equipos">
         <article class="panel">
           <div class="section-kicker">Equipos</div>
-          <h2 style="margin-top:0.55rem;">Equipos vinculados</h2>
-          <p>Listado operativo de equipos/categorías vinculados al club. Cada card representa un contexto al que se puede entrar sin crear otro club.</p>
+          <div class="team-create-head" style="margin-top:0.55rem;">
+            <div>
+              <h2 style="margin:0;">Equipos vinculados</h2>
+              <p>Listado operativo de equipos/categorías vinculados al club. Cada card representa un contexto al que se puede entrar sin crear otro club.</p>
+            </div>
+            {% if can_manage_workspace %}
+            <span class="sub-chip">Crear dentro de {{ workspace.name }}</span>
+            {% endif %}
+          </div>
+          {% if can_manage_workspace %}
+          <div class="team-create-card">
+            <div class="team-create-head">
+              <div>
+                <h3>Crear equipo</h3>
+                <p style="margin:0.25rem 0 0;">Se añadirá como categoría/equipo del club actual y quedará vinculado a la temporada activa si existe.</p>
+              </div>
+            </div>
+            <form method="post" class="team-create-form">
+              {% csrf_token %}
+              <input type="hidden" name="form_action" value="platform_team_create" />
+              <label>
+                Categoría
+                <input type="text" name="category" placeholder="Ej. Prebenjamín" required />
+              </label>
+              <label>
+                Formato
+                <select name="game_format">
+                  <option value="f11">Fútbol 11</option>
+                  <option value="f7">Fútbol 7</option>
+                </select>
+              </label>
+              <label>
+                Nombre equipo
+                <input type="text" name="team_name" placeholder="Ej. BENAGALBÓN C.D." value="{% if workspace.primary_team %}{{ workspace.primary_team.name }}{% endif %}" required />
+              </label>
+              <label>
+                Competición
+                <input type="text" name="competition_name" placeholder="Opcional" />
+              </label>
+              <label>
+                Temporada federativa
+                <input type="text" name="season_name" placeholder="Ej. 2026/2027" />
+              </label>
+              <label>
+                Grupo
+                <input type="text" name="group_name" placeholder="Ej. Grupo 1" />
+              </label>
+              <label class="wide">
+                Universo RFAF
+                <input type="text" name="universo_url" placeholder="Pega URL de results/team para autocompletar" />
+              </label>
+              <label>
+                ID de grupo
+                <input type="text" name="group_external_id" placeholder="Opcional" />
+              </label>
+              <div style="display:flex;align-items:end;">
+                <button class="submit-btn" type="submit" style="margin-top:0;">Crear equipo</button>
+              </div>
+            </form>
+          </div>
+          {% endif %}
           <div class="card-grid">
             {% for item in workspace_team_cards %}
-            <article class="club-data-card">
-              <div class="club-data-head">
-                <div class="team-crest" aria-hidden="true">
-                  {% if item.team.crest_image %}
-                  <img src="{{ item.team.crest_image.url }}" alt="" loading="lazy" />
-                  {% elif item.team.crest_url %}
-                  <img src="{{ item.team.crest_url }}" alt="" loading="lazy" />
-                  {% elif item.team.cover_image %}
-                  <img src="{{ item.team.cover_image.url }}" alt="" loading="lazy" />
-                  {% else %}
-                  {{ item.name|slice:":1" }}
-                  {% endif %}
-                </div>
-                <div style="min-width:0;">
-                  <h3>{{ item.name }}</h3>
-                  <div class="hero-subline" style="margin-top:0.35rem;">
-                    <span class="sub-chip">{{ item.category }}</span>
-                    {% if item.is_default %}<span class="sub-chip">Principal</span>{% endif %}
+            <article class="club-data-card team-card">
+              <div class="team-card-hero">
+                <div class="team-card-identity">
+                  <div class="team-crest" aria-hidden="true">
+                    {% if item.team.crest_image %}
+                    <img src="{{ item.team.crest_image.url }}" alt="" loading="lazy" />
+                    {% elif item.team.crest_url %}
+                    <img src="{{ item.team.crest_url }}" alt="" loading="lazy" />
+                    {% elif item.team.cover_image %}
+                    <img src="{{ item.team.cover_image.url }}" alt="" loading="lazy" />
+                    {% elif item.inherited_crest_image_url %}
+                    <img src="{{ item.inherited_crest_image_url }}" alt="" loading="lazy" />
+                    {% elif item.inherited_crest_url %}
+                    <img src="{{ item.inherited_crest_url }}" alt="" loading="lazy" />
+                    {% else %}
+                    {{ item.name|slice:":1" }}
+                    {% endif %}
+                  </div>
+                  <div class="team-card-title">
+                    <h3>{{ item.name }}</h3>
+                    <div class="team-full-name">{{ item.full_name }}</div>
+                    <div class="hero-subline" style="margin-top:0.45rem;">
+                      <span class="sub-chip">{{ item.category }}</span>
+                      <span class="sub-chip">{{ item.game_format_label }}</span>
+                      {% if item.is_default %}<span class="sub-chip">Principal</span>{% endif %}
+                    </div>
                   </div>
                 </div>
+                <div class="kit-preview" aria-label="Equipaciones">
+                  {% if item.home_kit_url %}<img src="{{ item.home_kit_url }}" alt="" loading="lazy" />{% endif %}
+                  {% if item.away_kit_url %}<img src="{{ item.away_kit_url }}" alt="" loading="lazy" />{% endif %}
+                </div>
               </div>
-              <div class="club-data-meta">
-                <div><strong>Jugadores:</strong> {{ item.player_count }}</div>
-                <div><strong>Grupo:</strong> {{ item.group_name|default:"Sin grupo" }}</div>
-                <div><strong>Temporada:</strong> {{ item.season_name|default:"Sin temporada" }}</div>
-                {% if item.is_legacy_child_workspace %}
-                <div><strong>Origen:</strong> {{ item.workspace_name }}</div>
+              <div class="team-card-body">
+                <div class="team-card-meta">
+                  <div class="team-meta-box">
+                    <span>Jugadores</span>
+                    <strong>{{ item.player_count }}</strong>
+                  </div>
+                  <div class="team-meta-box">
+                    <span>Estadio</span>
+                    <strong>{{ item.stadium|default:"Sin campo" }}{% if item.stadium_is_inherited %} · heredado{% endif %}</strong>
+                  </div>
+                  <div class="team-meta-box">
+                    <span>Competición</span>
+                    <strong>{{ item.competition_name|default:item.group_name|default:"Sin competición" }}</strong>
+                  </div>
+                  <div class="team-meta-box">
+                    <span>Temporada</span>
+                    <strong>{{ item.season_name|default:"Sin temporada" }}</strong>
+                  </div>
+                </div>
+                {% if item.stadium_address %}
+                <div class="club-data-meta">
+                  <div><strong>Dirección:</strong> {{ item.stadium_address }}</div>
+                </div>
                 {% endif %}
-              </div>
-              <div class="hero-links">
-                <a class="primary-link" href="{% url 'platform-workspace-enter' workspace.id %}?team={{ item.team_id }}">Entrar al equipo</a>
+                {% if item.is_legacy_child_workspace %}
+                <div class="club-data-meta">
+                  <div><strong>Origen:</strong> {{ item.workspace_name }}</div>
+                </div>
+                {% endif %}
+                <div class="hero-links">
+                  <a class="primary-link" href="{% url 'platform-workspace-enter' workspace.id %}?team={{ item.team_id }}">Entrar al equipo</a>
+                  {% if item.stadium_maps_url %}
+                  <a href="{{ item.stadium_maps_url }}" target="_blank" rel="noopener">Ver campo</a>
+                  {% endif %}
+                </div>
               </div>
             </article>
             {% empty %}
@@ -1093,6 +1463,7 @@
 
         const tabs = Array.from(document.querySelectorAll('[data-tab-target]'));
         const panels = Array.from(document.querySelectorAll('[data-tab-panel]'));
+        const serverTab = "{{ active_detail_tab|default:'configuracion'|escapejs }}";
         function activateTab(key, updateHash) {
           const targetKey = key || 'configuracion';
           tabs.forEach((tab) => {
@@ -1111,6 +1482,8 @@
         const initialTab = String(window.location.hash || '').replace('#', '');
         if (initialTab && tabs.some((tab) => tab.dataset.tabTarget === initialTab)) {
           activateTab(initialTab, false);
+        } else if (serverTab && tabs.some((tab) => tab.dataset.tabTarget === serverTab)) {
+          activateTab(serverTab, false);
         }
       })();
     </script>

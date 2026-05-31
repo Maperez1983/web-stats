@@ -122,6 +122,12 @@
       .player-sub { color: var(--muted); margin-top: 0.15rem; }
       .badge { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.2rem 0.55rem; border-radius: 999px; border: 1px solid rgba(255,255,255,0.16); color: var(--muted); font-size: 0.85rem; }
       .row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+      .team-list {
+        display: flex;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+        margin-top: 0.45rem;
+      }
       .rating-panel {
         margin-top: 0.9rem;
         border: 1px solid rgba(255,255,255,0.16);
@@ -241,10 +247,16 @@
                   <input id="id_season_end_date" type="date" name="season_end_date" value="{% now 'Y-m-d' %}" />
                 </div>
                 <div>
-                  <label>Equipo para informes</label>
+                  <label>Categorías para informes</label>
                   <div class="alert" style="margin:0;">
-                    Solo se generarán informes del equipo activo:
-                    <strong>{{ active_team.display_name|default:active_team.name }}</strong>
+                    Se generarán informes de las categorías vinculadas al club.
+                    <div class="team-list">
+                      {% for team in teams %}
+                        <span class="badge">{{ team.display_name|default:team.name }}</span>
+                      {% empty %}
+                        <span class="badge">Sin categorías vinculadas</span>
+                      {% endfor %}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -273,7 +285,7 @@
               {% endif %}
             </div>
             <div class="subtitle" style="margin:0;">
-              Equipo activo: <strong>{{ report_team.display_name|default:report_team.name }}</strong>
+              Categoría: <strong>{{ report_team.display_name|default:report_team.name }}</strong>
             </div>
           </div>
 
@@ -302,7 +314,7 @@
             </form>
           {% else %}
             <div class="alert" style="margin-top:0.75rem;">
-              No hay jugadores en esta plantilla. Elige otro equipo o continúa.
+              No hay jugadores en las categorías vinculadas al club. Puedes continuar.
             </div>
             <form method="post" class="actions">
               {% csrf_token %}
@@ -328,23 +340,29 @@
                 <input id="id_new_season_start_date" type="date" name="season_start_date" value="{{ season_form.start_date|default:'' }}" required />
               </div>
               <div style="grid-column: 1 / -1;">
-                <label>Heredar plantilla (pendiente de confirmar)</label>
+                <label>Heredar plantillas (pendientes de confirmar)</label>
                 <div class="alert" style="margin:0;">
-                  Se heredará la plantilla del equipo activo:
-                  <strong>{{ active_team.display_name|default:active_team.name }}</strong>
+                  Se heredarán las plantillas de las categorías vinculadas al club.
+                  <div class="team-list">
+                    {% for team in teams %}
+                      <span class="badge">{{ team.display_name|default:team.name }}</span>
+                    {% empty %}
+                      <span class="badge">Sin categorías vinculadas</span>
+                    {% endfor %}
+                  </div>
                 </div>
               </div>
             </div>
 
             <div class="alert" style="margin-top:0.9rem;">
-              <strong>Subida de categoría (opcional):</strong> si el mismo equipo “sube” (ej. Prebenjamín → Benjamín) puedes
-              <em>renombrar</em> y ajustar categoría/formato sin crear un equipo nuevo.
+              <strong>Subida de categoría (opcional):</strong> si el equipo activo “sube” (ej. Prebenjamín → Benjamín) puedes
+              <em>renombrarlo</em> y ajustar categoría/formato sin crear un equipo nuevo.
             </div>
             <div class="grid" style="margin-top:0.75rem;">
               <div style="grid-column: 1 / -1;">
                 <label style="text-transform:none;letter-spacing:0;font-size:0.9rem;color:rgba(226,232,240,0.86);">
                   <input type="checkbox" name="reconvert_team" value="1" />
-                  Reconverter el equipo activo al iniciar la nueva temporada
+                  Reconvertir solo el equipo activo al iniciar la nueva temporada
                 </label>
               </div>
               <div>
