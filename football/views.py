@@ -88,6 +88,7 @@ from . import assistant_blueprint_services
 from . import dashboard_pending_services
 from . import standings_services
 from . import stats_services
+from . import season_history_services
 from . import task_library_services
 from . import team_media_services
 from . import universo_catalog_services
@@ -7245,6 +7246,25 @@ _next_match_payload_is_reliable = next_match_services.next_match_payload_is_reli
 def _dashboard_cache_key(team_id):
     return dashboard_cache_key(team_id)
 
+
+def _dashboard_cache_key_for_request(team_id, request, workspace=None):
+    key = dashboard_cache_key(team_id)
+    try:
+        selected_season = season_history_services.selected_club_season_for_request(request, workspace=workspace)
+        if selected_season:
+            key = f'{key}:club-season:{int(selected_season.id)}'
+    except Exception:
+        pass
+    return key
+
+
+def _selected_club_season_payload(request, workspace=None):
+    try:
+        season = season_history_services.selected_club_season_for_request(request, workspace=workspace)
+        return season_history_services.serialize_club_season(season)
+    except Exception:
+        return {}
+
 def _team_metrics_cache_key(team_id):
     return team_metrics_cache_key(team_id)
 
@@ -7841,6 +7861,7 @@ def _dashboard_data_impl(request, *, _json):
             return _json({'error': 'No hay equipo principal configurado'}, status=400)
 
     workspace = _get_active_workspace(request)
+    club_season_payload = _selected_club_season_payload(request, workspace=workspace)
     setup_banner = {}
     # Guardrail UX: evita mostrar rival/clasificación de otra categoría si comparten grupo/competición.
     # Caso real: Prebenjamín creado clonando Senior y se queda con el mismo Group/Universo ID.
@@ -7923,6 +7944,7 @@ def _dashboard_data_impl(request, *, _json):
                     'player_metrics': [],
                     'player_cards': compute_player_cards(primary_team, request=request),
                     'player_cards_scope': {'type': 'global', 'label': 'Jugador · datos La Preferente'},
+                    'club_season': club_season_payload,
                     'setup_required': True,
                     'setup_url': fix_url,
                     'setup_message_title': 'Categoría mezclada con otra competición',
@@ -8006,6 +8028,7 @@ def _dashboard_data_impl(request, *, _json):
             'player_metrics': [],
             'player_cards': player_cards,
             'player_cards_scope': {'type': 'global', 'label': 'Jugador · datos La Preferente'},
+            'club_season': club_season_payload,
         }
         # Aunque no haya competición/grupo configurado todavía, mostramos accesos diarios.
         try:
@@ -8052,7 +8075,7 @@ def _dashboard_data_impl(request, *, _json):
         return _json(payload)
 
     force_fresh = str(request.GET.get('fresh') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
-    cache_key = _dashboard_cache_key(primary_team.id)
+    cache_key = _dashboard_cache_key_for_request(primary_team.id, request, workspace=workspace)
     if not force_fresh:
         cached_payload = None
         try:
@@ -8333,6 +8356,7 @@ def _dashboard_data_impl(request, *, _json):
         'player_metrics': player_metrics,
         'player_cards': player_cards,
         'player_cards_scope': player_cards_scope,
+        'club_season': club_season_payload,
     }
     try:
         weekly_staff_brief = _build_weekly_staff_brief_context(primary_team, player_cards=player_cards)
@@ -55226,12 +55250,13 @@ def compute_player_dashboard(
     if not date_start and not date_end and request is not None:
         try:
             workspace = _get_active_workspace(request)
-            active_club_season = getattr(workspace, 'active_season', None) if workspace and getattr(workspace, 'kind', None) == Workspace.KIND_CLUB else None
-            if active_club_season and bool(getattr(active_club_season, 'is_active', True)):
-                if getattr(active_club_season, 'start_date', None):
-                    date_start = active_club_season.start_date
-                if getattr(active_club_season, 'end_date', None):
-                    date_end = active_club_season.end_date
+            selected_club_season = season_history_services.selected_club_season_for_request(request, workspace=workspace)
+            if selected_club_season:
+                selected_start, selected_end = season_history_services.club_season_date_bounds(selected_club_season)
+                if selected_start:
+                    date_start = selected_start
+                if selected_end:
+                    date_end = selected_end
         except Exception:
             pass
     can_use_cache = (not bool(force_refresh)) and (not tournament_filter) and (not date_start) and (not date_end)

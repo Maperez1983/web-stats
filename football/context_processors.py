@@ -8,7 +8,7 @@ from pathlib import Path
 from django.core.cache import cache
 from django.urls import reverse
 
-from . import permissions, workspace_context, workspace_ui
+from . import permissions, season_history_services, workspace_context, workspace_ui
 
 
 logger = logging.getLogger(__name__)
@@ -392,10 +392,26 @@ def workspace_access(request):
     except Exception:
         cache_ttl_s = 45
 
+    active_club_season = None
+    active_club_season_payload = {}
+    active_club_season_options = []
+    try:
+        if workspace and workspace.kind == Workspace.KIND_CLUB:
+            active_club_season = season_history_services.selected_club_season_for_request(request, workspace=workspace)
+            active_club_season_payload = season_history_services.serialize_club_season(active_club_season)
+            active_club_season_options = season_history_services.club_season_options_for_workspace(workspace)
+    except Exception:
+        active_club_season = None
+        active_club_season_payload = {}
+        active_club_season_options = []
+
     ctx_cache_key = ''
     if workspace:
         try:
-            ctx_cache_key = f'ctx:workspace_access:v1:w{int(workspace.id)}:u{int(request.user.id)}'
+            season_cache_part = ''
+            if active_club_season:
+                season_cache_part = f':s{int(active_club_season.id)}'
+            ctx_cache_key = f'ctx:workspace_access:v1:w{int(workspace.id)}:u{int(request.user.id)}{season_cache_part}'
         except Exception:
             ctx_cache_key = ''
 
@@ -534,6 +550,8 @@ def workspace_access(request):
         'active_team_query': active_team_query,
         'active_team_options': team_options,
         'team_switcher_enabled': bool(team_switcher_enabled),
+        'active_club_season': active_club_season_payload,
+        'active_club_season_options': active_club_season_options,
         'active_workspace_options': workspace_options,
         'active_team_current_path': request.get_full_path() if request else '',
         'can_manage_workspace': can_manage,

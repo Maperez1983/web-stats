@@ -112,14 +112,12 @@ def active_club_season_date_bounds_from_request(request):
         return None, None
     try:
         from .workspace_context import get_active_workspace
+        from .season_history_services import club_season_date_bounds, selected_club_season_for_request
 
         workspace = get_active_workspace(request)
-        active_club_season = getattr(workspace, 'active_season', None) if workspace and getattr(workspace, 'kind', None) == Workspace.KIND_CLUB else None
-        if active_club_season and bool(getattr(active_club_season, 'is_active', True)):
-            return (
-                getattr(active_club_season, 'start_date', None),
-                getattr(active_club_season, 'end_date', None),
-            )
+        selected_season = selected_club_season_for_request(request, workspace=workspace)
+        if selected_season:
+            return club_season_date_bounds(selected_season)
     except Exception:
         logger.debug('No se pudieron resolver límites de temporada activa.', exc_info=True)
     return None, None

@@ -1510,6 +1510,7 @@
       const effectiveWorkspaceId = activeWorkspaceId || String(urlParams.get('workspace') || '').trim();
       const effectiveTeamId = activeTeamId || String(urlParams.get('team') || urlParams.get('team_id') || '').trim();
       const effectiveHome = String(urlParams.get('home') || '').trim();
+      const effectiveClubSeasonId = String(urlParams.get('club_season_id') || '').trim();
       const debugMode = String(urlParams.get('debug') || '').trim() === '1';
       const heroFallbackPool = demoMode
         ? []
@@ -1542,6 +1543,7 @@
         if (effectiveWorkspaceId) params.set('workspace', effectiveWorkspaceId);
         if (effectiveTeamId) params.set('team', effectiveTeamId);
         if (effectiveHome) params.set('home', effectiveHome);
+        if (effectiveClubSeasonId) params.set('club_season_id', effectiveClubSeasonId);
         if (fresh) {
           params.set('fresh', '1');
           params.set('ts', String(Date.now()));
@@ -1555,6 +1557,7 @@
         if (effectiveWorkspaceId) params.set('workspace', effectiveWorkspaceId);
         if (effectiveTeamId) params.set('team', effectiveTeamId);
         if (effectiveHome) params.set('home', effectiveHome);
+        if (effectiveClubSeasonId) params.set('club_season_id', effectiveClubSeasonId);
         params.set('ts', String(Date.now()));
         const qs = params.toString();
         return `/api/dashboard/refresh/${qs ? `?${qs}` : ''}`;
@@ -1820,10 +1823,13 @@
         }
 
         const chips = [];
+        const clubSeason = (payload && payload.club_season) ? payload.club_season : {};
+        const clubSeasonLabel = String(clubSeason.label || '').trim();
         const group = String(team.group || '').trim();
         const season = String(team.season || '').trim();
         const competition = String(team.competition || '').trim();
         const category = String(team.category || '').trim();
+        if (clubSeasonLabel) chips.push(`Club ${clubSeasonLabel}`);
         if (competition) chips.push(competition);
         if (season) chips.push(season);
         if (group && !chips.includes(group)) chips.push(group);

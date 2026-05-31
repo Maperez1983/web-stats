@@ -5,6 +5,14 @@ from django.utils import timezone
 from .models import Player, Workspace, WorkspaceSeason, WorkspaceSeasonPlayer, WorkspaceSeasonTeam, WorkspaceTeam
 
 
+def _int_or_none(value):
+    try:
+        parsed = int(value or 0)
+    except Exception:
+        return None
+    return parsed if parsed > 0 else None
+
+
 def active_club_season(workspace):
     if not workspace or getattr(workspace, 'kind', None) != Workspace.KIND_CLUB:
         return None
@@ -12,6 +20,84 @@ def active_club_season(workspace):
     if season and bool(getattr(season, 'is_active', True)):
         return season
     return None
+
+
+def club_season_options_for_workspace(workspace, *, limit=12):
+    if not workspace or getattr(workspace, 'kind', None) != Workspace.KIND_CLUB:
+        return []
+    qs = WorkspaceSeason.objects.filter(workspace=workspace).order_by('-is_active', '-start_date', '-id')
+    options = []
+    for season in qs[: max(1, int(limit or 12))]:
+        options.append(
+            {
+                'id': int(season.id),
+                'label': str(season.label or '').strip(),
+                'is_active': bool(season.is_active),
+                'start_date': season.start_date.isoformat() if season.start_date else '',
+                'end_date': season.end_date.isoformat() if season.end_date else '',
+            }
+        )
+    return options
+
+
+def selected_club_season_for_request(request, workspace=None):
+    if not workspace:
+        try:
+            from .workspace_context import get_active_workspace
+
+            workspace = get_active_workspace(request)
+        except Exception:
+            workspace = None
+    if not workspace or getattr(workspace, 'kind', None) != Workspace.KIND_CLUB:
+        return None
+
+    session_key = f'active_club_season_id:{int(workspace.id)}'
+    raw_id = None
+    try:
+        raw_id = request.GET.get('club_season_id')
+    except Exception:
+        raw_id = None
+    selected_id = _int_or_none(raw_id)
+    if not selected_id:
+        try:
+            selected_id = _int_or_none(request.session.get(session_key))
+        except Exception:
+            selected_id = None
+
+    season = None
+    if selected_id:
+        season = WorkspaceSeason.objects.filter(workspace=workspace, id=selected_id).first()
+    if season:
+        try:
+            if request and hasattr(request, 'session'):
+                request.session[session_key] = int(season.id)
+        except Exception:
+            pass
+        return season
+    return active_club_season(workspace)
+
+
+def club_season_date_bounds(season):
+    if not season:
+        return None, None
+    date_start = getattr(season, 'start_date', None)
+    date_end = getattr(season, 'end_date', None)
+    if not date_end and bool(getattr(season, 'is_active', False)):
+        date_end = timezone.localdate()
+    return date_start, date_end
+
+
+def serialize_club_season(season):
+    if not season:
+        return {}
+    date_start, date_end = club_season_date_bounds(season)
+    return {
+        'id': int(season.id),
+        'label': str(season.label or '').strip(),
+        'is_active': bool(season.is_active),
+        'start_date': date_start.isoformat() if date_start else '',
+        'end_date': date_end.isoformat() if date_end else '',
+    }
 
 
 def ensure_season_team(season, team, *, status=WorkspaceSeasonTeam.STATUS_ACTIVE, is_active=True):

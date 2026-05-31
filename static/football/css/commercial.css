@@ -1072,6 +1072,30 @@ body.prod-commercial .nav-context-section {
   text-transform: uppercase;
 }
 
+body.prod-commercial .nav-context-season {
+  color: rgba(226, 232, 240, 0.88);
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+body.prod-commercial .nav-season-form {
+  margin-left: auto;
+}
+
+body.prod-commercial .nav-season-form select {
+  min-height: 1.9rem;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 999px;
+  padding: 0.22rem 1.85rem 0.22rem 0.72rem;
+  color: rgba(245, 247, 250, 0.94);
+  background: rgba(15, 23, 42, 0.72);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 body.prod-commercial .product-nav-shortcuts a,
 body.prod-commercial .product-nav-shortcuts button.nav-command-btn,
 body.prod-commercial .nav-more summary {
@@ -1409,6 +1433,16 @@ body.prod-commercial .cmdk-section {
 
 :root[data-theme="light"] body.prod-commercial .nav-context-subtitle {
   color: rgba(47, 125, 50, 0.92);
+}
+
+:root[data-theme="light"] body.prod-commercial .nav-context-season {
+  color: rgba(15, 23, 42, 0.76);
+}
+
+:root[data-theme="light"] body.prod-commercial .nav-season-form select {
+  color: rgba(15, 23, 42, 0.9);
+  background: rgba(255, 255, 255, 0.82);
+  border-color: rgba(15, 23, 42, 0.16);
 }
 
 :root[data-theme="light"] body.prod-commercial .cmdk-backdrop {

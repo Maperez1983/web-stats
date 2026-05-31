@@ -405,6 +405,23 @@ canvas {
   color: #fff7dd;
 }
 
+.nav-season-form {
+  margin-left: auto;
+}
+
+.nav-season-form select {
+  min-height: 1.9rem;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 999px;
+  padding: 0.22rem 1.85rem 0.22rem 0.72rem;
+  color: var(--prod-text);
+  background: rgba(15, 23, 42, 0.72);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .product-scroll-x {
   overflow-x: auto;
   overflow-y: hidden;

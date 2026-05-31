@@ -16,7 +16,7 @@ from django.core.cache import cache
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpResponse
-from django.test import SimpleTestCase, TestCase, TransactionTestCase
+from django.test import RequestFactory, SimpleTestCase, TestCase, TransactionTestCase
 from django.urls import reverse
 from django.utils import timezone
 
@@ -2129,6 +2129,30 @@ class SeasonHistoryServicesTests(TestCase):
         self.assertContains(response, 'Contexto de temporada')
         self.assertContains(response, 'Temporadas e histórico')
         self.assertContains(response, self.season.label)
+
+    def test_selected_club_season_can_be_loaded_from_request_and_session(self):
+        from football.season_history_services import club_season_date_bounds, selected_club_season_for_request
+
+        previous = WorkspaceSeason.objects.create(
+            workspace=self.workspace,
+            label='2025/2026',
+            start_date=date(2025, 7, 1),
+            end_date=date(2026, 6, 30),
+            is_active=False,
+        )
+        factory = RequestFactory()
+        request = factory.get(f'/?club_season_id={previous.id}')
+        request.user = self.user
+        session = self.client.session
+        session['active_workspace_id'] = int(self.workspace.id)
+        session.save()
+        request.session = session
+
+        selected = selected_club_season_for_request(request, workspace=self.workspace)
+
+        self.assertEqual(selected, previous)
+        self.assertEqual(request.session[f'active_club_season_id:{self.workspace.id}'], previous.id)
+        self.assertEqual(club_season_date_bounds(selected), (date(2025, 7, 1), date(2026, 6, 30)))
 
 
 class WorkspaceAccessPolicyTests(TestCase):

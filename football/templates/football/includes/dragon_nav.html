@@ -125,6 +125,22 @@
     <span class="nav-context-sep">·</span>
     <span class="nav-context-section">Portada</span>
     {% endif %}
+    {% if active_club_season_options|length > 1 %}
+    <form class="nav-season-form" method="get" action="{{ request.path }}" aria-label="Temporada del club">
+      {% if active_team %}<input type="hidden" name="team" value="{{ active_team.id }}">{% endif %}
+      {% if request.GET.home %}<input type="hidden" name="home" value="{{ request.GET.home }}">{% endif %}
+      {% if request.GET.workspace %}<input type="hidden" name="workspace" value="{{ request.GET.workspace }}">{% endif %}
+      <label class="sr-only" for="nav-club-season">Temporada</label>
+      <select id="nav-club-season" name="club_season_id" onchange="this.form.submit()">
+        {% for season in active_club_season_options %}
+        <option value="{{ season.id }}"{% if active_club_season.id == season.id %} selected{% endif %}>{{ season.label }}{% if season.is_active %} · actual{% endif %}</option>
+        {% endfor %}
+      </select>
+    </form>
+    {% elif active_club_season.label %}
+    <span class="nav-context-sep">·</span>
+    <span class="nav-context-season">{{ active_club_season.label }}</span>
+    {% endif %}
   </div>
   {% endif %}
   <button
