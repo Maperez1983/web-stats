@@ -24433,31 +24433,72 @@
                       y: start.y + ((target.y - start.y) * progress),
                     };
                   };
+                  const curvedRoute = (from, to, bend = 0.16) => {
+                    const ax = Number(from?.x) || 0;
+                    const ay = Number(from?.y) || 0;
+                    const bx = Number(to?.x) || ax;
+                    const by = Number(to?.y) || ay;
+                    const dx = bx - ax;
+                    const dy = by - ay;
+                    const len = Math.max(1, Math.sqrt((dx * dx) + (dy * dy)));
+                    return [
+                      { x: ax, y: ay },
+                      {
+                        x: ax + (dx * 0.52) + ((-dy / len) * len * bend),
+                        y: ay + (dy * 0.52) + ((dx / len) * len * bend),
+                      },
+                      { x: bx, y: by },
+                    ];
+                  };
                   const currentPos = new Map(trianglePlan.ordered.map((entry) => [entry.uid, { ...entry.point }]));
-                  const ballRoute = [trianglePlan.ballStart];
-                  trianglePlan.passes.forEach((pass, i) => {
+                  const naturalPhases = [
+                    {
+                      title: 'A pasa a B y arranca',
+                      ballFrom: trianglePlan.ballStart,
+                      ballTo: trianglePlan.ordered[1].point,
+                      progress: [0.34, 0, 0],
+                      desc: 'A suelta el balón y comienza su desplazamiento hacia la zona de B. B fija la recepción.',
+                    },
+                    {
+                      title: 'B pasa a C y continúa la rueda',
+                      ballFrom: trianglePlan.ordered[1].point,
+                      ballTo: trianglePlan.ordered[2].point,
+                      progress: [0.68, 0.34, 0],
+                      desc: 'B juega de cara a C y empieza su carrera hacia la zona de C. A sigue llegando.',
+                    },
+                    {
+                      title: 'C encuentra a A en la zona de B',
+                      ballFrom: trianglePlan.ordered[2].point,
+                      ballTo: posAtProgress(trianglePlan.ordered[0], 0, 0.86),
+                      progress: [0.86, 0.68, 0.34],
+                      desc: 'C juega sobre A, que ya aparece en la siguiente posición; B y C completan sus trayectorias.',
+                    },
+                    {
+                      title: 'Rotación completa',
+                      ballFrom: posAtProgress(trianglePlan.ordered[0], 0, 0.86),
+                      ballTo: posAtProgress(trianglePlan.ordered[0], 0, 1),
+                      progress: [1, 1, 1],
+                      desc: 'A ocupa B, B ocupa C y C ocupa A. La rueda queda preparada para repetir.',
+                    },
+                  ];
+                  naturalPhases.forEach((phase, i) => {
                     const next = cloneState(base);
-                    const receiver = trianglePlan.ordered[pass.to];
-                    const passer = trianglePlan.ordered[pass.from];
-                    const progress = [0.36, 0.68, 1, 1][i] || 1;
-                    const receiverPoint = currentPos.get(receiver.uid) || receiver.point;
-                    const ballTarget = i >= 3 ? posAtProgress(receiver, pass.to, 1) : receiverPoint;
-                    ballRoute.push({ x: Number(ballTarget.x) || 0, y: Number(ballTarget.y) || 0 });
-                    if (trianglePlan.ballUid) moveUidInState(next, trianglePlan.ballUid, ballTarget);
-                    else moveBallInState(next, ballTarget);
+                    const ballTarget = phase.ballTo;
+                    if (trianglePlan.ballUid) moveUidInState(next, trianglePlan.ballUid, phase.ballTo);
+                    else moveBallInState(next, phase.ballTo);
                     const routes = {};
-                    if (trianglePlan.ballUid) routes[trianglePlan.ballUid] = { points: ballRoute.slice(-2), spline: false };
+                    if (trianglePlan.ballUid) routes[trianglePlan.ballUid] = { points: [phase.ballFrom, phase.ballTo], spline: false };
                     trianglePlan.ordered.forEach((entry, entryIndex) => {
                       const from = currentPos.get(entry.uid) || entry.point;
-                      const to = posAtProgress(entry, entryIndex, progress);
+                      const to = posAtProgress(entry, entryIndex, phase.progress[entryIndex] || 0);
                       moveUidInState(next, entry.uid, to);
                       currentPos.set(entry.uid, to);
-                      if (distance(from, to) >= 4) routes[entry.uid] = { points: [from, to], spline: false };
+                      if (distance(from, to) >= 4) routes[entry.uid] = { points: curvedRoute(from, to, i % 2 ? -0.12 : 0.12), spline: true };
                     });
                     steps.push({
-                      title: pass.title,
-                      duration: 3,
-                      description: 'Rueda triangular: pase y rotación simultánea. A ocupa B, B ocupa C y C ocupa A.',
+                      title: phase.title,
+                      duration: i === naturalPhases.length - 1 ? 2 : 4,
+                      description: phase.desc,
                       canvas_state: sanitizeLoadedState(next),
                       routes,
                     });
