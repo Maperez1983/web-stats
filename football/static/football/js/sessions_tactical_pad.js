@@ -24036,13 +24036,220 @@
 	                interactiveRoutesAnimFrame = window.requestAnimationFrame(tick);
 	              }
 
-              const generateSimulationFromRoutes = (mode) => {
+              const generateSimulationFromRoutes = async (mode) => {
                 if (isSimulating) {
                   setStatus('Sal del simulador para generar una simulación.', true);
                   return;
                 }
+                const trainerContext = await (async () => {
+                  try {
+                    const modal = await __openMetaModal({
+                      heading: 'Convertir en simulación',
+                      nameLabel: 'Objetivo de la tarea',
+                      folderLabel: 'Acción principal',
+                      tagsLabel: 'Consigna / secuencia',
+                      defaultName: safeText(form.querySelector('[name="draw_task_title"]')?.value, 'Progresar'),
+                      defaultFolder: 'balón + apoyos',
+                      defaultTags: 'inicio, apoyo, progresión, final',
+                      hint: 'Esta información ayuda a decidir qué mueve el balón, qué jugadores dan apoyo y qué presión realiza el rival.',
+                    });
+                    if (!modal?.ok) return null;
+                    return {
+                      objective: safeText(modal.name, 'Progresar').slice(0, 120),
+                      mainAction: safeText(modal.folder, 'balón + apoyos').slice(0, 80),
+                      sequence: safeText(modal.tagsRaw, 'inicio, apoyo, progresión, final').slice(0, 180),
+                    };
+                  } catch (e) {
+                    return { objective: 'Progresar', mainAction: 'balón + apoyos', sequence: 'inicio, apoyo, progresión, final' };
+                  }
+                })();
+                if (!trainerContext) return;
                 const items = [];
                 const all = canvas.getObjects() || [];
+                const isBallLikeObject = (obj) => {
+                  const kind = safeText(obj?.data?.kind);
+                  return kind === 'ball' || kind === 'emoji_ball';
+                };
+                const objectCenter = (obj) => ({
+                  x: Number(obj?.left) || 0,
+                  y: Number(obj?.top) || 0,
+                });
+                const objectColor = (obj) => safeText(obj?.data?.color || obj?.stroke || obj?.fill || '').toLowerCase();
+                const nearestObject = (point, candidates) => {
+                  const list = Array.isArray(candidates) ? candidates.filter(Boolean) : [];
+                  if (!list.length) return null;
+                  let best = list[0];
+                  let bestD = distance(point, objectCenter(best));
+                  list.slice(1).forEach((obj) => {
+                    const d = distance(point, objectCenter(obj));
+                    if (d < bestD) {
+                      best = obj;
+                      bestD = d;
+                    }
+                  });
+                  return best;
+                };
+                const nearestNeighborPath = (start, points, limit = 8) => {
+                  const pending = (Array.isArray(points) ? points : [])
+                    .map((p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 }))
+                    .filter((p) => distance(start, p) >= 8);
+                  const path = [{ x: Number(start.x) || 0, y: Number(start.y) || 0 }];
+                  while (pending.length && path.length < Math.max(2, limit)) {
+                    const current = path[path.length - 1];
+                    let bestIndex = 0;
+                    let bestD = distance(current, pending[0]);
+                    for (let i = 1; i < pending.length; i += 1) {
+                      const d = distance(current, pending[i]);
+                      if (d < bestD) {
+                        bestIndex = i;
+                        bestD = d;
+                      }
+                    }
+                    const next = pending.splice(bestIndex, 1)[0];
+                    const prev = path[path.length - 1];
+                    if (distance(prev, next) >= 10) path.push(next);
+                  }
+                  return path.length >= 2 ? path : [];
+                };
+                const tokenSide = (obj) => {
+                  const tokenKind = safeText(obj?.data?.token_kind).toLowerCase();
+                  const color = objectColor(obj);
+                  if (tokenKind.includes('rival') || color.includes('ef4444') || color.includes('dc2626')) return 'rival';
+                  return 'local';
+                };
+                const movementTarget = (from, ballPoint, nextPoint, amount = 0.22) => {
+                  const fx = Number(from.x) || 0;
+                  const fy = Number(from.y) || 0;
+                  const bx = Number(ballPoint.x) || fx;
+                  const by = Number(ballPoint.y) || fy;
+                  const nx = Number(nextPoint?.x) || bx;
+                  const ny = Number(nextPoint?.y) || by;
+                  const towardBall = { x: bx - fx, y: by - fy };
+                  const advance = { x: nx - bx, y: ny - by };
+                  return {
+                    x: fx + (towardBall.x * amount) + (advance.x * 0.12),
+                    y: fy + (towardBall.y * amount) + (advance.y * 0.12),
+                  };
+                };
+                const buildCollectiveMoves = (ballPath) => {
+                  const path = Array.isArray(ballPath) ? ballPath : [];
+                  if (path.length < 2) return [];
+                  const tokens = all.filter((obj) => obj && safeText(obj?.data?.kind) === 'token');
+                  const locals = tokens.filter((obj) => tokenSide(obj) === 'local');
+                  const rivals = tokens.filter((obj) => tokenSide(obj) === 'rival');
+                  const phases = [];
+                  path.slice(1).forEach((point, phaseIndex) => {
+                    const prev = path[phaseIndex] || point;
+                    const next = path[phaseIndex + 2] || point;
+                    const used = new Set();
+                    const supportMoves = [];
+                    locals
+                      .map((obj) => ({ obj, d: distance(objectCenter(obj), point) }))
+                      .sort((a, b) => a.d - b.d)
+                      .slice(0, 3)
+                      .forEach(({ obj }, idx) => {
+                        const uid = getUidForObj(obj);
+                        if (!uid || used.has(uid)) return;
+                        used.add(uid);
+                        const start = objectCenter(obj);
+                        const target = movementTarget(start, point, next, idx === 0 ? 0.28 : 0.16);
+                        supportMoves.push({
+                          uid,
+                          to: target,
+                          action: idx === 0 ? 'support' : 'run',
+                          route_points: [start, target],
+                        });
+                      });
+                    rivals
+                      .map((obj) => ({ obj, d: distance(objectCenter(obj), point) }))
+                      .sort((a, b) => a.d - b.d)
+                      .slice(0, 2)
+                      .forEach(({ obj }, idx) => {
+                        const uid = getUidForObj(obj);
+                        if (!uid || used.has(uid)) return;
+                        used.add(uid);
+                        const start = objectCenter(obj);
+                        const target = {
+                          x: start.x + ((point.x - start.x) * (idx === 0 ? 0.22 : 0.14)),
+                          y: start.y + ((point.y - start.y) * (idx === 0 ? 0.22 : 0.14)),
+                        };
+                        supportMoves.push({
+                          uid,
+                          to: target,
+                          action: 'press',
+                          route_points: [start, target],
+                        });
+                      });
+                    phases.push({ point, prev, next, supportMoves });
+                  });
+                  return phases;
+                };
+                const classifyAnnotationAction = (obj) => {
+                  const kind = safeText(obj?.data?.kind).toLowerCase();
+                  const color = objectColor(obj);
+                  if (kind === 'arrow-dot') return 'ball';
+                  if (color.includes('ef4444') || color.includes('dc2626') || color.includes('red')) return 'press';
+                  if (color.includes('22d3ee') || color.includes('38bdf8') || color.includes('blue') || color.includes('cyan')) return 'run';
+                  if (color.includes('facc15') || color.includes('yellow') || color.includes('white') || color.includes('ffffff')) return 'ball';
+                  if (kind.includes('arrow')) return 'ball';
+                  return 'context';
+                };
+                const collectStaticActionItems = () => {
+                  const tokens = all.filter((obj) => obj && safeText(obj?.data?.kind) === 'token');
+                  const localTokens = tokens.filter((obj) => !safeText(obj?.data?.token_kind).includes('rival') && !['#ef4444', '#dc2626'].includes(objectColor(obj)));
+                  const rivalTokens = tokens.filter((obj) => safeText(obj?.data?.token_kind).includes('rival') || ['#ef4444', '#dc2626'].includes(objectColor(obj)));
+                  const ball = all.find((obj) => obj && isBallLikeObject(obj)) || null;
+                  const annotations = all
+                    .filter((obj) => {
+                      const kind = safeText(obj?.data?.kind).toLowerCase();
+                      return kind === 'arrow' || kind === 'arrow-dot' || kind === 'route_arrow';
+                    })
+                    .map((obj, index) => ({ obj, index, action: classifyAnnotationAction(obj), point: objectCenter(obj) }))
+                    .filter((entry) => entry.action !== 'context');
+                  const generated = [];
+                  const ballAnnotations = annotations.filter((entry) => entry.action === 'ball');
+                  if (ball && ballAnnotations.length) {
+                    const uid = getUidForObj(ball) || (() => {
+                      ball.data = ball.data || {};
+                      ball.data.layer_uid = `auto_ball_${Date.now()}`;
+                      return ball.data.layer_uid;
+                    })();
+                    const start = objectCenter(ball);
+                    const path = nearestNeighborPath(start, ballAnnotations.map((entry) => entry.point), 7);
+                    const collective = buildCollectiveMoves(path);
+                    path.slice(1).forEach((point, index) => {
+                      const phase = collective[index] || {};
+                      generated.push({
+                        uid,
+                        obj: ball,
+                        idx: index,
+                        to: point,
+                        t: Date.now() + index,
+                        action: 'ball',
+                        route_points: path.slice(0, index + 2),
+                        support_moves: phase.supportMoves || [],
+                      });
+                    });
+                  }
+                  const movementAnnotations = annotations.filter((entry) => entry.action === 'run' || entry.action === 'press');
+                  movementAnnotations.forEach((entry, index) => {
+                    const candidates = entry.action === 'press' ? (rivalTokens.length ? rivalTokens : tokens) : (localTokens.length ? localTokens : tokens);
+                    const obj = nearestObject(entry.point, candidates);
+                    if (!obj) return;
+                    const uid = getUidForObj(obj);
+                    if (!uid) return;
+                    generated.push({
+                      uid,
+                      obj,
+                      idx: index,
+                      to: entry.point,
+                      t: Date.now() + 1000 + index,
+                      action: entry.action,
+                      route_points: [objectCenter(obj), entry.point],
+                    });
+                  });
+                  return generated;
+                };
                 all.forEach((o) => {
                   if (!o || !isTokenLike(o)) return;
                   const routes = Array.isArray(o?.data?.interactive_routes) ? o.data.interactive_routes : [];
@@ -24055,14 +24262,17 @@
                   });
                 });
                 if (!items.length) {
-                  setStatus('No hay rutas para generar la simulación.', true);
+                  collectStaticActionItems().forEach((item) => items.push(item));
+                }
+                if (!items.length) {
+                  setStatus('No hay rutas ni flechas accionables para generar la simulación.', true);
                   return;
                 }
                 // Orden por creación.
                 items.sort((a, b) => (a.t - b.t) || (a.idx - b.idx));
 
                 const ballFollow = tacticsBallFollowInput ? !!tacticsBallFollowInput.checked : true;
-                const ballObj = findBallObject ? findBallObject() : null;
+                const ballObj = (findBallObject ? findBallObject() : null) || all.find((obj) => obj && isBallLikeObject(obj)) || null;
                 // Si hay balón y no tiene rutas propias, lo movemos siguiendo al jugador más cercano al inicio.
                 const ballHasRoutes = ballObj && Array.isArray(ballObj?.data?.interactive_routes) && ballObj.data.interactive_routes.length > 0;
                 const ballStart = ballObj ? { x: Number(ballObj.left) || 0, y: Number(ballObj.top) || 0 } : null;
@@ -24090,40 +24300,81 @@
                     o.top = Number(to.y) || o.top;
                   });
                 };
+                const applySupportMovesInState = (st, moves) => {
+                  (Array.isArray(moves) ? moves : []).forEach((move) => {
+                    if (!safeText(move?.uid)) return;
+                    moveUidInState(st, move.uid, move.to || {});
+                  });
+                };
                 const moveBallInState = (st, to) => {
                   const objs = Array.isArray(st.objects) ? st.objects : [];
                   objs.forEach((o) => {
-                    if (safeText(o?.data?.kind) !== 'ball') return;
+                    if (safeText(o?.data?.kind) !== 'ball' && safeText(o?.data?.kind) !== 'emoji_ball') return;
                     o.left = Number(to.x) || o.left;
                     o.top = Number(to.y) || o.top;
                   });
                 };
+                const routesForItem = (it) => {
+                  const routes = {};
+                  const uid = safeText(it?.uid);
+                  const points = Array.isArray(it?.route_points)
+                    ? it.route_points
+                    : [{ x: Number(it?.obj?.left) || 0, y: Number(it?.obj?.top) || 0 }, it?.to || {}];
+                  const clean = points
+                    .map((p) => ({ x: Number(p?.x) || 0, y: Number(p?.y) || 0 }))
+                    .filter((p, index, arr) => index === 0 || distance(p, arr[index - 1]) >= 6)
+                    .slice(0, 20);
+                  if (uid && clean.length >= 2) routes[uid] = { points: clean, spline: clean.length > 2 };
+                  (Array.isArray(it?.support_moves) ? it.support_moves : []).forEach((move) => {
+                    const moveUid = safeText(move?.uid);
+                    const movePoints = (Array.isArray(move?.route_points) ? move.route_points : [])
+                      .map((p) => ({ x: Number(p?.x) || 0, y: Number(p?.y) || 0 }))
+                      .filter((p, index, arr) => index === 0 || distance(p, arr[index - 1]) >= 6)
+                      .slice(0, 8);
+                    if (moveUid && movePoints.length >= 2) routes[moveUid] = { points: movePoints, spline: false };
+                  });
+                  return routes;
+                };
+                const stepTitleForItem = (it, fallback) => {
+                  const action = safeText(it?.action);
+                  if (action === 'ball') return safeText(trainerContext.mainAction, 'Circulación de balón');
+                  if (action === 'run') return 'Movimiento sin balón';
+                  if (action === 'support') return 'Apoyos y continuidad';
+                  if (action === 'press') return 'Presión / ajuste rival';
+                  return fallback;
+                };
 
                 const steps = [];
                 // Paso 0: estado actual.
-                steps.push({ title: 'Inicio', duration: 3, canvas_state: sanitizeLoadedState(snapshot) });
+                steps.push({ title: 'Inicio / estructura', duration: 3, description: safeText(trainerContext.objective), canvas_state: sanitizeLoadedState(snapshot), routes: {} });
 
                 if (mode === 'seq') {
                   const base = cloneState(steps[0].canvas_state);
                   items.forEach((it, i) => {
                     const next = cloneState(base);
                     moveUidInState(next, it.uid, it.to);
+                    applySupportMovesInState(next, it.support_moves);
                     // Ball follow: sigue al movimiento actual (si procede).
                     if (ballObj && ballFollow && !ballHasRoutes) {
                       moveBallInState(next, it.to);
                     }
-                    steps.push({ title: `Paso ${i + 1}`, duration: 3, canvas_state: sanitizeLoadedState(next) });
+                    steps.push({ title: stepTitleForItem(it, `Paso ${i + 1}`), duration: 3, description: safeText(trainerContext.sequence), canvas_state: sanitizeLoadedState(next), routes: routesForItem(it) });
                     // Acumula cambios
                     base.objects = next.objects;
                   });
                 } else {
                   const next = cloneState(steps[0].canvas_state);
-                  items.forEach((it) => moveUidInState(next, it.uid, it.to));
+                  items.forEach((it) => {
+                    moveUidInState(next, it.uid, it.to);
+                    applySupportMovesInState(next, it.support_moves);
+                  });
                   if (ballObj && ballFollow && !ballHasRoutes) {
                     const target = pickBallTarget();
                     if (target) moveBallInState(next, target.to);
                   }
-                  steps.push({ title: 'Desarrollo', duration: 3, canvas_state: sanitizeLoadedState(next) });
+                  const routes = {};
+                  items.forEach((it) => Object.assign(routes, routesForItem(it)));
+                  steps.push({ title: 'Desarrollo colectivo', duration: 3, description: safeText(trainerContext.sequence), canvas_state: sanitizeLoadedState(next), routes });
                 }
 
                 // Escribe la simulación (reutiliza el motor existente).
@@ -24135,11 +24386,12 @@
                 simulationSavedSteps = steps.map((s) => ({
                   title: s.title,
                   duration: s.duration,
+                  description: s.description || '',
                   canvas_state: s.canvas_state,
                   canvas_width: Math.round(w || 0),
                   canvas_height: Math.round(h || 0),
                   moves: [],
-                  routes: {},
+                  routes: s.routes || {},
                   ball_follow_uid: '',
                   preset: pitchMeta.preset,
                   orientation: pitchMeta.orientation,
