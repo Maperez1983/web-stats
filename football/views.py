@@ -11461,7 +11461,38 @@ def platform_workspace_detail_page(request, workspace_id):
                     message='Miembro eliminado del workspace',
                     payload={'user': removed_username},
                 )
-    club_player_count = Player.objects.filter(team=workspace.primary_team).count() if workspace.primary_team_id else 0
+    workspace_group_ids = [int(workspace.id)]
+    workspace_group_members = [workspace]
+    if workspace.kind == Workspace.KIND_CLUB:
+        workspace_name_key = _normalize_team_lookup_key(getattr(workspace, 'name', '') or '')
+        try:
+            candidate_children = list(
+                Workspace.objects
+                .filter(kind=Workspace.KIND_CLUB)
+                .exclude(id=workspace.id)
+                .select_related('primary_team')
+                .only('id', 'name', 'slug', 'notes', 'primary_team_id')
+            )
+        except Exception:
+            candidate_children = []
+        for candidate in candidate_children:
+            candidate_name = str(getattr(candidate, 'name', '') or '').strip()
+            candidate_notes = str(getattr(candidate, 'notes', '') or '').strip()
+            source_match = re.search(r'Separado automáticamente desde\s+(.+?)(?:\.|$)', candidate_notes, flags=re.IGNORECASE)
+            source_key = _normalize_team_lookup_key(source_match.group(1).strip()) if source_match else ''
+            split_parent_key = _normalize_team_lookup_key(candidate_name.split('·', 1)[0].strip()) if '·' in candidate_name else ''
+            if workspace_name_key and workspace_name_key in {source_key, split_parent_key}:
+                workspace_group_ids.append(int(candidate.id))
+                workspace_group_members.append(candidate)
+    workspace_group_ids = sorted(set(workspace_group_ids))
+    club_player_count = 0
+    if workspace.kind == Workspace.KIND_CLUB and workspace_group_ids:
+        try:
+            club_player_count = WorkspacePlayer.objects.filter(workspace_id__in=workspace_group_ids).count()
+        except Exception:
+            club_player_count = 0
+    if not club_player_count and workspace.primary_team_id:
+        club_player_count = Player.objects.filter(team=workspace.primary_team).count()
     memberships = list(
         WorkspaceMembership.objects
         .select_related('user')
@@ -11526,9 +11557,9 @@ def platform_workspace_detail_page(request, workspace_id):
     ]
     workspace_team_links = list(
         WorkspaceTeam.objects
-        .filter(workspace=workspace)
-        .select_related('team')
-        .order_by('-is_default', 'id')
+        .filter(workspace_id__in=workspace_group_ids)
+        .select_related('workspace', 'team')
+        .order_by('workspace_id', '-is_default', 'team__category', 'team__name', 'id')
     )
     workspace_team_ids = [
         int(link.team_id)
@@ -11543,7 +11574,7 @@ def platform_workspace_detail_page(request, workspace_id):
                 int(row['current_team_id']): int(row['count'] or 0)
                 for row in (
                     WorkspacePlayer.objects
-                    .filter(workspace=workspace, current_team_id__in=workspace_team_ids)
+                    .filter(workspace_id__in=workspace_group_ids, current_team_id__in=workspace_team_ids)
                     .values('current_team_id')
                     .annotate(count=Count('id'))
                 )
@@ -11564,11 +11595,15 @@ def platform_workspace_detail_page(request, workspace_id):
             fallback_team_player_counts = {}
     category_map = {}
     workspace_team_cards = []
+    seen_team_cards = set()
     for link in workspace_team_links:
         team = getattr(link, 'team', None)
         if not team:
             continue
         team_id = int(getattr(team, 'id', 0) or 0)
+        if team_id in seen_team_cards:
+            continue
+        seen_team_cards.add(team_id)
         player_count = int(workspace_team_player_counts.get(team_id, fallback_team_player_counts.get(team_id, 0)) or 0)
         category_label = str(getattr(team, 'category', '') or '').strip() or str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or '').strip() or f'Equipo {team_id}'
         team_card = {
@@ -11581,6 +11616,8 @@ def platform_workspace_detail_page(request, workspace_id):
             'is_default': bool(getattr(link, 'is_default', False)),
             'group_name': str(getattr(getattr(team, 'group', None), 'name', '') or '').strip(),
             'season_name': str(getattr(getattr(getattr(team, 'group', None), 'season', None), 'name', '') or '').strip(),
+            'workspace_name': str(getattr(getattr(link, 'workspace', None), 'name', '') or '').strip(),
+            'is_legacy_child_workspace': int(getattr(link, 'workspace_id', 0) or 0) != int(workspace.id),
         }
         workspace_team_cards.append(team_card)
         category_entry = category_map.setdefault(
@@ -11640,6 +11677,7 @@ def platform_workspace_detail_page(request, workspace_id):
             'workspace_team_links': workspace_team_links,
             'workspace_team_cards': workspace_team_cards,
             'workspace_category_cards': workspace_category_cards,
+            'workspace_group_members': workspace_group_members,
             'is_multi_team_workspace': is_multi_team_workspace,
             'split_plan_rows': split_plan_rows,
         },
