@@ -39,6 +39,7 @@
   const nextBtn = document.getElementById('sim-next');
   const playBtn = document.getElementById('sim-play');
   const stopBtn = document.getElementById('sim-stop');
+  const downloadVideoBtn = document.getElementById('sim-download-video');
   const presentBtn = document.getElementById('sim-present');
   const scrubInput = document.getElementById('sim-scrub');
   const canvasEl = document.getElementById('sim-share-canvas');
@@ -52,6 +53,28 @@
     const raw = safeText(speedSelect?.value, '1');
     const val = Number.parseFloat(raw);
     return clamp(Number.isFinite(val) ? val : 1, 0.5, 2.5);
+  };
+
+  const fileSafeSlug = (value) => safeText(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 72) || 'simulacion';
+
+  const downloadBlob = (blob, filename) => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => {
+      try { URL.revokeObjectURL(url); } catch (error) {}
+    }, 2500);
   };
 
   const setStatus = (message) => {
@@ -782,6 +805,86 @@
     setStatus('Reproducción detenida.');
   };
 
+  const preferredRecorderMime = () => {
+    const candidates = [
+      'video/mp4;codecs=h264,aac',
+      'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+      'video/mp4',
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm',
+    ];
+    for (const candidate of candidates) {
+      try {
+        if (window.MediaRecorder?.isTypeSupported?.(candidate)) return candidate;
+      } catch (error) {}
+    }
+    return '';
+  };
+
+  const recordInternalSimulation = async () => {
+    if (!downloadVideoBtn) return;
+    if (!window.MediaRecorder) {
+      setStatus('Este navegador no permite grabar vídeo desde el simulador.');
+      return;
+    }
+    const sourceCanvas = canvas?.lowerCanvasEl || canvasEl;
+    if (!sourceCanvas || typeof sourceCanvas.captureStream !== 'function') {
+      setStatus('No se puede capturar el canvas del simulador en este navegador.');
+      return;
+    }
+    stop();
+    downloadVideoBtn.disabled = true;
+    const oldText = downloadVideoBtn.textContent;
+    downloadVideoBtn.textContent = 'Grabando...';
+    try {
+      await loadStep(0);
+      activeIndex = 0;
+      const stream = sourceCanvas.captureStream(30);
+      const mimeType = preferredRecorderMime();
+      const chunks = [];
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      recorder.ondataavailable = (event) => {
+        if (event?.data && event.data.size > 0) chunks.push(event.data);
+      };
+      const stopped = new Promise((resolve) => {
+        recorder.onstop = () => resolve();
+      });
+      recorder.start(250);
+      setStatus('Grabando vídeo desde el simulador interno...');
+      isPlaying = true;
+      if (playBtn) playBtn.hidden = true;
+      if (stopBtn) stopBtn.hidden = false;
+      const speed = readPlaybackSpeed();
+      for (let index = 0; index < Math.max(0, steps.length - 1); index += 1) {
+        if (!isPlaying) break;
+        activeIndex = index;
+        const duration = clamp(Number(steps[index]?.duration) || 3, 1, 20) / Math.max(0.2, speed);
+        await animateBetweenSteps(index, index + 1, duration);
+        if (!isPlaying) break;
+        activeIndex = index + 1;
+        await loadStep(activeIndex);
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, 450));
+      stop();
+      try { recorder.stop(); } catch (error) {}
+      await stopped;
+      try { stream.getTracks().forEach((track) => track.stop()); } catch (error) {}
+      const type = recorder.mimeType || mimeType || 'video/webm';
+      const blob = new Blob(chunks, { type });
+      const ext = type.includes('mp4') ? 'mp4' : 'webm';
+      const title = fileSafeSlug(payload?.title || 'simulacion');
+      downloadBlob(blob, `${title}.${ext}`);
+      setStatus(ext === 'mp4' ? 'MP4 descargado.' : 'Vídeo descargado en WebM: este navegador no ofrece MP4.');
+    } catch (error) {
+      stop();
+      setStatus(error?.message || 'No se pudo grabar el vídeo.');
+    } finally {
+      downloadVideoBtn.disabled = false;
+      downloadVideoBtn.textContent = oldText || 'Descargar MP4';
+    }
+  };
+
   const applyPropsToObject = (obj, props) => {
     if (!obj || !props) return;
     try {
@@ -979,6 +1082,9 @@
   });
   playBtn?.addEventListener('click', async () => {
     await play();
+  });
+  downloadVideoBtn?.addEventListener('click', async () => {
+    await recordInternalSimulation();
   });
   stopBtn?.addEventListener('click', () => stop());
   labelsInput?.addEventListener('change', async () => {

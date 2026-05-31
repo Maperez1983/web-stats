@@ -11539,7 +11539,7 @@
 				    const setSimRecordUi = (on) => {
 				      simRecordActive = !!on;
 				      if (!simRecordBtn) return;
-				      simRecordBtn.textContent = simRecordActive ? 'Parar' : 'Grabar vídeo';
+				      simRecordBtn.textContent = simRecordActive ? 'Parar' : 'Descargar vídeo';
 				      simRecordBtn.classList.toggle('danger', simRecordActive);
 				    };
 

@@ -2192,6 +2192,139 @@ class SeasonHistoryServicesTests(TestCase):
         self.assertTrue(Team.objects.filter(id=self.team.id).exists())
         self.assertTrue(WorkspaceTeam.objects.filter(workspace=self.workspace, team=self.team).exists())
 
+    def test_close_and_open_workspace_season_keeps_entities_and_inherits_roster(self):
+        from football.season_history_services import close_workspace_season, open_workspace_season
+
+        closed = close_workspace_season(self.workspace, season=self.season, end_date=date(2027, 6, 30))
+        self.workspace.refresh_from_db()
+
+        self.assertFalse(closed.is_active)
+        self.assertIsNone(self.workspace.active_season)
+
+        new_season = open_workspace_season(
+            self.workspace,
+            label='2027/2028',
+            start_date=date(2027, 7, 1),
+            team=self.team,
+            inherit_teams=True,
+            inherit_roster=True,
+        )
+        self.workspace.refresh_from_db()
+
+        self.assertEqual(self.workspace.active_season, new_season)
+        self.assertTrue(Team.objects.filter(id=self.team.id).exists())
+        self.assertTrue(WorkspaceSeasonTeam.objects.filter(season=new_season, team=self.team, is_active=True).exists())
+        self.assertTrue(WorkspaceSeasonPlayer.objects.filter(season=new_season, player=self.player).exists())
+
+    def test_season_architecture_audit_assigns_records_by_club_season(self):
+        from football.season_history_services import infer_club_season_for_date, season_architecture_audit
+
+        previous = WorkspaceSeason.objects.create(
+            workspace=self.workspace,
+            label='2025/2026',
+            start_date=date(2025, 7, 1),
+            end_date=date(2026, 6, 30),
+            is_active=False,
+        )
+        microcycle = TrainingMicrocycle.objects.create(
+            team=self.team,
+            title='Semana histórica',
+            week_start=date(2026, 5, 25),
+            week_end=date(2026, 5, 31),
+        )
+        TrainingSession.objects.create(
+            microcycle=microcycle,
+            session_date=date(2026, 5, 31),
+            focus='Tarea de temporada anterior',
+        )
+        microcycle_current = TrainingMicrocycle.objects.create(
+            team=self.team,
+            title='Semana actual',
+            week_start=date(2026, 9, 1),
+            week_end=date(2026, 9, 7),
+        )
+        TrainingSession.objects.create(
+            microcycle=microcycle_current,
+            session_date=date(2026, 9, 2),
+            focus='Tarea temporada actual',
+        )
+        task_session = TrainingSession.objects.create(
+            microcycle=microcycle_current,
+            session_date=date(2026, 9, 3),
+            focus='Sesión con tarea auditada',
+        )
+        SessionTask.objects.create(session=task_session, title='Tarea auditada')
+
+        audit = season_architecture_audit(self.workspace)
+
+        self.assertEqual(infer_club_season_for_date(self.workspace, date(2026, 5, 31)), previous)
+        self.assertEqual(infer_club_season_for_date(self.workspace, date(2026, 9, 2)), self.season)
+        self.assertEqual(audit['models']['sessions']['total'], 3)
+        self.assertEqual(audit['models']['sessions']['by_season'][str(previous.id)], 1)
+        self.assertEqual(audit['models']['sessions']['by_season'][str(self.season.id)], 2)
+        self.assertEqual(audit['models']['session_tasks']['total'], 1)
+        self.assertEqual(audit['models']['session_tasks']['explicit'], 1)
+
+    def test_new_match_session_and_task_get_explicit_club_season(self):
+        competition = Competition.objects.create(name='Liga Histórica', slug='liga-historica')
+        external_season = Season.objects.create(
+            competition=competition,
+            name='2026/2027',
+            start_date=date(2026, 7, 1),
+            end_date=date(2027, 6, 30),
+        )
+        rival = Team.objects.create(name='Rival Histórico', slug='rival-historico', short_name='Rival')
+        match = Match.objects.create(
+            season=external_season,
+            home_team=self.team,
+            away_team=rival,
+            date=date(2026, 9, 14),
+            round='J1',
+        )
+        microcycle = TrainingMicrocycle.objects.create(
+            team=self.team,
+            title='Semana con temporada',
+            week_start=date(2026, 9, 14),
+            week_end=date(2026, 9, 20),
+        )
+        session = TrainingSession.objects.create(
+            microcycle=microcycle,
+            session_date=date(2026, 9, 15),
+            focus='Sesión con temporada',
+        )
+        task = SessionTask.objects.create(session=session, title='Tarea con temporada')
+
+        self.assertEqual(match.club_season, self.season)
+        self.assertEqual(session.club_season, self.season)
+        self.assertEqual(task.club_season, self.season)
+
+    def test_backfill_assigns_missing_explicit_club_season(self):
+        from football.season_history_services import backfill_workspace_club_seasons
+
+        microcycle = TrainingMicrocycle.objects.create(
+            team=self.team,
+            title='Semana sin temporada explícita',
+            week_start=date(2026, 10, 1),
+            week_end=date(2026, 10, 7),
+        )
+        session = TrainingSession.objects.create(
+            microcycle=microcycle,
+            session_date=date(2026, 10, 2),
+            focus='Sesión para backfill',
+        )
+        TrainingSession.objects.filter(id=session.id).update(club_season=None)
+        session.refresh_from_db()
+        self.assertIsNone(session.club_season)
+
+        dry = backfill_workspace_club_seasons(self.workspace, dry_run=True)
+        self.assertGreaterEqual(dry['models']['sessions']['assigned'], 1)
+        session.refresh_from_db()
+        self.assertIsNone(session.club_season)
+
+        backfill_workspace_club_seasons(self.workspace, dry_run=False)
+        session.refresh_from_db()
+        self.assertEqual(session.club_season, self.season)
+
 
 class WorkspaceAccessPolicyTests(TestCase):
     def test_workspace_owner_can_manage_without_membership(self):

@@ -333,6 +333,32 @@ class WorkspaceSeasonPhase(models.Model):
         return f'{self.season.label} · {self.label}'
 
 
+def _infer_workspace_season_for_team_date(team_id, value):
+    if not team_id or not value:
+        return None
+    if hasattr(value, 'date'):
+        value = value.date()
+    try:
+        links = (
+            WorkspaceTeam.objects
+            .filter(team_id=int(team_id), workspace__kind=Workspace.KIND_CLUB)
+            .select_related('workspace')
+            .order_by('-is_default', 'id')
+        )
+        workspace_ids = [int(link.workspace_id) for link in links if getattr(link, 'workspace_id', None)]
+    except Exception:
+        workspace_ids = []
+    if not workspace_ids:
+        return None
+    return (
+        WorkspaceSeason.objects
+        .filter(workspace_id__in=workspace_ids, start_date__lte=value)
+        .filter(Q(end_date__isnull=True) | Q(end_date__gte=value))
+        .order_by('-is_active', '-start_date', '-id')
+        .first()
+    )
+
+
 class WorkspaceTeam(models.Model):
     """
     Vínculo entre un cliente (workspace club) y sus equipos/categorías.
@@ -898,6 +924,14 @@ class Match(models.Model):
     ]
 
     season = models.ForeignKey(Season, on_delete=models.CASCADE, related_name='matches')
+    club_season = models.ForeignKey(
+        WorkspaceSeason,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='matches',
+        help_text='Temporada interna del club para histórico y filtrado multitemporada.',
+    )
     group = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True, blank=True, related_name='matches')
     round = models.CharField(max_length=50, blank=True, help_text='Jornada / ronda')
     context = models.CharField(
@@ -945,12 +979,21 @@ class Match(models.Model):
             models.Index(fields=['home_team', 'date'], name='match_home_date_idx'),
             models.Index(fields=['away_team', 'date'], name='match_away_date_idx'),
             models.Index(fields=['season', 'date'], name='match_season_date_idx'),
+            models.Index(fields=['club_season', 'date'], name='match_club_season_date_idx'),
         ]
 
     def __str__(self):
         if self.home_team and self.away_team:
             return f'{self.home_team} vs {self.away_team} - {self.round or self.date}'
         return f'Match {self.id}'
+
+    def save(self, *args, **kwargs):
+        if not self.club_season_id:
+            team_id = getattr(self, 'home_team_id', None) or getattr(self, 'away_team_id', None)
+            inferred = _infer_workspace_season_for_team_date(team_id, self.date)
+            if inferred:
+                self.club_season = inferred
+        super().save(*args, **kwargs)
 
 
 class TeamStanding(models.Model):
@@ -1129,6 +1172,14 @@ class TrainingSession(models.Model):
     ]
 
     microcycle = models.ForeignKey(TrainingMicrocycle, on_delete=models.CASCADE, related_name='sessions')
+    club_season = models.ForeignKey(
+        WorkspaceSeason,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='training_sessions',
+        help_text='Temporada interna del club para histórico y planificación por año.',
+    )
     session_date = models.DateField()
     start_time = models.TimeField(null=True, blank=True)
     duration_minutes = models.PositiveSmallIntegerField(default=90)
@@ -1182,6 +1233,18 @@ class TrainingSession(models.Model):
 
     def __str__(self):
         return f'{self.session_date:%d/%m} · {self.focus}'
+
+    def save(self, *args, **kwargs):
+        if not self.club_season_id:
+            team_id = None
+            try:
+                team_id = getattr(self.microcycle, 'team_id', None)
+            except Exception:
+                team_id = None
+            inferred = _infer_workspace_season_for_team_date(team_id, self.session_date)
+            if inferred:
+                self.club_season = inferred
+        super().save(*args, **kwargs)
 
 
 class TrainingSessionReview(models.Model):
@@ -1365,6 +1428,14 @@ class SessionTask(models.Model):
     ]
 
     session = models.ForeignKey(TrainingSession, on_delete=models.CASCADE, related_name='tasks')
+    club_season = models.ForeignKey(
+        WorkspaceSeason,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='session_tasks',
+        help_text='Temporada interna del club heredada de la sesión o asignada por backfill.',
+    )
     title = models.CharField(max_length=160)
     block = models.CharField(max_length=30, choices=BLOCK_CHOICES, default=BLOCK_MAIN_1)
     duration_minutes = models.PositiveSmallIntegerField(default=15)
@@ -1386,6 +1457,14 @@ class SessionTask(models.Model):
     # Soft-delete (papelera). No borrar físicamente por defecto para permitir restauración.
     deleted_at = models.DateTimeField(null=True, blank=True, db_index=True)
     deleted_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='deleted_session_tasks')
+
+    def save(self, *args, **kwargs):
+        if not self.club_season_id:
+            try:
+                self.club_season_id = getattr(self.session, 'club_season_id', None)
+            except Exception:
+                self.club_season_id = None
+        super().save(*args, **kwargs)
 
 
 class SessionTaskBackup(models.Model):
@@ -1683,6 +1762,14 @@ class TacticalPlaybookClip(models.Model):
     """
 
     team = models.ForeignKey('Team', on_delete=models.CASCADE, related_name='tactical_playbook_clips')
+    club_season = models.ForeignKey(
+        WorkspaceSeason,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='tactical_playbook_clips',
+        help_text='Temporada interna del club para plantillas y clips tácticos.',
+    )
     name = models.CharField(max_length=160)
     folder = models.CharField(max_length=80, blank=True)
     tags = models.JSONField(default=list, blank=True)
@@ -1699,6 +1786,7 @@ class TacticalPlaybookClip(models.Model):
         indexes = [
             models.Index(fields=['team', '-updated_at']),
             models.Index(fields=['team', 'version_group', 'is_latest']),
+            models.Index(fields=['club_season', '-updated_at'], name='clip_club_season_updated_idx'),
         ]
 
     def __str__(self):
@@ -1830,6 +1918,14 @@ class RivalVideo(models.Model):
     ]
 
     team = models.ForeignKey(Team, on_delete=models.CASCADE, null=True, blank=True, related_name='analysis_videos')
+    club_season = models.ForeignKey(
+        WorkspaceSeason,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='rival_videos',
+        help_text='Temporada interna del club para biblioteca de análisis.',
+    )
     owner_user = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -2097,6 +2193,14 @@ class AnalysisVideoReport(models.Model):
     """
 
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='analysis_video_reports')
+    club_season = models.ForeignKey(
+        WorkspaceSeason,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='analysis_video_reports',
+        help_text='Temporada interna del club para informes de análisis.',
+    )
     folder = models.ForeignKey(
         AnalystVideoFolder,
         on_delete=models.CASCADE,
@@ -2115,6 +2219,7 @@ class AnalysisVideoReport(models.Model):
         indexes = [
             models.Index(fields=['team', 'folder', '-updated_at']),
             models.Index(fields=['folder', '-updated_at']),
+            models.Index(fields=['club_season', '-updated_at'], name='avr_club_season_updated_idx'),
         ]
 
     def __str__(self):
@@ -2331,6 +2436,14 @@ class RivalAnalysisReport(models.Model):
     ]
 
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='rival_analysis_reports')
+    club_season = models.ForeignKey(
+        WorkspaceSeason,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='rival_analysis_reports',
+        help_text='Temporada interna del club para informes de rival.',
+    )
     rival_team = models.ForeignKey(
         Team,
         on_delete=models.SET_NULL,

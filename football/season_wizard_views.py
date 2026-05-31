@@ -21,7 +21,12 @@ from .models import (
     WorkspaceSeasonPlayer,
 )
 from .ops_logging import log_exception
-from .season_history_services import ensure_active_workspace_team_seasons, ensure_team_roster_season_memberships
+from .season_history_services import (
+    close_workspace_season,
+    ensure_active_workspace_team_seasons,
+    ensure_team_roster_season_memberships,
+    open_workspace_season,
+)
 from .season_wizard import build_questionnaire_rating_summary, parse_questionnaire_ratings
 from .services import _parse_int
 
@@ -113,16 +118,7 @@ def club_season_wizard(request):
                 if not active_club_season:
                     raise ValueError('No hay temporada activa para cerrar.')
                 end_date = _parse_date(request.POST.get('season_end_date')) or timezone.localdate()
-
-                active_club_season.end_date = end_date
-                active_club_season.is_active = False
-                active_club_season.archived_at = timezone.now()
-                active_club_season.save(update_fields=['end_date', 'is_active', 'archived_at', 'updated_at'])
-
-                # Desvincula del workspace (histórico).
-                if getattr(workspace, 'active_season_id', None) == active_club_season.id:
-                    workspace.active_season = None
-                    workspace.save(update_fields=['active_season', 'updated_at'])
+                closed = close_workspace_season(workspace, season=active_club_season, end_date=end_date)
 
                 # Preparar listado de jugadores para informes.
                 # Requisito producto: solo del equipo que se está gestionando (equipo activo).
@@ -135,7 +131,7 @@ def club_season_wizard(request):
                 )
 
                 state = {
-                    'closed_season_id': int(active_club_season.id),
+                    'closed_season_id': int(closed.id),
                     'report_team_id': int(report_team_id) if report_team_id else 0,
                     'player_ids': [int(pid) for pid in player_ids if pid],
                     'player_idx': 0,
@@ -270,17 +266,14 @@ def club_season_wizard(request):
                     team_game_format_new = ''
                 reset_competition_context = str(request.POST.get('reset_competition_context') or '').strip().lower() in {'1', 'true', 'on', 'yes', 'si'}
 
-                # Cierra cualquier temporada "activa" residual (robustez).
-                WorkspaceSeason.objects.filter(workspace=workspace, is_active=True).update(is_active=False)
-
-                new_season = WorkspaceSeason.objects.create(
+                new_season = open_workspace_season(
                     workspace=workspace,
                     label=season_label,
                     start_date=start_date,
-                    is_active=True,
+                    team=active_team,
+                    inherit_teams=True,
+                    inherit_roster=False,
                 )
-                workspace.active_season = new_season
-                workspace.save(update_fields=['active_season', 'updated_at'])
 
                 # Reconversión del equipo activo (sin crear Team nuevo): subir de categoría, renombrar, etc.
                 # Nota: afecta a cómo se muestra el equipo en navegación; el histórico del club se mantiene por WorkspaceSeason.

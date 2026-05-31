@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from datetime import date
+
+from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from .models import Player, Workspace, WorkspaceSeason, WorkspaceSeasonPlayer, WorkspaceSeasonTeam, WorkspaceTeam
@@ -85,6 +89,26 @@ def club_season_date_bounds(season):
     if not date_end and bool(getattr(season, 'is_active', False)):
         date_end = timezone.localdate()
     return date_start, date_end
+
+
+def infer_club_season_for_date(workspace, value):
+    if not workspace or not value:
+        return None
+    if hasattr(value, 'date'):
+        value = value.date()
+    if not isinstance(value, date):
+        return None
+    return (
+        WorkspaceSeason.objects
+        .filter(workspace=workspace, start_date__lte=value)
+        .filter(Q(end_date__isnull=True) | Q(end_date__gte=value))
+        .order_by('-is_active', '-start_date', '-id')
+        .first()
+    )
+
+
+def selected_club_season_is_read_only(season):
+    return bool(season and not getattr(season, 'is_active', False))
 
 
 def serialize_club_season(season):
@@ -180,6 +204,71 @@ def ensure_active_workspace_team_seasons(workspace, *, season=None):
     return memberships
 
 
+@transaction.atomic
+def close_workspace_season(workspace, *, season=None, end_date=None):
+    season = season or active_club_season(workspace)
+    if not workspace or not season:
+        raise ValueError('No hay temporada activa para cerrar.')
+    end_date = end_date or timezone.localdate()
+    season.end_date = end_date
+    season.is_active = False
+    season.archived_at = timezone.now()
+    season.save(update_fields=['end_date', 'is_active', 'archived_at', 'updated_at'])
+    if getattr(workspace, 'active_season_id', None) == season.id:
+        workspace.active_season = None
+        workspace.save(update_fields=['active_season', 'updated_at'])
+    return season
+
+
+@transaction.atomic
+def open_workspace_season(
+    workspace,
+    *,
+    label,
+    start_date,
+    end_date=None,
+    team=None,
+    inherit_teams=True,
+    inherit_roster=True,
+):
+    if not workspace:
+        raise ValueError('Falta el club para crear la temporada.')
+    label = str(label or '').strip()
+    if not label:
+        raise ValueError('Etiqueta de temporada obligatoria.')
+    if not start_date:
+        raise ValueError('Fecha de inicio obligatoria.')
+
+    WorkspaceSeason.objects.filter(workspace=workspace, is_active=True).exclude(label=label).update(is_active=False)
+    season, _created = WorkspaceSeason.objects.update_or_create(
+        workspace=workspace,
+        label=label,
+        defaults={
+            'start_date': start_date,
+            'end_date': end_date,
+            'is_active': True,
+            'archived_at': None,
+        },
+    )
+    workspace.active_season = season
+    workspace.save(update_fields=['active_season', 'updated_at'])
+
+    if inherit_teams:
+        ensure_active_workspace_team_seasons(workspace, season=season)
+    elif team:
+        ensure_season_team(season, team)
+
+    if inherit_roster:
+        roster_teams = [team] if team else [
+            link.team
+            for link in WorkspaceTeam.objects.filter(workspace=workspace).select_related('team')
+            if getattr(link, 'team', None)
+        ]
+        for roster_team in roster_teams:
+            ensure_team_roster_season_memberships(season, roster_team, include_inactive=True)
+    return season
+
+
 def ensure_player_season_membership(season, player, *, confirmed=False, status=None):
     if not season or not player:
         return None
@@ -256,3 +345,215 @@ def player_season_history(player):
         .select_related('season', 'season__workspace')
         .order_by('-season__start_date', '-season_id')
     )
+
+
+def _season_for_record_date(seasons, value):
+    if hasattr(value, 'date'):
+        value = value.date()
+    if not isinstance(value, date):
+        return None
+    for season in seasons:
+        start = getattr(season, 'start_date', None)
+        end = getattr(season, 'end_date', None)
+        if start and value < start:
+            continue
+        if end and value > end:
+            continue
+        return season
+    return None
+
+
+def season_architecture_audit(workspace):
+    if not workspace or getattr(workspace, 'kind', None) != Workspace.KIND_CLUB:
+        return {}
+
+    from .models import AnalysisVideoReport, Match, RivalAnalysisReport, RivalVideo, SessionTask, TacticalPlaybookClip, TrainingSession
+
+    team_ids = list(
+        WorkspaceTeam.objects
+        .filter(workspace=workspace)
+        .values_list('team_id', flat=True)
+    )
+    seasons = list(WorkspaceSeason.objects.filter(workspace=workspace).order_by('-is_active', '-start_date', '-id'))
+    summary = {
+        'workspace_id': int(workspace.id),
+        'season_count': len(seasons),
+        'active_season_id': int(getattr(workspace, 'active_season_id', 0) or 0),
+        'models': {},
+    }
+    if not team_ids:
+        return summary
+
+    specs = _season_backfill_specs(team_ids)
+    for key, qs, field_name in specs:
+        total = 0
+        explicit = 0
+        without_date = 0
+        outside_seasons = 0
+        by_season = {}
+        for record in qs.only('id', field_name, 'club_season').distinct():
+            total += 1
+            explicit_season_id = int(getattr(record, 'club_season_id', 0) or 0)
+            if explicit_season_id:
+                explicit += 1
+                season_key = str(explicit_season_id)
+                by_season[season_key] = by_season.get(season_key, 0) + 1
+                continue
+            value = getattr(record, field_name, None)
+            if not value:
+                without_date += 1
+                continue
+            season = _season_for_record_date(seasons, value)
+            if not season:
+                outside_seasons += 1
+                continue
+            season_key = str(int(season.id))
+            by_season[season_key] = by_season.get(season_key, 0) + 1
+        summary['models'][key] = {
+            'total': total,
+            'explicit': explicit,
+            'implicit': max(0, total - explicit),
+            'without_date': without_date,
+            'outside_seasons': outside_seasons,
+            'by_season': by_season,
+        }
+    total = 0
+    explicit = 0
+    without_date = 0
+    outside_seasons = 0
+    by_season = {}
+    task_rows = (
+        SessionTask.objects
+        .filter(session__microcycle__team_id__in=team_ids)
+        .select_related('session')
+        .only('id', 'club_season', 'session__session_date')
+        .distinct()
+    )
+    for task in task_rows:
+        total += 1
+        explicit_season_id = int(getattr(task, 'club_season_id', 0) or 0)
+        if explicit_season_id:
+            explicit += 1
+            season_key = str(explicit_season_id)
+            by_season[season_key] = by_season.get(season_key, 0) + 1
+            continue
+        session_date = getattr(getattr(task, 'session', None), 'session_date', None)
+        if not session_date:
+            without_date += 1
+            continue
+        season = _season_for_record_date(seasons, session_date)
+        if not season:
+            outside_seasons += 1
+            continue
+        season_key = str(int(season.id))
+        by_season[season_key] = by_season.get(season_key, 0) + 1
+    summary['models']['session_tasks'] = {
+        'total': total,
+        'explicit': explicit,
+        'implicit': max(0, total - explicit),
+        'without_date': without_date,
+        'outside_seasons': outside_seasons,
+        'by_season': by_season,
+    }
+    return summary
+
+
+def _season_backfill_specs(team_ids):
+    from .models import AnalysisVideoReport, Match, RivalAnalysisReport, RivalVideo, TacticalPlaybookClip, TrainingSession
+
+    return [
+        ('matches', Match.objects.filter(home_team_id__in=team_ids) | Match.objects.filter(away_team_id__in=team_ids), 'date'),
+        ('sessions', TrainingSession.objects.filter(microcycle__team_id__in=team_ids), 'session_date'),
+        ('playbook_clips', TacticalPlaybookClip.objects.filter(team_id__in=team_ids), 'created_at'),
+        ('rival_videos', RivalVideo.objects.filter(team_id__in=team_ids), 'created_at'),
+        ('analysis_reports', AnalysisVideoReport.objects.filter(team_id__in=team_ids), 'created_at'),
+        ('rival_reports', RivalAnalysisReport.objects.filter(team_id__in=team_ids), 'created_at'),
+    ]
+
+
+def backfill_workspace_club_seasons(workspace, *, dry_run=True):
+    if not workspace or getattr(workspace, 'kind', None) != Workspace.KIND_CLUB:
+        return {}
+    team_ids = list(
+        WorkspaceTeam.objects
+        .filter(workspace=workspace)
+        .values_list('team_id', flat=True)
+    )
+    seasons = list(WorkspaceSeason.objects.filter(workspace=workspace).order_by('-is_active', '-start_date', '-id'))
+    result = {
+        'workspace_id': int(workspace.id),
+        'dry_run': bool(dry_run),
+        'models': {},
+    }
+    if not team_ids or not seasons:
+        return result
+
+    for key, qs, field_name in _season_backfill_specs(team_ids):
+        updated = 0
+        skipped_with_season = 0
+        without_date = 0
+        outside_seasons = 0
+        for record in qs.filter(club_season__isnull=True).only('id', field_name, 'club_season').distinct():
+            value = getattr(record, field_name, None)
+            if not value:
+                without_date += 1
+                continue
+            season = _season_for_record_date(seasons, value)
+            if not season:
+                outside_seasons += 1
+                continue
+            updated += 1
+            if not dry_run:
+                record.club_season = season
+                record.save(update_fields=['club_season'])
+        try:
+            skipped_with_season = qs.filter(club_season__isnull=False).distinct().count()
+        except Exception:
+            skipped_with_season = 0
+        result['models'][key] = {
+            'assigned': updated,
+            'already_assigned': skipped_with_season,
+            'without_date': without_date,
+            'outside_seasons': outside_seasons,
+        }
+
+    # Las tareas heredan explícitamente la temporada de la sesión si todavía quedaron sin asignar.
+    from .models import SessionTask
+
+    tasks_qs = (
+        SessionTask.objects
+        .filter(session__microcycle__team_id__in=team_ids, club_season__isnull=True, session__club_season__isnull=False)
+        .select_related('session')
+    )
+    task_assigned = tasks_qs.count()
+    if not dry_run:
+        for task in tasks_qs.only('id', 'club_season', 'session__club_season'):
+            task.club_season_id = task.session.club_season_id
+            task.save(update_fields=['club_season'])
+    task_report = result['models'].setdefault('session_tasks', {})
+    task_report['assigned_from_session'] = task_assigned
+    remaining_qs = (
+        SessionTask.objects
+        .filter(session__microcycle__team_id__in=team_ids, club_season__isnull=True)
+        .select_related('session')
+    )
+    inferred_from_date = 0
+    without_date = 0
+    outside_seasons = 0
+    for task in remaining_qs.only('id', 'club_season', 'session__session_date'):
+        session_date = getattr(getattr(task, 'session', None), 'session_date', None)
+        if not session_date:
+            without_date += 1
+            continue
+        season = _season_for_record_date(seasons, session_date)
+        if not season:
+            outside_seasons += 1
+            continue
+        inferred_from_date += 1
+        if not dry_run:
+            task.club_season = season
+            task.save(update_fields=['club_season'])
+    task_report['assigned_from_date'] = inferred_from_date
+    task_report['without_date'] = task_report.get('without_date', 0) + without_date
+    task_report['outside_seasons'] = task_report.get('outside_seasons', 0) + outside_seasons
+    return result

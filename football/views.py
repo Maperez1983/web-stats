@@ -7296,6 +7296,18 @@ def _apply_datetime_date_bounds(qs, field_name, date_start=None, date_end=None):
         qs = qs.filter(**{f'{field_name}__date__lte': date_end})
     return qs
 
+
+def _apply_club_season_filter(qs, season, field_name, date_start=None, date_end=None, *, datetime_field=False):
+    if not season:
+        return qs
+    date_lookup = f'{field_name}__date' if datetime_field else field_name
+    fallback = Q(club_season__isnull=True)
+    if date_start:
+        fallback &= Q(**{f'{date_lookup}__gte': date_start})
+    if date_end:
+        fallback &= Q(**{f'{date_lookup}__lte': date_end})
+    return qs.filter(Q(club_season=season) | fallback)
+
 def _team_metrics_cache_key(team_id):
     return team_metrics_cache_key(team_id)
 
@@ -12875,7 +12887,7 @@ def admin_page(request):
         admin_match_qs = _team_match_queryset(primary_team) if primary_team else Match.objects.none()
         admin_selected_season, admin_season_start, admin_season_end = _selected_club_season_bounds(request, workspace=workspace)
         if admin_selected_season:
-            admin_match_qs = _apply_date_bounds(admin_match_qs, 'date', admin_season_start, admin_season_end)
+            admin_match_qs = _apply_club_season_filter(admin_match_qs, admin_selected_season, 'date', admin_season_start, admin_season_end)
         # En Admin necesitamos ver también partidos importados aunque lleguen con
         # vínculos incompletos al equipo principal. Por eso unimos:
         # 1) partidos asociados al primer equipo (query normal)
@@ -12898,7 +12910,7 @@ def admin_page(request):
                     .select_related('home_team', 'away_team')
                 )
                 if admin_selected_season:
-                    fallback_rows = _apply_date_bounds(fallback_rows, 'date', admin_season_start, admin_season_end)
+                    fallback_rows = _apply_club_season_filter(fallback_rows, admin_selected_season, 'date', admin_season_start, admin_season_end)
                 fallback_rows = fallback_rows.order_by('-date', '-id')[:700]
                 for match in fallback_rows:
                     admin_map[int(match.id)] = match
@@ -12953,7 +12965,7 @@ def admin_page(request):
             )
             task_selected_season, task_season_start, task_season_end = _selected_club_season_bounds(request, workspace=workspace)
             if task_selected_season:
-                qs = _apply_date_bounds(qs, 'session__session_date', task_season_start, task_season_end)
+                qs = _apply_club_season_filter(qs, task_selected_season, 'session__session_date', task_season_start, task_season_end)
             else:
                 qs = qs.filter(created_at__date__gte=start_date)
             qs = qs.order_by('-created_at', '-id')[:200]
@@ -25521,7 +25533,7 @@ def coach_rivals_page(request):
                 .filter(team=primary_team, rival_team_id__in=team_ids)
             )
             if rival_selected_season:
-                report_rows = _apply_datetime_date_bounds(report_rows, 'created_at', rival_season_start, rival_season_end)
+                report_rows = _apply_club_season_filter(report_rows, rival_selected_season, 'created_at', rival_season_start, rival_season_end, datetime_field=True)
             report_rows = report_rows.values('rival_team_id').annotate(
                 total=Count('id'),
                 ready=Count('id', filter=Q(status=RivalAnalysisReport.STATUS_READY)),
@@ -25542,7 +25554,7 @@ def coach_rivals_page(request):
                 )
             )
             if rival_selected_season:
-                video_rows = _apply_datetime_date_bounds(video_rows, 'created_at', rival_season_start, rival_season_end)
+                video_rows = _apply_club_season_filter(video_rows, rival_selected_season, 'created_at', rival_season_start, rival_season_end, datetime_field=True)
             video_rows = video_rows.values('rival_team_id').annotate(total=Count('id'))
             for row in video_rows:
                 videos_by_team_id[int(row.get('rival_team_id') or 0)] = int(row.get('total') or 0)
@@ -25693,7 +25705,7 @@ def coach_role_trainer_page(request):
             if stats_scope != 'all':
                 total_match_qs = total_match_qs.filter(context=stats_scope)
             if trainer_selected_season:
-                total_match_qs = _apply_date_bounds(total_match_qs, 'date', trainer_season_start, trainer_season_end)
+                total_match_qs = _apply_club_season_filter(total_match_qs, trainer_selected_season, 'date', trainer_season_start, trainer_season_end)
             total_matches = int(total_match_qs.count() or 0)
         except Exception:
             total_matches = 0
@@ -26114,7 +26126,7 @@ def coach_role_trainer_page(request):
             match_events_map[event.match_id].append(event)
     match_qs = _team_match_queryset(primary_team).select_related('home_team', 'away_team')
     if trainer_selected_season:
-        match_qs = _apply_date_bounds(match_qs, 'date', trainer_season_start, trainer_season_end)
+        match_qs = _apply_club_season_filter(match_qs, trainer_selected_season, 'date', trainer_season_start, trainer_season_end)
     match_qs = match_qs.order_by('-date', '-id')
     if stats_scope != 'all':
         match_qs = match_qs.filter(context=stats_scope)
@@ -34093,7 +34105,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     if planner_tables_ready:
         _season_obj, _season_start, _season_end = _selected_club_season_bounds(request, workspace=_get_active_workspace(request))
         if _season_obj:
-            all_sessions_qs = _apply_date_bounds(all_sessions_qs, 'session_date', _season_start, _season_end)
+            all_sessions_qs = _apply_club_season_filter(all_sessions_qs, _season_obj, 'session_date', _season_start, _season_end)
     all_sessions = list(all_sessions_qs.order_by('-session_date', '-id')[:150]) if planner_tables_ready else []
 
     analyze_task_id = _parse_int(request.GET.get('analyze'))
@@ -34381,7 +34393,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         planning_session_qs = _exclude_library_sessions_qs(planning_session_qs)
         _season_obj, _season_start, _season_end = _selected_club_season_bounds(request, workspace=_get_active_workspace(request))
         if _season_obj:
-            planning_session_qs = _apply_date_bounds(planning_session_qs, 'session_date', _season_start, _season_end)
+            planning_session_qs = _apply_club_season_filter(planning_session_qs, _season_obj, 'session_date', _season_start, _season_end)
         planning_sessions = list(planning_session_qs[:220])
         if inbox_microcycle:
             standalone_sessions = [
@@ -37098,7 +37110,7 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
                 .values('id', 'session_date', 'focus')
             )
             if task_builder_selected_season:
-                all_sessions_qs = _apply_date_bounds(all_sessions_qs, 'session_date', task_builder_season_start, task_builder_season_end)
+                all_sessions_qs = _apply_club_season_filter(all_sessions_qs, task_builder_selected_season, 'session_date', task_builder_season_start, task_builder_season_end)
             all_sessions = list(all_sessions_qs.order_by('-session_date', '-id')[:150])
             cache.set(cache_key, all_sessions, context_cache_seconds)
     except Exception:
@@ -39952,6 +39964,7 @@ def analysis_page(request):
                 else:
                     AnalysisVideoReport.objects.create(
                         team=primary_team,
+                        club_season=analysis_selected_season,
                         folder=folder,
                         title=title,
                         created_by=(request.user.get_username() if request.user.is_authenticated else ''),
@@ -40080,6 +40093,7 @@ def analysis_page(request):
                 else:
                     entry = RivalVideo.objects.create(
                         team=None if want_personal else primary_team,
+                        club_season=None if want_personal else analysis_selected_season,
                         folder=None if want_personal else folder,
                         owner_user=request.user if want_personal else None,
                         rival_team=rival_team,
@@ -40184,6 +40198,7 @@ def analysis_page(request):
                 confidence = max(1, min(confidence, 5))
                 RivalAnalysisReport.objects.create(
                     team=primary_team,
+                    club_season=analysis_selected_season,
                     rival_team=selected_team,
                     rival_name=rival_name_input,
                     report_title=(request.POST.get('manual_report_title') or '').strip(),
@@ -41018,7 +41033,7 @@ def analysis_page(request):
             try:
                 ready_qs = RivalAnalysisReport.objects.filter(team=primary_team, rival_team_id__in=rival_team_ids, status=RivalAnalysisReport.STATUS_READY)
                 if analysis_selected_season:
-                    ready_qs = _apply_datetime_date_bounds(ready_qs, 'created_at', analysis_season_start, analysis_season_end)
+                    ready_qs = _apply_club_season_filter(ready_qs, analysis_selected_season, 'created_at', analysis_season_start, analysis_season_end, datetime_field=True)
                 ready_rows = list(ready_qs.values('rival_team_id').annotate(n=Count('id'), last=Max('updated_at')))
                 for row in ready_rows:
                     rid = int(row.get('rival_team_id') or 0)
@@ -41036,7 +41051,7 @@ def analysis_page(request):
                     rival_team_id__in=rival_team_ids,
                 )
                 if analysis_selected_season:
-                    videos_qs = _apply_datetime_date_bounds(videos_qs, 'created_at', analysis_season_start, analysis_season_end)
+                    videos_qs = _apply_club_season_filter(videos_qs, analysis_selected_season, 'created_at', analysis_season_start, analysis_season_end, datetime_field=True)
                 videos_rows = list(videos_qs.values('rival_team_id').annotate(n=Count('id'), last=Max('created_at')))
                 for row in videos_rows:
                     rid = int(row.get('rival_team_id') or 0)
@@ -41061,7 +41076,7 @@ def analysis_page(request):
         elif rival_name:
             manual_reports_qs = manual_reports_qs.filter(rival_name__icontains=rival_name[:18])
         if analysis_selected_season:
-            manual_reports_qs = _apply_datetime_date_bounds(manual_reports_qs, 'created_at', analysis_season_start, analysis_season_end)
+            manual_reports_qs = _apply_club_season_filter(manual_reports_qs, analysis_selected_season, 'created_at', analysis_season_start, analysis_season_end, datetime_field=True)
         manual_reports = list(manual_reports_qs.order_by('-updated_at', '-id')[:12])
         manual_report_latest = manual_reports[0] if manual_reports else None
 
@@ -41158,7 +41173,7 @@ def analysis_page(request):
     if selected_folder_id:
         rival_videos_qs = rival_videos_qs.filter(folder_id=selected_folder_id)
     if analysis_selected_season:
-        rival_videos_qs = _apply_datetime_date_bounds(rival_videos_qs, 'created_at', analysis_season_start, analysis_season_end)
+        rival_videos_qs = _apply_club_season_filter(rival_videos_qs, analysis_selected_season, 'created_at', analysis_season_start, analysis_season_end, datetime_field=True)
     rival_videos = list(rival_videos_qs[:40])
     # Ordena poniendo el vídeo base de la carpeta (si existe) el primero.
     try:
@@ -41195,8 +41210,9 @@ def analysis_page(request):
     if primary_team:
         try:
             matches = list(
-                _apply_date_bounds(
+                _apply_club_season_filter(
                     _team_match_queryset(primary_team).select_related('home_team', 'away_team'),
+                    analysis_selected_season,
                     'date',
                     analysis_season_start,
                     analysis_season_end,
@@ -44378,6 +44394,7 @@ def analysis_rival_video_chunk_finish_api(request):
     assigned_ids = [int(x) for x in assigned_ids if str(x).isdigit()][:200]
     rival_team = Team.objects.filter(id=int(rival_team_id)).first() if rival_team_id else None
     folder = AnalystVideoFolder.objects.filter(id=int(folder_id), team=primary_team).first() if folder_id else None
+    selected_video_season = selected_club_season_for_request(request, workspace=_get_active_workspace(request))
 
     tmp = tempfile.NamedTemporaryFile(prefix='2j-video-', suffix=Path(session.original_name or 'upload.mp4').suffix or '.mp4', delete=False)
     tmp_path = tmp.name
@@ -44395,6 +44412,7 @@ def analysis_rival_video_chunk_finish_api(request):
         with open(tmp_path, 'rb') as assembled:
             entry = RivalVideo.objects.create(
                 team=primary_team,
+                club_season=selected_video_season,
                 rival_team=rival_team,
                 folder=folder,
                 title=video_title[:180],
@@ -44525,6 +44543,7 @@ def analysis_rival_video_import_youtube_api(request):
     folder = None
     if folder_id and primary_team and not want_personal:
         folder = AnalystVideoFolder.objects.filter(id=int(folder_id), team=primary_team).first()
+    selected_video_season = selected_club_season_for_request(request, workspace=_get_active_workspace(request))
 
     title = requested_title
     if not title:
@@ -44533,6 +44552,7 @@ def analysis_rival_video_import_youtube_api(request):
     try:
         entry = RivalVideo.objects.create(
             team=None if want_personal else primary_team,
+            club_season=None if want_personal else selected_video_season,
             rival_team=rival_team,
             folder=folder,
             owner_user=request.user if want_personal else None,
@@ -57465,7 +57485,7 @@ def match_hub_page(request):
                 if season_obj:
                     match_qs = match_qs.filter(season=season_obj)
                 if match_selected_season:
-                    match_qs = _apply_date_bounds(match_qs, 'date', match_season_start, match_season_end)
+                    match_qs = _apply_club_season_filter(match_qs, match_selected_season, 'date', match_season_start, match_season_end)
                 pair_ids = list(match_qs.values_list('home_team_id', 'away_team_id').distinct()[:600])
                 seen_ids = set()
                 for hid, aid in pair_ids:
@@ -58354,7 +58374,7 @@ def tactical_playbook_clips_api(request):
     workspace = _get_active_workspace(request)
     selected_clip_season, clip_season_start, clip_season_end = _selected_club_season_bounds(request, workspace=workspace)
     if selected_clip_season and scope != 'system':
-        qs = _apply_datetime_date_bounds(qs, 'created_at', clip_season_start, clip_season_end)
+        qs = _apply_club_season_filter(qs, selected_clip_season, 'created_at', clip_season_start, clip_season_end, datetime_field=True)
     if version_group:
         try:
             qs = qs.filter(version_group=version_group)
@@ -58573,7 +58593,7 @@ def tactical_playbook_clip_save_api(request):
         if clip_id:
             obj_qs = TacticalPlaybookClip.objects.filter(id=clip_id, team=primary_team)
             if selected_clip_season and scope != 'system':
-                obj_qs = _apply_datetime_date_bounds(obj_qs, 'created_at', clip_season_start, clip_season_end)
+                obj_qs = _apply_club_season_filter(obj_qs, selected_clip_season, 'created_at', clip_season_start, clip_season_end, datetime_field=True)
             obj = obj_qs.first()
             if not obj:
                 return JsonResponse({'ok': False, 'error': 'Clip no encontrado.'}, status=404)
@@ -58594,6 +58614,7 @@ def tactical_playbook_clip_save_api(request):
                     pass
                 obj = TacticalPlaybookClip.objects.create(
                     team=primary_team,
+                    club_season=None if scope == 'system' else selected_clip_season,
                     name=name,
                     folder=folder,
                     tags=tags,
@@ -58615,7 +58636,7 @@ def tactical_playbook_clip_save_api(request):
         else:
             existing_qs = TacticalPlaybookClip.objects.filter(team=primary_team, name=name, is_latest=True)
             if selected_clip_season and scope != 'system':
-                existing_qs = _apply_datetime_date_bounds(existing_qs, 'created_at', clip_season_start, clip_season_end)
+                existing_qs = _apply_club_season_filter(existing_qs, selected_clip_season, 'created_at', clip_season_start, clip_season_end, datetime_field=True)
             existing = existing_qs.order_by('-updated_at', '-id').first()
             if existing and not overwrite and not new_version:
                 return JsonResponse(
@@ -58637,6 +58658,7 @@ def tactical_playbook_clip_save_api(request):
                         pass
                     obj = TacticalPlaybookClip.objects.create(
                         team=primary_team,
+                        club_season=None if scope == 'system' else selected_clip_season,
                         name=name,
                         folder=folder,
                         tags=tags,
@@ -58657,6 +58679,7 @@ def tactical_playbook_clip_save_api(request):
             else:
                 obj = TacticalPlaybookClip.objects.create(
                     team=primary_team,
+                    club_season=None if scope == 'system' else selected_clip_season,
                     name=name,
                     folder=folder,
                     tags=tags,
@@ -59184,6 +59207,7 @@ def tactical_playbook_clip_clone_api(request):
     membership = _workspace_membership_for_user(workspace, request.user) if workspace else None
     if membership and membership.role == WorkspaceMembership.ROLE_VIEWER and not _can_manage_workspace(request.user, workspace):
         return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    selected_clip_season = selected_club_season_for_request(request, workspace=workspace) if workspace else None
 
     name = str(clip.name or '').strip()[:160] or 'Clip'
     steps = clip.steps if isinstance(clip.steps, list) else []
@@ -59215,6 +59239,7 @@ def tactical_playbook_clip_clone_api(request):
                 TacticalPlaybookClip.objects.filter(team=to_team, version_group=existing.version_group).update(is_latest=False)
                 obj = TacticalPlaybookClip.objects.create(
                     team=to_team,
+                    club_season=selected_clip_season,
                     name=name,
                     folder=folder,
                     tags=tags,
@@ -59235,6 +59260,7 @@ def tactical_playbook_clip_clone_api(request):
         else:
             obj = TacticalPlaybookClip.objects.create(
                 team=to_team,
+                club_season=selected_clip_season,
                 name=name,
                 folder=folder,
                 tags=tags,
