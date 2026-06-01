@@ -10669,11 +10669,19 @@ def platform_overview_page(request):
             try:
                 primary_team = getattr(workspace, 'primary_team', None)
                 primary_team_name = str(getattr(primary_team, 'display_name', '') or getattr(primary_team, 'name', '') or workspace.name or '').strip()
+                kit2d_pref = WorkspacePreference.objects.filter(workspace=workspace, key='kit2d.tokens').first()
+                kit2d_value = kit2d_pref.value if kit2d_pref and isinstance(kit2d_pref.value, dict) else {}
                 workspace.platform_home_kit_url = (
-                    _workspace_home_kit2d_url(workspace)
+                    _is_valid_kit2d_url(kit2d_value.get('home_club_data_url'))
+                    or _is_valid_kit2d_url(kit2d_value.get('club_data_url'))
+                    or _workspace_home_kit2d_url(workspace)
                     or _generated_template_kit2d_svg_url('#06814d', '#ffffff', 'home')
                 )
-                workspace.platform_away_kit_url = _generated_template_kit2d_svg_url('#0b1220', '#f4b400', 'away')
+                workspace.platform_away_kit_url = (
+                    _is_valid_kit2d_url(kit2d_value.get('away_club_data_url'))
+                    or _is_valid_kit2d_url(kit2d_value.get('away_editor_data_url'))
+                    or _generated_template_kit2d_svg_url('#0b1220', '#f4b400', 'away')
+                )
                 workspace.platform_stadium = str(getattr(primary_team, 'home_stadium', '') or '').strip()
                 workspace.platform_team_name = primary_team_name
             except Exception:
@@ -11305,6 +11313,31 @@ def platform_workspace_detail_page(request, workspace_id):
                         key='kit_theme:v1',
                         defaults={'value': raw},
                     )
+                    kit2d_pref = WorkspacePreference.objects.filter(workspace=workspace, key='kit2d.tokens').first()
+                    kit2d_value = kit2d_pref.value if kit2d_pref and isinstance(kit2d_pref.value, dict) else {}
+                    kit2d_value = dict(kit2d_value) if isinstance(kit2d_value, dict) else {}
+                    for slot in ('home', 'away', 'gk'):
+                        clear_slot = str(request.POST.get(f'clear_kit2d_{slot}') or '').strip().lower() in {'1', 'true', 'on', 'yes', 'si'}
+                        uploaded_kit = request.FILES.get(f'kit2d_{slot}')
+                        if clear_slot and not uploaded_kit:
+                            for key in (
+                                f'{slot}_club_data_url',
+                                f'{slot}_editor_data_url',
+                                f'{slot}_data_url',
+                                f'{slot}_file_name',
+                            ):
+                                kit2d_value.pop(key, None)
+                        if uploaded_kit:
+                            data_url = _uploaded_image_as_data_url(uploaded_kit)
+                            if data_url:
+                                kit2d_value[f'{slot}_club_data_url'] = data_url
+                                kit2d_value[f'{slot}_editor_data_url'] = data_url
+                                kit2d_value[f'{slot}_file_name'] = str(getattr(uploaded_kit, 'name', '') or '').strip()[:160]
+                    WorkspacePreference.objects.update_or_create(
+                        workspace=workspace,
+                        key='kit2d.tokens',
+                        defaults={'value': kit2d_value},
+                    )
                     feedback = 'Identidad heredable del club actualizada.'
                 except Exception:
                     error = 'No se pudo actualizar la identidad del club.'
@@ -11880,6 +11913,29 @@ def platform_workspace_detail_page(request, workspace_id):
             club_kit_form[key] = _clean_kit_hex(default_kit.get(key), club_kit_form[key])
     except Exception:
         pass
+    club_kit2d_tokens = {}
+    try:
+        kit2d_pref = WorkspacePreference.objects.filter(workspace=workspace, key='kit2d.tokens').first()
+        club_kit2d_tokens = kit2d_pref.value if kit2d_pref and isinstance(kit2d_pref.value, dict) else {}
+    except Exception:
+        club_kit2d_tokens = {}
+
+    def _club_kit2d_slot_url(slot):
+        slot_key = str(slot or 'home').strip() or 'home'
+        if not isinstance(club_kit2d_tokens, dict):
+            return ''
+        for key in (
+            f'{slot_key}_club_data_url',
+            f'{slot_key}_editor_data_url',
+            f'{slot_key}_data_url',
+            'club_data_url' if slot_key == 'home' else '',
+            'editor_data_url' if slot_key == 'home' else '',
+        ):
+            url = _is_valid_kit2d_url(club_kit2d_tokens.get(key)) if key else ''
+            if url:
+                return url
+        return ''
+
     club_identity_form = {
         'team_name': str(getattr(primary_team_for_identity, 'name', '') or '').strip(),
         'short_name': str(getattr(primary_team_for_identity, 'short_name', '') or '').strip(),
@@ -11890,6 +11946,9 @@ def platform_workspace_detail_page(request, workspace_id):
         'crest_image_url': inherited_crest_image_url,
         'crest_url': inherited_crest_url,
         'kit': club_kit_form,
+        'kit2d_home_url': _club_kit2d_slot_url('home'),
+        'kit2d_away_url': _club_kit2d_slot_url('away'),
+        'kit2d_gk_url': _club_kit2d_slot_url('gk'),
     }
 
     def _sport_category_label(team_obj):
@@ -11915,14 +11974,14 @@ def platform_workspace_detail_page(request, workspace_id):
         home_kit_url = ''
         away_kit_url = ''
         try:
-            own_kit_url = _workspace_home_kit2d_url(workspace) if int(team_id) == int(getattr(workspace, 'primary_team_id', 0) or 0) else ''
             home_kit_url = (
                 _rival_kit2d_url(workspace, team, 'home')
-                or own_kit_url
+                or _club_kit2d_slot_url('home')
                 or _generated_template_kit2d_svg_url(club_kit_form['home_main'], club_kit_form['home_trim'], 'home')
             )
             away_kit_url = (
                 _rival_kit2d_url(workspace, team, 'away')
+                or _club_kit2d_slot_url('away')
                 or _generated_template_kit2d_svg_url(club_kit_form['away_main'], club_kit_form['away_trim'], 'away')
             )
         except Exception:
