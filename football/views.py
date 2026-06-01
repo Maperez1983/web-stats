@@ -7370,6 +7370,15 @@ def _apply_club_season_filter(qs, season, field_name, date_start=None, date_end=
 
 def _selected_club_season_is_read_only(request, workspace=None):
     try:
+        if workspace and getattr(workspace, 'kind', None) == Workspace.KIND_CLUB:
+            try:
+                explicit_id = _parse_int(getattr(request, 'GET', {}).get('club_season_id'))
+            except Exception:
+                explicit_id = None
+            if not explicit_id:
+                active = getattr(workspace, 'active_season', None)
+                if active and bool(getattr(active, 'is_active', False)):
+                    return False
         season = selected_club_season_for_request(request, workspace=workspace)
         return season_history_services.selected_club_season_is_read_only(season)
     except Exception:
@@ -19798,6 +19807,7 @@ def team_agenda_page(request):
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404('Equipo no configurado')
+    workspace = _get_active_workspace(request)
 
     agenda_action = str(request.POST.get('agenda_action') or '').strip() if request.method == 'POST' else ''
     if request.method == 'POST' and agenda_action in {'hide_session', 'unhide_session'}:
@@ -19831,6 +19841,8 @@ def team_agenda_page(request):
     if request.method == 'POST' and agenda_action == 'create_match':
         if not _can_edit_match_actions(request.user):
             return HttpResponse('Solo el cuerpo técnico puede crear partidos.', status=403)
+        if _selected_club_season_is_read_only(request, workspace=workspace):
+            return HttpResponse(_historical_club_season_write_message(), status=409)
         date_raw = str(request.POST.get('agenda_match_date') or '').strip()
         if not date_raw:
             return HttpResponse('Indica la fecha del partido.', status=400)
@@ -19871,6 +19883,7 @@ def team_agenda_page(request):
         season_obj = resolve_stats_season(primary_team) or getattr(getattr(primary_team, 'group', None), 'season', None)
         if not season_obj:
             return HttpResponse('No hay temporada activa para asignar el partido.', status=400)
+        selected_match_season = _home_current_club_season(request, workspace) or selected_club_season_for_request(request, workspace=workspace)
 
         home_team = primary_team if home_away == 'home' else rival_team
         away_team = rival_team if home_away == 'home' else primary_team
@@ -19883,6 +19896,8 @@ def team_agenda_page(request):
                 .filter(date=match_date)
                 .filter(home_team=home_team, away_team=away_team)
             )
+            if selected_match_season:
+                qs = qs.filter(club_season=selected_match_season)
             if context_value == Match.CONTEXT_TOURNAMENT and tournament_name_value:
                 qs = qs.filter(tournament_name=tournament_name_value)
             match_obj = qs.order_by('-id').first()
@@ -19891,6 +19906,7 @@ def team_agenda_page(request):
         if not match_obj:
             match_obj = Match.objects.create(
                 season=season_obj,
+                club_season=selected_match_season,
                 group=primary_team.group,
                 home_team=home_team,
                 away_team=away_team,
@@ -58716,6 +58732,7 @@ def match_hub_create_match(request):
     season_obj = resolve_stats_season(primary_team) or getattr(getattr(primary_team, 'group', None), 'season', None)
     if not season_obj:
         return HttpResponse('No hay temporada activa para asignar el partido.', status=400)
+    selected_match_season = _home_current_club_season(request, workspace) or selected_club_season_for_request(request, workspace=workspace)
     home_team = primary_team if home_away == 'home' else rival_team
     away_team = rival_team if home_away == 'home' else primary_team
     match_obj = None
@@ -58728,13 +58745,14 @@ def match_hub_create_match(request):
                 .filter(date=match_date)
                 .filter(home_team=home_team, away_team=away_team)
             )
+            if selected_match_season:
+                qs = qs.filter(club_season=selected_match_season)
             if context_value == Match.CONTEXT_TOURNAMENT and tournament_name_value:
                 qs = qs.filter(tournament_name=tournament_name_value)
             match_obj = qs.order_by('-id').first()
     except Exception:
         match_obj = None
     if not match_obj:
-        selected_match_season = selected_club_season_for_request(request, workspace=workspace)
         match_obj = Match.objects.create(
             season=season_obj,
             club_season=selected_match_season,

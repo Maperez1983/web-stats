@@ -2403,6 +2403,86 @@ class SeasonHistoryServicesTests(TestCase):
         self.assertEqual(response.status_code, 409)
         self.assertFalse(Team.objects.filter(name='Rival no creado').exists())
 
+    def test_new_season_wizard_resets_selected_club_season_session(self):
+        previous = WorkspaceSeason.objects.create(
+            workspace=self.workspace,
+            label='2025/2026',
+            start_date=date(2025, 7, 1),
+            end_date=date(2026, 6, 30),
+            is_active=False,
+        )
+        session = self.client.session
+        session[f'active_club_season_id:{self.workspace.id}'] = previous.id
+        session.save()
+
+        response = self.client.post(
+            reverse('club-season-wizard'),
+            data={
+                'action': 'create_new_season',
+                'season_label': '2027/2028',
+                'season_start_date': '2027-07-01',
+            },
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 302)
+        new_season = WorkspaceSeason.objects.get(workspace=self.workspace, label='2027/2028')
+        self.assertEqual(self.client.session[f'active_club_season_id:{self.workspace.id}'], new_season.id)
+
+    def test_match_creation_uses_active_club_season_despite_sticky_historical_session(self):
+        competition = Competition.objects.create(name='Liga Sticky', slug='liga-sticky')
+        external_season = Season.objects.create(
+            competition=competition,
+            name='2026/2027',
+            start_date=date(2026, 7, 1),
+            end_date=date(2027, 6, 30),
+        )
+        group = Group.objects.create(season=external_season, name='Grupo Sticky', slug='grupo-sticky')
+        self.team.group = group
+        self.team.save(update_fields=['group'])
+        previous = WorkspaceSeason.objects.create(
+            workspace=self.workspace,
+            label='2025/2026',
+            start_date=date(2025, 7, 1),
+            end_date=date(2026, 6, 30),
+            is_active=False,
+        )
+        rival = Team.objects.create(name='Rival Sticky', slug='rival-sticky', short_name='Sticky', group=group)
+        Match.objects.create(
+            season=external_season,
+            club_season=previous,
+            group=group,
+            home_team=self.team,
+            away_team=rival,
+            date=date(2026, 9, 20),
+            context=Match.CONTEXT_LEAGUE,
+        )
+        session = self.client.session
+        session[f'active_club_season_id:{self.workspace.id}'] = previous.id
+        session.save()
+
+        response = self.client.post(
+            reverse('match-hub-create'),
+            data={
+                'opponent_team_id': str(rival.id),
+                'date': '2026-09-20',
+                'home_away': 'home',
+                'context': Match.CONTEXT_LEAGUE,
+            },
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 302)
+        current_matches = Match.objects.filter(
+            season=external_season,
+            club_season=self.season,
+            home_team=self.team,
+            away_team=rival,
+            date=date(2026, 9, 20),
+        )
+        self.assertEqual(current_matches.count(), 1)
+        self.assertEqual(Match.objects.filter(club_season=previous, home_team=self.team, away_team=rival).count(), 1)
+
 
 class WorkspaceAccessPolicyTests(TestCase):
     def test_workspace_owner_can_manage_without_membership(self):

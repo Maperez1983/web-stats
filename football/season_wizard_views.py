@@ -349,6 +349,8 @@ def club_season_wizard(request):
                     inherit_teams=False,
                     inherit_roster=False,
                 )
+                if hasattr(request, 'session'):
+                    request.session[f'active_club_season_id:{int(workspace.id)}'] = int(new_season.id)
 
                 # Reconversión del equipo activo (sin crear Team nuevo): subir de categoría, renombrar, etc.
                 # Nota: afecta a cómo se muestra el equipo en navegación; el histórico del club se mantiene por WorkspaceSeason.
