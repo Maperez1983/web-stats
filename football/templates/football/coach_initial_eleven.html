@@ -1344,11 +1344,84 @@
         max-height: none;
         align-items: end;
       }
-      .broadcast-main .xi-stadium .field {
+      .broadcast-main .pitch-stage {
+        position: relative;
+        z-index: 3;
         width: min(100%, 418px, calc((100vh - 15rem) * 0.405));
-        outline: 7px solid rgba(2, 6, 23, 0.36);
+        padding: 22px 26px 28px;
         transform: perspective(920px) rotateX(14deg);
         transform-origin: 50% 72%;
+      }
+      .broadcast-main .pitch-stage::before {
+        content: "";
+        position: absolute;
+        inset: 15px 18px 19px;
+        z-index: 1;
+        border-radius: 18px;
+        background: rgba(2, 6, 23, 0.38);
+        filter: blur(8px);
+        transform: translateY(11px);
+        pointer-events: none;
+      }
+      .field-ad-frame {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        pointer-events: none;
+      }
+      .field-ad-frame span {
+        position: absolute;
+        display: grid;
+        place-items: center;
+        border: 1px solid rgba(255,255,255,0.55);
+        background:
+          repeating-linear-gradient(90deg, rgba(2,6,23,0.08) 0 1px, transparent 1px 18px),
+          linear-gradient(90deg, rgba(248,250,252,0.96), color-mix(in srgb, var(--xi-team-primary) 18%, #f8fafc), rgba(248,250,252,0.96));
+        color: #0f172a;
+        font-size: 0.54rem;
+        font-weight: 950;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        box-shadow: 0 10px 24px rgba(2,6,23,0.34);
+      }
+      .field-ad-frame .ad-top {
+        left: 11%;
+        right: 11%;
+        top: 2px;
+        height: 20px;
+        border-radius: 5px 5px 2px 2px;
+      }
+      .field-ad-frame .ad-bottom {
+        left: 9%;
+        right: 9%;
+        bottom: 2px;
+        height: 22px;
+        border-radius: 2px 2px 6px 6px;
+      }
+      .field-ad-frame .ad-left,
+      .field-ad-frame .ad-right {
+        top: 24px;
+        bottom: 30px;
+        width: 22px;
+        writing-mode: vertical-rl;
+      }
+      .field-ad-frame .ad-left {
+        left: 0;
+        transform: rotate(180deg);
+        border-radius: 6px 2px 2px 6px;
+      }
+      .field-ad-frame .ad-right {
+        right: 0;
+        border-radius: 2px 6px 6px 2px;
+      }
+      .broadcast-main .xi-stadium .field {
+        width: 100%;
+        outline: 7px solid rgba(2, 6, 23, 0.36);
+        transform: none;
+        transform-origin: center;
         background:
           radial-gradient(120% 80% at 50% 18%, rgba(255,255,255,0.10), transparent 46%),
           radial-gradient(120% 90% at 50% 104%, rgba(0,0,0,0.20), transparent 54%),
@@ -1488,19 +1561,22 @@
       .broadcast-main.camera-plan .xi-stadium {
         transform: none;
       }
-      .broadcast-main.camera-plan .xi-stadium .field {
+      .broadcast-main.camera-plan .pitch-stage {
         transform: none;
       }
       .broadcast-main.camera-broadcast .xi-stadium {
-        transform: perspective(1100px) rotateX(4deg);
+        transform: none;
         transform-origin: 50% 60%;
       }
+      .broadcast-main.camera-broadcast .pitch-stage {
+        transform: perspective(1050px) rotateX(11deg) scale(0.99);
+      }
       .broadcast-main.camera-cinematic .xi-stadium {
-        transform: perspective(980px) rotateX(7deg) scale(0.99);
+        transform: none;
         transform-origin: 50% 54%;
       }
-      .broadcast-main.camera-cinematic .xi-stadium .field {
-        transform: perspective(880px) rotateX(18deg) scale(0.98);
+      .broadcast-main.camera-cinematic .pitch-stage {
+        transform: perspective(880px) rotateX(17deg) scale(0.98);
       }
       .broadcast-main.camera-cinematic .broadcast-title h2 {
         font-size: clamp(1.34rem, 2.55vw, 2.5rem);
@@ -1851,13 +1927,21 @@
                   </div>
                 </div>
                 <div class="xi-stadium-center">
-                  <div
-                    class="field"
-                    id="lineup-field"
-                    data-pitch-preset="{{ lineup_pitch_preset|default:'full_pitch'|escape }}"
-                    data-grass-style="{{ lineup_grass_style|default:'broadcast'|escape }}"
-                    data-orientation="portrait"
-                  ></div>
+                  <div class="pitch-stage">
+                    <div class="field-ad-frame" aria-hidden="true">
+                      <span class="ad-top">{{ team_name|default:"Club" }}</span>
+                      <span class="ad-right">2J STADIUM</span>
+                      <span class="ad-bottom">{{ rival_display_name|default:"Rival" }}</span>
+                      <span class="ad-left">{{ team_name|default:"Club" }}</span>
+                    </div>
+                    <div
+                      class="field"
+                      id="lineup-field"
+                      data-pitch-preset="{{ lineup_pitch_preset|default:'full_pitch'|escape }}"
+                      data-grass-style="{{ lineup_grass_style|default:'broadcast'|escape }}"
+                      data-orientation="portrait"
+                    ></div>
+                  </div>
                 </div>
               </div>
               <div class="broadcast-subs">
