@@ -1195,36 +1195,57 @@
         overflow: hidden;
         border: 1px solid color-mix(in srgb, var(--xi-team-secondary) 16%, transparent);
         background:
-          linear-gradient(180deg, rgba(255,255,255,0.08), rgba(2,6,23,0.30)),
+          linear-gradient(180deg, rgba(255,255,255,0.10), rgba(2,6,23,0.34)),
+          repeating-linear-gradient(0deg, rgba(255,255,255,0.14) 0 1px, transparent 1px 14px),
           repeating-linear-gradient(
             90deg,
-            color-mix(in srgb, var(--xi-team-primary) 72%, #020617) 0 10px,
-            color-mix(in srgb, var(--xi-team-primary) 46%, #020617) 10px 20px,
-            color-mix(in srgb, var(--xi-team-secondary) 22%, var(--xi-team-primary)) 20px 24px
+            color-mix(in srgb, var(--xi-team-primary) 74%, #020617) 0 9px,
+            color-mix(in srgb, var(--xi-team-primary) 42%, #020617) 9px 18px,
+            color-mix(in srgb, var(--xi-team-secondary) 26%, var(--xi-team-primary)) 18px 22px
           );
         box-shadow:
           inset 0 18px 40px rgba(255,255,255,0.08),
           inset 0 -18px 42px rgba(2,6,23,0.38),
           0 20px 46px rgba(2,6,23,0.34);
       }
+      .stadium-stand .seat-tier {
+        position: absolute;
+        left: 5%;
+        right: 5%;
+        height: 20%;
+        border-radius: 999px;
+        border-top: 1px solid rgba(255,255,255,0.22);
+        border-bottom: 1px solid rgba(2,6,23,0.26);
+        background:
+          repeating-linear-gradient(90deg, rgba(255,255,255,0.18) 0 2px, transparent 2px 10px),
+          repeating-linear-gradient(0deg, rgba(2,6,23,0.20) 0 1px, transparent 1px 7px),
+          linear-gradient(180deg, color-mix(in srgb, var(--xi-team-primary) 70%, #0f172a), color-mix(in srgb, var(--xi-team-primary) 42%, #020617));
+        box-shadow:
+          inset 0 6px 12px rgba(255,255,255,0.07),
+          inset 0 -8px 16px rgba(2,6,23,0.30);
+      }
+      .stadium-stand .seat-tier:nth-child(1) { top: 12%; }
+      .stadium-stand .seat-tier:nth-child(2) { top: 39%; }
+      .stadium-stand .seat-tier:nth-child(3) { top: 66%; }
       .stadium-stand::before {
         content: "";
         position: absolute;
         inset: 0;
         background:
-          repeating-linear-gradient(180deg, rgba(255,255,255,0.18) 0 1px, transparent 1px 12px),
+          linear-gradient(90deg, transparent 0 18%, rgba(248,250,252,0.16) 18% 19.4%, transparent 19.4% 39%, rgba(248,250,252,0.13) 39% 40.2%, transparent 40.2% 59%, rgba(248,250,252,0.13) 59% 60.2%, transparent 60.2% 81%, rgba(248,250,252,0.16) 81% 82.4%, transparent 82.4%),
+          repeating-linear-gradient(180deg, rgba(255,255,255,0.16) 0 1px, transparent 1px 11px),
           radial-gradient(circle at 50% 12%, rgba(255,255,255,0.14), transparent 32%);
-        opacity: 0.72;
+        opacity: 0.76;
         mix-blend-mode: screen;
       }
       .stadium-stand::after {
         content: "";
         position: absolute;
-        inset: 10% 4%;
+        inset: 8% 4%;
         background:
-          radial-gradient(circle, rgba(255,255,255,0.22) 0 1px, transparent 1.5px 7px);
-        background-size: 12px 10px;
-        opacity: 0.58;
+          radial-gradient(circle, rgba(248,250,252,0.22) 0 1px, transparent 1.6px 8px);
+        background-size: 10px 9px;
+        opacity: 0.72;
       }
       .stadium-stand.top {
         left: 2%;
@@ -1238,17 +1259,29 @@
       .stadium-stand.left,
       .stadium-stand.right {
         top: 19%;
-        width: 15%;
+        width: 13.5%;
         height: 64%;
-        border-radius: 42px;
+        border-radius: 36px;
         background:
           linear-gradient(90deg, rgba(255,255,255,0.08), rgba(2,6,23,0.44)),
+          repeating-linear-gradient(90deg, rgba(255,255,255,0.12) 0 1px, transparent 1px 10px),
           repeating-linear-gradient(
             180deg,
             color-mix(in srgb, var(--xi-team-primary) 68%, #020617) 0 10px,
             color-mix(in srgb, var(--xi-team-primary) 42%, #020617) 10px 20px,
             color-mix(in srgb, var(--xi-team-secondary) 18%, var(--xi-team-primary)) 20px 24px
           );
+      }
+      .stadium-stand.left .seat-tier,
+      .stadium-stand.right .seat-tier {
+        left: 12%;
+        right: 12%;
+        height: 23%;
+        border-radius: 20px;
+        background:
+          repeating-linear-gradient(0deg, rgba(255,255,255,0.18) 0 2px, transparent 2px 10px),
+          repeating-linear-gradient(90deg, rgba(2,6,23,0.18) 0 1px, transparent 1px 8px),
+          linear-gradient(90deg, color-mix(in srgb, var(--xi-team-primary) 72%, #0f172a), color-mix(in srgb, var(--xi-team-primary) 38%, #020617));
       }
       .stadium-stand.left {
         left: 0;
@@ -1261,10 +1294,10 @@
         transform-origin: right center;
       }
       .stadium-stand.bottom {
-        left: 11%;
-        right: 11%;
+        left: 16%;
+        right: 16%;
         bottom: 0;
-        height: 13%;
+        height: 11%;
         border-radius: 18px 18px 46% 46% / 18px 18px 68% 68%;
         transform: perspective(620px) rotateX(58deg);
         transform-origin: bottom center;
@@ -1430,7 +1463,7 @@
         position: relative;
         z-index: 3;
         width: min(100%, 418px, calc((100vh - 15rem) * 0.405));
-        padding: 22px 26px 28px;
+        padding: 22px 18px 28px;
         transform: perspective(920px) rotateX(14deg);
         transform-origin: 50% 72%;
       }
@@ -1485,9 +1518,10 @@
       }
       .field-ad-frame .ad-left,
       .field-ad-frame .ad-right {
-        top: 24px;
-        bottom: 30px;
-        width: 22px;
+        top: 34px;
+        bottom: 38px;
+        width: 12px;
+        opacity: 0.52;
         writing-mode: vertical-rl;
       }
       .field-ad-frame .ad-left {
@@ -1953,10 +1987,10 @@
             >
               <div class="broadcast-bowl-rim" aria-hidden="true"></div>
               <div class="stadium-shell" aria-hidden="true">
-                <div class="stadium-stand top"></div>
-                <div class="stadium-stand left"></div>
-                <div class="stadium-stand right"></div>
-                <div class="stadium-stand bottom"></div>
+                <div class="stadium-stand top"><span class="seat-tier"></span><span class="seat-tier"></span><span class="seat-tier"></span></div>
+                <div class="stadium-stand left"><span class="seat-tier"></span><span class="seat-tier"></span><span class="seat-tier"></span></div>
+                <div class="stadium-stand right"><span class="seat-tier"></span><span class="seat-tier"></span><span class="seat-tier"></span></div>
+                <div class="stadium-stand bottom"><span class="seat-tier"></span><span class="seat-tier"></span><span class="seat-tier"></span></div>
                 <div class="stadium-light left"></div>
                 <div class="stadium-light right"></div>
                 <div class="stadium-ad-boards">
