@@ -5536,7 +5536,26 @@ def _build_weekly_staff_brief_context(primary_team, player_cards=None):
     )
 
 
-def _build_recent_form_payload(primary_team, limit=5):
+def _empty_recent_form_payload(season_label='', *, club_season=None, strict_club_season=False):
+    payload = {
+        'season': season_label,
+        'played': 0,
+        'wins': 0,
+        'draws': 0,
+        'losses': 0,
+        'gf': 0,
+        'ga': 0,
+        'gd': 0,
+        'last': [],
+    }
+    if club_season:
+        payload['club_season_id'] = int(getattr(club_season, 'id', 0) or 0)
+    if strict_club_season:
+        payload['strict_club_season'] = True
+    return payload
+
+
+def _build_recent_form_payload(primary_team, limit=5, *, workspace=None, club_season=None):
     """
     Resumen compacto para Home (entrenador):
     - últimos N partidos con marcador (liga)
@@ -5544,13 +5563,47 @@ def _build_recent_form_payload(primary_team, limit=5):
     """
     if not primary_team:
         return None
+    if workspace and getattr(workspace, 'kind', None) == Workspace.KIND_CLUB:
+        if not club_season:
+            try:
+                club_season = selected_club_season_for_request(None, workspace=workspace)
+            except Exception:
+                club_season = None
+        if not club_season:
+            return _empty_recent_form_payload('', strict_club_season=True)
+        today = timezone.localdate()
+        try:
+            matches = list(
+                Match.objects
+                .select_related('home_team', 'away_team')
+                .filter(club_season=club_season, context=Match.CONTEXT_LEAGUE)
+                .filter(Q(home_team=primary_team) | Q(away_team=primary_team))
+                .filter(date__isnull=False, date__lte=today)
+                .exclude(home_score__isnull=True)
+                .exclude(away_score__isnull=True)
+                .order_by('-date', '-id')[:120]
+            )
+        except Exception:
+            matches = []
+        if not matches:
+            return _empty_recent_form_payload(
+                str(getattr(club_season, 'label', '') or '').strip(),
+                club_season=club_season,
+                strict_club_season=True,
+            )
+        season_label = str(getattr(club_season, 'label', '') or '').strip()
+        strict_club_season = True
+    else:
+        matches = None
+        season_label = ''
+        strict_club_season = False
     try:
         season_obj = resolve_stats_season(primary_team) or getattr(getattr(primary_team, 'group', None), 'season', None)
     except Exception:
         season_obj = None
     # No bloquear el dashboard si no hay temporada configurada todavía:
     # hacemos fallback a "últimos partidos" del equipo aunque `season` sea nulo.
-    if not season_obj:
+    if not season_obj and matches is None:
         season_label = ''
         try:
             season_label = season_display_name(getattr(getattr(primary_team, 'group', None), 'season', None))
@@ -5571,17 +5624,7 @@ def _build_recent_form_payload(primary_team, limit=5):
         except Exception:
             matches = []
         if not matches:
-            return {
-                'season': season_label,
-                'played': 0,
-                'wins': 0,
-                'draws': 0,
-                'losses': 0,
-                'gf': 0,
-                'ga': 0,
-                'gd': 0,
-                'last': [],
-            }
+            return _empty_recent_form_payload(season_label)
         # Reutiliza el mismo cálculo de totales.
         played = wins = draws = losses = 0
         gf_total = ga_total = 0
@@ -5635,32 +5678,23 @@ def _build_recent_form_payload(primary_team, limit=5):
             'gd': gf_total - ga_total,
             'last': last_rows,
         }
-    today = timezone.localdate()
-    try:
-        matches = list(
-            Match.objects
-            .select_related('home_team', 'away_team')
-            .filter(season=season_obj, context=Match.CONTEXT_LEAGUE)
-            .filter(Q(home_team=primary_team) | Q(away_team=primary_team))
-            .filter(date__isnull=False, date__lte=today)
-            .exclude(home_score__isnull=True)
-            .exclude(away_score__isnull=True)
-            .order_by('-date', '-id')[:120]
-        )
-    except Exception:
-        matches = []
+    if matches is None:
+        today = timezone.localdate()
+        try:
+            matches = list(
+                Match.objects
+                .select_related('home_team', 'away_team')
+                .filter(season=season_obj, context=Match.CONTEXT_LEAGUE)
+                .filter(Q(home_team=primary_team) | Q(away_team=primary_team))
+                .filter(date__isnull=False, date__lte=today)
+                .exclude(home_score__isnull=True)
+                .exclude(away_score__isnull=True)
+                .order_by('-date', '-id')[:120]
+            )
+        except Exception:
+            matches = []
     if not matches:
-        return {
-            'season': season_display_name(season_obj),
-            'played': 0,
-            'wins': 0,
-            'draws': 0,
-            'losses': 0,
-            'gf': 0,
-            'ga': 0,
-            'gd': 0,
-            'last': [],
-        }
+        return _empty_recent_form_payload(season_display_name(season_obj))
 
     played = wins = draws = losses = 0
     gf_total = ga_total = 0
@@ -5705,8 +5739,8 @@ def _build_recent_form_payload(primary_team, limit=5):
             }
         )
     last_rows = list(reversed(last_rows[: max(1, int(limit or 5))]))
-    return {
-        'season': season_display_name(season_obj),
+    payload = {
+        'season': season_label or season_display_name(season_obj),
         'played': played,
         'wins': wins,
         'draws': draws,
@@ -5716,6 +5750,10 @@ def _build_recent_form_payload(primary_team, limit=5):
         'gd': gf_total - ga_total,
         'last': last_rows,
     }
+    if club_season:
+        payload['club_season_id'] = int(getattr(club_season, 'id', 0) or 0)
+        payload['strict_club_season'] = bool(strict_club_season)
+    return payload
 
 
 _parse_payload_date = match_payload_services.parse_payload_date
@@ -7274,6 +7312,24 @@ def _selected_club_season_payload(request, workspace=None):
         return {}
 
 
+def _home_current_club_season(request, workspace=None):
+    if not workspace or getattr(workspace, 'kind', None) != Workspace.KIND_CLUB:
+        return None
+    try:
+        explicit_id = _parse_int(getattr(request, 'GET', {}).get('club_season_id'))
+    except Exception:
+        explicit_id = None
+    if explicit_id:
+        try:
+            return selected_club_season_for_request(request, workspace=workspace)
+        except Exception:
+            return None
+    season = getattr(workspace, 'active_season', None)
+    if season and bool(getattr(season, 'is_active', False)):
+        return season
+    return None
+
+
 def _selected_club_season_bounds(request, workspace=None):
     try:
         season = selected_club_season_for_request(request, workspace=workspace)
@@ -7919,7 +7975,11 @@ def _dashboard_data_impl(request, *, _json):
             return _json({'error': 'No hay equipo principal configurado'}, status=400)
 
     workspace = _get_active_workspace(request)
-    club_season_payload = _selected_club_season_payload(request, workspace=workspace)
+    home_club_season = _home_current_club_season(request, workspace)
+    if workspace and getattr(workspace, 'kind', None) == Workspace.KIND_CLUB:
+        club_season_payload = season_history_services.serialize_club_season(home_club_season)
+    else:
+        club_season_payload = _selected_club_season_payload(request, workspace=workspace)
     setup_banner = {}
     # Guardrail UX: evita mostrar rival/clasificación de otra categoría si comparten grupo/competición.
     # Caso real: Prebenjamín creado clonando Senior y se queda con el mismo Group/Universo ID.
@@ -8492,7 +8552,12 @@ def _dashboard_data_impl(request, *, _json):
     except Exception:
         pass
     try:
-        recent_form = _build_recent_form_payload(primary_team, limit=5)
+        recent_form = _build_recent_form_payload(
+            primary_team,
+            limit=5,
+            workspace=workspace,
+            club_season=home_club_season,
+        )
 
         # Fuente de verdad: en Universo/RFAF los totales (PJ/PG/PE/PP/GF/GC/DG) vienen en la clasificación.
         # Así el dashboard refleja "victorias/empates/derrotas" aunque no tengamos `Match` con marcadores.
@@ -8515,7 +8580,13 @@ def _dashboard_data_impl(request, *, _json):
                     if candidate_keys & row_keys:
                         picked = row
                         break
-            if picked:
+            strict_empty_club_season = bool(
+                isinstance(recent_form, dict)
+                and recent_form.get('strict_club_season')
+                and not _safe_int(recent_form.get('played'))
+                and not (recent_form.get('last') or [])
+            )
+            if picked and not strict_empty_club_season:
                 wins = _safe_int(picked.get('wins'))
                 draws = _safe_int(picked.get('draws'))
                 losses = _safe_int(picked.get('losses'))

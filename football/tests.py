@@ -3603,6 +3603,8 @@ class PlatformWorkspaceTests(TestCase):
             home_team=self.team,
             away_team=rival,
             date=date(2026, 3, 1),
+            home_score=4,
+            away_score=1,
         )
         MatchEvent.objects.create(
             match=old_match,
@@ -3632,6 +3634,8 @@ class PlatformWorkspaceTests(TestCase):
         )
         self.assertEqual(player_card['total_actions'], 0)
         self.assertEqual(player_card['pj'], 0)
+        self.assertEqual(payload['recent_form']['played'], 0)
+        self.assertEqual(payload['recent_form']['last'], [])
 
     def test_dashboard_data_accepts_team_id_param_and_persists_active_team_mapping(self):
         workspace = Workspace.objects.create(
