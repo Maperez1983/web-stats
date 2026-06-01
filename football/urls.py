@@ -54,6 +54,7 @@ urlpatterns = [
     path('platform/asistente/', views.platform_assistant_page, name='platform-assistant'),
     path('platform/clear/', views.platform_workspace_clear_page, name='platform-workspace-clear'),
     path('platform/workspaces/<int:workspace_id>/', views.platform_workspace_detail_page, name='platform-workspace-detail'),
+    path('platform/workspaces/<int:workspace_id>/teams/<int:team_id>/', views.platform_workspace_team_detail_page, name='platform-workspace-team-detail'),
     path('platform/workspaces/<int:workspace_id>/delete/', views.platform_workspace_delete_page, name='platform-workspace-delete'),
     path('platform/workspaces/<int:workspace_id>/enter/', views.platform_workspace_enter_page, name='platform-workspace-enter'),
     path('task-studio/', views.task_studio_home_page, name='task-studio-home'),

@@ -12168,6 +12168,212 @@ def platform_workspace_detail_page(request, workspace_id):
 
 
 @login_required
+def platform_workspace_team_detail_page(request, workspace_id, team_id):
+    workspace = Workspace.objects.select_related('owner_user', 'primary_team').filter(id=workspace_id, is_active=True).first()
+    if not workspace:
+        raise Http404('Workspace no encontrado')
+    if workspace.kind != Workspace.KIND_CLUB:
+        return redirect('platform-workspace-detail', workspace_id=workspace.id)
+    if not _can_view_workspace(request.user, workspace):
+        return HttpResponse('No tienes permisos para acceder a este club.', status=403)
+
+    workspace_group_ids = [int(workspace.id)]
+    workspace_name_key = _normalize_team_lookup_key(getattr(workspace, 'name', '') or '')
+    try:
+        candidate_children = list(
+            Workspace.objects
+            .filter(kind=Workspace.KIND_CLUB)
+            .exclude(id=workspace.id)
+            .select_related('primary_team')
+            .only('id', 'name', 'slug', 'notes', 'primary_team_id')
+        )
+    except Exception:
+        candidate_children = []
+    for candidate in candidate_children:
+        candidate_name = str(getattr(candidate, 'name', '') or '').strip()
+        candidate_notes = str(getattr(candidate, 'notes', '') or '').strip()
+        source_match = re.search(r'Separado automáticamente desde\s+(.+?)(?:\.|$)', candidate_notes, flags=re.IGNORECASE)
+        source_key = _normalize_team_lookup_key(source_match.group(1).strip()) if source_match else ''
+        split_parent_key = _normalize_team_lookup_key(candidate_name.split('·', 1)[0].strip()) if '·' in candidate_name else ''
+        if workspace_name_key and workspace_name_key in {source_key, split_parent_key}:
+            workspace_group_ids.append(int(candidate.id))
+    workspace_group_ids = sorted(set(workspace_group_ids))
+
+    link = (
+        WorkspaceTeam.objects
+        .filter(workspace_id__in=workspace_group_ids, team_id=team_id)
+        .select_related('workspace', 'team', 'team__group', 'team__group__season', 'team__group__season__competition')
+        .order_by('-is_default', 'id')
+        .first()
+    )
+    if not link or not getattr(link, 'team', None):
+        raise Http404('Equipo no vinculado a este club')
+
+    team = link.team
+    primary_team = getattr(workspace, 'primary_team', None)
+    try:
+        workspace_player_count = WorkspacePlayer.objects.filter(
+            workspace_id__in=workspace_group_ids,
+            current_team_id=team.id,
+        ).count()
+    except Exception:
+        workspace_player_count = 0
+    fallback_player_count = Player.objects.filter(team=team).count()
+    player_count = int(workspace_player_count or fallback_player_count or 0)
+
+    club_kit_form = {
+        'home_main': '#06814d',
+        'home_trim': '#ffffff',
+        'away_main': '#0b1220',
+        'away_trim': '#f4b400',
+        'gk_main': '#7c2d12',
+        'gk_trim': '#ffffff',
+    }
+    try:
+        pref = WorkspacePreference.objects.filter(workspace=workspace, key='kit_theme:v1').only('value').first()
+        raw = pref.value if pref and isinstance(pref.value, dict) else {}
+        default_kit = raw.get('default') if isinstance(raw.get('default'), dict) else {}
+        if primary_team and isinstance(raw.get('teams'), dict):
+            team_kit = raw['teams'].get(str(int(primary_team.id)))
+            if isinstance(team_kit, dict):
+                default_kit = {**default_kit, **team_kit}
+        for key in list(club_kit_form.keys()):
+            club_kit_form[key] = _clean_kit_hex(default_kit.get(key), club_kit_form[key])
+    except Exception:
+        pass
+
+    club_kit2d_tokens = {}
+    try:
+        kit2d_pref = WorkspacePreference.objects.filter(workspace=workspace, key='kit2d.tokens').only('value').first()
+        club_kit2d_tokens = kit2d_pref.value if kit2d_pref and isinstance(kit2d_pref.value, dict) else {}
+    except Exception:
+        club_kit2d_tokens = {}
+
+    def _club_kit2d_slot_url(slot):
+        slot_key = str(slot or 'home').strip() or 'home'
+        if not isinstance(club_kit2d_tokens, dict):
+            return ''
+        for key in (
+            f'{slot_key}_club_data_url',
+            f'{slot_key}_editor_data_url',
+            f'{slot_key}_data_url',
+            'club_data_url' if slot_key == 'home' else '',
+            'editor_data_url' if slot_key == 'home' else '',
+        ):
+            url = _is_valid_kit2d_url(club_kit2d_tokens.get(key)) if key else ''
+            if url:
+                return url
+        return ''
+
+    def _sport_category_label(team_obj):
+        raw_category = str(getattr(team_obj, 'category', '') or '').strip()
+        raw_key = _normalize_team_lookup_key(raw_category)
+        if raw_key and any(token in raw_key for token in ('division', 'honor', 'preferente', 'andaluza', 'regional', 'liga')):
+            return 'Senior'
+        return raw_category or str(getattr(team_obj, 'display_name', '') or getattr(team_obj, 'name', '') or '').strip()
+
+    inherited_crest_image_url = ''
+    inherited_crest_url = ''
+    try:
+        if primary_team and getattr(primary_team, 'crest_image', None):
+            inherited_crest_image_url = primary_team.crest_image.url
+        if primary_team:
+            inherited_crest_url = str(getattr(primary_team, 'crest_url', '') or '').strip()
+    except Exception:
+        inherited_crest_image_url = ''
+        inherited_crest_url = ''
+
+    crest_image_url = ''
+    crest_url = ''
+    try:
+        if getattr(team, 'crest_image', None):
+            crest_image_url = team.crest_image.url
+        elif getattr(team, 'cover_image', None):
+            crest_image_url = team.cover_image.url
+        crest_url = str(getattr(team, 'crest_url', '') or '').strip()
+    except Exception:
+        crest_image_url = ''
+        crest_url = ''
+
+    home_kit_url = (
+        _rival_kit2d_url(workspace, team, 'home')
+        or _club_kit2d_slot_url('home')
+        or _generated_template_kit2d_svg_url(club_kit_form['home_main'], club_kit_form['home_trim'], 'home')
+    )
+    away_kit_url = (
+        _rival_kit2d_url(workspace, team, 'away')
+        or _club_kit2d_slot_url('away')
+        or _generated_template_kit2d_svg_url(club_kit_form['away_main'], club_kit_form['away_trim'], 'away')
+    )
+    gk_kit_url = (
+        _rival_kit2d_url(workspace, team, 'gk')
+        or _club_kit2d_slot_url('gk')
+        or _generated_template_kit2d_svg_url(club_kit_form['gk_main'], club_kit_form['gk_trim'], 'gk')
+    )
+
+    team_specific_stadium = str(getattr(team, 'home_stadium', '') or '').strip()
+    team_specific_address = str(getattr(team, 'home_stadium_address', '') or '').strip()
+    club_stadium = str(getattr(primary_team, 'home_stadium', '') or '').strip() if primary_team else ''
+    club_address = str(getattr(primary_team, 'home_stadium_address', '') or '').strip() if primary_team else ''
+    stadium = team_specific_stadium or club_stadium
+    stadium_address = team_specific_address or club_address
+    group = getattr(team, 'group', None)
+    season = getattr(group, 'season', None)
+    competition = getattr(season, 'competition', None)
+    raw_category = str(getattr(team, 'category', '') or '').strip()
+    category = _sport_category_label(team)
+    division = raw_category if raw_category and raw_category != category else ''
+    season_team = (
+        WorkspaceSeasonTeam.objects
+        .filter(season__workspace_id__in=workspace_group_ids, team=team)
+        .select_related('season')
+        .order_by('-season__is_active', '-season__start_date', '-id')
+        .first()
+    )
+    team_card = {
+        'name': str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or '').strip() or f'Equipo {team.id}',
+        'full_name': str(getattr(team, 'name', '') or '').strip(),
+        'short_name': str(getattr(team, 'short_name', '') or '').strip(),
+        'category': category,
+        'division': division,
+        'player_count': player_count,
+        'game_format_label': team.get_game_format_display() if hasattr(team, 'get_game_format_display') else str(getattr(team, 'game_format', '') or '').upper(),
+        'competition_name': str(getattr(competition, 'name', '') or '').strip(),
+        'group_name': str(getattr(group, 'name', '') or '').strip(),
+        'season_name': str(getattr(season, 'name', '') or '').strip(),
+        'stadium': stadium,
+        'stadium_address': stadium_address,
+        'stadium_is_inherited': bool(stadium and not team_specific_stadium),
+        'stadium_address_is_inherited': bool(stadium_address and not team_specific_address),
+        'stadium_maps_url': _team_stadium_maps_url(team) or _team_stadium_maps_url(primary_team),
+        'crest_image_url': crest_image_url,
+        'crest_url': crest_url,
+        'inherited_crest_image_url': inherited_crest_image_url,
+        'inherited_crest_url': inherited_crest_url,
+        'home_kit_url': home_kit_url,
+        'away_kit_url': away_kit_url,
+        'gk_kit_url': gk_kit_url,
+        'is_default': bool(getattr(link, 'is_default', False)),
+        'origin_workspace_name': str(getattr(getattr(link, 'workspace', None), 'name', '') or '').strip(),
+        'is_legacy_child_workspace': int(getattr(link, 'workspace_id', 0) or 0) != int(workspace.id),
+        'season_membership': season_team,
+        'season_membership_status': season_team.get_status_display() if season_team else '',
+    }
+
+    return render(
+        request,
+        'football/platform_workspace_team_detail.html',
+        {
+            'workspace': workspace,
+            'team': team,
+            'team_card': team_card,
+            'active_workspace': _build_active_workspace_badge(request),
+            'can_manage_workspace': _can_manage_workspace(request.user, workspace),
+        },
+    )
+
+
+@login_required
 @require_POST
 def platform_workspace_delete_page(request, workspace_id):
     workspace = Workspace.objects.select_related('owner_user', 'primary_team').filter(id=workspace_id).first()

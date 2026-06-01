@@ -1,0 +1,300 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Segunda Jugada · {{ team_card.name }}</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at top left, rgba(244, 180, 0, 0.12), transparent 24%),
+          radial-gradient(circle at top right, rgba(47, 125, 50, 0.14), transparent 22%),
+          #08111d;
+        color: #e7ebf3;
+        font-family: "Avenir Next", "Inter", system-ui, sans-serif;
+      }
+      .shell {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 1.15rem;
+      }
+      .hero,
+      .panel,
+      .identity-card {
+        background: rgba(12, 20, 34, 0.92);
+        border: 1px solid rgba(145, 161, 185, 0.18);
+        border-radius: 22px;
+        box-shadow: 0 22px 52px rgba(0, 0, 0, 0.28);
+      }
+      .hero {
+        padding: 1.35rem;
+        overflow: hidden;
+        position: relative;
+      }
+      .hero::after {
+        content: "";
+        position: absolute;
+        inset: auto -7% -48% auto;
+        width: 320px;
+        height: 320px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(244, 180, 0, 0.14), transparent 62%);
+        pointer-events: none;
+      }
+      .top-link {
+        color: #aab6c8;
+        text-decoration: none;
+        font-weight: 800;
+        display: inline-flex;
+        margin-bottom: 1rem;
+      }
+      .hero-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 1.2rem;
+        align-items: center;
+        position: relative;
+        z-index: 1;
+      }
+      .identity {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        min-width: 0;
+      }
+      .crest {
+        width: 88px;
+        height: 88px;
+        border-radius: 22px;
+        border: 1px solid rgba(160, 180, 215, 0.18);
+        background: rgba(255, 255, 255, 0.06);
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        color: #fff1c2;
+        font-size: 1.8rem;
+        font-weight: 900;
+        flex: 0 0 auto;
+      }
+      .crest img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(2rem, 4vw, 4rem);
+        line-height: 0.95;
+      }
+      .full-name {
+        margin-top: 0.35rem;
+        color: #aab6c8;
+        font-weight: 700;
+      }
+      .chips,
+      .actions,
+      .kit-strip {
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+      }
+      .chips {
+        margin-top: 0.75rem;
+      }
+      .chip {
+        border-radius: 999px;
+        padding: 0.38rem 0.68rem;
+        border: 1px solid rgba(160, 180, 215, 0.18);
+        background: rgba(255, 255, 255, 0.04);
+        color: #d9e5f7;
+        font-weight: 850;
+      }
+      .kit-strip {
+        justify-content: flex-end;
+      }
+      .kit {
+        width: 82px;
+        min-height: 96px;
+        display: grid;
+        gap: 0.35rem;
+        justify-items: center;
+        align-content: center;
+        border-radius: 18px;
+        border: 1px solid rgba(160, 180, 215, 0.16);
+        background: rgba(255, 255, 255, 0.04);
+        color: #9fb0ca;
+        font-size: 0.72rem;
+        font-weight: 900;
+        text-transform: uppercase;
+      }
+      .kit img {
+        width: 58px;
+        height: 58px;
+        object-fit: contain;
+      }
+      .actions {
+        margin-top: 1rem;
+        position: relative;
+        z-index: 1;
+      }
+      .actions a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        border: 1px solid rgba(160, 180, 215, 0.22);
+        background: rgba(255, 255, 255, 0.04);
+        color: #f3f7ff;
+        padding: 0.7rem 1rem;
+        text-decoration: none;
+        font-weight: 850;
+      }
+      .actions a.primary {
+        background: linear-gradient(135deg, rgba(244, 180, 0, 0.16), rgba(47, 125, 50, 0.16));
+        border-color: rgba(244, 180, 0, 0.28);
+      }
+      .grid {
+        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+      }
+      .panel,
+      .identity-card {
+        padding: 1rem;
+      }
+      .panel h2,
+      .identity-card h2 {
+        margin: 0 0 0.75rem;
+        font-size: 1rem;
+      }
+      .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.7rem;
+      }
+      .metric {
+        border-radius: 16px;
+        border: 1px solid rgba(160, 180, 215, 0.12);
+        background: rgba(255, 255, 255, 0.035);
+        padding: 0.8rem;
+      }
+      .metric span {
+        display: block;
+        color: #89a0c7;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 850;
+      }
+      .metric strong {
+        display: block;
+        margin-top: 0.25rem;
+        color: #f3f7ff;
+      }
+      .note {
+        color: #aab6c8;
+        margin: 0.7rem 0 0;
+      }
+      @media (max-width: 820px) {
+        .hero-grid,
+        .grid {
+          grid-template-columns: 1fr;
+        }
+        .kit-strip {
+          justify-content: flex-start;
+        }
+        .metric-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <a class="top-link" href="{% url 'platform-workspace-detail' workspace.id %}#equipos">Volver al club</a>
+      <section class="hero">
+        <div class="hero-grid">
+          <div class="identity">
+            <div class="crest" aria-hidden="true">
+              {% if team_card.crest_image_url %}
+              <img src="{{ team_card.crest_image_url }}" alt="" loading="lazy" />
+              {% elif team_card.crest_url %}
+              <img src="{{ team_card.crest_url }}" alt="" loading="lazy" />
+              {% elif team_card.inherited_crest_image_url %}
+              <img src="{{ team_card.inherited_crest_image_url }}" alt="" loading="lazy" />
+              {% elif team_card.inherited_crest_url %}
+              <img src="{{ team_card.inherited_crest_url }}" alt="" loading="lazy" />
+              {% else %}
+              {{ team_card.name|slice:":1" }}
+              {% endif %}
+            </div>
+            <div>
+              <h1>{{ team_card.name }}</h1>
+              <div class="full-name">{{ team_card.full_name|default:workspace.name }}</div>
+              <div class="chips">
+                <span class="chip">{{ team_card.category }}</span>
+                {% if team_card.division %}<span class="chip">{{ team_card.division }}</span>{% endif %}
+                <span class="chip">{{ team_card.game_format_label }}</span>
+                {% if team_card.is_default %}<span class="chip">Principal</span>{% endif %}
+              </div>
+            </div>
+          </div>
+          <div class="kit-strip" aria-label="Equipaciones del equipo">
+            <div class="kit">{% if team_card.home_kit_url %}<img src="{{ team_card.home_kit_url }}" alt="" loading="lazy" />{% endif %}<span>Local</span></div>
+            <div class="kit">{% if team_card.away_kit_url %}<img src="{{ team_card.away_kit_url }}" alt="" loading="lazy" />{% endif %}<span>Visitante</span></div>
+            <div class="kit">{% if team_card.gk_kit_url %}<img src="{{ team_card.gk_kit_url }}" alt="" loading="lazy" />{% endif %}<span>Portero</span></div>
+          </div>
+        </div>
+        <div class="actions">
+          <a class="primary" href="{% url 'platform-workspace-enter' workspace.id %}?team={{ team.id }}">Entrar al equipo</a>
+          <a href="{% url 'platform-workspace-detail' workspace.id %}?tab=configuracion">Configurar club</a>
+          {% if team_card.stadium_maps_url %}
+          <a href="{{ team_card.stadium_maps_url }}" target="_blank" rel="noopener">Ver campo</a>
+          {% endif %}
+        </div>
+      </section>
+
+      <section class="grid">
+        <article class="identity-card">
+          <h2>Datos principales</h2>
+          <div class="metric-grid">
+            <div class="metric"><span>Jugadores</span><strong>{{ team_card.player_count }}</strong></div>
+            <div class="metric"><span>Temporada</span><strong>{{ team_card.season_name|default:"Sin temporada" }}</strong></div>
+            <div class="metric"><span>Competición</span><strong>{{ team_card.competition_name|default:"Sin competición" }}</strong></div>
+            <div class="metric"><span>Grupo</span><strong>{{ team_card.group_name|default:"Sin grupo" }}</strong></div>
+          </div>
+          {% if team_card.season_membership_status %}
+          <p class="note">Estado de temporada: {{ team_card.season_membership_status }}.</p>
+          {% endif %}
+        </article>
+
+        <article class="panel">
+          <h2>Campo y herencia</h2>
+          <div class="metric-grid">
+            <div class="metric">
+              <span>Estadio</span>
+              <strong>{{ team_card.stadium|default:"Sin campo" }}{% if team_card.stadium_is_inherited %} · heredado{% endif %}</strong>
+            </div>
+            <div class="metric">
+              <span>Dirección</span>
+              <strong>{{ team_card.stadium_address|default:"Sin dirección" }}{% if team_card.stadium_address_is_inherited %} · heredada{% endif %}</strong>
+            </div>
+            <div class="metric"><span>Club padre</span><strong>{{ workspace.name }}</strong></div>
+            <div class="metric"><span>Origen</span><strong>{{ team_card.origin_workspace_name|default:workspace.name }}</strong></div>
+          </div>
+          {% if team_card.is_legacy_child_workspace %}
+          <p class="note">Este equipo procede de una separación antigua y ahora se muestra dentro del club padre.</p>
+          {% else %}
+          <p class="note">El equipo hereda escudo, campo y equipaciones del club cuando no tiene datos específicos propios.</p>
+          {% endif %}
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

@@ -1525,7 +1525,8 @@
                 </div>
                 {% endif %}
                 <div class="hero-links">
-                  <a class="primary-link" href="{% url 'platform-workspace-enter' workspace.id %}?team={{ item.team_id }}">Entrar al equipo</a>
+                  <a class="primary-link" href="{% url 'platform-workspace-team-detail' workspace.id item.team_id %}">Ver ficha</a>
+                  <a href="{% url 'platform-workspace-enter' workspace.id %}?team={{ item.team_id }}">Entrar al equipo</a>
                   {% if item.stadium_maps_url %}
                   <a href="{{ item.stadium_maps_url }}" target="_blank" rel="noopener">Ver campo</a>
                   {% endif %}
