@@ -641,7 +641,8 @@
       .token--fwd { border-color: rgba(134, 239, 172, 0.28); }
       .token.has-kit2d {
         grid-template-columns: 46px minmax(0, 1fr);
-        min-width: 142px;
+        min-width: 132px;
+        max-width: 152px;
         padding: 0.2rem 0.42rem 0.2rem 0.22rem;
       }
       .token-kit2d {
@@ -662,6 +663,9 @@
         display: flex;
         align-items: center;
         gap: 0.3rem;
+        min-width: 0;
+      }
+      .token-name-row .token-name {
         min-width: 0;
       }
       .token-name-num {
@@ -1035,7 +1039,7 @@
       }
       .broadcast-main.has-stadium-photo::before {
         background:
-          linear-gradient(180deg, color-mix(in srgb, var(--xi-team-primary) 62%, rgba(2, 6, 23, 0.88)) 0%, rgba(2, 6, 23, 0.38) 34%, rgba(2, 6, 23, 0.72) 100%),
+          linear-gradient(180deg, color-mix(in srgb, var(--xi-team-primary) 68%, rgba(2, 6, 23, 0.9)) 0%, rgba(2, 6, 23, 0.52) 34%, rgba(2, 6, 23, 0.8) 100%),
           radial-gradient(ellipse at 50% 18%, color-mix(in srgb, var(--xi-team-secondary) 34%, transparent) 0 5%, transparent 18%),
           repeating-radial-gradient(ellipse at 50% 18%, color-mix(in srgb, var(--xi-team-primary) 44%, transparent) 0 5px, color-mix(in srgb, var(--xi-team-primary) 16%, transparent) 5px 12px, transparent 12px 16px),
           radial-gradient(ellipse at 50% 16%, color-mix(in srgb, var(--xi-team-primary) 70%, #020617) 0 24%, rgba(2, 6, 23, 0.46) 44%, transparent 66%),
@@ -1045,6 +1049,21 @@
         background-blend-mode: normal, screen, normal, multiply, luminosity;
         filter: saturate(1.02) contrast(1.05);
         opacity: 0.96;
+      }
+      .broadcast-main.photo-off.has-stadium-photo::before {
+        background:
+          radial-gradient(ellipse at 50% 17%, var(--xi-team-secondary-soft) 0 4%, transparent 16%),
+          radial-gradient(ellipse at 18% 17%, var(--xi-team-secondary-soft) 0 3%, transparent 14%),
+          radial-gradient(ellipse at 82% 17%, var(--xi-team-secondary-soft) 0 3%, transparent 14%),
+          linear-gradient(180deg, rgba(2, 6, 23, 0.72) 0 5%, transparent 16%),
+          repeating-radial-gradient(ellipse at 50% 20%, color-mix(in srgb, var(--xi-team-secondary) 22%, transparent) 0 1px, transparent 1px 9px),
+          repeating-radial-gradient(ellipse at 50% 21%, color-mix(in srgb, var(--xi-team-primary) 38%, transparent) 0 5px, color-mix(in srgb, var(--xi-team-primary) 16%, transparent) 5px 12px, rgba(2, 6, 23, 0.08) 12px 17px),
+          radial-gradient(ellipse at 50% 22%, transparent 0 28%, color-mix(in srgb, var(--xi-team-primary) 38%, #020617) 29% 35%, transparent 36%),
+          radial-gradient(ellipse at 50% 18%, color-mix(in srgb, var(--xi-team-primary) 70%, #020617) 0 21%, color-mix(in srgb, var(--xi-team-primary) 52%, #020617) 28%, rgba(2, 6, 23, 0.35) 48%, transparent 63%),
+          linear-gradient(180deg, color-mix(in srgb, var(--xi-team-primary) 78%, #020617) 0 30%, rgba(15, 23, 42, 0.52) 30% 44%, transparent 72%);
+        background-size: auto;
+        background-position: center;
+        background-blend-mode: normal;
       }
       .broadcast-main.has-stadium-photo::after {
         background:
@@ -1182,25 +1201,29 @@
       }
       .stadium-ad-boards {
         position: absolute;
-        left: 11%;
-        right: 11%;
-        top: 22.2%;
+        left: 14%;
+        right: 14%;
+        top: 24%;
         z-index: 4;
         display: grid;
         grid-template-columns: 1fr 0.8fr 1fr;
-        gap: 0.55rem;
-        transform: perspective(700px) rotateX(24deg);
+        gap: 0;
+        border-radius: 6px;
+        overflow: hidden;
+        transform: perspective(700px) rotateX(18deg);
         transform-origin: top center;
+        box-shadow: 0 12px 28px rgba(2,6,23,0.45);
       }
       .stadium-ad-boards span {
         min-width: 0;
-        height: 24px;
+        height: 22px;
         display: grid;
         place-items: center;
-        border-radius: 3px;
-        border: 1px solid rgba(255,255,255,0.18);
+        border: 1px solid rgba(255,255,255,0.14);
+        border-left: 0;
         background:
-          linear-gradient(90deg, rgba(2,6,23,0.86), color-mix(in srgb, var(--xi-team-primary) 42%, rgba(2,6,23,0.86)), rgba(2,6,23,0.86));
+          repeating-linear-gradient(90deg, rgba(255,255,255,0.08) 0 1px, transparent 1px 18px),
+          linear-gradient(90deg, rgba(2,6,23,0.92), color-mix(in srgb, var(--xi-team-primary) 50%, rgba(2,6,23,0.86)), rgba(2,6,23,0.92));
         color: rgba(248,250,252,0.94);
         font-size: 0.56rem;
         font-weight: 950;
@@ -1209,7 +1232,9 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        box-shadow: 0 10px 22px rgba(2,6,23,0.34);
+      }
+      .stadium-ad-boards span:first-child {
+        border-left: 1px solid rgba(255,255,255,0.14);
       }
       .stadium-light {
         position: absolute;
@@ -1259,7 +1284,7 @@
         right: clamp(0.75rem, 1.6vw, 1.2rem);
         top: clamp(0.75rem, 1.6vw, 1.1rem);
         z-index: 6;
-        max-width: min(42%, 320px);
+        max-width: min(32%, 230px);
         padding: 0.24rem 0.56rem;
         border-radius: 999px;
         border: 1px solid rgba(255, 255, 255, 0.22);
@@ -1281,7 +1306,7 @@
         display: grid;
         justify-items: center;
         gap: 0.18rem;
-        padding: 0.72rem 0.9rem 0.25rem;
+        padding: 0.8rem 0.9rem 0.18rem;
         text-align: center;
         text-transform: uppercase;
         text-shadow: 0 12px 34px rgba(0,0,0,0.62);
@@ -1290,10 +1315,11 @@
         margin: 0;
         color: rgba(248, 250, 252, 0.96);
         -webkit-text-stroke: 0;
-        font-size: clamp(1.3rem, 3vw, 2.7rem);
+        max-width: min(94%, 820px);
+        font-size: clamp(1.28rem, 2.35vw, 2.35rem);
         font-weight: 1000;
         letter-spacing: 0.02em;
-        line-height: 0.95;
+        line-height: 1;
       }
       .broadcast-title .round {
         padding: 0.18rem 0.55rem;
@@ -1319,9 +1345,9 @@
         align-items: end;
       }
       .broadcast-main .xi-stadium .field {
-        width: min(100%, 440px, calc((100vh - 16rem) * 0.43));
+        width: min(100%, 418px, calc((100vh - 15rem) * 0.405));
         outline: 7px solid rgba(2, 6, 23, 0.36);
-        transform: perspective(920px) rotateX(15deg);
+        transform: perspective(920px) rotateX(14deg);
         transform-origin: 50% 72%;
         background:
           radial-gradient(120% 80% at 50% 18%, rgba(255,255,255,0.10), transparent 46%),
@@ -1470,19 +1496,19 @@
         transform-origin: 50% 60%;
       }
       .broadcast-main.camera-cinematic .xi-stadium {
-        transform: perspective(980px) rotateX(8deg) scale(1.035);
+        transform: perspective(980px) rotateX(7deg) scale(0.99);
         transform-origin: 50% 54%;
       }
       .broadcast-main.camera-cinematic .xi-stadium .field {
-        transform: perspective(860px) rotateX(21deg) scale(1.04);
+        transform: perspective(880px) rotateX(18deg) scale(0.98);
       }
       .broadcast-main.camera-cinematic .broadcast-title h2 {
-        font-size: clamp(1.45rem, 3.3vw, 3rem);
+        font-size: clamp(1.34rem, 2.55vw, 2.5rem);
       }
       .sponsor-board {
         position: absolute;
         z-index: 4;
-        display: flex;
+        display: none;
         align-items: center;
         justify-content: center;
         min-width: 112px;
@@ -1710,6 +1736,9 @@
                 <option value="broadcast">Broadcast</option>
                 <option value="plan">Plano</option>
               </select>
+              {% if stadium_background_url %}
+                <button type="button" id="stadium-photo-toggle-btn">Foto off</button>
+              {% endif %}
               <button type="button" id="tactical-arrow-btn">Flecha</button>
               <button type="button" id="tactical-zone-btn">Zona</button>
               <button type="button" id="tactical-clear-btn">Limpiar dibujo</button>
@@ -1862,6 +1891,7 @@
       const formationSelect = document.getElementById('formation-select');
       const broadcastMainCard = document.getElementById('broadcast-main-card');
       const broadcastCameraSelect = document.getElementById('broadcast-camera-select');
+      const stadiumPhotoToggleBtn = document.getElementById('stadium-photo-toggle-btn');
       const tacticalArrowBtn = document.getElementById('tactical-arrow-btn');
       const tacticalZoneBtn = document.getElementById('tactical-zone-btn');
       const tacticalClearBtn = document.getElementById('tactical-clear-btn');
@@ -1901,6 +1931,28 @@
         document.body.classList.toggle('is-presentation');
       });
       const cameraClasses = ['camera-plan', 'camera-broadcast', 'camera-cinematic'];
+      const readBroadcastPrefs = () => {
+        try {
+          const parsed = JSON.parse(window.localStorage?.getItem(broadcastStorageKey) || '{}');
+          return parsed && typeof parsed === 'object' ? parsed : {};
+        } catch (_) {
+          return {};
+        }
+      };
+      const writeBroadcastPrefs = (patch) => {
+        try {
+          window.localStorage?.setItem(broadcastStorageKey, JSON.stringify({ ...readBroadcastPrefs(), ...patch }));
+        } catch (_) {}
+      };
+      const setStadiumPhotoEnabled = (enabled) => {
+        const isEnabled = Boolean(enabled);
+        broadcastMainCard?.classList.toggle('photo-off', !isEnabled);
+        if (stadiumPhotoToggleBtn) {
+          stadiumPhotoToggleBtn.textContent = isEnabled ? 'Foto on' : 'Foto off';
+          stadiumPhotoToggleBtn.classList.toggle('is-active', isEnabled);
+        }
+        writeBroadcastPrefs({ stadiumPhoto: isEnabled });
+      };
       const setBroadcastCamera = (value) => {
         const camera = ['plan', 'broadcast', 'cinematic'].includes(String(value || '')) ? String(value) : 'cinematic';
         if (broadcastMainCard) {
@@ -1908,15 +1960,15 @@
           broadcastMainCard.classList.add(`camera-${camera}`);
         }
         if (broadcastCameraSelect) broadcastCameraSelect.value = camera;
-        try { window.localStorage?.setItem(broadcastStorageKey, JSON.stringify({ camera })); } catch (_) {}
+        writeBroadcastPrefs({ camera });
       };
-      try {
-        const saved = JSON.parse(window.localStorage?.getItem(broadcastStorageKey) || '{}');
-        setBroadcastCamera(saved.camera || 'cinematic');
-      } catch (_) {
-        setBroadcastCamera('cinematic');
-      }
+      const savedBroadcastPrefs = readBroadcastPrefs();
+      setBroadcastCamera(savedBroadcastPrefs.camera || 'cinematic');
+      setStadiumPhotoEnabled(savedBroadcastPrefs.stadiumPhoto === true);
       broadcastCameraSelect?.addEventListener('change', () => setBroadcastCamera(broadcastCameraSelect.value));
+      stadiumPhotoToggleBtn?.addEventListener('click', () => {
+        setStadiumPhotoEnabled(broadcastMainCard?.classList.contains('photo-off'));
+      });
       async function loadLineupKit2dPreference() {
         try {
           const response = await fetch(`/api/workspace/preferences/get/?key=${encodeURIComponent(KIT2D_PREF_KEY)}`, {
@@ -2130,6 +2182,39 @@
       };
 
       const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+      const withSeparatedDisplayPositions = (players) => {
+        const displayRows = (players || []).map((player, index) => ({
+          ...player,
+          _displayIndex: index,
+          _displayX: clamp(Number(player?.x_pct ?? 50), 3, 97),
+          _displayY: clamp(Number(player?.y_pct ?? 50), 3, 97),
+        }));
+        const minDx = 13;
+        const minDy = 5.6;
+        for (let pass = 0; pass < 8; pass += 1) {
+          for (let i = 0; i < displayRows.length; i += 1) {
+            for (let j = i + 1; j < displayRows.length; j += 1) {
+              const a = displayRows[i];
+              const b = displayRows[j];
+              const dx = b._displayX - a._displayX;
+              const dy = b._displayY - a._displayY;
+              if (Math.abs(dx) >= minDx || Math.abs(dy) >= minDy) continue;
+              const sameBand = Math.abs(dy) < minDy;
+              const pushX = (minDx - Math.abs(dx)) / 2 + 0.8;
+              const pushY = (minDy - Math.abs(dy)) / 2 + 0.25;
+              const dirX = dx === 0 ? (a._displayIndex % 2 ? -1 : 1) : Math.sign(dx);
+              const dirY = dy === 0 ? (a._displayIndex % 2 ? 1 : -1) : Math.sign(dy);
+              a._displayX = clamp(a._displayX - dirX * pushX, 5, 95);
+              b._displayX = clamp(b._displayX + dirX * pushX, 5, 95);
+              if (!sameBand || Math.abs(dx) < minDx * 0.58) {
+                a._displayY = clamp(a._displayY - dirY * pushY, 5, 95);
+                b._displayY = clamp(b._displayY + dirY * pushY, 5, 95);
+              }
+            }
+          }
+        }
+        return displayRows;
+      };
       const dedupeById = (rows) => {
         const seen = new Set();
         return (rows || []).filter((row) => {
@@ -2550,7 +2635,7 @@
 
         // Render tokens libres (arrastre) - equipo propio.
         const renderedKeys = new Set();
-        (lineupState.starters || []).forEach((player) => {
+        withSeparatedDisplayPositions(lineupState.starters || []).forEach((player) => {
           const pid = String(player?.id || '').trim();
           if (!pid) return;
           const num = (player?.number != null && String(player.number).trim()) ? String(player.number).trim() : '--';
@@ -2558,8 +2643,10 @@
           const key = (num && num !== '--') ? `#${num}` : `${pid}:${nameKey}`;
           if (renderedKeys.has(key)) return;
           renderedKeys.add(key);
-          const x = clamp(Number(player.x_pct ?? 50), 2, 98);
-          const y = clamp(Number(player.y_pct ?? 50), 2, 98);
+          const x = clamp(Number(player._displayX ?? player.x_pct ?? 50), 2, 98);
+          const y = clamp(Number(player._displayY ?? player.y_pct ?? 50), 2, 98);
+          const dataX = clamp(Number(player.x_pct ?? x), 2, 98);
+          const dataY = clamp(Number(player.y_pct ?? y), 2, 98);
           const wrap = document.createElement('div');
           wrap.className = 'field-token';
           wrap.dataset.playerId = pid;
@@ -2608,7 +2695,7 @@
               pointerId: event.pointerId,
               playerId: String(player.id),
               el: wrap,
-              start: { x, y },
+              start: { x: dataX, y: dataY },
               moved: false,
             };
             wrap.classList.add('is-dragging');

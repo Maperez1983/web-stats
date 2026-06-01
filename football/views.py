@@ -29223,8 +29223,16 @@ def _initial_eleven_page_impl(request):
             stadium_background_url = _cover_url_for_initial_eleven(primary_team)
             stadium_team = primary_team
         if stadium_background_url:
+            raw_stadium_label = str(getattr(stadium_team, 'home_stadium', '') or '').strip()
+            raw_stadium_label_lower = raw_stadium_label.lower()
+            if (
+                raw_stadium_label_lower.startswith(('http://', 'https://', 'www.'))
+                or 'google.' in raw_stadium_label_lower
+                or 'maps.' in raw_stadium_label_lower
+            ):
+                raw_stadium_label = ''
             stadium_background_label = (
-                str(getattr(stadium_team, 'home_stadium', '') or '').strip()
+                raw_stadium_label
                 or str(getattr(stadium_team, 'display_name', '') or '').strip()
                 or str(getattr(stadium_team, 'name', '') or '').strip()
             )
