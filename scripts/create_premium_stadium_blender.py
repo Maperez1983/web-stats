@@ -165,13 +165,20 @@ def add_side_stand(name, side):
     for x in [-40, -25, -8, 8, 25, 40]:
         cube_obj(f"{name}_vomitory_{x}", (x, base_y + sign * 7.0, 3.0), (3.4, 2.0, 2.0), MATS["dark"])
         cube_obj(f"{name}_aisle_{x}", (x, base_y + sign * 13.5, 5.0), (1.15, 15.0, 0.26), MATS["rail"])
+    cube_obj(f"{name}_front_fascia", (0, base_y + sign * 2.25, 2.05), (PITCH_X + 26, 0.55, 1.10), MATS["club_primary"])
+    cube_obj(f"{name}_middle_fascia", (0, base_y + sign * 13.6, 6.45), (PITCH_X + 22, 0.55, 1.05), MATS["club_primary"])
+    cube_obj(f"{name}_upper_fascia", (0, base_y + sign * 22.6, 10.75), (PITCH_X + 18, 0.55, 1.00), MATS["club_primary"])
+    cube_obj(f"{name}_rear_wall", (0, base_y + sign * 28.6, 7.8), (PITCH_X + 34, 0.85, 12.8), MATS["concrete"])
     mesh_boxes(f"{name}_club_primary_seats_mesh", primary_seats, MATS["club_primary"])
     mesh_boxes(f"{name}_club_secondary_seats_mesh", secondary_seats, MATS["club_secondary"])
     roof_y = base_y + sign * 29.5
-    cube_obj(f"{name}_roof_canopy", (0, roof_y, 15.4), (PITCH_X + 36, 14.5, 0.45), MATS["roof"])
+    cube_obj(f"{name}_roof_canopy", (0, roof_y, 15.4), (PITCH_X + 40, 15.5, 0.45), MATS["roof"])
+    cylinder_between(f"{name}_roof_front_truss", (-(PITCH_X / 2 + 18), roof_y - sign * 7.6, 14.1), ((PITCH_X / 2 + 18), roof_y - sign * 7.6, 14.1), 0.22, MATS["rail"], vertices=16)
+    cylinder_between(f"{name}_roof_rear_truss", (-(PITCH_X / 2 + 18), roof_y + sign * 6.8, 15.9), ((PITCH_X / 2 + 18), roof_y + sign * 6.8, 15.9), 0.18, MATS["rail"], vertices=16)
     for i in range(13):
         x = -PITCH_X / 2 + i * PITCH_X / 12
         cylinder_between(f"{name}_roof_truss_{i}", (x, roof_y - sign * 7, 12.2), (x + 3.0, roof_y + sign * 7, 16.4), 0.13, MATS["rail"])
+        cylinder_between(f"{name}_roof_support_{i}", (x, base_y + sign * 24.7, 8.5), (x, roof_y + sign * 1.8, 15.2), 0.10, MATS["rail"], vertices=10)
         cube_obj(f"{name}_light_{i}", (x, roof_y - sign * 6.2, 13.2), (2.4, 0.22, 0.22), MATS["light"])
 
 
@@ -201,13 +208,20 @@ def add_end_stand(name, side):
                 target = secondary_seats if pattern else primary_seats
                 target.append(((x - sign * 0.10, y, z + 0.05), (0.34, 0.50, 0.16)))
         cube_obj(f"{name}_concourse_rail_{tier}", (base_x + sign * (9 + tier * 8), 0, 4 + tier * 4), (0.20, PITCH_Y + 18 - tier * 2, 0.35), MATS["rail"])
+    cube_obj(f"{name}_front_fascia", (base_x + sign * 2.25, 0, 2.05), (0.55, PITCH_Y + 20, 1.10), MATS["club_primary"])
+    cube_obj(f"{name}_middle_fascia", (base_x + sign * 13.1, 0, 6.35), (0.55, PITCH_Y + 16, 1.05), MATS["club_primary"])
+    cube_obj(f"{name}_upper_fascia", (base_x + sign * 21.8, 0, 10.6), (0.55, PITCH_Y + 12, 1.00), MATS["club_primary"])
+    cube_obj(f"{name}_rear_wall", (base_x + sign * 28.0, 0, 7.5), (0.85, PITCH_Y + 28, 12.2), MATS["concrete"])
     mesh_boxes(f"{name}_club_primary_seats_mesh", primary_seats, MATS["club_primary"])
     mesh_boxes(f"{name}_club_secondary_seats_mesh", secondary_seats, MATS["club_secondary"])
     roof_x = base_x + sign * 29.0
-    cube_obj(f"{name}_roof_canopy", (roof_x, 0, 14.4), (14.0, PITCH_Y + 30, 0.45), MATS["roof"])
+    cube_obj(f"{name}_roof_canopy", (roof_x, 0, 14.4), (15.5, PITCH_Y + 34, 0.45), MATS["roof"])
+    cylinder_between(f"{name}_roof_front_truss", (roof_x - sign * 7.7, -(PITCH_Y / 2 + 15), 13.6), (roof_x - sign * 7.7, (PITCH_Y / 2 + 15), 13.6), 0.20, MATS["rail"], vertices=16)
+    cylinder_between(f"{name}_roof_rear_truss", (roof_x + sign * 6.8, -(PITCH_Y / 2 + 15), 15.4), (roof_x + sign * 6.8, (PITCH_Y / 2 + 15), 15.4), 0.16, MATS["rail"], vertices=16)
     for i in range(9):
         y = -PITCH_Y / 2 + i * PITCH_Y / 8
         cylinder_between(f"{name}_roof_truss_{i}", (roof_x - sign * 7, y, 11.8), (roof_x + sign * 7, y + 2.2, 15.5), 0.13, MATS["rail"])
+        cylinder_between(f"{name}_roof_support_{i}", (base_x + sign * 24.0, y, 8.2), (roof_x + sign * 1.5, y, 14.7), 0.10, MATS["rail"], vertices=10)
 
 
 def add_corner_bowl(x_sign, y_sign):

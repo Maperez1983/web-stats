@@ -1941,7 +1941,8 @@
 			              '        <label style="display:flex; gap:10px; align-items:center;">',
 			              '          Cámara',
 			              '          <select id="task-pitch-3d-camera">',
-			              '            <option value="drone" selected>Drone</option>',
+			              '            <option value="stadium_render" selected>Estadio</option>',
+			              '            <option value="drone">Drone</option>',
 			              '            <option value="broadcast">Broadcast</option>',
 			              '            <option value="broadcast_high">Broadcast alto</option>',
 			              '            <option value="normal">Normal</option>',
@@ -7919,6 +7920,7 @@
 						        secondary: safeText(form?.dataset?.stadiumTeamSecondary, '#ffffff'),
 						        crestUrl: safeText(form?.dataset?.stadiumTeamCrestUrl),
 						        modelSrc: safeText(form?.dataset?.stadiumModelSrc),
+						        gltfLoaderSrc: safeText(form?.dataset?.threeGltfLoaderSrc),
 						        mainStandSrc: safeText(form?.dataset?.stadiumMainStandSrc),
 						        sponsorLogos,
 						        ads: {
@@ -7936,8 +7938,22 @@
 
 						    const loadPitch3dBlenderStadium = (group, ctx, metersW, metersH) => {
 						      if (!group || !window.THREE || !ctx?.modelSrc) return false;
-						      const LoaderClass = window.__WEBSTATS_GLTF_LOADER_CLASS;
-						      if (typeof LoaderClass !== 'function') return false;
+						      const loadWithClass = (LoaderClass) => {
+						        if (typeof LoaderClass !== 'function') return false;
+						        try {
+						          const loader = new LoaderClass();
+						          loader.load(ctx.modelSrc, (gltf) => {
+						            try {
+						              if (!gltf?.scene) return;
+						              cache[ctx.modelSrc] = gltf.scene;
+						              attach(gltf.scene);
+						            } catch (e) { /* ignore */ }
+						          }, undefined, () => {});
+						          return true;
+						        } catch (e) {
+						          return false;
+						        }
+						      };
 						      const primaryInt = toColorInt(ctx.primary, 0x0f7a35);
 						      const secondaryInt = toColorInt(ctx.secondary, 0xf8fafc);
 						      const cache = window.__WEBSTATS_STADIUM_MODEL_CACHE || (window.__WEBSTATS_STADIUM_MODEL_CACHE = {});
@@ -7969,7 +7985,13 @@
 						      };
 						      const attach = (scene) => {
 						        try {
-						          const model = scene.clone(true);
+						          let model = null;
+						          try {
+						            if (typeof scene?.toJSON === 'function' && typeof THREE.ObjectLoader === 'function') {
+						              model = new THREE.ObjectLoader().parse(scene.toJSON());
+						            }
+						          } catch (e) { model = null; }
+						          if (!model) model = scene.clone(true);
 						          model.name = 'blender_premium_stadium_shell';
 						          model.userData = { kind: 'blender_premium_stadium_shell' };
 						          const scale = Math.max(0.1, Number(metersW) || 105) / 105;
@@ -7983,19 +8005,19 @@
 						        attach(cache[ctx.modelSrc]);
 						        return true;
 						      }
-						      try {
-						        const loader = new LoaderClass();
-						        loader.load(ctx.modelSrc, (gltf) => {
-						          try {
-						            if (!gltf?.scene) return;
-						            cache[ctx.modelSrc] = gltf.scene;
-						            attach(gltf.scene);
-						          } catch (e) { /* ignore */ }
-						        }, undefined, () => {});
+						      if (loadWithClass(window.__WEBSTATS_GLTF_LOADER_CLASS)) return true;
+						      if (ctx.gltfLoaderSrc) {
+						        try {
+						          import(ctx.gltfLoaderSrc).then((mod) => {
+						            try {
+						              window.__WEBSTATS_GLTF_LOADER_CLASS = mod && mod.GLTFLoader;
+						              loadWithClass(window.__WEBSTATS_GLTF_LOADER_CLASS);
+						            } catch (e) { /* ignore */ }
+						          }).catch(() => {});
+						        } catch (e) { /* ignore */ }
 						        return true;
-						      } catch (e) {
-						        return false;
 						      }
+						      return false;
 						    };
 
 						    const makePitch3dCanvasTexture = (draw, width = 1024, height = 256) => {
@@ -8920,12 +8942,12 @@
 						        group.add(board);
 						      }
 
-						      const adH = 3.55;
-						      const adY = 1.86;
-						      const adOffset = usingBlenderShell ? 3.35 : 2.45;
+						      const adH = usingBlenderShell ? 1.25 : 3.55;
+						      const adY = usingBlenderShell ? 0.72 : 1.86;
+						      const adOffset = usingBlenderShell ? 3.55 : 2.45;
 						      const addAd = (side, label, logoUrl) => {
 						        const longSide = side === 'north' || side === 'south';
-						        const panelW = longSide ? metersW * 0.30 : metersH * 0.30;
+						        const panelW = longSide ? metersW * (usingBlenderShell ? 0.20 : 0.30) : metersH * (usingBlenderShell ? 0.20 : 0.30);
 						        const faceGeo = new THREE.PlaneGeometry(panelW, adH);
 						        const frameMat = new THREE.MeshStandardMaterial({ color: 0xd1d5db, roughness: 0.48, metalness: 0.28 });
 						        const backMat = new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.82, metalness: 0.04 });
@@ -8951,8 +8973,8 @@
 						          face.position.set(0, 0, 0.22);
 						          face.userData = { kind: 'stadium_ad_face', side, idx };
 						          panel.add(face);
-						          const topFace = new THREE.Mesh(new THREE.PlaneGeometry(panelW, 4.5), (topMat || mat).clone());
-						          topFace.position.set(0, (adH / 2) + 0.62, 1.25);
+						          const topFace = new THREE.Mesh(new THREE.PlaneGeometry(panelW, usingBlenderShell ? 1.45 : 4.5), (topMat || mat).clone());
+						          topFace.position.set(0, (adH / 2) + (usingBlenderShell ? 0.20 : 0.62), usingBlenderShell ? 0.50 : 1.25);
 						          topFace.rotation.x = -Math.PI / 2;
 						          topFace.userData = { kind: 'stadium_ad_top_face', side, idx };
 						          panel.add(topFace);
@@ -9099,16 +9121,21 @@
 						      try {
 						        const renderer = new THREE.WebGLRenderer({ canvas: pitch3dCanvasEl, antialias: true, alpha: false, preserveDrawingBuffer: true });
 						        renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-						        renderer.setClearColor(0x06101f, 1);
+						        renderer.setClearColor(0x9fc8ea, 1);
 						        pitch3dRenderer = renderer;
 						        pitch3dScene = new THREE.Scene();
+						        pitch3dScene.background = new THREE.Color(0x9fc8ea);
 						        pitch3dCamera = new THREE.PerspectiveCamera(58, 16 / 9, 0.1, 2000);
-						        const hemi = new THREE.HemisphereLight(0xffffff, 0x0b1020, 0.85);
+						        try {
+						          window.__WEBSTATS_PITCH3D_SCENE = pitch3dScene;
+						          window.__WEBSTATS_PITCH3D_CAMERA = pitch3dCamera;
+						        } catch (e) { /* ignore */ }
+						        const hemi = new THREE.HemisphereLight(0xffffff, 0xa7b4c3, 1.12);
 						        pitch3dScene.add(hemi);
-						        const dir = new THREE.DirectionalLight(0xffffff, 0.9);
-						        dir.position.set(80, 140, 60);
+						        const dir = new THREE.DirectionalLight(0xffffff, 1.08);
+						        dir.position.set(-95, 150, 80);
 						        pitch3dScene.add(dir);
-						        const rim = new THREE.DirectionalLight(0xffffff, 0.35);
+						        const rim = new THREE.DirectionalLight(0xffffff, 0.42);
 						        rim.position.set(-120, 110, -90);
 						        pitch3dScene.add(rim);
 						        pitch3dRaycaster = new THREE.Raycaster();
@@ -9140,10 +9167,18 @@
 							      let targetX = 0;
 							      let targetY = 0;
 							      let targetZ = 0;
-							      if (k === 'top_h' || k === 'top_v') {
+						      if (k === 'top_h' || k === 'top_v') {
 							        pitch3dOrbit.theta = k === 'top_h' ? 0 : (Math.PI / 2);
 							        pitch3dOrbit.phi = 0.02;
 							        pitch3dOrbit.radius = Math.max(70, Math.max(metersW, metersH) * 1.25);
+						      } else if (k === 'stadium_render') {
+						        // Composición tipo render de estadio: esquina alta, campo completo y gradas dominantes.
+							        pitch3dOrbit.theta = -2.36;
+							        pitch3dOrbit.phi = 0.92;
+							        pitch3dOrbit.radius = Math.max(142, metersW * 1.42);
+							        targetX = 0;
+							        targetY = 6.4;
+							        targetZ = 0;
 						      } else if (k === 'broadcast') {
 						        // “TV”: cámara desde banda, baja, mirando dentro del estadio.
 							        pitch3dOrbit.theta = Math.PI / 2;
@@ -9770,7 +9805,7 @@
 						      };
 						      drawables.forEach(addDrawable);
 
-						      setCameraPreset(safeText(pitch3dCameraSelect?.value, 'normal'), metersW, metersH);
+						      setCameraPreset(safeText(pitch3dCameraSelect?.value, 'stadium_render'), metersW, metersH);
 						      resizePitch3d();
 						    };
 
