@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" role="img" aria-label="Fincas Velazquez Administracion Comunidades">
+  <rect width="1200" height="320" fill="#ffffff"/>
+  <text x="515" y="110" font-family="'Courier New', monospace" font-size="86" font-weight="700" letter-spacing="11" fill="#5f9cac" text-anchor="middle">FINCAS VELAZQUEZ</text>
+  <path d="M730 124 790 20l60 104h-35v47h-50v-47z" fill="#5f9cac"/>
+  <path d="M785 82h11v11h-11zm19 0h11v11h-11zm-19 20h11v11h-11zm19 20h11v11h-11z" fill="#ffffff"/>
+  <rect x="4" y="146" width="1188" height="44" fill="#5f9cac"/>
+  <path d="M675 190 760 146h82l-84 44z" fill="#ffffff"/>
+  <text x="600" y="285" font-family="Arial, sans-serif" font-size="68" fill="#5f9cac" text-anchor="middle">Administración Comunidades</text>
+</svg>

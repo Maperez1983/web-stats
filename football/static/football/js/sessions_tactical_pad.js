@@ -7905,12 +7905,19 @@
 						        ads = (parsed && typeof parsed === 'object') ? parsed : {};
 						      } catch (e) { ads = {}; }
 						      const teamName = safeText(form?.dataset?.stadiumTeamName, 'Equipo');
+						      const sponsorLogos = [
+						        { label: 'Grupo Modernia Asesores', logo: safeText(form?.dataset?.stadiumSponsorModerniaSrc) },
+						        { label: 'Inversure', logo: safeText(form?.dataset?.stadiumSponsorInversureSrc) },
+						        { label: 'Fincas Velazquez', logo: safeText(form?.dataset?.stadiumSponsorFincasSrc) },
+						        { label: 'Segunda Jugada', logo: safeText(form?.dataset?.stadiumSponsor2jSrc) },
+						      ].filter((item) => item.logo);
 						      return {
 						        teamName,
 						        initials: teamName.split(/\s+/).filter(Boolean).slice(0, 3).map((part) => part[0]).join('').toUpperCase() || 'FC',
 						        primary: safeText(form?.dataset?.stadiumTeamPrimary, '#0f7a35'),
 						        secondary: safeText(form?.dataset?.stadiumTeamSecondary, '#ffffff'),
 						        mainStandSrc: safeText(form?.dataset?.stadiumMainStandSrc),
+						        sponsorLogos,
 						        ads: {
 						          top: safeText(ads.top, teamName || 'Club'),
 						          right: safeText(ads.right, '2J Football Intelligence'),
@@ -8553,15 +8560,21 @@
 						      const adOffset = 1.55;
 						      const addAd = (side, label, logoUrl) => {
 						        const longSide = side === 'north' || side === 'south';
-						        const mat = makePitch3dAdMaterial(label, logoUrl, { primary, secondary, width: longSide ? 1400 : 760, height: 220 });
-						        if (!mat) return;
 						        const panelW = longSide ? metersW * 0.31 : metersH * 0.30;
 						        const faceGeo = new THREE.PlaneGeometry(panelW, adH);
 						        const frameMat = new THREE.MeshStandardMaterial({ color: 0xd1d5db, roughness: 0.48, metalness: 0.28 });
 						        const backMat = new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.82, metalness: 0.04 });
 						        const baseMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.86, metalness: 0.03 });
 						        const segments = longSide ? [-0.36, 0, 0.36] : [-0.31, 0, 0.31];
+						        const sideOffset = { north: 0, east: 1, south: 2, west: 3 }[side] || 0;
 						        segments.forEach((t, idx) => {
+						          const sponsor = ctx.sponsorLogos && ctx.sponsorLogos.length
+						            ? ctx.sponsorLogos[(sideOffset + idx) % ctx.sponsorLogos.length]
+						            : null;
+						          const effectiveLogo = idx === 0 && safeText(logoUrl) ? safeText(logoUrl) : safeText(sponsor?.logo);
+						          const effectiveLabel = effectiveLogo ? safeText(sponsor?.label || label, label) : label;
+						          const mat = makePitch3dAdMaterial(effectiveLabel, effectiveLogo, { primary, secondary, width: longSide ? 1400 : 760, height: 220 });
+						          if (!mat) return;
 						          const panel = new THREE.Group();
 						          panel.userData = { kind: 'stadium_ad', side, idx };
 						          const face = new THREE.Mesh(faceGeo, mat.clone());

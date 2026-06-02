@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" role="img" aria-label="Segunda Jugada">
+  <rect width="1200" height="320" fill="#07111f"/>
+  <defs>
+    <linearGradient id="g" x1="0" x2="1">
+      <stop offset="0" stop-color="#22c55e"/>
+      <stop offset=".5" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#facc15"/>
+    </linearGradient>
+  </defs>
+  <text x="250" y="190" font-family="Arial Black, Arial, sans-serif" font-size="138" font-weight="900" fill="url(#g)">2J</text>
+  <text x="705" y="148" font-family="Arial Black, Arial, sans-serif" font-size="76" font-weight="900" fill="#f8fafc" text-anchor="middle">SEGUNDA JUGADA</text>
+  <text x="705" y="220" font-family="Arial, sans-serif" font-size="38" font-weight="700" letter-spacing="8" fill="#22d3ee" text-anchor="middle">FOOTBALL INTELLIGENCE</text>
+  <path d="M184 233c88 30 184 31 284 0" fill="none" stroke="#22c55e" stroke-width="12" stroke-linecap="round"/>
+</svg>
