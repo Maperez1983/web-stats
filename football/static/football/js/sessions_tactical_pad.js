@@ -7917,6 +7917,7 @@
 						        initials: teamName.split(/\s+/).filter(Boolean).slice(0, 3).map((part) => part[0]).join('').toUpperCase() || 'FC',
 						        primary: safeText(form?.dataset?.stadiumTeamPrimary, '#0f7a35'),
 						        secondary: safeText(form?.dataset?.stadiumTeamSecondary, '#ffffff'),
+						        crestUrl: safeText(form?.dataset?.stadiumTeamCrestUrl),
 						        mainStandSrc: safeText(form?.dataset?.stadiumMainStandSrc),
 						        sponsorLogos,
 						        ads: {
@@ -8061,27 +8062,141 @@
 						      const secondary = safeText(opts.secondary, '#ffffff');
 						      const initials = safeText(opts.initials, 'FC');
 						      const imageUrl = safeText(opts.imageUrl);
+						      const crestUrl = safeText(opts.crestUrl);
 						      if (imageUrl && window.THREE) {
+						        const texture = makePitch3dCanvasTexture((ctx, c) => {
+						          const base = ctx.createLinearGradient(0, 0, 0, c.height);
+						          base.addColorStop(0, '#0f172a');
+						          base.addColorStop(0.42, primary);
+						          base.addColorStop(1, '#020617');
+						          ctx.fillStyle = base;
+						          ctx.fillRect(0, 0, c.width, c.height);
+						        }, opts.width || 2048, opts.height || 768);
+						        if (!texture) return null;
+						        let loadedStand = null;
+						        let loadedCrest = null;
+						        const drawPreviewStand = () => {
+						          const ctx = texture.ctx;
+						          const c = texture.canvas;
+						          ctx.clearRect(0, 0, c.width, c.height);
+						          if (loadedStand) {
+						            const scale = Math.max(c.width / Math.max(1, loadedStand.width), c.height / Math.max(1, loadedStand.height));
+						            const w = loadedStand.width * scale;
+						            const h = loadedStand.height * scale;
+						            ctx.drawImage(loadedStand, (c.width - w) / 2, (c.height - h) / 2, w, h);
+						          } else {
+						            const bg = ctx.createLinearGradient(0, 0, 0, c.height);
+						            bg.addColorStop(0, '#111827');
+						            bg.addColorStop(0.48, primary);
+						            bg.addColorStop(1, '#020617');
+						            ctx.fillStyle = bg;
+						            ctx.fillRect(0, 0, c.width, c.height);
+						          }
+
+						          ctx.save();
+						          ctx.globalCompositeOperation = 'multiply';
+						          ctx.fillStyle = primary;
+						          ctx.globalAlpha = 0.30;
+						          ctx.fillRect(0, 0, c.width, c.height);
+						          ctx.restore();
+
+						          const vignette = ctx.createLinearGradient(0, 0, 0, c.height);
+						          vignette.addColorStop(0, 'rgba(2,6,23,0.34)');
+						          vignette.addColorStop(0.34, 'rgba(2,6,23,0.02)');
+						          vignette.addColorStop(0.74, 'rgba(2,6,23,0.16)');
+						          vignette.addColorStop(1, 'rgba(2,6,23,0.58)');
+						          ctx.fillStyle = vignette;
+						          ctx.fillRect(0, 0, c.width, c.height);
+
+						          ctx.fillStyle = 'rgba(255,255,255,0.08)';
+						          for (let y = c.height * 0.18; y < c.height * 0.90; y += 22) {
+						            ctx.fillRect(0, y, c.width, 2);
+						          }
+						          ctx.strokeStyle = 'rgba(248,250,252,0.45)';
+						          ctx.lineWidth = 4;
+						          [0.26, 0.50, 0.76].forEach((t) => {
+						            ctx.beginPath();
+						            ctx.moveTo(c.width * 0.04, c.height * t);
+						            ctx.lineTo(c.width * 0.96, c.height * t);
+						            ctx.stroke();
+						          });
+
+						          const label = safeText(teamName, 'CLUB').toUpperCase().slice(0, 28);
+						          const bandW = c.width * 0.78;
+						          const bandH = c.height * 0.20;
+						          const bandX = (c.width - bandW) / 2;
+						          const bandY = c.height * 0.57;
+						          ctx.fillStyle = 'rgba(2,6,23,0.42)';
+						          ctx.fillRect(bandX, bandY, bandW, bandH);
+						          ctx.strokeStyle = 'rgba(248,250,252,0.20)';
+						          ctx.lineWidth = 5;
+						          ctx.strokeRect(bandX + 5, bandY + 5, bandW - 10, bandH - 10);
+						          ctx.textAlign = 'center';
+						          ctx.textBaseline = 'middle';
+						          ctx.font = `950 ${Math.round(c.height * 0.15)}px system-ui, -apple-system, Segoe UI, Arial`;
+						          ctx.lineWidth = Math.max(8, c.height * 0.018);
+						          ctx.strokeStyle = 'rgba(2,6,23,0.58)';
+						          ctx.strokeText(label, c.width / 2, bandY + (bandH / 2) + 4);
+						          ctx.fillStyle = secondary || '#f8fafc';
+						          ctx.fillText(label, c.width / 2, bandY + (bandH / 2) + 4);
+
+						          const r = c.height * 0.135;
+						          const cx = c.width * 0.50;
+						          const cy = c.height * 0.30;
+						          ctx.beginPath();
+						          ctx.arc(cx, cy, r + 10, 0, Math.PI * 2);
+						          ctx.fillStyle = 'rgba(2,6,23,0.32)';
+						          ctx.fill();
+						          ctx.beginPath();
+						          ctx.arc(cx, cy, r, 0, Math.PI * 2);
+						          ctx.fillStyle = '#f8fafc';
+						          ctx.fill();
+						          ctx.lineWidth = 9;
+						          ctx.strokeStyle = primary;
+						          ctx.stroke();
+						          if (loadedCrest) {
+						            ctx.save();
+						            ctx.beginPath();
+						            ctx.arc(cx, cy, r * 0.82, 0, Math.PI * 2);
+						            ctx.clip();
+						            const scale = Math.min((r * 1.55) / Math.max(1, loadedCrest.width), (r * 1.55) / Math.max(1, loadedCrest.height));
+						            const w = loadedCrest.width * scale;
+						            const h = loadedCrest.height * scale;
+						            ctx.drawImage(loadedCrest, cx - (w / 2), cy - (h / 2), w, h);
+						            ctx.restore();
+						          } else {
+						            ctx.fillStyle = primary;
+						            ctx.font = `950 ${Math.round(r * 0.58)}px system-ui, -apple-system, Segoe UI, Arial`;
+						            ctx.fillText(initials.slice(0, 4), cx, cy + 2);
+						          }
+						          texture.tex.needsUpdate = true;
+						        };
+						        drawPreviewStand();
+						        try {
+						          const img = new Image();
+						          img.onload = () => { loadedStand = img; drawPreviewStand(); };
+						          img.src = imageUrl;
+						        } catch (e) { /* ignore */ }
+						        try {
+						          const sameOriginCrest = crestUrl && (
+						            crestUrl.startsWith('/') ||
+						            crestUrl.startsWith('data:') ||
+						            (window.location && crestUrl.indexOf(window.location.host) !== -1)
+						          );
+						          if (sameOriginCrest) {
+						            const crest = new Image();
+						            crest.onload = () => { loadedCrest = crest; drawPreviewStand(); };
+						            crest.src = crestUrl;
+						          }
+						        } catch (e) { /* ignore */ }
 						        const mat = new THREE.MeshStandardMaterial({
+						          map: texture.tex,
 						          color: 0xffffff,
-						          roughness: 0.62,
+						          roughness: 0.64,
 						          metalness: 0.02,
-						          transparent: true,
-						          opacity: 0.38,
 						          side: THREE.DoubleSide,
 						        });
-						        mat.userData = { kind: 'pitch3d_external_stand_texture' };
-						        try {
-						          const loader = new THREE.TextureLoader();
-						          loader.load(imageUrl, (tex) => {
-						            try {
-						              tex.anisotropy = 8;
-						              tex.needsUpdate = true;
-						              mat.map = tex;
-						              mat.needsUpdate = true;
-						            } catch (e) { /* ignore */ }
-						          });
-						        } catch (e) { /* ignore */ }
+						        mat.userData = { kind: 'pitch3d_preview_stand_texture' };
 						        return mat;
 						      }
 						      const texture = makePitch3dCanvasTexture((ctx, c) => {
@@ -8498,7 +8613,7 @@
 						      addEndStand('west');
 						      addEndStand('east');
 
-						      const standMosaicMat = makePitch3dStandMosaicMaterial(ctx.teamName, { primary, secondary, initials: ctx.initials, imageUrl: ctx.mainStandSrc });
+						      const standMosaicMat = makePitch3dStandMosaicMaterial(ctx.teamName, { primary, secondary, initials: ctx.initials, imageUrl: ctx.mainStandSrc, crestUrl: ctx.crestUrl });
 						      if (standMosaicMat) {
 						        const mosaicW = metersW + 28;
 						        const mosaicH = 34;
