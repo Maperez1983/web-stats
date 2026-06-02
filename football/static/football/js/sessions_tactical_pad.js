@@ -7991,6 +7991,7 @@
 						    const makePitch3dAdMaterial = (label, logoUrl, opts = {}) => {
 						      const primary = safeText(opts.primary, '#0f7a35');
 						      const secondary = safeText(opts.secondary, '#ffffff');
+						      const overhead = opts.overhead === true;
 						      const texture = makePitch3dCanvasTexture((ctx, c) => {
 						        const drawBase = () => {
 						          const hasLogo = Boolean(safeText(logoUrl));
@@ -8005,19 +8006,27 @@
 						            ctx.fillStyle = grd;
 						            ctx.fillRect(0, 0, c.width, c.height);
 						          }
-						          ctx.fillStyle = hasLogo ? 'rgba(15,23,42,0.035)' : 'rgba(255,255,255,0.07)';
-						          for (let x = 0; x < c.width; x += 44) ctx.fillRect(x, 0, 2, c.height);
-						          ctx.fillStyle = hasLogo ? primary : 'rgba(255,255,255,0.12)';
-						          ctx.fillRect(0, 0, c.width, c.height * 0.075);
-						          ctx.fillRect(0, c.height * 0.925, c.width, c.height * 0.075);
-						          if (hasLogo) {
-						            ctx.fillStyle = 'rgba(2,6,23,0.92)';
-						            ctx.fillRect(0, c.height * 0.075, c.width * 0.085, c.height * 0.85);
-						            ctx.fillRect(c.width * 0.915, c.height * 0.075, c.width * 0.085, c.height * 0.85);
+						          if (!overhead) {
+						            ctx.fillStyle = hasLogo ? 'rgba(15,23,42,0.035)' : 'rgba(255,255,255,0.07)';
+						            for (let x = 0; x < c.width; x += 44) ctx.fillRect(x, 0, 2, c.height);
+						            ctx.fillStyle = hasLogo ? primary : 'rgba(255,255,255,0.12)';
+						            ctx.fillRect(0, 0, c.width, c.height * 0.075);
+						            ctx.fillRect(0, c.height * 0.925, c.width, c.height * 0.075);
+						            if (hasLogo) {
+						              ctx.fillStyle = 'rgba(2,6,23,0.92)';
+						              ctx.fillRect(0, c.height * 0.075, c.width * 0.085, c.height * 0.85);
+						              ctx.fillRect(c.width * 0.915, c.height * 0.075, c.width * 0.085, c.height * 0.85);
+						            }
+						            ctx.strokeStyle = hasLogo ? 'rgba(15,23,42,0.42)' : 'rgba(248,250,252,0.72)';
+						            ctx.lineWidth = 8;
+						            ctx.strokeRect(7, 7, c.width - 14, c.height - 14);
+						          } else {
+						            ctx.fillStyle = '#ffffff';
+						            ctx.fillRect(c.width * 0.015, c.height * 0.08, c.width * 0.97, c.height * 0.84);
+						            ctx.strokeStyle = primary;
+						            ctx.lineWidth = Math.max(10, c.height * 0.035);
+						            ctx.strokeRect(c.width * 0.015, c.height * 0.08, c.width * 0.97, c.height * 0.84);
 						          }
-						          ctx.strokeStyle = hasLogo ? 'rgba(15,23,42,0.42)' : 'rgba(248,250,252,0.72)';
-						          ctx.lineWidth = 8;
-						          ctx.strokeRect(7, 7, c.width - 14, c.height - 14);
 						        };
 						        drawBase();
 						        ctx.fillStyle = safeText(logoUrl) ? '#0f172a' : '#f8fafc';
@@ -8032,16 +8041,18 @@
 						            img.onload = () => {
 						              try {
 						                drawBase();
-						                const maxW = c.width * 0.80;
-						                const maxH = c.height * 0.66;
+						                const maxW = c.width * (overhead ? 0.94 : 0.80);
+						                const maxH = c.height * (overhead ? 0.78 : 0.66);
 						                const scale = Math.min(maxW / Math.max(1, img.width), maxH / Math.max(1, img.height));
 						                const w = img.width * scale;
 						                const h = img.height * scale;
 						                ctx.fillStyle = '#ffffff';
-						                ctx.fillRect((c.width - maxW) / 2, (c.height - maxH) / 2, maxW, maxH);
-						                ctx.strokeStyle = 'rgba(15,23,42,0.18)';
-						                ctx.lineWidth = 5;
-						                ctx.strokeRect((c.width - maxW) / 2, (c.height - maxH) / 2, maxW, maxH);
+						                if (!overhead) {
+						                  ctx.fillRect((c.width - maxW) / 2, (c.height - maxH) / 2, maxW, maxH);
+						                  ctx.strokeStyle = 'rgba(15,23,42,0.18)';
+						                  ctx.lineWidth = 5;
+						                  ctx.strokeRect((c.width - maxW) / 2, (c.height - maxH) / 2, maxW, maxH);
+						                }
 						                ctx.shadowColor = 'rgba(15,23,42,0.20)';
 						                ctx.shadowBlur = 6;
 						                ctx.shadowOffsetY = 3;
@@ -8723,6 +8734,7 @@
 						          const effectiveLogo = idx === 0 && safeText(logoUrl) ? safeText(logoUrl) : safeText(sponsor?.logo);
 						          const effectiveLabel = effectiveLogo ? safeText(sponsor?.label || label, label) : label;
 						          const mat = makePitch3dAdMaterial(effectiveLabel, effectiveLogo, { primary, secondary, width: longSide ? 4096 : 3072, height: 896 });
+						          const topMat = makePitch3dAdMaterial(effectiveLabel, effectiveLogo, { primary, secondary, width: longSide ? 4096 : 3072, height: 1152, overhead: true });
 						          if (!mat) return;
 						          const panel = new THREE.Group();
 						          panel.userData = { kind: 'stadium_ad', side, idx };
@@ -8734,8 +8746,8 @@
 						          face.position.set(0, 0, 0.14);
 						          face.userData = { kind: 'stadium_ad_face', side, idx };
 						          panel.add(face);
-						          const topFace = new THREE.Mesh(new THREE.PlaneGeometry(panelW, 2.65), mat.clone());
-						          topFace.position.set(0, (adH / 2) + 0.48, 0.72);
+						          const topFace = new THREE.Mesh(new THREE.PlaneGeometry(panelW, 4.2), (topMat || mat).clone());
+						          topFace.position.set(0, (adH / 2) + 0.58, 1.15);
 						          topFace.rotation.x = -Math.PI / 2;
 						          topFace.userData = { kind: 'stadium_ad_top_face', side, idx };
 						          panel.add(topFace);
