@@ -1639,7 +1639,7 @@
                   {% if item.stadium_photo_url %}
                   <img src="{{ item.stadium_photo_url }}" alt="Foto de {{ item.stadium|default:item.name }}" loading="lazy" />
                   {% else %}
-                  <img src="{% static 'football/campo-futbol.jpg' %}" alt="Foto de estadio" loading="lazy" />
+                  <img src="{% static 'football/images/stadium/benagalbon-main-stand-render-crop.png' %}" alt="Foto de estadio" loading="lazy" />
                   {% endif %}
                   <div class="team-stadium-caption">
                     <span>Estadio</span>
@@ -1674,11 +1674,6 @@
                     {% endfor %}
                   </div>
                 </div>
-                {% if item.stadium_address %}
-                <div class="club-data-meta">
-                  <div><strong>Dirección:</strong> {{ item.stadium_address }}</div>
-                </div>
-                {% endif %}
                 {% if item.is_legacy_child_workspace %}
                 <div class="club-data-meta">
                   <div><strong>Origen:</strong> {{ item.workspace_name }}</div>
