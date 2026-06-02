@@ -136,11 +136,21 @@ def resolve_player_photo_static_path(player):
                     wildcard_matches.append(file_path)
     except Exception:
         wildcard_matches = []
-    if len(wildcard_matches) == 1:
-        return _relative_static_path(wildcard_matches[0])
     if wildcard_matches:
         try:
             tokens = [token for token in str(name_slug or '').split('-') if token]
+
+            def _has_name_affinity(path_obj):
+                fname_tokens = [token for token in str(path_obj.stem or '').lower().split('-') if token and not token.startswith('n')]
+                for token in tokens:
+                    if not token:
+                        continue
+                    token_stem = token[:-1] if len(token) > 4 and token.endswith('s') else token
+                    for fname_token in fname_tokens:
+                        fname_stem = fname_token[:-1] if len(fname_token) > 4 and fname_token.endswith('s') else fname_token
+                        if token_stem and fname_stem and (token_stem in fname_stem or fname_stem in token_stem):
+                            return True
+                return False
 
             def _score(path_obj):
                 fname = str(path_obj.name or '').lower()
@@ -148,9 +158,57 @@ def resolve_player_photo_static_path(player):
 
             scored = sorted(((int(_score(path_obj)), path_obj) for path_obj in wildcard_matches), key=lambda item: (-item[0], item[1].name))
             best_score, best_path = scored[0]
-            if is_primary_team or best_score > 0:
+            if best_score > 0 or _has_name_affinity(best_path):
                 return _relative_static_path(best_path)
         except Exception:
-            if is_primary_team:
-                return _relative_static_path(wildcard_matches[0])
+            return ''
+    if allow_global_dir:
+        return ''
+
+    # Fallback para jugadores movidos de categoría: las fotos históricas del club
+    # pueden vivir en la carpeta global aunque el jugador ya pertenezca a un equipo filial.
+    for filename in dict.fromkeys(candidates):
+        resolved = _resolve_in_dirs(filename, [players_dir])
+        if resolved:
+            return resolved
+    if number_value != '':
+        global_matches = []
+        try:
+            seen_global = set()
+            for pattern in wildcard_patterns:
+                for file_path in players_dir.glob(pattern):
+                    if not file_path.is_file():
+                        continue
+                    if file_path.name in seen_global:
+                        continue
+                    seen_global.add(file_path.name)
+                    global_matches.append(file_path)
+        except Exception:
+            global_matches = []
+        if global_matches:
+            tokens = [token for token in str(name_slug or '').split('-') if token]
+
+            def _global_score(path_obj):
+                fname = str(path_obj.name or '').lower()
+                return sum(1 for token in tokens if token and token in fname)
+
+            def _has_global_name_affinity(path_obj):
+                fname_tokens = [token for token in str(path_obj.stem or '').lower().split('-') if token and not token.startswith('n')]
+                for token in tokens:
+                    if not token:
+                        continue
+                    token_stem = token[:-1] if len(token) > 4 and token.endswith('s') else token
+                    for fname_token in fname_tokens:
+                        fname_stem = fname_token[:-1] if len(fname_token) > 4 and fname_token.endswith('s') else fname_token
+                        if token_stem and fname_stem and (token_stem in fname_stem or fname_stem in token_stem):
+                            return True
+                return False
+
+            scored = sorted(
+                ((int(_global_score(path_obj)), path_obj) for path_obj in global_matches),
+                key=lambda item: (-item[0], item[1].name),
+            )
+            best_score, best_path = scored[0]
+            if best_score > 0 or (len(scored) == 1 and _has_global_name_affinity(best_path)):
+                return _relative_static_path(best_path)
     return ''

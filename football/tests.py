@@ -2469,6 +2469,25 @@ class SeasonHistoryServicesTests(TestCase):
         self.assertEqual(cards[0]['player_id'], self.player.id)
         self.assertEqual(cards[0]['photo_url'], '/player/999/photo/?v=123')
 
+    def test_static_player_photo_fallback_follows_player_after_category_change(self):
+        from football.player_media import resolve_player_photo_static_path
+
+        youth_team = Team.objects.create(name='Benjamín A', slug='benjamin-a', short_name='Benjamin A', category='Benjamín')
+        moved_player = Player.objects.create(team=youth_team, name='Andrews', number=14, is_active=True)
+
+        self.assertEqual(
+            resolve_player_photo_static_path(moved_player),
+            'football/images/players/andrew-n14-cut.png',
+        )
+
+    def test_static_player_photo_fallback_does_not_match_only_by_number(self):
+        from football.player_media import resolve_player_photo_static_path
+
+        youth_team = Team.objects.create(name='Benagalbon Benjamin', slug='benagalbon-benjamin', short_name='Benjamin', category='Benjamín')
+        unrelated_player = Player.objects.create(team=youth_team, name='Hugo', number=8, is_active=True)
+
+        self.assertEqual(resolve_player_photo_static_path(unrelated_player), '')
+
     @patch('football.views.compute_player_dashboard')
     def test_player_detail_does_not_use_previous_stats_for_unconfirmed_season_player(self, mocked_dashboard):
         WorkspaceSeasonPlayer.objects.create(
