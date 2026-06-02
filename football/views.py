@@ -58255,7 +58255,6 @@ def compute_player_dashboard(
     # ensure roster players appear even without events
     for player in roster_players:
         if player.id not in player_stats:
-            photo_path = resolve_player_photo_static_path(player)
             normalized = normalize_player_name(player.name)
             roster_entry = roster_cache.get(normalized, {})
             manual_entry = manual_overrides.get(player.id, {})
@@ -58291,7 +58290,7 @@ def compute_player_dashboard(
                 'name': player.name,
                 'nickname': str(getattr(player, 'nickname', '') or '').strip(),
                 'number': player.number,
-                'photo_url': static(photo_path) if photo_path else '',
+                'photo_url': player_photo_url_by_id.get(player.id, ''),
                 'position': player.position or universo_entry.get('position') or roster_entry.get('position'),
                 'total_actions': 0,
                 'successes': 0,

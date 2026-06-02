@@ -2447,6 +2447,28 @@ class SeasonHistoryServicesTests(TestCase):
         self.assertEqual(int(cards[0].get('minutes') or 0), 0)
         self.assertEqual(int(cards[0].get('goals') or 0), 0)
 
+    @patch('football.views.resolve_player_photo_url')
+    def test_roster_stats_cards_keep_uploaded_photo_for_roster_player_without_events(self, mocked_photo_url):
+        mocked_photo_url.return_value = '/player/999/photo/?v=123'
+        WorkspaceSeasonPlayer.objects.create(
+            season=self.season,
+            player=self.player,
+            team=self.team,
+            is_confirmed=True,
+            status=WorkspaceSeasonPlayer.STATUS_CONFIRMED,
+        )
+
+        response = self.client.get(
+            f"{reverse('coach-roster')}?tab=stats&club_season_id={self.season.id}",
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        cards = response.context['player_cards']
+        self.assertEqual(len(cards), 1)
+        self.assertEqual(cards[0]['player_id'], self.player.id)
+        self.assertEqual(cards[0]['photo_url'], '/player/999/photo/?v=123')
+
     @patch('football.views.compute_player_dashboard')
     def test_player_detail_does_not_use_previous_stats_for_unconfirmed_season_player(self, mocked_dashboard):
         WorkspaceSeasonPlayer.objects.create(
