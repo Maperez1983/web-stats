@@ -8671,8 +8671,8 @@
 						        group.add(board);
 						      }
 
-						      const adH = 2.55;
-						      const adY = 1.38;
+						      const adH = 3.05;
+						      const adY = 1.62;
 						      const adOffset = 1.92;
 						      const addAd = (side, label, logoUrl) => {
 						        const longSide = side === 'north' || side === 'south';
@@ -8701,8 +8701,13 @@
 						          face.position.set(0, 0, 0.14);
 						          face.userData = { kind: 'stadium_ad_face', side, idx };
 						          panel.add(face);
+						          const topFace = new THREE.Mesh(new THREE.PlaneGeometry(panelW, 2.65), mat.clone());
+						          topFace.position.set(0, (adH / 2) + 0.48, 0.72);
+						          topFace.rotation.x = -Math.PI / 2;
+						          topFace.userData = { kind: 'stadium_ad_top_face', side, idx };
+						          panel.add(topFace);
 						          const topFrame = new THREE.Mesh(new THREE.BoxGeometry(panelW + 0.42, 0.12, 0.22), frameMat);
-						          topFrame.position.set(0, (adH / 2) + 0.10, 0.16);
+						          topFrame.position.set(0, (adH / 2) + 0.10, 0.34);
 						          panel.add(topFrame);
 						          const bottomFrame = new THREE.Mesh(new THREE.BoxGeometry(panelW + 0.42, 0.14, 0.28), frameMat);
 						          bottomFrame.position.set(0, -(adH / 2) - 0.10, 0.16);
@@ -9013,29 +9018,59 @@
 						      // Estadio premium parametrizable: gradas, vallas, banquillos, marcador y colores del equipo.
 						      try { buildPremiumStadium3d(root, metersW, metersH); } catch (e) { /* ignore */ }
 
-						      // Porterías 3D sencillas (frame + red muy sutil).
+						      // Porterías 3D completas: marco delantero/trasero, profundidad y red visible en cámara alta.
 						      const addGoal3d = (xSign) => {
 						        try {
 						          const goalW = Math.min(7.32, Math.max(3.0, metersH * 0.16));
 						          const goalH = Math.max(1.6, Math.min(2.44, metersH * 0.06));
-						          const depth = 1.6;
-						          const postR = 0.08;
-						          const frameMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.55, metalness: 0.02 });
-						          const mkPost = () => new THREE.Mesh(new THREE.CylinderGeometry(postR, postR, goalH, 10), frameMat);
-						          const left = mkPost();
-						          const right = mkPost();
-						          const bar = new THREE.Mesh(new THREE.CylinderGeometry(postR, postR, goalW, 10), frameMat);
-						          bar.rotation.z = Math.PI / 2;
+						          const depth = 3.05;
+						          const post = 0.30;
+						          const frameMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.38, metalness: 0.03, emissive: 0xffffff, emissiveIntensity: 0.08 });
+						          const netMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.34, side: THREE.DoubleSide, depthWrite: false });
+						          const floorNetMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false });
 						          const baseZ = 0;
-						          left.position.set(xSign * (metersW / 2 + 0.05), goalH / 2, baseZ - (goalW / 2));
-						          right.position.set(xSign * (metersW / 2 + 0.05), goalH / 2, baseZ + (goalW / 2));
-						          bar.position.set(xSign * (metersW / 2 + 0.05), goalH, baseZ);
-						          root.add(left, right, bar);
-						          const netMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.12, side: THREE.DoubleSide });
-						          const net = new THREE.Mesh(new THREE.PlaneGeometry(depth, goalW), netMat);
-						          net.rotation.y = xSign > 0 ? -Math.PI / 2 : Math.PI / 2;
-						          net.position.set(xSign * (metersW / 2 + (depth / 2) + 0.05), goalH / 2, baseZ);
-						          root.add(net);
+						          const frontX = xSign * (metersW / 2 + 0.10);
+						          const backX = xSign * (metersW / 2 + depth + 0.10);
+						          const addPart = (geo, pos) => {
+						            const mesh = new THREE.Mesh(geo, frameMat);
+						            mesh.position.set(pos.x, pos.y, pos.z);
+						            mesh.userData = { kind: 'goal_3d_frame' };
+						            root.add(mesh);
+						            return mesh;
+						          };
+						          const verticalGeo = new THREE.BoxGeometry(post, goalH, post);
+						          const widthGeo = new THREE.BoxGeometry(post, post, goalW + post);
+						          const depthGeo = new THREE.BoxGeometry(depth, post, post);
+						          const zs = [baseZ - (goalW / 2), baseZ + (goalW / 2)];
+						          [frontX, backX].forEach((x) => {
+						            zs.forEach((z) => addPart(verticalGeo, { x, y: goalH / 2, z }));
+						            addPart(widthGeo, { x, y: goalH, z: baseZ });
+						          });
+						          zs.forEach((z) => {
+						            addPart(depthGeo, { x: (frontX + backX) / 2, y: goalH, z });
+						            addPart(depthGeo, { x: (frontX + backX) / 2, y: post / 2, z });
+						          });
+						          const backNet = new THREE.Mesh(new THREE.PlaneGeometry(goalW, goalH), netMat);
+						          backNet.position.set(backX, goalH / 2, baseZ);
+						          backNet.rotation.y = Math.PI / 2;
+						          backNet.userData = { kind: 'goal_3d_back_net' };
+						          root.add(backNet);
+						          const topNet = new THREE.Mesh(new THREE.PlaneGeometry(depth, goalW), netMat);
+						          topNet.position.set((frontX + backX) / 2, goalH, baseZ);
+						          topNet.rotation.x = -Math.PI / 2;
+						          topNet.userData = { kind: 'goal_3d_top_net' };
+						          root.add(topNet);
+						          const floorNet = new THREE.Mesh(new THREE.PlaneGeometry(depth, goalW), floorNetMat);
+						          floorNet.position.set((frontX + backX) / 2, 0.07, baseZ);
+						          floorNet.rotation.x = -Math.PI / 2;
+						          floorNet.userData = { kind: 'goal_3d_floor_net' };
+						          root.add(floorNet);
+						          zs.forEach((z) => {
+						            const sideNet = new THREE.Mesh(new THREE.PlaneGeometry(depth, goalH), netMat);
+						            sideNet.position.set((frontX + backX) / 2, goalH / 2, z);
+						            sideNet.userData = { kind: 'goal_3d_side_net' };
+						            root.add(sideNet);
+						          });
 						        } catch (e) { /* ignore */ }
 						      };
 						      addGoal3d(-1);
