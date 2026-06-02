@@ -7904,12 +7904,13 @@
 						        const parsed = JSON.parse(raw);
 						        ads = (parsed && typeof parsed === 'object') ? parsed : {};
 						      } catch (e) { ads = {}; }
+						      const dataAttr = (name, fallback = '') => safeText(form?.getAttribute?.(name), fallback);
 						      const teamName = safeText(form?.dataset?.stadiumTeamName, 'Equipo');
 						      const sponsorLogos = [
-						        { label: 'Grupo Modernia Asesores', logo: safeText(form?.dataset?.stadiumSponsorModerniaSrc) },
-						        { label: 'Inversure', logo: safeText(form?.dataset?.stadiumSponsorInversureSrc) },
-						        { label: 'Fincas Velazquez', logo: safeText(form?.dataset?.stadiumSponsorFincasSrc) },
-						        { label: 'Segunda Jugada', logo: safeText(form?.dataset?.stadiumSponsor2jSrc) },
+						        { label: 'Grupo Modernia Asesores', logo: dataAttr('data-stadium-sponsor-modernia-src') },
+						        { label: 'Inversure', logo: dataAttr('data-stadium-sponsor-inversure-src') },
+						        { label: 'Fincas Velazquez', logo: dataAttr('data-stadium-sponsor-fincas-src') },
+						        { label: 'Segunda Jugada', logo: dataAttr('data-stadium-sponsor-2j-src') },
 						      ].filter((item) => item.logo);
 						      return {
 						        teamName,
@@ -8577,25 +8578,25 @@
 						          if (!mat) return;
 						          const panel = new THREE.Group();
 						          panel.userData = { kind: 'stadium_ad', side, idx };
-						          const face = new THREE.Mesh(faceGeo, mat.clone());
-						          face.position.set(0, 0, -0.04);
-						          face.userData = { kind: 'stadium_ad_face', side, idx };
-						          panel.add(face);
 						          const back = new THREE.Mesh(new THREE.BoxGeometry(panelW + 0.24, adH + 0.18, 0.30), backMat);
-						          back.position.set(0, 0, 0.12);
+						          back.position.set(0, 0, -0.08);
 						          back.userData = { kind: 'stadium_ad_back', side, idx };
 						          panel.add(back);
+						          const face = new THREE.Mesh(faceGeo, mat.clone());
+						          face.position.set(0, 0, 0.14);
+						          face.userData = { kind: 'stadium_ad_face', side, idx };
+						          panel.add(face);
 						          const topFrame = new THREE.Mesh(new THREE.BoxGeometry(panelW + 0.42, 0.12, 0.22), frameMat);
-						          topFrame.position.set(0, (adH / 2) + 0.10, -0.09);
+						          topFrame.position.set(0, (adH / 2) + 0.10, 0.16);
 						          panel.add(topFrame);
 						          const bottomFrame = new THREE.Mesh(new THREE.BoxGeometry(panelW + 0.42, 0.14, 0.28), frameMat);
-						          bottomFrame.position.set(0, -(adH / 2) - 0.10, -0.08);
+						          bottomFrame.position.set(0, -(adH / 2) - 0.10, 0.16);
 						          panel.add(bottomFrame);
 						          const leftFrame = new THREE.Mesh(new THREE.BoxGeometry(0.12, adH + 0.20, 0.22), frameMat);
-						          leftFrame.position.set(-(panelW / 2) - 0.10, 0, -0.09);
+						          leftFrame.position.set(-(panelW / 2) - 0.10, 0, 0.16);
 						          panel.add(leftFrame);
 						          const rightFrame = new THREE.Mesh(new THREE.BoxGeometry(0.12, adH + 0.20, 0.22), frameMat);
-						          rightFrame.position.set((panelW / 2) + 0.10, 0, -0.09);
+						          rightFrame.position.set((panelW / 2) + 0.10, 0, 0.16);
 						          panel.add(rightFrame);
 						          const base = new THREE.Mesh(new THREE.BoxGeometry(panelW + 0.72, 0.34, 0.72), baseMat);
 						          base.position.set(0, -(adH / 2) - 0.38, 0.10);
