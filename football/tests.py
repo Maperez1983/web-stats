@@ -2170,6 +2170,30 @@ class SeasonHistoryServicesTests(TestCase):
         self.assertEqual(membership.status, WorkspaceSeasonPlayer.STATUS_LEFT)
         self.assertNotIn(self.player, response.context['players'])
         self.assertNotIn(self.player, response.context['club_player_options'])
+        self.assertIn(self.player, response.context['inactive_club_player_options'])
+
+        restore_response = self.client.post(
+            f"{reverse('coach-roster')}?tab=manage",
+            data={
+                'action': 'reactivate',
+                'player_id': str(self.player.id),
+            },
+            secure=True,
+        )
+
+        self.assertEqual(restore_response.status_code, 200)
+        self.player.refresh_from_db()
+        self.assertTrue(self.player.is_active)
+        self.assertEqual(self.player.team, self.team)
+        workspace_player.refresh_from_db()
+        self.assertTrue(workspace_player.is_active)
+        self.assertEqual(workspace_player.current_team, self.team)
+        membership.refresh_from_db()
+        self.assertEqual(membership.status, WorkspaceSeasonPlayer.STATUS_PENDING)
+        self.assertFalse(membership.is_confirmed)
+        self.assertIsNone(membership.left_at)
+        self.assertIn(self.player, restore_response.context['players'])
+        self.assertNotIn(self.player, restore_response.context['inactive_club_player_options'])
 
     def test_player_detail_exposes_season_context_and_history_tab(self):
         from football.season_history_services import ensure_active_workspace_team_seasons, ensure_team_roster_season_memberships

@@ -28173,6 +28173,50 @@ def coach_roster_page(request):
                     mark_player_left_current_season(active_club_season, player, notes='Marcado como inactivo desde plantilla.')
                 ensure_workspace_player(workspace, player, current_team=primary_team, is_active=False)
                 message = f'{player.name} marcado como inactivo.'
+            elif action == 'reactivate':
+                if active_club_season and not active_club_season_is_current:
+                    raise ValueError('Solo se puede reactivar desde la temporada activa.')
+                if not player_id:
+                    raise ValueError('Jugador no válido para reactivar.')
+                workspace_team_ids = list(
+                    WorkspaceTeam.objects
+                    .filter(workspace=workspace)
+                    .values_list('team_id', flat=True)
+                )
+                player_scope_q = (
+                    Q(workspace_links__workspace=workspace)
+                    | Q(team_id__in=workspace_team_ids)
+                    | Q(season_memberships__season__workspace=workspace)
+                )
+                player = (
+                    Player.objects
+                    .filter(player_scope_q, id=int(player_id))
+                    .distinct()
+                    .first()
+                )
+                if not player:
+                    raise ValueError('Jugador no encontrado para reactivar.')
+                player.team = primary_team
+                player.is_active = True
+                player.save(update_fields=['team', 'is_active'])
+                ensure_workspace_player(workspace, player, current_team=primary_team, is_active=True)
+                if active_club_season and active_club_season_is_current:
+                    membership = ensure_player_season_membership(
+                        active_club_season,
+                        player,
+                        team=primary_team,
+                        confirmed=False,
+                        status=WorkspaceSeasonPlayer.STATUS_PENDING,
+                    )
+                    if membership:
+                        membership.team = primary_team
+                        membership.status = WorkspaceSeasonPlayer.STATUS_PENDING
+                        membership.is_confirmed = False
+                        membership.confirmed_at = None
+                        membership.confirmed_by = None
+                        membership.left_at = None
+                        membership.save(update_fields=['team', 'status', 'is_confirmed', 'confirmed_at', 'confirmed_by', 'left_at', 'updated_at'])
+                message = f'{player.name} reactivado en {primary_team.display_name}.'
             elif action == 'move_team':
                 if not active_club_season:
                     raise ValueError('No hay temporada activa para mover al jugador.')
@@ -28355,6 +28399,7 @@ def coach_roster_page(request):
     else:
         players = list(Player.objects.filter(team=primary_team).order_by('is_active', 'number', 'name'))
     club_player_options = []
+    inactive_club_player_options = []
     club_team_options = []
     try:
         workspace_team_ids = list(
@@ -28373,6 +28418,33 @@ def coach_roster_page(request):
             .distinct()
             .order_by('name', 'id')[:250]
         )
+        inactive_q = (
+            Q(workspace_links__workspace=workspace, workspace_links__is_active=False)
+            | Q(team_id__in=workspace_team_ids, is_active=False)
+            | Q(
+                season_memberships__season__workspace=workspace,
+                season_memberships__status__in=[
+                    WorkspaceSeasonPlayer.STATUS_LEFT,
+                    WorkspaceSeasonPlayer.STATUS_INACTIVE,
+                ],
+            )
+        )
+        if active_club_season:
+            inactive_q |= Q(
+                season_memberships__season=active_club_season,
+                season_memberships__status__in=[
+                    WorkspaceSeasonPlayer.STATUS_LEFT,
+                    WorkspaceSeasonPlayer.STATUS_INACTIVE,
+                ],
+            )
+        inactive_club_player_options = list(
+            Player.objects
+            .filter(inactive_q)
+            .exclude(id__in=[int(getattr(player, 'id', 0) or 0) for player in players])
+            .select_related('team')
+            .distinct()
+            .order_by('name', 'id')[:250]
+        )
         club_team_options = list(
             Team.objects
             .filter(id__in=workspace_team_ids)
@@ -28381,6 +28453,7 @@ def coach_roster_page(request):
         )
     except Exception:
         club_player_options = []
+        inactive_club_player_options = []
         club_team_options = []
     if active_club_season and players:
         try:
@@ -28493,6 +28566,7 @@ def coach_roster_page(request):
             'team_name': primary_team.display_name,
             'players': players,
             'club_player_options': club_player_options,
+            'inactive_club_player_options': inactive_club_player_options,
             'club_team_options': club_team_options,
             'player_cards': player_cards,
             'active_club_season': active_club_season,
