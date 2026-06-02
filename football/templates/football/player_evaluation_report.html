@@ -1,0 +1,151 @@
+{% load static football_extras %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Informe de evaluación · {{ player.name }}</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <style>
+      body { margin:0; padding:1.2rem; font-family:var(--prod-font-ui, 'Avenir Next', Inter, sans-serif); background:#07101f; color:#f8fafc; }
+      .page { max-width:1120px; margin:0 auto; }
+      .top { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:1rem; align-items:start; border-bottom:1px solid rgba(148,163,184,0.24); padding-bottom:1rem; }
+      h1, h2, h3, p { margin-top:0; }
+      h1 { font-size:clamp(1.7rem, 1.1rem + 1.4vw, 2.35rem); margin-bottom:0.35rem; }
+      .subtle { color:rgba(203,213,225,0.82); }
+      .btn { display:inline-flex; align-items:center; justify-content:center; padding:0.45rem 0.85rem; border-radius:0.65rem; border:1px solid rgba(244,180,0,0.35); background:rgba(244,180,0,0.12); color:#f8fafc; text-decoration:none; font-weight:800; }
+      .btn.alt { border-color:rgba(148,163,184,0.32); background:rgba(15,23,42,0.72); }
+      .actions { display:flex; gap:0.5rem; flex-wrap:wrap; justify-content:flex-end; }
+      .hero { display:grid; grid-template-columns:120px minmax(0,1fr); gap:1rem; align-items:center; margin-top:1rem; padding:1rem; border:1px solid rgba(148,163,184,0.22); border-radius:1rem; background:rgba(15,23,42,0.72); }
+      .photo { width:120px; height:120px; border-radius:1rem; object-fit:cover; background:#0f172a; border:1px solid rgba(148,163,184,0.28); }
+      .placeholder { width:120px; height:120px; border-radius:1rem; display:grid; place-items:center; background:linear-gradient(135deg,#1d4ed8,#0f172a); font-size:2rem; font-weight:900; border:1px solid rgba(148,163,184,0.28); }
+      .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:0.75rem; margin-top:1rem; }
+      .card { border:1px solid rgba(148,163,184,0.22); border-radius:1rem; padding:1rem; background:rgba(15,23,42,0.72); }
+      .metric { display:flex; justify-content:space-between; gap:0.75rem; align-items:center; padding:0.55rem 0; border-bottom:1px solid rgba(148,163,184,0.14); }
+      .metric:last-child { border-bottom:0; }
+      .bar-track { height:0.7rem; border-radius:999px; background:rgba(148,163,184,0.14); overflow:hidden; min-width:120px; }
+      .bar { height:100%; border-radius:999px; background:linear-gradient(90deg,#f4b400,#22c55e); }
+      .pill { display:inline-flex; border-radius:999px; padding:0.22rem 0.65rem; font-size:0.78rem; font-weight:800; background:rgba(148,163,184,0.14); color:#e2e8f0; }
+      .pill.ok { background:rgba(34,197,94,0.18); color:#86efac; }
+      .pill.warn { background:rgba(248,113,113,0.2); color:#fecaca; }
+      .chart { display:flex; gap:0.4rem; align-items:end; min-height:110px; margin-top:0.75rem; }
+      .chart-col { flex:1; min-width:34px; display:flex; flex-direction:column; justify-content:end; align-items:center; gap:0.3rem; }
+      .chart-bar { width:100%; min-height:4px; max-height:100px; border-radius:0.45rem 0.45rem 0 0; background:linear-gradient(180deg,#f4b400,#2f7d32); border:1px solid rgba(244,180,0,0.24); }
+      .text-block { white-space:pre-wrap; color:rgba(226,232,240,0.94); line-height:1.45; }
+      @media print {
+        body { background:white; color:#0f172a; padding:0; }
+        .card, .hero { background:white; border-color:#d1d5db; }
+        .subtle, .text-block { color:#334155; }
+        .actions { display:none; }
+        .page { max-width:none; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header class="top">
+        <div>
+          <p class="subtle" style="margin-bottom:0.25rem;">Informe individual de evaluación</p>
+          <h1>{{ player.name }}</h1>
+          <p class="subtle">
+            {{ evaluation.get_evaluation_type_display }} · {{ evaluation.evaluated_on|date:"d/m/Y" }}
+            {% if evaluation.club_season %} · {{ evaluation.club_season.label }}{% endif %}
+            · {{ evaluation.team.display_name|default:evaluation.team.name }}
+          </p>
+        </div>
+        <div class="actions">
+          <a class="btn alt" href="{% url 'player-detail' player.id %}?tab=evaluations{% if evaluation.club_season %}&club_season_id={{ evaluation.club_season.id }}{% endif %}">Volver</a>
+          <button class="btn" type="button" onclick="window.print()">Imprimir</button>
+        </div>
+      </header>
+
+      <section class="hero">
+        {% if player_photo_url %}
+          <img class="photo" src="{{ player_photo_url }}" alt="{{ player.name }}" />
+        {% else %}
+          <div class="placeholder">{{ player.name|initials }}</div>
+        {% endif %}
+        <div>
+          <h2 style="margin-bottom:0.4rem;">Resumen</h2>
+          <p class="subtle" style="margin-bottom:0.45rem;">
+            Estado: <span class="pill {% if evaluation.status == 'closed' %}ok{% endif %}">{{ evaluation.get_status_display }}</span>
+            {% if evaluation.role %} · Rol: <strong>{{ evaluation.role }}</strong>{% endif %}
+          </p>
+          <p class="subtle" style="margin:0;">
+            Posición evaluada: <strong>{{ evaluation.evaluated_position|default:"--" }}</strong>
+            · Recomendada: <strong>{{ evaluation.recommended_position|default:"--" }}</strong>
+            {% if evaluation.created_by %} · Técnico: <strong>{{ evaluation.created_by.get_username }}</strong>{% endif %}
+          </p>
+        </div>
+      </section>
+
+      <section class="grid">
+        <article class="card">
+          <h2>Áreas evaluadas</h2>
+          {% for row in improvement_rows %}
+            <div class="metric">
+              <div>
+                <strong>{{ row.label }}</strong>
+                <div class="subtle">
+                  Actual {{ row.current|default:"--" }}
+                  {% if row.previous is not None %} · Anterior {{ row.previous }}{% endif %}
+                </div>
+              </div>
+              <div style="min-width:150px;">
+                <div class="bar-track"><div class="bar" style="width:{{ row.pct|default:0 }}%;"></div></div>
+                <div style="margin-top:0.3rem;text-align:right;">
+                  <span class="pill {% if row.trend == 'up' %}ok{% elif row.trend == 'down' %}warn{% endif %}">{{ row.trend_label }}</span>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </article>
+
+        <article class="card">
+          <h2>Evolución</h2>
+          {% if chart_context.trend_rows %}
+            {% for area in chart_context.area_rows %}
+              <div style="margin-top:0.75rem;">
+                <div style="display:flex;justify-content:space-between;gap:0.75rem;">
+                  <strong>{{ area.label }}</strong>
+                  <span class="subtle">{% if area.delta is not None %}{% if area.trend == 'up' %}+{% endif %}{{ area.delta|floatformat:1 }}{% else %}--{% endif %}</span>
+                </div>
+                <div class="chart">
+                  {% for point in area.points %}
+                    <div class="chart-col">
+                      <span class="subtle" style="font-size:0.72rem;">{{ point.value|default:"--" }}</span>
+                      <div class="chart-bar" style="height:{{ point.pct|default:0 }}px;"></div>
+                      <span class="subtle" style="font-size:0.68rem;">{{ point.label }}</span>
+                    </div>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <p class="subtle">No hay suficientes evaluaciones cerradas para mostrar evolución.</p>
+          {% endif %}
+        </article>
+      </section>
+
+      <section class="grid">
+        <article class="card">
+          <h2>Puntos fuertes</h2>
+          <div class="text-block">{{ evaluation.strengths|default:"Sin puntos fuertes registrados." }}</div>
+        </article>
+        <article class="card">
+          <h2>Aspectos a mejorar</h2>
+          <div class="text-block">{{ evaluation.improvements|default:"Sin aspectos a mejorar registrados." }}</div>
+        </article>
+        <article class="card">
+          <h2>Objetivos próximos</h2>
+          <div class="text-block">{{ evaluation.objectives_next|default:"Sin objetivos registrados." }}</div>
+        </article>
+        {% if evaluation.coach_comments and not is_player_readonly %}
+        <article class="card">
+          <h2>Comentario técnico</h2>
+          <div class="text-block">{{ evaluation.coach_comments }}</div>
+        </article>
+        {% endif %}
+      </section>
+    </main>
+  </body>
+</html>

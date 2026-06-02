@@ -2223,6 +2223,20 @@ class SeasonHistoryServicesTests(TestCase):
         self.assertContains(response, self.season.label)
 
     def test_player_detail_can_create_staff_evaluation(self):
+        PlayerEvaluation.objects.create(
+            team=self.team,
+            player=self.player,
+            club_season=self.season,
+            evaluation_type=PlayerEvaluation.TYPE_INITIAL,
+            evaluated_on=date(2026, 8, 15),
+            status=PlayerEvaluation.STATUS_CLOSED,
+            overall_rating=Decimal('6.5'),
+            technical_rating=Decimal('6.0'),
+            tactical_rating=Decimal('7.0'),
+            physical_rating=Decimal('6.0'),
+            mental_rating=Decimal('7.0'),
+            social_rating=Decimal('7.0'),
+        )
         response = self.client.post(
             f"{reverse('player-detail', args=[self.player.id])}?tab=evaluations&club_season_id={self.season.id}",
             data={
@@ -2249,7 +2263,7 @@ class SeasonHistoryServicesTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
-        evaluation = PlayerEvaluation.objects.get(player=self.player)
+        evaluation = PlayerEvaluation.objects.filter(player=self.player).order_by('-evaluated_on', '-id').first()
         self.assertEqual(evaluation.team, self.team)
         self.assertEqual(evaluation.club_season, self.season)
         self.assertEqual(evaluation.status, PlayerEvaluation.STATUS_CLOSED)
@@ -2262,7 +2276,19 @@ class SeasonHistoryServicesTests(TestCase):
         self.assertEqual(detail_response.status_code, 200)
         self.assertContains(detail_response, 'Evaluaciones')
         self.assertContains(detail_response, 'Seguimiento técnico')
+        self.assertContains(detail_response, 'Evolución y mejora')
         self.assertContains(detail_response, 'Buen ritmo competitivo')
+        self.assertContains(detail_response, 'Informe')
+
+        report_response = self.client.get(
+            reverse('player-evaluation-report', args=[self.player.id, evaluation.id]),
+            secure=True,
+        )
+        self.assertEqual(report_response.status_code, 200)
+        self.assertContains(report_response, 'Informe individual de evaluación')
+        self.assertContains(report_response, 'Áreas evaluadas')
+        self.assertContains(report_response, 'Mejora +1')
+        self.assertContains(report_response, 'Objetivos próximos')
 
     def test_selected_club_season_can_be_loaded_from_request_and_session(self):
         from football.season_history_services import club_season_date_bounds, selected_club_season_for_request

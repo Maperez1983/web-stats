@@ -1264,6 +1264,47 @@
           </div>
         </div>
 
+        {% if evaluation_chart_context.trend_rows %}
+        <h3 style="margin-top:1rem;">Evolución y mejora</h3>
+        <div class="season-history-grid">
+          {% for area in evaluation_chart_context.area_rows %}
+            <article class="season-history-row">
+              <div style="width:100%;">
+                <div style="display:flex;justify-content:space-between;gap:0.75rem;align-items:center;">
+                  <h3 style="margin:0;">{{ area.label }}</h3>
+                  <span class="pill {% if area.trend == 'up' %}ok{% elif area.trend == 'down' %}warn{% else %}{% endif %}">
+                    {% if area.delta is not None %}
+                      {% if area.trend == 'up' %}+{% endif %}{{ area.delta|floatformat:1 }}
+                    {% else %}
+                      Sin comparativa
+                    {% endif %}
+                  </span>
+                </div>
+                <div style="display:flex;gap:0.35rem;align-items:end;margin-top:0.75rem;min-height:96px;">
+                  {% for point in area.points %}
+                    <div style="flex:1;min-width:34px;display:flex;flex-direction:column;gap:0.3rem;align-items:center;justify-content:end;">
+                      <div class="subtle" style="font-size:0.72rem;">{{ point.value|default:"--" }}</div>
+                      <div title="{{ point.label }} · {{ point.value|default:'--' }}" style="width:100%;height:{{ point.pct|default:0 }}px;min-height:4px;max-height:100px;border-radius:0.45rem 0.45rem 0 0;background:linear-gradient(180deg, rgba(244,180,0,0.86), rgba(47,125,50,0.72));border:1px solid rgba(244,180,0,0.22);"></div>
+                      <div class="subtle" style="font-size:0.68rem;">{{ point.label }}</div>
+                    </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+        {% if latest_evaluation_improvement_rows %}
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0.55rem;margin-top:0.8rem;">
+          {% for row in latest_evaluation_improvement_rows %}
+            <div style="border:1px solid {% if row.trend == 'up' %}rgba(34,197,94,0.32){% elif row.trend == 'down' %}rgba(248,113,113,0.32){% else %}rgba(144,161,185,0.18){% endif %};border-radius:0.8rem;padding:0.65rem;background:rgba(15,23,42,0.28);">
+              <span class="subtle" style="display:block;text-transform:uppercase;letter-spacing:0.08em;font-size:0.7rem;">{{ row.label }}</span>
+              <strong style="display:block;margin-top:0.25rem;">{{ row.current|default:"--" }}{% if row.previous is not None %} · {{ row.trend_label }}{% endif %}</strong>
+            </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% endif %}
+
         {% if not is_player_readonly %}
         <h3 style="margin-top:1rem;">Nueva evaluación</h3>
         <form method="post">
@@ -1371,6 +1412,11 @@
                     <p class="subtle" style="margin:0.35rem 0 0;"><strong>Staff:</strong> {{ evaluation.coach_comments }}</p>
                   {% endif %}
                 </div>
+                {% if evaluation.status == 'closed' or not is_player_readonly %}
+                <div style="display:flex;gap:0.45rem;flex-wrap:wrap;justify-content:flex-end;">
+                  <a class="btn alt" href="{% url 'player-evaluation-report' player.id evaluation.id %}">Informe</a>
+                </div>
+                {% endif %}
               </article>
             {% endfor %}
           </div>

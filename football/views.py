@@ -53123,6 +53123,12 @@ def player_detail_page(request, player_id):
             'pending': evaluation_pending,
             'count': len(player_evaluations),
         }
+        evaluation_chart_context = _player_evaluation_chart_context(player_evaluations)
+        latest_evaluation_improvement_rows = (
+            _evaluation_improvement_rows(latest_closed_evaluation)
+            if latest_closed_evaluation
+            else []
+        )
         physical_metrics = player.physical_metrics.all()[:20]
         latest_physical_metric = physical_metrics[0] if physical_metrics else None
         communications = player.communications.select_related('match').all()[:20]
@@ -53457,6 +53463,8 @@ def player_detail_page(request, player_id):
                 'active_tab': active_tab,
                 'player_evaluations': player_evaluations,
                 'evaluation_summary': evaluation_summary,
+                'evaluation_chart_context': evaluation_chart_context,
+                'latest_evaluation_improvement_rows': latest_evaluation_improvement_rows,
                 'evaluation_type_choices': PlayerEvaluation.TYPE_CHOICES,
                 'evaluation_status_choices': PlayerEvaluation.STATUS_CHOICES,
                 'physical_metrics': physical_metrics,
@@ -53508,6 +53516,63 @@ def player_detail_page(request, player_id):
     except Exception:
         logger.exception("Error en player_detail_page para player_id=%s", player_id)
         return HttpResponse('Error interno al cargar la ficha del jugador.', status=500)
+
+
+@login_required
+@ensure_csrf_cookie
+def player_evaluation_report_page(request, player_id, evaluation_id):
+    forbidden = _forbid_if_workspace_module_disabled(request, 'players', label='módulo de jugadores')
+    if forbidden:
+        return forbidden
+    primary_team, player = _resolve_player_for_request_scope(request, int(player_id))
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+    if not player:
+        raise Http404('Jugador no encontrado')
+    forbidden = _forbid_if_no_player_access(request.user, player, primary_team=primary_team)
+    if forbidden:
+        return forbidden
+
+    current_role = _get_user_role(request.user)
+    is_player_readonly = current_role == AppUserRole.ROLE_PLAYER and not _is_admin_user(request.user)
+    evaluation = (
+        PlayerEvaluation.objects
+        .select_related('player', 'team', 'club_season', 'created_by')
+        .filter(id=int(evaluation_id), player=player)
+        .first()
+    )
+    if not evaluation:
+        raise Http404('Evaluación no encontrada')
+    if is_player_readonly and evaluation.status != PlayerEvaluation.STATUS_CLOSED:
+        return HttpResponse('No tienes permisos para ver esta evaluación.', status=403)
+
+    previous = _evaluation_previous_for(evaluation)
+    same_scope_qs = (
+        PlayerEvaluation.objects
+        .filter(player=player, status=PlayerEvaluation.STATUS_CLOSED)
+        .select_related('team', 'club_season')
+        .order_by('-evaluated_on', '-id')
+    )
+    if getattr(evaluation, 'club_season_id', None):
+        same_scope_qs = same_scope_qs.filter(club_season_id=evaluation.club_season_id)
+    if getattr(evaluation, 'team_id', None):
+        same_scope_qs = same_scope_qs.filter(team_id=evaluation.team_id)
+    evaluation_rows = list(same_scope_qs[:24])
+    evaluation_rows.sort(key=lambda item: (getattr(item, 'evaluated_on', None) or date.min, int(getattr(item, 'id', 0) or 0)))
+
+    return render(
+        request,
+        'football/player_evaluation_report.html',
+        {
+            'player': player,
+            'evaluation': evaluation,
+            'previous_evaluation': previous,
+            'improvement_rows': _evaluation_improvement_rows(evaluation, previous),
+            'chart_context': _player_evaluation_chart_context(evaluation_rows),
+            'player_photo_url': resolve_player_photo_url(request, player),
+            'is_player_readonly': is_player_readonly,
+        },
+    )
 
 
 
@@ -57385,6 +57450,137 @@ compute_player_metrics = stats_services.compute_player_metrics
 
 
 compute_player_cards = stats_services.compute_player_cards
+
+
+PLAYER_EVALUATION_AREAS = [
+    ('overall_rating', 'Global'),
+    ('technical_rating', 'Técnica'),
+    ('tactical_rating', 'Táctica'),
+    ('physical_rating', 'Físico'),
+    ('mental_rating', 'Mental'),
+    ('social_rating', 'Grupo'),
+]
+
+
+def _evaluation_rating_float(evaluation, field):
+    if not evaluation:
+        return None
+    value = getattr(evaluation, field, None)
+    if value is None:
+        return None
+    try:
+        return round(float(value), 1)
+    except Exception:
+        return None
+
+
+def _evaluation_previous_for(evaluation):
+    if not evaluation:
+        return None
+    qs = PlayerEvaluation.objects.filter(player=evaluation.player, status=PlayerEvaluation.STATUS_CLOSED)
+    if getattr(evaluation, 'team_id', None):
+        qs = qs.filter(team_id=evaluation.team_id)
+    if getattr(evaluation, 'club_season_id', None):
+        qs = qs.filter(club_season_id=evaluation.club_season_id)
+    else:
+        qs = qs.filter(club_season__isnull=True)
+    if getattr(evaluation, 'evaluated_on', None):
+        qs = qs.filter(
+            Q(evaluated_on__lt=evaluation.evaluated_on)
+            | Q(evaluated_on=evaluation.evaluated_on, id__lt=evaluation.id)
+        )
+    else:
+        qs = qs.filter(id__lt=evaluation.id)
+    return qs.order_by('-evaluated_on', '-id').first()
+
+
+def _evaluation_improvement_rows(evaluation, previous=None):
+    rows = []
+    previous = previous if previous is not None else _evaluation_previous_for(evaluation)
+    for field, label in PLAYER_EVALUATION_AREAS:
+        current_value = _evaluation_rating_float(evaluation, field)
+        previous_value = _evaluation_rating_float(previous, field)
+        delta = None
+        trend = 'neutral'
+        trend_label = 'Sin dato previo'
+        if current_value is not None and previous_value is not None:
+            delta = round(current_value - previous_value, 1)
+            if delta > 0:
+                trend = 'up'
+                trend_label = f'Mejora +{delta:g}'
+            elif delta < 0:
+                trend = 'down'
+                trend_label = f'Baja {delta:g}'
+            else:
+                trend_label = 'Estable'
+        rows.append(
+            {
+                'field': field,
+                'label': label,
+                'current': current_value,
+                'previous': previous_value,
+                'delta': delta,
+                'trend': trend,
+                'trend_label': trend_label,
+                'pct': round((current_value or 0) * 10, 1),
+            }
+        )
+    return rows
+
+
+def _player_evaluation_trend_rows(evaluations):
+    closed = [
+        evaluation for evaluation in evaluations
+        if str(getattr(evaluation, 'status', '') or '') == PlayerEvaluation.STATUS_CLOSED
+    ]
+    closed.sort(key=lambda item: (getattr(item, 'evaluated_on', None) or date.min, int(getattr(item, 'id', 0) or 0)))
+    rows = []
+    for evaluation in closed:
+        row = {
+            'id': int(getattr(evaluation, 'id', 0) or 0),
+            'label': evaluation.evaluated_on.strftime('%d/%m') if getattr(evaluation, 'evaluated_on', None) else evaluation.get_evaluation_type_display(),
+            'type_label': evaluation.get_evaluation_type_display(),
+            'date': getattr(evaluation, 'evaluated_on', None),
+        }
+        for field, _label in PLAYER_EVALUATION_AREAS:
+            row[field] = _evaluation_rating_float(evaluation, field)
+        rows.append(row)
+    return rows
+
+
+def _player_evaluation_chart_context(evaluations):
+    trend_rows = _player_evaluation_trend_rows(evaluations)
+    area_rows = []
+    for field, label in PLAYER_EVALUATION_AREAS:
+        values = [row.get(field) for row in trend_rows]
+        values = [value for value in values if value is not None]
+        first = values[0] if values else None
+        last = values[-1] if values else None
+        delta = round(last - first, 1) if first is not None and last is not None and len(values) > 1 else None
+        trend = 'neutral'
+        if delta is not None and delta > 0:
+            trend = 'up'
+        elif delta is not None and delta < 0:
+            trend = 'down'
+        area_rows.append(
+            {
+                'field': field,
+                'label': label,
+                'first': first,
+                'last': last,
+                'delta': delta,
+                'trend': trend,
+                'points': [
+                    {
+                        'label': row.get('label'),
+                        'value': row.get(field),
+                        'pct': round((row.get(field) or 0) * 10, 1),
+                    }
+                    for row in trend_rows
+                ],
+            }
+        )
+    return {'trend_rows': trend_rows, 'area_rows': area_rows}
 
 
 def compute_player_dashboard(
