@@ -2171,9 +2171,18 @@ class SeasonHistoryServicesTests(TestCase):
         self.assertNotIn(self.player, response.context['players'])
         self.assertNotIn(self.player, response.context['club_player_options'])
         self.assertIn(self.player, response.context['inactive_club_player_options'])
+        self.assertNotContains(response, 'Jugadores dados de baja')
+
+        inactive_response = self.client.get(
+            f"{reverse('coach-roster')}?tab=inactive",
+            secure=True,
+        )
+        self.assertEqual(inactive_response.status_code, 200)
+        self.assertContains(inactive_response, 'Jugadores dados de baja')
+        self.assertContains(inactive_response, self.player.name)
 
         restore_response = self.client.post(
-            f"{reverse('coach-roster')}?tab=manage",
+            f"{reverse('coach-roster')}?tab=inactive",
             data={
                 'action': 'reactivate',
                 'player_id': str(self.player.id),

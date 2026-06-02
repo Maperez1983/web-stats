@@ -28036,7 +28036,7 @@ def coach_roster_page(request):
 
     can_edit = bool(_can_manage_workspace(request.user, workspace) or _can_access_platform(request.user) or _is_admin_user(request.user))
     active_tab = str(request.GET.get('tab') or '').strip().lower() or 'stats'
-    if active_tab not in {'stats', 'manage'}:
+    if active_tab not in {'stats', 'manage', 'inactive'}:
         active_tab = 'stats'
     scope_value = _get_stats_scope_for_request(request, primary_team)
     tournament_filter = _get_tournament_filter_for_request(request, primary_team, scope=scope_value)
@@ -28582,6 +28582,7 @@ def coach_roster_page(request):
             'active_team_query': active_team_query,
             'tab_link_stats': _tab_link('stats'),
             'tab_link_manage': _tab_link('manage'),
+            'tab_link_inactive': _tab_link('inactive'),
             'tab_link_refresh': _tab_link('stats', refresh=True),
             'message': message,
             'error': error,

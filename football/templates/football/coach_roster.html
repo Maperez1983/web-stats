@@ -753,6 +753,7 @@
         <nav class="tabs">
           <a class="tab {% if active_tab == 'stats' %}is-active{% endif %}" href="{{ tab_link_stats }}">Estadísticas</a>
           <a class="tab {% if active_tab == 'manage' %}is-active{% endif %}" href="{{ tab_link_manage }}">Alta y plantilla</a>
+          <a class="tab {% if active_tab == 'inactive' %}is-active{% endif %}" href="{{ tab_link_inactive }}">Bajas</a>
           {% if active_tab == 'stats' %}
             <a class="tab tab-refresh" href="{{ tab_link_refresh }}">Actualizar</a>
           {% endif %}
@@ -1050,6 +1051,35 @@
             </p>
           {% endif %}
           {% if can_edit %}
+          {% if active_tab == 'inactive' %}
+          <div class="roster-forms">
+            <section class="roster-form-box">
+              <h2 class="roster-form-title">Jugadores dados de baja</h2>
+              {% if inactive_club_player_options %}
+              <div style="display:grid;gap:0.55rem;">
+                {% for player_option in inactive_club_player_options %}
+                <form method="post" style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0.55rem;align-items:center;margin:0;padding:0.55rem;border:1px solid rgba(148,163,184,0.18);border-radius:10px;background:rgba(2,6,23,0.24);">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="reactivate" />
+                  <input type="hidden" name="player_id" value="{{ player_option.id }}" />
+                  <div style="min-width:0;">
+                    <strong style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ player_option.name }}</strong>
+                    <span style="display:block;color:var(--prod-muted, rgba(148,163,184,0.82));font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                      {% if player_option.team %}{{ player_option.team.display_name|default:player_option.team.name }}{% else %}Sin equipo actual{% endif %}
+                    </span>
+                  </div>
+                  <button class="inline-ok" type="submit">Reactivar</button>
+                </form>
+                {% endfor %}
+              </div>
+              {% else %}
+              <p style="margin:0;color:var(--prod-muted, rgba(148,163,184,0.82));font-size:0.9rem;">
+                No hay jugadores dados de baja para recuperar en este club.
+              </p>
+              {% endif %}
+            </section>
+          </div>
+          {% else %}
           <div class="roster-forms">
             <section class="roster-form-box">
               <h2 class="roster-form-title">Añadir jugador existente del club</h2>
@@ -1085,32 +1115,6 @@
                 </label>
                 <button class="primary" type="submit">Añadir al equipo</button>
               </form>
-            </section>
-
-            <section class="roster-form-box">
-              <h2 class="roster-form-title">Jugadores dados de baja</h2>
-              {% if inactive_club_player_options %}
-              <div style="display:grid;gap:0.55rem;">
-                {% for player_option in inactive_club_player_options %}
-                <form method="post" style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0.55rem;align-items:center;margin:0;padding:0.55rem;border:1px solid rgba(148,163,184,0.18);border-radius:10px;background:rgba(2,6,23,0.24);">
-                  {% csrf_token %}
-                  <input type="hidden" name="action" value="reactivate" />
-                  <input type="hidden" name="player_id" value="{{ player_option.id }}" />
-                  <div style="min-width:0;">
-                    <strong style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ player_option.name }}</strong>
-                    <span style="display:block;color:var(--prod-muted, rgba(148,163,184,0.82));font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                      {% if player_option.team %}{{ player_option.team.display_name|default:player_option.team.name }}{% else %}Sin equipo actual{% endif %}
-                    </span>
-                  </div>
-                  <button class="inline-ok" type="submit">Reactivar</button>
-                </form>
-                {% endfor %}
-              </div>
-              {% else %}
-              <p style="margin:0;color:var(--prod-muted, rgba(148,163,184,0.82));font-size:0.9rem;">
-                No hay jugadores dados de baja para recuperar en este club.
-              </p>
-              {% endif %}
             </section>
 
             <section class="roster-form-box">
@@ -1180,8 +1184,10 @@
               </form>
             </section>
           </div>
+          {% endif %}
         {% endif %}
 
+        {% if active_tab == 'manage' %}
         <div class="roster-table-wrap">
         <table>
           <thead>
@@ -1272,6 +1278,7 @@
           </tbody>
         </table>
         </div>
+        {% endif %}
         {% endif %}
       </section>
     </main>
