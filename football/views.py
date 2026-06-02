@@ -52552,6 +52552,30 @@ def player_detail_page(request, player_id):
                 value = Decimal('10')
             return value.quantize(Decimal('0.1'))
 
+        def _parse_bounded_int(raw_value, *, min_value=None, max_value=None):
+            value = _parse_int(raw_value)
+            if value is None:
+                return None
+            if min_value is not None and value < int(min_value):
+                value = int(min_value)
+            if max_value is not None and value > int(max_value):
+                value = int(max_value)
+            return value
+
+        def _parse_bounded_decimal(raw_value, *, min_value=None, max_value=None, places='0.01'):
+            raw = str(raw_value or '').strip().replace(',', '.')
+            if not raw:
+                return None
+            try:
+                value = Decimal(raw)
+            except (InvalidOperation, ValueError):
+                return None
+            if min_value is not None and value < Decimal(str(min_value)):
+                value = Decimal(str(min_value))
+            if max_value is not None and value > Decimal(str(max_value)):
+                value = Decimal(str(max_value))
+            return value.quantize(Decimal(str(places)))
+
         def _resolve_season():
             if primary_team.group and primary_team.group.season:
                 return primary_team.group.season
@@ -52737,7 +52761,14 @@ def player_detail_page(request, player_id):
                     'mental_rating': _parse_eval_rating(request.POST.get('mental_rating')),
                     'social_rating': _parse_eval_rating(request.POST.get('social_rating')),
                     'overall_rating': _parse_eval_rating(request.POST.get('overall_rating')),
+                    'objective_performance_rating': _parse_eval_rating(request.POST.get('objective_performance_rating')),
+                    'availability_rating': _parse_eval_rating(request.POST.get('availability_rating')),
+                    'single_leg_control_rating': _parse_eval_rating(request.POST.get('single_leg_control_rating')),
                 }
+                maturation_status = str(request.POST.get('maturation_status') or '').strip()
+                valid_maturation = {choice[0] for choice in PlayerEvaluation.MATURATION_CHOICES}
+                if maturation_status not in valid_maturation:
+                    maturation_status = ''
                 PlayerEvaluation.objects.create(
                     team=primary_team,
                     player=player,
@@ -52752,6 +52783,24 @@ def player_detail_page(request, player_id):
                     improvements=str(request.POST.get('improvements') or '').strip(),
                     objectives_next=str(request.POST.get('objectives_next') or '').strip(),
                     coach_comments=str(request.POST.get('coach_comments') or '').strip(),
+                    wellness_sleep=_parse_bounded_int(request.POST.get('wellness_sleep'), min_value=1, max_value=10),
+                    wellness_fatigue=_parse_bounded_int(request.POST.get('wellness_fatigue'), min_value=1, max_value=10),
+                    wellness_soreness=_parse_bounded_int(request.POST.get('wellness_soreness'), min_value=1, max_value=10),
+                    wellness_stress=_parse_bounded_int(request.POST.get('wellness_stress'), min_value=1, max_value=10),
+                    wellness_motivation=_parse_bounded_int(request.POST.get('wellness_motivation'), min_value=1, max_value=10),
+                    session_rpe=_parse_bounded_int(request.POST.get('session_rpe'), min_value=1, max_value=10),
+                    session_minutes=_parse_bounded_int(request.POST.get('session_minutes'), min_value=1, max_value=240),
+                    yo_yo_ir1_m=_parse_bounded_int(request.POST.get('yo_yo_ir1_m'), min_value=0, max_value=6000),
+                    sprint_5m_s=_parse_bounded_decimal(request.POST.get('sprint_5m_s'), min_value=0, max_value=20),
+                    sprint_10m_s=_parse_bounded_decimal(request.POST.get('sprint_10m_s'), min_value=0, max_value=30),
+                    sprint_20m_s=_parse_bounded_decimal(request.POST.get('sprint_20m_s'), min_value=0, max_value=60),
+                    agility_505_s=_parse_bounded_decimal(request.POST.get('agility_505_s'), min_value=0, max_value=60),
+                    cmj_cm=_parse_bounded_decimal(request.POST.get('cmj_cm'), min_value=0, max_value=120),
+                    copenhagen_seconds=_parse_bounded_int(request.POST.get('copenhagen_seconds'), min_value=0, max_value=300),
+                    maturation_status=maturation_status,
+                    maturity_offset_years=_parse_bounded_decimal(request.POST.get('maturity_offset_years'), min_value=-5, max_value=5),
+                    growth_velocity_cm_year=_parse_bounded_decimal(request.POST.get('growth_velocity_cm_year'), min_value=0, max_value=30),
+                    evidence_notes=str(request.POST.get('evidence_notes') or '').strip(),
                     created_by=request.user if request.user.is_authenticated else None,
                     updated_by=request.user if request.user.is_authenticated else None,
                     **ratings,
@@ -57454,11 +57503,15 @@ compute_player_cards = stats_services.compute_player_cards
 
 PLAYER_EVALUATION_AREAS = [
     ('overall_rating', 'Global'),
+    ('assisted_score', 'Asistida'),
     ('technical_rating', 'Técnica'),
     ('tactical_rating', 'Táctica'),
     ('physical_rating', 'Físico'),
     ('mental_rating', 'Mental'),
     ('social_rating', 'Grupo'),
+    ('objective_performance_rating', 'Objetiva'),
+    ('availability_rating', 'Disponibilidad'),
+    ('wellness_score', 'Wellness'),
 ]
 
 

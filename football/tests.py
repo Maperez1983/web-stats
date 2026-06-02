@@ -2254,6 +2254,25 @@ class SeasonHistoryServicesTests(TestCase):
                 'physical_rating': '6.5',
                 'mental_rating': '8',
                 'social_rating': '7',
+                'objective_performance_rating': '8.2',
+                'availability_rating': '9',
+                'single_leg_control_rating': '7',
+                'wellness_sleep': '8',
+                'wellness_fatigue': '6',
+                'wellness_soreness': '7',
+                'wellness_stress': '8',
+                'wellness_motivation': '9',
+                'session_rpe': '6',
+                'session_minutes': '75',
+                'yo_yo_ir1_m': '1240',
+                'sprint_20m_s': '3.28',
+                'agility_505_s': '2.48',
+                'cmj_cm': '31.5',
+                'copenhagen_seconds': '42',
+                'maturation_status': PlayerEvaluation.MATURATION_CIRCA,
+                'maturity_offset_years': '0.25',
+                'growth_velocity_cm_year': '6.8',
+                'evidence_notes': 'Test realizado tras microciclo de carga media',
                 'strengths': 'Buen ritmo competitivo',
                 'improvements': 'Perfil corporal al recibir',
                 'objectives_next': 'Mejorar orientación antes de controlar',
@@ -2268,6 +2287,11 @@ class SeasonHistoryServicesTests(TestCase):
         self.assertEqual(evaluation.club_season, self.season)
         self.assertEqual(evaluation.status, PlayerEvaluation.STATUS_CLOSED)
         self.assertEqual(evaluation.overall_rating, Decimal('7.5'))
+        self.assertEqual(evaluation.objective_performance_rating, Decimal('8.2'))
+        self.assertEqual(evaluation.srpe_load, 450)
+        self.assertEqual(evaluation.wellness_score, 7.6)
+        self.assertEqual(evaluation.maturation_status, PlayerEvaluation.MATURATION_CIRCA)
+        self.assertIsNotNone(evaluation.assisted_score)
 
         detail_response = self.client.get(
             f"{reverse('player-detail', args=[self.player.id])}?tab=evaluations&club_season_id={self.season.id}",
@@ -2287,7 +2311,11 @@ class SeasonHistoryServicesTests(TestCase):
         self.assertEqual(report_response.status_code, 200)
         self.assertContains(report_response, 'Informe individual de evaluación')
         self.assertContains(report_response, 'Áreas evaluadas')
+        self.assertContains(report_response, 'Evidencia objetiva')
+        self.assertContains(report_response, 'Nota asistida')
+        self.assertContains(report_response, 'sRPE')
         self.assertContains(report_response, 'Mejora +1')
+        self.assertContains(report_response, 'Test realizado tras microciclo de carga media')
         self.assertContains(report_response, 'Objetivos próximos')
 
     def test_selected_club_season_can_be_loaded_from_request_and_session(self):

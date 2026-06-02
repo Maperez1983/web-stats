@@ -2602,6 +2602,16 @@ class PlayerEvaluation(models.Model):
         (STATUS_DRAFT, 'Borrador'),
         (STATUS_CLOSED, 'Cerrada'),
     ]
+    MATURATION_PRE = 'pre_phv'
+    MATURATION_CIRCA = 'circa_phv'
+    MATURATION_POST = 'post_phv'
+    MATURATION_UNKNOWN = ''
+    MATURATION_CHOICES = [
+        (MATURATION_UNKNOWN, 'Sin definir'),
+        (MATURATION_PRE, 'Pre-PHV'),
+        (MATURATION_CIRCA, 'Circa-PHV'),
+        (MATURATION_POST, 'Post-PHV'),
+    ]
 
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='player_evaluations')
     player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='evaluations')
@@ -2626,6 +2636,29 @@ class PlayerEvaluation(models.Model):
     mental_rating = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True)
     social_rating = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True)
     overall_rating = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True)
+
+    wellness_sleep = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Sueño/descanso 1-10.')
+    wellness_fatigue = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Fatiga percibida 1-10.')
+    wellness_soreness = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Dolor muscular 1-10.')
+    wellness_stress = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Estrés percibido 1-10.')
+    wellness_motivation = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Motivación 1-10.')
+    session_rpe = models.PositiveSmallIntegerField(null=True, blank=True, help_text='RPE sesión 1-10.')
+    session_minutes = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Duración de sesión/partido en minutos.')
+
+    yo_yo_ir1_m = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Yo-Yo IR1 en metros.')
+    sprint_5m_s = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    sprint_10m_s = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    sprint_20m_s = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    agility_505_s = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    cmj_cm = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text='Salto CMJ en cm.')
+    copenhagen_seconds = models.PositiveSmallIntegerField(null=True, blank=True)
+    single_leg_control_rating = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True, help_text='Control monopodal 1-10.')
+    objective_performance_rating = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True, help_text='Síntesis objetiva 1-10 basada en KPIs/datos disponibles.')
+    availability_rating = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True, help_text='Disponibilidad/asistencia 1-10.')
+    maturation_status = models.CharField(max_length=16, choices=MATURATION_CHOICES, blank=True, default='')
+    maturity_offset_years = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True, help_text='Años estimados respecto al PHV.')
+    growth_velocity_cm_year = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text='Velocidad de crecimiento cm/año.')
+    evidence_notes = models.TextField(blank=True)
 
     strengths = models.TextField(blank=True)
     improvements = models.TextField(blank=True)
@@ -2660,6 +2693,58 @@ class PlayerEvaluation(models.Model):
         if not values:
             return self.overall_rating
         return round(sum(values) / len(values), 1)
+
+    @property
+    def wellness_score(self):
+        values = [
+            self.wellness_sleep,
+            self.wellness_fatigue,
+            self.wellness_soreness,
+            self.wellness_stress,
+            self.wellness_motivation,
+        ]
+        values = [int(value) for value in values if value is not None]
+        if not values:
+            return None
+        return round(sum(values) / len(values), 1)
+
+    @property
+    def srpe_load(self):
+        if self.session_rpe is None or self.session_minutes is None:
+            return None
+        return int(self.session_rpe) * int(self.session_minutes)
+
+    @property
+    def physical_screen_score(self):
+        values = [
+            self.single_leg_control_rating,
+            self.objective_performance_rating,
+            self.availability_rating,
+        ]
+        values = [float(value) for value in values if value is not None]
+        if not values:
+            return None
+        return round(sum(values) / len(values), 1)
+
+    @property
+    def assisted_score(self):
+        parts = []
+        coach = self.average_rating
+        if coach is not None:
+            parts.append((float(coach), 0.50))
+        if self.objective_performance_rating is not None:
+            parts.append((float(self.objective_performance_rating), 0.20))
+        if self.availability_rating is not None:
+            parts.append((float(self.availability_rating), 0.15))
+        wellness = self.wellness_score
+        if wellness is not None:
+            parts.append((float(wellness), 0.10))
+        if self.single_leg_control_rating is not None:
+            parts.append((float(self.single_leg_control_rating), 0.05))
+        total_weight = sum(weight for _value, weight in parts)
+        if not total_weight:
+            return self.overall_rating
+        return round(sum(value * weight for value, weight in parts) / total_weight, 1)
 
     def __str__(self):
         return f'{self.player_id} · {self.get_evaluation_type_display()} · {self.evaluated_on}'

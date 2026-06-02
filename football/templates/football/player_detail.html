@@ -1349,12 +1349,80 @@
             <label>Social/grupo
               <input type="number" name="social_rating" min="1" max="10" step="0.1" />
             </label>
+            <label>KPIs objetivos
+              <input type="number" name="objective_performance_rating" min="1" max="10" step="0.1" placeholder="1-10" />
+            </label>
+            <label>Disponibilidad
+              <input type="number" name="availability_rating" min="1" max="10" step="0.1" placeholder="1-10" />
+            </label>
+            <label>Control monopodal
+              <input type="number" name="single_leg_control_rating" min="1" max="10" step="0.1" placeholder="1-10" />
+            </label>
             <label>Estado
               <select name="status">
                 {% for value, label in evaluation_status_choices %}
                   <option value="{{ value }}" {% if value == 'closed' %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
               </select>
+            </label>
+            <label>Sueño/descanso
+              <input type="number" name="wellness_sleep" min="1" max="10" />
+            </label>
+            <label>Fatiga
+              <input type="number" name="wellness_fatigue" min="1" max="10" />
+            </label>
+            <label>Dolor muscular
+              <input type="number" name="wellness_soreness" min="1" max="10" />
+            </label>
+            <label>Estrés
+              <input type="number" name="wellness_stress" min="1" max="10" />
+            </label>
+            <label>Motivación
+              <input type="number" name="wellness_motivation" min="1" max="10" />
+            </label>
+            <label>RPE sesión
+              <input type="number" name="session_rpe" min="1" max="10" />
+            </label>
+            <label>Minutos sesión
+              <input type="number" name="session_minutes" min="1" max="240" />
+            </label>
+            <label>Yo-Yo IR1 (m)
+              <input type="number" name="yo_yo_ir1_m" min="0" max="6000" />
+            </label>
+            <label>Sprint 5m (s)
+              <input type="number" name="sprint_5m_s" min="0" max="20" step="0.01" />
+            </label>
+            <label>Sprint 10m (s)
+              <input type="number" name="sprint_10m_s" min="0" max="30" step="0.01" />
+            </label>
+            <label>Sprint 20m (s)
+              <input type="number" name="sprint_20m_s" min="0" max="60" step="0.01" />
+            </label>
+            <label>Agilidad 505 (s)
+              <input type="number" name="agility_505_s" min="0" max="60" step="0.01" />
+            </label>
+            <label>CMJ (cm)
+              <input type="number" name="cmj_cm" min="0" max="120" step="0.01" />
+            </label>
+            <label>Copenhagen (s)
+              <input type="number" name="copenhagen_seconds" min="0" max="300" />
+            </label>
+            <label>Maduración
+              <select name="maturation_status">
+                <option value="">Sin definir</option>
+                <option value="pre_phv">Pre-PHV</option>
+                <option value="circa_phv">Circa-PHV</option>
+                <option value="post_phv">Post-PHV</option>
+              </select>
+            </label>
+            <label>Offset PHV (años)
+              <input type="number" name="maturity_offset_years" min="-5" max="5" step="0.01" />
+            </label>
+            <label>Vel. crecimiento (cm/año)
+              <input type="number" name="growth_velocity_cm_year" min="0" max="30" step="0.01" />
+            </label>
+            <label style="grid-column:1 / -1;">Notas de evidencia
+              <textarea name="evidence_notes" rows="3" placeholder="Condiciones del test, fatiga, muestra disponible, observaciones objetivas..."></textarea>
             </label>
             <label style="grid-column:1 / -1;">Puntos fuertes
               <textarea name="strengths" rows="3" placeholder="Qué sostiene su rendimiento..."></textarea>
@@ -1392,12 +1460,23 @@
                   </div>
                   <div class="subtle" style="margin-top:0.35rem;">
                     Global {{ evaluation.overall_rating|default:"--" }}
+                    · Asistida {{ evaluation.assisted_score|default:"--" }}
                     · Media áreas {{ evaluation.average_rating|default:"--" }}
+                    · Obj {{ evaluation.objective_performance_rating|default:"--" }}
+                    · Disp {{ evaluation.availability_rating|default:"--" }}
                     · Tec {{ evaluation.technical_rating|default:"--" }}
                     · Tac {{ evaluation.tactical_rating|default:"--" }}
                     · Fis {{ evaluation.physical_rating|default:"--" }}
                     · Mental {{ evaluation.mental_rating|default:"--" }}
                     · Grupo {{ evaluation.social_rating|default:"--" }}
+                  </div>
+                  <div class="subtle" style="margin-top:0.35rem;">
+                    Wellness {{ evaluation.wellness_score|default:"--" }}
+                    · sRPE {{ evaluation.srpe_load|default:"--" }}
+                    · Yo-Yo {{ evaluation.yo_yo_ir1_m|default:"--" }} m
+                    · 20m {{ evaluation.sprint_20m_s|default:"--" }} s
+                    · CMJ {{ evaluation.cmj_cm|default:"--" }} cm
+                    {% if evaluation.maturation_status %} · {{ evaluation.get_maturation_status_display }}{% endif %}
                   </div>
                   {% if evaluation.strengths %}
                     <p class="subtle" style="margin:0.55rem 0 0;"><strong>Fuertes:</strong> {{ evaluation.strengths }}</p>

@@ -101,6 +101,46 @@
         </article>
 
         <article class="card">
+          <h2>Evidencia objetiva</h2>
+          <div class="metric">
+            <strong>Nota asistida</strong>
+            <span>{{ evaluation.assisted_score|default:"--" }}</span>
+          </div>
+          <div class="metric">
+            <strong>Wellness</strong>
+            <span>{{ evaluation.wellness_score|default:"--" }}</span>
+          </div>
+          <div class="metric">
+            <strong>sRPE</strong>
+            <span>{{ evaluation.srpe_load|default:"--" }}{% if evaluation.session_rpe and evaluation.session_minutes %} ({{ evaluation.session_rpe }} x {{ evaluation.session_minutes }}'){% endif %}</span>
+          </div>
+          <div class="metric">
+            <strong>Yo-Yo IR1</strong>
+            <span>{{ evaluation.yo_yo_ir1_m|default:"--" }} m</span>
+          </div>
+          <div class="metric">
+            <strong>Sprint 20m</strong>
+            <span>{{ evaluation.sprint_20m_s|default:"--" }} s</span>
+          </div>
+          <div class="metric">
+            <strong>Agilidad 505</strong>
+            <span>{{ evaluation.agility_505_s|default:"--" }} s</span>
+          </div>
+          <div class="metric">
+            <strong>CMJ</strong>
+            <span>{{ evaluation.cmj_cm|default:"--" }} cm</span>
+          </div>
+          <div class="metric">
+            <strong>Copenhagen</strong>
+            <span>{{ evaluation.copenhagen_seconds|default:"--" }} s</span>
+          </div>
+          <div class="metric">
+            <strong>Maduración</strong>
+            <span>{{ evaluation.get_maturation_status_display|default:"--" }}</span>
+          </div>
+        </article>
+
+        <article class="card">
           <h2>Evolución</h2>
           {% if chart_context.trend_rows %}
             {% for area in chart_context.area_rows %}
@@ -139,6 +179,12 @@
           <h2>Objetivos próximos</h2>
           <div class="text-block">{{ evaluation.objectives_next|default:"Sin objetivos registrados." }}</div>
         </article>
+        {% if evaluation.evidence_notes %}
+        <article class="card">
+          <h2>Notas de evidencia</h2>
+          <div class="text-block">{{ evaluation.evidence_notes }}</div>
+        </article>
+        {% endif %}
         {% if evaluation.coach_comments and not is_player_readonly %}
         <article class="card">
           <h2>Comentario técnico</h2>
