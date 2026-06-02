@@ -1941,7 +1941,8 @@
 			              '        <label style="display:flex; gap:10px; align-items:center;">',
 			              '          Cámara',
 			              '          <select id="task-pitch-3d-camera">',
-			              '            <option value="stadium_render" selected>Estadio</option>',
+			              '            <option value="render_original" selected>Render original</option>',
+			              '            <option value="stadium_render">Estadio</option>',
 			              '            <option value="drone">Drone</option>',
 			              '            <option value="broadcast">Broadcast</option>',
 			              '            <option value="broadcast_high">Broadcast alto</option>',
@@ -8086,7 +8087,7 @@
 						        }
 						      }, opts.width || 1024, opts.height || 256);
 						      if (!texture) return null;
-						      const mat = new THREE.MeshBasicMaterial({ map: texture.tex, transparent: true, side: THREE.DoubleSide });
+						      const mat = new THREE.MeshBasicMaterial({ map: texture.tex, transparent: true, side: THREE.FrontSide });
 						      mat.userData = { kind: 'pitch3d_canvas_texture' };
 						      return mat;
 						    };
@@ -9171,6 +9172,14 @@
 							        pitch3dOrbit.theta = k === 'top_h' ? 0 : (Math.PI / 2);
 							        pitch3dOrbit.phi = 0.02;
 							        pitch3dOrbit.radius = Math.max(70, Math.max(metersW, metersH) * 1.25);
+						      } else if (k === 'render_original') {
+						        // Vista inspirada en el render de referencia: esquina alta, lente abierta y gradas en profundidad.
+							        pitch3dOrbit.theta = -2.04;
+							        pitch3dOrbit.phi = 1.22;
+							        pitch3dOrbit.radius = Math.max(86, metersW * 0.88);
+							        targetX = 8;
+							        targetY = 3.6;
+							        targetZ = -2;
 						      } else if (k === 'stadium_render') {
 						        // Composición tipo render de estadio: esquina alta, campo completo y gradas dominantes.
 							        pitch3dOrbit.theta = -2.36;
@@ -9279,6 +9288,45 @@
 						      ground.rotation.x = -Math.PI / 2;
 						      ground.position.y = 0.04;
 						      root.add(ground);
+
+						      // Sombra de cubierta tipo render: ayuda a romper el aspecto plano del césped sin bloquear las líneas.
+						      try {
+						        const shadow = makePitch3dCanvasTexture((ctx, c) => {
+						          ctx.clearRect(0, 0, c.width, c.height);
+						          const g = ctx.createLinearGradient(0, 0, c.width, c.height);
+						          g.addColorStop(0.00, 'rgba(2,6,23,0.42)');
+						          g.addColorStop(0.26, 'rgba(2,6,23,0.32)');
+						          g.addColorStop(0.50, 'rgba(2,6,23,0.12)');
+						          g.addColorStop(0.78, 'rgba(2,6,23,0.03)');
+						          g.addColorStop(1.00, 'rgba(2,6,23,0.00)');
+						          ctx.fillStyle = g;
+						          ctx.beginPath();
+						          ctx.moveTo(0, 0);
+						          ctx.lineTo(c.width * 0.62, 0);
+						          ctx.lineTo(c.width * 0.36, c.height);
+						          ctx.lineTo(0, c.height);
+						          ctx.closePath();
+						          ctx.fill();
+						          ctx.globalAlpha = 0.20;
+						          ctx.fillStyle = '#020617';
+						          ctx.fillRect(0, 0, c.width * 0.22, c.height);
+						          ctx.globalAlpha = 1;
+						        }, 1024, 768);
+						        if (shadow?.tex) {
+						          const shadowMat = new THREE.MeshBasicMaterial({
+						            map: shadow.tex,
+						            transparent: true,
+						            depthWrite: false,
+						            side: THREE.DoubleSide,
+						          });
+						          const shadowPlane = new THREE.Mesh(new THREE.PlaneGeometry(metersW, metersH), shadowMat);
+						          shadowPlane.rotation.x = -Math.PI / 2;
+						          shadowPlane.position.y = 0.075;
+						          shadowPlane.renderOrder = 2;
+						          shadowPlane.userData = { kind: 'stadium_roof_shadow' };
+						          root.add(shadowPlane);
+						        }
+						      } catch (e) { /* ignore */ }
 
 						      // El campo es una pieza 3D, no una lámina 2D: base con canto visible y borde interior.
 						      try {
@@ -9805,7 +9853,7 @@
 						      };
 						      drawables.forEach(addDrawable);
 
-						      setCameraPreset(safeText(pitch3dCameraSelect?.value, 'stadium_render'), metersW, metersH);
+						      setCameraPreset(safeText(pitch3dCameraSelect?.value, 'render_original'), metersW, metersH);
 						      resizePitch3d();
 						    };
 

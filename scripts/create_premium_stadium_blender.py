@@ -137,19 +137,19 @@ def add_side_stand(name, side):
     base_y = sign * (HALF_Y + 8.0)
     primary_seats = []
     secondary_seats = []
-    cube_obj(f"{name}_lower_bowl_slab", (0, base_y + sign * 9, 1.0), (PITCH_X + 28, 21, 2.0), MATS["concrete"])
+    cube_obj(f"{name}_lower_bowl_slab", (0, base_y + sign * 8.4, 1.0), (PITCH_X + 28, 19.0, 2.0), MATS["concrete"])
     row_index = 0
     for tier in range(3):
-        rows = 8 if tier == 0 else 7
-        tier_out = tier * 8.5
-        tier_z = tier * 4.2
+        rows = 10 if tier == 0 else 8
+        tier_out = tier * 7.4
+        tier_z = tier * 5.0
         for row in range(rows):
-            y = base_y + sign * (3.0 + tier_out + row * 0.92)
-            z = 1.35 + tier_z + row * 0.52
+            y = base_y + sign * (2.8 + tier_out + row * 0.74)
+            z = 1.35 + tier_z + row * 0.66
             width = PITCH_X + 24 - tier * 2.0 - row * 0.18
             step = cube_obj(f"{name}_tier_{tier}_step_{row}", (0, y, z - 0.22), (width, 0.72, 0.28), MATS["concrete"])
-            step.rotation_euler.x = math.radians(sign * -7)
-            cols = 106
+            step.rotation_euler.x = math.radians(sign * -12)
+            cols = 132
             for col in range(cols):
                 x = (col / (cols - 1) - 0.5) * (width - 2.2)
                 aisle = any(abs(x - a * PITCH_X) < 0.95 for a in (-0.42, -0.25, -0.08, 0.08, 0.25, 0.42))
@@ -157,7 +157,7 @@ def add_side_stand(name, side):
                     continue
                 pattern = (tier == 1 and 2 <= row <= 5 and abs(x) < PITCH_X * 0.34) or ((col + row_index) % 29 == 0)
                 target = secondary_seats if pattern else primary_seats
-                target.append(((x, y - sign * 0.10, z + 0.05), (0.50, 0.34, 0.16)))
+                target.append(((x, y - sign * 0.10, z + 0.05), (0.40, 0.30, 0.15)))
             row_index += 1
         rail_y = base_y + sign * (3.0 + tier_out + rows * 0.95)
         rail_z = 1.8 + tier_z + rows * 0.55
@@ -168,18 +168,18 @@ def add_side_stand(name, side):
     cube_obj(f"{name}_front_fascia", (0, base_y + sign * 2.25, 2.05), (PITCH_X + 26, 0.55, 1.10), MATS["club_primary"])
     cube_obj(f"{name}_middle_fascia", (0, base_y + sign * 13.6, 6.45), (PITCH_X + 22, 0.55, 1.05), MATS["club_primary"])
     cube_obj(f"{name}_upper_fascia", (0, base_y + sign * 22.6, 10.75), (PITCH_X + 18, 0.55, 1.00), MATS["club_primary"])
-    cube_obj(f"{name}_rear_wall", (0, base_y + sign * 28.6, 7.8), (PITCH_X + 34, 0.85, 12.8), MATS["concrete"])
+    cube_obj(f"{name}_rear_wall", (0, base_y + sign * 28.0, 8.6), (PITCH_X + 34, 0.85, 14.2), MATS["concrete"])
     mesh_boxes(f"{name}_club_primary_seats_mesh", primary_seats, MATS["club_primary"])
     mesh_boxes(f"{name}_club_secondary_seats_mesh", secondary_seats, MATS["club_secondary"])
     roof_y = base_y + sign * 29.5
-    cube_obj(f"{name}_roof_canopy", (0, roof_y, 15.4), (PITCH_X + 40, 15.5, 0.45), MATS["roof"])
+    cube_obj(f"{name}_roof_canopy", (0, roof_y, 17.2), (PITCH_X + 42, 16.5, 0.38), MATS["roof"])
     cylinder_between(f"{name}_roof_front_truss", (-(PITCH_X / 2 + 18), roof_y - sign * 7.6, 14.1), ((PITCH_X / 2 + 18), roof_y - sign * 7.6, 14.1), 0.22, MATS["rail"], vertices=16)
     cylinder_between(f"{name}_roof_rear_truss", (-(PITCH_X / 2 + 18), roof_y + sign * 6.8, 15.9), ((PITCH_X / 2 + 18), roof_y + sign * 6.8, 15.9), 0.18, MATS["rail"], vertices=16)
     for i in range(13):
         x = -PITCH_X / 2 + i * PITCH_X / 12
         cylinder_between(f"{name}_roof_truss_{i}", (x, roof_y - sign * 7, 12.2), (x + 3.0, roof_y + sign * 7, 16.4), 0.13, MATS["rail"])
         cylinder_between(f"{name}_roof_support_{i}", (x, base_y + sign * 24.7, 8.5), (x, roof_y + sign * 1.8, 15.2), 0.10, MATS["rail"], vertices=10)
-        cube_obj(f"{name}_light_{i}", (x, roof_y - sign * 6.2, 13.2), (2.4, 0.22, 0.22), MATS["light"])
+        cube_obj(f"{name}_light_{i}", (x, roof_y - sign * 6.2, 14.0), (2.4, 0.22, 0.22), MATS["light"])
 
 
 def add_end_stand(name, side):
@@ -187,18 +187,18 @@ def add_end_stand(name, side):
     base_x = sign * (HALF_X + 8.0)
     primary_seats = []
     secondary_seats = []
-    cube_obj(f"{name}_lower_bowl_slab", (base_x + sign * 9, 0, 1.0), (21, PITCH_Y + 24, 2.0), MATS["concrete"])
+    cube_obj(f"{name}_lower_bowl_slab", (base_x + sign * 8.3, 0, 1.0), (19, PITCH_Y + 24, 2.0), MATS["concrete"])
     for tier in range(3):
-        rows = 7
-        tier_out = tier * 8.0
-        tier_z = tier * 4.0
+        rows = 9
+        tier_out = tier * 7.0
+        tier_z = tier * 4.8
         for row in range(rows):
-            x = base_x + sign * (3.0 + tier_out + row * 0.9)
-            z = 1.30 + tier_z + row * 0.52
+            x = base_x + sign * (2.8 + tier_out + row * 0.72)
+            z = 1.30 + tier_z + row * 0.64
             depth = PITCH_Y + 18 - tier * 1.7 - row * 0.18
             step = cube_obj(f"{name}_tier_{tier}_step_{row}", (x, 0, z - 0.22), (0.72, depth, 0.28), MATS["concrete"])
-            step.rotation_euler.y = math.radians(sign * 7)
-            cols = 74
+            step.rotation_euler.y = math.radians(sign * 12)
+            cols = 92
             for col in range(cols):
                 y = (col / (cols - 1) - 0.5) * (depth - 2.0)
                 aisle = any(abs(y - a * PITCH_Y) < 0.85 for a in (-0.34, -0.12, 0.12, 0.34))
@@ -206,16 +206,16 @@ def add_end_stand(name, side):
                     continue
                 pattern = (tier == 1 and 2 <= row <= 5 and abs(y) < PITCH_Y * 0.28) or ((col + row) % 23 == 0)
                 target = secondary_seats if pattern else primary_seats
-                target.append(((x - sign * 0.10, y, z + 0.05), (0.34, 0.50, 0.16)))
+                target.append(((x - sign * 0.10, y, z + 0.05), (0.30, 0.40, 0.15)))
         cube_obj(f"{name}_concourse_rail_{tier}", (base_x + sign * (9 + tier * 8), 0, 4 + tier * 4), (0.20, PITCH_Y + 18 - tier * 2, 0.35), MATS["rail"])
     cube_obj(f"{name}_front_fascia", (base_x + sign * 2.25, 0, 2.05), (0.55, PITCH_Y + 20, 1.10), MATS["club_primary"])
     cube_obj(f"{name}_middle_fascia", (base_x + sign * 13.1, 0, 6.35), (0.55, PITCH_Y + 16, 1.05), MATS["club_primary"])
     cube_obj(f"{name}_upper_fascia", (base_x + sign * 21.8, 0, 10.6), (0.55, PITCH_Y + 12, 1.00), MATS["club_primary"])
-    cube_obj(f"{name}_rear_wall", (base_x + sign * 28.0, 0, 7.5), (0.85, PITCH_Y + 28, 12.2), MATS["concrete"])
+    cube_obj(f"{name}_rear_wall", (base_x + sign * 27.2, 0, 8.2), (0.85, PITCH_Y + 28, 13.8), MATS["concrete"])
     mesh_boxes(f"{name}_club_primary_seats_mesh", primary_seats, MATS["club_primary"])
     mesh_boxes(f"{name}_club_secondary_seats_mesh", secondary_seats, MATS["club_secondary"])
     roof_x = base_x + sign * 29.0
-    cube_obj(f"{name}_roof_canopy", (roof_x, 0, 14.4), (15.5, PITCH_Y + 34, 0.45), MATS["roof"])
+    cube_obj(f"{name}_roof_canopy", (roof_x, 0, 16.5), (16.2, PITCH_Y + 36, 0.38), MATS["roof"])
     cylinder_between(f"{name}_roof_front_truss", (roof_x - sign * 7.7, -(PITCH_Y / 2 + 15), 13.6), (roof_x - sign * 7.7, (PITCH_Y / 2 + 15), 13.6), 0.20, MATS["rail"], vertices=16)
     cylinder_between(f"{name}_roof_rear_truss", (roof_x + sign * 6.8, -(PITCH_Y / 2 + 15), 15.4), (roof_x + sign * 6.8, (PITCH_Y / 2 + 15), 15.4), 0.16, MATS["rail"], vertices=16)
     for i in range(9):
@@ -271,8 +271,14 @@ def add_pitchside_details():
     cube_obj("west_pitch_rail", (-(HALF_X + 3.1), 0, 1.0), (0.35, PITCH_Y + 8, 1.2), MATS["rail"])
     cube_obj("east_pitch_rail", ((HALF_X + 3.1), 0, 1.0), (0.35, PITCH_Y + 8, 1.2), MATS["rail"])
     for x in (-18, 18):
-        cube_obj("dugout_glass", (x, HALF_Y + 6.0, 1.45), (11.5, 2.4, 1.9), MATS["glass"])
-        cube_obj("dugout_frame", (x, HALF_Y + 6.0, 2.55), (12.2, 2.8, 0.25), MATS["rail"])
+        cube_obj(f"dugout_glass_{x}", (x, HALF_Y + 6.0, 1.45), (12.5, 2.6, 1.9), MATS["glass"])
+        cube_obj(f"dugout_roof_{x}", (x, HALF_Y + 6.0, 2.65), (13.0, 3.0, 0.25), MATS["rail"])
+        cube_obj(f"dugout_back_{x}", (x, HALF_Y + 7.25, 1.35), (12.5, 0.18, 1.55), MATS["club_primary"])
+        for i in range(5):
+            cube_obj(f"dugout_seat_{x}_{i}", (x - 4.5 + i * 2.25, HALF_Y + 5.45, 0.85), (1.15, 0.70, 0.28), MATS["club_primary"])
+    for x in (-38, 38):
+        cube_obj(f"pitchside_equipment_box_{x}", (x, HALF_Y + 4.05, 0.38), (1.6, 1.0, 0.75), MATS["dark"])
+        cube_obj(f"pitchside_equipment_lid_{x}", (x, HALF_Y + 4.05, 0.82), (1.7, 1.1, 0.10), MATS["rail"])
 
 
 def add_lighting_and_camera():
