@@ -374,8 +374,10 @@ def mark_player_left_current_season(season, player, *, notes=''):
     if membership:
         membership.is_confirmed = False
         membership.left_at = timezone.now()
+        membership.status = WorkspaceSeasonPlayer.STATUS_LEFT
         membership.status_notes = str(notes or '')[:220]
         membership.save(update_fields=['is_confirmed', 'status', 'left_at', 'status_notes', 'updated_at'])
+    WorkspacePlayer.objects.filter(workspace=season.workspace, player=player).update(is_active=False)
     return membership
 
 

@@ -2114,7 +2114,8 @@ class SeasonHistoryServicesTests(TestCase):
         self.assertEqual(membership.status, WorkspaceSeasonPlayer.STATUS_LEFT)
         self.assertFalse(membership.is_confirmed)
         self.assertIsNotNone(membership.left_at)
-        self.assertTrue(WorkspacePlayer.objects.filter(workspace=self.workspace, player=self.player, current_team=self.team).exists())
+        workspace_player = WorkspacePlayer.objects.get(workspace=self.workspace, player=self.player, current_team=self.team)
+        self.assertFalse(workspace_player.is_active)
 
     def test_workspace_player_pool_is_scoped_to_club_and_category(self):
         from football.season_history_services import ensure_workspace_player, workspace_players_for_team
@@ -2138,6 +2139,37 @@ class SeasonHistoryServicesTests(TestCase):
 
         self.assertEqual([row.player for row in rows], [self.player])
         self.assertNotIn(other_player, [row.player for row in rows])
+
+    def test_roster_deactivate_removes_player_from_active_club_pool_but_keeps_history(self):
+        from football.season_history_services import ensure_player_season_membership, ensure_workspace_player
+
+        ensure_workspace_player(self.workspace, self.player, current_team=self.team)
+        ensure_player_season_membership(
+            self.season,
+            self.player,
+            team=self.team,
+            confirmed=True,
+            status=WorkspaceSeasonPlayer.STATUS_CONFIRMED,
+        )
+
+        response = self.client.post(
+            f"{reverse('coach-roster')}?tab=manage",
+            data={
+                'action': 'deactivate',
+                'player_id': str(self.player.id),
+            },
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.player.refresh_from_db()
+        self.assertFalse(self.player.is_active)
+        workspace_player = WorkspacePlayer.objects.get(workspace=self.workspace, player=self.player)
+        self.assertFalse(workspace_player.is_active)
+        membership = WorkspaceSeasonPlayer.objects.get(season=self.season, player=self.player)
+        self.assertEqual(membership.status, WorkspaceSeasonPlayer.STATUS_LEFT)
+        self.assertNotIn(self.player, response.context['players'])
+        self.assertNotIn(self.player, response.context['club_player_options'])
 
     def test_player_detail_exposes_season_context_and_history_tab(self):
         from football.season_history_services import ensure_active_workspace_team_seasons, ensure_team_roster_season_memberships

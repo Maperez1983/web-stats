@@ -28165,6 +28165,7 @@ def coach_roster_page(request):
                 player.save(update_fields=['is_active'])
                 if active_club_season:
                     mark_player_left_current_season(active_club_season, player, notes='Marcado como inactivo desde plantilla.')
+                ensure_workspace_player(workspace, player, current_team=primary_team, is_active=False)
                 message = f'{player.name} marcado como inactivo.'
             elif action == 'move_team':
                 if not active_club_season:
@@ -28357,7 +28358,10 @@ def coach_roster_page(request):
         )
         club_player_options = list(
             Player.objects
-            .filter(Q(workspace_links__workspace=workspace) | Q(team_id__in=workspace_team_ids))
+            .filter(
+                Q(workspace_links__workspace=workspace, workspace_links__is_active=True)
+                | Q(team_id__in=workspace_team_ids, is_active=True)
+            )
             .exclude(team=primary_team)
             .select_related('team')
             .distinct()
