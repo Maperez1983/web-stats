@@ -2194,6 +2194,8 @@ class SeasonHistoryServicesTests(TestCase):
         self.assertIsNone(membership.left_at)
         self.assertIn(self.player, restore_response.context['players'])
         self.assertNotIn(self.player, restore_response.context['inactive_club_player_options'])
+        self.assertContains(restore_response, 'Jugadores dados de baja')
+        self.assertContains(restore_response, 'No hay jugadores dados de baja para recuperar en este club.')
 
     def test_player_detail_exposes_season_context_and_history_tab(self):
         from football.season_history_services import ensure_active_workspace_team_seasons, ensure_team_roster_season_memberships
