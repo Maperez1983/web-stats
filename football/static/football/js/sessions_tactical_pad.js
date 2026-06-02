@@ -8597,9 +8597,8 @@
 						            panel.rotation.y = side === 'north' ? 0 : Math.PI;
 						            panel.rotation.x = side === 'north' ? -0.08 : 0.08;
 						          } else {
-						            panel.position.set((side === 'west' ? -1 : 1) * (halfW + adOffset), adY, t * metersH);
+						            panel.position.set((side === 'west' ? -1 : 1) * (halfW + adOffset), adY + 0.10, t * metersH);
 						            panel.rotation.y = side === 'west' ? Math.PI / 2 : -Math.PI / 2;
-						            panel.rotation.z = side === 'west' ? 0.05 : -0.05;
 						          }
 						          group.add(panel);
 						        });
