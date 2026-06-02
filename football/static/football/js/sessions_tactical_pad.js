@@ -8030,6 +8030,8 @@
 						          color: 0xffffff,
 						          roughness: 0.62,
 						          metalness: 0.02,
+						          transparent: true,
+						          opacity: 0.74,
 						          side: THREE.DoubleSide,
 						        });
 						        mat.userData = { kind: 'pitch3d_external_stand_texture' };
@@ -8249,17 +8251,125 @@
 						        addSeatDots(side, 42, 7);
 						      };
 
+						      const addMainStandDepth = () => {
+						        const sign = -1;
+						        const railMat = new THREE.MeshStandardMaterial({ color: 0xe5e7eb, roughness: 0.54, metalness: 0.08 });
+						        const stepMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.92, metalness: 0.02 });
+						        const tunnelMat = new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.9, metalness: 0.02 });
+						        const aisleMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.82, metalness: 0.02 });
+						        const glassRailMat = new THREE.MeshStandardMaterial({ color: 0xdbeafe, roughness: 0.2, metalness: 0.02, transparent: true, opacity: 0.34 });
+						        const rowCount = 15;
+						        const seatGeo = new THREE.BoxGeometry(0.52, 0.16, 0.36);
+						        const dummy = new THREE.Object3D();
+						        const aisleXs = [-0.43, -0.25, -0.08, 0.08, 0.25, 0.43].map((t) => t * metersW);
+
+						        for (let r = 0; r < rowCount; r += 1) {
+						          const y = 1.0 + (r * 0.58);
+						          const z = sign * (halfH + 5.8 + (r * 0.92));
+						          const width = metersW + 20 - (r * 0.62);
+						          const tierMat = r % 5 === 0 ? darkMat : stepMat;
+						          const tier = addBox(
+						            new THREE.BoxGeometry(width, 0.34, 0.92),
+						            tierMat,
+						            { x: 0, y: y - 0.16, z: z + (sign * 0.18) },
+						            { x: sign * -0.13, y: 0, z: 0 },
+						          );
+						          tier.userData = { kind: 'main_stand_concrete_step', row: r };
+
+						          const seatsA = new THREE.InstancedMesh(seatGeo, seatMat, 90);
+						          const seatsB = new THREE.InstancedMesh(seatGeo, seatAltMat, 90);
+						          let ia = 0;
+						          let ib = 0;
+						          const cols = 82;
+						          for (let i = 0; i < cols; i += 1) {
+						            const x = ((i / Math.max(1, cols - 1)) - 0.5) * (width - 2.4);
+						            if (aisleXs.some((ax) => Math.abs(x - ax) < 1.15)) continue;
+						            const whiteNameBand = r >= 5 && r <= 8 && Math.abs(x) < metersW * 0.34;
+						            const whiteMosaicEdge = (i + r) % 17 === 0;
+						            dummy.position.set(x, y + 0.08, z - (sign * 0.28));
+						            dummy.rotation.set(sign * -0.13, 0, 0);
+						            dummy.updateMatrix();
+						            if (whiteNameBand || whiteMosaicEdge) {
+						              seatsB.setMatrixAt(ib, dummy.matrix);
+						              ib += 1;
+						            } else {
+						              seatsA.setMatrixAt(ia, dummy.matrix);
+						              ia += 1;
+						            }
+						          }
+						          seatsA.count = ia;
+						          seatsB.count = ib;
+						          seatsA.userData = { kind: 'main_stand_seats', row: r };
+						          seatsB.userData = { kind: 'main_stand_name_seats', row: r };
+						          group.add(seatsA, seatsB);
+						        }
+
+						        aisleXs.forEach((x, idx) => {
+						          const aisle = addBox(
+						            new THREE.BoxGeometry(1.15, 8.8, 10.8),
+						            aisleMat,
+						            { x, y: 4.8, z: sign * (halfH + 12.3) },
+						            { x: sign * -0.15, y: 0, z: 0 },
+						          );
+						          aisle.userData = { kind: 'main_stand_aisle', idx };
+						          if (idx % 2 === 0) {
+						            const tunnel = addBox(
+						              new THREE.BoxGeometry(3.0, 1.55, 1.2),
+						              tunnelMat,
+						              { x, y: 2.8, z: sign * (halfH + 9.2) },
+						              { x: sign * -0.05, y: 0, z: 0 },
+						            );
+						            tunnel.userData = { kind: 'main_stand_vomitory', idx };
+						          }
+						        });
+
+						        const nameSeatMat = makePitch3dTextMaterial(ctx.teamName, {
+						          primary,
+						          secondary,
+						          fill: secondary,
+						          bg: primary,
+						          large: true,
+						          width: 1536,
+						          height: 220,
+						        });
+						        if (nameSeatMat) {
+						          const namePanel = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(metersW * 0.74, 76), 5.3), nameSeatMat);
+						          namePanel.position.set(0, 5.3, sign * (halfH + 11.0));
+						          namePanel.rotation.x = sign * -0.20;
+						          namePanel.userData = { kind: 'main_stand_raised_name' };
+						          group.add(namePanel);
+						        }
+
+						        [0.22, 0.48, 0.72].forEach((t) => {
+						          const rail = addBox(
+						            new THREE.BoxGeometry(metersW + 18, 0.16, 0.22),
+						            railMat,
+						            { x: 0, y: 1.6 + (t * 8.7), z: sign * (halfH + 6.5 + (t * 13.0)) },
+						            { x: sign * -0.12, y: 0, z: 0 },
+						          );
+						          rail.userData = { kind: 'main_stand_horizontal_rail' };
+						        });
+						        const glass = addBox(
+						          new THREE.BoxGeometry(metersW + 20, 1.0, 0.16),
+						          glassRailMat,
+						          { x: 0, y: 1.65, z: sign * (halfH + 4.7) },
+						          { x: sign * -0.04, y: 0, z: 0 },
+						        );
+						        glass.userData = { kind: 'main_stand_pitchside_glass' };
+						      };
+
 						      addSidelineStand('north');
 						      addSidelineStand('south');
 						      addEndStand('west');
 						      addEndStand('east');
+						      addMainStandDepth();
 
 						      const standMosaicMat = makePitch3dStandMosaicMaterial(ctx.teamName, { primary, secondary, initials: ctx.initials, imageUrl: ctx.mainStandSrc });
 						      if (standMosaicMat) {
 						        const mosaicW = metersW + 28;
 						        const mosaicH = 34;
 						        const mosaic = new THREE.Mesh(new THREE.PlaneGeometry(mosaicW, mosaicH, 1, 1), standMosaicMat);
-						        mosaic.position.set(0, 16.8, -(halfH + 14.2));
+						        mosaic.position.set(0, 17.8, -(halfH + 20.8));
 						        mosaic.rotation.x = 0;
 						        mosaic.userData = { kind: 'main_stand_mosaic' };
 						        group.add(mosaic);
