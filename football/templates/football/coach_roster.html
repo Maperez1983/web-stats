@@ -840,6 +840,17 @@
                     <div class="broadcast-kpi"><span class="k">% Tiro</span><span class="v">{{ card.shots_accuracy|default:0|floatformat:-1 }}%</span></div>
                   </div>
 
+                  <div class="broadcast-kpis" aria-label="Evaluación técnica" style="grid-template-columns:1fr;margin-top:0.55rem;">
+                    <div class="broadcast-kpi {% if card.evaluation_pending %}is-accent{% endif %}">
+                      <span class="k">Evaluación</span>
+                      <span class="v">
+                        {{ card.evaluation_label|default:"Sin evaluar" }}
+                        {% if card.evaluation_average %} · {{ card.evaluation_average }}{% endif %}
+                        {% if card.evaluation_days_since != '' %} · {{ card.evaluation_days_since }}d{% endif %}
+                      </span>
+                    </div>
+                  </div>
+
                 </a>
 
                 <div class="broadcast-actions">

@@ -20,7 +20,7 @@ from django.test import RequestFactory, SimpleTestCase, TestCase, TransactionTes
 from django.urls import reverse
 from django.utils import timezone
 
-from football.models import AnalystVideoFolder, AnalysisVideoReport, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerFine, PlayerSeasonReport, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, StaffMember, TacticalPlaybookClip, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, TrainingSessionAttendance, UserInvitation, VideoClip, VideoTimelineEvent, VideoTelestrationProject, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspacePlayer, WorkspacePreference, WorkspaceSeason, WorkspaceSeasonPlayer, WorkspaceSeasonTeam, WorkspaceTeam
+from football.models import AnalystVideoFolder, AnalysisVideoReport, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerEvaluation, PlayerFine, PlayerSeasonReport, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, StaffMember, TacticalPlaybookClip, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, TrainingSessionAttendance, UserInvitation, VideoClip, VideoTimelineEvent, VideoTelestrationProject, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspacePlayer, WorkspacePreference, WorkspaceSeason, WorkspaceSeasonPlayer, WorkspaceSeasonTeam, WorkspaceTeam
 from football import views as football_views
 from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.event_taxonomy import (
@@ -2221,6 +2221,48 @@ class SeasonHistoryServicesTests(TestCase):
         self.assertContains(response, 'Contexto de temporada')
         self.assertContains(response, 'Temporadas e histórico')
         self.assertContains(response, self.season.label)
+
+    def test_player_detail_can_create_staff_evaluation(self):
+        response = self.client.post(
+            f"{reverse('player-detail', args=[self.player.id])}?tab=evaluations&club_season_id={self.season.id}",
+            data={
+                'form_action': 'evaluation',
+                'club_season_id': str(self.season.id),
+                'evaluation_type': PlayerEvaluation.TYPE_MONTHLY,
+                'evaluated_on': '2026-09-15',
+                'status': PlayerEvaluation.STATUS_CLOSED,
+                'role': 'Rotación',
+                'evaluated_position': 'MC',
+                'recommended_position': 'MCD',
+                'overall_rating': '7,5',
+                'technical_rating': '7',
+                'tactical_rating': '8',
+                'physical_rating': '6.5',
+                'mental_rating': '8',
+                'social_rating': '7',
+                'strengths': 'Buen ritmo competitivo',
+                'improvements': 'Perfil corporal al recibir',
+                'objectives_next': 'Mejorar orientación antes de controlar',
+                'coach_comments': 'Seguimiento mensual cerrado',
+            },
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 302)
+        evaluation = PlayerEvaluation.objects.get(player=self.player)
+        self.assertEqual(evaluation.team, self.team)
+        self.assertEqual(evaluation.club_season, self.season)
+        self.assertEqual(evaluation.status, PlayerEvaluation.STATUS_CLOSED)
+        self.assertEqual(evaluation.overall_rating, Decimal('7.5'))
+
+        detail_response = self.client.get(
+            f"{reverse('player-detail', args=[self.player.id])}?tab=evaluations&club_season_id={self.season.id}",
+            secure=True,
+        )
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertContains(detail_response, 'Evaluaciones')
+        self.assertContains(detail_response, 'Seguimiento técnico')
+        self.assertContains(detail_response, 'Buen ritmo competitivo')
 
     def test_selected_club_season_can_be_loaded_from_request_and_session(self):
         from football.season_history_services import club_season_date_bounds, selected_club_season_for_request

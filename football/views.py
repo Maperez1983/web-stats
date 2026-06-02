@@ -199,6 +199,7 @@ from football.models import (
     PlayerInjuryRecord,
     PlayerCommunication,
     PlayerFine,
+    PlayerEvaluation,
     PlayerPhysicalMetric,
     PlayerStatistic,
     SessionTask,
@@ -28537,6 +28538,42 @@ def coach_roster_page(request):
             except Exception:
                 for row in player_cards:
                     row['radar_pcts'] = {}
+            try:
+                card_player_ids = [
+                    int(_parse_int(row.get('player_id')) or 0)
+                    for row in player_cards
+                    if int(_parse_int(row.get('player_id')) or 0)
+                ]
+                evaluation_qs = PlayerEvaluation.objects.filter(
+                    player_id__in=card_player_ids,
+                    status=PlayerEvaluation.STATUS_CLOSED,
+                )
+                if active_club_season:
+                    evaluation_qs = evaluation_qs.filter(club_season=active_club_season)
+                latest_by_player = {}
+                for evaluation in evaluation_qs.order_by('player_id', '-evaluated_on', '-updated_at', '-id'):
+                    latest_by_player.setdefault(int(evaluation.player_id), evaluation)
+                today = timezone.localdate()
+                for row in player_cards:
+                    pid = int(_parse_int(row.get('player_id')) or 0)
+                    evaluation = latest_by_player.get(pid)
+                    if not evaluation:
+                        row['evaluation_pending'] = True
+                        row['evaluation_label'] = 'Sin evaluar'
+                        row['evaluation_average'] = ''
+                        row['evaluation_days_since'] = ''
+                        continue
+                    days_since = (today - evaluation.evaluated_on).days if getattr(evaluation, 'evaluated_on', None) else None
+                    row['evaluation_pending'] = bool(days_since is None or days_since > 30)
+                    row['evaluation_label'] = evaluation.get_evaluation_type_display()
+                    row['evaluation_average'] = evaluation.average_rating or evaluation.overall_rating or ''
+                    row['evaluation_days_since'] = days_since if days_since is not None else ''
+            except Exception:
+                for row in player_cards:
+                    row['evaluation_pending'] = False
+                    row['evaluation_label'] = ''
+                    row['evaluation_average'] = ''
+                    row['evaluation_days_since'] = ''
     active_workspace = _get_active_workspace(request)
     active_team_query = []
     if active_workspace and getattr(active_workspace, 'id', None):
@@ -52501,6 +52538,20 @@ def player_detail_page(request, player_id):
             except Exception:
                 return None
 
+        def _parse_eval_rating(raw_value):
+            raw = str(raw_value or '').strip().replace(',', '.')
+            if not raw:
+                return None
+            try:
+                value = Decimal(raw)
+            except (InvalidOperation, ValueError):
+                return None
+            if value < Decimal('1'):
+                value = Decimal('1')
+            if value > Decimal('10'):
+                value = Decimal('10')
+            return value.quantize(Decimal('0.1'))
+
         def _resolve_season():
             if primary_team.group and primary_team.group.season:
                 return primary_team.group.season
@@ -52660,6 +52711,52 @@ def player_detail_page(request, player_id):
                         created_by=(request.user.get_username() if request.user.is_authenticated else ''),
                     )
                 return redirect(f"{reverse('player-detail', args=[player.id])}?tab=communication")
+
+            if form_action == 'evaluation':
+                active_workspace_for_eval = _get_active_workspace(request)
+                club_season = None
+                club_season_id = _parse_int(request.POST.get('club_season_id') or request.GET.get('club_season_id'))
+                if active_workspace_for_eval and getattr(active_workspace_for_eval, 'kind', None) == Workspace.KIND_CLUB:
+                    if club_season_id:
+                        club_season = WorkspaceSeason.objects.filter(
+                            workspace=active_workspace_for_eval,
+                            id=int(club_season_id),
+                        ).first()
+                    if club_season is None:
+                        club_season = getattr(active_workspace_for_eval, 'active_season', None)
+                status_raw = str(request.POST.get('status') or '').strip().lower()
+                status = PlayerEvaluation.STATUS_CLOSED if status_raw == PlayerEvaluation.STATUS_CLOSED else PlayerEvaluation.STATUS_DRAFT
+                evaluation_type = str(request.POST.get('evaluation_type') or '').strip().lower()
+                valid_types = {choice[0] for choice in PlayerEvaluation.TYPE_CHOICES}
+                if evaluation_type not in valid_types:
+                    evaluation_type = PlayerEvaluation.TYPE_MONTHLY
+                ratings = {
+                    'technical_rating': _parse_eval_rating(request.POST.get('technical_rating')),
+                    'tactical_rating': _parse_eval_rating(request.POST.get('tactical_rating')),
+                    'physical_rating': _parse_eval_rating(request.POST.get('physical_rating')),
+                    'mental_rating': _parse_eval_rating(request.POST.get('mental_rating')),
+                    'social_rating': _parse_eval_rating(request.POST.get('social_rating')),
+                    'overall_rating': _parse_eval_rating(request.POST.get('overall_rating')),
+                }
+                PlayerEvaluation.objects.create(
+                    team=primary_team,
+                    player=player,
+                    club_season=club_season,
+                    evaluation_type=evaluation_type,
+                    evaluated_on=_parse_date_value(request.POST.get('evaluated_on')) or timezone.localdate(),
+                    status=status,
+                    role=str(request.POST.get('role') or '').strip(),
+                    evaluated_position=str(request.POST.get('evaluated_position') or '').strip(),
+                    recommended_position=str(request.POST.get('recommended_position') or '').strip(),
+                    strengths=str(request.POST.get('strengths') or '').strip(),
+                    improvements=str(request.POST.get('improvements') or '').strip(),
+                    objectives_next=str(request.POST.get('objectives_next') or '').strip(),
+                    coach_comments=str(request.POST.get('coach_comments') or '').strip(),
+                    created_by=request.user if request.user.is_authenticated else None,
+                    updated_by=request.user if request.user.is_authenticated else None,
+                    **ratings,
+                )
+                return redirect(f"{reverse('player-detail', args=[player.id])}?tab=evaluations")
 
         active_workspace = _get_active_workspace(request)
         club_season_options = []
@@ -52991,6 +53088,41 @@ def player_detail_page(request, player_id):
         if not tab_raw and is_player_readonly:
             tab_raw = 'performance'
         active_tab = tab_raw or 'general'
+        evaluations_qs = (
+            PlayerEvaluation.objects
+            .filter(player=player)
+            .select_related('team', 'club_season', 'created_by')
+            .order_by('-evaluated_on', '-updated_at', '-id')
+        )
+        if selected_club_season:
+            evaluations_qs = evaluations_qs.filter(club_season=selected_club_season)
+        if is_player_readonly:
+            evaluations_qs = evaluations_qs.filter(status=PlayerEvaluation.STATUS_CLOSED)
+        player_evaluations = list(evaluations_qs[:24])
+        latest_closed_evaluation = next(
+            (
+                evaluation for evaluation in player_evaluations
+                if str(getattr(evaluation, 'status', '') or '') == PlayerEvaluation.STATUS_CLOSED
+            ),
+            None,
+        )
+        if latest_closed_evaluation is None and not is_player_readonly:
+            latest_closed_evaluation = (
+                PlayerEvaluation.objects
+                .filter(player=player, status=PlayerEvaluation.STATUS_CLOSED)
+                .order_by('-evaluated_on', '-updated_at', '-id')
+                .first()
+            )
+        evaluation_days_since = None
+        if latest_closed_evaluation and getattr(latest_closed_evaluation, 'evaluated_on', None):
+            evaluation_days_since = (timezone.localdate() - latest_closed_evaluation.evaluated_on).days
+        evaluation_pending = latest_closed_evaluation is None or (evaluation_days_since is not None and evaluation_days_since > 30)
+        evaluation_summary = {
+            'latest': latest_closed_evaluation,
+            'days_since': evaluation_days_since,
+            'pending': evaluation_pending,
+            'count': len(player_evaluations),
+        }
         physical_metrics = player.physical_metrics.all()[:20]
         latest_physical_metric = physical_metrics[0] if physical_metrics else None
         communications = player.communications.select_related('match').all()[:20]
@@ -53323,6 +53455,10 @@ def player_detail_page(request, player_id):
                 'tournament_filter': tournament_filter,
                 'tournament_options': _team_tournament_name_options(primary_team) if scope == Match.CONTEXT_TOURNAMENT else [],
                 'active_tab': active_tab,
+                'player_evaluations': player_evaluations,
+                'evaluation_summary': evaluation_summary,
+                'evaluation_type_choices': PlayerEvaluation.TYPE_CHOICES,
+                'evaluation_status_choices': PlayerEvaluation.STATUS_CHOICES,
                 'physical_metrics': physical_metrics,
                 'latest_physical_metric': latest_physical_metric,
                 'communications': communications,

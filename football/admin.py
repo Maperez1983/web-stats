@@ -78,6 +78,14 @@ class PlayerAdmin(admin.ModelAdmin):
     search_fields = ('name', 'full_name', 'nickname', 'team__name')
 
 
+@admin.register(models.PlayerEvaluation)
+class PlayerEvaluationAdmin(admin.ModelAdmin):
+    list_display = ('player', 'team', 'club_season', 'evaluation_type', 'evaluated_on', 'status', 'overall_rating')
+    list_filter = ('evaluation_type', 'status', 'club_season', 'team')
+    search_fields = ('player__name', 'player__full_name', 'team__name', 'club_season__label')
+    autocomplete_fields = ('player', 'team', 'club_season', 'created_by', 'updated_by')
+
+
 @admin.register(models.InjuryCatalogEntry)
 class InjuryCatalogEntryAdmin(admin.ModelAdmin):
     list_display = ('name', 'code', 'category', 'region', 'typical_min_days', 'typical_max_days', 'is_active')

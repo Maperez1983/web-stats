@@ -773,6 +773,7 @@
       <div class="tabs" role="tablist">
         <button class="tab-btn" data-tab="general" role="tab">Datos + Estadísticas</button>
         <button class="tab-btn" data-tab="seasons" role="tab">Temporadas</button>
+        <button class="tab-btn" data-tab="evaluations" role="tab">Evaluaciones</button>
         <button class="tab-btn" data-tab="performance" role="tab">KPI + Mapa</button>
         <button class="tab-btn" data-tab="injuries" role="tab">Lesiones</button>
         <button class="tab-btn" data-tab="communication" role="tab">Comunicación</button>
@@ -1231,6 +1232,152 @@
           <div class="stat" style="margin-top:0.9rem;">
             <div class="label">Histórico</div>
             <div class="value" style="font-size:1rem;">Sin temporadas registradas todavía.</div>
+          </div>
+        {% endif %}
+      </section>
+
+      <section class="card tab-pane" data-pane="evaluations">
+        <h2 style="margin-top:0;">Evaluaciones</h2>
+        <div class="attendance-summary-card">
+          <div class="attendance-summary-head">
+            <div>
+              <strong style="letter-spacing:0.12em;text-transform:uppercase;font-size:0.82rem;">Seguimiento técnico</strong>
+              <div class="subtle" style="margin-top:0.25rem;">
+                {% if evaluation_summary.latest %}
+                  Última cerrada: <strong>{{ evaluation_summary.latest.get_evaluation_type_display }}</strong>
+                  · {{ evaluation_summary.latest.evaluated_on|date:"d/m/Y" }}
+                  · Media <strong>{{ evaluation_summary.latest.average_rating|default:evaluation_summary.latest.overall_rating|default:"--" }}</strong>
+                  {% if evaluation_summary.days_since is not None %} · hace {{ evaluation_summary.days_since }} días{% endif %}
+                {% else %}
+                  Sin evaluación cerrada en este contexto de temporada.
+                {% endif %}
+              </div>
+            </div>
+            <div class="attendance-chip-row">
+              {% if evaluation_summary.pending %}
+                <span class="product-chip">Pendiente</span>
+              {% else %}
+                <span class="product-chip">Al día</span>
+              {% endif %}
+              <span class="product-chip">{{ evaluation_summary.count }} registros</span>
+            </div>
+          </div>
+        </div>
+
+        {% if not is_player_readonly %}
+        <h3 style="margin-top:1rem;">Nueva evaluación</h3>
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="form_action" value="evaluation" />
+          {% if selected_club_season %}<input type="hidden" name="club_season_id" value="{{ selected_club_season.id }}" />{% endif %}
+          <div class="form-grid">
+            <label>Tipo
+              <select name="evaluation_type">
+                {% for value, label in evaluation_type_choices %}
+                  <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>Fecha
+              <input type="date" name="evaluated_on" value="{% now 'Y-m-d' %}" />
+            </label>
+            <label>Rol
+              <input type="text" name="role" maxlength="80" placeholder="Titular, rotación, desarrollo..." />
+            </label>
+            <label>Posición evaluada
+              <input type="text" name="evaluated_position" maxlength="60" value="{{ player.position|default:'' }}" />
+            </label>
+            <label>Posición recomendada
+              <input type="text" name="recommended_position" maxlength="60" placeholder="Dónde debería competir" />
+            </label>
+            <label>Nota global
+              <input type="number" name="overall_rating" min="1" max="10" step="0.1" />
+            </label>
+            <label>Técnica
+              <input type="number" name="technical_rating" min="1" max="10" step="0.1" />
+            </label>
+            <label>Táctica
+              <input type="number" name="tactical_rating" min="1" max="10" step="0.1" />
+            </label>
+            <label>Físico
+              <input type="number" name="physical_rating" min="1" max="10" step="0.1" />
+            </label>
+            <label>Mental/actitud
+              <input type="number" name="mental_rating" min="1" max="10" step="0.1" />
+            </label>
+            <label>Social/grupo
+              <input type="number" name="social_rating" min="1" max="10" step="0.1" />
+            </label>
+            <label>Estado
+              <select name="status">
+                {% for value, label in evaluation_status_choices %}
+                  <option value="{{ value }}" {% if value == 'closed' %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label style="grid-column:1 / -1;">Puntos fuertes
+              <textarea name="strengths" rows="3" placeholder="Qué sostiene su rendimiento..."></textarea>
+            </label>
+            <label style="grid-column:1 / -1;">Aspectos a mejorar
+              <textarea name="improvements" rows="3" placeholder="Qué debe trabajar en el próximo ciclo..."></textarea>
+            </label>
+            <label style="grid-column:1 / -1;">Objetivos próximos
+              <textarea name="objectives_next" rows="3" placeholder="2-3 objetivos concretos y medibles..."></textarea>
+            </label>
+            <label style="grid-column:1 / -1;">Comentario del técnico
+              <textarea name="coach_comments" rows="3" placeholder="Contexto, evolución, decisión técnica..."></textarea>
+            </label>
+          </div>
+          <div style="margin-top:0.85rem;"><button type="submit">Guardar evaluación</button></div>
+        </form>
+        {% endif %}
+
+        <h3 style="margin-top:1rem;">Histórico de evaluaciones</h3>
+        {% if player_evaluations %}
+          <div class="season-history-grid">
+            {% for evaluation in player_evaluations %}
+              <article class="season-history-row">
+                <div>
+                  <h3>
+                    {{ evaluation.get_evaluation_type_display }}
+                    <span class="pill {% if evaluation.status == 'closed' %}ok{% else %}warn{% endif %}">{{ evaluation.get_status_display }}</span>
+                  </h3>
+                  <div class="subtle" style="margin-top:0.35rem;">
+                    {{ evaluation.evaluated_on|date:"d/m/Y" }}
+                    {% if evaluation.club_season %} · {{ evaluation.club_season.label }}{% endif %}
+                    {% if evaluation.role %} · Rol: {{ evaluation.role }}{% endif %}
+                    {% if evaluation.evaluated_position %} · Posición: {{ evaluation.evaluated_position }}{% endif %}
+                    {% if evaluation.recommended_position %} · Recomendada: {{ evaluation.recommended_position }}{% endif %}
+                  </div>
+                  <div class="subtle" style="margin-top:0.35rem;">
+                    Global {{ evaluation.overall_rating|default:"--" }}
+                    · Media áreas {{ evaluation.average_rating|default:"--" }}
+                    · Tec {{ evaluation.technical_rating|default:"--" }}
+                    · Tac {{ evaluation.tactical_rating|default:"--" }}
+                    · Fis {{ evaluation.physical_rating|default:"--" }}
+                    · Mental {{ evaluation.mental_rating|default:"--" }}
+                    · Grupo {{ evaluation.social_rating|default:"--" }}
+                  </div>
+                  {% if evaluation.strengths %}
+                    <p class="subtle" style="margin:0.55rem 0 0;"><strong>Fuertes:</strong> {{ evaluation.strengths }}</p>
+                  {% endif %}
+                  {% if evaluation.improvements %}
+                    <p class="subtle" style="margin:0.35rem 0 0;"><strong>Mejoras:</strong> {{ evaluation.improvements }}</p>
+                  {% endif %}
+                  {% if evaluation.objectives_next %}
+                    <p class="subtle" style="margin:0.35rem 0 0;"><strong>Objetivos:</strong> {{ evaluation.objectives_next }}</p>
+                  {% endif %}
+                  {% if evaluation.coach_comments and not is_player_readonly %}
+                    <p class="subtle" style="margin:0.35rem 0 0;"><strong>Staff:</strong> {{ evaluation.coach_comments }}</p>
+                  {% endif %}
+                </div>
+              </article>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="stat" style="margin-top:0.9rem;">
+            <div class="label">Evaluaciones</div>
+            <div class="value" style="font-size:1rem;">No hay evaluaciones registradas todavía.</div>
           </div>
         {% endif %}
       </section>

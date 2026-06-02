@@ -2578,6 +2578,93 @@ class PlayerSeasonReport(models.Model):
         return f'{self.player_id} · {label}'
 
 
+class PlayerEvaluation(models.Model):
+    """
+    Evaluaciones periódicas del cuerpo técnico durante la temporada.
+    """
+
+    TYPE_INITIAL = 'initial'
+    TYPE_MONTHLY = 'monthly'
+    TYPE_QUARTERLY = 'quarterly'
+    TYPE_FINAL = 'final'
+    TYPE_POST_ROUND = 'post_round'
+    TYPE_CHOICES = [
+        (TYPE_INITIAL, 'Inicial'),
+        (TYPE_MONTHLY, 'Mensual'),
+        (TYPE_QUARTERLY, 'Trimestral'),
+        (TYPE_FINAL, 'Final'),
+        (TYPE_POST_ROUND, 'Post-jornada'),
+    ]
+
+    STATUS_DRAFT = 'draft'
+    STATUS_CLOSED = 'closed'
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, 'Borrador'),
+        (STATUS_CLOSED, 'Cerrada'),
+    ]
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='player_evaluations')
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='evaluations')
+    club_season = models.ForeignKey(
+        WorkspaceSeason,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='player_evaluations',
+    )
+    evaluation_type = models.CharField(max_length=24, choices=TYPE_CHOICES, default=TYPE_MONTHLY)
+    evaluated_on = models.DateField(default=timezone.localdate)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_DRAFT)
+
+    role = models.CharField(max_length=80, blank=True)
+    evaluated_position = models.CharField(max_length=60, blank=True)
+    recommended_position = models.CharField(max_length=60, blank=True)
+
+    technical_rating = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True)
+    tactical_rating = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True)
+    physical_rating = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True)
+    mental_rating = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True)
+    social_rating = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True)
+    overall_rating = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True)
+
+    strengths = models.TextField(blank=True)
+    improvements = models.TextField(blank=True)
+    objectives_next = models.TextField(blank=True)
+    coach_comments = models.TextField(blank=True)
+
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_player_evaluations')
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='updated_player_evaluations')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Evaluación de jugador'
+        verbose_name_plural = 'Evaluaciones de jugadores'
+        ordering = ['-evaluated_on', '-updated_at', '-id']
+        indexes = [
+            models.Index(fields=['player', '-evaluated_on']),
+            models.Index(fields=['team', 'club_season', '-evaluated_on']),
+            models.Index(fields=['status', '-evaluated_on']),
+        ]
+
+    @property
+    def average_rating(self):
+        values = [
+            self.technical_rating,
+            self.tactical_rating,
+            self.physical_rating,
+            self.mental_rating,
+            self.social_rating,
+        ]
+        values = [value for value in values if value is not None]
+        if not values:
+            return self.overall_rating
+        return round(sum(values) / len(values), 1)
+
+    def __str__(self):
+        return f'{self.player_id} · {self.get_evaluation_type_display()} · {self.evaluated_on}'
+
+
 class AnalystMatchReport(models.Model):
     """
     Repositorio de informes de partido (PDF/JPG/PNG) que sube el analista.
