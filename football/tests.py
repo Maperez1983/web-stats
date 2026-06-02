@@ -3994,8 +3994,46 @@ class PlatformWorkspaceTests(TestCase):
         response = self.client.get(reverse('platform-workspace-enter', args=[workspace.id]), {'team': pre_team.id})
 
         self.assertEqual(response.status_code, 302)
+        self.assertIn(f'team={pre_team.id}', response['Location'])
         mapping = self.client.session.get('active_team_by_workspace') or {}
         self.assertEqual(int(mapping.get(str(workspace.id)) or 0), int(pre_team.id))
+
+    def test_workspace_context_cache_is_scoped_by_active_team(self):
+        from django.test import RequestFactory
+        from football.context_processors import workspace_access
+
+        workspace = Workspace.objects.create(
+            name='Cliente multi cache',
+            slug='cliente-multi-cache',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.team,
+        )
+        pre_team = Team.objects.create(
+            name='Pre Cache',
+            slug='pre-cache',
+            short_name='Pre',
+            group=self.team.group,
+            is_primary=False,
+            category='Prebenjamín',
+        )
+        WorkspaceTeam.objects.create(workspace=workspace, team=self.team, is_default=True)
+        WorkspaceTeam.objects.create(workspace=workspace, team=pre_team, is_default=False)
+        factory = RequestFactory()
+        session = self.client.session
+        session['active_workspace_id'] = int(workspace.id)
+        request_a = factory.get(f'/?team={self.team.id}')
+        request_a.user = self.admin_user
+        request_a.session = session
+        payload_a = workspace_access(request_a)
+        self.assertEqual(payload_a['active_team'].id, self.team.id)
+
+        request_b = factory.get(f'/?team={pre_team.id}')
+        request_b.user = self.admin_user
+        request_b.session = session
+        payload_b = workspace_access(request_b)
+
+        self.assertEqual(payload_b['active_team'].id, pre_team.id)
+        self.assertEqual(payload_b['active_team_query'], f'?team={pre_team.id}')
 
     def test_dashboard_data_uses_active_club_workspace_team(self):
         workspace = Workspace.objects.create(

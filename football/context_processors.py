@@ -411,7 +411,10 @@ def workspace_access(request):
             season_cache_part = ''
             if active_club_season:
                 season_cache_part = f':s{int(active_club_season.id)}'
-            ctx_cache_key = f'ctx:workspace_access:v1:w{int(workspace.id)}:u{int(request.user.id)}{season_cache_part}'
+            team_cache_part = ''
+            if active_team and getattr(active_team, 'id', None):
+                team_cache_part = f':t{int(active_team.id)}'
+            ctx_cache_key = f'ctx:workspace_access:v2:w{int(workspace.id)}:u{int(request.user.id)}{team_cache_part}{season_cache_part}'
         except Exception:
             ctx_cache_key = ''
 

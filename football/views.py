@@ -12746,6 +12746,12 @@ def platform_workspace_enter_page(request, workspace_id):
             target_url = f'{dashboard_url}?home=club'
     except Exception:
         pass
+    if desired_team_id and workspace.kind == Workspace.KIND_CLUB:
+        try:
+            separator = '&' if '?' in str(target_url) else '?'
+            target_url = f'{target_url}{separator}team={int(desired_team_id)}'
+        except Exception:
+            pass
     return redirect(target_url)
 
 
