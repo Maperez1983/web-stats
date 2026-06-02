@@ -5407,6 +5407,26 @@ def _team_stadium_maps_url(team):
     return ''
 
 
+def _season_player_memberships_for_team(season, team, *, confirmed_only=False, include_pending=True):
+    if not season or not team:
+        return []
+    qs = (
+        WorkspaceSeasonPlayer.objects
+        .filter(season=season, team=team)
+        .exclude(status__in=[
+            WorkspaceSeasonPlayer.STATUS_INACTIVE,
+            WorkspaceSeasonPlayer.STATUS_LEFT,
+        ])
+        .select_related('player', 'player__team')
+        .order_by('player__is_active', 'player__number', 'player__name', 'id')
+    )
+    if confirmed_only:
+        qs = qs.filter(is_confirmed=True, status=WorkspaceSeasonPlayer.STATUS_CONFIRMED)
+    elif not include_pending:
+        qs = qs.exclude(status=WorkspaceSeasonPlayer.STATUS_PENDING)
+    return list(qs)
+
+
 @lru_cache(maxsize=512)
 def _generated_template_kit2d_svg_url(main_color, trim_color, slot='home'):
     main = _clean_kit_hex(main_color, '#0f7a35')
@@ -12044,6 +12064,7 @@ def platform_workspace_detail_page(request, workspace_id):
     ]
     workspace_team_player_counts = {}
     fallback_team_player_counts = {}
+    season_confirmed_player_counts = {}
     staff_by_team_id = {}
     club_staff_cards = []
     standings_by_team_id = {}
@@ -12072,6 +12093,26 @@ def platform_workspace_detail_page(request, workspace_id):
             }
         except Exception:
             fallback_team_player_counts = {}
+        try:
+            current_card_season = selected_club_season_for_request(request, workspace=workspace)
+            if current_card_season:
+                season_confirmed_player_counts = {
+                    int(row['team_id']): int(row['count'] or 0)
+                    for row in (
+                        WorkspaceSeasonPlayer.objects
+                        .filter(
+                            season=current_card_season,
+                            team_id__in=workspace_team_ids,
+                            is_confirmed=True,
+                            status=WorkspaceSeasonPlayer.STATUS_CONFIRMED,
+                        )
+                        .values('team_id')
+                        .annotate(count=Count('id'))
+                    )
+                    if row.get('team_id')
+                }
+        except Exception:
+            season_confirmed_player_counts = {}
         try:
             staff_rows = list(
                 StaffMember.objects
@@ -12197,7 +12238,13 @@ def platform_workspace_detail_page(request, workspace_id):
         if team_id in seen_team_cards:
             continue
         seen_team_cards.add(team_id)
-        player_count = int(workspace_team_player_counts.get(team_id, fallback_team_player_counts.get(team_id, 0)) or 0)
+        player_count = int(
+            season_confirmed_player_counts.get(
+                team_id,
+                workspace_team_player_counts.get(team_id, fallback_team_player_counts.get(team_id, 0)),
+            )
+            or 0
+        )
         raw_category_label = str(getattr(team, 'category', '') or '').strip()
         category_label = _sport_category_label(team) or f'Equipo {team_id}'
         team_name = str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or '').strip() or f'Equipo {team_id}'
@@ -12390,6 +12437,11 @@ def platform_workspace_team_detail_page(request, workspace_id, team_id):
 
     team = link.team
     primary_team = getattr(workspace, 'primary_team', None)
+    selected_team_club_season = None
+    try:
+        selected_team_club_season = selected_club_season_for_request(request, workspace=workspace)
+    except Exception:
+        selected_team_club_season = None
     try:
         workspace_player_count = WorkspacePlayer.objects.filter(
             workspace_id__in=workspace_group_ids,
@@ -12399,6 +12451,16 @@ def platform_workspace_team_detail_page(request, workspace_id, team_id):
         workspace_player_count = 0
     fallback_player_count = Player.objects.filter(team=team).count()
     player_count = int(workspace_player_count or fallback_player_count or 0)
+    if selected_team_club_season:
+        try:
+            player_count = WorkspaceSeasonPlayer.objects.filter(
+                season=selected_team_club_season,
+                team=team,
+                is_confirmed=True,
+                status=WorkspaceSeasonPlayer.STATUS_CONFIRMED,
+            ).count()
+        except Exception:
+            pass
 
     club_kit_form = {
         'home_main': '#06814d',
@@ -28155,7 +28217,24 @@ def coach_roster_page(request):
         except Exception:
             error = 'No se pudo guardar el jugador. Revisa los datos.'
 
-    players = list(Player.objects.filter(team=primary_team).order_by('is_active', 'number', 'name'))
+    season_player_memberships = []
+    season_performance_player_ids = set()
+    if active_club_season:
+        season_player_memberships = _season_player_memberships_for_team(
+            active_club_season,
+            primary_team,
+            confirmed_only=False,
+            include_pending=True,
+        )
+        players = [membership.player for membership in season_player_memberships if getattr(membership, 'player', None)]
+        season_performance_player_ids = {
+            int(getattr(membership, 'player_id', 0) or 0)
+            for membership in season_player_memberships
+            if getattr(membership, 'is_confirmed', False)
+            and str(getattr(membership, 'status', '') or '') == WorkspaceSeasonPlayer.STATUS_CONFIRMED
+        }
+    else:
+        players = list(Player.objects.filter(team=primary_team).order_by('is_active', 'number', 'name'))
     club_player_options = []
     try:
         workspace_team_ids = list(
@@ -28224,6 +28303,11 @@ def coach_roster_page(request):
                 tournament_name=tournament_filter,
                 request=request,
             )
+            if active_club_season:
+                player_cards = [
+                    row for row in player_cards
+                    if int(_parse_int(row.get('player_id')) or 0) in season_performance_player_ids
+                ]
         except Exception:
             player_cards = []
         if player_cards:
@@ -52365,6 +52449,7 @@ def player_detail_page(request, player_id):
         selected_club_season_id = _parse_int(request.GET.get('club_season_id'))
         club_date_start = None
         club_date_end = None
+        selected_season_confirmed_player_ids = set()
         try:
             if active_workspace and getattr(active_workspace, 'kind', None) == Workspace.KIND_CLUB:
                 club_season_options = list(
@@ -52389,10 +52474,23 @@ def player_detail_page(request, player_id):
                 if selected_club_season:
                     club_date_start = getattr(selected_club_season, 'start_date', None)
                     club_date_end = getattr(selected_club_season, 'end_date', None) or timezone.localdate()
+                    selected_memberships = _season_player_memberships_for_team(
+                        selected_club_season,
+                        primary_team,
+                        confirmed_only=False,
+                        include_pending=True,
+                    )
+                    selected_season_confirmed_player_ids = {
+                        int(getattr(membership, 'player_id', 0) or 0)
+                        for membership in selected_memberships
+                        if getattr(membership, 'is_confirmed', False)
+                        and str(getattr(membership, 'status', '') or '') == WorkspaceSeasonPlayer.STATUS_CONFIRMED
+                    }
         except Exception:
             selected_club_season = None
             club_date_start = None
             club_date_end = None
+            selected_season_confirmed_player_ids = set()
 
         try:
             force_refresh_stats = str(request.GET.get('refresh') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
@@ -52407,6 +52505,11 @@ def player_detail_page(request, player_id):
                 date_start=club_date_start,
                 date_end=club_date_end,
             )
+            if selected_club_season:
+                matches = [
+                    row for row in (matches or [])
+                    if int(_parse_int(row.get('player_id')) or 0) in selected_season_confirmed_player_ids
+                ]
             stats_error = ''
         except Exception:
             logger.exception('No se pudo recomponer el dashboard del jugador %s', player_id)

@@ -2312,6 +2312,67 @@ class SeasonHistoryServicesTests(TestCase):
         self.assertEqual(player.position, 'MCO')
         self.assertTrue(WorkspaceSeasonPlayer.objects.filter(season=self.season, player=player, team=self.team).exists())
 
+    @patch('football.views.compute_player_cards')
+    def test_roster_stats_cards_only_show_confirmed_players_for_selected_season(self, mocked_cards):
+        pending_player = Player.objects.create(team=self.team, name='Jugador Pendiente Temporada', is_active=True)
+        WorkspaceSeasonPlayer.objects.create(
+            season=self.season,
+            player=self.player,
+            team=self.team,
+            is_confirmed=True,
+            status=WorkspaceSeasonPlayer.STATUS_CONFIRMED,
+        )
+        WorkspaceSeasonPlayer.objects.create(
+            season=self.season,
+            player=pending_player,
+            team=self.team,
+            is_confirmed=False,
+            status=WorkspaceSeasonPlayer.STATUS_PENDING,
+        )
+        mocked_cards.return_value = [
+            {'player_id': self.player.id, 'name': self.player.name, 'number': 7, 'position': 'MC', 'goals': 1, 'pj': 1},
+            {'player_id': pending_player.id, 'name': pending_player.name, 'number': 8, 'position': 'DC', 'goals': 9, 'pj': 9},
+        ]
+
+        response = self.client.get(
+            f"{reverse('coach-roster')}?tab=stats&club_season_id={self.season.id}",
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.player.name)
+        self.assertNotContains(response, pending_player.name)
+
+    @patch('football.views.compute_player_dashboard')
+    def test_player_detail_does_not_use_previous_stats_for_unconfirmed_season_player(self, mocked_dashboard):
+        WorkspaceSeasonPlayer.objects.create(
+            season=self.season,
+            player=self.player,
+            team=self.team,
+            is_confirmed=False,
+            status=WorkspaceSeasonPlayer.STATUS_PENDING,
+        )
+        mocked_dashboard.return_value = [
+            {
+                'player_id': self.player.id,
+                'name': self.player.name,
+                'pj': 12,
+                'minutes': 900,
+                'goals': 14,
+                'assists': 3,
+            }
+        ]
+
+        response = self.client.get(
+            f"{reverse('player-detail', args=[self.player.id])}?club_season_id={self.season.id}",
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(int(response.context['stats'].get('pj') or 0), 0)
+        self.assertEqual(int(response.context['stats'].get('minutes') or 0), 0)
+        self.assertEqual(int(response.context['stats'].get('goals') or 0), 0)
+
     def test_season_architecture_audit_assigns_records_by_club_season(self):
         from football.season_history_services import infer_club_season_for_date, season_architecture_audit
 
