@@ -550,6 +550,53 @@
         position: relative;
         padding: 0.95rem 1rem 1rem;
       }
+      .team-stadium-media {
+        position: relative;
+        margin-bottom: 0.9rem;
+        min-height: 138px;
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid rgba(160, 180, 215, 0.14);
+        background: linear-gradient(135deg, rgba(7, 13, 25, 0.9), rgba(22, 45, 31, 0.82));
+      }
+      .team-stadium-media img {
+        width: 100%;
+        height: 168px;
+        object-fit: cover;
+        display: block;
+        filter: saturate(1.03) contrast(1.02);
+      }
+      .team-stadium-media::after {
+        content: "";
+        position: absolute;
+        inset: auto 0 0;
+        height: 56%;
+        background: linear-gradient(180deg, transparent, rgba(4, 8, 15, 0.78));
+        pointer-events: none;
+      }
+      .team-stadium-caption {
+        position: absolute;
+        left: 0.75rem;
+        right: 0.75rem;
+        bottom: 0.7rem;
+        z-index: 1;
+      }
+      .team-stadium-caption span {
+        display: block;
+        color: #aab6c8;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 850;
+      }
+      .team-stadium-caption strong {
+        display: block;
+        margin-top: 0.12rem;
+        color: #f3f7ff;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
       .club-data-meta {
         margin-top: 0.75rem;
         display: grid;
@@ -584,6 +631,43 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+      }
+      .team-staff-list {
+        margin-top: 0.75rem;
+        border-radius: 14px;
+        border: 1px solid rgba(160, 180, 215, 0.12);
+        background: rgba(255, 255, 255, 0.035);
+        padding: 0.68rem 0.75rem;
+      }
+      .team-staff-title {
+        color: #89a0c7;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 850;
+      }
+      .team-staff-items {
+        margin-top: 0.45rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+      }
+      .team-staff-chip {
+        max-width: 100%;
+        border-radius: 999px;
+        border: 1px solid rgba(160, 180, 215, 0.14);
+        background: rgba(7, 13, 25, 0.48);
+        color: #edf4ff;
+        padding: 0.28rem 0.5rem;
+        font-size: 0.78rem;
+        font-weight: 800;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .team-staff-chip small {
+        color: #aab6c8;
+        font-weight: 700;
       }
       .nested-team-list {
         margin-top: 0.75rem;
@@ -905,10 +989,62 @@
                 Detalle portero si no hay imagen
                 <input type="color" name="kit_gk_trim" value="{{ club_identity_form.kit.gk_trim }}" />
               </label>
+              <div class="wide" style="grid-column:1 / -1;">
+                <div class="section-kicker">Vallas del estadio</div>
+                <p style="margin:0.45rem 0 0;color:#aab6c8;">Texto y logo opcional para cada valla de la pizarra táctica. Si hay logo, se muestra el logo; si no, se muestra el texto.</p>
+              </div>
+              <label>
+                Texto superior
+                <input type="text" name="stadium_ad_top" maxlength="42" value="{{ club_identity_form.stadium_ads.top }}" />
+              </label>
+              <label>
+                Logo superior
+                <input type="file" name="stadium_ad_top_logo" accept="image/*" />
+                {% if club_identity_form.stadium_ads.top_logo_data_url %}
+                <span class="sub-chip" style="justify-content:center;"><input type="checkbox" name="clear_stadium_ad_top_logo" value="1" /> Limpiar logo</span>
+                {% endif %}
+              </label>
+              <label>
+                Texto derecha
+                <input type="text" name="stadium_ad_right" maxlength="42" value="{{ club_identity_form.stadium_ads.right }}" />
+              </label>
+              <label>
+                Logo derecha
+                <input type="file" name="stadium_ad_right_logo" accept="image/*" />
+                {% if club_identity_form.stadium_ads.right_logo_data_url %}
+                <span class="sub-chip" style="justify-content:center;"><input type="checkbox" name="clear_stadium_ad_right_logo" value="1" /> Limpiar logo</span>
+                {% endif %}
+              </label>
+              <label>
+                Texto inferior
+                <input type="text" name="stadium_ad_bottom" maxlength="42" value="{{ club_identity_form.stadium_ads.bottom }}" />
+              </label>
+              <label>
+                Logo inferior
+                <input type="file" name="stadium_ad_bottom_logo" accept="image/*" />
+                {% if club_identity_form.stadium_ads.bottom_logo_data_url %}
+                <span class="sub-chip" style="justify-content:center;"><input type="checkbox" name="clear_stadium_ad_bottom_logo" value="1" /> Limpiar logo</span>
+                {% endif %}
+              </label>
+              <label>
+                Texto izquierda
+                <input type="text" name="stadium_ad_left" maxlength="42" value="{{ club_identity_form.stadium_ads.left }}" />
+              </label>
+              <label>
+                Logo izquierda
+                <input type="file" name="stadium_ad_left_logo" accept="image/*" />
+                {% if club_identity_form.stadium_ads.left_logo_data_url %}
+                <span class="sub-chip" style="justify-content:center;"><input type="checkbox" name="clear_stadium_ad_left_logo" value="1" /> Limpiar logo</span>
+                {% endif %}
+              </label>
               <div class="kit-preview" aria-label="Kits actuales">
                 {% if club_identity_form.kit2d_home_url %}<img src="{{ club_identity_form.kit2d_home_url }}" alt="" loading="lazy" />{% endif %}
                 {% if club_identity_form.kit2d_away_url %}<img src="{{ club_identity_form.kit2d_away_url }}" alt="" loading="lazy" />{% endif %}
                 {% if club_identity_form.kit2d_gk_url %}<img src="{{ club_identity_form.kit2d_gk_url }}" alt="" loading="lazy" />{% endif %}
+                {% if club_identity_form.stadium_ads.top_logo_data_url %}<img src="{{ club_identity_form.stadium_ads.top_logo_data_url }}" alt="" loading="lazy" />{% endif %}
+                {% if club_identity_form.stadium_ads.right_logo_data_url %}<img src="{{ club_identity_form.stadium_ads.right_logo_data_url }}" alt="" loading="lazy" />{% endif %}
+                {% if club_identity_form.stadium_ads.bottom_logo_data_url %}<img src="{{ club_identity_form.stadium_ads.bottom_logo_data_url }}" alt="" loading="lazy" />{% endif %}
+                {% if club_identity_form.stadium_ads.left_logo_data_url %}<img src="{{ club_identity_form.stadium_ads.left_logo_data_url }}" alt="" loading="lazy" />{% endif %}
               </div>
               <div style="display:flex;align-items:end;">
                 <button class="submit-btn" type="submit" style="margin-top:0;">Guardar identidad</button>
@@ -1499,22 +1635,43 @@
                 </div>
               </div>
               <div class="team-card-body">
+                <div class="team-stadium-media">
+                  {% if item.stadium_photo_url %}
+                  <img src="{{ item.stadium_photo_url }}" alt="Foto de {{ item.stadium|default:item.name }}" loading="lazy" />
+                  {% else %}
+                  <img src="{% static 'football/campo-futbol.jpg' %}" alt="Foto de estadio" loading="lazy" />
+                  {% endif %}
+                  <div class="team-stadium-caption">
+                    <span>Estadio</span>
+                    <strong>{{ item.stadium|default:"Campo por configurar" }}{% if item.stadium_is_inherited %} · heredado{% endif %}</strong>
+                  </div>
+                </div>
                 <div class="team-card-meta">
                   <div class="team-meta-box">
                     <span>Jugadores</span>
                     <strong>{{ item.player_count }}</strong>
                   </div>
                   <div class="team-meta-box">
-                    <span>Estadio</span>
-                    <strong>{{ item.stadium|default:"Sin campo" }}{% if item.stadium_is_inherited %} · heredado{% endif %}</strong>
+                    <span>Cuerpo técnico</span>
+                    <strong>{{ item.staff_count|default:0 }} miembro{{ item.staff_count|default:0|pluralize }}</strong>
                   </div>
                   <div class="team-meta-box">
                     <span>Competición</span>
                     <strong>{{ item.competition_name|default:item.group_name|default:"Sin competición" }}</strong>
                   </div>
                   <div class="team-meta-box">
-                    <span>Temporada</span>
-                    <strong>{{ item.season_name|default:"Sin temporada" }}</strong>
+                    <span>Puesto</span>
+                    <strong>{% if item.standing_rank %}{{ item.standing_rank }}º{% if item.standing_points_display %} · {{ item.standing_points_display }}{% endif %}{% else %}Sin puesto{% endif %}</strong>
+                  </div>
+                </div>
+                <div class="team-staff-list">
+                  <div class="team-staff-title">Miembros del cuerpo técnico</div>
+                  <div class="team-staff-items">
+                    {% for staff in item.staff_members %}
+                    <span class="team-staff-chip">{{ staff.name }}{% if staff.role %} <small>· {{ staff.role }}</small>{% endif %}{% if staff.is_club_scope %} <small>· club</small>{% endif %}</span>
+                    {% empty %}
+                    <span class="team-staff-chip"><small>Sin staff asignado</small></span>
+                    {% endfor %}
                   </div>
                 </div>
                 {% if item.stadium_address %}
@@ -1530,9 +1687,6 @@
                 <div class="hero-links">
                   <a class="primary-link" href="{% url 'platform-workspace-team-detail' workspace.id item.team_id %}">Ver ficha</a>
                   <a href="{% url 'platform-workspace-enter' workspace.id %}?team={{ item.team_id }}">Entrar al equipo</a>
-                  {% if item.stadium_maps_url %}
-                  <a href="{{ item.stadium_maps_url }}" target="_blank" rel="noopener">Ver campo</a>
-                  {% endif %}
                 </div>
               </div>
             </article>

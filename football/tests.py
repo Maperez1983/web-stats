@@ -2241,6 +2241,77 @@ class SeasonHistoryServicesTests(TestCase):
         self.assertTrue(WorkspaceSeasonTeam.objects.filter(season=new_season, team=self.team, is_active=True).exists())
         self.assertTrue(WorkspaceSeasonPlayer.objects.filter(season=new_season, player=self.player).exists())
 
+    def test_roster_can_add_existing_club_player_to_active_team(self):
+        other_team = Team.objects.create(name='Equipo Origen', slug='equipo-origen', short_name='Origen')
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=other_team)
+        existing = Player.objects.create(
+            team=other_team,
+            name='Jugador Club',
+            full_name='Jugador Club Completo',
+            is_active=True,
+        )
+        WorkspacePlayer.objects.create(workspace=self.workspace, player=existing, current_team=other_team)
+
+        response = self.client.post(
+            f"{reverse('coach-roster')}?tab=manage",
+            data={
+                'action': 'add_existing',
+                'existing_player_id': str(existing.id),
+                'number': '18',
+                'position': 'MC',
+                'is_active': '1',
+            },
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        existing.refresh_from_db()
+        self.assertEqual(existing.team, self.team)
+        self.assertEqual(existing.number, 18)
+        self.assertEqual(existing.position, 'MC')
+        self.assertTrue(
+            WorkspaceSeasonPlayer.objects.filter(
+                season=self.season,
+                player=existing,
+                team=self.team,
+                status=WorkspaceSeasonPlayer.STATUS_PENDING,
+            ).exists()
+        )
+
+    def test_roster_create_player_saves_extended_profile_fields(self):
+        response = self.client.post(
+            f"{reverse('coach-roster')}?tab=manage",
+            data={
+                'action': 'add',
+                'full_name': 'Nuevo Jugador Completo',
+                'name': 'Nuevo Jugador',
+                'birth_date': '2010-04-12',
+                'origin_team': 'Club Origen',
+                'height_cm': '174',
+                'weight_kg': '68.5',
+                'dominant_foot': 'left',
+                'preferred_position': 'MC',
+                'previous_season_position': 'LD',
+                'position': 'MCO',
+                'number': '21',
+                'is_active': '1',
+            },
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        player = Player.objects.get(team=self.team, name='Nuevo Jugador')
+        self.assertEqual(player.full_name, 'Nuevo Jugador Completo')
+        self.assertEqual(player.birth_date, date(2010, 4, 12))
+        self.assertEqual(player.origin_team, 'Club Origen')
+        self.assertEqual(player.height_cm, 174)
+        self.assertEqual(player.weight_kg, Decimal('68.50'))
+        self.assertEqual(player.dominant_foot, 'left')
+        self.assertEqual(player.preferred_position, 'MC')
+        self.assertEqual(player.previous_season_position, 'LD')
+        self.assertEqual(player.position, 'MCO')
+        self.assertTrue(WorkspaceSeasonPlayer.objects.filter(season=self.season, player=player, team=self.team).exists())
+
     def test_season_architecture_audit_assigns_records_by_club_season(self):
         from football.season_history_services import infer_club_season_for_date, season_architecture_audit
 

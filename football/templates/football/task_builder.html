@@ -483,6 +483,44 @@
       body.stadium-mode .tpad-stand-right {
         overflow: hidden;
       }
+      body.tactics-mode .tpad-stand-tier,
+      body.stadium-mode .tpad-stand-tier {
+        position: absolute;
+        left: 6%;
+        right: 6%;
+        height: 20%;
+        border-radius: 999px;
+        border-top: 1px solid rgba(255,255,255,0.22);
+        border-bottom: 1px solid rgba(0,0,0,0.26);
+        background:
+          repeating-linear-gradient(90deg, rgba(255,255,255,0.16) 0 2px, rgba(255,255,255,0) 2px 10px),
+          repeating-linear-gradient(0deg, rgba(0,0,0,0.18) 0 1px, transparent 1px 8px),
+          linear-gradient(180deg, var(--tpad-team-primary), color-mix(in srgb, var(--tpad-team-secondary) 48%, #020617));
+        box-shadow:
+          inset 0 8px 14px rgba(255,255,255,0.08),
+          inset 0 -12px 22px rgba(0,0,0,0.30);
+        opacity: 0.92;
+        pointer-events: none;
+      }
+      body.tactics-mode .tpad-stand-tier:nth-child(1),
+      body.stadium-mode .tpad-stand-tier:nth-child(1) { top: 10%; }
+      body.tactics-mode .tpad-stand-tier:nth-child(2),
+      body.stadium-mode .tpad-stand-tier:nth-child(2) { top: 38%; }
+      body.tactics-mode .tpad-stand-tier:nth-child(3),
+      body.stadium-mode .tpad-stand-tier:nth-child(3) { top: 66%; }
+      body.tactics-mode .tpad-stand-left .tpad-stand-tier,
+      body.tactics-mode .tpad-stand-right .tpad-stand-tier,
+      body.stadium-mode .tpad-stand-left .tpad-stand-tier,
+      body.stadium-mode .tpad-stand-right .tpad-stand-tier {
+        left: 16%;
+        right: 16%;
+        height: 24%;
+        border-radius: 18px;
+        background:
+          repeating-linear-gradient(0deg, rgba(255,255,255,0.16) 0 2px, rgba(255,255,255,0) 2px 10px),
+          repeating-linear-gradient(90deg, rgba(0,0,0,0.16) 0 1px, transparent 1px 8px),
+          linear-gradient(90deg, var(--tpad-team-primary), color-mix(in srgb, var(--tpad-team-secondary) 50%, #020617));
+      }
 		      body.tactics-mode .tpad-stand-label,
 		      body.stadium-mode .tpad-stand-label {
 	        display: inline-flex;
@@ -511,8 +549,9 @@
         gap: 0.55rem;
         padding: 0.55rem 0.85rem;
         border-radius: 999px;
-        background: linear-gradient(90deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02), rgba(255,255,255,0.10));
-        border: 1px solid rgba(255,255,255,0.14);
+        background:
+          linear-gradient(90deg, color-mix(in srgb, var(--tpad-team-primary) 54%, rgba(2,6,23,0.66)), rgba(255,255,255,0.04), color-mix(in srgb, var(--tpad-team-secondary) 42%, rgba(2,6,23,0.72)));
+        border: 1px solid color-mix(in srgb, var(--tpad-team-secondary) 30%, rgba(255,255,255,0.18));
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
         box-shadow: 0 12px 30px rgba(0,0,0,0.28);
@@ -524,7 +563,7 @@
 	        height: clamp(28px, 2.6vmin, 42px);
         border-radius: 50%;
         border: 1px solid rgba(255,255,255,0.24);
-        background: rgba(255, 255, 255, 0.10);
+        background: linear-gradient(135deg, color-mix(in srgb, var(--tpad-team-primary) 74%, #ffffff), color-mix(in srgb, var(--tpad-team-secondary) 64%, #ffffff));
         object-fit: contain;
         padding: 2px;
         filter: none;
@@ -715,8 +754,8 @@
         background:
           radial-gradient(circle at 50% 20%, rgba(255,255,255,0.14), rgba(255,255,255,0) 55%),
           repeating-radial-gradient(circle at 50% 50%, rgba(255,255,255,0.15) 0 1px, rgba(255,255,255,0) 1px 10px),
-          linear-gradient(180deg, rgba(2,6,23,0.76), rgba(2,6,23,0.35));
-	        border: 1px solid rgba(255,255,255,0.10);
+          linear-gradient(180deg, color-mix(in srgb, var(--tpad-team-primary) 46%, rgba(2,6,23,0.82)), color-mix(in srgb, var(--tpad-team-secondary) 28%, rgba(2,6,23,0.72)));
+	        border: 1px solid color-mix(in srgb, var(--tpad-team-secondary) 22%, rgba(255,255,255,0.12));
 	        backdrop-filter: blur(6px);
 	        -webkit-backdrop-filter: blur(6px);
 	      }
@@ -757,6 +796,143 @@
 	      body.stadium-mode .tpad-stadium .pitch-stage {
 	        z-index: 3;
 	      }
+      body.tactics-mode .tpad-field-ad-boards,
+      body.stadium-mode .tpad-field-ad-boards,
+      body.tactics-mode .tpad-goal3d,
+      body.stadium-mode .tpad-goal3d {
+        position: absolute;
+        pointer-events: none;
+        z-index: 2;
+      }
+      body.tactics-mode .tpad-field-ad-boards,
+      body.stadium-mode .tpad-field-ad-boards {
+        inset: 2.4% 2.2%;
+      }
+      body.tactics-mode .tpad-ad-board,
+      body.stadium-mode .tpad-ad-board {
+        position: absolute;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.24);
+        background:
+          repeating-linear-gradient(90deg, rgba(255,255,255,0.10) 0 1px, transparent 1px 18px),
+          linear-gradient(90deg, rgba(2,6,23,0.92), color-mix(in srgb, var(--tpad-team-primary) 60%, #020617), color-mix(in srgb, var(--tpad-team-secondary) 42%, #020617), rgba(2,6,23,0.92));
+        color: rgba(248,250,252,0.96);
+        font-weight: 950;
+        font-size: clamp(0.46rem, 1.15vw, 0.72rem);
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        text-shadow: 0 8px 16px rgba(0,0,0,0.55);
+        white-space: nowrap;
+        box-shadow:
+          0 10px 22px rgba(0,0,0,0.34),
+          inset 0 1px 0 rgba(255,255,255,0.12);
+      }
+      body.tactics-mode .tpad-ad-board img,
+      body.stadium-mode .tpad-ad-board img {
+        display: block;
+        max-width: 92%;
+        max-height: 80%;
+        object-fit: contain;
+        filter: drop-shadow(0 5px 10px rgba(0,0,0,0.36));
+      }
+      body.tactics-mode .tpad-ad-board--left img,
+      body.tactics-mode .tpad-ad-board--right img,
+      body.stadium-mode .tpad-ad-board--left img,
+      body.stadium-mode .tpad-ad-board--right img {
+        max-width: 76%;
+        max-height: 92%;
+      }
+      body.tactics-mode .tpad-ad-board--top,
+      body.stadium-mode .tpad-ad-board--top {
+        top: 0;
+        left: 15%;
+        right: 15%;
+        height: 3.2%;
+        border-radius: 0 0 8px 8px;
+        transform: perspective(760px) rotateX(-22deg);
+        transform-origin: top center;
+      }
+      body.tactics-mode .tpad-ad-board--bottom,
+      body.stadium-mode .tpad-ad-board--bottom {
+        bottom: 0;
+        left: 13%;
+        right: 13%;
+        height: 3.6%;
+        border-radius: 8px 8px 0 0;
+        transform: perspective(760px) rotateX(24deg);
+        transform-origin: bottom center;
+      }
+      body.tactics-mode .tpad-ad-board--left,
+      body.stadium-mode .tpad-ad-board--left,
+      body.tactics-mode .tpad-ad-board--right,
+      body.stadium-mode .tpad-ad-board--right {
+        top: 38%;
+        bottom: 38%;
+        width: 2.4%;
+        writing-mode: vertical-rl;
+        letter-spacing: 0.12em;
+      }
+      body.tactics-mode .tpad-ad-board--left,
+      body.stadium-mode .tpad-ad-board--left {
+        left: 0;
+        border-radius: 0 8px 8px 0;
+        transform: perspective(720px) rotateY(24deg);
+        transform-origin: left center;
+      }
+      body.tactics-mode .tpad-ad-board--right,
+      body.stadium-mode .tpad-ad-board--right {
+        right: 0;
+        border-radius: 8px 0 0 8px;
+        transform: perspective(720px) rotateY(-24deg);
+        transform-origin: right center;
+      }
+      body.tactics-mode .tpad-goal3d,
+      body.stadium-mode .tpad-goal3d {
+        top: 50%;
+        width: 4.6%;
+        height: 7.8%;
+        transform: translateY(-50%);
+        opacity: 0.92;
+        filter: drop-shadow(0 10px 14px rgba(0,0,0,0.34));
+      }
+      body.tactics-mode .tpad-goal3d--left,
+      body.stadium-mode .tpad-goal3d--left {
+        left: 0.1%;
+        transform: translateY(-50%) perspective(520px) rotateY(-28deg);
+        transform-origin: right center;
+      }
+      body.tactics-mode .tpad-goal3d--right,
+      body.stadium-mode .tpad-goal3d--right {
+        right: 0.1%;
+        --goal-net-offset: -8px;
+        transform: translateY(-50%) perspective(520px) rotateY(28deg);
+        transform-origin: left center;
+      }
+      body.tactics-mode .tpad-goal3d::before,
+      body.stadium-mode .tpad-goal3d::before,
+      body.tactics-mode .tpad-goal3d::after,
+      body.stadium-mode .tpad-goal3d::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border: 2px solid rgba(248,250,252,0.92);
+        border-radius: 4px;
+      }
+      body.tactics-mode .tpad-goal3d::before,
+      body.stadium-mode .tpad-goal3d::before {
+        background:
+          repeating-linear-gradient(90deg, rgba(248,250,252,0.28) 0 1px, transparent 1px 8px),
+          repeating-linear-gradient(0deg, rgba(248,250,252,0.20) 0 1px, transparent 1px 8px),
+          rgba(2,6,23,0.08);
+      }
+      body.tactics-mode .tpad-goal3d::after,
+      body.stadium-mode .tpad-goal3d::after {
+        inset: 12% 18%;
+        border-color: rgba(248,250,252,0.48);
+        transform: translateX(var(--goal-net-offset, 8px));
+      }
       .simple-hint {
         margin: 0.65rem 0 0;
         padding: 0.7rem 0.85rem;
@@ -4725,8 +4901,8 @@
 	        inset: 0;
 	        display: grid;
 	        place-items: center;
-	        background: rgba(2, 6, 23, 0.78);
-	        z-index: 80;
+	        background: rgba(2, 6, 23, 0.92);
+	        z-index: 2147482600;
 	        padding: 1.1rem;
 	      }
 	      .sim-3d-modal[hidden] { display: none; }
@@ -5382,6 +5558,11 @@
 				        data-tpad-src="{% static 'football/js/sessions_tactical_pad.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 				        data-three-src="{% static 'vendor/three.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 				        data-sim3d-src="{% static 'football/js/tpad_sim_3d_viewer.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
+				        data-stadium-team-name="{{ tactics_team_name|default:'Equipo'|escape }}"
+				        data-stadium-team-primary="{{ tactics_team_primary|default:''|escape }}"
+				        data-stadium-team-secondary="{{ tactics_team_secondary|default:''|escape }}"
+				        data-stadium-team-crest-url="{{ tactics_team_crest_url|default:''|escape }}"
+				        data-stadium-main-stand-src="{% static 'football/images/stadium/benagalbon-main-stand-render-crop.png' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 					        data-task-id="{% if task %}{{ task.id }}{% endif %}"
 					        data-pdf-preview-url="{{ pdf_preview_url|default:'' }}"
 					        data-video-import-url="{{ video_import_url|default:'' }}"
@@ -5726,20 +5907,24 @@
 	                      <button type="button" id="pitch-size-up" title="Campo más grande">+</button>
 	                      <button type="button" id="pitch-size-fit" title="Ajustar a pantalla">⤢</button>
 	                    </div>
-                      {% if not tactics_mode %}
-                      <button type="button" class="surface-trigger" id="pitch-3d-open" title="Vista 3D (presentación)" aria-label="Vista 3D">
-                        <span>Vista 3D</span>
-                        <span class="current">Presentar</span>
-                      </button>
-                      {% endif %}
                     </div>
                   </details>
+                  {% if not tactics_mode %}
+                  <button type="button" class="surface-trigger" id="pitch-3d-open" title="Vista 3D (presentación)" aria-label="Vista 3D">
+                    <span>Vista 3D</span>
+                    <span class="current">Presentar</span>
+                  </button>
+                  {% endif %}
                   {% if tactics_mode %}
                   </div>
                   <div class="tactics-toolbar-group tactics-toolbar-output" aria-label="Presentación">
                   {% endif %}
                   <button type="button" class="surface-trigger" id="task-focus-toggle" title="Modo presentación" aria-label="Modo presentación">Presentación</button>
                   {% if tactics_mode %}
+                  <button type="button" class="surface-trigger" id="pitch-3d-open" title="Vista 3D (presentación)" aria-label="Vista 3D">
+                    <span>Vista 3D</span>
+                    <span class="current">Presentar</span>
+                  </button>
                   <button type="button" class="surface-trigger" id="task-tactics-fullscreen" title="Pantalla completa" aria-label="Pantalla completa">Pantalla completa</button>
                   </div>
                   {% endif %}
@@ -6409,7 +6594,10 @@
 				                            <label style="display:flex; gap:10px; align-items:center;">
 				                              Cámara
 				                              <select id="task-pitch-3d-camera">
-				                                <option value="normal" selected>Normal</option>
+				                                <option value="drone" selected>Drone</option>
+				                                <option value="broadcast">Broadcast</option>
+				                                <option value="broadcast_high">Broadcast alto</option>
+				                                <option value="normal">Normal</option>
 				                                <option value="rotated">Rotada</option>
 				                                <option value="front">Frontal</option>
 				                                <option value="side">Lateral</option>
@@ -6442,7 +6630,7 @@
 				                            <button type="button" class="button" id="task-pitch-3d-snap" title="Guardar imagen PNG">PNG</button>
 				                            <button type="button" class="button" id="task-pitch-3d-record" title="Grabar WebM (beta)">REC</button>
 				                          </div>
-				                          <div class="sim-3d-note">Tip: arrastra para girar; pinch/rueda para zoom. En iPad, puedes grabar pantalla para MP4.</div>
+				                          <div class="sim-3d-note">Tip: arrastra para girar; rueda/pinch para zoom; Shift + arrastre o botón derecho desplaza el foco.</div>
 				                        </div>
 				                      </div>
 				                    </div>
@@ -7077,6 +7265,9 @@
                         "
                       >
                         <div class="tpad-stand tpad-stand-top" aria-hidden="true">
+                          <span class="tpad-stand-tier"></span>
+                          <span class="tpad-stand-tier"></span>
+                          <span class="tpad-stand-tier"></span>
                           <div class="tpad-stand-label tpad-stand-label--top">
 		                            {% if tactics_team_crest_url %}
 		                              {% if 'cdb-benagalbon-crest-contrast' in tactics_team_crest_url %}
@@ -7089,6 +7280,9 @@
                           </div>
                         </div>
                         <div class="tpad-stand tpad-stand-left" aria-hidden="true">
+                          <span class="tpad-stand-tier"></span>
+                          <span class="tpad-stand-tier"></span>
+                          <span class="tpad-stand-tier"></span>
                           <div class="tpad-stand-label tpad-stand-label--side">
 	                            {% if tactics_team_crest_url %}
 	                              {% if 'cdb-benagalbon-crest-contrast' in tactics_team_crest_url %}
@@ -7102,6 +7296,9 @@
                         </div>
                         <div class="tpad-stadium-accent" aria-hidden="true"></div>
                         <div class="tpad-stand tpad-stand-right" aria-hidden="true">
+                          <span class="tpad-stand-tier"></span>
+                          <span class="tpad-stand-tier"></span>
+                          <span class="tpad-stand-tier"></span>
                           <div class="tpad-stand-label tpad-stand-label--side">
 	                            {% if tactics_team_crest_url %}
 	                              {% if 'cdb-benagalbon-crest-contrast' in tactics_team_crest_url %}
@@ -7114,6 +7311,9 @@
                           </div>
                         </div>
                         <div class="tpad-stand tpad-stand-bottom" aria-hidden="true">
+                          <span class="tpad-stand-tier"></span>
+                          <span class="tpad-stand-tier"></span>
+                          <span class="tpad-stand-tier"></span>
                           <div class="tpad-stand-label tpad-stand-label--bottom">
 		                            {% if tactics_team_crest_url %}
 		                              {% if 'cdb-benagalbon-crest-contrast' in tactics_team_crest_url %}
@@ -7128,6 +7328,14 @@
                         <div class="tpad-stadium-center">
 			                <div class="pitch-stage" id="task-pitch-stage">
 			                  <svg id="task-pitch-surface" viewBox="-2 -2 1054 684" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
+                            <div class="tpad-field-ad-boards" aria-hidden="true">
+                              <span class="tpad-ad-board tpad-ad-board--top">{% if tactics_stadium_ads.top_logo_data_url %}<img src="{{ tactics_stadium_ads.top_logo_data_url }}" alt="{{ tactics_stadium_ads.top|default:'Sponsor' }}" loading="lazy" decoding="async" />{% else %}{{ tactics_stadium_ads.top|default:tactics_team_name|default:"Club" }}{% endif %}</span>
+                              <span class="tpad-ad-board tpad-ad-board--right">{% if tactics_stadium_ads.right_logo_data_url %}<img src="{{ tactics_stadium_ads.right_logo_data_url }}" alt="{{ tactics_stadium_ads.right|default:'Sponsor' }}" loading="lazy" decoding="async" />{% else %}{{ tactics_stadium_ads.right|default:"2J Football Intelligence" }}{% endif %}</span>
+                              <span class="tpad-ad-board tpad-ad-board--bottom">{% if tactics_stadium_ads.bottom_logo_data_url %}<img src="{{ tactics_stadium_ads.bottom_logo_data_url }}" alt="{{ tactics_stadium_ads.bottom|default:'Sponsor' }}" loading="lazy" decoding="async" />{% else %}{{ tactics_stadium_ads.bottom|default:tactics_team_name|default:"Club" }}{% endif %}</span>
+                              <span class="tpad-ad-board tpad-ad-board--left">{% if tactics_stadium_ads.left_logo_data_url %}<img src="{{ tactics_stadium_ads.left_logo_data_url }}" alt="{{ tactics_stadium_ads.left|default:'Sponsor' }}" loading="lazy" decoding="async" />{% else %}{{ tactics_stadium_ads.left|default:"Partner" }}{% endif %}</span>
+                            </div>
+                            <span class="tpad-goal3d tpad-goal3d--left" aria-hidden="true"></span>
+                            <span class="tpad-goal3d tpad-goal3d--right" aria-hidden="true"></span>
 			                  <canvas id="create-task-canvas"></canvas>
 			                  <button type="button" class="pitch-resize-handle" id="pitch-resize-handle" aria-label="Redimensionar campo">
 			                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3v6h-2V6.41l-6.29 6.3-1.42-1.42 6.3-6.29H15V3h6ZM5 21h6v-2H6.41l6.3-6.29-1.42-1.42-6.29 6.3V13H3v8h2Z"/></svg>
@@ -8011,6 +8219,7 @@
 
 		    {{ tactical_player_catalog|json_script:"tpad-players-catalog" }}
 		    {{ confirmed_player_ids|json_script:"tpad-confirmed-player-ids" }}
+		    {{ tactics_stadium_ads|json_script:"tpad-stadium-ads" }}
 				    <script src="{% static 'football/js/ui_tour.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
 				    {% if tactics_mode %}
 				    <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
@@ -8389,7 +8598,7 @@
 		              const editorReady = (() => {
 		                try { return (form?.dataset?.webstatsTpadReady === '1') || (window.__WEBSTATS_TPAD_READY === true); } catch (e) { return false; }
 		              })();
-		              if (editorReady) {
+		              if (editorReady && key === 'webstatsEditorReady') {
 		                try { el.dataset[key] = '1'; } catch (e) { /* ignore */ }
 		                return;
 		              }

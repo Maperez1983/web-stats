@@ -97,6 +97,38 @@
         grid-template-columns: 2fr 120px 1fr 140px auto;
         align-items: end;
       }
+      .roster-forms {
+        display: grid;
+        gap: 0.85rem;
+        margin-bottom: 1rem;
+      }
+      .roster-form-box {
+        border: 1px solid var(--prod-line, rgba(144, 161, 185, 0.28));
+        border-radius: 14px;
+        padding: 0.8rem;
+        background: rgba(2, 6, 23, 0.08);
+      }
+      .roster-form-title {
+        margin: 0 0 0.7rem;
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .roster-create-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.65rem;
+        align-items: end;
+      }
+      .roster-create-grid .span-2 { grid-column: span 2; }
+      .roster-create-grid .span-4 { grid-column: 1 / -1; }
+      .roster-existing-grid {
+        display: grid;
+        grid-template-columns: minmax(240px, 1fr) 110px minmax(140px, 0.65fr) 130px auto;
+        gap: 0.65rem;
+        align-items: end;
+      }
       label {
         display: grid;
         gap: 0.3rem;
@@ -538,6 +570,14 @@
       @media (max-width: 900px) {
         form.add {
           grid-template-columns: 1fr;
+        }
+        .roster-create-grid,
+        .roster-existing-grid {
+          grid-template-columns: 1fr;
+        }
+        .roster-create-grid .span-2,
+        .roster-create-grid .span-4 {
+          grid-column: auto;
         }
         .card-grid {
           grid-template-columns: 1fr;
@@ -1004,30 +1044,110 @@
             </p>
           {% endif %}
           {% if can_edit %}
-	        <form method="post" class="add">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="add" />
-          <label>
-            Nombre
-            <input type="text" name="name" maxlength="120" required />
-          </label>
-          <label>
-            Dorsal
-            <input type="number" name="number" min="1" max="99" />
-          </label>
-          <label>
-            Posición
-            <input type="text" name="position" maxlength="60" placeholder="MC, DC, LD..." />
-          </label>
-          <label>
-            Estado
-            <select name="is_active">
-              <option value="1">Activo</option>
-              <option value="0">Inactivo</option>
-            </select>
-          </label>
-          <button class="primary" type="submit">Guardar jugador</button>
-        </form>
+          <div class="roster-forms">
+            <section class="roster-form-box">
+              <h2 class="roster-form-title">Añadir jugador existente del club</h2>
+              <form method="post" class="roster-existing-grid">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="add_existing" />
+                <label>
+                  Jugador del club
+                  <select name="existing_player_id" required>
+                    <option value="">Seleccionar jugador...</option>
+                    {% for player_option in club_player_options %}
+                      <option value="{{ player_option.id }}">
+                        {{ player_option.name }}{% if player_option.full_name %} · {{ player_option.full_name }}{% endif %}
+                        {% if player_option.team %} · {{ player_option.team.display_name|default:player_option.team.name }}{% endif %}
+                      </option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label>
+                  Dorsal
+                  <input type="number" name="number" min="1" max="99" />
+                </label>
+                <label>
+                  Posición actual
+                  <input type="text" name="position" maxlength="60" placeholder="MC, DC, LD..." />
+                </label>
+                <label>
+                  Estado
+                  <select name="is_active">
+                    <option value="1">Activo</option>
+                    <option value="0">Inactivo</option>
+                  </select>
+                </label>
+                <button class="primary" type="submit">Añadir al equipo</button>
+              </form>
+            </section>
+
+            <section class="roster-form-box">
+              <h2 class="roster-form-title">Crear jugador nuevo</h2>
+              <form method="post" class="roster-create-grid">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="add" />
+                <label class="span-2">
+                  Nombre completo
+                  <input type="text" name="full_name" maxlength="180" required />
+                </label>
+                <label>
+                  Nombre deportivo
+                  <input type="text" name="name" maxlength="120" />
+                </label>
+                <label>
+                  Fecha nacimiento
+                  <input type="date" name="birth_date" />
+                </label>
+                <label class="span-2">
+                  Equipo de procedencia
+                  <input type="text" name="origin_team" maxlength="160" />
+                </label>
+                <label>
+                  Altura (cm)
+                  <input type="number" name="height_cm" min="80" max="230" />
+                </label>
+                <label>
+                  Peso (kg)
+                  <input type="number" name="weight_kg" min="20" max="180" step="0.01" />
+                </label>
+                <label>
+                  Pie dominante
+                  <select name="dominant_foot">
+                    <option value="">Sin definir</option>
+                    <option value="right">Derecho</option>
+                    <option value="left">Izquierdo</option>
+                    <option value="both">Ambidiestro</option>
+                  </select>
+                </label>
+                <label>
+                  Posición favorita
+                  <input type="text" name="preferred_position" maxlength="60" placeholder="MC, DC, LD..." />
+                </label>
+                <label>
+                  Posición temp. anterior
+                  <input type="text" name="previous_season_position" maxlength="60" placeholder="MC, DC, LD..." />
+                </label>
+                <label>
+                  Posición actual
+                  <input type="text" name="position" maxlength="60" placeholder="MC, DC, LD..." />
+                </label>
+                <label>
+                  Dorsal
+                  <input type="number" name="number" min="1" max="99" />
+                </label>
+                <label>
+                  Estado
+                  <select name="is_active">
+                    <option value="1">Activo</option>
+                    <option value="0">Inactivo</option>
+                  </select>
+                </label>
+                <div class="span-4">
+                  <button class="primary" type="submit">Guardar jugador</button>
+                </div>
+              </form>
+            </section>
+          </div>
         {% endif %}
 
         <div class="roster-table-wrap">

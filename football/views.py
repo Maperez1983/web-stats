@@ -5245,6 +5245,70 @@ def _rival_kit2d_value(workspace, rival_team):
     return value if isinstance(value, dict) else {}
 
 
+def _team_tactics_palette(workspace, team):
+    hue = _team_color_seed(team)
+    base_hue = int(hue) % 360
+    primary = f'hsl({base_hue}, 70%, 42%)'
+    secondary = f'hsl({(base_hue + 35) % 360}, 74%, 36%)'
+    try:
+        pref = WorkspacePreference.objects.filter(workspace=workspace, key='kit_theme:v1').only('value').first() if workspace else None
+        raw = pref.value if pref and isinstance(pref.value, dict) else {}
+        kit = raw.get('default') if isinstance(raw.get('default'), dict) else {}
+        team_id = getattr(team, 'id', None)
+        team_kit = raw.get('teams', {}).get(str(int(team_id))) if team_id and isinstance(raw.get('teams'), dict) else None
+        if isinstance(team_kit, dict):
+            kit = {**kit, **team_kit}
+        if isinstance(kit, dict) and (kit.get('home_main') or kit.get('home_trim')):
+            primary = _clean_kit_hex(kit.get('home_main'), '#0f7a35')
+            secondary = _clean_kit_hex(kit.get('home_trim'), '#ffffff')
+    except Exception:
+        pass
+    return {
+        'primary': primary,
+        'secondary': secondary,
+        'primary_soft': f'color-mix(in srgb, {primary} 24%, transparent)',
+        'secondary_soft': f'color-mix(in srgb, {secondary} 18%, transparent)',
+    }
+
+
+def _team_stadium_ads(workspace, team):
+    team_name = ''
+    try:
+        team_name = str(team.display_name or team.name or '').strip()
+    except Exception:
+        team_name = ''
+    defaults = {
+        'top': team_name or 'Club',
+        'right': '2J Football Intelligence',
+        'bottom': team_name or 'Club',
+        'left': 'Partner',
+        'top_logo_data_url': '',
+        'right_logo_data_url': '',
+        'bottom_logo_data_url': '',
+        'left_logo_data_url': '',
+    }
+    try:
+        pref = WorkspacePreference.objects.filter(workspace=workspace, key='stadium_ads:v1').only('value').first() if workspace else None
+        raw = pref.value if pref and isinstance(pref.value, dict) else {}
+        ads = raw.get('default') if isinstance(raw.get('default'), dict) else {}
+        team_id = getattr(team, 'id', None)
+        team_ads = raw.get('teams', {}).get(str(int(team_id))) if team_id and isinstance(raw.get('teams'), dict) else None
+        if isinstance(team_ads, dict):
+            ads = {**ads, **team_ads}
+        for key in list(defaults.keys()):
+            if key.endswith('_logo_data_url'):
+                value = str(ads.get(key) or '').strip()
+                if _is_valid_kit2d_url(value):
+                    defaults[key] = value
+            else:
+                value = _sanitize_task_text(str(ads.get(key) or '').strip(), multiline=False, max_len=42)
+                if value:
+                    defaults[key] = value
+    except Exception:
+        pass
+    return defaults
+
+
 def _rival_kit2d_url(workspace, rival_team, slot='home'):
     value = _rival_kit2d_value(workspace, rival_team)
     slot_key = str(slot or 'home').strip() or 'home'
@@ -11393,6 +11457,52 @@ def platform_workspace_detail_page(request, workspace_id):
                         key='kit_theme:v1',
                         defaults={'value': raw},
                     )
+                    current_stadium_ads = _team_stadium_ads(workspace, primary_team)
+                    stadium_ad_logo_payload = {
+                        'top_logo_data_url': str(current_stadium_ads.get('top_logo_data_url') or '').strip(),
+                        'right_logo_data_url': str(current_stadium_ads.get('right_logo_data_url') or '').strip(),
+                        'bottom_logo_data_url': str(current_stadium_ads.get('bottom_logo_data_url') or '').strip(),
+                        'left_logo_data_url': str(current_stadium_ads.get('left_logo_data_url') or '').strip(),
+                    }
+                    stadium_ads_payload = {
+                        'top': _sanitize_task_text(str(request.POST.get('stadium_ad_top') or '').strip(), multiline=False, max_len=42),
+                        'right': _sanitize_task_text(str(request.POST.get('stadium_ad_right') or '').strip(), multiline=False, max_len=42),
+                        'bottom': _sanitize_task_text(str(request.POST.get('stadium_ad_bottom') or '').strip(), multiline=False, max_len=42),
+                        'left': _sanitize_task_text(str(request.POST.get('stadium_ad_left') or '').strip(), multiline=False, max_len=42),
+                    }
+                    stadium_ads_payload = {
+                        key: (value or fallback)
+                        for key, value, fallback in (
+                            ('top', stadium_ads_payload['top'], str(primary_team.display_name or primary_team.name or '').strip() or 'Club'),
+                            ('right', stadium_ads_payload['right'], '2J Football Intelligence'),
+                            ('bottom', stadium_ads_payload['bottom'], str(primary_team.display_name or primary_team.name or '').strip() or 'Club'),
+                            ('left', stadium_ads_payload['left'], 'Partner'),
+                        )
+                    }
+                    stadium_ads_payload.update(stadium_ad_logo_payload)
+                    for side in ('top', 'right', 'bottom', 'left'):
+                        logo_key = f'{side}_logo_data_url'
+                        clear_logo = str(request.POST.get(f'clear_stadium_ad_{side}_logo') or '').strip().lower() in {'1', 'true', 'on', 'yes', 'si'}
+                        uploaded_logo = request.FILES.get(f'stadium_ad_{side}_logo')
+                        if clear_logo and not uploaded_logo:
+                            stadium_ads_payload[logo_key] = ''
+                        if uploaded_logo:
+                            data_url = _uploaded_image_as_data_url(uploaded_logo)
+                            if _is_valid_kit2d_url(data_url):
+                                stadium_ads_payload[logo_key] = data_url
+                    ads_pref = WorkspacePreference.objects.filter(workspace=workspace, key='stadium_ads:v1').first()
+                    ads_raw = ads_pref.value if ads_pref and isinstance(ads_pref.value, dict) else {}
+                    ads_raw = dict(ads_raw) if isinstance(ads_raw, dict) else {}
+                    ads_teams = ads_raw.get('teams') if isinstance(ads_raw.get('teams'), dict) else {}
+                    ads_teams = dict(ads_teams)
+                    ads_raw['default'] = stadium_ads_payload
+                    ads_teams[str(int(primary_team.id))] = stadium_ads_payload
+                    ads_raw['teams'] = ads_teams
+                    WorkspacePreference.objects.update_or_create(
+                        workspace=workspace,
+                        key='stadium_ads:v1',
+                        defaults={'value': ads_raw},
+                    )
                     kit2d_pref = WorkspacePreference.objects.filter(workspace=workspace, key='kit2d.tokens').first()
                     kit2d_value = kit2d_pref.value if kit2d_pref and isinstance(kit2d_pref.value, dict) else {}
                     kit2d_value = dict(kit2d_value) if isinstance(kit2d_value, dict) else {}
@@ -11924,7 +12034,7 @@ def platform_workspace_detail_page(request, workspace_id):
     workspace_team_links = list(
         WorkspaceTeam.objects
         .filter(workspace_id__in=workspace_group_ids)
-        .select_related('workspace', 'team')
+        .select_related('workspace', 'team', 'team__group', 'team__group__season', 'team__group__season__competition')
         .order_by('workspace_id', '-is_default', 'team__category', 'team__name', 'id')
     )
     workspace_team_ids = [
@@ -11934,6 +12044,9 @@ def platform_workspace_detail_page(request, workspace_id):
     ]
     workspace_team_player_counts = {}
     fallback_team_player_counts = {}
+    staff_by_team_id = {}
+    club_staff_cards = []
+    standings_by_team_id = {}
     if workspace_team_ids:
         try:
             workspace_team_player_counts = {
@@ -11959,6 +12072,43 @@ def platform_workspace_detail_page(request, workspace_id):
             }
         except Exception:
             fallback_team_player_counts = {}
+        try:
+            staff_rows = list(
+                StaffMember.objects
+                .filter(workspace=workspace, is_active=True)
+                .filter(Q(team_id__in=workspace_team_ids) | Q(team__isnull=True))
+                .select_related('team')
+                .order_by('team_id', 'role_title', 'name', 'id')
+            )
+            for staff in staff_rows:
+                staff_card = {
+                    'id': int(getattr(staff, 'id', 0) or 0),
+                    'name': str(getattr(staff, 'name', '') or '').strip(),
+                    'role': str(getattr(staff, 'role_title', '') or '').strip(),
+                    'is_club_scope': not bool(getattr(staff, 'team_id', None)),
+                }
+                if not staff_card['name']:
+                    continue
+                if staff_card['is_club_scope']:
+                    club_staff_cards.append(staff_card)
+                else:
+                    staff_by_team_id.setdefault(int(staff.team_id), []).append(staff_card)
+        except Exception:
+            staff_by_team_id = {}
+            club_staff_cards = []
+        try:
+            standing_rows = (
+                TeamStanding.objects
+                .filter(team_id__in=workspace_team_ids)
+                .select_related('group', 'season')
+                .order_by('team_id', '-last_updated', '-played', '-id')
+            )
+            for standing in standing_rows:
+                tid = int(getattr(standing, 'team_id', 0) or 0)
+                if tid and tid not in standings_by_team_id:
+                    standings_by_team_id[tid] = standing
+        except Exception:
+            standings_by_team_id = {}
     category_map = {}
     workspace_team_cards = []
     seen_team_cards = set()
@@ -12029,6 +12179,7 @@ def platform_workspace_detail_page(request, workspace_id):
         'kit2d_home_url': _club_kit2d_slot_url('home'),
         'kit2d_away_url': _club_kit2d_slot_url('away'),
         'kit2d_gk_url': _club_kit2d_slot_url('gk'),
+        'stadium_ads': _team_stadium_ads(workspace, primary_team_for_identity),
     }
 
     def _sport_category_label(team_obj):
@@ -12071,6 +12222,16 @@ def platform_workspace_detail_page(request, workspace_id):
         team_specific_address = str(getattr(team, 'home_stadium_address', '') or '').strip()
         team_stadium = team_specific_stadium or club_identity_form['stadium']
         team_address = team_specific_address or club_identity_form['stadium_address']
+        standing = standings_by_team_id.get(team_id)
+        team_staff_cards = list(staff_by_team_id.get(team_id) or [])
+        inherited_staff_cards = list(club_staff_cards or [])
+        visible_staff_cards = (team_staff_cards + inherited_staff_cards)[:4]
+        try:
+            stadium_photo_url = getattr(getattr(team, 'cover_image', None), 'url', '') or ''
+            if not stadium_photo_url and primary_team_for_identity:
+                stadium_photo_url = getattr(getattr(primary_team_for_identity, 'cover_image', None), 'url', '') or ''
+        except Exception:
+            stadium_photo_url = ''
         team_card = {
             'link': link,
             'team': team,
@@ -12087,11 +12248,20 @@ def platform_workspace_detail_page(request, workspace_id):
             'group_name': str(getattr(getattr(team, 'group', None), 'name', '') or '').strip(),
             'season_name': str(getattr(getattr(getattr(team, 'group', None), 'season', None), 'name', '') or '').strip(),
             'competition_name': str(getattr(getattr(getattr(getattr(team, 'group', None), 'season', None), 'competition', None), 'name', '') or '').strip(),
+            'standing_rank': int(getattr(standing, 'position', 0) or 0) if standing else 0,
+            'standing_points': int(getattr(standing, 'points', 0) or 0) if standing else None,
+            'standing_points_display': f"{int(getattr(standing, 'points', 0) or 0)} pts" if standing else '',
+            'standing_played': int(getattr(standing, 'played', 0) or 0) if standing else None,
             'stadium': team_stadium,
             'stadium_address': team_address,
             'stadium_is_inherited': bool(team_stadium and not team_specific_stadium),
             'stadium_address_is_inherited': bool(team_address and not team_specific_address),
             'stadium_maps_url': _team_stadium_maps_url(team) or _team_stadium_maps_url(primary_team_for_identity),
+            'stadium_photo_url': stadium_photo_url,
+            'staff_members': visible_staff_cards,
+            'staff_count': len(team_staff_cards) + len(inherited_staff_cards),
+            'team_staff_count': len(team_staff_cards),
+            'club_staff_count': len(inherited_staff_cards),
             'inherited_crest_image_url': inherited_crest_image_url,
             'inherited_crest_url': inherited_crest_url,
             'home_kit_url': home_kit_url,
@@ -27643,6 +27813,7 @@ def coach_tactics_page(request):
     tactics_team_secondary = ''
     tactics_team_primary_soft = ''
     tactics_team_secondary_soft = ''
+    tactics_stadium_ads = {}
     try:
         tactics_team_name = str(primary_team.display_name or primary_team.name or '').strip()
     except Exception:
@@ -27652,17 +27823,20 @@ def coach_tactics_page(request):
     except Exception:
         tactics_team_crest_url = ''
     try:
-        hue = _team_color_seed(primary_team)
-        base_hue = int(hue) % 360
-        tactics_team_primary = f'hsl({base_hue}, 70%, 42%)'
-        tactics_team_secondary = f'hsl({(base_hue + 35) % 360}, 74%, 36%)'
-        tactics_team_primary_soft = f'hsla({base_hue}, 70%, 42%, 0.22)'
-        tactics_team_secondary_soft = f'hsla({(base_hue + 35) % 360}, 74%, 36%, 0.18)'
+        tactics_palette = _team_tactics_palette(workspace, primary_team)
+        tactics_team_primary = tactics_palette.get('primary') or ''
+        tactics_team_secondary = tactics_palette.get('secondary') or ''
+        tactics_team_primary_soft = tactics_palette.get('primary_soft') or ''
+        tactics_team_secondary_soft = tactics_palette.get('secondary_soft') or ''
     except Exception:
         tactics_team_primary = ''
         tactics_team_secondary = ''
         tactics_team_primary_soft = ''
         tactics_team_secondary_soft = ''
+    try:
+        tactics_stadium_ads = _team_stadium_ads(workspace, primary_team)
+    except Exception:
+        tactics_stadium_ads = {}
 
     return render(
         request,
@@ -27715,6 +27889,7 @@ def coach_tactics_page(request):
             'tactics_team_secondary': tactics_team_secondary,
             'tactics_team_primary_soft': tactics_team_primary_soft,
             'tactics_team_secondary_soft': tactics_team_secondary_soft,
+            'tactics_stadium_ads': tactics_stadium_ads,
         },
 	    )
 
@@ -27767,10 +27942,69 @@ def coach_roster_page(request):
             return HttpResponse('No tienes permisos para editar la plantilla.', status=403)
         action = (request.POST.get('action') or 'add').strip()
         player_id = _parse_int(request.POST.get('player_id'))
+        existing_player_id = _parse_int(request.POST.get('existing_player_id'))
         name = (request.POST.get('name') or '').strip()
+        full_name = (request.POST.get('full_name') or '').strip()
+        nickname = (request.POST.get('nickname') or '').strip()
+        birth_date = parse_date((request.POST.get('birth_date') or '').strip()) if (request.POST.get('birth_date') or '').strip() else None
+        origin_team = (request.POST.get('origin_team') or '').strip()
+        dominant_foot = (request.POST.get('dominant_foot') or '').strip()
+        preferred_position = (request.POST.get('preferred_position') or '').strip()
+        previous_season_position = (request.POST.get('previous_season_position') or '').strip()
         number_raw = (request.POST.get('number') or '').strip()
         position = (request.POST.get('position') or '').strip()
         is_active = (request.POST.get('is_active') or '1').strip() in {'1', 'true', 'on', 'yes'}
+        if dominant_foot and dominant_foot not in {'right', 'left', 'both'}:
+            dominant_foot = ''
+
+        def _parse_height():
+            height = _parse_int(request.POST.get('height_cm'))
+            if height is None:
+                return None
+            if height < 80 or height > 230:
+                raise ValueError('Altura fuera de rango.')
+            return int(height)
+
+        def _parse_positive_decimal(raw, *, max_value=None):
+            raw = str(raw or '').strip().replace(',', '.')
+            if not raw:
+                return None
+            try:
+                value = Decimal(raw)
+            except (InvalidOperation, ValueError):
+                raise ValueError('Introduce un valor numérico válido.')
+            if value < 0:
+                raise ValueError('Introduce un valor positivo.')
+            if max_value is not None and value > Decimal(str(max_value)):
+                raise ValueError('Introduce un valor realista.')
+            return value.quantize(Decimal('0.01'))
+
+        def _apply_player_profile_fields(player):
+            updates = []
+            for attr, value in (
+                ('full_name', full_name[:180]),
+                ('nickname', nickname[:80]),
+                ('origin_team', origin_team[:160]),
+                ('dominant_foot', dominant_foot[:16]),
+                ('preferred_position', preferred_position[:60]),
+                ('previous_season_position', previous_season_position[:60]),
+            ):
+                if value and getattr(player, attr, '') != value:
+                    setattr(player, attr, value)
+                    updates.append(attr)
+            if birth_date and player.birth_date != birth_date:
+                player.birth_date = birth_date
+                updates.append('birth_date')
+            height = _parse_height()
+            if height is not None:
+                if player.height_cm != int(height):
+                    player.height_cm = int(height)
+                    updates.append('height_cm')
+            weight = _parse_positive_decimal(request.POST.get('weight_kg'), max_value=180)
+            if weight is not None and player.weight_kg != weight:
+                player.weight_kg = weight
+                updates.append('weight_kg')
+            return updates
 
         try:
             if action in {'confirm_season_player', 'unconfirm_season_player'}:
@@ -27813,10 +28047,59 @@ def coach_roster_page(request):
                 if active_club_season:
                     mark_player_left_current_season(active_club_season, player, notes='Marcado como inactivo desde plantilla.')
                 message = f'{player.name} marcado como inactivo.'
+            elif action == 'add_existing':
+                if not existing_player_id:
+                    raise ValueError('Selecciona un jugador del club.')
+                workspace_team_ids = list(
+                    WorkspaceTeam.objects
+                    .filter(workspace=workspace)
+                    .values_list('team_id', flat=True)
+                )
+                target_player = (
+                    Player.objects
+                    .filter(
+                        Q(workspace_links__workspace=workspace) | Q(team_id__in=workspace_team_ids),
+                        id=int(existing_player_id),
+                    )
+                    .select_related('team')
+                    .first()
+                )
+                if not target_player:
+                    raise ValueError('Jugador no encontrado en este club.')
+                number = _parse_int(number_raw) if number_raw else target_player.number
+                if number is not None and (number < 1 or number > 99):
+                    raise ValueError('El dorsal debe estar entre 1 y 99.')
+                if int(getattr(target_player, 'team_id', 0) or 0) != int(primary_team.id):
+                    target_player.team = primary_team
+                target_player.number = number
+                if position:
+                    target_player.position = position[:60]
+                target_player.is_active = is_active
+                updates = ['team', 'number', 'position', 'is_active']
+                updates.extend(_apply_player_profile_fields(target_player))
+                target_player.save(update_fields=sorted(set(updates)))
+                ensure_workspace_player(workspace, target_player, current_team=primary_team, is_active=is_active)
+                if active_club_season and active_club_season_is_current:
+                    ensure_player_season_membership(
+                        active_club_season,
+                        target_player,
+                        team=primary_team,
+                        confirmed=False,
+                        status=(
+                            WorkspaceSeasonPlayer.STATUS_PENDING
+                            if target_player.is_active
+                            else WorkspaceSeasonPlayer.STATUS_INACTIVE
+                        ),
+                    )
+                message = f'Jugador añadido al equipo: {target_player.name}.'
             else:
-                if not name:
+                if not (name or full_name):
                     raise ValueError('El nombre es obligatorio.')
+                if not name:
+                    name = full_name[:120]
                 number = _parse_int(number_raw) if number_raw else None
+                if number is not None and (number < 1 or number > 99):
+                    raise ValueError('El dorsal debe estar entre 1 y 99.')
                 target_player = (
                     Player.objects.filter(team=primary_team, name__iexact=name)
                     .order_by('id')
@@ -27824,17 +28107,28 @@ def coach_roster_page(request):
                 )
                 if target_player:
                     target_player.number = number
-                    target_player.position = position
+                    target_player.position = position[:60]
                     target_player.is_active = is_active
-                    target_player.save(update_fields=['number', 'position', 'is_active'])
+                    updates = ['number', 'position', 'is_active']
+                    updates.extend(_apply_player_profile_fields(target_player))
+                    target_player.save(update_fields=sorted(set(updates)))
                     ensure_workspace_player(workspace, target_player, current_team=primary_team, is_active=is_active)
                     message = f'Jugador actualizado: {target_player.name}.'
                 else:
                     target_player = Player.objects.create(
                         team=primary_team,
-                        name=name,
+                        name=name[:120],
+                        full_name=full_name[:180],
+                        nickname=nickname[:80],
+                        birth_date=birth_date,
+                        height_cm=_parse_height(),
+                        weight_kg=_parse_positive_decimal(request.POST.get('weight_kg'), max_value=180),
+                        origin_team=origin_team[:160],
+                        dominant_foot=dominant_foot[:16],
+                        preferred_position=preferred_position[:60],
+                        previous_season_position=previous_season_position[:60],
                         number=number,
-                        position=position,
+                        position=position[:60],
                         is_active=is_active,
                     )
                     ensure_workspace_player(workspace, target_player, current_team=primary_team, is_active=is_active)
@@ -27862,6 +28156,23 @@ def coach_roster_page(request):
             error = 'No se pudo guardar el jugador. Revisa los datos.'
 
     players = list(Player.objects.filter(team=primary_team).order_by('is_active', 'number', 'name'))
+    club_player_options = []
+    try:
+        workspace_team_ids = list(
+            WorkspaceTeam.objects
+            .filter(workspace=workspace)
+            .values_list('team_id', flat=True)
+        )
+        club_player_options = list(
+            Player.objects
+            .filter(Q(workspace_links__workspace=workspace) | Q(team_id__in=workspace_team_ids))
+            .exclude(team=primary_team)
+            .select_related('team')
+            .distinct()
+            .order_by('name', 'id')[:250]
+        )
+    except Exception:
+        club_player_options = []
     if active_club_season and players:
         try:
             player_ids = [int(p.id) for p in players if getattr(p, 'id', None)]
@@ -27961,6 +28272,7 @@ def coach_roster_page(request):
         {
             'team_name': primary_team.display_name,
             'players': players,
+            'club_player_options': club_player_options,
             'player_cards': player_cards,
             'active_club_season': active_club_season,
             'active_club_season_is_current': active_club_season_is_current,
@@ -38360,6 +38672,7 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
     tactics_team_secondary = ''
     tactics_team_primary_soft = ''
     tactics_team_secondary_soft = ''
+    tactics_stadium_ads = {}
     try:
         tactics_team_name = str(primary_team.display_name or primary_team.name or '').strip()
     except Exception:
@@ -38369,17 +38682,20 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
     except Exception:
         tactics_team_crest_url = ''
     try:
-        hue = _team_color_seed(primary_team)
-        base_hue = int(hue) % 360
-        tactics_team_primary = f'hsl({base_hue}, 70%, 42%)'
-        tactics_team_secondary = f'hsl({(base_hue + 35) % 360}, 74%, 36%)'
-        tactics_team_primary_soft = f'hsla({base_hue}, 70%, 42%, 0.22)'
-        tactics_team_secondary_soft = f'hsla({(base_hue + 35) % 360}, 74%, 36%, 0.18)'
+        tactics_palette = _team_tactics_palette(workspace, primary_team)
+        tactics_team_primary = tactics_palette.get('primary') or ''
+        tactics_team_secondary = tactics_palette.get('secondary') or ''
+        tactics_team_primary_soft = tactics_palette.get('primary_soft') or ''
+        tactics_team_secondary_soft = tactics_palette.get('secondary_soft') or ''
     except Exception:
         tactics_team_primary = ''
         tactics_team_secondary = ''
         tactics_team_primary_soft = ''
         tactics_team_secondary_soft = ''
+    try:
+        tactics_stadium_ads = _team_stadium_ads(workspace, primary_team)
+    except Exception:
+        tactics_stadium_ads = {}
     return render(
         request,
         'football/task_builder.html',
@@ -38432,6 +38748,7 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             'tactics_team_secondary': tactics_team_secondary,
             'tactics_team_primary_soft': tactics_team_primary_soft,
             'tactics_team_secondary_soft': tactics_team_secondary_soft,
+            'tactics_stadium_ads': tactics_stadium_ads,
         },
     )
 

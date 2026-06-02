@@ -1941,7 +1941,10 @@
 			              '        <label style="display:flex; gap:10px; align-items:center;">',
 			              '          Cámara',
 			              '          <select id="task-pitch-3d-camera">',
-			              '            <option value="normal" selected>Normal</option>',
+			              '            <option value="drone" selected>Drone</option>',
+			              '            <option value="broadcast">Broadcast</option>',
+			              '            <option value="broadcast_high">Broadcast alto</option>',
+			              '            <option value="normal">Normal</option>',
 			              '            <option value="rotated">Rotada</option>',
 			              '            <option value="front">Frontal</option>',
 			              '            <option value="side">Lateral</option>',
@@ -1965,7 +1968,7 @@
 			              '        <button type="button" class="button" id="task-pitch-3d-snap" title="Guardar imagen PNG">PNG</button>',
 			              '        <button type="button" class="button" id="task-pitch-3d-record" title="Grabar WebM (beta)">REC</button>',
 			              '      </div>',
-			              '      <div class="sim-3d-note">Tip: arrastra para girar; pinch/rueda para zoom. En iPad, puedes grabar pantalla para MP4.</div>',
+			              '      <div class="sim-3d-note">Tip: arrastra para girar; rueda/pinch para zoom; Shift + arrastre o botón derecho desplaza el foco.</div>',
 			              '    </div>',
 			              '  </div>',
 			              '</div>',
@@ -2000,6 +2003,14 @@
 			    let pitch3dNextBtn = document.getElementById('task-pitch-3d-next');
 			    let pitch3dPresentBtn = document.getElementById('task-pitch-3d-present');
 			    let pitch3dFullscreenBtn = document.getElementById('task-pitch-3d-fullscreen');
+			    try {
+			      if (pitch3dModal && pitch3dModal.parentElement !== document.body) {
+			        document.body.appendChild(pitch3dModal);
+			      }
+			      if (pitch3dModal && pitch3dModal.style) {
+			        pitch3dModal.style.zIndex = '2147482600';
+			      }
+			    } catch (e) { /* ignore */ }
 			    const videoLoadBtn = document.getElementById('task-video-load');
 			    const videoClearBtn = document.getElementById('task-video-clear');
 			    const videoFileInput = document.getElementById('task-video-file');
@@ -7886,6 +7897,464 @@
 						      };
 						    })();
 
+						    const readPitch3dStadiumContext = () => {
+						      let ads = {};
+						      try {
+						        const raw = document.getElementById('tpad-stadium-ads')?.textContent || '{}';
+						        const parsed = JSON.parse(raw);
+						        ads = (parsed && typeof parsed === 'object') ? parsed : {};
+						      } catch (e) { ads = {}; }
+						      const teamName = safeText(form?.dataset?.stadiumTeamName, 'Equipo');
+						      return {
+						        teamName,
+						        initials: teamName.split(/\s+/).filter(Boolean).slice(0, 3).map((part) => part[0]).join('').toUpperCase() || 'FC',
+						        primary: safeText(form?.dataset?.stadiumTeamPrimary, '#0f7a35'),
+						        secondary: safeText(form?.dataset?.stadiumTeamSecondary, '#ffffff'),
+						        mainStandSrc: safeText(form?.dataset?.stadiumMainStandSrc),
+						        ads: {
+						          top: safeText(ads.top, teamName || 'Club'),
+						          right: safeText(ads.right, '2J Football Intelligence'),
+						          bottom: safeText(ads.bottom, teamName || 'Club'),
+						          left: safeText(ads.left, 'Partner'),
+						          top_logo_data_url: safeText(ads.top_logo_data_url),
+						          right_logo_data_url: safeText(ads.right_logo_data_url),
+						          bottom_logo_data_url: safeText(ads.bottom_logo_data_url),
+						          left_logo_data_url: safeText(ads.left_logo_data_url),
+						        },
+						      };
+						    };
+
+						    const makePitch3dCanvasTexture = (draw, width = 1024, height = 256) => {
+						      const c = document.createElement('canvas');
+						      c.width = Math.max(64, Math.round(width));
+						      c.height = Math.max(32, Math.round(height));
+						      const ctx = c.getContext('2d');
+						      if (!ctx) return null;
+						      draw(ctx, c);
+						      const tex = new THREE.CanvasTexture(c);
+						      tex.anisotropy = 4;
+						      tex.needsUpdate = true;
+						      return { canvas: c, ctx, tex };
+						    };
+
+						    const makePitch3dTextMaterial = (text, opts = {}) => {
+						      const primary = safeText(opts.primary, '#0f7a35');
+						      const secondary = safeText(opts.secondary, '#ffffff');
+						      const fill = safeText(opts.fill, '#f8fafc');
+						      const bg = safeText(opts.bg, primary);
+						      const texture = makePitch3dCanvasTexture((ctx, c) => {
+						        const grd = ctx.createLinearGradient(0, 0, c.width, 0);
+						        grd.addColorStop(0, '#020617');
+						        grd.addColorStop(0.24, bg);
+						        grd.addColorStop(0.72, primary);
+						        grd.addColorStop(1, '#020617');
+						        ctx.fillStyle = grd;
+						        ctx.fillRect(0, 0, c.width, c.height);
+						        ctx.fillStyle = 'rgba(255,255,255,0.10)';
+						        for (let x = 0; x < c.width; x += 34) ctx.fillRect(x, 0, 2, c.height);
+						        ctx.strokeStyle = secondary;
+						        ctx.globalAlpha = 0.42;
+						        ctx.lineWidth = 10;
+						        ctx.strokeRect(5, 5, c.width - 10, c.height - 10);
+						        ctx.globalAlpha = 1;
+						        ctx.fillStyle = fill;
+						        ctx.textAlign = 'center';
+						        ctx.textBaseline = 'middle';
+						        ctx.font = `950 ${Math.round(c.height * (opts.large ? 0.44 : 0.36))}px system-ui, -apple-system, Segoe UI, Arial`;
+						        ctx.letterSpacing = '8px';
+						        ctx.fillText(safeText(text, 'CLUB').toUpperCase().slice(0, 42), c.width / 2, c.height / 2 + 2);
+						      }, opts.width || 1024, opts.height || 256);
+						      if (!texture) return null;
+						      const mat = new THREE.MeshBasicMaterial({ map: texture.tex, transparent: true, side: THREE.DoubleSide });
+						      mat.userData = { kind: 'pitch3d_canvas_texture' };
+						      return mat;
+						    };
+
+						    const makePitch3dAdMaterial = (label, logoUrl, opts = {}) => {
+						      const primary = safeText(opts.primary, '#0f7a35');
+						      const secondary = safeText(opts.secondary, '#ffffff');
+						      const texture = makePitch3dCanvasTexture((ctx, c) => {
+						        const drawBase = () => {
+						          const grd = ctx.createLinearGradient(0, 0, c.width, 0);
+						          grd.addColorStop(0, '#020617');
+						          grd.addColorStop(0.28, primary);
+						          grd.addColorStop(0.72, secondary);
+						          grd.addColorStop(1, '#020617');
+						          ctx.fillStyle = grd;
+						          ctx.fillRect(0, 0, c.width, c.height);
+						          ctx.fillStyle = 'rgba(255,255,255,0.11)';
+						          for (let x = 0; x < c.width; x += 38) ctx.fillRect(x, 0, 2, c.height);
+						          ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+						          ctx.lineWidth = 5;
+						          ctx.strokeRect(3, 3, c.width - 6, c.height - 6);
+						        };
+						        drawBase();
+						        ctx.fillStyle = '#f8fafc';
+						        ctx.textAlign = 'center';
+						        ctx.textBaseline = 'middle';
+						        ctx.font = `950 ${Math.round(c.height * 0.42)}px system-ui, -apple-system, Segoe UI, Arial`;
+						        ctx.fillText(safeText(label, 'SPONSOR').toUpperCase().slice(0, 34), c.width / 2, c.height / 2 + 1);
+						        const logo = safeText(logoUrl);
+						        if (logo) {
+						          try {
+						            const img = new Image();
+						            img.onload = () => {
+						              try {
+						                drawBase();
+						                const maxW = c.width * 0.76;
+						                const maxH = c.height * 0.72;
+						                const scale = Math.min(maxW / Math.max(1, img.width), maxH / Math.max(1, img.height));
+						                const w = img.width * scale;
+						                const h = img.height * scale;
+						                ctx.drawImage(img, (c.width - w) / 2, (c.height - h) / 2, w, h);
+						                texture.tex.needsUpdate = true;
+						              } catch (e) { /* ignore */ }
+						            };
+						            img.src = logo;
+						          } catch (e) { /* ignore */ }
+						        }
+						      }, opts.width || 1024, opts.height || 192);
+						      if (!texture) return null;
+						      const mat = new THREE.MeshBasicMaterial({ map: texture.tex, side: THREE.DoubleSide });
+						      mat.userData = { kind: 'pitch3d_canvas_texture' };
+						      return mat;
+						    };
+
+						    const makePitch3dStandMosaicMaterial = (teamName, opts = {}) => {
+						      const primary = safeText(opts.primary, '#0f7a35');
+						      const secondary = safeText(opts.secondary, '#ffffff');
+						      const initials = safeText(opts.initials, 'FC');
+						      const imageUrl = safeText(opts.imageUrl);
+						      if (imageUrl && window.THREE) {
+						        const mat = new THREE.MeshStandardMaterial({
+						          color: 0xffffff,
+						          roughness: 0.62,
+						          metalness: 0.02,
+						          side: THREE.DoubleSide,
+						        });
+						        mat.userData = { kind: 'pitch3d_external_stand_texture' };
+						        try {
+						          const loader = new THREE.TextureLoader();
+						          loader.load(imageUrl, (tex) => {
+						            try {
+						              tex.anisotropy = 8;
+						              tex.needsUpdate = true;
+						              mat.map = tex;
+						              mat.needsUpdate = true;
+						            } catch (e) { /* ignore */ }
+						          });
+						        } catch (e) { /* ignore */ }
+						        return mat;
+						      }
+						      const texture = makePitch3dCanvasTexture((ctx, c) => {
+						        const bg = ctx.createLinearGradient(0, 0, 0, c.height);
+						        bg.addColorStop(0, '#0b3022');
+						        bg.addColorStop(0.55, primary);
+						        bg.addColorStop(1, '#07311f');
+						        ctx.fillStyle = bg;
+						        ctx.fillRect(0, 0, c.width, c.height);
+
+						        // Pasillos y vomitorios.
+						        const aisleW = c.width * 0.035;
+						        const aisles = [0.08, 0.20, 0.33, 0.48, 0.62, 0.76, 0.90];
+						        ctx.fillStyle = '#d1d5db';
+						        aisles.forEach((t) => {
+						          const x = (c.width * t) - (aisleW / 2);
+						          ctx.fillRect(x, 0, aisleW, c.height);
+						          ctx.fillStyle = '#9ca3af';
+						          ctx.fillRect(x + (aisleW * 0.42), 0, Math.max(2, aisleW * 0.16), c.height);
+						          ctx.fillStyle = '#d1d5db';
+						        });
+						        ctx.fillStyle = '#111827';
+						        for (let i = 0; i < 6; i += 1) {
+						          const x = c.width * (0.11 + (i * 0.14));
+						          const y = c.height * 0.55;
+						          ctx.fillRect(x, y, c.width * 0.055, c.height * 0.16);
+						          ctx.fillStyle = '#e5e7eb';
+						          ctx.fillRect(x + 5, y + 5, c.width * 0.055 - 10, c.height * 0.16 - 10);
+						          ctx.fillStyle = '#111827';
+						          ctx.fillRect(x + 10, y + 10, c.width * 0.055 - 20, c.height * 0.16 - 20);
+						        }
+
+						        // Patrón de asientos individuales.
+						        const seatW = 6;
+						        const seatH = 4;
+						        for (let y = 14; y < c.height - 12; y += 11) {
+						          for (let x = 10; x < c.width - 10; x += 12) {
+						            if (aisles.some((t) => Math.abs(x - (c.width * t)) < aisleW * 0.72)) continue;
+						            ctx.fillStyle = 'rgba(2, 6, 23, 0.28)';
+						            ctx.fillRect(x, y + 3, seatW, 2);
+						            ctx.fillStyle = 'rgba(255,255,255,0.10)';
+						            ctx.fillRect(x, y, seatW, seatH);
+						          }
+						        }
+
+						        // Letras blancas integradas en la grada, como mosaico de asientos.
+						        const label = safeText(teamName, 'CLUB').toUpperCase().slice(0, 26);
+						        ctx.textAlign = 'center';
+						        ctx.textBaseline = 'middle';
+						        ctx.font = `950 ${Math.round(c.height * 0.19)}px system-ui, -apple-system, Segoe UI, Arial`;
+						        ctx.lineWidth = Math.max(8, c.height * 0.022);
+						        ctx.strokeStyle = 'rgba(2, 6, 23, 0.34)';
+						        ctx.strokeText(label, c.width / 2, c.height * 0.68);
+						        ctx.fillStyle = secondary;
+						        ctx.fillText(label, c.width / 2, c.height * 0.68);
+
+						        // Escudo circular centrado arriba.
+						        const r = c.height * 0.145;
+						        const cx = c.width * 0.5;
+						        const cy = c.height * 0.28;
+						        ctx.beginPath();
+						        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+						        ctx.fillStyle = '#f8fafc';
+						        ctx.fill();
+						        ctx.lineWidth = 8;
+						        ctx.strokeStyle = primary;
+						        ctx.stroke();
+						        ctx.beginPath();
+						        ctx.arc(cx, cy, r * 0.72, 0, Math.PI * 2);
+						        ctx.strokeStyle = '#064e3b';
+						        ctx.lineWidth = 4;
+						        ctx.stroke();
+						        ctx.fillStyle = primary;
+						        ctx.font = `950 ${Math.round(r * 0.58)}px system-ui, -apple-system, Segoe UI, Arial`;
+						        ctx.fillText(initials.slice(0, 4), cx, cy + 2);
+
+						        // Barandillas horizontales.
+						        ctx.strokeStyle = 'rgba(248,250,252,0.60)';
+						        ctx.lineWidth = 4;
+						        [0.18, 0.50, 0.82].forEach((t) => {
+						          ctx.beginPath();
+						          ctx.moveTo(0, c.height * t);
+						          ctx.lineTo(c.width, c.height * t);
+						          ctx.stroke();
+						        });
+						      }, opts.width || 2048, opts.height || 768);
+						      if (!texture) return null;
+						      const mat = new THREE.MeshStandardMaterial({
+						        map: texture.tex,
+						        roughness: 0.74,
+						        metalness: 0.02,
+						        side: THREE.DoubleSide,
+						      });
+						      mat.userData = { kind: 'pitch3d_canvas_texture' };
+						      return mat;
+						    };
+
+						    const buildPremiumStadium3d = (root, metersW, metersH) => {
+						      if (!root || !window.THREE) return;
+						      const ctx = readPitch3dStadiumContext();
+						      const primary = ctx.primary;
+						      const secondary = ctx.secondary;
+						      const primaryInt = toColorInt(primary, 0x0f7a35);
+						      const secondaryInt = toColorInt(secondary, 0xf8fafc);
+						      const halfW = metersW / 2;
+						      const halfH = metersH / 2;
+						      const group = new THREE.Group();
+						      group.userData = { kind: 'premium_stadium' };
+						      root.add(group);
+
+						      const concreteMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.92, metalness: 0.02 });
+						      const darkMat = new THREE.MeshStandardMaterial({ color: 0x07111f, roughness: 0.86, metalness: 0.04 });
+						      const seatMat = new THREE.MeshStandardMaterial({ color: primaryInt, roughness: 0.82, metalness: 0.02 });
+						      const seatAltMat = new THREE.MeshStandardMaterial({ color: secondaryInt, roughness: 0.78, metalness: 0.02 });
+						      const glassMat = new THREE.MeshStandardMaterial({ color: 0xc7d2fe, roughness: 0.18, metalness: 0.02, transparent: true, opacity: 0.30 });
+						      const lightMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+						      const addBox = (geo, mat, pos, rot = null) => {
+						        const mesh = new THREE.Mesh(geo, mat);
+						        mesh.position.set(pos.x || 0, pos.y || 0, pos.z || 0);
+						        if (rot) mesh.rotation.set(rot.x || 0, rot.y || 0, rot.z || 0);
+						        try { mesh.receiveShadow = true; mesh.castShadow = true; } catch (e) {}
+						        group.add(mesh);
+						        return mesh;
+						      };
+
+						      const addSeatDots = (side, count, rowCount) => {
+						        const dotGeo = new THREE.BoxGeometry(0.34, 0.10, 0.28);
+						        const matA = new THREE.MeshStandardMaterial({ color: primaryInt, roughness: 0.88, metalness: 0 });
+						        const matB = new THREE.MeshStandardMaterial({ color: secondaryInt, roughness: 0.88, metalness: 0 });
+						        const instA = new THREE.InstancedMesh(dotGeo, matA, count * rowCount);
+						        const instB = new THREE.InstancedMesh(dotGeo, matB, count * rowCount);
+						        const dummy = new THREE.Object3D();
+						        let ia = 0;
+						        let ib = 0;
+						        const isSideline = side === 'north' || side === 'south';
+						        const signZ = side === 'north' ? -1 : side === 'south' ? 1 : 0;
+						        const signX = side === 'west' ? -1 : side === 'east' ? 1 : 0;
+						        for (let r = 0; r < rowCount; r += 1) {
+						          for (let i = 0; i < count; i += 1) {
+						            const t = (i / Math.max(1, count - 1)) - 0.5;
+						            const y = 1.0 + (r * 0.74);
+						            const outward = 7.2 + (r * 1.06);
+						            const stripe = (i + r) % 9 === 0 || (r === 4 && i > count * 0.36 && i < count * 0.64);
+						            if (isSideline) {
+						              dummy.position.set(t * (metersW + 13), y, signZ * (halfH + outward));
+						              dummy.rotation.set(-0.16 * signZ, 0, 0);
+						            } else {
+						              dummy.position.set(signX * (halfW + outward), y, t * (metersH + 9));
+						              dummy.rotation.set(0, 0, 0.16 * signX);
+						            }
+						            dummy.updateMatrix();
+						            if (stripe) {
+						              instB.setMatrixAt(ib, dummy.matrix);
+						              ib += 1;
+						            } else {
+						              instA.setMatrixAt(ia, dummy.matrix);
+						              ia += 1;
+						            }
+						          }
+						        }
+						        instA.count = ia;
+						        instB.count = ib;
+						        group.add(instA, instB);
+						      };
+
+						      const standDepth = 18;
+						      const addSidelineStand = (side) => {
+						        const sign = side === 'north' ? -1 : 1;
+						        for (let i = 0; i < 5; i += 1) {
+						          addBox(
+						            new THREE.BoxGeometry(metersW + 18 - (i * 1.2), 1.1, 3.2),
+						            i % 2 ? seatMat : darkMat,
+						            { x: 0, y: 0.55 + (i * 0.92), z: sign * (halfH + 6.8 + (i * 2.55)) },
+						            { x: sign * -0.08, y: 0, z: 0 },
+						          );
+						        }
+						        addBox(new THREE.BoxGeometry(metersW + 25, 0.9, standDepth), concreteMat, { x: 0, y: 0.18, z: sign * (halfH + 13) });
+						        addSeatDots(side, 74, 9);
+						        const roof = addBox(
+						          new THREE.BoxGeometry(metersW + 34, 0.55, 13),
+						          darkMat,
+						          { x: 0, y: 9.6, z: sign * (halfH + 21.5) },
+						          { x: sign * 0.10, y: 0, z: 0 },
+						        );
+						        roof.userData = { kind: 'stadium_roof' };
+						        for (let i = 0; i < 8; i += 1) {
+						          const x = -metersW / 2 + (i * metersW / 7);
+						          addBox(new THREE.BoxGeometry(0.34, 4.8, 0.34), concreteMat, { x, y: 7.0, z: sign * (halfH + 16.2) });
+						          addBox(new THREE.BoxGeometry(1.6, 0.18, 0.72), lightMat, { x, y: 9.18, z: sign * (halfH + 14.7) });
+						        }
+						      };
+						      const addEndStand = (side) => {
+						        const sign = side === 'west' ? -1 : 1;
+						        for (let i = 0; i < 4; i += 1) {
+						          addBox(
+						            new THREE.BoxGeometry(3.0, 0.95, metersH + 8 - (i * 0.9)),
+						            i % 2 ? seatMat : darkMat,
+						            { x: sign * (halfW + 6.4 + (i * 2.3)), y: 0.55 + (i * 0.86), z: 0 },
+						          );
+						        }
+						        addBox(new THREE.BoxGeometry(15, 0.8, metersH + 14), concreteMat, { x: sign * (halfW + 12), y: 0.16, z: 0 });
+						        addSeatDots(side, 42, 7);
+						      };
+
+						      addSidelineStand('north');
+						      addSidelineStand('south');
+						      addEndStand('west');
+						      addEndStand('east');
+
+						      const standMosaicMat = makePitch3dStandMosaicMaterial(ctx.teamName, { primary, secondary, initials: ctx.initials, imageUrl: ctx.mainStandSrc });
+						      if (standMosaicMat) {
+						        const mosaicW = metersW + 28;
+						        const mosaicH = 34;
+						        const mosaic = new THREE.Mesh(new THREE.PlaneGeometry(mosaicW, mosaicH, 1, 1), standMosaicMat);
+						        mosaic.position.set(0, 16.8, -(halfH + 14.2));
+						        mosaic.rotation.x = 0;
+						        mosaic.userData = { kind: 'main_stand_mosaic' };
+						        group.add(mosaic);
+						        const lowerWall = addBox(
+						          new THREE.BoxGeometry(metersW + 16, 2.0, 1.1),
+						          concreteMat,
+						          { x: 0, y: 1.15, z: -(halfH + 8.4) },
+						        );
+						        lowerWall.userData = { kind: 'main_stand_lower_wall' };
+						        const topBeam = addBox(
+						          new THREE.BoxGeometry(metersW + 18, 0.45, 1.2),
+						          darkMat,
+						          { x: 0, y: 12.5, z: -(halfH + 20.4) },
+						        );
+						        topBeam.userData = { kind: 'main_stand_top_beam' };
+						        const railMat = new THREE.MeshStandardMaterial({ color: 0xe5e7eb, roughness: 0.54, metalness: 0.08 });
+						        [-0.46, -0.23, 0, 0.23, 0.46].forEach((t) => {
+						          addBox(new THREE.BoxGeometry(0.35, 9.4, 0.28), railMat, { x: t * metersW, y: 6.8, z: -(halfH + 15.0) }, { x: -0.05, y: 0, z: 0 });
+						        });
+						        const roofMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.72, metalness: 0.08 });
+						        const roof = addBox(
+						          new THREE.BoxGeometry(metersW + 26, 0.42, 18),
+						          roofMat,
+						          { x: 0, y: 15.0, z: -(halfH + 24.8) },
+						          { x: -0.10, y: 0, z: 0 },
+						        );
+						        roof.userData = { kind: 'main_stand_roof' };
+						        for (let i = 0; i < 11; i += 1) {
+						          const x = -metersW / 2 + (i * metersW / 10);
+						          addBox(new THREE.BoxGeometry(0.28, 6.2, 0.28), railMat, { x, y: 12.0, z: -(halfH + 20.4) }, { x: -0.08, y: 0, z: 0 });
+						          addBox(new THREE.BoxGeometry(2.2, 0.22, 0.55), lightMat, { x, y: 14.35, z: -(halfH + 16.8) });
+						        }
+						      }
+
+						      const nameMat = null;
+						      if (nameMat) {
+						        const sign = -1;
+						        const name = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(metersW * 0.74, 76), 7.4), nameMat);
+						        name.position.set(0, 5.3, sign * (halfH + 9.7));
+						        name.rotation.y = 0;
+						        group.add(name);
+						      }
+						      const crestMat = makePitch3dTextMaterial(ctx.initials, { primary: secondary, secondary: primary, fill: '#0b1220', width: 512, height: 512 });
+						      if (crestMat) {
+						        if (!ctx.mainStandSrc) {
+						          const crest = new THREE.Mesh(new THREE.CircleGeometry(4.2, 64), crestMat);
+						          crest.position.set(0, 8.2, -(halfH + 14.2));
+						          group.add(crest);
+						        }
+						        const board = new THREE.Mesh(new THREE.PlaneGeometry(7.8, 4.2), crestMat);
+						        board.position.set(halfW + 9.8, 5.0, -(halfH + 9.0));
+						        board.rotation.y = -Math.PI / 2;
+						        group.add(board);
+						      }
+
+						      const adH = 1.45;
+						      const adY = 0.84;
+						      const adOffset = 1.25;
+						      const addAd = (side, label, logoUrl) => {
+						        const longSide = side === 'north' || side === 'south';
+						        const mat = makePitch3dAdMaterial(label, logoUrl, { primary, secondary, width: longSide ? 1024 : 512, height: 160 });
+						        if (!mat) return;
+						        const geo = new THREE.PlaneGeometry(longSide ? metersW * 0.33 : metersH * 0.32, adH);
+						        const segments = longSide ? [-0.34, 0, 0.34] : [-0.28, 0.28];
+						        segments.forEach((t, idx) => {
+						          const mesh = new THREE.Mesh(geo, mat.clone());
+						          if (longSide) {
+						            mesh.position.set(t * metersW, adY, (side === 'north' ? -1 : 1) * (halfH + adOffset));
+						            mesh.rotation.y = side === 'north' ? 0 : Math.PI;
+						          } else {
+						            mesh.position.set((side === 'west' ? -1 : 1) * (halfW + adOffset), adY, t * metersH);
+						            mesh.rotation.y = side === 'west' ? Math.PI / 2 : -Math.PI / 2;
+						          }
+						          mesh.userData = { kind: 'stadium_ad', side, idx };
+						          group.add(mesh);
+						        });
+						      };
+						      addAd('north', ctx.ads.top, ctx.ads.top_logo_data_url);
+						      addAd('south', ctx.ads.bottom, ctx.ads.bottom_logo_data_url);
+						      addAd('west', ctx.ads.left, ctx.ads.left_logo_data_url);
+						      addAd('east', ctx.ads.right, ctx.ads.right_logo_data_url);
+
+						      const benchMat = new THREE.MeshStandardMaterial({ color: primaryInt, roughness: 0.28, metalness: 0.05, transparent: true, opacity: 0.88 });
+						      const benchFrameMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.44, metalness: 0.12 });
+						      [-0.22, 0.22].forEach((t) => {
+						        addBox(new THREE.BoxGeometry(12, 1.2, 2.2), benchMat, { x: t * metersW, y: 1.0, z: halfH + 4.6 });
+						        addBox(new THREE.BoxGeometry(12.8, 0.18, 2.6), benchFrameMat, { x: t * metersW, y: 1.72, z: halfH + 4.6 });
+						        addBox(new THREE.BoxGeometry(0.18, 1.8, 2.6), benchFrameMat, { x: t * metersW - 6.3, y: 0.9, z: halfH + 4.6 });
+						        addBox(new THREE.BoxGeometry(0.18, 1.8, 2.6), benchFrameMat, { x: t * metersW + 6.3, y: 0.9, z: halfH + 4.6 });
+						      });
+
+						      const floorMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.96, metalness: 0 });
+						      addBox(new THREE.BoxGeometry(metersW + 42, 0.08, metersH + 42), floorMat, { x: 0, y: -0.08, z: 0 });
+						    };
+
 						    let pitch3dRenderer = null;
 						    let pitch3dScene = null;
 						    let pitch3dCamera = null;
@@ -7978,12 +8447,12 @@
 						      if (!canUsePitch3d()) return false;
 						      if (pitch3dRenderer && pitch3dScene && pitch3dCamera) return true;
 						      try {
-						        const renderer = new THREE.WebGLRenderer({ canvas: pitch3dCanvasEl, antialias: true, alpha: true, preserveDrawingBuffer: true });
+						        const renderer = new THREE.WebGLRenderer({ canvas: pitch3dCanvasEl, antialias: true, alpha: false, preserveDrawingBuffer: true });
 						        renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-						        renderer.setClearColor(0x000000, 0);
+						        renderer.setClearColor(0x06101f, 1);
 						        pitch3dRenderer = renderer;
 						        pitch3dScene = new THREE.Scene();
-						        pitch3dCamera = new THREE.PerspectiveCamera(50, 16 / 9, 0.1, 2000);
+						        pitch3dCamera = new THREE.PerspectiveCamera(58, 16 / 9, 0.1, 2000);
 						        const hemi = new THREE.HemisphereLight(0xffffff, 0x0b1020, 0.85);
 						        pitch3dScene.add(hemi);
 						        const dir = new THREE.DirectionalLight(0xffffff, 0.9);
@@ -8018,26 +8487,32 @@
 							    const setCameraPreset = (presetKey, metersW, metersH) => {
 							      if (!pitch3dCamera) return;
 							      const k = safeText(presetKey, 'normal');
-							      const base = Math.max(30, metersW);
+							      let targetX = 0;
+							      let targetY = 0;
+							      let targetZ = 0;
 							      if (k === 'top_h' || k === 'top_v') {
 							        pitch3dOrbit.theta = k === 'top_h' ? 0 : (Math.PI / 2);
 							        pitch3dOrbit.phi = 0.02;
 							        pitch3dOrbit.radius = Math.max(70, Math.max(metersW, metersH) * 1.25);
-							      } else if (k === 'broadcast') {
-							        // “TV”: lateral, baja, con más profundidad.
+						      } else if (k === 'broadcast') {
+						        // “TV”: cámara desde banda, baja, mirando dentro del estadio.
 							        pitch3dOrbit.theta = Math.PI / 2;
-							        pitch3dOrbit.phi = 1.22;
-							        pitch3dOrbit.radius = Math.max(110, metersW * 1.45);
-							      } else if (k === 'broadcast_high') {
-							        // “TV alto”: ligeramente más cenital para explicar espacios.
-							        pitch3dOrbit.theta = Math.PI / 2;
-							        pitch3dOrbit.phi = 1.05;
-							        pitch3dOrbit.radius = Math.max(120, metersW * 1.55);
-							      } else if (k === 'drone') {
-							        // Drone/analista: alto y en diagonal.
-							        pitch3dOrbit.theta = 2.35;
-							        pitch3dOrbit.phi = 0.62;
-							        pitch3dOrbit.radius = Math.max(95, metersW * 1.28);
+							        pitch3dOrbit.phi = 1.51;
+							        pitch3dOrbit.radius = Math.max(42, metersW * 0.43);
+							        targetX = 8;
+							        targetY = 0.85;
+							        targetZ = -18;
+						      } else if (k === 'broadcast_high') {
+						        // “TV alto”: ligeramente más cenital para explicar espacios.
+							        pitch3dOrbit.theta = 0.82;
+							        pitch3dOrbit.phi = 1.24;
+							        pitch3dOrbit.radius = Math.max(72, metersW * 0.82);
+							        targetY = 1.2;
+						      } else if (k === 'drone') {
+						        // Drone/analista: alto y en diagonal.
+							        pitch3dOrbit.theta = 0.92;
+							        pitch3dOrbit.phi = 0.82;
+							        pitch3dOrbit.radius = Math.max(96, metersW * 1.16);
 							      } else if (k === 'front') {
 							        pitch3dOrbit.theta = 0;
 							        pitch3dOrbit.phi = 0.9;
@@ -8055,9 +8530,9 @@
 						        pitch3dOrbit.phi = 0.95;
 						        pitch3dOrbit.radius = Math.max(85, metersW * 1.15);
 						      }
-						      pitch3dOrbit.targetX = 0;
-						      pitch3dOrbit.targetY = 0;
-						      pitch3dOrbit.targetZ = 0;
+						      pitch3dOrbit.targetX = targetX;
+						      pitch3dOrbit.targetY = targetY;
+						      pitch3dOrbit.targetZ = targetZ;
 						      // Aplica inmediatamente.
 						      const theta = pitch3dOrbit.theta;
 						      const phi = clamp(pitch3dOrbit.phi, 0.02, Math.PI - 0.02);
@@ -8117,30 +8592,31 @@
 						      });
 						      const ground = new THREE.Mesh(groundGeo, groundMat);
 						      ground.rotation.x = -Math.PI / 2;
-						      ground.position.y = -0.02;
+						      ground.position.y = 0.04;
 						      root.add(ground);
 
-						      // “Estadio” minimalista (como en muchos visores 3D): marco oscuro alrededor.
+						      // El campo es una pieza 3D, no una lámina 2D: base con canto visible y borde interior.
 						      try {
-						        const wallH = 2.4;
-						        const wallT = 1.2;
-						        const wallColor = 0x0b1020;
-						        const wallMat = new THREE.MeshStandardMaterial({ color: wallColor, roughness: 1, metalness: 0 });
-						        const pad = 3.5;
-						        const halfW = metersW / 2;
-						        const halfH = metersH / 2;
-						        const wallLong = new THREE.BoxGeometry(metersW + (pad * 2), wallH, wallT);
-						        const wallShort = new THREE.BoxGeometry(wallT, wallH, metersH + (pad * 2));
-						        const north = new THREE.Mesh(wallLong, wallMat);
-						        north.position.set(0, wallH / 2 - 0.2, -(halfH + pad));
-						        const south = new THREE.Mesh(wallLong, wallMat);
-						        south.position.set(0, wallH / 2 - 0.2, (halfH + pad));
-						        const west = new THREE.Mesh(wallShort, wallMat);
-						        west.position.set(-(halfW + pad), wallH / 2 - 0.2, 0);
-						        const east = new THREE.Mesh(wallShort, wallMat);
-						        east.position.set((halfW + pad), wallH / 2 - 0.2, 0);
-						        root.add(north, south, west, east);
+						        const pitchBaseMat = new THREE.MeshStandardMaterial({ color: 0x173f2a, roughness: 0.9, metalness: 0.01 });
+						        const pitchBase = new THREE.Mesh(new THREE.BoxGeometry(metersW + 2.0, 0.42, metersH + 2.0), pitchBaseMat);
+						        pitchBase.position.set(0, -0.25, 0);
+						        pitchBase.userData = { kind: 'pitch_slab' };
+						        root.add(pitchBase);
+						        const edgeMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.72, metalness: 0.02, transparent: true, opacity: 0.82 });
+						        const addEdge = (geo, x, z) => {
+						          const edge = new THREE.Mesh(geo, edgeMat);
+						          edge.position.set(x, 0.08, z);
+						          edge.userData = { kind: 'pitch_edge_3d' };
+						          root.add(edge);
+						        };
+						        addEdge(new THREE.BoxGeometry(metersW + 1.6, 0.10, 0.28), 0, -(metersH / 2 + 0.24));
+						        addEdge(new THREE.BoxGeometry(metersW + 1.6, 0.10, 0.28), 0, (metersH / 2 + 0.24));
+						        addEdge(new THREE.BoxGeometry(0.28, 0.10, metersH + 1.6), -(metersW / 2 + 0.24), 0);
+						        addEdge(new THREE.BoxGeometry(0.28, 0.10, metersH + 1.6), (metersW / 2 + 0.24), 0);
 						      } catch (e) { /* ignore */ }
+
+						      // Estadio premium parametrizable: gradas, vallas, banquillos, marcador y colores del equipo.
+						      try { buildPremiumStadium3d(root, metersW, metersH); } catch (e) { /* ignore */ }
 
 						      // Porterías 3D sencillas (frame + red muy sutil).
 						      const addGoal3d = (xSign) => {
@@ -9152,7 +9628,17 @@
 						      const onDown = (event) => {
 						        if (!pitch3dOpen) return;
 						        const e = event;
-						        pitch3dDrag = { x: e.clientX, y: e.clientY, theta: pitch3dOrbit.theta, phi: pitch3dOrbit.phi, moved: false };
+						        const mode = (e.button === 2 || e.shiftKey) ? 'pan' : 'orbit';
+						        pitch3dDrag = {
+						          x: e.clientX,
+						          y: e.clientY,
+						          theta: pitch3dOrbit.theta,
+						          phi: pitch3dOrbit.phi,
+						          targetX: pitch3dOrbit.targetX,
+						          targetZ: pitch3dOrbit.targetZ,
+						          mode,
+						          moved: false,
+						        };
 						        try { pitch3dCanvasEl.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
 						      };
 						      const onMove = (event) => {
@@ -9161,8 +9647,20 @@
 						        const dx = (Number(e.clientX) || 0) - pitch3dDrag.x;
 						        const dy = (Number(e.clientY) || 0) - pitch3dDrag.y;
 						        if (Math.abs(dx) + Math.abs(dy) > 6) pitch3dDrag.moved = true;
-						        pitch3dOrbit.theta = pitch3dDrag.theta - (dx * 0.008);
-						        pitch3dOrbit.phi = clamp(pitch3dDrag.phi - (dy * 0.008), 0.08, Math.PI - 0.08);
+						        if (safeText(pitch3dDrag.mode) === 'pan' && pitch3dCamera && window.THREE) {
+						          const scale = clamp(Number(pitch3dOrbit.radius) || 90, 30, 420) * 0.0022;
+						          const forward = new THREE.Vector3();
+						          pitch3dCamera.getWorldDirection(forward);
+						          forward.y = 0;
+						          if (forward.length() < 0.001) forward.set(0, 0, -1);
+						          forward.normalize();
+						          const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+						          pitch3dOrbit.targetX = clamp((Number(pitch3dDrag.targetX) || 0) - (right.x * dx * scale) + (forward.x * dy * scale), -70, 70);
+						          pitch3dOrbit.targetZ = clamp((Number(pitch3dDrag.targetZ) || 0) - (right.z * dx * scale) + (forward.z * dy * scale), -55, 55);
+						        } else {
+						          pitch3dOrbit.theta = pitch3dDrag.theta - (dx * 0.008);
+						          pitch3dOrbit.phi = clamp(pitch3dDrag.phi - (dy * 0.008), 0.18, 1.52);
+						        }
 						      };
 						      const onUp = (event) => {
 						        try {
@@ -9183,6 +9681,10 @@
 						      pitch3dCanvasEl.addEventListener('pointerup', onUp);
 						      pitch3dCanvasEl.addEventListener('pointercancel', onUp);
 						      pitch3dCanvasEl.addEventListener('wheel', onWheel, { passive: false });
+						      pitch3dCanvasEl.addEventListener('contextmenu', (event) => {
+						        if (!pitch3dOpen) return;
+						        event.preventDefault();
+						      });
 						    };
 						    try { installPitch3dControls(); } catch (e) { /* ignore */ }
 						    window.addEventListener('resize', () => { if (pitch3dOpen) resizePitch3d(); });

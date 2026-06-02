@@ -1593,6 +1593,8 @@
 
       const dashLastOkKey = 'sj_dash_last_ok';
       let dashLastSource = 'network';
+      let dashLastConnectivityOkAt = 0;
+      let dashOfflineCheckSeq = 0;
 
       function setOpBadge({ show = false, ok = false, text = '' } = {}) {
         const badge = document.getElementById('op-badge');
@@ -1636,10 +1638,11 @@
         return days === 1 ? 'hace 1 día' : `hace ${days} días`;
       }
 
-      function setNetBadge({ offline = false, cached = false } = {}) {
+      function setNetBadge({ offline = false, cached = false, rememberOk = true } = {}) {
         const badge = document.getElementById('net-badge');
         if (!badge) return;
         if (!offline) {
+          if (rememberOk) dashLastConnectivityOkAt = Date.now();
           badge.hidden = true;
           badge.classList.remove('ok');
           return;
@@ -1656,7 +1659,7 @@
         // `navigator.onLine` / evento offline no es fiable en iOS/WKWebView. Verificamos contra servidor.
         try {
           // Endpoint público: evita confundir "sesión caducada" con "offline".
-          const url = '/api/build/';
+          const url = `/api/build/?ts=${Date.now()}`;
           const opts = { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } };
           if (typeof AbortController !== 'undefined') {
             const ctrl = new AbortController();
@@ -1677,6 +1680,36 @@
         }
       }
 
+      async function confirmOfflineBeforeBadge({ cached = true, delayMs = 0 } = {}) {
+        const seq = ++dashOfflineCheckSeq;
+        if (delayMs > 0) {
+          await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+        }
+        if (seq !== dashOfflineCheckSeq) return false;
+
+        const okFirst = await verifyConnectivity();
+        if (okFirst) {
+          setNetBadge({ offline: false });
+          return false;
+        }
+
+        await new Promise((resolve) => window.setTimeout(resolve, 1200));
+        if (seq !== dashOfflineCheckSeq) return false;
+
+        const okSecond = await verifyConnectivity();
+        if (okSecond) {
+          setNetBadge({ offline: false });
+          return false;
+        }
+
+        // Evita mostrar offline por eventos espurios justo después de una respuesta buena.
+        if (Date.now() - dashLastConnectivityOkAt < 3500) return false;
+        setNetBadge({ offline: true, cached });
+        return true;
+      }
+
+      setNetBadge({ offline: false, rememberOk: false });
+
       // Verificación inicial suave (evita badge pegado tras volver del background).
       try {
         window.setTimeout(() => {
@@ -1687,13 +1720,12 @@
         }, 900);
       } catch (e) {}
 
-      window.addEventListener('online', () => setNetBadge({ offline: false }));
+      window.addEventListener('online', () => {
+        dashOfflineCheckSeq += 1;
+        setNetBadge({ offline: false });
+      });
       window.addEventListener('offline', () => {
-        void (async () => {
-          const ok = await verifyConnectivity();
-          if (ok) setNetBadge({ offline: false });
-          else setNetBadge({ offline: true, cached: true });
-        })();
+        void confirmOfflineBeforeBadge({ cached: true, delayMs: 700 });
       });
 
       // iOS/WKWebView: a veces no dispara `online` tras recuperar conectividad.
@@ -2268,6 +2300,7 @@
             window.localStorage.setItem(dashLastOkKey, String(Date.now()));
           }
           // `navigator.onLine` no es fiable en Safari/WKWebView. Si la petición ha sido OK, no mostramos "Offline".
+          dashOfflineCheckSeq += 1;
           setNetBadge({ offline: false, cached: dashLastSource === 'cache' });
 
           renderSetupBanner(payload);
@@ -2296,7 +2329,12 @@
           let offline = false;
           if (!isHttpError) {
             if (looksLikeNetwork) {
-              offline = true;
+              try {
+                const ok = await verifyConnectivity();
+                offline = !ok;
+              } catch (e) {
+                offline = true;
+              }
             } else if (reportedOffline) {
               // iOS puede reportar offline falsamente: comprobamos contra servidor antes de mostrar el badge.
               try {
@@ -2311,7 +2349,11 @@
           if (isHttpError && (msg.startsWith('dash_http_502') || msg.startsWith('dash_http_503') || msg.startsWith('dash_http_504'))) {
             offline = false;
           }
-          setNetBadge({ offline, cached: dashLastSource === 'cache' });
+          if (offline) {
+            void confirmOfflineBeforeBadge({ cached: dashLastSource === 'cache' });
+          } else {
+            setNetBadge({ offline: false });
+          }
           if (loading) {
             loading.hidden = false;
             loading.textContent = 'No se pudo cargar el dashboard. Prueba a refrescar.';
