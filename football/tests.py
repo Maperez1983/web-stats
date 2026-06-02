@@ -2411,6 +2411,42 @@ class SeasonHistoryServicesTests(TestCase):
         self.assertContains(response, self.player.name)
         self.assertNotContains(response, pending_player.name)
 
+    def test_roster_stats_cards_do_not_reuse_previous_season_manual_base_stats(self):
+        competition = Competition.objects.create(name='Liga Cards Antigua', slug='liga-cards-antigua', level=1, region='test')
+        federation_season = Season.objects.create(
+            competition=competition,
+            name='2025/2026',
+            start_date=date(2025, 9, 1),
+            end_date=date(2026, 6, 30),
+            is_current=True,
+        )
+        group = Group.objects.create(season=federation_season, name='Grupo Cards Antiguo', slug='grupo-cards-antiguo')
+        self.team.group = group
+        self.team.save(update_fields=['group'])
+        WorkspaceSeasonPlayer.objects.create(
+            season=self.season,
+            player=self.player,
+            team=self.team,
+            is_confirmed=True,
+            status=WorkspaceSeasonPlayer.STATUS_CONFIRMED,
+        )
+        PlayerStatistic.objects.create(player=self.player, season=federation_season, match=None, context='manual-base', name='manual_pj', value=31)
+        PlayerStatistic.objects.create(player=self.player, season=federation_season, match=None, context='manual-base', name='manual_minutes', value=2465)
+        PlayerStatistic.objects.create(player=self.player, season=federation_season, match=None, context='manual-base', name='manual_goals', value=18)
+
+        response = self.client.get(
+            f"{reverse('coach-roster')}?tab=stats&club_season_id={self.season.id}",
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        cards = response.context['player_cards']
+        self.assertEqual(len(cards), 1)
+        self.assertEqual(cards[0]['player_id'], self.player.id)
+        self.assertEqual(int(cards[0].get('pj') or 0), 0)
+        self.assertEqual(int(cards[0].get('minutes') or 0), 0)
+        self.assertEqual(int(cards[0].get('goals') or 0), 0)
+
     @patch('football.views.compute_player_dashboard')
     def test_player_detail_does_not_use_previous_stats_for_unconfirmed_season_player(self, mocked_dashboard):
         WorkspaceSeasonPlayer.objects.create(

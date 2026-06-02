@@ -28420,12 +28420,18 @@ def coach_roster_page(request):
     if active_tab == 'stats':
         try:
             force_refresh = str(request.GET.get('refresh') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+            card_date_start, card_date_end = (None, None)
+            if active_club_season:
+                card_date_start, card_date_end = club_season_date_bounds(active_club_season)
             player_cards = compute_player_cards(
                 primary_team,
                 force_refresh=force_refresh,
                 scope=scope_value,
                 tournament_name=tournament_filter,
                 request=request,
+                date_start=card_date_start,
+                date_end=card_date_end,
+                club_season=active_club_season,
             )
             if active_club_season:
                 player_cards = [
@@ -57194,6 +57200,16 @@ def compute_player_dashboard(
     date_start = date_start if isinstance(date_start, date) else None
     date_end = date_end if isinstance(date_end, date) else None
     dashboard_roster_season = None
+    if club_season:
+        try:
+            selected_start, selected_end = season_history_services.club_season_date_bounds(club_season)
+            if not date_start and selected_start:
+                date_start = selected_start
+            if not date_end and selected_end:
+                date_end = selected_end
+            dashboard_roster_season = club_season
+        except Exception:
+            dashboard_roster_season = club_season
     if not date_start and not date_end and request is not None:
         try:
             workspace = _get_active_workspace(request)
@@ -57204,12 +57220,9 @@ def compute_player_dashboard(
                     date_start = selected_start
                 if selected_end:
                     date_end = selected_end
-                if bool(getattr(selected_club_season, 'is_active', False)):
-                    dashboard_roster_season = selected_club_season
+                dashboard_roster_season = selected_club_season
         except Exception:
             pass
-    if club_season and bool(getattr(club_season, 'is_active', False)):
-        dashboard_roster_season = club_season
     can_use_cache = (not bool(force_refresh)) and (not tournament_filter) and (not date_start) and (not date_end)
     # Evita KPIs desactualizados: si el equipo tiene acciones *recientes* pendientes (`touch-field`),
     # no usamos caché para que PJ/minutos y contadores reflejen lo recién registrado.

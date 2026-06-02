@@ -273,7 +273,17 @@ def compute_player_cards_for_match(match, primary_team, source_file=None):
     return sorted(cards, key=lambda item: item['actions'], reverse=True)
 
 
-def compute_player_cards(primary_team, *, force_refresh=False, scope=None, tournament_name=None, request=None):
+def compute_player_cards(
+    primary_team,
+    *,
+    force_refresh=False,
+    scope=None,
+    tournament_name=None,
+    request=None,
+    date_start=None,
+    date_end=None,
+    club_season=None,
+):
     from .dashboard_services import compute_player_dashboard
 
     if not primary_team:
@@ -284,6 +294,9 @@ def compute_player_cards(primary_team, *, force_refresh=False, scope=None, tourn
         scope=scope,
         tournament_name=tournament_name,
         request=request,
+        date_start=date_start,
+        date_end=date_end,
+        club_season=club_season,
     )
     cards = []
     for row in dashboard_rows:
