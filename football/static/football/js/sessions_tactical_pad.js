@@ -8330,6 +8330,28 @@
 						        return mesh;
 						      };
 
+						      const addStairCuts = (side, count = 6) => {
+						        const cutMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.82, metalness: 0.02 });
+						        const tunnelMat = new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.92, metalness: 0.03 });
+						        const isSideline = side === 'north' || side === 'south';
+						        const signZ = side === 'north' ? -1 : side === 'south' ? 1 : 0;
+						        const signX = side === 'west' ? -1 : side === 'east' ? 1 : 0;
+						        for (let i = 0; i < count; i += 1) {
+						          const t = ((i + 1) / (count + 1)) - 0.5;
+						          if (isSideline) {
+						            const x = t * (metersW + 8);
+						            const z = signZ * (halfH + 14.2);
+						            addBox(new THREE.BoxGeometry(0.85, 0.16, 10.8), cutMat, { x, y: 4.7, z }, { x: signZ * -0.14, y: 0, z: 0 }).userData = { kind: 'stadium_stair_cut', side, idx: i };
+						            addBox(new THREE.BoxGeometry(2.8, 1.25, 1.3), tunnelMat, { x, y: 2.35, z: signZ * (halfH + 8.7) }, { x: signZ * -0.04, y: 0, z: 0 }).userData = { kind: 'stadium_vomitory', side, idx: i };
+						          } else {
+						            const z = t * (metersH + 4);
+						            const x = signX * (halfW + 14.0);
+						            addBox(new THREE.BoxGeometry(10.6, 0.16, 0.85), cutMat, { x, y: 4.5, z }, { x: 0, y: 0, z: signX * 0.14 }).userData = { kind: 'stadium_stair_cut', side, idx: i };
+						            addBox(new THREE.BoxGeometry(1.3, 1.25, 2.8), tunnelMat, { x: signX * (halfW + 8.5), y: 2.25, z }, { x: 0, y: 0, z: signX * 0.04 }).userData = { kind: 'stadium_vomitory', side, idx: i };
+						          }
+						        }
+						      };
+
 						      const addSeatDots = (side, count, rowCount) => {
 						        const dotGeo = new THREE.BoxGeometry(0.34, 0.10, 0.28);
 						        const matA = new THREE.MeshStandardMaterial({ color: primaryInt, roughness: 0.88, metalness: 0 });
@@ -8428,6 +8450,7 @@
 						            { x: sign * -0.10, y: 0, z: 0 },
 						          ).userData = { kind: 'stadium_side_concourse_ring', side, ring };
 						        });
+						        addStairCuts(side, side === 'north' ? 7 : 5);
 						        const roofMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.70, metalness: 0.10, transparent: true, opacity: 0.58 });
 						        const roof = addBox(
 						          new THREE.BoxGeometry(metersW + 34, 0.36, 10.5),
@@ -8496,6 +8519,7 @@
 						            { x: 0, y: 0, z: sign * 0.10 },
 						          ).userData = { kind: 'stadium_end_concourse_ring', side, ring };
 						        });
+						        addStairCuts(side, 4);
 						        const roofMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.70, metalness: 0.10, transparent: true, opacity: 0.54 });
 						        const roof = addBox(
 						          new THREE.BoxGeometry(10.5, 0.36, metersH + 28),
@@ -9080,6 +9104,29 @@
 						            sideNet.userData = { kind: 'goal_3d_side_net' };
 						            root.add(sideNet);
 						          });
+						          const gridMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.58, depthWrite: false });
+						          const addGridLine = (a, b, kind) => {
+						            const geo = new THREE.BufferGeometry().setFromPoints([
+						              new THREE.Vector3(a.x, a.y, a.z),
+						              new THREE.Vector3(b.x, b.y, b.z),
+						            ]);
+						            const line = new THREE.Line(geo, gridMat);
+						            line.userData = { kind };
+						            root.add(line);
+						          };
+						          for (let i = 0; i <= 6; i += 1) {
+						            const z = baseZ - (goalW / 2) + ((goalW / 6) * i);
+						            addGridLine({ x: backX, y: 0.15, z }, { x: backX, y: goalH, z }, 'goal_3d_back_net_vertical');
+						            addGridLine({ x: frontX, y: goalH, z }, { x: backX, y: goalH, z }, 'goal_3d_top_net_depth');
+						            addGridLine({ x: frontX, y: 0.08, z }, { x: backX, y: 0.08, z }, 'goal_3d_floor_net_depth');
+						          }
+						          for (let i = 0; i <= 4; i += 1) {
+						            const y = 0.15 + (((goalH - 0.15) / 4) * i);
+						            addGridLine({ x: backX, y, z: baseZ - (goalW / 2) }, { x: backX, y, z: baseZ + (goalW / 2) }, 'goal_3d_back_net_horizontal');
+						            zs.forEach((z) => {
+						              addGridLine({ x: frontX, y, z }, { x: backX, y, z }, 'goal_3d_side_net_horizontal');
+						            });
+						          }
 						        } catch (e) { /* ignore */ }
 						      };
 						      addGoal3d(-1);
