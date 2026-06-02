@@ -7918,6 +7918,7 @@
 						        primary: safeText(form?.dataset?.stadiumTeamPrimary, '#0f7a35'),
 						        secondary: safeText(form?.dataset?.stadiumTeamSecondary, '#ffffff'),
 						        crestUrl: safeText(form?.dataset?.stadiumTeamCrestUrl),
+						        modelSrc: safeText(form?.dataset?.stadiumModelSrc),
 						        mainStandSrc: safeText(form?.dataset?.stadiumMainStandSrc),
 						        sponsorLogos,
 						        ads: {
@@ -7931,6 +7932,69 @@
 						          left_logo_data_url: safeText(ads.left_logo_data_url),
 						        },
 						      };
+						    };
+
+						    const loadPitch3dBlenderStadium = (group, ctx, metersW, metersH) => {
+						      if (!group || !window.THREE || !ctx?.modelSrc) return false;
+						      const LoaderClass = window.__WEBSTATS_GLTF_LOADER_CLASS;
+						      if (typeof LoaderClass !== 'function') return false;
+						      const primaryInt = toColorInt(ctx.primary, 0x0f7a35);
+						      const secondaryInt = toColorInt(ctx.secondary, 0xf8fafc);
+						      const cache = window.__WEBSTATS_STADIUM_MODEL_CACHE || (window.__WEBSTATS_STADIUM_MODEL_CACHE = {});
+						      const applyMaterials = (obj) => {
+						        try {
+						          obj.traverse((node) => {
+						            if (!node?.isMesh) return;
+						            const name = String(node.material?.name || node.name || '').toLowerCase();
+						            let mat = node.material;
+						            if (name.includes('club_primary')) {
+						              mat = mat.clone();
+						              mat.color.setHex(primaryInt);
+						              node.material = mat;
+						            } else if (name.includes('club_secondary')) {
+						              mat = mat.clone();
+						              mat.color.setHex(secondaryInt);
+						              node.material = mat;
+						            } else if (name.includes('seat_alternate')) {
+						              mat = mat.clone();
+						              mat.color.setHex(secondaryInt);
+						              node.material = mat;
+						            }
+						            try {
+						              node.castShadow = true;
+						              node.receiveShadow = true;
+						            } catch (e) { /* ignore */ }
+						          });
+						        } catch (e) { /* ignore */ }
+						      };
+						      const attach = (scene) => {
+						        try {
+						          const model = scene.clone(true);
+						          model.name = 'blender_premium_stadium_shell';
+						          model.userData = { kind: 'blender_premium_stadium_shell' };
+						          model.scale.set(1, 1, 1);
+						          model.position.set(0, 0, 0);
+						          applyMaterials(model);
+						          group.add(model);
+						        } catch (e) { /* ignore */ }
+						      };
+						      if (cache[ctx.modelSrc]) {
+						        attach(cache[ctx.modelSrc]);
+						        return true;
+						      }
+						      try {
+						        const loader = new LoaderClass();
+						        loader.load(ctx.modelSrc, (gltf) => {
+						          try {
+						            if (!gltf?.scene) return;
+						            cache[ctx.modelSrc] = gltf.scene;
+						            attach(gltf.scene);
+						          } catch (e) { /* ignore */ }
+						        }, undefined, () => {});
+						        return true;
+						      } catch (e) {
+						        return false;
+						      }
 						    };
 
 						    const makePitch3dCanvasTexture = (draw, width = 1024, height = 256) => {
@@ -8608,6 +8672,85 @@
 						        }
 						      };
 
+						      const addCornerBowl = (xSide, zSide) => {
+						        const cornerGroup = new THREE.Group();
+						        cornerGroup.userData = { kind: 'stadium_corner_bowl', xSide, zSide };
+						        group.add(cornerGroup);
+						        const stepMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.92, metalness: 0.02 });
+						        const railMat = new THREE.MeshStandardMaterial({ color: 0xe5e7eb, roughness: 0.54, metalness: 0.08 });
+						        const seatGeo = new THREE.BoxGeometry(0.42, 0.14, 0.42);
+						        const dummy = new THREE.Object3D();
+						        const rows = 15;
+						        const cols = 34;
+						        const matA = new THREE.MeshStandardMaterial({ color: primaryInt, roughness: 0.86, metalness: 0.01 });
+						        const matB = new THREE.MeshStandardMaterial({ color: secondaryInt, roughness: 0.82, metalness: 0.01 });
+						        const seatsA = new THREE.InstancedMesh(seatGeo, matA, rows * cols);
+						        const seatsB = new THREE.InstancedMesh(seatGeo, matB, rows * cols);
+						        let ia = 0;
+						        let ib = 0;
+						        const angleStart = zSide < 0
+						          ? (xSide < 0 ? Math.PI : -Math.PI / 2)
+						          : (xSide < 0 ? Math.PI / 2 : 0);
+						        const angleEnd = angleStart + (Math.PI / 2);
+						        for (let r = 0; r < rows; r += 1) {
+						          const ring = Math.floor(r / 5);
+						          const rowInRing = r % 5;
+						          const radius = 5.8 + (ring * 7.5) + (rowInRing * 0.92);
+						          const y = 0.88 + (ring * 3.65) + (rowInRing * 0.50);
+						          for (let i = 0; i < cols; i += 1) {
+						            const t = i / Math.max(1, cols - 1);
+						            const angle = angleStart + ((angleEnd - angleStart) * t);
+						            const x = xSide * halfW + (Math.cos(angle) * radius);
+						            const z = zSide * halfH + (Math.sin(angle) * radius);
+						            const accent = (i + r) % 18 === 0 || (ring === 1 && rowInRing >= 1 && i > cols * 0.34 && i < cols * 0.66);
+						            dummy.position.set(x, y + 0.08, z);
+						            dummy.rotation.set(0, -angle + Math.PI / 2, 0);
+						            dummy.updateMatrix();
+						            if (accent) {
+						              seatsB.setMatrixAt(ib, dummy.matrix);
+						              ib += 1;
+						            } else {
+						              seatsA.setMatrixAt(ia, dummy.matrix);
+						              ia += 1;
+						            }
+						          }
+						          if (rowInRing === 0) {
+						            const stepRadius = radius + 0.10;
+						            const stepPts = [];
+						            for (let i = 0; i <= 18; i += 1) {
+						              const t = i / 18;
+						              const angle = angleStart + ((angleEnd - angleStart) * t);
+						              stepPts.push(new THREE.Vector3(xSide * halfW + (Math.cos(angle) * stepRadius), y - 0.12, zSide * halfH + (Math.sin(angle) * stepRadius)));
+						            }
+						            const stepLine = new THREE.Line(
+						              new THREE.BufferGeometry().setFromPoints(stepPts),
+						              new THREE.LineBasicMaterial({ color: rowInRing === 0 ? 0x94a3b8 : 0xe5e7eb, transparent: true, opacity: 0.82 }),
+						            );
+						            stepLine.userData = { kind: 'stadium_corner_concourse', row: r };
+						            cornerGroup.add(stepLine);
+						          }
+						        }
+						        seatsA.count = ia;
+						        seatsB.count = ib;
+						        seatsA.userData = { kind: 'stadium_corner_seats', xSide, zSide };
+						        seatsB.userData = { kind: 'stadium_corner_accent_seats', xSide, zSide };
+						        cornerGroup.add(seatsA, seatsB);
+
+						        const roofMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.68, metalness: 0.10, transparent: true, opacity: 0.50 });
+						        const roof = new THREE.Mesh(new THREE.BoxGeometry(16, 0.34, 16), roofMat);
+						        roof.position.set(xSide * (halfW + 28.5), 14.0, zSide * (halfH + 28.5));
+						        roof.rotation.y = Math.PI / 4;
+						        roof.userData = { kind: 'stadium_corner_roof' };
+						        cornerGroup.add(roof);
+						        for (let i = 0; i < 3; i += 1) {
+						          const bar = new THREE.Mesh(new THREE.BoxGeometry(0.28, 5.6, 0.28), railMat);
+						          const t = (i - 1) * 5.0;
+						          bar.position.set(xSide * (halfW + 21.5 + Math.abs(t) * 0.12), 11.8, zSide * (halfH + 21.5 + t));
+						          bar.userData = { kind: 'stadium_corner_roof_support' };
+						          cornerGroup.add(bar);
+						        }
+						      };
+
 						      const addMainStandDepth = () => {
 						        const sign = -1;
 						        const railMat = new THREE.MeshStandardMaterial({ color: 0xe5e7eb, roughness: 0.54, metalness: 0.08 });
@@ -8715,10 +8858,17 @@
 						        glass.userData = { kind: 'main_stand_pitchside_glass' };
 						      };
 
-						      addSidelineStand('north');
-						      addSidelineStand('south');
-						      addEndStand('west');
-						      addEndStand('east');
+						      const usingBlenderShell = loadPitch3dBlenderStadium(group, ctx, metersW, metersH);
+						      if (!usingBlenderShell) {
+						        addSidelineStand('north');
+						        addSidelineStand('south');
+						        addEndStand('west');
+						        addEndStand('east');
+						        addCornerBowl(-1, -1);
+						        addCornerBowl(1, -1);
+						        addCornerBowl(-1, 1);
+						        addCornerBowl(1, 1);
+						      }
 
 						      const nameMat = makePitch3dTextMaterial(ctx.teamName, {
 						        primary,
