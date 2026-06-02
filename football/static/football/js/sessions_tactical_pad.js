@@ -8059,7 +8059,7 @@
 						          roughness: 0.62,
 						          metalness: 0.02,
 						          transparent: true,
-						          opacity: 0.74,
+						          opacity: 0.38,
 						          side: THREE.DoubleSide,
 						        });
 						        mat.userData = { kind: 'pitch3d_external_stand_texture' };
@@ -8243,40 +8243,177 @@
 						      const standDepth = 18;
 						      const addSidelineStand = (side) => {
 						        const sign = side === 'north' ? -1 : 1;
-						        for (let i = 0; i < 5; i += 1) {
+						        const rowCount = 14;
+						        const seatGeo = new THREE.BoxGeometry(0.50, 0.15, 0.34);
+						        const dummy = new THREE.Object3D();
+						        const aisleXs = [-0.42, -0.25, -0.08, 0.08, 0.25, 0.42].map((t) => t * metersW);
+						        const stepMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.92, metalness: 0.02 });
+						        const aisleMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.84, metalness: 0.02 });
+						        const tunnelMat = new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.92, metalness: 0.02 });
+						        const railMat = new THREE.MeshStandardMaterial({ color: 0xe5e7eb, roughness: 0.54, metalness: 0.08 });
+
+						        addBox(new THREE.BoxGeometry(metersW + 28, 0.9, standDepth + 6), concreteMat, { x: 0, y: 0.10, z: sign * (halfH + 15.0) });
+						        for (let r = 0; r < rowCount; r += 1) {
+						          const y = 0.85 + (r * 0.55);
+						          const z = sign * (halfH + 5.8 + (r * 0.98));
+						          const width = metersW + 22 - (r * 0.52);
 						          addBox(
-						            new THREE.BoxGeometry(metersW + 18 - (i * 1.2), 1.1, 3.2),
-						            i % 2 ? seatMat : darkMat,
-						            { x: 0, y: 0.55 + (i * 0.92), z: sign * (halfH + 6.8 + (i * 2.55)) },
-						            { x: sign * -0.08, y: 0, z: 0 },
-						          );
+						            new THREE.BoxGeometry(width, 0.34, 0.98),
+						            r % 4 === 0 ? darkMat : stepMat,
+						            { x: 0, y: y - 0.18, z },
+						            { x: sign * -0.12, y: 0, z: 0 },
+						          ).userData = { kind: 'stadium_side_step', side, row: r };
+
+						          const seatsA = new THREE.InstancedMesh(seatGeo, seatMat, 96);
+						          const seatsB = new THREE.InstancedMesh(seatGeo, seatAltMat, 96);
+						          let ia = 0;
+						          let ib = 0;
+						          const cols = 88;
+						          for (let i = 0; i < cols; i += 1) {
+						            const x = ((i / Math.max(1, cols - 1)) - 0.5) * (width - 2.4);
+						            if (aisleXs.some((ax) => Math.abs(x - ax) < 1.10)) continue;
+						            const nameBand = side === 'north' && r >= 5 && r <= 8 && Math.abs(x) < metersW * 0.34;
+						            const accent = nameBand || ((i + (r * 2)) % 19 === 0);
+						            dummy.position.set(x, y + 0.08, z - (sign * 0.26));
+						            dummy.rotation.set(sign * -0.12, 0, 0);
+						            dummy.updateMatrix();
+						            if (accent) {
+						              seatsB.setMatrixAt(ib, dummy.matrix);
+						              ib += 1;
+						            } else {
+						              seatsA.setMatrixAt(ia, dummy.matrix);
+						              ia += 1;
+						            }
+						          }
+						          seatsA.count = ia;
+						          seatsB.count = ib;
+						          seatsA.userData = { kind: 'stadium_side_seats', side, row: r };
+						          seatsB.userData = { kind: 'stadium_side_accent_seats', side, row: r };
+						          group.add(seatsA, seatsB);
 						        }
-						        addBox(new THREE.BoxGeometry(metersW + 25, 0.9, standDepth), concreteMat, { x: 0, y: 0.18, z: sign * (halfH + 13) });
-						        addSeatDots(side, 74, 9);
+
+						        aisleXs.forEach((x, idx) => {
+						          addBox(
+						            new THREE.BoxGeometry(1.0, 7.6, 9.6),
+						            aisleMat,
+						            { x, y: 4.35, z: sign * (halfH + 11.8) },
+						            { x: sign * -0.13, y: 0, z: 0 },
+						          ).userData = { kind: 'stadium_side_aisle', side, idx };
+						          if (idx % 2 === 1) {
+						            addBox(
+						              new THREE.BoxGeometry(2.8, 1.35, 1.2),
+						              tunnelMat,
+						              { x, y: 2.35, z: sign * (halfH + 8.8) },
+						              { x: sign * -0.05, y: 0, z: 0 },
+						            ).userData = { kind: 'stadium_side_vomitory', side, idx };
+						          }
+						        });
+						        [0.22, 0.52, 0.80].forEach((t) => {
+						          addBox(
+						            new THREE.BoxGeometry(metersW + 20, 0.15, 0.22),
+						            railMat,
+						            { x: 0, y: 1.55 + (t * 7.6), z: sign * (halfH + 5.3 + (t * 12.8)) },
+						            { x: sign * -0.10, y: 0, z: 0 },
+						          ).userData = { kind: 'stadium_side_rail', side };
+						        });
 						        const roof = addBox(
-						          new THREE.BoxGeometry(metersW + 34, 0.55, 13),
+						          new THREE.BoxGeometry(metersW + 36, 0.55, 15),
 						          darkMat,
-						          { x: 0, y: 9.6, z: sign * (halfH + 21.5) },
+						          { x: 0, y: 10.4, z: sign * (halfH + 22.4) },
 						          { x: sign * 0.10, y: 0, z: 0 },
 						        );
 						        roof.userData = { kind: 'stadium_roof' };
-						        for (let i = 0; i < 8; i += 1) {
-						          const x = -metersW / 2 + (i * metersW / 7);
-						          addBox(new THREE.BoxGeometry(0.34, 4.8, 0.34), concreteMat, { x, y: 7.0, z: sign * (halfH + 16.2) });
-						          addBox(new THREE.BoxGeometry(1.6, 0.18, 0.72), lightMat, { x, y: 9.18, z: sign * (halfH + 14.7) });
+						        for (let i = 0; i < 10; i += 1) {
+						          const x = -metersW / 2 + (i * metersW / 9);
+						          addBox(new THREE.BoxGeometry(0.34, 5.6, 0.34), concreteMat, { x, y: 7.3, z: sign * (halfH + 16.6) });
+						          addBox(new THREE.BoxGeometry(1.8, 0.18, 0.72), lightMat, { x, y: 9.78, z: sign * (halfH + 14.7) });
 						        }
 						      };
 						      const addEndStand = (side) => {
 						        const sign = side === 'west' ? -1 : 1;
-						        for (let i = 0; i < 4; i += 1) {
+						        const rowCount = 12;
+						        const seatGeo = new THREE.BoxGeometry(0.34, 0.15, 0.50);
+						        const dummy = new THREE.Object3D();
+						        const aisleZs = [-0.38, -0.18, 0, 0.18, 0.38].map((t) => t * metersH);
+						        const stepMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.92, metalness: 0.02 });
+						        const aisleMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.84, metalness: 0.02 });
+						        const tunnelMat = new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.92, metalness: 0.02 });
+						        const railMat = new THREE.MeshStandardMaterial({ color: 0xe5e7eb, roughness: 0.54, metalness: 0.08 });
+
+						        addBox(new THREE.BoxGeometry(standDepth + 4, 0.9, metersH + 22), concreteMat, { x: sign * (halfW + 14.3), y: 0.10, z: 0 });
+						        for (let r = 0; r < rowCount; r += 1) {
+						          const y = 0.82 + (r * 0.55);
+						          const x = sign * (halfW + 5.8 + (r * 0.96));
+						          const depth = metersH + 16 - (r * 0.42);
 						          addBox(
-						            new THREE.BoxGeometry(3.0, 0.95, metersH + 8 - (i * 0.9)),
-						            i % 2 ? seatMat : darkMat,
-						            { x: sign * (halfW + 6.4 + (i * 2.3)), y: 0.55 + (i * 0.86), z: 0 },
-						          );
+						            new THREE.BoxGeometry(0.98, 0.34, depth),
+						            r % 4 === 0 ? darkMat : stepMat,
+						            { x, y: y - 0.18, z: 0 },
+						            { x: 0, y: 0, z: sign * 0.12 },
+						          ).userData = { kind: 'stadium_end_step', side, row: r };
+
+						          const seatsA = new THREE.InstancedMesh(seatGeo, seatMat, 74);
+						          const seatsB = new THREE.InstancedMesh(seatGeo, seatAltMat, 74);
+						          let ia = 0;
+						          let ib = 0;
+						          const cols = 68;
+						          for (let i = 0; i < cols; i += 1) {
+						            const z = ((i / Math.max(1, cols - 1)) - 0.5) * (depth - 2.1);
+						            if (aisleZs.some((az) => Math.abs(z - az) < 1.0)) continue;
+						            const accent = (i + r) % 15 === 0 || (r >= 4 && r <= 6 && Math.abs(z) < metersH * 0.22);
+						            dummy.position.set(x - (sign * 0.26), y + 0.08, z);
+						            dummy.rotation.set(0, 0, sign * 0.12);
+						            dummy.updateMatrix();
+						            if (accent) {
+						              seatsB.setMatrixAt(ib, dummy.matrix);
+						              ib += 1;
+						            } else {
+						              seatsA.setMatrixAt(ia, dummy.matrix);
+						              ia += 1;
+						            }
+						          }
+						          seatsA.count = ia;
+						          seatsB.count = ib;
+						          seatsA.userData = { kind: 'stadium_end_seats', side, row: r };
+						          seatsB.userData = { kind: 'stadium_end_accent_seats', side, row: r };
+						          group.add(seatsA, seatsB);
 						        }
-						        addBox(new THREE.BoxGeometry(15, 0.8, metersH + 14), concreteMat, { x: sign * (halfW + 12), y: 0.16, z: 0 });
-						        addSeatDots(side, 42, 7);
+						        aisleZs.forEach((z, idx) => {
+						          addBox(
+						            new THREE.BoxGeometry(8.8, 7.0, 1.0),
+						            aisleMat,
+						            { x: sign * (halfW + 11.2), y: 4.05, z },
+						            { x: 0, y: 0, z: sign * 0.13 },
+						          ).userData = { kind: 'stadium_end_aisle', side, idx };
+						          if (idx % 2 === 0) {
+						            addBox(
+						              new THREE.BoxGeometry(1.2, 1.28, 2.7),
+						              tunnelMat,
+						              { x: sign * (halfW + 8.4), y: 2.25, z },
+						              { x: 0, y: 0, z: sign * 0.05 },
+						            ).userData = { kind: 'stadium_end_vomitory', side, idx };
+						          }
+						        });
+						        [0.24, 0.56, 0.82].forEach((t) => {
+						          addBox(
+						            new THREE.BoxGeometry(0.22, 0.15, metersH + 16),
+						            railMat,
+						            { x: sign * (halfW + 5.0 + (t * 12.4)), y: 1.50 + (t * 6.8), z: 0 },
+						            { x: 0, y: 0, z: sign * 0.10 },
+						          ).userData = { kind: 'stadium_end_rail', side };
+						        });
+						        const roof = addBox(
+						          new THREE.BoxGeometry(14, 0.55, metersH + 28),
+						          darkMat,
+						          { x: sign * (halfW + 21.4), y: 9.3, z: 0 },
+						          { x: 0, y: 0, z: sign * -0.10 },
+						        );
+						        roof.userData = { kind: 'stadium_end_roof', side };
+						        for (let i = 0; i < 7; i += 1) {
+						          const z = -metersH / 2 + (i * metersH / 6);
+						          addBox(new THREE.BoxGeometry(0.34, 5.0, 0.34), concreteMat, { x: sign * (halfW + 16.4), y: 6.6, z });
+						          addBox(new THREE.BoxGeometry(0.72, 0.18, 1.6), lightMat, { x: sign * (halfW + 14.7), y: 8.6, z });
+						        }
 						      };
 
 						      const addMainStandDepth = () => {
