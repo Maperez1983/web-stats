@@ -7975,25 +7975,41 @@
 						      const secondary = safeText(opts.secondary, '#ffffff');
 						      const texture = makePitch3dCanvasTexture((ctx, c) => {
 						        const drawBase = () => {
-						          const grd = ctx.createLinearGradient(0, 0, c.width, 0);
-						          grd.addColorStop(0, '#020617');
-						          grd.addColorStop(0.28, primary);
-						          grd.addColorStop(0.72, secondary);
-						          grd.addColorStop(1, '#020617');
+						          const grd = ctx.createLinearGradient(0, 0, c.width, c.height);
+						          grd.addColorStop(0, '#03120d');
+						          grd.addColorStop(0.20, primary);
+						          grd.addColorStop(0.52, '#020617');
+						          grd.addColorStop(0.78, secondary);
+						          grd.addColorStop(1, '#03120d');
 						          ctx.fillStyle = grd;
 						          ctx.fillRect(0, 0, c.width, c.height);
-						          ctx.fillStyle = 'rgba(255,255,255,0.11)';
-						          for (let x = 0; x < c.width; x += 38) ctx.fillRect(x, 0, 2, c.height);
-						          ctx.strokeStyle = 'rgba(255,255,255,0.45)';
-						          ctx.lineWidth = 5;
-						          ctx.strokeRect(3, 3, c.width - 6, c.height - 6);
+						          ctx.fillStyle = 'rgba(255,255,255,0.08)';
+						          for (let x = 0; x < c.width; x += 24) ctx.fillRect(x, 0, 1, c.height);
+						          ctx.fillStyle = 'rgba(34,211,238,0.11)';
+						          for (let y = 0; y < c.height; y += 18) ctx.fillRect(0, y, c.width, 1);
+						          const shine = ctx.createLinearGradient(0, 0, 0, c.height);
+						          shine.addColorStop(0, 'rgba(255,255,255,0.30)');
+						          shine.addColorStop(0.38, 'rgba(255,255,255,0.04)');
+						          shine.addColorStop(1, 'rgba(255,255,255,0.00)');
+						          ctx.fillStyle = shine;
+						          ctx.fillRect(0, 0, c.width, c.height * 0.58);
+						          ctx.strokeStyle = 'rgba(255,255,255,0.70)';
+						          ctx.lineWidth = 6;
+						          ctx.strokeRect(5, 5, c.width - 10, c.height - 10);
+						          ctx.strokeStyle = 'rgba(2,6,23,0.72)';
+						          ctx.lineWidth = 3;
+						          ctx.strokeRect(14, 14, c.width - 28, c.height - 28);
 						        };
 						        drawBase();
 						        ctx.fillStyle = '#f8fafc';
+						        ctx.shadowColor = 'rgba(0,0,0,0.72)';
+						        ctx.shadowBlur = 12;
+						        ctx.shadowOffsetY = 5;
 						        ctx.textAlign = 'center';
 						        ctx.textBaseline = 'middle';
-						        ctx.font = `950 ${Math.round(c.height * 0.42)}px system-ui, -apple-system, Segoe UI, Arial`;
+						        ctx.font = `950 ${Math.round(c.height * 0.46)}px system-ui, -apple-system, Segoe UI, Arial`;
 						        ctx.fillText(safeText(label, 'SPONSOR').toUpperCase().slice(0, 34), c.width / 2, c.height / 2 + 1);
+						        ctx.shadowColor = 'transparent';
 						        const logo = safeText(logoUrl);
 						        if (logo) {
 						          try {
@@ -8006,7 +8022,11 @@
 						                const scale = Math.min(maxW / Math.max(1, img.width), maxH / Math.max(1, img.height));
 						                const w = img.width * scale;
 						                const h = img.height * scale;
+						                ctx.shadowColor = 'rgba(0,0,0,0.48)';
+						                ctx.shadowBlur = 14;
+						                ctx.shadowOffsetY = 6;
 						                ctx.drawImage(img, (c.width - w) / 2, (c.height - h) / 2, w, h);
+						                ctx.shadowColor = 'transparent';
 						                texture.tex.needsUpdate = true;
 						              } catch (e) { /* ignore */ }
 						            };
@@ -8015,7 +8035,15 @@
 						        }
 						      }, opts.width || 1024, opts.height || 192);
 						      if (!texture) return null;
-						      const mat = new THREE.MeshBasicMaterial({ map: texture.tex, side: THREE.DoubleSide });
+						      const mat = new THREE.MeshStandardMaterial({
+						        map: texture.tex,
+						        color: 0xffffff,
+						        emissive: 0x16261f,
+						        emissiveIntensity: 0.34,
+						        roughness: 0.38,
+						        metalness: 0.02,
+						        side: THREE.DoubleSide,
+						      });
 						      mat.userData = { kind: 'pitch3d_canvas_texture' };
 						      return mat;
 						    };
@@ -8425,26 +8453,60 @@
 						        group.add(board);
 						      }
 
-						      const adH = 1.45;
-						      const adY = 0.84;
-						      const adOffset = 1.25;
+						      const adH = 1.95;
+						      const adY = 1.10;
+						      const adOffset = 1.55;
 						      const addAd = (side, label, logoUrl) => {
 						        const longSide = side === 'north' || side === 'south';
-						        const mat = makePitch3dAdMaterial(label, logoUrl, { primary, secondary, width: longSide ? 1024 : 512, height: 160 });
+						        const mat = makePitch3dAdMaterial(label, logoUrl, { primary, secondary, width: longSide ? 1400 : 760, height: 220 });
 						        if (!mat) return;
-						        const geo = new THREE.PlaneGeometry(longSide ? metersW * 0.33 : metersH * 0.32, adH);
-						        const segments = longSide ? [-0.34, 0, 0.34] : [-0.28, 0.28];
+						        const panelW = longSide ? metersW * 0.31 : metersH * 0.30;
+						        const faceGeo = new THREE.PlaneGeometry(panelW, adH);
+						        const frameMat = new THREE.MeshStandardMaterial({ color: 0xd1d5db, roughness: 0.48, metalness: 0.28 });
+						        const backMat = new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.82, metalness: 0.04 });
+						        const baseMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.86, metalness: 0.03 });
+						        const segments = longSide ? [-0.36, 0, 0.36] : [-0.31, 0, 0.31];
 						        segments.forEach((t, idx) => {
-						          const mesh = new THREE.Mesh(geo, mat.clone());
-						          if (longSide) {
-						            mesh.position.set(t * metersW, adY, (side === 'north' ? -1 : 1) * (halfH + adOffset));
-						            mesh.rotation.y = side === 'north' ? 0 : Math.PI;
-						          } else {
-						            mesh.position.set((side === 'west' ? -1 : 1) * (halfW + adOffset), adY, t * metersH);
-						            mesh.rotation.y = side === 'west' ? Math.PI / 2 : -Math.PI / 2;
+						          const panel = new THREE.Group();
+						          panel.userData = { kind: 'stadium_ad', side, idx };
+						          const face = new THREE.Mesh(faceGeo, mat.clone());
+						          face.position.set(0, 0, -0.04);
+						          face.userData = { kind: 'stadium_ad_face', side, idx };
+						          panel.add(face);
+						          const back = new THREE.Mesh(new THREE.BoxGeometry(panelW + 0.24, adH + 0.18, 0.30), backMat);
+						          back.position.set(0, 0, 0.12);
+						          back.userData = { kind: 'stadium_ad_back', side, idx };
+						          panel.add(back);
+						          const topFrame = new THREE.Mesh(new THREE.BoxGeometry(panelW + 0.42, 0.12, 0.22), frameMat);
+						          topFrame.position.set(0, (adH / 2) + 0.10, -0.09);
+						          panel.add(topFrame);
+						          const bottomFrame = new THREE.Mesh(new THREE.BoxGeometry(panelW + 0.42, 0.14, 0.28), frameMat);
+						          bottomFrame.position.set(0, -(adH / 2) - 0.10, -0.08);
+						          panel.add(bottomFrame);
+						          const leftFrame = new THREE.Mesh(new THREE.BoxGeometry(0.12, adH + 0.20, 0.22), frameMat);
+						          leftFrame.position.set(-(panelW / 2) - 0.10, 0, -0.09);
+						          panel.add(leftFrame);
+						          const rightFrame = new THREE.Mesh(new THREE.BoxGeometry(0.12, adH + 0.20, 0.22), frameMat);
+						          rightFrame.position.set((panelW / 2) + 0.10, 0, -0.09);
+						          panel.add(rightFrame);
+						          const base = new THREE.Mesh(new THREE.BoxGeometry(panelW + 0.72, 0.34, 0.72), baseMat);
+						          base.position.set(0, -(adH / 2) - 0.38, 0.10);
+						          panel.add(base);
+						          for (let i = -1; i <= 1; i += 2) {
+						            const post = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.15, 0.18), frameMat);
+						            post.position.set(i * (panelW / 2 - 0.35), -(adH / 2) - 0.92, 0.10);
+						            panel.add(post);
 						          }
-						          mesh.userData = { kind: 'stadium_ad', side, idx };
-						          group.add(mesh);
+						          if (longSide) {
+						            panel.position.set(t * metersW, adY, (side === 'north' ? -1 : 1) * (halfH + adOffset));
+						            panel.rotation.y = side === 'north' ? 0 : Math.PI;
+						            panel.rotation.x = side === 'north' ? -0.08 : 0.08;
+						          } else {
+						            panel.position.set((side === 'west' ? -1 : 1) * (halfW + adOffset), adY, t * metersH);
+						            panel.rotation.y = side === 'west' ? Math.PI / 2 : -Math.PI / 2;
+						            panel.rotation.z = side === 'west' ? 0.05 : -0.05;
+						          }
+						          group.add(panel);
 						        });
 						      };
 						      addAd('north', ctx.ads.top, ctx.ads.top_logo_data_url);
