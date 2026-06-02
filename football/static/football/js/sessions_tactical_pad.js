@@ -7988,6 +7988,69 @@
 						      return mat;
 						    };
 
+						    const makePitch3dCrestBadgeMaterial = (opts = {}) => {
+						      const primary = safeText(opts.primary, '#0f7a35');
+						      const secondary = safeText(opts.secondary, '#ffffff');
+						      const initials = safeText(opts.initials, 'FC').slice(0, 4);
+						      const imageUrl = safeText(opts.imageUrl);
+						      let badgeTexture = null;
+						      const texture = makePitch3dCanvasTexture((ctx, c) => {
+						        const drawBadge = (img = null) => {
+						          ctx.clearRect(0, 0, c.width, c.height);
+						          const cx = c.width / 2;
+						          const cy = c.height / 2;
+						          const r = c.width * 0.43;
+						          ctx.beginPath();
+						          ctx.arc(cx, cy, r + 18, 0, Math.PI * 2);
+						          ctx.fillStyle = 'rgba(2,6,23,0.28)';
+						          ctx.fill();
+						          ctx.beginPath();
+						          ctx.arc(cx, cy, r, 0, Math.PI * 2);
+						          ctx.fillStyle = secondary || '#f8fafc';
+						          ctx.fill();
+						          ctx.lineWidth = 18;
+						          ctx.strokeStyle = primary;
+						          ctx.stroke();
+						          if (img) {
+						            ctx.save();
+						            ctx.beginPath();
+						            ctx.arc(cx, cy, r * 0.78, 0, Math.PI * 2);
+						            ctx.clip();
+						            const scale = Math.min((r * 1.55) / Math.max(1, img.width), (r * 1.55) / Math.max(1, img.height));
+						            const w = img.width * scale;
+						            const h = img.height * scale;
+						            ctx.drawImage(img, cx - (w / 2), cy - (h / 2), w, h);
+						            ctx.restore();
+						          } else {
+						            ctx.fillStyle = primary;
+						            ctx.textAlign = 'center';
+						            ctx.textBaseline = 'middle';
+						            ctx.font = `950 ${Math.round(c.height * 0.22)}px system-ui, -apple-system, Segoe UI, Arial`;
+						            ctx.fillText(initials, cx, cy + 3);
+						          }
+						          if (badgeTexture && badgeTexture.tex) badgeTexture.tex.needsUpdate = true;
+						        };
+						        drawBadge();
+						        try {
+						          const sameOrigin = imageUrl && (
+						            imageUrl.startsWith('/') ||
+						            imageUrl.startsWith('data:') ||
+						            (window.location && imageUrl.indexOf(window.location.host) !== -1)
+						          );
+						          if (sameOrigin) {
+						            const img = new Image();
+						            img.onload = () => drawBadge(img);
+						            img.src = imageUrl;
+						          }
+						        } catch (e) { /* ignore */ }
+						      }, opts.width || 768, opts.height || 768);
+						      if (!texture) return null;
+						      badgeTexture = texture;
+						      const mat = new THREE.MeshBasicMaterial({ map: texture.tex, transparent: true, side: THREE.DoubleSide });
+						      mat.userData = { kind: 'pitch3d_crest_badge_texture' };
+						      return mat;
+						    };
+
 						    const makePitch3dAdMaterial = (label, logoUrl, opts = {}) => {
 						      const primary = safeText(opts.primary, '#0f7a35');
 						      const secondary = safeText(opts.secondary, '#ffffff');
@@ -8657,58 +8720,30 @@
 						      addEndStand('west');
 						      addEndStand('east');
 
-						      const standMosaicMat = makePitch3dStandMosaicMaterial(ctx.teamName, { primary, secondary, initials: ctx.initials, imageUrl: '', crestUrl: ctx.crestUrl });
-						      if (standMosaicMat) {
-						        const mosaicW = metersW + 28;
-						        const mosaicH = 23;
-						        const mosaic = new THREE.Mesh(new THREE.PlaneGeometry(mosaicW, mosaicH, 1, 1), standMosaicMat);
-						        mosaic.position.set(0, 13.2, -(halfH + 18.4));
-						        mosaic.rotation.x = -0.18;
-						        mosaic.userData = { kind: 'main_stand_mosaic' };
-						        group.add(mosaic);
-						        const lowerWall = addBox(
-						          new THREE.BoxGeometry(metersW + 16, 2.0, 1.1),
-						          concreteMat,
-						          { x: 0, y: 1.15, z: -(halfH + 8.4) },
-						        );
-						        lowerWall.userData = { kind: 'main_stand_lower_wall' };
-						        const topBeam = addBox(
-						          new THREE.BoxGeometry(metersW + 18, 0.45, 1.2),
-						          darkMat,
-						          { x: 0, y: 12.5, z: -(halfH + 20.4) },
-						        );
-						        topBeam.userData = { kind: 'main_stand_top_beam' };
-						        const railMat = new THREE.MeshStandardMaterial({ color: 0xe5e7eb, roughness: 0.54, metalness: 0.08 });
-						        const roofMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.70, metalness: 0.10, transparent: true, opacity: 0.58 });
-						        const roof = addBox(
-						          new THREE.BoxGeometry(metersW + 26, 0.34, 11.5),
-						          roofMat,
-						          { x: 0, y: 15.6, z: -(halfH + 29.0) },
-						          { x: -0.10, y: 0, z: 0 },
-						        );
-						        roof.userData = { kind: 'main_stand_roof' };
-						        for (let i = 0; i < 11; i += 1) {
-						          const x = -metersW / 2 + (i * metersW / 10);
-						          addBox(new THREE.BoxGeometry(0.28, 6.2, 0.28), railMat, { x, y: 12.0, z: -(halfH + 20.4) }, { x: -0.08, y: 0, z: 0 });
-						          addBox(new THREE.BoxGeometry(2.2, 0.22, 0.55), lightMat, { x, y: 14.35, z: -(halfH + 16.8) });
-						        }
-						      }
-
-						      const nameMat = null;
+						      const nameMat = makePitch3dTextMaterial(ctx.teamName, {
+						        primary,
+						        secondary,
+						        fill: secondary,
+						        bg: primary,
+						        large: true,
+						        width: 2048,
+						        height: 260,
+						      });
 						      if (nameMat) {
 						        const sign = -1;
-						        const name = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(metersW * 0.74, 76), 7.4), nameMat);
-						        name.position.set(0, 5.3, sign * (halfH + 9.7));
-						        name.rotation.y = 0;
+						        const name = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(metersW * 0.60, 64), 4.4), nameMat);
+						        name.position.set(0, 6.4, sign * (halfH + 13.2));
+						        name.rotation.x = sign * -0.22;
+						        name.userData = { kind: 'main_stand_integrated_name' };
 						        group.add(name);
 						      }
-						      const crestMat = makePitch3dTextMaterial(ctx.initials, { primary: secondary, secondary: primary, fill: '#0b1220', width: 512, height: 512 });
+						      const crestMat = makePitch3dCrestBadgeMaterial({ primary, secondary, initials: ctx.initials, imageUrl: ctx.crestUrl, width: 768, height: 768 });
 						      if (crestMat) {
-						        if (!ctx.mainStandSrc) {
-						          const crest = new THREE.Mesh(new THREE.CircleGeometry(4.2, 64), crestMat);
-						          crest.position.set(0, 8.2, -(halfH + 14.2));
-						          group.add(crest);
-						        }
+						        const crest = new THREE.Mesh(new THREE.CircleGeometry(3.4, 64), crestMat);
+						        crest.position.set(0, 9.4, -(halfH + 15.4));
+						        crest.rotation.x = -0.16;
+						        crest.userData = { kind: 'main_stand_integrated_crest' };
+						        group.add(crest);
 						        const board = new THREE.Mesh(new THREE.PlaneGeometry(7.8, 4.2), crestMat);
 						        board.position.set(halfW + 9.8, 5.0, -(halfH + 9.0));
 						        board.rotation.y = -Math.PI / 2;
