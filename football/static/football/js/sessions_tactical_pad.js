@@ -7996,11 +7996,16 @@
 						            ctx.fillStyle = grd;
 						            ctx.fillRect(0, 0, c.width, c.height);
 						          }
-						          ctx.fillStyle = hasLogo ? 'rgba(15,23,42,0.04)' : 'rgba(255,255,255,0.07)';
+						          ctx.fillStyle = hasLogo ? 'rgba(15,23,42,0.035)' : 'rgba(255,255,255,0.07)';
 						          for (let x = 0; x < c.width; x += 44) ctx.fillRect(x, 0, 2, c.height);
 						          ctx.fillStyle = hasLogo ? primary : 'rgba(255,255,255,0.12)';
 						          ctx.fillRect(0, 0, c.width, c.height * 0.075);
 						          ctx.fillRect(0, c.height * 0.925, c.width, c.height * 0.075);
+						          if (hasLogo) {
+						            ctx.fillStyle = 'rgba(2,6,23,0.92)';
+						            ctx.fillRect(0, c.height * 0.075, c.width * 0.085, c.height * 0.85);
+						            ctx.fillRect(c.width * 0.915, c.height * 0.075, c.width * 0.085, c.height * 0.85);
+						          }
 						          ctx.strokeStyle = hasLogo ? 'rgba(15,23,42,0.42)' : 'rgba(248,250,252,0.72)';
 						          ctx.lineWidth = 8;
 						          ctx.strokeRect(7, 7, c.width - 14, c.height - 14);
@@ -8018,13 +8023,16 @@
 						            img.onload = () => {
 						              try {
 						                drawBase();
-						                const maxW = c.width * 0.88;
-						                const maxH = c.height * 0.70;
+						                const maxW = c.width * 0.80;
+						                const maxH = c.height * 0.66;
 						                const scale = Math.min(maxW / Math.max(1, img.width), maxH / Math.max(1, img.height));
 						                const w = img.width * scale;
 						                const h = img.height * scale;
 						                ctx.fillStyle = '#ffffff';
 						                ctx.fillRect((c.width - maxW) / 2, (c.height - maxH) / 2, maxW, maxH);
+						                ctx.strokeStyle = 'rgba(15,23,42,0.18)';
+						                ctx.lineWidth = 5;
+						                ctx.strokeRect((c.width - maxW) / 2, (c.height - maxH) / 2, maxW, maxH);
 						                ctx.shadowColor = 'rgba(15,23,42,0.20)';
 						                ctx.shadowBlur = 6;
 						                ctx.shadowOffsetY = 3;
@@ -8198,8 +8206,8 @@
 						        ctx.fillRect(0, 0, c.width, c.height);
 
 						        // Pasillos y vomitorios.
-						        const aisleW = c.width * 0.035;
-						        const aisles = [0.08, 0.20, 0.33, 0.48, 0.62, 0.76, 0.90];
+						        const aisleW = c.width * 0.018;
+						        const aisles = [0.12, 0.28, 0.48, 0.68, 0.86];
 						        ctx.fillStyle = '#d1d5db';
 						        aisles.forEach((t) => {
 						          const x = (c.width * t) - (aisleW / 2);
@@ -8411,10 +8419,11 @@
 						            { x: sign * -0.10, y: 0, z: 0 },
 						          ).userData = { kind: 'stadium_side_concourse_ring', side, ring };
 						        });
+						        const roofMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.70, metalness: 0.10, transparent: true, opacity: 0.58 });
 						        const roof = addBox(
-						          new THREE.BoxGeometry(metersW + 36, 0.55, 15),
-						          darkMat,
-						          { x: 0, y: 13.4, z: sign * (halfH + 28.4) },
+						          new THREE.BoxGeometry(metersW + 34, 0.36, 10.5),
+						          roofMat,
+						          { x: 0, y: 14.2, z: sign * (halfH + 31.2) },
 						          { x: sign * 0.10, y: 0, z: 0 },
 						        );
 						        roof.userData = { kind: 'stadium_roof' };
@@ -8478,10 +8487,11 @@
 						            { x: 0, y: 0, z: sign * 0.10 },
 						          ).userData = { kind: 'stadium_end_concourse_ring', side, ring };
 						        });
+						        const roofMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.70, metalness: 0.10, transparent: true, opacity: 0.54 });
 						        const roof = addBox(
-						          new THREE.BoxGeometry(16, 0.55, metersH + 30),
-						          darkMat,
-						          { x: sign * (halfW + 28.2), y: 12.8, z: 0 },
+						          new THREE.BoxGeometry(10.5, 0.36, metersH + 28),
+						          roofMat,
+						          { x: sign * (halfW + 31.0), y: 13.7, z: 0 },
 						          { x: 0, y: 0, z: sign * -0.10 },
 						        );
 						        roof.userData = { kind: 'stadium_end_roof', side };
@@ -8603,13 +8613,13 @@
 						      addEndStand('west');
 						      addEndStand('east');
 
-						      const standMosaicMat = makePitch3dStandMosaicMaterial(ctx.teamName, { primary, secondary, initials: ctx.initials, imageUrl: ctx.mainStandSrc, crestUrl: ctx.crestUrl });
+						      const standMosaicMat = makePitch3dStandMosaicMaterial(ctx.teamName, { primary, secondary, initials: ctx.initials, imageUrl: '', crestUrl: ctx.crestUrl });
 						      if (standMosaicMat) {
 						        const mosaicW = metersW + 28;
-						        const mosaicH = 34;
+						        const mosaicH = 23;
 						        const mosaic = new THREE.Mesh(new THREE.PlaneGeometry(mosaicW, mosaicH, 1, 1), standMosaicMat);
-						        mosaic.position.set(0, 17.8, -(halfH + 20.8));
-						        mosaic.rotation.x = 0;
+						        mosaic.position.set(0, 13.2, -(halfH + 18.4));
+						        mosaic.rotation.x = -0.18;
 						        mosaic.userData = { kind: 'main_stand_mosaic' };
 						        group.add(mosaic);
 						        const lowerWall = addBox(
@@ -8625,11 +8635,11 @@
 						        );
 						        topBeam.userData = { kind: 'main_stand_top_beam' };
 						        const railMat = new THREE.MeshStandardMaterial({ color: 0xe5e7eb, roughness: 0.54, metalness: 0.08 });
-						        const roofMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.72, metalness: 0.08 });
+						        const roofMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.70, metalness: 0.10, transparent: true, opacity: 0.58 });
 						        const roof = addBox(
-						          new THREE.BoxGeometry(metersW + 26, 0.42, 18),
+						          new THREE.BoxGeometry(metersW + 26, 0.34, 11.5),
 						          roofMat,
-						          { x: 0, y: 15.0, z: -(halfH + 24.8) },
+						          { x: 0, y: 15.6, z: -(halfH + 29.0) },
 						          { x: -0.10, y: 0, z: 0 },
 						        );
 						        roof.userData = { kind: 'main_stand_roof' };
