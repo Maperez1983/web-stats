@@ -2369,6 +2369,7 @@ class SeasonHistoryServicesTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
+        self.assertNotIn(self.player, response.context['players'])
         self.player.refresh_from_db()
         self.assertEqual(self.player.team, target_team)
         self.assertTrue(self.player.is_active)
@@ -2379,6 +2380,20 @@ class SeasonHistoryServicesTests(TestCase):
         workspace_player = WorkspacePlayer.objects.get(workspace=self.workspace, player=self.player)
         self.assertEqual(workspace_player.current_team, target_team)
         self.assertTrue(workspace_player.is_active)
+
+        origin_response = self.client.get(
+            f"{reverse('coach-roster')}?tab=manage&team={self.team.id}&club_season_id={self.season.id}",
+            secure=True,
+        )
+        self.assertEqual(origin_response.status_code, 200)
+        self.assertNotIn(self.player, origin_response.context['players'])
+
+        target_response = self.client.get(
+            f"{reverse('coach-roster')}?tab=manage&team={target_team.id}&club_season_id={self.season.id}",
+            secure=True,
+        )
+        self.assertEqual(target_response.status_code, 200)
+        self.assertIn(self.player, target_response.context['players'])
 
     @patch('football.views.compute_player_cards')
     def test_roster_stats_cards_only_show_confirmed_players_for_selected_season(self, mocked_cards):
