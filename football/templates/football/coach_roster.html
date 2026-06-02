@@ -1208,8 +1208,22 @@
                   {% csrf_token %}
                   <input type="hidden" name="action" value="deactivate" />
                   <input type="hidden" name="player_id" value="{{ player.id }}" />
-                  <button class="inline" type="submit">Desactivar</button>
+                  <button class="inline" type="submit">Sale del club</button>
                   </form>
+                  {% if active_club_season and can_edit and club_team_options %}
+                  <form method="post" style="margin:0;display:flex;gap:0.35rem;align-items:center;flex-wrap:wrap;">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="move_team" />
+                    <input type="hidden" name="player_id" value="{{ player.id }}" />
+                    <select name="target_team_id" aria-label="Categoría destino" style="min-width:9rem;">
+                      <option value="">Mover a...</option>
+                      {% for team_option in club_team_options %}
+                      <option value="{{ team_option.id }}">{{ team_option.category|default:team_option.display_name|default:team_option.name }}{% if team_option.category and team_option.display_name != team_option.category %} · {{ team_option.display_name }}{% endif %}</option>
+                      {% endfor %}
+                    </select>
+                    <button class="inline-ghost" type="submit">Mover</button>
+                  </form>
+                  {% endif %}
                 </div>
                 {% elif not can_edit and active_club_season and not active_club_season_is_current %}
                 Histórico

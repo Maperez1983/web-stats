@@ -28166,6 +28166,61 @@ def coach_roster_page(request):
                 if active_club_season:
                     mark_player_left_current_season(active_club_season, player, notes='Marcado como inactivo desde plantilla.')
                 message = f'{player.name} marcado como inactivo.'
+            elif action == 'move_team':
+                if not active_club_season:
+                    raise ValueError('No hay temporada activa para mover al jugador.')
+                if not active_club_season_is_current:
+                    raise ValueError('Solo se puede mover de categoría desde la temporada activa.')
+                if not player_id:
+                    raise ValueError('Jugador no válido para mover.')
+                target_team_id = _parse_int(request.POST.get('target_team_id'))
+                if not target_team_id:
+                    raise ValueError('Selecciona la categoría destino.')
+                target_link = (
+                    WorkspaceTeam.objects
+                    .filter(workspace=workspace, team_id=int(target_team_id))
+                    .select_related('team')
+                    .first()
+                )
+                target_team = getattr(target_link, 'team', None)
+                if not target_team:
+                    raise ValueError('La categoría destino no pertenece a este club.')
+                if int(getattr(target_team, 'id', 0) or 0) == int(primary_team.id):
+                    raise ValueError('Selecciona una categoría distinta.')
+                membership = (
+                    WorkspaceSeasonPlayer.objects
+                    .filter(season=active_club_season, player_id=int(player_id), team=primary_team)
+                    .select_related('player')
+                    .first()
+                )
+                player = getattr(membership, 'player', None) if membership else None
+                if not player:
+                    player = Player.objects.filter(id=int(player_id), team=primary_team).first()
+                if not player:
+                    raise ValueError('Jugador no encontrado en esta categoría.')
+                ensure_season_team(active_club_season, target_team)
+                if membership:
+                    membership.team = target_team
+                    membership.left_at = None
+                    if membership.status in {WorkspaceSeasonPlayer.STATUS_LEFT, WorkspaceSeasonPlayer.STATUS_INACTIVE}:
+                        membership.status = WorkspaceSeasonPlayer.STATUS_PENDING
+                        membership.is_confirmed = False
+                        membership.confirmed_at = None
+                        membership.confirmed_by = None
+                    membership.save(update_fields=['team', 'left_at', 'status', 'is_confirmed', 'confirmed_at', 'confirmed_by', 'updated_at'])
+                else:
+                    ensure_player_season_membership(
+                        active_club_season,
+                        player,
+                        team=target_team,
+                        confirmed=False,
+                        status=WorkspaceSeasonPlayer.STATUS_PENDING,
+                    )
+                player.team = target_team
+                player.is_active = True
+                player.save(update_fields=['team', 'is_active'])
+                ensure_workspace_player(workspace, player, current_team=target_team, is_active=True)
+                message = f'{player.name} movido a {target_team.display_name}.'
             elif action == 'add_existing':
                 if not existing_player_id:
                     raise ValueError('Selecciona un jugador del club.')
@@ -28293,6 +28348,7 @@ def coach_roster_page(request):
     else:
         players = list(Player.objects.filter(team=primary_team).order_by('is_active', 'number', 'name'))
     club_player_options = []
+    club_team_options = []
     try:
         workspace_team_ids = list(
             WorkspaceTeam.objects
@@ -28307,8 +28363,15 @@ def coach_roster_page(request):
             .distinct()
             .order_by('name', 'id')[:250]
         )
+        club_team_options = list(
+            Team.objects
+            .filter(id__in=workspace_team_ids)
+            .exclude(id=primary_team.id)
+            .order_by('category', 'name', 'id')
+        )
     except Exception:
         club_player_options = []
+        club_team_options = []
     if active_club_season and players:
         try:
             player_ids = [int(p.id) for p in players if getattr(p, 'id', None)]
@@ -28414,6 +28477,7 @@ def coach_roster_page(request):
             'team_name': primary_team.display_name,
             'players': players,
             'club_player_options': club_player_options,
+            'club_team_options': club_team_options,
             'player_cards': player_cards,
             'active_club_season': active_club_season,
             'active_club_season_is_current': active_club_season_is_current,

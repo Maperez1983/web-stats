@@ -2312,6 +2312,42 @@ class SeasonHistoryServicesTests(TestCase):
         self.assertEqual(player.position, 'MCO')
         self.assertTrue(WorkspaceSeasonPlayer.objects.filter(season=self.season, player=player, team=self.team).exists())
 
+    def test_roster_move_player_to_next_category_keeps_him_active_in_club(self):
+        target_team = Team.objects.create(name='Equipo Destino', slug='equipo-destino', short_name='Destino', category='Cadete')
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=target_team)
+        WorkspacePlayer.objects.create(workspace=self.workspace, player=self.player, current_team=self.team)
+        WorkspaceSeasonPlayer.objects.create(
+            season=self.season,
+            player=self.player,
+            team=self.team,
+            is_confirmed=True,
+            status=WorkspaceSeasonPlayer.STATUS_CONFIRMED,
+            confirmed_by=self.user,
+            confirmed_at=timezone.now(),
+        )
+
+        response = self.client.post(
+            f"{reverse('coach-roster')}?tab=manage",
+            data={
+                'action': 'move_team',
+                'player_id': str(self.player.id),
+                'target_team_id': str(target_team.id),
+            },
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.player.refresh_from_db()
+        self.assertEqual(self.player.team, target_team)
+        self.assertTrue(self.player.is_active)
+        membership = WorkspaceSeasonPlayer.objects.get(season=self.season, player=self.player)
+        self.assertEqual(membership.team, target_team)
+        self.assertEqual(membership.status, WorkspaceSeasonPlayer.STATUS_CONFIRMED)
+        self.assertTrue(membership.is_confirmed)
+        workspace_player = WorkspacePlayer.objects.get(workspace=self.workspace, player=self.player)
+        self.assertEqual(workspace_player.current_team, target_team)
+        self.assertTrue(workspace_player.is_active)
+
     @patch('football.views.compute_player_cards')
     def test_roster_stats_cards_only_show_confirmed_players_for_selected_season(self, mocked_cards):
         pending_player = Player.objects.create(team=self.team, name='Jugador Pendiente Temporada', is_active=True)
