@@ -7984,41 +7984,33 @@
 						      const secondary = safeText(opts.secondary, '#ffffff');
 						      const texture = makePitch3dCanvasTexture((ctx, c) => {
 						        const drawBase = () => {
-						          const grd = ctx.createLinearGradient(0, 0, c.width, c.height);
-						          grd.addColorStop(0, '#03120d');
-						          grd.addColorStop(0.20, primary);
-						          grd.addColorStop(0.52, '#020617');
-						          grd.addColorStop(0.78, secondary);
-						          grd.addColorStop(1, '#03120d');
-						          ctx.fillStyle = grd;
+						          const hasLogo = Boolean(safeText(logoUrl));
+						          ctx.fillStyle = hasLogo ? '#f8fafc' : '#052e1f';
 						          ctx.fillRect(0, 0, c.width, c.height);
-						          ctx.fillStyle = 'rgba(255,255,255,0.08)';
-						          for (let x = 0; x < c.width; x += 24) ctx.fillRect(x, 0, 1, c.height);
-						          ctx.fillStyle = 'rgba(34,211,238,0.11)';
-						          for (let y = 0; y < c.height; y += 18) ctx.fillRect(0, y, c.width, 1);
-						          const shine = ctx.createLinearGradient(0, 0, 0, c.height);
-						          shine.addColorStop(0, 'rgba(255,255,255,0.30)');
-						          shine.addColorStop(0.38, 'rgba(255,255,255,0.04)');
-						          shine.addColorStop(1, 'rgba(255,255,255,0.00)');
-						          ctx.fillStyle = shine;
-						          ctx.fillRect(0, 0, c.width, c.height * 0.58);
-						          ctx.strokeStyle = 'rgba(255,255,255,0.70)';
-						          ctx.lineWidth = 6;
-						          ctx.strokeRect(5, 5, c.width - 10, c.height - 10);
-						          ctx.strokeStyle = 'rgba(2,6,23,0.72)';
-						          ctx.lineWidth = 3;
-						          ctx.strokeRect(14, 14, c.width - 28, c.height - 28);
+						          if (!hasLogo) {
+						            const grd = ctx.createLinearGradient(0, 0, c.width, 0);
+						            grd.addColorStop(0, '#020617');
+						            grd.addColorStop(0.24, primary);
+						            grd.addColorStop(0.76, primary);
+						            grd.addColorStop(1, '#020617');
+						            ctx.fillStyle = grd;
+						            ctx.fillRect(0, 0, c.width, c.height);
+						          }
+						          ctx.fillStyle = hasLogo ? 'rgba(15,23,42,0.04)' : 'rgba(255,255,255,0.07)';
+						          for (let x = 0; x < c.width; x += 44) ctx.fillRect(x, 0, 2, c.height);
+						          ctx.fillStyle = hasLogo ? primary : 'rgba(255,255,255,0.12)';
+						          ctx.fillRect(0, 0, c.width, c.height * 0.075);
+						          ctx.fillRect(0, c.height * 0.925, c.width, c.height * 0.075);
+						          ctx.strokeStyle = hasLogo ? 'rgba(15,23,42,0.42)' : 'rgba(248,250,252,0.72)';
+						          ctx.lineWidth = 8;
+						          ctx.strokeRect(7, 7, c.width - 14, c.height - 14);
 						        };
 						        drawBase();
-						        ctx.fillStyle = '#f8fafc';
-						        ctx.shadowColor = 'rgba(0,0,0,0.72)';
-						        ctx.shadowBlur = 12;
-						        ctx.shadowOffsetY = 5;
+						        ctx.fillStyle = safeText(logoUrl) ? '#0f172a' : '#f8fafc';
 						        ctx.textAlign = 'center';
 						        ctx.textBaseline = 'middle';
-						        ctx.font = `950 ${Math.round(c.height * 0.46)}px system-ui, -apple-system, Segoe UI, Arial`;
+						        ctx.font = `950 ${Math.round(c.height * 0.42)}px system-ui, -apple-system, Segoe UI, Arial`;
 						        ctx.fillText(safeText(label, 'SPONSOR').toUpperCase().slice(0, 34), c.width / 2, c.height / 2 + 1);
-						        ctx.shadowColor = 'transparent';
 						        const logo = safeText(logoUrl);
 						        if (logo) {
 						          try {
@@ -8026,14 +8018,16 @@
 						            img.onload = () => {
 						              try {
 						                drawBase();
-						                const maxW = c.width * 0.76;
-						                const maxH = c.height * 0.72;
+						                const maxW = c.width * 0.88;
+						                const maxH = c.height * 0.70;
 						                const scale = Math.min(maxW / Math.max(1, img.width), maxH / Math.max(1, img.height));
 						                const w = img.width * scale;
 						                const h = img.height * scale;
-						                ctx.shadowColor = 'rgba(0,0,0,0.48)';
-						                ctx.shadowBlur = 14;
-						                ctx.shadowOffsetY = 6;
+						                ctx.fillStyle = '#ffffff';
+						                ctx.fillRect((c.width - maxW) / 2, (c.height - maxH) / 2, maxW, maxH);
+						                ctx.shadowColor = 'rgba(15,23,42,0.20)';
+						                ctx.shadowBlur = 6;
+						                ctx.shadowOffsetY = 3;
 						                ctx.drawImage(img, (c.width - w) / 2, (c.height - h) / 2, w, h);
 						                ctx.shadowColor = 'transparent';
 						                texture.tex.needsUpdate = true;
@@ -8044,13 +8038,9 @@
 						        }
 						      }, opts.width || 1024, opts.height || 192);
 						      if (!texture) return null;
-						      const mat = new THREE.MeshStandardMaterial({
+						      const mat = new THREE.MeshBasicMaterial({
 						        map: texture.tex,
 						        color: 0xffffff,
-						        emissive: 0x16261f,
-						        emissiveIntensity: 0.34,
-						        roughness: 0.38,
-						        metalness: 0.02,
 						        side: THREE.DoubleSide,
 						      });
 						      mat.userData = { kind: 'pitch3d_canvas_texture' };
@@ -8671,12 +8661,12 @@
 						        group.add(board);
 						      }
 
-						      const adH = 1.95;
-						      const adY = 1.10;
-						      const adOffset = 1.55;
+						      const adH = 2.55;
+						      const adY = 1.38;
+						      const adOffset = 1.92;
 						      const addAd = (side, label, logoUrl) => {
 						        const longSide = side === 'north' || side === 'south';
-						        const panelW = longSide ? metersW * 0.31 : metersH * 0.30;
+						        const panelW = longSide ? metersW * 0.34 : metersH * 0.34;
 						        const faceGeo = new THREE.PlaneGeometry(panelW, adH);
 						        const frameMat = new THREE.MeshStandardMaterial({ color: 0xd1d5db, roughness: 0.48, metalness: 0.28 });
 						        const backMat = new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.82, metalness: 0.04 });
@@ -8689,7 +8679,7 @@
 						            : null;
 						          const effectiveLogo = idx === 0 && safeText(logoUrl) ? safeText(logoUrl) : safeText(sponsor?.logo);
 						          const effectiveLabel = effectiveLogo ? safeText(sponsor?.label || label, label) : label;
-						          const mat = makePitch3dAdMaterial(effectiveLabel, effectiveLogo, { primary, secondary, width: longSide ? 1400 : 760, height: 220 });
+						          const mat = makePitch3dAdMaterial(effectiveLabel, effectiveLogo, { primary, secondary, width: longSide ? 1800 : 1100, height: 360 });
 						          if (!mat) return;
 						          const panel = new THREE.Group();
 						          panel.userData = { kind: 'stadium_ad', side, idx };
@@ -8724,7 +8714,7 @@
 						          if (longSide) {
 						            panel.position.set(t * metersW, adY, (side === 'north' ? -1 : 1) * (halfH + adOffset));
 						            panel.rotation.y = side === 'north' ? 0 : Math.PI;
-						            panel.rotation.x = side === 'north' ? -0.08 : 0.08;
+						            panel.rotation.x = 0;
 						          } else {
 						            panel.position.set((side === 'west' ? -1 : 1) * (halfW + adOffset), adY + 0.10, t * metersH);
 						            panel.rotation.y = side === 'west' ? Math.PI / 2 : -Math.PI / 2;
