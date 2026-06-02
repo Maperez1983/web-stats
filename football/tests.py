@@ -2373,6 +2373,74 @@ class SeasonHistoryServicesTests(TestCase):
         self.assertEqual(int(response.context['stats'].get('minutes') or 0), 0)
         self.assertEqual(int(response.context['stats'].get('goals') or 0), 0)
 
+    def test_active_season_dashboard_uses_confirmed_roster_without_legacy_base_stats(self):
+        competition = Competition.objects.create(name='Historial Liga', slug='historial-liga', level=1, region='test')
+        federation_season = Season.objects.create(
+            competition=competition,
+            name='2025/2026',
+            start_date=date(2025, 9, 1),
+            end_date=date(2026, 6, 30),
+            is_current=True,
+        )
+        group = Group.objects.create(season=federation_season, name='Grupo Historial', slug='grupo-historial')
+        self.team.group = group
+        self.team.save(update_fields=['group'])
+        pending_player = Player.objects.create(team=self.team, name='Jugador Pendiente KPI', is_active=True)
+        WorkspaceSeasonPlayer.objects.create(
+            season=self.season,
+            player=self.player,
+            team=self.team,
+            is_confirmed=True,
+            status=WorkspaceSeasonPlayer.STATUS_CONFIRMED,
+        )
+        WorkspaceSeasonPlayer.objects.create(
+            season=self.season,
+            player=pending_player,
+            team=self.team,
+            is_confirmed=False,
+            status=WorkspaceSeasonPlayer.STATUS_PENDING,
+        )
+        PlayerStatistic.objects.create(player=self.player, season=federation_season, match=None, context='manual-base', name='manual_pj', value=31)
+        PlayerStatistic.objects.create(player=self.player, season=federation_season, match=None, context='manual-base', name='manual_minutes', value=2465)
+        PlayerStatistic.objects.create(player=pending_player, season=federation_season, match=None, context='manual-base', name='manual_pj', value=20)
+
+        request = RequestFactory().get(f'/?club_season_id={self.season.id}')
+        request.user = self.user
+        session = self.client.session
+        session['active_workspace_id'] = int(self.workspace.id)
+        session.save()
+        request.session = session
+
+        rows = football_views.compute_player_dashboard(self.team, force_refresh=True, request=request)
+
+        self.assertEqual([row['player_id'] for row in rows], [self.player.id])
+        self.assertEqual(int(rows[0].get('pj') or 0), 0)
+        self.assertEqual(int(rows[0].get('minutes') or 0), 0)
+
+    def test_convocation_page_only_lists_confirmed_active_season_players(self):
+        confirmed = Player.objects.create(team=self.team, name='Jugador Confirmado Convocatoria', is_active=True)
+        pending = Player.objects.create(team=self.team, name='Jugador Pendiente Convocatoria', is_active=True)
+        WorkspaceSeasonPlayer.objects.create(
+            season=self.season,
+            player=confirmed,
+            team=self.team,
+            is_confirmed=True,
+            status=WorkspaceSeasonPlayer.STATUS_CONFIRMED,
+        )
+        WorkspaceSeasonPlayer.objects.create(
+            season=self.season,
+            player=pending,
+            team=self.team,
+            is_confirmed=False,
+            status=WorkspaceSeasonPlayer.STATUS_PENDING,
+        )
+
+        response = self.client.get(reverse('convocation'), secure=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, confirmed.name)
+        self.assertNotContains(response, pending.name)
+
     def test_season_architecture_audit_assigns_records_by_club_season(self):
         from football.season_history_services import infer_club_season_for_date, season_architecture_audit
 

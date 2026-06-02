@@ -5427,6 +5427,28 @@ def _season_player_memberships_for_team(season, team, *, confirmed_only=False, i
     return list(qs)
 
 
+def _operational_roster_players_for_team(request, team, *, season=None, confirmed_only=True):
+    if not team:
+        return []
+    selected_season = season
+    if selected_season is None and request is not None:
+        try:
+            workspace = _get_active_workspace(request)
+            if workspace and getattr(workspace, 'kind', None) == Workspace.KIND_CLUB:
+                selected_season = selected_club_season_for_request(request, workspace=workspace)
+        except Exception:
+            selected_season = None
+    if selected_season and bool(getattr(selected_season, 'is_active', False)):
+        memberships = _season_player_memberships_for_team(
+            selected_season,
+            team,
+            confirmed_only=confirmed_only,
+            include_pending=not confirmed_only,
+        )
+        return [row.player for row in memberships if getattr(row, 'player', None)]
+    return list(Player.objects.filter(team=team, is_active=True).order_by('number', 'name', 'id'))
+
+
 @lru_cache(maxsize=512)
 def _generated_template_kit2d_svg_url(main_color, trim_color, slot='home'):
     main = _clean_kit_hex(main_color, '#0f7a35')
@@ -7671,10 +7693,9 @@ def _build_team_setup_checklist(request, workspace, primary_team, *, match=None,
     )
 
     # 2) Plantilla (jugadores).
-    players_qs = Player.objects.filter(team=primary_team, is_active=True)
     players_count = 0
     try:
-        players_count = int(players_qs.count())
+        players_count = len(_operational_roster_players_for_team(request, primary_team, confirmed_only=True))
     except Exception:
         players_count = 0
     has_roster = players_count > 0
@@ -8518,6 +8539,26 @@ def _dashboard_data_impl(request, *, _json):
         team_metrics = {'total_events': 0, 'top_event_types': [], 'top_results': []}
     try:
         player_metrics = compute_player_metrics(primary_team, scope=Match.CONTEXT_LEAGUE, request=request)
+        current_roster_season = None
+        try:
+            current_roster_season = selected_club_season_for_request(request, workspace=workspace)
+        except Exception:
+            current_roster_season = None
+        if current_roster_season and bool(getattr(current_roster_season, 'is_active', False)):
+            current_roster_ids = {
+                int(player.id)
+                for player in _operational_roster_players_for_team(
+                    request,
+                    primary_team,
+                    season=current_roster_season,
+                    confirmed_only=True,
+                )
+                if getattr(player, 'id', None)
+            }
+            player_metrics = [
+                row for row in (player_metrics or [])
+                if int(_parse_int(row.get('player_id')) or 0) in current_roster_ids
+            ]
     except Exception:
         logger.exception('dashboard_data: compute_player_metrics falló')
         player_metrics = []
@@ -8851,7 +8892,7 @@ def _dashboard_data_impl(request, *, _json):
         try:
             player_map = {
                 int(p.id): p
-                for p in Player.objects.filter(team=primary_team, is_active=True).order_by('id')
+                for p in _operational_roster_players_for_team(request, primary_team, confirmed_only=True)
             }
             # cache sesiones reales para ponderar asistencia
             real_minutes_for_session = {}
@@ -17453,7 +17494,7 @@ def matchday_quick_buttons_api(request):
     return JsonResponse({'ok': True, 'role': role_key, 'updated_at': obj.updated_at})
 
 
-def _ensure_matchday_convocation_record(primary_team, *, match=None):
+def _ensure_matchday_convocation_record(primary_team, *, match=None, request=None):
     """
     Garantiza que exista una ConvocationRecord `is_current=True` para el flujo de partido.
 
@@ -17478,7 +17519,7 @@ def _ensure_matchday_convocation_record(primary_team, *, match=None):
     opponent_name = str(getattr(opponent_team, 'display_name', '') or getattr(opponent_team, 'name', '') or '').strip()
 
     starters_limit = _required_starters_for_team(primary_team)
-    players = list(Player.objects.filter(team=primary_team, is_active=True).order_by('number', 'name', 'id'))
+    players = _operational_roster_players_for_team(request, primary_team, confirmed_only=True)
 
     with transaction.atomic():
         ConvocationRecord.objects.filter(team=primary_team, is_current=True).update(is_current=False)
@@ -17573,7 +17614,7 @@ def match_action_page(request):
             fallback_to_latest=False if active_match else True,
         )
     if active_match and not convocation_record:
-        convocation_record = _ensure_matchday_convocation_record(primary_team, match=active_match)
+        convocation_record = _ensure_matchday_convocation_record(primary_team, match=active_match, request=request)
     convocation_players = convocation_record.players.order_by('name') if convocation_record else Player.objects.none()
     convocation_players = list(convocation_players)
     for player in convocation_players:
@@ -19200,7 +19241,7 @@ def match_report_pdf(request):
     if convocation_record:
         convocation_players = list(convocation_record.players.order_by('number', 'name'))
     if not convocation_players:
-        convocation_players = list(Player.objects.filter(team=primary_team, is_active=True).order_by('number', 'name'))
+        convocation_players = _operational_roster_players_for_team(request, primary_team, confirmed_only=True)
 
     lineup_payload = {'starters': [], 'bench': []}
     if convocation_record and isinstance(convocation_record.lineup_data, dict):
@@ -20275,7 +20316,11 @@ def team_agenda_page(request):
         if created:
             try:
                 player_ids = list(
-                    Player.objects.filter(team=primary_team, is_active=True).values_list('id', flat=True)
+                    [
+                        int(player.id)
+                        for player in _operational_roster_players_for_team(request, primary_team, confirmed_only=True)
+                        if getattr(player, 'id', None)
+                    ]
                 )
                 if player_ids:
                     active_injury_ids = get_active_injury_player_ids(player_ids)
@@ -20382,7 +20427,7 @@ def team_agenda_page(request):
             # Si algo falla, no ocultamos para no "perder" eventos.
             logger.exception('team_agenda_page: fallo filtrando sesiones ocultas', extra={'team_id': getattr(primary_team, 'id', None)})
 
-    roster_total = int(Player.objects.filter(team=primary_team, is_active=True).count() or 0)
+    roster_total = len(_operational_roster_players_for_team(request, primary_team, confirmed_only=True))
     attendance_by_session_id = {}
     if sessions:
         session_ids = [int(s.id) for s in sessions if getattr(s, 'id', None)]
@@ -22421,7 +22466,7 @@ def kpi_explorer_page(request):
         .select_related('home_team', 'away_team')
         .order_by('-date', '-id')[:60]
     )
-    roster = list(Player.objects.filter(team=primary_team).order_by('name')[:120])
+    roster = _operational_roster_players_for_team(request, primary_team, confirmed_only=True)[:120]
     match_items = []
     for m in matches:
         opp = m.away_team if m.home_team_id == primary_team.id else m.home_team
@@ -22793,7 +22838,13 @@ def team_season_report_pdf(request):
     tournament_filter = _get_tournament_filter_for_request(request, primary_team, scope=scope)
     sections = _sections_from_request(request, default={'summary', 'top', 'players', 'matches'})
 
-    dashboard_rows = compute_player_dashboard(primary_team, force_refresh=True, scope=scope, tournament_name=tournament_filter)
+    dashboard_rows = compute_player_dashboard(
+        primary_team,
+        force_refresh=True,
+        scope=scope,
+        tournament_name=tournament_filter,
+        request=request,
+    )
 
     match_qs = (
         _team_match_queryset(primary_team)
@@ -22985,7 +23036,7 @@ def convocation_page(request):
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
-    all_players = list(Player.objects.filter(team=primary_team, is_active=True).order_by('name'))
+    all_players = _operational_roster_players_for_team(request, primary_team, confirmed_only=True)
     for player in all_players:
         player.photo_url = resolve_player_photo_url(request, player)
     active_match = _resolve_active_match_for_flow(request, primary_team)
@@ -23444,7 +23495,13 @@ def save_convocation(request):
     if home_away not in {'home', 'away'}:
         home_away = 'home'
 
+    allowed_season_players = _operational_roster_players_for_team(request, primary_team, confirmed_only=True)
+    allowed_season_player_ids = [int(player.id) for player in allowed_season_players if getattr(player, 'id', None)]
     players = Player.objects.filter(team=primary_team, is_active=True, id__in=player_ids)
+    if allowed_season_player_ids:
+        players = players.filter(id__in=allowed_season_player_ids)
+    else:
+        players = players.none()
     # Convocatoria (partido): bloquea solo lesiones que impiden competir.
     # Nota: una lesión activa puede permitir entrenar, pero no competir; por eso no filtramos por "lesión activa" a secas.
     active_injury_ids = get_active_injury_player_ids(players.values_list('id', flat=True))
@@ -27258,7 +27315,7 @@ def coach_role_trainer_page(request):
         ],
     }
     player_dashboard_rows = (
-        compute_player_dashboard(primary_team, scope=stats_scope, tournament_name=tournament_filter)
+        compute_player_dashboard(primary_team, scope=stats_scope, tournament_name=tournament_filter, request=request)
         if primary_team
         else []
     )
@@ -27682,7 +27739,7 @@ def coach_abp_board_page(request):
     players = []
     if primary_team:
         players = list(
-            Player.objects.filter(team=primary_team, is_active=True).order_by('number', 'name')[:28]
+            _operational_roster_players_for_team(request, primary_team, confirmed_only=True)[:28]
         )
     return render(
         request,
@@ -29188,7 +29245,7 @@ def coach_load_page(request):
 
     can_edit = bool(_can_manage_workspace(request.user, workspace) or _is_admin_user(request.user) or _can_access_platform(request.user))
 
-    players = list(Player.objects.filter(team=primary_team, is_active=True).order_by('number', 'name', 'id'))
+    players = _operational_roster_players_for_team(request, primary_team, confirmed_only=True)
     player_ids = [int(p.id) for p in players if getattr(p, 'id', None)]
 
     # Cargamos la última métrica por jugador en la fecha seleccionada (si hay duplicados por entradas repetidas).
@@ -32906,7 +32963,11 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 # Auto-convocatoria (igual que sesiones manuales).
                 if created:
                     try:
-                        player_ids = list(Player.objects.filter(team=primary_team, is_active=True).values_list('id', flat=True))
+                        player_ids = [
+                            int(player.id)
+                            for player in _operational_roster_players_for_team(request, primary_team, confirmed_only=True)
+                            if getattr(player, 'id', None)
+                        ]
                         if player_ids:
                             TrainingSessionAttendance.objects.bulk_create(
                                 [
@@ -33691,9 +33752,11 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 auto_convoke = auto_convoke_raw not in {'0', 'false', 'no', 'off'}
                 if auto_convoke and created:
                     try:
-                        player_ids = list(
-                            Player.objects.filter(team=primary_team, is_active=True).values_list('id', flat=True)
-                        )
+                        player_ids = [
+                            int(player.id)
+                            for player in _operational_roster_players_for_team(request, primary_team, confirmed_only=True)
+                            if getattr(player, 'id', None)
+                        ]
                         if player_ids:
                             active_injury_ids = get_active_injury_player_ids(player_ids)
                             blocked_training_ids = set()
@@ -41312,7 +41375,7 @@ def fines_page(request):
                         created_by=(request.user.get_username() if request.user.is_authenticated else ''),
                     )
                     message = 'Multa registrada.'
-    players = list(Player.objects.filter(team=primary_team, is_active=True).order_by('number', 'name'))
+    players = _operational_roster_players_for_team(request, primary_team, confirmed_only=True)
     fines = list(PlayerFine.objects.filter(player__team=primary_team).select_related('player')[:120])
     reason_labels = dict(PlayerFine.REASON_CHOICES)
     summary_total = sum((item.amount or 0) for item in fines)
@@ -42681,7 +42744,7 @@ def analysis_page(request):
                 )
         except Exception:
             continue
-    analyst_players = list(Player.objects.filter(team=primary_team, is_active=True).order_by('number', 'name')) if primary_team else []
+    analyst_players = _operational_roster_players_for_team(request, primary_team, confirmed_only=True) if primary_team else []
     match_options = []
     match_reports = []
     if primary_team:
@@ -52148,7 +52211,7 @@ def manual_player_stats_page(request):
         if season is None:
             return JsonResponse({'error': 'No hay temporada activa para guardar estadísticas'}, status=400)
 
-        players = list(Player.objects.filter(team=primary_team).order_by('name'))
+        players = _operational_roster_players_for_team(request, primary_team, confirmed_only=True)
         current_overrides = get_manual_player_base_overrides(primary_team, season)
 
         if request.method == 'POST':
@@ -52504,6 +52567,7 @@ def player_detail_page(request, player_id):
                 refresh_photo_urls=False,
                 date_start=club_date_start,
                 date_end=club_date_end,
+                club_season=selected_club_season,
             )
             if selected_club_season:
                 matches = [
@@ -53480,6 +53544,7 @@ def player_pdf(request, player_id):
         request=request,
         date_start=date_start,
         date_end=date_end,
+        club_season=club_season,
     )
     detail = next((p for p in matches if p.get('player_id') == player_id), None)
     if not detail:
@@ -57039,6 +57104,7 @@ def compute_player_dashboard(
     request=None,
     date_start=None,
     date_end=None,
+    club_season=None,
     *,
     refresh_photo_urls: bool = True,
 ):
@@ -57059,6 +57125,7 @@ def compute_player_dashboard(
     cache_key = f'{cache_key_base}:{scope_value}'
     date_start = date_start if isinstance(date_start, date) else None
     date_end = date_end if isinstance(date_end, date) else None
+    dashboard_roster_season = None
     if not date_start and not date_end and request is not None:
         try:
             workspace = _get_active_workspace(request)
@@ -57069,8 +57136,12 @@ def compute_player_dashboard(
                     date_start = selected_start
                 if selected_end:
                     date_end = selected_end
+                if bool(getattr(selected_club_season, 'is_active', False)):
+                    dashboard_roster_season = selected_club_season
         except Exception:
             pass
+    if club_season and bool(getattr(club_season, 'is_active', False)):
+        dashboard_roster_season = club_season
     can_use_cache = (not bool(force_refresh)) and (not tournament_filter) and (not date_start) and (not date_end)
     # Evita KPIs desactualizados: si el equipo tiene acciones *recientes* pendientes (`touch-field`),
     # no usamos caché para que PJ/minutos y contadores reflejen lo recién registrado.
@@ -57146,8 +57217,17 @@ def compute_player_dashboard(
         season_obj = primary_team.group.season if primary_team.group else None
     except Exception:
         season_obj = None
-    roster_players = list(Player.objects.filter(team=primary_team))
+    if dashboard_roster_season:
+        roster_players = _operational_roster_players_for_team(
+            request,
+            primary_team,
+            season=dashboard_roster_season,
+            confirmed_only=True,
+        )
+    else:
+        roster_players = list(Player.objects.filter(team=primary_team))
     player_by_id = {player.id: player for player in roster_players}
+    roster_player_ids = set(player_by_id.keys())
     active_injury_ids = get_active_injury_player_ids([player.id for player in roster_players])
     active_match = get_active_match(primary_team)
     sanctioned_player_ids = get_sanctioned_player_ids_from_previous_round(
@@ -57158,7 +57238,7 @@ def compute_player_dashboard(
     # Los overrides manuales son fuente de verdad del usuario y deben seguir aplicando aunque la vista
     # filtre por temporada activa (`date_start/date_end`).
     use_external_base_stats = scope_value in {Match.CONTEXT_LEAGUE, 'all'} and not (date_start or date_end)
-    use_manual_base_stats = scope_value in {Match.CONTEXT_LEAGUE, 'all'}
+    use_manual_base_stats = scope_value in {Match.CONTEXT_LEAGUE, 'all'} and not dashboard_roster_season
     # La caché de La Preferente es legacy y solo aplica al equipo principal.
     # En multicategoría, evitar mezclar stats base entre equipos.
     roster_cache = (
@@ -57324,6 +57404,8 @@ def compute_player_dashboard(
                 pid = 0
             if not pid:
                 continue
+            if dashboard_roster_season and pid not in roster_player_ids:
+                continue
             starter_match_ids_by_player[pid].add(mid)
             starter_match_ids.add(mid)
     match_end_minutes = {}
@@ -57340,6 +57422,8 @@ def compute_player_dashboard(
             | ~Q(system='touch-field')
         )
     )
+    if dashboard_roster_season:
+        stats_events = stats_events.filter(player_id__in=list(roster_player_ids))
     if season_obj:
         stats_events = stats_events.filter(match__season=season_obj)
     if scope_value != 'all':
@@ -57623,6 +57707,8 @@ def compute_player_dashboard(
             | Q(system='touch-field', source_file='registro-acciones')
         )
     )
+    if dashboard_roster_season:
+        live_events = live_events.filter(Q(player_id__in=list(roster_player_ids)) | Q(player__isnull=True))
     if scope_value != 'all':
         if scope_value == Match.CONTEXT_LEAGUE:
             live_events = live_events.filter(Q(match__context=Match.CONTEXT_LEAGUE) | Q(match__context=''))
@@ -57644,6 +57730,8 @@ def compute_player_dashboard(
     for event in events:
         player = event.player
         if not player:
+            continue
+        if dashboard_roster_season and player.id not in roster_player_ids:
             continue
         resolved_photo_url = player_photo_url_by_id.get(player.id, '')
         match = event.match
@@ -58185,6 +58273,8 @@ def compute_player_dashboard(
     # Ensure imported matches tied to PlayerStatistic are visible in player panels
     # even when no MatchEvent was captured for those fixtures.
     player_stat_matches_qs = PlayerStatistic.objects.filter(player__team=primary_team, match__isnull=False)
+    if dashboard_roster_season:
+        player_stat_matches_qs = player_stat_matches_qs.filter(player_id__in=list(roster_player_ids))
     if season_obj:
         player_stat_matches_qs = player_stat_matches_qs.filter(season=season_obj)
     if date_start:
@@ -58375,6 +58465,8 @@ def compute_player_dashboard(
             context='manual-match',
             name__in=['manual_minutes', 'manual_goals', 'manual_assists'],
         )
+        if dashboard_roster_season:
+            manual_match_qs = manual_match_qs.filter(player_id__in=list(roster_player_ids))
         if season_obj:
             # Robustez: en algunos flujos legacy el `season` del PlayerStatistic puede quedar desincronizado.
             # El Match es la fuente de verdad de temporada.
