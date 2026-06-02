@@ -7939,9 +7939,18 @@
 						      c.height = Math.max(32, Math.round(height));
 						      const ctx = c.getContext('2d');
 						      if (!ctx) return null;
+						      try {
+						        ctx.imageSmoothingEnabled = true;
+						        ctx.imageSmoothingQuality = 'high';
+						      } catch (e) { /* ignore */ }
 						      draw(ctx, c);
 						      const tex = new THREE.CanvasTexture(c);
-						      tex.anisotropy = 4;
+						      tex.anisotropy = 12;
+						      try {
+						        tex.generateMipmaps = true;
+						        if (THREE.LinearMipmapLinearFilter) tex.minFilter = THREE.LinearMipmapLinearFilter;
+						        if (THREE.LinearFilter) tex.magFilter = THREE.LinearFilter;
+						      } catch (e) { /* ignore */ }
 						      tex.needsUpdate = true;
 						      return { canvas: c, ctx, tex };
 						    };
@@ -8689,7 +8698,7 @@
 						            : null;
 						          const effectiveLogo = idx === 0 && safeText(logoUrl) ? safeText(logoUrl) : safeText(sponsor?.logo);
 						          const effectiveLabel = effectiveLogo ? safeText(sponsor?.label || label, label) : label;
-						          const mat = makePitch3dAdMaterial(effectiveLabel, effectiveLogo, { primary, secondary, width: longSide ? 1800 : 1100, height: 360 });
+						          const mat = makePitch3dAdMaterial(effectiveLabel, effectiveLogo, { primary, secondary, width: longSide ? 4096 : 3072, height: 896 });
 						          if (!mat) return;
 						          const panel = new THREE.Group();
 						          panel.userData = { kind: 'stadium_ad', side, idx };
