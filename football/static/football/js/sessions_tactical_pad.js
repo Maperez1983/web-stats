@@ -7972,8 +7972,9 @@
 						          const model = scene.clone(true);
 						          model.name = 'blender_premium_stadium_shell';
 						          model.userData = { kind: 'blender_premium_stadium_shell' };
-						          model.scale.set(1, 1, 1);
-						          model.position.set(0, 0, 0);
+						          const scale = Math.max(0.1, Number(metersW) || 105) / 105;
+						          model.scale.set(scale, scale, scale);
+						          model.position.set(0, -0.03, 0);
 						          applyMaterials(model);
 						          group.add(model);
 						        } catch (e) { /* ignore */ }
@@ -8024,27 +8025,43 @@
 						      const secondary = safeText(opts.secondary, '#ffffff');
 						      const fill = safeText(opts.fill, '#f8fafc');
 						      const bg = safeText(opts.bg, primary);
+						      const transparentBg = opts.transparentBg === true;
 						      const texture = makePitch3dCanvasTexture((ctx, c) => {
-						        const grd = ctx.createLinearGradient(0, 0, c.width, 0);
-						        grd.addColorStop(0, '#020617');
-						        grd.addColorStop(0.24, bg);
-						        grd.addColorStop(0.72, primary);
-						        grd.addColorStop(1, '#020617');
-						        ctx.fillStyle = grd;
-						        ctx.fillRect(0, 0, c.width, c.height);
-						        ctx.fillStyle = 'rgba(255,255,255,0.10)';
-						        for (let x = 0; x < c.width; x += 34) ctx.fillRect(x, 0, 2, c.height);
-						        ctx.strokeStyle = secondary;
-						        ctx.globalAlpha = 0.42;
-						        ctx.lineWidth = 10;
-						        ctx.strokeRect(5, 5, c.width - 10, c.height - 10);
+						        if (transparentBg) {
+						          ctx.clearRect(0, 0, c.width, c.height);
+						        } else {
+						          const grd = ctx.createLinearGradient(0, 0, c.width, 0);
+						          grd.addColorStop(0, '#020617');
+						          grd.addColorStop(0.24, bg);
+						          grd.addColorStop(0.72, primary);
+						          grd.addColorStop(1, '#020617');
+						          ctx.fillStyle = grd;
+						          ctx.fillRect(0, 0, c.width, c.height);
+						          ctx.fillStyle = 'rgba(255,255,255,0.10)';
+						          for (let x = 0; x < c.width; x += 34) ctx.fillRect(x, 0, 2, c.height);
+						          ctx.strokeStyle = secondary;
+						          ctx.globalAlpha = 0.42;
+						          ctx.lineWidth = 10;
+						          ctx.strokeRect(5, 5, c.width - 10, c.height - 10);
+						        }
 						        ctx.globalAlpha = 1;
+						        ctx.shadowColor = transparentBg ? 'rgba(2,6,23,0.86)' : 'transparent';
+						        ctx.shadowBlur = transparentBg ? 18 : 0;
+						        ctx.shadowOffsetY = transparentBg ? 8 : 0;
 						        ctx.fillStyle = fill;
 						        ctx.textAlign = 'center';
 						        ctx.textBaseline = 'middle';
 						        ctx.font = `950 ${Math.round(c.height * (opts.large ? 0.44 : 0.36))}px system-ui, -apple-system, Segoe UI, Arial`;
 						        ctx.letterSpacing = '8px';
 						        ctx.fillText(safeText(text, 'CLUB').toUpperCase().slice(0, 42), c.width / 2, c.height / 2 + 2);
+						        if (transparentBg) {
+						          ctx.shadowColor = 'transparent';
+						          ctx.globalAlpha = 0.55;
+						          ctx.strokeStyle = secondary;
+						          ctx.lineWidth = Math.max(6, c.height * 0.028);
+						          ctx.strokeText(safeText(text, 'CLUB').toUpperCase().slice(0, 42), c.width / 2, c.height / 2 + 2);
+						          ctx.globalAlpha = 1;
+						        }
 						      }, opts.width || 1024, opts.height || 256);
 						      if (!texture) return null;
 						      const mat = new THREE.MeshBasicMaterial({ map: texture.tex, transparent: true, side: THREE.DoubleSide });
@@ -8168,8 +8185,8 @@
 						            img.onload = () => {
 						              try {
 						                drawBase();
-						                const maxW = c.width * (overhead ? 0.94 : 0.80);
-						                const maxH = c.height * (overhead ? 0.78 : 0.66);
+						                const maxW = c.width * (overhead ? 0.96 : 0.88);
+						                const maxH = c.height * (overhead ? 0.82 : 0.76);
 						                const scale = Math.min(maxW / Math.max(1, img.width), maxH / Math.max(1, img.height));
 						                const w = img.width * scale;
 						                const h = img.height * scale;
@@ -8878,20 +8895,23 @@
 						        large: true,
 						        width: 2048,
 						        height: 260,
+						        transparentBg: usingBlenderShell,
 						      });
 						      if (nameMat) {
 						        const sign = -1;
-						        const name = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(metersW * 0.60, 64), 4.4), nameMat);
-						        name.position.set(0, 6.4, sign * (halfH + 13.2));
-						        name.rotation.x = sign * -0.22;
+						        const name = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(metersW * 0.64, 68), usingBlenderShell ? 5.4 : 4.4), nameMat);
+						        name.position.set(0, usingBlenderShell ? 6.9 : 6.4, sign * (halfH + (usingBlenderShell ? 14.8 : 13.2)));
+						        name.rotation.x = sign * (usingBlenderShell ? -0.18 : -0.22);
+						        name.renderOrder = 4;
 						        name.userData = { kind: 'main_stand_integrated_name' };
 						        group.add(name);
 						      }
 						      const crestMat = makePitch3dCrestBadgeMaterial({ primary, secondary, initials: ctx.initials, imageUrl: ctx.crestUrl, width: 768, height: 768 });
 						      if (crestMat) {
 						        const crest = new THREE.Mesh(new THREE.CircleGeometry(3.4, 64), crestMat);
-						        crest.position.set(0, 9.4, -(halfH + 15.4));
-						        crest.rotation.x = -0.16;
+						        crest.position.set(0, usingBlenderShell ? 10.4 : 9.4, -(halfH + (usingBlenderShell ? 18.2 : 15.4)));
+						        crest.rotation.x = usingBlenderShell ? -0.12 : -0.16;
+						        crest.renderOrder = 5;
 						        crest.userData = { kind: 'main_stand_integrated_crest' };
 						        group.add(crest);
 						        const board = new THREE.Mesh(new THREE.PlaneGeometry(7.8, 4.2), crestMat);
@@ -8900,12 +8920,12 @@
 						        group.add(board);
 						      }
 
-						      const adH = 3.05;
-						      const adY = 1.62;
-						      const adOffset = 1.92;
+						      const adH = 3.55;
+						      const adY = 1.86;
+						      const adOffset = usingBlenderShell ? 3.35 : 2.45;
 						      const addAd = (side, label, logoUrl) => {
 						        const longSide = side === 'north' || side === 'south';
-						        const panelW = longSide ? metersW * 0.34 : metersH * 0.34;
+						        const panelW = longSide ? metersW * 0.30 : metersH * 0.30;
 						        const faceGeo = new THREE.PlaneGeometry(panelW, adH);
 						        const frameMat = new THREE.MeshStandardMaterial({ color: 0xd1d5db, roughness: 0.48, metalness: 0.28 });
 						        const backMat = new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.82, metalness: 0.04 });
@@ -8918,8 +8938,8 @@
 						            : null;
 						          const effectiveLogo = idx === 0 && safeText(logoUrl) ? safeText(logoUrl) : safeText(sponsor?.logo);
 						          const effectiveLabel = effectiveLogo ? safeText(sponsor?.label || label, label) : label;
-						          const mat = makePitch3dAdMaterial(effectiveLabel, effectiveLogo, { primary, secondary, width: longSide ? 4096 : 3072, height: 896 });
-						          const topMat = makePitch3dAdMaterial(effectiveLabel, effectiveLogo, { primary, secondary, width: longSide ? 4096 : 3072, height: 1152, overhead: true });
+						          const mat = makePitch3dAdMaterial(effectiveLabel, effectiveLogo, { primary, secondary, width: longSide ? 4096 : 3072, height: 1024 });
+						          const topMat = makePitch3dAdMaterial(effectiveLabel, effectiveLogo, { primary, secondary, width: longSide ? 4096 : 3072, height: 1280, overhead: true });
 						          if (!mat) return;
 						          const panel = new THREE.Group();
 						          panel.userData = { kind: 'stadium_ad', side, idx };
@@ -8928,18 +8948,18 @@
 						          back.userData = { kind: 'stadium_ad_back', side, idx };
 						          panel.add(back);
 						          const face = new THREE.Mesh(faceGeo, mat.clone());
-						          face.position.set(0, 0, 0.14);
+						          face.position.set(0, 0, 0.22);
 						          face.userData = { kind: 'stadium_ad_face', side, idx };
 						          panel.add(face);
-						          const topFace = new THREE.Mesh(new THREE.PlaneGeometry(panelW, 4.2), (topMat || mat).clone());
-						          topFace.position.set(0, (adH / 2) + 0.58, 1.15);
+						          const topFace = new THREE.Mesh(new THREE.PlaneGeometry(panelW, 4.5), (topMat || mat).clone());
+						          topFace.position.set(0, (adH / 2) + 0.62, 1.25);
 						          topFace.rotation.x = -Math.PI / 2;
 						          topFace.userData = { kind: 'stadium_ad_top_face', side, idx };
 						          panel.add(topFace);
-						          const topFrame = new THREE.Mesh(new THREE.BoxGeometry(panelW + 0.42, 0.12, 0.22), frameMat);
-						          topFrame.position.set(0, (adH / 2) + 0.10, 0.34);
+						          const topFrame = new THREE.Mesh(new THREE.BoxGeometry(panelW + 0.42, 0.14, 0.30), frameMat);
+						          topFrame.position.set(0, (adH / 2) + 0.10, 0.38);
 						          panel.add(topFrame);
-						          const bottomFrame = new THREE.Mesh(new THREE.BoxGeometry(panelW + 0.42, 0.14, 0.28), frameMat);
+						          const bottomFrame = new THREE.Mesh(new THREE.BoxGeometry(panelW + 0.42, 0.18, 0.34), frameMat);
 						          bottomFrame.position.set(0, -(adH / 2) - 0.10, 0.16);
 						          panel.add(bottomFrame);
 						          const leftFrame = new THREE.Mesh(new THREE.BoxGeometry(0.12, adH + 0.20, 0.22), frameMat);
@@ -8948,8 +8968,8 @@
 						          const rightFrame = new THREE.Mesh(new THREE.BoxGeometry(0.12, adH + 0.20, 0.22), frameMat);
 						          rightFrame.position.set((panelW / 2) + 0.10, 0, 0.16);
 						          panel.add(rightFrame);
-						          const base = new THREE.Mesh(new THREE.BoxGeometry(panelW + 0.72, 0.34, 0.72), baseMat);
-						          base.position.set(0, -(adH / 2) - 0.38, 0.10);
+						          const base = new THREE.Mesh(new THREE.BoxGeometry(panelW + 0.78, 0.42, 0.82), baseMat);
+						          base.position.set(0, -(adH / 2) - 0.42, 0.12);
 						          panel.add(base);
 						          for (let i = -1; i <= 1; i += 2) {
 						            const post = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.15, 0.18), frameMat);
@@ -9268,6 +9288,24 @@
 						            root.add(mesh);
 						            return mesh;
 						          };
+						          const tubeMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.28, metalness: 0.02, emissive: 0xffffff, emissiveIntensity: 0.12 });
+						          const addTube = (a, b, radius = 0.105) => {
+						            try {
+						              const start = new THREE.Vector3(a.x, a.y, a.z);
+						              const end = new THREE.Vector3(b.x, b.y, b.z);
+						              const mid = start.clone().add(end).multiplyScalar(0.5);
+						              const dir = end.clone().sub(start);
+						              const geo = new THREE.CylinderGeometry(radius, radius, Math.max(0.01, dir.length()), 18, 1);
+						              const mesh = new THREE.Mesh(geo, tubeMat);
+						              mesh.position.copy(mid);
+						              mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+						              mesh.userData = { kind: 'goal_3d_round_frame' };
+						              root.add(mesh);
+						              return mesh;
+						            } catch (e) {
+						              return null;
+						            }
+						          };
 						          const verticalGeo = new THREE.BoxGeometry(post, goalH, post);
 						          const widthGeo = new THREE.BoxGeometry(post, post, goalW + post);
 						          const depthGeo = new THREE.BoxGeometry(depth, post, post);
@@ -9279,6 +9317,14 @@
 						          zs.forEach((z) => {
 						            addPart(depthGeo, { x: (frontX + backX) / 2, y: goalH, z });
 						            addPart(depthGeo, { x: (frontX + backX) / 2, y: post / 2, z });
+						          });
+						          [frontX, backX].forEach((x) => {
+						            zs.forEach((z) => addTube({ x, y: 0.04, z }, { x, y: goalH, z }));
+						            addTube({ x, y: goalH, z: zs[0] }, { x, y: goalH, z: zs[1] }, 0.115);
+						          });
+						          zs.forEach((z) => {
+						            addTube({ x: frontX, y: goalH, z }, { x: backX, y: goalH, z });
+						            addTube({ x: frontX, y: 0.08, z }, { x: backX, y: 0.08, z }, 0.085);
 						          });
 						          const backNet = new THREE.Mesh(new THREE.PlaneGeometry(goalW, goalH), netMat);
 						          backNet.position.set(backX, goalH / 2, baseZ);

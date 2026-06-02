@@ -243,7 +243,15 @@ def add_corner_bowl(x_sign, y_sign):
 
 
 def add_pitchside_details():
-    cube_obj("pitch_outer_walkway", (0, 0, 0.02), (PITCH_X + 16, PITCH_Y + 16, 0.05), MATS["dark"])
+    # Four perimeter walkways leave the playable pitch open for the dynamic Three.js turf.
+    cube_obj("north_outer_walkway", (0, -(HALF_Y + 5.5), 0.02), (PITCH_X + 16, 5.0, 0.05), MATS["dark"])
+    cube_obj("south_outer_walkway", (0, HALF_Y + 5.5, 0.02), (PITCH_X + 16, 5.0, 0.05), MATS["dark"])
+    cube_obj("west_outer_walkway", (-(HALF_X + 5.5), 0, 0.02), (5.0, PITCH_Y + 16, 0.05), MATS["dark"])
+    cube_obj("east_outer_walkway", (HALF_X + 5.5, 0, 0.02), (5.0, PITCH_Y + 16, 0.05), MATS["dark"])
+    cube_obj("north_ad_board_socket", (0, -(HALF_Y + 2.85), 0.72), (PITCH_X + 8, 0.30, 1.20), MATS["dark"])
+    cube_obj("south_ad_board_socket", (0, HALF_Y + 2.85, 0.72), (PITCH_X + 8, 0.30, 1.20), MATS["dark"])
+    cube_obj("west_ad_board_socket", (-(HALF_X + 2.85), 0, 0.72), (0.30, PITCH_Y + 8, 1.20), MATS["dark"])
+    cube_obj("east_ad_board_socket", (HALF_X + 2.85, 0, 0.72), (0.30, PITCH_Y + 8, 1.20), MATS["dark"])
     cube_obj("north_pitch_rail", (0, -(HALF_Y + 3.1), 1.0), (PITCH_X + 8, 0.35, 1.2), MATS["rail"])
     cube_obj("south_pitch_rail", (0, HALF_Y + 3.1, 1.0), (PITCH_X + 8, 0.35, 1.2), MATS["rail"])
     cube_obj("west_pitch_rail", (-(HALF_X + 3.1), 0, 1.0), (0.35, PITCH_Y + 8, 1.2), MATS["rail"])
