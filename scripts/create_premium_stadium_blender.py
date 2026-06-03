@@ -350,11 +350,11 @@ def add_side_stand_render(name, side):
         cube_obj(f"{name}_vip_box_shadow_{tier}", (0, base_y + sign * (tier_y + tier_rows * 0.98 + 1.98), tier_z + tier_rows * 0.64 + 0.30), (width_base - tier * 4.2, 0.38, 0.62), dark_mat)
 
     for idx, x in enumerate(aisle_xs):
-        aisle = cube_obj(f"{name}_vertical_aisle_{idx}", (x, base_y + sign * 14.2, 6.2), (1.25, 22.0, 0.32), rail_mat)
+        aisle = cube_obj(f"{name}_vertical_aisle_{idx}", (x, base_y + sign * 14.2, 4.9), (0.88, 20.0, 0.12), concrete_mat)
         aisle.rotation_euler.x = math.radians(sign * -10)
         cube_obj(f"{name}_vomitory_{idx}", (x, base_y + sign * 7.6, 3.0), (3.7, 2.0, 1.65), dark_mat)
-        cube_obj(f"{name}_aisle_wall_left_{idx}", (x - 0.78, base_y + sign * 14.0, 6.1), (0.12, 21.0, 0.86), concrete_mat)
-        cube_obj(f"{name}_aisle_wall_right_{idx}", (x + 0.78, base_y + sign * 14.0, 6.1), (0.12, 21.0, 0.86), concrete_mat)
+        cube_obj(f"{name}_aisle_rail_left_{idx}", (x - 0.58, base_y + sign * 14.0, 5.15), (0.08, 19.0, 0.30), rail_mat)
+        cube_obj(f"{name}_aisle_rail_right_{idx}", (x + 0.58, base_y + sign * 14.0, 5.15), (0.08, 19.0, 0.30), rail_mat)
 
     mesh_boxes(f"{name}_club_primary_individual_seats", primary_seats, MATS["club_primary"])
     mesh_boxes(f"{name}_club_secondary_individual_seats", secondary_seats, MATS["club_secondary"])
@@ -426,11 +426,11 @@ def add_end_stand_render(name, side):
         cube_obj(f"{name}_vip_box_shadow_{tier}", (base_x + sign * (tier_x + tier_rows * 0.98 + 1.88), 0, tier_z + tier_rows * 0.64 + 0.28), (0.38, depth_base - tier * 4.2, 0.62), dark_mat)
 
     for idx, y in enumerate(aisle_ys):
-        aisle = cube_obj(f"{name}_vertical_aisle_{idx}", (base_x + sign * 14.0, y, 6.0), (22.0, 1.25, 0.32), rail_mat)
+        aisle = cube_obj(f"{name}_vertical_aisle_{idx}", (base_x + sign * 14.0, y, 4.8), (20.0, 0.88, 0.12), concrete_mat)
         aisle.rotation_euler.y = math.radians(sign * 10)
         cube_obj(f"{name}_vomitory_{idx}", (base_x + sign * 7.4, y, 2.9), (2.0, 3.7, 1.65), dark_mat)
-        cube_obj(f"{name}_aisle_wall_left_{idx}", (base_x + sign * 14.0, y - 0.78, 6.0), (21.0, 0.12, 0.82), concrete_mat)
-        cube_obj(f"{name}_aisle_wall_right_{idx}", (base_x + sign * 14.0, y + 0.78, 6.0), (21.0, 0.12, 0.82), concrete_mat)
+        cube_obj(f"{name}_aisle_rail_left_{idx}", (base_x + sign * 14.0, y - 0.58, 5.05), (19.0, 0.08, 0.30), rail_mat)
+        cube_obj(f"{name}_aisle_rail_right_{idx}", (base_x + sign * 14.0, y + 0.58, 5.05), (19.0, 0.08, 0.30), rail_mat)
 
     mesh_boxes(f"{name}_club_primary_individual_seats", primary_seats, MATS["club_primary"])
     mesh_boxes(f"{name}_club_secondary_individual_seats", secondary_seats, MATS["club_secondary"])

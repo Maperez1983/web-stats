@@ -9178,27 +9178,27 @@
 						      try {
 						        const renderer = new THREE.WebGLRenderer({ canvas: pitch3dCanvasEl, antialias: true, alpha: false, preserveDrawingBuffer: true });
 						        renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-						        renderer.setClearColor(0x9fc8ea, 1);
+						        renderer.setClearColor(0x8fc7ee, 1);
 						        try {
 						          renderer.shadowMap.enabled = true;
 						          renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 						          if (THREE.SRGBColorSpace) renderer.outputColorSpace = THREE.SRGBColorSpace;
 						          if (THREE.ACESFilmicToneMapping) renderer.toneMapping = THREE.ACESFilmicToneMapping;
-						          renderer.toneMappingExposure = 1.08;
+						          renderer.toneMappingExposure = 0.88;
 						        } catch (e) { /* ignore */ }
 						        pitch3dRenderer = renderer;
 						        pitch3dScene = new THREE.Scene();
-						        pitch3dScene.background = new THREE.Color(0xb9dcf7);
-						        try { pitch3dScene.fog = new THREE.Fog(0xb9dcf7, 245, 470); } catch (e) { /* ignore */ }
-						        pitch3dCamera = new THREE.PerspectiveCamera(58, 16 / 9, 0.1, 2000);
+						        pitch3dScene.background = new THREE.Color(0x9fd3f4);
+						        try { pitch3dScene.fog = new THREE.Fog(0x9fd3f4, 275, 520); } catch (e) { /* ignore */ }
+						        pitch3dCamera = new THREE.PerspectiveCamera(52, 16 / 9, 0.1, 2000);
 						        try {
 						          window.__WEBSTATS_PITCH3D_SCENE = pitch3dScene;
 						          window.__WEBSTATS_PITCH3D_CAMERA = pitch3dCamera;
 						        } catch (e) { /* ignore */ }
-						        const hemi = new THREE.HemisphereLight(0xffffff, 0xa7b4c3, 1.25);
+						        const hemi = new THREE.HemisphereLight(0xffffff, 0x8291a4, 0.72);
 						        pitch3dScene.add(hemi);
-						        const dir = new THREE.DirectionalLight(0xffffff, 1.22);
-						        dir.position.set(-95, 150, 80);
+						        const dir = new THREE.DirectionalLight(0xfff5df, 2.35);
+						        dir.position.set(-120, 170, -95);
 						        try {
 						          dir.castShadow = true;
 						          dir.shadow.mapSize.width = 2048;
@@ -9213,9 +9213,12 @@
 						          dir.shadow.normalBias = 0.018;
 						        } catch (e) { /* ignore */ }
 						        pitch3dScene.add(dir);
-						        const rim = new THREE.DirectionalLight(0xffffff, 0.42);
-						        rim.position.set(-120, 110, -90);
+						        const rim = new THREE.DirectionalLight(0xdbeafe, 0.28);
+						        rim.position.set(110, 80, 130);
 						        pitch3dScene.add(rim);
+						        const softFill = new THREE.DirectionalLight(0xffffff, 0.18);
+						        softFill.position.set(70, 60, 105);
+						        pitch3dScene.add(softFill);
 						        pitch3dRaycaster = new THREE.Raycaster();
 						        pitch3dPointer = new THREE.Vector2();
 						        return true;
@@ -9252,11 +9255,11 @@
 						      } else if (k === 'render_original') {
 						        // Vista inspirada en el render de referencia: esquina alta, lente abierta y gradas en profundidad.
 							        pitch3dOrbit.theta = -2.34;
-							        pitch3dOrbit.phi = 1.16;
-							        pitch3dOrbit.radius = Math.max(74, metersW * 0.72);
-							        targetX = 7;
-							        targetY = 3.2;
-							        targetZ = -1;
+							        pitch3dOrbit.phi = 1.36;
+							        pitch3dOrbit.radius = Math.max(78, metersW * 0.76);
+							        targetX = 6;
+							        targetY = 2.0;
+							        targetZ = -3;
 						      } else if (k === 'stadium_render') {
 						        // Composición tipo render de estadio: esquina alta, campo completo y gradas dominantes.
 							        pitch3dOrbit.theta = -2.36;
@@ -9324,13 +9327,13 @@
 						      if (!root || !window.THREE) return;
 						      const sky = makePitch3dCanvasTexture((ctx, c) => {
 						        const g = ctx.createLinearGradient(0, 0, 0, c.height);
-						        g.addColorStop(0.00, '#4fa5ed');
-						        g.addColorStop(0.42, '#93cdf5');
-						        g.addColorStop(0.72, '#e5f5ff');
-						        g.addColorStop(1.00, '#cfe8d3');
+						        g.addColorStop(0.00, '#3f95de');
+						        g.addColorStop(0.38, '#82c4f1');
+						        g.addColorStop(0.72, '#e9f7ff');
+						        g.addColorStop(1.00, '#d5ead7');
 						        ctx.fillStyle = g;
 						        ctx.fillRect(0, 0, c.width, c.height);
-						        ctx.globalAlpha = 0.72;
+						        ctx.globalAlpha = 0.82;
 						        for (let i = 0; i < 9; i += 1) {
 						          const x = ((i * 281) % c.width);
 						          const y = 80 + ((i * 43) % 150);
@@ -9429,12 +9432,12 @@
 						        tex.needsUpdate = true;
 						      }
 						      const groundGeo = new THREE.PlaneGeometry(metersW, metersH, 1, 1);
-						      const groundMat = new THREE.MeshStandardMaterial({
-						        color: 0xffffff,
+						        const groundMat = new THREE.MeshStandardMaterial({
+						        color: 0xd8f5d4,
 						        map: tex || null,
 						        bumpMap: tex || null,
-						        bumpScale: 0.035,
-						        roughness: 0.86,
+						        bumpScale: 0.055,
+						        roughness: 0.78,
 						        metalness: 0,
 						      });
 						      const ground = new THREE.Mesh(groundGeo, groundMat);
@@ -9448,10 +9451,10 @@
 						        const shadow = makePitch3dCanvasTexture((ctx, c) => {
 						          ctx.clearRect(0, 0, c.width, c.height);
 						          const g = ctx.createLinearGradient(0, 0, c.width, c.height);
-						          g.addColorStop(0.00, 'rgba(2,6,23,0.42)');
-						          g.addColorStop(0.26, 'rgba(2,6,23,0.32)');
-						          g.addColorStop(0.50, 'rgba(2,6,23,0.12)');
-						          g.addColorStop(0.78, 'rgba(2,6,23,0.03)');
+						          g.addColorStop(0.00, 'rgba(2,6,23,0.56)');
+						          g.addColorStop(0.26, 'rgba(2,6,23,0.42)');
+						          g.addColorStop(0.50, 'rgba(2,6,23,0.16)');
+						          g.addColorStop(0.78, 'rgba(2,6,23,0.04)');
 						          g.addColorStop(1.00, 'rgba(2,6,23,0.00)');
 						          ctx.fillStyle = g;
 						          ctx.beginPath();
@@ -9461,7 +9464,7 @@
 						          ctx.lineTo(0, c.height);
 						          ctx.closePath();
 						          ctx.fill();
-						          ctx.globalAlpha = 0.20;
+						          ctx.globalAlpha = 0.26;
 						          ctx.fillStyle = '#020617';
 						          ctx.fillRect(0, 0, c.width * 0.22, c.height);
 						          ctx.globalAlpha = 1;
