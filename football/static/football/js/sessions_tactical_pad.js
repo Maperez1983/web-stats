@@ -7978,6 +7978,36 @@
 						              node.material = mat;
 						            }
 						            try {
+						              if (name.includes('stadium_roof_metal')) {
+						                mat = node.material.clone();
+						                mat.metalness = 0.28;
+						                mat.roughness = 0.42;
+						                node.material = mat;
+						              } else if (name.includes('stadium_metal_rails')) {
+						                mat = node.material.clone();
+						                mat.metalness = 0.42;
+						                mat.roughness = 0.34;
+						                node.material = mat;
+						              } else if (name.includes('stadium_glass')) {
+						                mat = node.material.clone();
+						                mat.transparent = true;
+						                mat.opacity = 0.38;
+						                mat.roughness = 0.12;
+						                mat.metalness = 0.02;
+						                node.material = mat;
+						              } else if (name.includes('stadium_concrete')) {
+						                mat = node.material.clone();
+						                mat.roughness = 0.92;
+						                mat.metalness = 0.01;
+						                node.material = mat;
+						              } else if (name.includes('stadium_light_panels')) {
+						                mat = node.material.clone();
+						                mat.emissive = new THREE.Color(0xfff3bf);
+						                mat.emissiveIntensity = 0.28;
+						                node.material = mat;
+						              }
+						            } catch (e) { /* ignore */ }
+						            try {
 						              node.castShadow = true;
 						              node.receiveShadow = true;
 						            } catch (e) { /* ignore */ }
@@ -9123,6 +9153,10 @@
 						        const renderer = new THREE.WebGLRenderer({ canvas: pitch3dCanvasEl, antialias: true, alpha: false, preserveDrawingBuffer: true });
 						        renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
 						        renderer.setClearColor(0x9fc8ea, 1);
+						        try {
+						          renderer.shadowMap.enabled = true;
+						          renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+						        } catch (e) { /* ignore */ }
 						        pitch3dRenderer = renderer;
 						        pitch3dScene = new THREE.Scene();
 						        pitch3dScene.background = new THREE.Color(0x9fc8ea);
@@ -9135,6 +9169,19 @@
 						        pitch3dScene.add(hemi);
 						        const dir = new THREE.DirectionalLight(0xffffff, 1.08);
 						        dir.position.set(-95, 150, 80);
+						        try {
+						          dir.castShadow = true;
+						          dir.shadow.mapSize.width = 2048;
+						          dir.shadow.mapSize.height = 2048;
+						          dir.shadow.camera.near = 10;
+						          dir.shadow.camera.far = 340;
+						          dir.shadow.camera.left = -135;
+						          dir.shadow.camera.right = 135;
+						          dir.shadow.camera.top = 135;
+						          dir.shadow.camera.bottom = -135;
+						          dir.shadow.bias = -0.00008;
+						          dir.shadow.normalBias = 0.018;
+						        } catch (e) { /* ignore */ }
 						        pitch3dScene.add(dir);
 						        const rim = new THREE.DirectionalLight(0xffffff, 0.42);
 						        rim.position.set(-120, 110, -90);
@@ -9287,6 +9334,7 @@
 						      const ground = new THREE.Mesh(groundGeo, groundMat);
 						      ground.rotation.x = -Math.PI / 2;
 						      ground.position.y = 0.04;
+						      try { ground.receiveShadow = true; } catch (e) { /* ignore */ }
 						      root.add(ground);
 
 						      // Sombra de cubierta tipo render: ayuda a romper el aspecto plano del césped sin bloquear las líneas.
@@ -9334,6 +9382,7 @@
 						        const pitchBase = new THREE.Mesh(new THREE.BoxGeometry(metersW + 2.0, 0.42, metersH + 2.0), pitchBaseMat);
 						        pitchBase.position.set(0, -0.25, 0);
 						        pitchBase.userData = { kind: 'pitch_slab' };
+						        pitchBase.receiveShadow = true;
 						        root.add(pitchBase);
 						        const edgeMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.72, metalness: 0.02, transparent: true, opacity: 0.82 });
 						        const addEdge = (geo, x, z) => {
