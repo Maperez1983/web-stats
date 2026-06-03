@@ -9002,14 +9002,14 @@
 						            }
 						            const mesh = new THREE.InstancedMesh(seatGeo, printMat, Math.max(1, instances.length));
 						            const dummy = new THREE.Object3D();
-						            const width = Math.min(metersW * 0.90, 96);
+						            const width = Math.min(metersW * 0.86, 88);
 						            instances.forEach((p, idx) => {
-						              const x = (0.5 - (p.col / Math.max(1, cols - 1))) * width;
+						              const x = ((p.col / Math.max(1, cols - 1)) - 0.5) * width;
 						              const rowT = p.r / Math.max(1, rows - 1);
-						              const y = 5.15 + (rowT * 6.9);
-						              const z = halfH + 7.0 + (rowT * 10.2);
+						              const y = 3.05 + (rowT * 3.65);
+						              const z = halfH + 5.35 + (rowT * 5.9);
 						              dummy.position.set(x, y, z);
-						              dummy.rotation.set(0.23, 0, 0);
+						              dummy.rotation.set(0.18, 0, 0);
 						              dummy.updateMatrix();
 						              mesh.setMatrixAt(idx, dummy.matrix);
 						            });
