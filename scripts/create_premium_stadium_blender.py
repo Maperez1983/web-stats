@@ -367,6 +367,8 @@ def add_side_stand_render(name, side):
             if row % 2 == 0:
                 rail = cube_obj(f"{name}_row_highlight_{tier}_{row}", (0, y + sign * 0.43, z + 0.54), (width - 3.0, 0.08, 0.08), rail_mat)
                 rail.rotation_euler.x = math.radians(sign * -10)
+            row_ao = cube_obj(f"{name}_baked_row_occlusion_{tier}_{row}", (0, y + sign * 0.34, z + 0.30), (width - 2.5, 0.055, 0.18), MATS["deep_void"])
+            row_ao.rotation_euler.x = math.radians(sign * -10)
             cols = 112
             for col in range(cols):
                 x = (col / (cols - 1) - 0.5) * (width - 3.2)
@@ -383,6 +385,7 @@ def add_side_stand_render(name, side):
         cube_obj(f"{name}_black_suite_reveal_{tier}", (0, base_y + sign * (tier_y + tier_rows * 0.98 + 1.12), tier_z + tier_rows * 0.64 + 0.12), (width_base - tier * 3.8, 0.56, 1.35), dark_mat)
         cube_obj(f"{name}_vip_box_ring_{tier}", (0, base_y + sign * (tier_y + tier_rows * 0.98 + 1.65), tier_z + tier_rows * 0.64 + 0.55), (width_base - tier * 4.0, 0.62, 0.82), MATS["glass"])
         cube_obj(f"{name}_vip_box_shadow_{tier}", (0, base_y + sign * (tier_y + tier_rows * 0.98 + 1.98), tier_z + tier_rows * 0.64 + 0.30), (width_base - tier * 4.2, 0.38, 0.62), dark_mat)
+        cube_obj(f"{name}_suite_lower_ao_{tier}", (0, base_y + sign * (tier_y + tier_rows * 0.98 + 0.48), tier_z + tier_rows * 0.62 - 0.24), (width_base - tier * 4.2, 0.18, 0.44), MATS["deep_void"])
 
     for idx, x in enumerate(aisle_xs):
         aisle = cube_obj(f"{name}_vertical_aisle_{idx}", (x, base_y + sign * 14.2, 4.9), (0.88, 20.0, 0.12), concrete_mat)
@@ -401,12 +404,18 @@ def add_side_stand_render(name, side):
     cube_obj(f"{name}_upper_press_gallery", (0, base_y + sign * 30.25, 12.6), (width_base - 8, 0.86, 2.2), MATS["glass"])
     cube_obj(f"{name}_top_concourse_shadow", (0, base_y + sign * 27.7, 14.25), (width_base + 4, 1.25, 1.1), MATS["deep_void"])
     cube_obj(f"{name}_top_concrete_crown", (0, base_y + sign * 28.4, 15.0), (width_base + 8, 1.2, 0.75), MATS["warm_concrete"])
+    for i in range(18):
+        x = -width_base / 2 + i * width_base / 17
+        cube_obj(f"{name}_rear_concrete_joint_{i}", (x, base_y + sign * 30.86, 8.4), (0.10, 0.10, 12.8), MATS["deep_void"])
     roof_y = base_y + sign * 32.3
     cube_obj(f"{name}_roof_underbelly_shadow", (0, roof_y - sign * 2.6, 16.85), (width_base + 24, 15.8, 0.34), dark_mat)
     cube_obj(f"{name}_roof_canopy", (0, roof_y, 17.74), (width_base + 24, 18.5, 0.46), MATS["roof"])
     cube_obj(f"{name}_roof_front_lip", (0, roof_y - sign * 9.4, 14.6), (width_base + 26, 0.95, 1.05), MATS["deep_void"])
     cube_obj(f"{name}_roof_rear_lip", (0, roof_y + sign * 8.0, 16.85), (width_base + 25, 0.68, 0.74), MATS["roof"])
     cube_obj(f"{name}_roof_glass_strip", (0, roof_y - sign * 2.2, 17.92), (width_base + 15, 5.9, 0.15), MATS["roof_glass"])
+    for i in range(12):
+        x = -width_base / 2 + (i + 0.5) * width_base / 12
+        cube_obj(f"{name}_roof_panel_seam_{i}", (x, roof_y - sign * 0.8, 18.02), (0.16, 16.6, 0.08), MATS["deep_void"])
     cylinder_between(f"{name}_roof_front_truss", (-(width_base / 2 + 9), roof_y - sign * 9.0, 14.0), ((width_base / 2 + 9), roof_y - sign * 9.0, 14.0), 0.28, rail_mat, vertices=16)
     cylinder_between(f"{name}_roof_mid_truss", (-(width_base / 2 + 8), roof_y - sign * 1.6, 16.1), ((width_base / 2 + 8), roof_y - sign * 1.6, 16.1), 0.22, rail_mat, vertices=16)
     cylinder_between(f"{name}_roof_back_truss", (-(width_base / 2 + 9), roof_y + sign * 7.0, 16.55), ((width_base / 2 + 9), roof_y + sign * 7.0, 16.55), 0.20, rail_mat, vertices=16)
@@ -475,6 +484,8 @@ def add_end_stand_render(name, side):
             if row % 2 == 0:
                 rail = cube_obj(f"{name}_row_highlight_{tier}_{row}", (x + sign * 0.43, 0, z + 0.54), (0.08, depth - 3.0, 0.08), rail_mat)
                 rail.rotation_euler.y = math.radians(sign * 10)
+            row_ao = cube_obj(f"{name}_baked_row_occlusion_{tier}_{row}", (x + sign * 0.34, 0, z + 0.30), (0.055, depth - 2.5, 0.18), MATS["deep_void"])
+            row_ao.rotation_euler.y = math.radians(sign * 10)
             cols = 82
             for col in range(cols):
                 y = (col / (cols - 1) - 0.5) * (depth - 3.0)
@@ -491,6 +502,7 @@ def add_end_stand_render(name, side):
         cube_obj(f"{name}_black_suite_reveal_{tier}", (base_x + sign * (tier_x + tier_rows * 0.98 + 1.10), 0, tier_z + tier_rows * 0.64 + 0.12), (0.56, depth_base - tier * 3.8, 1.32), dark_mat)
         cube_obj(f"{name}_vip_box_ring_{tier}", (base_x + sign * (tier_x + tier_rows * 0.98 + 1.55), 0, tier_z + tier_rows * 0.64 + 0.52), (0.62, depth_base - tier * 4.0, 0.82), MATS["glass"])
         cube_obj(f"{name}_vip_box_shadow_{tier}", (base_x + sign * (tier_x + tier_rows * 0.98 + 1.88), 0, tier_z + tier_rows * 0.64 + 0.28), (0.38, depth_base - tier * 4.2, 0.62), dark_mat)
+        cube_obj(f"{name}_suite_lower_ao_{tier}", (base_x + sign * (tier_x + tier_rows * 0.98 + 0.48), 0, tier_z + tier_rows * 0.62 - 0.24), (0.18, depth_base - tier * 4.2, 0.44), MATS["deep_void"])
 
     for idx, y in enumerate(aisle_ys):
         aisle = cube_obj(f"{name}_vertical_aisle_{idx}", (base_x + sign * 14.0, y, 4.8), (20.0, 0.88, 0.12), concrete_mat)
@@ -509,12 +521,18 @@ def add_end_stand_render(name, side):
     cube_obj(f"{name}_upper_press_gallery", (base_x + sign * 29.9, 0, 12.2), (0.86, depth_base - 8, 2.1), MATS["glass"])
     cube_obj(f"{name}_top_concourse_shadow", (base_x + sign * 27.4, 0, 13.9), (1.20, depth_base + 4, 1.05), MATS["deep_void"])
     cube_obj(f"{name}_top_concrete_crown", (base_x + sign * 28.0, 0, 14.65), (1.15, depth_base + 8, 0.72), MATS["warm_concrete"])
+    for i in range(14):
+        y = -depth_base / 2 + i * depth_base / 13
+        cube_obj(f"{name}_rear_concrete_joint_{i}", (base_x + sign * 30.45, y, 8.1), (0.10, 0.10, 12.3), MATS["deep_void"])
     roof_x = base_x + sign * 31.8
     cube_obj(f"{name}_roof_underbelly_shadow", (roof_x - sign * 2.7, 0, 16.45), (15.8, depth_base + 22, 0.34), dark_mat)
     cube_obj(f"{name}_roof_canopy", (roof_x, 0, 17.15), (18.0, depth_base + 22, 0.46), MATS["roof"])
     cube_obj(f"{name}_roof_front_lip", (roof_x - sign * 9.3, 0, 14.25), (0.95, depth_base + 24, 1.0), MATS["deep_void"])
     cube_obj(f"{name}_roof_rear_lip", (roof_x + sign * 7.8, 0, 16.45), (0.68, depth_base + 24, 0.70), MATS["roof"])
     cube_obj(f"{name}_roof_glass_strip", (roof_x - sign * 2.0, 0, 17.32), (5.7, depth_base + 13, 0.15), MATS["roof_glass"])
+    for i in range(10):
+        y = -depth_base / 2 + (i + 0.5) * depth_base / 10
+        cube_obj(f"{name}_roof_panel_seam_{i}", (roof_x - sign * 0.8, y, 17.42), (16.4, 0.16, 0.08), MATS["deep_void"])
     cylinder_between(f"{name}_roof_front_truss", (roof_x - sign * 8.8, -(depth_base / 2 + 8), 13.65), (roof_x - sign * 8.8, (depth_base / 2 + 8), 13.65), 0.24, rail_mat, vertices=16)
     cylinder_between(f"{name}_roof_mid_truss", (roof_x - sign * 1.6, -(depth_base / 2 + 7), 15.75), (roof_x - sign * 1.6, (depth_base / 2 + 7), 15.75), 0.21, rail_mat, vertices=16)
     cylinder_between(f"{name}_roof_back_truss", (roof_x + sign * 6.8, -(depth_base / 2 + 8), 16.15), (roof_x + sign * 6.8, (depth_base / 2 + 8), 16.15), 0.19, rail_mat, vertices=16)

@@ -9424,6 +9424,29 @@
 						      const texCanvas = makePitchTexture(metersW, metersH, grass, () => {
 						        try { if (tex) tex.needsUpdate = true; } catch (e) { /* ignore */ }
 						      });
+						      try {
+						        const tctx = texCanvas?.getContext?.('2d');
+						        if (tctx && safeText(pitch3dCameraSelect?.value, 'render_original') === 'render_original') {
+						          const w = texCanvas.width || 1024;
+						          const h = texCanvas.height || 768;
+						          tctx.save();
+						          tctx.globalAlpha = 0.18;
+						          for (let i = 0; i < 1800; i += 1) {
+						            const x = (Math.random() * w) | 0;
+						            const y = (Math.random() * h) | 0;
+						            const g = 90 + ((Math.random() * 70) | 0);
+						            tctx.fillStyle = `rgb(${20 + ((Math.random() * 28) | 0)},${g},${32 + ((Math.random() * 24) | 0)})`;
+						            tctx.fillRect(x, y, 1 + ((Math.random() * 3) | 0), 1);
+						          }
+						          const vignette = tctx.createRadialGradient(w * 0.52, h * 0.48, w * 0.12, w * 0.52, h * 0.48, w * 0.62);
+						          vignette.addColorStop(0, 'rgba(255,255,255,0.04)');
+						          vignette.addColorStop(1, 'rgba(0,0,0,0.16)');
+						          tctx.globalAlpha = 1;
+						          tctx.fillStyle = vignette;
+						          tctx.fillRect(0, 0, w, h);
+						          tctx.restore();
+						        }
+						      } catch (e) { /* ignore */ }
 						      tex = texCanvas ? new THREE.CanvasTexture(texCanvas) : null;
 						      if (tex) {
 						        tex.wrapS = THREE.ClampToEdgeWrapping;
