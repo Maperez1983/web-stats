@@ -8965,30 +8965,57 @@
 						      }
 
 						      if (usingBlenderShell) {
-						        const seatMosaicMat = makePitch3dStandMosaicMaterial(ctx.teamName, {
-						          primary,
-						          secondary,
-						          initials: ctx.initials,
-						          crestUrl: ctx.crestUrl,
-						          width: 4096,
-						          height: 1280,
-						        });
-						        if (seatMosaicMat) {
-						          try {
-						            seatMosaicMat.depthTest = false;
-						            seatMosaicMat.depthWrite = false;
-						            seatMosaicMat.transparent = true;
-						            seatMosaicMat.opacity = 0.92;
-						            seatMosaicMat.side = THREE.DoubleSide;
-						          } catch (e) { /* ignore */ }
-						          const seatMosaic = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(metersW * 0.82, 86), 13.8), seatMosaicMat);
-						          seatMosaic.position.set(0, 7.4, -(halfH + 13.6));
-						          seatMosaic.rotation.x = -0.30;
-						          seatMosaic.scale.x = -1;
-						          seatMosaic.renderOrder = 30;
-						          seatMosaic.userData = { kind: 'main_stand_seat_print_mosaic' };
-						          group.add(seatMosaic);
-						        }
+						        try {
+						          const label = safeText(ctx.teamName, 'CLUB').toUpperCase().slice(0, 22);
+						          const mask = document.createElement('canvas');
+						          mask.width = 440;
+						          mask.height = 104;
+						          const mctx = mask.getContext('2d');
+						          if (mctx) {
+						            mctx.clearRect(0, 0, mask.width, mask.height);
+						            mctx.fillStyle = '#ffffff';
+						            mctx.textAlign = 'center';
+						            mctx.textBaseline = 'middle';
+						            mctx.font = `950 64px system-ui, -apple-system, Segoe UI, Arial`;
+						            mctx.fillText(label, mask.width / 2, mask.height / 2 + 4);
+						            const img = mctx.getImageData(0, 0, mask.width, mask.height).data;
+						            const cols = 96;
+						            const rows = 22;
+						            const seatGeo = new THREE.BoxGeometry(0.70, 0.18, 0.42);
+						            const printMat = new THREE.MeshStandardMaterial({
+						              color: toColorInt(secondary, 0xf8fafc),
+						              roughness: 0.76,
+						              metalness: 0.01,
+						              emissive: new THREE.Color(toColorInt(secondary, 0xf8fafc)),
+						              emissiveIntensity: 0.035,
+						            });
+						            const instances = [];
+						            for (let r = 0; r < rows; r += 1) {
+						              for (let col = 0; col < cols; col += 1) {
+						                const px = Math.round((col / Math.max(1, cols - 1)) * (mask.width - 1));
+						                const py = Math.round((r / Math.max(1, rows - 1)) * (mask.height - 1));
+						                const alpha = img[((py * mask.width) + px) * 4 + 3];
+						                if (alpha > 80) instances.push({ col, r });
+						              }
+						            }
+						            const mesh = new THREE.InstancedMesh(seatGeo, printMat, Math.max(1, instances.length));
+						            const dummy = new THREE.Object3D();
+						            const width = Math.min(metersW * 0.90, 96);
+						            instances.forEach((p, idx) => {
+						              const x = ((p.col / Math.max(1, cols - 1)) - 0.5) * width;
+						              const rowT = p.r / Math.max(1, rows - 1);
+						              const y = 5.15 + (rowT * 6.9);
+						              const z = halfH + 7.0 + (rowT * 10.2);
+						              dummy.position.set(x, y, z);
+						              dummy.rotation.set(0.23, 0, 0);
+						              dummy.updateMatrix();
+						              mesh.setMatrixAt(idx, dummy.matrix);
+						            });
+						            mesh.count = instances.length;
+						            mesh.userData = { kind: 'main_stand_seat_lettering' };
+						            group.add(mesh);
+						          }
+						        } catch (e) { /* ignore */ }
 						      }
 
 						      const nameMat = makePitch3dTextMaterial(ctx.teamName, {
@@ -9001,20 +9028,11 @@
 						        height: 260,
 						        transparentBg: usingBlenderShell,
 						      });
-						      if (nameMat) {
+						      if (nameMat && !usingBlenderShell) {
 						        const sign = -1;
-						        if (usingBlenderShell) {
-						          try {
-						            nameMat.depthTest = false;
-						            nameMat.depthWrite = false;
-						            nameMat.opacity = 0.88;
-						            nameMat.side = THREE.DoubleSide;
-						          } catch (e) { /* ignore */ }
-						        }
 						        const name = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(metersW * 0.64, 68), usingBlenderShell ? 5.4 : 4.4), nameMat);
 						        name.position.set(0, usingBlenderShell ? 7.0 : 6.4, sign * (halfH + (usingBlenderShell ? 13.8 : 13.2)));
 						        name.rotation.x = sign * (usingBlenderShell ? -0.30 : -0.22);
-						        if (usingBlenderShell) name.scale.x = -1;
 						        name.renderOrder = usingBlenderShell ? 31 : 4;
 						        name.userData = { kind: 'main_stand_integrated_name' };
 						        group.add(name);
