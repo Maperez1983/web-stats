@@ -2453,6 +2453,48 @@ class SeasonHistoryServicesTests(TestCase):
             ).exists()
         )
 
+    def test_roster_existing_players_are_filtered_by_category_birth_year(self):
+        self.team.category = 'Benjamín'
+        self.team.save(update_fields=['category'])
+        other_team = Team.objects.create(name='Equipo Origen Edad', slug='equipo-origen-edad', short_name='Origen Edad')
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=other_team)
+        eligible = Player.objects.create(
+            team=other_team,
+            name='Benjamin Elegible',
+            birth_date=date(2017, 3, 4),
+            is_active=True,
+        )
+        too_old = Player.objects.create(
+            team=other_team,
+            name='Alevin No Elegible',
+            birth_date=date(2015, 5, 8),
+            is_active=True,
+        )
+        WorkspacePlayer.objects.create(workspace=self.workspace, player=eligible, current_team=other_team)
+        WorkspacePlayer.objects.create(workspace=self.workspace, player=too_old, current_team=other_team)
+
+        response = self.client.get(f"{reverse('coach-roster')}?tab=manage", secure=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(eligible, response.context['club_player_options'])
+        self.assertNotIn(too_old, response.context['club_player_options'])
+        self.assertContains(response, '2017-2018')
+
+        invalid_response = self.client.post(
+            f"{reverse('coach-roster')}?tab=manage",
+            data={
+                'action': 'add_existing',
+                'existing_player_id': str(too_old.id),
+                'is_active': '1',
+            },
+            secure=True,
+        )
+
+        self.assertEqual(invalid_response.status_code, 200)
+        too_old.refresh_from_db()
+        self.assertEqual(too_old.team, other_team)
+        self.assertContains(invalid_response, 'no corresponde por año de nacimiento')
+
     def test_roster_create_player_saves_extended_profile_fields(self):
         response = self.client.post(
             f"{reverse('coach-roster')}?tab=manage",

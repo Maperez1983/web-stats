@@ -28019,6 +28019,89 @@ def coach_tactics_page(request):
         },
 	    )
 
+def _normalize_roster_category(value):
+    text = str(value or '').strip().lower()
+    if not text:
+        return ''
+    text = ''.join(ch for ch in unicodedata.normalize('NFD', text) if unicodedata.category(ch) != 'Mn')
+    return re.sub(r'[^a-z0-9]+', ' ', text).strip()
+
+
+def _roster_season_start_year(club_season=None):
+    start_date = getattr(club_season, 'start_date', None)
+    if start_date:
+        return int(start_date.year)
+    end_date = getattr(club_season, 'end_date', None)
+    if end_date:
+        return int(end_date.year) - 1
+    today = timezone.localdate()
+    return int(today.year if today.month >= 7 else today.year - 1)
+
+
+def _birth_year_filter_for_team(team, club_season=None):
+    category_source = ' '.join(
+        [
+            str(getattr(team, 'category', '') or ''),
+            str(getattr(team, 'display_name', '') or ''),
+            str(getattr(team, 'name', '') or ''),
+        ]
+    )
+    category = _normalize_roster_category(category_source)
+    if not category:
+        return None
+    start_year = _roster_season_start_year(club_season)
+    if 'prebenjamin' in category or 'pre benjamin' in category:
+        years = [start_year - 7, start_year - 6]
+    elif 'benjamin' in category:
+        years = [start_year - 9, start_year - 8]
+    elif 'alevin' in category:
+        years = [start_year - 11, start_year - 10]
+    elif 'infantil' in category:
+        years = [start_year - 13, start_year - 12]
+    elif 'cadete' in category:
+        years = [start_year - 15, start_year - 14]
+    elif 'juvenil' in category:
+        years = [start_year - 18, start_year - 17, start_year - 16]
+    elif any(token in category for token in ['bebe', 'baby', 'chupetin', 'chupete']):
+        years = [start_year - 5, start_year - 4]
+    elif 'senior' in category or 'aficionado' in category or 'amateur' in category:
+        return {
+            'kind': 'max',
+            'max_year': start_year - 19,
+            'label': f'nacidos en {start_year - 19} o antes',
+        }
+    else:
+        return None
+    return {
+        'kind': 'years',
+        'years': years,
+        'label': '-'.join(str(year) for year in sorted(years)),
+    }
+
+
+def _apply_birth_year_filter(qs, birth_filter):
+    if not birth_filter:
+        return qs
+    if birth_filter.get('kind') == 'years':
+        return qs.filter(birth_date__year__in=birth_filter.get('years') or [])
+    if birth_filter.get('kind') == 'max':
+        return qs.filter(birth_date__year__lte=int(birth_filter.get('max_year')))
+    return qs
+
+
+def _player_matches_birth_year_filter(player, birth_filter):
+    if not birth_filter:
+        return True
+    birth_date = getattr(player, 'birth_date', None)
+    if not birth_date:
+        return False
+    year = int(birth_date.year)
+    if birth_filter.get('kind') == 'years':
+        return year in set(int(item) for item in birth_filter.get('years') or [])
+    if birth_filter.get('kind') == 'max':
+        return year <= int(birth_filter.get('max_year'))
+    return True
+
 
 @login_required
 def coach_roster_page(request):
@@ -28063,6 +28146,7 @@ def coach_roster_page(request):
     season_confirmed_total = 0
     season_pending_total = 0
     can_edit_current_season = bool(can_edit and (not active_club_season or active_club_season_is_current))
+    roster_birth_year_filter = _birth_year_filter_for_team(primary_team, active_club_season)
     if request.method == 'POST':
         if not can_edit_current_season:
             return HttpResponse('No tienes permisos para editar la plantilla.', status=403)
@@ -28292,6 +28376,8 @@ def coach_roster_page(request):
                 )
                 if not target_player:
                     raise ValueError('Jugador no encontrado en este club.')
+                if not _player_matches_birth_year_filter(target_player, roster_birth_year_filter):
+                    raise ValueError('El jugador no corresponde por año de nacimiento a la categoría de este equipo.')
                 number = _parse_int(number_raw) if number_raw else target_player.number
                 if number is not None and (number < 1 or number > 99):
                     raise ValueError('El dorsal debe estar entre 1 y 99.')
@@ -28408,17 +28494,17 @@ def coach_roster_page(request):
             .filter(workspace=workspace)
             .values_list('team_id', flat=True)
         )
-        club_player_options = list(
-            Player.objects
-            .filter(
+        club_player_qs = (
+            Player.objects.filter(
                 Q(workspace_links__workspace=workspace, workspace_links__is_active=True)
                 | Q(team_id__in=workspace_team_ids, is_active=True)
             )
             .exclude(team=primary_team)
             .select_related('team')
             .distinct()
-            .order_by('name', 'id')[:250]
         )
+        club_player_qs = _apply_birth_year_filter(club_player_qs, roster_birth_year_filter)
+        club_player_options = list(club_player_qs.order_by('name', 'id')[:250])
         inactive_q = (
             Q(workspace_links__workspace=workspace, workspace_links__current_team=primary_team, workspace_links__is_active=False)
             | Q(team=primary_team, is_active=False)
@@ -28605,6 +28691,7 @@ def coach_roster_page(request):
             'team_name': primary_team.display_name,
             'players': players,
             'club_player_options': club_player_options,
+            'roster_birth_year_filter': roster_birth_year_filter,
             'inactive_club_player_options': inactive_club_player_options,
             'club_team_options': club_team_options,
             'player_cards': player_cards,

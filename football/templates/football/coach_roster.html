@@ -1094,6 +1094,11 @@
           <div class="roster-forms">
             <section class="roster-form-box">
               <h2 class="roster-form-title">Añadir jugador existente del club</h2>
+              {% if roster_birth_year_filter %}
+              <p style="margin:0 0 0.65rem;color:var(--prod-muted, rgba(148,163,184,0.82));font-size:0.86rem;">
+                Mostrando solo jugadores por año de nacimiento: {{ roster_birth_year_filter.label }}.
+              </p>
+              {% endif %}
               <form method="post" class="roster-existing-grid">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="add_existing" />
