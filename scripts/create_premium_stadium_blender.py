@@ -301,6 +301,155 @@ def add_end_stand(name, side):
             cylinder_between(f"{name}_roof_cross_brace_b_{i}", (roof_x + sign * 6.4, y, 12.8), (roof_x - sign * 7.2, y2, 15.1), 0.075, MATS["rail"], vertices=8)
 
 
+def add_side_stand_render(name, side):
+    sign = -1 if side == "north" else 1
+    base_y = sign * (HALF_Y + 6.7)
+    width_base = PITCH_X + 31
+    concrete_mat = MATS["concrete"]
+    rail_mat = MATS["rail"]
+    dark_mat = MATS["dark"]
+    primary_seats = []
+    secondary_seats = []
+    primary_backs = []
+    secondary_backs = []
+    cube_obj(f"{name}_lower_structural_shadow", (0, base_y + sign * 17.0, 0.65), (width_base + 8, 30.0, 1.3), dark_mat)
+
+    aisle_xs = [-43, -29, -14, 14, 29, 43]
+    for tier in range(3):
+        tier_rows = 9 if tier == 0 else 7
+        tier_y = 2.5 + tier * 8.4
+        tier_z = 1.2 + tier * 4.8
+        for row in range(tier_rows):
+            y = base_y + sign * (tier_y + row * 0.88)
+            z = tier_z + row * 0.58
+            width = width_base - tier * 3.4 - row * 0.36
+            step = cube_obj(f"{name}_render_step_{tier}_{row}", (0, y, z - 0.16), (width, 0.92, 0.30), concrete_mat)
+            step.rotation_euler.x = math.radians(sign * -10)
+            seat_mat = MATS["club_secondary"] if (tier == 1 and 2 <= row <= 5) or row == 0 else MATS["club_primary"]
+            seat = cube_obj(f"{name}_render_seat_band_{tier}_{row}", (0, y - sign * 0.12, z + 0.09), (width - 1.8, 0.48, 0.20), seat_mat)
+            seat.rotation_euler.x = math.radians(sign * -10)
+            back = cube_obj(f"{name}_render_seat_back_{tier}_{row}", (0, y + sign * 0.18, z + 0.40), (width - 1.8, 0.10, 0.48), seat_mat)
+            back.rotation_euler.x = math.radians(sign * -10)
+            if row % 2 == 0:
+                rail = cube_obj(f"{name}_row_highlight_{tier}_{row}", (0, y + sign * 0.43, z + 0.54), (width - 3.0, 0.08, 0.08), rail_mat)
+                rail.rotation_euler.x = math.radians(sign * -10)
+            cols = 112
+            for col in range(cols):
+                x = (col / (cols - 1) - 0.5) * (width - 3.2)
+                if any(abs(x - aisle_x) < 1.0 for aisle_x in aisle_xs):
+                    continue
+                logo_band = tier == 1 and 2 <= row <= 5 and abs(x) < width * 0.34
+                random_highlight = (col + row * 7 + tier * 11) % 31 == 0
+                target = secondary_seats if logo_band or random_highlight else primary_seats
+                back_target = secondary_backs if logo_band or random_highlight else primary_backs
+                target.append(((x, y - sign * 0.18, z + 0.25), (0.46, 0.30, 0.16)))
+                back_target.append(((x, y + sign * 0.05, z + 0.50), (0.46, 0.08, 0.36)))
+        cube_obj(f"{name}_dark_concourse_{tier}", (0, base_y + sign * (tier_y + tier_rows * 0.92 + 0.8), tier_z + tier_rows * 0.58), (width_base - tier * 3.6, 0.74, 1.05), dark_mat)
+        cube_obj(f"{name}_front_fascia_{tier}", (0, base_y + sign * (tier_y - 0.52), tier_z + 0.45), (width_base - tier * 3.6, 0.42, 0.92), MATS["club_primary"])
+        cube_obj(f"{name}_vip_box_ring_{tier}", (0, base_y + sign * (tier_y + tier_rows * 0.98 + 1.65), tier_z + tier_rows * 0.64 + 0.55), (width_base - tier * 4.0, 0.62, 0.82), MATS["glass"])
+        cube_obj(f"{name}_vip_box_shadow_{tier}", (0, base_y + sign * (tier_y + tier_rows * 0.98 + 1.98), tier_z + tier_rows * 0.64 + 0.30), (width_base - tier * 4.2, 0.38, 0.62), dark_mat)
+
+    for idx, x in enumerate(aisle_xs):
+        aisle = cube_obj(f"{name}_vertical_aisle_{idx}", (x, base_y + sign * 14.2, 6.2), (1.25, 22.0, 0.32), rail_mat)
+        aisle.rotation_euler.x = math.radians(sign * -10)
+        cube_obj(f"{name}_vomitory_{idx}", (x, base_y + sign * 7.6, 3.0), (3.7, 2.0, 1.65), dark_mat)
+        cube_obj(f"{name}_aisle_wall_left_{idx}", (x - 0.78, base_y + sign * 14.0, 6.1), (0.12, 21.0, 0.86), concrete_mat)
+        cube_obj(f"{name}_aisle_wall_right_{idx}", (x + 0.78, base_y + sign * 14.0, 6.1), (0.12, 21.0, 0.86), concrete_mat)
+
+    mesh_boxes(f"{name}_club_primary_individual_seats", primary_seats, MATS["club_primary"])
+    mesh_boxes(f"{name}_club_secondary_individual_seats", secondary_seats, MATS["club_secondary"])
+    mesh_boxes(f"{name}_club_primary_individual_backs", primary_backs, MATS["club_primary"])
+    mesh_boxes(f"{name}_club_secondary_individual_backs", secondary_backs, MATS["club_secondary"])
+
+    cube_obj(f"{name}_rear_wall", (0, base_y + sign * 31.0, 8.4), (width_base + 10, 0.92, 14.8), concrete_mat)
+    cube_obj(f"{name}_upper_press_gallery", (0, base_y + sign * 30.25, 12.6), (width_base - 8, 0.86, 2.2), MATS["glass"])
+    roof_y = base_y + sign * 32.3
+    cube_obj(f"{name}_roof_canopy", (0, roof_y, 17.5), (width_base + 22, 17.5, 0.46), MATS["roof"])
+    cube_obj(f"{name}_roof_glass_strip", (0, roof_y - sign * 2.2, 17.25), (width_base + 14, 5.6, 0.15), MATS["roof_glass"])
+    cylinder_between(f"{name}_roof_front_truss", (-(width_base / 2 + 7), roof_y - sign * 8.2, 14.1), ((width_base / 2 + 7), roof_y - sign * 8.2, 14.1), 0.22, rail_mat, vertices=16)
+    cylinder_between(f"{name}_roof_back_truss", (-(width_base / 2 + 7), roof_y + sign * 6.2, 16.1), ((width_base / 2 + 7), roof_y + sign * 6.2, 16.1), 0.18, rail_mat, vertices=16)
+    for i in range(16):
+        x = -width_base / 2 + i * width_base / 15
+        cylinder_between(f"{name}_roof_tri_a_{i}", (x, roof_y - sign * 8.0, 13.4), (x + 2.8, roof_y + sign * 6.0, 16.1), 0.075, rail_mat, vertices=8)
+        if i < 15:
+            x2 = -width_base / 2 + (i + 1) * width_base / 15
+            cylinder_between(f"{name}_roof_tri_b_{i}", (x2, roof_y - sign * 8.0, 13.4), (x, roof_y + sign * 6.0, 16.1), 0.075, rail_mat, vertices=8)
+        cube_obj(f"{name}_roof_light_{i}", (x, roof_y - sign * 7.0, 14.0), (2.8, 0.20, 0.22), MATS["light"])
+
+
+def add_end_stand_render(name, side):
+    sign = -1 if side == "west" else 1
+    base_x = sign * (HALF_X + 6.7)
+    depth_base = PITCH_Y + 29
+    concrete_mat = MATS["concrete"]
+    rail_mat = MATS["rail"]
+    dark_mat = MATS["dark"]
+    primary_seats = []
+    secondary_seats = []
+    primary_backs = []
+    secondary_backs = []
+    cube_obj(f"{name}_lower_structural_shadow", (base_x + sign * 17.0, 0, 0.65), (30.0, depth_base + 6, 1.3), dark_mat)
+
+    aisle_ys = [-28, -15, 0, 15, 28]
+    for tier in range(3):
+        tier_rows = 8 if tier == 0 else 7
+        tier_x = 2.5 + tier * 8.2
+        tier_z = 1.15 + tier * 4.65
+        for row in range(tier_rows):
+            x = base_x + sign * (tier_x + row * 0.86)
+            z = tier_z + row * 0.56
+            depth = depth_base - tier * 3.0 - row * 0.34
+            step = cube_obj(f"{name}_render_step_{tier}_{row}", (x, 0, z - 0.16), (0.92, depth, 0.30), concrete_mat)
+            step.rotation_euler.y = math.radians(sign * 10)
+            seat_mat = MATS["club_secondary"] if (tier == 1 and 2 <= row <= 5) or row == 0 else MATS["club_primary"]
+            seat = cube_obj(f"{name}_render_seat_band_{tier}_{row}", (x - sign * 0.12, 0, z + 0.09), (0.48, depth - 1.8, 0.20), seat_mat)
+            seat.rotation_euler.y = math.radians(sign * 10)
+            back = cube_obj(f"{name}_render_seat_back_{tier}_{row}", (x + sign * 0.18, 0, z + 0.40), (0.10, depth - 1.8, 0.48), seat_mat)
+            back.rotation_euler.y = math.radians(sign * 10)
+            if row % 2 == 0:
+                rail = cube_obj(f"{name}_row_highlight_{tier}_{row}", (x + sign * 0.43, 0, z + 0.54), (0.08, depth - 3.0, 0.08), rail_mat)
+                rail.rotation_euler.y = math.radians(sign * 10)
+            cols = 82
+            for col in range(cols):
+                y = (col / (cols - 1) - 0.5) * (depth - 3.0)
+                if any(abs(y - aisle_y) < 0.95 for aisle_y in aisle_ys):
+                    continue
+                logo_band = tier == 1 and 2 <= row <= 5 and abs(y) < depth * 0.30
+                random_highlight = (col + row * 5 + tier * 13) % 27 == 0
+                target = secondary_seats if logo_band or random_highlight else primary_seats
+                back_target = secondary_backs if logo_band or random_highlight else primary_backs
+                target.append(((x - sign * 0.18, y, z + 0.25), (0.30, 0.46, 0.16)))
+                back_target.append(((x + sign * 0.05, y, z + 0.50), (0.08, 0.46, 0.36)))
+        cube_obj(f"{name}_dark_concourse_{tier}", (base_x + sign * (tier_x + tier_rows * 0.9 + 0.8), 0, tier_z + tier_rows * 0.58), (0.74, depth_base - tier * 3.4, 1.05), dark_mat)
+        cube_obj(f"{name}_front_fascia_{tier}", (base_x + sign * (tier_x - 0.52), 0, tier_z + 0.45), (0.42, depth_base - tier * 3.6, 0.92), MATS["club_primary"])
+        cube_obj(f"{name}_vip_box_ring_{tier}", (base_x + sign * (tier_x + tier_rows * 0.98 + 1.55), 0, tier_z + tier_rows * 0.64 + 0.52), (0.62, depth_base - tier * 4.0, 0.82), MATS["glass"])
+        cube_obj(f"{name}_vip_box_shadow_{tier}", (base_x + sign * (tier_x + tier_rows * 0.98 + 1.88), 0, tier_z + tier_rows * 0.64 + 0.28), (0.38, depth_base - tier * 4.2, 0.62), dark_mat)
+
+    for idx, y in enumerate(aisle_ys):
+        aisle = cube_obj(f"{name}_vertical_aisle_{idx}", (base_x + sign * 14.0, y, 6.0), (22.0, 1.25, 0.32), rail_mat)
+        aisle.rotation_euler.y = math.radians(sign * 10)
+        cube_obj(f"{name}_vomitory_{idx}", (base_x + sign * 7.4, y, 2.9), (2.0, 3.7, 1.65), dark_mat)
+        cube_obj(f"{name}_aisle_wall_left_{idx}", (base_x + sign * 14.0, y - 0.78, 6.0), (21.0, 0.12, 0.82), concrete_mat)
+        cube_obj(f"{name}_aisle_wall_right_{idx}", (base_x + sign * 14.0, y + 0.78, 6.0), (21.0, 0.12, 0.82), concrete_mat)
+
+    mesh_boxes(f"{name}_club_primary_individual_seats", primary_seats, MATS["club_primary"])
+    mesh_boxes(f"{name}_club_secondary_individual_seats", secondary_seats, MATS["club_secondary"])
+    mesh_boxes(f"{name}_club_primary_individual_backs", primary_backs, MATS["club_primary"])
+    mesh_boxes(f"{name}_club_secondary_individual_backs", secondary_backs, MATS["club_secondary"])
+
+    cube_obj(f"{name}_rear_wall", (base_x + sign * 30.6, 0, 8.1), (0.92, depth_base + 10, 14.3), concrete_mat)
+    cube_obj(f"{name}_upper_press_gallery", (base_x + sign * 29.9, 0, 12.2), (0.86, depth_base - 8, 2.1), MATS["glass"])
+    roof_x = base_x + sign * 31.8
+    cube_obj(f"{name}_roof_canopy", (roof_x, 0, 16.9), (17.0, depth_base + 20, 0.46), MATS["roof"])
+    cube_obj(f"{name}_roof_glass_strip", (roof_x - sign * 2.0, 0, 16.75), (5.4, depth_base + 12, 0.15), MATS["roof_glass"])
+    cylinder_between(f"{name}_roof_front_truss", (roof_x - sign * 8.2, -(depth_base / 2 + 6), 13.8), (roof_x - sign * 8.2, (depth_base / 2 + 6), 13.8), 0.20, rail_mat, vertices=16)
+    cylinder_between(f"{name}_roof_back_truss", (roof_x + sign * 6.2, -(depth_base / 2 + 6), 15.7), (roof_x + sign * 6.2, (depth_base / 2 + 6), 15.7), 0.18, rail_mat, vertices=16)
+    for i in range(12):
+        y = -depth_base / 2 + i * depth_base / 11
+        cylinder_between(f"{name}_roof_tri_a_{i}", (roof_x - sign * 8.0, y, 13.1), (roof_x + sign * 6.0, y + 2.0, 15.8), 0.075, rail_mat, vertices=8)
+        cube_obj(f"{name}_roof_light_{i}", (roof_x - sign * 7.0, y, 13.8), (0.20, 2.6, 0.22), MATS["light"])
+
+
 def add_corner_bowl(x_sign, y_sign):
     cx = x_sign * HALF_X
     cy = y_sign * HALF_Y
@@ -492,10 +641,10 @@ def main():
     init_materials()
     add_pitchside_details()
     add_exterior_render_details()
-    add_side_stand("north_main", "north")
-    add_side_stand("south_main", "south")
-    add_end_stand("west_goal", "west")
-    add_end_stand("east_goal", "east")
+    add_side_stand_render("north_main", "north")
+    add_side_stand_render("south_main", "south")
+    add_end_stand_render("west_goal", "west")
+    add_end_stand_render("east_goal", "east")
     for xs in (-1, 1):
         for ys in (-1, 1):
             add_corner_bowl(xs, ys)
