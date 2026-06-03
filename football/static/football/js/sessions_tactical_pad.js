@@ -7932,6 +7932,7 @@
 						      } catch (e) { ads = {}; }
 						      const dataAttr = (name, fallback = '') => safeText(form?.getAttribute?.(name), fallback);
 						      const teamName = safeText(form?.dataset?.stadiumTeamName, 'Equipo');
+						      const clubName = safeText(form?.dataset?.stadiumClubName, teamName || 'Club');
 						      const sponsorLogos = [
 						        { label: 'Grupo Modernia Asesores', logo: dataAttr('data-stadium-sponsor-modernia-src') },
 						        { label: 'Inversure', logo: dataAttr('data-stadium-sponsor-inversure-src') },
@@ -7939,8 +7940,9 @@
 						        { label: 'Segunda Jugada', logo: dataAttr('data-stadium-sponsor-2j-src') },
 						      ].filter((item) => item.logo);
 						      return {
-						        teamName,
-						        initials: teamName.split(/\s+/).filter(Boolean).slice(0, 3).map((part) => part[0]).join('').toUpperCase() || 'FC',
+						        teamName: clubName || teamName,
+						        displayTeamName: teamName,
+						        initials: (clubName || teamName).split(/\s+/).filter(Boolean).slice(0, 3).map((part) => part[0]).join('').toUpperCase() || 'FC',
 						        primary: safeText(form?.dataset?.stadiumTeamPrimary, '#0f7a35'),
 						        secondary: safeText(form?.dataset?.stadiumTeamSecondary, '#ffffff'),
 						        crestUrl: safeText(form?.dataset?.stadiumTeamCrestUrl),
@@ -9002,7 +9004,7 @@
 						            const dummy = new THREE.Object3D();
 						            const width = Math.min(metersW * 0.90, 96);
 						            instances.forEach((p, idx) => {
-						              const x = ((p.col / Math.max(1, cols - 1)) - 0.5) * width;
+						              const x = (0.5 - (p.col / Math.max(1, cols - 1))) * width;
 						              const rowT = p.r / Math.max(1, rows - 1);
 						              const y = 5.15 + (rowT * 6.9);
 						              const z = halfH + 7.0 + (rowT * 10.2);

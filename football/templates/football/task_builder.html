@@ -5559,7 +5559,8 @@
 				        data-three-src="{% static 'vendor/three.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 				        data-three-gltf-loader-src="{% static 'vendor/three/examples/jsm/loaders/GLTFLoader.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 				        data-sim3d-src="{% static 'football/js/tpad_sim_3d_viewer.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
-				        data-stadium-team-name="{{ tactics_team_name|default:'Equipo'|escape }}"
+					        data-stadium-team-name="{{ tactics_team_name|default:'Equipo'|escape }}"
+					        data-stadium-club-name="{{ tactics_club_name|default:tactics_team_name|default:'Club'|escape }}"
 				        data-stadium-team-primary="{{ tactics_team_primary|default:''|escape }}"
 				        data-stadium-team-secondary="{{ tactics_team_secondary|default:''|escape }}"
 				        data-stadium-team-crest-url="{{ tactics_team_crest_url|default:''|escape }}"
@@ -7284,7 +7285,7 @@
 		                                <img class="tpad-stand-crest" src="{{ tactics_team_crest_url|escape }}" alt="" loading="lazy" decoding="async" />
 		                              {% endif %}
 		                            {% endif %}
-                            <span class="tpad-stand-name">{{ tactics_team_name|default:"EQUIPO" }}</span>
+	                            <span class="tpad-stand-name">{{ tactics_club_name|default:tactics_team_name|default:"EQUIPO" }}</span>
                           </div>
                         </div>
                         <div class="tpad-stand tpad-stand-left" aria-hidden="true">
@@ -7299,7 +7300,7 @@
 	                                <img class="tpad-stand-crest tpad-stand-crest--mini" src="{{ tactics_team_crest_url|escape }}" alt="" loading="lazy" decoding="async" />
 	                              {% endif %}
 	                            {% endif %}
-                            <span class="tpad-stand-name tpad-stand-name--mini">{{ tactics_team_name|default:"EQUIPO" }}</span>
+	                            <span class="tpad-stand-name tpad-stand-name--mini">{{ tactics_club_name|default:tactics_team_name|default:"EQUIPO" }}</span>
                           </div>
                         </div>
                         <div class="tpad-stadium-accent" aria-hidden="true"></div>
@@ -7315,7 +7316,7 @@
 	                                <img class="tpad-stand-crest tpad-stand-crest--mini" src="{{ tactics_team_crest_url|escape }}" alt="" loading="lazy" decoding="async" />
 	                              {% endif %}
 	                            {% endif %}
-                            <span class="tpad-stand-name tpad-stand-name--mini">{{ tactics_team_name|default:"EQUIPO" }}</span>
+	                            <span class="tpad-stand-name tpad-stand-name--mini">{{ tactics_club_name|default:tactics_team_name|default:"EQUIPO" }}</span>
                           </div>
                         </div>
                         <div class="tpad-stand tpad-stand-bottom" aria-hidden="true">
@@ -7330,7 +7331,7 @@
 		                                <img class="tpad-stand-crest tpad-stand-crest--mini" src="{{ tactics_team_crest_url|escape }}" alt="" loading="lazy" decoding="async" />
 		                              {% endif %}
 		                            {% endif %}
-                            <span class="tpad-stand-name tpad-stand-name--mini">{{ tactics_team_name|default:"EQUIPO" }}</span>
+	                            <span class="tpad-stand-name tpad-stand-name--mini">{{ tactics_club_name|default:tactics_team_name|default:"EQUIPO" }}</span>
                           </div>
                         </div>
                         <div class="tpad-stadium-center">
