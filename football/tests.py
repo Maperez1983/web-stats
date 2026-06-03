@@ -2479,6 +2479,9 @@ class SeasonHistoryServicesTests(TestCase):
         self.assertIn(eligible, response.context['club_player_options'])
         self.assertNotIn(too_old, response.context['club_player_options'])
         self.assertContains(response, '2017-2018')
+        self.assertContains(response, 'Benjamin Elegible')
+        self.assertContains(response, '2017')
+        self.assertNotContains(response, 'Alevin No Elegible')
 
         invalid_response = self.client.post(
             f"{reverse('coach-roster')}?tab=manage",

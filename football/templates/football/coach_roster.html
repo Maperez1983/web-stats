@@ -1105,12 +1105,15 @@
                 <label>
                   Jugador del club
                   <select name="existing_player_id" required>
-                    <option value="">Seleccionar jugador...</option>
+                    <option value="">Seleccionar jugador compatible...</option>
                     {% for player_option in club_player_options %}
                       <option value="{{ player_option.id }}">
                         {{ player_option.name }}{% if player_option.full_name %} · {{ player_option.full_name }}{% endif %}
+                        {% if player_option.birth_date %} · {{ player_option.birth_date|date:"Y" }}{% endif %}
                         {% if player_option.team %} · {{ player_option.team.display_name|default:player_option.team.name }}{% endif %}
                       </option>
+                    {% empty %}
+                      <option value="" disabled>No hay jugadores compatibles por edad</option>
                     {% endfor %}
                   </select>
                 </label>
