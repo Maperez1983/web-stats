@@ -8820,6 +8820,8 @@ class StaffUserLinkingTests(TestCase):
         self.assertContains(response, 'Multipizarra')
         self.assertContains(response, 'Imprimir UEFA')
         self.assertContains(response, 'Imprimir Club')
+        self.assertContains(response, 'id="task-device-view"')
+        self.assertContains(response, 'Escritorio')
 
     def test_task_builder_prefills_age_group_from_team_category(self):
         self.team.category = 'Juvenil'
