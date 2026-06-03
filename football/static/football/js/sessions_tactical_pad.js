@@ -7923,17 +7923,28 @@
 						      };
 						    })();
 
-						    const readPitch3dStadiumContext = () => {
-						      let ads = {};
+							    const readPitch3dStadiumContext = () => {
+							      let ads = {};
 						      try {
 						        const raw = document.getElementById('tpad-stadium-ads')?.textContent || '{}';
 						        const parsed = JSON.parse(raw);
 						        ads = (parsed && typeof parsed === 'object') ? parsed : {};
 						      } catch (e) { ads = {}; }
-						      const dataAttr = (name, fallback = '') => safeText(form?.getAttribute?.(name), fallback);
-						      const teamName = safeText(form?.dataset?.stadiumTeamName, 'Equipo');
-						      const navClubName = safeText(document.querySelector('.nav-context-name')?.textContent);
-						      const clubName = safeText(form?.dataset?.stadiumClubName || navClubName || teamName || 'Club');
+							      const dataAttr = (name, fallback = '') => safeText(form?.getAttribute?.(name), fallback);
+							      const teamName = safeText(form?.dataset?.stadiumTeamName, 'Equipo');
+							      const navClubName = safeText(document.querySelector('.nav-context-name')?.textContent);
+							      const clubName = safeText(form?.dataset?.stadiumClubName || navClubName || teamName || 'Club');
+							      const stadiumInitials = (label) => {
+							        const parts = safeText(label)
+							          .normalize('NFD')
+							          .replace(/[\u0300-\u036f]/g, '')
+							          .toUpperCase()
+							          .split(/[^A-Z0-9]+/)
+							          .filter(Boolean)
+							          .filter((part) => !['CLUB', 'CD', 'C', 'D', 'CF', 'FC', 'UD', 'AD', 'DE', 'DEL', 'LA', 'EL'].includes(part));
+							        if (parts.length === 1) return parts[0].slice(0, 2) || 'FC';
+							        return parts.slice(0, 3).map((part) => part[0]).join('') || 'FC';
+							      };
 						      const sponsorLogos = [
 						        { label: 'Grupo Modernia Asesores', logo: dataAttr('data-stadium-sponsor-modernia-src') },
 						        { label: 'Inversure', logo: dataAttr('data-stadium-sponsor-inversure-src') },
@@ -7944,7 +7955,7 @@
 						        teamName: clubName || teamName,
 						        clubName,
 						        displayTeamName: teamName,
-						        initials: (clubName || teamName).split(/\s+/).filter(Boolean).slice(0, 3).map((part) => part[0]).join('').toUpperCase() || 'FC',
+						        initials: stadiumInitials(clubName || teamName),
 						        primary: safeText(form?.dataset?.stadiumTeamPrimary, '#0f7a35'),
 						        secondary: safeText(form?.dataset?.stadiumTeamSecondary, '#ffffff'),
 						        crestUrl: safeText(form?.dataset?.stadiumTeamCrestUrl),
