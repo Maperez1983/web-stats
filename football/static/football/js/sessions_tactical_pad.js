@@ -19289,7 +19289,7 @@
 		      const tokenParts = [];
 		      let baseRadius = 22;
 		      const style = normalizeTokenStyle(options?.style || player?.token_style || tokenGlobalStyle);
-			      const pattern = normalizeTokenPattern(options?.pattern || player?.token_pattern || (isTacticsMode ? 'solid' : 'striped'));
+			      const pattern = normalizeTokenPattern(options?.pattern || player?.token_pattern || 'striped');
 	      const defaultBase = kind === 'player_away' ? (isTacticsMode ? tokenGlobalColorLocal : '#facc15') : (isTacticsMode ? tokenGlobalColorLocalBase : '#ffffff');
       const defaultStripe = isTacticsMode
         ? ((kind === 'player_rival' || kind === 'goalkeeper_rival') ? tokenGlobalColorRival : tokenGlobalColorLocal)
@@ -19754,35 +19754,7 @@
 			          baseCircle.data = { role: isAway ? 'token_fill' : 'token_base' };
 			          tokenParts.push(baseCircle);
 
-			          const roundKitImageEl = kit2dImageForTokenKind(kind, tokenKitSlot);
-			          const canUseRoundKit = !!(roundKitImageEl && (roundKitImageEl.naturalWidth || roundKitImageEl.width));
-			          if (canUseRoundKit) {
-			            const naturalW = Number(roundKitImageEl.naturalWidth || roundKitImageEl.width || 1);
-			            const naturalH = Number(roundKitImageEl.naturalHeight || roundKitImageEl.height || 1);
-			            const target = (radius - 1.5) * 2;
-			            const baseScale = target / Math.max(1, Math.min(naturalW, naturalH));
-			            const kitRound = new fabric.Image(roundKitImageEl, {
-			              left: 0,
-			              top: 0,
-			              originX: 'center',
-			              originY: 'center',
-			              scaleX: baseScale,
-			              scaleY: baseScale,
-			              selectable: false,
-			              evented: false,
-			            });
-			            try { kitRound.objectCaching = false; } catch (e) { /* ignore */ }
-			            try { kitRound.noScaleCache = true; } catch (e) { /* ignore */ }
-			            kitRound.clipPath = new fabric.Circle({
-			              radius: radius - 2,
-			              originX: 'center',
-			              originY: 'center',
-			              left: 0,
-			              top: 0,
-			            });
-			            kitRound.data = { role: 'token_kit2d_round' };
-			            tokenParts.push(kitRound);
-			          }
+			          const canUseRoundKit = false;
 
 			          const innerRing = new fabric.Circle({
 			            radius: Math.max(2, radius - 3),
