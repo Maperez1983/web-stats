@@ -404,6 +404,9 @@ def add_side_stand_render(name, side):
     cube_obj(f"{name}_upper_press_gallery", (0, base_y + sign * 30.25, 12.6), (width_base - 8, 0.86, 2.2), MATS["glass"])
     cube_obj(f"{name}_top_concourse_shadow", (0, base_y + sign * 27.7, 14.25), (width_base + 4, 1.25, 1.1), MATS["deep_void"])
     cube_obj(f"{name}_top_concrete_crown", (0, base_y + sign * 28.4, 15.0), (width_base + 8, 1.2, 0.75), MATS["warm_concrete"])
+    cube_obj(f"{name}_upper_bowl_seat_ring", (0, base_y + sign * 26.4, 13.35), (width_base - 3.0, 1.15, 0.34), MATS["club_primary"])
+    cube_obj(f"{name}_upper_bowl_name_ring", (0, base_y + sign * 25.6, 12.85), (width_base * 0.62, 0.75, 0.28), MATS["club_secondary"])
+    cube_obj(f"{name}_upper_bowl_shadow_cut", (0, base_y + sign * 26.95, 13.70), (width_base - 1.0, 0.24, 0.42), MATS["deep_void"])
     for i in range(18):
         x = -width_base / 2 + i * width_base / 17
         cube_obj(f"{name}_rear_concrete_joint_{i}", (x, base_y + sign * 30.86, 8.4), (0.10, 0.10, 12.8), MATS["deep_void"])
@@ -521,6 +524,9 @@ def add_end_stand_render(name, side):
     cube_obj(f"{name}_upper_press_gallery", (base_x + sign * 29.9, 0, 12.2), (0.86, depth_base - 8, 2.1), MATS["glass"])
     cube_obj(f"{name}_top_concourse_shadow", (base_x + sign * 27.4, 0, 13.9), (1.20, depth_base + 4, 1.05), MATS["deep_void"])
     cube_obj(f"{name}_top_concrete_crown", (base_x + sign * 28.0, 0, 14.65), (1.15, depth_base + 8, 0.72), MATS["warm_concrete"])
+    cube_obj(f"{name}_upper_bowl_seat_ring", (base_x + sign * 26.1, 0, 13.05), (1.10, depth_base - 3.0, 0.34), MATS["club_primary"])
+    cube_obj(f"{name}_upper_bowl_name_ring", (base_x + sign * 25.35, 0, 12.55), (0.72, depth_base * 0.62, 0.28), MATS["club_secondary"])
+    cube_obj(f"{name}_upper_bowl_shadow_cut", (base_x + sign * 26.65, 0, 13.40), (0.24, depth_base - 1.0, 0.42), MATS["deep_void"])
     for i in range(14):
         y = -depth_base / 2 + i * depth_base / 13
         cube_obj(f"{name}_rear_concrete_joint_{i}", (base_x + sign * 30.45, y, 8.1), (0.10, 0.10, 12.3), MATS["deep_void"])
