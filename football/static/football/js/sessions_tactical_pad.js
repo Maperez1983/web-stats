@@ -1075,6 +1075,7 @@
 		    const tokenKitActions = document.getElementById('task-token-kit-actions');
 		    const tokenNameTagActions = document.getElementById('task-token-name-tag-actions');
 		    const tokenDisplayPresets = document.getElementById('task-token-display-presets');
+		    const tokenFocusActions = document.getElementById('task-token-focus-actions');
 		    const zoneStyleActions = document.getElementById('task-zone-style-actions');
 		    const backgroundEditActions = document.getElementById('task-background-edit-actions');
 				    const tokenGlobalStyleActions = document.getElementById('task-token-style-global') || document.getElementById('task-token-style-global-tactics');
@@ -4745,6 +4746,183 @@
 	      group.dirty = true;
 	      return true;
 	    };
+	    const canvasTokenGroups = () => {
+	      try {
+	        return (canvas.getObjects() || []).filter((obj) => obj && isTokenGroup(obj));
+	      } catch (e) {
+	        return [];
+	      }
+	    };
+	    const activeTokenSet = () => {
+	      const active = canvas.getActiveObject();
+	      const set = new Set();
+	      if (!active) return set;
+	      if (isTokenGroup(active)) {
+	        set.add(active);
+	        return set;
+	      }
+	      if (active.type === 'activeSelection' && typeof active.getObjects === 'function') {
+	        (active.getObjects() || []).forEach((obj) => {
+	          if (isTokenGroup(obj)) set.add(obj);
+	        });
+	      }
+	      return set;
+	    };
+	    const setTokenChildVisibility = (group, roles, visible, opacity = 1) => {
+	      if (!group || !Array.isArray(roles)) return false;
+	      let changed = false;
+	      walkTokenObjects(group, (child) => {
+	        if (!child) return;
+	        const role = safeText(child?.data?.role);
+	        if (!roles.includes(role)) return;
+	        try {
+	          child.set({ visible, opacity: visible ? opacity : 0 });
+	          changed = true;
+	        } catch (e) { /* ignore */ }
+	      });
+	      if (changed) group.dirty = true;
+	      return changed;
+	    };
+	    const tokenHasChildRole = (group, wantedRole) => {
+	      let found = false;
+	      walkTokenObjects(group, (child) => {
+	        if (found) return;
+	        if (safeText(child?.data?.role) === wantedRole) found = true;
+	      });
+	      return found;
+	    };
+	    const addTokenChromeObject = (group, object) => {
+	      if (!group || !object) return false;
+	      const center = (() => {
+	        try { return group.getCenterPoint(); } catch (e) { return null; }
+	      })();
+	      try {
+	        if (typeof group.addWithUpdate === 'function') group.addWithUpdate(object);
+	        else if (Array.isArray(group._objects)) group._objects.push(object);
+	        if (center && typeof group.setPositionByOrigin === 'function') group.setPositionByOrigin(center, 'center', 'center');
+	        group.setCoords?.();
+	        group.dirty = true;
+	        return true;
+	      } catch (e) {
+	        return false;
+	      }
+	    };
+	    const ensureTokenInteractionChrome = (group) => {
+	      if (!group || !isTokenGroup(group)) return false;
+	      if (safeText(group?.data?.token_style || 'disk') !== 'disk') return false;
+	      const radius = getTokenBaseRadius(group);
+	      let changed = false;
+	      if (!tokenHasChildRole(group, 'token_selection_ring')) {
+	        const selectionRing = new fabric.Circle({
+	          radius: radius + 4,
+	          fill: '',
+	          stroke: 'rgba(250,204,21,0.98)',
+	          strokeWidth: 2.5,
+	          originX: 'center',
+	          originY: 'center',
+	          left: 0,
+	          top: 0,
+	          visible: false,
+	          opacity: 0,
+	          selectable: false,
+	          evented: false,
+	          shadow: 'rgba(250,204,21,0.45) 0 0 12px',
+	        });
+	        selectionRing.data = { role: 'token_selection_ring' };
+	        changed = addTokenChromeObject(group, selectionRing) || changed;
+	      }
+	      if (!tokenHasChildRole(group, 'token_focus_ring')) {
+	        const focusRing = new fabric.Circle({
+	          radius: radius + 1.5,
+	          fill: '',
+	          stroke: 'rgba(34,211,238,0.90)',
+	          strokeWidth: 1.7,
+	          strokeDashArray: [5, 4],
+	          originX: 'center',
+	          originY: 'center',
+	          left: 0,
+	          top: 0,
+	          visible: false,
+	          opacity: 0,
+	          selectable: false,
+	          evented: false,
+	        });
+	        focusRing.data = { role: 'token_focus_ring' };
+	        changed = addTokenChromeObject(group, focusRing) || changed;
+	      }
+	      if (!tokenHasChildRole(group, 'token_focus_dot')) {
+	        const focusDot = new fabric.Circle({
+	          radius: 4.2,
+	          fill: 'rgba(250,204,21,0.98)',
+	          stroke: 'rgba(2,6,23,0.78)',
+	          strokeWidth: 1.2,
+	          originX: 'center',
+	          originY: 'center',
+	          left: radius - 5,
+	          top: -radius + 5,
+	          visible: false,
+	          opacity: 0,
+	          selectable: false,
+	          evented: false,
+	          shadow: 'rgba(250,204,21,0.45) 0 2px 6px',
+	        });
+	        focusDot.data = { role: 'token_focus_dot' };
+	        changed = addTokenChromeObject(group, focusDot) || changed;
+	      }
+	      return changed;
+	    };
+	    const setTokenFocus = (group, focused) => {
+	      if (!group || !isTokenGroup(group)) return false;
+	      ensureTokenInteractionChrome(group);
+	      setObjectData(group, { token_focus: !!focused });
+	      setTokenChildVisibility(group, ['token_focus_dot', 'token_focus_ring'], !!focused, 1);
+	      group.dirty = true;
+	      return true;
+	    };
+	    const syncTokenAdaptivePresentation = () => {
+	      const tokens = canvasTokenGroups();
+	      const activeTokens = activeTokenSet();
+	      const count = tokens.length;
+	      const zoom = clamp(Number(pitchZoom) || 1, 0.8, 1.6);
+	      const dense = count >= 14;
+	      const veryDense = count >= 20;
+	      tokens.forEach((group) => {
+	        if (!group || !isTokenGroup(group)) return;
+	        const active = activeTokens.has(group);
+	        const manualDisplay = safeText(group?.data?.token_display, 'name_number');
+	        const nameTag = normalizeTokenNameTagMode(group?.data?.token_name_tag);
+	        const canShowName = manualDisplay !== 'number_only' && nameTag !== 'none';
+	        const showName = canShowName && (active || zoom >= (veryDense ? 1.34 : dense ? 1.2 : 1.02));
+	        setTokenChildVisibility(group, ['token_name', 'token_name_bg'], showName, 1);
+	        const tokenSize = safeText(group?.data?.token_size, 'm');
+	        if (tokenSize === 'm') {
+	          const baseRadius = getTokenBaseRadius(group);
+	          const targetRadius = active ? 22 : (veryDense ? 18 : (dense && zoom < 1.18 ? 20 : 22));
+	          const nextScale = clampScale(targetRadius / Math.max(1, baseRadius));
+	          if (Math.abs((Number(group.scaleX) || 1) - nextScale) > 0.01 || Math.abs((Number(group.scaleY) || 1) - nextScale) > 0.01) {
+	            try {
+	              group.set({ scaleX: nextScale, scaleY: nextScale });
+	              group.setCoords();
+	              group.dirty = true;
+	            } catch (e) { /* ignore */ }
+	          }
+	        }
+	      });
+	    };
+	    const syncTokenInteractionChrome = () => {
+	      const activeTokens = activeTokenSet();
+	      canvasTokenGroups().forEach((group) => {
+	        ensureTokenInteractionChrome(group);
+	        const active = activeTokens.has(group);
+	        setTokenChildVisibility(group, ['token_selection_ring'], active, 1);
+	        setTokenChildVisibility(group, ['token_focus_dot', 'token_focus_ring'], !!group?.data?.token_focus, 1);
+	      });
+	      try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+	    };
+	    const syncTokenAdaptiveUi = () => {
+	      syncTokenAdaptivePresentation();
+	      syncTokenInteractionChrome();
+	    };
 	    const tokenTeamPresetPalette = (presetRaw) => {
 	      const preset = safeText(presetRaw, 'local').toLowerCase();
 	      const local = parseColorToHex(tokenGlobalColorLocalInput?.value, '#0f7a35') || '#0f7a35';
@@ -5962,6 +6140,7 @@
 		        facing_deg: normalizeAngle(active?.data?.facing_deg, 0),
 		        fov_visible: !!active?.data?.fov_visible,
 		        fov_width_deg: clamp(Number(active?.data?.fov_width_deg) || 70, 20, 160),
+		        focus: !!active?.data?.token_focus,
 		      };
 		      const factory = playerTokenFactory(tokenKind || 'player_local', player, { style: nextStyle, ...palette });
 		      if (typeof factory !== 'function') return;
@@ -5982,7 +6161,7 @@
 		        opacity: active.opacity == null ? 1 : active.opacity,
 		      });
 		      keepTokenAtCenter(fresh, center);
-		      fresh.data = { ...(fresh.data || {}), layer_uid: safeText(prevData.layer_uid), locked: prevData.locked, token_size: safeText(prevData.token_size, 'm') };
+		      fresh.data = { ...(fresh.data || {}), layer_uid: safeText(prevData.layer_uid), locked: prevData.locked, token_size: safeText(prevData.token_size, 'm'), token_focus: !!prevData.token_focus };
 		      // Respeta orientación corporal.
 		      try {
 		        const desiredFacing = normalizeAngle(prevData?.facing_deg, normalizeAngle(active?.data?.facing_deg, 0));
@@ -6025,6 +6204,7 @@
 		        facing_deg: normalizeAngle(active?.data?.facing_deg, 0),
 		        fov_visible: !!active?.data?.fov_visible,
 		        fov_width_deg: clamp(Number(active?.data?.fov_width_deg) || 70, 20, 160),
+		        focus: !!active?.data?.token_focus,
 		      };
 		      const factory = playerTokenFactory(tokenKind || 'player_local', player, options);
 		      if (typeof factory !== 'function') return;
@@ -6044,7 +6224,7 @@
 		        opacity: active.opacity == null ? 1 : active.opacity,
 		      });
 		      keepTokenAtCenter(fresh, center);
-		      fresh.data = { ...(fresh.data || {}), layer_uid: safeText(prevData.layer_uid), locked: prevData.locked, token_size: safeText(prevData.token_size, 'm'), token_kit_slot: nextSlot };
+		      fresh.data = { ...(fresh.data || {}), layer_uid: safeText(prevData.layer_uid), locked: prevData.locked, token_size: safeText(prevData.token_size, 'm'), token_kit_slot: nextSlot, token_focus: !!prevData.token_focus };
 		      try {
 		        fresh.data.facing_deg = normalizeAngle(prevData?.facing_deg, normalizeAngle(active?.data?.facing_deg, 0));
 		        setTokenFacing(fresh, fresh.data.facing_deg);
@@ -17760,6 +17940,7 @@
 		      // En modo viewportTransform, el zoom no cambia el tamaño del stage: cambia la escala del viewport.
 		      if (useViewportMapping) {
 		        try { applyViewportTransformToWorld(); } catch (error) { /* ignore */ }
+		        try { syncTokenAdaptiveUi(); } catch (error) { /* ignore */ }
 		        try { canvas.requestRenderAll(); } catch (error) { /* ignore */ }
 		        try { canvas.calcOffset(); } catch (error) { /* ignore */ }
 		        return;
@@ -17770,11 +17951,13 @@
 		        window.requestAnimationFrame(() => {
 		          try { fitCanvas(true); } catch (error) { /* ignore */ }
 			          try { applyPitchSurface(pitchPreset || (presetSelect.value || 'full_pitch'), pitchOrientation, pitchGrassStyle); } catch (error) { /* ignore */ }
+		          try { syncTokenAdaptiveUi(); } catch (error) { /* ignore */ }
 		          try { canvas.calcOffset(); } catch (error) { /* ignore */ }
 		        });
 		      } catch (error) {
 		        try { fitCanvas(true); } catch (e) { /* ignore */ }
 			        try { applyPitchSurface(pitchPreset || (presetSelect.value || 'full_pitch'), pitchOrientation, pitchGrassStyle); } catch (e) { /* ignore */ }
+		        try { syncTokenAdaptiveUi(); } catch (e) { /* ignore */ }
 		        try { canvas.calcOffset(); } catch (e) { /* ignore */ }
 		      }
 		    };
@@ -19886,6 +20069,57 @@
 			        });
 			        faceRing.data = { role: 'token_face_ring' };
 			        tokenParts.push(faceRing);
+			        const selectionRing = new fabric.Circle({
+			          radius: radius + 4,
+			          fill: '',
+			          stroke: 'rgba(250,204,21,0.98)',
+			          strokeWidth: 2.5,
+			          originX: 'center',
+			          originY: 'center',
+			          left: 0,
+			          top: 0,
+			          visible: false,
+			          opacity: 0,
+			          selectable: false,
+			          evented: false,
+			          shadow: 'rgba(250,204,21,0.45) 0 0 12px',
+			        });
+			        selectionRing.data = { role: 'token_selection_ring' };
+			        tokenParts.push(selectionRing);
+			        const focusRing = new fabric.Circle({
+			          radius: radius + 1.5,
+			          fill: '',
+			          stroke: 'rgba(34,211,238,0.90)',
+			          strokeWidth: 1.7,
+			          strokeDashArray: [5, 4],
+			          originX: 'center',
+			          originY: 'center',
+			          left: 0,
+			          top: 0,
+			          visible: false,
+			          opacity: 0,
+			          selectable: false,
+			          evented: false,
+			        });
+			        focusRing.data = { role: 'token_focus_ring' };
+			        tokenParts.push(focusRing);
+			        const focusDot = new fabric.Circle({
+			          radius: 4.2,
+			          fill: 'rgba(250,204,21,0.98)',
+			          stroke: 'rgba(2,6,23,0.78)',
+			          strokeWidth: 1.2,
+			          originX: 'center',
+			          originY: 'center',
+			          left: radius - 5,
+			          top: -radius + 5,
+			          visible: false,
+			          opacity: 0,
+			          selectable: false,
+			          evented: false,
+			          shadow: 'rgba(250,204,21,0.45) 0 2px 6px',
+			        });
+			        focusDot.data = { role: 'token_focus_dot' };
+			        tokenParts.push(focusDot);
 			        // Brillo común para look premium sin perder lectura táctica.
 			        const gloss = new fabric.Ellipse({
 			          rx: 11,
@@ -20026,6 +20260,7 @@
 			          token_pattern: pattern,
 			          token_kit_slot: tokenKitSlot,
 			          token_name_tag: 'solid',
+			          token_focus: !!options?.focus,
 			          token_base_color: baseColor,
 			          token_stripe_color: stripeColor,
 			          color: kind === 'player_local' ? stripeColor : (kind === 'player_away' ? stripeColor : palette.fill),
@@ -24175,6 +24410,11 @@
 		    canvas.on('selection:created', syncInspector);
 		    canvas.on('selection:updated', syncInspector);
 		    canvas.on('selection:cleared', syncInspector);
+		    canvas.on('selection:created', syncTokenAdaptiveUi);
+		    canvas.on('selection:updated', syncTokenAdaptiveUi);
+		    canvas.on('selection:cleared', syncTokenAdaptiveUi);
+		    canvas.on('object:added', syncTokenAdaptiveUi);
+		    canvas.on('object:modified', syncTokenAdaptiveUi);
 	    canvas.on('selection:created', renderLayers);
 	    canvas.on('selection:updated', renderLayers);
 	    canvas.on('selection:cleared', renderLayers);
@@ -24706,6 +24946,7 @@
 			          if (!isTokenGroup(active)) return;
 			          applyTokenNameTagMode(active, tokenNameTag);
 			        }, `Nombre: ${normalizeTokenNameTagMode(tokenNameTag) === 'none' ? 'sin fondo' : 'fondo'}.`);
+			        syncTokenAdaptiveUi();
 			        return;
 			      }
 			      const tokenDisplayPreset = safeText(button.dataset.tokenDisplayPreset);
@@ -24714,6 +24955,17 @@
 			          if (!isTokenGroup(active)) return;
 			          applyTokenDisplayPreset(active, tokenDisplayPreset);
 			        }, tokenDisplayPreset === 'number_only' ? 'Chapa: solo dorsal.' : 'Chapa: nombre y dorsal.');
+			        syncTokenAdaptiveUi();
+			        return;
+			      }
+			      if (button.dataset.tokenFocusToggle === '1' || button.dataset.tokenFocusClear === '1') {
+			        const clear = button.dataset.tokenFocusClear === '1';
+			        applyToActiveFlexibleObject((active) => {
+			          if (!isTokenGroup(active)) return;
+			          setTokenFocus(active, clear ? false : !active?.data?.token_focus);
+			        }, clear ? 'Foco quitado.' : 'Foco actualizado.');
+			        syncTokenAdaptiveUi();
+			        syncInspector();
 			        return;
 			      }
 			      const tokenTeamPreset = safeText(button.dataset.tokenTeamPreset);
@@ -27034,6 +27286,14 @@
 		        const hasStripes = tokenHasStripeRoles(active);
 		        if (tokenColorGrid) tokenColorGrid.hidden = style === 'photo';
 		        if (tokenPatternActions) tokenPatternActions.hidden = !hasStripes || style === 'photo';
+		        if (tokenFocusActions) {
+		          tokenFocusActions.hidden = safeText(active?.data?.token_style || 'disk') !== 'disk';
+		          Array.from(tokenFocusActions.querySelectorAll('button[data-token-focus-toggle]') || []).forEach((btn) => {
+		            const activeFocus = !!active?.data?.token_focus;
+		            btn.classList.toggle('is-active', activeFocus);
+		            try { btn.setAttribute('aria-pressed', activeFocus ? 'true' : 'false'); } catch (e) { /* ignore */ }
+		          });
+		        }
 		        if (tokenKitActions) {
 		          tokenKitActions.hidden = style === 'photo';
 		          const currentKitSlot = normalizeKit2dSlot(active?.data?.token_kit_slot || '') || kit2dSlotForTokenKind(safeText(active?.data?.token_kind));
@@ -27068,6 +27328,7 @@
 		        if (tokenColorGrid) tokenColorGrid.hidden = true;
 		        if (tokenPatternActions) tokenPatternActions.hidden = true;
 		        if (tokenKitActions) tokenKitActions.hidden = true;
+		        if (tokenFocusActions) tokenFocusActions.hidden = true;
 		      }
 		    };
 
