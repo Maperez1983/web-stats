@@ -1829,27 +1829,44 @@
         width: 44px;
         height: 44px;
         border-radius: 999px;
-        border: 2px solid rgba(255, 255, 255, 0.9);
+        border: 2px solid rgba(248, 250, 252, 0.94);
         background:
+          radial-gradient(circle at 30% 18%, rgba(255,255,255,0.34), transparent 28%),
+          linear-gradient(180deg, rgba(255,255,255,0.10), rgba(2,6,23,0.16)),
           repeating-linear-gradient(
             90deg,
-            #0f7a35 0 8px,
+            var(--tpad-token-local, #0f7a35) 0 8px,
             #f8fafc 8px 16px
           );
         display: grid;
         place-items: center;
-        box-shadow: 0 6px 14px rgba(15, 23, 42, 0.28);
+        position: relative;
+        box-shadow:
+          inset 0 0 0 2px rgba(2, 6, 23, 0.34),
+          inset 0 0 0 5px rgba(255, 255, 255, 0.16),
+          0 8px 16px rgba(2, 6, 23, 0.34);
+        overflow: hidden;
+      }
+      .player-bank button.player-token-bank .token-disk::after {
+        content: "";
+        position: absolute;
+        inset: 5px;
+        border-radius: inherit;
+        border: 1px solid rgba(255,255,255,0.30);
+        pointer-events: none;
       }
       .player-bank.is-opponent button.player-token-bank .token-disk {
         background:
+          radial-gradient(circle at 30% 18%, rgba(255,255,255,0.32), transparent 28%),
+          linear-gradient(180deg, rgba(255,255,255,0.08), rgba(2,6,23,0.16)),
           repeating-linear-gradient(
             90deg,
-            #ef4444 0 8px,
+            var(--tpad-token-rival, #ef4444) 0 8px,
             #fff1f2 8px 16px
           );
       }
       .player-bank button.player-token-bank .token-disk.is-goalkeeper {
-        background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.42), transparent 38%),
+        background: radial-gradient(circle at 30% 18%, rgba(255,255,255,0.46), transparent 34%),
           linear-gradient(135deg, #1d4ed8, #0ea5e9);
         border-color: rgba(255, 255, 255, 0.92);
       }
@@ -1908,10 +1925,14 @@
         text-shadow: 0 1px 2px rgba(15, 23, 42, 0.65);
       }
       .player-bank button.player-token-bank .token-number {
-        font-size: 0.92rem;
-        font-weight: 800;
+        position: relative;
+        z-index: 1;
+        font-size: 0.98rem;
+        font-weight: 950;
         color: #ffffff;
-        text-shadow: 0 1px 2px rgba(15, 23, 42, 0.65);
+        text-shadow:
+          0 1px 2px rgba(2, 6, 23, 0.88),
+          0 0 1px rgba(2, 6, 23, 0.95);
       }
       .player-bank button.player-token-bank .token-jersey .token-number,
       .player-bank button.player-token-bank .token-photo .token-number {

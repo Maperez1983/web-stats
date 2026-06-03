@@ -19711,13 +19711,14 @@
 			          nameText.data = { role: 'token_name' };
 			          tokenParts.push(nameText);
 			        } else {
-			          const tokenShadow = new fabric.Circle({
-			            radius: radius + 4,
+			          const tokenShadow = new fabric.Ellipse({
+			            rx: radius + 6,
+			            ry: 9,
 			            fill: 'rgba(2,6,23,0.26)',
 			            originX: 'center',
 			            originY: 'center',
 			            left: 2,
-			            top: 4,
+			            top: 18,
 			            strokeWidth: 0,
 			            selectable: false,
 			            evented: false,
@@ -19726,10 +19727,10 @@
 			          tokenParts.push(tokenShadow);
 			          // Borde exterior oscuro para que la chapa destaque sobre líneas blancas/césped.
 			          const outerRing = new fabric.Circle({
-			            radius: radius + 1,
+			            radius: radius + 2,
 			            fill: '',
-			            stroke: 'rgba(2,6,23,0.55)',
-			            strokeWidth: 2,
+			            stroke: 'rgba(2,6,23,0.64)',
+			            strokeWidth: 2.4,
 			            originX: 'center',
 			            originY: 'center',
 			            left: 0,
@@ -19743,24 +19744,39 @@
 			          const baseCircle = new fabric.Circle({
 			            radius,
 			            fill: isAway ? stripeColor : effectiveBase,
-			            stroke: 'rgba(255,255,255,0.92)',
-			            strokeWidth: 2.5,
+			            stroke: 'rgba(248,250,252,0.96)',
+			            strokeWidth: 2.2,
 			            originX: 'center',
 			            originY: 'center',
 			            left: 0,
 			            top: 0,
-			            shadow: 'rgba(15,23,42,0.28) 0 6px 14px',
+			            shadow: 'rgba(15,23,42,0.26) 0 7px 15px',
 			          });
 			          baseCircle.data = { role: isAway ? 'token_fill' : 'token_base' };
 			          tokenParts.push(baseCircle);
 
+			          const rimLight = new fabric.Circle({
+			            radius: radius - 1.5,
+			            fill: '',
+			            stroke: 'rgba(255,255,255,0.26)',
+			            strokeWidth: 1.2,
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: 0,
+			            selectable: false,
+			            evented: false,
+			          });
+			          rimLight.data = { role: 'token_rim_light' };
+			          tokenParts.push(rimLight);
+
 			          const canUseRoundKit = false;
 
 			          const innerRing = new fabric.Circle({
-			            radius: Math.max(2, radius - 3),
+			            radius: Math.max(2, radius - 5),
 			            fill: '',
-			            stroke: 'rgba(255,255,255,0.20)',
-			            strokeWidth: 1.5,
+			            stroke: 'rgba(255,255,255,0.24)',
+			            strokeWidth: 1.2,
 			            originX: 'center',
 			            originY: 'center',
 			            left: 0,
@@ -19770,6 +19786,20 @@
 			          });
 			          innerRing.data = { role: 'token_inner_ring' };
 			          tokenParts.push(innerRing);
+			          const lowerShade = new fabric.Ellipse({
+			            rx: radius - 5,
+			            ry: 7,
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: 9,
+			            fill: 'rgba(2,6,23,0.13)',
+			            strokeWidth: 0,
+			            selectable: false,
+			            evented: false,
+			          });
+			          lowerShade.data = { role: 'token_lower_shade' };
+			          tokenParts.push(lowerShade);
 			        if (isGoalkeeper) {
 		          // Portero: disco azul con brillo suave (aproxima el gradiente CSS del bank).
 		          const gkBg = new fabric.Circle({
@@ -19791,13 +19821,14 @@
 	          });
 	          gkBg.data = { role: 'token_fill' };
 	          tokenParts.push(gkBg);
-	          const highlight = new fabric.Circle({
-	            radius: 10,
+	          const highlight = new fabric.Ellipse({
+	            rx: 11,
+	            ry: 7,
 	            originX: 'center',
 	            originY: 'center',
 	            left: -7,
-	            top: -10,
-	            fill: 'rgba(255,255,255,0.28)',
+	            top: -11,
+	            fill: 'rgba(255,255,255,0.32)',
 	            strokeWidth: 0,
 	          });
 		          highlight.data = { role: 'token_highlight' };
@@ -19841,14 +19872,29 @@
 			          stripeGroup.data = { role: 'token_stripes' };
 			          tokenParts.push(stripeGroup);
 			        }
-			        // Brillo común para look más "pro" (broadcast).
-			        const gloss = new fabric.Circle({
-			          radius: 9,
+			        const faceRing = new fabric.Circle({
+			          radius: Math.max(2, radius - 4),
+			          fill: '',
+			          stroke: 'rgba(255,255,255,0.34)',
+			          strokeWidth: 1.2,
+			          originX: 'center',
+			          originY: 'center',
+			          left: 0,
+			          top: 0,
+			          selectable: false,
+			          evented: false,
+			        });
+			        faceRing.data = { role: 'token_face_ring' };
+			        tokenParts.push(faceRing);
+			        // Brillo común para look premium sin perder lectura táctica.
+			        const gloss = new fabric.Ellipse({
+			          rx: 11,
+			          ry: 7,
 			          originX: 'center',
 			          originY: 'center',
 			          left: -7,
-			          top: -10,
-			          fill: 'rgba(255,255,255,0.18)',
+			          top: -11,
+			          fill: 'rgba(255,255,255,0.22)',
 			          strokeWidth: 0,
 			          selectable: false,
 			          evented: false,
@@ -19860,11 +19906,11 @@
 		          originY: 'center',
 		          left: 0,
 		          top: 0,
-		          fontSize: 15,
-		          fontWeight: '800',
+		          fontSize: 16,
+		          fontWeight: '900',
 		          fill: isAway ? '#0b1220' : '#ffffff',
 		          stroke: isAway ? 'rgba(255,255,255,0.75)' : 'rgba(2,6,23,0.65)',
-		          strokeWidth: 2,
+		          strokeWidth: 2.4,
 		          paintFirst: 'stroke',
 		          shadow: 'rgba(15,23,42,0.55) 0 1px 2px',
 		        });
@@ -19874,13 +19920,13 @@
 		          originX: 'center',
 		          originY: 'center',
 		          left: 0,
-		          top: -34,
-		          width: Math.max(48, Math.min(120, (displayName.length * 6.6) + 18)),
-		          height: 18,
+		          top: -35,
+		          width: Math.max(54, Math.min(124, (displayName.length * 6.5) + 22)),
+		          height: 17,
 		          rx: 8,
 		          ry: 8,
-		          fill: 'rgba(2,6,23,0.68)',
-		          stroke: 'rgba(255,255,255,0.14)',
+		          fill: 'rgba(2,6,23,0.74)',
+		          stroke: 'rgba(255,255,255,0.18)',
 		          strokeWidth: 1,
 		          selectable: false,
 		          evented: false,
@@ -19892,10 +19938,10 @@
 		          originX: 'center',
 		          originY: 'center',
 		          left: 0,
-		          top: -34,
-		          fontSize: 10,
-		          fontWeight: '700',
-		          fill: '#e2e8f0',
+		          top: -35,
+		          fontSize: 9.6,
+		          fontWeight: '800',
+		          fill: '#f8fafc',
 		          shadow: 'rgba(15,23,42,0.55) 0 1px 2px',
 		        });
 			        nameText.data = { role: 'token_name' };
