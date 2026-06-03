@@ -50,15 +50,19 @@ def init_materials():
             "dark": mat("stadium_dark_shadow", (0.025, 0.035, 0.05, 1), 0.9),
             "rail": mat("stadium_metal_rails", (0.82, 0.86, 0.88, 1), 0.45, 0.18),
             "roof": mat("stadium_roof_metal", (0.10, 0.13, 0.17, 1), 0.62, 0.15),
+            "roof_glass": mat("stadium_roof_translucent_panels", (0.62, 0.82, 0.96, 0.32), 0.24, 0.02),
             "glass": mat("stadium_glass", (0.55, 0.77, 0.92, 0.36), 0.2),
+            "baked_shadow": mat("stadium_baked_shadow", (0.02, 0.04, 0.06, 0.42), 0.95),
             "club_primary": mat("club_primary_seats", (0.0, 0.22, 0.52, 1), 0.82),
             "club_secondary": mat("club_secondary_seats", (0.92, 0.96, 1.0, 1), 0.80),
             "seat_alt": mat("seat_alternate_pattern", (0.06, 0.33, 0.68, 1), 0.82),
             "light": mat("stadium_light_panels", (1.0, 0.96, 0.82, 1), 0.35),
         }
     )
+    MATS["roof_glass"].blend_method = "BLEND"
     MATS["glass"].blend_method = "BLEND"
     MATS["glass"].use_screen_refraction = True
+    MATS["baked_shadow"].blend_method = "BLEND"
 
 
 def cube_obj(name, loc, scale, material):
@@ -190,6 +194,8 @@ def add_side_stand(name, side):
     mesh_boxes(f"{name}_club_secondary_seat_backs_mesh", secondary_backs, MATS["club_secondary"])
     roof_y = base_y + sign * 29.5
     cube_obj(f"{name}_roof_canopy", (0, roof_y, 17.2), (PITCH_X + 42, 16.5, 0.38), MATS["roof"])
+    cube_obj(f"{name}_roof_translucent_strip", (0, roof_y - sign * 2.0, 17.0), (PITCH_X + 36, 5.4, 0.14), MATS["roof_glass"])
+    cube_obj(f"{name}_roof_baked_shadow_band", (0, base_y + sign * 15.5, 7.8), (PITCH_X + 20, 0.16, 2.6), MATS["baked_shadow"])
     cylinder_between(f"{name}_roof_front_truss", (-(PITCH_X / 2 + 18), roof_y - sign * 7.6, 14.1), ((PITCH_X / 2 + 18), roof_y - sign * 7.6, 14.1), 0.22, MATS["rail"], vertices=16)
     cylinder_between(f"{name}_roof_rear_truss", (-(PITCH_X / 2 + 18), roof_y + sign * 6.8, 15.9), ((PITCH_X / 2 + 18), roof_y + sign * 6.8, 15.9), 0.18, MATS["rail"], vertices=16)
     for i in range(13):
@@ -244,6 +250,8 @@ def add_end_stand(name, side):
     mesh_boxes(f"{name}_club_secondary_seat_backs_mesh", secondary_backs, MATS["club_secondary"])
     roof_x = base_x + sign * 29.0
     cube_obj(f"{name}_roof_canopy", (roof_x, 0, 16.5), (16.2, PITCH_Y + 36, 0.38), MATS["roof"])
+    cube_obj(f"{name}_roof_translucent_strip", (roof_x - sign * 2.0, 0, 16.35), (5.4, PITCH_Y + 30, 0.14), MATS["roof_glass"])
+    cube_obj(f"{name}_roof_baked_shadow_band", (base_x + sign * 15.0, 0, 7.4), (0.16, PITCH_Y + 16, 2.4), MATS["baked_shadow"])
     cylinder_between(f"{name}_roof_front_truss", (roof_x - sign * 7.7, -(PITCH_Y / 2 + 15), 13.6), (roof_x - sign * 7.7, (PITCH_Y / 2 + 15), 13.6), 0.20, MATS["rail"], vertices=16)
     cylinder_between(f"{name}_roof_rear_truss", (roof_x + sign * 6.8, -(PITCH_Y / 2 + 15), 15.4), (roof_x + sign * 6.8, (PITCH_Y / 2 + 15), 15.4), 0.16, MATS["rail"], vertices=16)
     for i in range(9):
@@ -263,6 +271,8 @@ def add_corner_bowl(x_sign, y_sign):
     cols = 38
     primary_seats = []
     secondary_seats = []
+    primary_backs = []
+    secondary_backs = []
     if x_sign < 0 and y_sign < 0:
         start, end = math.pi, math.pi * 1.5
     elif x_sign > 0 and y_sign < 0:
@@ -282,10 +292,16 @@ def add_corner_bowl(x_sign, y_sign):
             y = cy + math.sin(angle) * radius
             pattern = (tier == 1 and 2 <= row_in <= 4 and cols * 0.30 < col < cols * 0.70) or ((row + col) % 21 == 0)
             target = secondary_seats if pattern else primary_seats
+            back_target = secondary_backs if pattern else primary_backs
             target.append(((x, y, z), (0.42, 0.42, 0.15)))
+            back_target.append(((x + math.cos(angle) * 0.18, y + math.sin(angle) * 0.18, z + 0.28), (0.16, 0.42, 0.40)))
     mesh_boxes(f"corner_{x_sign}_{y_sign}_club_primary_seats_mesh", primary_seats, MATS["club_primary"])
     mesh_boxes(f"corner_{x_sign}_{y_sign}_club_secondary_seats_mesh", secondary_seats, MATS["club_secondary"])
+    mesh_boxes(f"corner_{x_sign}_{y_sign}_club_primary_seat_backs_mesh", primary_backs, MATS["club_primary"])
+    mesh_boxes(f"corner_{x_sign}_{y_sign}_club_secondary_seat_backs_mesh", secondary_backs, MATS["club_secondary"])
+    cube_obj(f"corner_{x_sign}_{y_sign}_shadow_concourse", (x_sign * (HALF_X + 16), y_sign * (HALF_Y + 16), 5.2), (10, 10, 1.8), MATS["baked_shadow"]).rotation_euler.z = math.radians(45)
     cube_obj(f"corner_{x_sign}_{y_sign}_roof", (x_sign * (HALF_X + 28), y_sign * (HALF_Y + 28), 14.6), (18, 18, 0.42), MATS["roof"]).rotation_euler.z = math.radians(45)
+    cube_obj(f"corner_{x_sign}_{y_sign}_roof_glass", (x_sign * (HALF_X + 26), y_sign * (HALF_Y + 26), 14.45), (8, 8, 0.12), MATS["roof_glass"]).rotation_euler.z = math.radians(45)
 
 
 def add_pitchside_details():
@@ -332,6 +348,32 @@ def add_pitchside_details():
         flag.rotation_euler.z = rot
 
 
+def add_exterior_render_details():
+    # Low-detail exterior context gives the realtime camera the same "stadium render" depth as the reference.
+    cube_obj("service_ring_outer_slab", (0, 0, -0.10), (PITCH_X + 92, PITCH_Y + 92, 0.08), MATS["dark"])
+    for side, sign in (("north", -1), ("south", 1)):
+        cube_obj(f"{side}_outer_access_deck", (0, sign * (HALF_Y + 43), 0.18), (PITCH_X + 58, 7.5, 0.24), MATS["concrete"])
+        for i in range(9):
+            x = -PITCH_X / 2 - 18 + i * ((PITCH_X + 36) / 8)
+            cube_obj(f"{side}_access_stair_{i}", (x, sign * (HALF_Y + 39.2), 0.65), (3.2, 6.4, 0.42), MATS["concrete"])
+    for side, sign in (("west", -1), ("east", 1)):
+        cube_obj(f"{side}_outer_access_deck", (sign * (HALF_X + 43), 0, 0.18), (7.5, PITCH_Y + 58, 0.24), MATS["concrete"])
+        for i in range(7):
+            y = -PITCH_Y / 2 - 14 + i * ((PITCH_Y + 28) / 6)
+            cube_obj(f"{side}_access_stair_{i}", (sign * (HALF_X + 39.2), y, 0.65), (6.4, 3.2, 0.42), MATS["concrete"])
+    for idx, (x, y) in enumerate(((-66, -52), (66, -52), (-66, 52), (66, 52))):
+        cube_obj(f"broadcast_tower_base_{idx}", (x, y, 2.2), (3.8, 3.8, 4.4), MATS["dark"])
+        cylinder_between(f"broadcast_tower_mast_{idx}_a", (x - 1.4, y - 1.4, 4.4), (x - 1.4, y - 1.4, 18.5), 0.09, MATS["rail"], vertices=8)
+        cylinder_between(f"broadcast_tower_mast_{idx}_b", (x + 1.4, y - 1.4, 4.4), (x + 1.4, y - 1.4, 18.5), 0.09, MATS["rail"], vertices=8)
+        cylinder_between(f"broadcast_tower_mast_{idx}_c", (x, y + 1.4, 4.4), (x, y + 1.4, 18.5), 0.09, MATS["rail"], vertices=8)
+        cube_obj(f"broadcast_tower_platform_{idx}", (x, y, 17.0), (4.6, 4.6, 0.24), MATS["rail"])
+        cube_obj(f"broadcast_tower_lightbar_{idx}", (x, y, 18.0), (3.2, 0.30, 0.30), MATS["light"])
+    for i in range(16):
+        x = -92 + i * 12.2
+        height = 3.0 + ((i * 7) % 9)
+        cube_obj(f"distant_city_block_{i}", (x, -(HALF_Y + 72), height / 2), (5.5, 2.8, height), MATS["concrete"])
+
+
 def add_lighting_and_camera():
     bpy.ops.object.light_add(type="SUN", location=(0, -30, 80))
     sun = bpy.context.object
@@ -367,6 +409,7 @@ def main():
     reset_scene()
     init_materials()
     add_pitchside_details()
+    add_exterior_render_details()
     add_side_stand("north_main", "north")
     add_side_stand("south_main", "south")
     add_end_stand("west_goal", "west")

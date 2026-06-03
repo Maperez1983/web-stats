@@ -8997,12 +8997,12 @@
 						        group.add(board);
 						      }
 
-						      const adH = usingBlenderShell ? 1.25 : 3.55;
-						      const adY = usingBlenderShell ? 0.72 : 1.86;
-						      const adOffset = usingBlenderShell ? 3.55 : 2.45;
+						      const adH = usingBlenderShell ? 1.68 : 3.55;
+						      const adY = usingBlenderShell ? 1.02 : 1.86;
+						      const adOffset = usingBlenderShell ? 4.15 : 2.45;
 						      const addAd = (side, label, logoUrl) => {
 						        const longSide = side === 'north' || side === 'south';
-						        const panelW = longSide ? metersW * (usingBlenderShell ? 0.20 : 0.30) : metersH * (usingBlenderShell ? 0.20 : 0.30);
+						        const panelW = longSide ? metersW * (usingBlenderShell ? 0.235 : 0.30) : metersH * (usingBlenderShell ? 0.235 : 0.30);
 						        const faceGeo = new THREE.PlaneGeometry(panelW, adH);
 						        const frameMat = new THREE.MeshStandardMaterial({ color: 0xd1d5db, roughness: 0.48, metalness: 0.28 });
 						        const backMat = new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.82, metalness: 0.04 });
@@ -9028,8 +9028,8 @@
 						          face.position.set(0, 0, 0.22);
 						          face.userData = { kind: 'stadium_ad_face', side, idx };
 						          panel.add(face);
-						          const topFace = new THREE.Mesh(new THREE.PlaneGeometry(panelW, usingBlenderShell ? 1.45 : 4.5), (topMat || mat).clone());
-						          topFace.position.set(0, (adH / 2) + (usingBlenderShell ? 0.20 : 0.62), usingBlenderShell ? 0.50 : 1.25);
+						          const topFace = new THREE.Mesh(new THREE.PlaneGeometry(panelW, usingBlenderShell ? 1.05 : 4.5), (topMat || mat).clone());
+						          topFace.position.set(0, (adH / 2) + (usingBlenderShell ? 0.16 : 0.62), usingBlenderShell ? 0.42 : 1.25);
 						          topFace.rotation.x = -Math.PI / 2;
 						          topFace.userData = { kind: 'stadium_ad_top_face', side, idx };
 						          panel.add(topFace);
@@ -9182,18 +9182,22 @@
 						        try {
 						          renderer.shadowMap.enabled = true;
 						          renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+						          if (THREE.SRGBColorSpace) renderer.outputColorSpace = THREE.SRGBColorSpace;
+						          if (THREE.ACESFilmicToneMapping) renderer.toneMapping = THREE.ACESFilmicToneMapping;
+						          renderer.toneMappingExposure = 1.08;
 						        } catch (e) { /* ignore */ }
 						        pitch3dRenderer = renderer;
 						        pitch3dScene = new THREE.Scene();
-						        pitch3dScene.background = new THREE.Color(0x9fc8ea);
+						        pitch3dScene.background = new THREE.Color(0xb9dcf7);
+						        try { pitch3dScene.fog = new THREE.Fog(0xb9dcf7, 245, 470); } catch (e) { /* ignore */ }
 						        pitch3dCamera = new THREE.PerspectiveCamera(58, 16 / 9, 0.1, 2000);
 						        try {
 						          window.__WEBSTATS_PITCH3D_SCENE = pitch3dScene;
 						          window.__WEBSTATS_PITCH3D_CAMERA = pitch3dCamera;
 						        } catch (e) { /* ignore */ }
-						        const hemi = new THREE.HemisphereLight(0xffffff, 0xa7b4c3, 1.12);
+						        const hemi = new THREE.HemisphereLight(0xffffff, 0xa7b4c3, 1.25);
 						        pitch3dScene.add(hemi);
-						        const dir = new THREE.DirectionalLight(0xffffff, 1.08);
+						        const dir = new THREE.DirectionalLight(0xffffff, 1.22);
 						        dir.position.set(-95, 150, 80);
 						        try {
 						          dir.castShadow = true;
@@ -9316,6 +9320,79 @@
 						      pitch3dCamera.lookAt(cx, cy, cz);
 						    };
 
+						    const addPitch3dRenderBackdrop = (root, metersW, metersH) => {
+						      if (!root || !window.THREE) return;
+						      const sky = makePitch3dCanvasTexture((ctx, c) => {
+						        const g = ctx.createLinearGradient(0, 0, 0, c.height);
+						        g.addColorStop(0.00, '#4fa5ed');
+						        g.addColorStop(0.42, '#93cdf5');
+						        g.addColorStop(0.72, '#e5f5ff');
+						        g.addColorStop(1.00, '#cfe8d3');
+						        ctx.fillStyle = g;
+						        ctx.fillRect(0, 0, c.width, c.height);
+						        ctx.globalAlpha = 0.72;
+						        for (let i = 0; i < 9; i += 1) {
+						          const x = ((i * 281) % c.width);
+						          const y = 80 + ((i * 43) % 150);
+						          const r = 45 + ((i * 17) % 42);
+						          ctx.fillStyle = 'rgba(255,255,255,0.58)';
+						          ctx.beginPath();
+						          ctx.ellipse(x, y, r, r * 0.34, 0, 0, Math.PI * 2);
+						          ctx.ellipse(x + r * 0.55, y + 8, r * 0.88, r * 0.30, 0, 0, Math.PI * 2);
+						          ctx.ellipse(x - r * 0.60, y + 12, r * 0.70, r * 0.25, 0, 0, Math.PI * 2);
+						          ctx.fill();
+						        }
+						        ctx.globalAlpha = 1;
+						      }, 2048, 1024);
+						      if (sky?.tex) {
+						        const skyMat = new THREE.MeshBasicMaterial({ map: sky.tex, side: THREE.BackSide, depthWrite: false, fog: false });
+						        skyMat.toneMapped = false;
+						        const dome = new THREE.Mesh(new THREE.SphereGeometry(360, 40, 20), skyMat);
+						        dome.position.set(0, 16, 0);
+						        dome.renderOrder = -20;
+						        dome.userData = { kind: 'stadium_sky_dome' };
+						        root.add(dome);
+						      }
+						      const sunMat = new THREE.MeshBasicMaterial({ color: 0xfff3bf, transparent: true, opacity: 0.70, depthWrite: false, fog: false });
+						      sunMat.toneMapped = false;
+						      const sun = new THREE.Mesh(new THREE.CircleGeometry(10, 48), sunMat);
+						      sun.position.set(-96, 92, -150);
+						      sun.rotation.y = 0.42;
+						      sun.userData = { kind: 'stadium_sun_disc' };
+						      root.add(sun);
+						      const city = makePitch3dCanvasTexture((ctx, c) => {
+						        ctx.clearRect(0, 0, c.width, c.height);
+						        const hill = ctx.createLinearGradient(0, 0, 0, c.height);
+						        hill.addColorStop(0, 'rgba(86,112,91,0.10)');
+						        hill.addColorStop(1, 'rgba(61,84,69,0.42)');
+						        ctx.fillStyle = hill;
+						        ctx.beginPath();
+						        ctx.moveTo(0, c.height);
+						        for (let x = 0; x <= c.width; x += 64) {
+						          const y = c.height * (0.62 + (((x * 17) % 37) / 220));
+						          ctx.lineTo(x, y);
+						        }
+						        ctx.lineTo(c.width, c.height);
+						        ctx.closePath();
+						        ctx.fill();
+						        ctx.fillStyle = 'rgba(71,85,105,0.32)';
+						        for (let i = 0; i < 42; i += 1) {
+						          const x = (i * 97) % c.width;
+						          const h = 18 + ((i * 13) % 46);
+						          const w = 9 + ((i * 5) % 18);
+						          ctx.fillRect(x, c.height - h - 14, w, h);
+						        }
+						      }, 2048, 320);
+						      if (city?.tex) {
+						        const cityMat = new THREE.MeshBasicMaterial({ map: city.tex, transparent: true, depthWrite: false, fog: false, side: THREE.DoubleSide });
+						        cityMat.toneMapped = false;
+						        const cityPlane = new THREE.Mesh(new THREE.PlaneGeometry(Math.max(180, metersW * 2.2), 34), cityMat);
+						        cityPlane.position.set(0, 18, -(metersH / 2 + 94));
+						        cityPlane.userData = { kind: 'stadium_exterior_backdrop' };
+						        root.add(cityPlane);
+						      }
+						    };
+
 						    const buildPitch3dRoot = (state, options = {}) => {
 						      if (!pitch3dScene || !pitch3dCamera) return;
 						      disposePitch3dRoot();
@@ -9337,6 +9414,7 @@
 						      const metersH = meters.h;
 						      const sourceW = Number(options.sourceW) || (Number(worldWidth) || 1280);
 						      const sourceH = Number(options.sourceH) || (Number(worldHeight) || 720);
+						      try { addPitch3dRenderBackdrop(root, metersW, metersH); } catch (e) { /* ignore */ }
 
 						      // Suelo
 						      let tex = null;
@@ -9347,14 +9425,16 @@
 						      if (tex) {
 						        tex.wrapS = THREE.ClampToEdgeWrapping;
 						        tex.wrapT = THREE.ClampToEdgeWrapping;
-						        tex.anisotropy = 4;
+						        tex.anisotropy = 12;
 						        tex.needsUpdate = true;
 						      }
 						      const groundGeo = new THREE.PlaneGeometry(metersW, metersH, 1, 1);
 						      const groundMat = new THREE.MeshStandardMaterial({
 						        color: 0xffffff,
 						        map: tex || null,
-						        roughness: 1,
+						        bumpMap: tex || null,
+						        bumpScale: 0.035,
+						        roughness: 0.86,
 						        metalness: 0,
 						      });
 						      const ground = new THREE.Mesh(groundGeo, groundMat);
@@ -9483,6 +9563,7 @@
 						          zs.forEach((z) => {
 						            addTube({ x: frontX, y: goalH, z }, { x: backX, y: goalH, z });
 						            addTube({ x: frontX, y: 0.08, z }, { x: backX, y: 0.08, z }, 0.085);
+						            addTube({ x: frontX, y: goalH, z }, { x: backX, y: 0.12, z }, 0.075);
 						          });
 						          const backNet = new THREE.Mesh(new THREE.PlaneGeometry(goalW, goalH), netMat);
 						          backNet.position.set(backX, goalH / 2, baseZ);
@@ -9515,14 +9596,14 @@
 						            line.userData = { kind };
 						            root.add(line);
 						          };
-						          for (let i = 0; i <= 6; i += 1) {
-						            const z = baseZ - (goalW / 2) + ((goalW / 6) * i);
+						          for (let i = 0; i <= 10; i += 1) {
+						            const z = baseZ - (goalW / 2) + ((goalW / 10) * i);
 						            addGridLine({ x: backX, y: 0.15, z }, { x: backX, y: goalH, z }, 'goal_3d_back_net_vertical');
 						            addGridLine({ x: frontX, y: goalH, z }, { x: backX, y: goalH, z }, 'goal_3d_top_net_depth');
 						            addGridLine({ x: frontX, y: 0.08, z }, { x: backX, y: 0.08, z }, 'goal_3d_floor_net_depth');
 						          }
-						          for (let i = 0; i <= 4; i += 1) {
-						            const y = 0.15 + (((goalH - 0.15) / 4) * i);
+						          for (let i = 0; i <= 7; i += 1) {
+						            const y = 0.15 + (((goalH - 0.15) / 7) * i);
 						            addGridLine({ x: backX, y, z: baseZ - (goalW / 2) }, { x: backX, y, z: baseZ + (goalW / 2) }, 'goal_3d_back_net_horizontal');
 						            zs.forEach((z) => {
 						              addGridLine({ x: frontX, y, z }, { x: backX, y, z }, 'goal_3d_side_net_horizontal');
