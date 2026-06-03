@@ -7735,6 +7735,30 @@
 						          ctx.fillStyle = i % 2 === 0 ? `rgba(255,255,255,${a})` : `rgba(0,0,0,${a})`;
 						          ctx.fillRect(i * stripeW, 0, stripeW + 1, c.height);
 						        }
+						        // Microtextura determinista para evitar el aspecto de plano verde liso en cámara 3D.
+						        ctx.save();
+						        ctx.globalAlpha = style === 'broadcast' ? 0.12 : 0.10;
+						        for (let y = 0; y < c.height; y += 5) {
+						          const drift = ((y * 37) % 29) - 14;
+						          ctx.strokeStyle = (y % 10 === 0) ? 'rgba(255,255,255,0.20)' : 'rgba(0,0,0,0.16)';
+						          ctx.lineWidth = 1;
+						          ctx.beginPath();
+						          ctx.moveTo(drift, y);
+						          ctx.lineTo(c.width + drift, y + ((y % 17) - 8) * 0.14);
+						          ctx.stroke();
+						        }
+						        ctx.globalAlpha = 0.11;
+						        for (let i = 0; i < 900; i += 1) {
+						          const x = (i * 1543) % c.width;
+						          const y = (i * 811) % c.height;
+						          const len = 2 + ((i * 7) % 6);
+						          ctx.strokeStyle = i % 2 ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.22)';
+						          ctx.beginPath();
+						          ctx.moveTo(x, y);
+						          ctx.lineTo(x + len, y + 1);
+						          ctx.stroke();
+						        }
+						        ctx.restore();
 						      }
 
 						      // Líneas de campo: más fiel (estilo broadcast/3D de competencia) pero sin saturar.
@@ -9054,8 +9078,10 @@
 						        addBox(new THREE.BoxGeometry(0.18, 1.8, 2.6), benchFrameMat, { x: t * metersW + 6.3, y: 0.9, z: halfH + 4.6 });
 						      });
 
-						      const floorMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.96, metalness: 0 });
-						      addBox(new THREE.BoxGeometry(metersW + 42, 0.08, metersH + 42), floorMat, { x: 0, y: -0.08, z: 0 });
+							      if (!usingBlenderShell) {
+							        const floorMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.96, metalness: 0 });
+							        addBox(new THREE.BoxGeometry(metersW + 42, 0.08, metersH + 42), floorMat, { x: 0, y: -0.08, z: 0 });
+							      }
 						    };
 
 						    let pitch3dRenderer = null;
@@ -9221,12 +9247,12 @@
 							        pitch3dOrbit.radius = Math.max(70, Math.max(metersW, metersH) * 1.25);
 						      } else if (k === 'render_original') {
 						        // Vista inspirada en el render de referencia: esquina alta, lente abierta y gradas en profundidad.
-							        pitch3dOrbit.theta = -2.04;
-							        pitch3dOrbit.phi = 1.22;
-							        pitch3dOrbit.radius = Math.max(86, metersW * 0.88);
-							        targetX = 8;
-							        targetY = 3.6;
-							        targetZ = -2;
+							        pitch3dOrbit.theta = -2.34;
+							        pitch3dOrbit.phi = 1.16;
+							        pitch3dOrbit.radius = Math.max(74, metersW * 0.72);
+							        targetX = 7;
+							        targetY = 3.2;
+							        targetZ = -1;
 						      } else if (k === 'stadium_render') {
 						        // Composición tipo render de estadio: esquina alta, campo completo y gradas dominantes.
 							        pitch3dOrbit.theta = -2.36;
