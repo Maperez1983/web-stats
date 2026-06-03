@@ -146,6 +146,43 @@ def cylinder_between(name, start, end, radius, material, vertices=12):
     return obj
 
 
+def annular_sector_obj(name, center, start, end, r_inner, r_outer, z, thickness, material, segments=28):
+    cx, cy = center
+    verts = []
+    faces = []
+    for i in range(segments + 1):
+        angle = start + (end - start) * i / segments
+        ca = math.cos(angle)
+        sa = math.sin(angle)
+        verts.append((cx + ca * r_inner, cy + sa * r_inner, z))
+        verts.append((cx + ca * r_outer, cy + sa * r_outer, z))
+        verts.append((cx + ca * r_inner, cy + sa * r_inner, z - thickness))
+        verts.append((cx + ca * r_outer, cy + sa * r_outer, z - thickness))
+    for i in range(segments):
+        a = i * 4
+        b = (i + 1) * 4
+        faces.extend(
+            [
+                (a, b, b + 1, a + 1),
+                (a + 2, a + 3, b + 3, b + 2),
+                (a, a + 2, b + 2, b),
+                (a + 1, b + 1, b + 3, a + 3),
+            ]
+        )
+    faces.append((0, 1, 3, 2))
+    last = segments * 4
+    faces.append((last, last + 2, last + 3, last + 1))
+    mesh = bpy.data.meshes.new(name)
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    if material:
+        mesh.materials.append(material)
+    obj.modifiers.new(f"{name}_weighted_normals", "WEIGHTED_NORMAL")
+    return obj
+
+
 def add_side_stand(name, side):
     sign = -1 if side == "north" else 1
     base_y = sign * (HALF_Y + 8.0)
@@ -267,12 +304,6 @@ def add_end_stand(name, side):
 def add_corner_bowl(x_sign, y_sign):
     cx = x_sign * HALF_X
     cy = y_sign * HALF_Y
-    rows = 18
-    cols = 38
-    primary_seats = []
-    secondary_seats = []
-    primary_backs = []
-    secondary_backs = []
     if x_sign < 0 and y_sign < 0:
         start, end = math.pi, math.pi * 1.5
     elif x_sign > 0 and y_sign < 0:
@@ -281,25 +312,82 @@ def add_corner_bowl(x_sign, y_sign):
         start, end = 0.0, math.pi * 0.5
     else:
         start, end = math.pi * 0.5, math.pi
-    for row in range(rows):
-        tier = row // 6
-        row_in = row % 6
-        radius = 7.0 + tier * 8.5 + row_in * 0.94
-        z = 1.1 + tier * 4.0 + row_in * 0.52
-        for col in range(cols):
-            angle = start + (end - start) * col / (cols - 1)
-            x = cx + math.cos(angle) * radius
-            y = cy + math.sin(angle) * radius
-            pattern = (tier == 1 and 2 <= row_in <= 4 and cols * 0.30 < col < cols * 0.70) or ((row + col) % 21 == 0)
-            target = secondary_seats if pattern else primary_seats
-            back_target = secondary_backs if pattern else primary_backs
-            target.append(((x, y, z), (0.42, 0.42, 0.15)))
-            back_target.append(((x + math.cos(angle) * 0.18, y + math.sin(angle) * 0.18, z + 0.28), (0.16, 0.42, 0.40)))
-    mesh_boxes(f"corner_{x_sign}_{y_sign}_club_primary_seats_mesh", primary_seats, MATS["club_primary"])
-    mesh_boxes(f"corner_{x_sign}_{y_sign}_club_secondary_seats_mesh", secondary_seats, MATS["club_secondary"])
-    mesh_boxes(f"corner_{x_sign}_{y_sign}_club_primary_seat_backs_mesh", primary_backs, MATS["club_primary"])
-    mesh_boxes(f"corner_{x_sign}_{y_sign}_club_secondary_seat_backs_mesh", secondary_backs, MATS["club_secondary"])
-    cube_obj(f"corner_{x_sign}_{y_sign}_shadow_concourse", (x_sign * (HALF_X + 16), y_sign * (HALF_Y + 16), 5.2), (10, 10, 1.8), MATS["baked_shadow"]).rotation_euler.z = math.radians(45)
+    # Corners are modeled as curved bowl rings. This avoids the diagonal "loose stair"
+    # look caused by axis-aligned seat blocks in a quarter curve.
+    for tier in range(3):
+        for row in range(7):
+            r_inner = 6.3 + tier * 8.4 + row * 0.88
+            r_outer = r_inner + 0.66
+            z = 1.0 + tier * 4.05 + row * 0.54
+            concrete = annular_sector_obj(
+                f"corner_{x_sign}_{y_sign}_tier_{tier}_concrete_row_{row}",
+                (cx, cy),
+                start,
+                end,
+                r_inner - 0.10,
+                r_outer + 0.10,
+                z - 0.16,
+                0.22,
+                MATS["concrete"],
+                segments=34,
+            )
+            concrete.rotation_euler.z = 0
+            seat_mat = MATS["club_secondary"] if (tier == 1 and 2 <= row <= 4) or row == 0 else MATS["club_primary"]
+            annular_sector_obj(
+                f"corner_{x_sign}_{y_sign}_tier_{tier}_seat_band_{row}",
+                (cx, cy),
+                start + 0.035,
+                end - 0.035,
+                r_inner + 0.10,
+                r_outer - 0.12,
+                z + 0.05,
+                0.14,
+                seat_mat,
+                segments=34,
+            )
+            annular_sector_obj(
+                f"corner_{x_sign}_{y_sign}_tier_{tier}_seat_back_band_{row}",
+                (cx, cy),
+                start + 0.035,
+                end - 0.035,
+                r_outer - 0.12,
+                r_outer + 0.08,
+                z + 0.42,
+                0.34,
+                seat_mat,
+                segments=34,
+            )
+        annular_sector_obj(
+            f"corner_{x_sign}_{y_sign}_tier_{tier}_dark_concourse",
+            (cx, cy),
+            start + 0.02,
+            end - 0.02,
+            12.0 + tier * 8.4,
+            12.8 + tier * 8.4,
+            3.2 + tier * 4.05,
+            0.70,
+            MATS["dark"],
+            segments=34,
+        )
+        annular_sector_obj(
+            f"corner_{x_sign}_{y_sign}_tier_{tier}_front_rail",
+            (cx, cy),
+            start + 0.02,
+            end - 0.02,
+            11.55 + tier * 8.4,
+            11.75 + tier * 8.4,
+            3.85 + tier * 4.05,
+            0.26,
+            MATS["rail"],
+            segments=34,
+        )
+    for angle in (start + (end - start) * 0.34, start + (end - start) * 0.66):
+        length = 25.5
+        x = cx + math.cos(angle) * 18.8
+        y = cy + math.sin(angle) * 18.8
+        aisle = cube_obj(f"corner_{x_sign}_{y_sign}_radial_aisle_{angle:.2f}", (x, y, 5.2), (1.0, length, 0.30), MATS["rail"])
+        aisle.rotation_euler.z = angle - (math.pi / 2)
+    cube_obj(f"corner_{x_sign}_{y_sign}_shadow_concourse", (x_sign * (HALF_X + 17), y_sign * (HALF_Y + 17), 5.2), (11, 11, 1.2), MATS["baked_shadow"]).rotation_euler.z = math.radians(45)
     cube_obj(f"corner_{x_sign}_{y_sign}_roof", (x_sign * (HALF_X + 28), y_sign * (HALF_Y + 28), 14.6), (18, 18, 0.42), MATS["roof"]).rotation_euler.z = math.radians(45)
     cube_obj(f"corner_{x_sign}_{y_sign}_roof_glass", (x_sign * (HALF_X + 26), y_sign * (HALF_Y + 26), 14.45), (8, 8, 0.12), MATS["roof_glass"]).rotation_euler.z = math.radians(45)
 
@@ -350,17 +438,11 @@ def add_pitchside_details():
 
 def add_exterior_render_details():
     # Low-detail exterior context gives the realtime camera the same "stadium render" depth as the reference.
-    cube_obj("service_ring_outer_slab", (0, 0, -0.10), (PITCH_X + 92, PITCH_Y + 92, 0.08), MATS["dark"])
+    cube_obj("service_ring_outer_slab", (0, 0, -0.10), (PITCH_X + 74, PITCH_Y + 74, 0.08), MATS["dark"])
     for side, sign in (("north", -1), ("south", 1)):
         cube_obj(f"{side}_outer_access_deck", (0, sign * (HALF_Y + 43), 0.18), (PITCH_X + 58, 7.5, 0.24), MATS["concrete"])
-        for i in range(9):
-            x = -PITCH_X / 2 - 18 + i * ((PITCH_X + 36) / 8)
-            cube_obj(f"{side}_access_stair_{i}", (x, sign * (HALF_Y + 39.2), 0.65), (3.2, 6.4, 0.42), MATS["concrete"])
     for side, sign in (("west", -1), ("east", 1)):
         cube_obj(f"{side}_outer_access_deck", (sign * (HALF_X + 43), 0, 0.18), (7.5, PITCH_Y + 58, 0.24), MATS["concrete"])
-        for i in range(7):
-            y = -PITCH_Y / 2 - 14 + i * ((PITCH_Y + 28) / 6)
-            cube_obj(f"{side}_access_stair_{i}", (sign * (HALF_X + 39.2), y, 0.65), (6.4, 3.2, 0.42), MATS["concrete"])
     for idx, (x, y) in enumerate(((-66, -52), (66, -52), (-66, 52), (66, 52))):
         cube_obj(f"broadcast_tower_base_{idx}", (x, y, 2.2), (3.8, 3.8, 4.4), MATS["dark"])
         cylinder_between(f"broadcast_tower_mast_{idx}_a", (x - 1.4, y - 1.4, 4.4), (x - 1.4, y - 1.4, 18.5), 0.09, MATS["rail"], vertices=8)
