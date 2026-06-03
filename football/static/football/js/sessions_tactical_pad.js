@@ -4869,13 +4869,103 @@
 	        focusDot.data = { role: 'token_focus_dot' };
 	        changed = addTokenChromeObject(group, focusDot) || changed;
 	      }
+	      if (!tokenHasChildRole(group, 'token_possession_dot')) {
+	        const possessionDot = new fabric.Circle({
+	          radius: 5.2,
+	          fill: 'rgba(255,255,255,0.98)',
+	          stroke: 'rgba(2,6,23,0.84)',
+	          strokeWidth: 1.4,
+	          originX: 'center',
+	          originY: 'center',
+	          left: -radius + 5,
+	          top: -radius + 5,
+	          visible: false,
+	          opacity: 0,
+	          selectable: false,
+	          evented: false,
+	          shadow: 'rgba(2,6,23,0.38) 0 2px 6px',
+	        });
+	        possessionDot.data = { role: 'token_possession_dot' };
+	        changed = addTokenChromeObject(group, possessionDot) || changed;
+	      }
+	      if (!tokenHasChildRole(group, 'token_possession_mark')) {
+	        const possessionMark = new fabric.Text('o', {
+	          originX: 'center',
+	          originY: 'center',
+	          left: -radius + 5,
+	          top: -radius + 5,
+	          fontSize: 8,
+	          fontWeight: '900',
+	          fill: 'rgba(2,6,23,0.96)',
+	          visible: false,
+	          opacity: 0,
+	          selectable: false,
+	          evented: false,
+	        });
+	        possessionMark.data = { role: 'token_possession_mark' };
+	        changed = addTokenChromeObject(group, possessionMark) || changed;
+	      }
+	      if (!tokenHasChildRole(group, 'token_role_dot')) {
+	        const roleDot = new fabric.Circle({
+	          radius: 4.8,
+	          fill: 'rgba(148,163,184,0.98)',
+	          stroke: 'rgba(2,6,23,0.78)',
+	          strokeWidth: 1.2,
+	          originX: 'center',
+	          originY: 'center',
+	          left: radius - 5,
+	          top: radius - 5,
+	          visible: false,
+	          opacity: 0,
+	          selectable: false,
+	          evented: false,
+	          shadow: 'rgba(2,6,23,0.34) 0 2px 6px',
+	        });
+	        roleDot.data = { role: 'token_role_dot' };
+	        changed = addTokenChromeObject(group, roleDot) || changed;
+	      }
 	      return changed;
+	    };
+	    const TOKEN_ROLE_META = {
+	      support: { color: 'rgba(34,197,94,0.98)', label: 'Apoyo' },
+	      depth: { color: 'rgba(14,165,233,0.98)', label: 'Profundidad' },
+	      press: { color: 'rgba(239,68,68,0.98)', label: 'Presión' },
+	      cover: { color: 'rgba(168,85,247,0.98)', label: 'Cobertura' },
+	      fix: { color: 'rgba(250,204,21,0.98)', label: 'Fijador' },
 	    };
 	    const setTokenFocus = (group, focused) => {
 	      if (!group || !isTokenGroup(group)) return false;
 	      ensureTokenInteractionChrome(group);
 	      setObjectData(group, { token_focus: !!focused });
 	      setTokenChildVisibility(group, ['token_focus_dot', 'token_focus_ring'], !!focused, 1);
+	      group.dirty = true;
+	      return true;
+	    };
+	    const setTokenPossession = (group, hasPossession) => {
+	      if (!group || !isTokenGroup(group)) return false;
+	      ensureTokenInteractionChrome(group);
+	      setObjectData(group, { token_possession: !!hasPossession });
+	      setTokenChildVisibility(group, ['token_possession_dot', 'token_possession_mark'], !!hasPossession, 1);
+	      group.dirty = true;
+	      return true;
+	    };
+	    const setTokenRole = (group, roleRaw) => {
+	      if (!group || !isTokenGroup(group)) return false;
+	      ensureTokenInteractionChrome(group);
+	      const role = safeText(roleRaw).toLowerCase();
+	      const meta = TOKEN_ROLE_META[role] || null;
+	      const nextRole = meta ? role : '';
+	      if (safeText(group?.data?.token_role) !== nextRole) setObjectData(group, { token_role: nextRole });
+	      walkTokenObjects(group, (child) => {
+	        if (safeText(child?.data?.role) !== 'token_role_dot') return;
+	        try {
+	          child.set({
+	            fill: meta ? meta.color : 'rgba(148,163,184,0.98)',
+	            visible: !!meta,
+	            opacity: meta ? 1 : 0,
+	          });
+	        } catch (e) { /* ignore */ }
+	      });
 	      group.dirty = true;
 	      return true;
 	    };
@@ -4916,12 +5006,69 @@
 	        const active = activeTokens.has(group);
 	        setTokenChildVisibility(group, ['token_selection_ring'], active, 1);
 	        setTokenChildVisibility(group, ['token_focus_dot', 'token_focus_ring'], !!group?.data?.token_focus, 1);
+	        setTokenChildVisibility(group, ['token_possession_dot', 'token_possession_mark'], !!group?.data?.token_possession, 1);
+	        setTokenRole(group, safeText(group?.data?.token_role));
 	      });
 	      try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
 	    };
 	    const syncTokenAdaptiveUi = () => {
 	      syncTokenAdaptivePresentation();
 	      syncTokenInteractionChrome();
+	    };
+	    const activeOrAllTokenGroups = () => {
+	      const selected = Array.from(activeTokenSet());
+	      return selected.length ? selected : canvasTokenGroups();
+	    };
+	    const autoNumberTokens = () => {
+	      const tokens = activeOrAllTokenGroups()
+	        .filter((group) => group && isTokenGroup(group))
+	        .sort((a, b) => {
+	          const ca = a.getCenterPoint?.() || { x: Number(a.left) || 0, y: Number(a.top) || 0 };
+	          const cb = b.getCenterPoint?.() || { x: Number(b.left) || 0, y: Number(b.top) || 0 };
+	          if (Math.abs(ca.y - cb.y) > 18) return ca.y - cb.y;
+	          return ca.x - cb.x;
+	        });
+	      let nextField = 2;
+	      tokens.forEach((group) => {
+	        const kind = safeText(group?.data?.token_kind);
+	        const number = (kind === 'goalkeeper_local' || kind === 'goalkeeper_rival') ? '1' : String(nextField++);
+	        updateTokenAppearance(group, { name: safeText(group?.data?.playerName), number });
+	      });
+	      syncTokenAdaptiveUi();
+	      return tokens.length;
+	    };
+	    const separateOverlappingTokens = () => {
+	      const tokens = activeOrAllTokenGroups();
+	      if (tokens.length < 2) return 0;
+	      let moved = 0;
+	      for (let pass = 0; pass < 8; pass += 1) {
+	        for (let i = 0; i < tokens.length; i += 1) {
+	          for (let j = i + 1; j < tokens.length; j += 1) {
+	            const a = tokens[i];
+	            const b = tokens[j];
+	            if (!a || !b || a?.data?.locked || b?.data?.locked) continue;
+	            const ca = a.getCenterPoint?.() || new fabric.Point(Number(a.left) || 0, Number(a.top) || 0);
+	            const cb = b.getCenterPoint?.() || new fabric.Point(Number(b.left) || 0, Number(b.top) || 0);
+	            const dx = cb.x - ca.x;
+	            const dy = cb.y - ca.y;
+	            const dist = Math.sqrt((dx * dx) + (dy * dy)) || 0.001;
+	            const minDist = (getTokenBaseRadius(a) * (Number(a.scaleX) || 1)) + (getTokenBaseRadius(b) * (Number(b.scaleX) || 1)) + 8;
+	            if (dist >= minDist) continue;
+	            const push = (minDist - dist) / 2;
+	            const ux = dx / dist;
+	            const uy = dy / dist;
+	            try {
+	              a.setPositionByOrigin(new fabric.Point(ca.x - (ux * push), ca.y - (uy * push)), 'center', 'center');
+	              b.setPositionByOrigin(new fabric.Point(cb.x + (ux * push), cb.y + (uy * push)), 'center', 'center');
+	              a.setCoords();
+	              b.setCoords();
+	              moved += 1;
+	            } catch (e) { /* ignore */ }
+	          }
+	        }
+	      }
+	      syncTokenAdaptiveUi();
+	      return moved;
 	    };
 	    const tokenTeamPresetPalette = (presetRaw) => {
 	      const preset = safeText(presetRaw, 'local').toLowerCase();
@@ -6141,6 +6288,8 @@
 		        fov_visible: !!active?.data?.fov_visible,
 		        fov_width_deg: clamp(Number(active?.data?.fov_width_deg) || 70, 20, 160),
 		        focus: !!active?.data?.token_focus,
+		        possession: !!active?.data?.token_possession,
+		        role: safeText(active?.data?.token_role),
 		      };
 		      const factory = playerTokenFactory(tokenKind || 'player_local', player, { style: nextStyle, ...palette });
 		      if (typeof factory !== 'function') return;
@@ -6161,7 +6310,7 @@
 		        opacity: active.opacity == null ? 1 : active.opacity,
 		      });
 		      keepTokenAtCenter(fresh, center);
-		      fresh.data = { ...(fresh.data || {}), layer_uid: safeText(prevData.layer_uid), locked: prevData.locked, token_size: safeText(prevData.token_size, 'm'), token_focus: !!prevData.token_focus };
+		      fresh.data = { ...(fresh.data || {}), layer_uid: safeText(prevData.layer_uid), locked: prevData.locked, token_size: safeText(prevData.token_size, 'm'), token_focus: !!prevData.token_focus, token_possession: !!prevData.token_possession, token_role: safeText(prevData.token_role) };
 		      // Respeta orientación corporal.
 		      try {
 		        const desiredFacing = normalizeAngle(prevData?.facing_deg, normalizeAngle(active?.data?.facing_deg, 0));
@@ -6205,6 +6354,8 @@
 		        fov_visible: !!active?.data?.fov_visible,
 		        fov_width_deg: clamp(Number(active?.data?.fov_width_deg) || 70, 20, 160),
 		        focus: !!active?.data?.token_focus,
+		        possession: !!active?.data?.token_possession,
+		        role: safeText(active?.data?.token_role),
 		      };
 		      const factory = playerTokenFactory(tokenKind || 'player_local', player, options);
 		      if (typeof factory !== 'function') return;
@@ -6224,7 +6375,7 @@
 		        opacity: active.opacity == null ? 1 : active.opacity,
 		      });
 		      keepTokenAtCenter(fresh, center);
-		      fresh.data = { ...(fresh.data || {}), layer_uid: safeText(prevData.layer_uid), locked: prevData.locked, token_size: safeText(prevData.token_size, 'm'), token_kit_slot: nextSlot, token_focus: !!prevData.token_focus };
+		      fresh.data = { ...(fresh.data || {}), layer_uid: safeText(prevData.layer_uid), locked: prevData.locked, token_size: safeText(prevData.token_size, 'm'), token_kit_slot: nextSlot, token_focus: !!prevData.token_focus, token_possession: !!prevData.token_possession, token_role: safeText(prevData.token_role) };
 		      try {
 		        fresh.data.facing_deg = normalizeAngle(prevData?.facing_deg, normalizeAngle(active?.data?.facing_deg, 0));
 		        setTokenFacing(fresh, fresh.data.facing_deg);
@@ -20120,6 +20271,55 @@
 			        });
 			        focusDot.data = { role: 'token_focus_dot' };
 			        tokenParts.push(focusDot);
+			        const possessionDot = new fabric.Circle({
+			          radius: 5.2,
+			          fill: 'rgba(255,255,255,0.98)',
+			          stroke: 'rgba(2,6,23,0.84)',
+			          strokeWidth: 1.4,
+			          originX: 'center',
+			          originY: 'center',
+			          left: -radius + 5,
+			          top: -radius + 5,
+			          visible: false,
+			          opacity: 0,
+			          selectable: false,
+			          evented: false,
+			          shadow: 'rgba(2,6,23,0.38) 0 2px 6px',
+			        });
+			        possessionDot.data = { role: 'token_possession_dot' };
+			        tokenParts.push(possessionDot);
+			        const possessionMark = new fabric.Text('o', {
+			          originX: 'center',
+			          originY: 'center',
+			          left: -radius + 5,
+			          top: -radius + 5,
+			          fontSize: 8,
+			          fontWeight: '900',
+			          fill: 'rgba(2,6,23,0.96)',
+			          visible: false,
+			          opacity: 0,
+			          selectable: false,
+			          evented: false,
+			        });
+			        possessionMark.data = { role: 'token_possession_mark' };
+			        tokenParts.push(possessionMark);
+			        const roleDot = new fabric.Circle({
+			          radius: 4.8,
+			          fill: 'rgba(148,163,184,0.98)',
+			          stroke: 'rgba(2,6,23,0.78)',
+			          strokeWidth: 1.2,
+			          originX: 'center',
+			          originY: 'center',
+			          left: radius - 5,
+			          top: radius - 5,
+			          visible: false,
+			          opacity: 0,
+			          selectable: false,
+			          evented: false,
+			          shadow: 'rgba(2,6,23,0.34) 0 2px 6px',
+			        });
+			        roleDot.data = { role: 'token_role_dot' };
+			        tokenParts.push(roleDot);
 			        // Brillo común para look premium sin perder lectura táctica.
 			        const gloss = new fabric.Ellipse({
 			          rx: 11,
@@ -20261,6 +20461,8 @@
 			          token_kit_slot: tokenKitSlot,
 			          token_name_tag: 'solid',
 			          token_focus: !!options?.focus,
+			          token_possession: !!options?.possession,
+			          token_role: safeText(options?.role),
 			          token_base_color: baseColor,
 			          token_stripe_color: stripeColor,
 			          color: kind === 'player_local' ? stripeColor : (kind === 'player_away' ? stripeColor : palette.fill),
@@ -24284,6 +24486,22 @@
 	        // ignore
 	      }
 	      let overlayImage = null;
+	      const exportCleanState = [];
+	      const usePresentationClean = options.presentationClean !== false;
+	      if (usePresentationClean) {
+	        try {
+	          canvasTokenGroups().forEach((group) => {
+	            walkTokenObjects(group, (child) => {
+	              const role = safeText(child?.data?.role);
+	              if (!['token_name', 'token_name_bg', 'token_selection_ring'].includes(role)) return;
+	              exportCleanState.push({ child, visible: child.visible, opacity: child.opacity });
+	              try { child.set({ visible: false, opacity: 0 }); } catch (e) { /* ignore */ }
+	            });
+	            group.dirty = true;
+	          });
+	          canvas.requestRenderAll();
+	        } catch (e) { /* ignore */ }
+	      }
 	      try {
 	        const overlayUrl = canvas.toDataURL({
 	          format: 'png',
@@ -24300,6 +24518,13 @@
 	        }
 	      } catch (error) {
 	        overlayImage = null;
+	      } finally {
+	        if (exportCleanState.length) {
+	          exportCleanState.forEach((entry) => {
+	            try { entry.child.set({ visible: entry.visible, opacity: entry.opacity }); } catch (e) { /* ignore */ }
+	          });
+	          try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+	        }
 	      }
 	      try {
 	        if (overlayImage) context.drawImage(overlayImage, 0, 0, output.width, output.height);
@@ -24966,6 +25191,45 @@
 			        }, clear ? 'Foco quitado.' : 'Foco actualizado.');
 			        syncTokenAdaptiveUi();
 			        syncInspector();
+			        return;
+			      }
+			      if (button.dataset.tokenPossessionToggle === '1') {
+			        applyToActiveFlexibleObject((active) => {
+			          if (!isTokenGroup(active)) return;
+			          setTokenPossession(active, !active?.data?.token_possession);
+			        }, 'Posesión actualizada.');
+			        syncTokenAdaptiveUi();
+			        syncInspector();
+			        return;
+			      }
+			      const tokenRole = safeText(button.dataset.tokenRole);
+			      if (tokenRole) {
+			        applyToActiveFlexibleObject((active) => {
+			          if (!isTokenGroup(active)) return;
+			          setTokenRole(active, tokenRole === 'clear' ? '' : tokenRole);
+			        }, tokenRole === 'clear' ? 'Rol táctico quitado.' : `Rol táctico: ${TOKEN_ROLE_META[tokenRole]?.label || tokenRole}.`);
+			        syncTokenAdaptiveUi();
+			        syncInspector();
+			        return;
+			      }
+			      if (button.dataset.tokenAutoNumber === '1') {
+			        const count = autoNumberTokens();
+			        if (count > 0) {
+			          commitObjectChange(`Numeradas ${count} chapas.`);
+			          syncInspector();
+			        } else {
+			          setStatus('No hay chapas para numerar.', true);
+			        }
+			        return;
+			      }
+			      if (button.dataset.tokenSeparateOverlaps === '1') {
+			        const moved = separateOverlappingTokens();
+			        if (moved > 0) {
+			          commitObjectChange('Solapes de chapas separados.');
+			          syncInspector();
+			        } else {
+			          setStatus('No se han detectado solapes entre chapas.', false);
+			        }
 			        return;
 			      }
 			      const tokenTeamPreset = safeText(button.dataset.tokenTeamPreset);
@@ -27292,6 +27556,18 @@
 		            const activeFocus = !!active?.data?.token_focus;
 		            btn.classList.toggle('is-active', activeFocus);
 		            try { btn.setAttribute('aria-pressed', activeFocus ? 'true' : 'false'); } catch (e) { /* ignore */ }
+		          });
+		          Array.from(tokenFocusActions.querySelectorAll('button[data-token-possession-toggle]') || []).forEach((btn) => {
+		            const activePossession = !!active?.data?.token_possession;
+		            btn.classList.toggle('is-active', activePossession);
+		            try { btn.setAttribute('aria-pressed', activePossession ? 'true' : 'false'); } catch (e) { /* ignore */ }
+		          });
+		          Array.from(tokenFocusActions.querySelectorAll('button[data-token-role]') || []).forEach((btn) => {
+		            const role = safeText(btn.dataset.tokenRole);
+		            const activeRole = safeText(active?.data?.token_role);
+		            const pressed = role && role !== 'clear' && role === activeRole;
+		            btn.classList.toggle('is-active', pressed);
+		            try { btn.setAttribute('aria-pressed', pressed ? 'true' : 'false'); } catch (e) { /* ignore */ }
 		          });
 		        }
 		        if (tokenKitActions) {
