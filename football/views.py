@@ -27950,6 +27950,13 @@ def coach_tactics_page(request):
     except Exception:
         tactics_club_name = ''
     try:
+        team_category = str(getattr(primary_team, 'category', '') or '').strip()
+        primary_team_full_name = str(getattr(primary_team, 'name', '') or '').strip()
+        if team_category and primary_team_full_name and _normalize_team_lookup_key(tactics_club_name) == _normalize_team_lookup_key(team_category):
+            tactics_club_name = primary_team_full_name
+    except Exception:
+        pass
+    try:
         tactics_team_crest_url = resolve_team_crest_url(request, primary_team, sync=False) or ''
     except Exception:
         tactics_team_crest_url = ''
@@ -39117,6 +39124,13 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
     except Exception:
         tactics_club_name = ''
     try:
+        team_category = str(getattr(primary_team, 'category', '') or '').strip()
+        primary_team_full_name = str(getattr(primary_team, 'name', '') or '').strip()
+        if team_category and primary_team_full_name and _normalize_team_lookup_key(tactics_club_name) == _normalize_team_lookup_key(team_category):
+            tactics_club_name = primary_team_full_name
+    except Exception:
+        pass
+    try:
         tactics_team_crest_url = resolve_team_crest_url(request, primary_team, sync=False) or ''
     except Exception:
         tactics_team_crest_url = ''
@@ -45459,6 +45473,50 @@ def analysis_video_report_item_tactical_page(request, item_id):
     if not analysis_item_title:
         analysis_item_title = f'Elemento {int(item.id)}'
 
+    workspace = _get_active_workspace(request)
+    tactics_team_name = ''
+    tactics_club_name = ''
+    tactics_team_crest_url = ''
+    tactics_team_primary = ''
+    tactics_team_secondary = ''
+    tactics_team_primary_soft = ''
+    tactics_team_secondary_soft = ''
+    tactics_stadium_ads = {}
+    try:
+        tactics_team_name = str(primary_team.display_name or primary_team.name or '').strip()
+    except Exception:
+        tactics_team_name = ''
+    try:
+        tactics_club_name = str(getattr(workspace, 'name', '') or '').strip()
+    except Exception:
+        tactics_club_name = ''
+    try:
+        team_category = str(getattr(primary_team, 'category', '') or '').strip()
+        primary_team_full_name = str(getattr(primary_team, 'name', '') or '').strip()
+        if team_category and primary_team_full_name and _normalize_team_lookup_key(tactics_club_name) == _normalize_team_lookup_key(team_category):
+            tactics_club_name = primary_team_full_name
+    except Exception:
+        pass
+    try:
+        tactics_team_crest_url = resolve_team_crest_url(request, primary_team, sync=False) or ''
+    except Exception:
+        tactics_team_crest_url = ''
+    try:
+        tactics_palette = _team_tactics_palette(workspace, primary_team)
+        tactics_team_primary = tactics_palette.get('primary') or ''
+        tactics_team_secondary = tactics_palette.get('secondary') or ''
+        tactics_team_primary_soft = tactics_palette.get('primary_soft') or ''
+        tactics_team_secondary_soft = tactics_palette.get('secondary_soft') or ''
+    except Exception:
+        tactics_team_primary = ''
+        tactics_team_secondary = ''
+        tactics_team_primary_soft = ''
+        tactics_team_secondary_soft = ''
+    try:
+        tactics_stadium_ads = _team_stadium_ads(workspace, primary_team)
+    except Exception:
+        tactics_stadium_ads = {}
+
     return render(
         request,
         'football/task_builder.html',
@@ -45504,6 +45562,14 @@ def analysis_video_report_item_tactical_page(request, item_id):
             'show_session_selector': False,
             'show_dragon_nav': True,
             'tactics_mode': True,
+            'tactics_team_name': tactics_team_name,
+            'tactics_club_name': tactics_club_name,
+            'tactics_team_crest_url': tactics_team_crest_url,
+            'tactics_team_primary': tactics_team_primary,
+            'tactics_team_secondary': tactics_team_secondary,
+            'tactics_team_primary_soft': tactics_team_primary_soft,
+            'tactics_team_secondary_soft': tactics_team_secondary_soft,
+            'tactics_stadium_ads': tactics_stadium_ads,
             'analysis_item_mode': True,
             'analysis_item_title': analysis_item_title,
             'analysis_item_video_upload_url': reverse('analysis-video-report-item-tactical-video-upload-api', args=[int(item.id)]),

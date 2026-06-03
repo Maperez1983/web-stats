@@ -7932,7 +7932,8 @@
 						      } catch (e) { ads = {}; }
 						      const dataAttr = (name, fallback = '') => safeText(form?.getAttribute?.(name), fallback);
 						      const teamName = safeText(form?.dataset?.stadiumTeamName, 'Equipo');
-						      const clubName = safeText(form?.dataset?.stadiumClubName, teamName || 'Club');
+						      const navClubName = safeText(document.querySelector('.nav-context-name')?.textContent);
+						      const clubName = safeText(form?.dataset?.stadiumClubName || navClubName || teamName || 'Club');
 						      const sponsorLogos = [
 						        { label: 'Grupo Modernia Asesores', logo: dataAttr('data-stadium-sponsor-modernia-src') },
 						        { label: 'Inversure', logo: dataAttr('data-stadium-sponsor-inversure-src') },
@@ -7941,6 +7942,7 @@
 						      ].filter((item) => item.logo);
 						      return {
 						        teamName: clubName || teamName,
+						        clubName,
 						        displayTeamName: teamName,
 						        initials: (clubName || teamName).split(/\s+/).filter(Boolean).slice(0, 3).map((part) => part[0]).join('').toUpperCase() || 'FC',
 						        primary: safeText(form?.dataset?.stadiumTeamPrimary, '#0f7a35'),
@@ -7951,9 +7953,9 @@
 						        mainStandSrc: safeText(form?.dataset?.stadiumMainStandSrc),
 						        sponsorLogos,
 						        ads: {
-						          top: safeText(ads.top, teamName || 'Club'),
+						          top: safeText(ads.top, clubName || teamName || 'Club'),
 						          right: safeText(ads.right, '2J Football Intelligence'),
-						          bottom: safeText(ads.bottom, teamName || 'Club'),
+						          bottom: safeText(ads.bottom, clubName || teamName || 'Club'),
 						          left: safeText(ads.left, 'Partner'),
 						          top_logo_data_url: safeText(ads.top_logo_data_url),
 						          right_logo_data_url: safeText(ads.right_logo_data_url),
@@ -8968,7 +8970,7 @@
 
 						      if (usingBlenderShell) {
 						        try {
-						          const label = safeText(ctx.teamName, 'CLUB').toUpperCase().slice(0, 22);
+						          const label = safeText(ctx.clubName || ctx.teamName, 'CLUB').toUpperCase().slice(0, 22);
 						          const mask = document.createElement('canvas');
 						          mask.width = 440;
 						          mask.height = 104;
@@ -9004,7 +9006,7 @@
 						            const dummy = new THREE.Object3D();
 						            const width = Math.min(metersW * 0.86, 88);
 						            instances.forEach((p, idx) => {
-						              const x = ((p.col / Math.max(1, cols - 1)) - 0.5) * width;
+						              const x = (0.5 - (p.col / Math.max(1, cols - 1))) * width;
 						              const rowT = p.r / Math.max(1, rows - 1);
 						              const y = 3.05 + (rowT * 3.65);
 						              const z = halfH + 5.35 + (rowT * 5.9);
