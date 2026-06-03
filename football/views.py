@@ -28185,9 +28185,9 @@ def coach_roster_page(request):
                     .values_list('team_id', flat=True)
                 )
                 player_scope_q = (
-                    Q(workspace_links__workspace=workspace)
-                    | Q(team_id__in=workspace_team_ids)
-                    | Q(season_memberships__season__workspace=workspace)
+                    Q(workspace_links__workspace=workspace, workspace_links__current_team=primary_team)
+                    | Q(team=primary_team)
+                    | Q(season_memberships__season__workspace=workspace, season_memberships__team=primary_team)
                 )
                 player = (
                     Player.objects
@@ -28420,10 +28420,11 @@ def coach_roster_page(request):
             .order_by('name', 'id')[:250]
         )
         inactive_q = (
-            Q(workspace_links__workspace=workspace, workspace_links__is_active=False)
-            | Q(team_id__in=workspace_team_ids, is_active=False)
+            Q(workspace_links__workspace=workspace, workspace_links__current_team=primary_team, workspace_links__is_active=False)
+            | Q(team=primary_team, is_active=False)
             | Q(
                 season_memberships__season__workspace=workspace,
+                season_memberships__team=primary_team,
                 season_memberships__status__in=[
                     WorkspaceSeasonPlayer.STATUS_LEFT,
                     WorkspaceSeasonPlayer.STATUS_INACTIVE,
@@ -28433,6 +28434,7 @@ def coach_roster_page(request):
         if active_club_season:
             inactive_q |= Q(
                 season_memberships__season=active_club_season,
+                season_memberships__team=primary_team,
                 season_memberships__status__in=[
                     WorkspaceSeasonPlayer.STATUS_LEFT,
                     WorkspaceSeasonPlayer.STATUS_INACTIVE,

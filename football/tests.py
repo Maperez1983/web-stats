@@ -2151,6 +2151,17 @@ class SeasonHistoryServicesTests(TestCase):
             confirmed=True,
             status=WorkspaceSeasonPlayer.STATUS_CONFIRMED,
         )
+        other_team = Team.objects.create(name='Otro Equipo Histórico', slug='otro-equipo-historico')
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=other_team, is_default=False)
+        other_player = Player.objects.create(team=other_team, name='Baja Otro Equipo', is_active=False)
+        ensure_workspace_player(self.workspace, other_player, current_team=other_team, is_active=False)
+        ensure_player_season_membership(
+            self.season,
+            other_player,
+            team=other_team,
+            confirmed=False,
+            status=WorkspaceSeasonPlayer.STATUS_LEFT,
+        )
 
         response = self.client.post(
             f"{reverse('coach-roster')}?tab=manage",
@@ -2180,6 +2191,7 @@ class SeasonHistoryServicesTests(TestCase):
         self.assertEqual(inactive_response.status_code, 200)
         self.assertContains(inactive_response, 'Jugadores dados de baja')
         self.assertContains(inactive_response, self.player.name)
+        self.assertNotContains(inactive_response, other_player.name)
 
         restore_response = self.client.post(
             f"{reverse('coach-roster')}?tab=inactive",
