@@ -9254,12 +9254,12 @@
 							        pitch3dOrbit.radius = Math.max(70, Math.max(metersW, metersH) * 1.25);
 						      } else if (k === 'render_original') {
 						        // Vista inspirada en el render de referencia: esquina alta, lente abierta y gradas en profundidad.
-							        pitch3dOrbit.theta = -2.34;
-							        pitch3dOrbit.phi = 1.36;
-							        pitch3dOrbit.radius = Math.max(78, metersW * 0.76);
-							        targetX = 6;
-							        targetY = 2.0;
-							        targetZ = -3;
+							        pitch3dOrbit.theta = -2.38;
+							        pitch3dOrbit.phi = 1.25;
+							        pitch3dOrbit.radius = Math.max(88, metersW * 0.84);
+							        targetX = 5;
+							        targetY = 3.4;
+							        targetZ = -2;
 						      } else if (k === 'stadium_render') {
 						        // Composición tipo render de estadio: esquina alta, campo completo y gradas dominantes.
 							        pitch3dOrbit.theta = -2.36;
@@ -9451,9 +9451,9 @@
 						        const shadow = makePitch3dCanvasTexture((ctx, c) => {
 						          ctx.clearRect(0, 0, c.width, c.height);
 						          const g = ctx.createLinearGradient(0, 0, c.width, c.height);
-						          g.addColorStop(0.00, 'rgba(2,6,23,0.56)');
-						          g.addColorStop(0.26, 'rgba(2,6,23,0.42)');
-						          g.addColorStop(0.50, 'rgba(2,6,23,0.16)');
+						          g.addColorStop(0.00, 'rgba(2,6,23,0.60)');
+						          g.addColorStop(0.26, 'rgba(2,6,23,0.46)');
+						          g.addColorStop(0.50, 'rgba(2,6,23,0.18)');
 						          g.addColorStop(0.78, 'rgba(2,6,23,0.04)');
 						          g.addColorStop(1.00, 'rgba(2,6,23,0.00)');
 						          ctx.fillStyle = g;
