@@ -9190,7 +9190,7 @@
 						        pitch3dScene = new THREE.Scene();
 						        pitch3dScene.background = new THREE.Color(0x9fd3f4);
 						        try { pitch3dScene.fog = new THREE.Fog(0x9fd3f4, 275, 520); } catch (e) { /* ignore */ }
-						        pitch3dCamera = new THREE.PerspectiveCamera(52, 16 / 9, 0.1, 2000);
+						        pitch3dCamera = new THREE.PerspectiveCamera(48, 16 / 9, 0.1, 2000);
 						        try {
 						          window.__WEBSTATS_PITCH3D_SCENE = pitch3dScene;
 						          window.__WEBSTATS_PITCH3D_CAMERA = pitch3dCamera;
@@ -9255,10 +9255,10 @@
 						      } else if (k === 'render_original') {
 						        // Vista inspirada en el render de referencia: esquina alta, lente abierta y gradas en profundidad.
 							        pitch3dOrbit.theta = -2.38;
-							        pitch3dOrbit.phi = 1.25;
-							        pitch3dOrbit.radius = Math.max(88, metersW * 0.84);
+							        pitch3dOrbit.phi = 1.22;
+							        pitch3dOrbit.radius = Math.max(92, metersW * 0.88);
 							        targetX = 5;
-							        targetY = 3.4;
+							        targetY = 1.55;
 							        targetZ = -2;
 						      } else if (k === 'stadium_render') {
 						        // Composición tipo render de estadio: esquina alta, campo completo y gradas dominantes.

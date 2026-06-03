@@ -53,6 +53,8 @@ def init_materials():
             "roof_glass": mat("stadium_roof_translucent_panels", (0.62, 0.82, 0.96, 0.32), 0.24, 0.02),
             "glass": mat("stadium_glass", (0.55, 0.77, 0.92, 0.36), 0.2),
             "baked_shadow": mat("stadium_baked_shadow", (0.02, 0.04, 0.06, 0.42), 0.95),
+            "deep_void": mat("stadium_deep_void", (0.005, 0.010, 0.018, 1), 0.94),
+            "warm_concrete": mat("stadium_warm_concrete", (0.62, 0.66, 0.68, 1), 0.84),
             "club_primary": mat("club_primary_seats", (0.0, 0.22, 0.52, 1), 0.82),
             "club_secondary": mat("club_secondary_seats", (0.92, 0.96, 1.0, 1), 0.80),
             "seat_alt": mat("seat_alternate_pattern", (0.06, 0.33, 0.68, 1), 0.82),
@@ -174,6 +176,18 @@ def annular_sector_obj(name, center, start, end, r_inner, r_outer, z, thickness,
     faces.append((last, last + 2, last + 3, last + 1))
     mesh = bpy.data.meshes.new(name)
     mesh.from_pydata(verts, [], faces)
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    if material:
+        mesh.materials.append(material)
+    obj.modifiers.new(f"{name}_weighted_normals", "WEIGHTED_NORMAL")
+    return obj
+
+
+def sloped_quad_obj(name, points, material):
+    mesh = bpy.data.meshes.new(name)
+    mesh.from_pydata(points, [], [(0, 1, 2, 3)])
     mesh.update()
     obj = bpy.data.objects.new(name, mesh)
     bpy.context.collection.objects.link(obj)
@@ -313,6 +327,26 @@ def add_side_stand_render(name, side):
     primary_backs = []
     secondary_backs = []
     cube_obj(f"{name}_lower_structural_shadow", (0, base_y + sign * 17.0, 0.65), (width_base + 8, 30.0, 1.3), dark_mat)
+    sloped_quad_obj(
+        f"{name}_continuous_bowl_backplate",
+        [
+            (-(width_base / 2 + 2), base_y + sign * 2.0, 0.72),
+            ((width_base / 2 + 2), base_y + sign * 2.0, 0.72),
+            ((width_base / 2 + 5), base_y + sign * 30.2, 15.05),
+            (-(width_base / 2 + 5), base_y + sign * 30.2, 15.05),
+        ],
+        MATS["deep_void"],
+    )
+    sloped_quad_obj(
+        f"{name}_club_color_bowl_mass",
+        [
+            (-(width_base / 2), base_y + sign * 2.5, 0.92),
+            ((width_base / 2), base_y + sign * 2.5, 0.92),
+            ((width_base / 2 - 2), base_y + sign * 27.5, 13.7),
+            (-(width_base / 2 - 2), base_y + sign * 27.5, 13.7),
+        ],
+        MATS["club_primary"],
+    )
 
     aisle_xs = [-43, -29, -14, 14, 29, 43]
     for tier in range(3):
@@ -365,9 +399,13 @@ def add_side_stand_render(name, side):
     cube_obj(f"{name}_rear_wall", (0, base_y + sign * 31.0, 8.4), (width_base + 10, 0.92, 14.8), concrete_mat)
     cube_obj(f"{name}_rear_dark_upper_bowl", (0, base_y + sign * 30.42, 10.4), (width_base + 8, 0.82, 4.6), dark_mat)
     cube_obj(f"{name}_upper_press_gallery", (0, base_y + sign * 30.25, 12.6), (width_base - 8, 0.86, 2.2), MATS["glass"])
+    cube_obj(f"{name}_top_concourse_shadow", (0, base_y + sign * 27.7, 14.25), (width_base + 4, 1.25, 1.1), MATS["deep_void"])
+    cube_obj(f"{name}_top_concrete_crown", (0, base_y + sign * 28.4, 15.0), (width_base + 8, 1.2, 0.75), MATS["warm_concrete"])
     roof_y = base_y + sign * 32.3
     cube_obj(f"{name}_roof_underbelly_shadow", (0, roof_y - sign * 2.6, 16.85), (width_base + 24, 15.8, 0.34), dark_mat)
     cube_obj(f"{name}_roof_canopy", (0, roof_y, 17.74), (width_base + 24, 18.5, 0.46), MATS["roof"])
+    cube_obj(f"{name}_roof_front_lip", (0, roof_y - sign * 9.4, 14.6), (width_base + 26, 0.95, 1.05), MATS["deep_void"])
+    cube_obj(f"{name}_roof_rear_lip", (0, roof_y + sign * 8.0, 16.85), (width_base + 25, 0.68, 0.74), MATS["roof"])
     cube_obj(f"{name}_roof_glass_strip", (0, roof_y - sign * 2.2, 17.92), (width_base + 15, 5.9, 0.15), MATS["roof_glass"])
     cylinder_between(f"{name}_roof_front_truss", (-(width_base / 2 + 9), roof_y - sign * 9.0, 14.0), ((width_base / 2 + 9), roof_y - sign * 9.0, 14.0), 0.28, rail_mat, vertices=16)
     cylinder_between(f"{name}_roof_mid_truss", (-(width_base / 2 + 8), roof_y - sign * 1.6, 16.1), ((width_base / 2 + 8), roof_y - sign * 1.6, 16.1), 0.22, rail_mat, vertices=16)
@@ -380,6 +418,9 @@ def add_side_stand_render(name, side):
             x2 = -width_base / 2 + (i + 1) * width_base / 19
             cylinder_between(f"{name}_roof_tri_b_{i}", (x2, roof_y - sign * 8.8, 13.7), (x, roof_y + sign * 6.7, 16.6), 0.085, rail_mat, vertices=8)
         cube_obj(f"{name}_roof_light_{i}", (x, roof_y - sign * 8.0, 13.9), (3.0, 0.20, 0.22), MATS["light"])
+    for i in range(8):
+        x = -width_base / 2 + (i + 0.5) * width_base / 8
+        cube_obj(f"{name}_upper_suite_window_{i}", (x, base_y + sign * 29.75, 11.9), (6.2, 0.12, 1.25), MATS["glass"])
 
 
 def add_end_stand_render(name, side):
@@ -394,6 +435,26 @@ def add_end_stand_render(name, side):
     primary_backs = []
     secondary_backs = []
     cube_obj(f"{name}_lower_structural_shadow", (base_x + sign * 17.0, 0, 0.65), (30.0, depth_base + 6, 1.3), dark_mat)
+    sloped_quad_obj(
+        f"{name}_continuous_bowl_backplate",
+        [
+            (base_x + sign * 2.0, -(depth_base / 2 + 2), 0.72),
+            (base_x + sign * 2.0, (depth_base / 2 + 2), 0.72),
+            (base_x + sign * 29.8, (depth_base / 2 + 5), 14.75),
+            (base_x + sign * 29.8, -(depth_base / 2 + 5), 14.75),
+        ],
+        MATS["deep_void"],
+    )
+    sloped_quad_obj(
+        f"{name}_club_color_bowl_mass",
+        [
+            (base_x + sign * 2.5, -(depth_base / 2), 0.92),
+            (base_x + sign * 2.5, (depth_base / 2), 0.92),
+            (base_x + sign * 27.0, (depth_base / 2 - 2), 13.45),
+            (base_x + sign * 27.0, -(depth_base / 2 - 2), 13.45),
+        ],
+        MATS["club_primary"],
+    )
 
     aisle_ys = [-28, -15, 0, 15, 28]
     for tier in range(3):
@@ -446,9 +507,13 @@ def add_end_stand_render(name, side):
     cube_obj(f"{name}_rear_wall", (base_x + sign * 30.6, 0, 8.1), (0.92, depth_base + 10, 14.3), concrete_mat)
     cube_obj(f"{name}_rear_dark_upper_bowl", (base_x + sign * 30.05, 0, 10.15), (0.82, depth_base + 8, 4.45), dark_mat)
     cube_obj(f"{name}_upper_press_gallery", (base_x + sign * 29.9, 0, 12.2), (0.86, depth_base - 8, 2.1), MATS["glass"])
+    cube_obj(f"{name}_top_concourse_shadow", (base_x + sign * 27.4, 0, 13.9), (1.20, depth_base + 4, 1.05), MATS["deep_void"])
+    cube_obj(f"{name}_top_concrete_crown", (base_x + sign * 28.0, 0, 14.65), (1.15, depth_base + 8, 0.72), MATS["warm_concrete"])
     roof_x = base_x + sign * 31.8
     cube_obj(f"{name}_roof_underbelly_shadow", (roof_x - sign * 2.7, 0, 16.45), (15.8, depth_base + 22, 0.34), dark_mat)
     cube_obj(f"{name}_roof_canopy", (roof_x, 0, 17.15), (18.0, depth_base + 22, 0.46), MATS["roof"])
+    cube_obj(f"{name}_roof_front_lip", (roof_x - sign * 9.3, 0, 14.25), (0.95, depth_base + 24, 1.0), MATS["deep_void"])
+    cube_obj(f"{name}_roof_rear_lip", (roof_x + sign * 7.8, 0, 16.45), (0.68, depth_base + 24, 0.70), MATS["roof"])
     cube_obj(f"{name}_roof_glass_strip", (roof_x - sign * 2.0, 0, 17.32), (5.7, depth_base + 13, 0.15), MATS["roof_glass"])
     cylinder_between(f"{name}_roof_front_truss", (roof_x - sign * 8.8, -(depth_base / 2 + 8), 13.65), (roof_x - sign * 8.8, (depth_base / 2 + 8), 13.65), 0.24, rail_mat, vertices=16)
     cylinder_between(f"{name}_roof_mid_truss", (roof_x - sign * 1.6, -(depth_base / 2 + 7), 15.75), (roof_x - sign * 1.6, (depth_base / 2 + 7), 15.75), 0.21, rail_mat, vertices=16)
@@ -458,6 +523,9 @@ def add_end_stand_render(name, side):
         cylinder_between(f"{name}_roof_tri_a_{i}", (roof_x - sign * 8.6, y, 13.45), (roof_x + sign * 6.6, y + 1.8, 16.25), 0.085, rail_mat, vertices=8)
         cylinder_between(f"{name}_roof_drop_support_{i}", (base_x + sign * 25.5, y, 10.2), (roof_x - sign * 5.7, y, 13.9), 0.09, rail_mat, vertices=8)
         cube_obj(f"{name}_roof_light_{i}", (roof_x - sign * 8.0, y, 13.65), (0.20, 2.8, 0.22), MATS["light"])
+    for i in range(6):
+        y = -depth_base / 2 + (i + 0.5) * depth_base / 6
+        cube_obj(f"{name}_upper_suite_window_{i}", (base_x + sign * 29.55, y, 11.6), (0.12, 5.8, 1.18), MATS["glass"])
 
 
 def add_corner_bowl(x_sign, y_sign):
