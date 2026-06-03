@@ -27946,7 +27946,10 @@ def coach_tactics_page(request):
     except Exception:
         tactics_team_name = ''
     try:
-        tactics_club_name = str(getattr(workspace, 'name', '') or '').strip()
+        tactics_club_name = (
+            str(getattr(primary_team, 'name', '') or '').strip()
+            or str(getattr(workspace, 'name', '') or '').strip()
+        )
     except Exception:
         tactics_club_name = ''
     try:
@@ -39120,7 +39123,10 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
     except Exception:
         tactics_team_name = ''
     try:
-        tactics_club_name = str(getattr(workspace, 'name', '') or '').strip()
+        tactics_club_name = (
+            str(getattr(primary_team, 'name', '') or '').strip()
+            or str(getattr(workspace, 'name', '') or '').strip()
+        )
     except Exception:
         tactics_club_name = ''
     try:
@@ -45487,7 +45493,10 @@ def analysis_video_report_item_tactical_page(request, item_id):
     except Exception:
         tactics_team_name = ''
     try:
-        tactics_club_name = str(getattr(workspace, 'name', '') or '').strip()
+        tactics_club_name = (
+            str(getattr(primary_team, 'name', '') or '').strip()
+            or str(getattr(workspace, 'name', '') or '').strip()
+        )
     except Exception:
         tactics_club_name = ''
     try:
