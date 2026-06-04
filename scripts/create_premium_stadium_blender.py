@@ -412,25 +412,25 @@ def add_side_stand_render(name, side):
         x = -width_base / 2 + i * width_base / 17
         cube_obj(f"{name}_rear_concrete_joint_{i}", (x, base_y + sign * 30.86, 8.4), (0.10, 0.10, 12.8), MATS["deep_void"])
     roof_y = base_y + sign * 30.4
-    cube_obj(f"{name}_roof_underbelly_shadow", (0, roof_y - sign * 2.5, 17.9), (width_base + 28, 17.2, 0.38), dark_mat)
-    cube_obj(f"{name}_roof_canopy", (0, roof_y, 18.85), (width_base + 29, 20.0, 0.50), MATS["roof"])
-    cube_obj(f"{name}_roof_front_lip", (0, roof_y - sign * 10.1, 15.0), (width_base + 31, 1.05, 1.18), MATS["deep_void"])
-    cube_obj(f"{name}_roof_rear_lip", (0, roof_y + sign * 8.5, 17.85), (width_base + 28, 0.72, 0.80), MATS["roof"])
-    cube_obj(f"{name}_roof_glass_strip", (0, roof_y - sign * 2.2, 19.04), (width_base + 18, 6.2, 0.16), MATS["roof_glass"])
+    cube_obj(f"{name}_roof_underbelly_shadow", (0, roof_y - sign * 0.8, 17.9), (width_base + 28, 13.6, 0.38), dark_mat)
+    cube_obj(f"{name}_roof_canopy", (0, roof_y + sign * 1.0, 18.85), (width_base + 29, 15.4, 0.50), MATS["roof"])
+    cube_obj(f"{name}_roof_front_lip", (0, roof_y - sign * 7.2, 15.0), (width_base + 31, 0.86, 1.18), MATS["deep_void"])
+    cube_obj(f"{name}_roof_rear_lip", (0, roof_y + sign * 7.1, 17.85), (width_base + 28, 0.66, 0.80), MATS["roof"])
+    cube_obj(f"{name}_roof_glass_strip", (0, roof_y - sign * 0.7, 19.04), (width_base + 18, 4.4, 0.16), MATS["roof_glass"])
     for i in range(12):
         x = -width_base / 2 + (i + 0.5) * width_base / 12
-        cube_obj(f"{name}_roof_panel_seam_{i}", (x, roof_y - sign * 0.8, 18.02), (0.16, 16.6, 0.08), MATS["deep_void"])
-    cylinder_between(f"{name}_roof_front_truss", (-(width_base / 2 + 9), roof_y - sign * 9.0, 14.0), ((width_base / 2 + 9), roof_y - sign * 9.0, 14.0), 0.28, rail_mat, vertices=16)
-    cylinder_between(f"{name}_roof_mid_truss", (-(width_base / 2 + 8), roof_y - sign * 1.6, 16.1), ((width_base / 2 + 8), roof_y - sign * 1.6, 16.1), 0.22, rail_mat, vertices=16)
+        cube_obj(f"{name}_roof_panel_seam_{i}", (x, roof_y + sign * 0.1, 18.02), (0.16, 12.4, 0.08), MATS["deep_void"])
+    cylinder_between(f"{name}_roof_front_truss", (-(width_base / 2 + 9), roof_y - sign * 7.0, 14.0), ((width_base / 2 + 9), roof_y - sign * 7.0, 14.0), 0.28, rail_mat, vertices=16)
+    cylinder_between(f"{name}_roof_mid_truss", (-(width_base / 2 + 8), roof_y - sign * 0.8, 16.1), ((width_base / 2 + 8), roof_y - sign * 0.8, 16.1), 0.22, rail_mat, vertices=16)
     cylinder_between(f"{name}_roof_back_truss", (-(width_base / 2 + 9), roof_y + sign * 7.0, 16.55), ((width_base / 2 + 9), roof_y + sign * 7.0, 16.55), 0.20, rail_mat, vertices=16)
     for i in range(20):
         x = -width_base / 2 + i * width_base / 19
-        cylinder_between(f"{name}_roof_tri_a_{i}", (x, roof_y - sign * 8.8, 13.7), (x + 2.2, roof_y + sign * 6.7, 16.6), 0.085, rail_mat, vertices=8)
-        cylinder_between(f"{name}_roof_drop_support_{i}", (x, base_y + sign * 26.0, 10.6), (x, roof_y - sign * 5.6, 14.2), 0.095, rail_mat, vertices=8)
+        cylinder_between(f"{name}_roof_tri_a_{i}", (x, roof_y - sign * 6.8, 13.7), (x + 2.2, roof_y + sign * 5.6, 16.6), 0.085, rail_mat, vertices=8)
+        cylinder_between(f"{name}_roof_drop_support_{i}", (x, base_y + sign * 26.0, 10.6), (x, roof_y - sign * 4.4, 14.2), 0.095, rail_mat, vertices=8)
         if i < 19:
             x2 = -width_base / 2 + (i + 1) * width_base / 19
-            cylinder_between(f"{name}_roof_tri_b_{i}", (x2, roof_y - sign * 8.8, 13.7), (x, roof_y + sign * 6.7, 16.6), 0.085, rail_mat, vertices=8)
-        cube_obj(f"{name}_roof_light_{i}", (x, roof_y - sign * 8.0, 13.9), (3.0, 0.20, 0.22), MATS["light"])
+            cylinder_between(f"{name}_roof_tri_b_{i}", (x2, roof_y - sign * 6.8, 13.7), (x, roof_y + sign * 5.6, 16.6), 0.085, rail_mat, vertices=8)
+        cube_obj(f"{name}_roof_light_{i}", (x, roof_y - sign * 6.3, 13.9), (3.0, 0.20, 0.22), MATS["light"])
     for i in range(8):
         x = -width_base / 2 + (i + 0.5) * width_base / 8
         cube_obj(f"{name}_upper_suite_window_{i}", (x, base_y + sign * 29.75, 11.9), (6.2, 0.12, 1.25), MATS["glass"])

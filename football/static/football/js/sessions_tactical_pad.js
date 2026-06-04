@@ -10086,19 +10086,19 @@
 						          const w = texCanvas.width || 1024;
 						          const h = texCanvas.height || 768;
 						          tctx.save();
-							          tctx.globalAlpha = 0.20;
-							          for (let i = 0; i < 6800; i += 1) {
+							          tctx.globalAlpha = 0.28;
+							          for (let i = 0; i < 9800; i += 1) {
 						            const x = (Math.random() * w) | 0;
 						            const y = (Math.random() * h) | 0;
-							            const g = 96 + ((Math.random() * 76) | 0);
-							            tctx.fillStyle = `rgb(${24 + ((Math.random() * 28) | 0)},${g},${34 + ((Math.random() * 24) | 0)})`;
+							            const g = 86 + ((Math.random() * 92) | 0);
+							            tctx.fillStyle = `rgb(${18 + ((Math.random() * 34) | 0)},${g},${30 + ((Math.random() * 30) | 0)})`;
 						            tctx.fillRect(x, y, 1 + ((Math.random() * 3) | 0), 1);
 						          }
-							          tctx.globalAlpha = 0.13;
-							          for (let i = 0; i < 820; i += 1) {
+							          tctx.globalAlpha = 0.18;
+							          for (let i = 0; i < 1280; i += 1) {
 						            const x = Math.random() * w;
 						            const y = Math.random() * h;
-						            const len = 8 + Math.random() * 42;
+						            const len = 10 + Math.random() * 52;
 						            const angle = -0.38 + (Math.random() * 0.24);
 							            tctx.strokeStyle = Math.random() > 0.5 ? 'rgba(230,255,204,0.48)' : 'rgba(24,104,48,0.46)';
 						            tctx.lineWidth = 1;
@@ -10109,7 +10109,7 @@
 						          }
 						          const vignette = tctx.createRadialGradient(w * 0.52, h * 0.48, w * 0.12, w * 0.52, h * 0.48, w * 0.62);
 							          vignette.addColorStop(0, 'rgba(255,255,255,0.06)');
-							          vignette.addColorStop(1, 'rgba(0,0,0,0.12)');
+						          vignette.addColorStop(1, 'rgba(0,0,0,0.16)');
 						          tctx.globalAlpha = 1;
 						          tctx.fillStyle = vignette;
 						          tctx.fillRect(0, 0, w, h);
@@ -10128,8 +10128,8 @@
 							        color: 0xe4ffd8,
 						        map: tex || null,
 						        bumpMap: tex || null,
-							        bumpScale: 0.078,
-							        roughness: 0.68,
+							        bumpScale: 0.115,
+							        roughness: 0.76,
 						        metalness: 0,
 						      });
 						      const ground = new THREE.Mesh(groundGeo, groundMat);
