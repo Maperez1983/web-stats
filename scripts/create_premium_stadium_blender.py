@@ -408,6 +408,33 @@ def add_side_stand_render(name, side):
     cube_obj(f"{name}_top_concrete_crown", (0, base_y + sign * 27.0, 16.15), (width_base + 8, 1.25, 0.82), MATS["warm_concrete"])
     cube_obj(f"{name}_upper_bowl_seat_ring", (0, base_y + sign * 24.6, 14.45), (width_base - 3.0, 1.05, 0.36), MATS["club_primary"])
     cube_obj(f"{name}_upper_bowl_shadow_cut", (0, base_y + sign * 25.45, 14.95), (width_base - 1.0, 0.22, 0.44), MATS["deep_void"])
+    upper_seats_primary = []
+    upper_seats_secondary = []
+    upper_backs_primary = []
+    upper_backs_secondary = []
+    for row in range(7):
+        y = base_y + sign * (22.2 + row * 0.92)
+        z = 12.35 + row * 0.72
+        width = width_base - 6.0 - row * 0.38
+        step = cube_obj(f"{name}_upper_real_step_{row}", (0, y, z - 0.18), (width, 0.84, 0.24), concrete_mat)
+        step.rotation_euler.x = math.radians(sign * -13)
+        for col in range(126):
+            x = (col / 125 - 0.5) * (width - 2.8)
+            if any(abs(x - aisle_x) < 1.05 for aisle_x in aisle_xs):
+                continue
+            mat_secondary = (row in (2, 3) and abs(x) < width * 0.24) or ((col + row * 9) % 37 == 0)
+            seat_bucket = upper_seats_secondary if mat_secondary else upper_seats_primary
+            back_bucket = upper_backs_secondary if mat_secondary else upper_backs_primary
+            seat_bucket.append(((x, y - sign * 0.16, z + 0.15), (0.42, 0.28, 0.15)))
+            back_bucket.append(((x, y + sign * 0.05, z + 0.42), (0.42, 0.08, 0.32)))
+    mesh_boxes(f"{name}_upper_individual_seats", upper_seats_primary, MATS["club_primary"])
+    mesh_boxes(f"{name}_upper_name_individual_seats", upper_seats_secondary, MATS["club_secondary"])
+    mesh_boxes(f"{name}_upper_individual_backs", upper_backs_primary, MATS["club_primary"])
+    mesh_boxes(f"{name}_upper_name_individual_backs", upper_backs_secondary, MATS["club_secondary"])
+    for idx, x in enumerate(aisle_xs):
+        upper_aisle = cube_obj(f"{name}_upper_concrete_aisle_{idx}", (x, base_y + sign * 24.8, 14.2), (0.88, 8.6, 0.16), concrete_mat)
+        upper_aisle.rotation_euler.x = math.radians(sign * -13)
+        cube_obj(f"{name}_upper_vomitory_shadow_{idx}", (x, base_y + sign * 22.6, 12.15), (3.2, 0.54, 1.18), MATS["deep_void"])
     for i in range(18):
         x = -width_base / 2 + i * width_base / 17
         cube_obj(f"{name}_rear_concrete_joint_{i}", (x, base_y + sign * 30.86, 8.4), (0.10, 0.10, 12.8), MATS["deep_void"])
@@ -423,6 +450,13 @@ def add_side_stand_render(name, side):
     cylinder_between(f"{name}_roof_front_truss", (-(width_base / 2 + 9), roof_y - sign * 7.0, 14.0), ((width_base / 2 + 9), roof_y - sign * 7.0, 14.0), 0.28, rail_mat, vertices=16)
     cylinder_between(f"{name}_roof_mid_truss", (-(width_base / 2 + 8), roof_y - sign * 0.8, 16.1), ((width_base / 2 + 8), roof_y - sign * 0.8, 16.1), 0.22, rail_mat, vertices=16)
     cylinder_between(f"{name}_roof_back_truss", (-(width_base / 2 + 9), roof_y + sign * 7.0, 16.55), ((width_base / 2 + 9), roof_y + sign * 7.0, 16.55), 0.20, rail_mat, vertices=16)
+    for i in range(14):
+        x = -width_base / 2 + i * width_base / 13
+        cylinder_between(f"{name}_roof_front_vertical_hanger_{i}", (x, roof_y - sign * 7.0, 14.0), (x, roof_y - sign * 6.35, 16.25), 0.07, rail_mat, vertices=8)
+        if i < 13:
+            x2 = -width_base / 2 + (i + 1) * width_base / 13
+            cylinder_between(f"{name}_roof_front_lattice_a_{i}", (x, roof_y - sign * 7.0, 14.0), (x2, roof_y - sign * 6.35, 16.25), 0.06, rail_mat, vertices=8)
+            cylinder_between(f"{name}_roof_front_lattice_b_{i}", (x2, roof_y - sign * 7.0, 14.0), (x, roof_y - sign * 6.35, 16.25), 0.06, rail_mat, vertices=8)
     for i in range(20):
         x = -width_base / 2 + i * width_base / 19
         cylinder_between(f"{name}_roof_tri_a_{i}", (x, roof_y - sign * 6.8, 13.7), (x + 2.2, roof_y + sign * 5.6, 16.6), 0.085, rail_mat, vertices=8)
