@@ -204,12 +204,17 @@
         border: 2px solid rgba(255,255,255,0.16);
         outline: 10px solid rgba(0,0,0,0.18);
         outline-offset: 0;
-        /* WeasyPrint puede recortar <img> al resolver tamaños; preferimos background-image con contain. */
-        background-size: contain;
-        background-position: center center;
-        background-repeat: no-repeat;
+        background: #ffffff;
+        text-align: center;
       }
-      .preview-frame img { display: none; }
+      .preview-frame .preview-img img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        object-position: center center;
+        border: 0;
+      }
       .field {
         position: relative;
         height: 380px;
@@ -556,7 +561,7 @@
                 <div style="padding:10px; background:#fff;">
                   {% if task_preview_url %}
 	                  <div class="preview-frame" style="border:none; min-height:320px;" aria-label="Vista gráfica de la tarea">
-                      <div class="preview-img" style="background-image:url(&quot;{{ task_preview_url }}&quot;);"></div>
+                      <div class="preview-img"><img src="{{ task_preview_url }}" alt="Vista gráfica de la tarea" /></div>
                     </div>
                   {% else %}
                   <div class="field">
@@ -846,7 +851,7 @@
 		        <div class="uefa-box" style="min-height:{% if pdf_text_superheavy %}240px{% elif pdf_text_heavy %}300px{% else %}340px{% endif %};">
 		          {% if task_preview_url %}
 		          <div class="preview-frame" style="border:1px solid #d5dde7; height:{{ pdf_graphic_height_px|default:380 }}px;" aria-label="Vista gráfica de la tarea">
-                <div class="preview-img" style="background-image:url(&quot;{{ task_preview_url }}&quot;);"></div>
+                <div class="preview-img"><img src="{{ task_preview_url }}" alt="Vista gráfica de la tarea" /></div>
               </div>
 	          {% else %}
 	          <div class="field" style="height:{{ pdf_graphic_height_px|default:380 }}px;">
