@@ -8309,13 +8309,23 @@
 								        ].includes(compact);
 								      };
 								      const rawClubName = safeText(form?.dataset?.stadiumClubName);
-								      const clubName = safeText(
+								      const expandKnownClubName = (value) => {
+								        const normalized = safeText(value)
+								          .normalize('NFD')
+								          .replace(/[\u0300-\u036f]/g, '')
+								          .toUpperCase()
+								          .replace(/[^A-Z0-9]+/g, '');
+								        if (normalized === 'CDB') return 'C.D. Benagalbón';
+								        if (normalized === 'MCF') return 'Málaga C.F.';
+								        return safeText(value);
+								      };
+								      const clubName = expandKnownClubName(safeText(
 								        (!isCategoryOnlyLabel(rawClubName) ? rawClubName : '')
 								          || (!isCategoryOnlyLabel(navClubName) ? navClubName : '')
 								          || (!isCategoryOnlyLabel(teamName) ? teamName : '')
 								          || rawClubName
 								          || 'Club',
-								      );
+								      ));
 							      const stadiumInitials = (label) => {
 							        const parts = safeText(label)
 							          .normalize('NFD')
@@ -8538,7 +8548,7 @@
 						        }
 						      }, opts.width || 1024, opts.height || 256);
 						      if (!texture) return null;
-						      const mat = new THREE.MeshBasicMaterial({ map: texture.tex, transparent: true, side: THREE.FrontSide });
+							      const mat = new THREE.MeshBasicMaterial({ map: texture.tex, transparent: true, side: THREE.DoubleSide });
 						      mat.userData = { kind: 'pitch3d_canvas_texture' };
 						      return mat;
 						    };
@@ -9360,7 +9370,7 @@
 							        addCornerBowl(-1, 1);
 							        addCornerBowl(1, 1);
 							      }
-							      if (usingBlenderShell) {
+							      if (usingBlenderShell && false) {
 							        try {
 							          const overlaySeatMat = new THREE.MeshStandardMaterial({ color: primaryInt, roughness: 0.84, metalness: 0.01 });
 							          const overlayStepMat = new THREE.MeshStandardMaterial({ color: 0x8795a8, roughness: 0.92, metalness: 0.02 });
@@ -9421,31 +9431,69 @@
 							        } catch (e) { /* ignore */ }
 							      }
 
-							      if (usingBlenderShell) {
-						        try {
-						          const label = safeText(ctx.clubName || ctx.teamName, 'CLUB').toUpperCase().slice(0, 22);
-						          const mask = document.createElement('canvas');
-						          mask.width = 440;
-						          mask.height = 104;
+								      const formatStadiumStandName = (value) => {
+								        const raw = safeText(value, 'CLUB')
+								          .normalize('NFD')
+								          .replace(/[\u0300-\u036f]/g, '')
+								          .replace(/\s+/g, ' ')
+								          .trim();
+								        const compact = raw.toUpperCase().replace(/[^A-Z0-9]+/g, '');
+								        if (compact === 'CDB') return 'BENAGALBON CD';
+								        if (compact === 'MCF') return 'MALAGA CF';
+								        let label = raw.toUpperCase();
+								        label = label.replace(/^C\s*\.?\s*D\s*\.?\s+/i, '').replace(/^C\s*\.?\s*F\s*\.?\s+/i, '');
+								        label = label.replace(/\s*C\s*\.?\s*D\s*\.?$/i, '').replace(/\s*C\s*\.?\s*F\s*\.?$/i, '');
+								        const suffix = /^C\s*\.?\s*D\s*\.?/i.test(raw) || /\s*C\s*\.?\s*D\s*\.?$/i.test(raw) ? ' CD' : (/^C\s*\.?\s*F\s*\.?/i.test(raw) || /\s*C\s*\.?\s*F\s*\.?$/i.test(raw) ? ' CF' : '');
+								        return safeText(`${label}${suffix}`.replace(/\s+/g, ' '), 'CLUB').slice(0, 24);
+								      };
+								      const getStadiumStandNameSource = () => {
+								        const candidates = [ctx.clubName, ctx.teamName, ctx.displayTeamName, ctx.ads?.top, ctx.ads?.bottom]
+								          .map((value) => safeText(value))
+								          .filter(Boolean);
+								        const genericLabels = new Set(['CLUB', 'EQUIPO', 'PIZARRA']);
+								        const categoryLabels = new Set([
+								          'PREBENJAMIN', 'BENJAMIN', 'ALEVIN', 'INFANTIL', 'CADETE',
+								          'JUVENIL', 'SENIOR', 'AMATEUR', 'FEMENINO', 'MASCULINO',
+								        ]);
+								        for (const candidate of candidates) {
+								          const compact = candidate
+								            .normalize('NFD')
+								            .replace(/[\u0300-\u036f]/g, '')
+								            .toUpperCase()
+								            .replace(/[^A-Z0-9]+/g, '');
+								          if (!compact || genericLabels.has(compact) || categoryLabels.has(compact)) continue;
+								          return candidate;
+								        }
+								        return ctx.initials || ctx.clubName || ctx.teamName || 'Club';
+								      };
+
+								      if (usingBlenderShell) {
+							        try {
+							          const label = formatStadiumStandName(getStadiumStandNameSource());
+							          const mask = document.createElement('canvas');
+							          mask.width = 720;
+							          mask.height = 128;
 						          const mctx = mask.getContext('2d');
 						          if (mctx) {
 						            mctx.clearRect(0, 0, mask.width, mask.height);
 						            mctx.fillStyle = '#ffffff';
 						            mctx.textAlign = 'center';
 						            mctx.textBaseline = 'middle';
-						            mctx.font = `950 64px system-ui, -apple-system, Segoe UI, Arial`;
+							            mctx.font = `950 82px system-ui, -apple-system, Segoe UI, Arial`;
 						            mctx.fillText(label, mask.width / 2, mask.height / 2 + 4);
 						            const img = mctx.getImageData(0, 0, mask.width, mask.height).data;
-						            const cols = 96;
-						            const rows = 22;
-						            const seatGeo = new THREE.BoxGeometry(0.70, 0.18, 0.42);
-						            const printMat = new THREE.MeshStandardMaterial({
-						              color: toColorInt(secondary, 0xf8fafc),
-						              roughness: 0.76,
-						              metalness: 0.01,
-						              emissive: new THREE.Color(toColorInt(secondary, 0xf8fafc)),
-						              emissiveIntensity: 0.035,
-						            });
+							            const cols = 138;
+							            const rows = 26;
+							            const seatGeo = new THREE.BoxGeometry(0.78, 0.20, 0.44);
+							            const printMat = new THREE.MeshStandardMaterial({
+							              color: toColorInt(secondary, 0xf8fafc),
+							              roughness: 0.76,
+							              metalness: 0.01,
+							              emissive: new THREE.Color(toColorInt(secondary, 0xf8fafc)),
+							              emissiveIntensity: 0.035,
+							            });
+							            printMat.depthTest = false;
+							            printMat.depthWrite = false;
 						            const instances = [];
 						            for (let r = 0; r < rows; r += 1) {
 						              for (let col = 0; col < cols; col += 1) {
@@ -9457,41 +9505,47 @@
 						            }
 						            const mesh = new THREE.InstancedMesh(seatGeo, printMat, Math.max(1, instances.length));
 						            const dummy = new THREE.Object3D();
-						            const width = Math.min(metersW * 0.86, 88);
-						            instances.forEach((p, idx) => {
+							            const width = Math.min(metersW * 0.92, 96);
+							            instances.forEach((p, idx) => {
 							              const x = (0.5 - (p.col / Math.max(1, cols - 1))) * width;
-						              const rowT = p.r / Math.max(1, rows - 1);
-						              const y = 3.05 + (rowT * 3.65);
-						              const z = halfH + 5.35 + (rowT * 5.9);
-						              dummy.position.set(x, y, z);
-						              dummy.rotation.set(0.18, 0, 0);
+							              const rowT = p.r / Math.max(1, rows - 1);
+							              const y = 2.62 + (rowT * 5.10);
+							              const z = halfH + 3.25 + (rowT * 7.90);
+							              dummy.position.set(x, y, z);
+							              dummy.rotation.set(0.26, 0, 0);
 						              dummy.updateMatrix();
 						              mesh.setMatrixAt(idx, dummy.matrix);
 						            });
-						            mesh.count = instances.length;
-						            mesh.userData = { kind: 'main_stand_seat_lettering' };
+							            mesh.count = instances.length;
+							            mesh.renderOrder = 42;
+							            mesh.userData = { kind: 'main_stand_seat_lettering', label };
 						            group.add(mesh);
 						          }
 						        } catch (e) { /* ignore */ }
 						      }
 
-						      const nameMat = makePitch3dTextMaterial(ctx.teamName, {
-						        primary,
-						        secondary,
-						        fill: secondary,
+							      const standDisplayName = formatStadiumStandName(getStadiumStandNameSource());
+							      const nameMat = makePitch3dTextMaterial(standDisplayName, {
+							        primary,
+							        secondary,
+							        fill: secondary,
 						        bg: primary,
 						        large: true,
 						        width: 2048,
 						        height: 260,
 						        transparentBg: usingBlenderShell,
-						      });
-						      if (nameMat && !usingBlenderShell) {
-						        const sign = -1;
-						        const name = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(metersW * 0.64, 68), usingBlenderShell ? 5.4 : 4.4), nameMat);
-						        name.position.set(0, usingBlenderShell ? 7.0 : 6.4, sign * (halfH + (usingBlenderShell ? 13.8 : 13.2)));
-						        name.rotation.x = sign * (usingBlenderShell ? -0.30 : -0.22);
-						        name.renderOrder = usingBlenderShell ? 31 : 4;
-						        name.userData = { kind: 'main_stand_integrated_name' };
+							      });
+							      if (nameMat && !usingBlenderShell) {
+							        const sign = -1;
+							        const name = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(metersW * 0.82, 88), usingBlenderShell ? 7.4 : 4.4), nameMat);
+							        name.position.set(0, usingBlenderShell ? 5.25 : 6.4, usingBlenderShell ? (halfH + 8.05) : (sign * (halfH + 13.2)));
+							        name.rotation.x = usingBlenderShell ? 0.24 : (sign * -0.22);
+							        name.renderOrder = usingBlenderShell ? 86 : 4;
+							        try {
+							          name.material.depthTest = usingBlenderShell ? false : name.material.depthTest;
+							          name.material.depthWrite = usingBlenderShell ? false : name.material.depthWrite;
+							        } catch (e) { /* ignore */ }
+						        name.userData = { kind: 'main_stand_integrated_name', label: standDisplayName };
 						        group.add(name);
 						      }
 						      const crestMat = makePitch3dCrestBadgeMaterial({ primary, secondary, initials: ctx.initials, imageUrl: ctx.crestUrl, width: 768, height: 768 });
