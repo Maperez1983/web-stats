@@ -8007,7 +8007,7 @@
 						    };
 
 						    const makePitchTexture = (metersW, metersH, grassStyle = 'classic', onAsyncUpdate) => {
-						      const w = 2048;
+						      const w = 3072;
 						      const h = Math.round((w * metersH) / Math.max(1, metersW));
 						      const c = document.createElement('canvas');
 						      c.width = w;
@@ -8080,36 +8080,38 @@
 						      applyGrassPatternIfAny();
 
 						      if (!isWhiteboard && !isBlackboard) {
-						        // Bandas sutiles.
-						        const stripes = style === 'broadcast' ? 14 : 10;
+						        // Bandas de siega y microtextura para acercar el césped al render fotorealista.
+						        const stripes = style === 'broadcast' ? 16 : 12;
 						        const stripeW = c.width / stripes;
 						        for (let i = 0; i < stripes; i += 1) {
-						          const a = style === 'broadcast' ? 0.07 : 0.05;
-						          ctx.fillStyle = i % 2 === 0 ? `rgba(255,255,255,${a})` : `rgba(0,0,0,${a})`;
+						          const a = style === 'broadcast' ? 0.092 : 0.072;
+						          ctx.fillStyle = i % 2 === 0 ? `rgba(244,255,221,${a})` : `rgba(4,38,22,${a})`;
+						          ctx.fillRect(i * stripeW, 0, stripeW + 1, c.height);
+						          const fade = ctx.createLinearGradient(i * stripeW, 0, (i + 1) * stripeW, 0);
+						          fade.addColorStop(0, 'rgba(255,255,255,0.028)');
+						          fade.addColorStop(0.52, 'rgba(255,255,255,0.000)');
+						          fade.addColorStop(1, 'rgba(0,0,0,0.036)');
+						          ctx.fillStyle = fade;
 						          ctx.fillRect(i * stripeW, 0, stripeW + 1, c.height);
 						        }
-						        // Microtextura determinista para evitar el aspecto de plano verde liso en cámara 3D.
 						        ctx.save();
-						        ctx.globalAlpha = style === 'broadcast' ? 0.12 : 0.10;
-						        for (let y = 0; y < c.height; y += 5) {
-						          const drift = ((y * 37) % 29) - 14;
-						          ctx.strokeStyle = (y % 10 === 0) ? 'rgba(255,255,255,0.20)' : 'rgba(0,0,0,0.16)';
+						        ctx.globalAlpha = style === 'broadcast' ? 0.18 : 0.15;
+						        for (let y = 0; y < c.height; y += 4) {
+						          const drift = ((y * 37) % 41) - 20;
+						          ctx.strokeStyle = (y % 12 === 0) ? 'rgba(232,255,203,0.22)' : 'rgba(7,58,31,0.20)';
 						          ctx.lineWidth = 1;
 						          ctx.beginPath();
 						          ctx.moveTo(drift, y);
 						          ctx.lineTo(c.width + drift, y + ((y % 17) - 8) * 0.14);
 						          ctx.stroke();
 						        }
-						        ctx.globalAlpha = 0.11;
-						        for (let i = 0; i < 900; i += 1) {
-						          const x = (i * 1543) % c.width;
-						          const y = (i * 811) % c.height;
-						          const len = 2 + ((i * 7) % 6);
-						          ctx.strokeStyle = i % 2 ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.22)';
-						          ctx.beginPath();
-						          ctx.moveTo(x, y);
-						          ctx.lineTo(x + len, y + 1);
-						          ctx.stroke();
+						        ctx.globalAlpha = 0.12;
+						        for (let i = 0; i < 8200; i += 1) {
+						          const x = (i * 109) % c.width;
+						          const y = (i * 271) % c.height;
+						          const light = (i % 5 === 0);
+						          ctx.fillStyle = light ? 'rgba(226,255,190,0.38)' : 'rgba(8,58,31,0.36)';
+						          ctx.fillRect(x, y, 1 + (i % 3), 1);
 						        }
 						        ctx.restore();
 						      }
@@ -9370,7 +9372,7 @@
 						            const dummy = new THREE.Object3D();
 						            const width = Math.min(metersW * 0.86, 88);
 						            instances.forEach((p, idx) => {
-						              const x = (0.5 - (p.col / Math.max(1, cols - 1))) * width;
+						              const x = ((p.col / Math.max(1, cols - 1)) - 0.5) * width;
 						              const rowT = p.r / Math.max(1, rows - 1);
 						              const y = 3.05 + (rowT * 3.65);
 						              const z = halfH + 5.35 + (rowT * 5.9);
@@ -9506,6 +9508,41 @@
 						        addBox(new THREE.BoxGeometry(0.18, 1.8, 2.6), benchFrameMat, { x: t * metersW - 6.3, y: 0.9, z: halfH + 4.6 });
 						        addBox(new THREE.BoxGeometry(0.18, 1.8, 2.6), benchFrameMat, { x: t * metersW + 6.3, y: 0.9, z: halfH + 4.6 });
 						      });
+
+						      try {
+						        const tunnelWallMat = new THREE.MeshStandardMaterial({ color: 0x9ca3af, roughness: 0.84, metalness: 0.03 });
+						        const tunnelDarkMat = new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.96, metalness: 0.02 });
+						        const tunnelRoofMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.66, metalness: 0.16 });
+						        const tunnelGlassMat = new THREE.MeshStandardMaterial({ color: 0xdbeafe, roughness: 0.22, metalness: 0.04, transparent: true, opacity: 0.28 });
+						        const tunnelZ = halfH + 4.35;
+						        const portal = addBox(new THREE.BoxGeometry(8.6, 3.15, 0.42), tunnelWallMat, { x: 0, y: 1.55, z: tunnelZ });
+						        portal.userData = { kind: 'players_tunnel_frame' };
+						        const opening = addBox(new THREE.BoxGeometry(5.5, 2.2, 0.50), tunnelDarkMat, { x: 0, y: 1.30, z: tunnelZ - 0.04 });
+						        opening.userData = { kind: 'players_tunnel_opening' };
+						        const roof = addBox(new THREE.BoxGeometry(9.4, 0.42, 3.2), tunnelRoofMat, { x: 0, y: 3.05, z: halfH + 5.35 });
+						        roof.userData = { kind: 'players_tunnel_canopy' };
+						        const leftWall = addBox(new THREE.BoxGeometry(0.42, 2.1, 3.0), tunnelWallMat, { x: -4.35, y: 1.25, z: halfH + 5.35 });
+						        leftWall.userData = { kind: 'players_tunnel_sidewall', side: 'left' };
+						        const rightWall = addBox(new THREE.BoxGeometry(0.42, 2.1, 3.0), tunnelWallMat, { x: 4.35, y: 1.25, z: halfH + 5.35 });
+						        rightWall.userData = { kind: 'players_tunnel_sidewall', side: 'right' };
+						        const ramp = addBox(new THREE.BoxGeometry(6.4, 0.08, 5.7), new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.88, metalness: 0.01 }), { x: 0, y: 0.10, z: halfH + 1.95 });
+						        ramp.userData = { kind: 'players_tunnel_ramp' };
+						        const crestMat = makePitch3dCrestBadgeMaterial({ primary, secondary, initials: ctx.initials, imageUrl: ctx.crestUrl, width: 768, height: 768 });
+						        if (crestMat) {
+						          crestMat.depthWrite = false;
+						          crestMat.depthTest = true;
+						          const crest = new THREE.Mesh(new THREE.CircleGeometry(1.35, 64), crestMat);
+						          crest.position.set(0, 2.62, tunnelZ - 0.27);
+						          crest.rotation.y = Math.PI;
+						          crest.renderOrder = 18;
+						          crest.userData = { kind: 'players_tunnel_crest' };
+						          group.add(crest);
+						        }
+						        [-2.9, 2.9].forEach((x) => {
+						          const rail = addBox(new THREE.BoxGeometry(0.16, 1.05, 5.2), tunnelGlassMat, { x, y: 0.78, z: halfH + 1.92 });
+						          rail.userData = { kind: 'players_tunnel_glass_rail' };
+						        });
+						      } catch (e) { /* ignore */ }
 
 							      if (!usingBlenderShell) {
 							        const floorMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.96, metalness: 0 });
@@ -9846,6 +9883,7 @@
 						      const metersH = meters.h;
 						      const sourceW = Number(options.sourceW) || (Number(worldWidth) || 1280);
 						      const sourceH = Number(options.sourceH) || (Number(worldHeight) || 720);
+						      const stadiumCtx = readPitch3dStadiumContext();
 						      try { addPitch3dRenderBackdrop(root, metersW, metersH); } catch (e) { /* ignore */ }
 
 						      // Suelo
@@ -9947,6 +9985,31 @@
 						          shadowPlane.renderOrder = 2;
 						          shadowPlane.userData = { kind: 'stadium_roof_shadow' };
 						          root.add(shadowPlane);
+						        }
+						      } catch (e) { /* ignore */ }
+
+						      // Escudo pintado en césped junto a la zona de túnel/banquillos, como en estadios reales.
+						      try {
+						        const grassCrestMat = makePitch3dCrestBadgeMaterial({
+						          primary: stadiumCtx.primary,
+						          secondary: stadiumCtx.secondary,
+						          initials: stadiumCtx.initials,
+						          imageUrl: stadiumCtx.crestUrl,
+						          width: 1024,
+						          height: 1024,
+						        });
+						        if (grassCrestMat) {
+						          grassCrestMat.opacity = 0.68;
+						          grassCrestMat.transparent = true;
+						          grassCrestMat.depthWrite = false;
+						          grassCrestMat.depthTest = true;
+						          const grassCrestRadius = Math.min(5.3, Math.max(3.6, metersW * 0.052));
+						          const grassCrest = new THREE.Mesh(new THREE.CircleGeometry(grassCrestRadius, 96), grassCrestMat);
+						          grassCrest.rotation.x = -Math.PI / 2;
+						          grassCrest.position.set(0, 0.115, metersH * 0.36);
+						          grassCrest.renderOrder = 8;
+						          grassCrest.userData = { kind: 'pitch_grass_crest' };
+						          root.add(grassCrest);
 						        }
 						      } catch (e) { /* ignore */ }
 
