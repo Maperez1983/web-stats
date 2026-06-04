@@ -6423,6 +6423,28 @@
 	      refreshLivePreview();
 	      setStatus(axis === 'x' ? 'Alineado por centro X.' : 'Alineado por centro Y.');
 	    };
+	    const alignSelectionToReference = (axis) => {
+	      const objects = getSelectionObjects();
+	      if (objects.length < 2) {
+	        setStatus('Selecciona al menos 2 elementos para alinear.', true);
+	        return;
+	      }
+	      const reference = objects.find((obj) => obj && !obj?.data?.locked) || objects[0];
+	      if (!reference || typeof reference.getCenterPoint !== 'function') return;
+	      const center = reference.getCenterPoint();
+	      objects.forEach((obj) => {
+	        if (!obj || obj === reference || obj?.data?.locked) return;
+	        const current = obj.getCenterPoint();
+	        const next = new fabric.Point(axis === 'x' ? center.x : current.x, axis === 'y' ? center.y : current.y);
+	        obj.setPositionByOrigin(next, 'center', 'center');
+	        obj.setCoords();
+	      });
+	      canvas.requestRenderAll();
+	      pushHistory();
+	      syncInspector();
+	      refreshLivePreview();
+	      setStatus(axis === 'x' ? 'Alineado al primer elemento por centro X.' : 'Alineado al primer elemento por centro Y.');
+	    };
 		    const distributeSelection = (axis) => {
 		      const objects = getSelectionObjects().filter((obj) => obj && !obj?.data?.locked);
 		      if (objects.length < 3) {
@@ -27184,6 +27206,18 @@
 				      if (!isMod && key === 'h') {
 				        event.preventDefault();
 				        toggleShadowSelection();
+				        return;
+				      }
+				      if (!isMod && key === 'a') {
+				        event.preventDefault();
+				        const axis = isShift ? 'x' : 'y';
+				        if (event.altKey) alignSelectionToReference(axis);
+				        else alignSelection(axis);
+				        return;
+				      }
+				      if (!isMod && key === 'd') {
+				        event.preventDefault();
+				        distributeSelection(isShift ? 'y' : 'x');
 				        return;
 				      }
 				      if (!isMod && (key === 'q' || key === 'e')) {
