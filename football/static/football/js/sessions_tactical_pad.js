@@ -8291,10 +8291,31 @@
 						        const parsed = JSON.parse(raw);
 						        ads = (parsed && typeof parsed === 'object') ? parsed : {};
 						      } catch (e) { ads = {}; }
-							      const dataAttr = (name, fallback = '') => safeText(form?.getAttribute?.(name), fallback);
-							      const teamName = safeText(form?.dataset?.stadiumTeamName, 'Equipo');
-							      const navClubName = safeText(document.querySelector('.nav-context-name')?.textContent);
-							      const clubName = safeText(form?.dataset?.stadiumClubName || navClubName || teamName || 'Club');
+								      const dataAttr = (name, fallback = '') => safeText(form?.getAttribute?.(name), fallback);
+								      const teamName = safeText(form?.dataset?.stadiumTeamName, 'Equipo');
+								      const navClubName = safeText(document.querySelector('.nav-context-name')?.textContent);
+								      const isCategoryOnlyLabel = (value) => {
+								        const normalized = safeText(value)
+								          .normalize('NFD')
+								          .replace(/[\u0300-\u036f]/g, '')
+								          .toLowerCase()
+								          .replace(/[^a-z0-9]+/g, ' ')
+								          .trim();
+								        if (!normalized) return false;
+								        const compact = normalized.replace(/\s+/g, '');
+								        return [
+								          'prebenjamin', 'benjamin', 'alevin', 'infantil', 'cadete',
+								          'juvenil', 'senior', 'amateur', 'femenino', 'masculino',
+								        ].includes(compact);
+								      };
+								      const rawClubName = safeText(form?.dataset?.stadiumClubName);
+								      const clubName = safeText(
+								        (!isCategoryOnlyLabel(rawClubName) ? rawClubName : '')
+								          || (!isCategoryOnlyLabel(navClubName) ? navClubName : '')
+								          || (!isCategoryOnlyLabel(teamName) ? teamName : '')
+								          || rawClubName
+								          || 'Club',
+								      );
 							      const stadiumInitials = (label) => {
 							        const parts = safeText(label)
 							          .normalize('NFD')
@@ -9438,7 +9459,7 @@
 						            const dummy = new THREE.Object3D();
 						            const width = Math.min(metersW * 0.86, 88);
 						            instances.forEach((p, idx) => {
-						              const x = ((p.col / Math.max(1, cols - 1)) - 0.5) * width;
+							              const x = (0.5 - (p.col / Math.max(1, cols - 1))) * width;
 						              const rowT = p.r / Math.max(1, rows - 1);
 						              const y = 3.05 + (rowT * 3.65);
 						              const z = halfH + 5.35 + (rowT * 5.9);

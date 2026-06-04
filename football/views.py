@@ -27946,10 +27946,17 @@ def coach_tactics_page(request):
     except Exception:
         tactics_team_name = ''
     try:
+        primary_team_full_name = str(getattr(primary_team, 'name', '') or '').strip()
+        workspace_name = str(getattr(workspace, 'name', '') or '').strip()
+        team_category = str(getattr(primary_team, 'category', '') or '').strip()
+        club_markers = ('c.d', 'c.f', 'cd ', 'cf ', 'ud ', 'ad ', 'club ')
+        full_lower = primary_team_full_name.lower()
+        is_club_like_full_name = any(marker in f'{full_lower} ' for marker in club_markers)
         tactics_club_name = (
-            str(getattr(primary_team, 'name', '') or '').strip()
-            or str(getattr(workspace, 'name', '') or '').strip()
-        )
+            primary_team_full_name if is_club_like_full_name else ''
+        ) or (
+            workspace_name if workspace_name and _normalize_team_lookup_key(workspace_name) != _normalize_team_lookup_key(team_category) else ''
+        ) or primary_team_full_name
     except Exception:
         tactics_club_name = ''
     try:
@@ -39123,10 +39130,17 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
     except Exception:
         tactics_team_name = ''
     try:
+        primary_team_full_name = str(getattr(primary_team, 'name', '') or '').strip()
+        workspace_name = str(getattr(workspace, 'name', '') or '').strip()
+        team_category = str(getattr(primary_team, 'category', '') or '').strip()
+        club_markers = ('c.d', 'c.f', 'cd ', 'cf ', 'ud ', 'ad ', 'club ')
+        full_lower = primary_team_full_name.lower()
+        is_club_like_full_name = any(marker in f'{full_lower} ' for marker in club_markers)
         tactics_club_name = (
-            str(getattr(primary_team, 'name', '') or '').strip()
-            or str(getattr(workspace, 'name', '') or '').strip()
-        )
+            primary_team_full_name if is_club_like_full_name else ''
+        ) or (
+            workspace_name if workspace_name and _normalize_team_lookup_key(workspace_name) != _normalize_team_lookup_key(team_category) else ''
+        ) or primary_team_full_name
     except Exception:
         tactics_club_name = ''
     try:
@@ -45493,10 +45507,17 @@ def analysis_video_report_item_tactical_page(request, item_id):
     except Exception:
         tactics_team_name = ''
     try:
+        primary_team_full_name = str(getattr(primary_team, 'name', '') or '').strip()
+        workspace_name = str(getattr(workspace, 'name', '') or '').strip()
+        team_category = str(getattr(primary_team, 'category', '') or '').strip()
+        club_markers = ('c.d', 'c.f', 'cd ', 'cf ', 'ud ', 'ad ', 'club ')
+        full_lower = primary_team_full_name.lower()
+        is_club_like_full_name = any(marker in f'{full_lower} ' for marker in club_markers)
         tactics_club_name = (
-            str(getattr(primary_team, 'name', '') or '').strip()
-            or str(getattr(workspace, 'name', '') or '').strip()
-        )
+            primary_team_full_name if is_club_like_full_name else ''
+        ) or (
+            workspace_name if workspace_name and _normalize_team_lookup_key(workspace_name) != _normalize_team_lookup_key(team_category) else ''
+        ) or primary_team_full_name
     except Exception:
         tactics_club_name = ''
     try:
