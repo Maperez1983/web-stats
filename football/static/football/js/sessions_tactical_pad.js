@@ -8019,9 +8019,9 @@
 						      const isBlackboard = style === 'blackboard';
 						      const baseByStyle = {
 							        classic: '#3f8233',
-							        broadcast: '#347d32',
-							        realistic: '#4f8436',
-							        pro: '#397a34',
+							        broadcast: '#2f7430',
+							        realistic: '#407b34',
+							        pro: '#347332',
 						        artificial: '#2fb46d',
 						        dry: '#6b8a3a',
 						        wet: '#1f5a46',
@@ -8081,19 +8081,29 @@
 
 						      if (!isWhiteboard && !isBlackboard) {
 						        // Bandas de siega y microtextura para acercar el césped al render fotorealista.
-							        const stripes = style === 'broadcast' ? 18 : 14;
+							        const stripes = style === 'broadcast' ? 20 : 18;
 							        const stripeW = c.width / stripes;
 							        for (let i = 0; i < stripes; i += 1) {
-							          const a = style === 'broadcast' ? 0.082 : 0.066;
-							          ctx.fillStyle = i % 2 === 0 ? `rgba(246,255,218,${a})` : `rgba(12,72,32,${a})`;
+							          const a = style === 'broadcast' ? 0.118 : 0.104;
+							          ctx.fillStyle = i % 2 === 0 ? `rgba(245,255,207,${a})` : `rgba(5,66,30,${a})`;
 							          ctx.fillRect(i * stripeW, 0, stripeW + 1, c.height);
 						          const fade = ctx.createLinearGradient(i * stripeW, 0, (i + 1) * stripeW, 0);
-						          fade.addColorStop(0, 'rgba(255,255,255,0.028)');
+						          fade.addColorStop(0, 'rgba(255,255,255,0.048)');
 						          fade.addColorStop(0.52, 'rgba(255,255,255,0.000)');
-						          fade.addColorStop(1, 'rgba(0,0,0,0.036)');
+						          fade.addColorStop(1, 'rgba(0,0,0,0.052)');
 							          ctx.fillStyle = fade;
 							          ctx.fillRect(i * stripeW, 0, stripeW + 1, c.height);
 							        }
+						        ctx.save();
+						        ctx.globalAlpha = style === 'broadcast' ? 0.18 : 0.13;
+						        ctx.translate(c.width * 0.48, c.height * 0.48);
+						        ctx.rotate(-0.17);
+						        const diagW = c.width / 12;
+						        for (let i = -8; i < 16; i += 1) {
+						          ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,221,0.16)' : 'rgba(7,64,32,0.18)';
+						          ctx.fillRect(i * diagW, -c.height, diagW + 2, c.height * 2.4);
+						        }
+						        ctx.restore();
 							        const lengthBands = 8;
 							        for (let i = 0; i < lengthBands; i += 1) {
 							          const y = (i / lengthBands) * c.height;
@@ -8412,7 +8422,9 @@
 						              if (name.includes('stadium_roof_metal')) {
 						                mat = node.material.clone();
 						                mat.metalness = 0.28;
-						                mat.roughness = 0.42;
+						                mat.roughness = 0.46;
+						                mat.transparent = true;
+						                mat.opacity = 0.72;
 						                node.material = mat;
 						              } else if (name.includes('stadium_metal_rails')) {
 						                mat = node.material.clone();
@@ -9438,8 +9450,8 @@
 								          .replace(/\s+/g, ' ')
 								          .trim();
 								        const compact = raw.toUpperCase().replace(/[^A-Z0-9]+/g, '');
-								        if (compact === 'CDB') return 'BENAGALBON CD';
-								        if (compact === 'MCF') return 'MALAGA CF';
+								        if (compact === 'CDB' || compact === 'BENAGALBON' || compact === 'BENAGALBONCD' || compact === 'CDBENAGALBON') return 'C.D BENAGALBON';
+								        if (compact === 'MCF' || compact === 'MALAGA' || compact === 'MALAGACF') return 'MALAGA C.F';
 								        let label = raw.toUpperCase();
 								        label = label.replace(/^C\s*\.?\s*D\s*\.?\s+/i, '').replace(/^C\s*\.?\s*F\s*\.?\s+/i, '');
 								        label = label.replace(/\s*C\s*\.?\s*D\s*\.?$/i, '').replace(/\s*C\s*\.?\s*F\s*\.?$/i, '');
@@ -9828,27 +9840,27 @@
 						      try {
 						        const renderer = new THREE.WebGLRenderer({ canvas: pitch3dCanvasEl, antialias: true, alpha: false, preserveDrawingBuffer: true });
 						        renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-						        renderer.setClearColor(0x8fc7ee, 1);
+						        renderer.setClearColor(0xaed8f3, 1);
 						        try {
 						          renderer.shadowMap.enabled = true;
 						          renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 						          if (THREE.SRGBColorSpace) renderer.outputColorSpace = THREE.SRGBColorSpace;
 						          if (THREE.ACESFilmicToneMapping) renderer.toneMapping = THREE.ACESFilmicToneMapping;
-							          renderer.toneMappingExposure = 1.02;
+							          renderer.toneMappingExposure = 1.12;
 						        } catch (e) { /* ignore */ }
 						        pitch3dRenderer = renderer;
 						        pitch3dScene = new THREE.Scene();
-							        pitch3dScene.background = new THREE.Color(0xb9def4);
-							        try { pitch3dScene.fog = new THREE.Fog(0xb9def4, 330, 620); } catch (e) { /* ignore */ }
+							        pitch3dScene.background = new THREE.Color(0xc7e7fb);
+							        try { pitch3dScene.fog = new THREE.Fog(0xc7e7fb, 360, 680); } catch (e) { /* ignore */ }
 						        pitch3dCamera = new THREE.PerspectiveCamera(48, 16 / 9, 0.1, 2000);
 						        try {
 						          window.__WEBSTATS_PITCH3D_SCENE = pitch3dScene;
 						          window.__WEBSTATS_PITCH3D_CAMERA = pitch3dCamera;
 						        } catch (e) { /* ignore */ }
-							        const hemi = new THREE.HemisphereLight(0xffffff, 0x536b59, 0.92);
+							        const hemi = new THREE.HemisphereLight(0xffffff, 0x4c6a50, 0.72);
 							        pitch3dScene.add(hemi);
-							        const dir = new THREE.DirectionalLight(0xfff1c7, 2.65);
-							        dir.position.set(-145, 155, -70);
+							        const dir = new THREE.DirectionalLight(0xfff0c2, 3.25);
+							        dir.position.set(-160, 170, -92);
 						        try {
 						          dir.castShadow = true;
 							          dir.shadow.mapSize.width = 4096;
@@ -9863,10 +9875,10 @@
 							          dir.shadow.normalBias = 0.014;
 						        } catch (e) { /* ignore */ }
 						        pitch3dScene.add(dir);
-							        const rim = new THREE.DirectionalLight(0xdbeafe, 0.34);
+							        const rim = new THREE.DirectionalLight(0xdbeafe, 0.24);
 						        rim.position.set(110, 80, 130);
 						        pitch3dScene.add(rim);
-							        const softFill = new THREE.DirectionalLight(0xffffff, 0.26);
+							        const softFill = new THREE.DirectionalLight(0xffffff, 0.18);
 						        softFill.position.set(70, 60, 105);
 						        pitch3dScene.add(softFill);
 						        pitch3dRaycaster = new THREE.Raycaster();
@@ -9904,12 +9916,12 @@
 							        pitch3dOrbit.radius = Math.max(70, Math.max(metersW, metersH) * 1.25);
 						      } else if (k === 'render_original') {
 						        // Vista inspirada en el render de referencia: esquina alta, lente abierta y gradas en profundidad.
-							        pitch3dOrbit.theta = -2.26;
-							        pitch3dOrbit.phi = 1.18;
-							        pitch3dOrbit.radius = Math.max(112, metersW * 1.05);
-							        targetX = 1;
-							        targetY = 4.2;
-							        targetZ = -3;
+							        pitch3dOrbit.theta = -2.18;
+							        pitch3dOrbit.phi = 1.08;
+							        pitch3dOrbit.radius = Math.max(94, metersW * 0.90);
+							        targetX = 2;
+							        targetY = 4.9;
+							        targetZ = 5;
 						      } else if (k === 'stadium_render') {
 						        // Composición tipo render de estadio: esquina alta, campo completo y gradas dominantes.
 							        pitch3dOrbit.theta = -2.26;
@@ -10125,11 +10137,11 @@
 						      }
 						      const groundGeo = new THREE.PlaneGeometry(metersW, metersH, 1, 1);
 						        const groundMat = new THREE.MeshStandardMaterial({
-							        color: 0xe4ffd8,
+							        color: 0xa9db83,
 						        map: tex || null,
 						        bumpMap: tex || null,
-							        bumpScale: 0.115,
-							        roughness: 0.76,
+							        bumpScale: 0.155,
+							        roughness: 0.84,
 						        metalness: 0,
 						      });
 						      const ground = new THREE.Mesh(groundGeo, groundMat);
@@ -10143,10 +10155,10 @@
 						        const shadow = makePitch3dCanvasTexture((ctx, c) => {
 						          ctx.clearRect(0, 0, c.width, c.height);
 						          const g = ctx.createLinearGradient(0, 0, c.width, c.height);
-							          g.addColorStop(0.00, 'rgba(2,6,23,0.42)');
-							          g.addColorStop(0.28, 'rgba(2,6,23,0.31)');
-							          g.addColorStop(0.54, 'rgba(2,6,23,0.12)');
-							          g.addColorStop(0.82, 'rgba(2,6,23,0.025)');
+							          g.addColorStop(0.00, 'rgba(2,6,23,0.31)');
+							          g.addColorStop(0.28, 'rgba(2,6,23,0.22)');
+							          g.addColorStop(0.54, 'rgba(2,6,23,0.085)');
+							          g.addColorStop(0.82, 'rgba(2,6,23,0.018)');
 						          g.addColorStop(1.00, 'rgba(2,6,23,0.00)');
 						          ctx.fillStyle = g;
 						          ctx.beginPath();
@@ -10156,7 +10168,7 @@
 						          ctx.lineTo(0, c.height);
 						          ctx.closePath();
 						          ctx.fill();
-							          ctx.globalAlpha = 0.16;
+							          ctx.globalAlpha = 0.09;
 						          ctx.fillStyle = '#020617';
 						          ctx.fillRect(0, 0, c.width * 0.22, c.height);
 						          ctx.globalAlpha = 1;
