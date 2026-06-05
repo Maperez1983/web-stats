@@ -9790,84 +9790,96 @@
 						      addAd('east', ctx.ads.right, ctx.ads.right_logo_data_url);
 
 						      try {
-						        const innerAsphaltMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.92, metalness: 0.02 });
+						        const innerAsphaltMat = new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.94, metalness: 0.02, emissive: 0x020617, emissiveIntensity: 0.04 });
 						        const concreteKerbMat = new THREE.MeshStandardMaterial({ color: 0xd1d5db, roughness: 0.78, metalness: 0.02 });
-						        const glassRailMat = new THREE.MeshStandardMaterial({ color: 0xe0f2fe, roughness: 0.18, metalness: 0.02, transparent: true, opacity: 0.22 });
-						        const postMat = new THREE.MeshStandardMaterial({ color: 0xe5e7eb, roughness: 0.44, metalness: 0.22 });
+						        const glassRailMat = new THREE.MeshStandardMaterial({ color: 0x93c5fd, roughness: 0.14, metalness: 0.02, transparent: true, opacity: 0.42 });
+						        const postMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.38, metalness: 0.35 });
 						        [
-						          ['north', 0, -(halfH + 1.18), metersW + 4.0, 1.18],
-						          ['south', 0, halfH + 1.18, metersW + 4.0, 1.18],
-						          ['west', -(halfW + 1.18), 0, 1.18, metersH + 4.0],
-						          ['east', halfW + 1.18, 0, 1.18, metersH + 4.0],
+						          ['north', 0, -(halfH + 1.55), metersW + 6.5, 2.3],
+						          ['south', 0, halfH + 1.55, metersW + 6.5, 2.3],
+						          ['west', -(halfW + 1.55), 0, 2.3, metersH + 6.5],
+						          ['east', halfW + 1.55, 0, 2.3, metersH + 6.5],
 						        ].forEach(([side, x, z, w, d]) => {
-						          const strip = addBox(new THREE.BoxGeometry(w, 0.055, d), innerAsphaltMat, { x, y: 0.075, z });
+						          const strip = addBox(new THREE.BoxGeometry(w, 0.08, d), innerAsphaltMat, { x, y: 0.082, z });
 						          strip.userData = { kind: 'inner_pitch_asphalt_strip', side };
 						        });
 						        [
-						          ['north', 0, -(halfH + 0.47), metersW + 2.8, 0.18],
-						          ['south', 0, halfH + 0.47, metersW + 2.8, 0.18],
-						          ['west', -(halfW + 0.47), 0, 0.18, metersH + 2.8],
-						          ['east', halfW + 0.47, 0, 0.18, metersH + 2.8],
+						          ['north', 0, -(halfH + 0.62), metersW + 4.0, 0.28],
+						          ['south', 0, halfH + 0.62, metersW + 4.0, 0.28],
+						          ['west', -(halfW + 0.62), 0, 0.28, metersH + 4.0],
+						          ['east', halfW + 0.62, 0, 0.28, metersH + 4.0],
 						        ].forEach(([side, x, z, w, d]) => {
-						          const kerb = addBox(new THREE.BoxGeometry(w, 0.16, d), concreteKerbMat, { x, y: 0.16, z });
+						          const kerb = addBox(new THREE.BoxGeometry(w, 0.22, d), concreteKerbMat, { x, y: 0.18, z });
 						          kerb.userData = { kind: 'inner_pitch_concrete_kerb', side };
 						        });
 						        for (let i = -52; i <= 52; i += 6.5) {
-						          addBox(new THREE.BoxGeometry(0.10, 1.05, 0.10), postMat, { x: i, y: 0.78, z: -(halfH + 2.02) }).userData = { kind: 'inner_glass_post', side: 'north' };
-						          addBox(new THREE.BoxGeometry(0.10, 1.05, 0.10), postMat, { x: i, y: 0.78, z: halfH + 2.02 }).userData = { kind: 'inner_glass_post', side: 'south' };
+						          addBox(new THREE.BoxGeometry(0.14, 1.45, 0.14), postMat, { x: i, y: 1.03, z: -(halfH + 2.86) }).userData = { kind: 'inner_glass_post', side: 'north' };
+						          addBox(new THREE.BoxGeometry(0.14, 1.45, 0.14), postMat, { x: i, y: 1.03, z: halfH + 2.86 }).userData = { kind: 'inner_glass_post', side: 'south' };
 						        }
 						        for (let i = -32; i <= 32; i += 6.5) {
-						          addBox(new THREE.BoxGeometry(0.10, 1.05, 0.10), postMat, { x: -(halfW + 2.02), y: 0.78, z: i }).userData = { kind: 'inner_glass_post', side: 'west' };
-						          addBox(new THREE.BoxGeometry(0.10, 1.05, 0.10), postMat, { x: halfW + 2.02, y: 0.78, z: i }).userData = { kind: 'inner_glass_post', side: 'east' };
+						          addBox(new THREE.BoxGeometry(0.14, 1.45, 0.14), postMat, { x: -(halfW + 2.86), y: 1.03, z: i }).userData = { kind: 'inner_glass_post', side: 'west' };
+						          addBox(new THREE.BoxGeometry(0.14, 1.45, 0.14), postMat, { x: halfW + 2.86, y: 1.03, z: i }).userData = { kind: 'inner_glass_post', side: 'east' };
 						        }
-						        addBox(new THREE.BoxGeometry(metersW + 4.8, 0.92, 0.08), glassRailMat, { x: 0, y: 0.88, z: -(halfH + 2.06) }).userData = { kind: 'inner_glass_rail', side: 'north' };
-						        addBox(new THREE.BoxGeometry(metersW + 4.8, 0.92, 0.08), glassRailMat, { x: 0, y: 0.88, z: halfH + 2.06 }).userData = { kind: 'inner_glass_rail', side: 'south' };
-						        addBox(new THREE.BoxGeometry(0.08, 0.92, metersH + 4.8), glassRailMat, { x: -(halfW + 2.06), y: 0.88, z: 0 }).userData = { kind: 'inner_glass_rail', side: 'west' };
-						        addBox(new THREE.BoxGeometry(0.08, 0.92, metersH + 4.8), glassRailMat, { x: halfW + 2.06, y: 0.88, z: 0 }).userData = { kind: 'inner_glass_rail', side: 'east' };
+						        addBox(new THREE.BoxGeometry(metersW + 7.0, 1.32, 0.10), glassRailMat, { x: 0, y: 1.08, z: -(halfH + 2.92) }).userData = { kind: 'inner_glass_rail', side: 'north' };
+						        addBox(new THREE.BoxGeometry(metersW + 7.0, 1.32, 0.10), glassRailMat, { x: 0, y: 1.08, z: halfH + 2.92 }).userData = { kind: 'inner_glass_rail', side: 'south' };
+						        addBox(new THREE.BoxGeometry(0.10, 1.32, metersH + 7.0), glassRailMat, { x: -(halfW + 2.92), y: 1.08, z: 0 }).userData = { kind: 'inner_glass_rail', side: 'west' };
+						        addBox(new THREE.BoxGeometry(0.10, 1.32, metersH + 7.0), glassRailMat, { x: halfW + 2.92, y: 1.08, z: 0 }).userData = { kind: 'inner_glass_rail', side: 'east' };
 						      } catch (e) { /* ignore */ }
 
 							      const benchMat = new THREE.MeshStandardMaterial({ color: primaryInt, roughness: 0.28, metalness: 0.05, transparent: true, opacity: 0.94 });
 						      const benchFrameMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.44, metalness: 0.12 });
-						      const benchGlassMat = new THREE.MeshStandardMaterial({ color: 0xdbeafe, roughness: 0.16, metalness: 0.02, transparent: true, opacity: 0.34 });
-						      const techFloorMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.86, metalness: 0.01 });
+						      const benchGlassMat = new THREE.MeshStandardMaterial({ color: 0xbfdbfe, roughness: 0.13, metalness: 0.02, transparent: true, opacity: 0.48 });
+						      const techFloorMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.86, metalness: 0.01 });
+						      const techPaintMat = new THREE.MeshStandardMaterial({ color: primaryInt, roughness: 0.78, metalness: 0.01, transparent: true, opacity: 0.82 });
 						      const techLineMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.52, metalness: 0.02 });
 						      const techDarkMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.82, metalness: 0.03 });
 							      const tunnelZ = halfH + 4.05;
-							      const techWalkway = addBox(new THREE.BoxGeometry(28.0, 0.08, 8.8), techFloorMat, { x: 0, y: 0.105, z: halfH + 1.72 });
+							      const techWalkway = addBox(new THREE.BoxGeometry(36.5, 0.08, 11.2), techFloorMat, { x: 0, y: 0.105, z: halfH + 1.9 });
 						      techWalkway.userData = { kind: 'technical_area_walkway' };
-						      for (let i = -4; i <= 4; i += 1) {
-						        const dash = addBox(new THREE.BoxGeometry(0.16, 0.045, 0.72), techLineMat, { x: i * 2.25, y: 0.17, z: halfH + 0.35 });
+						      const techPaint = addBox(new THREE.BoxGeometry(34.5, 0.045, 10.8), techPaintMat, { x: 0, y: 0.145, z: halfH + 2.1 });
+						      techPaint.userData = { kind: 'technical_area_colored_carpet' };
+						      [
+						        [0, halfH - 3.30, 34.5, 0.12],
+						        [0, halfH + 7.50, 34.5, 0.12],
+						        [-17.25, halfH + 2.10, 0.12, 10.8],
+						        [17.25, halfH + 2.10, 0.12, 10.8],
+						      ].forEach(([x, z, w, d]) => {
+						        const outline = addBox(new THREE.BoxGeometry(w, 0.055, d), techLineMat, { x, y: 0.172, z });
+						        outline.userData = { kind: 'technical_area_white_outline' };
+						      });
+						      for (let i = -5; i <= 5; i += 1) {
+						        const dash = addBox(new THREE.BoxGeometry(0.22, 0.055, 1.05), techLineMat, { x: i * 2.7, y: 0.19, z: halfH + 0.35 });
 						        dash.userData = { kind: 'technical_area_dashed_line', idx: i };
 						      }
 						      [-1, 1].forEach((side) => {
-						        const rail = addBox(new THREE.BoxGeometry(0.16, 0.70, 7.4), benchFrameMat, { x: side * 11.3, y: 0.52, z: halfH + 1.95 });
+						        const rail = addBox(new THREE.BoxGeometry(0.18, 0.82, 9.6), benchFrameMat, { x: side * 14.4, y: 0.58, z: halfH + 2.2 });
 						        rail.userData = { kind: 'technical_area_side_rail', side };
 						      });
 						      [-0.22, 0.22].forEach((t) => {
 						        const bx = t * metersW;
 						        const bz = halfH + 4.15;
-						        const base = addBox(new THREE.BoxGeometry(15.4, 0.34, 3.25), benchFrameMat, { x: bx, y: 0.32, z: bz });
+						        const base = addBox(new THREE.BoxGeometry(18.4, 0.48, 4.35), benchFrameMat, { x: bx, y: 0.36, z: bz });
 						        base.userData = { kind: 'bench_base', side: t < 0 ? 'left' : 'right' };
-						        const back = addBox(new THREE.BoxGeometry(15.2, 1.78, 0.20), benchGlassMat, { x: bx, y: 1.32, z: bz + 1.32 });
+						        const back = addBox(new THREE.BoxGeometry(18.0, 2.15, 0.30), benchGlassMat, { x: bx, y: 1.45, z: bz + 1.72 });
 						        back.userData = { kind: 'bench_glass_back', side: t < 0 ? 'left' : 'right' };
-						        const roof = addBox(new THREE.BoxGeometry(15.8, 0.24, 3.40), benchGlassMat, { x: bx, y: 2.32, z: bz + 0.16 }, { x: -0.08, y: 0, z: 0 });
+						        const roof = addBox(new THREE.BoxGeometry(18.8, 0.32, 4.50), benchGlassMat, { x: bx, y: 2.64, z: bz + 0.20 }, { x: -0.08, y: 0, z: 0 });
 						        roof.userData = { kind: 'bench_glass_roof', side: t < 0 ? 'left' : 'right' };
-						        addBox(new THREE.BoxGeometry(0.20, 2.10, 3.15), benchFrameMat, { x: bx - 7.75, y: 1.16, z: bz });
-						        addBox(new THREE.BoxGeometry(0.20, 2.10, 3.15), benchFrameMat, { x: bx + 7.75, y: 1.16, z: bz });
-						        for (let rib = -3; rib <= 3; rib += 1) {
-						          const ribX = bx + (rib * 2.25);
-						          addBox(new THREE.BoxGeometry(0.10, 2.24, 0.12), benchFrameMat, { x: ribX, y: 1.45, z: bz - 1.48 }, { x: -0.16, y: 0, z: 0 }).userData = { kind: 'bench_front_curved_rib', side: t < 0 ? 'left' : 'right', rib };
-						          addBox(new THREE.BoxGeometry(0.10, 1.95, 0.12), benchFrameMat, { x: ribX, y: 1.42, z: bz + 1.48 }, { x: 0.10, y: 0, z: 0 }).userData = { kind: 'bench_back_curved_rib', side: t < 0 ? 'left' : 'right', rib };
+						        addBox(new THREE.BoxGeometry(0.24, 2.44, 4.15), benchFrameMat, { x: bx - 9.25, y: 1.34, z: bz });
+						        addBox(new THREE.BoxGeometry(0.24, 2.44, 4.15), benchFrameMat, { x: bx + 9.25, y: 1.34, z: bz });
+						        for (let rib = -4; rib <= 4; rib += 1) {
+						          const ribX = bx + (rib * 2.1);
+						          addBox(new THREE.BoxGeometry(0.16, 2.55, 0.16), benchFrameMat, { x: ribX, y: 1.62, z: bz - 1.98 }, { x: -0.18, y: 0, z: 0 }).userData = { kind: 'bench_front_curved_rib', side: t < 0 ? 'left' : 'right', rib };
+						          addBox(new THREE.BoxGeometry(0.16, 2.25, 0.16), benchFrameMat, { x: ribX, y: 1.58, z: bz + 2.02 }, { x: 0.10, y: 0, z: 0 }).userData = { kind: 'bench_back_curved_rib', side: t < 0 ? 'left' : 'right', rib };
 						        }
-						        const benchShadow = addBox(new THREE.BoxGeometry(16.6, 0.035, 4.15), new THREE.MeshBasicMaterial({ color: 0x020617, transparent: true, opacity: 0.22, depthWrite: false }), { x: bx, y: 0.082, z: bz + 0.10 });
+						        const benchShadow = addBox(new THREE.BoxGeometry(19.6, 0.035, 5.2), new THREE.MeshBasicMaterial({ color: 0x020617, transparent: true, opacity: 0.28, depthWrite: false }), { x: bx, y: 0.082, z: bz + 0.10 });
 						        benchShadow.userData = { kind: 'bench_contact_shadow', side: t < 0 ? 'left' : 'right' };
-						        for (let i = -5; i <= 5; i += 1) {
+						        for (let i = -6; i <= 6; i += 1) {
 						          const seat = addBox(new THREE.BoxGeometry(0.94, 0.36, 0.82), benchMat, { x: bx + (i * 1.18), y: 0.76, z: bz - 0.44 });
 						          seat.userData = { kind: 'bench_individual_seat', side: t < 0 ? 'left' : 'right', idx: i + 4 };
 						          const backSeat = addBox(new THREE.BoxGeometry(0.94, 0.88, 0.16), benchMat, { x: bx + (i * 1.18), y: 1.16, z: bz + 0.12 });
 						          backSeat.userData = { kind: 'bench_individual_back', side: t < 0 ? 'left' : 'right', idx: i + 4 };
 						        }
-						        const box = addBox(new THREE.BoxGeometry(2.7, 1.1, 1.25), techDarkMat, { x: bx + (t < 0 ? -8.9 : 8.9), y: 0.72, z: bz - 0.54 });
+						        const box = addBox(new THREE.BoxGeometry(3.25, 1.25, 1.55), techDarkMat, { x: bx + (t < 0 ? -10.15 : 10.15), y: 0.80, z: bz - 0.70 });
 						        box.userData = { kind: 'bench_equipment_box', side: t < 0 ? 'left' : 'right' };
 						        const benchCrestMat = makePitch3dCrestBadgeMaterial({ primary, secondary, initials: ctx.initials, imageUrl: ctx.crestUrl, width: 512, height: 512 });
 						        if (benchCrestMat) {
