@@ -8416,6 +8416,87 @@
 						      const primaryInt = toColorInt(ctx.primary, 0x0f7a35);
 						      const secondaryInt = toColorInt(ctx.secondary, 0xf8fafc);
 						      const cache = window.__WEBSTATS_STADIUM_MODEL_CACHE || (window.__WEBSTATS_STADIUM_MODEL_CACHE = {});
+						      const textureCache = window.__WEBSTATS_STADIUM_MATERIAL_TEXTURES || (window.__WEBSTATS_STADIUM_MATERIAL_TEXTURES = {});
+						      const hexStyle = (value, fallback) => `#${(Number.isFinite(value) ? value : fallback).toString(16).padStart(6, '0').slice(-6)}`;
+						      const makeMaterialTexture = (kind) => {
+						        const key = `${kind}:${primaryInt}:${secondaryInt}`;
+						        if (textureCache[key]) return textureCache[key];
+						        try {
+						          const canvas = document.createElement('canvas');
+						          canvas.width = 512;
+						          canvas.height = 512;
+						          const tctx = canvas.getContext('2d');
+						          if (!tctx) return null;
+						          const rnd = (i, mul = 1) => ((Math.sin((i + 1) * 127.1) * 43758.5453) % 1 + 1) % 1 * mul;
+						          if (kind === 'concrete') {
+						            tctx.fillStyle = '#8b9295';
+						            tctx.fillRect(0, 0, canvas.width, canvas.height);
+						            for (let i = 0; i < 3600; i += 1) {
+						              const v = 105 + Math.floor(rnd(i, 74));
+						              tctx.fillStyle = `rgba(${v},${v + 4},${v + 7},${0.16 + rnd(i + 5, 0.20)})`;
+						              tctx.fillRect(rnd(i + 11, canvas.width), rnd(i + 19, canvas.height), 1 + rnd(i + 23, 4), 1 + rnd(i + 31, 4));
+						            }
+						            tctx.strokeStyle = 'rgba(35,43,51,0.18)';
+						            tctx.lineWidth = 2;
+						            for (let i = 0; i < 9; i += 1) {
+						              const y = 32 + i * 56 + rnd(i + 41, 8);
+						              tctx.beginPath();
+						              tctx.moveTo(0, y);
+						              tctx.lineTo(canvas.width, y + rnd(i + 43, 8) - 4);
+						              tctx.stroke();
+						            }
+						          } else if (kind === 'roof') {
+						            const g = tctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+						            g.addColorStop(0, '#0f1720');
+						            g.addColorStop(0.45, '#26303a');
+						            g.addColorStop(1, '#080d13');
+						            tctx.fillStyle = g;
+						            tctx.fillRect(0, 0, canvas.width, canvas.height);
+						            for (let x = 0; x < canvas.width; x += 42) {
+						              tctx.fillStyle = 'rgba(255,255,255,0.08)';
+						              tctx.fillRect(x, 0, 2, canvas.height);
+						              tctx.fillStyle = 'rgba(0,0,0,0.20)';
+						              tctx.fillRect(x + 3, 0, 3, canvas.height);
+						            }
+						            for (let i = 0; i < 800; i += 1) {
+						              tctx.fillStyle = `rgba(255,255,255,${0.018 + rnd(i, 0.032)})`;
+						              tctx.fillRect(rnd(i + 7, canvas.width), rnd(i + 13, canvas.height), 1 + rnd(i + 17, 3), 1);
+						            }
+						          } else if (kind === 'seat') {
+						            const base = hexStyle(primaryInt, 0x0f7a35);
+						            tctx.fillStyle = base;
+						            tctx.fillRect(0, 0, canvas.width, canvas.height);
+						            for (let y = 0; y < canvas.height; y += 18) {
+						              tctx.fillStyle = 'rgba(255,255,255,0.075)';
+						              tctx.fillRect(0, y, canvas.width, 2);
+						              tctx.fillStyle = 'rgba(0,0,0,0.18)';
+						              tctx.fillRect(0, y + 11, canvas.width, 2);
+						            }
+						            for (let x = 0; x < canvas.width; x += 32) {
+						              tctx.fillStyle = 'rgba(255,255,255,0.035)';
+						              tctx.fillRect(x, 0, 2, canvas.height);
+						            }
+						          } else if (kind === 'seat_secondary') {
+						            const base = hexStyle(secondaryInt, 0xf8fafc);
+						            tctx.fillStyle = base;
+						            tctx.fillRect(0, 0, canvas.width, canvas.height);
+						            for (let y = 0; y < canvas.height; y += 18) {
+						              tctx.fillStyle = 'rgba(15,23,42,0.09)';
+						              tctx.fillRect(0, y + 11, canvas.width, 2);
+						            }
+						          }
+						          const tex = new THREE.CanvasTexture(canvas);
+						          tex.wrapS = THREE.RepeatWrapping;
+						          tex.wrapT = THREE.RepeatWrapping;
+						          tex.repeat.set(kind === 'roof' ? 8 : 12, kind === 'roof' ? 2 : 8);
+						          tex.anisotropy = 12;
+						          tex.needsUpdate = true;
+						          textureCache[key] = tex;
+						          return tex;
+						        } catch (e) {
+						          return null;
+						        }
+						      };
 						      const applyMaterials = (obj) => {
 						        try {
 						          obj.traverse((node) => {
@@ -8425,14 +8506,21 @@
 						            if (name.includes('club_primary')) {
 						              mat = mat.clone();
 						              mat.color.setHex(primaryInt);
+						              mat.map = makeMaterialTexture('seat');
+						              mat.bumpMap = mat.map;
+						              mat.bumpScale = 0.018;
 						              node.material = mat;
 						            } else if (name.includes('club_secondary')) {
 						              mat = mat.clone();
 						              mat.color.setHex(secondaryInt);
+						              mat.map = makeMaterialTexture('seat_secondary');
+						              mat.bumpMap = mat.map;
+						              mat.bumpScale = 0.012;
 						              node.material = mat;
 						            } else if (name.includes('seat_alternate')) {
 						              mat = mat.clone();
 						              mat.color.setHex(secondaryInt);
+						              mat.map = makeMaterialTexture('seat_secondary');
 						              node.material = mat;
 						            }
 						            try {
@@ -8442,6 +8530,9 @@
 						                mat.roughness = 0.46;
 						                mat.transparent = true;
 						                mat.opacity = 0.72;
+						                mat.map = makeMaterialTexture('roof');
+						                mat.bumpMap = mat.map;
+						                mat.bumpScale = 0.028;
 						                node.material = mat;
 						              } else if (name.includes('stadium_metal_rails')) {
 						                mat = node.material.clone();
@@ -8455,10 +8546,13 @@
 						                mat.roughness = 0.12;
 						                mat.metalness = 0.02;
 						                node.material = mat;
-						              } else if (name.includes('stadium_concrete')) {
+						              } else if (name.includes('stadium_concrete') || name.includes('stadium_warm_concrete') || name.includes('stadium_walkway_concrete')) {
 						                mat = node.material.clone();
 						                mat.roughness = 0.92;
 						                mat.metalness = 0.01;
+						                mat.map = makeMaterialTexture('concrete');
+						                mat.bumpMap = mat.map;
+						                mat.bumpScale = 0.026;
 						                node.material = mat;
 						              } else if (name.includes('stadium_light_panels')) {
 						                mat = node.material.clone();
@@ -10288,6 +10382,14 @@
 						                ctx.lineTo(c.width, y + 7);
 						                ctx.stroke();
 						              }
+							              ctx.strokeStyle = 'rgba(255,255,255,0.48)';
+							              ctx.lineWidth = 1.0;
+							              for (let x = 18; x <= c.width; x += 34) {
+						                ctx.beginPath();
+						                ctx.moveTo(x, 0);
+						                ctx.lineTo(x - 14, c.height);
+						                ctx.stroke();
+						              }
 							              ctx.globalAlpha = 0.20;
 						              ctx.strokeStyle = 'rgba(15,23,42,0.55)';
 							              for (let x = 20; x <= c.width; x += 60) {
@@ -10358,6 +10460,26 @@
 						            addTube({ x: frontX, y: goalH, z }, { x: backX, y: goalH, z });
 						            addTube({ x: frontX, y: 0.08, z }, { x: backX, y: 0.08, z }, 0.085);
 						            addTube({ x: frontX, y: goalH, z }, { x: backX, y: 0.12, z }, 0.075);
+						          });
+						          try {
+						            const shadowTex = makePitch3dCanvasTexture((ctx, c) => {
+						              const g = ctx.createRadialGradient(c.width * 0.5, c.height * 0.5, 0, c.width * 0.5, c.height * 0.5, c.width * 0.55);
+						              g.addColorStop(0, 'rgba(2,6,23,0.30)');
+						              g.addColorStop(0.62, 'rgba(2,6,23,0.14)');
+						              g.addColorStop(1, 'rgba(2,6,23,0)');
+						              ctx.fillStyle = g;
+						              ctx.fillRect(0, 0, c.width, c.height);
+						            }, 512, 256);
+						            const shadowMat = new THREE.MeshBasicMaterial({ map: shadowTex?.tex || null, transparent: true, depthWrite: false });
+						            const shadow = new THREE.Mesh(new THREE.PlaneGeometry(depth + 1.4, goalW + 1.2), shadowMat);
+						            shadow.rotation.x = -Math.PI / 2;
+						            shadow.position.set((frontX + backX) / 2, 0.055, baseZ);
+						            shadow.userData = { kind: 'goal_3d_ground_shadow' };
+						            root.add(shadow);
+						          } catch (e) { /* ignore */ }
+						          zs.forEach((z) => {
+						            addTube({ x: backX, y: 0.08, z }, { x: backX + (xSign * 0.82), y: 0.08, z }, 0.055);
+						            addTube({ x: backX, y: goalH, z }, { x: backX + (xSign * 0.70), y: goalH * 0.62, z }, 0.055);
 						          });
 						          const backNet = new THREE.Mesh(new THREE.PlaneGeometry(goalW, goalH), netMat);
 						          backNet.position.set(backX, goalH / 2, baseZ);
