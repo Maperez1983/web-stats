@@ -46,15 +46,17 @@ MATS = {}
 def init_materials():
     MATS.update(
         {
-            "concrete": mat("stadium_concrete", (0.48, 0.55, 0.61, 1), 0.88),
+            "concrete": mat("stadium_concrete", (0.54, 0.58, 0.60, 1), 0.90),
             "dark": mat("stadium_dark_shadow", (0.025, 0.035, 0.05, 1), 0.9),
             "rail": mat("stadium_metal_rails", (0.82, 0.86, 0.88, 1), 0.45, 0.18),
-            "roof": mat("stadium_roof_metal", (0.10, 0.13, 0.17, 1), 0.62, 0.15),
+            "roof": mat("stadium_roof_metal", (0.075, 0.095, 0.125, 1), 0.54, 0.20),
             "roof_glass": mat("stadium_roof_translucent_panels", (0.26, 0.34, 0.40, 0.22), 0.34, 0.04),
             "glass": mat("stadium_glass", (0.55, 0.77, 0.92, 0.36), 0.2),
             "baked_shadow": mat("stadium_baked_shadow", (0.02, 0.04, 0.06, 0.42), 0.95),
             "deep_void": mat("stadium_deep_void", (0.005, 0.010, 0.018, 1), 0.94),
             "warm_concrete": mat("stadium_warm_concrete", (0.62, 0.66, 0.68, 1), 0.84),
+            "walkway": mat("stadium_walkway_concrete", (0.40, 0.45, 0.49, 1), 0.86),
+            "asphalt": mat("stadium_asphalt_service_floor", (0.035, 0.043, 0.052, 1), 0.88),
             "club_primary": mat("club_primary_seats", (0.0, 0.22, 0.52, 1), 0.82),
             "club_secondary": mat("club_secondary_seats", (0.92, 0.96, 1.0, 1), 0.80),
             "seat_alt": mat("seat_alternate_pattern", (0.06, 0.33, 0.68, 1), 0.82),
@@ -722,6 +724,71 @@ def add_pitchside_details():
         flag.rotation_euler.z = rot
 
 
+def add_hero_asset_details():
+    # This layer turns the bowl from a tactical shell into a stadium asset: visible decks,
+    # roof engineering, media equipment and inner service areas similar to the reference render.
+    for side, sign in (("north", -1), ("south", 1)):
+        y_front = sign * (HALF_Y + 4.9)
+        y_mid = sign * (HALF_Y + 14.0)
+        y_back = sign * (HALF_Y + 28.9)
+        cube_obj(f"{side}_black_pitchside_trench", (0, y_front, 0.38), (PITCH_X + 18, 1.10, 0.76), MATS["deep_void"])
+        cube_obj(f"{side}_lower_service_walkway", (0, sign * (HALF_Y + 6.55), 0.28), (PITCH_X + 24, 2.2, 0.16), MATS["walkway"])
+        cube_obj(f"{side}_main_concourse_slab", (0, y_mid, 6.95), (PITCH_X + 30, 2.55, 0.28), MATS["walkway"])
+        cube_obj(f"{side}_upper_concourse_slab", (0, sign * (HALF_Y + 23.0), 12.55), (PITCH_X + 26, 2.15, 0.25), MATS["walkway"])
+        cube_obj(f"{side}_rear_service_gallery", (0, y_back, 10.0), (PITCH_X + 39, 1.35, 10.4), MATS["warm_concrete"])
+        cube_obj(f"{side}_rear_shadow_gap", (0, y_back - sign * 0.72, 10.8), (PITCH_X + 34, 0.38, 7.8), MATS["deep_void"])
+        for idx, x in enumerate(range(-56, 57, 8)):
+            cube_obj(f"{side}_roof_upright_{idx}", (x, y_back - sign * 2.6, 13.9), (0.28, 0.34, 7.5), MATS["rail"])
+            cylinder_between(
+                f"{side}_roof_cantilever_top_{idx}",
+                (x, y_back - sign * 2.6, 18.1),
+                (x + 2.6, y_back + sign * 6.8, 19.6),
+                0.075,
+                MATS["rail"],
+                vertices=8,
+            )
+            cylinder_between(
+                f"{side}_roof_cantilever_bottom_{idx}",
+                (x, y_back - sign * 2.6, 14.7),
+                (x + 2.6, y_back + sign * 6.8, 18.4),
+                0.070,
+                MATS["rail"],
+                vertices=8,
+            )
+            cube_obj(f"{side}_roof_light_cluster_{idx}", (x + 1.0, y_back - sign * 7.0, 14.25), (2.2, 0.18, 0.18), MATS["light"])
+        for idx, x in enumerate((-48, -32, -16, 16, 32, 48)):
+            cube_obj(f"{side}_vomitory_box_depth_{idx}", (x, sign * (HALF_Y + 8.35), 3.1), (4.4, 2.4, 2.25), MATS["deep_void"])
+            cube_obj(f"{side}_vomitory_concrete_lintel_{idx}", (x, sign * (HALF_Y + 7.15), 4.35), (5.4, 0.42, 0.52), MATS["concrete"])
+            cube_obj(f"{side}_stair_landing_{idx}", (x, sign * (HALF_Y + 11.0), 4.9), (2.0, 4.2, 0.20), MATS["walkway"])
+
+    for side, sign in (("west", -1), ("east", 1)):
+        x_front = sign * (HALF_X + 4.9)
+        x_mid = sign * (HALF_X + 13.8)
+        x_back = sign * (HALF_X + 28.7)
+        cube_obj(f"{side}_black_pitchside_trench", (x_front, 0, 0.38), (1.10, PITCH_Y + 18, 0.76), MATS["deep_void"])
+        cube_obj(f"{side}_lower_service_walkway", (sign * (HALF_X + 6.55), 0, 0.28), (2.2, PITCH_Y + 24, 0.16), MATS["walkway"])
+        cube_obj(f"{side}_main_concourse_slab", (x_mid, 0, 6.55), (2.35, PITCH_Y + 26, 0.26), MATS["walkway"])
+        cube_obj(f"{side}_upper_concourse_slab", (sign * (HALF_X + 22.3), 0, 12.1), (2.0, PITCH_Y + 22, 0.24), MATS["walkway"])
+        cube_obj(f"{side}_rear_service_gallery", (x_back, 0, 9.3), (1.28, PITCH_Y + 36, 9.5), MATS["warm_concrete"])
+        cube_obj(f"{side}_rear_shadow_gap", (x_back - sign * 0.70, 0, 9.9), (0.36, PITCH_Y + 31, 7.0), MATS["deep_void"])
+        for idx, y in enumerate(range(-39, 40, 8)):
+            cube_obj(f"{side}_roof_upright_{idx}", (x_back - sign * 2.4, y, 13.2), (0.32, 0.28, 6.8), MATS["rail"])
+            cylinder_between(
+                f"{side}_roof_cantilever_top_{idx}",
+                (x_back - sign * 2.4, y, 17.2),
+                (x_back + sign * 6.4, y + 2.0, 18.45),
+                0.070,
+                MATS["rail"],
+                vertices=8,
+            )
+            cube_obj(f"{side}_roof_light_cluster_{idx}", (x_back - sign * 7.2, y, 13.85), (0.18, 2.0, 0.18), MATS["light"])
+
+    for idx, (x, y) in enumerate(((-44, HALF_Y + 6.2), (-22, HALF_Y + 6.2), (22, HALF_Y + 6.2), (44, HALF_Y + 6.2))):
+        cube_obj(f"touchline_camera_box_{idx}", (x, y, 0.92), (1.4, 1.0, 0.75), MATS["deep_void"])
+        cylinder_between(f"touchline_camera_tripod_a_{idx}", (x, y, 0.18), (x, y, 1.22), 0.035, MATS["rail"], vertices=8)
+        cube_obj(f"touchline_camera_lens_{idx}", (x, y - 0.52, 1.12), (0.44, 0.32, 0.26), MATS["dark"])
+
+
 def add_exterior_render_details():
     # Low-detail exterior context gives the realtime camera the same "stadium render" depth as the reference.
     cube_obj("service_ring_inner_shadow", (0, 0, -0.10), (PITCH_X + 14, PITCH_Y + 14, 0.08), MATS["dark"])
@@ -777,6 +844,7 @@ def main():
     reset_scene()
     init_materials()
     add_pitchside_details()
+    add_hero_asset_details()
     add_exterior_render_details()
     add_side_stand_render("north_main", "north")
     add_side_stand_render("south_main", "south")
