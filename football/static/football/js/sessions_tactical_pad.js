@@ -9904,12 +9904,12 @@
 							        pitch3dOrbit.radius = Math.max(70, Math.max(metersW, metersH) * 1.25);
 						      } else if (k === 'render_original') {
 						        // Vista inspirada en el render de referencia: esquina alta, lente abierta y gradas en profundidad.
-							        pitch3dOrbit.theta = -2.28;
-							        pitch3dOrbit.phi = 1.25;
-							        pitch3dOrbit.radius = Math.max(96, metersW * 0.94);
-							        targetX = 3;
-							        targetY = 3.1;
-							        targetZ = -4;
+							        pitch3dOrbit.theta = -2.26;
+							        pitch3dOrbit.phi = 1.18;
+							        pitch3dOrbit.radius = Math.max(112, metersW * 1.05);
+							        targetX = 1;
+							        targetY = 4.2;
+							        targetZ = -3;
 						      } else if (k === 'stadium_render') {
 						        // Composición tipo render de estadio: esquina alta, campo completo y gradas dominantes.
 							        pitch3dOrbit.theta = -2.26;

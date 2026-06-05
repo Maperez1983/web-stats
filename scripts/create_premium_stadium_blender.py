@@ -724,11 +724,11 @@ def add_pitchside_details():
 
 def add_exterior_render_details():
     # Low-detail exterior context gives the realtime camera the same "stadium render" depth as the reference.
-    cube_obj("service_ring_outer_slab", (0, 0, -0.10), (PITCH_X + 22, PITCH_Y + 22, 0.08), MATS["dark"])
-    for side, sign in (("north", -1), ("south", 1)):
-        cube_obj(f"{side}_outer_access_deck", (0, sign * (HALF_Y + 36), 0.10), (PITCH_X + 34, 3.2, 0.18), MATS["concrete"])
-    for side, sign in (("west", -1), ("east", 1)):
-        cube_obj(f"{side}_outer_access_deck", (sign * (HALF_X + 36), 0, 0.10), (3.2, PITCH_Y + 34, 0.18), MATS["concrete"])
+    cube_obj("service_ring_inner_shadow", (0, 0, -0.10), (PITCH_X + 14, PITCH_Y + 14, 0.08), MATS["dark"])
+    cube_obj("north_camera_edge_dark_apron", (0, -(HALF_Y + 34.5), 0.05), (PITCH_X + 24, 1.15, 0.12), MATS["deep_void"])
+    cube_obj("north_camera_edge_front_rail", (0, -(HALF_Y + 33.85), 0.85), (PITCH_X + 22, 0.16, 1.05), MATS["rail"])
+    for idx, x in enumerate(range(-54, 55, 9)):
+        cube_obj(f"north_camera_edge_post_{idx}", (x, -(HALF_Y + 33.65), 0.88), (0.12, 0.12, 1.22), MATS["rail"])
     for idx, (x, y) in enumerate(((-66, -52), (66, -52), (-66, 52), (66, 52))):
         cube_obj(f"broadcast_tower_base_{idx}", (x, y, 2.2), (3.8, 3.8, 4.4), MATS["dark"])
         cylinder_between(f"broadcast_tower_mast_{idx}_a", (x - 1.4, y - 1.4, 4.4), (x - 1.4, y - 1.4, 18.5), 0.09, MATS["rail"], vertices=8)
