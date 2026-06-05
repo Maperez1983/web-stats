@@ -3,9 +3,12 @@
     "qa": "bash scripts/qa_suite.sh",
     "e2e:audit": "node scripts/e2e_audit_playwright.js",
     "e2e:task-layout": "node scripts/e2e_task_builder_layout_smoke.mjs",
-    "e2e:video-studio": "node scripts/e2e_video_studio_smoke.js"
+    "e2e:video-studio": "node scripts/e2e_video_studio_smoke.js",
+    "stadium:build": "/opt/homebrew/bin/blender --background --python scripts/create_premium_stadium_blender.py",
+    "stadium:inspect": "gltf-transform inspect football/static/football/models/stadium/premium-bowl-stadium.glb"
   },
   "devDependencies": {
+    "@gltf-transform/cli": "^4.3.0",
     "playwright": "^1.58.2"
   }
 }
