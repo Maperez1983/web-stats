@@ -5673,6 +5673,8 @@
 				        data-tpad-src="{% static 'football/js/sessions_tactical_pad.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 				        data-three-src="{% static 'vendor/three.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 				        data-three-gltf-loader-src="{% static 'vendor/three/examples/jsm/loaders/GLTFLoader.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
+				        data-three-draco-loader-src="{% static 'vendor/three/examples/jsm/loaders/DRACOLoader.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
+				        data-three-draco-decoder-path="{% static 'vendor/three/examples/jsm/libs/draco/gltf/' %}"
 				        data-sim3d-src="{% static 'football/js/tpad_sim_3d_viewer.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 				        data-stadium-team-name="{{ tactics_team_name|default:'Equipo'|escape }}"
 				        data-stadium-club-name="{{ tactics_club_name|default:'Club'|escape }}"
@@ -8612,6 +8614,7 @@
 		        const tpadSrc = String(form.dataset.tpadSrc || '').trim();
 		        const threeSrc = String(form.dataset.threeSrc || '').trim();
 		        const threeGltfLoaderSrc = String(form.dataset.threeGltfLoaderSrc || '').trim();
+		        const threeDracoLoaderSrc = String(form.dataset.threeDracoLoaderSrc || '').trim();
 		        const sim3dSrc = String(form.dataset.sim3dSrc || '').trim();
 		        const statusEl = document.getElementById('task-builder-status');
 
@@ -8706,8 +8709,19 @@
 			          if (!threeGltfLoaderSrc) return Promise.resolve(false);
 			          try { if (window.__WEBSTATS_GLTF_LOADER_CLASS) return Promise.resolve(true); } catch (e) { /* ignore */ }
 			          if (window.__webstats_gltf_loader_promise) return window.__webstats_gltf_loader_promise;
-			          window.__webstats_gltf_loader_promise = import(threeGltfLoaderSrc)
-			            .then((mod) => {
+			          const dracoPromise = threeDracoLoaderSrc
+			            ? import(threeDracoLoaderSrc)
+			                .then((mod) => {
+			                  try { window.__WEBSTATS_DRACO_LOADER_CLASS = mod && mod.DRACOLoader; } catch (e) { /* ignore */ }
+			                  return !!(mod && mod.DRACOLoader);
+			                })
+			                .catch(() => false)
+			            : Promise.resolve(false);
+			          window.__webstats_gltf_loader_promise = Promise.all([
+			            import(threeGltfLoaderSrc),
+			            dracoPromise,
+			          ])
+			            .then(([mod]) => {
 			              try { window.__WEBSTATS_GLTF_LOADER_CLASS = mod && mod.GLTFLoader; } catch (e) { /* ignore */ }
 			              return !!(mod && mod.GLTFLoader);
 			            })

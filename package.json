@@ -5,10 +5,12 @@
     "e2e:task-layout": "node scripts/e2e_task_builder_layout_smoke.mjs",
     "e2e:video-studio": "node scripts/e2e_video_studio_smoke.js",
     "stadium:build": "/opt/homebrew/bin/blender --background --python scripts/create_premium_stadium_blender.py",
+    "stadium:compress:draco": "gltf-transform draco football/static/football/models/stadium/premium-bowl-stadium.glb football/static/football/models/stadium/premium-bowl-stadium.glb",
     "stadium:inspect": "gltf-transform inspect football/static/football/models/stadium/premium-bowl-stadium.glb"
   },
   "devDependencies": {
     "@gltf-transform/cli": "^4.3.0",
-    "playwright": "^1.58.2"
+    "playwright": "^1.58.2",
+    "three": "^0.160.0"
   }
 }

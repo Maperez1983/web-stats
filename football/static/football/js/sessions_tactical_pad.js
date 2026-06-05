@@ -8363,6 +8363,8 @@
 						        crestUrl: safeText(form?.dataset?.stadiumTeamCrestUrl),
 						        modelSrc: safeText(form?.dataset?.stadiumModelSrc),
 						        gltfLoaderSrc: safeText(form?.dataset?.threeGltfLoaderSrc),
+						        dracoLoaderSrc: safeText(form?.dataset?.threeDracoLoaderSrc),
+						        dracoDecoderPath: safeText(form?.dataset?.threeDracoDecoderPath),
 						        mainStandSrc: safeText(form?.dataset?.stadiumMainStandSrc),
 						        sponsorLogos,
 						        ads: {
@@ -8380,10 +8382,25 @@
 
 						    const loadPitch3dBlenderStadium = (group, ctx, metersW, metersH) => {
 						      if (!group || !window.THREE || !ctx?.modelSrc) return false;
+						      const hasDracoConfig = !!(ctx?.dracoLoaderSrc && ctx?.dracoDecoderPath);
+						      const configureDraco = (loader) => {
+						        try {
+						          const DracoLoaderClass = window.__WEBSTATS_DRACO_LOADER_CLASS;
+						          if (!loader || typeof loader.setDRACOLoader !== 'function' || typeof DracoLoaderClass !== 'function' || !ctx.dracoDecoderPath) return false;
+						          const dracoLoader = new DracoLoaderClass();
+						          dracoLoader.setDecoderPath(ctx.dracoDecoderPath);
+						          loader.setDRACOLoader(dracoLoader);
+						          return true;
+						        } catch (e) {
+						          return false;
+						        }
+						      };
 						      const loadWithClass = (LoaderClass) => {
 						        if (typeof LoaderClass !== 'function') return false;
 						        try {
+						          if (hasDracoConfig && typeof window.__WEBSTATS_DRACO_LOADER_CLASS !== 'function') return false;
 						          const loader = new LoaderClass();
+						          configureDraco(loader);
 						          loader.load(ctx.modelSrc, (gltf) => {
 						            try {
 						              if (!gltf?.scene) return;
@@ -8482,7 +8499,15 @@
 						      if (loadWithClass(window.__WEBSTATS_GLTF_LOADER_CLASS)) return true;
 						      if (ctx.gltfLoaderSrc) {
 						        try {
-						          import(ctx.gltfLoaderSrc).then((mod) => {
+						          const dracoPromise = hasDracoConfig
+						            ? import(ctx.dracoLoaderSrc)
+						                .then((mod) => {
+						                  try { window.__WEBSTATS_DRACO_LOADER_CLASS = mod && mod.DRACOLoader; } catch (e) { /* ignore */ }
+						                  return true;
+						                })
+						                .catch(() => false)
+						            : Promise.resolve(false);
+						          Promise.all([import(ctx.gltfLoaderSrc), dracoPromise]).then(([mod]) => {
 						            try {
 						              window.__WEBSTATS_GLTF_LOADER_CLASS = mod && mod.GLTFLoader;
 						              loadWithClass(window.__WEBSTATS_GLTF_LOADER_CLASS);
