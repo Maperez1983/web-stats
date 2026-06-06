@@ -18,7 +18,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.setSize(root.clientWidth, root.clientHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.96;
+renderer.toneMappingExposure = 1.02;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 root.appendChild(renderer.domElement);
@@ -40,7 +40,7 @@ const cam = {
 };
 
 scene.add(new THREE.HemisphereLight(0xd5ebff, 0x1f2d1f, 1.6));
-const sun = new THREE.DirectionalLight(0xffedc9, 4.2);
+const sun = new THREE.DirectionalLight(0xffedc9, 4.8);
 sun.position.set(-86, -110, 118);
 sun.castShadow = true;
 sun.shadow.mapSize.set(4096, 4096);
@@ -59,8 +59,18 @@ function enhanceMaterial(material) {
   mat.needsUpdate = true;
   if (name.includes('grass')) {
     mat.roughness = 0.82;
+    mat.color = mat.color?.clone?.() || new THREE.Color(0xffffff);
   } else if (name.includes('concrete')) {
     mat.roughness = 0.92;
+  } else if (name.includes('pure_white_seat') || name.includes('pitch_line_clean_white')) {
+    mat.color = new THREE.Color(0xffffff);
+    mat.roughness = 0.52;
+  } else if (name.includes('club_deep_green_seats')) {
+    mat.color = new THREE.Color(0x003d1c);
+    mat.roughness = 0.58;
+  } else if (name.includes('club_dark_green_fascia')) {
+    mat.color = new THREE.Color(0x002417);
+    mat.roughness = 0.66;
   } else if (name.includes('steel') || name.includes('roof')) {
     mat.metalness = name.includes('steel') ? 0.46 : 0.25;
     mat.roughness = name.includes('steel') ? 0.34 : 0.45;
