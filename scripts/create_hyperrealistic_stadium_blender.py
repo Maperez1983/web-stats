@@ -11,6 +11,7 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 OUT_BLEND = OUT_DIR / "benagalbon-hyperrealistic-stadium.blend"
 OUT_GLB = OUT_DIR / "benagalbon-hyperrealistic-stadium.glb"
 OUT_PREVIEW = ROOT / "football" / "static" / "football" / "images" / "stadium" / "benagalbon-hyperrealistic-preview.png"
+OUT_PRODUCTION_RENDER = ROOT / "football" / "static" / "football" / "images" / "stadium" / "benagalbon-production-render.png"
 OUT_PREVIEW.parent.mkdir(parents=True, exist_ok=True)
 REFERENCE_TEX_DIR = Path("/Volumes/Mac Satecchi/Mac/Downloads/Nueva carpeta con ítems 2/dragon_stadium/textures")
 
@@ -80,7 +81,7 @@ def reset_scene():
         bg.inputs["Strength"].default_value = 0.75
 
 
-def material(name, color, roughness=0.75, metallic=0.0, alpha=1.0, emission=None, emission_strength=0.0, texture=None, texture_mix=0.55):
+def material(name, color, roughness=0.75, metallic=0.0, alpha=1.0, emission=None, emission_strength=0.0, texture=None, texture_mix=0.55, bump=False):
     mat = bpy.data.materials.new(name)
     mat.diffuse_color = (color[0], color[1], color[2], alpha)
     mat.use_nodes = True
@@ -109,6 +110,16 @@ def material(name, color, roughness=0.75, metallic=0.0, alpha=1.0, emission=None
             mat.node_tree.links.new(tex.outputs["Color"], mix.inputs["Color1"])
             mat.node_tree.links.new(tint.outputs["Color"], mix.inputs["Color2"])
             mat.node_tree.links.new(mix.outputs["Color"], bsdf.inputs["Base Color"])
+        if bump and "Normal" in bsdf.inputs:
+            noise = mat.node_tree.nodes.new("ShaderNodeTexNoise")
+            noise.inputs["Scale"].default_value = 42
+            noise.inputs["Detail"].default_value = 8
+            noise.inputs["Roughness"].default_value = 0.56
+            bump_node = mat.node_tree.nodes.new("ShaderNodeBump")
+            bump_node.inputs["Strength"].default_value = 0.045
+            bump_node.inputs["Distance"].default_value = 0.09
+            mat.node_tree.links.new(noise.outputs["Fac"], bump_node.inputs["Height"])
+            mat.node_tree.links.new(bump_node.outputs["Normal"], bsdf.inputs["Normal"])
     if alpha < 1:
         mat.blend_method = "BLEND"
         mat.use_screen_refraction = True
@@ -124,8 +135,8 @@ def init_materials():
     steel_tex = REFERENCE_TEX_DIR / "Stal_04__szczotkowana_4_baseColor.png"
     M.update(
         {
-            "grass_a": material("grass_mowed_deep_textured", (0.10, 0.38, 0.08), 0.91, texture=grass_tex, texture_mix=0.30),
-            "grass_b": material("grass_mowed_bright_textured", (0.24, 0.54, 0.12), 0.89, texture=grass_tex, texture_mix=0.26),
+            "grass_a": material("grass_mowed_deep_textured", (0.10, 0.38, 0.08), 0.91, texture=grass_tex, texture_mix=0.30, bump=True),
+            "grass_b": material("grass_mowed_bright_textured", (0.24, 0.54, 0.12), 0.89, texture=grass_tex, texture_mix=0.26, bump=True),
             "grass_detail_dark": material("grass_fine_dark_variation", (0.08, 0.29, 0.08), 0.94),
             "grass_detail_light": material("grass_fine_light_variation", (0.25, 0.50, 0.14), 0.92),
             "grass_wear": material("pitch_worn_grass_subtle", (0.38, 0.54, 0.24), 0.96, 0.0, 0.18),
@@ -133,8 +144,8 @@ def init_materials():
             "grass_blade": material("individual_grass_blades", (0.07, 0.30, 0.07), 0.92, 0.0, 0.68),
             "line_shadow": material("painted_line_soft_edge", (0.82, 0.88, 0.78), 0.72, 0.0, 0.42),
             "white": material("pitch_line_clean_white", (1.0, 1.0, 1.0), 0.50),
-            "concrete": material("cast_concrete_light_textured", (0.58, 0.61, 0.60), 0.91, texture=concrete_tex, texture_mix=0.50),
-            "concrete_dark": material("weathered_concrete_shadow_textured", (0.30, 0.34, 0.35), 0.94, texture=concrete_tex, texture_mix=0.64),
+            "concrete": material("cast_concrete_light_textured", (0.58, 0.61, 0.60), 0.91, texture=concrete_tex, texture_mix=0.50, bump=True),
+            "concrete_dark": material("weathered_concrete_shadow_textured", (0.30, 0.34, 0.35), 0.94, texture=concrete_tex, texture_mix=0.64, bump=True),
             "asphalt": material("service_asphalt", (0.035, 0.045, 0.047), 0.86),
             "green": material("club_deep_green_seats", (0.0, 0.21, 0.085), 0.62),
             "green_dark": material("club_dark_green_fascia", (0.0, 0.07, 0.045), 0.72),
@@ -162,10 +173,12 @@ def cube(name, loc, scale, mat_name, bevel=0.0):
     obj.dimensions = scale
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
     obj.data.materials.append(M[mat_name])
+    if bevel == 0.0:
+        bevel = 0.006 if max(scale) < 25 else 0.012
     if bevel > 0:
         mod = obj.modifiers.new(f"{name}_bevel", "BEVEL")
         mod.width = bevel
-        mod.segments = 2
+        mod.segments = 2 if bevel >= 0.012 else 1
         obj.modifiers.new(f"{name}_weighted_normals", "WEIGHTED_NORMAL")
     return obj
 
@@ -210,6 +223,9 @@ def mesh_boxes(name, boxes, mat_name):
     obj = bpy.data.objects.new(name, mesh)
     bpy.context.collection.objects.link(obj)
     mesh.materials.append(M[mat_name])
+    bevel = obj.modifiers.new(f"{name}_softened_edges", "BEVEL")
+    bevel.width = 0.012
+    bevel.segments = 1
     obj.modifiers.new(f"{name}_weighted_normals", "WEIGHTED_NORMAL")
     return obj
 
@@ -398,13 +414,24 @@ def add_long_stand(name, sign):
                 letter_seat = seat_text_mask("CDB", col, row, 148, rows, start_col=54, end_col=94)
             random_white = False if sign > 0 else (row + col) % 97 == 0
             target = secondary if letter_seat or random_white else primary
-            back_target = backs_secondary if target is secondary else backs_primary
+            back_target = backs_primary if sign > 0 and letter_seat else (backs_secondary if target is secondary else backs_primary)
             target.append(((x, y - sign * 0.04, z + 0.05), (0.40, 0.30, 0.16)))
             back_target.append(((x, y + sign * 0.12, z + 0.30), (0.40, 0.08, 0.38)))
     mesh_boxes(f"{name}_green_seats", primary, "green")
     mesh_boxes(f"{name}_white_seats", secondary, "seat_white")
     mesh_boxes(f"{name}_green_seat_backs", backs_primary, "green")
     mesh_boxes(f"{name}_white_seat_backs", backs_secondary, "seat_white")
+    if sign > 0:
+        seating_angle = math.atan2(0.48, 0.78)
+        add_text(
+            f"{name}_seat_name_overlay",
+            "BENAGALBON CD",
+            (0, base_y + sign * 10.85, 8.45),
+            7.25,
+            "seat_white",
+            rot=(seating_angle, 0, 0),
+            extrude=0.012,
+        )
     cube(f"{name}_front_fascia", (0, base_y - sign * 1.2, 2.1), (PITCH_X + 32, 0.8, 1.25), "green_dark", 0.04)
     cube(f"{name}_middle_concourse_ring", (0, base_y + sign * 11.4, 8.7), (PITCH_X + 31, 1.25, 1.25), "concrete_dark", 0.03)
     cube(f"{name}_rear_service_wall", (0, base_y + sign * 27.4, 11.8), (PITCH_X + 45, 1.05, 10.5), "concrete", 0.03)
@@ -639,15 +666,6 @@ def add_screen_and_crest():
 
 
 def add_environment():
-    for name, loc, scale in [
-        ("sky_backdrop_north", (0, 178, 78), (520, 1.0, 210)),
-        ("sky_backdrop_east", (176, 0, 78), (1.0, 360, 210)),
-    ]:
-        sky_panel = cube(name, loc, scale, "sky")
-        try:
-            sky_panel.visible_shadow = False
-        except Exception:
-            pass
     for i in range(14):
         x = -170 + i * 20
         y = 128 + math.sin(i * 1.7) * 8
@@ -691,14 +709,14 @@ def add_lighting_and_camera():
             light.data.size = 6
             direction = Vector((0, 0, 0)) - Vector(light.location)
             light.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
-    bpy.ops.object.camera_add(location=(-76, -72, 38), rotation=(math.radians(62), 0, math.radians(-42)))
+    bpy.ops.object.camera_add(location=(-96, -64, 58), rotation=(math.radians(62), 0, math.radians(-42)))
     cam = bpy.context.object
     bpy.context.scene.camera = cam
-    direction = Vector((4, 2, 5.4)) - Vector(cam.location)
+    direction = Vector((0, 0, 5.4)) - Vector(cam.location)
     cam.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
-    cam.data.lens = 21
+    cam.data.lens = 23
     cam.data.dof.use_dof = True
-    cam.data.dof.focus_distance = 86
+    cam.data.dof.focus_distance = 110
     cam.data.dof.aperture_fstop = 8.0
 
 
@@ -728,9 +746,14 @@ def main():
     scene.render.resolution_y = 1012
     scene.render.filepath = str(OUT_PREVIEW)
     bpy.ops.render.render(write_still=True)
+    scene.render.resolution_x = 2400
+    scene.render.resolution_y = 1350
+    scene.render.filepath = str(OUT_PRODUCTION_RENDER)
+    bpy.ops.render.render(write_still=True)
     print(f"BLEND={OUT_BLEND}")
     print(f"GLB={OUT_GLB}")
     print(f"PREVIEW={OUT_PREVIEW}")
+    print(f"PRODUCTION_RENDER={OUT_PRODUCTION_RENDER}")
 
 
 if __name__ == "__main__":
