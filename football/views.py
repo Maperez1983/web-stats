@@ -1682,6 +1682,10 @@ def product_landing_page(request):
     )
 
 
+def hyperrealistic_stadium_page(request):
+    return render(request, 'football/stadium_hyperrealistic.html')
+
+
 def _support_email():
     return (str(os.getenv('SUPPORT_EMAIL') or os.getenv('APP_SUPPORT_EMAIL') or '').strip() or 'soporte@segundajugada.es').strip()
 
