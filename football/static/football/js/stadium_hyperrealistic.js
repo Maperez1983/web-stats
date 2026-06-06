@@ -30,9 +30,9 @@ scene.fog = new THREE.Fog(0x9fcaec, 150, 360);
 const camera = new THREE.PerspectiveCamera(38, root.clientWidth / root.clientHeight, 0.1, 700);
 const target = new THREE.Vector3(0, 0, 3.5);
 const cam = {
-  yaw: -2.34,
-  pitch: 0.52,
-  radius: 142,
+  yaw: -2.30,
+  pitch: 0.30,
+  radius: 108,
   auto: true,
   dragging: false,
   x: 0,
@@ -121,14 +121,14 @@ function setPreset(name) {
     cam.pitch = 0.26;
     cam.radius = 92;
   } else {
-    cam.yaw = -2.34;
-    cam.pitch = 0.52;
-    cam.radius = 142;
+    cam.yaw = -2.30;
+    cam.pitch = 0.30;
+    cam.radius = 108;
   }
 }
 
 function updateCamera(t) {
-  if (cam.auto) cam.yaw = -2.34 + Math.sin(t * 0.00012) * 0.08;
+  if (cam.auto) cam.yaw = -2.30 + Math.sin(t * 0.00012) * 0.045;
   cam.pitch = Math.max(0.14, Math.min(1.1, cam.pitch));
   cam.radius = Math.max(60, Math.min(230, cam.radius));
   const horizontal = Math.cos(cam.pitch) * cam.radius;

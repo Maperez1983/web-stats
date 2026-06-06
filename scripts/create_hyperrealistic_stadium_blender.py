@@ -65,14 +65,19 @@ def reset_scene():
     bpy.ops.object.delete()
     scene = bpy.context.scene
     scene.render.engine = "CYCLES"
-    scene.cycles.samples = 96
+    scene.cycles.samples = 160
     scene.cycles.use_denoising = True
     scene.view_settings.view_transform = "Standard"
     scene.view_settings.look = "Medium High Contrast"
-    scene.view_settings.exposure = -0.12
+    scene.view_settings.exposure = -0.55
     scene.view_settings.gamma = 1
     scene.world = bpy.data.worlds.new("stadium_sky")
-    scene.world.color = (0.62, 0.78, 0.94)
+    scene.world.color = (0.55, 0.72, 0.88)
+    scene.world.use_nodes = True
+    bg = scene.world.node_tree.nodes.get("Background")
+    if bg:
+        bg.inputs["Color"].default_value = (0.55, 0.72, 0.88, 1)
+        bg.inputs["Strength"].default_value = 0.75
 
 
 def material(name, color, roughness=0.75, metallic=0.0, alpha=1.0, emission=None, emission_strength=0.0, texture=None, texture_mix=0.55):
@@ -119,23 +124,29 @@ def init_materials():
     steel_tex = REFERENCE_TEX_DIR / "Stal_04__szczotkowana_4_baseColor.png"
     M.update(
         {
-            "grass_a": material("grass_mowed_deep_textured", (0.08, 0.35, 0.08), 0.91, texture=grass_tex, texture_mix=0.26),
-            "grass_b": material("grass_mowed_bright_textured", (0.21, 0.50, 0.11), 0.89, texture=grass_tex, texture_mix=0.22),
+            "grass_a": material("grass_mowed_deep_textured", (0.10, 0.38, 0.08), 0.91, texture=grass_tex, texture_mix=0.30),
+            "grass_b": material("grass_mowed_bright_textured", (0.24, 0.54, 0.12), 0.89, texture=grass_tex, texture_mix=0.26),
             "grass_detail_dark": material("grass_fine_dark_variation", (0.08, 0.29, 0.08), 0.94),
             "grass_detail_light": material("grass_fine_light_variation", (0.25, 0.50, 0.14), 0.92),
+            "grass_wear": material("pitch_worn_grass_subtle", (0.38, 0.54, 0.24), 0.96, 0.0, 0.18),
+            "grass_shadow": material("pitch_grain_soft_shadow", (0.03, 0.13, 0.04), 0.96, 0.0, 0.16),
+            "grass_blade": material("individual_grass_blades", (0.07, 0.30, 0.07), 0.92, 0.0, 0.68),
+            "line_shadow": material("painted_line_soft_edge", (0.82, 0.88, 0.78), 0.72, 0.0, 0.42),
             "white": material("pitch_line_clean_white", (1.0, 1.0, 1.0), 0.50),
-            "concrete": material("cast_concrete_light_textured", (0.70, 0.73, 0.73), 0.91, texture=concrete_tex, texture_mix=0.50),
-            "concrete_dark": material("weathered_concrete_shadow_textured", (0.45, 0.49, 0.50), 0.94, texture=concrete_tex, texture_mix=0.64),
+            "concrete": material("cast_concrete_light_textured", (0.58, 0.61, 0.60), 0.91, texture=concrete_tex, texture_mix=0.50),
+            "concrete_dark": material("weathered_concrete_shadow_textured", (0.30, 0.34, 0.35), 0.94, texture=concrete_tex, texture_mix=0.64),
             "asphalt": material("service_asphalt", (0.035, 0.045, 0.047), 0.86),
-            "green": material("club_deep_green_seats", (0.0, 0.26, 0.10), 0.62),
-            "green_dark": material("club_dark_green_fascia", (0.0, 0.08, 0.055), 0.72),
+            "green": material("club_deep_green_seats", (0.0, 0.21, 0.085), 0.62),
+            "green_dark": material("club_dark_green_fascia", (0.0, 0.07, 0.045), 0.72),
             "seat_white": material("pure_white_seat_mosaic", (1.0, 1.0, 1.0), 0.48),
             "steel": material("galvanized_steel_textured", (0.78, 0.82, 0.82), 0.32, 0.38, texture=steel_tex, texture_mix=0.30),
-            "roof": material("dark_roof_metal_textured", (0.08, 0.11, 0.13), 0.44, 0.30, texture=steel_tex, texture_mix=0.42),
+            "roof": material("dark_roof_metal_textured", (0.035, 0.047, 0.055), 0.44, 0.34, texture=steel_tex, texture_mix=0.42),
             "glass": material("curved_dugout_glass", (0.56, 0.82, 0.96), 0.10, 0.02, 0.38),
+            "net": material("goal_net_fine_white", (0.98, 1.0, 1.0), 0.62, 0.0, 0.56),
+            "rubber": material("technical_black_rubber", (0.015, 0.018, 0.017), 0.70),
             "screen": material("screen_dark_led", (0.015, 0.025, 0.020), 0.36, emission=(0.0, 0.20, 0.11), emission_strength=0.6),
             "light": material("stadium_warm_led", (1.0, 0.90, 0.68), 0.22, emission=(1.0, 0.84, 0.46), emission_strength=3.5),
-            "sky": material("clear_summer_sky", (0.54, 0.75, 0.94), 0.9, emission=(0.54, 0.75, 0.94), emission_strength=0.22),
+            "sky": material("clear_summer_sky", (0.54, 0.75, 0.94), 0.9, emission=(0.54, 0.75, 0.94), emission_strength=0.08),
             "cloud": material("soft_white_cloud", (0.92, 0.96, 1.0), 0.95),
             "tree": material("distant_tree_canopy", (0.10, 0.32, 0.16), 0.84),
             "city": material("distant_city_blocks", (0.62, 0.67, 0.70), 0.82),
@@ -270,6 +281,46 @@ def add_pitch():
         cube(f"six_box_{side}_front", (x - side * 5.5, 0, z), (line, 18.32, 0.035), "white")
     add_circle_line("center_circle", (0, 0, z + 0.01), 9.15, "white")
     add_circle_line("center_spot", (0, 0, z + 0.02), 0.42, "white", fill=True)
+
+
+def add_pitch_professional_detail():
+    seed = 91
+    dark, wear = [], []
+    for i in range(900):
+        seed = (seed * 1664525 + 1013904223) & 0xFFFFFFFF
+        rx = seed / 0xFFFFFFFF
+        seed = (seed * 1664525 + 1013904223) & 0xFFFFFFFF
+        ry = seed / 0xFFFFFFFF
+        seed = (seed * 1664525 + 1013904223) & 0xFFFFFFFF
+        rr = seed / 0xFFFFFFFF
+        x = -HALF_X + rx * PITCH_X
+        y = -HALF_Y + ry * PITCH_Y
+        if abs(x) > HALF_X - 1 or abs(y) > HALF_Y - 1:
+            continue
+        sx = 0.35 + rr * 1.4
+        sy = 0.018 + rr * 0.035
+        target = dark if i % 4 else wear
+        target.append(((x, y, 0.118 + i * 0.000001), (sx, sy, 0.006)))
+    mesh_boxes("pitch_grain_soft_dark", dark, "grass_shadow")
+    mesh_boxes("pitch_worn_subtle_variation", wear, "grass_wear")
+
+
+def add_low_grass_geometry():
+    blades = []
+    seed = 441
+    for i in range(2600):
+        seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF
+        rx = seed / 0x7FFFFFFF
+        seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF
+        ry = seed / 0x7FFFFFFF
+        seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF
+        rr = seed / 0x7FFFFFFF
+        x = -HALF_X + rx * PITCH_X
+        y = -HALF_Y + ry * PITCH_Y
+        if i % 5 and abs(x) < HALF_X - 2 and abs(y) < HALF_Y - 2:
+            continue
+        blades.append(((x, y, 0.16 + rr * 0.018), (0.035 + rr * 0.025, 0.012, 0.12 + rr * 0.08)))
+    mesh_boxes("short_3d_grass_catchlights", blades, "grass_blade")
 
 
 def add_grass_fine_variation():
@@ -492,11 +543,44 @@ def add_goals_and_benches():
         ]
         for a, b in [(0, 1), (1, 2), (2, 3), (1, 5), (2, 6), (5, 6), (4, 5), (6, 7), (0, 4), (3, 7)]:
             cylinder_between(f"goal_{sign}_{a}_{b}", pts[a], pts[b], 0.055, "white", 12)
+        for i in range(7):
+            yy = -w / 2 + i * (w / 6)
+            cylinder_between(f"goal_net_roof_{sign}_{i}", (x, yy, h), (x + back, yy, h * 0.82), 0.012, "net", 6)
+            cylinder_between(f"goal_net_back_{sign}_{i}", (x + back, yy, 0.1), (x + back, yy, h * 0.82), 0.010, "net", 6)
+        for i in range(5):
+            zz = 0.38 + i * (h * 0.70 / 4)
+            cylinder_between(f"goal_net_horizontal_{sign}_{i}", (x + back, -w / 2, zz), (x + back, w / 2, zz), 0.010, "net", 6)
     for side, x in enumerate([-22, 22]):
         cube(f"dugout_base_{side}", (x, -HALF_Y - 8.0, 0.55), (13, 1.25, 0.38), "green_dark", 0.04)
-        cube(f"dugout_glass_{side}", (x, -HALF_Y - 8.6, 1.62), (13.5, 0.28, 2.1), "glass", 0.02)
+        cube(f"dugout_floor_rubber_{side}", (x, -HALF_Y - 7.65, 0.78), (12.4, 0.55, 0.08), "rubber", 0.02)
+        cube(f"dugout_glass_front_{side}", (x, -HALF_Y - 8.6, 1.62), (13.5, 0.20, 2.1), "glass", 0.02)
+        cube(f"dugout_glass_roof_{side}", (x, -HALF_Y - 8.0, 2.75), (13.5, 1.55, 0.18), "glass", 0.02)
+        for rib in range(7):
+            rx = x - 6.0 + rib * 2.0
+            cylinder_between(f"dugout_arc_rib_{side}_{rib}_front", (rx, -HALF_Y - 8.68, 0.85), (rx, -HALF_Y - 8.68, 2.75), 0.035, "steel", 8)
+            cylinder_between(f"dugout_arc_rib_{side}_{rib}_roof", (rx, -HALF_Y - 8.68, 2.75), (rx, -HALF_Y - 7.25, 2.40), 0.035, "steel", 8)
         for i in range(9):
             cube(f"dugout_seat_{side}_{i}", (x - 4.4 + i * 1.1, -HALF_Y - 7.8, 0.92), (0.62, 0.50, 0.28), "green", 0.03)
+
+
+def add_broadcast_and_matchday_details():
+    for i, (x, y, rz) in enumerate([(-35, -HALF_Y - 13, 0), (35, -HALF_Y - 13, 0), (-HALF_X - 9, 0, 90), (HALF_X + 9, 0, -90)]):
+        cube(f"camera_platform_{i}", (x, y, 3.25), (4.2, 2.2, 0.28), "concrete_dark", 0.03)
+        cylinder_between(f"camera_tripod_{i}_a", (x, y, 3.25), (x - 0.75, y - 0.45, 2.05), 0.035, "steel", 8)
+        cylinder_between(f"camera_tripod_{i}_b", (x, y, 3.25), (x + 0.75, y - 0.45, 2.05), 0.035, "steel", 8)
+        cylinder_between(f"camera_tripod_{i}_c", (x, y, 3.25), (x, y + 0.75, 2.05), 0.035, "steel", 8)
+        cam_body = cube(f"broadcast_camera_body_{i}", (x, y, 3.8), (0.75, 0.42, 0.34), "roof", 0.025)
+        cam_body.rotation_euler.z = math.radians(rz)
+        lens = cylinder_between(f"broadcast_camera_lens_{i}", (x, y, 3.8), (x + math.cos(math.radians(rz)) * 0.85, y + math.sin(math.radians(rz)) * 0.85, 3.8), 0.12, "steel", 16)
+        lens.rotation_euler.z += math.radians(90)
+    for i, (x, y) in enumerate([(-HALF_X, -HALF_Y), (-HALF_X, HALF_Y), (HALF_X, -HALF_Y), (HALF_X, HALF_Y)]):
+        pole_x = x + (1.0 if x < 0 else -1.0)
+        pole_y = y + (1.0 if y < 0 else -1.0)
+        cylinder_between(f"corner_flag_pole_{i}", (pole_x, pole_y, 0.12), (pole_x, pole_y, 2.0), 0.025, "white", 10)
+        cube(f"corner_flag_club_{i}", (pole_x + (0.28 if x < 0 else -0.28), pole_y, 1.74), (0.56, 0.035, 0.34), "green", 0.01)
+    for i, x in enumerate([-52, -26, 0, 26, 52]):
+        cube(f"roof_speaker_cluster_north_{i}", (x, HALF_Y + 18.2, 18.6), (0.7, 0.42, 0.9), "roof", 0.025)
+        cube(f"roof_speaker_cluster_south_{i}", (x, -HALF_Y - 18.2, 18.6), (0.7, 0.42, 0.9), "roof", 0.025)
 
 
 def add_outer_facade_and_pitch_details():
@@ -523,6 +607,19 @@ def add_outer_facade_and_pitch_details():
         for i in range(16):
             y = -HALF_Y - 3 + i * ((PITCH_Y + 6) / 15)
             cylinder_between(f"pitch_goal_guardrail_{sign}_post_{i}", (x, y, 0.15), (x, y, 1.55), 0.025, "steel", 8)
+    # Keep the central bowl open for the interactive camera. Foreground roof geometry
+    # blocked too much of the pitch in still previews.
+
+
+def add_broadcast_foreground_roof():
+    y = -HALF_Y - 31.5
+    cube("broadcast_near_roof_dark_overhang", (-18, y, 27.5), (128, 15.5, 0.78), "roof", 0.04)
+    cube("broadcast_near_roof_front_steel_lip", (-18, y + 7.6, 26.75), (126, 0.72, 1.28), "steel", 0.03)
+    for i in range(14):
+        x = -78 + i * 9.2
+        cylinder_between(f"broadcast_near_roof_truss_{i}", (x, y + 6.9, 21.0), (x + 4.8, y - 6.2, 28.0), 0.095, "steel", 10)
+        cylinder_between(f"broadcast_near_roof_cross_{i}", (x + 5.0, y + 6.8, 22.6), (x - 1.8, y - 4.2, 27.3), 0.052, "steel", 8)
+        cube(f"broadcast_near_roof_light_{i}", (x + 1.8, y + 6.9, 23.5), (3.2, 0.20, 0.20), "light")
 
 
 def add_screen_and_crest():
@@ -542,22 +639,23 @@ def add_screen_and_crest():
 
 
 def add_environment():
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=48, ring_count=24, radius=420, location=(0, 0, 0))
-    sky = bpy.context.object
-    sky.name = "soft_blue_sky_dome"
-    sky.data.materials.append(M["sky"])
-    try:
-        sky.visible_shadow = False
-    except Exception:
-        pass
-    for i in range(18):
+    for name, loc, scale in [
+        ("sky_backdrop_north", (0, 178, 78), (520, 1.0, 210)),
+        ("sky_backdrop_east", (176, 0, 78), (1.0, 360, 210)),
+    ]:
+        sky_panel = cube(name, loc, scale, "sky")
+        try:
+            sky_panel.visible_shadow = False
+        except Exception:
+            pass
+    for i in range(14):
         x = -170 + i * 20
         y = 128 + math.sin(i * 1.7) * 8
-        z = 42 + (i % 4) * 3
+        z = 50 + (i % 4) * 2.5
         bpy.ops.mesh.primitive_uv_sphere_add(segments=16, ring_count=8, radius=1, location=(x, y, z))
         cloud = bpy.context.object
         cloud.name = f"soft_cloud_{i:02d}"
-        cloud.scale = (8 + (i % 3) * 3, 2.0, 1.1 + (i % 2) * 0.5)
+        cloud.scale = (9 + (i % 3) * 3, 1.55, 0.72 + (i % 2) * 0.35)
         cloud.data.materials.append(M["cloud"])
         try:
             cloud.visible_shadow = False
@@ -582,32 +680,34 @@ def add_lighting_and_camera():
     bpy.ops.object.light_add(type="SUN", location=(-70, -95, 110))
     sun = bpy.context.object
     sun.name = "late_morning_sun"
-    sun.data.energy = 4.8
-    sun.rotation_euler = (math.radians(43), 0, math.radians(-32))
+    sun.data.energy = 4.2
+    sun.rotation_euler = (math.radians(48), 0, math.radians(-37))
     for x in [-45, -15, 15, 45]:
         for y in [HALF_Y + 21, -HALF_Y - 21]:
             bpy.ops.object.light_add(type="AREA", location=(x, y, 18))
             light = bpy.context.object
             light.name = "warm_roof_floodlight"
-            light.data.energy = 280
+            light.data.energy = 230
             light.data.size = 6
             direction = Vector((0, 0, 0)) - Vector(light.location)
             light.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
-    bpy.ops.object.camera_add(location=(-72, -72, 45), rotation=(math.radians(62), 0, math.radians(-42)))
+    bpy.ops.object.camera_add(location=(-76, -72, 38), rotation=(math.radians(62), 0, math.radians(-42)))
     cam = bpy.context.object
     bpy.context.scene.camera = cam
-    direction = Vector((0, 0, 4)) - Vector(cam.location)
+    direction = Vector((4, 2, 5.4)) - Vector(cam.location)
     cam.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
-    cam.data.lens = 22
+    cam.data.lens = 21
     cam.data.dof.use_dof = True
-    cam.data.dof.focus_distance = 92
-    cam.data.dof.aperture_fstop = 7.5
+    cam.data.dof.focus_distance = 86
+    cam.data.dof.aperture_fstop = 8.0
 
 
 def main():
     reset_scene()
     init_materials()
     add_pitch()
+    add_pitch_professional_detail()
+    add_low_grass_geometry()
     add_long_stand("south_main_stand", 1)
     add_long_stand("north_stand", -1)
     add_end_stand("east_goal_stand", 1)
@@ -615,6 +715,7 @@ def main():
     add_corner_stands()
     add_boards()
     add_goals_and_benches()
+    add_broadcast_and_matchday_details()
     add_outer_facade_and_pitch_details()
     add_screen_and_crest()
     add_environment()
