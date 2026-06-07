@@ -18,30 +18,34 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.setSize(root.clientWidth, root.clientHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.02;
+renderer.toneMappingExposure = 1.04;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 root.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x9fcaec);
-scene.fog = new THREE.Fog(0x9fcaec, 150, 360);
+scene.background = new THREE.Color(0xb4d4ec);
+scene.fog = new THREE.Fog(0xb4d4ec, 180, 430);
 
-const camera = new THREE.PerspectiveCamera(38, root.clientWidth / root.clientHeight, 0.1, 700);
-const target = new THREE.Vector3(0, 5.4, 0);
+const camera = new THREE.PerspectiveCamera(35, root.clientWidth / root.clientHeight, 0.1, 700);
+const target = new THREE.Vector3(0, 5.2, 5.5);
 const cam = {
-  yaw: -2.30,
-  pitch: 0.30,
-  radius: 108,
+  yaw: -2.18,
+  pitch: 0.25,
+  radius: 118,
   auto: true,
   dragging: false,
   x: 0,
   y: 0,
 };
 
-scene.add(new THREE.HemisphereLight(0xd5ebff, 0x1f2d1f, 1.6));
-const sun = new THREE.DirectionalLight(0xffedc9, 4.8);
-sun.position.set(-86, -110, 118);
+scene.add(new THREE.HemisphereLight(0xe0f0ff, 0x273227, 1.48));
+scene.add(new THREE.AmbientLight(0xffffff, 0.30));
+const fill = new THREE.DirectionalLight(0xcfe7ff, 0.82);
+fill.position.set(90, 70, 46);
+scene.add(fill);
+const sun = new THREE.DirectionalLight(0xffedc9, 3.75);
+sun.position.set(-86, -110, 132);
 sun.castShadow = true;
 sun.shadow.mapSize.set(4096, 4096);
 sun.shadow.camera.left = -150;
@@ -57,23 +61,42 @@ function enhanceMaterial(material) {
   const name = `${material.name || ''}`.toLowerCase();
   const mat = material.clone();
   mat.needsUpdate = true;
-  if (name.includes('grass')) {
+  if (name.includes('broadcast_mow_light') || name.includes('grass_mowed_bright')) {
+    mat.color = new THREE.Color(0x4fa646);
+    mat.roughness = 0.90;
+  } else if (name.includes('broadcast_mow_dark') || name.includes('grass_mowed_deep')) {
+    mat.color = new THREE.Color(0x21813d);
+    mat.roughness = 0.92;
+  } else if (name.includes('grass_fine_light') || name.includes('grass_detail_light')) {
+    mat.color = new THREE.Color(0x4a8f3d);
+    mat.roughness = 0.94;
+  } else if (name.includes('grass_fine_dark') || name.includes('grass_detail_dark')) {
+    mat.color = new THREE.Color(0x1d7137);
+    mat.roughness = 0.94;
+  } else if (name.includes('pitch_worn_grass')) {
+    mat.color = new THREE.Color(0x6c8c47);
+    mat.roughness = 0.96;
+  } else if (name.includes('grass')) {
     mat.roughness = 0.82;
     mat.color = mat.color?.clone?.() || new THREE.Color(0xffffff);
+  } else if (name.includes('weathered_concrete_shadow')) {
+    mat.color = new THREE.Color(0x5f6868);
+    mat.roughness = 0.92;
   } else if (name.includes('concrete')) {
     mat.roughness = 0.92;
   } else if (name.includes('pure_white_seat') || name.includes('pitch_line_clean_white')) {
     mat.color = new THREE.Color(0xffffff);
     mat.roughness = 0.52;
   } else if (name.includes('club_deep_green_seats')) {
-    mat.color = new THREE.Color(0x003d1c);
+    mat.color = new THREE.Color(0x0a6f3c);
     mat.roughness = 0.58;
   } else if (name.includes('club_dark_green_fascia')) {
-    mat.color = new THREE.Color(0x002417);
+    mat.color = new THREE.Color(0x064d33);
     mat.roughness = 0.66;
   } else if (name.includes('steel') || name.includes('roof')) {
     mat.metalness = name.includes('steel') ? 0.46 : 0.25;
-    mat.roughness = name.includes('steel') ? 0.34 : 0.45;
+    mat.roughness = name.includes('steel') ? 0.34 : 0.50;
+    if (name.includes('roof')) mat.color = new THREE.Color(0x27343a);
   } else if (name.includes('glass')) {
     mat.transparent = true;
     mat.opacity = 0.42;
@@ -103,7 +126,11 @@ new GLTFLoader().load(
     scene.add(model);
     loading?.classList.add('is-hidden');
   },
-  undefined,
+  (event) => {
+    if (!loading || !event.lengthComputable) return;
+    const pct = Math.max(1, Math.min(99, Math.round((event.loaded / event.total) * 100)));
+    loading.innerHTML = `<span>Construyendo estadio 3D · ${pct}%</span>`;
+  },
   (error) => {
     console.error(error);
     if (loading) loading.innerHTML = '<span>No se pudo cargar el modelo Blender</span>';
@@ -113,23 +140,23 @@ new GLTFLoader().load(
 function setPreset(name) {
   cam.auto = false;
   if (name === 'aerial') {
-    cam.yaw = -0.72;
-    cam.pitch = 0.68;
-    cam.radius = 160;
+    cam.yaw = -0.70;
+    cam.pitch = 0.62;
+    cam.radius = 168;
   } else if (name === 'touchline') {
-    cam.yaw = -1.02;
-    cam.pitch = 0.26;
-    cam.radius = 92;
+    cam.yaw = -1.04;
+    cam.pitch = 0.20;
+    cam.radius = 98;
   } else {
-    cam.yaw = -2.30;
-    cam.pitch = 0.30;
-    cam.radius = 108;
+    cam.yaw = -2.18;
+    cam.pitch = 0.25;
+    cam.radius = 118;
   }
 }
 
 function updateCamera(t) {
-  if (cam.auto) cam.yaw = -2.30 + Math.sin(t * 0.00012) * 0.045;
-  cam.pitch = Math.max(0.24, Math.min(1.1, cam.pitch));
+  if (cam.auto) cam.yaw = -2.18 + Math.sin(t * 0.00012) * 0.038;
+  cam.pitch = Math.max(0.18, Math.min(1.1, cam.pitch));
   cam.radius = Math.max(74, Math.min(230, cam.radius));
   const horizontal = Math.cos(cam.pitch) * cam.radius;
   camera.position.set(

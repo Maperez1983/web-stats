@@ -85,7 +85,7 @@ def material(name, color, roughness=0.75, metallic=0.0, alpha=1.0, emission=None
     mat = bpy.data.materials.new(name)
     mat.diffuse_color = (color[0], color[1], color[2], alpha)
     mat.use_nodes = True
-    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    bsdf = next((node for node in mat.node_tree.nodes if getattr(node, "type", "") == "BSDF_PRINCIPLED"), None)
     if bsdf:
         if "Base Color" in bsdf.inputs:
             bsdf.inputs["Base Color"].default_value = (color[0], color[1], color[2], alpha)
