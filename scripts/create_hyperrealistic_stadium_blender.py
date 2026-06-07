@@ -424,15 +424,10 @@ def add_long_stand(name, sign):
                 continue
             x = nx * (width - 3)
             letter_seat = False
-            random_white = False if sign > 0 else (row + col) % 97 == 0
-            target = secondary if letter_seat or random_white else primary
-            back_target = backs_primary if sign > 0 and letter_seat else (backs_secondary if target is secondary else backs_primary)
-            target.append(((x, y - sign * 0.04, z + 0.05), (0.40, 0.30, 0.16)))
-            back_target.append(((x, y + sign * 0.12, z + 0.30), (0.40, 0.08, 0.38)))
+            primary.append(((x, y - sign * 0.04, z + 0.05), (0.40, 0.30, 0.16)))
+            backs_primary.append(((x, y + sign * 0.12, z + 0.30), (0.40, 0.08, 0.38)))
     mesh_boxes(f"{name}_green_seats", primary, "green")
-    mesh_boxes(f"{name}_white_seats", secondary, "seat_white")
     mesh_boxes(f"{name}_green_seat_backs", backs_primary, "green")
-    mesh_boxes(f"{name}_white_seat_backs", backs_secondary, "seat_white")
     cube(f"{name}_front_fascia", (0, base_y - sign * 1.2, 2.1), (PITCH_X + 32, 0.8, 1.25), "green_dark", 0.04)
     cube(f"{name}_middle_concourse_ring", (0, base_y + sign * 11.4, 8.7), (PITCH_X + 31, 1.25, 1.25), "concrete_dark", 0.03)
     cube(f"{name}_rear_service_wall", (0, base_y + sign * 27.4, 11.8), (PITCH_X + 45, 1.05, 10.5), "concrete", 0.03)
@@ -482,10 +477,8 @@ def add_upper_long_ring(name, sign, base_y):
             if abs(nx) < 0.018 or abs(nx - 0.30) < 0.014 or abs(nx + 0.30) < 0.014:
                 continue
             x = nx * (width - 3)
-            target = secondary if (row + col) % 61 == 0 else primary
-            target.append(((x, y - sign * 0.04, z + 0.05), (0.36, 0.28, 0.14)))
+            primary.append(((x, y - sign * 0.04, z + 0.05), (0.36, 0.28, 0.14)))
     mesh_boxes(f"{name}_upper_green_seats", primary, "green")
-    mesh_boxes(f"{name}_upper_white_seats", secondary, "seat_white")
 
 
 def add_top_long_ring(name, sign, base_y):
@@ -501,11 +494,9 @@ def add_top_long_ring(name, sign, base_y):
             if abs(nx) < 0.020 or abs(nx - 0.34) < 0.014 or abs(nx + 0.34) < 0.014:
                 continue
             x = nx * (width - 2.6)
-            target = secondary if (row + col) % 47 == 0 else primary
-            target.append(((x, y - sign * 0.04, z + 0.05), (0.32, 0.25, 0.13)))
+            primary.append(((x, y - sign * 0.04, z + 0.05), (0.32, 0.25, 0.13)))
             backs.append(((x, y + sign * 0.10, z + 0.28), (0.32, 0.07, 0.30)))
     mesh_boxes(f"{name}_top_green_seats", primary, "green")
-    mesh_boxes(f"{name}_top_white_seats", secondary, "seat_white")
     mesh_boxes(f"{name}_top_seat_backs", backs, "green")
     cube(f"{name}_top_rear_shadow_gap", (0, base_y + sign * 30.3, 18.6), (PITCH_X + 18, 0.92, 1.7), "asphalt", 0.02)
 
@@ -523,11 +514,9 @@ def add_end_stand(name, sign):
             ny = col / 107 - 0.5
             if abs(ny) < 0.02 or abs(ny - 0.31) < 0.014 or abs(ny + 0.31) < 0.014:
                 continue
-            target = secondary if (row in range(8, 13) and abs(ny) < 0.34) or (row + col) % 57 == 0 else primary
-            target.append(((x + sign * 0.05, ny * (depth - 3), z + 0.05), (0.30, 0.40, 0.16)))
+            primary.append(((x + sign * 0.05, ny * (depth - 3), z + 0.05), (0.30, 0.40, 0.16)))
             backs.append(((x + sign * 0.14, ny * (depth - 3), z + 0.30), (0.08, 0.40, 0.34)))
     mesh_boxes(f"{name}_green_seats", primary, "green")
-    mesh_boxes(f"{name}_white_seats", secondary, "seat_white")
     mesh_boxes(f"{name}_seat_backs", backs, "green")
     cube(f"{name}_front_fascia", (base_x - sign * 1.2, 0, 2.0), (0.8, PITCH_Y + 30, 1.15), "green_dark", 0.04)
     cube(f"{name}_middle_concourse_ring", (base_x + sign * 10.5, 0, 8.2), (1.2, PITCH_Y + 29, 1.1), "concrete_dark", 0.03)
@@ -570,11 +559,9 @@ def add_corner_stands():
                     if col in {7, 15, 23} or row in {8, 16}:
                         aisle.append(((x, y, z - 0.04), (0.58, 0.50, 0.11)))
                         continue
-                    target = secondary if (row + col) % 43 == 0 else primary
-                    target.append(((x, y, z + 0.06), (0.36, 0.36, 0.15)))
+                    primary.append(((x, y, z + 0.06), (0.36, 0.36, 0.15)))
                     backs.append(((x, y, z + 0.32), (0.36, 0.08, 0.34)))
             mesh_boxes(f"corner_{sx}_{sy}_curved_green_seats", primary, "green")
-            mesh_boxes(f"corner_{sx}_{sy}_curved_white_seats", secondary, "seat_white")
             mesh_boxes(f"corner_{sx}_{sy}_curved_aisles", aisle, "concrete")
             mesh_boxes(f"corner_{sx}_{sy}_seat_backs", backs, "green")
             cube(f"corner_{sx}_{sy}_lower_concourse_mass", (sx * (HALF_X + 13.6), sy * (HALF_Y + 13.6), 5.6), (22, 2.0, 1.2), "concrete_dark", 0.02)
