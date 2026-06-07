@@ -124,12 +124,12 @@ def remove_main_stand_seat_noise():
 
 
 def add_reference_main_stand_mosaic():
-    # Single seat layer for the reference look: green bowl with one clean white name.
+    # Single seat layer for the reference look: green bowl without seat lettering.
     sign = 1
     base_y = sign * (base.HALF_Y + 8)
     rows = 30
     cols = 172
-    green_boxes, white_boxes, white_backs, green_backs = [], [], [], []
+    green_boxes, green_backs = [], []
     for row in range(1, 26):
         y = base_y + sign * (row * 0.77)
         z = 1.36 + row * 0.48
@@ -139,15 +139,10 @@ def add_reference_main_stand_mosaic():
             if abs(nx) < 0.020 or abs(nx - 0.23) < 0.014 or abs(nx + 0.23) < 0.014 or abs(nx - 0.39) < 0.014 or abs(nx + 0.39) < 0.014:
                 continue
             x = nx * (width - 3.4)
-            white = base.seat_text_mask("BENAGALBON CD", col, row, cols, rows, start_col=12, end_col=160)
-            pans = white_boxes if white else green_boxes
-            backs = white_backs if white else green_backs
-            pans.append(((x, y - sign * 0.065, z + 0.18), (0.38, 0.32, 0.085)))
-            backs.append(((x, y + sign * 0.105, z + 0.49), (0.38, 0.08, 0.40)))
+            green_boxes.append(((x, y - sign * 0.065, z + 0.18), (0.38, 0.32, 0.085)))
+            green_backs.append(((x, y + sign * 0.105, z + 0.49), (0.38, 0.08, 0.40)))
     base.mesh_boxes("production_reference_main_green_seat_pans", green_boxes, "green")
     base.mesh_boxes("production_reference_main_green_seat_backs", green_backs, "green")
-    base.mesh_boxes("production_reference_main_white_name_pans", white_boxes, "seat_white")
-    base.mesh_boxes("production_reference_main_white_name_backs", white_backs, "seat_white")
 
 
 def add_reference_pitch_striping():
@@ -213,7 +208,7 @@ def add_molded_seat_patches():
             if abs(nx) < 0.018 or abs(nx - 0.23) < 0.014 or abs(nx + 0.23) < 0.014 or abs(nx - 0.39) < 0.014 or abs(nx + 0.39) < 0.014:
                 continue
             x = nx * (width - 3)
-            mat = "seat_white" if base.seat_text_mask("BENAGALBON CD", col, row, 148, rows, start_col=8, end_col=140) else "green"
+            mat = "green"
             base.cube(f"molded_seat_pan_{row}_{col}", (x, y - sign * 0.06, z + 0.17), (0.46, 0.34, 0.08), mat, 0.035)
             back = base.cube(f"molded_seat_back_{row}_{col}", (x, y + sign * 0.13, z + 0.45), (0.46, 0.08, 0.44), mat, 0.035)
             back.rotation_euler.x = math.radians(-7 * sign)

@@ -423,10 +423,7 @@ def add_long_stand(name, sign):
             if abs(nx) < 0.018 or abs(nx - 0.23) < 0.014 or abs(nx + 0.23) < 0.014 or abs(nx - 0.39) < 0.014 or abs(nx + 0.39) < 0.014:
                 continue
             x = nx * (width - 3)
-            if sign > 0:
-                letter_seat = seat_text_mask("BENAGALBON CD", col, row, 148, rows, start_col=8, end_col=140)
-            else:
-                letter_seat = seat_text_mask("CDB", col, row, 148, rows, start_col=54, end_col=94)
+            letter_seat = False
             random_white = False if sign > 0 else (row + col) % 97 == 0
             target = secondary if letter_seat or random_white else primary
             back_target = backs_primary if sign > 0 and letter_seat else (backs_secondary if target is secondary else backs_primary)
@@ -846,26 +843,6 @@ def add_reference_render_polish():
         x = -HALF_X + stripe_w * (i + 0.5)
         mat = "mow_broadcast_light" if i % 2 == 0 else "mow_broadcast_dark"
         cube(f"render_model_mow_band_{i:02d}", (x, 0, 0.125 + i * 0.0001), (stripe_w - 0.05, PITCH_Y - 0.12, 0.012), mat, 0.0)
-
-    sign = 1
-    base_y = sign * (HALF_Y + 8)
-    rows = 30
-    cols = 178
-    name_seats = []
-    for row in range(5, 23):
-        y = base_y + sign * (row * 0.77)
-        z = 1.34 + row * 0.48
-        width = PITCH_X + 29 - row * 0.34
-        for col in range(8, cols - 8):
-            nx = col / (cols - 1) - 0.5
-            if abs(nx) < 0.020 or abs(nx - 0.23) < 0.014 or abs(nx + 0.23) < 0.014 or abs(nx - 0.39) < 0.014 or abs(nx + 0.39) < 0.014:
-                continue
-            if not seat_text_mask("BENAGALBON CD", col, row, cols, rows, start_col=12, end_col=166):
-                continue
-            x = nx * (width - 3.4)
-            name_seats.append(((x, y - sign * 0.08, z + 0.24), (0.50, 0.36, 0.09)))
-            name_seats.append(((x, y + sign * 0.11, z + 0.52), (0.50, 0.09, 0.44)))
-    mesh_boxes("render_model_clean_benagalbon_cd_name_seats", name_seats, "seat_white")
 
     for roof_sign, prefix in [(1, "main"), (-1, "opposite")]:
         roof_y = roof_sign * (HALF_Y + 8)
