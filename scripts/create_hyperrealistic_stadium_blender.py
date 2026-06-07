@@ -274,6 +274,12 @@ def add_text(name, text, loc, size, mat_name, rot=(0, 0, 0), align="CENTER", ext
     return obj
 
 
+def add_textured_panel(name, loc, scale, mat_name, rot=(0, 0, 0), bevel=0.02):
+    obj = cube(name, loc, scale, mat_name, bevel)
+    obj.rotation_euler = rot
+    return obj
+
+
 def add_pitch():
     cube("service_apron_asphalt", (0, 0, -0.055), (140, 100, 0.08), "asphalt")
     stripe_w = PITCH_X / 14
@@ -426,11 +432,11 @@ def add_long_stand(name, sign):
         add_text(
             f"{name}_seat_name_overlay",
             "BENAGALBON CD",
-            (0, base_y + sign * 10.85, 8.45),
-            7.25,
+            (0, base_y + sign * 8.65, 6.65),
+            5.15,
             "seat_white",
             rot=(seating_angle, 0, 0),
-            extrude=0.012,
+            extrude=0.006,
         )
     cube(f"{name}_front_fascia", (0, base_y - sign * 1.2, 2.1), (PITCH_X + 32, 0.8, 1.25), "green_dark", 0.04)
     cube(f"{name}_middle_concourse_ring", (0, base_y + sign * 11.4, 8.7), (PITCH_X + 31, 1.25, 1.25), "concrete_dark", 0.03)
@@ -510,29 +516,48 @@ def add_end_stand(name, sign):
 def add_corner_stands():
     for sx in [-1, 1]:
         for sy in [-1, 1]:
-            base_x = sx * (HALF_X + 9.5)
-            base_y = sy * (HALF_Y + 9.5)
+            center_x = sx * (HALF_X + 4.4)
+            center_y = sy * (HALF_Y + 4.4)
             primary, secondary = [], []
-            for row in range(18):
-                z = 1.15 + row * 0.43
-                width = 28 - row * 0.52
-                depth = 25 - row * 0.46
-                cube(f"corner_step_{sx}_{sy}_{row}", (base_x + sx * row * 0.50, base_y + sy * row * 0.50, z - 0.1), (width, depth, 0.24), "concrete")
-                for ix in range(28):
-                    for iy in range(22):
-                        nx = ix / 27 - 0.5
-                        ny = iy / 21 - 0.5
-                        if nx * sx < -0.18 or ny * sy < -0.18:
-                            continue
-                        if (ix + iy + row) % 4:
-                            continue
-                        x = base_x + sx * row * 0.50 + nx * (width - 2)
-                        y = base_y + sy * row * 0.50 + ny * (depth - 2)
-                        target = secondary if (row + ix + iy) % 31 == 0 else primary
-                        target.append(((x, y, z + 0.04), (0.34, 0.34, 0.15)))
-            mesh_boxes(f"corner_{sx}_{sy}_green_seats", primary, "green")
-            mesh_boxes(f"corner_{sx}_{sy}_white_seats", secondary, "seat_white")
-            cube(f"corner_{sx}_{sy}_concourse_ring", (base_x + sx * 9.0, base_y + sy * 9.0, 7.6), (16, 1.0, 1.0) if abs(sx) else (1.0, 16, 1.0), "concrete_dark", 0.02)
+            aisle, backs = [], []
+            angle_start, angle_end = 0, math.pi / 2
+            if sx < 0 and sy > 0:
+                angle_start, angle_end = math.pi / 2, math.pi
+            elif sx < 0 and sy < 0:
+                angle_start, angle_end = math.pi, 1.5 * math.pi
+            elif sx > 0 and sy < 0:
+                angle_start, angle_end = 1.5 * math.pi, 2 * math.pi
+            for row in range(24):
+                radius = 6.5 + row * 0.86
+                z = 1.10 + row * 0.44
+                step_count = 30 + row // 2
+                for col in range(step_count):
+                    t = col / max(1, step_count - 1)
+                    angle = angle_start + (angle_end - angle_start) * t
+                    x = center_x + math.cos(angle) * radius
+                    y = center_y + math.sin(angle) * radius
+                    if abs(x) < HALF_X + 2.4 or abs(y) < HALF_Y + 2.4:
+                        continue
+                    if col in {7, 15, 23} or row in {8, 16}:
+                        aisle.append(((x, y, z - 0.04), (0.58, 0.50, 0.11)))
+                        continue
+                    target = secondary if (row + col) % 43 == 0 else primary
+                    target.append(((x, y, z + 0.06), (0.36, 0.36, 0.15)))
+                    backs.append(((x, y, z + 0.32), (0.36, 0.08, 0.34)))
+            mesh_boxes(f"corner_{sx}_{sy}_curved_green_seats", primary, "green")
+            mesh_boxes(f"corner_{sx}_{sy}_curved_white_seats", secondary, "seat_white")
+            mesh_boxes(f"corner_{sx}_{sy}_curved_aisles", aisle, "concrete")
+            mesh_boxes(f"corner_{sx}_{sy}_seat_backs", backs, "green")
+            cube(f"corner_{sx}_{sy}_lower_concourse_mass", (sx * (HALF_X + 13.6), sy * (HALF_Y + 13.6), 5.6), (22, 2.0, 1.2), "concrete_dark", 0.02)
+            cube(f"corner_{sx}_{sy}_upper_concourse_mass", (sx * (HALF_X + 20.2), sy * (HALF_Y + 20.2), 12.8), (28, 2.1, 1.3), "concrete_dark", 0.02)
+            cube(f"corner_{sx}_{sy}_curved_roof_corner_plate", (sx * (HALF_X + 27.6), sy * (HALF_Y + 27.6), 20.0), (30, 18, 0.46), "roof", 0.03)
+            for i in range(5):
+                angle = angle_start + (angle_end - angle_start) * (i + 0.5) / 5
+                x1 = center_x + math.cos(angle) * 17
+                y1 = center_y + math.sin(angle) * 17
+                x2 = center_x + math.cos(angle) * 31
+                y2 = center_y + math.sin(angle) * 31
+                cylinder_between(f"corner_{sx}_{sy}_roof_radial_truss_{i}", (x1, y1, 12.5), (x2, y2, 20.4), 0.095, "steel", 10)
 
 
 def add_boards():
@@ -541,6 +566,7 @@ def add_boards():
     for x in range(-51, 52, 17):
         for sign in [-1, 1]:
             y = sign * (HALF_Y + 4.0)
+            cube(f"board_panel_back_{idx}", (x, y + sign * 0.10, 1.26), (15.8, 0.34, 2.64), "rubber", 0.02)
             cube(f"board_panel_{idx}", (x, y, 1.35), (15.2, 0.32, 2.4), "green_dark", 0.02)
             add_text(f"board_text_{idx}", labels[idx % len(labels)], (x, y - sign * 0.19, 1.38), 0.72, "white", rot=(math.radians(90), 0, math.radians(180) if sign < 0 else 0))
             idx += 1
@@ -577,6 +603,12 @@ def add_goals_and_benches():
         for i in range(5):
             zz = 0.38 + i * (h * 0.70 / 4)
             cylinder_between(f"goal_net_horizontal_{sign}_{i}", (x + back, -w / 2, zz), (x + back, w / 2, zz), 0.010, "net", 6)
+        for i in range(9):
+            yy = -w / 2 + i * (w / 8)
+            cylinder_between(f"goal_net_front_vertical_{sign}_{i}", (x + sign * 0.03, yy, 0.04), (x + sign * 0.03, yy, h), 0.008, "net", 5)
+        for i in range(6):
+            zz = i * h / 5
+            cylinder_between(f"goal_net_front_horizontal_{sign}_{i}", (x + sign * 0.03, -w / 2, zz), (x + sign * 0.03, w / 2, zz), 0.008, "net", 5)
     for side, x in enumerate([-22, 22]):
         cube(f"dugout_base_{side}", (x, -HALF_Y - 8.0, 0.55), (13, 1.25, 0.38), "green_dark", 0.04)
         cube(f"dugout_floor_rubber_{side}", (x, -HALF_Y - 7.65, 0.78), (12.4, 0.55, 0.08), "rubber", 0.02)
@@ -588,6 +620,23 @@ def add_goals_and_benches():
             cylinder_between(f"dugout_arc_rib_{side}_{rib}_roof", (rx, -HALF_Y - 8.68, 2.75), (rx, -HALF_Y - 7.25, 2.40), 0.035, "steel", 8)
         for i in range(9):
             cube(f"dugout_seat_{side}_{i}", (x - 4.4 + i * 1.1, -HALF_Y - 7.8, 0.92), (0.62, 0.50, 0.28), "green", 0.03)
+
+
+def add_players_tunnel_and_technical_area():
+    y = -HALF_Y - 6.35
+    cube("players_tunnel_recess_black", (0, y - 0.72, 1.75), (8.4, 1.0, 3.3), "asphalt", 0.04)
+    cube("players_tunnel_concrete_frame_top", (0, y - 0.98, 3.55), (10.0, 0.55, 0.58), "concrete", 0.035)
+    cube("players_tunnel_concrete_frame_left", (-5.15, y - 0.98, 1.95), (0.58, 0.55, 3.5), "concrete", 0.035)
+    cube("players_tunnel_concrete_frame_right", (5.15, y - 0.98, 1.95), (0.58, 0.55, 3.5), "concrete", 0.035)
+    cube("players_tunnel_rubber_walkway", (0, y + 2.2, 0.08), (8.2, 7.4, 0.04), "rubber", 0.02)
+    cube("technical_area_left_dash", (-15, -HALF_Y - 1.0, 0.11), (12.0, 0.10, 0.035), "white")
+    cube("technical_area_right_dash", (15, -HALF_Y - 1.0, 0.11), (12.0, 0.10, 0.035), "white")
+    add_text("tunnel_crest_letters", "CDB", (0, y + 1.25, 0.16), 1.1, "seat_white", rot=(0, 0, 0), extrude=0.01)
+    for x in [-7.0, 7.0]:
+        cylinder_between(f"tunnel_guardrail_{x}_top", (x, y - 1.0, 1.25), (x, y + 5.5, 1.25), 0.035, "steel", 8)
+        for i in range(4):
+            yy = y - 0.6 + i * 1.9
+            cylinder_between(f"tunnel_guardrail_{x}_post_{i}", (x, yy, 0.12), (x, yy, 1.3), 0.026, "steel", 8)
 
 
 def add_broadcast_and_matchday_details():
@@ -733,6 +782,7 @@ def main():
     add_corner_stands()
     add_boards()
     add_goals_and_benches()
+    add_players_tunnel_and_technical_area()
     add_broadcast_and_matchday_details()
     add_outer_facade_and_pitch_details()
     add_screen_and_crest()
