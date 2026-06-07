@@ -28,7 +28,7 @@ scene.background = new THREE.Color(0x9fcaec);
 scene.fog = new THREE.Fog(0x9fcaec, 150, 360);
 
 const camera = new THREE.PerspectiveCamera(38, root.clientWidth / root.clientHeight, 0.1, 700);
-const target = new THREE.Vector3(0, 0, 3.5);
+const target = new THREE.Vector3(0, 5.4, 0);
 const cam = {
   yaw: -2.30,
   pitch: 0.30,
@@ -129,8 +129,8 @@ function setPreset(name) {
 
 function updateCamera(t) {
   if (cam.auto) cam.yaw = -2.30 + Math.sin(t * 0.00012) * 0.045;
-  cam.pitch = Math.max(0.14, Math.min(1.1, cam.pitch));
-  cam.radius = Math.max(60, Math.min(230, cam.radius));
+  cam.pitch = Math.max(0.24, Math.min(1.1, cam.pitch));
+  cam.radius = Math.max(74, Math.min(230, cam.radius));
   const horizontal = Math.cos(cam.pitch) * cam.radius;
   camera.position.set(
     target.x + Math.sin(cam.yaw) * horizontal,

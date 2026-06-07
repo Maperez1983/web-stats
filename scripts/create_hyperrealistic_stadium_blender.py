@@ -159,6 +159,8 @@ def init_materials():
             "rubber": material("technical_black_rubber", (0.015, 0.018, 0.017), 0.70),
             "screen": material("screen_dark_led", (0.015, 0.025, 0.020), 0.36, emission=(0.0, 0.20, 0.11), emission_strength=0.6),
             "light": material("stadium_warm_led", (1.0, 0.90, 0.68), 0.22, emission=(1.0, 0.84, 0.46), emission_strength=3.5),
+            "safety_yellow": material("stair_nosing_safety_yellow", (1.0, 0.72, 0.12), 0.58),
+            "led_white": material("cool_white_led_pixels", (0.86, 1.0, 0.92), 0.18, emission=(0.70, 1.0, 0.78), emission_strength=1.8),
             "sky": material("clear_summer_sky", (0.54, 0.75, 0.94), 0.9, emission=(0.54, 0.75, 0.94), emission_strength=0.08),
             "cloud": material("soft_white_cloud", (0.92, 0.96, 1.0), 0.95),
             "tree": material("distant_tree_canopy", (0.10, 0.32, 0.16), 0.84),
@@ -268,7 +270,7 @@ def cylinder_between(name, start, end, radius, mat_name, vertices=16):
     return obj
 
 
-def add_text(name, text, loc, size, mat_name, rot=(0, 0, 0), align="CENTER", extrude=0.02):
+def add_text(name, text, loc, size, mat_name, rot=(0, 0, 0), align="CENTER", extrude=0.0):
     bpy.ops.object.text_add(location=loc, rotation=rot)
     obj = bpy.context.object
     obj.name = name
@@ -945,6 +947,56 @@ def add_reference_render_polish():
             cube(f"render_model_outer_facade_highlight_{label}_{x}", (x - 2.5, y - sign * 0.11, 10.3), (0.10, 0.08, 8.1), "concrete", 0.004)
 
 
+def add_final_stadium_refinement_pass():
+    for sign, label in [(1, "main"), (-1, "opposite")]:
+        base_y = sign * (HALF_Y + 8)
+        front_y = base_y + sign * 17.25
+        rear_y = base_y + sign * 40.9
+        for i, x in enumerate([-58, -46, -34, -22, -10, 2, 14, 26, 38, 50, 62]):
+            cylinder_between(
+                f"final_{label}_roof_under_web_{i}",
+                (x, front_y, 19.35),
+                (x + 5.2, rear_y, 22.35),
+                0.035,
+                "steel",
+                8,
+            )
+            cube(f"final_{label}_roof_led_cell_{i}", (x + 1.8, front_y - sign * 0.12, 19.62), (2.35, 0.055, 0.13), "led_white", 0.004)
+        for bay in range(10):
+            x = -57 + bay * 12.6
+            cube(f"final_{label}_roof_panel_seam_{bay}", (x, base_y + sign * 31.4, 22.32), (0.10, 18.2, 0.035), "steel", 0.002)
+        for row, z in enumerate([2.0, 4.9, 7.8, 10.7, 13.6, 16.5]):
+            y = base_y + sign * (1.8 + row * 4.0)
+            for x in [-39, -24, -9, 9, 24, 39]:
+                cube(f"final_{label}_aisle_nosing_{row}_{x}", (x, y, z), (4.8, 0.11, 0.045), "safety_yellow", 0.002)
+        for x in [-54, -42, -30, -18, -6, 6, 18, 30, 42, 54]:
+            cube(f"final_{label}_rear_shadow_louver_{x}", (x, base_y + sign * 27.95, 12.4), (0.22, 0.16, 6.6), "asphalt", 0.004)
+
+    for sign, label in [(1, "north"), (-1, "south")]:
+        y = sign * (HALF_Y + 4.0)
+        for x in range(-51, 52, 17):
+            cube(f"final_{label}_adboard_rear_mask_{x}", (x, y + sign * 0.34, 1.38), (15.6, 0.10, 2.18), "green_dark", 0.006)
+            for px in [-5.6, -2.8, 0, 2.8, 5.6]:
+                cube(f"final_{label}_adboard_led_pixel_{x}_{px}", (x + px, y - sign * 0.23, 2.17), (0.16, 0.035, 0.11), "led_white", 0.002)
+
+    for sign, label in [(1, "east"), (-1, "west")]:
+        x = sign * (HALF_X + 4.0)
+        for y in range(-28, 29, 14):
+            cube(f"final_{label}_adboard_rear_mask_{y}", (x + sign * 0.34, y, 1.38), (0.10, 12.6, 2.18), "green_dark", 0.006)
+
+    seed = 7221
+    touchline_scuffs = []
+    for i in range(160):
+        seed = (seed * 1664525 + 1013904223) & 0xFFFFFFFF
+        rx = seed / 0xFFFFFFFF
+        seed = (seed * 1664525 + 1013904223) & 0xFFFFFFFF
+        ry = seed / 0xFFFFFFFF
+        x = -HALF_X + rx * PITCH_X
+        y = (-HALF_Y - 2.2) + ry * 4.4
+        touchline_scuffs.append(((x, y, 0.172 + i * 0.000003), (0.42 + (i % 5) * 0.11, 0.035, 0.008)))
+    mesh_boxes("final_touchline_boot_scuffs", touchline_scuffs, "grass_wear")
+
+
 def add_lighting_and_camera():
     bpy.ops.object.light_add(type="SUN", location=(-70, -95, 110))
     sun = bpy.context.object
@@ -993,6 +1045,7 @@ def main():
     add_screen_and_crest()
     add_environment()
     add_reference_render_polish()
+    add_final_stadium_refinement_pass()
     add_lighting_and_camera()
 
     bpy.ops.wm.save_as_mainfile(filepath=str(OUT_BLEND))
