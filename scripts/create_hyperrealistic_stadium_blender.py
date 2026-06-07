@@ -422,7 +422,7 @@ def add_long_stand(name, sign):
             nx = col / 147 - 0.5
             if abs(nx) < 0.018 or abs(nx - 0.23) < 0.014 or abs(nx + 0.23) < 0.014 or abs(nx - 0.39) < 0.014 or abs(nx + 0.39) < 0.014:
                 continue
-            x = (-nx if sign > 0 else nx) * (width - 3)
+            x = nx * (width - 3)
             if sign > 0:
                 letter_seat = seat_text_mask("BENAGALBON CD", col, row, 148, rows, start_col=8, end_col=140)
             else:
@@ -862,7 +862,7 @@ def add_reference_render_polish():
                 continue
             if not seat_text_mask("BENAGALBON CD", col, row, cols, rows, start_col=12, end_col=166):
                 continue
-            x = -nx * (width - 3.4)
+            x = nx * (width - 3.4)
             name_seats.append(((x, y - sign * 0.08, z + 0.24), (0.50, 0.36, 0.09)))
             name_seats.append(((x, y + sign * 0.11, z + 0.52), (0.50, 0.09, 0.44)))
     mesh_boxes("render_model_clean_benagalbon_cd_name_seats", name_seats, "seat_white")
