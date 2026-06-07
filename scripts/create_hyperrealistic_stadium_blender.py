@@ -673,6 +673,36 @@ def add_players_tunnel_and_technical_area():
             cylinder_between(f"tunnel_guardrail_{x}_post_{i}", (x, yy, 0.12), (x, yy, 1.3), 0.026, "steel", 8)
 
 
+def add_inner_bowl_finishing_details():
+    for sign in [-1, 1]:
+        y = sign * (HALF_Y + 1.05)
+        cube(f"pitch_inner_black_drain_channel_{sign}", (0, y, 0.13), (PITCH_X + 7.0, 0.28, 0.11), "rubber", 0.015)
+        cube(f"pitch_inner_concrete_kerb_{sign}", (0, sign * (HALF_Y + 1.55), 0.22), (PITCH_X + 9.0, 0.34, 0.22), "concrete", 0.02)
+        for i, x in enumerate([-48, -32, -16, 0, 16, 32, 48]):
+            cube(f"board_steel_frame_top_{sign}_{i}", (x, sign * (HALF_Y + 3.82), 2.66), (14.9, 0.16, 0.16), "steel", 0.012)
+            cube(f"board_steel_frame_bottom_{sign}_{i}", (x, sign * (HALF_Y + 3.82), 0.16), (14.9, 0.16, 0.14), "steel", 0.012)
+            for px in [-7.25, 7.25]:
+                cylinder_between(f"board_steel_frame_post_{sign}_{i}_{px}", (x + px, sign * (HALF_Y + 3.82), 0.08), (x + px, sign * (HALF_Y + 3.82), 2.72), 0.026, "steel", 8)
+    for sign in [-1, 1]:
+        x = sign * (HALF_X + 1.05)
+        cube(f"goal_inner_black_drain_channel_{sign}", (x, 0, 0.13), (0.28, PITCH_Y + 7.0, 0.11), "rubber", 0.015)
+        cube(f"goal_inner_concrete_kerb_{sign}", (sign * (HALF_X + 1.55), 0, 0.22), (0.34, PITCH_Y + 9.0, 0.22), "concrete", 0.02)
+    for side, x in enumerate([-22, 22]):
+        base_y = -HALF_Y - 9.22
+        for i in range(4):
+            cube(f"dugout_equipment_case_{side}_{i}", (x - 5.4 + i * 3.6, base_y, 0.62), (1.25, 0.62, 0.72), "rubber", 0.025)
+            cylinder_between(f"dugout_case_handle_{side}_{i}", (x - 5.8 + i * 3.6, base_y - 0.34, 1.05), (x - 5.0 + i * 3.6, base_y - 0.34, 1.05), 0.025, "steel", 8)
+        cylinder_between(f"dugout_front_guardrail_{side}", (x - 7.1, -HALF_Y - 6.95, 1.25), (x + 7.1, -HALF_Y - 6.95, 1.25), 0.035, "steel", 10)
+        for i in range(6):
+            px = x - 6.0 + i * 2.4
+            cylinder_between(f"dugout_front_guardrail_post_{side}_{i}", (px, -HALF_Y - 6.95, 0.25), (px, -HALF_Y - 6.95, 1.35), 0.024, "steel", 8)
+            cube(f"dugout_seat_back_cushion_{side}_{i}", (px, -HALF_Y - 7.52, 1.22), (0.72, 0.18, 0.42), "green", 0.025)
+    for x in [-48, -24, 0, 24, 48]:
+        cube(f"touchline_access_plate_{x}", (x, -HALF_Y - 2.95, 0.16), (4.6, 1.4, 0.06), "concrete_dark", 0.012)
+        cylinder_between(f"touchline_access_rail_left_{x}", (x - 2.2, -HALF_Y - 3.65, 0.22), (x - 2.2, -HALF_Y - 1.95, 1.05), 0.022, "steel", 8)
+        cylinder_between(f"touchline_access_rail_right_{x}", (x + 2.2, -HALF_Y - 3.65, 0.22), (x + 2.2, -HALF_Y - 1.95, 1.05), 0.022, "steel", 8)
+
+
 def add_broadcast_and_matchday_details():
     for i, (x, y, rz) in enumerate([(-35, -HALF_Y - 13, 0), (35, -HALF_Y - 13, 0), (-HALF_X - 9, 0, 90), (HALF_X + 9, 0, -90)]):
         cube(f"camera_platform_{i}", (x, y, 3.25), (4.2, 2.2, 0.28), "concrete_dark", 0.03)
@@ -809,6 +839,7 @@ def main():
     add_pitch()
     add_pitch_professional_detail()
     add_low_grass_geometry()
+    add_grass_fine_variation()
     add_long_stand("south_main_stand", 1)
     add_long_stand("north_stand", -1)
     add_end_stand("east_goal_stand", 1)
@@ -817,6 +848,7 @@ def main():
     add_boards()
     add_goals_and_benches()
     add_players_tunnel_and_technical_area()
+    add_inner_bowl_finishing_details()
     add_broadcast_and_matchday_details()
     add_outer_facade_and_pitch_details()
     add_screen_and_crest()
