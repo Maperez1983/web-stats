@@ -442,6 +442,7 @@ def add_long_stand(name, sign):
     cube(f"{name}_middle_concourse_ring", (0, base_y + sign * 11.4, 8.7), (PITCH_X + 31, 1.25, 1.25), "concrete_dark", 0.03)
     cube(f"{name}_rear_service_wall", (0, base_y + sign * 27.4, 11.8), (PITCH_X + 45, 1.05, 10.5), "concrete", 0.03)
     add_upper_long_ring(name, sign, base_y)
+    add_top_long_ring(name, sign, base_y)
     for ix, x in enumerate([-42, -24, 0, 24, 42]):
         add_vomitory(f"{name}_lower_vomitory_{ix}", (x, base_y + sign * 10.7, 6.2), (5.2, 0.56, 3.0), "y", sign)
     for ix, x in enumerate([-36, -12, 12, 36]):
@@ -462,6 +463,13 @@ def add_long_stand(name, sign):
         cylinder_between(f"{name}_roof_crossbrace_{i}", (x - 1.8, base_y + sign * 19.6, 18.7), (x + 2.8, base_y + sign * 30.4, 21.7), 0.055, "steel")
         cylinder_between(f"{name}_roof_reverse_crossbrace_{i}", (x + 2.4, base_y + sign * 19.8, 18.4), (x - 1.5, base_y + sign * 31.0, 21.9), 0.045, "steel", 10)
         cube(f"{name}_light_bar_{i}", (x, base_y + sign * 17.2, 19.7), (3.8, 0.24, 0.24), "light")
+    for rail_idx, z in enumerate([18.8, 20.2, 21.6]):
+        cylinder_between(f"{name}_roof_front_long_chord_{rail_idx}", (-PITCH_X / 2 - 18, base_y + sign * 18.8, z), (PITCH_X / 2 + 18, base_y + sign * 18.8, z + 0.15), 0.075, "steel", 12)
+        cylinder_between(f"{name}_roof_rear_long_chord_{rail_idx}", (-PITCH_X / 2 - 22, base_y + sign * 34.5, z + 1.0), (PITCH_X / 2 + 22, base_y + sign * 34.5, z + 1.15), 0.068, "steel", 12)
+    for i in range(18):
+        x = -PITCH_X / 2 - 16 + i * ((PITCH_X + 32) / 17)
+        cylinder_between(f"{name}_roof_sawtooth_lower_{i}", (x, base_y + sign * 18.9, 19.05), (x + 4.0, base_y + sign * 28.8, 22.0), 0.040, "steel", 8)
+        cylinder_between(f"{name}_roof_sawtooth_upper_{i}", (x + 4.0, base_y + sign * 18.9, 19.20), (x, base_y + sign * 28.8, 21.8), 0.038, "steel", 8)
     # Las letras grandes deben leerse como mosaico de asientos, no como texto flotante.
     # El patron de asientos blancos ya crea la banda visual sin bloquear la vista.
 
@@ -485,10 +493,32 @@ def add_upper_long_ring(name, sign, base_y):
     mesh_boxes(f"{name}_upper_white_seats", secondary, "seat_white")
 
 
+def add_top_long_ring(name, sign, base_y):
+    rows = 8
+    primary, secondary, backs = [], [], []
+    for row in range(rows):
+        y = base_y + sign * (24.6 + row * 0.66)
+        z = 15.3 + row * 0.36
+        width = PITCH_X + 12 - row * 0.35
+        cube(f"{name}_top_step_{row:02d}", (0, y, z - 0.10), (width, 0.62, 0.20), "concrete_dark")
+        for col in range(108):
+            nx = col / 107 - 0.5
+            if abs(nx) < 0.020 or abs(nx - 0.34) < 0.014 or abs(nx + 0.34) < 0.014:
+                continue
+            x = nx * (width - 2.6)
+            target = secondary if (row + col) % 47 == 0 else primary
+            target.append(((x, y - sign * 0.04, z + 0.05), (0.32, 0.25, 0.13)))
+            backs.append(((x, y + sign * 0.10, z + 0.28), (0.32, 0.07, 0.30)))
+    mesh_boxes(f"{name}_top_green_seats", primary, "green")
+    mesh_boxes(f"{name}_top_white_seats", secondary, "seat_white")
+    mesh_boxes(f"{name}_top_seat_backs", backs, "green")
+    cube(f"{name}_top_rear_shadow_gap", (0, base_y + sign * 30.3, 18.6), (PITCH_X + 18, 0.92, 1.7), "asphalt", 0.02)
+
+
 def add_end_stand(name, sign):
     base_x = sign * (HALF_X + 8)
     rows = 20
-    primary, secondary = [], []
+    primary, secondary, backs = [], [], []
     for row in range(rows):
         x = base_x + sign * row * 0.78
         z = 1.2 + row * 0.45
@@ -500,8 +530,10 @@ def add_end_stand(name, sign):
                 continue
             target = secondary if (row in range(8, 13) and abs(ny) < 0.34) or (row + col) % 57 == 0 else primary
             target.append(((x + sign * 0.05, ny * (depth - 3), z + 0.05), (0.30, 0.40, 0.16)))
+            backs.append(((x + sign * 0.14, ny * (depth - 3), z + 0.30), (0.08, 0.40, 0.34)))
     mesh_boxes(f"{name}_green_seats", primary, "green")
     mesh_boxes(f"{name}_white_seats", secondary, "seat_white")
+    mesh_boxes(f"{name}_seat_backs", backs, "green")
     cube(f"{name}_front_fascia", (base_x - sign * 1.2, 0, 2.0), (0.8, PITCH_Y + 30, 1.15), "green_dark", 0.04)
     cube(f"{name}_middle_concourse_ring", (base_x + sign * 10.5, 0, 8.2), (1.2, PITCH_Y + 29, 1.1), "concrete_dark", 0.03)
     cube(f"{name}_rear_wall", (base_x + sign * 19.0, 0, 8.4), (1.0, PITCH_Y + 39, 12.4), "concrete", 0.03)
@@ -511,6 +543,8 @@ def add_end_stand(name, sign):
     for i in range(9):
         y = -PITCH_Y / 2 - 11 + i * ((PITCH_Y + 22) / 8)
         cylinder_between(f"{name}_roof_truss_{i}", (base_x + sign * 12.8, y, 12.0), (base_x + sign * 26.5, y + 1.5, 17.8), 0.11, "steel")
+        cylinder_between(f"{name}_roof_crossbrace_{i}", (base_x + sign * 15.5, y - 3.0, 14.0), (base_x + sign * 27.2, y + 3.0, 18.1), 0.042, "steel", 8)
+        cube(f"{name}_roof_light_bar_{i}", (base_x + sign * 14.0, y, 16.2), (0.22, 3.2, 0.22), "light")
 
 
 def add_corner_stands():
