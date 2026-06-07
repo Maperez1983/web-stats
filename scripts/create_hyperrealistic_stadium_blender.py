@@ -137,6 +137,8 @@ def init_materials():
         {
             "grass_a": material("grass_mowed_deep_textured", (0.10, 0.38, 0.08), 0.91, texture=grass_tex, texture_mix=0.30, bump=True),
             "grass_b": material("grass_mowed_bright_textured", (0.24, 0.54, 0.12), 0.89, texture=grass_tex, texture_mix=0.26, bump=True),
+            "mow_broadcast_dark": material("broadcast_mow_dark_green", (0.055, 0.31, 0.065), 0.92),
+            "mow_broadcast_light": material("broadcast_mow_light_green", (0.24, 0.50, 0.12), 0.90),
             "grass_detail_dark": material("grass_fine_dark_variation", (0.08, 0.29, 0.08), 0.94),
             "grass_detail_light": material("grass_fine_light_variation", (0.25, 0.50, 0.14), 0.92),
             "grass_wear": material("pitch_worn_grass_subtle", (0.38, 0.54, 0.24), 0.96, 0.0, 0.18),
@@ -220,6 +222,11 @@ def mesh_boxes(name, boxes, mat_name):
     mesh = bpy.data.meshes.new(name)
     mesh.from_pydata(verts, [], faces)
     mesh.update()
+    uv_layer = mesh.uv_layers.new(name="UVMap")
+    for poly in mesh.polygons:
+        for loop_index in poly.loop_indices:
+            vert = mesh.vertices[mesh.loops[loop_index].vertex_index].co
+            uv_layer.data[loop_index].uv = (vert.x * 0.045, vert.y * 0.045)
     obj = bpy.data.objects.new(name, mesh)
     bpy.context.collection.objects.link(obj)
     mesh.materials.append(M[mat_name])
@@ -413,7 +420,7 @@ def add_long_stand(name, sign):
             nx = col / 147 - 0.5
             if abs(nx) < 0.018 or abs(nx - 0.23) < 0.014 or abs(nx + 0.23) < 0.014 or abs(nx - 0.39) < 0.014 or abs(nx + 0.39) < 0.014:
                 continue
-            x = nx * (width - 3)
+            x = (-nx if sign > 0 else nx) * (width - 3)
             if sign > 0:
                 letter_seat = seat_text_mask("BENAGALBON CD", col, row, 148, rows, start_col=8, end_col=140)
             else:
@@ -427,17 +434,6 @@ def add_long_stand(name, sign):
     mesh_boxes(f"{name}_white_seats", secondary, "seat_white")
     mesh_boxes(f"{name}_green_seat_backs", backs_primary, "green")
     mesh_boxes(f"{name}_white_seat_backs", backs_secondary, "seat_white")
-    if sign > 0:
-        seating_angle = math.atan2(0.48, 0.78)
-        add_text(
-            f"{name}_seat_name_overlay",
-            "BENAGALBON CD",
-            (0, base_y + sign * 8.65, 6.65),
-            5.15,
-            "seat_white",
-            rot=(seating_angle, 0, 0),
-            extrude=0.006,
-        )
     cube(f"{name}_front_fascia", (0, base_y - sign * 1.2, 2.1), (PITCH_X + 32, 0.8, 1.25), "green_dark", 0.04)
     cube(f"{name}_middle_concourse_ring", (0, base_y + sign * 11.4, 8.7), (PITCH_X + 31, 1.25, 1.25), "concrete_dark", 0.03)
     cube(f"{name}_rear_service_wall", (0, base_y + sign * 27.4, 11.8), (PITCH_X + 45, 1.05, 10.5), "concrete", 0.03)
@@ -703,6 +699,41 @@ def add_inner_bowl_finishing_details():
         cylinder_between(f"touchline_access_rail_right_{x}", (x + 2.2, -HALF_Y - 3.65, 0.22), (x + 2.2, -HALF_Y - 1.95, 1.05), 0.022, "steel", 8)
 
 
+def add_architectural_quality_pass():
+    for sign in [-1, 1]:
+        base_y = sign * (HALF_Y + 8)
+        cube(f"main_stand_shadowed_under_tier_{sign}", (0, base_y + sign * 12.9, 7.5), (PITCH_X + 30, 1.25, 0.85), "asphalt", 0.02)
+        cube(f"main_stand_upper_shadowed_under_tier_{sign}", (0, base_y + sign * 24.0, 14.2), (PITCH_X + 20, 1.05, 0.75), "asphalt", 0.02)
+        for x in [-51, -34, -17, 17, 34, 51]:
+            cylinder_between(f"main_stand_vertical_roof_hanger_{sign}_{x}", (x, base_y + sign * 18.6, 10.2), (x, base_y + sign * 22.5, 20.0), 0.055, "steel", 10)
+            cube(f"main_stand_vomitory_depth_shadow_{sign}_{x}", (x, base_y + sign * 11.0, 5.4), (4.2, 0.26, 1.9), "asphalt", 0.018)
+            cube(f"main_stand_vomitory_threshold_{sign}_{x}", (x, base_y + sign * 9.98, 4.62), (4.6, 0.34, 0.26), "concrete", 0.018)
+        for row, z in enumerate([3.45, 5.9, 8.35, 10.8, 13.25, 15.7]):
+            y = base_y + sign * (3.9 + row * 3.05)
+            cylinder_between(f"main_stand_glass_balustrade_top_{sign}_{row}", (-PITCH_X / 2 - 9, y, z + 0.62), (PITCH_X / 2 + 9, y, z + 0.62), 0.018, "steel", 8)
+            cube(f"main_stand_glass_balustrade_{sign}_{row}", (0, y, z + 0.36), (PITCH_X + 15, 0.08, 0.58), "glass", 0.006)
+    for sign in [-1, 1]:
+        base_x = sign * (HALF_X + 8)
+        for y in [-34, -18, 0, 18, 34]:
+            cube(f"end_stand_entry_shadow_{sign}_{y}", (base_x + sign * 10.8, y, 4.8), (0.24, 3.4, 1.55), "asphalt", 0.018)
+            cube(f"end_stand_entry_lintel_{sign}_{y}", (base_x + sign * 10.5, y, 5.82), (0.38, 4.2, 0.26), "concrete", 0.018)
+        for z in [6.8, 10.6, 14.4]:
+            cylinder_between(f"end_stand_long_balustrade_{sign}_{z}", (base_x + sign * 8.7, -HALF_Y - 10, z), (base_x + sign * 8.7, HALF_Y + 10, z), 0.026, "steel", 10)
+    for i, x in enumerate([-48, -32, -16, 0, 16, 32, 48]):
+        cube(f"broadcast_touchline_led_reflector_{i}", (x, -HALF_Y - 4.15, 2.83), (13.5, 0.12, 0.32), "light", 0.01)
+        cube(f"broadcast_touchline_board_lip_{i}", (x, -HALF_Y - 4.32, 2.53), (14.2, 0.18, 0.18), "steel", 0.01)
+    for side, x in enumerate([-22, 22]):
+        cube(f"dugout_rear_black_shadow_{side}", (x, -HALF_Y - 7.22, 1.72), (13.2, 0.18, 1.95), "asphalt", 0.02)
+        cube(f"dugout_club_disc_{side}", (x - 5.7, -HALF_Y - 8.76, 1.65), (1.1, 0.08, 1.1), "green", 0.02)
+        add_text(f"dugout_club_letters_{side}", "CDB", (x - 5.7, -HALF_Y - 8.83, 1.66), 0.26, "white", rot=(math.radians(90), 0, 0), extrude=0.006)
+        for rib in range(6):
+            rx = x - 5.0 + rib * 2.0
+            cylinder_between(f"dugout_curved_roof_crossbar_{side}_{rib}", (rx, -HALF_Y - 8.58, 2.74), (rx + 0.85, -HALF_Y - 7.30, 2.42), 0.025, "steel", 8)
+    for x in [-36, -18, 0, 18, 36]:
+        cylinder_between(f"pitchside_microphone_stand_{x}", (x, -HALF_Y - 5.2, 0.18), (x, -HALF_Y - 5.2, 1.05), 0.018, "steel", 8)
+        cube(f"pitchside_microphone_head_{x}", (x, -HALF_Y - 5.2, 1.12), (0.22, 0.12, 0.12), "rubber", 0.01)
+
+
 def add_broadcast_and_matchday_details():
     for i, (x, y, rz) in enumerate([(-35, -HALF_Y - 13, 0), (35, -HALF_Y - 13, 0), (-HALF_X - 9, 0, 90), (HALF_X + 9, 0, -90)]):
         cube(f"camera_platform_{i}", (x, y, 3.25), (4.2, 2.2, 0.28), "concrete_dark", 0.03)
@@ -807,6 +838,113 @@ def add_environment():
         cube(f"distant_city_block_{i:02d}", (x, y, h / 2 - 0.2), (6.5, 5.5, h), "city", 0.02)
 
 
+def add_reference_render_polish():
+    stripe_w = PITCH_X / 12
+    for i in range(12):
+        x = -HALF_X + stripe_w * (i + 0.5)
+        mat = "mow_broadcast_light" if i % 2 == 0 else "mow_broadcast_dark"
+        cube(f"render_model_mow_band_{i:02d}", (x, 0, 0.125 + i * 0.0001), (stripe_w - 0.05, PITCH_Y - 0.12, 0.012), mat, 0.0)
+
+    sign = 1
+    base_y = sign * (HALF_Y + 8)
+    rows = 30
+    cols = 178
+    name_seats = []
+    for row in range(5, 23):
+        y = base_y + sign * (row * 0.77)
+        z = 1.34 + row * 0.48
+        width = PITCH_X + 29 - row * 0.34
+        for col in range(8, cols - 8):
+            nx = col / (cols - 1) - 0.5
+            if abs(nx) < 0.020 or abs(nx - 0.23) < 0.014 or abs(nx + 0.23) < 0.014 or abs(nx - 0.39) < 0.014 or abs(nx + 0.39) < 0.014:
+                continue
+            if not seat_text_mask("BENAGALBON CD", col, row, cols, rows, start_col=12, end_col=166):
+                continue
+            x = -nx * (width - 3.4)
+            name_seats.append(((x, y - sign * 0.08, z + 0.24), (0.50, 0.36, 0.09)))
+            name_seats.append(((x, y + sign * 0.11, z + 0.52), (0.50, 0.09, 0.44)))
+    mesh_boxes("render_model_clean_benagalbon_cd_name_seats", name_seats, "seat_white")
+
+    for roof_sign, prefix in [(1, "main"), (-1, "opposite")]:
+        roof_y = roof_sign * (HALF_Y + 8)
+        for i in range(18):
+            x = -PITCH_X / 2 - 9 + i * ((PITCH_X + 18) / 17)
+            cube(f"render_model_{prefix}_front_light_tile_{i}", (x, roof_y + roof_sign * 17.1, 19.85), (2.8, 0.18, 0.18), "light", 0.01)
+            cylinder_between(
+                f"render_model_{prefix}_thin_roof_dropper_{i}",
+                (x, roof_y + roof_sign * 18.0, 18.0),
+                (x + 0.8, roof_y + roof_sign * 31.0, 21.8),
+                0.028,
+                "steel",
+                8,
+            )
+
+    for sign, label in [(1, "north"), (-1, "south")]:
+        y = sign * (HALF_Y + 4.15)
+        add_text(
+            f"render_model_fascia_club_name_{label}",
+            "BENAGALBON CD",
+            (0, y - sign * 0.23, 2.10),
+            1.05,
+            "white",
+            rot=(math.radians(90), 0, math.radians(180) if sign < 0 else 0),
+            extrude=0.012,
+        )
+        for x in [-38, 38]:
+            add_text(
+                f"render_model_fascia_partner_{label}_{x}",
+                "2J FOOTBALL INTELLIGENCE",
+                (x, y - sign * 0.23, 1.34),
+                0.48,
+                "white",
+                rot=(math.radians(90), 0, math.radians(180) if sign < 0 else 0),
+                extrude=0.008,
+            )
+
+    for sign, label in [(1, "east"), (-1, "west")]:
+        x = sign * (HALF_X + 4.15)
+        add_text(
+            f"render_model_goal_fascia_name_{label}",
+            "CDB",
+            (x - sign * 0.23, 0, 2.0),
+            1.2,
+            "white",
+            rot=(math.radians(90), 0, math.radians(-90) if sign > 0 else math.radians(90)),
+            extrude=0.012,
+        )
+
+    for x, side_name in [(-30, "left"), (30, "right")]:
+        cube(f"render_model_press_box_glass_{side_name}", (x, HALF_Y + 18.9, 16.35), (18.0, 0.16, 2.15), "glass", 0.012)
+        cube(f"render_model_press_box_roof_shadow_{side_name}", (x, HALF_Y + 18.7, 17.55), (18.5, 0.30, 0.28), "roof", 0.012)
+        for pane in range(5):
+            px = x - 7.2 + pane * 3.6
+            cube(f"render_model_press_box_mullion_{side_name}_{pane}", (px, HALF_Y + 18.58, 16.35), (0.08, 0.15, 2.05), "steel", 0.006)
+
+    for x, zrot, name in [(-HALF_X - 7.6, math.radians(90), "west"), (HALF_X + 7.6, math.radians(-90), "east")]:
+        cube(f"render_model_side_scoreboard_frame_{name}", (x, HALF_Y + 5.0, 8.4), (0.38, 8.6, 4.8), "steel", 0.02)
+        cube(f"render_model_side_scoreboard_screen_{name}", (x, HALF_Y + 5.0, 8.4), (0.18, 7.8, 4.1), "screen", 0.012)
+        add_text(
+            f"render_model_side_scoreboard_cdb_{name}",
+            "CDB",
+            (x - (0.12 if x > 0 else -0.12), HALF_Y + 5.0, 8.75),
+            0.92,
+            "white",
+            rot=(math.radians(90), 0, zrot),
+            extrude=0.008,
+        )
+
+    for sign, label in [(1, "north"), (-1, "south")]:
+        y = sign * (HALF_Y + 2.25)
+        for x in range(-48, 49, 12):
+            cube(f"render_model_pitchside_led_glow_{label}_{x}", (x, y, 2.72), (8.0, 0.055, 0.24), "light", 0.006)
+
+    for sign, label in [(1, "north"), (-1, "south")]:
+        y = sign * (HALF_Y + 47.6)
+        for x in range(-60, 61, 12):
+            cube(f"render_model_outer_facade_panel_{label}_{x}", (x, y, 10.3), (6.0, 0.16, 8.4), "concrete_dark", 0.01)
+            cube(f"render_model_outer_facade_highlight_{label}_{x}", (x - 2.5, y - sign * 0.11, 10.3), (0.10, 0.08, 8.1), "concrete", 0.004)
+
+
 def add_lighting_and_camera():
     bpy.ops.object.light_add(type="SUN", location=(-70, -95, 110))
     sun = bpy.context.object
@@ -849,10 +987,12 @@ def main():
     add_goals_and_benches()
     add_players_tunnel_and_technical_area()
     add_inner_bowl_finishing_details()
+    add_architectural_quality_pass()
     add_broadcast_and_matchday_details()
     add_outer_facade_and_pitch_details()
     add_screen_and_crest()
     add_environment()
+    add_reference_render_polish()
     add_lighting_and_camera()
 
     bpy.ops.wm.save_as_mainfile(filepath=str(OUT_BLEND))
