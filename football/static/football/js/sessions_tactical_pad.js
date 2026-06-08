@@ -8929,16 +8929,19 @@
 							      const bumpTex = makePitchBumpTexture(pbrW, pbrH);
 							      const normalTex = makePitchNormalTexture(pbrW, pbrH);
 							      const roughnessTex = makePitchRoughnessTexture(pbrW, pbrH);
-							      const groundGeo = new THREE.PlaneGeometry(metersW, metersH, 96, 64);
+							      const groundGeo = new THREE.PlaneGeometry(metersW, metersH, 128, 84);
 							      try {
 							        const pos = groundGeo.attributes.position;
 							        for (let i = 0; i < pos.count; i += 1) {
 							          const x = pos.getX(i);
 							          const y = pos.getY(i);
 							          const across = Math.abs(y) / Math.max(1, metersH / 2);
-							          const crown = Math.max(0, 1 - (across * across)) * 0.075;
-							          const ripple = (Math.sin((x * 0.72) + (y * 0.18)) * 0.007) + (Math.sin((x * 1.71) - (y * 0.43)) * 0.004);
-							          pos.setZ(i, crown + ripple);
+							          const goalUse = Math.max(0, 1 - Math.abs(Math.abs(x) - (metersW * 0.43)) / Math.max(1, metersW * 0.10));
+							          const centerUse = Math.max(0, 1 - Math.sqrt((x * x) + (y * y)) / Math.max(1, metersW * 0.12));
+							          const crown = Math.max(0, 1 - (across * across)) * 0.070;
+							          const ripple = (Math.sin((x * 0.72) + (y * 0.18)) * 0.006) + (Math.sin((x * 1.71) - (y * 0.43)) * 0.004) + (Math.sin((x * 4.90) + (y * 1.30)) * 0.0018);
+							          const flattened = (goalUse * 0.017) + (centerUse * 0.008);
+							          pos.setZ(i, Math.max(0.002, crown + ripple - flattened));
 							        }
 							        pos.needsUpdate = true;
 							        groundGeo.computeVertexNormals();
@@ -8956,11 +8959,35 @@
 							      });
 							      try {
 							        groundMat.onBeforeCompile = (shader) => {
+							          shader.vertexShader = shader.vertexShader.replace(
+							            '#include <common>',
+							            '#include <common>\\nvarying vec2 vPitchUvPremium;'
+							          );
+							          shader.vertexShader = shader.vertexShader.replace(
+							            '#include <uv_vertex>',
+							            '#include <uv_vertex>\\nvPitchUvPremium = uv;'
+							          );
+							          shader.fragmentShader = shader.fragmentShader.replace(
+							            '#include <common>',
+							            [
+							              '#include <common>',
+							              'varying vec2 vPitchUvPremium;',
+							              'float pitchHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }',
+							            ].join('\\n')
+							          );
 							          shader.fragmentShader = shader.fragmentShader.replace(
 							            '#include <dithering_fragment>',
 							            [
-							              'float pitchGrazing = pow(clamp(1.0 - abs(dot(normalize(vViewPosition), normal)), 0.0, 1.0), 1.35);',
-							              'gl_FragColor.rgb = mix(gl_FragColor.rgb, gl_FragColor.rgb * vec3(1.08, 1.13, 1.04), pitchGrazing * 0.11);',
+							              'float pitchGrazing = pow(clamp(1.0 - abs(dot(normalize(vViewPosition), normal)), 0.0, 1.0), 1.22);',
+							              'float pitchMicro = pitchHash(floor(vPitchUvPremium * vec2(115.0, 78.0)));',
+							              'float pitchStripe = smoothstep(0.10, 0.98, abs(sin(vPitchUvPremium.x * 43.982)));',
+							              'float pitchUseLeft = smoothstep(0.72, 0.98, 1.0 - abs(vPitchUvPremium.x - 0.08) / 0.085);',
+							              'float pitchUseRight = smoothstep(0.72, 0.98, 1.0 - abs(vPitchUvPremium.x - 0.92) / 0.085);',
+							              'float pitchUseCenter = smoothstep(0.82, 0.98, 1.0 - distance(vPitchUvPremium, vec2(0.5, 0.5)) / 0.135);',
+							              'float pitchUse = clamp(pitchUseLeft + pitchUseRight + pitchUseCenter, 0.0, 1.0);',
+							              'gl_FragColor.rgb *= mix(vec3(0.965, 1.015, 0.960), vec3(1.055, 1.105, 1.020), pitchGrazing * 0.45 + pitchStripe * 0.12);',
+							              'gl_FragColor.rgb = mix(gl_FragColor.rgb, gl_FragColor.rgb * vec3(1.10, 1.04, 0.78), pitchUse * 0.13);',
+							              'gl_FragColor.rgb += (pitchMicro - 0.5) * 0.018;',
 							              '#include <dithering_fragment>',
 							            ].join('\\n')
 							          );
@@ -9106,7 +9133,53 @@
 						          root.add(wear);
 						        } catch (e) { /* ignore */ }
 						      };
+						      const addGrassFiberSheen3d = () => {
+						        try {
+						          if (['whiteboard', 'blackboard'].includes(grass.toLowerCase())) return;
+						          const fiberTex = makePitch3dCanvasTexture((ctx, c) => {
+						            ctx.clearRect(0, 0, c.width, c.height);
+						            ctx.globalAlpha = 0.26;
+						            for (let y = 0; y < c.height; y += 3) {
+						              const drift = ((y * 37) % 61) - 30;
+						              ctx.strokeStyle = (y % 11 === 0) ? 'rgba(236,255,207,0.28)' : 'rgba(12,88,38,0.24)';
+						              ctx.lineWidth = 1;
+						              ctx.beginPath();
+						              ctx.moveTo(drift, y);
+						              ctx.lineTo(c.width + drift, y + ((y % 23) - 11) * 0.09);
+						              ctx.stroke();
+						            }
+						            ctx.globalAlpha = 0.18;
+						            for (let i = 0; i < 2600; i += 1) {
+						              const x = (i * 187) % c.width;
+						              const y = (i * 421) % c.height;
+						              const len = 7 + ((i * 13) % 31);
+						              ctx.strokeStyle = i % 3 === 0 ? 'rgba(238,255,211,0.38)' : 'rgba(8,76,34,0.30)';
+						              ctx.beginPath();
+						              ctx.moveTo(x, y);
+						              ctx.lineTo(x + len, y - 1 + ((i % 9) * 0.18));
+						              ctx.stroke();
+						            }
+						            ctx.globalAlpha = 1;
+						          }, 1536, 990);
+						          const fiberMat = new THREE.MeshBasicMaterial({
+						            map: fiberTex?.tex || null,
+						            transparent: true,
+						            opacity: 0.30,
+						            depthWrite: false,
+						            side: THREE.DoubleSide,
+						            polygonOffset: true,
+						            polygonOffsetFactor: -5,
+						            polygonOffsetUnits: -5,
+						          });
+						          const fiber = new THREE.Mesh(new THREE.PlaneGeometry(metersW, metersH), fiberMat);
+						          fiber.rotation.x = -Math.PI / 2;
+						          fiber.position.y = 0.132;
+						          fiber.userData = { kind: 'pitch_3d_grass_fiber_sheen' };
+						          root.add(fiber);
+						        } catch (e) { /* ignore */ }
+						      };
 						      addPitchWear3d();
+						      addGrassFiberSheen3d();
 						      addPitchPaint3d();
 
 						      const addPitchSideDetails3d = () => {
@@ -9214,9 +9287,13 @@
 						          const adXRight = metersW / 2 + 4.30;
 						          const longW = Math.min(15.8, metersW / 6.3);
 						          for (let i = -2; i <= 2; i += 1) {
-						            addAdPanel(i * (longW + 1.05), adZNear, longW, 0, i + 3);
 						            addAdPanel(i * (longW + 1.05), adZFar, longW, Math.PI, i + 4);
 						          }
+						          // En la banda de banquillos dejamos libre la zona técnica y el futuro túnel central.
+						          const nearBoardW = Math.min(12.2, metersW / 8.4);
+						          [-2.9, -1.75, 1.75, 2.9].forEach((slot, idx) => {
+						            addAdPanel(slot * (nearBoardW + 1.15), adZNear, nearBoardW, 0, idx + 2);
+						          });
 						          const endW = Math.min(9.6, metersH / 4.7);
 						          for (let i = -1; i <= 1; i += 1) {
 						            addAdPanel(adXLeft, i * (endW + 1.05), endW, Math.PI / 2, i + 2);
