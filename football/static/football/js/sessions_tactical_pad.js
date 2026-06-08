@@ -9784,6 +9784,105 @@
 						                }
 						              });
 						            });
+						            const facadeLouverMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.52, metalness: 0.10 });
+						            const roofLightMat = new THREE.MeshStandardMaterial({ color: 0xe0f2fe, roughness: 0.18, metalness: 0.02, emissive: 0x7dd3fc, emissiveIntensity: 0.16 });
+						            const addArcCornerBowl = (sx, sz) => {
+						              const cornerX = sx * (metersW / 2);
+						              const cornerZ = sz * (metersH / 2);
+						              const start = sx > 0 && sz > 0 ? 0 : sx < 0 && sz > 0 ? Math.PI / 2 : sx < 0 && sz < 0 ? Math.PI : Math.PI * 1.5;
+						              for (let band = 0; band < 4; band += 1) {
+						                const innerR = 5.15 + (band * 1.04);
+						                const outerR = innerR + 0.74;
+						                const arcGeo = new THREE.RingGeometry(innerR, outerR, 24, 1, start, Math.PI / 2);
+						                const arc = new THREE.Mesh(arcGeo, band % 2 ? premiumConcreteMat : stepMat);
+						                arc.rotation.x = -Math.PI / 2;
+						                arc.position.set(cornerX, 1.02 + (band * 0.34), cornerZ);
+						                arc.userData = { kind: 'pitch_3d_professional_curved_corner_terrace' };
+						                arc.receiveShadow = true;
+						                g.add(arc);
+						                for (let i = 1; i <= 8; i += 1) {
+						                  const a = start + (i / 9) * (Math.PI / 2);
+						                  const r = innerR + 0.38;
+						                  const x = cornerX + Math.cos(a) * r;
+						                  const z = cornerZ + Math.sin(a) * r;
+						                  const mat = ((i + band) % 5 === 0) ? seatMatB : seatMatA;
+						                  addBox(g, new THREE.BoxGeometry(0.58, 0.17, 0.36), mat, x, 1.20 + (band * 0.34), z, -0.10, -a + Math.PI / 2, 0, 'pitch_3d_professional_curved_corner_seat');
+						                }
+						              }
+						            };
+						            [-1, 1].forEach((sx) => {
+						              [-1, 1].forEach((sz) => addArcCornerBowl(sx, sz));
+						            });
+						            const addLouverRun = (axis, sign, count, span, fixed) => {
+						              for (let i = 0; i < count; i += 1) {
+						                const t = count === 1 ? 0 : (i / (count - 1)) - 0.5;
+						                if (axis === 'z') {
+						                  addBox(g, new THREE.BoxGeometry(0.16, 4.9, 0.22), facadeLouverMat, t * span, 6.08, sign * fixed, 0, 0, 0, 'pitch_3d_professional_outer_louver');
+						                } else {
+						                  addBox(g, new THREE.BoxGeometry(0.22, 4.9, 0.16), facadeLouverMat, sign * fixed, 6.08, t * span, 0, 0, 0, 'pitch_3d_professional_outer_louver');
+						                }
+						              }
+						            };
+						            addLouverRun('z', 1, 18, metersW + 32.0, bowlZ + 9.15);
+						            addLouverRun('z', -1, 12, metersW + 20.0, bowlZ + 9.15);
+						            addLouverRun('x', 1, 16, metersH + 30.0, bowlX + 9.15);
+						            addLouverRun('x', -1, 16, metersH + 30.0, bowlX + 9.15);
+						            addBox(g, new THREE.BoxGeometry(metersW + 34.0, 0.10, 0.18), roofLightMat, 0, 10.92, bowlZ + 5.65, 0, 0, 0, 'pitch_3d_professional_roof_inner_light_north');
+						            addBox(g, new THREE.BoxGeometry((metersW * 0.42), 0.10, 0.18), roofLightMat, -metersW * 0.32, 10.92, -(bowlZ + 5.65), 0, 0, 0, 'pitch_3d_professional_roof_inner_light_south_left');
+						            addBox(g, new THREE.BoxGeometry((metersW * 0.42), 0.10, 0.18), roofLightMat, metersW * 0.32, 10.92, -(bowlZ + 5.65), 0, 0, 0, 'pitch_3d_professional_roof_inner_light_south_right');
+						            addBox(g, new THREE.BoxGeometry(0.18, 0.10, metersH + 34.0), roofLightMat, bowlX + 5.65, 10.92, 0, 0, 0, 0, 'pitch_3d_professional_roof_inner_light_east');
+						            addBox(g, new THREE.BoxGeometry(0.18, 0.10, metersH + 34.0), roofLightMat, -(bowlX + 5.65), 10.92, 0, 0, 0, 0, 'pitch_3d_professional_roof_inner_light_west');
+						            for (let i = -6; i <= 6; i += 1) {
+						              const x = i * ((metersW + 28.0) / 12);
+						              addBox(g, new THREE.BoxGeometry(0.14, 0.14, 7.20), metalMat, x, 10.28, bowlZ + 8.45, 0.34, 0, 0, 'pitch_3d_professional_roof_truss_north_a');
+						              addBox(g, new THREE.BoxGeometry(0.14, 0.14, 7.20), metalMat, x, 10.28, bowlZ + 8.45, -0.34, 0, 0, 'pitch_3d_professional_roof_truss_north_b');
+						              addBox(g, new THREE.BoxGeometry(0.14, 0.14, 7.20), metalMat, x, 10.28, -(bowlZ + 8.45), 0.34, 0, 0, 'pitch_3d_professional_roof_truss_south_a');
+						              addBox(g, new THREE.BoxGeometry(0.14, 0.14, 7.20), metalMat, x, 10.28, -(bowlZ + 8.45), -0.34, 0, 0, 'pitch_3d_professional_roof_truss_south_b');
+						            }
+						            for (let i = -5; i <= 5; i += 1) {
+						              const z = i * ((metersH + 26.0) / 10);
+						              addBox(g, new THREE.BoxGeometry(7.20, 0.14, 0.14), metalMat, bowlX + 8.45, 10.28, z, 0, 0, 0.34, 'pitch_3d_professional_roof_truss_east_a');
+						              addBox(g, new THREE.BoxGeometry(7.20, 0.14, 0.14), metalMat, bowlX + 8.45, 10.28, z, 0, 0, -0.34, 'pitch_3d_professional_roof_truss_east_b');
+						              addBox(g, new THREE.BoxGeometry(7.20, 0.14, 0.14), metalMat, -(bowlX + 8.45), 10.28, z, 0, 0, 0.34, 'pitch_3d_professional_roof_truss_west_a');
+						              addBox(g, new THREE.BoxGeometry(7.20, 0.14, 0.14), metalMat, -(bowlX + 8.45), 10.28, z, 0, 0, -0.34, 'pitch_3d_professional_roof_truss_west_b');
+						            }
+						            const makeBadgeMat = (label, bg, fg) => {
+						              const c = document.createElement('canvas');
+						              c.width = 256;
+						              c.height = 256;
+						              const ctx = c.getContext('2d');
+						              ctx.clearRect(0, 0, 256, 256);
+						              ctx.fillStyle = '#f8fafc';
+						              ctx.beginPath();
+						              ctx.arc(128, 128, 112, 0, Math.PI * 2);
+						              ctx.fill();
+						              ctx.fillStyle = bg;
+						              ctx.beginPath();
+						              ctx.arc(128, 128, 96, 0, Math.PI * 2);
+						              ctx.fill();
+						              ctx.strokeStyle = '#f8fafc';
+						              ctx.lineWidth = 10;
+						              ctx.stroke();
+						              ctx.fillStyle = fg;
+						              ctx.font = '700 58px Arial, sans-serif';
+						              ctx.textAlign = 'center';
+						              ctx.textBaseline = 'middle';
+						              ctx.fillText(label, 128, 126);
+						              const tex = new THREE.CanvasTexture(c);
+						              tex.needsUpdate = true;
+						              return new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
+						            };
+						            const badgeMat = makeBadgeMat('CDB', '#047857', '#f8fafc');
+						            const addBadge = (x, y, z, ry, size, kind) => {
+						              const badge = new THREE.Mesh(new THREE.CircleGeometry(size, 48), badgeMat);
+						              badge.position.set(x, y, z);
+						              badge.rotation.y = ry;
+						              badge.userData = { kind };
+						              g.add(badge);
+						            };
+						            addBadge(0, 7.15, bowlZ + 6.25, Math.PI, 2.55, 'pitch_3d_professional_main_badge_north');
+						            addBadge(-(bowlX + 5.95), 6.55, 0, Math.PI / 2, 2.05, 'pitch_3d_professional_side_badge_west');
+						            addBadge(bowlX + 5.95, 6.55, 0, -Math.PI / 2, 2.05, 'pitch_3d_professional_side_badge_east');
 						            root.add(g);
 						          };
 						          addStadiumCornerConnectors();
