@@ -9345,6 +9345,7 @@
 						            const g = new THREE.Group();
 						            const standZ = -(metersH / 2 + 12.80);
 						            g.position.set(0, 0, standZ);
+						            g.rotation.y = Math.PI;
 						            g.userData = { kind: 'pitch_3d_technical_stand_with_tunnel' };
 						            const standW = Math.min(78, metersW * 0.74);
 						            const rows = 8;
