@@ -9204,6 +9204,11 @@
 						          const benchPadMat = new THREE.MeshStandardMaterial({ color: 0x082f49, roughness: 0.42, metalness: 0.02 });
 						          const flagPoleMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.32, metalness: 0.18 });
 						          const flagMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.48, metalness: 0, side: THREE.DoubleSide });
+						          const concreteMat = new THREE.MeshStandardMaterial({ color: 0xcbd5d1, roughness: 0.82, metalness: 0.01 });
+						          const stepMat = new THREE.MeshStandardMaterial({ color: 0x9aa7a7, roughness: 0.78, metalness: 0.02 });
+						          const aisleMat = new THREE.MeshStandardMaterial({ color: 0xe5e7eb, roughness: 0.70, metalness: 0.02 });
+						          const tunnelWallMat = new THREE.MeshStandardMaterial({ color: 0x13202a, roughness: 0.64, metalness: 0.05 });
+						          const tunnelLightMat = new THREE.MeshBasicMaterial({ color: 0xd9fff2, transparent: true, opacity: 0.58, toneMapped: false });
 						          const addBox = (group, geo, mat, x, y, z, rx = 0, ry = 0, rz = 0, kind = 'pitch_side_detail') => {
 						            const mesh = new THREE.Mesh(geo, mat);
 						            mesh.position.set(x, y, z);
@@ -9336,6 +9341,61 @@
 						          };
 						          addBench(-7.3, -(metersH / 2 + 6.20), 0);
 						          addBench(7.3, -(metersH / 2 + 6.20), 1);
+						          const addDressingRoomTunnel = () => {
+						            const g = new THREE.Group();
+						            const tunnelZ = -(metersH / 2 + 9.10);
+						            g.position.set(0, 0, tunnelZ);
+						            g.userData = { kind: 'pitch_3d_dressing_tunnel' };
+						            addBox(g, new THREE.BoxGeometry(6.4, 0.20, 5.6), concreteMat, 0, 0.10, 0.35, 0, 0, 0, 'pitch_3d_tunnel_lowered_slab');
+						            addBox(g, new THREE.BoxGeometry(4.2, 0.16, 3.8), tunnelWallMat, 0, 0.18, -0.40, 0, 0, 0, 'pitch_3d_tunnel_dark_floor');
+						            addBox(g, new THREE.BoxGeometry(0.30, 1.75, 3.8), tunnelWallMat, -2.25, 0.92, -0.40, 0, 0, 0, 'pitch_3d_tunnel_side_wall');
+						            addBox(g, new THREE.BoxGeometry(0.30, 1.75, 3.8), tunnelWallMat, 2.25, 0.92, -0.40, 0, 0, 0, 'pitch_3d_tunnel_side_wall');
+						            addBox(g, new THREE.BoxGeometry(4.65, 0.24, 0.26), metalMat, 0, 1.84, -2.24, 0, 0, 0, 'pitch_3d_tunnel_lintel');
+						            addBox(g, new THREE.BoxGeometry(4.20, 1.34, 0.08), tunnelLightMat, 0, 0.98, -2.12, 0, 0, 0, 'pitch_3d_tunnel_inner_glow');
+						            for (let i = 0; i < 5; i += 1) {
+						              addBox(g, new THREE.BoxGeometry(4.0, 0.06, 0.28), stepMat, 0, 0.22 + (i * 0.08), 1.25 - (i * 0.44), -0.10, 0, 0, 'pitch_3d_tunnel_steps');
+						            }
+						            addBox(g, new THREE.BoxGeometry(0.10, 0.92, 3.2), metalMat, -2.72, 0.82, 0.04, 0, 0, 0, 'pitch_3d_tunnel_handrail');
+						            addBox(g, new THREE.BoxGeometry(0.10, 0.92, 3.2), metalMat, 2.72, 0.82, 0.04, 0, 0, 0, 'pitch_3d_tunnel_handrail');
+						            root.add(g);
+						          };
+						          const addLowTechnicalStand = () => {
+						            const g = new THREE.Group();
+						            const standZ = -(metersH / 2 + 14.10);
+						            g.position.set(0, 0, standZ);
+						            g.userData = { kind: 'pitch_3d_low_technical_stand' };
+						            const standW = Math.min(70, metersW * 0.68);
+						            const rows = 5;
+						            for (let r = 0; r < rows; r += 1) {
+						              const y = 0.34 + (r * 0.40);
+						              const z = r * 1.08;
+						              addBox(g, new THREE.BoxGeometry(standW, 0.30, 0.86), stepMat, 0, y, z, -0.035, 0, 0, 'pitch_3d_low_stand_step');
+						              addBox(g, new THREE.BoxGeometry(standW, 0.08, 0.16), concreteMat, 0, y + 0.19, z - 0.38, 0, 0, 0, 'pitch_3d_low_stand_nosing');
+						            }
+						            const seatMatA = new THREE.MeshStandardMaterial({ color: 0x047857, roughness: 0.56, metalness: 0.02 });
+						            const seatMatB = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.52, metalness: 0.02 });
+						            const seatGap = 1.18;
+						            const half = standW / 2 - 2.2;
+						            for (let r = 0; r < rows; r += 1) {
+						              for (let x = -half; x <= half; x += seatGap) {
+						                if (Math.abs(x) < 4.6) continue;
+						                if (Math.abs(x - 18) < 1.8 || Math.abs(x + 18) < 1.8) continue;
+						                const mat = ((Math.floor((x + half) / seatGap) + r) % 7 === 0) ? seatMatB : seatMatA;
+						                addBox(g, new THREE.BoxGeometry(0.68, 0.22, 0.44), mat, x, 0.62 + (r * 0.40), (r * 1.08) - 0.05, -0.10, 0, 0, 'pitch_3d_low_stand_seat');
+						                addBox(g, new THREE.BoxGeometry(0.68, 0.38, 0.10), mat, x, 0.82 + (r * 0.40), (r * 1.08) + 0.25, -0.18, 0, 0, 'pitch_3d_low_stand_backrest');
+						              }
+						            }
+						            [-18, 0, 18].forEach((x) => {
+						              addBox(g, new THREE.BoxGeometry(1.28, 2.25, rows * 1.06), aisleMat, x, 1.24, 2.05, -0.035, 0, 0, 'pitch_3d_low_stand_aisle');
+						              addBox(g, new THREE.BoxGeometry(0.08, 1.72, rows * 1.00), metalMat, x - 0.72, 1.38, 2.08, 0, 0, 0, 'pitch_3d_low_stand_handrail');
+						              addBox(g, new THREE.BoxGeometry(0.08, 1.72, rows * 1.00), metalMat, x + 0.72, 1.38, 2.08, 0, 0, 0, 'pitch_3d_low_stand_handrail');
+						            });
+						            addBox(g, new THREE.BoxGeometry(standW + 2.4, 0.48, 0.34), concreteMat, 0, 0.38, -0.82, 0, 0, 0, 'pitch_3d_low_stand_front_wall');
+						            addBox(g, new THREE.BoxGeometry(standW + 2.8, 0.24, 0.30), metalMat, 0, 2.82, rows * 1.05, 0, 0, 0, 'pitch_3d_low_stand_back_rail');
+						            root.add(g);
+						          };
+						          addDressingRoomTunnel();
+						          addLowTechnicalStand();
 						          const addCornerFlag = (x, z, flipX, flipZ) => {
 						            const group = new THREE.Group();
 						            group.position.set(x, 0, z);
