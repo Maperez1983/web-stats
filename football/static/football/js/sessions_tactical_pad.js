@@ -8706,12 +8706,12 @@
 							        pitch3dOrbit.radius = Math.max(70, Math.max(metersW, metersH) * 1.25);
 						      } else if (k === 'render_original') {
 						        // Vista de referencia: esquina alta, lente abierta y campo completo.
-							        pitch3dOrbit.theta = -2.18;
-							        pitch3dOrbit.phi = 1.08;
-							        pitch3dOrbit.radius = Math.max(94, metersW * 0.90);
-							        targetX = 2;
-							        targetY = 4.9;
-							        targetZ = 5;
+							        pitch3dOrbit.theta = -2.36;
+							        pitch3dOrbit.phi = 1.02;
+							        pitch3dOrbit.radius = Math.max(104, metersW * 0.98);
+							        targetX = 1.2;
+							        targetY = 5.8;
+							        targetZ = 2.4;
 						      } else if (k === 'clean_pitch_render') {
 							        // Composición de campo limpio: esquina alta y campo completo.
 							        pitch3dOrbit.theta = -2.26;
@@ -9883,6 +9883,53 @@
 						            addBadge(0, 7.15, bowlZ + 6.25, Math.PI, 2.55, 'pitch_3d_professional_main_badge_north');
 						            addBadge(-(bowlX + 5.95), 6.55, 0, Math.PI / 2, 2.05, 'pitch_3d_professional_side_badge_west');
 						            addBadge(bowlX + 5.95, 6.55, 0, -Math.PI / 2, 2.05, 'pitch_3d_professional_side_badge_east');
+						            const stairMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.64, metalness: 0.02 });
+						            const seatBlockMat = new THREE.MeshStandardMaterial({ color: 0x047857, roughness: 0.58, metalness: 0.02 });
+						            const railGlassMat = new THREE.MeshStandardMaterial({ color: 0xdff7ff, roughness: 0.14, metalness: 0.02, transparent: true, opacity: 0.38 });
+						            const sponsorMat = new THREE.MeshStandardMaterial({ color: 0x073b32, roughness: 0.48, metalness: 0.06 });
+						            const addReferenceStair = (axis, sign, pos) => {
+						              if (axis === 'z') {
+						                addBox(g, new THREE.BoxGeometry(1.08, 0.18, 12.4), stairMat, pos, 2.28, sign * (bowlZ + 0.20), -0.035, 0, 0, 'pitch_3d_reference_white_stair_aisle');
+						                addBox(g, new THREE.BoxGeometry(0.08, 1.25, 10.8), metalMat, pos - 0.66, 2.92, sign * (bowlZ + 0.65), 0, 0, 0, 'pitch_3d_reference_stair_handrail');
+						                addBox(g, new THREE.BoxGeometry(0.08, 1.25, 10.8), metalMat, pos + 0.66, 2.92, sign * (bowlZ + 0.65), 0, 0, 0, 'pitch_3d_reference_stair_handrail');
+						              } else {
+						                addBox(g, new THREE.BoxGeometry(12.4, 0.18, 1.08), stairMat, sign * (bowlX + 0.20), 2.28, pos, -0.035, 0, 0, 'pitch_3d_reference_end_white_stair_aisle');
+						                addBox(g, new THREE.BoxGeometry(10.8, 1.25, 0.08), metalMat, sign * (bowlX + 0.65), 2.92, pos - 0.66, 0, 0, 0, 'pitch_3d_reference_end_stair_handrail');
+						                addBox(g, new THREE.BoxGeometry(10.8, 1.25, 0.08), metalMat, sign * (bowlX + 0.65), 2.92, pos + 0.66, 0, 0, 0, 'pitch_3d_reference_end_stair_handrail');
+						              }
+						            };
+						            [-metersW * 0.36, -metersW * 0.18, 0, metersW * 0.18, metersW * 0.36].forEach((x) => addReferenceStair('z', 1, x));
+						            [-metersW * 0.30, metersW * 0.30].forEach((x) => addReferenceStair('z', -1, x));
+						            [-metersH * 0.28, 0, metersH * 0.28].forEach((z) => {
+						              addReferenceStair('x', 1, z);
+						              addReferenceStair('x', -1, z);
+						            });
+						            const addSeatBlock = (axis, sign, center, width, depth, y, label) => {
+						              if (axis === 'z') {
+						                addBox(g, new THREE.BoxGeometry(width, 0.16, depth), seatBlockMat, center, y, sign * (bowlZ + 1.90), -0.045, 0, 0, label);
+						                addBox(g, new THREE.BoxGeometry(width, 0.05, 0.18), stairMat, center, y + 0.14, sign * (bowlZ - 1.96), 0, 0, 0, `${label}_front_nosing`);
+						              } else {
+						                addBox(g, new THREE.BoxGeometry(depth, 0.16, width), seatBlockMat, sign * (bowlX + 1.90), y, center, -0.045, 0, 0, label);
+						                addBox(g, new THREE.BoxGeometry(0.18, 0.05, width), stairMat, sign * (bowlX - 1.96), y + 0.14, center, 0, 0, 0, `${label}_front_nosing`);
+						              }
+						            };
+						            [-0.32, 0, 0.32].forEach((ratio) => addSeatBlock('z', 1, ratio * metersW, metersW * 0.16, 5.6, 4.15, 'pitch_3d_reference_compact_seat_block_north'));
+						            [-0.26, 0.26].forEach((ratio) => addSeatBlock('z', -1, ratio * metersW, metersW * 0.16, 5.6, 4.15, 'pitch_3d_reference_compact_seat_block_south'));
+						            [-0.30, 0, 0.30].forEach((ratio) => {
+						              addSeatBlock('x', 1, ratio * metersH, metersH * 0.14, 5.6, 4.15, 'pitch_3d_reference_compact_seat_block_east');
+						              addSeatBlock('x', -1, ratio * metersH, metersH * 0.14, 5.6, 4.15, 'pitch_3d_reference_compact_seat_block_west');
+						            });
+						            addBox(g, new THREE.BoxGeometry(metersW + 8.6, 0.92, 0.28), sponsorMat, 0, 1.05, metersH / 2 + 3.15, 0, 0, 0, 'pitch_3d_reference_pitchside_premium_fascia_north');
+						            addBox(g, new THREE.BoxGeometry(metersW * 0.34, 0.92, 0.28), sponsorMat, -metersW * 0.31, 1.05, -(metersH / 2 + 3.15), 0, 0, 0, 'pitch_3d_reference_pitchside_premium_fascia_south_left');
+						            addBox(g, new THREE.BoxGeometry(metersW * 0.34, 0.92, 0.28), sponsorMat, metersW * 0.31, 1.05, -(metersH / 2 + 3.15), 0, 0, 0, 'pitch_3d_reference_pitchside_premium_fascia_south_right');
+						            addBox(g, new THREE.BoxGeometry(0.28, 0.92, metersH + 8.4), sponsorMat, metersW / 2 + 3.15, 1.05, 0, 0, 0, 0, 'pitch_3d_reference_pitchside_premium_fascia_east');
+						            addBox(g, new THREE.BoxGeometry(0.28, 0.92, metersH + 8.4), sponsorMat, -(metersW / 2 + 3.15), 1.05, 0, 0, 0, 0, 'pitch_3d_reference_pitchside_premium_fascia_west');
+						            [-7.3, 7.3].forEach((x) => {
+						              addBox(g, new THREE.BoxGeometry(12.4, 0.08, 2.55), stairMat, x, 0.18, -(metersH / 2 + 5.18), 0, 0, 0, 'pitch_3d_reference_dugout_technical_slab');
+						              addBox(g, new THREE.BoxGeometry(12.8, 0.95, 0.08), railGlassMat, x, 0.88, -(metersH / 2 + 3.86), 0, 0, 0, 'pitch_3d_reference_dugout_low_glass_barrier');
+						              addBox(g, new THREE.BoxGeometry(0.10, 0.95, 2.52), railGlassMat, x - 6.28, 0.88, -(metersH / 2 + 5.14), 0, 0, 0, 'pitch_3d_reference_dugout_side_barrier');
+						              addBox(g, new THREE.BoxGeometry(0.10, 0.95, 2.52), railGlassMat, x + 6.28, 0.88, -(metersH / 2 + 5.14), 0, 0, 0, 'pitch_3d_reference_dugout_side_barrier');
+						            });
 						            root.add(g);
 						          };
 						          addStadiumCornerConnectors();
