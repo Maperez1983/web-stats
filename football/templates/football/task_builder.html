@@ -5071,14 +5071,6 @@
 				        data-fabric-src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 				        data-tpad-src="{% static 'football/js/sessions_tactical_pad.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 				        data-three-src="{% static 'vendor/three.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
-				        data-three-gltf-loader-src="{% static 'vendor/three/examples/jsm/loaders/GLTFLoader.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
-				        data-three-draco-loader-src="{% static 'vendor/three/examples/jsm/loaders/DRACOLoader.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
-				        data-three-draco-decoder-path="{% static 'vendor/three/examples/jsm/libs/draco/gltf/' %}"
-				        data-stadium-team-name="{{ tactics_team_name|default:'Equipo'|escape }}"
-				        data-stadium-club-name="{{ tactics_club_name|default:'Club'|escape }}"
-				        data-stadium-team-primary="{{ tactics_team_primary|default:''|escape }}"
-				        data-stadium-team-secondary="{{ tactics_team_secondary|default:''|escape }}"
-				        data-stadium-team-crest-url="{{ tactics_team_crest_url|default:''|escape }}"
 					        data-task-id="{% if task %}{{ task.id }}{% endif %}"
 					        data-pdf-preview-url="{{ pdf_preview_url|default:'' }}"
 					        data-video-import-url="{{ video_import_url|default:'' }}"
@@ -6111,7 +6103,7 @@
 				                              Cámara
 				                              <select id="task-pitch-3d-camera">
 				                                <option value="render_original" selected>Render original</option>
-				                                <option value="stadium_render">Estadio</option>
+				                                <option value="clean_pitch_render">Campo limpio</option>
 				                                <option value="drone">Drone</option>
 				                                <option value="broadcast">Broadcast</option>
 				                                <option value="broadcast_high">Broadcast alto</option>
@@ -7669,7 +7661,6 @@
 
 		    {{ tactical_player_catalog|json_script:"tpad-players-catalog" }}
 		    {{ confirmed_player_ids|json_script:"tpad-confirmed-player-ids" }}
-		    {{ tactics_stadium_ads|json_script:"pitch3d-stadium-ads" }}
 				    <script src="{% static 'football/js/ui_tour.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
 				    {% if tactics_mode %}
 				    <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
