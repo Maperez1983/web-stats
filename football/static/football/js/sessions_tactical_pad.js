@@ -9449,6 +9449,83 @@
 						            root.add(g);
 						          };
 						          addTechnicalStandWithTunnel();
+						          const addPeripheralStandModule = (opts) => {
+						            const g = new THREE.Group();
+						            const standW = Number(opts.w) || 48;
+						            const rowsLower = 7;
+						            const rowsMiddle = 6;
+						            const rowsUpper = 5;
+						            const seatGap = Number(opts.seatGap) || 1.22;
+						            const seatMatA = new THREE.MeshStandardMaterial({ color: 0x047857, roughness: 0.56, metalness: 0.02 });
+						            const seatMatB = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.52, metalness: 0.02 });
+						            g.position.set(Number(opts.x) || 0, 0, Number(opts.z) || 0);
+						            g.rotation.y = Number(opts.rotY) || 0;
+						            g.userData = { kind: safeText(opts.kind, 'pitch_3d_peripheral_stand') };
+						            const drawTier = (cfg) => {
+						              const tierRows = Number(cfg.rows) || 5;
+						              const tierW = Number(cfg.w) || standW;
+						              const baseY = Number(cfg.baseY) || 0;
+						              const baseZ = Number(cfg.baseZ) || 0;
+						              const rowRise = Number(cfg.rowRise) || 0.34;
+						              const rowDepth = Number(cfg.rowDepth) || 0.78;
+						              const tierKind = safeText(cfg.kind, 'peripheral_tier');
+						              const tierHalf = tierW / 2 - 1.7;
+						              for (let r = 0; r < tierRows; r += 1) {
+						                const y = baseY + (r * rowRise);
+						                const z = baseZ + (r * rowDepth);
+						                addBox(g, new THREE.BoxGeometry(tierW, 0.27, 0.72), stepMat, 0, y, z, -0.045, 0, 0, `pitch_3d_${tierKind}_step`);
+						                addBox(g, new THREE.BoxGeometry(tierW, 0.065, 0.13), concreteMat, 0, y + 0.18, z - 0.33, 0, 0, 0, `pitch_3d_${tierKind}_nosing`);
+						              }
+						              for (let r = 0; r < tierRows; r += 1) {
+						                for (let sx = -tierHalf; sx <= tierHalf; sx += seatGap) {
+						                  if (Math.abs(sx) < Number(cfg.centerGap || 3.4)) continue;
+						                  if (Math.abs(sx - (tierW * 0.28)) < 1.20 || Math.abs(sx + (tierW * 0.28)) < 1.20) continue;
+						                  const mat = ((Math.floor((sx + tierHalf) / seatGap) + r + Number(cfg.offset || 0)) % 8 === 0) ? seatMatB : seatMatA;
+						                  addBox(g, new THREE.BoxGeometry(0.66, 0.19, 0.40), mat, sx, baseY + 0.25 + (r * rowRise), baseZ + (r * rowDepth) - 0.06, -0.10, 0, 0, `pitch_3d_${tierKind}_seat`);
+						                  addBox(g, new THREE.BoxGeometry(0.66, 0.34, 0.10), mat, sx, baseY + 0.42 + (r * rowRise), baseZ + (r * rowDepth) + 0.20, -0.18, 0, 0, `pitch_3d_${tierKind}_backrest`);
+						                }
+						              }
+						              [-0.28, 0, 0.28].forEach((ratio) => {
+						                const ax = ratio * tierW;
+						                addBox(g, new THREE.BoxGeometry(1.18, Math.max(1.40, tierRows * rowRise * 0.90), tierRows * rowDepth * 0.86), aisleMat, ax, baseY + 0.70 + (tierRows * rowRise * 0.32), baseZ + (tierRows * rowDepth * 0.43), -0.045, 0, 0, `pitch_3d_${tierKind}_aisle`);
+						                addBox(g, new THREE.BoxGeometry(0.07, Math.max(1.10, tierRows * rowRise * 0.78), tierRows * rowDepth * 0.82), metalMat, ax - 0.68, baseY + 0.82 + (tierRows * rowRise * 0.32), baseZ + (tierRows * rowDepth * 0.43), 0, 0, 0, `pitch_3d_${tierKind}_handrail`);
+						                addBox(g, new THREE.BoxGeometry(0.07, Math.max(1.10, tierRows * rowRise * 0.78), tierRows * rowDepth * 0.82), metalMat, ax + 0.68, baseY + 0.82 + (tierRows * rowRise * 0.32), baseZ + (tierRows * rowDepth * 0.43), 0, 0, 0, `pitch_3d_${tierKind}_handrail`);
+						              });
+						            };
+						            addBox(g, new THREE.BoxGeometry(standW + 2.8, 0.34, 8.4), concreteMat, 0, 0.18, 2.55, -0.045, 0, 0, 'pitch_3d_peripheral_stand_foundation');
+						            addBox(g, new THREE.BoxGeometry(standW + 2.2, 0.74, 0.34), concreteMat, 0, 0.62, -1.18, -0.04, 0, 0, 'pitch_3d_peripheral_stand_front_wall');
+						            drawTier({ kind: 'peripheral_lower_tier', w: standW, rows: rowsLower, baseY: 0.62, baseZ: 0, rowRise: 0.37, rowDepth: 0.86, centerGap: 3.6 });
+						            const concourseZ = rowsLower * 0.86 + 0.82;
+						            addBox(g, new THREE.BoxGeometry(standW + 1.8, 0.30, 1.08), concreteMat, 0, 3.32, concourseZ, 0, 0, 0, 'pitch_3d_peripheral_concourse_ring');
+						            addBox(g, new THREE.BoxGeometry(standW + 1.8, 0.14, 0.20), metalMat, 0, 3.76, concourseZ - 0.60, 0, 0, 0, 'pitch_3d_peripheral_guardrail');
+						            addBox(g, new THREE.BoxGeometry(standW * 0.90, 0.34, 5.0), concreteMat, 0, 3.42, concourseZ + 2.55, -0.035, 0, 0, 'pitch_3d_peripheral_middle_raker');
+						            drawTier({ kind: 'peripheral_middle_tier', w: standW * 0.90, rows: rowsMiddle, baseY: 3.78, baseZ: concourseZ + 0.88, rowRise: 0.34, rowDepth: 0.78, centerGap: 3.0, offset: 3 });
+						            const upperZ = concourseZ + 6.10;
+						            addBox(g, new THREE.BoxGeometry(standW * 0.80, 0.30, 0.95), concreteMat, 0, 5.82, upperZ, 0, 0, 0, 'pitch_3d_peripheral_upper_concourse');
+						            addBox(g, new THREE.BoxGeometry(standW * 0.76, 0.32, 4.0), concreteMat, 0, 5.96, upperZ + 2.15, -0.035, 0, 0, 'pitch_3d_peripheral_upper_raker');
+						            drawTier({ kind: 'peripheral_upper_tier', w: standW * 0.76, rows: rowsUpper, baseY: 6.30, baseZ: upperZ + 0.72, rowRise: 0.32, rowDepth: 0.74, centerGap: 2.6, offset: 5 });
+						            [-0.42, -0.24, 0, 0.24, 0.42].forEach((ratio) => {
+						              const cx = ratio * standW;
+						              addBox(g, new THREE.BoxGeometry(0.26, 5.40, 0.30), concreteMat, cx, 3.04, concourseZ + 2.70, -0.02, 0, 0, 'pitch_3d_peripheral_column');
+						              addBox(g, new THREE.BoxGeometry(0.18, 4.70, 0.22), metalMat, cx, 6.05, upperZ + 2.15, -0.02, 0, 0, 'pitch_3d_peripheral_upper_column');
+						            });
+						            [-0.18, 0.18].forEach((ratio) => {
+						              const vx = ratio * standW;
+						              addBox(g, new THREE.BoxGeometry(3.3, 1.16, 0.28), tunnelWallMat, vx, 4.44, concourseZ + 0.20, 0, 0, 0, 'pitch_3d_peripheral_vomitory');
+						              addBox(g, new THREE.BoxGeometry(2.85, 0.78, 0.07), tunnelLightMat, vx, 4.36, concourseZ + 0.02, 0, 0, 0, 'pitch_3d_peripheral_vomitory_glow');
+						            });
+						            addBox(g, new THREE.BoxGeometry(0.38, 2.95, rowsLower * 0.84 + 1.1), concreteMat, -(standW / 2 + 0.30), 1.62, 2.45, -0.045, 0, 0, 'pitch_3d_peripheral_side_wall');
+						            addBox(g, new THREE.BoxGeometry(0.38, 2.95, rowsLower * 0.84 + 1.1), concreteMat, standW / 2 + 0.30, 1.62, 2.45, -0.045, 0, 0, 'pitch_3d_peripheral_side_wall');
+						            addBox(g, new THREE.BoxGeometry(standW * 0.86, 0.18, 4.3), metalMat, 0, 8.36, upperZ + 3.35, -0.16, 0, 0, 'pitch_3d_peripheral_roof_frame');
+						            for (let i = -3; i <= 3; i += 1) {
+						              addBox(g, new THREE.BoxGeometry(0.10, 1.45, 4.2), metalMat, i * (standW * 0.12), 7.88, upperZ + 3.25, -0.16, 0, 0, 'pitch_3d_peripheral_roof_rib');
+						            }
+						            addBox(g, new THREE.BoxGeometry(standW * 0.82, 0.08, 4.0), glassMat, 0, 8.50, upperZ + 3.42, -0.16, 0, 0, 'pitch_3d_peripheral_translucent_roof');
+						            root.add(g);
+						          };
+						          addPeripheralStandModule({ kind: 'pitch_3d_opposite_multitier_stand', x: 0, z: metersH / 2 + 12.80, rotY: 0, w: Math.min(78, metersW * 0.74), seatGap: 1.18 });
+						          addPeripheralStandModule({ kind: 'pitch_3d_left_end_multitier_stand', x: -(metersW / 2 + 12.50), z: 0, rotY: -Math.PI / 2, w: Math.min(50, metersH * 0.74), seatGap: 1.16 });
+						          addPeripheralStandModule({ kind: 'pitch_3d_right_end_multitier_stand', x: metersW / 2 + 12.50, z: 0, rotY: Math.PI / 2, w: Math.min(50, metersH * 0.74), seatGap: 1.16 });
 						          const addCornerFlag = (x, z, flipX, flipZ) => {
 						            const group = new THREE.Group();
 						            group.position.set(x, 0, z);
