@@ -1174,13 +1174,7 @@
 					      } catch (e) { /* ignore */ }
 					      try {
 					        if (stage && viewportEl) {
-					          // Si el stage está envuelto por el “estadio” (gradas) en el template,
-					          // NO lo movemos directamente a `viewportEl` porque rompe la composición:
-					          // la grada queda a un lado y el campo fuera. Si existe `.tpad-stadium-center`,
-					          // el stage debe vivir ahí.
-					          const stadiumCenter = document.querySelector?.('.tpad-stadium-center') || null;
-					          const desiredParent = stadiumCenter || viewportEl;
-					          if (stage.parentElement !== desiredParent) desiredParent.appendChild(stage);
+						          if (stage.parentElement !== viewportEl) viewportEl.appendChild(stage);
 					        }
 					      } catch (e) { /* ignore */ }
 					      try { if (viewportEl) viewportEl.hidden = false; } catch (e) { /* ignore */ }
@@ -2872,7 +2866,7 @@
 		    } catch (e) { /* ignore */ }
 		    // Color de fichas (para nuevos jugadores colocados en la pizarra).
 		    // En Táctica: 2 colores (local / rival) para que el entrenador no tenga que recolorear cada ficha.
-			    const tokenTeamName = safeText(document.querySelector('.tpad-stand-name')?.textContent || '');
+				    const tokenTeamName = safeText(form?.dataset?.stadiumClubName || form?.dataset?.stadiumTeamName || document.querySelector('.nav-context-name')?.textContent || '');
 			    const tokenTeamKey = tokenTeamName
 			      .toLowerCase()
 			      .normalize('NFD')
@@ -2892,10 +2886,8 @@
 			        .normalize('NFD')
 			        .replace(/[\u0300-\u036f]/g, '');
 			      if (lower.includes('malaga')) return { local: '#6ecff6', base: '#ffffff', rival: '#ef4444' };
-			      const stadium = document.querySelector('.tpad-stadium');
-			      const styles = stadium && window.getComputedStyle ? window.getComputedStyle(stadium) : null;
-			      const local = parseColorToHex(styles?.getPropertyValue('--tpad-team-primary'), '') || '#0f7a35';
-			      const base = parseColorToHex(styles?.getPropertyValue('--tpad-team-secondary'), '') || '#ffffff';
+				      const local = parseColorToHex(form?.dataset?.stadiumTeamPrimary, '') || '#0f7a35';
+				      const base = parseColorToHex(form?.dataset?.stadiumTeamSecondary, '') || '#ffffff';
 			      return { local, base, rival: '#ef4444' };
 			    })();
 			    let tokenGlobalColorLocal = tokenTeamDefaultColors.local;
@@ -8314,7 +8306,7 @@
 							    const readPitch3dStadiumContext = () => {
 							      let ads = {};
 						      try {
-						        const raw = document.getElementById('tpad-stadium-ads')?.textContent || '{}';
+						        const raw = document.getElementById('pitch3d-stadium-ads')?.textContent || '{}';
 						        const parsed = JSON.parse(raw);
 						        ads = (parsed && typeof parsed === 'object') ? parsed : {};
 						      } catch (e) { ads = {}; }
@@ -8385,10 +8377,10 @@
 						        mainStandSrc: safeText(form?.dataset?.stadiumMainStandSrc),
 						        sponsorLogos,
 						        ads: {
-						          top: safeText(ads.top, clubName || teamName || 'Club'),
-						          right: safeText(ads.right, '2J Football Intelligence'),
-						          bottom: safeText(ads.bottom, clubName || teamName || 'Club'),
-						          left: safeText(ads.left, 'Partner'),
+						          top: safeText(ads.top),
+						          right: safeText(ads.right),
+						          bottom: safeText(ads.bottom),
+						          left: safeText(ads.left),
 						          top_logo_data_url: safeText(ads.top_logo_data_url),
 						          right_logo_data_url: safeText(ads.right_logo_data_url),
 						          bottom_logo_data_url: safeText(ads.bottom_logo_data_url),
@@ -8805,11 +8797,14 @@
 						          }
 						        };
 						        drawBase();
-						        ctx.fillStyle = safeText(logoUrl) ? '#0f172a' : '#f8fafc';
-						        ctx.textAlign = 'center';
-						        ctx.textBaseline = 'middle';
-						        ctx.font = `950 ${Math.round(c.height * 0.42)}px system-ui, -apple-system, Segoe UI, Arial`;
-						        ctx.fillText(safeText(label, 'SPONSOR').toUpperCase().slice(0, 34), c.width / 2, c.height / 2 + 1);
+							        const adLabel = safeText(label);
+							        if (adLabel) {
+							          ctx.fillStyle = safeText(logoUrl) ? '#0f172a' : '#f8fafc';
+							          ctx.textAlign = 'center';
+							          ctx.textBaseline = 'middle';
+							          ctx.font = `950 ${Math.round(c.height * 0.42)}px system-ui, -apple-system, Segoe UI, Arial`;
+							          ctx.fillText(adLabel.toUpperCase().slice(0, 34), c.width / 2, c.height / 2 + 1);
+							        }
 						        const logo = safeText(logoUrl);
 						        if (logo) {
 						          try {
@@ -8915,26 +8910,16 @@
 						            ctx.stroke();
 						          });
 
-						          const label = safeText(teamName, 'CLUB').toUpperCase().slice(0, 28);
-						          const bandW = c.width * 0.78;
-						          const bandH = c.height * 0.20;
-						          const bandX = (c.width - bandW) / 2;
-						          const bandY = c.height * 0.57;
+							          const bandW = c.width * 0.78;
+							          const bandH = c.height * 0.20;
+							          const bandX = (c.width - bandW) / 2;
+							          const bandY = c.height * 0.57;
 						          ctx.fillStyle = 'rgba(2,6,23,0.42)';
 						          ctx.fillRect(bandX, bandY, bandW, bandH);
 						          ctx.strokeStyle = 'rgba(248,250,252,0.20)';
 						          ctx.lineWidth = 5;
 						          ctx.strokeRect(bandX + 5, bandY + 5, bandW - 10, bandH - 10);
-						          ctx.textAlign = 'center';
-						          ctx.textBaseline = 'middle';
-						          ctx.font = `950 ${Math.round(c.height * 0.15)}px system-ui, -apple-system, Segoe UI, Arial`;
-						          ctx.lineWidth = Math.max(8, c.height * 0.018);
-						          ctx.strokeStyle = 'rgba(2,6,23,0.58)';
-						          ctx.strokeText(label, c.width / 2, bandY + (bandH / 2) + 4);
-						          ctx.fillStyle = secondary || '#f8fafc';
-						          ctx.fillText(label, c.width / 2, bandY + (bandH / 2) + 4);
-
-						          const r = c.height * 0.135;
+							          const r = c.height * 0.135;
 						          const cx = c.width * 0.50;
 						          const cy = c.height * 0.30;
 						          ctx.beginPath();
@@ -9036,18 +9021,7 @@
 						          }
 						        }
 
-						        // Letras blancas integradas en la grada, como mosaico de asientos.
-						        const label = safeText(teamName, 'CLUB').toUpperCase().slice(0, 26);
-						        ctx.textAlign = 'center';
-						        ctx.textBaseline = 'middle';
-						        ctx.font = `950 ${Math.round(c.height * 0.19)}px system-ui, -apple-system, Segoe UI, Arial`;
-						        ctx.lineWidth = Math.max(8, c.height * 0.022);
-						        ctx.strokeStyle = 'rgba(2, 6, 23, 0.34)';
-						        ctx.strokeText(label, c.width / 2, c.height * 0.68);
-						        ctx.fillStyle = secondary;
-						        ctx.fillText(label, c.width / 2, c.height * 0.68);
-
-						        // Escudo circular centrado arriba.
+							        // Escudo circular centrado arriba.
 						        const r = c.height * 0.145;
 						        const cx = c.width * 0.5;
 						        const cy = c.height * 0.28;
@@ -9433,12 +9407,12 @@ const buildPremiumStadium3d = (root, metersW, metersH) => {
 						          for (let i = 0; i < cols; i += 1) {
 						            const x = ((i / Math.max(1, cols - 1)) - 0.5) * (width - 2.4);
 						            if (aisleXs.some((ax) => Math.abs(x - ax) < 1.15)) continue;
-						            const whiteNameBand = r >= 5 && r <= 8 && Math.abs(x) < metersW * 0.34;
-						            const whiteMosaicEdge = (i + r) % 17 === 0;
+							            const accentBand = r >= 5 && r <= 8 && Math.abs(x) < metersW * 0.34;
+							            const whiteMosaicEdge = (i + r) % 17 === 0;
 						            dummy.position.set(x, y + 0.08, z - (sign * 0.28));
 						            dummy.rotation.set(sign * -0.13, 0, 0);
 						            dummy.updateMatrix();
-						            if (whiteNameBand || whiteMosaicEdge) {
+							            if (accentBand || whiteMosaicEdge) {
 						              seatsB.setMatrixAt(ib, dummy.matrix);
 						              ib += 1;
 						            } else {
@@ -9449,7 +9423,7 @@ const buildPremiumStadium3d = (root, metersW, metersH) => {
 						          seatsA.count = ia;
 						          seatsB.count = ib;
 						          seatsA.userData = { kind: 'main_stand_seats', row: r };
-						          seatsB.userData = { kind: 'main_stand_name_seats', row: r };
+							          seatsB.userData = { kind: 'main_stand_accent_seats', row: r };
 						          group.add(seatsA, seatsB);
 						        }
 
@@ -9471,23 +9445,6 @@ const buildPremiumStadium3d = (root, metersW, metersH) => {
 						            tunnel.userData = { kind: 'main_stand_vomitory', idx };
 						          }
 						        });
-
-						        const nameSeatMat = makePitch3dTextMaterial(ctx.teamName, {
-						          primary,
-						          secondary,
-						          fill: secondary,
-						          bg: primary,
-						          large: true,
-						          width: 1536,
-						          height: 220,
-						        });
-						        if (nameSeatMat) {
-						          const namePanel = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(metersW * 0.74, 76), 5.3), nameSeatMat);
-						          namePanel.position.set(0, 5.3, sign * (halfH + 11.0));
-						          namePanel.rotation.x = sign * -0.20;
-						          namePanel.userData = { kind: 'main_stand_raised_name' };
-						          group.add(namePanel);
-						        }
 
 						        [0.22, 0.48, 0.72].forEach((t) => {
 						          const rail = addBox(
@@ -9579,123 +9536,6 @@ const buildPremiumStadium3d = (root, metersW, metersH) => {
 							        } catch (e) { /* ignore */ }
 							      }
 
-								      const formatStadiumStandName = (value) => {
-								        const raw = safeText(value, 'CLUB')
-								          .normalize('NFD')
-								          .replace(/[\u0300-\u036f]/g, '')
-								          .replace(/\s+/g, ' ')
-								          .trim();
-								        const compact = raw.toUpperCase().replace(/[^A-Z0-9]+/g, '');
-								        if (compact === 'CDB' || compact === 'BENAGALBON' || compact === 'BENAGALBONCD' || compact === 'CDBENAGALBON') return 'C.D BENAGALBON';
-								        if (compact === 'MCF' || compact === 'MALAGA' || compact === 'MALAGACF') return 'MALAGA C.F';
-								        let label = raw.toUpperCase();
-								        label = label.replace(/^C\s*\.?\s*D\s*\.?\s+/i, '').replace(/^C\s*\.?\s*F\s*\.?\s+/i, '');
-								        label = label.replace(/\s*C\s*\.?\s*D\s*\.?$/i, '').replace(/\s*C\s*\.?\s*F\s*\.?$/i, '');
-								        const suffix = /^C\s*\.?\s*D\s*\.?/i.test(raw) || /\s*C\s*\.?\s*D\s*\.?$/i.test(raw) ? ' CD' : (/^C\s*\.?\s*F\s*\.?/i.test(raw) || /\s*C\s*\.?\s*F\s*\.?$/i.test(raw) ? ' CF' : '');
-								        return safeText(`${label}${suffix}`.replace(/\s+/g, ' '), 'CLUB').slice(0, 24);
-								      };
-								      const getStadiumStandNameSource = () => {
-								        const candidates = [ctx.clubName, ctx.teamName, ctx.displayTeamName, ctx.ads?.top, ctx.ads?.bottom]
-								          .map((value) => safeText(value))
-								          .filter(Boolean);
-								        const genericLabels = new Set(['CLUB', 'EQUIPO', 'PIZARRA']);
-								        const categoryLabels = new Set([
-								          'PREBENJAMIN', 'BENJAMIN', 'ALEVIN', 'INFANTIL', 'CADETE',
-								          'JUVENIL', 'SENIOR', 'AMATEUR', 'FEMENINO', 'MASCULINO',
-								        ]);
-								        for (const candidate of candidates) {
-								          const compact = candidate
-								            .normalize('NFD')
-								            .replace(/[\u0300-\u036f]/g, '')
-								            .toUpperCase()
-								            .replace(/[^A-Z0-9]+/g, '');
-								          if (!compact || genericLabels.has(compact) || categoryLabels.has(compact)) continue;
-								          return candidate;
-								        }
-								        return ctx.initials || ctx.clubName || ctx.teamName || 'Club';
-								      };
-
-								      if (usingBlenderShell) {
-							        try {
-							          const label = formatStadiumStandName(getStadiumStandNameSource());
-							          const mask = document.createElement('canvas');
-							          mask.width = 720;
-							          mask.height = 128;
-						          const mctx = mask.getContext('2d');
-						          if (mctx) {
-						            mctx.clearRect(0, 0, mask.width, mask.height);
-						            mctx.fillStyle = '#ffffff';
-						            mctx.textAlign = 'center';
-						            mctx.textBaseline = 'middle';
-							            mctx.font = `950 82px system-ui, -apple-system, Segoe UI, Arial`;
-						            mctx.fillText(label, mask.width / 2, mask.height / 2 + 4);
-						            const img = mctx.getImageData(0, 0, mask.width, mask.height).data;
-							            const cols = 138;
-							            const rows = 26;
-							            const seatGeo = new THREE.BoxGeometry(0.78, 0.20, 0.44);
-							            const printMat = new THREE.MeshStandardMaterial({
-							              color: toColorInt(secondary, 0xf8fafc),
-							              roughness: 0.76,
-							              metalness: 0.01,
-							              emissive: new THREE.Color(toColorInt(secondary, 0xf8fafc)),
-							              emissiveIntensity: 0.035,
-							            });
-							            printMat.depthTest = false;
-							            printMat.depthWrite = false;
-						            const instances = [];
-						            for (let r = 0; r < rows; r += 1) {
-						              for (let col = 0; col < cols; col += 1) {
-						                const px = Math.round((col / Math.max(1, cols - 1)) * (mask.width - 1));
-						                const py = Math.round((r / Math.max(1, rows - 1)) * (mask.height - 1));
-						                const alpha = img[((py * mask.width) + px) * 4 + 3];
-						                if (alpha > 80) instances.push({ col, r });
-						              }
-						            }
-						            const mesh = new THREE.InstancedMesh(seatGeo, printMat, Math.max(1, instances.length));
-						            const dummy = new THREE.Object3D();
-							            const width = Math.min(metersW * 0.92, 96);
-							            instances.forEach((p, idx) => {
-							              const x = (0.5 - (p.col / Math.max(1, cols - 1))) * width;
-							              const rowT = p.r / Math.max(1, rows - 1);
-							              const y = 2.62 + (rowT * 5.10);
-							              const z = halfH + 3.25 + (rowT * 7.90);
-							              dummy.position.set(x, y, z);
-							              dummy.rotation.set(0.26, 0, 0);
-						              dummy.updateMatrix();
-						              mesh.setMatrixAt(idx, dummy.matrix);
-						            });
-							            mesh.count = instances.length;
-							            mesh.renderOrder = 42;
-							            mesh.userData = { kind: 'main_stand_seat_lettering', label };
-						            group.add(mesh);
-						          }
-						        } catch (e) { /* ignore */ }
-						      }
-
-							      const standDisplayName = formatStadiumStandName(getStadiumStandNameSource());
-							      const nameMat = makePitch3dTextMaterial(standDisplayName, {
-							        primary,
-							        secondary,
-							        fill: secondary,
-						        bg: primary,
-						        large: true,
-						        width: 2048,
-						        height: 260,
-						        transparentBg: usingBlenderShell,
-							      });
-							      if (nameMat && !usingBlenderShell) {
-							        const sign = -1;
-							        const name = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(metersW * 0.82, 88), usingBlenderShell ? 7.4 : 4.4), nameMat);
-							        name.position.set(0, usingBlenderShell ? 5.25 : 6.4, usingBlenderShell ? (halfH + 8.05) : (sign * (halfH + 13.2)));
-							        name.rotation.x = usingBlenderShell ? 0.24 : (sign * -0.22);
-							        name.renderOrder = usingBlenderShell ? 86 : 4;
-							        try {
-							          name.material.depthTest = usingBlenderShell ? false : name.material.depthTest;
-							          name.material.depthWrite = usingBlenderShell ? false : name.material.depthWrite;
-							        } catch (e) { /* ignore */ }
-						        name.userData = { kind: 'main_stand_integrated_name', label: standDisplayName };
-						        group.add(name);
-						      }
 						      const crestMat = makePitch3dCrestBadgeMaterial({ primary, secondary, initials: ctx.initials, imageUrl: ctx.crestUrl, width: 768, height: 768 });
 						      if (crestMat) {
 						        if (usingBlenderShell) {
@@ -9734,7 +9574,7 @@ const buildPremiumStadium3d = (root, metersW, metersH) => {
 						            ? ctx.sponsorLogos[(sideOffset + idx) % ctx.sponsorLogos.length]
 						            : null;
 						          const effectiveLogo = idx === 0 && safeText(logoUrl) ? safeText(logoUrl) : safeText(sponsor?.logo);
-						          const effectiveLabel = effectiveLogo ? safeText(sponsor?.label || label, label) : label;
+							          const effectiveLabel = effectiveLogo ? safeText(sponsor?.label || label, label) : '';
 						          const mat = makePitch3dAdMaterial(effectiveLabel, effectiveLogo, { primary, secondary, width: longSide ? 4096 : 3072, height: 1024 });
 						          const topMat = makePitch3dAdMaterial(effectiveLabel, effectiveLogo, { primary, secondary, width: longSide ? 4096 : 3072, height: 1280, overhead: true });
 						          if (!mat) return;
