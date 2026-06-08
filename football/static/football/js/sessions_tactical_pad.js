@@ -8261,7 +8261,75 @@
 							      return tex;
 							    };
 
-						    const map2dToPitch = (xPx, yPx, sourceW, sourceH, metersW, metersH, orientation) => {
+							    const makePitchNormalTexture = (width = 1024, height = 768) => {
+							      const c = document.createElement('canvas');
+							      c.width = Math.max(256, Math.round(width));
+							      c.height = Math.max(256, Math.round(height));
+							      const ctx = c.getContext('2d');
+							      if (!ctx) return null;
+							      const rand = (seed) => {
+							        const v = Math.sin(seed * 19.1919) * 43758.5453;
+							        return v - Math.floor(v);
+							      };
+							      ctx.fillStyle = 'rgb(128,128,255)';
+							      ctx.fillRect(0, 0, c.width, c.height);
+							      ctx.globalAlpha = 0.50;
+							      for (let y = 0; y < c.height; y += 2) {
+							        const n = 118 + ((y * 11) % 28);
+							        ctx.strokeStyle = `rgb(${n},${128 + ((y * 7) % 18)},255)`;
+							        ctx.beginPath();
+							        ctx.moveTo(((y * 23) % 31) - 15, y);
+							        ctx.lineTo(c.width + 18, y + ((y % 13) - 6) * 0.08);
+							        ctx.stroke();
+							      }
+							      ctx.globalAlpha = 0.22;
+							      for (let i = 0; i < 5200; i += 1) {
+							        const r = 118 + Math.floor(rand(i + 5) * 36);
+							        const g = 118 + Math.floor(rand(i + 9) * 36);
+							        ctx.fillStyle = `rgb(${r},${g},255)`;
+							        ctx.fillRect(Math.floor(rand(i + 17) * c.width), Math.floor(rand(i + 29) * c.height), 1, 1);
+							      }
+							      ctx.globalAlpha = 1;
+							      const tex = new THREE.CanvasTexture(c);
+							      tex.wrapS = THREE.ClampToEdgeWrapping;
+							      tex.wrapT = THREE.ClampToEdgeWrapping;
+							      tex.anisotropy = 8;
+							      tex.needsUpdate = true;
+							      return tex;
+							    };
+
+							    const makePitchRoughnessTexture = (width = 1024, height = 768) => {
+							      const c = document.createElement('canvas');
+							      c.width = Math.max(256, Math.round(width));
+							      c.height = Math.max(256, Math.round(height));
+							      const ctx = c.getContext('2d');
+							      if (!ctx) return null;
+							      const stripes = 12;
+							      const stripeW = c.width / stripes;
+							      for (let i = 0; i < stripes; i += 1) {
+							        const v = i % 2 === 0 ? 196 : 228;
+							        ctx.fillStyle = `rgb(${v},${v},${v})`;
+							        ctx.fillRect(i * stripeW, 0, stripeW + 1, c.height);
+							      }
+							      ctx.globalAlpha = 0.22;
+							      for (let y = 0; y < c.height; y += 4) {
+							        const v = 184 + ((y * 13) % 46);
+							        ctx.strokeStyle = `rgb(${v},${v},${v})`;
+							        ctx.beginPath();
+							        ctx.moveTo(0, y);
+							        ctx.lineTo(c.width, y + ((y % 17) - 8) * 0.10);
+							        ctx.stroke();
+							      }
+							      ctx.globalAlpha = 1;
+							      const tex = new THREE.CanvasTexture(c);
+							      tex.wrapS = THREE.ClampToEdgeWrapping;
+							      tex.wrapT = THREE.ClampToEdgeWrapping;
+							      tex.anisotropy = 6;
+							      tex.needsUpdate = true;
+							      return tex;
+							    };
+
+							    const map2dToPitch = (xPx, yPx, sourceW, sourceH, metersW, metersH, orientation) => {
 						      const w = Math.max(1, Number(sourceW) || 1280);
 						      const h = Math.max(1, Number(sourceH) || 720);
 						      const u = clamp((Number(xPx) || 0) / w, 0, 1);
@@ -8752,7 +8820,11 @@
 							        tex.anisotropy = 12;
 							        tex.needsUpdate = true;
 							      }
-							      const bumpTex = makePitchBumpTexture(Math.min(1536, Math.max(512, Math.round((texCanvas?.width || 1024) / 2))), Math.min(1024, Math.max(512, Math.round((texCanvas?.height || 768) / 2))));
+							      const pbrW = Math.min(1536, Math.max(512, Math.round((texCanvas?.width || 1024) / 2)));
+							      const pbrH = Math.min(1024, Math.max(512, Math.round((texCanvas?.height || 768) / 2)));
+							      const bumpTex = makePitchBumpTexture(pbrW, pbrH);
+							      const normalTex = makePitchNormalTexture(pbrW, pbrH);
+							      const roughnessTex = makePitchRoughnessTexture(pbrW, pbrH);
 							      const groundGeo = new THREE.PlaneGeometry(metersW, metersH, 96, 64);
 							      try {
 							        const pos = groundGeo.attributes.position;
@@ -8772,7 +8844,10 @@
 							        map: tex || null,
 							        bumpMap: bumpTex || null,
 								        bumpScale: 0.082,
-								        roughness: 0.88,
+							        normalMap: normalTex || null,
+							        normalScale: new THREE.Vector2(0.085, 0.055),
+							        roughnessMap: roughnessTex || null,
+								        roughness: 0.92,
 							        metalness: 0,
 							      });
 						      const ground = new THREE.Mesh(groundGeo, groundMat);
@@ -8802,14 +8877,14 @@
 						        addEdge(new THREE.BoxGeometry(0.28, 0.10, metersH + 1.6), (metersW / 2 + 0.24), 0);
 						      } catch (e) { /* ignore */ }
 
-						      // Porterías 3D completas: marco delantero/trasero, profundidad y red visible en cámara alta.
+							      // Porterías 3D limpias: marco redondo, red con caída y detalles discretos sin soportes traseros visibles.
 						      const addGoal3d = (xSign) => {
 						        try {
 						          const goalW = Math.min(7.32, Math.max(3.0, metersH * 0.16));
 						          const goalH = Math.max(1.6, Math.min(2.44, metersH * 0.06));
 								          const depth = 3.55;
 								          const post = 0.20;
-								          const frameMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.18, metalness: 0.12, emissive: 0xffffff, emissiveIntensity: 0.10 });
+								          const frameMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.16, metalness: 0.16, emissive: 0xffffff, emissiveIntensity: 0.10 });
 								          const makeNetMat = (opacity = 0.48) => {
 							            const tex = makePitch3dCanvasTexture((ctx, c) => {
 							              ctx.clearRect(0, 0, c.width, c.height);
@@ -8861,8 +8936,10 @@
 						          const baseZ = 0;
 						          const frontX = xSign * (metersW / 2 + 0.10);
 						          const backX = xSign * (metersW / 2 + depth + 0.10);
-							          const addPart = () => null;
-							          const tubeMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.22, metalness: 0.08, emissive: 0xffffff, emissiveIntensity: 0.08 });
+								          const tubeMat = frameMat;
+								          const jointMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.18, metalness: 0.18, emissive: 0xffffff, emissiveIntensity: 0.06 });
+								          const cordMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.62, depthWrite: false });
+								          const clipMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.24, metalness: 0.22 });
 						          const addTube = (a, b, radius = 0.105) => {
 						            try {
 						              const start = new THREE.Vector3(a.x, a.y, a.z);
@@ -8879,21 +8956,50 @@
 						            } catch (e) {
 						              return null;
 						            }
-						          };
-							          const verticalGeo = new THREE.BoxGeometry(post, goalH, post);
-							          const widthGeo = new THREE.BoxGeometry(post, post, goalW + post);
-							          const depthGeo = new THREE.BoxGeometry(depth, post, post);
-						          const zs = [baseZ - (goalW / 2), baseZ + (goalW / 2)];
-						          [frontX, backX].forEach((x) => {
-						            zs.forEach((z) => addPart(verticalGeo, { x, y: goalH / 2, z }));
-						            addPart(widthGeo, { x, y: goalH, z: baseZ });
-						          });
-						          zs.forEach((z) => {
-						            addPart(depthGeo, { x: (frontX + backX) / 2, y: goalH, z });
-						            addPart(depthGeo, { x: (frontX + backX) / 2, y: post / 2, z });
-						          });
-							          zs.forEach((z) => addTube({ x: frontX, y: 0.04, z }, { x: frontX, y: goalH, z }, 0.112));
-							          addTube({ x: frontX, y: goalH, z: zs[0] }, { x: frontX, y: goalH, z: zs[1] }, 0.122);
+							          };
+							          const zs = [baseZ - (goalW / 2), baseZ + (goalW / 2)];
+								          const addJoint = (x, y, z, radius = 0.145) => {
+								            const joint = new THREE.Mesh(new THREE.SphereGeometry(radius, 20, 12), jointMat);
+								            joint.position.set(x, y, z);
+								            joint.userData = { kind: 'goal_3d_joint' };
+								            root.add(joint);
+								            return joint;
+								          };
+								          const addClip = (x, y, z, rot = 0) => {
+								            const clip = new THREE.Mesh(new THREE.TorusGeometry(0.085, 0.012, 8, 18), clipMat);
+								            clip.position.set(x, y, z);
+								            clip.rotation.set(Math.PI / 2, 0, rot);
+								            clip.userData = { kind: 'goal_3d_net_clip' };
+								            root.add(clip);
+								            return clip;
+								          };
+								          const addCord = (points, kind, radius = 0.010, opacity = 0.58) => {
+								            try {
+								              const mat = cordMat.clone();
+								              mat.opacity = opacity;
+								              const curve = new THREE.CatmullRomCurve3(points.map((p) => new THREE.Vector3(p.x, p.y, p.z)));
+								              const cord = new THREE.Mesh(new THREE.TubeGeometry(curve, 10, radius, 5, false), mat);
+								              cord.userData = { kind };
+								              root.add(cord);
+								              return cord;
+								            } catch (e) {
+								              return null;
+								            }
+								          };
+								          zs.forEach((z) => addTube({ x: frontX, y: 0.04, z }, { x: frontX, y: goalH, z }, 0.112));
+								          addTube({ x: frontX, y: goalH, z: zs[0] }, { x: frontX, y: goalH, z: zs[1] }, 0.122);
+								          zs.forEach((z) => {
+								            addJoint(frontX, 0.04, z, 0.135);
+								            addJoint(frontX, goalH, z, 0.152);
+								          });
+								          for (let i = 1; i < 7; i += 1) {
+								            const z = zs[0] + ((goalW / 7) * i);
+								            addClip(frontX - (xSign * 0.015), goalH - 0.03, z, Math.PI / 2);
+								          }
+								          for (let i = 1; i < 6; i += 1) {
+								            const y = (goalH / 6) * i;
+								            zs.forEach((z) => addClip(frontX - (xSign * 0.015), y, z, 0));
+								          }
 							          zs.forEach((z) => {
 								            addTube({ x: frontX, y: goalH, z }, { x: backX, y: goalH * 0.82, z }, 0.080);
 								            addTube({ x: frontX, y: 0.08, z }, { x: backX, y: 0.08, z }, 0.062);
@@ -8938,9 +9044,9 @@
 						            sideNet.userData = { kind: 'goal_3d_side_net' };
 						            root.add(sideNet);
 						          });
-							          const gridMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.58, depthWrite: false });
-							          const addGridLine = (a, b, kind, sag = 0) => {
-							            const pts = [];
+								          const gridMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.58, depthWrite: false });
+								          const addGridLine = (a, b, kind, sag = 0) => {
+								            const pts = [];
 							            for (let n = 0; n <= 8; n += 1) {
 							              const t = n / 8;
 							              const x = a.x + ((b.x - a.x) * t);
@@ -8949,10 +9055,13 @@
 							              pts.push(new THREE.Vector3(x, y, z));
 							            }
 							            const geo = new THREE.BufferGeometry().setFromPoints(pts);
-							            const line = new THREE.Line(geo, gridMat);
-							            line.userData = { kind };
-							            root.add(line);
-							          };
+								            const line = new THREE.Line(geo, gridMat);
+								            line.userData = { kind };
+								            root.add(line);
+								            if (kind === 'goal_3d_back_net_vertical' || kind === 'goal_3d_top_net_depth') {
+								              addCord(pts.map((p) => ({ x: p.x, y: p.y, z: p.z })), `${kind}_cord`, 0.0065, 0.42);
+								            }
+								          };
 								          for (let i = 0; i <= 28; i += 1) {
 								            const z = baseZ - (goalW / 2) + ((goalW / 28) * i);
 							            addGridLine({ x: backX, y: 0.12, z }, { x: backX, y: goalH * 0.82, z }, 'goal_3d_back_net_vertical', 0.035);
