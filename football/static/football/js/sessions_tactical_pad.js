@@ -9573,6 +9573,34 @@
 						            addBox(g, new THREE.BoxGeometry((metersW * 0.42), 0.18, 0.22), metalMat, metersW * 0.30, 4.18, -sideZ + 0.55, 0, 0, 0, 'pitch_3d_continuous_south_guardrail_right');
 						            addBox(g, new THREE.BoxGeometry(0.22, 0.18, (sideZ - innerZ) * 2 + metersH), metalMat, sideX - 0.55, 4.18, 0, 0, 0, 0, 'pitch_3d_continuous_east_guardrail');
 						            addBox(g, new THREE.BoxGeometry(0.22, 0.18, (sideZ - innerZ) * 2 + metersH), metalMat, -sideX + 0.55, 4.18, 0, 0, 0, 0, 'pitch_3d_continuous_west_guardrail');
+						            const fillLongSideGap = (sx, sz) => {
+						              const x = sx * (metersW * 0.46);
+						              const z = sz * sideZ;
+						              addBox(g, new THREE.BoxGeometry(20.0, 0.30, 8.8), concreteMat, x, 0.54, z, -0.045, 0, 0, 'pitch_3d_long_side_corner_infill_foundation');
+						              addBox(g, new THREE.BoxGeometry(19.0, 0.26, 6.8), stepMat, x, 1.30, z + (sz * 0.40), -0.050, 0, 0, 'pitch_3d_long_side_corner_infill_lower_bowl');
+						              addBox(g, new THREE.BoxGeometry(18.0, 0.26, 4.9), concreteMat, x, 3.70, z + (sz * 1.15), -0.045, 0, 0, 'pitch_3d_long_side_corner_infill_concourse');
+						              addBox(g, new THREE.BoxGeometry(16.8, 0.26, 3.7), stepMat, x, 6.05, z + (sz * 1.90), -0.045, 0, 0, 'pitch_3d_long_side_corner_infill_upper_bowl');
+						              addBox(g, new THREE.BoxGeometry(17.2, 0.16, 0.22), metalMat, x, 4.18, z - (sz * 2.7), 0, 0, 0, 'pitch_3d_long_side_corner_infill_middle_rail');
+						              addBox(g, new THREE.BoxGeometry(15.4, 0.16, 0.22), metalMat, x, 7.20, z - (sz * 2.0), 0, 0, 0, 'pitch_3d_long_side_corner_infill_upper_rail');
+						              addBox(g, new THREE.BoxGeometry(16.6, 0.12, 3.9), glassMat, x, 8.55, z + (sz * 2.95), -0.16, 0, 0, 'pitch_3d_long_side_corner_infill_roof');
+						            };
+						            const fillEndGap = (sx, sz) => {
+						              const x = sx * sideX;
+						              const z = sz * (metersH * 0.47);
+						              addBox(g, new THREE.BoxGeometry(8.4, 0.30, 17.6), concreteMat, x, 0.54, z, -0.045, 0, 0, 'pitch_3d_end_corner_infill_foundation');
+						              addBox(g, new THREE.BoxGeometry(6.5, 0.26, 16.6), stepMat, x + (sx * 0.38), 1.30, z, -0.050, 0, 0, 'pitch_3d_end_corner_infill_lower_bowl');
+						              addBox(g, new THREE.BoxGeometry(4.8, 0.26, 15.5), concreteMat, x + (sx * 1.10), 3.70, z, -0.045, 0, 0, 'pitch_3d_end_corner_infill_concourse');
+						              addBox(g, new THREE.BoxGeometry(3.6, 0.26, 14.0), stepMat, x + (sx * 1.82), 6.05, z, -0.045, 0, 0, 'pitch_3d_end_corner_infill_upper_bowl');
+						              addBox(g, new THREE.BoxGeometry(0.22, 0.16, 15.6), metalMat, x - (sx * 2.45), 4.18, z, 0, 0, 0, 'pitch_3d_end_corner_infill_middle_rail');
+						              addBox(g, new THREE.BoxGeometry(0.22, 0.16, 13.8), metalMat, x - (sx * 1.85), 7.20, z, 0, 0, 0, 'pitch_3d_end_corner_infill_upper_rail');
+						              addBox(g, new THREE.BoxGeometry(3.8, 0.12, 14.6), glassMat, x + (sx * 2.75), 8.55, z, -0.16, 0, 0, 'pitch_3d_end_corner_infill_roof');
+						            };
+						            [1, -1].forEach((sx) => {
+						              fillLongSideGap(sx, 1);
+						              fillLongSideGap(sx, -1);
+						              fillEndGap(sx, 1);
+						              fillEndGap(sx, -1);
+						            });
 						            root.add(g);
 						          };
 						          addStadiumCornerConnectors();
