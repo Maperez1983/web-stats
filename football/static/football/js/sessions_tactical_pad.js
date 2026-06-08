@@ -8894,12 +8894,9 @@
 						          });
 							          zs.forEach((z) => addTube({ x: frontX, y: 0.04, z }, { x: frontX, y: goalH, z }, 0.112));
 							          addTube({ x: frontX, y: goalH, z: zs[0] }, { x: frontX, y: goalH, z: zs[1] }, 0.122);
-							          zs.forEach((z) => addTube({ x: backX, y: 0.06, z }, { x: backX, y: goalH * 0.82, z }, 0.070));
-							          addTube({ x: backX, y: goalH * 0.82, z: zs[0] }, { x: backX, y: goalH * 0.82, z: zs[1] }, 0.072);
 							          zs.forEach((z) => {
-							            addTube({ x: frontX, y: goalH, z }, { x: backX, y: goalH * 0.82, z }, 0.080);
-							            addTube({ x: frontX, y: 0.08, z }, { x: backX, y: 0.08, z }, 0.062);
-							            addTube({ x: frontX, y: goalH, z }, { x: backX, y: 0.18, z }, 0.046);
+								            addTube({ x: frontX, y: goalH, z }, { x: backX, y: goalH * 0.82, z }, 0.080);
+								            addTube({ x: frontX, y: 0.08, z }, { x: backX, y: 0.08, z }, 0.062);
 							          });
 						          try {
 						            const shadowTex = makePitch3dCanvasTexture((ctx, c) => {
@@ -8917,11 +8914,7 @@
 						            shadow.userData = { kind: 'goal_3d_ground_shadow' };
 						            root.add(shadow);
 						          } catch (e) { /* ignore */ }
-							          zs.forEach((z) => {
-							            addTube({ x: backX, y: 0.08, z }, { x: backX + (xSign * 0.92), y: 0.08, z }, 0.044);
-							            addTube({ x: backX, y: goalH * 0.82, z }, { x: backX + (xSign * 0.72), y: goalH * 0.54, z }, 0.044);
-							          });
-							          const backNet = new THREE.Mesh(new THREE.PlaneGeometry(goalW, goalH), netMat);
+								          const backNet = new THREE.Mesh(new THREE.PlaneGeometry(goalW, goalH), netMat);
 							          backNet.position.set(backX, goalH * 0.43, baseZ);
 							          backNet.scale.y = 0.86;
 							          backNet.rotation.y = Math.PI / 2;
