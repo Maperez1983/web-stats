@@ -7998,6 +7998,101 @@
 						      return null;
 						    };
 
+						    const __pitch3dAssetUrl = (dataKey) => {
+						      try {
+						        const formEl = document.getElementById('task-builder-form');
+						        return safeText(formEl?.dataset?.[dataKey] || '').trim();
+						      } catch (e) {
+						        return '';
+						      }
+						    };
+
+						    const __pitch3dStaticImageCache = new Map();
+						    const __pitch3dLoadStaticImage = (cacheKey, src) => {
+						      const key = safeText(cacheKey || src || '').trim();
+						      if (!key || !src) return null;
+						      const cached = __pitch3dStaticImageCache.get(key);
+						      if (cached && cached.complete && (cached.naturalWidth || cached.width)) return cached;
+						      if (cached && cached.__loading) return null;
+						      const img = cached || new Image();
+						      try { img.crossOrigin = 'anonymous'; } catch (e) { /* ignore */ }
+						      img.__loading = true;
+						      img.onload = () => { img.__loading = false; };
+						      img.onerror = () => { img.__loading = false; };
+						      img.src = src;
+						      __pitch3dStaticImageCache.set(key, img);
+						      return null;
+						    };
+
+						    const __pitch3dTextureCache = new Map();
+						    const __pitch3dLoadTextureAsset = (dataKey, onLoad, options = {}) => {
+						      const src = __pitch3dAssetUrl(dataKey);
+						      if (!src || !window.THREE) return null;
+						      const cached = __pitch3dTextureCache.get(src);
+						      if (cached?.texture) {
+						        try { if (typeof onLoad === 'function') onLoad(cached.texture); } catch (e) { /* ignore */ }
+						        return cached.texture;
+						      }
+						      if (cached?.loading) return null;
+						      const loader = new THREE.TextureLoader();
+						      const entry = { texture: null, loading: true };
+						      __pitch3dTextureCache.set(src, entry);
+						      loader.load(src, (texture) => {
+						        try {
+						          texture.wrapS = THREE.ClampToEdgeWrapping;
+						          texture.wrapT = THREE.ClampToEdgeWrapping;
+						          texture.anisotropy = Number(options.anisotropy) || 10;
+						          if (options.colorSpace && 'colorSpace' in texture) texture.colorSpace = options.colorSpace;
+						          texture.needsUpdate = true;
+						        } catch (e) { /* ignore */ }
+						        entry.texture = texture;
+						        entry.loading = false;
+						        try { if (typeof onLoad === 'function') onLoad(texture); } catch (e) { /* ignore */ }
+						      }, undefined, () => {
+						        entry.loading = false;
+						      });
+						      return null;
+						    };
+
+						    const __pitch3dGoalModelCache = { loading: false, scene: null, failed: false, callbacks: [] };
+						    const __pitch3dLoadGoalModel = (onLoad) => {
+						      const src = __pitch3dAssetUrl('pitch3dGoalModelSrc');
+						      if (!src || !window.THREE) return null;
+						      if (__pitch3dGoalModelCache.scene) {
+						        try { if (typeof onLoad === 'function') onLoad(__pitch3dGoalModelCache.scene); } catch (e) { /* ignore */ }
+						        return __pitch3dGoalModelCache.scene;
+						      }
+						      if (typeof onLoad === 'function') __pitch3dGoalModelCache.callbacks.push(onLoad);
+						      if (__pitch3dGoalModelCache.loading || __pitch3dGoalModelCache.failed) return null;
+						      const LoaderClass = window.__WEBSTATS_GLTF_LOADER_CLASS;
+						      if (typeof LoaderClass !== 'function') return null;
+						      __pitch3dGoalModelCache.loading = true;
+						      try {
+						        const loader = new LoaderClass();
+						        loader.load(src, (gltf) => {
+						          const scene = gltf?.scene || null;
+						          __pitch3dGoalModelCache.scene = scene;
+						          __pitch3dGoalModelCache.loading = false;
+						          const callbacks = __pitch3dGoalModelCache.callbacks.splice(0);
+						          callbacks.forEach((cb) => {
+						            try { cb(scene); } catch (e) { /* ignore */ }
+						          });
+						        }, undefined, () => {
+						          __pitch3dGoalModelCache.loading = false;
+						          __pitch3dGoalModelCache.failed = true;
+						          __pitch3dGoalModelCache.callbacks.splice(0);
+						        });
+						      } catch (e) {
+						        __pitch3dGoalModelCache.loading = false;
+						      }
+						      return null;
+						    };
+
+						    try {
+						      const premiumGrassSrc = __pitch3dAssetUrl('pitch3dGrassAlbedoSrc');
+						      if (premiumGrassSrc) __pitch3dLoadStaticImage('premium_grass_albedo', premiumGrassSrc);
+						    } catch (e) { /* ignore */ }
+
 						    const makePitchTexture = (metersW, metersH, grassStyle = 'classic', onAsyncUpdate) => {
 						      const w = 3072;
 						      const h = Math.round((w * metersH) / Math.max(1, metersW));
@@ -8022,6 +8117,15 @@
 							      const base = isWhiteboard ? '#f8fafc' : (isBlackboard ? '#0b1220' : (baseByStyle[style] || '#3f8f3d'));
 						      ctx.fillStyle = base;
 						      ctx.fillRect(0, 0, c.width, c.height);
+						      if (!isWhiteboard && !isBlackboard) {
+						        try {
+						          const premiumGrassSrc = __pitch3dAssetUrl('pitch3dGrassAlbedoSrc');
+						          const premiumGrassImg = __pitch3dLoadStaticImage('premium_grass_albedo', premiumGrassSrc);
+						          if (premiumGrassImg && (premiumGrassImg.naturalWidth || premiumGrassImg.width)) {
+						            ctx.drawImage(premiumGrassImg, 0, 0, c.width, c.height);
+						          }
+						        } catch (e) { /* ignore */ }
+						      }
 
 						      const applyGrassPatternIfAny = () => {
 						        if (isWhiteboard || isBlackboard) return;
@@ -8850,6 +8954,29 @@
 								        roughness: 0.92,
 							        metalness: 0,
 							      });
+							      if (!['whiteboard', 'blackboard'].includes(grass.toLowerCase())) {
+							        __pitch3dLoadTextureAsset('pitch3dGrassBumpSrc', (loaded) => {
+							          try {
+							            groundMat.bumpMap = loaded;
+							            groundMat.bumpScale = 0.060;
+							            groundMat.needsUpdate = true;
+							          } catch (e) { /* ignore */ }
+							        }, { anisotropy: 10 });
+							        __pitch3dLoadTextureAsset('pitch3dGrassNormalSrc', (loaded) => {
+							          try {
+							            groundMat.normalMap = loaded;
+							            groundMat.normalScale = new THREE.Vector2(0.105, 0.075);
+							            groundMat.needsUpdate = true;
+							          } catch (e) { /* ignore */ }
+							        }, { anisotropy: 10 });
+							        __pitch3dLoadTextureAsset('pitch3dGrassRoughnessSrc', (loaded) => {
+							          try {
+							            groundMat.roughnessMap = loaded;
+							            groundMat.roughness = 0.88;
+							            groundMat.needsUpdate = true;
+							          } catch (e) { /* ignore */ }
+							        }, { anisotropy: 8 });
+							      }
 						      const ground = new THREE.Mesh(groundGeo, groundMat);
 						      ground.rotation.x = -Math.PI / 2;
 						      ground.position.y = 0.04;
@@ -8878,6 +9005,37 @@
 						      } catch (e) { /* ignore */ }
 
 							      // Porterías 3D limpias: marco redondo, red con caída y detalles discretos sin soportes traseros visibles.
+						      const addGoalAsset3d = (xSign) => {
+						        try {
+						          const asset = __pitch3dGoalModelCache.scene || __pitch3dLoadGoalModel();
+						          if (!asset) return false;
+						          const goal = asset.clone(true);
+						          goal.name = 'goal_3d_premium_asset';
+						          goal.userData = { kind: 'goal_3d_premium_asset', xSign };
+						          goal.position.set(xSign * (metersW / 2 + 0.10), 0.045, 0);
+						          goal.rotation.y = xSign < 0 ? Math.PI : 0;
+						          goal.traverse((node) => {
+						            if (!node || !node.isMesh) return;
+						            node.userData = Object.assign({}, node.userData || {}, { kind: 'goal_3d_premium_asset_mesh' });
+						            try { node.castShadow = true; node.receiveShadow = true; } catch (e) { /* ignore */ }
+						          });
+						          root.add(goal);
+						          return true;
+						        } catch (e) {
+						          return false;
+						        }
+						      };
+
+						      const removeFallbackGoals3d = () => {
+						        try {
+						          const removable = (root.children || []).filter((node) => {
+						            const kind = safeText(node?.userData?.kind || '');
+						            return kind.startsWith('goal_3d_');
+						          });
+						          removable.forEach((node) => root.remove(node));
+						        } catch (e) { /* ignore */ }
+						      };
+
 						      const addGoal3d = (xSign) => {
 						        try {
 						          const goalW = Math.min(7.32, Math.max(3.0, metersH * 0.16));
@@ -9077,8 +9235,21 @@
 							          }
 						        } catch (e) { /* ignore */ }
 						      };
-						      addGoal3d(-1);
-						      addGoal3d(1);
+						      const hasLeftGoalAsset = addGoalAsset3d(-1);
+						      const hasRightGoalAsset = addGoalAsset3d(1);
+						      if (!hasLeftGoalAsset) addGoal3d(-1);
+						      if (!hasRightGoalAsset) addGoal3d(1);
+						      if (!hasLeftGoalAsset || !hasRightGoalAsset) {
+						        __pitch3dLoadGoalModel(() => {
+						          try {
+						            if (pitch3dRoot !== root) return;
+						            if (!__pitch3dGoalModelCache.scene) return;
+						            removeFallbackGoals3d();
+						            addGoalAsset3d(-1);
+						            addGoalAsset3d(1);
+						          } catch (e) { /* ignore */ }
+						        });
+						      }
 
 							      // Spotlight (halo) para seguimiento / selección.
 							      try {
