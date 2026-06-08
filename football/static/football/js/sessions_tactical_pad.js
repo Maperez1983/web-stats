@@ -9930,6 +9930,48 @@
 						              addBox(g, new THREE.BoxGeometry(0.10, 0.95, 2.52), railGlassMat, x - 6.28, 0.88, -(metersH / 2 + 5.14), 0, 0, 0, 'pitch_3d_reference_dugout_side_barrier');
 						              addBox(g, new THREE.BoxGeometry(0.10, 0.95, 2.52), railGlassMat, x + 6.28, 0.88, -(metersH / 2 + 5.14), 0, 0, 0, 'pitch_3d_reference_dugout_side_barrier');
 						            });
+						            const cleanConcreteMat = new THREE.MeshStandardMaterial({ color: 0xcfd6d1, roughness: 0.76, metalness: 0.03 });
+						            const voidMat = new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.86, metalness: 0.02 });
+						            const addHeroStandModule = (x, z, w, rows, rotY, kind) => {
+						              const module = new THREE.Group();
+						              module.position.set(x, 0, z);
+						              module.rotation.y = rotY;
+						              module.userData = { kind };
+						              addBox(module, new THREE.BoxGeometry(w, 0.44, 11.8), cleanConcreteMat, 0, 0.45, 2.80, -0.055, 0, 0, `${kind}_single_architecture_podium`);
+						              addBox(module, new THREE.BoxGeometry(w * 0.98, 0.34, 8.7), stepMat, 0, 1.18, 2.95, -0.072, 0, 0, `${kind}_steep_single_bowl`);
+						              addBox(module, new THREE.BoxGeometry(w * 0.94, 0.28, 4.4), cleanConcreteMat, 0, 3.80, 8.38, -0.035, 0, 0, `${kind}_upper_balcony`);
+						              addBox(module, new THREE.BoxGeometry(w * 0.88, 0.30, 5.2), stepMat, 0, 4.55, 10.45, -0.055, 0, 0, `${kind}_upper_seating_bowl`);
+						              addBox(module, new THREE.BoxGeometry(w + 2.6, 1.02, 0.30), sponsorMat, 0, 1.26, -2.02, 0, 0, 0, `${kind}_premium_pitch_wall`);
+						              addBox(module, new THREE.BoxGeometry(w * 0.94, 0.18, 0.22), railGlassMat, 0, 3.16, 6.18, 0, 0, 0, `${kind}_middle_glass_rail`);
+						              addBox(module, new THREE.BoxGeometry(w * 0.86, 0.18, 0.22), railGlassMat, 0, 6.15, 12.80, 0, 0, 0, `${kind}_upper_glass_rail`);
+						              const stairPositions = [-0.38, -0.20, 0, 0.20, 0.38].map((ratio) => ratio * w);
+						              stairPositions.forEach((sx) => {
+						                addBox(module, new THREE.BoxGeometry(1.04, 0.22, 10.4), stairMat, sx, 2.38, 3.80, -0.060, 0, 0, `${kind}_white_sector_stair`);
+						                addBox(module, new THREE.BoxGeometry(3.10, 1.72, 0.24), voidMat, sx, 2.46, 0.28, 0, 0, 0, `${kind}_dark_rectangular_vomitory`);
+						              });
+						              for (let r = 0; r < rows; r += 1) {
+						                const y = 1.34 + (r * 0.28);
+						                const zz = 0.82 + (r * 0.66);
+						                for (let sector = -2; sector <= 2; sector += 1) {
+						                  const cx = sector * (w * 0.18);
+						                  if (sector === 0 && r < 2) continue;
+						                  const width = w * 0.125;
+						                  addBox(module, new THREE.BoxGeometry(width, 0.12, 0.46), seatBlockMat, cx, y, zz, -0.09, 0, 0, `${kind}_clean_green_seat_band`);
+						                }
+						              }
+						              addBox(module, new THREE.BoxGeometry(w + 6.0, 0.34, 7.3), roofSoffitMat, 0, 10.95, 14.35, 0, 0, 0, `${kind}_continuous_truss_roof`);
+						              for (let i = -5; i <= 5; i += 1) {
+						                const rx = i * (w / 10);
+						                addBox(module, new THREE.BoxGeometry(0.16, 2.8, 7.1), metalMat, rx, 9.68, 13.55, -0.28, 0, 0, `${kind}_roof_triangular_truss_a`);
+						                addBox(module, new THREE.BoxGeometry(0.16, 2.8, 7.1), metalMat, rx, 9.68, 13.55, 0.28, 0, 0, `${kind}_roof_triangular_truss_b`);
+						                addBox(module, new THREE.BoxGeometry(0.30, 7.2, 0.28), cleanConcreteMat, rx, 5.50, 11.10, -0.03, 0, 0, `${kind}_rear_roof_column`);
+						              }
+						              addBox(module, new THREE.BoxGeometry(w * 0.86, 0.12, 0.18), roofLightMat, 0, 9.18, 10.35, 0, 0, 0, `${kind}_roof_light_bar`);
+						              g.add(module);
+						            };
+						            addHeroStandModule(0, metersH / 2 + 8.95, Math.min(92, metersW + 18), 10, 0, 'pitch_3d_archviz_hero_north_stand');
+						            addHeroStandModule(-(metersW / 2 + 8.80), 0, Math.min(70, metersH + 12), 8, -Math.PI / 2, 'pitch_3d_archviz_hero_west_stand');
+						            addHeroStandModule(metersW / 2 + 8.80, 0, Math.min(70, metersH + 12), 8, Math.PI / 2, 'pitch_3d_archviz_hero_east_stand');
 						            root.add(g);
 						          };
 						          addStadiumCornerConnectors();
