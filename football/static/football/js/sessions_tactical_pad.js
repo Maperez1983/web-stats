@@ -9746,6 +9746,44 @@
 						              addBox(g, new THREE.BoxGeometry(0.14, 1.95, 6.1), metalMat, i * ((metersW + 32) / 14), 8.32, bowlZ + 9.90, -0.20, 0, 0, 'pitch_3d_roof_repeated_rib_north');
 						              addBox(g, new THREE.BoxGeometry(0.14, 1.95, 6.1), metalMat, i * ((metersW + 32) / 14), 8.32, -(bowlZ + 9.90), -0.20, 0, 0, 'pitch_3d_roof_repeated_rib_south');
 						            }
+						            const upperDeckMat = new THREE.MeshStandardMaterial({ color: 0xe7ece7, roughness: 0.70, metalness: 0.03 });
+						            const roofSoffitMat = new THREE.MeshStandardMaterial({ color: 0xf6f8f7, roughness: 0.42, metalness: 0.08 });
+						            const darkVoidMat = new THREE.MeshStandardMaterial({ color: 0x0b1120, roughness: 0.82, metalness: 0.02 });
+						            const roofZ = bowlZ + 11.65;
+						            const roofX = bowlX + 11.65;
+						            const podiumZ = metersH / 2 + 7.00;
+						            const podiumX = metersW / 2 + 7.00;
+						            addBox(g, new THREE.BoxGeometry(metersW + 35.0, 0.42, 4.15), upperDeckMat, 0, 3.05, podiumZ, -0.018, 0, 0, 'pitch_3d_closed_bowl_podium_north');
+						            addBox(g, new THREE.BoxGeometry((metersW * 0.43), 0.42, 4.15), upperDeckMat, -metersW * 0.31, 3.05, -podiumZ, -0.018, 0, 0, 'pitch_3d_closed_bowl_podium_south_left');
+						            addBox(g, new THREE.BoxGeometry((metersW * 0.43), 0.42, 4.15), upperDeckMat, metersW * 0.31, 3.05, -podiumZ, -0.018, 0, 0, 'pitch_3d_closed_bowl_podium_south_right');
+						            addBox(g, new THREE.BoxGeometry(4.15, 0.42, metersH + 35.0), upperDeckMat, podiumX, 3.05, 0, -0.018, 0, 0, 'pitch_3d_closed_bowl_podium_east');
+						            addBox(g, new THREE.BoxGeometry(4.15, 0.42, metersH + 35.0), upperDeckMat, -podiumX, 3.05, 0, -0.018, 0, 0, 'pitch_3d_closed_bowl_podium_west');
+						            addBox(g, new THREE.BoxGeometry(metersW + 45.0, 0.32, 8.8), roofSoffitMat, 0, 9.72, roofZ, -0.105, 0, 0, 'pitch_3d_closed_roof_unified_north');
+						            addBox(g, new THREE.BoxGeometry((metersW * 0.45), 0.32, 8.8), roofSoffitMat, -metersW * 0.32, 9.72, -roofZ, -0.105, 0, 0, 'pitch_3d_closed_roof_unified_south_left');
+						            addBox(g, new THREE.BoxGeometry((metersW * 0.45), 0.32, 8.8), roofSoffitMat, metersW * 0.32, 9.72, -roofZ, -0.105, 0, 0, 'pitch_3d_closed_roof_unified_south_right');
+						            addBox(g, new THREE.BoxGeometry(8.8, 0.32, metersH + 45.0), roofSoffitMat, roofX, 9.72, 0, -0.105, 0, 0, 'pitch_3d_closed_roof_unified_east');
+						            addBox(g, new THREE.BoxGeometry(8.8, 0.32, metersH + 45.0), roofSoffitMat, -roofX, 9.72, 0, -0.105, 0, 0, 'pitch_3d_closed_roof_unified_west');
+						            [-1, 1].forEach((sx) => {
+						              [-1, 1].forEach((sz) => {
+						                const cx = sx * (metersW / 2 + 12.0);
+						                const cz = sz * (metersH / 2 + 12.0);
+						                addBox(g, new THREE.BoxGeometry(18.8, 0.50, 18.8), upperDeckMat, cx, 2.85, cz, -0.020, sx * sz * 0.08, 0, 'pitch_3d_closed_corner_podium_mass');
+						                addBox(g, new THREE.BoxGeometry(17.2, 0.34, 17.2), stepMat, cx, 3.48, cz, -0.052, sx * sz * 0.18, 0, 'pitch_3d_closed_corner_upper_bowl_mass');
+						                addBox(g, new THREE.BoxGeometry(18.6, 1.35, 0.46), fasciaMat, cx, 4.82, sz * (metersH / 2 + 18.10), 0, sx * sz * 0.08, 0, 'pitch_3d_closed_corner_outer_fascia');
+						                addBox(g, new THREE.BoxGeometry(0.46, 1.35, 18.6), fasciaMat, sx * (metersW / 2 + 18.10), 4.82, cz, 0, sx * sz * 0.08, 0, 'pitch_3d_closed_corner_side_fascia');
+						                addBox(g, new THREE.BoxGeometry(19.4, 0.36, 19.4), roofSoffitMat, sx * roofX, 9.78, sz * roofZ, -0.110, sx * sz * 0.12, 0, 'pitch_3d_closed_corner_roof_plate');
+						                addBox(g, new THREE.BoxGeometry(15.4, 0.16, 15.4), glassMat, sx * (roofX - 1.2), 9.98, sz * (roofZ - 1.2), -0.110, sx * sz * 0.12, 0, 'pitch_3d_closed_corner_roof_inner_lip');
+						                addBox(g, new THREE.BoxGeometry(2.8, 2.20, 0.36), darkVoidMat, sx * (metersW / 2 + 10.35), 2.34, sz * (metersH / 2 + 6.85), 0, sx * sz * 0.20, 0, 'pitch_3d_closed_corner_vomitory_shadow');
+						                addBox(g, new THREE.BoxGeometry(0.36, 8.85, 0.36), premiumConcreteMat, sx * (metersW / 2 + 15.8), 5.18, sz * (metersH / 2 + 10.6), -0.02, 0, 0, 'pitch_3d_closed_corner_mega_column');
+						                addBox(g, new THREE.BoxGeometry(0.30, 8.20, 0.30), metalMat, sx * (metersW / 2 + 10.7), 5.60, sz * (metersH / 2 + 15.7), -0.18, sx * sz * 0.32, 0, 'pitch_3d_closed_corner_slanted_roof_strut');
+						                for (let row = 0; row < 4; row += 1) {
+						                  for (let col = -3; col <= 3; col += 1) {
+						                    const mat = ((row + col + 7) % 5 === 0) ? seatMatB : seatMatA;
+						                    addBox(g, new THREE.BoxGeometry(0.60, 0.17, 0.38), mat, sx * (metersW / 2 + 6.6 + (row * 0.72)), 2.05 + (row * 0.30), sz * (metersH / 2 + 6.2 + (col * 0.72)), -0.10, sx * sz * 0.42, 0, 'pitch_3d_closed_corner_wrap_seat');
+						                  }
+						                }
+						              });
+						            });
 						            root.add(g);
 						          };
 						          addStadiumCornerConnectors();
