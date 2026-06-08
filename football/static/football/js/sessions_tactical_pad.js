@@ -9740,8 +9740,8 @@
 						            addBox(g, new THREE.BoxGeometry(metersW + 40.0, 0.16, 6.4), metalMat, 0, 9.05, bowlZ + 10.25, -0.12, 0, 0, 'pitch_3d_continuous_roof_ring_north');
 						            addBox(g, new THREE.BoxGeometry((metersW * 0.42), 0.16, 6.4), metalMat, -metersW * 0.32, 9.05, -(bowlZ + 10.25), -0.12, 0, 0, 'pitch_3d_continuous_roof_ring_south_left');
 						            addBox(g, new THREE.BoxGeometry((metersW * 0.42), 0.16, 6.4), metalMat, metersW * 0.32, 9.05, -(bowlZ + 10.25), -0.12, 0, 0, 'pitch_3d_continuous_roof_ring_south_right');
-						            addBox(g, new THREE.BoxGeometry(6.4, 0.16, metersH + 40.0), metalMat, bowlX + 10.25, 9.05, 0, -0.12, 0, 0, 'pitch_3d_continuous_roof_ring_east');
-						            addBox(g, new THREE.BoxGeometry(6.4, 0.16, metersH + 40.0), metalMat, -(bowlX + 10.25), 9.05, 0, -0.12, 0, 0, 'pitch_3d_continuous_roof_ring_west');
+						            addBox(g, new THREE.BoxGeometry(5.4, 0.16, metersH + 40.0), metalMat, bowlX + 12.10, 11.20, 0, 0, 0, 0, 'pitch_3d_continuous_roof_ring_east');
+						            addBox(g, new THREE.BoxGeometry(5.4, 0.16, metersH + 40.0), metalMat, -(bowlX + 12.10), 11.20, 0, 0, 0, 0, 'pitch_3d_continuous_roof_ring_west');
 						            for (let i = -7; i <= 7; i += 1) {
 						              addBox(g, new THREE.BoxGeometry(0.14, 1.95, 6.1), metalMat, i * ((metersW + 32) / 14), 8.32, bowlZ + 9.90, -0.20, 0, 0, 'pitch_3d_roof_repeated_rib_north');
 						              addBox(g, new THREE.BoxGeometry(0.14, 1.95, 6.1), metalMat, i * ((metersW + 32) / 14), 8.32, -(bowlZ + 9.90), -0.20, 0, 0, 'pitch_3d_roof_repeated_rib_south');
@@ -9761,8 +9761,8 @@
 						            addBox(g, new THREE.BoxGeometry(metersW + 45.0, 0.32, 8.8), roofSoffitMat, 0, 9.72, roofZ, -0.105, 0, 0, 'pitch_3d_closed_roof_unified_north');
 						            addBox(g, new THREE.BoxGeometry((metersW * 0.45), 0.32, 8.8), roofSoffitMat, -metersW * 0.32, 9.72, -roofZ, -0.105, 0, 0, 'pitch_3d_closed_roof_unified_south_left');
 						            addBox(g, new THREE.BoxGeometry((metersW * 0.45), 0.32, 8.8), roofSoffitMat, metersW * 0.32, 9.72, -roofZ, -0.105, 0, 0, 'pitch_3d_closed_roof_unified_south_right');
-						            addBox(g, new THREE.BoxGeometry(8.8, 0.32, metersH + 45.0), roofSoffitMat, roofX, 9.72, 0, -0.105, 0, 0, 'pitch_3d_closed_roof_unified_east');
-						            addBox(g, new THREE.BoxGeometry(8.8, 0.32, metersH + 45.0), roofSoffitMat, -roofX, 9.72, 0, -0.105, 0, 0, 'pitch_3d_closed_roof_unified_west');
+						            addBox(g, new THREE.BoxGeometry(6.2, 0.30, metersH + 45.0), roofSoffitMat, roofX + 2.15, 11.95, 0, 0, 0, 0, 'pitch_3d_closed_roof_unified_east');
+						            addBox(g, new THREE.BoxGeometry(6.2, 0.30, metersH + 45.0), roofSoffitMat, -(roofX + 2.15), 11.95, 0, 0, 0, 0, 'pitch_3d_closed_roof_unified_west');
 						            [-1, 1].forEach((sx) => {
 						              [-1, 1].forEach((sz) => {
 						                const cx = sx * (metersW / 2 + 12.0);
@@ -9771,8 +9771,8 @@
 						                addBox(g, new THREE.BoxGeometry(17.2, 0.34, 17.2), stepMat, cx, 3.48, cz, -0.052, sx * sz * 0.18, 0, 'pitch_3d_closed_corner_upper_bowl_mass');
 						                addBox(g, new THREE.BoxGeometry(18.6, 1.35, 0.46), fasciaMat, cx, 4.82, sz * (metersH / 2 + 18.10), 0, sx * sz * 0.08, 0, 'pitch_3d_closed_corner_outer_fascia');
 						                addBox(g, new THREE.BoxGeometry(0.46, 1.35, 18.6), fasciaMat, sx * (metersW / 2 + 18.10), 4.82, cz, 0, sx * sz * 0.08, 0, 'pitch_3d_closed_corner_side_fascia');
-						                addBox(g, new THREE.BoxGeometry(19.4, 0.36, 19.4), roofSoffitMat, sx * roofX, 9.78, sz * roofZ, -0.110, sx * sz * 0.12, 0, 'pitch_3d_closed_corner_roof_plate');
-						                addBox(g, new THREE.BoxGeometry(15.4, 0.16, 15.4), glassMat, sx * (roofX - 1.2), 9.98, sz * (roofZ - 1.2), -0.110, sx * sz * 0.12, 0, 'pitch_3d_closed_corner_roof_inner_lip');
+						                addBox(g, new THREE.BoxGeometry(17.2, 0.34, 17.2), roofSoffitMat, sx * (roofX + 1.65), 11.95, sz * (roofZ + 0.70), 0, sx * sz * 0.08, 0, 'pitch_3d_closed_corner_roof_plate');
+						                addBox(g, new THREE.BoxGeometry(13.8, 0.14, 13.8), glassMat, sx * (roofX + 0.80), 12.16, sz * (roofZ - 0.10), 0, sx * sz * 0.08, 0, 'pitch_3d_closed_corner_roof_inner_lip');
 						                addBox(g, new THREE.BoxGeometry(2.8, 2.20, 0.36), darkVoidMat, sx * (metersW / 2 + 10.35), 2.34, sz * (metersH / 2 + 6.85), 0, sx * sz * 0.20, 0, 'pitch_3d_closed_corner_vomitory_shadow');
 						                addBox(g, new THREE.BoxGeometry(0.36, 8.85, 0.36), premiumConcreteMat, sx * (metersW / 2 + 15.8), 5.18, sz * (metersH / 2 + 10.6), -0.02, 0, 0, 'pitch_3d_closed_corner_mega_column');
 						                addBox(g, new THREE.BoxGeometry(0.30, 8.20, 0.30), metalMat, sx * (metersW / 2 + 10.7), 5.60, sz * (metersH / 2 + 15.7), -0.18, sx * sz * 0.32, 0, 'pitch_3d_closed_corner_slanted_roof_strut');
