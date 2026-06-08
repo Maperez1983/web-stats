@@ -9526,6 +9526,56 @@
 						          addPeripheralStandModule({ kind: 'pitch_3d_opposite_multitier_stand', x: 0, z: metersH / 2 + 12.80, rotY: 0, w: Math.min(78, metersW * 0.74), seatGap: 1.18 });
 						          addPeripheralStandModule({ kind: 'pitch_3d_left_end_multitier_stand', x: -(metersW / 2 + 12.50), z: 0, rotY: -Math.PI / 2, w: Math.min(50, metersH * 0.74), seatGap: 1.16 });
 						          addPeripheralStandModule({ kind: 'pitch_3d_right_end_multitier_stand', x: metersW / 2 + 12.50, z: 0, rotY: Math.PI / 2, w: Math.min(50, metersH * 0.74), seatGap: 1.16 });
+						          const addStadiumCornerConnectors = () => {
+						            const g = new THREE.Group();
+						            g.userData = { kind: 'pitch_3d_stadium_corner_connectors' };
+						            const sideX = metersW / 2 + 12.50;
+						            const sideZ = metersH / 2 + 12.80;
+						            const innerX = metersW / 2 + 5.45;
+						            const innerZ = metersH / 2 + 5.65;
+						            const cornerW = 14.8;
+						            const cornerD = 14.4;
+						            const addCorner = (sx, sz) => {
+						              const x = sx * sideX;
+						              const z = sz * sideZ;
+						              const rot = sx * sz > 0 ? -0.035 : 0.035;
+						              addBox(g, new THREE.BoxGeometry(cornerW, 0.34, cornerD), concreteMat, x, 0.36, z, -0.045, rot, 0, 'pitch_3d_corner_foundation_link');
+						              addBox(g, new THREE.BoxGeometry(cornerW * 0.92, 0.28, cornerD * 0.78), stepMat, x, 1.05, z, -0.055, rot, 0, 'pitch_3d_corner_lower_bowl');
+						              addBox(g, new THREE.BoxGeometry(cornerW * 0.82, 0.30, cornerD * 0.62), concreteMat, x, 3.54, z + (sz * 0.42), -0.055, rot, 0, 'pitch_3d_corner_concourse_link');
+						              addBox(g, new THREE.BoxGeometry(cornerW * 0.74, 0.30, cornerD * 0.50), stepMat, x, 5.88, z + (sz * 1.00), -0.055, rot, 0, 'pitch_3d_corner_upper_bowl');
+						              addBox(g, new THREE.BoxGeometry(cornerW * 0.80, 0.16, 0.24), metalMat, x, 4.10, z - (sz * 4.85), 0, rot, 0, 'pitch_3d_corner_middle_rail');
+						              addBox(g, new THREE.BoxGeometry(cornerW * 0.66, 0.16, 0.24), metalMat, x, 7.15, z - (sz * 3.80), 0, rot, 0, 'pitch_3d_corner_upper_rail');
+						              addBox(g, new THREE.BoxGeometry(0.26, 5.20, 0.30), concreteMat, x - (sx * 4.8), 3.06, z - (sz * 2.2), -0.02, rot, 0, 'pitch_3d_corner_column');
+						              addBox(g, new THREE.BoxGeometry(0.26, 5.20, 0.30), concreteMat, x + (sx * 4.8), 3.06, z + (sz * 2.2), -0.02, rot, 0, 'pitch_3d_corner_column');
+						              addBox(g, new THREE.BoxGeometry(cornerW * 0.66, 0.14, 4.0), metalMat, x, 8.35, z + (sz * 2.95), -0.16, rot, 0, 'pitch_3d_corner_roof_link_frame');
+						              addBox(g, new THREE.BoxGeometry(cornerW * 0.60, 0.08, 3.72), glassMat, x, 8.50, z + (sz * 3.08), -0.16, rot, 0, 'pitch_3d_corner_translucent_roof_link');
+						              const seatMatA = new THREE.MeshStandardMaterial({ color: 0x047857, roughness: 0.56, metalness: 0.02 });
+						              const seatMatB = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.52, metalness: 0.02 });
+						              for (let row = 0; row < 6; row += 1) {
+						                for (let col = -4; col <= 4; col += 1) {
+						                  if (Math.abs(col) === 1 && row < 3) continue;
+						                  const mat = ((row + col + 6) % 6 === 0) ? seatMatB : seatMatA;
+						                  addBox(g, new THREE.BoxGeometry(0.62, 0.18, 0.38), mat, x + (sx * col * 0.78), 1.18 + (row * 0.38), z + (sz * (row * 0.72 - 2.3)), -0.10, rot, 0, 'pitch_3d_corner_seat');
+						                }
+						              }
+						            };
+						            addCorner(1, 1);
+						            addCorner(-1, 1);
+						            addCorner(1, -1);
+						            addCorner(-1, -1);
+						            addBox(g, new THREE.BoxGeometry((sideX - innerX) * 2 + metersW, 0.28, 0.80), concreteMat, 0, 3.72, sideZ, 0, 0, 0, 'pitch_3d_continuous_north_concourse');
+						            addBox(g, new THREE.BoxGeometry((metersW * 0.42), 0.28, 0.80), concreteMat, -metersW * 0.30, 3.72, -sideZ, 0, 0, 0, 'pitch_3d_continuous_south_concourse_left');
+						            addBox(g, new THREE.BoxGeometry((metersW * 0.42), 0.28, 0.80), concreteMat, metersW * 0.30, 3.72, -sideZ, 0, 0, 0, 'pitch_3d_continuous_south_concourse_right');
+						            addBox(g, new THREE.BoxGeometry(0.80, 0.28, (sideZ - innerZ) * 2 + metersH), concreteMat, sideX, 3.72, 0, 0, 0, 0, 'pitch_3d_continuous_east_concourse');
+						            addBox(g, new THREE.BoxGeometry(0.80, 0.28, (sideZ - innerZ) * 2 + metersH), concreteMat, -sideX, 3.72, 0, 0, 0, 0, 'pitch_3d_continuous_west_concourse');
+						            addBox(g, new THREE.BoxGeometry((sideX - innerX) * 2 + metersW, 0.18, 0.22), metalMat, 0, 4.18, sideZ - 0.55, 0, 0, 0, 'pitch_3d_continuous_north_guardrail');
+						            addBox(g, new THREE.BoxGeometry((metersW * 0.42), 0.18, 0.22), metalMat, -metersW * 0.30, 4.18, -sideZ + 0.55, 0, 0, 0, 'pitch_3d_continuous_south_guardrail_left');
+						            addBox(g, new THREE.BoxGeometry((metersW * 0.42), 0.18, 0.22), metalMat, metersW * 0.30, 4.18, -sideZ + 0.55, 0, 0, 0, 'pitch_3d_continuous_south_guardrail_right');
+						            addBox(g, new THREE.BoxGeometry(0.22, 0.18, (sideZ - innerZ) * 2 + metersH), metalMat, sideX - 0.55, 4.18, 0, 0, 0, 0, 'pitch_3d_continuous_east_guardrail');
+						            addBox(g, new THREE.BoxGeometry(0.22, 0.18, (sideZ - innerZ) * 2 + metersH), metalMat, -sideX + 0.55, 4.18, 0, 0, 0, 0, 'pitch_3d_continuous_west_guardrail');
+						            root.add(g);
+						          };
+						          addStadiumCornerConnectors();
 						          const addCornerFlag = (x, z, flipX, flipZ) => {
 						            const group = new THREE.Group();
 						            group.position.set(x, 0, z);
