@@ -10088,8 +10088,7 @@ const buildPremiumStadium3d = (root, metersW, metersH) => {
 						      const metersH = meters.h;
 						      const sourceW = Number(options.sourceW) || (Number(worldWidth) || 1280);
 						      const sourceH = Number(options.sourceH) || (Number(worldHeight) || 720);
-						      const stadiumCtx = readPitch3dStadiumContext();
-						      try { addPitch3dRenderBackdrop(root, metersW, metersH); } catch (e) { /* ignore */ }
+							      try { addPitch3dRenderBackdrop(root, metersW, metersH); } catch (e) { /* ignore */ }
 
 						      // Suelo
 						      let tex = null;
@@ -10154,70 +10153,6 @@ const buildPremiumStadium3d = (root, metersW, metersH) => {
 						      try { ground.receiveShadow = true; } catch (e) { /* ignore */ }
 						      root.add(ground);
 
-						      // Sombra de cubierta tipo render: ayuda a romper el aspecto plano del césped sin bloquear las líneas.
-						      try {
-						        const shadow = makePitch3dCanvasTexture((ctx, c) => {
-						          ctx.clearRect(0, 0, c.width, c.height);
-						          const g = ctx.createLinearGradient(0, 0, c.width, c.height);
-							          g.addColorStop(0.00, 'rgba(2,6,23,0.31)');
-							          g.addColorStop(0.28, 'rgba(2,6,23,0.22)');
-							          g.addColorStop(0.54, 'rgba(2,6,23,0.085)');
-							          g.addColorStop(0.82, 'rgba(2,6,23,0.018)');
-						          g.addColorStop(1.00, 'rgba(2,6,23,0.00)');
-						          ctx.fillStyle = g;
-						          ctx.beginPath();
-						          ctx.moveTo(0, 0);
-						          ctx.lineTo(c.width * 0.62, 0);
-						          ctx.lineTo(c.width * 0.36, c.height);
-						          ctx.lineTo(0, c.height);
-						          ctx.closePath();
-						          ctx.fill();
-							          ctx.globalAlpha = 0.09;
-						          ctx.fillStyle = '#020617';
-						          ctx.fillRect(0, 0, c.width * 0.22, c.height);
-						          ctx.globalAlpha = 1;
-						        }, 1024, 768);
-						        if (shadow?.tex) {
-						          const shadowMat = new THREE.MeshBasicMaterial({
-						            map: shadow.tex,
-						            transparent: true,
-						            depthWrite: false,
-						            side: THREE.DoubleSide,
-						          });
-						          const shadowPlane = new THREE.Mesh(new THREE.PlaneGeometry(metersW, metersH), shadowMat);
-						          shadowPlane.rotation.x = -Math.PI / 2;
-						          shadowPlane.position.y = 0.075;
-						          shadowPlane.renderOrder = 2;
-						          shadowPlane.userData = { kind: 'stadium_roof_shadow' };
-						          root.add(shadowPlane);
-						        }
-						      } catch (e) { /* ignore */ }
-
-						      // Escudo pintado en césped junto a la zona de túnel/banquillos, como en estadios reales.
-						      try {
-						        const grassCrestMat = makePitch3dCrestBadgeMaterial({
-						          primary: stadiumCtx.primary,
-						          secondary: stadiumCtx.secondary,
-						          initials: stadiumCtx.initials,
-						          imageUrl: stadiumCtx.crestUrl,
-						          width: 1024,
-						          height: 1024,
-						        });
-						        if (grassCrestMat) {
-						          grassCrestMat.opacity = 0.44;
-						          grassCrestMat.transparent = true;
-						          grassCrestMat.depthWrite = false;
-						          grassCrestMat.depthTest = true;
-						          const grassCrestRadius = Math.min(4.9, Math.max(3.4, metersW * 0.047));
-						          const grassCrest = new THREE.Mesh(new THREE.CircleGeometry(grassCrestRadius, 96), grassCrestMat);
-						          grassCrest.rotation.x = -Math.PI / 2;
-						          grassCrest.position.set(0, 0.118, metersH * 0.375);
-						          grassCrest.renderOrder = 8;
-						          grassCrest.userData = { kind: 'pitch_grass_crest' };
-						          root.add(grassCrest);
-						        }
-						      } catch (e) { /* ignore */ }
-
 						      // El campo es una pieza 3D, no una lámina 2D: base con canto visible y borde interior.
 						      try {
 						        const pitchBaseMat = new THREE.MeshStandardMaterial({ color: 0x173f2a, roughness: 0.9, metalness: 0.01 });
@@ -10238,9 +10173,6 @@ const buildPremiumStadium3d = (root, metersW, metersH) => {
 						        addEdge(new THREE.BoxGeometry(0.28, 0.10, metersH + 1.6), -(metersW / 2 + 0.24), 0);
 						        addEdge(new THREE.BoxGeometry(0.28, 0.10, metersH + 1.6), (metersW / 2 + 0.24), 0);
 						      } catch (e) { /* ignore */ }
-
-						      // Estadio premium parametrizable: gradas, vallas, banquillos, marcador y colores del equipo.
-						      try { buildPremiumStadium3d(root, metersW, metersH); } catch (e) { /* ignore */ }
 
 						      // Porterías 3D completas: marco delantero/trasero, profundidad y red visible en cámara alta.
 						      const addGoal3d = (xSign) => {
