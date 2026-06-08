@@ -3,7 +3,7 @@ import { GLTFLoader } from '/static/vendor/three/examples/jsm/loaders/GLTFLoader
 
 const root = document.getElementById('stadium-root');
 const loading = document.getElementById('stadium-loading');
-const modelSrc = root.dataset.modelSrc || '/static/football/models/stadium/benagalbon-production-stadium.glb?v=production-stadium-20';
+const modelSrc = root.dataset.modelSrc || '/static/football/models/stadium/benagalbon-production-stadium.glb?v=production-stadium-21';
 
 let renderer;
 try {

@@ -222,6 +222,54 @@ def remove_non_realistic_overlays():
             bpy.data.objects.remove(obj, do_unlink=True)
 
 
+def remove_all_3d_text_labels():
+    text_name_fragments = (
+        "text",
+        "texto",
+        "letters",
+        "scoreboard_cdb",
+        "scoreboard_name",
+        "crest_text",
+        "fascia_name",
+        "goal_fascia_name",
+        "side_scoreboard_cdb",
+    )
+    for obj in list(bpy.context.scene.objects):
+        name = obj.name.lower()
+        data_name = getattr(getattr(obj, "data", None), "name", "").lower()
+        if obj.type == "FONT" or any(fragment in name or fragment in data_name for fragment in text_name_fragments):
+            bpy.data.objects.remove(obj, do_unlink=True)
+
+
+def add_non_text_identity_details():
+    for sign, prefix in [(1, "north"), (-1, "south")]:
+        y = sign * (base.HALF_Y + 5.06)
+        base.cube(f"production_{prefix}_club_identity_main_panel", (0, y, 1.32), (32.0, 0.18, 1.9), "green_dark", 0.018)
+        for i, x in enumerate([-12, -8, -4, 0, 4, 8, 12]):
+            base.cube(f"production_{prefix}_club_identity_led_bar_{i}", (x, y - sign * 0.12, 1.37), (2.2, 0.04, 0.22), "light", 0.004)
+        for x in [-18, 18]:
+            crest = base.cube(f"production_{prefix}_identity_crest_block_{x}", (x, y - sign * 0.13, 1.36), (2.3, 0.08, 1.25), "green", 0.028)
+            crest.rotation_euler.z = math.radians(4 if x < 0 else -4)
+
+
+def add_extra_bowl_modeling_details():
+    for sign, prefix in [(1, "south"), (-1, "north")]:
+        base_y = sign * (base.HALF_Y + 8)
+        for row in [6, 12, 18, 24]:
+            y = base_y + sign * (row * 0.78 + 0.16)
+            z = 1.6 + row * 0.48
+            base.cube(f"production_{prefix}_row_access_led_{row}", (0, y, z), (base.PITCH_X + 18 - row * 0.3, 0.035, 0.055), "led_white", 0.002)
+        for x in [-42, -21, 21, 42]:
+            base.cube(f"production_{prefix}_vomitory_side_depth_{x}", (x, base_y + sign * 10.85, 5.62), (4.8, 0.36, 2.15), "asphalt", 0.014)
+            base.cube(f"production_{prefix}_vomitory_floor_lip_{x}", (x, base_y + sign * 9.95, 4.05), (5.3, 0.72, 0.20), "concrete", 0.012)
+    for sign, prefix in [(1, "east"), (-1, "west")]:
+        base_x = sign * (base.HALF_X + 8)
+        for row in [5, 10, 15]:
+            x = base_x + sign * (row * 0.78 + 0.16)
+            z = 1.55 + row * 0.45
+            base.cube(f"production_{prefix}_goal_row_access_led_{row}", (x, 0, z), (0.035, base.PITCH_Y + 18 - row * 0.4, 0.055), "led_white", 0.002)
+
+
 def add_stair_handrails():
     for sign, prefix in [(1, "south"), (-1, "north")]:
         base_y = sign * (base.HALF_Y + 8)
@@ -334,24 +382,8 @@ def add_matchday_micro_architecture():
         base.cube(f"production_{prefix}_outer_concourse_slab", (0, outer_y, 0.11), (base.PITCH_X + 80, 8.0, 0.22), "asphalt", 0.012)
         base.cube(f"production_{prefix}_ticketing_glass_wall", (-38, outer_y - sign * 1.8, 3.2), (18.0, 0.28, 5.6), "glass", 0.018)
         base.cube(f"production_{prefix}_club_shop_glass_wall", (36, outer_y - sign * 1.8, 3.0), (20.0, 0.28, 5.2), "glass", 0.018)
-        base.add_text(
-            f"production_{prefix}_ticketing_sign",
-            "TAQUILLAS",
-            (-38, outer_y - sign * 2.02, 6.45),
-            0.72,
-            "white",
-            rot=(math.radians(90), 0, 0),
-            extrude=0.01,
-        )
-        base.add_text(
-            f"production_{prefix}_shop_sign",
-            "BENAGALBON CD",
-            (36, outer_y - sign * 2.02, 6.25),
-            0.66,
-            "white",
-            rot=(math.radians(90), 0, 0),
-            extrude=0.01,
-        )
+        base.cube(f"production_{prefix}_ticketing_sign_bar", (-38, outer_y - sign * 2.02, 6.45), (14.0, 0.08, 0.38), "light", 0.012)
+        base.cube(f"production_{prefix}_club_shop_sign_bar", (36, outer_y - sign * 2.02, 6.25), (16.0, 0.08, 0.38), "light", 0.012)
         for i, x in enumerate(range(-58, 59, 8)):
             base.cube(f"production_{prefix}_turnstile_plinth_{i}", (x, outer_y - sign * 5.2, 0.62), (2.2, 0.42, 1.0), "concrete_dark", 0.02)
             base.cylinder_between(
@@ -392,47 +424,22 @@ def add_matchday_micro_architecture():
         base.cube(f"production_{prefix}_service_road", (outer_x, 0, 0.08), (7.5, base.PITCH_Y + 76, 0.16), "asphalt", 0.006)
         for y in range(-56, 57, 14):
             base.cube(f"production_{prefix}_wayfinding_totem_{y}", (outer_x - sign * 2.7, y, 2.05), (0.62, 1.8, 3.8), "green_dark", 0.018)
-            base.add_text(
-                f"production_{prefix}_wayfinding_label_{y}",
-                "ACCESO",
-                (outer_x - sign * 3.04, y, 2.75),
-                0.34,
-                "white",
-                rot=(math.radians(90), 0, math.radians(90)),
-                extrude=0.008,
-            )
+            base.cube(f"production_{prefix}_wayfinding_light_strip_{y}", (outer_x - sign * 3.04, y, 2.75), (0.08, 1.15, 0.16), "light", 0.008)
 
 
 def add_sponsor_and_identity_layer():
-    sponsors = ["SEGUNDA JUGADA", "MODERNIA", "INVERSURE", "FINCAS VELAZQUEZ"]
     for sign, prefix in [(1, "north"), (-1, "south")]:
         y = sign * (base.HALF_Y + 4.95)
-        for i, label in enumerate(sponsors):
+        for i in range(4):
             x = -45 + i * 30
             base.cube(f"production_{prefix}_sponsor_panel_{i}", (x, y, 1.2), (21.0, 0.16, 1.6), "green_dark", 0.018)
-            base.add_text(
-                f"production_{prefix}_sponsor_text_{i}",
-                label,
-                (x, y - sign * 0.12, 1.25),
-                0.42,
-                "white",
-                rot=(math.radians(90), 0, 0),
-                extrude=0.008,
-            )
+            base.cube(f"production_{prefix}_sponsor_panel_led_{i}", (x, y - sign * 0.11, 1.25), (16.5, 0.04, 0.18), "light", 0.004)
     for sign, prefix in [(1, "east"), (-1, "west")]:
         x = sign * (base.HALF_X + 4.95)
-        for i, label in enumerate(reversed(sponsors)):
+        for i in range(4):
             y = -35 + i * 23
             base.cube(f"production_{prefix}_goal_sponsor_panel_{i}", (x, y, 1.18), (0.16, 16.2, 1.5), "green_dark", 0.018)
-            base.add_text(
-                f"production_{prefix}_goal_sponsor_text_{i}",
-                label,
-                (x - sign * 0.12, y, 1.22),
-                0.36,
-                "white",
-                rot=(math.radians(90), 0, math.radians(90)),
-                extrude=0.008,
-            )
+            base.cube(f"production_{prefix}_goal_sponsor_panel_led_{i}", (x - sign * 0.11, y, 1.22), (0.04, 12.0, 0.16), "light", 0.004)
 
 
 def add_realistic_pitch_wear_and_service_marks():
@@ -565,8 +572,11 @@ def build_scene():
     add_facade_paneling()
     add_matchday_micro_architecture()
     add_sponsor_and_identity_layer()
+    add_non_text_identity_details()
+    add_extra_bowl_modeling_details()
     add_realistic_pitch_wear_and_service_marks()
     add_better_environment()
+    remove_all_3d_text_labels()
     base.add_lighting_and_camera()
     sun = bpy.data.objects.get("production_extra_sun")
     if not sun:

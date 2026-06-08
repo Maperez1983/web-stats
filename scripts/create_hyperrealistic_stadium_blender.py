@@ -577,20 +577,17 @@ def add_corner_stands():
 
 
 def add_boards():
-    labels = ["2J FOOTBALL INTELLIGENCE", "BENAGALBON CD", "SPONSOR", "PARTNER"]
     idx = 0
     for x in range(-51, 52, 17):
         for sign in [-1, 1]:
             y = sign * (HALF_Y + 4.0)
             cube(f"board_panel_back_{idx}", (x, y + sign * 0.10, 1.26), (15.8, 0.34, 2.64), "rubber", 0.02)
             cube(f"board_panel_{idx}", (x, y, 1.35), (15.2, 0.32, 2.4), "green_dark", 0.02)
-            add_text(f"board_text_{idx}", labels[idx % len(labels)], (x, y - sign * 0.19, 1.38), 0.72, "white", rot=(math.radians(90), 0, math.radians(180) if sign < 0 else 0))
             idx += 1
     for y in range(-27, 28, 14):
         for sign in [-1, 1]:
             x = sign * (HALF_X + 4.0)
             cube(f"board_end_panel_{idx}", (x, y, 1.35), (0.32, 12.5, 2.4), "green_dark", 0.02)
-            add_text(f"board_end_text_{idx}", labels[idx % len(labels)], (x - sign * 0.19, y, 1.38), 0.68, "white", rot=(math.radians(90), 0, math.radians(-90) if sign > 0 else math.radians(90)))
             idx += 1
 
 
