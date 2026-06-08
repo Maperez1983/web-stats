@@ -1638,8 +1638,6 @@
                 <div class="team-stadium-media">
                   {% if item.stadium_photo_url %}
                   <img src="{{ item.stadium_photo_url }}" alt="Foto de {{ item.stadium|default:item.name }}" loading="lazy" />
-                  {% else %}
-                  <img src="{% static 'football/images/stadium/benagalbon-main-stand-render-crop.png' %}" alt="Foto de estadio" loading="lazy" />
                   {% endif %}
                   <div class="team-stadium-caption">
                     <span>Estadio</span>

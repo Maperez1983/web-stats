@@ -16,7 +16,6 @@ urlpatterns = [
     path('sw.js', pwa_views.pwa_service_worker, name='pwa-sw'),
     path('offline/', pwa_views.pwa_offline, name='pwa-offline'),
     path('2j/', views.product_landing_page, name='product-landing'),
-    path('estadio/', views.hyperrealistic_stadium_page, name='hyperrealistic-stadium'),
     path('signup/', views.public_signup_page, name='signup'),
     path('onboarding/', views.club_onboarding_page, name='club-onboarding'),
     path('onboarding/season/', season_wizard_views.club_season_wizard, name='club-season-wizard'),
