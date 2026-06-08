@@ -1682,6 +1682,10 @@ def product_landing_page(request):
     )
 
 
+def stadium3d_rebuild_page(request):
+    return render(request, 'football/stadium3d_rebuild.html')
+
+
 def _support_email():
     return (str(os.getenv('SUPPORT_EMAIL') or os.getenv('APP_SUPPORT_EMAIL') or '').strip() or 'soporte@segundajugada.es').strip()
 
