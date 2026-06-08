@@ -8353,8 +8353,8 @@
 							          .split(/[^A-Z0-9]+/)
 							          .filter(Boolean)
 							          .filter((part) => !['CLUB', 'CD', 'C', 'D', 'CF', 'FC', 'UD', 'AD', 'DE', 'DEL', 'LA', 'EL'].includes(part));
-							        if (parts.length === 1) return parts[0].slice(0, 2) || 'FC';
-							        return parts.slice(0, 3).map((part) => part[0]).join('') || 'FC';
+							        if (parts.length === 1) return parts[0].slice(0, 2) || '';
+							        return parts.slice(0, 3).map((part) => part[0]).join('') || '';
 							      };
 						      const sponsorLogos = [
 						        { label: 'Grupo Modernia Asesores', logo: dataAttr('data-stadium-sponsor-modernia-src') },
@@ -8693,16 +8693,22 @@
 						      return mat;
 						    };
 
-						    const makePitch3dCrestBadgeMaterial = (opts = {}) => {
-						      const primary = safeText(opts.primary, '#0f7a35');
-						      const secondary = safeText(opts.secondary, '#ffffff');
-						      const initials = safeText(opts.initials, 'FC').slice(0, 4);
-						      const imageUrl = safeText(opts.imageUrl);
-						      let badgeTexture = null;
-						      const texture = makePitch3dCanvasTexture((ctx, c) => {
-						        const drawBadge = (img = null) => {
-						          ctx.clearRect(0, 0, c.width, c.height);
-						          const cx = c.width / 2;
+							    const makePitch3dCrestBadgeMaterial = (opts = {}) => {
+							      const primary = safeText(opts.primary, '#0f7a35');
+							      const secondary = safeText(opts.secondary, '#ffffff');
+							      const imageUrl = safeText(opts.imageUrl);
+							      const sameOrigin = imageUrl && (
+							        imageUrl.startsWith('/') ||
+							        imageUrl.startsWith('data:') ||
+							        (window.location && imageUrl.indexOf(window.location.host) !== -1)
+							      );
+							      if (!sameOrigin) return null;
+							      let badgeTexture = null;
+							      const texture = makePitch3dCanvasTexture((ctx, c) => {
+							        const drawBadge = (img = null) => {
+							          ctx.clearRect(0, 0, c.width, c.height);
+							          if (!img) return;
+							          const cx = c.width / 2;
 						          const cy = c.height / 2;
 						          const r = c.width * 0.43;
 						          ctx.beginPath();
@@ -8716,38 +8722,23 @@
 						          ctx.lineWidth = 18;
 						          ctx.strokeStyle = primary;
 						          ctx.stroke();
-						          if (img) {
-						            ctx.save();
-						            ctx.beginPath();
-						            ctx.arc(cx, cy, r * 0.78, 0, Math.PI * 2);
-						            ctx.clip();
-						            const scale = Math.min((r * 1.55) / Math.max(1, img.width), (r * 1.55) / Math.max(1, img.height));
-						            const w = img.width * scale;
-						            const h = img.height * scale;
-						            ctx.drawImage(img, cx - (w / 2), cy - (h / 2), w, h);
-						            ctx.restore();
-						          } else {
-						            ctx.fillStyle = primary;
-						            ctx.textAlign = 'center';
-						            ctx.textBaseline = 'middle';
-						            ctx.font = `950 ${Math.round(c.height * 0.22)}px system-ui, -apple-system, Segoe UI, Arial`;
-						            ctx.fillText(initials, cx, cy + 3);
-						          }
+							          ctx.save();
+							          ctx.beginPath();
+							          ctx.arc(cx, cy, r * 0.78, 0, Math.PI * 2);
+							          ctx.clip();
+							          const scale = Math.min((r * 1.55) / Math.max(1, img.width), (r * 1.55) / Math.max(1, img.height));
+							          const w = img.width * scale;
+							          const h = img.height * scale;
+							          ctx.drawImage(img, cx - (w / 2), cy - (h / 2), w, h);
+							          ctx.restore();
 						          if (badgeTexture && badgeTexture.tex) badgeTexture.tex.needsUpdate = true;
-						        };
-						        drawBadge();
-						        try {
-						          const sameOrigin = imageUrl && (
-						            imageUrl.startsWith('/') ||
-						            imageUrl.startsWith('data:') ||
-						            (window.location && imageUrl.indexOf(window.location.host) !== -1)
-						          );
-						          if (sameOrigin) {
-						            const img = new Image();
-						            img.onload = () => drawBadge(img);
-						            img.src = imageUrl;
-						          }
-						        } catch (e) { /* ignore */ }
+							        };
+							        drawBadge();
+							        try {
+							          const img = new Image();
+							          img.onload = () => drawBadge(img);
+							          img.src = imageUrl;
+							        } catch (e) { /* ignore */ }
 						      }, opts.width || 768, opts.height || 768);
 						      if (!texture) return null;
 						      badgeTexture = texture;
@@ -8846,11 +8837,10 @@
 						      return mat;
 						    };
 
-						    const makePitch3dStandMosaicMaterial = (teamName, opts = {}) => {
-						      const primary = safeText(opts.primary, '#0f7a35');
-						      const secondary = safeText(opts.secondary, '#ffffff');
-						      const initials = safeText(opts.initials, 'FC');
-						      const imageUrl = safeText(opts.imageUrl);
+							    const makePitch3dStandMosaicMaterial = (teamName, opts = {}) => {
+							      const primary = safeText(opts.primary, '#0f7a35');
+							      const secondary = safeText(opts.secondary, '#ffffff');
+							      const imageUrl = safeText(opts.imageUrl);
 						      const crestUrl = safeText(opts.crestUrl);
 						      if (imageUrl && window.THREE) {
 						        const texture = makePitch3dCanvasTexture((ctx, c) => {
@@ -8919,35 +8909,31 @@
 						          ctx.strokeStyle = 'rgba(248,250,252,0.20)';
 						          ctx.lineWidth = 5;
 						          ctx.strokeRect(bandX + 5, bandY + 5, bandW - 10, bandH - 10);
-							          const r = c.height * 0.135;
-						          const cx = c.width * 0.50;
-						          const cy = c.height * 0.30;
-						          ctx.beginPath();
-						          ctx.arc(cx, cy, r + 10, 0, Math.PI * 2);
-						          ctx.fillStyle = 'rgba(2,6,23,0.32)';
-						          ctx.fill();
-						          ctx.beginPath();
-						          ctx.arc(cx, cy, r, 0, Math.PI * 2);
-						          ctx.fillStyle = '#f8fafc';
-						          ctx.fill();
-						          ctx.lineWidth = 9;
-						          ctx.strokeStyle = primary;
-						          ctx.stroke();
-						          if (loadedCrest) {
-						            ctx.save();
-						            ctx.beginPath();
-						            ctx.arc(cx, cy, r * 0.82, 0, Math.PI * 2);
+							          if (loadedCrest) {
+							            const r = c.height * 0.135;
+							            const cx = c.width * 0.50;
+							            const cy = c.height * 0.30;
+							            ctx.beginPath();
+							            ctx.arc(cx, cy, r + 10, 0, Math.PI * 2);
+							            ctx.fillStyle = 'rgba(2,6,23,0.32)';
+							            ctx.fill();
+							            ctx.beginPath();
+							            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+							            ctx.fillStyle = '#f8fafc';
+							            ctx.fill();
+							            ctx.lineWidth = 9;
+							            ctx.strokeStyle = primary;
+							            ctx.stroke();
+							            ctx.save();
+							            ctx.beginPath();
+							            ctx.arc(cx, cy, r * 0.82, 0, Math.PI * 2);
 						            ctx.clip();
 						            const scale = Math.min((r * 1.55) / Math.max(1, loadedCrest.width), (r * 1.55) / Math.max(1, loadedCrest.height));
 						            const w = loadedCrest.width * scale;
 						            const h = loadedCrest.height * scale;
 						            ctx.drawImage(loadedCrest, cx - (w / 2), cy - (h / 2), w, h);
 						            ctx.restore();
-						          } else {
-						            ctx.fillStyle = primary;
-						            ctx.font = `950 ${Math.round(r * 0.58)}px system-ui, -apple-system, Segoe UI, Arial`;
-						            ctx.fillText(initials.slice(0, 4), cx, cy + 2);
-						          }
+							          }
 						          texture.tex.needsUpdate = true;
 						        };
 						        drawPreviewStand();
@@ -9020,26 +9006,6 @@
 						            ctx.fillRect(x, y, seatW, seatH);
 						          }
 						        }
-
-							        // Escudo circular centrado arriba.
-						        const r = c.height * 0.145;
-						        const cx = c.width * 0.5;
-						        const cy = c.height * 0.28;
-						        ctx.beginPath();
-						        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-						        ctx.fillStyle = '#f8fafc';
-						        ctx.fill();
-						        ctx.lineWidth = 8;
-						        ctx.strokeStyle = primary;
-						        ctx.stroke();
-						        ctx.beginPath();
-						        ctx.arc(cx, cy, r * 0.72, 0, Math.PI * 2);
-						        ctx.strokeStyle = '#064e3b';
-						        ctx.lineWidth = 4;
-						        ctx.stroke();
-						        ctx.fillStyle = primary;
-						        ctx.font = `950 ${Math.round(r * 0.58)}px system-ui, -apple-system, Segoe UI, Arial`;
-						        ctx.fillText(initials.slice(0, 4), cx, cy + 2);
 
 						        // Barandillas horizontales.
 						        ctx.strokeStyle = 'rgba(248,250,252,0.60)';
