@@ -8636,7 +8636,7 @@
 						          renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 						          if (THREE.SRGBColorSpace) renderer.outputColorSpace = THREE.SRGBColorSpace;
 						          if (THREE.ACESFilmicToneMapping) renderer.toneMapping = THREE.ACESFilmicToneMapping;
-							          renderer.toneMappingExposure = 1.12;
+							          renderer.toneMappingExposure = 1.18;
 						        } catch (e) { /* ignore */ }
 						        pitch3dRenderer = renderer;
 						        pitch3dScene = new THREE.Scene();
@@ -8647,10 +8647,10 @@
 						          window.__WEBSTATS_PITCH3D_SCENE = pitch3dScene;
 						          window.__WEBSTATS_PITCH3D_CAMERA = pitch3dCamera;
 						        } catch (e) { /* ignore */ }
-							        const hemi = new THREE.HemisphereLight(0xffffff, 0x4c6a50, 0.72);
+							        const hemi = new THREE.HemisphereLight(0xffffff, 0x4c6a50, 0.84);
 							        pitch3dScene.add(hemi);
-							        const dir = new THREE.DirectionalLight(0xfff0c2, 3.25);
-							        dir.position.set(-160, 170, -92);
+							        const dir = new THREE.DirectionalLight(0xfff1ca, 3.55);
+							        dir.position.set(-145, 185, -105);
 						        try {
 						          dir.castShadow = true;
 							          dir.shadow.mapSize.width = 4096;
@@ -8665,10 +8665,10 @@
 							          dir.shadow.normalBias = 0.014;
 						        } catch (e) { /* ignore */ }
 						        pitch3dScene.add(dir);
-							        const rim = new THREE.DirectionalLight(0xdbeafe, 0.24);
+							        const rim = new THREE.DirectionalLight(0xdbeafe, 0.34);
 						        rim.position.set(110, 80, 130);
 						        pitch3dScene.add(rim);
-							        const softFill = new THREE.DirectionalLight(0xffffff, 0.18);
+							        const softFill = new THREE.DirectionalLight(0xffffff, 0.28);
 						        softFill.position.set(70, 60, 105);
 						        pitch3dScene.add(softFill);
 						        pitch3dRaycaster = new THREE.Raycaster();
@@ -8954,6 +8954,18 @@
 								        roughness: 0.92,
 							        metalness: 0,
 							      });
+							      try {
+							        groundMat.onBeforeCompile = (shader) => {
+							          shader.fragmentShader = shader.fragmentShader.replace(
+							            '#include <dithering_fragment>',
+							            [
+							              'float pitchGrazing = pow(clamp(1.0 - abs(dot(normalize(vViewPosition), normal)), 0.0, 1.0), 1.35);',
+							              'gl_FragColor.rgb = mix(gl_FragColor.rgb, gl_FragColor.rgb * vec3(1.08, 1.13, 1.04), pitchGrazing * 0.11);',
+							              '#include <dithering_fragment>',
+							            ].join('\\n')
+							          );
+							        };
+							      } catch (e) { /* ignore */ }
 							      if (!['whiteboard', 'blackboard'].includes(grass.toLowerCase())) {
 							        __pitch3dLoadTextureAsset('pitch3dGrassBumpSrc', (loaded) => {
 							          try {
@@ -8982,6 +8994,120 @@
 						      ground.position.y = 0.04;
 						      try { ground.receiveShadow = true; } catch (e) { /* ignore */ }
 						      root.add(ground);
+
+						      const addPitchPaint3d = () => {
+						        try {
+						          if (['whiteboard', 'blackboard'].includes(grass.toLowerCase())) return;
+						          const paintMat = new THREE.MeshStandardMaterial({
+						            color: 0xf8fff0,
+						            roughness: 0.86,
+						            metalness: 0,
+						            transparent: true,
+						            opacity: 0.72,
+						            depthWrite: false,
+						            polygonOffset: true,
+						            polygonOffsetFactor: -3,
+						            polygonOffsetUnits: -3,
+						          });
+						          const paintY = 0.135;
+						          const lineW = Math.max(0.12, Math.min(0.18, metersW * 0.00155));
+						          const addBoxLine = (w, d, x, z, opacity = 0.72) => {
+						            const mat = paintMat.clone();
+						            mat.opacity = opacity;
+						            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, 0.018, d), mat);
+						            mesh.position.set(x, paintY, z);
+						            mesh.userData = { kind: 'pitch_3d_paint_line' };
+						            root.add(mesh);
+						            return mesh;
+						          };
+						          const addRingLine = (innerR, outerR, x, z, thetaStart = 0, thetaLength = Math.PI * 2, opacity = 0.64) => {
+						            const mat = paintMat.clone();
+						            mat.opacity = opacity;
+						            const geo = new THREE.RingGeometry(innerR, outerR, 96, 1, thetaStart, thetaLength);
+						            const mesh = new THREE.Mesh(geo, mat);
+						            mesh.rotation.x = -Math.PI / 2;
+						            mesh.position.set(x, paintY + 0.005, z);
+						            mesh.userData = { kind: 'pitch_3d_paint_arc' };
+						            root.add(mesh);
+						            return mesh;
+						          };
+						          const addRect = (cx, cz, w, d, opacity = 0.70) => {
+						            addBoxLine(w + lineW, lineW, cx, cz - (d / 2), opacity);
+						            addBoxLine(w + lineW, lineW, cx, cz + (d / 2), opacity);
+						            addBoxLine(lineW, d + lineW, cx - (w / 2), cz, opacity);
+						            addBoxLine(lineW, d + lineW, cx + (w / 2), cz, opacity);
+						          };
+						          addBoxLine(metersW + lineW, lineW, 0, -(metersH / 2), 0.68);
+						          addBoxLine(metersW + lineW, lineW, 0, metersH / 2, 0.68);
+						          addBoxLine(lineW, metersH + lineW, -(metersW / 2), 0, 0.68);
+						          addBoxLine(lineW, metersH + lineW, metersW / 2, 0, 0.68);
+						          addBoxLine(lineW, metersH, 0, 0, 0.62);
+						          addRingLine(9.15 - (lineW / 2), 9.15 + (lineW / 2), 0, 0, 0, Math.PI * 2, 0.58);
+						          addRingLine(0.11, 0.23, 0, 0, 0, Math.PI * 2, 0.78);
+						          if (metersH >= 30) {
+						            const penDepth = 16.5;
+						            const penWidth = 40.32;
+						            const gaDepth = 5.5;
+						            const gaWidth = 18.32;
+						            addRect(-(metersW / 2) + (penDepth / 2), 0, penDepth, penWidth, 0.62);
+						            addRect((metersW / 2) - (penDepth / 2), 0, penDepth, penWidth, 0.62);
+						            addRect(-(metersW / 2) + (gaDepth / 2), 0, gaDepth, gaWidth, 0.60);
+						            addRect((metersW / 2) - (gaDepth / 2), 0, gaDepth, gaWidth, 0.60);
+						            addRingLine(0.10, 0.21, -(metersW / 2) + 11, 0, 0, Math.PI * 2, 0.72);
+						            addRingLine(0.10, 0.21, (metersW / 2) - 11, 0, 0, Math.PI * 2, 0.72);
+						            addRingLine(9.15 - (lineW / 2), 9.15 + (lineW / 2), -(metersW / 2) + 11, 0, -Math.PI / 3, Math.PI * 2 / 3, 0.52);
+						            addRingLine(9.15 - (lineW / 2), 9.15 + (lineW / 2), (metersW / 2) - 11, 0, Math.PI - (Math.PI / 3), Math.PI * 2 / 3, 0.52);
+						          }
+						        } catch (e) { /* ignore */ }
+						      };
+						      const addPitchWear3d = () => {
+						        try {
+						          if (['whiteboard', 'blackboard'].includes(grass.toLowerCase())) return;
+						          const wearTex = makePitch3dCanvasTexture((ctx, c) => {
+						            ctx.clearRect(0, 0, c.width, c.height);
+						            const addWear = (cx, cy, rx, ry, alpha) => {
+						              const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(rx, ry));
+						              g.addColorStop(0, `rgba(190,218,128,${alpha})`);
+						              g.addColorStop(0.46, `rgba(183,209,117,${alpha * 0.38})`);
+						              g.addColorStop(1, 'rgba(190,218,128,0)');
+						              ctx.fillStyle = g;
+						              ctx.beginPath();
+						              ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+						              ctx.fill();
+						            };
+						            addWear(c.width * 0.08, c.height * 0.50, c.width * 0.075, c.height * 0.21, 0.20);
+						            addWear(c.width * 0.92, c.height * 0.50, c.width * 0.075, c.height * 0.21, 0.20);
+						            addWear(c.width * 0.50, c.height * 0.50, c.width * 0.065, c.height * 0.13, 0.10);
+						            ctx.globalAlpha = 0.18;
+						            for (let i = 0; i < 900; i += 1) {
+						              const x = ((i * 97) % c.width);
+						              const y = ((i * 193) % c.height);
+						              const nearGoal = x < c.width * 0.16 || x > c.width * 0.84;
+						              if (!nearGoal && i % 5 !== 0) continue;
+						              ctx.fillStyle = 'rgba(238,232,170,0.42)';
+						              ctx.fillRect(x, y, 1 + (i % 3), 1);
+						            }
+						            ctx.globalAlpha = 1;
+						          }, 1024, 663);
+						          const wearMat = new THREE.MeshBasicMaterial({
+						            map: wearTex?.tex || null,
+						            transparent: true,
+						            opacity: 0.74,
+						            depthWrite: false,
+						            side: THREE.DoubleSide,
+						            polygonOffset: true,
+						            polygonOffsetFactor: -4,
+						            polygonOffsetUnits: -4,
+						          });
+						          const wear = new THREE.Mesh(new THREE.PlaneGeometry(metersW, metersH), wearMat);
+						          wear.rotation.x = -Math.PI / 2;
+						          wear.position.y = 0.128;
+						          wear.userData = { kind: 'pitch_3d_subtle_wear' };
+						          root.add(wear);
+						        } catch (e) { /* ignore */ }
+						      };
+						      addPitchWear3d();
+						      addPitchPaint3d();
 
 						      // El campo es una pieza 3D, no una lámina 2D: base con canto visible y borde interior.
 						      try {
@@ -9016,6 +9142,11 @@
 						          goal.rotation.y = xSign < 0 ? Math.PI : 0;
 						          goal.traverse((node) => {
 						            if (!node || !node.isMesh) return;
+						            try { if (node.geometry) node.geometry = node.geometry.clone(); } catch (e) { /* ignore */ }
+						            try {
+						              if (Array.isArray(node.material)) node.material = node.material.map((mat) => mat?.clone?.() || mat);
+						              else if (node.material) node.material = node.material.clone();
+						            } catch (e) { /* ignore */ }
 						            node.userData = Object.assign({}, node.userData || {}, { kind: 'goal_3d_premium_asset_mesh' });
 						            try { node.castShadow = true; node.receiveShadow = true; } catch (e) { /* ignore */ }
 						          });
