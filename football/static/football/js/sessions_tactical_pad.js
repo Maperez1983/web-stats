@@ -9601,6 +9601,57 @@
 						              fillEndGap(sx, 1);
 						              fillEndGap(sx, -1);
 						            });
+						            const seatMatA = new THREE.MeshStandardMaterial({ color: 0x047857, roughness: 0.56, metalness: 0.02 });
+						            const seatMatB = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.52, metalness: 0.02 });
+						            const bowlZ = metersH / 2 + 8.15;
+						            const bowlX = metersW / 2 + 8.05;
+						            const bowlDepth = 7.7;
+						            const bowlRows = 6;
+						            const addBowlSeats = (axis, sign, span, offsetA, offsetB, splitCenter) => {
+						              const step = 1.12;
+						              for (let row = 0; row < bowlRows; row += 1) {
+						                const y = 0.92 + (row * 0.36);
+						                const inset = 1.15 + (row * 0.78);
+						                for (let p = -span / 2 + 1.3; p <= span / 2 - 1.3; p += step) {
+						                  if (splitCenter && Math.abs(p) < splitCenter) continue;
+						                  const mat = ((Math.floor((p + span / 2) / step) + row) % 8 === 0) ? seatMatB : seatMatA;
+						                  if (axis === 'z') {
+						                    addBox(g, new THREE.BoxGeometry(0.64, 0.18, 0.38), mat, p + offsetA, y, sign * (bowlZ + inset + offsetB), -0.10, 0, 0, 'pitch_3d_continuous_lower_bowl_seat');
+						                    addBox(g, new THREE.BoxGeometry(0.64, 0.32, 0.10), mat, p + offsetA, y + 0.17, sign * (bowlZ + inset + 0.25 + offsetB), -0.18, 0, 0, 'pitch_3d_continuous_lower_bowl_backrest');
+						                  } else {
+						                    addBox(g, new THREE.BoxGeometry(0.38, 0.18, 0.64), mat, sign * (bowlX + inset + offsetA), y, p + offsetB, -0.10, 0, 0, 'pitch_3d_continuous_end_bowl_seat');
+						                    addBox(g, new THREE.BoxGeometry(0.10, 0.32, 0.64), mat, sign * (bowlX + inset + 0.25 + offsetA), y + 0.17, p + offsetB, -0.18, 0, 0, 'pitch_3d_continuous_end_bowl_backrest');
+						                  }
+						                }
+						              }
+						            };
+						            const addContinuousBowlRun = (axis, sign, span, center, splitCenter) => {
+						              if (axis === 'z') {
+						                addBox(g, new THREE.BoxGeometry(span, 0.34, bowlDepth), concreteMat, center, 0.30, sign * bowlZ, -0.045, 0, 0, 'pitch_3d_continuous_lower_bowl_foundation');
+						                addBox(g, new THREE.BoxGeometry(span * 0.98, 0.28, bowlDepth * 0.76), stepMat, center, 0.86, sign * (bowlZ + 1.25), -0.055, 0, 0, 'pitch_3d_continuous_lower_bowl_steps');
+						                addBox(g, new THREE.BoxGeometry(span * 0.98, 0.22, 0.26), metalMat, center, 3.50, sign * (bowlZ + 5.95), 0, 0, 0, 'pitch_3d_continuous_lower_bowl_rear_rail');
+						                addBox(g, new THREE.BoxGeometry(span * 0.98, 0.24, 1.15), concreteMat, center, 3.18, sign * (bowlZ + 6.55), 0, 0, 0, 'pitch_3d_continuous_lower_bowl_concourse');
+						                addBowlSeats('z', sign, span, center, 0, splitCenter);
+						              } else {
+						                addBox(g, new THREE.BoxGeometry(bowlDepth, 0.34, span), concreteMat, sign * bowlX, 0.30, center, -0.045, 0, 0, 'pitch_3d_continuous_end_bowl_foundation');
+						                addBox(g, new THREE.BoxGeometry(bowlDepth * 0.76, 0.28, span * 0.98), stepMat, sign * (bowlX + 1.25), 0.86, center, -0.055, 0, 0, 'pitch_3d_continuous_end_bowl_steps');
+						                addBox(g, new THREE.BoxGeometry(0.26, 0.22, span * 0.98), metalMat, sign * (bowlX + 5.95), 3.50, center, 0, 0, 0, 'pitch_3d_continuous_end_bowl_rear_rail');
+						                addBox(g, new THREE.BoxGeometry(1.15, 0.24, span * 0.98), concreteMat, sign * (bowlX + 6.55), 3.18, center, 0, 0, 0, 'pitch_3d_continuous_end_bowl_concourse');
+						                addBowlSeats('x', sign, span, 0, center, splitCenter);
+						              }
+						            };
+						            addContinuousBowlRun('z', 1, metersW + 23.0, 0, 0);
+						            addContinuousBowlRun('z', -1, (metersW * 0.5) - 9.5, -metersW * 0.33, 0);
+						            addContinuousBowlRun('z', -1, (metersW * 0.5) - 9.5, metersW * 0.33, 0);
+						            addContinuousBowlRun('x', 1, metersH + 19.0, 0, 0);
+						            addContinuousBowlRun('x', -1, metersH + 19.0, 0, 0);
+						            [-1, 1].forEach((sx) => {
+						              [-1, 1].forEach((sz) => {
+						                addBox(g, new THREE.BoxGeometry(11.4, 0.30, 11.4), stepMat, sx * bowlX, 0.95, sz * bowlZ, -0.055, sx * sz * 0.18, 0, 'pitch_3d_continuous_corner_bowl_steps');
+						                addBox(g, new THREE.BoxGeometry(10.2, 0.22, 0.28), metalMat, sx * bowlX, 3.48, sz * (bowlZ + 5.15), 0, sx * sz * 0.18, 0, 'pitch_3d_continuous_corner_bowl_rail');
+						                addBox(g, new THREE.BoxGeometry(9.4, 0.12, 3.4), glassMat, sx * (bowlX + 2.15), 8.10, sz * (bowlZ + 8.15), -0.15, sx * sz * 0.18, 0, 'pitch_3d_continuous_corner_canopy');
+						              });
+						            });
 						            root.add(g);
 						          };
 						          addStadiumCornerConnectors();
