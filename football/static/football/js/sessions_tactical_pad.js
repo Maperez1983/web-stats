@@ -272,7 +272,7 @@
 		  const __grassTextureCache = new Map();
 		  const __buildGrassTextureDataUrl = (styleKey) => {
 		    const style = safeText(styleKey, 'classic').toLowerCase();
-		    const allowed = new Set(['realistic', 'pro', 'artificial', 'dry', 'wet', 'uefa_b', 'broadcast']);
+		    const allowed = new Set(['realistic', 'pro', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'broadcast']);
 		    if (!allowed.has(style)) return '';
 		    if (__grassTextureCache.has(style)) return __grassTextureCache.get(style);
 		    try {
@@ -294,9 +294,13 @@
 		      if (!ctx) return '';
 		      const baseByStyle = {
 		        realistic: '#4f7f3a',
+		        natural: '#3f7a34',
 		        pro: '#2f6a3a',
 		        broadcast: '#155e3a',
 		        artificial: '#2fb46d',
+		        albero: '#c99042',
+		        dirt: '#8f5c38',
+		        indoor: '#2f5965',
 		        dry: '#6b8a3a',
 		        wet: '#1f5a46',
 		      };
@@ -305,12 +309,14 @@
 
 		      // Mowing stripes / bands (subtle, varies by style).
 		      try {
-		        const stripeCount = style === 'artificial' ? 10 : style === 'broadcast' ? 12 : 8;
-		        const stripeW = size / stripeCount;
-		        for (let i = 0; i < stripeCount; i += 1) {
-		          const alpha = style === 'broadcast' ? 0.10 : style === 'pro' ? 0.08 : style === 'wet' ? 0.06 : style === 'dry' ? 0.04 : 0.05;
-		          ctx.fillStyle = i % 2 === 0 ? `rgba(255,255,255,${alpha})` : `rgba(0,0,0,${alpha})`;
-		          ctx.fillRect(i * stripeW, 0, stripeW + 1, size);
+		        const stripeCount = style === 'artificial' ? 10 : style === 'broadcast' ? 12 : (style === 'albero' || style === 'dirt' || style === 'indoor') ? 0 : 8;
+		        if (stripeCount > 0) {
+		          const stripeW = size / stripeCount;
+		          for (let i = 0; i < stripeCount; i += 1) {
+		            const alpha = style === 'broadcast' ? 0.10 : style === 'pro' ? 0.08 : style === 'wet' ? 0.06 : style === 'dry' ? 0.04 : 0.05;
+		            ctx.fillStyle = i % 2 === 0 ? `rgba(255,255,255,${alpha})` : `rgba(0,0,0,${alpha})`;
+		            ctx.fillRect(i * stripeW, 0, stripeW + 1, size);
+		          }
 		        }
 		      } catch (e) { /* ignore */ }
 
@@ -318,21 +324,27 @@
 		      for (let i = 0; i < 9000; i += 1) {
 		        const x = (Math.random() * size) | 0;
 		        const y = (Math.random() * size) | 0;
-		        const noiseMax = style === 'artificial' ? 18 : 70;
+		        const noiseMax = style === 'artificial' ? 18 : (style === 'albero' || style === 'dirt') ? 110 : 70;
 		        const g = (style === 'dry')
 		          ? (90 + ((Math.random() * 45) | 0))
 		          : (110 + ((Math.random() * noiseMax) | 0));
 		        const aBase = style === 'artificial' ? 0.04 : 0.08;
 		        const a = aBase + (Math.random() * 0.12);
-		        ctx.fillStyle = style === 'wet'
+		        ctx.fillStyle = style === 'albero'
+		          ? `rgba(${160 + ((Math.random() * 72) | 0)}, ${100 + ((Math.random() * 48) | 0)}, ${36 + ((Math.random() * 30) | 0)}, ${a + 0.06})`
+		          : style === 'dirt'
+		            ? `rgba(${105 + ((Math.random() * 60) | 0)}, ${62 + ((Math.random() * 36) | 0)}, ${38 + ((Math.random() * 30) | 0)}, ${a + 0.08})`
+		            : style === 'indoor'
+		              ? `rgba(${30 + ((Math.random() * 36) | 0)}, ${88 + ((Math.random() * 42) | 0)}, ${102 + ((Math.random() * 40) | 0)}, ${a})`
+		              : style === 'wet'
 		          ? `rgba(10, ${Math.max(70, g)}, 30, ${a})`
 		          : `rgba(0, ${g}, 0, ${a})`;
 		        ctx.fillRect(x, y, 2, 2);
 		      }
 
 		      // Subtle blades / streaks.
-		      ctx.globalAlpha = style === 'pro' ? 0.14 : style === 'artificial' ? 0.08 : 0.12;
-		      const streaks = style === 'artificial' ? 140 : 220;
+		      ctx.globalAlpha = style === 'pro' ? 0.14 : style === 'artificial' ? 0.08 : (style === 'albero' || style === 'dirt' || style === 'indoor') ? 0.10 : 0.12;
+		      const streaks = style === 'artificial' ? 140 : (style === 'albero' || style === 'dirt') ? 260 : 220;
 		      for (let i = 0; i < streaks; i += 1) {
 		        const x = Math.random() * size;
 		        const y = Math.random() * size;
@@ -345,7 +357,13 @@
 		        const c = (style === 'dry')
 		          ? (120 + ((Math.random() * 40) | 0))
 		          : (120 + ((Math.random() * 60) | 0));
-		        ctx.strokeStyle = style === 'wet' ? `rgb(${20}, ${c}, ${40})` : `rgb(${30}, ${c}, ${30})`;
+		        ctx.strokeStyle = style === 'albero'
+		          ? `rgb(${175 + ((Math.random() * 45) | 0)}, ${120 + ((Math.random() * 34) | 0)}, ${58 + ((Math.random() * 24) | 0)})`
+		          : style === 'dirt'
+		            ? `rgb(${118 + ((Math.random() * 42) | 0)}, ${76 + ((Math.random() * 28) | 0)}, ${48 + ((Math.random() * 24) | 0)})`
+		            : style === 'indoor'
+		              ? `rgb(${45}, ${120 + ((Math.random() * 36) | 0)}, ${135 + ((Math.random() * 32) | 0)})`
+		              : style === 'wet' ? `rgb(${20}, ${c}, ${40})` : `rgb(${30}, ${c}, ${30})`;
 		        ctx.beginPath();
 		        ctx.moveTo(x, y);
 		        ctx.lineTo(x2, y2);
@@ -372,7 +390,7 @@
 			    const preset = String(presetKey || 'full_pitch').trim();
 			    const orientation = safeText(orientationKey, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
 			    const normalizedGrass = safeText(grassStyleKey, 'classic').toLowerCase();
-			    let grassStyle = (['classic', 'realistic', 'pro', 'broadcast', 'artificial', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'].includes(normalizedGrass))
+			    let grassStyle = (['classic', 'realistic', 'pro', 'broadcast', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'].includes(normalizedGrass))
 			      ? normalizedGrass
 			      : 'classic';
 			    try {
@@ -1957,6 +1975,23 @@
 			              '            <option value="selected">Jugador (tap)</option>',
 			              '          </select>',
 			              '        </label>',
+			              '        <label style="display:flex; gap:10px; align-items:center;">',
+			              '          Superficie',
+			              '          <select id="task-pitch-3d-surface">',
+			              '            <option value="classic">Césped</option>',
+			              '            <option value="broadcast">Broadcast</option>',
+			              '            <option value="realistic">Realista</option>',
+			              '            <option value="pro">PRO</option>',
+			              '            <option value="uefa_b">UEFA B</option>',
+			              '            <option value="natural">Natural</option>',
+			              '            <option value="artificial">Artificial</option>',
+			              '            <option value="albero">Albero</option>',
+			              '            <option value="dirt">Tierra</option>',
+			              '            <option value="indoor">Indoor</option>',
+			              '            <option value="dry">Seco</option>',
+			              '            <option value="wet">Mojado</option>',
+			              '          </select>',
+			              '        </label>',
 			              '        <label style="display:flex; gap:10px; align-items:center;"><input type="checkbox" id="task-pitch-3d-layer-draw" checked /> Dibujos</label>',
 			              '        <label style="display:flex; gap:10px; align-items:center;"><input type="checkbox" id="task-pitch-3d-layer-ghosts" checked /> Ghosts</label>',
 			              '        <label style="display:flex; gap:10px; align-items:center;"><input type="checkbox" id="task-pitch-3d-layer-trails" checked /> Trails</label>',
@@ -1985,6 +2020,7 @@
 			    let pitch3dCloseBtn = document.getElementById('task-pitch-3d-close');
 			    let pitch3dCanvasEl = document.getElementById('task-pitch-3d-canvas');
 			    let pitch3dCameraSelect = document.getElementById('task-pitch-3d-camera');
+			    let pitch3dSurfaceSelect = document.getElementById('task-pitch-3d-surface');
 			    let pitch3dFollowSelect = document.getElementById('task-pitch-3d-follow');
 			    let pitch3dLayerDrawInput = document.getElementById('task-pitch-3d-layer-draw');
 			    let pitch3dLayerGhostsInput = document.getElementById('task-pitch-3d-layer-ghosts');
@@ -4026,11 +4062,15 @@
 					      realistic: 'Realista',
 					      pro: 'PRO',
 					      uefa_b: 'UEFA B',
+					      natural: 'Natural',
 					      artificial: 'Artificial',
+					      albero: 'Albero',
+					      dirt: 'Tierra',
+					      indoor: 'Indoor',
 					      dry: 'Seco',
 					      wet: 'Mojado',
 					    };
-					    const GRASS_STYLE_ORDER = ['classic', 'broadcast', 'realistic', 'pro', 'uefa_b', 'artificial', 'dry', 'wet'];
+					    const GRASS_STYLE_ORDER = ['classic', 'broadcast', 'realistic', 'pro', 'uefa_b', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet'];
 					    const normalizeGrassStyleForMode = (value) => {
 					      const next = safeText(value, 'classic').toLowerCase();
 					      if (!GRASS_STYLE_ORDER.includes(next)) return 'classic';
@@ -4041,6 +4081,7 @@
 					      if (grassStyleInput) grassStyleInput.value = pitchGrassStyle;
 					      if (grassLabel) grassLabel.textContent = GRASS_STYLE_LABEL[pitchGrassStyle] || 'Clásico';
 					      try { if (grassSelect) grassSelect.value = pitchGrassStyle; } catch (e) { /* ignore */ }
+					      try { if (pitch3dSurfaceSelect) pitch3dSurfaceSelect.value = pitchGrassStyle; } catch (e) { /* ignore */ }
 					    };
 				    syncGrassUi();
 				    let pitchZoom = Number.parseFloat(String(zoomInput?.value || '').trim());
@@ -8140,12 +8181,19 @@
 						      const style = safeText(grassStyle, 'classic').toLowerCase();
 						      const isWhiteboard = style === 'whiteboard';
 						      const isBlackboard = style === 'blackboard';
+						      const isGranularSurface = ['albero', 'dirt'].includes(style);
+						      const isIndoorSurface = style === 'indoor';
+						      const isGrassSurface = !isWhiteboard && !isBlackboard && !isGranularSurface && !isIndoorSurface;
 						      const baseByStyle = {
 							        classic: '#3f8233',
+							        natural: '#3b7a32',
 							        broadcast: '#2f7430',
 							        realistic: '#407b34',
 							        pro: '#347332',
 						        artificial: '#2fb46d',
+						        albero: '#c58f43',
+						        dirt: '#8d5b36',
+						        indoor: '#315b66',
 						        dry: '#6b8a3a',
 						        wet: '#1f5a46',
 							        uefa_b: '#3d7e3b',
@@ -8153,7 +8201,7 @@
 							      const base = isWhiteboard ? '#f8fafc' : (isBlackboard ? '#0b1220' : (baseByStyle[style] || '#3f8f3d'));
 						      ctx.fillStyle = base;
 						      ctx.fillRect(0, 0, c.width, c.height);
-						      if (!isWhiteboard && !isBlackboard) {
+						      if (isGrassSurface) {
 						        try {
 						          const premiumGrassSrc = __pitch3dAssetUrl('pitch3dGrassAlbedoSrc');
 						          const premiumGrassImg = __pitch3dLoadStaticImage('premium_grass_albedo', premiumGrassSrc);
@@ -8169,7 +8217,7 @@
 						        if (style === 'uefa_b') {
 						          try { src = safeText(window.__WEBSTATS_GRASS_TILES && window.__WEBSTATS_GRASS_TILES.uefa_b); } catch (e) { src = ''; }
 						          if (!src) src = '/static/football/images/surfaces/grass_uefa_b_tile.png';
-						        } else if (['broadcast', 'realistic', 'pro', 'artificial', 'dry', 'wet'].includes(style)) {
+						        } else if (['broadcast', 'realistic', 'pro', 'natural', 'artificial', 'dry', 'wet'].includes(style)) {
 						          // Reusa el generador 2D para mantener coherencia visual con la pizarra.
 						          try { src = safeText(__buildGrassTextureDataUrl(style)); } catch (e) { src = ''; }
 						        }
@@ -8216,13 +8264,17 @@
 							          const v = Math.sin(seed * 12.9898) * 43758.5453;
 							          return v - Math.floor(v);
 							        };
-							        // Bandas de siega reales: pases largos de rodillo con pequeñas imperfecciones de solape.
-							        const stripes = style === 'broadcast' ? 14 : 12;
+							        // Bandas de siega o pasadas de mantenimiento, según la superficie.
+							        const stripes = isGranularSurface ? 8 : isIndoorSurface ? 10 : style === 'broadcast' ? 14 : 12;
 							        const stripeW = c.width / stripes;
 							        for (let i = 0; i < stripes; i += 1) {
 							          const x = i * stripeW;
 							          const lean = i % 2 === 0;
-							          const tint = lean ? 'rgba(232,255,183,0.145)' : 'rgba(4,68,31,0.162)';
+							          const tint = isGranularSurface
+							            ? (lean ? 'rgba(255,229,156,0.115)' : 'rgba(103,64,31,0.118)')
+							            : isIndoorSurface
+							              ? (lean ? 'rgba(175,236,238,0.105)' : 'rgba(15,70,85,0.128)')
+							              : (lean ? 'rgba(232,255,183,0.145)' : 'rgba(4,68,31,0.162)');
 							          ctx.fillStyle = tint;
 							          ctx.fillRect(x - 1, 0, stripeW + 3, c.height);
 							          const fade = ctx.createLinearGradient(x, 0, x + stripeW, 0);
@@ -8242,10 +8294,14 @@
 							        }
 							        ctx.restore();
 							        ctx.save();
-							        ctx.globalAlpha = style === 'broadcast' ? 0.22 : 0.18;
+							        ctx.globalAlpha = isGranularSurface ? 0.28 : isIndoorSurface ? 0.14 : style === 'broadcast' ? 0.22 : 0.18;
 							        for (let y = 0; y < c.height; y += 3) {
 							          const drift = ((y * 29) % 37) - 18;
-							          ctx.strokeStyle = (y % 11 === 0) ? 'rgba(224,255,194,0.26)' : 'rgba(8,63,32,0.22)';
+							          ctx.strokeStyle = isGranularSurface
+							            ? ((y % 11 === 0) ? 'rgba(242,194,105,0.28)' : 'rgba(89,53,28,0.24)')
+							            : isIndoorSurface
+							              ? ((y % 11 === 0) ? 'rgba(169,235,240,0.20)' : 'rgba(24,87,101,0.18)')
+							              : ((y % 11 === 0) ? 'rgba(224,255,194,0.26)' : 'rgba(8,63,32,0.22)');
 							          ctx.lineWidth = 1;
 							          ctx.beginPath();
 							          ctx.moveTo(drift, y);
@@ -8258,11 +8314,15 @@
 							          const y = Math.floor(rand(i + 43) * c.height);
 							          const light = rand(i + 91) > 0.62;
 							          const a = 0.18 + rand(i + 121) * 0.20;
-							          ctx.fillStyle = light ? `rgba(224,255,184,${a})` : `rgba(5,61,27,${a})`;
+							          ctx.fillStyle = isGranularSurface
+							            ? (light ? `rgba(240,184,94,${a})` : `rgba(91,55,30,${a})`)
+							            : isIndoorSurface
+							              ? (light ? `rgba(130,217,226,${a})` : `rgba(25,79,91,${a})`)
+							              : (light ? `rgba(224,255,184,${a})` : `rgba(5,61,27,${a})`);
 							          ctx.fillRect(x, y, 1 + Math.floor(rand(i + 151) * 3), 1);
 							        }
 							        ctx.globalAlpha = 0.14;
-							        ctx.strokeStyle = 'rgba(234,255,202,0.34)';
+							        ctx.strokeStyle = isGranularSurface ? 'rgba(247,204,124,0.30)' : isIndoorSurface ? 'rgba(168,230,236,0.26)' : 'rgba(234,255,202,0.34)';
 							        ctx.lineWidth = 1;
 							        for (let i = 0; i < 1800; i += 1) {
 							          const x = rand(i + 211) * c.width;
@@ -8978,6 +9038,11 @@
 							      const bumpTex = makePitchBumpTexture(pbrW, pbrH);
 							      const normalTex = makePitchNormalTexture(pbrW, pbrH);
 							      const roughnessTex = makePitchRoughnessTexture(pbrW, pbrH);
+							      const surfaceKey3d = safeText(grass, 'classic').toLowerCase();
+							      const isGranular3d = ['albero', 'dirt'].includes(surfaceKey3d);
+							      const isIndoor3d = surfaceKey3d === 'indoor';
+							      const isArtificial3d = surfaceKey3d === 'artificial';
+							      const isBoard3d = ['whiteboard', 'blackboard'].includes(surfaceKey3d);
 							      const groundGeo = new THREE.PlaneGeometry(metersW, metersH, 128, 84);
 							      try {
 							        const pos = groundGeo.attributes.position;
@@ -8996,14 +9061,14 @@
 							        groundGeo.computeVertexNormals();
 							      } catch (e) { /* ignore */ }
 							        const groundMat = new THREE.MeshStandardMaterial({
-								        color: 0xa9db83,
+								        color: isGranular3d ? (surfaceKey3d === 'albero' ? 0xd19a4d : 0x8a5938) : isIndoor3d ? 0x356675 : isArtificial3d ? 0x52cf86 : 0xa9db83,
 							        map: tex || null,
 							        bumpMap: bumpTex || null,
-								        bumpScale: 0.082,
+								        bumpScale: isGranular3d ? 0.145 : isIndoor3d ? 0.032 : isArtificial3d ? 0.045 : 0.082,
 							        normalMap: normalTex || null,
-							        normalScale: new THREE.Vector2(0.085, 0.055),
+							        normalScale: new THREE.Vector2(isGranular3d ? 0.135 : isIndoor3d ? 0.032 : isArtificial3d ? 0.052 : 0.085, isGranular3d ? 0.110 : isIndoor3d ? 0.026 : isArtificial3d ? 0.040 : 0.055),
 							        roughnessMap: roughnessTex || null,
-								        roughness: 0.92,
+								        roughness: isGranular3d ? 0.96 : isIndoor3d ? 0.62 : isArtificial3d ? 0.72 : 0.92,
 							        metalness: 0,
 							      });
 							      try {
@@ -9042,7 +9107,7 @@
 							          );
 							        };
 							      } catch (e) { /* ignore */ }
-							      if (!['whiteboard', 'blackboard'].includes(grass.toLowerCase())) {
+							      if (!isBoard3d && !isGranular3d && !isIndoor3d) {
 							        __pitch3dLoadTextureAsset('pitch3dGrassBumpSrc', (loaded) => {
 							          try {
 							            groundMat.bumpMap = loaded;
@@ -9138,7 +9203,7 @@
 						      };
 						      const addPitchWear3d = () => {
 						        try {
-						          if (['whiteboard', 'blackboard'].includes(grass.toLowerCase())) return;
+						          if (['whiteboard', 'blackboard', 'albero', 'dirt', 'indoor'].includes(grass.toLowerCase())) return;
 						          const wearTex = makePitch3dCanvasTexture((ctx, c) => {
 						            ctx.clearRect(0, 0, c.width, c.height);
 						            const addWear = (cx, cy, rx, ry, alpha) => {
@@ -9184,7 +9249,7 @@
 						      };
 						      const addGrassFiberSheen3d = () => {
 						        try {
-						          if (['whiteboard', 'blackboard'].includes(grass.toLowerCase())) return;
+						          if (['whiteboard', 'blackboard', 'albero', 'dirt', 'indoor'].includes(grass.toLowerCase())) return;
 						          const fiberTex = makePitch3dCanvasTexture((ctx, c) => {
 						            ctx.clearRect(0, 0, c.width, c.height);
 						            ctx.globalAlpha = 0.26;
@@ -11479,6 +11544,20 @@
 						      if (!pitch3dRoot) return;
 						      const meters = pitchMetersForPreset(presetSelect?.value || 'full_pitch');
 						      setCameraPreset(pitch3dCameraSelect.value, meters.w, meters.h);
+						    });
+						    pitch3dSurfaceSelect?.addEventListener('change', () => {
+						      const next = safeText(pitch3dSurfaceSelect?.value, 'classic').trim().toLowerCase();
+						      pitchGrassStyle = normalizeGrassStyleForMode(next);
+						      syncGrassUi();
+						      try { applyPitchSurface(pitchPreset || presetSelect?.value || 'full_pitch', pitchOrientation, pitchGrassStyle); } catch (e) { /* ignore */ }
+						      try { refreshLivePreview(); } catch (e) { /* ignore */ }
+						      if (pitch3dOpen) {
+						        stopPitch3dPlayback();
+						        updatePitch3dPlaybackButton();
+						        try { showPitch3dStep(activeStepIndex >= 0 ? activeStepIndex : pitch3dCurrentStep, { keepFollow: true }); } catch (e) { /* ignore */ }
+						        try { applyPitch3dLayerVisibility(); } catch (e) { /* ignore */ }
+						      }
+						      setStatus(`Superficie 3D: ${GRASS_STYLE_LABEL[pitchGrassStyle] || pitchGrassStyle}.`);
 						    });
 						    pitch3dFollowSelect?.addEventListener('change', () => {
 						      pitch3dFollowMode = safeText(pitch3dFollowSelect?.value, 'off');

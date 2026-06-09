@@ -5116,7 +5116,7 @@
 	        <input type="hidden" name="draw_canvas_timeline_previews" id="draw-canvas-timeline-previews" />
 	        <input type="hidden" name="draw_task_pitch_orientation" id="draw-task-pitch-orientation" value="{{ initial.pitch_orientation|default:'landscape' }}" />
 	        <input type="hidden" name="draw_task_pitch_zoom" id="draw-task-pitch-zoom" value="{{ initial.pitch_zoom|default:'1.00' }}" />
-	        <input type="hidden" name="draw_task_pitch_grass_style" id="draw-task-pitch-grass-style" value="{% if tactics_mode %}classic{% else %}{{ initial.pitch_grass_style|default:'classic' }}{% endif %}" />
+	        <input type="hidden" name="draw_task_pitch_grass_style" id="draw-task-pitch-grass-style" value="{{ initial.pitch_grass_style|default:'classic' }}" />
 	        <div id="assigned-players-hidden" style="display:none;"></div>
 
         {% if not tactics_mode %}
@@ -5391,7 +5391,11 @@
 			                        {% elif initial.pitch_grass_style == 'realistic' %}Realista
 			                        {% elif initial.pitch_grass_style == 'pro' %}PRO
 			                        {% elif initial.pitch_grass_style == 'uefa_b' %}UEFA B
+			                        {% elif initial.pitch_grass_style == 'natural' %}Natural
 			                        {% elif initial.pitch_grass_style == 'artificial' %}Artificial
+			                        {% elif initial.pitch_grass_style == 'albero' %}Albero
+			                        {% elif initial.pitch_grass_style == 'dirt' %}Tierra
+			                        {% elif initial.pitch_grass_style == 'indoor' %}Indoor
 			                        {% elif initial.pitch_grass_style == 'dry' %}Seco
 				                        {% elif initial.pitch_grass_style == 'wet' %}Mojado
 				                        {% elif initial.pitch_grass_style == 'coachboard' %}Tablero
@@ -5408,7 +5412,11 @@
 		                        <option value="realistic" {% if initial.pitch_grass_style == 'realistic' %}selected{% endif %}>Realista</option>
 		                        <option value="pro" {% if initial.pitch_grass_style == 'pro' %}selected{% endif %}>PRO</option>
 		                        <option value="uefa_b" {% if initial.pitch_grass_style == 'uefa_b' %}selected{% endif %}>UEFA B</option>
+		                        <option value="natural" {% if initial.pitch_grass_style == 'natural' %}selected{% endif %}>Natural</option>
 		                        <option value="artificial" {% if initial.pitch_grass_style == 'artificial' %}selected{% endif %}>Artificial</option>
+		                        <option value="albero" {% if initial.pitch_grass_style == 'albero' %}selected{% endif %}>Albero</option>
+		                        <option value="dirt" {% if initial.pitch_grass_style == 'dirt' %}selected{% endif %}>Tierra</option>
+		                        <option value="indoor" {% if initial.pitch_grass_style == 'indoor' %}selected{% endif %}>Indoor</option>
 		                        <option value="dry" {% if initial.pitch_grass_style == 'dry' %}selected{% endif %}>Seco</option>
 		                        <option value="wet" {% if initial.pitch_grass_style == 'wet' %}selected{% endif %}>Mojado</option>
 		                      </select>
