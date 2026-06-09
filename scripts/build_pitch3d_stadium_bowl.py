@@ -454,6 +454,73 @@ def add_reference_detail_pass(mats):
     cube("tunnel_integrated_side_mass_r", (7.35, -40.15, 2.15), (0.38, 2.40, 2.25), mat_concrete)
 
 
+def add_gap_closure_pass(mats):
+    mat_team, mat_secondary, mat_concrete, mat_dark, mat_glass, mat_metal, mat_roof, mat_light = mats
+    mat_foundation = mat("FOUNDATION_SHADOW_CONCRETE", (0.30, 0.34, 0.33, 1), 0.84, 0.02)
+    mat_underseat = mat("UNDER_STAND_DARK_CONCRETE", (0.11, 0.13, 0.13, 1), 0.80, 0.02)
+
+    # Continuous foundations: the eye should always find a grounded mass below the seating bowl.
+    cube("foundation_north_ground_mass", (0, 47.8, 1.10), (126, 19.0, 2.20), mat_foundation)
+    cube("foundation_south_ground_mass", (0, -47.8, 1.10), (126, 19.0, 2.20), mat_foundation)
+    cube("foundation_east_ground_mass", (66.8, 0, 1.10), (19.0, 92.0, 2.20), mat_foundation)
+    cube("foundation_west_ground_mass", (-66.8, 0, 1.10), (19.0, 92.0, 2.20), mat_foundation)
+
+    # Diagonal corner blocks close the visible gaps where straight stands meet.
+    for name, x, y, rot in (
+        ("nw", -56.0, 43.8, math.radians(45)),
+        ("ne", 56.0, 43.8, math.radians(-45)),
+        ("sw", -56.0, -43.8, math.radians(135)),
+        ("se", 56.0, -43.8, math.radians(-135)),
+    ):
+        cube(f"{name}_corner_foundation_diagonal_mass", (x, y, 1.45), (34.0, 15.5, 2.90), mat_foundation, (0, 0, rot))
+        cube(f"{name}_corner_understand_shadow", (x, y, 3.15), (30.0, 12.0, 2.20), mat_underseat, (0, 0, rot))
+        cube(f"{name}_corner_concourse_joiner_slab", (x, y, 4.55), (32.0, 13.4, 0.46), mat_concrete, (0.02, 0, rot))
+        cube(f"{name}_corner_outer_ground_skirt", (x, y, 2.65), (35.0, 0.72, 4.4), mat_foundation, (0, 0, rot))
+        cube(f"{name}_corner_inner_ground_skirt", (x * 0.86, y * 0.86, 2.40), (24.0, 0.55, 3.7), mat_foundation, (0, 0, rot))
+        cube(f"{name}_corner_inner_support_wall_TEAM_ACCENT", (x * 0.91, y * 0.91, 2.25), (22.0, 0.44, 2.10), mat_team, (0, 0, rot))
+        for offset in (-9.0, 0.0, 9.0):
+            cube(f"{name}_corner_vertical_buttress_{offset}", (x + math.cos(rot) * offset, y + math.sin(rot) * offset, 4.0), (0.46, 0.46, 6.0), mat_concrete)
+        for row in range(5):
+            y_off = -3.2 + row * 1.35
+            cube(
+                f"{name}_corner_infill_seating_band_{row}_TEAM_PRIMARY",
+                (x + math.sin(rot) * y_off, y - math.cos(rot) * y_off, 4.88 + row * 0.32),
+                (24.0 - row * 1.7, 0.42, 0.22),
+                mat_team,
+                (0.08, 0, rot),
+            )
+
+    # South tunnel: build a real seating bridge above the portal so the stand is not open to the sky.
+    cube("tunnel_bridge_left_retaining_wall", (-11.6, -39.65, 2.25), (9.8, 0.62, 2.70), mat_foundation)
+    cube("tunnel_bridge_right_retaining_wall", (11.6, -39.65, 2.25), (9.8, 0.62, 2.70), mat_foundation)
+    cube("tunnel_bridge_header_retaining_wall", (0, -39.65, 3.85), (31.5, 0.62, 0.62), mat_foundation)
+    cube("tunnel_bridge_structural_slab", (0, -42.40, 4.18), (35.0, 8.0, 0.52), mat_concrete, (0.02, 0, 0))
+    cube("tunnel_bridge_dark_recess", (0, -41.95, 2.15), (12.8, 0.34, 2.55), mat_dark)
+    cube("tunnel_bridge_front_left_facade_TEAM_PRIMARY", (-14.2, -39.42, 3.05), (5.2, 0.18, 1.25), mat_team)
+    cube("tunnel_bridge_front_right_facade_TEAM_PRIMARY", (14.2, -39.42, 3.05), (5.2, 0.18, 1.25), mat_team)
+    cube("tunnel_bridge_left_cheek", (-17.4, -42.0, 2.55), (0.55, 7.2, 3.35), mat_concrete)
+    cube("tunnel_bridge_right_cheek", (17.4, -42.0, 2.55), (0.55, 7.2, 3.35), mat_concrete)
+    cube("tunnel_bridge_left_side_joiner", (-25.8, -42.2, 3.15), (16.8, 6.9, 2.10), mat_foundation, (0.03, 0, 0))
+    cube("tunnel_bridge_right_side_joiner", (25.8, -42.2, 3.15), (16.8, 6.9, 2.10), mat_foundation, (0.03, 0, 0))
+    for row in range(9):
+        y = -43.0 - row * 0.68
+        z = 4.55 + row * 0.33
+        cube(f"tunnel_bridge_riser_{row}", (0, y, z), (35.5, 0.52, 0.20), mat_concrete, (0.06, 0, 0))
+        cube(f"tunnel_bridge_seats_TEAM_PRIMARY_{row}", (0, y - 0.08, z + 0.17), (34.6, 0.34, 0.18), mat_team, (0.08, 0, 0))
+        if row in {2, 5, 8}:
+            cube(f"tunnel_bridge_seat_accent_TEAM_SECONDARY_{row}", (0, y - 0.09, z + 0.19), (5.2, 0.36, 0.19), mat_secondary, (0.08, 0, 0))
+
+    # Pitchside corners get low green infill so the bowl does not expose white/empty wedges.
+    for name, x, y, rot in (
+        ("nw", -54.4, 36.8, math.radians(45)),
+        ("ne", 54.4, 36.8, math.radians(-45)),
+        ("sw", -54.4, -36.8, math.radians(135)),
+        ("se", 54.4, -36.8, math.radians(-135)),
+    ):
+        cube(f"{name}_pitch_corner_green_infill_TEAM_PRIMARY", (x, y, 0.18), (12.5, 8.6, 0.18), mat_team, (0, 0, rot))
+        cube(f"{name}_pitch_corner_wall_infill_TEAM_ACCENT", (x, y, 0.92), (13.0, 0.32, 1.10), mat_team, (0, 0, rot))
+
+
 def main():
     clear_scene()
     mat_team = mat("TEAM_PRIMARY", (0.02, 0.47, 0.34, 1), 0.58, 0.02)
@@ -481,6 +548,7 @@ def main():
     add_unified_roof_and_facade(mats)
     add_bowl_unification_pass(mats)
     add_reference_detail_pass(mats)
+    add_gap_closure_pass(mats)
 
     # Continuous roof links make the stadium read as one closed object.
     cube("roof_link_north_TEAM_SECONDARY", (0, 67.8, 18.52), (128, 4.6, 0.30), mat_roof, (-0.015, 0, 0))
