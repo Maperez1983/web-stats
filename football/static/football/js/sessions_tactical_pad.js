@@ -8127,7 +8127,10 @@
 						    } catch (e) { /* ignore */ }
 
 						    const makePitchTexture = (metersW, metersH, grassStyle = 'classic', onAsyncUpdate) => {
-						      const w = 3072;
+						      const dpr = Math.max(1, Number(window.devicePixelRatio) || 1);
+						      const wideViewport = Math.max(window.innerWidth || 0, window.innerHeight || 0) >= 1280;
+						      const premiumRender = safeText(pitch3dCameraSelect?.value, 'render_original') === 'render_original';
+						      const w = premiumRender && wideViewport && dpr >= 1.5 ? 5120 : (wideViewport ? 4096 : 3072);
 						      const h = Math.round((w * metersH) / Math.max(1, metersW));
 						      const c = document.createElement('canvas');
 						      c.width = w;
@@ -8393,7 +8396,7 @@
 							      const tex = new THREE.CanvasTexture(c);
 							      tex.wrapS = THREE.ClampToEdgeWrapping;
 							      tex.wrapT = THREE.ClampToEdgeWrapping;
-							      tex.anisotropy = 8;
+							      tex.anisotropy = 16;
 							      tex.needsUpdate = true;
 							      return tex;
 							    };
@@ -8430,7 +8433,7 @@
 							      const tex = new THREE.CanvasTexture(c);
 							      tex.wrapS = THREE.ClampToEdgeWrapping;
 							      tex.wrapT = THREE.ClampToEdgeWrapping;
-							      tex.anisotropy = 8;
+							      tex.anisotropy = 16;
 							      tex.needsUpdate = true;
 							      return tex;
 							    };
@@ -8461,7 +8464,7 @@
 							      const tex = new THREE.CanvasTexture(c);
 							      tex.wrapS = THREE.ClampToEdgeWrapping;
 							      tex.wrapT = THREE.ClampToEdgeWrapping;
-							      tex.anisotropy = 6;
+							      tex.anisotropy = 12;
 							      tex.needsUpdate = true;
 							      return tex;
 							    };
@@ -8667,7 +8670,9 @@
 						      if (pitch3dRenderer && pitch3dScene && pitch3dCamera) return true;
 						      try {
 						        const renderer = new THREE.WebGLRenderer({ canvas: pitch3dCanvasEl, antialias: true, alpha: false, preserveDrawingBuffer: true });
-						        renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+						        const dpr = Number(window.devicePixelRatio) || 1;
+						        const maxPixelRatio = Math.max(window.innerWidth || 0, window.innerHeight || 0) >= 1280 ? 2.5 : 2;
+						        renderer.setPixelRatio(Math.min(maxPixelRatio, dpr));
 						        renderer.setClearColor(0xaed8f3, 1);
 						        try {
 						          renderer.shadowMap.enabled = true;
@@ -8691,8 +8696,9 @@
 							        dir.position.set(-145, 185, -105);
 						        try {
 						          dir.castShadow = true;
-							          dir.shadow.mapSize.width = 4096;
-							          dir.shadow.mapSize.height = 4096;
+							          const shadowSize = Math.max(window.innerWidth || 0, window.innerHeight || 0) >= 1280 ? 8192 : 4096;
+							          dir.shadow.mapSize.width = shadowSize;
+							          dir.shadow.mapSize.height = shadowSize;
 						          dir.shadow.camera.near = 10;
 						          dir.shadow.camera.far = 340;
 						          dir.shadow.camera.left = -135;
@@ -8959,11 +8965,16 @@
 							      if (tex) {
 							        tex.wrapS = THREE.ClampToEdgeWrapping;
 							        tex.wrapT = THREE.ClampToEdgeWrapping;
-							        tex.anisotropy = 12;
+							        tex.anisotropy = 16;
+							        try {
+							          tex.generateMipmaps = true;
+							          if (THREE.LinearMipmapLinearFilter) tex.minFilter = THREE.LinearMipmapLinearFilter;
+							          if (THREE.LinearFilter) tex.magFilter = THREE.LinearFilter;
+							        } catch (e) { /* ignore */ }
 							        tex.needsUpdate = true;
 							      }
-							      const pbrW = Math.min(1536, Math.max(512, Math.round((texCanvas?.width || 1024) / 2)));
-							      const pbrH = Math.min(1024, Math.max(512, Math.round((texCanvas?.height || 768) / 2)));
+							      const pbrW = Math.min(2048, Math.max(768, Math.round((texCanvas?.width || 1024) / 2)));
+							      const pbrH = Math.min(1536, Math.max(768, Math.round((texCanvas?.height || 768) / 2)));
 							      const bumpTex = makePitchBumpTexture(pbrW, pbrH);
 							      const normalTex = makePitchNormalTexture(pbrW, pbrH);
 							      const roughnessTex = makePitchRoughnessTexture(pbrW, pbrH);
@@ -9038,21 +9049,21 @@
 							            groundMat.bumpScale = 0.060;
 							            groundMat.needsUpdate = true;
 							          } catch (e) { /* ignore */ }
-							        }, { anisotropy: 10 });
+						        }, { anisotropy: 16 });
 							        __pitch3dLoadTextureAsset('pitch3dGrassNormalSrc', (loaded) => {
 							          try {
 							            groundMat.normalMap = loaded;
 							            groundMat.normalScale = new THREE.Vector2(0.105, 0.075);
 							            groundMat.needsUpdate = true;
 							          } catch (e) { /* ignore */ }
-							        }, { anisotropy: 10 });
+						        }, { anisotropy: 16 });
 							        __pitch3dLoadTextureAsset('pitch3dGrassRoughnessSrc', (loaded) => {
 							          try {
 							            groundMat.roughnessMap = loaded;
 							            groundMat.roughness = 0.88;
 							            groundMat.needsUpdate = true;
 							          } catch (e) { /* ignore */ }
-							        }, { anisotropy: 8 });
+						        }, { anisotropy: 12 });
 							      }
 						      const ground = new THREE.Mesh(groundGeo, groundMat);
 						      ground.rotation.x = -Math.PI / 2;

@@ -95,6 +95,19 @@ def cube(name, loc, scale, material, rot=(0, 0, 0)):
     return obj
 
 
+def cyl(name, loc, radius, depth, material, rot=(0, 0, 0), vertices=32):
+    bpy.ops.mesh.primitive_cylinder_add(vertices=vertices, radius=radius, depth=depth, location=loc, rotation=rot)
+    obj = bpy.context.object
+    obj.name = name
+    if material:
+        obj.data.materials.append(material)
+    try:
+        obj.modifiers.new(name="weighted_normals", type="WEIGHTED_NORMAL")
+    except Exception:
+        pass
+    return obj
+
+
 def add_stand(name, side, length, center, mat_team, mat_secondary, mat_concrete, mat_dark, mat_glass, mat_metal, mat_roof, mat_light):
     group = bpy.data.collections.new(name)
     bpy.context.scene.collection.children.link(group)
@@ -125,38 +138,48 @@ def add_stand(name, side, length, center, mat_team, mat_secondary, mat_concrete,
         sa = math.sin(rot)
         return (loc_base[0] + px * ca - py * sa, loc_base[1] + px * sa + py * ca, pz)
 
-    add(cube(f"{name}_continuous_podium", tr(0, 6.5, 0.45), (length + 4, 20.5, 0.9), mat_concrete, (0, 0, rot)))
-    add(cube(f"{name}_pitch_fascia_TEAM_ACCENT", tr(0, -2.8, 1.05), (length + 1.5, 0.42, 1.15), mat_team, (0, 0, rot)))
+    add(cube(f"{name}_continuous_podium", tr(0, 7.8, 0.45), (length + 8, 25.5, 0.9), mat_concrete, (0, 0, rot)))
+    add(cube(f"{name}_pitch_fascia_TEAM_ACCENT", tr(0, -3.2, 1.00), (length + 4.0, 0.48, 1.25), mat_team, (0, 0, rot)))
+    add(cube(f"{name}_lower_shadow_plenum", tr(0, 0.0, 0.74), (length + 2.0, 0.40, 0.92), mat_dark, (0, 0, rot)))
 
-    row_counts = (18, 13, 8)
-    row_origins = ((-0.6, 0.86), (10.2, 5.72), (16.9, 9.25))
-    row_widths = (1.00, 0.88, 0.78)
+    row_counts = (22, 16, 11)
+    row_origins = ((-0.4, 0.86), (12.8, 6.48), (22.2, 11.95))
+    row_widths = (1.00, 0.92, 0.84)
     for tier, rows in enumerate(row_counts):
         base_y, base_z = row_origins[tier]
         width_factor = row_widths[tier]
         if tier:
-            add(cube(f"{name}_concourse_{tier}", tr(0, base_y - 0.55, base_z - 0.20), (length * (width_factor + 0.04), 1.35, 0.42), mat_concrete, (0, 0, rot)))
-            add(cube(f"{name}_glass_rail_{tier}", tr(0, base_y - 1.25, base_z + 0.28), (length * width_factor, 0.13, 0.34), mat_glass, (0, 0, rot)))
+            add(cube(f"{name}_concourse_{tier}", tr(0, base_y - 0.75, base_z - 0.18), (length * (width_factor + 0.08), 1.68, 0.48), mat_concrete, (0, 0, rot)))
+            add(cube(f"{name}_glass_rail_{tier}", tr(0, base_y - 1.55, base_z + 0.36), (length * (width_factor + 0.03), 0.14, 0.44), mat_glass, (0, 0, rot)))
         for r in range(rows):
             py = base_y + r * 0.70
             pz = base_z + r * 0.36
-            add(cube(f"{name}_riser_{tier}_{r:02d}", tr(0, py, pz), (length * width_factor, 0.52, 0.20), mat_concrete, (-0.055, 0, rot)))
-            add(cube(f"{name}_seat_band_TEAM_PRIMARY_{tier}_{r:02d}", tr(0, py - 0.08, pz + 0.16), (length * (width_factor - 0.04), 0.34, 0.16), mat_team, (-0.09, 0, rot)))
+            add(cube(f"{name}_riser_{tier}_{r:02d}", tr(0, py, pz), (length * width_factor, 0.55, 0.22), mat_concrete, (-0.055, 0, rot)))
+            add(cube(f"{name}_seat_band_TEAM_PRIMARY_{tier}_{r:02d}", tr(0, py - 0.08, pz + 0.17), (length * (width_factor - 0.035), 0.36, 0.18), mat_team, (-0.09, 0, rot)))
+            if r % 3 == 1:
+                add(cube(f"{name}_seat_highlight_TEAM_SECONDARY_{tier}_{r:02d}", tr(length * 0.22, py - 0.09, pz + 0.18), (length * 0.055, 0.37, 0.19), mat_secondary, (-0.09, 0, rot)))
+                add(cube(f"{name}_seat_highlight_mirror_TEAM_SECONDARY_{tier}_{r:02d}", tr(-length * 0.22, py - 0.09, pz + 0.18), (length * 0.055, 0.37, 0.19), mat_secondary, (-0.09, 0, rot)))
 
     for ratio in (-0.40, -0.24, 0.0, 0.24, 0.40):
         px = ratio * length
-        add(cube(f"{name}_stair_TEAM_SECONDARY_{ratio:.2f}", tr(px, 4.2, 2.9), (1.1, 10.8, 0.18), mat_secondary, (-0.055, 0, rot)))
+        add(cube(f"{name}_stair_TEAM_SECONDARY_{ratio:.2f}", tr(px, 5.6, 3.45), (1.1, 14.0, 0.20), mat_secondary, (-0.055, 0, rot)))
         add(cube(f"{name}_vomitory_{ratio:.2f}", tr(px, 0.18, 2.25), (3.25, 0.34, 1.85), mat_dark, (0, 0, rot)))
-        add(cube(f"{name}_upper_vomitory_{ratio:.2f}", tr(px, 13.3, 7.1), (3.25, 0.34, 1.45), mat_dark, (0, 0, rot)))
+        add(cube(f"{name}_upper_vomitory_{ratio:.2f}", tr(px, 15.4, 8.05), (3.25, 0.38, 1.55), mat_dark, (0, 0, rot)))
 
-    add(cube(f"{name}_continuous_roof_TEAM_SECONDARY", tr(0, 22.0, 14.5), (length + 10, 9.4, 0.36), mat_roof, (-0.015, 0, rot)))
-    add(cube(f"{name}_light_bar", tr(0, 17.7, 12.95), (length * 0.86, 0.20, 0.14), mat_light, (0, 0, rot)))
+    add(cube(f"{name}_rear_facade_TEAM_ACCENT", tr(0, 31.8, 8.8), (length + 12.0, 0.62, 10.8), mat_team, (0, 0, rot)))
+    add(cube(f"{name}_continuous_roof_TEAM_SECONDARY", tr(0, 28.4, 18.35), (length + 14, 12.6, 0.42), mat_roof, (-0.025, 0, rot)))
+    add(cube(f"{name}_roof_front_truss", tr(0, 21.8, 16.80), (length + 9, 0.28, 0.28), mat_metal, (0, 0, rot)))
+    add(cube(f"{name}_roof_rear_truss", tr(0, 32.4, 17.95), (length + 14, 0.30, 0.30), mat_metal, (0, 0, rot)))
+    add(cube(f"{name}_light_bar", tr(0, 21.35, 16.32), (length * 0.88, 0.24, 0.18), mat_light, (0, 0, rot)))
+    for i in range(-12, 13):
+        if i % 2 == 0:
+            add(cube(f"{name}_individual_floodlight_{i}", tr(i * (length / 24), 21.05, 16.16), (0.82, 0.18, 0.26), mat_light, (0, 0, rot)))
     for i in range(-6, 7):
         px = i * (length / 12)
-        add(cube(f"{name}_roof_rib_{i}", tr(px, 20.8, 13.72), (0.14, 8.8, 0.16), mat_metal, (0, 0, rot)))
+        add(cube(f"{name}_roof_rib_{i}", tr(px, 27.4, 17.58), (0.16, 11.4, 0.18), mat_metal, (0, 0, rot)))
         if i % 2 == 0:
-            add(cube(f"{name}_rear_mast_{i}", tr(px, 24.3, 9.7), (0.26, 0.26, 8.1), mat_concrete, (0, 0, rot)))
-            add(cube(f"{name}_cantilever_brace_{i}", tr(px, 21.6, 11.6), (0.16, 6.1, 0.18), mat_metal, (0.55, 0, rot)))
+            add(cube(f"{name}_rear_mast_{i}", tr(px, 32.4, 10.6), (0.30, 0.30, 12.0), mat_concrete, (0, 0, rot)))
+            add(cube(f"{name}_cantilever_brace_{i}", tr(px, 27.1, 14.0), (0.18, 8.8, 0.20), mat_metal, (0.48, 0, rot)))
 
 
 def add_corner(name, x, y, rot, mats):
@@ -168,18 +191,21 @@ def add_corner(name, x, y, rot, mats):
         return (x + px * ca - py * sa, y + px * sa + py * ca, pz)
 
     add = lambda obj: obj
-    add(cube(f"{name}_corner_podium", tr(0, 6.3, 0.45), (25, 20, 0.9), mat_concrete, (0, 0, rot)))
-    add(cube(f"{name}_corner_fascia_TEAM_ACCENT", tr(0, -2.6, 1.05), (24, 0.42, 1.15), mat_team, (0, 0, rot)))
-    for r in range(18):
+    add(cube(f"{name}_corner_podium", tr(0, 8.0, 0.45), (33, 26, 0.9), mat_concrete, (0, 0, rot)))
+    add(cube(f"{name}_corner_fascia_TEAM_ACCENT", tr(0, -2.9, 1.02), (31, 0.48, 1.22), mat_team, (0, 0, rot)))
+    for r in range(23):
         py = -0.65 + r * 0.72
         pz = 0.86 + r * 0.36
-        width = 22 - r * 0.32
+        width = 30 - r * 0.36
         add(cube(f"{name}_corner_riser_{r:02d}", tr(0, py, pz), (width, 0.50, 0.20), mat_concrete, (-0.055, 0, rot)))
         add(cube(f"{name}_corner_seats_TEAM_PRIMARY_{r:02d}", tr(0, py - 0.08, pz + 0.16), (max(5, width - 1.4), 0.32, 0.15), mat_team, (-0.09, 0, rot)))
-    add(cube(f"{name}_corner_roof_TEAM_SECONDARY", tr(0, 21.2, 14.5), (29, 8.8, 0.36), mat_roof, (-0.015, 0, rot)))
-    add(cube(f"{name}_corner_light_bar", tr(0, 17.2, 12.95), (17.5, 0.20, 0.14), mat_light, (0, 0, rot)))
+    add(cube(f"{name}_corner_rear_facade_TEAM_ACCENT", tr(0, 31.2, 8.8), (33, 0.58, 10.6), mat_team, (0, 0, rot)))
+    add(cube(f"{name}_corner_roof_TEAM_SECONDARY", tr(0, 27.8, 18.35), (36, 12.2, 0.40), mat_roof, (-0.025, 0, rot)))
+    add(cube(f"{name}_corner_light_bar", tr(0, 21.1, 16.28), (25.0, 0.22, 0.16), mat_light, (0, 0, rot)))
+    add(cube(f"{name}_corner_roof_front_truss", tr(0, 21.6, 16.78), (32, 0.26, 0.26), mat_metal, (0, 0, rot)))
     for ratio in (-0.35, 0.35):
-        add(cube(f"{name}_corner_rear_mast_{ratio}", tr(ratio * 22, 23.2, 9.7), (0.26, 0.26, 8.1), mat_concrete, (0, 0, rot)))
+        add(cube(f"{name}_corner_rear_mast_{ratio}", tr(ratio * 28, 32.2, 10.8), (0.30, 0.30, 12.0), mat_concrete, (0, 0, rot)))
+        add(cube(f"{name}_corner_roof_brace_{ratio}", tr(ratio * 22, 27.0, 14.1), (0.18, 8.2, 0.20), mat_metal, (0.48, 0, rot)))
 
 
 def add_tunnel_and_benches(mats):
@@ -187,7 +213,10 @@ def add_tunnel_and_benches(mats):
     y = -41
     cube("integrated_players_tunnel_frame", (0, y, 1.45), (9.2, 0.55, 2.35), mat_concrete)
     cube("integrated_players_tunnel_opening", (0, y - 0.34, 1.25), (6.4, 0.12, 1.62), mat_dark)
-    cube("integrated_players_tunnel_roof_TEAM_SECONDARY", (0, y + 1.8, 2.62), (9.4, 5.8, 0.34), mat_roof, (-0.04, 0, 0))
+    cube("integrated_players_tunnel_recessed_floor", (0, y + 2.5, 0.10), (7.4, 7.4, 0.14), mat_dark, (-0.04, 0, 0))
+    cube("integrated_players_tunnel_sidewall_l", (-4.1, y + 2.1, 1.05), (0.34, 6.8, 1.7), mat_concrete, (-0.04, 0, 0))
+    cube("integrated_players_tunnel_sidewall_r", (4.1, y + 2.1, 1.05), (0.34, 6.8, 1.7), mat_concrete, (-0.04, 0, 0))
+    cube("integrated_players_tunnel_roof_TEAM_SECONDARY", (0, y + 2.0, 2.72), (9.8, 7.4, 0.36), mat_roof, (-0.04, 0, 0))
     cube("integrated_players_tunnel_header_TEAM_ACCENT", (0, y - 0.68, 2.38), (9.6, 0.28, 0.88), mat_team)
     for x in (-8.0, 8.0):
         cube(f"premium_dugout_platform_{x}", (x, y + 2.6, 0.18), (11.2, 2.3, 0.20), mat_dark)
@@ -196,6 +225,41 @@ def add_tunnel_and_benches(mats):
         for seat in range(8):
             sx = x - 4.1 + seat * 1.18
             cube(f"premium_dugout_seat_TEAM_PRIMARY_{x}_{seat}", (sx, y + 2.72, 0.68), (0.72, 0.58, 0.22), mat_team)
+
+
+def add_pitchside_ad_boards(mats):
+    mat_team, mat_secondary, mat_concrete, mat_dark, mat_glass, mat_metal, mat_roof, mat_light = mats
+    mat_board_blue = mat("AD_BOARD_DEEP_BLUE", (0.02, 0.09, 0.18, 1), 0.42, 0.04)
+    mat_board_face = mat("AD_BOARD_FACE_TEAM_ACCENT", (0.02, 0.42, 0.35, 1), 0.38, 0.04)
+
+    def board(name, loc, scale, rot=(0, 0, 0)):
+        cube(f"{name}_concrete_base", (loc[0], loc[1], 0.18), (scale[0] + 0.38, scale[1] + 0.12, 0.18), mat_concrete, rot)
+        cube(f"{name}_dark_backplate", (loc[0], loc[1], 0.64), (scale[0] + 0.18, scale[1] + 0.10, 0.82), mat_dark, rot)
+        cube(f"{name}_display_FACE_TEAM_ACCENT", (loc[0], loc[1], 0.76), scale, mat_board_face, rot)
+        cube(f"{name}_top_trim_TEAM_SECONDARY", (loc[0], loc[1], 1.21), (scale[0], scale[1] + 0.02, 0.08), mat_secondary, rot)
+
+    for i, x in enumerate((-40, -20, 0, 20, 40)):
+        board(f"north_pitchside_ad_{i}", (x, 37.35, 0), (14.5, 0.14, 0.92))
+        board(f"south_pitchside_ad_{i}", (x, -37.35, 0), (14.5, 0.14, 0.92))
+    for i, y in enumerate((-24, -8, 8, 24)):
+        board(f"east_pitchside_ad_{i}", (56.25, y, 0), (0.14, 12.5, 0.92))
+        board(f"west_pitchside_ad_{i}", (-56.25, y, 0), (0.14, 12.5, 0.92))
+
+
+def add_unified_roof_and_facade(mats):
+    mat_team, mat_secondary, mat_concrete, mat_dark, mat_glass, mat_metal, mat_roof, mat_light = mats
+    cube("full_roof_north_link_TEAM_SECONDARY", (0, 68.6, 18.48), (134, 5.4, 0.34), mat_roof, (-0.015, 0, 0))
+    cube("full_roof_south_link_TEAM_SECONDARY", (0, -68.6, 18.48), (134, 5.4, 0.34), mat_roof, (0.015, 0, 0))
+    cube("full_roof_east_link_TEAM_SECONDARY", (88.2, 0, 18.48), (5.4, 116, 0.34), mat_roof)
+    cube("full_roof_west_link_TEAM_SECONDARY", (-88.2, 0, 18.48), (5.4, 116, 0.34), mat_roof)
+    cube("continuous_front_light_north", (0, 56.8, 16.24), (112, 0.20, 0.15), mat_light)
+    cube("continuous_front_light_south", (0, -56.8, 16.24), (112, 0.20, 0.15), mat_light)
+    cube("continuous_front_light_east", (76.8, 0, 16.24), (0.20, 94, 0.15), mat_light)
+    cube("continuous_front_light_west", (-76.8, 0, 16.24), (0.20, 94, 0.15), mat_light)
+    cube("outer_facade_north_TEAM_ACCENT", (0, 72.1, 7.1), (136, 0.46, 8.6), mat_team)
+    cube("outer_facade_south_TEAM_ACCENT", (0, -72.1, 7.1), (136, 0.46, 8.6), mat_team)
+    cube("outer_facade_east_TEAM_ACCENT", (91.7, 0, 7.1), (0.46, 118, 8.6), mat_team)
+    cube("outer_facade_west_TEAM_ACCENT", (-91.7, 0, 7.1), (0.46, 118, 8.6), mat_team)
 
 
 def main():
@@ -220,12 +284,14 @@ def main():
     add_corner("south_west", -48, -36, math.radians(135), mats)
     add_corner("south_east", 48, -36, math.radians(-135), mats)
     add_tunnel_and_benches(mats)
+    add_pitchside_ad_boards(mats)
+    add_unified_roof_and_facade(mats)
 
     # Continuous roof links make the stadium read as one closed object.
-    cube("roof_link_north_TEAM_SECONDARY", (0, 67.8, 14.65), (125, 4.2, 0.30), mat_secondary, (-0.015, 0, 0))
-    cube("roof_link_south_TEAM_SECONDARY", (0, -67.8, 14.65), (125, 4.2, 0.30), mat_secondary, (0.015, 0, 0))
-    cube("roof_link_east_TEAM_SECONDARY", (87.4, 0, 14.65), (4.2, 105, 0.30), mat_secondary)
-    cube("roof_link_west_TEAM_SECONDARY", (-87.4, 0, 14.65), (4.2, 105, 0.30), mat_secondary)
+    cube("roof_link_north_TEAM_SECONDARY", (0, 67.8, 18.52), (128, 4.6, 0.30), mat_roof, (-0.015, 0, 0))
+    cube("roof_link_south_TEAM_SECONDARY", (0, -67.8, 18.52), (128, 4.6, 0.30), mat_roof, (0.015, 0, 0))
+    cube("roof_link_east_TEAM_SECONDARY", (87.4, 0, 18.52), (4.6, 108, 0.30), mat_roof)
+    cube("roof_link_west_TEAM_SECONDARY", (-87.4, 0, 18.52), (4.6, 108, 0.30), mat_roof)
 
     # Pitch apron, kept in the team primary family.
     cube("green_runoff_TEAM_PRIMARY_north", (0, 35.4, 0.04), (118, 5.0, 0.06), mat_team)
