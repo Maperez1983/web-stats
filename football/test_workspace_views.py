@@ -238,6 +238,35 @@ class StaffAccessInvitationTests(TestCase):
         self.assertEqual(member.certification_level, 'UEFA A')
         self.assertTrue(UserInvitation.objects.filter(user=user, is_active=True, accepted_at__isnull=True, email='').exists())
 
+    def test_staff_create_reuses_duplicate_active_profile(self):
+        _owner, team, workspace = self._create_workspace(username='staff-owner-duplicate')
+        payload = {
+            'name': 'Javier Cuenca',
+            'user_username': '',
+            'role_title': 'Entrenador',
+            'certification_level': 'UEFA A',
+            'email': '',
+            'scope': 'team',
+            'access_action': 'none',
+        }
+
+        first_response = self.client.post(reverse('staff-member-create'), payload, secure=True)
+        second_response = self.client.post(reverse('staff-member-create'), payload, secure=True)
+
+        self.assertEqual(first_response.status_code, 302)
+        self.assertEqual(second_response.status_code, 302)
+        self.assertEqual(
+            StaffMember.objects.filter(
+                workspace=workspace,
+                team=team,
+                name='Javier Cuenca',
+                role_title='Entrenador',
+                certification_level='UEFA A',
+                is_active=True,
+            ).count(),
+            1,
+        )
+
 
 class DashboardPlatformAutoselectWorkspaceTests(TestCase):
     def test_platform_admin_without_context_gets_single_club_team_payload(self):

@@ -2023,6 +2023,28 @@ def _normalize_staff_name(value: str) -> str:
     return raw
 
 
+def _find_duplicate_staff_member(workspace, team, *, name='', role_title='', certification_level=''):
+    if not workspace or not name:
+        return None
+    name_norm = _normalize_staff_name(name)
+    role_norm = _normalize_staff_name(role_title)
+    cert_norm = _normalize_staff_name(certification_level)
+    qs = (
+        StaffMember.objects
+        .filter(workspace=workspace, team=team, is_active=True)
+        .order_by('-updated_at', '-id')
+    )
+    for member in qs:
+        if _normalize_staff_name(member.name) != name_norm:
+            continue
+        if _normalize_staff_name(member.role_title) != role_norm:
+            continue
+        if _normalize_staff_name(member.certification_level) != cert_norm:
+            continue
+        return member
+    return None
+
+
 def _ensure_workspace_membership(workspace, user_obj, *, role=None):
     if not workspace or not user_obj:
         return None
@@ -2299,21 +2321,56 @@ def staff_member_create_page(request):
             certification_expires_at = parse_date(str(request.POST.get('certification_expires_at') or '').strip()) if request.POST.get('certification_expires_at') else None
             scope = str(request.POST.get('scope') or '').strip().lower()
             team = active_team if scope == 'team' else None
-            member = StaffMember.objects.create(
-                workspace=workspace,
-                team=team,
-                name=name[:160],
+            member = _find_duplicate_staff_member(
+                workspace,
+                team,
+                name=name,
                 role_title=role_title,
                 certification_level=certification_level,
-                dni=dni,
-                phone=phone,
-                email=email,
-                notes=notes,
-                federation_license_number=federation_license_number,
-                federation_license_expires_at=federation_license_expires_at,
-                certification_expires_at=certification_expires_at,
-                is_active=True,
             )
+            created_member = member is None
+            if created_member:
+                member = StaffMember.objects.create(
+                    workspace=workspace,
+                    team=team,
+                    name=name[:160],
+                    role_title=role_title,
+                    certification_level=certification_level,
+                    dni=dni,
+                    phone=phone,
+                    email=email,
+                    notes=notes,
+                    federation_license_number=federation_license_number,
+                    federation_license_expires_at=federation_license_expires_at,
+                    certification_expires_at=certification_expires_at,
+                    is_active=True,
+                )
+            else:
+                fields_to_update = []
+                if dni and not member.dni:
+                    member.dni = dni
+                    fields_to_update.append('dni')
+                if phone and not member.phone:
+                    member.phone = phone
+                    fields_to_update.append('phone')
+                if email and not member.email:
+                    member.email = email
+                    fields_to_update.append('email')
+                if notes and not member.notes:
+                    member.notes = notes
+                    fields_to_update.append('notes')
+                if federation_license_number and not member.federation_license_number:
+                    member.federation_license_number = federation_license_number
+                    fields_to_update.append('federation_license_number')
+                if federation_license_expires_at and not member.federation_license_expires_at:
+                    member.federation_license_expires_at = federation_license_expires_at
+                    fields_to_update.append('federation_license_expires_at')
+                if certification_expires_at and not member.certification_expires_at:
+                    member.certification_expires_at = certification_expires_at
+                    fields_to_update.append('certification_expires_at')
+                if fields_to_update:
+                    fields_to_update.append('updated_at')
+                    member.save(update_fields=fields_to_update)
             linked_user = None
             if user_username:
                 linked_user = User.objects.filter(username__iexact=user_username).first()
@@ -2374,7 +2431,7 @@ def staff_member_create_page(request):
                         'cert_url': cert_url,
                         'can_manage_workspace': True,
                         'error': '',
-                        'feedback': 'Ficha creada. Invitación de acceso generada.',
+                        'feedback': 'Ficha creada. Invitación de acceso generada.' if created_member else 'La ficha ya existía. Invitación de acceso generada.',
                         'invite_link': invite_link,
                         'staff_access_role_choices': _staff_access_role_choices(),
                         'workspace_member_role_choices': WorkspaceMembership.ROLE_CHOICES,
