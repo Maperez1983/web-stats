@@ -391,6 +391,69 @@ def add_bowl_unification_pass(mats):
     cube("upper_bowl_dark_shadow_west", (-78.4, 0, 13.18), (0.26, 89, 0.70), mat_dark)
 
 
+def add_reference_detail_pass(mats):
+    mat_team, mat_secondary, mat_concrete, mat_dark, mat_glass, mat_metal, mat_roof, mat_light = mats
+    mat_screen = mat("SCOREBOARD_FACE", (0.01, 0.08, 0.11, 1), 0.24, 0.02, 1.0, (0.02, 0.26, 0.34, 1), 0.45)
+    mat_pitch_wall = mat("PITCH_WALL_DARK_GREEN_TEAM_ACCENT", (0.01, 0.18, 0.13, 1), 0.46, 0.02)
+    mat_rail = mat("RAIL_BRUSHED_STEEL", (0.72, 0.76, 0.74, 1), 0.30, 0.25)
+
+    # Thicker pitch wall and safety rail, matching the enclosed bowl feel of modern stadiums.
+    cube("premium_pitch_wall_north_TEAM_ACCENT", (0, 36.15, 0.74), (118, 0.22, 0.86), mat_pitch_wall)
+    cube("premium_pitch_wall_south_TEAM_ACCENT", (0, -36.15, 0.74), (118, 0.22, 0.86), mat_pitch_wall)
+    cube("premium_pitch_wall_east_TEAM_ACCENT", (55.15, 0, 0.74), (0.22, 80, 0.86), mat_pitch_wall)
+    cube("premium_pitch_wall_west_TEAM_ACCENT", (-55.15, 0, 0.74), (0.22, 80, 0.86), mat_pitch_wall)
+    cube("inner_safety_rail_north", (0, 35.82, 1.56), (116, 0.08, 0.08), mat_rail)
+    cube("inner_safety_rail_south", (0, -35.82, 1.56), (116, 0.08, 0.08), mat_rail)
+    cube("inner_safety_rail_east", (54.82, 0, 1.56), (0.08, 78, 0.08), mat_rail)
+    cube("inner_safety_rail_west", (-54.82, 0, 1.56), (0.08, 78, 0.08), mat_rail)
+
+    # Seat colour fields: abstract blocks, not lettering, so there is no reversed-text problem.
+    for x in range(-42, 43, 14):
+        cube(f"north_upper_white_seat_panel_{x}", (x, 54.15, 10.9), (7.8, 0.42, 0.32), mat_secondary, (-0.08, 0, 0))
+        cube(f"north_mid_white_seat_panel_{x}", (x + 5, 48.4, 6.1), (5.5, 0.40, 0.28), mat_secondary, (-0.08, 0, 0))
+        cube(f"south_upper_white_seat_panel_{x}", (x, -54.15, 10.9), (7.8, 0.42, 0.32), mat_secondary, (0.08, 0, 0))
+        cube(f"south_mid_white_seat_panel_{x}", (x + 5, -48.4, 6.1), (5.5, 0.40, 0.28), mat_secondary, (0.08, 0, 0))
+    for y in range(-32, 33, 14):
+        cube(f"east_upper_white_seat_panel_{y}", (74.15, y, 10.9), (0.42, 7.8, 0.32), mat_secondary, (0, -0.08, 0))
+        cube(f"west_upper_white_seat_panel_{y}", (-74.15, y, 10.9), (0.42, 7.8, 0.32), mat_secondary, (0, 0.08, 0))
+
+    # More believable vomitories: dark openings with concrete cheeks and a small rail header.
+    for x in (-42, -28, -14, 0, 14, 28, 42):
+        for side, y, sign in (("north", 39.05, 1), ("south", -39.05, -1)):
+            cube(f"{side}_lower_vomitory_dark_{x}", (x, y, 2.05), (3.1, 0.24, 1.45), mat_dark)
+            cube(f"{side}_lower_vomitory_lintel_{x}", (x, y + sign * 0.08, 2.88), (3.6, 0.22, 0.18), mat_concrete)
+            cube(f"{side}_lower_vomitory_cheek_l_{x}", (x - 1.85, y + sign * 0.03, 2.05), (0.22, 0.22, 1.40), mat_concrete)
+            cube(f"{side}_lower_vomitory_cheek_r_{x}", (x + 1.85, y + sign * 0.03, 2.05), (0.22, 0.22, 1.40), mat_concrete)
+    for y in (-32, -16, 0, 16, 32):
+        for side, x, sign in (("east", 58.0, 1), ("west", -58.0, -1)):
+            cube(f"{side}_lower_vomitory_dark_{y}", (x, y, 2.05), (0.24, 3.1, 1.45), mat_dark)
+            cube(f"{side}_lower_vomitory_lintel_{y}", (x + sign * 0.08, y, 2.88), (0.22, 3.6, 0.18), mat_concrete)
+
+    # Scoreboards and club badge zone create the same broadcast focal points as the references.
+    cube("north_central_video_board_frame", (0, 60.10, 13.35), (13.0, 0.34, 5.2), mat_dark)
+    cube("north_central_video_board_face", (0, 59.88, 13.35), (11.8, 0.08, 4.3), mat_screen)
+    cube("north_video_board_lower_caption_TEAM_SECONDARY", (0, 59.78, 11.05), (8.2, 0.06, 0.32), mat_secondary)
+    bpy.ops.mesh.primitive_cylinder_add(vertices=64, radius=2.45, depth=0.16, location=(-27.0, 58.9, 12.2), rotation=(math.pi / 2, 0, 0))
+    crest = bpy.context.object
+    crest.name = "upper_bowl_round_crest_TEAM_PRIMARY"
+    crest.data.materials.append(mat_team)
+    cube("upper_bowl_crest_ring_TEAM_SECONDARY", (-27.0, 58.78, 12.2), (4.2, 0.06, 0.28), mat_secondary)
+
+    # Modular roof light clusters: visible lamps instead of only long bars.
+    for x in range(-52, 53, 8):
+        cube(f"north_roof_lamp_cluster_{x}", (x, 56.25, 16.08), (2.4, 0.16, 0.16), mat_light)
+        cube(f"south_roof_lamp_cluster_{x}", (x, -56.25, 16.08), (2.4, 0.16, 0.16), mat_light)
+    for y in range(-40, 41, 8):
+        cube(f"east_roof_lamp_cluster_{y}", (76.25, y, 16.08), (0.16, 2.4, 0.16), mat_light)
+        cube(f"west_roof_lamp_cluster_{y}", (-76.25, y, 16.08), (0.16, 2.4, 0.16), mat_light)
+
+    # Tunnel is now a built-in portal under the stand instead of a cover sitting in front of it.
+    cube("tunnel_integrated_back_shadow", (0, -40.95, 2.80), (13.2, 0.32, 2.30), mat_dark)
+    cube("tunnel_integrated_upper_slab", (0, -40.25, 3.82), (15.0, 2.30, 0.34), mat_concrete, (0.02, 0, 0))
+    cube("tunnel_integrated_side_mass_l", (-7.35, -40.15, 2.15), (0.38, 2.40, 2.25), mat_concrete)
+    cube("tunnel_integrated_side_mass_r", (7.35, -40.15, 2.15), (0.38, 2.40, 2.25), mat_concrete)
+
+
 def main():
     clear_scene()
     mat_team = mat("TEAM_PRIMARY", (0.02, 0.47, 0.34, 1), 0.58, 0.02)
@@ -417,6 +480,7 @@ def main():
     add_architectural_finish(mats)
     add_unified_roof_and_facade(mats)
     add_bowl_unification_pass(mats)
+    add_reference_detail_pass(mats)
 
     # Continuous roof links make the stadium read as one closed object.
     cube("roof_link_north_TEAM_SECONDARY", (0, 67.8, 18.52), (128, 4.6, 0.30), mat_roof, (-0.015, 0, 0))
