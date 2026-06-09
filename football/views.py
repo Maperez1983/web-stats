@@ -2283,7 +2283,10 @@ def staff_member_create_page(request):
             name = str(request.POST.get('name') or '').strip()
             if not name:
                 raise ValueError('El nombre es obligatorio.')
+            access_action = str(request.POST.get('access_action') or '').strip().lower()
             user_username = _sanitize_username(request.POST.get('user_username'), max_len=150)
+            if access_action == 'invite':
+                user_username = ''
             role_title = str(request.POST.get('role_title') or '').strip()[:120]
             certification_level = str(request.POST.get('certification_level') or '').strip()[:160]
             dni = str(request.POST.get('dni') or '').strip()[:24]
@@ -2331,7 +2334,6 @@ def staff_member_create_page(request):
                     _ensure_workspace_membership(workspace, linked_user, role=WorkspaceMembership.ROLE_VIEWER)
                 except Exception:
                     pass
-            access_action = str(request.POST.get('access_action') or '').strip().lower()
             if access_action == 'invite':
                 _, invite_link = _create_staff_access_invitation(
                     request,
@@ -2421,7 +2423,10 @@ def staff_member_detail_page(request, staff_id):
             member.delete()
             return redirect('staff-directory')
         try:
+            access_action = str(request.POST.get('access_action') or '').strip().lower()
             user_username = _sanitize_username(request.POST.get('user_username'), max_len=150)
+            if access_action == 'invite':
+                user_username = ''
             unlink_user = str(request.POST.get('unlink_user') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
             member.name = str(request.POST.get('name') or '').strip()[:160]
             if not member.name:
@@ -2451,7 +2456,6 @@ def staff_member_detail_page(request, staff_id):
                 except Exception:
                     pass
             member.save()
-            access_action = str(request.POST.get('access_action') or '').strip().lower()
             if access_action == 'invite':
                 _, invite_link = _create_staff_access_invitation(
                     request,

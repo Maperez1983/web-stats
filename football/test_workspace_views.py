@@ -150,6 +150,7 @@ class StaffAccessInvitationTests(TestCase):
             reverse('staff-member-create'),
             {
                 'name': 'Ana Analista',
+                'user_username': 'usuario-que-no-existe',
                 'role_title': 'Analista',
                 'email': 'ana.analista@example.com',
                 'scope': 'team',
