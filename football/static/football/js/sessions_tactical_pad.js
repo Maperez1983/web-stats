@@ -9988,15 +9988,16 @@
 						              const stand = new THREE.Group();
 						              const w = Number(cfg.w) || 72;
 						              const rows = Number(cfg.rows) || 12;
-						              const upperRows = Math.max(5, Math.round(rows * 0.55));
+						              const upperRows = Math.max(7, Math.round(rows * 0.70));
+						              const highRows = Math.max(5, Math.round(rows * 0.42));
 						              stand.position.set(Number(cfg.x) || 0, 0, Number(cfg.z) || 0);
 						              stand.rotation.y = Number(cfg.rotY) || 0;
 						              stand.userData = { kind: cfg.kind || 'pitch_3d_reference_clean_stand' };
-						              addBox(stand, new THREE.BoxGeometry(w + 4.0, 0.55, 13.2), concreteSoft, 0, 0.36, 3.15, -0.050, 0, 0, 'pitch_3d_ref_stand_podium_single_piece');
+						              addBox(stand, new THREE.BoxGeometry(w + 4.0, 0.75, 20.4), concreteSoft, 0, 0.45, 6.0, -0.050, 0, 0, 'pitch_3d_ref_stand_podium_single_piece');
 						              addBox(stand, new THREE.BoxGeometry(w + 1.4, 1.05, 0.36), fasciaGreen, 0, 1.05, -2.75, 0, 0, 0, 'pitch_3d_ref_stand_pitchside_fascia');
 						              for (let r = 0; r < rows; r += 1) {
-						                const y = 0.86 + (r * 0.30);
-						                const z = -0.65 + (r * 0.66);
+						                const y = 0.86 + (r * 0.36);
+						                const z = -0.65 + (r * 0.72);
 						                addBox(stand, new THREE.BoxGeometry(w, 0.22, 0.52), concreteSoft, 0, y - 0.05, z, -0.075, 0, 0, 'pitch_3d_ref_stand_riser');
 						                for (let sector = -3; sector <= 3; sector += 1) {
 						                  const cx = sector * (w * 0.125);
@@ -10013,11 +10014,11 @@
 						                addBox(stand, new THREE.BoxGeometry(0.09, 1.45, 8.8), metalMat, sx - 0.66, 2.90, 3.30, 0, 0, 0, 'pitch_3d_ref_stand_stair_handrail');
 						                addBox(stand, new THREE.BoxGeometry(0.09, 1.45, 8.8), metalMat, sx + 0.66, 2.90, 3.30, 0, 0, 0, 'pitch_3d_ref_stand_stair_handrail');
 						              });
-						              addBox(stand, new THREE.BoxGeometry(w + 1.0, 0.34, 1.18), concreteSoft, 0, 4.05, 8.10, 0, 0, 0, 'pitch_3d_ref_stand_mid_concourse');
-						              addBox(stand, new THREE.BoxGeometry(w * 0.92, 0.18, 0.20), glassRail, 0, 4.42, 7.42, 0, 0, 0, 'pitch_3d_ref_stand_mid_glass_rail');
+						              addBox(stand, new THREE.BoxGeometry(w + 1.0, 0.38, 1.24), concreteSoft, 0, 5.25, 9.70, 0, 0, 0, 'pitch_3d_ref_stand_mid_concourse');
+						              addBox(stand, new THREE.BoxGeometry(w * 0.92, 0.18, 0.20), glassRail, 0, 5.70, 8.96, 0, 0, 0, 'pitch_3d_ref_stand_mid_glass_rail');
 						              for (let r = 0; r < upperRows; r += 1) {
-						                const y = 4.44 + (r * 0.30);
-						                const z = 8.62 + (r * 0.62);
+						                const y = 5.72 + (r * 0.35);
+						                const z = 10.20 + (r * 0.68);
 						                addBox(stand, new THREE.BoxGeometry(w * 0.88, 0.22, 0.50), concreteSoft, 0, y - 0.04, z, -0.065, 0, 0, 'pitch_3d_ref_stand_upper_riser');
 						                for (let sector = -3; sector <= 3; sector += 1) {
 						                  const cx = sector * (w * 0.110);
@@ -10026,21 +10027,72 @@
 						                  addBox(stand, new THREE.BoxGeometry(w * 0.065, 0.14, 0.32), mat, cx, y + 0.08, z - 0.04, -0.10, 0, 0, 'pitch_3d_ref_stand_upper_seat_band');
 						                }
 						              }
-						              addBox(stand, new THREE.BoxGeometry(w + 7.8, 0.34, 7.0), roofWhite, 0, 10.85, 13.30, 0, 0, 0, 'pitch_3d_ref_stand_single_roof');
-						              addBox(stand, new THREE.BoxGeometry(w * 0.86, 0.12, 0.18), lightMat, 0, 9.58, 10.52, 0, 0, 0, 'pitch_3d_ref_stand_light_bar');
+						              addBox(stand, new THREE.BoxGeometry(w + 0.6, 0.40, 1.30), concreteSoft, 0, 8.72, 16.20, 0, 0, 0, 'pitch_3d_ref_stand_upper_concourse');
+						              addBox(stand, new THREE.BoxGeometry(w * 0.82, 0.18, 0.20), glassRail, 0, 9.22, 15.42, 0, 0, 0, 'pitch_3d_ref_stand_upper_glass_rail');
+						              for (let r = 0; r < highRows; r += 1) {
+						                const y = 9.25 + (r * 0.36);
+						                const z = 16.88 + (r * 0.70);
+						                addBox(stand, new THREE.BoxGeometry(w * 0.78, 0.22, 0.48), concreteSoft, 0, y - 0.04, z, -0.060, 0, 0, 'pitch_3d_ref_stand_high_riser');
+						                for (let sector = -3; sector <= 3; sector += 1) {
+						                  const cx = sector * (w * 0.096);
+						                  if (Math.abs(cx) > w * 0.37) continue;
+						                  const mat = ((sector + r + 3) % 7 === 0) ? seatWhite : seatGreen;
+						                  addBox(stand, new THREE.BoxGeometry(w * 0.055, 0.14, 0.30), mat, cx, y + 0.08, z - 0.04, -0.10, 0, 0, 'pitch_3d_ref_stand_high_seat_band');
+						                }
+						              }
+						              addBox(stand, new THREE.BoxGeometry(w + 9.8, 0.38, 8.6), roofWhite, 0, 14.45, 21.25, -0.020, 0, 0, 'pitch_3d_ref_stand_single_roof');
+						              addBox(stand, new THREE.BoxGeometry(w * 0.86, 0.12, 0.18), lightMat, 0, 12.95, 17.48, 0, 0, 0, 'pitch_3d_ref_stand_light_bar');
 						              for (let i = -6; i <= 6; i += 1) {
 						                const rx = i * (w / 12);
-						                addBox(stand, new THREE.BoxGeometry(0.14, 2.55, 6.7), metalMat, rx, 9.55, 12.80, -0.28, 0, 0, 'pitch_3d_ref_stand_truss_a');
-						                addBox(stand, new THREE.BoxGeometry(0.14, 2.55, 6.7), metalMat, rx, 9.55, 12.80, 0.28, 0, 0, 'pitch_3d_ref_stand_truss_b');
-						                addBox(stand, new THREE.BoxGeometry(0.30, 7.2, 0.28), concreteSoft, rx, 5.55, 10.75, -0.03, 0, 0, 'pitch_3d_ref_stand_roof_column');
+						                addBox(stand, new THREE.BoxGeometry(0.14, 3.20, 8.4), metalMat, rx, 12.88, 20.20, -0.30, 0, 0, 'pitch_3d_ref_stand_truss_a');
+						                addBox(stand, new THREE.BoxGeometry(0.14, 3.20, 8.4), metalMat, rx, 12.88, 20.20, 0.30, 0, 0, 'pitch_3d_ref_stand_truss_b');
+						                addBox(stand, new THREE.BoxGeometry(0.32, 11.2, 0.30), concreteSoft, rx, 7.70, 17.25, -0.03, 0, 0, 'pitch_3d_ref_stand_roof_column');
 						              }
 						              stadium.add(stand);
 						            };
-						            addReferenceStand({ kind: 'pitch_3d_ref_main_north_stand', x: 0, z: metersH / 2 + 7.2, w: metersW + 24, rows: 13, rotY: 0 });
-						            addReferenceStand({ kind: 'pitch_3d_ref_south_stand_left', x: -metersW * 0.31, z: -(metersH / 2 + 7.2), w: metersW * 0.38, rows: 9, rotY: Math.PI });
-						            addReferenceStand({ kind: 'pitch_3d_ref_south_stand_right', x: metersW * 0.31, z: -(metersH / 2 + 7.2), w: metersW * 0.38, rows: 9, rotY: Math.PI });
-						            addReferenceStand({ kind: 'pitch_3d_ref_west_stand', x: -(metersW / 2 + 7.0), z: 0, w: metersH + 13, rows: 10, rotY: -Math.PI / 2 });
-						            addReferenceStand({ kind: 'pitch_3d_ref_east_stand', x: metersW / 2 + 7.0, z: 0, w: metersH + 13, rows: 10, rotY: Math.PI / 2 });
+						            const addCornerBowl = (cfg) => {
+						              const corner = new THREE.Group();
+						              const w = 22;
+						              corner.position.set(cfg.x, 0, cfg.z);
+						              corner.rotation.y = cfg.rotY;
+						              corner.userData = { kind: cfg.kind };
+						              addBox(corner, new THREE.BoxGeometry(w + 4.0, 0.70, 18.8), concreteSoft, 0, 0.44, 5.85, -0.050, 0, 0, 'pitch_3d_ref_corner_podium');
+						              addBox(corner, new THREE.BoxGeometry(w + 2.0, 1.05, 0.36), fasciaGreen, 0, 1.05, -2.35, 0, 0, 0, 'pitch_3d_ref_corner_fascia');
+						              for (let r = 0; r < 15; r += 1) {
+						                const y = 0.95 + (r * 0.36);
+						                const z = -0.15 + (r * 0.72);
+						                addBox(corner, new THREE.BoxGeometry(w - (r * 0.25), 0.20, 0.50), concreteSoft, 0, y, z, -0.070, 0, 0, 'pitch_3d_ref_corner_riser');
+						                [-0.30, -0.10, 0.10, 0.30].forEach((ratio, idx) => {
+						                  const mat = ((r + idx) % 7 === 0) ? seatWhite : seatGreen;
+						                  addBox(corner, new THREE.BoxGeometry(2.6, 0.14, 0.31), mat, ratio * w, y + 0.13, z - 0.04, -0.10, 0, 0, 'pitch_3d_ref_corner_seats');
+						                });
+						              }
+						              addBox(corner, new THREE.BoxGeometry(w + 1.4, 0.36, 1.25), concreteSoft, 0, 6.38, 11.28, 0, 0, 0, 'pitch_3d_ref_corner_upper_concourse');
+						              for (let r = 0; r < 8; r += 1) {
+						                const y = 6.88 + (r * 0.36);
+						                const z = 11.95 + (r * 0.70);
+						                addBox(corner, new THREE.BoxGeometry((w * 0.78) - (r * 0.20), 0.20, 0.48), concreteSoft, 0, y, z, -0.060, 0, 0, 'pitch_3d_ref_corner_high_riser');
+						                [-0.24, 0, 0.24].forEach((ratio, idx) => {
+						                  const mat = ((r + idx + 2) % 6 === 0) ? seatWhite : seatGreen;
+						                  addBox(corner, new THREE.BoxGeometry(2.35, 0.14, 0.30), mat, ratio * w, y + 0.13, z - 0.04, -0.10, 0, 0, 'pitch_3d_ref_corner_high_seats');
+						                });
+						              }
+						              addBox(corner, new THREE.BoxGeometry(w + 6.8, 0.36, 8.0), roofWhite, 0, 13.25, 18.35, -0.020, 0, 0, 'pitch_3d_ref_corner_roof');
+						              addBox(corner, new THREE.BoxGeometry(w * 0.75, 0.12, 0.18), lightMat, 0, 11.82, 15.00, 0, 0, 0, 'pitch_3d_ref_corner_light_bar');
+						              [-0.36, 0, 0.36].forEach((ratio) => {
+						                addBox(corner, new THREE.BoxGeometry(0.28, 9.8, 0.28), concreteSoft, ratio * w, 6.85, 14.10, -0.03, 0, 0, 'pitch_3d_ref_corner_roof_column');
+						              });
+						              stadium.add(corner);
+						            };
+						            addReferenceStand({ kind: 'pitch_3d_ref_main_north_stand', x: 0, z: metersH / 2 + 7.2, w: metersW + 24, rows: 18, rotY: 0 });
+						            addReferenceStand({ kind: 'pitch_3d_ref_south_stand_left', x: -metersW * 0.31, z: -(metersH / 2 + 7.2), w: metersW * 0.38, rows: 14, rotY: Math.PI });
+						            addReferenceStand({ kind: 'pitch_3d_ref_south_stand_right', x: metersW * 0.31, z: -(metersH / 2 + 7.2), w: metersW * 0.38, rows: 14, rotY: Math.PI });
+						            addReferenceStand({ kind: 'pitch_3d_ref_west_stand', x: -(metersW / 2 + 7.0), z: 0, w: metersH + 13, rows: 16, rotY: -Math.PI / 2 });
+						            addReferenceStand({ kind: 'pitch_3d_ref_east_stand', x: metersW / 2 + 7.0, z: 0, w: metersH + 13, rows: 16, rotY: Math.PI / 2 });
+						            addCornerBowl({ kind: 'pitch_3d_ref_corner_north_west_bowl', x: -(metersW / 2 + 5.4), z: metersH / 2 + 5.4, rotY: -Math.PI / 4 });
+						            addCornerBowl({ kind: 'pitch_3d_ref_corner_north_east_bowl', x: metersW / 2 + 5.4, z: metersH / 2 + 5.4, rotY: Math.PI / 4 });
+						            addCornerBowl({ kind: 'pitch_3d_ref_corner_south_west_bowl', x: -(metersW / 2 + 5.4), z: -(metersH / 2 + 5.4), rotY: -Math.PI * 0.75 });
+						            addCornerBowl({ kind: 'pitch_3d_ref_corner_south_east_bowl', x: metersW / 2 + 5.4, z: -(metersH / 2 + 5.4), rotY: Math.PI * 0.75 });
 						            const makeBadge = () => {
 						              const c = document.createElement('canvas');
 						              c.width = 256;
