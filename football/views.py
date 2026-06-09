@@ -5272,6 +5272,29 @@ def _team_tactics_palette(workspace, team):
     }
 
 
+def _team_stadium_palette(workspace, team):
+    palette = {
+        'primary': '#047857',
+        'secondary': '#f8fafc',
+        'accent': '#073b32',
+    }
+    try:
+        pref = WorkspacePreference.objects.filter(workspace=workspace, key='kit_theme:v1').only('value').first() if workspace else None
+        raw = pref.value if pref and isinstance(pref.value, dict) else {}
+        kit = raw.get('default') if isinstance(raw.get('default'), dict) else {}
+        team_id = getattr(team, 'id', None)
+        team_kit = raw.get('teams', {}).get(str(int(team_id))) if team_id and isinstance(raw.get('teams'), dict) else None
+        if isinstance(team_kit, dict):
+            kit = {**kit, **team_kit}
+        if isinstance(kit, dict):
+            palette['primary'] = _clean_kit_hex(kit.get('home_main'), palette['primary'])
+            palette['secondary'] = _clean_kit_hex(kit.get('home_trim'), palette['secondary'])
+            palette['accent'] = _clean_kit_hex(kit.get('away_trim') or kit.get('gk_trim'), palette['accent'])
+    except Exception:
+        pass
+    return palette
+
+
 def _team_stadium_ads(workspace, team):
     team_name = ''
     try:
@@ -27963,6 +27986,7 @@ def coach_tactics_page(request):
             'ppt_icons': ppt_icons,
             'drills_catalog': drills_catalog,
             'initial': initial,
+            'stadium_palette': _team_stadium_palette(_get_active_workspace(request), primary_team),
             'rivals_options': _build_rival_options_for_team(
                 primary_team,
                 cache_days=int(os.getenv('RIVAL_ROSTER_CACHE_DAYS', '14') or '14'),
@@ -39086,6 +39110,7 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             'ppt_icons': ppt_icons,
             'drills_catalog': drills_catalog,
             'initial': initial,
+            'stadium_palette': _team_stadium_palette(_get_active_workspace(request), primary_team),
             'rivals_options': _build_rival_options_for_team(
                 primary_team,
                 cache_days=int(os.getenv('RIVAL_ROSTER_CACHE_DAYS', '14') or '14'),
@@ -45404,6 +45429,7 @@ def analysis_video_report_item_tactical_page(request, item_id):
             'ppt_icons': ppt_icons,
             'drills_catalog': drills_catalog,
             'initial': initial,
+            'stadium_palette': _team_stadium_palette(workspace, primary_team),
             'rivals_options': _build_rival_options_for_team(
                 primary_team,
                 cache_days=int(os.getenv('RIVAL_ROSTER_CACHE_DAYS', '14') or '14'),

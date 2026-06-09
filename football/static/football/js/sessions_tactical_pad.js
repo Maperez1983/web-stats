@@ -8460,6 +8460,11 @@
 						      const parsed = Number.parseInt(expanded, 16);
 						      return Number.isFinite(parsed) ? parsed : fallback;
 						    };
+						    const stadiumPalette3d = {
+						      primary: parseColorToHex(form.dataset.stadiumPrimaryColor, '#047857') || '#047857',
+						      secondary: parseColorToHex(form.dataset.stadiumSecondaryColor, '#f8fafc') || '#f8fafc',
+						      accent: parseColorToHex(form.dataset.stadiumAccentColor, '#073b32') || '#073b32',
+						    };
 
 						    const downloadUrl = (url, filename) => {
 						      const href = safeText(url);
@@ -9200,8 +9205,8 @@
 						            clearcoatRoughness: 0.16,
 						            side: THREE.DoubleSide,
 						          });
-						          const benchSeatMat = new THREE.MeshStandardMaterial({ color: 0x047857, roughness: 0.48, metalness: 0.03 });
-						          const benchPadMat = new THREE.MeshStandardMaterial({ color: 0x082f49, roughness: 0.42, metalness: 0.02 });
+						          const benchSeatMat = new THREE.MeshStandardMaterial({ color: toColorInt(stadiumPalette3d.primary, 0x047857), roughness: 0.48, metalness: 0.03 });
+						          const benchPadMat = new THREE.MeshStandardMaterial({ color: toColorInt(stadiumPalette3d.accent, 0x082f49), roughness: 0.42, metalness: 0.02 });
 						          const flagPoleMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.32, metalness: 0.18 });
 						          const flagMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.48, metalness: 0, side: THREE.DoubleSide });
 						          const concreteMat = new THREE.MeshStandardMaterial({ color: 0xcbd5d1, roughness: 0.82, metalness: 0.01 });
@@ -9256,9 +9261,9 @@
 						            ctx.strokeRect(12, 12, c.width - 24, c.height - 24);
 						          }, 1024, 192)?.tex || null;
 						          const adMats = [
-						            new THREE.MeshBasicMaterial({ map: makeAdTexture('SEGUNDA JUGADA', '#10b981'), side: THREE.FrontSide, toneMapped: false, transparent: true, opacity: 0.96 }),
-						            new THREE.MeshBasicMaterial({ map: makeAdTexture('TACTICA 3D', '#0ea5e9'), side: THREE.FrontSide, toneMapped: false, transparent: true, opacity: 0.96 }),
-						            new THREE.MeshBasicMaterial({ map: makeAdTexture('ANALISIS PRO', '#14b8a6'), side: THREE.FrontSide, toneMapped: false, transparent: true, opacity: 0.96 }),
+						            new THREE.MeshBasicMaterial({ map: makeAdTexture('SEGUNDA JUGADA', stadiumPalette3d.primary), side: THREE.FrontSide, toneMapped: false, transparent: true, opacity: 0.96 }),
+						            new THREE.MeshBasicMaterial({ map: makeAdTexture('TACTICA 3D', stadiumPalette3d.accent), side: THREE.FrontSide, toneMapped: false, transparent: true, opacity: 0.96 }),
+						            new THREE.MeshBasicMaterial({ map: makeAdTexture('ANALISIS PRO', stadiumPalette3d.secondary), side: THREE.FrontSide, toneMapped: false, transparent: true, opacity: 0.96 }),
 						          ];
 						          const addAdPanel = (x, z, w, rotY, matIndex = 0) => {
 						            const g = new THREE.Group();
@@ -9975,13 +9980,16 @@
 						          const addFromScratchReferenceStadium = () => {
 						            const stadium = new THREE.Group();
 						            stadium.userData = { kind: 'pitch_3d_from_scratch_reference_stadium' };
-						            const apronGreen = new THREE.MeshStandardMaterial({ color: 0x176f3a, roughness: 0.70, metalness: 0.01 });
-						            const seatGreen = new THREE.MeshStandardMaterial({ color: 0x047857, roughness: 0.58, metalness: 0.02 });
-						            const stairWhite = new THREE.MeshStandardMaterial({ color: 0xe8ece9, roughness: 0.66, metalness: 0.02 });
+						            const primaryHex = stadiumPalette3d.primary;
+						            const secondaryHex = stadiumPalette3d.secondary;
+						            const accentHex = stadiumPalette3d.accent;
+						            const apronGreen = new THREE.MeshStandardMaterial({ color: toColorInt(darkenHex(primaryHex, 0.12), 0x176f3a), roughness: 0.70, metalness: 0.01 });
+						            const seatGreen = new THREE.MeshStandardMaterial({ color: toColorInt(primaryHex, 0x047857), roughness: 0.58, metalness: 0.02 });
+						            const stairWhite = new THREE.MeshStandardMaterial({ color: toColorInt(secondaryHex, 0xe8ece9), roughness: 0.66, metalness: 0.02 });
 						            const concreteSoft = new THREE.MeshStandardMaterial({ color: 0xcfd6d1, roughness: 0.74, metalness: 0.03 });
 						            const darkOpening = new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.86, metalness: 0.02 });
-						            const fasciaGreen = new THREE.MeshStandardMaterial({ color: 0x073b32, roughness: 0.50, metalness: 0.06 });
-						            const roofWhite = new THREE.MeshStandardMaterial({ color: 0xf4f7f5, roughness: 0.44, metalness: 0.08 });
+						            const fasciaGreen = new THREE.MeshStandardMaterial({ color: toColorInt(accentHex, 0x073b32), roughness: 0.50, metalness: 0.06 });
+						            const roofWhite = new THREE.MeshStandardMaterial({ color: toColorInt(secondaryHex, 0xf4f7f5), roughness: 0.44, metalness: 0.08 });
 						            const lightMat = new THREE.MeshStandardMaterial({ color: 0xe0f2fe, roughness: 0.16, metalness: 0.02, emissive: 0x93c5fd, emissiveIntensity: 0.20 });
 						            const glassRail = new THREE.MeshStandardMaterial({ color: 0xdff7ff, roughness: 0.14, metalness: 0.02, transparent: true, opacity: 0.36 });
 						            const addGreenApron = () => {
@@ -10128,7 +10136,7 @@
 						              ctx.beginPath();
 						              ctx.arc(128, 128, 112, 0, Math.PI * 2);
 						              ctx.fill();
-						              ctx.fillStyle = '#047857';
+						              ctx.fillStyle = primaryHex;
 						              ctx.beginPath();
 						              ctx.arc(128, 128, 94, 0, Math.PI * 2);
 						              ctx.fill();
