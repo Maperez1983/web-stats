@@ -2099,6 +2099,20 @@ def _staff_access_role_choices():
     ]
 
 
+def _staff_invitation_expiry(workspace, validity_value):
+    value = str(validity_value or '').strip().lower()
+    if value == 'season':
+        active_season = getattr(workspace, 'active_season', None) if workspace else None
+        season_end = getattr(active_season, 'end_date', None)
+        today = timezone.localdate()
+        if season_end and season_end >= today:
+            return timezone.make_aware(datetime.combine(season_end, time.max))
+        return timezone.now() + timedelta(days=365)
+    validity_days = _parse_int(validity_value) or 7
+    validity_days = max(1, min(validity_days, 30))
+    return timezone.now() + timedelta(days=validity_days)
+
+
 def _create_staff_access_invitation(request, workspace, member, *, app_role=None, member_role=None, validity_days=None):
     if not request or not workspace or not member:
         raise ValueError('No se pudo preparar la invitación.')
@@ -2112,8 +2126,7 @@ def _create_staff_access_invitation(request, workspace, member, *, app_role=None
     member_role = str(member_role or WorkspaceMembership.ROLE_MEMBER).strip()
     if member_role not in {choice[0] for choice in WorkspaceMembership.ROLE_CHOICES}:
         member_role = WorkspaceMembership.ROLE_MEMBER
-    validity_days = _parse_int(validity_days) or 7
-    validity_days = max(1, min(validity_days, 30))
+    expires_at = _staff_invitation_expiry(workspace, validity_days)
 
     user_obj = getattr(member, 'user', None)
     if not user_obj:
@@ -2162,7 +2175,7 @@ def _create_staff_access_invitation(request, workspace, member, *, app_role=None
         user=user_obj,
         token=UserInvitation.generate_token(),
         email=(user_obj.email or '').strip(),
-        expires_at=timezone.now() + timedelta(days=validity_days),
+        expires_at=expires_at,
         created_by=request.user.get_username() if request.user.is_authenticated else '',
         is_active=True,
     )

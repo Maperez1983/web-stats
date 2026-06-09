@@ -7,7 +7,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from football.models import AppUserRole, StaffMember, Team, UserInvitation, Workspace, WorkspaceMembership, WorkspaceTeam
+from football.models import AppUserRole, StaffMember, Team, UserInvitation, Workspace, WorkspaceMembership, WorkspaceSeason, WorkspaceTeam
 
 
 class WorkspaceActiveSelectionTests(TestCase):
@@ -128,6 +128,15 @@ class StaffAccessInvitationTests(TestCase):
             enabled_modules={},
             subscription_status='trial',
         )
+        active_season = WorkspaceSeason.objects.create(
+            workspace=workspace,
+            label='2026/2027',
+            start_date=timezone.datetime(2026, 7, 1).date(),
+            end_date=timezone.datetime(2027, 6, 30).date(),
+            is_active=True,
+        )
+        workspace.active_season = active_season
+        workspace.save(update_fields=['active_season'])
         WorkspaceMembership.objects.create(workspace=workspace, user=owner, role=WorkspaceMembership.ROLE_OWNER)
         WorkspaceTeam.objects.create(workspace=workspace, team=team, is_default=True)
 
@@ -147,7 +156,7 @@ class StaffAccessInvitationTests(TestCase):
                 'access_action': 'invite',
                 'access_app_role': AppUserRole.ROLE_ANALYST,
                 'access_member_role': WorkspaceMembership.ROLE_MEMBER,
-                'access_valid_days': '14',
+                'access_valid_days': 'season',
             },
             secure=True,
         )
@@ -168,6 +177,7 @@ class StaffAccessInvitationTests(TestCase):
         self.assertEqual(member.user, user)
         self.assertEqual(member.team, team)
         invitation = UserInvitation.objects.get(user=user, is_active=True, accepted_at__isnull=True)
+        self.assertEqual(timezone.localtime(invitation.expires_at).date(), active_season.end_date)
         self.assertContains(response, reverse('user-invite-accept', args=[invitation.token]))
 
 
