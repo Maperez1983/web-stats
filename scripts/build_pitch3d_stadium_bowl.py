@@ -6,6 +6,7 @@ import bpy
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "football/static/football/models/pitch3d/stadium_bowl_premium.glb"
+MATERIALS = ROOT / "football/static/football/materials/pitch3d/ambientcg"
 
 
 def clear_scene():
@@ -31,6 +32,48 @@ def mat(name, color, roughness=0.55, metallic=0.0, alpha=1.0, emission=None, emi
     if alpha < 1:
         material.blend_method = "BLEND"
         material.use_screen_refraction = True
+    return material
+
+
+def pbr_mat(name, asset_id, color, roughness=0.55, metallic=0.0):
+    material = mat(name, color, roughness, metallic)
+    asset_dir = MATERIALS / asset_id
+    color_map = asset_dir / f"{asset_id}_1K-JPG_Color.jpg"
+    roughness_map = asset_dir / f"{asset_id}_1K-JPG_Roughness.jpg"
+    metalness_map = asset_dir / f"{asset_id}_1K-JPG_Metalness.jpg"
+    normal_map = asset_dir / f"{asset_id}_1K-JPG_NormalGL.jpg"
+    if not color_map.exists():
+        return material
+
+    nodes = material.node_tree.nodes
+    links = material.node_tree.links
+    bsdf = nodes.get("Principled BSDF")
+    if not bsdf:
+        return material
+
+    def texture_node(path, label, colorspace="sRGB"):
+        node = nodes.new("ShaderNodeTexImage")
+        node.label = label
+        node.image = bpy.data.images.load(str(path))
+        node.image.colorspace_settings.name = colorspace
+        return node
+
+    color_node = texture_node(color_map, f"{asset_id} color")
+    links.new(color_node.outputs["Color"], bsdf.inputs["Base Color"])
+
+    if roughness_map.exists():
+        roughness_node = texture_node(roughness_map, f"{asset_id} roughness", "Non-Color")
+        links.new(roughness_node.outputs["Color"], bsdf.inputs["Roughness"])
+    if metalness_map.exists():
+        metalness_node = texture_node(metalness_map, f"{asset_id} metalness", "Non-Color")
+        links.new(metalness_node.outputs["Color"], bsdf.inputs["Metallic"])
+    if normal_map.exists():
+        normal_tex = texture_node(normal_map, f"{asset_id} normal", "Non-Color")
+        normal_node = nodes.new("ShaderNodeNormalMap")
+        normal_node.inputs["Strength"].default_value = 0.34
+        links.new(normal_tex.outputs["Color"], normal_node.inputs["Color"])
+        links.new(normal_node.outputs["Normal"], bsdf.inputs["Normal"])
+
     return material
 
 
@@ -160,13 +203,14 @@ def main():
     mat_team = mat("TEAM_PRIMARY", (0.02, 0.47, 0.34, 1), 0.58, 0.02)
     mat_secondary = mat("TEAM_SECONDARY", (0.96, 0.98, 0.99, 1), 0.52, 0.02)
     mat_accent = mat("TEAM_ACCENT", (0.03, 0.23, 0.20, 1), 0.50, 0.06)
-    mat_concrete = mat("CONCRETE_SOFT", (0.78, 0.82, 0.80, 1), 0.78, 0.02)
+    mat_concrete = pbr_mat("CONCRETE_SOFT", "Concrete048", (0.78, 0.82, 0.80, 1), 0.78, 0.02)
     mat_dark = mat("DARK_OPENING", (0.01, 0.02, 0.04, 1), 0.86, 0.02)
     mat_glass = mat("GLASS_RAIL", (0.80, 0.95, 1.0, 0.38), 0.18, 0.02, 0.38)
-    mat_metal = mat("ROOF_METAL", (0.63, 0.68, 0.70, 1), 0.30, 0.35)
+    mat_metal = pbr_mat("ROOF_METAL", "Metal049A", (0.63, 0.68, 0.70, 1), 0.30, 0.35)
+    mat_roof = pbr_mat("ROOF_PANEL_METAL", "CorrugatedSteel009", (0.72, 0.76, 0.77, 1), 0.36, 0.45)
     mat_light = mat("STADIUM_LIGHTS", (0.90, 0.96, 1.0, 1), 0.12, 0.0, 1.0, (0.70, 0.88, 1.0, 1), 1.2)
 
-    mats = (mat_team, mat_secondary, mat_concrete, mat_dark, mat_glass, mat_metal, mat_secondary, mat_light)
+    mats = (mat_team, mat_secondary, mat_concrete, mat_dark, mat_glass, mat_metal, mat_roof, mat_light)
     add_stand("north_main", "north", 96, (0, 40.2), *mats)
     add_stand("south_main", "south", 76, (0, -40.2), *mats)
     add_stand("east_main", "east", 74, (60.0, 0), *mats)
