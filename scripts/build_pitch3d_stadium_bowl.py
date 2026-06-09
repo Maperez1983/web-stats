@@ -515,6 +515,70 @@ def add_gap_closure_pass(mats):
         cube(f"{name}_pitch_corner_wall_infill_TEAM_ACCENT", (x, y, 0.92), (13.0, 0.32, 1.10), mat_team, (0, 0, rot))
 
 
+def add_professional_closed_bowl_pass(mats):
+    mat_team, mat_secondary, mat_concrete, mat_dark, mat_glass, mat_metal, mat_roof, mat_light = mats
+    mat_mass = mat("CONTINUOUS_BOWL_STRUCTURAL_MASS", (0.54, 0.58, 0.55, 1), 0.84, 0.02)
+    mat_shadow = mat("DEEP_BOWL_SHADOW_RECESS", (0.045, 0.052, 0.050, 1), 0.86, 0.02)
+    mat_step = mat("BOWL_STEP_CONCRETE", (0.74, 0.77, 0.74, 1), 0.82, 0.02)
+
+    # A real stadium reads first as a continuous load-bearing bowl. These volumes remove
+    # the "floating bleacher" effect visible from high broadcast cameras.
+    cube("closed_bowl_lower_mass_north", (0, 49.5, 0.46), (128.0, 20.0, 0.92), mat_mass)
+    cube("closed_bowl_lower_mass_south", (0, -49.5, 0.46), (128.0, 20.0, 0.92), mat_mass)
+    cube("closed_bowl_lower_mass_east", (68.0, 0, 0.46), (20.0, 96.0, 0.92), mat_mass)
+    cube("closed_bowl_lower_mass_west", (-68.0, 0, 0.46), (20.0, 96.0, 0.92), mat_mass)
+    cube("closed_bowl_mid_ring_north", (0, 55.4, 8.30), (122.0, 9.2, 1.15), mat_step, (-0.018, 0, 0))
+    cube("closed_bowl_mid_ring_south", (0, -55.4, 8.30), (122.0, 9.2, 1.15), mat_step, (0.018, 0, 0))
+    cube("closed_bowl_mid_ring_east", (77.2, 0, 8.30), (9.2, 91.0, 1.15), mat_step)
+    cube("closed_bowl_mid_ring_west", (-77.2, 0, 8.30), (9.2, 91.0, 1.15), mat_step)
+    cube("closed_bowl_upper_back_wall_north_TEAM_ACCENT", (0, 63.4, 12.1), (126.0, 1.10, 7.70), mat_team)
+    cube("closed_bowl_upper_back_wall_south_TEAM_ACCENT", (0, -63.4, 12.1), (126.0, 1.10, 7.70), mat_team)
+    cube("closed_bowl_upper_back_wall_east_TEAM_ACCENT", (84.0, 0, 12.1), (1.10, 96.0, 7.70), mat_team)
+    cube("closed_bowl_upper_back_wall_west_TEAM_ACCENT", (-84.0, 0, 12.1), (1.10, 96.0, 7.70), mat_team)
+
+    # Corner closure: diagonal structural wedges, concourse plates and seat rows at the same elevation
+    # as the straight stands. The goal is continuity, not four independent grandstands.
+    for name, x, y, rot in (
+        ("nw", -61.0, 47.5, math.radians(45)),
+        ("ne", 61.0, 47.5, math.radians(-45)),
+        ("sw", -61.0, -47.5, math.radians(135)),
+        ("se", 61.0, -47.5, math.radians(-135)),
+    ):
+        cube(f"{name}_closed_corner_lower_wedge", (x, y, 0.74), (42.0, 24.0, 1.48), mat_mass, (0, 0, rot))
+        cube(f"{name}_closed_corner_shadow_recess", (x * 0.94, y * 0.94, 2.15), (36.0, 15.5, 1.70), mat_shadow, (0, 0, rot))
+        cube(f"{name}_closed_corner_mid_concourse", (x, y, 8.30), (40.5, 10.8, 1.10), mat_step, (0.02, 0, rot))
+        cube(f"{name}_closed_corner_upper_back_TEAM_ACCENT", (x, y, 12.4), (42.0, 1.35, 7.60), mat_team, (0, 0, rot))
+        cube(f"{name}_closed_corner_roof_link_TEAM_SECONDARY", (x * 1.18, y * 1.18, 18.70), (42.0, 12.2, 0.44), mat_roof, (0, 0, rot))
+        cube(f"{name}_closed_corner_roof_soffit", (x * 1.09, y * 1.09, 17.88), (37.0, 10.5, 0.18), mat_shadow, (0, 0, rot))
+        cube(f"{name}_closed_corner_front_light", (x * 0.98, y * 0.98, 16.12), (30.0, 0.18, 0.18), mat_light, (0, 0, rot))
+        for row in range(16):
+            yy = -6.0 + row * 0.72
+            zz = 4.75 + row * 0.34
+            width = 34.0 - row * 0.72
+            cube(f"{name}_continuous_corner_riser_{row:02d}", (x + math.sin(rot) * yy, y - math.cos(rot) * yy, zz), (width, 0.46, 0.18), mat_concrete, (0.08, 0, rot))
+            cube(f"{name}_continuous_corner_seats_TEAM_PRIMARY_{row:02d}", (x + math.sin(rot) * yy, y - math.cos(rot) * yy, zz + 0.17), (max(17.0, width - 1.2), 0.34, 0.18), mat_team, (0.10, 0, rot))
+
+    # Tunnel closure: keep the dark portal, but make the stand physically bridge over it with
+    # retaining walls, a slab, upper seats and a roof soffit tied to the south stand.
+    cube("tunnel_full_width_retaining_wall_south", (0, -43.20, 3.25), (54.0, 1.20, 3.90), mat_mass)
+    cube("tunnel_portal_cutout_dark", (0, -42.55, 2.55), (12.4, 0.42, 2.80), mat_dark)
+    cube("tunnel_portal_lintel_concrete", (0, -42.15, 4.18), (16.0, 0.80, 0.58), mat_concrete)
+    cube("tunnel_bridge_upper_slab_continuous", (0, -47.05, 5.05), (58.0, 11.8, 0.70), mat_step, (0.03, 0, 0))
+    cube("tunnel_bridge_back_shadow", (0, -50.35, 6.20), (52.0, 0.50, 2.10), mat_shadow)
+    for row in range(18):
+        y = -45.4 - row * 0.70
+        z = 5.55 + row * 0.34
+        width = 55.0 - max(0, row - 12) * 1.1
+        cube(f"tunnel_closed_upper_riser_{row:02d}", (0, y, z), (width, 0.52, 0.20), mat_concrete, (0.06, 0, 0))
+        cube(f"tunnel_closed_upper_seats_TEAM_PRIMARY_{row:02d}", (0, y - 0.08, z + 0.17), (width - 0.9, 0.35, 0.18), mat_team, (0.10, 0, 0))
+
+    # Continuous inner shoulder: no exposed white strips at the foot of the stands.
+    cube("closed_inner_green_shoulder_north_TEAM_PRIMARY", (0, 38.0, 0.10), (121.0, 3.4, 0.12), mat_team)
+    cube("closed_inner_green_shoulder_south_TEAM_PRIMARY", (0, -38.0, 0.10), (121.0, 3.4, 0.12), mat_team)
+    cube("closed_inner_green_shoulder_east_TEAM_PRIMARY", (57.8, 0, 0.10), (3.4, 83.0, 0.12), mat_team)
+    cube("closed_inner_green_shoulder_west_TEAM_PRIMARY", (-57.8, 0, 0.10), (3.4, 83.0, 0.12), mat_team)
+
+
 def main():
     clear_scene()
     mat_team = mat("TEAM_PRIMARY", (0.02, 0.47, 0.34, 1), 0.58, 0.02)
@@ -529,9 +593,9 @@ def main():
 
     mats = (mat_team, mat_secondary, mat_concrete, mat_dark, mat_glass, mat_metal, mat_roof, mat_light)
     add_stand("north_main", "north", 96, (0, 40.2), *mats)
-    add_stand("south_main", "south", 76, (0, -40.2), *mats)
-    add_stand("east_main", "east", 74, (60.0, 0), *mats)
-    add_stand("west_main", "west", 74, (-60.0, 0), *mats)
+    add_stand("south_main", "south", 96, (0, -40.2), *mats)
+    add_stand("east_main", "east", 86, (60.0, 0), *mats)
+    add_stand("west_main", "west", 86, (-60.0, 0), *mats)
     add_corner("north_west", -48, 36, math.radians(45), mats)
     add_corner("north_east", 48, 36, math.radians(-45), mats)
     add_corner("south_west", -48, -36, math.radians(135), mats)
@@ -543,6 +607,7 @@ def main():
     add_bowl_unification_pass(mats)
     add_reference_detail_pass(mats)
     add_gap_closure_pass(mats)
+    add_professional_closed_bowl_pass(mats)
 
     # Continuous roof links make the stadium read as one closed object.
     cube("roof_link_north_TEAM_SECONDARY", (0, 67.8, 18.52), (128, 4.6, 0.30), mat_roof, (-0.015, 0, 0))
