@@ -206,6 +206,38 @@ class StaffAccessInvitationTests(TestCase):
         self.assertIsNone(member.user)
         self.assertFalse(get_user_model().objects.filter(username='usuario-que-no-existe').exists())
 
+    def test_staff_invitation_does_not_require_email(self):
+        _owner, team, workspace = self._create_workspace(username='staff-owner-no-email')
+
+        response = self.client.post(
+            reverse('staff-member-create'),
+            {
+                'name': 'Javier Cuenca',
+                'user_username': 'javier.cuenca',
+                'role_title': 'Entrenador',
+                'certification_level': 'UEFA A',
+                'email': '',
+                'scope': 'team',
+                'access_action': 'invite',
+                'access_app_role': AppUserRole.ROLE_COACH,
+                'access_member_role': WorkspaceMembership.ROLE_MEMBER,
+                'access_valid_days': 'season',
+            },
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        user = get_user_model().objects.get(username='javier.cuenca')
+        self.assertEqual(user.email, '')
+        self.assertFalse(user.is_active)
+        self.assertEqual(user.app_role.role, AppUserRole.ROLE_COACH)
+        self.assertTrue(WorkspaceMembership.objects.filter(workspace=workspace, user=user, role=WorkspaceMembership.ROLE_MEMBER).exists())
+        member = StaffMember.objects.get(workspace=workspace, name='Javier Cuenca')
+        self.assertEqual(member.user, user)
+        self.assertEqual(member.team, team)
+        self.assertEqual(member.certification_level, 'UEFA A')
+        self.assertTrue(UserInvitation.objects.filter(user=user, is_active=True, accepted_at__isnull=True, email='').exists())
+
 
 class DashboardPlatformAutoselectWorkspaceTests(TestCase):
     def test_platform_admin_without_context_gets_single_club_team_payload(self):

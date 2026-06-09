@@ -2117,8 +2117,6 @@ def _create_staff_access_invitation(request, workspace, member, *, app_role=None
     if not request or not workspace or not member:
         raise ValueError('No se pudo preparar la invitación.')
     email = _normalize_staff_email(getattr(member, 'email', '') or '')
-    if not email:
-        raise ValueError('Indica un email para crear la invitación de acceso.')
     allowed_app_roles = {choice[0] for choice in _staff_access_role_choices()}
     app_role = str(app_role or AppUserRole.ROLE_COACH).strip()
     if app_role not in allowed_app_roles:
@@ -2129,12 +2127,16 @@ def _create_staff_access_invitation(request, workspace, member, *, app_role=None
     expires_at = _staff_invitation_expiry(workspace, validity_days)
 
     user_obj = getattr(member, 'user', None)
-    if not user_obj:
+    if not user_obj and email:
         email_matches = list(User.objects.filter(email__iexact=email).order_by('id')[:2])
         if len(email_matches) == 1:
             user_obj = email_matches[0]
     if not user_obj:
-        username_base = _sanitize_username(preferred_username, max_len=120) or email.split('@', 1)[0] or slugify(getattr(member, 'name', '') or 'staff')
+        username_base = (
+            _sanitize_username(preferred_username, max_len=120)
+            or (email.split('@', 1)[0] if email else '')
+            or slugify(getattr(member, 'name', '') or 'staff')
+        )
         username = re.sub(r'[^a-zA-Z0-9_.@+-]+', '.', str(username_base or 'staff')).strip('.').lower()[:120] or 'staff'
         suffix = 1
         candidate = username
