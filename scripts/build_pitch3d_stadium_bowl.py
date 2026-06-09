@@ -579,6 +579,111 @@ def add_professional_closed_bowl_pass(mats):
     cube("closed_inner_green_shoulder_west_TEAM_PRIMARY", (-57.8, 0, 0.10), (3.4, 83.0, 0.12), mat_team)
 
 
+def add_senior_architectural_upgrade_pass(mats):
+    mat_team, mat_secondary, mat_concrete, mat_dark, mat_glass, mat_metal, mat_roof, mat_light = mats
+    mat_shadow = mat("SENIOR_DEEP_RECESSED_SHADOW", (0.025, 0.031, 0.030, 1), 0.88, 0.02)
+    mat_concourse = mat("SENIOR_CONCOURSE_CONCRETE", (0.67, 0.70, 0.67, 1), 0.84, 0.02)
+    mat_premium_concrete = mat("SENIOR_PRECAST_CONCRETE", (0.78, 0.80, 0.77, 1), 0.80, 0.02)
+    mat_led = mat("SENIOR_LED_RIBBON", (0.01, 0.09, 0.13, 1), 0.32, 0.04, 1.0, (0.04, 0.32, 0.42, 1), 0.35)
+
+    def ring(prefix, y, x, length_x, length_y, z, h, material, inset=0.0):
+        cube(f"{prefix}_north", (0, y, z), (length_x - inset, 0.34, h), material)
+        cube(f"{prefix}_south", (0, -y, z), (length_x - inset, 0.34, h), material)
+        cube(f"{prefix}_east", (x, 0, z), (0.34, length_y - inset, h), material)
+        cube(f"{prefix}_west", (-x, 0, z), (0.34, length_y - inset, h), material)
+
+    # 1-2. Bowl continuo y anillos: tres cotas horizontales dan lectura de estadio, no de cuatro gradas.
+    for idx, (z, y, x, lx, ly, h) in enumerate((
+        (2.05, 40.85, 59.85, 122.5, 84.5, 0.42),
+        (6.95, 49.80, 69.00, 124.5, 91.0, 0.48),
+        (11.80, 58.75, 78.15, 126.5, 98.0, 0.54),
+    )):
+        ring(f"senior_continuous_concourse_ring_{idx}", y, x, lx, ly, z, h, mat_concourse)
+        ring(f"senior_dark_shadow_band_{idx}", y + 0.42, x + 0.42, lx + 1.5, ly + 1.5, z + 0.42, 0.30, mat_shadow, 4.0)
+        ring(f"senior_team_ribbon_{idx}_TEAM_ACCENT", y - 0.54, x - 0.54, lx - 2.2, ly - 2.2, z + 0.84, 0.34, mat_team, 1.5)
+
+    # 3. Esquinas a la misma cota: chaflanes anchos que conectan anillos y asientos.
+    for name, sx, sy, rot in (
+        ("nw", -1, 1, math.radians(45)),
+        ("ne", 1, 1, math.radians(-45)),
+        ("sw", -1, -1, math.radians(135)),
+        ("se", 1, -1, math.radians(-135)),
+    ):
+        for idx, (radx, rady, z, width) in enumerate((
+            (60.5, 41.2, 2.20, 34.0),
+            (68.5, 49.2, 7.05, 37.0),
+            (77.0, 57.8, 11.95, 40.0),
+        )):
+            cube(f"senior_corner_concourse_{name}_{idx}", (sx * radx, sy * rady, z), (width, 2.15, 0.48), mat_concourse, (0, 0, rot))
+            cube(f"senior_corner_led_ribbon_{name}_{idx}_TEAM_SECONDARY", (sx * (radx * 0.98), sy * (rady * 0.98), z + 0.54), (width - 2.0, 0.22, 0.28), mat_secondary, (0, 0, rot))
+        for row in range(12):
+            offset = -5.0 + row * 0.70
+            z = 3.05 + row * 0.34
+            width = 36.0 - row * 0.70
+            cube(f"senior_corner_lower_seat_bridge_{name}_{row:02d}_TEAM_PRIMARY", (sx * 58.5 + math.sin(rot) * offset, sy * 41.0 - math.cos(rot) * offset, z), (width, 0.34, 0.18), mat_team, (0.10, 0, rot))
+            cube(f"senior_corner_upper_seat_bridge_{name}_{row:02d}_TEAM_PRIMARY", (sx * 72.0 + math.sin(rot) * offset, sy * 53.5 - math.cos(rot) * offset, z + 5.4), (width + 3.0, 0.34, 0.18), mat_team, (0.08, 0, rot))
+
+    # 4. Túnel integrado: boca oscura, cajón estructural y continuidad de asientos por encima.
+    cube("senior_tunnel_deep_portal_shadow", (0, -40.92, 2.55), (11.6, 0.30, 2.65), mat_shadow)
+    cube("senior_tunnel_precast_lintel", (0, -40.62, 4.06), (17.2, 0.62, 0.56), mat_premium_concrete)
+    cube("senior_tunnel_left_return_wall", (-8.92, -42.6, 2.48), (0.56, 5.3, 3.25), mat_premium_concrete)
+    cube("senior_tunnel_right_return_wall", (8.92, -42.6, 2.48), (0.56, 5.3, 3.25), mat_premium_concrete)
+    cube("senior_tunnel_bridge_concourse", (0, -47.2, 5.55), (60.0, 8.8, 0.56), mat_concourse, (0.025, 0, 0))
+    for row in range(16):
+        y = -45.1 - row * 0.69
+        z = 5.95 + row * 0.34
+        cube(f"senior_tunnel_overbuild_riser_{row:02d}", (0, y, z), (58.0, 0.50, 0.18), mat_concrete, (0.06, 0, 0))
+        cube(f"senior_tunnel_overbuild_seats_{row:02d}_TEAM_PRIMARY", (0, y - 0.08, z + 0.16), (57.0, 0.34, 0.18), mat_team, (0.10, 0, 0))
+
+    # 5-6. Cubierta continua, cerchas y focos: un único lenguaje perimetral de roofline.
+    ring("senior_roof_outer_continuous_TEAM_SECONDARY", 69.8, 89.8, 143.0, 122.0, 19.30, 0.42, mat_roof)
+    ring("senior_roof_inner_soffit_dark", 60.6, 80.6, 124.0, 103.0, 18.35, 0.18, mat_shadow)
+    for x in range(-66, 67, 6):
+        cube(f"senior_north_roof_truss_top_{x}", (x, 64.1, 18.95), (0.13, 10.8, 0.16), mat_metal, (0.34, 0, 0))
+        cube(f"senior_south_roof_truss_top_{x}", (x, -64.1, 18.95), (0.13, 10.8, 0.16), mat_metal, (-0.34, 0, 0))
+        if x % 12 == 0:
+            cube(f"senior_north_floodlight_bank_{x}", (x, 56.9, 16.45), (3.0, 0.18, 0.18), mat_light)
+            cube(f"senior_south_floodlight_bank_{x}", (x, -56.9, 16.45), (3.0, 0.18, 0.18), mat_light)
+    for y in range(-54, 55, 6):
+        cube(f"senior_east_roof_truss_top_{y}", (80.8, y, 18.95), (10.8, 0.13, 0.16), mat_metal, (0, 0.34, 0))
+        cube(f"senior_west_roof_truss_top_{y}", (-80.8, y, 18.95), (10.8, 0.13, 0.16), mat_metal, (0, -0.34, 0))
+        if y % 12 == 0:
+            cube(f"senior_east_floodlight_bank_{y}", (76.9, y, 16.45), (0.18, 3.0, 0.18), mat_light)
+            cube(f"senior_west_floodlight_bank_{y}", (-76.9, y, 16.45), (0.18, 3.0, 0.18), mat_light)
+
+    # 7. Vomitorios y escaleras alineados con los anillos.
+    for x in (-48, -32, -16, 0, 16, 32, 48):
+        for side, y, sign in (("north", 40.12, 1), ("south", -40.12, -1)):
+            cube(f"senior_{side}_vomitory_opening_{x}", (x, y, 3.05), (3.7, 0.32, 2.18), mat_shadow)
+            cube(f"senior_{side}_vomitory_lintel_{x}", (x, y + sign * 0.18, 4.32), (4.2, 0.28, 0.24), mat_premium_concrete)
+            cube(f"senior_{side}_stair_spine_{x}", (x, y + sign * 7.2, 6.20), (1.12, 13.5, 0.22), mat_premium_concrete, (-0.055 * sign, 0, 0))
+    for y in (-34, -17, 0, 17, 34):
+        for side, x, sign in (("east", 59.72, 1), ("west", -59.72, -1)):
+            cube(f"senior_{side}_vomitory_opening_{y}", (x, y, 3.05), (0.32, 3.7, 2.18), mat_shadow)
+            cube(f"senior_{side}_stair_spine_{y}", (x + sign * 7.2, y, 6.20), (13.5, 1.12, 0.22), mat_premium_concrete, (0, -0.055 * sign, 0))
+
+    # 8. Barandillas, pasillos y LED pitchside nítidos.
+    ring("senior_lower_glass_rail", 42.25, 61.20, 119.0, 84.0, 2.92, 0.44, mat_glass)
+    ring("senior_mid_glass_rail", 51.25, 70.10, 119.0, 90.0, 7.72, 0.44, mat_glass)
+    ring("senior_upper_glass_rail", 60.05, 79.10, 121.0, 96.0, 12.62, 0.44, mat_glass)
+    ring("senior_pitch_led_board_FACE_TEAM_ACCENT", 36.72, 55.72, 118.0, 80.0, 1.05, 0.74, mat_led)
+
+    # 9. Fachada/materiales: zócalo oscuro, hormigón visto y paneles secundarios.
+    ring("senior_external_shadow_plinth", 73.0, 92.7, 140.0, 120.0, 1.75, 2.35, mat_shadow)
+    ring("senior_external_precast_facade", 72.55, 92.2, 137.0, 117.0, 6.40, 6.20, mat_premium_concrete)
+    for x in range(-60, 61, 12):
+        cube(f"senior_north_facade_panel_TEAM_SECONDARY_{x}", (x, 72.22, 8.65), (5.6, 0.20, 3.2), mat_secondary)
+        cube(f"senior_south_facade_panel_TEAM_SECONDARY_{x}", (x, -72.22, 8.65), (5.6, 0.20, 3.2), mat_secondary)
+    for y in range(-48, 49, 12):
+        cube(f"senior_east_facade_panel_TEAM_SECONDARY_{y}", (91.92, y, 8.65), (0.20, 5.6, 3.2), mat_secondary)
+        cube(f"senior_west_facade_panel_TEAM_SECONDARY_{y}", (-91.92, y, 8.65), (0.20, 5.6, 3.2), mat_secondary)
+
+    # 10. Optimización visual: bandas largas e instanciables en vez de micro-piezas para cerrar vacíos.
+    # Nombradas como SYSTEM_* para poder identificarlas y sustituirlas por instancias reales si el modelo crece.
+    for idx, (y, x, z) in enumerate(((44.0, 63.0, 4.4), (52.9, 72.0, 9.3), (61.7, 81.0, 14.0))):
+        ring(f"SYSTEM_long_seat_field_{idx}_TEAM_PRIMARY", y, x, 120.0, 86.0, z, 0.22, mat_team, 6.0)
+
+
 def main():
     clear_scene()
     mat_team = mat("TEAM_PRIMARY", (0.02, 0.47, 0.34, 1), 0.58, 0.02)
@@ -608,6 +713,7 @@ def main():
     add_reference_detail_pass(mats)
     add_gap_closure_pass(mats)
     add_professional_closed_bowl_pass(mats)
+    add_senior_architectural_upgrade_pass(mats)
 
     # Continuous roof links make the stadium read as one closed object.
     cube("roof_link_north_TEAM_SECONDARY", (0, 67.8, 18.52), (128, 4.6, 0.30), mat_roof, (-0.015, 0, 0))
