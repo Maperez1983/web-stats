@@ -7,7 +7,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from football.models import AppUserRole, Team, Workspace, WorkspaceMembership, WorkspaceTeam
+from football.models import AppUserRole, StaffMember, Team, UserInvitation, Workspace, WorkspaceMembership, WorkspaceTeam
 
 
 class WorkspaceActiveSelectionTests(TestCase):
@@ -112,6 +112,63 @@ class PlatformWorkspaceTeamDetailTests(TestCase):
         self.assertNotIn('client=safari', body)
         self.assertNotIn('google.com/search', body)
         self.assertNotIn('google.com/url', body)
+
+
+class StaffAccessInvitationTests(TestCase):
+    def test_staff_create_can_generate_access_invitation(self):
+        owner = get_user_model().objects.create_user(username='staff-owner', password='pass-1234')
+        team = Team.objects.create(name='Staff Team', slug='staff-team', short_name='STF', is_primary=True)
+        workspace = Workspace.objects.create(
+            name='Staff Club',
+            slug='staff-club',
+            kind=Workspace.KIND_CLUB,
+            is_active=True,
+            primary_team=team,
+            owner_user=owner,
+            enabled_modules={},
+            subscription_status='trial',
+        )
+        WorkspaceMembership.objects.create(workspace=workspace, user=owner, role=WorkspaceMembership.ROLE_OWNER)
+        WorkspaceTeam.objects.create(workspace=workspace, team=team, is_default=True)
+
+        self.client.force_login(owner)
+        session = self.client.session
+        session['active_workspace_id'] = workspace.id
+        session['active_team_by_workspace'] = {str(workspace.id): team.id}
+        session.save()
+
+        response = self.client.post(
+            reverse('staff-member-create'),
+            {
+                'name': 'Ana Analista',
+                'role_title': 'Analista',
+                'email': 'ana.analista@example.com',
+                'scope': 'team',
+                'access_action': 'invite',
+                'access_app_role': AppUserRole.ROLE_ANALYST,
+                'access_member_role': WorkspaceMembership.ROLE_MEMBER,
+                'access_valid_days': '14',
+            },
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        user = get_user_model().objects.get(username='ana.analista')
+        self.assertFalse(user.is_active)
+        self.assertEqual(user.email, 'ana.analista@example.com')
+        self.assertEqual(user.app_role.role, AppUserRole.ROLE_ANALYST)
+        self.assertTrue(
+            WorkspaceMembership.objects.filter(
+                workspace=workspace,
+                user=user,
+                role=WorkspaceMembership.ROLE_MEMBER,
+            ).exists()
+        )
+        member = StaffMember.objects.get(workspace=workspace, name='Ana Analista')
+        self.assertEqual(member.user, user)
+        self.assertEqual(member.team, team)
+        invitation = UserInvitation.objects.get(user=user, is_active=True, accepted_at__isnull=True)
+        self.assertContains(response, reverse('user-invite-accept', args=[invitation.token]))
 
 
 class DashboardPlatformAutoselectWorkspaceTests(TestCase):

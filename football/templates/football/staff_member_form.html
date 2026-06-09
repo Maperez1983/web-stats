@@ -162,6 +162,56 @@
         font-weight: 900;
         letter-spacing: 0.02em;
       }
+      .access-panel {
+        grid-column: 1 / -1;
+        display: grid;
+        gap: 0.75rem;
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 16px;
+        background: rgba(255,255,255,0.03);
+        padding: 0.85rem;
+      }
+      .access-panel__title {
+        margin: 0;
+        font-size: 0.74rem;
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(226,232,240,0.78);
+      }
+      .access-options {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.65rem;
+      }
+      .access-option {
+        display: inline-flex;
+        gap: 0.45rem;
+        align-items: center;
+        text-transform: none;
+        letter-spacing: 0;
+        font-size: 0.9rem;
+        color: rgba(245,247,250,0.9);
+      }
+      .access-option input {
+        width: auto;
+        min-width: 0;
+      }
+      .access-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+      }
+      .invite-link {
+        margin-top: 0.75rem;
+        display: flex;
+        gap: 0.55rem;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .invite-link input {
+        flex: 1 1 320px;
+      }
       @media (max-width: 720px) {
         .panel { border-radius: 16px; padding: 0.85rem; }
         .row { grid-template-columns: 1fr; align-items: stretch; }
@@ -169,6 +219,7 @@
         .row-actions .btn,
         .row > .btn { width: 100%; }
         .preview { grid-template-columns: 1fr; }
+        .access-grid { grid-template-columns: 1fr; }
       }
     </style>
   </head>
@@ -200,6 +251,12 @@
         {% if feedback %}
         <div class="feedback">
           {{ feedback }}
+          {% if invite_link %}
+          <div class="invite-link">
+            <input type="text" value="{{ invite_link }}" readonly onclick="this.select();" />
+            <button class="btn" type="button" onclick="navigator.clipboard?.writeText('{{ invite_link }}');">Copiar enlace</button>
+          </div>
+          {% endif %}
         </div>
         {% endif %}
 
@@ -242,6 +299,47 @@
               </span>
               {% endif %}
             </label>
+            {% if can_manage_workspace %}
+            <div class="access-panel">
+              <p class="access-panel__title">Acceso al sistema</p>
+              <div class="access-options">
+                <label class="access-option">
+                  <input type="radio" name="access_action" value="none" checked />
+                  Sin acceso nuevo
+                </label>
+                <label class="access-option">
+                  <input type="radio" name="access_action" value="invite" />
+                  Crear invitación
+                </label>
+              </div>
+              <div class="access-grid">
+                <label>
+                  Rol app
+                  <select name="access_app_role">
+                    {% for value, label in staff_access_role_choices %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label>
+                  Rol club
+                  <select name="access_member_role">
+                    {% for value, label in workspace_member_role_choices %}
+                    <option value="{{ value }}" {% if value == 'member' %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label>
+                  Validez
+                  <select name="access_valid_days">
+                    <option value="7" selected>7 días</option>
+                    <option value="14">14 días</option>
+                    <option value="30">30 días</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+            {% endif %}
             <label>
               Rol
               <input name="role_title" value="{% if member %}{{ member.role_title }}{% endif %}" {% if mode != 'create' and not can_manage_workspace %}readonly{% endif %} placeholder="Entrenador, Delegado..." />

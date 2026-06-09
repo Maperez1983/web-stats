@@ -2089,6 +2089,86 @@ def _maybe_link_staff_member_to_user(workspace, user_obj, *, preferred_team=None
     return member
 
 
+def _staff_access_role_choices():
+    return [
+        (AppUserRole.ROLE_COACH, 'Entrenador'),
+        (AppUserRole.ROLE_FITNESS, 'Preparador físico'),
+        (AppUserRole.ROLE_GOALKEEPER, 'Preparador portero'),
+        (AppUserRole.ROLE_ANALYST, 'Analista'),
+        (AppUserRole.ROLE_GUEST, 'Invitado'),
+    ]
+
+
+def _create_staff_access_invitation(request, workspace, member, *, app_role=None, member_role=None, validity_days=None):
+    if not request or not workspace or not member:
+        raise ValueError('No se pudo preparar la invitación.')
+    email = _normalize_staff_email(getattr(member, 'email', '') or '')
+    if not email:
+        raise ValueError('Indica un email para crear la invitación de acceso.')
+    allowed_app_roles = {choice[0] for choice in _staff_access_role_choices()}
+    app_role = str(app_role or AppUserRole.ROLE_COACH).strip()
+    if app_role not in allowed_app_roles:
+        app_role = AppUserRole.ROLE_COACH
+    member_role = str(member_role or WorkspaceMembership.ROLE_MEMBER).strip()
+    if member_role not in {choice[0] for choice in WorkspaceMembership.ROLE_CHOICES}:
+        member_role = WorkspaceMembership.ROLE_MEMBER
+    validity_days = _parse_int(validity_days) or 7
+    validity_days = max(1, min(validity_days, 30))
+
+    user_obj = getattr(member, 'user', None)
+    if not user_obj:
+        email_matches = list(User.objects.filter(email__iexact=email).order_by('id')[:2])
+        if len(email_matches) == 1:
+            user_obj = email_matches[0]
+    if not user_obj:
+        username_base = email.split('@', 1)[0] or slugify(getattr(member, 'name', '') or 'staff')
+        username = re.sub(r'[^a-zA-Z0-9_.@+-]+', '.', str(username_base or 'staff')).strip('.').lower()[:120] or 'staff'
+        suffix = 1
+        candidate = username
+        while User.objects.filter(username__iexact=candidate).exists():
+            suffix += 1
+            candidate = f'{username[: max(1, 146 - len(str(suffix)))]}-{suffix}'
+        first_name, last_name = _split_full_name(getattr(member, 'name', '') or '')
+        user_obj = User.objects.create_user(
+            username=candidate,
+            email=email,
+            password=None,
+            first_name=first_name,
+            last_name=last_name,
+            is_active=False,
+        )
+    else:
+        changed_fields = []
+        if email and (user_obj.email or '').strip().lower() != email:
+            user_obj.email = email
+            changed_fields.append('email')
+        if not (user_obj.first_name or user_obj.last_name) and getattr(member, 'name', ''):
+            user_obj.first_name, user_obj.last_name = _split_full_name(member.name)
+            changed_fields.extend(['first_name', 'last_name'])
+        if changed_fields:
+            user_obj.save(update_fields=sorted(set(changed_fields)))
+
+    AppUserRole.objects.update_or_create(user=user_obj, defaults={'role': app_role})
+    WorkspaceMembership.objects.update_or_create(
+        workspace=workspace,
+        user=user_obj,
+        defaults={'role': member_role},
+    )
+    if getattr(member, 'user_id', None) != user_obj.id:
+        member.user = user_obj
+        member.save(update_fields=['user', 'updated_at'])
+    UserInvitation.objects.filter(user=user_obj, is_active=True, accepted_at__isnull=True).update(is_active=False)
+    invitation = UserInvitation.objects.create(
+        user=user_obj,
+        token=UserInvitation.generate_token(),
+        email=(user_obj.email or '').strip(),
+        expires_at=timezone.now() + timedelta(days=validity_days),
+        created_by=request.user.get_username() if request.user.is_authenticated else '',
+        is_active=True,
+    )
+    return user_obj, request.build_absolute_uri(reverse('user-invite-accept', args=[invitation.token]))
+
+
 def _save_staff_photo(staff_member, uploaded_photo):
     if not staff_member or not uploaded_photo:
         return False
@@ -2184,6 +2264,7 @@ def staff_member_create_page(request):
         return HttpResponse('No tienes permisos para crear miembros del staff.', status=403)
     active_team = _get_active_team_for_request(request)
     error = ''
+    invite_link = ''
     if request.method == 'POST':
         try:
             name = str(request.POST.get('name') or '').strip()
@@ -2237,6 +2318,16 @@ def staff_member_create_page(request):
                     _ensure_workspace_membership(workspace, linked_user, role=WorkspaceMembership.ROLE_VIEWER)
                 except Exception:
                     pass
+            access_action = str(request.POST.get('access_action') or '').strip().lower()
+            if access_action == 'invite':
+                _, invite_link = _create_staff_access_invitation(
+                    request,
+                    workspace,
+                    member,
+                    app_role=request.POST.get('access_app_role'),
+                    member_role=request.POST.get('access_member_role'),
+                    validity_days=request.POST.get('access_valid_days'),
+                )
             uploaded_photo = request.FILES.get('photo')
             if uploaded_photo:
                 _save_staff_photo(member, uploaded_photo)
@@ -2250,6 +2341,27 @@ def staff_member_create_page(request):
                 member.certification_document = uploaded_cert
                 member.certification_updated_at = timezone.now()
                 member.save(update_fields=['certification_document', 'certification_updated_at'])
+            if invite_link:
+                photo_url = reverse('staff-member-photo-file', args=[member.id]) if getattr(member, 'photo', None) else ''
+                license_url = reverse('staff-member-license-file', args=[member.id]) if getattr(member, 'federation_license', None) else ''
+                cert_url = reverse('staff-member-cert-file', args=[member.id]) if getattr(member, 'certification_document', None) else ''
+                return render(
+                    request,
+                    'football/staff_member_form.html',
+                    {
+                        'mode': 'detail',
+                        'member': member,
+                        'photo_url': photo_url,
+                        'license_url': license_url,
+                        'cert_url': cert_url,
+                        'can_manage_workspace': True,
+                        'error': '',
+                        'feedback': 'Ficha creada. Invitación de acceso generada.',
+                        'invite_link': invite_link,
+                        'staff_access_role_choices': _staff_access_role_choices(),
+                        'workspace_member_role_choices': WorkspaceMembership.ROLE_CHOICES,
+                    },
+                )
             return redirect('staff-member-detail', staff_id=member.id)
         except ValueError as exc:
             error = str(exc)
@@ -2264,6 +2376,9 @@ def staff_member_create_page(request):
             'team_label': _staff_scope_label(active_team),
             'active_team': active_team,
             'error': error,
+            'invite_link': invite_link,
+            'staff_access_role_choices': _staff_access_role_choices(),
+            'workspace_member_role_choices': WorkspaceMembership.ROLE_CHOICES,
             'can_manage_workspace': True,
         },
     )
@@ -2284,6 +2399,7 @@ def staff_member_detail_page(request, staff_id):
     can_manage = bool(_can_manage_workspace(request.user, workspace))
     error = ''
     feedback = ''
+    invite_link = ''
     if request.method == 'POST':
         if not can_manage:
             return HttpResponse('No tienes permisos para editar.', status=403)
@@ -2322,6 +2438,17 @@ def staff_member_detail_page(request, staff_id):
                 except Exception:
                     pass
             member.save()
+            access_action = str(request.POST.get('access_action') or '').strip().lower()
+            if access_action == 'invite':
+                _, invite_link = _create_staff_access_invitation(
+                    request,
+                    workspace,
+                    member,
+                    app_role=request.POST.get('access_app_role'),
+                    member_role=request.POST.get('access_member_role'),
+                    validity_days=request.POST.get('access_valid_days'),
+                )
+                feedback = 'Ficha actualizada. Invitación de acceso generada.'
             uploaded_photo = request.FILES.get('photo')
             if uploaded_photo:
                 _save_staff_photo(member, uploaded_photo)
@@ -2335,7 +2462,8 @@ def staff_member_detail_page(request, staff_id):
                 member.certification_document = uploaded_cert
                 member.certification_updated_at = timezone.now()
                 member.save(update_fields=['certification_document', 'certification_updated_at'])
-            feedback = 'Ficha actualizada.'
+            if not feedback:
+                feedback = 'Ficha actualizada.'
         except ValueError as exc:
             error = str(exc)
         except Exception:
@@ -2356,6 +2484,9 @@ def staff_member_detail_page(request, staff_id):
             'can_manage_workspace': can_manage,
             'error': error,
             'feedback': feedback,
+            'invite_link': invite_link,
+            'staff_access_role_choices': _staff_access_role_choices(),
+            'workspace_member_role_choices': WorkspaceMembership.ROLE_CHOICES,
         },
     )
 
