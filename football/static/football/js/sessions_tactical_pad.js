@@ -8750,12 +8750,12 @@
 							        pitch3dOrbit.radius = Math.max(70, Math.max(metersW, metersH) * 1.25);
 						      } else if (k === 'render_original') {
 						        // Vista de referencia: esquina alta, lente abierta y campo completo.
-							        pitch3dOrbit.theta = -2.36;
-							        pitch3dOrbit.phi = 1.02;
-							        pitch3dOrbit.radius = Math.max(104, metersW * 0.98);
-							        targetX = 1.2;
-							        targetY = 5.8;
-							        targetZ = 2.4;
+							        pitch3dOrbit.theta = -2.48;
+							        pitch3dOrbit.phi = 1.06;
+							        pitch3dOrbit.radius = Math.max(112, metersW * 1.04);
+							        targetX = 0.6;
+							        targetY = 7.2;
+							        targetZ = 2.8;
 						      } else if (k === 'clean_pitch_render') {
 							        // Composición de campo limpio: esquina alta y campo completo.
 							        pitch3dOrbit.theta = -2.26;

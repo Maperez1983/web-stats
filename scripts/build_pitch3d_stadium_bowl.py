@@ -246,6 +246,75 @@ def add_pitchside_ad_boards(mats):
         board(f"west_pitchside_ad_{i}", (-56.25, y, 0), (0.14, 12.5, 0.92))
 
 
+def add_architectural_finish(mats):
+    mat_team, mat_secondary, mat_concrete, mat_dark, mat_glass, mat_metal, mat_roof, mat_light = mats
+    mat_service = mat("SERVICE_PAVEMENT", (0.08, 0.10, 0.12, 1), 0.78, 0.02)
+    mat_led = mat("LED_BOARD_FACE", (0.02, 0.13, 0.20, 1), 0.28, 0.02, 1.0, (0.08, 0.52, 0.70, 1), 0.28)
+    mat_white_light = mat("LED_BOARD_TEXT_LINES", (0.88, 0.98, 1.0, 1), 0.20, 0.0, 1.0, (0.62, 0.92, 1.0, 1), 0.45)
+
+    # Dark service ring and green shoulder eliminate white suspended-looking voids around the field.
+    cube("service_ring_north_grounded", (0, 39.25, 0.015), (122, 2.2, 0.03), mat_service)
+    cube("service_ring_south_grounded", (0, -39.25, 0.015), (122, 2.2, 0.03), mat_service)
+    cube("service_ring_east_grounded", (58.55, 0, 0.015), (2.2, 84, 0.03), mat_service)
+    cube("service_ring_west_grounded", (-58.55, 0, 0.015), (2.2, 84, 0.03), mat_service)
+    cube("inner_green_apron_north", (0, 36.75, 0.035), (119, 1.10, 0.04), mat_team)
+    cube("inner_green_apron_south", (0, -36.75, 0.035), (119, 1.10, 0.04), mat_team)
+    cube("inner_green_apron_east", (56.75, 0, 0.035), (1.10, 81, 0.04), mat_team)
+    cube("inner_green_apron_west", (-56.75, 0, 0.035), (1.10, 81, 0.04), mat_team)
+
+    # Continuous LED ribbons with repeated luminous strokes for sharper advertising in render.
+    for x in range(-48, 49, 12):
+        cube(f"north_led_panel_{x}", (x, 37.15, 0.86), (8.9, 0.08, 0.70), mat_led)
+        cube(f"north_led_text_{x}", (x, 37.08, 0.94), (5.8, 0.035, 0.08), mat_white_light)
+        cube(f"south_led_panel_{x}", (x, -37.15, 0.86), (8.9, 0.08, 0.70), mat_led)
+        cube(f"south_led_text_{x}", (x, -37.08, 0.94), (5.8, 0.035, 0.08), mat_white_light)
+    for y in range(-30, 31, 12):
+        cube(f"east_led_panel_{y}", (56.05, y, 0.86), (0.08, 8.9, 0.70), mat_led)
+        cube(f"east_led_text_{y}", (55.98, y, 0.94), (0.035, 5.8, 0.08), mat_white_light)
+        cube(f"west_led_panel_{y}", (-56.05, y, 0.86), (0.08, 8.9, 0.70), mat_led)
+        cube(f"west_led_text_{y}", (-55.98, y, 0.94), (0.035, 5.8, 0.08), mat_white_light)
+
+    # Visible individual premium seats in the near/broadcast areas.
+    for side, y, rot in (("south", -42.6, math.pi), ("north", 42.6, 0)):
+        for row in range(7):
+            z = 1.05 + row * 0.34
+            yy = y + (1 if side == "south" else -1) * row * 0.68
+            for col in range(-28, 29):
+                if abs(col) in {5, 6, 17, 18}:
+                    continue
+                mat_use = mat_secondary if (row + col) % 13 == 0 else mat_team
+                cube(f"{side}_individual_seat_{row}_{col}", (col * 0.82, yy, z), (0.42, 0.32, 0.20), mat_use, (-0.10, 0, rot))
+                cube(f"{side}_individual_back_{row}_{col}", (col * 0.82, yy + (0.15 if side == "south" else -0.15), z + 0.18), (0.42, 0.08, 0.34), mat_use, (-0.18, 0, rot))
+
+    # Facade louvres and access portals make the bowl read as a building from outside.
+    for x in range(-62, 63, 8):
+        cube(f"north_facade_louver_{x}", (x, 72.55, 8.4), (0.32, 0.18, 7.2), mat_secondary)
+        cube(f"south_facade_louver_{x}", (x, -72.55, 8.4), (0.32, 0.18, 7.2), mat_secondary)
+        if x % 16 == 0:
+            cube(f"north_public_access_{x}", (x, 72.85, 1.9), (3.5, 0.18, 2.2), mat_dark)
+            cube(f"south_public_access_{x}", (x, -72.85, 1.9), (3.5, 0.18, 2.2), mat_dark)
+    for y in range(-50, 51, 8):
+        cube(f"east_facade_louver_{y}", (92.15, y, 8.4), (0.18, 0.32, 7.2), mat_secondary)
+        cube(f"west_facade_louver_{y}", (-92.15, y, 8.4), (0.18, 0.32, 7.2), mat_secondary)
+
+    # Handrails and vomitory alignment.
+    for x in (-38, -24, -12, 0, 12, 24, 38):
+        cube(f"north_aisle_handrail_l_{x}", (x - 0.72, 45.0, 4.0), (0.08, 8.2, 1.0), mat_metal, (-0.05, 0, 0))
+        cube(f"north_aisle_handrail_r_{x}", (x + 0.72, 45.0, 4.0), (0.08, 8.2, 1.0), mat_metal, (-0.05, 0, 0))
+        cube(f"south_aisle_handrail_l_{x}", (x - 0.72, -45.0, 4.0), (0.08, 8.2, 1.0), mat_metal, (0.05, 0, 0))
+        cube(f"south_aisle_handrail_r_{x}", (x + 0.72, -45.0, 4.0), (0.08, 8.2, 1.0), mat_metal, (0.05, 0, 0))
+
+    # Extra triangular roof language: repeated diagonal members under the front edge.
+    for x in range(-58, 59, 8):
+        cube(f"north_roof_diagonal_a_{x}", (x, 60.0, 17.05), (0.14, 6.2, 0.18), mat_metal, (0.42, 0, 0))
+        cube(f"north_roof_diagonal_b_{x}", (x + 3.8, 60.0, 17.05), (0.14, 6.2, 0.18), mat_metal, (-0.42, 0, 0))
+        cube(f"south_roof_diagonal_a_{x}", (x, -60.0, 17.05), (0.14, 6.2, 0.18), mat_metal, (-0.42, 0, 0))
+        cube(f"south_roof_diagonal_b_{x}", (x + 3.8, -60.0, 17.05), (0.14, 6.2, 0.18), mat_metal, (0.42, 0, 0))
+    for y in range(-44, 45, 8):
+        cube(f"east_roof_diagonal_a_{y}", (80.0, y, 17.05), (6.2, 0.14, 0.18), mat_metal, (0, 0.42, 0))
+        cube(f"west_roof_diagonal_a_{y}", (-80.0, y, 17.05), (6.2, 0.14, 0.18), mat_metal, (0, -0.42, 0))
+
+
 def add_unified_roof_and_facade(mats):
     mat_team, mat_secondary, mat_concrete, mat_dark, mat_glass, mat_metal, mat_roof, mat_light = mats
     cube("full_roof_north_link_TEAM_SECONDARY", (0, 68.6, 18.48), (134, 5.4, 0.34), mat_roof, (-0.015, 0, 0))
@@ -272,7 +341,7 @@ def main():
     mat_glass = mat("GLASS_RAIL", (0.80, 0.95, 1.0, 0.38), 0.18, 0.02, 0.38)
     mat_metal = pbr_mat("ROOF_METAL", "Metal049A", (0.63, 0.68, 0.70, 1), 0.30, 0.35)
     mat_roof = pbr_mat("ROOF_PANEL_METAL", "CorrugatedSteel009", (0.72, 0.76, 0.77, 1), 0.36, 0.45)
-    mat_light = mat("STADIUM_LIGHTS", (0.90, 0.96, 1.0, 1), 0.12, 0.0, 1.0, (0.70, 0.88, 1.0, 1), 1.2)
+    mat_light = mat("STADIUM_LIGHTS", (0.90, 0.96, 1.0, 1), 0.12, 0.0, 1.0, (0.70, 0.88, 1.0, 1), 2.0)
 
     mats = (mat_team, mat_secondary, mat_concrete, mat_dark, mat_glass, mat_metal, mat_roof, mat_light)
     add_stand("north_main", "north", 96, (0, 40.2), *mats)
@@ -285,6 +354,7 @@ def main():
     add_corner("south_east", 48, -36, math.radians(-135), mats)
     add_tunnel_and_benches(mats)
     add_pitchside_ad_boards(mats)
+    add_architectural_finish(mats)
     add_unified_roof_and_facade(mats)
 
     # Continuous roof links make the stadium read as one closed object.
