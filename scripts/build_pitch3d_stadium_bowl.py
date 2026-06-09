@@ -817,6 +817,88 @@ def add_reference_stadium_refinement_pass(mats):
     cube("reference_roof_crest_horizontal_mark_TEAM_SECONDARY", (0, 59.84, 17.8), (4.2, 0.06, 0.36), mat_secondary)
 
 
+def add_grounded_final_closure_pass(mats):
+    mat_team, mat_secondary, mat_concrete, mat_dark, mat_glass, mat_metal, mat_roof, mat_light = mats
+    mat_shadow = mat("FINAL_GROUNDED_DEEP_SHADOW", (0.012, 0.016, 0.017, 1), 0.92, 0.02)
+    mat_base = mat("FINAL_GROUNDED_BASE_CONCRETE", (0.48, 0.52, 0.50, 1), 0.86, 0.02)
+    mat_slab = mat("FINAL_GROUNDED_PRECAST_SLAB", (0.70, 0.73, 0.70, 1), 0.84, 0.02)
+    mat_gravel = mat("FINAL_SERVICE_GREEN_GRAVEL_TEAM_PRIMARY", (0.018, 0.32, 0.20, 1), 0.70, 0.02)
+    mat_led = mat("FINAL_HIGH_CONTRAST_LED_FACE", (0.003, 0.035, 0.050, 1), 0.24, 0.04, 1.0, (0.02, 0.42, 0.56, 1), 0.50)
+
+    def ring(prefix, y, x, length_x, length_y, z, h, material):
+        cube(f"{prefix}_north", (0, y, z), (length_x, 0.46, h), material)
+        cube(f"{prefix}_south", (0, -y, z), (length_x, 0.46, h), material)
+        cube(f"{prefix}_east", (x, 0, z), (0.46, length_y, h), material)
+        cube(f"{prefix}_west", (-x, 0, z), (0.46, length_y, h), material)
+
+    def corner(prefix, sx, sy, rot, x, y, z, scale, material):
+        cube(f"{prefix}_{'e' if sx > 0 else 'w'}{'n' if sy > 0 else 's'}", (sx * x, sy * y, z), scale, material, (0, 0, rot))
+
+    # 1. Defectos visibles: masa continua hasta el suelo para que ninguna grada lea como suspendida.
+    ring("final_ground_shadow_skirt", 49.2, 68.5, 136.0, 101.5, 0.72, 1.44, mat_shadow)
+    ring("final_lower_load_bearing_wall", 51.5, 71.0, 134.0, 103.0, 2.35, 4.70, mat_base)
+    ring("final_outer_building_plinth", 73.8, 93.5, 146.0, 125.0, 2.65, 5.30, mat_base)
+    ring("final_outer_public_concourse", 75.4, 95.1, 148.0, 127.0, 6.35, 0.72, mat_slab)
+
+    for sx, sy, rot in (
+        (-1, 1, math.radians(45)),
+        (1, 1, math.radians(-45)),
+        (-1, -1, math.radians(135)),
+        (1, -1, math.radians(-135)),
+    ):
+        corner("final_corner_ground_shadow", sx, sy, rot, 63.4, 46.8, 0.78, (48.0, 24.0, 1.56), mat_shadow)
+        corner("final_corner_load_bearing_mass", sx, sy, rot, 67.8, 50.8, 2.75, (52.0, 24.5, 5.50), mat_base)
+        corner("final_corner_public_concourse_slab", sx, sy, rot, 73.8, 56.7, 6.45, (52.0, 7.2, 0.74), mat_slab)
+        corner("final_corner_upper_building_wall_TEAM_ACCENT", sx, sy, rot, 82.4, 63.2, 10.1, (49.0, 0.80, 7.8), mat_team)
+
+    # 2. Material/color: un único lenguaje de asiento por anillos y más verde alrededor del campo.
+    ring("final_pitch_green_perimeter_TEAM_PRIMARY", 38.35, 57.80, 123.0, 84.0, 0.20, 0.16, mat_gravel)
+    ring("final_pitch_ad_board_sharp_FACE_TEAM_ACCENT", 36.65, 56.10, 120.0, 81.0, 1.16, 1.04, mat_led)
+    for idx, (y, x, z, lx, ly) in enumerate((
+        (43.0, 62.1, 3.15, 122.0, 84.0),
+        (47.8, 67.0, 5.75, 122.0, 88.0),
+        (52.8, 72.0, 8.75, 124.0, 92.0),
+        (58.3, 78.0, 11.80, 126.0, 98.0),
+        (63.6, 83.6, 15.00, 128.0, 103.0),
+    )):
+        ring(f"final_unified_seat_tone_{idx}_TEAM_PRIMARY", y, x, lx, ly, z, 0.18, mat_team)
+        ring(f"final_concrete_row_read_{idx}", y + 0.36, x + 0.36, lx + 1.0, ly + 1.0, z - 0.18, 0.10, mat_concrete)
+
+    # 3. Optimización visual: piezas largas para cerrar vacíos sin multiplicar miles de butacas.
+    for x in (-42, -21, 0, 21, 42):
+        cube(f"final_north_deep_vomitory_shadow_{x}", (x, 40.0, 4.0), (4.0, 0.50, 2.90), mat_shadow)
+        cube(f"final_south_deep_vomitory_shadow_{x}", (x, -40.0, 4.0), (4.0, 0.50, 2.90), mat_shadow)
+        cube(f"final_north_vomitory_lintel_{x}", (x, 40.34, 5.55), (4.8, 0.40, 0.38), mat_slab)
+        cube(f"final_south_vomitory_lintel_{x}", (x, -40.34, 5.55), (4.8, 0.40, 0.38), mat_slab)
+    for y in (-32, -16, 0, 16, 32):
+        cube(f"final_east_deep_vomitory_shadow_{y}", (59.8, y, 4.0), (0.50, 4.0, 2.90), mat_shadow)
+        cube(f"final_west_deep_vomitory_shadow_{y}", (-59.8, y, 4.0), (0.50, 4.0, 2.90), mat_shadow)
+        cube(f"final_east_vomitory_lintel_{y}", (60.14, y, 5.55), (0.40, 4.8, 0.38), mat_slab)
+        cube(f"final_west_vomitory_lintel_{y}", (-60.14, y, 5.55), (0.40, 4.8, 0.38), mat_slab)
+
+    # 4. Detalle premium final: túnel sin hueco al aire, cubierta continua y focos más legibles.
+    cube("final_tunnel_full_width_black_recess", (0, -40.72, 2.70), (13.8, 0.60, 3.10), mat_shadow)
+    cube("final_tunnel_outer_left_buttress", (-28.5, -43.9, 3.55), (22.0, 11.5, 5.10), mat_base, (0.025, 0, 0))
+    cube("final_tunnel_outer_right_buttress", (28.5, -43.9, 3.55), (22.0, 11.5, 5.10), mat_base, (0.025, 0, 0))
+    cube("final_tunnel_roofed_concourse_deck", (0, -49.5, 7.05), (88.0, 15.2, 0.84), mat_slab, (0.028, 0, 0))
+    cube("final_tunnel_upper_back_wall_TEAM_ACCENT", (0, -57.2, 9.45), (89.0, 0.74, 6.2), mat_team)
+    for row in range(18):
+        y = -45.1 - row * 0.70
+        z = 7.45 + row * 0.36
+        width = 84.0 - max(0, row - 12) * 1.5
+        cube(f"final_tunnel_overbuild_row_{row:02d}", (0, y, z), (width, 0.56, 0.20), mat_concrete, (0.065, 0, 0))
+        cube(f"final_tunnel_overbuild_seats_{row:02d}_TEAM_PRIMARY", (0, y - 0.08, z + 0.17), (width - 1.1, 0.36, 0.18), mat_team, (0.105, 0, 0))
+
+    ring("final_single_piece_roof_outer_TEAM_SECONDARY", 71.4, 91.4, 148.0, 126.0, 20.25, 0.54, mat_roof)
+    ring("final_single_piece_roof_dark_soffit", 60.0, 80.0, 128.0, 105.0, 18.95, 0.28, mat_shadow)
+    for x in range(-66, 67, 11):
+        cube(f"final_north_light_cluster_{x}", (x, 55.9, 16.95), (5.4, 0.20, 0.18), mat_light)
+        cube(f"final_south_light_cluster_{x}", (x, -55.9, 16.95), (5.4, 0.20, 0.18), mat_light)
+    for y in range(-55, 56, 11):
+        cube(f"final_east_light_cluster_{y}", (75.9, y, 16.95), (0.20, 5.4, 0.18), mat_light)
+        cube(f"final_west_light_cluster_{y}", (-75.9, y, 16.95), (0.20, 5.4, 0.18), mat_light)
+
+
 def main():
     clear_scene()
     mat_team = mat("TEAM_PRIMARY", (0.02, 0.47, 0.34, 1), 0.58, 0.02)
@@ -848,6 +930,7 @@ def main():
     add_professional_closed_bowl_pass(mats)
     add_senior_architectural_upgrade_pass(mats)
     add_reference_stadium_refinement_pass(mats)
+    add_grounded_final_closure_pass(mats)
 
     # Continuous roof links make the stadium read as one closed object.
     cube("roof_link_north_TEAM_SECONDARY", (0, 67.8, 18.52), (128, 4.6, 0.30), mat_roof, (-0.015, 0, 0))
