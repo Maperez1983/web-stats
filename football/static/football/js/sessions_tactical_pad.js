@@ -8087,6 +8087,39 @@
 						      }
 						      return null;
 						    };
+						    const __pitch3dStadiumModelCache = { loading: false, scene: null, failed: false, callbacks: [] };
+						    const __pitch3dLoadStadiumModel = (onLoad) => {
+						      const src = __pitch3dAssetUrl('pitch3dStadiumModelSrc');
+						      if (!src || !window.THREE) return null;
+						      if (__pitch3dStadiumModelCache.scene) {
+						        try { if (typeof onLoad === 'function') onLoad(__pitch3dStadiumModelCache.scene); } catch (e) { /* ignore */ }
+						        return __pitch3dStadiumModelCache.scene;
+						      }
+						      if (typeof onLoad === 'function') __pitch3dStadiumModelCache.callbacks.push(onLoad);
+						      if (__pitch3dStadiumModelCache.loading || __pitch3dStadiumModelCache.failed) return null;
+						      const LoaderClass = window.__WEBSTATS_GLTF_LOADER_CLASS;
+						      if (typeof LoaderClass !== 'function') return null;
+						      __pitch3dStadiumModelCache.loading = true;
+						      try {
+						        const loader = new LoaderClass();
+						        loader.load(src, (gltf) => {
+						          const scene = gltf?.scene || null;
+						          __pitch3dStadiumModelCache.scene = scene;
+						          __pitch3dStadiumModelCache.loading = false;
+						          const callbacks = __pitch3dStadiumModelCache.callbacks.splice(0);
+						          callbacks.forEach((cb) => {
+						            try { cb(scene); } catch (e) { /* ignore */ }
+						          });
+						        }, undefined, () => {
+						          __pitch3dStadiumModelCache.loading = false;
+						          __pitch3dStadiumModelCache.failed = true;
+						          __pitch3dStadiumModelCache.callbacks.splice(0);
+						        });
+						      } catch (e) {
+						        __pitch3dStadiumModelCache.loading = false;
+						      }
+						      return null;
+						    };
 
 						    try {
 						      const premiumGrassSrc = __pitch3dAssetUrl('pitch3dGrassAlbedoSrc');
@@ -10116,6 +10149,54 @@
 						              addBox(stadium, new THREE.BoxGeometry(3.85, 0.30, metersH + 48.0), roofWhite, metersW / 2 + 28.20, 14.67, 0, 0, 0, 0, 'pitch_3d_ref_continuous_roof_east_link');
 						              addBox(stadium, new THREE.BoxGeometry(3.85, 0.30, metersH + 48.0), roofWhite, -(metersW / 2 + 28.20), 14.67, 0, 0, 0, 0, 'pitch_3d_ref_continuous_roof_west_link');
 						            };
+						            const removeProceduralStadiumParts = () => {
+						              try {
+						                const removable = (root.children || []).filter((node) => {
+						                  const kind = safeText(node?.userData?.kind || '');
+						                  return kind === 'pitch_3d_dugout'
+						                    || kind === 'pitch_3d_from_scratch_reference_stadium'
+						                    || kind.startsWith('pitch_3d_ref_')
+						                    || kind.startsWith('pitch_3d_green_runoff_');
+						                });
+						                removable.forEach((node) => root.remove(node));
+						              } catch (e) { /* ignore */ }
+						            };
+						            const addProfessionalStadiumAsset = () => {
+						              try {
+						                const asset = __pitch3dStadiumModelCache.scene || __pitch3dLoadStadiumModel();
+						                if (!asset) return false;
+						                removeProceduralStadiumParts();
+						                const stadiumAsset = asset.clone(true);
+						                stadiumAsset.name = 'stadium_bowl_premium_asset';
+						                stadiumAsset.userData = { kind: 'pitch_3d_professional_blender_stadium' };
+						                stadiumAsset.traverse((node) => {
+						                  if (!node || !node.isMesh) return;
+						                  try { if (node.geometry) node.geometry = node.geometry.clone(); } catch (e) { /* ignore */ }
+						                  try {
+						                    if (Array.isArray(node.material)) node.material = node.material.map((mat) => mat?.clone?.() || mat);
+						                    else if (node.material) node.material = node.material.clone();
+						                    const mats = Array.isArray(node.material) ? node.material : [node.material];
+						                    mats.forEach((mat) => {
+						                      const name = `${safeText(mat?.name || '')} ${safeText(node.name || '')}`.toUpperCase();
+						                      if (!mat || !mat.color) return;
+						                      if (name.includes('TEAM_PRIMARY')) mat.color.set(primaryHex);
+						                      else if (name.includes('TEAM_SECONDARY')) mat.color.set(secondaryHex);
+						                      else if (name.includes('TEAM_ACCENT')) mat.color.set(accentHex);
+						                    });
+						                  } catch (e) { /* ignore */ }
+						                  node.userData = Object.assign({}, node.userData || {}, { kind: 'pitch_3d_professional_blender_stadium_mesh' });
+						                  try { node.castShadow = true; node.receiveShadow = true; } catch (e) { /* ignore */ }
+						                });
+						                root.add(stadiumAsset);
+						                return true;
+						              } catch (e) {
+						                return false;
+						              }
+						            };
+						            if (addProfessionalStadiumAsset()) return;
+						            __pitch3dLoadStadiumModel(() => {
+						              try { addProfessionalStadiumAsset(); } catch (e) { /* ignore */ }
+						            });
 						            addGreenApron();
 						            addReferenceStand({ kind: 'pitch_3d_ref_main_north_stand', x: 0, z: metersH / 2 + 7.2, w: metersW + 24, rows: 18, rotY: 0 });
 						            addReferenceStand({ kind: 'pitch_3d_ref_south_stand_left', x: -metersW * 0.31, z: -(metersH / 2 + 7.2), w: metersW * 0.38, rows: 14, rotY: Math.PI });
