@@ -5421,14 +5421,59 @@ def _team_stadium_maps_url(team):
     if lat is not None and lng is not None:
         return f'https://www.google.com/maps/search/?api=1&query={quote(str(lat))},{quote(str(lng))}'
     query_parts = [
-        str(getattr(team, 'home_stadium', '') or '').strip(),
-        str(getattr(team, 'home_stadium_address', '') or '').strip(),
+        _display_stadium_field(getattr(team, 'home_stadium', '') or ''),
+        _display_stadium_field(getattr(team, 'home_stadium_address', '') or ''),
         str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or '').strip(),
     ]
     query = ' '.join(part for part in query_parts if part).strip()
     if query:
         return f'https://www.google.com/maps/search/?api=1&query={quote(query)}'
     return ''
+
+
+def _looks_like_external_stadium_url(value):
+    raw = str(value or '').strip()
+    if not raw:
+        return False
+    compact = re.sub(r'\s+', '', raw).lower()
+    return (
+        compact.startswith(('http://', 'https://', 'www.'))
+        or 'google.' in compact
+        or 'maps.' in compact
+    )
+
+
+def _extract_google_stadium_query(value):
+    raw = str(value or '').strip()
+    if not raw:
+        return ''
+    compact_url = re.sub(r'\s+', '', raw)
+    candidates = [raw, compact_url]
+    for candidate in candidates:
+        try:
+            parsed = urlparse(candidate)
+            params = parse_qs(parsed.query or '')
+        except Exception:
+            params = {}
+        for key in ('q', 'query'):
+            values = params.get(key) or []
+            for value_item in values:
+                cleaned = _sanitize_task_text(str(value_item or '').strip(), multiline=False, max_len=200)
+                if cleaned and not _looks_like_external_stadium_url(cleaned):
+                    return cleaned
+    return ''
+
+
+def _display_stadium_field(value, *, fallback=''):
+    raw = _sanitize_task_text(str(value or '').strip(), multiline=False, max_len=260)
+    if not raw:
+        return ''
+    if not _looks_like_external_stadium_url(raw):
+        return raw
+    extracted = _extract_google_stadium_query(raw)
+    if extracted:
+        return extracted
+    return _sanitize_task_text(str(fallback or '').strip(), multiline=False, max_len=200)
 
 
 def _season_player_memberships_for_team(season, team, *, confirmed_only=False, include_pending=True):
@@ -12623,6 +12668,15 @@ def platform_workspace_team_detail_page(request, workspace_id, team_id):
     club_address = str(getattr(primary_team, 'home_stadium_address', '') or '').strip() if primary_team else ''
     stadium = team_specific_stadium or club_stadium
     stadium_address = team_specific_address or club_address
+    stadium_display = _display_stadium_field(stadium)
+    stadium_address_display = _display_stadium_field(stadium_address)
+    stadium_photo_url = ''
+    try:
+        stadium_photo_url = getattr(getattr(team, 'cover_image', None), 'url', '') or ''
+        if not stadium_photo_url and primary_team:
+            stadium_photo_url = getattr(getattr(primary_team, 'cover_image', None), 'url', '') or ''
+    except Exception:
+        stadium_photo_url = ''
     group = getattr(team, 'group', None)
     season = getattr(group, 'season', None)
     competition = getattr(season, 'competition', None)
@@ -12648,10 +12702,13 @@ def platform_workspace_team_detail_page(request, workspace_id, team_id):
         'group_name': str(getattr(group, 'name', '') or '').strip(),
         'season_name': str(getattr(season, 'name', '') or '').strip(),
         'stadium': stadium,
+        'stadium_display': stadium_display,
         'stadium_address': stadium_address,
+        'stadium_address_display': stadium_address_display,
         'stadium_is_inherited': bool(stadium and not team_specific_stadium),
         'stadium_address_is_inherited': bool(stadium_address and not team_specific_address),
         'stadium_maps_url': _team_stadium_maps_url(team) or _team_stadium_maps_url(primary_team),
+        'stadium_photo_url': stadium_photo_url,
         'crest_image_url': crest_image_url,
         'crest_url': crest_url,
         'inherited_crest_image_url': inherited_crest_image_url,

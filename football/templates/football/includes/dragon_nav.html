@@ -155,6 +155,7 @@
   {# Orden tabs (staff): Entrenador → Entrenamiento → Partido → Jugador #}
   {% if can_access_staff|default:False %}
   <a href="{% url 'kpi-dashboard' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if 'coach/' in nav_path and not 'coach/sesiones' in nav_path and not 'coach/tactica' in nav_path %}is-active{% endif %}" {% if 'coach/' in nav_path and not 'coach/sesiones' in nav_path and not 'coach/tactica' in nav_path %}aria-current="page"{% endif %}>Entrenador</a>
+  <a href="{% url 'staff-directory' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if nav_url_name == 'staff-directory' or nav_url_name == 'staff-member-create' or nav_url_name == 'staff-member-detail' %}is-active{% endif %}" {% if nav_url_name == 'staff-directory' or nav_url_name == 'staff-member-create' or nav_url_name == 'staff-member-detail' %}aria-current="page"{% endif %}>Staff</a>
   {% endif %}
   {% if workspace_module_access.sessions|default:True %}
   <a href="{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if 'coach/sesiones' in nav_path %}is-active{% endif %}" {% if 'coach/sesiones' in nav_path %}aria-current="page"{% endif %}>Entrenamiento</a>
@@ -185,8 +186,9 @@
       <button type="button" class="nav-command-btn nav-command-btn--panel" data-command-palette>Buscar / Ir a…</button>
       <button type="button" class="nav-command-btn nav-command-btn--panel" data-webstats-shortcuts>Atajos</button>
       <button type="button" class="nav-command-btn nav-command-btn--panel" data-webstats-presentation-toggle>Presentación</button>
+      {% if is_admin_user %}
       <button type="button" class="nav-command-btn nav-command-btn--panel" id="webstats-reset-cache" title="Útil en iPad/PWA cuando no ves cambios tras un deploy">Reset caché</button>
-      <a href="{% url 'search-page' %}">Buscar</a>
+      {% endif %}
       {% if is_admin_user and active_workspace_options and active_workspace_options|length > 1 %}
       <div class="nav-more-subtitle">Clientes</div>
       {% for ws in active_workspace_options %}
@@ -201,20 +203,11 @@
       {% if workspace_module_access.convocation|default:True %}
       <a href="{% url 'convocation' %}{% if active_match_id or active_team %}?{% if active_match_id %}match_id={{ active_match_id }}{% endif %}{% if active_team %}{% if active_match_id %}&{% endif %}team={{ active_team.id }}{% endif %}{% endif %}">Convocatoria</a>
       <a href="{% url 'initial-eleven' %}{% if active_match_id or active_team %}?{% if active_match_id %}match_id={{ active_match_id }}{% endif %}{% if active_team %}{% if active_match_id %}&{% endif %}team={{ active_team.id }}{% endif %}{% endif %}">11 inicial</a>
-      {% if can_manage_workspace or is_admin_user %}
-      <a href="{% url 'coach-tournaments' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Torneos</a>
-      {% endif %}
-
-      {% if workspace_module_access.tactics|default:True %}
-      <div class="nav-more-subtitle">Táctica</div>
-      <a href="{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Táctica</a>
-      {% endif %}
       {% endif %}
       {% if workspace_module_access.match_actions|default:True %}
       <a href="{% url 'match-action-page' %}{% if active_match_id or active_team %}?{% if active_match_id %}match_id={{ active_match_id }}{% endif %}{% if active_team %}{% if active_match_id %}&{% endif %}team={{ active_team.id }}{% endif %}{% endif %}">Registro de acciones</a>
       {% if can_access_staff|default:False %}
-      <a href="{% url 'coach-matches' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">🗓️ Partidos (listado)</a>
-      <a href="{% url 'coach-matches' %}?reg=1{% if active_team %}&team={{ active_team.id }}{% endif %}">🗑️ Partidos registrados</a>
+      <a href="{% url 'coach-matches' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Partidos</a>
       {% endif %}
       {% endif %}
 	      {% if workspace_module_access.match_actions|default:True %}
@@ -224,7 +217,6 @@
 
 	      {% if workspace_module_access.sessions|default:True %}
 	      <div class="nav-more-subtitle">Entrenamiento</div>
-	      <a href="{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}{% endif %}">Entrenamiento</a>
 	      <a href="{% url 'sessions' %}?tab=library&library_repo=traditional{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}">Tareas (biblioteca)</a>
 	      <a href="{% url 'sessions-task-create' %}{% if active_team %}?team={{ active_team.id }}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}{% endif %}">Crear tarea (pizarra)</a>
 	      <a href="{% url 'ai-trainer' %}{% if active_team %}?team={{ active_team.id }}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}{% endif %}">🧑‍🏫 IA‑Trainer</a>
@@ -236,33 +228,17 @@
 	      <div class="nav-more-subtitle">Club</div>
       {% if workspace_module_access.players|default:True %}
         {% if can_manage_workspace or is_admin_user %}
-        <a href="{% url 'coach-roster' %}?tab=stats{% if active_team %}&team={{ active_team.id }}{% endif %}">Jugadores · estadísticas</a>
         <a href="{% url 'coach-roster' %}?tab=manage{% if active_team %}&team={{ active_team.id }}{% endif %}">Alta jugador</a>
         <a href="{% url 'coach-injuries' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Lesiones</a>
-        {% else %}
-        <a href="{% url 'player-dashboard' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Jugadores</a>
         {% endif %}
       {% endif %}
       {% if can_access_staff|default:False and workspace_module_access.match_actions|default:True %}
       <a href="{% url 'reports-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Informes (PDF)</a>
       <a href="{% url 'coach-rivals' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Rivales</a>
       {% endif %}
-      {% if can_access_staff|default:False %}
-      <a href="{% url 'staff-directory' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Staff</a>
-      {% endif %}
-      {% if workspace_module_access.analysis|default:True %}
-      <a href="{% url 'analysis' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Análisis</a>
-      {% endif %}
       {% if workspace_module_access.academy|default:False %}
       <a href="{% url 'academy-home' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Academia</a>
       {% endif %}
-      {% if can_access_staff|default:False and workspace_module_access.match_actions|default:True %}
-      <a href="{% url 'kpi-explorer' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Configurar indicadores</a>
-      <a href="{% url 'kpi-dashboard' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Dashboard</a>
-      {% endif %}
-	      {% if workspace_module_access.tactics|default:True %}
-	      <a href="{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Táctica</a>
-	      {% endif %}
       {% if active_team_options and active_team_options|length > 1 %}
       <div class="nav-more-subtitle">Equipo</div>
       <form class="team-switcher team-switcher--inline" method="post" action="{% url 'workspace-active-team' %}">
@@ -298,8 +274,6 @@
       </form>
       {% endif %}
       <a href="{% url 'support-page' %}">Soporte</a>
-      <a href="{% url 'privacy-policy' %}">Privacidad</a>
-      <a href="{% url 'terms-page' %}">Términos</a>
     </div>
   </details>
   {% endwith %}

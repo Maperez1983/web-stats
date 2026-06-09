@@ -196,10 +196,41 @@
         display: block;
         margin-top: 0.25rem;
         color: #f3f7ff;
+        overflow-wrap: anywhere;
       }
       .note {
         color: #aab6c8;
         margin: 0.7rem 0 0;
+      }
+      .stadium-card {
+        margin-bottom: 0.85rem;
+        border-radius: 18px;
+        border: 1px solid rgba(160, 180, 215, 0.14);
+        background: linear-gradient(135deg, rgba(7, 13, 25, 0.9), rgba(22, 45, 31, 0.82));
+        overflow: hidden;
+      }
+      .stadium-card img {
+        width: 100%;
+        height: 190px;
+        display: block;
+        object-fit: cover;
+      }
+      .stadium-card-body {
+        padding: 0.8rem 0.85rem;
+      }
+      .stadium-card-body span {
+        display: block;
+        color: #89a0c7;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 850;
+      }
+      .stadium-card-body strong {
+        display: block;
+        margin-top: 0.18rem;
+        color: #f3f7ff;
+        overflow-wrap: anywhere;
       }
       @media (max-width: 820px) {
         .hero-grid,
@@ -276,14 +307,25 @@
 
         <article class="panel">
           <h2>Campo y herencia</h2>
+          {% if team_card.stadium_photo_url or team_card.stadium_display %}
+          <div class="stadium-card">
+            {% if team_card.stadium_photo_url %}
+            <img src="{{ team_card.stadium_photo_url }}" alt="Foto de {{ team_card.stadium_display|default:'campo' }}" loading="lazy" />
+            {% endif %}
+            <div class="stadium-card-body">
+              <span>Estadio</span>
+              <strong>{{ team_card.stadium_display|default:"Sin campo" }}{% if team_card.stadium_is_inherited and team_card.stadium_display %} · heredado{% endif %}</strong>
+            </div>
+          </div>
+          {% endif %}
           <div class="metric-grid">
             <div class="metric">
               <span>Estadio</span>
-              <strong>{{ team_card.stadium|default:"Sin campo" }}{% if team_card.stadium_is_inherited %} · heredado{% endif %}</strong>
+              <strong>{{ team_card.stadium_display|default:"Sin campo" }}{% if team_card.stadium_is_inherited and team_card.stadium_display %} · heredado{% endif %}</strong>
             </div>
             <div class="metric">
               <span>Dirección</span>
-              <strong>{{ team_card.stadium_address|default:"Sin dirección" }}{% if team_card.stadium_address_is_inherited %} · heredada{% endif %}</strong>
+              <strong>{{ team_card.stadium_address_display|default:"Sin dirección" }}{% if team_card.stadium_address_is_inherited and team_card.stadium_address_display %} · heredada{% endif %}</strong>
             </div>
             <div class="metric"><span>Club padre</span><strong>{{ workspace.name }}</strong></div>
             <div class="metric"><span>Origen</span><strong>{{ team_card.origin_workspace_name|default:workspace.name }}</strong></div>

@@ -70,6 +70,50 @@ class WorkspaceActiveSelectionTests(TestCase):
         self.assertEqual(mock_sync.call_args.kwargs.get('primary_team'), team)
 
 
+class PlatformWorkspaceTeamDetailTests(TestCase):
+    def test_team_detail_hides_google_urls_from_stadium_fields(self):
+        user = get_user_model().objects.create_user(username='team-detail-admin', password='pass-1234')
+        primary_team = Team.objects.create(
+            name='Benagalbón',
+            slug='benagalbon-detail',
+            short_name='BEN',
+            is_primary=True,
+            home_stadium='https://www.google.com/search?client=safari&q=Campo+Municipal+de+Futbol+Cañada',
+            home_stadium_address='https://www.google.com/url?sa=t&url=/maps/place//data%3Dbad',
+        )
+        cadete = Team.objects.create(
+            name='Benagalbon c. d.',
+            slug='benagalbon-cadete-detail',
+            short_name='CAD',
+            category='CADETE',
+            game_format=Team.GAME_FORMAT_F11,
+        )
+        workspace = Workspace.objects.create(
+            name='Benagalbón',
+            slug='benagalbon-detail',
+            kind=Workspace.KIND_CLUB,
+            is_active=True,
+            primary_team=primary_team,
+            owner_user=user,
+            enabled_modules={},
+            subscription_status='trial',
+        )
+        WorkspaceMembership.objects.create(workspace=workspace, user=user, role=WorkspaceMembership.ROLE_OWNER)
+        WorkspaceTeam.objects.create(workspace=workspace, team=primary_team, is_default=True)
+        WorkspaceTeam.objects.create(workspace=workspace, team=cadete)
+
+        self.client.force_login(user)
+        response = self.client.get(reverse('platform-workspace-team-detail', args=[workspace.id, cadete.id]), secure=True)
+
+        self.assertEqual(response.status_code, 200)
+        body = response.content.decode('utf-8')
+        self.assertIn('Campo Municipal de Futbol Cañada', body)
+        self.assertIn('Sin dirección', body)
+        self.assertNotIn('client=safari', body)
+        self.assertNotIn('google.com/search', body)
+        self.assertNotIn('google.com/url', body)
+
+
 class DashboardPlatformAutoselectWorkspaceTests(TestCase):
     def test_platform_admin_without_context_gets_single_club_team_payload(self):
         team = Team.objects.create(name='Equipo dashboard', slug='equipo-dashboard', short_name='Dash', is_primary=True)
