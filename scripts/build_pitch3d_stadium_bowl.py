@@ -156,13 +156,10 @@ def add_stand(name, side, length, center, mat_team, mat_secondary, mat_concrete,
             pz = base_z + r * 0.36
             add(cube(f"{name}_riser_{tier}_{r:02d}", tr(0, py, pz), (length * width_factor, 0.55, 0.22), mat_concrete, (-0.055, 0, rot)))
             add(cube(f"{name}_seat_band_TEAM_PRIMARY_{tier}_{r:02d}", tr(0, py - 0.08, pz + 0.17), (length * (width_factor - 0.035), 0.36, 0.18), mat_team, (-0.09, 0, rot)))
-            if r % 3 == 1:
-                add(cube(f"{name}_seat_highlight_TEAM_SECONDARY_{tier}_{r:02d}", tr(length * 0.22, py - 0.09, pz + 0.18), (length * 0.055, 0.37, 0.19), mat_secondary, (-0.09, 0, rot)))
-                add(cube(f"{name}_seat_highlight_mirror_TEAM_SECONDARY_{tier}_{r:02d}", tr(-length * 0.22, py - 0.09, pz + 0.18), (length * 0.055, 0.37, 0.19), mat_secondary, (-0.09, 0, rot)))
 
     for ratio in (-0.40, -0.24, 0.0, 0.24, 0.40):
         px = ratio * length
-        add(cube(f"{name}_stair_TEAM_SECONDARY_{ratio:.2f}", tr(px, 5.6, 3.45), (1.1, 14.0, 0.20), mat_secondary, (-0.055, 0, rot)))
+        add(cube(f"{name}_stair_concrete_{ratio:.2f}", tr(px, 5.6, 3.45), (1.1, 14.0, 0.20), mat_concrete, (-0.055, 0, rot)))
         add(cube(f"{name}_vomitory_{ratio:.2f}", tr(px, 0.18, 2.25), (3.25, 0.34, 1.85), mat_dark, (0, 0, rot)))
         add(cube(f"{name}_upper_vomitory_{ratio:.2f}", tr(px, 15.4, 8.05), (3.25, 0.38, 1.55), mat_dark, (0, 0, rot)))
 
@@ -282,9 +279,8 @@ def add_architectural_finish(mats):
             for col in range(-28, 29):
                 if abs(col) in {5, 6, 17, 18}:
                     continue
-                mat_use = mat_secondary if (row + col) % 13 == 0 else mat_team
-                cube(f"{side}_individual_seat_{row}_{col}", (col * 0.82, yy, z), (0.42, 0.32, 0.20), mat_use, (-0.10, 0, rot))
-                cube(f"{side}_individual_back_{row}_{col}", (col * 0.82, yy + (0.15 if side == "south" else -0.15), z + 0.18), (0.42, 0.08, 0.34), mat_use, (-0.18, 0, rot))
+                cube(f"{side}_individual_seat_{row}_{col}", (col * 0.82, yy, z), (0.42, 0.32, 0.20), mat_team, (-0.10, 0, rot))
+                cube(f"{side}_individual_back_{row}_{col}", (col * 0.82, yy + (0.15 if side == "south" else -0.15), z + 0.18), (0.42, 0.08, 0.34), mat_team, (-0.18, 0, rot))
 
     # Facade louvres and access portals make the bowl read as a building from outside.
     for x in range(-62, 63, 8):
@@ -407,15 +403,15 @@ def add_reference_detail_pass(mats):
     cube("inner_safety_rail_east", (54.82, 0, 1.56), (0.08, 78, 0.08), mat_rail)
     cube("inner_safety_rail_west", (-54.82, 0, 1.56), (0.08, 78, 0.08), mat_rail)
 
-    # Seat colour fields: abstract blocks, not lettering, so there is no reversed-text problem.
+    # Seat colour fields stay in the team colour; contrast belongs to aisles, rails and signage.
     for x in range(-42, 43, 14):
-        cube(f"north_upper_white_seat_panel_{x}", (x, 54.15, 10.9), (7.8, 0.42, 0.32), mat_secondary, (-0.08, 0, 0))
-        cube(f"north_mid_white_seat_panel_{x}", (x + 5, 48.4, 6.1), (5.5, 0.40, 0.28), mat_secondary, (-0.08, 0, 0))
-        cube(f"south_upper_white_seat_panel_{x}", (x, -54.15, 10.9), (7.8, 0.42, 0.32), mat_secondary, (0.08, 0, 0))
-        cube(f"south_mid_white_seat_panel_{x}", (x + 5, -48.4, 6.1), (5.5, 0.40, 0.28), mat_secondary, (0.08, 0, 0))
+        cube(f"north_upper_seat_fill_TEAM_PRIMARY_{x}", (x, 54.15, 10.9), (7.8, 0.42, 0.32), mat_team, (-0.08, 0, 0))
+        cube(f"north_mid_seat_fill_TEAM_PRIMARY_{x}", (x + 5, 48.4, 6.1), (5.5, 0.40, 0.28), mat_team, (-0.08, 0, 0))
+        cube(f"south_upper_seat_fill_TEAM_PRIMARY_{x}", (x, -54.15, 10.9), (7.8, 0.42, 0.32), mat_team, (0.08, 0, 0))
+        cube(f"south_mid_seat_fill_TEAM_PRIMARY_{x}", (x + 5, -48.4, 6.1), (5.5, 0.40, 0.28), mat_team, (0.08, 0, 0))
     for y in range(-32, 33, 14):
-        cube(f"east_upper_white_seat_panel_{y}", (74.15, y, 10.9), (0.42, 7.8, 0.32), mat_secondary, (0, -0.08, 0))
-        cube(f"west_upper_white_seat_panel_{y}", (-74.15, y, 10.9), (0.42, 7.8, 0.32), mat_secondary, (0, 0.08, 0))
+        cube(f"east_upper_seat_fill_TEAM_PRIMARY_{y}", (74.15, y, 10.9), (0.42, 7.8, 0.32), mat_team, (0, -0.08, 0))
+        cube(f"west_upper_seat_fill_TEAM_PRIMARY_{y}", (-74.15, y, 10.9), (0.42, 7.8, 0.32), mat_team, (0, 0.08, 0))
 
     # More believable vomitories: dark openings with concrete cheeks and a small rail header.
     for x in (-42, -28, -14, 0, 14, 28, 42):
@@ -493,8 +489,8 @@ def add_gap_closure_pass(mats):
     # South tunnel: build a real seating bridge above the portal so the stand is not open to the sky.
     cube("tunnel_bridge_left_retaining_wall", (-11.6, -39.65, 2.25), (9.8, 0.62, 2.70), mat_foundation)
     cube("tunnel_bridge_right_retaining_wall", (11.6, -39.65, 2.25), (9.8, 0.62, 2.70), mat_foundation)
-    cube("tunnel_bridge_header_retaining_wall", (0, -39.65, 3.85), (31.5, 0.62, 0.62), mat_foundation)
-    cube("tunnel_bridge_structural_slab", (0, -42.40, 4.18), (35.0, 8.0, 0.52), mat_concrete, (0.02, 0, 0))
+    cube("tunnel_bridge_header_retaining_wall", (0, -39.65, 3.58), (31.5, 0.62, 0.44), mat_foundation)
+    cube("tunnel_bridge_structural_slab", (0, -42.40, 3.12), (35.0, 8.0, 0.42), mat_concrete, (0.02, 0, 0))
     cube("tunnel_bridge_dark_recess", (0, -41.95, 2.15), (12.8, 0.34, 2.55), mat_dark)
     cube("tunnel_bridge_front_left_facade_TEAM_PRIMARY", (-14.2, -39.42, 3.05), (5.2, 0.18, 1.25), mat_team)
     cube("tunnel_bridge_front_right_facade_TEAM_PRIMARY", (14.2, -39.42, 3.05), (5.2, 0.18, 1.25), mat_team)
@@ -503,12 +499,10 @@ def add_gap_closure_pass(mats):
     cube("tunnel_bridge_left_side_joiner", (-25.8, -42.2, 3.15), (16.8, 6.9, 2.10), mat_foundation, (0.03, 0, 0))
     cube("tunnel_bridge_right_side_joiner", (25.8, -42.2, 3.15), (16.8, 6.9, 2.10), mat_foundation, (0.03, 0, 0))
     for row in range(9):
-        y = -43.0 - row * 0.68
-        z = 4.55 + row * 0.33
-        cube(f"tunnel_bridge_riser_{row}", (0, y, z), (35.5, 0.52, 0.20), mat_concrete, (0.06, 0, 0))
-        cube(f"tunnel_bridge_seats_TEAM_PRIMARY_{row}", (0, y - 0.08, z + 0.17), (34.6, 0.34, 0.18), mat_team, (0.08, 0, 0))
-        if row in {2, 5, 8}:
-            cube(f"tunnel_bridge_seat_accent_TEAM_SECONDARY_{row}", (0, y - 0.09, z + 0.19), (5.2, 0.36, 0.19), mat_secondary, (0.08, 0, 0))
+        y = -43.0 - row * 0.70
+        z = 2.82 + row * 0.36
+        cube(f"tunnel_bridge_riser_{row}", (0, y, z), (35.5, 0.52, 0.20), mat_concrete, (0.055, 0, 0))
+        cube(f"tunnel_bridge_seats_TEAM_PRIMARY_{row}", (0, y - 0.08, z + 0.17), (34.6, 0.34, 0.18), mat_team, (0.09, 0, 0))
 
     # Pitchside corners get low green infill so the bowl does not expose white/empty wedges.
     for name, x, y, rot in (
