@@ -115,12 +115,12 @@ class PlatformWorkspaceTeamDetailTests(TestCase):
 
 
 class StaffAccessInvitationTests(TestCase):
-    def test_staff_create_can_generate_access_invitation(self):
-        owner = get_user_model().objects.create_user(username='staff-owner', password='pass-1234')
-        team = Team.objects.create(name='Staff Team', slug='staff-team', short_name='STF', is_primary=True)
+    def _create_workspace(self, username='staff-owner'):
+        owner = get_user_model().objects.create_user(username=username, password='pass-1234')
+        team = Team.objects.create(name=f'Staff Team {username}', slug=f'staff-team-{username}', short_name='STF', is_primary=True)
         workspace = Workspace.objects.create(
-            name='Staff Club',
-            slug='staff-club',
+            name=f'Staff Club {username}',
+            slug=f'staff-club-{username}',
             kind=Workspace.KIND_CLUB,
             is_active=True,
             primary_team=team,
@@ -128,6 +128,17 @@ class StaffAccessInvitationTests(TestCase):
             enabled_modules={},
             subscription_status='trial',
         )
+        WorkspaceMembership.objects.create(workspace=workspace, user=owner, role=WorkspaceMembership.ROLE_OWNER)
+        WorkspaceTeam.objects.create(workspace=workspace, team=team, is_default=True)
+        self.client.force_login(owner)
+        session = self.client.session
+        session['active_workspace_id'] = workspace.id
+        session['active_team_by_workspace'] = {str(workspace.id): team.id}
+        session.save()
+        return owner, team, workspace
+
+    def test_staff_create_can_generate_access_invitation(self):
+        owner, team, workspace = self._create_workspace()
         active_season = WorkspaceSeason.objects.create(
             workspace=workspace,
             label='2026/2027',
@@ -137,14 +148,6 @@ class StaffAccessInvitationTests(TestCase):
         )
         workspace.active_season = active_season
         workspace.save(update_fields=['active_season'])
-        WorkspaceMembership.objects.create(workspace=workspace, user=owner, role=WorkspaceMembership.ROLE_OWNER)
-        WorkspaceTeam.objects.create(workspace=workspace, team=team, is_default=True)
-
-        self.client.force_login(owner)
-        session = self.client.session
-        session['active_workspace_id'] = workspace.id
-        session['active_team_by_workspace'] = {str(workspace.id): team.id}
-        session.save()
 
         response = self.client.post(
             reverse('staff-member-create'),
@@ -163,7 +166,7 @@ class StaffAccessInvitationTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        user = get_user_model().objects.get(username='ana.analista')
+        user = get_user_model().objects.get(username='usuario-que-no-existe')
         self.assertFalse(user.is_active)
         self.assertEqual(user.email, 'ana.analista@example.com')
         self.assertEqual(user.app_role.role, AppUserRole.ROLE_ANALYST)
@@ -180,6 +183,28 @@ class StaffAccessInvitationTests(TestCase):
         invitation = UserInvitation.objects.get(user=user, is_active=True, accepted_at__isnull=True)
         self.assertEqual(timezone.localtime(invitation.expires_at).date(), active_season.end_date)
         self.assertContains(response, reverse('user-invite-accept', args=[invitation.token]))
+
+    def test_staff_create_does_not_require_existing_user(self):
+        _owner, team, workspace = self._create_workspace(username='staff-owner-no-user')
+
+        response = self.client.post(
+            reverse('staff-member-create'),
+            {
+                'name': 'Nuevo Tecnico',
+                'user_username': 'usuario-que-no-existe',
+                'role_title': 'Segundo entrenador',
+                'email': 'nuevo.tecnico@example.com',
+                'scope': 'team',
+                'access_action': 'none',
+            },
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 302)
+        member = StaffMember.objects.get(workspace=workspace, name='Nuevo Tecnico')
+        self.assertEqual(member.team, team)
+        self.assertIsNone(member.user)
+        self.assertFalse(get_user_model().objects.filter(username='usuario-que-no-existe').exists())
 
 
 class DashboardPlatformAutoselectWorkspaceTests(TestCase):

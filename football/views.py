@@ -2113,7 +2113,7 @@ def _staff_invitation_expiry(workspace, validity_value):
     return timezone.now() + timedelta(days=validity_days)
 
 
-def _create_staff_access_invitation(request, workspace, member, *, app_role=None, member_role=None, validity_days=None):
+def _create_staff_access_invitation(request, workspace, member, *, app_role=None, member_role=None, validity_days=None, preferred_username=None):
     if not request or not workspace or not member:
         raise ValueError('No se pudo preparar la invitación.')
     email = _normalize_staff_email(getattr(member, 'email', '') or '')
@@ -2134,7 +2134,7 @@ def _create_staff_access_invitation(request, workspace, member, *, app_role=None
         if len(email_matches) == 1:
             user_obj = email_matches[0]
     if not user_obj:
-        username_base = email.split('@', 1)[0] or slugify(getattr(member, 'name', '') or 'staff')
+        username_base = _sanitize_username(preferred_username, max_len=120) or email.split('@', 1)[0] or slugify(getattr(member, 'name', '') or 'staff')
         username = re.sub(r'[^a-zA-Z0-9_.@+-]+', '.', str(username_base or 'staff')).strip('.').lower()[:120] or 'staff'
         suffix = 1
         candidate = username
@@ -2285,8 +2285,7 @@ def staff_member_create_page(request):
                 raise ValueError('El nombre es obligatorio.')
             access_action = str(request.POST.get('access_action') or '').strip().lower()
             user_username = _sanitize_username(request.POST.get('user_username'), max_len=150)
-            if access_action == 'invite':
-                user_username = ''
+            preferred_invite_username = user_username if access_action == 'invite' else ''
             role_title = str(request.POST.get('role_title') or '').strip()[:120]
             certification_level = str(request.POST.get('certification_level') or '').strip()[:160]
             dni = str(request.POST.get('dni') or '').strip()[:24]
@@ -2317,9 +2316,10 @@ def staff_member_create_page(request):
             if user_username:
                 linked_user = User.objects.filter(username__iexact=user_username).first()
                 if not linked_user:
-                    raise ValueError(f'No existe el usuario "{user_username}" para vincular.')
-                member.user = linked_user
-                member.save(update_fields=['user', 'updated_at'])
+                    linked_user = None
+                else:
+                    member.user = linked_user
+                    member.save(update_fields=['user', 'updated_at'])
             elif (member.email or '').strip():
                 # Autovincula por email si hay un usuario único con ese email.
                 email_norm = _normalize_staff_email(member.email)
@@ -2342,6 +2342,7 @@ def staff_member_create_page(request):
                     app_role=request.POST.get('access_app_role'),
                     member_role=request.POST.get('access_member_role'),
                     validity_days=request.POST.get('access_valid_days'),
+                    preferred_username=preferred_invite_username,
                 )
             uploaded_photo = request.FILES.get('photo')
             if uploaded_photo:
@@ -2425,8 +2426,7 @@ def staff_member_detail_page(request, staff_id):
         try:
             access_action = str(request.POST.get('access_action') or '').strip().lower()
             user_username = _sanitize_username(request.POST.get('user_username'), max_len=150)
-            if access_action == 'invite':
-                user_username = ''
+            preferred_invite_username = user_username if access_action == 'invite' else ''
             unlink_user = str(request.POST.get('unlink_user') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
             member.name = str(request.POST.get('name') or '').strip()[:160]
             if not member.name:
@@ -2449,12 +2449,13 @@ def staff_member_detail_page(request, staff_id):
             elif user_username:
                 linked_user = User.objects.filter(username__iexact=user_username).first()
                 if not linked_user:
-                    raise ValueError(f'No existe el usuario "{user_username}" para vincular.')
-                member.user = linked_user
-                try:
-                    _ensure_workspace_membership(workspace, linked_user, role=WorkspaceMembership.ROLE_VIEWER)
-                except Exception:
-                    pass
+                    linked_user = None
+                else:
+                    member.user = linked_user
+                    try:
+                        _ensure_workspace_membership(workspace, linked_user, role=WorkspaceMembership.ROLE_VIEWER)
+                    except Exception:
+                        pass
             member.save()
             if access_action == 'invite':
                 _, invite_link = _create_staff_access_invitation(
@@ -2464,6 +2465,7 @@ def staff_member_detail_page(request, staff_id):
                     app_role=request.POST.get('access_app_role'),
                     member_role=request.POST.get('access_member_role'),
                     validity_days=request.POST.get('access_valid_days'),
+                    preferred_username=preferred_invite_username,
                 )
                 feedback = 'Ficha actualizada. Invitación de acceso generada.'
             uploaded_photo = request.FILES.get('photo')
