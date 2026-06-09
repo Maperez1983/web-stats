@@ -331,6 +331,66 @@ def add_unified_roof_and_facade(mats):
     cube("outer_facade_west_TEAM_ACCENT", (-91.7, 0, 7.1), (0.46, 118, 8.6), mat_team)
 
 
+def add_bowl_unification_pass(mats):
+    mat_team, mat_secondary, mat_concrete, mat_dark, mat_glass, mat_metal, mat_roof, mat_light = mats
+    mat_shadow = mat("ROOF_SOFT_SHADOW", (0.035, 0.045, 0.050, 1), 0.72, 0.02)
+    mat_terrace = mat("CONTINUOUS_TERRACE_CONCRETE", (0.70, 0.74, 0.72, 1), 0.82, 0.02)
+
+    # A continuous lower bowl rim hides per-stand seams and makes the pitch perimeter read as one object.
+    cube("continuous_inner_parapet_north_TEAM_ACCENT", (0, 38.60, 1.30), (119.0, 0.42, 1.30), mat_team)
+    cube("continuous_inner_parapet_south_TEAM_ACCENT", (0, -38.60, 1.30), (119.0, 0.42, 1.30), mat_team)
+    cube("continuous_inner_parapet_east_TEAM_ACCENT", (57.55, 0, 1.30), (0.42, 82.0, 1.30), mat_team)
+    cube("continuous_inner_parapet_west_TEAM_ACCENT", (-57.55, 0, 1.30), (0.42, 82.0, 1.30), mat_team)
+
+    # Corner fascia pieces are deliberately oversized so the four stands no longer feel separated.
+    for name, x, y, rot in (
+        ("nw", -52.6, 39.0, math.radians(42)),
+        ("ne", 52.6, 39.0, math.radians(-42)),
+        ("sw", -52.6, -39.0, math.radians(138)),
+        ("se", 52.6, -39.0, math.radians(-138)),
+    ):
+        cube(f"continuous_corner_parapet_{name}_TEAM_ACCENT", (x, y, 1.30), (22.0, 0.44, 1.30), mat_team, (0, 0, rot))
+        cube(f"corner_lower_infill_mass_{name}", (x, y, 0.54), (23.0, 6.2, 1.08), mat_concrete, (0, 0, rot))
+        cube(f"corner_mid_concourse_{name}", (x, y + (2.0 if y > 0 else -2.0), 7.42), (25.0, 2.05, 0.50), mat_terrace, (0, 0, rot))
+        cube(f"corner_upper_terrace_lip_{name}", (x, y + (5.2 if y > 0 else -5.2), 12.20), (23.5, 1.85, 0.44), mat_terrace, (0, 0, rot))
+
+    # A dark soffit under every roof creates the premium covered-stand silhouette seen in real stadiums.
+    cube("roof_soffit_north_continuous", (0, 61.4, 17.90), (132, 8.8, 0.16), mat_shadow, (-0.015, 0, 0))
+    cube("roof_soffit_south_continuous", (0, -61.4, 17.90), (132, 8.8, 0.16), mat_shadow, (0.015, 0, 0))
+    cube("roof_soffit_east_continuous", (81.0, 0, 17.90), (8.8, 114, 0.16), mat_shadow)
+    cube("roof_soffit_west_continuous", (-81.0, 0, 17.90), (8.8, 114, 0.16), mat_shadow)
+    for name, x, y, rot in (
+        ("nw", -76.0, 58.2, math.radians(45)),
+        ("ne", 76.0, 58.2, math.radians(-45)),
+        ("sw", -76.0, -58.2, math.radians(135)),
+        ("se", 76.0, -58.2, math.radians(-135)),
+    ):
+        cube(f"roof_corner_soffit_{name}", (x, y, 17.88), (25.0, 8.8, 0.16), mat_shadow, (0, 0, rot))
+        cube(f"roof_corner_cap_{name}_TEAM_SECONDARY", (x, y, 18.58), (27.0, 9.8, 0.30), mat_roof, (0, 0, rot))
+
+    # Repeated truss triangles and vertical supports, aligned to the roof edge instead of dangling pillars.
+    for x in range(-60, 61, 10):
+        cube(f"north_front_truss_post_{x}", (x, 56.9, 14.7), (0.18, 0.18, 3.3), mat_metal)
+        cube(f"south_front_truss_post_{x}", (x, -56.9, 14.7), (0.18, 0.18, 3.3), mat_metal)
+        cube(f"north_front_truss_diag_{x}", (x + 2.2, 57.2, 15.5), (0.16, 4.8, 0.18), mat_metal, (0.40, 0, 0))
+        cube(f"south_front_truss_diag_{x}", (x + 2.2, -57.2, 15.5), (0.16, 4.8, 0.18), mat_metal, (-0.40, 0, 0))
+    for y in range(-50, 51, 10):
+        cube(f"east_front_truss_post_{y}", (76.9, y, 14.7), (0.18, 0.18, 3.3), mat_metal)
+        cube(f"west_front_truss_post_{y}", (-76.9, y, 14.7), (0.18, 0.18, 3.3), mat_metal)
+        cube(f"east_front_truss_diag_{y}", (77.2, y + 2.2, 15.5), (4.8, 0.16, 0.18), mat_metal, (0, 0.40, 0))
+        cube(f"west_front_truss_diag_{y}", (-77.2, y + 2.2, 15.5), (4.8, 0.16, 0.18), mat_metal, (0, -0.40, 0))
+
+    # Broadcast ribbon and concourse bands add horizontal continuity like the reference stadium.
+    cube("mid_bowl_broadcast_ribbon_north_TEAM_SECONDARY", (0, 52.7, 8.95), (106, 0.26, 0.52), mat_secondary)
+    cube("mid_bowl_broadcast_ribbon_south_TEAM_SECONDARY", (0, -52.7, 8.95), (86, 0.26, 0.52), mat_secondary)
+    cube("mid_bowl_broadcast_ribbon_east_TEAM_SECONDARY", (72.5, 0, 8.95), (0.26, 84, 0.52), mat_secondary)
+    cube("mid_bowl_broadcast_ribbon_west_TEAM_SECONDARY", (-72.5, 0, 8.95), (0.26, 84, 0.52), mat_secondary)
+    cube("upper_bowl_dark_shadow_north", (0, 58.8, 13.18), (111, 0.26, 0.70), mat_dark)
+    cube("upper_bowl_dark_shadow_south", (0, -58.8, 13.18), (91, 0.26, 0.70), mat_dark)
+    cube("upper_bowl_dark_shadow_east", (78.4, 0, 13.18), (0.26, 89, 0.70), mat_dark)
+    cube("upper_bowl_dark_shadow_west", (-78.4, 0, 13.18), (0.26, 89, 0.70), mat_dark)
+
+
 def main():
     clear_scene()
     mat_team = mat("TEAM_PRIMARY", (0.02, 0.47, 0.34, 1), 0.58, 0.02)
@@ -356,6 +416,7 @@ def main():
     add_pitchside_ad_boards(mats)
     add_architectural_finish(mats)
     add_unified_roof_and_facade(mats)
+    add_bowl_unification_pass(mats)
 
     # Continuous roof links make the stadium read as one closed object.
     cube("roof_link_north_TEAM_SECONDARY", (0, 67.8, 18.52), (128, 4.6, 0.30), mat_roof, (-0.015, 0, 0))
