@@ -10229,10 +10229,22 @@
 						              try {
 						                const removable = (root.children || []).filter((node) => {
 						                  const kind = safeText(node?.userData?.kind || '');
+						                  if (!kind) return false;
+						                  if (kind === 'pitch_3d_corner_flag') return false;
+						                  if (kind === 'pitch_3d_ad_board') return false;
 						                  return kind === 'pitch_3d_dugout'
 						                    || kind === 'pitch_3d_from_scratch_reference_stadium'
+						                    || kind === 'pitch_3d_stadium_corner_connectors'
+						                    || kind === 'pitch_3d_technical_stand_with_tunnel'
+						                    || kind === 'pitch_3d_professional_blender_stadium'
 						                    || kind.startsWith('pitch_3d_ref_')
-						                    || kind.startsWith('pitch_3d_green_runoff_');
+						                    || kind.startsWith('pitch_3d_green_runoff_')
+						                    || kind.startsWith('pitch_3d_reference_')
+						                    || kind.startsWith('pitch_3d_archviz_')
+						                    || kind.startsWith('pitch_3d_closed_')
+						                    || kind.startsWith('pitch_3d_continuous_')
+						                    || kind.startsWith('pitch_3d_professional_')
+						                    || kind.startsWith('pitch_3d_peripheral_');
 						                });
 						                removable.forEach((node) => root.remove(node));
 						              } catch (e) { /* ignore */ }
@@ -10273,6 +10285,7 @@
 						            __pitch3dLoadStadiumModel(() => {
 						              try { addProfessionalStadiumAsset(); } catch (e) { /* ignore */ }
 						            });
+						            return;
 						            addGreenApron();
 						            addReferenceStand({ kind: 'pitch_3d_ref_main_north_stand', x: 0, z: metersH / 2 + 7.2, w: metersW + 24, rows: 18, rotY: 0 });
 						            addReferenceStand({ kind: 'pitch_3d_ref_south_stand_left', x: -metersW * 0.31, z: -(metersH / 2 + 7.2), w: metersW * 0.38, rows: 14, rotY: Math.PI });

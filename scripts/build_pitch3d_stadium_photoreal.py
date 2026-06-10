@@ -188,11 +188,11 @@ def add_row_bands(prefix, inner_x, inner_y, radius, depth_start, depth_end, z_st
     step = (depth_end - depth_start) / count
     for row in range(count):
         d0 = depth_start + row * step
-        d1 = d0 + step * 0.34
+        d1 = d0 + step * 0.72
         z = z_start + (d0 - depth_start) * slope
         flat_ring(f"{prefix}_seat_band_{row:02d}_TEAM_PRIMARY", inner_x + d0, inner_y + d0, inner_x + d1, inner_y + d1, radius + d0, radius + d1, z + 0.10, mat_seat)
-        if row % 3 == 0:
-            flat_ring(f"{prefix}_concrete_tread_{row:02d}", inner_x + d0 + step * 0.42, inner_y + d0 + step * 0.42, inner_x + d0 + step * 0.52, inner_y + d0 + step * 0.52, radius + d0 + step * 0.42, radius + d0 + step * 0.52, z, mat_step)
+        if row % 4 == 0:
+            flat_ring(f"{prefix}_concrete_tread_{row:02d}", inner_x + d0 + step * 0.79, inner_y + d0 + step * 0.79, inner_x + d0 + step * 0.86, inner_y + d0 + step * 0.86, radius + d0 + step * 0.79, radius + d0 + step * 0.86, z, mat_step)
 
 
 def add_stadium(mats):
@@ -381,6 +381,69 @@ def add_real_stadium_detail_pass(mats):
             cube(f"real_detail_corner_flag_{x}_{y}_TEAM_SECONDARY", (x + (0.24 if x < 0 else -0.24), y, 1.35), (0.45, 0.03, 0.28), mats["secondary"], bevel=0.005)
 
 
+def add_definitive_completion_pass(mats):
+    concrete = mats["concrete"]
+    dark_concrete = mats["dark_concrete"]
+    seat = mats["seat"]
+    accent = mats["accent"]
+    roof = mats["roof"]
+    metal = mats["metal"]
+    black = mats["black"]
+    light = mats["light"]
+    led = mats["led"]
+
+    # Strong visible mass in the four corners. This removes the "floating corner"
+    # reading in the tactical camera and makes the bowl feel like one building.
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            cube(f"definitive_corner_foundation_{sx}_{sy}", (sx * 75.5, sy * 56.5, 4.3), (29.0, 29.0, 8.6), dark_concrete, bevel=0.05)
+            cube(f"definitive_corner_lower_seating_carpet_TEAM_PRIMARY_{sx}_{sy}", (sx * 68.8, sy * 50.6, 8.05), (30.0, 24.0, 0.55), seat, (-0.11 * sy, 0.10 * sx, 0), bevel=0.02)
+            cube(f"definitive_corner_upper_seating_carpet_TEAM_PRIMARY_{sx}_{sy}", (sx * 82.0, sy * 63.5, 15.9), (24.0, 22.0, 0.55), seat, (-0.16 * sy, 0.12 * sx, 0), bevel=0.02)
+            cube(f"definitive_corner_rear_wall_TEAM_ACCENT_{sx}_{sy}", (sx * 88.0, sy * 69.2, 12.2), (13.8, 1.15, 11.0), accent, bevel=0.03)
+            cube(f"definitive_corner_side_wall_TEAM_ACCENT_{sx}_{sy}", (sx * 93.2, sy * 60.2, 12.2), (1.15, 17.0, 11.0), accent, bevel=0.03)
+
+    # The tunnel side needs to read as a covered grandstand, not an open void.
+    cube("definitive_tunnel_full_width_opaque_back_wall", (0, -58.6, 9.4), (96.0, 1.4, 13.4), dark_concrete, bevel=0.04)
+    cube("definitive_tunnel_roofed_volume_left", (-27.5, -47.5, 5.7), (32.0, 17.5, 10.2), dark_concrete, (0.04, 0, 0), bevel=0.04)
+    cube("definitive_tunnel_roofed_volume_right", (27.5, -47.5, 5.7), (32.0, 17.5, 10.2), dark_concrete, (0.04, 0, 0), bevel=0.04)
+    cube("definitive_tunnel_center_black_mouth_deep", (0, -39.9, 2.8), (13.8, 1.55, 3.65), black, bevel=0.03)
+    cube("definitive_tunnel_upper_seat_block_TEAM_PRIMARY", (0, -53.4, 12.25), (96.0, 18.0, 0.64), seat, (0.12, 0, 0), bevel=0.02)
+    for x in (-43, -29, -15, 15, 29, 43):
+        cube(f"definitive_tunnel_side_aisle_{x}", (x, -51.8, 12.7), (1.7, 15.0, 0.32), concrete, (0.12, 0, 0), bevel=0.01)
+
+    # A darker concrete shell and broad seat carpets make the dominant read closer to
+    # real stadium photography: seating fields first, concrete only as structure/aisles.
+    flat_ring("definitive_lower_full_seat_field_TEAM_PRIMARY", 59.2, 41.2, 73.2, 55.2, 9.2, 23.2, 6.85, seat)
+    flat_ring("definitive_upper_full_seat_field_TEAM_PRIMARY", 79.0, 61.0, 91.0, 73.0, 29.0, 41.0, 15.20, seat)
+    flat_ring("definitive_dark_mid_shadow_break", 74.0, 56.0, 78.8, 60.8, 24.0, 28.8, 8.05, black)
+    flat_ring("definitive_upper_dark_shadow_break", 92.0, 74.0, 96.8, 78.8, 42.0, 46.8, 16.25, black)
+
+    # Strong continuous roof edge and visible light line, matching the reference idea
+    # without switching to a night scene.
+    flat_ring("definitive_single_continuous_roof_plate_TEAM_SECONDARY", 72.8, 54.8, 103.0, 85.0, 22.8, 53.0, 20.75, roof)
+    flat_ring("definitive_roof_inner_dark_lip", 70.6, 52.6, 73.4, 55.4, 20.6, 23.4, 19.0, black)
+    flat_ring("definitive_roof_outer_dark_lip", 101.4, 83.4, 104.0, 86.0, 51.4, 54.0, 20.1, black)
+    for x in range(-78, 79, 6):
+        cube(f"definitive_north_light_line_{x}", (x, 54.2, 18.25), (3.8, 0.12, 0.16), light, bevel=0.004)
+        cube(f"definitive_south_light_line_{x}", (x, -54.2, 18.25), (3.8, 0.12, 0.16), light, bevel=0.004)
+    for y in range(-58, 59, 6):
+        cube(f"definitive_east_light_line_{y}", (73.8, y, 18.25), (0.12, 3.8, 0.16), light, bevel=0.004)
+        cube(f"definitive_west_light_line_{y}", (-73.8, y, 18.25), (0.12, 3.8, 0.16), light, bevel=0.004)
+
+    # Larger, cleaner advertising ribbon so the pitch perimeter has the crisp finish of
+    # the references and hides residual white service strips around the bowl.
+    flat_ring("definitive_crisp_black_pitch_wall", 52.6, 34.6, 55.2, 37.2, 2.6, 5.2, 1.10, black)
+    flat_ring("definitive_crisp_led_pitch_ribbon_FACE_TEAM_ACCENT", 52.9, 34.9, 54.8, 36.8, 2.9, 4.8, 1.55, led)
+    for x in (-52, 52):
+        cube(f"definitive_goal_end_dark_backdrop_{x}", (x, 0, 1.4), (0.35, 20.0, 2.4), black, bevel=0.02)
+    for x in range(-54, 55, 18):
+        cube(f"definitive_main_stand_premium_vomitory_black_{x}", (x, -39.3, 5.2), (5.2, 1.0, 4.0), black, bevel=0.02)
+        cube(f"definitive_main_stand_premium_vomitory_frame_{x}", (x, -39.9, 5.2), (6.4, 0.35, 4.8), concrete, bevel=0.02)
+    for x in range(-72, 73, 12):
+        cube(f"definitive_roof_front_truss_bar_{x}", (x, 52.9, 19.0), (0.20, 7.8, 0.20), metal, (0.58, 0, 0), bevel=0.006)
+        cube(f"definitive_roof_back_truss_bar_{x}", (x, -52.9, 19.0), (0.20, 7.8, 0.20), metal, (-0.58, 0, 0), bevel=0.006)
+
+
 def add_camera_and_lights():
     bpy.ops.object.light_add(type="SUN", location=(0, 0, 35))
     sun = bpy.context.object
@@ -412,6 +475,7 @@ def main():
     }
     add_stadium(mats)
     add_real_stadium_detail_pass(mats)
+    add_definitive_completion_pass(mats)
     add_camera_and_lights()
 
     for obj in bpy.context.scene.objects:
