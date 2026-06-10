@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 from unittest.mock import patch
+from datetime import date
 import json
 
 from django.contrib.auth import get_user_model
@@ -7,7 +8,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from football.models import AppUserRole, StaffMember, Team, UserInvitation, Workspace, WorkspaceMembership, WorkspaceSeason, WorkspaceTeam
+from football.models import AppUserRole, Competition, Group, Season, StaffMember, Team, UserInvitation, Workspace, WorkspaceMembership, WorkspaceSeason, WorkspaceTeam
 
 
 class WorkspaceActiveSelectionTests(TestCase):
@@ -112,6 +113,48 @@ class PlatformWorkspaceTeamDetailTests(TestCase):
         self.assertNotIn('client=safari', body)
         self.assertNotIn('google.com/search', body)
         self.assertNotIn('google.com/url', body)
+
+
+class DashboardCompetitionSeasonalityTests(TestCase):
+    @patch('football.views.timezone.localdate')
+    def test_shared_group_before_september_does_not_show_setup_error(self, mock_localdate):
+        mock_localdate.return_value = date(2026, 6, 10)
+        user = get_user_model().objects.create_user(username='home-preseason-owner', password='pass-1234')
+        competition = Competition.objects.create(name='Liga Pretemporada', slug='liga-pretemporada')
+        season = Season.objects.create(competition=competition, name='2026/2027')
+        group = Group.objects.create(season=season, name='Grupo pendiente', slug='grupo-pendiente', external_id='shared-group')
+        primary_team = Team.objects.create(name='Benagalbón', slug='home-preseason-primary', short_name='BEN', group=group, is_primary=True)
+        cadete = Team.objects.create(name='Benagalbon c. d.', slug='home-preseason-cadete', short_name='CAD', category='CADETE', group=group)
+        benjamin = Team.objects.create(name='Benjamín', slug='home-preseason-benjamin', short_name='BENJ', category='Benjamín', group=group)
+        workspace = Workspace.objects.create(
+            name='Benagalbón',
+            slug='home-preseason-club',
+            kind=Workspace.KIND_CLUB,
+            is_active=True,
+            primary_team=primary_team,
+            owner_user=user,
+            enabled_modules={},
+            subscription_status='trial',
+        )
+        WorkspaceMembership.objects.create(workspace=workspace, user=user, role=WorkspaceMembership.ROLE_OWNER)
+        WorkspaceTeam.objects.create(workspace=workspace, team=primary_team, is_default=True)
+        WorkspaceTeam.objects.create(workspace=workspace, team=cadete)
+        WorkspaceTeam.objects.create(workspace=workspace, team=benjamin)
+
+        self.client.force_login(user)
+        session = self.client.session
+        session['active_workspace_id'] = workspace.id
+        session['active_team_by_workspace'] = {str(workspace.id): cadete.id}
+        session.save()
+
+        response = self.client.get(reverse('dashboard-data'), {'workspace': workspace.id, 'team': cadete.id, 'home': 'club'}, secure=True)
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertFalse(payload.get('setup_required'), payload)
+        self.assertEqual(payload.get('standings'), [])
+        self.assertIsNone(payload.get('next_match'))
+        self.assertNotIn('setup_message_title', payload)
 
 
 class StaffAccessInvitationTests(TestCase):

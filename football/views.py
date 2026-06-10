@@ -7920,6 +7920,18 @@ def _workspace_needs_setup(workspace) -> bool:
     return not WorkspaceTeam.objects.filter(workspace=workspace).exists()
 
 
+def _competition_setup_is_actionable(day=None) -> bool:
+    """
+    Las ligas/grupos federativos suelen no estar constituidos en pretemporada.
+    Antes de septiembre no convertimos incidencias de competición en errores de portada.
+    """
+    try:
+        current = day or timezone.localdate()
+        return int(getattr(current, 'month', 0) or 0) >= 9
+    except Exception:
+        return True
+
+
 def _build_setup_dashboard_payload(request, workspace):
     payload = _build_demo_dashboard_payload(request)
     if not isinstance(payload, dict):
@@ -7958,14 +7970,15 @@ def _build_team_setup_checklist(request, workspace, primary_team, *, match=None,
     external_group_key = str(getattr(context, 'external_group_key', '') or '').strip()
     external_team_key = str(getattr(context, 'external_team_key', '') or '').strip()
     sync_status = str(getattr(context, 'sync_status', '') or '').strip().lower()
+    competition_actionable = _competition_setup_is_actionable()
     has_competition = bool(provider and provider != WorkspaceCompetitionContext.PROVIDER_MANUAL and external_group_key and external_team_key and sync_status == WorkspaceCompetitionContext.STATUS_READY)
     items.append(
         {
             'key': 'competition',
-            'label': 'Competición conectada',
-            'ok': has_competition,
-            'required': True,
-            'description': 'Sin esto se mezclan rivales y la home no es fiable.',
+            'label': 'Competición conectada' if competition_actionable else 'Competición pendiente de federación',
+            'ok': has_competition or not competition_actionable,
+            'required': bool(competition_actionable),
+            'description': 'Sin esto se mezclan rivales y la home no es fiable.' if competition_actionable else 'Cuando las ligas estén constituidas, se podrá enlazar el grupo correcto.',
             'url': reverse('club-onboarding'),
         }
     )
@@ -8418,6 +8431,7 @@ def _dashboard_data_impl(request, *, _json):
                 if group_id_collision or key_collision:
                     conflicts.append(team)
             if conflicts:
+                competition_actionable = _competition_setup_is_actionable()
                 category = str(getattr(primary_team, 'category', '') or '').strip()
                 conflict_labels = []
                 for item in conflicts[:3]:
@@ -8455,15 +8469,20 @@ def _dashboard_data_impl(request, *, _json):
                     'player_cards': compute_player_cards(primary_team, request=request),
                     'player_cards_scope': {'type': 'global', 'label': 'Jugador · datos La Preferente'},
                     'club_season': club_season_payload,
-                    'setup_required': True,
-                    'setup_url': fix_url,
-                    'setup_message_title': 'Categoría mezclada con otra competición',
-                    'setup_message_body': (
-                        f'Esta categoría comparte el mismo grupo/competición que otra ({conflict_hint}). '
-                        'Así se mezclan rivales/partidos. Entra en Admin → Categorías y asigna el Universo ID de grupo correcto.'
-                    ),
-                    'setup_action_label': 'Arreglar ahora',
+                    'setup_required': bool(competition_actionable),
                 }
+                if competition_actionable:
+                    payload.update(
+                        {
+                            'setup_url': fix_url,
+                            'setup_message_title': 'Categoría mezclada con otra competición',
+                            'setup_message_body': (
+                                f'Esta categoría comparte el mismo grupo/competición que otra ({conflict_hint}). '
+                                'Así se mezclan rivales/partidos. Entra en Admin → Categorías y asigna el Universo ID de grupo correcto.'
+                            ),
+                            'setup_action_label': 'Arreglar ahora',
+                        }
+                    )
                 # En este modo guardrail también mostramos "Tu día" para no bloquear el trabajo diario.
                 try:
                     today = timezone.localdate()
