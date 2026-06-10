@@ -10247,7 +10247,7 @@
 						                  addBox(corner, new THREE.BoxGeometry(2.35, 0.14, 0.30), seatGreen, ratio * w, y + 0.13, z - 0.04, -0.10, 0, 0, 'pitch_3d_ref_corner_high_seats');
 						                });
 						              }
-						              addBox(corner, new THREE.BoxGeometry(w + 6.8, 0.38, 8.6), roofWhite, 0, 14.45, 21.25, -0.020, 0, 0, 'pitch_3d_ref_corner_roof');
+						              addBox(corner, new THREE.BoxGeometry(w + 2.4, 0.22, 3.6), roofWhite, 0, 14.85, 22.90, -0.020, 0, 0, 'pitch_3d_ref_corner_roof');
 						              addBox(corner, new THREE.BoxGeometry(w * 0.75, 0.12, 0.18), lightMat, 0, 12.95, 17.48, 0, 0, 0, 'pitch_3d_ref_corner_light_bar');
 						              [-0.36, 0.36].forEach((ratio) => {
 						                addBox(corner, new THREE.BoxGeometry(0.24, 7.8, 0.24), concreteSoft, ratio * w, 9.82, 23.25, -0.08, 0, 0, 'pitch_3d_ref_corner_rear_roof_mast');
