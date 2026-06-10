@@ -152,6 +152,14 @@ def add_architectural_stadium():
     vertical_ring("arch_continuous_lower_building_mass", 80.0, 62.0, 30.0, 0.0, 9.4, dark_concrete)
     vertical_ring("arch_continuous_outer_facade_TEAM_ACCENT", 100.0, 82.0, 50.0, 4.4, 19.0, accent)
     flat_ring("arch_public_concourse_ring", 79.5, 61.5, 101.5, 83.5, 29.5, 51.5, 8.0, concrete)
+    cube("arch_north_rear_grandstand_wall_TEAM_ACCENT", (0, 82.0, 10.6), (168.0, 2.2, 17.5), accent, bevel=0.025)
+    cube("arch_south_rear_grandstand_wall_TEAM_ACCENT", (0, -82.0, 10.6), (168.0, 2.2, 17.5), accent, bevel=0.025)
+    cube("arch_east_rear_grandstand_wall_TEAM_ACCENT", (100.0, 0, 10.6), (2.2, 124.0, 17.5), accent, bevel=0.025)
+    cube("arch_west_rear_grandstand_wall_TEAM_ACCENT", (-100.0, 0, 10.6), (2.2, 124.0, 17.5), accent, bevel=0.025)
+    cube("arch_north_lower_backfill_plinth", (0, 68.2, 4.1), (150.0, 20.0, 8.0), dark_concrete, bevel=0.03)
+    cube("arch_south_lower_backfill_plinth", (0, -68.2, 4.1), (150.0, 20.0, 8.0), dark_concrete, bevel=0.03)
+    cube("arch_east_lower_backfill_plinth", (86.5, 0, 4.1), (20.0, 105.0, 8.0), dark_concrete, bevel=0.03)
+    cube("arch_west_lower_backfill_plinth", (-86.5, 0, 4.1), (20.0, 105.0, 8.0), dark_concrete, bevel=0.03)
 
     # Continuous lower, middle and upper seating bowl.
     sloped_ring("arch_lower_solid_bowl_shell", ix, iy, r, 0, 19, 0.90, 8.0, dark_concrete)
@@ -168,6 +176,11 @@ def add_architectural_stadium():
     for sx in (-1, 1):
         for sy in (-1, 1):
             cube(f"arch_corner_lower_mass_{sx}_{sy}", (sx * 75.0, sy * 56.0, 4.2), (30.0, 30.0, 8.2), dark_concrete, bevel=0.04)
+            cube(f"arch_corner_deep_foundation_block_{sx}_{sy}", (sx * 88.0, sy * 70.0, 7.2), (27.0, 27.0, 14.0), dark_concrete, bevel=0.035)
+            cube(f"arch_corner_rear_facade_wrap_x_{sx}_{sy}_TEAM_ACCENT", (sx * 94.5, sy * 70.0, 12.5), (4.0, 30.0, 15.5), accent, bevel=0.025)
+            cube(f"arch_corner_rear_facade_wrap_y_{sx}_{sy}_TEAM_ACCENT", (sx * 82.0, sy * 80.5, 12.5), (30.0, 4.0, 15.5), accent, bevel=0.025)
+            cube(f"arch_corner_lower_concourse_slab_{sx}_{sy}", (sx * 76.5, sy * 59.0, 8.4), (39.0, 35.0, 0.85), concrete, bevel=0.018)
+            cube(f"arch_corner_upper_concourse_slab_{sx}_{sy}", (sx * 86.5, sy * 69.5, 17.2), (34.0, 31.0, 0.85), concrete, bevel=0.018)
             cube(f"arch_corner_lower_seat_plate_TEAM_PRIMARY_{sx}_{sy}", (sx * 68.5, sy * 50.5, 7.9), (29.0, 23.0, 0.48), primary, (-0.13 * sy, 0.12 * sx, 0), bevel=0.015)
             cube(f"arch_corner_upper_seat_plate_TEAM_PRIMARY_{sx}_{sy}", (sx * 84.0, sy * 66.0, 17.9), (25.0, 23.0, 0.50), primary, (-0.18 * sy, 0.14 * sx, 0), bevel=0.015)
             cube(f"arch_corner_outer_wall_TEAM_ACCENT_{sx}_{sy}", (sx * 91.0, sy * 72.0, 12.0), (12.0, 1.0, 11.0), accent, bevel=0.02)
@@ -178,7 +191,14 @@ def add_architectural_stadium():
     cube("arch_players_tunnel_left_cheek", (-16.0, -47.0, 5.1), (20.0, 17.0, 9.6), dark_concrete, (0.035, 0, 0), bevel=0.04)
     cube("arch_players_tunnel_right_cheek", (16.0, -47.0, 5.1), (20.0, 17.0, 9.6), dark_concrete, (0.035, 0, 0), bevel=0.04)
     cube("arch_tunnel_lintel_and_vomitory_frame", (0, -40.0, 5.1), (20.0, 1.2, 1.0), concrete, bevel=0.03)
-    cube("arch_tunnel_overbuild_seat_deck_TEAM_PRIMARY", (0, -54.0, 12.6), (96.0, 19.0, 0.62), primary, (0.13, 0, 0), bevel=0.015)
+    cube("arch_tunnel_structural_roof_slab", (0, -43.4, 6.9), (34.0, 10.0, 1.15), dark_concrete, bevel=0.025)
+    cube("arch_tunnel_integrated_lower_stand_slab", (0, -45.8, 8.4), (56.0, 15.0, 0.85), concrete, (0.07, 0, 0), bevel=0.018)
+    cube("arch_tunnel_integrated_lower_seats_TEAM_PRIMARY", (0, -45.8, 9.05), (52.0, 13.2, 0.46), primary, (0.07, 0, 0), bevel=0.012)
+    cube("arch_tunnel_integrated_upper_stand_slab", (0, -55.0, 13.0), (104.0, 19.5, 0.85), concrete, (0.13, 0, 0), bevel=0.018)
+    cube("arch_tunnel_overbuild_seat_deck_TEAM_PRIMARY", (0, -54.0, 13.65), (100.0, 18.0, 0.58), primary, (0.13, 0, 0), bevel=0.015)
+    cube("arch_tunnel_left_vertical_support", (-31.0, -47.0, 6.2), (2.2, 19.0, 11.8), dark_concrete, bevel=0.025)
+    cube("arch_tunnel_right_vertical_support", (31.0, -47.0, 6.2), (2.2, 19.0, 11.8), dark_concrete, bevel=0.025)
+    cube("arch_tunnel_back_wall_solid", (0, -58.5, 8.6), (62.0, 1.6, 11.2), dark_concrete, bevel=0.025)
     cube("arch_tunnel_rear_opaque_wall_TEAM_ACCENT", (0, -63.5, 13.6), (106.0, 1.2, 10.8), accent, bevel=0.03)
 
     # Vomitories, stairs, handrails and sector breaks.
