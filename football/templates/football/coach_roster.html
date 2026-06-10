@@ -801,6 +801,7 @@
                       <h2 class="broadcast-name">{{ card.nickname|default:card.name }}</h2>
                       <div class="broadcast-sub">{{ card.profile_label|default:card.position|default:"-" }}</div>
                       <div class="broadcast-head-right">
+                        <div class="broadcast-pill">STAFF {{ card.staff_rating_display|default:"--/10" }}</div>
                         <div class="broadcast-pill">INF {{ card.influence_score|default:0|floatformat:0 }}</div>
                         <div class="broadcast-pill">IMP {{ card.importance_score|default:0|floatformat:0 }}</div>
                         <span class="status-icons">
@@ -842,7 +843,7 @@
 
                   <div class="broadcast-kpis" aria-label="Evaluación técnica" style="grid-template-columns:1fr;margin-top:0.55rem;">
                     <div class="broadcast-kpi {% if card.evaluation_pending %}is-accent{% endif %}">
-                      <span class="k">Evaluación</span>
+                      <span class="k">Evaluación staff</span>
                       <span class="v">
                         {{ card.evaluation_label|default:"Sin evaluar" }}
                         {% if card.evaluation_average %} · {{ card.evaluation_average }}{% endif %}

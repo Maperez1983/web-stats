@@ -8493,6 +8493,40 @@ class StatsScopePersistenceTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context.get('scope_value'), 'friendly')
 
+    @patch('football.views.compute_player_cards')
+    def test_coach_roster_cards_show_staff_rating(self, mock_cards):
+        player = Player.objects.create(team=self.team, name='Jugador Staff', number=7)
+        mock_cards.return_value = [
+            {
+                'player_id': player.id,
+                'name': player.name,
+                'nickname': '',
+                'number': player.number,
+                'photo_url': '',
+                'profile_label': 'MC',
+                'position': 'MC',
+                'pj': 0,
+                'minutes': 0,
+                'goals': 0,
+                'assists': 0,
+                'success_rate': 0,
+                'duel_rate': 0,
+                'passes_accuracy': 0,
+                'shots_accuracy': 0,
+                'influence_score': 0,
+                'importance_score': 0,
+                'has_active_injury': False,
+                'is_sanctioned': False,
+                'is_apercibido': False,
+                'staff_rating_display': '8/10',
+            }
+        ]
+
+        response = self.client.get(reverse('coach-roster'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'STAFF 8/10')
+
 
 class SessionsPlanningTests(TestCase):
     def setUp(self):

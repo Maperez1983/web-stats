@@ -1796,7 +1796,7 @@
             success_rate: row?.success_rate,
             training_minutes: extra ? extra.minutes : null,
             training_sessions: extra ? extra.sessions : null,
-            staff_rating_display: row?.staff_rating_display,
+            staff_rating_display: row?.staff_rating_display || '--/10',
           };
         });
         const render = (items) => {
@@ -1807,7 +1807,7 @@
             const avatar = photo ? `<img src="${photo}" alt="${name}" loading="lazy" />` : '';
             const url = p.player_id ? `{% url 'player-detail' player_id=0 %}`.replace('/0/', `/${p.player_id}/`) : '#';
             const kpis = [
-              (p.staff_rating_display ? `<span class="mini-kpi is-staff">Staff ${p.staff_rating_display}</span>` : ''),
+              `<span class="mini-kpi is-staff">Staff ${p.staff_rating_display}</span>`,
               (p.training_minutes != null ? `<span class="mini-kpi">Entreno ${p.training_minutes}'</span>` : ''),
               (p.actions != null ? `<span class="mini-kpi">Acc ${p.actions}</span>` : ''),
               (p.success_rate != null ? `<span class="mini-kpi">Éxito ${p.success_rate}%</span>` : ''),
