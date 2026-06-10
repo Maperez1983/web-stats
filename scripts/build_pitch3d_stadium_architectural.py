@@ -119,6 +119,72 @@ def cube(name, loc, scale, material, rot=(0, 0, 0), bevel=0.02):
     return obj
 
 
+def sloped_box(name, xmin, xmax, ymin, ymax, z0, z1, material, axis="y"):
+    if axis == "y":
+        top = (
+            z0 if ymin < 0 else z1,
+            z0 if ymax < 0 else z1,
+        )
+        if ymin > 0:
+            top = (z0, z1)
+        elif ymax < 0:
+            top = (z1, z0)
+        verts = [
+            (xmin, ymin, 0.0), (xmax, ymin, 0.0), (xmax, ymax, 0.0), (xmin, ymax, 0.0),
+            (xmin, ymin, top[0]), (xmax, ymin, top[0]), (xmax, ymax, top[1]), (xmin, ymax, top[1]),
+        ]
+    else:
+        top = (z0, z1) if xmin > 0 else (z1, z0)
+        verts = [
+            (xmin, ymin, 0.0), (xmax, ymin, 0.0), (xmax, ymax, 0.0), (xmin, ymax, 0.0),
+            (xmin, ymin, top[0]), (xmax, ymin, top[1]), (xmax, ymax, top[1]), (xmin, ymax, top[0]),
+        ]
+    faces = (
+        (0, 1, 2, 3),
+        (4, 7, 6, 5),
+        (0, 4, 5, 1),
+        (1, 5, 6, 2),
+        (2, 6, 7, 3),
+        (3, 7, 4, 0),
+    )
+    mesh = bpy.data.meshes.new(name)
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.scene.collection.objects.link(obj)
+    obj.data.materials.append(material)
+    try:
+        obj.modifiers.new(name="weighted_normals", type="WEIGHTED_NORMAL")
+    except Exception:
+        pass
+    return obj
+
+
+def sloped_panel(name, xmin, xmax, ymin, ymax, z0, z1, material, axis="y"):
+    if axis == "y":
+        if ymin > 0:
+            top = (z0, z1)
+        elif ymax < 0:
+            top = (z1, z0)
+        else:
+            top = (z0, z1)
+        verts = [(xmin, ymin, top[0]), (xmax, ymin, top[0]), (xmax, ymax, top[1]), (xmin, ymax, top[1])]
+    else:
+        top = (z0, z1) if xmin > 0 else (z1, z0)
+        verts = [(xmin, ymin, top[0]), (xmax, ymin, top[1]), (xmax, ymax, top[1]), (xmin, ymax, top[0])]
+    mesh = bpy.data.meshes.new(name)
+    mesh.from_pydata(verts, [], [(0, 1, 2, 3)])
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.scene.collection.objects.link(obj)
+    obj.data.materials.append(material)
+    try:
+        obj.modifiers.new(name="weighted_normals", type="WEIGHTED_NORMAL")
+    except Exception:
+        pass
+    return obj
+
+
 def add_seat_rows(prefix, ix, iy, radius, start, end, z0, rise, seat_mat, step_mat, rows):
     step = (end - start) / rows
     for row in range(rows):
@@ -160,6 +226,26 @@ def add_architectural_stadium():
     cube("arch_south_lower_backfill_plinth", (0, -68.2, 4.1), (150.0, 20.0, 8.0), dark_concrete, bevel=0.03)
     cube("arch_east_lower_backfill_plinth", (86.5, 0, 4.1), (20.0, 105.0, 8.0), dark_concrete, bevel=0.03)
     cube("arch_west_lower_backfill_plinth", (-86.5, 0, 4.1), (20.0, 105.0, 8.0), dark_concrete, bevel=0.03)
+    sloped_box("arch_north_visible_grandstand_solid_bowl", -82.0, 82.0, 37.0, 82.0, 1.2, 18.4, dark_concrete, axis="y")
+    sloped_box("arch_south_visible_grandstand_solid_bowl", -82.0, 82.0, -82.0, -37.0, 1.2, 18.4, dark_concrete, axis="y")
+    sloped_box("arch_east_visible_grandstand_solid_bowl", 57.0, 101.0, -53.0, 53.0, 1.2, 18.2, dark_concrete, axis="x")
+    sloped_box("arch_west_visible_grandstand_solid_bowl", -101.0, -57.0, -53.0, 53.0, 1.2, 18.2, dark_concrete, axis="x")
+    sloped_panel("arch_north_completed_green_seating_field_TEAM_PRIMARY", -74.0, 74.0, 40.0, 78.0, 2.2, 18.65, primary, axis="y")
+    sloped_panel("arch_south_completed_green_seating_field_TEAM_PRIMARY", -74.0, 74.0, -78.0, -40.0, 2.2, 18.65, primary, axis="y")
+    sloped_panel("arch_east_completed_green_seating_field_TEAM_PRIMARY", 60.0, 97.0, -45.0, 45.0, 2.2, 18.45, primary, axis="x")
+    sloped_panel("arch_west_completed_green_seating_field_TEAM_PRIMARY", -97.0, -60.0, -45.0, 45.0, 2.2, 18.45, primary, axis="x")
+    for x in (-54, -30, -6, 18, 42, 66):
+        sloped_panel(f"arch_north_concrete_aisle_cut_{x}", x, x + 4.2, 40.0, 78.0, 2.35, 18.78, concrete, axis="y")
+        sloped_panel(f"arch_south_concrete_aisle_cut_{x}", x, x + 4.2, -78.0, -40.0, 2.35, 18.78, concrete, axis="y")
+    for y in (-36, -12, 12, 36):
+        sloped_panel(f"arch_east_concrete_aisle_cut_{y}", 60.0, 97.0, y, y + 4.2, 2.35, 18.58, concrete, axis="x")
+        sloped_panel(f"arch_west_concrete_aisle_cut_{y}", -97.0, -60.0, y, y + 4.2, 2.35, 18.58, concrete, axis="x")
+    cube("arch_northeast_corner_solid_bowl_fill", (79.0, 61.0, 8.8), (45.0, 42.0, 17.2), dark_concrete, bevel=0.035)
+    cube("arch_northwest_corner_solid_bowl_fill", (-79.0, 61.0, 8.8), (45.0, 42.0, 17.2), dark_concrete, bevel=0.035)
+    cube("arch_southeast_corner_solid_bowl_fill", (79.0, -61.0, 8.8), (45.0, 42.0, 17.2), dark_concrete, bevel=0.035)
+    cube("arch_southwest_corner_solid_bowl_fill", (-79.0, -61.0, 8.8), (45.0, 42.0, 17.2), dark_concrete, bevel=0.035)
+    flat_ring("arch_continuous_inner_concrete_terrace_lip", 54.0, 36.0, 62.0, 44.0, 4.0, 12.0, 2.05, concrete)
+    flat_ring("arch_continuous_upper_concourse_lip", 75.0, 57.0, 88.0, 70.0, 25.0, 38.0, 12.2, concrete)
 
     # Continuous lower, middle and upper seating bowl.
     sloped_ring("arch_lower_solid_bowl_shell", ix, iy, r, 0, 19, 0.90, 8.0, dark_concrete)
