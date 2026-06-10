@@ -330,10 +330,8 @@ def _attach_staff_ratings_to_player_cards(
     season_label = getattr(club_season, 'label', '') if club_season else ''
     if season_label:
         reports = reports.filter(season_label=season_label)
-    if scope:
-        reports = reports.filter(scope=scope)
-    if tournament_name:
-        reports = reports.filter(tournament_name=tournament_name)
+    # La valoración staff de la ficha del jugador es información cualitativa del jugador,
+    # no un KPI del filtro estadístico activo (liga/torneo/amistoso).
     for report in reports.order_by('player_id', '-is_final', '-updated_at', '-id'):
         if report.player_id in ratings_by_player:
             continue

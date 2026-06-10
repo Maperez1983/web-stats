@@ -148,6 +148,24 @@ class PlayerCardStaffRatingTests(TestCase):
         self.assertEqual(cards[0]['staff_rating_source'], 'Informe staff')
 
     @patch('football.dashboard_services.compute_player_dashboard')
+    def test_player_cards_use_staff_report_when_stats_scope_is_filtered(self, mock_dashboard):
+        player = Player.objects.create(team=self.team, name='Javi Cazorla', number=8, position='MC')
+        mock_dashboard.return_value = [self._mock_dashboard_row(player)]
+        PlayerSeasonReport.objects.create(
+            team=self.team,
+            player=player,
+            overall_rating=8,
+            scope='',
+            tournament_name='',
+        )
+
+        cards = stats_services.compute_player_cards(self.team, scope='league')
+
+        self.assertEqual(cards[0]['staff_rating_average'], 8.0)
+        self.assertEqual(cards[0]['staff_rating_display'], '8/10')
+        self.assertEqual(cards[0]['staff_rating_source'], 'Informe staff')
+
+    @patch('football.dashboard_services.compute_player_dashboard')
     def test_player_cards_fallback_to_closed_staff_evaluation(self, mock_dashboard):
         player = Player.objects.create(team=self.team, name='Mario Perez', number=10, position='MP')
         mock_dashboard.return_value = [self._mock_dashboard_row(player)]
