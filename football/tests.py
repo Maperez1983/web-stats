@@ -6305,6 +6305,21 @@ class PlayerDetailStatsFallbackTests(TestCase):
         self.assertContains(response, 'Las estadísticas consolidadas no están disponibles temporalmente.')
         mocked_dashboard.assert_called_once()
 
+    def test_player_detail_staff_back_button_returns_to_coach_roster(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse('player-detail', args=[self.player.id]),
+            {'team': self.player.team_id, 'scope': Match.CONTEXT_LEAGUE},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(reverse('coach-roster'), response.context['player_list_back_url'])
+        self.assertIn('tab=stats', response.context['player_list_back_url'])
+        self.assertIn(f'team={self.player.team_id}', response.context['player_list_back_url'])
+        self.assertNotIn(reverse('player-dashboard'), response.context['player_list_back_url'])
+        self.assertContains(response, 'Volver')
+
     def test_player_detail_shows_staff_tabs_even_without_explicit_app_role(self):
         no_role_user = get_user_model().objects.create_user(
             username='coachlegacy',

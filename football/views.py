@@ -53677,6 +53677,31 @@ def player_detail_page(request, player_id):
             {'label': 'Doble amarilla', 'value': second_yellow_cards, 'pct': round(min(second_yellow_cards * 30, 100), 1)},
         ]
         home_url = _workspace_entry_url(active_workspace, user=request.user) if active_workspace else reverse('dashboard-home')
+        can_manage_player_roster = bool(
+            request.user.is_authenticated
+            and (
+                _is_admin_user(request.user)
+                or (active_workspace and _can_manage_workspace(request.user, active_workspace))
+            )
+        )
+        player_list_back_params = {}
+        if primary_team and getattr(primary_team, 'id', None):
+            player_list_back_params['team'] = int(primary_team.id)
+        if active_workspace and getattr(active_workspace, 'id', None):
+            player_list_back_params['workspace'] = int(active_workspace.id)
+        if scope:
+            player_list_back_params['scope'] = scope
+        if scope == Match.CONTEXT_TOURNAMENT and tournament_filter:
+            player_list_back_params['tournament'] = tournament_filter
+        if selected_club_season and getattr(selected_club_season, 'id', None):
+            player_list_back_params['club_season_id'] = int(selected_club_season.id)
+        if can_manage_player_roster:
+            player_list_back_params['tab'] = 'stats'
+            player_list_back_url = reverse('coach-roster')
+        else:
+            player_list_back_url = reverse('player-dashboard')
+        if player_list_back_params:
+            player_list_back_url = f'{player_list_back_url}?{urlencode(player_list_back_params)}'
 
         # Asistencia (temporada): conteo por estado + sesiones totales del equipo.
         season_obj = getattr(getattr(primary_team, 'group', None), 'season', None)
@@ -53874,6 +53899,7 @@ def player_detail_page(request, player_id):
                 'is_player_readonly': is_player_readonly,
                 'player_view_preview': player_view_preview,
                 'can_preview_player_view': can_preview_player_view,
+                'player_list_back_url': player_list_back_url,
                 'workspace_entry_url': home_url,
                 'home_url': home_url,
                 'attendance_season_start': season_start,
