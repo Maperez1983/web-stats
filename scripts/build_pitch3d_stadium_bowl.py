@@ -899,6 +899,103 @@ def add_grounded_final_closure_pass(mats):
         cube(f"final_west_light_cluster_{y}", (-75.9, y, 16.95), (0.20, 5.4, 0.18), mat_light)
 
 
+def add_opaque_tunnel_and_vomitory_pass(mats):
+    mat_team, mat_secondary, mat_concrete, mat_dark, mat_glass, mat_metal, mat_roof, mat_light = mats
+    mat_void = mat("OPAQUE_TUNNEL_BLACK_VOID", (0.006, 0.008, 0.009, 1), 0.94, 0.0)
+    mat_cast = mat("OPAQUE_CAST_CONCRETE", (0.66, 0.68, 0.65, 1), 0.86, 0.02)
+    mat_precast = mat("OPAQUE_PRECAST_PANEL", (0.78, 0.80, 0.76, 1), 0.82, 0.02)
+    mat_floor = mat("OPAQUE_TUNNEL_FLOOR", (0.09, 0.10, 0.095, 1), 0.86, 0.02)
+
+    # Real stadium tunnels read as a solid concrete box: dark portal, thick cheeks, slab and
+    # seating rows above. This intentionally overbuilds any earlier translucent-looking pieces.
+    cube("opaque_players_tunnel_deep_black_mouth", (0, -40.40, 2.48), (13.2, 0.74, 3.25), mat_void)
+    cube("opaque_players_tunnel_floor_ramp", (0, -43.9, 0.22), (12.4, 8.8, 0.24), mat_floor, (0.035, 0, 0))
+    cube("opaque_players_tunnel_left_cheek_wall", (-7.35, -43.5, 2.35), (1.10, 8.6, 4.10), mat_cast, (0.02, 0, 0))
+    cube("opaque_players_tunnel_right_cheek_wall", (7.35, -43.5, 2.35), (1.10, 8.6, 4.10), mat_cast, (0.02, 0, 0))
+    cube("opaque_players_tunnel_lintel", (0, -40.30, 4.55), (17.4, 0.92, 0.76), mat_precast)
+    cube("opaque_players_tunnel_box_roof", (0, -46.9, 5.35), (24.0, 10.8, 0.72), mat_cast, (0.02, 0, 0))
+    cube("opaque_players_tunnel_upper_concourse_mass", (0, -50.2, 6.70), (94.0, 12.8, 1.18), mat_cast, (0.025, 0, 0))
+    cube("opaque_players_tunnel_rear_wall_TEAM_ACCENT", (0, -56.6, 8.75), (96.0, 0.86, 5.7), mat_team)
+    for row in range(20):
+        y = -45.2 - row * 0.68
+        z = 7.12 + row * 0.35
+        width = 88.0 - max(0, row - 14) * 1.1
+        cube(f"opaque_tunnel_real_riser_{row:02d}", (0, y, z), (width, 0.52, 0.20), mat_concrete, (0.06, 0, 0))
+        cube(f"opaque_tunnel_real_seat_band_{row:02d}_TEAM_PRIMARY", (0, y - 0.08, z + 0.17), (width - 1.0, 0.34, 0.18), mat_team, (0.10, 0, 0))
+
+    # Vomitories: dark rectangular mouth + concrete side cheeks + lintel + stair spine + handrails.
+    # The openings are deliberately smaller and framed so they stop looking like random cut-outs.
+    def north_south_vomitory(side, x, y, sign):
+        cube(f"opaque_{side}_vomitory_dark_mouth_{x}", (x, y, 3.20), (3.10, 0.58, 2.25), mat_void)
+        cube(f"opaque_{side}_vomitory_left_cheek_{x}", (x - 1.95, y + sign * 0.12, 3.20), (0.42, 0.62, 2.55), mat_precast)
+        cube(f"opaque_{side}_vomitory_right_cheek_{x}", (x + 1.95, y + sign * 0.12, 3.20), (0.42, 0.62, 2.55), mat_precast)
+        cube(f"opaque_{side}_vomitory_lintel_{x}", (x, y + sign * 0.18, 4.60), (4.35, 0.64, 0.46), mat_precast)
+        cube(f"opaque_{side}_vomitory_stair_core_{x}", (x, y + sign * 7.4, 5.85), (1.35, 13.2, 0.28), mat_cast, (-0.065 * sign, 0, 0))
+        cube(f"opaque_{side}_vomitory_handrail_l_{x}", (x - 0.82, y + sign * 7.4, 6.50), (0.10, 12.4, 0.78), mat_metal, (-0.065 * sign, 0, 0))
+        cube(f"opaque_{side}_vomitory_handrail_r_{x}", (x + 0.82, y + sign * 7.4, 6.50), (0.10, 12.4, 0.78), mat_metal, (-0.065 * sign, 0, 0))
+
+    def east_west_vomitory(side, x, y, sign):
+        cube(f"opaque_{side}_vomitory_dark_mouth_{y}", (x, y, 3.20), (0.58, 3.10, 2.25), mat_void)
+        cube(f"opaque_{side}_vomitory_left_cheek_{y}", (x + sign * 0.12, y - 1.95, 3.20), (0.62, 0.42, 2.55), mat_precast)
+        cube(f"opaque_{side}_vomitory_right_cheek_{y}", (x + sign * 0.12, y + 1.95, 3.20), (0.62, 0.42, 2.55), mat_precast)
+        cube(f"opaque_{side}_vomitory_lintel_{y}", (x + sign * 0.18, y, 4.60), (0.64, 4.35, 0.46), mat_precast)
+        cube(f"opaque_{side}_vomitory_stair_core_{y}", (x + sign * 7.4, y, 5.85), (13.2, 1.35, 0.28), mat_cast, (0, -0.065 * sign, 0))
+        cube(f"opaque_{side}_vomitory_handrail_l_{y}", (x + sign * 7.4, y - 0.82, 6.50), (12.4, 0.10, 0.78), mat_metal, (0, -0.065 * sign, 0))
+        cube(f"opaque_{side}_vomitory_handrail_r_{y}", (x + sign * 7.4, y + 0.82, 6.50), (12.4, 0.10, 0.78), mat_metal, (0, -0.065 * sign, 0))
+
+    for x in (-48, -32, -16, 0, 16, 32, 48):
+        north_south_vomitory("north", x, 40.18, 1)
+        north_south_vomitory("south", x, -40.18, -1)
+    for y in (-34, -17, 0, 17, 34):
+        east_west_vomitory("east", 60.02, y, 1)
+        east_west_vomitory("west", -60.02, y, -1)
+
+
+def add_reference_closed_corner_bowl_pass(mats):
+    mat_team, mat_secondary, mat_concrete, mat_dark, mat_glass, mat_metal, mat_roof, mat_light = mats
+    mat_bowl = mat("REFERENCE_CORNER_BOWL_SOLID", (0.58, 0.61, 0.58, 1), 0.86, 0.02)
+    mat_step = mat("REFERENCE_CORNER_PRECAST_STEPS", (0.74, 0.76, 0.72, 1), 0.84, 0.02)
+    mat_shadow = mat("REFERENCE_CORNER_DEEP_SHADOW", (0.010, 0.013, 0.014, 1), 0.92, 0.0)
+
+    # The reference stadium corners are not diagonal add-ons; they are rounded bowl sectors.
+    # These overlapping radial bands fill the gaps between straight stands at every tier.
+    for name, sx, sy, rot in (
+        ("nw", -1, 1, math.radians(45)),
+        ("ne", 1, 1, math.radians(-45)),
+        ("sw", -1, -1, math.radians(135)),
+        ("se", 1, -1, math.radians(-135)),
+    ):
+        for tier, (cx, cy, z, mass_w, mass_d, h) in enumerate((
+            (61.2, 44.0, 1.40, 52.0, 28.0, 2.80),
+            (67.6, 50.2, 5.80, 55.0, 22.0, 2.20),
+            (74.8, 56.6, 10.15, 58.0, 18.0, 2.00),
+            (82.0, 62.4, 14.35, 60.0, 13.5, 2.30),
+        )):
+            cube(f"reference_closed_corner_sector_mass_{name}_{tier}", (sx * cx, sy * cy, z), (mass_w, mass_d, h), mat_bowl, (0.02, 0, rot))
+            cube(f"reference_closed_corner_front_shadow_{name}_{tier}", (sx * (cx * 0.94), sy * (cy * 0.94), z + h * 0.20), (mass_w - 5.0, 0.52, h * 0.72), mat_shadow, (0, 0, rot))
+            cube(f"reference_closed_corner_concourse_lip_{name}_{tier}", (sx * (cx * 1.01), sy * (cy * 1.01), z + h * 0.58), (mass_w + 2.0, 1.10, 0.34), mat_step, (0, 0, rot))
+        for row in range(24):
+            offset = -9.0 + row * 0.62
+            width = 46.0 - row * 0.78
+            z = 3.25 + row * 0.31
+            cube(
+                f"reference_closed_corner_continuous_lower_seats_{name}_{row:02d}_TEAM_PRIMARY",
+                (sx * 59.8 + math.sin(rot) * offset, sy * 42.4 - math.cos(rot) * offset, z),
+                (max(22.0, width), 0.34, 0.18),
+                mat_team,
+                (0.09, 0, rot),
+            )
+            cube(
+                f"reference_closed_corner_continuous_upper_seats_{name}_{row:02d}_TEAM_PRIMARY",
+                (sx * 75.8 + math.sin(rot) * offset, sy * 57.4 - math.cos(rot) * offset, z + 6.8),
+                (max(25.0, width + 4.0), 0.34, 0.18),
+                mat_team,
+                (0.08, 0, rot),
+            )
+        cube(f"reference_closed_corner_roof_joiner_{name}_TEAM_SECONDARY", (sx * 86.5, sy * 66.8, 20.25), (50.0, 12.0, 0.54), mat_roof, (0.01, 0, rot))
+        cube(f"reference_closed_corner_roof_black_soffit_{name}", (sx * 79.5, sy * 60.5, 18.95), (46.0, 9.0, 0.28), mat_shadow, (0, 0, rot))
+
+
 def main():
     clear_scene()
     mat_team = mat("TEAM_PRIMARY", (0.02, 0.47, 0.34, 1), 0.58, 0.02)
@@ -931,6 +1028,8 @@ def main():
     add_senior_architectural_upgrade_pass(mats)
     add_reference_stadium_refinement_pass(mats)
     add_grounded_final_closure_pass(mats)
+    add_opaque_tunnel_and_vomitory_pass(mats)
+    add_reference_closed_corner_bowl_pass(mats)
 
     # Continuous roof links make the stadium read as one closed object.
     cube("roof_link_north_TEAM_SECONDARY", (0, 67.8, 18.52), (128, 4.6, 0.30), mat_roof, (-0.015, 0, 0))
