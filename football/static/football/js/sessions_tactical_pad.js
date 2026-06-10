@@ -8128,28 +8128,7 @@
 						      }
 						      return null;
 						    };
-						    const __pitch3dStadiumModelCache = { loading: false, scene: null, failed: false, callbacks: [], retryTimer: null, retries: 0, loaderPromise: null };
-						    const __pitch3dEnsureStadiumLoader = () => {
-						      try {
-						        if (typeof window.__WEBSTATS_GLTF_LOADER_CLASS === 'function') return Promise.resolve(window.__WEBSTATS_GLTF_LOADER_CLASS);
-						        if (__pitch3dStadiumModelCache.loaderPromise) return __pitch3dStadiumModelCache.loaderPromise;
-						        const loaderSrc = __pitch3dAssetUrl('threeGltfLoaderSrc');
-						        if (!loaderSrc) return Promise.resolve(null);
-						        __pitch3dStadiumModelCache.loaderPromise = import(loaderSrc)
-						          .then((mod) => {
-						            const LoaderClass = mod && mod.GLTFLoader;
-						            if (typeof LoaderClass === 'function') {
-						              try { window.__WEBSTATS_GLTF_LOADER_CLASS = LoaderClass; } catch (e) { /* ignore */ }
-						              return LoaderClass;
-						            }
-						            return null;
-						          })
-						          .catch(() => null);
-						        return __pitch3dStadiumModelCache.loaderPromise;
-						      } catch (e) {
-						        return Promise.resolve(null);
-						      }
-						    };
+						    const __pitch3dStadiumModelCache = { loading: false, scene: null, failed: false, callbacks: [] };
 						    const __pitch3dLoadStadiumModel = (onLoad) => {
 						      const src = __pitch3dAssetUrl('pitch3dStadiumModelSrc');
 						      if (!src || !window.THREE) return null;
@@ -8160,21 +8139,7 @@
 						      if (typeof onLoad === 'function') __pitch3dStadiumModelCache.callbacks.push(onLoad);
 						      if (__pitch3dStadiumModelCache.loading || __pitch3dStadiumModelCache.failed) return null;
 						      const LoaderClass = window.__WEBSTATS_GLTF_LOADER_CLASS;
-						      if (typeof LoaderClass !== 'function') {
-						        __pitch3dEnsureStadiumLoader().then((ResolvedLoader) => {
-						          try {
-						            if (typeof ResolvedLoader === 'function') __pitch3dLoadStadiumModel();
-						          } catch (e) { /* ignore */ }
-						        });
-						        if (!__pitch3dStadiumModelCache.retryTimer && __pitch3dStadiumModelCache.retries < 40) {
-						          __pitch3dStadiumModelCache.retries += 1;
-						          __pitch3dStadiumModelCache.retryTimer = window.setTimeout(() => {
-						            __pitch3dStadiumModelCache.retryTimer = null;
-						            __pitch3dLoadStadiumModel();
-						          }, 150);
-						        }
-						        return null;
-						      }
+						      if (typeof LoaderClass !== 'function') return null;
 						      __pitch3dStadiumModelCache.loading = true;
 						      try {
 						        const loader = new LoaderClass();
@@ -8182,24 +8147,14 @@
 						          const scene = gltf?.scene || null;
 						          __pitch3dStadiumModelCache.scene = scene;
 						          __pitch3dStadiumModelCache.loading = false;
-						          __pitch3dStadiumModelCache.failed = false;
-						          __pitch3dStadiumModelCache.retries = 0;
 						          const callbacks = __pitch3dStadiumModelCache.callbacks.splice(0);
 						          callbacks.forEach((cb) => {
 						            try { cb(scene); } catch (e) { /* ignore */ }
 						          });
 						        }, undefined, () => {
 						          __pitch3dStadiumModelCache.loading = false;
-						          if (__pitch3dStadiumModelCache.retries < 8) {
-						            __pitch3dStadiumModelCache.retries += 1;
-						            __pitch3dStadiumModelCache.retryTimer = window.setTimeout(() => {
-						              __pitch3dStadiumModelCache.retryTimer = null;
-						              __pitch3dLoadStadiumModel();
-						            }, 350);
-						          } else {
-						            __pitch3dStadiumModelCache.failed = true;
-						            __pitch3dStadiumModelCache.callbacks.splice(0);
-						          }
+						          __pitch3dStadiumModelCache.failed = true;
+						          __pitch3dStadiumModelCache.callbacks.splice(0);
 						        });
 						      } catch (e) {
 						        __pitch3dStadiumModelCache.loading = false;
@@ -10274,21 +10229,9 @@
 						              try {
 						                const removable = (root.children || []).filter((node) => {
 						                  const kind = safeText(node?.userData?.kind || '');
-						                  if (!kind) return false;
-						                  if (kind === 'pitch_3d_corner_flag') return false;
-						                  if (kind === 'pitch_3d_ad_board') return false;
 						                  return kind === 'pitch_3d_from_scratch_reference_stadium'
-						                    || kind === 'pitch_3d_stadium_corner_connectors'
-						                    || kind === 'pitch_3d_technical_stand_with_tunnel'
-						                    || kind === 'pitch_3d_professional_blender_stadium'
 						                    || kind.startsWith('pitch_3d_ref_')
-						                    || kind.startsWith('pitch_3d_green_runoff_')
-						                    || kind.startsWith('pitch_3d_reference_')
-						                    || kind.startsWith('pitch_3d_archviz_')
-						                    || kind.startsWith('pitch_3d_closed_')
-						                    || kind.startsWith('pitch_3d_continuous_')
-						                    || kind.startsWith('pitch_3d_professional_')
-						                    || kind.startsWith('pitch_3d_peripheral_');
+						                    || kind.startsWith('pitch_3d_green_runoff_');
 						                });
 						                removable.forEach((node) => root.remove(node));
 						              } catch (e) { /* ignore */ }
@@ -10329,7 +10272,6 @@
 						            __pitch3dLoadStadiumModel(() => {
 						              try { addProfessionalStadiumAsset(); } catch (e) { /* ignore */ }
 						            });
-						            return;
 						            addGreenApron();
 						            addReferenceStand({ kind: 'pitch_3d_ref_main_north_stand', x: 0, z: metersH / 2 + 7.2, w: metersW + 24, rows: 18, rotY: 0 });
 						            addReferenceStand({ kind: 'pitch_3d_ref_south_stand_left', x: -metersW * 0.31, z: -(metersH / 2 + 7.2), w: metersW * 0.38, rows: 14, rotY: Math.PI });
