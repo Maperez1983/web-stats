@@ -921,6 +921,7 @@
       .player-card .meta { margin-top: 0.2rem; font-size: 0.78rem; }
       .player-mini-kpis { display:flex; gap:0.5rem; flex-wrap:wrap; margin-top: 0.45rem; }
       .mini-kpi { border-radius: 999px; border: 1px solid var(--line); padding: 0.3rem 0.55rem; font-weight: 900; font-size: 0.72rem; color: var(--ink); background: rgba(2, 6, 23, 0.08); }
+      .mini-kpi.is-staff { border-color: rgba(34, 197, 94, 0.36); background: rgba(34, 197, 94, 0.12); }
       .setup-checklist-details summary::-webkit-details-marker {
         display: none;
       }
@@ -1795,6 +1796,7 @@
             success_rate: row?.success_rate,
             training_minutes: extra ? extra.minutes : null,
             training_sessions: extra ? extra.sessions : null,
+            staff_rating_display: row?.staff_rating_display,
           };
         });
         const render = (items) => {
@@ -1805,6 +1807,7 @@
             const avatar = photo ? `<img src="${photo}" alt="${name}" loading="lazy" />` : '';
             const url = p.player_id ? `{% url 'player-detail' player_id=0 %}`.replace('/0/', `/${p.player_id}/`) : '#';
             const kpis = [
+              (p.staff_rating_display ? `<span class="mini-kpi is-staff">Staff ${p.staff_rating_display}</span>` : ''),
               (p.training_minutes != null ? `<span class="mini-kpi">Entreno ${p.training_minutes}'</span>` : ''),
               (p.actions != null ? `<span class="mini-kpi">Acc ${p.actions}</span>` : ''),
               (p.success_rate != null ? `<span class="mini-kpi">Éxito ${p.success_rate}%</span>` : ''),

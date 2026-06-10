@@ -9,7 +9,7 @@ from django.templatetags.static import static
 from .dashboard_cache import player_metrics_cache_key, team_metrics_cache_key
 from .event_signatures import event_signature, is_manual_event_source
 from .event_taxonomy import result_is_success
-from .models import Match, MatchEvent, Workspace
+from .models import Match, MatchEvent, PlayerEvaluation, PlayerSeasonReport, Workspace
 from .player_media import resolve_player_photo_static_path
 from .query_helpers import confirmed_events_queryset
 
@@ -273,6 +273,99 @@ def compute_player_cards_for_match(match, primary_team, source_file=None):
     return sorted(cards, key=lambda item: item['actions'], reverse=True)
 
 
+def _decimal_rating_to_float(value):
+    if value is None:
+        return None
+    try:
+        rating = float(value)
+    except (TypeError, ValueError):
+        return None
+    return rating if rating > 0 else None
+
+
+def _format_staff_rating(value):
+    rating = _decimal_rating_to_float(value)
+    if rating is None:
+        return ''
+    text = f'{rating:.1f}'.rstrip('0').rstrip('.')
+    return f'{text}/10'
+
+
+def _season_report_rating_average(report):
+    values = [
+        report.overall_rating,
+        report.technical_rating,
+        report.tactical_rating,
+        report.physical_rating,
+        report.mental_rating,
+        report.social_rating,
+        report.leadership_rating,
+        report.game_knowledge_rating,
+    ]
+    ratings = [_decimal_rating_to_float(value) for value in values]
+    ratings = [value for value in ratings if value is not None]
+    if not ratings:
+        return None
+    return round(sum(ratings) / len(ratings), 1)
+
+
+def _attach_staff_ratings_to_player_cards(
+    cards,
+    primary_team,
+    *,
+    club_season=None,
+    tournament_name=None,
+    scope=None,
+):
+    for card in cards:
+        card['staff_rating_average'] = None
+        card['staff_rating_display'] = ''
+        card['staff_rating_source'] = ''
+    player_ids = [card.get('player_id') for card in cards if card.get('player_id')]
+    if not primary_team or not player_ids:
+        return
+
+    ratings_by_player = {}
+    reports = PlayerSeasonReport.objects.filter(team=primary_team, player_id__in=player_ids)
+    season_label = getattr(club_season, 'label', '') if club_season else ''
+    if season_label:
+        reports = reports.filter(season_label=season_label)
+    if scope:
+        reports = reports.filter(scope=scope)
+    if tournament_name:
+        reports = reports.filter(tournament_name=tournament_name)
+    for report in reports.order_by('player_id', '-is_final', '-updated_at', '-id'):
+        if report.player_id in ratings_by_player:
+            continue
+        average = _season_report_rating_average(report)
+        if average is not None:
+            ratings_by_player[report.player_id] = (average, 'Informe staff')
+
+    missing_ids = [player_id for player_id in player_ids if player_id not in ratings_by_player]
+    evaluations = PlayerEvaluation.objects.filter(
+        team=primary_team,
+        player_id__in=missing_ids,
+        status=PlayerEvaluation.STATUS_CLOSED,
+    )
+    if club_season:
+        evaluations = evaluations.filter(club_season=club_season)
+    for evaluation in evaluations.order_by('player_id', '-evaluated_on', '-updated_at', '-id'):
+        if evaluation.player_id in ratings_by_player:
+            continue
+        average = _decimal_rating_to_float(evaluation.average_rating)
+        if average is not None:
+            ratings_by_player[evaluation.player_id] = (round(average, 1), 'Evaluación staff')
+
+    for card in cards:
+        player_id = card.get('player_id')
+        if player_id not in ratings_by_player:
+            continue
+        average, source = ratings_by_player[player_id]
+        card['staff_rating_average'] = average
+        card['staff_rating_display'] = _format_staff_rating(average)
+        card['staff_rating_source'] = source
+
+
 def compute_player_cards(
     primary_team,
     *,
@@ -349,4 +442,11 @@ def compute_player_cards(
                 'matches': row.get('matches') if isinstance(row.get('matches'), list) else [],
             }
         )
+    _attach_staff_ratings_to_player_cards(
+        cards,
+        primary_team,
+        club_season=club_season,
+        tournament_name=tournament_name,
+        scope=scope,
+    )
     return sorted(cards, key=lambda entry: (-entry['goals'], -entry['pj'], entry['name']))
