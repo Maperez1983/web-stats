@@ -176,8 +176,11 @@
   {% if workspace_module_access.tactics|default:True %}
   <a href="{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if 'coach/tactica' in nav_path %}is-active{% endif %}" {% if 'coach/tactica' in nav_path %}aria-current="page"{% endif %}>Táctica</a>
   {% endif %}
-  {% if nav_url_name == 'dashboard-home' or nav_path == '/' %}
-  {# Menú general: solo en portada. En pantallas internas se mantiene navegación contextual. #}
+  {% if can_manage_workspace and active_workspace and active_workspace.kind == 'club' %}
+  <a href="{% url 'club-onboarding' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if nav_url_name == 'club-onboarding' or nav_url_name == 'club-season-wizard' %}is-active{% endif %}" {% if nav_url_name == 'club-onboarding' or nav_url_name == 'club-season-wizard' %}aria-current="page"{% endif %}>Configurar</a>
+  {% endif %}
+  {% if show_legacy_nav_menu|default:False %}
+  {# Menú general heredado: desactivado por defecto; la navegación principal debe ser contextual. #}
   <details class="nav-more {% if nav_url_name != 'dashboard-home' and nav_path != '/' and not 'coach/sesiones' in nav_path and not 'coach/tactica' in nav_path and not 'registro-acciones' in nav_path and not 'convocatoria' in nav_path and not '11-inicial' in nav_path and nav_path|slice:":9" != '/partido/' and nav_path|slice:":7" != '/match/' and nav_path|slice:":12" != '/incidencias/' %}is-active{% endif %}">
     <summary>Menú</summary>
     <div class="nav-more-panel">
