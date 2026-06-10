@@ -295,6 +295,92 @@ def add_stadium(mats):
     crest.data.materials.append(seat)
 
 
+def add_real_stadium_detail_pass(mats):
+    concrete = mats["concrete"]
+    dark_concrete = mats["dark_concrete"]
+    seat = mats["seat"]
+    accent = mats["accent"]
+    metal = mats["metal"]
+    glass = mats["glass"]
+    led = mats["led"]
+    asphalt = mats["asphalt"]
+    black = mats["black"]
+    light = mats["light"]
+
+    # Exterior podium and plaza access details. Real stadiums read as buildings from the
+    # outside: plinth, gates, public ramps, service roads and vertical facade rhythm.
+    flat_ring("real_detail_outer_plaza_paving", 99.5, 81.5, 116.0, 98.0, 49.5, 66.0, 0.04, concrete)
+    flat_ring("real_detail_outer_service_road_asphalt", 119.0, 101.0, 128.0, 110.0, 69.0, 78.0, 0.02, asphalt)
+    vertical_ring("real_detail_deep_outer_shadow_plinth", 99.0, 81.0, 49.0, 0.10, 3.20, black)
+    vertical_ring("real_detail_precast_outer_podium", 103.0, 85.0, 53.0, 2.60, 7.10, dark_concrete)
+
+    for x in range(-78, 79, 13):
+        cube(f"real_detail_north_public_gate_{x}", (x, 86.0, 2.0), (5.4, 0.42, 2.6), black, bevel=0.03)
+        cube(f"real_detail_south_public_gate_{x}", (x, -86.0, 2.0), (5.4, 0.42, 2.6), black, bevel=0.03)
+        cube(f"real_detail_north_gate_canopy_{x}", (x, 87.0, 3.55), (6.8, 2.0, 0.25), metal, (-0.04, 0, 0), bevel=0.02)
+        cube(f"real_detail_south_gate_canopy_{x}", (x, -87.0, 3.55), (6.8, 2.0, 0.25), metal, (0.04, 0, 0), bevel=0.02)
+        cube(f"real_detail_north_facade_blade_{x}", (x, 76.0, 10.8), (0.30, 0.34, 11.5), concrete, bevel=0.01)
+        cube(f"real_detail_south_facade_blade_{x}", (x, -76.0, 10.8), (0.30, 0.34, 11.5), concrete, bevel=0.01)
+    for y in range(-62, 63, 13):
+        cube(f"real_detail_east_public_gate_{y}", (96.0, y, 2.0), (0.42, 5.4, 2.6), black, bevel=0.03)
+        cube(f"real_detail_west_public_gate_{y}", (-96.0, y, 2.0), (0.42, 5.4, 2.6), black, bevel=0.03)
+        cube(f"real_detail_east_gate_canopy_{y}", (97.0, y, 3.55), (2.0, 6.8, 0.25), metal, (0, -0.04, 0), bevel=0.02)
+        cube(f"real_detail_west_gate_canopy_{y}", (-97.0, y, 3.55), (2.0, 6.8, 0.25), metal, (0, 0.04, 0), bevel=0.02)
+        cube(f"real_detail_east_facade_blade_{y}", (94.6, y, 10.8), (0.34, 0.30, 11.5), concrete, bevel=0.01)
+        cube(f"real_detail_west_facade_blade_{y}", (-94.6, y, 10.8), (0.34, 0.30, 11.5), concrete, bevel=0.01)
+
+    # Upper concourse glazing and guardrails add scale and finish to the seating bowl.
+    flat_ring("real_detail_lower_transparent_guardrail", 58.0, 40.0, 58.5, 40.5, 8.0, 8.5, 2.15, glass)
+    flat_ring("real_detail_mid_transparent_guardrail", 75.4, 57.4, 75.9, 57.9, 25.4, 25.9, 8.40, glass)
+    flat_ring("real_detail_upper_transparent_guardrail", 91.5, 73.5, 92.0, 74.0, 41.5, 42.0, 16.35, glass)
+    flat_ring("real_detail_upper_dark_broadcast_ribbon", 77.8, 59.8, 79.0, 61.0, 27.8, 29.0, 13.95, black)
+    flat_ring("real_detail_upper_led_caption_ribbon_FACE_TEAM_ACCENT", 76.8, 58.8, 77.6, 59.6, 26.8, 27.6, 14.35, led)
+
+    # Stronger roof engineering: front beam, rear beam, diagonals and mast supports.
+    flat_ring("real_detail_roof_front_steel_ring", 74.2, 56.2, 75.0, 57.0, 24.2, 25.0, 18.55, metal)
+    flat_ring("real_detail_roof_rear_steel_ring", 98.4, 80.4, 99.1, 81.1, 48.4, 49.1, 20.55, metal)
+    for x in range(-78, 79, 12):
+        cube(f"real_detail_north_roof_vertical_mast_{x}", (x, 76.4, 14.8), (0.24, 0.24, 8.6), metal, bevel=0.01)
+        cube(f"real_detail_south_roof_vertical_mast_{x}", (x, -76.4, 14.8), (0.24, 0.24, 8.6), metal, bevel=0.01)
+        cube(f"real_detail_north_roof_cross_brace_a_{x}", (x + 3.0, 67.3, 19.1), (0.14, 17.8, 0.16), metal, (0.58, 0, 0), bevel=0.01)
+        cube(f"real_detail_south_roof_cross_brace_a_{x}", (x + 3.0, -67.3, 19.1), (0.14, 17.8, 0.16), metal, (-0.58, 0, 0), bevel=0.01)
+        cube(f"real_detail_north_lamp_cluster_extra_{x}", (x, 54.4, 16.6), (5.6, 0.15, 0.20), light, bevel=0.01)
+        cube(f"real_detail_south_lamp_cluster_extra_{x}", (x, -54.4, 16.6), (5.6, 0.15, 0.20), light, bevel=0.01)
+    for y in range(-60, 61, 12):
+        cube(f"real_detail_east_roof_vertical_mast_{y}", (94.4, y, 14.8), (0.24, 0.24, 8.6), metal, bevel=0.01)
+        cube(f"real_detail_west_roof_vertical_mast_{y}", (-94.4, y, 14.8), (0.24, 0.24, 8.6), metal, bevel=0.01)
+        cube(f"real_detail_east_roof_cross_brace_a_{y}", (84.3, y + 3.0, 19.1), (17.8, 0.14, 0.16), metal, (0, 0.58, 0), bevel=0.01)
+        cube(f"real_detail_west_roof_cross_brace_a_{y}", (-84.3, y + 3.0, 19.1), (17.8, 0.14, 0.16), metal, (0, -0.58, 0), bevel=0.01)
+        cube(f"real_detail_east_lamp_cluster_extra_{y}", (74.4, y, 16.6), (0.15, 5.6, 0.20), light, bevel=0.01)
+        cube(f"real_detail_west_lamp_cluster_extra_{y}", (-74.4, y, 16.6), (0.15, 5.6, 0.20), light, bevel=0.01)
+
+    # Seat-field variation and aisles: subtle alternating bands avoid a toy-like single surface.
+    alt_seat = mat("TEAM_PRIMARY_ALT_SEAT_SHADE", (0.020, 0.34, 0.24, 1), 0.54, 0.02)
+    for idx, d in enumerate((5.0, 8.2, 11.4, 14.6, 24.5, 27.6, 30.7, 33.2)):
+        if idx % 2 == 0:
+            flat_ring(f"real_detail_subtle_seat_variation_{idx}_TEAM_PRIMARY", 57.0 + d, 39.0 + d, 57.0 + d + 0.40, 39.0 + d + 0.40, 7.0 + d, 7.0 + d + 0.40, 2.3 + idx * 0.95, alt_seat)
+    for x in (-54, -36, -18, 0, 18, 36, 54):
+        cube(f"real_detail_north_aisle_concrete_cut_{x}", (x, 50.0, 5.6), (1.45, 20.0, 0.30), concrete, (-0.08, 0, 0), bevel=0.01)
+        cube(f"real_detail_south_aisle_concrete_cut_{x}", (x, -50.0, 5.6), (1.45, 20.0, 0.30), concrete, (0.08, 0, 0), bevel=0.01)
+        cube(f"real_detail_north_aisle_handrail_{x}", (x + 0.86, 50.0, 6.2), (0.08, 18.5, 0.75), metal, (-0.08, 0, 0), bevel=0.01)
+        cube(f"real_detail_south_aisle_handrail_{x}", (x + 0.86, -50.0, 6.2), (0.08, 18.5, 0.75), metal, (0.08, 0, 0), bevel=0.01)
+    for y in (-42, -28, -14, 0, 14, 28, 42):
+        cube(f"real_detail_east_aisle_concrete_cut_{y}", (68.0, y, 5.6), (20.0, 1.45, 0.30), concrete, (0, -0.08, 0), bevel=0.01)
+        cube(f"real_detail_west_aisle_concrete_cut_{y}", (-68.0, y, 5.6), (20.0, 1.45, 0.30), concrete, (0, 0.08, 0), bevel=0.01)
+
+    # Pitch realism and technical equipment visible in real aerial references.
+    grass_dark = mat("PITCH_MOWING_DARK_STRIPE", (0.035, 0.30, 0.11, 1), 0.62, 0.0)
+    grass_light = mat("PITCH_MOWING_LIGHT_STRIPE", (0.10, 0.46, 0.16, 1), 0.58, 0.0)
+    for i, x in enumerate(range(-48, 49, 12)):
+        cube(f"real_detail_pitch_mowing_stripe_{i}", (x, 0, 0.012), (12.0, 69.0, 0.012), grass_light if i % 2 else grass_dark, bevel=0)
+    for x in (-47.8, 47.8):
+        cube(f"real_detail_goal_frame_backbar_{x}", (x, 0, 1.25), (0.10, 7.32, 0.10), metal, bevel=0.01)
+    for x in (-50, 50):
+        for y in (-32, 32):
+            cyl(f"real_detail_corner_flag_pole_{x}_{y}", (x, y, 0.75), 0.035, 1.5, metal, vertices=12)
+            cube(f"real_detail_corner_flag_{x}_{y}_TEAM_SECONDARY", (x + (0.24 if x < 0 else -0.24), y, 1.35), (0.45, 0.03, 0.28), mats["secondary"], bevel=0.005)
+
+
 def add_camera_and_lights():
     bpy.ops.object.light_add(type="SUN", location=(0, 0, 35))
     sun = bpy.context.object
@@ -325,6 +411,7 @@ def main():
         "led": mat("PHOTOREAL_LED_BOARD_FACE", (0.004, 0.055, 0.080, 1), 0.26, 0.04, 1.0, (0.02, 0.34, 0.48, 1), 0.55),
     }
     add_stadium(mats)
+    add_real_stadium_detail_pass(mats)
     add_camera_and_lights()
 
     for obj in bpy.context.scene.objects:
