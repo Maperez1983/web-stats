@@ -996,6 +996,163 @@ def add_reference_closed_corner_bowl_pass(mats):
         cube(f"reference_closed_corner_roof_black_soffit_{name}", (sx * 79.5, sy * 60.5, 18.95), (46.0, 9.0, 0.28), mat_shadow, (0, 0, rot))
 
 
+def add_definitive_production_stadium_pass(mats):
+    mat_team, mat_secondary, mat_concrete, mat_dark, mat_glass, mat_metal, mat_roof, mat_light = mats
+    mat_void = mat("DEFINITIVE_BLACK_ARCHITECTURAL_VOID", (0.004, 0.005, 0.006, 1), 0.94, 0.0)
+    mat_base = mat("DEFINITIVE_CAST_CONCRETE_MASS", (0.56, 0.59, 0.57, 1), 0.86, 0.02)
+    mat_precast = mat("DEFINITIVE_PRECAST_TERRACE", (0.76, 0.78, 0.74, 1), 0.82, 0.02)
+    mat_soffit = mat("DEFINITIVE_ROOF_DARK_SOFFIT", (0.020, 0.025, 0.026, 1), 0.82, 0.02)
+    mat_service = mat("DEFINITIVE_SERVICE_ASPHALT", (0.055, 0.063, 0.062, 1), 0.78, 0.02)
+
+    def ring(prefix, y, x, length_x, length_y, z, h, material, rot_x=0.0):
+        cube(f"{prefix}_north", (0, y, z), (length_x, 0.62, h), material, (rot_x, 0, 0))
+        cube(f"{prefix}_south", (0, -y, z), (length_x, 0.62, h), material, (-rot_x, 0, 0))
+        cube(f"{prefix}_east", (x, 0, z), (0.62, length_y, h), material, (0, rot_x, 0))
+        cube(f"{prefix}_west", (-x, 0, z), (0.62, length_y, h), material, (0, -rot_x, 0))
+
+    # Final architectural mask: one continuous load-bearing bowl from grass apron to roof.
+    ring("definitive_pitch_green_apron_TEAM_PRIMARY", 37.90, 57.35, 123.5, 84.8, 0.24, 0.22, mat_team)
+    ring("definitive_dark_pitch_service_lane", 39.95, 59.40, 127.0, 88.5, 0.18, 0.16, mat_service)
+    ring("definitive_lower_structural_bowl_mass", 47.90, 67.40, 136.0, 100.0, 2.30, 4.60, mat_base)
+    ring("definitive_mid_continuous_concourse_slab", 53.95, 73.45, 132.0, 96.0, 7.35, 0.92, mat_precast, 0.014)
+    ring("definitive_upper_continuous_concourse_slab", 61.10, 80.60, 134.0, 103.0, 12.35, 0.96, mat_precast, 0.012)
+    ring("definitive_rear_opaque_stadium_wall_TEAM_ACCENT", 67.55, 87.05, 138.0, 112.0, 12.40, 8.60, mat_team)
+    ring("definitive_inner_broadcast_shadow_band", 58.25, 77.75, 128.0, 98.5, 13.35, 0.82, mat_void)
+    ring("definitive_inner_team_caption_ribbon_TEAM_SECONDARY", 57.78, 77.28, 126.0, 96.5, 13.95, 0.34, mat_secondary)
+
+    # Closed rounded corners: same heights as the straight stands, with under-stand mass down to ground.
+    for name, sx, sy, rot in (
+        ("nw", -1, 1, math.radians(45)),
+        ("ne", 1, 1, math.radians(-45)),
+        ("sw", -1, -1, math.radians(135)),
+        ("se", 1, -1, math.radians(-135)),
+    ):
+        for idx, (cx, cy, z, w, d, h, material) in enumerate((
+            (61.8, 45.3, 2.15, 55.0, 29.0, 4.30, mat_base),
+            (68.8, 51.8, 7.35, 57.0, 9.4, 0.90, mat_precast),
+            (76.8, 58.6, 12.35, 60.0, 9.2, 0.94, mat_precast),
+            (84.6, 65.0, 13.0, 58.0, 1.5, 8.2, mat_team),
+        )):
+            cube(f"definitive_closed_corner_mass_{name}_{idx}", (sx * cx, sy * cy, z), (w, d, h), material, (0.012, 0, rot))
+        cube(f"definitive_corner_inner_black_recess_{name}", (sx * 58.1, sy * 42.0, 4.25), (40.0, 1.0, 3.0), mat_void, (0, 0, rot))
+        for row in range(30):
+            offset = -11.0 + row * 0.66
+            width = 47.0 - row * 0.68
+            x0 = sx * 59.5 + math.sin(rot) * offset
+            y0 = sy * 42.8 - math.cos(rot) * offset
+            cube(f"definitive_corner_lower_riser_{name}_{row:02d}", (x0, y0, 3.45 + row * 0.30), (max(24.0, width), 0.44, 0.14), mat_concrete, (0.090, 0, rot))
+            cube(f"definitive_corner_lower_seats_{name}_{row:02d}_TEAM_PRIMARY", (x0, y0 - math.cos(rot) * 0.10, 3.60 + row * 0.30), (max(23.0, width - 1.0), 0.32, 0.18), mat_team, (0.105, 0, rot))
+            cube(f"definitive_corner_upper_seats_{name}_{row:02d}_TEAM_PRIMARY", (sx * 75.0 + math.sin(rot) * offset, sy * 56.2 - math.cos(rot) * offset, 10.0 + row * 0.28), (max(26.0, width + 3.0), 0.32, 0.18), mat_team, (0.085, 0, rot))
+
+    # Tunnel like the reference: dark rectangular mouth, solid concrete cheeks and uninterrupted stand above.
+    cube("definitive_players_tunnel_dark_portal", (0, -40.55, 2.90), (12.8, 0.82, 3.35), mat_void)
+    cube("definitive_players_tunnel_left_return_mass", (-14.3, -43.8, 4.05), (15.0, 12.5, 6.20), mat_base, (0.025, 0, 0))
+    cube("definitive_players_tunnel_right_return_mass", (14.3, -43.8, 4.05), (15.0, 12.5, 6.20), mat_base, (0.025, 0, 0))
+    cube("definitive_players_tunnel_lintel_slab", (0, -40.95, 4.85), (18.4, 1.05, 0.70), mat_precast)
+    cube("definitive_players_tunnel_covered_ramp", (0, -45.4, 0.32), (11.4, 10.8, 0.28), mat_service, (0.035, 0, 0))
+    cube("definitive_tunnel_full_stand_bridge_slab", (0, -49.9, 7.05), (92.0, 16.2, 1.00), mat_precast, (0.030, 0, 0))
+    cube("definitive_tunnel_back_wall_TEAM_ACCENT", (0, -58.2, 10.40), (94.0, 0.92, 7.20), mat_team)
+    for row in range(26):
+        y = -44.7 - row * 0.67
+        z = 7.70 + row * 0.32
+        width = 90.0 - max(0, row - 17) * 1.25
+        cube(f"definitive_tunnel_overstand_riser_{row:02d}", (0, y, z), (width, 0.50, 0.16), mat_concrete, (0.062, 0, 0))
+        cube(f"definitive_tunnel_overstand_seats_{row:02d}_TEAM_PRIMARY", (0, y - 0.08, z + 0.17), (width - 1.0, 0.34, 0.18), mat_team, (0.105, 0, 0))
+
+    # Vomitories copied from the reference language: repeated framed portals, not transparent gaps.
+    for x in (-54, -40.5, -27, -13.5, 0, 13.5, 27, 40.5, 54):
+        for side, y, sign in (("north", 40.20, 1), ("south", -40.20, -1)):
+            cube(f"definitive_{side}_vomitory_black_mouth_{x}", (x, y, 3.65), (3.65, 0.62, 2.65), mat_void)
+            cube(f"definitive_{side}_vomitory_lintel_{x}", (x, y + sign * 0.22, 5.18), (4.55, 0.46, 0.42), mat_precast)
+            cube(f"definitive_{side}_vomitory_left_cheek_{x}", (x - 2.12, y + sign * 0.10, 3.65), (0.42, 0.54, 2.72), mat_precast)
+            cube(f"definitive_{side}_vomitory_right_cheek_{x}", (x + 2.12, y + sign * 0.10, 3.65), (0.42, 0.54, 2.72), mat_precast)
+            cube(f"definitive_{side}_vomitory_stair_spine_{x}", (x, y + sign * 12.4, 8.10), (1.12, 23.0, 0.22), mat_precast, (-0.058 * sign, 0, 0))
+            cube(f"definitive_{side}_vomitory_handrail_l_{x}", (x - 0.72, y + sign * 12.4, 8.75), (0.08, 22.0, 0.70), mat_metal, (-0.058 * sign, 0, 0))
+            cube(f"definitive_{side}_vomitory_handrail_r_{x}", (x + 0.72, y + sign * 12.4, 8.75), (0.08, 22.0, 0.70), mat_metal, (-0.058 * sign, 0, 0))
+    for y in (-38, -25, -12.5, 0, 12.5, 25, 38):
+        for side, x, sign in (("east", 59.95, 1), ("west", -59.95, -1)):
+            cube(f"definitive_{side}_vomitory_black_mouth_{y}", (x, y, 3.65), (0.62, 3.65, 2.65), mat_void)
+            cube(f"definitive_{side}_vomitory_lintel_{y}", (x + sign * 0.22, y, 5.18), (0.46, 4.55, 0.42), mat_precast)
+            cube(f"definitive_{side}_vomitory_stair_spine_{y}", (x + sign * 12.4, y, 8.10), (23.0, 1.12, 0.22), mat_precast, (0, -0.058 * sign, 0))
+
+    # One clean roof line, dark soffit, truss rhythm and stronger floodlight banks.
+    ring("definitive_roof_outer_single_line_TEAM_SECONDARY", 72.0, 92.0, 149.5, 127.5, 20.80, 0.62, mat_roof, 0.010)
+    ring("definitive_roof_inner_dark_soffit", 60.4, 80.4, 129.0, 106.0, 19.25, 0.34, mat_soffit)
+    for name, sx, sy, rot in (
+        ("nw", -1, 1, math.radians(45)),
+        ("ne", 1, 1, math.radians(-45)),
+        ("sw", -1, -1, math.radians(135)),
+        ("se", 1, -1, math.radians(-135)),
+    ):
+        cube(f"definitive_roof_corner_plate_{name}_TEAM_SECONDARY", (sx * 86.5, sy * 67.0, 20.78), (49.0, 12.4, 0.62), mat_roof, (0.010, 0, rot))
+        cube(f"definitive_roof_corner_soffit_{name}", (sx * 79.4, sy * 60.0, 19.24), (43.0, 9.2, 0.34), mat_soffit, (0, 0, rot))
+    for x in range(-68, 69, 8):
+        cube(f"definitive_north_floodlight_array_{x}", (x, 56.05, 17.18), (4.8, 0.18, 0.20), mat_light)
+        cube(f"definitive_south_floodlight_array_{x}", (x, -56.05, 17.18), (4.8, 0.18, 0.20), mat_light)
+        cube(f"definitive_north_roof_truss_diag_a_{x}", (x + 2.2, 62.2, 17.80), (0.14, 10.8, 0.18), mat_metal, (0.44, 0, 0))
+        cube(f"definitive_south_roof_truss_diag_a_{x}", (x + 2.2, -62.2, 17.80), (0.14, 10.8, 0.18), mat_metal, (-0.44, 0, 0))
+    for y in range(-56, 57, 8):
+        cube(f"definitive_east_floodlight_array_{y}", (76.05, y, 17.18), (0.18, 4.8, 0.20), mat_light)
+        cube(f"definitive_west_floodlight_array_{y}", (-76.05, y, 17.18), (0.18, 4.8, 0.20), mat_light)
+        cube(f"definitive_east_roof_truss_diag_a_{y}", (82.2, y + 2.2, 17.80), (10.8, 0.14, 0.18), mat_metal, (0, 0.44, 0))
+        cube(f"definitive_west_roof_truss_diag_a_{y}", (-82.2, y + 2.2, 17.80), (10.8, 0.14, 0.18), mat_metal, (0, -0.44, 0))
+
+
+def add_finished_bowl_surface_pass(mats):
+    mat_team, mat_secondary, mat_concrete, mat_dark, mat_glass, mat_metal, mat_roof, mat_light = mats
+    mat_shell = mat("FINISHED_STADIUM_SOLID_SHELL", (0.50, 0.53, 0.51, 1), 0.86, 0.02)
+    mat_deck = mat("FINISHED_PRECAST_SEATING_DECK", (0.72, 0.74, 0.70, 1), 0.84, 0.02)
+    mat_void = mat("FINISHED_DEEP_ENTRY_VOID", (0.006, 0.008, 0.009, 1), 0.94, 0.0)
+    mat_concourse = mat("FINISHED_PUBLIC_CONCOURSE", (0.62, 0.64, 0.60, 1), 0.82, 0.02)
+
+    # Finished stadium read: large continuous seating planes carried by a visible concrete shell.
+    # This layer intentionally sits above earlier detail to remove the impression of separate
+    # floating bleachers and disconnected corners.
+    for side, y, sign, rot_x in (("north", 49.5, 1, -0.105), ("south", -49.5, -1, 0.105)):
+        cube(f"finished_{side}_lower_understand_solid_shell", (0, y, 3.0), (130.0, 18.0, 5.6), mat_shell, (rot_x * 0.20, 0, 0))
+        cube(f"finished_{side}_lower_continuous_seating_plane_TEAM_PRIMARY", (0, y + sign * 0.4, 5.35), (125.0, 17.0, 0.34), mat_team, (rot_x, 0, 0))
+        cube(f"finished_{side}_middle_concourse_band", (0, y + sign * 8.9, 8.55), (128.0, 2.4, 0.70), mat_concourse, (rot_x * 0.35, 0, 0))
+        cube(f"finished_{side}_upper_understand_solid_shell", (0, y + sign * 15.0, 10.2), (132.0, 17.5, 5.2), mat_shell, (rot_x * 0.18, 0, 0))
+        cube(f"finished_{side}_upper_continuous_seating_plane_TEAM_PRIMARY", (0, y + sign * 16.0, 12.15), (126.0, 16.0, 0.34), mat_team, (rot_x, 0, 0))
+        cube(f"finished_{side}_rear_opaque_wall_TEAM_ACCENT", (0, y + sign * 25.2, 14.1), (134.0, 1.2, 10.8), mat_team)
+        for x in (-54, -36, -18, 0, 18, 36, 54):
+            cube(f"finished_{side}_concrete_aisle_{x}", (x, y + sign * 6.4, 6.95), (1.36, 20.5, 0.42), mat_deck, (rot_x, 0, 0))
+            cube(f"finished_{side}_vomitory_finished_dark_{x}", (x, y - sign * 8.3, 3.65), (4.1, 0.74, 2.75), mat_void)
+            cube(f"finished_{side}_vomitory_finished_frame_{x}", (x, y - sign * 7.88, 5.18), (5.1, 0.50, 0.54), mat_deck)
+
+    for side, x, sign, rot_y in (("east", 69.0, 1, 0.105), ("west", -69.0, -1, -0.105)):
+        cube(f"finished_{side}_lower_understand_solid_shell", (x, 0, 3.0), (18.0, 100.0, 5.6), mat_shell, (0, rot_y * 0.20, 0))
+        cube(f"finished_{side}_lower_continuous_seating_plane_TEAM_PRIMARY", (x + sign * 0.4, 0, 5.35), (17.0, 95.0, 0.34), mat_team, (0, rot_y, 0))
+        cube(f"finished_{side}_middle_concourse_band", (x + sign * 8.9, 0, 8.55), (2.4, 98.0, 0.70), mat_concourse, (0, rot_y * 0.35, 0))
+        cube(f"finished_{side}_upper_understand_solid_shell", (x + sign * 15.0, 0, 10.2), (17.5, 102.0, 5.2), mat_shell, (0, rot_y * 0.18, 0))
+        cube(f"finished_{side}_upper_continuous_seating_plane_TEAM_PRIMARY", (x + sign * 16.0, 0, 12.15), (16.0, 96.0, 0.34), mat_team, (0, rot_y, 0))
+        cube(f"finished_{side}_rear_opaque_wall_TEAM_ACCENT", (x + sign * 25.2, 0, 14.1), (1.2, 106.0, 10.8), mat_team)
+        for y in (-42, -28, -14, 0, 14, 28, 42):
+            cube(f"finished_{side}_concrete_aisle_{y}", (x + sign * 6.4, y, 6.95), (20.5, 1.36, 0.42), mat_deck, (0, rot_y, 0))
+            cube(f"finished_{side}_vomitory_finished_dark_{y}", (x - sign * 8.3, y, 3.65), (0.74, 4.1, 2.75), mat_void)
+            cube(f"finished_{side}_vomitory_finished_frame_{y}", (x - sign * 7.88, y, 5.18), (0.50, 5.1, 0.54), mat_deck)
+
+    for name, sx, sy, rot in (
+        ("nw", -1, 1, math.radians(45)),
+        ("ne", 1, 1, math.radians(-45)),
+        ("sw", -1, -1, math.radians(135)),
+        ("se", 1, -1, math.radians(-135)),
+    ):
+        cube(f"finished_corner_grounded_solid_shell_{name}", (sx * 62.0, sy * 46.5, 4.20), (56.0, 31.0, 8.0), mat_shell, (0.02, 0, rot))
+        cube(f"finished_corner_lower_seating_plane_{name}_TEAM_PRIMARY", (sx * 61.0, sy * 45.0, 6.65), (50.0, 24.0, 0.34), mat_team, (0.09, 0, rot))
+        cube(f"finished_corner_upper_solid_shell_{name}", (sx * 77.0, sy * 58.5, 11.5), (58.0, 22.0, 6.0), mat_shell, (0.015, 0, rot))
+        cube(f"finished_corner_upper_seating_plane_{name}_TEAM_PRIMARY", (sx * 76.5, sy * 58.0, 13.25), (52.0, 18.0, 0.34), mat_team, (0.08, 0, rot))
+        cube(f"finished_corner_rear_wall_{name}_TEAM_ACCENT", (sx * 87.0, sy * 66.0, 15.0), (52.0, 1.30, 11.0), mat_team, (0, 0, rot))
+        cube(f"finished_corner_public_concourse_{name}", (sx * 71.0, sy * 53.2, 9.05), (54.0, 3.2, 0.70), mat_concourse, (0, 0, rot))
+
+    # The tunnel stand gets a continuous seating deck over the portal, not an outdoor gap.
+    cube("finished_tunnel_integrated_black_mouth", (0, -40.15, 3.10), (12.8, 0.92, 3.25), mat_void)
+    cube("finished_tunnel_structural_left_mass", (-23.0, -45.3, 5.1), (33.0, 15.0, 8.8), mat_shell, (0.035, 0, 0))
+    cube("finished_tunnel_structural_right_mass", (23.0, -45.3, 5.1), (33.0, 15.0, 8.8), mat_shell, (0.035, 0, 0))
+    cube("finished_tunnel_full_upper_seating_plane_TEAM_PRIMARY", (0, -51.8, 10.45), (100.0, 18.5, 0.38), mat_team, (0.10, 0, 0))
+    cube("finished_tunnel_rear_architectural_wall_TEAM_ACCENT", (0, -63.0, 15.0), (104.0, 1.20, 11.0), mat_team)
+
+
 def main():
     clear_scene()
     mat_team = mat("TEAM_PRIMARY", (0.02, 0.47, 0.34, 1), 0.58, 0.02)
@@ -1030,6 +1187,8 @@ def main():
     add_grounded_final_closure_pass(mats)
     add_opaque_tunnel_and_vomitory_pass(mats)
     add_reference_closed_corner_bowl_pass(mats)
+    add_definitive_production_stadium_pass(mats)
+    add_finished_bowl_surface_pass(mats)
 
     # Continuous roof links make the stadium read as one closed object.
     cube("roof_link_north_TEAM_SECONDARY", (0, 67.8, 18.52), (128, 4.6, 0.30), mat_roof, (-0.015, 0, 0))
