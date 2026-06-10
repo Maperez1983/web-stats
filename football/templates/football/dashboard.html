@@ -922,6 +922,36 @@
       .player-mini-kpis { display:flex; gap:0.5rem; flex-wrap:wrap; margin-top: 0.45rem; }
       .mini-kpi { border-radius: 999px; border: 1px solid var(--line); padding: 0.3rem 0.55rem; font-weight: 900; font-size: 0.72rem; color: var(--ink); background: rgba(2, 6, 23, 0.08); }
       .mini-kpi.is-staff { border-color: rgba(34, 197, 94, 0.36); background: rgba(34, 197, 94, 0.12); }
+      .staff-rating-bar {
+        display: grid;
+        gap: 0.22rem;
+        margin-top: 0.45rem;
+        max-width: 168px;
+      }
+      .staff-rating-bar .staff-rating-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.55rem;
+        font-size: 0.68rem;
+        font-weight: 950;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .staff-rating-track {
+        height: 7px;
+        border-radius: 999px;
+        overflow: hidden;
+        border: 1px solid rgba(34, 197, 94, 0.24);
+        background: rgba(2, 6, 23, 0.12);
+      }
+      .staff-rating-fill {
+        display: block;
+        height: 100%;
+        width: var(--staff-rating-pct, 0%);
+        border-radius: inherit;
+        background: linear-gradient(90deg, #22c55e, #facc15);
+      }
       .setup-checklist-details summary::-webkit-details-marker {
         display: none;
       }
@@ -1797,6 +1827,7 @@
             training_minutes: extra ? extra.minutes : null,
             training_sessions: extra ? extra.sessions : null,
             staff_rating_display: row?.staff_rating_display || '--/10',
+            staff_rating_pct: Math.max(0, Math.min(100, Number(row?.staff_rating_pct || 0))),
           };
         });
         const render = (items) => {
@@ -1807,7 +1838,6 @@
             const avatar = photo ? `<img src="${photo}" alt="${name}" loading="lazy" />` : '';
             const url = p.player_id ? `{% url 'player-detail' player_id=0 %}`.replace('/0/', `/${p.player_id}/`) : '#';
             const kpis = [
-              `<span class="mini-kpi is-staff">Staff ${p.staff_rating_display}</span>`,
               (p.training_minutes != null ? `<span class="mini-kpi">Entreno ${p.training_minutes}'</span>` : ''),
               (p.actions != null ? `<span class="mini-kpi">Acc ${p.actions}</span>` : ''),
               (p.success_rate != null ? `<span class="mini-kpi">Éxito ${p.success_rate}%</span>` : ''),
@@ -1818,6 +1848,10 @@
                 <div style="min-width:0;">
                   <h4>${name}</h4>
                   <div class="meta">${p.training_sessions != null ? `${p.training_sessions} sesiones marcadas · ` : ''}dorsal ${num}</div>
+                  <div class="staff-rating-bar" aria-label="Valoración media staff ${p.staff_rating_display}">
+                    <div class="staff-rating-row"><span>Staff</span><strong>${p.staff_rating_display}</strong></div>
+                    <div class="staff-rating-track"><span class="staff-rating-fill" style="--staff-rating-pct:${p.staff_rating_pct}%;"></span></div>
+                  </div>
                   <div class="player-mini-kpis">${kpis}</div>
                 </div>
               </a>

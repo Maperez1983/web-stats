@@ -145,6 +145,7 @@ class PlayerCardStaffRatingTests(TestCase):
 
         self.assertEqual(cards[0]['staff_rating_average'], 7.0)
         self.assertEqual(cards[0]['staff_rating_display'], '7/10')
+        self.assertEqual(cards[0]['staff_rating_pct'], 70)
         self.assertEqual(cards[0]['staff_rating_source'], 'Informe staff')
 
     @patch('football.dashboard_services.compute_player_dashboard')
@@ -163,6 +164,7 @@ class PlayerCardStaffRatingTests(TestCase):
 
         self.assertEqual(cards[0]['staff_rating_average'], 8.0)
         self.assertEqual(cards[0]['staff_rating_display'], '8/10')
+        self.assertEqual(cards[0]['staff_rating_pct'], 80)
         self.assertEqual(cards[0]['staff_rating_source'], 'Informe staff')
 
     @patch('football.dashboard_services.compute_player_dashboard')
@@ -182,4 +184,5 @@ class PlayerCardStaffRatingTests(TestCase):
 
         self.assertEqual(cards[0]['staff_rating_average'], 8.0)
         self.assertEqual(cards[0]['staff_rating_display'], '8/10')
+        self.assertEqual(cards[0]['staff_rating_pct'], 80)
         self.assertEqual(cards[0]['staff_rating_source'], 'Evaluación staff')

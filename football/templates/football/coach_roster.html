@@ -651,6 +651,10 @@
       .broadcast-name { margin:0; font-size: 1.08rem; font-weight: 950; letter-spacing: 0; line-height: 1.12; white-space: nowrap; overflow:hidden; text-overflow: ellipsis; max-width: 100%; }
       .broadcast-sub { margin-top: 0.22rem; color: rgba(148,163,184,0.92); font-weight: 850; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.76rem; white-space: nowrap; overflow:hidden; text-overflow: ellipsis; }
       .broadcast-pill { display:flex; align-items:center; justify-content:center; min-height:30px; border-radius: 999px; border: 1px solid rgba(148,163,184,0.2); background: rgba(2,6,23,0.5); padding: 0.25rem 0.55rem; font-weight: 950; letter-spacing: 0.06em; text-transform: uppercase; font-size: 0.76rem; }
+      .broadcast-staff-rating { margin-top:0.55rem; display:grid; gap:0.24rem; max-width: 230px; }
+      .broadcast-staff-row { display:flex; justify-content:space-between; gap:0.65rem; color:rgba(226,232,240,0.9); font-size:0.72rem; font-weight:950; letter-spacing:0.05em; text-transform:uppercase; }
+      .broadcast-staff-track { height:8px; border-radius:999px; overflow:hidden; border:1px solid rgba(34,197,94,0.32); background:rgba(2,6,23,0.36); }
+      .broadcast-staff-fill { display:block; height:100%; width:var(--staff-rating-pct, 0%); border-radius:inherit; background:linear-gradient(90deg, #22c55e, #facc15); box-shadow:0 0 18px rgba(34,197,94,0.22); }
       .broadcast-mini { margin-top: 0.7rem; display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap: 0.42rem; }
       .mini-pill { display:flex; align-items:center; justify-content:space-between; gap: 0.28rem; min-width:0; padding: 0.42rem 0.52rem; border-radius: 10px; border: 1px solid rgba(148,163,184,0.18); background: rgba(2,6,23,0.42); font-weight: 850; color: rgba(226,232,240,0.95); white-space:nowrap; font-size:0.78rem; }
       .mini-pill strong { font-weight: 950; }
@@ -699,6 +703,9 @@
         width: 100%;
         justify-content: center;
         text-align: center;
+      }
+      #playersGrid .broadcast-staff-rating {
+        max-width: none;
       }
       #playersGrid .broadcast-mini {
         min-height: 0;
@@ -800,8 +807,16 @@
                     <div class="broadcast-identity">
                       <h2 class="broadcast-name">{{ card.nickname|default:card.name }}</h2>
                       <div class="broadcast-sub">{{ card.profile_label|default:card.position|default:"-" }}</div>
+                      <div class="broadcast-staff-rating" aria-label="Valoración media staff {{ card.staff_rating_display|default:'--/10' }}">
+                        <div class="broadcast-staff-row">
+                          <span>Staff</span>
+                          <strong>{{ card.staff_rating_display|default:"--/10" }}</strong>
+                        </div>
+                        <div class="broadcast-staff-track">
+                          <span class="broadcast-staff-fill" style="--staff-rating-pct:{{ card.staff_rating_pct|default:0 }}%;"></span>
+                        </div>
+                      </div>
                       <div class="broadcast-head-right">
-                        <div class="broadcast-pill">STAFF {{ card.staff_rating_display|default:"--/10" }}</div>
                         <div class="broadcast-pill">INF {{ card.influence_score|default:0|floatformat:0 }}</div>
                         <div class="broadcast-pill">IMP {{ card.importance_score|default:0|floatformat:0 }}</div>
                         <span class="status-icons">

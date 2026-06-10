@@ -8519,13 +8519,16 @@ class StatsScopePersistenceTests(TestCase):
                 'is_sanctioned': False,
                 'is_apercibido': False,
                 'staff_rating_display': '8/10',
+                'staff_rating_pct': 80,
             }
         ]
 
         response = self.client.get(reverse('coach-roster'))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'STAFF 8/10')
+        self.assertContains(response, 'Staff')
+        self.assertContains(response, '8/10')
+        self.assertContains(response, '--staff-rating-pct:80%;')
 
 
 class SessionsPlanningTests(TestCase):

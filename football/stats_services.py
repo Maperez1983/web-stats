@@ -320,6 +320,7 @@ def _attach_staff_ratings_to_player_cards(
     for card in cards:
         card['staff_rating_average'] = None
         card['staff_rating_display'] = ''
+        card['staff_rating_pct'] = 0
         card['staff_rating_source'] = ''
     player_ids = [card.get('player_id') for card in cards if card.get('player_id')]
     if not primary_team or not player_ids:
@@ -361,6 +362,7 @@ def _attach_staff_ratings_to_player_cards(
         average, source = ratings_by_player[player_id]
         card['staff_rating_average'] = average
         card['staff_rating_display'] = _format_staff_rating(average)
+        card['staff_rating_pct'] = max(0, min(100, round(float(average) * 10)))
         card['staff_rating_source'] = source
 
 
