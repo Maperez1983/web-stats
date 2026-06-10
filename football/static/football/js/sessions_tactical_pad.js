@@ -8128,7 +8128,7 @@
 						      }
 						      return null;
 						    };
-						    const __pitch3dStadiumModelCache = { loading: false, scene: null, failed: false, callbacks: [] };
+						    const __pitch3dStadiumModelCache = { loading: false, scene: null, failed: false, callbacks: [], retryTimer: null, retries: 0 };
 						    const __pitch3dLoadStadiumModel = (onLoad) => {
 						      const src = __pitch3dAssetUrl('pitch3dStadiumModelSrc');
 						      if (!src || !window.THREE) return null;
@@ -8139,7 +8139,16 @@
 						      if (typeof onLoad === 'function') __pitch3dStadiumModelCache.callbacks.push(onLoad);
 						      if (__pitch3dStadiumModelCache.loading || __pitch3dStadiumModelCache.failed) return null;
 						      const LoaderClass = window.__WEBSTATS_GLTF_LOADER_CLASS;
-						      if (typeof LoaderClass !== 'function') return null;
+						      if (typeof LoaderClass !== 'function') {
+						        if (!__pitch3dStadiumModelCache.retryTimer && __pitch3dStadiumModelCache.retries < 40) {
+						          __pitch3dStadiumModelCache.retries += 1;
+						          __pitch3dStadiumModelCache.retryTimer = window.setTimeout(() => {
+						            __pitch3dStadiumModelCache.retryTimer = null;
+						            __pitch3dLoadStadiumModel();
+						          }, 150);
+						        }
+						        return null;
+						      }
 						      __pitch3dStadiumModelCache.loading = true;
 						      try {
 						        const loader = new LoaderClass();
@@ -8147,14 +8156,24 @@
 						          const scene = gltf?.scene || null;
 						          __pitch3dStadiumModelCache.scene = scene;
 						          __pitch3dStadiumModelCache.loading = false;
+						          __pitch3dStadiumModelCache.failed = false;
+						          __pitch3dStadiumModelCache.retries = 0;
 						          const callbacks = __pitch3dStadiumModelCache.callbacks.splice(0);
 						          callbacks.forEach((cb) => {
 						            try { cb(scene); } catch (e) { /* ignore */ }
 						          });
 						        }, undefined, () => {
 						          __pitch3dStadiumModelCache.loading = false;
-						          __pitch3dStadiumModelCache.failed = true;
-						          __pitch3dStadiumModelCache.callbacks.splice(0);
+						          if (__pitch3dStadiumModelCache.retries < 8) {
+						            __pitch3dStadiumModelCache.retries += 1;
+						            __pitch3dStadiumModelCache.retryTimer = window.setTimeout(() => {
+						              __pitch3dStadiumModelCache.retryTimer = null;
+						              __pitch3dLoadStadiumModel();
+						            }, 350);
+						          } else {
+						            __pitch3dStadiumModelCache.failed = true;
+						            __pitch3dStadiumModelCache.callbacks.splice(0);
+						          }
 						        });
 						      } catch (e) {
 						        __pitch3dStadiumModelCache.loading = false;
