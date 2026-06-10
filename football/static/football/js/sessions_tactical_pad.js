@@ -8128,7 +8128,28 @@
 						      }
 						      return null;
 						    };
-						    const __pitch3dStadiumModelCache = { loading: false, scene: null, failed: false, callbacks: [], retryTimer: null, retries: 0 };
+						    const __pitch3dStadiumModelCache = { loading: false, scene: null, failed: false, callbacks: [], retryTimer: null, retries: 0, loaderPromise: null };
+						    const __pitch3dEnsureStadiumLoader = () => {
+						      try {
+						        if (typeof window.__WEBSTATS_GLTF_LOADER_CLASS === 'function') return Promise.resolve(window.__WEBSTATS_GLTF_LOADER_CLASS);
+						        if (__pitch3dStadiumModelCache.loaderPromise) return __pitch3dStadiumModelCache.loaderPromise;
+						        const loaderSrc = __pitch3dAssetUrl('threeGltfLoaderSrc');
+						        if (!loaderSrc) return Promise.resolve(null);
+						        __pitch3dStadiumModelCache.loaderPromise = import(loaderSrc)
+						          .then((mod) => {
+						            const LoaderClass = mod && mod.GLTFLoader;
+						            if (typeof LoaderClass === 'function') {
+						              try { window.__WEBSTATS_GLTF_LOADER_CLASS = LoaderClass; } catch (e) { /* ignore */ }
+						              return LoaderClass;
+						            }
+						            return null;
+						          })
+						          .catch(() => null);
+						        return __pitch3dStadiumModelCache.loaderPromise;
+						      } catch (e) {
+						        return Promise.resolve(null);
+						      }
+						    };
 						    const __pitch3dLoadStadiumModel = (onLoad) => {
 						      const src = __pitch3dAssetUrl('pitch3dStadiumModelSrc');
 						      if (!src || !window.THREE) return null;
@@ -8140,6 +8161,11 @@
 						      if (__pitch3dStadiumModelCache.loading || __pitch3dStadiumModelCache.failed) return null;
 						      const LoaderClass = window.__WEBSTATS_GLTF_LOADER_CLASS;
 						      if (typeof LoaderClass !== 'function') {
+						        __pitch3dEnsureStadiumLoader().then((ResolvedLoader) => {
+						          try {
+						            if (typeof ResolvedLoader === 'function') __pitch3dLoadStadiumModel();
+						          } catch (e) { /* ignore */ }
+						        });
 						        if (!__pitch3dStadiumModelCache.retryTimer && __pitch3dStadiumModelCache.retries < 40) {
 						          __pitch3dStadiumModelCache.retries += 1;
 						          __pitch3dStadiumModelCache.retryTimer = window.setTimeout(() => {
@@ -10300,10 +10326,54 @@
 						                return false;
 						              }
 						            };
+						            const addEmergencyClosedBowlFallback = () => {
+						              try {
+						                const alreadyHasAsset = (root.children || []).some((node) => safeText(node?.userData?.kind || '') === 'pitch_3d_professional_blender_stadium');
+						                const alreadyHasFallback = (root.children || []).some((node) => safeText(node?.userData?.kind || '') === 'pitch_3d_from_scratch_reference_stadium');
+						                if (alreadyHasAsset || alreadyHasFallback) return;
+						                const fallback = new THREE.Group();
+						                fallback.userData = { kind: 'pitch_3d_from_scratch_reference_stadium' };
+						                const primary = new THREE.MeshStandardMaterial({ color: toColorInt(stadiumPalette3d.primary, 0x047857), roughness: 0.58, metalness: 0.02 });
+						                const concrete = new THREE.MeshStandardMaterial({ color: 0xb8c0ba, roughness: 0.78, metalness: 0.02 });
+						                const dark = new THREE.MeshStandardMaterial({ color: 0x07111a, roughness: 0.82, metalness: 0.02 });
+						                const roof = new THREE.MeshStandardMaterial({ color: toColorInt(stadiumPalette3d.secondary, 0xf3f6f4), roughness: 0.42, metalness: 0.12 });
+						                const ledMat = new THREE.MeshStandardMaterial({ color: toColorInt(stadiumPalette3d.accent, 0x073b32), roughness: 0.42, metalness: 0.05 });
+						                const xOuter = metersW / 2 + 15.0;
+						                const zOuter = metersH / 2 + 15.0;
+						                const standW = metersW + 30.0;
+						                const endW = metersH + 30.0;
+						                const addFBox = (geo, mat, x, y, z, rx = 0, ry = 0, rz = 0, kind = 'pitch_3d_fallback_bowl_piece') => addBox(fallback, geo, mat, x, y, z, rx, ry, rz, kind);
+						                addFBox(new THREE.BoxGeometry(standW, 7.0, 14.0), concrete, 0, 3.2, zOuter, -0.10, 0, 0);
+						                addFBox(new THREE.BoxGeometry(standW, 7.0, 14.0), concrete, 0, 3.2, -zOuter, 0.10, 0, 0);
+						                addFBox(new THREE.BoxGeometry(14.0, 7.0, endW), concrete, xOuter, 3.2, 0, 0, 0, -0.10);
+						                addFBox(new THREE.BoxGeometry(14.0, 7.0, endW), concrete, -xOuter, 3.2, 0, 0, 0, 0.10);
+						                addFBox(new THREE.BoxGeometry(standW * 0.92, 0.55, 10.8), primary, 0, 7.05, zOuter - 1.7, -0.14, 0, 0, 'pitch_3d_fallback_seat_carpet');
+						                addFBox(new THREE.BoxGeometry(standW * 0.92, 0.55, 10.8), primary, 0, 7.05, -zOuter + 1.7, 0.14, 0, 0, 'pitch_3d_fallback_seat_carpet');
+						                addFBox(new THREE.BoxGeometry(10.8, 0.55, endW * 0.92), primary, xOuter - 1.7, 7.05, 0, 0, 0, -0.14, 'pitch_3d_fallback_seat_carpet');
+						                addFBox(new THREE.BoxGeometry(10.8, 0.55, endW * 0.92), primary, -xOuter + 1.7, 7.05, 0, 0, 0, 0.14, 'pitch_3d_fallback_seat_carpet');
+						                [-1, 1].forEach((sx) => {
+						                  [-1, 1].forEach((sz) => {
+						                    addFBox(new THREE.BoxGeometry(20.0, 7.2, 20.0), concrete, sx * xOuter, 3.3, sz * zOuter, -0.08, sx * sz * 0.10, 0, 'pitch_3d_fallback_closed_corner');
+						                    addFBox(new THREE.BoxGeometry(17.0, 0.55, 17.0), primary, sx * (xOuter - 1.5), 7.25, sz * (zOuter - 1.5), -0.12, sx * sz * 0.18, 0, 'pitch_3d_fallback_corner_seats');
+						                  });
+						                });
+						                addFBox(new THREE.BoxGeometry(metersW + 10.0, 1.3, 0.55), ledMat, 0, 1.0, metersH / 2 + 3.1, 0, 0, 0, 'pitch_3d_fallback_led_ring');
+						                addFBox(new THREE.BoxGeometry(metersW + 10.0, 1.3, 0.55), ledMat, 0, 1.0, -(metersH / 2 + 3.1), 0, 0, 0, 'pitch_3d_fallback_led_ring');
+						                addFBox(new THREE.BoxGeometry(0.55, 1.3, metersH + 10.0), ledMat, metersW / 2 + 3.1, 1.0, 0, 0, 0, 0, 'pitch_3d_fallback_led_ring');
+						                addFBox(new THREE.BoxGeometry(0.55, 1.3, metersH + 10.0), ledMat, -(metersW / 2 + 3.1), 1.0, 0, 0, 0, 0, 'pitch_3d_fallback_led_ring');
+						                addFBox(new THREE.BoxGeometry(metersW + 46.0, 0.45, 8.5), roof, 0, 13.8, zOuter + 8.5, -0.08, 0, 0, 'pitch_3d_fallback_roof');
+						                addFBox(new THREE.BoxGeometry(metersW + 46.0, 0.45, 8.5), roof, 0, 13.8, -zOuter - 8.5, 0.08, 0, 0, 'pitch_3d_fallback_roof');
+						                addFBox(new THREE.BoxGeometry(8.5, 0.45, metersH + 46.0), roof, xOuter + 8.5, 13.8, 0, 0, 0, -0.08, 'pitch_3d_fallback_roof');
+						                addFBox(new THREE.BoxGeometry(8.5, 0.45, metersH + 46.0), roof, -xOuter - 8.5, 13.8, 0, 0, 0, 0.08, 'pitch_3d_fallback_roof');
+						                addFBox(new THREE.BoxGeometry(9.5, 3.4, 0.65), dark, 0, 2.1, -(metersH / 2 + 4.0), 0, 0, 0, 'pitch_3d_fallback_tunnel');
+						                root.add(fallback);
+						              } catch (e) { /* ignore */ }
+						            };
 						            if (addProfessionalStadiumAsset()) return;
 						            __pitch3dLoadStadiumModel(() => {
 						              try { addProfessionalStadiumAsset(); } catch (e) { /* ignore */ }
 						            });
+						            try { window.setTimeout(addEmergencyClosedBowlFallback, 1200); } catch (e) { /* ignore */ }
 						            return;
 						            addGreenApron();
 						            addReferenceStand({ kind: 'pitch_3d_ref_main_north_stand', x: 0, z: metersH / 2 + 7.2, w: metersW + 24, rows: 18, rotY: 0 });
