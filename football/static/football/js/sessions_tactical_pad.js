@@ -10606,6 +10606,145 @@
 						              });
 						              target.add(access);
 						            };
+						            const addReferenceStadiumInspirationUpgrades = (targetGroup) => {
+						              const target = targetGroup || stadium;
+						              const upgrade = new THREE.Group();
+						              upgrade.userData = { kind: 'pitch_3d_ref_architectural_inspiration_upgrade' };
+						              const roofGlass = new THREE.MeshStandardMaterial({
+						                color: 0xdff7ff,
+						                roughness: 0.20,
+						                metalness: 0.04,
+						                transparent: true,
+						                opacity: 0.34,
+						                side: THREE.DoubleSide,
+						              });
+						              const roofMetal = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.38, metalness: 0.18 });
+						              const pillarMat = new THREE.MeshStandardMaterial({ color: 0xd9e1dd, roughness: 0.66, metalness: 0.04 });
+						              const lightHousing = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.34, metalness: 0.32 });
+						              const lightGlow = new THREE.MeshBasicMaterial({ color: 0xe0f2fe, transparent: true, opacity: 0.72, toneMapped: false });
+						              const premiumSeatA = new THREE.MeshStandardMaterial({ color: toColorInt(stadiumPalette3d.primary, 0x047857), roughness: 0.48, metalness: 0.03 });
+						              const premiumSeatB = new THREE.MeshStandardMaterial({ color: toColorInt(stadiumPalette3d.accent, 0x0f766e), roughness: 0.46, metalness: 0.03 });
+						              const addRadialRoof = () => {
+						                const longSpan = metersW + 50.0;
+						                const shortSpan = metersH + 50.0;
+						                [-1, 1].forEach((sign) => {
+						                  const z = sign * (metersH / 2 + 26.9);
+						                  for (let i = -6; i <= 6; i += 1) {
+						                    const x = i * (longSpan / 13);
+						                    addBox(upgrade, new THREE.BoxGeometry(0.18, 0.24, 13.2), roofMetal, x, 15.34, z, sign * -0.20, 0, 0, 'pitch_3d_ref_inspired_long_roof_radial_rib');
+						                    if (i < 6) {
+						                      addBox(upgrade, new THREE.BoxGeometry(longSpan / 14.4, 0.08, 11.4), roofGlass, x + (longSpan / 26), 15.18, z, sign * -0.18, 0, 0, 'pitch_3d_ref_inspired_long_roof_translucent_panel');
+						                    }
+						                    if (i % 2 === 0) {
+						                      addBox(upgrade, new THREE.BoxGeometry(0.42, 11.4, 0.42), pillarMat, x, 6.05, sign * (metersH / 2 + 25.2), 0, 0, i < 0 ? -0.18 : 0.18, 'pitch_3d_ref_inspired_slanted_facade_pillar_long');
+						                    }
+						                  }
+						                  addBox(upgrade, new THREE.BoxGeometry(longSpan + 5.0, 0.32, 0.42), roofMetal, 0, 14.82, sign * (metersH / 2 + 20.1), 0, 0, 0, 'pitch_3d_ref_inspired_inner_roof_compression_ring_long');
+						                  addBox(upgrade, new THREE.BoxGeometry(longSpan + 11.0, 0.42, 0.52), roofMetal, 0, 15.08, sign * (metersH / 2 + 32.6), 0, 0, 0, 'pitch_3d_ref_inspired_outer_roof_edge_long');
+						                });
+						                [-1, 1].forEach((sign) => {
+						                  const x = sign * (metersW / 2 + 26.9);
+						                  for (let i = -5; i <= 5; i += 1) {
+						                    const z = i * (shortSpan / 11);
+						                    addBox(upgrade, new THREE.BoxGeometry(13.2, 0.24, 0.18), roofMetal, x, 15.34, z, 0, sign * 0.20, 0, 'pitch_3d_ref_inspired_end_roof_radial_rib');
+						                    if (i < 5) {
+						                      addBox(upgrade, new THREE.BoxGeometry(11.4, 0.08, shortSpan / 12.4), roofGlass, x, 15.18, z + (shortSpan / 22), 0, sign * 0.18, 0, 'pitch_3d_ref_inspired_end_roof_translucent_panel');
+						                    }
+						                    if (i % 2 !== 0) {
+						                      addBox(upgrade, new THREE.BoxGeometry(0.42, 11.4, 0.42), pillarMat, sign * (metersW / 2 + 25.2), 6.05, z, 0.18, 0, 0, 'pitch_3d_ref_inspired_slanted_facade_pillar_end');
+						                    }
+						                  }
+						                  addBox(upgrade, new THREE.BoxGeometry(0.42, 0.32, shortSpan + 5.0), roofMetal, sign * (metersW / 2 + 20.1), 14.82, 0, 0, 0, 0, 'pitch_3d_ref_inspired_inner_roof_compression_ring_end');
+						                  addBox(upgrade, new THREE.BoxGeometry(0.52, 0.42, shortSpan + 11.0), roofMetal, sign * (metersW / 2 + 32.6), 15.08, 0, 0, 0, 0, 'pitch_3d_ref_inspired_outer_roof_edge_end');
+						                });
+						              };
+						              const addStadiumLights = () => {
+						                [-1, 1].forEach((sign) => {
+						                  [-0.34, 0, 0.34].forEach((ratio) => {
+						                    const x = ratio * metersW;
+						                    const z = sign * (metersH / 2 + 17.8);
+						                    addBox(upgrade, new THREE.BoxGeometry(4.2, 0.28, 0.44), lightHousing, x, 13.65, z, sign * -0.24, 0, 0, 'pitch_3d_ref_inspired_roof_light_housing');
+						                    addBox(upgrade, new THREE.BoxGeometry(3.6, 0.10, 0.22), lightGlow, x, 13.42, z - sign * 0.30, sign * -0.24, 0, 0, 'pitch_3d_ref_inspired_roof_light_glow');
+						                  });
+						                });
+						                [-1, 1].forEach((sign) => {
+						                  [-0.28, 0.28].forEach((ratio) => {
+						                    const z = ratio * metersH;
+						                    const x = sign * (metersW / 2 + 17.8);
+						                    addBox(upgrade, new THREE.BoxGeometry(0.44, 0.28, 4.2), lightHousing, x, 13.65, z, 0, sign * 0.24, 0, 'pitch_3d_ref_inspired_end_roof_light_housing');
+						                    addBox(upgrade, new THREE.BoxGeometry(0.22, 0.10, 3.6), lightGlow, x - sign * 0.30, 13.42, z, 0, sign * 0.24, 0, 'pitch_3d_ref_inspired_end_roof_light_glow');
+						                  });
+						                });
+						              };
+						              const addInstancedSeatBowl = () => {
+						                try {
+						                  if (!THREE.InstancedMesh || !THREE.Object3D) return;
+						                  const seatGeoLong = new THREE.BoxGeometry(0.58, 0.16, 0.34);
+						                  const backGeoLong = new THREE.BoxGeometry(0.58, 0.34, 0.10);
+						                  const seatGeoEnd = new THREE.BoxGeometry(0.34, 0.16, 0.58);
+						                  const backGeoEnd = new THREE.BoxGeometry(0.10, 0.34, 0.58);
+						                  const longCols = 42;
+						                  const longRows = 8;
+						                  const endCols = 34;
+						                  const endRows = 7;
+						                  const longCount = longCols * longRows * 2;
+						                  const endCount = endCols * endRows * 2;
+						                  const longSeats = new THREE.InstancedMesh(seatGeoLong, premiumSeatA, longCount);
+						                  const longBacks = new THREE.InstancedMesh(backGeoLong, premiumSeatB, longCount);
+						                  const endSeats = new THREE.InstancedMesh(seatGeoEnd, premiumSeatA, endCount);
+						                  const endBacks = new THREE.InstancedMesh(backGeoEnd, premiumSeatB, endCount);
+						                  const dummy = new THREE.Object3D();
+						                  let idx = 0;
+						                  [-1, 1].forEach((sign) => {
+						                    for (let r = 0; r < longRows; r += 1) {
+						                      for (let c = 0; c < longCols; c += 1) {
+						                        const x = -metersW * 0.43 + c * ((metersW * 0.86) / (longCols - 1));
+						                        const z = sign * (metersH / 2 + 6.8 + r * 0.70);
+						                        const y = 0.96 + r * 0.34;
+						                        dummy.position.set(x, y, z);
+						                        dummy.rotation.set(sign * -0.10, 0, 0);
+						                        dummy.updateMatrix();
+						                        longSeats.setMatrixAt(idx, dummy.matrix);
+						                        dummy.position.set(x, y + 0.20, z + sign * 0.22);
+						                        dummy.rotation.set(sign * -0.20, 0, 0);
+						                        dummy.updateMatrix();
+						                        longBacks.setMatrixAt(idx, dummy.matrix);
+						                        idx += 1;
+						                      }
+						                    }
+						                  });
+						                  idx = 0;
+						                  [-1, 1].forEach((sign) => {
+						                    for (let r = 0; r < endRows; r += 1) {
+						                      for (let c = 0; c < endCols; c += 1) {
+						                        const z = -metersH * 0.40 + c * ((metersH * 0.80) / (endCols - 1));
+						                        const x = sign * (metersW / 2 + 6.9 + r * 0.70);
+						                        const y = 0.98 + r * 0.34;
+						                        dummy.position.set(x, y, z);
+						                        dummy.rotation.set(0, sign * 0.10, 0);
+						                        dummy.updateMatrix();
+						                        endSeats.setMatrixAt(idx, dummy.matrix);
+						                        dummy.position.set(x + sign * 0.22, y + 0.20, z);
+						                        dummy.rotation.set(0, sign * 0.20, 0);
+						                        dummy.updateMatrix();
+						                        endBacks.setMatrixAt(idx, dummy.matrix);
+						                        idx += 1;
+						                      }
+						                    }
+						                  });
+						                  [longSeats, longBacks, endSeats, endBacks].forEach((mesh) => {
+						                    mesh.instanceMatrix.needsUpdate = true;
+						                    mesh.userData = { kind: 'pitch_3d_ref_inspired_instanced_seat_bowl' };
+						                    try { mesh.castShadow = true; mesh.receiveShadow = true; } catch (e) { /* ignore */ }
+						                    upgrade.add(mesh);
+						                  });
+						                } catch (e) { /* ignore */ }
+						              };
+						              addRadialRoof();
+						              addStadiumLights();
+						              addInstancedSeatBowl();
+						              target.add(upgrade);
+						            };
 						            const removeProceduralStadiumParts = () => {
 						              try {
 						                const removable = (root.children || []).filter((node) => {
@@ -10648,6 +10787,7 @@
 						                exteriorShell.userData = { kind: 'pitch_3d_ref_real_stadium_exterior_shell' };
 						                addAuthenticExteriorEnvelope(exteriorShell);
 						                addOpenAccessCorrections(exteriorShell);
+						                addReferenceStadiumInspirationUpgrades(exteriorShell);
 						                root.add(exteriorShell);
 						                return true;
 						              } catch (e) {
@@ -10672,6 +10812,7 @@
 						            addCornerBowl({ kind: 'pitch_3d_ref_corner_south_east_bowl', x: metersW / 2 + 5.4, z: -(metersH / 2 + 5.4), rotY: Math.PI * 0.75 });
 						            addIntegratedTunnelAndRoofRing();
 						            addOpenAccessCorrections();
+						            addReferenceStadiumInspirationUpgrades();
 						            const makeBadge = () => {
 						              const c = document.createElement('canvas');
 						              c.width = 512;
