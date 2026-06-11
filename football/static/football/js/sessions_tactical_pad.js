@@ -2009,6 +2009,21 @@
 			              '        <button type="button" class="button" id="task-pitch-3d-play" title="Reproduce escenarios (si existen)">▶</button>',
 			              '        <button type="button" class="button" id="task-pitch-3d-snap" title="Guardar imagen PNG">PNG</button>',
 			              '        <button type="button" class="button" id="task-pitch-3d-record" title="Grabar WebM (beta)">REC</button>',
+			              '        <select id="task-pitch-3d-action" title="Tipo de acción para rutas del elemento seleccionado">',
+			              '          <option value="pass">Pase</option>',
+			              '          <option value="carry">Conducción</option>',
+			              '          <option value="shot">Tiro</option>',
+			              '          <option value="cross">Centro</option>',
+			              '          <option value="press">Presión</option>',
+			              '          <option value="move">Movimiento</option>',
+			              '        </select>',
+			              '        <button type="button" class="button" id="task-pitch-3d-action-apply" title="Aplica el tipo de acción a las rutas seleccionadas">Acción</button>',
+			              '        <button type="button" class="button" id="task-pitch-3d-phase-save" title="Guarda la pizarra actual como nueva fase 3D">Guardar fase</button>',
+			              '        <button type="button" class="button" id="task-pitch-3d-phase-dup" title="Duplica la fase actual">Duplicar fase</button>',
+			              '        <button type="button" class="button" id="task-pitch-3d-template" title="Crea una plantilla 3D base">Plantilla 3D</button>',
+			              '        <button type="button" class="button" id="task-pitch-3d-validate" title="Revisa límites y coherencia básica">Validar</button>',
+			              '        <button type="button" class="button" id="task-pitch-3d-clamp" title="Ajusta jugadores/material al campo">Ajustar límites</button>',
+			              '        <button type="button" class="button" id="task-pitch-3d-quality" title="Alterna calidad visual alta">Calidad</button>',
 			              '      </div>',
 			              '      <div class="sim-3d-note">Tip: arrastra para girar; rueda/pinch para zoom; Shift + arrastre o botón derecho desplaza el foco.</div>',
 			              '    </div>',
@@ -2040,6 +2055,14 @@
 			    let pitch3dPlayBtn = document.getElementById('task-pitch-3d-play');
 			    let pitch3dSnapBtn = document.getElementById('task-pitch-3d-snap');
 			    let pitch3dRecordBtn = document.getElementById('task-pitch-3d-record');
+			    let pitch3dActionSelect = document.getElementById('task-pitch-3d-action');
+			    let pitch3dActionApplyBtn = document.getElementById('task-pitch-3d-action-apply');
+			    let pitch3dPhaseSaveBtn = document.getElementById('task-pitch-3d-phase-save');
+			    let pitch3dPhaseDupBtn = document.getElementById('task-pitch-3d-phase-dup');
+			    let pitch3dTemplateBtn = document.getElementById('task-pitch-3d-template');
+			    let pitch3dValidateBtn = document.getElementById('task-pitch-3d-validate');
+			    let pitch3dClampBtn = document.getElementById('task-pitch-3d-clamp');
+			    let pitch3dQualityBtn = document.getElementById('task-pitch-3d-quality');
 			    let pitch3dHud = document.getElementById('task-pitch-3d-hud');
 			    let pitch3dStepTitleEl = document.getElementById('task-pitch-3d-step-title');
 			    let pitch3dStepMetaEl = document.getElementById('task-pitch-3d-step-meta');
@@ -13339,6 +13362,182 @@
 						      }
 						    };
 
+						    const findCanvasObjectByPitch3dUid = (uidRaw) => {
+						      const uid = safeText(uidRaw);
+						      if (!uid || !canvas) return null;
+						      try {
+						        return (canvas.getObjects?.() || []).find((o, idx) => {
+						          if (!o || !o.data) return false;
+						          return pitch3dUidForObject(o, `object:${idx}`) === uid;
+						        }) || null;
+						      } catch (e) {
+						        return null;
+						      }
+						    };
+
+						    const capturePitch3dStep = (titleRaw = '') => {
+						      const { w, h } = worldSize();
+						      return {
+						        title: safeText(titleRaw, `Fase ${timeline.length + 1}`),
+						        duration: 3,
+						        description: 'Fase creada desde la Representación 3D.',
+						        canvas_state: serializeCanvasOnly(),
+						        canvas_width: Math.round(w || 0),
+						        canvas_height: Math.round(h || 0),
+						        routes: {},
+						        moves: [],
+						        preset: presetSelect?.value || 'full_pitch',
+						        orientation: pitchOrientation,
+						        grass_style: pitchGrassStyle,
+						      };
+						    };
+
+						    const savePitch3dCurrentPhase = (duplicate = false) => {
+						      try {
+						        const steps = Array.isArray(timeline) ? timeline : [];
+						        const current = steps[pitch3dCurrentStep] || null;
+						        const next = duplicate && current
+						          ? JSON.parse(JSON.stringify(current))
+						          : capturePitch3dStep(`Fase ${steps.length + 1}`);
+						        next.title = duplicate ? `${safeText(next.title, 'Fase')} copia` : next.title;
+						        timeline.push(next);
+						        simulationSavedSteps = timeline.map((s) => ({ ...s }));
+						        try { renderTimelineList(); } catch (e) { /* ignore */ }
+						        try { pushHistory(); } catch (e) { /* ignore */ }
+						        scheduleDraftSave('canvas');
+						        showPitch3dStep(timeline.length - 1, { keepFollow: true });
+						        setStatus(duplicate ? 'Fase 3D duplicada.' : 'Fase 3D guardada.');
+						      } catch (e) {
+						        setStatus('No se pudo guardar la fase 3D.', true);
+						      }
+						    };
+
+						    const applyPitch3dSelectedAction = () => {
+						      const action = safeText(pitch3dActionSelect?.value, 'pass');
+						      try {
+						        const obj = findCanvasObjectByPitch3dUid(pitch3dSelectedUid) || (typeof findBallObject === 'function' ? findBallObject() : null);
+						        if (obj) {
+						          obj.data = obj.data || {};
+						          obj.data.action = action;
+						          obj.data.ball_action = action;
+						          const routes = Array.isArray(obj.data.interactive_routes) ? obj.data.interactive_routes : [];
+						          routes.forEach((r) => { if (r && typeof r === 'object') r.action = action; });
+						        }
+						        (Array.isArray(timeline) ? timeline : []).forEach((step) => {
+						          const uid = safeText(pitch3dSelectedUid);
+						          const routes = step?.routes && typeof step.routes === 'object' ? step.routes : null;
+						          if (uid && routes?.[uid]) routes[uid].action = action;
+						          if (routes?.ball) routes.ball.action = action;
+						        });
+						        try { canvas?.requestRenderAll?.(); } catch (e) { /* ignore */ }
+						        scheduleDraftSave('canvas');
+						        showPitch3dStep(pitch3dCurrentStep, { keepFollow: true });
+						        setStatus(`Acción 3D aplicada: ${pitch3dActionLabel(action)}.`);
+						      } catch (e) {
+						        setStatus('No se pudo aplicar la acción 3D.', true);
+						      }
+						    };
+
+						    const nudgePitch3dSelectedObject = (dx, dy) => {
+						      try {
+						        const obj = findCanvasObjectByPitch3dUid(pitch3dSelectedUid);
+						        if (!obj) {
+						          setStatus('Selecciona un jugador en la Vista 3D para moverlo.', true);
+						          return false;
+						        }
+						        const { w, h } = worldSize();
+						        const margin = 18;
+						        const left = clamp((Number(obj.left) || 0) + (Number(dx) || 0), margin, Math.max(margin, (Number(w) || 1280) - margin));
+						        const top = clamp((Number(obj.top) || 0) + (Number(dy) || 0), margin, Math.max(margin, (Number(h) || 720) - margin));
+						        obj.set({ left, top });
+						        obj.setCoords?.();
+						        canvas?.requestRenderAll?.();
+						        scheduleDraftSave('canvas');
+						        showPitch3dStep(activeStepIndex >= 0 ? activeStepIndex : pitch3dCurrentStep, { keepFollow: true });
+						        setStatus('Objeto movido desde 3D.');
+						        return true;
+						      } catch (e) {
+						        setStatus('No se pudo mover el objeto 3D.', true);
+						        return false;
+						      }
+						    };
+
+						    const clampPitch3dCanvasObjects = () => {
+						      try {
+						        const { w, h } = worldSize();
+						        const margin = 18;
+						        let changed = 0;
+						        (canvas.getObjects?.() || []).forEach((o) => {
+						          if (!o || o?.data?.base) return;
+						          const left = Number(o.left) || 0;
+						          const top = Number(o.top) || 0;
+						          const nextLeft = clamp(left, margin, Math.max(margin, (Number(w) || 1280) - margin));
+						          const nextTop = clamp(top, margin, Math.max(margin, (Number(h) || 720) - margin));
+						          if (Math.abs(nextLeft - left) > 0.1 || Math.abs(nextTop - top) > 0.1) {
+						            try { o.set({ left: nextLeft, top: nextTop }); o.setCoords?.(); changed += 1; } catch (e) { /* ignore */ }
+						          }
+						        });
+						        if (changed) {
+						          try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+						          try { pushHistory(); } catch (e) { /* ignore */ }
+						          scheduleDraftSave('canvas');
+						          showPitch3dStep(pitch3dCurrentStep, { keepFollow: true });
+						        }
+						        setStatus(changed ? `Límites 3D ajustados (${changed}).` : 'Límites 3D correctos.');
+						      } catch (e) {
+						        setStatus('No se pudieron ajustar los límites 3D.', true);
+						      }
+						    };
+
+						    const validatePitch3dTask = () => {
+						      try {
+						        const state = serializeCanvasOnly();
+						        const objects = Array.isArray(state?.objects) ? state.objects : [];
+						        const tokensCount = objects.filter((o) => safeText(o?.data?.kind) === 'token').length;
+						        const ballsCount = objects.filter((o) => safeText(o?.data?.kind) === 'ball').length;
+						        const routedCount = objects.filter((o) => Array.isArray(o?.data?.interactive_routes) && o.data.interactive_routes.length).length
+						          + (Array.isArray(timeline) ? timeline.reduce((sum, s) => sum + Object.keys(s?.routes || {}).length, 0) : 0);
+						        const issues = [];
+						        if (tokensCount < 2) issues.push('pocos jugadores');
+						        if (ballsCount < 1) issues.push('sin balón');
+						        if (routedCount < 1) issues.push('sin rutas');
+						        if (tokensCount > 24) issues.push('muy cargada para móvil');
+						        setStatus(issues.length ? `Validación 3D: revisar ${issues.join(', ')}.` : 'Validación 3D correcta.');
+						      } catch (e) {
+						        setStatus('No se pudo validar la tarea 3D.', true);
+						      }
+						    };
+
+						    const createPitch3dTemplate = () => {
+						      try {
+						        if (typeof generateInteractiveDemo === 'function') generateInteractiveDemo();
+						        else if (scenarioTemplate3Btn) scenarioTemplate3Btn.click();
+						        setTimeout(() => {
+						          try {
+						            clampPitch3dCanvasObjects();
+						            showPitch3dStep(activeStepIndex >= 0 ? activeStepIndex : pitch3dCurrentStep, { keepFollow: true });
+						          } catch (e) { /* ignore */ }
+					        }, 250);
+						        setStatus('Plantilla 3D creada.');
+						      } catch (e) {
+						        setStatus('No se pudo crear la plantilla 3D.', true);
+						      }
+						    };
+
+						    const togglePitch3dQuality = () => {
+						      try {
+						        const current = document.body?.dataset?.pitch3dQuality === 'high';
+						        const next = !current;
+						        if (document.body) document.body.dataset.pitch3dQuality = next ? 'high' : 'normal';
+						        if (pitch3dQualityBtn) pitch3dQualityBtn.classList.toggle('primary', next);
+						        if (pitch3dRenderer) {
+						          pitch3dRenderer.setPixelRatio(next ? Math.min(2, window.devicePixelRatio || 1.5) : getPitch3dRenderPixelRatio());
+						          resizePitch3d();
+						        }
+						        setStatus(next ? 'Calidad 3D alta activada.' : 'Calidad 3D normal activada.');
+						      } catch (e) { /* ignore */ }
+						    };
+
 						    const togglePitch3dRecord = async () => {
 						      if (!canRecordPitch3d()) {
 						        setStatus('Grabación 3D no disponible (MediaRecorder).', true);
@@ -13475,7 +13674,30 @@
 						    });
 						    pitch3dSnapBtn?.addEventListener('click', (ev) => { ev.preventDefault(); snapPitch3dPng(); });
 						    pitch3dRecordBtn?.addEventListener('click', (ev) => { ev.preventDefault(); togglePitch3dRecord(); });
+						    pitch3dActionApplyBtn?.addEventListener('click', (ev) => { ev.preventDefault(); applyPitch3dSelectedAction(); });
+						    pitch3dPhaseSaveBtn?.addEventListener('click', (ev) => { ev.preventDefault(); savePitch3dCurrentPhase(false); });
+						    pitch3dPhaseDupBtn?.addEventListener('click', (ev) => { ev.preventDefault(); savePitch3dCurrentPhase(true); });
+						    pitch3dTemplateBtn?.addEventListener('click', (ev) => { ev.preventDefault(); createPitch3dTemplate(); });
+						    pitch3dValidateBtn?.addEventListener('click', (ev) => { ev.preventDefault(); validatePitch3dTask(); });
+						    pitch3dClampBtn?.addEventListener('click', (ev) => { ev.preventDefault(); clampPitch3dCanvasObjects(); });
+						    pitch3dQualityBtn?.addEventListener('click', (ev) => { ev.preventDefault(); togglePitch3dQuality(); });
 						    if (pitch3dRecordBtn) pitch3dRecordBtn.disabled = !canRecordPitch3d();
+						    try {
+						      window.addEventListener('keydown', (ev) => {
+						        if (!pitch3dOpen || !pitch3dSelectedUid) return;
+						        const tag = safeText(ev?.target?.tagName).toUpperCase();
+						        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+						        const key = safeText(ev.key);
+						        if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(key)) return;
+						        const step = ev.shiftKey ? 18 : 6;
+						        const dx = key === 'ArrowLeft' ? -step : (key === 'ArrowRight' ? step : 0);
+						        const dy = key === 'ArrowUp' ? -step : (key === 'ArrowDown' ? step : 0);
+						        if (nudgePitch3dSelectedObject(dx, dy)) {
+						          ev.preventDefault();
+						          ev.stopPropagation();
+						        }
+						      }, true);
+						    } catch (e) { /* ignore */ }
 
 						    // Controles táctiles/ratón para orbit/zoom.
 						    const installPitch3dControls = () => {
