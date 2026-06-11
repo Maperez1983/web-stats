@@ -8066,6 +8066,23 @@
 						    };
 
 						    const __pitch3dTextureCache = new Map();
+						    const getPitch3dMaxAnisotropy = () => {
+						      try {
+						        const max = Number(pitch3dRenderer?.capabilities?.getMaxAnisotropy?.()) || 16;
+						        return clamp(max, 8, 32);
+						      } catch (e) {
+						        return 16;
+						      }
+						    };
+						    const getPitch3dRenderPixelRatio = () => {
+						      const dpr = Math.max(1, Number(window.devicePixelRatio) || 1);
+						      const viewportMax = Math.max(window.innerWidth || 0, window.innerHeight || 0);
+						      const isLargeDesktop = viewportMax >= 1600;
+						      const isDesktop = viewportMax >= 1100;
+						      const maxPixelRatio = isLargeDesktop ? 3 : (isDesktop ? 2.65 : 2.2);
+						      const supersampledDpr = isLargeDesktop ? Math.max(dpr, 1.5) : dpr;
+						      return Math.min(maxPixelRatio, supersampledDpr);
+						    };
 						    const __pitch3dLoadTextureAsset = (dataKey, onLoad, options = {}) => {
 						      const src = __pitch3dAssetUrl(dataKey);
 						      if (!src || !window.THREE) return null;
@@ -8082,7 +8099,7 @@
 						        try {
 						          texture.wrapS = THREE.ClampToEdgeWrapping;
 						          texture.wrapT = THREE.ClampToEdgeWrapping;
-						          texture.anisotropy = Number(options.anisotropy) || 10;
+						          texture.anisotropy = Math.min(getPitch3dMaxAnisotropy(), Number(options.anisotropy) || 16);
 						          if (options.colorSpace && 'colorSpace' in texture) texture.colorSpace = options.colorSpace;
 						          texture.needsUpdate = true;
 						        } catch (e) { /* ignore */ }
@@ -8456,7 +8473,7 @@
 							      const tex = new THREE.CanvasTexture(c);
 							      tex.wrapS = THREE.ClampToEdgeWrapping;
 							      tex.wrapT = THREE.ClampToEdgeWrapping;
-							      tex.anisotropy = 16;
+							      tex.anisotropy = getPitch3dMaxAnisotropy();
 							      tex.needsUpdate = true;
 							      return tex;
 							    };
@@ -8493,7 +8510,7 @@
 							      const tex = new THREE.CanvasTexture(c);
 							      tex.wrapS = THREE.ClampToEdgeWrapping;
 							      tex.wrapT = THREE.ClampToEdgeWrapping;
-							      tex.anisotropy = 16;
+							      tex.anisotropy = getPitch3dMaxAnisotropy();
 							      tex.needsUpdate = true;
 							      return tex;
 							    };
@@ -8524,7 +8541,7 @@
 							      const tex = new THREE.CanvasTexture(c);
 							      tex.wrapS = THREE.ClampToEdgeWrapping;
 							      tex.wrapT = THREE.ClampToEdgeWrapping;
-							      tex.anisotropy = 12;
+							      tex.anisotropy = getPitch3dMaxAnisotropy();
 							      tex.needsUpdate = true;
 							      return tex;
 							    };
@@ -8604,7 +8621,7 @@
 						          ctx.textBaseline = 'middle';
 						          ctx.fillText(label.slice(0, 3), size / 2, size / 2 + 1);
 						          const tex = new THREE.CanvasTexture(c);
-						          tex.anisotropy = 4;
+						          tex.anisotropy = Math.min(getPitch3dMaxAnisotropy(), 16);
 						          tex.needsUpdate = true;
 						          material = new THREE.SpriteMaterial({ map: tex, transparent: true });
 						          cache.set(key, material);
@@ -8627,7 +8644,7 @@
 						      } catch (e) { /* ignore */ }
 						      draw(ctx, c);
 						      const tex = new THREE.CanvasTexture(c);
-						      tex.anisotropy = 12;
+						      tex.anisotropy = getPitch3dMaxAnisotropy();
 						      try {
 						        tex.generateMipmaps = true;
 						        if (THREE.LinearMipmapLinearFilter) tex.minFilter = THREE.LinearMipmapLinearFilter;
@@ -8730,9 +8747,7 @@
 						      if (pitch3dRenderer && pitch3dScene && pitch3dCamera) return true;
 						      try {
 						        const renderer = new THREE.WebGLRenderer({ canvas: pitch3dCanvasEl, antialias: true, alpha: false, preserveDrawingBuffer: true });
-						        const dpr = Number(window.devicePixelRatio) || 1;
-						        const maxPixelRatio = Math.max(window.innerWidth || 0, window.innerHeight || 0) >= 1280 ? 2.5 : 2;
-						        renderer.setPixelRatio(Math.min(maxPixelRatio, dpr));
+						        renderer.setPixelRatio(getPitch3dRenderPixelRatio());
 						        renderer.setClearColor(0xaed8f3, 1);
 						        try {
 						          renderer.shadowMap.enabled = true;
@@ -8756,7 +8771,10 @@
 							        dir.position.set(-145, 185, -105);
 						        try {
 						          dir.castShadow = true;
-							          const shadowSize = Math.max(window.innerWidth || 0, window.innerHeight || 0) >= 1280 ? 8192 : 4096;
+							          const viewportMax = Math.max(window.innerWidth || 0, window.innerHeight || 0);
+							          const maxShadowTexture = Number(renderer.capabilities?.maxTextureSize) || 8192;
+							          const desiredShadowSize = viewportMax >= 1100 ? 8192 : 4096;
+							          const shadowSize = Math.min(maxShadowTexture, desiredShadowSize);
 							          dir.shadow.mapSize.width = shadowSize;
 							          dir.shadow.mapSize.height = shadowSize;
 						          dir.shadow.camera.near = 10;
@@ -8793,6 +8811,7 @@
 						      const rect = pitch3dCanvasEl.getBoundingClientRect();
 						      const w = Math.max(320, Math.round(rect.width || 0));
 						      const h = Math.max(220, Math.round(rect.height || 0));
+						      try { pitch3dRenderer.setPixelRatio(getPitch3dRenderPixelRatio()); } catch (e) { /* ignore */ }
 						      pitch3dRenderer.setSize(w, h, false);
 						      pitch3dCamera.aspect = w / h;
 						      pitch3dCamera.updateProjectionMatrix();
@@ -9025,7 +9044,7 @@
 							      if (tex) {
 							        tex.wrapS = THREE.ClampToEdgeWrapping;
 							        tex.wrapT = THREE.ClampToEdgeWrapping;
-							        tex.anisotropy = 16;
+							        tex.anisotropy = getPitch3dMaxAnisotropy();
 							        try {
 							          tex.generateMipmaps = true;
 							          if (THREE.LinearMipmapLinearFilter) tex.minFilter = THREE.LinearMipmapLinearFilter;
@@ -9033,8 +9052,8 @@
 							        } catch (e) { /* ignore */ }
 							        tex.needsUpdate = true;
 							      }
-							      const pbrW = Math.min(2048, Math.max(768, Math.round((texCanvas?.width || 1024) / 2)));
-							      const pbrH = Math.min(1536, Math.max(768, Math.round((texCanvas?.height || 768) / 2)));
+							      const pbrW = Math.min(4096, Math.max(1536, Math.round(texCanvas?.width || 2048)));
+							      const pbrH = Math.min(3072, Math.max(1536, Math.round(texCanvas?.height || 1536)));
 							      const bumpTex = makePitchBumpTexture(pbrW, pbrH);
 							      const normalTex = makePitchNormalTexture(pbrW, pbrH);
 							      const roughnessTex = makePitchRoughnessTexture(pbrW, pbrH);
@@ -9229,7 +9248,7 @@
 						              ctx.fillRect(x, y, 1 + (i % 3), 1);
 						            }
 						            ctx.globalAlpha = 1;
-						          }, 1024, 663);
+						          }, 2048, 1326);
 						          const wearMat = new THREE.MeshBasicMaterial({
 						            map: wearTex?.tex || null,
 						            transparent: true,
@@ -9368,7 +9387,7 @@
 						            ctx.strokeStyle = 'rgba(180,255,237,0.48)';
 						            ctx.lineWidth = 4;
 						            ctx.strokeRect(12, 12, c.width - 24, c.height - 24);
-						          }, 1024, 192)?.tex || null;
+						          }, 2048, 384)?.tex || null;
 						          const adMats = [
 						            new THREE.MeshBasicMaterial({ map: makeAdTexture('SEGUNDA JUGADA', stadiumPalette3d.primary), side: THREE.FrontSide, toneMapped: false, transparent: true, opacity: 0.96 }),
 						            new THREE.MeshBasicMaterial({ map: makeAdTexture('TACTICA 3D', stadiumPalette3d.accent), side: THREE.FrontSide, toneMapped: false, transparent: true, opacity: 0.96 }),
@@ -9960,9 +9979,10 @@
 						            }
 						            const makeBadgeMat = (label, bg, fg) => {
 						              const c = document.createElement('canvas');
-						              c.width = 256;
-						              c.height = 256;
+						              c.width = 512;
+						              c.height = 512;
 						              const ctx = c.getContext('2d');
+						              try { ctx.scale(2, 2); } catch (e) { /* ignore */ }
 						              ctx.clearRect(0, 0, 256, 256);
 						              ctx.fillStyle = '#f8fafc';
 						              ctx.beginPath();
@@ -10654,9 +10674,10 @@
 						            addOpenAccessCorrections();
 						            const makeBadge = () => {
 						              const c = document.createElement('canvas');
-						              c.width = 256;
-						              c.height = 256;
+						              c.width = 512;
+						              c.height = 512;
 						              const ctx = c.getContext('2d');
+						              try { ctx.scale(2, 2); } catch (e) { /* ignore */ }
 						              ctx.fillStyle = '#f8fafc';
 						              ctx.beginPath();
 						              ctx.arc(128, 128, 112, 0, Math.PI * 2);
@@ -10826,7 +10847,7 @@
 							                ctx.stroke();
 							              }
 							              ctx.globalAlpha = 1;
-							            }, 1024, 512);
+							            }, 2048, 1024);
 							            const mat = new THREE.MeshBasicMaterial({
 							              map: tex?.tex || null,
 							              color: 0xffffff,
