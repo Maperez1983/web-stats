@@ -10628,34 +10628,34 @@
 						                const longSpan = metersW + 50.0;
 						                const shortSpan = metersH + 50.0;
 						                [-1, 1].forEach((sign) => {
-						                  const z = sign * (metersH / 2 + 26.9);
+						                  const z = sign * (metersH / 2 + 31.8);
 						                  for (let i = -6; i <= 6; i += 1) {
 						                    const x = i * (longSpan / 13);
-						                    addBox(upgrade, new THREE.BoxGeometry(0.18, 0.24, 13.2), roofMetal, x, 15.34, z, sign * -0.20, 0, 0, 'pitch_3d_ref_inspired_long_roof_radial_rib');
+						                    addBox(upgrade, new THREE.BoxGeometry(0.16, 0.22, 9.2), roofMetal, x, 17.05, z, sign * -0.12, 0, 0, 'pitch_3d_ref_inspired_long_roof_radial_rib');
 						                    if (i < 6) {
-						                      addBox(upgrade, new THREE.BoxGeometry(longSpan / 14.4, 0.08, 11.4), roofGlass, x + (longSpan / 26), 15.18, z, sign * -0.18, 0, 0, 'pitch_3d_ref_inspired_long_roof_translucent_panel');
+						                      addBox(upgrade, new THREE.BoxGeometry(longSpan / 14.4, 0.07, 8.4), roofGlass, x + (longSpan / 26), 16.92, z, sign * -0.10, 0, 0, 'pitch_3d_ref_inspired_long_roof_translucent_panel');
 						                    }
 						                    if (i % 2 === 0) {
-						                      addBox(upgrade, new THREE.BoxGeometry(0.42, 11.4, 0.42), pillarMat, x, 6.05, sign * (metersH / 2 + 25.2), 0, 0, i < 0 ? -0.18 : 0.18, 'pitch_3d_ref_inspired_slanted_facade_pillar_long');
+						                      addBox(upgrade, new THREE.BoxGeometry(0.38, 9.8, 0.38), pillarMat, x, 7.40, sign * (metersH / 2 + 30.8), 0, 0, i < 0 ? -0.12 : 0.12, 'pitch_3d_ref_inspired_slanted_facade_pillar_long');
 						                    }
 						                  }
-						                  addBox(upgrade, new THREE.BoxGeometry(longSpan + 5.0, 0.32, 0.42), roofMetal, 0, 14.82, sign * (metersH / 2 + 20.1), 0, 0, 0, 'pitch_3d_ref_inspired_inner_roof_compression_ring_long');
-						                  addBox(upgrade, new THREE.BoxGeometry(longSpan + 11.0, 0.42, 0.52), roofMetal, 0, 15.08, sign * (metersH / 2 + 32.6), 0, 0, 0, 'pitch_3d_ref_inspired_outer_roof_edge_long');
+						                  addBox(upgrade, new THREE.BoxGeometry(longSpan + 5.0, 0.28, 0.38), roofMetal, 0, 16.46, sign * (metersH / 2 + 25.6), 0, 0, 0, 'pitch_3d_ref_inspired_inner_roof_compression_ring_long');
+						                  addBox(upgrade, new THREE.BoxGeometry(longSpan + 11.0, 0.38, 0.46), roofMetal, 0, 16.92, sign * (metersH / 2 + 36.0), 0, 0, 0, 'pitch_3d_ref_inspired_outer_roof_edge_long');
 						                });
 						                [-1, 1].forEach((sign) => {
-						                  const x = sign * (metersW / 2 + 26.9);
+						                  const x = sign * (metersW / 2 + 31.8);
 						                  for (let i = -5; i <= 5; i += 1) {
 						                    const z = i * (shortSpan / 11);
-						                    addBox(upgrade, new THREE.BoxGeometry(13.2, 0.24, 0.18), roofMetal, x, 15.34, z, 0, sign * 0.20, 0, 'pitch_3d_ref_inspired_end_roof_radial_rib');
+						                    addBox(upgrade, new THREE.BoxGeometry(9.2, 0.22, 0.16), roofMetal, x, 17.05, z, 0, sign * 0.12, 0, 'pitch_3d_ref_inspired_end_roof_radial_rib');
 						                    if (i < 5) {
-						                      addBox(upgrade, new THREE.BoxGeometry(11.4, 0.08, shortSpan / 12.4), roofGlass, x, 15.18, z + (shortSpan / 22), 0, sign * 0.18, 0, 'pitch_3d_ref_inspired_end_roof_translucent_panel');
+						                      addBox(upgrade, new THREE.BoxGeometry(8.4, 0.07, shortSpan / 12.4), roofGlass, x, 16.92, z + (shortSpan / 22), 0, sign * 0.10, 0, 'pitch_3d_ref_inspired_end_roof_translucent_panel');
 						                    }
 						                    if (i % 2 !== 0) {
-						                      addBox(upgrade, new THREE.BoxGeometry(0.42, 11.4, 0.42), pillarMat, sign * (metersW / 2 + 25.2), 6.05, z, 0.18, 0, 0, 'pitch_3d_ref_inspired_slanted_facade_pillar_end');
+						                      addBox(upgrade, new THREE.BoxGeometry(0.38, 9.8, 0.38), pillarMat, sign * (metersW / 2 + 30.8), 7.40, z, 0.12, 0, 0, 'pitch_3d_ref_inspired_slanted_facade_pillar_end');
 						                    }
 						                  }
-						                  addBox(upgrade, new THREE.BoxGeometry(0.42, 0.32, shortSpan + 5.0), roofMetal, sign * (metersW / 2 + 20.1), 14.82, 0, 0, 0, 0, 'pitch_3d_ref_inspired_inner_roof_compression_ring_end');
-						                  addBox(upgrade, new THREE.BoxGeometry(0.52, 0.42, shortSpan + 11.0), roofMetal, sign * (metersW / 2 + 32.6), 15.08, 0, 0, 0, 0, 'pitch_3d_ref_inspired_outer_roof_edge_end');
+						                  addBox(upgrade, new THREE.BoxGeometry(0.38, 0.28, shortSpan + 5.0), roofMetal, sign * (metersW / 2 + 25.6), 16.46, 0, 0, 0, 0, 'pitch_3d_ref_inspired_inner_roof_compression_ring_end');
+						                  addBox(upgrade, new THREE.BoxGeometry(0.46, 0.38, shortSpan + 11.0), roofMetal, sign * (metersW / 2 + 36.0), 16.92, 0, 0, 0, 0, 'pitch_3d_ref_inspired_outer_roof_edge_end');
 						                });
 						              };
 						              const addStadiumLights = () => {
@@ -10809,8 +10809,8 @@
 						                addOvalRing(metersW / 2 + 14.4, metersH / 2 + 14.7, 6.35, 0.010, concrete, 'pitch_3d_ref_detail_curved_middle_bowl_ring');
 						                addOvalRing(metersW / 2 + 19.0, metersH / 2 + 19.2, 9.00, 0.010, concrete, 'pitch_3d_ref_detail_curved_upper_bowl_ring');
 						                addOvalRing(metersW / 2 + 21.2, metersH / 2 + 21.5, 9.55, 0.004, rail, 'pitch_3d_ref_detail_curved_guardrail_ring');
-						                addOvalRing(metersW / 2 + 27.8, metersH / 2 + 27.8, 15.20, 0.012, glass, 'pitch_3d_ref_detail_curved_translucent_roof_skin');
-						                addOvalRing(metersW / 2 + 33.0, metersH / 2 + 33.0, 15.42, 0.007, steel, 'pitch_3d_ref_detail_curved_roof_outer_lip');
+						                addOvalRing(metersW / 2 + 34.8, metersH / 2 + 34.8, 18.40, 0.008, glass, 'pitch_3d_ref_detail_curved_translucent_roof_skin');
+						                addOvalRing(metersW / 2 + 40.5, metersH / 2 + 40.5, 18.75, 0.005, steel, 'pitch_3d_ref_detail_curved_roof_outer_lip');
 						              };
 						              const addDeepVomitoryPassages = () => {
 						                [-1, 1].forEach((sign) => {
