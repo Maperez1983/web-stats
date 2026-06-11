@@ -200,7 +200,7 @@
           <p style="margin:.5rem 0 0;color:rgba(226,232,240,0.72);">El trabajo del staff se organiza aquí por áreas: estadísticas grupales, partido, entrenamiento y análisis.</p>
         </div>
         <div class="head-actions">
-          <a class="pill-button" style="border-radius:12px;" href="{% url 'staff-directory' %}">Staff</a>
+          <a class="pill-button" style="border-radius:12px;" href="{% url 'staff-directory' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Staff</a>
           <a class="pill-button" style="border-radius:12px;" href="{% url 'coach-detail' %}">Volver</a>
         </div>
       </header>

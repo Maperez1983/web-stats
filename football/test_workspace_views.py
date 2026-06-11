@@ -328,6 +328,38 @@ class StaffAccessInvitationTests(TestCase):
         self.assertContains(response, reverse('staff-member-photo-file', args=[member.id]))
         self.assertContains(response, 'Marta Entrenadora')
 
+    def test_staff_directory_does_not_show_staff_from_other_team(self):
+        _owner, cadete, workspace = self._create_workspace(username='staff-owner-scope')
+        benjamin = Team.objects.create(
+            name='Benjamin Scope',
+            slug='benjamin-scope',
+            short_name='BEN',
+            category='Benjamin',
+        )
+        WorkspaceTeam.objects.create(workspace=workspace, team=benjamin)
+        StaffMember.objects.create(
+            workspace=workspace,
+            team=cadete,
+            name='Tecnico Cadete',
+            role_title='Entrenador',
+        )
+        benjamin_member = StaffMember.objects.create(
+            workspace=workspace,
+            team=benjamin,
+            name='Tecnico Benjamin',
+            role_title='Entrenador',
+        )
+        session = self.client.session
+        session['active_team_by_workspace'] = {str(workspace.id): benjamin.id}
+        session.save()
+
+        response = self.client.get(f'{reverse("staff-directory")}?team={benjamin.id}', secure=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Tecnico Benjamin')
+        self.assertContains(response, reverse('staff-member-detail', args=[benjamin_member.id]))
+        self.assertNotContains(response, 'Tecnico Cadete')
+
     def test_platform_workspace_detail_staff_chips_link_to_staff_profile_with_photo(self):
         owner, team, workspace = self._create_workspace(username='staff-owner-platform')
         owner.is_staff = True

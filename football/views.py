@@ -2259,14 +2259,15 @@ def staff_directory_page(request):
         .select_related('team', 'user')
         .order_by('-is_active', 'role_title', 'name', '-updated_at', '-id')
     )
-    scope_items = []
+    club_items = []
+    team_items = []
     for item in items:
         if item.team_id is None:
-            scope_items.append(item)
+            club_items.append(item)
         elif active_team and int(item.team_id) == int(active_team.id):
-            scope_items.append(item)
-    # Si no hay staff para la categoría actual, mostramos el del club igualmente.
-    visible_items = scope_items if scope_items else [it for it in items if it.team_id is None] or items
+            team_items.append(item)
+    # Nunca caemos a "items" completo: eso mezclaría staff de otras categorías.
+    visible_items = team_items + club_items if active_team else club_items
 
     for member in visible_items:
         member.photo_url = ''
@@ -2429,6 +2430,8 @@ def staff_member_create_page(request):
                         'photo_url': photo_url,
                         'license_url': license_url,
                         'cert_url': cert_url,
+                        'active_team': active_team,
+                        'team_label': _staff_scope_label(active_team),
                         'can_manage_workspace': True,
                         'error': '',
                         'feedback': 'Ficha creada. Invitación de acceso generada.' if created_member else 'La ficha ya existía. Invitación de acceso generada.',
@@ -2471,6 +2474,7 @@ def staff_member_detail_page(request, staff_id):
     member = StaffMember.objects.filter(id=int(staff_id), workspace=workspace).select_related('team', 'user').first()
     if not member:
         raise Http404('Miembro del staff no encontrado')
+    active_team = _get_active_team_for_request(request)
     can_manage = bool(_can_manage_workspace(request.user, workspace))
     error = ''
     feedback = ''
@@ -2501,7 +2505,6 @@ def staff_member_detail_page(request, staff_id):
             member.certification_expires_at = parse_date(str(request.POST.get('certification_expires_at') or '').strip()) if request.POST.get('certification_expires_at') else None
             member.is_active = str(request.POST.get('is_active') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
             scope = str(request.POST.get('scope') or '').strip().lower()
-            active_team = _get_active_team_for_request(request)
             member.team = active_team if scope == 'team' else None
             if unlink_user:
                 member.user = None
@@ -2559,6 +2562,8 @@ def staff_member_detail_page(request, staff_id):
             'photo_url': photo_url,
             'license_url': license_url,
             'cert_url': cert_url,
+            'active_team': active_team,
+            'team_label': _staff_scope_label(active_team),
             'can_manage_workspace': can_manage,
             'error': error,
             'feedback': feedback,

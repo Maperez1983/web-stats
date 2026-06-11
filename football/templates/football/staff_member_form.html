@@ -238,7 +238,7 @@
             {% endif %}
           </div>
           <div class="row-actions">
-            <a class="btn" href="{% url 'staff-directory' %}">Volver</a>
+            <a class="btn" href="{% url 'staff-directory' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Volver</a>
             {% if mode != 'create' %}
             <a class="btn" href="{% url 'coach-cards' %}">Áreas</a>
             {% endif %}
