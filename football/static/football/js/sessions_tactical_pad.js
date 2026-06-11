@@ -10412,6 +10412,119 @@
 						                addBox(stadium, new THREE.BoxGeometry(w * 0.74, h * 0.38, 0.08), windowMat, x, h * 0.62, roadZ + 8.16, 0, 0, 0, 'pitch_3d_ref_exterior_city_window_strip');
 						              }
 						            };
+						            const addAuthenticExteriorEnvelope = () => {
+						              const envelope = new THREE.Group();
+						              envelope.userData = { kind: 'pitch_3d_ref_real_stadium_exterior_envelope' };
+						              const facadeMat = new THREE.MeshStandardMaterial({ color: 0xd5dcd7, roughness: 0.70, metalness: 0.04 });
+						              const lowerMat = new THREE.MeshStandardMaterial({ color: 0x9fa9a5, roughness: 0.82, metalness: 0.03 });
+						              const ribMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f2, roughness: 0.55, metalness: 0.08 });
+						              const glassMat = new THREE.MeshStandardMaterial({ color: 0x8fc4d3, roughness: 0.24, metalness: 0.05, transparent: true, opacity: 0.44 });
+						              const portalMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.88, metalness: 0.02 });
+						              const canopyMat = new THREE.MeshStandardMaterial({ color: toColorInt(darkenHex(accentHex, 0.08), 0x064e3b), roughness: 0.46, metalness: 0.10 });
+						              const plazaMat = new THREE.MeshStandardMaterial({ color: 0xc7cfca, roughness: 0.84, metalness: 0.02 });
+						              const stairMat = new THREE.MeshStandardMaterial({ color: 0xe5ebe7, roughness: 0.78, metalness: 0.02 });
+						              const asphaltMat = new THREE.MeshStandardMaterial({ color: 0x2d3234, roughness: 0.92, metalness: 0.01 });
+						              const paintMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc, transparent: true, opacity: 0.72 });
+						              const fenceMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.48, metalness: 0.28 });
+						              const outerX = metersW / 2 + 21.7;
+						              const outerZ = metersH / 2 + 21.7;
+						              const facadeHeight = 8.6;
+						              const longSpan = metersW + 54.0;
+						              const shortSpan = metersH + 54.0;
+						              const addEntranceGate = (axis, sign, offset) => {
+						                const isLong = axis === 'z';
+						                const x = isLong ? offset : sign * outerX;
+						                const z = isLong ? sign * outerZ : offset;
+						                const frontX = isLong ? offset : sign * (outerX + 0.46);
+						                const frontZ = isLong ? sign * (outerZ + 0.46) : offset;
+						                const portalGeo = isLong ? new THREE.BoxGeometry(5.6, 3.0, 0.24) : new THREE.BoxGeometry(0.24, 3.0, 5.6);
+						                const canopyGeo = isLong ? new THREE.BoxGeometry(7.4, 0.26, 2.7) : new THREE.BoxGeometry(2.7, 0.26, 7.4);
+						                const headerGeo = isLong ? new THREE.BoxGeometry(7.0, 0.82, 0.34) : new THREE.BoxGeometry(0.34, 0.82, 7.0);
+						                addBox(envelope, portalGeo, portalMat, frontX, 1.62, frontZ, 0, 0, 0, 'pitch_3d_ref_real_entry_dark_portal');
+						                addBox(envelope, canopyGeo, canopyMat, isLong ? x : sign * (outerX + 1.25), 3.34, isLong ? sign * (outerZ + 1.25) : z, 0, 0, 0, 'pitch_3d_ref_real_entry_canopy');
+						                addBox(envelope, headerGeo, fasciaGreen, frontX, 3.34, frontZ, 0, 0, 0, 'pitch_3d_ref_real_entry_colored_header');
+						                for (let i = -2; i <= 2; i += 1) {
+						                  const turnX = isLong ? offset + (i * 0.62) : sign * (outerX + 0.92);
+						                  const turnZ = isLong ? sign * (outerZ + 0.92) : offset + (i * 0.62);
+						                  const barGeo = isLong ? new THREE.BoxGeometry(0.10, 1.18, 0.74) : new THREE.BoxGeometry(0.74, 1.18, 0.10);
+						                  addBox(envelope, barGeo, fenceMat, turnX, 0.72, turnZ, 0, 0, 0, 'pitch_3d_ref_real_entry_turnstile_bars');
+						                }
+						              };
+						              const addApproachStairs = (axis, sign, offset) => {
+						                const isLong = axis === 'z';
+						                for (let step = 0; step < 5; step += 1) {
+						                  const depth = 1.0 + (step * 0.18);
+						                  const width = 8.6 - (step * 0.28);
+						                  const x = isLong ? offset : sign * (outerX + 2.5 + step * 0.62);
+						                  const z = isLong ? sign * (outerZ + 2.5 + step * 0.62) : offset;
+						                  const geo = isLong ? new THREE.BoxGeometry(width, 0.13, depth) : new THREE.BoxGeometry(depth, 0.13, width);
+						                  addBox(envelope, geo, stairMat, x, 0.13 + step * 0.11, z, 0, 0, 0, 'pitch_3d_ref_real_approach_stair_tread');
+						                }
+						              };
+						              const addFacadeRun = (axis, sign, span) => {
+						                const isLong = axis === 'z';
+						                const x = isLong ? 0 : sign * outerX;
+						                const z = isLong ? sign * outerZ : 0;
+						                const lowerGeo = isLong ? new THREE.BoxGeometry(span, 2.7, 1.15) : new THREE.BoxGeometry(1.15, 2.7, span);
+						                const upperGeo = isLong ? new THREE.BoxGeometry(span - 2.5, facadeHeight, 0.72) : new THREE.BoxGeometry(0.72, facadeHeight, span - 2.5);
+						                const glassGeo = isLong ? new THREE.BoxGeometry(span - 15.0, 1.45, 0.16) : new THREE.BoxGeometry(0.16, 1.45, span - 15.0);
+						                const soffitGeo = isLong ? new THREE.BoxGeometry(span + 4.6, 0.34, 4.2) : new THREE.BoxGeometry(4.2, 0.34, span + 4.6);
+						                addBox(envelope, lowerGeo, lowerMat, x, 1.35, z, 0, 0, 0, 'pitch_3d_ref_real_continuous_lower_facade');
+						                addBox(envelope, upperGeo, facadeMat, x, 5.68, z + (isLong ? sign * 0.06 : 0), 0, 0, 0, 'pitch_3d_ref_real_continuous_upper_facade');
+						                addBox(envelope, glassGeo, glassMat, isLong ? 0 : sign * (outerX + 0.39), 5.15, isLong ? sign * (outerZ + 0.39) : 0, 0, 0, 0, 'pitch_3d_ref_real_continuous_glass_concourse');
+						                addBox(envelope, soffitGeo, roofWhite, isLong ? 0 : sign * (outerX + 0.96), 10.14, isLong ? sign * (outerZ + 0.96) : 0, 0, 0, 0, 'pitch_3d_ref_real_continuous_roof_soffit');
+						                const ribCount = isLong ? 11 : 9;
+						                for (let i = 0; i < ribCount; i += 1) {
+						                  const t = ribCount === 1 ? 0 : (i / (ribCount - 1));
+						                  const offset = -span * 0.43 + (span * 0.86 * t);
+						                  const ribGeo = isLong ? new THREE.BoxGeometry(0.34, facadeHeight + 1.0, 0.54) : new THREE.BoxGeometry(0.54, facadeHeight + 1.0, 0.34);
+						                  addBox(envelope, ribGeo, ribMat, isLong ? offset : sign * (outerX + 0.54), 5.84, isLong ? sign * (outerZ + 0.54) : offset, 0, 0, 0, 'pitch_3d_ref_real_facade_vertical_rib_lod');
+						                }
+						                const gates = isLong ? [-span * 0.26, 0, span * 0.26] : [-span * 0.22, span * 0.22];
+						                gates.forEach((offset) => {
+						                  addEntranceGate(axis, sign, offset);
+						                  addApproachStairs(axis, sign, offset);
+						                });
+						              };
+						              const addCornerMass = (sx, sz) => {
+						                const x = sx * (outerX - 0.25);
+						                const z = sz * (outerZ - 0.25);
+						                addBox(envelope, new THREE.BoxGeometry(16.8, 8.9, 16.8), facadeMat, x, 4.45, z, 0, sx * sz * 0.18, 0, 'pitch_3d_ref_real_corner_solid_bowl_closure');
+						                addBox(envelope, new THREE.BoxGeometry(13.8, 1.55, 0.28), glassMat, sx * (outerX - 4.2), 5.62, sz * (outerZ + 3.56), 0, sx * sz * 0.35, 0, 'pitch_3d_ref_real_corner_glass_wrap');
+						                addBox(envelope, new THREE.BoxGeometry(16.0, 0.36, 18.2), roofWhite, sx * (outerX - 0.15), 10.18, sz * (outerZ - 0.15), 0, sx * sz * 0.10, 0, 'pitch_3d_ref_real_corner_roof_plate');
+						                addBox(envelope, new THREE.BoxGeometry(1.05, 11.2, 1.05), ribMat, sx * (outerX + 6.6), 5.60, sz * (outerZ + 6.6), 0, 0, 0, 'pitch_3d_ref_real_corner_wayfinding_tower');
+						                addBox(envelope, new THREE.BoxGeometry(2.8, 1.2, 0.24), fasciaGreen, sx * (outerX + 6.6), 8.85, sz * (outerZ + 7.16), 0, 0, 0, 'pitch_3d_ref_real_corner_gate_sign');
+						              };
+						              const addPlazaAndStreetFurniture = () => {
+						                addBox(envelope, new THREE.BoxGeometry(metersW + 86.0, 0.065, 13.2), plazaMat, 0, 0.045, outerZ + 8.5, 0, 0, 0, 'pitch_3d_ref_real_north_entry_plaza');
+						                addBox(envelope, new THREE.BoxGeometry(metersW + 86.0, 0.065, 13.2), plazaMat, 0, 0.045, -(outerZ + 8.5), 0, 0, 0, 'pitch_3d_ref_real_south_entry_plaza');
+						                addBox(envelope, new THREE.BoxGeometry(13.2, 0.065, metersH + 86.0), plazaMat, outerX + 8.5, 0.045, 0, 0, 0, 0, 'pitch_3d_ref_real_east_entry_plaza');
+						                addBox(envelope, new THREE.BoxGeometry(13.2, 0.065, metersH + 86.0), plazaMat, -(outerX + 8.5), 0.045, 0, 0, 0, 0, 'pitch_3d_ref_real_west_entry_plaza');
+						                addBox(envelope, new THREE.BoxGeometry(metersW + 42.0, 0.04, 7.2), asphaltMat, 0, 0.075, -(outerZ + 18.8), 0, 0, 0, 'pitch_3d_ref_real_south_parking_strip');
+						                for (let i = -5; i <= 5; i += 1) {
+						                  addBox(envelope, new THREE.BoxGeometry(0.12, 0.045, 5.8), paintMat, i * 7.1, 0.11, -(outerZ + 18.8), 0, 0, 0, 'pitch_3d_ref_real_parking_bay_line_lod');
+						                }
+						                [-1, 1].forEach((sign) => {
+						                  for (let i = -6; i <= 6; i += 2) {
+						                    const x = i * 7.2;
+						                    addBox(envelope, new THREE.BoxGeometry(0.18, 1.15, 0.18), fenceMat, x, 0.60, sign * (outerZ + 5.0), 0, 0, 0, 'pitch_3d_ref_real_plaza_bollard_lod');
+						                    if (i % 4 === 0) {
+						                      addBox(envelope, new THREE.BoxGeometry(0.16, 4.2, 0.16), fenceMat, x, 2.1, sign * (outerZ + 11.6), 0, 0, 0, 'pitch_3d_ref_real_plaza_light_pole_lod');
+						                      addBox(envelope, new THREE.BoxGeometry(1.0, 0.18, 0.34), lightMat, x, 4.28, sign * (outerZ + 11.6), 0, 0, 0, 'pitch_3d_ref_real_plaza_light_head_lod');
+						                    }
+						                  }
+						                });
+						                addBox(envelope, new THREE.BoxGeometry(9.2, 3.0, 5.2), facadeMat, -(outerX + 13.8), 1.50, outerZ + 14.8, 0, 0.10, 0, 'pitch_3d_ref_real_ticket_office_block');
+						                addBox(envelope, new THREE.BoxGeometry(6.8, 1.0, 0.16), glassMat, -(outerX + 13.7), 2.0, outerZ + 12.12, 0, 0.10, 0, 'pitch_3d_ref_real_ticket_office_window');
+						              };
+						              addFacadeRun('z', 1, longSpan);
+						              addFacadeRun('z', -1, longSpan);
+						              addFacadeRun('x', 1, shortSpan);
+						              addFacadeRun('x', -1, shortSpan);
+						              [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => addCornerMass(sx, sz));
+						              addPlazaAndStreetFurniture();
+						              stadium.add(envelope);
+						            };
 						            const removeProceduralStadiumParts = () => {
 						              try {
 						                const removable = (root.children || []).filter((node) => {
@@ -10462,6 +10575,7 @@
 						            addGreenApron();
 						            addGroundedExteriorStructure();
 						            addExteriorCompletion();
+						            addAuthenticExteriorEnvelope();
 						            addReferenceStand({ kind: 'pitch_3d_ref_main_north_stand', x: 0, z: metersH / 2 + 7.2, w: metersW + 24, rows: 18, rotY: 0 });
 						            addReferenceStand({ kind: 'pitch_3d_ref_south_stand_continuous_over_tunnel', x: 0, z: -(metersH / 2 + 7.2), w: metersW + 24, rows: 18, rotY: Math.PI });
 						            addReferenceStand({ kind: 'pitch_3d_ref_west_stand', x: -(metersW / 2 + 7.0), z: 0, w: metersH + 13, rows: 16, rotY: -Math.PI / 2 });
