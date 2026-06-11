@@ -1959,6 +1959,9 @@
 			              '            <option value="drone">Drone</option>',
 			              '            <option value="broadcast">Broadcast</option>',
 			              '            <option value="broadcast_high">Broadcast alto</option>',
+			              '            <option value="coach_sideline">Entrenador</option>',
+			              '            <option value="goal_behind">Detrás portería</option>',
+			              '            <option value="explain">Explicación</option>',
 			              '            <option value="normal">Normal</option>',
 			              '            <option value="rotated">Rotada</option>',
 			              '            <option value="front">Frontal</option>',
@@ -8700,7 +8703,7 @@
 						      if (!key || !routes || typeof routes !== 'object') return null;
 						      const route = routes[key] || null;
 						      const points = normalizePitch3dRoutePoints(route?.points);
-						      return points.length >= 2 ? { points, spline: route?.spline === true } : null;
+						      return points.length >= 2 ? { points, spline: route?.spline === true, action: safeText(route?.action) } : null;
 						    };
 
 						    const samplePitch3dRoutePoint = (points, alpha) => {
@@ -8728,6 +8731,54 @@
 						        target -= len;
 						      }
 						      return pts[pts.length - 1];
+						    };
+
+						    const PITCH3D_ROLE_META = {
+						      support: { label: 'APOYO', color: '#22c55e' },
+						      depth: { label: 'PROF.', color: '#0ea5e9' },
+						      press: { label: 'PRESION', color: '#ef4444' },
+						      cover: { label: 'COBERT.', color: '#a855f7' },
+						      fix: { label: 'FIJA', color: '#facc15' },
+						    };
+
+						    const pitch3dInferAction = (text, fallback = 'move') => {
+						      const raw = safeText(text).toLowerCase();
+						      if (/(tiro|remate|finaliz|shoot|shot)/i.test(raw)) return 'shot';
+						      if (/(centro|cross|cambio de orientaci[oó]n)/i.test(raw)) return 'cross';
+						      if (/(conducci[oó]n|conduce|drive|carry)/i.test(raw)) return 'carry';
+						      if (/(pase|circulaci[oó]n|pared|tercer hombre|pass)/i.test(raw)) return 'pass';
+						      if (/(presi[oó]n|press)/i.test(raw)) return 'press';
+						      return fallback;
+						    };
+
+						    const pitch3dActionLabel = (action) => {
+						      const key = safeText(action);
+						      if (key === 'shot') return 'TIRO';
+						      if (key === 'cross') return 'CENTRO';
+						      if (key === 'carry') return 'CONDUCE';
+						      if (key === 'press') return 'PRESIONA';
+						      if (key === 'pass') return 'PASE';
+						      return 'MOV.';
+						    };
+
+						    const pitch3dActionColor = (action, fallback = 0xfacc15) => {
+						      const key = safeText(action);
+						      if (key === 'shot') return 0xef4444;
+						      if (key === 'cross') return 0x38bdf8;
+						      if (key === 'carry') return 0x22c55e;
+						      if (key === 'press') return 0xf97316;
+						      if (key === 'pass') return 0xfacc15;
+						      return fallback;
+						    };
+
+						    const pitch3dRouteLiftForAction = (action, t, dist = 0) => {
+						      const key = safeText(action);
+						      const k = Math.sin(Math.PI * clamp(Number(t) || 0, 0, 1));
+						      if (key === 'shot') return k * Math.min(4.2, 1.10 + (dist * 0.08));
+						      if (key === 'cross') return k * Math.min(3.6, 0.85 + (dist * 0.06));
+						      if (key === 'carry') return k * 0.28;
+						      if (key === 'pass') return k * Math.min(2.2, 0.35 + (dist * 0.045));
+						      return k * 1.35;
 						    };
 
 						    const toColorInt = (hex, fallback = 0xffffff) => {
@@ -8867,9 +8918,10 @@
 							      if (pitch3dGhostRoot) pitch3dGhostRoot.visible = !!pitch3dGhostsEnabled;
 							      if (pitch3dTrailRoot) pitch3dTrailRoot.visible = !!pitch3dTrailsEnabled;
 							      if (pitch3dRoot) {
-							        (pitch3dRoot.children || []).forEach((n) => {
+							        pitch3dRoot.traverse((n) => {
 							          if (!n || !n.userData) return;
-							          if (safeText(n.userData.kind) === 'drawable') n.visible = !!pitch3dDrawablesEnabled;
+							          const kind = safeText(n.userData.kind);
+							          if (kind === 'drawable' || kind.startsWith('pitch_3d_task_') || kind === 'pitch_3d_adapter_resource_label') n.visible = !!pitch3dDrawablesEnabled;
 							        });
 							      }
 							    };
@@ -8879,10 +8931,15 @@
 							      try { pitch3dModal?.classList?.toggle('pitch3d-presentation', pitch3dPresentation); } catch (e) { /* ignore */ }
 							      if (pitch3dPresentBtn) pitch3dPresentBtn.textContent = pitch3dPresentation ? 'Salir' : 'Presentación';
 							    };
-							    const setPitch3dHud = (title, meta) => {
-							      if (pitch3dStepTitleEl) pitch3dStepTitleEl.textContent = safeText(title, 'Pizarra');
-							      if (pitch3dStepMetaEl) pitch3dStepMetaEl.textContent = safeText(meta, '—');
-							    };
+						    const setPitch3dHud = (title, meta) => {
+						      if (pitch3dStepTitleEl) pitch3dStepTitleEl.textContent = safeText(title, 'Pizarra');
+						      if (pitch3dStepMetaEl) pitch3dStepMetaEl.textContent = safeText(meta, '—');
+						    };
+						    const pitch3dStepMetaText = (step, index, total) => {
+						      const base = `${(Number(index) || 0) + 1}/${Math.max(1, Number(total) || 1)} · ${Math.round((Number(step?.duration) || 3) * 10) / 10}s`;
+						      const desc = safeText(step?.description).replace(/\s+/g, ' ').slice(0, 90);
+						      return desc ? `${base} · ${desc}` : base;
+						    };
 
 						    const disposePitch3dRoot = () => {
 						      if (!pitch3dRoot || !pitch3dScene) return;
@@ -9035,6 +9092,24 @@
 							        pitch3dOrbit.phi = 1.24;
 							        pitch3dOrbit.radius = Math.max(72, metersW * 0.82);
 							        targetY = 1.2;
+						      } else if (k === 'coach_sideline') {
+						        pitch3dOrbit.theta = Math.PI / 2;
+						        pitch3dOrbit.phi = 1.36;
+						        pitch3dOrbit.radius = Math.max(46, metersW * 0.58);
+						        targetX = 0;
+						        targetY = 1.25;
+						        targetZ = -metersH * 0.18;
+						      } else if (k === 'goal_behind') {
+						        pitch3dOrbit.theta = 0;
+						        pitch3dOrbit.phi = 1.42;
+						        pitch3dOrbit.radius = Math.max(52, metersH * 0.82);
+						        targetY = 1.05;
+						        targetZ = 0;
+						      } else if (k === 'explain') {
+						        pitch3dOrbit.theta = -2.05;
+						        pitch3dOrbit.phi = 1.06;
+						        pitch3dOrbit.radius = Math.max(72, metersW * 0.78);
+						        targetY = 2.8;
 						      } else if (k === 'drone') {
 						        // Drone/analista: alto y en diagonal.
 							        pitch3dOrbit.theta = 0.92;
@@ -12053,10 +12128,17 @@
 						      const addRoutePath3d = (uid, route, colorInt, routeOptions = {}) => {
 						        const points2d = normalizePitch3dRoutePoints(route?.points || route);
 						        if (!pitch3dTrailRoot || points2d.length < 2) return null;
-						        const color = Number.isFinite(colorInt) ? colorInt : 0xfacc15;
+						        const action = safeText(route?.action || routeOptions.action || pitch3dInferAction(`${options.stepTitle || ''} ${options.stepDescription || ''}`, routeOptions.ball ? 'pass' : 'move'));
+						        const color = routeOptions.ball ? pitch3dActionColor(action, Number.isFinite(colorInt) ? colorInt : 0xfacc15) : (Number.isFinite(colorInt) ? colorInt : 0xfacc15);
+						        const totalDist = points2d.reduce((sum, pt, index, arr) => {
+						          if (!index) return sum;
+						          const prev = arr[index - 1];
+						          return sum + Math.hypot(pt.x - prev.x, pt.y - prev.y);
+						        }, 0);
 						        const points3d = points2d.map((pt, index) => {
 						          const mapped = mapPoint2dTo3d(pt.x, pt.y);
-						          const lift = routeOptions.ball ? (0.14 + (Math.sin((index / Math.max(1, points2d.length - 1)) * Math.PI) * 0.44)) : 0.12;
+						          const t = index / Math.max(1, points2d.length - 1);
+						          const lift = routeOptions.ball ? (0.14 + pitch3dRouteLiftForAction(action, t, totalDist * 0.03) * 0.18) : 0.12;
 						          return new THREE.Vector3(mapped.x, lift, mapped.z);
 						        });
 						        let path = null;
@@ -12067,14 +12149,14 @@
 						          const geo = new THREE.TubeGeometry(curve, Math.max(32, points3d.length * 18), routeOptions.ball ? 0.075 : 0.065, 8, false);
 						          const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: routeOptions.ball ? 0.74 : 0.58, depthWrite: false });
 						          path = new THREE.Mesh(geo, mat);
-						          path.userData = { kind: 'pitch_3d_route_path', uid: safeText(uid), ball: !!routeOptions.ball };
+						          path.userData = { kind: 'pitch_3d_route_path', uid: safeText(uid), ball: !!routeOptions.ball, action };
 						          path.visible = !!pitch3dTrailsEnabled;
 						          pitch3dTrailRoot.add(path);
 						        } catch (e) {
 						          const geo = new THREE.BufferGeometry().setFromPoints(points3d);
 						          const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: routeOptions.ball ? 0.78 : 0.62 });
 						          path = new THREE.Line(geo, mat);
-						          path.userData = { kind: 'pitch_3d_route_path', uid: safeText(uid), ball: !!routeOptions.ball };
+						          path.userData = { kind: 'pitch_3d_route_path', uid: safeText(uid), ball: !!routeOptions.ball, action };
 						          path.visible = !!pitch3dTrailsEnabled;
 						          pitch3dTrailRoot.add(path);
 						        }
@@ -12088,7 +12170,7 @@
 						            const head = new THREE.Mesh(headGeo, headMat);
 						            head.position.set(end.x, end.y + 0.08, end.z);
 						            head.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
-						            head.userData = { kind: 'pitch_3d_route_arrow_head', uid: safeText(uid), ball: !!routeOptions.ball };
+						            head.userData = { kind: 'pitch_3d_route_arrow_head', uid: safeText(uid), ball: !!routeOptions.ball, action };
 						            head.visible = !!pitch3dTrailsEnabled;
 						            pitch3dTrailRoot.add(head);
 						          }
@@ -12100,6 +12182,15 @@
 						          ring.userData = { kind: 'pitch_3d_route_destination', uid: safeText(uid), ball: !!routeOptions.ball };
 						          ring.visible = !!pitch3dTrailsEnabled;
 						          pitch3dTrailRoot.add(ring);
+						          if (routeOptions.ball) {
+						            const spr = buildTextSprite(pitch3dActionLabel(action), { fill: '#0b1220', bg: 'rgba(250,204,21,0.88)', size: 104 });
+						            if (spr) {
+						              spr.position.set(end.x, end.y + 0.88, end.z);
+						              spr.userData = { kind: 'pitch_3d_task_ball_action_label', uid: safeText(uid), action };
+						              spr.visible = !!pitch3dTrailsEnabled;
+						              pitch3dTrailRoot.add(spr);
+						            }
+						          }
 						        } catch (e) { /* ignore */ }
 						        return path;
 						      };
@@ -12134,6 +12225,139 @@
 						        spr.visible = !!pitch3dDrawablesEnabled;
 						        root.add(spr);
 						        return spr;
+						      };
+						      const addTaskLayerNode = (node) => {
+						        if (!node) return node;
+						        node.visible = !!pitch3dDrawablesEnabled;
+						        root.add(node);
+						        return node;
+						      };
+						      const addRoleBadge3d = (token, pos, roleKey) => {
+						        const meta = PITCH3D_ROLE_META[safeText(roleKey)] || null;
+						        if (!meta) return;
+						        const col = toColorInt(meta.color, 0xfacc15);
+						        try {
+						          const ring = new THREE.Mesh(
+						            new THREE.TorusGeometry(0.78, 0.045, 10, 48),
+						            new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.82, depthWrite: false }),
+						          );
+						          ring.rotation.x = Math.PI / 2;
+						          ring.position.set(pos.x, 0.18, pos.z);
+						          ring.userData = { kind: 'pitch_3d_task_role_ring', uid: pitch3dUidForObject(token), role: safeText(roleKey) };
+						          addTaskLayerNode(ring);
+						        } catch (e) { /* ignore */ }
+						        addBillboardLabel3d(meta.label, pos.x, 2.05, pos.z, {
+						          fill: '#0b1220',
+						          bg: `rgba(${(col >> 16) & 255},${(col >> 8) & 255},${col & 255},0.88)`,
+						          size: 94,
+						        });
+						      };
+						      const addZoneVolume3d = (o, colorInt) => {
+						        try {
+						          const wPx = Math.max(14, (Number(o?.width) || 0) * (Number(o?.scaleX) || 1));
+						          const hPx = Math.max(14, (Number(o?.height) || 0) * (Number(o?.scaleY) || 1));
+						          const center3d = mapPoint2dTo3d(Number(o?.left) || 0, Number(o?.top) || 0);
+						          const wM = (wPx / Math.max(1, sourceW)) * metersW;
+						          const hM = (hPx / Math.max(1, sourceH)) * metersH;
+						          const group = new THREE.Group();
+						          group.position.set(center3d.x, 0, center3d.z);
+						          group.rotation.y = -deg2rad(o?.angle || 0);
+						          group.userData = { kind: 'pitch_3d_task_zone_volume' };
+						          const mat = new THREE.MeshBasicMaterial({ color: colorInt, transparent: true, opacity: 0.18, depthWrite: false, side: THREE.DoubleSide });
+						          const edgeMat = new THREE.MeshBasicMaterial({ color: colorInt, transparent: true, opacity: 0.56, depthWrite: false });
+						          const floor = new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), mat);
+						          floor.rotation.x = -Math.PI / 2;
+						          floor.position.y = 0.075;
+						          floor.userData = { kind: 'pitch_3d_task_zone_floor' };
+						          group.add(floor);
+						          const edgeGeoH = new THREE.BoxGeometry(wM, 0.10, 0.08);
+						          const edgeGeoV = new THREE.BoxGeometry(0.08, 0.10, hM);
+						          [[0, hM / 2, edgeGeoH], [0, -hM / 2, edgeGeoH], [wM / 2, 0, edgeGeoV], [-wM / 2, 0, edgeGeoV]].forEach(([x, z, geo]) => {
+						            const edge = new THREE.Mesh(geo, edgeMat);
+						            edge.position.set(x, 0.34, z);
+						            edge.userData = { kind: 'pitch_3d_task_zone_edge' };
+						            group.add(edge);
+						          });
+						          addTaskLayerNode(group);
+						        } catch (e) { /* ignore */ }
+						      };
+						      const addCoachPhaseRibbon3d = () => {
+						        const total = Math.max(0, Number(options.stepsTotal) || 0);
+						        if (total <= 1) return;
+						        const current = clamp(Number(options.stepIndex) || 0, 0, total - 1);
+						        const group = new THREE.Group();
+						        group.position.set(-metersW / 2 - 4.2, 0, -metersH / 2 + 6);
+						        group.userData = { kind: 'pitch_3d_task_phase_ribbon' };
+						        for (let i = 0; i < Math.min(total, 12); i += 1) {
+						          const active = i === current;
+						          const mat = new THREE.MeshBasicMaterial({ color: active ? 0xfacc15 : 0x94a3b8, transparent: true, opacity: active ? 0.92 : 0.50, depthWrite: false });
+						          const block = new THREE.Mesh(new THREE.BoxGeometry(1.1, active ? 0.36 : 0.22, 0.42), mat);
+						          block.position.set(0, 0.28, i * 0.62);
+						          block.userData = { kind: 'pitch_3d_task_phase_block', phase: i + 1 };
+						          group.add(block);
+						        }
+						        addTaskLayerNode(group);
+						      };
+						      const addPressureCue3d = () => {
+						        try {
+						          const ball = balls[0] || null;
+						          const ballPt = ball ? { x: Number(ball.left) || 0, y: Number(ball.top) || 0 } : null;
+						          if (!ballPt) return;
+						          tokens
+						            .filter((o) => {
+						              const data = o?.data || {};
+						              return safeText(data.token_role) === 'press' || safeText(data.token_kind).includes('rival');
+						            })
+						            .slice(0, 5)
+						            .forEach((o) => {
+						              const start = { x: Number(o.left) || 0, y: Number(o.top) || 0 };
+						              const end = { x: start.x + ((ballPt.x - start.x) * 0.34), y: start.y + ((ballPt.y - start.y) * 0.34) };
+						              const a = mapPoint2dTo3d(start.x, start.y);
+						              const b = mapPoint2dTo3d(end.x, end.y);
+						              const line = addLine3d(a, b, 0xef4444, 0.055, 0.45);
+						              if (line) line.userData = { kind: 'pitch_3d_task_pressure_vector', uid: pitch3dUidForObject(o) };
+						              addConeHead3d(b, { x: b.x - a.x, z: b.z - a.z }, 0xef4444, 0.42);
+						          });
+						        } catch (e) { /* ignore */ }
+						      };
+						      const addTaskTemplateGuides3d = () => {
+						        try {
+						          const text = `${options.stepTitle || ''} ${options.stepDescription || ''}`.toLowerCase();
+						          const routeCount = options.routes && typeof options.routes === 'object' ? Object.keys(options.routes).length : 0;
+						          const isFinish = /(finaliz|tiro|remate|shot)/i.test(text);
+						          const isPress = /(presi[oó]n|press|recuperaci[oó]n)/i.test(text);
+						          const isPossession = /(posesi[oó]n|rondo|circulaci[oó]n|tercer hombre|apoyo)/i.test(text) || routeCount >= 3;
+						          const matLane = new THREE.MeshBasicMaterial({ color: isPress ? 0xef4444 : (isFinish ? 0xfacc15 : 0x22c55e), transparent: true, opacity: 0.13, side: THREE.DoubleSide, depthWrite: false });
+						          const matLine = new THREE.MeshBasicMaterial({ color: 0xf8fafc, transparent: true, opacity: 0.36, depthWrite: false });
+						          if (isPossession) {
+						            [-0.22, 0.22].forEach((ratio) => {
+						              const lane = new THREE.Mesh(new THREE.PlaneGeometry(metersW * 0.86, 2.2), matLane);
+						              lane.rotation.x = -Math.PI / 2;
+						              lane.position.set(0, 0.032, ratio * metersH);
+						              lane.userData = { kind: 'pitch_3d_task_template_possession_lane' };
+						              addTaskLayerNode(lane);
+						            });
+						          }
+						          if (isPress) {
+						            [-0.18, 0.18].forEach((ratio) => {
+						              const p1 = { x: -metersW * 0.34, z: ratio * metersH };
+						              const p2 = { x: metersW * 0.34, z: ratio * metersH };
+						              const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(p1.x, 0.065, p1.z), new THREE.Vector3(p2.x, 0.065, p2.z)]);
+						              const line = new THREE.Line(geo, matLine);
+						              line.userData = { kind: 'pitch_3d_task_template_press_trigger_line' };
+						              addTaskLayerNode(line);
+						            });
+						          }
+						          if (isFinish) {
+						            [-1, 1].forEach((sign) => {
+						              const target = new THREE.Mesh(new THREE.RingGeometry(2.6, 3.05, 54, 1), new THREE.MeshBasicMaterial({ color: 0xef4444, transparent: true, opacity: 0.34, side: THREE.DoubleSide, depthWrite: false }));
+						              target.rotation.x = -Math.PI / 2;
+						              target.position.set(sign * (metersW / 2 - 10.2), 0.052, 0);
+						              target.userData = { kind: 'pitch_3d_task_template_finish_target' };
+						              addTaskLayerNode(target);
+						            });
+						          }
+						        } catch (e) { /* ignore */ }
 						      };
 						      const addTrainingResource3d = (o, kind, colorInt) => {
 						        const normalizedKind = safeText(kind).replace(/_/g, '-');
@@ -12387,6 +12611,14 @@
 						      };
 
 						      tokens.forEach(addToken);
+						      try {
+						        tokens.forEach((o) => {
+						          const role = safeText(o?.data?.token_role).toLowerCase();
+						          if (!role) return;
+						          const pos = mapPoint2dTo3d(Number(o.left) || 0, Number(o.top) || 0);
+						          addRoleBadge3d(o, pos, role);
+						        });
+						      } catch (e) { /* ignore */ }
 
 						      const addBall = (o) => {
 						        const geo = new THREE.SphereGeometry(0.35, 18, 14);
@@ -12409,6 +12641,22 @@
 						        } catch (e) { /* ignore */ }
 						      };
 						      balls.forEach(addBall);
+						      try {
+						        drawables
+						          .filter((o) => {
+						            const kind = safeText(o?.data?.kind).toLowerCase();
+						            const type = safeText(o?.type).toLowerCase();
+						            return type === 'rect' || kind === 'zone' || kind === 'shape-rect' || kind === 'shape-rect-long' || kind === 'shape-square';
+						          })
+						          .slice(0, 18)
+						          .forEach((o) => {
+						            const stroke = safeText(o?.stroke) || safeText(o?.data?.color) || '#22d3ee';
+						            addZoneVolume3d(o, parseColorInt(stroke));
+						          });
+						        addPressureCue3d();
+						        addCoachPhaseRibbon3d();
+						        addTaskTemplateGuides3d();
+						      } catch (e) { /* ignore */ }
 
 						      try {
 						        const routeColorByUid = new Map();
@@ -12425,7 +12673,7 @@
 						        const routesOption = options.routes && typeof options.routes === 'object' ? options.routes : {};
 						        Object.keys(routesOption).forEach((uid) => {
 						          const route = pitch3dRouteForUid(routesOption, uid);
-						          if (route) routeSpecs.push({ uid, route, ball: !routeColorByUid.has(uid) ? safeText(uid).toLowerCase().includes('ball') : false });
+						          if (route) routeSpecs.push({ uid, route, ball: !routeColorByUid.has(uid) ? safeText(uid).toLowerCase().includes('ball') : false, action: safeText(route.action) });
 						        });
 						        objects.forEach((o, idx) => {
 						          const data = o?.data || {};
@@ -12438,7 +12686,7 @@
 						            points.push({ x: Number(to.x) || 0, y: Number(to.y) || 0 });
 						          });
 						          const normalized = normalizePitch3dRoutePoints(points);
-						          if (normalized.length >= 2) routeSpecs.push({ uid, route: { points: normalized, spline: normalized.length > 2 }, ball: safeText(data.kind) === 'ball' });
+						          if (normalized.length >= 2) routeSpecs.push({ uid, route: { points: normalized, spline: normalized.length > 2 }, ball: safeText(data.kind) === 'ball', action: safeText(data.ball_action || data.action) });
 						        });
 						        const drawnRoutes = new Set();
 						        routeSpecs.forEach((spec) => {
@@ -12446,7 +12694,7 @@
 						          if (drawnRoutes.has(key)) return;
 						          drawnRoutes.add(key);
 						          const col = routeColorByUid.get(safeText(spec.uid)) || (spec.ball ? 0xfacc15 : 0x22d3ee);
-						          addRoutePath3d(spec.uid, spec.route, col, { ball: !!spec.ball || col === 0xfacc15 });
+						          addRoutePath3d(spec.uid, { ...(spec.route || {}), action: spec.action }, col, { ball: !!spec.ball || col === 0xfacc15, action: spec.action });
 						        });
 						      } catch (e) { /* ignore */ }
 
@@ -12571,6 +12819,10 @@
 						        sourceW: Number(opts.sourceW) || Number(worldWidth) || 1280,
 						        sourceH: Number(opts.sourceH) || Number(worldHeight) || 720,
 						        routes: opts.routes && typeof opts.routes === 'object' ? opts.routes : {},
+						        stepTitle: safeText(opts.stepTitle),
+						        stepDescription: safeText(opts.stepDescription),
+						        stepIndex: Number(opts.stepIndex) || 0,
+						        stepsTotal: Number(opts.stepsTotal) || 0,
 						      });
 						    } catch (e) { /* ignore */ }
 
@@ -12609,7 +12861,7 @@
 						      updatePitch3dPlaybackButton();
 						      syncPitch3dNavUi(steps.length);
 						      const step = steps[idx];
-						      const meta = `${idx + 1}/${steps.length} · ${Math.round((Number(step.duration) || 3) * 10) / 10}s`;
+						      const meta = pitch3dStepMetaText(step, idx, steps.length);
 						      setPitch3dHud(step.title, meta);
 						      buildPitch3dRoot(step.state, {
 						        preset: presetSelect?.value || 'full_pitch',
@@ -12619,6 +12871,10 @@
 						        sourceW: step.sourceW,
 						        sourceH: step.sourceH,
 						        routes: step.routes || {},
+						        stepTitle: step.title,
+						        stepDescription: step.description,
+						        stepIndex: idx,
+						        stepsTotal: steps.length,
 						      });
 						      if (options.keepFollow !== true) {
 						        if (pitch3dFollowSelect && safeText(pitch3dFollowSelect.value) === 'selected') pitch3dFollowSelect.value = 'off';
@@ -12631,6 +12887,7 @@
 						      return steps.map((s, idx) => ({
 						        title: safeText(s.title, `Paso ${idx + 1}`),
 						        duration: clamp(Number(s.duration) || 3, 1, 20),
+						        description: safeText(s.description),
 						        state: s.canvas_state || { version: '5.3.0', objects: [] },
 						        sourceW: parseIntSafe(s.canvas_width) || Number(worldWidth) || 1280,
 						        sourceH: parseIntSafe(s.canvas_height) || Number(worldHeight) || 720,
@@ -12656,10 +12913,17 @@
 						      const routesA = (fromStep?.routes && typeof fromStep.routes === 'object') ? fromStep.routes : {};
 						      const routesB = (toStep?.routes && typeof toStep.routes === 'object') ? toStep.routes : {};
 						      const routeForUid = (uid) => pitch3dRouteForUid(routesA, uid) || pitch3dRouteForUid(routesB, uid);
-						      const routeSample3d = (route, t, srcW, srcH, height = 0.06, isBall = false) => {
+						      const routeSample3d = (route, t, srcW, srcH, height = 0.06, isBall = false, actionRaw = '') => {
 						        const pt = samplePitch3dRoutePoint(route?.points, t);
 						        const mapped = map2dToPitch(pt.x, pt.y, srcW, srcH, metersW, metersH, orientation);
-						        const lift = isBall ? (Math.sin(Math.PI * clamp(Number(t) || 0, 0, 1)) * 1.65) : 0;
+						        const pts = normalizePitch3dRoutePoints(route?.points);
+						        const dist = pts.reduce((sum, cur, index, arr) => {
+						          if (!index) return sum;
+						          const prev = arr[index - 1];
+						          return sum + Math.hypot(cur.x - prev.x, cur.y - prev.y);
+						        }, 0) * 0.03;
+						        const action = safeText(actionRaw || route?.action || pitch3dInferAction(`${fromStep?.title || ''} ${fromStep?.description || ''}`, isBall ? 'pass' : 'move'));
+						        const lift = isBall ? pitch3dRouteLiftForAction(action, t, dist) : 0;
 						        return { x: mapped.x, y: height + lift, z: mapped.z };
 						      };
 						      const keyFor = (o, idx) => pitch3dUidForObject(o, `${safeText(o?.data?.token_kind)}:${safeText(o?.data?.playerNumber)}:${idx}`);
@@ -12756,16 +13020,21 @@
 						        }
 						        if (!b) b = a;
 							        const route = routeForUid(uid);
+							        let movedDist = 0;
 							        if (route) {
+							          const before = routeSample3d(route, Math.max(0, alpha - 0.04), wA, hA, 0.10, false);
 							          const pRoute = routeSample3d(route, alpha, wA, hA, 0.10, false);
+							          movedDist = Math.hypot(pRoute.x - before.x, pRoute.z - before.z) * 24;
 							          node.position.x = pRoute.x;
 							          node.position.z = pRoute.z;
 							        } else {
 							        const pA = map2dToPitch(Number(a.left) || 0, Number(a.top) || 0, wA, hA, metersW, metersH, orientation);
 							        const pB = map2dToPitch(Number(b.left) || 0, Number(b.top) || 0, wB, hB, metersW, metersH, orientation);
+							        movedDist = Math.hypot(pB.x - pA.x, pB.z - pA.z);
 							        node.position.x = pA.x + ((pB.x - pA.x) * alpha);
 							        node.position.z = pA.z + ((pB.z - pA.z) * alpha);
 							        }
+							        node.position.y = movedDist > 0.55 ? (Math.sin(Math.PI * clamp(Number(alpha) || 0, 0, 1)) * 0.10) : 0;
 
 							        // Interpola orientación corporal y actualiza el cono de visión (si existe).
 							        try {
@@ -12816,7 +13085,8 @@
 								            const pA = map2dToPitch(Number(aBall.left) || 0, Number(aBall.top) || 0, wA, hA, metersW, metersH, orientation);
 								            const pB = map2dToPitch(Number(bBall.left) || 0, Number(bBall.top) || 0, wB, hB, metersW, metersH, orientation);
 								            const route = routeForUid(ballUid) || routeForUid('ball');
-								            const routePos = route ? routeSample3d(route, alpha, wA, hA, 0.35, true) : null;
+								            const ballAction = safeText(route?.action || pitch3dInferAction(`${fromStep?.title || ''} ${fromStep?.description || ''}`, 'pass'));
+								            const routePos = route ? routeSample3d(route, alpha, wA, hA, 0.35, true, ballAction) : null;
 								            const currentX = routePos ? routePos.x : (pA.x + ((pB.x - pA.x) * alpha));
 								            const currentZ = routePos ? routePos.z : (pA.z + ((pB.z - pA.z) * alpha));
 								            const dx = pB.x - pA.x;
@@ -12882,7 +13152,7 @@
 						      syncPitch3dNavUi(steps.length);
 						      try {
 						        const step = steps[pitch3dPlayback.index];
-						        const meta = `${pitch3dPlayback.index + 1}/${steps.length} · ${Math.round((Number(step.duration) || 3) * 10) / 10}s`;
+						        const meta = pitch3dStepMetaText(step, pitch3dPlayback.index, steps.length);
 						        setPitch3dHud(step.title, meta);
 						      } catch (e) { /* ignore */ }
 						      pitch3dPlayback.startAt = performance.now();
@@ -13001,7 +13271,7 @@
 							          syncPitch3dNavUi(steps.length);
 							          try {
 							            const step = steps[next];
-							            const meta = `${next + 1}/${steps.length} · ${Math.round((Number(step.duration) || 3) * 10) / 10}s`;
+						            const meta = pitch3dStepMetaText(step, next, steps.length);
 							            setPitch3dHud(step.title, meta);
 							          } catch (e) { /* ignore */ }
 							          pitch3dPlayback.startAt = now;
@@ -28707,14 +28977,14 @@
                     .map((p) => ({ x: Number(p?.x) || 0, y: Number(p?.y) || 0 }))
                     .filter((p, index, arr) => index === 0 || distance(p, arr[index - 1]) >= 6)
                     .slice(0, 20);
-                  if (uid && clean.length >= 2) routes[uid] = { points: clean, spline: clean.length > 2 };
+                  if (uid && clean.length >= 2) routes[uid] = { points: clean, spline: clean.length > 2, action: safeText(it?.action) || 'move' };
                   (Array.isArray(it?.support_moves) ? it.support_moves : []).forEach((move) => {
                     const moveUid = safeText(move?.uid);
                     const movePoints = (Array.isArray(move?.route_points) ? move.route_points : [])
                       .map((p) => ({ x: Number(p?.x) || 0, y: Number(p?.y) || 0 }))
                       .filter((p, index, arr) => index === 0 || distance(p, arr[index - 1]) >= 6)
                       .slice(0, 8);
-                    if (moveUid && movePoints.length >= 2) routes[moveUid] = { points: movePoints, spline: false };
+                    if (moveUid && movePoints.length >= 2) routes[moveUid] = { points: movePoints, spline: false, action: safeText(move?.action) || 'support' };
                   });
                   return routes;
                 };
