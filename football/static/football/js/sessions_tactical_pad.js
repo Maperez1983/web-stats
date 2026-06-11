@@ -8224,6 +8224,11 @@
 						          const premiumGrassImg = __pitch3dLoadStaticImage('premium_grass_albedo', premiumGrassSrc);
 						          if (premiumGrassImg && (premiumGrassImg.naturalWidth || premiumGrassImg.width)) {
 						            ctx.drawImage(premiumGrassImg, 0, 0, c.width, c.height);
+						            ctx.save();
+						            ctx.globalCompositeOperation = 'multiply';
+						            ctx.fillStyle = style === 'wet' ? 'rgba(5,50,34,0.30)' : 'rgba(12,74,35,0.18)';
+						            ctx.fillRect(0, 0, c.width, c.height);
+						            ctx.restore();
 						          }
 						        } catch (e) { /* ignore */ }
 						      }
@@ -8301,6 +8306,23 @@
 							          ctx.fillStyle = fade;
 							          ctx.fillRect(x - 1, 0, stripeW + 3, c.height);
 							        }
+							        if (isGrassSurface) {
+							          ctx.save();
+							          ctx.globalAlpha = style === 'broadcast' ? 0.18 : 0.14;
+							          for (let i = 0; i < 18; i += 1) {
+							            const y = (i / 17) * c.height;
+							            const lineGrad = ctx.createLinearGradient(0, y - 26, c.width, y + 26);
+							            lineGrad.addColorStop(0, i % 2 === 0 ? 'rgba(17,116,56,0.00)' : 'rgba(225,255,184,0.00)');
+							            lineGrad.addColorStop(0.48, i % 2 === 0 ? 'rgba(225,255,184,0.22)' : 'rgba(8,64,31,0.24)');
+							            lineGrad.addColorStop(1, 'rgba(255,255,255,0.00)');
+							            ctx.fillStyle = lineGrad;
+							            ctx.translate(c.width * 0.50, y);
+							            ctx.rotate(i % 2 === 0 ? -0.018 : 0.018);
+							            ctx.fillRect(-c.width * 0.62, -18, c.width * 1.24, 36);
+							            ctx.setTransform(1, 0, 0, 1, 0, 0);
+							          }
+							          ctx.restore();
+							        }
 							        ctx.save();
 							        ctx.globalAlpha = style === 'broadcast' ? 0.13 : 0.11;
 							        const crossBands = 9;
@@ -8326,7 +8348,7 @@
 							          ctx.stroke();
 							        }
 							        ctx.globalAlpha = 0.20;
-							        for (let i = 0; i < 14000; i += 1) {
+							        for (let i = 0; i < 22000; i += 1) {
 							          const x = Math.floor(rand(i + 17) * c.width);
 							          const y = Math.floor(rand(i + 43) * c.height);
 							          const light = rand(i + 91) > 0.62;
@@ -8338,10 +8360,10 @@
 							              : (light ? `rgba(224,255,184,${a})` : `rgba(5,61,27,${a})`);
 							          ctx.fillRect(x, y, 1 + Math.floor(rand(i + 151) * 3), 1);
 							        }
-							        ctx.globalAlpha = 0.14;
+							        ctx.globalAlpha = isGrassSurface ? 0.22 : 0.14;
 							        ctx.strokeStyle = isGranularSurface ? 'rgba(247,204,124,0.30)' : isIndoorSurface ? 'rgba(168,230,236,0.26)' : 'rgba(234,255,202,0.34)';
 							        ctx.lineWidth = 1;
-							        for (let i = 0; i < 1800; i += 1) {
+							        for (let i = 0; i < 2800; i += 1) {
 							          const x = rand(i + 211) * c.width;
 							          const y = rand(i + 277) * c.height;
 							          const len = 9 + rand(i + 331) * 34;
@@ -8358,6 +8380,20 @@
 							        ctx.globalAlpha = 1;
 							        ctx.fillStyle = edgeShade;
 							        ctx.fillRect(0, 0, c.width, c.height);
+							        if (isGrassSurface) {
+							          const mouthWear = ctx.createRadialGradient(c.width * 0.08, c.height * 0.50, 0, c.width * 0.08, c.height * 0.50, c.width * 0.12);
+							          mouthWear.addColorStop(0, 'rgba(206,197,117,0.25)');
+							          mouthWear.addColorStop(0.50, 'rgba(120,116,60,0.10)');
+							          mouthWear.addColorStop(1, 'rgba(0,0,0,0)');
+							          ctx.fillStyle = mouthWear;
+							          ctx.fillRect(0, 0, c.width, c.height);
+							          const otherMouth = ctx.createRadialGradient(c.width * 0.92, c.height * 0.50, 0, c.width * 0.92, c.height * 0.50, c.width * 0.12);
+							          otherMouth.addColorStop(0, 'rgba(206,197,117,0.22)');
+							          otherMouth.addColorStop(0.52, 'rgba(120,116,60,0.09)');
+							          otherMouth.addColorStop(1, 'rgba(0,0,0,0)');
+							          ctx.fillStyle = otherMouth;
+							          ctx.fillRect(0, 0, c.width, c.height);
+							        }
 							        ctx.restore();
 							      }
 
@@ -9079,15 +9115,15 @@
 							        pos.needsUpdate = true;
 							        groundGeo.computeVertexNormals();
 							      } catch (e) { /* ignore */ }
-							        const groundMat = new THREE.MeshStandardMaterial({
-								        color: isGranular3d ? (surfaceKey3d === 'albero' ? 0xd19a4d : 0x8a5938) : isIndoor3d ? 0x356675 : isArtificial3d ? 0x52cf86 : 0xa9db83,
+							      const groundMat = new THREE.MeshStandardMaterial({
+								        color: isGranular3d ? (surfaceKey3d === 'albero' ? 0xd19a4d : 0x8a5938) : isIndoor3d ? 0x356675 : isArtificial3d ? 0x45c879 : 0x6fb85d,
 							        map: tex || null,
 							        bumpMap: bumpTex || null,
-								        bumpScale: isGranular3d ? 0.145 : isIndoor3d ? 0.032 : isArtificial3d ? 0.045 : 0.082,
+								        bumpScale: isGranular3d ? 0.145 : isIndoor3d ? 0.032 : isArtificial3d ? 0.052 : 0.105,
 							        normalMap: normalTex || null,
-							        normalScale: new THREE.Vector2(isGranular3d ? 0.135 : isIndoor3d ? 0.032 : isArtificial3d ? 0.052 : 0.085, isGranular3d ? 0.110 : isIndoor3d ? 0.026 : isArtificial3d ? 0.040 : 0.055),
+							        normalScale: new THREE.Vector2(isGranular3d ? 0.135 : isIndoor3d ? 0.032 : isArtificial3d ? 0.060 : 0.118, isGranular3d ? 0.110 : isIndoor3d ? 0.026 : isArtificial3d ? 0.044 : 0.082),
 							        roughnessMap: roughnessTex || null,
-								        roughness: isGranular3d ? 0.96 : isIndoor3d ? 0.62 : isArtificial3d ? 0.72 : 0.92,
+								        roughness: isGranular3d ? 0.96 : isIndoor3d ? 0.62 : isArtificial3d ? 0.70 : 0.86,
 							        metalness: 0,
 							      });
 							      try {
@@ -9113,14 +9149,15 @@
 							            [
 							              'float pitchGrazing = pow(clamp(1.0 - abs(dot(normalize(vViewPosition), normal)), 0.0, 1.0), 1.22);',
 							              'float pitchMicro = pitchHash(floor(vPitchUvPremium * vec2(115.0, 78.0)));',
-							              'float pitchStripe = smoothstep(0.10, 0.98, abs(sin(vPitchUvPremium.x * 43.982)));',
+							              'float pitchStripe = smoothstep(0.18, 0.92, abs(sin(vPitchUvPremium.x * 43.982)));',
+							              'float pitchCrossStripe = smoothstep(0.22, 0.88, abs(sin((vPitchUvPremium.y + vPitchUvPremium.x * 0.045) * 58.0)));',
 							              'float pitchUseLeft = smoothstep(0.72, 0.98, 1.0 - abs(vPitchUvPremium.x - 0.08) / 0.085);',
 							              'float pitchUseRight = smoothstep(0.72, 0.98, 1.0 - abs(vPitchUvPremium.x - 0.92) / 0.085);',
 							              'float pitchUseCenter = smoothstep(0.82, 0.98, 1.0 - distance(vPitchUvPremium, vec2(0.5, 0.5)) / 0.135);',
 							              'float pitchUse = clamp(pitchUseLeft + pitchUseRight + pitchUseCenter, 0.0, 1.0);',
-							              'gl_FragColor.rgb *= mix(vec3(0.965, 1.015, 0.960), vec3(1.055, 1.105, 1.020), pitchGrazing * 0.45 + pitchStripe * 0.12);',
+							              'gl_FragColor.rgb *= mix(vec3(0.915, 1.005, 0.900), vec3(1.080, 1.150, 1.025), pitchGrazing * 0.38 + pitchStripe * 0.18 + pitchCrossStripe * 0.055);',
 							              'gl_FragColor.rgb = mix(gl_FragColor.rgb, gl_FragColor.rgb * vec3(1.10, 1.04, 0.78), pitchUse * 0.13);',
-							              'gl_FragColor.rgb += (pitchMicro - 0.5) * 0.018;',
+							              'gl_FragColor.rgb += (pitchMicro - 0.5) * 0.030;',
 							              '#include <dithering_fragment>',
 							            ].join('\n')
 							          );
@@ -9130,21 +9167,21 @@
 							        __pitch3dLoadTextureAsset('pitch3dGrassBumpSrc', (loaded) => {
 							          try {
 							            groundMat.bumpMap = loaded;
-							            groundMat.bumpScale = 0.060;
+						            groundMat.bumpScale = 0.086;
 							            groundMat.needsUpdate = true;
 							          } catch (e) { /* ignore */ }
 						        }, { anisotropy: 16 });
 							        __pitch3dLoadTextureAsset('pitch3dGrassNormalSrc', (loaded) => {
 							          try {
 							            groundMat.normalMap = loaded;
-							            groundMat.normalScale = new THREE.Vector2(0.105, 0.075);
+						            groundMat.normalScale = new THREE.Vector2(0.126, 0.092);
 							            groundMat.needsUpdate = true;
 							          } catch (e) { /* ignore */ }
 						        }, { anisotropy: 16 });
 							        __pitch3dLoadTextureAsset('pitch3dGrassRoughnessSrc', (loaded) => {
 							          try {
 							            groundMat.roughnessMap = loaded;
-							            groundMat.roughness = 0.88;
+						            groundMat.roughness = 0.84;
 							            groundMat.needsUpdate = true;
 							          } catch (e) { /* ignore */ }
 						        }, { anisotropy: 12 });
@@ -9472,8 +9509,8 @@
 						            addBox(g, new THREE.BoxGeometry(10.9, 0.08, 0.10), metalMat, 0, 0.26, -1.08, 0, 0, 0, 'pitch_3d_dugout_front_kickplate');
 						            root.add(g);
 						          };
-						          addBench(-7.3, -(metersH / 2 + 6.20), 0);
-						          addBench(7.3, -(metersH / 2 + 6.20), 1);
+						          // La capa final de estadio añade el área técnica canónica.
+						          // Evitamos duplicar banquillos en la banda.
 						          const addTechnicalStandWithTunnel = () => {
 						            const g = new THREE.Group();
 						            const standZ = -(metersH / 2 + 12.80);
@@ -11050,7 +11087,6 @@
 						            badge.userData = { kind: 'pitch_3d_ref_main_badge' };
 						            stadium.add(badge);
 						            root.add(stadium);
-						            addVisibleTechnicalArea();
 						            addFinishedStadiumClosure();
 						          };
 						          addFromScratchReferenceStadium();
