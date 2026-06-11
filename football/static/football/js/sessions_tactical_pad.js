@@ -11992,6 +11992,184 @@
 						        root.add(plane);
 						        return plane;
 						      };
+						      const pxToPitchMeters = () => Math.max(0.018, ((metersW / Math.max(1, sourceW)) + (metersH / Math.max(1, sourceH))) / 2);
+						      const addResourceMesh3d = (group, mesh, kind) => {
+						        if (!group || !mesh) return mesh;
+						        mesh.userData = { kind: kind || 'pitch_3d_adapter_resource_mesh' };
+						        mesh.visible = !!pitch3dDrawablesEnabled;
+						        try { mesh.castShadow = true; mesh.receiveShadow = true; } catch (e) { /* ignore */ }
+						        group.add(mesh);
+						        return mesh;
+						      };
+						      const addResourceGroup3d = (o, kind) => {
+						        const center3d = mapPoint2dTo3d(Number(o?.left) || 0, Number(o?.top) || 0);
+						        const group = new THREE.Group();
+						        group.position.set(center3d.x, 0, center3d.z);
+						        group.rotation.y = -deg2rad(o?.angle || 0);
+						        group.userData = { kind };
+						        group.visible = !!pitch3dDrawablesEnabled;
+						        root.add(group);
+						        return group;
+						      };
+						      const addBillboardLabel3d = (text, x, y, z, opts = {}) => {
+						        const spr = buildTextSprite(text, {
+						          fill: safeText(opts.fill, '#0b1220'),
+						          bg: safeText(opts.bg, 'rgba(248,250,252,0.86)'),
+						          size: Number(opts.size) || 112,
+						        });
+						        if (!spr) return null;
+						        spr.position.set(x, y, z);
+						        spr.userData = { kind: 'pitch_3d_adapter_resource_label' };
+						        spr.visible = !!pitch3dDrawablesEnabled;
+						        root.add(spr);
+						        return spr;
+						      };
+						      const addTrainingResource3d = (o, kind, colorInt) => {
+						        const normalizedKind = safeText(kind).replace(/_/g, '-');
+						        const meter = pxToPitchMeters();
+						        const sx = Number(o?.scaleX) || 1;
+						        const sy = Number(o?.scaleY) || 1;
+						        const wM = Math.max(0.6, (Math.max(24, Number(o?.width) || 46) * sx) * meter);
+						        const hM = Math.max(0.6, (Math.max(24, Number(o?.height) || 46) * sy) * meter);
+						        const resourceKind = `pitch_3d_adapter_resource_${normalizedKind.replace(/-/g, '_')}`;
+						        const color = Number.isFinite(colorInt) ? colorInt : 0x22d3ee;
+						        const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.58, metalness: 0.04 });
+						        const paleMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.62, metalness: 0.02 });
+						        const darkMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.72, metalness: 0.08 });
+						        const glassMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false });
+						        const group = addResourceGroup3d(o, resourceKind);
+						        const addLocalBox = (x, y, z, bw, bh, bd, material = mat, name = resourceKind) => addResourceMesh3d(group, new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), material), name).position.set(x, y, z);
+						        const addLocalCylinder = (x, y, z, radiusTop, radiusBottom, height, material = mat, radial = 18, name = resourceKind) => addResourceMesh3d(group, new THREE.Mesh(new THREE.CylinderGeometry(radiusTop, radiusBottom, height, radial), material), name).position.set(x, y, z);
+						        const addLocalRing = (x, y, z, r1, r2, material = mat, name = resourceKind) => {
+						          const ring = new THREE.Mesh(new THREE.TorusGeometry(r1, r2, 24, 60), material);
+						          ring.rotation.x = Math.PI / 2;
+						          addResourceMesh3d(group, ring, name).position.set(x, y, z);
+						          return ring;
+						        };
+						        const addLocalPost = (x, z, height, radius = 0.035, material = mat, name = resourceKind) => addLocalCylinder(x, height / 2, z, radius, radius, height, material, 12, name);
+						        if (normalizedKind === 'cone' || normalizedKind === 'cone-striped') {
+						          addLocalCylinder(0, 0.06, 0, 0.34, 0.42, 0.12, darkMat, 20, `${resourceKind}_base`);
+						          addLocalCylinder(0, 0.42, 0, 0.08, 0.34, 0.78, mat, 24, `${resourceKind}_body`);
+						          if (normalizedKind === 'cone-striped') {
+						            addLocalCylinder(0, 0.44, 0, 0.095, 0.28, 0.08, paleMat, 24, `${resourceKind}_stripe`);
+						            addLocalCylinder(0, 0.62, 0, 0.062, 0.18, 0.06, paleMat, 24, `${resourceKind}_stripe`);
+						          }
+						          return true;
+						        }
+						        if (normalizedKind === 'pole-marker') {
+						          addLocalCylinder(0, 0.04, 0, 0.22, 0.28, 0.08, darkMat, 18, `${resourceKind}_base`);
+						          addLocalPost(0, 0, 1.85, 0.035, mat, `${resourceKind}_pole`);
+						          addLocalBox(0.22, 1.45, 0, 0.44, 0.24, 0.035, mat, `${resourceKind}_flag`);
+						          return true;
+						        }
+						        if (normalizedKind === 'ring') {
+						          addLocalRing(0, 0.065, 0, Math.max(0.38, Math.min(0.90, wM * 0.24)), 0.035, mat, `${resourceKind}_ring`);
+						          return true;
+						        }
+						        if (normalizedKind === 'ladder' || normalizedKind === 'ladder-l' || normalizedKind === 'ladder-zigzag') {
+						          const length = Math.max(2.8, hM);
+						          const width = Math.max(0.82, Math.min(1.40, wM * 0.32));
+						          const rungCount = normalizedKind === 'ladder-zigzag' ? 8 : 7;
+						          addLocalBox(-width / 2, 0.055, 0, 0.055, 0.07, length, paleMat, `${resourceKind}_rail`);
+						          addLocalBox(width / 2, 0.055, 0, 0.055, 0.07, length, paleMat, `${resourceKind}_rail`);
+						          for (let i = 0; i < rungCount; i += 1) {
+						            const z = (-length / 2) + ((i + 0.5) * (length / rungCount));
+						            const x = normalizedKind === 'ladder-zigzag' ? (((i % 2) - 0.5) * 0.22) : 0;
+						            addLocalBox(x, 0.075, z, width + 0.08, 0.055, 0.055, paleMat, `${resourceKind}_rung`);
+						          }
+						          if (normalizedKind === 'ladder-l') {
+						            addLocalBox(length * 0.30, 0.055, length * 0.30, length * 0.58, 0.055, 0.055, paleMat, `${resourceKind}_return`);
+						            addLocalBox(length * 0.30, 0.075, length * 0.30 + width, length * 0.58, 0.055, 0.055, paleMat, `${resourceKind}_return`);
+						          }
+						          return true;
+						        }
+						        if (normalizedKind === 'hurdle' || normalizedKind === 'mini-hurdle') {
+						          const width = Math.max(1.4, wM * 0.55);
+						          const height = normalizedKind === 'mini-hurdle' ? 0.42 : 0.72;
+						          addLocalPost(-width / 2, 0, height, 0.045, mat, `${resourceKind}_leg`);
+						          addLocalPost(width / 2, 0, height, 0.045, mat, `${resourceKind}_leg`);
+						          addLocalBox(0, height, 0, width + 0.18, 0.08, 0.08, mat, `${resourceKind}_bar`);
+						          return true;
+						        }
+						        if (normalizedKind === 'tape') {
+						          addLocalBox(0, 0.035, 0, Math.max(2.4, wM), 0.035, Math.max(0.28, hM * 0.32), mat, `${resourceKind}_strip`);
+						          return true;
+						        }
+						        if (normalizedKind === 'gate') {
+						          const width = Math.max(1.8, wM * 0.58);
+						          [-1, 1].forEach((sign) => {
+						            addLocalCylinder(sign * width / 2, 0.06, 0, 0.22, 0.28, 0.12, darkMat, 18, `${resourceKind}_cone_base`);
+						            addLocalCylinder(sign * width / 2, 0.36, 0, 0.07, 0.22, 0.60, mat, 18, `${resourceKind}_cone`);
+						          });
+						          addLocalBox(0, 0.15, 0, width, 0.055, 0.055, paleMat, `${resourceKind}_gate_line`);
+						          return true;
+						        }
+						        const addMannequinParts = (x = 0, name = resourceKind) => {
+						          addLocalCylinder(x, 0.08, 0, 0.34, 0.42, 0.16, darkMat, 18, `${name}_base`);
+						          addLocalCylinder(x, 0.86, 0, 0.22, 0.30, 1.28, mat, 18, `${name}_body`);
+						          addLocalCylinder(x, 1.62, 0, 0.20, 0.20, 0.28, mat, 18, `${name}_head`);
+						        };
+						        if (normalizedKind === 'mannequin') {
+						          addMannequinParts(0);
+						          return true;
+						        }
+						        if (normalizedKind === 'barrier') {
+						          const gap = Math.max(0.70, wM / 5);
+						          [-1.5, -0.5, 0.5, 1.5].forEach((slot) => addMannequinParts(slot * gap, `${resourceKind}_mannequin`));
+						          return true;
+						        }
+						        if (normalizedKind === 'wall') {
+						          const width = Math.max(2.2, wM);
+						          addLocalBox(0, 0.56, 0, width, 1.12, 0.16, mat, `${resourceKind}_panel`);
+						          [-0.25, 0.25].forEach((y) => addLocalBox(0, 0.56 + y, -0.09, width * 0.92, 0.035, 0.035, paleMat, `${resourceKind}_joint`));
+						          return true;
+						        }
+						        if (normalizedKind === 'rebounder') {
+						          const width = Math.max(1.8, wM * 0.70);
+						          const height = Math.max(1.10, hM * 0.65);
+						          addLocalBox(0, height / 2, 0, width, 0.08, 0.08, mat, `${resourceKind}_top`);
+						          addLocalBox(0, 0.06, 0, width, 0.08, 0.08, mat, `${resourceKind}_bottom`);
+						          addLocalPost(-width / 2, 0, height, 0.04, mat, `${resourceKind}_side`);
+						          addLocalPost(width / 2, 0, height, 0.04, mat, `${resourceKind}_side`);
+						          const net = new THREE.Mesh(new THREE.PlaneGeometry(width * 0.92, height * 0.82), glassMat);
+						          net.position.set(0, height * 0.48, -0.03);
+						          addResourceMesh3d(group, net, `${resourceKind}_net`);
+						          return true;
+						        }
+						        if (normalizedKind.startsWith('marker-')) {
+						          const labelMap = { 'marker-start': 'I', 'marker-end': 'F', 'marker-pass': 'P', 'marker-shot': 'T', 'marker-support': 'A' };
+						          addLocalCylinder(0, 0.04, 0, 0.38, 0.38, 0.08, mat, 32, `${resourceKind}_disc`);
+						          addBillboardLabel3d(labelMap[normalizedKind] || '·', group.position.x, 0.92, group.position.z, { bg: 'rgba(248,250,252,0.88)' });
+						          return true;
+						        }
+						        if (normalizedKind === 'measure') {
+						          const length = Math.max(2.2, wM);
+						          addLocalBox(0, 0.08, 0, length, 0.06, 0.06, mat, `${resourceKind}_line`);
+						          [-1, 1].forEach((sign) => addLocalCylinder(sign * length / 2, 0.16, 0, 0.05, 0.16, 0.32, mat, 14, `${resourceKind}_head`));
+						          addBillboardLabel3d(`${Math.round(length)} m`, group.position.x, 0.78, group.position.z, { bg: 'rgba(2,6,23,0.72)', fill: '#f8fafc' });
+						          return true;
+						        }
+						        if (normalizedKind === 'goal-target' || normalizedKind === 'goal-mini' || normalizedKind === 'goal-popup' || normalizedKind === 'goal-futsal' || normalizedKind === 'goal-posts' || normalizedKind === 'goal-3d' || normalizedKind === 'goal') {
+						          const width = normalizedKind === 'goal-mini' || normalizedKind === 'goal-popup' ? 1.65 : Math.max(2.4, Math.min(4.4, wM * 0.70));
+						          const height = normalizedKind === 'goal-mini' || normalizedKind === 'goal-popup' ? 0.92 : Math.max(1.20, Math.min(2.10, hM * 0.58));
+						          addLocalPost(-width / 2, 0, height, 0.045, paleMat, `${resourceKind}_post`);
+						          addLocalPost(width / 2, 0, height, 0.045, paleMat, `${resourceKind}_post`);
+						          addLocalBox(0, height, 0, width, 0.07, 0.07, paleMat, `${resourceKind}_crossbar`);
+						          if (normalizedKind !== 'goal-posts') {
+						            const net = new THREE.Mesh(new THREE.PlaneGeometry(width * 0.96, height * 0.88), glassMat);
+						            net.position.set(0, height * 0.48, -0.10);
+						            addResourceMesh3d(group, net, `${resourceKind}_net`);
+						          }
+						          if (normalizedKind === 'goal-target') {
+						            [[-0.35, 0.70], [0.35, 0.70], [-0.35, 0.30], [0.35, 0.30]].forEach(([x, y]) => {
+						              addLocalRing(x * width, y * height, -0.14, 0.12, 0.012, mat, `${resourceKind}_target`);
+						            });
+						          }
+						          return true;
+						        }
+						        try { root.remove(group); } catch (e) { /* ignore */ }
+						        return false;
+						      };
 
 						      const buildTokenFovGeometry3d = (radiusMeters, widthDeg) => {
 						        const width = clamp(Number(widthDeg) || 70, 20, 160);
@@ -12130,6 +12308,13 @@
 						        const thickness = clamp(0.06 + (sw * 0.018), 0.06, 0.38);
 						        const groupWidthPx = (Number(o?.width) || 0) * (Number(o?.scaleX) || 1);
 						        const groupHeightPx = (Number(o?.height) || 0) * (Number(o?.scaleY) || 1);
+						        if (kind === 'text') {
+						          const label = safeText(o?.text || o?.data?.label || o?.data?.text).slice(0, 42);
+						          const pos = mapPoint2dTo3d(Number(o?.left) || 0, Number(o?.top) || 0);
+						          if (label) addBillboardLabel3d(label, pos.x, 1.15, pos.z, { bg: 'rgba(2,6,23,0.72)', fill: '#f8fafc', size: 160 });
+						          return;
+						        }
+						        if (addTrainingResource3d(o, kind, colorInt)) return;
 
 						        // Lineas simples.
 						        if (type === 'line') {
@@ -12225,6 +12410,16 @@
 						      setCameraPreset(safeText(pitch3dCameraSelect?.value, 'render_original'), metersW, metersH);
 						      resizePitch3d();
 						    };
+						    try {
+						      window.__WEBSTATS_PITCH3D_RENDER_STATE = (state, opts = {}) => buildPitch3dRoot(state || { version: '5.3.0', objects: [] }, {
+						        preset: safeText(opts.preset, presetSelect?.value || 'full_pitch'),
+						        orientation: safeText(opts.orientation, pitchOrientation),
+						        grassStyle: safeText(opts.grassStyle, pitchGrassStyle),
+						        fieldFormat: normalizePitch3dFormat(opts.fieldFormat || pitch3dFormat),
+						        sourceW: Number(opts.sourceW) || Number(worldWidth) || 1280,
+						        sourceH: Number(opts.sourceH) || Number(worldHeight) || 720,
+						      });
+						    } catch (e) { /* ignore */ }
 
 						    const updatePitch3dPlaybackButton = () => {
 						      if (!pitch3dPlayBtn) return;
