@@ -10135,6 +10135,94 @@
 						            addDugout(18.0, metersH / 2 + 2.05, 0, Math.PI);
 						            addTunnel(metersH / 2 + 4.20, Math.PI);
 						          };
+						          const addFinishedStadiumClosure = () => {
+						            try {
+						              const finish = new THREE.Group();
+						              finish.userData = { kind: 'pitch_3d_finished_architectural_closure' };
+						              const concreteFinish = new THREE.MeshStandardMaterial({ color: 0xcfd6d1, roughness: 0.74, metalness: 0.03 });
+						              const shadowFinish = new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.88, metalness: 0.02 });
+						              const fasciaFinish = new THREE.MeshStandardMaterial({ color: toColorInt(stadiumPalette3d.accent, 0x073b32), roughness: 0.50, metalness: 0.06 });
+						              const stairFinish = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.64, metalness: 0.02 });
+						              const seatFinish = new THREE.MeshStandardMaterial({ color: toColorInt(stadiumPalette3d.primary, 0x047857), roughness: 0.58, metalness: 0.02 });
+						              const railFinish = new THREE.MeshStandardMaterial({ color: 0xdff7ff, roughness: 0.14, metalness: 0.02, transparent: true, opacity: 0.42 });
+						              const roofFinish = new THREE.MeshStandardMaterial({ color: 0xf4f7f5, roughness: 0.44, metalness: 0.08 });
+						              const lightFinish = new THREE.MeshStandardMaterial({ color: 0xe0f2fe, roughness: 0.18, metalness: 0.02, emissive: 0x7dd3fc, emissiveIntensity: 0.18 });
+						              const hideKinds = [
+						                'pitch_3d_reference_dugout_technical_slab',
+						                'pitch_3d_reference_dugout_low_glass_barrier',
+						                'pitch_3d_reference_dugout_side_barrier',
+						                'pitch_3d_ref_tunnel_grandstand_bridge_solid_mass',
+						                'pitch_3d_ref_tunnel_grandstand_bridge_raker',
+						                'pitch_3d_ref_tunnel_covered_roof',
+						              ];
+						              root.traverse((node) => {
+						                const kind = safeText(node?.userData?.kind || '');
+						                if (hideKinds.includes(kind)) node.visible = false;
+						              });
+						              const outerX = metersW / 2 + 17.4;
+						              const outerZ = metersH / 2 + 17.4;
+						              const innerX = metersW / 2 + 4.55;
+						              const innerZ = metersH / 2 + 4.55;
+						              addBox(finish, new THREE.BoxGeometry(metersW + 38.0, 4.8, 7.2), concreteFinish, 0, 2.32, outerZ, 0, 0, 0, 'pitch_3d_finished_north_rear_wall');
+						              addBox(finish, new THREE.BoxGeometry(metersW + 38.0, 4.8, 7.2), concreteFinish, 0, 2.32, -outerZ, 0, 0, 0, 'pitch_3d_finished_south_rear_wall');
+						              addBox(finish, new THREE.BoxGeometry(7.2, 4.8, metersH + 38.0), concreteFinish, outerX, 2.32, 0, 0, 0, 0, 'pitch_3d_finished_east_rear_wall');
+						              addBox(finish, new THREE.BoxGeometry(7.2, 4.8, metersH + 38.0), concreteFinish, -outerX, 2.32, 0, 0, 0, 0, 'pitch_3d_finished_west_rear_wall');
+						              addBox(finish, new THREE.BoxGeometry(metersW + 15.4, 1.36, 0.42), fasciaFinish, 0, 1.02, innerZ, 0, 0, 0, 'pitch_3d_finished_north_pitch_wall');
+						              addBox(finish, new THREE.BoxGeometry(metersW + 15.4, 1.36, 0.42), fasciaFinish, 0, 1.02, -innerZ, 0, 0, 0, 'pitch_3d_finished_south_pitch_wall');
+						              addBox(finish, new THREE.BoxGeometry(0.42, 1.36, metersH + 15.4), fasciaFinish, innerX, 1.02, 0, 0, 0, 0, 'pitch_3d_finished_east_pitch_wall');
+						              addBox(finish, new THREE.BoxGeometry(0.42, 1.36, metersH + 15.4), fasciaFinish, -innerX, 1.02, 0, 0, 0, 0, 'pitch_3d_finished_west_pitch_wall');
+						              [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
+						                const cx = sx * (metersW / 2 + 10.5);
+						                const cz = sz * (metersH / 2 + 10.5);
+						                addBox(finish, new THREE.BoxGeometry(17.0, 5.2, 17.0), concreteFinish, cx, 2.50, cz, -0.025, sx * sz * 0.10, 0, 'pitch_3d_finished_corner_grounded_mass');
+						                addBox(finish, new THREE.BoxGeometry(15.6, 0.32, 12.8), concreteFinish, cx, 5.32, cz + (sz * 1.1), -0.060, sx * sz * 0.18, 0, 'pitch_3d_finished_corner_terrace_slab');
+						                for (let row = 0; row < 7; row += 1) {
+						                  addBox(finish, new THREE.BoxGeometry(14.2 - row * 0.42, 0.20, 0.46), row % 3 === 0 ? stairFinish : concreteFinish, cx, 5.62 + row * 0.33, cz - (sz * 4.25) + (sz * row * 0.70), -0.060, sx * sz * 0.18, 0, 'pitch_3d_finished_corner_stepped_rows');
+						                  [-0.28, -0.10, 0.10, 0.28].forEach((ratio) => {
+						                    addBox(finish, new THREE.BoxGeometry(2.25, 0.14, 0.30), seatFinish, cx + (ratio * 14.0), 5.75 + row * 0.33, cz - (sz * 4.34) + (sz * row * 0.70), -0.10, sx * sz * 0.18, 0, 'pitch_3d_finished_corner_seat_band');
+						                  });
+						                }
+						                addBox(finish, new THREE.BoxGeometry(16.4, 0.18, 0.20), railFinish, cx, 8.45, cz + (sz * 1.3), 0, sx * sz * 0.18, 0, 'pitch_3d_finished_corner_glass_guardrail');
+						              });
+						              const tunnelZ = -(metersH / 2 + 4.68);
+						              addBox(finish, new THREE.BoxGeometry(11.2, 2.70, 0.62), concreteFinish, 0, 1.58, tunnelZ, 0, 0, 0, 'pitch_3d_finished_visible_tunnel_portal_frame');
+						              addBox(finish, new THREE.BoxGeometry(7.5, 1.86, 0.18), shadowFinish, 0, 1.36, tunnelZ - 0.33, 0, 0, 0, 'pitch_3d_finished_visible_tunnel_dark_opening');
+						              addBox(finish, new THREE.BoxGeometry(8.8, 0.20, 6.4), shadowFinish, 0, 0.28, tunnelZ - 3.18, -0.08, 0, 0, 'pitch_3d_finished_visible_tunnel_ramp');
+						              addBox(finish, new THREE.BoxGeometry(0.34, 1.72, 5.8), concreteFinish, -4.65, 0.98, tunnelZ - 2.72, -0.04, 0, 0, 'pitch_3d_finished_visible_tunnel_side_wall');
+						              addBox(finish, new THREE.BoxGeometry(0.34, 1.72, 5.8), concreteFinish, 4.65, 0.98, tunnelZ - 2.72, -0.04, 0, 0, 'pitch_3d_finished_visible_tunnel_side_wall');
+						              addBox(finish, new THREE.BoxGeometry(31.0, 0.34, 7.3), concreteFinish, 0, 2.88, -(metersH / 2 + 9.25), -0.055, 0, 0, 'pitch_3d_finished_stand_over_tunnel_solid_base');
+						              for (let r = 0; r < 9; r += 1) {
+						                const y = 3.18 + r * 0.35;
+						                const z = -(metersH / 2 + 12.0) - r * 0.62;
+						                addBox(finish, new THREE.BoxGeometry(30.0 - r * 0.34, 0.20, 0.44), concreteFinish, 0, y, z, -0.064, 0, 0, 'pitch_3d_finished_stand_over_tunnel_riser');
+						                [-0.36, -0.22, -0.08, 0.08, 0.22, 0.36].forEach((ratio, idx) => {
+						                  addBox(finish, new THREE.BoxGeometry(2.45, 0.14, 0.28), idx === 2 || idx === 3 ? stairFinish : seatFinish, ratio * 28.0, y + 0.10, z - 0.05, -0.10, 0, 0, 'pitch_3d_finished_stand_over_tunnel_seats');
+						                });
+						              }
+						              addBox(finish, new THREE.BoxGeometry(33.0, 0.18, 0.24), railFinish, 0, 6.52, -(metersH / 2 + 11.50), 0, 0, 0, 'pitch_3d_finished_tunnel_stand_front_rail');
+						              [-18.5, 18.5].forEach((x, idx) => {
+						                addBox(finish, new THREE.BoxGeometry(14.8, 0.16, 2.40), carbonMat, x, 0.20, -(metersH / 2 + 2.90), 0, 0, 0, 'pitch_3d_finished_dugout_platform_visible');
+						                addBox(finish, new THREE.BoxGeometry(14.9, 0.08, 2.18), glassMat, x, 2.20, -(metersH / 2 + 3.05), -0.42, 0, 0, 'pitch_3d_finished_dugout_curved_roof_visible');
+						                addBox(finish, new THREE.BoxGeometry(14.2, 0.82, 0.10), glassMat, x, 1.08, -(metersH / 2 + 1.88), -0.10, 0, 0, 'pitch_3d_finished_dugout_front_glass_visible');
+						                for (let s = 0; s < 10; s += 1) {
+						                  const sx = x - 5.45 + s * 1.20;
+						                  addBox(finish, new THREE.BoxGeometry(0.74, 0.20, 0.55), benchSeatMat, sx, 0.58, -(metersH / 2 + 2.98), 0, 0, 0, 'pitch_3d_finished_dugout_seat_visible');
+						                  addBox(finish, new THREE.BoxGeometry(0.76, 0.82, 0.14), benchPadMat, sx, 0.96, -(metersH / 2 + 3.30), -0.22, 0, 0, 'pitch_3d_finished_dugout_back_visible');
+						                }
+						                const label = new THREE.Mesh(new THREE.PlaneGeometry(5.8, 0.66), adMats[(idx + 1) % adMats.length]);
+						                label.position.set(x, 1.22, -(metersH / 2 + 1.82));
+						                label.userData = { kind: 'pitch_3d_finished_dugout_label_visible' };
+						                finish.add(label);
+						              });
+						              addBox(finish, new THREE.BoxGeometry(metersW + 44.0, 0.32, 5.2), roofFinish, 0, 14.78, metersH / 2 + 27.9, -0.015, 0, 0, 'pitch_3d_finished_continuous_roof_north');
+						              addBox(finish, new THREE.BoxGeometry(metersW + 44.0, 0.32, 5.2), roofFinish, 0, 14.78, -(metersH / 2 + 27.9), 0.015, 0, 0, 'pitch_3d_finished_continuous_roof_south');
+						              addBox(finish, new THREE.BoxGeometry(5.2, 0.32, metersH + 44.0), roofFinish, metersW / 2 + 27.9, 14.78, 0, 0, 0, 0, 'pitch_3d_finished_continuous_roof_east');
+						              addBox(finish, new THREE.BoxGeometry(5.2, 0.32, metersH + 44.0), roofFinish, -(metersW / 2 + 27.9), 14.78, 0, 0, 0, 0, 'pitch_3d_finished_continuous_roof_west');
+						              addBox(finish, new THREE.BoxGeometry(metersW + 30.0, 0.12, 0.18), lightFinish, 0, 13.10, metersH / 2 + 23.4, 0, 0, 0, 'pitch_3d_finished_north_light_bar');
+						              addBox(finish, new THREE.BoxGeometry(metersW + 30.0, 0.12, 0.18), lightFinish, 0, 13.10, -(metersH / 2 + 23.4), 0, 0, 0, 'pitch_3d_finished_south_light_bar');
+						              root.add(finish);
+						            } catch (e) { /* ignore */ }
+						          };
 						          const addFromScratchReferenceStadium = () => {
 						            const stadium = new THREE.Group();
 						            stadium.userData = { kind: 'pitch_3d_from_scratch_reference_stadium' };
@@ -10415,6 +10503,7 @@
 						            stadium.add(badge);
 						            root.add(stadium);
 						            addVisibleTechnicalArea();
+						            addFinishedStadiumClosure();
 						          };
 						          addFromScratchReferenceStadium();
 						          const addCornerFlag = (x, z, flipX, flipZ) => {
