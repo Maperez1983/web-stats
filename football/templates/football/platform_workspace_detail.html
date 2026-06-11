@@ -648,47 +648,67 @@
       }
       .team-staff-items {
         margin-top: 0.45rem;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.4rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 0.5rem;
       }
-      .team-staff-chip {
+      .team-staff-card {
         max-width: 100%;
-        border-radius: 999px;
+        min-height: 58px;
+        border-radius: 12px;
         border: 1px solid rgba(160, 180, 215, 0.14);
         background: rgba(7, 13, 25, 0.48);
         color: #edf4ff;
-        padding: 0.28rem 0.5rem;
-        font-size: 0.78rem;
+        padding: 0.48rem;
+        font-size: 0.82rem;
         font-weight: 800;
         display: inline-flex;
         align-items: center;
-        gap: 0.38rem;
+        gap: 0.55rem;
         overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
         text-decoration: none;
         transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
       }
-      a.team-staff-chip:hover,
-      a.team-staff-chip:focus-visible {
+      a.team-staff-card:hover,
+      a.team-staff-card:focus-visible {
         transform: translateY(-1px);
         border-color: rgba(244, 180, 0, 0.46);
         background: rgba(12, 21, 38, 0.82);
         outline: none;
       }
-      .team-staff-chip small {
+      .team-staff-card small {
+        display: block;
+        margin-top: 0.08rem;
         color: #aab6c8;
         font-weight: 700;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
       .team-staff-avatar {
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
+        width: 42px;
+        height: 42px;
+        border-radius: 10px;
         flex: 0 0 auto;
         border: 1px solid rgba(255, 255, 255, 0.14);
         background: rgba(255, 255, 255, 0.06);
         object-fit: cover;
+      }
+      .team-staff-name {
+        display: block;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .team-staff-empty {
+        border-radius: 12px;
+        border: 1px dashed rgba(160, 180, 215, 0.14);
+        background: rgba(7, 13, 25, 0.34);
+        color: #aab6c8;
+        padding: 0.55rem 0.65rem;
+        font-size: 0.78rem;
+        font-weight: 800;
       }
       .nested-team-list {
         margin-top: 0.75rem;
@@ -1687,12 +1707,15 @@
                   <div class="team-staff-title">Miembros del cuerpo técnico</div>
                   <div class="team-staff-items">
                     {% for staff in item.staff_members %}
-                    <a class="team-staff-chip" href="{{ staff.url }}" aria-label="Abrir ficha de {{ staff.name }}">
+                    <a class="team-staff-card" href="{{ staff.url }}" aria-label="Abrir ficha de {{ staff.name }}">
                       <img class="team-staff-avatar" src="{% if staff.photo_url %}{{ staff.photo_url }}{% else %}{% static 'football/images/player-avatar.svg' %}{% endif %}" alt="" loading="lazy" />
-                      <span>{{ staff.name }}{% if staff.role %} <small>· {{ staff.role }}</small>{% endif %}{% if staff.is_club_scope %} <small>· club</small>{% endif %}</span>
+                      <span style="min-width:0;">
+                        <span class="team-staff-name">{{ staff.name }}</span>
+                        <small>{% if staff.role %}{{ staff.role }}{% else %}Staff{% endif %}{% if staff.is_club_scope %} · club{% endif %}</small>
+                      </span>
                     </a>
                     {% empty %}
-                    <span class="team-staff-chip"><small>Sin staff asignado</small></span>
+                    <span class="team-staff-empty">Sin staff asignado</span>
                     {% endfor %}
                   </div>
                 </div>

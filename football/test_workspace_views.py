@@ -345,7 +345,7 @@ class StaffAccessInvitationTests(TestCase):
         response = self.client.get(reverse('platform-workspace-detail', args=[workspace.id]), secure=True)
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, f'class="team-staff-chip" href="{reverse("staff-member-detail", args=[member.id])}"')
+        self.assertContains(response, f'class="team-staff-card" href="{reverse("staff-member-detail", args=[member.id])}"')
         self.assertContains(response, reverse('staff-member-photo-file', args=[member.id]))
         self.assertContains(response, 'Carlos Técnico')
 
