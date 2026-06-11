@@ -12460,11 +12460,19 @@ def platform_workspace_detail_page(request, workspace_id):
                 .order_by('team_id', 'role_title', 'name', 'id')
             )
             for staff in staff_rows:
+                staff_photo_url = ''
+                try:
+                    if getattr(staff, 'photo', None):
+                        staff_photo_url = reverse('staff-member-photo-file', args=[staff.id])
+                except Exception:
+                    staff_photo_url = ''
                 staff_card = {
                     'id': int(getattr(staff, 'id', 0) or 0),
                     'name': str(getattr(staff, 'name', '') or '').strip(),
                     'role': str(getattr(staff, 'role_title', '') or '').strip(),
                     'is_club_scope': not bool(getattr(staff, 'team_id', None)),
+                    'url': reverse('staff-member-detail', args=[staff.id]),
+                    'photo_url': staff_photo_url,
                 }
                 if not staff_card['name']:
                     continue

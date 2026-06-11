@@ -661,13 +661,34 @@
         padding: 0.28rem 0.5rem;
         font-size: 0.78rem;
         font-weight: 800;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.38rem;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        text-decoration: none;
+        transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+      }
+      a.team-staff-chip:hover,
+      a.team-staff-chip:focus-visible {
+        transform: translateY(-1px);
+        border-color: rgba(244, 180, 0, 0.46);
+        background: rgba(12, 21, 38, 0.82);
+        outline: none;
       }
       .team-staff-chip small {
         color: #aab6c8;
         font-weight: 700;
+      }
+      .team-staff-avatar {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        flex: 0 0 auto;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.06);
+        object-fit: cover;
       }
       .nested-team-list {
         margin-top: 0.75rem;
@@ -1666,7 +1687,10 @@
                   <div class="team-staff-title">Miembros del cuerpo técnico</div>
                   <div class="team-staff-items">
                     {% for staff in item.staff_members %}
-                    <span class="team-staff-chip">{{ staff.name }}{% if staff.role %} <small>· {{ staff.role }}</small>{% endif %}{% if staff.is_club_scope %} <small>· club</small>{% endif %}</span>
+                    <a class="team-staff-chip" href="{{ staff.url }}" aria-label="Abrir ficha de {{ staff.name }}">
+                      <img class="team-staff-avatar" src="{% if staff.photo_url %}{{ staff.photo_url }}{% else %}{% static 'football/images/player-avatar.svg' %}{% endif %}" alt="" loading="lazy" />
+                      <span>{{ staff.name }}{% if staff.role %} <small>· {{ staff.role }}</small>{% endif %}{% if staff.is_club_scope %} <small>· club</small>{% endif %}</span>
+                    </a>
                     {% empty %}
                     <span class="team-staff-chip"><small>Sin staff asignado</small></span>
                     {% endfor %}

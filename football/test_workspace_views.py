@@ -310,6 +310,45 @@ class StaffAccessInvitationTests(TestCase):
             1,
         )
 
+    def test_staff_directory_renders_member_cards_as_profile_links(self):
+        _owner, team, workspace = self._create_workspace(username='staff-owner-directory')
+        member = StaffMember.objects.create(
+            workspace=workspace,
+            team=team,
+            name='Marta Entrenadora',
+            role_title='Entrenadora',
+            certification_level='UEFA B',
+            photo='staff/photos/marta.jpg',
+        )
+
+        response = self.client.get(reverse('staff-directory'), secure=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f'class="card" href="{reverse("staff-member-detail", args=[member.id])}"')
+        self.assertContains(response, reverse('staff-member-photo-file', args=[member.id]))
+        self.assertContains(response, 'Marta Entrenadora')
+
+    def test_platform_workspace_detail_staff_chips_link_to_staff_profile_with_photo(self):
+        owner, team, workspace = self._create_workspace(username='staff-owner-platform')
+        owner.is_staff = True
+        owner.save(update_fields=['is_staff'])
+        AppUserRole.objects.create(user=owner, role=AppUserRole.ROLE_ADMIN)
+        member = StaffMember.objects.create(
+            workspace=workspace,
+            team=team,
+            name='Carlos Técnico',
+            role_title='Preparador físico',
+            photo='staff/photos/carlos.jpg',
+            is_active=True,
+        )
+
+        response = self.client.get(reverse('platform-workspace-detail', args=[workspace.id]), secure=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f'class="team-staff-chip" href="{reverse("staff-member-detail", args=[member.id])}"')
+        self.assertContains(response, reverse('staff-member-photo-file', args=[member.id]))
+        self.assertContains(response, 'Carlos Técnico')
+
 
 class DashboardPlatformAutoselectWorkspaceTests(TestCase):
     def test_platform_admin_without_context_gets_single_club_team_payload(self):

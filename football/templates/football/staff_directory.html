@@ -95,6 +95,16 @@
         display: flex;
         gap: 0.8rem;
         align-items: center;
+        text-decoration: none;
+        color: rgba(245, 247, 250, 0.92);
+        transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+      }
+      .card:hover,
+      .card:focus-visible {
+        transform: translateY(-2px);
+        border-color: rgba(244, 180, 0, 0.48);
+        background: rgba(11, 24, 44, 0.86);
+        outline: none;
       }
       .avatar {
         width: 58px;
@@ -107,8 +117,7 @@
         padding: 2px;
         flex: 0 0 auto;
       }
-      .card a {
-        text-decoration: none;
+      .card-title {
         color: rgba(245,247,250,0.92);
         font-weight: 900;
         letter-spacing: 0.06em;
@@ -167,17 +176,17 @@
       {% if items %}
       <section class="grid" aria-label="Miembros del staff">
         {% for member in items %}
-        <article class="card">
+        <a class="card" href="{% url 'staff-member-detail' member.id %}" aria-label="Abrir ficha de {{ member.name }}">
           <img class="avatar" src="{% if member.photo_url %}{{ member.photo_url }}{% else %}{% static 'football/images/player-avatar.svg' %}{% endif %}" alt="Foto {{ member.name }}" />
           <div style="min-width:0;">
-            <a href="{% url 'staff-member-detail' member.id %}">{{ member.name }}</a>
+            <div class="card-title">{{ member.name }}</div>
             <div class="meta">
               {% if member.role_title %}{{ member.role_title }}{% else %}<span class="muted">Staff</span>{% endif %}
               {% if member.certification_level %} · {{ member.certification_level }}{% endif %}
             </div>
             {% if member.team %}<div class="meta">Ámbito: {{ member.team.category|default:member.team.name }}</div>{% endif %}
           </div>
-        </article>
+        </a>
         {% endfor %}
       </section>
       {% else %}
