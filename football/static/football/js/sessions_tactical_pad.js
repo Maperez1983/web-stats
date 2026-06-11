@@ -10333,6 +10333,9 @@
 						                const buildingB = new THREE.MeshStandardMaterial({ color: 0xaeb9ba, roughness: 0.74, metalness: 0.03 });
 						                const buildingC = new THREE.MeshStandardMaterial({ color: 0xd8ded9, roughness: 0.70, metalness: 0.02 });
 						                const windowStrip = new THREE.MeshStandardMaterial({ color: 0x5f7f92, roughness: 0.34, metalness: 0.05, transparent: true, opacity: 0.58 });
+						                const transitBlue = new THREE.MeshStandardMaterial({ color: 0x1d4ed8, roughness: 0.42, metalness: 0.08 });
+						                const solarMat = new THREE.MeshStandardMaterial({ color: 0x0f2733, roughness: 0.30, metalness: 0.18 });
+						                const ledRibbon = new THREE.MeshBasicMaterial({ color: 0x99f6e4, transparent: true, opacity: 0.62, toneMapped: false });
 						                const addSignMat = (title, subtitle) => makePitch3dCanvasTexture((ctx, c) => {
 						                  ctx.fillStyle = '#06281f';
 						                  ctx.fillRect(0, 0, c.width, c.height);
@@ -10430,6 +10433,33 @@
 						                    addBox(env, new THREE.BoxGeometry(w * 0.72, h * 0.42, 0.10), windowStrip, x, h * 0.58, z - d / 2 - 0.06, 0, rot, 0, 'pitch_3d_professional_urban_city_window_band');
 						                    addBox(env, new THREE.BoxGeometry(w * 0.46, 0.18, d * 0.56), roofEdge, x, h + 0.10, z, 0, rot, 0, 'pitch_3d_professional_urban_rooftop_service');
 						                  };
+						                  const addParkingGarage = (x, z, rotY, label) => {
+						                    const garage = new THREE.Group();
+						                    garage.position.set(x, 0, z);
+						                    garage.rotation.y = rotY;
+						                    garage.userData = { kind: 'pitch_3d_professional_urban_parking_garage' };
+						                    addBox(garage, new THREE.BoxGeometry(17.5, 4.8, 10.8), buildingB, 0, 2.40, 0, 0, 0, 0, `${label}_mass`);
+						                    for (let level = 0; level < 4; level += 1) {
+						                      addBox(garage, new THREE.BoxGeometry(17.9, 0.12, 11.2), facadePanel, 0, 1.10 + level * 1.08, 0, 0, 0, 0, `${label}_floor_slab`);
+						                      addBox(garage, new THREE.BoxGeometry(16.0, 0.16, 0.12), darkOpening, 0, 1.45 + level * 1.08, -5.48, 0, 0, 0, `${label}_vent_slot`);
+						                    }
+						                    addBox(garage, new THREE.BoxGeometry(9.8, 0.12, 4.2), solarMat, -2.4, 5.02, -1.6, 0, 0.16, 0, `${label}_solar_roof`);
+						                    addBox(garage, new THREE.BoxGeometry(3.8, 0.10, 8.8), wayfinding, 8.4, 3.6, 0, 0, 0, -0.42, `${label}_external_stair`);
+						                    env.add(garage);
+						                  };
+						                  const addTransitHub = () => {
+						                    const stationZ = -(roadZ + 26.0);
+						                    addBox(env, new THREE.BoxGeometry(22.0, 0.18, 7.8), pavement, 0, 0.16, stationZ, 0, 0, 0, 'pitch_3d_professional_urban_transit_station_platform');
+						                    addBox(env, new THREE.BoxGeometry(18.0, 0.34, 4.6), roofGlass, 0, 2.85, stationZ, 0, 0, 0, 'pitch_3d_professional_urban_transit_station_canopy');
+						                    addBox(env, new THREE.BoxGeometry(20.0, 0.08, 0.28), transitBlue, 0, 1.72, stationZ - 2.28, 0, 0, 0, 'pitch_3d_professional_urban_transit_line_sign');
+						                    addBox(env, new THREE.BoxGeometry(13.5, 0.42, 2.05), transitBlue, 3.6, 0.52, stationZ + 0.55, 0, 0, 0, 'pitch_3d_professional_urban_shuttle_tram_body');
+						                    addBox(env, new THREE.BoxGeometry(10.6, 0.44, 0.10), glassDark, 3.6, 0.82, stationZ - 0.52, 0, 0, 0, 'pitch_3d_professional_urban_shuttle_tram_windows');
+						                    addBox(env, new THREE.BoxGeometry(4.0, 0.10, 44.0), pavement, 0, 0.19, stationZ + 24.0, 0, 0, 0, 'pitch_3d_professional_urban_elevated_pedestrian_boulevard');
+						                    for (let i = -4; i <= 4; i += 1) {
+						                      addBox(env, new THREE.BoxGeometry(0.12, 1.0, 0.12), gateMetal, -2.15, 0.68, stationZ + 7.0 + i * 4.3, 0, 0, 0, 'pitch_3d_professional_urban_boulevard_rail_post');
+						                      addBox(env, new THREE.BoxGeometry(0.12, 1.0, 0.12), gateMetal, 2.15, 0.68, stationZ + 7.0 + i * 4.3, 0, 0, 0, 'pitch_3d_professional_urban_boulevard_rail_post');
+						                    }
+						                  };
 						                  const addCrosswalk = (axis, x, z) => {
 						                    for (let i = -3; i <= 3; i += 1) {
 						                      const geo = axis === 'z' ? new THREE.BoxGeometry(0.42, 0.035, 3.9) : new THREE.BoxGeometry(3.9, 0.035, 0.42);
@@ -10482,6 +10512,13 @@
 						                    addBox(env, new THREE.BoxGeometry(8.8, 0.08, 8.8), roadMat, sign * roadX, 0.11, sign * roadZ, 0, 0, 0, 'pitch_3d_professional_urban_corner_roundabout_asphalt');
 						                    addBox(env, new THREE.BoxGeometry(4.0, 0.12, 4.0), grassIsland, sign * roadX, 0.20, sign * roadZ, 0, 0.35, 0, 'pitch_3d_professional_urban_corner_roundabout_green');
 						                    addTree(sign * roadX, sign * roadZ, 0.75);
+						                  });
+						                  addParkingGarage(-(roadX + 31.0), roadZ + 4.0, 0.04, 'pitch_3d_professional_urban_parking_garage_nw');
+						                  addParkingGarage(roadX + 31.0, roadZ + 4.0, -0.04, 'pitch_3d_professional_urban_parking_garage_ne');
+						                  addTransitHub();
+						                  [-1, 1].forEach((sign) => {
+						                    addBox(env, new THREE.BoxGeometry(metersW + 54.0, 0.10, 0.18), ledRibbon, 0, 8.55, sign * (metersH / 2 + 34.2), 0, 0, 0, 'pitch_3d_professional_urban_stadium_led_facade_ribbon');
+						                    addBox(env, new THREE.BoxGeometry(0.18, 0.10, metersH + 54.0), ledRibbon, sign * (metersW / 2 + 34.2), 8.55, 0, 0, 0, 0, 'pitch_3d_professional_urban_stadium_led_facade_ribbon_end');
 						                  });
 						                  addBox(env, new THREE.BoxGeometry(9.8, 0.48, 2.1), wayfinding, -metersW * 0.44, 0.38, -(roadZ - 2.8), 0, 0, 0, 'pitch_3d_professional_urban_bus_stop_platform');
 						                  addBox(env, new THREE.BoxGeometry(7.8, 0.30, 1.25), roofGlass, -metersW * 0.44, 1.82, -(roadZ - 2.8), 0, 0, 0, 'pitch_3d_professional_urban_bus_stop_canopy');
