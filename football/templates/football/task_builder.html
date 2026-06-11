@@ -8093,14 +8093,15 @@
 			            .catch(() => { setStatus('No se pudo cargar el editor.'); return false; });
 			        };
 
-		        const ensure3dStack = () => {
-		          setStatus('Cargando 3D…');
-		          return ensureThree()
-		            .then(() => ensureGltfLoader())
-		            .then(() => ensureSim3d())
-		            .then(() => { setStatus(''); return true; })
-		            .catch(() => { setStatus('No se pudo cargar la Vista 3D.'); return false; });
-		        };
+			        const ensure3dStack = () => {
+			          setStatus('Cargando 3D…');
+			          return ensureEditorStack()
+			            .then(() => ensureThree())
+			            .then(() => ensureGltfLoader())
+			            .then(() => ensureSim3d())
+			            .then(() => { setStatus(''); return true; })
+			            .catch(() => { setStatus('No se pudo cargar la Vista 3D.'); return false; });
+			        };
 
             // Expose minimal hooks for other inline scripts (landing / mode switchers).
             // Keeps lazy-loading while ensuring the pitch is available when user chooses "Pizarra".
@@ -8159,10 +8160,11 @@
 			        hookClick('task-tactics-sim-open', ensureEditorStack, 'webstatsEditorReady');
 			        hookClick('tactics-save-top', ensureEditorStack, 'webstatsEditorReady');
 			        hookClick('tactics-save-task-top', ensureEditorStack, 'webstatsEditorReady');
-			        hookClick('tactics-save-task-system-top', ensureEditorStack, 'webstatsEditorReady');
-			        hookClick('tactics-save-clip-top', ensureEditorStack, 'webstatsEditorReady');
+				        hookClick('tactics-save-task-system-top', ensureEditorStack, 'webstatsEditorReady');
+				        hookClick('tactics-save-clip-top', ensureEditorStack, 'webstatsEditorReady');
+				        hookClick('pitch-3d-open', ensure3dStack, 'webstats3dReady');
 
-		        // Heurística: si el usuario está realmente en el editor (no solo leyendo),
+			        // Heurística: si el usuario está realmente en el editor (no solo leyendo),
 		        // precargamos en idle para que el primer toque sea instantáneo.
 		        //
 		        // Safari/WebKit: hemos visto `ReferenceError: Can't find variable: scheduleIdle` en producción
