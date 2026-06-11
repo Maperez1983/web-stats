@@ -10412,7 +10412,8 @@
 						                addBox(stadium, new THREE.BoxGeometry(w * 0.74, h * 0.38, 0.08), windowMat, x, h * 0.62, roadZ + 8.16, 0, 0, 0, 'pitch_3d_ref_exterior_city_window_strip');
 						              }
 						            };
-						            const addAuthenticExteriorEnvelope = () => {
+						            const addAuthenticExteriorEnvelope = (targetGroup) => {
+						              const target = targetGroup || stadium;
 						              const envelope = new THREE.Group();
 						              envelope.userData = { kind: 'pitch_3d_ref_real_stadium_exterior_envelope' };
 						              const facadeMat = new THREE.MeshStandardMaterial({ color: 0xd5dcd7, roughness: 0.70, metalness: 0.04 });
@@ -10523,7 +10524,7 @@
 						              addFacadeRun('x', -1, shortSpan);
 						              [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => addCornerMass(sx, sz));
 						              addPlazaAndStreetFurniture();
-						              stadium.add(envelope);
+						              target.add(envelope);
 						            };
 						            const removeProceduralStadiumParts = () => {
 						              try {
@@ -10563,6 +10564,10 @@
 						                  try { node.castShadow = true; node.receiveShadow = true; } catch (e) { /* ignore */ }
 						                });
 						                root.add(stadiumAsset);
+						                const exteriorShell = new THREE.Group();
+						                exteriorShell.userData = { kind: 'pitch_3d_ref_real_stadium_exterior_shell' };
+						                addAuthenticExteriorEnvelope(exteriorShell);
+						                root.add(exteriorShell);
 						                return true;
 						              } catch (e) {
 						                return false;
