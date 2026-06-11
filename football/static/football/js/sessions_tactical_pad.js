@@ -8790,21 +8790,21 @@
 						          renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 						          if (THREE.SRGBColorSpace) renderer.outputColorSpace = THREE.SRGBColorSpace;
 						          if (THREE.ACESFilmicToneMapping) renderer.toneMapping = THREE.ACESFilmicToneMapping;
-							          renderer.toneMappingExposure = 1.18;
+						          renderer.toneMappingExposure = 1.08;
 						        } catch (e) { /* ignore */ }
 						        pitch3dRenderer = renderer;
 						        pitch3dScene = new THREE.Scene();
-							        pitch3dScene.background = new THREE.Color(0xc7e7fb);
-							        try { pitch3dScene.fog = new THREE.Fog(0xc7e7fb, 360, 680); } catch (e) { /* ignore */ }
+						        pitch3dScene.background = new THREE.Color(0xbddff6);
+						        try { pitch3dScene.fog = new THREE.Fog(0xbddff6, 330, 640); } catch (e) { /* ignore */ }
 						        pitch3dCamera = new THREE.PerspectiveCamera(48, 16 / 9, 0.1, 2000);
 						        try {
 						          window.__WEBSTATS_PITCH3D_SCENE = pitch3dScene;
 						          window.__WEBSTATS_PITCH3D_CAMERA = pitch3dCamera;
 						        } catch (e) { /* ignore */ }
-							        const hemi = new THREE.HemisphereLight(0xffffff, 0x4c6a50, 0.84);
-							        pitch3dScene.add(hemi);
-							        const dir = new THREE.DirectionalLight(0xfff1ca, 3.55);
-							        dir.position.set(-145, 185, -105);
+						        const hemi = new THREE.HemisphereLight(0xffffff, 0x385243, 0.68);
+						        pitch3dScene.add(hemi);
+						        const dir = new THREE.DirectionalLight(0xfff0c8, 4.20);
+						        dir.position.set(-155, 210, -118);
 						        try {
 						          dir.castShadow = true;
 							          const viewportMax = Math.max(window.innerWidth || 0, window.innerHeight || 0);
@@ -8823,12 +8823,23 @@
 							          dir.shadow.normalBias = 0.014;
 						        } catch (e) { /* ignore */ }
 						        pitch3dScene.add(dir);
-							        const rim = new THREE.DirectionalLight(0xdbeafe, 0.34);
+						        const rim = new THREE.DirectionalLight(0xdbeafe, 0.46);
 						        rim.position.set(110, 80, 130);
 						        pitch3dScene.add(rim);
-							        const softFill = new THREE.DirectionalLight(0xffffff, 0.28);
+						        const softFill = new THREE.DirectionalLight(0xffffff, 0.18);
 						        softFill.position.set(70, 60, 105);
 						        pitch3dScene.add(softFill);
+						        [
+						          [-82, 24, -58],
+						          [82, 24, -58],
+						          [-82, 24, 58],
+						          [82, 24, 58],
+						        ].forEach(([x, y, z]) => {
+						          const stadiumLight = new THREE.PointLight(0xeaf7ff, 0.34, 170, 1.55);
+						          stadiumLight.position.set(x, y, z);
+						          stadiumLight.userData = { kind: 'pitch_3d_professional_stadium_light_volume' };
+						          pitch3dScene.add(stadiumLight);
+						        });
 						        pitch3dRaycaster = new THREE.Raycaster();
 						        pitch3dPointer = new THREE.Vector2();
 						        return true;
@@ -8864,13 +8875,13 @@
 							        pitch3dOrbit.phi = 0.02;
 							        pitch3dOrbit.radius = Math.max(70, Math.max(metersW, metersH) * 1.25);
 						      } else if (k === 'render_original') {
-						        // Vista de referencia: esquina alta, lente abierta y campo completo.
-							        pitch3dOrbit.theta = -2.48;
-							        pitch3dOrbit.phi = 1.06;
-							        pitch3dOrbit.radius = Math.max(112, metersW * 1.04);
-							        targetX = 0.6;
-							        targetY = 7.2;
-							        targetZ = 2.8;
+						        // Vista de referencia: esquina alta, menos recorte lateral y lectura completa del estadio.
+							        pitch3dOrbit.theta = -2.36;
+							        pitch3dOrbit.phi = 1.02;
+							        pitch3dOrbit.radius = Math.max(124, metersW * 1.13);
+							        targetX = 0.2;
+							        targetY = 8.6;
+							        targetZ = 0.4;
 						      } else if (k === 'clean_pitch_render') {
 							        // Composición de campo limpio: esquina alta y campo completo.
 							        pitch3dOrbit.theta = -2.26;
@@ -10216,9 +10227,21 @@
 						                'pitch_3d_ref_tunnel_grandstand_bridge_raker',
 						                'pitch_3d_ref_tunnel_covered_roof',
 						              ];
+						              const hideKindPatterns = [
+						                /^pitch_3d_dugout/,
+						                /^pitch_3d_visible_/,
+						                /^pitch_3d_technical_stand_/,
+						                /^pitch_3d_ref_tunnel_/,
+						                /^pitch_3d_reference_dugout_/,
+						                /^pitch_3d_continuous_roof_ring_/,
+						                /^pitch_3d_roof_repeated_rib_/,
+						                /^pitch_3d_closed_roof_/,
+						                /^pitch_3d_closed_corner_roof_/,
+						                /^pitch_3d_professional_roof_truss_/,
+						              ];
 						              root.traverse((node) => {
 						                const kind = safeText(node?.userData?.kind || '');
-						                if (hideKinds.includes(kind)) node.visible = false;
+						                if (hideKinds.includes(kind) || hideKindPatterns.some((pattern) => pattern.test(kind))) node.visible = false;
 						              });
 						              const outerX = metersW / 2 + 17.4;
 						              const outerZ = metersH / 2 + 17.4;
@@ -10286,6 +10309,83 @@
 						              addBox(finish, new THREE.BoxGeometry(5.2, 0.32, metersH + 44.0), roofFinish, -(metersW / 2 + 27.9), 14.78, 0, 0, 0, 0, 'pitch_3d_finished_continuous_roof_west');
 						              addBox(finish, new THREE.BoxGeometry(metersW + 30.0, 0.12, 0.18), lightFinish, 0, 13.10, metersH / 2 + 23.4, 0, 0, 0, 'pitch_3d_finished_north_light_bar');
 						              addBox(finish, new THREE.BoxGeometry(metersW + 30.0, 0.12, 0.18), lightFinish, 0, 13.10, -(metersH / 2 + 23.4), 0, 0, 0, 'pitch_3d_finished_south_light_bar');
+						              const addProfessionalDesignPass = () => {
+						                const facadeDark = new THREE.MeshStandardMaterial({ color: 0x2f3a3d, roughness: 0.70, metalness: 0.05 });
+						                const facadePanel = new THREE.MeshStandardMaterial({ color: 0xe4e9e5, roughness: 0.62, metalness: 0.04 });
+						                const glazing = new THREE.MeshPhysicalMaterial({ color: 0x9fd7e8, roughness: 0.18, metalness: 0.02, transparent: true, opacity: 0.38, transmission: 0.12, clearcoat: 0.18 });
+						                const wayfinding = new THREE.MeshStandardMaterial({ color: toColorInt(stadiumPalette3d.primary, 0x047857), roughness: 0.44, metalness: 0.06 });
+						                const darkOpening = new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.90, metalness: 0.01 });
+						                const gateMetal = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.46, metalness: 0.30 });
+						                const roofEdge = new THREE.MeshStandardMaterial({ color: 0xdce4e1, roughness: 0.48, metalness: 0.14 });
+						                const roofGlass = new THREE.MeshPhysicalMaterial({ color: 0xd7f3ff, roughness: 0.16, metalness: 0.02, transparent: true, opacity: 0.28, transmission: 0.18, side: THREE.DoubleSide });
+						                const addSignMat = (title, subtitle) => makePitch3dCanvasTexture((ctx, c) => {
+						                  ctx.fillStyle = '#06281f';
+						                  ctx.fillRect(0, 0, c.width, c.height);
+						                  const grad = ctx.createLinearGradient(0, 0, c.width, c.height);
+						                  grad.addColorStop(0, 'rgba(20,184,166,0.58)');
+						                  grad.addColorStop(0.55, 'rgba(5,46,37,0.24)');
+						                  grad.addColorStop(1, 'rgba(15,23,42,0.36)');
+						                  ctx.fillStyle = grad;
+						                  ctx.fillRect(0, 0, c.width, c.height);
+						                  ctx.strokeStyle = 'rgba(226,232,240,0.62)';
+						                  ctx.lineWidth = 8;
+						                  ctx.strokeRect(18, 18, c.width - 36, c.height - 36);
+						                  ctx.fillStyle = '#f8fafc';
+						                  ctx.textAlign = 'center';
+						                  ctx.textBaseline = 'middle';
+						                  ctx.font = '900 76px Arial, sans-serif';
+						                  ctx.fillText(title, c.width / 2, c.height * 0.42);
+						                  ctx.font = '700 34px Arial, sans-serif';
+						                  ctx.fillStyle = '#b8fff1';
+						                  ctx.fillText(subtitle, c.width / 2, c.height * 0.70);
+						                }, 1024, 256)?.tex || null;
+						                const mainSign = new THREE.MeshBasicMaterial({ map: addSignMat('SEGUNDA JUGADA', 'ESTADIO TACTICO 3D'), toneMapped: false });
+						                const gateSign = new THREE.MeshBasicMaterial({ map: addSignMat('ACCESO', 'TRIBUNA PRINCIPAL'), toneMapped: false });
+						                [-1, 1].forEach((sign) => {
+						                  const z = sign * (outerZ + 5.5);
+						                  addBox(finish, new THREE.BoxGeometry(metersW + 54.0, 5.6, 0.56), facadeDark, 0, 4.95, z, 0, 0, 0, 'pitch_3d_professional_unified_outer_facade_long');
+						                  addBox(finish, new THREE.BoxGeometry(metersW + 47.0, 1.25, 0.22), glazing, 0, 6.15, z + sign * 0.34, 0, 0, 0, 'pitch_3d_professional_continuous_concourse_glass_long');
+						                  addBox(finish, new THREE.BoxGeometry(metersW + 58.0, 0.34, 3.4), roofEdge, 0, 15.28, sign * (metersH / 2 + 31.5), sign * -0.010, 0, 0, 'pitch_3d_professional_clean_roof_eave_long');
+						                  addBox(finish, new THREE.BoxGeometry(metersW + 50.0, 0.08, 4.4), roofGlass, 0, 15.05, sign * (metersH / 2 + 28.3), sign * -0.045, 0, 0, 'pitch_3d_professional_translucent_roof_field_long');
+						                  [-0.34, 0, 0.34].forEach((ratio, idx) => {
+						                    const x = ratio * metersW;
+						                    addBox(finish, new THREE.BoxGeometry(8.6, 3.2, 0.36), darkOpening, x, 1.74, z + sign * 0.42, 0, 0, 0, 'pitch_3d_professional_scaled_public_entrance');
+						                    addBox(finish, new THREE.BoxGeometry(10.4, 0.50, 2.4), wayfinding, x, 3.48, z + sign * 1.18, 0, 0, 0, 'pitch_3d_professional_entry_projecting_canopy');
+						                    addBox(finish, new THREE.BoxGeometry(0.10, 1.55, 0.70), gateMetal, x - 2.45, 0.86, z + sign * 1.02, 0, 0, 0, 'pitch_3d_professional_turnstile_detail');
+						                    addBox(finish, new THREE.BoxGeometry(0.10, 1.55, 0.70), gateMetal, x, 0.86, z + sign * 1.02, 0, 0, 0, 'pitch_3d_professional_turnstile_detail');
+						                    addBox(finish, new THREE.BoxGeometry(0.10, 1.55, 0.70), gateMetal, x + 2.45, 0.86, z + sign * 1.02, 0, 0, 0, 'pitch_3d_professional_turnstile_detail');
+						                    const signMesh = new THREE.Mesh(new THREE.PlaneGeometry(idx === 1 ? 13.2 : 7.8, 1.95), idx === 1 ? mainSign : gateSign);
+						                    signMesh.position.set(x, 5.12, z + sign * 0.64);
+						                    signMesh.rotation.y = sign > 0 ? Math.PI : 0;
+						                    signMesh.userData = { kind: 'pitch_3d_professional_facade_wayfinding_sign' };
+						                    finish.add(signMesh);
+						                  });
+						                  for (let i = -7; i <= 7; i += 1) {
+						                    const x = i * ((metersW + 34.0) / 14);
+						                    addBox(finish, new THREE.BoxGeometry(0.22, 5.9, 0.46), facadePanel, x, 5.02, z + sign * 0.72, 0, 0, 0, 'pitch_3d_professional_facade_rhythm_fin');
+						                    if (i % 2 === 0) {
+						                      addBox(finish, new THREE.BoxGeometry(0.18, 3.4, 0.20), lightFinish, x, 12.35, sign * (metersH / 2 + 25.4), sign * -0.20, 0, 0, 'pitch_3d_professional_roof_downlight_strip');
+						                    }
+						                  }
+						                });
+						                [-1, 1].forEach((sign) => {
+						                  const x = sign * (outerX + 5.5);
+						                  addBox(finish, new THREE.BoxGeometry(0.56, 5.6, metersH + 54.0), facadeDark, x, 4.95, 0, 0, 0, 0, 'pitch_3d_professional_unified_outer_facade_end');
+						                  addBox(finish, new THREE.BoxGeometry(0.22, 1.25, metersH + 47.0), glazing, x + sign * 0.34, 6.15, 0, 0, 0, 0, 'pitch_3d_professional_continuous_concourse_glass_end');
+						                  addBox(finish, new THREE.BoxGeometry(3.4, 0.34, metersH + 58.0), roofEdge, sign * (metersW / 2 + 31.5), 15.28, 0, 0, sign * 0.010, 0, 'pitch_3d_professional_clean_roof_eave_end');
+						                  addBox(finish, new THREE.BoxGeometry(4.4, 0.08, metersH + 50.0), roofGlass, sign * (metersW / 2 + 28.3), 15.05, 0, 0, sign * 0.045, 0, 'pitch_3d_professional_translucent_roof_field_end');
+						                  for (let i = -5; i <= 5; i += 1) {
+						                    const z = i * ((metersH + 34.0) / 10);
+						                    addBox(finish, new THREE.BoxGeometry(0.46, 5.9, 0.22), facadePanel, x + sign * 0.72, 5.02, z, 0, 0, 0, 'pitch_3d_professional_facade_rhythm_fin_end');
+						                  }
+						                });
+						                [-34, -17, 17, 34].forEach((x) => {
+						                  addBox(finish, new THREE.BoxGeometry(3.9, 1.48, 0.22), darkOpening, x, 2.25, -(metersH / 2 + 7.35), 0, 0, 0, 'pitch_3d_professional_proportioned_lower_vomitory');
+						                  addBox(finish, new THREE.BoxGeometry(0.10, 1.55, 2.55), gateMetal, x - 2.14, 2.18, -(metersH / 2 + 6.20), 0, 0, 0, 'pitch_3d_professional_vomitory_side_rail');
+						                  addBox(finish, new THREE.BoxGeometry(0.10, 1.55, 2.55), gateMetal, x + 2.14, 2.18, -(metersH / 2 + 6.20), 0, 0, 0, 'pitch_3d_professional_vomitory_side_rail');
+						                });
+						              };
+						              addProfessionalDesignPass();
 						              root.add(finish);
 						            } catch (e) { /* ignore */ }
 						          };
