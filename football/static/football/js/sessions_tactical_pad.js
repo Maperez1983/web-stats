@@ -10749,11 +10749,11 @@
 						              const target = targetGroup || stadium;
 						              const detail = new THREE.Group();
 						              detail.userData = { kind: 'pitch_3d_ref_ten_point_detail_pass' };
-						              const concrete = new THREE.MeshStandardMaterial({ color: 0xd8dfda, roughness: 0.72, metalness: 0.03 });
 						              const darkVoid = new THREE.MeshStandardMaterial({ color: 0x030712, roughness: 0.92, metalness: 0.01 });
 						              const glass = new THREE.MeshPhysicalMaterial({ color: 0xc7efff, roughness: 0.10, metalness: 0.02, transparent: true, opacity: 0.32, transmission: 0.22, clearcoat: 0.36, side: THREE.DoubleSide });
 						              const steel = new THREE.MeshStandardMaterial({ color: 0xe5ece8, roughness: 0.42, metalness: 0.22 });
 						              const rail = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.46, metalness: 0.24 });
+						              const bowlParapet = new THREE.MeshStandardMaterial({ color: 0xb8c2bd, roughness: 0.76, metalness: 0.03, transparent: true, opacity: 0.28 });
 						              const vipDark = new THREE.MeshStandardMaterial({ color: 0x101820, roughness: 0.48, metalness: 0.08 });
 						              const asphalt = new THREE.MeshStandardMaterial({ color: 0x2b3033, roughness: 0.92, metalness: 0.01 });
 						              const treeGreen = new THREE.MeshStandardMaterial({ color: 0x166534, roughness: 0.76, metalness: 0.0 });
@@ -10805,10 +10805,12 @@
 						                return new THREE.MeshBasicMaterial({ map: tex, toneMapped: false });
 						              };
 						              const addCurvedBowlAndRoof = () => {
-						                addOvalRing(metersW / 2 + 9.3, metersH / 2 + 9.5, 3.65, 0.012, concrete, 'pitch_3d_ref_detail_curved_lower_bowl_ring');
-						                addOvalRing(metersW / 2 + 14.4, metersH / 2 + 14.7, 6.35, 0.010, concrete, 'pitch_3d_ref_detail_curved_middle_bowl_ring');
-						                addOvalRing(metersW / 2 + 19.0, metersH / 2 + 19.2, 9.00, 0.010, concrete, 'pitch_3d_ref_detail_curved_upper_bowl_ring');
-						                addOvalRing(metersW / 2 + 21.2, metersH / 2 + 21.5, 9.55, 0.004, rail, 'pitch_3d_ref_detail_curved_guardrail_ring');
+						                [-1, 1].forEach((sign) => {
+						                  addBox(detail, new THREE.BoxGeometry(metersW + 42.0, 0.08, 0.42), bowlParapet, 0, 10.12, sign * (metersH / 2 + 24.8), sign * -0.04, 0, 0, 'pitch_3d_ref_detail_curved_rear_bowl_parapet_long');
+						                  addBox(detail, new THREE.BoxGeometry(0.42, 0.08, metersH + 42.0), bowlParapet, sign * (metersW / 2 + 24.8), 10.12, 0, 0, sign * 0.04, 0, 'pitch_3d_ref_detail_curved_rear_bowl_parapet_end');
+						                  addBox(detail, new THREE.BoxGeometry(metersW + 47.0, 0.06, 0.26), rail, 0, 10.72, sign * (metersH / 2 + 25.6), sign * -0.03, 0, 0, 'pitch_3d_ref_detail_curved_rear_guardrail_long');
+						                  addBox(detail, new THREE.BoxGeometry(0.26, 0.06, metersH + 47.0), rail, sign * (metersW / 2 + 25.6), 10.72, 0, 0, sign * 0.03, 0, 'pitch_3d_ref_detail_curved_rear_guardrail_end');
+						                });
 						                addOvalRing(metersW / 2 + 34.8, metersH / 2 + 34.8, 18.40, 0.008, glass, 'pitch_3d_ref_detail_curved_translucent_roof_skin');
 						                addOvalRing(metersW / 2 + 40.5, metersH / 2 + 40.5, 18.75, 0.005, steel, 'pitch_3d_ref_detail_curved_roof_outer_lip');
 						              };
