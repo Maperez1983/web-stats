@@ -10318,6 +10318,21 @@
 						                const gateMetal = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.46, metalness: 0.30 });
 						                const roofEdge = new THREE.MeshStandardMaterial({ color: 0xdce4e1, roughness: 0.48, metalness: 0.14 });
 						                const roofGlass = new THREE.MeshPhysicalMaterial({ color: 0xd7f3ff, roughness: 0.16, metalness: 0.02, transparent: true, opacity: 0.28, transmission: 0.18, side: THREE.DoubleSide });
+						                const roadMat = new THREE.MeshStandardMaterial({ color: 0x2b3033, roughness: 0.92, metalness: 0.01 });
+						                const roadPaint = new THREE.MeshBasicMaterial({ color: 0xf8fafc, transparent: true, opacity: 0.82 });
+						                const pavement = new THREE.MeshStandardMaterial({ color: 0xb8c1bd, roughness: 0.86, metalness: 0.02 });
+						                const parkingMat = new THREE.MeshStandardMaterial({ color: 0x3a4042, roughness: 0.88, metalness: 0.01 });
+						                const grassIsland = new THREE.MeshStandardMaterial({ color: 0x256c3a, roughness: 0.78, metalness: 0.0 });
+						                const treeTrunk = new THREE.MeshStandardMaterial({ color: 0x7c4a22, roughness: 0.82, metalness: 0.0 });
+						                const treeLeaf = new THREE.MeshStandardMaterial({ color: 0x1f7a3d, roughness: 0.74, metalness: 0.0 });
+						                const carA = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.44, metalness: 0.08 });
+						                const carB = new THREE.MeshStandardMaterial({ color: 0x0f766e, roughness: 0.46, metalness: 0.08 });
+						                const carC = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.48, metalness: 0.10 });
+						                const glassDark = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.32, metalness: 0.06, transparent: true, opacity: 0.62 });
+						                const buildingA = new THREE.MeshStandardMaterial({ color: 0xcbd5d1, roughness: 0.76, metalness: 0.02 });
+						                const buildingB = new THREE.MeshStandardMaterial({ color: 0xaeb9ba, roughness: 0.74, metalness: 0.03 });
+						                const buildingC = new THREE.MeshStandardMaterial({ color: 0xd8ded9, roughness: 0.70, metalness: 0.02 });
+						                const windowStrip = new THREE.MeshStandardMaterial({ color: 0x5f7f92, roughness: 0.34, metalness: 0.05, transparent: true, opacity: 0.58 });
 						                const addSignMat = (title, subtitle) => makePitch3dCanvasTexture((ctx, c) => {
 						                  ctx.fillStyle = '#06281f';
 						                  ctx.fillRect(0, 0, c.width, c.height);
@@ -10384,6 +10399,97 @@
 						                  addBox(finish, new THREE.BoxGeometry(0.10, 1.55, 2.55), gateMetal, x - 2.14, 2.18, -(metersH / 2 + 6.20), 0, 0, 0, 'pitch_3d_professional_vomitory_side_rail');
 						                  addBox(finish, new THREE.BoxGeometry(0.10, 1.55, 2.55), gateMetal, x + 2.14, 2.18, -(metersH / 2 + 6.20), 0, 0, 0, 'pitch_3d_professional_vomitory_side_rail');
 						                });
+						                const addUrbanEnvironment = () => {
+						                  const env = new THREE.Group();
+						                  env.userData = { kind: 'pitch_3d_professional_complete_urban_environment' };
+						                  const roadZ = metersH / 2 + 50.0;
+						                  const roadX = metersW / 2 + 50.0;
+						                  const plazaZ = metersH / 2 + 38.0;
+						                  const plazaX = metersW / 2 + 38.0;
+						                  const carMats = [carA, carB, carC];
+						                  const buildingMats = [buildingA, buildingB, buildingC];
+						                  const addCar = (x, z, rotY, mat, kind = 'pitch_3d_professional_urban_car') => {
+						                    const car = new THREE.Group();
+						                    car.position.set(x, 0, z);
+						                    car.rotation.y = rotY;
+						                    car.userData = { kind };
+						                    addBox(car, new THREE.BoxGeometry(2.35, 0.42, 1.08), mat, 0, 0.28, 0, 0, 0, 0, `${kind}_body`);
+						                    addBox(car, new THREE.BoxGeometry(1.25, 0.34, 0.88), glassDark, -0.12, 0.66, 0, 0, 0, 0, `${kind}_cabin`);
+						                    addBox(car, new THREE.BoxGeometry(0.22, 0.22, 0.16), gateMetal, -0.76, 0.12, -0.55, 0, 0, 0, `${kind}_wheel`);
+						                    addBox(car, new THREE.BoxGeometry(0.22, 0.22, 0.16), gateMetal, 0.76, 0.12, -0.55, 0, 0, 0, `${kind}_wheel`);
+						                    addBox(car, new THREE.BoxGeometry(0.22, 0.22, 0.16), gateMetal, -0.76, 0.12, 0.55, 0, 0, 0, `${kind}_wheel`);
+						                    addBox(car, new THREE.BoxGeometry(0.22, 0.22, 0.16), gateMetal, 0.76, 0.12, 0.55, 0, 0, 0, `${kind}_wheel`);
+						                    env.add(car);
+						                  };
+						                  const addTree = (x, z, scale = 1) => {
+						                    addBox(env, new THREE.BoxGeometry(0.30 * scale, 1.8 * scale, 0.30 * scale), treeTrunk, x, 0.90 * scale, z, 0, 0, 0, 'pitch_3d_professional_urban_tree_trunk');
+						                    addBox(env, new THREE.BoxGeometry(2.05 * scale, 1.85 * scale, 2.05 * scale), treeLeaf, x, 2.20 * scale, z, 0, 0.35, 0, 'pitch_3d_professional_urban_tree_canopy');
+						                  };
+						                  const addBuilding = (x, z, w, d, h, mat, rot = 0) => {
+						                    addBox(env, new THREE.BoxGeometry(w, h, d), mat, x, h / 2, z, 0, rot, 0, 'pitch_3d_professional_urban_city_block');
+						                    addBox(env, new THREE.BoxGeometry(w * 0.72, h * 0.42, 0.10), windowStrip, x, h * 0.58, z - d / 2 - 0.06, 0, rot, 0, 'pitch_3d_professional_urban_city_window_band');
+						                    addBox(env, new THREE.BoxGeometry(w * 0.46, 0.18, d * 0.56), roofEdge, x, h + 0.10, z, 0, rot, 0, 'pitch_3d_professional_urban_rooftop_service');
+						                  };
+						                  const addCrosswalk = (axis, x, z) => {
+						                    for (let i = -3; i <= 3; i += 1) {
+						                      const geo = axis === 'z' ? new THREE.BoxGeometry(0.42, 0.035, 3.9) : new THREE.BoxGeometry(3.9, 0.035, 0.42);
+						                      addBox(env, geo, roadPaint, axis === 'z' ? x + i * 0.76 : x, 0.105, axis === 'z' ? z : z + i * 0.76, 0, 0, 0, 'pitch_3d_professional_urban_crosswalk_stripe');
+						                    }
+						                  };
+						                  addBox(env, new THREE.BoxGeometry(metersW + 142.0, 0.08, 10.8), roadMat, 0, 0.035, roadZ, 0, 0, 0, 'pitch_3d_professional_urban_north_avenue');
+						                  addBox(env, new THREE.BoxGeometry(metersW + 142.0, 0.08, 10.8), roadMat, 0, 0.035, -roadZ, 0, 0, 0, 'pitch_3d_professional_urban_south_avenue');
+						                  addBox(env, new THREE.BoxGeometry(10.8, 0.08, metersH + 142.0), roadMat, roadX, 0.035, 0, 0, 0, 0, 'pitch_3d_professional_urban_east_avenue');
+						                  addBox(env, new THREE.BoxGeometry(10.8, 0.08, metersH + 142.0), roadMat, -roadX, 0.035, 0, 0, 0, 0, 'pitch_3d_professional_urban_west_avenue');
+						                  [-1, 1].forEach((sign) => {
+						                    addBox(env, new THREE.BoxGeometry(metersW + 116.0, 0.055, 4.6), pavement, 0, 0.08, sign * (roadZ - 7.6), 0, 0, 0, 'pitch_3d_professional_urban_avenue_sidewalk_long');
+						                    addBox(env, new THREE.BoxGeometry(4.6, 0.055, metersH + 116.0), pavement, sign * (roadX - 7.6), 0.08, 0, 0, 0, 0, 'pitch_3d_professional_urban_avenue_sidewalk_end');
+						                    addBox(env, new THREE.BoxGeometry(metersW + 88.0, 0.06, 22.0), pavement, 0, 0.07, sign * plazaZ, 0, 0, 0, 'pitch_3d_professional_urban_event_plaza_long');
+						                    addBox(env, new THREE.BoxGeometry(22.0, 0.06, metersH + 88.0), pavement, sign * plazaX, 0.07, 0, 0, 0, 0, 'pitch_3d_professional_urban_event_plaza_end');
+						                    addBox(env, new THREE.BoxGeometry(metersW + 66.0, 0.065, 17.6), parkingMat, 0, 0.09, sign * (roadZ + 14.8), 0, 0, 0, 'pitch_3d_professional_urban_parking_lot_long');
+						                    addBox(env, new THREE.BoxGeometry(17.6, 0.065, metersH + 66.0), parkingMat, sign * (roadX + 14.8), 0.09, 0, 0, 0, 0, 'pitch_3d_professional_urban_parking_lot_end');
+						                    for (let i = -7; i <= 7; i += 1) {
+						                      addBox(env, new THREE.BoxGeometry(0.12, 0.04, 5.4), roadPaint, i * 7.0, 0.13, sign * (roadZ + 12.1), 0, 0, 0, 'pitch_3d_professional_urban_parking_bay_line');
+						                      addBox(env, new THREE.BoxGeometry(5.4, 0.04, 0.12), roadPaint, sign * (roadX + 12.1), 0.13, i * 6.4, 0, 0, 0, 'pitch_3d_professional_urban_parking_bay_line_end');
+						                      if (i % 2 === 0) addCar(i * 7.0 + 2.2, sign * (roadZ + 15.2), sign > 0 ? 0 : Math.PI, carMats[Math.abs(i) % carMats.length]);
+						                      if (i % 3 !== 0) addCar(sign * (roadX + 15.2), i * 6.4 + 1.7, sign > 0 ? Math.PI / 2 : -Math.PI / 2, carMats[(Math.abs(i) + 1) % carMats.length]);
+						                    }
+						                    for (let i = -5; i <= 5; i += 1) {
+						                      addTree(i * 10.5, sign * (plazaZ - 9.6), 0.86 + (Math.abs(i) % 2) * 0.10);
+						                      addTree(sign * (plazaX - 9.6), i * 9.8, 0.80 + (Math.abs(i) % 3) * 0.08);
+						                    }
+						                    addCrosswalk('z', -metersW * 0.28, sign * roadZ);
+						                    addCrosswalk('z', 0, sign * roadZ);
+						                    addCrosswalk('z', metersW * 0.28, sign * roadZ);
+						                    addCrosswalk('x', sign * roadX, -metersH * 0.24);
+						                    addCrosswalk('x', sign * roadX, metersH * 0.24);
+						                  });
+						                  [
+						                    [-metersW * 0.42, roadZ + 30.0, 8.0, 6.2, 7.2],
+						                    [-metersW * 0.25, roadZ + 34.0, 6.5, 5.4, 10.5],
+						                    [-metersW * 0.08, roadZ + 31.0, 9.2, 5.8, 6.4],
+						                    [metersW * 0.11, roadZ + 36.0, 7.4, 6.0, 12.8],
+						                    [metersW * 0.30, roadZ + 32.0, 10.0, 5.6, 8.6],
+						                    [metersW * 0.46, roadZ + 35.0, 6.8, 5.8, 11.0],
+						                    [-metersW * 0.40, -roadZ - 31.5, 8.8, 5.8, 6.8],
+						                    [-metersW * 0.19, -roadZ - 35.0, 7.0, 5.2, 13.2],
+						                    [metersW * 0.05, -roadZ - 32.0, 9.6, 6.2, 8.0],
+						                    [metersW * 0.28, -roadZ - 36.0, 7.8, 5.8, 10.8],
+						                  ].forEach(([x, z, w, d, h], idx) => addBuilding(x, z, w, d, h, buildingMats[idx % buildingMats.length]));
+						                  [-1, 1].forEach((sign) => {
+						                    [-0.30, 0.02, 0.34].forEach((ratio, idx) => {
+						                      addBuilding(sign * (roadX + 30.0), ratio * metersH, 5.6, 8.4, 6.5 + idx * 2.8, buildingMats[(idx + 1) % buildingMats.length], sign * 0.02);
+						                    });
+						                    addBox(env, new THREE.BoxGeometry(8.8, 0.08, 8.8), roadMat, sign * roadX, 0.11, sign * roadZ, 0, 0, 0, 'pitch_3d_professional_urban_corner_roundabout_asphalt');
+						                    addBox(env, new THREE.BoxGeometry(4.0, 0.12, 4.0), grassIsland, sign * roadX, 0.20, sign * roadZ, 0, 0.35, 0, 'pitch_3d_professional_urban_corner_roundabout_green');
+						                    addTree(sign * roadX, sign * roadZ, 0.75);
+						                  });
+						                  addBox(env, new THREE.BoxGeometry(9.8, 0.48, 2.1), wayfinding, -metersW * 0.44, 0.38, -(roadZ - 2.8), 0, 0, 0, 'pitch_3d_professional_urban_bus_stop_platform');
+						                  addBox(env, new THREE.BoxGeometry(7.8, 0.30, 1.25), roofGlass, -metersW * 0.44, 1.82, -(roadZ - 2.8), 0, 0, 0, 'pitch_3d_professional_urban_bus_stop_canopy');
+						                  addBox(env, new THREE.BoxGeometry(8.2, 1.35, 2.25), carB, -metersW * 0.30, 0.72, -(roadZ + 0.7), 0, 0, 0, 'pitch_3d_professional_urban_team_bus');
+						                  addBox(env, new THREE.BoxGeometry(5.6, 0.70, 0.10), glassDark, -metersW * 0.30, 1.08, -(roadZ + 1.86), 0, 0, 0, 'pitch_3d_professional_urban_team_bus_windows');
+						                  finish.add(env);
+						                };
+						                addUrbanEnvironment();
 						              };
 						              addProfessionalDesignPass();
 						              root.add(finish);
