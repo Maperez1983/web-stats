@@ -10745,6 +10745,206 @@
 						              addInstancedSeatBowl();
 						              target.add(upgrade);
 						            };
+						            const addReferenceStadiumTenPointDetailPass = (targetGroup) => {
+						              const target = targetGroup || stadium;
+						              const detail = new THREE.Group();
+						              detail.userData = { kind: 'pitch_3d_ref_ten_point_detail_pass' };
+						              const concrete = new THREE.MeshStandardMaterial({ color: 0xd8dfda, roughness: 0.72, metalness: 0.03 });
+						              const darkVoid = new THREE.MeshStandardMaterial({ color: 0x030712, roughness: 0.92, metalness: 0.01 });
+						              const glass = new THREE.MeshPhysicalMaterial({ color: 0xc7efff, roughness: 0.10, metalness: 0.02, transparent: true, opacity: 0.32, transmission: 0.22, clearcoat: 0.36, side: THREE.DoubleSide });
+						              const steel = new THREE.MeshStandardMaterial({ color: 0xe5ece8, roughness: 0.42, metalness: 0.22 });
+						              const rail = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.46, metalness: 0.24 });
+						              const vipDark = new THREE.MeshStandardMaterial({ color: 0x101820, roughness: 0.48, metalness: 0.08 });
+						              const asphalt = new THREE.MeshStandardMaterial({ color: 0x2b3033, roughness: 0.92, metalness: 0.01 });
+						              const treeGreen = new THREE.MeshStandardMaterial({ color: 0x166534, roughness: 0.76, metalness: 0.0 });
+						              const trunk = new THREE.MeshStandardMaterial({ color: 0x7c4a22, roughness: 0.80, metalness: 0.0 });
+						              const crowdA = new THREE.MeshStandardMaterial({ color: 0x0f766e, roughness: 0.62, metalness: 0.01 });
+						              const crowdB = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.62, metalness: 0.01 });
+						              const crowdC = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.58, metalness: 0.01 });
+						              const addOvalRing = (rx, rz, y, tube, mat, kind) => {
+						                try {
+						                  const ring = new THREE.Mesh(new THREE.TorusGeometry(1, tube, 8, 160), mat);
+						                  ring.position.set(0, y, 0);
+						                  ring.rotation.x = Math.PI / 2;
+						                  ring.scale.set(rx, rz, 1);
+						                  ring.userData = { kind };
+						                  try { ring.castShadow = true; ring.receiveShadow = true; } catch (e) { /* ignore */ }
+						                  detail.add(ring);
+						                } catch (e) { /* ignore */ }
+						              };
+						              const makeScoreboardMat = (title, score) => {
+						                const c = document.createElement('canvas');
+						                c.width = 1024;
+						                c.height = 384;
+						                const ctx = c.getContext('2d');
+						                if (!ctx) return new THREE.MeshBasicMaterial({ color: 0x020617 });
+						                ctx.fillStyle = '#020617';
+						                ctx.fillRect(0, 0, c.width, c.height);
+						                const g = ctx.createLinearGradient(0, 0, c.width, c.height);
+						                g.addColorStop(0, 'rgba(20,184,166,0.42)');
+						                g.addColorStop(0.54, 'rgba(15,23,42,0)');
+						                g.addColorStop(1, 'rgba(59,130,246,0.30)');
+						                ctx.fillStyle = g;
+						                ctx.fillRect(0, 0, c.width, c.height);
+						                ctx.strokeStyle = 'rgba(226,232,240,0.72)';
+						                ctx.lineWidth = 10;
+						                ctx.strokeRect(18, 18, c.width - 36, c.height - 36);
+						                ctx.fillStyle = '#e0f2fe';
+						                ctx.font = '900 58px Arial, sans-serif';
+						                ctx.textAlign = 'center';
+						                ctx.fillText(title, c.width / 2, 108);
+						                ctx.fillStyle = '#f8fafc';
+						                ctx.font = '900 118px Arial, sans-serif';
+						                ctx.fillText(score, c.width / 2, 245);
+						                ctx.fillStyle = '#99f6e4';
+						                ctx.font = '700 34px Arial, sans-serif';
+						                ctx.fillText('SEGUNDA JUGADA', c.width / 2, 318);
+						                const tex = new THREE.CanvasTexture(c);
+						                tex.anisotropy = getPitch3dMaxAnisotropy();
+						                tex.needsUpdate = true;
+						                return new THREE.MeshBasicMaterial({ map: tex, toneMapped: false });
+						              };
+						              const addCurvedBowlAndRoof = () => {
+						                addOvalRing(metersW / 2 + 9.3, metersH / 2 + 9.5, 3.65, 0.012, concrete, 'pitch_3d_ref_detail_curved_lower_bowl_ring');
+						                addOvalRing(metersW / 2 + 14.4, metersH / 2 + 14.7, 6.35, 0.010, concrete, 'pitch_3d_ref_detail_curved_middle_bowl_ring');
+						                addOvalRing(metersW / 2 + 19.0, metersH / 2 + 19.2, 9.00, 0.010, concrete, 'pitch_3d_ref_detail_curved_upper_bowl_ring');
+						                addOvalRing(metersW / 2 + 21.2, metersH / 2 + 21.5, 9.55, 0.004, rail, 'pitch_3d_ref_detail_curved_guardrail_ring');
+						                addOvalRing(metersW / 2 + 27.8, metersH / 2 + 27.8, 15.20, 0.012, glass, 'pitch_3d_ref_detail_curved_translucent_roof_skin');
+						                addOvalRing(metersW / 2 + 33.0, metersH / 2 + 33.0, 15.42, 0.007, steel, 'pitch_3d_ref_detail_curved_roof_outer_lip');
+						              };
+						              const addDeepVomitoryPassages = () => {
+						                [-1, 1].forEach((sign) => {
+						                  [-33, -16.5, 0, 16.5, 33].forEach((x) => {
+						                    const z = sign * (metersH / 2 + 8.4);
+						                    addBox(detail, new THREE.BoxGeometry(3.2, 0.14, 7.2), darkVoid, x, 1.08, z + sign * 2.3, sign * -0.07, 0, 0, 'pitch_3d_ref_detail_deep_long_vomitory_corridor');
+						                    addBox(detail, new THREE.BoxGeometry(0.16, 1.38, 6.9), rail, x - 1.82, 1.82, z + sign * 2.1, 0, 0, 0, 'pitch_3d_ref_detail_deep_long_vomitory_left_rail');
+						                    addBox(detail, new THREE.BoxGeometry(0.16, 1.38, 6.9), rail, x + 1.82, 1.82, z + sign * 2.1, 0, 0, 0, 'pitch_3d_ref_detail_deep_long_vomitory_right_rail');
+						                  });
+						                });
+						                [-1, 1].forEach((sign) => {
+						                  [-36, -18, 0, 18, 36].forEach((z) => {
+						                    const x = sign * (metersW / 2 + 8.4);
+						                    addBox(detail, new THREE.BoxGeometry(7.2, 0.14, 3.2), darkVoid, x + sign * 2.3, 1.08, z, 0, sign * 0.07, 0, 'pitch_3d_ref_detail_deep_end_vomitory_corridor');
+						                    addBox(detail, new THREE.BoxGeometry(6.9, 1.38, 0.16), rail, x + sign * 2.1, 1.82, z - 1.82, 0, 0, 0, 'pitch_3d_ref_detail_deep_end_vomitory_left_rail');
+						                    addBox(detail, new THREE.BoxGeometry(6.9, 1.38, 0.16), rail, x + sign * 2.1, 1.82, z + 1.82, 0, 0, 0, 'pitch_3d_ref_detail_deep_end_vomitory_right_rail');
+						                  });
+						                });
+						              };
+						              const addDoubleSkinFacade = () => {
+						                [-1, 1].forEach((sign) => {
+						                  for (let i = -10; i <= 10; i += 1) {
+						                    const x = i * ((metersW + 38) / 20);
+						                    addBox(detail, new THREE.BoxGeometry(0.16, 7.2, 1.05), glass, x, 6.25, sign * (metersH / 2 + 28.8), 0, i * 0.006, 0, 'pitch_3d_ref_detail_double_skin_long_glass_fin');
+						                  }
+						                  addBox(detail, new THREE.BoxGeometry(metersW + 64, 0.16, 0.22), steel, 0, 9.95, sign * (metersH / 2 + 29.15), 0, 0, 0, 'pitch_3d_ref_detail_double_skin_long_top_track');
+						                });
+						                [-1, 1].forEach((sign) => {
+						                  for (let i = -9; i <= 9; i += 1) {
+						                    const z = i * ((metersH + 38) / 18);
+						                    addBox(detail, new THREE.BoxGeometry(1.05, 7.2, 0.16), glass, sign * (metersW / 2 + 28.8), 6.25, z, 0, i * 0.006, 0, 'pitch_3d_ref_detail_double_skin_end_glass_fin');
+						                  }
+						                  addBox(detail, new THREE.BoxGeometry(0.22, 0.16, metersH + 64), steel, sign * (metersW / 2 + 29.15), 9.95, 0, 0, 0, 0, 'pitch_3d_ref_detail_double_skin_end_top_track');
+						                });
+						              };
+						              const addVipAndScoreboards = () => {
+						                addBox(detail, new THREE.BoxGeometry(32.0, 2.20, 3.2), vipDark, 0, 7.18, -(metersH / 2 + 13.3), -0.02, 0, 0, 'pitch_3d_ref_detail_main_vip_suite_volume');
+						                addBox(detail, new THREE.BoxGeometry(30.8, 1.42, 0.12), glass, 0, 7.24, -(metersH / 2 + 11.62), 0, 0, 0, 'pitch_3d_ref_detail_main_vip_suite_glass_front');
+						                for (let i = -5; i <= 5; i += 1) {
+						                  addBox(detail, new THREE.BoxGeometry(0.08, 1.42, 0.20), steel, i * 2.8, 7.24, -(metersH / 2 + 11.48), 0, 0, 0, 'pitch_3d_ref_detail_vip_suite_mullion');
+						                }
+						                const northBoard = new THREE.Mesh(new THREE.PlaneGeometry(11.4, 4.2), makeScoreboardMat('MARCADOR', '0 - 0'));
+						                northBoard.position.set(0, 11.2, metersH / 2 + 18.0);
+						                northBoard.rotation.y = Math.PI;
+						                northBoard.userData = { kind: 'pitch_3d_ref_detail_north_video_scoreboard' };
+						                detail.add(northBoard);
+						                const southBoard = new THREE.Mesh(new THREE.PlaneGeometry(9.0, 3.2), makeScoreboardMat('TIEMPO', '45:00'));
+						                southBoard.position.set(0, 10.8, -(metersH / 2 + 18.0));
+						                southBoard.userData = { kind: 'pitch_3d_ref_detail_south_video_scoreboard' };
+						                detail.add(southBoard);
+						              };
+						              const addNightLightingAndExterior = () => {
+						                try {
+						                  const glow = new THREE.PointLight(0xdbeafe, 1.4, 96, 1.7);
+						                  glow.position.set(0, 18.5, 0);
+						                  glow.userData = { kind: 'pitch_3d_ref_detail_soft_night_pitch_light' };
+						                  detail.add(glow);
+						                } catch (e) { /* ignore */ }
+						                [-1, 1].forEach((sign) => {
+						                  addBox(detail, new THREE.BoxGeometry(13.6, 2.8, 3.2), asphalt, -metersW * 0.32, 1.40, sign * (metersH / 2 + 45.0), 0, 0, 0, 'pitch_3d_ref_detail_team_bus_body');
+						                  addBox(detail, new THREE.BoxGeometry(4.8, 1.5, 3.34), glass, -metersW * 0.32 - 2.8, 2.25, sign * (metersH / 2 + 45.05), 0, 0, 0, 'pitch_3d_ref_detail_team_bus_window_band');
+						                  [-0.42, 0.42].forEach((ratio) => {
+						                    addBox(detail, new THREE.BoxGeometry(1.0, 1.0, 0.40), darkVoid, -metersW * 0.32 + ratio * 4.8, 0.55, sign * (metersH / 2 + 43.25), Math.PI / 2, 0, 0, 'pitch_3d_ref_detail_team_bus_wheel');
+						                  });
+						                });
+						                [-1, 1].forEach((sign) => {
+						                  for (let i = -7; i <= 7; i += 2) {
+						                    const x = i * 8.4;
+						                    addBox(detail, new THREE.BoxGeometry(0.30, 2.2, 0.30), trunk, x, 1.1, sign * (metersH / 2 + 39.5), 0, 0, 0, 'pitch_3d_ref_detail_exterior_tree_trunk');
+						                    addBox(detail, new THREE.BoxGeometry(2.4, 2.2, 2.4), treeGreen, x, 3.0, sign * (metersH / 2 + 39.5), 0, 0.3, 0, 'pitch_3d_ref_detail_exterior_tree_canopy');
+						                  }
+						                });
+						              };
+						              const addCrowdAndSeatSectors = () => {
+						                try {
+						                  if (!THREE.InstancedMesh || !THREE.Object3D) return;
+						                  const dummy = new THREE.Object3D();
+						                  const sectorGeo = new THREE.BoxGeometry(0.54, 0.15, 0.32);
+						                  const crowdGeo = new THREE.BoxGeometry(0.34, 0.72, 0.28);
+						                  const sectorA = new THREE.InstancedMesh(sectorGeo, crowdA, 320);
+						                  const sectorB = new THREE.InstancedMesh(sectorGeo, crowdB, 260);
+						                  const crowd = new THREE.InstancedMesh(crowdGeo, crowdC, 180);
+						                  dummy.position.set(0, -999, 0);
+						                  dummy.updateMatrix();
+						                  for (let i = 0; i < sectorA.count; i += 1) sectorA.setMatrixAt(i, dummy.matrix);
+						                  for (let i = 0; i < sectorB.count; i += 1) sectorB.setMatrixAt(i, dummy.matrix);
+						                  for (let i = 0; i < crowd.count; i += 1) crowd.setMatrixAt(i, dummy.matrix);
+						                  let a = 0;
+						                  let b = 0;
+						                  let p = 0;
+						                  [-1, 1].forEach((sign) => {
+						                    for (let r = 0; r < 8; r += 1) {
+						                      for (let c = -20; c <= 20; c += 1) {
+						                        const x = c * 1.42;
+						                        const z = sign * (metersH / 2 + 10.5 + r * 0.72);
+						                        const y = 2.3 + r * 0.34;
+						                        dummy.position.set(x, y, z);
+						                        dummy.rotation.set(sign * -0.10, 0, 0);
+						                        dummy.updateMatrix();
+						                        if (((c + r) % 4 === 0) && b < 260) {
+						                          sectorB.setMatrixAt(b, dummy.matrix);
+						                          b += 1;
+						                        } else if (a < 320) {
+						                          sectorA.setMatrixAt(a, dummy.matrix);
+						                          a += 1;
+						                        }
+						                        if (((c + r) % 7 === 0) && (a + b) % 3 === 0) {
+						                          if (p < crowd.count) {
+						                            dummy.position.set(x, y + 0.42, z - sign * 0.04);
+						                            dummy.rotation.set(0, 0, 0);
+						                            dummy.updateMatrix();
+						                            crowd.setMatrixAt(p, dummy.matrix);
+						                            p += 1;
+						                          }
+						                        }
+						                      }
+						                    }
+						                  });
+						                  [sectorA, sectorB, crowd].forEach((mesh) => {
+						                    mesh.instanceMatrix.needsUpdate = true;
+						                    mesh.userData = { kind: 'pitch_3d_ref_detail_sector_seats_and_crowd' };
+						                    try { mesh.castShadow = true; mesh.receiveShadow = true; } catch (e) { /* ignore */ }
+						                    detail.add(mesh);
+						                  });
+						                } catch (e) { /* ignore */ }
+						              };
+						              addCurvedBowlAndRoof();
+						              addDeepVomitoryPassages();
+						              addDoubleSkinFacade();
+						              addVipAndScoreboards();
+						              addNightLightingAndExterior();
+						              addCrowdAndSeatSectors();
+						              target.add(detail);
+						            };
 						            const removeProceduralStadiumParts = () => {
 						              try {
 						                const removable = (root.children || []).filter((node) => {
@@ -10788,6 +10988,7 @@
 						                addAuthenticExteriorEnvelope(exteriorShell);
 						                addOpenAccessCorrections(exteriorShell);
 						                addReferenceStadiumInspirationUpgrades(exteriorShell);
+						                addReferenceStadiumTenPointDetailPass(exteriorShell);
 						                root.add(exteriorShell);
 						                return true;
 						              } catch (e) {
@@ -10813,6 +11014,7 @@
 						            addIntegratedTunnelAndRoofRing();
 						            addOpenAccessCorrections();
 						            addReferenceStadiumInspirationUpgrades();
+						            addReferenceStadiumTenPointDetailPass();
 						            const makeBadge = () => {
 						              const c = document.createElement('canvas');
 						              c.width = 512;
