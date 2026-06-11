@@ -1910,9 +1910,9 @@
 			            btn.type = 'button';
 			            btn.className = 'surface-trigger';
 			            btn.id = 'pitch-3d-open';
-			            btn.title = 'Vista 3D (presentación)';
-			            btn.setAttribute('aria-label', 'Vista 3D');
-			            btn.innerHTML = '<span>Vista 3D</span><span class="current">Presentar</span>';
+			            btn.title = 'Representación 3D (presentación)';
+			            btn.setAttribute('aria-label', 'Representación 3D');
+			            btn.innerHTML = '<span>Representación 3D</span><span class="current">Presentar</span>';
 			            body.appendChild(btn);
 			          } catch (e) { /* ignore */ }
 			        };
@@ -1922,10 +1922,10 @@
 			            const wrap = document.createElement('div');
 			            wrap.innerHTML = [
 			              '<div class="sim-3d-modal" id="task-pitch-3d-modal" hidden>',
-			              '  <div class="sim-3d-card" role="dialog" aria-modal="true" aria-label="Vista 3D">',
+			              '  <div class="sim-3d-card" role="dialog" aria-modal="true" aria-label="Representación 3D">',
 			              '    <div class="sim-3d-head">',
 			              '      <div style="display:flex; flex-direction:column; gap:0.1rem;">',
-			              '        <strong>Vista 3D · Presentación</strong>',
+			              '        <strong>Representación 3D · Presentación</strong>',
 			              '        <span class="meta" style="opacity:0.9;">Misma pizarra, en 3D. Útil para explicar profundidad y espacios.</span>',
 			              '      </div>',
 			              '      <button type="button" class="sim-3d-close" id="task-pitch-3d-close">Cerrar</button>',
@@ -10564,6 +10564,130 @@
 						        addEdge(new THREE.BoxGeometry(metersW + 1.6, 0.10, 0.28), 0, (metersH / 2 + 0.24));
 						        addEdge(new THREE.BoxGeometry(0.28, 0.10, metersH + 1.6), -(metersW / 2 + 0.24), 0);
 						        addEdge(new THREE.BoxGeometry(0.28, 0.10, metersH + 1.6), (metersW / 2 + 0.24), 0);
+						      } catch (e) { /* ignore */ }
+
+						      // Estadio 3D alrededor del campo: gradas, cubierta, focos y marcador.
+						      try {
+						        const halfW = metersW / 2;
+						        const halfH = metersH / 2;
+						        const stadium = new THREE.Group();
+						        stadium.userData = { kind: 'stadium' };
+						        const concreteMat = new THREE.MeshStandardMaterial({ color: 0x8a9088, roughness: 0.86, metalness: 0.02 });
+						        const concreteDarkMat = new THREE.MeshStandardMaterial({ color: 0x555d55, roughness: 0.9, metalness: 0.01 });
+						        const seatHomeMat = new THREE.MeshStandardMaterial({ color: 0xd7a526, roughness: 0.72, metalness: 0.02 });
+						        const seatAltMat = new THREE.MeshStandardMaterial({ color: 0x1f6f45, roughness: 0.78, metalness: 0.02 });
+						        const seatDarkMat = new THREE.MeshStandardMaterial({ color: 0x202820, roughness: 0.82, metalness: 0.01 });
+						        const roofMat = new THREE.MeshStandardMaterial({ color: 0xb8bcad, roughness: 0.54, metalness: 0.16 });
+						        const steelMat = new THREE.MeshStandardMaterial({ color: 0xcbd5c5, roughness: 0.42, metalness: 0.38 });
+						        const screenMat = new THREE.MeshBasicMaterial({ color: 0x101511 });
+						        const pad = Math.max(4.5, Math.min(8, metersW * 0.065));
+						        const addMesh = (geo, mat, x, y, z) => {
+						          const mesh = new THREE.Mesh(geo, mat);
+						          mesh.position.set(x || 0, y || 0, z || 0);
+						          stadium.add(mesh);
+						          return mesh;
+						        };
+						        const addSideStand = (zSign) => {
+						          const rows = 9;
+						          const baseZ = zSign * (halfH + pad);
+						          const length = metersW + 14;
+						          for (let row = 0; row < rows; row += 1) {
+						            const y = 0.34 + (row * 0.72);
+						            const z = baseZ + (zSign * row * 2.25);
+						            const depth = 2.1;
+						            const rowLen = Math.max(20, length - (row * 1.2));
+						            const tier = addMesh(new THREE.BoxGeometry(rowLen, 0.56, depth), row % 2 ? concreteDarkMat : concreteMat, 0, y, z);
+						            tier.rotation.x = zSign * 0.03;
+						            const seatCount = clamp(Math.floor(rowLen / 3.1), 10, 60);
+						            const seats = new THREE.InstancedMesh(new THREE.BoxGeometry(1.25, 0.32, 0.88), row % 3 === 0 ? seatHomeMat : seatAltMat, seatCount);
+						            for (let i = 0; i < seatCount; i += 1) {
+						              const x = -((seatCount - 1) * 3.1) / 2 + (i * 3.1);
+						              seats.setMatrixAt(i, new THREE.Matrix4().makeTranslation(x, y + 0.46, z - (zSign * 0.45)));
+						            }
+						            seats.instanceMatrix.needsUpdate = true;
+						            stadium.add(seats);
+						          }
+						          const roof = addMesh(new THREE.BoxGeometry(length + 8, 0.56, 8.5), roofMat, 0, 8.25, baseZ + (zSign * (rows * 2.25 + 1.6)));
+						          roof.rotation.x = zSign * 0.08;
+						          for (let i = -2; i <= 2; i += 1) {
+						            addMesh(new THREE.CylinderGeometry(0.14, 0.14, 8.5, 8), steelMat, i * (length / 5), 4.2, baseZ + (zSign * 5.5));
+						          }
+						        };
+						        const addEndStand = (xSign) => {
+						          const rows = 7;
+						          const baseX = xSign * (halfW + pad);
+						          const length = metersH + 10;
+						          for (let row = 0; row < rows; row += 1) {
+						            const y = 0.34 + (row * 0.68);
+						            const x = baseX + (xSign * row * 2.05);
+						            const rowLen = Math.max(18, length - (row * 1.0));
+						            addMesh(new THREE.BoxGeometry(2.0, 0.52, rowLen), row % 2 ? concreteDarkMat : concreteMat, x, y, 0);
+						            const seatCount = clamp(Math.floor(rowLen / 3.0), 8, 48);
+						            const seats = new THREE.InstancedMesh(new THREE.BoxGeometry(0.82, 0.3, 1.18), row % 2 ? seatAltMat : seatDarkMat, seatCount);
+						            for (let i = 0; i < seatCount; i += 1) {
+						              const z = -((seatCount - 1) * 3.0) / 2 + (i * 3.0);
+						              seats.setMatrixAt(i, new THREE.Matrix4().makeTranslation(x - (xSign * 0.42), y + 0.44, z));
+						            }
+						            seats.instanceMatrix.needsUpdate = true;
+						            stadium.add(seats);
+						          }
+						          const roof = addMesh(new THREE.BoxGeometry(7.5, 0.52, length + 8), roofMat, baseX + (xSign * (rows * 2.05 + 1.35)), 7.1, 0);
+						          roof.rotation.z = -xSign * 0.08;
+						        };
+						        const addLightTower = (x, z) => {
+						          const tower = new THREE.Group();
+						          tower.position.set(x, 0, z);
+						          const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.28, 20, 10), steelMat);
+						          mast.position.y = 10;
+						          tower.add(mast);
+						          const bar = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.42, 0.8), steelMat);
+						          bar.position.y = 20.4;
+						          tower.add(bar);
+						          for (let i = -1; i <= 1; i += 1) {
+						            const lamp = new THREE.SpotLight(0xfff1c1, 0.62, 150, 0.42, 0.75, 1.2);
+						            lamp.position.set(i * 2.25, 20.2, 0);
+						            lamp.target.position.set(-x * 0.22, 0, -z * 0.22);
+						            tower.add(lamp);
+						            tower.add(lamp.target);
+						            const glass = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.5, 0.34), new THREE.MeshBasicMaterial({ color: 0xfff7d2, transparent: true, opacity: 0.58 }));
+						            glass.position.set(i * 2.25, 20.2, -0.44);
+						            tower.add(glass);
+						          }
+						          stadium.add(tower);
+						        };
+						        const addScoreboard = () => {
+						          const board = new THREE.Group();
+						          board.position.set(0, 10.5, -(halfH + pad + 18));
+						          const frame = new THREE.Mesh(new THREE.BoxGeometry(19, 8.2, 0.7), steelMat);
+						          board.add(frame);
+						          const screen = new THREE.Mesh(new THREE.PlaneGeometry(17.2, 6.8), screenMat);
+						          screen.position.z = -0.38;
+						          board.add(screen);
+						          const title = buildTextSprite('2J', { fill: '#0b1220', bg: 'rgba(250,204,21,0.92)', size: 128 });
+						          if (title) {
+						            title.position.set(0, 0.5, -0.82);
+						            title.scale.set(4.8, 4.8, 1);
+						            board.add(title);
+						          }
+						          const legs = [
+						            new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 11, 8), steelMat),
+						            new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 11, 8), steelMat),
+						          ];
+						          legs[0].position.set(-7, -7.0, 0);
+						          legs[1].position.set(7, -7.0, 0);
+						          board.add(legs[0], legs[1]);
+						          stadium.add(board);
+						        };
+						        addSideStand(-1);
+						        addSideStand(1);
+						        addEndStand(-1);
+						        addEndStand(1);
+						        addLightTower(-(halfW + pad + 16), -(halfH + pad + 14));
+						        addLightTower((halfW + pad + 16), -(halfH + pad + 14));
+						        addLightTower(-(halfW + pad + 16), (halfH + pad + 14));
+						        addLightTower((halfW + pad + 16), (halfH + pad + 14));
+						        addScoreboard();
+						        root.add(stadium);
 						      } catch (e) { /* ignore */ }
 
 							      // Porterías 3D limpias: marco redondo, red con caída y detalles discretos sin soportes traseros visibles.
