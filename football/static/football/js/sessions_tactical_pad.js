@@ -10174,15 +10174,15 @@
 						              [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
 						                const cx = sx * (metersW / 2 + 10.5);
 						                const cz = sz * (metersH / 2 + 10.5);
-						                addBox(finish, new THREE.BoxGeometry(17.0, 5.2, 17.0), concreteFinish, cx, 2.50, cz, -0.025, sx * sz * 0.10, 0, 'pitch_3d_finished_corner_grounded_mass');
-						                addBox(finish, new THREE.BoxGeometry(15.6, 0.32, 12.8), concreteFinish, cx, 5.32, cz + (sz * 1.1), -0.060, sx * sz * 0.18, 0, 'pitch_3d_finished_corner_terrace_slab');
+						                addBox(finish, new THREE.BoxGeometry(17.0, 4.2, 17.0), concreteFinish, cx, 2.00, cz, -0.025, sx * sz * 0.10, 0, 'pitch_3d_finished_corner_grounded_mass');
+						                addBox(finish, new THREE.BoxGeometry(14.6, 0.28, 7.4), concreteFinish, cx, 3.80, cz - (sz * 1.4), -0.060, sx * sz * 0.18, 0, 'pitch_3d_finished_corner_terrace_slab');
 						                for (let row = 0; row < 7; row += 1) {
-						                  addBox(finish, new THREE.BoxGeometry(14.2 - row * 0.42, 0.20, 0.46), row % 3 === 0 ? stairFinish : concreteFinish, cx, 5.62 + row * 0.33, cz - (sz * 4.25) + (sz * row * 0.70), -0.060, sx * sz * 0.18, 0, 'pitch_3d_finished_corner_stepped_rows');
+						                  addBox(finish, new THREE.BoxGeometry(14.2 - row * 0.42, 0.20, 0.46), row % 3 === 0 ? stairFinish : concreteFinish, cx, 4.08 + row * 0.33, cz - (sz * 4.25) + (sz * row * 0.70), -0.060, sx * sz * 0.18, 0, 'pitch_3d_finished_corner_stepped_rows');
 						                  [-0.28, -0.10, 0.10, 0.28].forEach((ratio) => {
-						                    addBox(finish, new THREE.BoxGeometry(2.25, 0.14, 0.30), seatFinish, cx + (ratio * 14.0), 5.75 + row * 0.33, cz - (sz * 4.34) + (sz * row * 0.70), -0.10, sx * sz * 0.18, 0, 'pitch_3d_finished_corner_seat_band');
+						                    addBox(finish, new THREE.BoxGeometry(2.25, 0.14, 0.30), seatFinish, cx + (ratio * 14.0), 4.21 + row * 0.33, cz - (sz * 4.34) + (sz * row * 0.70), -0.10, sx * sz * 0.18, 0, 'pitch_3d_finished_corner_seat_band');
 						                  });
 						                }
-						                addBox(finish, new THREE.BoxGeometry(16.4, 0.18, 0.20), railFinish, cx, 8.45, cz + (sz * 1.3), 0, sx * sz * 0.18, 0, 'pitch_3d_finished_corner_glass_guardrail');
+						                addBox(finish, new THREE.BoxGeometry(16.4, 0.18, 0.20), railFinish, cx, 6.90, cz + (sz * 1.3), 0, sx * sz * 0.18, 0, 'pitch_3d_finished_corner_glass_guardrail');
 						              });
 						              const tunnelZ = -(metersH / 2 + 4.68);
 						              addBox(finish, new THREE.BoxGeometry(11.2, 2.70, 0.62), concreteFinish, 0, 1.58, tunnelZ, 0, 0, 0, 'pitch_3d_finished_visible_tunnel_portal_frame');
@@ -10190,7 +10190,8 @@
 						              addBox(finish, new THREE.BoxGeometry(8.8, 0.20, 6.4), shadowFinish, 0, 0.28, tunnelZ - 3.18, -0.08, 0, 0, 'pitch_3d_finished_visible_tunnel_ramp');
 						              addBox(finish, new THREE.BoxGeometry(0.34, 1.72, 5.8), concreteFinish, -4.65, 0.98, tunnelZ - 2.72, -0.04, 0, 0, 'pitch_3d_finished_visible_tunnel_side_wall');
 						              addBox(finish, new THREE.BoxGeometry(0.34, 1.72, 5.8), concreteFinish, 4.65, 0.98, tunnelZ - 2.72, -0.04, 0, 0, 'pitch_3d_finished_visible_tunnel_side_wall');
-						              addBox(finish, new THREE.BoxGeometry(31.0, 0.34, 7.3), concreteFinish, 0, 2.88, -(metersH / 2 + 9.25), -0.055, 0, 0, 'pitch_3d_finished_stand_over_tunnel_solid_base');
+						              addBox(finish, new THREE.BoxGeometry(31.0, 0.28, 3.6), concreteFinish, 0, 2.36, -(metersH / 2 + 8.35), -0.055, 0, 0, 'pitch_3d_finished_stand_over_tunnel_solid_base');
+						              addBox(finish, new THREE.BoxGeometry(32.4, 0.96, 0.38), fasciaFinish, 0, 2.12, -(metersH / 2 + 5.86), 0, 0, 0, 'pitch_3d_finished_stand_over_tunnel_green_fascia');
 						              for (let r = 0; r < 9; r += 1) {
 						                const y = 3.18 + r * 0.35;
 						                const z = -(metersH / 2 + 12.0) - r * 0.62;
