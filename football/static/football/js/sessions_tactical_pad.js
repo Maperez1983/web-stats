@@ -1976,6 +1976,13 @@
 			              '          </select>',
 			              '        </label>',
 			              '        <label style="display:flex; gap:10px; align-items:center;">',
+			              '          Formato',
+			              '          <select id="task-pitch-3d-format">',
+			              '            <option value="f11" selected>Fútbol 11</option>',
+			              '            <option value="f7">Fútbol 7</option>',
+			              '          </select>',
+			              '        </label>',
+			              '        <label style="display:flex; gap:10px; align-items:center;">',
 			              '          Superficie',
 			              '          <select id="task-pitch-3d-surface">',
 			              '            <option value="classic">Césped</option>',
@@ -2021,6 +2028,7 @@
 			    let pitch3dCanvasEl = document.getElementById('task-pitch-3d-canvas');
 			    let pitch3dCameraSelect = document.getElementById('task-pitch-3d-camera');
 			    let pitch3dSurfaceSelect = document.getElementById('task-pitch-3d-surface');
+			    let pitch3dFormatSelect = document.getElementById('task-pitch-3d-format');
 			    let pitch3dFollowSelect = document.getElementById('task-pitch-3d-follow');
 			    let pitch3dLayerDrawInput = document.getElementById('task-pitch-3d-layer-draw');
 			    let pitch3dLayerGhostsInput = document.getElementById('task-pitch-3d-layer-ghosts');
@@ -8012,16 +8020,63 @@
 						      }
 						    };
 
-						    const pitchMetersForPreset = (preset) => {
+						    const PITCH3D_FORMAT_STORAGE_KEY = 'webstats_pitch3d_field_format_v1';
+						    const normalizePitch3dFormat = (value) => safeText(value, 'f11').toLowerCase() === 'f7' ? 'f7' : 'f11';
+						    let pitch3dFormat = normalizePitch3dFormat(pitch3dFormatSelect?.value || (() => {
+						      try { return window.localStorage.getItem(PITCH3D_FORMAT_STORAGE_KEY); } catch (e) { return ''; }
+						    })());
+						    const syncPitch3dFormatUi = () => {
+						      if (pitch3dFormatSelect) pitch3dFormatSelect.value = pitch3dFormat;
+						    };
+						    const getPitch3dFieldProfile = (format) => {
+						      const key = normalizePitch3dFormat(format);
+						      if (key === 'f7') {
+						        return {
+						          key,
+						          label: 'Fútbol 7',
+						          w: 65,
+						          h: 45,
+						          penaltyDepth: 13,
+						          penaltyWidth: 24,
+						          goalAreaDepth: 4,
+						          goalAreaWidth: 14,
+						          penaltySpot: 9,
+						          centerRadius: 6,
+						          cornerRadius: 0.65,
+						          goalWidth: 6,
+						          goalHeight: 2,
+						          goalDepth: 1.8,
+						        };
+						      }
+						      return {
+						        key,
+						        label: 'Fútbol 11',
+						        w: 105,
+						        h: 68,
+						        penaltyDepth: 16.5,
+						        penaltyWidth: 40.32,
+						        goalAreaDepth: 5.5,
+						        goalAreaWidth: 18.32,
+						        penaltySpot: 11,
+						        centerRadius: 9.15,
+						        cornerRadius: 1,
+						        goalWidth: 7.32,
+						        goalHeight: 2.44,
+						        goalDepth: 2.25,
+						      };
+						    };
+						    const pitchMetersForPreset = (preset, format = pitch3dFormat) => {
 						      const key = safeText(preset, 'full_pitch');
-						      if (key === 'half_pitch') return { w: 52.5, h: 68 };
-						      if (key === 'attacking_third' || key === 'middle_third' || key === 'defensive_third') return { w: 35, h: 68 };
+						      const profile = getPitch3dFieldProfile(format);
+						      if (key === 'half_pitch') return { w: profile.w / 2, h: profile.h };
+						      if (key === 'attacking_third' || key === 'middle_third' || key === 'defensive_third') return { w: profile.w / 3, h: profile.h };
 						      if (key === 'seven_side_single') return { w: 65, h: 45 };
 						      if (key === 'futsal') return { w: 40, h: 20 };
-						      if (key === 'blank') return { w: 105, h: 68 };
+						      if (key === 'blank') return { w: profile.w, h: profile.h };
 						      // seven_side y full_pitch.
-						      return { w: 105, h: 68 };
+						      return { w: profile.w, h: profile.h };
 						    };
+						    syncPitch3dFormatUi();
 
 						    const __pitch3dGrassImgCache = new Map();
 						    const __pitch3dLoadGrassImg = (styleKey, fallbackUrl) => {
@@ -8184,7 +8239,7 @@
 						      if (premiumGrassSrc) __pitch3dLoadStaticImage('premium_grass_albedo', premiumGrassSrc);
 						    } catch (e) { /* ignore */ }
 
-						    const makePitchTexture = (metersW, metersH, grassStyle = 'classic', onAsyncUpdate) => {
+						    const makePitchTexture = (metersW, metersH, grassStyle = 'classic', onAsyncUpdate, fieldFormat = pitch3dFormat) => {
 						      const dpr = Math.max(1, Number(window.devicePixelRatio) || 1);
 						      const wideViewport = Math.max(window.innerWidth || 0, window.innerHeight || 0) >= 1280;
 						      const premiumRender = safeText(pitch3dCameraSelect?.value, 'render_original') === 'render_original';
@@ -8424,6 +8479,7 @@
 						      const toPxY = (m) => margin + (m * pxPerMeterY);
 						      const midX = c.width / 2;
 						      const midY = c.height / 2;
+						      const fieldProfile = getPitch3dFieldProfile(fieldFormat);
 						      ctx.lineWidth = 8;
 						      ctx.strokeStyle = line;
 						      ctx.strokeRect(margin, margin, c.width - (margin * 2), c.height - (margin * 2));
@@ -8432,7 +8488,7 @@
 						      ctx.moveTo(midX, margin);
 						      ctx.lineTo(midX, c.height - margin);
 						      ctx.stroke();
-						      const centerR = Math.max(22, (9.15 * pxPerMeterX));
+						      const centerR = Math.max(18, (fieldProfile.centerRadius * pxPerMeterX));
 						      ctx.beginPath();
 						      ctx.arc(midX, midY, centerR, 0, Math.PI * 2);
 						      ctx.stroke();
@@ -8443,11 +8499,11 @@
 						      ctx.fill();
 
 						      // Áreas (si es “campo”).
-						      if (metersH >= 30) {
-						        const penDepth = 16.5;
-						        const penWidth = 40.32;
-						        const gaDepth = 5.5;
-						        const gaWidth = 18.32;
+						      if (metersH >= 20) {
+						        const penDepth = Math.min(fieldProfile.penaltyDepth, metersW * 0.34);
+						        const penWidth = Math.min(fieldProfile.penaltyWidth, metersH * 0.86);
+						        const gaDepth = Math.min(fieldProfile.goalAreaDepth, penDepth * 0.56);
+						        const gaWidth = Math.min(fieldProfile.goalAreaWidth, penWidth * 0.72);
 						        const y0 = (metersH - penWidth) / 2;
 						        const y1 = (metersH - gaWidth) / 2;
 						        // Área grande.
@@ -8457,7 +8513,7 @@
 						        ctx.strokeRect(toPxX(0), toPxY(y1), gaDepth * pxPerMeterX, gaWidth * pxPerMeterY);
 						        ctx.strokeRect(toPxX(metersW - gaDepth), toPxY(y1), gaDepth * pxPerMeterX, gaWidth * pxPerMeterY);
 						        // Punto penalti.
-						        const penSpot = 11;
+						        const penSpot = Math.min(fieldProfile.penaltySpot, Math.max(4, metersW * 0.20));
 						        const spotR = 5;
 						        ctx.fillStyle = line;
 						        ctx.beginPath();
@@ -8466,20 +8522,20 @@
 						        ctx.beginPath();
 						        ctx.arc(toPxX(metersW - penSpot), midY, spotR, 0, Math.PI * 2);
 						        ctx.fill();
-						        // Semicírculo (D): 9.15m
+						        // Semicírculo del área, adaptado a F11/F7.
 						        ctx.strokeStyle = soft;
 						        ctx.lineWidth = 7;
-						        const arcR = 9.15 * pxPerMeterX;
+						        const arcR = fieldProfile.centerRadius * pxPerMeterX;
 						        ctx.beginPath();
 						        ctx.arc(toPxX(penSpot), midY, arcR, -Math.PI / 3, Math.PI / 3);
 						        ctx.stroke();
 						        ctx.beginPath();
 						        ctx.arc(toPxX(metersW - penSpot), midY, arcR, Math.PI - (Math.PI / 3), Math.PI + (Math.PI / 3));
 						        ctx.stroke();
-						        // Esquinas (1m)
+						        // Esquinas, adaptadas a F11/F7.
 						        ctx.strokeStyle = soft;
 						        ctx.lineWidth = 7;
-						        const cornerR = Math.max(10, 1 * pxPerMeterX);
+						        const cornerR = Math.max(8, fieldProfile.cornerRadius * pxPerMeterX);
 						        const corners = [
 						          [margin, margin, 0, Math.PI / 2],
 						          [c.width - margin, margin, Math.PI / 2, Math.PI],
@@ -9056,7 +9112,9 @@
 						      const preset = safeText(options.preset, 'full_pitch');
 						      const orientation = safeText(options.orientation, 'landscape');
 						      const grass = safeText(options.grassStyle, 'classic');
-						      const meters = pitchMetersForPreset(preset);
+						      const fieldFormat = normalizePitch3dFormat(options.fieldFormat || pitch3dFormat);
+						      const fieldProfile = getPitch3dFieldProfile(fieldFormat);
+						      const meters = pitchMetersForPreset(preset, fieldFormat);
 						      const metersW = meters.w;
 						      const metersH = meters.h;
 						      const sourceW = Number(options.sourceW) || (Number(worldWidth) || 1280);
@@ -9067,7 +9125,7 @@
 						      let tex = null;
 						      const texCanvas = makePitchTexture(metersW, metersH, grass, () => {
 						        try { if (tex) tex.needsUpdate = true; } catch (e) { /* ignore */ }
-						      });
+						      }, fieldFormat);
 						      try {
 						        const tctx = texCanvas?.getContext?.('2d');
 						        if (tctx && safeText(pitch3dCameraSelect?.value, 'render_original') === 'render_original') {
@@ -11523,9 +11581,10 @@
 						          if (!asset) return false;
 						          const goal = asset.clone(true);
 						          goal.name = 'goal_3d_premium_asset';
-						          goal.userData = { kind: 'goal_3d_premium_asset', xSign };
+						          goal.userData = { kind: 'goal_3d_premium_asset', xSign, format: fieldProfile.key };
 						          goal.position.set(xSign * (metersW / 2 + 0.10), 0.045, 0);
 						          goal.rotation.y = xSign < 0 ? Math.PI : 0;
+						          goal.scale.set(fieldProfile.goalDepth / 2.25, fieldProfile.goalHeight / 2.44, fieldProfile.goalWidth / 7.32);
 						          goal.traverse((node) => {
 						            if (!node || !node.isMesh) return;
 						            try { if (node.geometry) node.geometry = node.geometry.clone(); } catch (e) { /* ignore */ }
@@ -11555,9 +11614,9 @@
 
 						      const addGoal3d = (xSign) => {
 						        try {
-						          const goalW = Math.min(7.32, Math.max(3.0, metersH * 0.16));
-						          const goalH = Math.max(1.6, Math.min(2.44, metersH * 0.06));
-								          const depth = 3.55;
+						          const goalW = Math.min(fieldProfile.goalWidth, Math.max(3.0, metersH * 0.16));
+						          const goalH = Math.max(1.6, Math.min(fieldProfile.goalHeight, metersH * 0.06));
+								          const depth = fieldProfile.goalDepth;
 								          const post = 0.20;
 								          const frameMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.16, metalness: 0.16, emissive: 0xffffff, emissiveIntensity: 0.10 });
 								          const makeNetMat = (opacity = 0.48) => {
@@ -12190,6 +12249,7 @@
 						          preset: presetSelect?.value || 'full_pitch',
 						          orientation: pitchOrientation,
 						          grassStyle: pitchGrassStyle,
+						          fieldFormat: pitch3dFormat,
 						          sourceW: Number(worldWidth) || 1280,
 						          sourceH: Number(worldHeight) || 720,
 						        });
@@ -12207,6 +12267,7 @@
 						        preset: presetSelect?.value || 'full_pitch',
 						        orientation: pitchOrientation,
 						        grassStyle: pitchGrassStyle,
+						        fieldFormat: pitch3dFormat,
 						        sourceW: step.sourceW,
 						        sourceH: step.sourceH,
 						      });
@@ -12232,7 +12293,8 @@
 						      const preset = safeText(options.preset, 'full_pitch');
 						      const orientation = safeText(options.orientation, 'landscape');
 						      const grass = safeText(options.grassStyle, 'classic');
-						      const meters = pitchMetersForPreset(preset);
+						      const fieldFormat = normalizePitch3dFormat(options.fieldFormat || pitch3dFormat);
+						      const meters = pitchMetersForPreset(preset, fieldFormat);
 						      const metersW = meters.w;
 						      const metersH = meters.h;
 						      const wA = Math.max(1, Number(fromStep?.sourceW) || 1280);
@@ -12536,6 +12598,7 @@
 						          preset: presetSelect?.value || 'full_pitch',
 						          orientation: pitchOrientation,
 						          grassStyle: pitchGrassStyle,
+						          fieldFormat: pitch3dFormat,
 						        });
 							        if (t >= 1) {
 							          pitch3dPlayback.index = next;
@@ -12681,8 +12744,20 @@
 						    });
 						    pitch3dCameraSelect?.addEventListener('change', () => {
 						      if (!pitch3dRoot) return;
-						      const meters = pitchMetersForPreset(presetSelect?.value || 'full_pitch');
+						      const meters = pitchMetersForPreset(presetSelect?.value || 'full_pitch', pitch3dFormat);
 						      setCameraPreset(pitch3dCameraSelect.value, meters.w, meters.h);
+						    });
+						    pitch3dFormatSelect?.addEventListener('change', () => {
+						      pitch3dFormat = normalizePitch3dFormat(pitch3dFormatSelect?.value);
+						      syncPitch3dFormatUi();
+						      try { window.localStorage.setItem(PITCH3D_FORMAT_STORAGE_KEY, pitch3dFormat); } catch (e) { /* ignore */ }
+						      if (pitch3dOpen) {
+						        stopPitch3dPlayback();
+						        updatePitch3dPlaybackButton();
+						        try { showPitch3dStep(activeStepIndex >= 0 ? activeStepIndex : pitch3dCurrentStep, { keepFollow: true }); } catch (e) { /* ignore */ }
+						        try { applyPitch3dLayerVisibility(); } catch (e) { /* ignore */ }
+						      }
+						      setStatus(`Formato 3D: ${getPitch3dFieldProfile(pitch3dFormat).label}.`);
 						    });
 						    pitch3dSurfaceSelect?.addEventListener('change', () => {
 						      const next = safeText(pitch3dSurfaceSelect?.value, 'classic').trim().toLowerCase();
