@@ -11576,6 +11576,159 @@
 						                removable.forEach((node) => root.remove(node));
 						              } catch (e) { /* ignore */ }
 						            };
+						            const pitch3dStadiumHash = (value) => {
+						              const text = safeText(value);
+						              let h = 2166136261;
+						              for (let i = 0; i < text.length; i += 1) {
+						                h ^= text.charCodeAt(i);
+						                h = Math.imul(h, 16777619);
+						              }
+						              return (h >>> 0) / 4294967295;
+						            };
+						            const makeStadiumBoardMaterial = (() => {
+						              let cached = null;
+						              return () => {
+						                if (cached) return cached;
+						                const label = safeText(tokenTeamName || form?.dataset?.stadiumClubName || 'SEGUNDA JUGADA', 'SEGUNDA JUGADA').slice(0, 28).toUpperCase();
+						                const accent = parseColorToHex(accentHex, '#073b32') || '#073b32';
+						                const primary = parseColorToHex(primaryHex, '#047857') || '#047857';
+						                const tex = makePitch3dCanvasTexture((ctx, c) => {
+						                  const bg = ctx.createLinearGradient(0, 0, c.width, 0);
+						                  bg.addColorStop(0.00, '#020617');
+						                  bg.addColorStop(0.18, accent);
+						                  bg.addColorStop(0.52, primary);
+						                  bg.addColorStop(0.82, accent);
+						                  bg.addColorStop(1.00, '#020617');
+						                  ctx.fillStyle = bg;
+						                  ctx.fillRect(0, 0, c.width, c.height);
+						                  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+						                  for (let x = -80; x < c.width + 80; x += 120) {
+						                    ctx.save();
+						                    ctx.translate(x, c.height * 0.5);
+						                    ctx.rotate(-0.22);
+						                    ctx.fillRect(-10, -c.height, 18, c.height * 2);
+						                    ctx.restore();
+						                  }
+						                  ctx.strokeStyle = 'rgba(226,232,240,0.58)';
+						                  ctx.lineWidth = 10;
+						                  ctx.strokeRect(18, 18, c.width - 36, c.height - 36);
+						                  ctx.fillStyle = '#f8fafc';
+						                  ctx.font = '900 92px Arial, sans-serif';
+						                  ctx.textAlign = 'center';
+						                  ctx.textBaseline = 'middle';
+						                  ctx.fillText(label, c.width / 2, c.height * 0.48);
+						                  ctx.fillStyle = '#bbf7d0';
+						                  ctx.font = '800 34px Arial, sans-serif';
+						                  ctx.fillText('FOOTBALL INTELLIGENCE', c.width / 2, c.height * 0.78);
+						                }, 1400, 420);
+						                cached = new THREE.MeshStandardMaterial({
+						                  map: tex?.tex || null,
+						                  color: 0xffffff,
+						                  roughness: 0.24,
+						                  metalness: 0.04,
+						                  emissive: toColorInt(primary, 0x047857),
+						                  emissiveIntensity: 0.32,
+						                });
+						                cached.userData = { kind: 'pitch_3d_realistic_stadium_board_material' };
+						                return cached;
+						              };
+						            })();
+						            const tuneProfessionalStadiumMaterial = (node, mat) => {
+						              if (!mat || !mat.color) return mat;
+						              const name = `${safeText(mat.name || '')} ${safeText(node?.name || '')}`.toUpperCase();
+						              const semantic = {
+						                seat: name.includes('SEAT') || name.includes('TEAM_PRIMARY'),
+						                concrete: name.includes('CONCRETE') || name.includes('TERRACE') || name.includes('CONCOURSE') || name.includes('BOWL'),
+						                dark: name.includes('DARK') || name.includes('DEEP_RECESSES') || name.includes('VOID') || name.includes('BLACK'),
+						                metal: name.includes('STEEL') || name.includes('TRUSS') || name.includes('RAIL') || name.includes('METAL'),
+						                glass: name.includes('GLASS'),
+						                roof: name.includes('ROOF') || name.includes('SOFFIT'),
+						                led: name.includes('LED') || name.includes('SCOREBOARD') || name.includes('FACE_TEAM_ACCENT'),
+						                asphalt: name.includes('ASPHALT') || name.includes('SERVICE') || name.includes('ROAD'),
+						                light: name.includes('FLOODLIGHT') || name.includes('LIGHT'),
+						              };
+						              if (semantic.led) return makeStadiumBoardMaterial().clone();
+						              try {
+						                if (name.includes('TEAM_PRIMARY')) mat.color.set(primaryHex);
+						                else if (name.includes('TEAM_SECONDARY')) mat.color.set(secondaryHex);
+						                else if (name.includes('TEAM_ACCENT')) mat.color.set(accentHex);
+						                if (semantic.seat) {
+						                  const jitter = 0.82 + (pitch3dStadiumHash(node?.name || mat.name) * 0.24);
+						                  mat.color.multiplyScalar(jitter);
+						                  mat.roughness = 0.58;
+						                  mat.metalness = 0.015;
+						                } else if (semantic.concrete) {
+						                  mat.color.lerp(new THREE.Color(0xd8ded8), 0.24);
+						                  mat.roughness = 0.88;
+						                  mat.metalness = 0.018;
+						                } else if (semantic.dark) {
+						                  mat.color.lerp(new THREE.Color(0x020617), 0.44);
+						                  mat.roughness = 0.92;
+						                  mat.metalness = 0.01;
+						                } else if (semantic.metal) {
+						                  mat.color.lerp(new THREE.Color(0xdbe3e1), 0.20);
+						                  mat.roughness = 0.36;
+						                  mat.metalness = 0.34;
+						                } else if (semantic.glass) {
+						                  mat.color.set(0xc7efff);
+						                  mat.transparent = true;
+						                  mat.opacity = 0.36;
+						                  mat.roughness = 0.10;
+						                  mat.metalness = 0.02;
+						                  mat.side = THREE.DoubleSide;
+						                  if ('transmission' in mat) mat.transmission = 0.20;
+						                } else if (semantic.roof) {
+						                  mat.color.lerp(new THREE.Color(0xf3f5f1), 0.28);
+						                  mat.roughness = 0.42;
+						                  mat.metalness = 0.16;
+						                } else if (semantic.asphalt) {
+						                  mat.color.set(0x2d3335);
+						                  mat.roughness = 0.94;
+						                  mat.metalness = 0.01;
+						                }
+						                if (semantic.light) {
+						                  mat.emissive = new THREE.Color(0xdff7ff);
+						                  mat.emissiveIntensity = 1.65;
+						                  mat.toneMapped = false;
+						                }
+						                mat.envMapIntensity = semantic.metal || semantic.glass || semantic.roof ? 0.72 : 0.34;
+						                mat.needsUpdate = true;
+						              } catch (e) { /* ignore */ }
+						              return mat;
+						            };
+						            const addProfessionalStadiumAtmosphere = (target) => {
+						              try {
+						                const atmosphere = new THREE.Group();
+						                atmosphere.userData = { kind: 'pitch_3d_professional_blender_stadium_atmosphere' };
+						                const shadowMat = new THREE.MeshBasicMaterial({ color: 0x020617, transparent: true, opacity: 0.18, depthWrite: false });
+						                const addShadow = (x, z, w, d, opacity) => {
+						                  const mat = shadowMat.clone();
+						                  mat.opacity = opacity;
+						                  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat);
+						                  mesh.rotation.x = -Math.PI / 2;
+						                  mesh.position.set(x, 0.115, z);
+						                  mesh.userData = { kind: 'pitch_3d_stadium_contact_shadow' };
+						                  atmosphere.add(mesh);
+						                };
+						                addShadow(0, metersH / 2 + 11.0, metersW + 62.0, 20.0, 0.16);
+						                addShadow(0, -(metersH / 2 + 11.0), metersW + 62.0, 20.0, 0.18);
+						                addShadow(metersW / 2 + 11.0, 0, 20.0, metersH + 52.0, 0.14);
+						                addShadow(-(metersW / 2 + 11.0), 0, 20.0, metersH + 52.0, 0.14);
+						                const railGlowMat = new THREE.MeshBasicMaterial({ color: 0xe0f2fe, transparent: true, opacity: 0.36, toneMapped: false, depthWrite: false });
+						                [
+						                  [0, metersH / 2 + 25.6, metersW + 48.0, 0.10],
+						                  [0, -(metersH / 2 + 25.6), metersW + 48.0, 0.10],
+						                  [metersW / 2 + 25.6, 0, 0.10, metersH + 48.0],
+						                  [-(metersW / 2 + 25.6), 0, 0.10, metersH + 48.0],
+						                ].forEach(([x, z, w, d]) => {
+						                  const strip = new THREE.Mesh(new THREE.BoxGeometry(w, 0.08, d), railGlowMat);
+						                  strip.position.set(x, 15.15, z);
+						                  strip.userData = { kind: 'pitch_3d_stadium_roof_light_continuity' };
+						                  atmosphere.add(strip);
+						                });
+						                target.add(atmosphere);
+						              } catch (e) { /* ignore */ }
+						            };
 						            const addProfessionalStadiumAsset = () => {
 						              try {
 						                const asset = __pitch3dStadiumModelCache.scene || __pitch3dLoadStadiumModel();
@@ -11588,21 +11741,17 @@
 						                  if (!node || !node.isMesh) return;
 						                  try { if (node.geometry) node.geometry = node.geometry.clone(); } catch (e) { /* ignore */ }
 						                  try {
-						                    if (Array.isArray(node.material)) node.material = node.material.map((mat) => mat?.clone?.() || mat);
-						                    else if (node.material) node.material = node.material.clone();
-						                    const mats = Array.isArray(node.material) ? node.material : [node.material];
-						                    mats.forEach((mat) => {
-						                      const name = `${safeText(mat?.name || '')} ${safeText(node.name || '')}`.toUpperCase();
-						                      if (!mat || !mat.color) return;
-						                      if (name.includes('TEAM_PRIMARY')) mat.color.set(primaryHex);
-						                      else if (name.includes('TEAM_SECONDARY')) mat.color.set(secondaryHex);
-						                      else if (name.includes('TEAM_ACCENT')) mat.color.set(accentHex);
-						                    });
+						                    if (Array.isArray(node.material)) {
+						                      node.material = node.material.map((mat) => tuneProfessionalStadiumMaterial(node, mat?.clone?.() || mat));
+						                    } else if (node.material) {
+						                      node.material = tuneProfessionalStadiumMaterial(node, node.material.clone());
+						                    }
 						                  } catch (e) { /* ignore */ }
 						                  node.userData = Object.assign({}, node.userData || {}, { kind: 'pitch_3d_professional_blender_stadium_mesh' });
 						                  try { node.castShadow = true; node.receiveShadow = true; } catch (e) { /* ignore */ }
 						                });
 						                root.add(stadiumAsset);
+						                addProfessionalStadiumAtmosphere(stadiumAsset);
 						                const exteriorShell = new THREE.Group();
 						                exteriorShell.userData = { kind: 'pitch_3d_ref_real_stadium_exterior_shell' };
 						                addAuthenticExteriorEnvelope(exteriorShell);
@@ -12557,11 +12706,134 @@
 						        if (delta < -180) delta += 360;
 						        return normalizeAngle(aN + (delta * clamp(Number(t) || 0, 0, 1)), 0);
 						      };
+						      const token3dChildObjects = (o) => {
+						        if (Array.isArray(o?.objects)) return o.objects;
+						        if (Array.isArray(o?._objects)) return o._objects;
+						        return [];
+						      };
+						      const token3dChildByRole = (o, role) => token3dChildObjects(o).find((child) => safeText(child?.data?.role) === role) || null;
+						      const pitch3dTokenName = (o) => {
+						        const data = o?.data || {};
+						        const child = token3dChildByRole(o, 'token_name');
+						        return safeText(data.playerName || data.name || child?.text || data.label);
+						      };
+						      const pitch3dTokenNumber = (o) => {
+						        const data = o?.data || {};
+						        const child = token3dChildByRole(o, 'token_number');
+						        return safeText(data.playerNumber || data.playerNumberText || data.playerNumberLabel || child?.text);
+						      };
+						      const pitch3dTokenPhotoUrl = (o) => {
+						        const data = o?.data || {};
+						        const child = token3dChildByRole(o, 'token_photo');
+						        return safeText(data.playerPhotoUrl || data.photo_url || data.photoUrl || child?.src || child?.crossOriginSrc || child?._element?.src);
+						      };
+						      const addTokenImageSprite3d = (parent, url, opts = {}) => {
+						        const src = safeText(url);
+						        if (!parent || !src) return null;
+						        try {
+						          const loader = new THREE.TextureLoader();
+						          try { loader.setCrossOrigin('anonymous'); } catch (e) { /* ignore */ }
+						          loader.load(src, (tex) => {
+						            try {
+						              tex.anisotropy = getPitch3dMaxAnisotropy();
+						              tex.needsUpdate = true;
+						              const mat = new THREE.SpriteMaterial({
+						                map: tex,
+						                transparent: true,
+						                depthWrite: false,
+						                alphaTest: 0.02,
+						              });
+						              const spr = new THREE.Sprite(mat);
+						              spr.position.set(Number(opts.x) || 0, Number(opts.y) || 1.86, Number(opts.z) || 0);
+						              const size = Number(opts.size) || 0.92;
+						              spr.scale.set(size, size, 1);
+						              spr.userData = { kind: safeText(opts.kind, 'token_photo_3d'), src };
+						              parent.add(spr);
+						            } catch (e) { /* ignore */ }
+						          }, undefined, () => {});
+						        } catch (e) { /* ignore */ }
+						        return null;
+						      };
+						      const addToken3dKitDetails = (body, o, colors) => {
+						        if (!body) return;
+						        try {
+						          const data = o?.data || {};
+						          const shirtCol = toColorInt(colors?.shirt || data.token_stripe_color || data.color || '#1d4ed8', 0x1d4ed8);
+						          const baseCol = toColorInt(colors?.base || data.token_base_color || '#ffffff', 0xffffff);
+						          const shortsCol = toColorInt(darkenHex(colors?.shirt || data.token_stripe_color || '#1d4ed8', 0.56), 0x0f172a);
+						          const socksCol = toColorInt(darkenHex(colors?.shirt || data.token_stripe_color || '#1d4ed8', 0.38), 0x1e293b);
+						          const shirtMat = new THREE.MeshStandardMaterial({ color: shirtCol, roughness: 0.62, metalness: 0.02 });
+						          const stripeMat = new THREE.MeshStandardMaterial({ color: baseCol, roughness: 0.66, metalness: 0.01 });
+						          const shortsMat = new THREE.MeshStandardMaterial({ color: shortsCol, roughness: 0.70, metalness: 0.01 });
+						          const socksMat = new THREE.MeshStandardMaterial({ color: socksCol, roughness: 0.72, metalness: 0.01 });
+						          const shorts = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.37, 0.20, 14), shortsMat);
+						          shorts.position.y = 0.35;
+						          shorts.userData = { kind: 'token_3d_kit_shorts' };
+						          body.add(shorts);
+						          [-0.16, 0.16].forEach((x) => {
+						            const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.065, 0.34, 8), socksMat);
+						            leg.position.set(x, 0.16, 0);
+						            leg.userData = { kind: 'token_3d_kit_sock' };
+						            body.add(leg);
+						          });
+						          [-0.12, 0.12].forEach((x) => {
+						            const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.66, 0.035), stripeMat);
+						            stripe.position.set(x, 0.79, -0.345);
+						            stripe.userData = { kind: 'token_3d_kit_shirt_stripe' };
+						            body.add(stripe);
+						          });
+						          const number = pitch3dTokenNumber(o);
+						          if (number) {
+						            const chest = buildTextSprite(number.slice(0, 3), { fill: '#0b1220', bg: 'rgba(248,250,252,0.86)', size: 96 });
+						            if (chest) {
+						              chest.position.set(0, 0.82, -0.46);
+						              chest.scale.set(0.64, 0.64, 1);
+						              chest.userData = { kind: 'token_3d_kit_chest_number' };
+						              body.add(chest);
+						            }
+						          }
+						          body.userData.kit_slot = safeText(data.token_kit_slot);
+						          body.userData.kit_3d = true;
+						          try {
+						            (body.children || []).forEach((child) => {
+						              if (safeText(child?.userData?.kind) === 'token_body_torso') child.material = shirtMat;
+						            });
+						          } catch (e) { /* ignore */ }
+					        } catch (e) { /* ignore */ }
+						      };
+						      const addToken3dIdentity = (mesh, o, colorInt) => {
+						        try {
+						          const name = pitch3dTokenName(o);
+						          const number = pitch3dTokenNumber(o);
+						          const photoUrl = pitch3dTokenPhotoUrl(o);
+						          if (name) {
+						            const label = buildTextSprite(name.slice(0, 18), { fill: '#f8fafc', bg: 'rgba(2,6,23,0.74)', size: 112 });
+						            if (label) {
+						              label.position.set(0, 1.66, 0);
+						              label.userData = { kind: 'token_name_3d', base_scale: Number(label.scale?.x) || 1.6 };
+						              mesh.add(label);
+						            }
+						          }
+						          if (photoUrl) {
+						            const rim = new THREE.Mesh(
+						              new THREE.RingGeometry(0.44, 0.52, 36, 1),
+						              new THREE.MeshBasicMaterial({ color: colorInt || 0xffffff, transparent: true, opacity: 0.86, depthWrite: false, side: THREE.DoubleSide }),
+						            );
+						            rim.position.set(0, 1.98, 0);
+						            rim.userData = { kind: 'token_photo_3d_rim' };
+						            mesh.add(rim);
+						            addTokenImageSprite3d(mesh, photoUrl, { y: 1.98, size: 0.82, kind: 'token_photo_3d' });
+						          }
+						          if (number) {
+						            mesh.userData.number = number;
+						          }
+						        } catch (e) { /* ignore */ }
+						      };
 
 						      const addToken = (o) => {
 						        const data = o?.data || {};
 						        const tokenKind = safeText(data.token_kind);
-						        const num = safeText(data.playerNumber) || safeText(data.playerNumberText) || safeText(data.playerNumberLabel) || safeText(data.playerNumber);
+						        const num = pitch3dTokenNumber(o);
 						        const fill = safeText(data.token_base_color || data.color || (tokenKind.includes('rival') ? '#dc2626' : '#1d4ed8'));
 						        const stripe = safeText(data.token_stripe_color || data.color || fill);
 						        const key = tokenKind.includes('rival') ? stripe : stripe;
@@ -12599,10 +12871,13 @@
 						          body.userData = { kind: 'token_body', facing_deg: facingDeg };
 						          const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.42, 0.92, 14), bodyMat);
 						          torso.position.y = 0.75;
+						          torso.userData = { kind: 'token_body_torso' };
 						          body.add(torso);
 						          const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 14, 12), headMat);
 						          head.position.y = 1.28;
+						          head.userData = { kind: 'token_body_head' };
 						          body.add(head);
+						          addToken3dKitDetails(body, o, { shirt: stripe || fill, base: fill });
 						          // Flecha verde (como en 2D): orienta el cuerpo.
 						          const arrowMat = new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.55, metalness: 0.02, transparent: true, opacity: 0.92 });
 						          const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.5, 10, 1), arrowMat);
@@ -12622,6 +12897,7 @@
 						          mesh.add(fov);
 						        } catch (e) { /* ignore */ }
 						        root.add(mesh);
+						        addToken3dIdentity(mesh, o, color);
 						        const label = safeText(num);
 						        if (label) {
 						          const spr = buildTextSprite(label, { fill: '#0b1220', bg: 'rgba(248,250,252,0.86)', size: 96 });
