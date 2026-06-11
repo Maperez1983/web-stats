@@ -8393,6 +8393,23 @@
 							          otherMouth.addColorStop(1, 'rgba(0,0,0,0)');
 							          ctx.fillStyle = otherMouth;
 							          ctx.fillRect(0, 0, c.width, c.height);
+							          const centerWear = ctx.createRadialGradient(c.width * 0.50, c.height * 0.50, 0, c.width * 0.50, c.height * 0.50, c.width * 0.105);
+							          centerWear.addColorStop(0, 'rgba(229,220,140,0.13)');
+							          centerWear.addColorStop(0.48, 'rgba(72,119,46,0.08)');
+							          centerWear.addColorStop(1, 'rgba(0,0,0,0)');
+							          ctx.fillStyle = centerWear;
+							          ctx.fillRect(0, 0, c.width, c.height);
+							          ctx.globalAlpha = 0.16;
+							          ctx.strokeStyle = 'rgba(235,255,207,0.28)';
+							          ctx.lineWidth = 2;
+							          for (let i = 0; i < 32; i += 1) {
+							            const y = (0.13 + (i / 31) * 0.74) * c.height;
+							            ctx.beginPath();
+							            ctx.moveTo(c.width * 0.055, y + Math.sin(i * 1.7) * 4);
+							            ctx.lineTo(c.width * 0.945, y + Math.cos(i * 1.3) * 4);
+							            ctx.stroke();
+							          }
+							          ctx.globalAlpha = 1;
 							        }
 							        ctx.restore();
 							      }
@@ -10336,6 +10353,11 @@
 						                const transitBlue = new THREE.MeshStandardMaterial({ color: 0x1d4ed8, roughness: 0.42, metalness: 0.08 });
 						                const solarMat = new THREE.MeshStandardMaterial({ color: 0x0f2733, roughness: 0.30, metalness: 0.18 });
 						                const ledRibbon = new THREE.MeshBasicMaterial({ color: 0x99f6e4, transparent: true, opacity: 0.62, toneMapped: false });
+						                const seatGreen = new THREE.MeshStandardMaterial({ color: toColorInt(stadiumPalette3d.primary, 0x047857), roughness: 0.50, metalness: 0.02 });
+						                const seatWhite = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.46, metalness: 0.02 });
+						                const seatDark = new THREE.MeshStandardMaterial({ color: 0x0f3f34, roughness: 0.50, metalness: 0.02 });
+						                const pitchsideLed = new THREE.MeshBasicMaterial({ color: 0x67e8f9, transparent: true, opacity: 0.78, toneMapped: false });
+						                const pitchsideLedDark = new THREE.MeshStandardMaterial({ color: 0x07131f, roughness: 0.36, metalness: 0.22 });
 						                const addSignMat = (title, subtitle) => makePitch3dCanvasTexture((ctx, c) => {
 						                  ctx.fillStyle = '#06281f';
 						                  ctx.fillRect(0, 0, c.width, c.height);
@@ -10402,6 +10424,52 @@
 						                  addBox(finish, new THREE.BoxGeometry(0.10, 1.55, 2.55), gateMetal, x - 2.14, 2.18, -(metersH / 2 + 6.20), 0, 0, 0, 'pitch_3d_professional_vomitory_side_rail');
 						                  addBox(finish, new THREE.BoxGeometry(0.10, 1.55, 2.55), gateMetal, x + 2.14, 2.18, -(metersH / 2 + 6.20), 0, 0, 0, 'pitch_3d_professional_vomitory_side_rail');
 						                });
+						                const addInteriorFieldReferencePass = () => {
+						                  const addSeatBand = (axis, sign, row, center, span, mat, accent = false) => {
+						                    const y = 1.15 + (row * 0.48);
+						                    const offset = 7.5 + (row * 0.82);
+						                    if (axis === 'long') {
+						                      addBox(finish, new THREE.BoxGeometry(span, 0.13, 0.34), mat, center, y, sign * (metersH / 2 + offset), -0.10, 0, 0, accent ? 'pitch_3d_professional_reference_seat_mosaic_accent_long' : 'pitch_3d_professional_reference_seat_mosaic_long');
+						                    } else {
+						                      addBox(finish, new THREE.BoxGeometry(0.34, 0.13, span), mat, sign * (metersW / 2 + offset), y, center, -0.10, 0, 0, accent ? 'pitch_3d_professional_reference_seat_mosaic_accent_end' : 'pitch_3d_professional_reference_seat_mosaic_end');
+						                    }
+						                  };
+						                  [-1, 1].forEach((sign) => {
+						                    for (let row = 0; row < 11; row += 1) {
+						                      [-0.34, -0.17, 0, 0.17, 0.34].forEach((ratio, idx) => {
+						                        const mat = (row + idx) % 7 === 0 ? seatWhite : ((row + idx) % 5 === 0 ? seatDark : seatGreen);
+						                        addSeatBand('long', sign, row, ratio * metersW, metersW * 0.115, mat, mat === seatWhite);
+						                      });
+						                    }
+						                    for (let row = 0; row < 9; row += 1) {
+						                      [-0.28, -0.10, 0.10, 0.28].forEach((ratio, idx) => {
+						                        const mat = (row + idx) % 6 === 0 ? seatWhite : ((row + idx) % 4 === 0 ? seatDark : seatGreen);
+						                        addSeatBand('end', sign, row, ratio * metersH, metersH * 0.125, mat, mat === seatWhite);
+						                      });
+						                    }
+						                    const boardZ = sign * (metersH / 2 + 2.28);
+						                    [-0.38, -0.19, 0, 0.19, 0.38].forEach((ratio, idx) => {
+						                      const x = ratio * metersW;
+						                      addBox(finish, new THREE.BoxGeometry(metersW * 0.15, 0.86, 0.16), pitchsideLedDark, x, 0.78, boardZ, 0, 0, 0, 'pitch_3d_professional_pitchside_led_board_shell_long');
+						                      addBox(finish, new THREE.BoxGeometry(metersW * 0.145, 0.58, 0.06), idx % 2 === 0 ? pitchsideLed : ledRibbon, x, 0.85, boardZ - sign * 0.09, 0, 0, 0, 'pitch_3d_professional_pitchside_led_board_face_long');
+						                    });
+						                    const boardX = sign * (metersW / 2 + 2.28);
+						                    [-0.30, -0.10, 0.10, 0.30].forEach((ratio, idx) => {
+						                      const z = ratio * metersH;
+						                      addBox(finish, new THREE.BoxGeometry(0.16, 0.86, metersH * 0.15), pitchsideLedDark, boardX, 0.78, z, 0, 0, 0, 'pitch_3d_professional_pitchside_led_board_shell_end');
+						                      addBox(finish, new THREE.BoxGeometry(0.06, 0.58, metersH * 0.145), idx % 2 === 0 ? pitchsideLed : ledRibbon, boardX - sign * 0.09, 0.85, z, 0, 0, 0, 'pitch_3d_professional_pitchside_led_board_face_end');
+						                    });
+						                  });
+						                  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
+						                    const x = sx * (metersW / 2 + 7.9);
+						                    const z = sz * (metersH / 2 + 7.9);
+						                    addBox(finish, new THREE.BoxGeometry(13.8, 0.24, 13.8), facadePanel, x, 3.55, z, -0.055, sx * sz * 0.18, 0, 'pitch_3d_professional_corner_continuous_bowl_slab');
+						                    addBox(finish, new THREE.BoxGeometry(11.6, 0.13, 0.36), seatGreen, x, 4.12, z - sz * 3.6, -0.10, sx * sz * 0.18, 0, 'pitch_3d_professional_corner_wrapped_seat_band_green');
+						                    addBox(finish, new THREE.BoxGeometry(8.8, 0.13, 0.34), seatWhite, x + sx * 1.4, 4.68, z - sz * 1.8, -0.10, sx * sz * 0.18, 0, 'pitch_3d_professional_corner_wrapped_seat_band_white');
+						                    addBox(finish, new THREE.BoxGeometry(10.5, 0.12, 0.18), gateMetal, x, 5.38, z + sz * 2.6, 0, sx * sz * 0.18, 0, 'pitch_3d_professional_corner_clean_guardrail');
+						                  });
+						                };
+						                addInteriorFieldReferencePass();
 						                const addUrbanEnvironment = () => {
 						                  const env = new THREE.Group();
 						                  env.userData = { kind: 'pitch_3d_professional_complete_urban_environment' };
