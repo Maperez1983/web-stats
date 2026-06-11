@@ -8672,6 +8672,64 @@
 						      return { x, z };
 						    };
 
+						    const pitch3dUidForObject = (o, fallback = '') => {
+						      const data = o?.data || {};
+						      return safeText(data.playerId)
+						        || safeText(data.layer_uid)
+						        || safeText(data.uid)
+						        || safeText(data.playerNumber)
+						        || safeText(fallback);
+						    };
+
+						    const normalizePitch3dRoutePoints = (points) => {
+						      const list = Array.isArray(points) ? points : [];
+						      const out = [];
+						      list.forEach((p) => {
+						        const x = Number(p?.x);
+						        const y = Number(p?.y);
+						        if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+						        const prev = out[out.length - 1] || null;
+						        if (prev && Math.hypot(prev.x - x, prev.y - y) < 2) return;
+						        out.push({ x, y });
+						      });
+						      return out.slice(0, 48);
+						    };
+
+						    const pitch3dRouteForUid = (routes, uid) => {
+						      const key = safeText(uid);
+						      if (!key || !routes || typeof routes !== 'object') return null;
+						      const route = routes[key] || null;
+						      const points = normalizePitch3dRoutePoints(route?.points);
+						      return points.length >= 2 ? { points, spline: route?.spline === true } : null;
+						    };
+
+						    const samplePitch3dRoutePoint = (points, alpha) => {
+						      const pts = normalizePitch3dRoutePoints(points);
+						      if (!pts.length) return { x: 0, y: 0 };
+						      if (pts.length === 1) return pts[0];
+						      const t = clamp(Number(alpha) || 0, 0, 1);
+						      const lengths = [];
+						      let total = 0;
+						      for (let i = 0; i < pts.length - 1; i += 1) {
+						        const len = Math.hypot(pts[i + 1].x - pts[i].x, pts[i + 1].y - pts[i].y) || 0;
+						        lengths.push(len);
+						        total += len;
+						      }
+						      if (total <= 0.001) return pts[pts.length - 1];
+						      let target = total * t;
+						      for (let i = 0; i < lengths.length; i += 1) {
+						        const len = lengths[i];
+						        if (target <= len || i === lengths.length - 1) {
+						          const a = pts[i];
+						          const b = pts[i + 1] || a;
+						          const k = len > 0.001 ? clamp(target / len, 0, 1) : 0;
+						          return { x: a.x + ((b.x - a.x) * k), y: a.y + ((b.y - a.y) * k) };
+						        }
+						        target -= len;
+						      }
+						      return pts[pts.length - 1];
+						    };
+
 						    const toColorInt = (hex, fallback = 0xffffff) => {
 						      const raw = safeText(hex || '').trim();
 						      if (!raw) return fallback;
@@ -11992,6 +12050,59 @@
 						        root.add(plane);
 						        return plane;
 						      };
+						      const addRoutePath3d = (uid, route, colorInt, routeOptions = {}) => {
+						        const points2d = normalizePitch3dRoutePoints(route?.points || route);
+						        if (!pitch3dTrailRoot || points2d.length < 2) return null;
+						        const color = Number.isFinite(colorInt) ? colorInt : 0xfacc15;
+						        const points3d = points2d.map((pt, index) => {
+						          const mapped = mapPoint2dTo3d(pt.x, pt.y);
+						          const lift = routeOptions.ball ? (0.14 + (Math.sin((index / Math.max(1, points2d.length - 1)) * Math.PI) * 0.44)) : 0.12;
+						          return new THREE.Vector3(mapped.x, lift, mapped.z);
+						        });
+						        let path = null;
+						        try {
+						          const curve = ((route?.spline === true || points3d.length > 2) && points3d.length >= 3)
+						            ? new THREE.CatmullRomCurve3(points3d, false, 'centripetal', 0.38)
+						            : new THREE.CatmullRomCurve3(points3d, false, 'chordal', 0);
+						          const geo = new THREE.TubeGeometry(curve, Math.max(32, points3d.length * 18), routeOptions.ball ? 0.075 : 0.065, 8, false);
+						          const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: routeOptions.ball ? 0.74 : 0.58, depthWrite: false });
+						          path = new THREE.Mesh(geo, mat);
+						          path.userData = { kind: 'pitch_3d_route_path', uid: safeText(uid), ball: !!routeOptions.ball };
+						          path.visible = !!pitch3dTrailsEnabled;
+						          pitch3dTrailRoot.add(path);
+						        } catch (e) {
+						          const geo = new THREE.BufferGeometry().setFromPoints(points3d);
+						          const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: routeOptions.ball ? 0.78 : 0.62 });
+						          path = new THREE.Line(geo, mat);
+						          path.userData = { kind: 'pitch_3d_route_path', uid: safeText(uid), ball: !!routeOptions.ball };
+						          path.visible = !!pitch3dTrailsEnabled;
+						          pitch3dTrailRoot.add(path);
+						        }
+						        try {
+						          const end = points3d[points3d.length - 1];
+						          const prev = points3d[points3d.length - 2] || end;
+						          const dir = end.clone().sub(prev);
+						          if (dir.length() > 0.001) {
+						            const headGeo = new THREE.ConeGeometry(routeOptions.ball ? 0.22 : 0.18, routeOptions.ball ? 0.58 : 0.48, 12, 1);
+						            const headMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.84, depthWrite: false });
+						            const head = new THREE.Mesh(headGeo, headMat);
+						            head.position.set(end.x, end.y + 0.08, end.z);
+						            head.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+						            head.userData = { kind: 'pitch_3d_route_arrow_head', uid: safeText(uid), ball: !!routeOptions.ball };
+						            head.visible = !!pitch3dTrailsEnabled;
+						            pitch3dTrailRoot.add(head);
+						          }
+						          const ringGeo = new THREE.RingGeometry(routeOptions.ball ? 0.38 : 0.30, routeOptions.ball ? 0.54 : 0.44, 36, 1);
+						          const ringMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.62, side: THREE.DoubleSide, depthWrite: false });
+						          const ring = new THREE.Mesh(ringGeo, ringMat);
+						          ring.rotation.x = -Math.PI / 2;
+						          ring.position.set(end.x, 0.045, end.z);
+						          ring.userData = { kind: 'pitch_3d_route_destination', uid: safeText(uid), ball: !!routeOptions.ball };
+						          ring.visible = !!pitch3dTrailsEnabled;
+						          pitch3dTrailRoot.add(ring);
+						        } catch (e) { /* ignore */ }
+						        return path;
+						      };
 						      const pxToPitchMeters = () => Math.max(0.018, ((metersW / Math.max(1, sourceW)) + (metersH / Math.max(1, sourceH))) / 2);
 						      const addResourceMesh3d = (group, mesh, kind) => {
 						        if (!group || !mesh) return mesh;
@@ -12283,7 +12394,8 @@
 						        const mesh = new THREE.Mesh(geo, mat);
 						        const pos = map2dToPitch(Number(o.left) || 0, Number(o.top) || 0, sourceW, sourceH, metersW, metersH, orientation);
 						        mesh.position.set(pos.x, 0.35, pos.z);
-						        mesh.userData = { kind: 'ball' };
+						        const uid = pitch3dUidForObject(o, 'ball');
+						        mesh.userData = { kind: 'ball', uid };
 						        root.add(mesh);
 						        // Sombra del balón (se ajusta con la altura en playback).
 						        try {
@@ -12297,6 +12409,46 @@
 						        } catch (e) { /* ignore */ }
 						      };
 						      balls.forEach(addBall);
+
+						      try {
+						        const routeColorByUid = new Map();
+						        tokens.forEach((o, idx) => {
+						          const data = o?.data || {};
+						          const uid = pitch3dUidForObject(o, `token:${idx}`);
+						          const tokenKind = safeText(data.token_kind);
+						          const col = toColorInt(safeText(data.token_stripe_color || data.color || (tokenKind.includes('rival') ? '#dc2626' : '#1d4ed8')), 0x1d4ed8);
+						          routeColorByUid.set(uid, col);
+						        });
+						        balls.forEach((o, idx) => routeColorByUid.set(pitch3dUidForObject(o, idx === 0 ? 'ball' : `ball:${idx}`), 0xfacc15));
+
+						        const routeSpecs = [];
+						        const routesOption = options.routes && typeof options.routes === 'object' ? options.routes : {};
+						        Object.keys(routesOption).forEach((uid) => {
+						          const route = pitch3dRouteForUid(routesOption, uid);
+						          if (route) routeSpecs.push({ uid, route, ball: !routeColorByUid.has(uid) ? safeText(uid).toLowerCase().includes('ball') : false });
+						        });
+						        objects.forEach((o, idx) => {
+						          const data = o?.data || {};
+						          const routes = Array.isArray(data.interactive_routes) ? data.interactive_routes : [];
+						          if (!routes.length) return;
+						          const uid = pitch3dUidForObject(o, `object:${idx}`);
+						          const points = [{ x: Number(o?.left) || 0, y: Number(o?.top) || 0 }];
+						          routes.forEach((r) => {
+						            const to = r?.to || {};
+						            points.push({ x: Number(to.x) || 0, y: Number(to.y) || 0 });
+						          });
+						          const normalized = normalizePitch3dRoutePoints(points);
+						          if (normalized.length >= 2) routeSpecs.push({ uid, route: { points: normalized, spline: normalized.length > 2 }, ball: safeText(data.kind) === 'ball' });
+						        });
+						        const drawnRoutes = new Set();
+						        routeSpecs.forEach((spec) => {
+						          const key = `${safeText(spec.uid)}:${normalizePitch3dRoutePoints(spec.route?.points).map((p) => `${Math.round(p.x)},${Math.round(p.y)}`).join('|')}`;
+						          if (drawnRoutes.has(key)) return;
+						          drawnRoutes.add(key);
+						          const col = routeColorByUid.get(safeText(spec.uid)) || (spec.ball ? 0xfacc15 : 0x22d3ee);
+						          addRoutePath3d(spec.uid, spec.route, col, { ball: !!spec.ball || col === 0xfacc15 });
+						        });
+						      } catch (e) { /* ignore */ }
 
 						      // Líneas / flechas / zonas (subset, optimizado para iPad).
 						      const addDrawable = (o) => {
@@ -12418,6 +12570,7 @@
 						        fieldFormat: normalizePitch3dFormat(opts.fieldFormat || pitch3dFormat),
 						        sourceW: Number(opts.sourceW) || Number(worldWidth) || 1280,
 						        sourceH: Number(opts.sourceH) || Number(worldHeight) || 720,
+						        routes: opts.routes && typeof opts.routes === 'object' ? opts.routes : {},
 						      });
 						    } catch (e) { /* ignore */ }
 
@@ -12465,6 +12618,7 @@
 						        fieldFormat: pitch3dFormat,
 						        sourceW: step.sourceW,
 						        sourceH: step.sourceH,
+						        routes: step.routes || {},
 						      });
 						      if (options.keepFollow !== true) {
 						        if (pitch3dFollowSelect && safeText(pitch3dFollowSelect.value) === 'selected') pitch3dFollowSelect.value = 'off';
@@ -12480,6 +12634,7 @@
 						        state: s.canvas_state || { version: '5.3.0', objects: [] },
 						        sourceW: parseIntSafe(s.canvas_width) || Number(worldWidth) || 1280,
 						        sourceH: parseIntSafe(s.canvas_height) || Number(worldHeight) || 720,
+						        routes: (s.routes && typeof s.routes === 'object') ? s.routes : {},
 						      }));
 						    };
 
@@ -12498,7 +12653,16 @@
 						      const hB = Math.max(1, Number(toStep?.sourceH) || hA);
 							      const aObjs = Array.isArray(fromStep?.state?.objects) ? fromStep.state.objects : [];
 							      const bObjs = Array.isArray(toStep?.state?.objects) ? toStep.state.objects : [];
-						      const keyFor = (o, idx) => safeText(o?.data?.playerId) || `${safeText(o?.data?.token_kind)}:${safeText(o?.data?.playerNumber)}:${idx}`;
+						      const routesA = (fromStep?.routes && typeof fromStep.routes === 'object') ? fromStep.routes : {};
+						      const routesB = (toStep?.routes && typeof toStep.routes === 'object') ? toStep.routes : {};
+						      const routeForUid = (uid) => pitch3dRouteForUid(routesA, uid) || pitch3dRouteForUid(routesB, uid);
+						      const routeSample3d = (route, t, srcW, srcH, height = 0.06, isBall = false) => {
+						        const pt = samplePitch3dRoutePoint(route?.points, t);
+						        const mapped = map2dToPitch(pt.x, pt.y, srcW, srcH, metersW, metersH, orientation);
+						        const lift = isBall ? (Math.sin(Math.PI * clamp(Number(t) || 0, 0, 1)) * 1.65) : 0;
+						        return { x: mapped.x, y: height + lift, z: mapped.z };
+						      };
+						      const keyFor = (o, idx) => pitch3dUidForObject(o, `${safeText(o?.data?.token_kind)}:${safeText(o?.data?.playerNumber)}:${idx}`);
 						      const mapB = new Map();
 						      bObjs.filter((o) => safeText(o?.data?.kind) === 'token').forEach((o, idx) => mapB.set(keyFor(o, idx), o));
 
@@ -12532,14 +12696,38 @@
 							          const aTokens = aObjs.filter((o) => safeText(o?.data?.kind) === 'token').slice(0, 60);
 							          aTokens.forEach((o) => {
 							            const data = o?.data || {};
-							            const uid = safeText(data.playerId) || safeText(data.layer_uid) || safeText(data.playerNumber) || '';
+							            const uid = pitch3dUidForObject(o);
 							            if (!uid) return;
-							            const b = bObjs.find((x) => safeText(x?.data?.kind) === 'token' && safeText(x?.data?.playerId) === uid) || null;
+							            const tokenKind = safeText(data.token_kind);
+							            const col = toColorInt(safeText(data.token_stripe_color || data.color || (tokenKind.includes('rival') ? '#dc2626' : '#1d4ed8')), 0xffffff);
+							            const route = routeForUid(uid);
+							            if (route) {
+							              const pts = normalizePitch3dRoutePoints(route.points).map((pt, i, arr) => {
+							                const mapped = map2dToPitch(pt.x, pt.y, wA, hA, metersW, metersH, orientation);
+							                return new THREE.Vector3(mapped.x, 0.05 + (Math.sin((i / Math.max(1, arr.length - 1)) * Math.PI) * 0.08), mapped.z);
+							              });
+							              if (pts.length >= 2) {
+							                try {
+							                  const curve = new THREE.CatmullRomCurve3(pts, false, route.spline ? 'centripetal' : 'chordal', route.spline ? 0.38 : 0);
+							                  const geo = new THREE.TubeGeometry(curve, Math.max(24, pts.length * 16), 0.045, 7, false);
+							                  const mat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.42, depthWrite: false });
+							                  const path = new THREE.Mesh(geo, mat);
+							                  path.userData = { kind: 'trail', subkind: 'route', uid };
+							                  pitch3dTrailRoot.add(path);
+							                } catch (e) {
+							                  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+							                  const mat = new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.42 });
+							                  const line = new THREE.Line(geo, mat);
+							                  line.userData = { kind: 'trail', subkind: 'route', uid };
+							                  pitch3dTrailRoot.add(line);
+							                }
+							              }
+							              return;
+							            }
+							            const b = mapB.get(uid) || null;
 							            if (!b) return;
 							            const a3 = map2dToPitch(Number(o.left) || 0, Number(o.top) || 0, wA, hA, metersW, metersH, orientation);
 							            const b3 = map2dToPitch(Number(b.left) || 0, Number(b.top) || 0, wB, hB, metersW, metersH, orientation);
-							            const tokenKind = safeText(data.token_kind);
-							            const col = toColorInt(safeText(data.token_stripe_color || data.color || (tokenKind.includes('rival') ? '#dc2626' : '#1d4ed8')), 0xffffff);
 							            const pts = [new THREE.Vector3(a3.x, 0.03, a3.z), new THREE.Vector3(b3.x, 0.03, b3.z)];
 							            const geo = new THREE.BufferGeometry().setFromPoints(pts);
 							            const mat = new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.35 });
@@ -12559,18 +12747,25 @@
 						        let a = null;
 						        let b = null;
 						        if (uid) {
-						          a = aObjs.find((o) => safeText(o?.data?.kind) === 'token' && safeText(o?.data?.playerId) === uid);
-						          b = bObjs.find((o) => safeText(o?.data?.kind) === 'token' && safeText(o?.data?.playerId) === uid);
+						          a = aObjs.find((o, idx) => safeText(o?.data?.kind) === 'token' && keyFor(o, idx) === uid);
+						          b = mapB.get(uid) || null;
 						        }
 						        if (!a) {
 						          // Fallback: no tocamos.
 						          return;
 						        }
 						        if (!b) b = a;
+							        const route = routeForUid(uid);
+							        if (route) {
+							          const pRoute = routeSample3d(route, alpha, wA, hA, 0.10, false);
+							          node.position.x = pRoute.x;
+							          node.position.z = pRoute.z;
+							        } else {
 							        const pA = map2dToPitch(Number(a.left) || 0, Number(a.top) || 0, wA, hA, metersW, metersH, orientation);
 							        const pB = map2dToPitch(Number(b.left) || 0, Number(b.top) || 0, wB, hB, metersW, metersH, orientation);
 							        node.position.x = pA.x + ((pB.x - pA.x) * alpha);
 							        node.position.z = pA.z + ((pB.z - pA.z) * alpha);
+							        }
 
 							        // Interpola orientación corporal y actualiza el cono de visión (si existe).
 							        try {
@@ -12614,18 +12809,23 @@
 								        const ballNode = pitch3dRoot.children.find((n) => safeText(n?.userData?.kind) === 'ball');
 								        const ballShadowNode = pitch3dRoot.children.find((n) => safeText(n?.userData?.kind) === 'ball_shadow');
 								        if (ballNode) {
-								          const aBall = aObjs.find((o) => safeText(o?.data?.kind) === 'ball') || null;
-								          const bBall = bObjs.find((o) => safeText(o?.data?.kind) === 'ball') || aBall;
+								          const ballUid = safeText(ballNode?.userData?.uid, 'ball');
+								          const aBall = aObjs.find((o) => safeText(o?.data?.kind) === 'ball' && (pitch3dUidForObject(o, 'ball') === ballUid || ballUid === 'ball')) || null;
+								          const bBall = bObjs.find((o) => safeText(o?.data?.kind) === 'ball' && (pitch3dUidForObject(o, 'ball') === ballUid || ballUid === 'ball')) || aBall;
 								          if (aBall && bBall) {
 								            const pA = map2dToPitch(Number(aBall.left) || 0, Number(aBall.top) || 0, wA, hA, metersW, metersH, orientation);
 								            const pB = map2dToPitch(Number(bBall.left) || 0, Number(bBall.top) || 0, wB, hB, metersW, metersH, orientation);
+								            const route = routeForUid(ballUid) || routeForUid('ball');
+								            const routePos = route ? routeSample3d(route, alpha, wA, hA, 0.35, true) : null;
+								            const currentX = routePos ? routePos.x : (pA.x + ((pB.x - pA.x) * alpha));
+								            const currentZ = routePos ? routePos.z : (pA.z + ((pB.z - pA.z) * alpha));
 								            const dx = pB.x - pA.x;
 								            const dz = pB.z - pA.z;
 								            const dist = Math.hypot(dx, dz);
 								            const lift = dist > 6 ? Math.min(2.8, 0.22 * dist) : 0;
-								            const arc = lift ? (Math.sin(Math.PI * alpha) * lift) : 0;
-								            ballNode.position.x = pA.x + (dx * alpha);
-								            ballNode.position.z = pA.z + (dz * alpha);
+								            const arc = routePos ? Math.max(0, routePos.y - 0.35) : (lift ? (Math.sin(Math.PI * alpha) * lift) : 0);
+								            ballNode.position.x = currentX;
+								            ballNode.position.z = currentZ;
 								            ballNode.position.y = 0.35 + arc;
 
 								            // Sombra del balón: en el suelo, ajusta tamaño/opacidad según la altura.
