@@ -257,16 +257,12 @@ const addStand = ({ name, side, cols, rows, length, depthStart, zFixed, xFixed }
     const run = rows * 0.58 + 0.55;
     if (longSide) {
       const zMid = depthStart + sign * ((rows - 1) * 0.58) / 2;
-      box(`${name}_full_height_stair_run_${idx}`, mats.concrete, [offset, yMid - 0.04, zMid], [0.92, 0.10, run], [-0.11 * sign, 0, 0]);
-      box(`${name}_stair_left_handrail_${idx}`, mats.metal, [offset - 0.55, yMid + 0.42, zMid], [0.07, 0.08, run + 0.4], [-0.11 * sign, 0, 0]);
-      box(`${name}_stair_right_handrail_${idx}`, mats.metal, [offset + 0.55, yMid + 0.42, zMid], [0.07, 0.08, run + 0.4], [-0.11 * sign, 0, 0]);
-      if (idx % 2 === 0) box(`${name}_stair_landing_${idx}`, mats.concrete, [offset, yMid + 0.9, zMid + sign * 2.1], [2.8, 0.12, 1.05], [-0.04 * sign, 0, 0]);
+      box(`${name}_full_height_stair_run_${idx}`, mats.concrete, [offset, yMid - 0.035, zMid], [1.08, 0.11, run], [-0.11 * sign, 0, 0]);
+      if (rows >= 12 && idx % 3 === 0) box(`${name}_stair_landing_${idx}`, mats.concrete, [offset, yMid + 0.74, zMid + sign * 1.8], [2.45, 0.11, 0.86], [-0.04 * sign, 0, 0]);
     } else {
       const xMid = depthStart + sign * ((rows - 1) * 0.58) / 2;
-      box(`${name}_full_height_stair_run_${idx}`, mats.concrete, [xMid, yMid - 0.04, offset], [run, 0.10, 0.92], [0, 0.11 * sign, 0]);
-      box(`${name}_stair_left_handrail_${idx}`, mats.metal, [xMid, yMid + 0.42, offset - 0.55], [run + 0.4, 0.08, 0.07], [0, 0.11 * sign, 0]);
-      box(`${name}_stair_right_handrail_${idx}`, mats.metal, [xMid, yMid + 0.42, offset + 0.55], [run + 0.4, 0.08, 0.07], [0, 0.11 * sign, 0]);
-      if (idx % 2 === 0) box(`${name}_stair_landing_${idx}`, mats.concrete, [xMid + sign * 2.1, yMid + 0.9, offset], [1.05, 0.12, 2.8], [0, 0.04 * sign, 0]);
+      box(`${name}_full_height_stair_run_${idx}`, mats.concrete, [xMid, yMid - 0.035, offset], [run, 0.11, 1.08], [0, 0.11 * sign, 0]);
+      if (rows >= 10 && idx % 3 === 0) box(`${name}_stair_landing_${idx}`, mats.concrete, [xMid + sign * 1.8, yMid + 0.74, offset], [0.86, 0.11, 2.45], [0, 0.04 * sign, 0]);
     }
   });
 
@@ -278,7 +274,7 @@ const addStand = ({ name, side, cols, rows, length, depthStart, zFixed, xFixed }
     }
     box(`${name}_upper_concourse_band`, mats.concrete, [0, 7.2, zFixed + sign * 6.5], [span + 10, 0.55, 0.72], [-0.03 * sign, 0, 0]);
     box(`${name}_glass_balustrade_top`, mats.glass, [0, 7.82, zFixed + sign * 6.04], [span + 6.5, 0.72, 0.08], [-0.03 * sign, 0, 0]);
-    box(`${name}_front_safety_rail`, mats.metal, [0, 2.28, zFixed - sign * 1.52], [span + 6.0, 0.08, 0.08]);
+    if (rows >= 12) box(`${name}_front_safety_rail`, mats.metal, [0, 2.28, zFixed - sign * 1.52], [span + 6.0, 0.08, 0.08]);
   } else {
     box(`${name}_front_wall`, mats.concrete, [xFixed - sign * 1.2, 1.55, 0], [0.5, 1.0, span + 7]);
     for (let i = -5; i <= 5; i += 1) {
@@ -287,7 +283,7 @@ const addStand = ({ name, side, cols, rows, length, depthStart, zFixed, xFixed }
     }
     box(`${name}_upper_concourse_band`, mats.concrete, [xFixed + sign * 6.5, 7.1, 0], [0.72, 0.55, span + 10], [0, 0.03 * sign, 0]);
     box(`${name}_glass_balustrade_top`, mats.glass, [xFixed + sign * 6.04, 7.72, 0], [0.08, 0.68, span + 6.5], [0, 0.03 * sign, 0]);
-    box(`${name}_front_safety_rail`, mats.metal, [xFixed - sign * 1.52, 2.28, 0], [0.08, 0.08, span + 6.0]);
+    if (rows >= 10) box(`${name}_front_safety_rail`, mats.metal, [xFixed - sign * 1.52, 2.28, 0], [0.08, 0.08, span + 6.0]);
   }
 };
 
@@ -311,8 +307,6 @@ const addRoof = () => {
   box('north_press_box_floor', mats.concrete, [0, 12.42, pitchH / 2 + 39.75], [18.6, 0.24, 1.45]);
   box('north_camera_gantry_arm', mats.darkMetal, [0, 16.25, pitchH / 2 + 29.8], [0.25, 0.25, 8.0], [-0.25, 0, 0]);
   box('north_camera_gantry_head', mats.black, [0, 15.26, pitchH / 2 + 26.0], [1.15, 0.7, 0.78]);
-  box('north_roof_shadow_on_seats', mats.roofShadow, [0, 9.8, pitchH / 2 + 21.5], [pitchW + 54, 0.06, 8.8], [-0.04, 0, 0]);
-  box('south_roof_shadow_on_seats', mats.roofShadow, [0, 9.4, -(pitchH / 2 + 20.8)], [pitchW + 48, 0.06, 7.6], [0.04, 0, 0]);
   for (let i = -18; i <= 18; i += 1) {
     const x = i * ((pitchW + 66) / 36);
     box(`north_roof_corrugation_${i}`, mats.metal, [x, y + 0.22, pitchH / 2 + 34.0], [0.075, 0.12, 12.6], [-0.04, 0, 0]);
@@ -408,7 +402,8 @@ const addPerimeterRails = () => {
     box(`west_front_fence_post_${i}`, mats.metal, [-(pitchW / 2 + 4.28), 1.05, i * 2.0], [0.07, 1.28, 0.07]);
   }
 };
-addPerimeterRails();
+// La referencia tiene una primera línea limpia con LED y separadores bajos. Evitamos una segunda
+// valla completa delante de las gradas, porque en cámara general se leía como vallado duplicado.
 
 const addExternalAccessDetails = () => {
   [-1, 1].forEach((side) => {
@@ -424,7 +419,8 @@ const addExternalAccessDetails = () => {
   writeBlockText({ text: 'CDB', name: 'main_stand_small_wayfinding_left', origin: [-54.0, 4.55, pitchH / 2 + 10.05], cell: 0.16, plane: 'xy' });
   writeBlockText({ text: 'CDB', name: 'main_stand_small_wayfinding_right', origin: [48.5, 4.55, pitchH / 2 + 10.05], cell: 0.16, plane: 'xy' });
 };
-addExternalAccessDetails();
+// Las escaleras exteriores laterales añadían siluetas cruzadas sobre la grada. Las dejamos fuera
+// del modelo dedicado para priorizar una grada limpia y reconocible.
 
 const addGoalBackMesh = () => {
   [-1, 1].forEach((sign) => {
@@ -441,7 +437,7 @@ const addGoalBackMesh = () => {
     box(`goal_back_service_gate_handle_${sign}`, mats.light, [-12.0, 1.35, z - sign * 0.04], [0.08, 0.22, 0.04]);
   });
 };
-addGoalBackMesh();
+// La malla alta detrás de porterías competía con los fondos y parecía otro vallado superpuesto.
 
 const addCornerDetails = () => {
   [
