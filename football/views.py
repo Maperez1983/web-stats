@@ -30185,9 +30185,9 @@ def _initial_eleven_page_impl(request):
             'whiteboard',
             'blackboard',
         }
-        lineup_grass_style = requested_grass if requested_grass in allowed_grass else 'broadcast'
+        lineup_grass_style = requested_grass if requested_grass in allowed_grass else 'uefa_b'
     except Exception:
-        lineup_grass_style = 'broadcast'
+        lineup_grass_style = 'uefa_b'
 
     lineup_seed_payload = _safe_lineup_script_payload(lineup_seed)
     rival_lineup_seed_payload = _safe_lineup_script_payload(rival_lineup_seed)

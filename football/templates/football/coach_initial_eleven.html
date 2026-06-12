@@ -279,14 +279,7 @@
         border: 1px solid rgba(148, 163, 184, 0.28);
         touch-action: none;
         user-select: none;
-        background:
-          radial-gradient(120% 80% at 50% 50%, rgba(255,255,255,0.07), rgba(0,0,0,0.16) 72%),
-          repeating-linear-gradient(
-            90deg,
-            rgba(255,255,255,0.08) 0 34px,
-            rgba(255,255,255,0.015) 34px 68px
-          ),
-          linear-gradient(180deg, #4f7f3a 0%, #3f6e35 100%);
+        background: linear-gradient(180deg, #2f6a3a 0%, #245934 100%);
       }
       /* Estilo “gradas broadcast” (como en Táctica), aplicado al XI inicial. */
       .xi-stadium {
@@ -460,12 +453,12 @@
       }
       .lineup-pitch-surface {
         position: absolute;
-        inset: -2%;
-        width: 104%;
-        height: 104%;
+        inset: 0;
+        width: 100%;
+        height: 100%;
         pointer-events: none;
         z-index: 0;
-        opacity: 0.98;
+        opacity: 1;
       }
       .pitch-markings {
         position: absolute;
@@ -1538,22 +1531,7 @@
         outline: 7px solid rgba(2, 6, 23, 0.36);
         transform: none;
         transform-origin: center;
-        background:
-          radial-gradient(120% 80% at 50% 18%, rgba(255,255,255,0.10), transparent 46%),
-          radial-gradient(120% 90% at 50% 104%, rgba(0,0,0,0.20), transparent 54%),
-          repeating-linear-gradient(
-            180deg,
-            rgba(72, 150, 86, 0.96) 0 7.4%,
-            rgba(52, 126, 73, 0.96) 7.4% 14.8%
-          ),
-          repeating-linear-gradient(
-            90deg,
-            rgba(255,255,255,0.026) 0 1px,
-            rgba(0,0,0,0.018) 1px 3px,
-            transparent 3px 7px
-          ),
-          linear-gradient(180deg, #4a9657 0%, #367a46 52%, #2d673d 100%);
-        background-blend-mode: screen, multiply, normal, soft-light, normal;
+        background: linear-gradient(180deg, #2f6a3a 0%, #245934 100%);
         box-shadow:
           0 28px 72px rgba(0,0,0,0.54),
           inset 0 0 0 1px rgba(255,255,255,0.12);
@@ -1573,8 +1551,8 @@
         opacity: 0.68;
       }
       .broadcast-main .lineup-pitch-surface {
-        opacity: 0.38;
-        mix-blend-mode: screen;
+        opacity: 1;
+        mix-blend-mode: normal;
       }
       .broadcast-main.camera-plan .lineup-pitch-surface {
         opacity: 0.76;
@@ -2053,7 +2031,7 @@
                       class="field"
                       id="lineup-field"
                       data-pitch-preset="{{ lineup_pitch_preset|default:'full_pitch'|escape }}"
-                      data-grass-style="{{ lineup_grass_style|default:'broadcast'|escape }}"
+                      data-grass-style="{{ lineup_grass_style|default:'uefa_b'|escape }}"
                       data-orientation="portrait"
                     ></div>
                   </div>
