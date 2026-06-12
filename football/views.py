@@ -32830,7 +32830,7 @@ def _enhance_task_preview_data_url_for_club_pdf(data_url):
             except Exception:
                 pass
         rgba = img.convert('RGBA')
-        flat = Image.new('RGBA', rgba.size, (255, 255, 255, 255))
+        flat = Image.new('RGBA', rgba.size, (10, 36, 30, 255))
         try:
             flat.alpha_composite(rgba)
         except Exception:
@@ -32841,10 +32841,11 @@ def _enhance_task_preview_data_url_for_club_pdf(data_url):
                 rgb = ImageOps.autocontrast(rgb, cutoff=1)
             except Exception:
                 pass
-        # PDF Club se imprime sobre una ficha clara: reforzamos contraste y saturación para que
-        # trayectorias, piezas y líneas no queden lavadas en papel o visor PDF.
-        rgb = ImageEnhance.Contrast(rgb).enhance(1.42)
-        rgb = ImageEnhance.Color(rgb).enhance(1.18)
+        # PDF Club usa una ficha oscura: evitamos que previews con transparencias o fondos claros
+        # queden lavadas y reforzamos líneas, fichas y trayectorias.
+        rgb = ImageEnhance.Brightness(rgb).enhance(0.72)
+        rgb = ImageEnhance.Contrast(rgb).enhance(1.72)
+        rgb = ImageEnhance.Color(rgb).enhance(1.28)
         rgb = ImageEnhance.Sharpness(rgb).enhance(1.12)
         rgb.thumbnail((3200, 2400))
         out = io.BytesIO()
