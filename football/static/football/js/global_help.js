@@ -151,6 +151,60 @@
     .replace(/^[·•\-\s]+/, '')
     .slice(0, 90);
 
+  const normalizeHelpKey = (value) => {
+    try {
+      return safeText(value)
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .trim();
+    } catch (e) {
+      return safeText(value).toLowerCase().replace(/\s+/g, ' ').trim();
+    }
+  };
+
+  const helpDictionary = [
+    [/^(portada|home|inicio)$/, 'Vuelve a la portada del equipo con el resumen y los accesos principales.'],
+    [/^entrenador$/, 'Abre el panel de trabajo del entrenador: KPIs, seguimiento y tareas del staff.'],
+    [/^staff|cuerpo tecnico/, 'Abre las fichas del cuerpo técnico: datos, rol, foto y acceso al sistema.'],
+    [/entrenamiento|entrenos|sesiones|microciclo/, 'Planifica entrenamientos: microciclos, sesiones, tareas y pizarra.'],
+    [/^partido$|matchday|dia de partido/, 'Gestiona el partido: convocatoria, 11 inicial, registro de acciones e informes.'],
+    [/convocatoria/, 'Prepara la lista de convocados y disponibilidad para el partido.'],
+    [/11 inicial|once inicial|lineup|titulares/, 'Define titulares, banquillo y estructura inicial del partido.'],
+    [/registro de acciones|acciones|live|en vivo/, 'Registra lo que ocurre durante el partido para generar datos e informes.'],
+    [/jugador|jugadores|plantilla|roster/, 'Abre la plantilla y las fichas individuales de jugadores.'],
+    [/estadistica|estadisticas|kpi|metricas/, 'Consulta indicadores de rendimiento y seguimiento del equipo o jugador.'],
+    [/tactica|pizarra|abp|modelo de juego/, 'Abre herramientas tácticas: modelo de juego, pizarra y acciones a balón parado.'],
+    [/analisis|video|clip|scouting/, 'Abre análisis de vídeo, clips, informes y preparación del rival.'],
+    [/rival|rivales/, 'Gestiona información del rival y preparación del próximo partido.'],
+    [/agenda|calendario/, 'Consulta agenda semanal, entrenamientos, partidos y eventos.'],
+    [/lesion|lesiones|incidencia/, 'Gestiona lesiones, incidencias y estado físico del jugador.'],
+    [/informe|informes|pdf/, 'Abre o genera informes y documentos PDF.'],
+    [/academia|leccion|quiz/, 'Abre contenidos formativos, lecciones y seguimiento de aprendizaje.'],
+    [/configurar|configuracion|ajustes|onboarding/, 'Configura temporada, equipo, módulos, identidad y permisos.'],
+    [/platform|cliente|workspace|clubes/, 'Abre la gestión global de clubes, clientes, accesos y módulos.'],
+    [/buscar|ir a|comando/, 'Busca pantallas, jugadores o acciones y navega rápidamente por la app.'],
+    [/atajo|atajos|shortcuts/, 'Muestra atajos de teclado y acciones rápidas.'],
+    [/tema|oscuro|claro|hc/, 'Cambia el tema visual para mejorar legibilidad.'],
+    [/densidad|compacto|normal/, 'Cambia el espaciado para ver más información o trabajar más cómodo.'],
+    [/presentacion|pantalla completa/, 'Activa una vista limpia para presentar o trabajar con más espacio.'],
+    [/cuenta|perfil/, 'Abre la configuración de la cuenta del usuario actual.'],
+    [/soporte|ayuda|contacto/, 'Abre ayuda y canales de soporte.'],
+    [/admin|administracion/, 'Abre herramientas de administración y mantenimiento.'],
+    [/guardar|actualizar|grabar/, 'Guarda los cambios realizados en esta pantalla.'],
+    [/crear|nuevo|nueva|anadir|alta/, 'Crea un nuevo elemento en esta sección.'],
+    [/editar|modificar/, 'Permite cambiar los datos de este elemento.'],
+    [/borrar|eliminar|quitar|revocar/, 'Elimina o retira este elemento. Revisa antes de confirmar.'],
+    [/copiar/, 'Copia el enlace o texto al portapapeles.'],
+    [/descargar|download/, 'Descarga el archivo o documento a tu dispositivo.'],
+    [/subir|importar|cargar/, 'Sube o importa información desde un archivo.'],
+    [/exportar/, 'Exporta la información para compartirla o guardarla.'],
+    [/volver|atras|anterior/, 'Vuelve a la pantalla anterior.'],
+    [/entrar|abrir|ver/, 'Abre esta sección o ficha para consultar más detalle.'],
+    [/salir|logout|cerrar sesion/, 'Cierra la sesión del usuario actual.'],
+  ];
+
   const controlLabel = (el) => {
     if (!el) return '';
     const explicit = cleanLabel(el.getAttribute('data-help') || el.getAttribute('aria-label') || el.getAttribute('title'));
@@ -176,6 +230,7 @@
     if (dataHelp) return dataHelp;
     const label = controlLabel(el);
     const lower = label.toLowerCase();
+    const normalized = normalizeHelpKey(label);
     const tag = el.tagName ? el.tagName.toLowerCase() : '';
     const type = cleanLabel(el.getAttribute('type')).toLowerCase();
 
@@ -185,6 +240,9 @@
     if (type === 'radio') return `Selecciona ${label || 'esta opción'}.`;
     if (type === 'search') return `Busca ${label || 'resultados'} en esta pantalla.`;
     if (tag === 'input' || tag === 'textarea') return `Introduce ${label || 'la información solicitada'}.`;
+
+    const dictionaryMatch = helpDictionary.find(([pattern]) => pattern.test(normalized));
+    if (dictionaryMatch) return dictionaryMatch[1];
 
     if (lower.includes('guardar') || lower.includes('actualizar')) return 'Guarda los cambios realizados.';
     if (lower.includes('crear') || lower.includes('añadir') || lower.includes('nuevo')) return `Crea ${label.replace(/^(crear|añadir|nuevo)\s*/i, '') || 'un nuevo elemento'}.`;
