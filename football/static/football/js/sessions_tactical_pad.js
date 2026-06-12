@@ -11800,11 +11800,15 @@
 						                  const jitter = 0.82 + (pitch3dStadiumHash(node?.name || mat.name) * 0.24);
 						                  mat.color.multiplyScalar(jitter);
 						                  mat.map = mat.map || makeStadiumSurfaceTexture('seat');
+						                  mat.roughnessMap = mat.roughnessMap || mat.map || null;
 						                  mat.roughness = 0.58;
 						                  mat.metalness = 0.015;
 						                } else if (semantic.concrete) {
 						                  mat.color.lerp(new THREE.Color(0xd8ded8), 0.24);
 						                  mat.map = mat.map || makeStadiumSurfaceTexture('concrete');
+						                  mat.bumpMap = mat.bumpMap || mat.map || null;
+						                  mat.bumpScale = 0.018;
+						                  mat.roughnessMap = mat.roughnessMap || mat.map || null;
 						                  mat.roughness = 0.88;
 						                  mat.metalness = 0.018;
 						                } else if (semantic.dark) {
@@ -11814,6 +11818,7 @@
 						                } else if (semantic.metal) {
 						                  mat.color.lerp(new THREE.Color(0xdbe3e1), 0.20);
 						                  mat.map = mat.map || makeStadiumSurfaceTexture('metal');
+						                  mat.roughnessMap = mat.roughnessMap || mat.map || null;
 						                  mat.roughness = 0.36;
 						                  mat.metalness = 0.34;
 						                } else if (semantic.glass) {
@@ -11951,6 +11956,27 @@
 						                  addBox(roofPanelEnd, tintMat, metersW / 2 + 31.4, 16.32, z, 0, 0.075, 0, 'pitch_3d_stadium_translucent_roof_panel_east');
 						                  addBox(roofPanelEnd, tintMat, -(metersW / 2 + 31.4), 16.32, z, 0, -0.075, 0, 'pitch_3d_stadium_translucent_roof_panel_west');
 						                }
+						                const addProfessionalRoofTrusses = () => {
+						                  const trussMat = new THREE.MeshStandardMaterial({ color: 0xd9e2df, roughness: 0.32, metalness: 0.46 });
+						                  const cableMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.40, metalness: 0.38 });
+						                  const beamLong = new THREE.BoxGeometry(0.18, 0.18, 10.4);
+						                  const beamCross = new THREE.BoxGeometry(10.4, 0.18, 0.18);
+						                  for (let i = -7; i <= 7; i += 1) {
+						                    const x = i * ((metersW + 48.0) / 14);
+						                    addBox(beamLong, trussMat, x, 15.72, metersH / 2 + 26.6, -0.42, 0, 0, 'pitch_3d_stadium_professional_roof_truss_north');
+						                    addBox(beamLong, trussMat, x, 15.72, -(metersH / 2 + 26.6), 0.42, 0, 0, 'pitch_3d_stadium_professional_roof_truss_south');
+						                    if (i % 2 === 0) {
+						                      addBox(new THREE.BoxGeometry(0.08, 5.2, 0.08), cableMat, x, 13.10, metersH / 2 + 23.8, -0.28, 0, 0, 'pitch_3d_stadium_roof_suspension_cable');
+						                      addBox(new THREE.BoxGeometry(0.08, 5.2, 0.08), cableMat, x, 13.10, -(metersH / 2 + 23.8), 0.28, 0, 0, 'pitch_3d_stadium_roof_suspension_cable');
+						                    }
+						                  }
+						                  for (let i = -6; i <= 6; i += 1) {
+						                    const z = i * ((metersH + 42.0) / 12);
+						                    addBox(beamCross, trussMat, metersW / 2 + 26.6, 15.72, z, 0, 0.42, 0, 'pitch_3d_stadium_professional_roof_truss_east');
+						                    addBox(beamCross, trussMat, -(metersW / 2 + 26.6), 15.72, z, 0, -0.42, 0, 'pitch_3d_stadium_professional_roof_truss_west');
+						                  }
+						                };
+						                addProfessionalRoofTrusses();
 						                const addFacadePanels = (axis, sign, count, span, fixed) => {
 						                  for (let i = 0; i < count; i += 1) {
 						                    const t = count <= 1 ? 0 : (i / (count - 1)) - 0.5;
@@ -12042,33 +12068,78 @@
 						                  }
 						                };
 						                addPitchCarePattern();
-						                const addSeatBlocks = (axis, sign, rows, segments, span, baseY, fixed, stepBack) => {
-						                  for (let row = 0; row < rows; row += 1) {
-						                    const y = baseY + row * 0.34;
-						                    const depthOffset = fixed + sign * row * stepBack;
-						                    for (let seg = 0; seg < segments; seg += 1) {
-						                      if (seg === 3 || seg === segments - 4 || (row > 2 && seg === Math.floor(segments / 2))) continue;
-						                      const t = segments <= 1 ? 0 : (seg / (segments - 1)) - 0.5;
-						                      const offset = t * span;
-						                      const width = span / segments * 0.66;
-						                      const mat = (seg + row) % 5 === 0 ? seatShadowMat : ((seg + row) % 3 === 0 ? seatAccentMat : concreteMat);
-						                      if (axis === 'z') {
-						                        addBox(new THREE.BoxGeometry(width, 0.16, 0.58), mat, offset, y, depthOffset, -0.11 * sign, 0, 0, 'pitch_3d_stadium_individual_seat_blocks');
-						                      } else {
-						                        addBox(new THREE.BoxGeometry(0.58, 0.16, width), mat, depthOffset, y, offset, 0, 0.11 * sign, 0, 'pitch_3d_stadium_individual_seat_blocks');
-						                      }
-						                    }
-						                    [-0.31, 0.31].forEach((aisle) => {
-						                      const offset = aisle * span;
-						                      if (axis === 'z') addBox(new THREE.BoxGeometry(1.20, 0.10, 0.72), stairMat, offset, y + 0.02, depthOffset, -0.10 * sign, 0, 0, 'pitch_3d_stadium_concrete_aisle_step');
-						                      else addBox(new THREE.BoxGeometry(0.72, 0.10, 1.20), stairMat, depthOffset, y + 0.02, offset, 0, 0.10 * sign, 0, 'pitch_3d_stadium_concrete_aisle_step');
+						                const addInstancedSeatBowl = () => {
+						                  if (!THREE.InstancedMesh || !THREE.Object3D) return false;
+						                  try {
+						                    const dummy = new THREE.Object3D();
+						                    const seatBaseGeo = new THREE.BoxGeometry(0.46, 0.12, 0.38);
+						                    const seatBackGeo = new THREE.BoxGeometry(0.46, 0.34, 0.08);
+						                    const railGeo = new THREE.BoxGeometry(0.05, 0.78, 0.05);
+						                    const maxSeats = 2200;
+						                    const maxRails = 210;
+						                    const seatBase = new THREE.InstancedMesh(seatBaseGeo, seatAccentMat, maxSeats);
+						                    const seatBack = new THREE.InstancedMesh(seatBackGeo, seatShadowMat, maxSeats);
+						                    const aisleRails = new THREE.InstancedMesh(railGeo, metalMat, maxRails);
+						                    [seatBase, seatBack, aisleRails].forEach((mesh) => {
+						                      mesh.count = 0;
+						                      mesh.userData = { kind: 'pitch_3d_stadium_instanced_professional_seating' };
+						                      try { mesh.castShadow = true; mesh.receiveShadow = true; } catch (e) { /* ignore */ }
 						                    });
+						                    const place = (mesh, x, y, z, rx, ry, rz, sx = 1, sy = 1, sz = 1) => {
+						                      if (!mesh || mesh.count >= mesh.instanceMatrix.count) return;
+						                      dummy.position.set(x, y, z);
+						                      dummy.rotation.set(rx, ry, rz);
+						                      dummy.scale.set(sx, sy, sz);
+						                      dummy.updateMatrix();
+						                      mesh.setMatrixAt(mesh.count, dummy.matrix);
+						                      mesh.count += 1;
+						                    };
+						                    const addStandSeats = ({ axis, sign, rows, cols, span, fixed, baseY, rowDepth, rowRise }) => {
+						                      const aisleCols = new Set([4, Math.floor(cols * 0.33), Math.floor(cols * 0.67), cols - 5]);
+						                      for (let row = 0; row < rows; row += 1) {
+						                        const y = baseY + row * rowRise;
+						                        const depth = fixed + sign * row * rowDepth;
+						                        for (let col = 0; col < cols; col += 1) {
+						                          if (aisleCols.has(col) || ((col + 1) % 13 === 0 && row > 3)) continue;
+						                          const t = cols <= 1 ? 0 : (col / (cols - 1)) - 0.5;
+						                          const offset = t * span;
+						                          const stagger = ((row + col) % 2) * 0.035;
+						                          const dark = (row + col) % 7 === 0;
+						                          if (axis === 'z') {
+						                            place(seatBase, offset, y, depth + sign * stagger, -0.08 * sign, 0, 0, 1, 1, 1);
+						                            place(seatBack, offset, y + 0.22, depth + sign * 0.22, -0.20 * sign, 0, 0, 1, dark ? 0.88 : 1, 1);
+						                          } else {
+						                            place(seatBase, depth + sign * stagger, y, offset, 0, 0.08 * sign, 0, 1, 1, 1);
+						                            place(seatBack, depth + sign * 0.22, y + 0.22, offset, 0, 0.20 * sign, 0, 1, dark ? 0.88 : 1, 1);
+						                          }
+						                        }
+						                        aisleCols.forEach((col) => {
+						                          const t = cols <= 1 ? 0 : (col / (cols - 1)) - 0.5;
+						                          const offset = t * span;
+						                          if (axis === 'z') {
+						                            addBox(new THREE.BoxGeometry(0.90, 0.08, 0.70), stairMat, offset, y + 0.01, depth, -0.08 * sign, 0, 0, 'pitch_3d_stadium_professional_aisle_step');
+						                            if (row % 3 === 0) place(aisleRails, offset - 0.52, y + 0.42, depth, 0, 0, 0);
+						                          } else {
+						                            addBox(new THREE.BoxGeometry(0.70, 0.08, 0.90), stairMat, depth, y + 0.01, offset, 0, 0.08 * sign, 0, 'pitch_3d_stadium_professional_aisle_step');
+						                            if (row % 3 === 0) place(aisleRails, depth, y + 0.42, offset - 0.52, 0, 0, 0);
+						                          }
+						                        });
+						                      }
+						                    };
+						                    addStandSeats({ axis: 'z', sign: 1, rows: 13, cols: 42, span: metersW + 42.0, fixed: metersH / 2 + 10.6, baseY: 3.12, rowDepth: 0.62, rowRise: 0.30 });
+						                    addStandSeats({ axis: 'z', sign: -1, rows: 13, cols: 42, span: metersW + 42.0, fixed: -(metersH / 2 + 10.6), baseY: 3.12, rowDepth: 0.62, rowRise: 0.30 });
+						                    addStandSeats({ axis: 'x', sign: 1, rows: 11, cols: 34, span: metersH + 34.0, fixed: metersW / 2 + 10.4, baseY: 3.28, rowDepth: 0.60, rowRise: 0.30 });
+						                    addStandSeats({ axis: 'x', sign: -1, rows: 11, cols: 34, span: metersH + 34.0, fixed: -(metersW / 2 + 10.4), baseY: 3.28, rowDepth: 0.60, rowRise: 0.30 });
+						                    [seatBase, seatBack, aisleRails].forEach((mesh) => {
+						                      mesh.instanceMatrix.needsUpdate = true;
+						                      atmosphere.add(mesh);
+						                    });
+						                    return true;
+						                  } catch (e) {
+						                    return false;
 						                  }
 						                };
-						                addSeatBlocks('z', 1, 7, 22, metersW + 42.0, 3.2, metersH / 2 + 10.6, 0.82);
-						                addSeatBlocks('z', -1, 7, 22, metersW + 42.0, 3.2, -(metersH / 2 + 10.6), 0.82);
-						                addSeatBlocks('x', 1, 6, 18, metersH + 34.0, 3.4, metersW / 2 + 10.4, 0.78);
-						                addSeatBlocks('x', -1, 6, 18, metersH + 34.0, 3.4, -(metersW / 2 + 10.4), 0.78);
+						                addInstancedSeatBowl();
 						                const addPerimeterBoards = () => {
 						                  const adMat = makeStadiumBoardMaterial().clone();
 						                  adMat.emissiveIntensity = 0.64;
