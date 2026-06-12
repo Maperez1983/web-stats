@@ -278,16 +278,22 @@ const addStand = ({ name, side, cols, rows, length, depthStart, zFixed, xFixed }
   if (longSide) {
     box(`${name}_front_wall`, mats.concrete, [0, 1.55, zFixed - sign * 1.2], [span + 7, 1.0, 0.5]);
     box(`${name}_upper_concourse_band`, mats.concrete, [0, 7.2, zFixed + sign * 6.5], [span + 10, 0.55, 0.72], [-0.03 * sign, 0, 0]);
+    box(`${name}_glass_balustrade_top`, mats.glass, [0, 7.82, zFixed + sign * 6.04], [span + 6.5, 0.72, 0.08], [-0.03 * sign, 0, 0]);
+    box(`${name}_front_safety_rail`, mats.metal, [0, 2.28, zFixed - sign * 1.52], [span + 6.0, 0.08, 0.08]);
     [-0.34, 0, 0.34].forEach((slot, idx) => {
       box(`${name}_vomitory_shadow_${idx}`, mats.black, [slot * span, 3.7, zFixed + sign * 2.45], [4.8, 2.3, 0.18]);
       box(`${name}_vomitory_lintel_${idx}`, mats.concrete, [slot * span, 5.05, zFixed + sign * 2.34], [5.4, 0.32, 0.32]);
+      box(`${name}_vomitory_floor_${idx}`, mats.darkConcrete, [slot * span, 3.05, zFixed + sign * 2.12], [5.0, 0.16, 1.25]);
     });
   } else {
     box(`${name}_front_wall`, mats.concrete, [xFixed - sign * 1.2, 1.55, 0], [0.5, 1.0, span + 7]);
     box(`${name}_upper_concourse_band`, mats.concrete, [xFixed + sign * 6.5, 7.1, 0], [0.72, 0.55, span + 10], [0, 0.03 * sign, 0]);
+    box(`${name}_glass_balustrade_top`, mats.glass, [xFixed + sign * 6.04, 7.72, 0], [0.08, 0.68, span + 6.5], [0, 0.03 * sign, 0]);
+    box(`${name}_front_safety_rail`, mats.metal, [xFixed - sign * 1.52, 2.28, 0], [0.08, 0.08, span + 6.0]);
     [-0.28, 0.28].forEach((slot, idx) => {
       box(`${name}_vomitory_shadow_${idx}`, mats.black, [xFixed + sign * 2.45, 3.65, slot * span], [0.18, 2.0, 4.4]);
       box(`${name}_vomitory_lintel_${idx}`, mats.concrete, [xFixed + sign * 2.34, 4.9, slot * span], [0.32, 0.32, 5.0]);
+      box(`${name}_vomitory_floor_${idx}`, mats.darkConcrete, [xFixed + sign * 2.12, 3.02, slot * span], [1.25, 0.16, 4.6]);
     });
   }
 };
@@ -307,6 +313,13 @@ const addRoof = () => {
   box('south_green_roof_fascia', mats.greenDark, [0, 14.45, -(pitchH / 2 + 27.0)], [pitchW + 62, 1.0, 0.34], [0.03, 0, 0]);
   box('east_green_roof_fascia', mats.greenDark, [pitchW / 2 + 27.0, 14.35, 0], [0.34, 1.0, pitchH + 58], [0, 0.03, 0]);
   box('west_green_roof_fascia', mats.greenDark, [-(pitchW / 2 + 27.0), 14.35, 0], [0.34, 1.0, pitchH + 58], [0, -0.03, 0]);
+  box('north_roof_front_gutter', mats.darkMetal, [0, 14.08, pitchH / 2 + 26.65], [pitchW + 72, 0.18, 0.22], [-0.03, 0, 0]);
+  box('south_roof_front_gutter', mats.darkMetal, [0, 13.95, -(pitchH / 2 + 26.65)], [pitchW + 64, 0.18, 0.22], [0.03, 0, 0]);
+  box('north_press_box_glass', mats.glass, [0, 13.7, pitchH / 2 + 39.72], [17.5, 2.4, 0.12]);
+  box('north_press_box_roof', mats.darkMetal, [0, 15.05, pitchH / 2 + 39.58], [18.4, 0.28, 1.3]);
+  box('north_press_box_floor', mats.concrete, [0, 12.42, pitchH / 2 + 39.75], [18.6, 0.24, 1.45]);
+  box('north_camera_gantry_arm', mats.darkMetal, [0, 16.25, pitchH / 2 + 29.8], [0.25, 0.25, 8.0], [-0.25, 0, 0]);
+  box('north_camera_gantry_head', mats.black, [0, 15.26, pitchH / 2 + 26.0], [1.15, 0.7, 0.78]);
   box('north_roof_shadow_on_seats', mats.roofShadow, [0, 9.8, pitchH / 2 + 21.5], [pitchW + 54, 0.06, 8.8], [-0.04, 0, 0]);
   box('south_roof_shadow_on_seats', mats.roofShadow, [0, 9.4, -(pitchH / 2 + 20.8)], [pitchW + 48, 0.06, 7.6], [0.04, 0, 0]);
   for (let i = -18; i <= 18; i += 1) {
@@ -396,6 +409,22 @@ const addPerimeterRails = () => {
   }
 };
 addPerimeterRails();
+
+const addExternalAccessDetails = () => {
+  [-1, 1].forEach((side) => {
+    const x = side * (pitchW / 2 + 21.5);
+    box(`side_outer_stair_spine_${side}`, mats.concrete, [x, 2.65, pitchH / 2 + 18.5], [3.1, 0.28, 13.0], [0, -0.08 * side, 0]);
+    for (let i = 0; i < 8; i += 1) {
+      box(`side_outer_stair_step_${side}_${i}`, mats.concreteLine, [x, 1.15 + i * 0.33, pitchH / 2 + 13.0 + i * 1.48], [3.4, 0.08, 0.48]);
+    }
+    box(`side_outer_stair_handrail_a_${side}`, mats.metal, [x - side * 1.72, 3.6, pitchH / 2 + 19.0], [0.08, 0.08, 13.6], [0, -0.08 * side, 0]);
+    box(`side_outer_stair_handrail_b_${side}`, mats.metal, [x + side * 1.72, 3.6, pitchH / 2 + 19.0], [0.08, 0.08, 13.6], [0, -0.08 * side, 0]);
+    box(`side_service_door_${side}`, mats.black, [side * (pitchW / 2 + 9.8), 2.42, pitchH / 2 + 10.05], [2.0, 2.2, 0.16]);
+  });
+  writeBlockText({ text: 'CDB', name: 'main_stand_small_wayfinding_left', origin: [-54.0, 4.55, pitchH / 2 + 10.05], cell: 0.16, plane: 'xy' });
+  writeBlockText({ text: 'CDB', name: 'main_stand_small_wayfinding_right', origin: [48.5, 4.55, pitchH / 2 + 10.05], cell: 0.16, plane: 'xy' });
+};
+addExternalAccessDetails();
 
 const addGoalBackMesh = () => {
   [-1, 1].forEach((sign) => {
