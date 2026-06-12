@@ -4719,7 +4719,13 @@
         min-width: 0;
       }
       body:not(.tactics-mode) .builder {
-        grid-template-columns: minmax(0, 1fr) minmax(320px, 390px);
+        grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+      }
+      body:not(.tactics-mode) .page {
+        max-width: 1720px;
+      }
+      body:not(.tactics-mode) .panel-body {
+        padding: clamp(0.75rem, 1vw, 1rem);
       }
       body:not(.tactics-mode) .panel-head {
         display: grid;
@@ -4747,9 +4753,112 @@
       }
       body:not(.tactics-mode) .pitch-side .resource-tabs {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.38rem;
       }
       body:not(.tactics-mode).library-collapsed .pitch-side .resource-tabs {
         grid-template-columns: 1fr;
+      }
+      body:not(.tactics-mode) .pitch-layout {
+        grid-template-columns: minmax(0, 1fr) clamp(300px, 20vw, 350px);
+        gap: 0.72rem;
+      }
+      body:not(.tactics-mode) .pitch-stage {
+        max-width: min(var(--stage-max-user, 1680px), var(--stage-max-fit, 9999px));
+      }
+      body:not(.tactics-mode) .pitch-side {
+        top: 0.55rem;
+        max-height: calc(100vh - 1.4rem);
+        padding-right: 0;
+      }
+      body:not(.tactics-mode) .pitch-side.section {
+        border-radius: 16px;
+        padding: 0.72rem;
+        background: rgba(8, 18, 32, 0.72);
+      }
+      body:not(.tactics-mode) .library-head {
+        margin-bottom: 0.48rem;
+      }
+      body:not(.tactics-mode) .library-toggle {
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+      }
+      body:not(.tactics-mode) .library-filter {
+        padding: 0.54rem 0.68rem;
+        border-radius: 12px;
+        margin-bottom: 0.48rem;
+      }
+      body:not(.tactics-mode) .resource-tab {
+        min-height: 44px;
+        justify-content: flex-start;
+        border-radius: 12px;
+        padding: 0.44rem 0.52rem;
+        background: rgba(255,255,255,0.035);
+        border-color: rgba(255,255,255,0.12);
+        letter-spacing: 0.03em;
+      }
+      body:not(.tactics-mode) .resource-tab.is-active {
+        background: rgba(244,180,0,0.14);
+        border-color: rgba(244,180,0,0.48);
+        color: rgba(255,255,255,0.96);
+      }
+      body:not(.tactics-mode) .resource-tab .lib-ico {
+        width: 28px;
+        height: 28px;
+        border-radius: 10px;
+      }
+      body:not(.tactics-mode) .resource-panel {
+        margin-top: 0.5rem;
+      }
+      body:not(.tactics-mode) .pitch-side .resource-strip {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.38rem;
+      }
+      body:not(.tactics-mode) .pitch-side .resource-strip button.tool-icon,
+      body:not(.tactics-mode) .pitch-side .resource-strip button[data-add],
+      body:not(.tactics-mode) .pitch-side .resource-strip button[data-action] {
+        min-width: 0;
+        min-height: 48px;
+        padding: 0.42rem;
+        border-radius: 12px;
+        justify-content: center;
+      }
+      body:not(.tactics-mode) .pitch-side .resource-strip button.tool-icon .tool-emoji {
+        width: 24px;
+        height: 24px;
+        font-size: 1.08rem;
+      }
+      body:not(.tactics-mode) .pitch-main > .section {
+        margin-top: 0.65rem;
+      }
+      body:not(.tactics-mode) .pitch-main .player-bank-head {
+        margin-bottom: 0.45rem;
+      }
+      body:not(.tactics-mode) .pitch-main .player-bank {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: 118px;
+        grid-template-rows: repeat(2, auto);
+        gap: 0.42rem;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 0.05rem 0.05rem 0.35rem;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-gutter: stable both-edges;
+      }
+      body:not(.tactics-mode) .pitch-main .player-bank > button.player-token-bank {
+        width: auto;
+        min-width: 0;
+        padding: 0.48rem 0.55rem;
+        border-radius: 14px;
+      }
+      body:not(.tactics-mode) .pitch-main .player-bank-nav {
+        display: inline-flex;
+      }
+      body:not(.tactics-mode) .pitch-main .player-bank-nav button {
+        width: 38px;
+        height: 34px;
+        font-size: 17px;
       }
       .library-head {
         display: grid;
@@ -4801,6 +4910,12 @@
       @media (max-width: 1180px) {
         body:not(.tactics-mode) .builder {
           grid-template-columns: 1fr;
+        }
+        body:not(.tactics-mode) .pitch-layout {
+          grid-template-columns: 1fr;
+          grid-template-areas:
+            "main"
+            "side";
         }
         body:not(.tactics-mode) .panel-head {
           grid-template-columns: 1fr;
