@@ -398,6 +398,51 @@ const addFloodlightPools = () => {
 };
 addFloodlightPools();
 
+const addSeatSectorSeparators = () => {
+  const longStand = (name, sign, zStart, span, rows, separators) => {
+    separators.forEach((x, idx) => {
+      const zMid = zStart + sign * ((rows - 1) * 0.58) / 2;
+      box(`${name}_reference_white_aisle_spine_${idx}`, mats.concrete, [x, 4.68, zMid], [1.06, 4.95, rows * 0.58 + 0.8], [-0.11 * sign, 0, 0]);
+      box(`${name}_reference_aisle_left_green_edge_${idx}`, mats.greenDark, [x - 0.66, 4.72, zMid], [0.08, 4.65, rows * 0.58 + 0.38], [-0.11 * sign, 0, 0]);
+      box(`${name}_reference_aisle_right_green_edge_${idx}`, mats.greenDark, [x + 0.66, 4.72, zMid], [0.08, 4.65, rows * 0.58 + 0.38], [-0.11 * sign, 0, 0]);
+      if (Math.abs(x) < span * 0.42) box(`${name}_upper_vomitory_black_cut_${idx}`, mats.black, [x, 6.15, zStart + sign * 6.28], [2.35, 1.25, 0.16]);
+    });
+  };
+  longStand('north_main_stand', 1, pitchH / 2 + 10.2, pitchW + 48, 19, [-60, -38, -17, 0, 17, 38, 60]);
+  longStand('south_stand', -1, -(pitchH / 2 + 10.2), pitchW + 42, 17, [-52, -28, 0, 28, 52]);
+  [-1, 1].forEach((sign) => {
+    [-32, -16, 0, 16, 32].forEach((z, idx) => {
+      box(`short_stand_reference_white_aisle_${sign}_${idx}`, mats.concrete, [sign * (pitchW / 2 + 14.0), 4.48, z], [15 * 0.58 + 0.75, 4.35, 0.92], [0, 0.11 * sign, 0]);
+      box(`short_stand_reference_aisle_rail_${sign}_${idx}`, mats.metal, [sign * (pitchW / 2 + 14.0), 5.18, z + 0.58], [15 * 0.58 + 0.55, 0.07, 0.06], [0, 0.11 * sign, 0]);
+    });
+  });
+};
+addSeatSectorSeparators();
+
+const addMainStandReferenceArchitecture = () => {
+  box('main_stand_photo_upper_deck_white_lip', mats.white, [0, 7.02, pitchH / 2 + 23.6], [pitchW + 58, 0.34, 0.32], [-0.035, 0, 0]);
+  box('main_stand_photo_lower_deck_shadow_gap', mats.black, [0, 6.72, pitchH / 2 + 22.82], [pitchW + 56, 0.22, 0.16], [-0.035, 0, 0]);
+  box('main_stand_photo_front_concrete_parapet', mats.concrete, [0, 2.02, pitchH / 2 + 7.55], [pitchW + 62, 1.22, 0.46]);
+  box('main_stand_photo_front_green_ad_band', mats.led, [0, 1.48, pitchH / 2 + 6.96], [pitchW + 58, 0.78, 0.12]);
+  writeBlockText({ text: 'BENAGALBON CD', name: 'main_front_band_benagalbon', origin: [-18.2, 1.70, pitchH / 2 + 6.84], cell: 0.18, plane: 'xy' });
+  [-1, 1].forEach((side) => {
+    const x = side * (pitchW / 2 + 36.0);
+    box(`main_stand_photo_side_concrete_cheek_${side}`, mats.concrete, [x, 6.9, pitchH / 2 + 21.0], [2.6, 9.8, 25.5], [0, 0.04 * side, 0]);
+    box(`main_stand_photo_side_green_end_seats_${side}`, mats.greenDark, [x - side * 1.5, 5.6, pitchH / 2 + 16.2], [0.42, 5.8, 15.5], [0, 0.04 * side, 0]);
+    for (let i = 0; i < 5; i += 1) {
+      box(`main_stand_side_stair_step_${side}_${i}`, mats.concreteLine, [x - side * 1.62, 2.2 + i * 0.72, pitchH / 2 + 10.8 + i * 2.0], [0.62, 0.10, 1.65], [0, 0.04 * side, 0]);
+    }
+  });
+  for (let i = -8; i <= 8; i += 1) {
+    const x = i * ((pitchW + 54) / 16);
+    box(`main_roof_photo_front_vertical_post_${i}`, mats.darkMetal, [x, 11.85, pitchH / 2 + 25.55], [0.22, 5.25, 0.22], [-0.04, 0, 0]);
+    box(`main_roof_photo_upper_lattice_a_${i}`, mats.metal, [x - 1.0, 15.65, pitchH / 2 + 28.4], [0.08, 0.08, 7.7], [-0.42, 0, 0.18]);
+    box(`main_roof_photo_upper_lattice_b_${i}`, mats.metal, [x + 1.0, 15.65, pitchH / 2 + 28.4], [0.08, 0.08, 7.7], [-0.42, 0, -0.18]);
+    box(`main_roof_photo_light_bar_${i}`, mats.light, [x, 13.95, pitchH / 2 + 24.9], [4.15, 0.18, 0.22]);
+  }
+};
+addMainStandReferenceArchitecture();
+
 const addBoards = () => {
   [
     [0, pitchH / 2 + 3.1, pitchW + 8, 0.22],

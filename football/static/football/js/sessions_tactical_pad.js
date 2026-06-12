@@ -8190,8 +8190,10 @@
 						      __pitch3dTextureCache.set(src, entry);
 						      loader.load(src, (texture) => {
 						        try {
-						          texture.wrapS = THREE.ClampToEdgeWrapping;
-						          texture.wrapT = THREE.ClampToEdgeWrapping;
+						          const wrapMode = options.wrap === 'repeat' ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping;
+						          texture.wrapS = wrapMode;
+						          texture.wrapT = wrapMode;
+						          if (options.repeat && texture.repeat?.set) texture.repeat.set(Number(options.repeat[0]) || 1, Number(options.repeat[1]) || 1);
 						          texture.anisotropy = Math.min(getPitch3dMaxAnisotropy(), Number(options.anisotropy) || 16);
 						          if (options.colorSpace && 'colorSpace' in texture) texture.colorSpace = options.colorSpace;
 						          texture.needsUpdate = true;
@@ -9180,18 +9182,20 @@
 							      let targetX = 0;
 							      let targetY = 0;
 							      let targetZ = 0;
+							      pitch3dCamera.fov = 48;
 						      if (k === 'top_h' || k === 'top_v') {
 							        pitch3dOrbit.theta = k === 'top_h' ? 0 : (Math.PI / 2);
 							        pitch3dOrbit.phi = 0.02;
 							        pitch3dOrbit.radius = Math.max(70, Math.max(metersW, metersH) * 1.25);
 						      } else if (k === 'reference_photo') {
 						        // Vista calibrada contra la foto de referencia: esquina alta, grada principal y banquillos visibles.
-							        pitch3dOrbit.theta = -2.58;
-							        pitch3dOrbit.phi = 1.08;
-							        pitch3dOrbit.radius = Math.max(132, metersW * 1.20);
-							        targetX = -1.6;
-							        targetY = 7.4;
-							        targetZ = 3.8;
+							        pitch3dCamera.fov = 42;
+							        pitch3dOrbit.theta = -2.54;
+							        pitch3dOrbit.phi = 1.04;
+							        pitch3dOrbit.radius = Math.max(138, metersW * 1.28);
+							        targetX = -4.5;
+							        targetY = 7.9;
+							        targetZ = 4.8;
 						      } else if (k === 'render_original') {
 						        // Vista de referencia: esquina alta, menos recorte lateral y lectura completa del estadio.
 							        pitch3dOrbit.theta = -2.36;
@@ -9279,6 +9283,7 @@
 						        cz + (r * sinPhi * Math.sin(theta)),
 						      );
 						      pitch3dCamera.lookAt(cx, cy, cz);
+						      pitch3dCamera.updateProjectionMatrix();
 						    };
 
 						    const addPitch3dRenderBackdrop = (root, metersW, metersH) => {
@@ -11814,6 +11819,15 @@
 						                } else if (semantic.concrete) {
 						                  mat.color.lerp(new THREE.Color(0xd8ded8), 0.24);
 						                  mat.map = mat.map || makeStadiumSurfaceTexture('concrete');
+						                  __pitch3dLoadTextureAsset('pitch3dConcreteAlbedoSrc', (loaded) => {
+						                    try {
+						                      loaded.wrapS = THREE.RepeatWrapping;
+						                      loaded.wrapT = THREE.RepeatWrapping;
+						                      loaded.repeat.set(18, 3);
+						                      mat.map = loaded;
+						                      mat.needsUpdate = true;
+						                    } catch (e) { /* ignore */ }
+						                  }, { wrap: 'repeat', repeat: [18, 3], anisotropy: 12 });
 						                  mat.bumpMap = mat.bumpMap || mat.map || null;
 						                  mat.bumpScale = 0.018;
 						                  mat.roughnessMap = mat.roughnessMap || mat.map || null;
@@ -11855,6 +11869,37 @@
 						                mat.needsUpdate = true;
 						              } catch (e) { /* ignore */ }
 						              return mat;
+						            };
+						            const addReferenceStadiumCrestDecals = (stadiumAsset) => {
+						              if (!stadiumAsset || !window.THREE) return;
+						              try {
+						                const makeDecal = (name, position, scale, rotation = [0, Math.PI, 0]) => {
+						                  const material = new THREE.MeshBasicMaterial({
+						                    color: 0xffffff,
+						                    transparent: true,
+						                    opacity: 0.98,
+						                    depthWrite: false,
+						                    side: THREE.DoubleSide,
+						                    toneMapped: false,
+						                  });
+						                  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(scale[0], scale[1]), material);
+						                  mesh.name = name;
+						                  mesh.position.set(position[0], position[1], position[2]);
+						                  mesh.rotation.set(rotation[0], rotation[1], rotation[2]);
+						                  mesh.renderOrder = 18;
+						                  mesh.userData = { kind: 'pitch_3d_reference_stadium_crest_decal' };
+						                  stadiumAsset.add(mesh);
+						                  __pitch3dLoadTextureAsset('pitch3dBenagalbonCrestSrc', (loaded) => {
+						                    try {
+						                      material.map = loaded;
+						                      material.needsUpdate = true;
+						                    } catch (e) { /* ignore */ }
+						                  }, { anisotropy: 16, colorSpace: THREE.SRGBColorSpace });
+						                  return mesh;
+						                };
+						                makeDecal('reference_main_stand_real_cdb_crest', [0, 8.78, 44.34], [6.1, 6.1]);
+						                makeDecal('reference_scoreboard_real_cdb_crest', [60.04, 6.92, 42.30], [2.0, 2.0], [0, Math.PI * 0.75, 0]);
+						              } catch (e) { /* ignore */ }
 						            };
 						            const enhanceProfessionalStadiumAsset = (stadiumAsset) => {
 						              if (!stadiumAsset) return;
@@ -12767,6 +12812,7 @@
 						                  try { node.castShadow = true; node.receiveShadow = true; } catch (e) { /* ignore */ }
 						                });
 						                enhanceProfessionalStadiumAsset(stadiumAsset);
+						                if (isDedicatedReferenceStadium) addReferenceStadiumCrestDecals(stadiumAsset);
 						                root.add(stadiumAsset);
 						                addProfessionalStadiumAtmosphere(stadiumAsset, { dedicatedReference: isDedicatedReferenceStadium });
 						                return true;
