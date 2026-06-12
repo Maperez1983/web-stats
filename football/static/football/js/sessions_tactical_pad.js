@@ -13104,6 +13104,81 @@
 						        } catch (e) { /* ignore */ }
 						      };
 						      addPitchSideDetails3d();
+						      try {
+						        const stadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
+						        if (isDedicatedPitch3dReferenceStadiumSrc(stadiumModelSrc)) {
+						          const dedicatedFinish = new THREE.Group();
+						          dedicatedFinish.userData = { kind: 'pitch_3d_dedicated_reference_completion_layer' };
+						          const concreteMat = new THREE.MeshStandardMaterial({ color: 0xcfd6d1, roughness: 0.76, metalness: 0.03 });
+						          const darkVoidMat = new THREE.MeshStandardMaterial({ color: 0x030712, roughness: 0.88, metalness: 0.02 });
+						          const seatMat = new THREE.MeshStandardMaterial({ color: 0x047857, roughness: 0.58, metalness: 0.02 });
+						          const seatDarkMat = new THREE.MeshStandardMaterial({ color: 0x064e3b, roughness: 0.60, metalness: 0.02 });
+						          const stairMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.66, metalness: 0.02 });
+						          const railMat = new THREE.MeshStandardMaterial({ color: 0xdff7ff, roughness: 0.14, metalness: 0.02, transparent: true, opacity: 0.38 });
+						          const boardMat = new THREE.MeshStandardMaterial({ color: 0x063f33, roughness: 0.48, metalness: 0.06, emissive: 0x021f1a, emissiveIntensity: 0.10 });
+						          const addMesh = (geo, mat, x, y, z, kind) => {
+						            const mesh = new THREE.Mesh(geo, mat);
+						            mesh.position.set(x, y, z);
+						            mesh.userData = { kind };
+						            try { mesh.castShadow = true; mesh.receiveShadow = true; } catch (e) { /* ignore */ }
+						            dedicatedFinish.add(mesh);
+						            return mesh;
+						          };
+						          const addLongStand = (sideSign) => {
+						            const baseZ = sideSign * (metersH / 2 + 6.7);
+						            addMesh(new THREE.BoxGeometry(metersW + 17.5, 0.55, 8.6), concreteMat, 0, 0.38, baseZ, 'pitch_3d_dedicated_completion_long_stand_podium');
+						            addMesh(new THREE.BoxGeometry(metersW + 13.5, 0.95, 0.34), boardMat, 0, 1.02, sideSign * (metersH / 2 + 3.35), 'pitch_3d_dedicated_completion_long_pitchside_board');
+						            const rowCount = 9;
+						            for (let row = 0; row < rowCount; row += 1) {
+						              const y = 1.10 + row * 0.32;
+						              const z = sideSign * (metersH / 2 + 4.55 + row * 0.58);
+						              [-0.34, -0.12, 0.12, 0.34].forEach((ratio, idx) => {
+						                const segW = metersW * (idx === 1 || idx === 2 ? 0.18 : 0.17);
+						                const x = ratio * metersW;
+						                addMesh(new THREE.BoxGeometry(segW, 0.16, 0.34), (row + idx) % 6 === 0 ? seatDarkMat : seatMat, x, y, z, 'pitch_3d_dedicated_completion_long_green_seat_band');
+						              });
+						            }
+						            [-0.42, -0.20, 0, 0.20, 0.42].forEach((ratio) => {
+						              addMesh(new THREE.BoxGeometry(1.05, 0.18, 6.5), stairMat, ratio * metersW, 2.25, sideSign * (metersH / 2 + 6.95), 'pitch_3d_dedicated_completion_long_white_stair');
+						              addMesh(new THREE.BoxGeometry(0.08, 1.05, 5.9), railMat, ratio * metersW - 0.62, 2.78, sideSign * (metersH / 2 + 6.95), 'pitch_3d_dedicated_completion_long_stair_rail');
+						              addMesh(new THREE.BoxGeometry(0.08, 1.05, 5.9), railMat, ratio * metersW + 0.62, 2.78, sideSign * (metersH / 2 + 6.95), 'pitch_3d_dedicated_completion_long_stair_rail');
+						            });
+						            addMesh(new THREE.BoxGeometry(metersW + 11.2, 0.18, 0.18), railMat, 0, 4.20, sideSign * (metersH / 2 + 9.55), 'pitch_3d_dedicated_completion_long_top_glass_rail');
+						          };
+						          const addSideStand = (sideSign) => {
+						            const baseX = sideSign * (metersW / 2 + 6.35);
+						            addMesh(new THREE.BoxGeometry(8.4, 0.55, metersH + 10.5), concreteMat, baseX, 0.38, 0, 'pitch_3d_dedicated_completion_side_stand_podium');
+						            addMesh(new THREE.BoxGeometry(0.34, 0.95, metersH + 8.6), boardMat, sideSign * (metersW / 2 + 3.35), 1.02, 0, 'pitch_3d_dedicated_completion_side_pitchside_board');
+						            const rowCount = 8;
+						            for (let row = 0; row < rowCount; row += 1) {
+						              const y = 1.05 + row * 0.31;
+						              const x = sideSign * (metersW / 2 + 4.45 + row * 0.55);
+						              [-0.30, -0.10, 0.12, 0.32].forEach((ratio, idx) => {
+						                const segH = metersH * 0.16;
+						                const z = ratio * metersH;
+						                addMesh(new THREE.BoxGeometry(0.32, 0.15, segH), (row + idx) % 5 === 0 ? seatDarkMat : seatMat, x, y, z, 'pitch_3d_dedicated_completion_side_green_seat_band');
+						              });
+						            }
+						            [-0.36, -0.12, 0.12, 0.36].forEach((ratio) => {
+						              addMesh(new THREE.BoxGeometry(6.0, 0.18, 1.02), stairMat, sideSign * (metersW / 2 + 6.65), 2.15, ratio * metersH, 'pitch_3d_dedicated_completion_side_white_stair');
+						              addMesh(new THREE.BoxGeometry(5.4, 1.00, 0.08), railMat, sideSign * (metersW / 2 + 6.65), 2.66, ratio * metersH - 0.62, 'pitch_3d_dedicated_completion_side_stair_rail');
+						              addMesh(new THREE.BoxGeometry(5.4, 1.00, 0.08), railMat, sideSign * (metersW / 2 + 6.65), 2.66, ratio * metersH + 0.62, 'pitch_3d_dedicated_completion_side_stair_rail');
+						            });
+						            addMesh(new THREE.BoxGeometry(0.18, 0.18, metersH + 7.0), railMat, sideSign * (metersW / 2 + 9.35), 3.92, 0, 'pitch_3d_dedicated_completion_side_top_glass_rail');
+						          };
+						          addLongStand(-1);
+						          addSideStand(-1);
+						          addSideStand(1);
+						          [-1, 1].forEach((sx) => {
+						            [-1, 1].forEach((sz) => {
+						              addMesh(new THREE.BoxGeometry(8.0, 0.46, 8.0), concreteMat, sx * (metersW / 2 + 6.0), 0.36, sz * (metersH / 2 + 6.0), 'pitch_3d_dedicated_completion_corner_podium');
+						              addMesh(new THREE.BoxGeometry(5.2, 0.16, 0.34), seatMat, sx * (metersW / 2 + 6.5), 1.35, sz * (metersH / 2 + 5.2), 'pitch_3d_dedicated_completion_corner_seat_band');
+						              addMesh(new THREE.BoxGeometry(0.34, 0.16, 5.2), seatMat, sx * (metersW / 2 + 5.2), 1.35, sz * (metersH / 2 + 6.5), 'pitch_3d_dedicated_completion_corner_seat_band');
+						            });
+						          });
+						          root.add(dedicatedFinish);
+						        }
+						      } catch (e) { /* ignore */ }
 
 						      // El campo es una pieza 3D, no una lámina 2D: base con canto visible y borde interior.
 						      try {
