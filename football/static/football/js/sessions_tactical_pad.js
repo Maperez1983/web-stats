@@ -12813,7 +12813,7 @@
 						                });
 						                enhanceProfessionalStadiumAsset(stadiumAsset);
 						                root.add(stadiumAsset);
-						                addProfessionalStadiumAtmosphere(stadiumAsset, { dedicatedReference: isDedicatedReferenceStadium });
+						                if (!isDedicatedReferenceStadium) addProfessionalStadiumAtmosphere(stadiumAsset, { dedicatedReference: false });
 						                return true;
 						              } catch (e) {
 						                return false;

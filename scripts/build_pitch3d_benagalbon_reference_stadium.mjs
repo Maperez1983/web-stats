@@ -216,17 +216,14 @@ const addStand = ({ name, side, cols, rows, length, depthStart, zFixed, xFixed }
   const aisleCols = longSide
     ? new Set([5, Math.floor(cols * 0.2), Math.floor(cols * 0.36), Math.floor(cols * 0.5), Math.floor(cols * 0.64), Math.floor(cols * 0.8), cols - 6])
     : new Set([4, Math.floor(cols * 0.28), Math.floor(cols * 0.5), Math.floor(cols * 0.72), cols - 5]);
-  const crowdMaterials = [mats.crowdDark, mats.crowdGreen, mats.crowdWhite];
 
   for (let row = 0; row < rows; row += 1) {
     const y = 2.15 + row * 0.31;
     const depth = depthStart + sign * row * 0.58;
     if (longSide) {
       box(`${name}_continuous_riser_${row}`, mats.darkConcrete, [0, y - 0.18, depth + sign * 0.18], [span + 3.2, 0.16, 0.22], [-0.03 * sign, 0, 0]);
-      if (row % 2 === 0) box(`${name}_row_contact_shadow_${row}`, mats.seatShadow, [0, y - 0.065, depth - sign * 0.055], [span + 2.4, 0.025, 0.075], [-0.03 * sign, 0, 0]);
     } else {
       box(`${name}_continuous_riser_${row}`, mats.darkConcrete, [depth + sign * 0.18, y - 0.18, 0], [0.22, 0.16, span + 3.2], [0, 0.03 * sign, 0]);
-      if (row % 2 === 0) box(`${name}_row_contact_shadow_${row}`, mats.seatShadow, [depth - sign * 0.055, y - 0.065, 0], [0.075, 0.025, span + 2.4], [0, 0.03 * sign, 0]);
     }
     for (let col = 0; col < cols; col += 1) {
       const t = col / (cols - 1) - 0.5;
@@ -243,24 +240,11 @@ const addStand = ({ name, side, cols, rows, length, depthStart, zFixed, xFixed }
         box(`${name}_chair_${row}_${col}`, material, [offset, y, depth], [0.44, 0.18, 0.38], [-0.08 * sign, 0, 0]);
         if (!isAisle) {
           box(`${name}_back_${row}_${col}`, material, [offset, y + 0.25, depth + sign * 0.24], [0.44, 0.38, 0.08], [-0.22 * sign, 0, 0]);
-          if (row % 4 === 0 && col % 6 === 0) box(`${name}_seat_highlight_${row}_${col}`, mats.white, [offset - 0.05, y + 0.1, depth - sign * 0.03], [0.18, 0.018, 0.12], [-0.08 * sign, 0, 0]);
         }
       } else {
         box(`${name}_chair_${row}_${col}`, material, [depth, y, offset], [0.38, 0.18, 0.44], [0, 0.08 * sign, 0]);
         if (!isAisle) {
           box(`${name}_back_${row}_${col}`, material, [depth + sign * 0.24, y + 0.25, offset], [0.08, 0.38, 0.44], [0, 0.22 * sign, 0]);
-          if (row % 4 === 0 && col % 6 === 0) box(`${name}_seat_highlight_${row}_${col}`, mats.white, [depth - sign * 0.03, y + 0.1, offset - 0.05], [0.12, 0.018, 0.18], [0, 0.08 * sign, 0]);
-        }
-      }
-      const crowdSeed = (row * 37 + col * 17 + name.length) % 19;
-      if (!isAisle && row >= Math.floor(rows * 0.45) && row % 2 === 1 && col % 4 === 1 && crowdSeed < 7) {
-        const crowdMat = crowdMaterials[(row + col) % crowdMaterials.length];
-        if (longSide) {
-          box(`${name}_crowd_body_${row}_${col}`, crowdMat, [offset, y + 0.44, depth + sign * 0.03], [0.28, 0.46, 0.18], [-0.06 * sign, 0, 0]);
-          box(`${name}_crowd_head_${row}_${col}`, mats.concrete, [offset, y + 0.77, depth + sign * 0.03], [0.18, 0.16, 0.16], [-0.04 * sign, 0, 0]);
-        } else {
-          box(`${name}_crowd_body_${row}_${col}`, crowdMat, [depth + sign * 0.03, y + 0.44, offset], [0.18, 0.46, 0.28], [0, 0.06 * sign, 0]);
-          box(`${name}_crowd_head_${row}_${col}`, mats.concrete, [depth + sign * 0.03, y + 0.77, offset], [0.16, 0.16, 0.18], [0, 0.04 * sign, 0]);
         }
       }
     }
@@ -295,11 +279,6 @@ const addStand = ({ name, side, cols, rows, length, depthStart, zFixed, xFixed }
     box(`${name}_upper_concourse_band`, mats.concrete, [0, 7.2, zFixed + sign * 6.5], [span + 10, 0.55, 0.72], [-0.03 * sign, 0, 0]);
     box(`${name}_glass_balustrade_top`, mats.glass, [0, 7.82, zFixed + sign * 6.04], [span + 6.5, 0.72, 0.08], [-0.03 * sign, 0, 0]);
     box(`${name}_front_safety_rail`, mats.metal, [0, 2.28, zFixed - sign * 1.52], [span + 6.0, 0.08, 0.08]);
-    [-0.34, 0, 0.34].forEach((slot, idx) => {
-      box(`${name}_vomitory_shadow_${idx}`, mats.black, [slot * span, 3.7, zFixed + sign * 2.45], [4.8, 2.3, 0.18]);
-      box(`${name}_vomitory_lintel_${idx}`, mats.concrete, [slot * span, 5.05, zFixed + sign * 2.34], [5.4, 0.32, 0.32]);
-      box(`${name}_vomitory_floor_${idx}`, mats.darkConcrete, [slot * span, 3.05, zFixed + sign * 2.12], [5.0, 0.16, 1.25]);
-    });
   } else {
     box(`${name}_front_wall`, mats.concrete, [xFixed - sign * 1.2, 1.55, 0], [0.5, 1.0, span + 7]);
     for (let i = -5; i <= 5; i += 1) {
@@ -309,11 +288,6 @@ const addStand = ({ name, side, cols, rows, length, depthStart, zFixed, xFixed }
     box(`${name}_upper_concourse_band`, mats.concrete, [xFixed + sign * 6.5, 7.1, 0], [0.72, 0.55, span + 10], [0, 0.03 * sign, 0]);
     box(`${name}_glass_balustrade_top`, mats.glass, [xFixed + sign * 6.04, 7.72, 0], [0.08, 0.68, span + 6.5], [0, 0.03 * sign, 0]);
     box(`${name}_front_safety_rail`, mats.metal, [xFixed - sign * 1.52, 2.28, 0], [0.08, 0.08, span + 6.0]);
-    [-0.28, 0.28].forEach((slot, idx) => {
-      box(`${name}_vomitory_shadow_${idx}`, mats.black, [xFixed + sign * 2.45, 3.65, slot * span], [0.18, 2.0, 4.4]);
-      box(`${name}_vomitory_lintel_${idx}`, mats.concrete, [xFixed + sign * 2.34, 4.9, slot * span], [0.32, 0.32, 5.0]);
-      box(`${name}_vomitory_floor_${idx}`, mats.darkConcrete, [xFixed + sign * 2.12, 3.02, slot * span], [1.25, 0.16, 4.6]);
-    });
   }
 };
 
@@ -372,7 +346,6 @@ const addRoof = () => {
     box(`north_cantilever_rear_mast_${i}`, mats.darkMetal, [x, 18.7, pitchH / 2 + 39.8], [0.34, 6.2, 0.34], [-0.07, 0, 0]);
     box(`north_cantilever_tension_rod_a_${i}`, mats.metal, [x - 0.5, 17.15, pitchH / 2 + 34.2], [0.10, 0.10, 11.2], [-0.58, 0, 0.06]);
     box(`north_cantilever_tension_rod_b_${i}`, mats.metal, [x + 0.5, 17.15, pitchH / 2 + 34.2], [0.10, 0.10, 11.2], [-0.58, 0, -0.06]);
-    box(`north_roof_black_service_box_${i}`, mats.black, [x, 16.4, pitchH / 2 + 28.9], [2.1, 0.42, 0.54]);
   }
   [1].forEach((sign) => {
     for (let i = -7; i <= 7; i += 1) {
@@ -394,51 +367,6 @@ const addFloodlightPools = () => {
   });
 };
 addFloodlightPools();
-
-const addSeatSectorSeparators = () => {
-  const longStand = (name, sign, zStart, span, rows, separators) => {
-    separators.forEach((x, idx) => {
-      const zMid = zStart + sign * ((rows - 1) * 0.58) / 2;
-      box(`${name}_reference_white_aisle_spine_${idx}`, mats.concrete, [x, 4.68, zMid], [1.06, 4.95, rows * 0.58 + 0.8], [-0.11 * sign, 0, 0]);
-      box(`${name}_reference_aisle_left_green_edge_${idx}`, mats.greenDark, [x - 0.66, 4.72, zMid], [0.08, 4.65, rows * 0.58 + 0.38], [-0.11 * sign, 0, 0]);
-      box(`${name}_reference_aisle_right_green_edge_${idx}`, mats.greenDark, [x + 0.66, 4.72, zMid], [0.08, 4.65, rows * 0.58 + 0.38], [-0.11 * sign, 0, 0]);
-      if (Math.abs(x) < span * 0.42) box(`${name}_upper_vomitory_black_cut_${idx}`, mats.black, [x, 6.15, zStart + sign * 6.28], [2.35, 1.25, 0.16]);
-    });
-  };
-  longStand('north_main_stand', 1, pitchH / 2 + 9.7, pitchW + 66, 24, [-70, -47, -24, 0, 24, 47, 70]);
-  longStand('south_stand', -1, -(pitchH / 2 + 8.6), pitchW + 34, 8, [-47, -22, 0, 22, 47]);
-  [-1, 1].forEach((sign) => {
-    [-32, -16, 0, 16, 32].forEach((z, idx) => {
-      const rowCount = sign > 0 ? 12 : 7;
-      box(`short_stand_reference_white_aisle_${sign}_${idx}`, mats.concrete, [sign * (pitchW / 2 + 13.1), 4.02, z], [rowCount * 0.58 + 0.75, 3.35, 0.92], [0, 0.11 * sign, 0]);
-      box(`short_stand_reference_aisle_rail_${sign}_${idx}`, mats.metal, [sign * (pitchW / 2 + 13.1), 4.65, z + 0.58], [rowCount * 0.58 + 0.55, 0.07, 0.06], [0, 0.11 * sign, 0]);
-    });
-  });
-};
-
-const addMainStandReferenceArchitecture = () => {
-  box('main_stand_photo_upper_deck_white_lip', mats.white, [0, 7.02, pitchH / 2 + 23.6], [pitchW + 58, 0.34, 0.32], [-0.035, 0, 0]);
-  box('main_stand_photo_lower_deck_shadow_gap', mats.black, [0, 6.72, pitchH / 2 + 22.82], [pitchW + 56, 0.22, 0.16], [-0.035, 0, 0]);
-  box('main_stand_photo_front_concrete_parapet', mats.concrete, [0, 2.02, pitchH / 2 + 7.55], [pitchW + 62, 1.22, 0.46]);
-  box('main_stand_photo_front_green_ad_band', mats.led, [0, 1.48, pitchH / 2 + 6.96], [pitchW + 58, 0.78, 0.12]);
-  writeBlockText({ text: 'BENAGALBON CD', name: 'main_front_band_benagalbon', origin: [-18.2, 1.70, pitchH / 2 + 6.84], cell: 0.18, plane: 'xy' });
-  writeBlockText({ text: 'BENAGALBON CD', name: 'main_seat_photo_scale_letters', origin: [-34.6, 6.75, pitchH / 2 + 19.05], cell: 0.42, plane: 'xy' });
-  [-1, 1].forEach((side) => {
-    const x = side * (pitchW / 2 + 36.0);
-    box(`main_stand_photo_side_concrete_cheek_${side}`, mats.concrete, [x, 6.9, pitchH / 2 + 21.0], [2.6, 9.8, 25.5], [0, 0.04 * side, 0]);
-    box(`main_stand_photo_side_green_end_seats_${side}`, mats.greenDark, [x - side * 1.5, 5.6, pitchH / 2 + 16.2], [0.42, 5.8, 15.5], [0, 0.04 * side, 0]);
-    for (let i = 0; i < 5; i += 1) {
-      box(`main_stand_side_stair_step_${side}_${i}`, mats.concreteLine, [x - side * 1.62, 2.2 + i * 0.72, pitchH / 2 + 10.8 + i * 2.0], [0.62, 0.10, 1.65], [0, 0.04 * side, 0]);
-    }
-  });
-  for (let i = -8; i <= 8; i += 1) {
-    const x = i * ((pitchW + 54) / 16);
-    box(`main_roof_photo_front_vertical_post_${i}`, mats.darkMetal, [x, 11.85, pitchH / 2 + 25.55], [0.22, 5.25, 0.22], [-0.04, 0, 0]);
-    box(`main_roof_photo_upper_lattice_a_${i}`, mats.metal, [x - 1.0, 15.65, pitchH / 2 + 28.4], [0.08, 0.08, 7.7], [-0.42, 0, 0.18]);
-    box(`main_roof_photo_upper_lattice_b_${i}`, mats.metal, [x + 1.0, 15.65, pitchH / 2 + 28.4], [0.08, 0.08, 7.7], [-0.42, 0, -0.18]);
-    box(`main_roof_photo_light_bar_${i}`, mats.light, [x, 13.95, pitchH / 2 + 24.9], [4.15, 0.18, 0.22]);
-  }
-};
 
 const addBoards = () => {
   [
