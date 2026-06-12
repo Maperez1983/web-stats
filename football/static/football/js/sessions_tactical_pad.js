@@ -8325,12 +8325,12 @@
 						      }
 						      return null;
 						    };
-						    const __pitch3dPlayerModelCache = { loading: false, scene: null, failed: false, callbacks: [] };
+						    const __pitch3dPlayerModelCache = { loading: false, scene: null, animations: [], failed: false, callbacks: [] };
 						    const __pitch3dLoadPlayerModel = (onLoad) => {
 						      const src = __pitch3dAssetUrl('pitch3dPlayerModelSrc');
 						      if (!src || !window.THREE) return null;
 						      if (__pitch3dPlayerModelCache.scene) {
-						        try { if (typeof onLoad === 'function') onLoad(__pitch3dPlayerModelCache.scene); } catch (e) { /* ignore */ }
+						        try { if (typeof onLoad === 'function') onLoad(__pitch3dPlayerModelCache.scene, __pitch3dPlayerModelCache.animations || []); } catch (e) { /* ignore */ }
 						        return __pitch3dPlayerModelCache.scene;
 						      }
 						      if (typeof onLoad === 'function') __pitch3dPlayerModelCache.callbacks.push(onLoad);
@@ -8342,11 +8342,13 @@
 						        const loader = new LoaderClass();
 						        loader.load(src, (gltf) => {
 						          const scene = gltf?.scene || null;
+						          const animations = Array.isArray(gltf?.animations) ? gltf.animations : [];
 						          __pitch3dPlayerModelCache.scene = scene;
+						          __pitch3dPlayerModelCache.animations = animations;
 						          __pitch3dPlayerModelCache.loading = false;
 						          const callbacks = __pitch3dPlayerModelCache.callbacks.splice(0);
 						          callbacks.forEach((cb) => {
-						            try { cb(scene); } catch (e) { /* ignore */ }
+						            try { cb(scene, animations); } catch (e) { /* ignore */ }
 						          });
 						        }, undefined, () => {
 						          __pitch3dPlayerModelCache.loading = false;
@@ -9119,6 +9121,8 @@
 							    let pitch3dGhostRoot = null;
 							    let pitch3dTrailRoot = null;
 							    let pitch3dPerf = { frames: 0, lastAt: 0, fps: 0, meshCount: 0, budget: 'normal', quality: 'normal' };
+							    let pitch3dAvatarMixers = [];
+							    let pitch3dAvatarAnimLastAt = 0;
 
 							    const clearPitch3dGhosts = () => {
 							      if (!pitch3dRoot) return;
@@ -9501,6 +9505,8 @@
 						    const buildPitch3dRoot = (state, options = {}) => {
 						      if (!pitch3dScene || !pitch3dCamera) return;
 						      disposePitch3dRoot();
+						      pitch3dAvatarMixers = [];
+						      pitch3dAvatarAnimLastAt = 0;
 						      const root = new THREE.Group();
 						      pitch3dRoot = root;
 						      pitch3dScene.add(root);
@@ -14450,6 +14456,49 @@
 						          } catch (e) { /* ignore */ }
 					        } catch (e) { /* ignore */ }
 						      };
+						      const addPitch3dPlayerKitOverlay = (holder, o, colors) => {
+						        if (!holder || !window.THREE) return;
+						        try {
+						          const data = o?.data || {};
+						          const shirtCol = toColorInt(colors?.shirt || data.token_stripe_color || data.color || '#1d4ed8', 0x1d4ed8);
+						          const baseCol = toColorInt(colors?.base || data.token_base_color || '#ffffff', 0xffffff);
+						          const shortsCol = toColorInt(darkenHex(colors?.shirt || data.token_stripe_color || '#1d4ed8', 0.56), 0x0f172a);
+						          const shirtMat = new THREE.MeshStandardMaterial({ name: 'jersey_overlay_shirt', color: shirtCol, roughness: 0.60, metalness: 0.02, transparent: true, opacity: 0.96 });
+						          const trimMat = new THREE.MeshStandardMaterial({ name: 'jersey_overlay_trim', color: baseCol, roughness: 0.64, metalness: 0.01, transparent: true, opacity: 0.94 });
+						          const shortsMat = new THREE.MeshStandardMaterial({ name: 'jersey_overlay_shorts', color: shortsCol, roughness: 0.70, metalness: 0.01, transparent: true, opacity: 0.94 });
+						          const sockMat = new THREE.MeshStandardMaterial({ name: 'jersey_overlay_socks', color: baseCol, roughness: 0.70, metalness: 0.01, transparent: true, opacity: 0.92 });
+						          const shirt = new THREE.Mesh(new THREE.CapsuleGeometry(0.25, 0.46, 8, 18), shirtMat);
+						          shirt.position.set(0, 1.08, -0.012);
+						          shirt.scale.set(1.08, 0.92, 0.58);
+						          shirt.userData = { kind: 'token_body_model_kit_shirt' };
+						          holder.add(shirt);
+						          const front = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.34, 0.030), trimMat);
+						          front.position.set(0, 1.08, -0.170);
+						          front.userData = { kind: 'token_body_model_kit_front' };
+						          holder.add(front);
+						          const number = pitch3dTokenNumber(o);
+						          if (number) {
+						            const chest = buildTextSprite(number.slice(0, 3), { fill: '#0b1220', bg: 'rgba(248,250,252,0.90)', size: 96 });
+						            if (chest) {
+						              chest.position.set(0, 1.10, -0.204);
+						              chest.scale.set(0.48, 0.48, 1);
+						              chest.userData = { kind: 'token_body_model_kit_number' };
+						              holder.add(chest);
+						            }
+						          }
+						          const shorts = new THREE.Mesh(new THREE.CylinderGeometry(0.245, 0.285, 0.18, 22), shortsMat);
+						          shorts.position.y = 0.70;
+						          shorts.scale.set(1.04, 1, 0.76);
+						          shorts.userData = { kind: 'token_body_model_kit_shorts' };
+						          holder.add(shorts);
+						          [-0.13, 0.13].forEach((x) => {
+						            const sock = new THREE.Mesh(new THREE.CapsuleGeometry(0.040, 0.34, 5, 10), sockMat);
+						            sock.position.set(x, 0.26, -0.01);
+						            sock.userData = { kind: 'token_body_model_kit_sock' };
+						            holder.add(sock);
+						          });
+						        } catch (e) { /* ignore */ }
+						      };
 						      const addToken3dIdentity = (mesh, o, colorInt) => {
 						        try {
 						          const name = pitch3dTokenName(o);
@@ -14509,6 +14558,21 @@
 						          model.position.y -= fitted.min.y;
 					        } catch (e) { /* ignore */ }
 						      };
+						      const startPitch3dPlayerAnimation = (model) => {
+						        if (!model || !window.THREE) return;
+						        try {
+						          const animations = Array.isArray(__pitch3dPlayerModelCache.animations) ? __pitch3dPlayerModelCache.animations : [];
+						          if (!animations.length || typeof THREE.AnimationMixer !== 'function') return;
+						          const preferred = animations.find((clip) => /idle/i.test(safeText(clip?.name)))
+						            || animations.find((clip) => /walk/i.test(safeText(clip?.name)))
+						            || animations[0];
+						          if (!preferred) return;
+						          const mixer = new THREE.AnimationMixer(model);
+						          const action = mixer.clipAction(preferred);
+						          try { action.enabled = true; action.setLoop(THREE.LoopRepeat, Infinity); action.fadeIn(0.12); action.play(); } catch (e) { /* ignore */ }
+						          pitch3dAvatarMixers.push(mixer);
+						        } catch (e) { /* ignore */ }
+						      };
 						      const tintPitch3dPlayerModel = (model, colors) => {
 						        if (!model || !window.THREE) return;
 						        const shirtCol = toColorInt(colors?.shirt, 0x1d4ed8);
@@ -14531,9 +14595,9 @@
 						            if (!node || !node.isMesh) return;
 						            const name = `${safeText(node.name)} ${safeText(node?.material?.name)}`.toLowerCase();
 						            let col = null;
-						            if (/(shirt|jersey|torso|upper|kit|body)/i.test(name)) col = shirtCol;
+						            if (/(shirt|jersey|torso|upper|kit|body|highlimbs|beta_highlimbs)/i.test(name)) col = shirtCol;
 						            if (/(stripe|trim|collar|number|sponsor)/i.test(name)) col = baseCol;
-						            if (/(short|pants)/i.test(name)) col = shortsCol;
+						            if (/(short|pants|joint|beta_joints)/i.test(name)) col = shortsCol;
 						            if (/(skin|head|face|arm|hand|neck|leg)/i.test(name)) col = skinCol;
 						            if (/(hair|brow)/i.test(name)) col = hairCol;
 						            if (/(boot|shoe|cleat)/i.test(name)) col = bootCol;
@@ -14611,7 +14675,9 @@
 						              massFactor: playerMetrics.massFactor,
 						              depthFactor: playerMetrics.depthFactor,
 						            });
+						            startPitch3dPlayerAnimation(model);
 						            holder.add(model);
+						            addPitch3dPlayerKitOverlay(holder, o, { shirt: stripe || fill, base: fill || '#ffffff' });
 						            holder.rotation.y = (Number(facingDeg) || 0) * (Math.PI / 180);
 						            mesh.add(holder);
 						            externalAvatar3dUsed = true;
@@ -15475,6 +15541,17 @@
 
 								      // Ajusta escalado + evita solapes.
 								      try { updatePitch3dTokenLabels(); } catch (e) { /* ignore */ }
+
+								      try {
+								        const nowMs = Number(now) || performance.now();
+								        const delta = pitch3dAvatarAnimLastAt ? clamp((nowMs - pitch3dAvatarAnimLastAt) / 1000, 0, 0.08) : 0.016;
+								        pitch3dAvatarAnimLastAt = nowMs;
+								        if (pitch3dAvatarMixers.length) {
+								          pitch3dAvatarMixers.forEach((mixer) => {
+								            try { mixer.update(delta); } catch (e) { /* ignore */ }
+								          });
+								        }
+								      } catch (e) { /* ignore */ }
 
 								      try { pitch3dRenderer.render(pitch3dScene, pitch3dCamera); } catch (e) { /* ignore */ }
 								      pitch3dAnimFrame = window.requestAnimationFrame(renderPitch3dFrame);
