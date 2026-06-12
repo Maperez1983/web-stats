@@ -26675,8 +26675,6 @@ def session_task_pdf(request, task_id):
             if embedded:
                 raw, mime = embedded
                 preview_url = _image_bytes_as_small_data_uri(raw, mime_type=mime or 'image/jpeg', max_width=3200, max_height=2400, quality=88)
-        if preview_url and pdf_style == 'club':
-            preview_url = _enhance_task_preview_data_url_for_club_pdf(preview_url)
     except Exception:
         preview_url = ''
     context = _build_task_pdf_context(

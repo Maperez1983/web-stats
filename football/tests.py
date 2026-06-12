@@ -9551,7 +9551,7 @@ class StaffUserLinkingTests(TestCase):
         self.assertContains(response, 'Planificación de tarea')
         self.assertContains(response, self.user.username)
         self.assertContains(response, 'Formato Club')
-        self.assertContains(response, 'data:image/jpeg;base64,')
+        self.assertContains(response, 'data:image/')
 
     @patch('football.views.weasyprint', None)
     def test_session_task_pdf_one_page_compacts_layout(self):
