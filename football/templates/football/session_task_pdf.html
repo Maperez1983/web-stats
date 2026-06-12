@@ -19,6 +19,44 @@
       body.pdf-one-page {
         font-size: 9.4px;
       }
+      body.pdf-club {
+        color: #f3f4f6;
+        background: #020916;
+      }
+      body.pdf-club .sheet {
+        background: #061226 !important;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+      }
+      body.pdf-club td[style*="background:#fff"],
+      body.pdf-club div[style*="background:#fff"],
+      body.pdf-club div[style*="background:#f8fafc"],
+      body.pdf-club div[style*="background:#eef6ef"] {
+        background: rgba(7, 22, 44, 0.94) !important;
+        color: #f3f4f6 !important;
+        border-color: rgba(255, 255, 255, 0.16) !important;
+      }
+      body.pdf-club div[style*="background:{{ pdf_palette.panel }}"] {
+        background: rgba(9, 25, 50, 0.96) !important;
+        border-color: rgba(255, 255, 255, 0.16) !important;
+      }
+      body.pdf-club .label {
+        color: rgba(225, 236, 255, 0.72) !important;
+      }
+      body.pdf-club .value,
+      body.pdf-club .text-block,
+      body.pdf-club .rich-text,
+      body.pdf-club .rich-text *,
+      body.pdf-club .bullet-list,
+      body.pdf-club .bullet-list li {
+        color: #f3f4f6 !important;
+      }
+      body.pdf-club .footer,
+      body.pdf-club .footer * {
+        color: rgba(225, 236, 255, 0.82) !important;
+      }
+      body.pdf-club .footer div[style*="color:#0b1220"] {
+        color: #ffffff !important;
+      }
       body.pdf-one-page .sheet {
         height: 297mm;
         min-height: 297mm;
@@ -505,7 +543,7 @@
 	      }
 	    </style>
 	  </head>
-  <body{% if pdf_one_page %} class="pdf-one-page"{% endif %}>
+  <body class="{% if pdf_one_page %}pdf-one-page{% endif %}{% if pdf_style == 'club' %} pdf-club{% endif %}">
     {% if pdf_style == 'club' %}
     <section class="sheet" style="border-color:{{ pdf_palette.primary }};">
       <div style="padding:14px 16px; background:linear-gradient(135deg, {{ pdf_palette.primary }}, {{ pdf_palette.accent }}); color:#fff;">
