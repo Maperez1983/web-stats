@@ -11668,6 +11668,7 @@
 						                const removable = (root.children || []).filter((node) => {
 						                  const kind = safeText(node?.userData?.kind || '');
 						                  return kind === 'pitch_3d_from_scratch_reference_stadium'
+						                    || kind === 'pitch_3d_ad_board'
 						                    || kind.startsWith('pitch_3d_ref_')
 						                    || kind.startsWith('pitch_3d_green_runoff_');
 						                });
@@ -11733,7 +11734,7 @@
 						              let cached = null;
 						              return () => {
 						                if (cached) return cached;
-						                const label = safeText(tokenTeamName || form?.dataset?.stadiumClubName || 'SEGUNDA JUGADA', 'SEGUNDA JUGADA').slice(0, 28).toUpperCase();
+						                const label = safeText(tokenTeamName || form?.dataset?.stadiumClubName || 'BENAGALBON CD', 'BENAGALBON CD').slice(0, 28).toUpperCase();
 						                const accent = parseColorToHex(accentHex, '#073b32') || '#073b32';
 						                const primary = parseColorToHex(primaryHex, '#047857') || '#047857';
 						                const tex = makePitch3dCanvasTexture((ctx, c) => {
@@ -12009,11 +12010,6 @@
 						                  addBox(new THREE.BoxGeometry(14.0, 0.045, 0.08), paintMat, x, 0.18, z + 2.05, 0, 0, 0, `pitch_3d_stadium_technical_area_${label}_line`);
 						                  addBox(new THREE.BoxGeometry(0.08, 0.045, 4.1), paintMat, x - 7.0, 0.18, z, 0, 0, 0, `pitch_3d_stadium_technical_area_${label}_line`);
 						                  addBox(new THREE.BoxGeometry(0.08, 0.045, 4.1), paintMat, x + 7.0, 0.18, z, 0, 0, 0, `pitch_3d_stadium_technical_area_${label}_line`);
-						                  addBox(new THREE.BoxGeometry(11.2, 0.18, 2.1), darkMetalMat, x, 0.32, z + 3.65, 0, 0, 0, `pitch_3d_stadium_${label}_bench_base`);
-						                  addBox(new THREE.BoxGeometry(10.4, 1.05, 0.12), glassMat, x, 1.02, z + 2.62, 0, 0, 0, `pitch_3d_stadium_${label}_dugout_glass`);
-						                  [-4.2, -2.8, -1.4, 0, 1.4, 2.8, 4.2].forEach((seatX) => {
-						                    addBox(new THREE.BoxGeometry(0.82, 0.18, 0.52), seatAccentMat, x + seatX, 0.72, z + 3.48, -0.05, 0, 0, `pitch_3d_stadium_${label}_bench_seat`);
-						                  });
 						                };
 						                addTechnicalBox(-9.0, -(metersH / 2 + 4.9), 'home');
 						                addTechnicalBox(9.0, -(metersH / 2 + 4.9), 'away');
@@ -12080,19 +12076,55 @@
 						                    const seatBase = new THREE.InstancedMesh(seatBaseGeo, seatAccentMat, maxSeats);
 						                    const seatBack = new THREE.InstancedMesh(seatBackGeo, seatShadowMat, maxSeats);
 						                    const aisleRails = new THREE.InstancedMesh(railGeo, metalMat, maxRails);
+						                    const seatGreen = new THREE.Color(primaryInt);
+						                    const seatDeepGreen = new THREE.Color(0x064e3b);
+						                    const seatLetter = new THREE.Color(0xf8fafc);
+						                    const letterFont = {
+						                      A: ['010', '101', '111', '101', '101'],
+						                      B: ['110', '101', '110', '101', '110'],
+						                      C: ['111', '100', '100', '100', '111'],
+						                      D: ['110', '101', '101', '101', '110'],
+						                      E: ['111', '100', '110', '100', '111'],
+						                      G: ['111', '100', '101', '101', '111'],
+						                      L: ['100', '100', '100', '100', '111'],
+						                      N: ['101', '111', '111', '111', '101'],
+						                      O: ['111', '101', '101', '101', '111'],
+						                      ' ': ['0', '0', '0', '0', '0'],
+						                    };
+						                    const mainStandLetterMap = (() => {
+						                      const text = 'BENAGALBON CD';
+						                      const cols = [];
+						                      text.split('').forEach((char, charIdx) => {
+						                        const glyph = letterFont[char] || letterFont[' '];
+						                        const width = glyph[0].length;
+						                        for (let x = 0; x < width; x += 1) {
+						                          cols.push(glyph.map((row) => row[x] === '1'));
+						                        }
+						                        if (charIdx < text.length - 1) cols.push([false, false, false, false, false]);
+						                      });
+						                      return cols;
+						                    })();
 						                    [seatBase, seatBack, aisleRails].forEach((mesh) => {
 						                      mesh.count = 0;
 						                      mesh.userData = { kind: 'pitch_3d_stadium_instanced_professional_seating' };
 						                      try { mesh.castShadow = true; mesh.receiveShadow = true; } catch (e) { /* ignore */ }
 						                    });
-						                    const place = (mesh, x, y, z, rx, ry, rz, sx = 1, sy = 1, sz = 1) => {
+						                    const place = (mesh, x, y, z, rx, ry, rz, sx = 1, sy = 1, sz = 1, color = null) => {
 						                      if (!mesh || mesh.count >= mesh.instanceMatrix.count) return;
 						                      dummy.position.set(x, y, z);
 						                      dummy.rotation.set(rx, ry, rz);
 						                      dummy.scale.set(sx, sy, sz);
 						                      dummy.updateMatrix();
 						                      mesh.setMatrixAt(mesh.count, dummy.matrix);
+						                      if (color && typeof mesh.setColorAt === 'function') mesh.setColorAt(mesh.count, color);
 						                      mesh.count += 1;
+						                    };
+						                    const isMainStandLetterSeat = (axis, sign, row, col, cols) => {
+						                      if (axis !== 'z' || sign !== 1 || row < 4 || row > 8) return false;
+						                      const start = Math.max(0, Math.floor((cols - mainStandLetterMap.length) / 2));
+						                      const letterCol = col - start;
+						                      if (letterCol < 0 || letterCol >= mainStandLetterMap.length) return false;
+						                      return !!mainStandLetterMap[letterCol][row - 4];
 						                    };
 						                    const addStandSeats = ({ axis, sign, rows, cols, span, fixed, baseY, rowDepth, rowRise }) => {
 						                      const aisleCols = new Set([4, Math.floor(cols * 0.33), Math.floor(cols * 0.67), cols - 5]);
@@ -12105,12 +12137,13 @@
 						                          const offset = t * span;
 						                          const stagger = ((row + col) % 2) * 0.035;
 						                          const dark = (row + col) % 7 === 0;
+						                          const seatColor = isMainStandLetterSeat(axis, sign, row, col, cols) ? seatLetter : (dark ? seatDeepGreen : seatGreen);
 						                          if (axis === 'z') {
-						                            place(seatBase, offset, y, depth + sign * stagger, -0.08 * sign, 0, 0, 1, 1, 1);
-						                            place(seatBack, offset, y + 0.22, depth + sign * 0.22, -0.20 * sign, 0, 0, 1, dark ? 0.88 : 1, 1);
+						                            place(seatBase, offset, y, depth + sign * stagger, -0.08 * sign, 0, 0, 1, 1, 1, seatColor);
+						                            place(seatBack, offset, y + 0.22, depth + sign * 0.22, -0.20 * sign, 0, 0, 1, dark ? 0.88 : 1, 1, seatColor);
 						                          } else {
-						                            place(seatBase, depth + sign * stagger, y, offset, 0, 0.08 * sign, 0, 1, 1, 1);
-						                            place(seatBack, depth + sign * 0.22, y + 0.22, offset, 0, 0.20 * sign, 0, 1, dark ? 0.88 : 1, 1);
+						                            place(seatBase, depth + sign * stagger, y, offset, 0, 0.08 * sign, 0, 1, 1, 1, seatColor);
+						                            place(seatBack, depth + sign * 0.22, y + 0.22, offset, 0, 0.20 * sign, 0, 1, dark ? 0.88 : 1, 1, seatColor);
 						                          }
 						                        }
 						                        aisleCols.forEach((col) => {
@@ -12132,6 +12165,7 @@
 						                    addStandSeats({ axis: 'x', sign: -1, rows: 11, cols: 34, span: metersH + 34.0, fixed: -(metersW / 2 + 10.4), baseY: 3.28, rowDepth: 0.60, rowRise: 0.30 });
 						                    [seatBase, seatBack, aisleRails].forEach((mesh) => {
 						                      mesh.instanceMatrix.needsUpdate = true;
+						                      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
 						                      atmosphere.add(mesh);
 						                    });
 						                    return true;
@@ -12142,23 +12176,19 @@
 						                addInstancedSeatBowl();
 						                const addPerimeterBoards = () => {
 						                  const adMat = makeStadiumBoardMaterial().clone();
-						                  adMat.emissiveIntensity = 0.64;
-						                  const boardH = 0.78;
+						                  adMat.emissiveIntensity = 0.42;
+						                  const boardH = 0.74;
+						                  const boardShellMat = new THREE.MeshStandardMaterial({ color: 0x06251f, roughness: 0.46, metalness: 0.08 });
 						                  [
-						                    [0, boardH, metersH / 2 + 2.18, metersW + 6.0, 0.10, 0],
-						                    [0, boardH, -(metersH / 2 + 2.18), metersW + 6.0, 0.10, 0],
-						                    [metersW / 2 + 2.18, boardH, 0, 0.10, metersH + 4.8, 0],
-						                    [-(metersW / 2 + 2.18), boardH, 0, 0.10, metersH + 4.8, 0],
+						                    [0, boardH, metersH / 2 + 2.70, metersW + 7.2, 0.12, 0],
+						                    [0, boardH, -(metersH / 2 + 2.70), metersW + 7.2, 0.12, 0],
+						                    [metersW / 2 + 2.70, boardH, 0, 0.12, metersH + 5.4, 0],
+						                    [-(metersW / 2 + 2.70), boardH, 0, 0.12, metersH + 5.4, 0],
 						                  ].forEach(([x, y, z, w, d]) => {
-						                    addBox(new THREE.BoxGeometry(w, 0.72, d), adMat, x, y, z, 0, 0, 0, 'pitch_3d_stadium_continuous_led_advertising_board');
-						                  });
-						                  [
-						                    [0, metersH / 2 + 3.05, metersW + 8.0, 0.08],
-						                    [0, -(metersH / 2 + 3.05), metersW + 8.0, 0.08],
-						                    [metersW / 2 + 3.05, 0, 0.08, metersH + 6.5],
-						                    [-(metersW / 2 + 3.05), 0, 0.08, metersH + 6.5],
-						                  ].forEach(([x, z, w, d]) => {
-						                    addBox(new THREE.BoxGeometry(w, 0.62, d), glassMat, x, 1.42, z, 0, 0, 0, 'pitch_3d_stadium_low_safety_glass_barrier');
+						                    addBox(new THREE.BoxGeometry(w, 0.86, d), boardShellMat, x, y, z, 0, 0, 0, 'pitch_3d_stadium_single_green_advertising_board_shell');
+						                    addBox(new THREE.BoxGeometry(w, 0.64, d + 0.018), adMat, x, y + 0.04, z, 0, 0, 0, 'pitch_3d_stadium_single_green_advertising_board');
+						                    addBox(new THREE.BoxGeometry(w, 0.055, d + 0.10), metalMat, x, y + 0.48, z, 0, 0, 0, 'pitch_3d_stadium_single_board_top_rail');
+						                    addBox(new THREE.BoxGeometry(w, 0.055, d + 0.10), metalMat, x, y - 0.48, z, 0, 0, 0, 'pitch_3d_stadium_single_board_bottom_rail');
 						                  });
 						                };
 						                addPerimeterBoards();
@@ -12283,19 +12313,6 @@
 						                };
 						                addRealLightInfluence();
 						                const addAnimatedAdFaceAndPitchsideLife = () => {
-						                  const liveAdMat = makeLiveAdMaterial();
-						                  [
-						                    [0, 1.08, metersH / 2 + 2.06, metersW + 5.2, 0],
-						                    [0, 1.08, -(metersH / 2 + 2.06), metersW + 5.2, Math.PI],
-						                    [metersW / 2 + 2.06, 1.08, 0, metersH + 4.2, -Math.PI / 2],
-						                    [-(metersW / 2 + 2.06), 1.08, 0, metersH + 4.2, Math.PI / 2],
-						                  ].forEach(([x, y, z, w, ry]) => {
-						                    const face = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.82), liveAdMat);
-						                    face.position.set(x, y, z);
-						                    face.rotation.y = ry;
-						                    face.userData = { kind: 'pitch_3d_stadium_live_led_advertising_face' };
-						                    atmosphere.add(face);
-						                  });
 						                  [
 						                    [-metersW * 0.42, -(metersH / 2 + 3.8), 0],
 						                    [metersW * 0.42, -(metersH / 2 + 3.8), 0],
