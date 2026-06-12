@@ -11882,6 +11882,7 @@
 						                  return new THREE.Color(0xd8ded8);
 						                })();
 						                const opacity = Number.isFinite(Number(mat?.opacity)) ? clamp(Number(mat.opacity), 0, 1) : 1;
+						                const hasVertexColors = !!(node?.geometry?.attributes?.color) || !!mat?.vertexColors;
 						                const runtimeMat = new THREE.MeshStandardMaterial({
 						                  color,
 						                  roughness: Number.isFinite(Number(mat?.roughness)) ? clamp(Number(mat.roughness), 0.04, 1) : 0.72,
@@ -11892,7 +11893,7 @@
 						                  depthWrite: mat?.depthWrite === false ? false : true,
 						                  depthTest: mat?.depthTest === false ? false : true,
 						                  alphaTest: Number.isFinite(Number(mat?.alphaTest)) ? Number(mat.alphaTest) : 0,
-						                  vertexColors: !!mat?.vertexColors,
+						                  vertexColors: hasVertexColors,
 						                });
 						                try {
 						                  if (mat?.emissive) {
@@ -12919,6 +12920,20 @@
 						                      const quality = safeText(document.body?.dataset?.pitch3dQuality || 'normal');
 						                      const compactViewport = Math.max(window.innerWidth || 0, window.innerHeight || 0) < 900;
 						                      const detailName = `${meshName} ${materialName}`;
+						                      try {
+						                        const box = new THREE.Box3().setFromObject(node);
+						                        const size = box.getSize(new THREE.Vector3());
+						                        const center = box.getCenter(new THREE.Vector3());
+						                        const lowPitchPlate = center.y < 0.18
+						                          && Math.abs(center.x) < 57
+						                          && Math.abs(center.z) < 38
+						                          && size.x > 40
+						                          && size.z > 4;
+						                        if (lowPitchPlate) {
+						                          node.visible = false;
+						                          node.userData.hidden_by_reference_pitch_overlay_cleanup = true;
+						                        }
+						                      } catch (e) { /* ignore */ }
 						                      if (quality === 'normal' && compactViewport && (
 						                        detailName.includes('CROWD_') ||
 						                        detailName.includes('GRASS_FINE_FIBER') ||
