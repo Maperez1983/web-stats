@@ -15044,12 +15044,22 @@
 						    };
 
 						    // UI wiring
-						    pitch3dOpenBtn?.addEventListener('click', (ev) => { ev.preventDefault(); openPitch3d(); });
+						    const openPitch3dWhenReady = async () => {
+						      try {
+						        if (!window.__WEBSTATS_GLTF_LOADER_CLASS && typeof window.__webstatsEnsure3dStack === 'function') {
+						          await window.__webstatsEnsure3dStack();
+						        } else if (!window.__WEBSTATS_GLTF_LOADER_CLASS && window.__webstats_gltf_loader_promise) {
+						          await window.__webstats_gltf_loader_promise;
+						        }
+						      } catch (e) { /* ignore */ }
+						      openPitch3d();
+						    };
+						    pitch3dOpenBtn?.addEventListener('click', (ev) => { ev.preventDefault(); openPitch3dWhenReady(); });
 						    document.addEventListener('click', (ev) => {
 						      const trigger = ev.target?.closest?.('#pitch-3d-open');
 						      if (!trigger) return;
 						      ev.preventDefault();
-						      openPitch3d();
+						      openPitch3dWhenReady();
 						    });
 						    pitch3dCloseBtn?.addEventListener('click', (ev) => { ev.preventDefault(); closePitch3d(); });
 						    pitch3dModal?.addEventListener('click', (ev) => {
