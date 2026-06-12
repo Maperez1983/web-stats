@@ -169,6 +169,47 @@
         height: 345px;
         min-height: 345px;
       }
+      body.pdf-text-heavy.pdf-club .preview-frame,
+      body.pdf-text-heavy.pdf-club .field {
+        height: 360px;
+        min-height: 360px;
+      }
+      body.pdf-one-page.pdf-text-heavy.pdf-club .preview-frame,
+      body.pdf-one-page.pdf-text-heavy.pdf-club .field {
+        height: 310px;
+        min-height: 310px;
+      }
+      body.pdf-one-page.pdf-club .club-hero {
+        padding: 9px 13px;
+      }
+      body.pdf-one-page.pdf-club .club-logo {
+        width: 48px;
+        height: 48px;
+      }
+      body.pdf-one-page.pdf-club .club-title {
+        font-size: 20px;
+      }
+      body.pdf-one-page.pdf-club .club-subtitle {
+        font-size: 9.4px;
+      }
+      body.pdf-one-page.pdf-club .club-metrics {
+        padding: 7px 11px 6px;
+      }
+      body.pdf-one-page.pdf-club .club-metric {
+        padding: 6px 8px;
+      }
+      body.pdf-one-page.pdf-club .club-body {
+        padding: 8px 11px 6px;
+      }
+      body.pdf-one-page.pdf-club .club-panel-head,
+      body.pdf-one-page.pdf-club .club-copy-card-head {
+        padding-top: 6px !important;
+        padding-bottom: 6px !important;
+      }
+      body.pdf-one-page.pdf-club .club-panel-body,
+      body.pdf-one-page.pdf-club .club-copy-card-body {
+        padding: 7px 9px !important;
+      }
       body.pdf-club .club-graphic-body .preview-frame::before {
         display: none !important;
         content: none !important;
@@ -282,6 +323,25 @@
         text-transform: uppercase;
         letter-spacing: 0.07em;
         color: {% if pdf_style == 'club' %}#ffffff{% else %}{{ pdf_palette.ink }}{% endif %};
+      }
+      .pdf-keep,
+      .club-panel,
+      .club-copy-card,
+      .uefa-box,
+      .sequence-frame {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+      .club-panel-head,
+      .club-copy-card-head,
+      .uefa-section {
+        break-after: avoid;
+        page-break-after: avoid;
+      }
+      .pdf-link-line {
+        color: #64748b;
+        font-size: 8.2px;
+        white-space: nowrap;
       }
       .details {
         width: 100%;
@@ -469,19 +529,19 @@
       }
       .uefa-head {
         padding: 10px 14px;
-        background: #d92b30;
+        background: #b91c1c;
         color: #ffffff;
         border-bottom: 1px solid #b8c0cc;
       }
       .uefa-section {
-        background: #d92b30;
+        background: #b91c1c;
         color: #ffffff;
         font-size: 13px;
         font-weight: 800;
         text-transform: uppercase;
         letter-spacing: 0.05em;
         padding: 7px 12px;
-        border: 1px solid #d92b30;
+        border: 1px solid #b91c1c;
         border-bottom: none;
         border-radius: 4px 4px 0 0;
       }
@@ -498,6 +558,13 @@
         font-size: 10px;
         vertical-align: top;
       }
+      .uefa-table td:nth-child(odd) {
+        background: #f8fafc;
+        color: #475569;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
       .uefa-value {
         font-size: 11px;
         font-weight: 600;
@@ -511,6 +578,16 @@
       .uefa-long-copy {
         line-height: 1.55;
         white-space: normal;
+      }
+      body.pdf-text-heavy .uefa-table {
+        margin-bottom: 9px;
+      }
+      body.pdf-text-heavy .uefa-table td {
+        padding: 5px 8px;
+      }
+      body.pdf-text-heavy .uefa-long-copy {
+        font-size: 9.5px;
+        line-height: 1.38;
       }
       .rich-text {
         line-height: 1.55;
@@ -1008,6 +1085,7 @@
 	            </td>
 	            <td style="text-align:right; vertical-align:middle;">
 	              {{ team_name }} · {{ coach_name }} · {{ generated_at|date:"d/m/Y H:i" }}
+	              <div class="pdf-link-line">{{ pdf_return_url|default:platform_url }}</div>
 	            </td>
 	          </tr>
 	        </table>
@@ -1223,7 +1301,8 @@
 	              </a>
 	            </td>
 	            <td style="text-align:right; vertical-align:middle;">
-	              Formato UEFA · {{ team_name }} · {{ coach_name }} · Generado {{ generated_at|date:"d/m/Y H:i" }}
+	              Formato UEFA · {{ team_name }} · {{ coach_name }} · {{ generated_at|date:"d/m/Y H:i" }}
+	              <div class="pdf-link-line">{{ pdf_return_url|default:platform_url }}</div>
 	            </td>
 	          </tr>
 	        </table>
