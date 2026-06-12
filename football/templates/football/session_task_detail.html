@@ -22,6 +22,36 @@
         background: linear-gradient(180deg, #020916 0%, #081b35 65%, #081329 100%);
         font-family: "Montserrat", "Avenir Next", "Segoe UI", sans-serif;
       }
+      body.session-task-detail-page {
+        --ink: #f3f4f6;
+        --bg: #061226;
+        --panel: rgba(7, 22, 44, 0.92);
+        --line: rgba(255, 255, 255, 0.14);
+        --prod-bg: #020916;
+        --prod-ink: #f3f4f6;
+        --prod-ink-muted: rgba(225, 236, 255, 0.78);
+        --prod-card: rgba(7, 22, 44, 0.92);
+        --prod-card-strong: rgba(9, 25, 50, 0.96);
+        --prod-line: rgba(255, 255, 255, 0.14);
+        --prod-line-strong: rgba(255, 255, 255, 0.22);
+        --prod-glass: rgba(255, 255, 255, 0.06);
+        --prod-shadow: 0 22px 55px rgba(0, 0, 0, 0.36);
+        --ui-bg: #020916;
+        --ui-surface: rgba(7, 22, 44, 0.92);
+        --ui-surface-strong: rgba(9, 25, 50, 0.96);
+        --ui-text: #f3f4f6;
+        --ui-text-muted: rgba(225, 236, 255, 0.78);
+        --ui-border: rgba(255, 255, 255, 0.14);
+        --ui-button-bg: rgba(255, 255, 255, 0.08);
+        --ui-button-text: #f3f4f6;
+        color: var(--ink);
+        background: linear-gradient(180deg, #020916 0%, #081b35 65%, #081329 100%) !important;
+      }
+      :root[data-theme="light"] body.prod-commercial.session-task-detail-page,
+      :root[data-theme="hc"] body.prod-commercial.session-task-detail-page {
+        color: var(--ink);
+        background: linear-gradient(180deg, #020916 0%, #081b35 65%, #081329 100%) !important;
+      }
       .page { max-width: 980px; margin: 0 auto; padding: 1.1rem; }
       .top {
         display: flex;
@@ -407,7 +437,7 @@
       }
     </style>
   </head>
-  <body class="prod-commercial">
+  <body class="prod-commercial session-task-detail-page">
     <main class="page product-shell">
       {% include 'football/includes/dragon_nav.html' %}
       <header class="top">
