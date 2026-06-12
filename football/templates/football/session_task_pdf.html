@@ -476,21 +476,35 @@
       }
       .pdf-columns {
         width: 100%;
-      }
-      .pdf-columns::after {
-        content: "";
-        display: block;
-        clear: both;
+        display: table;
+        table-layout: fixed;
+        border-collapse: separate;
+        border-spacing: 10px 0;
       }
       .pdf-col {
-        float: left;
-        width: calc(50% - 5px);
+        display: table-cell;
+        width: 50%;
+        vertical-align: top;
       }
       .pdf-col + .pdf-col {
-        margin-left: 10px;
+        margin-left: 0;
       }
       .pdf-block + .pdf-block {
         margin-top: 10px;
+      }
+      .club-copy-card {
+        width: 100%;
+        box-sizing: border-box;
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+      .club-copy-card-head {
+        box-sizing: border-box;
+        min-height: 31px;
+      }
+      .club-copy-card-body {
+        box-sizing: border-box;
+        min-height: 0;
       }
 	      .rich-text,
 	      .text-block,
@@ -653,9 +667,9 @@
 
         {% if pdf_text_heavy or pdf_text_superheavy %}
         <div style="margin-top:2px;">
-          <div class="pdf-block" style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden;">
-            <div style="padding:8px 12px; background:{{ pdf_palette.accent }}; color:#fff; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Contenido</div>
-            <div style="padding:10px 14px; background:#fff;">
+          <div class="pdf-block club-copy-card" style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden;">
+            <div class="club-copy-card-head" style="padding:8px 12px; background:{{ pdf_palette.accent }}; color:#fff; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Contenido</div>
+            <div class="club-copy-card-body" style="padding:10px 14px; background:#fff;">
               <span class="label">Descripción</span>
               {% if description_rich_html %}
               <div class="rich-text">{{ description_rich_html|safe }}</div>
@@ -682,9 +696,9 @@
             </div>
           </div>
 
-          <div class="pdf-block" style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden;">
-            <div style="padding:8px 12px; background:{{ pdf_palette.accent }}; color:#fff; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Normas de confrontación</div>
-            <div style="padding:10px 14px; background:#fff;">
+          <div class="pdf-block club-copy-card" style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden;">
+            <div class="club-copy-card-head" style="padding:8px 12px; background:{{ pdf_palette.accent }}; color:#fff; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Normas de confrontación</div>
+            <div class="club-copy-card-body" style="padding:10px 14px; background:#fff;">
               {% if rules_rich_html %}
               <div class="rich-text">{{ rules_rich_html|safe }}</div>
               {% elif rules_lines and rules_lines.0 != '-' %}
@@ -722,9 +736,9 @@
         {% else %}
         <div class="pdf-columns" style="margin-top:2px;">
           <div class="pdf-col">
-            <div style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden;">
-              <div style="padding:8px 12px; background:{{ pdf_palette.accent }}; color:#fff; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Contenido</div>
-              <div style="padding:10px 14px; background:#fff;">
+            <div class="club-copy-card" style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden;">
+              <div class="club-copy-card-head" style="padding:8px 12px; background:{{ pdf_palette.accent }}; color:#fff; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Contenido</div>
+              <div class="club-copy-card-body" style="padding:10px 14px; background:#fff;">
                 {% if description_rich_html %}
                 <div class="rich-text">{{ description_rich_html|safe }}</div>
                 {% elif description_lines and description_lines.0 != '-' %}
@@ -752,9 +766,9 @@
           </div>
 
           <div class="pdf-col">
-            <div style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden;">
-              <div style="padding:8px 12px; background:{{ pdf_palette.accent }}; color:#fff; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Normas de confrontación</div>
-              <div style="padding:10px 14px; background:#fff;">
+            <div class="club-copy-card" style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden;">
+              <div class="club-copy-card-head" style="padding:8px 12px; background:{{ pdf_palette.accent }}; color:#fff; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Normas de confrontación</div>
+              <div class="club-copy-card-body" style="padding:10px 14px; background:#fff;">
                 {% if rules_rich_html %}
                 <div class="rich-text">{{ rules_rich_html|safe }}</div>
                 {% elif rules_lines and rules_lines.0 != '-' %}
