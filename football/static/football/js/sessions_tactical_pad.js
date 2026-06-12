@@ -13124,6 +13124,11 @@
 						            dedicatedFinish.add(mesh);
 						            return mesh;
 						          };
+						          const addRotMesh = (geo, mat, x, y, z, rotX, rotY, rotZ, kind) => {
+						            const mesh = addMesh(geo, mat, x, y, z, kind);
+						            try { mesh.rotation.set(rotX || 0, rotY || 0, rotZ || 0); } catch (e) { /* ignore */ }
+						            return mesh;
+						          };
 						          const addLongStand = (sideSign) => {
 						            const baseZ = sideSign * (metersH / 2 + 6.7);
 						            addMesh(new THREE.BoxGeometry(metersW + 17.5, 0.55, 8.6), concreteMat, 0, 0.38, baseZ, 'pitch_3d_dedicated_completion_long_stand_podium');
@@ -13185,6 +13190,39 @@
 						          });
 						          const lightMat = new THREE.MeshStandardMaterial({ color: 0xe0f2fe, roughness: 0.18, metalness: 0.02, emissive: 0x7dd3fc, emissiveIntensity: 0.36 });
 						          addMesh(new THREE.BoxGeometry(metersW + 5.0, 0.10, 0.12), lightMat, 0, 8.26, northFacadeZ - 0.22, 'pitch_3d_dedicated_completion_north_light_bar');
+						          addMesh(new THREE.BoxGeometry(metersW + 18.0, 0.16, 0.20), lightMat, 0, 14.05, metersH / 2 + 19.35, 'pitch_3d_dedicated_completion_roof_light_bar');
+						          addMesh(new THREE.BoxGeometry(metersW + 22.0, 0.18, 0.22), concreteMat, 0, 15.18, metersH / 2 + 19.85, 'pitch_3d_dedicated_completion_roof_front_truss');
+						          addMesh(new THREE.BoxGeometry(metersW + 19.0, 0.14, 0.18), concreteMat, 0, 15.64, metersH / 2 + 25.00, 'pitch_3d_dedicated_completion_roof_rear_truss');
+						          for (let i = -6; i <= 6; i += 1) {
+						            const x = (i / 6) * (metersW * 0.48);
+						            addRotMesh(new THREE.BoxGeometry(0.18, 0.18, 7.1), concreteMat, x, 15.28, metersH / 2 + 22.0, -0.22, 0, 0, 'pitch_3d_dedicated_completion_roof_cross_truss');
+						            addRotMesh(new THREE.BoxGeometry(0.13, 0.13, 7.8), concreteMat, x + 2.6, 14.85, metersH / 2 + 22.0, 0.30, 0, 0, 'pitch_3d_dedicated_completion_roof_diagonal_brace');
+						          }
+						          [-18, 18].forEach((x) => {
+						            const dugout = new THREE.Group();
+						            dugout.userData = { kind: 'pitch_3d_dedicated_completion_curved_dugout' };
+						            const glassMat = railMat.clone();
+						            try { glassMat.opacity = 0.30; glassMat.transparent = true; } catch (e) { /* ignore */ }
+						            const frameMat = new THREE.MeshStandardMaterial({ color: 0xd8e2e5, roughness: 0.30, metalness: 0.24 });
+						            const benchMat = new THREE.MeshStandardMaterial({ color: 0x047857, roughness: 0.48, metalness: 0.02 });
+						            const addDugoutPart = (geo, mat, px, py, pz, kind) => {
+						              const part = new THREE.Mesh(geo, mat);
+						              part.position.set(px, py, pz);
+						              part.userData = { kind };
+						              dugout.add(part);
+						              return part;
+						            };
+						            addDugoutPart(new THREE.BoxGeometry(12.8, 0.12, 0.12), frameMat, 0, 1.82, 0.0, 'pitch_3d_dedicated_completion_dugout_frame');
+						            addDugoutPart(new THREE.BoxGeometry(12.8, 1.42, 0.08), glassMat, 0, 1.06, 0.08, 'pitch_3d_dedicated_completion_dugout_glass_front');
+						            addDugoutPart(new THREE.BoxGeometry(0.12, 1.42, 2.2), glassMat, -6.38, 1.06, 1.10, 'pitch_3d_dedicated_completion_dugout_glass_side');
+						            addDugoutPart(new THREE.BoxGeometry(0.12, 1.42, 2.2), glassMat, 6.38, 1.06, 1.10, 'pitch_3d_dedicated_completion_dugout_glass_side');
+						            addDugoutPart(new THREE.BoxGeometry(12.6, 0.16, 2.4), frameMat, 0, 1.86, 1.05, 'pitch_3d_dedicated_completion_dugout_roof');
+						            for (let s = -4; s <= 4; s += 1) {
+						              addDugoutPart(new THREE.BoxGeometry(0.82, 0.22, 0.55), benchMat, s * 1.18, 0.52, 0.54, 'pitch_3d_dedicated_completion_dugout_seat');
+						            }
+						            dugout.position.set(x, 0.03, -(metersH / 2 + 4.62));
+						            dedicatedFinish.add(dugout);
+						          });
 						          root.add(dedicatedFinish);
 						        }
 						      } catch (e) { /* ignore */ }
