@@ -12929,10 +12929,10 @@
 						                          && Math.abs(center.z) < 38
 						                          && size.x > 40
 						                          && size.z > 4;
-						                        const looseLowStrip = center.y < 1.8
-						                          && (Math.abs(center.z) > 36 || Math.abs(center.x) > 53)
-						                          && Math.max(size.x, size.z) > 24
-						                          && Math.min(size.x, size.z) < 2.2;
+						                        const looseLowStrip = center.y < 1.9
+						                          && (Math.abs(center.z) > 34.2 || Math.abs(center.x) > 52.2)
+						                          && Math.max(size.x, size.z) > 18
+						                          && Math.min(size.x, size.z) < 3.2;
 						                        const redundantBackdrop = detailName.includes('REFERENCE_SOFT_SKY_BACKDROP');
 						                        if (lowPitchPlate || looseLowStrip || redundantBackdrop) {
 						                          node.visible = false;
