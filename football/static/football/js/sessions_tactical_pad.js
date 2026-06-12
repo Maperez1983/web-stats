@@ -9277,12 +9277,12 @@
 							        targetZ = 4.8;
 						      } else if (k === 'render_original') {
 						        // Vista de referencia: esquina alta, menos recorte lateral y lectura completa del estadio.
-							        pitch3dOrbit.theta = -2.36;
-							        pitch3dOrbit.phi = 1.02;
-							        pitch3dOrbit.radius = Math.max(124, metersW * 1.13);
-							        targetX = 0.2;
-							        targetY = 8.6;
-							        targetZ = 0.4;
+							        pitch3dOrbit.theta = -2.34;
+							        pitch3dOrbit.phi = 1.14;
+							        pitch3dOrbit.radius = Math.max(108, metersW * 1.01);
+							        targetX = 0.8;
+							        targetY = 4.8;
+							        targetZ = 0.8;
 						      } else if (k === 'clean_pitch_render') {
 							        // Composición de campo limpio: esquina alta y campo completo.
 							        pitch3dOrbit.theta = -2.26;
@@ -13113,7 +13113,19 @@
 						        pitchBase.userData = { kind: 'pitch_slab' };
 						        pitchBase.receiveShadow = true;
 						        root.add(pitchBase);
-						        const edgeMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.72, metalness: 0.02, transparent: true, opacity: 0.82 });
+						        const apronMat = new THREE.MeshStandardMaterial({ color: 0x075f3f, roughness: 0.76, metalness: 0.01 });
+						        const addApron = (geo, x, z) => {
+						          const apron = new THREE.Mesh(geo, apronMat);
+						          apron.position.set(x, 0.022, z);
+						          apron.userData = { kind: 'pitch_3d_green_perimeter_apron' };
+						          apron.receiveShadow = true;
+						          root.add(apron);
+						        };
+						        addApron(new THREE.BoxGeometry(metersW + 18.0, 0.045, 4.2), 0, -(metersH / 2 + 2.65));
+						        addApron(new THREE.BoxGeometry(metersW + 18.0, 0.045, 4.2), 0, (metersH / 2 + 2.65));
+						        addApron(new THREE.BoxGeometry(4.2, 0.045, metersH + 11.2), -(metersW / 2 + 2.65), 0);
+						        addApron(new THREE.BoxGeometry(4.2, 0.045, metersH + 11.2), (metersW / 2 + 2.65), 0);
+						        const edgeMat = new THREE.MeshStandardMaterial({ color: 0x203027, roughness: 0.78, metalness: 0.04, transparent: true, opacity: 0.58 });
 						        const addEdge = (geo, x, z) => {
 						          const edge = new THREE.Mesh(geo, edgeMat);
 						          edge.position.set(x, 0.08, z);
