@@ -4297,17 +4297,19 @@
 		      if (kind && kind.startsWith('arrow')) {
 		        normalizeArrowHead(object);
 		      }
-			      // Las fichas ya muestran aro propio; evitar la caja azul de Fabric y escalados accidentales.
+			      // Evita la caja azul de Fabric en los objetos de pizarra y escalados accidentales.
+			      const hideBoardSelectionChrome = !locked && !isBackground && !isTacticsMode;
 			      const hideTokenSelectionChrome = !locked && kind === 'token';
+			      const hideSelectionChrome = hideBoardSelectionChrome || hideTokenSelectionChrome;
 			      object.set({
-			        hasControls: hideTokenSelectionChrome ? false : !locked,
-			        hasBorders: hideTokenSelectionChrome ? false : true,
+			        hasControls: hideSelectionChrome ? false : !locked,
+			        hasBorders: hideSelectionChrome ? false : true,
 			        transparentCorners: false,
 			        cornerStyle: 'circle',
 			        cornerColor: '#22d3ee',
 			        borderColor: '#67e8f9',
 			        cornerStrokeColor: '#071320',
-			        padding: hideTokenSelectionChrome ? 0 : (isBackground ? (backgroundEdit ? 14 : 10) : 8),
+			        padding: hideSelectionChrome ? 0 : (isBackground ? (backgroundEdit ? 14 : 10) : 8),
 			        cornerSize: isBackground ? (backgroundEdit ? 30 : 22) : 18,
 			        lockScalingFlip: true,
 			      });
