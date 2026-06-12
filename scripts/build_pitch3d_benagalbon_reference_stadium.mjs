@@ -51,6 +51,7 @@ const mats = {
   light: new THREE.MeshBasicMaterial({ name: 'REF_WARM_FLOODLIGHT_LINE', color: 0xfff3ca, toneMapped: false }),
   black: new THREE.MeshStandardMaterial({ name: 'REF_DEEP_RECESSES', color: 0x030712, roughness: 0.94, metalness: 0.01 }),
   mesh: new THREE.MeshStandardMaterial({ name: 'REF_FINE_STADIUM_MESH', color: 0xaeb8b5, roughness: 0.48, metalness: 0.32 }),
+  orange: new THREE.MeshStandardMaterial({ name: 'REF_TOUCHLINE_EQUIPMENT_ORANGE', color: 0xf97316, roughness: 0.72, metalness: 0.01 }),
   grassFiber: new THREE.MeshStandardMaterial({ name: 'REF_GRASS_FINE_FIBER_HIGHLIGHT', color: 0x7ab847, roughness: 0.95, metalness: 0.0 }),
   grassLight: new THREE.MeshStandardMaterial({ name: 'REF_GRASS_LIGHT_BAND', color: 0x4f8d28, roughness: 0.9, metalness: 0.0 }),
   grassDark: new THREE.MeshStandardMaterial({ name: 'REF_GRASS_DARK_BAND', color: 0x32731f, roughness: 0.94, metalness: 0.0 }),
@@ -509,6 +510,29 @@ const addTechnicalAreas = () => {
   });
 };
 addTechnicalAreas();
+
+const addTouchlineEquipment = () => {
+  [-1, 1].forEach((side) => {
+    const x = side * 38.5;
+    const z = -(pitchH / 2 + 5.35);
+    box(`touchline_camera_tripod_left_${side}`, mats.darkMetal, [x - 0.42, 0.86, z - 1.95], [0.06, 1.35, 0.06], [0.18, 0, 0.24]);
+    box(`touchline_camera_tripod_right_${side}`, mats.darkMetal, [x + 0.42, 0.86, z - 1.95], [0.06, 1.35, 0.06], [0.18, 0, -0.24]);
+    box(`touchline_camera_tripod_center_${side}`, mats.darkMetal, [x, 0.88, z - 1.95], [0.06, 1.42, 0.06]);
+    box(`touchline_camera_body_${side}`, mats.black, [x, 1.68, z - 1.95], [0.72, 0.36, 0.46]);
+    box(`touchline_camera_lens_${side}`, mats.darkMetal, [x, 1.68, z - 2.28], [0.34, 0.22, 0.36]);
+  });
+  for (let i = 0; i < 4; i += 1) {
+    const x = -46 + i * 4.5;
+    box(`training_cone_${i}_base`, mats.orange, [x, 0.13, -(pitchH / 2 + 3.9)], [0.52, 0.12, 0.52]);
+    box(`training_cone_${i}_top`, mats.orange, [x, 0.42, -(pitchH / 2 + 3.9)], [0.25, 0.48, 0.25]);
+  }
+  box('touchline_equipment_cart_base', mats.darkMetal, [44.0, 0.38, -(pitchH / 2 + 6.8)], [3.1, 0.34, 1.35]);
+  box('touchline_equipment_cart_handle', mats.metal, [45.8, 0.98, -(pitchH / 2 + 6.8)], [0.12, 1.0, 1.15]);
+  cyl('touchline_equipment_cart_wheel_a', mats.black, [42.85, 0.2, -(pitchH / 2 + 7.45)], 0.28, 0.12, [Math.PI / 2, 0, 0], 32);
+  cyl('touchline_equipment_cart_wheel_b', mats.black, [45.15, 0.2, -(pitchH / 2 + 7.45)], 0.28, 0.12, [Math.PI / 2, 0, 0], 32);
+  writeBlockText({ text: 'TUNEL', name: 'main_tunnel_sign', origin: [-3.0, 4.05, pitchH / 2 + 12.15], cell: 0.16, plane: 'xy' });
+};
+addTouchlineEquipment();
 
 const addReferenceBackdrop = () => {
   box('reference_soft_sky_backdrop', mats.skyPanel, [0, 12.8, 74.6], [150.0, 21.0, 0.08]);
