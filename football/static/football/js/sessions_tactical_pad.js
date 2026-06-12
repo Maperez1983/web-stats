@@ -8145,6 +8145,19 @@
 						      }
 						    };
 						    const isDedicatedPitch3dReferenceStadiumSrc = (src) => /stadium_benagalbon_reference(?:\.[a-f0-9]+)?\.glb(?:[?#].*)?$/i.test(safeText(src || ''));
+						    const ensurePitch3dGltfLoaderClass = async () => {
+						      try { if (window.__WEBSTATS_GLTF_LOADER_CLASS) return true; } catch (e) { /* ignore */ }
+						      if (window.__webstats_gltf_loader_promise) return !!(await window.__webstats_gltf_loader_promise);
+						      const src = __pitch3dAssetUrl('threeGltfLoaderSrc');
+						      if (!src) return false;
+						      try {
+						        const mod = await import(src);
+						        window.__WEBSTATS_GLTF_LOADER_CLASS = mod && mod.GLTFLoader;
+						        return !!window.__WEBSTATS_GLTF_LOADER_CLASS;
+						      } catch (e) {
+						        return false;
+						      }
+						    };
 
 						    const __pitch3dStaticImageCache = new Map();
 						    const __pitch3dLoadStaticImage = (cacheKey, src) => {
@@ -15046,11 +15059,7 @@
 						    // UI wiring
 						    const openPitch3dWhenReady = async () => {
 						      try {
-						        if (!window.__WEBSTATS_GLTF_LOADER_CLASS && typeof window.__webstatsEnsure3dStack === 'function') {
-						          await window.__webstatsEnsure3dStack();
-						        } else if (!window.__WEBSTATS_GLTF_LOADER_CLASS && window.__webstats_gltf_loader_promise) {
-						          await window.__webstats_gltf_loader_promise;
-						        }
+						        await ensurePitch3dGltfLoaderClass();
 						      } catch (e) { /* ignore */ }
 						      openPitch3d();
 						    };
