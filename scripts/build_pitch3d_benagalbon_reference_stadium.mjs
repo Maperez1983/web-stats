@@ -43,7 +43,7 @@ const mats = {
   white: new THREE.MeshStandardMaterial({ name: 'REF_WHITE_LETTER_CHAIR', color: 0xf8faf5, roughness: 0.54, metalness: 0.01 }),
   lineWhite: new THREE.MeshStandardMaterial({ name: 'REF_PAINTED_PITCH_LINES', color: 0xf4f7ef, roughness: 0.76, metalness: 0.0 }),
   metal: new THREE.MeshStandardMaterial({ name: 'REF_STEEL_TRUSS_METAL', color: 0x5f6b6f, roughness: 0.36, metalness: 0.42 }),
-  darkMetal: new THREE.MeshStandardMaterial({ name: 'REF_DARK_STEEL', color: 0x1f2933, roughness: 0.42, metalness: 0.35 }),
+  darkMetal: new THREE.MeshStandardMaterial({ name: 'REF_DARK_STEEL', color: 0x4c5653, roughness: 0.48, metalness: 0.18 }),
   roof: new THREE.MeshStandardMaterial({ name: 'REF_LIGHT_ROOF_SOFFIT', color: 0xe6ebe7, roughness: 0.44, metalness: 0.18 }),
   roofShadow: new THREE.MeshStandardMaterial({ name: 'REF_ROOF_CAST_SHADOW', color: 0x111827, roughness: 0.96, metalness: 0.0, transparent: true, opacity: 0.22 }),
   concreteStain: new THREE.MeshStandardMaterial({ name: 'REF_CONCRETE_WEATHERING_VARIATION', color: 0x7f8984, roughness: 0.96, metalness: 0.0 }),
@@ -52,7 +52,7 @@ const mats = {
   glass: new THREE.MeshPhysicalMaterial({ name: 'REF_CLEAR_DUGOUT_GLASS', color: 0xc7efff, roughness: 0.08, metalness: 0.02, transparent: true, opacity: 0.34, transmission: 0.18, side: THREE.DoubleSide }),
   led: new THREE.MeshStandardMaterial({ name: 'REF_GREEN_LED_BOARD_FACE', color: 0x0b5f45, roughness: 0.24, metalness: 0.04, emissive: 0x063b2f, emissiveIntensity: 0.18 }),
   light: new THREE.MeshBasicMaterial({ name: 'REF_WARM_FLOODLIGHT_LINE', color: 0xfff3ca, toneMapped: false }),
-  black: new THREE.MeshStandardMaterial({ name: 'REF_DEEP_RECESSES', color: 0x18211d, roughness: 0.94, metalness: 0.01 }),
+  black: new THREE.MeshStandardMaterial({ name: 'REF_DEEP_RECESSES', color: 0x39413d, roughness: 0.94, metalness: 0.01 }),
   mesh: new THREE.MeshStandardMaterial({ name: 'REF_FINE_STADIUM_MESH', color: 0xaeb8b5, roughness: 0.48, metalness: 0.32 }),
   orange: new THREE.MeshStandardMaterial({ name: 'REF_TOUCHLINE_EQUIPMENT_ORANGE', color: 0xf97316, roughness: 0.72, metalness: 0.01 }),
   grassFiber: new THREE.MeshStandardMaterial({ name: 'REF_GRASS_FINE_FIBER_HIGHLIGHT', color: 0x7ab847, roughness: 0.95, metalness: 0.0 }),
@@ -353,15 +353,6 @@ const addBoards = () => {
     box(`continuous_green_partner_board_${idx}`, mats.led, [x, 0.88, z], [sx, 1.0, sz]);
     box(`board_white_top_cap_${idx}`, mats.white, [x, 1.36, z], [sx, 0.08, sz + 0.04]);
   });
-  writeBlockText({ text: 'CAMPO MUNICIPAL', name: 'north_board_municipal', origin: [-39, 1.12, pitchH / 2 + 2.96], cell: 0.22, plane: 'xy' });
-  writeBlockText({ text: 'PARTNER', name: 'north_board_partner_left', origin: [-7, 1.12, pitchH / 2 + 2.96], cell: 0.22, plane: 'xy' });
-  writeBlockText({ text: '2J FOOTBALL INTELLIGENCE', name: 'north_board_2j', origin: [18, 1.12, pitchH / 2 + 2.96], cell: 0.16, plane: 'xy' });
-  writeBlockText({ text: 'PARTNER', name: 'south_board_partner', origin: [-36, 1.12, -(pitchH / 2 + 2.96)], cell: 0.22, plane: 'xy' });
-  writeBlockText({ text: 'BENAGALBON CD', name: 'south_board_name', origin: [2, 1.12, -(pitchH / 2 + 2.96)], cell: 0.19, plane: 'xy' });
-  writeBlockText({ text: 'CDB', name: 'east_board_cdb', origin: [pitchW / 2 + 2.96, 1.12, -18], cell: 0.2, plane: 'zy' });
-  writeBlockText({ text: 'PARTNER', name: 'east_board_partner', origin: [pitchW / 2 + 2.96, 1.12, 6], cell: 0.18, plane: 'zy' });
-  writeBlockText({ text: 'CDB', name: 'west_board_cdb', origin: [-(pitchW / 2 + 2.96), 1.12, 14], cell: 0.2, plane: 'zy' });
-  writeBlockText({ text: 'PARTNER', name: 'west_board_partner', origin: [-(pitchW / 2 + 2.96), 1.12, -12], cell: 0.18, plane: 'zy' });
 };
 addBoards();
 
@@ -436,13 +427,9 @@ addCornerDetails();
 
 const addDugout = (x, label) => {
   const z = -(pitchH / 2 + 5.15);
-  box(`dugout_${label}_base`, mats.darkMetal, [x, 0.24, z], [12.4, 0.26, 1.42]);
+  box(`dugout_${label}_base`, mats.concrete, [x, 0.24, z], [12.4, 0.24, 1.28]);
   box(`dugout_${label}_rear_green_panel`, mats.greenDark, [x, 0.92, z + 0.56], [12.2, 1.04, 0.10]);
-  box(`dugout_${label}_front_metal_lip`, mats.metal, [x, 1.82, z - 0.98], [12.3, 0.07, 0.10]);
-  cyl(`dugout_${label}_cdb_roundel_left`, mats.white, [x - 5.6, 1.07, z - 1.02], 0.34, 0.045, [Math.PI / 2, 0, 0], 40);
-  cyl(`dugout_${label}_cdb_roundel_green_left`, mats.green, [x - 5.6, 1.07, z - 1.06], 0.24, 0.045, [Math.PI / 2, 0, 0], 40);
-  cyl(`dugout_${label}_cdb_roundel_right`, mats.white, [x + 5.6, 1.07, z - 1.02], 0.34, 0.045, [Math.PI / 2, 0, 0], 40);
-  cyl(`dugout_${label}_cdb_roundel_green_right`, mats.green, [x + 5.6, 1.07, z - 1.06], 0.24, 0.045, [Math.PI / 2, 0, 0], 40);
+  box(`dugout_${label}_front_metal_lip`, mats.metal, [x, 1.72, z - 0.86], [12.1, 0.06, 0.08]);
   for (let i = 0; i < 6; i += 1) {
     const t = i / 5;
     box(`dugout_${label}_curved_glass_${i}`, mats.glass, [x, 1.02 + Math.sin(t * Math.PI * 0.58) * 0.82, z - 0.56 + t * 0.96], [11.8, 0.055, 0.32], [-0.38 + t * 0.22, 0, 0]);
@@ -456,16 +443,6 @@ const addDugout = (x, label) => {
 addDugout(-22, 'home');
 addDugout(22, 'away');
 
-cyl('main_round_cdb_crest', mats.white, [0, 8.6, pitchH / 2 + 11.0], 3.4, 0.16, [Math.PI / 2, 0, 0], 96);
-cyl('main_round_cdb_crest_green_ring', mats.green, [0, 8.61, pitchH / 2 + 10.88], 3.05, 0.18, [Math.PI / 2, 0, 0], 96);
-cyl('main_round_cdb_crest_white_core', mats.white, [0, 8.62, pitchH / 2 + 10.75], 2.22, 0.20, [Math.PI / 2, 0, 0], 96);
-cyl('main_round_cdb_crest_inner_green_ring', mats.greenDark, [0, 8.625, pitchH / 2 + 10.56], 1.76, 0.08, [Math.PI / 2, 0, 0], 96);
-cyl('main_round_cdb_crest_inner_white_field', mats.white, [0, 8.63, pitchH / 2 + 10.48], 1.35, 0.08, [Math.PI / 2, 0, 0], 96);
-box('main_crest_center_vertical_green_band', mats.green, [0, 8.67, pitchH / 2 + 10.38], [0.38, 2.15, 0.055]);
-box('main_crest_center_horizontal_green_band', mats.green, [0, 8.67, pitchH / 2 + 10.36], [2.10, 0.34, 0.055]);
-writeBlockText({ text: 'CDB', name: 'main_crest_cdb_letters', origin: [-1.35, 8.92, pitchH / 2 + 10.58], cell: 0.18, plane: 'xy' });
-writeBlockText({ text: 'BENAGALBON', name: 'main_crest_top_name_hint', origin: [-2.35, 10.16, pitchH / 2 + 10.42], cell: 0.075, plane: 'xy' });
-writeBlockText({ text: 'CD', name: 'main_crest_bottom_cd_hint', origin: [-0.34, 7.00, pitchH / 2 + 10.42], cell: 0.10, plane: 'xy' });
 box('main_stand_rear_green_facade', mats.greenDark, [0, 6.2, pitchH / 2 + 41.0], [pitchW + 66, 6.4, 0.38]);
 box('main_stand_rear_concrete_plinth', mats.concrete, [0, 2.1, pitchH / 2 + 41.2], [pitchW + 72, 2.2, 0.52]);
 for (let i = -6; i <= 6; i += 1) {
@@ -477,10 +454,7 @@ for (let i = -5; i <= 5; i += 1) {
   box(`rear_facade_glass_panel_${i}`, mats.glass, [x, 5.45, pitchH / 2 + 40.45], [6.2, 1.35, 0.08]);
 }
 box('rear_facade_roof_edge_shadow', mats.roofShadow, [0, 9.45, pitchH / 2 + 40.38], [pitchW + 64, 0.18, 0.08]);
-writeBlockText({ text: 'BENAGALBON CD', name: 'rear_facade_name', origin: [-19.8, 7.52, pitchH / 2 + 40.48], cell: 0.24, plane: 'xy' });
-box('main_scoreboard_frame', mats.black, [38.0, 6.15, pitchH / 2 + 8.2], [7.8, 3.8, 0.24]);
-box('main_scoreboard_face', mats.led, [38.0, 6.15, pitchH / 2 + 8.02], [7.2, 3.25, 0.08]);
-writeBlockText({ text: 'CDB', name: 'scoreboard_cdb', origin: [36.35, 6.58, pitchH / 2 + 7.94], cell: 0.13, plane: 'xy' });
+box('main_scoreboard_face', mats.led, [38.0, 5.9, pitchH / 2 + 8.02], [6.4, 2.4, 0.08]);
 
 const addTechnicalAreas = () => {
   [-20, 0, 20].forEach((x, idx) => {
@@ -492,7 +466,6 @@ const addTechnicalAreas = () => {
 addTechnicalAreas();
 
 const addTouchlineEquipment = () => {
-  writeBlockText({ text: 'TUNEL', name: 'main_tunnel_sign', origin: [-3.0, 4.05, pitchH / 2 + 12.15], cell: 0.16, plane: 'xy' });
 };
 addTouchlineEquipment();
 
