@@ -454,22 +454,22 @@ const addCornerDetails = () => {
 addCornerDetails();
 
 const addDugout = (x, label) => {
-  const z = -(pitchH / 2 + 6.0);
-  box(`dugout_${label}_base`, mats.darkMetal, [x, 0.25, z], [12.8, 0.28, 2.0]);
-  box(`dugout_${label}_rear_green_panel`, mats.greenDark, [x, 0.95, z + 0.88], [12.6, 1.15, 0.10]);
-  box(`dugout_${label}_front_metal_lip`, mats.metal, [x, 1.98, z - 1.34], [12.7, 0.08, 0.12]);
-  cyl(`dugout_${label}_cdb_roundel_left`, mats.white, [x - 5.9, 1.18, z - 1.40], 0.42, 0.05, [Math.PI / 2, 0, 0], 48);
-  cyl(`dugout_${label}_cdb_roundel_green_left`, mats.green, [x - 5.9, 1.18, z - 1.44], 0.30, 0.05, [Math.PI / 2, 0, 0], 48);
-  cyl(`dugout_${label}_cdb_roundel_right`, mats.white, [x + 5.9, 1.18, z - 1.40], 0.42, 0.05, [Math.PI / 2, 0, 0], 48);
-  cyl(`dugout_${label}_cdb_roundel_green_right`, mats.green, [x + 5.9, 1.18, z - 1.44], 0.30, 0.05, [Math.PI / 2, 0, 0], 48);
+  const z = -(pitchH / 2 + 5.15);
+  box(`dugout_${label}_base`, mats.darkMetal, [x, 0.24, z], [12.4, 0.26, 1.42]);
+  box(`dugout_${label}_rear_green_panel`, mats.greenDark, [x, 0.92, z + 0.56], [12.2, 1.04, 0.10]);
+  box(`dugout_${label}_front_metal_lip`, mats.metal, [x, 1.82, z - 0.98], [12.3, 0.07, 0.10]);
+  cyl(`dugout_${label}_cdb_roundel_left`, mats.white, [x - 5.6, 1.07, z - 1.02], 0.34, 0.045, [Math.PI / 2, 0, 0], 40);
+  cyl(`dugout_${label}_cdb_roundel_green_left`, mats.green, [x - 5.6, 1.07, z - 1.06], 0.24, 0.045, [Math.PI / 2, 0, 0], 40);
+  cyl(`dugout_${label}_cdb_roundel_right`, mats.white, [x + 5.6, 1.07, z - 1.02], 0.34, 0.045, [Math.PI / 2, 0, 0], 40);
+  cyl(`dugout_${label}_cdb_roundel_green_right`, mats.green, [x + 5.6, 1.07, z - 1.06], 0.24, 0.045, [Math.PI / 2, 0, 0], 40);
   for (let i = 0; i < 6; i += 1) {
     const t = i / 5;
-    box(`dugout_${label}_curved_glass_${i}`, mats.glass, [x, 1.10 + Math.sin(t * Math.PI * 0.58), z - 0.75 + t * 1.38], [12.2, 0.06, 0.42], [-0.45 + t * 0.26, 0, 0]);
+    box(`dugout_${label}_curved_glass_${i}`, mats.glass, [x, 1.02 + Math.sin(t * Math.PI * 0.58) * 0.82, z - 0.56 + t * 0.96], [11.8, 0.055, 0.32], [-0.38 + t * 0.22, 0, 0]);
   }
   for (let i = 0; i < 8; i += 1) {
     const sx = x - 4.85 + i * 1.38;
-    box(`dugout_${label}_chair_${i}`, mats.green, [sx, 0.68, z + 0.14], [0.78, 0.18, 0.56]);
-    box(`dugout_${label}_back_${i}`, mats.green, [sx, 1.02, z + 0.46], [0.78, 0.70, 0.10], [-0.18, 0, 0]);
+    box(`dugout_${label}_chair_${i}`, mats.green, [sx, 0.65, z + 0.05], [0.72, 0.16, 0.46]);
+    box(`dugout_${label}_back_${i}`, mats.green, [sx, 0.96, z + 0.31], [0.72, 0.58, 0.09], [-0.16, 0, 0]);
   }
 };
 addDugout(-22, 'home');
@@ -499,38 +499,20 @@ for (let i = -9; i <= 9; i += 1) {
 }
 box('rear_facade_roof_edge_shadow', mats.roofShadow, [0, 9.45, pitchH / 2 + 40.38], [pitchW + 64, 0.18, 0.08]);
 writeBlockText({ text: 'BENAGALBON CD', name: 'rear_facade_name', origin: [-19.8, 7.52, pitchH / 2 + 40.48], cell: 0.24, plane: 'xy' });
-box('corner_scoreboard_frame', mats.black, [pitchW / 2 + 8.5, 6.4, pitchH / 2 + 8.6], [8.2, 4.6, 0.30], [0, -Math.PI / 4, 0]);
-box('corner_scoreboard_face', mats.led, [pitchW / 2 + 8.25, 6.4, pitchH / 2 + 8.35], [7.5, 3.9, 0.08], [0, -Math.PI / 4, 0]);
-writeBlockText({ text: 'CDB', name: 'scoreboard_cdb', origin: [pitchW / 2 + 6.58, 6.85, pitchH / 2 + 8.2], cell: 0.14, plane: 'xy', rotation: [0, -Math.PI / 4, 0] });
+box('main_scoreboard_frame', mats.black, [38.0, 6.15, pitchH / 2 + 8.2], [7.8, 3.8, 0.24]);
+box('main_scoreboard_face', mats.led, [38.0, 6.15, pitchH / 2 + 8.02], [7.2, 3.25, 0.08]);
+writeBlockText({ text: 'CDB', name: 'scoreboard_cdb', origin: [36.35, 6.58, pitchH / 2 + 7.94], cell: 0.13, plane: 'xy' });
 
 const addTechnicalAreas = () => {
   [-20, 0, 20].forEach((x, idx) => {
-    box(`technical_area_dashed_front_${idx}`, mats.white, [x, 0.075, -(pitchH / 2 + 4.72)], [12.0, 0.04, 0.08]);
-    box(`technical_area_dashed_left_${idx}`, mats.white, [x - 6.0, 0.075, -(pitchH / 2 + 5.9)], [0.08, 0.04, 2.3]);
-    box(`technical_area_dashed_right_${idx}`, mats.white, [x + 6.0, 0.075, -(pitchH / 2 + 5.9)], [0.08, 0.04, 2.3]);
+    box(`technical_area_dashed_front_${idx}`, mats.white, [x, 0.076, -(pitchH / 2 + 2.65)], [11.4, 0.035, 0.07]);
+    box(`technical_area_dashed_left_${idx}`, mats.white, [x - 5.7, 0.076, -(pitchH / 2 + 3.48)], [0.07, 0.035, 1.55]);
+    box(`technical_area_dashed_right_${idx}`, mats.white, [x + 5.7, 0.076, -(pitchH / 2 + 3.48)], [0.07, 0.035, 1.55]);
   });
 };
 addTechnicalAreas();
 
 const addTouchlineEquipment = () => {
-  [-1, 1].forEach((side) => {
-    const x = side * 38.5;
-    const z = -(pitchH / 2 + 5.35);
-    box(`touchline_camera_tripod_left_${side}`, mats.darkMetal, [x - 0.42, 0.86, z - 1.95], [0.06, 1.35, 0.06], [0.18, 0, 0.24]);
-    box(`touchline_camera_tripod_right_${side}`, mats.darkMetal, [x + 0.42, 0.86, z - 1.95], [0.06, 1.35, 0.06], [0.18, 0, -0.24]);
-    box(`touchline_camera_tripod_center_${side}`, mats.darkMetal, [x, 0.88, z - 1.95], [0.06, 1.42, 0.06]);
-    box(`touchline_camera_body_${side}`, mats.black, [x, 1.68, z - 1.95], [0.72, 0.36, 0.46]);
-    box(`touchline_camera_lens_${side}`, mats.darkMetal, [x, 1.68, z - 2.28], [0.34, 0.22, 0.36]);
-  });
-  for (let i = 0; i < 4; i += 1) {
-    const x = -46 + i * 4.5;
-    box(`training_cone_${i}_base`, mats.orange, [x, 0.13, -(pitchH / 2 + 3.9)], [0.52, 0.12, 0.52]);
-    box(`training_cone_${i}_top`, mats.orange, [x, 0.42, -(pitchH / 2 + 3.9)], [0.25, 0.48, 0.25]);
-  }
-  box('touchline_equipment_cart_base', mats.darkMetal, [44.0, 0.38, -(pitchH / 2 + 6.8)], [3.1, 0.34, 1.35]);
-  box('touchline_equipment_cart_handle', mats.metal, [45.8, 0.98, -(pitchH / 2 + 6.8)], [0.12, 1.0, 1.15]);
-  cyl('touchline_equipment_cart_wheel_a', mats.black, [42.85, 0.2, -(pitchH / 2 + 7.45)], 0.28, 0.12, [Math.PI / 2, 0, 0], 32);
-  cyl('touchline_equipment_cart_wheel_b', mats.black, [45.15, 0.2, -(pitchH / 2 + 7.45)], 0.28, 0.12, [Math.PI / 2, 0, 0], 32);
   writeBlockText({ text: 'TUNEL', name: 'main_tunnel_sign', origin: [-3.0, 4.05, pitchH / 2 + 12.15], cell: 0.16, plane: 'xy' });
 };
 addTouchlineEquipment();
