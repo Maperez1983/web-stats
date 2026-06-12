@@ -9573,14 +9573,14 @@ def club_onboarding_page(request):
         workspace = None
     elif workspace.kind != Workspace.KIND_CLUB:
         return HttpResponse('El workspace activo no es de tipo club.', status=400)
-    if workspace and not _can_manage_workspace(request.user, workspace):
-        return HttpResponse('No tienes permisos para configurar este workspace.', status=403)
-
     # Multi-categoría: el onboarding debe aplicarse al equipo activo (p.ej. Prebenjamín),
     # no siempre al `workspace.primary_team` (que suele ser Senior).
     primary_team = _get_active_team_for_request(request) if workspace else None
     if not primary_team and workspace:
         primary_team = getattr(workspace, 'primary_team', None)
+    if workspace and not _can_manage_workspace(request.user, workspace):
+        if not workspace_context.can_configure_active_team(request.user, workspace, primary_team):
+            return HttpResponse('No tienes permisos para configurar este workspace.', status=403)
     competition_context = None
     if primary_team:
         competition_context = _bootstrap_workspace_competition_context(workspace, primary_team=primary_team)

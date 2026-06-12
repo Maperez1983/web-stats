@@ -1436,7 +1436,7 @@
 	                    </a>
 	                    {% endif %}
 
-                    {% if can_manage_workspace %}
+                    {% if can_configure_active_team %}
                     <a class="quick-action is-config" href="{% url 'club-onboarding' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
                       <strong>Configuración</strong>
                       <span>Branding · competición · módulos</span>

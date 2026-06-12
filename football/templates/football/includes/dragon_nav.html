@@ -159,7 +159,7 @@
   {% if workspace_module_access.tactics|default:True %}
   <a href="{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if 'coach/tactica' in nav_path %}is-active{% endif %}" {% if 'coach/tactica' in nav_path %}aria-current="page"{% endif %}>Táctica</a>
   {% endif %}
-  {% if can_manage_workspace and active_workspace and active_workspace.kind == 'club' %}
+  {% if can_configure_active_team and active_workspace and active_workspace.kind == 'club' %}
   <a href="{% url 'club-onboarding' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if nav_url_name == 'club-onboarding' or nav_url_name == 'club-season-wizard' %}is-active{% endif %}" {% if nav_url_name == 'club-onboarding' or nav_url_name == 'club-season-wizard' %}aria-current="page"{% endif %}>Configurar</a>
   {% endif %}
   {% if show_legacy_nav_menu|default:False %}
@@ -240,10 +240,12 @@
         <input type="hidden" name="next" value="{{ active_team_current_path|default:'' }}" />
       </form>
       {% endif %}
-      {% if can_manage_workspace and active_workspace and active_workspace.kind == 'club' %}
+      {% if can_configure_active_team and active_workspace and active_workspace.kind == 'club' %}
       <div class="nav-more-subtitle">Gestión</div>
       <a href="{% url 'club-onboarding' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Configuración</a>
+      {% if can_manage_workspace %}
       <a href="{% url 'billing' %}">Suscripción</a>
+      {% endif %}
       {% endif %}
       {% if can_manage_workspace or is_admin_user %}
       <div class="nav-more-subtitle">Admin</div>

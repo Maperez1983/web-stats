@@ -486,3 +486,49 @@ def can_view_workspace(user, workspace):
 
 def can_manage_workspace(user, workspace):
     return policy_can_manage_workspace(user, workspace, platform_access=can_access_platform(user))
+
+
+def can_configure_active_team(user, workspace, team=None):
+    if not workspace or getattr(workspace, 'kind', None) != Workspace.KIND_CLUB:
+        return False
+    if can_manage_workspace(user, workspace):
+        return True
+    if not policy_can_view_workspace(user, workspace, platform_access=False):
+        return False
+    try:
+        links = workspace_team_links_for_user(workspace, user)
+        team_ids = {int(getattr(link, 'team_id', 0) or 0) for link in links if getattr(link, 'team_id', None)}
+        team_ids.discard(0)
+    except Exception:
+        logger.debug('No se pudo resolver alcance de equipos para configurar workspace %s', getattr(workspace, 'id', None), exc_info=True)
+        team_ids = set()
+    if len(team_ids) != 1:
+        return False
+    only_team_id = next(iter(team_ids))
+    if team is not None:
+        try:
+            if int(getattr(team, 'id', 0) or 0) != only_team_id:
+                return False
+        except Exception:
+            return False
+    try:
+        if WorkspaceTeamAccess.objects.filter(workspace=workspace, user=user, team_id=only_team_id).exists():
+            return True
+    except Exception:
+        logger.debug('No se pudo comprobar acceso explicito al equipo %s', only_team_id, exc_info=True)
+    try:
+        if StaffMember.objects.filter(workspace=workspace, user=user, team_id=only_team_id, is_active=True).exists():
+            return True
+    except Exception:
+        logger.debug('No se pudo comprobar perfil staff del equipo %s', only_team_id, exc_info=True)
+    try:
+        all_workspace_team_ids = {
+            int(team_id)
+            for team_id in WorkspaceTeam.objects.filter(workspace=workspace).values_list('team_id', flat=True)
+            if team_id
+        }
+        if len(all_workspace_team_ids) == 1 and only_team_id in all_workspace_team_ids:
+            return True
+    except Exception:
+        logger.debug('No se pudo comprobar si el workspace %s es mono-equipo', getattr(workspace, 'id', None), exc_info=True)
+    return False

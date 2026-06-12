@@ -20,7 +20,7 @@ from django.test import RequestFactory, SimpleTestCase, TestCase, TransactionTes
 from django.urls import reverse
 from django.utils import timezone
 
-from football.models import AnalystVideoFolder, AnalysisVideoReport, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerEvaluation, PlayerFine, PlayerSeasonReport, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, StaffMember, TacticalPlaybookClip, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, TrainingSessionAttendance, UserInvitation, VideoClip, VideoTimelineEvent, VideoTelestrationProject, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspacePlayer, WorkspacePreference, WorkspaceSeason, WorkspaceSeasonPlayer, WorkspaceSeasonTeam, WorkspaceTeam
+from football.models import AnalystVideoFolder, AnalysisVideoReport, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerEvaluation, PlayerFine, PlayerSeasonReport, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, StaffMember, TacticalPlaybookClip, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, TrainingSessionAttendance, UserInvitation, VideoClip, VideoTimelineEvent, VideoTelestrationProject, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspacePlayer, WorkspacePreference, WorkspaceSeason, WorkspaceSeasonPlayer, WorkspaceSeasonTeam, WorkspaceTeam, WorkspaceTeamAccess
 from football import views as football_views
 from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.event_taxonomy import (
@@ -5159,6 +5159,67 @@ class PlatformWorkspaceTests(TestCase):
         self.assertContains(response, self.alt_team.display_name)
         self.assertContains(response, 'Jugador del cliente')
         self.assertEqual(self.client.session.get('active_workspace_id'), workspace.id)
+
+    def test_single_team_member_can_see_configuration_entrypoint(self):
+        workspace = Workspace.objects.create(
+            name='Cliente equipo unico',
+            slug='cliente-equipo-unico',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.alt_team,
+        )
+        WorkspaceTeam.objects.create(workspace=workspace, team=self.alt_team, is_default=True)
+        WorkspaceMembership.objects.create(
+            workspace=workspace,
+            user=self.workspace_member,
+            role=WorkspaceMembership.ROLE_MEMBER,
+        )
+        WorkspaceTeamAccess.objects.create(
+            workspace=workspace,
+            team=self.alt_team,
+            user=self.workspace_member,
+            is_default=True,
+        )
+        self.client.force_login(self.workspace_member)
+        session = self.client.session
+        session['active_workspace_id'] = workspace.id
+        session['active_team_by_workspace'] = {str(workspace.id): int(self.alt_team.id)}
+        session.save()
+
+        response = self.client.get(reverse('match-hub') + f'?team={self.alt_team.id}')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['can_configure_active_team'])
+        self.assertContains(response, 'Configurar')
+
+    def test_single_team_member_can_open_onboarding_for_assigned_team(self):
+        workspace = Workspace.objects.create(
+            name='Cliente onboarding miembro',
+            slug='cliente-onboarding-miembro',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.alt_team,
+        )
+        WorkspaceTeam.objects.create(workspace=workspace, team=self.alt_team, is_default=True)
+        WorkspaceMembership.objects.create(
+            workspace=workspace,
+            user=self.workspace_member,
+            role=WorkspaceMembership.ROLE_MEMBER,
+        )
+        WorkspaceTeamAccess.objects.create(
+            workspace=workspace,
+            team=self.alt_team,
+            user=self.workspace_member,
+            is_default=True,
+        )
+        self.client.force_login(self.workspace_member)
+        session = self.client.session
+        session['active_workspace_id'] = workspace.id
+        session['active_team_by_workspace'] = {str(workspace.id): int(self.alt_team.id)}
+        session.save()
+
+        response = self.client.get(reverse('club-onboarding') + f'?team={self.alt_team.id}')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Configuración')
 
     def test_technical_user_without_workspace_cannot_access_club_modules(self):
         self.client.force_login(self.workspace_manager)
