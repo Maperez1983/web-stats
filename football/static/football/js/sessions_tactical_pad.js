@@ -8261,7 +8261,18 @@
 						      if (typeof onLoad === 'function') __pitch3dStadiumModelCache.callbacks.push(onLoad);
 						      if (__pitch3dStadiumModelCache.loading || __pitch3dStadiumModelCache.failed) return null;
 						      const LoaderClass = window.__WEBSTATS_GLTF_LOADER_CLASS;
-						      if (typeof LoaderClass !== 'function') return null;
+						      if (typeof LoaderClass !== 'function') {
+						        try {
+						          if (!__pitch3dStadiumModelCache.loaderRetryScheduled) {
+						            __pitch3dStadiumModelCache.loaderRetryScheduled = true;
+						            window.setTimeout(() => {
+						              __pitch3dStadiumModelCache.loaderRetryScheduled = false;
+						              __pitch3dLoadStadiumModel();
+						            }, 120);
+						          }
+						        } catch (e) { /* ignore */ }
+						        return null;
+						      }
 						      __pitch3dStadiumModelCache.loading = true;
 						      try {
 						        const loader = new LoaderClass();
