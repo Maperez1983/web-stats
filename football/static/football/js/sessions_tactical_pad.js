@@ -2292,6 +2292,10 @@
 		      try {
 		        if (document.body && document.body.classList.contains('tactics-mode')) dismissed = true;
 		      } catch (e) { /* ignore */ }
+		      // En el editor de tareas normal ya hay acciones rápidas visibles; evitamos un banner inicial redundante.
+		      try {
+		        if (document.body && document.body.classList.contains('task-mode-board')) dismissed = true;
+		      } catch (e) { /* ignore */ }
 		      setHintVisible(!dismissed);
 	      hintCloseBtn?.addEventListener('click', (event) => {
 	        event.preventDefault();
@@ -32467,7 +32471,7 @@
             let libraryCollapsed = false;
             const defaultLibraryCollapsed = (() => {
               if (getDeviceMode() === 'tablet') return true;
-              if (getDeviceMode() === 'desktop') return false;
+              if (getDeviceMode() === 'desktop') return true;
               try { return !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches); } catch (e) { return false; }
             })();
 	            const applyLibraryCollapsed = (collapsed, { persist = true } = {}) => {
