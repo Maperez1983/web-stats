@@ -12136,6 +12136,19 @@
 						                };
 						                addTechnicalBox(-9.0, -(metersH / 2 + 4.9), 'home');
 						                addTechnicalBox(9.0, -(metersH / 2 + 4.9), 'away');
+						                const addReferenceTechnicalMarkings = () => {
+						                  const dashedMat = paintMat.clone();
+						                  dashedMat.opacity = 0.78;
+						                  const z = -(metersH / 2 + 2.02);
+						                  for (let i = -17; i <= 17; i += 1) {
+						                    if (Math.abs(i) < 2) continue;
+						                    addBox(new THREE.BoxGeometry(1.45, 0.026, 0.10), dashedMat, i * 2.1, 0.188, z, 0, 0, 0, 'pitch_3d_reference_bench_touchline_dashed_marking');
+						                  }
+						                  [-35.0, 35.0].forEach((x) => {
+						                    addBox(new THREE.BoxGeometry(0.12, 0.030, 4.2), dashedMat, x, 0.19, z - 1.95, 0, 0, 0, 'pitch_3d_reference_technical_area_outer_return');
+						                  });
+						                };
+						                addReferenceTechnicalMarkings();
 						                const addReferenceDugouts = () => {
 						                  const dugoutSeatMat = new THREE.MeshStandardMaterial({ color: primaryInt, roughness: 0.48, metalness: 0.02 });
 						                  const shellMat = new THREE.MeshStandardMaterial({ color: 0xd6dedb, roughness: 0.36, metalness: 0.22 });
@@ -12256,8 +12269,8 @@
 						                    const seatBaseGeo = new THREE.BoxGeometry(0.46, 0.12, 0.38);
 						                    const seatBackGeo = new THREE.BoxGeometry(0.46, 0.34, 0.08);
 						                    const railGeo = new THREE.BoxGeometry(0.05, 0.78, 0.05);
-						                    const maxSeats = 4200;
-						                    const maxRails = 320;
+						                    const maxSeats = 5600;
+						                    const maxRails = 440;
 						                    const seatBase = new THREE.InstancedMesh(seatBaseGeo, seatAccentMat, maxSeats);
 						                    const seatBack = new THREE.InstancedMesh(seatBackGeo, seatShadowMat, maxSeats);
 						                    const aisleRails = new THREE.InstancedMesh(railGeo, metalMat, maxRails);
@@ -12265,16 +12278,16 @@
 						                    const seatDeepGreen = new THREE.Color(0x064e3b);
 						                    const seatLetter = new THREE.Color(0xf8fafc);
 						                    const letterFont = {
-						                      A: ['010', '101', '111', '101', '101'],
-						                      B: ['110', '101', '110', '101', '110'],
-						                      C: ['111', '100', '100', '100', '111'],
-						                      D: ['110', '101', '101', '101', '110'],
-						                      E: ['111', '100', '110', '100', '111'],
-						                      G: ['111', '100', '101', '101', '111'],
-						                      L: ['100', '100', '100', '100', '111'],
-						                      N: ['101', '111', '111', '111', '101'],
-						                      O: ['111', '101', '101', '101', '111'],
-						                      ' ': ['0', '0', '0', '0', '0'],
+						                      A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'],
+						                      B: ['11110', '10001', '10001', '11110', '10001', '10001', '11110'],
+						                      C: ['01111', '10000', '10000', '10000', '10000', '10000', '01111'],
+						                      D: ['11110', '10001', '10001', '10001', '10001', '10001', '11110'],
+						                      E: ['11111', '10000', '10000', '11110', '10000', '10000', '11111'],
+						                      G: ['01111', '10000', '10000', '10111', '10001', '10001', '01111'],
+						                      L: ['10000', '10000', '10000', '10000', '10000', '10000', '11111'],
+						                      N: ['10001', '11001', '10101', '10011', '10001', '10001', '10001'],
+						                      O: ['01110', '10001', '10001', '10001', '10001', '10001', '01110'],
+						                      ' ': ['00', '00', '00', '00', '00', '00', '00'],
 						                    };
 						                    const mainStandLetterMap = (() => {
 						                      const text = 'BENAGALBON CD';
@@ -12285,7 +12298,7 @@
 						                        for (let x = 0; x < width; x += 1) {
 						                          cols.push(glyph.map((row) => row[x] === '1'));
 						                        }
-						                        if (charIdx < text.length - 1) cols.push([false, false, false, false, false]);
+						                        if (charIdx < text.length - 1) cols.push([false, false, false, false, false, false, false]);
 						                      });
 						                      return cols;
 						                    })();
@@ -12305,14 +12318,16 @@
 						                      mesh.count += 1;
 						                    };
 						                    const isMainStandLetterSeat = (axis, sign, row, col, cols) => {
-						                      if (axis !== 'z' || sign !== 1 || row < 4 || row > 8) return false;
+						                      if (axis !== 'z' || sign !== 1 || row < 5 || row > 11) return false;
 						                      const start = Math.max(0, Math.floor((cols - mainStandLetterMap.length) / 2));
 						                      const letterCol = col - start;
 						                      if (letterCol < 0 || letterCol >= mainStandLetterMap.length) return false;
-						                      return !!mainStandLetterMap[letterCol][row - 4];
+						                      return !!mainStandLetterMap[letterCol][row - 5];
 						                    };
 						                    const addStandSeats = ({ axis, sign, rows, cols, span, fixed, baseY, rowDepth, rowRise }) => {
-						                      const aisleCols = new Set([4, Math.floor(cols * 0.33), Math.floor(cols * 0.67), cols - 5]);
+						                      const aisleCols = axis === 'z'
+						                        ? new Set([5, Math.floor(cols * 0.20), Math.floor(cols * 0.36), Math.floor(cols * 0.50), Math.floor(cols * 0.64), Math.floor(cols * 0.80), cols - 6])
+						                        : new Set([4, Math.floor(cols * 0.28), Math.floor(cols * 0.50), Math.floor(cols * 0.72), cols - 5]);
 						                      for (let row = 0; row < rows; row += 1) {
 						                        const y = baseY + row * rowRise;
 						                        const depth = fixed + sign * row * rowDepth;
@@ -12344,10 +12359,10 @@
 						                        });
 						                      }
 						                    };
-						                    addStandSeats({ axis: 'z', sign: 1, rows: 16, cols: 62, span: metersW + 44.0, fixed: metersH / 2 + 10.2, baseY: 3.02, rowDepth: 0.58, rowRise: 0.29 });
-						                    addStandSeats({ axis: 'z', sign: -1, rows: 16, cols: 62, span: metersW + 44.0, fixed: -(metersH / 2 + 10.2), baseY: 3.02, rowDepth: 0.58, rowRise: 0.29 });
-						                    addStandSeats({ axis: 'x', sign: 1, rows: 14, cols: 46, span: metersH + 34.0, fixed: metersW / 2 + 10.2, baseY: 3.16, rowDepth: 0.58, rowRise: 0.29 });
-						                    addStandSeats({ axis: 'x', sign: -1, rows: 14, cols: 46, span: metersH + 34.0, fixed: -(metersW / 2 + 10.2), baseY: 3.16, rowDepth: 0.58, rowRise: 0.29 });
+						                    addStandSeats({ axis: 'z', sign: 1, rows: 18, cols: 86, span: metersW + 45.5, fixed: metersH / 2 + 10.0, baseY: 2.94, rowDepth: 0.55, rowRise: 0.28 });
+						                    addStandSeats({ axis: 'z', sign: -1, rows: 18, cols: 86, span: metersW + 45.5, fixed: -(metersH / 2 + 10.0), baseY: 2.94, rowDepth: 0.55, rowRise: 0.28 });
+						                    addStandSeats({ axis: 'x', sign: 1, rows: 15, cols: 52, span: metersH + 35.0, fixed: metersW / 2 + 10.1, baseY: 3.10, rowDepth: 0.56, rowRise: 0.28 });
+						                    addStandSeats({ axis: 'x', sign: -1, rows: 15, cols: 52, span: metersH + 35.0, fixed: -(metersW / 2 + 10.1), baseY: 3.10, rowDepth: 0.56, rowRise: 0.28 });
 						                    [seatBase, seatBack, aisleRails].forEach((mesh) => {
 						                      mesh.instanceMatrix.needsUpdate = true;
 						                      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
@@ -12401,6 +12416,10 @@
 						                      const px = d > w ? x : x + t * w;
 						                      const pz = d > w ? z + t * d : z;
 						                      addBox(new THREE.BoxGeometry(0.08, 0.92, 0.08), metalMat, px, 0.78, pz, 0, 0, 0, 'pitch_3d_reference_board_support_post');
+						                      if (i > 0 && i < posts) {
+						                        const dividerGeo = d > w ? new THREE.BoxGeometry(0.16, 0.58, 0.035) : new THREE.BoxGeometry(0.035, 0.58, 0.16);
+						                        addBox(dividerGeo, metalMat, px, 0.80, pz, 0, 0, 0, 'pitch_3d_reference_ad_board_segment_divider');
+						                      }
 						                    }
 						                  });
 						                };
