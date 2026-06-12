@@ -30,18 +30,22 @@ scene.name = 'pitch_3d_benagalbon_reference_dedicated_stadium';
 
 const mats = {
   concrete: new THREE.MeshStandardMaterial({ name: 'REF_PRECAST_CONCRETE', color: 0xb8c0bb, roughness: 0.82, metalness: 0.02 }),
+  concreteLine: new THREE.MeshStandardMaterial({ name: 'REF_CONCRETE_EXPANSION_JOINT', color: 0x78827e, roughness: 0.9, metalness: 0.01 }),
   darkConcrete: new THREE.MeshStandardMaterial({ name: 'REF_DARK_CONCRETE', color: 0x333b3a, roughness: 0.88, metalness: 0.02 }),
   green: new THREE.MeshStandardMaterial({ name: 'REF_BENAGALBON_GREEN_CHAIR', color: 0x047044, roughness: 0.58, metalness: 0.01 }),
   greenDark: new THREE.MeshStandardMaterial({ name: 'REF_DEEP_GREEN_CHAIR', color: 0x063f31, roughness: 0.62, metalness: 0.01 }),
   white: new THREE.MeshStandardMaterial({ name: 'REF_WHITE_LETTER_CHAIR', color: 0xf8faf5, roughness: 0.54, metalness: 0.01 }),
+  lineWhite: new THREE.MeshStandardMaterial({ name: 'REF_PAINTED_PITCH_LINES', color: 0xf4f7ef, roughness: 0.76, metalness: 0.0 }),
   metal: new THREE.MeshStandardMaterial({ name: 'REF_STEEL_TRUSS_METAL', color: 0x5f6b6f, roughness: 0.36, metalness: 0.42 }),
   darkMetal: new THREE.MeshStandardMaterial({ name: 'REF_DARK_STEEL', color: 0x1f2933, roughness: 0.42, metalness: 0.35 }),
   roof: new THREE.MeshStandardMaterial({ name: 'REF_LIGHT_ROOF_SOFFIT', color: 0xe6ebe7, roughness: 0.44, metalness: 0.18 }),
+  roofShadow: new THREE.MeshStandardMaterial({ name: 'REF_ROOF_CAST_SHADOW', color: 0x111827, roughness: 0.96, metalness: 0.0, transparent: true, opacity: 0.22 }),
   glass: new THREE.MeshPhysicalMaterial({ name: 'REF_CLEAR_DUGOUT_GLASS', color: 0xc7efff, roughness: 0.08, metalness: 0.02, transparent: true, opacity: 0.34, transmission: 0.18, side: THREE.DoubleSide }),
   led: new THREE.MeshStandardMaterial({ name: 'REF_GREEN_LED_BOARD_FACE', color: 0x063b2f, roughness: 0.24, metalness: 0.04, emissive: 0x063b2f, emissiveIntensity: 0.20 }),
   light: new THREE.MeshBasicMaterial({ name: 'REF_WARM_FLOODLIGHT_LINE', color: 0xfff3ca, toneMapped: false }),
   black: new THREE.MeshStandardMaterial({ name: 'REF_DEEP_RECESSES', color: 0x030712, roughness: 0.94, metalness: 0.01 }),
   mesh: new THREE.MeshStandardMaterial({ name: 'REF_FINE_STADIUM_MESH', color: 0xaeb8b5, roughness: 0.48, metalness: 0.32 }),
+  grassFiber: new THREE.MeshStandardMaterial({ name: 'REF_GRASS_FINE_FIBER_HIGHLIGHT', color: 0x7ab847, roughness: 0.95, metalness: 0.0 }),
   grassLight: new THREE.MeshStandardMaterial({ name: 'REF_GRASS_LIGHT_BAND', color: 0x4f8d28, roughness: 0.9, metalness: 0.0 }),
   grassDark: new THREE.MeshStandardMaterial({ name: 'REF_GRASS_DARK_BAND', color: 0x32731f, roughness: 0.94, metalness: 0.0 }),
 };
@@ -69,6 +73,14 @@ const cyl = (name, material, position, radius, depth, rotation = [0, 0, 0], segm
   return add(mesh);
 };
 
+const torus = (name, material, position, radius, tube, rotation = [0, 0, 0], segments = 96) => {
+  const mesh = new THREE.Mesh(new THREE.TorusGeometry(radius, tube, 8, segments), material);
+  mesh.name = name;
+  mesh.position.set(...position);
+  mesh.rotation.set(...rotation);
+  return add(mesh);
+};
+
 const pitchW = 105;
 const pitchH = 68;
 
@@ -76,10 +88,46 @@ for (let i = 0; i < 14; i += 1) {
   const z = -pitchH / 2 + (pitchH / 14) * (i + 0.5);
   box(`ref_pitch_mowing_band_${i}`, i % 2 ? mats.grassDark : mats.grassLight, [0, 0.015, z], [pitchW, 0.03, pitchH / 14 + 0.02]);
 }
+for (let i = 0; i < 44; i += 1) {
+  const x = -pitchW / 2 + 1.4 + i * 2.42;
+  const z = -pitchH / 2 + 1.0 + ((i * 17) % 66);
+  box(`ref_grass_fiber_highlight_${i}`, mats.grassFiber, [x, 0.041, z], [1.3, 0.012, 0.045], [0, 0.18 + (i % 5) * 0.05, 0]);
+}
+const addPitchMarkings = () => {
+  const y = 0.075;
+  box('pitch_touchline_north', mats.lineWhite, [0, y, pitchH / 2], [pitchW, 0.035, 0.16]);
+  box('pitch_touchline_south', mats.lineWhite, [0, y, -pitchH / 2], [pitchW, 0.035, 0.16]);
+  box('pitch_goal_line_east', mats.lineWhite, [pitchW / 2, y, 0], [0.16, 0.035, pitchH]);
+  box('pitch_goal_line_west', mats.lineWhite, [-pitchW / 2, y, 0], [0.16, 0.035, pitchH]);
+  box('pitch_halfway_line', mats.lineWhite, [0, y, 0], [0.16, 0.035, pitchH]);
+  torus('pitch_center_circle', mats.lineWhite, [0, y + 0.005, 0], 9.15, 0.055, [Math.PI / 2, 0, 0], 128);
+  cyl('pitch_center_spot', mats.lineWhite, [0, y + 0.005, 0], 0.18, 0.035, [0, 0, 0], 24);
+  [-1, 1].forEach((sign) => {
+    const x = sign * pitchW / 2;
+    box(`penalty_area_top_${sign}`, mats.lineWhite, [x - sign * 8.25, y, 20.16], [16.5, 0.035, 0.13]);
+    box(`penalty_area_bottom_${sign}`, mats.lineWhite, [x - sign * 8.25, y, -20.16], [16.5, 0.035, 0.13]);
+    box(`penalty_area_inner_${sign}`, mats.lineWhite, [x - sign * 16.5, y, 0], [0.13, 0.035, 40.32]);
+    box(`six_yard_top_${sign}`, mats.lineWhite, [x - sign * 2.75, y, 9.16], [5.5, 0.035, 0.13]);
+    box(`six_yard_bottom_${sign}`, mats.lineWhite, [x - sign * 2.75, y, -9.16], [5.5, 0.035, 0.13]);
+    box(`six_yard_inner_${sign}`, mats.lineWhite, [x - sign * 5.5, y, 0], [0.13, 0.035, 18.32]);
+    cyl(`penalty_spot_${sign}`, mats.lineWhite, [x - sign * 11, y + 0.005, 0], 0.16, 0.035, [0, 0, 0], 24);
+  });
+};
+addPitchMarkings();
 box('ref_grey_pitch_apron_north', mats.concrete, [0, 0.04, pitchH / 2 + 1.7], [pitchW + 5.5, 0.08, 2.2]);
 box('ref_grey_pitch_apron_south', mats.concrete, [0, 0.04, -(pitchH / 2 + 1.7)], [pitchW + 5.5, 0.08, 2.2]);
 box('ref_grey_pitch_apron_east', mats.concrete, [pitchW / 2 + 1.7, 0.04, 0], [2.2, 0.08, pitchH + 5.5]);
 box('ref_grey_pitch_apron_west', mats.concrete, [-(pitchW / 2 + 1.7), 0.04, 0], [2.2, 0.08, pitchH + 5.5]);
+for (let i = -12; i <= 12; i += 1) {
+  const x = i * 4.5;
+  box(`north_apron_expansion_joint_${i}`, mats.concreteLine, [x, 0.095, pitchH / 2 + 1.7], [0.045, 0.025, 2.15]);
+  box(`south_apron_expansion_joint_${i}`, mats.concreteLine, [x, 0.095, -(pitchH / 2 + 1.7)], [0.045, 0.025, 2.15]);
+}
+for (let i = -8; i <= 8; i += 1) {
+  const z = i * 4.1;
+  box(`east_apron_expansion_joint_${i}`, mats.concreteLine, [pitchW / 2 + 1.7, 0.095, z], [2.15, 0.025, 0.045]);
+  box(`west_apron_expansion_joint_${i}`, mats.concreteLine, [-(pitchW / 2 + 1.7), 0.095, z], [2.15, 0.025, 0.045]);
+}
 
 const letterGlyphs = {
   A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'],
@@ -160,10 +208,16 @@ const addStand = ({ name, side, cols, rows, length, depthStart, zFixed, xFixed }
       if (isAisle) material = mats.concrete;
       if (longSide) {
         box(`${name}_chair_${row}_${col}`, material, [offset, y, depth], [0.44, 0.18, 0.38], [-0.08 * sign, 0, 0]);
-        if (!isAisle) box(`${name}_back_${row}_${col}`, material, [offset, y + 0.25, depth + sign * 0.24], [0.44, 0.38, 0.08], [-0.22 * sign, 0, 0]);
+        if (!isAisle) {
+          box(`${name}_back_${row}_${col}`, material, [offset, y + 0.25, depth + sign * 0.24], [0.44, 0.38, 0.08], [-0.22 * sign, 0, 0]);
+          if (row % 4 === 0 && col % 6 === 0) box(`${name}_seat_highlight_${row}_${col}`, mats.white, [offset - 0.05, y + 0.1, depth - sign * 0.03], [0.18, 0.018, 0.12], [-0.08 * sign, 0, 0]);
+        }
       } else {
         box(`${name}_chair_${row}_${col}`, material, [depth, y, offset], [0.38, 0.18, 0.44], [0, 0.08 * sign, 0]);
-        if (!isAisle) box(`${name}_back_${row}_${col}`, material, [depth + sign * 0.24, y + 0.25, offset], [0.08, 0.38, 0.44], [0, 0.22 * sign, 0]);
+        if (!isAisle) {
+          box(`${name}_back_${row}_${col}`, material, [depth + sign * 0.24, y + 0.25, offset], [0.08, 0.38, 0.44], [0, 0.22 * sign, 0]);
+          if (row % 4 === 0 && col % 6 === 0) box(`${name}_seat_highlight_${row}_${col}`, mats.white, [depth - sign * 0.03, y + 0.1, offset - 0.05], [0.12, 0.018, 0.18], [0, 0.08 * sign, 0]);
+        }
       }
     }
   }
@@ -220,6 +274,18 @@ const addRoof = () => {
   box('south_green_roof_fascia', mats.greenDark, [0, 14.45, -(pitchH / 2 + 27.0)], [pitchW + 62, 1.0, 0.34], [0.03, 0, 0]);
   box('east_green_roof_fascia', mats.greenDark, [pitchW / 2 + 27.0, 14.35, 0], [0.34, 1.0, pitchH + 58], [0, 0.03, 0]);
   box('west_green_roof_fascia', mats.greenDark, [-(pitchW / 2 + 27.0), 14.35, 0], [0.34, 1.0, pitchH + 58], [0, -0.03, 0]);
+  box('north_roof_shadow_on_seats', mats.roofShadow, [0, 9.8, pitchH / 2 + 21.5], [pitchW + 54, 0.06, 8.8], [-0.04, 0, 0]);
+  box('south_roof_shadow_on_seats', mats.roofShadow, [0, 9.4, -(pitchH / 2 + 20.8)], [pitchW + 48, 0.06, 7.6], [0.04, 0, 0]);
+  for (let i = -18; i <= 18; i += 1) {
+    const x = i * ((pitchW + 66) / 36);
+    box(`north_roof_corrugation_${i}`, mats.metal, [x, y + 0.22, pitchH / 2 + 34.0], [0.075, 0.12, 12.6], [-0.04, 0, 0]);
+    if (i >= -16 && i <= 16) box(`south_roof_corrugation_${i}`, mats.metal, [x, y + 0.18, -(pitchH / 2 + 34.0)], [0.07, 0.11, 10.5], [0.04, 0, 0]);
+  }
+  for (let i = -12; i <= 12; i += 1) {
+    const z = i * ((pitchH + 54) / 24);
+    box(`east_roof_corrugation_${i}`, mats.metal, [pitchW / 2 + 34.0, y + 0.18, z], [10.5, 0.11, 0.07], [0, 0.04, 0]);
+    box(`west_roof_corrugation_${i}`, mats.metal, [-(pitchW / 2 + 34.0), y + 0.18, z], [10.5, 0.11, 0.07], [0, -0.04, 0]);
+  }
   [-1, 1].forEach((sign) => {
     for (let i = -12; i <= 12; i += 1) {
       const x = i * ((pitchW + 54) / 24);
@@ -340,6 +406,12 @@ for (let i = -10; i <= 10; i += 1) {
   const x = i * ((pitchW + 54) / 20);
   box(`rear_facade_vertical_frame_${i}`, mats.metal, [x, 7.8, pitchH / 2 + 40.72], [0.16, 7.8, 0.22]);
 }
+for (let i = -9; i <= 9; i += 1) {
+  const x = i * ((pitchW + 47) / 18);
+  box(`rear_facade_glass_panel_${i}`, mats.glass, [x, 5.45, pitchH / 2 + 40.45], [3.8, 1.45, 0.08]);
+  box(`rear_facade_lower_shadow_${i}`, mats.black, [x, 4.43, pitchH / 2 + 40.43], [3.8, 0.18, 0.06]);
+}
+box('rear_facade_roof_edge_shadow', mats.roofShadow, [0, 9.45, pitchH / 2 + 40.38], [pitchW + 64, 0.18, 0.08]);
 writeBlockText({ text: 'BENAGALBON CD', name: 'rear_facade_name', origin: [-19.8, 7.52, pitchH / 2 + 40.48], cell: 0.24, plane: 'xy' });
 box('corner_scoreboard_frame', mats.black, [pitchW / 2 + 8.5, 6.4, pitchH / 2 + 8.6], [8.2, 4.6, 0.30], [0, -Math.PI / 4, 0]);
 box('corner_scoreboard_face', mats.led, [pitchW / 2 + 8.25, 6.4, pitchH / 2 + 8.35], [7.5, 3.9, 0.08], [0, -Math.PI / 4, 0]);
