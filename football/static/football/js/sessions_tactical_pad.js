@@ -11720,8 +11720,13 @@
 						                const facadePanelMatB = new THREE.MeshStandardMaterial({ color: 0xaeb9b5, roughness: 0.64, metalness: 0.08 });
 						                const concreteMat = new THREE.MeshStandardMaterial({ color: 0xcbd5d1, roughness: 0.82, metalness: 0.02 });
 						                const seatAccentMat = new THREE.MeshStandardMaterial({ color: primaryInt, roughness: 0.56, metalness: 0.015 });
+						                const seatShadowMat = new THREE.MeshStandardMaterial({ color: 0x17211f, roughness: 0.68, metalness: 0.01 });
+						                const stairMat = new THREE.MeshStandardMaterial({ color: 0xe2e8e4, roughness: 0.80, metalness: 0.02 });
 						                const ledMat = new THREE.MeshBasicMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0.62, toneMapped: false, depthWrite: false });
+						                const warmLedMat = new THREE.MeshBasicMaterial({ color: 0xfff7d6, transparent: true, opacity: 0.72, toneMapped: false, depthWrite: false });
 						                const paintMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc, transparent: true, opacity: 0.66, depthWrite: false });
+						                const turfLightMat = new THREE.MeshBasicMaterial({ color: 0x4ade80, transparent: true, opacity: 0.13, depthWrite: false });
+						                const turfDarkMat = new THREE.MeshBasicMaterial({ color: 0x064e3b, transparent: true, opacity: 0.11, depthWrite: false });
 						                const addBox = (geo, mat, x, y, z, rx = 0, ry = 0, rz = 0, kind = 'pitch_3d_stadium_realism_detail') => {
 						                  const mesh = new THREE.Mesh(geo, mat);
 						                  mesh.position.set(x, y, z);
@@ -11841,6 +11846,91 @@
 						                  sign.userData = { kind: 'pitch_3d_stadium_real_entry_signage' };
 						                  atmosphere.add(sign);
 						                });
+						                const addPitchCarePattern = () => {
+						                  const stripeCount = 12;
+						                  const stripeW = metersW / stripeCount;
+						                  for (let i = 0; i < stripeCount; i += 1) {
+						                    const mat = i % 2 === 0 ? turfLightMat : turfDarkMat;
+						                    const stripe = new THREE.Mesh(new THREE.PlaneGeometry(stripeW + 0.025, metersH), mat);
+						                    stripe.rotation.x = -Math.PI / 2;
+						                    stripe.position.set(-metersW / 2 + stripeW * (i + 0.5), 0.132 + i * 0.0005, 0);
+						                    stripe.userData = { kind: 'pitch_3d_stadium_mowing_stripe_pattern' };
+						                    atmosphere.add(stripe);
+						                  }
+						                  for (let i = -4; i <= 4; i += 1) {
+						                    const fiber = new THREE.Mesh(new THREE.BoxGeometry(metersW * 0.82, 0.012, 0.035), i % 2 ? turfLightMat : turfDarkMat);
+						                    fiber.position.set(0, 0.155, i * (metersH / 9));
+						                    fiber.rotation.y = 0.035;
+						                    fiber.userData = { kind: 'pitch_3d_stadium_hybrid_turf_fiber_direction' };
+						                    atmosphere.add(fiber);
+						                  }
+						                };
+						                addPitchCarePattern();
+						                const addSeatBlocks = (axis, sign, rows, segments, span, baseY, fixed, stepBack) => {
+						                  for (let row = 0; row < rows; row += 1) {
+						                    const y = baseY + row * 0.34;
+						                    const depthOffset = fixed + sign * row * stepBack;
+						                    for (let seg = 0; seg < segments; seg += 1) {
+						                      if (seg === 3 || seg === segments - 4 || (row > 2 && seg === Math.floor(segments / 2))) continue;
+						                      const t = segments <= 1 ? 0 : (seg / (segments - 1)) - 0.5;
+						                      const offset = t * span;
+						                      const width = span / segments * 0.66;
+						                      const mat = (seg + row) % 5 === 0 ? seatShadowMat : ((seg + row) % 3 === 0 ? seatAccentMat : concreteMat);
+						                      if (axis === 'z') {
+						                        addBox(new THREE.BoxGeometry(width, 0.16, 0.58), mat, offset, y, depthOffset, -0.11 * sign, 0, 0, 'pitch_3d_stadium_individual_seat_blocks');
+						                      } else {
+						                        addBox(new THREE.BoxGeometry(0.58, 0.16, width), mat, depthOffset, y, offset, 0, 0.11 * sign, 0, 'pitch_3d_stadium_individual_seat_blocks');
+						                      }
+						                    }
+						                    [-0.31, 0.31].forEach((aisle) => {
+						                      const offset = aisle * span;
+						                      if (axis === 'z') addBox(new THREE.BoxGeometry(1.20, 0.10, 0.72), stairMat, offset, y + 0.02, depthOffset, -0.10 * sign, 0, 0, 'pitch_3d_stadium_concrete_aisle_step');
+						                      else addBox(new THREE.BoxGeometry(0.72, 0.10, 1.20), stairMat, depthOffset, y + 0.02, offset, 0, 0.10 * sign, 0, 'pitch_3d_stadium_concrete_aisle_step');
+						                    });
+						                  }
+						                };
+						                addSeatBlocks('z', 1, 7, 22, metersW + 42.0, 3.2, metersH / 2 + 10.6, 0.82);
+						                addSeatBlocks('z', -1, 7, 22, metersW + 42.0, 3.2, -(metersH / 2 + 10.6), 0.82);
+						                addSeatBlocks('x', 1, 6, 18, metersH + 34.0, 3.4, metersW / 2 + 10.4, 0.78);
+						                addSeatBlocks('x', -1, 6, 18, metersH + 34.0, 3.4, -(metersW / 2 + 10.4), 0.78);
+						                const addPerimeterBoards = () => {
+						                  const adMat = makeStadiumBoardMaterial().clone();
+						                  adMat.emissiveIntensity = 0.64;
+						                  const boardH = 0.78;
+						                  [
+						                    [0, boardH, metersH / 2 + 2.18, metersW + 6.0, 0.10, 0],
+						                    [0, boardH, -(metersH / 2 + 2.18), metersW + 6.0, 0.10, 0],
+						                    [metersW / 2 + 2.18, boardH, 0, 0.10, metersH + 4.8, 0],
+						                    [-(metersW / 2 + 2.18), boardH, 0, 0.10, metersH + 4.8, 0],
+						                  ].forEach(([x, y, z, w, d]) => {
+						                    addBox(new THREE.BoxGeometry(w, 0.72, d), adMat, x, y, z, 0, 0, 0, 'pitch_3d_stadium_continuous_led_advertising_board');
+						                  });
+						                  [
+						                    [0, metersH / 2 + 3.05, metersW + 8.0, 0.08],
+						                    [0, -(metersH / 2 + 3.05), metersW + 8.0, 0.08],
+						                    [metersW / 2 + 3.05, 0, 0.08, metersH + 6.5],
+						                    [-(metersW / 2 + 3.05), 0, 0.08, metersH + 6.5],
+						                  ].forEach(([x, z, w, d]) => {
+						                    addBox(new THREE.BoxGeometry(w, 0.62, d), glassMat, x, 1.42, z, 0, 0, 0, 'pitch_3d_stadium_low_safety_glass_barrier');
+						                  });
+						                };
+						                addPerimeterBoards();
+						                const addLightingRig = () => {
+						                  const fixtureGeo = new THREE.BoxGeometry(0.62, 0.18, 0.30);
+						                  for (let i = -12; i <= 12; i += 1) {
+						                    if (i === 0) continue;
+						                    const x = i * ((metersW + 28.0) / 24);
+						                    addBox(fixtureGeo, warmLedMat, x, 14.72, metersH / 2 + 22.4, -0.18, 0, 0, 'pitch_3d_stadium_roof_led_floodlight_fixture');
+						                    addBox(fixtureGeo, warmLedMat, x, 14.72, -(metersH / 2 + 22.4), 0.18, Math.PI, 0, 'pitch_3d_stadium_roof_led_floodlight_fixture');
+						                  }
+						                  for (let i = -9; i <= 9; i += 1) {
+						                    if (i === 0) continue;
+						                    const z = i * ((metersH + 24.0) / 18);
+						                    addBox(fixtureGeo, warmLedMat, metersW / 2 + 22.4, 14.72, z, 0, Math.PI / 2, -0.18, 'pitch_3d_stadium_roof_led_floodlight_fixture');
+						                    addBox(fixtureGeo, warmLedMat, -(metersW / 2 + 22.4), 14.72, z, 0, -Math.PI / 2, 0.18, 'pitch_3d_stadium_roof_led_floodlight_fixture');
+						                  }
+						                };
+						                addLightingRig();
 						                target.add(atmosphere);
 						              } catch (e) { /* ignore */ }
 						            };
