@@ -213,9 +213,11 @@ const addStand = ({ name, side, cols, rows, length, depthStart, zFixed, xFixed }
   const longSide = side === 'north' || side === 'south';
   const sign = side === 'north' || side === 'east' ? 1 : -1;
   const span = length;
-  const aisleCols = longSide
-    ? new Set([5, Math.floor(cols * 0.2), Math.floor(cols * 0.36), Math.floor(cols * 0.5), Math.floor(cols * 0.64), Math.floor(cols * 0.8), cols - 6])
-    : new Set([4, Math.floor(cols * 0.28), Math.floor(cols * 0.5), Math.floor(cols * 0.72), cols - 5]);
+  const aisleCols = (() => {
+    if (side === 'north') return new Set([8, Math.floor(cols * 0.24), Math.floor(cols * 0.5), Math.floor(cols * 0.76), cols - 9]);
+    if (side === 'south') return new Set([Math.floor(cols * 0.33), Math.floor(cols * 0.66)]);
+    return new Set([Math.floor(cols * 0.34), Math.floor(cols * 0.66)]);
+  })();
 
   for (let row = 0; row < rows; row += 1) {
     const y = 2.15 + row * 0.31;
@@ -268,19 +270,11 @@ const addStand = ({ name, side, cols, rows, length, depthStart, zFixed, xFixed }
 
   if (longSide) {
     box(`${name}_front_wall`, mats.concrete, [0, 1.55, zFixed - sign * 1.2], [span + 7, 1.0, 0.5]);
-    for (let i = -7; i <= 7; i += 1) {
-      const x = i * (span / 15);
-      if (i % 3 !== 0) box(`${name}_front_wall_subtle_weathering_${i}`, mats.concreteStain, [x, 1.23 + (i % 2) * 0.18, zFixed - sign * 1.47], [3.0 + (i % 4) * 0.55, 0.16, 0.035]);
-    }
     box(`${name}_upper_concourse_band`, mats.concrete, [0, 7.2, zFixed + sign * 6.5], [span + 10, 0.55, 0.72], [-0.03 * sign, 0, 0]);
     box(`${name}_glass_balustrade_top`, mats.glass, [0, 7.82, zFixed + sign * 6.04], [span + 6.5, 0.72, 0.08], [-0.03 * sign, 0, 0]);
     if (rows >= 12) box(`${name}_front_safety_rail`, mats.metal, [0, 2.28, zFixed - sign * 1.52], [span + 6.0, 0.08, 0.08]);
   } else {
     box(`${name}_front_wall`, mats.concrete, [xFixed - sign * 1.2, 1.55, 0], [0.5, 1.0, span + 7]);
-    for (let i = -5; i <= 5; i += 1) {
-      const z = i * (span / 11);
-      if (i % 3 !== 0) box(`${name}_front_wall_subtle_weathering_${i}`, mats.concreteStain, [xFixed - sign * 1.47, 1.22 + (i % 2) * 0.16, z], [0.035, 0.15, 2.7 + (i % 4) * 0.45]);
-    }
     box(`${name}_upper_concourse_band`, mats.concrete, [xFixed + sign * 6.5, 7.1, 0], [0.72, 0.55, span + 10], [0, 0.03 * sign, 0]);
     box(`${name}_glass_balustrade_top`, mats.glass, [xFixed + sign * 6.04, 7.72, 0], [0.08, 0.68, span + 6.5], [0, 0.03 * sign, 0]);
     if (rows >= 10) box(`${name}_front_safety_rail`, mats.metal, [xFixed - sign * 1.52, 2.28, 0], [0.08, 0.08, span + 6.0]);
@@ -465,13 +459,13 @@ writeBlockText({ text: 'BENAGALBON', name: 'main_crest_top_name_hint', origin: [
 writeBlockText({ text: 'CD', name: 'main_crest_bottom_cd_hint', origin: [-0.34, 7.00, pitchH / 2 + 10.42], cell: 0.10, plane: 'xy' });
 box('main_stand_rear_green_facade', mats.greenDark, [0, 6.2, pitchH / 2 + 41.0], [pitchW + 66, 6.4, 0.38]);
 box('main_stand_rear_concrete_plinth', mats.concrete, [0, 2.1, pitchH / 2 + 41.2], [pitchW + 72, 2.2, 0.52]);
-for (let i = -10; i <= 10; i += 1) {
-  const x = i * ((pitchW + 54) / 20);
-  box(`rear_facade_vertical_frame_${i}`, mats.metal, [x, 7.8, pitchH / 2 + 40.72], [0.16, 7.8, 0.22]);
+for (let i = -6; i <= 6; i += 1) {
+  const x = i * ((pitchW + 54) / 12);
+  box(`rear_facade_vertical_frame_${i}`, mats.metal, [x, 7.8, pitchH / 2 + 40.72], [0.14, 7.2, 0.20]);
 }
-for (let i = -9; i <= 9; i += 1) {
-  const x = i * ((pitchW + 47) / 18);
-  box(`rear_facade_glass_panel_${i}`, mats.glass, [x, 5.45, pitchH / 2 + 40.45], [3.8, 1.45, 0.08]);
+for (let i = -5; i <= 5; i += 1) {
+  const x = i * ((pitchW + 45) / 10);
+  box(`rear_facade_glass_panel_${i}`, mats.glass, [x, 5.45, pitchH / 2 + 40.45], [6.2, 1.35, 0.08]);
 }
 box('rear_facade_roof_edge_shadow', mats.roofShadow, [0, 9.45, pitchH / 2 + 40.38], [pitchW + 64, 0.18, 0.08]);
 writeBlockText({ text: 'BENAGALBON CD', name: 'rear_facade_name', origin: [-19.8, 7.52, pitchH / 2 + 40.48], cell: 0.24, plane: 'xy' });
