@@ -2028,7 +2028,7 @@
 			              '        <button type="button" class="button" id="task-pitch-3d-template" title="Crea una plantilla 3D base">Plantilla 3D</button>',
 			              '        <button type="button" class="button" id="task-pitch-3d-validate" title="Revisa límites y coherencia básica">Validar</button>',
 			              '        <button type="button" class="button" id="task-pitch-3d-clamp" title="Ajusta jugadores/material al campo">Ajustar límites</button>',
-			              '        <button type="button" class="button" id="task-pitch-3d-quality" title="Alterna calidad visual alta">Calidad</button>',
+			              '        <button type="button" class="button" id="task-pitch-3d-quality" title="Alterna calidad visual: normal, alta, ultra">Calidad</button>',
 			              '      </div>',
 			              '      <div class="sim-3d-note">Tip: arrastra para girar; rueda/pinch para zoom; Shift + arrastre o botón derecho desplaza el foco.</div>',
 			              '    </div>',
@@ -8164,6 +8164,9 @@
 						    const getPitch3dRenderPixelRatio = () => {
 						      const dpr = Math.max(1, Number(window.devicePixelRatio) || 1);
 						      const viewportMax = Math.max(window.innerWidth || 0, window.innerHeight || 0);
+						      const quality = safeText(document.body?.dataset?.pitch3dQuality, 'normal');
+						      if (quality === 'ultra') return Math.min(viewportMax >= 1400 ? 3.25 : 2.35, Math.max(dpr, 2));
+						      if (quality === 'high') return Math.min(viewportMax >= 1400 ? 2.6 : 2.0, Math.max(dpr, 1.5));
 						      const budget = safeText(document.body?.dataset?.pitch3dBudget, 'normal');
 						      if (budget === 'economy') return Math.min(1.45, dpr);
 						      const isLargeDesktop = viewportMax >= 1600;
@@ -8947,13 +8950,29 @@
 						        let meshCount = 0;
 						        pitch3dRoot.traverse((node) => { if (node?.isMesh) meshCount += 1; });
 						        const viewportMax = Math.max(window.innerWidth || 0, window.innerHeight || 0);
-						        const economy = viewportMax < 900 || meshCount > 1150;
+						        const quality = safeText(document.body?.dataset?.pitch3dQuality, 'normal');
+						        const ultra = quality === 'ultra';
+						        const high = quality === 'high' || ultra;
+						        const economy = !high && (viewportMax < 900 || meshCount > 1150);
 						        if (document.body) document.body.dataset.pitch3dBudget = economy ? 'economy' : 'normal';
 						        pitch3dPerf.meshCount = meshCount;
 						        pitch3dPerf.budget = economy ? 'economy' : 'normal';
+						        pitch3dPerf.quality = ultra ? 'ultra' : (quality === 'high' ? 'high' : 'normal');
 						        try { window.__WEBSTATS_PITCH3D_PERF = Object.assign({}, pitch3dPerf); } catch (e) { /* ignore */ }
 						        pitch3dRenderer.setPixelRatio(getPitch3dRenderPixelRatio());
-						        if (pitch3dRenderer.shadowMap) pitch3dRenderer.shadowMap.enabled = !economy || document.body?.dataset?.pitch3dQuality === 'high';
+						        if (pitch3dRenderer.shadowMap) pitch3dRenderer.shadowMap.enabled = !economy || high;
+						        if (ultra && pitch3dRenderer.shadowMap) {
+						          try {
+						            pitch3dScene?.traverse?.((node) => {
+						              if (!node?.isDirectionalLight || !node.shadow?.mapSize) return;
+						              const maxShadowTexture = Number(pitch3dRenderer.capabilities?.maxTextureSize) || 8192;
+						              const size = Math.min(maxShadowTexture, 8192);
+						              node.shadow.mapSize.width = size;
+						              node.shadow.mapSize.height = size;
+						              node.shadow.needsUpdate = true;
+						            });
+						          } catch (e) { /* ignore */ }
+						        }
 						        pitch3dRoot.traverse((node) => {
 						          const kind = safeText(node?.userData?.kind);
 						          if (!kind) return;
@@ -8963,7 +8982,7 @@
 						            || kind.includes('turnstile_gate')
 						            || kind.includes('entry_gate_light')
 						            || kind.includes('exposed_corner_column')
-						          ) node.visible = !economy;
+						          ) node.visible = ultra || !economy;
 						        });
 						      } catch (e) { /* ignore */ }
 						    };
@@ -8993,7 +9012,7 @@
 								    let pitch3dDrawablesEnabled = true;
 							    let pitch3dGhostRoot = null;
 							    let pitch3dTrailRoot = null;
-							    let pitch3dPerf = { frames: 0, lastAt: 0, fps: 0, meshCount: 0, budget: 'normal' };
+							    let pitch3dPerf = { frames: 0, lastAt: 0, fps: 0, meshCount: 0, budget: 'normal', quality: 'normal' };
 
 							    const clearPitch3dGhosts = () => {
 							      if (!pitch3dRoot) return;
@@ -14159,6 +14178,7 @@
 							      pitch3dTrailsEnabled = pitch3dLayerTrailsInput ? !!pitch3dLayerTrailsInput.checked : pitch3dTrailsEnabled;
 							      pitch3dDrawablesEnabled = pitch3dLayerDrawInput ? !!pitch3dLayerDrawInput.checked : pitch3dDrawablesEnabled;
 							      try { syncPitch3dLayersUi(); } catch (e) { /* ignore */ }
+							      try { syncPitch3dQualityUi(); } catch (e) { /* ignore */ }
 							      try { resizePitch3d(); } catch (e) { /* ignore */ }
 							      try { applyPitch3dLightingTheme(); } catch (e) { /* ignore */ }
 							      stopPitch3dPlayback();
@@ -14358,18 +14378,28 @@
 						      }
 						    };
 
+						    const syncPitch3dQualityUi = () => {
+						      const q = safeText(document.body?.dataset?.pitch3dQuality, 'normal');
+						      if (pitch3dQualityBtn) {
+						        pitch3dQualityBtn.textContent = q === 'ultra' ? 'Ultra' : (q === 'high' ? 'Alta' : 'Calidad');
+						        pitch3dQualityBtn.classList.toggle('primary', q === 'high' || q === 'ultra');
+						        pitch3dQualityBtn.classList.toggle('danger', q === 'ultra');
+						      }
+						    };
+
 						    const togglePitch3dQuality = () => {
 						      try {
-						        const current = document.body?.dataset?.pitch3dQuality === 'high';
-						        const next = !current;
-						        if (document.body) document.body.dataset.pitch3dQuality = next ? 'high' : 'normal';
-						        if (pitch3dQualityBtn) pitch3dQualityBtn.classList.toggle('primary', next);
+						        const current = safeText(document.body?.dataset?.pitch3dQuality, 'normal');
+						        const next = current === 'normal' ? 'high' : (current === 'high' ? 'ultra' : 'normal');
+						        if (document.body) document.body.dataset.pitch3dQuality = next;
+						        syncPitch3dQualityUi();
 						        if (pitch3dRenderer) {
-						          pitch3dRenderer.setPixelRatio(next ? Math.min(2, window.devicePixelRatio || 1.5) : getPitch3dRenderPixelRatio());
-						          if (pitch3dRenderer.shadowMap) pitch3dRenderer.shadowMap.enabled = next || safeText(document.body?.dataset?.pitch3dBudget) !== 'economy';
+						          pitch3dRenderer.setPixelRatio(getPitch3dRenderPixelRatio());
+						          if (pitch3dRenderer.shadowMap) pitch3dRenderer.shadowMap.enabled = next === 'ultra' || next === 'high' || safeText(document.body?.dataset?.pitch3dBudget) !== 'economy';
+						          try { applyPitch3dPerformanceBudget(); } catch (e) { /* ignore */ }
 						          resizePitch3d();
 						        }
-						        setStatus(next ? 'Calidad 3D alta activada.' : 'Calidad 3D normal activada.');
+						        setStatus(next === 'ultra' ? 'Calidad 3D Ultra activada.' : (next === 'high' ? 'Calidad 3D alta activada.' : 'Calidad 3D normal activada.'));
 						      } catch (e) { /* ignore */ }
 						    };
 
