@@ -41,6 +41,7 @@ const mats = {
   led: new THREE.MeshStandardMaterial({ name: 'REF_GREEN_LED_BOARD_FACE', color: 0x063b2f, roughness: 0.24, metalness: 0.04, emissive: 0x063b2f, emissiveIntensity: 0.20 }),
   light: new THREE.MeshBasicMaterial({ name: 'REF_WARM_FLOODLIGHT_LINE', color: 0xfff3ca, toneMapped: false }),
   black: new THREE.MeshStandardMaterial({ name: 'REF_DEEP_RECESSES', color: 0x030712, roughness: 0.94, metalness: 0.01 }),
+  mesh: new THREE.MeshStandardMaterial({ name: 'REF_FINE_STADIUM_MESH', color: 0xaeb8b5, roughness: 0.48, metalness: 0.32 }),
   grassLight: new THREE.MeshStandardMaterial({ name: 'REF_GRASS_LIGHT_BAND', color: 0x4f8d28, roughness: 0.9, metalness: 0.0 }),
   grassDark: new THREE.MeshStandardMaterial({ name: 'REF_GRASS_DARK_BAND', color: 0x32731f, roughness: 0.94, metalness: 0.0 }),
 };
@@ -167,6 +168,26 @@ const addStand = ({ name, side, cols, rows, length, depthStart, zFixed, xFixed }
     }
   }
 
+  [...aisleCols].forEach((col, idx) => {
+    const t = col / (cols - 1) - 0.5;
+    const offset = t * span;
+    const yMid = 2.15 + ((rows - 1) * 0.31) / 2;
+    const run = rows * 0.58 + 0.55;
+    if (longSide) {
+      const zMid = depthStart + sign * ((rows - 1) * 0.58) / 2;
+      box(`${name}_full_height_stair_run_${idx}`, mats.concrete, [offset, yMid - 0.04, zMid], [0.92, 0.10, run], [-0.11 * sign, 0, 0]);
+      box(`${name}_stair_left_handrail_${idx}`, mats.metal, [offset - 0.55, yMid + 0.42, zMid], [0.07, 0.08, run + 0.4], [-0.11 * sign, 0, 0]);
+      box(`${name}_stair_right_handrail_${idx}`, mats.metal, [offset + 0.55, yMid + 0.42, zMid], [0.07, 0.08, run + 0.4], [-0.11 * sign, 0, 0]);
+      if (idx % 2 === 0) box(`${name}_stair_landing_${idx}`, mats.concrete, [offset, yMid + 0.9, zMid + sign * 2.1], [2.8, 0.12, 1.05], [-0.04 * sign, 0, 0]);
+    } else {
+      const xMid = depthStart + sign * ((rows - 1) * 0.58) / 2;
+      box(`${name}_full_height_stair_run_${idx}`, mats.concrete, [xMid, yMid - 0.04, offset], [run, 0.10, 0.92], [0, 0.11 * sign, 0]);
+      box(`${name}_stair_left_handrail_${idx}`, mats.metal, [xMid, yMid + 0.42, offset - 0.55], [run + 0.4, 0.08, 0.07], [0, 0.11 * sign, 0]);
+      box(`${name}_stair_right_handrail_${idx}`, mats.metal, [xMid, yMid + 0.42, offset + 0.55], [run + 0.4, 0.08, 0.07], [0, 0.11 * sign, 0]);
+      if (idx % 2 === 0) box(`${name}_stair_landing_${idx}`, mats.concrete, [xMid + sign * 2.1, yMid + 0.9, offset], [1.05, 0.12, 2.8], [0, 0.04 * sign, 0]);
+    }
+  });
+
   if (longSide) {
     box(`${name}_front_wall`, mats.concrete, [0, 1.55, zFixed - sign * 1.2], [span + 7, 1.0, 0.5]);
     box(`${name}_upper_concourse_band`, mats.concrete, [0, 7.2, zFixed + sign * 6.5], [span + 10, 0.55, 0.72], [-0.03 * sign, 0, 0]);
@@ -195,6 +216,10 @@ const addRoof = () => {
   box('south_thin_roof_skin', mats.roof, [0, y, -(pitchH / 2 + 34.2)], [pitchW + 60, 0.34, 10.5], [0.04, 0, 0]);
   box('east_thin_roof_skin', mats.roof, [pitchW / 2 + 34.2, y, 0], [10.5, 0.34, pitchH + 56], [0, 0.04, 0]);
   box('west_thin_roof_skin', mats.roof, [-(pitchW / 2 + 34.2), y, 0], [10.5, 0.34, pitchH + 56], [0, -0.04, 0]);
+  box('north_green_roof_fascia', mats.greenDark, [0, 14.6, pitchH / 2 + 27.0], [pitchW + 70, 1.1, 0.34], [-0.03, 0, 0]);
+  box('south_green_roof_fascia', mats.greenDark, [0, 14.45, -(pitchH / 2 + 27.0)], [pitchW + 62, 1.0, 0.34], [0.03, 0, 0]);
+  box('east_green_roof_fascia', mats.greenDark, [pitchW / 2 + 27.0, 14.35, 0], [0.34, 1.0, pitchH + 58], [0, 0.03, 0]);
+  box('west_green_roof_fascia', mats.greenDark, [-(pitchW / 2 + 27.0), 14.35, 0], [0.34, 1.0, pitchH + 58], [0, -0.03, 0]);
   [-1, 1].forEach((sign) => {
     for (let i = -12; i <= 12; i += 1) {
       const x = i * ((pitchW + 54) / 24);
@@ -202,6 +227,10 @@ const addRoof = () => {
       box(`long_roof_back_column_${sign}_${i}`, mats.darkMetal, [x, 8.2, sign * (pitchH / 2 + 39.2)], [0.28, 12.2, 0.28]);
       box(`long_roof_rear_truss_${sign}_${i}`, mats.metal, [x, 14.7, sign * (pitchH / 2 + 38.7)], [0.18, 1.0, 5.2], [0.52 * sign, 0, i % 2 ? -0.28 : 0.28]);
       if (i % 2 === 0) box(`long_roof_light_${sign}_${i}`, mats.light, [x, 13.52, sign * (pitchH / 2 + 22.8)], [3.2, 0.14, 0.28]);
+      if (i % 4 === 0) {
+        box(`long_roof_light_cluster_left_${sign}_${i}`, mats.light, [x - 0.72, 13.28, sign * (pitchH / 2 + 23.05)], [0.55, 0.24, 0.26]);
+        box(`long_roof_light_cluster_right_${sign}_${i}`, mats.light, [x + 0.72, 13.28, sign * (pitchH / 2 + 23.05)], [0.55, 0.24, 0.26]);
+      }
     }
   });
   [-1, 1].forEach((sign) => {
@@ -251,9 +280,42 @@ const addPerimeterRails = () => {
 };
 addPerimeterRails();
 
+const addGoalBackMesh = () => {
+  [-1, 1].forEach((sign) => {
+    const z = sign * (pitchH / 2 + 5.15);
+    box(`goal_back_mesh_top_${sign}`, mats.mesh, [0, 3.0, z], [21.0, 0.06, 0.06]);
+    box(`goal_back_mesh_bottom_${sign}`, mats.mesh, [0, 0.55, z], [21.0, 0.05, 0.05]);
+    for (let i = -10; i <= 10; i += 1) {
+      box(`goal_back_mesh_vertical_${sign}_${i}`, mats.mesh, [i, 1.78, z], [0.035, 2.45, 0.035]);
+    }
+    for (let i = 0; i <= 5; i += 1) {
+      box(`goal_back_mesh_horizontal_${sign}_${i}`, mats.mesh, [0, 0.72 + i * 0.42, z], [20.8, 0.025, 0.025]);
+    }
+    box(`goal_back_service_gate_${sign}`, mats.darkMetal, [-12.5, 1.35, z], [1.35, 2.05, 0.06]);
+    box(`goal_back_service_gate_handle_${sign}`, mats.light, [-12.0, 1.35, z - sign * 0.04], [0.08, 0.22, 0.04]);
+  });
+};
+addGoalBackMesh();
+
+const addCornerDetails = () => {
+  [
+    [-pitchW / 2, -pitchH / 2, 'sw'],
+    [pitchW / 2, -pitchH / 2, 'se'],
+    [-pitchW / 2, pitchH / 2, 'nw'],
+    [pitchW / 2, pitchH / 2, 'ne'],
+  ].forEach(([x, z, name]) => {
+    cyl(`corner_flag_pole_${name}`, mats.white, [x, 0.85, z], 0.035, 1.7, [0, 0, 0], 16);
+    box(`corner_flag_green_${name}`, mats.green, [x + (x > 0 ? -0.28 : 0.28), 1.52, z], [0.52, 0.32, 0.035]);
+    box(`corner_apron_drain_${name}`, mats.darkConcrete, [x + (x > 0 ? 1.35 : -1.35), 0.08, z + (z > 0 ? 1.35 : -1.35)], [1.55, 0.035, 0.08]);
+  });
+};
+addCornerDetails();
+
 const addDugout = (x, label) => {
   const z = -(pitchH / 2 + 6.0);
   box(`dugout_${label}_base`, mats.darkMetal, [x, 0.25, z], [12.8, 0.28, 2.0]);
+  box(`dugout_${label}_rear_green_panel`, mats.greenDark, [x, 0.95, z + 0.88], [12.6, 1.15, 0.10]);
+  box(`dugout_${label}_front_metal_lip`, mats.metal, [x, 1.98, z - 1.34], [12.7, 0.08, 0.12]);
   for (let i = 0; i < 6; i += 1) {
     const t = i / 5;
     box(`dugout_${label}_curved_glass_${i}`, mats.glass, [x, 1.10 + Math.sin(t * Math.PI * 0.58), z - 0.75 + t * 1.38], [12.2, 0.06, 0.42], [-0.45 + t * 0.26, 0, 0]);
