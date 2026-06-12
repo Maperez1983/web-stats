@@ -8257,6 +8257,7 @@
             // Expose minimal hooks for other inline scripts (landing / mode switchers).
             // Keeps lazy-loading while ensuring the pitch is available when user chooses "Pizarra".
             try { window.__webstatsEnsureEditorStack = ensureEditorStack; } catch (e) { /* ignore */ }
+            try { window.__webstatsEnsure3dStack = ensure3dStack; } catch (e) { /* ignore */ }
 
 		        const hookClick = (id, ensureFn, markerKey) => {
 		          const el = document.getElementById(id);
