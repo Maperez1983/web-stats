@@ -1975,6 +1975,10 @@
 			              '            <option value="ball">Balón</option>',
 			              '            <option value="selected">Jugador (tap)</option>',
 			              '          </select>',
+			              '        <select id="task-pitch-3d-player-mode" title="Representación de jugadores" aria-label="Representación jugadores">',
+			              '            <option value="chip" selected>Chapa</option>',
+			              '            <option value="avatar">Avatar 3D</option>',
+			              '          </select>',
 			              '        <select id="task-pitch-3d-insert" title="Insertar elemento en el campo 3D" aria-label="Insertar en 3D">',
 			              '            <option value="" selected>Insertar</option>',
 			              '            <option value="player_local">Jugador local</option>',
@@ -2054,6 +2058,7 @@
 			    let pitch3dSurfaceSelect = document.getElementById('task-pitch-3d-surface');
 			    let pitch3dFormatSelect = document.getElementById('task-pitch-3d-format');
 			    let pitch3dFollowSelect = document.getElementById('task-pitch-3d-follow');
+			    let pitch3dPlayerModeSelect = document.getElementById('task-pitch-3d-player-mode');
 			    let pitch3dInsertSelect = document.getElementById('task-pitch-3d-insert');
 			    let pitch3dLayerDrawInput = document.getElementById('task-pitch-3d-layer-draw');
 			    let pitch3dLayerGhostsInput = document.getElementById('task-pitch-3d-layer-ghosts');
@@ -9054,6 +9059,8 @@
 							    let pitch3dPlayback = { playing: false, t: 0, index: 0, startAt: 0, duration: 0, steps: [] };
 							    let pitch3dPresentation = false;
 							    let pitch3dFollowMode = safeText(pitch3dFollowSelect?.value, 'off');
+							    let pitch3dPlayerMode = safeText(pitch3dPlayerModeSelect?.value, 'chip');
+							    if (!['chip', 'avatar'].includes(pitch3dPlayerMode)) pitch3dPlayerMode = 'chip';
 							    let pitch3dSelectedUid = '';
 								    let pitch3dRaycaster = null;
 								    let pitch3dPointer = null;
@@ -14118,6 +14125,12 @@
 						        mesh.position.x = pos.x;
 						        mesh.position.z = pos.z;
 						        mesh.userData = { kind: 'token', uid, facing_deg: facingDeg, fov_visible: fovVisible, fov_width_deg: fovWidthDeg };
+						        const useAvatar3d = safeText(pitch3dPlayerMode, 'chip') === 'avatar';
+						        if (useAvatar3d) {
+						          mat.transparent = true;
+						          mat.opacity = 0.18;
+						          mesh.scale.set(0.72, 0.72, 0.72);
+						        }
 
 						        // Sombra “broadcast” simple (sin shadow maps).
 						        try {
@@ -14130,8 +14143,8 @@
 						          mesh.add(shadow);
 						        } catch (e) { /* ignore */ }
 
-						        // Avatar low‑poly + orientación corporal.
-						        try {
+						        // Avatar 3D opcional + orientación corporal. Por defecto mantenemos la chapa.
+						        if (useAvatar3d) try {
 						          const bodyCol = toColorInt(stripe || fill, color);
 						          const bodyMat = new THREE.MeshStandardMaterial({ color: bodyCol, roughness: 0.7, metalness: 0.02 });
 						          const headMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.55, metalness: 0.0 });
@@ -15251,6 +15264,15 @@
 						    pitch3dFollowSelect?.addEventListener('change', () => {
 						      pitch3dFollowMode = safeText(pitch3dFollowSelect?.value, 'off');
 						      if (pitch3dFollowMode !== 'selected') pitch3dSelectedUid = '';
+						    });
+						    pitch3dPlayerModeSelect?.addEventListener('change', () => {
+						      pitch3dPlayerMode = safeText(pitch3dPlayerModeSelect?.value, 'chip');
+						      if (!['chip', 'avatar'].includes(pitch3dPlayerMode)) pitch3dPlayerMode = 'chip';
+						      if (pitch3dOpen) {
+						        try { showPitch3dStep(activeStepIndex >= 0 ? activeStepIndex : pitch3dCurrentStep, { keepFollow: true }); } catch (e) { /* ignore */ }
+						        try { applyPitch3dLayerVisibility(); } catch (e) { /* ignore */ }
+						      }
+						      setStatus(pitch3dPlayerMode === 'avatar' ? 'Representación 3D: avatares.' : 'Representación 3D: chapas.');
 						    });
 						    const syncPitch3dInsertUi = () => {
 						      const kind = safeText(pitch3dInsertSelect?.value);
