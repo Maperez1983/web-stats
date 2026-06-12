@@ -8224,7 +8224,10 @@
 			            .catch(() => false);
 			          return window.__webstats_gltf_loader_promise;
 			        };
-			        const ensureSim3d = () => loadOnce(sim3dSrc, '__webstats_sim3d_promise');
+			        const ensureSim3d = () => {
+			          if (!sim3dSrc) return Promise.resolve(true);
+			          return loadOnce(sim3dSrc, '__webstats_sim3d_promise');
+			        };
 
 			        const ensureEditorStack = () => {
 			          setStatus('Cargando editor…');
