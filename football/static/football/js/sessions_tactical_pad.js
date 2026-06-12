@@ -13280,7 +13280,7 @@
 						            try {
 						              [-1, 1].forEach((sideSign) => {
 						                const x = sideSign * (metersW / 2 + 12.55);
-						                addRotMesh(new THREE.BoxGeometry(8.4, 0.16, metersH + 15.0), roofMat, x, 9.28, 0, 0, sideSign * 0.045, 0, 'pitch_3d_dedicated_completion_side_roof_canopy');
+						                addRotMesh(new THREE.BoxGeometry(1.55, 0.14, metersH + 13.0), roofMat, sideSign * (metersW / 2 + 9.25), 9.18, 0, 0, sideSign * 0.025, 0, 'pitch_3d_dedicated_completion_side_roof_eave');
 						                addMesh(new THREE.BoxGeometry(0.18, 0.18, metersH + 12.5), concreteMat, sideSign * (metersW / 2 + 8.95), 8.88, 0, 'pitch_3d_dedicated_completion_side_roof_front_truss');
 						                addMesh(new THREE.BoxGeometry(0.12, 0.12, metersH + 8.0), lightMat, sideSign * (metersW / 2 + 8.50), 8.42, 0, 'pitch_3d_dedicated_completion_side_roof_light_strip');
 						                for (let i = -4; i <= 4; i += 1) {
@@ -13289,7 +13289,7 @@
 						                  addRotMesh(new THREE.BoxGeometry(5.7, 0.12, 0.12), concreteMat, sideSign * (metersW / 2 + 11.05), 8.86, z, 0, 0, sideSign * 0.34, 'pitch_3d_dedicated_completion_side_roof_diagonal_brace');
 						                }
 						              });
-						              addRotMesh(new THREE.BoxGeometry(metersW + 12.0, 0.14, 7.2), roofMat, 0, 8.92, -(metersH / 2 + 12.5), 0.04, 0, 0, 'pitch_3d_dedicated_completion_near_roof_canopy');
+						              addRotMesh(new THREE.BoxGeometry(metersW + 10.0, 0.12, 1.55), roofMat, 0, 8.92, -(metersH / 2 + 9.15), 0.025, 0, 0, 'pitch_3d_dedicated_completion_near_roof_eave');
 						              addMesh(new THREE.BoxGeometry(metersW + 9.0, 0.12, 0.14), lightMat, 0, 8.06, -(metersH / 2 + 8.95), 'pitch_3d_dedicated_completion_near_roof_light_strip');
 						              addRotMesh(new THREE.BoxGeometry(metersW * 0.72, 0.035, 16.0), shadowMat, 0, 3.95, -(metersH / 2 - 3.0), 0.02, 0, 0, 'pitch_3d_dedicated_completion_near_roof_soft_pitch_shadow');
 						            } catch (e) { /* ignore */ }
