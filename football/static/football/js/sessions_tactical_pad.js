@@ -13166,19 +13166,17 @@
 						          dedicatedFinish.userData = { kind: 'pitch_3d_dedicated_reference_completion_layer' };
 						          const concreteMat = new THREE.MeshStandardMaterial({ color: 0xcfd6d1, roughness: 0.76, metalness: 0.03 });
 						          const darkVoidMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.84, metalness: 0.03 });
-						          const seatMat = new THREE.MeshStandardMaterial({ color: 0x047857, roughness: 0.58, metalness: 0.02 });
-						          const seatDarkMat = new THREE.MeshStandardMaterial({ color: 0x064e3b, roughness: 0.60, metalness: 0.02 });
+						          const seatMat = new THREE.MeshStandardMaterial({ color: 0x1261ad, roughness: 0.58, metalness: 0.02 });
+						          const seatDarkMat = new THREE.MeshStandardMaterial({ color: 0x073763, roughness: 0.60, metalness: 0.02 });
 						          const stairMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.66, metalness: 0.02 });
 						          const railMat = new THREE.MeshStandardMaterial({ color: 0xdff7ff, roughness: 0.14, metalness: 0.02, transparent: true, opacity: 0.38 });
-						          const boardMat = (() => {
-						            try { return makeStadiumBoardMaterial().clone(); } catch (e) { return new THREE.MeshStandardMaterial({ color: 0x063f33, roughness: 0.48, metalness: 0.06, emissive: 0x021f1a, emissiveIntensity: 0.10 }); }
-						          })();
+						          const boardMat = new THREE.MeshStandardMaterial({ color: 0x064f9e, roughness: 0.42, metalness: 0.06, emissive: 0x022c5f, emissiveIntensity: 0.16 });
 						          const roofMat = new THREE.MeshStandardMaterial({ color: 0xd7d6c8, roughness: 0.48, metalness: 0.10, side: THREE.DoubleSide });
 						          const shadowMat = new THREE.MeshBasicMaterial({ color: 0x020617, transparent: true, opacity: 0.18, depthWrite: false });
 						          const makeSignMat = (text, opts = {}) => {
 						            try {
 						              const tex = makePitch3dCanvasTexture((ctx, c) => {
-						                ctx.fillStyle = opts.bg || '#063f33';
+						                ctx.fillStyle = opts.bg || '#064f9e';
 						                ctx.fillRect(0, 0, c.width, c.height);
 						                ctx.strokeStyle = opts.stroke || 'rgba(255,255,255,0.45)';
 						                ctx.lineWidth = 10;
@@ -13263,7 +13261,7 @@
 						          };
 						          const addSegmentedAdBoards = () => {
 						            try {
-						              const labels = ['2J FOOTBALL INTELLIGENCE', 'PARTNER', 'CAMPO MUNICIPAL', 'SPONSOR'];
+						              const labels = ['2J FOOTBALL INTELLIGENCE', 'PARTNER', 'LA ROSALEDA', 'SPONSOR'];
 						              for (let i = 0; i < 10; i += 1) {
 						                const x = -metersW * 0.45 + i * (metersW * 0.10);
 						                addMesh(new THREE.BoxGeometry(metersW * 0.085, 0.82, 0.16), makeSignMat(labels[i % labels.length], { w: 900, h: 260, font: '900 54px Arial, sans-serif' }), x, 0.86, -(metersH / 2 + 2.72), 'pitch_3d_dedicated_completion_segmented_near_ad_board');
@@ -13361,8 +13359,8 @@
 						          });
 						          const lightMat = new THREE.MeshStandardMaterial({ color: 0xe0f2fe, roughness: 0.18, metalness: 0.02, emissive: 0x7dd3fc, emissiveIntensity: 0.36 });
 						          addMesh(new THREE.BoxGeometry(metersW + 5.0, 0.10, 0.12), lightMat, 0, 8.26, northFacadeZ - 0.22, 'pitch_3d_dedicated_completion_north_light_bar');
-						          addRotMesh(new THREE.PlaneGeometry(metersW * 0.52, 3.3), makeSignMat('BENAGALBON CD'), 0, 5.45, metersH / 2 + 8.75, 0, Math.PI, 0, 'pitch_3d_dedicated_completion_main_stand_lettering_panel');
-						          addRotMesh(new THREE.CircleGeometry(2.35, 64), makeSignMat('CDB', { w: 512, h: 512, bg: '#5eead4', fg: '#f8fafc', font: '900 132px Arial, sans-serif', stroke: '#f8fafc' }), 0, 8.12, metersH / 2 + 14.46, 0, Math.PI, 0, 'pitch_3d_dedicated_completion_main_stand_round_crest');
+						          addRotMesh(new THREE.PlaneGeometry(metersW * 0.52, 3.3), makeSignMat('MALAGA CF'), 0, 5.45, metersH / 2 + 8.75, 0, Math.PI, 0, 'pitch_3d_dedicated_completion_main_stand_lettering_panel');
+						          addRotMesh(new THREE.CircleGeometry(2.35, 64), makeSignMat('MCF', { w: 512, h: 512, bg: '#1d72c9', fg: '#f8fafc', font: '900 132px Arial, sans-serif', stroke: '#f8fafc' }), 0, 8.12, metersH / 2 + 14.46, 0, Math.PI, 0, 'pitch_3d_dedicated_completion_main_stand_round_crest');
 						          addMesh(new THREE.BoxGeometry(metersW + 18.5, 2.25, 0.34), concreteMat, 0, 7.45, metersH / 2 + 14.95, 'pitch_3d_dedicated_completion_main_stand_back_wall');
 						          addMesh(new THREE.BoxGeometry(metersW + 17.0, 0.72, 0.38), darkVoidMat, 0, 8.05, metersH / 2 + 14.72, 'pitch_3d_dedicated_completion_main_stand_shadow_box_level');
 						          addRotMesh(new THREE.BoxGeometry(metersW + 24.0, 0.18, 9.2), roofMat, 0, 11.55, metersH / 2 + 18.55, -0.055, 0, 0, 'pitch_3d_dedicated_completion_main_stand_roof_canopy');
@@ -13383,7 +13381,7 @@
 						            const glassMat = railMat.clone();
 						            try { glassMat.opacity = 0.30; glassMat.transparent = true; } catch (e) { /* ignore */ }
 						            const frameMat = new THREE.MeshStandardMaterial({ color: 0xd8e2e5, roughness: 0.30, metalness: 0.24 });
-						            const benchMat = new THREE.MeshStandardMaterial({ color: 0x047857, roughness: 0.48, metalness: 0.02 });
+						            const benchMat = new THREE.MeshStandardMaterial({ color: 0x1261ad, roughness: 0.48, metalness: 0.02 });
 						            const addDugoutPart = (geo, mat, px, py, pz, kind) => {
 						              const part = new THREE.Mesh(geo, mat);
 						              part.position.set(px, py, pz);
