@@ -1297,8 +1297,8 @@
           <a class="theme-toggle" href="{% url 'dashboard-home' %}?home=club" title="Vista compacta (coach overview)">
             🏟️ Compacta
           </a>
-          <button class="theme-toggle" type="button" data-ui-theme-toggle title="📰 Modo Presentación (claro) / 🏟️ Entreno (oscuro)">
-            📰 <span data-ui-theme-label>Oscuro</span>
+          <button class="theme-toggle" type="button" data-ui-theme-toggle title="Cambiar entre modo oscuro y alto contraste">
+            🏟️ <span data-ui-theme-label>Oscuro</span>
           </button>
           {% if active_team_options and active_team_options|length > 1 and team_switcher_enabled %}
           <form class="team-switcher" method="post" action="{% url 'workspace-active-team' %}">

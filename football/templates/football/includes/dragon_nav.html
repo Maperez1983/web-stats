@@ -12,6 +12,9 @@
   const storageKey = '2j_theme';
   const densityKey = '2j_density';
   const root = document.documentElement;
+  const allowLight = (() => {
+    try { return root && root.hasAttribute('data-allow-light-theme'); } catch (e) { return false; }
+  })();
 
   const safeGet = () => {
     try { return window.localStorage.getItem(storageKey); } catch (e) { return null; }
@@ -26,6 +29,10 @@
     try { window.localStorage.setItem(densityKey, value); } catch (e) {}
   };
   const apply = (theme) => {
+    if (theme === 'light' && !allowLight) {
+      theme = 'dark';
+      safeSet(theme);
+    }
     if (theme === 'dark' || !theme) {
       root.removeAttribute('data-theme');
       return;
@@ -68,7 +75,7 @@
 
   if (btn) {
     btn.addEventListener('click', () => {
-      const order = ['dark', 'light', 'hc'];
+      const order = allowLight ? ['dark', 'light', 'hc'] : ['dark', 'hc'];
       const t = root.getAttribute('data-theme') || 'dark';
       const idx = Math.max(0, order.indexOf(t));
       const next = order[(idx + 1) % order.length];
@@ -171,7 +178,7 @@
     <summary>Menú</summary>
     <div class="nav-more-panel">
       <button class="nav-command-btn nav-command-btn--panel" type="button" id="webstats-global-help" title="Guía rápida (Alt: guía general)">Guía</button>
-      <button class="nav-command-btn nav-command-btn--panel" type="button" id="webstats-theme-toggle" title="Cambiar tema (Oscuro/Claro/HC)"><span>Tema</span></button>
+      <button class="nav-command-btn nav-command-btn--panel" type="button" id="webstats-theme-toggle" title="Cambiar tema (Oscuro/HC)"><span>Tema</span></button>
       <button class="nav-command-btn nav-command-btn--panel" type="button" id="webstats-density-toggle" title="Cambiar densidad (Normal/Compacta)"><span>Densidad</span></button>
       <button type="button" class="nav-command-btn nav-command-btn--panel" data-command-palette>Buscar / Ir a…</button>
       <button type="button" class="nav-command-btn nav-command-btn--panel" data-webstats-shortcuts>Atajos</button>

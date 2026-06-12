@@ -45,6 +45,11 @@
       var storedMode = (stored || "").toString().trim().toLowerCase();
       if (storedMode !== "light" && storedMode !== "hc" && storedMode !== "dark") storedMode = "";
 
+      var allowLight = false;
+      try { allowLight = document.documentElement && document.documentElement.hasAttribute("data-allow-light-theme"); } catch (e) {}
+      if (!allowLight && brandMode === "light") brandMode = "dark";
+      if (!allowLight && storedMode === "light") storedMode = "dark";
+
       var forceDark = (brandMode === "dark");
       var mode = brandMode;
       if (!forceDark) {
@@ -70,6 +75,7 @@
           var current = (document.documentElement.getAttribute("data-theme") || "dark").toLowerCase();
           var target = next || (current === "light" ? "dark" : "light");
           if (target !== "light" && target !== "hc" && target !== "dark") target = "dark";
+          if (!allowLight && target === "light") target = "dark";
           // Si el club fuerza oscuro, no permitimos pasar a "light" (solo hc o dark).
           if (forceDark && target === "light") target = "dark";
           if (target === "dark") {
