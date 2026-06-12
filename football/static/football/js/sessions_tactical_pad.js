@@ -1974,6 +1974,19 @@
 			              '            <option value="ball">Balón</option>',
 			              '            <option value="selected">Jugador (tap)</option>',
 			              '          </select>',
+			              '        <select id="task-pitch-3d-insert" title="Insertar elemento en el campo 3D" aria-label="Insertar en 3D">',
+			              '            <option value="" selected>Insertar</option>',
+			              '            <option value="player_local">Jugador local</option>',
+			              '            <option value="player_rival">Jugador rival</option>',
+			              '            <option value="goalkeeper_local">Portero</option>',
+			              '            <option value="ball">Balón</option>',
+			              '            <option value="cone">Cono</option>',
+			              '            <option value="cone_striped">Cono rayas</option>',
+			              '            <option value="mannequin">Maniquí</option>',
+			              '            <option value="goal">Portería</option>',
+			              '            <option value="goal_3d">Portería 3D</option>',
+			              '            <option value="zone">Zona</option>',
+			              '          </select>',
 			              '        <select id="task-pitch-3d-format" title="Formato" aria-label="Formato">',
 			              '            <option value="f11" selected>Fútbol 11</option>',
 			              '            <option value="f7">Fútbol 7</option>',
@@ -2039,6 +2052,7 @@
 			    let pitch3dSurfaceSelect = document.getElementById('task-pitch-3d-surface');
 			    let pitch3dFormatSelect = document.getElementById('task-pitch-3d-format');
 			    let pitch3dFollowSelect = document.getElementById('task-pitch-3d-follow');
+			    let pitch3dInsertSelect = document.getElementById('task-pitch-3d-insert');
 			    let pitch3dLayerDrawInput = document.getElementById('task-pitch-3d-layer-draw');
 			    let pitch3dLayerGhostsInput = document.getElementById('task-pitch-3d-layer-ghosts');
 			    let pitch3dLayerTrailsInput = document.getElementById('task-pitch-3d-layer-trails');
@@ -8704,6 +8718,22 @@
 						      return { x, z };
 						    };
 
+							    const mapPitchTo2d = (xM, zM, sourceW, sourceH, metersW, metersH, orientation) => {
+						      const w = Math.max(1, Number(sourceW) || 1280);
+						      const h = Math.max(1, Number(sourceH) || 720);
+						      let x = Number(xM) || 0;
+						      let z = Number(zM) || 0;
+						      if (safeText(orientation) === 'portrait') {
+						        const rotatedX = z;
+						        const rotatedZ = -x;
+						        x = rotatedX;
+						        z = rotatedZ;
+						      }
+						      const u = clamp((x / Math.max(1, Number(metersW) || 105)) + 0.5, 0, 1);
+						      const v = clamp((z / Math.max(1, Number(metersH) || 68)) + 0.5, 0, 1);
+						      return { x: u * w, y: v * h };
+						    };
+
 						    const pitch3dUidForObject = (o, fallback = '') => {
 						      const data = o?.data || {};
 						      return safeText(data.playerId)
@@ -15008,6 +15038,10 @@
 						      pitch3dFollowMode = safeText(pitch3dFollowSelect?.value, 'off');
 						      if (pitch3dFollowMode !== 'selected') pitch3dSelectedUid = '';
 						    });
+						    pitch3dInsertSelect?.addEventListener('change', () => {
+						      const kind = safeText(pitch3dInsertSelect?.value);
+						      if (kind) setStatus(`Vista 3D: toca el campo para colocar ${RESOURCE_LABELS[kind] || 'el elemento'}.`);
+						    });
 						    const onLayerToggle = () => {
 						      pitch3dGhostsEnabled = !!pitch3dLayerGhostsInput?.checked;
 						      pitch3dTrailsEnabled = !!pitch3dLayerTrailsInput?.checked;
@@ -15065,6 +15099,68 @@
 						        }
 						      }, true);
 						    } catch (e) { /* ignore */ }
+
+						    const pitch3dGroundPointFromClient = (clientX, clientY) => {
+						      if (!pitch3dOpen || !pitch3dRaycaster || !pitch3dPointer || !pitch3dCamera || !pitch3dCanvasEl || !window.THREE) return null;
+						      const rect = pitch3dCanvasEl.getBoundingClientRect();
+						      const w = Math.max(1, rect.width || 1);
+						      const h = Math.max(1, rect.height || 1);
+						      const x = ((Number(clientX) - rect.left) / w) * 2 - 1;
+						      const y = -(((Number(clientY) - rect.top) / h) * 2 - 1);
+						      pitch3dPointer.set(x, y);
+						      pitch3dRaycaster.setFromCamera(pitch3dPointer, pitch3dCamera);
+						      const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+						      const point = new THREE.Vector3();
+						      const hit = pitch3dRaycaster.ray.intersectPlane(plane, point);
+						      if (!hit) return null;
+						      return point;
+						    };
+
+						    const pitch3dCanvasPointFromClient = (clientX, clientY) => {
+						      const ground = pitch3dGroundPointFromClient(clientX, clientY);
+						      if (!ground) return null;
+						      const meters = pitchMetersForPreset(presetSelect?.value || 'full_pitch', pitch3dFormat);
+						      const { w, h } = worldSize();
+						      return mapPitchTo2d(
+						        ground.x,
+						        ground.z,
+						        Number(w) || 1280,
+						        Number(h) || 720,
+						        meters.w,
+						        meters.h,
+						        pitchOrientation,
+						      );
+						    };
+
+						    const addPitch3dObjectAt = (kindRaw, clientX, clientY) => {
+						      const kind = safeText(kindRaw);
+						      if (!kind) return false;
+						      const point = pitch3dCanvasPointFromClient(clientX, clientY);
+						      if (!point) {
+						        setStatus('No se pudo localizar el punto del campo 3D.', true);
+						        return false;
+						      }
+						      try {
+						        const factory = simpleFactory(kind);
+						        const placed = addObject(objectAtPointer(factory, point));
+						        if (!placed) {
+						          setStatus('No se pudo insertar el elemento en 3D.', true);
+						          return false;
+						        }
+						        lastPlacedByKind.set(kind, { x: point.x, y: point.y, ts: Date.now() });
+						        try { persistActiveStepSnapshot(); } catch (e) { /* ignore */ }
+						        scheduleDraftSave('canvas');
+						        stopPitch3dPlayback();
+						        updatePitch3dPlaybackButton();
+						        showPitch3dStep(activeStepIndex >= 0 ? activeStepIndex : pitch3dCurrentStep, { keepFollow: true });
+						        try { applyPitch3dLayerVisibility(); } catch (e) { /* ignore */ }
+						        setStatus(`${RESOURCE_LABELS[kind] || 'Elemento'} colocado desde Vista 3D.`);
+						        return true;
+						      } catch (e) {
+						        setStatus('No se pudo insertar el elemento en 3D.', true);
+						        return false;
+						      }
+						    };
 
 						    // Controles táctiles/ratón para orbit/zoom.
 						    const installPitch3dControls = () => {
@@ -15130,7 +15226,9 @@
 						      const onUp = (event) => {
 						        try {
 						          if (pitch3dDrag && !pitch3dDrag.moved) {
-						            pickAt(event?.clientX, event?.clientY);
+						            const insertKind = safeText(pitch3dInsertSelect?.value);
+						            if (insertKind) addPitch3dObjectAt(insertKind, event?.clientX, event?.clientY);
+						            else pickAt(event?.clientX, event?.clientY);
 						          }
 						        } catch (e) { /* ignore */ }
 						        pitch3dDrag = null;
