@@ -295,37 +295,22 @@ addStand({ name: 'west_stand', side: 'west', cols: 34, rows: 5, length: pitchH +
 const addRoof = () => {
   const y = 15.8;
   box('north_thin_roof_skin', mats.roof, [0, y + 0.5, pitchH / 2 + 35.6], [pitchW + 82, 0.34, 15.2], [-0.045, 0, 0]);
-  box('south_thin_roof_skin', mats.roof, [0, y - 2.2, -(pitchH / 2 + 26.4)], [pitchW + 18, 0.28, 5.4], [0.045, 0, 0]);
-  box('east_thin_roof_skin', mats.roof, [pitchW / 2 + 29.2, y - 1.2, 10.0], [7.8, 0.30, pitchH + 12], [0, 0.045, 0]);
   box('north_green_roof_fascia', mats.greenDark, [0, 15.0, pitchH / 2 + 27.4], [pitchW + 84, 1.12, 0.34], [-0.03, 0, 0]);
-  box('south_green_roof_fascia', mats.greenDark, [0, 12.35, -(pitchH / 2 + 23.55)], [pitchW + 20, 0.74, 0.28], [0.03, 0, 0]);
-  box('east_green_roof_fascia', mats.greenDark, [pitchW / 2 + 24.5, 13.0, 10.0], [0.30, 0.84, pitchH + 14], [0, 0.03, 0]);
   box('north_roof_front_gutter', mats.darkMetal, [0, 14.08, pitchH / 2 + 26.65], [pitchW + 72, 0.18, 0.22], [-0.03, 0, 0]);
-  box('south_roof_front_gutter', mats.darkMetal, [0, 12.05, -(pitchH / 2 + 23.3)], [pitchW + 18, 0.14, 0.18], [0.03, 0, 0]);
   box('north_press_box_glass', mats.glass, [0, 13.7, pitchH / 2 + 39.72], [17.5, 2.4, 0.12]);
   box('north_press_box_roof', mats.darkMetal, [0, 15.05, pitchH / 2 + 39.58], [18.4, 0.28, 1.3]);
   box('north_press_box_floor', mats.concrete, [0, 12.42, pitchH / 2 + 39.75], [18.6, 0.24, 1.45]);
-  box('north_camera_gantry_arm', mats.darkMetal, [0, 16.25, pitchH / 2 + 29.8], [0.25, 0.25, 8.0], [-0.25, 0, 0]);
-  box('north_camera_gantry_head', mats.black, [0, 15.26, pitchH / 2 + 26.0], [1.15, 0.7, 0.78]);
-  for (let i = -18; i <= 18; i += 1) {
+  for (let i = -14; i <= 14; i += 2) {
     const x = i * ((pitchW + 66) / 36);
     box(`north_roof_corrugation_${i}`, mats.metal, [x, y + 0.22, pitchH / 2 + 34.0], [0.075, 0.12, 12.6], [-0.04, 0, 0]);
-    if (i >= -10 && i <= 10) box(`south_roof_corrugation_${i}`, mats.metal, [x, y - 1.95, -(pitchH / 2 + 26.4)], [0.06, 0.09, 5.4], [0.04, 0, 0]);
-  }
-  for (let i = -12; i <= 12; i += 1) {
-    const z = i * ((pitchH + 54) / 24);
-    if (z > -30) box(`east_roof_corrugation_${i}`, mats.metal, [pitchW / 2 + 29.0, y - 1.0, z], [7.8, 0.10, 0.065], [0, 0.04, 0]);
   }
   [1].forEach((sign) => {
-    for (let i = -12; i <= 12; i += 1) {
+    for (let i = -10; i <= 10; i += 2) {
       const x = i * ((pitchW + 54) / 24);
-      box(`long_roof_front_truss_${sign}_${i}`, mats.metal, [x, 14.55, sign * (pitchH / 2 + 27.2)], [0.16, 1.2, 8.6], [-0.62 * sign, 0, i % 2 ? 0.36 : -0.36]);
+      box(`long_roof_front_truss_${sign}_${i}`, mats.metal, [x, 14.55, sign * (pitchH / 2 + 27.2)], [0.14, 0.9, 7.6], [-0.52 * sign, 0, 0.18]);
       box(`long_roof_back_column_${sign}_${i}`, mats.darkMetal, [x, 8.2, sign * (pitchH / 2 + 39.2)], [0.28, 12.2, 0.28]);
-      box(`long_roof_rear_truss_${sign}_${i}`, mats.metal, [x, 14.7, sign * (pitchH / 2 + 38.7)], [0.18, 1.0, 5.2], [0.52 * sign, 0, i % 2 ? -0.28 : 0.28]);
-      if (i % 2 === 0) box(`long_roof_light_${sign}_${i}`, mats.light, [x, 13.52, sign * (pitchH / 2 + 22.8)], [3.2, 0.14, 0.28]);
+      if (i % 4 === 0) box(`long_roof_light_${sign}_${i}`, mats.light, [x, 13.52, sign * (pitchH / 2 + 22.8)], [3.2, 0.14, 0.28]);
       if (i % 4 === 0) {
-        box(`long_roof_light_cluster_left_${sign}_${i}`, mats.light, [x - 0.72, 13.28, sign * (pitchH / 2 + 23.05)], [0.55, 0.24, 0.26]);
-        box(`long_roof_light_cluster_right_${sign}_${i}`, mats.light, [x + 0.72, 13.28, sign * (pitchH / 2 + 23.05)], [0.55, 0.24, 0.26]);
         const roofSpot = new THREE.SpotLight(0xfff2cd, 0.34, 96, Math.PI / 6, 0.48, 2.0);
         roofSpot.name = `roof_integrated_spot_${sign}_${i}`;
         roofSpot.position.set(x, 13.1, sign * (pitchH / 2 + 22.3));
@@ -335,19 +320,11 @@ const addRoof = () => {
       }
     }
   });
-  for (let i = -6; i <= 6; i += 1) {
+  for (let i = -5; i <= 5; i += 2) {
     const x = i * ((pitchW + 42) / 12);
     box(`north_cantilever_rear_mast_${i}`, mats.darkMetal, [x, 18.7, pitchH / 2 + 39.8], [0.34, 6.2, 0.34], [-0.07, 0, 0]);
-    box(`north_cantilever_tension_rod_a_${i}`, mats.metal, [x - 0.5, 17.15, pitchH / 2 + 34.2], [0.10, 0.10, 11.2], [-0.58, 0, 0.06]);
-    box(`north_cantilever_tension_rod_b_${i}`, mats.metal, [x + 0.5, 17.15, pitchH / 2 + 34.2], [0.10, 0.10, 11.2], [-0.58, 0, -0.06]);
+    box(`north_cantilever_tension_rod_${i}`, mats.metal, [x, 17.0, pitchH / 2 + 34.4], [0.09, 0.09, 10.6], [-0.54, 0, 0]);
   }
-  [1].forEach((sign) => {
-    for (let i = -7; i <= 7; i += 1) {
-      const z = i * ((pitchH + 44) / 14);
-      box(`short_roof_front_truss_${sign}_${i}`, mats.metal, [sign * (pitchW / 2 + 27.1), 14.35, z], [7.8, 1.0, 0.16], [0, -0.58 * sign, i % 2 ? 0.24 : -0.24]);
-      box(`short_roof_back_column_${sign}_${i}`, mats.darkMetal, [sign * (pitchW / 2 + 39.0), 8.1, z], [0.26, 11.8, 0.26]);
-    }
-  });
 };
 addRoof();
 
@@ -495,7 +472,6 @@ for (let i = -10; i <= 10; i += 1) {
 for (let i = -9; i <= 9; i += 1) {
   const x = i * ((pitchW + 47) / 18);
   box(`rear_facade_glass_panel_${i}`, mats.glass, [x, 5.45, pitchH / 2 + 40.45], [3.8, 1.45, 0.08]);
-  box(`rear_facade_lower_shadow_${i}`, mats.black, [x, 4.43, pitchH / 2 + 40.43], [3.8, 0.18, 0.06]);
 }
 box('rear_facade_roof_edge_shadow', mats.roofShadow, [0, 9.45, pitchH / 2 + 40.38], [pitchW + 64, 0.18, 0.08]);
 writeBlockText({ text: 'BENAGALBON CD', name: 'rear_facade_name', origin: [-19.8, 7.52, pitchH / 2 + 40.48], cell: 0.24, plane: 'xy' });
