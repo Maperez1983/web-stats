@@ -13176,6 +13176,15 @@
 						              addMesh(new THREE.BoxGeometry(0.34, 0.16, 5.2), seatMat, sx * (metersW / 2 + 5.2), 1.35, sz * (metersH / 2 + 6.5), 'pitch_3d_dedicated_completion_corner_seat_band');
 						            });
 						          });
+						          const northFacadeZ = metersH / 2 + 12.45;
+						          addMesh(new THREE.BoxGeometry(metersW + 15.0, 0.28, 0.24), boardMat, 0, 5.92, northFacadeZ - 0.05, 'pitch_3d_dedicated_completion_north_green_fascia_break');
+						          addMesh(new THREE.BoxGeometry(metersW + 12.0, 0.12, 0.16), railMat, 0, 6.42, northFacadeZ - 0.18, 'pitch_3d_dedicated_completion_north_glass_rail_break');
+						          [-0.39, -0.19, 0.02, 0.23, 0.43].forEach((ratio, idx) => {
+						            const w = idx === 2 ? metersW * 0.16 : metersW * 0.14;
+						            addMesh(new THREE.BoxGeometry(w, 1.75, 0.22), idx === 2 ? darkVoidMat : concreteMat, ratio * metersW, 7.12, northFacadeZ, 'pitch_3d_dedicated_completion_north_facade_panel');
+						          });
+						          const lightMat = new THREE.MeshStandardMaterial({ color: 0xe0f2fe, roughness: 0.18, metalness: 0.02, emissive: 0x7dd3fc, emissiveIntensity: 0.36 });
+						          addMesh(new THREE.BoxGeometry(metersW + 5.0, 0.10, 0.12), lightMat, 0, 8.26, northFacadeZ - 0.22, 'pitch_3d_dedicated_completion_north_light_bar');
 						          root.add(dedicatedFinish);
 						        }
 						      } catch (e) { /* ignore */ }
