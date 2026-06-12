@@ -14192,6 +14192,73 @@
 						        const child = token3dChildByRole(o, 'token_photo');
 						        return safeText(data.playerPhotoUrl || data.photo_url || data.photoUrl || child?.src || child?.crossOriginSrc || child?._element?.src);
 						      };
+						      const pitch3dFirstValue = (source, keys) => {
+						        const data = source || {};
+						        for (let i = 0; i < keys.length; i += 1) {
+						          const key = keys[i];
+						          const value = data[key];
+						          if (value !== undefined && value !== null && safeText(value).trim() !== '') return value;
+						        }
+						        return '';
+						      };
+						      const pitch3dMetricNumber = (value) => {
+						        if (value === undefined || value === null || value === '') return null;
+						        const n = Number(String(value).replace(',', '.').replace(/[^\d.-]/g, ''));
+						        return Number.isFinite(n) ? n : null;
+						      };
+						      const pitch3dPositionProfile = (position, tokenKind = '') => {
+						        const pos = safeText(position).toLowerCase();
+						        const kind = safeText(tokenKind).toLowerCase();
+						        if (kind.includes('goalkeeper') || /\b(gk|por|portero|goalkeeper)\b/.test(pos)) {
+						          return { heightMeters: 1.88, massFactor: 1.08, role: 'goalkeeper' };
+						        }
+						        if (/\b(dfc|central|defensa|defender|cb)\b/.test(pos)) {
+						          return { heightMeters: 1.82, massFactor: 1.06, role: 'defender' };
+						        }
+						        if (/\b(dc|sd|delantero|punta|striker|forward|9)\b/.test(pos)) {
+						          return { heightMeters: 1.80, massFactor: 1.04, role: 'forward' };
+						        }
+						        if (/\b(ld|li|ed|ei|extremo|lateral|carrilero|winger|fullback)\b/.test(pos)) {
+						          return { heightMeters: 1.74, massFactor: 0.96, role: 'wide' };
+						        }
+						        if (/\b(mc|mcd|mp|interior|medio|mediocentro|midfielder)\b/.test(pos)) {
+						          return { heightMeters: 1.76, massFactor: 1.00, role: 'midfielder' };
+						        }
+						        return { heightMeters: 1.78, massFactor: 1.00, role: 'default' };
+						      };
+						      const pitch3dPlayerMetrics = (o, tokenKind = '') => {
+						        const data = o?.data || {};
+						        const position = safeText(pitch3dFirstValue(data, [
+						          'playerPosition', 'position', 'posicion', 'primary_position', 'preferred_position',
+						        ]));
+						        const profile = pitch3dPositionProfile(position, tokenKind);
+						        const rawHeight = pitch3dMetricNumber(pitch3dFirstValue(data, [
+						          'playerHeightCm', 'height_cm', 'heightCm', 'height', 'altura', 'player_height_cm',
+						        ]));
+						        const rawWeight = pitch3dMetricNumber(pitch3dFirstValue(data, [
+						          'playerWeightKg', 'weight_kg', 'weightKg', 'weight', 'peso', 'player_weight_kg',
+						        ]));
+						        let heightMeters = profile.heightMeters;
+						        if (rawHeight !== null) {
+						          if (rawHeight >= 1.2 && rawHeight <= 2.3) heightMeters = rawHeight;
+						          else if (rawHeight >= 120 && rawHeight <= 230) heightMeters = rawHeight / 100;
+						        }
+						        heightMeters = clamp(heightMeters, 1.20, 2.30);
+						        let massFactor = profile.massFactor;
+						        if (rawWeight !== null && rawWeight >= 35 && rawWeight <= 130) {
+						          const bmi = rawWeight / Math.max(0.01, heightMeters * heightMeters);
+						          massFactor = clamp(0.90 + ((bmi - 20) * 0.035), 0.84, 1.20);
+						        }
+						        return {
+						          heightMeters,
+						          heightScale: clamp(heightMeters / 1.78, 0.76, 1.24),
+						          massFactor,
+						          depthFactor: clamp(0.92 + ((massFactor - 1) * 0.72), 0.86, 1.18),
+						          position,
+						          role: profile.role,
+						          source: rawHeight !== null || rawWeight !== null ? 'player' : 'position',
+						        };
+						      };
 						      const addTokenImageSprite3d = (parent, url, opts = {}) => {
 						        const src = safeText(url);
 						        if (!parent || !src) return null;
@@ -14302,7 +14369,7 @@
 						        } catch (e) { /* ignore */ }
 						        try { return source.clone(true); } catch (e) { return null; }
 						      };
-						      const fitPitch3dPlayerModel = (model, targetHeight = 1.72) => {
+						      const fitPitch3dPlayerModel = (model, targetHeight = 1.72, options = {}) => {
 						        if (!model || !window.THREE) return;
 						        try {
 						          const box = new THREE.Box3().setFromObject(model);
@@ -14313,6 +14380,10 @@
 						          const h = Math.max(0.001, Number(size.y) || 1);
 						          const s = clamp((Number(targetHeight) || 1.72) / h, 0.02, 6);
 						          model.scale.multiplyScalar(s);
+						          const massFactor = clamp(Number(options?.massFactor) || 1, 0.84, 1.20);
+						          const depthFactor = clamp(Number(options?.depthFactor) || (0.92 + ((massFactor - 1) * 0.72)), 0.86, 1.18);
+						          model.scale.x *= massFactor;
+						          model.scale.z *= depthFactor;
 						          const fitted = new THREE.Box3().setFromObject(model);
 						          const fittedCenter = new THREE.Vector3();
 						          fitted.getCenter(fittedCenter);
@@ -14372,6 +14443,7 @@
 						        const facingDeg = normalizeAngle(Number(data.facing_deg), 0);
 						        const fovVisible = !!data.fov_visible;
 						        const fovWidthDeg = clamp(Number(data.fov_width_deg) || 70, 20, 160);
+						        const playerMetrics = pitch3dPlayerMetrics(o, tokenKind);
 						        const geo = new THREE.CylinderGeometry(0.75, 0.75, 0.26, 18);
 						        const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.65, metalness: 0.02 });
 						        const mesh = new THREE.Mesh(geo, mat);
@@ -14409,7 +14481,7 @@
 						          const model = clonePitch3dPlayerModel(modelSrc);
 						          if (model) {
 						            const holder = new THREE.Group();
-						            holder.userData = { kind: 'token_body_model', facing_deg: facingDeg, src: __pitch3dAssetUrl('pitch3dPlayerModelSrc') };
+						            holder.userData = { kind: 'token_body_model', facing_deg: facingDeg, src: __pitch3dAssetUrl('pitch3dPlayerModelSrc'), metrics: playerMetrics };
 						            tintPitch3dPlayerModel(model, {
 						              shirt: stripe || fill,
 						              base: fill || '#ffffff',
@@ -14418,7 +14490,10 @@
 						              hair: tokenKind.includes('rival') ? '#111827' : '#172554',
 						              boot: '#0f172a',
 						            });
-						            fitPitch3dPlayerModel(model, 1.72);
+						            fitPitch3dPlayerModel(model, playerMetrics.heightMeters, {
+						              massFactor: playerMetrics.massFactor,
+						              depthFactor: playerMetrics.depthFactor,
+						            });
 						            holder.add(model);
 						            holder.rotation.y = (Number(facingDeg) || 0) * (Math.PI / 180);
 						            mesh.add(holder);
@@ -14440,8 +14515,12 @@
 						          const sockMat = new THREE.MeshStandardMaterial({ color: kitBaseCol, roughness: 0.70, metalness: 0.01 });
 						          const bootMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.58, metalness: 0.04 });
 						          const body = new THREE.Group();
-						          body.userData = { kind: 'token_body', facing_deg: facingDeg };
-						          body.scale.set(1.16, 1.16, 1.16);
+						          body.userData = { kind: 'token_body', facing_deg: facingDeg, metrics: playerMetrics };
+						          body.scale.set(
+						            1.16 * playerMetrics.massFactor,
+						            1.16 * playerMetrics.heightScale,
+						            1.16 * playerMetrics.depthFactor,
+						          );
 						          const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.31, 0.60, 6, 18), bodyMat);
 						          torso.position.y = 0.82;
 						          torso.scale.set(1.08, 1.02, 0.70);
@@ -23957,7 +24036,11 @@
 			        const player = players.find((item) => String(item.id) === String(payload.playerId));
 		        if (!player) return null;
 		        return {
-	          factory: playerTokenFactory(payload.kind || 'player_local', player),
+	          factory: playerTokenFactory(payload.kind || 'player_local', player, {
+	            position: payload.position || payload.playerPosition,
+	            height_cm: payload.height_cm || payload.heightCm || payload.playerHeightCm,
+	            weight_kg: payload.weight_kg || payload.weightKg || payload.playerWeightKg,
+	          }),
 	          label: safeText(player.name, 'el jugador'),
 	        };
 	      }
@@ -23966,7 +24049,13 @@
         const playerName = safeText(payload.playerName || payload.name || payload.title || payload.text, '');
         const playerNumber = safeText(payload.playerNumber || payload.number || payload.label, '');
         if (playerName || playerNumber) {
-          const pseudo = { name: playerName || 'Rival', number: playerNumber || '' };
+          const pseudo = {
+            name: playerName || 'Rival',
+            number: playerNumber || '',
+            position: payload.position || payload.playerPosition || '',
+            height_cm: payload.height_cm || payload.heightCm || payload.playerHeightCm || '',
+            weight_kg: payload.weight_kg || payload.weightKg || payload.playerWeightKg || '',
+          };
           return {
             factory: playerTokenFactory('player_rival', pseudo, { style: 'disk' }),
             label: playerName ? safeText(playerName, 'un jugador rival') : 'un jugador rival',
@@ -24396,6 +24485,9 @@
 		      const stripeColor = parseColorToHex(options?.stripe, parseColorToHex(player?.token_stripe_color, defaultStripe)) || defaultStripe;
 		      const photoUrl = resolvePlayerPhotoUrl(options?.photoUrl || player?.photo_url);
 		      const tokenKitSlot = normalizeKit2dSlot(options?.kit_slot || player?.token_kit_slot || player?.kit_slot || '');
+		      const playerPosition = safeText(options?.position || options?.playerPosition || player?.position || player?.posicion || player?.primary_position || player?.preferred_position);
+		      const playerHeightCm = safeText(options?.height_cm || options?.heightCm || options?.playerHeightCm || player?.height_cm || player?.heightCm || player?.height || player?.altura);
+		      const playerWeightKg = safeText(options?.weight_kg || options?.weightKg || options?.playerWeightKg || player?.weight_kg || player?.weightKg || player?.weight || player?.peso);
 		      const effectiveBase = pattern === 'solid' ? stripeColor : baseColor;
 		      // Estilo "chapa" (igual que en la plantilla de abajo): disco con dorsal centrado y nombre simple.
 		      // Evitamos el "jersey" y los cartuchos para que dentro del campo se vea igual que fuera.
@@ -25233,6 +25325,9 @@
 			          playerId: player?.id || '',
 			          playerName,
 			          playerNumber: safeText(label),
+			          playerPosition,
+			          playerHeightCm,
+			          playerWeightKg,
 			          playerPhotoUrl: photoUrl,
 			          facing_deg: normalizeAngle(options?.facing_deg, 0),
 			          fov_visible: !!options?.fov_visible,

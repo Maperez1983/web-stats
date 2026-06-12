@@ -37272,7 +37272,7 @@ def _build_tactical_player_catalog(request, primary_team):
     players = (
         Player.objects
         .filter(team=primary_team, is_active=True)
-        .only('id', 'name', 'nickname', 'number', 'position', 'photo_updated_at')
+        .only('id', 'name', 'nickname', 'number', 'position', 'height_cm', 'weight_kg', 'photo_updated_at')
         .order_by('number', 'name')[:60]
     )
     for player in players:
@@ -37288,6 +37288,8 @@ def _build_tactical_player_catalog(request, primary_team):
                 'nickname': str(getattr(player, 'nickname', '') or '').strip(),
                 'number': _parse_int(player.number) or '',
                 'position': str(player.position or '').strip(),
+                'height_cm': _parse_int(player.height_cm) or '',
+                'weight_kg': float(player.weight_kg) if player.weight_kg is not None else '',
                 'photo_url': str(photo_url or '').strip(),
             }
         )
@@ -39246,7 +39248,7 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
     except Exception:
         logger.exception('sessions_task_builder: no se pudieron cargar sesiones', extra={'team_id': getattr(primary_team, 'id', None)})
     try:
-        cache_key = f'task_builder:player_catalog:{int(primary_team.id)}'
+        cache_key = f'task_builder:player_catalog:v2:{int(primary_team.id)}'
         cached = cache.get(cache_key)
         if isinstance(cached, list):
             player_catalog = cached
