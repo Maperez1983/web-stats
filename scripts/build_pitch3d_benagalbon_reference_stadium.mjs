@@ -215,8 +215,7 @@ const addStand = ({ name, side, cols, rows, length, depthStart, zFixed, xFixed }
   const span = length;
   const aisleCols = (() => {
     if (side === 'north') return new Set([8, Math.floor(cols * 0.24), Math.floor(cols * 0.5), Math.floor(cols * 0.76), cols - 9]);
-    if (side === 'south') return new Set([Math.floor(cols * 0.33), Math.floor(cols * 0.66)]);
-    return new Set([Math.floor(cols * 0.34), Math.floor(cols * 0.66)]);
+    return new Set([Math.floor(cols * 0.5)]);
   })();
 
   for (let row = 0; row < rows; row += 1) {
@@ -252,39 +251,33 @@ const addStand = ({ name, side, cols, rows, length, depthStart, zFixed, xFixed }
     });
   }
 
-  [...aisleCols].forEach((col, idx) => {
-    const t = col / (cols - 1) - 0.5;
-    const offset = t * span;
-    const yMid = 2.15 + ((rows - 1) * 0.31) / 2;
-    const run = rows * 0.58 + 0.55;
-    if (longSide) {
+  if (side === 'north') {
+    [...aisleCols].forEach((col, idx) => {
+      const t = col / (cols - 1) - 0.5;
+      const offset = t * span;
+      const yMid = 2.15 + ((rows - 1) * 0.31) / 2;
+      const run = rows * 0.58 + 0.55;
       const zMid = depthStart + sign * ((rows - 1) * 0.58) / 2;
       box(`${name}_full_height_stair_run_${idx}`, mats.concrete, [offset, yMid - 0.035, zMid], [1.08, 0.11, run], [-0.11 * sign, 0, 0]);
-      if (rows >= 12 && idx % 3 === 0) box(`${name}_stair_landing_${idx}`, mats.concrete, [offset, yMid + 0.74, zMid + sign * 1.8], [2.45, 0.11, 0.86], [-0.04 * sign, 0, 0]);
-    } else {
-      const xMid = depthStart + sign * ((rows - 1) * 0.58) / 2;
-      box(`${name}_full_height_stair_run_${idx}`, mats.concrete, [xMid, yMid - 0.035, offset], [run, 0.11, 1.08], [0, 0.11 * sign, 0]);
-      if (rows >= 10 && idx % 3 === 0) box(`${name}_stair_landing_${idx}`, mats.concrete, [xMid + sign * 1.8, yMid + 0.74, offset], [0.86, 0.11, 2.45], [0, 0.04 * sign, 0]);
-    }
-  });
+    });
+  }
 
   if (longSide) {
     box(`${name}_front_wall`, mats.concrete, [0, 1.55, zFixed - sign * 1.2], [span + 7, 1.0, 0.5]);
-    box(`${name}_upper_concourse_band`, mats.concrete, [0, 7.2, zFixed + sign * 6.5], [span + 10, 0.55, 0.72], [-0.03 * sign, 0, 0]);
-    box(`${name}_glass_balustrade_top`, mats.glass, [0, 7.82, zFixed + sign * 6.04], [span + 6.5, 0.72, 0.08], [-0.03 * sign, 0, 0]);
-    if (rows >= 12) box(`${name}_front_safety_rail`, mats.metal, [0, 2.28, zFixed - sign * 1.52], [span + 6.0, 0.08, 0.08]);
+    if (side === 'north') {
+      box(`${name}_upper_concourse_band`, mats.concrete, [0, 7.2, zFixed + sign * 6.5], [span + 10, 0.55, 0.72], [-0.03 * sign, 0, 0]);
+      box(`${name}_glass_balustrade_top`, mats.glass, [0, 7.82, zFixed + sign * 6.04], [span + 6.5, 0.72, 0.08], [-0.03 * sign, 0, 0]);
+      box(`${name}_front_safety_rail`, mats.metal, [0, 2.28, zFixed - sign * 1.52], [span + 6.0, 0.08, 0.08]);
+    }
   } else {
     box(`${name}_front_wall`, mats.concrete, [xFixed - sign * 1.2, 1.55, 0], [0.5, 1.0, span + 7]);
-    box(`${name}_upper_concourse_band`, mats.concrete, [xFixed + sign * 6.5, 7.1, 0], [0.72, 0.55, span + 10], [0, 0.03 * sign, 0]);
-    box(`${name}_glass_balustrade_top`, mats.glass, [xFixed + sign * 6.04, 7.72, 0], [0.08, 0.68, span + 6.5], [0, 0.03 * sign, 0]);
-    if (rows >= 10) box(`${name}_front_safety_rail`, mats.metal, [xFixed - sign * 1.52, 2.28, 0], [0.08, 0.08, span + 6.0]);
   }
 };
 
 addStand({ name: 'north_main_stand', side: 'north', cols: 108, rows: 18, length: pitchW + 66, depthStart: pitchH / 2 + 9.7, zFixed: pitchH / 2 + 9.7 });
-addStand({ name: 'south_stand', side: 'south', cols: 76, rows: 5, length: pitchW + 30, depthStart: -(pitchH / 2 + 8.6), zFixed: -(pitchH / 2 + 8.6) });
-addStand({ name: 'east_stand', side: 'east', cols: 50, rows: 8, length: pitchH + 20, depthStart: pitchW / 2 + 9.2, xFixed: pitchW / 2 + 9.2 });
-addStand({ name: 'west_stand', side: 'west', cols: 34, rows: 5, length: pitchH + 12, depthStart: -(pitchW / 2 + 8.6), xFixed: -(pitchW / 2 + 8.6) });
+addStand({ name: 'south_low_stand', side: 'south', cols: 56, rows: 3, length: pitchW + 8, depthStart: -(pitchH / 2 + 8.2), zFixed: -(pitchH / 2 + 8.2) });
+addStand({ name: 'east_low_stand', side: 'east', cols: 34, rows: 4, length: pitchH - 8, depthStart: pitchW / 2 + 8.5, xFixed: pitchW / 2 + 8.5 });
+addStand({ name: 'west_low_stand', side: 'west', cols: 28, rows: 3, length: pitchH - 18, depthStart: -(pitchW / 2 + 8.2), xFixed: -(pitchW / 2 + 8.2) });
 
 const addRoof = () => {
   const y = 15.8;
@@ -444,7 +437,6 @@ const addDugout = (x, label) => {
   }
 };
 addDugout(-22, 'home');
-addDugout(0, 'central');
 addDugout(22, 'away');
 
 cyl('main_round_cdb_crest', mats.white, [0, 8.6, pitchH / 2 + 11.0], 3.4, 0.16, [Math.PI / 2, 0, 0], 96);
