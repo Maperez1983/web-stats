@@ -4714,6 +4714,14 @@
         grid-template-columns: minmax(0, 1fr) auto;
         align-items: start;
       }
+      body:not(.tactics-mode) .panel-head #tpad-hint {
+        grid-column: 1 / -1;
+        width: 100%;
+        min-width: 0;
+      }
+      body:not(.tactics-mode) .panel-head > .pitch-toolbar {
+        grid-column: 1 / -1;
+      }
       body:not(.tactics-mode) .pitch-toolbar {
         justify-content: flex-end;
         align-items: center;
