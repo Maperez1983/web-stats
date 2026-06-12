@@ -34,6 +34,9 @@ const mats = {
   darkConcrete: new THREE.MeshStandardMaterial({ name: 'REF_DARK_CONCRETE', color: 0x333b3a, roughness: 0.88, metalness: 0.02 }),
   green: new THREE.MeshStandardMaterial({ name: 'REF_BENAGALBON_GREEN_CHAIR', color: 0x047044, roughness: 0.58, metalness: 0.01 }),
   greenDark: new THREE.MeshStandardMaterial({ name: 'REF_DEEP_GREEN_CHAIR', color: 0x063f31, roughness: 0.62, metalness: 0.01 }),
+  crowdDark: new THREE.MeshStandardMaterial({ name: 'REF_CROWD_DARK_COATS', color: 0x14231f, roughness: 0.78, metalness: 0.0 }),
+  crowdGreen: new THREE.MeshStandardMaterial({ name: 'REF_CROWD_GREEN_SHIRTS', color: 0x0a6f43, roughness: 0.74, metalness: 0.0 }),
+  crowdWhite: new THREE.MeshStandardMaterial({ name: 'REF_CROWD_WHITE_SHIRTS', color: 0xe7eee7, roughness: 0.68, metalness: 0.0 }),
   white: new THREE.MeshStandardMaterial({ name: 'REF_WHITE_LETTER_CHAIR', color: 0xf8faf5, roughness: 0.54, metalness: 0.01 }),
   lineWhite: new THREE.MeshStandardMaterial({ name: 'REF_PAINTED_PITCH_LINES', color: 0xf4f7ef, roughness: 0.76, metalness: 0.0 }),
   metal: new THREE.MeshStandardMaterial({ name: 'REF_STEEL_TRUSS_METAL', color: 0x5f6b6f, roughness: 0.36, metalness: 0.42 }),
@@ -172,6 +175,8 @@ const writeBlockText = ({ text, name, origin, cell = 0.18, material = mats.white
       if (!on) return;
       if (plane === 'xy') {
         box(`${name}_glyph_${xIdx}_${yIdx}`, material, [origin[0] + xIdx * cell, origin[1] - yIdx * cell, origin[2]], [cell * 0.82, cell * 0.82, 0.045], rotation);
+      } else if (plane === 'zy') {
+        box(`${name}_glyph_${xIdx}_${yIdx}`, material, [origin[0], origin[1] - yIdx * cell, origin[2] + xIdx * cell], [0.045, cell * 0.82, cell * 0.82], rotation);
       } else {
         box(`${name}_glyph_${xIdx}_${yIdx}`, material, [origin[0] + xIdx * cell, origin[1], origin[2] + yIdx * cell], [cell * 0.82, 0.045, cell * 0.82], rotation);
       }
@@ -186,6 +191,7 @@ const addStand = ({ name, side, cols, rows, length, depthStart, zFixed, xFixed }
   const aisleCols = longSide
     ? new Set([5, Math.floor(cols * 0.2), Math.floor(cols * 0.36), Math.floor(cols * 0.5), Math.floor(cols * 0.64), Math.floor(cols * 0.8), cols - 6])
     : new Set([4, Math.floor(cols * 0.28), Math.floor(cols * 0.5), Math.floor(cols * 0.72), cols - 5]);
+  const crowdMaterials = [mats.crowdDark, mats.crowdGreen, mats.crowdWhite];
 
   for (let row = 0; row < rows; row += 1) {
     const y = 2.15 + row * 0.31;
@@ -217,6 +223,17 @@ const addStand = ({ name, side, cols, rows, length, depthStart, zFixed, xFixed }
         if (!isAisle) {
           box(`${name}_back_${row}_${col}`, material, [depth + sign * 0.24, y + 0.25, offset], [0.08, 0.38, 0.44], [0, 0.22 * sign, 0]);
           if (row % 4 === 0 && col % 6 === 0) box(`${name}_seat_highlight_${row}_${col}`, mats.white, [depth - sign * 0.03, y + 0.1, offset - 0.05], [0.12, 0.018, 0.18], [0, 0.08 * sign, 0]);
+        }
+      }
+      const crowdSeed = (row * 37 + col * 17 + name.length) % 19;
+      if (!isAisle && row >= Math.floor(rows * 0.45) && row % 2 === 1 && col % 4 === 1 && crowdSeed < 7) {
+        const crowdMat = crowdMaterials[(row + col) % crowdMaterials.length];
+        if (longSide) {
+          box(`${name}_crowd_body_${row}_${col}`, crowdMat, [offset, y + 0.44, depth + sign * 0.03], [0.28, 0.46, 0.18], [-0.06 * sign, 0, 0]);
+          box(`${name}_crowd_head_${row}_${col}`, mats.concrete, [offset, y + 0.77, depth + sign * 0.03], [0.18, 0.16, 0.16], [-0.04 * sign, 0, 0]);
+        } else {
+          box(`${name}_crowd_body_${row}_${col}`, crowdMat, [depth + sign * 0.03, y + 0.44, offset], [0.18, 0.46, 0.28], [0, 0.06 * sign, 0]);
+          box(`${name}_crowd_head_${row}_${col}`, mats.concrete, [depth + sign * 0.03, y + 0.77, offset], [0.16, 0.16, 0.18], [0, 0.04 * sign, 0]);
         }
       }
     }
@@ -296,6 +313,12 @@ const addRoof = () => {
       if (i % 4 === 0) {
         box(`long_roof_light_cluster_left_${sign}_${i}`, mats.light, [x - 0.72, 13.28, sign * (pitchH / 2 + 23.05)], [0.55, 0.24, 0.26]);
         box(`long_roof_light_cluster_right_${sign}_${i}`, mats.light, [x + 0.72, 13.28, sign * (pitchH / 2 + 23.05)], [0.55, 0.24, 0.26]);
+        const roofSpot = new THREE.SpotLight(0xfff2cd, 0.34, 96, Math.PI / 6, 0.48, 1.6);
+        roofSpot.name = `roof_integrated_spot_${sign}_${i}`;
+        roofSpot.position.set(x, 13.1, sign * (pitchH / 2 + 22.3));
+        roofSpot.target.position.set(x * 0.25, 0.1, sign * 7.0);
+        scene.add(roofSpot);
+        scene.add(roofSpot.target);
       }
     }
   });
@@ -323,6 +346,11 @@ const addBoards = () => {
   writeBlockText({ text: 'PARTNER', name: 'north_board_partner_left', origin: [-7, 1.12, pitchH / 2 + 2.96], cell: 0.22, plane: 'xy' });
   writeBlockText({ text: '2J FOOTBALL INTELLIGENCE', name: 'north_board_2j', origin: [18, 1.12, pitchH / 2 + 2.96], cell: 0.16, plane: 'xy' });
   writeBlockText({ text: 'PARTNER', name: 'south_board_partner', origin: [-36, 1.12, -(pitchH / 2 + 2.96)], cell: 0.22, plane: 'xy' });
+  writeBlockText({ text: 'BENAGALBON CD', name: 'south_board_name', origin: [2, 1.12, -(pitchH / 2 + 2.96)], cell: 0.19, plane: 'xy' });
+  writeBlockText({ text: 'CDB', name: 'east_board_cdb', origin: [pitchW / 2 + 2.96, 1.12, -18], cell: 0.2, plane: 'zy' });
+  writeBlockText({ text: 'PARTNER', name: 'east_board_partner', origin: [pitchW / 2 + 2.96, 1.12, 6], cell: 0.18, plane: 'zy' });
+  writeBlockText({ text: 'CDB', name: 'west_board_cdb', origin: [-(pitchW / 2 + 2.96), 1.12, 14], cell: 0.2, plane: 'zy' });
+  writeBlockText({ text: 'PARTNER', name: 'west_board_partner', origin: [-(pitchW / 2 + 2.96), 1.12, -12], cell: 0.18, plane: 'zy' });
 };
 addBoards();
 
