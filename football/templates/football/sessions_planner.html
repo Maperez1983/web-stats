@@ -27,6 +27,55 @@
         background: transparent;
         font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", sans-serif);
       }
+      body.sessions-planner-page {
+        --prod-bg: #0b1626;
+        --prod-bg-soft: #101f33;
+        --prod-panel: #0d1728;
+        --prod-panel-flat: rgba(18, 30, 50, 0.94);
+        --prod-line: rgba(144, 161, 185, 0.22);
+        --prod-text: #f5f7fa;
+        --prod-muted: #91a1b9;
+        --ui-bg: #0b1626;
+        --ui-panel: rgba(18, 30, 50, 0.86);
+        --ui-panel-flat: rgba(18, 30, 50, 0.94);
+        --ui-line: rgba(144, 161, 185, 0.22);
+        --ui-text: #f5f7fa;
+        --ui-muted: #91a1b9;
+        --ui-button-bg: rgba(255, 255, 255, 0.08);
+        --ink: #f5f7fa;
+        --bg: #0b1626;
+        --panel: rgba(18, 30, 50, 0.94);
+        --line: rgba(144, 161, 185, 0.22);
+        color: #f5f7fa;
+      }
+      :root[data-theme="light"] body.prod-commercial.sessions-planner-page {
+        background-image:
+          linear-gradient(180deg, rgba(5, 11, 20, 0.78), rgba(5, 11, 20, 0.92)),
+          var(--prod-system-image, none),
+          radial-gradient(circle at 14% -12%, rgba(47, 125, 50, 0.2), transparent 52%),
+          radial-gradient(circle at 88% -6%, rgba(244, 180, 0, 0.16), transparent 46%),
+          radial-gradient(circle at 70% 120%, rgba(144, 161, 185, 0.12), transparent 52%),
+          linear-gradient(180deg, #050b14 0%, #0b1626 58%, #040912 100%) !important;
+      }
+      :root[data-theme="hc"] body.prod-commercial.sessions-planner-page {
+        --prod-bg: #000000;
+        --prod-panel: #050505;
+        --prod-panel-flat: rgba(12, 12, 12, 0.98);
+        --prod-line: rgba(255, 255, 255, 0.42);
+        --prod-text: #ffffff;
+        --prod-muted: #ffffff;
+        --ui-bg: #000000;
+        --ui-panel: rgba(12, 12, 12, 0.98);
+        --ui-panel-flat: rgba(12, 12, 12, 0.98);
+        --ui-line: rgba(255, 255, 255, 0.42);
+        --ui-text: #ffffff;
+        --ui-muted: #ffffff;
+        --ui-button-bg: rgba(255, 255, 255, 0.08);
+        --ink: #ffffff;
+        --bg: #000000;
+        --panel: rgba(12, 12, 12, 0.98);
+        --line: rgba(255, 255, 255, 0.42);
+      }
       .page { max-width: 1660px; margin: 0 auto; padding: clamp(0.8rem, 1.4vw, 1.25rem); }
       .top {
         display: grid;
@@ -1683,7 +1732,7 @@
       }
     </style>
   </head>
-  <body class="prod-commercial">
+  <body class="prod-commercial sessions-planner-page">
     <main class="page product-shell">
       {% include 'football/includes/dragon_nav.html' %}
 		      <div class="top" id="planner-top">
