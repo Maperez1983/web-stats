@@ -2282,6 +2282,13 @@
     {{ rival_lineup_seed|json_script:"rival-lineup-seed-data" }}
     <script src="{% static 'football/js/pitch_surface_preview.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>
     <script src="{% static 'football/js/pitch_surface.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "{% static 'vendor/three/build/three.module.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
+        }
+      }
+    </script>
     <script>
       const saveUrlBase = '{% url "match-lineup-save" %}';
       const matchId = String('{{ match_id|default_if_none:"" }}').trim();
@@ -4252,7 +4259,9 @@
           if (xi3d.raf) window.cancelAnimationFrame(xi3d.raf);
           renderXi3dFrame();
         } catch (err) {
-          setXi3dStatus('No se pudo inicializar el 3D en este navegador.', true);
+          try { console.error('XI inicial 3D: no se pudo inicializar', err); } catch (_) {}
+          const detail = String(err?.message || err || '').slice(0, 120);
+          setXi3dStatus(detail ? `No se pudo inicializar el 3D: ${detail}` : 'No se pudo inicializar el 3D en este navegador.', true);
         }
       };
 
@@ -4281,8 +4290,10 @@
           setXi3dStatus(String(xi3dRenderModeSelect.value) === 'avatars'
             ? 'Vista 3D lista con avatares.'
             : 'Vista 3D lista con camisetas.');
-        } catch (_) {
-          setXi3dStatus('No se pudo cambiar la representación 3D.', true);
+        } catch (err) {
+          try { console.error('XI inicial 3D: no se pudo cambiar representación', err); } catch (_) {}
+          const detail = String(err?.message || err || '').slice(0, 120);
+          setXi3dStatus(detail ? `No se pudo cambiar la representación 3D: ${detail}` : 'No se pudo cambiar la representación 3D.', true);
         }
       });
       window.addEventListener('resize', () => {
