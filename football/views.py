@@ -39355,9 +39355,10 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             library_repository = _library_repository_for_task(task)
     except Exception:
         pass
-    if not error and (not all_sessions):
-        # Soft warning: evita 500 por fallos parciales y da pista al usuario.
-        error = 'El editor cargó, pero faltan datos (sesiones/jugadores/recursos). Recarga la página o revisa permisos/configuración del equipo.'
+    task_context_warning = ''
+    if not all_sessions:
+        # Biblioteca puede funcionar sin sesión destino. No lo tratamos como error bloqueante.
+        task_context_warning = 'No hay sesiones recientes para asignar como destino. Puedes guardar la tarea en Biblioteca y añadirla a una sesión más tarde.'
 
     def _sessions_library_back_url(*, source: str = '') -> str:
         base = reverse(_sessions_scope_route_name(scope_key))
@@ -39427,6 +39428,7 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             'task': task,
             'feedback': feedback,
             'error': error,
+            'task_context_warning': task_context_warning,
             'can_restore_original': can_restore_original,
             'task_blocks': SessionTask.BLOCK_CHOICES,
             'all_sessions': all_sessions,
