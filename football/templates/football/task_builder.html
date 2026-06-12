@@ -4340,19 +4340,19 @@
 	        place-items: center;
 	        background: rgba(2, 6, 23, 0.92);
 	        z-index: 2147482600;
-	        padding: 1.1rem;
+	        padding: clamp(0.35rem, 1.4vw, 1rem);
 	      }
 	      .sim-3d-modal[hidden] { display: none; }
 	      .sim-3d-card {
-	        width: min(1100px, 96vw);
-	        height: min(720px, 92vh);
+	        width: min(1320px, 98vw);
+	        height: min(860px, 96dvh);
 	        border-radius: 18px;
 	        border: 1px solid rgba(255,255,255,0.14);
 	        background: rgba(15, 23, 42, 0.92);
 	        box-shadow: rgba(0,0,0,0.55) 0 18px 60px;
 	        overflow: hidden;
 	        display: grid;
-	        grid-template-rows: auto 1fr auto;
+	        grid-template-rows: auto minmax(0, 1fr) auto;
 	      }
 	      .sim-3d-head {
 	        display: flex;
@@ -4374,6 +4374,7 @@
 	      }
 	      .sim-3d-body {
 	        position: relative;
+	        min-height: 0;
 	        background: radial-gradient(circle at 30% 20%, rgba(34,197,94,0.12), rgba(15,23,42,0.92) 55%);
 	      }
 	      .sim-3d-canvas {
@@ -4382,16 +4383,26 @@
 	        display: block;
 	      }
 	      .sim-3d-foot {
-	        padding: 0.65rem 0.9rem;
+	        padding: 0.52rem 0.72rem;
 	        border-top: 1px solid rgba(255,255,255,0.10);
 	        display: flex;
 	        gap: 0.5rem;
 	        align-items: center;
 	        justify-content: space-between;
 	        flex-wrap: wrap;
+	        max-height: min(220px, 31dvh);
+	        overflow: auto;
+	        scrollbar-width: thin;
 	      }
-	      .sim-3d-controls { display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; }
-	      .sim-3d-note { opacity: 0.86; font-size: 0.92rem; }
+	      .sim-3d-controls { display:flex; gap:0.42rem; flex-wrap:wrap; align-items:center; min-width:0; }
+	      .sim-3d-controls label { white-space: nowrap; }
+	      .sim-3d-controls select { max-width: min(210px, 42vw); }
+	      .sim-3d-controls .button,
+	      .sim-3d-controls button {
+	        white-space: nowrap;
+	        padding-inline: 0.72rem;
+	      }
+	      .sim-3d-note { opacity: 0.86; font-size: 0.86rem; flex: 1 1 280px; }
 	      .pitch3d-hud {
 	        position: absolute;
 	        inset: 0;
