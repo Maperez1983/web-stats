@@ -12842,9 +12842,12 @@
 						              }
 						            };
 						            if (addProfessionalStadiumAsset()) return;
+						            const pendingStadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
+						            const pendingDedicatedReferenceStadium = /stadium_benagalbon_reference\.glb/i.test(pendingStadiumModelSrc);
 						            __pitch3dLoadStadiumModel(() => {
 						              try { addProfessionalStadiumAsset(); } catch (e) { /* ignore */ }
 						            });
+						            if (pendingDedicatedReferenceStadium) return;
 						            addGreenApron();
 						            addGroundedExteriorStructure();
 						            addExteriorCompletion();
