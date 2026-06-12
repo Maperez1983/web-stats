@@ -13164,9 +13164,30 @@
 						          const seatDarkMat = new THREE.MeshStandardMaterial({ color: 0x064e3b, roughness: 0.60, metalness: 0.02 });
 						          const stairMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.66, metalness: 0.02 });
 						          const railMat = new THREE.MeshStandardMaterial({ color: 0xdff7ff, roughness: 0.14, metalness: 0.02, transparent: true, opacity: 0.38 });
-						          const boardMat = new THREE.MeshStandardMaterial({ color: 0x063f33, roughness: 0.48, metalness: 0.06, emissive: 0x021f1a, emissiveIntensity: 0.10 });
+						          const boardMat = (() => {
+						            try { return makeStadiumBoardMaterial().clone(); } catch (e) { return new THREE.MeshStandardMaterial({ color: 0x063f33, roughness: 0.48, metalness: 0.06, emissive: 0x021f1a, emissiveIntensity: 0.10 }); }
+						          })();
 						          const roofMat = new THREE.MeshStandardMaterial({ color: 0xd7d6c8, roughness: 0.48, metalness: 0.10, side: THREE.DoubleSide });
 						          const shadowMat = new THREE.MeshBasicMaterial({ color: 0x020617, transparent: true, opacity: 0.18, depthWrite: false });
+						          const makeSignMat = (text, opts = {}) => {
+						            try {
+						              const tex = makePitch3dCanvasTexture((ctx, c) => {
+						                ctx.fillStyle = opts.bg || '#063f33';
+						                ctx.fillRect(0, 0, c.width, c.height);
+						                ctx.strokeStyle = opts.stroke || 'rgba(255,255,255,0.45)';
+						                ctx.lineWidth = 10;
+						                ctx.strokeRect(18, 18, c.width - 36, c.height - 36);
+						                ctx.fillStyle = opts.fg || '#f8fafc';
+						                ctx.font = opts.font || '900 112px Arial, sans-serif';
+						                ctx.textAlign = 'center';
+						                ctx.textBaseline = 'middle';
+						                ctx.fillText(text, c.width / 2, c.height / 2);
+						              }, opts.w || 1600, opts.h || 360);
+						              return new THREE.MeshBasicMaterial({ map: tex?.tex || null, transparent: true, side: THREE.DoubleSide, toneMapped: false });
+						            } catch (e) {
+						              return new THREE.MeshBasicMaterial({ color: 0x047857, side: THREE.DoubleSide });
+						            }
+						          };
 						          const addMesh = (geo, mat, x, y, z, kind) => {
 						            const mesh = new THREE.Mesh(geo, mat);
 						            mesh.position.set(x, y, z);
@@ -13244,6 +13265,8 @@
 						          });
 						          const lightMat = new THREE.MeshStandardMaterial({ color: 0xe0f2fe, roughness: 0.18, metalness: 0.02, emissive: 0x7dd3fc, emissiveIntensity: 0.36 });
 						          addMesh(new THREE.BoxGeometry(metersW + 5.0, 0.10, 0.12), lightMat, 0, 8.26, northFacadeZ - 0.22, 'pitch_3d_dedicated_completion_north_light_bar');
+						          addRotMesh(new THREE.PlaneGeometry(metersW * 0.52, 3.3), makeSignMat('BENAGALBON CD'), 0, 5.45, metersH / 2 + 8.75, 0, Math.PI, 0, 'pitch_3d_dedicated_completion_main_stand_lettering_panel');
+						          addRotMesh(new THREE.CircleGeometry(2.35, 64), makeSignMat('CDB', { w: 512, h: 512, bg: '#5eead4', fg: '#f8fafc', font: '900 132px Arial, sans-serif', stroke: '#f8fafc' }), 0, 8.12, metersH / 2 + 14.46, 0, Math.PI, 0, 'pitch_3d_dedicated_completion_main_stand_round_crest');
 						          addMesh(new THREE.BoxGeometry(metersW + 18.5, 2.25, 0.34), concreteMat, 0, 7.45, metersH / 2 + 14.95, 'pitch_3d_dedicated_completion_main_stand_back_wall');
 						          addMesh(new THREE.BoxGeometry(metersW + 17.0, 0.72, 0.38), darkVoidMat, 0, 8.05, metersH / 2 + 14.72, 'pitch_3d_dedicated_completion_main_stand_shadow_box_level');
 						          addRotMesh(new THREE.BoxGeometry(metersW + 24.0, 0.18, 9.2), roofMat, 0, 11.55, metersH / 2 + 18.55, -0.055, 0, 0, 'pitch_3d_dedicated_completion_main_stand_roof_canopy');
