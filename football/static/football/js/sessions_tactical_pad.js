@@ -4309,9 +4309,10 @@
 		      if (kind && kind.startsWith('arrow')) {
 		        normalizeArrowHead(object);
 		      }
-			      const hideTokenSelectionChrome = !locked && kind === 'token' && isTacticsMode;
+			      // Las fichas ya muestran aro propio; evitar la caja azul de Fabric y escalados accidentales.
+			      const hideTokenSelectionChrome = !locked && kind === 'token';
 			      object.set({
-			        hasControls: !locked,
+			        hasControls: hideTokenSelectionChrome ? false : !locked,
 			        hasBorders: hideTokenSelectionChrome ? false : true,
 			        transparentCorners: false,
 			        cornerStyle: 'circle',
