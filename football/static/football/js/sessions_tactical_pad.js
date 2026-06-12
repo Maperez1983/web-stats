@@ -13244,15 +13244,18 @@
 						          });
 						          const lightMat = new THREE.MeshStandardMaterial({ color: 0xe0f2fe, roughness: 0.18, metalness: 0.02, emissive: 0x7dd3fc, emissiveIntensity: 0.36 });
 						          addMesh(new THREE.BoxGeometry(metersW + 5.0, 0.10, 0.12), lightMat, 0, 8.26, northFacadeZ - 0.22, 'pitch_3d_dedicated_completion_north_light_bar');
-						          addRotMesh(new THREE.BoxGeometry(metersW + 24.0, 0.18, 10.0), roofMat, 0, 15.08, metersH / 2 + 22.45, -0.045, 0, 0, 'pitch_3d_dedicated_completion_main_stand_roof_canopy');
-						          addMesh(new THREE.BoxGeometry(metersW + 18.0, 0.16, 0.20), lightMat, 0, 14.05, metersH / 2 + 19.35, 'pitch_3d_dedicated_completion_roof_light_bar');
-						          addMesh(new THREE.BoxGeometry(metersW + 22.0, 0.18, 0.22), concreteMat, 0, 15.18, metersH / 2 + 19.85, 'pitch_3d_dedicated_completion_roof_front_truss');
-						          addMesh(new THREE.BoxGeometry(metersW + 19.0, 0.14, 0.18), concreteMat, 0, 15.64, metersH / 2 + 25.00, 'pitch_3d_dedicated_completion_roof_rear_truss');
-						          addRotMesh(new THREE.BoxGeometry(metersW + 11.0, 0.04, 8.8), shadowMat, 0, 8.80, metersH / 2 + 7.50, -0.015, 0, 0, 'pitch_3d_dedicated_completion_main_roof_pitch_shadow');
+						          addMesh(new THREE.BoxGeometry(metersW + 18.5, 2.25, 0.34), concreteMat, 0, 7.45, metersH / 2 + 14.95, 'pitch_3d_dedicated_completion_main_stand_back_wall');
+						          addMesh(new THREE.BoxGeometry(metersW + 17.0, 0.72, 0.38), darkVoidMat, 0, 8.05, metersH / 2 + 14.72, 'pitch_3d_dedicated_completion_main_stand_shadow_box_level');
+						          addRotMesh(new THREE.BoxGeometry(metersW + 24.0, 0.18, 9.2), roofMat, 0, 11.55, metersH / 2 + 18.55, -0.055, 0, 0, 'pitch_3d_dedicated_completion_main_stand_roof_canopy');
+						          addMesh(new THREE.BoxGeometry(metersW + 18.0, 0.16, 0.20), lightMat, 0, 10.62, metersH / 2 + 15.60, 'pitch_3d_dedicated_completion_roof_light_bar');
+						          addMesh(new THREE.BoxGeometry(metersW + 22.0, 0.18, 0.22), concreteMat, 0, 11.45, metersH / 2 + 15.95, 'pitch_3d_dedicated_completion_roof_front_truss');
+						          addMesh(new THREE.BoxGeometry(metersW + 19.0, 0.14, 0.18), concreteMat, 0, 11.82, metersH / 2 + 21.52, 'pitch_3d_dedicated_completion_roof_rear_truss');
+						          addRotMesh(new THREE.BoxGeometry(metersW + 11.0, 0.04, 8.8), shadowMat, 0, 8.34, metersH / 2 + 7.50, -0.015, 0, 0, 'pitch_3d_dedicated_completion_main_roof_pitch_shadow');
 						          for (let i = -6; i <= 6; i += 1) {
 						            const x = (i / 6) * (metersW * 0.48);
-						            addRotMesh(new THREE.BoxGeometry(0.18, 0.18, 7.1), concreteMat, x, 15.28, metersH / 2 + 22.0, -0.22, 0, 0, 'pitch_3d_dedicated_completion_roof_cross_truss');
-						            addRotMesh(new THREE.BoxGeometry(0.13, 0.13, 7.8), concreteMat, x + 2.6, 14.85, metersH / 2 + 22.0, 0.30, 0, 0, 'pitch_3d_dedicated_completion_roof_diagonal_brace');
+						            addMesh(new THREE.BoxGeometry(0.18, 5.6, 0.18), concreteMat, x, 8.55, metersH / 2 + 15.58, 'pitch_3d_dedicated_completion_roof_support_column');
+						            addRotMesh(new THREE.BoxGeometry(0.18, 0.18, 6.5), concreteMat, x, 11.48, metersH / 2 + 18.62, -0.24, 0, 0, 'pitch_3d_dedicated_completion_roof_cross_truss');
+						            addRotMesh(new THREE.BoxGeometry(0.13, 0.13, 6.9), concreteMat, x + 2.6, 10.92, metersH / 2 + 18.62, 0.32, 0, 0, 'pitch_3d_dedicated_completion_roof_diagonal_brace');
 						          }
 						          [-18, 18].forEach((x) => {
 						            const dugout = new THREE.Group();
