@@ -12924,6 +12924,9 @@
 						                      ? node.material.map((m) => safeText(m?.name)).join(' ').toUpperCase()
 						                      : safeText(node.material?.name).toUpperCase();
 						                    if (isDedicatedReferenceStadium) {
+						                      node.visible = false;
+						                      node.userData.replaced_by_clean_procedural_dedicated_stadium = true;
+						                      return;
 						                      const quality = safeText(document.body?.dataset?.pitch3dQuality || 'normal');
 						                      const compactViewport = Math.max(window.innerWidth || 0, window.innerHeight || 0) < 900;
 						                      const detailName = `${meshName} ${materialName}`;
@@ -13110,12 +13113,14 @@
 						          const dedicatedFinish = new THREE.Group();
 						          dedicatedFinish.userData = { kind: 'pitch_3d_dedicated_reference_completion_layer' };
 						          const concreteMat = new THREE.MeshStandardMaterial({ color: 0xcfd6d1, roughness: 0.76, metalness: 0.03 });
-						          const darkVoidMat = new THREE.MeshStandardMaterial({ color: 0x030712, roughness: 0.88, metalness: 0.02 });
+						          const darkVoidMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.84, metalness: 0.03 });
 						          const seatMat = new THREE.MeshStandardMaterial({ color: 0x047857, roughness: 0.58, metalness: 0.02 });
 						          const seatDarkMat = new THREE.MeshStandardMaterial({ color: 0x064e3b, roughness: 0.60, metalness: 0.02 });
 						          const stairMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.66, metalness: 0.02 });
 						          const railMat = new THREE.MeshStandardMaterial({ color: 0xdff7ff, roughness: 0.14, metalness: 0.02, transparent: true, opacity: 0.38 });
 						          const boardMat = new THREE.MeshStandardMaterial({ color: 0x063f33, roughness: 0.48, metalness: 0.06, emissive: 0x021f1a, emissiveIntensity: 0.10 });
+						          const roofMat = new THREE.MeshStandardMaterial({ color: 0xd7d6c8, roughness: 0.48, metalness: 0.10, side: THREE.DoubleSide });
+						          const shadowMat = new THREE.MeshBasicMaterial({ color: 0x020617, transparent: true, opacity: 0.18, depthWrite: false });
 						          const addMesh = (geo, mat, x, y, z, kind) => {
 						            const mesh = new THREE.Mesh(geo, mat);
 						            mesh.position.set(x, y, z);
@@ -13133,7 +13138,7 @@
 						            const baseZ = sideSign * (metersH / 2 + 6.7);
 						            addMesh(new THREE.BoxGeometry(metersW + 17.5, 0.55, 8.6), concreteMat, 0, 0.38, baseZ, 'pitch_3d_dedicated_completion_long_stand_podium');
 						            addMesh(new THREE.BoxGeometry(metersW + 13.5, 0.95, 0.34), boardMat, 0, 1.02, sideSign * (metersH / 2 + 3.35), 'pitch_3d_dedicated_completion_long_pitchside_board');
-						            const rowCount = 9;
+						            const rowCount = sideSign > 0 ? 14 : 12;
 						            for (let row = 0; row < rowCount; row += 1) {
 						              const y = 1.10 + row * 0.32;
 						              const z = sideSign * (metersH / 2 + 4.55 + row * 0.58);
@@ -13149,12 +13154,14 @@
 						              addMesh(new THREE.BoxGeometry(0.08, 1.05, 5.9), railMat, ratio * metersW + 0.62, 2.78, sideSign * (metersH / 2 + 6.95), 'pitch_3d_dedicated_completion_long_stair_rail');
 						            });
 						            addMesh(new THREE.BoxGeometry(metersW + 11.2, 0.18, 0.18), railMat, 0, 4.20, sideSign * (metersH / 2 + 9.55), 'pitch_3d_dedicated_completion_long_top_glass_rail');
+						            addMesh(new THREE.BoxGeometry(metersW + 17.0, 0.28, 0.34), darkVoidMat, 0, 4.92, sideSign * (metersH / 2 + 11.25), 'pitch_3d_dedicated_completion_long_recessed_concourse_shadow');
+						            addMesh(new THREE.BoxGeometry(metersW + 16.5, 0.18, 0.22), railMat, 0, 6.10, sideSign * (metersH / 2 + 13.40), 'pitch_3d_dedicated_completion_upper_tier_front_glass');
 						          };
 						          const addSideStand = (sideSign) => {
 						            const baseX = sideSign * (metersW / 2 + 6.35);
 						            addMesh(new THREE.BoxGeometry(8.4, 0.55, metersH + 10.5), concreteMat, baseX, 0.38, 0, 'pitch_3d_dedicated_completion_side_stand_podium');
 						            addMesh(new THREE.BoxGeometry(0.34, 0.95, metersH + 8.6), boardMat, sideSign * (metersW / 2 + 3.35), 1.02, 0, 'pitch_3d_dedicated_completion_side_pitchside_board');
-						            const rowCount = 8;
+						            const rowCount = 11;
 						            for (let row = 0; row < rowCount; row += 1) {
 						              const y = 1.05 + row * 0.31;
 						              const x = sideSign * (metersW / 2 + 4.45 + row * 0.55);
@@ -13171,6 +13178,7 @@
 						            });
 						            addMesh(new THREE.BoxGeometry(0.18, 0.18, metersH + 7.0), railMat, sideSign * (metersW / 2 + 9.35), 3.92, 0, 'pitch_3d_dedicated_completion_side_top_glass_rail');
 						          };
+						          addLongStand(1);
 						          addLongStand(-1);
 						          addSideStand(-1);
 						          addSideStand(1);
@@ -13190,9 +13198,11 @@
 						          });
 						          const lightMat = new THREE.MeshStandardMaterial({ color: 0xe0f2fe, roughness: 0.18, metalness: 0.02, emissive: 0x7dd3fc, emissiveIntensity: 0.36 });
 						          addMesh(new THREE.BoxGeometry(metersW + 5.0, 0.10, 0.12), lightMat, 0, 8.26, northFacadeZ - 0.22, 'pitch_3d_dedicated_completion_north_light_bar');
+						          addRotMesh(new THREE.BoxGeometry(metersW + 24.0, 0.18, 10.0), roofMat, 0, 15.08, metersH / 2 + 22.45, -0.045, 0, 0, 'pitch_3d_dedicated_completion_main_stand_roof_canopy');
 						          addMesh(new THREE.BoxGeometry(metersW + 18.0, 0.16, 0.20), lightMat, 0, 14.05, metersH / 2 + 19.35, 'pitch_3d_dedicated_completion_roof_light_bar');
 						          addMesh(new THREE.BoxGeometry(metersW + 22.0, 0.18, 0.22), concreteMat, 0, 15.18, metersH / 2 + 19.85, 'pitch_3d_dedicated_completion_roof_front_truss');
 						          addMesh(new THREE.BoxGeometry(metersW + 19.0, 0.14, 0.18), concreteMat, 0, 15.64, metersH / 2 + 25.00, 'pitch_3d_dedicated_completion_roof_rear_truss');
+						          addRotMesh(new THREE.BoxGeometry(metersW + 11.0, 0.04, 8.8), shadowMat, 0, 8.80, metersH / 2 + 7.50, -0.015, 0, 0, 'pitch_3d_dedicated_completion_main_roof_pitch_shadow');
 						          for (let i = -6; i <= 6; i += 1) {
 						            const x = (i / 6) * (metersW * 0.48);
 						            addRotMesh(new THREE.BoxGeometry(0.18, 0.18, 7.1), concreteMat, x, 15.28, metersH / 2 + 22.0, -0.22, 0, 0, 'pitch_3d_dedicated_completion_roof_cross_truss');
