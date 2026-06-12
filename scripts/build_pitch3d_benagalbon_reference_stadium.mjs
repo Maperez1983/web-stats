@@ -87,9 +87,20 @@ const letterGlyphs = {
   D: ['11110', '10001', '10001', '10001', '10001', '10001', '11110'],
   E: ['11111', '10000', '10000', '11110', '10000', '10000', '11111'],
   G: ['01111', '10000', '10000', '10111', '10001', '10001', '01111'],
+  F: ['11111', '10000', '10000', '11110', '10000', '10000', '10000'],
+  I: ['11111', '00100', '00100', '00100', '00100', '00100', '11111'],
+  J: ['00111', '00010', '00010', '00010', '10010', '10010', '01100'],
   L: ['10000', '10000', '10000', '10000', '10000', '10000', '11111'],
+  M: ['10001', '11011', '10101', '10101', '10001', '10001', '10001'],
   N: ['10001', '11001', '10101', '10011', '10001', '10001', '10001'],
   O: ['01110', '10001', '10001', '10001', '10001', '10001', '01110'],
+  P: ['11110', '10001', '10001', '11110', '10000', '10000', '10000'],
+  R: ['11110', '10001', '10001', '11110', '10100', '10010', '10001'],
+  S: ['01111', '10000', '10000', '01110', '00001', '00001', '11110'],
+  T: ['11111', '00100', '00100', '00100', '00100', '00100', '00100'],
+  U: ['10001', '10001', '10001', '10001', '10001', '10001', '01110'],
+  V: ['10001', '10001', '10001', '10001', '10001', '01010', '00100'],
+  '2': ['01110', '10001', '00001', '00010', '00100', '01000', '11111'],
   ' ': ['00', '00', '00', '00', '00', '00', '00'],
 };
 
@@ -105,6 +116,20 @@ const buildLetterMap = (text) => {
 
 const mainLetters = buildLetterMap('BENAGALBON CD');
 
+const writeBlockText = ({ text, name, origin, cell = 0.18, material = mats.white, plane = 'xz', rotation = [0, 0, 0] }) => {
+  const columns = buildLetterMap(text);
+  columns.forEach((col, xIdx) => {
+    col.forEach((on, yIdx) => {
+      if (!on) return;
+      if (plane === 'xy') {
+        box(`${name}_glyph_${xIdx}_${yIdx}`, material, [origin[0] + xIdx * cell, origin[1] - yIdx * cell, origin[2]], [cell * 0.82, cell * 0.82, 0.045], rotation);
+      } else {
+        box(`${name}_glyph_${xIdx}_${yIdx}`, material, [origin[0] + xIdx * cell, origin[1], origin[2] + yIdx * cell], [cell * 0.82, 0.045, cell * 0.82], rotation);
+      }
+    });
+  });
+};
+
 const addStand = ({ name, side, cols, rows, length, depthStart, zFixed, xFixed }) => {
   const longSide = side === 'north' || side === 'south';
   const sign = side === 'north' || side === 'east' ? 1 : -1;
@@ -116,6 +141,11 @@ const addStand = ({ name, side, cols, rows, length, depthStart, zFixed, xFixed }
   for (let row = 0; row < rows; row += 1) {
     const y = 2.15 + row * 0.31;
     const depth = depthStart + sign * row * 0.58;
+    if (longSide) {
+      box(`${name}_continuous_riser_${row}`, mats.darkConcrete, [0, y - 0.18, depth + sign * 0.18], [span + 3.2, 0.16, 0.22], [-0.03 * sign, 0, 0]);
+    } else {
+      box(`${name}_continuous_riser_${row}`, mats.darkConcrete, [depth + sign * 0.18, y - 0.18, 0], [0.22, 0.16, span + 3.2], [0, 0.03 * sign, 0]);
+    }
     for (let col = 0; col < cols; col += 1) {
       const t = col / (cols - 1) - 0.5;
       const offset = t * span;
@@ -140,9 +170,17 @@ const addStand = ({ name, side, cols, rows, length, depthStart, zFixed, xFixed }
   if (longSide) {
     box(`${name}_front_wall`, mats.concrete, [0, 1.55, zFixed - sign * 1.2], [span + 7, 1.0, 0.5]);
     box(`${name}_upper_concourse_band`, mats.concrete, [0, 7.2, zFixed + sign * 6.5], [span + 10, 0.55, 0.72], [-0.03 * sign, 0, 0]);
+    [-0.34, 0, 0.34].forEach((slot, idx) => {
+      box(`${name}_vomitory_shadow_${idx}`, mats.black, [slot * span, 3.7, zFixed + sign * 2.45], [4.8, 2.3, 0.18]);
+      box(`${name}_vomitory_lintel_${idx}`, mats.concrete, [slot * span, 5.05, zFixed + sign * 2.34], [5.4, 0.32, 0.32]);
+    });
   } else {
     box(`${name}_front_wall`, mats.concrete, [xFixed - sign * 1.2, 1.55, 0], [0.5, 1.0, span + 7]);
     box(`${name}_upper_concourse_band`, mats.concrete, [xFixed + sign * 6.5, 7.1, 0], [0.72, 0.55, span + 10], [0, 0.03 * sign, 0]);
+    [-0.28, 0.28].forEach((slot, idx) => {
+      box(`${name}_vomitory_shadow_${idx}`, mats.black, [xFixed + sign * 2.45, 3.65, slot * span], [0.18, 2.0, 4.4]);
+      box(`${name}_vomitory_lintel_${idx}`, mats.concrete, [xFixed + sign * 2.34, 4.9, slot * span], [0.32, 0.32, 5.0]);
+    });
   }
 };
 
@@ -161,7 +199,16 @@ const addRoof = () => {
     for (let i = -12; i <= 12; i += 1) {
       const x = i * ((pitchW + 54) / 24);
       box(`long_roof_front_truss_${sign}_${i}`, mats.metal, [x, 14.55, sign * (pitchH / 2 + 27.2)], [0.16, 1.2, 8.6], [-0.62 * sign, 0, i % 2 ? 0.36 : -0.36]);
+      box(`long_roof_back_column_${sign}_${i}`, mats.darkMetal, [x, 8.2, sign * (pitchH / 2 + 39.2)], [0.28, 12.2, 0.28]);
+      box(`long_roof_rear_truss_${sign}_${i}`, mats.metal, [x, 14.7, sign * (pitchH / 2 + 38.7)], [0.18, 1.0, 5.2], [0.52 * sign, 0, i % 2 ? -0.28 : 0.28]);
       if (i % 2 === 0) box(`long_roof_light_${sign}_${i}`, mats.light, [x, 13.52, sign * (pitchH / 2 + 22.8)], [3.2, 0.14, 0.28]);
+    }
+  });
+  [-1, 1].forEach((sign) => {
+    for (let i = -7; i <= 7; i += 1) {
+      const z = i * ((pitchH + 44) / 14);
+      box(`short_roof_front_truss_${sign}_${i}`, mats.metal, [sign * (pitchW / 2 + 27.1), 14.35, z], [7.8, 1.0, 0.16], [0, -0.58 * sign, i % 2 ? 0.24 : -0.24]);
+      box(`short_roof_back_column_${sign}_${i}`, mats.darkMetal, [sign * (pitchW / 2 + 39.0), 8.1, z], [0.26, 11.8, 0.26]);
     }
   });
 };
@@ -177,8 +224,32 @@ const addBoards = () => {
     box(`continuous_green_partner_board_${idx}`, mats.led, [x, 0.88, z], [sx, 1.0, sz]);
     box(`board_white_top_cap_${idx}`, mats.white, [x, 1.36, z], [sx, 0.08, sz + 0.04]);
   });
+  writeBlockText({ text: 'CAMPO MUNICIPAL', name: 'north_board_municipal', origin: [-39, 1.12, pitchH / 2 + 2.96], cell: 0.22, plane: 'xy' });
+  writeBlockText({ text: 'PARTNER', name: 'north_board_partner_left', origin: [-7, 1.12, pitchH / 2 + 2.96], cell: 0.22, plane: 'xy' });
+  writeBlockText({ text: '2J FOOTBALL INTELLIGENCE', name: 'north_board_2j', origin: [18, 1.12, pitchH / 2 + 2.96], cell: 0.16, plane: 'xy' });
+  writeBlockText({ text: 'PARTNER', name: 'south_board_partner', origin: [-36, 1.12, -(pitchH / 2 + 2.96)], cell: 0.22, plane: 'xy' });
 };
 addBoards();
+
+const addPerimeterRails = () => {
+  const rail = (name, x, z, sx, sz) => {
+    box(`${name}_top_rail`, mats.metal, [x, 1.72, z], [sx, 0.08, sz]);
+    box(`${name}_mid_rail`, mats.metal, [x, 1.18, z], [sx, 0.06, sz]);
+  };
+  rail('north_front_fence', 0, pitchH / 2 + 4.28, pitchW + 12, 0.08);
+  rail('south_front_fence', 0, -(pitchH / 2 + 4.28), pitchW + 12, 0.08);
+  rail('east_front_fence', pitchW / 2 + 4.28, 0, 0.08, pitchH + 12);
+  rail('west_front_fence', -(pitchW / 2 + 4.28), 0, 0.08, pitchH + 12);
+  for (let i = -28; i <= 28; i += 2) {
+    box(`north_front_fence_post_${i}`, mats.metal, [i * 2.0, 1.05, pitchH / 2 + 4.28], [0.07, 1.28, 0.07]);
+    box(`south_front_fence_post_${i}`, mats.metal, [i * 2.0, 1.05, -(pitchH / 2 + 4.28)], [0.07, 1.28, 0.07]);
+  }
+  for (let i = -18; i <= 18; i += 2) {
+    box(`east_front_fence_post_${i}`, mats.metal, [pitchW / 2 + 4.28, 1.05, i * 2.0], [0.07, 1.28, 0.07]);
+    box(`west_front_fence_post_${i}`, mats.metal, [-(pitchW / 2 + 4.28), 1.05, i * 2.0], [0.07, 1.28, 0.07]);
+  }
+};
+addPerimeterRails();
 
 const addDugout = (x, label) => {
   const z = -(pitchH / 2 + 6.0);
@@ -198,8 +269,28 @@ addDugout(0, 'central');
 addDugout(22, 'away');
 
 cyl('main_round_cdb_crest', mats.white, [0, 8.6, pitchH / 2 + 11.0], 3.4, 0.16, [Math.PI / 2, 0, 0], 96);
+cyl('main_round_cdb_crest_green_ring', mats.green, [0, 8.61, pitchH / 2 + 10.88], 3.05, 0.18, [Math.PI / 2, 0, 0], 96);
+cyl('main_round_cdb_crest_white_core', mats.white, [0, 8.62, pitchH / 2 + 10.75], 2.22, 0.20, [Math.PI / 2, 0, 0], 96);
+writeBlockText({ text: 'CDB', name: 'main_crest_cdb_letters', origin: [-1.35, 8.92, pitchH / 2 + 10.58], cell: 0.18, plane: 'xy' });
+box('main_stand_rear_green_facade', mats.greenDark, [0, 6.2, pitchH / 2 + 41.0], [pitchW + 66, 6.4, 0.38]);
+box('main_stand_rear_concrete_plinth', mats.concrete, [0, 2.1, pitchH / 2 + 41.2], [pitchW + 72, 2.2, 0.52]);
+for (let i = -10; i <= 10; i += 1) {
+  const x = i * ((pitchW + 54) / 20);
+  box(`rear_facade_vertical_frame_${i}`, mats.metal, [x, 7.8, pitchH / 2 + 40.72], [0.16, 7.8, 0.22]);
+}
+writeBlockText({ text: 'BENAGALBON CD', name: 'rear_facade_name', origin: [-19.8, 7.52, pitchH / 2 + 40.48], cell: 0.24, plane: 'xy' });
 box('corner_scoreboard_frame', mats.black, [pitchW / 2 + 8.5, 6.4, pitchH / 2 + 8.6], [8.2, 4.6, 0.30], [0, -Math.PI / 4, 0]);
 box('corner_scoreboard_face', mats.led, [pitchW / 2 + 8.25, 6.4, pitchH / 2 + 8.35], [7.5, 3.9, 0.08], [0, -Math.PI / 4, 0]);
+writeBlockText({ text: 'CDB', name: 'scoreboard_cdb', origin: [pitchW / 2 + 6.58, 6.85, pitchH / 2 + 8.2], cell: 0.14, plane: 'xy', rotation: [0, -Math.PI / 4, 0] });
+
+const addTechnicalAreas = () => {
+  [-20, 0, 20].forEach((x, idx) => {
+    box(`technical_area_dashed_front_${idx}`, mats.white, [x, 0.075, -(pitchH / 2 + 4.72)], [12.0, 0.04, 0.08]);
+    box(`technical_area_dashed_left_${idx}`, mats.white, [x - 6.0, 0.075, -(pitchH / 2 + 5.9)], [0.08, 0.04, 2.3]);
+    box(`technical_area_dashed_right_${idx}`, mats.white, [x + 6.0, 0.075, -(pitchH / 2 + 5.9)], [0.08, 0.04, 2.3]);
+  });
+};
+addTechnicalAreas();
 
 scene.add(new THREE.AmbientLight(0xffffff, 0.62));
 const sun = new THREE.DirectionalLight(0xfff0d0, 1.2);
