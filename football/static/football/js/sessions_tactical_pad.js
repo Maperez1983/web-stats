@@ -2005,6 +2005,11 @@
 			              '        <label style="display:flex; gap:10px; align-items:center;"><input type="checkbox" id="task-pitch-3d-layer-draw" checked /> Dibujos</label>',
 			              '        <label style="display:flex; gap:10px; align-items:center;"><input type="checkbox" id="task-pitch-3d-layer-ghosts" checked /> Ghosts</label>',
 			              '        <label style="display:flex; gap:10px; align-items:center;"><input type="checkbox" id="task-pitch-3d-layer-trails" checked /> Trails</label>',
+			              '        <select id="task-pitch-3d-theme" title="Iluminación del estadio">',
+			              '          <option value="auto" selected>Auto luz</option>',
+			              '          <option value="day">Día</option>',
+			              '          <option value="night">Noche</option>',
+			              '        </select>',
 			              '        <button type="button" class="button" id="task-pitch-3d-refresh" title="Sincroniza con la pizarra actual">Actualizar</button>',
 			              '        <button type="button" class="button" id="task-pitch-3d-play" title="Reproduce escenarios (si existen)">▶</button>',
 			              '        <button type="button" class="button" id="task-pitch-3d-snap" title="Guardar imagen PNG">PNG</button>',
@@ -2051,6 +2056,7 @@
 			    let pitch3dLayerDrawInput = document.getElementById('task-pitch-3d-layer-draw');
 			    let pitch3dLayerGhostsInput = document.getElementById('task-pitch-3d-layer-ghosts');
 			    let pitch3dLayerTrailsInput = document.getElementById('task-pitch-3d-layer-trails');
+			    let pitch3dThemeSelect = document.getElementById('task-pitch-3d-theme');
 			    let pitch3dRefreshBtn = document.getElementById('task-pitch-3d-refresh');
 			    let pitch3dPlayBtn = document.getElementById('task-pitch-3d-play');
 			    let pitch3dSnapBtn = document.getElementById('task-pitch-3d-snap');
@@ -8158,6 +8164,8 @@
 						    const getPitch3dRenderPixelRatio = () => {
 						      const dpr = Math.max(1, Number(window.devicePixelRatio) || 1);
 						      const viewportMax = Math.max(window.innerWidth || 0, window.innerHeight || 0);
+						      const budget = safeText(document.body?.dataset?.pitch3dBudget, 'normal');
+						      if (budget === 'economy') return Math.min(1.45, dpr);
 						      const isLargeDesktop = viewportMax >= 1600;
 						      const isDesktop = viewportMax >= 1100;
 						      const maxPixelRatio = isLargeDesktop ? 3 : (isDesktop ? 2.65 : 2.2);
@@ -8873,7 +8881,7 @@
 						      };
 						    })();
 
-							    const makePitch3dCanvasTexture = (draw, width = 1024, height = 256) => {
+						    const makePitch3dCanvasTexture = (draw, width = 1024, height = 256) => {
 						      const c = document.createElement('canvas');
 						      c.width = Math.max(64, Math.round(width));
 						      c.height = Math.max(32, Math.round(height));
@@ -8893,6 +8901,68 @@
 						      } catch (e) { /* ignore */ }
 						      tex.needsUpdate = true;
 						      return { canvas: c, ctx, tex };
+						    };
+						    const PITCH3D_THEME_STORAGE_KEY = 'webstats_pitch3d_theme_v1';
+						    let pitch3dTheme = safeText(pitch3dThemeSelect?.value || (() => {
+						      try { return window.localStorage.getItem(PITCH3D_THEME_STORAGE_KEY); } catch (e) { return ''; }
+						    })(), 'auto');
+						    if (!['auto', 'day', 'night'].includes(pitch3dTheme)) pitch3dTheme = 'auto';
+						    if (pitch3dThemeSelect) pitch3dThemeSelect.value = pitch3dTheme;
+						    const resolvePitch3dTheme = () => {
+						      if (pitch3dTheme === 'day' || pitch3dTheme === 'night') return pitch3dTheme;
+						      const hour = Number(new Date().getHours());
+						      return (hour >= 19 || hour < 7) ? 'night' : 'day';
+						    };
+						    const applyPitch3dLightingTheme = () => {
+						      if (!pitch3dScene || !pitch3dRenderer) return;
+						      const theme = resolvePitch3dTheme();
+						      const isNight = theme === 'night';
+						      try {
+						        const skyColor = isNight ? 0x07111f : 0xbddff6;
+						        pitch3dScene.background = new THREE.Color(skyColor);
+						        pitch3dScene.fog = new THREE.Fog(skyColor, isNight ? 240 : 330, isNight ? 530 : 640);
+						        pitch3dRenderer.setClearColor(skyColor, 1);
+						        pitch3dRenderer.toneMappingExposure = isNight ? 0.92 : 1.08;
+						        pitch3dScene.traverse((node) => {
+						          const kind = safeText(node?.userData?.kind);
+						          if (node?.isHemisphereLight) {
+						            node.intensity = isNight ? 0.24 : 0.68;
+						            node.color?.set?.(isNight ? 0xbdd7ff : 0xffffff);
+						            node.groundColor?.set?.(isNight ? 0x03131c : 0x385243);
+						          } else if (node?.isDirectionalLight) {
+						            if (kind === 'pitch_3d_theme_key_light') node.intensity = isNight ? 1.15 : 4.20;
+						            else node.intensity = isNight ? 0.16 : 0.46;
+						          } else if (node?.isPointLight || node?.isSpotLight) {
+						            const base = kind === 'pitch_3d_professional_stadium_light_volume'
+						              ? 0.34
+						              : (kind === 'pitch_3d_stadium_real_spotlight_throw' ? 0.62 : 0.28);
+						            node.intensity = isNight ? Math.max(base, 0.82) : base;
+						          }
+						        });
+						      } catch (e) { /* ignore */ }
+						    };
+						    const applyPitch3dPerformanceBudget = () => {
+						      if (!pitch3dRoot || !pitch3dRenderer) return;
+						      try {
+						        let meshCount = 0;
+						        pitch3dRoot.traverse((node) => { if (node?.isMesh) meshCount += 1; });
+						        const viewportMax = Math.max(window.innerWidth || 0, window.innerHeight || 0);
+						        const economy = viewportMax < 900 || meshCount > 1150;
+						        if (document.body) document.body.dataset.pitch3dBudget = economy ? 'economy' : 'normal';
+						        pitch3dRenderer.setPixelRatio(getPitch3dRenderPixelRatio());
+						        if (pitch3dRenderer.shadowMap) pitch3dRenderer.shadowMap.enabled = !economy || document.body?.dataset?.pitch3dQuality === 'high';
+						        pitch3dRoot.traverse((node) => {
+						          const kind = safeText(node?.userData?.kind);
+						          if (!kind) return;
+						          if (
+						            kind.includes('steward_silhouette')
+						            || kind.includes('exterior_paving')
+						            || kind.includes('turnstile_gate')
+						            || kind.includes('entry_gate_light')
+						            || kind.includes('exposed_corner_column')
+						          ) node.visible = !economy;
+						        });
+						      } catch (e) { /* ignore */ }
 						    };
 
 						    let pitch3dRenderer = null;
@@ -9013,9 +9083,11 @@
 						          window.__WEBSTATS_PITCH3D_CAMERA = pitch3dCamera;
 						        } catch (e) { /* ignore */ }
 						        const hemi = new THREE.HemisphereLight(0xffffff, 0x385243, 0.68);
+						        hemi.userData = { kind: 'pitch_3d_theme_hemi_light' };
 						        pitch3dScene.add(hemi);
 						        const dir = new THREE.DirectionalLight(0xfff0c8, 4.20);
 						        dir.position.set(-155, 210, -118);
+						        dir.userData = { kind: 'pitch_3d_theme_key_light' };
 						        try {
 						          dir.castShadow = true;
 							          const viewportMax = Math.max(window.innerWidth || 0, window.innerHeight || 0);
@@ -9036,9 +9108,11 @@
 						        pitch3dScene.add(dir);
 						        const rim = new THREE.DirectionalLight(0xdbeafe, 0.46);
 						        rim.position.set(110, 80, 130);
+						        rim.userData = { kind: 'pitch_3d_theme_rim_light' };
 						        pitch3dScene.add(rim);
 						        const softFill = new THREE.DirectionalLight(0xffffff, 0.18);
 						        softFill.position.set(70, 60, 105);
+						        softFill.userData = { kind: 'pitch_3d_theme_fill_light' };
 						        pitch3dScene.add(softFill);
 						        [
 						          [-82, 24, -58],
@@ -9053,6 +9127,7 @@
 						        });
 						        pitch3dRaycaster = new THREE.Raycaster();
 						        pitch3dPointer = new THREE.Vector2();
+						        try { applyPitch3dLightingTheme(); } catch (e) { /* ignore */ }
 						        return true;
 						      } catch (e) {
 						        pitch3dRenderer = null;
@@ -11585,6 +11660,52 @@
 						              }
 						              return (h >>> 0) / 4294967295;
 						            };
+						            const makeStadiumSurfaceTexture = (() => {
+						              const cache = new Map();
+						              return (kind) => {
+						                const key = safeText(kind, 'concrete');
+						                if (cache.has(key)) return cache.get(key);
+						                const tex = makePitch3dCanvasTexture((ctx, c) => {
+						                  const base = key === 'seat' ? '#18473f' : (key === 'metal' ? '#cbd5d1' : '#d7ddd8');
+						                  const fleck = key === 'seat' ? 'rgba(248,250,252,0.10)' : (key === 'metal' ? 'rgba(15,23,42,0.14)' : 'rgba(71,85,105,0.12)');
+						                  ctx.fillStyle = base;
+						                  ctx.fillRect(0, 0, c.width, c.height);
+						                  for (let i = 0; i < 900; i += 1) {
+						                    const x = (i * 73) % c.width;
+						                    const y = (i * 151) % c.height;
+						                    const a = 0.06 + (((i * 17) % 10) / 130);
+						                    ctx.fillStyle = fleck.replace(/0\.\d+\)/, `${a})`);
+						                    ctx.fillRect(x, y, 1 + (i % 3), 1);
+						                  }
+						                  if (key === 'seat') {
+						                    ctx.strokeStyle = 'rgba(2,6,23,0.22)';
+						                    ctx.lineWidth = 3;
+						                    for (let y = 16; y < c.height; y += 28) {
+						                      ctx.beginPath();
+						                      ctx.moveTo(0, y);
+						                      ctx.lineTo(c.width, y + 4);
+						                      ctx.stroke();
+						                    }
+						                  } else if (key === 'metal') {
+						                    const g = ctx.createLinearGradient(0, 0, c.width, 0);
+						                    g.addColorStop(0, 'rgba(255,255,255,0.16)');
+						                    g.addColorStop(0.5, 'rgba(15,23,42,0.10)');
+						                    g.addColorStop(1, 'rgba(255,255,255,0.12)');
+						                    ctx.fillStyle = g;
+						                    ctx.fillRect(0, 0, c.width, c.height);
+						                  }
+						                }, 512, 512);
+						                const map = tex?.tex || null;
+						                if (map) {
+						                  map.wrapS = THREE.RepeatWrapping;
+						                  map.wrapT = THREE.RepeatWrapping;
+						                  map.repeat.set(key === 'seat' ? 6 : 10, key === 'seat' ? 3 : 8);
+						                  map.needsUpdate = true;
+						                }
+						                cache.set(key, map);
+						                return map;
+						              };
+						            })();
 						            const makeStadiumBoardMaterial = (() => {
 						              let cached = null;
 						              return () => {
@@ -11655,10 +11776,12 @@
 						                if (semantic.seat) {
 						                  const jitter = 0.82 + (pitch3dStadiumHash(node?.name || mat.name) * 0.24);
 						                  mat.color.multiplyScalar(jitter);
+						                  mat.map = mat.map || makeStadiumSurfaceTexture('seat');
 						                  mat.roughness = 0.58;
 						                  mat.metalness = 0.015;
 						                } else if (semantic.concrete) {
 						                  mat.color.lerp(new THREE.Color(0xd8ded8), 0.24);
+						                  mat.map = mat.map || makeStadiumSurfaceTexture('concrete');
 						                  mat.roughness = 0.88;
 						                  mat.metalness = 0.018;
 						                } else if (semantic.dark) {
@@ -11667,6 +11790,7 @@
 						                  mat.metalness = 0.01;
 						                } else if (semantic.metal) {
 						                  mat.color.lerp(new THREE.Color(0xdbe3e1), 0.20);
+						                  mat.map = mat.map || makeStadiumSurfaceTexture('metal');
 						                  mat.roughness = 0.36;
 						                  mat.metalness = 0.34;
 						                } else if (semantic.glass) {
@@ -11695,6 +11819,30 @@
 						                mat.needsUpdate = true;
 						              } catch (e) { /* ignore */ }
 						              return mat;
+						            };
+						            const enhanceProfessionalStadiumAsset = (stadiumAsset) => {
+						              if (!stadiumAsset) return;
+						              try {
+						                let meshCount = 0;
+						                stadiumAsset.traverse((node) => {
+						                  if (!node?.isMesh) return;
+						                  meshCount += 1;
+						                  try {
+						                    node.frustumCulled = true;
+						                    node.geometry?.computeBoundingSphere?.();
+						                    node.geometry?.computeBoundingBox?.();
+						                    const kind = safeText(node?.name).toUpperCase();
+						                    const smallDecor = kind.includes('LED') || kind.includes('SIGN') || kind.includes('RAIL') || kind.includes('SEAT');
+						                    node.castShadow = !smallDecor;
+						                    node.receiveShadow = true;
+						                  } catch (e) { /* ignore */ }
+						                });
+						                stadiumAsset.userData = Object.assign({}, stadiumAsset.userData || {}, {
+						                  kind: 'pitch_3d_professional_blender_stadium',
+						                  mesh_count: meshCount,
+						                  enhanced_runtime_materials: true,
+						                });
+						              } catch (e) { /* ignore */ }
 						            };
 						            const addProfessionalStadiumAtmosphere = (target) => {
 						              try {
@@ -12139,6 +12287,7 @@
 						                  node.userData = Object.assign({}, node.userData || {}, { kind: 'pitch_3d_professional_blender_stadium_mesh' });
 						                  try { node.castShadow = true; node.receiveShadow = true; } catch (e) { /* ignore */ }
 						                });
+						                enhanceProfessionalStadiumAsset(stadiumAsset);
 						                root.add(stadiumAsset);
 						                addProfessionalStadiumAtmosphere(stadiumAsset);
 						                const exteriorShell = new THREE.Group();
@@ -13496,6 +13645,8 @@
 						      drawables.forEach(addDrawable);
 
 						      setCameraPreset(safeText(pitch3dCameraSelect?.value, 'render_original'), metersW, metersH);
+						      try { applyPitch3dLightingTheme(); } catch (e) { /* ignore */ }
+						      try { applyPitch3dPerformanceBudget(); } catch (e) { /* ignore */ }
 						      resizePitch3d();
 						    };
 						    try {
@@ -13993,10 +14144,12 @@
 							      pitch3dDrawablesEnabled = pitch3dLayerDrawInput ? !!pitch3dLayerDrawInput.checked : pitch3dDrawablesEnabled;
 							      try { syncPitch3dLayersUi(); } catch (e) { /* ignore */ }
 							      try { resizePitch3d(); } catch (e) { /* ignore */ }
+							      try { applyPitch3dLightingTheme(); } catch (e) { /* ignore */ }
 							      stopPitch3dPlayback();
 							      updatePitch3dPlaybackButton();
 							      try { showPitch3dStep(activeStepIndex >= 0 ? activeStepIndex : 0, { keepFollow: false }); } catch (e) { /* ignore */ }
 							      try { applyPitch3dLayerVisibility(); } catch (e) { /* ignore */ }
+							      try { applyPitch3dPerformanceBudget(); } catch (e) { /* ignore */ }
 							      try { pitch3dAnimFrame = window.requestAnimationFrame(renderPitch3dFrame); } catch (e) { /* ignore */ }
 							    };
 
@@ -14197,6 +14350,7 @@
 						        if (pitch3dQualityBtn) pitch3dQualityBtn.classList.toggle('primary', next);
 						        if (pitch3dRenderer) {
 						          pitch3dRenderer.setPixelRatio(next ? Math.min(2, window.devicePixelRatio || 1.5) : getPitch3dRenderPixelRatio());
+						          if (pitch3dRenderer.shadowMap) pitch3dRenderer.shadowMap.enabled = next || safeText(document.body?.dataset?.pitch3dBudget) !== 'economy';
 						          resizePitch3d();
 						        }
 						        setStatus(next ? 'Calidad 3D alta activada.' : 'Calidad 3D normal activada.');
@@ -14301,6 +14455,13 @@
 						        try { applyPitch3dLayerVisibility(); } catch (e) { /* ignore */ }
 						      }
 						      setStatus(`Superficie 3D: ${GRASS_STYLE_LABEL[pitchGrassStyle] || pitchGrassStyle}.`);
+						    });
+						    pitch3dThemeSelect?.addEventListener('change', () => {
+						      pitch3dTheme = safeText(pitch3dThemeSelect?.value, 'auto');
+						      if (!['auto', 'day', 'night'].includes(pitch3dTheme)) pitch3dTheme = 'auto';
+						      try { window.localStorage.setItem(PITCH3D_THEME_STORAGE_KEY, pitch3dTheme); } catch (e) { /* ignore */ }
+						      try { applyPitch3dLightingTheme(); } catch (e) { /* ignore */ }
+						      setStatus(`Iluminación 3D: ${pitch3dTheme === 'auto' ? 'auto' : (pitch3dTheme === 'night' ? 'noche' : 'día')}.`);
 						    });
 						    pitch3dFollowSelect?.addEventListener('change', () => {
 						      pitch3dFollowMode = safeText(pitch3dFollowSelect?.value, 'off');
