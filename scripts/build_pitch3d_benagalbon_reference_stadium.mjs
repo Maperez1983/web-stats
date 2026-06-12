@@ -32,6 +32,9 @@ const mats = {
   concrete: new THREE.MeshStandardMaterial({ name: 'REF_PRECAST_CONCRETE', color: 0xb8c0bb, roughness: 0.82, metalness: 0.02 }),
   concreteLine: new THREE.MeshStandardMaterial({ name: 'REF_CONCRETE_EXPANSION_JOINT', color: 0x78827e, roughness: 0.9, metalness: 0.01 }),
   darkConcrete: new THREE.MeshStandardMaterial({ name: 'REF_DARK_CONCRETE', color: 0x333b3a, roughness: 0.88, metalness: 0.02 }),
+  skyPanel: new THREE.MeshBasicMaterial({ name: 'REF_SOFT_SKY_BACKDROP', color: 0x9dc3dc, toneMapped: false }),
+  mountain: new THREE.MeshStandardMaterial({ name: 'REF_DISTANCE_MOUNTAINS', color: 0x8fa39d, roughness: 0.98, metalness: 0.0 }),
+  city: new THREE.MeshStandardMaterial({ name: 'REF_DISTANCE_CITY_BLOCKS', color: 0xd6ddd8, roughness: 0.86, metalness: 0.02 }),
   green: new THREE.MeshStandardMaterial({ name: 'REF_BENAGALBON_GREEN_CHAIR', color: 0x047044, roughness: 0.58, metalness: 0.01 }),
   greenDark: new THREE.MeshStandardMaterial({ name: 'REF_DEEP_GREEN_CHAIR', color: 0x063f31, roughness: 0.62, metalness: 0.01 }),
   crowdDark: new THREE.MeshStandardMaterial({ name: 'REF_CROWD_DARK_COATS', color: 0x14231f, roughness: 0.78, metalness: 0.0 }),
@@ -81,6 +84,19 @@ const torus = (name, material, position, radius, tube, rotation = [0, 0, 0], seg
   mesh.name = name;
   mesh.position.set(...position);
   mesh.rotation.set(...rotation);
+  return add(mesh);
+};
+
+const tri = (name, material, points, z) => {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute([
+    points[0][0], points[0][1], z,
+    points[1][0], points[1][1], z,
+    points[2][0], points[2][1], z,
+  ], 3));
+  geometry.computeVertexNormals();
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.name = name;
   return add(mesh);
 };
 
@@ -313,7 +329,7 @@ const addRoof = () => {
       if (i % 4 === 0) {
         box(`long_roof_light_cluster_left_${sign}_${i}`, mats.light, [x - 0.72, 13.28, sign * (pitchH / 2 + 23.05)], [0.55, 0.24, 0.26]);
         box(`long_roof_light_cluster_right_${sign}_${i}`, mats.light, [x + 0.72, 13.28, sign * (pitchH / 2 + 23.05)], [0.55, 0.24, 0.26]);
-        const roofSpot = new THREE.SpotLight(0xfff2cd, 0.34, 96, Math.PI / 6, 0.48, 1.6);
+        const roofSpot = new THREE.SpotLight(0xfff2cd, 0.34, 96, Math.PI / 6, 0.48, 2.0);
         roofSpot.name = `roof_integrated_spot_${sign}_${i}`;
         roofSpot.position.set(x, 13.1, sign * (pitchH / 2 + 22.3));
         roofSpot.target.position.set(x * 0.25, 0.1, sign * 7.0);
@@ -322,6 +338,13 @@ const addRoof = () => {
       }
     }
   });
+  for (let i = -6; i <= 6; i += 1) {
+    const x = i * ((pitchW + 42) / 12);
+    box(`north_cantilever_rear_mast_${i}`, mats.darkMetal, [x, 18.7, pitchH / 2 + 39.8], [0.34, 6.2, 0.34], [-0.07, 0, 0]);
+    box(`north_cantilever_tension_rod_a_${i}`, mats.metal, [x - 0.5, 17.15, pitchH / 2 + 34.2], [0.10, 0.10, 11.2], [-0.58, 0, 0.06]);
+    box(`north_cantilever_tension_rod_b_${i}`, mats.metal, [x + 0.5, 17.15, pitchH / 2 + 34.2], [0.10, 0.10, 11.2], [-0.58, 0, -0.06]);
+    box(`north_roof_black_service_box_${i}`, mats.black, [x, 16.4, pitchH / 2 + 28.9], [2.1, 0.42, 0.54]);
+  }
   [-1, 1].forEach((sign) => {
     for (let i = -7; i <= 7; i += 1) {
       const z = i * ((pitchH + 44) / 14);
@@ -410,6 +433,10 @@ const addDugout = (x, label) => {
   box(`dugout_${label}_base`, mats.darkMetal, [x, 0.25, z], [12.8, 0.28, 2.0]);
   box(`dugout_${label}_rear_green_panel`, mats.greenDark, [x, 0.95, z + 0.88], [12.6, 1.15, 0.10]);
   box(`dugout_${label}_front_metal_lip`, mats.metal, [x, 1.98, z - 1.34], [12.7, 0.08, 0.12]);
+  cyl(`dugout_${label}_cdb_roundel_left`, mats.white, [x - 5.9, 1.18, z - 1.40], 0.42, 0.05, [Math.PI / 2, 0, 0], 48);
+  cyl(`dugout_${label}_cdb_roundel_green_left`, mats.green, [x - 5.9, 1.18, z - 1.44], 0.30, 0.05, [Math.PI / 2, 0, 0], 48);
+  cyl(`dugout_${label}_cdb_roundel_right`, mats.white, [x + 5.9, 1.18, z - 1.40], 0.42, 0.05, [Math.PI / 2, 0, 0], 48);
+  cyl(`dugout_${label}_cdb_roundel_green_right`, mats.green, [x + 5.9, 1.18, z - 1.44], 0.30, 0.05, [Math.PI / 2, 0, 0], 48);
   for (let i = 0; i < 6; i += 1) {
     const t = i / 5;
     box(`dugout_${label}_curved_glass_${i}`, mats.glass, [x, 1.10 + Math.sin(t * Math.PI * 0.58), z - 0.75 + t * 1.38], [12.2, 0.06, 0.42], [-0.45 + t * 0.26, 0, 0]);
@@ -453,6 +480,21 @@ const addTechnicalAreas = () => {
   });
 };
 addTechnicalAreas();
+
+const addReferenceBackdrop = () => {
+  box('reference_soft_sky_backdrop', mats.skyPanel, [0, 12.8, 74.6], [150.0, 21.0, 0.08]);
+  tri('reference_mountain_left', mats.mountain, [[-76, 3.6], [-32, 14.4], [8, 3.6]], 74.4);
+  tri('reference_mountain_center', mats.mountain, [[-10, 3.4], [30, 13.2], [68, 3.4]], 74.35);
+  tri('reference_mountain_right', mats.mountain, [[38, 3.1], [72, 10.4], [94, 3.1]], 74.3);
+  for (let i = -11; i <= 11; i += 1) {
+    const h = 1.3 + ((i * i + 5) % 7) * 0.42;
+    const x = i * 5.2;
+    box(`reference_city_block_${i}`, mats.city, [x, 1.2 + h / 2, 73.2], [3.7, h, 0.38]);
+    if (i % 3 === 0) box(`reference_city_green_roof_${i}`, mats.greenDark, [x, 1.2 + h + 0.13, 72.96], [3.8, 0.20, 0.32]);
+  }
+  box('reference_outer_service_road', mats.concreteLine, [0, 0.10, 67.8], [132.0, 0.04, 1.6]);
+};
+addReferenceBackdrop();
 
 scene.add(new THREE.AmbientLight(0xffffff, 0.62));
 const sun = new THREE.DirectionalLight(0xfff0d0, 1.2);
