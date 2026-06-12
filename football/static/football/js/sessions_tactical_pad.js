@@ -8163,6 +8163,19 @@
 						        return false;
 						      }
 						    };
+						    const ensurePitch3dSkeletonUtils = async () => {
+						      try { if (window.__WEBSTATS_SKELETON_UTILS) return true; } catch (e) { /* ignore */ }
+						      if (window.__webstats_skeleton_utils_promise) return !!(await window.__webstats_skeleton_utils_promise);
+						      const src = __pitch3dAssetUrl('threeSkeletonUtilsSrc');
+						      if (!src) return false;
+						      try {
+						        const mod = await import(src);
+						        window.__WEBSTATS_SKELETON_UTILS = mod;
+						        return !!mod;
+						      } catch (e) {
+						        return false;
+						      }
+						    };
 
 						    const __pitch3dStaticImageCache = new Map();
 						    const __pitch3dLoadStaticImage = (cacheKey, src) => {
@@ -8309,6 +8322,39 @@
 						        });
 						      } catch (e) {
 						        __pitch3dStadiumModelCache.loading = false;
+						      }
+						      return null;
+						    };
+						    const __pitch3dPlayerModelCache = { loading: false, scene: null, failed: false, callbacks: [] };
+						    const __pitch3dLoadPlayerModel = (onLoad) => {
+						      const src = __pitch3dAssetUrl('pitch3dPlayerModelSrc');
+						      if (!src || !window.THREE) return null;
+						      if (__pitch3dPlayerModelCache.scene) {
+						        try { if (typeof onLoad === 'function') onLoad(__pitch3dPlayerModelCache.scene); } catch (e) { /* ignore */ }
+						        return __pitch3dPlayerModelCache.scene;
+						      }
+						      if (typeof onLoad === 'function') __pitch3dPlayerModelCache.callbacks.push(onLoad);
+						      if (__pitch3dPlayerModelCache.loading || __pitch3dPlayerModelCache.failed) return null;
+						      const LoaderClass = window.__WEBSTATS_GLTF_LOADER_CLASS;
+						      if (typeof LoaderClass !== 'function') return null;
+						      __pitch3dPlayerModelCache.loading = true;
+						      try {
+						        const loader = new LoaderClass();
+						        loader.load(src, (gltf) => {
+						          const scene = gltf?.scene || null;
+						          __pitch3dPlayerModelCache.scene = scene;
+						          __pitch3dPlayerModelCache.loading = false;
+						          const callbacks = __pitch3dPlayerModelCache.callbacks.splice(0);
+						          callbacks.forEach((cb) => {
+						            try { cb(scene); } catch (e) { /* ignore */ }
+						          });
+						        }, undefined, () => {
+						          __pitch3dPlayerModelCache.loading = false;
+						          __pitch3dPlayerModelCache.failed = true;
+						          __pitch3dPlayerModelCache.callbacks.splice(0);
+						        });
+						      } catch (e) {
+						        __pitch3dPlayerModelCache.loading = false;
 						      }
 						      return null;
 						    };
@@ -14248,6 +14294,71 @@
 						          }
 						        } catch (e) { /* ignore */ }
 						      };
+						      const clonePitch3dPlayerModel = (source) => {
+						        if (!source) return null;
+						        try {
+						          const utils = window.__WEBSTATS_SKELETON_UTILS || null;
+						          if (utils && typeof utils.clone === 'function') return utils.clone(source);
+						        } catch (e) { /* ignore */ }
+						        try { return source.clone(true); } catch (e) { return null; }
+						      };
+						      const fitPitch3dPlayerModel = (model, targetHeight = 1.72) => {
+						        if (!model || !window.THREE) return;
+						        try {
+						          const box = new THREE.Box3().setFromObject(model);
+						          const size = new THREE.Vector3();
+						          const center = new THREE.Vector3();
+						          box.getSize(size);
+						          box.getCenter(center);
+						          const h = Math.max(0.001, Number(size.y) || 1);
+						          const s = clamp((Number(targetHeight) || 1.72) / h, 0.02, 6);
+						          model.scale.multiplyScalar(s);
+						          const fitted = new THREE.Box3().setFromObject(model);
+						          const fittedCenter = new THREE.Vector3();
+						          fitted.getCenter(fittedCenter);
+						          model.position.x -= fittedCenter.x;
+						          model.position.z -= fittedCenter.z;
+						          model.position.y -= fitted.min.y;
+					        } catch (e) { /* ignore */ }
+						      };
+						      const tintPitch3dPlayerModel = (model, colors) => {
+						        if (!model || !window.THREE) return;
+						        const shirtCol = toColorInt(colors?.shirt, 0x1d4ed8);
+						        const baseCol = toColorInt(colors?.base, 0xffffff);
+						        const shortsCol = toColorInt(colors?.shorts, 0x0f172a);
+						        const skinCol = toColorInt(colors?.skin, 0xf2d2b6);
+						        const hairCol = toColorInt(colors?.hair, 0x172554);
+						        const bootCol = toColorInt(colors?.boot, 0x0f172a);
+						        const setMatColor = (mat, col) => {
+						          if (!mat || !mat.color) return;
+						          try {
+						            mat = mat.clone ? mat.clone() : mat;
+						            mat.color.setHex(col);
+						            mat.needsUpdate = true;
+						          } catch (e) { /* ignore */ }
+						          return mat;
+						        };
+						        try {
+						          model.traverse((node) => {
+						            if (!node || !node.isMesh) return;
+						            const name = `${safeText(node.name)} ${safeText(node?.material?.name)}`.toLowerCase();
+						            let col = null;
+						            if (/(shirt|jersey|torso|upper|kit|body)/i.test(name)) col = shirtCol;
+						            if (/(stripe|trim|collar|number|sponsor)/i.test(name)) col = baseCol;
+						            if (/(short|pants)/i.test(name)) col = shortsCol;
+						            if (/(skin|head|face|arm|hand|neck|leg)/i.test(name)) col = skinCol;
+						            if (/(hair|brow)/i.test(name)) col = hairCol;
+						            if (/(boot|shoe|cleat)/i.test(name)) col = bootCol;
+						            if (col == null) return;
+						            if (Array.isArray(node.material)) {
+						              node.material = node.material.map((mat) => setMatColor(mat, col) || mat);
+						            } else {
+						              node.material = setMatColor(node.material, col) || node.material;
+						            }
+						            try { node.castShadow = true; node.receiveShadow = true; } catch (e) { /* ignore */ }
+						          });
+						        } catch (e) { /* ignore */ }
+						      };
 
 						      const addToken = (o) => {
 						        const data = o?.data || {};
@@ -14288,7 +14399,33 @@
 						        } catch (e) { /* ignore */ }
 
 						        // Avatar 3D opcional + orientación corporal. Por defecto mantenemos la chapa.
+						        let externalAvatar3dUsed = false;
 						        if (useAvatar3d) try {
+						          const modelSrc = __pitch3dPlayerModelCache.scene || __pitch3dLoadPlayerModel(() => {
+						            try {
+						              if (pitch3dOpen) showPitch3dStep(activeStepIndex >= 0 ? activeStepIndex : pitch3dCurrentStep, { keepFollow: true });
+						            } catch (e) { /* ignore */ }
+						          });
+						          const model = clonePitch3dPlayerModel(modelSrc);
+						          if (model) {
+						            const holder = new THREE.Group();
+						            holder.userData = { kind: 'token_body_model', facing_deg: facingDeg, src: __pitch3dAssetUrl('pitch3dPlayerModelSrc') };
+						            tintPitch3dPlayerModel(model, {
+						              shirt: stripe || fill,
+						              base: fill || '#ffffff',
+						              shorts: darkenHex(stripe || fill || '#1d4ed8', 0.56),
+						              skin: '#f2d2b6',
+						              hair: tokenKind.includes('rival') ? '#111827' : '#172554',
+						              boot: '#0f172a',
+						            });
+						            fitPitch3dPlayerModel(model, 1.72);
+						            holder.add(model);
+						            holder.rotation.y = (Number(facingDeg) || 0) * (Math.PI / 180);
+						            mesh.add(holder);
+						            externalAvatar3dUsed = true;
+						          }
+						        } catch (e) { /* ignore */ }
+						        if (useAvatar3d && !externalAvatar3dUsed) try {
 						          const bodyCol = toColorInt(stripe || fill, color);
 						          const kitBaseCol = toColorInt(fill || '#ffffff', 0xffffff);
 						          const shortsCol = toColorInt(darkenHex(stripe || fill || '#1d4ed8', 0.56), 0x0f172a);
@@ -14425,6 +14562,15 @@
 						          body.rotation.y = (Number(facingDeg) || 0) * (Math.PI / 180);
 						          mesh.add(body);
 
+						          const fovGeom = buildTokenFovGeometry3d(5.8, fovWidthDeg);
+						          const fovMat = new THREE.MeshBasicMaterial({ color: 0x22c55e, transparent: true, opacity: 0.10, side: THREE.DoubleSide, depthWrite: false });
+						          const fov = new THREE.Mesh(fovGeom, fovMat);
+						          fov.userData = { kind: 'token_fov', facing_deg: facingDeg, width_deg: fovWidthDeg };
+						          fov.visible = !!fovVisible;
+						          fov.rotation.y = (Number(facingDeg) || 0) * (Math.PI / 180);
+						          mesh.add(fov);
+						        } catch (e) { /* ignore */ }
+						        if (useAvatar3d && externalAvatar3dUsed) try {
 						          const fovGeom = buildTokenFovGeometry3d(5.8, fovWidthDeg);
 						          const fovMat = new THREE.MeshBasicMaterial({ color: 0x22c55e, transparent: true, opacity: 0.10, side: THREE.DoubleSide, depthWrite: false });
 						          const fov = new THREE.Mesh(fovGeom, fovMat);
@@ -15452,6 +15598,7 @@
 						    const openPitch3dWhenReady = async () => {
 						      try {
 						        await ensurePitch3dGltfLoaderClass();
+						        await ensurePitch3dSkeletonUtils();
 						      } catch (e) { /* ignore */ }
 						      openPitch3d();
 						    };
