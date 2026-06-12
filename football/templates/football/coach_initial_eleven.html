@@ -684,6 +684,19 @@
         box-shadow: 0 16px 34px rgba(0, 0, 0, 0.38);
         pointer-events: none;
       }
+      .field-token::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        bottom: -8px;
+        width: 56px;
+        height: 14px;
+        border-radius: 999px;
+        background: radial-gradient(ellipse at center, rgba(2, 6, 23, 0.42), rgba(2, 6, 23, 0));
+        transform: translateX(-50%);
+        pointer-events: none;
+        z-index: -1;
+      }
       .token-num {
         width: 26px;
         height: 26px;
@@ -756,6 +769,14 @@
         border: 1px solid rgba(2, 6, 23, 0.68);
         font-size: 0.62rem;
         font-weight: 950;
+      }
+      .token.has-kit2d .token-photo {
+        top: -14px;
+        left: 30px;
+        width: 30px;
+        height: 30px;
+        border-color: rgba(248, 250, 252, 0.82);
+        z-index: 2;
       }
 
       .broadcast-l3 {
@@ -1451,24 +1472,44 @@
       .broadcast-main .xi-stadium-center {
         max-height: none;
         align-items: end;
+        padding: clamp(7px, 1.2vmin, 14px) clamp(8px, 1.8vmin, 18px) clamp(12px, 2.4vmin, 24px);
       }
       .broadcast-main .pitch-stage {
+        --xi-broadcast-depth: 18deg;
         position: relative;
         z-index: 3;
-        width: min(100%, 418px, calc((100vh - 15rem) * 0.405));
-        padding: 22px 18px 28px;
-        transform: perspective(920px) rotateX(14deg);
-        transform-origin: 50% 72%;
+        width: min(100%, 520px, calc((100vh - 13.5rem) * 0.51));
+        padding: 26px 22px 34px;
+        transform: perspective(980px) rotateX(var(--xi-broadcast-depth));
+        transform-origin: 50% 78%;
+        filter: drop-shadow(0 30px 54px rgba(2, 6, 23, 0.55));
       }
       .broadcast-main .pitch-stage::before {
         content: "";
         position: absolute;
-        inset: 15px 18px 19px;
+        inset: 20px 22px 24px;
         z-index: 1;
-        border-radius: 18px;
-        background: rgba(2, 6, 23, 0.38);
-        filter: blur(8px);
-        transform: translateY(11px);
+        border-radius: 24px;
+        background:
+          radial-gradient(ellipse at 50% 94%, rgba(0, 0, 0, 0.58), rgba(0, 0, 0, 0.12) 58%, transparent 72%);
+        filter: blur(10px);
+        transform: translateY(16px) scaleX(1.04);
+        pointer-events: none;
+      }
+      .broadcast-main .pitch-stage::after {
+        content: "";
+        position: absolute;
+        left: 10%;
+        right: 10%;
+        top: 23px;
+        height: 15%;
+        z-index: 4;
+        border-radius: 50% 50% 18% 18% / 80% 80% 20% 20%;
+        background:
+          radial-gradient(ellipse at 50% 0%, rgba(248, 250, 252, 0.24), transparent 58%),
+          repeating-linear-gradient(90deg, rgba(255,255,255,0.18) 0 1px, transparent 1px 18px),
+          linear-gradient(180deg, color-mix(in srgb, var(--xi-team-primary) 56%, #020617), rgba(2,6,23,0.40));
+        opacity: 0.66;
         pointer-events: none;
       }
       .field-ad-frame {
@@ -1531,10 +1572,15 @@
         outline: 7px solid rgba(2, 6, 23, 0.36);
         transform: none;
         transform-origin: center;
-        background: linear-gradient(180deg, #2f6a3a 0%, #245934 100%);
+        border-radius: 22px;
+        clip-path: polygon(7.5% 0, 92.5% 0, 100% 100%, 0 100%);
+        background:
+          radial-gradient(ellipse at 50% 100%, rgba(255, 255, 255, 0.14), transparent 42%),
+          linear-gradient(180deg, #3e8a3d 0%, #2f7435 46%, #1f5b2f 100%);
         box-shadow:
           0 28px 72px rgba(0,0,0,0.54),
-          inset 0 0 0 1px rgba(255,255,255,0.12);
+          inset 0 0 0 1px rgba(255,255,255,0.18),
+          inset 0 -26px 42px rgba(2, 6, 23, 0.22);
       }
       .broadcast-main .xi-stadium .field::before {
         content: "";
@@ -1546,13 +1592,72 @@
           radial-gradient(circle at 18% 20%, rgba(255,255,255,0.055) 0 1px, transparent 1px 4px),
           radial-gradient(circle at 71% 35%, rgba(255,255,255,0.045) 0 1px, transparent 1px 5px),
           radial-gradient(circle at 43% 72%, rgba(0,0,0,0.075) 0 1px, transparent 1px 5px),
+          linear-gradient(90deg, rgba(255,255,255,0.06), transparent 18%, transparent 82%, rgba(2,6,23,0.16)),
+          linear-gradient(180deg, rgba(248,250,252,0.10), transparent 18%, transparent 72%, rgba(2,6,23,0.28)),
           repeating-linear-gradient(82deg, rgba(255,255,255,0.026) 0 1px, transparent 1px 9px);
         mix-blend-mode: overlay;
-        opacity: 0.68;
+        opacity: 0.78;
       }
       .broadcast-main .lineup-pitch-surface {
         opacity: 1;
         mix-blend-mode: normal;
+      }
+      .broadcast-main .field-token {
+        z-index: 5;
+      }
+      .broadcast-main .field-token .token {
+        min-width: 142px;
+        max-width: 172px;
+        border-radius: 14px;
+        border-color: rgba(248, 250, 252, 0.30);
+        background:
+          linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(2, 6, 23, 0.72));
+        box-shadow:
+          0 16px 34px rgba(2, 6, 23, 0.54),
+          inset 0 1px 0 rgba(255, 255, 255, 0.16);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+      }
+      .broadcast-main .field-token .token.has-kit2d {
+        min-width: 154px;
+        max-width: 186px;
+        grid-template-columns: 54px minmax(0, 1fr);
+      }
+      .broadcast-main .field-token .token-kit2d,
+      .broadcast-main .field-token .token-kit2d-img {
+        width: 54px;
+        height: 54px;
+        max-width: 54px;
+        max-height: 54px;
+      }
+      .broadcast-main .field-token .token-photo {
+        width: 42px;
+        height: 42px;
+        top: -24px;
+        left: -10px;
+        border: 2px solid rgba(248, 250, 252, 0.86);
+      }
+      .broadcast-main .field-token .token.has-kit2d .token-photo {
+        width: 34px;
+        height: 34px;
+        top: -16px;
+        left: 38px;
+      }
+      .broadcast-main .field-token .token-name {
+        font-size: 0.72rem;
+        font-weight: 950;
+      }
+      .broadcast-main .field-token .token-role {
+        font-size: 0.56rem;
+      }
+      .broadcast-main .field-token[data-depth="far"] .token {
+        transform: scale(0.82);
+      }
+      .broadcast-main .field-token[data-depth="mid"] .token {
+        transform: scale(0.94);
+      }
+      .broadcast-main .field-token[data-depth="near"] .token {
+        transform: scale(1.06);
       }
       .broadcast-main.camera-plan .lineup-pitch-surface {
         opacity: 0.76;
@@ -1663,14 +1768,16 @@
         transform-origin: 50% 60%;
       }
       .broadcast-main.camera-broadcast .pitch-stage {
-        transform: perspective(1050px) rotateX(11deg) scale(0.99);
+        --xi-broadcast-depth: 12deg;
+        transform: perspective(1050px) rotateX(var(--xi-broadcast-depth)) scale(1.02);
       }
       .broadcast-main.camera-cinematic .xi-stadium {
         transform: none;
         transform-origin: 50% 54%;
       }
       .broadcast-main.camera-cinematic .pitch-stage {
-        transform: perspective(880px) rotateX(17deg) scale(0.98);
+        --xi-broadcast-depth: 20deg;
+        transform: perspective(900px) rotateX(var(--xi-broadcast-depth)) scale(1.03);
       }
       .broadcast-main.camera-cinematic .broadcast-title h2 {
         font-size: clamp(1.34rem, 2.55vw, 2.5rem);
@@ -2784,8 +2891,7 @@
         try {
           if (rivalVisible && Array.isArray(rivalLineupState?.starters) && rivalLineupState.starters.length) {
             const starters = rivalLineupState.starters.slice(0, STARTERS_REQUIRED);
-            const fallbackSlots = ensureStarterPositionsFromTemplate({ force: false }) || [];
-            starters.forEach((player, idx) => {
+            starters.forEach((player) => {
               const code = String(player?.code || player?.id || player?.name || '').trim();
               if (!code) return;
               const num = (player?.number != null && String(player.number).trim()) ? String(player.number).trim() : '--';
@@ -2795,6 +2901,7 @@
               const wrap = document.createElement('div');
               wrap.className = 'field-token is-rival';
               wrap.dataset.playerCode = code;
+              wrap.dataset.depth = y < 38 ? 'far' : (y > 68 ? 'near' : 'mid');
               wrap.style.left = `${x}%`;
               wrap.style.top = `${y}%`;
               const rivalKitSafe = rivalKit2dDataUrl ? String(rivalKit2dDataUrl).replace(/'/g, '%27') : '';
@@ -2837,6 +2944,7 @@
           const wrap = document.createElement('div');
           wrap.className = 'field-token';
           wrap.dataset.playerId = pid;
+          wrap.dataset.depth = y < 38 ? 'far' : (y > 68 ? 'near' : 'mid');
           wrap.style.left = `${x}%`;
           wrap.style.top = `${y}%`;
           if (activePlayerId && String(activePlayerId) === String(player.id)) {
@@ -2852,7 +2960,7 @@
               <img class="token-kit2d-img" src='${kitSafe}' alt="" loading="lazy" />
             </span>
           ` : '';
-          const photoHtml = (!kitSafe && photoSafe) ? `<img class="token-photo" src='${photoSafe}' alt="" loading="lazy" />` : '';
+          const photoHtml = photoSafe ? `<img class="token-photo" src='${photoSafe}' alt="" loading="lazy" />` : '';
           wrap.innerHTML = `
             <div class="token token--${role}${kitSafe ? ' has-kit2d' : ''}">
               ${photoHtml}
