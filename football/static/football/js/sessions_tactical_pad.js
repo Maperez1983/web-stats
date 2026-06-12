@@ -1955,6 +1955,7 @@
 			              '          Cámara',
 			              '          <select id="task-pitch-3d-camera">',
 			              '            <option value="render_original" selected>Render original</option>',
+			              '            <option value="reference_photo">Referencia estadio</option>',
 			              '            <option value="clean_pitch_render">Campo limpio</option>',
 			              '            <option value="drone">Drone</option>',
 			              '            <option value="broadcast">Broadcast</option>',
@@ -9183,6 +9184,14 @@
 							        pitch3dOrbit.theta = k === 'top_h' ? 0 : (Math.PI / 2);
 							        pitch3dOrbit.phi = 0.02;
 							        pitch3dOrbit.radius = Math.max(70, Math.max(metersW, metersH) * 1.25);
+						      } else if (k === 'reference_photo') {
+						        // Vista calibrada contra la foto de referencia: esquina alta, grada principal y banquillos visibles.
+							        pitch3dOrbit.theta = -2.58;
+							        pitch3dOrbit.phi = 1.08;
+							        pitch3dOrbit.radius = Math.max(132, metersW * 1.20);
+							        targetX = -1.6;
+							        targetY = 7.4;
+							        targetZ = 3.8;
 						      } else if (k === 'render_original') {
 						        // Vista de referencia: esquina alta, menos recorte lateral y lectura completa del estadio.
 							        pitch3dOrbit.theta = -2.36;
@@ -12734,6 +12743,22 @@
 						                    const materialName = Array.isArray(node.material)
 						                      ? node.material.map((m) => safeText(m?.name)).join(' ').toUpperCase()
 						                      : safeText(node.material?.name).toUpperCase();
+						                    if (isDedicatedReferenceStadium) {
+						                      const quality = safeText(document.body?.dataset?.pitch3dQuality || 'normal');
+						                      const compactViewport = Math.max(window.innerWidth || 0, window.innerHeight || 0) < 900;
+						                      const detailName = `${meshName} ${materialName}`;
+						                      if (quality === 'normal' && compactViewport && (
+						                        detailName.includes('CROWD_') ||
+						                        detailName.includes('GRASS_FINE_FIBER') ||
+						                        detailName.includes('GRASS_CLOSE_CUT') ||
+						                        detailName.includes('TOUCHLINE_CAMERA') ||
+						                        detailName.includes('TRAINING_CONE') ||
+						                        detailName.includes('TOUCHLINE_EQUIPMENT')
+						                      )) {
+						                        node.visible = false;
+						                        node.userData.hidden_by_reference_stadium_lod = true;
+						                      }
+						                    }
 						                    if (!isDedicatedReferenceStadium && (meshName.includes('SEAT') || materialName.includes('SEAT') || meshName.includes('TEAM_PRIMARY') || materialName.includes('TEAM_PRIMARY'))) {
 						                      node.visible = false;
 						                      node.userData.replaced_by_instanced_professional_seating = true;

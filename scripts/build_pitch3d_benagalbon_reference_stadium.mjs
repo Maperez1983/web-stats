@@ -46,6 +46,9 @@ const mats = {
   darkMetal: new THREE.MeshStandardMaterial({ name: 'REF_DARK_STEEL', color: 0x1f2933, roughness: 0.42, metalness: 0.35 }),
   roof: new THREE.MeshStandardMaterial({ name: 'REF_LIGHT_ROOF_SOFFIT', color: 0xe6ebe7, roughness: 0.44, metalness: 0.18 }),
   roofShadow: new THREE.MeshStandardMaterial({ name: 'REF_ROOF_CAST_SHADOW', color: 0x111827, roughness: 0.96, metalness: 0.0, transparent: true, opacity: 0.22 }),
+  concreteStain: new THREE.MeshStandardMaterial({ name: 'REF_CONCRETE_WEATHERING_VARIATION', color: 0x7f8984, roughness: 0.96, metalness: 0.0 }),
+  seatShadow: new THREE.MeshStandardMaterial({ name: 'REF_SEAT_ROW_CONTACT_SHADOW', color: 0x01251d, roughness: 0.88, metalness: 0.0 }),
+  lightPool: new THREE.MeshBasicMaterial({ name: 'REF_WARM_FLOODLIGHT_POOL_ON_TURF', color: 0xffe6a4, transparent: true, opacity: 0.16, toneMapped: false }),
   glass: new THREE.MeshPhysicalMaterial({ name: 'REF_CLEAR_DUGOUT_GLASS', color: 0xc7efff, roughness: 0.08, metalness: 0.02, transparent: true, opacity: 0.34, transmission: 0.18, side: THREE.DoubleSide }),
   led: new THREE.MeshStandardMaterial({ name: 'REF_GREEN_LED_BOARD_FACE', color: 0x063b2f, roughness: 0.24, metalness: 0.04, emissive: 0x063b2f, emissiveIntensity: 0.20 }),
   light: new THREE.MeshBasicMaterial({ name: 'REF_WARM_FLOODLIGHT_LINE', color: 0xfff3ca, toneMapped: false }),
@@ -112,6 +115,11 @@ for (let i = 0; i < 44; i += 1) {
   const x = -pitchW / 2 + 1.4 + i * 2.42;
   const z = -pitchH / 2 + 1.0 + ((i * 17) % 66);
   box(`ref_grass_fiber_highlight_${i}`, mats.grassFiber, [x, 0.041, z], [1.3, 0.012, 0.045], [0, 0.18 + (i % 5) * 0.05, 0]);
+}
+for (let i = 0; i < 30; i += 1) {
+  const x = -pitchW / 2 + 2.0 + i * 3.55;
+  const z = -pitchH / 2 + 2.2 + ((i * 23) % 63);
+  box(`ref_grass_close_cut_dark_blade_${i}`, mats.grassDark, [x, 0.044, z], [1.75, 0.01, 0.032], [0, -0.22 + (i % 7) * 0.06, 0]);
 }
 const addPitchMarkings = () => {
   const y = 0.075;
@@ -215,8 +223,10 @@ const addStand = ({ name, side, cols, rows, length, depthStart, zFixed, xFixed }
     const depth = depthStart + sign * row * 0.58;
     if (longSide) {
       box(`${name}_continuous_riser_${row}`, mats.darkConcrete, [0, y - 0.18, depth + sign * 0.18], [span + 3.2, 0.16, 0.22], [-0.03 * sign, 0, 0]);
+      if (row % 2 === 0) box(`${name}_row_contact_shadow_${row}`, mats.seatShadow, [0, y - 0.065, depth - sign * 0.055], [span + 2.4, 0.025, 0.075], [-0.03 * sign, 0, 0]);
     } else {
       box(`${name}_continuous_riser_${row}`, mats.darkConcrete, [depth + sign * 0.18, y - 0.18, 0], [0.22, 0.16, span + 3.2], [0, 0.03 * sign, 0]);
+      if (row % 2 === 0) box(`${name}_row_contact_shadow_${row}`, mats.seatShadow, [depth - sign * 0.055, y - 0.065, 0], [0.075, 0.025, span + 2.4], [0, 0.03 * sign, 0]);
     }
     for (let col = 0; col < cols; col += 1) {
       const t = col / (cols - 1) - 0.5;
@@ -278,6 +288,10 @@ const addStand = ({ name, side, cols, rows, length, depthStart, zFixed, xFixed }
 
   if (longSide) {
     box(`${name}_front_wall`, mats.concrete, [0, 1.55, zFixed - sign * 1.2], [span + 7, 1.0, 0.5]);
+    for (let i = -7; i <= 7; i += 1) {
+      const x = i * (span / 15);
+      if (i % 3 !== 0) box(`${name}_front_wall_subtle_weathering_${i}`, mats.concreteStain, [x, 1.23 + (i % 2) * 0.18, zFixed - sign * 1.47], [3.0 + (i % 4) * 0.55, 0.16, 0.035]);
+    }
     box(`${name}_upper_concourse_band`, mats.concrete, [0, 7.2, zFixed + sign * 6.5], [span + 10, 0.55, 0.72], [-0.03 * sign, 0, 0]);
     box(`${name}_glass_balustrade_top`, mats.glass, [0, 7.82, zFixed + sign * 6.04], [span + 6.5, 0.72, 0.08], [-0.03 * sign, 0, 0]);
     box(`${name}_front_safety_rail`, mats.metal, [0, 2.28, zFixed - sign * 1.52], [span + 6.0, 0.08, 0.08]);
@@ -288,6 +302,10 @@ const addStand = ({ name, side, cols, rows, length, depthStart, zFixed, xFixed }
     });
   } else {
     box(`${name}_front_wall`, mats.concrete, [xFixed - sign * 1.2, 1.55, 0], [0.5, 1.0, span + 7]);
+    for (let i = -5; i <= 5; i += 1) {
+      const z = i * (span / 11);
+      if (i % 3 !== 0) box(`${name}_front_wall_subtle_weathering_${i}`, mats.concreteStain, [xFixed - sign * 1.47, 1.22 + (i % 2) * 0.16, z], [0.035, 0.15, 2.7 + (i % 4) * 0.45]);
+    }
     box(`${name}_upper_concourse_band`, mats.concrete, [xFixed + sign * 6.5, 7.1, 0], [0.72, 0.55, span + 10], [0, 0.03 * sign, 0]);
     box(`${name}_glass_balustrade_top`, mats.glass, [xFixed + sign * 6.04, 7.72, 0], [0.08, 0.68, span + 6.5], [0, 0.03 * sign, 0]);
     box(`${name}_front_safety_rail`, mats.metal, [xFixed - sign * 1.52, 2.28, 0], [0.08, 0.08, span + 6.0]);
@@ -368,6 +386,17 @@ const addRoof = () => {
   });
 };
 addRoof();
+
+const addFloodlightPools = () => {
+  [-36, -18, 0, 18, 36].forEach((x, idx) => {
+    box(`north_roof_warm_light_pool_${idx}`, mats.lightPool, [x, 0.082, pitchH / 2 - 10.5], [13.5, 0.012, 5.1], [0, 0.02 * (idx - 2), 0]);
+    box(`south_roof_warm_light_pool_${idx}`, mats.lightPool, [x, 0.083, -(pitchH / 2 - 10.5)], [12.2, 0.012, 4.6], [0, -0.02 * (idx - 2), 0]);
+  });
+  [-28, 0, 28].forEach((x, idx) => {
+    box(`center_pitch_soft_light_overlap_${idx}`, mats.lightPool, [x, 0.084, 0], [16.0, 0.012, 6.2], [0, 0.04 * (idx - 1), 0]);
+  });
+};
+addFloodlightPools();
 
 const addBoards = () => {
   [
@@ -484,7 +513,13 @@ addDugout(22, 'away');
 cyl('main_round_cdb_crest', mats.white, [0, 8.6, pitchH / 2 + 11.0], 3.4, 0.16, [Math.PI / 2, 0, 0], 96);
 cyl('main_round_cdb_crest_green_ring', mats.green, [0, 8.61, pitchH / 2 + 10.88], 3.05, 0.18, [Math.PI / 2, 0, 0], 96);
 cyl('main_round_cdb_crest_white_core', mats.white, [0, 8.62, pitchH / 2 + 10.75], 2.22, 0.20, [Math.PI / 2, 0, 0], 96);
+cyl('main_round_cdb_crest_inner_green_ring', mats.greenDark, [0, 8.625, pitchH / 2 + 10.56], 1.76, 0.08, [Math.PI / 2, 0, 0], 96);
+cyl('main_round_cdb_crest_inner_white_field', mats.white, [0, 8.63, pitchH / 2 + 10.48], 1.35, 0.08, [Math.PI / 2, 0, 0], 96);
+box('main_crest_center_vertical_green_band', mats.green, [0, 8.67, pitchH / 2 + 10.38], [0.38, 2.15, 0.055]);
+box('main_crest_center_horizontal_green_band', mats.green, [0, 8.67, pitchH / 2 + 10.36], [2.10, 0.34, 0.055]);
 writeBlockText({ text: 'CDB', name: 'main_crest_cdb_letters', origin: [-1.35, 8.92, pitchH / 2 + 10.58], cell: 0.18, plane: 'xy' });
+writeBlockText({ text: 'BENAGALBON', name: 'main_crest_top_name_hint', origin: [-2.35, 10.16, pitchH / 2 + 10.42], cell: 0.075, plane: 'xy' });
+writeBlockText({ text: 'CD', name: 'main_crest_bottom_cd_hint', origin: [-0.34, 7.00, pitchH / 2 + 10.42], cell: 0.10, plane: 'xy' });
 box('main_stand_rear_green_facade', mats.greenDark, [0, 6.2, pitchH / 2 + 41.0], [pitchW + 66, 6.4, 0.38]);
 box('main_stand_rear_concrete_plinth', mats.concrete, [0, 2.1, pitchH / 2 + 41.2], [pitchW + 72, 2.2, 0.52]);
 for (let i = -10; i <= 10; i += 1) {
