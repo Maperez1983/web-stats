@@ -240,7 +240,6 @@ const addStand = ({ name, side, cols, rows, length, depthStart, zFixed, xFixed }
       const offset = (startOffset + endOffset) / 2;
       const segW = Math.max(0.45, Math.abs(endOffset - startOffset) + (span / Math.max(1, cols - 1)) * 0.56);
       let material = (row + segIdx) % 7 === 0 ? mats.greenDark : mats.green;
-      if (side === 'north' && row >= 9 && row <= 13 && segIdx >= 2 && segIdx <= 4) material = mats.white;
       if (longSide) {
         box(`${name}_clean_seat_row_${row}_${segIdx}`, material, [offset, y, depth], [segW, 0.16, 0.34], [-0.08 * sign, 0, 0]);
         box(`${name}_clean_back_row_${row}_${segIdx}`, material, [offset, y + 0.23, depth + sign * 0.22], [segW, 0.30, 0.07], [-0.20 * sign, 0, 0]);
@@ -278,6 +277,24 @@ addStand({ name: 'north_main_stand', side: 'north', cols: 108, rows: 18, length:
 addStand({ name: 'south_low_stand', side: 'south', cols: 56, rows: 3, length: pitchW + 8, depthStart: -(pitchH / 2 + 8.2), zFixed: -(pitchH / 2 + 8.2) });
 addStand({ name: 'east_low_stand', side: 'east', cols: 34, rows: 4, length: pitchH - 8, depthStart: pitchW / 2 + 8.5, xFixed: pitchW / 2 + 8.5 });
 addStand({ name: 'west_low_stand', side: 'west', cols: 28, rows: 3, length: pitchH - 18, depthStart: -(pitchW / 2 + 8.2), xFixed: -(pitchW / 2 + 8.2) });
+
+const addMainStandSeatLettering = () => {
+  const columns = buildLetterMap('BENAGALBON CD');
+  const cellX = 0.92;
+  const originX = -(columns.length * cellX) / 2;
+  const firstRow = 6;
+  columns.forEach((col, xIdx) => {
+    col.forEach((on, yIdx) => {
+      if (!on) return;
+      const row = firstRow + yIdx;
+      const y = 2.15 + row * 0.31 + 0.13;
+      const z = pitchH / 2 + 9.7 + row * 0.58 - 0.02;
+      const x = originX + xIdx * cellX;
+      box(`north_main_stand_identity_letter_${xIdx}_${yIdx}`, mats.white, [x, y, z], [0.70, 0.045, 0.34], [-0.08, 0, 0]);
+    });
+  });
+};
+addMainStandSeatLettering();
 
 const addRoof = () => {
   const y = 15.8;
