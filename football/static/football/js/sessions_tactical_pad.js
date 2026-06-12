@@ -12379,18 +12379,21 @@
 						                    }
 						                  } catch (e) { /* ignore */ }
 						                  node.userData = Object.assign({}, node.userData || {}, { kind: 'pitch_3d_professional_blender_stadium_mesh' });
+						                  try {
+						                    const meshName = safeText(node?.name || '').toUpperCase();
+						                    const materialName = Array.isArray(node.material)
+						                      ? node.material.map((m) => safeText(m?.name)).join(' ').toUpperCase()
+						                      : safeText(node.material?.name).toUpperCase();
+						                    if (meshName.includes('SEAT') || materialName.includes('SEAT') || meshName.includes('TEAM_PRIMARY') || materialName.includes('TEAM_PRIMARY')) {
+						                      node.visible = false;
+						                      node.userData.replaced_by_instanced_professional_seating = true;
+						                    }
+						                  } catch (e) { /* ignore */ }
 						                  try { node.castShadow = true; node.receiveShadow = true; } catch (e) { /* ignore */ }
 						                });
 						                enhanceProfessionalStadiumAsset(stadiumAsset);
 						                root.add(stadiumAsset);
 						                addProfessionalStadiumAtmosphere(stadiumAsset);
-						                const exteriorShell = new THREE.Group();
-						                exteriorShell.userData = { kind: 'pitch_3d_ref_real_stadium_exterior_shell' };
-						                addAuthenticExteriorEnvelope(exteriorShell);
-						                addOpenAccessCorrections(exteriorShell);
-						                addReferenceStadiumInspirationUpgrades(exteriorShell);
-						                addReferenceStadiumTenPointDetailPass(exteriorShell);
-						                root.add(exteriorShell);
 						                return true;
 						              } catch (e) {
 						                return false;
