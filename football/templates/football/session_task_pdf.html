@@ -57,23 +57,29 @@
       body.pdf-club .footer div[style*="color:#0b1220"] {
         color: #ffffff !important;
       }
-      body.pdf-club .preview-frame {
-        background: transparent !important;
-        padding: 8px !important;
+      body.pdf-club .club-graphic-body {
+        background: #ffffff !important;
+        color: #0b1220 !important;
       }
-      body.pdf-club .preview-frame::before {
+      body.pdf-club .club-graphic-body .preview-frame {
+        background: #ffffff !important;
+        background-image: none !important;
+        padding: 0 !important;
+      }
+      body.pdf-club .club-graphic-body .preview-frame::before {
         display: none !important;
         content: none !important;
       }
-      body.pdf-club .preview-frame .preview-img {
-        background: transparent !important;
-        border-color: rgba(255, 255, 255, 0.18) !important;
+      body.pdf-club .club-graphic-body .preview-img {
+        background: #ffffff !important;
+        border: 0 !important;
+        border-radius: 0 !important;
         outline: 0 !important;
       }
-      body.pdf-club .preview-frame .preview-img img {
+      body.pdf-club .club-graphic-body .preview-img img {
         display: block !important;
         opacity: 1 !important;
-        background: transparent !important;
+        background: #ffffff !important;
       }
       body.pdf-one-page .sheet {
         height: 297mm;
@@ -614,7 +620,7 @@
             <td style="width:62%; vertical-align:top; padding-right:10px;">
               <div style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden;">
                 <div style="padding:8px 12px; background:{{ pdf_palette.primary }}; color:#fff; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Diseño gráfico</div>
-                <div style="padding:10px; background:#fff;">
+                <div class="club-graphic-body" style="padding:10px; background:#fff;">
                   {% if task_preview_url %}
 	                  <div class="preview-frame" style="border:none; min-height:320px;" aria-label="Vista gráfica de la tarea">
                       <div class="preview-img"><img src="{{ task_preview_url }}" alt="Vista gráfica de la tarea" /></div>
