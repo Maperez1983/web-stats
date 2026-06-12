@@ -6,7 +6,7 @@ from django.db.models import Q
 from .access_policy import can_manage_workspace as policy_can_manage_workspace
 from .access_policy import can_view_workspace as policy_can_view_workspace
 from .access_policy import workspace_membership_for_user as policy_workspace_membership_for_user
-from .models import AppUserRole, Team, Workspace, WorkspaceMembership, WorkspaceTeam, WorkspaceTeamAccess
+from .models import AppUserRole, StaffMember, Team, Workspace, WorkspaceMembership, WorkspaceTeam, WorkspaceTeamAccess
 from .services import _parse_int
 
 
@@ -225,10 +225,36 @@ def workspace_team_links_for_user(workspace, user):
     if access_rows:
         allowed_team_ids = {int(team_id) for (team_id, _) in access_rows if team_id}
         return [link for link in links if int(getattr(link, 'team_id', 0) or 0) in allowed_team_ids]
+    staff_team_ids = staff_team_ids_for_user(workspace, user)
+    if staff_team_ids:
+        return [link for link in links if int(getattr(link, 'team_id', 0) or 0) in staff_team_ids]
     default_link = next((link for link in links if getattr(link, 'is_default', False)), None)
     if default_link:
         return [default_link]
     return links[:1]
+
+
+def staff_team_ids_for_user(workspace, user):
+    if not workspace or not user or not getattr(user, 'is_authenticated', False):
+        return set()
+    try:
+        return {
+            int(team_id)
+            for team_id in (
+                StaffMember.objects
+                .filter(workspace=workspace, user=user, is_active=True, team__isnull=False)
+                .values_list('team_id', flat=True)
+            )
+            if team_id
+        }
+    except Exception:
+        logger.debug(
+            'No se pudieron resolver equipos staff para usuario %s en workspace %s',
+            getattr(user, 'id', None),
+            getattr(workspace, 'id', None),
+            exc_info=True,
+        )
+        return set()
 
 
 def allowed_team_ids_for_request(request):
@@ -372,7 +398,7 @@ def get_active_team_for_request(request):
         if default_link and getattr(default_link, 'team', None):
             team = default_link.team
             return _cache_active_team(request, team)
-        if getattr(workspace, 'primary_team_id', None):
+        if getattr(workspace, 'primary_team_id', None) and int(getattr(workspace, 'primary_team_id', 0) or 0) in team_lookup:
             team = workspace.primary_team
             return _cache_active_team(request, team)
         first_link = links[0].team if links else None

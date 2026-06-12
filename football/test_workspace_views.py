@@ -360,6 +360,43 @@ class StaffAccessInvitationTests(TestCase):
         self.assertContains(response, reverse('staff-member-detail', args=[benjamin_member.id]))
         self.assertNotContains(response, 'Tecnico Cadete')
 
+    def test_staff_user_defaults_to_team_from_staff_profile(self):
+        _owner, cadete, workspace = self._create_workspace(username='staff-owner-login-scope')
+        benjamin = Team.objects.create(
+            name='Benjamin Login Scope',
+            slug='benjamin-login-scope',
+            short_name='BEN',
+            category='Benjamin',
+        )
+        WorkspaceTeam.objects.create(workspace=workspace, team=benjamin)
+        staff_user = get_user_model().objects.create_user(username='staff-benjamin', password='pass-1234')
+        AppUserRole.objects.create(user=staff_user, role=AppUserRole.ROLE_COACH)
+        WorkspaceMembership.objects.create(workspace=workspace, user=staff_user, role=WorkspaceMembership.ROLE_MEMBER)
+        StaffMember.objects.create(
+            workspace=workspace,
+            team=cadete,
+            name='Tecnico Cadete Login',
+            role_title='Entrenador',
+        )
+        StaffMember.objects.create(
+            workspace=workspace,
+            team=benjamin,
+            user=staff_user,
+            name='Tecnico Benjamin Login',
+            role_title='Entrenador',
+        )
+        self.client.force_login(staff_user)
+        session = self.client.session
+        session['active_workspace_id'] = workspace.id
+        session.pop('active_team_by_workspace', None)
+        session.save()
+
+        response = self.client.get(reverse('staff-directory'), secure=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Tecnico Benjamin Login')
+        self.assertNotContains(response, 'Tecnico Cadete Login')
+
     def test_platform_workspace_detail_staff_chips_link_to_staff_profile_with_photo(self):
         owner, team, workspace = self._create_workspace(username='staff-owner-platform')
         owner.is_staff = True
