@@ -4382,6 +4382,12 @@
 	        height: 100%;
 	        display: block;
 	      }
+	      .sim-3d-modal.is-inserting .sim-3d-canvas { cursor: crosshair; }
+	      .sim-3d-controls select.is-active {
+	        border-color: rgba(34, 211, 238, 0.68);
+	        background: rgba(8, 145, 178, 0.18);
+	        color: rgba(240, 253, 250, 0.96);
+	      }
 	      .sim-3d-foot {
 	        padding: 0.52rem 0.72rem;
 	        border-top: 1px solid rgba(255,255,255,0.10);
@@ -6272,6 +6278,7 @@
 				                                <option value="render_original" selected>Render original</option>
 				                                <option value="reference_photo">Referencia estadio</option>
 				                                <option value="clean_pitch_render">Campo limpio</option>
+				                                <option value="task_focus">Táctica cercana</option>
 				                                <option value="drone">Drone</option>
 				                                <option value="broadcast">Broadcast</option>
 				                                <option value="broadcast_high">Broadcast alto</option>
@@ -6308,6 +6315,7 @@
 				                                <option value="f7">Fútbol 7</option>
 				                              </select>
 				                            <button type="button" class="button" id="task-pitch-3d-refresh" title="Sincroniza con la pizarra actual">Actualizar</button>
+				                            <button type="button" class="button primary" id="task-pitch-3d-snap-tactic" title="Descarga PNG enfocando la táctica">PNG táctica</button>
 				                            <button type="button" class="button" id="task-pitch-3d-play" title="Reproduce escenarios (si existen)">▶</button>
 				                            <button type="button" class="button" id="task-pitch-3d-record" title="Grabar WebM (beta)">REC</button>
 				                            <select id="task-pitch-3d-action" title="Tipo de acción para rutas del elemento seleccionado">

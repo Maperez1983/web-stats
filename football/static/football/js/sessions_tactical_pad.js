@@ -1956,6 +1956,7 @@
 			              '            <option value="render_original" selected>Render original</option>',
 			              '            <option value="reference_photo">Referencia estadio</option>',
 			              '            <option value="clean_pitch_render">Campo limpio</option>',
+			              '            <option value="task_focus">Táctica cercana</option>',
 			              '            <option value="drone">Drone</option>',
 			              '            <option value="broadcast">Broadcast</option>',
 			              '            <option value="broadcast_high">Broadcast alto</option>',
@@ -2011,6 +2012,7 @@
 			              '          <option value="night">Noche</option>',
 			              '        </select>',
 			              '        <button type="button" class="button" id="task-pitch-3d-refresh" title="Sincroniza con la pizarra actual">Actualizar</button>',
+			              '        <button type="button" class="button primary" id="task-pitch-3d-snap-tactic" title="Descarga PNG enfocando la táctica">PNG táctica</button>',
 			              '        <button type="button" class="button" id="task-pitch-3d-play" title="Reproduce escenarios (si existen)">▶</button>',
 			              '        <button type="button" class="button" id="task-pitch-3d-record" title="Grabar WebM (beta)">REC</button>',
 			              '        <select id="task-pitch-3d-action" title="Tipo de acción para rutas del elemento seleccionado">',
@@ -2058,6 +2060,7 @@
 			    let pitch3dLayerTrailsInput = document.getElementById('task-pitch-3d-layer-trails');
 			    let pitch3dThemeSelect = document.getElementById('task-pitch-3d-theme');
 			    let pitch3dRefreshBtn = document.getElementById('task-pitch-3d-refresh');
+			    let pitch3dSnapTacticBtn = document.getElementById('task-pitch-3d-snap-tactic');
 			    let pitch3dPlayBtn = document.getElementById('task-pitch-3d-play');
 			    let pitch3dSnapBtn = document.getElementById('task-pitch-3d-snap');
 			    let pitch3dRecordBtn = document.getElementById('task-pitch-3d-record');
@@ -9198,6 +9201,28 @@
 						      pitch3dCamera.updateProjectionMatrix();
 						    };
 
+						    const pitch3dCanvasFocus = (metersW, metersH) => {
+						      const out = { x: 0, z: 0, spread: Math.max(18, Math.min(Number(metersW) || 105, Number(metersH) || 68) * 0.28), count: 0 };
+						      try {
+						        const { w, h } = worldSize();
+						        const items = (canvas.getObjects?.() || [])
+						          .filter((o) => o && !o?.data?.base && safeText(o?.data?.kind) !== 'preview-background')
+						          .map((o) => map2dToPitch(Number(o.left) || 0, Number(o.top) || 0, Number(w) || 1280, Number(h) || 720, metersW, metersH, pitchOrientation));
+						        if (!items.length) return out;
+						        const xs = items.map((p) => Number(p.x) || 0);
+						        const zs = items.map((p) => Number(p.z) || 0);
+						        const minX = Math.min(...xs);
+						        const maxX = Math.max(...xs);
+						        const minZ = Math.min(...zs);
+						        const maxZ = Math.max(...zs);
+						        out.x = clamp((minX + maxX) / 2, -(metersW / 2), metersW / 2);
+						        out.z = clamp((minZ + maxZ) / 2, -(metersH / 2), metersH / 2);
+						        out.spread = Math.max(18, Math.max(maxX - minX, maxZ - minZ) * 1.25);
+						        out.count = items.length;
+						      } catch (e) { /* ignore */ }
+						      return out;
+						    };
+
 							    const setCameraPreset = (presetKey, metersW, metersH) => {
 							      if (!pitch3dCamera) return;
 							      const k = safeText(presetKey, 'normal');
@@ -9234,6 +9259,15 @@
 							        targetX = 1;
 							        targetY = 4.2;
 							        targetZ = -3;
+						      } else if (k === 'task_focus') {
+						        const focus = pitch3dCanvasFocus(Number(metersW) || 105, Number(metersH) || 68);
+						        pitch3dCamera.fov = 40;
+						        pitch3dOrbit.theta = -2.08;
+						        pitch3dOrbit.phi = 1.08;
+						        pitch3dOrbit.radius = clamp(Math.max(34, focus.spread * 1.48), 34, Math.max(78, metersW * 0.78));
+						        targetX = focus.x;
+						        targetY = focus.count ? 2.2 : 2.8;
+						        targetZ = focus.z;
 						      } else if (k === 'broadcast') {
 						        // “TV”: cámara desde banda, baja, mirando el campo.
 							        pitch3dOrbit.theta = Math.PI / 2;
@@ -12798,13 +12832,19 @@
 						                  if (!node || !node.isMesh) return;
 						                  try { if (node.geometry) node.geometry = node.geometry.clone(); } catch (e) { /* ignore */ }
 						                  try {
-						                    if (Array.isArray(node.material)) {
-						                      node.material = node.material.map((mat) => tuneProfessionalStadiumMaterial(node, mat?.clone?.() || mat));
+						                    if (!isDedicatedReferenceStadium) {
+						                      if (Array.isArray(node.material)) {
+						                        node.material = node.material.map((mat) => tuneProfessionalStadiumMaterial(node, mat?.clone?.() || mat));
+						                      } else if (node.material) {
+						                        node.material = tuneProfessionalStadiumMaterial(node, node.material.clone());
+						                      }
+						                    } else if (Array.isArray(node.material)) {
+						                      node.material = node.material.map((mat) => mat?.clone?.() || mat);
 						                    } else if (node.material) {
-						                      node.material = tuneProfessionalStadiumMaterial(node, node.material.clone());
+						                      node.material = node.material.clone();
 						                    }
 						                  } catch (e) { /* ignore */ }
-						                  node.userData = Object.assign({}, node.userData || {}, { kind: 'pitch_3d_professional_blender_stadium_mesh' });
+						                  node.userData = Object.assign({}, node.userData || {}, { kind: isDedicatedReferenceStadium ? 'pitch_3d_dedicated_reference_stadium_mesh' : 'pitch_3d_professional_blender_stadium_mesh' });
 						                  try {
 						                    const meshName = safeText(node?.name || '').toUpperCase();
 						                    const materialName = Array.isArray(node.material)
@@ -14699,6 +14739,7 @@
 							      pitch3dTrailsEnabled = pitch3dLayerTrailsInput ? !!pitch3dLayerTrailsInput.checked : pitch3dTrailsEnabled;
 							      pitch3dDrawablesEnabled = pitch3dLayerDrawInput ? !!pitch3dLayerDrawInput.checked : pitch3dDrawablesEnabled;
 							      try { syncPitch3dLayersUi(); } catch (e) { /* ignore */ }
+							      try { syncPitch3dInsertUi(); } catch (e) { /* ignore */ }
 							      try { syncPitch3dQualityUi(); } catch (e) { /* ignore */ }
 							      try { resizePitch3d(); } catch (e) { /* ignore */ }
 							      try { applyPitch3dLightingTheme(); } catch (e) { /* ignore */ }
@@ -14735,6 +14776,22 @@
 						        setStatus('PNG 3D exportado.');
 						      } catch (e) {
 						        setStatus('No se pudo exportar el PNG 3D.', true);
+						      }
+						    };
+
+						    const snapPitch3dTacticPng = () => {
+						      if (!pitch3dRenderer || !pitch3dCanvasEl) return;
+						      try {
+						        if (pitch3dCameraSelect) pitch3dCameraSelect.value = 'task_focus';
+						        const meters = pitchMetersForPreset(presetSelect?.value || 'full_pitch', pitch3dFormat);
+						        setCameraPreset('task_focus', meters.w, meters.h);
+						        try { resizePitch3d(); } catch (e) { /* ignore */ }
+						        try { pitch3dRenderer.render(pitch3dScene, pitch3dCamera); } catch (e) { /* ignore */ }
+						        const dataUrl = pitch3dCanvasEl.toDataURL('image/png');
+						        downloadDataUrl(dataUrl, `pizarra_3d_tactica_${Date.now()}.png`);
+						        setStatus('PNG táctico 3D exportado.');
+						      } catch (e) {
+						        setStatus('No se pudo exportar el PNG táctico 3D.', true);
 						      }
 						    };
 
@@ -15041,9 +15098,16 @@
 						      pitch3dFollowMode = safeText(pitch3dFollowSelect?.value, 'off');
 						      if (pitch3dFollowMode !== 'selected') pitch3dSelectedUid = '';
 						    });
-						    pitch3dInsertSelect?.addEventListener('change', () => {
+						    const syncPitch3dInsertUi = () => {
 						      const kind = safeText(pitch3dInsertSelect?.value);
+						      try { pitch3dModal?.classList?.toggle('is-inserting', !!kind); } catch (e) { /* ignore */ }
+						      try { pitch3dInsertSelect?.classList?.toggle('is-active', !!kind); } catch (e) { /* ignore */ }
+						      return kind;
+						    };
+						    pitch3dInsertSelect?.addEventListener('change', () => {
+						      const kind = syncPitch3dInsertUi();
 						      if (kind) setStatus(`Vista 3D: toca el campo para colocar ${RESOURCE_LABELS[kind] || 'el elemento'}.`);
+						      else setStatus('Vista 3D: modo selección.');
 						    });
 						    const onLayerToggle = () => {
 						      pitch3dGhostsEnabled = !!pitch3dLayerGhostsInput?.checked;
@@ -15077,6 +15141,7 @@
 						      updatePitch3dPlaybackButton();
 						    });
 						    pitch3dSnapBtn?.addEventListener('click', (ev) => { ev.preventDefault(); snapPitch3dPng(); });
+						    pitch3dSnapTacticBtn?.addEventListener('click', (ev) => { ev.preventDefault(); snapPitch3dTacticPng(); });
 						    pitch3dRecordBtn?.addEventListener('click', (ev) => { ev.preventDefault(); togglePitch3dRecord(); });
 						    pitch3dActionApplyBtn?.addEventListener('click', (ev) => { ev.preventDefault(); applyPitch3dSelectedAction(); });
 						    pitch3dPhaseSaveBtn?.addEventListener('click', (ev) => { ev.preventDefault(); savePitch3dCurrentPhase(false); });
@@ -15123,6 +15188,11 @@
 						      const ground = pitch3dGroundPointFromClient(clientX, clientY);
 						      if (!ground) return null;
 						      const meters = pitchMetersForPreset(presetSelect?.value || 'full_pitch', pitch3dFormat);
+						      const margin = 1.5;
+						      if (
+						        Math.abs(Number(ground.x) || 0) > ((Number(meters.w) || 105) / 2) + margin
+						        || Math.abs(Number(ground.z) || 0) > ((Number(meters.h) || 68) / 2) + margin
+						      ) return null;
 						      const { w, h } = worldSize();
 						      return mapPitchTo2d(
 						        ground.x,
