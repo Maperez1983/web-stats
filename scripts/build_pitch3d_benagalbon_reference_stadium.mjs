@@ -50,9 +50,9 @@ const mats = {
   seatShadow: new THREE.MeshStandardMaterial({ name: 'REF_SEAT_ROW_CONTACT_SHADOW', color: 0x01251d, roughness: 0.88, metalness: 0.0 }),
   lightPool: new THREE.MeshBasicMaterial({ name: 'REF_WARM_FLOODLIGHT_POOL_ON_TURF', color: 0xffe6a4, transparent: true, opacity: 0.16, toneMapped: false }),
   glass: new THREE.MeshPhysicalMaterial({ name: 'REF_CLEAR_DUGOUT_GLASS', color: 0xc7efff, roughness: 0.08, metalness: 0.02, transparent: true, opacity: 0.34, transmission: 0.18, side: THREE.DoubleSide }),
-  led: new THREE.MeshStandardMaterial({ name: 'REF_GREEN_LED_BOARD_FACE', color: 0x063b2f, roughness: 0.24, metalness: 0.04, emissive: 0x063b2f, emissiveIntensity: 0.20 }),
+  led: new THREE.MeshStandardMaterial({ name: 'REF_GREEN_LED_BOARD_FACE', color: 0x0b5f45, roughness: 0.24, metalness: 0.04, emissive: 0x063b2f, emissiveIntensity: 0.18 }),
   light: new THREE.MeshBasicMaterial({ name: 'REF_WARM_FLOODLIGHT_LINE', color: 0xfff3ca, toneMapped: false }),
-  black: new THREE.MeshStandardMaterial({ name: 'REF_DEEP_RECESSES', color: 0x030712, roughness: 0.94, metalness: 0.01 }),
+  black: new THREE.MeshStandardMaterial({ name: 'REF_DEEP_RECESSES', color: 0x18211d, roughness: 0.94, metalness: 0.01 }),
   mesh: new THREE.MeshStandardMaterial({ name: 'REF_FINE_STADIUM_MESH', color: 0xaeb8b5, roughness: 0.48, metalness: 0.32 }),
   orange: new THREE.MeshStandardMaterial({ name: 'REF_TOUCHLINE_EQUIPMENT_ORANGE', color: 0xf97316, roughness: 0.72, metalness: 0.01 }),
   grassFiber: new THREE.MeshStandardMaterial({ name: 'REF_GRASS_FINE_FIBER_HIGHLIGHT', color: 0x7ab847, roughness: 0.95, metalness: 0.0 }),
@@ -484,11 +484,10 @@ const addReferenceBackdrop = () => {
   tri('reference_mountain_left', mats.mountain, [[-76, 3.6], [-32, 14.4], [8, 3.6]], 74.4);
   tri('reference_mountain_center', mats.mountain, [[-10, 3.4], [30, 13.2], [68, 3.4]], 74.35);
   tri('reference_mountain_right', mats.mountain, [[38, 3.1], [72, 10.4], [94, 3.1]], 74.3);
-  for (let i = -11; i <= 11; i += 1) {
-    const h = 1.3 + ((i * i + 5) % 7) * 0.42;
-    const x = i * 5.2;
-    box(`reference_city_block_${i}`, mats.city, [x, 1.2 + h / 2, 73.2], [3.7, h, 0.38]);
-    if (i % 3 === 0) box(`reference_city_green_roof_${i}`, mats.greenDark, [x, 1.2 + h + 0.13, 72.96], [3.8, 0.20, 0.32]);
+  for (let i = -9; i <= 9; i += 1) {
+    const h = 0.7 + ((i * i + 3) % 5) * 0.22;
+    const x = i * 6.2;
+    box(`reference_low_city_hint_${i}`, mats.city, [x, 0.72 + h / 2, 73.2], [4.4, h, 0.26]);
   }
   box('reference_outer_service_road', mats.concreteLine, [0, 0.10, 67.8], [132.0, 0.04, 1.6]);
 };
