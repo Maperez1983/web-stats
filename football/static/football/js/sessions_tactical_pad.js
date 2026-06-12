@@ -11669,6 +11669,7 @@
 						                  const kind = safeText(node?.userData?.kind || '');
 						                  return kind === 'pitch_3d_from_scratch_reference_stadium'
 						                    || kind === 'pitch_3d_ad_board'
+						                    || kind === 'pitch_3d_dugout'
 						                    || kind.startsWith('pitch_3d_ref_')
 						                    || kind.startsWith('pitch_3d_green_runoff_');
 						                });
@@ -11739,32 +11740,29 @@
 						                const primary = parseColorToHex(primaryHex, '#047857') || '#047857';
 						                const tex = makePitch3dCanvasTexture((ctx, c) => {
 						                  const bg = ctx.createLinearGradient(0, 0, c.width, 0);
-						                  bg.addColorStop(0.00, '#020617');
-						                  bg.addColorStop(0.18, accent);
-						                  bg.addColorStop(0.52, primary);
-						                  bg.addColorStop(0.82, accent);
-						                  bg.addColorStop(1.00, '#020617');
+						                  bg.addColorStop(0.00, '#03251d');
+						                  bg.addColorStop(0.22, accent);
+						                  bg.addColorStop(0.54, primary);
+						                  bg.addColorStop(0.84, accent);
+						                  bg.addColorStop(1.00, '#03251d');
 						                  ctx.fillStyle = bg;
 						                  ctx.fillRect(0, 0, c.width, c.height);
-						                  ctx.fillStyle = 'rgba(255,255,255,0.12)';
-						                  for (let x = -80; x < c.width + 80; x += 120) {
-						                    ctx.save();
-						                    ctx.translate(x, c.height * 0.5);
-						                    ctx.rotate(-0.22);
-						                    ctx.fillRect(-10, -c.height, 18, c.height * 2);
-						                    ctx.restore();
-						                  }
-						                  ctx.strokeStyle = 'rgba(226,232,240,0.58)';
-						                  ctx.lineWidth = 10;
-						                  ctx.strokeRect(18, 18, c.width - 36, c.height - 36);
+						                  ctx.fillStyle = 'rgba(255,255,255,0.10)';
+						                  for (let x = 0; x < c.width; x += 112) ctx.fillRect(x, 0, 2, c.height);
+						                  ctx.strokeStyle = 'rgba(226,232,240,0.42)';
+						                  ctx.lineWidth = 8;
+						                  ctx.strokeRect(14, 14, c.width - 28, c.height - 28);
 						                  ctx.fillStyle = '#f8fafc';
-						                  ctx.font = '900 92px Arial, sans-serif';
+						                  ctx.font = '900 76px Arial, sans-serif';
 						                  ctx.textAlign = 'center';
 						                  ctx.textBaseline = 'middle';
-						                  ctx.fillText(label, c.width / 2, c.height * 0.48);
-						                  ctx.fillStyle = '#bbf7d0';
-						                  ctx.font = '800 34px Arial, sans-serif';
-						                  ctx.fillText('FOOTBALL INTELLIGENCE', c.width / 2, c.height * 0.78);
+						                  const words = ['PARTNER', label, 'CAMPO MUNICIPAL', 'SPONSOR', 'FOOTBALL INTELLIGENCE'];
+						                  words.forEach((word, idx) => {
+						                    ctx.fillText(word, 140 + idx * 285, c.height * 0.50);
+						                  });
+						                  ctx.fillStyle = 'rgba(248,250,252,0.82)';
+						                  ctx.font = '800 26px Arial, sans-serif';
+						                  ctx.fillText('MATCHDAY 3D', c.width / 2, c.height * 0.78);
 						                }, 1400, 420);
 						                cached = new THREE.MeshStandardMaterial({
 						                  map: tex?.tex || null,
@@ -11909,6 +11907,8 @@
 						                const paintMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc, transparent: true, opacity: 0.66, depthWrite: false });
 						                const turfLightMat = new THREE.MeshBasicMaterial({ color: 0x4ade80, transparent: true, opacity: 0.13, depthWrite: false });
 						                const turfDarkMat = new THREE.MeshBasicMaterial({ color: 0x064e3b, transparent: true, opacity: 0.11, depthWrite: false });
+						                const skylineMat = new THREE.MeshBasicMaterial({ color: 0x9bb4c7, transparent: true, opacity: 0.34, depthWrite: false });
+						                const mountainMat = new THREE.MeshBasicMaterial({ color: 0x78909c, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide });
 						                const addBox = (geo, mat, x, y, z, rx = 0, ry = 0, rz = 0, kind = 'pitch_3d_stadium_realism_detail') => {
 						                  const mesh = new THREE.Mesh(geo, mat);
 						                  mesh.position.set(x, y, z);
@@ -11931,6 +11931,39 @@
 						                addShadow(0, -(metersH / 2 + 11.0), metersW + 62.0, 20.0, 0.18);
 						                addShadow(metersW / 2 + 11.0, 0, 20.0, metersH + 52.0, 0.14);
 						                addShadow(-(metersW / 2 + 11.0), 0, 20.0, metersH + 52.0, 0.14);
+						                const makeCrestMaterial = () => {
+						                  const c = document.createElement('canvas');
+						                  c.width = 512;
+						                  c.height = 512;
+						                  const ctx = c.getContext('2d');
+						                  const clubName = safeText(tokenTeamName || form?.dataset?.stadiumClubName || 'CDB', 'CDB');
+						                  const club = /BENAGALB[OÓ]N/i.test(clubName) ? 'CDB' : clubName.slice(0, 3).toUpperCase();
+						                  ctx.clearRect(0, 0, c.width, c.height);
+						                  ctx.fillStyle = '#f8fafc';
+						                  ctx.beginPath();
+						                  ctx.arc(256, 256, 220, 0, Math.PI * 2);
+						                  ctx.fill();
+						                  ctx.strokeStyle = parseColorToHex(primaryHex, '#047857') || '#047857';
+						                  ctx.lineWidth = 30;
+						                  ctx.stroke();
+						                  ctx.strokeStyle = '#0f3b2f';
+						                  ctx.lineWidth = 10;
+						                  ctx.beginPath();
+						                  ctx.arc(256, 256, 164, 0, Math.PI * 2);
+						                  ctx.stroke();
+						                  ctx.fillStyle = parseColorToHex(primaryHex, '#047857') || '#047857';
+						                  ctx.font = '900 118px Arial, sans-serif';
+						                  ctx.textAlign = 'center';
+						                  ctx.textBaseline = 'middle';
+						                  ctx.fillText(club, 256, 252);
+						                  ctx.fillStyle = '#0f3b2f';
+						                  ctx.font = '800 34px Arial, sans-serif';
+						                  ctx.fillText('CD', 256, 340);
+						                  const tex = new THREE.CanvasTexture(c);
+						                  tex.needsUpdate = true;
+						                  return new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false, side: THREE.DoubleSide });
+						                };
+						                const crestMat = makeCrestMaterial();
 						                const railGlowMat = new THREE.MeshBasicMaterial({ color: 0xe0f2fe, transparent: true, opacity: 0.36, toneMapped: false, depthWrite: false });
 						                [
 						                  [0, metersH / 2 + 25.6, metersW + 48.0, 0.10],
@@ -11957,6 +11990,27 @@
 						                  addBox(roofPanelEnd, tintMat, metersW / 2 + 31.4, 16.32, z, 0, 0.075, 0, 'pitch_3d_stadium_translucent_roof_panel_east');
 						                  addBox(roofPanelEnd, tintMat, -(metersW / 2 + 31.4), 16.32, z, 0, -0.075, 0, 'pitch_3d_stadium_translucent_roof_panel_west');
 						                }
+						                const addReferenceRoofEaves = () => {
+						                  const eaveMat = new THREE.MeshStandardMaterial({ color: 0xe9efec, roughness: 0.42, metalness: 0.20 });
+						                  const undersideMat = new THREE.MeshStandardMaterial({ color: 0x9aa7a3, roughness: 0.66, metalness: 0.08 });
+						                  const lightBarMat = new THREE.MeshBasicMaterial({ color: 0xfff4d0, transparent: true, opacity: 0.84, toneMapped: false });
+						                  [
+						                    [0, metersH / 2 + 33.9, metersW + 66.0, 3.2, -0.045],
+						                    [0, -(metersH / 2 + 33.9), metersW + 66.0, 3.2, 0.045],
+						                  ].forEach(([x, z, w, d, rx]) => {
+						                    addBox(new THREE.BoxGeometry(w, 0.18, d), eaveMat, x, 16.96, z, rx, 0, 0, 'pitch_3d_reference_long_thin_roof_eave');
+						                    addBox(new THREE.BoxGeometry(w - 7.0, 0.08, 1.0), undersideMat, x, 16.52, z - Math.sign(z) * 1.35, rx, 0, 0, 'pitch_3d_reference_roof_dark_under_soffit');
+						                    addBox(new THREE.BoxGeometry(w - 8.0, 0.09, 0.18), lightBarMat, x, 16.18, z - Math.sign(z) * 2.02, rx, 0, 0, 'pitch_3d_reference_continuous_floodlight_strip');
+						                  });
+						                  [
+						                    [metersW / 2 + 33.9, 0, 3.2, metersH + 58.0, 0.045],
+						                    [-(metersW / 2 + 33.9), 0, 3.2, metersH + 58.0, -0.045],
+						                  ].forEach(([x, z, w, d, ry]) => {
+						                    addBox(new THREE.BoxGeometry(w, 0.18, d), eaveMat, x, 16.96, z, 0, ry, 0, 'pitch_3d_reference_end_thin_roof_eave');
+						                    addBox(new THREE.BoxGeometry(0.18, 0.09, d - 7.0), lightBarMat, x - Math.sign(x) * 2.02, 16.18, z, 0, ry, 0, 'pitch_3d_reference_end_floodlight_strip');
+						                  });
+						                };
+						                addReferenceRoofEaves();
 						                const addProfessionalRoofTrusses = () => {
 						                  const trussMat = new THREE.MeshStandardMaterial({ color: 0xd9e2df, roughness: 0.32, metalness: 0.46 });
 						                  const cableMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.40, metalness: 0.38 });
@@ -11966,6 +12020,8 @@
 						                    const x = i * ((metersW + 48.0) / 14);
 						                    addBox(beamLong, trussMat, x, 15.72, metersH / 2 + 26.6, -0.42, 0, 0, 'pitch_3d_stadium_professional_roof_truss_north');
 						                    addBox(beamLong, trussMat, x, 15.72, -(metersH / 2 + 26.6), 0.42, 0, 0, 'pitch_3d_stadium_professional_roof_truss_south');
+						                    addBox(new THREE.BoxGeometry(0.16, 0.16, 7.6), trussMat, x + 0.34, 15.06, metersH / 2 + 27.1, -0.82, 0, 0.28, 'pitch_3d_reference_roof_diagonal_web_member');
+						                    addBox(new THREE.BoxGeometry(0.16, 0.16, 7.6), trussMat, x - 0.34, 15.06, metersH / 2 + 27.1, 0.82, 0, -0.28, 'pitch_3d_reference_roof_diagonal_web_member');
 						                    if (i % 2 === 0) {
 						                      addBox(new THREE.BoxGeometry(0.08, 5.2, 0.08), cableMat, x, 13.10, metersH / 2 + 23.8, -0.28, 0, 0, 'pitch_3d_stadium_roof_suspension_cable');
 						                      addBox(new THREE.BoxGeometry(0.08, 5.2, 0.08), cableMat, x, 13.10, -(metersH / 2 + 23.8), 0.28, 0, 0, 'pitch_3d_stadium_roof_suspension_cable');
@@ -12013,6 +12069,52 @@
 						                };
 						                addTechnicalBox(-9.0, -(metersH / 2 + 4.9), 'home');
 						                addTechnicalBox(9.0, -(metersH / 2 + 4.9), 'away');
+						                const addReferenceDugouts = () => {
+						                  const dugoutSeatMat = new THREE.MeshStandardMaterial({ color: primaryInt, roughness: 0.48, metalness: 0.02 });
+						                  const shellMat = new THREE.MeshStandardMaterial({ color: 0xd6dedb, roughness: 0.36, metalness: 0.22 });
+						                  [-20.5, 0, 20.5].forEach((x, idx) => {
+						                    const z = -(metersH / 2 + 5.75);
+						                    const g = new THREE.Group();
+						                    g.position.set(x, 0, z);
+						                    g.userData = { kind: 'pitch_3d_reference_curved_clear_dugout' };
+						                    const base = new THREE.Mesh(new THREE.BoxGeometry(13.8, 0.16, 2.1), darkMetalMat);
+						                    base.position.set(0, 0.18, 0);
+						                    g.add(base);
+						                    for (let r = 0; r < 6; r += 1) {
+						                      const t = r / 5;
+						                      const panel = new THREE.Mesh(new THREE.BoxGeometry(13.2, 0.055, 0.46), glassMat);
+						                      panel.position.set(0, 0.95 + Math.sin(t * Math.PI * 0.58) * 1.12, -0.82 + t * 1.48);
+						                      panel.rotation.x = -0.48 + t * 0.28;
+						                      panel.userData = { kind: 'pitch_3d_reference_dugout_curved_glass_panel' };
+						                      g.add(panel);
+						                    }
+						                    [-6.4, 6.4].forEach((sx) => {
+						                      const side = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.82, 1.86), glassMat);
+						                      side.position.set(sx, 1.04, -0.04);
+						                      side.rotation.x = -0.08;
+						                      side.userData = { kind: 'pitch_3d_reference_dugout_side_glass' };
+						                      g.add(side);
+						                    });
+						                    for (let s = 0; s < 8; s += 1) {
+						                      const sx = -4.85 + s * 1.38;
+						                      const seat = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.18, 0.58), dugoutSeatMat);
+						                      seat.position.set(sx, 0.62, 0.20);
+						                      seat.userData = { kind: 'pitch_3d_reference_dugout_individual_seat' };
+						                      const back = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.72, 0.12), dugoutSeatMat);
+						                      back.position.set(sx, 0.98, 0.52);
+						                      back.rotation.x = -0.22;
+						                      back.userData = { kind: 'pitch_3d_reference_dugout_individual_back' };
+						                      g.add(seat, back);
+						                    }
+						                    const spine = new THREE.Mesh(new THREE.BoxGeometry(13.6, 0.10, 0.16), shellMat);
+						                    spine.position.set(0, 2.30, 0.12);
+						                    spine.userData = { kind: 'pitch_3d_reference_dugout_roof_spine' };
+						                    g.add(spine);
+						                    if (idx === 1) g.scale.set(0.72, 0.96, 0.92);
+						                    atmosphere.add(g);
+						                  });
+						                };
+						                addReferenceDugouts();
 						                const sprinklerMat = new THREE.MeshStandardMaterial({ color: 0xb7c6c2, roughness: 0.42, metalness: 0.24 });
 						                const waterMat = new THREE.MeshBasicMaterial({ color: 0xbfefff, transparent: true, opacity: 0.22, depthWrite: false, toneMapped: false });
 						                [
@@ -12045,7 +12147,7 @@
 						                  atmosphere.add(sign);
 						                });
 						                const addPitchCarePattern = () => {
-						                  const stripeCount = 12;
+						                  const stripeCount = 16;
 						                  const stripeW = metersW / stripeCount;
 						                  for (let i = 0; i < stripeCount; i += 1) {
 						                    const mat = i % 2 === 0 ? turfLightMat : turfDarkMat;
@@ -12062,6 +12164,13 @@
 						                    fiber.userData = { kind: 'pitch_3d_stadium_hybrid_turf_fiber_direction' };
 						                    atmosphere.add(fiber);
 						                  }
+						                  for (let i = -7; i <= 7; i += 1) {
+						                    const blade = new THREE.Mesh(new THREE.BoxGeometry(metersW * 0.92, 0.010, 0.018), i % 2 ? turfDarkMat : turfLightMat);
+						                    blade.position.set(0, 0.159 + Math.abs(i) * 0.0002, i * (metersH / 15));
+						                    blade.rotation.y = i % 2 ? -0.025 : 0.025;
+						                    blade.userData = { kind: 'pitch_3d_reference_fine_grass_blade_direction' };
+						                    atmosphere.add(blade);
+						                  }
 						                };
 						                addPitchCarePattern();
 						                const addInstancedSeatBowl = () => {
@@ -12071,8 +12180,8 @@
 						                    const seatBaseGeo = new THREE.BoxGeometry(0.46, 0.12, 0.38);
 						                    const seatBackGeo = new THREE.BoxGeometry(0.46, 0.34, 0.08);
 						                    const railGeo = new THREE.BoxGeometry(0.05, 0.78, 0.05);
-						                    const maxSeats = 2200;
-						                    const maxRails = 210;
+						                    const maxSeats = 4200;
+						                    const maxRails = 320;
 						                    const seatBase = new THREE.InstancedMesh(seatBaseGeo, seatAccentMat, maxSeats);
 						                    const seatBack = new THREE.InstancedMesh(seatBackGeo, seatShadowMat, maxSeats);
 						                    const aisleRails = new THREE.InstancedMesh(railGeo, metalMat, maxRails);
@@ -12159,10 +12268,10 @@
 						                        });
 						                      }
 						                    };
-						                    addStandSeats({ axis: 'z', sign: 1, rows: 13, cols: 42, span: metersW + 42.0, fixed: metersH / 2 + 10.6, baseY: 3.12, rowDepth: 0.62, rowRise: 0.30 });
-						                    addStandSeats({ axis: 'z', sign: -1, rows: 13, cols: 42, span: metersW + 42.0, fixed: -(metersH / 2 + 10.6), baseY: 3.12, rowDepth: 0.62, rowRise: 0.30 });
-						                    addStandSeats({ axis: 'x', sign: 1, rows: 11, cols: 34, span: metersH + 34.0, fixed: metersW / 2 + 10.4, baseY: 3.28, rowDepth: 0.60, rowRise: 0.30 });
-						                    addStandSeats({ axis: 'x', sign: -1, rows: 11, cols: 34, span: metersH + 34.0, fixed: -(metersW / 2 + 10.4), baseY: 3.28, rowDepth: 0.60, rowRise: 0.30 });
+						                    addStandSeats({ axis: 'z', sign: 1, rows: 16, cols: 62, span: metersW + 44.0, fixed: metersH / 2 + 10.2, baseY: 3.02, rowDepth: 0.58, rowRise: 0.29 });
+						                    addStandSeats({ axis: 'z', sign: -1, rows: 16, cols: 62, span: metersW + 44.0, fixed: -(metersH / 2 + 10.2), baseY: 3.02, rowDepth: 0.58, rowRise: 0.29 });
+						                    addStandSeats({ axis: 'x', sign: 1, rows: 14, cols: 46, span: metersH + 34.0, fixed: metersW / 2 + 10.2, baseY: 3.16, rowDepth: 0.58, rowRise: 0.29 });
+						                    addStandSeats({ axis: 'x', sign: -1, rows: 14, cols: 46, span: metersH + 34.0, fixed: -(metersW / 2 + 10.2), baseY: 3.16, rowDepth: 0.58, rowRise: 0.29 });
 						                    [seatBase, seatBack, aisleRails].forEach((mesh) => {
 						                      mesh.instanceMatrix.needsUpdate = true;
 						                      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
@@ -12174,6 +12283,15 @@
 						                  }
 						                };
 						                addInstancedSeatBowl();
+						                const addMainStandCrest = () => {
+						                  const crest = new THREE.Mesh(new THREE.CircleGeometry(3.6, 96), crestMat);
+						                  crest.position.set(0, 8.25, metersH / 2 + 11.45);
+						                  crest.rotation.y = Math.PI;
+						                  crest.userData = { kind: 'pitch_3d_reference_main_stand_round_crest' };
+						                  atmosphere.add(crest);
+						                  addBox(new THREE.TorusGeometry(3.72, 0.055, 10, 96), metalMat, 0, 8.25, metersH / 2 + 11.42, 0, Math.PI, 0, 'pitch_3d_reference_main_stand_crest_metal_ring');
+						                };
+						                addMainStandCrest();
 						                const addPerimeterBoards = () => {
 						                  const adMat = makeStadiumBoardMaterial().clone();
 						                  adMat.emissiveIntensity = 0.42;
@@ -12189,6 +12307,13 @@
 						                    addBox(new THREE.BoxGeometry(w, 0.64, d + 0.018), adMat, x, y + 0.04, z, 0, 0, 0, 'pitch_3d_stadium_single_green_advertising_board');
 						                    addBox(new THREE.BoxGeometry(w, 0.055, d + 0.10), metalMat, x, y + 0.48, z, 0, 0, 0, 'pitch_3d_stadium_single_board_top_rail');
 						                    addBox(new THREE.BoxGeometry(w, 0.055, d + 0.10), metalMat, x, y - 0.48, z, 0, 0, 0, 'pitch_3d_stadium_single_board_bottom_rail');
+						                    const posts = Math.max(4, Math.floor((w + d) / 12));
+						                    for (let i = 0; i <= posts; i += 1) {
+						                      const t = posts <= 0 ? 0 : (i / posts) - 0.5;
+						                      const px = d > w ? x : x + t * w;
+						                      const pz = d > w ? z + t * d : z;
+						                      addBox(new THREE.BoxGeometry(0.08, 0.92, 0.08), metalMat, px, 0.78, pz, 0, 0, 0, 'pitch_3d_reference_board_support_post');
+						                    }
 						                  });
 						                };
 						                addPerimeterBoards();
@@ -12296,6 +12421,13 @@
 						                };
 						                addTurfWearAndDepth();
 						                const addRealLightInfluence = () => {
+						                  const sun = new THREE.DirectionalLight(0xfff1cf, 0.52);
+						                  sun.position.set(-metersW * 0.65, 34.0, -metersH * 0.85);
+						                  sun.target.position.set(0, 0.2, 0);
+						                  sun.userData = { kind: 'pitch_3d_reference_sunlight_warm_directional' };
+						                  sun.target.userData = { kind: 'pitch_3d_reference_sunlight_target' };
+						                  atmosphere.add(sun);
+						                  atmosphere.add(sun.target);
 						                  [
 						                    [-(metersW / 2 + 25.0), 18.0, -(metersH / 2 + 25.0)],
 						                    [(metersW / 2 + 25.0), 18.0, -(metersH / 2 + 25.0)],
@@ -12372,6 +12504,17 @@
 						                  ].forEach(([x, z]) => {
 						                    addBox(new THREE.CylinderGeometry(0.28, 0.34, 8.6, 18), concreteMat, x, 4.34, z, 0, 0, 0, 'pitch_3d_stadium_exposed_corner_column');
 						                  });
+						                  const horizonZ = metersH / 2 + 58.0;
+						                  const mountain = new THREE.Mesh(new THREE.PlaneGeometry(metersW + 120.0, 18.0), mountainMat);
+						                  mountain.position.set(0, 11.0, horizonZ + 5.0);
+						                  mountain.rotation.y = Math.PI;
+						                  mountain.userData = { kind: 'pitch_3d_reference_soft_mountain_horizon' };
+						                  atmosphere.add(mountain);
+						                  for (let i = -12; i <= 12; i += 1) {
+						                    const h = 2.8 + ((i * i) % 7) * 0.62;
+						                    const w = 2.2 + (Math.abs(i) % 4) * 0.52;
+						                    addBox(new THREE.BoxGeometry(w, h, 0.42), skylineMat, i * 5.6, h / 2, horizonZ, 0, 0, 0, 'pitch_3d_reference_distant_city_skyline_block');
+						                  }
 						                };
 						                addExteriorApproachDetail();
 						                target.add(atmosphere);
