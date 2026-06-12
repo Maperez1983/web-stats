@@ -11871,7 +11871,7 @@
 						                });
 						              } catch (e) { /* ignore */ }
 						            };
-						            const addProfessionalStadiumAtmosphere = (target) => {
+						            const addProfessionalStadiumAtmosphere = (target, options = {}) => {
 						              try {
 						                const atmosphere = new THREE.Group();
 						                atmosphere.userData = { kind: 'pitch_3d_professional_blender_stadium_atmosphere' };
@@ -11927,6 +11927,16 @@
 						                  mesh.userData = { kind: 'pitch_3d_stadium_contact_shadow' };
 						                  atmosphere.add(mesh);
 						                };
+						                if (options.dedicatedReference) {
+						                  const sun = new THREE.DirectionalLight(0xfff1cf, 0.58);
+						                  sun.position.set(-metersW * 0.65, 34.0, -metersH * 0.85);
+						                  sun.target.position.set(0, 0.2, 0);
+						                  sun.userData = { kind: 'pitch_3d_reference_dedicated_model_sunlight' };
+						                  atmosphere.add(sun);
+						                  atmosphere.add(sun.target);
+						                  target.add(atmosphere);
+						                  return;
+						                }
 						                addShadow(0, metersH / 2 + 11.0, metersW + 62.0, 20.0, 0.16);
 						                addShadow(0, -(metersH / 2 + 11.0), metersW + 62.0, 20.0, 0.18);
 						                addShadow(metersW / 2 + 11.0, 0, 20.0, metersH + 52.0, 0.14);
@@ -12702,6 +12712,8 @@
 						              try {
 						                const asset = __pitch3dStadiumModelCache.scene || __pitch3dLoadStadiumModel();
 						                if (!asset) return false;
+						                const stadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
+						                const isDedicatedReferenceStadium = /stadium_benagalbon_reference\.glb/i.test(stadiumModelSrc);
 						                removeProceduralStadiumParts();
 						                const stadiumAsset = asset.clone(true);
 						                stadiumAsset.name = 'stadium_bowl_premium_asset';
@@ -12722,7 +12734,7 @@
 						                    const materialName = Array.isArray(node.material)
 						                      ? node.material.map((m) => safeText(m?.name)).join(' ').toUpperCase()
 						                      : safeText(node.material?.name).toUpperCase();
-						                    if (meshName.includes('SEAT') || materialName.includes('SEAT') || meshName.includes('TEAM_PRIMARY') || materialName.includes('TEAM_PRIMARY')) {
+						                    if (!isDedicatedReferenceStadium && (meshName.includes('SEAT') || materialName.includes('SEAT') || meshName.includes('TEAM_PRIMARY') || materialName.includes('TEAM_PRIMARY'))) {
 						                      node.visible = false;
 						                      node.userData.replaced_by_instanced_professional_seating = true;
 						                    }
@@ -12731,7 +12743,7 @@
 						                });
 						                enhanceProfessionalStadiumAsset(stadiumAsset);
 						                root.add(stadiumAsset);
-						                addProfessionalStadiumAtmosphere(stadiumAsset);
+						                addProfessionalStadiumAtmosphere(stadiumAsset, { dedicatedReference: isDedicatedReferenceStadium });
 						                return true;
 						              } catch (e) {
 						                return false;
