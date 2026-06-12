@@ -1,6 +1,7 @@
 (() => {
   const safeText = (value, fallback = '') => String(value ?? '').trim() || fallback;
   const helpModeKey = 'webstats:help_mode:enabled';
+  const demoModeKey = 'webstats:demo_mode:enabled';
   const isNativeApp = () => {
     try {
       if (window.Capacitor && typeof window.Capacitor.getPlatform === 'function') {
@@ -120,6 +121,20 @@
       .ws-help-target{outline:2px solid rgba(34,211,238,.72)!important;outline-offset:3px!important;box-shadow:0 0 0 4px rgba(34,211,238,.12)!important}
       .ws-help-toggle-active{border-color:rgba(34,211,238,.64)!important;background:rgba(34,211,238,.18)!important;color:#ecfeff!important}
       .ws-help-toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:10001;max-width:min(520px,calc(100vw - 24px));border:1px solid rgba(34,211,238,.36);background:rgba(8,15,28,.96);color:#f8fafc;border-radius:14px;padding:10px 12px;box-shadow:0 16px 40px rgba(0,0,0,.36);font:800 13px/1.3 var(--prod-font-ui,system-ui,sans-serif)}
+      .ws-demo-toggle-active{border-color:rgba(251,191,36,.72)!important;background:rgba(251,191,36,.18)!important;color:#fffbeb!important}
+      .ws-demo-banner{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:10002;max-width:min(680px,calc(100vw - 24px));display:flex;gap:10px;align-items:center;border:1px solid rgba(251,191,36,.48);background:rgba(24,18,5,.96);color:#fffbeb;border-radius:14px;padding:10px 12px;box-shadow:0 18px 44px rgba(0,0,0,.38);font:850 13px/1.25 var(--prod-font-ui,system-ui,sans-serif)}
+      .ws-demo-banner button{border:1px solid rgba(251,191,36,.55);background:rgba(251,191,36,.14);color:#fffbeb;border-radius:999px;padding:6px 10px;font:900 12px/1 var(--prod-font-ui,system-ui,sans-serif);cursor:pointer}
+      .ws-demo-dialog{position:fixed;inset:0;z-index:10003;display:grid;place-items:center;padding:18px;background:rgba(2,6,23,.5)}
+      .ws-demo-card{width:min(460px,calc(100vw - 28px));border:1px solid rgba(251,191,36,.45);background:rgba(8,15,28,.98);color:#f8fafc;border-radius:16px;box-shadow:0 24px 64px rgba(0,0,0,.46);overflow:hidden;font-family:var(--prod-font-ui,system-ui,sans-serif)}
+      .ws-demo-card__head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;padding:14px 16px 10px;border-bottom:1px solid rgba(148,163,184,.18)}
+      .ws-demo-card__eyebrow{color:#fde68a;font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.08em}
+      .ws-demo-card__title{margin-top:4px;font-size:16px;font-weight:950;line-height:1.2;overflow-wrap:anywhere}
+      .ws-demo-card__close{border:0;background:transparent;color:#e5e7eb;font-weight:950;font-size:18px;line-height:1;cursor:pointer;padding:3px 6px}
+      .ws-demo-card__body{padding:14px 16px 6px;font-size:14px;font-weight:760;line-height:1.4}
+      .ws-demo-card__note{margin-top:10px;color:#cbd5e1;font-size:12px;font-weight:720}
+      .ws-demo-card__actions{display:flex;justify-content:flex-end;gap:8px;padding:12px 16px 16px}
+      .ws-demo-card__actions button{border:1px solid rgba(148,163,184,.28);background:rgba(15,23,42,.78);color:#f8fafc;border-radius:10px;padding:8px 11px;font:900 13px/1 var(--prod-font-ui,system-ui,sans-serif);cursor:pointer}
+      .ws-demo-card__actions button[data-ws-demo-exit]{border-color:rgba(251,191,36,.48);background:rgba(251,191,36,.14);color:#fffbeb}
       @media (max-width:720px){.ws-help-chip{font-size:11px;max-width:min(240px,calc(100vw - 20px));padding:6px 8px}.ws-help-chip__mark{width:16px;height:16px}}
     `.trim();
     document.head.appendChild(style);
@@ -135,7 +150,7 @@
 
   const isVisible = (el) => {
     if (!el || !el.getBoundingClientRect) return false;
-    if (el.closest('.ws-help-layer,.ws-help-toast,.ui-tour-root,.cmdk,.ws-modal')) return false;
+    if (el.closest('.ws-help-layer,.ws-help-toast,.ws-demo-banner,.ws-demo-dialog,.ui-tour-root,.cmdk,.ws-modal')) return false;
     if (el.hidden || el.getAttribute('aria-hidden') === 'true') return false;
     if (el.matches(':disabled,[disabled]')) return false;
     const style = window.getComputedStyle(el);
@@ -407,6 +422,199 @@
     window.WebstatsHelpMode = { set: setHelpMode, refresh: renderHelpLayer };
   };
 
+  const demoState = {
+    enabled: false,
+    dialog: null,
+    banner: null,
+    previousHelpEnabled: false,
+  };
+
+  const demoControlSelector = [
+    'button',
+    'a[href]',
+    'summary',
+    'select',
+    'input[type="button"]',
+    'input[type="submit"]',
+    'input[type="reset"]',
+    'input[type="checkbox"]',
+    'input[type="radio"]',
+    'input[type="file"]',
+    '[role="button"]',
+    '[data-help]',
+  ].join(',');
+
+  const setDemoButtons = (enabled) => {
+    document.querySelectorAll('[data-webstats-demo-mode-toggle],#webstats-demo-mode-toggle').forEach((btn) => {
+      btn.classList.toggle('ws-demo-toggle-active', enabled);
+      btn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+      if (btn.id === 'webstats-demo-mode-toggle') {
+        btn.textContent = enabled ? 'Salir demo' : 'Demo';
+        btn.setAttribute('aria-label', enabled ? 'Salir del modo muestra' : 'Activar modo muestra');
+      }
+    });
+  };
+
+  const closeDemoDialog = () => {
+    if (!demoState.dialog) return;
+    try { demoState.dialog.remove(); } catch (e) {}
+    demoState.dialog = null;
+  };
+
+  const demoActionText = (el) => {
+    const label = controlLabel(el) || 'este control';
+    const tag = el.tagName ? el.tagName.toLowerCase() : '';
+    const type = cleanLabel(el.getAttribute('type')).toLowerCase();
+    if (el.matches('a[href]')) return `En modo normal abriría: ${label}.`;
+    if (tag === 'select') return 'En modo normal cambiaría el contexto o aplicaría esta opción.';
+    if (type === 'submit') return 'En modo normal enviaría el formulario y guardaría o procesaría la información.';
+    if (type === 'checkbox' || type === 'radio') return 'En modo normal cambiaría esta selección.';
+    if (type === 'file') return 'En modo normal abriría el selector de archivos.';
+    if (el.matches('summary')) return 'En modo normal abriría o cerraría este menú.';
+    return 'En modo normal ejecutaría esta acción.';
+  };
+
+  const showDemoExplanation = (el) => {
+    ensureHelpModeStyles();
+    closeDemoDialog();
+    const title = controlLabel(el) || 'Control';
+    const body = explainControl(el);
+    const note = demoActionText(el);
+    const dialog = document.createElement('div');
+    dialog.className = 'ws-demo-dialog';
+    dialog.setAttribute('role', 'presentation');
+    dialog.innerHTML = `
+      <div class="ws-demo-card" role="dialog" aria-modal="true" aria-label="Modo muestra">
+        <div class="ws-demo-card__head">
+          <div>
+            <div class="ws-demo-card__eyebrow">Modo muestra</div>
+            <div class="ws-demo-card__title"></div>
+          </div>
+          <button type="button" class="ws-demo-card__close" data-ws-demo-close aria-label="Cerrar">×</button>
+        </div>
+        <div class="ws-demo-card__body">
+          <div class="ws-demo-card__text"></div>
+          <div class="ws-demo-card__note"></div>
+        </div>
+        <div class="ws-demo-card__actions">
+          <button type="button" data-ws-demo-close>Entendido</button>
+          <button type="button" data-ws-demo-exit>Salir demo</button>
+        </div>
+      </div>
+    `;
+    dialog.querySelector('.ws-demo-card__title').textContent = title;
+    dialog.querySelector('.ws-demo-card__text').textContent = body;
+    dialog.querySelector('.ws-demo-card__note').textContent = note;
+    dialog.querySelectorAll('[data-ws-demo-close]').forEach((btn) => {
+      btn.addEventListener('click', (event) => {
+        event.preventDefault();
+        closeDemoDialog();
+      });
+    });
+    dialog.querySelector('[data-ws-demo-exit]')?.addEventListener('click', (event) => {
+      event.preventDefault();
+      setDemoMode(false);
+    });
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) closeDemoDialog();
+    });
+    document.body.appendChild(dialog);
+    demoState.dialog = dialog;
+    dialog.querySelector('[data-ws-demo-close]')?.focus?.();
+  };
+
+  const showDemoBanner = () => {
+    ensureHelpModeStyles();
+    if (demoState.banner) return;
+    const banner = document.createElement('div');
+    banner.className = 'ws-demo-banner';
+    banner.innerHTML = '<span>Modo muestra activo: toca cualquier botón para ver qué hace. No se ejecutan acciones reales.</span><button type="button" data-ws-demo-exit>Salir</button>';
+    banner.querySelector('[data-ws-demo-exit]')?.addEventListener('click', (event) => {
+      event.preventDefault();
+      setDemoMode(false);
+    });
+    document.body.appendChild(banner);
+    demoState.banner = banner;
+  };
+
+  const hideDemoBanner = () => {
+    if (!demoState.banner) return;
+    try { demoState.banner.remove(); } catch (e) {}
+    demoState.banner = null;
+  };
+
+  const setDemoMode = (enabled, { persist = true, announce = true } = {}) => {
+    ensureHelpModeStyles();
+    demoState.enabled = !!enabled;
+    if (persist) {
+      try { window.localStorage?.setItem(demoModeKey, enabled ? '1' : '0'); } catch (e) {}
+    }
+    setDemoButtons(demoState.enabled);
+    document.documentElement.toggleAttribute('data-webstats-demo-mode', demoState.enabled);
+    if (demoState.enabled) {
+      demoState.previousHelpEnabled = helpState.enabled;
+      if (!helpState.enabled) setHelpMode(true, { persist: false, announce: false });
+      showDemoBanner();
+      if (announce) showHelpToast('Modo muestra activado. Las acciones quedan bloqueadas mientras aprendes.');
+    } else {
+      closeDemoDialog();
+      hideDemoBanner();
+      if (!demoState.previousHelpEnabled && helpState.enabled) setHelpMode(false, { persist: false, announce: false });
+      if (announce) showHelpToast('Modo muestra desactivado.');
+    }
+  };
+
+  const interceptDemoInteraction = (event) => {
+    if (!demoState.enabled) return;
+    const target = event.target;
+    if (!target || !target.closest) return;
+    if (target.closest('.ws-demo-banner,.ws-demo-dialog,.ws-help-layer,.ws-help-toast')) return;
+    if (target.closest('[data-webstats-demo-mode-toggle],#webstats-demo-mode-toggle,[data-webstats-help-mode-toggle],#webstats-help-mode-toggle')) return;
+    const control = target.closest(demoControlSelector);
+    if (!control || !isVisible(control)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+    showDemoExplanation(control);
+  };
+
+  const interceptDemoSubmit = (event) => {
+    if (!demoState.enabled) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+    const submitter = event.submitter && event.submitter.closest ? event.submitter : null;
+    showDemoExplanation(submitter || event.target);
+  };
+
+  const wireDemoMode = () => {
+    document.addEventListener('click', (event) => {
+      const btn = event.target?.closest?.('[data-webstats-demo-mode-toggle],#webstats-demo-mode-toggle');
+      if (!btn) return;
+      event.preventDefault();
+      setDemoMode(!demoState.enabled);
+    });
+    document.addEventListener('click', interceptDemoInteraction, true);
+    document.addEventListener('submit', interceptDemoSubmit, true);
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape' || !demoState.enabled) return;
+      if (demoState.dialog) {
+        event.preventDefault();
+        closeDemoDialog();
+        return;
+      }
+      setDemoMode(false);
+    });
+    let saved = '0';
+    try { saved = safeText(window.localStorage?.getItem(demoModeKey), '0'); } catch (e) {}
+    if (saved === '1') {
+      window.setTimeout(() => setDemoMode(true, { persist: false, announce: false }), 300);
+    } else {
+      setDemoButtons(false);
+    }
+    window.WebstatsDemoMode = { set: setDemoMode, show: showDemoExplanation };
+  };
+
   const wireHelpButtons = () => {
     const btn = document.getElementById('webstats-global-help');
     if (!btn) return;
@@ -439,6 +647,7 @@
   window.addEventListener('DOMContentLoaded', () => {
     wireHelpButtons();
     wireHelpMode();
+    wireDemoMode();
     autoStartOnce();
     // En iOS/Capacitor, `target=_blank` abre un webview sin navegación y el usuario puede quedar atrapado.
     // Interceptamos enlaces a PDFs y los abrimos en un visor con botón "Volver".

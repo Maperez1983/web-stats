@@ -152,6 +152,17 @@
     aria-pressed="false"
     style="padding:0.38rem 0.62rem; border-radius:999px; border:1px solid rgba(148,163,184,0.25); background:rgba(2,6,23,0.55); color:#e5e7eb; font-weight:900;"
   >?</button>
+  <button
+    type="button"
+    class="nav-command-btn"
+    id="webstats-demo-mode-toggle"
+    data-webstats-demo-mode-toggle
+    data-help="Activa el modo muestra: toca botones para ver qué harían sin ejecutar acciones reales."
+    title="Modo muestra"
+    aria-label="Activar modo muestra"
+    aria-pressed="false"
+    style="padding:0.38rem 0.68rem; border-radius:999px; border:1px solid rgba(148,163,184,0.25); background:rgba(2,6,23,0.55); color:#e5e7eb; font-weight:900;"
+  >Demo</button>
   {% with nav_path=request.path|default:'' nav_url_name=request.resolver_match.url_name|default:'' cdurl=club_dashboard_url|default:'' %}
   {# Orden tabs (staff): Entrenador → Entrenamiento → Partido → Jugador #}
   {% if can_access_staff|default:False %}
@@ -190,6 +201,7 @@
     <div class="nav-more-panel">
       <button class="nav-command-btn nav-command-btn--panel" type="button" id="webstats-global-help" title="Guía rápida (Alt: guía general)">Guía</button>
       <button class="nav-command-btn nav-command-btn--panel" type="button" data-webstats-help-mode-toggle data-help="Activa o desactiva las explicaciones breves de los botones visibles." title="Mostrar explicación de botones">Explicar botones</button>
+      <button class="nav-command-btn nav-command-btn--panel" type="button" data-webstats-demo-mode-toggle data-help="Activa modo muestra: puedes tocar botones para aprender sin navegar, guardar ni enviar cambios reales." title="Modo muestra">Modo muestra</button>
       <button class="nav-command-btn nav-command-btn--panel" type="button" id="webstats-theme-toggle" title="Cambiar tema (Oscuro/HC)"><span>Tema</span></button>
       <button class="nav-command-btn nav-command-btn--panel" type="button" id="webstats-density-toggle" title="Cambiar densidad (Normal/Compacta)"><span>Densidad</span></button>
       <button type="button" class="nav-command-btn nav-command-btn--panel" data-command-palette>Buscar / Ir a…</button>
