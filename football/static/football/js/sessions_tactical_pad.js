@@ -12929,9 +12929,49 @@
 						                          && Math.abs(center.z) < 38
 						                          && size.x > 40
 						                          && size.z > 4;
-						                        if (lowPitchPlate) {
+						                        const looseLowStrip = center.y < 1.8
+						                          && (Math.abs(center.z) > 36 || Math.abs(center.x) > 53)
+						                          && Math.max(size.x, size.z) > 24
+						                          && Math.min(size.x, size.z) < 2.2;
+						                        const redundantBackdrop = detailName.includes('REFERENCE_SOFT_SKY_BACKDROP');
+						                        if (lowPitchPlate || looseLowStrip || redundantBackdrop) {
 						                          node.visible = false;
-						                          node.userData.hidden_by_reference_pitch_overlay_cleanup = true;
+						                          node.userData.hidden_by_reference_pitch_overlay_cleanup = lowPitchPlate;
+						                          node.userData.hidden_by_reference_loose_strip_cleanup = looseLowStrip;
+						                          node.userData.hidden_by_reference_backdrop_cleanup = redundantBackdrop;
+						                        } else {
+						                          const mats = Array.isArray(node.material) ? node.material : [node.material];
+						                          const setRuntimeMatColor = (color, opts = {}) => {
+						                            mats.forEach((m) => {
+						                              if (!m) return;
+						                              try {
+						                                m.color = new THREE.Color(color);
+						                                m.vertexColors = false;
+						                                if (Number.isFinite(Number(opts.roughness))) m.roughness = Number(opts.roughness);
+						                                if (Number.isFinite(Number(opts.metalness))) m.metalness = Number(opts.metalness);
+						                                if (Number.isFinite(Number(opts.opacity))) {
+						                                  m.opacity = Number(opts.opacity);
+						                                  m.transparent = m.opacity < 0.999;
+						                                }
+						                                if (opts.emissive) {
+						                                  m.emissive = new THREE.Color(opts.emissive);
+						                                  m.emissiveIntensity = Number(opts.emissiveIntensity) || 0.18;
+						                                }
+						                                m.needsUpdate = true;
+						                              } catch (e) { /* ignore */ }
+						                            });
+						                          };
+						                          if (detailName.includes('GLASS')) {
+						                            setRuntimeMatColor(0xc7efff, { roughness: 0.12, metalness: 0.02, opacity: 0.34 });
+						                          } else if (detailName.includes('BOARD') || detailName.includes('PARTNER')) {
+						                            setRuntimeMatColor(0x073f33, { roughness: 0.42, metalness: 0.06, emissive: 0x022c22, emissiveIntensity: 0.10 });
+						                          } else if (center.z > 41 && center.y > 1.8 && center.y < 8.6 && size.x > 32) {
+						                            setRuntimeMatColor(0x047857, { roughness: 0.58, metalness: 0.02 });
+						                          } else if (center.z > 41 && center.y >= 8.6) {
+						                            setRuntimeMatColor(center.y > 17 ? 0xd8ded8 : 0xc9d1cc, { roughness: 0.62, metalness: 0.05 });
+						                          } else if (center.z > 41 || center.z < -35) {
+						                            setRuntimeMatColor(0x9ca79f, { roughness: 0.70, metalness: 0.03 });
+						                          }
 						                        }
 						                      } catch (e) { /* ignore */ }
 						                      if (quality === 'normal' && compactViewport && (
