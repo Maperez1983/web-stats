@@ -8949,6 +8949,9 @@
 						        const viewportMax = Math.max(window.innerWidth || 0, window.innerHeight || 0);
 						        const economy = viewportMax < 900 || meshCount > 1150;
 						        if (document.body) document.body.dataset.pitch3dBudget = economy ? 'economy' : 'normal';
+						        pitch3dPerf.meshCount = meshCount;
+						        pitch3dPerf.budget = economy ? 'economy' : 'normal';
+						        try { window.__WEBSTATS_PITCH3D_PERF = Object.assign({}, pitch3dPerf); } catch (e) { /* ignore */ }
 						        pitch3dRenderer.setPixelRatio(getPitch3dRenderPixelRatio());
 						        if (pitch3dRenderer.shadowMap) pitch3dRenderer.shadowMap.enabled = !economy || document.body?.dataset?.pitch3dQuality === 'high';
 						        pitch3dRoot.traverse((node) => {
@@ -8990,6 +8993,7 @@
 								    let pitch3dDrawablesEnabled = true;
 							    let pitch3dGhostRoot = null;
 							    let pitch3dTrailRoot = null;
+							    let pitch3dPerf = { frames: 0, lastAt: 0, fps: 0, meshCount: 0, budget: 'normal' };
 
 							    const clearPitch3dGhosts = () => {
 							      if (!pitch3dRoot) return;
@@ -14044,6 +14048,18 @@
 
 								    const renderPitch3dFrame = (now) => {
 								      if (!pitch3dOpen || !pitch3dRenderer || !pitch3dScene || !pitch3dCamera) return;
+								      try {
+								        pitch3dPerf.frames += 1;
+								        if (!pitch3dPerf.lastAt) pitch3dPerf.lastAt = now || performance.now();
+								        const elapsed = (now || performance.now()) - pitch3dPerf.lastAt;
+								        if (elapsed >= 1000) {
+								          pitch3dPerf.fps = Math.round((pitch3dPerf.frames * 1000) / Math.max(1, elapsed));
+								          pitch3dPerf.frames = 0;
+								          pitch3dPerf.lastAt = now || performance.now();
+								          pitch3dPerf.budget = safeText(document.body?.dataset?.pitch3dBudget, pitch3dPerf.budget || 'normal');
+								          window.__WEBSTATS_PITCH3D_PERF = Object.assign({}, pitch3dPerf);
+								        }
+								      } catch (e) { /* ignore */ }
 								      // Seguimiento (balón / jugador seleccionado) + spotlight.
 								      try {
 							        pitch3dFollowMode = safeText(pitch3dFollowSelect?.value, pitch3dFollowMode || 'off');
