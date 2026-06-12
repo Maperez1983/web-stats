@@ -8144,6 +8144,7 @@
 						        return '';
 						      }
 						    };
+						    const isDedicatedPitch3dReferenceStadiumSrc = (src) => /stadium_benagalbon_reference(?:\.[a-f0-9]+)?\.glb(?:[?#].*)?$/i.test(safeText(src || ''));
 
 						    const __pitch3dStaticImageCache = new Map();
 						    const __pitch3dLoadStaticImage = (cacheKey, src) => {
@@ -12823,7 +12824,7 @@
 						                const asset = __pitch3dStadiumModelCache.scene || __pitch3dLoadStadiumModel();
 						                if (!asset) return false;
 						                const stadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
-						                const isDedicatedReferenceStadium = /stadium_benagalbon_reference\.glb/i.test(stadiumModelSrc);
+						                const isDedicatedReferenceStadium = isDedicatedPitch3dReferenceStadiumSrc(stadiumModelSrc);
 						                removeProceduralStadiumParts();
 						                const stadiumAsset = asset.clone(true);
 						                stadiumAsset.name = 'stadium_bowl_premium_asset';
@@ -12883,7 +12884,7 @@
 						            };
 						            if (addProfessionalStadiumAsset()) return;
 						            const pendingStadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
-						            const pendingDedicatedReferenceStadium = /stadium_benagalbon_reference\.glb/i.test(pendingStadiumModelSrc);
+						            const pendingDedicatedReferenceStadium = isDedicatedPitch3dReferenceStadiumSrc(pendingStadiumModelSrc);
 						            __pitch3dLoadStadiumModel(() => {
 						              try { addProfessionalStadiumAsset(); } catch (e) { /* ignore */ }
 						            });
