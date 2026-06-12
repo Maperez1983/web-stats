@@ -13201,6 +13201,75 @@
 						            try { mesh.rotation.set(rotX || 0, rotY || 0, rotZ || 0); } catch (e) { /* ignore */ }
 						            return mesh;
 						          };
+						          const addInstancedSeats = () => {
+						            try {
+						              const seatGeo = new THREE.BoxGeometry(0.44, 0.095, 0.23);
+						              const darkGeo = new THREE.BoxGeometry(0.44, 0.095, 0.23);
+						              const transforms = [];
+						              const darkTransforms = [];
+						              const matrix = new THREE.Matrix4();
+						              const pushLong = (sideSign, rows, cols) => {
+						                const zBase = sideSign * (metersH / 2 + 4.38);
+						                for (let row = 0; row < rows; row += 1) {
+						                  const y = 1.24 + row * 0.315;
+						                  const z = zBase + sideSign * row * 0.56;
+						                  for (let col = 0; col < cols; col += 1) {
+						                    const t = cols <= 1 ? 0 : (col / (cols - 1));
+						                    const x = -metersW * 0.47 + t * metersW * 0.94;
+						                    const aisle = [-0.42, -0.20, 0, 0.20, 0.42].some((ratio) => Math.abs(x - ratio * metersW) < 1.05);
+						                    if (aisle) continue;
+						                    matrix.compose(new THREE.Vector3(x, y, z), new THREE.Quaternion(), new THREE.Vector3(1, 1, 1));
+						                    ((row + col) % 11 === 0 ? darkTransforms : transforms).push(matrix.clone());
+						                  }
+						                }
+						              };
+						              const pushSide = (sideSign, rows, cols) => {
+						                const xBase = sideSign * (metersW / 2 + 4.35);
+						                for (let row = 0; row < rows; row += 1) {
+						                  const y = 1.18 + row * 0.305;
+						                  const x = xBase + sideSign * row * 0.54;
+						                  for (let col = 0; col < cols; col += 1) {
+						                    const t = cols <= 1 ? 0 : (col / (cols - 1));
+						                    const z = -metersH * 0.45 + t * metersH * 0.90;
+						                    const aisle = [-0.36, -0.12, 0.12, 0.36].some((ratio) => Math.abs(z - ratio * metersH) < 1.00);
+						                    if (aisle) continue;
+						                    matrix.compose(new THREE.Vector3(x, y, z), new THREE.Quaternion(), new THREE.Vector3(0.72, 1, 1.08));
+						                    ((row + col) % 9 === 0 ? darkTransforms : transforms).push(matrix.clone());
+						                  }
+						                }
+						              };
+						              pushLong(1, 15, 58);
+						              pushLong(-1, 11, 50);
+						              pushSide(-1, 10, 38);
+						              pushSide(1, 10, 38);
+						              const addInstanced = (geo, mat, items, kind) => {
+						                const inst = new THREE.InstancedMesh(geo, mat, items.length);
+						                items.forEach((m, idx) => inst.setMatrixAt(idx, m));
+						                inst.instanceMatrix.needsUpdate = true;
+						                inst.userData = { kind, count: items.length };
+						                inst.castShadow = true;
+						                inst.receiveShadow = true;
+						                dedicatedFinish.add(inst);
+						              };
+						              addInstanced(seatGeo, seatMat, transforms, 'pitch_3d_dedicated_completion_individual_seat_field');
+						              addInstanced(darkGeo, seatDarkMat, darkTransforms, 'pitch_3d_dedicated_completion_individual_dark_seat_field');
+						            } catch (e) { /* ignore */ }
+						          };
+						          const addSegmentedAdBoards = () => {
+						            try {
+						              const labels = ['2J FOOTBALL INTELLIGENCE', 'PARTNER', 'CAMPO MUNICIPAL', 'SPONSOR'];
+						              for (let i = 0; i < 10; i += 1) {
+						                const x = -metersW * 0.45 + i * (metersW * 0.10);
+						                addMesh(new THREE.BoxGeometry(metersW * 0.085, 0.82, 0.16), makeSignMat(labels[i % labels.length], { w: 900, h: 260, font: '900 54px Arial, sans-serif' }), x, 0.86, -(metersH / 2 + 2.72), 'pitch_3d_dedicated_completion_segmented_near_ad_board');
+						                addMesh(new THREE.BoxGeometry(metersW * 0.085, 0.82, 0.16), makeSignMat(labels[(i + 2) % labels.length], { w: 900, h: 260, font: '900 54px Arial, sans-serif' }), x, 0.86, metersH / 2 + 2.72, 'pitch_3d_dedicated_completion_segmented_far_ad_board');
+						              }
+						              for (let i = 0; i < 7; i += 1) {
+						                const z = -metersH * 0.39 + i * (metersH * 0.13);
+						                addMesh(new THREE.BoxGeometry(0.16, 0.82, metersH * 0.105), makeSignMat(labels[(i + 1) % labels.length], { w: 900, h: 260, font: '900 54px Arial, sans-serif' }), -(metersW / 2 + 2.72), 0.86, z, 'pitch_3d_dedicated_completion_segmented_side_ad_board');
+						                addMesh(new THREE.BoxGeometry(0.16, 0.82, metersH * 0.105), makeSignMat(labels[(i + 3) % labels.length], { w: 900, h: 260, font: '900 54px Arial, sans-serif' }), metersW / 2 + 2.72, 0.86, z, 'pitch_3d_dedicated_completion_segmented_side_ad_board');
+						              }
+						            } catch (e) { /* ignore */ }
+						          };
 						          const addLongStand = (sideSign) => {
 						            const baseZ = sideSign * (metersH / 2 + 6.7);
 						            addMesh(new THREE.BoxGeometry(metersW + 17.5, 0.55, 8.6), concreteMat, 0, 0.38, baseZ, 'pitch_3d_dedicated_completion_long_stand_podium');
@@ -13249,6 +13318,8 @@
 						          addLongStand(-1);
 						          addSideStand(-1);
 						          addSideStand(1);
+						          addInstancedSeats();
+						          addSegmentedAdBoards();
 						          [-1, 1].forEach((sx) => {
 						            [-1, 1].forEach((sz) => {
 						              addMesh(new THREE.BoxGeometry(8.0, 0.46, 8.0), concreteMat, sx * (metersW / 2 + 6.0), 0.36, sz * (metersH / 2 + 6.0), 'pitch_3d_dedicated_completion_corner_podium');
@@ -13279,6 +13350,7 @@
 						            addMesh(new THREE.BoxGeometry(0.18, 5.6, 0.18), concreteMat, x, 8.55, metersH / 2 + 15.58, 'pitch_3d_dedicated_completion_roof_support_column');
 						            addRotMesh(new THREE.BoxGeometry(0.18, 0.18, 6.5), concreteMat, x, 11.48, metersH / 2 + 18.62, -0.24, 0, 0, 'pitch_3d_dedicated_completion_roof_cross_truss');
 						            addRotMesh(new THREE.BoxGeometry(0.13, 0.13, 6.9), concreteMat, x + 2.6, 10.92, metersH / 2 + 18.62, 0.32, 0, 0, 'pitch_3d_dedicated_completion_roof_diagonal_brace');
+						            addMesh(new THREE.BoxGeometry(0.72, 0.10, 0.14), lightMat, x, 10.28, metersH / 2 + 15.18, 'pitch_3d_dedicated_completion_individual_floodlight_pod');
 						          }
 						          [-18, 18].forEach((x) => {
 						            const dugout = new THREE.Group();
