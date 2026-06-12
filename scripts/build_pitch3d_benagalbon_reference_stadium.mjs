@@ -236,7 +236,7 @@ const addStand = ({ name, side, cols, rows, length, depthStart, zFixed, xFixed }
       if (side === 'north') {
         const start = Math.floor((cols - mainLetters.length) / 2);
         const letterCol = col - start;
-        if (row >= 5 && row <= 11 && letterCol >= 0 && letterCol < mainLetters.length && mainLetters[letterCol][row - 5]) material = mats.white;
+        if (row >= 8 && row <= 14 && letterCol >= 0 && letterCol < mainLetters.length && mainLetters[letterCol][row - 8]) material = mats.white;
       }
       if (isAisle) material = mats.concrete;
       if (longSide) {
@@ -317,23 +317,21 @@ const addStand = ({ name, side, cols, rows, length, depthStart, zFixed, xFixed }
   }
 };
 
-addStand({ name: 'north_main_stand', side: 'north', cols: 92, rows: 19, length: pitchW + 48, depthStart: pitchH / 2 + 10.2, zFixed: pitchH / 2 + 10.2 });
-addStand({ name: 'south_stand', side: 'south', cols: 78, rows: 17, length: pitchW + 42, depthStart: -(pitchH / 2 + 10.2), zFixed: -(pitchH / 2 + 10.2) });
-addStand({ name: 'east_stand', side: 'east', cols: 52, rows: 15, length: pitchH + 34, depthStart: pitchW / 2 + 10.0, xFixed: pitchW / 2 + 10.0 });
-addStand({ name: 'west_stand', side: 'west', cols: 52, rows: 15, length: pitchH + 34, depthStart: -(pitchW / 2 + 10.0), xFixed: -(pitchW / 2 + 10.0) });
+addStand({ name: 'north_main_stand', side: 'north', cols: 108, rows: 24, length: pitchW + 66, depthStart: pitchH / 2 + 9.7, zFixed: pitchH / 2 + 9.7 });
+addStand({ name: 'south_stand', side: 'south', cols: 76, rows: 8, length: pitchW + 34, depthStart: -(pitchH / 2 + 8.6), zFixed: -(pitchH / 2 + 8.6) });
+addStand({ name: 'east_stand', side: 'east', cols: 50, rows: 12, length: pitchH + 26, depthStart: pitchW / 2 + 9.2, xFixed: pitchW / 2 + 9.2 });
+addStand({ name: 'west_stand', side: 'west', cols: 34, rows: 7, length: pitchH + 16, depthStart: -(pitchW / 2 + 8.6), xFixed: -(pitchW / 2 + 8.6) });
 
 const addRoof = () => {
   const y = 15.8;
-  box('north_thin_roof_skin', mats.roof, [0, y, pitchH / 2 + 34.2], [pitchW + 68, 0.34, 12.5], [-0.04, 0, 0]);
-  box('south_thin_roof_skin', mats.roof, [0, y, -(pitchH / 2 + 34.2)], [pitchW + 60, 0.34, 10.5], [0.04, 0, 0]);
-  box('east_thin_roof_skin', mats.roof, [pitchW / 2 + 34.2, y, 0], [10.5, 0.34, pitchH + 56], [0, 0.04, 0]);
-  box('west_thin_roof_skin', mats.roof, [-(pitchW / 2 + 34.2), y, 0], [10.5, 0.34, pitchH + 56], [0, -0.04, 0]);
-  box('north_green_roof_fascia', mats.greenDark, [0, 14.6, pitchH / 2 + 27.0], [pitchW + 70, 1.1, 0.34], [-0.03, 0, 0]);
-  box('south_green_roof_fascia', mats.greenDark, [0, 14.45, -(pitchH / 2 + 27.0)], [pitchW + 62, 1.0, 0.34], [0.03, 0, 0]);
-  box('east_green_roof_fascia', mats.greenDark, [pitchW / 2 + 27.0, 14.35, 0], [0.34, 1.0, pitchH + 58], [0, 0.03, 0]);
-  box('west_green_roof_fascia', mats.greenDark, [-(pitchW / 2 + 27.0), 14.35, 0], [0.34, 1.0, pitchH + 58], [0, -0.03, 0]);
+  box('north_thin_roof_skin', mats.roof, [0, y + 0.5, pitchH / 2 + 35.6], [pitchW + 82, 0.34, 15.2], [-0.045, 0, 0]);
+  box('south_thin_roof_skin', mats.roof, [0, y - 2.2, -(pitchH / 2 + 26.4)], [pitchW + 18, 0.28, 5.4], [0.045, 0, 0]);
+  box('east_thin_roof_skin', mats.roof, [pitchW / 2 + 29.2, y - 1.2, 10.0], [7.8, 0.30, pitchH + 12], [0, 0.045, 0]);
+  box('north_green_roof_fascia', mats.greenDark, [0, 15.0, pitchH / 2 + 27.4], [pitchW + 84, 1.12, 0.34], [-0.03, 0, 0]);
+  box('south_green_roof_fascia', mats.greenDark, [0, 12.35, -(pitchH / 2 + 23.55)], [pitchW + 20, 0.74, 0.28], [0.03, 0, 0]);
+  box('east_green_roof_fascia', mats.greenDark, [pitchW / 2 + 24.5, 13.0, 10.0], [0.30, 0.84, pitchH + 14], [0, 0.03, 0]);
   box('north_roof_front_gutter', mats.darkMetal, [0, 14.08, pitchH / 2 + 26.65], [pitchW + 72, 0.18, 0.22], [-0.03, 0, 0]);
-  box('south_roof_front_gutter', mats.darkMetal, [0, 13.95, -(pitchH / 2 + 26.65)], [pitchW + 64, 0.18, 0.22], [0.03, 0, 0]);
+  box('south_roof_front_gutter', mats.darkMetal, [0, 12.05, -(pitchH / 2 + 23.3)], [pitchW + 18, 0.14, 0.18], [0.03, 0, 0]);
   box('north_press_box_glass', mats.glass, [0, 13.7, pitchH / 2 + 39.72], [17.5, 2.4, 0.12]);
   box('north_press_box_roof', mats.darkMetal, [0, 15.05, pitchH / 2 + 39.58], [18.4, 0.28, 1.3]);
   box('north_press_box_floor', mats.concrete, [0, 12.42, pitchH / 2 + 39.75], [18.6, 0.24, 1.45]);
@@ -344,14 +342,13 @@ const addRoof = () => {
   for (let i = -18; i <= 18; i += 1) {
     const x = i * ((pitchW + 66) / 36);
     box(`north_roof_corrugation_${i}`, mats.metal, [x, y + 0.22, pitchH / 2 + 34.0], [0.075, 0.12, 12.6], [-0.04, 0, 0]);
-    if (i >= -16 && i <= 16) box(`south_roof_corrugation_${i}`, mats.metal, [x, y + 0.18, -(pitchH / 2 + 34.0)], [0.07, 0.11, 10.5], [0.04, 0, 0]);
+    if (i >= -10 && i <= 10) box(`south_roof_corrugation_${i}`, mats.metal, [x, y - 1.95, -(pitchH / 2 + 26.4)], [0.06, 0.09, 5.4], [0.04, 0, 0]);
   }
   for (let i = -12; i <= 12; i += 1) {
     const z = i * ((pitchH + 54) / 24);
-    box(`east_roof_corrugation_${i}`, mats.metal, [pitchW / 2 + 34.0, y + 0.18, z], [10.5, 0.11, 0.07], [0, 0.04, 0]);
-    box(`west_roof_corrugation_${i}`, mats.metal, [-(pitchW / 2 + 34.0), y + 0.18, z], [10.5, 0.11, 0.07], [0, -0.04, 0]);
+    if (z > -30) box(`east_roof_corrugation_${i}`, mats.metal, [pitchW / 2 + 29.0, y - 1.0, z], [7.8, 0.10, 0.065], [0, 0.04, 0]);
   }
-  [-1, 1].forEach((sign) => {
+  [1].forEach((sign) => {
     for (let i = -12; i <= 12; i += 1) {
       const x = i * ((pitchW + 54) / 24);
       box(`long_roof_front_truss_${sign}_${i}`, mats.metal, [x, 14.55, sign * (pitchH / 2 + 27.2)], [0.16, 1.2, 8.6], [-0.62 * sign, 0, i % 2 ? 0.36 : -0.36]);
@@ -377,7 +374,7 @@ const addRoof = () => {
     box(`north_cantilever_tension_rod_b_${i}`, mats.metal, [x + 0.5, 17.15, pitchH / 2 + 34.2], [0.10, 0.10, 11.2], [-0.58, 0, -0.06]);
     box(`north_roof_black_service_box_${i}`, mats.black, [x, 16.4, pitchH / 2 + 28.9], [2.1, 0.42, 0.54]);
   }
-  [-1, 1].forEach((sign) => {
+  [1].forEach((sign) => {
     for (let i = -7; i <= 7; i += 1) {
       const z = i * ((pitchH + 44) / 14);
       box(`short_roof_front_truss_${sign}_${i}`, mats.metal, [sign * (pitchW / 2 + 27.1), 14.35, z], [7.8, 1.0, 0.16], [0, -0.58 * sign, i % 2 ? 0.24 : -0.24]);
@@ -408,12 +405,13 @@ const addSeatSectorSeparators = () => {
       if (Math.abs(x) < span * 0.42) box(`${name}_upper_vomitory_black_cut_${idx}`, mats.black, [x, 6.15, zStart + sign * 6.28], [2.35, 1.25, 0.16]);
     });
   };
-  longStand('north_main_stand', 1, pitchH / 2 + 10.2, pitchW + 48, 19, [-60, -38, -17, 0, 17, 38, 60]);
-  longStand('south_stand', -1, -(pitchH / 2 + 10.2), pitchW + 42, 17, [-52, -28, 0, 28, 52]);
+  longStand('north_main_stand', 1, pitchH / 2 + 9.7, pitchW + 66, 24, [-70, -47, -24, 0, 24, 47, 70]);
+  longStand('south_stand', -1, -(pitchH / 2 + 8.6), pitchW + 34, 8, [-47, -22, 0, 22, 47]);
   [-1, 1].forEach((sign) => {
     [-32, -16, 0, 16, 32].forEach((z, idx) => {
-      box(`short_stand_reference_white_aisle_${sign}_${idx}`, mats.concrete, [sign * (pitchW / 2 + 14.0), 4.48, z], [15 * 0.58 + 0.75, 4.35, 0.92], [0, 0.11 * sign, 0]);
-      box(`short_stand_reference_aisle_rail_${sign}_${idx}`, mats.metal, [sign * (pitchW / 2 + 14.0), 5.18, z + 0.58], [15 * 0.58 + 0.55, 0.07, 0.06], [0, 0.11 * sign, 0]);
+      const rowCount = sign > 0 ? 12 : 7;
+      box(`short_stand_reference_white_aisle_${sign}_${idx}`, mats.concrete, [sign * (pitchW / 2 + 13.1), 4.02, z], [rowCount * 0.58 + 0.75, 3.35, 0.92], [0, 0.11 * sign, 0]);
+      box(`short_stand_reference_aisle_rail_${sign}_${idx}`, mats.metal, [sign * (pitchW / 2 + 13.1), 4.65, z + 0.58], [rowCount * 0.58 + 0.55, 0.07, 0.06], [0, 0.11 * sign, 0]);
     });
   });
 };
@@ -425,6 +423,7 @@ const addMainStandReferenceArchitecture = () => {
   box('main_stand_photo_front_concrete_parapet', mats.concrete, [0, 2.02, pitchH / 2 + 7.55], [pitchW + 62, 1.22, 0.46]);
   box('main_stand_photo_front_green_ad_band', mats.led, [0, 1.48, pitchH / 2 + 6.96], [pitchW + 58, 0.78, 0.12]);
   writeBlockText({ text: 'BENAGALBON CD', name: 'main_front_band_benagalbon', origin: [-18.2, 1.70, pitchH / 2 + 6.84], cell: 0.18, plane: 'xy' });
+  writeBlockText({ text: 'BENAGALBON CD', name: 'main_seat_photo_scale_letters', origin: [-34.6, 6.75, pitchH / 2 + 19.05], cell: 0.42, plane: 'xy' });
   [-1, 1].forEach((side) => {
     const x = side * (pitchW / 2 + 36.0);
     box(`main_stand_photo_side_concrete_cheek_${side}`, mats.concrete, [x, 6.9, pitchH / 2 + 21.0], [2.6, 9.8, 25.5], [0, 0.04 * side, 0]);
