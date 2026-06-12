@@ -141,6 +141,17 @@
     style="padding:0.38rem 0.6rem; border-radius:999px; border:1px solid rgba(148,163,184,0.25); background:rgba(2,6,23,0.55); color:#e5e7eb;"
     hidden
   >← Volver</button>
+  <button
+    type="button"
+    class="nav-command-btn"
+    id="webstats-help-mode-toggle"
+    data-webstats-help-mode-toggle
+    data-help="Activa o desactiva las explicaciones breves de los botones visibles."
+    title="Mostrar explicación de botones"
+    aria-label="Mostrar explicación de botones"
+    aria-pressed="false"
+    style="padding:0.38rem 0.62rem; border-radius:999px; border:1px solid rgba(148,163,184,0.25); background:rgba(2,6,23,0.55); color:#e5e7eb; font-weight:900;"
+  >?</button>
   {% with nav_path=request.path|default:'' nav_url_name=request.resolver_match.url_name|default:'' cdurl=club_dashboard_url|default:'' %}
   {# Orden tabs (staff): Entrenador → Entrenamiento → Partido → Jugador #}
   {% if can_access_staff|default:False %}
@@ -178,6 +189,7 @@
     <summary>Menú</summary>
     <div class="nav-more-panel">
       <button class="nav-command-btn nav-command-btn--panel" type="button" id="webstats-global-help" title="Guía rápida (Alt: guía general)">Guía</button>
+      <button class="nav-command-btn nav-command-btn--panel" type="button" data-webstats-help-mode-toggle data-help="Activa o desactiva las explicaciones breves de los botones visibles." title="Mostrar explicación de botones">Explicar botones</button>
       <button class="nav-command-btn nav-command-btn--panel" type="button" id="webstats-theme-toggle" title="Cambiar tema (Oscuro/HC)"><span>Tema</span></button>
       <button class="nav-command-btn nav-command-btn--panel" type="button" id="webstats-density-toggle" title="Cambiar densidad (Normal/Compacta)"><span>Densidad</span></button>
       <button type="button" class="nav-command-btn nav-command-btn--panel" data-command-palette>Buscar / Ir a…</button>
@@ -363,9 +375,9 @@
 {% endif %}
 
 {# Guía/tours (carga ligera y sin dependencias externas) #}
-<script src="{% static 'football/js/ui_tour.js' %}" defer></script>
-<script src="{% static 'football/js/global_help.js' %}" defer></script>
-<script src="{% static 'football/js/pdf_viewer_bridge.js' %}" defer></script>
+<script src="{% static 'football/js/ui_tour.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+<script src="{% static 'football/js/global_help.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+<script src="{% static 'football/js/pdf_viewer_bridge.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
 <div class="cmdk" id="cmdk" hidden aria-hidden="true">
   <div class="cmdk-backdrop" data-cmdk-close></div>
   <div class="cmdk-panel" role="dialog" aria-modal="true" aria-label="Buscar / Ir a">
