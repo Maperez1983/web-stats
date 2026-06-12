@@ -225,29 +225,29 @@ const addStand = ({ name, side, cols, rows, length, depthStart, zFixed, xFixed }
     } else {
       box(`${name}_continuous_riser_${row}`, mats.darkConcrete, [depth + sign * 0.18, y - 0.18, 0], [0.22, 0.16, span + 3.2], [0, 0.03 * sign, 0]);
     }
-    for (let col = 0; col < cols; col += 1) {
-      const t = col / (cols - 1) - 0.5;
-      const offset = t * span;
-      const isAisle = aisleCols.has(col);
-      let material = (row + col) % 9 === 0 ? mats.greenDark : mats.green;
-      if (side === 'north') {
-        const start = Math.floor((cols - mainLetters.length) / 2);
-        const letterCol = col - start;
-        if (row >= 8 && row <= 14 && letterCol >= 0 && letterCol < mainLetters.length && mainLetters[letterCol][row - 8]) material = mats.white;
-      }
-      if (isAisle) material = mats.concrete;
+    const sortedAisles = [...aisleCols].sort((a, b) => a - b);
+    const segments = [];
+    let segmentStart = 0;
+    sortedAisles.forEach((aisle) => {
+      if (aisle > segmentStart) segments.push([segmentStart, aisle - 1]);
+      segmentStart = aisle + 1;
+    });
+    if (segmentStart < cols) segments.push([segmentStart, cols - 1]);
+    segments.forEach(([startCol, endCol], segIdx) => {
+      const startOffset = (startCol / (cols - 1) - 0.5) * span;
+      const endOffset = (endCol / (cols - 1) - 0.5) * span;
+      const offset = (startOffset + endOffset) / 2;
+      const segW = Math.max(0.45, Math.abs(endOffset - startOffset) + (span / Math.max(1, cols - 1)) * 0.56);
+      let material = (row + segIdx) % 7 === 0 ? mats.greenDark : mats.green;
+      if (side === 'north' && row >= 9 && row <= 13 && segIdx >= 2 && segIdx <= 4) material = mats.white;
       if (longSide) {
-        box(`${name}_chair_${row}_${col}`, material, [offset, y, depth], [0.44, 0.18, 0.38], [-0.08 * sign, 0, 0]);
-        if (!isAisle) {
-          box(`${name}_back_${row}_${col}`, material, [offset, y + 0.25, depth + sign * 0.24], [0.44, 0.38, 0.08], [-0.22 * sign, 0, 0]);
-        }
+        box(`${name}_clean_seat_row_${row}_${segIdx}`, material, [offset, y, depth], [segW, 0.16, 0.34], [-0.08 * sign, 0, 0]);
+        box(`${name}_clean_back_row_${row}_${segIdx}`, material, [offset, y + 0.23, depth + sign * 0.22], [segW, 0.30, 0.07], [-0.20 * sign, 0, 0]);
       } else {
-        box(`${name}_chair_${row}_${col}`, material, [depth, y, offset], [0.38, 0.18, 0.44], [0, 0.08 * sign, 0]);
-        if (!isAisle) {
-          box(`${name}_back_${row}_${col}`, material, [depth + sign * 0.24, y + 0.25, offset], [0.08, 0.38, 0.44], [0, 0.22 * sign, 0]);
-        }
+        box(`${name}_clean_seat_row_${row}_${segIdx}`, material, [depth, y, offset], [0.34, 0.16, segW], [0, 0.08 * sign, 0]);
+        box(`${name}_clean_back_row_${row}_${segIdx}`, material, [depth + sign * 0.22, y + 0.23, offset], [0.07, 0.30, segW], [0, 0.20 * sign, 0]);
       }
-    }
+    });
   }
 
   [...aisleCols].forEach((col, idx) => {
@@ -291,10 +291,10 @@ const addStand = ({ name, side, cols, rows, length, depthStart, zFixed, xFixed }
   }
 };
 
-addStand({ name: 'north_main_stand', side: 'north', cols: 108, rows: 24, length: pitchW + 66, depthStart: pitchH / 2 + 9.7, zFixed: pitchH / 2 + 9.7 });
-addStand({ name: 'south_stand', side: 'south', cols: 76, rows: 8, length: pitchW + 34, depthStart: -(pitchH / 2 + 8.6), zFixed: -(pitchH / 2 + 8.6) });
-addStand({ name: 'east_stand', side: 'east', cols: 50, rows: 12, length: pitchH + 26, depthStart: pitchW / 2 + 9.2, xFixed: pitchW / 2 + 9.2 });
-addStand({ name: 'west_stand', side: 'west', cols: 34, rows: 7, length: pitchH + 16, depthStart: -(pitchW / 2 + 8.6), xFixed: -(pitchW / 2 + 8.6) });
+addStand({ name: 'north_main_stand', side: 'north', cols: 108, rows: 18, length: pitchW + 66, depthStart: pitchH / 2 + 9.7, zFixed: pitchH / 2 + 9.7 });
+addStand({ name: 'south_stand', side: 'south', cols: 76, rows: 5, length: pitchW + 30, depthStart: -(pitchH / 2 + 8.6), zFixed: -(pitchH / 2 + 8.6) });
+addStand({ name: 'east_stand', side: 'east', cols: 50, rows: 8, length: pitchH + 20, depthStart: pitchW / 2 + 9.2, xFixed: pitchW / 2 + 9.2 });
+addStand({ name: 'west_stand', side: 'west', cols: 34, rows: 5, length: pitchH + 12, depthStart: -(pitchW / 2 + 8.6), xFixed: -(pitchW / 2 + 8.6) });
 
 const addRoof = () => {
   const y = 15.8;
