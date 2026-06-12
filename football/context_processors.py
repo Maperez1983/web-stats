@@ -364,11 +364,13 @@ def workspace_access(request):
         club_dashboard_url = ''
     can_manage = False
     can_configure_team = False
+    can_access_platform = False
     is_admin = False
     can_access_staff = False
     try:
         can_manage = bool(workspace_context.can_manage_workspace(request.user, workspace)) if workspace else False
         can_configure_team = bool(workspace_context.can_configure_active_team(request.user, workspace, active_team)) if workspace else False
+        can_access_platform = bool(workspace_context.can_access_platform(request.user))
         is_admin = bool(workspace_context.is_admin_user(request.user))
         # Staff (cuerpo técnico) debe ser accesible para perfiles técnicos aunque el workspace o el menú varíen.
         # Usamos la misma lógica que el backend para permitir/denegar el acceso.
@@ -376,6 +378,7 @@ def workspace_access(request):
     except Exception:
         can_manage = False
         can_configure_team = False
+        can_access_platform = False
         is_admin = False
         can_access_staff = False
 
@@ -417,7 +420,7 @@ def workspace_access(request):
             team_cache_part = ''
             if active_team and getattr(active_team, 'id', None):
                 team_cache_part = f':t{int(active_team.id)}'
-            ctx_cache_key = f'ctx:workspace_access:v3:w{int(workspace.id)}:u{int(request.user.id)}{team_cache_part}{season_cache_part}'
+            ctx_cache_key = f'ctx:workspace_access:v4:w{int(workspace.id)}:u{int(request.user.id)}{team_cache_part}{season_cache_part}'
         except Exception:
             ctx_cache_key = ''
 
@@ -562,6 +565,7 @@ def workspace_access(request):
         'active_team_current_path': request.get_full_path() if request else '',
         'can_manage_workspace': can_manage,
         'can_configure_active_team': can_configure_team,
+        'can_access_platform': can_access_platform,
         'is_admin_user': is_admin,
         'can_access_staff': can_access_staff,
     }

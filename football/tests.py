@@ -5117,6 +5117,25 @@ class PlatformWorkspaceTests(TestCase):
         self.assertContains(response, 'Segunda Jugada · 2J Club')
         self.assertNotContains(response, 'Selecciona un workspace')
 
+    def test_platform_admin_sees_platform_entrypoint_in_main_nav(self):
+        workspace = Workspace.objects.create(
+            name='Cliente admin platform nav',
+            slug='cliente-admin-platform-nav',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.alt_team,
+        )
+        WorkspaceTeam.objects.create(workspace=workspace, team=self.alt_team, is_default=True)
+        self.client.force_login(self.admin_user)
+        session = self.client.session
+        session['active_workspace_id'] = workspace.id
+        session.save()
+
+        response = self.client.get(reverse('dashboard-home'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'class="nav-platform-link')
+        self.assertContains(response, f'href="{reverse("platform-overview")}"')
+
     def test_dashboard_shows_competitive_summary_for_workspace_admin(self):
         workspace = Workspace.objects.create(
             name='Cliente foco',

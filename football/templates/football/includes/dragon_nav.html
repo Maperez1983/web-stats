@@ -162,6 +162,9 @@
   {% if can_configure_active_team and active_workspace and active_workspace.kind == 'club' %}
   <a href="{% url 'club-onboarding' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if nav_url_name == 'club-onboarding' or nav_url_name == 'club-season-wizard' %}is-active{% endif %}" {% if nav_url_name == 'club-onboarding' or nav_url_name == 'club-season-wizard' %}aria-current="page"{% endif %}>Configurar</a>
   {% endif %}
+  {% if can_access_platform %}
+  <a href="{% url 'platform-overview' %}" class="nav-platform-link {% if nav_url_name == 'platform-overview' or 'platform' in nav_path %}is-active{% endif %}" {% if nav_url_name == 'platform-overview' or 'platform' in nav_path %}aria-current="page"{% endif %}>Platform</a>
+  {% endif %}
   {% if show_legacy_nav_menu|default:False %}
   {# Menú general heredado: desactivado por defecto; la navegación principal debe ser contextual. #}
   <details class="nav-more {% if nav_url_name != 'dashboard-home' and nav_path != '/' and not 'coach/sesiones' in nav_path and not 'coach/tactica' in nav_path and not 'registro-acciones' in nav_path and not 'convocatoria' in nav_path and not '11-inicial' in nav_path and nav_path|slice:":9" != '/partido/' and nav_path|slice:":7" != '/match/' and nav_path|slice:":12" != '/incidencias/' %}is-active{% endif %}">
@@ -173,10 +176,10 @@
       <button type="button" class="nav-command-btn nav-command-btn--panel" data-command-palette>Buscar / Ir a…</button>
       <button type="button" class="nav-command-btn nav-command-btn--panel" data-webstats-shortcuts>Atajos</button>
       <button type="button" class="nav-command-btn nav-command-btn--panel" data-webstats-presentation-toggle>Presentación</button>
-      {% if is_admin_user %}
+      {% if can_access_platform %}
       <button type="button" class="nav-command-btn nav-command-btn--panel" id="webstats-reset-cache" title="Útil en iPad/PWA cuando no ves cambios tras un deploy">Reset caché</button>
       {% endif %}
-      {% if is_admin_user and active_workspace_options and active_workspace_options|length > 1 %}
+      {% if can_access_platform and active_workspace_options and active_workspace_options|length > 1 %}
       <div class="nav-more-subtitle">Clientes</div>
       {% for ws in active_workspace_options %}
         {% if ws.kind == 'club' %}
@@ -251,7 +254,7 @@
       <div class="nav-more-subtitle">Admin</div>
       <a href="{% url 'admin-page' %}?tab=teams">Admin</a>
       {% endif %}
-      {% if is_admin_user %}
+      {% if can_access_platform %}
       <a href="{% url 'platform-overview' %}">Platform</a>
       {% endif %}
       <div class="nav-more-subtitle">Cuenta</div>
@@ -392,10 +395,12 @@
   {"label":"Cuenta","url":"{% url 'account-page' %}","keywords":"cuenta perfil eliminar"},
   {"label":"Soporte","url":"{% url 'support-page' %}","keywords":"soporte ayuda contact"},
   {"label":"Privacidad","url":"{% url 'privacy-policy' %}","keywords":"privacidad legal policy"},
-  {"label":"Términos","url":"{% url 'terms-page' %}","keywords":"terminos legal terms"},
-  {"label":"Admin","url":"{% url 'admin-page' %}?tab=teams","keywords":"admin equipos operativa"},
+  {"label":"Términos","url":"{% url 'terms-page' %}","keywords":"terminos legal terms"}
+  {% if can_access_platform %}
+  ,{"label":"Admin","url":"{% url 'admin-page' %}?tab=teams","keywords":"admin equipos operativa"},
   {"label":"Platform","url":"{% url 'platform-overview' %}","keywords":"platform clientes"}
-  {% if is_admin_user and active_workspace_options %}
+  {% endif %}
+  {% if can_access_platform and active_workspace_options %}
   {% for ws in active_workspace_options %}
   {% if ws.kind == 'club' %}
   ,{"label":"Cliente · {{ ws.label|escapejs }}","url":"{% url 'platform-workspace-enter' ws.id %}","keywords":"cliente workspace entrar {{ ws.label|lower|escapejs }}"}
