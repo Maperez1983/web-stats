@@ -157,65 +157,13 @@ for (let i = -8; i <= 8; i += 1) {
   box(`west_apron_expansion_joint_${i}`, mats.concreteLine, [-(pitchW / 2 + 1.7), 0.095, z], [2.15, 0.025, 0.045]);
 }
 
-const letterGlyphs = {
-  A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'],
-  B: ['11110', '10001', '10001', '11110', '10001', '10001', '11110'],
-  C: ['01111', '10000', '10000', '10000', '10000', '10000', '01111'],
-  D: ['11110', '10001', '10001', '10001', '10001', '10001', '11110'],
-  E: ['11111', '10000', '10000', '11110', '10000', '10000', '11111'],
-  G: ['01111', '10000', '10000', '10111', '10001', '10001', '01111'],
-  F: ['11111', '10000', '10000', '11110', '10000', '10000', '10000'],
-  I: ['11111', '00100', '00100', '00100', '00100', '00100', '11111'],
-  J: ['00111', '00010', '00010', '00010', '10010', '10010', '01100'],
-  L: ['10000', '10000', '10000', '10000', '10000', '10000', '11111'],
-  M: ['10001', '11011', '10101', '10101', '10001', '10001', '10001'],
-  N: ['10001', '11001', '10101', '10011', '10001', '10001', '10001'],
-  O: ['01110', '10001', '10001', '10001', '10001', '10001', '01110'],
-  P: ['11110', '10001', '10001', '11110', '10000', '10000', '10000'],
-  R: ['11110', '10001', '10001', '11110', '10100', '10010', '10001'],
-  S: ['01111', '10000', '10000', '01110', '00001', '00001', '11110'],
-  T: ['11111', '00100', '00100', '00100', '00100', '00100', '00100'],
-  U: ['10001', '10001', '10001', '10001', '10001', '10001', '01110'],
-  V: ['10001', '10001', '10001', '10001', '10001', '01010', '00100'],
-  '2': ['01110', '10001', '00001', '00010', '00100', '01000', '11111'],
-  ' ': ['00', '00', '00', '00', '00', '00', '00'],
-};
-
-const buildLetterMap = (text) => {
-  const cols = [];
-  text.split('').forEach((char, idx) => {
-    const glyph = letterGlyphs[char] || letterGlyphs[' '];
-    for (let x = 0; x < glyph[0].length; x += 1) cols.push(glyph.map((row) => row[x] === '1'));
-    if (idx < text.length - 1) cols.push([false, false, false, false, false, false, false]);
-  });
-  return cols;
-};
-
-const mainLetters = buildLetterMap('BENAGALBON CD');
-
-const writeBlockText = ({ text, name, origin, cell = 0.18, material = mats.white, plane = 'xz', rotation = [0, 0, 0] }) => {
-  const columns = buildLetterMap(text);
-  columns.forEach((col, xIdx) => {
-    col.forEach((on, yIdx) => {
-      if (!on) return;
-      if (plane === 'xy') {
-        box(`${name}_glyph_${xIdx}_${yIdx}`, material, [origin[0] + xIdx * cell, origin[1] - yIdx * cell, origin[2]], [cell * 0.82, cell * 0.82, 0.045], rotation);
-      } else if (plane === 'zy') {
-        box(`${name}_glyph_${xIdx}_${yIdx}`, material, [origin[0], origin[1] - yIdx * cell, origin[2] + xIdx * cell], [0.045, cell * 0.82, cell * 0.82], rotation);
-      } else {
-        box(`${name}_glyph_${xIdx}_${yIdx}`, material, [origin[0] + xIdx * cell, origin[1], origin[2] + yIdx * cell], [cell * 0.82, 0.045, cell * 0.82], rotation);
-      }
-    });
-  });
-};
-
 const addStand = ({ name, side, cols, rows, length, depthStart, zFixed, xFixed }) => {
   const longSide = side === 'north' || side === 'south';
   const sign = side === 'north' || side === 'east' ? 1 : -1;
   const span = length;
   const aisleCols = (() => {
     if (side === 'north') return new Set([8, Math.floor(cols * 0.24), Math.floor(cols * 0.5), Math.floor(cols * 0.76), cols - 9]);
-    return new Set([Math.floor(cols * 0.5)]);
+    return new Set();
   })();
 
   for (let row = 0; row < rows; row += 1) {
@@ -239,13 +187,14 @@ const addStand = ({ name, side, cols, rows, length, depthStart, zFixed, xFixed }
       const endOffset = (endCol / (cols - 1) - 0.5) * span;
       const offset = (startOffset + endOffset) / 2;
       const segW = Math.max(0.45, Math.abs(endOffset - startOffset) + (span / Math.max(1, cols - 1)) * 0.56);
-      let material = (row + segIdx) % 7 === 0 ? mats.greenDark : mats.green;
+      let material = row % 6 === 0 && side === 'north' ? mats.greenDark : mats.green;
       if (longSide) {
         box(`${name}_clean_seat_row_${row}_${segIdx}`, material, [offset, y, depth], [segW, 0.16, 0.34], [-0.08 * sign, 0, 0]);
-        box(`${name}_clean_back_row_${row}_${segIdx}`, material, [offset, y + 0.23, depth + sign * 0.22], [segW, 0.30, 0.07], [-0.20 * sign, 0, 0]);
+        if (side === 'north') {
+          box(`${name}_clean_back_row_${row}_${segIdx}`, material, [offset, y + 0.23, depth + sign * 0.22], [segW, 0.30, 0.07], [-0.20 * sign, 0, 0]);
+        }
       } else {
         box(`${name}_clean_seat_row_${row}_${segIdx}`, material, [depth, y, offset], [0.34, 0.16, segW], [0, 0.08 * sign, 0]);
-        box(`${name}_clean_back_row_${row}_${segIdx}`, material, [depth + sign * 0.22, y + 0.23, offset], [0.07, 0.30, segW], [0, 0.20 * sign, 0]);
       }
     });
   }
@@ -274,24 +223,20 @@ const addStand = ({ name, side, cols, rows, length, depthStart, zFixed, xFixed }
 };
 
 addStand({ name: 'north_main_stand', side: 'north', cols: 108, rows: 18, length: pitchW + 66, depthStart: pitchH / 2 + 9.7, zFixed: pitchH / 2 + 9.7 });
-addStand({ name: 'south_low_stand', side: 'south', cols: 56, rows: 3, length: pitchW + 8, depthStart: -(pitchH / 2 + 8.2), zFixed: -(pitchH / 2 + 8.2) });
-addStand({ name: 'east_low_stand', side: 'east', cols: 34, rows: 4, length: pitchH - 8, depthStart: pitchW / 2 + 8.5, xFixed: pitchW / 2 + 8.5 });
-addStand({ name: 'west_low_stand', side: 'west', cols: 28, rows: 3, length: pitchH - 18, depthStart: -(pitchW / 2 + 8.2), xFixed: -(pitchW / 2 + 8.2) });
+addStand({ name: 'south_low_stand', side: 'south', cols: 24, rows: 3, length: pitchW + 8, depthStart: -(pitchH / 2 + 8.2), zFixed: -(pitchH / 2 + 8.2) });
+addStand({ name: 'east_low_stand', side: 'east', cols: 18, rows: 3, length: pitchH - 8, depthStart: pitchW / 2 + 8.5, xFixed: pitchW / 2 + 8.5 });
+addStand({ name: 'west_low_stand', side: 'west', cols: 16, rows: 3, length: pitchH - 18, depthStart: -(pitchW / 2 + 8.2), xFixed: -(pitchW / 2 + 8.2) });
 
 const addMainStandSeatLettering = () => {
-  [
-    [-29.5, 11, 6.2, 'b'],
-    [-21.0, 10, 5.8, 'e'],
-    [-13.0, 11, 6.0, 'n'],
-    [-4.0, 10, 5.8, 'a'],
-    [5.0, 11, 6.0, 'g'],
-    [14.0, 10, 5.8, 'a2'],
-    [22.7, 11, 6.0, 'l'],
-    [30.6, 10, 5.8, 'c'],
-  ].forEach(([x, row, w, id]) => {
-    const y = 2.15 + row * 0.31 + 0.14;
-    const z = pitchH / 2 + 9.7 + row * 0.58 - 0.03;
-    box(`north_main_stand_white_mosaic_${id}`, mats.white, [x, y, z], [w, 0.05, 0.38], [-0.08, 0, 0]);
+  const bands = [
+    [-32, 10, 18, 'left'],
+    [0, 11, 22, 'center'],
+    [32, 10, 18, 'right'],
+  ];
+  bands.forEach(([x, row, w, id]) => {
+    const y = 2.15 + row * 0.31 + 0.15;
+    const z = pitchH / 2 + 9.7 + row * 0.58 - 0.04;
+    box(`north_main_stand_clean_white_seat_band_${id}`, mats.white, [x, y, z], [w, 0.055, 0.40], [-0.08, 0, 0]);
   });
 };
 addMainStandSeatLettering();
@@ -388,8 +333,6 @@ const addExternalAccessDetails = () => {
     box(`side_outer_stair_handrail_b_${side}`, mats.metal, [x + side * 1.72, 3.6, pitchH / 2 + 19.0], [0.08, 0.08, 13.6], [0, -0.08 * side, 0]);
     box(`side_service_door_${side}`, mats.black, [side * (pitchW / 2 + 9.8), 2.42, pitchH / 2 + 10.05], [2.0, 2.2, 0.16]);
   });
-  writeBlockText({ text: 'CDB', name: 'main_stand_small_wayfinding_left', origin: [-54.0, 4.55, pitchH / 2 + 10.05], cell: 0.16, plane: 'xy' });
-  writeBlockText({ text: 'CDB', name: 'main_stand_small_wayfinding_right', origin: [48.5, 4.55, pitchH / 2 + 10.05], cell: 0.16, plane: 'xy' });
 };
 // Las escaleras exteriores laterales añadían siluetas cruzadas sobre la grada. Las dejamos fuera
 // del modelo dedicado para priorizar una grada limpia y reconocible.
