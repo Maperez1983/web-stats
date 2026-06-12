@@ -4388,21 +4388,33 @@
 	        display: flex;
 	        gap: 0.5rem;
 	        align-items: center;
-	        justify-content: space-between;
-	        flex-wrap: wrap;
-	        max-height: min(220px, 31dvh);
-	        overflow: auto;
+	        justify-content: flex-start;
+	        flex-wrap: nowrap;
+	        max-height: min(96px, 16dvh);
+	        overflow: hidden;
 	        scrollbar-width: thin;
 	      }
-	      .sim-3d-controls { display:flex; gap:0.42rem; flex-wrap:wrap; align-items:center; min-width:0; }
+	      .sim-3d-controls {
+	        display:flex;
+	        gap:0.42rem;
+	        flex: 1 1 auto;
+	        flex-wrap:nowrap;
+	        align-items:center;
+	        min-width:0;
+	        overflow-x:auto;
+	        overflow-y:hidden;
+	        padding-bottom:0.18rem;
+	        scrollbar-width: thin;
+	      }
 	      .sim-3d-controls label { white-space: nowrap; }
 	      .sim-3d-controls select { max-width: min(210px, 42vw); }
 	      .sim-3d-controls .button,
 	      .sim-3d-controls button {
 	        white-space: nowrap;
 	        padding-inline: 0.72rem;
+	        flex: 0 0 auto;
 	      }
-	      .sim-3d-note { opacity: 0.86; font-size: 0.86rem; flex: 1 1 280px; }
+	      .sim-3d-note { display:none; }
 	      .pitch3d-hud {
 	        position: absolute;
 	        inset: 0;
