@@ -4298,7 +4298,7 @@
 		        normalizeArrowHead(object);
 		      }
 			      // Evita la caja azul de Fabric en los objetos de pizarra y escalados accidentales.
-			      const hideBoardSelectionChrome = !locked && !isBackground && !isTacticsMode;
+			      const hideBoardSelectionChrome = !locked && !isTacticsMode && (!isBackground || !backgroundEdit);
 			      const hideTokenSelectionChrome = !locked && kind === 'token';
 			      const hideSelectionChrome = hideBoardSelectionChrome || hideTokenSelectionChrome;
 			      object.set({
