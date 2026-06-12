@@ -14224,8 +14224,8 @@
 						        const useAvatar3d = safeText(pitch3dPlayerMode, 'chip') === 'avatar';
 						        if (useAvatar3d) {
 						          mat.transparent = true;
-						          mat.opacity = 0.18;
-						          mesh.scale.set(0.72, 0.72, 0.72);
+						          mat.opacity = 0.12;
+						          mesh.scale.set(0.92, 0.92, 0.92);
 						        }
 
 						        // Sombra “broadcast” simple (sin shadow maps).
@@ -14242,23 +14242,82 @@
 						        // Avatar 3D opcional + orientación corporal. Por defecto mantenemos la chapa.
 						        if (useAvatar3d) try {
 						          const bodyCol = toColorInt(stripe || fill, color);
-						          const bodyMat = new THREE.MeshStandardMaterial({ color: bodyCol, roughness: 0.7, metalness: 0.02 });
-						          const headMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.55, metalness: 0.0 });
+						          const kitBaseCol = toColorInt(fill || '#ffffff', 0xffffff);
+						          const shortsCol = toColorInt(darkenHex(stripe || fill || '#1d4ed8', 0.56), 0x0f172a);
+						          const skinCol = 0xf2d2b6;
+						          const hairCol = tokenKind.includes('rival') ? 0x111827 : 0x172554;
+						          const bodyMat = new THREE.MeshStandardMaterial({ color: bodyCol, roughness: 0.62, metalness: 0.02 });
+						          const trimMat = new THREE.MeshStandardMaterial({ color: kitBaseCol, roughness: 0.66, metalness: 0.01 });
+						          const shortsMat = new THREE.MeshStandardMaterial({ color: shortsCol, roughness: 0.70, metalness: 0.01 });
+						          const skinMat = new THREE.MeshStandardMaterial({ color: skinCol, roughness: 0.58, metalness: 0.0 });
+						          const hairMat = new THREE.MeshStandardMaterial({ color: hairCol, roughness: 0.74, metalness: 0.0 });
+						          const bootMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.58, metalness: 0.04 });
 						          const body = new THREE.Group();
 						          body.userData = { kind: 'token_body', facing_deg: facingDeg };
-						          const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.42, 0.92, 14), bodyMat);
-						          torso.position.y = 0.75;
+						          const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.31, 0.58, 5, 14), bodyMat);
+						          torso.position.y = 0.82;
+						          torso.scale.set(1.05, 1.00, 0.72);
 						          torso.userData = { kind: 'token_body_torso' };
 						          body.add(torso);
-						          const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 14, 12), headMat);
-						          head.position.y = 1.28;
+						          const chestPanel = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.46, 0.045), trimMat);
+						          chestPanel.position.set(0, 0.88, -0.235);
+						          chestPanel.userData = { kind: 'token_body_chest_panel' };
+						          body.add(chestPanel);
+						          const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 0.12, 10), skinMat);
+						          neck.position.y = 1.25;
+						          neck.userData = { kind: 'token_body_neck' };
+						          body.add(neck);
+						          const head = new THREE.Mesh(new THREE.SphereGeometry(0.23, 18, 14), skinMat);
+						          head.position.y = 1.44;
+						          head.scale.set(0.92, 1.08, 0.92);
 						          head.userData = { kind: 'token_body_head' };
 						          body.add(head);
+						          const hair = new THREE.Mesh(new THREE.SphereGeometry(0.235, 16, 8, 0, Math.PI * 2, 0, Math.PI * 0.48), hairMat);
+						          hair.position.y = 1.55;
+						          hair.rotation.x = Math.PI;
+						          hair.scale.set(0.96, 0.64, 0.96);
+						          hair.userData = { kind: 'token_body_hair' };
+						          body.add(hair);
+						          const nose = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.105, 8, 1), skinMat);
+						          nose.position.set(0, 1.43, -0.225);
+						          nose.rotation.x = -Math.PI / 2;
+						          nose.userData = { kind: 'token_body_nose' };
+						          body.add(nose);
+						          const shoulder = new THREE.Mesh(new THREE.CapsuleGeometry(0.105, 0.42, 4, 10), bodyMat);
+						          shoulder.position.set(0, 1.10, 0);
+						          shoulder.rotation.z = Math.PI / 2;
+						          shoulder.scale.set(1.00, 1.00, 0.72);
+						          shoulder.userData = { kind: 'token_body_shoulders' };
+						          body.add(shoulder);
+						          [
+						            [-0.36, -0.22, -0.17],
+						            [0.36, 0.22, 0.17],
+						          ].forEach(([x, rot, handX]) => {
+						            const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.38, 4, 8), skinMat);
+						            arm.position.set(x, 0.84, -0.02);
+						            arm.rotation.z = rot;
+						            arm.userData = { kind: 'token_body_arm' };
+						            body.add(arm);
+						            const hand = new THREE.Mesh(new THREE.SphereGeometry(0.065, 10, 8), skinMat);
+						            hand.position.set(handX * 2.3, 0.60, -0.02);
+						            hand.userData = { kind: 'token_body_hand' };
+						            body.add(hand);
+						          });
 						          addToken3dKitDetails(body, o, { shirt: stripe || fill, base: fill });
+						          [-0.15, 0.15].forEach((x) => {
+						            const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.34, 4, 8), shortsMat);
+						            thigh.position.set(x, 0.22, 0);
+						            thigh.userData = { kind: 'token_body_thigh' };
+						            body.add(thigh);
+						            const boot = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.065, 0.28), bootMat);
+						            boot.position.set(x, -0.04, -0.06);
+						            boot.userData = { kind: 'token_body_boot' };
+						            body.add(boot);
+						          });
 						          // Flecha verde (como en 2D): orienta el cuerpo.
 						          const arrowMat = new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.55, metalness: 0.02, transparent: true, opacity: 0.92 });
 						          const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.5, 10, 1), arrowMat);
-						          arrow.position.set(0, 0.34, -0.95);
+						          arrow.position.set(0, 0.28, -1.03);
 						          arrow.rotation.x = -Math.PI / 2;
 						          arrow.userData = { kind: 'token_facing' };
 						          body.add(arrow);
