@@ -2311,6 +2311,14 @@
         || document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('csrftoken='))?.split('=')[1]
         || '';
       const THREE_MODULE_URL = "{% static 'vendor/three/build/three.module.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}";
+      const GLTF_LOADER_URL = "{% static 'vendor/three/examples/jsm/loaders/GLTFLoader.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}";
+      const XI3D_ASSETS = {
+        grassAlbedo: "{% static 'football/images/pitch3d/grass_premium_albedo.png' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}",
+        grassNormal: "{% static 'football/images/pitch3d/grass_premium_normal.png' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}",
+        grassRoughness: "{% static 'football/images/pitch3d/grass_premium_roughness.png' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}",
+        goalModel: "{% static 'football/models/pitch3d/goal_premium.glb' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}",
+        stadiumModel: "{% static 'football/models/pitch3d/stadium_benagalbon_reference.glb' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}",
+      };
       const KIT2D_PREF_KEY = 'kit2d.tokens';
       let lineupKit2dDataUrl = '';
       const lineupKit2dDataUrls = { home: '', away: '', third: '', gk: '', gk2: '', gk3: '' };
@@ -3569,6 +3577,7 @@
 
       const xi3d = {
         THREE: null,
+        GLTFLoader: null,
         renderer: null,
         scene: null,
         camera: null,
@@ -3588,6 +3597,50 @@
         const mod = await import(THREE_MODULE_URL);
         xi3d.THREE = mod;
         return mod;
+      };
+
+      const loadGltfLoaderClass = async () => {
+        if (xi3d.GLTFLoader) return xi3d.GLTFLoader;
+        const mod = await import(GLTF_LOADER_URL);
+        xi3d.GLTFLoader = mod && mod.GLTFLoader;
+        return xi3d.GLTFLoader;
+      };
+
+      const loadXi3dTexture = async (THREE, src, { repeat = null } = {}) => new Promise((resolve) => {
+        const url = String(src || '').trim();
+        if (!url) {
+          resolve(null);
+          return;
+        }
+        const loader = new THREE.TextureLoader();
+        loader.setCrossOrigin('anonymous');
+        loader.load(url, (texture) => {
+          try {
+            texture.colorSpace = THREE.SRGBColorSpace || texture.colorSpace;
+            if (repeat) {
+              texture.wrapS = THREE.RepeatWrapping;
+              texture.wrapT = THREE.RepeatWrapping;
+              texture.repeat.set(repeat[0], repeat[1]);
+            }
+            texture.anisotropy = Math.min(16, xi3d.renderer?.capabilities?.getMaxAnisotropy?.() || 8);
+            texture.needsUpdate = true;
+          } catch (_) {}
+          resolve(texture);
+        }, undefined, () => resolve(null));
+      });
+
+      const loadXi3dGltf = async (url) => {
+        const THREE = await loadThreeModule();
+        const Loader = await loadGltfLoaderClass();
+        if (!Loader || !url) return null;
+        return new Promise((resolve) => {
+          try {
+            const loader = new Loader();
+            loader.load(url, (gltf) => resolve(gltf), undefined, () => resolve(null));
+          } catch (_) {
+            resolve(null);
+          }
+        });
       };
 
       const lineup3dPlayers = () => {
@@ -3848,12 +3901,18 @@
           xi3d.renderer.setPixelRatio(Math.min(2.5, window.devicePixelRatio || 1));
           xi3d.renderer.setClearColor(0x07111f, 1);
           if (THREE.SRGBColorSpace) xi3d.renderer.outputColorSpace = THREE.SRGBColorSpace;
+          if (THREE.ACESFilmicToneMapping) {
+            xi3d.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            xi3d.renderer.toneMappingExposure = 1.05;
+          }
           xi3d.scene = new THREE.Scene();
-          xi3d.scene.background = new THREE.Color(0x07111f);
+          xi3d.scene.background = new THREE.Color(0xbddff6);
+          try { xi3d.scene.fog = new THREE.Fog(0xbddff6, 170, 420); } catch (_) {}
           xi3d.camera = new THREE.PerspectiveCamera(45, 16 / 9, 0.1, 900);
-          xi3d.scene.add(new THREE.HemisphereLight(0xffffff, 0x18301f, 1.15));
-          const key = new THREE.DirectionalLight(0xfff4d6, 3.2);
-          key.position.set(-50, 85, 50);
+          xi3d.scene.add(new THREE.HemisphereLight(0xffffff, 0x385243, 0.86));
+          const key = new THREE.DirectionalLight(0xfff0c8, 4.2);
+          key.position.set(-155, 210, -118);
+          try { key.castShadow = true; } catch (_) {}
           xi3d.scene.add(key);
           const fill = new THREE.DirectionalLight(0x7dd3fc, 0.74);
           fill.position.set(70, 34, -70);
@@ -3864,11 +3923,16 @@
         xi3d.root = root;
         xi3d.scene.add(root);
 
+        const grassMap = await loadXi3dTexture(THREE, XI3D_ASSETS.grassAlbedo, { repeat: [5.5, 8.5] });
+        const grassNormal = await loadXi3dTexture(THREE, XI3D_ASSETS.grassNormal, { repeat: [5.5, 8.5] });
+        const grassRoughness = await loadXi3dTexture(THREE, XI3D_ASSETS.grassRoughness, { repeat: [5.5, 8.5] });
         const pitch = new THREE.Mesh(
           new THREE.PlaneGeometry(68, 105, 1, 1),
           new THREE.MeshStandardMaterial({
-            map: makePitchTexture(THREE),
-            roughness: 0.72,
+            map: grassMap || makePitchTexture(THREE),
+            normalMap: grassNormal || null,
+            roughnessMap: grassRoughness || null,
+            roughness: 0.82,
             metalness: 0.01,
           }),
         );
@@ -3883,17 +3947,64 @@
         base.position.y = -0.74;
         root.add(base);
 
-        const standMat = new THREE.MeshStandardMaterial({ color: 0x0f766e, roughness: 0.7, metalness: 0.04 });
-        [
-          [0, -1.1, -62, 82, 7, 4],
-          [0, -1.1, 62, 82, 7, 4],
-          [-43, -1.1, 0, 5, 7, 116],
-          [43, -1.1, 0, 5, 7, 116],
-        ].forEach(([x, y, z, w, h, d]) => {
-          const stand = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), standMat);
-          stand.position.set(x, y, z);
-          root.add(stand);
-        });
+        const stadiumGltf = await loadXi3dGltf(XI3D_ASSETS.stadiumModel);
+        if (stadiumGltf?.scene) {
+          const stadium = stadiumGltf.scene.clone(true);
+          stadium.name = 'xi3d_benagalbon_reference_stadium';
+          stadium.position.set(0, -1.22, 0);
+          stadium.scale.set(1, 1, 1);
+          stadium.traverse((node) => {
+            if (!node) return;
+            try {
+              if (node.isMesh) {
+                node.castShadow = true;
+                node.receiveShadow = true;
+                if (node.material) {
+                  const mats = Array.isArray(node.material) ? node.material : [node.material];
+                  mats.forEach((mat) => {
+                    if (mat) {
+                      mat.needsUpdate = true;
+                      if ('roughness' in mat) mat.roughness = Math.max(0.54, Number(mat.roughness) || 0.64);
+                    }
+                  });
+                }
+              }
+            } catch (_) {}
+          });
+          root.add(stadium);
+        } else {
+          const standMat = new THREE.MeshStandardMaterial({ color: 0x0f766e, roughness: 0.7, metalness: 0.04 });
+          [
+            [0, -1.1, -62, 82, 7, 4],
+            [0, -1.1, 62, 82, 7, 4],
+            [-43, -1.1, 0, 5, 7, 116],
+            [43, -1.1, 0, 5, 7, 116],
+          ].forEach(([x, y, z, w, h, d]) => {
+            const stand = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), standMat);
+            stand.position.set(x, y, z);
+            root.add(stand);
+          });
+        }
+
+        const goalGltf = await loadXi3dGltf(XI3D_ASSETS.goalModel);
+        if (goalGltf?.scene) {
+          [-52.5, 52.5].forEach((z, index) => {
+            const goal = goalGltf.scene.clone(true);
+            goal.name = `xi3d_goal_${index}`;
+            goal.position.set(0, 0.06, z);
+            goal.rotation.y = index === 0 ? Math.PI : 0;
+            goal.scale.set(1.05, 1.05, 1.05);
+            goal.traverse((node) => {
+              if (node?.isMesh) {
+                try {
+                  node.castShadow = true;
+                  node.receiveShadow = true;
+                } catch (_) {}
+              }
+            });
+            root.add(goal);
+          });
+        }
 
         const players = lineup3dPlayers();
         for (const player of players) {
