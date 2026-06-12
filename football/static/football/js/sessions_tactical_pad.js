@@ -12812,7 +12812,6 @@
 						                  try { node.castShadow = true; node.receiveShadow = true; } catch (e) { /* ignore */ }
 						                });
 						                enhanceProfessionalStadiumAsset(stadiumAsset);
-						                if (isDedicatedReferenceStadium) addReferenceStadiumCrestDecals(stadiumAsset);
 						                root.add(stadiumAsset);
 						                addProfessionalStadiumAtmosphere(stadiumAsset, { dedicatedReference: isDedicatedReferenceStadium });
 						                return true;
@@ -14668,6 +14667,8 @@
 							      }
 							      pitch3dOpen = true;
 							      pitch3dModal.hidden = false;
+							      try { pitch3dModal.style.display = ''; } catch (e) { /* ignore */ }
+							      try { window.__WEBSTATS_PITCH3D_OPEN = true; } catch (e) { /* ignore */ }
 							      setPitch3dPresentation(false);
 							      pitch3dGhostsEnabled = pitch3dLayerGhostsInput ? !!pitch3dLayerGhostsInput.checked : pitch3dGhostsEnabled;
 							      pitch3dTrailsEnabled = pitch3dLayerTrailsInput ? !!pitch3dLayerTrailsInput.checked : pitch3dTrailsEnabled;
@@ -14686,6 +14687,7 @@
 
 						    const closePitch3d = () => {
 						      pitch3dOpen = false;
+						      try { window.__WEBSTATS_PITCH3D_OPEN = false; } catch (e) { /* ignore */ }
 						      stopPitch3dPlayback();
 						      try { setPitch3dPresentation(false); } catch (e) { /* ignore */ }
 						      if (pitch3dRecording) {
@@ -14949,6 +14951,12 @@
 
 						    // UI wiring
 						    pitch3dOpenBtn?.addEventListener('click', (ev) => { ev.preventDefault(); openPitch3d(); });
+						    document.addEventListener('click', (ev) => {
+						      const trigger = ev.target?.closest?.('#pitch-3d-open');
+						      if (!trigger) return;
+						      ev.preventDefault();
+						      openPitch3d();
+						    });
 						    pitch3dCloseBtn?.addEventListener('click', (ev) => { ev.preventDefault(); closePitch3d(); });
 						    pitch3dModal?.addEventListener('click', (ev) => {
 						      // Cierra al clicar fuera de la card.

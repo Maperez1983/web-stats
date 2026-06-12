@@ -415,7 +415,6 @@ const addSeatSectorSeparators = () => {
     });
   });
 };
-addSeatSectorSeparators();
 
 const addMainStandReferenceArchitecture = () => {
   box('main_stand_photo_upper_deck_white_lip', mats.white, [0, 7.02, pitchH / 2 + 23.6], [pitchW + 58, 0.34, 0.32], [-0.035, 0, 0]);
@@ -440,7 +439,6 @@ const addMainStandReferenceArchitecture = () => {
     box(`main_roof_photo_light_bar_${i}`, mats.light, [x, 13.95, pitchH / 2 + 24.9], [4.15, 0.18, 0.22]);
   }
 };
-addMainStandReferenceArchitecture();
 
 const addBoards = () => {
   [
