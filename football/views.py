@@ -143,9 +143,10 @@ from .library_repositories import (
 )
 
 try:
-    from PIL import Image, ImageFilter, ImageOps
+    from PIL import Image, ImageEnhance, ImageFilter, ImageOps
 except Exception:  # pragma: no cover
     Image = None
+    ImageEnhance = None
     ImageFilter = None
     ImageOps = None
 else:
@@ -26674,6 +26675,8 @@ def session_task_pdf(request, task_id):
             if embedded:
                 raw, mime = embedded
                 preview_url = _image_bytes_as_small_data_uri(raw, mime_type=mime or 'image/jpeg', max_width=3200, max_height=2400, quality=88)
+        if preview_url and pdf_style == 'club':
+            preview_url = _enhance_task_preview_data_url_for_club_pdf(preview_url)
     except Exception:
         preview_url = ''
     context = _build_task_pdf_context(
@@ -32813,6 +32816,42 @@ def _decode_canvas_data_url(data_url):
     if not raw_bytes:
         return None, None
     return raw_bytes, extension
+
+
+def _enhance_task_preview_data_url_for_club_pdf(data_url):
+    raw_bytes, _extension = _decode_canvas_data_url(data_url)
+    if not raw_bytes or Image is None or ImageEnhance is None:
+        return data_url
+    try:
+        img = Image.open(io.BytesIO(raw_bytes))
+        if ImageOps is not None:
+            try:
+                img = ImageOps.exif_transpose(img)
+            except Exception:
+                pass
+        rgba = img.convert('RGBA')
+        flat = Image.new('RGBA', rgba.size, (255, 255, 255, 255))
+        try:
+            flat.alpha_composite(rgba)
+        except Exception:
+            flat.paste(rgba, (0, 0), rgba)
+        rgb = flat.convert('RGB')
+        if ImageOps is not None:
+            try:
+                rgb = ImageOps.autocontrast(rgb, cutoff=1)
+            except Exception:
+                pass
+        # PDF Club se imprime sobre una ficha clara: reforzamos contraste y saturación para que
+        # trayectorias, piezas y líneas no queden lavadas en papel o visor PDF.
+        rgb = ImageEnhance.Contrast(rgb).enhance(1.42)
+        rgb = ImageEnhance.Color(rgb).enhance(1.18)
+        rgb = ImageEnhance.Sharpness(rgb).enhance(1.12)
+        rgb.thumbnail((3200, 2400))
+        out = io.BytesIO()
+        rgb.save(out, format='JPEG', quality=92, optimize=True)
+        return 'data:image/jpeg;base64,' + base64.b64encode(out.getvalue()).decode('ascii')
+    except Exception:
+        return data_url
 
 
 def _build_embedded_preview_data_url(raw_bytes: bytes, *, max_w: int = 1280, max_h: int = 800) -> str:

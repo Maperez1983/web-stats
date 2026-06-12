@@ -9535,6 +9535,15 @@ class StaffUserLinkingTests(TestCase):
             objective='Atacar espacio libre',
             tactical_layout={'meta': {'scope': 'coach', 'training_type': 'Juego aplicado'}},
         )
+        task.task_preview_image.save(
+            'preview-club-light.png',
+            ContentFile(
+                base64.b64decode(
+                    'iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAIAAAACUFjqAAAAGUlEQVR4nGM8ceIEA27AhEduBEsDqWEAAOxcAasqci/7AAAAAElFTkSuQmCC'
+                )
+            ),
+            save=True,
+        )
 
         response = self.client.get(reverse('session-task-pdf', args=[task.id]) + '?style=club&one_page=0')
 
@@ -9542,6 +9551,7 @@ class StaffUserLinkingTests(TestCase):
         self.assertContains(response, 'Planificación de tarea')
         self.assertContains(response, self.user.username)
         self.assertContains(response, 'Formato Club')
+        self.assertContains(response, 'data:image/jpeg;base64,')
 
     @patch('football.views.weasyprint', None)
     def test_session_task_pdf_one_page_compacts_layout(self):
