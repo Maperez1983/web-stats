@@ -11871,6 +11871,47 @@
 						                return cached;
 						              };
 						            })();
+						            const normalizeRuntimeStadiumMaterial = (node, mat) => {
+						              try {
+						                const name = safeText(mat?.name || node?.name || 'stadium_material');
+						                const color = (() => {
+						                  try {
+						                    if (mat?.color?.isColor) return new THREE.Color(mat.color.getHex());
+						                    if (mat?.color && typeof mat.color === 'object') return new THREE.Color(mat.color.r || 1, mat.color.g || 1, mat.color.b || 1);
+						                  } catch (e) { /* ignore */ }
+						                  return new THREE.Color(0xd8ded8);
+						                })();
+						                const opacity = Number.isFinite(Number(mat?.opacity)) ? clamp(Number(mat.opacity), 0, 1) : 1;
+						                const runtimeMat = new THREE.MeshStandardMaterial({
+						                  color,
+						                  roughness: Number.isFinite(Number(mat?.roughness)) ? clamp(Number(mat.roughness), 0.04, 1) : 0.72,
+						                  metalness: Number.isFinite(Number(mat?.metalness)) ? clamp(Number(mat.metalness), 0, 1) : 0.03,
+						                  transparent: !!mat?.transparent || opacity < 0.999,
+						                  opacity,
+						                  side: Number.isFinite(Number(mat?.side)) ? Number(mat.side) : THREE.FrontSide,
+						                  depthWrite: mat?.depthWrite === false ? false : true,
+						                  depthTest: mat?.depthTest === false ? false : true,
+						                  alphaTest: Number.isFinite(Number(mat?.alphaTest)) ? Number(mat.alphaTest) : 0,
+						                  vertexColors: !!mat?.vertexColors,
+						                });
+						                try {
+						                  if (mat?.emissive) {
+						                    runtimeMat.emissive = mat.emissive.isColor
+						                      ? new THREE.Color(mat.emissive.getHex())
+						                      : new THREE.Color(mat.emissive.r || 0, mat.emissive.g || 0, mat.emissive.b || 0);
+						                    runtimeMat.emissiveIntensity = Number.isFinite(Number(mat?.emissiveIntensity)) ? Number(mat.emissiveIntensity) : 0;
+						                  }
+						                } catch (e) { /* ignore */ }
+						                runtimeMat.name = name;
+						                runtimeMat.userData = Object.assign({}, mat?.userData || {}, {
+						                  kind: 'pitch_3d_runtime_stadium_material',
+						                  source_runtime_normalized: true,
+						                });
+						                return runtimeMat;
+						              } catch (e) {
+						                return new THREE.MeshStandardMaterial({ color: 0xd8ded8, roughness: 0.74, metalness: 0.03 });
+						              }
+						            };
 						            const tuneProfessionalStadiumMaterial = (node, mat) => {
 						              if (!mat || !mat.color) return mat;
 						              const name = `${safeText(mat.name || '')} ${safeText(node?.name || '')}`.toUpperCase();
@@ -12857,16 +12898,15 @@
 						                  if (!node || !node.isMesh) return;
 						                  try { if (node.geometry) node.geometry = node.geometry.clone(); } catch (e) { /* ignore */ }
 						                  try {
-						                    if (!isDedicatedReferenceStadium) {
-						                      if (Array.isArray(node.material)) {
-						                        node.material = node.material.map((mat) => tuneProfessionalStadiumMaterial(node, mat?.clone?.() || mat));
-						                      } else if (node.material) {
-						                        node.material = tuneProfessionalStadiumMaterial(node, node.material.clone());
-						                      }
-						                    } else if (Array.isArray(node.material)) {
-						                      node.material = node.material.map((mat) => mat?.clone?.() || mat);
+						                    const normalizeOne = (mat) => normalizeRuntimeStadiumMaterial(node, mat);
+						                    if (Array.isArray(node.material)) {
+						                      node.material = node.material.map((mat) => {
+						                        const runtimeMat = normalizeOne(mat);
+						                        return isDedicatedReferenceStadium ? runtimeMat : tuneProfessionalStadiumMaterial(node, runtimeMat);
+						                      });
 						                    } else if (node.material) {
-						                      node.material = node.material.clone();
+						                      const runtimeMat = normalizeOne(node.material);
+						                      node.material = isDedicatedReferenceStadium ? runtimeMat : tuneProfessionalStadiumMaterial(node, runtimeMat);
 						                    }
 						                  } catch (e) { /* ignore */ }
 						                  node.userData = Object.assign({}, node.userData || {}, { kind: isDedicatedReferenceStadium ? 'pitch_3d_dedicated_reference_stadium_mesh' : 'pitch_3d_professional_blender_stadium_mesh' });
