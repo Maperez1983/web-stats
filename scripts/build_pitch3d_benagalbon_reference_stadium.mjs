@@ -31,7 +31,7 @@ scene.name = 'pitch_3d_benagalbon_reference_dedicated_stadium';
 const mats = {
   concrete: new THREE.MeshStandardMaterial({ name: 'REF_PRECAST_CONCRETE', color: 0xb8c0bb, roughness: 0.82, metalness: 0.02 }),
   concreteLine: new THREE.MeshStandardMaterial({ name: 'REF_CONCRETE_EXPANSION_JOINT', color: 0x78827e, roughness: 0.9, metalness: 0.01 }),
-  darkConcrete: new THREE.MeshStandardMaterial({ name: 'REF_DARK_CONCRETE', color: 0x333b3a, roughness: 0.88, metalness: 0.02 }),
+  darkConcrete: new THREE.MeshStandardMaterial({ name: 'REF_DARK_CONCRETE', color: 0x68716d, roughness: 0.88, metalness: 0.02 }),
   skyPanel: new THREE.MeshBasicMaterial({ name: 'REF_SOFT_SKY_BACKDROP', color: 0x9dc3dc, toneMapped: false }),
   mountain: new THREE.MeshStandardMaterial({ name: 'REF_DISTANCE_MOUNTAINS', color: 0x8fa39d, roughness: 0.98, metalness: 0.0 }),
   city: new THREE.MeshStandardMaterial({ name: 'REF_DISTANCE_CITY_BLOCKS', color: 0xd6ddd8, roughness: 0.86, metalness: 0.02 }),
@@ -279,19 +279,19 @@ addStand({ name: 'east_low_stand', side: 'east', cols: 34, rows: 4, length: pitc
 addStand({ name: 'west_low_stand', side: 'west', cols: 28, rows: 3, length: pitchH - 18, depthStart: -(pitchW / 2 + 8.2), xFixed: -(pitchW / 2 + 8.2) });
 
 const addMainStandSeatLettering = () => {
-  const columns = buildLetterMap('BENAGALBON CD');
-  const cellX = 0.92;
-  const originX = -(columns.length * cellX) / 2;
-  const firstRow = 6;
-  columns.forEach((col, xIdx) => {
-    col.forEach((on, yIdx) => {
-      if (!on) return;
-      const row = firstRow + yIdx;
-      const y = 2.15 + row * 0.31 + 0.13;
-      const z = pitchH / 2 + 9.7 + row * 0.58 - 0.02;
-      const x = originX + xIdx * cellX;
-      box(`north_main_stand_identity_letter_${xIdx}_${yIdx}`, mats.white, [x, y, z], [0.70, 0.045, 0.34], [-0.08, 0, 0]);
-    });
+  [
+    [-29.5, 11, 6.2, 'b'],
+    [-21.0, 10, 5.8, 'e'],
+    [-13.0, 11, 6.0, 'n'],
+    [-4.0, 10, 5.8, 'a'],
+    [5.0, 11, 6.0, 'g'],
+    [14.0, 10, 5.8, 'a2'],
+    [22.7, 11, 6.0, 'l'],
+    [30.6, 10, 5.8, 'c'],
+  ].forEach(([x, row, w, id]) => {
+    const y = 2.15 + row * 0.31 + 0.14;
+    const z = pitchH / 2 + 9.7 + row * 0.58 - 0.03;
+    box(`north_main_stand_white_mosaic_${id}`, mats.white, [x, y, z], [w, 0.05, 0.38], [-0.08, 0, 0]);
   });
 };
 addMainStandSeatLettering();
