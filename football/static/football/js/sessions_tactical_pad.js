@@ -13494,6 +13494,71 @@
 						              cloudB.renderOrder = -2;
 						            } catch (e) { /* ignore */ }
 						          };
+						          const addReferenceBenchesAndTrainingGoalsPass = () => {
+						            try {
+						              const metalMat = new THREE.MeshStandardMaterial({ color: 0xd8e2e5, roughness: 0.26, metalness: 0.34 });
+						              const netMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc, transparent: true, opacity: 0.46, side: THREE.DoubleSide });
+						              const benchBlueMat = new THREE.MeshStandardMaterial({ color: 0x1261ad, roughness: 0.42, metalness: 0.02 });
+						              const glassCanopyMat = glassMat.clone();
+						              try { glassCanopyMat.opacity = 0.24; } catch (e) { /* ignore */ }
+						              const addVisibleDugout = (x, label) => {
+						                const group = new THREE.Group();
+						                group.userData = { kind: 'pitch_3d_dedicated_reference_photo_visible_dugout' };
+						                const addPart = (geo, mat, px, py, pz, kind) => {
+						                  const part = new THREE.Mesh(geo, mat);
+						                  part.position.set(px, py, pz);
+						                  part.userData = { kind };
+						                  group.add(part);
+						                  return part;
+						                };
+						                addPart(new THREE.BoxGeometry(13.8, 0.16, 2.08), darkVoidMat, 0, 0.16, 0.35, 'pitch_3d_reference_photo_dugout_dark_base');
+						                for (let r = 0; r < 7; r += 1) {
+						                  const t = r / 6;
+						                  const panel = addPart(new THREE.BoxGeometry(13.4, 0.045, 0.40), glassCanopyMat, 0, 0.82 + Math.sin(t * Math.PI * 0.58) * 1.18, -0.76 + t * 1.52, 'pitch_3d_reference_photo_dugout_curved_clear_panel');
+						                  panel.rotation.x = -0.48 + t * 0.30;
+						                }
+						                addPart(new THREE.BoxGeometry(13.9, 0.09, 0.14), metalMat, 0, 2.10, 0.10, 'pitch_3d_reference_photo_dugout_top_spine');
+						                for (let s = 0; s < 8; s += 1) {
+						                  const sx = -4.85 + s * 1.38;
+						                  addPart(new THREE.BoxGeometry(0.78, 0.20, 0.56), benchBlueMat, sx, 0.54, 0.28, 'pitch_3d_reference_photo_dugout_blue_seat');
+						                  const back = addPart(new THREE.BoxGeometry(0.78, 0.70, 0.12), benchBlueMat, sx, 0.92, 0.62, 'pitch_3d_reference_photo_dugout_blue_back');
+						                  back.rotation.x = -0.22;
+						                }
+						                const labelMesh = new THREE.Mesh(new THREE.PlaneGeometry(4.7, 0.56), makeSignMat(label, { w: 900, h: 260, bg: '#064f9e', fg: '#f8fafc', font: '900 58px Arial, sans-serif' }));
+						                labelMesh.position.set(0, 1.10, -0.92);
+						                labelMesh.rotation.y = Math.PI;
+						                labelMesh.userData = { kind: 'pitch_3d_reference_photo_dugout_label' };
+						                group.add(labelMesh);
+						                group.position.set(x, 0.04, -(metersH / 2 + 1.10));
+						                dedicatedFinish.add(group);
+						              };
+						              const addTrainingGoal = (x, z, rotY, label) => {
+						                const group = new THREE.Group();
+						                group.position.set(x, 0.10, z);
+						                group.rotation.y = rotY;
+						                group.userData = { kind: label };
+						                const addPart = (geo, mat, px, py, pz, kind) => {
+						                  const part = new THREE.Mesh(geo, mat);
+						                  part.position.set(px, py, pz);
+						                  part.userData = { kind };
+						                  group.add(part);
+						                };
+						                addPart(new THREE.BoxGeometry(4.8, 0.07, 0.07), metalMat, 0, 2.08, 0, 'pitch_3d_reference_training_goal_crossbar');
+						                addPart(new THREE.BoxGeometry(0.07, 2.08, 0.07), metalMat, -2.4, 1.04, 0, 'pitch_3d_reference_training_goal_post');
+						                addPart(new THREE.BoxGeometry(0.07, 2.08, 0.07), metalMat, 2.4, 1.04, 0, 'pitch_3d_reference_training_goal_post');
+						                addPart(new THREE.BoxGeometry(4.8, 1.9, 0.03), netMat, 0, 1.04, 0.55, 'pitch_3d_reference_training_goal_net');
+						                dedicatedFinish.add(group);
+						              };
+						              addVisibleDugout(-22.0, 'MALAGA CF');
+						              addVisibleDugout(-6.2, 'MCF');
+						              addTrainingGoal(-32.0, -(metersH / 2 + 0.82), 0, 'pitch_3d_reference_near_training_goal_left');
+						              addTrainingGoal(32.0, metersH / 2 + 0.82, Math.PI, 'pitch_3d_reference_far_training_goal_right');
+						              for (let i = -9; i <= 9; i += 1) {
+						                const x = i * ((metersW + 20.0) / 18);
+						                addRotMesh(new THREE.BoxGeometry(0.10, 2.45, 4.4), trussMat, x, 9.88, metersH / 2 + 16.30, -0.34, 0, 0, 'pitch_3d_reference_photo_main_roof_repeated_raker');
+						              }
+						            } catch (e) { /* ignore */ }
+						          };
 						          const addLongStand = (sideSign) => {
 						            const baseZ = sideSign * (metersH / 2 + 6.7);
 						            addMesh(new THREE.BoxGeometry(metersW + 17.5, 0.55, 8.6), concreteMat, 0, 0.38, baseZ, 'pitch_3d_dedicated_completion_long_stand_podium');
@@ -13549,6 +13614,7 @@
 						          addPhotoReferencePitchsideLayer();
 						          addReferenceIdentityAndLightingPass();
 						          addReferenceBowlDepthPass();
+						          addReferenceBenchesAndTrainingGoalsPass();
 						          [-1, 1].forEach((sx) => {
 						            [-1, 1].forEach((sz) => {
 						              addMesh(new THREE.BoxGeometry(8.0, 0.46, 8.0), concreteMat, sx * (metersW / 2 + 6.0), 0.36, sz * (metersH / 2 + 6.0), 'pitch_3d_dedicated_completion_corner_podium');
