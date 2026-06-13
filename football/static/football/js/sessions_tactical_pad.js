@@ -13346,6 +13346,48 @@
 						              addRotMesh(new THREE.CircleGeometry(2.55, 64), makeTransparentSeatTextMat('MCF', { w: 512, h: 512, font: '900 118px Arial, sans-serif' }), -(metersW / 2 + 7.48), 3.22, -metersH * 0.15, -0.10, -Math.PI / 2, 0, 'pitch_3d_dedicated_completion_side_stand_white_crest_mosaic');
 						            } catch (e) { /* ignore */ }
 						          };
+						          const addPhotoReferencePitchsideLayer = () => {
+						            try {
+						              const walkwayMat = new THREE.MeshStandardMaterial({ color: 0x263238, roughness: 0.82, metalness: 0.02 });
+						              const blueRailMat = new THREE.MeshStandardMaterial({ color: 0x075da8, roughness: 0.42, metalness: 0.08 });
+						              const silverMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.32, metalness: 0.32 });
+						              const flagMat = new THREE.MeshBasicMaterial({ color: 0x1d72c9, side: THREE.DoubleSide });
+						              addMesh(new THREE.BoxGeometry(metersW + 10.8, 0.06, 2.35), walkwayMat, 0, 0.07, -(metersH / 2 + 1.95), 'pitch_3d_dedicated_reference_near_dark_technical_walkway');
+						              addMesh(new THREE.BoxGeometry(metersW + 10.8, 0.06, 2.15), walkwayMat, 0, 0.07, metersH / 2 + 1.95, 'pitch_3d_dedicated_reference_far_dark_technical_walkway');
+						              addMesh(new THREE.BoxGeometry(2.15, 0.06, metersH + 8.6), walkwayMat, -(metersW / 2 + 1.92), 0.07, 0, 'pitch_3d_dedicated_reference_left_dark_technical_walkway');
+						              addMesh(new THREE.BoxGeometry(2.15, 0.06, metersH + 8.6), walkwayMat, metersW / 2 + 1.92, 0.07, 0, 'pitch_3d_dedicated_reference_right_dark_technical_walkway');
+						              const nearLabels = ['MALAGA CF', '2J FOOTBALL INTELLIGENCE', 'LA ROSALEDA', 'PARTNER', 'SPONSOR'];
+						              for (let i = 0; i < 12; i += 1) {
+						                const x = -metersW * 0.48 + i * (metersW * 0.087);
+						                const mat = makeSignMat(nearLabels[i % nearLabels.length], { w: 1100, h: 260, bg: i % 2 ? '#071b33' : '#064f9e', fg: '#f8fafc', font: '900 52px Arial, sans-serif', stroke: 'rgba(255,255,255,0.22)' });
+						                addMesh(new THREE.BoxGeometry(metersW * 0.077, 0.74, 0.12), mat, x, 0.62, -(metersH / 2 + 1.05), 'pitch_3d_dedicated_reference_continuous_near_blue_valla');
+						              }
+						              for (let i = 0; i < 12; i += 1) {
+						                const x = -metersW * 0.48 + i * (metersW * 0.087);
+						                const mat = makeSignMat(nearLabels[(i + 2) % nearLabels.length], { w: 1100, h: 260, bg: '#064f9e', fg: '#f8fafc', font: '900 52px Arial, sans-serif', stroke: 'rgba(255,255,255,0.20)' });
+						                addMesh(new THREE.BoxGeometry(metersW * 0.077, 0.74, 0.12), mat, x, 0.62, metersH / 2 + 1.05, 'pitch_3d_dedicated_reference_continuous_far_blue_valla');
+						              }
+						              [-1, 1].forEach((sideSign) => {
+						                for (let i = 0; i < 8; i += 1) {
+						                  const z = -metersH * 0.44 + i * (metersH * 0.125);
+						                  addMesh(new THREE.BoxGeometry(0.12, 0.74, metersH * 0.095), blueRailMat, sideSign * (metersW / 2 + 1.05), 0.62, z, 'pitch_3d_dedicated_reference_side_blue_valla');
+						                }
+						              });
+						              for (let i = -12; i <= 12; i += 1) {
+						                const x = i * (metersW / 24);
+						                addMesh(new THREE.BoxGeometry(0.055, 0.86, 0.055), silverMat, x, 0.50, -(metersH / 2 + 1.42), 'pitch_3d_dedicated_reference_near_pitch_fence_post');
+						                addMesh(new THREE.BoxGeometry(0.055, 0.86, 0.055), silverMat, x, 0.50, metersH / 2 + 1.42, 'pitch_3d_dedicated_reference_far_pitch_fence_post');
+						              }
+						              addMesh(new THREE.BoxGeometry(metersW + 4.0, 0.055, 0.055), silverMat, 0, 0.92, -(metersH / 2 + 1.42), 'pitch_3d_dedicated_reference_near_pitch_fence_top_rail');
+						              addMesh(new THREE.BoxGeometry(metersW + 4.0, 0.055, 0.055), silverMat, 0, 0.92, metersH / 2 + 1.42, 'pitch_3d_dedicated_reference_far_pitch_fence_top_rail');
+						              [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
+						                addMesh(new THREE.CylinderGeometry(0.035, 0.04, 1.45, 10), silverMat, sx * (metersW / 2 - 0.26), 0.73, sz * (metersH / 2 - 0.26), 'pitch_3d_dedicated_reference_corner_flag_pole');
+						                const flag = addMesh(new THREE.PlaneGeometry(0.62, 0.42), flagMat, sx * (metersW / 2 - 0.34), 1.28, sz * (metersH / 2 - 0.26), 'pitch_3d_dedicated_reference_blue_corner_flag');
+						                flag.rotation.y = sx > 0 ? -Math.PI / 2 : Math.PI / 2;
+						              });
+						              addRotMesh(new THREE.BoxGeometry(metersW * 0.78, 0.028, metersH * 0.30), shadowMat, -metersW * 0.10, 0.135, -metersH * 0.15, 0, 0.18, 0, 'pitch_3d_dedicated_reference_photo_roof_shadow_pitch_low');
+						            } catch (e) { /* ignore */ }
+						          };
 						          const addLongStand = (sideSign) => {
 						            const baseZ = sideSign * (metersH / 2 + 6.7);
 						            addMesh(new THREE.BoxGeometry(metersW + 17.5, 0.55, 8.6), concreteMat, 0, 0.38, baseZ, 'pitch_3d_dedicated_completion_long_stand_podium');
@@ -13398,6 +13440,7 @@
 						          addSegmentedAdBoards();
 						          addPerimeterRoofFinish();
 						          addSeatMosaic();
+						          addPhotoReferencePitchsideLayer();
 						          [-1, 1].forEach((sx) => {
 						            [-1, 1].forEach((sz) => {
 						              addMesh(new THREE.BoxGeometry(8.0, 0.46, 8.0), concreteMat, sx * (metersW / 2 + 6.0), 0.36, sz * (metersH / 2 + 6.0), 'pitch_3d_dedicated_completion_corner_podium');
