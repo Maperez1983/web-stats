@@ -28256,6 +28256,19 @@ def coach_tactics_page(request):
         back_url = '/'
 
 
+    pitch3d_player_model_src = ''
+    try:
+        pitch3d_player_model_url = str(os.getenv('TASK_PLAYER_MODEL_URL') or '').strip()
+        pitch3d_player_model_static_path = str(os.getenv('TASK_PLAYER_MODEL_STATIC_PATH') or '').strip()
+        if pitch3d_player_model_url:
+            pitch3d_player_model_src = pitch3d_player_model_url
+        elif pitch3d_player_model_static_path:
+            pitch3d_player_model_src = static(pitch3d_player_model_static_path.lstrip('/'))
+            if static_build_id:
+                pitch3d_player_model_src = f"{pitch3d_player_model_src}?v={quote(str(static_build_id))}"
+    except Exception:
+        pitch3d_player_model_src = ''
+
     return render(
         request,
         'football/task_builder.html',
@@ -39420,6 +39433,19 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
     except Exception:
         pass
 
+    pitch3d_player_model_src = ''
+    try:
+        pitch3d_player_model_url = str(os.getenv('TASK_PLAYER_MODEL_URL') or '').strip()
+        pitch3d_player_model_static_path = str(os.getenv('TASK_PLAYER_MODEL_STATIC_PATH') or '').strip()
+        if pitch3d_player_model_url:
+            pitch3d_player_model_src = pitch3d_player_model_url
+        elif pitch3d_player_model_static_path:
+            pitch3d_player_model_src = static(pitch3d_player_model_static_path.lstrip('/'))
+            if static_build_id:
+                pitch3d_player_model_src = f"{pitch3d_player_model_src}?v={quote(str(static_build_id))}"
+    except Exception:
+        pitch3d_player_model_src = ''
+
     return render(
         request,
         'football/task_builder.html',
@@ -39468,6 +39494,7 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             'saved_task_info': saved_task_info,
             'show_dragon_nav': True,
             'confirmed_players_api_url': reverse('sessions-confirmed-players-api'),
+            'pitch3d_player_model_src': pitch3d_player_model_src,
         },
     )
 

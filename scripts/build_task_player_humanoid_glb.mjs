@@ -5,7 +5,9 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
-const sourceUrl = 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Xbot.glb';
+const fallbackSourceUrl = 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Xbot.glb';
+const sourceUrl = String(process.env.TASK_PLAYER_MODEL_SOURCE_URL || fallbackSourceUrl).trim();
+const sourceFile = String(process.env.TASK_PLAYER_MODEL_SOURCE_FILE || '').trim();
 const out = path.join(root, 'football/static/football/models/avatar/player_humanoid.glb');
 const downloads = path.join(process.env.HOME || '/Users/miguelperezrodriguez', 'Downloads/player_humanoid.glb');
 
@@ -27,11 +29,13 @@ const download = (url) => new Promise((resolve, reject) => {
   }).on('error', reject);
 });
 
-const buffer = await download(sourceUrl);
+const buffer = sourceFile
+  ? fs.readFileSync(path.resolve(sourceFile))
+  : await download(sourceUrl);
 fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.writeFileSync(out, buffer);
 fs.writeFileSync(downloads, buffer);
 
-console.log(`source: ${sourceUrl}`);
+console.log(`source: ${sourceFile || sourceUrl}`);
 console.log(out);
 console.log(downloads);
