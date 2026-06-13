@@ -13659,7 +13659,7 @@
 						                addMesh(new THREE.BoxGeometry(2.65, 1.28, 0.20), darkVoidMat, ratio * metersW, 3.18, metersH / 2 + 6.06, 'pitch_3d_rosaleda_main_stand_dark_access_tunnel');
 						              });
 						              [-1, 1].forEach((sideSign) => {
-						                addRotMesh(new THREE.BoxGeometry(6.2, 0.10, metersH + 16.0), roofMat, sideSign * (metersW / 2 + 11.60), 10.12, 0, 0.02, sideSign * 0.018, 0, 'pitch_3d_rosaleda_side_roof_broad_light_panel');
+						                addRotMesh(new THREE.BoxGeometry(2.6, 0.08, metersH + 11.0), roofMat, sideSign * (metersW / 2 + 10.25), 10.72, 0, 0.02, sideSign * 0.018, 0, 'pitch_3d_rosaleda_side_roof_broad_light_panel');
 						                addMesh(new THREE.BoxGeometry(0.12, 0.16, metersH + 15.2), frameSteelMat, sideSign * (metersW / 2 + 8.72), 9.72, 0, 'pitch_3d_rosaleda_side_roof_front_steel_line');
 						                for (let i = -6; i <= 6; i += 1) {
 						                  const z = i * ((metersH + 8.0) / 12);
@@ -13709,8 +13709,8 @@
 						              const navyMat = new THREE.MeshStandardMaterial({ color: 0x061b33, roughness: 0.72, metalness: 0.06 });
 						              const paleStepMat = new THREE.MeshStandardMaterial({ color: 0xe5e7df, roughness: 0.72, metalness: 0.02 });
 						              const metalMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.30, metalness: 0.34 });
-						              const pitchShadowMat = new THREE.MeshBasicMaterial({ color: 0x06111d, transparent: true, opacity: 0.20, depthWrite: false });
-						              addRotMesh(new THREE.BoxGeometry(metersW * 0.74, 0.035, metersH * 0.42), pitchShadowMat, -metersW * 0.15, 0.155, -metersH * 0.22, 0, 0.12, 0, 'pitch_3d_rosaleda_reference_deep_roof_shadow_on_pitch');
+						              const pitchShadowMat = new THREE.MeshBasicMaterial({ color: 0x06111d, transparent: true, opacity: 0.095, depthWrite: false });
+						              addRotMesh(new THREE.BoxGeometry(metersW * 0.62, 0.035, metersH * 0.28), pitchShadowMat, -metersW * 0.17, 0.155, -metersH * 0.18, 0, 0.12, 0, 'pitch_3d_rosaleda_reference_deep_roof_shadow_on_pitch');
 						              addMesh(new THREE.BoxGeometry(metersW + 14.0, 0.34, 0.22), deepBlueMat, 0, 4.86, metersH / 2 + 10.72, 'pitch_3d_rosaleda_main_stand_upper_blue_fascia');
 						              addMesh(new THREE.BoxGeometry(metersW + 12.5, 0.26, 0.22), navyMat, 0, 5.20, metersH / 2 + 11.00, 'pitch_3d_rosaleda_main_stand_upper_dark_recess');
 						              addMesh(new THREE.BoxGeometry(metersW + 14.0, 0.16, 0.18), metalMat, 0, 5.55, metersH / 2 + 10.86, 'pitch_3d_rosaleda_main_stand_upper_front_rail');
