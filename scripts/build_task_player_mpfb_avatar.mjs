@@ -185,26 +185,34 @@ const makeMaterial = (name, color, roughness = 0.55) => document.createMaterial(
   .setRoughnessFactor(roughness)
   .setMetallicFactor(0);
 
-const skin = makeMaterial('natural_skin_warm_mpfb', [0.72, 0.45, 0.32, 1], 0.62);
-const kit = makeMaterial('deep_green_training_kit', [0.0, 0.28, 0.18, 1], 0.45);
-const kitDark = makeMaterial('shadow_green_shorts', [0.0, 0.12, 0.10, 1], 0.5);
+const skin = makeMaterial('natural_skin_warm_mpfb', [0.72, 0.48, 0.34, 1], 0.78);
+const kit = makeMaterial('deep_green_training_kit', [0.0, 0.34, 0.22, 1], 0.52);
+const kitDark = makeMaterial('shadow_green_shorts', [0.0, 0.16, 0.13, 1], 0.56);
 const white = makeMaterial('white_kit_details', [0.95, 0.97, 0.96, 1], 0.4);
 const boots = makeMaterial('matte_black_boots', [0.015, 0.018, 0.02, 1], 0.5);
-const hair = makeMaterial('short_dark_hair', [0.025, 0.018, 0.014, 1], 0.7);
+const hair = makeMaterial('short_dark_hair', [0.018, 0.014, 0.011, 1], 0.78);
 const ballWhite = makeMaterial('training_ball_white', [0.96, 0.96, 0.9, 1], 0.45);
 const ballGreen = makeMaterial('training_ball_green_panels', [0.0, 0.34, 0.22, 1], 0.45);
 
 addMesh(document, scene, buffer, 'mpfb_hm08_athlete_body', parseMpfbObj(baseObj), skin);
-addMesh(document, scene, buffer, 'fitted_jersey_torso', cylinderGeometry({ radius: 0.24, height: 0.48, center: [0, 1.14, -0.015], scale: [0.83, 1, 0.48] }), kit);
-addMesh(document, scene, buffer, 'athletic_shorts', cylinderGeometry({ radius: 0.21, height: 0.23, center: [0, 0.84, -0.01], scale: [0.95, 1, 0.54] }), kitDark);
-addMesh(document, scene, buffer, 'short_dark_hair_cap', sphereGeometry({ radius: 0.12, center: [0, 1.73, -0.02], scale: [0.96, 0.5, 0.78] }), hair);
-addMesh(document, scene, buffer, 'front_kit_stripe', boxGeometry({ center: [0, 1.15, -0.135], size: [0.19, 0.35, 0.018] }), white);
-addMesh(document, scene, buffer, 'neck_trim', cylinderGeometry({ radius: 0.115, height: 0.025, center: [0, 1.39, -0.02], scale: [1, 1, 0.65] }), white);
+addMesh(document, scene, buffer, 'fitted_jersey_torso', boxGeometry({ center: [0, 1.13, -0.055], size: [0.39, 0.44, 0.17] }), kit);
+addMesh(document, scene, buffer, 'jersey_chest_front', boxGeometry({ center: [0, 1.20, -0.148], size: [0.32, 0.25, 0.014] }), kit);
+addMesh(document, scene, buffer, 'front_kit_stripe', boxGeometry({ center: [0, 1.18, -0.158], size: [0.055, 0.32, 0.012] }), white);
+addMesh(document, scene, buffer, 'neck_trim', cylinderGeometry({ radius: 0.102, height: 0.018, center: [0, 1.385, -0.048], scale: [1.05, 1, 0.58] }), white);
+addMesh(document, scene, buffer, 'short_dark_hair_cap', sphereGeometry({ radius: 0.09, center: [0, 1.71, -0.02], scale: [0.78, 0.34, 0.55] }), hair);
+addMesh(document, scene, buffer, 'short_hair_back', sphereGeometry({ radius: 0.065, center: [0, 1.66, 0.018], scale: [0.9, 0.72, 0.48] }), hair);
+addMesh(document, scene, buffer, 'shorts_waistband', boxGeometry({ center: [0, 0.955, -0.052], size: [0.36, 0.07, 0.16] }), kitDark);
+addMesh(document, scene, buffer, 'left_shorts_leg', boxGeometry({ center: [-0.085, 0.82, -0.052], size: [0.15, 0.24, 0.15] }), kitDark);
+addMesh(document, scene, buffer, 'right_shorts_leg', boxGeometry({ center: [0.085, 0.82, -0.052], size: [0.15, 0.24, 0.15] }), kitDark);
+addMesh(document, scene, buffer, 'left_shorts_side_stripe', boxGeometry({ center: [-0.17, 0.83, -0.135], size: [0.016, 0.21, 0.012] }), white);
+addMesh(document, scene, buffer, 'right_shorts_side_stripe', boxGeometry({ center: [0.17, 0.83, -0.135], size: [0.016, 0.21, 0.012] }), white);
 
 for (const side of [-1, 1]) {
-  addMesh(document, scene, buffer, side < 0 ? 'left_short_sleeve' : 'right_short_sleeve', cylinderGeometry({ axis: 'x', radius: 0.055, height: 0.22, center: [side * 0.255, 1.30, -0.01], scale: [1, 0.82, 1] }), kit);
-  addMesh(document, scene, buffer, side < 0 ? 'left_sock' : 'right_sock', cylinderGeometry({ radius: 0.052, height: 0.34, center: [side * 0.135, 0.34, 0.0], scale: [0.72, 1, 0.6] }), kit);
-  addMesh(document, scene, buffer, side < 0 ? 'left_boot' : 'right_boot', boxGeometry({ center: [side * 0.135, 0.045, -0.05], size: [0.105, 0.055, 0.2] }), boots);
+  addMesh(document, scene, buffer, side < 0 ? 'left_short_sleeve' : 'right_short_sleeve', cylinderGeometry({ axis: 'x', radius: 0.045, height: 0.17, center: [side * 0.232, 1.295, -0.052], scale: [1, 0.84, 0.95] }), kit);
+  addMesh(document, scene, buffer, side < 0 ? 'left_sock' : 'right_sock', cylinderGeometry({ radius: 0.044, height: 0.32, center: [side * 0.116, 0.33, -0.01], scale: [0.66, 1, 0.58] }), kit);
+  addMesh(document, scene, buffer, side < 0 ? 'left_sock_white_top' : 'right_sock_white_top', cylinderGeometry({ radius: 0.046, height: 0.018, center: [side * 0.116, 0.50, -0.01], scale: [0.68, 1, 0.6] }), white);
+  addMesh(document, scene, buffer, side < 0 ? 'left_boot' : 'right_boot', boxGeometry({ center: [side * 0.116, 0.04, -0.09], size: [0.10, 0.052, 0.22] }), boots);
+  addMesh(document, scene, buffer, side < 0 ? 'left_boot_toe' : 'right_boot_toe', sphereGeometry({ radius: 0.05, width: 16, height: 8, center: [side * 0.116, 0.04, -0.185], scale: [0.85, 0.32, 0.58] }), boots);
 }
 
 addMesh(document, scene, buffer, 'training_ball', sphereGeometry({ radius: 0.075, center: [0.34, 0.12, -0.18] }), ballWhite);
