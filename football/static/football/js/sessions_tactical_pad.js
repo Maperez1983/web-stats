@@ -9327,13 +9327,13 @@
 							        targetZ = 4.8;
 						      } else if (k === 'render_original') {
 						        // Vista estilo render de grada: esquina alta, más baja y cercana para leer asientos/vallas/cubierta.
-							        pitch3dCamera.fov = 39;
-							        pitch3dOrbit.theta = -2.42;
-							        pitch3dOrbit.phi = 1.28;
-							        pitch3dOrbit.radius = Math.max(88, metersW * 0.84);
-							        targetX = -4.2;
-							        targetY = 2.8;
-							        targetZ = 3.8;
+							        pitch3dCamera.fov = 41;
+							        pitch3dOrbit.theta = -2.36;
+							        pitch3dOrbit.phi = 1.32;
+							        pitch3dOrbit.radius = Math.max(82, metersW * 0.79);
+							        targetX = -5.2;
+							        targetY = 2.15;
+							        targetZ = 1.4;
 						      } else if (k === 'clean_pitch_render') {
 							        // Composición de campo limpio: esquina alta y campo completo.
 							        pitch3dOrbit.theta = -2.26;
@@ -13396,6 +13396,7 @@
 						              const warmLightMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc, toneMapped: false });
 						              addRotMesh(new THREE.CircleGeometry(3.05, 72), makeSignMat('MCF', { w: 512, h: 512, bg: '#1d72c9', fg: '#f8fafc', font: '900 132px Arial, sans-serif', stroke: '#f8fafc' }), -(metersW / 2 + 5.92), 4.45, -metersH * 0.12, -0.12, -Math.PI / 2, 0, 'pitch_3d_dedicated_reference_large_side_stand_mcf_crest');
 						              addRotMesh(new THREE.CircleGeometry(2.35, 72), makeSignMat('MCF', { w: 512, h: 512, bg: '#1d72c9', fg: '#f8fafc', font: '900 132px Arial, sans-serif', stroke: '#f8fafc' }), metersW / 2 + 5.92, 4.22, metersH * 0.18, -0.12, Math.PI / 2, 0, 'pitch_3d_dedicated_reference_opposite_side_stand_mcf_crest');
+						              addRotMesh(new THREE.PlaneGeometry(metersW * 0.62, 3.65), makeTransparentSeatTextMat('MALAGA CF', { font: '900 172px Arial, sans-serif' }), 0, 5.18, metersH / 2 + 8.72, -0.15, Math.PI, 0, 'pitch_3d_dedicated_reference_large_white_seat_wordmark_overlay');
 						              [-0.34, -0.12, 0.12, 0.34].forEach((ratio, idx) => {
 						                addMesh(new THREE.BoxGeometry(metersW * 0.15, 0.20, 0.40), idx % 2 ? whiteSeatMat : royalBlueMat, ratio * metersW, 4.66, metersH / 2 + 8.20, 'pitch_3d_dedicated_reference_main_stand_lettering_seat_row_highlight');
 						                addMesh(new THREE.BoxGeometry(metersW * 0.12, 0.18, 0.38), whiteSeatMat, ratio * metersW + metersW * 0.035, 4.26, metersH / 2 + 7.45, 'pitch_3d_dedicated_reference_main_stand_white_letter_seat_run');
