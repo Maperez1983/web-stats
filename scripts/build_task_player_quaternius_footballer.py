@@ -1,4 +1,3 @@
-import math
 import os
 import sys
 
@@ -42,30 +41,30 @@ def poly_center(mesh, poly):
     return x / n, y / n, z / n
 
 
-def assign_football_kit(obj):
+def assign_skin_material(obj):
     mesh = obj.data
     skin = make_mat('footballer_skin', (0.72, 0.50, 0.34, 1.0), 0.58)
     shirt = make_mat('footballer_green_jersey', (0.0, 0.48, 0.30, 1.0), 0.62)
-    trim = make_mat('footballer_white_trim', (0.92, 0.96, 0.94, 1.0), 0.66)
     shorts = make_mat('footballer_dark_shorts', (0.015, 0.025, 0.045, 1.0), 0.72)
     socks = make_mat('footballer_white_socks', (0.92, 0.94, 0.90, 1.0), 0.72)
     boots = make_mat('footballer_black_boots', (0.01, 0.012, 0.016, 1.0), 0.52)
-
+    hair = make_mat('footballer_dark_hair', (0.035, 0.025, 0.018, 1.0), 0.76)
     mesh.materials.clear()
-    for mat in (skin, shirt, trim, shorts, socks, boots):
+    for mat in (skin, shirt, shorts, socks, boots, hair):
         mesh.materials.append(mat)
-
     for poly in mesh.polygons:
         x, depth, y = poly_center(mesh, poly)
         ax = abs(x)
         mat_index = 0
-        if 0.78 <= y <= 1.28 and ax <= 0.58:
+        if 0.78 <= y <= 1.26 and ax <= 0.54:
             mat_index = 1
-        if 0.58 <= y < 0.88 and ax <= 0.34:
+        if 0.56 <= y < 0.84 and ax <= 0.34:
+            mat_index = 2
+        if 0.14 <= y < 0.46 and 0.05 <= ax <= 0.23:
             mat_index = 3
-        if 0.14 <= y < 0.48 and 0.05 <= ax <= 0.23:
-            mat_index = 4
         if y < 0.12 and 0.04 <= ax <= 0.25:
+            mat_index = 4
+        if y > 1.62 and (depth > 0.035 or y > 1.72):
             mat_index = 5
         poly.material_index = mat_index
 
@@ -109,7 +108,7 @@ def main():
         if obj.type == 'ARMATURE':
             armature = obj
         if obj.type == 'MESH' and any('Superhero_Male' in slot.material.name for slot in obj.material_slots if slot.material):
-            assign_football_kit(obj)
+            assign_skin_material(obj)
 
     if armature:
         pose_armature(armature)
