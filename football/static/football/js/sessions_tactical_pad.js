@@ -13417,6 +13417,82 @@
 						              }
 						            } catch (e) { /* ignore */ }
 						          };
+						          const addReferenceBowlDepthPass = () => {
+						            try {
+						              const portalMat = new THREE.MeshStandardMaterial({ color: 0x07111f, roughness: 0.88, metalness: 0.02 });
+						              const frameMat = new THREE.MeshStandardMaterial({ color: 0xd9ded8, roughness: 0.62, metalness: 0.04 });
+						              const soffitMat = new THREE.MeshStandardMaterial({ color: 0x1f2933, roughness: 0.58, metalness: 0.16 });
+						              const cloudMat = (() => {
+						                try {
+						                  const tex = makePitch3dCanvasTexture((ctx, c) => {
+						                    const g = ctx.createLinearGradient(0, 0, 0, c.height);
+						                    g.addColorStop(0, 'rgba(255,255,255,0)');
+						                    g.addColorStop(0.45, 'rgba(255,255,255,0.78)');
+						                    g.addColorStop(1, 'rgba(255,255,255,0)');
+						                    ctx.clearRect(0, 0, c.width, c.height);
+						                    ctx.fillStyle = g;
+						                    for (let i = 0; i < 12; i += 1) {
+						                      const x = (i / 11) * c.width;
+						                      const y = c.height * (0.42 + ((i % 3) * 0.08));
+						                      ctx.beginPath();
+						                      ctx.ellipse(x, y, 150 + (i % 4) * 34, 42 + (i % 2) * 16, 0, 0, Math.PI * 2);
+						                      ctx.fill();
+						                    }
+						                  }, 1600, 300);
+						                  return new THREE.MeshBasicMaterial({ map: tex?.tex || null, transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
+						                } catch (e) {
+						                  return new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.42, side: THREE.DoubleSide });
+						                }
+						              })();
+						              addMesh(new THREE.BoxGeometry(metersW + 24.0, 0.24, 4.2), soffitMat, 0, 10.38, metersH / 2 + 16.74, 'pitch_3d_dedicated_reference_main_roof_dark_soffit');
+						              addMesh(new THREE.BoxGeometry(metersW + 18.0, 0.18, 3.1), soffitMat, 0, 9.58, -(metersH / 2 + 10.72), 'pitch_3d_dedicated_reference_near_roof_dark_soffit');
+						              [-0.42, -0.26, -0.10, 0.10, 0.26, 0.42].forEach((ratio) => {
+						                const x = ratio * metersW;
+						                addMesh(new THREE.BoxGeometry(4.25, 2.05, 0.20), frameMat, x, 3.18, metersH / 2 + 6.96, 'pitch_3d_dedicated_reference_main_vomitory_concrete_frame');
+						                addMesh(new THREE.BoxGeometry(2.95, 1.32, 0.24), portalMat, x, 3.08, metersH / 2 + 6.82, 'pitch_3d_dedicated_reference_main_dark_vomitory_opening');
+						              });
+						              [-0.32, 0, 0.32].forEach((ratio) => {
+						                const z = ratio * metersH;
+						                addMesh(new THREE.BoxGeometry(0.20, 1.78, 3.6), frameMat, -(metersW / 2 + 5.30), 2.86, z, 'pitch_3d_dedicated_reference_side_vomitory_concrete_frame');
+						                addMesh(new THREE.BoxGeometry(0.24, 1.18, 2.55), portalMat, -(metersW / 2 + 5.16), 2.78, z, 'pitch_3d_dedicated_reference_side_dark_vomitory_opening');
+						              });
+						              const addBackrestField = (sideSign, rowCount, colCount, zStart, label) => {
+						                const geo = new THREE.BoxGeometry(0.38, 0.30, 0.055);
+						                const blue = new THREE.InstancedMesh(geo, seatMat, rowCount * colCount);
+						                const white = new THREE.InstancedMesh(geo, stairMat, rowCount * colCount);
+						                const matrix = new THREE.Matrix4();
+						                let bi = 0;
+						                let wi = 0;
+						                for (let r = 0; r < rowCount; r += 1) {
+						                  const y = 1.42 + r * 0.33;
+						                  const z = sideSign * (zStart + r * 0.56);
+						                  for (let c = 0; c < colCount; c += 1) {
+						                    const t = colCount <= 1 ? 0 : c / (colCount - 1);
+						                    const x = -metersW * 0.44 + t * metersW * 0.88;
+						                    const isAisle = [-0.42, -0.20, 0, 0.20, 0.42].some((ratio) => Math.abs(x - ratio * metersW) < 0.92);
+						                    if (isAisle) continue;
+						                    const isLetter = sideSign > 0 && r > 4 && r < 10 && Math.abs(x) < metersW * 0.28 && ((Math.floor((x + metersW * 0.28) / 2.2) + r) % 5 === 0);
+						                    matrix.compose(new THREE.Vector3(x, y, z), new THREE.Quaternion(), new THREE.Vector3(1, 1, 1));
+						                    if (isLetter) white.setMatrixAt(wi++, matrix);
+						                    else blue.setMatrixAt(bi++, matrix);
+						                  }
+						                }
+						                blue.count = bi;
+						                white.count = wi;
+						                blue.instanceMatrix.needsUpdate = true;
+						                white.instanceMatrix.needsUpdate = true;
+						                blue.userData = { kind: `${label}_blue_individual_backrests`, count: bi };
+						                white.userData = { kind: `${label}_white_individual_backrests`, count: wi };
+						                dedicatedFinish.add(blue, white);
+						              };
+						              addBackrestField(1, 12, 70, metersH / 2 + 4.70, 'pitch_3d_dedicated_reference_main_stand');
+						              addBackrestField(-1, 9, 58, metersH / 2 + 4.70, 'pitch_3d_dedicated_reference_near_stand');
+						              const cloudA = addRotMesh(new THREE.PlaneGeometry(metersW + 95.0, 13.5), cloudMat, -10, 18.5, metersH / 2 + 61.0, 0, Math.PI, 0, 'pitch_3d_dedicated_reference_soft_cloud_band_far');
+						              cloudA.renderOrder = -2;
+						              const cloudB = addRotMesh(new THREE.PlaneGeometry(metersW + 80.0, 10.0), cloudMat, 18, 16.0, -(metersH / 2 + 48.0), 0, 0, 0, 'pitch_3d_dedicated_reference_soft_cloud_band_near');
+						              cloudB.renderOrder = -2;
+						            } catch (e) { /* ignore */ }
+						          };
 						          const addLongStand = (sideSign) => {
 						            const baseZ = sideSign * (metersH / 2 + 6.7);
 						            addMesh(new THREE.BoxGeometry(metersW + 17.5, 0.55, 8.6), concreteMat, 0, 0.38, baseZ, 'pitch_3d_dedicated_completion_long_stand_podium');
@@ -13471,6 +13547,7 @@
 						          addSeatMosaic();
 						          addPhotoReferencePitchsideLayer();
 						          addReferenceIdentityAndLightingPass();
+						          addReferenceBowlDepthPass();
 						          [-1, 1].forEach((sx) => {
 						            [-1, 1].forEach((sz) => {
 						              addMesh(new THREE.BoxGeometry(8.0, 0.46, 8.0), concreteMat, sx * (metersW / 2 + 6.0), 0.36, sz * (metersH / 2 + 6.0), 'pitch_3d_dedicated_completion_corner_podium');
