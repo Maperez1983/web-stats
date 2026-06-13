@@ -13616,8 +13616,8 @@
 						                  const x = -metersW * 0.46 + u * metersW * 0.92;
 						                  const aisle = [-0.43, -0.23, -0.03, 0.17, 0.37].some((ratio) => Math.abs(x - ratio * metersW) < 0.72);
 						                  if (aisle) continue;
-						                  const inWordBand = row >= 5 && row <= 13 && Math.abs(x) < metersW * 0.43;
-						                  const isWhite = inWordBand && sampleLetter((x + metersW * 0.43) / (metersW * 0.86), (row - 5) / 8);
+						                  const inWordBand = row >= 7 && row <= 16 && Math.abs(x) < metersW * 0.43;
+						                  const isWhite = inWordBand && sampleLetter((x + metersW * 0.43) / (metersW * 0.86), (row - 7) / 9);
 						                  matrix.compose(new THREE.Vector3(x, y, z), quat, scale);
 						                  (isWhite ? whiteSeats : blueSeats).push(matrix.clone());
 						                }
@@ -13658,6 +13658,49 @@
 						                addMesh(new THREE.BoxGeometry(1.05, 2.8, 0.18), paleConcreteMat, ratio * metersW, 3.05, metersH / 2 + 6.28, 'pitch_3d_rosaleda_main_stand_clean_vertical_aisle_core');
 						                addMesh(new THREE.BoxGeometry(2.65, 1.28, 0.20), darkVoidMat, ratio * metersW, 3.18, metersH / 2 + 6.06, 'pitch_3d_rosaleda_main_stand_dark_access_tunnel');
 						              });
+						              [-1, 1].forEach((sideSign) => {
+						                addRotMesh(new THREE.BoxGeometry(6.2, 0.10, metersH + 16.0), roofMat, sideSign * (metersW / 2 + 11.60), 10.12, 0, 0.02, sideSign * 0.018, 0, 'pitch_3d_rosaleda_side_roof_broad_light_panel');
+						                addMesh(new THREE.BoxGeometry(0.12, 0.16, metersH + 15.2), frameSteelMat, sideSign * (metersW / 2 + 8.72), 9.72, 0, 'pitch_3d_rosaleda_side_roof_front_steel_line');
+						                for (let i = -6; i <= 6; i += 1) {
+						                  const z = i * ((metersH + 8.0) / 12);
+						                  addRotMesh(new THREE.BoxGeometry(4.2, 0.06, 0.08), frameSteelMat, sideSign * (metersW / 2 + 10.28), 10.18, z, 0, 0, sideSign * 0.34, 'pitch_3d_rosaleda_side_roof_repeating_diagonal');
+						                  addMesh(new THREE.BoxGeometry(0.16, 2.95, 0.16), frameSteelMat, sideSign * (metersW / 2 + 8.58), 8.12, z, 'pitch_3d_rosaleda_side_roof_realistic_post');
+						                }
+						              });
+						              const addReferenceDugout = (x, label) => {
+						                const dugout = new THREE.Group();
+						                dugout.userData = { kind: 'pitch_3d_rosaleda_reference_visible_dugout_clean' };
+						                const blueBenchMat = new THREE.MeshStandardMaterial({ color: 0x1d72c9, roughness: 0.44, metalness: 0.02 });
+						                const addPart = (geo, mat, px, py, pz, kind) => {
+						                  const part = new THREE.Mesh(geo, mat);
+						                  part.position.set(px, py, pz);
+						                  part.userData = { kind };
+						                  dugout.add(part);
+						                  return part;
+						                };
+						                addPart(new THREE.BoxGeometry(12.2, 0.14, 1.75), asphaltMat, 0, 0.16, 0.30, 'pitch_3d_rosaleda_dugout_single_dark_floor');
+						                for (let r = 0; r < 7; r += 1) {
+						                  const t = r / 6;
+						                  const panel = addPart(new THREE.BoxGeometry(11.9, 0.045, 0.34), glassMat, 0, 0.82 + Math.sin(t * Math.PI * 0.62) * 1.12, -0.62 + t * 1.34, 'pitch_3d_rosaleda_dugout_single_curved_glass');
+						                  panel.rotation.x = -0.48 + t * 0.30;
+						                }
+						                addPart(new THREE.BoxGeometry(12.25, 0.08, 0.12), frameSteelMat, 0, 2.04, 0.05, 'pitch_3d_rosaleda_dugout_single_top_spine');
+						                for (let s = 0; s < 8; s += 1) {
+						                  const sx = -4.55 + s * 1.30;
+						                  addPart(new THREE.BoxGeometry(0.78, 0.20, 0.52), blueBenchMat, sx, 0.52, 0.25, 'pitch_3d_rosaleda_dugout_single_blue_seat');
+						                  const back = addPart(new THREE.BoxGeometry(0.78, 0.68, 0.11), blueBenchMat, sx, 0.90, 0.56, 'pitch_3d_rosaleda_dugout_single_blue_backrest');
+						                  back.rotation.x = -0.20;
+						                }
+						                const labelMesh = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 0.54), makeSignMat(label, { w: 900, h: 260, bg: '#064f9e', fg: '#f8fafc', font: '900 58px Arial, sans-serif' }));
+						                labelMesh.position.set(0, 1.03, -0.78);
+						                labelMesh.rotation.y = Math.PI;
+						                labelMesh.userData = { kind: 'pitch_3d_rosaleda_dugout_single_brand' };
+						                dugout.add(labelMesh);
+						                dugout.position.set(x, 0.04, -(metersH / 2 + 1.00));
+						                dedicatedFinish.add(dugout);
+						              };
+						              addReferenceDugout(-24.0, 'MALAGA CF');
+						              addReferenceDugout(-9.4, 'MCF');
 						            } catch (e) { /* ignore */ }
 						          };
 						          const addLongStand = (sideSign) => {
