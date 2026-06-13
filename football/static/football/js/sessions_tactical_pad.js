@@ -13192,6 +13192,21 @@
 						              return new THREE.MeshBasicMaterial({ color: 0x047857, side: THREE.DoubleSide });
 						            }
 						          };
+						          const makeTransparentSeatTextMat = (text, opts = {}) => {
+						            try {
+						              const tex = makePitch3dCanvasTexture((ctx, c) => {
+						                ctx.clearRect(0, 0, c.width, c.height);
+						                ctx.fillStyle = opts.fg || '#f8fafc';
+						                ctx.font = opts.font || '900 142px Arial, sans-serif';
+						                ctx.textAlign = 'center';
+						                ctx.textBaseline = 'middle';
+						                ctx.fillText(text, c.width / 2, c.height / 2);
+						              }, opts.w || 1800, opts.h || 420);
+						              return new THREE.MeshBasicMaterial({ map: tex?.tex || null, transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
+						            } catch (e) {
+						              return new THREE.MeshBasicMaterial({ color: 0xf8fafc, transparent: true, opacity: 0.92, side: THREE.DoubleSide });
+						            }
+						          };
 						          const addMesh = (geo, mat, x, y, z, kind) => {
 						            const mesh = new THREE.Mesh(geo, mat);
 						            mesh.position.set(x, y, z);
@@ -13292,6 +13307,12 @@
 						              addRotMesh(new THREE.BoxGeometry(metersW * 0.72, 0.035, 16.0), shadowMat, 0, 3.95, -(metersH / 2 - 3.0), 0.02, 0, 0, 'pitch_3d_dedicated_completion_near_roof_soft_pitch_shadow');
 						            } catch (e) { /* ignore */ }
 						          };
+						          const addSeatMosaic = () => {
+						            try {
+						              addRotMesh(new THREE.PlaneGeometry(metersW * 0.50, 2.55), makeTransparentSeatTextMat('MALAGA CF'), 0, 3.82, metersH / 2 + 7.15, -0.18, Math.PI, 0, 'pitch_3d_dedicated_completion_main_stand_white_seat_mosaic');
+						              addRotMesh(new THREE.CircleGeometry(2.55, 64), makeTransparentSeatTextMat('MCF', { w: 512, h: 512, font: '900 118px Arial, sans-serif' }), -(metersW / 2 + 7.48), 3.22, -metersH * 0.15, -0.10, -Math.PI / 2, 0, 'pitch_3d_dedicated_completion_side_stand_white_crest_mosaic');
+						            } catch (e) { /* ignore */ }
+						          };
 						          const addLongStand = (sideSign) => {
 						            const baseZ = sideSign * (metersH / 2 + 6.7);
 						            addMesh(new THREE.BoxGeometry(metersW + 17.5, 0.55, 8.6), concreteMat, 0, 0.38, baseZ, 'pitch_3d_dedicated_completion_long_stand_podium');
@@ -13343,6 +13364,7 @@
 						          addInstancedSeats();
 						          addSegmentedAdBoards();
 						          addPerimeterRoofFinish();
+						          addSeatMosaic();
 						          [-1, 1].forEach((sx) => {
 						            [-1, 1].forEach((sz) => {
 						              addMesh(new THREE.BoxGeometry(8.0, 0.46, 8.0), concreteMat, sx * (metersW / 2 + 6.0), 0.36, sz * (metersH / 2 + 6.0), 'pitch_3d_dedicated_completion_corner_podium');
