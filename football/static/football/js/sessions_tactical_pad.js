@@ -13427,7 +13427,7 @@
 						                  const tex = makePitch3dCanvasTexture((ctx, c) => {
 						                    const g = ctx.createLinearGradient(0, 0, 0, c.height);
 						                    g.addColorStop(0, 'rgba(255,255,255,0)');
-						                    g.addColorStop(0.45, 'rgba(255,255,255,0.78)');
+						                    g.addColorStop(0.45, 'rgba(255,255,255,0.46)');
 						                    g.addColorStop(1, 'rgba(255,255,255,0)');
 						                    ctx.clearRect(0, 0, c.width, c.height);
 						                    ctx.fillStyle = g;
@@ -13445,7 +13445,7 @@
 						                }
 						              })();
 						              addMesh(new THREE.BoxGeometry(metersW + 24.0, 0.24, 4.2), soffitMat, 0, 10.38, metersH / 2 + 16.74, 'pitch_3d_dedicated_reference_main_roof_dark_soffit');
-						              addMesh(new THREE.BoxGeometry(metersW + 18.0, 0.18, 3.1), soffitMat, 0, 9.58, -(metersH / 2 + 10.72), 'pitch_3d_dedicated_reference_near_roof_dark_soffit');
+						              addMesh(new THREE.BoxGeometry(metersW + 15.0, 0.12, 0.58), soffitMat, 0, 9.58, -(metersH / 2 + 9.55), 'pitch_3d_dedicated_reference_near_roof_dark_soffit');
 						              [-0.42, -0.26, -0.10, 0.10, 0.26, 0.42].forEach((ratio) => {
 						                const x = ratio * metersW;
 						                addMesh(new THREE.BoxGeometry(4.25, 2.05, 0.20), frameMat, x, 3.18, metersH / 2 + 6.96, 'pitch_3d_dedicated_reference_main_vomitory_concrete_frame');
