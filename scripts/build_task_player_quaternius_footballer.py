@@ -56,11 +56,14 @@ def assign_skin_material(obj):
         x, depth, y = poly_center(mesh, poly)
         ax = abs(x)
         mat_index = 0
-        if 0.78 <= y <= 1.26 and ax <= 0.54:
+        torso = 0.80 <= y <= 1.34 and ax <= 0.44
+        left_sleeve = 0.93 <= y <= 1.24 and -0.58 <= x <= -0.23
+        right_sleeve = 0.93 <= y <= 1.24 and 0.23 <= x <= 0.58
+        if torso or left_sleeve or right_sleeve:
             mat_index = 1
-        if 0.56 <= y < 0.84 and ax <= 0.34:
+        if 0.52 <= y < 0.83 and ax <= 0.36:
             mat_index = 2
-        if 0.14 <= y < 0.46 and 0.05 <= ax <= 0.23:
+        if 0.13 <= y < 0.47 and 0.05 <= ax <= 0.23:
             mat_index = 3
         if y < 0.12 and 0.04 <= ax <= 0.25:
             mat_index = 4
