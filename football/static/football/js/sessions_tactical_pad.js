@@ -9326,13 +9326,14 @@
 							        targetY = 7.9;
 							        targetZ = 4.8;
 						      } else if (k === 'render_original') {
-						        // Vista de referencia: esquina alta, menos recorte lateral y lectura completa del estadio.
-							        pitch3dOrbit.theta = -2.34;
-							        pitch3dOrbit.phi = 1.14;
-							        pitch3dOrbit.radius = Math.max(108, metersW * 1.01);
-							        targetX = 0.8;
-							        targetY = 4.8;
-							        targetZ = 0.8;
+						        // Vista estilo render de grada: esquina alta, más baja y cercana para leer asientos/vallas/cubierta.
+							        pitch3dCamera.fov = 44;
+							        pitch3dOrbit.theta = -2.46;
+							        pitch3dOrbit.phi = 1.20;
+							        pitch3dOrbit.radius = Math.max(102, metersW * 0.98);
+							        targetX = -2.0;
+							        targetY = 3.7;
+							        targetZ = 2.4;
 						      } else if (k === 'clean_pitch_render') {
 							        // Composición de campo limpio: esquina alta y campo completo.
 							        pitch3dOrbit.theta = -2.26;
