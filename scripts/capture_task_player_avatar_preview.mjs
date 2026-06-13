@@ -5,7 +5,7 @@ import { chromium } from 'playwright';
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const staticRoot = path.join(root, 'football/static');
-const out = path.join(process.env.HOME || '/Users/miguelperezrodriguez', 'Downloads/VER_AVATAR_PREMIUM_MPFB.png');
+const out = path.join(process.env.HOME || '/Users/miguelperezrodriguez', 'Downloads/VER_AVATAR_QUATERNIUS_FUTBOLISTA.png');
 
 const mime = {
   '.html': 'text/html; charset=utf-8',
@@ -44,7 +44,7 @@ const server = http.createServer((request, response) => {
   scene.background = new THREE.Color(0x07130f);
 
   const camera = new THREE.PerspectiveCamera(34, innerWidth / innerHeight, 0.01, 100);
-  camera.position.set(1.45, 1.15, 3.1);
+  camera.position.set(1.25, 1.12, 3.15);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
   renderer.setSize(innerWidth, innerHeight);
@@ -63,25 +63,96 @@ const server = http.createServer((request, response) => {
   rim.position.set(-2.2, 2.0, -2.4);
   scene.add(rim);
 
-  const floor = new THREE.Mesh(
-    new THREE.CircleGeometry(1.3, 96),
-    new THREE.MeshStandardMaterial({ color: 0x123c2b, roughness: 0.88, metalness: 0.0 })
-  );
-  floor.rotation.x = -Math.PI / 2;
-  floor.position.y = -0.002;
-  scene.add(floor);
+  const grass = new THREE.Group();
+  const turfA = new THREE.MeshStandardMaterial({ color: 0x0f5f3d, roughness: 0.92, metalness: 0.0 });
+  const turfB = new THREE.MeshStandardMaterial({ color: 0x0b4f35, roughness: 0.92, metalness: 0.0 });
+  for (let i = 0; i < 9; i += 1) {
+    const stripe = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 3.2), i % 2 ? turfA : turfB);
+    stripe.rotation.x = -Math.PI / 2;
+    stripe.position.set((i - 4) * 0.62, -0.004, 0);
+    grass.add(stripe);
+  }
+  const lineMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc, transparent: true, opacity: 0.72, toneMapped: false });
+  const line = (w, h, x, z) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), lineMat);
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(x, 0.002, z);
+    grass.add(m);
+  };
+  line(5.1, 0.018, 0, 0);
+  line(0.018, 3.0, 0, 0);
+  const circle = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.008, 8, 96), lineMat);
+  circle.rotation.x = -Math.PI / 2;
+  circle.position.y = 0.004;
+  grass.add(circle);
+  scene.add(grass);
+
+  const addKitOverlay = (avatar) => {
+    const shirtMat = new THREE.MeshStandardMaterial({ color: 0x047857, roughness: 0.58, metalness: 0.02, transparent: true, opacity: 0.97 });
+    const trimMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.62, metalness: 0.01, transparent: true, opacity: 0.95 });
+    const shortsMat = new THREE.MeshStandardMaterial({ color: 0x07111f, roughness: 0.72, metalness: 0.01, transparent: true, opacity: 0.95 });
+    const sockMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.72, metalness: 0.01, transparent: true, opacity: 0.94 });
+    const bootMat = new THREE.MeshStandardMaterial({ color: 0x05070a, roughness: 0.58, metalness: 0.04 });
+    const shirt = new THREE.Mesh(new THREE.CapsuleGeometry(0.185, 0.36, 8, 20), shirtMat);
+    shirt.position.set(0, 1.10, 0);
+    shirt.scale.set(1.38, 0.96, 0.72);
+    avatar.add(shirt);
+    const chest = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.30, 0.020), trimMat);
+    chest.position.set(0, 1.10, 0.150);
+    avatar.add(chest);
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.040, 0.39, 0.022), shirtMat);
+    stripe.position.set(0, 1.10, 0.166);
+    avatar.add(stripe);
+    const shorts = new THREE.Mesh(new THREE.CylinderGeometry(0.195, 0.235, 0.18, 24), shortsMat);
+    shorts.position.y = 0.72;
+    shorts.scale.set(1.16, 1, 0.82);
+    avatar.add(shorts);
+    [-0.13, 0.13].forEach((x) => {
+      const sock = new THREE.Mesh(new THREE.CapsuleGeometry(0.032, 0.32, 5, 12), sockMat);
+      sock.position.set(x, 0.27, 0.006);
+      avatar.add(sock);
+      const boot = new THREE.Mesh(new THREE.BoxGeometry(0.105, 0.050, 0.19), bootMat);
+      boot.position.set(x, 0.025, 0.06);
+      avatar.add(boot);
+    });
+  };
+  const applyReadyPose = (avatar) => {
+    const byName = {};
+    avatar.traverse((node) => { if (node?.name) byName[node.name] = node; });
+    const set = (name, x, y, z) => {
+      const bone = byName[name];
+      if (!bone || !bone.rotation) return;
+      bone.rotation.x += x;
+      bone.rotation.y += y;
+      bone.rotation.z += z;
+    };
+    set('upperarm_l', 0, 0.10, -1.18);
+    set('lowerarm_l', 0, -0.08, -0.22);
+    set('hand_l', 0.10, 0, -0.08);
+    set('upperarm_r', 0, -0.10, 1.18);
+    set('lowerarm_r', 0, 0.08, 0.22);
+    set('hand_r', 0.10, 0, 0.08);
+    set('thigh_l', -0.05, 0.03, 0.04);
+    set('thigh_r', 0.05, -0.03, -0.04);
+    set('calf_l', 0.08, 0, 0);
+    set('calf_r', 0.05, 0, 0);
+    set('spine_03', 0.04, -0.04, 0);
+    try { avatar.updateMatrixWorld(true); } catch (e) { /* ignore */ }
+  };
 
   const loader = new GLTFLoader();
   loader.load('/football/models/avatar/player_humanoid.glb', (gltf) => {
     console.log('gltf loaded');
     const avatar = gltf.scene;
-    avatar.rotation.y = -0.35;
+    avatar.rotation.y = -0.22;
+    applyReadyPose(avatar);
     scene.add(avatar);
 
     const box = new THREE.Box3().setFromObject(avatar);
     const center = box.getCenter(new THREE.Vector3());
     avatar.position.x -= center.x;
     avatar.position.z -= center.z;
+    // The generated GLB already includes painted football kit materials.
 
     camera.lookAt(0, 0.9, 0);
     renderer.render(scene, camera);

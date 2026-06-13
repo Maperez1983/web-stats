@@ -14783,33 +14783,37 @@
 						          const trimMat = new THREE.MeshStandardMaterial({ name: 'jersey_overlay_trim', color: baseCol, roughness: 0.64, metalness: 0.01, transparent: true, opacity: 0.94 });
 						          const shortsMat = new THREE.MeshStandardMaterial({ name: 'jersey_overlay_shorts', color: shortsCol, roughness: 0.70, metalness: 0.01, transparent: true, opacity: 0.94 });
 						          const sockMat = new THREE.MeshStandardMaterial({ name: 'jersey_overlay_socks', color: baseCol, roughness: 0.70, metalness: 0.01, transparent: true, opacity: 0.92 });
-						          const shirt = new THREE.Mesh(new THREE.CapsuleGeometry(0.25, 0.46, 8, 18), shirtMat);
-						          shirt.position.set(0, 1.08, -0.012);
-						          shirt.scale.set(1.08, 0.92, 0.58);
+						          const shirt = new THREE.Mesh(new THREE.CapsuleGeometry(0.185, 0.36, 8, 18), shirtMat);
+						          shirt.position.set(0, 1.10, -0.002);
+						          shirt.scale.set(1.38, 0.96, 0.72);
 						          shirt.userData = { kind: 'token_body_model_kit_shirt' };
 						          holder.add(shirt);
-						          const front = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.34, 0.030), trimMat);
-						          front.position.set(0, 1.08, -0.170);
+						          const front = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.30, 0.024), trimMat);
+						          front.position.set(0, 1.10, 0.150);
 						          front.userData = { kind: 'token_body_model_kit_front' };
 						          holder.add(front);
+						          const backPanel = new THREE.Mesh(new THREE.BoxGeometry(0.23, 0.27, 0.022), trimMat);
+						          backPanel.position.set(0, 1.10, -0.150);
+						          backPanel.userData = { kind: 'token_body_model_kit_back' };
+						          holder.add(backPanel);
 						          const number = pitch3dTokenNumber(o);
 						          if (number) {
 						            const chest = buildTextSprite(number.slice(0, 3), { fill: '#0b1220', bg: 'rgba(248,250,252,0.90)', size: 96 });
 						            if (chest) {
-						              chest.position.set(0, 1.10, -0.204);
-						              chest.scale.set(0.48, 0.48, 1);
+						              chest.position.set(0, 1.12, 0.170);
+						              chest.scale.set(0.40, 0.40, 1);
 						              chest.userData = { kind: 'token_body_model_kit_number' };
 						              holder.add(chest);
 						            }
 						          }
-						          const shorts = new THREE.Mesh(new THREE.CylinderGeometry(0.245, 0.285, 0.18, 22), shortsMat);
-						          shorts.position.y = 0.70;
-						          shorts.scale.set(1.04, 1, 0.76);
+						          const shorts = new THREE.Mesh(new THREE.CylinderGeometry(0.195, 0.235, 0.18, 22), shortsMat);
+						          shorts.position.y = 0.72;
+						          shorts.scale.set(1.16, 1, 0.82);
 						          shorts.userData = { kind: 'token_body_model_kit_shorts' };
 						          holder.add(shorts);
 						          [-0.13, 0.13].forEach((x) => {
-						            const sock = new THREE.Mesh(new THREE.CapsuleGeometry(0.040, 0.34, 5, 10), sockMat);
-						            sock.position.set(x, 0.26, -0.01);
+						            const sock = new THREE.Mesh(new THREE.CapsuleGeometry(0.032, 0.32, 5, 10), sockMat);
+						            sock.position.set(x, 0.27, -0.006);
 						            sock.userData = { kind: 'token_body_model_kit_sock' };
 						            holder.add(sock);
 						          });
@@ -14889,6 +14893,34 @@
 						          pitch3dAvatarMixers.push(mixer);
 						        } catch (e) { /* ignore */ }
 						      };
+						      const posePitch3dPlayerModel = (model) => {
+						        if (!model) return;
+						        try {
+						          const bones = {};
+						          model.traverse((node) => {
+						            if (node && node.name) bones[node.name] = node;
+						          });
+						          const set = (name, x = 0, y = 0, z = 0) => {
+						            const bone = bones[name];
+						            if (!bone || !bone.rotation) return;
+						            bone.rotation.x += x;
+						            bone.rotation.y += y;
+						            bone.rotation.z += z;
+						          };
+						          set('upperarm_l', 0, 0.10, -1.18);
+						          set('lowerarm_l', 0, -0.08, -0.22);
+						          set('hand_l', 0.10, 0, -0.08);
+						          set('upperarm_r', 0, -0.10, 1.18);
+						          set('lowerarm_r', 0, 0.08, 0.22);
+						          set('hand_r', 0.10, 0, 0.08);
+						          set('thigh_l', -0.05, 0.03, 0.04);
+						          set('thigh_r', 0.05, -0.03, -0.04);
+						          set('calf_l', 0.08, 0, 0);
+						          set('calf_r', 0.05, 0, 0);
+						          set('spine_03', 0.04, -0.04, 0);
+						          model.updateMatrixWorld?.(true);
+						        } catch (e) { /* ignore */ }
+						      };
 						      const tintPitch3dPlayerModel = (model, colors) => {
 						        if (!model || !window.THREE) return;
 						        const shirtCol = toColorInt(colors?.shirt, 0x1d4ed8);
@@ -14926,6 +14958,17 @@
 						            try { node.castShadow = true; node.receiveShadow = true; } catch (e) { /* ignore */ }
 						          });
 						        } catch (e) { /* ignore */ }
+						      };
+						      const pitch3dPlayerModelHasEmbeddedKit = (model) => {
+						        let hasKit = false;
+						        try {
+						          model?.traverse?.((node) => {
+						            if (hasKit || !node?.isMesh) return;
+						            const mats = Array.isArray(node.material) ? node.material : [node.material];
+						            hasKit = mats.some((mat) => /footballer_(green_jersey|dark_shorts|white_socks|black_boots)/i.test(safeText(mat?.name)));
+						          });
+						        } catch (e) { /* ignore */ }
+						        return hasKit;
 						      };
 
 						      const addToken = (o) => {
@@ -14987,13 +15030,16 @@
 						              hair: tokenKind.includes('rival') ? '#111827' : '#172554',
 						              boot: '#0f172a',
 						            });
+						            posePitch3dPlayerModel(model);
 						            fitPitch3dPlayerModel(model, playerMetrics.heightMeters, {
 						              massFactor: playerMetrics.massFactor,
 						              depthFactor: playerMetrics.depthFactor,
 						            });
 						            startPitch3dPlayerAnimation(model);
 						            holder.add(model);
-						            addPitch3dPlayerKitOverlay(holder, o, { shirt: stripe || fill, base: fill || '#ffffff' });
+						            if (!pitch3dPlayerModelHasEmbeddedKit(model)) {
+						              addPitch3dPlayerKitOverlay(holder, o, { shirt: stripe || fill, base: fill || '#ffffff' });
+						            }
 						            holder.rotation.y = (Number(facingDeg) || 0) * (Math.PI / 180);
 						            mesh.add(holder);
 						            externalAvatar3dUsed = true;
