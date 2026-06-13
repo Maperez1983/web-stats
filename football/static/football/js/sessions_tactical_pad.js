@@ -13501,7 +13501,7 @@
 						              const benchBlueMat = new THREE.MeshStandardMaterial({ color: 0x1261ad, roughness: 0.42, metalness: 0.02 });
 						              const glassCanopyMat = glassMat.clone();
 						              try { glassCanopyMat.opacity = 0.24; } catch (e) { /* ignore */ }
-						              const addVisibleDugout = (x, label) => {
+						              const addVisibleDugout = (x, label, zBase = -(metersH / 2 + 1.10), rotY = 0) => {
 						                const group = new THREE.Group();
 						                group.userData = { kind: 'pitch_3d_dedicated_reference_photo_visible_dugout' };
 						                const addPart = (geo, mat, px, py, pz, kind) => {
@@ -13529,7 +13529,8 @@
 						                labelMesh.rotation.y = Math.PI;
 						                labelMesh.userData = { kind: 'pitch_3d_reference_photo_dugout_label' };
 						                group.add(labelMesh);
-						                group.position.set(x, 0.04, -(metersH / 2 + 1.10));
+						                group.position.set(x, 0.04, zBase);
+						                group.rotation.y = rotY;
 						                dedicatedFinish.add(group);
 						              };
 						              const addTrainingGoal = (x, z, rotY, label) => {
@@ -13551,11 +13552,17 @@
 						              };
 						              addVisibleDugout(-22.0, 'MALAGA CF');
 						              addVisibleDugout(-6.2, 'MCF');
+						              addVisibleDugout(-18.0, 'MALAGA CF', metersH / 2 + 1.10, Math.PI);
+						              addVisibleDugout(2.0, 'MCF', metersH / 2 + 1.10, Math.PI);
 						              addTrainingGoal(-32.0, -(metersH / 2 + 0.82), 0, 'pitch_3d_reference_near_training_goal_left');
 						              addTrainingGoal(32.0, metersH / 2 + 0.82, Math.PI, 'pitch_3d_reference_far_training_goal_right');
 						              for (let i = -9; i <= 9; i += 1) {
 						                const x = i * ((metersW + 20.0) / 18);
 						                addRotMesh(new THREE.BoxGeometry(0.10, 2.45, 4.4), trussMat, x, 9.88, metersH / 2 + 16.30, -0.34, 0, 0, 'pitch_3d_reference_photo_main_roof_repeated_raker');
+						              }
+						              for (let i = -16; i <= 16; i += 1) {
+						                const x = i * ((metersW + 16.0) / 32);
+						                addMesh(new THREE.BoxGeometry(0.56, 0.08, 0.16), lightMat, x, 10.04, metersH / 2 + 13.62, 'pitch_3d_reference_photo_main_roof_bright_light_cell');
 						              }
 						            } catch (e) { /* ignore */ }
 						          };
