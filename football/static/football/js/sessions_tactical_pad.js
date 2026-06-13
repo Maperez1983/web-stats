@@ -13166,7 +13166,7 @@
 						          const dedicatedFinish = new THREE.Group();
 						          dedicatedFinish.userData = { kind: 'pitch_3d_dedicated_reference_completion_layer' };
 						          const concreteMat = new THREE.MeshStandardMaterial({ color: 0xcfd6d1, roughness: 0.76, metalness: 0.03 });
-						          const darkVoidMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.84, metalness: 0.03 });
+						          const darkVoidMat = new THREE.MeshStandardMaterial({ color: 0x1f3345, roughness: 0.78, metalness: 0.06 });
 						          const seatMat = new THREE.MeshStandardMaterial({ color: 0x1261ad, roughness: 0.58, metalness: 0.02 });
 						          const seatDarkMat = new THREE.MeshStandardMaterial({ color: 0x073763, roughness: 0.60, metalness: 0.02 });
 						          const stairMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.66, metalness: 0.02 });
@@ -13342,7 +13342,7 @@
 						          };
 						          const addSeatMosaic = () => {
 						            try {
-						              addRotMesh(new THREE.PlaneGeometry(metersW * 0.54, 2.85), makeTransparentSeatTextMat('MALAGA CF', { font: '900 156px Arial, sans-serif' }), 0, 4.92, metersH / 2 + 8.68, -0.18, Math.PI, 0, 'pitch_3d_dedicated_completion_main_stand_white_seat_mosaic');
+						              addRotMesh(new THREE.PlaneGeometry(metersW * 0.58, 3.05), makeTransparentSeatTextMat('MALAGA CF', { font: '900 160px Arial, sans-serif' }), 0, 4.36, metersH / 2 + 7.42, -0.18, Math.PI, 0, 'pitch_3d_dedicated_completion_main_stand_white_seat_mosaic');
 						              addRotMesh(new THREE.CircleGeometry(2.55, 64), makeTransparentSeatTextMat('MCF', { w: 512, h: 512, font: '900 118px Arial, sans-serif' }), -(metersW / 2 + 7.48), 3.22, -metersH * 0.15, -0.10, -Math.PI / 2, 0, 'pitch_3d_dedicated_completion_side_stand_white_crest_mosaic');
 						            } catch (e) { /* ignore */ }
 						          };
@@ -13413,7 +13413,7 @@
 						            addMesh(new THREE.BoxGeometry(w, 1.75, 0.22), idx === 2 ? darkVoidMat : concreteMat, ratio * metersW, 7.12, northFacadeZ, 'pitch_3d_dedicated_completion_north_facade_panel');
 						          });
 						          addMesh(new THREE.BoxGeometry(metersW + 5.0, 0.10, 0.12), lightMat, 0, 8.26, northFacadeZ - 0.22, 'pitch_3d_dedicated_completion_north_light_bar');
-						          addRotMesh(new THREE.PlaneGeometry(metersW * 0.50, 2.9), makeTransparentSeatTextMat('MALAGA CF', { font: '900 150px Arial, sans-serif' }), 0, 5.26, metersH / 2 + 8.85, -0.12, Math.PI, 0, 'pitch_3d_dedicated_completion_main_stand_lettering_panel');
+						          addRotMesh(new THREE.PlaneGeometry(metersW * 0.56, 2.85), makeTransparentSeatTextMat('MALAGA CF', { font: '900 146px Arial, sans-serif' }), 0, 4.72, metersH / 2 + 7.86, -0.16, Math.PI, 0, 'pitch_3d_dedicated_completion_main_stand_lettering_panel');
 						          addRotMesh(new THREE.CircleGeometry(2.35, 64), makeSignMat('MCF', { w: 512, h: 512, bg: '#1d72c9', fg: '#f8fafc', font: '900 132px Arial, sans-serif', stroke: '#f8fafc' }), 0, 8.12, metersH / 2 + 14.46, 0, Math.PI, 0, 'pitch_3d_dedicated_completion_main_stand_round_crest');
 						          addMesh(new THREE.BoxGeometry(metersW + 18.5, 2.25, 0.34), concreteMat, 0, 7.45, metersH / 2 + 14.95, 'pitch_3d_dedicated_completion_main_stand_back_wall');
 						          addMesh(new THREE.BoxGeometry(metersW + 17.0, 0.72, 0.38), darkVoidMat, 0, 8.05, metersH / 2 + 14.72, 'pitch_3d_dedicated_completion_main_stand_shadow_box_level');
@@ -13465,8 +13465,41 @@
 						              badge.userData = { kind: 'pitch_3d_dedicated_completion_dugout_end_badge' };
 						              dugout.add(badge);
 						            });
-						            dugout.position.set(x, 0.03, -(metersH / 2 + 3.35));
+						            dugout.position.set(x, 0.03, -(metersH / 2 + 2.68));
 						            dedicatedFinish.add(dugout);
+						          });
+						          [-26, -10].forEach((x, idx) => {
+						            const benchGroup = new THREE.Group();
+						            benchGroup.userData = { kind: 'pitch_3d_dedicated_completion_near_visible_bench_canopy' };
+						            const frameMat = new THREE.MeshStandardMaterial({ color: 0xd8e2e5, roughness: 0.28, metalness: 0.26 });
+						            const benchMat = new THREE.MeshStandardMaterial({ color: 0x1261ad, roughness: 0.46, metalness: 0.02 });
+						            const addBenchPart = (geo, mat, px, py, pz, kind) => {
+						              const part = new THREE.Mesh(geo, mat);
+						              part.position.set(px, py, pz);
+						              part.userData = { kind };
+						              benchGroup.add(part);
+						              return part;
+						            };
+						            addBenchPart(new THREE.BoxGeometry(11.6, 0.16, 2.0), darkVoidMat, 0, 0.18, 0.42, 'pitch_3d_dedicated_completion_near_bench_floor');
+						            for (let r = 0; r < 5; r += 1) {
+						              const t = r / 4;
+						              const panel = addBenchPart(new THREE.BoxGeometry(11.2, 0.050, 0.42), glassMat, 0, 0.92 + Math.sin(t * Math.PI * 0.58) * 0.96, -0.64 + t * 1.36, 'pitch_3d_dedicated_completion_near_bench_glass_roof');
+						              panel.rotation.x = -0.44 + t * 0.25;
+						            }
+						            addBenchPart(new THREE.BoxGeometry(11.8, 0.10, 0.14), frameMat, 0, 2.06, 0.18, 'pitch_3d_dedicated_completion_near_bench_spine');
+						            for (let s = 0; s < 7; s += 1) {
+						              const sx = -4.2 + s * 1.4;
+						              addBenchPart(new THREE.BoxGeometry(0.82, 0.20, 0.55), benchMat, sx, 0.55, 0.34, 'pitch_3d_dedicated_completion_near_bench_blue_seat');
+						              const back = addBenchPart(new THREE.BoxGeometry(0.82, 0.70, 0.12), benchMat, sx, 0.92, 0.66, 'pitch_3d_dedicated_completion_near_bench_blue_back');
+						              back.rotation.x = -0.22;
+						            }
+						            const label = new THREE.Mesh(new THREE.PlaneGeometry(4.7, 0.58), makeSignMat(idx === 0 ? 'MALAGA CF' : 'MCF', { w: 900, h: 260, bg: '#064f9e', fg: '#f8fafc', font: '900 58px Arial, sans-serif' }));
+						            label.position.set(0, 1.05, -0.86);
+						            label.rotation.y = Math.PI;
+						            label.userData = { kind: 'pitch_3d_dedicated_completion_near_bench_brand' };
+						            benchGroup.add(label);
+						            benchGroup.position.set(x, 0.04, -(metersH / 2 + 1.65));
+						            dedicatedFinish.add(benchGroup);
 						          });
 						          root.add(dedicatedFinish);
 						        }
