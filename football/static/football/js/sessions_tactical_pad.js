@@ -13176,7 +13176,7 @@
 						          const trussMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.42, metalness: 0.34 });
 						          const lightMat = new THREE.MeshStandardMaterial({ color: 0xe0f2fe, roughness: 0.18, metalness: 0.02, emissive: 0x7dd3fc, emissiveIntensity: 0.56 });
 						          const glassMat = new THREE.MeshPhysicalMaterial({ color: 0xc7f0ff, roughness: 0.12, metalness: 0.02, transparent: true, opacity: 0.30, transmission: 0.20, side: THREE.DoubleSide });
-						          const shadowMat = new THREE.MeshBasicMaterial({ color: 0x020617, transparent: true, opacity: 0.24, depthWrite: false });
+						          const shadowMat = new THREE.MeshBasicMaterial({ color: 0x020617, transparent: true, opacity: 0.15, depthWrite: false });
 						          const makeSignMat = (text, opts = {}) => {
 						            try {
 						              const tex = makePitch3dCanvasTexture((ctx, c) => {
