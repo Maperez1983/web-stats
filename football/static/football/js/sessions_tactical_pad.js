@@ -9327,13 +9327,13 @@
 							        targetZ = 4.8;
 						      } else if (k === 'render_original') {
 						        // Vista estilo render de grada: esquina alta, más baja y cercana para leer asientos/vallas/cubierta.
-							        pitch3dCamera.fov = 44;
-							        pitch3dOrbit.theta = -2.46;
-							        pitch3dOrbit.phi = 1.20;
-							        pitch3dOrbit.radius = Math.max(102, metersW * 0.98);
-							        targetX = -2.0;
-							        targetY = 3.7;
-							        targetZ = 2.4;
+							        pitch3dCamera.fov = 39;
+							        pitch3dOrbit.theta = -2.42;
+							        pitch3dOrbit.phi = 1.28;
+							        pitch3dOrbit.radius = Math.max(88, metersW * 0.84);
+							        targetX = -4.2;
+							        targetY = 2.8;
+							        targetZ = 3.8;
 						      } else if (k === 'clean_pitch_render') {
 							        // Composición de campo limpio: esquina alta y campo completo.
 							        pitch3dOrbit.theta = -2.26;
@@ -13176,7 +13176,7 @@
 						          const trussMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.42, metalness: 0.34 });
 						          const lightMat = new THREE.MeshStandardMaterial({ color: 0xe0f2fe, roughness: 0.18, metalness: 0.02, emissive: 0x7dd3fc, emissiveIntensity: 0.56 });
 						          const glassMat = new THREE.MeshPhysicalMaterial({ color: 0xc7f0ff, roughness: 0.12, metalness: 0.02, transparent: true, opacity: 0.30, transmission: 0.20, side: THREE.DoubleSide });
-						          const shadowMat = new THREE.MeshBasicMaterial({ color: 0x020617, transparent: true, opacity: 0.18, depthWrite: false });
+						          const shadowMat = new THREE.MeshBasicMaterial({ color: 0x020617, transparent: true, opacity: 0.24, depthWrite: false });
 						          const makeSignMat = (text, opts = {}) => {
 						            try {
 						              const tex = makePitch3dCanvasTexture((ctx, c) => {
@@ -13342,7 +13342,7 @@
 						          };
 						          const addSeatMosaic = () => {
 						            try {
-						              addRotMesh(new THREE.PlaneGeometry(metersW * 0.50, 2.55), makeTransparentSeatTextMat('MALAGA CF'), 0, 3.82, metersH / 2 + 7.15, -0.18, Math.PI, 0, 'pitch_3d_dedicated_completion_main_stand_white_seat_mosaic');
+						              addRotMesh(new THREE.PlaneGeometry(metersW * 0.54, 2.85), makeTransparentSeatTextMat('MALAGA CF', { font: '900 156px Arial, sans-serif' }), 0, 4.92, metersH / 2 + 8.68, -0.18, Math.PI, 0, 'pitch_3d_dedicated_completion_main_stand_white_seat_mosaic');
 						              addRotMesh(new THREE.CircleGeometry(2.55, 64), makeTransparentSeatTextMat('MCF', { w: 512, h: 512, font: '900 118px Arial, sans-serif' }), -(metersW / 2 + 7.48), 3.22, -metersH * 0.15, -0.10, -Math.PI / 2, 0, 'pitch_3d_dedicated_completion_side_stand_white_crest_mosaic');
 						            } catch (e) { /* ignore */ }
 						          };
@@ -13413,7 +13413,7 @@
 						            addMesh(new THREE.BoxGeometry(w, 1.75, 0.22), idx === 2 ? darkVoidMat : concreteMat, ratio * metersW, 7.12, northFacadeZ, 'pitch_3d_dedicated_completion_north_facade_panel');
 						          });
 						          addMesh(new THREE.BoxGeometry(metersW + 5.0, 0.10, 0.12), lightMat, 0, 8.26, northFacadeZ - 0.22, 'pitch_3d_dedicated_completion_north_light_bar');
-						          addRotMesh(new THREE.PlaneGeometry(metersW * 0.52, 3.3), makeSignMat('MALAGA CF'), 0, 5.45, metersH / 2 + 8.75, 0, Math.PI, 0, 'pitch_3d_dedicated_completion_main_stand_lettering_panel');
+						          addRotMesh(new THREE.PlaneGeometry(metersW * 0.50, 2.9), makeTransparentSeatTextMat('MALAGA CF', { font: '900 150px Arial, sans-serif' }), 0, 5.26, metersH / 2 + 8.85, -0.12, Math.PI, 0, 'pitch_3d_dedicated_completion_main_stand_lettering_panel');
 						          addRotMesh(new THREE.CircleGeometry(2.35, 64), makeSignMat('MCF', { w: 512, h: 512, bg: '#1d72c9', fg: '#f8fafc', font: '900 132px Arial, sans-serif', stroke: '#f8fafc' }), 0, 8.12, metersH / 2 + 14.46, 0, Math.PI, 0, 'pitch_3d_dedicated_completion_main_stand_round_crest');
 						          addMesh(new THREE.BoxGeometry(metersW + 18.5, 2.25, 0.34), concreteMat, 0, 7.45, metersH / 2 + 14.95, 'pitch_3d_dedicated_completion_main_stand_back_wall');
 						          addMesh(new THREE.BoxGeometry(metersW + 17.0, 0.72, 0.38), darkVoidMat, 0, 8.05, metersH / 2 + 14.72, 'pitch_3d_dedicated_completion_main_stand_shadow_box_level');
@@ -13465,7 +13465,7 @@
 						              badge.userData = { kind: 'pitch_3d_dedicated_completion_dugout_end_badge' };
 						              dugout.add(badge);
 						            });
-						            dugout.position.set(x, 0.03, -(metersH / 2 + 4.62));
+						            dugout.position.set(x, 0.03, -(metersH / 2 + 3.35));
 						            dedicatedFinish.add(dugout);
 						          });
 						          root.add(dedicatedFinish);

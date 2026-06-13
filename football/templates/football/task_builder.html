@@ -4413,7 +4413,27 @@
 	        scrollbar-width: thin;
 	      }
 	      .sim-3d-controls label { white-space: nowrap; }
-	      .sim-3d-controls select { max-width: min(210px, 42vw); }
+	      .sim-3d-controls select {
+	        max-width: min(210px, 42vw);
+	        min-width: 148px;
+	      }
+	      #task-pitch-3d-follow,
+	      #task-pitch-3d-player-mode,
+	      #task-pitch-3d-insert,
+	      #task-pitch-3d-format,
+	      #task-pitch-3d-surface,
+	      #task-pitch-3d-theme,
+	      #task-pitch-3d-play,
+	      #task-pitch-3d-record,
+	      #task-pitch-3d-action,
+	      #task-pitch-3d-action-apply,
+	      #task-pitch-3d-phase-save,
+	      #task-pitch-3d-phase-dup,
+	      #task-pitch-3d-template,
+	      #task-pitch-3d-validate,
+	      #task-pitch-3d-clamp {
+	        display: none;
+	      }
 	      .sim-3d-controls .button,
 	      .sim-3d-controls button {
 	        white-space: nowrap;
