@@ -1,10 +1,13 @@
 # Task Player Humanoid
 
-`player_humanoid.glb` is based on `Xbot.glb` from the official Three.js examples repository.
+`player_humanoid.glb` is based on the CC0 `hm08` basemesh included with MPFB
+(MakeHuman Plugin For Blender), with procedural football training kit geometry
+generated in-repo.
 
-- Source: https://github.com/mrdoob/three.js/blob/dev/examples/models/gltf/Xbot.glb
-- License: MIT, Three.js authors
-- Refresh script: `node scripts/build_task_player_humanoid_glb.mjs`
+- Source mesh: `~/Library/Application Support/Blender/5.1/extensions/user_default/mpfb/data/3dobjs/base.obj`
+- Source mesh license: CC0, MakeHuman Community / Data Collection AB
+- Refresh script: `node scripts/build_task_player_mpfb_avatar.mjs`
+- Preview script: `node scripts/capture_task_player_avatar_preview.mjs`
 
 The tactical task 3D view recolors and scales this model at runtime.
 
