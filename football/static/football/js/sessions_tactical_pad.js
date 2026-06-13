@@ -13388,6 +13388,35 @@
 						              addRotMesh(new THREE.BoxGeometry(metersW * 0.78, 0.028, metersH * 0.30), shadowMat, -metersW * 0.10, 0.135, -metersH * 0.15, 0, 0.18, 0, 'pitch_3d_dedicated_reference_photo_roof_shadow_pitch_low');
 						            } catch (e) { /* ignore */ }
 						          };
+						          const addReferenceIdentityAndLightingPass = () => {
+						            try {
+						              const royalBlueMat = new THREE.MeshStandardMaterial({ color: 0x075da8, roughness: 0.45, metalness: 0.05 });
+						              const whiteSeatMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.44, metalness: 0.01 });
+						              const roofDarkMat = new THREE.MeshStandardMaterial({ color: 0x25323a, roughness: 0.50, metalness: 0.22 });
+						              const warmLightMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc, toneMapped: false });
+						              addRotMesh(new THREE.CircleGeometry(3.05, 72), makeSignMat('MCF', { w: 512, h: 512, bg: '#1d72c9', fg: '#f8fafc', font: '900 132px Arial, sans-serif', stroke: '#f8fafc' }), -(metersW / 2 + 5.92), 4.45, -metersH * 0.12, -0.12, -Math.PI / 2, 0, 'pitch_3d_dedicated_reference_large_side_stand_mcf_crest');
+						              addRotMesh(new THREE.CircleGeometry(2.35, 72), makeSignMat('MCF', { w: 512, h: 512, bg: '#1d72c9', fg: '#f8fafc', font: '900 132px Arial, sans-serif', stroke: '#f8fafc' }), metersW / 2 + 5.92, 4.22, metersH * 0.18, -0.12, Math.PI / 2, 0, 'pitch_3d_dedicated_reference_opposite_side_stand_mcf_crest');
+						              [-0.34, -0.12, 0.12, 0.34].forEach((ratio, idx) => {
+						                addMesh(new THREE.BoxGeometry(metersW * 0.15, 0.20, 0.40), idx % 2 ? whiteSeatMat : royalBlueMat, ratio * metersW, 4.66, metersH / 2 + 8.20, 'pitch_3d_dedicated_reference_main_stand_lettering_seat_row_highlight');
+						                addMesh(new THREE.BoxGeometry(metersW * 0.12, 0.18, 0.38), whiteSeatMat, ratio * metersW + metersW * 0.035, 4.26, metersH / 2 + 7.45, 'pitch_3d_dedicated_reference_main_stand_white_letter_seat_run');
+						              });
+						              addMesh(new THREE.BoxGeometry(metersW + 28.0, 0.28, 0.34), roofDarkMat, 0, 10.88, metersH / 2 + 14.72, 'pitch_3d_dedicated_reference_main_roof_dark_front_fascia');
+						              addMesh(new THREE.BoxGeometry(metersW + 24.0, 0.20, 0.28), roofDarkMat, 0, 10.12, -(metersH / 2 + 9.12), 'pitch_3d_dedicated_reference_near_roof_dark_front_fascia');
+						              [-1, 1].forEach((sideSign) => {
+						                addMesh(new THREE.BoxGeometry(0.28, 0.22, metersH + 17.0), roofDarkMat, sideSign * (metersW / 2 + 8.48), 9.92, 0, 'pitch_3d_dedicated_reference_side_roof_dark_front_fascia');
+						              });
+						              for (let i = -18; i <= 18; i += 1) {
+						                const x = i * ((metersW + 8.0) / 36);
+						                addMesh(new THREE.BoxGeometry(0.42, 0.10, 0.16), warmLightMat, x, 10.48, metersH / 2 + 14.42, 'pitch_3d_dedicated_reference_main_roof_individual_light');
+						                if (Math.abs(i) <= 14) addMesh(new THREE.BoxGeometry(0.38, 0.09, 0.14), warmLightMat, x, 9.72, -(metersH / 2 + 8.88), 'pitch_3d_dedicated_reference_near_roof_individual_light');
+						              }
+						              for (let i = -8; i <= 8; i += 1) {
+						                const z = i * ((metersH + 6.0) / 16);
+						                addMesh(new THREE.BoxGeometry(0.14, 0.09, 0.34), warmLightMat, -(metersW / 2 + 8.35), 9.36, z, 'pitch_3d_dedicated_reference_left_roof_individual_light');
+						                addMesh(new THREE.BoxGeometry(0.14, 0.09, 0.34), warmLightMat, metersW / 2 + 8.35, 9.36, z, 'pitch_3d_dedicated_reference_right_roof_individual_light');
+						              }
+						            } catch (e) { /* ignore */ }
+						          };
 						          const addLongStand = (sideSign) => {
 						            const baseZ = sideSign * (metersH / 2 + 6.7);
 						            addMesh(new THREE.BoxGeometry(metersW + 17.5, 0.55, 8.6), concreteMat, 0, 0.38, baseZ, 'pitch_3d_dedicated_completion_long_stand_podium');
@@ -13441,6 +13470,7 @@
 						          addPerimeterRoofFinish();
 						          addSeatMosaic();
 						          addPhotoReferencePitchsideLayer();
+						          addReferenceIdentityAndLightingPass();
 						          [-1, 1].forEach((sx) => {
 						            [-1, 1].forEach((sz) => {
 						              addMesh(new THREE.BoxGeometry(8.0, 0.46, 8.0), concreteMat, sx * (metersW / 2 + 6.0), 0.36, sz * (metersH / 2 + 6.0), 'pitch_3d_dedicated_completion_corner_podium');
