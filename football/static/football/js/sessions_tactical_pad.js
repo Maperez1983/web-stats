@@ -14123,6 +14123,39 @@
 						              });
 						              addMesh(new THREE.BoxGeometry(metersW + 12.0, 0.34, 0.16), bluePanelMat, 0, 1.26, metersH / 2 + 2.40, 'pitch_3d_rosaleda_final_far_continuous_blue_ad_band');
 						              addMesh(new THREE.BoxGeometry(metersW + 12.0, 0.34, 0.16), bluePanelMat, 0, 1.26, -(metersH / 2 + 2.40), 'pitch_3d_rosaleda_final_near_continuous_blue_ad_band');
+						              const blockLetters = {
+						                M: ['10001', '11011', '10101', '10101', '10001', '10001', '10001'],
+						                A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'],
+						                L: ['10000', '10000', '10000', '10000', '10000', '10000', '11111'],
+						                G: ['01111', '10000', '10000', '10111', '10001', '10001', '01111'],
+						                C: ['01111', '10000', '10000', '10000', '10000', '10000', '01111'],
+						                F: ['11111', '10000', '10000', '11110', '10000', '10000', '10000'],
+						              };
+						              const phrase = 'MALAGA CF';
+						              const cellW = 1.18;
+						              const cellZ = 0.46;
+						              const cellGap = 0.18;
+						              const letterGap = 0.76;
+						              const totalCols = phrase.split('').reduce((sum, ch) => sum + (ch === ' ' ? 3 : 5) + 1, -1);
+						              let cursor = -(totalCols * (cellW + cellGap)) / 2;
+						              for (const ch of phrase) {
+						                if (ch === ' ') {
+						                  cursor += (3 * (cellW + cellGap)) + letterGap;
+						                  continue;
+						                }
+						                const glyph = blockLetters[ch] || [];
+						                for (let r = 0; r < glyph.length; r += 1) {
+						                  for (let c = 0; c < glyph[r].length; c += 1) {
+						                    if (glyph[r][c] !== '1') continue;
+						                    const x = cursor + c * (cellW + cellGap);
+						                    const y = 5.92 - r * 0.31;
+						                    const z = metersH / 2 + 10.22 - r * 0.10;
+						                    addRotMesh(new THREE.BoxGeometry(cellW, 0.16, cellZ), whiteSeatMat, x, y, z, -0.09, 0, 0, 'pitch_3d_rosaleda_final_readable_malaga_cf_seat_mosaic_cell');
+						                    addRotMesh(new THREE.BoxGeometry(cellW * 0.78, 0.06, cellZ * 0.52), whiteSeatMat, x, y + 0.09, z - 0.05, -0.09, 0, 0, 'pitch_3d_rosaleda_final_readable_malaga_cf_seat_mosaic_highlight');
+						                  }
+						                }
+						                cursor += (5 * (cellW + cellGap)) + letterGap;
+						              }
 						            } catch (e) { /* ignore */ }
 						          };
 						          const addLongStand = (sideSign) => {
