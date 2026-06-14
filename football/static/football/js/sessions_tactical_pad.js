@@ -9403,13 +9403,13 @@
 							        targetZ = 4.8;
 						      } else if (k === 'render_original') {
 						        // Vista estilo La Rosaleda: esquina interior, baja y cercana, con banquillos, vallas y grada principal legibles.
-							        pitch3dCamera.fov = 39;
-							        pitch3dOrbit.theta = -2.42;
-							        pitch3dOrbit.phi = 1.25;
-							        pitch3dOrbit.radius = Math.max(80, metersW * 0.76);
-							        targetX = -8.8;
-							        targetY = 2.85;
-							        targetZ = -1.9;
+								        pitch3dCamera.fov = 36;
+								        pitch3dOrbit.theta = -2.36;
+								        pitch3dOrbit.phi = 1.20;
+								        pitch3dOrbit.radius = Math.max(72, metersW * 0.68);
+								        targetX = -5.2;
+								        targetY = 3.45;
+								        targetZ = 3.8;
 						      } else if (k === 'clean_pitch_render') {
 							        // Composición de campo limpio: esquina alta y campo completo.
 							        pitch3dOrbit.theta = -2.26;
@@ -14132,10 +14132,10 @@
 						                F: ['11111', '10000', '10000', '11110', '10000', '10000', '10000'],
 						              };
 						              const phrase = 'MALAGA CF';
-						              const cellW = 1.18;
-						              const cellZ = 0.46;
-						              const cellGap = 0.18;
-						              const letterGap = 0.76;
+						              const cellW = 1.58;
+						              const cellZ = 0.62;
+						              const cellGap = 0.20;
+						              const letterGap = 0.96;
 						              const totalCols = phrase.split('').reduce((sum, ch) => sum + (ch === ' ' ? 3 : 5) + 1, -1);
 						              let cursor = -(totalCols * (cellW + cellGap)) / 2;
 						              for (const ch of phrase) {
@@ -14148,8 +14148,8 @@
 						                  for (let c = 0; c < glyph[r].length; c += 1) {
 						                    if (glyph[r][c] !== '1') continue;
 						                    const x = cursor + c * (cellW + cellGap);
-						                    const y = 5.92 - r * 0.31;
-						                    const z = metersH / 2 + 10.22 - r * 0.10;
+						                    const y = 5.72 - r * 0.36;
+						                    const z = metersH / 2 + 9.16 - r * 0.14;
 						                    addRotMesh(new THREE.BoxGeometry(cellW, 0.16, cellZ), whiteSeatMat, x, y, z, -0.09, 0, 0, 'pitch_3d_rosaleda_final_readable_malaga_cf_seat_mosaic_cell');
 						                    addRotMesh(new THREE.BoxGeometry(cellW * 0.78, 0.06, cellZ * 0.52), whiteSeatMat, x, y + 0.09, z - 0.05, -0.09, 0, 0, 'pitch_3d_rosaleda_final_readable_malaga_cf_seat_mosaic_highlight');
 						                  }
