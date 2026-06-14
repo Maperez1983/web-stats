@@ -13294,6 +13294,39 @@
 						              return new THREE.MeshBasicMaterial({ color: 0xf8fafc, transparent: true, opacity: 0.92, side: THREE.DoubleSide });
 						            }
 						          };
+						          const makeProfessionalSeatMosaicMat = (text, opts = {}) => {
+						            try {
+						              const tex = makePitch3dCanvasTexture((ctx, c) => {
+						                const blue = opts.bg || '#075da8';
+						                ctx.fillStyle = blue;
+						                ctx.fillRect(0, 0, c.width, c.height);
+						                ctx.fillStyle = 'rgba(2, 24, 48, 0.16)';
+						                for (let y = 18; y < c.height; y += 22) ctx.fillRect(0, y, c.width, 5);
+						                ctx.fillStyle = 'rgba(255,255,255,0.12)';
+						                for (let x = 12; x < c.width; x += 34) {
+						                  for (let y = 12; y < c.height; y += 22) {
+						                    ctx.fillRect(x, y, 10, 5);
+						                  }
+						                }
+						                ctx.fillStyle = 'rgba(241,245,249,0.88)';
+						                [0.18, 0.38, 0.58, 0.78].forEach((ratio) => {
+						                  const x = Math.round(c.width * ratio);
+						                  ctx.fillRect(x - 10, 0, 20, c.height);
+						                });
+						                ctx.fillStyle = opts.fg || '#f8fafc';
+						                ctx.font = opts.font || '900 178px Arial, sans-serif';
+						                ctx.textAlign = 'center';
+						                ctx.textBaseline = 'middle';
+						                ctx.fillText(text, c.width / 2, c.height * 0.53);
+						                ctx.strokeStyle = 'rgba(6, 39, 79, 0.32)';
+						                ctx.lineWidth = 10;
+						                ctx.strokeRect(8, 8, c.width - 16, c.height - 16);
+						              }, opts.w || 1800, opts.h || 420);
+						              return new THREE.MeshBasicMaterial({ map: tex?.tex || null, side: THREE.DoubleSide, toneMapped: false });
+						            } catch (e) {
+						              return new THREE.MeshBasicMaterial({ color: 0x075da8, side: THREE.DoubleSide });
+						            }
+						          };
 						          const addMesh = (geo, mat, x, y, z, kind) => {
 						            const mesh = new THREE.Mesh(geo, mat);
 						            mesh.position.set(x, y, z);
@@ -14141,6 +14174,17 @@
 						                addRotMesh(new THREE.BoxGeometry(0.88, 0.18, 7.9), concreteEdgeMat, ratio * metersW, 4.70, metersH / 2 + 8.55, -0.095, 0, 0, 'pitch_3d_rosaleda_final_clean_main_stair_aisle');
 						                if (idx > 0 && idx < 5) addMesh(new THREE.BoxGeometry(4.2, 1.08, 0.22), shadowVoidMat, ratio * metersW, 3.70, metersH / 2 + 6.06, 'pitch_3d_rosaleda_final_clean_main_tunnel_shadow');
 						              });
+						              addRotMesh(
+						                new THREE.PlaneGeometry(metersW * 0.78, 8.4),
+						                makeProfessionalSeatMosaicMat('MALAGA CF', { w: 2200, h: 520, font: '900 206px Arial, sans-serif' }),
+						                0,
+						                4.78,
+						                metersH / 2 + 8.18,
+						                -0.13,
+						                Math.PI,
+						                0,
+						                'pitch_3d_rosaleda_final_single_clean_main_stand_malaga_cf_mosaic'
+						              );
 						              const blockLetters = {
 						                M: ['10001', '11011', '10101', '10101', '10001', '10001', '10001'],
 						                A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'],
@@ -14149,7 +14193,7 @@
 						                C: ['01111', '10000', '10000', '10000', '10000', '10000', '01111'],
 						                F: ['11111', '10000', '10000', '11110', '10000', '10000', '10000'],
 						              };
-						              const phrase = 'MALAGA CF';
+						              const phrase = '';
 						              const cellW = 1.88;
 						              const cellZ = 0.74;
 						              const cellGap = 0.14;
