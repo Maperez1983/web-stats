@@ -13479,7 +13479,7 @@
 						              const warmLightMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc, toneMapped: false });
 						              addRotMesh(new THREE.CircleGeometry(3.05, 72), makeSignMat('MCF', { w: 512, h: 512, bg: '#1d72c9', fg: '#f8fafc', font: '900 132px Arial, sans-serif', stroke: '#f8fafc' }), -(metersW / 2 + 5.92), 4.45, -metersH * 0.12, -0.12, -Math.PI / 2, 0, 'pitch_3d_dedicated_reference_large_side_stand_mcf_crest');
 						              addRotMesh(new THREE.CircleGeometry(1.65, 72), makeSignMat('MCF', { w: 512, h: 512, bg: '#1d72c9', fg: '#f8fafc', font: '900 132px Arial, sans-serif', stroke: '#f8fafc' }), metersW / 2 + 4.72, 4.02, metersH * 0.10, -0.12, Math.PI / 2, 0, 'pitch_3d_dedicated_reference_opposite_side_stand_mcf_crest');
-						              addRotMesh(new THREE.PlaneGeometry(metersW * 0.62, 3.65), makeTransparentSeatTextMat('MALAGA CF', { font: '900 172px Arial, sans-serif' }), 0, 5.18, metersH / 2 + 8.72, -0.15, Math.PI, 0, 'pitch_3d_dedicated_reference_large_white_seat_wordmark_overlay');
+						              // El lettering se resuelve con asientos blancos instanciados; evitamos planos de texto superpuestos.
 						              [-0.34, -0.12, 0.12, 0.34].forEach((ratio, idx) => {
 						                addMesh(new THREE.BoxGeometry(metersW * 0.15, 0.20, 0.40), idx % 2 ? whiteSeatMat : royalBlueMat, ratio * metersW, 4.66, metersH / 2 + 8.20, 'pitch_3d_dedicated_reference_main_stand_lettering_seat_row_highlight');
 						                addMesh(new THREE.BoxGeometry(metersW * 0.12, 0.18, 0.38), whiteSeatMat, ratio * metersW + metersW * 0.035, 4.26, metersH / 2 + 7.45, 'pitch_3d_dedicated_reference_main_stand_white_letter_seat_run');
@@ -13806,7 +13806,7 @@
 						              [-0.42, -0.21, 0.0, 0.21, 0.42].forEach((ratio) => {
 						                addMesh(new THREE.BoxGeometry(0.92, 0.18, 6.2), paleStepMat, ratio * metersW, 3.88, metersH / 2 + 9.70, 'pitch_3d_rosaleda_main_stand_full_height_pale_aisle');
 						              });
-						              addRotMesh(new THREE.PlaneGeometry(metersW * 0.58, 2.75), makeTransparentSeatTextMat('MALAGA CF', { font: '900 146px Arial, sans-serif' }), 0, 6.65, metersH / 2 + 12.25, -0.13, Math.PI, 0, 'pitch_3d_rosaleda_upper_stand_clean_white_wordmark');
+						              // El nombre no se duplica aquí: lo aporta el mosaico de asiento, no una lámina flotante.
 						              const addFarDugout = (x, label) => {
 						                const group = new THREE.Group();
 						                group.userData = { kind: 'pitch_3d_rosaleda_far_touchline_dugout_reference' };
@@ -13839,6 +13839,38 @@
 						              };
 						              addFarDugout(-21.0, 'MALAGA CF');
 						              addFarDugout(-6.0, 'MCF');
+						            } catch (e) { /* ignore */ }
+						          };
+						          const addRosaledaStructuralCleanup = () => {
+						            try {
+						              const underSlabMat = new THREE.MeshStandardMaterial({ color: 0xc8cec8, roughness: 0.74, metalness: 0.03 });
+						              const pierMat = new THREE.MeshStandardMaterial({ color: 0xb8c0bd, roughness: 0.70, metalness: 0.04 });
+						              const shadowVoidMat = new THREE.MeshStandardMaterial({ color: 0x23313f, roughness: 0.84, metalness: 0.03 });
+						              const steelMat = new THREE.MeshStandardMaterial({ color: 0x6f7f8b, roughness: 0.38, metalness: 0.34 });
+						              // Losa continua bajo la grada alta principal: evita que los bloques de asiento parezcan flotantes.
+						              addRotMesh(new THREE.BoxGeometry(metersW + 11.0, 0.22, 6.4), underSlabMat, 0, 5.32, metersH / 2 + 12.10, -0.065, 0, 0, 'pitch_3d_rosaleda_structural_main_upper_tier_under_slab');
+						              addMesh(new THREE.BoxGeometry(metersW + 12.0, 0.46, 0.32), shadowVoidMat, 0, 5.02, metersH / 2 + 10.96, 'pitch_3d_rosaleda_structural_main_upper_shadow_reveal');
+						              [-0.44, -0.31, -0.18, -0.05, 0.08, 0.21, 0.34, 0.47].forEach((ratio) => {
+						                const x = ratio * metersW;
+						                addMesh(new THREE.BoxGeometry(0.34, 3.85, 0.34), pierMat, x, 3.55, metersH / 2 + 10.72, 'pitch_3d_rosaleda_structural_main_upper_front_pier');
+						                addRotMesh(new THREE.BoxGeometry(0.18, 0.18, 5.6), steelMat, x + 0.35, 5.05, metersH / 2 + 12.25, -0.46, 0, 0, 'pitch_3d_rosaleda_structural_main_upper_diagonal_raker');
+						              });
+						              // Laterales: sustituimos la lectura de bandejas sueltas por vigas y pilares ritmados.
+						              [-1, 1].forEach((sideSign) => {
+						                addRotMesh(new THREE.BoxGeometry(3.8, 0.18, metersH + 7.0), underSlabMat, sideSign * (metersW / 2 + 8.25), 4.78, 0, 0, sideSign * 0.018, 0, 'pitch_3d_rosaleda_structural_side_upper_under_slab');
+						                for (let i = -5; i <= 5; i += 1) {
+						                  const z = i * ((metersH + 2.0) / 10);
+						                  addMesh(new THREE.BoxGeometry(0.28, 3.2, 0.28), pierMat, sideSign * (metersW / 2 + 7.05), 3.18, z, 'pitch_3d_rosaleda_structural_side_upper_pier');
+						                  addRotMesh(new THREE.BoxGeometry(3.4, 0.16, 0.16), steelMat, sideSign * (metersW / 2 + 8.38), 4.64, z, 0, 0, sideSign * 0.38, 'pitch_3d_rosaleda_structural_side_upper_diagonal_raker');
+						                }
+						              });
+						              // Remate bajo la cubierta principal para que el techo se apoye visualmente en una cercha continua.
+						              addMesh(new THREE.BoxGeometry(metersW + 23.0, 0.22, 0.28), steelMat, 0, 10.84, metersH / 2 + 15.34, 'pitch_3d_rosaleda_structural_main_roof_front_chord_cleanup');
+						              addMesh(new THREE.BoxGeometry(metersW + 20.0, 0.18, 0.24), steelMat, 0, 11.30, metersH / 2 + 20.02, 'pitch_3d_rosaleda_structural_main_roof_rear_chord_cleanup');
+						              for (let i = -10; i <= 10; i += 1) {
+						                const x = i * ((metersW + 15.0) / 20);
+						                addRotMesh(new THREE.BoxGeometry(0.14, 0.14, 5.1), steelMat, x, 11.06, metersH / 2 + 17.68, -0.38, 0, 0, 'pitch_3d_rosaleda_structural_main_roof_raker_cleanup');
+						              }
 						            } catch (e) { /* ignore */ }
 						          };
 						          const addRosaledaPhotographicFinish = () => {
@@ -13908,7 +13940,7 @@
 						                  addMesh(new THREE.BoxGeometry(metersW * 0.086, 0.13, 0.28), mat, ratio * metersW, y, z, 'pitch_3d_rosaleda_photo_main_dense_lower_seat_block');
 						                });
 						              }
-						              addRotMesh(new THREE.PlaneGeometry(metersW * 0.48, 2.0), makeTransparentSeatTextMat('MALAGA CF', { font: '900 126px Arial, sans-serif' }), metersW * 0.05, 5.72, metersH / 2 + 10.72, -0.12, Math.PI, 0, 'pitch_3d_rosaleda_photo_crisper_main_wordmark');
+						              // Sin overlay fotográfico adicional de MALAGA CF para no pisar el mosaico real.
 						              for (let i = -18; i <= 18; i += 1) {
 						                const x = i * ((metersW + 16.0) / 36);
 						                addMesh(new THREE.BoxGeometry(0.34, 0.055, 0.10), brightWhiteMat, x, 10.52, metersH / 2 + 14.28, 'pitch_3d_rosaleda_photo_roof_pin_light');
@@ -13967,13 +13999,14 @@
 						          addSideStand(1);
 						          addInstancedSeats();
 						          addPerimeterRoofFinish();
-						          addSeatMosaic();
+						          // Desactivado: esta capa pintaba otro MALAGA CF encima del mosaico de asientos.
 						          addPhotoReferencePitchsideLayer();
 						          addReferenceIdentityAndLightingPass();
 						          addReferenceBowlDepthPass();
 						          addReferenceBenchesAndTrainingGoalsPass();
 						          addRosaledaPremiumFinish();
 						          addRosaledaDepthAndCameraFinish();
+						          addRosaledaStructuralCleanup();
 						          addRosaledaPhotographicFinish();
 						          [-1, 1].forEach((sx) => {
 						            [-1, 1].forEach((sz) => {
@@ -13990,7 +14023,7 @@
 						            addMesh(new THREE.BoxGeometry(w, 1.75, 0.22), idx === 2 ? darkVoidMat : concreteMat, ratio * metersW, 7.12, northFacadeZ, 'pitch_3d_dedicated_completion_north_facade_panel');
 						          });
 						          addMesh(new THREE.BoxGeometry(metersW + 5.0, 0.10, 0.12), lightMat, 0, 8.26, northFacadeZ - 0.22, 'pitch_3d_dedicated_completion_north_light_bar');
-						          addRotMesh(new THREE.PlaneGeometry(metersW * 0.56, 2.85), makeTransparentSeatTextMat('MALAGA CF', { font: '900 146px Arial, sans-serif' }), 0, 4.72, metersH / 2 + 7.86, -0.16, Math.PI, 0, 'pitch_3d_dedicated_completion_main_stand_lettering_panel');
+						          // Desactivado: antiguo panel plano de lettering que se superponía al nombre de asientos.
 						          addRotMesh(new THREE.CircleGeometry(2.35, 64), makeSignMat('MCF', { w: 512, h: 512, bg: '#1d72c9', fg: '#f8fafc', font: '900 132px Arial, sans-serif', stroke: '#f8fafc' }), 0, 8.12, metersH / 2 + 14.46, 0, Math.PI, 0, 'pitch_3d_dedicated_completion_main_stand_round_crest');
 						          addMesh(new THREE.BoxGeometry(metersW + 18.5, 2.25, 0.34), concreteMat, 0, 7.45, metersH / 2 + 14.95, 'pitch_3d_dedicated_completion_main_stand_back_wall');
 						          addMesh(new THREE.BoxGeometry(metersW + 17.0, 0.72, 0.38), darkVoidMat, 0, 8.05, metersH / 2 + 14.72, 'pitch_3d_dedicated_completion_main_stand_shadow_box_level');
