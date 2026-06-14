@@ -8911,6 +8911,82 @@
 						      return fallback;
 						    };
 
+						    const pitch3dActionPose = (action) => {
+						      const key = safeText(action, 'move');
+						      if (key === 'shot') return { lean: -0.16, roll: 0.08, stride: 0.24, cue: 0xef4444 };
+						      if (key === 'cross') return { lean: -0.11, roll: -0.10, stride: 0.18, cue: 0x38bdf8 };
+						      if (key === 'carry') return { lean: -0.08, roll: 0.03, stride: 0.14, cue: 0x22c55e };
+						      if (key === 'press') return { lean: -0.18, roll: 0.00, stride: 0.10, cue: 0xf97316 };
+						      if (key === 'pass') return { lean: -0.10, roll: 0.04, stride: 0.16, cue: 0xfacc15 };
+						      return { lean: -0.04, roll: 0.00, stride: 0.06, cue: 0x94a3b8 };
+						    };
+
+						    const pitch3dActionForObject = (o, fallback = 'move', routesOption = {}, contextText = '') => {
+						      try {
+						        const data = o?.data || {};
+						        const uid = pitch3dUidForObject(o);
+						        const route = uid ? pitch3dRouteForUid(routesOption, uid) : null;
+						        const direct = safeText(route?.action || data.ball_action || data.action || data.pitch3d_action);
+						        if (direct) return pitch3dInferAction(direct, fallback);
+						        const routes = Array.isArray(data.interactive_routes) ? data.interactive_routes : [];
+						        const routed = routes.map((r) => safeText(r?.action || r?.type || r?.label)).find(Boolean);
+						        if (routed) return pitch3dInferAction(routed, fallback);
+						      } catch (e) { /* ignore */ }
+						      return pitch3dInferAction(contextText, fallback);
+						    };
+
+						    const applyPitch3dActionPose = (holder, action, intensity = 1) => {
+						      if (!holder || !window.THREE) return;
+						      try {
+						        const pose = pitch3dActionPose(action);
+						        const k = clamp(Number(intensity) || 1, 0, 1);
+						        holder.userData.action = safeText(action, 'move');
+						        holder.rotation.x = pose.lean * k;
+						        holder.rotation.z = pose.roll * k;
+						        holder.position.y = Math.max(0, Math.sin(k * Math.PI) * 0.025);
+						        holder.traverse?.((node) => {
+						          const kind = safeText(node?.userData?.kind);
+						          if (!node || !node.rotation) return;
+						          if (!node.userData.action_pose_base) {
+						            node.userData.action_pose_base = { x: Number(node.rotation.x) || 0, y: Number(node.rotation.y) || 0, z: Number(node.rotation.z) || 0 };
+						          }
+						          const base = node.userData.action_pose_base || { x: 0, y: 0, z: 0 };
+						          if (kind === 'token_body_forearm' || kind === 'token_body_sleeve') {
+						            node.rotation.x = base.x + (pose.lean * 0.50 * k);
+						            node.rotation.y = base.y;
+						            node.rotation.z = base.z + (pose.roll * 0.55 * k);
+						          }
+						          if (kind === 'token_body_thigh' || kind === 'token_body_sock') {
+						            node.rotation.x = base.x + (pose.stride * k);
+						            node.rotation.y = base.y;
+						            node.rotation.z = base.z;
+						          }
+						          if (kind === 'token_body_boot') {
+						            node.rotation.x = base.x + ((pose.stride * 0.9) * k);
+						            node.rotation.y = base.y;
+						            node.rotation.z = base.z;
+						          }
+						        });
+						        if (!holder.userData.action_cue_added) {
+						          const cueMat = new THREE.MeshBasicMaterial({ color: pose.cue, transparent: true, opacity: 0.72, depthWrite: false, side: THREE.DoubleSide });
+						          const cue = new THREE.Mesh(new THREE.RingGeometry(0.24, 0.30, 24, 1), cueMat);
+						          cue.name = 'pitch3d_action_pose_cue';
+						          cue.rotation.x = -Math.PI / 2;
+						          cue.position.set(0, 0.025, -0.44);
+						          cue.userData = { kind: 'token_action_cue' };
+						          holder.add(cue);
+						          holder.userData.action_cue_added = true;
+						        }
+						        (holder.children || []).forEach((child) => {
+						          if (safeText(child?.userData?.kind) === 'token_action_cue' && child.material?.color) {
+						            child.material.color.setHex(pose.cue);
+						            child.material.opacity = 0.40 + (0.28 * k);
+						          }
+						        });
+						        holder.updateMatrixWorld?.(true);
+						      } catch (e) { /* ignore */ }
+						    };
+
 						    const pitch3dRouteLiftForAction = (action, t, dist = 0) => {
 						      const key = safeText(action);
 						      const k = Math.sin(Math.PI * clamp(Number(t) || 0, 0, 1));
@@ -9352,19 +9428,25 @@
 						        targetY = focus.count ? 2.2 : 2.8;
 						        targetZ = focus.z;
 						      } else if (k === 'broadcast') {
-						        // “TV”: cámara desde banda, baja, mirando el campo.
+						        const focus = pitch3dCanvasFocus(Number(metersW) || 105, Number(metersH) || 68);
+						        // “TV”: cámara desde banda, baja, enfocando la acción real de la tarea.
+						        pitch3dCamera.fov = 35;
 							        pitch3dOrbit.theta = Math.PI / 2;
-							        pitch3dOrbit.phi = 1.51;
-							        pitch3dOrbit.radius = Math.max(42, metersW * 0.43);
-							        targetX = 8;
-							        targetY = 0.85;
-							        targetZ = -18;
+							        pitch3dOrbit.phi = 1.44;
+							        pitch3dOrbit.radius = clamp(Math.max(34, focus.spread * 1.42), 34, Math.max(62, metersW * 0.60));
+							        targetX = focus.count ? focus.x : 8;
+							        targetY = focus.count ? 1.35 : 0.85;
+							        targetZ = focus.count ? focus.z : -18;
 						      } else if (k === 'broadcast_high') {
-						        // “TV alto”: ligeramente más cenital para explicar espacios.
+						        const focus = pitch3dCanvasFocus(Number(metersW) || 105, Number(metersH) || 68);
+						        // “TV alto”: más cenital para explicar espacios, pero sin perder la escena.
+						        pitch3dCamera.fov = 38;
 							        pitch3dOrbit.theta = 0.82;
-							        pitch3dOrbit.phi = 1.24;
-							        pitch3dOrbit.radius = Math.max(72, metersW * 0.82);
-							        targetY = 1.2;
+							        pitch3dOrbit.phi = 1.18;
+							        pitch3dOrbit.radius = clamp(Math.max(52, focus.spread * 1.88), 52, Math.max(92, metersW * 0.86));
+							        targetX = focus.count ? focus.x : 0;
+							        targetY = focus.count ? 2.2 : 1.2;
+							        targetZ = focus.count ? focus.z : 0;
 						      } else if (k === 'coach_sideline') {
 						        pitch3dOrbit.theta = Math.PI / 2;
 						        pitch3dOrbit.phi = 1.36;
@@ -15262,6 +15344,12 @@
 						        const fovVisible = !!data.fov_visible;
 						        const fovWidthDeg = clamp(Number(data.fov_width_deg) || 70, 20, 160);
 						        const playerMetrics = pitch3dPlayerMetrics(o, tokenKind);
+						        const tokenAction = pitch3dActionForObject(
+						          o,
+						          'move',
+						          options.routes && typeof options.routes === 'object' ? options.routes : {},
+						          `${safeText(options.stepTitle)} ${safeText(options.stepDescription)}`,
+						        );
 						        const geo = new THREE.CylinderGeometry(0.75, 0.75, 0.26, 18);
 						        const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.65, metalness: 0.02 });
 						        const mesh = new THREE.Mesh(geo, mat);
@@ -15299,7 +15387,7 @@
 						          const model = clonePitch3dPlayerModel(modelSrc);
 						          if (model) {
 						            const holder = new THREE.Group();
-						            holder.userData = { kind: 'token_body_model', facing_deg: facingDeg, src: __pitch3dAssetUrl('pitch3dPlayerModelSrc'), metrics: playerMetrics };
+						            holder.userData = { kind: 'token_body_model', facing_deg: facingDeg, src: __pitch3dAssetUrl('pitch3dPlayerModelSrc'), metrics: playerMetrics, action: tokenAction };
 						            tintPitch3dPlayerModel(model, {
 						              shirt: stripe || fill,
 						              base: fill || '#ffffff',
@@ -15319,6 +15407,7 @@
 						              addPitch3dPlayerKitOverlay(holder, o, { shirt: stripe || fill, base: fill || '#ffffff' });
 						            }
 						            holder.rotation.y = (Number(facingDeg) || 0) * (Math.PI / 180);
+						            applyPitch3dActionPose(holder, tokenAction, 0.82);
 						            mesh.add(holder);
 						            externalAvatar3dUsed = true;
 						          }
@@ -15338,7 +15427,7 @@
 						          const sockMat = new THREE.MeshStandardMaterial({ color: kitBaseCol, roughness: 0.70, metalness: 0.01 });
 						          const bootMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.58, metalness: 0.04 });
 						          const body = new THREE.Group();
-						          body.userData = { kind: 'token_body', facing_deg: facingDeg, metrics: playerMetrics };
+						          body.userData = { kind: 'token_body', facing_deg: facingDeg, metrics: playerMetrics, action: tokenAction };
 						          body.scale.set(
 						            1.16 * playerMetrics.massFactor,
 						            1.16 * playerMetrics.heightScale,
@@ -15462,6 +15551,7 @@
 						          arrow.userData = { kind: 'token_facing' };
 						          body.add(arrow);
 						          body.rotation.y = (Number(facingDeg) || 0) * (Math.PI / 180);
+						          applyPitch3dActionPose(body, tokenAction, 0.82);
 						          mesh.add(body);
 
 						          const fovGeom = buildTokenFovGeometry3d(5.8, fovWidthDeg);
@@ -15906,6 +15996,7 @@
 						        }
 						        if (!b) b = a;
 							        const route = routeForUid(uid);
+							        const activeAction = safeText(route?.action || pitch3dInferAction(`${safeText(fromStep?.title)} ${safeText(fromStep?.description)} ${safeText(toStep?.title)} ${safeText(toStep?.description)}`, 'move'));
 							        let movedDist = 0;
 							        if (route) {
 							          const before = routeSample3d(route, Math.max(0, alpha - 0.04), wA, hA, 0.10, false);
@@ -15937,9 +16028,10 @@
 							          (node.children || []).forEach((child) => {
 							            if (!child || !child.userData) return;
 							            const k = safeText(child.userData.kind);
-							            if (k === 'token_body') {
+							            if (k === 'token_body' || k === 'token_body_model') {
 							              child.rotation.y = (Number(facing) || 0) * (Math.PI / 180);
 							              child.userData.facing_deg = facing;
+							              applyPitch3dActionPose(child, activeAction, movedDist > 0.3 ? 0.92 : 0.62);
 							              return;
 							            }
 							            if (k === 'token_fov') {
