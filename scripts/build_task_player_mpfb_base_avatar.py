@@ -219,19 +219,33 @@ def main():
         'upperarm_r': (0, 0, 10), 'lowerarm_r': (0, 0, 4), 'hand_r': (0, 0, 2),
         'spine_03': (1, 0, 0), 'neck_01': (-1, 0, 0),
     }
-    run_a = dict(neutral, **{
-        'spine_01': (3, 0, 0), 'spine_03': (7, 0, 3),
-        'upperarm_l': (-8, 0, -16), 'lowerarm_l': (-12, 0, -8), 'hand_l': (-5, 0, -4),
-        'upperarm_r': (10, 0, 15), 'lowerarm_r': (-12, 0, 8), 'hand_r': (-5, 0, 4),
-        'thigh_l': (26, 0, 3), 'calf_l': (-34, 0, 0), 'foot_l': (12, 0, 0),
-        'thigh_r': (-20, 0, -3), 'calf_r': (18, 0, 0), 'foot_r': (-9, 0, 0),
+    run_contact_l = dict(neutral, **{
+        'pelvis': (0, 0, -1), 'spine_01': (3, 0, 0), 'spine_03': (5, 0, 1),
+        'clavicle_l': (0, 0, -1), 'upperarm_l': (-2, 0, -11), 'lowerarm_l': (-5, 0, -5), 'hand_l': (-2, 0, -2),
+        'clavicle_r': (0, 0, 1), 'upperarm_r': (3, 0, 11), 'lowerarm_r': (-6, 0, 5), 'hand_r': (-2, 0, 2),
+        'thigh_l': (12, 0, 1), 'calf_l': (-12, 0, 0), 'foot_l': (4, 0, 0),
+        'thigh_r': (-8, 0, -1), 'calf_r': (7, 0, 0), 'foot_r': (-4, 0, 0),
     })
-    run_b = dict(neutral, **{
-        'spine_01': (3, 0, 0), 'spine_03': (7, 0, -3),
-        'upperarm_l': (10, 0, -15), 'lowerarm_l': (-12, 0, -8), 'hand_l': (-5, 0, -4),
-        'upperarm_r': (-8, 0, 16), 'lowerarm_r': (-12, 0, 8), 'hand_r': (-5, 0, 4),
-        'thigh_l': (-20, 0, 3), 'calf_l': (18, 0, 0), 'foot_l': (-9, 0, 0),
-        'thigh_r': (26, 0, -3), 'calf_r': (-34, 0, 0), 'foot_r': (12, 0, 0),
+    run_float_l = dict(neutral, **{
+        'pelvis': (0, 0, -1), 'spine_01': (4, 0, 0), 'spine_03': (6, 0, 1),
+        'clavicle_l': (0, 0, -1), 'upperarm_l': (0, 0, -11), 'lowerarm_l': (-7, 0, -5), 'hand_l': (-2, 0, -2),
+        'clavicle_r': (0, 0, 1), 'upperarm_r': (1, 0, 11), 'lowerarm_r': (-7, 0, 5), 'hand_r': (-2, 0, 2),
+        'thigh_l': (7, 0, 1), 'calf_l': (-16, 0, 0), 'foot_l': (7, 0, 0),
+        'thigh_r': (-4, 0, -1), 'calf_r': (12, 0, 0), 'foot_r': (-5, 0, 0),
+    })
+    run_contact_r = dict(neutral, **{
+        'pelvis': (0, 0, 1), 'spine_01': (3, 0, 0), 'spine_03': (5, 0, -1),
+        'clavicle_l': (0, 0, -1), 'upperarm_l': (3, 0, -11), 'lowerarm_l': (-6, 0, -5), 'hand_l': (-2, 0, -2),
+        'clavicle_r': (0, 0, 1), 'upperarm_r': (-2, 0, 11), 'lowerarm_r': (-5, 0, 5), 'hand_r': (-2, 0, 2),
+        'thigh_l': (-8, 0, 1), 'calf_l': (7, 0, 0), 'foot_l': (-4, 0, 0),
+        'thigh_r': (12, 0, -1), 'calf_r': (-12, 0, 0), 'foot_r': (4, 0, 0),
+    })
+    run_float_r = dict(neutral, **{
+        'pelvis': (0, 0, 1), 'spine_01': (4, 0, 0), 'spine_03': (6, 0, -1),
+        'clavicle_l': (0, 0, -1), 'upperarm_l': (1, 0, -11), 'lowerarm_l': (-7, 0, -5), 'hand_l': (-2, 0, -2),
+        'clavicle_r': (0, 0, 1), 'upperarm_r': (0, 0, 11), 'lowerarm_r': (-7, 0, 5), 'hand_r': (-2, 0, 2),
+        'thigh_l': (-4, 0, 1), 'calf_l': (12, 0, 0), 'foot_l': (-5, 0, 0),
+        'thigh_r': (7, 0, -1), 'calf_r': (-16, 0, 0), 'foot_r': (7, 0, 0),
     })
     pass_windup = dict(neutral, **{
         'spine_01': (2, 0, -3), 'spine_03': (5, 0, -5),
@@ -284,7 +298,13 @@ def main():
     })
 
     create_action('idle', [(1, neutral), (24, dict(neutral, **{'spine_03': (3, 0, 0)})), (48, neutral)])
-    create_action('run', [(1, run_a), (12, neutral), (24, run_b), (36, neutral), (48, run_a)])
+    create_action('run', [
+        (1, run_contact_l),
+        (9, run_float_l),
+        (17, run_contact_r),
+        (25, run_float_r),
+        (33, run_contact_l),
+    ])
     create_action('pass', [(1, neutral), (10, pass_windup), (18, pass_pose), (30, neutral)])
     create_action('cross', [(1, neutral), (10, cross_windup), (20, cross_pose), (36, neutral)])
     create_action('shot', [(1, neutral), (10, shot_windup), (20, shot_pose), (34, neutral)])
