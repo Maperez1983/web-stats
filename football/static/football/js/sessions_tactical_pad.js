@@ -13478,7 +13478,7 @@
 						              const roofDarkMat = new THREE.MeshStandardMaterial({ color: 0x25323a, roughness: 0.50, metalness: 0.22 });
 						              const warmLightMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc, toneMapped: false });
 						              addRotMesh(new THREE.CircleGeometry(3.05, 72), makeSignMat('MCF', { w: 512, h: 512, bg: '#1d72c9', fg: '#f8fafc', font: '900 132px Arial, sans-serif', stroke: '#f8fafc' }), -(metersW / 2 + 5.92), 4.45, -metersH * 0.12, -0.12, -Math.PI / 2, 0, 'pitch_3d_dedicated_reference_large_side_stand_mcf_crest');
-						              addRotMesh(new THREE.CircleGeometry(2.35, 72), makeSignMat('MCF', { w: 512, h: 512, bg: '#1d72c9', fg: '#f8fafc', font: '900 132px Arial, sans-serif', stroke: '#f8fafc' }), metersW / 2 + 5.92, 4.22, metersH * 0.18, -0.12, Math.PI / 2, 0, 'pitch_3d_dedicated_reference_opposite_side_stand_mcf_crest');
+						              addRotMesh(new THREE.CircleGeometry(1.65, 72), makeSignMat('MCF', { w: 512, h: 512, bg: '#1d72c9', fg: '#f8fafc', font: '900 132px Arial, sans-serif', stroke: '#f8fafc' }), metersW / 2 + 4.72, 4.02, metersH * 0.10, -0.12, Math.PI / 2, 0, 'pitch_3d_dedicated_reference_opposite_side_stand_mcf_crest');
 						              addRotMesh(new THREE.PlaneGeometry(metersW * 0.62, 3.65), makeTransparentSeatTextMat('MALAGA CF', { font: '900 172px Arial, sans-serif' }), 0, 5.18, metersH / 2 + 8.72, -0.15, Math.PI, 0, 'pitch_3d_dedicated_reference_large_white_seat_wordmark_overlay');
 						              [-0.34, -0.12, 0.12, 0.34].forEach((ratio, idx) => {
 						                addMesh(new THREE.BoxGeometry(metersW * 0.15, 0.20, 0.40), idx % 2 ? whiteSeatMat : royalBlueMat, ratio * metersW, 4.66, metersH / 2 + 8.20, 'pitch_3d_dedicated_reference_main_stand_lettering_seat_row_highlight');
@@ -13503,7 +13503,7 @@
 						          };
 						          const addReferenceBowlDepthPass = () => {
 						            try {
-						              const portalMat = new THREE.MeshStandardMaterial({ color: 0x07111f, roughness: 0.88, metalness: 0.02 });
+						              const portalMat = new THREE.MeshStandardMaterial({ color: 0x172233, roughness: 0.88, metalness: 0.02 });
 						              const frameMat = new THREE.MeshStandardMaterial({ color: 0xd9ded8, roughness: 0.62, metalness: 0.04 });
 						              const soffitMat = new THREE.MeshStandardMaterial({ color: 0x1f2933, roughness: 0.58, metalness: 0.16 });
 						              const cloudMat = (() => {
@@ -13533,12 +13533,12 @@
 						              [-0.42, -0.26, -0.10, 0.10, 0.26, 0.42].forEach((ratio) => {
 						                const x = ratio * metersW;
 						                addMesh(new THREE.BoxGeometry(4.25, 2.05, 0.20), frameMat, x, 3.18, metersH / 2 + 6.96, 'pitch_3d_dedicated_reference_main_vomitory_concrete_frame');
-						                addMesh(new THREE.BoxGeometry(2.95, 1.32, 0.24), portalMat, x, 3.08, metersH / 2 + 6.82, 'pitch_3d_dedicated_reference_main_dark_vomitory_opening');
+						                addMesh(new THREE.BoxGeometry(2.30, 0.96, 0.24), portalMat, x, 3.06, metersH / 2 + 6.82, 'pitch_3d_dedicated_reference_main_dark_vomitory_opening');
 						              });
 						              [-0.32, 0, 0.32].forEach((ratio) => {
 						                const z = ratio * metersH;
 						                addMesh(new THREE.BoxGeometry(0.20, 1.78, 3.6), frameMat, -(metersW / 2 + 5.30), 2.86, z, 'pitch_3d_dedicated_reference_side_vomitory_concrete_frame');
-						                addMesh(new THREE.BoxGeometry(0.24, 1.18, 2.55), portalMat, -(metersW / 2 + 5.16), 2.78, z, 'pitch_3d_dedicated_reference_side_dark_vomitory_opening');
+						                addMesh(new THREE.BoxGeometry(0.24, 0.94, 2.10), portalMat, -(metersW / 2 + 5.16), 2.78, z, 'pitch_3d_dedicated_reference_side_dark_vomitory_opening');
 						              });
 						              const addBackrestField = (sideSign, rowCount, colCount, zStart, label) => {
 						                const geo = new THREE.BoxGeometry(0.38, 0.30, 0.055);
@@ -13738,7 +13738,7 @@
 						              addMesh(new THREE.BoxGeometry(metersW + 20.0, 0.08, 0.10), cableMat, 0, 12.42, metersH / 2 + 20.18, 'pitch_3d_rosaleda_main_roof_rear_cable_line');
 						              [-0.42, -0.21, 0.0, 0.21, 0.42].forEach((ratio) => {
 						                addMesh(new THREE.BoxGeometry(1.05, 2.8, 0.18), paleConcreteMat, ratio * metersW, 3.05, metersH / 2 + 6.28, 'pitch_3d_rosaleda_main_stand_clean_vertical_aisle_core');
-						                addMesh(new THREE.BoxGeometry(2.65, 1.28, 0.20), darkVoidMat, ratio * metersW, 3.18, metersH / 2 + 6.06, 'pitch_3d_rosaleda_main_stand_dark_access_tunnel');
+						                addMesh(new THREE.BoxGeometry(2.08, 0.86, 0.20), darkVoidMat, ratio * metersW, 3.16, metersH / 2 + 6.06, 'pitch_3d_rosaleda_main_stand_dark_access_tunnel');
 						              });
 						              [-1, 1].forEach((sideSign) => {
 						                addRotMesh(new THREE.BoxGeometry(2.6, 0.08, metersH + 11.0), roofMat, sideSign * (metersW / 2 + 10.25), 10.72, 0, 0.02, sideSign * 0.018, 0, 'pitch_3d_rosaleda_side_roof_broad_light_panel');
