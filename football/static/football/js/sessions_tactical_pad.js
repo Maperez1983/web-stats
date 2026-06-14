@@ -14175,12 +14175,12 @@
 						                if (idx > 0 && idx < 5) addMesh(new THREE.BoxGeometry(4.2, 1.08, 0.22), shadowVoidMat, ratio * metersW, 3.70, metersH / 2 + 6.06, 'pitch_3d_rosaleda_final_clean_main_tunnel_shadow');
 						              });
 						              addRotMesh(
-						                new THREE.PlaneGeometry(metersW * 0.72, 5.8),
-						                makeProfessionalSeatMosaicMat('MALAGA CF', { w: 2200, h: 480, font: '900 154px Arial, sans-serif' }),
-						                -2.8,
-						                6.18,
-						                metersH / 2 + 10.45,
-						                -0.08,
+						                new THREE.PlaneGeometry(metersW * 0.72, 6.6),
+						                makeProfessionalSeatMosaicMat('MALAGA CF', { w: 2200, h: 500, font: '900 162px Arial, sans-serif' }),
+						                -2.6,
+						                4.86,
+						                metersH / 2 + 6.72,
+						                -0.14,
 						                Math.PI,
 						                0,
 						                'pitch_3d_rosaleda_final_single_clean_main_stand_malaga_cf_mosaic'
