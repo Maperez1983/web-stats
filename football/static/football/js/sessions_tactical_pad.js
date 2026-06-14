@@ -14043,6 +14043,9 @@
 						              const lampMat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
 						              const bluePanelMat = new THREE.MeshStandardMaterial({ color: 0x075da8, roughness: 0.40, metalness: 0.06, emissive: 0x042d55, emissiveIntensity: 0.08 });
 						              const concreteEdgeMat = new THREE.MeshStandardMaterial({ color: 0xe6e9e2, roughness: 0.70, metalness: 0.02 });
+						              const deepBlueMat = new THREE.MeshStandardMaterial({ color: 0x07569f, roughness: 0.55, metalness: 0.02 });
+						              const seatBlueAltMat = new THREE.MeshStandardMaterial({ color: 0x0d73c7, roughness: 0.50, metalness: 0.02 });
+						              const shadowVoidMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.82, metalness: 0.02 });
 						              const makeLetterMask = (() => {
 						                let mask = null;
 						                return () => {
@@ -14123,6 +14126,21 @@
 						              });
 						              addMesh(new THREE.BoxGeometry(metersW + 12.0, 0.34, 0.16), bluePanelMat, 0, 1.26, metersH / 2 + 2.40, 'pitch_3d_rosaleda_final_far_continuous_blue_ad_band');
 						              addMesh(new THREE.BoxGeometry(metersW + 12.0, 0.34, 0.16), bluePanelMat, 0, 1.26, -(metersH / 2 + 2.40), 'pitch_3d_rosaleda_final_near_continuous_blue_ad_band');
+						              // Rehacemos visualmente la grada principal como una pieza continua de asientos,
+						              // evitando el ruido de capas antiguas y dejando una base limpia para el mosaico.
+						              for (let row = 0; row < 18; row += 1) {
+						                const y = 3.10 + row * 0.235;
+						                const z = metersH / 2 + 6.25 + row * 0.31;
+						                [-0.385, -0.185, 0.025, 0.235, 0.425].forEach((ratio, idx) => {
+						                  const w = metersW * (idx === 2 ? 0.142 : 0.132);
+						                  const x = ratio * metersW;
+						                  addRotMesh(new THREE.BoxGeometry(w, 0.15, 0.54), (row + idx) % 7 === 0 ? seatBlueAltMat : deepBlueMat, x, y, z, -0.095, 0, 0, 'pitch_3d_rosaleda_final_clean_main_blue_seat_terrace');
+						                });
+						              }
+						              [-0.48, -0.305, -0.095, 0.125, 0.335, 0.50].forEach((ratio, idx) => {
+						                addRotMesh(new THREE.BoxGeometry(0.88, 0.18, 7.9), concreteEdgeMat, ratio * metersW, 4.70, metersH / 2 + 8.55, -0.095, 0, 0, 'pitch_3d_rosaleda_final_clean_main_stair_aisle');
+						                if (idx > 0 && idx < 5) addMesh(new THREE.BoxGeometry(4.2, 1.08, 0.22), shadowVoidMat, ratio * metersW, 3.70, metersH / 2 + 6.06, 'pitch_3d_rosaleda_final_clean_main_tunnel_shadow');
+						              });
 						              const blockLetters = {
 						                M: ['10001', '11011', '10101', '10101', '10001', '10001', '10001'],
 						                A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'],
@@ -14132,10 +14150,10 @@
 						                F: ['11111', '10000', '10000', '11110', '10000', '10000', '10000'],
 						              };
 						              const phrase = 'MALAGA CF';
-						              const cellW = 1.58;
-						              const cellZ = 0.62;
-						              const cellGap = 0.20;
-						              const letterGap = 0.96;
+						              const cellW = 1.88;
+						              const cellZ = 0.74;
+						              const cellGap = 0.14;
+						              const letterGap = 0.76;
 						              const totalCols = phrase.split('').reduce((sum, ch) => sum + (ch === ' ' ? 3 : 5) + 1, -1);
 						              let cursor = -(totalCols * (cellW + cellGap)) / 2;
 						              for (const ch of phrase) {
@@ -14148,10 +14166,10 @@
 						                  for (let c = 0; c < glyph[r].length; c += 1) {
 						                    if (glyph[r][c] !== '1') continue;
 						                    const x = cursor + c * (cellW + cellGap);
-						                    const y = 5.72 - r * 0.36;
-						                    const z = metersH / 2 + 9.16 - r * 0.14;
-						                    addRotMesh(new THREE.BoxGeometry(cellW, 0.16, cellZ), whiteSeatMat, x, y, z, -0.09, 0, 0, 'pitch_3d_rosaleda_final_readable_malaga_cf_seat_mosaic_cell');
-						                    addRotMesh(new THREE.BoxGeometry(cellW * 0.78, 0.06, cellZ * 0.52), whiteSeatMat, x, y + 0.09, z - 0.05, -0.09, 0, 0, 'pitch_3d_rosaleda_final_readable_malaga_cf_seat_mosaic_highlight');
+						                    const y = 5.44 - r * 0.33;
+						                    const z = metersH / 2 + 8.58 - r * 0.075;
+						                    addRotMesh(new THREE.BoxGeometry(cellW, 0.19, cellZ), whiteSeatMat, x, y, z, -0.095, 0, 0, 'pitch_3d_rosaleda_final_readable_malaga_cf_seat_mosaic_cell');
+						                    addRotMesh(new THREE.BoxGeometry(cellW * 0.74, 0.07, cellZ * 0.48), whiteSeatMat, x, y + 0.105, z - 0.055, -0.095, 0, 0, 'pitch_3d_rosaleda_final_readable_malaga_cf_seat_mosaic_highlight');
 						                  }
 						                }
 						                cursor += (5 * (cellW + cellGap)) + letterGap;
