@@ -5,7 +5,7 @@ import { chromium } from 'playwright';
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const staticRoot = path.join(root, 'football/static');
-const out = path.join(process.env.HOME || '/Users/miguelperezrodriguez', 'Downloads/VER_AVATAR_QUATERNIUS_FUTBOLISTA.png');
+const out = path.join(process.env.HOME || '/Users/miguelperezrodriguez', 'Downloads/VER_AVATAR_HUMANO_ANATOMICO.png');
 
 const mime = {
   '.html': 'text/html; charset=utf-8',
@@ -144,14 +144,17 @@ const server = http.createServer((request, response) => {
   loader.load('/football/models/avatar/player_humanoid.glb', (gltf) => {
     console.log('gltf loaded');
     const avatar = gltf.scene;
-    avatar.rotation.y = -0.22;
+    avatar.rotation.y = Math.PI - 0.22;
     applyReadyPose(avatar);
     scene.add(avatar);
 
     const box = new THREE.Box3().setFromObject(avatar);
     const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    console.log('avatar box min=' + box.min.toArray().map((v) => v.toFixed(3)).join(',') + ' max=' + box.max.toArray().map((v) => v.toFixed(3)).join(',') + ' size=' + size.toArray().map((v) => v.toFixed(3)).join(','));
     avatar.position.x -= center.x;
     avatar.position.z -= center.z;
+    avatar.position.y -= box.min.y;
     // The generated GLB already includes painted football kit materials.
 
     camera.lookAt(0, 0.9, 0);
