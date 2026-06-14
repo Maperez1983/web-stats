@@ -5,7 +5,13 @@ import { chromium } from 'playwright';
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const staticRoot = path.join(root, 'football/static');
-const out = path.join(process.env.HOME || '/Users/miguelperezrodriguez', 'Downloads/VER_AVATAR_HUMANO_ANATOMICO.png');
+const out = process.env.AVATAR_PREVIEW_OUT
+  ? path.resolve(process.env.AVATAR_PREVIEW_OUT)
+  : path.join(process.env.HOME || '/Users/miguelperezrodriguez', 'Downloads/VER_AVATAR_ESTILO_FOOTBALL_MANAGER.png');
+const modelPath = process.env.AVATAR_MODEL
+  ? path.resolve(process.env.AVATAR_MODEL)
+  : path.join(staticRoot, 'football/models/avatar/player_humanoid.glb');
+const modelUrl = process.env.AVATAR_MODEL ? '/__avatar_model.glb' : '/football/models/avatar/player_humanoid.glb';
 
 const mime = {
   '.html': 'text/html; charset=utf-8',
@@ -141,10 +147,10 @@ const server = http.createServer((request, response) => {
   };
 
   const loader = new GLTFLoader();
-  loader.load('/football/models/avatar/player_humanoid.glb', (gltf) => {
+  loader.load('${modelUrl}', (gltf) => {
     console.log('gltf loaded');
     const avatar = gltf.scene;
-    avatar.rotation.y = Math.PI - 0.22;
+    avatar.rotation.y = -0.22;
     applyReadyPose(avatar);
     scene.add(avatar);
 
@@ -155,7 +161,8 @@ const server = http.createServer((request, response) => {
     avatar.position.x -= center.x;
     avatar.position.z -= center.z;
     avatar.position.y -= box.min.y;
-    // The generated GLB already includes painted football kit materials.
+    // FM-style avatars are judged from a broadcast/task distance. The GLB
+    // carries the kit materials used by the tactical pad.
 
     camera.lookAt(0, 0.9, 0);
     renderer.render(scene, camera);
@@ -173,6 +180,18 @@ const server = http.createServer((request, response) => {
   }
 
   const file = path.resolve(staticRoot, decodeURIComponent(url.pathname.slice(1)));
+  if (url.pathname === '/__avatar_model.glb') {
+    fs.createReadStream(modelPath)
+      .on('error', () => {
+        response.writeHead(404);
+        response.end('not found');
+      })
+      .on('open', () => {
+        response.writeHead(200, { 'content-type': mime['.glb'] });
+      })
+      .pipe(response);
+    return;
+  }
   if (!file.startsWith(staticRoot)) {
     response.writeHead(403);
     response.end('forbidden');
