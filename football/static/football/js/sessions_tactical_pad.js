@@ -9403,13 +9403,13 @@
 							        targetZ = 4.8;
 						      } else if (k === 'render_original') {
 						        // Vista estilo La Rosaleda: esquina interior, baja y cercana, con banquillos, vallas y grada principal legibles.
-								        pitch3dCamera.fov = 36;
-								        pitch3dOrbit.theta = -2.36;
-								        pitch3dOrbit.phi = 1.20;
-								        pitch3dOrbit.radius = Math.max(72, metersW * 0.68);
-								        targetX = -5.2;
-								        targetY = 3.45;
-								        targetZ = 3.8;
+									        pitch3dCamera.fov = 40;
+									        pitch3dOrbit.theta = -2.40;
+									        pitch3dOrbit.phi = 1.13;
+									        pitch3dOrbit.radius = Math.max(90, metersW * 0.86);
+									        targetX = -5.8;
+									        targetY = 4.85;
+									        targetZ = 1.8;
 						      } else if (k === 'clean_pitch_render') {
 							        // Composición de campo limpio: esquina alta y campo completo.
 							        pitch3dOrbit.theta = -2.26;
@@ -13297,21 +13297,21 @@
 						          const makeProfessionalSeatMosaicMat = (text, opts = {}) => {
 						            try {
 						              const tex = makePitch3dCanvasTexture((ctx, c) => {
-						                const blue = opts.bg || '#075da8';
+						                const blue = opts.bg || '#064f9e';
 						                ctx.fillStyle = blue;
 						                ctx.fillRect(0, 0, c.width, c.height);
-						                ctx.fillStyle = 'rgba(2, 24, 48, 0.16)';
-						                for (let y = 18; y < c.height; y += 22) ctx.fillRect(0, y, c.width, 5);
-						                ctx.fillStyle = 'rgba(255,255,255,0.12)';
-						                for (let x = 12; x < c.width; x += 34) {
-						                  for (let y = 12; y < c.height; y += 22) {
-						                    ctx.fillRect(x, y, 10, 5);
+						                ctx.fillStyle = 'rgba(2, 24, 48, 0.22)';
+						                for (let y = 16; y < c.height; y += 18) ctx.fillRect(0, y, c.width, 4);
+						                ctx.fillStyle = 'rgba(255,255,255,0.10)';
+						                for (let x = 10; x < c.width; x += 28) {
+						                  for (let y = 10; y < c.height; y += 18) {
+						                    ctx.fillRect(x, y, 8, 4);
 						                  }
 						                }
-						                ctx.fillStyle = 'rgba(241,245,249,0.88)';
+						                ctx.fillStyle = 'rgba(241,245,249,0.78)';
 						                [0.18, 0.38, 0.58, 0.78].forEach((ratio) => {
 						                  const x = Math.round(c.width * ratio);
-						                  ctx.fillRect(x - 10, 0, 20, c.height);
+						                  ctx.fillRect(x - 8, 0, 16, c.height);
 						                });
 						                ctx.fillStyle = opts.fg || '#f8fafc';
 						                ctx.font = opts.font || '900 178px Arial, sans-serif';
@@ -13322,7 +13322,7 @@
 						                ctx.lineWidth = 10;
 						                ctx.strokeRect(8, 8, c.width - 16, c.height - 16);
 						              }, opts.w || 1800, opts.h || 420);
-						              return new THREE.MeshBasicMaterial({ map: tex?.tex || null, side: THREE.DoubleSide, toneMapped: false });
+						              return new THREE.MeshStandardMaterial({ map: tex?.tex || null, roughness: 0.72, metalness: 0.01, side: THREE.DoubleSide });
 						            } catch (e) {
 						              return new THREE.MeshBasicMaterial({ color: 0x075da8, side: THREE.DoubleSide });
 						            }
@@ -14135,8 +14135,7 @@
 						                inst.userData = { kind, count: items.length };
 						                dedicatedFinish.add(inst);
 						              };
-						              addInst(blueTransforms, seatMat, 'pitch_3d_rosaleda_final_main_word_blue_seat_fill', new THREE.BoxGeometry(0.50, 0.10, 0.24));
-						              addInst(whiteTransforms, whiteSeatMat, 'pitch_3d_rosaleda_final_main_malaga_cf_white_seat_letters', new THREE.BoxGeometry(0.66, 0.13, 0.31));
+						              // Sustituido por un único mosaico profesional para evitar ruido y solapes de letras.
 						              [-0.405, -0.205, -0.015, 0.185, 0.385].forEach((ratio) => {
 						                addRotMesh(new THREE.BoxGeometry(0.70, 0.10, 8.2), concreteEdgeMat, ratio * metersW, 4.72, metersH / 2 + 9.65, -0.10, 0, 0, 'pitch_3d_rosaleda_final_letter_block_clean_aisle');
 						              });
