@@ -15461,13 +15461,21 @@
 						          model.position.y -= fitted.min.y;
 					        } catch (e) { /* ignore */ }
 						      };
-						      const startPitch3dPlayerAnimation = (model) => {
+						      const startPitch3dPlayerAnimation = (model, tokenAction = 'move') => {
 						        if (!model || !window.THREE) return;
 						        try {
 						          const animations = Array.isArray(__pitch3dPlayerModelCache.animations) ? __pitch3dPlayerModelCache.animations : [];
 						          if (!animations.length || typeof THREE.AnimationMixer !== 'function') return;
-						          const preferred = animations.find((clip) => /idle/i.test(safeText(clip?.name)))
-						            || animations.find((clip) => /walk/i.test(safeText(clip?.name)))
+						          const key = safeText(tokenAction, 'move');
+						          const pattern = key === 'shot' ? /shot|shoot|kick/i
+						            : key === 'cross' ? /cross/i
+						              : key === 'pass' ? /pass/i
+						                : key === 'press' ? /press/i
+						                  : key === 'carry' ? /run|walk|carry/i
+						                    : /idle/i;
+						          const preferred = animations.find((clip) => pattern.test(safeText(clip?.name)))
+						            || animations.find((clip) => /idle/i.test(safeText(clip?.name)))
+						            || animations.find((clip) => /run|walk/i.test(safeText(clip?.name)))
 						            || animations[0];
 						          if (!preferred) return;
 						          const mixer = new THREE.AnimationMixer(model);
@@ -15625,7 +15633,7 @@
 						              massFactor: playerMetrics.massFactor,
 						              depthFactor: playerMetrics.depthFactor,
 						            });
-						            startPitch3dPlayerAnimation(model);
+						            startPitch3dPlayerAnimation(model, tokenAction);
 						            holder.add(model);
 						            if (!pitch3dPlayerModelHasEmbeddedKit(model)) {
 						              addPitch3dPlayerKitOverlay(holder, o, { shirt: stripe || fill, base: fill || '#ffffff' });

@@ -13,6 +13,8 @@ const modelPath = process.env.AVATAR_MODEL
   : path.join(staticRoot, 'football/models/avatar/player_humanoid.glb');
 const modelUrl = process.env.AVATAR_MODEL ? '/__avatar_model.glb' : '/football/models/avatar/player_humanoid.glb';
 const applyPose = process.env.AVATAR_NO_READY_POSE !== '1';
+const previewClip = process.env.AVATAR_CLIP || '';
+const previewTime = Number(process.env.AVATAR_TIME || '0.45');
 
 const mime = {
   '.html': 'text/html; charset=utf-8',
@@ -161,6 +163,19 @@ const server = http.createServer((request, response) => {
     const avatar = gltf.scene;
     avatar.rotation.y = -0.22;
     if (${applyPose ? 'true' : 'false'}) applyReadyPose(avatar);
+    const clipName = ${JSON.stringify(previewClip)};
+    const clipTime = ${Number.isFinite(previewTime) ? previewTime : 0.45};
+    if (clipName && Array.isArray(gltf.animations) && gltf.animations.length) {
+      const clip = gltf.animations.find((item) => new RegExp(clipName, 'i').test(item.name || '')) || gltf.animations[0];
+      console.log('preview clip ' + (clip && clip.name ? clip.name : 'unknown'));
+      if (clip) {
+        const mixer = new THREE.AnimationMixer(avatar);
+        const action = mixer.clipAction(clip);
+        action.play();
+        mixer.setTime(Math.max(0, Math.min(clip.duration || 1, clipTime)));
+        avatar.updateMatrixWorld(true);
+      }
+    }
     scene.add(avatar);
 
     const box = new THREE.Box3().setFromObject(avatar);
