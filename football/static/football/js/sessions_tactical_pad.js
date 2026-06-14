@@ -13478,7 +13478,7 @@
 						              const roofDarkMat = new THREE.MeshStandardMaterial({ color: 0x25323a, roughness: 0.50, metalness: 0.22 });
 						              const warmLightMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc, toneMapped: false });
 						              addRotMesh(new THREE.CircleGeometry(3.05, 72), makeSignMat('MCF', { w: 512, h: 512, bg: '#1d72c9', fg: '#f8fafc', font: '900 132px Arial, sans-serif', stroke: '#f8fafc' }), -(metersW / 2 + 5.92), 4.45, -metersH * 0.12, -0.12, -Math.PI / 2, 0, 'pitch_3d_dedicated_reference_large_side_stand_mcf_crest');
-						              addRotMesh(new THREE.CircleGeometry(1.65, 72), makeSignMat('MCF', { w: 512, h: 512, bg: '#1d72c9', fg: '#f8fafc', font: '900 132px Arial, sans-serif', stroke: '#f8fafc' }), metersW / 2 + 4.72, 4.02, metersH * 0.10, -0.12, Math.PI / 2, 0, 'pitch_3d_dedicated_reference_opposite_side_stand_mcf_crest');
+						              // Evitamos el escudo lateral derecho: desde la cámara de referencia quedaba cortado en el borde.
 						              // El lettering se resuelve con asientos blancos instanciados; evitamos planos de texto superpuestos.
 						              [-0.34, -0.12, 0.12, 0.34].forEach((ratio, idx) => {
 						                addMesh(new THREE.BoxGeometry(metersW * 0.15, 0.20, 0.40), idx % 2 ? whiteSeatMat : royalBlueMat, ratio * metersW, 4.66, metersH / 2 + 8.20, 'pitch_3d_dedicated_reference_main_stand_lettering_seat_row_highlight');
@@ -13725,7 +13725,7 @@
 						                  addMesh(new THREE.BoxGeometry(0.46, 0.10, 0.24), row % 7 === 0 ? seatDarkMat : seatMat, x, y, z, 'pitch_3d_rosaleda_near_lower_bowl_individual_seat_sample');
 						                }
 						              }
-						              addRotMesh(new THREE.CircleGeometry(3.20, 96), makeSignMat('MCF', { w: 640, h: 640, bg: '#1d72c9', fg: '#f8fafc', font: '900 156px Arial, sans-serif', stroke: '#f8fafc' }), -(metersW / 2 + 6.52), 4.85, -metersH * 0.16, -0.11, -Math.PI / 2, 0, 'pitch_3d_rosaleda_left_stand_big_seat_crest');
+						              addRotMesh(new THREE.CircleGeometry(2.55, 96), makeSignMat('MCF', { w: 640, h: 640, bg: '#1d72c9', fg: '#f8fafc', font: '900 150px Arial, sans-serif', stroke: '#f8fafc' }), -(metersW / 2 + 5.40), 4.72, -metersH * 0.20, -0.11, -Math.PI / 2, 0, 'pitch_3d_rosaleda_left_stand_big_seat_crest');
 						              addRotMesh(new THREE.CircleGeometry(2.65, 96), makeSignMat('MCF', { w: 640, h: 640, bg: '#1d72c9', fg: '#f8fafc', font: '900 150px Arial, sans-serif', stroke: '#f8fafc' }), 0, 9.08, metersH / 2 + 14.05, 0, Math.PI, 0, 'pitch_3d_rosaleda_roof_center_hanging_crest');
 						              for (let i = -12; i <= 12; i += 1) {
 						                const x = i * ((metersW + 14.0) / 24);
