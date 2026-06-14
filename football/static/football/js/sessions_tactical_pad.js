@@ -14036,6 +14036,95 @@
 						              }
 						            } catch (e) { /* ignore */ }
 						          };
+						          const addRosaledaReferenceFinalMatchPass = () => {
+						            try {
+						              const steelMat = new THREE.MeshStandardMaterial({ color: 0x6f7f8d, roughness: 0.36, metalness: 0.38 });
+						              const darkSteelMat = new THREE.MeshStandardMaterial({ color: 0x263441, roughness: 0.48, metalness: 0.30 });
+						              const lampMat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
+						              const bluePanelMat = new THREE.MeshStandardMaterial({ color: 0x075da8, roughness: 0.40, metalness: 0.06, emissive: 0x042d55, emissiveIntensity: 0.08 });
+						              const concreteEdgeMat = new THREE.MeshStandardMaterial({ color: 0xe6e9e2, roughness: 0.70, metalness: 0.02 });
+						              const makeLetterMask = (() => {
+						                let mask = null;
+						                return () => {
+						                  if (mask) return mask;
+						                  const c = document.createElement('canvas');
+						                  c.width = 1280;
+						                  c.height = 260;
+						                  const ctx = c.getContext('2d');
+						                  ctx.clearRect(0, 0, c.width, c.height);
+						                  ctx.fillStyle = '#fff';
+						                  ctx.font = '900 214px Arial, sans-serif';
+						                  ctx.textAlign = 'center';
+						                  ctx.textBaseline = 'middle';
+						                  ctx.fillText('MALAGA CF', c.width / 2, c.height / 2 + 4);
+						                  mask = ctx.getImageData(0, 0, c.width, c.height);
+						                  return mask;
+						                };
+						              })();
+						              const mask = makeLetterMask();
+						              const sample = (u, v) => {
+						                const sx = clamp(Math.floor(u * (mask.width - 1)), 0, mask.width - 1);
+						                const sy = clamp(Math.floor(v * (mask.height - 1)), 0, mask.height - 1);
+						                return mask.data[(sy * mask.width + sx) * 4 + 3] > 20;
+						              };
+						              const whiteTransforms = [];
+						              const blueTransforms = [];
+						              const matrix = new THREE.Matrix4();
+						              const quat = new THREE.Quaternion();
+						              const scale = new THREE.Vector3(1, 1, 1);
+						              const cols = 124;
+						              const rows = 18;
+						              for (let row = 0; row < rows; row += 1) {
+						                const v = row / (rows - 1);
+						                const y = 2.72 + row * 0.255;
+						                const z = metersH / 2 + 6.18 + row * 0.395;
+						                for (let col = 0; col < cols; col += 1) {
+						                  const u = col / (cols - 1);
+						                  const x = -metersW * 0.445 + u * metersW * 0.89;
+						                  const aisle = [-0.405, -0.205, -0.015, 0.185, 0.385].some((ratio) => Math.abs(x - ratio * metersW) < 0.58);
+						                  if (aisle) continue;
+						                  const isLetter = sample(u, v);
+						                  if (!isLetter && (row + col) % 4 !== 0) continue;
+						                  matrix.compose(new THREE.Vector3(x, y, z), quat, scale);
+						                  (isLetter ? whiteTransforms : blueTransforms).push(matrix.clone());
+						                }
+						              }
+						              const addInst = (items, mat, kind, geo) => {
+						                if (!items.length) return;
+						                const inst = new THREE.InstancedMesh(geo, mat, items.length);
+						                items.forEach((m, idx) => inst.setMatrixAt(idx, m));
+						                inst.instanceMatrix.needsUpdate = true;
+						                inst.castShadow = true;
+						                inst.receiveShadow = true;
+						                inst.userData = { kind, count: items.length };
+						                dedicatedFinish.add(inst);
+						              };
+						              addInst(blueTransforms, seatMat, 'pitch_3d_rosaleda_final_main_word_blue_seat_fill', new THREE.BoxGeometry(0.50, 0.10, 0.24));
+						              addInst(whiteTransforms, whiteSeatMat, 'pitch_3d_rosaleda_final_main_malaga_cf_white_seat_letters', new THREE.BoxGeometry(0.66, 0.13, 0.31));
+						              [-0.405, -0.205, -0.015, 0.185, 0.385].forEach((ratio) => {
+						                addRotMesh(new THREE.BoxGeometry(0.70, 0.10, 8.2), concreteEdgeMat, ratio * metersW, 4.72, metersH / 2 + 9.65, -0.10, 0, 0, 'pitch_3d_rosaleda_final_letter_block_clean_aisle');
+						              });
+						              addMesh(new THREE.BoxGeometry(metersW + 26.0, 0.32, 0.42), darkSteelMat, 0, 10.72, metersH / 2 + 14.18, 'pitch_3d_rosaleda_final_main_roof_dark_front_chord');
+						              addMesh(new THREE.BoxGeometry(metersW + 22.0, 0.22, 0.34), darkSteelMat, 0, 11.62, metersH / 2 + 20.78, 'pitch_3d_rosaleda_final_main_roof_dark_rear_chord');
+						              for (let i = -14; i <= 14; i += 1) {
+						                const x = i * ((metersW + 16.0) / 28);
+						                addRotMesh(new THREE.BoxGeometry(0.13, 0.13, 7.4), steelMat, x, 11.06, metersH / 2 + 17.25, -0.34, 0, 0, 'pitch_3d_rosaleda_final_roof_visible_raker');
+						                addRotMesh(new THREE.BoxGeometry(2.35, 0.075, 0.10), steelMat, x + 0.62, 11.08, metersH / 2 + 15.72, 0, 0, 0.42, 'pitch_3d_rosaleda_final_roof_x_brace_a');
+						                addRotMesh(new THREE.BoxGeometry(2.35, 0.075, 0.10), steelMat, x - 0.62, 11.08, metersH / 2 + 15.72, 0, 0, -0.42, 'pitch_3d_rosaleda_final_roof_x_brace_b');
+						                addMesh(new THREE.BoxGeometry(0.54, 0.065, 0.12), lampMat, x, 10.34, metersH / 2 + 13.92, 'pitch_3d_rosaleda_final_main_roof_bright_floodlight_cell');
+						              }
+						              [-1, 1].forEach((sideSign) => {
+						                addMesh(new THREE.BoxGeometry(0.16, 0.18, metersH + 15.0), darkSteelMat, sideSign * (metersW / 2 + 8.62), 9.38, 0, 'pitch_3d_rosaleda_final_side_roof_dark_front_chord');
+						                for (let i = -8; i <= 8; i += 1) {
+						                  const z = i * ((metersH + 6.0) / 16);
+						                  addRotMesh(new THREE.BoxGeometry(3.2, 0.08, 0.10), steelMat, sideSign * (metersW / 2 + 10.18), 10.16, z, 0, 0, sideSign * 0.36, 'pitch_3d_rosaleda_final_side_roof_diagonal_lattice');
+						                  addMesh(new THREE.BoxGeometry(0.12, 2.75, 0.12), steelMat, sideSign * (metersW / 2 + 8.42), 8.08, z, 'pitch_3d_rosaleda_final_side_roof_support_post');
+						                }
+						              });
+						              addMesh(new THREE.BoxGeometry(metersW + 12.0, 0.34, 0.16), bluePanelMat, 0, 1.26, metersH / 2 + 2.40, 'pitch_3d_rosaleda_final_far_continuous_blue_ad_band');
+						              addMesh(new THREE.BoxGeometry(metersW + 12.0, 0.34, 0.16), bluePanelMat, 0, 1.26, -(metersH / 2 + 2.40), 'pitch_3d_rosaleda_final_near_continuous_blue_ad_band');
+						            } catch (e) { /* ignore */ }
+						          };
 						          const addLongStand = (sideSign) => {
 						            const baseZ = sideSign * (metersH / 2 + 6.7);
 						            addMesh(new THREE.BoxGeometry(metersW + 17.5, 0.55, 8.6), concreteMat, 0, 0.38, baseZ, 'pitch_3d_dedicated_completion_long_stand_podium');
@@ -14128,6 +14217,7 @@
 						            addMesh(new THREE.BoxGeometry(0.72, 0.10, 0.14), lightMat, x, 10.28, metersH / 2 + 15.18, 'pitch_3d_dedicated_completion_individual_floodlight_pod');
 						          }
 						          addRoofLatticePass();
+						          addRosaledaReferenceFinalMatchPass();
 						          [].forEach((x) => {
 						            const dugout = new THREE.Group();
 						            dugout.userData = { kind: 'pitch_3d_dedicated_completion_curved_dugout' };
