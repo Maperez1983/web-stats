@@ -13725,7 +13725,7 @@
 						                  addMesh(new THREE.BoxGeometry(0.46, 0.10, 0.24), row % 7 === 0 ? seatDarkMat : seatMat, x, y, z, 'pitch_3d_rosaleda_near_lower_bowl_individual_seat_sample');
 						                }
 						              }
-						              addRotMesh(new THREE.CircleGeometry(2.55, 96), makeSignMat('MCF', { w: 640, h: 640, bg: '#1d72c9', fg: '#f8fafc', font: '900 150px Arial, sans-serif', stroke: '#f8fafc' }), -(metersW / 2 + 5.40), 4.72, -metersH * 0.20, -0.11, -Math.PI / 2, 0, 'pitch_3d_rosaleda_left_stand_big_seat_crest');
+						              // Sin escudo lateral grande: desde esta cámara entraba cortado por el borde del canvas.
 						              addRotMesh(new THREE.CircleGeometry(2.65, 96), makeSignMat('MCF', { w: 640, h: 640, bg: '#1d72c9', fg: '#f8fafc', font: '900 150px Arial, sans-serif', stroke: '#f8fafc' }), 0, 9.08, metersH / 2 + 14.05, 0, Math.PI, 0, 'pitch_3d_rosaleda_roof_center_hanging_crest');
 						              for (let i = -12; i <= 12; i += 1) {
 						                const x = i * ((metersW + 14.0) / 24);
