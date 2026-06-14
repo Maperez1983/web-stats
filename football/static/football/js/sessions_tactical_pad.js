@@ -9404,12 +9404,12 @@
 						      } else if (k === 'render_original') {
 						        // Vista estilo La Rosaleda: esquina interior, baja y cercana, con banquillos, vallas y grada principal legibles.
 							        pitch3dCamera.fov = 39;
-							        pitch3dOrbit.theta = -2.37;
-							        pitch3dOrbit.phi = 1.31;
-							        pitch3dOrbit.radius = Math.max(86, metersW * 0.82);
-							        targetX = -6.8;
-							        targetY = 2.35;
-							        targetZ = 0.7;
+							        pitch3dOrbit.theta = -2.42;
+							        pitch3dOrbit.phi = 1.25;
+							        pitch3dOrbit.radius = Math.max(80, metersW * 0.76);
+							        targetX = -8.8;
+							        targetY = 2.85;
+							        targetZ = -1.9;
 						      } else if (k === 'clean_pitch_render') {
 							        // Composición de campo limpio: esquina alta y campo completo.
 							        pitch3dOrbit.theta = -2.26;
@@ -13967,7 +13967,7 @@
 						              addMesh(new THREE.BoxGeometry(metersW + 10.6, 0.11, 0.24), blueMat, 0, 0.22, metersH / 2 + 0.58, 'pitch_3d_rosaleda_reference_far_blue_pitch_lip');
 						              const addReferenceBench = (x, label) => {
 						                const group = new THREE.Group();
-						                group.position.set(x, 0.08, -(metersH / 2 + 2.30));
+						                group.position.set(x, 0.10, -(metersH / 2 + 0.92));
 						                group.userData = { kind: 'pitch_3d_rosaleda_reference_front_bench_dugout' };
 						                const addPart = (geo, mat, px, py, pz, kind) => {
 						                  const part = new THREE.Mesh(geo, mat);
@@ -13999,8 +13999,8 @@
 						                group.add(labelMesh);
 						                dedicatedFinish.add(group);
 						              };
-						              addReferenceBench(-25.2, 'MALAGA CF');
-						              addReferenceBench(-9.4, 'MCF');
+						              addReferenceBench(-26.8, 'MALAGA CF');
+						              addReferenceBench(-11.2, 'MCF');
 						              const addTrainingGoal = (x, z, rotY, kind) => {
 						                const group = new THREE.Group();
 						                group.position.set(x, 0.14, z);
@@ -14018,8 +14018,8 @@
 						                addPart(new THREE.BoxGeometry(5.4, 1.9, 0.025), new THREE.MeshBasicMaterial({ color: 0xf8fafc, transparent: true, opacity: 0.32, side: THREE.DoubleSide }), 0, 1.04, 0.62, 'pitch_3d_rosaleda_reference_training_goal_net');
 						                dedicatedFinish.add(group);
 						              };
-						              addTrainingGoal(-38.0, -(metersH / 2 + 2.70), 0, 'pitch_3d_rosaleda_reference_near_training_goal_a');
-						              addTrainingGoal(-31.2, -(metersH / 2 + 4.52), 0, 'pitch_3d_rosaleda_reference_near_training_goal_b');
+						              addTrainingGoal(-38.0, -(metersH / 2 + 1.18), 0, 'pitch_3d_rosaleda_reference_near_training_goal_a');
+						              addTrainingGoal(-31.2, -(metersH / 2 + 2.34), 0, 'pitch_3d_rosaleda_reference_near_training_goal_b');
 						              // Barandillas de primer plano y escalones de la grada cercana.
 						              for (let i = -12; i <= 12; i += 1) {
 						                const x = i * (metersW / 24);
