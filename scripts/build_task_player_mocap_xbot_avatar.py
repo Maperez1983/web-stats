@@ -108,17 +108,47 @@ def main():
         parent_to_bone(obj, bone)
         return obj
 
-    add_cylinder(
+    def add_tapered_torso(name, material, location, bone='mixamorig:Spine2'):
+        rings = [
+            (-0.25, 0.220, 0.150),
+            (-0.10, 0.238, 0.162),
+            (0.10, 0.258, 0.170),
+            (0.23, 0.278, 0.150),
+        ]
+        segments = 28
+        verts = []
+        faces = []
+        for z, rx, ry in rings:
+            for index in range(segments):
+                angle = (index / segments) * math.tau
+                verts.append((math.cos(angle) * rx, math.sin(angle) * ry, z))
+        for ring in range(len(rings) - 1):
+            base = ring * segments
+            nxt = (ring + 1) * segments
+            for index in range(segments):
+                faces.append((base + index, base + ((index + 1) % segments), nxt + ((index + 1) % segments), nxt + index))
+        faces.append(tuple(reversed(range(segments))))
+        top_start = (len(rings) - 1) * segments
+        faces.append(tuple(top_start + index for index in range(segments)))
+        mesh = bpy.data.meshes.new(f'{name}_mesh')
+        mesh.from_pydata(verts, [], faces)
+        mesh.update()
+        obj = bpy.data.objects.new(name, mesh)
+        bpy.context.collection.objects.link(obj)
+        obj.location = location
+        obj.data.materials.append(material)
+        shade_smooth(obj)
+        parent_to_bone(obj, bone)
+        return obj
+
+    add_tapered_torso(
         'footballer_rigged_jersey_torso',
         shirt_mat,
-        0.245,
-        0.46,
-        (0, -0.015, 1.16),
-        (0.86, 0.52, 1.0),
+        (0, -0.040, 1.16),
         'mixamorig:Spine2',
     )
-    add_cube('footballer_rigged_jersey_stripe_l', trim_mat, (-0.055, -0.165, 1.17), (0.026, 0.010, 0.17), 'mixamorig:Spine2')
-    add_cube('footballer_rigged_jersey_stripe_r', trim_mat, (0.055, -0.165, 1.17), (0.026, 0.010, 0.17), 'mixamorig:Spine2')
+    add_cube('footballer_rigged_jersey_stripe_l', trim_mat, (-0.055, -0.235, 1.17), (0.026, 0.010, 0.17), 'mixamorig:Spine2')
+    add_cube('footballer_rigged_jersey_stripe_r', trim_mat, (0.055, -0.235, 1.17), (0.026, 0.010, 0.17), 'mixamorig:Spine2')
     add_cylinder(
         'footballer_rigged_shorts',
         shorts_mat,
