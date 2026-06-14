@@ -15336,6 +15336,18 @@
 						        } catch (e) { /* ignore */ }
 						        try { return source.clone(true); } catch (e) { return null; }
 						      };
+						      const pitch3dPlayerModelSkipsBonePose = (model) => {
+						        let skip = false;
+						        try {
+						          model?.traverse?.((node) => {
+						            if (skip || !node) return;
+						            const mats = Array.isArray(node.material) ? node.material : [node.material];
+						            const name = `${safeText(node.name)} ${mats.map((mat) => safeText(mat?.name)).join(' ')}`.toLowerCase();
+						            if (/(mpfb_player|task_player_mpfb|inspect_mpfb)/i.test(name)) skip = true;
+						          });
+						        } catch (e) { /* ignore */ }
+						        return skip;
+						      };
 						      const fitPitch3dPlayerModel = (model, targetHeight = 1.72, options = {}) => {
 						        if (!model || !window.THREE) return;
 						        try {
@@ -15377,6 +15389,7 @@
 						      const posePitch3dPlayerModel = (model) => {
 						        if (!model) return;
 						        try {
+						          if (pitch3dPlayerModelSkipsBonePose(model)) return;
 						          const bones = {};
 						          model.traverse((node) => {
 						            if (node && node.name) bones[node.name] = node;

@@ -12,6 +12,7 @@ const modelPath = process.env.AVATAR_MODEL
   ? path.resolve(process.env.AVATAR_MODEL)
   : path.join(staticRoot, 'football/models/avatar/player_humanoid.glb');
 const modelUrl = process.env.AVATAR_MODEL ? '/__avatar_model.glb' : '/football/models/avatar/player_humanoid.glb';
+const applyPose = process.env.AVATAR_NO_READY_POSE !== '1';
 
 const mime = {
   '.html': 'text/html; charset=utf-8',
@@ -123,6 +124,14 @@ const server = http.createServer((request, response) => {
     });
   };
   const applyReadyPose = (avatar) => {
+    let skip = false;
+    avatar.traverse((node) => {
+      if (skip || !node) return;
+      const mats = Array.isArray(node.material) ? node.material : [node.material];
+      const name = String(node.name || '') + ' ' + mats.map((mat) => String(mat?.name || '')).join(' ');
+      if (/mpfb_player|task_player_mpfb|inspect_mpfb/i.test(name)) skip = true;
+    });
+    if (skip) return;
     const byName = {};
     avatar.traverse((node) => { if (node?.name) byName[node.name] = node; });
     const set = (name, x, y, z) => {
@@ -151,7 +160,7 @@ const server = http.createServer((request, response) => {
     console.log('gltf loaded');
     const avatar = gltf.scene;
     avatar.rotation.y = -0.22;
-    applyReadyPose(avatar);
+    if (${applyPose ? 'true' : 'false'}) applyReadyPose(avatar);
     scene.add(avatar);
 
     const box = new THREE.Box3().setFromObject(avatar);
