@@ -14079,6 +14079,8 @@
 						              const deepBlueMat = new THREE.MeshStandardMaterial({ color: 0x07569f, roughness: 0.55, metalness: 0.02 });
 						              const seatBlueAltMat = new THREE.MeshStandardMaterial({ color: 0x0d73c7, roughness: 0.50, metalness: 0.02 });
 						              const shadowVoidMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.82, metalness: 0.02 });
+						              const roofShadowMat = new THREE.MeshStandardMaterial({ color: 0x22303d, roughness: 0.50, metalness: 0.30 });
+						              const navySeatMat = new THREE.MeshStandardMaterial({ color: 0x06437f, roughness: 0.58, metalness: 0.02 });
 						              const makeLetterMask = (() => {
 						                let mask = null;
 						                return () => {
@@ -14184,6 +14186,30 @@
 						                0,
 						                'pitch_3d_rosaleda_final_single_clean_main_stand_malaga_cf_mosaic'
 						              );
+						              // Densidad azul en las gradas laterales para acercarse a la referencia fotográfica.
+						              for (let row = 0; row < 12; row += 1) {
+						                const y = 1.42 + row * 0.25;
+						                const nearZ = -(metersH / 2 + 4.88 + row * 0.38);
+						                [-0.42, -0.26, -0.10, 0.08, 0.26, 0.42].forEach((ratio, idx) => {
+						                  addRotMesh(new THREE.BoxGeometry(metersW * 0.105, 0.13, 0.44), (row + idx) % 5 === 0 ? navySeatMat : deepBlueMat, ratio * metersW, y, nearZ, -0.09, 0, 0, 'pitch_3d_rosaleda_final_near_photo_blue_seat_mass');
+						                });
+						              }
+						              [-1, 1].forEach((sideSign) => {
+						                for (let row = 0; row < 11; row += 1) {
+						                  const x = sideSign * (metersW / 2 + 4.70 + row * 0.42);
+						                  const y = 1.32 + row * 0.24;
+						                  [-0.40, -0.24, -0.08, 0.10, 0.28, 0.44].forEach((ratio, idx) => {
+						                    addRotMesh(new THREE.BoxGeometry(0.42, 0.13, metersH * 0.105), (row + idx) % 5 === 0 ? navySeatMat : deepBlueMat, x, y, ratio * metersH, -0.07, 0, 0, 'pitch_3d_rosaleda_final_side_photo_blue_seat_mass');
+						                  });
+						                }
+						              });
+						              addMesh(new THREE.BoxGeometry(metersW + 28.0, 0.38, 0.40), roofShadowMat, 0, 10.95, metersH / 2 + 14.08, 'pitch_3d_rosaleda_final_photo_dark_main_roof_front_beam');
+						              addMesh(new THREE.BoxGeometry(metersW + 24.0, 0.24, 0.34), roofShadowMat, 0, 11.48, metersH / 2 + 20.38, 'pitch_3d_rosaleda_final_photo_dark_main_roof_rear_beam');
+						              for (let i = -18; i <= 18; i += 1) {
+						                const x = i * ((metersW + 18.0) / 36);
+						                addRotMesh(new THREE.BoxGeometry(0.10, 0.10, 7.8), roofShadowMat, x, 11.20, metersH / 2 + 17.35, -0.33, 0, 0, 'pitch_3d_rosaleda_final_photo_dense_roof_raker');
+						                if (Math.abs(i) <= 16) addMesh(new THREE.BoxGeometry(0.46, 0.055, 0.11), lampMat, x, 10.42, metersH / 2 + 13.76, 'pitch_3d_rosaleda_final_photo_roof_light_strip_cells');
+						              }
 						              const blockLetters = {
 						                M: ['10001', '11011', '10101', '10101', '10001', '10001', '10001'],
 						                A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'],
