@@ -9641,6 +9641,7 @@
     const presetsToJson = (items) => {
       try { return JSON.stringify(items, null, 2); } catch (e) { return '[]'; }
     };
+    const autoClipState = { enabled: false, pre: 8, post: 8 };
 
     const renderAutoClipUi = () => {
       if (presetsAutoClipSelect) presetsAutoClipSelect.value = autoClipState.enabled ? '1' : '0';
