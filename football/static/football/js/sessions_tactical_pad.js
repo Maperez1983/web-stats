@@ -14377,6 +14377,39 @@
 							                0,
 							                'pitch_3d_rosaleda_final_polish_single_seat_malaga_cf_mosaic'
 							              );
+							              const glyphs = {
+							                M: ['10001', '11011', '10101', '10101', '10001', '10001', '10001'],
+							                A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'],
+							                L: ['10000', '10000', '10000', '10000', '10000', '10000', '11111'],
+							                G: ['01111', '10000', '10000', '10111', '10001', '10001', '01111'],
+							                C: ['01111', '10000', '10000', '10000', '10000', '10000', '01111'],
+							                F: ['11111', '10000', '10000', '11110', '10000', '10000', '10000'],
+							              };
+							              const word = 'MALAGA CF';
+							              const cellW = 0.98;
+							              const cellZ = 0.34;
+							              const gapW = 0.10;
+							              const letterGap = 0.64;
+							              const totalUnits = word.split('').reduce((sum, ch) => sum + (ch === ' ' ? 3.0 : 5.0) + 1.0, -1.0);
+							              let cursor = -(totalUnits * (cellW + gapW)) / 2;
+							              for (const ch of word) {
+							                if (ch === ' ') {
+							                  cursor += (3.0 * (cellW + gapW)) + letterGap;
+							                  continue;
+							                }
+							                const glyph = glyphs[ch] || [];
+							                for (let r = 0; r < glyph.length; r += 1) {
+							                  for (let c = 0; c < glyph[r].length; c += 1) {
+							                    if (glyph[r][c] !== '1') continue;
+							                    const x = cursor + c * (cellW + gapW);
+							                    const y = 5.48 - r * 0.185;
+							                    const z = metersH / 2 + 9.86 - r * 0.275;
+							                    addRotPart(new THREE.BoxGeometry(cellW, 0.145, cellZ), whiteSeatPolishMat, x, y, z, -0.105, 0, 0, 'pitch_3d_rosaleda_final_polish_real_white_malaga_cf_seats');
+							                    addRotPart(new THREE.BoxGeometry(cellW * 0.74, 0.052, cellZ * 0.52), whiteSeatPolishMat, x, y + 0.096, z - 0.040, -0.105, 0, 0, 'pitch_3d_rosaleda_final_polish_real_white_malaga_cf_seat_highlight');
+							                  }
+							                }
+							                cursor += (5.0 * (cellW + gapW)) + letterGap;
+							              }
 							              [-0.455, -0.305, -0.145, 0.015, 0.180, 0.345, 0.495].forEach((ratio) => {
 							                addRotPart(new THREE.BoxGeometry(0.86, 0.19, 8.4), concreteCleanMat, ratio * metersW, 4.88, metersH / 2 + 8.42, -0.11, 0, 0, 'pitch_3d_rosaleda_final_polish_main_clean_vertical_aisle');
 							              });
