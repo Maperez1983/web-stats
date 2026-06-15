@@ -2024,6 +2024,7 @@
 			              '          <option value="carry">Conducción</option>',
 			              '          <option value="shot">Tiro</option>',
 			              '          <option value="cross">Centro</option>',
+			              '          <option value="control">Control orientado</option>',
 			              '          <option value="press">Presión</option>',
 			              '          <option value="move">Movimiento</option>',
 			              '        </select>',
@@ -15630,8 +15631,10 @@
 						            : key === 'cross' ? /cross/i
 						              : key === 'pass' ? /pass/i
 						                : key === 'press' ? /press/i
-						                  : key === 'carry' ? /run|walk|carry/i
-						                    : /idle/i;
+						                  : key === 'control' ? /control|touch|receive/i
+						                    : key === 'carry' ? /run|walk|carry/i
+						                      : key === 'move' ? /run|walk|move/i
+						                        : /idle/i;
 						          const preferred = animations.find((clip) => pattern.test(safeText(clip?.name)))
 						            || animations.find((clip) => /idle/i.test(safeText(clip?.name)))
 						            || animations.find((clip) => /run|walk/i.test(safeText(clip?.name)))
