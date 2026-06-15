@@ -17,6 +17,7 @@ import math
 import hashlib
 import random
 import threading
+import time as pytime
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, time, date
 from decimal import Decimal, InvalidOperation
@@ -120,6 +121,7 @@ from .video_studio_services import (
     schedule_autocut_after_upload as _video_studio_schedule_autocut_after_upload,
 )
 from .ai_trainer import ai_trainer_index_task, ai_trainer_tokenize, normalize_ai_trainer_text
+from .local_llm import ai_trainer_senior_local_advice, local_llm_config
 from .library_repositories import (
     INBOX_MICROCYCLE_WEEK_END,
     INBOX_MICROCYCLE_WEEK_START,
@@ -239,6 +241,11 @@ from football.models import (
     VideoTimelineEvent,
     VideoClip,
     VideoAiInsight,
+    VideoAiTrackJob,
+    VideoAiCorrectionExample,
+    VideoAiActionExample,
+    VideoAiKnowledgeEntry,
+    VideoAiGameCalibration,
     VideoExportAsset,
     AnalysisVideoReport,
     AnalysisVideoReportItem,
@@ -4209,7 +4216,7 @@ def _workspace_access_module_catalog(kind):
             {'key': 'task_studio_tasks', 'label': 'Tareas'},
             {'key': 'task_studio_pdfs', 'label': 'PDFs'},
         ]
-    return [
+    entries = [
         {'key': 'dashboard', 'label': 'Portada'},
         {'key': 'coach_overview', 'label': 'Cuerpo técnico'},
         {'key': 'players', 'label': 'Plantilla'},
@@ -25134,6 +25141,30 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
             str(getattr(task, 'objective', '') or '').strip(),
         ] if part
         )
+    def _choice_label(choices, key):
+        raw = str(key or '').strip()
+        if not raw:
+            return ''
+        try:
+            return dict(choices).get(raw, raw)
+        except Exception:
+            return raw
+
+    methodology_rows = []
+    for label, value in [
+        ('Momento', _choice_label(GAME_MOMENT_CHOICES, meta.get('game_moment'))),
+        ('Principio', str(meta.get('principle') or '').strip()),
+        ('Subprincipio', str(meta.get('subprinciple') or '').strip()),
+        ('Regla provocadora', str(meta.get('provocation_rule') or '').strip()),
+        ('Estructura dominante', _choice_label(PLAYER_STRUCTURE_CHOICES, meta.get('dominant_structure'))),
+        ('Estructura secundaria', _choice_label(PLAYER_STRUCTURE_CHOICES, meta.get('secondary_structure'))),
+        ('Carga física', _choice_label(TASK_LOAD_LEVEL_CHOICES, meta.get('physical_load'))),
+        ('Carga cognitiva', _choice_label(TASK_LOAD_LEVEL_CHOICES, meta.get('cognitive_load'))),
+        ('Carga emocional', _choice_label(TASK_LOAD_LEVEL_CHOICES, meta.get('emotional_load'))),
+    ]:
+        text = str(value or '').strip()
+        if text:
+            methodology_rows.append({'label': label, 'value': text})
     animation_frames = _normalize_animation_timeline(
         tactical_layout.get('timeline') if isinstance(tactical_layout, dict) else []
     )
@@ -25338,6 +25369,7 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         'coordination_label': coordination_label or '-',
         'coordination_skills_label': coordination_skills_label or '-',
         'tactical_intent_label': tactical_intent_label or '-',
+        'methodology_rows': methodology_rows,
         'animation_frames': animation_frames,
         'animation_frame_cards': animation_frame_cards,
         'pdf_style': pdf_style,
@@ -25376,6 +25408,15 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa', one_p
     selected_coordination = _sanitize_task_text((request.POST.get('draw_task_coordination') or '').strip(), multiline=False, max_len=80)
     selected_coord_skills = _sanitize_task_text((request.POST.get('draw_task_coordination_skills') or '').strip(), multiline=False, max_len=80)
     selected_tactical_intent = _sanitize_task_text((request.POST.get('draw_task_tactical_intent') or '').strip(), multiline=False, max_len=80)
+    game_moment = _clean_choice_value(request.POST.get('draw_task_game_moment'), {key for key, _ in GAME_MOMENT_CHOICES}, max_len=40)
+    principle = _clean_short_text(request.POST.get('draw_task_principle'), max_len=120)
+    subprinciple = _clean_short_text(request.POST.get('draw_task_subprinciple'), max_len=160)
+    provocation_rule = _sanitize_task_text((request.POST.get('draw_task_provocation_rule') or '').strip(), multiline=True, max_len=500)
+    dominant_structure = _clean_choice_value(request.POST.get('draw_task_dominant_structure'), {key for key, _ in PLAYER_STRUCTURE_CHOICES}, max_len=40)
+    secondary_structure = _clean_choice_value(request.POST.get('draw_task_secondary_structure'), {key for key, _ in PLAYER_STRUCTURE_CHOICES}, max_len=40)
+    physical_load = _clean_choice_value(request.POST.get('draw_task_physical_load'), {key for key, _ in TASK_LOAD_LEVEL_CHOICES}, max_len=20)
+    cognitive_load = _clean_choice_value(request.POST.get('draw_task_cognitive_load'), {key for key, _ in TASK_LOAD_LEVEL_CHOICES}, max_len=20)
+    emotional_load = _clean_choice_value(request.POST.get('draw_task_emotional_load'), {key for key, _ in TASK_LOAD_LEVEL_CHOICES}, max_len=20)
     space = _sanitize_task_text((request.POST.get('draw_task_space') or '').strip(), multiline=False, max_len=120)
     organization = _sanitize_task_text((request.POST.get('draw_task_organization') or '').strip(), multiline=True, max_len=500)
     players_distribution = _sanitize_task_text((request.POST.get('draw_task_players_distribution') or '').strip(), multiline=False, max_len=180)
@@ -25435,6 +25476,15 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa', one_p
                 'surface': selected_surface,
                 'pitch_format': selected_pitch_format,
                 'game_phase': selected_phase,
+                'game_moment': game_moment,
+                'principle': principle,
+                'subprinciple': subprinciple,
+                'provocation_rule': provocation_rule,
+                'dominant_structure': dominant_structure,
+                'secondary_structure': secondary_structure,
+                'physical_load': physical_load,
+                'cognitive_load': cognitive_load,
+                'emotional_load': emotional_load,
                 'methodology': selected_methodology,
                 'complexity': selected_complexity,
                 'strategy': selected_strategy,
@@ -25539,6 +25589,76 @@ def _parse_session_plan_fields(raw_content):
 
 def _serialize_session_plan_fields(fields):
     return serialize_session_plan_fields(fields)
+
+
+GAME_MOMENT_CHOICES = [
+    ('offensive_organization', 'Organización ofensiva'),
+    ('defensive_transition', 'Transición ataque-defensa'),
+    ('defensive_organization', 'Organización defensiva'),
+    ('offensive_transition', 'Transición defensa-ataque'),
+    ('set_pieces', 'ABP'),
+]
+
+PLAYER_STRUCTURE_CHOICES = [
+    ('conditional', 'Condicional'),
+    ('coordinative', 'Coordinativa'),
+    ('cognitive', 'Cognitiva'),
+    ('socio_affective', 'Socio-afectiva'),
+    ('emotional_volitional', 'Emotivo-volitiva'),
+    ('creative_expressive', 'Creativo-expresiva'),
+]
+
+TASK_LOAD_LEVEL_CHOICES = [
+    ('low', 'Baja'),
+    ('medium', 'Media'),
+    ('high', 'Alta'),
+]
+
+
+def _clean_choice_value(value, allowed, *, max_len=80):
+    raw = _sanitize_task_text(str(value or '').strip(), multiline=False, max_len=max_len)
+    return raw if raw in set(allowed or []) else ''
+
+
+def _clean_short_text(value, *, max_len=160):
+    return _sanitize_task_text(str(value or '').strip(), multiline=False, max_len=max_len)
+
+
+def _model_of_play_preference(workspace):
+    if not workspace:
+        return {}
+    try:
+        pref = WorkspacePreference.objects.filter(workspace=workspace, key='coach:model_of_play:v1').first()
+        value = pref.value if pref and isinstance(pref.value, dict) else {}
+        return dict(value) if isinstance(value, dict) else {}
+    except Exception:
+        return {}
+
+
+def _model_principle_options(model_value):
+    value = model_value if isinstance(model_value, dict) else {}
+    rows = []
+    for moment_key, source_key in [
+        ('offensive_organization', 'attack_principles'),
+        ('defensive_organization', 'defense_principles'),
+        ('defensive_transition', 'transition_principles'),
+        ('offensive_transition', 'transition_principles'),
+        ('set_pieces', 'abp_principles'),
+    ]:
+        items = value.get(source_key) if isinstance(value.get(source_key), list) else []
+        for item in items:
+            label = str(item or '').strip()
+            if label:
+                rows.append({'moment': moment_key, 'label': label[:120]})
+    seen = set()
+    out = []
+    for row in rows:
+        key = (row['moment'], row['label'].casefold())
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(row)
+    return out[:260]
 
 
 def _parse_microcycle_plan_fields(raw_notes):
@@ -25914,6 +26034,10 @@ def training_session_detail_page(request, session_id):
                 review_payload = {
                     'actual_duration_minutes': _parse_int(request.POST.get('review_actual_duration_minutes')),
                     'rpe': _parse_int(request.POST.get('review_rpe')),
+                    'execution_score': _parse_int(request.POST.get('review_execution_score')),
+                    'physical_load': _parse_int(request.POST.get('review_physical_load')),
+                    'cognitive_load': _parse_int(request.POST.get('review_cognitive_load')),
+                    'emotional_load': _parse_int(request.POST.get('review_emotional_load')),
                     'what_worked': str(request.POST.get('review_what_worked') or '').strip(),
                     'what_failed': str(request.POST.get('review_what_failed') or '').strip(),
                     'next_adjustment': str(request.POST.get('review_next_adjustment') or '').strip(),
@@ -25924,6 +26048,10 @@ def training_session_detail_page(request, session_id):
                     for v in [
                         review_payload.get('actual_duration_minutes'),
                         review_payload.get('rpe'),
+                        review_payload.get('execution_score'),
+                        review_payload.get('physical_load'),
+                        review_payload.get('cognitive_load'),
+                        review_payload.get('emotional_load'),
                         review_payload.get('what_worked'),
                         review_payload.get('what_failed'),
                         review_payload.get('next_adjustment'),
@@ -25940,6 +26068,10 @@ def training_session_detail_page(request, session_id):
                         review_obj.actual_duration_minutes = max(1, min(int(review_payload.get('actual_duration_minutes') or 0), 240))
                     if review_payload.get('rpe') is not None:
                         review_obj.rpe = max(1, min(int(review_payload.get('rpe') or 0), 10))
+                    for score_key in ('execution_score', 'physical_load', 'cognitive_load', 'emotional_load'):
+                        score_value = review_payload.get(score_key)
+                        if score_value is not None:
+                            setattr(review_obj, score_key, max(1, min(int(score_value or 0), 10)))
                     review_obj.what_worked = review_payload.get('what_worked')[:4000]
                     review_obj.what_failed = review_payload.get('what_failed')[:4000]
                     review_obj.next_adjustment = review_payload.get('next_adjustment')[:4000]
@@ -28267,6 +28399,8 @@ def coach_tactics_page(request):
             back_url = f'{back_url}?team={int(active_team.id)}'
     except Exception:
         back_url = '/'
+    model_value = _model_of_play_preference(_get_active_workspace(request))
+    model_principle_options = _model_principle_options(model_value)
 
 
     pitch3d_player_model_src = ''
@@ -28297,6 +28431,10 @@ def coach_tactics_page(request):
             'all_sessions': [],
             'task_surface_choices': TASK_SURFACE_CHOICES,
             'task_pitch_choices': TASK_PITCH_FORMAT_CHOICES,
+            'game_moment_choices': GAME_MOMENT_CHOICES,
+            'player_structure_choices': PLAYER_STRUCTURE_CHOICES,
+            'task_load_level_choices': TASK_LOAD_LEVEL_CHOICES,
+            'model_principle_options': model_principle_options,
             'task_complexity_choices': TASK_COMPLEXITY_CHOICES,
             'task_strategy_choices': TASK_STRATEGY_CHOICES,
             'task_coordination_skills_choices': TASK_COORDINATION_SKILLS_CHOICES,
@@ -33056,6 +33194,11 @@ def _clone_training_session(source_session, target_microcycle, target_date=None,
         start_time=source_session.start_time,
         duration_minutes=source_session.duration_minutes,
         intensity=source_session.intensity,
+        md_day=getattr(source_session, 'md_day', '') or '',
+        dominant_load=getattr(source_session, 'dominant_load', '') or '',
+        game_moment=getattr(source_session, 'game_moment', '') or '',
+        principle=getattr(source_session, 'principle', '') or '',
+        subprinciple=getattr(source_session, 'subprinciple', '') or '',
         focus=clone_focus,
         content=source_session.content,
         status=TrainingSession.STATUS_PLANNED,
@@ -33082,6 +33225,11 @@ def _clone_microcycle_plan(source_microcycle, week_start, week_end=None):
         team=source_microcycle.team,
         title=(str(source_microcycle.title or 'Microciclo')[:110] + ' · copia')[:140],
         objective=source_microcycle.objective,
+        cycle_type=getattr(source_microcycle, 'cycle_type', TrainingMicrocycle.TYPE_STANDARD) or TrainingMicrocycle.TYPE_STANDARD,
+        game_model_focus=getattr(source_microcycle, 'game_model_focus', '') or '',
+        game_moment=getattr(source_microcycle, 'game_moment', '') or '',
+        principle=getattr(source_microcycle, 'principle', '') or '',
+        subprinciple=getattr(source_microcycle, 'subprinciple', '') or '',
         week_start=week_start,
         week_end=target_week_end,
         status=TrainingMicrocycle.STATUS_DRAFT,
@@ -33982,6 +34130,11 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             elif planner_action == 'create_microcycle_plan':
                 title = str(request.POST.get('plan_microcycle_title') or 'Microciclo semanal').strip()[:140]
                 objective = str(request.POST.get('plan_microcycle_objective') or '').strip()[:200]
+                cycle_type = _clean_choice_value(request.POST.get('plan_microcycle_type'), {key for key, _ in TrainingMicrocycle.TYPE_CHOICES}, max_len=24) or TrainingMicrocycle.TYPE_STANDARD
+                game_model_focus = _clean_short_text(request.POST.get('plan_microcycle_game_model_focus'), max_len=180)
+                game_moment = _clean_choice_value(request.POST.get('plan_microcycle_game_moment'), {key for key, _ in GAME_MOMENT_CHOICES}, max_len=40)
+                principle = _clean_short_text(request.POST.get('plan_microcycle_principle'), max_len=120)
+                subprinciple = _clean_short_text(request.POST.get('plan_microcycle_subprinciple'), max_len=160)
                 week_start_raw = str(request.POST.get('plan_week_start') or '').strip()
                 week_end_raw = str(request.POST.get('plan_week_end') or '').strip()
                 notes = _serialize_microcycle_plan_fields(
@@ -34012,6 +34165,11 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                         'week_end': week_end,
                         'title': title or 'Microciclo semanal',
                         'objective': objective,
+                        'cycle_type': cycle_type,
+                        'game_model_focus': game_model_focus,
+                        'game_moment': game_moment,
+                        'principle': principle,
+                        'subprinciple': subprinciple,
                         'status': status,
                         'notes': notes,
                     },
@@ -34020,9 +34178,14 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     microcycle.week_end = week_end
                     microcycle.title = title or microcycle.title or 'Microciclo semanal'
                     microcycle.objective = objective
+                    microcycle.cycle_type = cycle_type
+                    microcycle.game_model_focus = game_model_focus
+                    microcycle.game_moment = game_moment
+                    microcycle.principle = principle
+                    microcycle.subprinciple = subprinciple
                     microcycle.status = status
                     microcycle.notes = notes
-                    microcycle.save(update_fields=['week_end', 'title', 'objective', 'status', 'notes', 'updated_at'])
+                    microcycle.save(update_fields=['week_end', 'title', 'objective', 'cycle_type', 'game_model_focus', 'game_moment', 'principle', 'subprinciple', 'status', 'notes', 'updated_at'])
                     feedback = f'Microciclo actualizado: {microcycle.title}.'
                 else:
                     feedback = f'Microciclo creado: {microcycle.title}.'
@@ -34233,6 +34396,11 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     raise ValueError('Microciclo no encontrado.')
                 title = str(request.POST.get('edit_microcycle_title') or microcycle.title or 'Microciclo semanal').strip()[:140]
                 objective = str(request.POST.get('edit_microcycle_objective') or '').strip()[:200]
+                cycle_type = _clean_choice_value(request.POST.get('edit_microcycle_type'), {key for key, _ in TrainingMicrocycle.TYPE_CHOICES}, max_len=24) or TrainingMicrocycle.TYPE_STANDARD
+                game_model_focus = _clean_short_text(request.POST.get('edit_microcycle_game_model_focus'), max_len=180)
+                game_moment = _clean_choice_value(request.POST.get('edit_microcycle_game_moment'), {key for key, _ in GAME_MOMENT_CHOICES}, max_len=40)
+                principle = _clean_short_text(request.POST.get('edit_microcycle_principle'), max_len=120)
+                subprinciple = _clean_short_text(request.POST.get('edit_microcycle_subprinciple'), max_len=160)
                 notes = _serialize_microcycle_plan_fields(
                     {
                         'attack': request.POST.get('edit_microcycle_attack'),
@@ -34263,6 +34431,11 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     raise ValueError('Ajusta o mueve primero las sesiones fuera del nuevo rango.')
                 microcycle.title = title or 'Microciclo semanal'
                 microcycle.objective = objective
+                microcycle.cycle_type = cycle_type
+                microcycle.game_model_focus = game_model_focus
+                microcycle.game_moment = game_moment
+                microcycle.principle = principle
+                microcycle.subprinciple = subprinciple
                 microcycle.week_start = week_start
                 microcycle.week_end = week_end
                 microcycle.status = status
@@ -34324,6 +34497,11 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 intensity = str(request.POST.get('plan_session_intensity') or TrainingSession.INTENSITY_MEDIUM).strip()
                 if intensity not in {item[0] for item in TrainingSession.INTENSITY_CHOICES}:
                     intensity = TrainingSession.INTENSITY_MEDIUM
+                md_day = _clean_choice_value(request.POST.get('plan_session_md_day'), {key for key, _ in TrainingSession.DAY_CHOICES}, max_len=24)
+                dominant_load = _clean_choice_value(request.POST.get('plan_session_dominant_load'), {key for key, _ in TrainingSession.DOMINANT_LOAD_CHOICES}, max_len=24)
+                game_moment = _clean_choice_value(request.POST.get('plan_session_game_moment'), {key for key, _ in GAME_MOMENT_CHOICES}, max_len=40)
+                principle = _clean_short_text(request.POST.get('plan_session_principle'), max_len=120)
+                subprinciple = _clean_short_text(request.POST.get('plan_session_subprinciple'), max_len=160)
                 status = str(request.POST.get('plan_session_status') or TrainingSession.STATUS_PLANNED).strip()
                 if status not in {item[0] for item in TrainingSession.STATUS_CHOICES}:
                     status = TrainingSession.STATUS_PLANNED
@@ -34368,6 +34546,11 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                             start_time=start_time,
                             duration_minutes=duration_minutes,
                             intensity=intensity,
+                            md_day=md_day,
+                            dominant_load=dominant_load,
+                            game_moment=game_moment,
+                            principle=principle,
+                            subprinciple=subprinciple,
                             focus=focus,
                             content=content,
                             status=status,
@@ -34584,6 +34767,11 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 intensity = str(request.POST.get('edit_session_intensity') or TrainingSession.INTENSITY_MEDIUM).strip()
                 if intensity not in {item[0] for item in TrainingSession.INTENSITY_CHOICES}:
                     intensity = TrainingSession.INTENSITY_MEDIUM
+                md_day = _clean_choice_value(request.POST.get('edit_session_md_day'), {key for key, _ in TrainingSession.DAY_CHOICES}, max_len=24)
+                dominant_load = _clean_choice_value(request.POST.get('edit_session_dominant_load'), {key for key, _ in TrainingSession.DOMINANT_LOAD_CHOICES}, max_len=24)
+                game_moment = _clean_choice_value(request.POST.get('edit_session_game_moment'), {key for key, _ in GAME_MOMENT_CHOICES}, max_len=40)
+                principle = _clean_short_text(request.POST.get('edit_session_principle'), max_len=120)
+                subprinciple = _clean_short_text(request.POST.get('edit_session_subprinciple'), max_len=160)
                 status = str(request.POST.get('edit_session_status') or TrainingSession.STATUS_PLANNED).strip()
                 if status not in {item[0] for item in TrainingSession.STATUS_CHOICES}:
                     status = TrainingSession.STATUS_PLANNED
@@ -34603,6 +34791,11 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 session_obj.start_time = start_time
                 session_obj.duration_minutes = duration_minutes
                 session_obj.intensity = intensity
+                session_obj.md_day = md_day
+                session_obj.dominant_load = dominant_load
+                session_obj.game_moment = game_moment
+                session_obj.principle = principle
+                session_obj.subprinciple = subprinciple
                 session_obj.focus = focus
                 existing_sections = _parse_session_plan_fields(getattr(session_obj, 'content', ''))
                 existing_sections['notes'] = notes_text
@@ -37164,6 +37357,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         cycle_templates = cycle_templates_catalog()
     except Exception:
         cycle_templates = []
+    model_value = _model_of_play_preference(active_workspace)
+    model_principle_options = _model_principle_options(model_value)
 
     return render(
         request,
@@ -37245,8 +37440,13 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 'session_absence_rows': session_absence_rows,
                 'can_manage_fines': can_manage_fines,
                 'microcycle_status_choices': TrainingMicrocycle.STATUS_CHOICES,
+                'microcycle_type_choices': TrainingMicrocycle.TYPE_CHOICES,
                 'session_intensity_choices': TrainingSession.INTENSITY_CHOICES,
                 'session_status_choices': TrainingSession.STATUS_CHOICES,
+                'session_md_day_choices': TrainingSession.DAY_CHOICES,
+                'session_dominant_load_choices': TrainingSession.DOMINANT_LOAD_CHOICES,
+                'game_moment_choices': GAME_MOMENT_CHOICES,
+                'model_principle_options': model_principle_options,
             'planning_microcycles': planning_microcycles,
             'standalone_sessions': standalone_sessions,
             'inbox_microcycle_id': (int(inbox_microcycle.id) if inbox_microcycle else None),
@@ -37548,6 +37748,15 @@ def _task_builder_initial_values(task):
         'surface': str(meta.get('surface') or ''),
         'pitch_format': str(meta.get('pitch_format') or ''),
         'game_phase': str(meta.get('game_phase') or ''),
+        'game_moment': str(meta.get('game_moment') or ''),
+        'principle': str(meta.get('principle') or ''),
+        'subprinciple': str(meta.get('subprinciple') or ''),
+        'provocation_rule': str(meta.get('provocation_rule') or ''),
+        'dominant_structure': str(meta.get('dominant_structure') or ''),
+        'secondary_structure': str(meta.get('secondary_structure') or ''),
+        'physical_load': str(meta.get('physical_load') or ''),
+        'cognitive_load': str(meta.get('cognitive_load') or ''),
+        'emotional_load': str(meta.get('emotional_load') or ''),
         'methodology': str(meta.get('methodology') or ''),
         'complexity': str(meta.get('complexity') or ''),
         'strategy': str(meta.get('strategy') or ''),
@@ -37879,6 +38088,60 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
     selected_coord_skills = (raw_coord_skills or '').strip() if raw_coord_skills is not None else str(existing_meta.get('coordination_skills') or '')
     raw_tactical_intent = request.POST.get('draw_task_tactical_intent')
     selected_tactical_intent = (raw_tactical_intent or '').strip() if raw_tactical_intent is not None else str(existing_meta.get('tactical_intent') or '')
+    raw_game_moment = request.POST.get('draw_task_game_moment')
+    game_moment = (
+        _clean_choice_value(raw_game_moment, {key for key, _ in GAME_MOMENT_CHOICES}, max_len=40)
+        if raw_game_moment is not None
+        else str(existing_meta.get('game_moment') or '')
+    )
+    raw_principle = request.POST.get('draw_task_principle')
+    principle = (
+        _clean_short_text(raw_principle, max_len=120)
+        if raw_principle is not None
+        else str(existing_meta.get('principle') or '')
+    )
+    raw_subprinciple = request.POST.get('draw_task_subprinciple')
+    subprinciple = (
+        _clean_short_text(raw_subprinciple, max_len=160)
+        if raw_subprinciple is not None
+        else str(existing_meta.get('subprinciple') or '')
+    )
+    raw_provocation_rule = request.POST.get('draw_task_provocation_rule')
+    provocation_rule = (
+        _sanitize_task_text(str(raw_provocation_rule or '').strip(), multiline=True, max_len=500)
+        if raw_provocation_rule is not None
+        else str(existing_meta.get('provocation_rule') or '')
+    )
+    raw_dominant_structure = request.POST.get('draw_task_dominant_structure')
+    dominant_structure = (
+        _clean_choice_value(raw_dominant_structure, {key for key, _ in PLAYER_STRUCTURE_CHOICES}, max_len=40)
+        if raw_dominant_structure is not None
+        else str(existing_meta.get('dominant_structure') or '')
+    )
+    raw_secondary_structure = request.POST.get('draw_task_secondary_structure')
+    secondary_structure = (
+        _clean_choice_value(raw_secondary_structure, {key for key, _ in PLAYER_STRUCTURE_CHOICES}, max_len=40)
+        if raw_secondary_structure is not None
+        else str(existing_meta.get('secondary_structure') or '')
+    )
+    raw_physical_load = request.POST.get('draw_task_physical_load')
+    physical_load = (
+        _clean_choice_value(raw_physical_load, {key for key, _ in TASK_LOAD_LEVEL_CHOICES}, max_len=20)
+        if raw_physical_load is not None
+        else str(existing_meta.get('physical_load') or '')
+    )
+    raw_cognitive_load = request.POST.get('draw_task_cognitive_load')
+    cognitive_load = (
+        _clean_choice_value(raw_cognitive_load, {key for key, _ in TASK_LOAD_LEVEL_CHOICES}, max_len=20)
+        if raw_cognitive_load is not None
+        else str(existing_meta.get('cognitive_load') or '')
+    )
+    raw_emotional_load = request.POST.get('draw_task_emotional_load')
+    emotional_load = (
+        _clean_choice_value(raw_emotional_load, {key for key, _ in TASK_LOAD_LEVEL_CHOICES}, max_len=20)
+        if raw_emotional_load is not None
+        else str(existing_meta.get('emotional_load') or '')
+    )
     raw_template_key = request.POST.get('draw_task_template')
     template_key = (raw_template_key or 'none').strip() if raw_template_key is not None else str(existing_meta.get('template_key') or 'none')
     if 'draw_task_multi_board' in request.POST:
@@ -38198,6 +38461,15 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
             'pitch_grass_style': pitch_grass_style,
             'multi_board': bool(multi_board_enabled),
             'game_phase': selected_phase,
+            'game_moment': game_moment,
+            'principle': principle,
+            'subprinciple': subprinciple,
+            'provocation_rule': provocation_rule,
+            'dominant_structure': dominant_structure,
+            'secondary_structure': secondary_structure,
+            'physical_load': physical_load,
+            'cognitive_load': cognitive_load,
+            'emotional_load': emotional_load,
             'methodology': selected_methodology,
             'complexity': selected_complexity,
             'strategy': selected_strategy,
@@ -39445,6 +39717,8 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             back_label = 'Volver a ficha'
     except Exception:
         pass
+    model_value = _model_of_play_preference(_get_active_workspace(request))
+    model_principle_options = _model_principle_options(model_value)
 
     pitch3d_player_model_src = ''
     try:
@@ -39475,6 +39749,10 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             'all_sessions': all_sessions,
             'task_surface_choices': TASK_SURFACE_CHOICES,
             'task_pitch_choices': TASK_PITCH_FORMAT_CHOICES,
+            'game_moment_choices': GAME_MOMENT_CHOICES,
+            'player_structure_choices': PLAYER_STRUCTURE_CHOICES,
+            'task_load_level_choices': TASK_LOAD_LEVEL_CHOICES,
+            'model_principle_options': model_principle_options,
             'task_complexity_choices': TASK_COMPLEXITY_CHOICES,
             'task_strategy_choices': TASK_STRATEGY_CHOICES,
             'task_coordination_skills_choices': TASK_COORDINATION_SKILLS_CHOICES,
@@ -39891,6 +40169,15 @@ def _build_task_studio_draft_pdf_context(request, owner, pdf_style='uefa'):
     selected_coordination = _sanitize_task_text((request.POST.get('draw_task_coordination') or '').strip(), multiline=False, max_len=80)
     selected_coord_skills = _sanitize_task_text((request.POST.get('draw_task_coordination_skills') or '').strip(), multiline=False, max_len=80)
     selected_tactical_intent = _sanitize_task_text((request.POST.get('draw_task_tactical_intent') or '').strip(), multiline=False, max_len=80)
+    game_moment = _clean_choice_value(request.POST.get('draw_task_game_moment'), {key for key, _ in GAME_MOMENT_CHOICES}, max_len=40)
+    principle = _clean_short_text(request.POST.get('draw_task_principle'), max_len=120)
+    subprinciple = _clean_short_text(request.POST.get('draw_task_subprinciple'), max_len=160)
+    provocation_rule = _sanitize_task_text((request.POST.get('draw_task_provocation_rule') or '').strip(), multiline=True, max_len=500)
+    dominant_structure = _clean_choice_value(request.POST.get('draw_task_dominant_structure'), {key for key, _ in PLAYER_STRUCTURE_CHOICES}, max_len=40)
+    secondary_structure = _clean_choice_value(request.POST.get('draw_task_secondary_structure'), {key for key, _ in PLAYER_STRUCTURE_CHOICES}, max_len=40)
+    physical_load = _clean_choice_value(request.POST.get('draw_task_physical_load'), {key for key, _ in TASK_LOAD_LEVEL_CHOICES}, max_len=20)
+    cognitive_load = _clean_choice_value(request.POST.get('draw_task_cognitive_load'), {key for key, _ in TASK_LOAD_LEVEL_CHOICES}, max_len=20)
+    emotional_load = _clean_choice_value(request.POST.get('draw_task_emotional_load'), {key for key, _ in TASK_LOAD_LEVEL_CHOICES}, max_len=20)
     space = _sanitize_task_text((request.POST.get('draw_task_space') or '').strip(), multiline=False, max_len=120)
     organization = _sanitize_task_text((request.POST.get('draw_task_organization') or '').strip(), multiline=True, max_len=500)
     players_distribution = _sanitize_task_text((request.POST.get('draw_task_players_distribution') or '').strip(), multiline=False, max_len=180)
@@ -39942,6 +40229,15 @@ def _build_task_studio_draft_pdf_context(request, owner, pdf_style='uefa'):
             'surface': selected_surface,
             'pitch_format': selected_pitch_format,
             'game_phase': selected_phase,
+            'game_moment': game_moment,
+            'principle': principle,
+            'subprinciple': subprinciple,
+            'provocation_rule': provocation_rule,
+            'dominant_structure': dominant_structure,
+            'secondary_structure': secondary_structure,
+            'physical_load': physical_load,
+            'cognitive_load': cognitive_load,
+            'emotional_load': emotional_load,
             'methodology': selected_methodology,
             'complexity': selected_complexity,
             'strategy': selected_strategy,
@@ -40343,6 +40639,87 @@ def _ai_trainer_token_weight_map(team, *, workspace=None, limit: int = 240) -> d
         return {}
 
 
+def _ai_trainer_senior_memory_key():
+    return 'ai_trainer:senior_memory:v1'
+
+
+def _ai_trainer_load_senior_memory(team, *, workspace=None) -> dict:
+    memory = {}
+    try:
+        if workspace:
+            pref = WorkspacePreference.objects.filter(workspace=workspace, key=_ai_trainer_senior_memory_key()).first()
+            memory = pref.value if pref and isinstance(pref.value, dict) else {}
+    except Exception:
+        memory = {}
+    if not isinstance(memory, dict):
+        memory = {}
+    for key, default in {
+        'accepted': 0,
+        'rejected': 0,
+        'reasons': {},
+        'load_corrections': {},
+        'transfer_notes': [],
+        'staff_notes': [],
+        'preferred_variants': {},
+    }.items():
+        if key not in memory:
+            memory[key] = default.copy() if isinstance(default, dict) else list(default) if isinstance(default, list) else default
+    try:
+        weights = _ai_trainer_token_weight_map(team, workspace=workspace, limit=80)
+        top = sorted(weights.items(), key=lambda row: row[1], reverse=True)[:18]
+        low = sorted(weights.items(), key=lambda row: row[1])[:10]
+        memory['positive_tokens'] = [{'token': k, 'weight': round(float(v), 2)} for k, v in top if float(v) > 0]
+        memory['negative_tokens'] = [{'token': k, 'weight': round(float(v), 2)} for k, v in low if float(v) < 0]
+    except Exception:
+        pass
+    return memory
+
+
+def _ai_trainer_update_senior_memory(team, *, workspace=None, variant='', rating=0, reason='', note='', load_hint='', transfer_hint=''):
+    if not team or not workspace:
+        return
+    try:
+        key = _ai_trainer_senior_memory_key()
+        pref, _ = WorkspacePreference.objects.get_or_create(workspace=workspace, key=key, defaults={'value': {}})
+        memory = pref.value if isinstance(pref.value, dict) else {}
+        memory = dict(memory)
+        rating = max(-1, min(1, int(rating or 0)))
+        if rating > 0:
+            memory['accepted'] = int(memory.get('accepted') or 0) + 1
+        elif rating < 0:
+            memory['rejected'] = int(memory.get('rejected') or 0) + 1
+        variant = str(variant or '').strip().upper()[:20]
+        if variant:
+            variants = memory.get('preferred_variants') if isinstance(memory.get('preferred_variants'), dict) else {}
+            variants[variant] = int(variants.get(variant) or 0) + rating
+            memory['preferred_variants'] = variants
+        reason = str(reason or '').strip()[:80]
+        if reason:
+            reasons = memory.get('reasons') if isinstance(memory.get('reasons'), dict) else {}
+            reasons[reason] = int(reasons.get(reason) or 0) + 1
+            memory['reasons'] = reasons
+        load_hint = str(load_hint or '').strip()[:80]
+        if load_hint:
+            loads = memory.get('load_corrections') if isinstance(memory.get('load_corrections'), dict) else {}
+            loads[load_hint] = int(loads.get(load_hint) or 0) + 1
+            memory['load_corrections'] = loads
+        transfer_hint = str(transfer_hint or '').strip()[:120]
+        if transfer_hint:
+            rows = memory.get('transfer_notes') if isinstance(memory.get('transfer_notes'), list) else []
+            rows.append({'text': transfer_hint, 'rating': rating, 'at': timezone.now().isoformat()})
+            memory['transfer_notes'] = rows[-40:]
+        note = str(note or '').strip()[:500]
+        if note:
+            notes = memory.get('staff_notes') if isinstance(memory.get('staff_notes'), list) else []
+            notes.append({'text': note, 'rating': rating, 'reason': reason, 'at': timezone.now().isoformat()})
+            memory['staff_notes'] = notes[-60:]
+        memory['updated_at'] = timezone.now().isoformat()
+        pref.value = memory
+        pref.save(update_fields=['value'])
+    except Exception:
+        return
+
+
 def _ai_trainer_load_coach_dictionary():
     global _AI_TRAINER_COACH_DICT_CACHE  # noqa: PLW0603
     if _AI_TRAINER_COACH_DICT_CACHE is not None:
@@ -40665,6 +41042,15 @@ def ai_trainer_page(request):
     proposals = []
     signals = {}
     suggestions = []
+    senior_llm = {
+        'enabled': bool(local_llm_config().get('enabled')),
+        'provider': local_llm_config().get('provider'),
+        'model': local_llm_config().get('model'),
+        'available': False,
+        'error': '',
+        'advice': None,
+    }
+    senior_memory = {}
     dict_prefill = {}
     concept_section = str(request.GET.get('section') or '').strip().lower() or 'principles'
     concept_q = str(request.GET.get('q') or '').strip()
@@ -40676,6 +41062,7 @@ def ai_trainer_page(request):
         workspace = None
     can_train_dictionary = bool(_is_admin_user(request.user) or (workspace and _can_manage_workspace(request.user, workspace)))
     dictionary = _ai_trainer_load_dictionary_for(team, workspace=workspace)
+    senior_memory = _ai_trainer_load_senior_memory(team, workspace=workspace)
     # Modelo de juego del club (workspace pref). Se pasa vía signals para evitar tocar demasiada firma.
     club_model = {}
     try:
@@ -40764,6 +41151,18 @@ def ai_trainer_page(request):
         }
         proposals = _ai_trainer_build_proposals(profile=profile, phase=phase, goal=goal, signals=signals, dictionary=dictionary)
         suggestions = _ai_trainer_suggest_library_tasks(team, text_norm=text_norm, signals=signals, limit=8)
+        if post_action == 'generate' and goal:
+            senior_llm = ai_trainer_senior_local_advice(
+                team_name=getattr(team, 'name', '') or str(team),
+                profile=profile,
+                phase=phase,
+                goal=goal,
+                signals=signals,
+                club_model=club_model,
+                learning_memory=senior_memory,
+                suggestions=suggestions,
+                proposals=proposals,
+            )
         # Prefill para entrenar (solo lo detectado).
         try:
             dict_prefill = {}
@@ -40795,6 +41194,12 @@ def ai_trainer_page(request):
                 'phase': phase,
                 'goal': goal[:800],
                 'signals': signals,
+                'senior_llm': {
+                    'provider': senior_llm.get('provider'),
+                    'model': senior_llm.get('model'),
+                    'available': bool(senior_llm.get('available')),
+                    'error': str(senior_llm.get('error') or '')[:240],
+                },
             },
         )
 
@@ -40877,6 +41282,15 @@ def ai_trainer_page(request):
                     _ai_trainer_index_task(created_task, team=team)
             except Exception:
                 pass
+            _ai_trainer_update_senior_memory(
+                team,
+                workspace=workspace,
+                variant=variant,
+                rating=1,
+                reason='guardada_como_tarea',
+                note=f'Tarea guardada desde IA-Trainer: {title}',
+            )
+            senior_memory = _ai_trainer_load_senior_memory(team, workspace=workspace)
             _ai_trainer_log_event(
                 request,
                 team,
@@ -40897,14 +41311,38 @@ def ai_trainer_page(request):
             rating_raw = str(request.POST.get('rating') or '').strip()
             rating = _parse_int(rating_raw) or 0
             rating = max(-1, min(1, rating))
+            feedback_reason = str(request.POST.get('feedback_reason') or '').strip()[:80]
+            feedback_note = str(request.POST.get('feedback_note') or '').strip()[:500]
+            load_hint = str(request.POST.get('feedback_load_hint') or '').strip()[:80]
+            transfer_hint = str(request.POST.get('feedback_transfer_hint') or '').strip()[:120]
             if rating:
                 delta = 0.6 if rating > 0 else -0.6
                 _ai_trainer_adjust_token_weights(team, workspace=workspace, tokens=tokens, delta=delta)
+                _ai_trainer_update_senior_memory(
+                    team,
+                    workspace=workspace,
+                    variant=variant,
+                    rating=rating,
+                    reason=feedback_reason or ('util' if rating > 0 else 'no_util'),
+                    note=feedback_note,
+                    load_hint=load_hint,
+                    transfer_hint=transfer_hint,
+                )
+                senior_memory = _ai_trainer_load_senior_memory(team, workspace=workspace)
             _ai_trainer_log_event(
                 request,
                 team,
                 event_type=AiTrainerEvent.EVENT_FEEDBACK,
-                meta={'variant': variant, 'rating': rating, 'goal': goal[:800], 'signals': signals},
+                meta={
+                    'variant': variant,
+                    'rating': rating,
+                    'goal': goal[:800],
+                    'signals': signals,
+                    'feedback_reason': feedback_reason,
+                    'feedback_note': feedback_note,
+                    'load_hint': load_hint,
+                    'transfer_hint': transfer_hint,
+                },
             )
 
     # Biblioteca de conceptos (solo lectura): lista el diccionario (base + overrides) para que el entrenador pueda
@@ -40960,6 +41398,8 @@ def ai_trainer_page(request):
             'signals': signals,
             'proposals': proposals,
             'suggestions': suggestions,
+            'senior_llm': senior_llm,
+            'senior_memory': senior_memory,
             'can_train_dictionary': can_train_dictionary,
             'dict_prefill': dict_prefill,
             'concept_section': concept_section,
@@ -41033,14 +41473,19 @@ def coach_model_of_play_page(request):
                 build_up = ''
 
             new_value = {
-                'version': 1,
+                'version': 2,
                 'style': style,
                 'pressing': pressing,
                 'build_up': build_up,
                 'attack_principles': _parse_lines(request.POST.get('attack_principles'), limit=80),
+                'attack_subprinciples': _parse_lines(request.POST.get('attack_subprinciples'), limit=120),
                 'defense_principles': _parse_lines(request.POST.get('defense_principles'), limit=80),
+                'defense_subprinciples': _parse_lines(request.POST.get('defense_subprinciples'), limit=120),
                 'transition_principles': _parse_lines(request.POST.get('transition_principles'), limit=80),
+                'transition_subprinciples': _parse_lines(request.POST.get('transition_subprinciples'), limit=120),
                 'abp_principles': _parse_lines(request.POST.get('abp_principles'), limit=60),
+                'abp_subprinciples': _parse_lines(request.POST.get('abp_subprinciples'), limit=100),
+                'behavior_rules': _parse_lines(request.POST.get('behavior_rules'), limit=120),
                 'notes': str(request.POST.get('notes') or '').strip()[:4000],
             }
             WorkspacePreference.objects.update_or_create(
@@ -41066,9 +41511,14 @@ def coach_model_of_play_page(request):
             'pressing': str(value.get('pressing') or ''),
             'build_up': str(value.get('build_up') or ''),
             'attack_principles_text': _to_lines(value.get('attack_principles')),
+            'attack_subprinciples_text': _to_lines(value.get('attack_subprinciples')),
             'defense_principles_text': _to_lines(value.get('defense_principles')),
+            'defense_subprinciples_text': _to_lines(value.get('defense_subprinciples')),
             'transition_principles_text': _to_lines(value.get('transition_principles')),
+            'transition_subprinciples_text': _to_lines(value.get('transition_subprinciples')),
             'abp_principles_text': _to_lines(value.get('abp_principles')),
+            'abp_subprinciples_text': _to_lines(value.get('abp_subprinciples')),
+            'behavior_rules_text': _to_lines(value.get('behavior_rules')),
             'notes': str(value.get('notes') or ''),
         },
     )
@@ -42236,12 +42686,17 @@ def analysis_page(request):
             video_file = request.FILES.get('video_file')
             rival_team = Team.objects.filter(id=rival_team_id).first() if rival_team_id else None
             folder = AnalystVideoFolder.objects.filter(id=folder_id, team=primary_team).first() if folder_id and primary_team else None
+            wants_json_response = 'application/json' in str(request.headers.get('Accept') or '').lower()
             if not video_file:
                 video_error = 'Selecciona un vídeo para subir.'
+                if wants_json_response:
+                    return JsonResponse({'ok': False, 'error': video_error}, status=400)
             else:
                 max_mb = int(getattr(settings, 'ANALYSIS_VIDEO_MAX_UPLOAD_MB', 0) or 0)
                 if max_mb and int(getattr(video_file, 'size', 0) or 0) > max_mb * 1024 * 1024:
                     video_error = f'El vídeo supera el límite de {max_mb}MB.'
+                    if wants_json_response:
+                        return JsonResponse({'ok': False, 'error': video_error}, status=400)
                 else:
                     entry = RivalVideo.objects.create(
                         team=None if want_personal else primary_team,
@@ -42273,6 +42728,8 @@ def analysis_page(request):
                         )
                     except Exception:
                         pass
+                    if wants_json_response:
+                        return JsonResponse({'ok': True, 'video_id': int(entry.id)})
         elif form_action == 'delete_video':
             video_id = _parse_int(request.POST.get('video_id'))
             entry = RivalVideo.objects.select_related('folder').filter(id=video_id).first()
@@ -46609,7 +47066,7 @@ def analysis_rival_video_chunk_finish_api(request):
             ChunkedRivalVideoUpload.objects.filter(id=session.id).delete()
         except Exception:
             pass
-    return JsonResponse({'ok': True})
+    return JsonResponse({'ok': True, 'video_id': int(getattr(entry, 'id', 0) or 0)})
 
 
 @login_required
@@ -47768,6 +48225,14 @@ def analysis_video_studio_track_players_api(request):
         max_w = 1280
     max_w = max(640, min(int(max_w or 1280), 1600))
 
+    try:
+        smooth_strength = float(payload.get('smooth') if payload.get('smooth') is not None else 0.45)
+    except Exception:
+        smooth_strength = 0.45
+    smooth_strength = max(0.0, min(float(smooth_strength or 0.0), 0.85))
+    anti_jump = payload.get('anti_jump')
+    anti_jump = True if anti_jump is None else bool(anti_jump)
+
     raw_markers = payload.get('markers') if isinstance(payload, dict) else None
     markers = raw_markers if isinstance(raw_markers, list) else []
     markers = [m for m in markers if isinstance(m, dict)]
@@ -47868,70 +48333,255 @@ def analysis_video_studio_track_players_api(request):
 
     tracks: dict[str, list[dict]] = {}
     trackers: dict[str, object] = {}
+    fallback_templates: dict[str, dict] = {}
+    marker_lookup: dict[str, dict] = {}
+    marker_anchors: dict[str, list[dict]] = {}
+    marker_anchor_index: dict[str, int] = {}
     inited = False
     frame_idx = 0
+
+    def _marker_bbox(m):
+        try:
+            x_rel = float(m.get('x_rel') or 0.0)
+            y_rel = float(m.get('y_rel') or 0.0)
+            bw_rel = float(m.get('bw_rel') or 0.08)
+            bh_rel = float(m.get('bh_rel') or 0.08)
+        except Exception:
+            x_rel, y_rel, bw_rel, bh_rel = 0.0, 0.0, 0.08, 0.08
+        x_rel = max(0.0, min(1.0, x_rel))
+        y_rel = max(0.0, min(1.0, y_rel))
+        bw_rel = max(0.02, min(0.35, bw_rel))
+        bh_rel = max(0.02, min(0.35, bh_rel))
+        cx = x_rel * out_w
+        cy = y_rel * out_h
+        bw = max(12.0, bw_rel * out_w)
+        bh = max(12.0, bh_rel * out_h)
+        x0 = max(0.0, min(out_w - 1.0, cx - bw / 2.0))
+        y0 = max(0.0, min(out_h - 1.0, cy - bh / 2.0))
+        bw2 = max(8.0, min(out_w - x0, bw))
+        bh2 = max(8.0, min(out_h - y0, bh))
+        return float(x0), float(y0), float(bw2), float(bh2)
+
+    def _normalize_marker_anchors(m):
+        anchors = []
+        raw = m.get('anchors') if isinstance(m, dict) else None
+        raw_items = raw if isinstance(raw, list) else []
+        raw_items = [{'t': start_s, 'x_rel': m.get('x_rel'), 'y_rel': m.get('y_rel')}] + raw_items
+        for item in raw_items[:20]:
+            if not isinstance(item, dict):
+                continue
+            try:
+                t0 = float(item.get('t'))
+                x0 = max(0.0, min(1.0, float(item.get('x_rel'))))
+                y0 = max(0.0, min(1.0, float(item.get('y_rel'))))
+            except Exception:
+                continue
+            if t0 < start_s - 0.1 or t0 > end_s + 0.1:
+                continue
+            anchors.append({
+                't': max(start_s, min(end_s, t0)),
+                'x_rel': x0,
+                'y_rel': y0,
+                'bw_rel': m.get('bw_rel'),
+                'bh_rel': m.get('bh_rel'),
+            })
+        anchors.sort(key=lambda item: float(item.get('t') or 0.0))
+        out = []
+        for item in anchors:
+            if out and abs(float(item.get('t') or 0.0) - float(out[-1].get('t') or 0.0)) < 0.08:
+                out[-1] = item
+            else:
+                out.append(item)
+        return out[:20]
+
+    def _init_template(uid, frame, bbox):
+        try:
+            x, y, w, h = [int(round(v)) for v in bbox]
+            x = max(0, min(out_w - 1, x))
+            y = max(0, min(out_h - 1, y))
+            w = max(8, min(out_w - x, w))
+            h = max(8, min(out_h - y, h))
+            patch = frame[y:y + h, x:x + w]
+            if patch.size <= 0:
+                return
+            gray = cv2.cvtColor(patch, cv2.COLOR_BGR2GRAY)
+            fallback_templates[uid] = {
+                'template': gray,
+                'bbox': (float(x), float(y), float(w), float(h)),
+                'last_center': (float(x) + float(w) * 0.5, float(y) + float(h) * 0.5),
+                'score': 1.0,
+            }
+        except Exception:
+            return
+
+    def _template_update(uid, frame):
+        state = fallback_templates.get(uid) or {}
+        template = state.get('template')
+        if template is None:
+            return None
+        try:
+            th, tw = template.shape[:2]
+            last_x, last_y = state.get('last_center') or (out_w * 0.5, out_h * 0.5)
+            search_pad = int(max(tw, th) * 2.5)
+            x0 = max(0, int(round(last_x - tw * 0.5 - search_pad)))
+            y0 = max(0, int(round(last_y - th * 0.5 - search_pad)))
+            x1 = min(out_w, int(round(last_x + tw * 0.5 + search_pad)))
+            y1 = min(out_h, int(round(last_y + th * 0.5 + search_pad)))
+            if x1 - x0 < tw or y1 - y0 < th:
+                x0, y0, x1, y1 = 0, 0, out_w, out_h
+            search = frame[y0:y1, x0:x1]
+            if search.size <= 0:
+                return None
+            search_gray = cv2.cvtColor(search, cv2.COLOR_BGR2GRAY)
+            res = cv2.matchTemplate(search_gray, template, cv2.TM_CCOEFF_NORMED)
+            _, score, _, loc = cv2.minMaxLoc(res)
+            if float(score) < 0.28:
+                return None
+            x = float(x0 + loc[0])
+            y = float(y0 + loc[1])
+            bbox = (x, y, float(tw), float(th))
+            state['bbox'] = bbox
+            state['last_center'] = (x + float(tw) * 0.5, y + float(th) * 0.5)
+            state['score'] = float(score)
+            if frame_idx % max(1, int(fps)) == 0 and float(score) >= 0.45:
+                patch = frame[int(y):int(y) + th, int(x):int(x) + tw]
+                if patch.size > 0:
+                    state['template'] = cv2.cvtColor(patch, cv2.COLOR_BGR2GRAY)
+            fallback_templates[uid] = state
+            return bbox
+        except Exception:
+            return None
+
+    def _reset_tracker_from_anchor(uid, frame, anchor):
+        seed = dict(marker_lookup.get(uid) or {})
+        seed.update(anchor or {})
+        bbox = _marker_bbox(seed)
+        _init_template(uid, frame, bbox)
+        tracks.setdefault(uid, [])
+        tr = _create_tracker()
+        if not tr:
+            trackers.pop(uid, None)
+            return
+        try:
+            tr.init(frame, bbox)
+            trackers[uid] = tr
+        except Exception:
+            trackers.pop(uid, None)
+
+    def _postprocess_track_points(points: list[dict]) -> tuple[list[dict], dict]:
+        clean_points: list[dict] = []
+        meta = {'raw': len(points or []), 'dropped': 0, 'smooth': smooth_strength, 'anti_jump': anti_jump}
+        raw = []
+        for p in points or []:
+            try:
+                raw.append({
+                    't': float(p.get('t')),
+                    'x_rel': max(0.0, min(1.0, float(p.get('x_rel')))),
+                    'y_rel': max(0.0, min(1.0, float(p.get('y_rel')))),
+                })
+            except Exception:
+                meta['dropped'] += 1
+        raw.sort(key=lambda item: item['t'])
+        if not raw:
+            return [], meta
+
+        max_jump_rel = 0.11
+        for p in raw:
+            if not clean_points:
+                clean_points.append(p)
+                continue
+            prev = clean_points[-1]
+            dt = max(0.08, abs(float(p['t']) - float(prev['t'])))
+            dx = float(p['x_rel']) - float(prev['x_rel'])
+            dy = float(p['y_rel']) - float(prev['y_rel'])
+            dist = math.hypot(dx, dy)
+            if anti_jump and dist > max(max_jump_rel, max_jump_rel * dt * 6.0):
+                meta['dropped'] += 1
+                continue
+            clean_points.append(p)
+
+        if len(clean_points) <= 2 or smooth_strength <= 0.0:
+            meta['kept'] = len(clean_points)
+            return clean_points, meta
+
+        s = smooth_strength
+        forward = []
+        for p in clean_points:
+            if not forward:
+                forward.append(dict(p))
+                continue
+            prev = forward[-1]
+            forward.append({
+                't': p['t'],
+                'x_rel': max(0.0, min(1.0, (float(prev['x_rel']) * s) + (float(p['x_rel']) * (1.0 - s)))),
+                'y_rel': max(0.0, min(1.0, (float(prev['y_rel']) * s) + (float(p['y_rel']) * (1.0 - s)))),
+            })
+
+        smoothed = []
+        for p in reversed(forward):
+            if not smoothed:
+                smoothed.insert(0, dict(p))
+                continue
+            nxt = smoothed[0]
+            smoothed.insert(0, {
+                't': p['t'],
+                'x_rel': max(0.0, min(1.0, (float(nxt['x_rel']) * s) + (float(p['x_rel']) * (1.0 - s)))),
+                'y_rel': max(0.0, min(1.0, (float(nxt['y_rel']) * s) + (float(p['y_rel']) * (1.0 - s)))),
+            })
+        meta['kept'] = len(smoothed)
+        return smoothed, meta
+
+    for m in markers:
+        uid = str(m.get('uid') or '').strip()
+        if not uid:
+            continue
+        marker_lookup[uid] = m
+        marker_anchors[uid] = _normalize_marker_anchors(m)
+        marker_anchor_index[uid] = 0
 
     try:
         proc = subprocess.Popen(cmd_track, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
     except Exception:
         return JsonResponse({'ok': False, 'error': 'No se pudo iniciar FFmpeg.'}, status=400)
 
-    started_at = time.monotonic()
+    started_at = pytime.monotonic()
     try:
         while True:
-            if time.monotonic() - started_at > VIDEO_STUDIO_FFMPEG_TIMEOUT_SECONDS:
+            if pytime.monotonic() - started_at > VIDEO_STUDIO_FFMPEG_TIMEOUT_SECONDS:
                 return JsonResponse({'ok': False, 'error': 'FFmpeg agotó el tiempo máximo de seguimiento.'}, status=504)
             chunk = proc.stdout.read(frame_bytes) if proc.stdout else b''
             if not chunk or len(chunk) < frame_bytes:
                 break
             frame = np.frombuffer(chunk, dtype=np.uint8).reshape((out_h, out_w, 3))
+            t = start_s + (frame_idx / float(fps))
 
             if not inited:
-                # init trackers
-                for m in markers:
-                    uid = str(m.get('uid') or '').strip()
-                    if not uid:
-                        continue
-                    tr = _create_tracker()
-                    if not tr:
-                        continue
-                    try:
-                        x_rel = float(m.get('x_rel') or 0.0)
-                        y_rel = float(m.get('y_rel') or 0.0)
-                        bw_rel = float(m.get('bw_rel') or 0.08)
-                        bh_rel = float(m.get('bh_rel') or 0.08)
-                    except Exception:
-                        x_rel, y_rel, bw_rel, bh_rel = 0.0, 0.0, 0.08, 0.08
-                    x_rel = max(0.0, min(1.0, x_rel))
-                    y_rel = max(0.0, min(1.0, y_rel))
-                    bw_rel = max(0.02, min(0.35, bw_rel))
-                    bh_rel = max(0.02, min(0.35, bh_rel))
-                    cx = x_rel * out_w
-                    cy = y_rel * out_h
-                    bw = max(12.0, bw_rel * out_w)
-                    bh = max(12.0, bh_rel * out_h)
-                    x0 = max(0.0, min(out_w - 1.0, cx - bw / 2.0))
-                    y0 = max(0.0, min(out_h - 1.0, cy - bh / 2.0))
-                    bw2 = max(8.0, min(out_w - x0, bw))
-                    bh2 = max(8.0, min(out_h - y0, bh))
-                    bbox = (float(x0), float(y0), float(bw2), float(bh2))
-                    try:
-                        tr.init(frame, bbox)
-                        trackers[uid] = tr
-                        tracks.setdefault(uid, [])
-                    except Exception:
-                        continue
+                for uid, anchors in marker_anchors.items():
+                    first_anchor = anchors[0] if anchors else marker_lookup.get(uid)
+                    _reset_tracker_from_anchor(uid, frame, first_anchor)
+                    marker_anchor_index[uid] = 1 if anchors else 0
                 inited = True
 
+            for uid, anchors in marker_anchors.items():
+                idx = int(marker_anchor_index.get(uid, 0) or 0)
+                while idx < len(anchors) and t + (0.5 / float(fps)) >= float(anchors[idx].get('t') or 0.0):
+                    _reset_tracker_from_anchor(uid, frame, anchors[idx])
+                    idx += 1
+                marker_anchor_index[uid] = idx
+
             # update trackers
-            t = start_s + (frame_idx / float(fps))
-            for uid, tr in list(trackers.items()):
+            marker_ids = set(trackers.keys()) | set(fallback_templates.keys())
+            for uid in list(marker_ids):
+                tr = trackers.get(uid)
+                bbox = None
                 try:
-                    ok, bbox = tr.update(frame)
+                    ok, bbox = tr.update(frame) if tr else (False, None)
                 except Exception:
                     ok, bbox = False, None
                 if not ok or not bbox:
-                    continue
+                    bbox = _template_update(uid, frame)
+                    if not bbox:
+                        continue
                 try:
                     x, y, w, h = bbox
                 except Exception:
@@ -47940,6 +48590,8 @@ def analysis_video_studio_track_players_api(request):
                 cy = float(y) + float(h) * 0.5
                 x_rel = max(0.0, min(1.0, cx / float(out_w)))
                 y_rel = max(0.0, min(1.0, cy / float(out_h)))
+                if uid in fallback_templates:
+                    fallback_templates[uid]['last_center'] = (cx, cy)
                 tracks.setdefault(uid, []).append({'t': float(t), 'x_rel': x_rel, 'y_rel': y_rel})
             frame_idx += 1
             if frame_idx >= int(duration_s * fps) + 2:
@@ -47963,7 +48615,18 @@ def analysis_video_studio_track_players_api(request):
     if not any(tracks.get(k) for k in tracks.keys()):
         return JsonResponse({'ok': False, 'error': 'No se pudo seguir a los jugadores (prueba a ampliar el recuadro o usar más contraste).'}, status=400)
 
-    return JsonResponse({'ok': True, 'fps': fps, 'width': out_w, 'height': out_h, 'tracks': tracks})
+    track_meta = {}
+    for uid in list(tracks.keys()):
+        tracks[uid], track_meta[uid] = _postprocess_track_points(tracks.get(uid) or [])
+        try:
+            track_meta[uid]['anchors'] = len(marker_anchors.get(uid) or [])
+        except Exception:
+            pass
+
+    if not any(tracks.get(k) for k in tracks.keys()):
+        return JsonResponse({'ok': False, 'error': 'No se pudo seguir a los jugadores tras filtrar saltos.'}, status=400)
+
+    return JsonResponse({'ok': True, 'fps': fps, 'width': out_w, 'height': out_h, 'tracks': tracks, 'track_meta': track_meta})
 
 
 @login_required
@@ -49621,6 +50284,2042 @@ def analysis_video_studio_ai_api(request):
         pass
 
     return JsonResponse({'ok': True, 'cached': False, 'provider': provider, 'model': model_used, 'payload': payload, 'error': error})
+
+
+class _VideoStudioAiTrackCanceled(Exception):
+    pass
+
+
+def _video_studio_ai_track_update(job_id: int, *, status=None, progress=None, message=None, error=None, result=None, **extra_fields):
+    payload = {}
+    if status is not None:
+        payload['status'] = status
+    if progress is not None:
+        try:
+            payload['progress'] = max(0, min(100, int(progress)))
+        except Exception:
+            payload['progress'] = 0
+    if message is not None:
+        payload['message'] = str(message or '')[:220]
+    if error is not None:
+        payload['error'] = str(error or '')
+    if result is not None:
+        payload['result'] = result if isinstance(result, dict) else {}
+    payload.update(extra_fields or {})
+    if payload:
+        try:
+            VideoAiTrackJob.objects.filter(id=int(job_id)).update(**payload)
+        except Exception:
+            pass
+
+
+def _video_studio_ai_track_should_cancel(job_id: int) -> bool:
+    try:
+        row = VideoAiTrackJob.objects.filter(id=int(job_id)).values('status', 'cancel_requested').first()
+    except Exception:
+        return False
+    if not row:
+        return False
+    return bool(row.get('cancel_requested')) or str(row.get('status') or '').strip().lower() == VideoAiTrackJob.STATUS_CANCELED
+
+
+def _video_studio_ai_ocr_detection_roi(det: dict, *, width: int, height: int) -> dict:
+    try:
+        w0 = int(width or 0)
+        h0 = int(height or 0)
+        if w0 <= 0 or h0 <= 0:
+            return {}
+        xc = max(0.0, min(1.0, float(det.get('x_rel') or 0.0)))
+        yc = max(0.0, min(1.0, float(det.get('y_rel') or 0.0)))
+        bw = max(0.01, min(1.0, float(det.get('w_rel') or 0.0)))
+        bh = max(0.01, min(1.0, float(det.get('h_rel') or 0.0)))
+        # Torso/dorsal: zona central alta del bbox, algo generosa para tolerar postura.
+        roi_w = bw * 0.58
+        roi_h = bh * 0.34
+        roi_cx = xc
+        roi_cy = yc - (bh * 0.12)
+        x = int(round((roi_cx - roi_w * 0.5) * w0))
+        y = int(round((roi_cy - roi_h * 0.5) * h0))
+        ww = int(round(roi_w * w0))
+        hh = int(round(roi_h * h0))
+        x = max(0, min(w0 - 1, x))
+        y = max(0, min(h0 - 1, y))
+        ww = max(8, min(w0 - x, ww))
+        hh = max(8, min(h0 - y, hh))
+        return {'x': x, 'y': y, 'w': ww, 'h': hh}
+    except Exception:
+        return {}
+
+
+def _video_studio_ai_add_ocr_signals(*, video_path: str, track_payload: dict, anchors: list[dict], expected_number: str = '') -> None:
+    expected_number = str(expected_number or '').strip()
+    if not expected_number:
+        return
+    frames = track_payload.get('frames') if isinstance(track_payload.get('frames'), list) else []
+    if not frames:
+        return
+    seen = set()
+    for anchor in anchors[:10]:
+        if not isinstance(anchor, dict):
+            continue
+        try:
+            t0 = float(anchor.get('t'))
+            x0 = float(anchor.get('x_rel'))
+            y0 = float(anchor.get('y_rel'))
+        except Exception:
+            continue
+        nearest = min(frames, key=lambda row: abs(float(row.get('t') or 0.0) - t0)) if frames else None
+        if not nearest:
+            continue
+        width = int(nearest.get('width') or 0)
+        height = int(nearest.get('height') or 0)
+        rows = []
+        for det in nearest.get('detections') or []:
+            if int(det.get('class_id') or 0) != 0:
+                continue
+            dx = float(det.get('x_rel') or 0.0) - x0
+            dy = float(det.get('y_rel') or 0.0) - y0
+            dist = math.hypot(dx, dy)
+            if dist > 0.24:
+                continue
+            rows.append((dist, det))
+        rows.sort(key=lambda item: (item[0], -float(item[1].get('conf') or 0.0)))
+        for _, det in rows[:4]:
+            key = (int(nearest.get('frame') or 0), str(det.get('track_id') or ''))
+            if key in seen:
+                continue
+            seen.add(key)
+            roi = _video_studio_ai_ocr_detection_roi(det, width=width, height=height)
+            if not roi:
+                continue
+            try:
+                ocr = _video_studio_ocr_dorsal_candidates(
+                    video_path=video_path,
+                    time_s=float(nearest.get('t') or t0),
+                    roi=roi,
+                    allow_numbers=[int(expected_number)] if expected_number.isdigit() else None,
+                )
+            except Exception:
+                continue
+            best = ocr.get('best')
+            det['ocr'] = {
+                'best': int(best) if best else None,
+                'ranked': ocr.get('ranked') if isinstance(ocr.get('ranked'), list) else [],
+                'expected': expected_number,
+                'expected_match': str(best or '').strip() == expected_number,
+                'roi': roi,
+            }
+
+
+def _video_studio_ai_interp_zone_rect(zone: dict, t: float, *, fallback=None) -> dict:
+    def _num(value, default=0.0):
+        try:
+            value = float(value)
+            return value if math.isfinite(value) else default
+        except Exception:
+            return default
+
+    fb = fallback if isinstance(fallback, dict) else {}
+    raw = zone.get('kf') if isinstance(zone.get('kf'), list) else []
+    frames = []
+    for row in raw[:240]:
+        if not isinstance(row, dict):
+            continue
+        frames.append(
+            {
+                't': _num(row.get('t'), 0.0),
+                'x': _num(row.get('x_rel', row.get('x')), _num(fb.get('x'), 0.5)),
+                'y': _num(row.get('y_rel', row.get('y')), _num(fb.get('y'), 0.5)),
+                'w': max(0.002, min(1.0, _num(row.get('w_rel', row.get('w')), _num(fb.get('w'), 0.08)))),
+                'h': max(0.002, min(1.0, _num(row.get('h_rel', row.get('h')), _num(fb.get('h'), 0.08)))),
+            }
+        )
+    if not frames:
+        return {
+            'x': _num(zone.get('x_rel', zone.get('x')), _num(fb.get('x'), 0.5)),
+            'y': _num(zone.get('y_rel', zone.get('y')), _num(fb.get('y'), 0.5)),
+            'w': max(0.002, min(1.0, _num(zone.get('w_rel', zone.get('w')), _num(fb.get('w'), 0.08)))),
+            'h': max(0.002, min(1.0, _num(zone.get('h_rel', zone.get('h')), _num(fb.get('h'), 0.08)))),
+        }
+    frames.sort(key=lambda row: row['t'])
+    if len(frames) == 1 or t <= frames[0]['t']:
+        return dict(frames[0])
+    if t >= frames[-1]['t']:
+        return dict(frames[-1])
+    for idx in range(len(frames) - 1):
+        a = frames[idx]
+        b = frames[idx + 1]
+        if t < a['t'] or t > b['t']:
+            continue
+        span = max(0.001, b['t'] - a['t'])
+        u = max(0.0, min(1.0, (t - a['t']) / span))
+        return {
+            'x': a['x'] + (b['x'] - a['x']) * u,
+            'y': a['y'] + (b['y'] - a['y']) * u,
+            'w': a['w'] + (b['w'] - a['w']) * u,
+            'h': a['h'] + (b['h'] - a['h']) * u,
+        }
+    return dict(frames[-1])
+
+
+def _video_studio_ai_rect_overlap(a: dict, b: dict) -> dict:
+    ax0 = float(a.get('x') or 0.0) - (float(a.get('w') or 0.0) * 0.5)
+    ay0 = float(a.get('y') or 0.0) - (float(a.get('h') or 0.0) * 0.5)
+    ax1 = float(a.get('x') or 0.0) + (float(a.get('w') or 0.0) * 0.5)
+    ay1 = float(a.get('y') or 0.0) + (float(a.get('h') or 0.0) * 0.5)
+    bx0 = float(b.get('x') or 0.0) - (float(b.get('w') or 0.0) * 0.5)
+    by0 = float(b.get('y') or 0.0) - (float(b.get('h') or 0.0) * 0.5)
+    bx1 = float(b.get('x') or 0.0) + (float(b.get('w') or 0.0) * 0.5)
+    by1 = float(b.get('y') or 0.0) + (float(b.get('h') or 0.0) * 0.5)
+    iw = max(0.0, min(ax1, bx1) - max(ax0, bx0))
+    ih = max(0.0, min(ay1, by1) - max(ay0, by0))
+    inter = iw * ih
+    area_a = max(0.000001, (ax1 - ax0) * (ay1 - ay0))
+    area_b = max(0.000001, (bx1 - bx0) * (by1 - by0))
+    cx = float(b.get('x') or 0.0)
+    cy = float(b.get('y') or 0.0)
+    return {
+        'inter': inter,
+        'zone_ratio': inter / area_a,
+        'det_ratio': inter / area_b,
+        'center_inside': ax0 <= cx <= ax1 and ay0 <= cy <= ay1,
+    }
+
+
+def _video_studio_ai_space_occupancy_from_track_payload(track_payload: dict, *, data: dict) -> dict:
+    zones = data.get('zones') if isinstance(data.get('zones'), list) else []
+    zones = [z for z in zones if isinstance(z, dict) and str(z.get('uid') or '').strip()][:20]
+    if not zones:
+        raise ValueError('No hay espacios para analizar.')
+    frames = track_payload.get('frames') if isinstance(track_payload.get('frames'), list) else []
+    conf_min = max(0.01, min(0.95, float(data.get('person_conf') or 0.18)))
+    zone_ratio_min = max(0.001, min(1.0, float(data.get('zone_overlap') or 0.015)))
+    det_ratio_min = max(0.001, min(1.0, float(data.get('det_overlap') or 0.08)))
+    occupancy = {str(z.get('uid')): [] for z in zones}
+
+    for frame in frames:
+        t = float(frame.get('t') or 0.0)
+        people = []
+        for det in frame.get('detections') or []:
+            if int(det.get('class_id') or 0) != 0 or float(det.get('conf') or 0.0) < conf_min:
+                continue
+            people.append(
+                {
+                    'track_id': det.get('track_id'),
+                    'conf': float(det.get('conf') or 0.0),
+                    'x': float(det.get('x_rel') or 0.0),
+                    'y': float(det.get('y_rel') or 0.0),
+                    'w': float(det.get('w_rel') or 0.0),
+                    'h': float(det.get('h_rel') or 0.0),
+                }
+            )
+        play_ref = None
+        if people:
+            play_ref = {'x': sum(p['x'] for p in people) / len(people), 'y': sum(p['y'] for p in people) / len(people)}
+        for zone in zones:
+            uid = str(zone.get('uid') or '').strip()
+            rect = _video_studio_ai_interp_zone_rect(zone, t)
+            mode = str(zone.get('follow_mode') or 'manual').strip().lower()
+            offset = zone.get('follow_offset') if isinstance(zone.get('follow_offset'), dict) else {}
+            if mode == 'play' and play_ref and offset:
+                try:
+                    rect['x'] = play_ref['x'] + float(offset.get('x_rel', offset.get('x')) or 0.0)
+                    rect['y'] = play_ref['y'] + float(offset.get('y_rel', offset.get('y')) or 0.0)
+                except Exception:
+                    pass
+            matches = []
+            for person in people:
+                ov = _video_studio_ai_rect_overlap(rect, person)
+                if ov['center_inside'] or ov['zone_ratio'] >= zone_ratio_min or ov['det_ratio'] >= det_ratio_min:
+                    matches.append(
+                        {
+                            'track_id': person.get('track_id'),
+                            'conf': round(person['conf'], 4),
+                            'x_rel': round(person['x'], 5),
+                            'y_rel': round(person['y'], 5),
+                            'w_rel': round(person['w'], 5),
+                            'h_rel': round(person['h'], 5),
+                            'zone_ratio': round(float(ov['zone_ratio']), 5),
+                            'det_ratio': round(float(ov['det_ratio']), 5),
+                            'center_inside': bool(ov['center_inside']),
+                        }
+                    )
+            matches.sort(key=lambda row: (-float(row.get('zone_ratio') or 0.0), -float(row.get('conf') or 0.0)))
+            occupancy[uid].append(
+                {
+                    't': round(t, 3),
+                    'occupied': bool(matches),
+                    'count': len(matches),
+                    'zone': {
+                        'x_rel': round(max(0.0, min(1.0, rect['x'])), 5),
+                        'y_rel': round(max(0.0, min(1.0, rect['y'])), 5),
+                        'w_rel': round(max(0.0, min(1.0, rect['w'])), 5),
+                        'h_rel': round(max(0.0, min(1.0, rect['h'])), 5),
+                    },
+                    'people': matches[:8],
+                }
+            )
+    summary = {}
+    for uid, rows in occupancy.items():
+        total = len(rows)
+        occ = sum(1 for row in rows if row.get('occupied'))
+        summary[uid] = {'frames': total, 'occupied_frames': occ, 'occupied_ratio': round((occ / total) if total else 0.0, 4)}
+    return {'ok': True, 'action': 'space_occupancy', 'frames': len(frames), 'zones': len(zones), 'occupancy': occupancy, 'summary': summary}
+
+
+def _video_studio_ai_track_run_payload(*, video, clip, data: dict, job_id=None) -> dict:
+    try:
+        src = Path(str(video.video.path))
+    except Exception:
+        src = None
+    if not src or not src.exists():
+        raise ValueError('El vídeo no está disponible localmente.')
+
+    try:
+        start_s = max(0.0, float(data.get('start_s') or 0.0))
+        end_s = max(0.0, float(data.get('end_s') or 0.0))
+    except Exception:
+        start_s, end_s = 0.0, 0.0
+    if end_s <= start_s + 0.05:
+        raise ValueError('Rango IN/OUT inválido.')
+
+    anchors = data.get('anchors') if isinstance(data.get('anchors'), list) else []
+    anchors = [a for a in anchors if isinstance(a, dict)][:24]
+    def _normalize_track_anchor(raw, *, source='manual'):
+        if not isinstance(raw, dict):
+            return None
+        try:
+            row = {
+                't': max(start_s, min(end_s, float(raw.get('t')))),
+                'x_rel': max(0.0, min(1.0, float(raw.get('x_rel')))),
+                'y_rel': max(0.0, min(1.0, float(raw.get('y_rel')))),
+                'source': str(raw.get('source') or source)[:40],
+            }
+        except Exception:
+            return None
+        if raw.get('selected_track_id') is not None:
+            try:
+                row['selected_track_id'] = int(raw.get('selected_track_id'))
+            except Exception:
+                pass
+        return row
+    anchors = [a for a in (_normalize_track_anchor(a) for a in anchors) if a]
+    model_path = Path(str(data.get('model') or 'data/video_ai/models/yolo11n.pt')).resolve()
+    try:
+        from football.video_ai_services import yolo_track_video, write_track_json  # noqa: WPS433
+    except Exception as exc:
+        raise ValueError(f'IA local no disponible: {exc}') from exc
+
+    action = str(data.get('action') or 'reid').strip().lower()
+
+    if job_id:
+        if _video_studio_ai_track_should_cancel(int(job_id)):
+            raise _VideoStudioAiTrackCanceled()
+        msg = 'Detectando ocupación de espacios…' if action == 'space_occupancy' else 'Detectando jugadores…'
+        _video_studio_ai_track_update(int(job_id), progress=12, message=msg)
+    track_payload = yolo_track_video(
+        source=src,
+        model_path=model_path,
+        start_s=start_s,
+        end_s=end_s,
+        conf=max(0.05, min(0.95, float(data.get('conf') or 0.25))),
+        imgsz=max(320, min(1600, int(data.get('imgsz') or 960))),
+        include_ball=True,
+    )
+    if action == 'space_occupancy':
+        if job_id:
+            if _video_studio_ai_track_should_cancel(int(job_id)):
+                raise _VideoStudioAiTrackCanceled()
+            _video_studio_ai_track_update(int(job_id), progress=78, message='Calculando zonas ocupadas…')
+        return _video_studio_ai_space_occupancy_from_track_payload(track_payload, data=data)
+
+    if job_id:
+        if _video_studio_ai_track_should_cancel(int(job_id)):
+            raise _VideoStudioAiTrackCanceled()
+        _video_studio_ai_track_update(int(job_id), progress=58, message='Leyendo dorsal y señales…')
+    expected_number = str(data.get('expected_number') or '').strip()
+    _video_studio_ai_add_ocr_signals(
+        video_path=str(src),
+        track_payload=track_payload,
+        anchors=anchors,
+        expected_number=expected_number,
+    )
+
+    frames = track_payload.get('frames') if isinstance(track_payload.get('frames'), list) else []
+    if action == 'candidates':
+        candidates = []
+        for anchor in anchors[:12]:
+            try:
+                t0 = float(anchor.get('t'))
+                x0 = float(anchor.get('x_rel'))
+                y0 = float(anchor.get('y_rel'))
+            except Exception:
+                continue
+            nearest = min(frames, key=lambda row: abs(float(row.get('t') or 0.0) - t0)) if frames else None
+            rows = []
+            for det in (nearest or {}).get('detections', []):
+                if int(det.get('class_id') or 0) != 0:
+                    continue
+                dx = float(det.get('x_rel') or 0.0) - x0
+                dy = float(det.get('y_rel') or 0.0) - y0
+                dist = math.hypot(dx, dy)
+                if dist > 0.22:
+                    continue
+                row = dict(det)
+                row['distance'] = round(float(dist), 5)
+                rows.append(row)
+            rows.sort(key=lambda r: (float(r.get('distance') or 0.0), -float(r.get('conf') or 0.0)))
+            candidates.append({'anchor': anchor, 'frame_t': (nearest or {}).get('t'), 'detections': rows[:8]})
+        return {'ok': True, 'action': 'candidates', 'frames': len(frames), 'candidates': candidates}
+
+    if action != 'reid':
+        raise ValueError('action no soportada.')
+    if not clip:
+        raise ValueError('clip_id requerido para ReID.')
+
+    marker_uid = str(data.get('marker_uid') or '').strip()[:100]
+    try:
+        correction_rows = list(
+            VideoAiCorrectionExample.objects
+            .filter(team=clip.team, video=video, clip=clip, marker_uid=marker_uid, time_ms__gte=int(start_s * 1000), time_ms__lte=int(end_s * 1000))
+            .order_by('time_ms', 'id')[:80]
+        )
+    except Exception:
+        correction_rows = []
+    if correction_rows:
+        anchors.extend(
+            {
+                't': max(start_s, min(end_s, float(row.time_ms or 0) / 1000.0)),
+                'x_rel': max(0.0, min(1.0, float(row.x_rel or 0.0))),
+                'y_rel': max(0.0, min(1.0, float(row.y_rel or 0.0))),
+                'source': 'saved_correction',
+            }
+            for row in correction_rows
+        )
+    if anchors:
+        anchors.sort(key=lambda row: float(row.get('t') or 0.0))
+        deduped = []
+        for row in anchors:
+            if deduped and abs(float(row.get('t') or 0.0) - float(deduped[-1].get('t') or 0.0)) < 0.08:
+                # La corrección más reciente/externa prevalece sobre el anchor base.
+                if str(row.get('source') or '') in {'saved_correction', 'manual'} or row.get('selected_track_id') is not None:
+                    deduped[-1] = row
+            else:
+                deduped.append(row)
+        anchors = deduped[:80]
+
+    if job_id:
+        if _video_studio_ai_track_should_cancel(int(job_id)):
+            raise _VideoStudioAiTrackCanceled()
+        _video_studio_ai_track_update(int(job_id), progress=72, message='Reidentificando jugador…')
+    output_uid = str(data.get('output_uid') or 'ai-reid').strip()[:80] or 'ai-reid'
+    tmp_out = Path(tempfile.gettempdir()) / f'2j-ai-track-{uuid.uuid4().hex}.json'
+    tmp_anchors = Path(tempfile.gettempdir()) / f'2j-ai-anchors-{uuid.uuid4().hex}.json'
+    try:
+        write_track_json(track_payload, tmp_out)
+        tmp_anchors.write_text(json.dumps(anchors, ensure_ascii=False), encoding='utf-8')
+        from django.core.management import call_command  # noqa: WPS433
+
+        call_command(
+            'video_ai_reidentify_track',
+            track_json=str(tmp_out),
+            clip_id=int(clip.id),
+            marker_uid=marker_uid,
+            output_uid=output_uid,
+            expected_number=expected_number,
+            identity_lock=bool(data.get('identity_lock', True)),
+            identity_threshold=max(0.25, min(0.95, float(data.get('identity_threshold') or 0.74))),
+            anchors_json=str(tmp_anchors),
+            save_to_clip=True,
+            verbosity=0,
+        )
+        clip.refresh_from_db()
+        tracking = (clip.overlay or {}).get('tracking') if isinstance(clip.overlay, dict) else {}
+        meta = (tracking or {}).get('meta') if isinstance(tracking, dict) else {}
+        points = ((tracking or {}).get('tracks') or {}).get(output_uid) or []
+        return {'ok': True, 'action': 'reid', 'points': points, 'meta': (meta or {}).get(output_uid) or {}}
+    finally:
+        try:
+            tmp_out.unlink(missing_ok=True)
+        except Exception:
+            pass
+        try:
+            tmp_anchors.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
+def _video_studio_ai_quality_from_points(points: list, *, meta=None) -> dict:
+    samples = []
+    jumps = []
+    prev = None
+    for raw in points if isinstance(points, list) else []:
+        if not isinstance(raw, dict):
+            continue
+        try:
+            t = float(raw.get('t'))
+            x = float(raw.get('x_rel') if raw.get('x_rel') is not None else raw.get('x'))
+            y = float(raw.get('y_rel') if raw.get('y_rel') is not None else raw.get('y'))
+        except Exception:
+            continue
+        conf = raw.get('confidence')
+        try:
+            conf_f = float(conf)
+        except Exception:
+            conf_f = None
+        if conf_f is not None:
+            samples.append(max(0.0, min(1.0, conf_f)))
+        if prev:
+            dt = max(0.001, t - prev['t'])
+            speed = math.hypot(x - prev['x'], y - prev['y']) / dt
+            if speed > 0.9:
+                jumps.append({'t': t, 'speed': round(speed, 4)})
+        prev = {'t': t, 'x': x, 'y': y}
+    meta = meta if isinstance(meta, dict) else {}
+    confidence = meta.get('confidence') if isinstance(meta.get('confidence'), dict) else {}
+    low_ranges = confidence.get('low_ranges') if isinstance(confidence.get('low_ranges'), list) else []
+    avg = sum(samples) / len(samples) if samples else float(confidence.get('avg') or 0.0)
+    score = max(0.0, min(1.0, avg - (len(low_ranges) * 0.08) - (len(jumps[:8]) * 0.035)))
+    if score >= 0.74:
+        label = 'high'
+    elif score >= 0.52:
+        label = 'medium'
+    else:
+        label = 'low'
+    return {
+        'score': round(float(score), 4),
+        'label': label,
+        'points': len(points) if isinstance(points, list) else 0,
+        'low_ranges': low_ranges[:20],
+        'jumps': jumps[:20],
+        'needs_correction': bool(label != 'high' or low_ranges or jumps),
+    }
+
+
+def _video_studio_ai_clip_tracking_payload(clip, marker_uid='') -> tuple[list, dict]:
+    overlay = clip.overlay if clip and isinstance(getattr(clip, 'overlay', None), dict) else {}
+    tracking = overlay.get('tracking') if isinstance(overlay.get('tracking'), dict) else {}
+    tracks = tracking.get('tracks') if isinstance(tracking.get('tracks'), dict) else {}
+    meta = tracking.get('meta') if isinstance(tracking.get('meta'), dict) else {}
+    marker_uid = str(marker_uid or '').strip()
+    if marker_uid and isinstance(tracks.get(marker_uid), list):
+        return tracks.get(marker_uid) or [], meta.get(marker_uid) if isinstance(meta.get(marker_uid), dict) else {}
+    for uid, points in tracks.items():
+        if isinstance(points, list) and points:
+            return points, meta.get(uid) if isinstance(meta.get(uid), dict) else {}
+    return [], {}
+
+
+def _video_studio_ai_pro_profile_from_clip(clip, marker_uid='') -> dict:
+    points, meta = _video_studio_ai_clip_tracking_payload(clip, marker_uid=marker_uid)
+    quality = _video_studio_ai_quality_from_points(points, meta=meta)
+    signals = meta.get('signals') if isinstance(meta.get('signals'), dict) else {}
+    return {
+        'marker_uid': str(marker_uid or meta.get('marker_uid') or '').strip(),
+        'quality': quality,
+        'signals': signals,
+        'target_model': {
+            'version': 'local-profile-v1',
+            'color_refs': signals.get('team_color_refs') if isinstance(signals.get('team_color_refs'), list) else [],
+            'expected_number': str(signals.get('expected_number') or signals.get('ocr_number') or ''),
+            'used_track_ids': meta.get('used_track_ids') if isinstance(meta.get('used_track_ids'), list) else [],
+            'points': len(points) if isinstance(points, list) else 0,
+        },
+    }
+
+
+def _video_studio_ai_identity_profile_from_clip(clip, marker_uid='') -> dict:
+    points, meta = _video_studio_ai_clip_tracking_payload(clip, marker_uid=marker_uid)
+    signals = meta.get('signals') if isinstance(meta.get('signals'), dict) else {}
+    signature = signals.get('identity_signature') if isinstance(signals.get('identity_signature'), dict) else {}
+    return {
+        'version': 'identity-lock-v1',
+        'marker_uid': str(marker_uid or '').strip(),
+        'points': len(points) if isinstance(points, list) else 0,
+        'signature': signature,
+        'expected_number': str(signals.get('expected_number') or signals.get('ocr_number') or ''),
+        'team_color_refs': signals.get('team_color_refs') if isinstance(signals.get('team_color_refs'), list) else [],
+        'switches_blocked': int(signals.get('identity_switches_blocked') or 0),
+        'accepts': int(signals.get('identity_accepts') or 0),
+        'locked': bool(signals.get('identity_lock')),
+    }
+
+
+def _video_studio_ai_pro_store_overlay(clip, key: str, payload: dict) -> None:
+    if not clip:
+        return
+    overlay = clip.overlay if isinstance(getattr(clip, 'overlay', None), dict) else {}
+    ai_pro = overlay.get('ai_pro') if isinstance(overlay.get('ai_pro'), dict) else {}
+    ai_pro[str(key)] = payload if isinstance(payload, dict) else {}
+    overlay['ai_pro'] = ai_pro
+    clip.overlay = overlay
+    clip.save(update_fields=['overlay', 'updated_at'])
+
+
+def _video_studio_ai_pro_batch_result(*, job, data: dict) -> dict:
+    _video_studio_ai_track_update(int(job.id), progress=18, message='Analizando clips…')
+    clip_ids = data.get('clip_ids') if isinstance(data.get('clip_ids'), list) else []
+    qs = VideoClip.objects.filter(team=job.team, video=job.video)
+    if clip_ids:
+        qs = qs.filter(id__in=[int(x) for x in clip_ids if str(x).isdigit()])
+    clips = list(qs.order_by('in_ms')[:80])
+    items = []
+    for idx, clip in enumerate(clips):
+        if _video_studio_ai_track_should_cancel(int(job.id)):
+            raise _VideoStudioAiTrackCanceled()
+        points, meta = _video_studio_ai_clip_tracking_payload(clip)
+        quality = _video_studio_ai_quality_from_points(points, meta=meta)
+        tags = clip.tags if isinstance(getattr(clip, 'tags', None), list) else []
+        suggestions = []
+        if quality.get('needs_correction'):
+            suggestions.append('corregir_seguimiento')
+        if not tags:
+            suggestions.append('etiquetar_patron')
+        if points:
+            suggestions.append('export_pro')
+        items.append(
+            {
+                'clip_id': int(clip.id),
+                'title': str(clip.title or f'Clip {clip.id}'),
+                'in_s': clip.in_seconds,
+                'out_s': clip.out_seconds,
+                'quality': quality,
+                'suggestions': suggestions,
+            }
+        )
+        if idx % 4 == 0:
+            _video_studio_ai_track_update(int(job.id), progress=18 + int((idx + 1) * 60 / max(1, len(clips))), message='Procesando batch…')
+    return {'ok': True, 'action': 'batch', 'clips': len(items), 'items': items}
+
+
+def _video_studio_ai_pro_train_result(*, job, data: dict) -> dict:
+    _video_studio_ai_track_update(int(job.id), progress=20, message='Preparando ejemplos…')
+    examples_qs = VideoAiCorrectionExample.objects.filter(team=job.team, video=job.video).order_by('-created_at')[:500]
+    examples = list(examples_qs)
+    by_marker = Counter(str(e.marker_uid or '') for e in examples)
+    ready = len(examples) >= 25
+    _video_studio_ai_track_update(int(job.id), progress=70, message='Evaluando dataset…')
+    return {
+        'ok': True,
+        'action': 'train',
+        'ready': bool(ready),
+        'examples': len(examples),
+        'markers': [{'uid': uid, 'examples': count} for uid, count in by_marker.most_common(12)],
+        'mode': 'dry_run' if not ready else 'queued_local_training',
+        'message': 'Faltan ejemplos para entrenar con garantías.' if not ready else 'Dataset listo para entrenamiento local.',
+        'next_min_examples': 25,
+    }
+
+
+def _video_studio_ai_action_zone(x_rel: float, y_rel: float) -> dict:
+    x = max(0.0, min(1.0, float(x_rel or 0.0)))
+    y = max(0.0, min(1.0, float(y_rel or 0.0)))
+    if x < 0.33:
+        third = 'inicio'
+    elif x < 0.66:
+        third = 'medio'
+    else:
+        third = 'ultimo_tercio'
+    if y < 0.22:
+        lane = 'banda_izquierda'
+    elif y > 0.78:
+        lane = 'banda_derecha'
+    elif 0.38 <= y <= 0.62:
+        lane = 'carril_central'
+    else:
+        lane = 'carril_intermedio'
+    box = bool(x >= 0.82 and 0.28 <= y <= 0.72)
+    return {'third': third, 'lane': lane, 'box': box, 'x_rel': round(x, 4), 'y_rel': round(y, 4)}
+
+
+def _video_studio_ai_action_motion(points: list) -> dict:
+    rows = []
+    for raw in points if isinstance(points, list) else []:
+        if not isinstance(raw, dict):
+            continue
+        try:
+            rows.append(
+                {
+                    't': float(raw.get('t')),
+                    'x': float(raw.get('x_rel') if raw.get('x_rel') is not None else raw.get('x')),
+                    'y': float(raw.get('y_rel') if raw.get('y_rel') is not None else raw.get('y')),
+                }
+            )
+        except Exception:
+            continue
+    rows.sort(key=lambda r: r['t'])
+    if len(rows) < 2:
+        return {'points': len(rows), 'distance': 0.0, 'speed_avg': 0.0, 'progression': 0.0, 'lateral': 0.0, 'start': rows[0] if rows else {}, 'end': rows[-1] if rows else {}}
+    dist = 0.0
+    speeds = []
+    for a, b in zip(rows, rows[1:]):
+        dt = max(0.001, b['t'] - a['t'])
+        d = math.hypot(b['x'] - a['x'], b['y'] - a['y'])
+        dist += d
+        speeds.append(d / dt)
+    duration = max(0.001, rows[-1]['t'] - rows[0]['t'])
+    return {
+        'points': len(rows),
+        'duration': round(duration, 3),
+        'distance': round(dist, 4),
+        'speed_avg': round(sum(speeds) / len(speeds), 4) if speeds else 0.0,
+        'speed_max': round(max(speeds), 4) if speeds else 0.0,
+        'progression': round(rows[-1]['x'] - rows[0]['x'], 4),
+        'lateral': round(abs(rows[-1]['y'] - rows[0]['y']), 4),
+        'start': rows[0],
+        'end': rows[-1],
+    }
+
+
+def _video_studio_ai_action_feedback_bias(team, video, action_key: str) -> float:
+    try:
+        qs = VideoAiActionExample.objects.filter(team=team, video=video, action_key=str(action_key or '')[:80])
+        pos = qs.filter(is_positive=True).count()
+        neg = qs.filter(is_positive=False).count()
+        total = pos + neg
+        if total <= 0:
+            return 0.0
+        return max(-0.12, min(0.12, ((pos - neg) / max(1, total)) * 0.08))
+    except Exception:
+        return 0.0
+
+
+def _video_studio_ai_normalize_field_points(raw) -> dict:
+    points = raw if isinstance(raw, dict) else {}
+    out = {}
+    for key in ('tl', 'tr', 'br', 'bl', 'center'):
+        row = points.get(key) if isinstance(points.get(key), dict) else {}
+        try:
+            x = max(0.0, min(1.0, float(row.get('x'))))
+            y = max(0.0, min(1.0, float(row.get('y'))))
+        except Exception:
+            continue
+        out[key] = {'x': round(x, 5), 'y': round(y, 5)}
+    return out
+
+
+def _video_studio_ai_get_game_calibration(team, video, *, phase: str = '') -> dict:
+    phase = str(phase or '').strip()[:40]
+    try:
+        qs = VideoAiGameCalibration.objects.filter(team=team, video=video)
+        if phase:
+            row = qs.filter(phase=phase).first() or qs.filter(phase='').first()
+        else:
+            row = qs.filter(phase='').first() or qs.first()
+    except Exception:
+        row = None
+    if not row:
+        return {
+            'available': False,
+            'field_calibrated': False,
+            'attack_direction_known': False,
+            'attack_direction': 'unknown',
+            'confidence': 0.0,
+            'field_points': {},
+        }
+    direction = str(getattr(row, 'attack_direction', '') or 'unknown')
+    points = _video_studio_ai_normalize_field_points(getattr(row, 'field_points', None))
+    confidence = max(0.0, min(1.0, float(getattr(row, 'confidence', 0.0) or 0.0)))
+    field_calibrated = len(points) >= 4 and confidence >= 0.45
+    return {
+        'available': True,
+        'id': int(row.id),
+        'phase': str(getattr(row, 'phase', '') or ''),
+        'field_calibrated': field_calibrated,
+        'attack_direction_known': direction in {'ltr', 'rtl'},
+        'attack_direction': direction if direction in {'ltr', 'rtl'} else 'unknown',
+        'confidence': round(confidence, 4),
+        'field_points': points,
+        'payload': row.payload if isinstance(getattr(row, 'payload', None), dict) else {},
+        'updated_at': row.updated_at.isoformat() if getattr(row, 'updated_at', None) else '',
+    }
+
+
+def _video_studio_ai_attack_progression(dx: float, calibration: dict) -> float:
+    direction = str((calibration or {}).get('attack_direction') or 'unknown')
+    if direction == 'rtl':
+        return -float(dx or 0.0)
+    if direction == 'ltr':
+        return float(dx or 0.0)
+    return 0.0
+
+
+def _video_studio_ai_default_knowledge_entries() -> list[dict]:
+    sources = {
+        'fifa_training_centre': 'https://www.fifatrainingcentre.com/',
+        'uefa_technical': 'https://www.uefa.com/technical/',
+        'the_ifab_laws': 'https://www.theifab.com/laws/latest/',
+        'england_football_learning': 'https://learn.englandfootball.com/',
+        'club_model_seed': '',
+    }
+
+    def _entry(source_key, pack, category, concept_key, title, summary, *, keywords=None, actions=None, visual_signals=None, zones=None, lanes=None, confidence_bias=0.05, payload_extra=None):
+        payload = {
+            'pack': pack,
+            'keywords': keywords or [],
+            'actions': actions or [],
+            'visual_signals': visual_signals or [],
+            'zones': zones or [],
+            'lanes': lanes or [],
+            'confidence_bias': float(confidence_bias or 0.0),
+        }
+        if isinstance(payload_extra, dict):
+            payload.update(payload_extra)
+        # Compatibilidad con el clasificador existente.
+        payload['signals'] = list(payload['visual_signals'])
+        return {
+            'source_key': source_key,
+            'source_url': sources.get(source_key, ''),
+            'category': category,
+            'concept_key': concept_key,
+            'title': title,
+            'summary': summary,
+            'payload': payload,
+        }
+
+    entries = [
+        _entry('fifa_training_centre', 'fases_juego', 'fase', 'fase_ataque_organizado', 'Ataque organizado', 'Posesión estable para progresar, fijar y crear ventaja.', keywords=['ataque organizado', 'posesion', 'progresion', 'salida', 'build up'], actions=['progresion', 'tercer_hombre'], visual_signals=['progression'], zones=['inicio', 'medio']),
+        _entry('fifa_training_centre', 'fases_juego', 'fase', 'fase_defensa_organizada', 'Defensa organizada', 'Bloque defensivo estabilizado para proteger espacios y orientar al rival.', keywords=['defensa organizada', 'bloque', 'linea defensiva', 'repliegue'], actions=['presion', 'cobertura', 'temporizacion'], visual_signals=['low_progression'], zones=['inicio', 'medio']),
+        _entry('fifa_training_centre', 'transiciones', 'fase', 'fase_transicion_ofensiva', 'Transición ofensiva', 'Cambio rápido tras recuperación para atacar espacios antes de que el rival se organice.', keywords=['transicion', 'robo', 'recuperacion', 'contraataque'], actions=['transicion_ofensiva', 'robo'], visual_signals=['progression', 'speed']),
+        _entry('fifa_training_centre', 'transiciones', 'fase', 'fase_transicion_defensiva', 'Transición defensiva', 'Respuesta inmediata tras pérdida: presión tras pérdida, repliegue o falta táctica.', keywords=['perdida', 'presion tras perdida', 'repliegue'], actions=['presion', 'presion_probable'], visual_signals=['speed', 'near_loss']),
+        _entry('uefa_technical', 'estructuras', 'estructura', 'estructura_amplitud_profundidad', 'Amplitud y profundidad', 'Uso de carriles exteriores y rupturas para estirar al rival horizontal y verticalmente.', keywords=['amplitud', 'profundidad', 'banda', 'ruptura'], actions=['1v1_banda', 'ruptura', 'centro_lateral'], visual_signals=['positive_progression'], lanes=['banda_izquierda', 'banda_derecha'], confidence_bias=0.07),
+        _entry('uefa_technical', 'estructuras', 'estructura', 'estructura_salida_3_2', 'Salida 3+2', 'Estructura de inicio con tres jugadores en primera línea y dos apoyos interiores.', keywords=['salida 3+2', 'salida de tres', 'pivotes', 'inicio'], actions=['progresion', 'tercer_hombre'], visual_signals=['low_speed', 'progression'], zones=['inicio']),
+        _entry('uefa_technical', 'ataque_posicional', 'principio', 'fijar_para_liberar', 'Fijar para liberar', 'Atraer o fijar a un rival para soltar ventaja en otra zona.', keywords=['fijar', 'atraer', 'liberar', 'soltar'], actions=['tercer_hombre', 'progresion'], visual_signals=['low_speed', 'progression'], zones=['medio']),
+        _entry('uefa_technical', 'ataque_posicional', 'principio', 'tercer_hombre', 'Tercer hombre', 'Relación de pase donde un apoyo libera a un tercer jugador mejor orientado.', keywords=['tercer hombre', 'apoyo', 'pared', 'continuidad'], actions=['tercer_hombre', 'progresion'], visual_signals=['progression'], zones=['medio', 'ultimo_tercio']),
+        _entry('uefa_technical', 'desmarques', 'desmarque', 'desmarque_ruptura', 'Desmarque de ruptura', 'Movimiento para atacar espalda de línea defensiva y recibir en ventaja.', keywords=['ruptura', 'espalda', 'profundidad', 'desmarque'], actions=['ruptura'], visual_signals=['positive_progression', 'ultimo_tercio'], zones=['ultimo_tercio'], confidence_bias=0.08),
+        _entry('uefa_technical', 'desmarques', 'desmarque', 'desmarque_apoyo', 'Desmarque de apoyo', 'Movimiento hacia poseedor para ofrecer línea de pase y dar continuidad.', keywords=['apoyo', 'venir a recibir', 'continuidad'], actions=['progresion', 'tercer_hombre'], visual_signals=['low_speed'], zones=['inicio', 'medio']),
+        _entry('uefa_technical', 'desmarques', 'desmarque', 'desmarque_arrastre', 'Desmarque de arrastre', 'Movimiento que atrae marcador para liberar espacio a un compañero.', keywords=['arrastre', 'liberar espacio', 'fijar central'], actions=['ruptura', 'tercer_hombre'], visual_signals=['lateral_movement'], zones=['medio', 'ultimo_tercio']),
+        _entry('uefa_technical', 'desmarques', 'desmarque', 'desmarque_aparicion', 'Desmarque de aparición', 'Llegada desde segunda línea a zona libre de remate o recepción.', keywords=['aparicion', 'segunda linea', 'llegada'], actions=['finalizacion', 'ruptura'], visual_signals=['positive_progression'], zones=['ultimo_tercio']),
+        _entry('uefa_technical', 'tipos_pase', 'pase', 'pase_filtrado', 'Pase filtrado', 'Pase que supera una línea rival y encuentra receptor entre intervalos o a la espalda.', keywords=['pase filtrado', 'filtrado', 'entre lineas', 'line-break'], actions=['ruptura', 'progresion'], visual_signals=['progression'], zones=['medio', 'ultimo_tercio'], confidence_bias=0.07),
+        _entry('uefa_technical', 'tipos_pase', 'pase', 'pase_vertical', 'Pase vertical', 'Pase que gana metros y conecta líneas por dentro o carriles intermedios.', keywords=['pase vertical', 'vertical', 'progresar'], actions=['progresion'], visual_signals=['positive_progression'], zones=['inicio', 'medio']),
+        _entry('uefa_technical', 'tipos_pase', 'pase', 'cambio_orientacion', 'Cambio de orientación', 'Pase hacia lado débil para atacar ventaja en amplitud.', keywords=['cambio de orientacion', 'lado debil', 'lado débil'], actions=['progresion', 'centro_lateral'], visual_signals=['lateral_movement'], lanes=['banda_izquierda', 'banda_derecha']),
+        _entry('uefa_technical', 'tipos_pase', 'pase', 'centro_lateral', 'Centro lateral', 'Envío desde carril exterior hacia zona de remate, normalmente en último tercio.', keywords=['centro', 'cross', 'lateral', 'area'], actions=['centro_lateral', 'finalizacion'], lanes=['banda_izquierda', 'banda_derecha'], zones=['ultimo_tercio'], confidence_bias=0.08),
+        _entry('england_football_learning', 'presion', 'principio', 'presion_y_cobertura', 'Presión y cobertura', 'Defender con presión al poseedor y apoyos cercanos que protegen espacios.', keywords=['presion', 'cobertura', 'acoso', 'duelo'], actions=['presion', 'robo'], visual_signals=['speed'], confidence_bias=0.06),
+        _entry('england_football_learning', 'presion', 'principio', 'presion_tras_perdida_5s', 'Presión tras pérdida 5s', 'Reacción inmediata para recuperar tras perder el balón antes de que el rival salga.', keywords=['presion tras perdida', '5s', 'perdida', 'recuperacion inmediata'], actions=['presion', 'robo'], visual_signals=['speed', 'near_loss'], confidence_bias=0.08),
+        _entry('england_football_learning', 'presion', 'principio', 'orientar_fuera', 'Orientar hacia fuera', 'Presión que dirige al rival hacia banda para reducir opciones interiores.', keywords=['orientar fuera', 'banda', 'cerrar dentro'], actions=['presion', '1v1_banda'], visual_signals=['lateral_movement'], lanes=['banda_izquierda', 'banda_derecha']),
+        _entry('the_ifab_laws', 'abp', 'abp', 'abp_reinicio_juego', 'Acciones a balón parado', 'Reanudaciones regladas: faltas, saques de esquina, banda, penalti y otros reinicios.', keywords=['abp', 'corner', 'falta', 'penalti', 'saque de banda'], actions=['abp'], visual_signals=['restart']),
+        _entry('the_ifab_laws', 'abp', 'abp', 'corner_ofensivo', 'Córner ofensivo', 'Saque de esquina con organización de remate, bloqueos, atacantes y rechace.', keywords=['corner', 'saque de esquina', 'bloqueo', 'remate'], actions=['abp', 'finalizacion'], zones=['ultimo_tercio']),
+        _entry('the_ifab_laws', 'abp', 'abp', 'falta_lateral', 'Falta lateral', 'Reinicio lateral cercano a área con centros, segundas jugadas y línea defensiva.', keywords=['falta lateral', 'libre indirecto', 'centro falta'], actions=['abp', 'centro_lateral'], zones=['ultimo_tercio']),
+        _entry('uefa_technical', 'portero', 'portero', 'portero_iniciador', 'Portero iniciador', 'Participación del portero en salida, atracción y pase para superar primera presión.', keywords=['portero', 'salida', 'juego de pies', 'iniciar'], actions=['progresion'], visual_signals=['low_speed'], zones=['inicio']),
+        _entry('uefa_technical', 'portero', 'portero', 'portero_profundidad', 'Portero y balón largo', 'Uso de pase largo o directo para atacar segunda jugada o espalda rival.', keywords=['balon largo', 'saque largo', 'portero directo'], actions=['progresion', 'ruptura'], visual_signals=['positive_progression'], zones=['inicio', 'medio']),
+        _entry('england_football_learning', 'defensa_linea', 'defensa', 'linea_defensiva_control_espalda', 'Control de espalda', 'Coordinación de la línea para defender profundidad y rupturas.', keywords=['linea defensiva', 'espalda', 'control profundidad'], actions=['ruptura', 'temporizacion'], visual_signals=['ultimo_tercio'], zones=['ultimo_tercio']),
+        _entry('england_football_learning', 'defensa_linea', 'defensa', 'cobertura_defensiva', 'Cobertura defensiva', 'Apoyo al defensor que salta a presión para cerrar progresión.', keywords=['cobertura', 'ayuda defensiva', 'basculacion'], actions=['presion', 'cobertura'], visual_signals=['lateral_movement']),
+        _entry('club_model_seed', 'modelo_club', 'club', 'modelo_club_atraer_soltar', 'Atraer y soltar', 'Concepto editable del club: atraer presión y soltar al hombre libre.', keywords=['atraer y soltar', 'atraer', 'hombre libre'], actions=['tercer_hombre', 'progresion'], visual_signals=['low_speed', 'progression'], zones=['inicio', 'medio'], confidence_bias=0.08),
+        _entry('club_model_seed', 'modelo_club', 'club', 'modelo_club_extremo_ruptura', 'Ruptura del extremo', 'Concepto editable del club: extremo ataca espalda del lateral tras fijación.', keywords=['ruptura extremo', 'espalda lateral', 'fijar lateral'], actions=['ruptura', '1v1_banda'], visual_signals=['positive_progression', 'ultimo_tercio'], lanes=['banda_izquierda', 'banda_derecha'], confidence_bias=0.08),
+        _entry('club_model_seed', 'modelo_club', 'club', 'modelo_club_presion_5s', 'Presión 5 segundos', 'Concepto editable del club: recuperar inmediatamente tras pérdida cerca de balón.', keywords=['presion 5s', 'tras perdida 5s', 'recuperar rapido'], actions=['presion', 'robo'], visual_signals=['speed', 'near_loss'], confidence_bias=0.08),
+    ]
+    entries.extend(
+        [
+            _entry('club_model_seed', 'analista_senior_fases', 'criterio', 'criterio_no_afirmar_sin_evidencia', 'No afirmar sin evidencia', 'Una lectura táctica sólo se afirma cuando hay balón, dirección, zona y contexto fiables; si falta una señal, se marca como hipótesis.', keywords=['hipotesis', 'evidencia', 'confianza', 'revision'], actions=['accion_sin_clasificar'], visual_signals=[], confidence_bias=0.0),
+            _entry('club_model_seed', 'analista_senior_fases', 'fase', 'fase_inicio_juego', 'Inicio de juego', 'Tramo donde el equipo inicia desde portero o primera línea y busca superar primera presión.', keywords=['inicio de juego', 'salida', 'primera linea', 'portero'], actions=['progresion'], zones=['inicio'], visual_signals=['low_speed']),
+            _entry('club_model_seed', 'analista_senior_fases', 'fase', 'fase_progresion', 'Progresión', 'Avance con balón que supera línea rival o gana zona útil hacia portería rival.', keywords=['progresion', 'superar linea', 'ganar metros'], actions=['progresion'], zones=['inicio', 'medio'], visual_signals=['positive_progression']),
+            _entry('club_model_seed', 'analista_senior_fases', 'fase', 'fase_creacion', 'Creación', 'Fase en campo rival para fijar, atraer, liberar y generar ventaja antes de finalizar.', keywords=['creacion', 'ventaja', 'ultimo tercio', 'entre lineas'], actions=['tercer_hombre', 'ruptura'], zones=['medio', 'ultimo_tercio']),
+            _entry('club_model_seed', 'analista_senior_fases', 'fase', 'fase_finalizacion', 'Finalización', 'Acción o secuencia en zona de remate con tiro, último pase, centro o pase atrás.', keywords=['finalizacion', 'remate', 'tiro', 'ultimo pase', 'pase atras'], actions=['finalizacion', 'centro_lateral'], zones=['ultimo_tercio']),
+            _entry('club_model_seed', 'analista_senior_defensa', 'principio', 'defender_espalda_lateral', 'Defender espalda del lateral', 'Vigilar ruptura o pase largo al espacio situado detrás del lateral o carril exterior.', keywords=['espalda lateral', 'pase largo espalda', 'ruptura espalda lateral'], actions=['ruptura'], lanes=['banda_izquierda', 'banda_derecha'], zones=['medio', 'ultimo_tercio']),
+            _entry('club_model_seed', 'analista_senior_ataque', 'principio', 'atacar_espalda_lateral', 'Atacar espalda del lateral', 'Buscar pase largo o ruptura al espacio detrás del lateral cuando la línea rival está alta o mal orientada.', keywords=['atacar espalda lateral', 'pase largo espalda lateral', 'ruptura extremo'], actions=['ruptura', 'progresion'], lanes=['banda_izquierda', 'banda_derecha'], zones=['medio', 'ultimo_tercio']),
+            _entry('club_model_seed', 'analista_senior_pases', 'pase', 'pase_largo_espalda', 'Pase largo a la espalda', 'Envío profundo que supera línea defensiva y activa carrera del receptor hacia espacio libre.', keywords=['pase largo', 'balon largo', 'espalda', 'profundidad'], actions=['ruptura', 'progresion'], visual_signals=['positive_progression', 'speed']),
+            _entry('club_model_seed', 'analista_senior_pases', 'pase', 'pase_atras', 'Pase atrás', 'Pase desde línea de fondo o zona lateral hacia zona de remate retrasada.', keywords=['pase atras', 'cutback', 'linea de fondo'], actions=['finalizacion'], zones=['ultimo_tercio'], lanes=['banda_izquierda', 'banda_derecha']),
+            _entry('club_model_seed', 'analista_senior_pases', 'pase', 'pase_ruptura_intervalo', 'Pase al intervalo', 'Pase que encuentra el espacio entre central-lateral o central-central.', keywords=['intervalo', 'central lateral', 'entre centrales'], actions=['ruptura', 'progresion'], zones=['medio', 'ultimo_tercio']),
+            _entry('club_model_seed', 'analista_senior_pases', 'pase', 'pase_apoyo_cara', 'Pase de cara', 'Recepción de apoyo que descarga a jugador orientado para progresar o cambiar orientación.', keywords=['pase de cara', 'descarga', 'apoyo', 'tercer hombre'], actions=['tercer_hombre'], zones=['medio']),
+            _entry('club_model_seed', 'analista_senior_desmarques', 'desmarque', 'desmarque_doble_movimiento', 'Doble movimiento', 'Amago de apoyo/ruptura o ruptura/apoyo para desajustar marca antes de recibir.', keywords=['doble movimiento', 'amago', 'desmarque'], actions=['ruptura'], visual_signals=['lateral_movement']),
+            _entry('club_model_seed', 'analista_senior_desmarques', 'desmarque', 'desmarque_tercer_hombre', 'Desmarque de tercer hombre', 'Movimiento del receptor final antes de que el segundo jugador descargue el balón.', keywords=['tercer hombre', 'hombre libre', 'descarga'], actions=['tercer_hombre'], zones=['medio', 'ultimo_tercio']),
+            _entry('club_model_seed', 'analista_senior_desmarques', 'desmarque', 'desmarque_lado_debil', 'Aparición lado débil', 'Movimiento hacia lado alejado de balón para recibir cambio de orientación o atacar segundo palo.', keywords=['lado debil', 'segundo palo', 'cambio orientacion'], actions=['ruptura', 'centro_lateral'], lanes=['banda_izquierda', 'banda_derecha']),
+            _entry('club_model_seed', 'analista_senior_presion', 'defensa', 'presion_salto_lateral', 'Salto del lateral a presión', 'Lateral abandona línea para presionar receptor exterior; exige cobertura de central o mediocentro.', keywords=['salto lateral', 'presion lateral', 'cobertura central'], actions=['presion', 'cobertura'], lanes=['banda_izquierda', 'banda_derecha']),
+            _entry('club_model_seed', 'analista_senior_presion', 'defensa', 'presion_trampa_banda', 'Trampa en banda', 'Orientar al rival a banda para cerrar línea interior y forzar pérdida o pase atrás.', keywords=['trampa banda', 'orientar fuera', 'cerrar dentro'], actions=['presion', 'robo'], lanes=['banda_izquierda', 'banda_derecha']),
+            _entry('club_model_seed', 'analista_senior_presion', 'defensa', 'presion_sombra', 'Sombra de presión', 'Presionante tapa línea de pase mientras acosa al poseedor.', keywords=['sombra de presion', 'tapar linea pase'], actions=['presion'], visual_signals=['speed']),
+            _entry('club_model_seed', 'analista_senior_transiciones', 'transicion', 'perdida_contra_presion', 'Pérdida y contrapresión', 'Tras pérdida cercana, varios jugadores reducen espacio alrededor del balón para impedir salida rival.', keywords=['perdida', 'contrapresion', 'presion tras perdida'], actions=['presion'], visual_signals=['speed', 'near_loss']),
+            _entry('club_model_seed', 'analista_senior_transiciones', 'transicion', 'recuperacion_primer_pase', 'Recuperación y primer pase', 'Tras robo, primer pase decide si se conserva, se acelera o se cambia orientación.', keywords=['recuperacion', 'primer pase', 'robo'], actions=['robo', 'transicion_ofensiva'], visual_signals=['speed']),
+            _entry('club_model_seed', 'analista_senior_transiciones', 'transicion', 'defensa_vigilancias', 'Vigilancias ofensivas', 'Estructura preventiva detrás del balón para controlar pérdidas y rupturas rivales.', keywords=['vigilancias', 'preventiva', 'rest defense'], actions=['cobertura'], zones=['medio']),
+            _entry('club_model_seed', 'analista_senior_abp', 'abp', 'abp_bloqueo_arrastre', 'Bloqueo y arrastre ABP', 'Movimiento coordinado para liberar rematador mediante bloqueo, arrastre o pantalla.', keywords=['bloqueo', 'arrastre', 'pantalla', 'abp'], actions=['abp', 'finalizacion'], zones=['ultimo_tercio']),
+            _entry('club_model_seed', 'analista_senior_abp', 'abp', 'abp_segunda_jugada', 'Segunda jugada ABP', 'Acción posterior al primer despeje o rechace donde se disputa y reorganiza la ventaja.', keywords=['segunda jugada', 'rechace', 'despeje'], actions=['abp'], visual_signals=['speed']),
+            _entry('club_model_seed', 'analista_senior_cortes', 'criterio_corte', 'corte_desde_origen_ventaja', 'Corte desde origen de ventaja', 'El corte debe empezar en el pase, conducción, robo o movimiento que crea la ventaja, no sólo en el desenlace.', keywords=['empieza tarde', 'origen jugada', 'ventaja', 'corte'], actions=['accion_sin_clasificar'], visual_signals=[]),
+            _entry('club_model_seed', 'analista_senior_cortes', 'criterio_corte', 'corte_incluir_receptor', 'Incluir receptor y contexto', 'Si la acción depende de una ruptura o pase largo, el corte debe mostrar receptor, línea defensiva y espacio atacado.', keywords=['receptor', 'linea defensiva', 'espacio atacado'], actions=['ruptura'], visual_signals=[]),
+            _entry('club_model_seed', 'analista_senior_cortes', 'criterio_corte', 'corte_evitar_celebracion', 'Evitar celebración/replay', 'El corte táctico debe terminar tras la acción útil o primer desenlace, evitando celebración salvo que sea vídeo highlight.', keywords=['celebracion', 'replay', 'termina tarde'], actions=['accion_sin_clasificar'], visual_signals=[]),
+            _entry('club_model_seed', 'analista_senior_roles', 'rol', 'lateral_alto', 'Lateral alto', 'Lateral ocupa altura ofensiva para fijar extremo rival, dar amplitud o recibir en ventaja.', keywords=['lateral alto', 'amplitud lateral'], actions=['progresion'], lanes=['banda_izquierda', 'banda_derecha']),
+            _entry('club_model_seed', 'analista_senior_roles', 'rol', 'extremo_pie_cambiado', 'Extremo a pie cambiado', 'Extremo orientado hacia dentro para conducir, filtrar o finalizar.', keywords=['extremo pie cambiado', 'conduccion interior'], actions=['1v1_banda', 'finalizacion'], lanes=['banda_izquierda', 'banda_derecha']),
+            _entry('club_model_seed', 'analista_senior_roles', 'rol', 'mediocentro_base', 'Mediocentro base', 'Jugador que ofrece apoyo, equilibra y conecta salida con progresión.', keywords=['mediocentro', 'pivote', 'base'], actions=['progresion', 'tercer_hombre'], zones=['inicio', 'medio']),
+            _entry('club_model_seed', 'analista_senior_roles', 'rol', 'central_conductor', 'Central conductor', 'Central que conduce para fijar primera línea rival y liberar pase.', keywords=['central conduce', 'conduccion central', 'fijar'], actions=['progresion'], zones=['inicio', 'medio']),
+            _entry('club_model_seed', 'analista_senior_indicadores', 'indicador', 'indicador_linea_alta', 'Línea defensiva alta', 'Defensa rival adelantada que habilita ataque a espalda si hay tiempo y poseedor orientado.', keywords=['linea alta', 'espalda defensa'], actions=['ruptura'], zones=['medio']),
+            _entry('club_model_seed', 'analista_senior_indicadores', 'indicador', 'indicador_poseedor_orientado', 'Poseedor orientado', 'Poseedor con cuerpo y balón preparados para jugar hacia delante.', keywords=['orientado', 'perfilado', 'jugar adelante'], actions=['progresion'], visual_signals=['low_speed']),
+            _entry('club_model_seed', 'analista_senior_indicadores', 'indicador', 'indicador_receptor_ataca_espacio', 'Receptor ataca espacio', 'Receptor inicia carrera antes o durante el pase hacia zona libre.', keywords=['ataca espacio', 'carrera al espacio', 'ruptura'], actions=['ruptura'], visual_signals=['speed']),
+            _entry('club_model_seed', 'analista_senior_confianza', 'criterio', 'confianza_balon_poseedor', 'Confianza balón-poseedor', 'No se afirma pase, conducción, pérdida o recuperación sin balón y poseedor razonablemente confirmados.', keywords=['balon', 'poseedor', 'confianza'], actions=['accion_sin_clasificar'], visual_signals=[]),
+            _entry('club_model_seed', 'analista_senior_confianza', 'criterio', 'confianza_direccion_campo', 'Confianza dirección-campo', 'No se afirma progresión, último tercio o finalización sin dirección de ataque y campo calibrado.', keywords=['direccion ataque', 'campo calibrado'], actions=['accion_sin_clasificar'], visual_signals=[]),
+        ]
+    )
+    entries.extend(
+        [
+            _entry('club_model_seed', 'entrenador_senior_captura', 'criterio_entrenador', 'coach_corte_para_corregir_habito', 'Corte para corregir hábito', 'Un entrenador prioriza cortes donde aparece una conducta repetible: orientación corporal, perfil, distancia, temporización o decisión.', keywords=['habito', 'corregir', 'perfil corporal', 'orientacion corporal', 'decision'], actions=['accion_sin_clasificar'], payload_extra={'coach_question': '¿Qué conducta concreta queremos cambiar?', 'capture_must_show': ['antes de recibir', 'decision', 'consecuencia'], 'training_transfer': 'Convertir el error en regla simple y tarea condicionada.'}),
+            _entry('club_model_seed', 'entrenador_senior_captura', 'criterio_entrenador', 'coach_corte_para_reforzar_identidad', 'Corte para reforzar identidad', 'También se capturan acciones correctas que muestran el modelo de juego: presión, apoyo, ruptura, vigilancia o pausa útil.', keywords=['identidad', 'modelo de juego', 'bien ejecutado', 'reforzar'], actions=['accion_sin_clasificar'], payload_extra={'coach_question': '¿Qué queremos repetir cada semana?', 'capture_must_show': ['estructura previa', 'ejecucion correcta', 'beneficio'], 'training_transfer': 'Usarlo como clip positivo antes de tarea similar.'}),
+            _entry('club_model_seed', 'entrenador_senior_salida', 'entrenamiento', 'coach_salida_perfiles_apoyo', 'Salida: perfiles y apoyos', 'Capturar recepciones mal perfiladas, apoyos tapados o jugador que recibe sin mirar antes.', keywords=['perfil', 'apoyo', 'salida', 'mirar antes', 'escaneo'], actions=['progresion'], zones=['inicio'], visual_signals=['low_speed'], payload_extra={'coach_question': '¿El receptor podía jugar de cara o girar?', 'capture_must_show': ['poseedor', 'receptor', 'linea de pase', 'presion rival'], 'training_transfer': 'Rondo posicional con regla de orientar control hacia ventaja.'}),
+            _entry('club_model_seed', 'entrenador_senior_salida', 'entrenamiento', 'coach_salida_hombre_libre', 'Salida: hombre libre', 'Capturar si el equipo atrae presión pero no encuentra al jugador libre o si acelera cuando debía pausar.', keywords=['hombre libre', 'atraer', 'pausar', 'salida'], actions=['tercer_hombre', 'progresion'], zones=['inicio', 'medio'], visual_signals=['low_speed'], payload_extra={'coach_question': '¿Atraemos para liberar o jugamos donde está la presión?', 'capture_must_show': ['presion rival', 'apoyos cercanos', 'hombre libre'], 'training_transfer': 'Posesión 6v4 con comodín y objetivo de encontrar lado débil.'}),
+            _entry('club_model_seed', 'entrenador_senior_progresion', 'entrenamiento', 'coach_progresion_superar_linea', 'Progresión: superar línea', 'Capturar pase, conducción o tercer hombre que supera línea rival, y también cuando se rechaza una ventaja clara.', keywords=['superar linea', 'conduccion', 'pase vertical', 'tercer hombre'], actions=['progresion', 'tercer_hombre'], zones=['inicio', 'medio'], visual_signals=['positive_progression'], payload_extra={'coach_question': '¿La ventaja estaba en conducir, pasar o fijar?', 'capture_must_show': ['linea rival', 'poseedor', 'receptor potencial', 'espacio libre'], 'training_transfer': 'Juego de posicion con puntuacion por superar linea.'}),
+            _entry('club_model_seed', 'entrenador_senior_progresion', 'entrenamiento', 'coach_cambio_orientacion_lado_debil', 'Cambio al lado débil', 'Capturar cuándo el rival bascula y aparece el lado débil, especialmente si se ve tarde o no se ejecuta.', keywords=['lado debil', 'cambio orientacion', 'basculacion'], actions=['progresion'], lanes=['banda_izquierda', 'banda_derecha'], visual_signals=['lateral_movement'], payload_extra={'coach_question': '¿Cuándo aparece el lado débil y quién debe verlo?', 'capture_must_show': ['bloque rival', 'lado fuerte', 'lado debil'], 'training_transfer': 'Conservacion con cambio obligatorio tras atraer tres pases.'}),
+            _entry('club_model_seed', 'entrenador_senior_ultimo_tercio', 'entrenamiento', 'coach_ultimo_tercio_ocupar_area', 'Último tercio: ocupar área', 'Capturar centros o pases atrás donde falta ocupación de primer palo, punto de penalti, segundo palo o frontal.', keywords=['ocupar area', 'primer palo', 'segundo palo', 'frontal', 'pase atras'], actions=['centro_lateral', 'finalizacion'], zones=['ultimo_tercio'], lanes=['banda_izquierda', 'banda_derecha'], payload_extra={'coach_question': '¿Quién ataca cada zona de remate?', 'capture_must_show': ['centrador', 'zonas de remate', 'llegadores'], 'training_transfer': 'Finalizaciones con zonas obligatorias y llegada desde segunda linea.'}),
+            _entry('club_model_seed', 'entrenador_senior_ultimo_tercio', 'entrenamiento', 'coach_ultimo_tercio_paciencia_ventaja', 'Último tercio: paciencia y ventaja', 'Capturar tiros precipitados, último pase forzado o situaciones donde convenía fijar y soltar.', keywords=['precipitado', 'ultimo pase', 'fijar', 'soltar', 'ventaja'], actions=['finalizacion', 'tercer_hombre'], zones=['ultimo_tercio'], payload_extra={'coach_question': '¿La acción elegida aumenta o reduce la ventaja?', 'capture_must_show': ['poseedor', 'opciones de pase', 'defensores fijados'], 'training_transfer': 'Ataque 5v4 con bonus por pase extra antes de finalizar.'}),
+            _entry('club_model_seed', 'entrenador_senior_perdida', 'entrenamiento', 'coach_perdida_reaccion_5s', 'Pérdida: reacción 5 segundos', 'Capturar la pérdida y los cinco segundos posteriores para evaluar si hay presión, cierre de dentro y vigilancias.', keywords=['perdida', 'reaccion', '5 segundos', 'tras perdida'], actions=['presion'], visual_signals=['speed', 'near_loss'], payload_extra={'coach_question': '¿Quién salta, quién cierra dentro y quién vigila espalda?', 'capture_must_show': ['momento perdida', 'jugadores cercanos', 'salida rival'], 'training_transfer': 'Juego reducido con regla de recuperar en cinco segundos.'}),
+            _entry('club_model_seed', 'entrenador_senior_transicion', 'entrenamiento', 'coach_robo_primer_pase', 'Robo: primer pase', 'Capturar si tras recuperar se conserva, se verticaliza o se pierde por mala primera decisión.', keywords=['robo', 'recuperacion', 'primer pase', 'transicion'], actions=['robo', 'transicion_ofensiva'], visual_signals=['speed'], payload_extra={'coach_question': '¿El primer pase nos da continuidad o nos vuelve a exponer?', 'capture_must_show': ['recuperador', 'primer receptor', 'espacio libre'], 'training_transfer': 'Transicion 4v3 con obligacion de primer pase seguro o pase ventaja.'}),
+            _entry('club_model_seed', 'entrenador_senior_defensa', 'entrenamiento', 'coach_defensa_saltar_o_temporizar', 'Defensa: saltar o temporizar', 'Capturar decisiones del defensor: saltar a presión, temporizar, orientar fuera o proteger espalda.', keywords=['temporizar', 'saltar', 'orientar fuera', 'proteger espalda'], actions=['presion', 'temporizacion'], visual_signals=['speed'], payload_extra={'coach_question': '¿La presión mejora la situación o rompe la estructura?', 'capture_must_show': ['defensor que salta', 'cobertura', 'espacio a la espalda'], 'training_transfer': 'Duelos condicionados con apoyo defensivo y consigna de orientar.'}),
+            _entry('club_model_seed', 'entrenador_senior_defensa', 'entrenamiento', 'coach_defensa_distancias_bloque', 'Defensa: distancias del bloque', 'Capturar si las líneas están juntas, si hay intervalos abiertos o si un jugador queda desconectado.', keywords=['distancias', 'bloque', 'intervalo', 'lineas juntas'], actions=['cobertura', 'temporizacion'], zones=['medio'], payload_extra={'coach_question': '¿El bloque protege dentro y espalda al mismo tiempo?', 'capture_must_show': ['linea defensiva', 'linea media', 'intervalos'], 'training_transfer': 'Defensa organizada 7v6 con limites de distancia entre lineas.'}),
+            _entry('club_model_seed', 'entrenador_senior_vigilancias', 'entrenamiento', 'coach_vigilancias_preventivas', 'Vigilancias preventivas', 'Capturar la estructura detrás del balón antes de perderlo, no sólo la contra rival.', keywords=['vigilancias', 'preventivas', 'rest defense', 'estructura detras'], actions=['cobertura'], zones=['medio'], payload_extra={'coach_question': '¿Estamos preparados para perder antes de perder?', 'capture_must_show': ['ataque propio', 'jugadores por detras', 'delanteros rivales'], 'training_transfer': 'Ataque posicional con puntuacion negativa si la perdida permite contra clara.'}),
+            _entry('club_model_seed', 'entrenador_senior_abp', 'entrenamiento', 'coach_abp_roles_bloqueos', 'ABP: roles y bloqueos', 'Capturar antes, durante y después de la ABP: marca, bloqueo, carrera, zona de caída y segunda jugada.', keywords=['abp', 'corner', 'bloqueo', 'marca', 'segunda jugada'], actions=['abp'], zones=['ultimo_tercio'], payload_extra={'coach_question': '¿Cada jugador cumple su rol antes del golpeo y tras el rechace?', 'capture_must_show': ['organizacion previa', 'contactos/bloqueos', 'rechace'], 'training_transfer': 'ABP por fases: salida, golpeo, remate y segunda jugada.'}),
+            _entry('club_model_seed', 'entrenador_senior_portero', 'entrenamiento', 'coach_portero_decision_salida', 'Portero: decisión de salida', 'Capturar si el portero atrae, juega corto, juega largo o cambia orientación con sentido.', keywords=['portero', 'juego de pies', 'saque largo', 'atraer'], actions=['progresion'], zones=['inicio'], visual_signals=['low_speed'], payload_extra={'coach_question': '¿La decisión del portero conecta con el plan del equipo?', 'capture_must_show': ['portero', 'primera linea rival', 'receptores'], 'training_transfer': 'Salida con portero y condicion de alternar corto/largo segun presion.'}),
+            _entry('club_model_seed', 'entrenador_senior_individual', 'entrenamiento', 'coach_individual_escaneo', 'Individual: escaneo antes de recibir', 'Capturar acciones donde el jugador mira o no mira antes de recibir y cómo eso cambia su decisión.', keywords=['escaneo', 'mirar antes', 'recibir', 'perfil'], actions=['accion_sin_clasificar'], visual_signals=['low_speed'], payload_extra={'coach_question': '¿Qué información tenía antes del primer control?', 'capture_must_show': ['jugador antes de recibir', 'rivales cercanos', 'primer control'], 'training_transfer': 'Tarea con señal visual previa y obligación de nombrar opción antes de recibir.'}),
+            _entry('club_model_seed', 'entrenador_senior_individual', 'entrenamiento', 'coach_individual_control_orientado', 'Individual: control orientado', 'Capturar primer control que gana o pierde ventaja, especialmente bajo presión.', keywords=['control orientado', 'primer control', 'perfilado'], actions=['progresion'], visual_signals=['low_speed'], payload_extra={'coach_question': '¿El control abre la siguiente acción?', 'capture_must_show': ['recepcion', 'presion', 'siguiente pase/conduccion'], 'training_transfer': 'Circuito contextual con control hacia zona libre.'}),
+            _entry('club_model_seed', 'entrenador_senior_corte', 'criterio_corte', 'coach_corte_ventana_entrenador', 'Ventana de corte entrenador', 'El corte pedagógico debe empezar 4-8 segundos antes del error/acierto y terminar con la consecuencia inmediata.', keywords=['ventana corte', 'antes del error', 'consecuencia'], actions=['accion_sin_clasificar'], payload_extra={'coach_question': '¿Se entiende por qué ocurrió, no sólo qué ocurrió?', 'capture_must_show': ['origen', 'accion principal', 'consecuencia'], 'training_transfer': 'Usar freeze frame en origen y consecuencia.'}),
+            _entry('club_model_seed', 'entrenador_senior_corte', 'criterio_corte', 'coach_corte_comparativo', 'Corte comparativo', 'Si una conducta se repite, guardar dos clips: uno correcto y otro incorrecto con la misma pregunta de entrenamiento.', keywords=['comparativo', 'correcto', 'incorrecto', 'repetido'], actions=['accion_sin_clasificar'], payload_extra={'coach_question': '¿Qué diferencia concreta cambia el resultado?', 'capture_must_show': ['mismo contexto', 'decision diferente', 'resultado'], 'training_transfer': 'Charla breve con contraste y tarea inmediata.'}),
+        ]
+    )
+    entries.extend(
+        [
+            _entry('club_model_seed', 'taxonomia_sistemas', 'sistema', 'sistema_433_alturas', '4-3-3: alturas y carriles', 'Lectura de extremos, interiores, lateral alto y mediocentro base para mantener amplitud, profundidad y equilibrio.', keywords=['4-3-3', '433', 'interiores', 'extremos', 'lateral alto'], actions=['progresion', 'ruptura'], lanes=['banda_izquierda', 'banda_derecha'], payload_extra={'coach_question': '¿Cada línea ocupa la altura que pide el sistema?', 'capture_must_show': ['estructura del 4-3-3', 'carriles ocupados', 'jugador libre'], 'training_transfer': 'Juego posicional por carriles con alturas obligatorias.'}),
+            _entry('club_model_seed', 'taxonomia_sistemas', 'sistema', 'sistema_4231_doble_pivote', '4-2-3-1: doble pivote', 'Control de equilibrio, coberturas y salida con dos mediocentros para alternar apoyo y vigilancia.', keywords=['4-2-3-1', '4231', 'doble pivote', 'mediapunta'], actions=['progresion', 'cobertura'], zones=['inicio', 'medio'], payload_extra={'coach_question': '¿Los pivotes se escalonan o quedan en la misma línea?', 'capture_must_show': ['doble pivote', 'mediapunta', 'lineas de pase'], 'training_transfer': 'Posesión 7v6 con pivotes escalonados.'}),
+            _entry('club_model_seed', 'taxonomia_sistemas', 'sistema', 'sistema_352_carrileros', '3-5-2: carrileros', 'Estructura con tres centrales, carrileros largos y dos puntas para alternar amplitud, centros y vigilancias.', keywords=['3-5-2', '352', 'carrilero', 'tres centrales'], actions=['centro_lateral', 'cobertura'], lanes=['banda_izquierda', 'banda_derecha'], payload_extra={'coach_question': '¿El carrilero llega con ventaja o expone la espalda?', 'capture_must_show': ['carrilero', 'central exterior', 'punta cercano'], 'training_transfer': 'Ataque por banda con retorno obligatorio del carrilero.'}),
+            _entry('club_model_seed', 'taxonomia_sistemas', 'sistema', 'sistema_442_bloque_medio', '4-4-2: bloque medio', 'Bloque de dos líneas de cuatro y dos puntas para orientar, cerrar dentro y proteger espalda.', keywords=['4-4-2', '442', 'bloque medio', 'dos puntas'], actions=['presion', 'temporizacion'], zones=['medio'], payload_extra={'coach_question': '¿El bloque orienta fuera sin abrir intervalos interiores?', 'capture_must_show': ['dos lineas', 'puntas', 'intervalos interiores'], 'training_transfer': 'Defensa 8v8 con basculación y cierre interior.'}),
+            _entry('club_model_seed', 'taxonomia_roles', 'rol', 'rol_portero_libero', 'Portero líbero', 'Portero que protege espalda de línea alta y decide cuándo salir, fijar o jugar largo.', keywords=['portero libero', 'linea alta', 'salida portero'], actions=['progresion', 'temporizacion'], zones=['inicio'], payload_extra={'coach_question': '¿El portero controla la profundidad o duda?', 'capture_must_show': ['linea defensiva', 'espacio espalda', 'portero'], 'training_transfer': 'Tarea con línea alta y balones a espalda.'}),
+            _entry('club_model_seed', 'taxonomia_roles', 'rol', 'rol_central_corrector', 'Central corrector', 'Central que protege espalda, ajusta cobertura y corrige saltos de compañeros.', keywords=['central corrector', 'cobertura central', 'espalda'], actions=['cobertura', 'temporizacion'], zones=['medio', 'ultimo_tercio'], payload_extra={'coach_question': '¿Corrige antes de que el rival reciba en ventaja?', 'capture_must_show': ['central', 'salto compañero', 'espacio cubierto'], 'training_transfer': 'Defensa de intervalos central-lateral.'}),
+            _entry('club_model_seed', 'taxonomia_roles', 'rol', 'rol_lateral_interior', 'Lateral interior', 'Lateral que entra por dentro para crear superioridad, apoyo o vigilancia tras pérdida.', keywords=['lateral interior', 'invertido', 'lateral por dentro'], actions=['progresion', 'cobertura'], zones=['inicio', 'medio'], payload_extra={'coach_question': '¿El lateral interior mejora salida o invade zona de un medio?', 'capture_must_show': ['lateral', 'mediocentro', 'carril interior'], 'training_transfer': 'Salida con lateral interior y extremo fijando fuera.'}),
+            _entry('club_model_seed', 'taxonomia_roles', 'rol', 'rol_interior_llegador', 'Interior llegador', 'Interior que aparece desde segunda línea para rematar, atacar frontal o fijar intervalo.', keywords=['interior llegador', 'segunda linea', 'llegada'], actions=['finalizacion', 'ruptura'], zones=['ultimo_tercio'], payload_extra={'coach_question': '¿La llegada es coordinada con centro o pase atrás?', 'capture_must_show': ['interior', 'zona frontal', 'timing de llegada'], 'training_transfer': 'Centros con llegada de segunda línea.'}),
+            _entry('club_model_seed', 'taxonomia_roles', 'rol', 'rol_delantero_fijador', 'Delantero fijador', 'Punta que fija centrales, descarga de cara o arrastra para liberar ruptura de segunda línea.', keywords=['delantero fijador', 'punta fija', 'descarga de cara'], actions=['tercer_hombre', 'ruptura'], zones=['medio', 'ultimo_tercio'], payload_extra={'coach_question': '¿El punta fija para descargar o se aleja de la ventaja?', 'capture_must_show': ['punta', 'centrales', 'tercer hombre'], 'training_transfer': 'Ataque con punta de apoyo y ruptura posterior.'}),
+            _entry('club_model_seed', 'taxonomia_rival', 'rival', 'rival_presion_alta_hombre', 'Rival: presión alta al hombre', 'Detectar cuando el rival empareja arriba y deja espalda o lado débil atacable.', keywords=['presion alta', 'al hombre', 'emparejamientos'], actions=['progresion', 'ruptura'], zones=['inicio', 'medio'], payload_extra={'coach_question': '¿Dónde queda el hombre libre contra presión alta?', 'capture_must_show': ['emparejamientos', 'portero/central', 'espalda rival'], 'training_transfer': 'Salida contra presión hombre a hombre.'}),
+            _entry('club_model_seed', 'taxonomia_rival', 'rival', 'rival_bloque_bajo_area', 'Rival: bloque bajo', 'Detectar bloque bajo, acumulación en área y necesidad de paciencia, cambios de orientación y ocupación de remate.', keywords=['bloque bajo', 'defensa area', 'acumulacion'], actions=['centro_lateral', 'finalizacion'], zones=['ultimo_tercio'], payload_extra={'coach_question': '¿Estamos moviendo al bloque o atacando sin ventaja?', 'capture_must_show': ['bloque bajo', 'lado debil', 'zonas de remate'], 'training_transfer': 'Ataque posicional contra bloque bajo.'}),
+            _entry('club_model_seed', 'taxonomia_rival', 'rival', 'rival_linea_alta_vulnerable', 'Rival: línea alta vulnerable', 'Detectar línea adelantada con mala orientación, distancia al portero o central-lateral abierto.', keywords=['linea alta', 'mala orientacion', 'espalda'], actions=['ruptura'], zones=['medio'], payload_extra={'coach_question': '¿Hay tiempo y perfil para atacar espalda?', 'capture_must_show': ['linea defensiva', 'poseedor orientado', 'receptor'], 'training_transfer': 'Automatismos de ruptura contra línea alta.'}),
+            _entry('club_model_seed', 'taxonomia_escenarios', 'escenario', 'escenario_ganar_proteger_ventaja', 'Escenario: ganar y proteger', 'Con ventaja en marcador, capturar decisiones de pausa, defensa con balón, faltas evitables y gestión de riesgo.', keywords=['ganando', 'proteger ventaja', 'gestion riesgo'], actions=['temporizacion', 'progresion'], payload_extra={'coach_question': '¿La decisión protege el partido o lo abre?', 'capture_must_show': ['marcador/contexto', 'riesgo', 'opcion segura'], 'training_transfer': 'Juego condicionado con ventaja y gestión de posesión.'}),
+            _entry('club_model_seed', 'taxonomia_escenarios', 'escenario', 'escenario_perder_acelerar_sin_desorden', 'Escenario: perder y acelerar', 'Con marcador adverso, capturar cuándo acelerar sin romper estructura ni perder vigilancia.', keywords=['perdiendo', 'acelerar', 'urgencia'], actions=['progresion', 'finalizacion'], payload_extra={'coach_question': '¿Aceleramos con orden o regalamos transiciones?', 'capture_must_show': ['estructura ofensiva', 'vigilancias', 'opciones adelante'], 'training_transfer': 'Ataque con límite de tiempo y rest defense obligatorio.'}),
+            _entry('club_model_seed', 'taxonomia_escenarios', 'escenario', 'escenario_minutos_finales', 'Escenario: minutos finales', 'Lectura de centros, segundas jugadas, pérdidas evitables, pausas y zonas de riesgo al final del partido.', keywords=['minutos finales', 'descuento', 'final partido'], actions=['abp', 'centro_lateral'], payload_extra={'coach_question': '¿La acción responde al contexto del minuto?', 'capture_must_show': ['minuto', 'riesgo asumido', 'segunda jugada'], 'training_transfer': 'Escenarios de últimos 5 minutos.'}),
+            _entry('club_model_seed', 'taxonomia_decision', 'decision', 'decision_opcion_ventaja', 'Decisión: opción de ventaja', 'Valorar si el jugador elige la opción que mejora ventaja espacial, temporal o numérica.', keywords=['opcion ventaja', 'mejor opcion', 'ventaja espacial', 'ventaja numerica'], actions=['progresion', 'tercer_hombre'], payload_extra={'coach_question': '¿Cuál era la opción que más ventaja generaba?', 'capture_must_show': ['poseedor', 'opciones', 'ventaja generada'], 'training_transfer': 'Tarea con parada y elección guiada.'}),
+            _entry('club_model_seed', 'taxonomia_decision', 'decision', 'decision_opcion_segura', 'Decisión: opción segura', 'Valorar cuándo conservar es mejor que progresar, especialmente bajo presión o con el equipo desordenado.', keywords=['opcion segura', 'conservar', 'pausar'], actions=['progresion'], payload_extra={'coach_question': '¿La jugada pedía conservar o acelerar?', 'capture_must_show': ['presion', 'apoyos', 'riesgo de perdida'], 'training_transfer': 'Posesión con bonus por pausa tras recuperación.'}),
+            _entry('club_model_seed', 'taxonomia_decision', 'decision', 'decision_timing_pase', 'Decisión: timing del pase', 'Detectar pase demasiado pronto, tarde o en el momento exacto de ruptura/apoyo.', keywords=['timing pase', 'pase tarde', 'pase pronto'], actions=['ruptura', 'tercer_hombre'], payload_extra={'coach_question': '¿El pase sale cuando el receptor gana la ventaja?', 'capture_must_show': ['inicio carrera', 'momento pase', 'defensor'], 'training_transfer': 'Rupturas con ventanas temporales de pase.'}),
+            _entry('club_model_seed', 'taxonomia_errores', 'error_entrenable', 'error_distancia_entre_lineas', 'Error: distancia entre líneas', 'Separación excesiva entre líneas que permite recibir entre líneas o impide presión tras pérdida.', keywords=['distancia entre lineas', 'equipo partido', 'entre lineas'], actions=['cobertura', 'presion'], zones=['medio'], payload_extra={'coach_question': '¿La distancia permite ayudar y presionar?', 'capture_must_show': ['linea media', 'linea defensiva', 'receptor rival'], 'training_transfer': 'Bloque compacto con referencias de distancia.'}),
+            _entry('club_model_seed', 'taxonomia_errores', 'error_entrenable', 'error_perfil_cerrado', 'Error: perfil cerrado', 'Recepción de espaldas o perfil cerrado que elimina opción progresiva y provoca pérdida o pase atrás.', keywords=['perfil cerrado', 'recibir de espaldas', 'mal perfilado'], actions=['accion_sin_clasificar'], payload_extra={'coach_question': '¿El primer perfil limitó la jugada?', 'capture_must_show': ['antes de recibir', 'orientacion cuerpo', 'primer control'], 'training_transfer': 'Ejercicio de perfil corporal con presión pasiva-activa.'}),
+            _entry('club_model_seed', 'taxonomia_errores', 'error_entrenable', 'error_vigilancia_debil', 'Error: vigilancia débil', 'Ausencia de control sobre delanteros o espacios detrás del balón antes de una pérdida.', keywords=['vigilancia debil', 'sin vigilancia', 'desprotegido'], actions=['cobertura'], zones=['medio'], payload_extra={'coach_question': '¿Quién debía vigilar antes de perder?', 'capture_must_show': ['ataque propio', 'jugadores por detras', 'rival libre'], 'training_transfer': 'Ataque con roles de vigilancia asignados.'}),
+            _entry('club_model_seed', 'taxonomia_errores', 'error_entrenable', 'error_cobertura_tardia', 'Error: cobertura tardía', 'Ayuda defensiva llega tarde tras salto de compañero, dejando intervalo o espalda libre.', keywords=['cobertura tardia', 'ayuda tarde', 'intervalo libre'], actions=['cobertura', 'temporizacion'], payload_extra={'coach_question': '¿La cobertura acompaña el salto o reacciona tarde?', 'capture_must_show': ['jugador que salta', 'cobertura', 'intervalo'], 'training_transfer': 'Duelos defensivos con cobertura sincronizada.'}),
+            _entry('club_model_seed', 'taxonomia_abp', 'abp', 'abp_defensa_mixta', 'ABP defensiva mixta', 'Lectura de marcas individuales, zona, bloqueos rivales y responsabilidad sobre segunda jugada.', keywords=['abp defensiva', 'marca mixta', 'zona', 'bloqueo'], actions=['abp', 'cobertura'], zones=['ultimo_tercio'], payload_extra={'coach_question': '¿Quién pierde marca, zona o segunda jugada?', 'capture_must_show': ['organizacion defensiva', 'marca/zona', 'rechace'], 'training_transfer': 'ABP defensiva con responsabilidades por zona.'}),
+            _entry('club_model_seed', 'taxonomia_abp', 'abp', 'abp_ofensiva_bloqueos', 'ABP ofensiva: bloqueos', 'Diseño ofensivo de bloqueos, arrastres, pantallas y atacantes de zona de caída.', keywords=['abp ofensiva', 'bloqueos', 'arrastres', 'pantalla'], actions=['abp', 'finalizacion'], zones=['ultimo_tercio'], payload_extra={'coach_question': '¿El bloqueo libera al rematador o ensucia la carrera?', 'capture_must_show': ['bloqueador', 'rematador', 'zona de caida'], 'training_transfer': 'Secuencia ABP por roles.'}),
+            _entry('club_model_seed', 'taxonomia_categoria', 'categoria', 'categoria_formacion_decision_guiada', 'Formación: decisión guiada', 'En cantera se prioriza capturar comportamientos comprensibles y repetibles antes que etiquetas complejas.', keywords=['cantera', 'formacion', 'decision guiada'], actions=['accion_sin_clasificar'], payload_extra={'coach_question': '¿El jugador puede entender y repetir la corrección?', 'capture_must_show': ['situacion simple', 'decision', 'alternativa'], 'training_transfer': 'Regla sencilla, repetición y feedback inmediato.'}),
+            _entry('club_model_seed', 'taxonomia_categoria', 'categoria', 'categoria_rendimiento_detalle_competitivo', 'Rendimiento: detalle competitivo', 'En senior/rendimiento se capturan detalles que cambian marcador: área, ABP, gestión, vigilancia y duelos.', keywords=['rendimiento', 'senior', 'detalle competitivo'], actions=['finalizacion', 'abp'], payload_extra={'coach_question': '¿Este detalle cambia puntos o goles?', 'capture_must_show': ['detalle clave', 'consecuencia', 'responsabilidad'], 'training_transfer': 'Microtarea específica con exigencia competitiva.'}),
+        ]
+    )
+    return entries
+
+
+def _video_studio_ai_active_knowledge(team) -> list[dict]:
+    try:
+        rows = list(VideoAiKnowledgeEntry.objects.filter(Q(team=team) | Q(team__isnull=True), is_active=True).order_by('team_id', 'category', 'title')[:300])
+    except Exception:
+        rows = []
+    if not rows:
+        return _video_studio_ai_default_knowledge_entries()
+    out = []
+    seen = set()
+    for row in rows:
+        key = str(row.concept_key or '')
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(
+            {
+                'source_key': row.source_key,
+                'source_url': row.source_url,
+                'category': row.category,
+                'concept_key': row.concept_key,
+                'title': row.title,
+                'summary': row.summary,
+                'payload': row.payload if isinstance(row.payload, dict) else {},
+            }
+        )
+    return out
+
+
+def _video_studio_ai_seed_knowledge(team, *, username='') -> dict:
+    created = 0
+    updated = 0
+    for item in _video_studio_ai_default_knowledge_entries():
+        defaults = {
+            'source_key': str(item.get('source_key') or '')[:80],
+            'category': str(item.get('category') or '')[:60],
+            'title': str(item.get('title') or '')[:160],
+            'summary': str(item.get('summary') or ''),
+            'payload': item.get('payload') if isinstance(item.get('payload'), dict) else {},
+            'source_url': str(item.get('source_url') or '')[:500],
+            'is_active': True,
+            'created_by': str(username or '')[:80],
+        }
+        _, was_created = VideoAiKnowledgeEntry.objects.update_or_create(
+            team=team,
+            concept_key=str(item.get('concept_key') or '')[:100],
+            defaults=defaults,
+        )
+        if was_created:
+            created += 1
+        else:
+            updated += 1
+    return {'created': created, 'updated': updated}
+
+
+def _video_studio_ai_detect_actions_for_clip(*, team, video, clip) -> dict:
+    calibration = _video_studio_ai_get_game_calibration(team, video)
+    points, meta = _video_studio_ai_clip_tracking_payload(clip)
+    quality = _video_studio_ai_quality_from_points(points, meta=meta)
+    motion = _video_studio_ai_action_motion(points)
+    start_zone = _video_studio_ai_action_zone((motion.get('start') or {}).get('x', 0.0), (motion.get('start') or {}).get('y', 0.5))
+    end_zone = _video_studio_ai_action_zone((motion.get('end') or {}).get('x', 0.0), (motion.get('end') or {}).get('y', 0.5))
+    tags = [str(t or '').strip().lower() for t in (clip.tags if isinstance(getattr(clip, 'tags', None), list) else []) if str(t or '').strip()]
+    notes = str(getattr(clip, 'notes', '') or '').lower()
+    title = str(getattr(clip, 'title', '') or '').lower()
+    text = ' '.join(tags + [notes, title])
+    timeline_rows = list(
+        VideoTimelineEvent.objects
+        .filter(team=team, video=video, time_ms__gte=max(0, int(clip.in_ms or 0) - 3000), time_ms__lte=int(clip.out_ms or 0) + 3000)
+        .order_by('time_ms')[:40]
+        .values('kind', 'label', 'time_ms', 'payload')
+    )
+    timeline_text = ' '.join([str(r.get('kind') or '') + ' ' + str(r.get('label') or '') for r in timeline_rows]).lower()
+    combined = f'{text} {timeline_text}'
+    knowledge = _video_studio_ai_active_knowledge(team)
+
+    def _score(key, base, reasons):
+        bias = _video_studio_ai_action_feedback_bias(team, video, key)
+        score = max(0.0, min(0.98, float(base) + bias))
+        return {'key': key, 'label': key.replace('_', ' '), 'confidence': round(score, 4), 'reasons': reasons, 'feedback_bias': round(bias, 4)}
+
+    actions = []
+    q_bonus = 0.06 if quality.get('label') == 'high' else 0.0
+    speed = float(motion.get('speed_avg') or 0.0)
+    prog = float(motion.get('progression') or 0.0)
+    lateral = float(motion.get('lateral') or 0.0)
+    in_band = start_zone.get('lane') in {'banda_izquierda', 'banda_derecha'} or end_zone.get('lane') in {'banda_izquierda', 'banda_derecha'}
+    in_last = end_zone.get('third') == 'ultimo_tercio' or start_zone.get('third') == 'ultimo_tercio'
+    in_box = bool(end_zone.get('box') or start_zone.get('box'))
+    explicit_text = bool(combined.strip())
+    has_field_calibration = bool(calibration.get('field_calibrated'))
+    has_attack_direction = bool(calibration.get('attack_direction_known'))
+    has_confirmed_ball = bool(meta.get('source') in {'yolo_ball', 'confirmed_ball'} or meta.get('confirmed_ball'))
+    attack_prog = _video_studio_ai_attack_progression(prog, calibration)
+    can_claim_tactical_phase = bool(has_field_calibration and has_attack_direction and has_confirmed_ball and quality.get('label') == 'high')
+
+    if '1v1' in combined or (in_band and speed > 0.025 and lateral > 0.05):
+        key = '1v1_banda' if explicit_text else 'posible_1v1_banda'
+        actions.append(_score(key, 0.48 + q_bonus + min(0.12, speed * 1.4), ['banda', 'movimiento_lateral', 'requiere_revision']))
+    if 'centro' in combined or ('cross' in combined) or (in_band and in_last and prog > 0.04):
+        key = 'centro_lateral' if ('centro' in combined or 'cross' in combined or can_claim_tactical_phase) else 'posible_envio_lateral'
+        actions.append(_score(key, 0.44 + q_bonus + (0.08 if in_last else 0.0), ['banda', 'ultimo_tercio_aproximado', 'requiere_revision']))
+    if 'tiro' in combined or 'shot' in combined or 'remate' in combined or in_box:
+        key = 'finalizacion' if ('tiro' in combined or 'shot' in combined or 'remate' in combined) else 'posible_accion_area'
+        actions.append(_score(key, 0.50 + q_bonus + (0.08 if in_box else 0.0), ['zona_area_aproximada', 'requiere_revision']))
+    if 'presion' in combined or 'press' in combined:
+        actions.append(_score('presion', 0.64 + q_bonus, ['feedback/tags', 'ventana_temporal']))
+    elif speed > 0.035 and not in_last:
+        actions.append(_score('actividad_alta', 0.34 + q_bonus + min(0.10, speed), ['alta_velocidad', 'sin_poseedor_confirmado']))
+    if 'robo' in combined or 'recuperacion' in combined:
+        actions.append(_score('robo', 0.68 + q_bonus, ['timeline_tags', 'secuencia']))
+    if 'transicion' in combined:
+        actions.append(_score('transicion_ofensiva', 0.58 + q_bonus, ['texto_o_feedback', 'requiere_revision']))
+    elif can_claim_tactical_phase and attack_prog > 0.12:
+        actions.append(_score('progresion', 0.52 + q_bonus + min(0.16, attack_prog), ['campo_calibrado', 'direccion_ataque', 'balon_confirmado']))
+    elif abs(prog) > 0.12:
+        actions.append(_score('desplazamiento_objeto', 0.36 + q_bonus + min(0.10, abs(prog)), ['avance_visual', 'direccion_no_calibrada']))
+    if 'ruptura' in combined:
+        actions.append(_score('ruptura', 0.58 + q_bonus + (0.06 if in_last else 0.0), ['texto_o_feedback', 'requiere_revision']))
+    elif prog > 0.08 and in_last:
+        actions.append(_score('posible_desmarque_profundidad', 0.38 + q_bonus + (0.04 if in_last else 0.0), ['profundidad_aproximada', 'sin_receptor_confirmado']))
+    if 'abp' in combined or 'corner' in combined or 'falta' in combined:
+        actions.append(_score('abp', 0.70 + q_bonus, ['evento_parado', 'timeline_tags']))
+
+    knowledge_hits = []
+    for concept in knowledge:
+        payload = concept.get('payload') if isinstance(concept.get('payload'), dict) else {}
+        keywords = [str(k or '').strip().lower() for k in (payload.get('keywords') if isinstance(payload.get('keywords'), list) else []) if str(k or '').strip()]
+        matched = [kw for kw in keywords if kw and kw in combined]
+        lanes = payload.get('lanes') if isinstance(payload.get('lanes'), list) else []
+        lane_match = bool(start_zone.get('lane') in lanes or end_zone.get('lane') in lanes)
+        zones = payload.get('zones') if isinstance(payload.get('zones'), list) else []
+        zone_match = bool(start_zone.get('third') in zones or end_zone.get('third') in zones)
+        signals = payload.get('visual_signals') if isinstance(payload.get('visual_signals'), list) else []
+        if not signals:
+            signals = payload.get('signals') if isinstance(payload.get('signals'), list) else []
+        signal_match = False
+        if 'progression' in signals and prog > 0.06:
+            signal_match = True
+        if 'positive_progression' in signals and prog > 0.08:
+            signal_match = True
+        if 'low_progression' in signals and abs(prog) < 0.04:
+            signal_match = True
+        if 'lateral_movement' in signals and lateral > 0.05:
+            signal_match = True
+        if 'speed' in signals and speed > 0.03:
+            signal_match = True
+        if 'low_speed' in signals and speed < 0.025:
+            signal_match = True
+        if 'ultimo_tercio' in signals and in_last:
+            signal_match = True
+        if not matched and not lane_match and not zone_match and not signal_match:
+            continue
+        knowledge_hits.append(
+            {
+                'concept_key': concept.get('concept_key'),
+                'title': concept.get('title'),
+                'category': concept.get('category'),
+                'pack': payload.get('pack'),
+                'matched_keywords': matched[:5],
+                'lane_match': bool(lane_match),
+                'zone_match': bool(zone_match),
+                'visual_match': bool(signal_match),
+                'coach_question': payload.get('coach_question') or '',
+                'capture_must_show': payload.get('capture_must_show') if isinstance(payload.get('capture_must_show'), list) else [],
+                'training_transfer': payload.get('training_transfer') or '',
+            }
+        )
+        try:
+            concept_bias = max(0.0, min(0.18, float(payload.get('confidence_bias') or 0.0)))
+        except Exception:
+            concept_bias = 0.0
+        # La base de conocimiento ayuda a ordenar hipótesis, pero no debe convertir
+        # zonas/señales visuales débiles en fases o principios tácticos afirmados.
+        strong_knowledge_match = bool(matched)
+        for action_key in payload.get('actions') if isinstance(payload.get('actions'), list) else []:
+            action_key = str(action_key or '').strip()
+            if not action_key:
+                continue
+            strong_action_keys = {
+                'progresion',
+                'transicion_ofensiva',
+                'presion',
+                'robo',
+                'ruptura',
+                'tercer_hombre',
+                'centro_lateral',
+                'finalizacion',
+                'abp',
+                'cobertura',
+                'temporizacion',
+            }
+            if action_key in strong_action_keys and not can_claim_tactical_phase:
+                continue
+            base = (
+                0.36
+                + q_bonus
+                + concept_bias
+                + (0.12 if matched else 0.0)
+                + (0.04 if lane_match else 0.0)
+                + (0.03 if zone_match else 0.0)
+                + (0.03 if signal_match else 0.0)
+            )
+            actions.append(
+                _score(
+                    action_key,
+                    base,
+                    ['knowledge_base', concept.get('concept_key'), *(matched[:3] or []), *(['zone'] if zone_match else []), *(['visual'] if signal_match else [])],
+                )
+            )
+
+    if not actions:
+        actions.append(_score('accion_sin_clasificar', 0.28 + q_bonus, ['sin_senales_suficientes']))
+    actions.sort(key=lambda a: float(a.get('confidence') or 0.0), reverse=True)
+    sequence = [a['key'] for a in actions[:4] if float(a.get('confidence') or 0.0) >= 0.42]
+    return {
+        'clip_id': int(clip.id),
+        'title': str(clip.title or f'Clip {clip.id}'),
+        'window': {'start_s': clip.in_seconds, 'end_s': clip.out_seconds, 'pre_s': 3, 'post_s': 3},
+        'motion': motion,
+        'zones': {'start': start_zone, 'end': end_zone},
+        'ball_player': {'available': False, 'signal': 'sin_balon_poseedor_confirmado'},
+        'game_calibration': calibration,
+        'timeline_events': len(timeline_rows),
+        'knowledge_hits': knowledge_hits[:12],
+        'quality': quality,
+        'actions': actions[:8],
+        'sequence': sequence,
+        'epistemic_limits': {
+            'field_calibrated': has_field_calibration,
+            'attack_direction_known': has_attack_direction,
+            'confirmed_ball': has_confirmed_ball,
+            'rule': 'sin esas tres senales, las fases de juego se devuelven como hipotesis o revision, no como afirmacion',
+        },
+        'needs_review': bool(not actions or float(actions[0].get('confidence') or 0.0) < 0.62 or quality.get('needs_correction')),
+    }
+
+
+def _video_studio_ai_detect_actions_job_result(*, job, data: dict) -> dict:
+    _video_studio_ai_track_update(int(job.id), progress=15, message='Analizando ventanas de juego…')
+    clip_ids = data.get('clip_ids') if isinstance(data.get('clip_ids'), list) else []
+    qs = VideoClip.objects.filter(team=job.team, video=job.video)
+    if clip_ids:
+        qs = qs.filter(id__in=[int(x) for x in clip_ids if str(x).isdigit()])
+    clips = list(qs.order_by('in_ms')[:120])
+    items = []
+    for idx, clip in enumerate(clips):
+        if _video_studio_ai_track_should_cancel(int(job.id)):
+            raise _VideoStudioAiTrackCanceled()
+        item = _video_studio_ai_detect_actions_for_clip(team=job.team, video=job.video, clip=clip)
+        items.append(item)
+        if idx % 3 == 0:
+            _video_studio_ai_track_update(int(job.id), progress=15 + int((idx + 1) * 70 / max(1, len(clips))), message='Clasificando acciones…')
+    return {'ok': True, 'action': 'detect_actions', 'clips': len(items), 'items': items}
+
+
+def _video_studio_ai_train_actions_result(*, job, data: dict) -> dict:
+    _video_studio_ai_track_update(int(job.id), progress=25, message='Preparando dataset de acciones…')
+    examples = list(VideoAiActionExample.objects.filter(team=job.team, video=job.video).order_by('-created_at')[:1000])
+    by_key = defaultdict(lambda: {'positive': 0, 'negative': 0})
+    for ex in examples:
+        key = str(ex.action_key or 'unknown')
+        if ex.is_positive:
+            by_key[key]['positive'] += 1
+        else:
+            by_key[key]['negative'] += 1
+    rows = []
+    for key, counts in by_key.items():
+        total = int(counts['positive'] + counts['negative'])
+        rows.append({'key': key, 'positive': counts['positive'], 'negative': counts['negative'], 'total': total, 'ready': total >= 10 and counts['positive'] >= 4})
+    rows.sort(key=lambda r: (-int(r['total']), r['key']))
+    ready = any(r.get('ready') for r in rows)
+    _video_studio_ai_track_update(int(job.id), progress=80, message='Evaluando etiquetas…')
+    return {
+        'ok': True,
+        'action': 'train_actions',
+        'ready': bool(ready),
+        'examples': len(examples),
+        'labels': rows[:40],
+        'mode': 'local_rules_with_feedback' if ready else 'collecting_feedback',
+        'next_min_per_label': 10,
+    }
+
+
+def _video_studio_ai_export_follow_result(*, job, data: dict) -> dict:
+    if not job.clip:
+        raise RuntimeError('clip_id requerido para exportar seguimiento.')
+    marker_uid = str(data.get('marker_uid') or '').strip()[:100]
+    start_s = max(0.0, float(data.get('start_s') if data.get('start_s') is not None else job.clip.in_seconds))
+    end_s = max(start_s + 0.5, float(data.get('end_s') if data.get('end_s') is not None else job.clip.out_seconds))
+    out_dir = Path('/Volumes/Mac Satecchi/Mac/Downloads/IA_PlayerFollow')
+    out_dir.mkdir(parents=True, exist_ok=True)
+    suffix = f"video_{int(job.video_id)}_clip_{int(job.clip_id)}_{start_s:.1f}_{end_s:.1f}".replace('.', '-')
+    out_path = out_dir / f"seguimiento_{suffix}.mp4"
+    report_path = out_dir / f"seguimiento_{suffix}.json"
+    _video_studio_ai_track_update(int(job.id), progress=10, message='Preparando export de seguimiento…')
+    cmd = [
+        sys.executable,
+        'manage.py',
+        'video_ai_export_player_follow_test',
+        '--video-id',
+        str(int(job.video_id)),
+        '--clip-id',
+        str(int(job.clip_id)),
+        '--marker-uid',
+        marker_uid,
+        '--start',
+        f'{start_s:.3f}',
+        '--end',
+        f'{end_s:.3f}',
+        '--out',
+        str(out_path),
+        '--report',
+        str(report_path),
+    ]
+    env = os.environ.copy()
+    env.setdefault('DEBUG', 'true')
+    env.setdefault('SECRET_KEY', 'dev')
+    env.setdefault('ALLOW_SQLITE_IN_PROD', 'true')
+    proc = subprocess.run(cmd, cwd=str(Path(settings.BASE_DIR)), env=env, capture_output=True, text=True, timeout=900)
+    if proc.returncode != 0:
+        raise RuntimeError((proc.stderr or proc.stdout or 'Error exportando seguimiento')[-2000:])
+    report = {}
+    try:
+        if report_path.exists():
+            report = json.loads(report_path.read_text(encoding='utf-8'))
+    except Exception:
+        report = {}
+    return {
+        'ok': True,
+        'action': 'export_follow',
+        'output': str(out_path),
+        'report': str(report_path),
+        'quality': report.get('quality'),
+        'confirmed_coverage': report.get('confirmed_coverage'),
+        'drawn_coverage': report.get('drawn_coverage'),
+        'source_counts': report.get('source_counts') if isinstance(report.get('source_counts'), dict) else {},
+    }
+
+
+def _video_studio_ai_track_job_process(job_id: int):
+    claimed = False
+    try:
+        claimed = bool(
+            VideoAiTrackJob.objects
+            .filter(id=int(job_id), status=VideoAiTrackJob.STATUS_PENDING)
+            .update(status=VideoAiTrackJob.STATUS_RUNNING, started_at=timezone.now(), progress=1, message='Iniciando IA…')
+        )
+    except Exception:
+        claimed = False
+    if not claimed:
+        return
+    try:
+        job = VideoAiTrackJob.objects.select_related('team', 'video', 'clip').filter(id=int(job_id)).first()
+        if not job:
+            return
+        data = getattr(job, 'payload', None) if isinstance(getattr(job, 'payload', None), dict) else {}
+        action = str(getattr(job, 'action', '') or data.get('action') or VideoAiTrackJob.ACTION_REID).strip().lower()
+        if action == VideoAiTrackJob.ACTION_BATCH:
+            result = _video_studio_ai_pro_batch_result(job=job, data=data)
+        elif action == VideoAiTrackJob.ACTION_TRAIN:
+            result = _video_studio_ai_pro_train_result(job=job, data=data)
+        elif action == VideoAiTrackJob.ACTION_DETECT_ACTIONS:
+            result = _video_studio_ai_detect_actions_job_result(job=job, data=data)
+        elif action == VideoAiTrackJob.ACTION_TRAIN_ACTIONS:
+            result = _video_studio_ai_train_actions_result(job=job, data=data)
+        elif action == VideoAiTrackJob.ACTION_EXPORT_FOLLOW:
+            result = _video_studio_ai_export_follow_result(job=job, data=data)
+        else:
+            result = _video_studio_ai_track_run_payload(video=job.video, clip=job.clip, data=data, job_id=int(job.id))
+        _video_studio_ai_track_update(
+            int(job.id),
+            status=VideoAiTrackJob.STATUS_DONE,
+            progress=100,
+            message='Listo.',
+            result=result,
+            finished_at=timezone.now(),
+        )
+    except _VideoStudioAiTrackCanceled:
+        _video_studio_ai_track_update(
+            int(job_id),
+            status=VideoAiTrackJob.STATUS_CANCELED,
+            progress=0,
+            message='Cancelado.',
+            finished_at=timezone.now(),
+        )
+    except Exception as exc:
+        try:
+            logger.exception('Video Studio AI Track job: error')
+        except Exception:
+            pass
+        _video_studio_ai_track_update(
+            int(job_id),
+            status=VideoAiTrackJob.STATUS_ERROR,
+            message='Error.',
+            error=str(exc),
+            finished_at=timezone.now(),
+        )
+
+
+def _video_studio_ai_track_job_start_async(job_id: int):
+    def _runner():
+        _video_studio_ai_track_job_process(int(job_id))
+
+    try:
+        t = threading.Thread(target=_runner, name=f'vs-ai-track-job-{int(job_id)}', daemon=True)
+        t.start()
+    except Exception:
+        _video_studio_ai_track_job_process(int(job_id))
+
+
+@login_required
+@require_POST
+def analysis_video_studio_ai_track_api(request):
+    """
+    AutoTrack IA local: detecta candidatos YOLO, devuelve candidatos visuales o aplica ReID asistido.
+
+    Acciones:
+    - candidates: devuelve detecciones cercanas a los anchors para que la UI muestre opciones.
+    - reid: genera track cosido con anchors y lo guarda en el clip si se indica clip_id.
+    """
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
+    try:
+        data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+    except Exception:
+        data = {}
+
+    action = str(data.get('action') or 'candidates').strip().lower()
+    if action in {'status', 'cancel'}:
+        job_id = _parse_int(data.get('job_id') or data.get('id'))
+        if not job_id:
+            return JsonResponse({'ok': False, 'error': 'job_id requerido.'}, status=400)
+        job = VideoAiTrackJob.objects.filter(id=int(job_id), team=primary_team).first()
+        if not job:
+            return JsonResponse({'ok': False, 'error': 'Job no encontrado.'}, status=404)
+        if action == 'cancel':
+            VideoAiTrackJob.objects.filter(id=int(job.id)).update(cancel_requested=True, status=VideoAiTrackJob.STATUS_CANCELED, message='Cancelado.', finished_at=timezone.now())
+            job.refresh_from_db()
+        return JsonResponse(
+            {
+                'ok': True,
+                'job': {
+                    'id': int(job.id),
+                    'status': str(job.status),
+                    'progress': int(getattr(job, 'progress', 0) or 0),
+                    'message': str(getattr(job, 'message', '') or ''),
+                    'error': str(getattr(job, 'error', '') or ''),
+                    'result': job.result if isinstance(getattr(job, 'result', None), dict) else {},
+                },
+            }
+        )
+
+    video_id = _parse_int(data.get('video_id'))
+    if not video_id:
+        return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
+    video = _video_studio_resolve_video(primary_team, video_id=int(video_id))
+    if not video or not getattr(video, 'video', None):
+        return JsonResponse({'ok': False, 'error': 'Vídeo no autorizado o no disponible.'}, status=403)
+    try:
+        start_s = max(0.0, float(data.get('start_s') or 0.0))
+        end_s = max(0.0, float(data.get('end_s') or 0.0))
+    except Exception:
+        start_s, end_s = 0.0, 0.0
+    if end_s <= start_s + 0.05:
+        return JsonResponse({'ok': False, 'error': 'Rango IN/OUT inválido.'}, status=400)
+
+    anchors = data.get('anchors') if isinstance(data.get('anchors'), list) else []
+    anchors = [a for a in anchors if isinstance(a, dict)][:20]
+
+    clip_id = _parse_int(data.get('clip_id'))
+    clip = VideoClip.objects.filter(team=primary_team, id=int(clip_id), video_id=int(video_id)).first() if clip_id else None
+    if action == 'reid' and not clip:
+        return JsonResponse({'ok': False, 'error': 'clip_id requerido para ReID.'}, status=400)
+
+    wants_async = bool(data.get('async') or data.get('background') or (end_s - start_s) > 20.0)
+    max_seconds = 120.0 if wants_async else 20.0
+    if (end_s - start_s) > max_seconds:
+        return JsonResponse({'ok': False, 'error': f'AutoTrack IA local está limitado a {int(max_seconds)}s por petición.'}, status=400)
+
+    if wants_async:
+        payload = dict(data)
+        payload['action'] = action if action in {'candidates', 'space_occupancy'} else 'reid'
+        payload['anchors'] = anchors
+        username = request.user.get_username() if request.user and request.user.is_authenticated else ''
+        job = VideoAiTrackJob.objects.create(
+            team=primary_team,
+            video=video,
+            clip=clip,
+            action=VideoAiTrackJob.ACTION_REID,
+            payload=payload,
+            status=VideoAiTrackJob.STATUS_PENDING,
+            progress=0,
+            message='En cola.',
+            created_by=username[:80],
+            created_by_user=request.user if request.user.is_authenticated else None,
+        )
+        _video_studio_ai_track_job_start_async(int(job.id))
+        return JsonResponse({'ok': True, 'action': 'job', 'job_id': int(job.id), 'status': str(job.status)})
+
+    try:
+        result = _video_studio_ai_track_run_payload(video=video, clip=clip, data={**data, 'anchors': anchors})
+        return JsonResponse(result)
+    except Exception as exc:
+        label = 'calcular ocupación' if action == 'space_occupancy' else 'reidentificar'
+        return JsonResponse({'ok': False, 'error': f'No se pudo {label}: {exc}'}, status=400)
+
+
+def _video_studio_ai_pro_workspace_for_team(team):
+    try:
+        access = WorkspaceTeam.objects.select_related('workspace').filter(team=team).order_by('-is_default', 'id').first()
+        return access.workspace if access else None
+    except Exception:
+        try:
+            return WorkspaceTeam.objects.select_related('workspace').filter(team=team).first().workspace
+        except Exception:
+            return None
+
+
+def _video_studio_ai_default_patterns() -> list[dict]:
+    return [
+        {'key': '1v1_banda', 'label': '1v1 banda', 'tags': ['1v1', 'banda', 'desborde']},
+        {'key': 'tercer_hombre', 'label': 'Tercer hombre', 'tags': ['tercer hombre', 'apoyo', 'progresion']},
+        {'key': 'presion_tras_perdida', 'label': 'Presión tras pérdida', 'tags': ['presion', 'perdida', 'transicion']},
+        {'key': 'ruptura_espalda_lateral', 'label': 'Ruptura espalda lateral', 'tags': ['ruptura', 'profundidad', 'lateral']},
+        {'key': 'finalizacion_area', 'label': 'Finalización área', 'tags': ['finalizacion', 'area', 'remate']},
+    ]
+
+
+@login_required
+@require_POST
+def analysis_video_studio_ai_pro_api(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
+    try:
+        data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+    except Exception:
+        data = {}
+    action = str(data.get('action') or '').strip().lower()
+    video_id = _parse_int(data.get('video_id'))
+    video = _video_studio_resolve_video(primary_team, video_id=int(video_id)) if video_id else None
+    if action not in {'patterns', 'knowledge', 'knowledge_seed', 'knowledge_add'} and not video:
+        return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado o no autorizado.'}, status=404)
+    clip_id = _parse_int(data.get('clip_id'))
+    clip = VideoClip.objects.filter(team=primary_team, id=int(clip_id), video=video).first() if clip_id and video else None
+    marker_uid = str(data.get('marker_uid') or '').strip()[:100]
+
+    if action == 'calibration_get':
+        phase = str(data.get('phase') or '').strip()[:40]
+        return JsonResponse({'ok': True, 'action': 'calibration_get', 'calibration': _video_studio_ai_get_game_calibration(primary_team, video, phase=phase)})
+
+    if action == 'calibration_save':
+        direction = str(data.get('attack_direction') or 'unknown').strip().lower()
+        if direction not in {'ltr', 'rtl', 'unknown'}:
+            direction = 'unknown'
+        phase = str(data.get('phase') or '').strip()[:40]
+        field_points = _video_studio_ai_normalize_field_points(data.get('field_points'))
+        try:
+            confidence = max(0.0, min(1.0, float(data.get('confidence') if data.get('confidence') is not None else (0.75 if len(field_points) >= 4 else 0.35))))
+        except Exception:
+            confidence = 0.0
+        username = request.user.get_username() if request.user and request.user.is_authenticated else ''
+        row, created = VideoAiGameCalibration.objects.update_or_create(
+            team=primary_team,
+            video=video,
+            phase=phase,
+            defaults={
+                'attack_direction': direction,
+                'field_points': field_points,
+                'confidence': confidence,
+                'payload': data.get('payload') if isinstance(data.get('payload'), dict) else {},
+                'created_by': username[:80],
+                'created_by_user': request.user if request.user.is_authenticated else None,
+            },
+        )
+        return JsonResponse(
+            {
+                'ok': True,
+                'action': 'calibration_save',
+                'created': bool(created),
+                'calibration': _video_studio_ai_get_game_calibration(primary_team, video, phase=phase),
+                'id': int(row.id),
+            }
+        )
+
+    if action == 'quality':
+        if not clip:
+            return JsonResponse({'ok': False, 'error': 'clip_id requerido.'}, status=400)
+        points, meta = _video_studio_ai_clip_tracking_payload(clip, marker_uid=marker_uid)
+        quality = _video_studio_ai_quality_from_points(points, meta=meta)
+        _video_studio_ai_pro_store_overlay(clip, 'quality', {'marker_uid': marker_uid, 'quality': quality, 'updated_at': timezone.now().isoformat()})
+        return JsonResponse({'ok': True, 'action': 'quality', 'quality': quality})
+
+    if action == 'correction':
+        if not clip:
+            return JsonResponse({'ok': False, 'error': 'clip_id requerido.'}, status=400)
+        try:
+            t = max(0.0, float(data.get('time_s') or 0.0))
+            x_rel = max(0.0, min(1.0, float(data.get('x_rel') or 0.0)))
+            y_rel = max(0.0, min(1.0, float(data.get('y_rel') or 0.0)))
+        except Exception:
+            return JsonResponse({'ok': False, 'error': 'Corrección inválida.'}, status=400)
+        username = request.user.get_username() if request.user and request.user.is_authenticated else ''
+        example = VideoAiCorrectionExample.objects.create(
+            team=primary_team,
+            video=video,
+            clip=clip,
+            marker_uid=marker_uid,
+            time_ms=int(round(t * 1000.0)),
+            x_rel=x_rel,
+            y_rel=y_rel,
+            label=str(data.get('label') or 'target_player')[:80],
+            payload=data.get('payload') if isinstance(data.get('payload'), dict) else {},
+            created_by=username[:80],
+            created_by_user=request.user if request.user.is_authenticated else None,
+        )
+        overlay = clip.overlay if isinstance(getattr(clip, 'overlay', None), dict) else {}
+        ai_pro = overlay.get('ai_pro') if isinstance(overlay.get('ai_pro'), dict) else {}
+        corrections = ai_pro.get('corrections') if isinstance(ai_pro.get('corrections'), list) else []
+        corrections.append({'id': int(example.id), 'marker_uid': marker_uid, 'time_s': t, 'x_rel': x_rel, 'y_rel': y_rel, 'kind': 'manual_anchor'})
+        ai_pro['corrections'] = corrections[-200:]
+        overlay['ai_pro'] = ai_pro
+        clip.overlay = overlay
+        clip.save(update_fields=['overlay', 'updated_at'])
+        return JsonResponse({'ok': True, 'action': 'correction', 'example_id': int(example.id), 'examples': len(corrections)})
+
+    if action == 'correction_list':
+        qs = VideoAiCorrectionExample.objects.filter(team=primary_team, video=video)
+        if clip:
+            qs = qs.filter(clip=clip)
+        if marker_uid:
+            qs = qs.filter(marker_uid=marker_uid)
+        rows = []
+        for row in qs.order_by('time_ms', 'id')[:300]:
+            rows.append(
+                {
+                    'id': int(row.id),
+                    'clip_id': int(row.clip_id) if row.clip_id else None,
+                    'marker_uid': str(row.marker_uid or ''),
+                    'time_s': round(float(row.time_ms or 0) / 1000.0, 3),
+                    'x_rel': round(float(row.x_rel or 0.0), 5),
+                    'y_rel': round(float(row.y_rel or 0.0), 5),
+                    'label': str(row.label or ''),
+                    'payload': row.payload if isinstance(row.payload, dict) else {},
+                }
+            )
+        return JsonResponse({'ok': True, 'action': 'correction_list', 'anchors': rows, 'count': len(rows)})
+
+    if action == 'profile':
+        if not clip:
+            return JsonResponse({'ok': False, 'error': 'clip_id requerido.'}, status=400)
+        profile = _video_studio_ai_pro_profile_from_clip(clip, marker_uid=marker_uid)
+        _video_studio_ai_pro_store_overlay(clip, 'target_profile', {**profile, 'updated_at': timezone.now().isoformat()})
+        return JsonResponse({'ok': True, 'action': 'profile', 'profile': profile})
+
+    if action == 'identity_profile':
+        if not clip:
+            return JsonResponse({'ok': False, 'error': 'clip_id requerido.'}, status=400)
+        profile = _video_studio_ai_identity_profile_from_clip(clip, marker_uid=marker_uid)
+        _video_studio_ai_pro_store_overlay(clip, 'identity_profile', {**profile, 'updated_at': timezone.now().isoformat()})
+        return JsonResponse({'ok': True, 'action': 'identity_profile', 'profile': profile})
+
+    if action == 'knowledge_seed':
+        username = request.user.get_username() if request.user and request.user.is_authenticated else ''
+        result = _video_studio_ai_seed_knowledge(primary_team, username=username)
+        return JsonResponse({'ok': True, 'action': 'knowledge_seed', **result})
+
+    if action == 'knowledge':
+        entries = _video_studio_ai_active_knowledge(primary_team)
+        sources = sorted({str(e.get('source_key') or '') for e in entries if e.get('source_key')})
+        packs = Counter(str(((e.get('payload') if isinstance(e.get('payload'), dict) else {}) or {}).get('pack') or e.get('category') or 'otros') for e in entries)
+        return JsonResponse({'ok': True, 'action': 'knowledge', 'entries': entries[:300], 'sources': sources, 'packs': dict(sorted(packs.items()))})
+
+    if action == 'knowledge_add':
+        concept_key = re.sub(r'[^a-z0-9_:-]+', '_', str(data.get('concept_key') or data.get('title') or '').strip().lower()).strip('_')[:100]
+        title = _sanitize_task_text(str(data.get('title') or concept_key).strip(), multiline=False, max_len=160)
+        category = re.sub(r'[^a-z0-9_:-]+', '_', str(data.get('category') or 'custom').strip().lower()).strip('_')[:60] or 'custom'
+        if not concept_key or not title:
+            return JsonResponse({'ok': False, 'error': 'concept_key/title requerido.'}, status=400)
+        payload = data.get('payload') if isinstance(data.get('payload'), dict) else {}
+        entry, created = VideoAiKnowledgeEntry.objects.update_or_create(
+            team=primary_team,
+            concept_key=concept_key,
+            defaults={
+                'source_key': str(data.get('source_key') or 'club_custom')[:80],
+                'category': category,
+                'title': title,
+                'summary': _sanitize_task_text(str(data.get('summary') or '').strip(), multiline=True, max_len=1200),
+                'payload': payload,
+                'source_url': str(data.get('source_url') or '')[:500],
+                'is_active': True,
+                'created_by': request.user.get_username()[:80] if request.user and request.user.is_authenticated else '',
+            },
+        )
+        return JsonResponse({'ok': True, 'action': 'knowledge_add', 'id': int(entry.id), 'created': bool(created)})
+
+    if action == 'detect_actions':
+        username = request.user.get_username() if request.user and request.user.is_authenticated else ''
+        job = VideoAiTrackJob.objects.create(
+            team=primary_team,
+            video=video,
+            clip=clip,
+            action=VideoAiTrackJob.ACTION_DETECT_ACTIONS,
+            payload={**data, 'action': VideoAiTrackJob.ACTION_DETECT_ACTIONS},
+            status=VideoAiTrackJob.STATUS_PENDING,
+            progress=0,
+            message='En cola.',
+            created_by=username[:80],
+            created_by_user=request.user if request.user.is_authenticated else None,
+        )
+        _video_studio_ai_track_job_start_async(int(job.id))
+        return JsonResponse({'ok': True, 'action': action, 'job_id': int(job.id), 'status': str(job.status)})
+
+    if action == 'action_feedback':
+        raw_action_key = str(data.get('action_key') or '').strip().lower()
+        action_key = re.sub(r'[^a-z0-9_:-]+', '_', raw_action_key).strip('_')[:80]
+        if not action_key:
+            action_key = slugify(raw_action_key).replace('-', '_')[:80]
+        if not action_key:
+            return JsonResponse({'ok': False, 'error': 'action_key requerido.'}, status=400)
+        try:
+            start_s = max(0.0, float(data.get('start_s') if data.get('start_s') is not None else (clip.in_seconds if clip else 0.0)))
+            end_s = max(start_s, float(data.get('end_s') if data.get('end_s') is not None else (clip.out_seconds if clip else start_s)))
+            confidence = max(0.0, min(1.0, float(data.get('confidence') or 0.0)))
+        except Exception:
+            return JsonResponse({'ok': False, 'error': 'Ventana inválida.'}, status=400)
+        username = request.user.get_username() if request.user and request.user.is_authenticated else ''
+        example = VideoAiActionExample.objects.create(
+            team=primary_team,
+            video=video,
+            clip=clip,
+            action_key=action_key,
+            label=_sanitize_task_text(str(data.get('label') or action_key).strip(), multiline=False, max_len=120),
+            is_positive=bool(data.get('is_positive', True)),
+            start_ms=int(round(start_s * 1000.0)),
+            end_ms=int(round(end_s * 1000.0)),
+            confidence=confidence,
+            payload=data.get('payload') if isinstance(data.get('payload'), dict) else {},
+            created_by=username[:80],
+            created_by_user=request.user if request.user.is_authenticated else None,
+        )
+        if clip:
+            overlay = clip.overlay if isinstance(getattr(clip, 'overlay', None), dict) else {}
+            ai_pro = overlay.get('ai_pro') if isinstance(overlay.get('ai_pro'), dict) else {}
+            feedback = ai_pro.get('action_feedback') if isinstance(ai_pro.get('action_feedback'), list) else []
+            feedback.append({'id': int(example.id), 'action_key': action_key, 'positive': bool(example.is_positive), 'start_s': start_s, 'end_s': end_s})
+            ai_pro['action_feedback'] = feedback[-300:]
+            overlay['ai_pro'] = ai_pro
+            clip.overlay = overlay
+            clip.save(update_fields=['overlay', 'updated_at'])
+        return JsonResponse({'ok': True, 'action': 'action_feedback', 'example_id': int(example.id)})
+
+    if action == 'action_dataset':
+        rows = list(VideoAiActionExample.objects.filter(team=primary_team, video=video).order_by('-created_at')[:1000])
+        by_key = defaultdict(lambda: {'positive': 0, 'negative': 0})
+        for row in rows:
+            if row.is_positive:
+                by_key[row.action_key]['positive'] += 1
+            else:
+                by_key[row.action_key]['negative'] += 1
+        labels = [{'key': key, **counts, 'total': counts['positive'] + counts['negative']} for key, counts in by_key.items()]
+        labels.sort(key=lambda r: (-int(r['total']), r['key']))
+        corrections = VideoAiCorrectionExample.objects.filter(team=primary_team, video=video).count()
+        calibrations = VideoAiGameCalibration.objects.filter(team=primary_team, video=video).count()
+        knowledge = VideoAiKnowledgeEntry.objects.filter(Q(team=primary_team) | Q(team__isnull=True), is_active=True).count()
+        clips_total = VideoClip.objects.filter(team=primary_team, video=video).count()
+        return JsonResponse(
+            {
+                'ok': True,
+                'action': 'action_dataset',
+                'examples': len(rows),
+                'labels': labels[:80],
+                'dataset': {
+                    'action_examples': len(rows),
+                    'tracking_anchors': corrections,
+                    'game_calibrations': calibrations,
+                    'knowledge_entries': knowledge,
+                    'clips': clips_total,
+                    'next': [
+                        '10 positivos y 5 negativos por etiqueta clave',
+                        '2-4 anclajes en jugadas con oclusion',
+                        'direccion de ataque validada por parte/tramo',
+                        'correccion del origen de corte cuando empiece tarde',
+                    ],
+                },
+            }
+        )
+
+    if action == 'anchor_suggestions':
+        if not clip:
+            return JsonResponse({'ok': False, 'error': 'clip_id requerido.'}, status=400)
+        points, meta = _video_studio_ai_clip_tracking_payload(clip, marker_uid=marker_uid)
+        quality = _video_studio_ai_quality_from_points(points, meta=meta)
+        suggestions = []
+        for row in quality.get('low_ranges') or []:
+            try:
+                s = float(row.get('start_s') or clip.in_seconds)
+                e = float(row.get('end_s') or s)
+            except Exception:
+                continue
+            suggestions.append({'time_s': round((s + e) / 2.0, 3), 'reason': 'baja_confianza', 'range': {'start_s': round(s, 3), 'end_s': round(e, 3)}})
+        for row in quality.get('jumps') or []:
+            try:
+                t = float(row.get('t') or row.get('time_s') or 0.0)
+            except Exception:
+                continue
+            if t:
+                suggestions.append({'time_s': round(t, 3), 'reason': 'salto_tracking', 'jump': row})
+        if not suggestions and points:
+            mid = (float(clip.in_seconds) + float(clip.out_seconds)) / 2.0
+            suggestions.append({'time_s': round(mid, 3), 'reason': 'anclaje_preventivo_mitad_clip'})
+        suggestions = sorted(suggestions, key=lambda r: float(r.get('time_s') or 0.0))[:8]
+        return JsonResponse({'ok': True, 'action': 'anchor_suggestions', 'quality': quality, 'suggestions': suggestions})
+
+    if action == 'cut_feedback':
+        if not clip:
+            return JsonResponse({'ok': False, 'error': 'clip_id requerido.'}, status=400)
+        feedback = str(data.get('feedback') or '').strip().lower()
+        allowed_feedback = {'ok', 'starts_late', 'starts_early', 'ends_late', 'ends_early', 'wrong_action'}
+        if feedback not in allowed_feedback:
+            return JsonResponse({'ok': False, 'error': 'feedback inválido.'}, status=400)
+        try:
+            suggested_start_s = max(0.0, float(data.get('suggested_start_s'))) if data.get('suggested_start_s') is not None else None
+            suggested_end_s = max(0.0, float(data.get('suggested_end_s'))) if data.get('suggested_end_s') is not None else None
+        except Exception:
+            suggested_start_s = suggested_end_s = None
+        username = request.user.get_username() if request.user and request.user.is_authenticated else ''
+        example = VideoAiActionExample.objects.create(
+            team=primary_team,
+            video=video,
+            clip=clip,
+            action_key=f'cut_{feedback}',
+            label=f'Cut feedback: {feedback}',
+            is_positive=feedback == 'ok',
+            start_ms=int(round((suggested_start_s if suggested_start_s is not None else clip.in_seconds) * 1000.0)),
+            end_ms=int(round((suggested_end_s if suggested_end_s is not None else clip.out_seconds) * 1000.0)),
+            confidence=1.0,
+            payload={
+                'kind': 'cut_feedback',
+                'feedback': feedback,
+                'original_start_s': clip.in_seconds,
+                'original_end_s': clip.out_seconds,
+                'suggested_start_s': suggested_start_s,
+                'suggested_end_s': suggested_end_s,
+                'note': _sanitize_task_text(str(data.get('note') or '').strip(), multiline=True, max_len=800),
+            },
+            created_by=username[:80],
+            created_by_user=request.user if request.user.is_authenticated else None,
+        )
+        overlay = clip.overlay if isinstance(getattr(clip, 'overlay', None), dict) else {}
+        ai_pro = overlay.get('ai_pro') if isinstance(overlay.get('ai_pro'), dict) else {}
+        rows = ai_pro.get('cut_feedback') if isinstance(ai_pro.get('cut_feedback'), list) else []
+        rows.append({'id': int(example.id), 'feedback': feedback, 'suggested_start_s': suggested_start_s, 'suggested_end_s': suggested_end_s})
+        ai_pro['cut_feedback'] = rows[-200:]
+        overlay['ai_pro'] = ai_pro
+        clip.overlay = overlay
+        clip.save(update_fields=['overlay', 'updated_at'])
+        return JsonResponse({'ok': True, 'action': 'cut_feedback', 'example_id': int(example.id)})
+
+    if action == 'ball_example':
+        if not clip:
+            return JsonResponse({'ok': False, 'error': 'clip_id requerido.'}, status=400)
+        try:
+            t = max(0.0, float(data.get('time_s') or 0.0))
+            x_rel = max(0.0, min(1.0, float(data.get('x_rel') or 0.0)))
+            y_rel = max(0.0, min(1.0, float(data.get('y_rel') or 0.0)))
+        except Exception:
+            return JsonResponse({'ok': False, 'error': 'Ejemplo de balón inválido.'}, status=400)
+        username = request.user.get_username() if request.user and request.user.is_authenticated else ''
+        example = VideoAiActionExample.objects.create(
+            team=primary_team,
+            video=video,
+            clip=clip,
+            action_key='ball_visible',
+            label='Balón visible',
+            is_positive=True,
+            start_ms=int(round(t * 1000.0)),
+            end_ms=int(round(t * 1000.0)),
+            confidence=1.0,
+            payload={'kind': 'ball_example', 'time_s': t, 'x_rel': x_rel, 'y_rel': y_rel},
+            created_by=username[:80],
+            created_by_user=request.user if request.user.is_authenticated else None,
+        )
+        return JsonResponse({'ok': True, 'action': 'ball_example', 'example_id': int(example.id), 'time_s': round(t, 3), 'x_rel': round(x_rel, 5), 'y_rel': round(y_rel, 5)})
+
+    if action == 'ai_review':
+        qs = VideoClip.objects.filter(team=primary_team, video=video).order_by('in_ms')[:120]
+        items = []
+        for row in qs:
+            detected = {}
+            overlay = row.overlay if isinstance(getattr(row, 'overlay', None), dict) else {}
+            ai_actions = overlay.get('ai_actions') if isinstance(overlay.get('ai_actions'), dict) else {}
+            actions = ai_actions.get('actions') if isinstance(ai_actions.get('actions'), list) else []
+            top = actions[0] if actions and isinstance(actions[0], dict) else {}
+            points, meta = _video_studio_ai_clip_tracking_payload(row)
+            quality = _video_studio_ai_quality_from_points(points, meta=meta)
+            items.append(
+                {
+                    'clip_id': int(row.id),
+                    'title': str(row.title or f'Clip {row.id}'),
+                    'start_s': row.in_seconds,
+                    'end_s': row.out_seconds,
+                    'duration_s': round(row.out_seconds - row.in_seconds, 3),
+                    'top_action': top,
+                    'tracking_quality': quality,
+                    'needs_review': bool(quality.get('needs_correction') or not top or float(top.get('confidence') or 0.0) < 0.62),
+                }
+            )
+        return JsonResponse({'ok': True, 'action': 'ai_review', 'items': items, 'needs_review': [r for r in items if r.get('needs_review')][:40]})
+
+    if action == 'active_learning':
+        rows = list(VideoAiActionExample.objects.filter(team=primary_team, video=video).order_by('-created_at')[:2000])
+        by_key = defaultdict(lambda: {'positive': 0, 'negative': 0})
+        for row in rows:
+            bucket = by_key[str(row.action_key or 'unknown')]
+            if row.is_positive:
+                bucket['positive'] += 1
+            else:
+                bucket['negative'] += 1
+        target_labels = ['ball_visible', 'pase_largo_espalda_lateral', 'ruptura', 'recepcion', 'centro_lateral', 'finalizacion', 'perdida', 'recuperacion']
+        needs = []
+        for key in target_labels:
+            pos = int(by_key[key]['positive'])
+            neg = int(by_key[key]['negative'])
+            needs.append({'key': key, 'positive': pos, 'negative': neg, 'need_positive': max(0, 10 - pos), 'need_negative': max(0, 5 - neg), 'ready': pos >= 10 and neg >= 5})
+        return JsonResponse({'ok': True, 'action': 'active_learning', 'needs': needs, 'message': 'Prioriza etiquetas con más need_positive/need_negative.'})
+
+    if action == 'team_profile':
+        clips = list(VideoClip.objects.filter(team=primary_team, video=video).order_by('in_ms')[:200])
+        action_counts = Counter()
+        for row in clips:
+            tags = row.tags if isinstance(getattr(row, 'tags', None), list) else []
+            for tag in tags:
+                txt = str(tag or '')
+                if txt.startswith('action:'):
+                    action_counts[txt.split(':', 1)[1]] += 1
+        examples = VideoAiActionExample.objects.filter(team=primary_team, video=video).count()
+        corrections = VideoAiCorrectionExample.objects.filter(team=primary_team, video=video).count()
+        return JsonResponse(
+            {
+                'ok': True,
+                'action': 'team_profile',
+                'video_profile': {
+                    'team': str(getattr(primary_team, 'display_name', '') or getattr(primary_team, 'name', '') or primary_team),
+                    'video_id': int(video.id),
+                    'clips': len(clips),
+                    'action_counts': dict(action_counts.most_common(30)),
+                    'examples': examples,
+                    'tracking_anchors': corrections,
+                    'style_hypotheses': ['directo/profundidad' if action_counts.get('desplazamiento_balon') else 'pendiente', 'requiere calibración de dirección para confirmar patrones'],
+                },
+            }
+        )
+
+    if action == 'field_homography':
+        calibration = _video_studio_ai_get_game_calibration(primary_team, video)
+        points = calibration.get('field_points') if isinstance(calibration.get('field_points'), dict) else {}
+        pitch_model = {'tl': {'x_m': 0, 'y_m': 0}, 'tr': {'x_m': 105, 'y_m': 0}, 'br': {'x_m': 105, 'y_m': 68}, 'bl': {'x_m': 0, 'y_m': 68}}
+        ready = bool(calibration.get('field_calibrated') and len(points) >= 4)
+        return JsonResponse({'ok': True, 'action': 'field_homography', 'ready': ready, 'calibration': calibration, 'pitch_model_m': pitch_model, 'next': 'Marca/ajusta las cuatro esquinas visibles del campo para activar homografía real.'})
+
+    if action == 'sequence_detect':
+        if not clip:
+            return JsonResponse({'ok': False, 'error': 'clip_id requerido.'}, status=400)
+        events = list(VideoTimelineEvent.objects.filter(team=primary_team, video=video, time_ms__gte=max(0, int(clip.in_ms or 0) - 3000), time_ms__lte=int(clip.out_ms or 0) + 3000).order_by('time_ms')[:80])
+        detected = _video_studio_ai_detect_actions_for_clip(team=primary_team, video=video, clip=clip)
+        actions = detected.get('actions') if isinstance(detected.get('actions'), list) else []
+        sequence = []
+        for event in events:
+            sequence.append({'time_s': round(float(event.time_ms or 0) / 1000.0, 3), 'kind': str(event.kind or ''), 'label': str(event.label or '')})
+        for action_row in actions[:5]:
+            sequence.append({'time_s': round(float(clip.in_seconds + clip.out_seconds) / 2.0, 3), 'kind': 'ai_action', 'label': str(action_row.get('label') or action_row.get('key') or ''), 'confidence': action_row.get('confidence')})
+        sequence.sort(key=lambda r: float(r.get('time_s') or 0.0))
+        return JsonResponse({'ok': True, 'action': 'sequence_detect', 'clip_id': int(clip.id), 'sequence': sequence, 'limits': detected.get('epistemic_limits') if isinstance(detected, dict) else {}})
+
+    if action == 'model_plan':
+        examples = list(VideoAiActionExample.objects.filter(team=primary_team, video=video).values('action_key', 'is_positive')[:5000])
+        by_key = defaultdict(lambda: {'positive': 0, 'negative': 0})
+        for row in examples:
+            if row.get('is_positive'):
+                by_key[str(row.get('action_key') or 'unknown')]['positive'] += 1
+            else:
+                by_key[str(row.get('action_key') or 'unknown')]['negative'] += 1
+        labels = [{'key': k, **v, 'ready': int(v['positive']) >= 50 and int(v['negative']) >= 20} for k, v in sorted(by_key.items())]
+        return JsonResponse(
+            {
+                'ok': True,
+                'action': 'model_plan',
+                'mode': 'dataset_collection' if not any(r['ready'] for r in labels) else 'ready_for_local_finetune',
+                'labels': labels[:80],
+                'minimums': {'ball_detector': '200-500 frames anotados', 'action_label': '50 positivos + 20 negativos por acción', 'tracking_identity': '25+ anclajes por tipo de situación'},
+                'next_command': 'video_ai_train_yolo para balón/persona cuando haya dataset exportado',
+            }
+        )
+
+    if action in {'batch', 'train', 'train_actions', 'export_follow'}:
+        username = request.user.get_username() if request.user and request.user.is_authenticated else ''
+        if action == 'batch':
+            job_action = VideoAiTrackJob.ACTION_BATCH
+        elif action == 'train_actions':
+            job_action = VideoAiTrackJob.ACTION_TRAIN_ACTIONS
+        elif action == 'export_follow':
+            if not clip:
+                return JsonResponse({'ok': False, 'error': 'clip_id requerido.'}, status=400)
+            job_action = VideoAiTrackJob.ACTION_EXPORT_FOLLOW
+        else:
+            job_action = VideoAiTrackJob.ACTION_TRAIN
+        job = VideoAiTrackJob.objects.create(
+            team=primary_team,
+            video=video,
+            clip=clip,
+            action=job_action,
+            payload={**data, 'action': job_action},
+            status=VideoAiTrackJob.STATUS_PENDING,
+            progress=0,
+            message='En cola.',
+            created_by=username[:80],
+            created_by_user=request.user if request.user.is_authenticated else None,
+        )
+        _video_studio_ai_track_job_start_async(int(job.id))
+        return JsonResponse({'ok': True, 'action': action, 'job_id': int(job.id), 'status': str(job.status)})
+
+    if action == 'export_pro':
+        if not clip:
+            return JsonResponse({'ok': False, 'error': 'clip_id requerido.'}, status=400)
+        points, meta = _video_studio_ai_clip_tracking_payload(clip, marker_uid=marker_uid)
+        quality = _video_studio_ai_quality_from_points(points, meta=meta)
+        payload = {
+            'preset': str(data.get('preset') or 'spotlight_zoom_trail')[:80],
+            'marker_uid': marker_uid,
+            'title': str(data.get('title') or clip.title or 'Export pro')[:180],
+            'layers': ['spotlight', 'trail', 'player_label', 'quality_badge', 'freeze_low_confidence'],
+            'quality': quality,
+            'updated_at': timezone.now().isoformat(),
+        }
+        overlay = clip.overlay if isinstance(getattr(clip, 'overlay', None), dict) else {}
+        fx = overlay.get('fx') if isinstance(overlay.get('fx'), dict) else {}
+        layers = fx.get('layers') if isinstance(fx.get('layers'), list) else []
+        start_s = clip.in_seconds
+        end_s = clip.out_seconds
+        next_layers = list(layers)
+        next_layers.append(
+            {
+                'id': f'ai-pro-spot-{uuid.uuid4().hex[:8]}',
+                'type': 'spot',
+                'label': 'IA Pro · spotlight',
+                't_in_s': start_s,
+                't_out_s': end_s,
+                'target': marker_uid,
+                'intensity': 0.68,
+                'feather': 0.18,
+            }
+        )
+        for row in quality.get('low_ranges') or []:
+            try:
+                rs = max(start_s, float(row.get('start_s') or start_s))
+                range_end = min(end_s, float(row.get('end_s') or rs + 0.4))
+            except Exception:
+                continue
+            if range_end > rs:
+                next_layers.append(
+                    {
+                        'id': f'ai-pro-freeze-{uuid.uuid4().hex[:8]}',
+                        'type': 'freeze',
+                        'label': 'IA Pro · revisar',
+                        't_in_s': rs,
+                        't_out_s': min(end_s, range_end + 0.35),
+                        'target': marker_uid,
+                    }
+                )
+        fx['layers'] = next_layers[-120:]
+        overlay['fx'] = fx
+        ai_pro = overlay.get('ai_pro') if isinstance(overlay.get('ai_pro'), dict) else {}
+        ai_pro['export_pro'] = payload
+        overlay['ai_pro'] = ai_pro
+        clip.overlay = overlay
+        clip.save(update_fields=['overlay', 'updated_at'])
+        return JsonResponse({'ok': True, 'action': 'export_pro', 'preset': payload})
+
+    if action == 'patterns':
+        workspace = _video_studio_ai_pro_workspace_for_team(primary_team)
+        key = 'video_ai:tactical_patterns:v1'
+        incoming = data.get('patterns')
+        if workspace and isinstance(incoming, list):
+            cleaned = []
+            for row in incoming[:80]:
+                if not isinstance(row, dict):
+                    continue
+                label = _sanitize_task_text(str(row.get('label') or row.get('key') or '').strip(), multiline=False, max_len=80)
+                if not label:
+                    continue
+                tags = row.get('tags') if isinstance(row.get('tags'), list) else []
+                tags = [_sanitize_task_text(str(t or '').strip(), multiline=False, max_len=40) for t in tags[:12]]
+                cleaned.append({'key': slugify(label)[:80] or label.lower()[:80], 'label': label, 'tags': [t for t in tags if t]})
+            WorkspacePreference.objects.update_or_create(workspace=workspace, key=key, defaults={'value': {'patterns': cleaned}})
+        patterns = _video_studio_ai_default_patterns()
+        if workspace:
+            pref = WorkspacePreference.objects.filter(workspace=workspace, key=key).first()
+            value = pref.value if pref and isinstance(pref.value, dict) else {}
+            rows = value.get('patterns') if isinstance(value.get('patterns'), list) else []
+            if rows:
+                patterns = rows
+        return JsonResponse({'ok': True, 'action': 'patterns', 'patterns': patterns})
+
+    return JsonResponse({'ok': False, 'error': 'action no soportada.'}, status=400)
 
 
 @login_required

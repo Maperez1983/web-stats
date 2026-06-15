@@ -81,6 +81,8 @@
       .vs-chip[data-vs-kind="tool"] .dot { background: rgba(250,204,21,0.95); }
       .vs-chip[data-vs-kind="fx"] .dot { background: rgba(244,63,94,0.95); }
       .vs-menu-muted { color: rgba(226,232,240,0.72); font-weight: 800; font-size: 0.78rem; }
+      .vs-track-toggle { min-height:38px; display:inline-flex; align-items:center; gap:0.38rem; border-radius:999px; border:1px solid rgba(255,255,255,0.16); background:rgba(255,255,255,0.04); color:#dbeafe; padding:0 0.72rem; font-size:0.7rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; white-space:nowrap; }
+      .vs-track-toggle input { accent-color:#22d3ee; }
       .stage { position:relative; width:100%; min-width:0; border-radius: 18px; overflow:hidden; border: 1px solid rgba(148,163,184,0.18); background: rgba(0,0,0,0.22); }
       .stage video { display:block; width:100%; height:auto; position:relative; z-index: 1; }
       .stage #vs-freeze-bg { position:absolute; left:0; top:0; width:100%; height:100%; object-fit:contain; z-index: 1; display:none; pointer-events:none; }
@@ -271,6 +273,22 @@
 			              <button type="button" class="button" id="vs-dorsal-ocr" data-vs-advanced="1" title="Detectar dorsal (marca el número en pantalla)">Dorsal</button>
 			              <button type="button" class="button" id="vs-freeze" title="Congela para anotar encima (modo trabajo). También crea un freeze-frame para export.">Freeze</button>
 			              <button type="button" class="button" id="vs-track-auto" title="Tracking automático (beta): coloca marcadores Jugador, define IN/OUT y genera el seguimiento.">AutoTrack</button>
+			              <button type="button" class="button primary" id="vs-track-ai" title="AutoTrack IA: detecta jugadores, cose IDs y usa anclajes manuales para mantener identidad.">AutoTrack IA</button>
+			              <button type="button" class="button" id="vs-ai-pro-correct" title="Guarda la posición actual como corrección supervisada para entrenar la IA.">Corregir IA</button>
+			              <button type="button" class="button" id="vs-ai-pro-quality" title="Evalúa calidad del seguimiento seleccionado y marca tramos dudosos.">Calidad IA</button>
+			              <button type="button" class="button" id="vs-space-ai-occupancy" title="Calcula con IA si el espacio seleccionado queda ocupado por cualquier jugador detectado.">Ocupación IA</button>
+			              <button type="button" class="button" id="vs-ai-pro-panel" title="Herramientas IA Pro: batch, entrenamiento, export pro y patrones.">IA Pro</button>
+			              <select id="vs-track-smooth" title="Suavizado del seguimiento automático">
+			                <option value="0">Sin suavizar</option>
+			                <option value="0.25">Suave</option>
+			                <option value="0.45" selected>Estable</option>
+			                <option value="0.65">Firme</option>
+			              </select>
+			              <label class="vs-track-toggle" title="Descarta saltos bruscos cuando el tracker se engancha al jugador equivocado">
+			                <input type="checkbox" id="vs-track-antijump" checked />
+			                Anti-saltos
+			              </label>
+			              <button type="button" class="button" id="vs-track-smooth-selected" title="Suaviza y limpia saltos del marcador Jugador seleccionado">Suavizar</button>
 			              <details class="vs-menu" id="vs-resources-menu">
 			                <summary class="button" title="Recursos rápidos (estilo Táctica): 1 clic para insertar guías o activar herramientas">Recursos</summary>
 			                <div class="vs-menu-body">
@@ -288,6 +306,7 @@
 			                    <button type="button" class="vs-chip" data-vs-resource="tool:text" data-vs-kind="tool"><span class="dot"></span>Texto</button>
 			                    <button type="button" class="vs-chip" data-vs-resource="tool:player" data-vs-kind="tool"><span class="dot"></span>Jugador</button>
 			                    <button type="button" class="vs-chip" data-vs-resource="tool:area" data-vs-kind="tool"><span class="dot"></span>Área</button>
+			                    <button type="button" class="vs-chip" data-vs-resource="tool:space" data-vs-kind="tool"><span class="dot"></span>Espacio móvil</button>
 			                  </div>
 			                  <div class="vs-menu-muted" style="margin-top:0.25rem;">FX (1 clic)</div>
 			                  <div class="vs-menu-grid">
@@ -311,9 +330,14 @@
 		              <button type="button" class="button" id="vs-tool-curve" title="Flecha curva: arrastra para dibujar. Mantén Shift para curvar al lado contrario.">Curve</button>
 	              <button type="button" class="button" id="vs-tool-text">Texto</button>
               <button type="button" class="button" id="vs-tool-player" title="Marcador jugador (círculo + dorsal)">Jugador</button>
+              <button type="button" class="button" id="vs-tool-structure" title="Estructura táctica: conecta marcadores Jugador seleccionados y los sigue si tienen tracking.">Estructura</button>
               <button type="button" class="button" id="vs-tool-callout">Callout</button>
               <button type="button" class="button" id="vs-tool-base" title="Peana / halo de suelo (estilo TV)">Base</button>
 	              <button type="button" class="button" id="vs-tool-area" title="Área sombreada: clic para añadir puntos; doble clic para cerrar; Esc cancela.">Área</button>
+	              <button type="button" class="button" id="vs-tool-space" title="Espacio móvil: polígono que puede seguir la jugada, un jugador o keyframes manuales.">Espacio</button>
+	              <button type="button" class="button" id="vs-space-follow-play" title="El espacio seleccionado seguirá el centro de la jugada según marcadores visibles/tracked.">Seguir jugada</button>
+	              <button type="button" class="button" id="vs-space-follow-player" title="El espacio seleccionado seguirá al marcador Jugador seleccionado en la misma selección.">Seguir jugador</button>
+	              <button type="button" class="button" id="vs-space-follow-manual" title="El espacio seleccionado usará keyframes manuales y dejará de seguir referencias.">Manual</button>
 	              <button type="button" class="button" id="vs-tool-move" title="Trayectoria: arrastra desde el inicio al final para crear la flecha.">Trayectoria</button>
 	              <button type="button" class="button" id="vs-tool-spot">Spotlight</button>
 	              <button type="button" class="button" id="vs-tool-blur">Blur</button>
@@ -1116,6 +1140,7 @@
 		    <input type="hidden" id="vs-share-links-url" value="{% url 'analysis-video-studio-share-links-api' %}" />
 		    <input type="hidden" id="vs-frame-capture-url" value="{% url 'analysis-video-studio-frame-capture-api' %}" />
 		    <input type="hidden" id="vs-track-url" value="{% url 'analysis-video-studio-track-players-api' %}" />
+		    <input type="hidden" id="vs-ai-track-url" value="{% url 'analysis-video-studio-ai-track-api' %}" />
 		    <input type="hidden" id="vs-inbox-recipients-url" value="{% url 'analysis-video-inbox-recipients-api' %}" />
 		    <input type="hidden" id="vs-inbox-send-url" value="{% url 'analysis-video-inbox-send-api' %}" />
 		    <input type="hidden" id="vs-timeline-url" value="{% url 'analysis-video-studio-timeline-api' %}" />
@@ -1146,6 +1171,7 @@
       <input type="hidden" id="vs-music-delete-url" value="{% url 'analysis-video-studio-music-delete-api' %}" />
 	    <input type="hidden" id="vs-report-pdf-url" value="{% url 'analysis-video-studio-report-pdf-api' %}" />
     <input type="hidden" id="vs-ai-url" value="{% url 'analysis-video-studio-ai-api' %}" />
+    <input type="hidden" id="vs-ai-pro-url" value="{% url 'analysis-video-studio-ai-pro-api' %}" />
     <input type="hidden" id="vs-autocut-url" value="{% url 'analysis-video-studio-autocut-api' %}" />
     <input type="hidden" id="vs-dorsal-ocr-url" value="{% url 'analysis-video-studio-ocr-dorsal-api' %}" />
 	    <input type="hidden" id="vs-ws-pref-get-url" value="{% url 'workspace-pref-get' %}" />

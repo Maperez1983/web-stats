@@ -35,6 +35,8 @@ VIDEO_STUDIO_VIEW_NAMES = (
     'analysis_video_studio_export_job_cancel_api',
     'analysis_video_studio_report_pdf_api',
     'analysis_video_studio_ai_api',
+    'analysis_video_studio_ai_track_api',
+    'analysis_video_studio_ai_pro_api',
     'analysis_video_studio_autocut_api',
     'analysis_video_studio_share_links_api',
     'analysis_video_studio_frame_capture_api',

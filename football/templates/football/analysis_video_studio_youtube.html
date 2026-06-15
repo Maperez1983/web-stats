@@ -25,6 +25,40 @@
       .stage { position:relative; width:100%; border-radius: 18px; overflow:hidden; border: 1px solid rgba(148,163,184,0.18); background: rgba(0,0,0,0.22); }
       .stage-inner { width:100%; aspect-ratio: 16 / 9; }
       .stage-inner iframe, .stage-inner > div { width:100%; height:100%; }
+      .stage-inner.fx-contrast { filter: contrast(calc(1 + (var(--fx-intensity, 65) / 220))) saturate(calc(1 + (var(--fx-intensity, 65) / 360))) brightness(1.03); }
+      .stage-inner.fx-bw { filter: grayscale(1) contrast(calc(1 + (var(--fx-intensity, 65) / 260))); }
+      .stage-inner.fx-dim { filter: brightness(calc(1 - (var(--fx-intensity, 65) / 180))) saturate(0.85); }
+      .stage-inner.fx-sharp { filter: contrast(calc(1 + (var(--fx-intensity, 65) / 160))) saturate(1.08); }
+      .effect-layer { position:absolute; inset:0; z-index:3; pointer-events:none; opacity:0; transition:opacity 160ms ease; }
+      .effect-layer.is-visible { opacity:1; }
+      .effect-layer.fx-spotlight {
+        background:
+          radial-gradient(circle at var(--fx-x, 50%) var(--fx-y, 50%), transparent 0 var(--fx-radius, 18%), rgba(2,6,23,0.12) calc(var(--fx-radius, 18%) + 7%), rgba(2,6,23,var(--fx-alpha, 0.72)) 58%, rgba(2,6,23,0.86) 100%);
+      }
+      .effect-layer.fx-focus-lane {
+        background:
+          linear-gradient(90deg, rgba(2,6,23,var(--fx-alpha, 0.68)) 0 var(--fx-lane-left, 24%), var(--fx-color-soft, rgba(250,204,21,0.12)) var(--fx-lane-left, 24%) var(--fx-lane-right, 76%), rgba(2,6,23,var(--fx-alpha, 0.68)) var(--fx-lane-right, 76%) 100%);
+        border-left:2px solid var(--fx-color-border, rgba(250,204,21,0.42));
+        border-right:2px solid var(--fx-color-border, rgba(250,204,21,0.42));
+      }
+      .effect-layer.fx-pause::after {
+        content:'PAUSA TÁCTICA';
+        position:absolute;
+        left:50%;
+        top:50%;
+        transform:translate(-50%, -50%);
+        border-radius:999px;
+        border:1px solid var(--fx-color-border, rgba(250,204,21,0.52));
+        background:rgba(2,6,23,0.72);
+        color:var(--fx-color-text, #fef3c7);
+        padding:0.7rem 1rem;
+        font-weight:900;
+        letter-spacing:0.12em;
+        text-transform:uppercase;
+        box-shadow:0 18px 52px rgba(0,0,0,0.4);
+      }
+      .draw-canvas { position:absolute; inset:0; width:100%; height:100%; z-index:4; pointer-events:none; }
+      .stage.is-drawing .draw-canvas { pointer-events:auto; cursor:crosshair; }
       .status { margin-top:0.55rem; color: rgba(226,232,240,0.72); font-weight:800; }
       .field { display:grid; gap:0.45rem; }
       label { display:grid; gap:0.25rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; color: rgba(226,232,240,0.78); }
@@ -37,9 +71,34 @@
       .row { display:flex; align-items:center; justify-content:space-between; gap:0.6rem; padding:0.65rem 0.75rem; border-radius: 16px; border:1px solid rgba(148,163,184,0.14); background: rgba(255,255,255,0.03); }
       .row strong { font-weight:900; }
       .row small { color: rgba(226,232,240,0.7); font-weight:800; }
+      .row.is-selected { border-color:rgba(250,204,21,0.45); background:rgba(250,204,21,0.08); }
+      .clip-check { width:18px; height:18px; accent-color:#facc15; flex:0 0 auto; }
+      .clip-thumb { width:58px; aspect-ratio:16/9; border-radius:8px; object-fit:cover; border:1px solid rgba(148,163,184,0.18); background:#020617; flex:0 0 auto; }
       .list { display:grid; gap:0.45rem; margin-top:0.6rem; }
       .pill { display:inline-flex; align-items:center; gap:0.35rem; padding:0.35rem 0.55rem; border-radius: 999px; border:1px solid rgba(148,163,184,0.22); background: rgba(2, 6, 23, 0.35); font-weight:900; font-size:0.72rem; letter-spacing:0.04em; text-transform:uppercase; color: rgba(226,232,240,0.92); }
       .pill strong { color:#67e8f9; }
+      .tag-presets { display:flex; gap:0.35rem; flex-wrap:wrap; margin-top:0.45rem; }
+      .tag-preset { border-radius:999px; border:1px solid rgba(148,163,184,0.2); background:rgba(255,255,255,0.035); color:rgba(226,232,240,0.94); padding:0.45rem 0.6rem; font-size:0.68rem; font-weight:900; letter-spacing:0.05em; text-transform:uppercase; cursor:pointer; }
+      .tag-preset:hover { border-color:rgba(103,232,249,0.42); color:#cffafe; }
+      .clip-tags { display:flex; flex-wrap:wrap; gap:0.25rem; margin-top:0.15rem; }
+      .clip-tag { border-radius:999px; border:1px solid rgba(148,163,184,0.18); padding:0.16rem 0.38rem; color:rgba(226,232,240,0.76); font-size:0.64rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; }
+      .quick-tools { display:flex; flex-wrap:wrap; gap:0.35rem; margin:0.65rem 0; }
+      .effect-tools { display:flex; flex-wrap:wrap; gap:0.35rem; margin:0 0 0.65rem; padding:0.5rem; border-radius:14px; border:1px solid rgba(148,163,184,0.15); background:rgba(255,255,255,0.025); }
+      .effect-title { width:100%; color:rgba(226,232,240,0.78); font-size:0.7rem; font-weight:900; letter-spacing:0.12em; text-transform:uppercase; }
+      .effect-control { min-width:136px; display:grid; gap:0.25rem; color:rgba(226,232,240,0.72); font-size:0.66rem; font-weight:900; letter-spacing:0.08em; text-transform:uppercase; }
+      .effect-control input[type="range"] { width:100%; accent-color:#facc15; }
+      .effect-control input[type="color"] { width:100%; height:34px; border-radius:10px; border:1px solid rgba(148,163,184,0.22); background:rgba(255,255,255,0.05); padding:0.15rem; }
+      .timeline { position:relative; height:42px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); background:rgba(2,6,23,0.42); overflow:hidden; margin-top:0.7rem; }
+      .timeline-empty { display:grid; place-items:center; height:100%; color:rgba(226,232,240,0.62); font-size:0.72rem; font-weight:900; letter-spacing:0.05em; text-transform:uppercase; }
+      .timeline-clip { position:absolute; top:7px; height:28px; min-width:8px; border-radius:10px; border:1px solid rgba(103,232,249,0.45); background:linear-gradient(135deg, rgba(34,211,238,0.55), rgba(250,204,21,0.46)); cursor:pointer; box-shadow:0 8px 22px rgba(0,0,0,0.25); }
+      .timeline-clip:hover { border-color:#fef08a; }
+      .timeline-playhead { position:absolute; top:0; bottom:0; width:2px; background:#f8fafc; box-shadow:0 0 0 1px rgba(2,6,23,0.7); transform:translateX(-1px); pointer-events:none; }
+      .template-presets { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0.4rem; margin-top:0.45rem; }
+      .bulk-bar { display:none; gap:0.4rem; align-items:center; flex-wrap:wrap; margin:0.55rem 0; padding:0.55rem; border-radius:14px; border:1px solid rgba(250,204,21,0.24); background:rgba(250,204,21,0.08); }
+      .bulk-bar.is-visible { display:flex; }
+      .toast { position:fixed; left:50%; bottom:18px; transform:translateX(-50%); max-width:min(560px, calc(100vw - 28px)); border-radius:14px; border:1px solid rgba(148,163,184,0.24); background:rgba(2,6,23,0.94); color:#f8fafc; padding:0.75rem 0.9rem; font-weight:900; box-shadow:0 24px 60px rgba(0,0,0,0.36); opacity:0; pointer-events:none; transition:opacity 160ms ease; z-index:20; }
+      .toast.is-visible { opacity:1; pointer-events:auto; }
+      @media (max-width: 520px) { .template-presets { grid-template-columns:1fr; } }
     </style>
   </head>
   <body class="prod-commercial">
@@ -91,6 +150,56 @@
           </div>
           <div class="stage">
             <div class="stage-inner" id="vs-youtube-player"></div>
+            <div class="effect-layer" id="vs-effect-layer"></div>
+            <canvas class="draw-canvas" id="vs-draw-canvas" aria-label="Pizarra sobre vídeo"></canvas>
+          </div>
+          <div class="effect-tools" aria-label="Recursos de análisis">
+            <div class="effect-title">Recursos de análisis</div>
+            <button type="button" class="button ghost" data-video-filter="none">Normal</button>
+            <button type="button" class="button ghost" data-video-filter="contrast">Contraste</button>
+            <button type="button" class="button ghost" data-video-filter="bw">B/N</button>
+            <button type="button" class="button ghost" data-video-filter="dim">Oscurecer</button>
+            <button type="button" class="button ghost" data-video-filter="sharp">Intenso</button>
+            <button type="button" class="button ghost" data-video-effect="spotlight">Spotlight</button>
+            <button type="button" class="button ghost" data-video-effect="focus-lane">Carril</button>
+            <button type="button" class="button ghost" data-video-effect="pause">Pausa táctica</button>
+            <button type="button" class="button ghost" data-effect-preset="defensive">Corrección defensiva</button>
+            <button type="button" class="button ghost" data-effect-preset="free-space">Zona libre</button>
+            <button type="button" class="button ghost" data-effect-preset="key-player">Jugador clave</button>
+            <button type="button" class="button ghost" id="vs-effect-clear">Quitar efectos</button>
+            <label class="effect-control">
+              Intensidad
+              <input type="range" id="vs-effect-intensity" min="0" max="100" value="65" />
+            </label>
+            <label class="effect-control">
+              Tamaño/anchura
+              <input type="range" id="vs-effect-size" min="8" max="48" value="18" />
+            </label>
+            <label class="effect-control">
+              Color
+              <input type="color" id="vs-effect-color" value="#facc15" />
+            </label>
+            <button type="button" class="button ghost" id="vs-effect-start-now">FX IN</button>
+            <button type="button" class="button ghost" id="vs-effect-end-now">FX OUT</button>
+            <span class="pill">FX <strong id="vs-effect-range">todo</strong></span>
+          </div>
+          <div class="quick-tools" aria-label="Herramientas rápidas de vídeo">
+            <button type="button" class="button ghost" id="vs-back-5">-5s</button>
+            <button type="button" class="button ghost" id="vs-forward-5">+5s</button>
+            <button type="button" class="button ghost" id="vs-in-minus">IN -1</button>
+            <button type="button" class="button ghost" id="vs-in-plus">IN +1</button>
+            <button type="button" class="button ghost" id="vs-out-minus">OUT -1</button>
+            <button type="button" class="button ghost" id="vs-out-plus">OUT +1</button>
+            <button type="button" class="button ghost" id="vs-draw-toggle">Dibujar</button>
+            <button type="button" class="button ghost" id="vs-draw-undo">Undo</button>
+            <button type="button" class="button ghost" id="vs-draw-redo">Redo</button>
+            <button type="button" class="button ghost" id="vs-add-arrow">Flecha</button>
+            <button type="button" class="button ghost" id="vs-add-circle">Círculo</button>
+            <button type="button" class="button ghost" id="vs-add-zone">Zona</button>
+            <button type="button" class="button ghost" id="vs-draw-clear">Borrar dibujo</button>
+          </div>
+          <div class="timeline" id="vs-timeline" aria-label="Timeline de clips">
+            <div class="timeline-empty">Sin clips en timeline</div>
           </div>
           <div class="status" id="vs-status">Listo.</div>
           <div class="hint" style="margin-top:0.55rem;">
@@ -104,6 +213,12 @@
             <label>
               Título
               <input type="text" id="vs-clip-title" placeholder="Ej. Salida en 3 + tercer hombre" />
+              <span class="template-presets" aria-label="Plantillas de análisis">
+                <button type="button" class="tag-preset" data-template-title="Presión tras pérdida" data-template-collection="Presión" data-template-tags="presion, perdida, reaccion, bloque" data-template-notes="Observar reacción inmediata tras pérdida, orientación corporal del primer defensor y si el bloque acompaña la presión.">Presión tras pérdida</button>
+                <button type="button" class="tag-preset" data-template-title="Salida de balón" data-template-collection="Salida" data-template-tags="salida, tercer hombre, apoyo, progresion" data-template-notes="Analizar altura de apoyos, perfil corporal, primer pase limpio y opción de tercer hombre.">Salida de balón</button>
+                <button type="button" class="tag-preset" data-template-title="Transición ofensiva" data-template-collection="Transiciones" data-template-tags="transicion, ataque, apoyo, profundidad" data-template-notes="Revisar primer pase tras recuperación, amplitud, profundidad y temporización de segunda línea.">Transición ofensiva</button>
+                <button type="button" class="tag-preset" data-template-title="ABP defensiva" data-template-collection="ABP" data-template-tags="abp, defensa, marca, rechace" data-template-notes="Comprobar marcas, zona de rechace, bloqueo y vigilancia tras despeje.">ABP defensiva</button>
+              </span>
             </label>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.55rem;">
               <label>
@@ -122,6 +237,13 @@
             <label>
               Tags (coma)
               <input type="text" id="vs-clip-tags" placeholder="ABP, esquina, presión" />
+              <span class="tag-presets" aria-label="Etiquetas rápidas">
+                <button type="button" class="tag-preset" data-tags="presion, perdida, reaccion">Presión</button>
+                <button type="button" class="tag-preset" data-tags="transicion, salida, apoyo">Transición</button>
+                <button type="button" class="tag-preset" data-tags="abp, corner, remate">ABP</button>
+                <button type="button" class="tag-preset" data-tags="finalizacion, area, ultimo pase">Finalización</button>
+                <button type="button" class="tag-preset" data-tags="defensa, cobertura, basculacion">Defensa</button>
+              </span>
             </label>
             <label>
               Notas
@@ -137,6 +259,12 @@
 
           <div style="margin-top:1rem; padding-top:0.95rem; border-top:1px solid rgba(148,163,184,0.16);">
             <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Clips</div>
+            <div class="bulk-bar" id="vs-bulk-bar">
+              <span class="hint" id="vs-bulk-count">0 seleccionados</span>
+              <button type="button" class="button ghost" id="vs-bulk-play">Reproducir selección</button>
+              <button type="button" class="button ghost" id="vs-bulk-share">Compartir playlist</button>
+              <button type="button" class="button ghost" id="vs-bulk-clear">Limpiar selección</button>
+            </div>
             <div class="list" id="vs-clips"></div>
           </div>
         </aside>
@@ -149,7 +277,9 @@
       <input type="hidden" id="vs-clip-save-url" value="{% url 'analysis-video-studio-clip-save-api' %}" />
       <input type="hidden" id="vs-clip-delete-url" value="{% url 'analysis-video-studio-clip-delete-api' %}" />
       <input type="hidden" id="vs-assign-url" value="{% url 'analysis-video-studio-assign-api' %}" />
+      <input type="hidden" id="vs-share-playlist-url" value="{% url 'share-video-playlist-create' %}" />
       <form id="vs-csrf" style="display:none;">{% csrf_token %}</form>
+      <div class="toast" id="vs-toast" role="status" aria-live="polite"></div>
 
       <script src="{% static 'football/js/analysis_video_studio_youtube.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
     </main>

@@ -283,6 +283,14 @@
 			    const btnDorsalOcr = document.getElementById('vs-dorsal-ocr');
 			    const btnFreeze = document.getElementById('vs-freeze');
 			    const btnTrackAuto = document.getElementById('vs-track-auto');
+			    const btnTrackAi = document.getElementById('vs-track-ai');
+			    const btnAiProCorrect = document.getElementById('vs-ai-pro-correct');
+			    const btnAiProQuality = document.getElementById('vs-ai-pro-quality');
+			    const btnSpaceAiOccupancy = document.getElementById('vs-space-ai-occupancy');
+			    const btnAiProPanel = document.getElementById('vs-ai-pro-panel');
+			    const trackSmoothSelect = document.getElementById('vs-track-smooth');
+			    const trackAntiJumpToggle = document.getElementById('vs-track-antijump');
+			    const btnTrackSmoothSelected = document.getElementById('vs-track-smooth-selected');
 		    const btnDebug = document.getElementById('vs-debug');
 		    const lineStyleSelect = document.getElementById('vs-line-style');
 		    const arrowDoubleBtn = document.getElementById('vs-arrow-double');
@@ -297,9 +305,14 @@
 	    const btnCurve = document.getElementById('vs-tool-curve');
     const btnText = document.getElementById('vs-tool-text');
     const btnPlayer = document.getElementById('vs-tool-player');
+    const btnStructure = document.getElementById('vs-tool-structure');
     const btnCallout = document.getElementById('vs-tool-callout');
     const btnBase = document.getElementById('vs-tool-base');
     const btnArea = document.getElementById('vs-tool-area');
+    const btnSpace = document.getElementById('vs-tool-space');
+    const btnSpaceFollowPlay = document.getElementById('vs-space-follow-play');
+    const btnSpaceFollowPlayer = document.getElementById('vs-space-follow-player');
+    const btnSpaceFollowManual = document.getElementById('vs-space-follow-manual');
     const btnMove = document.getElementById('vs-tool-move');
     const btnSpot = document.getElementById('vs-tool-spot');
     const btnBlur = document.getElementById('vs-tool-blur');
@@ -391,10 +404,12 @@
 			    const exportJobCancelUrl = safeText(document.getElementById('vs-export-job-cancel-url')?.value);
 			    const reportPdfUrl = safeText(document.getElementById('vs-report-pdf-url')?.value);
 		    const aiUrl = safeText(document.getElementById('vs-ai-url')?.value);
+		    const aiProUrl = safeText(document.getElementById('vs-ai-pro-url')?.value);
 			    const autocutUrl = safeText(document.getElementById('vs-autocut-url')?.value);
 			    const dorsalOcrUrl = safeText(document.getElementById('vs-dorsal-ocr-url')?.value);
 			    const frameCaptureUrl = safeText(document.getElementById('vs-frame-capture-url')?.value);
 			    const trackUrl = safeText(document.getElementById('vs-track-url')?.value);
+			    const aiTrackUrl = safeText(document.getElementById('vs-ai-track-url')?.value);
 
 		    const isIOS = (() => {
 		      try {
@@ -1538,6 +1553,397 @@
 	      return { x: last.x, y: last.y };
 	    };
 
+	    const objectCenterPoint = (obj) => {
+	      if (!obj) return null;
+	      try {
+	        const p = obj.getCenterPoint?.();
+	        if (p && Number.isFinite(Number(p.x)) && Number.isFinite(Number(p.y))) return { x: Number(p.x), y: Number(p.y) };
+	      } catch (e) { /* ignore */ }
+	      const x = Number(obj.left);
+	      const y = Number(obj.top);
+	      return (Number.isFinite(x) && Number.isFinite(y)) ? { x, y } : null;
+	    };
+
+	    const setObjectCenterPoint = (obj, p) => {
+	      if (!obj || !p || !Number.isFinite(Number(p.x)) || !Number.isFinite(Number(p.y))) return false;
+	      try {
+	        obj.setPositionByOrigin(new fabric.Point(Number(p.x), Number(p.y)), 'center', 'center');
+	      } catch (e) {
+	        try { obj.set({ left: Number(p.x), top: Number(p.y) }); } catch (e2) { return false; }
+	      }
+	      try { obj.setCoords?.(); } catch (e) { /* ignore */ }
+	      obj.dirty = true;
+	      return true;
+	    };
+
+	    const markerPointAt = (obj, nowS) => {
+	      if (!obj || safeText(obj?.data?.kind) !== 'player_marker') return null;
+	      if (Array.isArray(obj?.data?.kf) && obj.data.kf.length) {
+	        const p = interpKeyframes(obj.data.kf, nowS);
+	        if (p) return p;
+	      }
+	      return objectCenterPoint(obj);
+	    };
+
+	    const getPlayerMarkers = () => {
+	      try {
+	        return (fabricCanvas.getObjects?.() || []).filter((obj) => safeText(obj?.data?.kind) === 'player_marker');
+	      } catch (e) {
+	        return [];
+	      }
+	    };
+
+	    const playCentroidAt = (nowS) => {
+	      const pts = [];
+	      for (const obj of getPlayerMarkers()) {
+	        ensureLayerData(obj);
+	        const alpha = computeTimedAlpha(obj.data, nowS);
+	        if (alpha <= 0.001) continue;
+	        const p = markerPointAt(obj, nowS);
+	        if (p && Number.isFinite(p.x) && Number.isFinite(p.y)) pts.push(p);
+	      }
+	      if (!pts.length) return null;
+	      return {
+	        x: pts.reduce((acc, p) => acc + p.x, 0) / pts.length,
+	        y: pts.reduce((acc, p) => acc + p.y, 0) / pts.length,
+	      };
+	    };
+
+	    const selectedObjectsForSpace = () => {
+	      try {
+	        const active = fabricCanvas.getActiveObject?.() || null;
+	        if (!active) return [];
+	        if (active.type === 'activeSelection' && typeof active.getObjects === 'function') return active.getObjects() || [];
+	        return [active];
+	      } catch (e) {
+	        return [];
+	      }
+	    };
+
+	    const selectedSpaceZone = () => (
+	      selectedObjectsForSpace().find((obj) => {
+	        const k = safeText(obj?.data?.kind, '');
+	        return k === 'space_zone' || k === 'surface_area';
+	      }) || null
+	    );
+
+	    const selectedMarkerForSpace = (spaceObj = null) => (
+	      selectedObjectsForSpace().find((obj) => obj !== spaceObj && safeText(obj?.data?.kind) === 'player_marker') || null
+	    );
+
+	    const selectedPlayerMarkers = () => {
+	      const rows = selectedObjectsForSpace()
+	        .filter((obj) => safeText(obj?.data?.kind) === 'player_marker')
+	        .map((obj) => {
+	          ensureLayerData(obj);
+	          const p = markerPointAt(obj, Number(video.currentTime) || 0) || objectCenterPoint(obj) || { x: Number(obj.left) || 0, y: Number(obj.top) || 0 };
+	          return { obj, x: Number(p.x) || 0, y: Number(p.y) || 0 };
+	        });
+	      rows.sort((a, b) => (a.x - b.x) || (a.y - b.y));
+	      return rows.map((row) => row.obj);
+	    };
+
+	    const updateTacticalLink = (obj, nowS) => {
+	      if (!obj || safeText(obj?.data?.kind) !== 'tactical_link') return false;
+	      const fromUid = safeText(obj.data.from_uid, '');
+	      const toUid = safeText(obj.data.to_uid, '');
+	      if (!fromUid || !toUid) return false;
+	      const markers = getPlayerMarkers();
+	      const from = markers.find((m) => safeText(m?.data?.uid, '') === fromUid);
+	      const to = markers.find((m) => safeText(m?.data?.uid, '') === toUid);
+	      if (!from || !to) return false;
+	      const p0 = markerPointAt(from, nowS) || objectCenterPoint(from);
+	      const p1 = markerPointAt(to, nowS) || objectCenterPoint(to);
+	      if (!p0 || !p1) return false;
+	      try {
+	        obj.set({
+	          x1: Number(p0.x) || 0,
+	          y1: Number(p0.y) || 0,
+	          x2: Number(p1.x) || 0,
+	          y2: Number(p1.y) || 0,
+	        });
+	        obj.setCoords?.();
+	        obj.dirty = true;
+	        return true;
+	      } catch (e) {
+	        return false;
+	      }
+	    };
+
+	    const createTacticalStructureFromSelection = () => {
+	      const markers = selectedPlayerMarkers().slice(0, 6);
+	      if (markers.length < 2) {
+	        setStatus('Estructura: selecciona 2-6 marcadores Jugador.', true);
+	        return;
+	      }
+	      const nowS = Number(video.currentTime) || 0;
+	      const color = strokeColor() || '#22d3ee';
+	      const sw = clamp(Number(strokeWidth()) || 6, 2, 16);
+	      const style = getLineStyle();
+	      const pairs = [];
+	      for (let i = 0; i < markers.length - 1; i += 1) pairs.push([markers[i], markers[i + 1]]);
+	      if (markers.length === 3) pairs.push([markers[2], markers[0]]);
+	      if (markers.length >= 4) {
+	        pairs.push([markers[0], markers[markers.length - 1]]);
+	      }
+	      const created = [];
+	      for (const [from, to] of pairs) {
+	        ensureLayerData(from);
+	        ensureLayerData(to);
+	        const p0 = markerPointAt(from, nowS) || objectCenterPoint(from);
+	        const p1 = markerPointAt(to, nowS) || objectCenterPoint(to);
+	        if (!p0 || !p1) continue;
+	        const line = new fabric.Line([p0.x, p0.y, p1.x, p1.y], {
+	          stroke: color,
+	          strokeWidth: sw,
+	          strokeLineCap: 'round',
+	          strokeLineJoin: 'round',
+	          strokeDashArray: null,
+	          selectable: true,
+	          evented: true,
+	          objectCaching: false,
+	          shadow: 'rgba(0,0,0,0.30) 0 2px 6px',
+	          strokeUniform: true,
+	          perPixelTargetFind: true,
+	          padding: 0,
+	          cornerStyle: 'circle',
+	          cornerColor: 'rgba(250,204,21,0.95)',
+	          transparentCorners: false,
+	          cornerSize: 14,
+	        });
+	        applyStrokeStyle(line, style, sw);
+	        line.data = seedLayerDataNow({
+	          kind: 'tactical_link',
+	          from_uid: safeText(from.data.uid, ''),
+	          to_uid: safeText(to.data.uid, ''),
+	          line_style: style,
+	          track: true,
+	          anim: 'none',
+	        });
+	        try {
+	          const tIn = Math.min(...markers.map((m) => Number(m?.data?.t_in_s) || nowS), Number(line.data.t_in_s) || nowS);
+	          const tOuts = markers.map((m) => Number(m?.data?.t_out_s) || 0).filter((v) => v > nowS + 0.05);
+	          line.data.t_in_s = Number.isFinite(tIn) ? tIn : nowS;
+	          if (tOuts.length) line.data.t_out_s = Math.max(Number(line.data.t_out_s) || 0, ...tOuts);
+	        } catch (e) { /* ignore */ }
+	        fabricCanvas.add(line);
+	        try { line.sendToBack?.(); } catch (e) { /* ignore */ }
+	        created.push(line);
+	      }
+	      if (!created.length) {
+	        setStatus('Estructura: no se pudieron crear líneas.', true);
+	        return;
+	      }
+	      pushHistory();
+	      try {
+	        if (created.length === 1) fabricCanvas.setActiveObject(created[0]);
+	        else fabricCanvas.setActiveObject(new fabric.ActiveSelection(created, { canvas: fabricCanvas }));
+	      } catch (e) { /* ignore */ }
+	      selectedFxId = 0;
+	      updateLayerPanel();
+	      renderFxList();
+	      renderDrawLayers();
+	      try { applyTimedLayers(); fabricCanvas.requestRenderAll(); } catch (e) { /* ignore */ }
+	      setStatus(`Estructura creada: ${created.length} línea(s). Si los jugadores tienen AutoTrack, se moverá con ellos.`);
+	    };
+
+	    const promoteToSpaceZone = (obj) => {
+	      if (!obj) return null;
+	      ensureLayerData(obj);
+	      obj.data.kind = 'space_zone';
+	      obj.data.track = true;
+	      if (!safeText(obj.data.space_base_fill, '')) obj.data.space_base_fill = safeText(obj.fill, 'rgba(34,211,238,0.20)');
+	      if (!safeText(obj.data.space_base_stroke, '')) obj.data.space_base_stroke = safeText(obj.stroke, 'rgba(34,211,238,0.95)');
+	      try {
+	        obj.set({
+	          fill: 'rgba(34,211,238,0.20)',
+	          stroke: 'rgba(34,211,238,0.95)',
+	          strokeWidth: Math.max(2, Number(obj.strokeWidth) || 2),
+	          strokeDashArray: [10, 6],
+	          objectCaching: false,
+	        });
+	      } catch (e) { /* ignore */ }
+	      return obj;
+	    };
+
+	    const pointInsideObjectBounds = (obj, p, margin = 0) => {
+	      if (!obj || !p) return false;
+	      try {
+	        const r = obj.getBoundingRect?.(true, true);
+	        if (!r) return false;
+	        return p.x >= (Number(r.left) - margin)
+	          && p.x <= (Number(r.left) + Number(r.width) + margin)
+	          && p.y >= (Number(r.top) - margin)
+	          && p.y <= (Number(r.top) + Number(r.height) + margin);
+	      } catch (e) {
+	        return false;
+	      }
+	    };
+
+	    const applySpaceZoneLiveStyle = (obj, occupied) => {
+	      if (!obj || safeText(obj?.data?.kind) !== 'space_zone') return;
+	      const fill = occupied ? 'rgba(244,63,94,0.24)' : 'rgba(34,211,238,0.20)';
+	      const stroke = occupied ? 'rgba(244,63,94,0.96)' : 'rgba(34,211,238,0.95)';
+	      try {
+	        obj.set({ fill, stroke, strokeDashArray: occupied ? [4, 5] : [10, 6] });
+	        obj.data.space_occupied = Boolean(occupied);
+	        obj.dirty = true;
+	      } catch (e) { /* ignore */ }
+	    };
+
+	    const isSpaceZoneOccupied = (obj, nowS) => {
+	      if (!obj || safeText(obj?.data?.kind) !== 'space_zone') return false;
+	      const aiRows = Array.isArray(obj?.data?.space_occ) ? obj.data.space_occ : [];
+	      if (aiRows.length) {
+	        const near = aiRows.reduce((best, row) => {
+	          const dt = Math.abs((Number(row?.t) || 0) - (Number(nowS) || 0));
+	          if (!best || dt < best.dt) return { dt, row };
+	          return best;
+	        }, null);
+	        if (near && near.dt <= 0.18) {
+	          try {
+	            obj.data.space_occupied_count = Number(near.row?.count || 0) || 0;
+	            obj.data.space_occupied_people = Array.isArray(near.row?.people) ? near.row.people.slice(0, 8) : [];
+	          } catch (e) { /* ignore */ }
+	          return Boolean(near.row?.occupied);
+	        }
+	      }
+	      const margin = Math.max(8, Math.min(Number(obj.getScaledWidth?.()) || 0, Number(obj.getScaledHeight?.()) || 0) * 0.06);
+	      for (const marker of getPlayerMarkers()) {
+	        if (!marker.visible && computeTimedAlpha(marker?.data || {}, nowS) <= 0.001) continue;
+	        const p = markerPointAt(marker, nowS);
+	        if (p && pointInsideObjectBounds(obj, p, margin)) return true;
+	      }
+	      return false;
+	    };
+
+	    const applySpaceFollow = (obj, nowS) => {
+	      if (!obj || safeText(obj?.data?.kind) !== 'space_zone') return false;
+	      const mode = safeText(obj.data.follow_mode, 'manual');
+	      if (mode === 'play') {
+	        const ref = playCentroidAt(nowS);
+	        const off = obj.data.follow_offset || {};
+	        if (ref && Number.isFinite(Number(off.x)) && Number.isFinite(Number(off.y))) {
+	          return setObjectCenterPoint(obj, { x: ref.x + Number(off.x), y: ref.y + Number(off.y) });
+	        }
+	      }
+	      if (mode === 'player') {
+	        const uid = safeText(obj.data.follow_player_uid, '');
+	        const marker = getPlayerMarkers().find((m) => safeText(m?.data?.uid, '') === uid);
+	        const ref = marker ? markerPointAt(marker, nowS) : null;
+	        const off = obj.data.follow_offset || {};
+	        if (ref && Number.isFinite(Number(off.x)) && Number.isFinite(Number(off.y))) {
+	          return setObjectCenterPoint(obj, { x: ref.x + Number(off.x), y: ref.y + Number(off.y) });
+	        }
+	      }
+	      if (mode === 'manual' && obj.data?.track && Array.isArray(obj.data.kf)) {
+	        const pos = interpKeyframes(obj.data.kf, nowS);
+	        if (pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)) return setObjectCenterPoint(obj, pos);
+	      }
+	      return false;
+	    };
+
+	    const getTrackSmoothStrength = () => clamp(Number(trackSmoothSelect?.value ?? 0.45) || 0, 0, 0.85);
+	    const isTrackAntiJumpEnabled = () => Boolean(trackAntiJumpToggle ? trackAntiJumpToggle.checked : true);
+
+	    const cleanTrackKeyframes = (raw, {
+	      smooth = getTrackSmoothStrength(),
+	      antiJump = isTrackAntiJumpEnabled(),
+	      maxJumpPx = 0,
+	    } = {}) => {
+	      const frames = normalizeKeyframes(raw);
+	      if (frames.length <= 2) return frames;
+	      const cleaned = [frames[0]];
+	      const baseSize = Math.max(
+	        1,
+	        Number(fabricCanvas?.getWidth?.()) || Number(canvasEl?.clientWidth) || 0,
+	        Number(fabricCanvas?.getHeight?.()) || Number(canvasEl?.clientHeight) || 0
+	      );
+	      const jumpLimit = Math.max(Number(maxJumpPx) || 0, Math.min(baseSize * 0.12, 180));
+	      let dropped = 0;
+	      for (let i = 1; i < frames.length; i += 1) {
+	        const prev = cleaned[cleaned.length - 1];
+	        const cur = frames[i];
+	        const dt = Math.max(0.08, Math.abs((Number(cur.t) || 0) - (Number(prev.t) || 0)));
+	        const dx = (Number(cur.x) || 0) - (Number(prev.x) || 0);
+	        const dy = (Number(cur.y) || 0) - (Number(prev.y) || 0);
+	        const dist = Math.hypot(dx, dy);
+	        if (antiJump && dist > Math.max(jumpLimit, jumpLimit * dt * 6)) {
+	          dropped += 1;
+	          continue;
+	        }
+	        cleaned.push(cur);
+	      }
+	      if (cleaned.length <= 2 || !smooth) {
+	        cleaned.dropped = dropped;
+	        return cleaned;
+	      }
+	      const strength = clamp(Number(smooth) || 0, 0, 0.85);
+	      const forward = [];
+	      for (let i = 0; i < cleaned.length; i += 1) {
+	        const cur = cleaned[i];
+	        if (!i) {
+	          forward.push({ ...cur });
+	          continue;
+	        }
+	        const prev = forward[forward.length - 1];
+	        forward.push({
+	          t: cur.t,
+	          x: (prev.x * strength) + (cur.x * (1 - strength)),
+	          y: (prev.y * strength) + (cur.y * (1 - strength)),
+	        });
+	      }
+	      const out = [];
+	      for (let i = forward.length - 1; i >= 0; i -= 1) {
+	        const cur = forward[i];
+	        if (i === forward.length - 1) {
+	          out.unshift({ ...cur });
+	          continue;
+	        }
+	        const next = out[0];
+	        out.unshift({
+	          t: cur.t,
+	          x: (next.x * strength) + (cur.x * (1 - strength)),
+	          y: (next.y * strength) + (cur.y * (1 - strength)),
+	        });
+	      }
+	      const normalized = normalizeKeyframes(out);
+	      normalized.dropped = dropped;
+	      return normalized;
+	    };
+
+	    const smoothSelectedTrackMarker = () => {
+	      const active = (() => { try { return fabricCanvas.getActiveObject?.() || null; } catch (e) { return null; } })();
+	      const objs = (() => {
+	        try {
+	          if (!active) return [];
+	          if (active.type === 'activeSelection' && typeof active.getObjects === 'function') return active.getObjects() || [];
+	          return [active];
+	        } catch (e) { return []; }
+	      })();
+	      let changed = 0;
+	      let dropped = 0;
+	      for (const obj of objs) {
+	        if (safeText(obj?.data?.kind) !== 'player_marker') continue;
+	        const kf = Array.isArray(obj?.data?.kf) ? obj.data.kf : [];
+	        if (kf.length < 3) continue;
+	        const next = cleanTrackKeyframes(kf, { smooth: Math.max(0.35, getTrackSmoothStrength()), antiJump: true });
+	        dropped += Number(next.dropped || 0);
+	        obj.data.kf = normalizeKeyframes(next);
+	        changed += 1;
+	      }
+	      if (!changed) {
+	        setStatus('Selecciona un marcador Jugador con tracking para suavizar.', true);
+	        return;
+	      }
+	      pushHistory();
+	      try { applyTimedLayers(); } catch (e) { /* ignore */ }
+	      try { fabricCanvas.requestRenderAll(); } catch (e) { /* ignore */ }
+	      renderDrawLayers();
+	      updateLayerPanel();
+	      setStatus(`Tracking suavizado (${changed}). Saltos descartados: ${dropped}.`);
+	    };
+
     const computeTimedAlpha = (timing, nowS) => {
       const tIn = Math.max(0, Number(timing?.t_in_s) || 0);
       const tOut = Math.max(0, Number(timing?.t_out_s) || 0);
@@ -1787,6 +2193,7 @@
 	      if (kind === 'arrow') return 'Flecha';
 	      if (kind === 'curve_arrow') return 'Flecha curva';
 	      if (kind === 'movement_line') return 'Trayectoria';
+	      if (kind === 'tactical_link') return 'Estructura';
 	      if (kind === 'line') return 'Línea';
 	      if (kind === 'shape_rect' || kind === 'rect') return 'Rect';
 	      if (kind === 'shape_ellipse' || kind === 'ellipse') return 'Círculo';
@@ -1794,6 +2201,7 @@
 	      if (kind === 'player_marker') return 'Jugador';
 	      if (kind === 'base') return 'Base';
 	      if (kind === 'surface_area') return 'Área';
+	      if (kind === 'space_zone') return 'Espacio';
       if (kind === 'template') return 'Plantilla';
       if (kind === 'callout') return `Callout ${safeText(obj?.data?.callout_n)}`;
       if (kind === 'path') return 'Trazo';
@@ -2246,7 +2654,7 @@
         }
       } catch (e) { /* ignore */ }
 
-		      Array.from([btnSelect, btnPen, btnLine, btnRect, btnCircle, btnMeasure, btnArrow, btnCurve, btnText, btnPlayer, btnCallout, btnBase, btnArea, btnMove, btnSpot, btnBlur]).forEach((b) => b?.classList.remove('primary'));
+		      Array.from([btnSelect, btnPen, btnLine, btnRect, btnCircle, btnMeasure, btnArrow, btnCurve, btnText, btnPlayer, btnStructure, btnCallout, btnBase, btnArea, btnSpace, btnMove, btnSpot, btnBlur]).forEach((b) => b?.classList.remove('primary'));
 		      if (tool === 'select') btnSelect?.classList.add('primary');
 		      if (tool === 'pen') btnPen?.classList.add('primary');
 		      if (tool === 'line') btnLine?.classList.add('primary');
@@ -2257,15 +2665,17 @@
 		      if (tool === 'curve') btnCurve?.classList.add('primary');
 	      if (tool === 'text') btnText?.classList.add('primary');
 	      if (tool === 'player') btnPlayer?.classList.add('primary');
+	      if (tool === 'structure') btnStructure?.classList.add('primary');
 	      if (tool === 'callout') btnCallout?.classList.add('primary');
 	      if (tool === 'base') btnBase?.classList.add('primary');
 	      if (tool === 'area') btnArea?.classList.add('primary');
+	      if (tool === 'space') btnSpace?.classList.add('primary');
 	      if (tool === 'move') btnMove?.classList.add('primary');
 		      if (tool === 'spot') btnSpot?.classList.add('primary');
 		      if (tool === 'blur') btnBlur?.classList.add('primary');
 	        if (tool !== 'player') closePlayerPop();
 	        if (tool !== 'text') closeTextPop();
-	        if (tool !== 'area') {
+	        if (tool !== 'area' && tool !== 'space') {
 	          // Cancela borrador de área si cambiamos de herramienta.
 	          try { if (areaDraftPolyline) fabricCanvas.remove(areaDraftPolyline); } catch (e) { /* ignore */ }
 	          areaDraftPolyline = null;
@@ -2285,6 +2695,7 @@
 	        if (tool === 'callout') return 'Callout';
 	        if (tool === 'base') return 'Base';
 	        if (tool === 'area') return 'Área';
+	        if (tool === 'space') return 'Espacio';
 	        if (tool === 'move') return 'Trayectoria';
 	        if (tool === 'spot') return 'Spotlight';
 	        if (tool === 'blur') return 'Blur';
@@ -2808,8 +3219,9 @@
 	        renderFxList();
 	        renderDrawLayers();
 	      }
-	      if (tool === 'area') {
+	      if (tool === 'area' || tool === 'space') {
 	        const p = fabricCanvas.getPointer(opt.e);
+	        const isSpaceTool = tool === 'space';
 	        const now = Date.now();
 	        const isDouble = (now - areaLastClickAt) < 380;
 	        areaLastClickAt = now;
@@ -2817,14 +3229,14 @@
 	          areaDraftPoints = [{ x: p.x, y: p.y }];
 	          areaDraftPolyline = new fabric.Polyline(areaDraftPoints, {
 	            fill: 'rgba(0,0,0,0)',
-	            stroke: 'rgba(250,204,21,0.95)',
+	            stroke: isSpaceTool ? 'rgba(34,211,238,0.95)' : 'rgba(250,204,21,0.95)',
 	            strokeWidth: 2,
 	            strokeDashArray: [8, 6],
 	            selectable: false,
 	            evented: false,
 	          });
 	          fabricCanvas.add(areaDraftPolyline);
-	          setStatus('Área: añade puntos y doble clic para cerrar.');
+	          setStatus(`${isSpaceTool ? 'Espacio' : 'Área'}: añade puntos y doble clic para cerrar.`);
 	          return;
 	        }
 	        // Añade punto
@@ -2838,6 +3250,7 @@
 	          areaDraftPolyline = null;
 	          const poly = new fabric.Polygon(areaDraftPoints, {
 	            fill: (() => {
+	              if (isSpaceTool) return 'rgba(34,211,238,0.20)';
 	              const c = strokeColor();
 	              if (c && c.startsWith('#') && (c.length === 7 || c.length === 4)) {
 	                const hex = c.length === 4
@@ -2850,13 +3263,24 @@
 	              }
 	              return 'rgba(245,158,11,0.22)';
 	            })(),
-	            stroke: 'rgba(255,255,255,0.35)',
-	            strokeWidth: 1,
+	            stroke: isSpaceTool ? 'rgba(34,211,238,0.95)' : 'rgba(255,255,255,0.35)',
+	            strokeWidth: isSpaceTool ? 2 : 1,
+	            strokeDashArray: isSpaceTool ? [10, 6] : null,
 	            shadow: 'rgba(0,0,0,0.25) 0 10px 22px',
 	            selectable: true,
 	            objectCaching: false,
 	          });
-	          poly.data = seedLayerDataNow({ kind: 'surface_area' });
+	          poly.data = seedLayerDataNow({
+	            kind: isSpaceTool ? 'space_zone' : 'surface_area',
+	            track: isSpaceTool,
+	            follow_mode: isSpaceTool ? 'manual' : '',
+	            space_base_fill: isSpaceTool ? 'rgba(34,211,238,0.20)' : '',
+	            space_base_stroke: isSpaceTool ? 'rgba(34,211,238,0.95)' : '',
+	          });
+	          if (isSpaceTool) {
+	            const c = objectCenterPoint(poly);
+	            if (c) poly.data.kf = normalizeKeyframes([{ t: Number(video.currentTime) || 0, x: c.x, y: c.y }]);
+	          }
 	          fabricCanvas.add(poly);
 	          pushHistory();
 	          try { fabricCanvas.setActiveObject(poly); } catch (e) { /* ignore */ }
@@ -2865,7 +3289,7 @@
 	          renderFxList();
 	          renderDrawLayers();
 	          areaDraftPoints = [];
-	          setStatus('Área creada.');
+	          setStatus(isSpaceTool ? 'Espacio móvil creado.' : 'Área creada.');
 	        }
 	      }
 	      if (tool === 'callout') {
@@ -3314,7 +3738,8 @@
 		    fabricCanvas.on('object:modified', (opt) => {
 		      const obj = opt?.target;
 		      if (!obj || !obj.data) return;
-		      if (safeText(obj.data.kind) !== 'player_marker') return;
+		      const kind = safeText(obj.data.kind);
+	      if (kind !== 'player_marker' && kind !== 'space_zone') return;
 	      if (!obj.data.track) return;
 		      try {
 		        const t = Number(video.currentTime) || 0;
@@ -3322,11 +3747,16 @@
 		        const x = Number(c?.x ?? obj.left) || 0;
 		        const y = Number(c?.y ?? obj.top) || 0;
 		        upsertKeyframe(obj, { t, x, y });
+		        if (kind === 'space_zone') {
+		          obj.data.follow_mode = 'manual';
+		          obj.data.follow_player_uid = '';
+		          obj.data.follow_offset = null;
+		        }
 		        trackingLastKfAtS = t;
 		        trackingLastKfPos = { x, y };
 		        pushHistory();
 		        renderDrawLayers();
-		        setStatus(`Jugador: posición guardada @ ${fmtTime(t)}`);
+		        setStatus(`${kind === 'space_zone' ? 'Espacio' : 'Jugador'}: posición guardada @ ${fmtTime(t)}`);
 		      } catch (e) { /* ignore */ }
 		    });
     fabricCanvas.on('selection:created', () => { selectedFxId = 0; updateLayerPanel(); renderFxList(); renderDrawLayers(); renderMiniTimeline(); });
@@ -3343,12 +3773,58 @@
 		    btnCurve?.addEventListener('click', () => setTool('curve'));
 	    btnText?.addEventListener('click', () => setTool('text'));
 	    btnPlayer?.addEventListener('click', () => setTool('player'));
+	    btnStructure?.addEventListener('click', () => { setTool('structure'); createTacticalStructureFromSelection(); });
 	    btnCallout?.addEventListener('click', () => setTool('callout'));
 	    btnBase?.addEventListener('click', () => setTool('base'));
 	    btnArea?.addEventListener('click', () => setTool('area'));
+	    btnSpace?.addEventListener('click', () => setTool('space'));
 	    btnMove?.addEventListener('click', () => setTool('move'));
 	    btnSpot?.addEventListener('click', () => setTool('spot'));
 	    btnBlur?.addEventListener('click', () => setTool('blur'));
+
+	    const assignSpaceFollowMode = (mode) => {
+	      const space = promoteToSpaceZone(selectedSpaceZone());
+	      if (!space) { setStatus('Selecciona un Área/Espacio para aplicar seguimiento.', true); return; }
+	      const nowS = Number(video.currentTime) || 0;
+	      const center = objectCenterPoint(space);
+	      if (!center) { setStatus('No se pudo leer el centro del espacio.', true); return; }
+	      if (mode === 'play') {
+	        const ref = playCentroidAt(nowS);
+	        if (!ref) { setStatus('No hay marcadores Jugador visibles para seguir la jugada.', true); return; }
+	        space.data.follow_mode = 'play';
+	        space.data.follow_offset = { x: center.x - ref.x, y: center.y - ref.y };
+	        space.data.follow_player_uid = '';
+	        space.data.track = true;
+	        upsertKeyframe(space, { t: nowS, x: center.x, y: center.y });
+	        setStatus('Espacio: seguirá la jugada.');
+	      } else if (mode === 'player') {
+	        const marker = selectedMarkerForSpace(space);
+	        if (!marker) { setStatus('Selecciona a la vez el espacio y un marcador Jugador.', true); return; }
+	        const ref = markerPointAt(marker, nowS);
+	        if (!ref) { setStatus('No se pudo leer la posición del jugador.', true); return; }
+	        ensureLayerData(marker);
+	        space.data.follow_mode = 'player';
+	        space.data.follow_player_uid = safeText(marker.data.uid, '');
+	        space.data.follow_offset = { x: center.x - ref.x, y: center.y - ref.y };
+	        space.data.track = true;
+	        upsertKeyframe(space, { t: nowS, x: center.x, y: center.y });
+	        setStatus('Espacio: seguirá al jugador seleccionado.');
+	      } else {
+	        space.data.follow_mode = 'manual';
+	        space.data.follow_player_uid = '';
+	        space.data.follow_offset = null;
+	        space.data.track = true;
+	        upsertKeyframe(space, { t: nowS, x: center.x, y: center.y });
+	        setStatus(`Espacio: keyframe manual @ ${fmtTime(nowS)}`);
+	      }
+	      pushHistory();
+	      updateLayerPanel();
+	      renderDrawLayers();
+	      try { applyTimedLayers(); fabricCanvas.requestRenderAll(); } catch (e) { /* ignore */ }
+	    };
+	    btnSpaceFollowPlay?.addEventListener('click', () => assignSpaceFollowMode('play'));
+	    btnSpaceFollowPlayer?.addEventListener('click', () => assignSpaceFollowMode('player'));
+	    btnSpaceFollowManual?.addEventListener('click', () => assignSpaceFollowMode('manual'));
 
       const pushPlayerRecent = (number, name) => {
         const n = safeText(number, '').trim();
@@ -4258,6 +4734,7 @@
 	      if (k === 'tool:text') return 'Texto';
 	      if (k === 'tool:player') return 'Jugador';
 	      if (k === 'tool:area') return 'Área';
+	      if (k === 'tool:space') return 'Espacio móvil';
 	      if (k === 'fx:spot') return 'Spotlight';
 	      if (k === 'fx:blur') return 'Blur';
 	      if (k === 'fx:freeze') return 'Freeze';
@@ -9427,6 +9904,20 @@
 	          }
 	        }
 
+	        if (safeText(obj?.data?.kind) === 'space_zone' && obj.visible) {
+	          anyAnim = true;
+	          const editingThis = Boolean(activeObj && obj === activeObj && video.paused && isTransforming);
+	          if (!editingThis) {
+	            try { applySpaceFollow(obj, nowS); } catch (e) { /* ignore */ }
+	          }
+	          try { applySpaceZoneLiveStyle(obj, isSpaceZoneOccupied(obj, nowS)); } catch (e) { /* ignore */ }
+	        }
+
+	        if (safeText(obj?.data?.kind) === 'tactical_link' && obj.visible) {
+	          anyAnim = true;
+	          try { updateTacticalLink(obj, nowS); } catch (e) { /* ignore */ }
+	        }
+
 	        const anim = safeText(obj.data.anim, 'none');
 	        if (anim === 'pulse') {
           anyAnim = true;
@@ -9471,6 +9962,13 @@
           }
         }
       }
+      try {
+        for (const obj of fabricCanvas.getObjects()) {
+          if (safeText(obj?.data?.kind) === 'tactical_link' && obj.visible) {
+            updateTacticalLink(obj, nowS);
+          }
+        }
+      } catch (e) { /* ignore */ }
       // Durante reproducción, no queremos ver el "marco de selección" (controles) flotando
       // cuando la capa está entrando/saliendo (la selección no sigue el alpha).
       // En iOS/Safari esto distrae mucho y parece un bug visual.
@@ -9549,47 +10047,63 @@
 	            y_rel: clamp(cy / canvasH, 0, 1),
 	            bw_rel: clamp(bw / canvasW, 0.02, 0.35),
 	            bh_rel: clamp(bh / canvasH, 0.02, 0.35),
+	            anchors: normalizeKeyframes(obj?.data?.kf || [])
+	              .filter((k) => Number(k.t) >= start - 0.08 && Number(k.t) <= end + 0.08)
+	              .map((k) => ({
+	                t: Number(k.t),
+	                x_rel: clamp((Number(k.x) || 0) / canvasW, 0, 1),
+	                y_rel: clamp((Number(k.y) || 0) / canvasH, 0, 1),
+	              })),
 	          });
 	          uidToObj.set(uid, obj);
 	        }
 	        if (!markers.length) throw new Error('No hay marcadores Jugador visibles en IN (selecciona uno o crea varios).');
 
 	        setStatus(`AutoTrack: siguiendo ${markers.length} jugador(es)… (beta)`);
+	        const smooth = getTrackSmoothStrength();
+	        const antiJump = isTrackAntiJumpEnabled();
 	        const resp = await fetch(trackUrl, {
 	          method: 'POST',
 	          credentials: 'same-origin',
 	          cache: 'no-store',
 	          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, Accept: 'application/json' },
-	          body: JSON.stringify({ video_id: videoId, start_s: start, end_s: end, fps: 10, max_w: 1280, markers }),
+	          body: JSON.stringify({ video_id: videoId, start_s: start, end_s: end, fps: 10, max_w: 1280, markers, smooth, anti_jump: antiJump }),
 	        });
 	        const data = await resp.json().catch(() => ({}));
 	        if (!resp.ok || !data?.ok) throw new Error(safeText(data?.error, 'No se pudo hacer tracking.'));
 
 	        const tracks = data.tracks && typeof data.tracks === 'object' ? data.tracks : {};
+	        const meta = data.track_meta && typeof data.track_meta === 'object' ? data.track_meta : {};
 	        let applied = 0;
+	        let dropped = 0;
 	        for (const [uid, points] of Object.entries(tracks)) {
 	          const obj = uidToObj.get(String(uid));
 	          if (!obj || !Array.isArray(points) || !points.length) continue;
-	          const kf = points
+	          const rawKf = points
 	            .map((p0) => ({
 	              t: Number(p0?.t),
 	              x: Number(p0?.x_rel) * canvasW,
 	              y: Number(p0?.y_rel) * canvasH,
 	            }))
 	            .filter((p0) => Number.isFinite(p0.t) && Number.isFinite(p0.x) && Number.isFinite(p0.y));
+	          const kf = cleanTrackKeyframes(rawKf, { smooth, antiJump });
+	          dropped += Number(kf.dropped || 0);
+	          dropped += Number(meta?.[uid]?.dropped || 0);
 	          if (!kf.length) continue;
 	          ensureLayerData(obj);
 	          obj.data.track = true;
 	          obj.data.kf = normalizeKeyframes(kf);
 	          obj.data.t_in_s = start;
 	          obj.data.t_out_s = end;
+	          obj.data.track_smooth = smooth;
+	          obj.data.track_antijump = antiJump;
 	          applied += 1;
 	        }
 	        if (!applied) throw new Error('No se pudo aplicar tracking (sin resultados).');
 	        pushHistory();
 	        renderDrawLayers();
 	        updateLayerPanel();
-	        setStatus(`AutoTrack: OK (${applied}/${markers.length}). Puedes corregir arrastrando en Play (se guardan keyframes).`);
+	        setStatus(`AutoTrack: OK (${applied}/${markers.length}). Saltos filtrados: ${dropped}. Puedes corregir arrastrando en Play.`);
 	      } catch (e) {
 	        setStatus(`AutoTrack: ${safeText(e?.message, 'error')}`, true);
 	      } finally {
@@ -9599,6 +10113,786 @@
 	      }
 	    };
 	    btnTrackAuto?.addEventListener('click', () => { autoTrackPlayers(); });
+	    btnTrackSmoothSelected?.addEventListener('click', () => { smoothSelectedTrackMarker(); });
+
+	    const showAiCandidatePicker = async (candidateGroups = [], rawAnchors = []) => new Promise((resolve) => {
+	      const groups = Array.isArray(candidateGroups) ? candidateGroups : [];
+	      if (!groups.length) { resolve(rawAnchors); return; }
+	      const wrap = document.createElement('div');
+	      wrap.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(2,6,23,0.74);display:flex;align-items:center;justify-content:center;padding:18px;';
+	      const selected = new Map();
+	      const groupHtml = groups.map((g, idx) => {
+	        const anchor = g?.anchor || rawAnchors[idx] || {};
+	        const dets = Array.isArray(g?.detections) ? g.detections : [];
+	        const buttons = dets.slice(0, 6).map((d, j) => {
+	          const tid = safeText(d?.track_id ?? '?');
+	          const conf = Math.round((Number(d?.conf) || 0) * 100);
+	          const dist = Number(d?.distance || 0).toFixed(3);
+	          const best = d?.ocr?.best ? ` · dorsal ${escHtml(String(d.ocr.best))}` : '';
+	          return `<button type="button" class="button" data-ai-cand="${idx}:${j}" style="text-align:left;justify-content:flex-start;min-height:42px;">ID ${escHtml(tid)} · ${conf}% · d ${escHtml(dist)}${best}</button>`;
+	        }).join('') || '<div class="meta">Sin candidato claro en este anclaje.</div>';
+	        return `
+	          <div style="border:1px solid rgba(148,163,184,0.22);border-radius:12px;padding:10px;background:rgba(15,23,42,0.72);">
+	            <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px;">
+	              <strong>Anclaje ${idx + 1}</strong>
+	              <small style="opacity:.76;">${fmtTimeShort(Number(anchor?.t) || Number(g?.frame_t) || 0)}</small>
+	            </div>
+	            <div style="display:grid;gap:7px;">${buttons}</div>
+	          </div>
+	        `;
+	      }).join('');
+	      wrap.innerHTML = `
+	        <div style="width:min(760px,96vw);max-height:86vh;overflow:auto;border:1px solid rgba(148,163,184,0.28);border-radius:16px;background:#0f172a;color:#f8fafc;box-shadow:0 24px 80px rgba(0,0,0,.42);padding:16px;">
+	          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px;">
+	            <div>
+	              <h3 style="margin:0 0 4px;font-size:1rem;">Candidatos AutoTrack IA</h3>
+	              <p style="margin:0;color:#cbd5e1;font-size:.86rem;">Elige el jugador correcto en cada anclaje dudoso. Si no eliges, se mantiene el anclaje manual.</p>
+	            </div>
+	            <button type="button" class="button" data-ai-close>Cerrar</button>
+	          </div>
+	          <div style="display:grid;gap:10px;margin-bottom:14px;">${groupHtml}</div>
+	          <div style="display:flex;justify-content:flex-end;gap:8px;position:sticky;bottom:0;background:#0f172a;padding-top:10px;">
+	            <button type="button" class="button" data-ai-skip>Usar anclas</button>
+	            <button type="button" class="button primary" data-ai-apply>Aplicar selección</button>
+	          </div>
+	        </div>
+	      `;
+	      const cleanup = (value) => {
+	        try { wrap.remove(); } catch (e) { /* ignore */ }
+	        resolve(value);
+	      };
+	      wrap.addEventListener('click', (ev) => {
+	        const closeBtn = ev.target?.closest?.('[data-ai-close]');
+	        if (closeBtn) { cleanup(null); return; }
+	        const skipBtn = ev.target?.closest?.('[data-ai-skip]');
+	        if (skipBtn) { cleanup(rawAnchors); return; }
+	        const applyBtn = ev.target?.closest?.('[data-ai-apply]');
+	        if (applyBtn) {
+	          const next = rawAnchors.map((a, idx) => {
+	            const det = selected.get(idx);
+	            if (!det) return a;
+	            return { ...a, x_rel: clamp(Number(det.x_rel) || Number(a.x_rel) || 0, 0, 1), y_rel: clamp(Number(det.y_rel) || Number(a.y_rel) || 0, 0, 1), selected_track_id: det.track_id ?? null };
+	          });
+	          cleanup(next);
+	          return;
+	        }
+	        const candBtn = ev.target?.closest?.('[data-ai-cand]');
+	        if (!candBtn) return;
+	        const parts = safeText(candBtn.getAttribute('data-ai-cand')).split(':').map((x) => Number(x));
+	        const gi = Number(parts[0]);
+	        const di = Number(parts[1]);
+	        const det = groups?.[gi]?.detections?.[di];
+	        if (!det) return;
+	        selected.set(gi, det);
+	        try {
+	          Array.from(wrap.querySelectorAll(`[data-ai-cand^="${gi}:"]`)).forEach((b) => b.classList.remove('primary'));
+	          candBtn.classList.add('primary');
+	        } catch (e) { /* ignore */ }
+	      });
+	      document.body.appendChild(wrap);
+	    });
+
+	    const pollAiTrackJob = async (jobId, { timeoutMs = 900000 } = {}) => {
+	      const started = Date.now();
+	      let last = null;
+	      while (Date.now() - started < timeoutMs) {
+	        await new Promise((resolve) => window.setTimeout(resolve, 1600));
+	        const resp = await fetch(aiTrackUrl, {
+	          method: 'POST',
+	          credentials: 'same-origin',
+	          cache: 'no-store',
+	          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, Accept: 'application/json' },
+	          body: JSON.stringify({ action: 'status', job_id: jobId }),
+	        });
+	        const data = await resp.json().catch(() => ({}));
+	        if (!resp.ok || !data?.ok) throw new Error(safeText(data?.error, 'No se pudo consultar el job IA.'));
+	        const job = data.job || {};
+	        last = job;
+	        const status = safeText(job.status);
+	        const progress = Number(job.progress || 0) || 0;
+	        const message = safeText(job.message || '');
+	        setStatus(`AutoTrack IA: ${message || status} ${progress}%`);
+	        if (status === 'done') return job.result || {};
+	        if (status === 'error') throw new Error(safeText(job.error, 'Job IA con error.'));
+	        if (status === 'canceled') throw new Error('Job IA cancelado.');
+	      }
+	      throw new Error(safeText(last?.message, 'Tiempo agotado esperando AutoTrack IA.'));
+	    };
+
+	    const aiProPost = async (payload = {}) => {
+	      if (!aiProUrl) throw new Error('IA Pro no disponible.');
+	      const resp = await fetch(aiProUrl, {
+	        method: 'POST',
+	        credentials: 'same-origin',
+	        cache: 'no-store',
+	        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, Accept: 'application/json' },
+	        body: JSON.stringify({ video_id: videoId, ...payload }),
+	      });
+	      const data = await resp.json().catch(() => ({}));
+	      if (!resp.ok || !data?.ok) throw new Error(safeText(data?.error, 'Error IA Pro.'));
+	      return data;
+	    };
+
+	    const selectedPlayerMarker = () => {
+	      try {
+	        const active = fabricCanvas.getActiveObject?.() || null;
+	        if (!active) return null;
+	        const items = active.type === 'activeSelection' && typeof active.getObjects === 'function' ? active.getObjects() : [active];
+	        return (items || []).find((obj) => safeText(obj?.data?.kind) === 'player_marker') || null;
+	      } catch (e) {
+	        return null;
+	      }
+	    };
+
+	    const ensureActiveClipForAiPro = async () => {
+	      let id = Number(activeClipId || initialClipId || 0) || 0;
+	      if (id) return id;
+	      id = Number(await saveClip({ forceNew: true }) || 0);
+	      return id || 0;
+	    };
+
+	    const aiProCorrectCurrent = async () => {
+	      const marker = selectedPlayerMarker();
+	      if (!marker) { setStatus('IA Pro: selecciona un marcador Jugador.', true); return; }
+	      const clipId = await ensureActiveClipForAiPro();
+	      if (!clipId) { setStatus('IA Pro: no se pudo guardar el clip base.', true); return; }
+	      const canvasW = Number(fabricCanvas.getWidth?.()) || 0;
+	      const canvasH = Number(fabricCanvas.getHeight?.()) || 0;
+	      const t = Number(video.currentTime || 0) || 0;
+	      const c = marker.getCenterPoint ? marker.getCenterPoint() : null;
+	      const x = Number(c?.x ?? marker.left) || 0;
+	      const y = Number(c?.y ?? marker.top) || 0;
+	      ensureLayerData(marker);
+	      marker.data.track = true;
+	      upsertKeyframe(marker, { t, x, y });
+	      marker.data.ai_corrected = true;
+	      marker.data.ai_corrections = Number(marker.data.ai_corrections || 0) + 1;
+	      pushHistory();
+	      renderDrawLayers();
+	      updateLayerPanel();
+	      try {
+	        const data = await aiProPost({
+	          action: 'correction',
+	          clip_id: clipId,
+	          marker_uid: safeText(marker?.data?.uid || ''),
+	          time_s: t,
+	          x_rel: clamp(x / Math.max(1, canvasW), 0, 1),
+	          y_rel: clamp(y / Math.max(1, canvasH), 0, 1),
+	          label: safeText(marker?.data?.number || 'target_player'),
+	          payload: { source: 'manual_frame_correction' },
+	        });
+	        setStatus(`IA Pro: corrección guardada (#${data.example_id || ''}).`);
+	      } catch (e) {
+	        setStatus(`IA Pro: ${safeText(e?.message, 'error')}`, true);
+	      }
+	    };
+
+	    const aiProQualitySelected = async () => {
+	      const marker = selectedPlayerMarker();
+	      const clipId = await ensureActiveClipForAiPro();
+	      if (!clipId) { setStatus('IA Pro: no hay clip activo.', true); return; }
+	      try {
+	        const data = await aiProPost({ action: 'quality', clip_id: clipId, marker_uid: safeText(marker?.data?.uid || '') });
+	        const q = data.quality || {};
+	        if (marker) {
+	          ensureLayerData(marker);
+	          marker.data.ai_quality = q;
+	          marker.data.ai_needs_correction = Boolean(q.needs_correction);
+	          updateLayerPanel();
+	        }
+	        const label = safeText(q.label || '');
+	        const score = Math.round((Number(q.score || 0) || 0) * 100);
+	        const low = Array.isArray(q.low_ranges) ? q.low_ranges.length : 0;
+	        const jumps = Array.isArray(q.jumps) ? q.jumps.length : 0;
+	        setStatus(`IA Pro calidad: ${label || 'n/d'} ${score}% · dudas ${low} · saltos ${jumps}.`);
+	      } catch (e) {
+	        setStatus(`IA Pro: ${safeText(e?.message, 'error')}`, true);
+	      }
+	    };
+
+	    const showAiProPanel = () => {
+	      const wrap = document.createElement('div');
+	      wrap.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(2,6,23,.72);display:flex;align-items:center;justify-content:center;padding:18px;';
+	      wrap.innerHTML = `
+	        <div style="width:min(680px,96vw);max-height:86vh;overflow:auto;border:1px solid rgba(148,163,184,.28);border-radius:16px;background:#0f172a;color:#f8fafc;box-shadow:0 24px 80px rgba(0,0,0,.42);padding:16px;">
+	          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:12px;">
+	            <div>
+	              <h3 style="margin:0 0 4px;font-size:1rem;">IA Pro</h3>
+	              <p style="margin:0;color:#cbd5e1;font-size:.86rem;">Herramientas de analista para mejorar seguimiento, aprender de correcciones y preparar exports.</p>
+	            </div>
+	            <button type="button" class="button" data-ai-pro-close>Cerrar</button>
+	          </div>
+	          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;">
+	            <button type="button" class="button" data-ai-pro-act="profile">Modelo jugador</button>
+	            <button type="button" class="button" data-ai-pro-act="identity_profile">Identidad jugador</button>
+	            <button type="button" class="button primary" data-ai-pro-act="select_player_click">Seleccionar con clic</button>
+	            <button type="button" class="button primary" data-ai-pro-act="manual_anchor">Anclar jugador</button>
+	            <button type="button" class="button" data-ai-pro-act="manual_anchor_list">Ver anclajes</button>
+	            <button type="button" class="button" data-ai-pro-act="anchor_suggestions">Sugerir anclajes</button>
+	            <button type="button" class="button primary" data-ai-pro-act="export_follow">Exportar seguimiento</button>
+	            <button type="button" class="button" data-ai-pro-act="batch">Batch clips</button>
+	            <button type="button" class="button" data-ai-pro-act="train">Entrenar</button>
+	            <button type="button" class="button" data-ai-pro-act="export_pro">Export pro</button>
+	            <button type="button" class="button" data-ai-pro-act="patterns">Patrones</button>
+	            <button type="button" class="button primary" data-ai-pro-act="detect_actions">Detectar acciones</button>
+	            <button type="button" class="button" data-ai-pro-act="action_dataset">Dataset acciones</button>
+	            <button type="button" class="button" data-ai-pro-act="ai_review">Revisión IA</button>
+	            <button type="button" class="button" data-ai-pro-act="active_learning">Qué necesita aprender</button>
+	            <button type="button" class="button" data-ai-pro-act="team_profile">Perfil equipo/rival</button>
+	            <button type="button" class="button" data-ai-pro-act="ball_example">Ejemplo balón</button>
+	            <button type="button" class="button" data-ai-pro-act="field_homography">Campo real</button>
+	            <button type="button" class="button" data-ai-pro-act="sequence_detect">Secuencia eventos</button>
+	            <button type="button" class="button" data-ai-pro-act="model_plan">Plan fine-tune</button>
+	            <button type="button" class="button" data-ai-pro-act="train_actions">Entrenar acciones</button>
+	            <button type="button" class="button" data-ai-pro-act="cut_feedback">Feedback corte</button>
+	            <button type="button" class="button" data-ai-pro-act="feedback_positive">Acción OK</button>
+	            <button type="button" class="button danger" data-ai-pro-act="feedback_negative">Acción NO</button>
+	            <button type="button" class="button primary" data-ai-pro-act="calibration_save">Calibrar campo</button>
+	            <button type="button" class="button" data-ai-pro-act="calibration_get">Ver calibración</button>
+	            <button type="button" class="button primary" data-ai-pro-act="knowledge_seed">Estudiar táctica</button>
+	            <button type="button" class="button primary" data-ai-pro-act="senior_analyst_seed">Criterio senior</button>
+	            <button type="button" class="button primary" data-ai-pro-act="senior_coach_seed">Criterio entrenador</button>
+	            <button type="button" class="button" data-ai-pro-act="knowledge">Base táctica</button>
+	          </div>
+	          <pre data-ai-pro-out style="white-space:pre-wrap;background:rgba(2,6,23,.45);border:1px solid rgba(148,163,184,.18);border-radius:12px;padding:10px;min-height:110px;margin-top:12px;color:#dbeafe;font-size:.78rem;"></pre>
+	        </div>
+	      `;
+	      const out = wrap.querySelector('[data-ai-pro-out]');
+	      const write = (text) => { if (out) out.textContent = text; };
+	      const run = async (act) => {
+	        const marker = selectedPlayerMarker();
+	        const clipId = await ensureActiveClipForAiPro();
+	        const markerUid = safeText(marker?.data?.uid || '');
+	        const selectedIds = (() => {
+	          try {
+	            if (selectedClipIds && selectedClipIds.size) return Array.from(selectedClipIds).map((x) => Number(x) || 0).filter((x) => x > 0);
+	          } catch (e) { /* ignore */ }
+	          return clipId ? [clipId] : [];
+	        })();
+	        write('Ejecutando…');
+	        if (act === 'profile') {
+	          const data = await aiProPost({ action: 'profile', clip_id: clipId, marker_uid: markerUid });
+	          write(JSON.stringify(data.profile || {}, null, 2));
+	          setStatus('IA Pro: modelo de jugador actualizado.');
+	          return;
+	        }
+	        if (act === 'identity_profile') {
+	          const data = await aiProPost({ action: 'identity_profile', clip_id: clipId, marker_uid: markerUid });
+	          write(JSON.stringify(data.profile || {}, null, 2));
+	          setStatus('IA Pro: identidad del jugador cargada.');
+	          return;
+	        }
+	        if (act === 'select_player_click') {
+	          wrap.style.display = 'none';
+	          setStatus('IA Pro: haz clic sobre el jugador en el vídeo.');
+	          const once = async (opt) => {
+	            try {
+	              fabricCanvas.off('mouse:down', once);
+	              const p = fabricCanvas.getPointer(opt.e);
+	              const num = window.prompt('Dorsal/ID del jugador', safeText(marker?.data?.number || '10')) || '10';
+	              const created = createPlayerMarkerAt(p, num, 'OBJETIVO', { team: 'away', style: 'tag' });
+	              const obj = fabricCanvas.getActiveObject?.();
+	              if (obj && safeText(obj?.data?.kind) === 'player_marker') {
+	                const c = obj.getCenterPoint ? obj.getCenterPoint() : p;
+	                const canvasW = Number(fabricCanvas.getWidth?.()) || 1;
+	                const canvasH = Number(fabricCanvas.getHeight?.()) || 1;
+	                const data = await aiProPost({
+	                  action: 'correction',
+	                  clip_id: clipId,
+	                  marker_uid: safeText(obj?.data?.uid || ''),
+	                  time_s: Number(video.currentTime || 0) || 0,
+	                  x_rel: clamp(Number(c.x || p.x) / canvasW, 0, 1),
+	                  y_rel: clamp(Number(c.y || p.y) / canvasH, 0, 1),
+	                  label: safeText(num),
+	                  payload: { source: 'click_player_selector' },
+	                });
+	                write(JSON.stringify({ created, anchor: data }, null, 2));
+	                setStatus('IA Pro: jugador seleccionado y anclaje inicial guardado.');
+	              }
+	            } catch (e) {
+	              setStatus(`IA Pro: ${safeText(e?.message, 'error')}`, true);
+	            } finally {
+	              wrap.style.display = 'flex';
+	            }
+	          };
+	          fabricCanvas.on('mouse:down', once);
+	          return;
+	        }
+	        if (act === 'manual_anchor') {
+	          if (!marker) { write('Selecciona un marcador Jugador.'); setStatus('IA Pro: selecciona un marcador Jugador.', true); return; }
+	          await aiProCorrectCurrent();
+	          const data = await aiProPost({ action: 'correction_list', clip_id: clipId, marker_uid: markerUid });
+	          write(JSON.stringify({ count: data.count || 0, anchors: data.anchors || [] }, null, 2));
+	          setStatus(`IA Pro: anclaje guardado. Total ${data.count || 0}.`);
+	          return;
+	        }
+	        if (act === 'manual_anchor_list') {
+	          const data = await aiProPost({ action: 'correction_list', clip_id: clipId, marker_uid: markerUid });
+	          write(JSON.stringify({ count: data.count || 0, anchors: data.anchors || [] }, null, 2));
+	          setStatus(`IA Pro: ${data.count || 0} anclajes cargados.`);
+	          return;
+	        }
+	        if (act === 'anchor_suggestions') {
+	          const data = await aiProPost({ action: 'anchor_suggestions', clip_id: clipId, marker_uid: markerUid });
+	          write(JSON.stringify({ quality: data.quality || {}, suggestions: data.suggestions || [] }, null, 2));
+	          const first = Array.isArray(data.suggestions) && data.suggestions.length ? data.suggestions[0] : null;
+	          if (first && Number.isFinite(Number(first.time_s))) {
+	            try { video.currentTime = Number(first.time_s); } catch (e) { /* ignore */ }
+	          }
+	          setStatus(`IA Pro: ${Array.isArray(data.suggestions) ? data.suggestions.length : 0} sugerencias de anclaje.`);
+	          return;
+	        }
+	        if (act === 'export_follow') {
+	          const data = await aiProPost({
+	            action: 'export_follow',
+	            clip_id: clipId,
+	            marker_uid: markerUid,
+	            start_s: Number(inInput?.value || 0) || undefined,
+	            end_s: Number(outInput?.value || 0) || undefined,
+	          });
+	          const result = await pollAiTrackJob(Number(data.job_id), { timeoutMs: 900000 });
+	          write(JSON.stringify(result, null, 2));
+	          setStatus('IA Pro: seguimiento exportado a Descargas.');
+	          return;
+	        }
+	        if (act === 'batch') {
+	          const data = await aiProPost({ action: 'batch', clip_id: clipId, clip_ids: selectedIds });
+	          const result = await pollAiTrackJob(Number(data.job_id), { timeoutMs: 900000 });
+	          write(JSON.stringify(result, null, 2));
+	          setStatus('IA Pro: batch completado.');
+	          return;
+	        }
+	        if (act === 'train') {
+	          const data = await aiProPost({ action: 'train', clip_id: clipId });
+	          const result = await pollAiTrackJob(Number(data.job_id), { timeoutMs: 900000 });
+	          write(JSON.stringify(result, null, 2));
+	          setStatus('IA Pro: entrenamiento evaluado.');
+	          return;
+	        }
+	        if (act === 'export_pro') {
+	          const data = await aiProPost({ action: 'export_pro', clip_id: clipId, marker_uid: markerUid, title: safeText(clipTitleInput?.value || '') });
+	          write(JSON.stringify(data.preset || {}, null, 2));
+	          setStatus('IA Pro: preset de export pro guardado en el clip.');
+	          return;
+	        }
+	        if (act === 'patterns') {
+	          const data = await aiProPost({ action: 'patterns' });
+	          write(JSON.stringify(data.patterns || [], null, 2));
+	          setStatus('IA Pro: biblioteca táctica cargada.');
+	          return;
+	        }
+	        if (act === 'detect_actions') {
+	          const data = await aiProPost({ action: 'detect_actions', clip_id: clipId, clip_ids: selectedIds });
+	          const result = await pollAiTrackJob(Number(data.job_id), { timeoutMs: 900000 });
+	          write(JSON.stringify(result, null, 2));
+	          setStatus('IA Pro: acciones detectadas.');
+	          return;
+	        }
+	        if (act === 'action_dataset') {
+	          const data = await aiProPost({ action: 'action_dataset', clip_id: clipId });
+	          write(JSON.stringify({ examples: data.examples, labels: data.labels || [], dataset: data.dataset || {} }, null, 2));
+	          setStatus('IA Pro: dataset de acciones cargado.');
+	          return;
+	        }
+	        if (['ai_review', 'active_learning', 'team_profile', 'field_homography', 'sequence_detect', 'model_plan'].includes(act)) {
+	          const data = await aiProPost({ action: act, clip_id: clipId });
+	          write(JSON.stringify(data, null, 2));
+	          setStatus(`IA Pro: ${safeText(act)} cargado.`);
+	          return;
+	        }
+	        if (act === 'ball_example') {
+	          const x = window.prompt('X balón normalizado 0..1 (vacío = centro)', '0.5');
+	          const y = window.prompt('Y balón normalizado 0..1 (vacío = centro)', '0.5');
+	          const data = await aiProPost({
+	            action: 'ball_example',
+	            clip_id: clipId,
+	            time_s: Number(video.currentTime || 0) || 0,
+	            x_rel: clamp(Number(x || 0.5) || 0.5, 0, 1),
+	            y_rel: clamp(Number(y || 0.5) || 0.5, 0, 1),
+	          });
+	          write(JSON.stringify(data, null, 2));
+	          setStatus('IA Pro: ejemplo de balón guardado.');
+	          return;
+	        }
+	        if (act === 'train_actions') {
+	          const data = await aiProPost({ action: 'train_actions', clip_id: clipId });
+	          const result = await pollAiTrackJob(Number(data.job_id), { timeoutMs: 900000 });
+	          write(JSON.stringify(result, null, 2));
+	          setStatus('IA Pro: entrenamiento de acciones evaluado.');
+	          return;
+	        }
+	        if (act === 'cut_feedback') {
+	          const feedback = (window.prompt('Feedback del corte: ok, starts_late, starts_early, ends_late, ends_early, wrong_action', 'starts_late') || '').trim();
+	          if (!feedback) { write('Cancelado.'); return; }
+	          const data = await aiProPost({
+	            action: 'cut_feedback',
+	            clip_id: clipId,
+	            feedback,
+	            suggested_start_s: Number(inInput?.value || 0) || undefined,
+	            suggested_end_s: Number(outInput?.value || 0) || undefined,
+	            note: 'feedback_desde_panel_ia_pro',
+	          });
+	          write(JSON.stringify(data, null, 2));
+	          setStatus(`IA Pro: feedback de corte guardado (#${data.example_id || ''}).`);
+	          return;
+	        }
+	        if (act === 'calibration_get') {
+	          const data = await aiProPost({ action: 'calibration_get', clip_id: clipId });
+	          write(JSON.stringify(data.calibration || {}, null, 2));
+	          setStatus('IA Pro: calibración cargada.');
+	          return;
+	        }
+	        if (act === 'calibration_save') {
+	          const direction = (window.prompt('Dirección de ataque de tu equipo: ltr = izquierda a derecha, rtl = derecha a izquierda', 'ltr') || '').trim().toLowerCase();
+	          if (!['ltr', 'rtl', 'unknown'].includes(direction)) { write('Cancelado: usa ltr, rtl o unknown.'); return; }
+	          const canvasW = Number(fabricCanvas.getWidth?.()) || 1;
+	          const canvasH = Number(fabricCanvas.getHeight?.()) || 1;
+	          const obj = fabricCanvas.getActiveObject?.();
+	          let rect = null;
+	          if (obj && typeof obj.getBoundingRect === 'function') {
+	            try { rect = obj.getBoundingRect(true, true); } catch (e) { rect = obj.getBoundingRect(); }
+	          }
+	          const x0 = clamp(Number(rect?.left || 0) / Math.max(1, canvasW), 0, 1);
+	          const y0 = clamp(Number(rect?.top || 0) / Math.max(1, canvasH), 0, 1);
+	          const x1 = clamp(Number((rect ? rect.left + rect.width : canvasW)) / Math.max(1, canvasW), 0, 1);
+	          const y1 = clamp(Number((rect ? rect.top + rect.height : canvasH)) / Math.max(1, canvasH), 0, 1);
+	          const confidence = rect ? 0.72 : 0.48;
+	          const data = await aiProPost({
+	            action: 'calibration_save',
+	            clip_id: clipId,
+	            attack_direction: direction,
+	            field_points: {
+	              tl: { x: x0, y: y0 },
+	              tr: { x: x1, y: y0 },
+	              br: { x: x1, y: y1 },
+	              bl: { x: x0, y: y1 },
+	            },
+	            confidence,
+	            payload: { source: rect ? 'selected_canvas_region' : 'full_video_frame', current_time_s: Number(video.currentTime || 0) || 0 },
+	          });
+	          write(JSON.stringify(data.calibration || data, null, 2));
+	          setStatus(`IA Pro: calibración guardada (${direction}, ${Math.round(confidence * 100)}%).`);
+	          return;
+	        }
+	        if (act === 'feedback_positive' || act === 'feedback_negative') {
+	          const key = window.prompt('Etiqueta de acción', '1v1_banda');
+	          if (!key) { write('Cancelado.'); return; }
+	          const data = await aiProPost({
+	            action: 'action_feedback',
+	            clip_id: clipId,
+	            action_key: safeText(key).slice(0, 80),
+	            label: safeText(key).replace(/_/g, ' '),
+	            is_positive: act === 'feedback_positive',
+	            start_s: Number(inInput?.value || 0) || 0,
+	            end_s: Number(outInput?.value || 0) || 0,
+	            confidence: 1,
+	            payload: { source: 'analyst_feedback_panel' },
+	          });
+	          write(JSON.stringify(data, null, 2));
+	          setStatus(`IA Pro: feedback de acción guardado (#${data.example_id || ''}).`);
+	          return;
+	        }
+	        if (act === 'knowledge_seed' || act === 'senior_analyst_seed' || act === 'senior_coach_seed') {
+	          const data = await aiProPost({ action: 'knowledge_seed' });
+	          write(JSON.stringify(data, null, 2));
+	          setStatus(`IA Pro: base táctica/entrenador senior inicializada (${data.created || 0} nuevos, ${data.updated || 0} actualizados).`);
+	          return;
+	        }
+	        if (act === 'knowledge') {
+	          const data = await aiProPost({ action: 'knowledge' });
+	          write(JSON.stringify({ sources: data.sources || [], packs: data.packs || {}, entries: data.entries || [] }, null, 2));
+	          setStatus(`IA Pro: ${Array.isArray(data.entries) ? data.entries.length : 0} conceptos tácticos cargados.`);
+	        }
+	      };
+	      wrap.addEventListener('click', async (ev) => {
+	        if (ev.target?.closest?.('[data-ai-pro-close]')) { try { wrap.remove(); } catch (e) { /* ignore */ } return; }
+	        const btn = ev.target?.closest?.('[data-ai-pro-act]');
+	        if (!btn) return;
+	        try { await run(safeText(btn.getAttribute('data-ai-pro-act'))); }
+	        catch (e) { write(safeText(e?.message, 'error')); setStatus(`IA Pro: ${safeText(e?.message, 'error')}`, true); }
+	      });
+	      document.body.appendChild(wrap);
+	    };
+
+	    btnAiProCorrect?.addEventListener('click', () => { aiProCorrectCurrent(); });
+	    btnAiProQuality?.addEventListener('click', () => { aiProQualitySelected(); });
+	    btnAiProPanel?.addEventListener('click', () => { showAiProPanel(); });
+
+	    const buildSpaceOccupancyPayload = (obj, canvasW, canvasH, start, end) => {
+	      const space = promoteToSpaceZone(obj);
+	      if (!space || !canvasW || !canvasH) return null;
+	      ensureLayerData(space);
+	      const uid = safeText(space.data.uid, '');
+	      if (!uid) return null;
+	      let rect = null;
+	      try { rect = space.getBoundingRect?.(true, true); } catch (e) { rect = null; }
+	      const center = objectCenterPoint(space);
+	      const wPx = Math.max(4, Number(rect?.width) || Number(space.getScaledWidth?.()) || 40);
+	      const hPx = Math.max(4, Number(rect?.height) || Number(space.getScaledHeight?.()) || 40);
+	      const base = {
+	        t: Number(video.currentTime) || start,
+	        x_rel: clamp((Number(center?.x ?? space.left) || 0) / canvasW, 0, 1),
+	        y_rel: clamp((Number(center?.y ?? space.top) || 0) / canvasH, 0, 1),
+	        w_rel: clamp(wPx / canvasW, 0.002, 1),
+	        h_rel: clamp(hPx / canvasH, 0.002, 1),
+	      };
+	      const mode = safeText(space.data.follow_mode, 'manual') || 'manual';
+	      let kf = normalizeKeyframes(space.data.kf || [])
+	        .filter((k) => Number(k.t) >= start - 0.12 && Number(k.t) <= end + 0.12)
+	        .map((k) => ({
+	          t: Number(k.t),
+	          x_rel: clamp((Number(k.x) || 0) / canvasW, 0, 1),
+	          y_rel: clamp((Number(k.y) || 0) / canvasH, 0, 1),
+	          w_rel: base.w_rel,
+	          h_rel: base.h_rel,
+	        }));
+	      if (mode === 'player') {
+	        const followedUid = safeText(space.data.follow_player_uid, '');
+	        const marker = getPlayerMarkers().find((m) => safeText(m?.data?.uid, '') === followedUid) || null;
+	        const off = space.data.follow_offset || {};
+	        const ox = Number(off.x) || 0;
+	        const oy = Number(off.y) || 0;
+	        const markerFrames = normalizeKeyframes(marker?.data?.kf || [])
+	          .filter((k) => Number(k.t) >= start - 0.12 && Number(k.t) <= end + 0.12);
+	        if (markerFrames.length) {
+	          kf = markerFrames.map((k) => ({
+	            t: Number(k.t),
+	            x_rel: clamp(((Number(k.x) || 0) + ox) / canvasW, 0, 1),
+	            y_rel: clamp(((Number(k.y) || 0) + oy) / canvasH, 0, 1),
+	            w_rel: base.w_rel,
+	            h_rel: base.h_rel,
+	          }));
+	        }
+	      }
+	      if (!kf.length) kf = [{ ...base, t: start }];
+	      const off = space.data.follow_offset || {};
+	      return {
+	        uid,
+	        follow_mode: mode,
+	        follow_offset: {
+	          x_rel: clamp((Number(off.x) || 0) / canvasW, -1, 1),
+	          y_rel: clamp((Number(off.y) || 0) / canvasH, -1, 1),
+	        },
+	        x_rel: base.x_rel,
+	        y_rel: base.y_rel,
+	        w_rel: base.w_rel,
+	        h_rel: base.h_rel,
+	        kf,
+	      };
+	    };
+
+	    const applySpaceAiOccupancy = async () => {
+	      if (!btnSpaceAiOccupancy) return;
+	      if (!aiTrackUrl || !videoId) { setStatus('Ocupación IA no disponible.', true); return; }
+	      const a = Math.max(0, Number(inInput?.value || 0) || 0);
+	      const b = Math.max(0, Number(outInput?.value || 0) || 0);
+	      const start = Math.min(a, b);
+	      const end = Math.max(a, b);
+	      if (!end || end <= start + 0.05) { setStatus('Ocupación IA: define IN/OUT.', true); return; }
+	      const canvasW = Number(fabricCanvas.getWidth?.()) || 0;
+	      const canvasH = Number(fabricCanvas.getHeight?.()) || 0;
+	      if (!canvasW || !canvasH) { setStatus('Ocupación IA: canvas no listo.', true); return; }
+	      const spaces = selectedObjectsForSpace()
+	        .filter((obj) => {
+	          const k = safeText(obj?.data?.kind, '');
+	          return k === 'space_zone' || k === 'surface_area';
+	        })
+	        .map((obj) => promoteToSpaceZone(obj))
+	        .filter(Boolean);
+	      if (!spaces.length) { setStatus('Ocupación IA: selecciona uno o varios Espacios.', true); return; }
+	      const zones = spaces.map((obj) => buildSpaceOccupancyPayload(obj, canvasW, canvasH, start, end)).filter(Boolean);
+	      if (!zones.length) { setStatus('Ocupación IA: no se pudo preparar el espacio.', true); return; }
+	      const prev = safeText(btnSpaceAiOccupancy.textContent, 'Ocupación IA');
+	      btnSpaceAiOccupancy.disabled = true;
+	      btnSpaceAiOccupancy.textContent = 'Ocupando…';
+	      setStatus(`Ocupación IA: detectando jugadores para ${zones.length} espacio(s)…`);
+	      try {
+	        const resp = await fetch(aiTrackUrl, {
+	          method: 'POST',
+	          credentials: 'same-origin',
+	          cache: 'no-store',
+	          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, Accept: 'application/json' },
+	          body: JSON.stringify({
+	            action: 'space_occupancy',
+	            video_id: videoId,
+	            start_s: start,
+	            end_s: end,
+	            zones,
+	            conf: 0.20,
+	            person_conf: 0.18,
+	            async: (end - start) > 20,
+	          }),
+	        });
+	        const data = await resp.json().catch(() => ({}));
+	        if (!resp.ok || !data?.ok) throw new Error(safeText(data?.error, 'No se pudo calcular ocupación.'));
+	        const result = data.action === 'job' && data.job_id ? await pollAiTrackJob(Number(data.job_id)) : data;
+	        const occupancy = result.occupancy && typeof result.occupancy === 'object' ? result.occupancy : {};
+	        const summary = result.summary && typeof result.summary === 'object' ? result.summary : {};
+	        let applied = 0;
+	        for (const space of spaces) {
+	          ensureLayerData(space);
+	          const uid = safeText(space.data.uid, '');
+	          const rows = Array.isArray(occupancy[uid]) ? occupancy[uid] : [];
+	          if (!rows.length) continue;
+	          space.data.space_occ = rows.slice(0, 720);
+	          space.data.space_occ_summary = summary[uid] || {};
+	          space.data.space_occ_source = 'yolo-person';
+	          applied += 1;
+	        }
+	        if (!applied) throw new Error('IA sin ocupación aplicable para los espacios seleccionados.');
+	        pushHistory();
+	        try { applyTimedLayers(); fabricCanvas.requestRenderAll(); } catch (e) { /* ignore */ }
+	        renderDrawLayers();
+	        updateLayerPanel();
+	        const ratios = spaces.map((s) => {
+	          const r = s?.data?.space_occ_summary || {};
+	          return `${Math.round((Number(r.occupied_ratio) || 0) * 100)}%`;
+	        }).slice(0, 4).join(', ');
+	        setStatus(`Ocupación IA aplicada (${applied}). Ocupado: ${ratios || '0%'}.`);
+	      } catch (e) {
+	        setStatus(`Ocupación IA: ${safeText(e?.message, 'error')}`, true);
+	      } finally {
+	        btnSpaceAiOccupancy.textContent = prev;
+	        btnSpaceAiOccupancy.disabled = false;
+	      }
+	    };
+	    btnSpaceAiOccupancy?.addEventListener('click', () => { applySpaceAiOccupancy(); });
+
+	    const autoTrackPlayersAi = async () => {
+	      if (!btnTrackAi) return;
+	      if (!aiTrackUrl || !videoId) { setStatus('AutoTrack IA no disponible.', true); return; }
+	      const a = Math.max(0, Number(inInput?.value || 0) || 0);
+	      const b = Math.max(0, Number(outInput?.value || 0) || 0);
+	      const start = Math.min(a, b);
+	      const end = Math.max(a, b);
+	      if (!end || end <= start + 0.05) { setStatus('AutoTrack IA: define IN/OUT.', true); return; }
+
+	      const active = (() => { try { return fabricCanvas.getActiveObject?.() || null; } catch (e) { return null; } })();
+	      const selected = (() => {
+	        try {
+	          if (!active) return [];
+	          if (active.type === 'activeSelection' && typeof active.getObjects === 'function') return active.getObjects() || [];
+	          return [active];
+	        } catch (e) { return []; }
+	      })();
+	      const marker = selected.find((obj) => safeText(obj?.data?.kind) === 'player_marker') || null;
+	      if (!marker) { setStatus('AutoTrack IA: selecciona un marcador Jugador.', true); return; }
+	      ensureLayerData(marker);
+
+	      const canvasW = Number(fabricCanvas.getWidth?.()) || 0;
+	      const canvasH = Number(fabricCanvas.getHeight?.()) || 0;
+	      if (!canvasW || !canvasH) { setStatus('AutoTrack IA: canvas no listo.', true); return; }
+	      let center = null;
+	      try { center = marker.getCenterPoint?.(); } catch (e) { center = null; }
+	      const uid = safeText(marker?.data?.uid, `ai-${Date.now()}`) || `ai-${Date.now()}`;
+	      const rawAnchors = normalizeKeyframes(marker?.data?.kf || [])
+	        .filter((k) => Number(k.t) >= start - 0.08 && Number(k.t) <= end + 0.08)
+	        .map((k) => ({
+	          t: Number(k.t),
+	          x_rel: clamp((Number(k.x) || 0) / canvasW, 0, 1),
+	          y_rel: clamp((Number(k.y) || 0) / canvasH, 0, 1),
+	        }));
+	      if (!rawAnchors.length) {
+	        rawAnchors.push({
+	          t: start,
+	          x_rel: clamp((Number(center?.x ?? marker.left) || 0) / canvasW, 0, 1),
+	          y_rel: clamp((Number(center?.y ?? marker.top) || 0) / canvasH, 0, 1),
+	        });
+	      }
+	      let targetClipId = activeClipId || initialClipId || Number(document.getElementById('vs-current-clip-id')?.value || 0) || 0;
+	      if (!targetClipId) {
+	        setStatus('AutoTrack IA: guardando clip base…');
+	        targetClipId = Number(await saveClip({ forceNew: true }) || 0);
+	        if (!targetClipId) {
+	          setStatus('AutoTrack IA: no se pudo crear el clip base.', true);
+	          return;
+	        }
+	      }
+
+	      const prev = safeText(btnTrackAi.textContent, 'AutoTrack IA');
+	      btnTrackAi.disabled = true;
+	      btnTrackAi.textContent = 'IA…';
+	      setStatus(`AutoTrack IA: detectando candidatos (${rawAnchors.length} anclaje/s)…`);
+	      try {
+	        let anchors = rawAnchors;
+	        if ((end - start) <= 20) {
+	          const candResp = await fetch(aiTrackUrl, {
+	            method: 'POST',
+	            credentials: 'same-origin',
+	            cache: 'no-store',
+	            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, Accept: 'application/json' },
+	            body: JSON.stringify({
+	              action: 'candidates',
+	              video_id: videoId,
+	              start_s: start,
+	              end_s: end,
+	              expected_number: safeText(marker?.data?.number || ''),
+	              anchors: rawAnchors,
+	            }),
+	          });
+	          const candData = await candResp.json().catch(() => ({}));
+	          if (candResp.ok && candData?.ok) {
+	            const picked = await showAiCandidatePicker(candData.candidates || [], rawAnchors);
+	            if (picked === null) {
+	              setStatus('AutoTrack IA cancelado.');
+	              return;
+	            }
+	            anchors = Array.isArray(picked) && picked.length ? picked : rawAnchors;
+	          }
+	        }
+	        setStatus(`AutoTrack IA: reidentificando (${anchors.length} anclaje/s)…`);
+	        const resp = await fetch(aiTrackUrl, {
+	          method: 'POST',
+	          credentials: 'same-origin',
+	          cache: 'no-store',
+	          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, Accept: 'application/json' },
+	          body: JSON.stringify({
+	            action: 'reid',
+	            video_id: videoId,
+	            clip_id: targetClipId,
+	            start_s: start,
+	            end_s: end,
+	            marker_uid: uid,
+	            output_uid: uid,
+	            expected_number: safeText(marker?.data?.number || ''),
+	            anchors,
+	            async: (end - start) > 20,
+	            identity_lock: true,
+	            identity_threshold: 0.74,
+	          }),
+	        });
+	        const data = await resp.json().catch(() => ({}));
+	        if (!resp.ok || !data?.ok) throw new Error(safeText(data?.error, 'No se pudo ejecutar IA.'));
+	        const result = data.action === 'job' && data.job_id ? await pollAiTrackJob(Number(data.job_id)) : data;
+	        const points = Array.isArray(data.points) ? data.points : [];
+	        const finalPoints = Array.isArray(result.points) ? result.points : points;
+	        const kf = cleanTrackKeyframes(finalPoints.map((p) => ({
+	          t: Number(p?.t),
+	          x: Number(p?.x_rel) * canvasW,
+	          y: Number(p?.y_rel) * canvasH,
+	        })), { smooth: Math.max(0.25, getTrackSmoothStrength()), antiJump: true });
+	        if (!kf.length) throw new Error('IA sin puntos aplicables.');
+	        marker.data.track = true;
+	        marker.data.kf = normalizeKeyframes(kf);
+	        marker.data.t_in_s = start;
+	        marker.data.t_out_s = end;
+	        marker.data.track_ai = true;
+	        marker.data.identity_lock = true;
+	        marker.data.track_ai_meta = result.meta || data.meta || {};
+	        pushHistory();
+	        try { applyTimedLayers(); fabricCanvas.requestRenderAll(); } catch (e) { /* ignore */ }
+	        renderDrawLayers();
+	        updateLayerPanel();
+	        const conf = safeText((result.meta || data.meta || {})?.confidence?.label || '');
+	        setStatus(`AutoTrack IA: OK (${kf.length} puntos${conf ? `, confianza ${conf}` : ''}).`);
+	      } catch (e) {
+	        setStatus(`AutoTrack IA: ${safeText(e?.message, 'error')}`, true);
+	      } finally {
+	        btnTrackAi.textContent = prev;
+	        btnTrackAi.disabled = false;
+	      }
+	    };
+	    btnTrackAi?.addEventListener('click', () => { autoTrackPlayersAi(); });
 
 		    pushHistory();
 		    reseedFxSeq();

@@ -1,0 +1,960 @@
+[
+  {
+    "image": "images/train/clip000314_analyst-1_000002000.jpg",
+    "label": "labels/train/clip000314_analyst-1_000002000.txt",
+    "clip_id": 314,
+    "video_id": 6,
+    "track_uid": "analyst-1",
+    "t": 2.0,
+    "bbox": [
+      0.5264624757284171,
+      0.5873683430708434,
+      0.085,
+      0.24
+    ],
+    "source": "autotrack-smoothed-antijump",
+    "meta": {
+      "analyst-1": {
+        "raw": 50,
+        "dropped": 0,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 50
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000314_analyst-1_000002300.jpg",
+    "label": "labels/train/clip000314_analyst-1_000002300.txt",
+    "clip_id": 314,
+    "video_id": 6,
+    "track_uid": "analyst-1",
+    "t": 2.3,
+    "bbox": [
+      0.5268042094896591,
+      0.5733729206448276,
+      0.085,
+      0.24
+    ],
+    "source": "autotrack-smoothed-antijump",
+    "meta": {
+      "analyst-1": {
+        "raw": 50,
+        "dropped": 0,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 50
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000314_analyst-1_000002600.jpg",
+    "label": "labels/train/clip000314_analyst-1_000002600.txt",
+    "clip_id": 314,
+    "video_id": 6,
+    "track_uid": "analyst-1",
+    "t": 2.6,
+    "bbox": [
+      0.5334441636157947,
+      0.5618363423344731,
+      0.085,
+      0.24
+    ],
+    "source": "autotrack-smoothed-antijump",
+    "meta": {
+      "analyst-1": {
+        "raw": 50,
+        "dropped": 0,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 50
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000314_analyst-1_000002900.jpg",
+    "label": "labels/train/clip000314_analyst-1_000002900.txt",
+    "clip_id": 314,
+    "video_id": 6,
+    "track_uid": "analyst-1",
+    "t": 2.9,
+    "bbox": [
+      0.5623755815063751,
+      0.5681002822656587,
+      0.085,
+      0.24
+    ],
+    "source": "autotrack-smoothed-antijump",
+    "meta": {
+      "analyst-1": {
+        "raw": 50,
+        "dropped": 0,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 50
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000314_analyst-1_000003200.jpg",
+    "label": "labels/train/clip000314_analyst-1_000003200.txt",
+    "clip_id": 314,
+    "video_id": 6,
+    "track_uid": "analyst-1",
+    "t": 3.2,
+    "bbox": [
+      0.574738020817712,
+      0.5289795909309837,
+      0.085,
+      0.24
+    ],
+    "source": "autotrack-smoothed-antijump",
+    "meta": {
+      "analyst-1": {
+        "raw": 50,
+        "dropped": 0,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 50
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000314_analyst-1_000003500.jpg",
+    "label": "labels/train/clip000314_analyst-1_000003500.txt",
+    "clip_id": 314,
+    "video_id": 6,
+    "track_uid": "analyst-1",
+    "t": 3.5,
+    "bbox": [
+      0.5429090023352431,
+      0.4844910239386578,
+      0.085,
+      0.24
+    ],
+    "source": "autotrack-smoothed-antijump",
+    "meta": {
+      "analyst-1": {
+        "raw": 50,
+        "dropped": 0,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 50
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000314_analyst-1_000003800.jpg",
+    "label": "labels/train/clip000314_analyst-1_000003800.txt",
+    "clip_id": 314,
+    "video_id": 6,
+    "track_uid": "analyst-1",
+    "t": 3.8,
+    "bbox": [
+      0.5052019958446627,
+      0.41898996317078674,
+      0.085,
+      0.24
+    ],
+    "source": "autotrack-smoothed-antijump",
+    "meta": {
+      "analyst-1": {
+        "raw": 50,
+        "dropped": 0,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 50
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000314_analyst-1_000004100.jpg",
+    "label": "labels/train/clip000314_analyst-1_000004100.txt",
+    "clip_id": 314,
+    "video_id": 6,
+    "track_uid": "analyst-1",
+    "t": 4.1,
+    "bbox": [
+      0.46808984361344136,
+      0.3739014962141415,
+      0.085,
+      0.24
+    ],
+    "source": "autotrack-smoothed-antijump",
+    "meta": {
+      "analyst-1": {
+        "raw": 50,
+        "dropped": 0,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 50
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000314_analyst-1_000004400.jpg",
+    "label": "labels/train/clip000314_analyst-1_000004400.txt",
+    "clip_id": 314,
+    "video_id": 6,
+    "track_uid": "analyst-1",
+    "t": 4.4,
+    "bbox": [
+      0.48515030859839076,
+      0.40746155248119686,
+      0.085,
+      0.24
+    ],
+    "source": "autotrack-smoothed-antijump",
+    "meta": {
+      "analyst-1": {
+        "raw": 50,
+        "dropped": 0,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 50
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000314_analyst-1_000004700.jpg",
+    "label": "labels/train/clip000314_analyst-1_000004700.txt",
+    "clip_id": 314,
+    "video_id": 6,
+    "track_uid": "analyst-1",
+    "t": 4.7,
+    "bbox": [
+      0.4996767577179144,
+      0.41232410434462996,
+      0.085,
+      0.24
+    ],
+    "source": "autotrack-smoothed-antijump",
+    "meta": {
+      "analyst-1": {
+        "raw": 50,
+        "dropped": 0,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 50
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000314_analyst-1_000005000.jpg",
+    "label": "labels/train/clip000314_analyst-1_000005000.txt",
+    "clip_id": 314,
+    "video_id": 6,
+    "track_uid": "analyst-1",
+    "t": 5.0,
+    "bbox": [
+      0.5048375197320292,
+      0.38179593980827753,
+      0.085,
+      0.24
+    ],
+    "source": "autotrack-smoothed-antijump",
+    "meta": {
+      "analyst-1": {
+        "raw": 50,
+        "dropped": 0,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 50
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000314_analyst-1_000005300.jpg",
+    "label": "labels/train/clip000314_analyst-1_000005300.txt",
+    "clip_id": 314,
+    "video_id": 6,
+    "track_uid": "analyst-1",
+    "t": 5.3,
+    "bbox": [
+      0.5264150526926477,
+      0.38877869877697235,
+      0.085,
+      0.24
+    ],
+    "source": "autotrack-smoothed-antijump",
+    "meta": {
+      "analyst-1": {
+        "raw": 50,
+        "dropped": 0,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 50
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000314_analyst-1_000005600.jpg",
+    "label": "labels/train/clip000314_analyst-1_000005600.txt",
+    "clip_id": 314,
+    "video_id": 6,
+    "track_uid": "analyst-1",
+    "t": 5.6,
+    "bbox": [
+      0.5337355369038757,
+      0.42673308665294507,
+      0.085,
+      0.24
+    ],
+    "source": "autotrack-smoothed-antijump",
+    "meta": {
+      "analyst-1": {
+        "raw": 50,
+        "dropped": 0,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 50
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000314_analyst-1_000005900.jpg",
+    "label": "labels/train/clip000314_analyst-1_000005900.txt",
+    "clip_id": 314,
+    "video_id": 6,
+    "track_uid": "analyst-1",
+    "t": 5.9,
+    "bbox": [
+      0.5251613027632671,
+      0.45065795661248154,
+      0.085,
+      0.24
+    ],
+    "source": "autotrack-smoothed-antijump",
+    "meta": {
+      "analyst-1": {
+        "raw": 50,
+        "dropped": 0,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 50
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000314_analyst-1_000006200.jpg",
+    "label": "labels/train/clip000314_analyst-1_000006200.txt",
+    "clip_id": 314,
+    "video_id": 6,
+    "track_uid": "analyst-1",
+    "t": 6.2,
+    "bbox": [
+      0.5157394887065972,
+      0.4494360889418602,
+      0.085,
+      0.24
+    ],
+    "source": "autotrack-smoothed-antijump",
+    "meta": {
+      "analyst-1": {
+        "raw": 50,
+        "dropped": 0,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 50
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000314_analyst-1_000006500.jpg",
+    "label": "labels/train/clip000314_analyst-1_000006500.txt",
+    "clip_id": 314,
+    "video_id": 6,
+    "track_uid": "analyst-1",
+    "t": 6.5,
+    "bbox": [
+      0.5067194539527928,
+      0.44292074790381963,
+      0.085,
+      0.24
+    ],
+    "source": "autotrack-smoothed-antijump",
+    "meta": {
+      "analyst-1": {
+        "raw": 50,
+        "dropped": 0,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 50
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000314_analyst-1_000006800.jpg",
+    "label": "labels/train/clip000314_analyst-1_000006800.txt",
+    "clip_id": 314,
+    "video_id": 6,
+    "track_uid": "analyst-1",
+    "t": 6.8,
+    "bbox": [
+      0.5086549912065954,
+      0.4476492885354843,
+      0.085,
+      0.24
+    ],
+    "source": "autotrack-smoothed-antijump",
+    "meta": {
+      "analyst-1": {
+        "raw": 50,
+        "dropped": 0,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 50
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000055000.jpg",
+    "label": "labels/train/clip000315_winger-11_000055000.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 55.0,
+    "bbox": [
+      0.21224640783539112,
+      0.5740815626877622,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000055300.jpg",
+    "label": "labels/train/clip000315_winger-11_000055300.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 55.3,
+    "bbox": [
+      0.22702519100909285,
+      0.5752760127676992,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000055600.jpg",
+    "label": "labels/train/clip000315_winger-11_000055600.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 55.6,
+    "bbox": [
+      0.2098389590613858,
+      0.5779731785570208,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000055900.jpg",
+    "label": "labels/train/clip000315_winger-11_000055900.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 55.9,
+    "bbox": [
+      0.22805202560012888,
+      0.5896704883556751,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000056200.jpg",
+    "label": "labels/train/clip000315_winger-11_000056200.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 56.2,
+    "bbox": [
+      0.22620785963956647,
+      0.5892043306382025,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000056500.jpg",
+    "label": "labels/train/clip000315_winger-11_000056500.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 56.5,
+    "bbox": [
+      0.2669296993556264,
+      0.5535119807698944,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000056800.jpg",
+    "label": "labels/train/clip000315_winger-11_000056800.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 56.8,
+    "bbox": [
+      0.3112612923381581,
+      0.5465804249223081,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000057100.jpg",
+    "label": "labels/train/clip000315_winger-11_000057100.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 57.1,
+    "bbox": [
+      0.3623710894352856,
+      0.5782000672679359,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000057400.jpg",
+    "label": "labels/train/clip000315_winger-11_000057400.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 57.4,
+    "bbox": [
+      0.37297586068590827,
+      0.5946879564243156,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000057700.jpg",
+    "label": "labels/train/clip000315_winger-11_000057700.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 57.7,
+    "bbox": [
+      0.3767796193152554,
+      0.6054109884382557,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000058000.jpg",
+    "label": "labels/train/clip000315_winger-11_000058000.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 58.0,
+    "bbox": [
+      0.3474211752689291,
+      0.547633951424045,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000058300.jpg",
+    "label": "labels/train/clip000315_winger-11_000058300.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 58.3,
+    "bbox": [
+      0.3125250084044473,
+      0.5254651709126175,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000058600.jpg",
+    "label": "labels/train/clip000315_winger-11_000058600.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 58.6,
+    "bbox": [
+      0.271224708744032,
+      0.5321320212739487,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000058900.jpg",
+    "label": "labels/train/clip000315_winger-11_000058900.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 58.9,
+    "bbox": [
+      0.2675723034731553,
+      0.5502229898899471,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000059400.jpg",
+    "label": "labels/train/clip000315_winger-11_000059400.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 59.4,
+    "bbox": [
+      0.33120225214515964,
+      0.5843454083116792,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000059700.jpg",
+    "label": "labels/train/clip000315_winger-11_000059700.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 59.7,
+    "bbox": [
+      0.3364746917574668,
+      0.5957445430132748,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000060000.jpg",
+    "label": "labels/train/clip000315_winger-11_000060000.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 60.0,
+    "bbox": [
+      0.2955845858954187,
+      0.6159694922474572,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000060300.jpg",
+    "label": "labels/train/clip000315_winger-11_000060300.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 60.3,
+    "bbox": [
+      0.29344956054678384,
+      0.5896742372727066,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000060800.jpg",
+    "label": "labels/train/clip000315_winger-11_000060800.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 60.8,
+    "bbox": [
+      0.3205180711466695,
+      0.507900040975432,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000061100.jpg",
+    "label": "labels/train/clip000315_winger-11_000061100.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 61.1,
+    "bbox": [
+      0.3276786844770247,
+      0.5015404881727851,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000061400.jpg",
+    "label": "labels/train/clip000315_winger-11_000061400.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 61.4,
+    "bbox": [
+      0.34503150871538135,
+      0.504411630996247,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000061700.jpg",
+    "label": "labels/train/clip000315_winger-11_000061700.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 61.7,
+    "bbox": [
+      0.3781783964977894,
+      0.5114363897208809,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  }
+]

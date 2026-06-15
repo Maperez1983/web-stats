@@ -1,0 +1,152 @@
+[
+  {
+    "image": "images/train/clip000315_munoz-anchored-55_000055000.jpg",
+    "label": "labels/train/clip000315_munoz-anchored-55_000055000.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "munoz-anchored-55",
+    "t": 55.0,
+    "bbox": [
+      0.208,
+      0.575,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_munoz-anchored-55_000056500.jpg",
+    "label": "labels/train/clip000315_munoz-anchored-55_000056500.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "munoz-anchored-55",
+    "t": 56.5,
+    "bbox": [
+      0.285,
+      0.535,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_munoz-anchored-55_000058000.jpg",
+    "label": "labels/train/clip000315_munoz-anchored-55_000058000.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "munoz-anchored-55",
+    "t": 58.0,
+    "bbox": [
+      0.345,
+      0.515,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_munoz-anchored-55_000059000.jpg",
+    "label": "labels/train/clip000315_munoz-anchored-55_000059000.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "munoz-anchored-55",
+    "t": 59.0,
+    "bbox": [
+      0.377,
+      0.568,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_munoz-anchored-55_000060500.jpg",
+    "label": "labels/train/clip000315_munoz-anchored-55_000060500.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "munoz-anchored-55",
+    "t": 60.5,
+    "bbox": [
+      0.323,
+      0.5,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_munoz-anchored-55_000062000.jpg",
+    "label": "labels/train/clip000315_munoz-anchored-55_000062000.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "munoz-anchored-55",
+    "t": 62.0,
+    "bbox": [
+      0.342,
+      0.495,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  }
+]

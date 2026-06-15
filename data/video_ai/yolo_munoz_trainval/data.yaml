@@ -1,0 +1,5 @@
+path: /Volumes/Mac Satecchi/Mac/Web-stats/data/video_ai/yolo_munoz_trainval
+train: images/train
+val: images/val
+names:
+  0: player

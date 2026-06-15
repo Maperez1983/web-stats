@@ -57,6 +57,46 @@ def _ffprobe_duration_seconds(path: str) -> float:
         return 0.0
 
 
+def _ffprobe_video_meta(path: str) -> dict:
+    out = _run_out(
+        [
+            "ffprobe",
+            "-hide_banner",
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=width,height,r_frame_rate",
+            "-of",
+            "json",
+            path,
+        ]
+    )
+    try:
+        data = json.loads(out or "{}")
+        stream = (data.get("streams") or [{}])[0]
+    except Exception:
+        stream = {}
+
+    def _fps(raw: str) -> float:
+        try:
+            value = str(raw or "").strip()
+            if "/" in value:
+                num, den = value.split("/", 1)
+                den_f = float(den or 0)
+                return float(num or 0) / den_f if den_f else 0.0
+            return float(value or 0)
+        except Exception:
+            return 0.0
+
+    return {
+        "video_w": int(stream.get("width") or 0),
+        "video_h": int(stream.get("height") or 0),
+        "video_fps": float(_fps(stream.get("r_frame_rate") or "")),
+    }
+
+
 def _transcode_to_h264_aac(
     *,
     input_path: str,
@@ -231,6 +271,8 @@ class Command(BaseCommand):
                     preset=preset,
                 )
                 final_path = tmp_out_path
+            final_duration = _ffprobe_duration_seconds(str(final_path)) or duration
+            final_meta = _ffprobe_video_meta(str(final_path))
 
             with transaction.atomic():
                 entry = RivalVideo.objects.create(
@@ -240,6 +282,11 @@ class Command(BaseCommand):
                     title=resolved_title,
                     source=source if source in {c[0] for c in RivalVideo.SOURCE_CHOICES} else RivalVideo.SOURCE_MANUAL,
                     notes=notes[:4000],
+                    duration_ms=int(round(float(final_duration or 0.0) * 1000.0)),
+                    video_fps=float(final_meta.get("video_fps") or 0.0),
+                    video_w=int(final_meta.get("video_w") or 0),
+                    video_h=int(final_meta.get("video_h") or 0),
+                    ingest_status="ready",
                 )
                 with open(final_path, "rb") as fh:
                     upload = File(fh, name=f"{src_path.stem}.mp4")

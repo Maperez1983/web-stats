@@ -1,0 +1,12 @@
+# Dependencias opcionales para Video Studio IA local.
+# Mantener separado de requirements.txt para no hacer pesada la instalación base/producción.
+#
+# Nota de licencia: ultralytics y ultralytics-thop son AGPL-3.0.
+# Si se distribuye/hostea como producto cerrado, revisar licencia comercial antes.
+
+ultralytics==8.4.48
+torch==2.2.2
+torchvision==0.17.2
+lapx==0.9.4
+onnxruntime==1.19.2
+pandas==2.3.3

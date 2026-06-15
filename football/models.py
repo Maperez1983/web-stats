@@ -1171,6 +1171,20 @@ class TrainingMicrocycle(models.Model):
         (STATUS_APPROVED, 'Aprobado'),
         (STATUS_CLOSED, 'Cerrado'),
     ]
+    TYPE_STANDARD = 'standard'
+    TYPE_DOUBLE_MATCH = 'double_match'
+    TYPE_LOAD = 'load'
+    TYPE_TAPER = 'taper'
+    TYPE_REGEN = 'regen'
+    TYPE_PRESEASON = 'preseason'
+    TYPE_CHOICES = [
+        (TYPE_STANDARD, 'Competición'),
+        (TYPE_DOUBLE_MATCH, 'Doble partido'),
+        (TYPE_LOAD, 'Carga'),
+        (TYPE_TAPER, 'Afinar'),
+        (TYPE_REGEN, 'Regenerativo'),
+        (TYPE_PRESEASON, 'Pretemporada'),
+    ]
 
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='microcycles')
     reference_match = models.ForeignKey(
@@ -1182,6 +1196,11 @@ class TrainingMicrocycle(models.Model):
     )
     title = models.CharField(max_length=140, default='Microciclo semanal')
     objective = models.CharField(max_length=200, blank=True)
+    cycle_type = models.CharField(max_length=24, choices=TYPE_CHOICES, default=TYPE_STANDARD)
+    game_model_focus = models.CharField(max_length=180, blank=True, default='')
+    game_moment = models.CharField(max_length=40, blank=True, default='')
+    principle = models.CharField(max_length=120, blank=True, default='')
+    subprinciple = models.CharField(max_length=160, blank=True, default='')
     week_start = models.DateField()
     week_end = models.DateField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT)
@@ -1219,6 +1238,38 @@ class TrainingSession(models.Model):
         (STATUS_DONE, 'Realizada'),
         (STATUS_CANCELED, 'Cancelada'),
     ]
+    DAY_MD_PLUS_1 = 'md_plus_1'
+    DAY_MD_PLUS_2 = 'md_plus_2'
+    DAY_MD_MINUS_4 = 'md_minus_4'
+    DAY_MD_MINUS_3 = 'md_minus_3'
+    DAY_MD_MINUS_2 = 'md_minus_2'
+    DAY_MD_MINUS_1 = 'md_minus_1'
+    DAY_MD = 'md'
+    DAY_CUSTOM = 'custom'
+    DAY_CHOICES = [
+        (DAY_MD_PLUS_1, 'MD+1 Recuperación'),
+        (DAY_MD_PLUS_2, 'MD+2 Descanso / compensatorio'),
+        (DAY_MD_MINUS_4, 'MD-4 Tensión'),
+        (DAY_MD_MINUS_3, 'MD-3 Duración'),
+        (DAY_MD_MINUS_2, 'MD-2 Velocidad'),
+        (DAY_MD_MINUS_1, 'MD-1 Activación'),
+        (DAY_MD, 'MD Partido'),
+        (DAY_CUSTOM, 'Personalizado'),
+    ]
+    DOMINANT_LOAD_RECOVERY = 'recovery'
+    DOMINANT_LOAD_TENSION = 'tension'
+    DOMINANT_LOAD_DURATION = 'duration'
+    DOMINANT_LOAD_SPEED = 'speed'
+    DOMINANT_LOAD_ACTIVATION = 'activation'
+    DOMINANT_LOAD_MIXED = 'mixed'
+    DOMINANT_LOAD_CHOICES = [
+        (DOMINANT_LOAD_RECOVERY, 'Recuperación'),
+        (DOMINANT_LOAD_TENSION, 'Tensión'),
+        (DOMINANT_LOAD_DURATION, 'Duración'),
+        (DOMINANT_LOAD_SPEED, 'Velocidad'),
+        (DOMINANT_LOAD_ACTIVATION, 'Activación'),
+        (DOMINANT_LOAD_MIXED, 'Mixta'),
+    ]
 
     microcycle = models.ForeignKey(TrainingMicrocycle, on_delete=models.CASCADE, related_name='sessions')
     club_season = models.ForeignKey(
@@ -1233,6 +1284,11 @@ class TrainingSession(models.Model):
     start_time = models.TimeField(null=True, blank=True)
     duration_minutes = models.PositiveSmallIntegerField(default=90)
     intensity = models.CharField(max_length=20, choices=INTENSITY_CHOICES, default=INTENSITY_MEDIUM)
+    md_day = models.CharField(max_length=24, choices=DAY_CHOICES, blank=True, default='')
+    dominant_load = models.CharField(max_length=24, choices=DOMINANT_LOAD_CHOICES, blank=True, default='')
+    game_moment = models.CharField(max_length=40, blank=True, default='')
+    principle = models.CharField(max_length=120, blank=True, default='')
+    subprinciple = models.CharField(max_length=160, blank=True, default='')
     focus = models.CharField(max_length=140)
     content = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PLANNED)
@@ -1307,6 +1363,10 @@ class TrainingSessionReview(models.Model):
     what_worked = models.TextField(blank=True, default='')
     what_failed = models.TextField(blank=True, default='')
     next_adjustment = models.TextField(blank=True, default='')
+    execution_score = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Ejecución del objetivo 1-10')
+    physical_load = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Carga física percibida 1-10')
+    cognitive_load = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Carga cognitiva percibida 1-10')
+    emotional_load = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Carga emocional percibida 1-10')
     evidence_url = models.URLField(blank=True, default='')
     created_by = models.ForeignKey(
         User,
@@ -2012,6 +2072,12 @@ class RivalVideo(models.Model):
         default=0,
         help_text='OUT del corte base (ms). 0 significa sin OUT.',
     )
+    duration_ms = models.PositiveIntegerField(default=0)
+    ingest_status = models.CharField(max_length=12, default='', blank=True)
+    ingest_error = models.TextField(default='', blank=True)
+    video_fps = models.FloatField(default=0)
+    video_w = models.PositiveIntegerField(default=0)
+    video_h = models.PositiveIntegerField(default=0)
     assigned_players = models.ManyToManyField(Player, blank=True, related_name='assigned_analysis_videos')
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -2203,6 +2269,234 @@ class VideoAiInsight(models.Model):
 
     def __str__(self):
         return f'AI {self.team_id}·{self.video_id}·{self.status}'
+
+
+class VideoAiTrackJob(models.Model):
+    """
+    Job asíncrono de AutoTrack IA.
+
+    Permite procesar rangos largos sin bloquear la petición HTTP y conserva el
+    resultado para que el cliente pueda reintentar/pollear.
+    """
+
+    ACTION_REID = 'reid'
+    ACTION_BATCH = 'batch'
+    ACTION_TRAIN = 'train'
+    ACTION_DETECT_ACTIONS = 'detect_actions'
+    ACTION_TRAIN_ACTIONS = 'train_actions'
+    ACTION_EXPORT_FOLLOW = 'export_follow'
+    ACTION_CHOICES = [
+        (ACTION_REID, 'ReID'),
+        (ACTION_BATCH, 'Batch'),
+        (ACTION_TRAIN, 'Entrenamiento'),
+        (ACTION_DETECT_ACTIONS, 'Detección de acciones'),
+        (ACTION_TRAIN_ACTIONS, 'Entrenamiento de acciones'),
+        (ACTION_EXPORT_FOLLOW, 'Exportar seguimiento'),
+    ]
+
+    STATUS_PENDING = 'pending'
+    STATUS_RUNNING = 'running'
+    STATUS_DONE = 'done'
+    STATUS_ERROR = 'error'
+    STATUS_CANCELED = 'canceled'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pendiente'),
+        (STATUS_RUNNING, 'En progreso'),
+        (STATUS_DONE, 'Completado'),
+        (STATUS_ERROR, 'Error'),
+        (STATUS_CANCELED, 'Cancelado'),
+    ]
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='video_ai_track_jobs')
+    video = models.ForeignKey(RivalVideo, on_delete=models.CASCADE, related_name='ai_track_jobs')
+    clip = models.ForeignKey(VideoClip, on_delete=models.SET_NULL, null=True, blank=True, related_name='ai_track_jobs')
+    action = models.CharField(max_length=24, choices=ACTION_CHOICES, default=ACTION_REID)
+    payload = models.JSONField(default=dict, blank=True)
+    result = models.JSONField(default=dict, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
+    progress = models.PositiveIntegerField(default=0)
+    message = models.CharField(max_length=220, blank=True)
+    error = models.TextField(blank=True)
+    cancel_requested = models.BooleanField(default=False)
+    created_by = models.CharField(max_length=80, blank=True)
+    created_by_user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='video_ai_track_jobs',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        indexes = [
+            models.Index(fields=['team', 'video', '-created_at']),
+            models.Index(fields=['team', 'status', '-created_at']),
+            models.Index(fields=['status', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f'AI Track {self.team_id}·{self.video_id}·{self.status}'
+
+
+class VideoAiCorrectionExample(models.Model):
+    """
+    Ejemplo supervisado creado por una corrección manual del analista.
+
+    Se usa para entrenar/mejorar el seguimiento del jugador objetivo.
+    """
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='video_ai_correction_examples')
+    video = models.ForeignKey(RivalVideo, on_delete=models.CASCADE, related_name='ai_correction_examples')
+    clip = models.ForeignKey(VideoClip, on_delete=models.SET_NULL, null=True, blank=True, related_name='ai_correction_examples')
+    marker_uid = models.CharField(max_length=100, blank=True)
+    time_ms = models.PositiveIntegerField(default=0)
+    x_rel = models.FloatField(default=0)
+    y_rel = models.FloatField(default=0)
+    label = models.CharField(max_length=80, blank=True)
+    payload = models.JSONField(default=dict, blank=True)
+    created_by = models.CharField(max_length=80, blank=True)
+    created_by_user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='video_ai_correction_examples',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        indexes = [
+            models.Index(fields=['team', 'video', '-created_at']),
+            models.Index(fields=['video', 'marker_uid', 'time_ms']),
+            models.Index(fields=['team', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f'AI correction {self.video_id} · {self.marker_uid} · {self.time_ms}ms'
+
+
+class VideoAiActionExample(models.Model):
+    """
+    Feedback supervisado del analista para acciones de juego.
+
+    Permite construir dataset propio de acciones: positivos y negativos por etiqueta.
+    """
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='video_ai_action_examples')
+    video = models.ForeignKey(RivalVideo, on_delete=models.CASCADE, related_name='ai_action_examples')
+    clip = models.ForeignKey(VideoClip, on_delete=models.SET_NULL, null=True, blank=True, related_name='ai_action_examples')
+    action_key = models.CharField(max_length=80, db_index=True)
+    label = models.CharField(max_length=120, blank=True)
+    is_positive = models.BooleanField(default=True)
+    start_ms = models.PositiveIntegerField(default=0)
+    end_ms = models.PositiveIntegerField(default=0)
+    confidence = models.FloatField(default=0)
+    payload = models.JSONField(default=dict, blank=True)
+    created_by = models.CharField(max_length=80, blank=True)
+    created_by_user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='video_ai_action_examples',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        indexes = [
+            models.Index(fields=['team', 'video', '-created_at']),
+            models.Index(fields=['team', 'action_key', '-created_at']),
+            models.Index(fields=['video', 'start_ms', 'end_ms']),
+        ]
+
+    def __str__(self):
+        sign = '+' if self.is_positive else '-'
+        return f'AI action {sign}{self.action_key} · {self.video_id} · {self.start_ms}-{self.end_ms}ms'
+
+
+class VideoAiKnowledgeEntry(models.Model):
+    """
+    Concepto táctico curado para que la IA de vídeo razone con conocimiento futbolístico.
+    """
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, null=True, blank=True, related_name='video_ai_knowledge_entries')
+    source_key = models.CharField(max_length=80, db_index=True)
+    concept_key = models.CharField(max_length=100, db_index=True)
+    category = models.CharField(max_length=60, db_index=True)
+    title = models.CharField(max_length=160)
+    summary = models.TextField(blank=True)
+    payload = models.JSONField(default=dict, blank=True)
+    source_url = models.URLField(max_length=500, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_by = models.CharField(max_length=80, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['category', 'title', 'id']
+        unique_together = ('team', 'concept_key')
+        indexes = [
+            models.Index(fields=['team', 'category', 'is_active']),
+            models.Index(fields=['team', 'concept_key']),
+            models.Index(fields=['source_key', 'category']),
+        ]
+
+    def __str__(self):
+        return f'{self.category}:{self.concept_key}'
+
+
+class VideoAiGameCalibration(models.Model):
+    """
+    Contexto geométrico y táctico mínimo que el analista valida para un vídeo.
+
+    Sin esta capa la IA no debe afirmar fases como progresión, transición o ABP:
+    solo puede proponer hipótesis a revisar.
+    """
+
+    ATTACK_LTR = 'ltr'
+    ATTACK_RTL = 'rtl'
+    ATTACK_UNKNOWN = 'unknown'
+    ATTACK_DIRECTION_CHOICES = [
+        (ATTACK_LTR, 'Izquierda a derecha'),
+        (ATTACK_RTL, 'Derecha a izquierda'),
+        (ATTACK_UNKNOWN, 'Desconocida'),
+    ]
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='video_ai_game_calibrations')
+    video = models.ForeignKey(RivalVideo, on_delete=models.CASCADE, related_name='ai_game_calibrations')
+    attack_direction = models.CharField(max_length=12, choices=ATTACK_DIRECTION_CHOICES, default=ATTACK_UNKNOWN)
+    phase = models.CharField(max_length=40, blank=True, help_text='Parte o tramo: first_half, second_half, custom...')
+    field_points = models.JSONField(default=dict, blank=True, help_text='Puntos normalizados validados por el analista.')
+    payload = models.JSONField(default=dict, blank=True)
+    confidence = models.FloatField(default=0)
+    created_by = models.CharField(max_length=80, blank=True)
+    created_by_user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='video_ai_game_calibrations',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at', '-id']
+        unique_together = ('team', 'video', 'phase')
+        indexes = [
+            models.Index(fields=['team', 'video', '-updated_at']),
+            models.Index(fields=['video', 'phase']),
+        ]
+
+    def __str__(self):
+        return f'AI calibration {self.video_id} · {self.phase or "default"} · {self.attack_direction}'
 
 
 class VideoExportAsset(models.Model):

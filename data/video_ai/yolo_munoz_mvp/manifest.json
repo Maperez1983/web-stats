@@ -1,0 +1,827 @@
+[
+  {
+    "image": "images/train/clip000315_winger-11_000055000.jpg",
+    "label": "labels/train/clip000315_winger-11_000055000.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 55.0,
+    "bbox": [
+      0.21224640783539112,
+      0.5740815626877622,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000055200.jpg",
+    "label": "labels/train/clip000315_winger-11_000055200.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 55.2,
+    "bbox": [
+      0.2234062578290918,
+      0.5741330599121314,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000055400.jpg",
+    "label": "labels/train/clip000315_winger-11_000055400.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 55.4,
+    "bbox": [
+      0.22570341925631737,
+      0.576137686551677,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000055600.jpg",
+    "label": "labels/train/clip000315_winger-11_000055600.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 55.6,
+    "bbox": [
+      0.2098389590613858,
+      0.5779731785570208,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000055800.jpg",
+    "label": "labels/train/clip000315_winger-11_000055800.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 55.8,
+    "bbox": [
+      0.2126077830268146,
+      0.5826034711737123,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000056000.jpg",
+    "label": "labels/train/clip000315_winger-11_000056000.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 56.0,
+    "bbox": [
+      0.2345192617713075,
+      0.5930615251792,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000056200.jpg",
+    "label": "labels/train/clip000315_winger-11_000056200.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 56.2,
+    "bbox": [
+      0.22620785963956647,
+      0.5892043306382025,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000056400.jpg",
+    "label": "labels/train/clip000315_winger-11_000056400.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 56.4,
+    "bbox": [
+      0.2394175957726996,
+      0.5757539974163652,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000056600.jpg",
+    "label": "labels/train/clip000315_winger-11_000056600.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 56.6,
+    "bbox": [
+      0.28218951056094643,
+      0.5434340363817042,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000056800.jpg",
+    "label": "labels/train/clip000315_winger-11_000056800.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 56.8,
+    "bbox": [
+      0.3112612923381581,
+      0.5465804249223081,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000057000.jpg",
+    "label": "labels/train/clip000315_winger-11_000057000.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 57.0,
+    "bbox": [
+      0.36086898444324944,
+      0.5739230731840055,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000057200.jpg",
+    "label": "labels/train/clip000315_winger-11_000057200.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 57.2,
+    "bbox": [
+      0.36483688510326373,
+      0.5832277547190161,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000057400.jpg",
+    "label": "labels/train/clip000315_winger-11_000057400.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 57.4,
+    "bbox": [
+      0.37297586068590827,
+      0.5946879564243156,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000057600.jpg",
+    "label": "labels/train/clip000315_winger-11_000057600.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 57.6,
+    "bbox": [
+      0.3778997657595622,
+      0.6041042673657362,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000057800.jpg",
+    "label": "labels/train/clip000315_winger-11_000057800.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 57.8,
+    "bbox": [
+      0.37002851557731475,
+      0.6005518554424174,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000058000.jpg",
+    "label": "labels/train/clip000315_winger-11_000058000.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 58.0,
+    "bbox": [
+      0.3474211752689291,
+      0.547633951424045,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000058200.jpg",
+    "label": "labels/train/clip000315_winger-11_000058200.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 58.2,
+    "bbox": [
+      0.32496247879670065,
+      0.5266300581318736,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000058400.jpg",
+    "label": "labels/train/clip000315_winger-11_000058400.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 58.4,
+    "bbox": [
+      0.2990540019951834,
+      0.5269470868562255,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000058600.jpg",
+    "label": "labels/train/clip000315_winger-11_000058600.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 58.6,
+    "bbox": [
+      0.271224708744032,
+      0.5321320212739487,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000058800.jpg",
+    "label": "labels/train/clip000315_winger-11_000058800.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 58.8,
+    "bbox": [
+      0.25607536607934434,
+      0.5410208250391495,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000059200.jpg",
+    "label": "labels/train/clip000315_winger-11_000059200.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 59.2,
+    "bbox": [
+      0.3134641990350318,
+      0.5665773683149127,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000059400.jpg",
+    "label": "labels/train/clip000315_winger-11_000059400.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 59.4,
+    "bbox": [
+      0.33120225214515964,
+      0.5843454083116792,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000059600.jpg",
+    "label": "labels/train/clip000315_winger-11_000059600.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 59.6,
+    "bbox": [
+      0.3284894624479906,
+      0.595626356768127,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000059800.jpg",
+    "label": "labels/train/clip000315_winger-11_000059800.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 59.8,
+    "bbox": [
+      0.31541131108168463,
+      0.6074735671235192,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000060000.jpg",
+    "label": "labels/train/clip000315_winger-11_000060000.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 60.0,
+    "bbox": [
+      0.2955845858954187,
+      0.6159694922474572,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000060200.jpg",
+    "label": "labels/train/clip000315_winger-11_000060200.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 60.2,
+    "bbox": [
+      0.28940623305648905,
+      0.6095030108396438,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000060600.jpg",
+    "label": "labels/train/clip000315_winger-11_000060600.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 60.6,
+    "bbox": [
+      0.30936991901575006,
+      0.5400300281440273,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000060800.jpg",
+    "label": "labels/train/clip000315_winger-11_000060800.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 60.8,
+    "bbox": [
+      0.3205180711466695,
+      0.507900040975432,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000061000.jpg",
+    "label": "labels/train/clip000315_winger-11_000061000.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 61.0,
+    "bbox": [
+      0.3249506918487688,
+      0.5018297275973314,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000061200.jpg",
+    "label": "labels/train/clip000315_winger-11_000061200.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 61.2,
+    "bbox": [
+      0.3316821747259471,
+      0.5018199781434012,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000061400.jpg",
+    "label": "labels/train/clip000315_winger-11_000061400.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 61.4,
+    "bbox": [
+      0.34503150871538135,
+      0.504411630996247,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000061600.jpg",
+    "label": "labels/train/clip000315_winger-11_000061600.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 61.6,
+    "bbox": [
+      0.3657377036889489,
+      0.5090201102766709,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  },
+  {
+    "image": "images/train/clip000315_winger-11_000061800.jpg",
+    "label": "labels/train/clip000315_winger-11_000061800.txt",
+    "clip_id": 315,
+    "video_id": 7,
+    "track_uid": "winger-11",
+    "t": 61.8,
+    "bbox": [
+      0.3901298100079216,
+      0.5136045076873373,
+      0.08,
+      0.21
+    ],
+    "source": "autotrack-anchored-munoz-11",
+    "meta": {
+      "munoz-anchored-55": {
+        "raw": 70,
+        "dropped": 4,
+        "smooth": 0.45,
+        "anti_jump": true,
+        "kept": 66,
+        "anchors": 6
+      }
+    }
+  }
+]
