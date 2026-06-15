@@ -50916,10 +50916,13 @@ def _video_studio_ai_action_zone(x_rel: float, y_rel: float) -> dict:
     y = max(0.0, min(1.0, float(y_rel or 0.0)))
     if x < 0.33:
         third = 'inicio'
+        height_band = 'zona_baja'
     elif x < 0.66:
         third = 'medio'
+        height_band = 'zona_media'
     else:
         third = 'ultimo_tercio'
+        height_band = 'zona_alta'
     if y < 0.22:
         lane = 'banda_izquierda'
     elif y > 0.78:
@@ -50928,8 +50931,85 @@ def _video_studio_ai_action_zone(x_rel: float, y_rel: float) -> dict:
         lane = 'carril_central'
     else:
         lane = 'carril_intermedio'
+    if y < 0.18:
+        lane_5 = 'carril_exterior_izquierdo'
+        lane_group = 'exterior'
+    elif y < 0.36:
+        lane_5 = 'carril_interior_izquierdo'
+        lane_group = 'interior'
+    elif y <= 0.64:
+        lane_5 = 'carril_central'
+        lane_group = 'central'
+    elif y <= 0.82:
+        lane_5 = 'carril_interior_derecho'
+        lane_group = 'interior'
+    else:
+        lane_5 = 'carril_exterior_derecho'
+        lane_group = 'exterior'
     box = bool(x >= 0.82 and 0.28 <= y <= 0.72)
-    return {'third': third, 'lane': lane, 'box': box, 'x_rel': round(x, 4), 'y_rel': round(y, 4)}
+    return {
+        'third': third,
+        'height_band': height_band,
+        'lane': lane,
+        'lane_5': lane_5,
+        'lane_group': lane_group,
+        'box': box,
+        'x_rel': round(x, 4),
+        'y_rel': round(y, 4),
+    }
+
+
+def _video_studio_ai_field_context(*, start_zone: dict, end_zone: dict, calibration: dict, combined_fp: str, motion: dict, quality: dict) -> dict:
+    explicit_blocks = []
+    for label in ('bloque_bajo', 'bloque_medio', 'bloque_alto'):
+        if _video_studio_ai_keyword_match(label.replace('_', ' '), combined_fp):
+            explicit_blocks.append(label)
+    if _video_studio_ai_keyword_match('presion alta', combined_fp):
+        explicit_blocks.append('bloque_alto')
+    end_height = str((end_zone or {}).get('height_band') or '')
+    start_height = str((start_zone or {}).get('height_band') or '')
+    if end_height == 'zona_baja':
+        inferred_block = 'bloque_bajo'
+    elif end_height == 'zona_media':
+        inferred_block = 'bloque_medio'
+    elif end_height == 'zona_alta':
+        inferred_block = 'bloque_alto'
+    else:
+        inferred_block = ''
+    has_field_calibration = bool((calibration or {}).get('field_calibrated'))
+    has_attack_direction = bool((calibration or {}).get('attack_direction_known'))
+    high_quality = bool((quality or {}).get('label') == 'high')
+    evidence_level = 'confirmed' if explicit_blocks else ('supported' if has_field_calibration and has_attack_direction and high_quality else 'hypothesis')
+    block_height = explicit_blocks[0] if explicit_blocks else inferred_block
+    block_reasons = []
+    if explicit_blocks:
+        block_reasons.append('texto_o_feedback')
+    if inferred_block:
+        block_reasons.append(f"balon_en_{end_height or start_height}")
+    if not has_field_calibration:
+        block_reasons.append('campo_no_calibrado')
+    if not has_attack_direction:
+        block_reasons.append('direccion_ataque_no_validada')
+    return {
+        'field_model': 'tercios_y_5_carriles',
+        'height': {
+            'start': start_height,
+            'end': end_height,
+            'block_height': block_height,
+            'evidence_level': evidence_level,
+            'reasons': block_reasons[:6],
+        },
+        'lanes': {
+            'start': (start_zone or {}).get('lane_5') or (start_zone or {}).get('lane'),
+            'end': (end_zone or {}).get('lane_5') or (end_zone or {}).get('lane'),
+            'start_group': (start_zone or {}).get('lane_group') or '',
+            'end_group': (end_zone or {}).get('lane_group') or '',
+        },
+        'movement': {
+            'progression': motion.get('progression') if isinstance(motion, dict) else 0.0,
+            'lateral': motion.get('lateral') if isinstance(motion, dict) else 0.0,
+        },
+    }
 
 
 def _video_studio_ai_action_motion(points: list) -> dict:
@@ -51229,7 +51309,10 @@ def _video_studio_ai_default_knowledge_entries() -> list[dict]:
             _entry('club_model_seed', 'taxonomia_roles', 'rol', 'rol_interior_llegador', 'Interior llegador', 'Interior que aparece desde segunda línea para rematar, atacar frontal o fijar intervalo.', keywords=['interior llegador', 'segunda linea', 'llegada'], actions=['finalizacion', 'ruptura'], zones=['ultimo_tercio'], payload_extra={'coach_question': '¿La llegada es coordinada con centro o pase atrás?', 'capture_must_show': ['interior', 'zona frontal', 'timing de llegada'], 'training_transfer': 'Centros con llegada de segunda línea.'}),
             _entry('club_model_seed', 'taxonomia_roles', 'rol', 'rol_delantero_fijador', 'Delantero fijador', 'Punta que fija centrales, descarga de cara o arrastra para liberar ruptura de segunda línea.', keywords=['delantero fijador', 'punta fija', 'descarga de cara'], actions=['tercer_hombre', 'ruptura'], zones=['medio', 'ultimo_tercio'], payload_extra={'coach_question': '¿El punta fija para descargar o se aleja de la ventaja?', 'capture_must_show': ['punta', 'centrales', 'tercer hombre'], 'training_transfer': 'Ataque con punta de apoyo y ruptura posterior.'}),
             _entry('club_model_seed', 'taxonomia_rival', 'rival', 'rival_presion_alta_hombre', 'Rival: presión alta al hombre', 'Detectar cuando el rival empareja arriba y deja espalda o lado débil atacable.', keywords=['presion alta', 'al hombre', 'emparejamientos'], actions=['progresion', 'ruptura'], zones=['inicio', 'medio'], payload_extra={'coach_question': '¿Dónde queda el hombre libre contra presión alta?', 'capture_must_show': ['emparejamientos', 'portero/central', 'espalda rival'], 'training_transfer': 'Salida contra presión hombre a hombre.'}),
-            _entry('club_model_seed', 'taxonomia_rival', 'rival', 'rival_bloque_bajo_area', 'Rival: bloque bajo', 'Detectar bloque bajo, acumulación en área y necesidad de paciencia, cambios de orientación y ocupación de remate.', keywords=['bloque bajo', 'defensa area', 'acumulacion'], actions=['centro_lateral', 'finalizacion'], zones=['ultimo_tercio'], payload_extra={'coach_question': '¿Estamos moviendo al bloque o atacando sin ventaja?', 'capture_must_show': ['bloque bajo', 'lado debil', 'zonas de remate'], 'training_transfer': 'Ataque posicional contra bloque bajo.'}),
+            _entry('club_model_seed', 'taxonomia_rival', 'rival', 'rival_bloque_bajo_area', 'Rival: bloque bajo', 'Detectar bloque bajo, acumulación en área y necesidad de paciencia, cambios de orientación y ocupación de remate.', keywords=['bloque bajo', 'defensa area', 'acumulacion'], actions=['bloque_bajo', 'centro_lateral', 'finalizacion'], zones=['ultimo_tercio'], payload_extra={'coach_question': '¿Estamos moviendo al bloque o atacando sin ventaja?', 'capture_must_show': ['bloque bajo', 'lado debil', 'zonas de remate'], 'training_transfer': 'Ataque posicional contra bloque bajo.'}),
+            _entry('club_model_seed', 'taxonomia_rival', 'rival', 'rival_bloque_medio', 'Rival: bloque medio', 'Detectar bloque medio, distancias entre líneas, orientación hacia fuera y momentos para atraer o superar línea.', keywords=['bloque medio', 'lineas juntas', 'orientar fuera', 'distancias del bloque'], actions=['bloque_medio', 'progresion', 'tercer_hombre'], zones=['medio'], payload_extra={'coach_question': '¿El bloque medio permite fijar dentro y progresar fuera, o al revés?', 'capture_must_show': ['linea media', 'linea defensiva', 'intervalos', 'balon'], 'training_transfer': 'Juego de posicion contra dos lineas con objetivo de superar intervalo.'}),
+            _entry('club_model_seed', 'taxonomia_rival', 'rival', 'rival_bloque_alto', 'Rival: bloque alto', 'Detectar bloque alto o presión adelantada, emparejamientos, portero/central bajo presión y espacio a la espalda.', keywords=['bloque alto', 'presion alta', 'salto alto', 'emparejamientos arriba'], actions=['bloque_alto', 'presion', 'ruptura'], zones=['inicio'], payload_extra={'coach_question': '¿La presión alta deja hombre libre, tercer hombre o espalda atacable?', 'capture_must_show': ['primera linea de presion', 'poseedor', 'apoyos', 'espalda rival'], 'training_transfer': 'Salida contra bloque alto con tercer hombre y pase a espalda.'}),
+            _entry('club_model_seed', 'taxonomia_espacios', 'espacio', 'espacio_5_carriles', 'Campo: 5 carriles', 'Dividir el campo en carril exterior izquierdo, interior izquierdo, central, interior derecho y exterior derecho para leer ocupación racional.', keywords=['5 carriles', 'cinco carriles', 'carril exterior', 'carril interior', 'carril central'], actions=['ocupacion_carriles'], lanes=['exterior', 'interior', 'central', 'carril_exterior_izquierdo', 'carril_interior_izquierdo', 'carril_central', 'carril_interior_derecho', 'carril_exterior_derecho'], payload_extra={'coach_question': '¿El equipo ocupa carriles complementarios o junta jugadores en la misma línea de pase?', 'capture_must_show': ['anchura', 'interiores', 'carril central', 'lado debil'], 'training_transfer': 'Juego posicional por 5 carriles con ocupación máxima por carril.'}),
             _entry('club_model_seed', 'taxonomia_rival', 'rival', 'rival_linea_alta_vulnerable', 'Rival: línea alta vulnerable', 'Detectar línea adelantada con mala orientación, distancia al portero o central-lateral abierto.', keywords=['linea alta', 'mala orientacion', 'espalda'], actions=['ruptura'], zones=['medio'], payload_extra={'coach_question': '¿Hay tiempo y perfil para atacar espalda?', 'capture_must_show': ['linea defensiva', 'poseedor orientado', 'receptor'], 'training_transfer': 'Automatismos de ruptura contra línea alta.'}),
             _entry('club_model_seed', 'taxonomia_escenarios', 'escenario', 'escenario_ganar_proteger_ventaja', 'Escenario: ganar y proteger', 'Con ventaja en marcador, capturar decisiones de pausa, defensa con balón, faltas evitables y gestión de riesgo.', keywords=['ganando', 'proteger ventaja', 'gestion riesgo'], actions=['temporizacion', 'progresion'], payload_extra={'coach_question': '¿La decisión protege el partido o lo abre?', 'capture_must_show': ['marcador/contexto', 'riesgo', 'opcion segura'], 'training_transfer': 'Juego condicionado con ventaja y gestión de posesión.'}),
             _entry('club_model_seed', 'taxonomia_escenarios', 'escenario', 'escenario_perder_acelerar_sin_desorden', 'Escenario: perder y acelerar', 'Con marcador adverso, capturar cuándo acelerar sin romper estructura ni perder vigilancia.', keywords=['perdiendo', 'acelerar', 'urgencia'], actions=['progresion', 'finalizacion'], payload_extra={'coach_question': '¿Aceleramos con orden o regalamos transiciones?', 'capture_must_show': ['estructura ofensiva', 'vigilancias', 'opciones adelante'], 'training_transfer': 'Ataque con límite de tiempo y rest defense obligatorio.'}),
@@ -51259,9 +51342,10 @@ def _video_studio_ai_active_knowledge(team) -> list[dict]:
         return _video_studio_ai_default_knowledge_entries()
     out = []
     seen = set()
+    default_entries = _video_studio_ai_default_knowledge_entries()
     default_payload_by_key = {
         str(item.get('concept_key') or ''): item.get('payload') if isinstance(item.get('payload'), dict) else {}
-        for item in _video_studio_ai_default_knowledge_entries()
+        for item in default_entries
     }
     for row in rows:
         key = str(row.concept_key or '')
@@ -51284,6 +51368,12 @@ def _video_studio_ai_active_knowledge(team) -> list[dict]:
                 'payload': payload,
             }
         )
+    for item in default_entries:
+        key = str(item.get('concept_key') or '')
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        out.append(item)
     return out
 
 
@@ -51334,6 +51424,14 @@ def _video_studio_ai_detect_actions_for_clip(*, team, video, clip) -> dict:
     combined = f'{text} {timeline_text}'
     combined_fp = _video_studio_ai_text_fingerprint(combined)
     knowledge = _video_studio_ai_active_knowledge(team)
+    field_context = _video_studio_ai_field_context(
+        start_zone=start_zone,
+        end_zone=end_zone,
+        calibration=calibration,
+        combined_fp=combined_fp,
+        motion=motion,
+        quality=quality,
+    )
 
     def _score(key, base, reasons):
         bias = _video_studio_ai_action_feedback_bias(team, video, key)
@@ -51382,6 +51480,12 @@ def _video_studio_ai_detect_actions_for_clip(*, team, video, clip) -> dict:
         actions.append(_score('posible_desmarque_profundidad', 0.38 + q_bonus + (0.04 if in_last else 0.0), ['profundidad_aproximada', 'sin_receptor_confirmado']))
     if 'abp' in combined or 'corner' in combined or 'falta' in combined:
         actions.append(_score('abp', 0.70 + q_bonus, ['evento_parado', 'timeline_tags']))
+    block_height = str(((field_context.get('height') or {}).get('block_height')) or '')
+    block_evidence = str(((field_context.get('height') or {}).get('evidence_level')) or 'hypothesis')
+    if block_height in {'bloque_bajo', 'bloque_medio', 'bloque_alto'}:
+        block_base = 0.62 if block_evidence == 'confirmed' else (0.46 if block_evidence == 'supported' else 0.34)
+        key = block_height if block_evidence in {'confirmed', 'supported'} else f'posible_{block_height}'
+        actions.append(_score(key, block_base + q_bonus, ['altura_bloque', block_evidence, *(((field_context.get('height') or {}).get('reasons') or [])[:3])]))
 
     tactical_review = []
     knowledge_hits = []
@@ -51397,7 +51501,15 @@ def _video_studio_ai_detect_actions_for_clip(*, team, video, clip) -> dict:
             if _video_studio_ai_keyword_match(fp, combined_fp)
         ]
         lanes = payload.get('lanes') if isinstance(payload.get('lanes'), list) else []
-        lane_match = bool(start_zone.get('lane') in lanes or end_zone.get('lane') in lanes)
+        lane_values = {
+            start_zone.get('lane'),
+            end_zone.get('lane'),
+            start_zone.get('lane_5'),
+            end_zone.get('lane_5'),
+            start_zone.get('lane_group'),
+            end_zone.get('lane_group'),
+        }
+        lane_match = bool(set(lanes) & {str(v) for v in lane_values if v})
         zones = payload.get('zones') if isinstance(payload.get('zones'), list) else []
         zone_match = bool(start_zone.get('third') in zones or end_zone.get('third') in zones)
         signals = payload.get('visual_signals') if isinstance(payload.get('visual_signals'), list) else []
@@ -51487,6 +51599,8 @@ def _video_studio_ai_detect_actions_for_clip(*, team, video, clip) -> dict:
             }
             if action_key in strong_action_keys and not can_claim_tactical_phase:
                 continue
+            if action_key in {'bloque_bajo', 'bloque_medio', 'bloque_alto', 'ocupacion_carriles'} and not strong_knowledge_match:
+                continue
             base = (
                 0.36
                 + q_bonus
@@ -51515,6 +51629,7 @@ def _video_studio_ai_detect_actions_for_clip(*, team, video, clip) -> dict:
         'window': {'start_s': clip.in_seconds, 'end_s': clip.out_seconds, 'pre_s': 3, 'post_s': 3},
         'motion': motion,
         'zones': {'start': start_zone, 'end': end_zone},
+        'field_context': field_context,
         'ball_player': {'available': False, 'signal': 'sin_balon_poseedor_confirmado'},
         'game_calibration': calibration,
         'timeline_events': len(timeline_rows),

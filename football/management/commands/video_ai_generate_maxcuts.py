@@ -299,6 +299,7 @@ class Command(BaseCommand):
         possessions = []
         ball_pts = []
         widths = []
+        depths = []
         pressure_vals = []
         unique_player_ids = set()
         for frame in frames:
@@ -311,6 +312,7 @@ class Command(BaseCommand):
                 xs = [float(p.get("x_rel") or 0.0) for p in people]
                 ys = [float(p.get("y_rel") or 0.0) for p in people]
                 widths.append((max(xs) - min(xs), max(ys) - min(ys), len(people)))
+                depths.append((min(xs), max(xs), sum(xs) / len(xs), len(people)))
             ball = max(balls, key=lambda d: float(d.get("conf") or 0.0), default=None)
             possessor = None
             if ball:
@@ -359,6 +361,8 @@ class Command(BaseCommand):
         avg_pressure = sum(pressure_vals) / len(pressure_vals) if pressure_vals else None
         avg_people = sum(s["people"] for s in samples) / len(samples) if samples else 0.0
         avg_width = sum(w[0] for w in widths) / len(widths) if widths else 0.0
+        avg_depth = sum((d[1] - d[0]) for d in depths) / len(depths) if depths else 0.0
+        avg_line_x = sum(d[2] for d in depths) / len(depths) if depths else None
         ball_jumps = [
             math.hypot(float(b.get("x", 0.0)) - float(a.get("x", 0.0)), float(b.get("y", 0.0)) - float(a.get("y", 0.0)))
             for a, b in zip(ball_pts, ball_pts[1:])
@@ -374,6 +378,25 @@ class Command(BaseCommand):
         possession_reliable = possession_rate >= 0.28 and track_fragmentation <= 12.0
         field_calibrated = bool((calibration or {}).get("field_calibrated"))
         direction_known = bool((calibration or {}).get("attack_direction_known"))
+        direction = str((calibration or {}).get("attack_direction") or "unknown")
+        block_height_hint = ""
+        field_height_hint = ""
+        block_evidence_level = "unavailable"
+        if avg_line_x is not None:
+            if avg_line_x < 0.33:
+                field_height_hint = "zona_baja"
+            elif avg_line_x < 0.66:
+                field_height_hint = "zona_media"
+            else:
+                field_height_hint = "zona_alta"
+            attack_x = 1.0 - avg_line_x if direction == "rtl" else avg_line_x
+            if attack_x < 0.33:
+                block_height_hint = "bloque_bajo"
+            elif attack_x < 0.66:
+                block_height_hint = "bloque_medio"
+            else:
+                block_height_hint = "bloque_alto"
+            block_evidence_level = "supported" if field_calibrated and direction_known and avg_people >= 8 else "hypothesis"
         actions = []
         reasons = []
         if str(fallback_kind) == "abp":
@@ -405,6 +428,8 @@ class Command(BaseCommand):
         if avg_people >= 8 and avg_width >= 0.45 and not actions:
             actions.append({"key": "candidato_estructura", "label": "Candidato de estructura colectiva", "confidence": 0.40, "reasons": ["ocupacion_ancha", "sin_evento_confirmado"]})
             reasons.append("ocupación colectiva visible, acción no clasificada")
+        if block_height_hint and avg_people >= 8:
+            actions.append({"key": f"posible_{block_height_hint}" if block_evidence_level == "hypothesis" else block_height_hint, "label": block_height_hint.replace("_", " ").title(), "confidence": 0.42 if block_evidence_level == "supported" else 0.34, "reasons": ["altura_media_jugadores", block_evidence_level]})
         if not actions:
             actions.append({"key": "candidato_revisar", "label": "Candidato para revisar", "confidence": 0.30, "reasons": ["senales_insuficientes", "sin_afirmacion_tactica"]})
         actions.sort(key=lambda row: float(row.get("confidence") or 0.0), reverse=True)
@@ -429,7 +454,15 @@ class Command(BaseCommand):
             "ball": {"start": ball_start, "end": ball_end, "points": len(ball_pts), "progression": round(progression, 4), "attack_progression": round(attack_progression, 4), "lateral": round(lateral, 4)},
             "possession": {"samples": len(possessions), "team_changes": team_changes if possession_reliable else 0, "raw_team_changes": team_changes, "dominant": self._most_common(possessions)},
             "pressure": {"avg_nearest_opponent": round(avg_pressure, 4) if avg_pressure is not None else None},
-            "shape": {"avg_players": round(avg_people, 2), "avg_width": round(avg_width, 4)},
+            "shape": {
+                "avg_players": round(avg_people, 2),
+                "avg_width": round(avg_width, 4),
+                "avg_depth": round(avg_depth, 4),
+                "avg_line_x": round(avg_line_x, 4) if avg_line_x is not None else None,
+                "field_height_hint": field_height_hint,
+                "block_height_hint": block_height_hint,
+                "block_evidence_level": block_evidence_level,
+            },
             "teams": self._compact_team_payload(payload.get("teams") if isinstance(payload.get("teams"), dict) else {}),
         }
 
@@ -448,9 +481,30 @@ class Command(BaseCommand):
         lateral = float(ball.get("lateral") or 0.0)
         avg_players = float(shape.get("avg_players") or 0.0)
         avg_width = float(shape.get("avg_width") or 0.0)
+        avg_depth = float(shape.get("avg_depth") or 0.0)
+        block_height_hint = str(shape.get("block_height_hint") or "")
+        block_evidence_level = str(shape.get("block_evidence_level") or "")
         avg_pressure = pressure.get("avg_nearest_opponent")
         abp_rule = self._abp_senior_rule(deep_item)
         rules = [
+            {
+                "key": "lectura_bloque",
+                "concept": "coach_defensa_distancias_bloque",
+                "title": "Bloque: altura y distancias",
+                "score": 0.42 + min(0.14, avg_players / 80.0) + min(0.10, avg_depth * 0.35) + (0.06 if block_evidence_level == "supported" else 0.0),
+                "when": avg_players >= 8 and bool(block_height_hint),
+                "roles": ["linea defensiva", "linea media", "intervalos", "espacio a espalda"],
+                "why": f"La IA estima {block_height_hint.replace('_', ' ')} desde la altura media del bloque; debe revisarse con líneas y distancias visibles.",
+            },
+            {
+                "key": "ocupacion_5_carriles",
+                "concept": "espacio_5_carriles",
+                "title": "Ocupación de 5 carriles",
+                "score": 0.40 + min(0.18, avg_width * 0.32) + min(0.10, avg_players / 90.0),
+                "when": avg_players >= 8 and avg_width >= 0.42,
+                "roles": ["carril exterior", "carril interior", "carril central", "lado débil"],
+                "why": "La ocupación ancha permite revisar si exteriores, interiores y carril central están complementados o se pisan zonas.",
+            },
             {
                 "key": "salida_3_hombres",
                 "concept": "coach_salida_hombre_libre",
