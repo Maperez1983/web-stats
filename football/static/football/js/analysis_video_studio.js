@@ -597,6 +597,20 @@
     const projectSaveBtn = document.getElementById('vs-project-save');
     const projectRefreshBtn = document.getElementById('vs-project-refresh');
     const projectsList = document.getElementById('vs-projects');
+    const proLiveModeBtn = document.getElementById('vs-pro-live-mode');
+    const proModelPackBtn = document.getElementById('vs-pro-model-pack');
+    const proCompareBtn = document.getElementById('vs-pro-compare');
+    const proComparePanel = document.getElementById('vs-pro-compare-panel');
+    const proPresentationBtn = document.getElementById('vs-pro-presentation');
+    const proAiQuestionBtn = document.getElementById('vs-pro-ai-question');
+    const proGuidedTrackBtn = document.getElementById('vs-pro-guided-track');
+    const proCoachExportBtn = document.getElementById('vs-pro-coach-export');
+    const proPlayerExportBtn = document.getElementById('vs-pro-player-export');
+    const patternTitleInput = document.getElementById('vs-pattern-title');
+    const patternSaveBtn = document.getElementById('vs-pattern-save');
+    const patternSelect = document.getElementById('vs-pattern-select');
+    const patternApplyBtn = document.getElementById('vs-pattern-apply');
+    const patternList = document.getElementById('vs-pattern-list');
 
 	    const clipTitleInput = document.getElementById('vs-clip-title');
 	    const clipCollectionInput = document.getElementById('vs-clip-collection');
@@ -10014,6 +10028,268 @@
     presetsAutoClipSelect?.addEventListener('change', onAutoClipChange);
     presetsPreInput?.addEventListener('change', onAutoClipChange);
     presetsPostInput?.addEventListener('change', onAutoClipChange);
+
+    const proModelPresets = () => sanitizeEventPresets([
+      { kind: 'press', label: 'Presión alta: salto', hotkey: '1', color: '#22d3ee' },
+      { kind: 'press', label: 'Presión tras pérdida', hotkey: '2', color: '#38bdf8' },
+      { kind: 'tag', label: 'Bloque alto', hotkey: '3', color: '#34d399' },
+      { kind: 'tag', label: 'Bloque medio', hotkey: '4', color: '#facc15' },
+      { kind: 'tag', label: 'Bloque bajo', hotkey: '5', color: '#fb7185' },
+      { kind: 'tag', label: 'Carril exterior', hotkey: '6', color: '#60a5fa' },
+      { kind: 'tag', label: 'Carril interior', hotkey: '7', color: '#a78bfa' },
+      { kind: 'turnover', label: 'Pérdida por dentro', hotkey: '8', color: '#f97316' },
+      { kind: 'tag', label: '2v1 banda', hotkey: '9', color: '#67e8f9' },
+      { kind: 'note', label: 'Nota entrenador', hotkey: '0', color: '#cbd5e1' },
+    ]);
+
+    const proPatternStorageKey = () => `vs_patterns_v1:${videoId || 'local'}`;
+
+    const loadProPatterns = () => {
+      try {
+        const raw = window.localStorage?.getItem?.(proPatternStorageKey()) || '[]';
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed.slice(0, 60) : [];
+      } catch (e) {
+        return [];
+      }
+    };
+
+    const saveProPatterns = (items) => {
+      try { window.localStorage?.setItem?.(proPatternStorageKey(), JSON.stringify((Array.isArray(items) ? items : []).slice(0, 60))); } catch (e) { /* ignore */ }
+    };
+
+    const renderProPatterns = () => {
+      const items = loadProPatterns();
+      if (patternSelect) {
+        patternSelect.innerHTML = items.length
+          ? items.map((it, idx) => `<option value="${idx}">${escHtml(safeText(it?.title, `Patrón ${idx + 1}`))}</option>`).join('')
+          : '<option value="">Sin patrones</option>';
+      }
+      if (patternList) {
+        patternList.innerHTML = items.length
+          ? items.map((it, idx) => `<button type="button" class="button ghost" data-vs-pattern-pick="${idx}">${escHtml(safeText(it?.title, `Patrón ${idx + 1}`))}</button>`).join('')
+          : '<span class="hint">Selecciona un recurso en el canvas y guárdalo como patrón.</span>';
+        Array.from(patternList.querySelectorAll('[data-vs-pattern-pick]')).forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const idx = Number(btn.getAttribute('data-vs-pattern-pick') || -1);
+            if (patternSelect && idx >= 0) patternSelect.value = String(idx);
+            patternApplyBtn?.click?.();
+          });
+        });
+      }
+    };
+
+    const activePatternObjects = () => {
+      const active = (() => { try { return fabricCanvas.getActiveObject?.() || null; } catch (e) { return null; } })();
+      if (!active) return [];
+      if (safeText(active.type, '') === 'activeSelection' && typeof active.getObjects === 'function') {
+        return active.getObjects().filter(Boolean);
+      }
+      return [active];
+    };
+
+    const saveActiveProPattern = () => {
+      const objects = activePatternObjects();
+      if (!objects.length) {
+        setStatus('Selecciona uno o varios recursos antes de guardar patrón.', true);
+        return;
+      }
+      const payload = objects.map((obj) => {
+        try { ensureLayerData(obj); } catch (e) { /* ignore */ }
+        try { return obj.toObject(['data']); } catch (e) { return null; }
+      }).filter(Boolean);
+      if (!payload.length) {
+        setStatus('No se pudo leer el patrón seleccionado.', true);
+        return;
+      }
+      const title = safeText(patternTitleInput?.value, '') || `Patrón ${loadProPatterns().length + 1}`;
+      const items = loadProPatterns();
+      items.unshift({ title: title.slice(0, 80), objects: payload, created_at: new Date().toISOString() });
+      saveProPatterns(items);
+      if (patternTitleInput) patternTitleInput.value = '';
+      renderProPatterns();
+      setStatus('Patrón guardado.');
+    };
+
+    const applyProPattern = () => {
+      const items = loadProPatterns();
+      const idx = Number(patternSelect?.value || 0);
+      const pattern = items[idx];
+      const objects = Array.isArray(pattern?.objects) ? pattern.objects : [];
+      if (!objects.length || !window.fabric?.util?.enlivenObjects) {
+        setStatus('No hay patrón aplicable.', true);
+        return;
+      }
+      try {
+        fabric.util.enlivenObjects(objects, (enlivened) => {
+          const add = (Array.isArray(enlivened) ? enlivened : []).filter(Boolean);
+          if (!add.length) { setStatus('No se pudo aplicar el patrón.', true); return; }
+          add.forEach((obj, i) => {
+            try {
+              ensureLayerData(obj);
+              obj.data = { ...(obj.data || {}), uid: newUid(), pattern: safeText(pattern?.title, '') };
+              obj.set({ left: (Number(obj.left) || 0) + 24 + (i * 4), top: (Number(obj.top) || 0) + 24 + (i * 4) });
+              fabricCanvas.add(obj);
+            } catch (e) { /* ignore */ }
+          });
+          try {
+            if (add.length > 1) fabricCanvas.setActiveObject(new fabric.ActiveSelection(add, { canvas: fabricCanvas }));
+            else fabricCanvas.setActiveObject(add[0]);
+          } catch (e) { /* ignore */ }
+          try { pushHistory(); updateLayerPanel(); renderDrawLayers(); renderMiniTimeline(); fabricCanvas.requestRenderAll(); } catch (e) { /* ignore */ }
+          setStatus('Patrón aplicado.');
+        });
+      } catch (e) {
+        setStatus('No se pudo aplicar el patrón.', true);
+      }
+    };
+
+    const compareClipCandidates = () => {
+      const selected = selectedClipsOrdered();
+      if (selected.length >= 2) return selected.slice(0, 2);
+      const filtered = applyClipFilters(clipsCache);
+      return filtered.slice(0, 2);
+    };
+
+    const openClipForPro = (clip, play = false) => {
+      if (!clip) return;
+      const start = Number(clip?.in_s) || 0;
+      const end = Number(clip?.out_s) || start;
+      activeClipId = Number(clip?.id) || activeClipId;
+      if (inInput) inInput.value = String(start.toFixed(1));
+      if (outInput) outInput.value = String(end.toFixed(1));
+      if (clipTitleInput) clipTitleInput.value = safeText(clip?.title, '');
+      if (clipCollectionInput) clipCollectionInput.value = safeText(clip?.collection, '');
+      if (clipTagsInput) clipTagsInput.value = (Array.isArray(clip?.tags) ? clip.tags : []).map((t) => safeText(t)).filter(Boolean).join(', ');
+      if (clipNotesInput) clipNotesInput.value = safeText(clip?.notes, '');
+      const overlay = clip?.overlay || {};
+      if (overlay && typeof overlay === 'object' && Array.isArray(overlay?.objects)) {
+        try { restoreJson(overlay); } catch (e) { /* ignore */ }
+      }
+      try { video.currentTime = Math.max(0, start); } catch (e) { /* ignore */ }
+      if (play) {
+        try { video.play?.(); } catch (e) { /* ignore */ }
+      }
+      try { updateClipUiState(); updateLayerPanel(); } catch (e) { /* ignore */ }
+    };
+
+    const renderProCompare = () => {
+      if (!proComparePanel) return;
+      const clips = compareClipCandidates();
+      if (clips.length < 2) {
+        proComparePanel.style.display = 'none';
+        setStatus('Selecciona dos clips o crea al menos dos clips para comparar.', true);
+        return;
+      }
+      proComparePanel.style.display = 'grid';
+      proComparePanel.innerHTML = clips.map((clip, idx) => {
+        const title = safeText(clip?.title, `Clip ${idx + 1}`);
+        const inS = Number(clip?.in_s) || 0;
+        const outS = Number(clip?.out_s) || inS;
+        const tags = Array.isArray(clip?.tags) ? clip.tags : [];
+        return `
+          <div class="vs-compare-card">
+            <strong>${idx === 0 ? 'A' : 'B'} · ${escHtml(title)}</strong>
+            <small>${escHtml(fmtTimeShort(inS))} → ${escHtml(fmtTimeShort(outS))}${tags.length ? ` · ${escHtml(tags.slice(0, 4).join(', '))}` : ''}</small>
+            <div class="vs-pro-actions">
+              <button type="button" class="button" data-vs-pro-open-clip="${idx}">Abrir</button>
+              <button type="button" class="button primary" data-vs-pro-play-clip="${idx}">Play</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+      Array.from(proComparePanel.querySelectorAll('[data-vs-pro-open-clip]')).forEach((btn) => {
+        btn.addEventListener('click', () => openClipForPro(clips[Number(btn.getAttribute('data-vs-pro-open-clip') || 0)], false));
+      });
+      Array.from(proComparePanel.querySelectorAll('[data-vs-pro-play-clip]')).forEach((btn) => {
+        btn.addEventListener('click', () => openClipForPro(clips[Number(btn.getAttribute('data-vs-pro-play-clip') || 0)], true));
+      });
+      setStatus('Comparador preparado con dos clips.');
+    };
+
+    const createProIssue = async (key) => {
+      const map = {
+        perfil: { kind: 'note', label: 'Error recurrente: mal perfil corporal', color: '#facc15' },
+        intervalo: { kind: 'tag', label: 'Error recurrente: no cerrar intervalo', color: '#fb7185' },
+        perdida_dentro: { kind: 'turnover', label: 'Error recurrente: pérdida por dentro', color: '#f97316' },
+        linea_hundida: { kind: 'tag', label: 'Error recurrente: línea hundida', color: '#60a5fa' },
+        area: { kind: 'shot', label: 'Error recurrente: no atacar área', color: '#34d399' },
+      };
+      const item = map[safeText(key, '')] || map.perfil;
+      if (eventKindSelect) eventKindSelect.value = item.kind;
+      if (eventLabelInput) eventLabelInput.value = item.label;
+      try { if (colorInput) colorInput.value = item.color; } catch (e) { /* ignore */ }
+      await addTimelineEvent();
+      await createQuickClipFromPreset(item);
+      setStatus(`${item.label} añadido a Timeline.`);
+    };
+
+    proLiveModeBtn?.addEventListener('click', async () => {
+      autoClipState.enabled = true;
+      autoClipState.pre = Math.max(6, Number(autoClipState.pre) || 8);
+      autoClipState.post = Math.max(6, Number(autoClipState.post) || 8);
+      renderAutoClipUi();
+      try { await saveAutoClipPrefs(); } catch (e) { /* ignore */ }
+      try { document.getElementById('vs-acc-events')?.setAttribute?.('open', ''); } catch (e) { /* ignore */ }
+      setStatus('Modo partido activo: cada evento puede crear clip automático con IN/OUT alrededor del playhead.');
+    });
+
+    proModelPackBtn?.addEventListener('click', async () => {
+      eventPresets = proModelPresets();
+      if (presetsJson) presetsJson.value = presetsToJson(eventPresets);
+      renderEventPresets();
+      try { await saveEventPresets(eventPresets); } catch (e) { /* ignore */ }
+      setPresetsStatus('Pack modelo cargado.');
+      setStatus('Pack modelo de juego cargado en botones de evento.');
+    });
+
+    proCompareBtn?.addEventListener('click', renderProCompare);
+    patternSaveBtn?.addEventListener('click', saveActiveProPattern);
+    patternApplyBtn?.addEventListener('click', applyProPattern);
+
+    proPresentationBtn?.addEventListener('click', async () => {
+      if (Array.isArray(timelineCache) && timelineCache.length) {
+        try { await slidesFromTimeline(); } catch (e) { slidesFromTimelineBtn?.click?.(); }
+      } else {
+        slideAddBtn?.click?.();
+      }
+      setStatus('Presentación preparada en slides.');
+    });
+
+    proAiQuestionBtn?.addEventListener('click', () => {
+      if (aiContextInput) {
+        aiContextInput.value = [
+          'Analiza esta jugada como entrenador.',
+          'Identifica bloque alto/medio/bajo, carriles ocupados, superioridades, riesgos y corrección práctica para jugador.',
+          'Devuelve momentos clave, errores recurrentes y tareas de entrenamiento.'
+        ].join(' ');
+      }
+      fetchAi(true);
+    });
+
+    proGuidedTrackBtn?.addEventListener('click', () => {
+      try { setTool('player'); } catch (e) { btnPlayer?.click?.(); }
+      setStatus('Seguimiento guiado: marca el jugador en este frame y usa AutoTrack IA o keyframes para que el recurso lo siga.');
+    });
+
+    proCoachExportBtn?.addEventListener('click', () => {
+      reportPdfBtn?.click?.();
+      setStatus('Export entrenador iniciado.');
+    });
+
+    proPlayerExportBtn?.addEventListener('click', () => {
+      if (!slides.length) {
+        if (Array.isArray(timelineCache) && timelineCache.length) slidesFromTimelineBtn?.click?.();
+        else slideAddBtn?.click?.();
+      }
+      window.setTimeout(() => exportPdfBtn?.click?.(), 250);
+      setStatus('Export jugador iniciado.');
+    });
+
+    Array.from(document.querySelectorAll('[data-vs-pro-issue]')).forEach((btn) => {
+      btn.addEventListener('click', () => createProIssue(btn.getAttribute('data-vs-pro-issue')));
+    });
+    renderProPatterns();
 
     eventRefreshBtn?.addEventListener('click', refreshTimeline);
     timelineSearchInput?.addEventListener('input', () => renderTimeline(timelineCache));

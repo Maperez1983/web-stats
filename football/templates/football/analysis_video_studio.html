@@ -144,6 +144,18 @@
       .row { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:0.6rem; padding:0.65rem 0.75rem; border-radius: 16px; border:1px solid rgba(148,163,184,0.14); background: rgba(255,255,255,0.03); color: #f3f7ff; }
       .row strong { font-weight:900; color: #f3f7ff; }
       .row small { color: rgba(226,232,240,0.7); font-weight:800; }
+      .vs-pro-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:0.45rem; }
+      .vs-pro-card { display:grid; gap:0.45rem; padding:0.65rem 0.7rem; border-radius:16px; border:1px solid rgba(148,163,184,0.14); background:rgba(255,255,255,0.03); min-width:0; }
+      .vs-pro-card strong { color:#f8fafc; font-size:0.78rem; letter-spacing:0.06em; text-transform:uppercase; }
+      .vs-pro-card small { color:rgba(226,232,240,0.72); font-weight:800; line-height:1.35; }
+      .vs-pro-card .button { width:100%; min-height:34px; padding:0.46rem 0.58rem; font-size:0.64rem; }
+      .vs-pro-actions { display:flex; gap:0.4rem; flex-wrap:wrap; }
+      .vs-pro-actions .button { width:auto; }
+      .vs-compare-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0.45rem; }
+      .vs-compare-card { display:grid; gap:0.35rem; padding:0.6rem; border-radius:14px; border:1px solid rgba(34,211,238,0.18); background:rgba(2,6,23,0.28); min-width:0; }
+      .vs-compare-card strong, .vs-compare-card small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .vs-pattern-list { display:flex; gap:0.35rem; flex-wrap:wrap; }
+      .vs-pattern-list .button { min-height:32px; padding:0.42rem 0.58rem; font-size:0.62rem; }
       .vs-layer-timeline { height:6px; border-radius:999px; background:rgba(148,163,184,0.18); overflow:hidden; margin-top:0.22rem; }
       .vs-layer-timeline span { display:block; height:100%; border-radius:999px; background:linear-gradient(90deg,#22d3ee,#facc15); }
       .split { margin-top: 1rem; padding-top: 0.95rem; border-top: 1px solid rgba(148,163,184,0.16); }
@@ -561,6 +573,80 @@
             </div>
             <div class="meta" style="margin-top:0.2rem;">Guarda la capa de dibujo actual para reutilizarla.</div>
             <div class="list" id="vs-projects"></div>
+
+	            <details class="vs-acc" id="vs-pro-workflow" open>
+                <summary>Flujo Pro entrenador</summary>
+                <div class="vs-acc-body">
+                  <div class="hint">Accesos directos para partido, patrones, comparación, IA y exportaciones.</div>
+                  <div class="vs-pro-grid">
+                    <div class="vs-pro-card">
+                      <strong>Partido directo</strong>
+                      <small>Prepara eventos rápidos y auto-clips alrededor del playhead.</small>
+                      <button type="button" class="button primary" id="vs-pro-live-mode">Activar modo partido</button>
+                    </div>
+                    <div class="vs-pro-card">
+                      <strong>Modelo de juego</strong>
+                      <small>Carga botones tácticos de presión, bloques, carriles y transiciones.</small>
+                      <button type="button" class="button" id="vs-pro-model-pack">Cargar pack modelo</button>
+                    </div>
+                    <div class="vs-pro-card">
+                      <strong>Comparador</strong>
+                      <small>Compara dos clips seleccionados sin salir del estudio.</small>
+                      <button type="button" class="button" id="vs-pro-compare">Comparar clips</button>
+                    </div>
+                    <div class="vs-pro-card">
+                      <strong>Presentación</strong>
+                      <small>Convierte timeline o captura actual en slides para jugador.</small>
+                      <button type="button" class="button" id="vs-pro-presentation">Crear slides</button>
+                    </div>
+                    <div class="vs-pro-card">
+                      <strong>Pregunta IA</strong>
+                      <small>Genera lectura táctica de la jugada o de los clips filtrados.</small>
+                      <button type="button" class="button" id="vs-pro-ai-question">Preguntar a IA</button>
+                    </div>
+                    <div class="vs-pro-card">
+                      <strong>Tracking guiado</strong>
+                      <small>Activa marcador jugador y deja preparado el seguimiento por keyframes.</small>
+                      <button type="button" class="button" id="vs-pro-guided-track">Preparar seguimiento</button>
+                    </div>
+                  </div>
+
+                  <div id="vs-pro-compare-panel" class="vs-compare-grid" style="display:none; margin-top:0.55rem;"></div>
+
+                  <div class="vs-pro-card" style="margin-top:0.55rem;">
+                    <strong>Biblioteca de patrones</strong>
+                    <small>Guarda flechas, aros, zonas o grupos seleccionados y reutilízalos sobre otra captura.</small>
+                    <div class="vs-pro-actions">
+                      <input type="text" id="vs-pattern-title" placeholder="Ej: 2v1 banda + pase atrás" style="min-width:180px; flex:1;" />
+                      <button type="button" class="button" id="vs-pattern-save">Guardar patrón</button>
+                      <select id="vs-pattern-select" style="min-width:170px; flex:1;"></select>
+                      <button type="button" class="button" id="vs-pattern-apply">Aplicar</button>
+                    </div>
+                    <div class="vs-pattern-list" id="vs-pattern-list"></div>
+                  </div>
+
+                  <div class="vs-pro-card" style="margin-top:0.55rem;">
+                    <strong>Errores recurrentes</strong>
+                    <small>Crea eventos de revisión para patrones que se repiten en partido.</small>
+                    <div class="vs-pro-actions">
+                      <button type="button" class="button ghost" data-vs-pro-issue="perfil">Mal perfil</button>
+                      <button type="button" class="button ghost" data-vs-pro-issue="intervalo">No cerrar intervalo</button>
+                      <button type="button" class="button ghost" data-vs-pro-issue="perdida_dentro">Pérdida por dentro</button>
+                      <button type="button" class="button ghost" data-vs-pro-issue="linea_hundida">Línea hundida</button>
+                      <button type="button" class="button ghost" data-vs-pro-issue="area">No atacar área</button>
+                    </div>
+                  </div>
+
+                  <div class="vs-pro-card" style="margin-top:0.55rem;">
+                    <strong>Export entrenador / jugador</strong>
+                    <small>Entrenador: informe completo. Jugador: slides con telestración.</small>
+                    <div class="vs-pro-actions">
+                      <button type="button" class="button" id="vs-pro-coach-export">Export entrenador</button>
+                      <button type="button" class="button" id="vs-pro-player-export">Export jugador</button>
+                    </div>
+                  </div>
+                </div>
+	            </details>
 
 	            <details class="vs-acc" open>
                 <summary>Dashboard</summary>
