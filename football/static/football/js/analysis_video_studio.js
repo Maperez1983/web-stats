@@ -4380,6 +4380,201 @@
 	      return { objs, meta: { templateUid, count, sw } };
 	    };
 
+	    const addTacticalPreset = (presetKey) => {
+	      const key = safeText(presetKey, '');
+	      const w = Number(fabricCanvas.getWidth?.()) || 0;
+	      const h = Number(fabricCanvas.getHeight?.()) || 0;
+	      if (!key || !w || !h) { setStatus('Preset táctico no disponible.', true); return false; }
+	      const px = (x) => clamp(Number(x) || 0, 0.02, 0.98) * w;
+	      const py = (y) => clamp(Number(y) || 0, 0.02, 0.98) * h;
+	      const sw = clamp(Math.round(strokeWidth() || 6), 3, 14);
+	      const cyan = '#22d3ee';
+	      const yellow = '#facc15';
+	      const red = '#fb7185';
+	      const white = '#ffffff';
+	      const green = '#34d399';
+	      const blue = '#60a5fa';
+	      const makeLabel = (text, x, y, color = white, scale = 1) => {
+	        const label = new fabric.Textbox(safeText(text, ''), {
+	          left: px(x),
+	          top: py(y),
+	          width: Math.min(w * 0.34, 260),
+	          fontSize: clamp(Math.round(21 * scale), 14, 34),
+	          fontFamily: 'Arial',
+	          fontWeight: 900,
+	          fill: color,
+	          textAlign: 'center',
+	          originX: 'center',
+	          originY: 'center',
+	          stroke: 'rgba(2,6,23,0.9)',
+	          strokeWidth: 3,
+	          paintFirst: 'stroke',
+	          selectable: true,
+	          evented: true,
+	        });
+	        label.data = seedLayerDataNow({ kind: 'text_caption', preset: key, text: safeText(text, '') });
+	        return label;
+	      };
+	      const makeZone = (x, y, rw, rh, color = cyan, label = '') => {
+	        const rect = new fabric.Rect({
+	          left: px(x),
+	          top: py(y),
+	          width: clamp(Number(rw) || 0.16, 0.04, 0.9) * w,
+	          height: clamp(Number(rh) || 0.16, 0.04, 0.9) * h,
+	          originX: 'center',
+	          originY: 'center',
+	          fill: colorToRgba(color, 0.13, 'rgba(34,211,238,0.13)'),
+	          stroke: colorToRgba(color, 0.72, 'rgba(34,211,238,0.72)'),
+	          strokeWidth: Math.max(2, Math.round(sw * 0.45)),
+	          strokeDashArray: [10, 8],
+	          rx: 12,
+	          ry: 12,
+	          selectable: true,
+	          evented: true,
+	          strokeUniform: true,
+	          objectCaching: false,
+	        });
+	        rect.data = seedLayerDataNow({ kind: 'space_zone', preset: key, label: safeText(label, '') });
+	        return rect;
+	      };
+	      const makeLine = (a, b, color = white, opts = {}) => {
+	        const line = new fabric.Line([px(a[0]), py(a[1]), px(b[0]), py(b[1])], {
+	          stroke: colorToRgba(color, opts.alpha ?? 0.8, color),
+	          strokeWidth: opts.strokeWidth || Math.max(2, Math.round(sw * 0.45)),
+	          strokeDashArray: opts.dash || null,
+	          strokeLineCap: 'round',
+	          selectable: true,
+	          evented: true,
+	          strokeUniform: true,
+	          objectCaching: false,
+	        });
+	        line.data = seedLayerDataNow({ kind: 'line', preset: key, line_style: opts.dash ? 'dash' : 'solid' });
+	        return line;
+	      };
+	      const makeArrow = (a, b, color = yellow, opts = {}) => {
+	        const x1 = px(a[0]); const y1 = py(a[1]);
+	        const x2 = px(b[0]); const y2 = py(b[1]);
+	        const line = new fabric.Line([x1, y1, x2, y2], {
+	          stroke: color,
+	          strokeWidth: opts.strokeWidth || sw,
+	          strokeLineCap: 'round',
+	          selectable: false,
+	          evented: false,
+	          objectCaching: false,
+	          strokeUniform: true,
+	          shadow: 'rgba(0,0,0,0.25) 0 2px 6px',
+	        });
+	        applyStrokeStyle(line, opts.style || 'solid', sw);
+	        const ang = Math.atan2(y2 - y1, x2 - x1);
+	        const headLen = clamp(16 + sw, 16, 34);
+	        const head = new fabric.Polygon([
+	          { x: x2, y: y2 },
+	          { x: x2 - headLen * Math.cos(ang - Math.PI / 7), y: y2 - headLen * Math.sin(ang - Math.PI / 7) },
+	          { x: x2 - headLen * Math.cos(ang + Math.PI / 7), y: y2 - headLen * Math.sin(ang + Math.PI / 7) },
+	        ], { fill: color, selectable: false, evented: false, shadow: 'rgba(0,0,0,0.25) 0 2px 6px' });
+	        const group = new fabric.Group([line, head], { selectable: true, evented: true });
+	        group.data = seedLayerDataNow({ kind: opts.kind || 'arrow', preset: key, anim: opts.style ? 'none' : 'draw', anim_ms: 700, line_style: opts.style || 'solid' });
+	        return group;
+	      };
+	      const makePlayer = (x, y, color = white, label = '') => {
+	        const r = clamp(Math.min(w, h) * 0.025, 12, 24);
+	        const circle = new fabric.Circle({
+	          left: px(x),
+	          top: py(y),
+	          radius: r,
+	          originX: 'center',
+	          originY: 'center',
+	          fill: colorToRgba(color, 0.9, color),
+	          stroke: 'rgba(2,6,23,0.85)',
+	          strokeWidth: 3,
+	          selectable: false,
+	          evented: false,
+	        });
+	        const text = new fabric.Text(safeText(label, ''), {
+	          left: px(x),
+	          top: py(y),
+	          originX: 'center',
+	          originY: 'center',
+	          fontSize: clamp(Math.round(r * 0.95), 10, 20),
+	          fontWeight: 900,
+	          fill: '#0f172a',
+	          selectable: false,
+	          evented: false,
+	        });
+	        const group = new fabric.Group([circle, text], { selectable: true, evented: true });
+	        group.data = seedLayerDataNow({ kind: 'player_marker', preset: key, number: safeText(label, '') });
+	        return group;
+	      };
+	      const add = [];
+	      if (key === '2v1') {
+	        add.push(makeZone(0.66, 0.54, 0.25, 0.22, yellow, 'superioridad'));
+	        add.push(makePlayer(0.55, 0.62, red, 'A'));
+	        add.push(makePlayer(0.72, 0.62, red, 'B'));
+	        add.push(makePlayer(0.64, 0.49, blue, 'D'));
+	        add.push(makeArrow([0.55, 0.61], [0.69, 0.57], yellow));
+	        add.push(makeArrow([0.72, 0.62], [0.81, 0.50], white));
+	        add.push(makeLabel('2v1', 0.66, 0.40, white, 1.15));
+	      } else if (key === 'third_man') {
+	        add.push(makePlayer(0.38, 0.60, red, '1'));
+	        add.push(makePlayer(0.52, 0.48, red, '2'));
+	        add.push(makePlayer(0.68, 0.58, red, '3'));
+	        add.push(makeArrow([0.38, 0.60], [0.52, 0.48], yellow));
+	        add.push(makeArrow([0.52, 0.48], [0.68, 0.58], cyan));
+	        add.push(makeZone(0.68, 0.58, 0.18, 0.14, green, 'tercer hombre'));
+	        add.push(makeLabel('3er hombre', 0.55, 0.36, white, 1));
+	      } else if (key === 'defensive_line') {
+	        add.push(makeLine([0.18, 0.56], [0.84, 0.56], cyan, { dash: [12, 8], strokeWidth: Math.max(3, sw * 0.75) }));
+	        [0.25, 0.40, 0.55, 0.70].forEach((x, i) => add.push(makePlayer(x, 0.56, blue, String(i + 2))));
+	        add.push(makeArrow([0.55, 0.48], [0.55, 0.36], red, { style: 'dash', kind: 'movement_line' }));
+	        add.push(makeLabel('Línea defensiva', 0.50, 0.43, white, 0.9));
+	      } else if (key === 'block_low' || key === 'block_mid' || key === 'block_high') {
+	        const y = key === 'block_low' ? 0.68 : (key === 'block_mid' ? 0.52 : 0.36);
+	        const label = key === 'block_low' ? 'Bloque bajo' : (key === 'block_mid' ? 'Bloque medio' : 'Bloque alto');
+	        add.push(makeZone(0.50, y, 0.62, 0.28, blue, label));
+	        add.push(makeLine([0.20, y - 0.08], [0.80, y - 0.08], white, { dash: [10, 8] }));
+	        add.push(makeLine([0.24, y + 0.06], [0.76, y + 0.06], white, { dash: [10, 8] }));
+	        [0.28, 0.42, 0.56, 0.70].forEach((x, i) => add.push(makePlayer(x, y - 0.08, blue, String(i + 1))));
+	        [0.34, 0.50, 0.66].forEach((x, i) => add.push(makePlayer(x, y + 0.06, blue, String(i + 5))));
+	        add.push(makeLabel(label, 0.50, y - 0.20, white, 1));
+	      } else if (key === 'free_space') {
+	        add.push(makeZone(0.64, 0.44, 0.26, 0.20, green, 'espacio libre'));
+	        add.push(makeArrow([0.36, 0.62], [0.58, 0.48], yellow, { kind: 'movement_line' }));
+	        add.push(makeArrow([0.48, 0.54], [0.64, 0.44], cyan, { style: 'dash' }));
+	        add.push(makeLabel('Espacio libre', 0.64, 0.32, white, 0.95));
+	      } else if (key === 'press_jump') {
+	        add.push(makePlayer(0.45, 0.54, blue, '6'));
+	        add.push(makePlayer(0.60, 0.48, red, '8'));
+	        add.push(makePlayer(0.69, 0.56, red, '9'));
+	        add.push(makeArrow([0.45, 0.54], [0.60, 0.48], red, { kind: 'movement_line' }));
+	        add.push(makeZone(0.60, 0.48, 0.18, 0.14, red, 'salto'));
+	        add.push(makeLabel('Salto presión', 0.56, 0.36, white, 0.95));
+	      } else if (key === 'shift') {
+	        add.push(makeZone(0.48, 0.52, 0.58, 0.25, blue, 'bloque'));
+	        add.push(makeArrow([0.36, 0.50], [0.52, 0.50], cyan, { kind: 'movement_line' }));
+	        add.push(makeArrow([0.50, 0.58], [0.66, 0.58], cyan, { kind: 'movement_line' }));
+	        add.push(makeLine([0.26, 0.44], [0.72, 0.44], white, { dash: [10, 8] }));
+	        add.push(makeLabel('Basculación', 0.52, 0.36, white, 1));
+	      }
+	      if (!add.length) { setStatus('Preset táctico no soportado.', true); return false; }
+	      add.forEach((obj) => {
+	        try { fabricCanvas.add(obj); } catch (e) { /* ignore */ }
+	      });
+	      pushHistory();
+	      try {
+	        const sel = new fabric.ActiveSelection(add, { canvas: fabricCanvas });
+	        fabricCanvas.setActiveObject(sel);
+	      } catch (e) {
+	        try { fabricCanvas.setActiveObject(add[add.length - 1]); } catch (e2) { /* ignore */ }
+	      }
+	      selectedFxId = 0;
+	      updateLayerPanel();
+	      renderFxList();
+	      renderDrawLayers();
+	      try { fabricCanvas.requestRenderAll(); } catch (e) { /* ignore */ }
+	      setStatus(`Recurso táctico aplicado: ${labelForResourceKey(`tactic:${key}`) || key}.`);
+	      return true;
+	    };
+
 	    const replaceTemplateInPlace = (oldObj, newObj) => {
 	      if (!oldObj || !newObj) return false;
 	      const idx = (() => {
@@ -4729,6 +4924,15 @@
 	      if (k === 'template:grid_manual') return 'Cuadrícula manual';
 	      if (k === 'template:central_box') return 'Caja central';
 	      if (k === 'template:final_third') return 'Último tercio';
+	      if (k === 'tactic:2v1') return '2v1';
+	      if (k === 'tactic:third_man') return 'Tercer hombre';
+	      if (k === 'tactic:defensive_line') return 'Línea defensiva';
+	      if (k === 'tactic:block_low') return 'Bloque bajo';
+	      if (k === 'tactic:block_mid') return 'Bloque medio';
+	      if (k === 'tactic:block_high') return 'Bloque alto';
+	      if (k === 'tactic:free_space') return 'Zona libre';
+	      if (k === 'tactic:press_jump') return 'Presión/salto';
+	      if (k === 'tactic:shift') return 'Basculación';
 	      if (k === 'tool:arrow') return 'Flecha';
 	      if (k === 'tool:move') return 'Trayectoria';
 	      if (k === 'tool:text') return 'Texto';
@@ -4743,6 +4947,7 @@
 	    const kindForResourceKey = (key) => {
 	      const k = safeText(key, '');
 	      if (k.startsWith('template:')) return 'template';
+	      if (k.startsWith('tactic:')) return 'tactic';
 	      if (k.startsWith('tool:')) return 'tool';
 	      if (k.startsWith('fx:')) return 'fx';
 	      return '';
@@ -4789,6 +4994,14 @@
 	        templateApplyBtn.click();
 	        pushResourceRecent(k);
 	        closeResourcesMenu();
+	        return;
+	      }
+	      if (k.startsWith('tactic:')) {
+	        const presetKey = k.split(':').slice(1).join(':');
+	        if (addTacticalPreset(presetKey)) {
+	          pushResourceRecent(k);
+	          closeResourcesMenu();
+	        }
 	        return;
 	      }
 	      // Herramientas
