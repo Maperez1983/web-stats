@@ -624,6 +624,8 @@
     const ctxPhaseSelect = document.getElementById('vs-ctx-phase');
     const eventPresetsWrap = document.getElementById('vs-event-presets');
     const presetsPackSelect = document.getElementById('vs-presets-pack');
+    const defaultPackInput = document.getElementById('vs-default-pack');
+    const defaultPack = safeText(defaultPackInput?.value, 'rival') === 'own' ? 'own' : 'rival';
     const presetsAutoClipSelect = document.getElementById('vs-presets-autoclip');
     const presetsPreInput = document.getElementById('vs-presets-pre');
     const presetsPostInput = document.getElementById('vs-presets-post');
@@ -2701,7 +2703,8 @@
 	        if (tool === 'blur') return 'Blur';
 	        return String(tool || '');
 	      })();
-	      setStatus(`Herramienta: ${toolLabel}`);
+	      if (tool === 'player') setStatus('Herramienta: Jugador. Haz clic sobre el futbolista en el vídeo; luego pon dorsal/nombre y OK.');
+	      else setStatus(`Herramienta: ${toolLabel}`);
 	    };
     setTool('select');
 
@@ -3858,9 +3861,8 @@
 
       playerOkBtn?.addEventListener('click', () => {
         if (!playerPopCanvasPos) return;
-        const number = safeText(playerNumberInput?.value, '').trim();
+        const number = safeText(playerNumberInput?.value, '').trim() || '?';
         const name = safeText(playerNameInput?.value, '').trim();
-        if (!number) { setStatus('Indica al menos el dorsal.', true); return; }
         const created = createPlayerMarkerAt(playerPopCanvasPos, number, name, playerPrefs);
         if (!created) { setStatus('No se pudo crear marcador.', true); return; }
         pushPlayerRecent(created.number, created.name);
