@@ -366,15 +366,30 @@ def add_dugout(prefix, x, y, label, primary, secondary, black, metal, glass, sea
 
 
 def add_ad_board(prefix, loc, scale, label, board_mat, text_mat, rotation):
-    cube(f"{prefix}_{label.replace(' ', '_')}_board", loc, scale, board_mat, bevel=0.010)
-    bpy.ops.object.text_add(location=(loc[0], loc[1], loc[2] + 0.04), rotation=rotation)
+    safe_label = label.replace(" ", "_")
+    cube(f"{prefix}_{safe_label}_board", loc, scale, board_mat, bevel=0.010)
+
+    if scale[0] > scale[1]:
+        front_y = loc[1] + (0.13 if loc[1] < 0 else -0.13)
+        face_loc = (loc[0], front_y, loc[2] + 0.06)
+        stripe_scale = (scale[0] - 0.90, 0.035, scale[2] * 0.18)
+        cube(f"{prefix}_{safe_label}_white_top_rule", (loc[0], front_y, loc[2] + scale[2] * 0.38), stripe_scale, text_mat, bevel=0.003)
+        cube(f"{prefix}_{safe_label}_white_bottom_rule", (loc[0], front_y, loc[2] - scale[2] * 0.38), stripe_scale, text_mat, bevel=0.003)
+    else:
+        front_x = loc[0] + (-0.13 if loc[0] > 0 else 0.13)
+        face_loc = (front_x, loc[1], loc[2] + 0.06)
+        stripe_scale = (0.035, scale[1] - 0.90, scale[2] * 0.18)
+        cube(f"{prefix}_{safe_label}_white_top_rule", (front_x, loc[1], loc[2] + scale[2] * 0.38), stripe_scale, text_mat, bevel=0.003)
+        cube(f"{prefix}_{safe_label}_white_bottom_rule", (front_x, loc[1], loc[2] - scale[2] * 0.38), stripe_scale, text_mat, bevel=0.003)
+
+    bpy.ops.object.text_add(location=face_loc, rotation=rotation)
     text = bpy.context.object
-    text.name = f"{prefix}_{label.replace(' ', '_')}_text_TEAM_SECONDARY"
+    text.name = f"{prefix}_{safe_label}_large_text_TEAM_SECONDARY"
     text.data.body = label
     text.data.align_x = "CENTER"
     text.data.align_y = "CENTER"
-    text.data.size = 0.62 if len(label) > 12 else 0.82
-    text.data.extrude = 0.012
+    text.data.size = 0.78 if len(label) > 12 else 1.02
+    text.data.extrude = 0.022
     text.data.materials.append(text_mat)
 
 
