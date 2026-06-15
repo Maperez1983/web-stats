@@ -16,10 +16,11 @@ materials. A `footballer_*` material marker is kept so the runtime does not add
 the older rigid procedural clothing overlay on top of the animated mesh.
 
 The tactical 3D view also adds contextual ball cues for pass, cross, shot,
-control and carry actions. The bundled clips are procedural first-pass actions,
-not final mocap. For high-end action recreation, retarget licensed mocap
-football clips onto this rig or replace it with a licensed footballer GLB using
-a compatible humanoid rig.
+control and carry actions. The bundled clips are pseudo-mocap procedural
+actions with anticipation, contact, follow-through and recovery poses; they are
+not sensor/video-captured mocap. For high-end action recreation, retarget
+licensed mocap football clips onto this rig or replace it with a licensed
+footballer GLB using a compatible humanoid rig.
 
 ## Premium replacement
 

@@ -108,14 +108,15 @@ def reset_pose(armature):
         bone.location = (0.0, 0.0, 0.0)
 
 
-def add_pose_frame(armature, frame, rotations, pelvis_y=0.0):
+def add_pose_frame(armature, frame, rotations, pelvis_y=0.0, animated_bones=None):
     bpy.context.scene.frame_set(frame)
     reset_pose(armature)
     pelvis = armature.pose.bones.get('pelvis')
     if pelvis:
         pelvis.location.y = pelvis_y
         pelvis.keyframe_insert(data_path='location', frame=frame)
-    for name, values in rotations.items():
+    for name in sorted(animated_bones or rotations.keys()):
+        values = rotations.get(name, (0.0, 0.0, 0.0))
         bone = armature.pose.bones.get(name)
         if not bone:
             continue
@@ -128,8 +129,11 @@ def create_action(armature, name, frames):
     action = bpy.data.actions.new(name)
     armature.animation_data_create()
     armature.animation_data.action = action
+    animated_bones = set()
+    for _, rotations, _ in frames:
+        animated_bones.update(rotations.keys())
     for frame, rotations, pelvis_y in frames:
-        add_pose_frame(armature, frame, rotations, pelvis_y)
+        add_pose_frame(armature, frame, rotations, pelvis_y, animated_bones)
     action.frame_range = (frames[0][0], frames[-1][0])
     track = armature.animation_data.nla_tracks.new()
     track.name = name
@@ -137,57 +141,65 @@ def create_action(armature, name, frames):
     strip.frame_end = frames[-1][0]
     strip.use_auto_blend = True
     action.use_fake_user = True
+    for fcurve in action.fcurves:
+        for keyframe in fcurve.keyframe_points:
+            keyframe.interpolation = 'BEZIER'
     return action
 
 
 def create_football_actions(armature):
-    # Compact procedural clips. They are not mocap, but they give the task
-    # viewer named football actions on the rigged human mesh while retargeting
-    # from a mocap library is prepared.
+    # Pseudo-mocap clips: hand-keyed football biomechanics with anticipation,
+    # contact, follow-through and recovery. These are still procedural, but the
+    # timing is intentionally closer to human action than the compact fallback.
     create_action(armature, 'idle', [
-        (1, {'spine_03': (1, 0, 0), 'upperarm_l': (0, 6, -10), 'upperarm_r': (0, -6, 10)}, 0.0),
-        (24, {'spine_03': (-1, 0, 1), 'upperarm_l': (0, 5, -8), 'upperarm_r': (0, -5, 8)}, 0.012),
-        (48, {'spine_03': (1, 0, 0), 'upperarm_l': (0, 6, -10), 'upperarm_r': (0, -6, 10)}, 0.0),
+        (1, {'spine_03': (2, 0, 0), 'spine_02': (1, 0, 0), 'neck_01': (-1, 0, 0), 'upperarm_l': (2, 6, -12), 'lowerarm_l': (-8, 0, -4), 'upperarm_r': (1, -6, 12), 'lowerarm_r': (-8, 0, 4), 'thigh_l': (1, 0, 1), 'thigh_r': (-1, 0, -1)}, 0.0),
+        (18, {'spine_03': (0, 0, 1), 'spine_02': (0, 0, 0), 'neck_01': (0, 0, -1), 'upperarm_l': (1, 5, -10), 'lowerarm_l': (-7, 0, -3), 'upperarm_r': (2, -5, 10), 'lowerarm_r': (-7, 0, 3), 'thigh_l': (0, 0, 0), 'thigh_r': (0, 0, 0)}, 0.010),
+        (36, {'spine_03': (2, 0, -1), 'spine_02': (1, 0, 0), 'neck_01': (-1, 0, 1), 'upperarm_l': (2, 6, -12), 'lowerarm_l': (-8, 0, -4), 'upperarm_r': (1, -6, 12), 'lowerarm_r': (-8, 0, 4), 'thigh_l': (1, 0, 1), 'thigh_r': (-1, 0, -1)}, 0.0),
     ])
-    run_a = {
-        'spine_03': (7, 0, -4),
-        'upperarm_l': (-42, 4, -18), 'lowerarm_l': (-38, 0, -10),
-        'upperarm_r': (35, -4, 18), 'lowerarm_r': (-55, 0, 12),
-        'thigh_l': (42, 0, 4), 'calf_l': (-72, 0, 0), 'foot_l': (18, 0, 0),
-        'thigh_r': (-34, 0, -4), 'calf_r': (38, 0, 0), 'foot_r': (-12, 0, 0),
-    }
-    run_b = {
-        'spine_03': (7, 0, 4),
-        'upperarm_l': (35, 4, -18), 'lowerarm_l': (-55, 0, -12),
-        'upperarm_r': (-42, -4, 18), 'lowerarm_r': (-38, 0, 10),
-        'thigh_l': (-34, 0, 4), 'calf_l': (38, 0, 0), 'foot_l': (-12, 0, 0),
-        'thigh_r': (42, 0, -4), 'calf_r': (-72, 0, 0), 'foot_r': (18, 0, 0),
-    }
-    create_action(armature, 'run', [(1, run_a, 0.035), (8, run_b, 0.0), (16, run_a, 0.035)])
+    create_action(armature, 'run', [
+        (1, {'spine_03': (10, 0, -5), 'spine_02': (3, 0, -2), 'neck_01': (-4, 0, 2), 'upperarm_l': (-44, 6, -24), 'lowerarm_l': (-48, 0, -14), 'hand_l': (6, 0, -4), 'upperarm_r': (36, -5, 22), 'lowerarm_r': (-62, 0, 16), 'hand_r': (5, 0, 4), 'thigh_l': (48, 0, 5), 'calf_l': (-78, 0, 0), 'foot_l': (22, 0, 0), 'thigh_r': (-36, 0, -5), 'calf_r': (34, 0, 0), 'foot_r': (-16, 0, 0)}, 0.032),
+        (5, {'spine_03': (12, 0, -2), 'spine_02': (4, 0, -1), 'neck_01': (-4, 0, 1), 'upperarm_l': (-18, 6, -18), 'lowerarm_l': (-58, 0, -12), 'upperarm_r': (22, -5, 18), 'lowerarm_r': (-50, 0, 12), 'thigh_l': (18, 0, 4), 'calf_l': (-32, 0, 0), 'foot_l': (6, 0, 0), 'thigh_r': (-12, 0, -3), 'calf_r': (66, 0, 0), 'foot_r': (-18, 0, 0)}, 0.008),
+        (9, {'spine_03': (9, 0, 4), 'spine_02': (3, 0, 2), 'neck_01': (-3, 0, -2), 'upperarm_l': (34, 5, -20), 'lowerarm_l': (-60, 0, -14), 'upperarm_r': (-38, -6, 22), 'lowerarm_r': (-46, 0, 14), 'thigh_l': (-28, 0, 4), 'calf_l': (46, 0, 0), 'foot_l': (-14, 0, 0), 'thigh_r': (36, 0, -5), 'calf_r': (-74, 0, 0), 'foot_r': (18, 0, 0)}, 0.040),
+        (13, {'spine_03': (11, 0, 2), 'spine_02': (4, 0, 1), 'neck_01': (-4, 0, -1), 'upperarm_l': (18, 5, -18), 'lowerarm_l': (-52, 0, -12), 'upperarm_r': (-20, -6, 18), 'lowerarm_r': (-56, 0, 12), 'thigh_l': (-8, 0, 3), 'calf_l': (68, 0, 0), 'foot_l': (-18, 0, 0), 'thigh_r': (16, 0, -4), 'calf_r': (-28, 0, 0), 'foot_r': (8, 0, 0)}, 0.010),
+        (17, {'spine_03': (10, 0, -5), 'spine_02': (3, 0, -2), 'neck_01': (-4, 0, 2), 'upperarm_l': (-44, 6, -24), 'lowerarm_l': (-48, 0, -14), 'hand_l': (6, 0, -4), 'upperarm_r': (36, -5, 22), 'lowerarm_r': (-62, 0, 16), 'hand_r': (5, 0, 4), 'thigh_l': (48, 0, 5), 'calf_l': (-78, 0, 0), 'foot_l': (22, 0, 0), 'thigh_r': (-36, 0, -5), 'calf_r': (34, 0, 0), 'foot_r': (-16, 0, 0)}, 0.032),
+        (25, {'spine_03': (9, 0, 4), 'spine_02': (3, 0, 2), 'neck_01': (-3, 0, -2), 'upperarm_l': (34, 5, -20), 'lowerarm_l': (-60, 0, -14), 'upperarm_r': (-38, -6, 22), 'lowerarm_r': (-46, 0, 14), 'thigh_l': (-28, 0, 4), 'calf_l': (46, 0, 0), 'foot_l': (-14, 0, 0), 'thigh_r': (36, 0, -5), 'calf_r': (-74, 0, 0), 'foot_r': (18, 0, 0)}, 0.040),
+        (33, {'spine_03': (10, 0, -5), 'spine_02': (3, 0, -2), 'neck_01': (-4, 0, 2), 'upperarm_l': (-44, 6, -24), 'lowerarm_l': (-48, 0, -14), 'hand_l': (6, 0, -4), 'upperarm_r': (36, -5, 22), 'lowerarm_r': (-62, 0, 16), 'hand_r': (5, 0, 4), 'thigh_l': (48, 0, 5), 'calf_l': (-78, 0, 0), 'foot_l': (22, 0, 0), 'thigh_r': (-36, 0, -5), 'calf_r': (34, 0, 0), 'foot_r': (-16, 0, 0)}, 0.032),
+    ])
     create_action(armature, 'pass', [
-        (1, {'spine_03': (4, 0, -5), 'upperarm_l': (0, 8, -24), 'upperarm_r': (0, -12, 20), 'thigh_r': (-22, 0, -5), 'calf_r': (34, 0, 0)}, 0.0),
-        (12, {'spine_03': (9, 0, 8), 'upperarm_l': (0, 14, -36), 'upperarm_r': (0, -20, 32), 'thigh_r': (36, 0, -4), 'calf_r': (-20, 0, 0), 'foot_r': (18, 0, 0), 'thigh_l': (-8, 0, 4)}, 0.015),
-        (24, {'spine_03': (3, 0, 2), 'upperarm_l': (0, 8, -18), 'upperarm_r': (0, -8, 18), 'thigh_r': (-8, 0, 0), 'calf_r': (10, 0, 0)}, 0.0),
+        (1, {'spine_03': (3, 0, -4), 'neck_01': (-2, 0, 2), 'upperarm_l': (0, 8, -20), 'upperarm_r': (0, -10, 18), 'thigh_r': (-16, 0, -4), 'calf_r': (24, 0, 0), 'foot_r': (-10, 0, 0)}, 0.0),
+        (8, {'spine_03': (7, 0, -7), 'spine_02': (2, 0, -2), 'upperarm_l': (0, 12, -30), 'upperarm_r': (0, -18, 28), 'thigh_r': (-36, 0, -5), 'calf_r': (58, 0, 0), 'foot_r': (-18, 0, 0), 'thigh_l': (8, 0, 3)}, 0.008),
+        (14, {'spine_03': (10, 0, 6), 'spine_02': (4, 0, 2), 'neck_01': (-4, 0, -2), 'upperarm_l': (0, 16, -42), 'lowerarm_l': (-10, 0, -8), 'upperarm_r': (0, -24, 38), 'lowerarm_r': (-14, 0, 10), 'thigh_r': (38, 0, -5), 'calf_r': (-28, 0, 0), 'foot_r': (26, 0, 0), 'thigh_l': (-12, 0, 4)}, 0.024),
+        (20, {'spine_03': (8, 0, 10), 'spine_02': (3, 0, 4), 'upperarm_l': (0, 12, -34), 'upperarm_r': (0, -18, 30), 'thigh_r': (20, 0, -3), 'calf_r': (-4, 0, 0), 'foot_r': (10, 0, 0)}, 0.012),
+        (32, {'spine_03': (2, 0, 2), 'upperarm_l': (0, 7, -16), 'upperarm_r': (0, -7, 16), 'thigh_r': (-4, 0, 0), 'calf_r': (8, 0, 0)}, 0.0),
     ])
     create_action(armature, 'shot', [
-        (1, {'spine_03': (6, 0, -8), 'upperarm_l': (0, 12, -42), 'upperarm_r': (0, -18, 36), 'thigh_r': (-38, 0, -6), 'calf_r': (64, 0, 0)}, 0.0),
-        (10, {'spine_03': (14, 0, 12), 'upperarm_l': (0, 18, -58), 'upperarm_r': (0, -26, 50), 'thigh_r': (58, 0, -4), 'calf_r': (-32, 0, 0), 'foot_r': (26, 0, 0), 'thigh_l': (-16, 0, 5)}, 0.025),
-        (24, {'spine_03': (8, 0, 5), 'upperarm_l': (0, 10, -28), 'upperarm_r': (0, -12, 28), 'thigh_r': (12, 0, 0), 'calf_r': (12, 0, 0)}, 0.0),
+        (1, {'spine_03': (5, 0, -8), 'spine_02': (2, 0, -3), 'neck_01': (-2, 0, 3), 'upperarm_l': (0, 12, -38), 'upperarm_r': (0, -16, 34), 'thigh_r': (-30, 0, -6), 'calf_r': (48, 0, 0), 'foot_r': (-14, 0, 0)}, 0.0),
+        (8, {'spine_03': (10, 0, -14), 'spine_02': (4, 0, -6), 'upperarm_l': (0, 18, -56), 'upperarm_r': (0, -24, 50), 'thigh_r': (-55, 0, -8), 'calf_r': (86, 0, 0), 'foot_r': (-22, 0, 0), 'thigh_l': (16, 0, 4)}, 0.014),
+        (14, {'spine_03': (17, 0, 10), 'spine_02': (6, 0, 4), 'neck_01': (-7, 0, -4), 'upperarm_l': (0, 24, -70), 'lowerarm_l': (-12, 0, -8), 'upperarm_r': (0, -34, 62), 'lowerarm_r': (-14, 0, 12), 'thigh_r': (66, 0, -5), 'calf_r': (-42, 0, 0), 'foot_r': (34, 0, 0), 'thigh_l': (-24, 0, 5), 'calf_l': (18, 0, 0)}, 0.034),
+        (20, {'spine_03': (20, 0, 18), 'spine_02': (7, 0, 8), 'neck_01': (-8, 0, -5), 'upperarm_l': (0, 18, -62), 'upperarm_r': (0, -26, 54), 'thigh_r': (34, 0, -2), 'calf_r': (2, 0, 0), 'foot_r': (16, 0, 0), 'thigh_l': (-18, 0, 4)}, 0.018),
+        (36, {'spine_03': (6, 0, 4), 'upperarm_l': (0, 8, -24), 'upperarm_r': (0, -10, 24), 'thigh_r': (8, 0, 0), 'calf_r': (10, 0, 0)}, 0.0),
     ])
     create_action(armature, 'cross', [
-        (1, {'spine_03': (5, -4, -10), 'upperarm_l': (0, 10, -38), 'upperarm_r': (0, -12, 34), 'thigh_r': (-30, 0, -10), 'calf_r': (44, 0, 0)}, 0.0),
-        (12, {'spine_03': (10, 5, 18), 'upperarm_l': (0, 18, -52), 'upperarm_r': (0, -24, 48), 'thigh_r': (46, -6, 14), 'calf_r': (-18, 0, 0), 'foot_r': (20, 0, 10)}, 0.02),
-        (26, {'spine_03': (4, 0, 4), 'upperarm_l': (0, 10, -24), 'upperarm_r': (0, -10, 24), 'thigh_r': (8, 0, 0)}, 0.0),
+        (1, {'spine_03': (4, -5, -10), 'spine_02': (2, -2, -4), 'upperarm_l': (0, 10, -34), 'upperarm_r': (0, -12, 32), 'thigh_r': (-28, 0, -12), 'calf_r': (42, 0, 0)}, 0.0),
+        (9, {'spine_03': (8, -8, -16), 'upperarm_l': (0, 16, -48), 'upperarm_r': (0, -20, 44), 'thigh_r': (-46, 0, -16), 'calf_r': (72, 0, 0), 'foot_r': (-20, 0, -6), 'thigh_l': (10, 0, 4)}, 0.010),
+        (16, {'spine_03': (13, 8, 22), 'spine_02': (5, 4, 8), 'neck_01': (-5, -2, -6), 'upperarm_l': (0, 22, -64), 'upperarm_r': (0, -32, 58), 'thigh_r': (54, -8, 18), 'calf_r': (-24, 0, 0), 'foot_r': (28, 0, 14), 'thigh_l': (-18, 0, 6)}, 0.030),
+        (24, {'spine_03': (9, 5, 16), 'upperarm_l': (0, 16, -48), 'upperarm_r': (0, -24, 42), 'thigh_r': (24, -4, 8), 'foot_r': (12, 0, 8)}, 0.014),
+        (40, {'spine_03': (4, 0, 3), 'upperarm_l': (0, 8, -20), 'upperarm_r': (0, -8, 20), 'thigh_r': (6, 0, 0)}, 0.0),
     ])
     create_action(armature, 'press', [
-        (1, {'spine_03': (12, 0, -6), 'upperarm_l': (8, 6, -28), 'upperarm_r': (-8, -6, 28), 'thigh_l': (20, 0, 4), 'thigh_r': (-18, 0, -4), 'calf_r': (24, 0, 0)}, 0.012),
-        (10, {'spine_03': (14, 0, 6), 'upperarm_l': (-10, 8, -34), 'upperarm_r': (10, -8, 34), 'thigh_l': (-18, 0, 4), 'calf_l': (22, 0, 0), 'thigh_r': (22, 0, -4)}, 0.0),
-        (20, {'spine_03': (12, 0, -6), 'upperarm_l': (8, 6, -28), 'upperarm_r': (-8, -6, 28), 'thigh_l': (20, 0, 4), 'thigh_r': (-18, 0, -4), 'calf_r': (24, 0, 0)}, 0.012),
+        (1, {'spine_03': (14, 0, -6), 'spine_02': (5, 0, -2), 'neck_01': (-6, 0, 2), 'upperarm_l': (8, 8, -30), 'lowerarm_l': (-26, 0, -10), 'upperarm_r': (-8, -8, 30), 'lowerarm_r': (-26, 0, 10), 'thigh_l': (24, 0, 5), 'thigh_r': (-20, 0, -5), 'calf_r': (26, 0, 0)}, 0.014),
+        (7, {'spine_03': (17, 0, 3), 'spine_02': (6, 0, 1), 'upperarm_l': (-14, 10, -38), 'upperarm_r': (14, -10, 38), 'thigh_l': (-18, 0, 4), 'calf_l': (28, 0, 0), 'thigh_r': (28, 0, -4)}, 0.0),
+        (13, {'spine_03': (16, 0, 8), 'upperarm_l': (-24, 12, -44), 'lowerarm_l': (-34, 0, -12), 'upperarm_r': (24, -12, 44), 'lowerarm_r': (-34, 0, 12), 'thigh_l': (-28, 0, 3), 'calf_l': (42, 0, 0), 'thigh_r': (34, 0, -5), 'calf_r': (-34, 0, 0)}, 0.018),
+        (20, {'spine_03': (14, 0, -6), 'spine_02': (5, 0, -2), 'neck_01': (-6, 0, 2), 'upperarm_l': (8, 8, -30), 'lowerarm_l': (-26, 0, -10), 'upperarm_r': (-8, -8, 30), 'lowerarm_r': (-26, 0, 10), 'thigh_l': (24, 0, 5), 'thigh_r': (-20, 0, -5), 'calf_r': (26, 0, 0)}, 0.014),
+        (27, {'spine_03': (17, 0, 3), 'spine_02': (6, 0, 1), 'upperarm_l': (-14, 10, -38), 'upperarm_r': (14, -10, 38), 'thigh_l': (-18, 0, 4), 'calf_l': (28, 0, 0), 'thigh_r': (28, 0, -4)}, 0.0),
+        (33, {'spine_03': (14, 0, -6), 'spine_02': (5, 0, -2), 'neck_01': (-6, 0, 2), 'upperarm_l': (8, 8, -30), 'lowerarm_l': (-26, 0, -10), 'upperarm_r': (-8, -8, 30), 'lowerarm_r': (-26, 0, 10), 'thigh_l': (24, 0, 5), 'thigh_r': (-20, 0, -5), 'calf_r': (26, 0, 0)}, 0.014),
     ])
     create_action(armature, 'control', [
-        (1, {'spine_03': (3, 0, 0), 'upperarm_l': (0, 10, -20), 'upperarm_r': (0, -10, 20), 'thigh_r': (8, 0, 0)}, 0.0),
-        (14, {'spine_03': (5, 0, -5), 'upperarm_l': (0, 12, -26), 'upperarm_r': (0, -14, 26), 'thigh_r': (32, 8, -8), 'calf_r': (-46, 0, 0), 'foot_r': (34, 0, -12), 'thigh_l': (-8, 0, 4)}, 0.012),
-        (28, {'spine_03': (2, 0, 0), 'upperarm_l': (0, 8, -18), 'upperarm_r': (0, -8, 18), 'thigh_r': (4, 0, 0)}, 0.0),
+        (1, {'spine_03': (3, 0, 0), 'neck_01': (-2, 0, 0), 'upperarm_l': (0, 9, -18), 'upperarm_r': (0, -9, 18), 'thigh_r': (8, 0, 0)}, 0.0),
+        (8, {'spine_03': (6, 0, -4), 'spine_02': (2, 0, -2), 'upperarm_l': (0, 12, -26), 'upperarm_r': (0, -14, 26), 'thigh_r': (24, 8, -8), 'calf_r': (-36, 0, 0), 'foot_r': (22, 0, -10), 'thigh_l': (-6, 0, 4)}, 0.010),
+        (15, {'spine_03': (7, 0, -7), 'neck_01': (-5, 0, 3), 'upperarm_l': (0, 14, -30), 'upperarm_r': (0, -18, 30), 'thigh_r': (36, 10, -10), 'calf_r': (-54, 0, 0), 'foot_r': (38, 0, -16), 'thigh_l': (-12, 0, 5)}, 0.016),
+        (21, {'spine_03': (5, 0, 5), 'spine_02': (2, 0, 2), 'upperarm_l': (0, 10, -22), 'upperarm_r': (0, -12, 22), 'thigh_r': (18, -6, 10), 'calf_r': (-18, 0, 0), 'foot_r': (12, 0, 14), 'thigh_l': (-4, 0, -3)}, 0.006),
+        (34, {'spine_03': (2, 0, 0), 'upperarm_l': (0, 7, -16), 'upperarm_r': (0, -7, 16), 'thigh_r': (4, 0, 0)}, 0.0),
     ])
     armature.animation_data.action = bpy.data.actions.get('idle')
 
