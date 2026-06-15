@@ -575,21 +575,6 @@ def add_architectural_stadium():
     crest = bpy.context.object
     crest.name = "arch_round_roof_crest_TEAM_PRIMARY"
     crest.data.materials.append(primary_alt)
-    team_name = os.environ.get("PITCH3D_TEAM_NAME", "").strip()
-    if team_name:
-        for text, loc, size in (
-            (team_name, (0, 51.2, 12.35), 7.2),
-            (os.environ.get("PITCH3D_TEAM_CREST_TEXT", "MCF"), (-43.0, 51.0, 11.2), 5.6),
-        ):
-            bpy.ops.object.text_add(location=loc, rotation=(math.radians(72), 0, 0))
-            obj = bpy.context.object
-            obj.name = f"arch_seat_lettering_{text.replace(' ', '_')}_TEAM_SECONDARY"
-            obj.data.body = text
-            obj.data.align_x = "CENTER"
-            obj.data.align_y = "CENTER"
-            obj.data.size = size
-            obj.data.extrude = 0.045
-            obj.data.materials.append(secondary)
 
 
 def add_lighting():
