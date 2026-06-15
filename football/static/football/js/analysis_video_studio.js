@@ -5147,6 +5147,18 @@
 	      if (k === 'tv:spot_player') return 'Foco jugador';
 	      if (k === 'tv:duel_2v1') return '2v1 TV';
 	      if (k === 'tv:pressure_jump') return 'Salto presión TV';
+	      if (k === 'tech:smart_curve') return 'Curva inteligente';
+	      if (k === 'tech:animated_arrow') return 'Flecha animada';
+	      if (k === 'tech:player_shadow') return 'Sombra jugador';
+	      if (k === 'tech:labelled_zone') return 'Zona + nombre';
+	      if (k === 'tech:defensive_line_auto') return 'Línea automática';
+	      if (k === 'tech:distance_meter') return 'Medidor distancia';
+	      if (k === 'tech:visual_timer') return 'Temporizador';
+	      if (k === 'tech:tactical_zoom') return 'Lupa táctica';
+	      if (k === 'tech:advanced_focus') return 'Foco avanzado';
+	      if (k === 'tech:before_after') return 'Antes/después';
+	      if (k === 'tech:relation_marker') return 'Relación jugadores';
+	      if (k === 'tech:block_templates') return 'Plantillas bloque';
 	      if (k === 'tool:arrow') return 'Flecha';
 	      if (k === 'tool:move') return 'Trayectoria';
 	      if (k === 'tool:text') return 'Texto';
@@ -5163,6 +5175,7 @@
 	      if (k.startsWith('template:')) return 'template';
 	      if (k.startsWith('tactic:')) return 'tactic';
 	      if (k.startsWith('tv:')) return 'tv';
+	      if (k.startsWith('tech:')) return 'tech';
 	      if (k.startsWith('tool:')) return 'tool';
 	      if (k.startsWith('fx:')) return 'fx';
 	      return '';
@@ -5190,6 +5203,18 @@
 	      if (k === 'tv:spot_player') return 'Foco visual para destacar un jugador o duelo.';
 	      if (k === 'tv:duel_2v1') return 'Paquete TV con aros, flechas y etiqueta 2v1.';
 	      if (k === 'tv:pressure_jump') return 'Recurso TV para salto de presión.';
+	      if (k === 'tech:smart_curve') return 'Flecha curva con puntos de referencia para ajustar trayectorias de pase o desmarque.';
+	      if (k === 'tech:animated_arrow') return 'Flecha progresiva con animación de trazo para explicar el timing.';
+	      if (k === 'tech:player_shadow') return 'Marca posición real e ideal del jugador con silueta fantasma.';
+	      if (k === 'tech:labelled_zone') return 'Zona sombreada editable con etiqueta táctica.';
+	      if (k === 'tech:defensive_line_auto') return 'Línea de bloque con cuatro referencias de jugador.';
+	      if (k === 'tech:distance_meter') return 'Medición rápida; si el campo está calibrado muestra metros.';
+	      if (k === 'tech:visual_timer') return 'Contador visual para presión, repliegue o toma de decisión.';
+	      if (k === 'tech:tactical_zoom') return 'Lupa táctica para encuadrar una zona concreta.';
+	      if (k === 'tech:advanced_focus') return 'Foco avanzado combinando spotlight FX y aro editable.';
+	      if (k === 'tech:before_after') return 'Compara posición real vs posición ideal en una misma imagen.';
+	      if (k === 'tech:relation_marker') return 'Triángulo/líneas de relación entre jugadores: apoyo, cobertura o 2v1.';
+	      if (k === 'tech:block_templates') return 'Guías rápidas de bloque bajo, medio y alto.';
 	      if (k.startsWith('tool:')) return 'Activa la herramienta manual para dibujar sobre el vídeo.';
 	      if (k === 'fx:spot') return 'Crea un spotlight editable en la capa FX.';
 	      if (k === 'fx:blur') return 'Crea un blur editable para tapar o enfatizar zonas.';
@@ -5199,9 +5224,9 @@
 	    const previewClassForResourceKey = (key) => {
 	      const k = safeText(key, '');
 	      if (k.includes('dash') || k.includes('pass')) return 'dash';
-	      if (k.includes('curve') || k.includes('run')) return 'curve';
-	      if (k.includes('ring') || k.includes('spot_player')) return 'ring';
-	      if (k.includes('block') || k.includes('zone') || k.includes('lanes') || k.includes('third')) return 'zone';
+	      if (k.includes('curve') || k.includes('run') || k.includes('arrow')) return 'curve';
+	      if (k.includes('ring') || k.includes('spot_player') || k.includes('focus') || k.includes('zoom')) return 'ring';
+	      if (k.includes('block') || k.includes('zone') || k.includes('lanes') || k.includes('third') || k.includes('relation')) return 'zone';
 	      return '';
 	    };
 	    const updateResourcePreview = (key) => {
@@ -5471,6 +5496,336 @@
 	      setStatus(`Recurso TV aplicado: ${labelForResourceKey(`tv:${key}`) || key}.`);
 	      return true;
 	    };
+	    const addTechResource = (resourceKey) => {
+	      const key = safeText(resourceKey, '');
+	      const w = Number(fabricCanvas.getWidth?.()) || 0;
+	      const h = Number(fabricCanvas.getHeight?.()) || 0;
+	      if (!key || !w || !h) { setStatus('Recurso técnico no disponible.', true); return false; }
+	      const px = (x) => clamp(Number(x) || 0, 0.02, 0.98) * w;
+	      const py = (y) => clamp(Number(y) || 0, 0.02, 0.98) * h;
+	      const sw = clamp(Math.round(strokeWidth() || 6), 3, 16);
+	      const color = strokeColor();
+	      const cyan = '#22d3ee';
+	      const yellow = '#facc15';
+	      const red = '#fb7185';
+	      const green = '#34d399';
+	      const blue = '#60a5fa';
+	      const white = '#ffffff';
+	      const shadow = 'rgba(0,0,0,0.32) 0 2px 7px';
+	      const baseData = (extra = {}) => seedLayerDataNow({ preset: `tech:${key}`, ...(extra || {}) });
+
+	      const makeLabel = (text, x, y, opts = {}) => {
+	        const label = new fabric.Textbox(safeText(text, ''), {
+	          left: px(x),
+	          top: py(y),
+	          width: Math.min(w * 0.36, opts.width || 280),
+	          fontSize: opts.fontSize || clamp(Math.round(Math.min(w, h) * 0.04), 16, 34),
+	          fontFamily: 'Arial',
+	          fontWeight: 900,
+	          fill: opts.color || white,
+	          textAlign: 'center',
+	          originX: 'center',
+	          originY: 'center',
+	          stroke: 'rgba(2,6,23,0.92)',
+	          strokeWidth: opts.strokeWidth || 4,
+	          paintFirst: 'stroke',
+	          selectable: false,
+	          evented: false,
+	        });
+	        return label;
+	      };
+	      const makeHead = (x2, y2, angle, c) => {
+	        const headLen = clamp(18 + sw, 18, 40);
+	        return new fabric.Polygon([
+	          { x: x2, y: y2 },
+	          { x: x2 - headLen * Math.cos(angle - Math.PI / 7), y: y2 - headLen * Math.sin(angle - Math.PI / 7) },
+	          { x: x2 - headLen * Math.cos(angle + Math.PI / 7), y: y2 - headLen * Math.sin(angle + Math.PI / 7) },
+	        ], { fill: c, selectable: false, evented: false, shadow });
+	      };
+	      const makeArrow = (a, b, c = color, opts = {}) => {
+	        const x1 = px(a[0]); const y1 = py(a[1]);
+	        const x2 = px(b[0]); const y2 = py(b[1]);
+	        const line = new fabric.Line([x1, y1, x2, y2], {
+	          stroke: c,
+	          strokeWidth: opts.strokeWidth || sw,
+	          strokeDashArray: opts.dash || null,
+	          strokeLineCap: 'round',
+	          strokeUniform: true,
+	          selectable: false,
+	          evented: false,
+	          objectCaching: false,
+	          shadow,
+	        });
+	        const group = new fabric.Group([line, makeHead(x2, y2, Math.atan2(y2 - y1, x2 - x1), c)], { selectable: true, evented: true });
+	        group.data = baseData({ kind: opts.kind || 'arrow', anim: opts.anim || 'draw', anim_ms: opts.animMs || 800, line_style: opts.dash ? 'dash' : 'solid' });
+	        return group;
+	      };
+	      const makeCurve = (a, cpt, b, c = color, opts = {}) => {
+	        const x1 = px(a[0]); const y1 = py(a[1]);
+	        const cx = px(cpt[0]); const cy = py(cpt[1]);
+	        const x2 = px(b[0]); const y2 = py(b[1]);
+	        const path = new fabric.Path(`M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`, {
+	          fill: '',
+	          stroke: c,
+	          strokeWidth: opts.strokeWidth || sw,
+	          strokeDashArray: opts.dash || null,
+	          strokeLineCap: 'round',
+	          strokeLineJoin: 'round',
+	          selectable: false,
+	          evented: false,
+	          strokeUniform: true,
+	          objectCaching: false,
+	          shadow,
+	        });
+	        const control = new fabric.Circle({
+	          left: cx,
+	          top: cy,
+	          radius: clamp(sw * 0.85, 5, 13),
+	          originX: 'center',
+	          originY: 'center',
+	          fill: c,
+	          stroke: 'rgba(2,6,23,0.8)',
+	          strokeWidth: 2,
+	          selectable: false,
+	          evented: false,
+	        });
+	        const group = new fabric.Group([path, makeHead(x2, y2, Math.atan2(y2 - cy, x2 - cx), c), control], { selectable: true, evented: true });
+	        group.data = baseData({ kind: 'curve_arrow', anim: opts.anim || 'draw', anim_ms: opts.animMs || 850, line_style: opts.dash ? 'dash' : 'solid', control_hint: true });
+	        return group;
+	      };
+	      const makeRing = (x, y, c = yellow, scale = 0.034, opts = {}) => {
+	        const r = clamp(Math.min(w, h) * scale, 14, 40);
+	        const halo = new fabric.Circle({
+	          left: 0,
+	          top: 0,
+	          radius: r * 1.32,
+	          originX: 'center',
+	          originY: 'center',
+	          fill: colorToRgba(c, opts.ghost ? 0.07 : 0.16, 'rgba(250,204,21,0.16)'),
+	          stroke: colorToRgba(c, opts.ghost ? 0.24 : 0.40, 'rgba(250,204,21,0.40)'),
+	          strokeWidth: 2,
+	          selectable: false,
+	          evented: false,
+	        });
+	        const ring = new fabric.Circle({
+	          left: 0,
+	          top: 0,
+	          radius: r,
+	          originX: 'center',
+	          originY: 'center',
+	          fill: 'rgba(0,0,0,0)',
+	          stroke: c,
+	          strokeDashArray: opts.ghost ? [8, 7] : null,
+	          strokeWidth: Math.max(3, Math.round(sw * 0.55)),
+	          strokeUniform: true,
+	          selectable: false,
+	          evented: false,
+	          opacity: opts.ghost ? 0.65 : 1,
+	          shadow,
+	        });
+	        const group = new fabric.Group([halo, ring], {
+	          left: px(x),
+	          top: py(y),
+	          originX: 'center',
+	          originY: 'center',
+	          selectable: true,
+	          evented: true,
+	        });
+	        group.data = baseData({ kind: opts.kind || 'player_ring', anim: opts.ghost ? 'none' : 'pop', anim_ms: 450, ghost: Boolean(opts.ghost) });
+	        return group;
+	      };
+	      const makePlayerDot = (x, y, c = blue, text = '') => {
+	        const r = clamp(Math.min(w, h) * 0.025, 12, 24);
+	        const circle = new fabric.Circle({
+	          left: 0,
+	          top: 0,
+	          radius: r,
+	          originX: 'center',
+	          originY: 'center',
+	          fill: colorToRgba(c, 0.92, c),
+	          stroke: 'rgba(2,6,23,0.85)',
+	          strokeWidth: 3,
+	          selectable: false,
+	          evented: false,
+	        });
+	        const label = new fabric.Text(safeText(text, ''), {
+	          left: 0,
+	          top: 0,
+	          originX: 'center',
+	          originY: 'center',
+	          fill: '#0f172a',
+	          fontSize: clamp(Math.round(r * 0.9), 10, 18),
+	          fontWeight: 900,
+	          selectable: false,
+	          evented: false,
+	        });
+	        const group = new fabric.Group([circle, label], { left: px(x), top: py(y), originX: 'center', originY: 'center', selectable: true, evented: true });
+	        group.data = baseData({ kind: 'player_marker', number: safeText(text, '') });
+	        return group;
+	      };
+	      const makeZone = (x, y, rw, rh, c = cyan, text = '') => {
+	        const rect = new fabric.Rect({
+	          left: px(x),
+	          top: py(y),
+	          width: clamp(Number(rw) || 0.18, 0.04, 0.92) * w,
+	          height: clamp(Number(rh) || 0.18, 0.04, 0.92) * h,
+	          originX: 'center',
+	          originY: 'center',
+	          fill: colorToRgba(c, 0.15, 'rgba(34,211,238,0.15)'),
+	          stroke: colorToRgba(c, 0.82, 'rgba(34,211,238,0.82)'),
+	          strokeWidth: Math.max(2, Math.round(sw * 0.45)),
+	          strokeDashArray: [10, 8],
+	          rx: 14,
+	          ry: 14,
+	          strokeUniform: true,
+	          selectable: false,
+	          evented: false,
+	          objectCaching: false,
+	        });
+	        const label = makeLabel(text || 'Zona', x, y - ((rh || 0.18) * 0.56), { color: white, fontSize: clamp(Math.round(Math.min(w, h) * 0.032), 14, 26), width: 230, strokeWidth: 3 });
+	        const group = new fabric.Group([rect, label], { selectable: true, evented: true });
+	        group.data = baseData({ kind: 'space_zone', label: safeText(text, ''), space_base_fill: colorToRgba(c, 0.15, ''), space_base_stroke: colorToRgba(c, 0.82, '') });
+	        return group;
+	      };
+	      const makeLine = (a, b, c = white, opts = {}) => {
+	        const line = new fabric.Line([px(a[0]), py(a[1]), px(b[0]), py(b[1])], {
+	          stroke: colorToRgba(c, opts.alpha ?? 0.84, c),
+	          strokeWidth: opts.strokeWidth || Math.max(3, Math.round(sw * 0.56)),
+	          strokeDashArray: opts.dash || null,
+	          strokeLineCap: 'round',
+	          strokeUniform: true,
+	          selectable: true,
+	          evented: true,
+	          objectCaching: false,
+	          shadow,
+	        });
+	        line.data = baseData({ kind: 'line', line_style: opts.dash ? 'dash' : 'solid' });
+	        return line;
+	      };
+
+	      const add = [];
+	      if (key === 'smart_curve') {
+	        add.push(makeCurve([0.24, 0.68], [0.50, 0.34], [0.76, 0.54], yellow, { animMs: 900 }));
+	        add.push(makeLabel('Curva editable', 0.50, 0.29, { color: white, fontSize: 20, strokeWidth: 3 }));
+	      } else if (key === 'animated_arrow') {
+	        add.push(makeArrow([0.28, 0.60], [0.72, 0.42], color, { anim: 'draw', animMs: 1100, kind: 'movement_line' }));
+	        add.push(makeLabel('Timing', 0.52, 0.37, { color: white, fontSize: 22, strokeWidth: 3 }));
+	      } else if (key === 'player_shadow') {
+	        add.push(makeRing(0.42, 0.58, white, 0.032, { ghost: true, kind: 'player_shadow_from' }));
+	        add.push(makeRing(0.60, 0.46, yellow, 0.032, { kind: 'player_shadow_to' }));
+	        add.push(makeArrow([0.43, 0.56], [0.58, 0.47], yellow, { dash: [10, 8], kind: 'movement_line' }));
+	        add.push(makeLabel('ideal', 0.62, 0.38, { color: yellow, fontSize: 20, strokeWidth: 3 }));
+	      } else if (key === 'labelled_zone') {
+	        add.push(makeZone(0.58, 0.46, 0.30, 0.22, green, 'Espacio libre'));
+	      } else if (key === 'defensive_line_auto') {
+	        add.push(makeLine([0.20, 0.55], [0.82, 0.55], cyan, { dash: [12, 8], strokeWidth: Math.max(3, sw * 0.72) }));
+	        [0.26, 0.42, 0.58, 0.74].forEach((x, idx) => add.push(makePlayerDot(x, 0.55, blue, String(idx + 2))));
+	        add.push(makeLabel('altura del bloque', 0.52, 0.45, { color: white, fontSize: 20, strokeWidth: 3 }));
+	      } else if (key === 'distance_meter') {
+	        const a = { x: px(0.34), y: py(0.58) };
+	        const b = { x: px(0.66), y: py(0.46) };
+	        const meters = distMeters(a, b);
+	        const label = meters != null ? `${meters.toFixed(1)} m` : 'Distancia';
+	        const line = makeLine([0.34, 0.58], [0.66, 0.46], yellow, { dash: [10, 8], strokeWidth: Math.max(3, sw * 0.65) });
+	        line.data.kind = 'measure';
+	        line.data.meters = meters != null ? Number(meters) : null;
+	        add.push(line);
+	        add.push(makeLabel(label, 0.50, 0.48, { color: white, fontSize: 22, strokeWidth: 3 }));
+	      } else if (key === 'visual_timer') {
+	        const ring = new fabric.Circle({
+	          left: px(0.50),
+	          top: py(0.42),
+	          radius: clamp(Math.min(w, h) * 0.055, 26, 62),
+	          originX: 'center',
+	          originY: 'center',
+	          fill: 'rgba(2,6,23,0.50)',
+	          stroke: yellow,
+	          strokeWidth: Math.max(4, sw * 0.6),
+	          strokeDashArray: [18, 8],
+	          selectable: false,
+	          evented: false,
+	          shadow,
+	        });
+	        const txt = makeLabel('3s', 0.50, 0.42, { color: white, fontSize: clamp(Math.round(Math.min(w, h) * 0.062), 26, 58), strokeWidth: 3 });
+	        const group = new fabric.Group([ring, txt], { selectable: true, evented: true });
+	        group.data = baseData({ kind: 'timer', anim: 'pulse', anim_ms: 1000, seconds: 3 });
+	        add.push(group);
+	      } else if (key === 'tactical_zoom') {
+	        const lens = new fabric.Circle({
+	          left: 0,
+	          top: 0,
+	          radius: clamp(Math.min(w, h) * 0.105, 54, 118),
+	          originX: 'center',
+	          originY: 'center',
+	          fill: 'rgba(255,255,255,0.08)',
+	          stroke: white,
+	          strokeWidth: Math.max(3, sw * 0.55),
+	          strokeUniform: true,
+	          selectable: false,
+	          evented: false,
+	          shadow,
+	        });
+	        const handle = new fabric.Line([54, 54, 106, 106], { stroke: white, strokeWidth: Math.max(5, sw * 0.72), strokeLineCap: 'round', selectable: false, evented: false, shadow });
+	        const txt = makeLabel('ZOOM', 0.50, 0.40, { color: white, fontSize: 20, strokeWidth: 3 });
+	        const group = new fabric.Group([lens, handle, txt], { left: px(0.50), top: py(0.48), originX: 'center', originY: 'center', selectable: true, evented: true });
+	        group.data = baseData({ kind: 'tactical_zoom', anim: 'pop', anim_ms: 450 });
+	        add.push(group);
+	      } else if (key === 'advanced_focus') {
+	        const fw = Number(fxEl?.width) || w;
+	        const fh = Number(fxEl?.height) || h;
+	        const layer = {
+	          id: fxSeq++,
+	          ...seedLayerDataNow({ t_in_s: Number(video.currentTime) || 0, fade_in_ms: 180, fade_out_ms: 180 }),
+	          kind: 'spotlight',
+	          cx: fw * 0.58,
+	          cy: fh * 0.46,
+	          r: Math.max(56, Math.min(fw, fh) * 0.17),
+	          intensity: 0.74,
+	          feather: 0.24,
+	        };
+	        fxState.layers = [...(Array.isArray(fxState.layers) ? fxState.layers : []), layer].slice(0, 80);
+	        selectedFxId = layer.id;
+	        add.push(makeRing(0.58, 0.46, yellow, 0.038, { kind: 'advanced_focus_ring' }));
+	      } else if (key === 'before_after') {
+	        add.push(makeRing(0.40, 0.58, red, 0.030, { ghost: true, kind: 'before_position' }));
+	        add.push(makeLabel('REAL', 0.40, 0.68, { color: red, fontSize: 18, strokeWidth: 3 }));
+	        add.push(makeRing(0.62, 0.47, green, 0.032, { kind: 'after_position' }));
+	        add.push(makeLabel('IDEAL', 0.62, 0.37, { color: green, fontSize: 18, strokeWidth: 3 }));
+	        add.push(makeArrow([0.43, 0.56], [0.59, 0.49], white, { dash: [10, 8], kind: 'movement_line' }));
+	      } else if (key === 'relation_marker') {
+	        add.push(makePlayerDot(0.40, 0.58, blue, '6'));
+	        add.push(makePlayerDot(0.56, 0.46, blue, '8'));
+	        add.push(makePlayerDot(0.70, 0.60, blue, '10'));
+	        add.push(makeLine([0.40, 0.58], [0.56, 0.46], cyan, { dash: [10, 8] }));
+	        add.push(makeLine([0.56, 0.46], [0.70, 0.60], cyan, { dash: [10, 8] }));
+	        add.push(makeLine([0.70, 0.60], [0.40, 0.58], cyan, { dash: [10, 8] }));
+	        add.push(makeLabel('apoyo / cobertura', 0.55, 0.36, { color: white, fontSize: 20, strokeWidth: 3 }));
+	      } else if (key === 'block_templates') {
+	        add.push(makeZone(0.50, 0.34, 0.58, 0.13, red, 'Bloque alto'));
+	        add.push(makeZone(0.50, 0.52, 0.58, 0.13, yellow, 'Bloque medio'));
+	        add.push(makeZone(0.50, 0.70, 0.58, 0.13, blue, 'Bloque bajo'));
+	      }
+	      if (!add.length && key !== 'advanced_focus') { setStatus('Recurso técnico no soportado.', true); return false; }
+	      add.forEach((obj) => {
+	        try { fabricCanvas.add(obj); } catch (e) { /* ignore */ }
+	      });
+	      if (add.length) {
+	        pushHistory();
+	        try {
+	          const sel = new fabric.ActiveSelection(add, { canvas: fabricCanvas });
+	          fabricCanvas.setActiveObject(sel);
+	        } catch (e) {
+	          try { fabricCanvas.setActiveObject(add[add.length - 1]); } catch (e2) { /* ignore */ }
+	        }
+	      }
+	      if (key !== 'advanced_focus') selectedFxId = 0;
+	      updateLayerPanel();
+	      renderFxList();
+	      renderDrawLayers();
+	      try { fabricCanvas.requestRenderAll(); } catch (e) { /* ignore */ }
+	      setStatus(`Recurso técnico aplicado: ${labelForResourceKey(`tech:${key}`) || key}.`);
+	      return true;
+	    };
 	    const useResource = (key) => {
 	      const k = safeText(key, '');
 	      if (!k) return;
@@ -5495,6 +5850,14 @@
 	      if (k.startsWith('tv:')) {
 	        const presetKey = k.split(':').slice(1).join(':');
 	        if (addTvResource(presetKey)) {
+	          pushResourceRecent(k);
+	          closeResourcesMenu();
+	        }
+	        return;
+	      }
+	      if (k.startsWith('tech:')) {
+	        const presetKey = k.split(':').slice(1).join(':');
+	        if (addTechResource(presetKey)) {
 	          pushResourceRecent(k);
 	          closeResourcesMenu();
 	        }

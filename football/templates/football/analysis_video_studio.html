@@ -104,6 +104,7 @@
       .vs-chip[data-vs-kind="template"] .dot { background: rgba(34,211,238,0.95); }
       .vs-chip[data-vs-kind="tactic"] .dot { background: rgba(96,165,250,0.95); }
       .vs-chip[data-vs-kind="tv"] .dot { background: rgba(52,211,153,0.95); }
+      .vs-chip[data-vs-kind="tech"] .dot { background: rgba(250,204,21,0.95); }
       .vs-chip[data-vs-kind="tool"] .dot { background: rgba(250,204,21,0.95); }
       .vs-chip[data-vs-kind="fx"] .dot { background: rgba(244,63,94,0.95); }
       .vs-menu-muted { color: rgba(226,232,240,0.72); font-weight: 800; font-size: 0.78rem; }
@@ -342,6 +343,7 @@
 			                        <button type="button" class="vs-resource-tab" data-vs-resource-filter="tv">TV</button>
 			                        <button type="button" class="vs-resource-tab" data-vs-resource-filter="tactic">Táctica</button>
 			                        <button type="button" class="vs-resource-tab" data-vs-resource-filter="template">Campo</button>
+			                        <button type="button" class="vs-resource-tab" data-vs-resource-filter="tech">Técnicos</button>
 			                        <button type="button" class="vs-resource-tab" data-vs-resource-filter="tool">Dibujo</button>
 			                        <button type="button" class="vs-resource-tab" data-vs-resource-filter="fx">FX</button>
 			                      </div>
@@ -374,6 +376,21 @@
 			                    <button type="button" class="vs-chip" data-vs-resource="tv:spot_player" data-vs-kind="tv"><span class="dot"></span>Foco jugador</button>
 			                    <button type="button" class="vs-chip" data-vs-resource="tv:duel_2v1" data-vs-kind="tv"><span class="dot"></span>2v1 TV</button>
 			                    <button type="button" class="vs-chip" data-vs-resource="tv:pressure_jump" data-vs-kind="tv"><span class="dot"></span>Salto presión TV</button>
+			                  </div>
+			                  <div class="vs-menu-muted" style="margin-top:0.25rem;">Técnicos de edición (1 clic)</div>
+			                  <div class="vs-menu-grid" data-vs-resource-section="tech">
+			                    <button type="button" class="vs-chip" data-vs-resource="tech:smart_curve" data-vs-kind="tech"><span class="dot"></span>Curva inteligente</button>
+			                    <button type="button" class="vs-chip" data-vs-resource="tech:animated_arrow" data-vs-kind="tech"><span class="dot"></span>Flecha animada</button>
+			                    <button type="button" class="vs-chip" data-vs-resource="tech:player_shadow" data-vs-kind="tech"><span class="dot"></span>Sombra jugador</button>
+			                    <button type="button" class="vs-chip" data-vs-resource="tech:labelled_zone" data-vs-kind="tech"><span class="dot"></span>Zona + nombre</button>
+			                    <button type="button" class="vs-chip" data-vs-resource="tech:defensive_line_auto" data-vs-kind="tech"><span class="dot"></span>Línea automática</button>
+			                    <button type="button" class="vs-chip" data-vs-resource="tech:distance_meter" data-vs-kind="tech"><span class="dot"></span>Medidor distancia</button>
+			                    <button type="button" class="vs-chip" data-vs-resource="tech:visual_timer" data-vs-kind="tech"><span class="dot"></span>Temporizador</button>
+			                    <button type="button" class="vs-chip" data-vs-resource="tech:tactical_zoom" data-vs-kind="tech"><span class="dot"></span>Lupa táctica</button>
+			                    <button type="button" class="vs-chip" data-vs-resource="tech:advanced_focus" data-vs-kind="tech"><span class="dot"></span>Foco avanzado</button>
+			                    <button type="button" class="vs-chip" data-vs-resource="tech:before_after" data-vs-kind="tech"><span class="dot"></span>Antes/después</button>
+			                    <button type="button" class="vs-chip" data-vs-resource="tech:relation_marker" data-vs-kind="tech"><span class="dot"></span>Relación jugadores</button>
+			                    <button type="button" class="vs-chip" data-vs-resource="tech:block_templates" data-vs-kind="tech"><span class="dot"></span>Plantillas bloque</button>
 			                  </div>
 			                  <div class="vs-menu-muted" style="margin-top:0.25rem;">Herramientas (1 clic)</div>
 			                  <div class="vs-menu-grid" data-vs-resource-section="tool">
@@ -451,6 +468,9 @@
 		            <button type="button" class="button" data-vs-resource="tactic:block_low">Bloque bajo</button>
 		            <button type="button" class="button" data-vs-resource="tactic:press_jump">Salto presión</button>
 		            <button type="button" class="button" data-vs-resource="tactic:shift">Basculación</button>
+		            <button type="button" class="button" data-vs-resource="tech:animated_arrow">Flecha animada</button>
+		            <button type="button" class="button" data-vs-resource="tech:labelled_zone">Zona</button>
+		            <button type="button" class="button" data-vs-resource="tech:tactical_zoom">Lupa</button>
 		            <button type="button" class="button primary" id="vs-capture-primary">Guardar captura</button>
 		          </div>
 
