@@ -322,14 +322,14 @@ def add_architectural_stadium():
             cube(f"arch_corner_side_wall_TEAM_ACCENT_{sx}_{sy}", (sx * 96.0, sy * 62.0, 12.0), (1.0, 18.0, 11.0), accent, bevel=0.02)
 
     # Reference-style technical area: low dugouts and a restrained dressing-room tunnel.
-    add_dugout("arch_home_dugout", -22.0, -37.55, "MALAGA CF", primary, secondary, black, metal, glass)
-    add_dugout("arch_away_dugout", 22.0, -37.55, "MCF", primary, secondary, black, metal, glass)
-    cube("arch_touchline_dark_asphalt_technical_lane", (0.0, -38.15, 0.075), (68.0, 3.7, 0.10), asphalt, bevel=0.01)
-    cube("arch_low_blue_touchline_wall_TEAM_PRIMARY", (0, -35.70, 0.70), (112.0, 0.28, 1.02), primary, bevel=0.015)
+    add_dugout("arch_home_dugout", -22.0, -35.05, "MALAGA CF", primary, secondary, black, metal, glass)
+    add_dugout("arch_away_dugout", 22.0, -35.05, "MCF", primary, secondary, black, metal, glass)
+    cube("arch_touchline_dark_asphalt_technical_lane", (0.0, -35.65, 0.075), (68.0, 3.7, 0.10), asphalt, bevel=0.01)
+    cube("arch_low_blue_touchline_wall_TEAM_PRIMARY", (0, -33.90, 0.70), (112.0, 0.28, 1.02), primary, bevel=0.015)
     for idx, x in enumerate((-44, -25, -6, 13, 32, 51)):
         label = ("2J FOOTBALL INTELLIGENCE", "MALAGA CF", "PARTNER", "LA ROSALEDA", "SPONSOR", "MCF")[idx]
-        cube(f"arch_pitchside_ad_board_{idx:02d}_{label.replace(' ', '_')}", (x, -35.47, 1.15), (14.6, 0.18, 1.02), led if idx % 2 == 0 else accent, bevel=0.01)
-        bpy.ops.object.text_add(location=(x, -35.60, 1.20), rotation=(math.radians(82), 0, 0))
+        cube(f"arch_pitchside_ad_board_{idx:02d}_{label.replace(' ', '_')}", (x, -33.70, 1.15), (14.6, 0.18, 1.02), led if idx % 2 == 0 else accent, bevel=0.01)
+        bpy.ops.object.text_add(location=(x, -33.83, 1.20), rotation=(math.radians(82), 0, 0))
         ad = bpy.context.object
         ad.name = f"arch_pitchside_ad_text_{idx:02d}_{label.replace(' ', '_')}_TEAM_SECONDARY"
         ad.data.body = label
@@ -338,16 +338,16 @@ def add_architectural_stadium():
         ad.data.size = 0.70
         ad.data.extrude = 0.012
         ad.data.materials.append(secondary)
-    cube("arch_players_tunnel_black_mouth", (0, -39.25, 1.55), (8.4, 0.56, 2.55), black, bevel=0.025)
-    cube("arch_players_tunnel_left_jamb", (-4.85, -39.10, 1.75), (0.82, 1.10, 3.05), concrete, bevel=0.025)
-    cube("arch_players_tunnel_right_jamb", (4.85, -39.10, 1.75), (0.82, 1.10, 3.05), concrete, bevel=0.025)
-    cube("arch_players_tunnel_header_clean", (0, -39.10, 3.25), (10.4, 1.08, 0.72), concrete, bevel=0.025)
-    cube("arch_players_tunnel_recess_glow", (0, -39.55, 1.52), (6.5, 0.08, 1.70), led, bevel=0.006)
-    cube("arch_players_tunnel_clear_walkway", (0, -37.62, 0.22), (8.2, 2.85, 0.20), concrete, bevel=0.012)
-    cube("arch_players_tunnel_blue_side_rail_l_TEAM_PRIMARY", (-4.75, -37.72, 0.82), (0.18, 2.75, 0.92), primary, bevel=0.01)
-    cube("arch_players_tunnel_blue_side_rail_r_TEAM_PRIMARY", (4.75, -37.72, 0.82), (0.18, 2.75, 0.92), primary, bevel=0.01)
-    cube("arch_tunnel_integrated_lower_stand_slab", (0, -45.8, 7.8), (54.0, 13.5, 0.72), concrete, (0.07, 0, 0), bevel=0.018)
-    cube("arch_tunnel_integrated_lower_seats_TEAM_PRIMARY", (0, -45.6, 8.35), (50.0, 12.0, 0.42), primary, (0.07, 0, 0), bevel=0.012)
+    cube("arch_players_tunnel_black_mouth", (0, -36.85, 1.55), (8.4, 0.56, 2.55), black, bevel=0.025)
+    cube("arch_players_tunnel_left_jamb", (-4.85, -36.70, 1.75), (0.82, 1.10, 3.05), concrete, bevel=0.025)
+    cube("arch_players_tunnel_right_jamb", (4.85, -36.70, 1.75), (0.82, 1.10, 3.05), concrete, bevel=0.025)
+    cube("arch_players_tunnel_header_clean", (0, -36.70, 3.25), (10.4, 1.08, 0.72), concrete, bevel=0.025)
+    cube("arch_players_tunnel_recess_glow", (0, -37.15, 1.52), (6.5, 0.08, 1.70), led, bevel=0.006)
+    cube("arch_players_tunnel_clear_walkway", (0, -35.22, 0.22), (8.2, 2.85, 0.20), concrete, bevel=0.012)
+    cube("arch_players_tunnel_blue_side_rail_l_TEAM_PRIMARY", (-4.75, -35.32, 0.82), (0.18, 2.75, 0.92), primary, bevel=0.01)
+    cube("arch_players_tunnel_blue_side_rail_r_TEAM_PRIMARY", (4.75, -35.32, 0.82), (0.18, 2.75, 0.92), primary, bevel=0.01)
+    cube("arch_tunnel_integrated_lower_stand_slab", (0, -43.4, 7.8), (54.0, 13.5, 0.72), concrete, (0.07, 0, 0), bevel=0.018)
+    cube("arch_tunnel_integrated_lower_seats_TEAM_PRIMARY", (0, -43.2, 8.35), (50.0, 12.0, 0.42), primary, (0.07, 0, 0), bevel=0.012)
     cube("arch_tunnel_integrated_upper_stand_slab", (0, -55.0, 12.4), (92.0, 17.0, 0.72), concrete, (0.13, 0, 0), bevel=0.018)
     cube("arch_tunnel_overbuild_seat_deck_TEAM_PRIMARY", (0, -54.0, 12.95), (88.0, 15.6, 0.46), primary, (0.13, 0, 0), bevel=0.015)
 
