@@ -10310,6 +10310,94 @@
 	      }
 	    };
 
+	    const extractAiFreezeAnnotations = () => {
+	      const canvasW = Number(fabricCanvas.getWidth?.()) || 1;
+	      const canvasH = Number(fabricCanvas.getHeight?.()) || 1;
+	      const normPoint = (x, y) => ({
+	        x: clamp((Number(x) || 0) / Math.max(1, canvasW), 0, 1),
+	        y: clamp((Number(y) || 0) / Math.max(1, canvasH), 0, 1),
+	      });
+	      const normBox = (obj) => {
+	        let r = null;
+	        try { r = obj?.getBoundingRect?.(true, true); } catch (e) { try { r = obj?.getBoundingRect?.(); } catch (e2) { r = null; } }
+	        if (!r) return null;
+	        return {
+	          x: clamp((Number(r.left) || 0) / Math.max(1, canvasW), 0, 1),
+	          y: clamp((Number(r.top) || 0) / Math.max(1, canvasH), 0, 1),
+	          w: clamp((Number(r.width) || 0) / Math.max(1, canvasW), 0, 1),
+	          h: clamp((Number(r.height) || 0) / Math.max(1, canvasH), 0, 1),
+	        };
+	      };
+	      const objectText = (obj) => {
+	        const texts = [];
+	        const scan = (item) => {
+	          if (!item) return;
+	          if (typeof item.text === 'string' && item.text.trim()) texts.push(item.text.trim());
+	          if (Array.isArray(item._objects)) item._objects.forEach(scan);
+	        };
+	        scan(obj);
+	        return texts.join(' ').trim();
+	      };
+	      const linePoints = (obj) => {
+	        try {
+	          if (obj?.type === 'line') return [normPoint(obj.x1, obj.y1), normPoint(obj.x2, obj.y2)];
+	          if ((obj?.type === 'polygon' || obj?.type === 'polyline') && Array.isArray(obj.points)) return obj.points.slice(0, 12).map((p) => normPoint((Number(p.x) || 0) + (Number(obj.left) || 0), (Number(p.y) || 0) + (Number(obj.top) || 0)));
+	          if (obj?.type === 'group' && Array.isArray(obj._objects)) {
+	            const childLine = obj._objects.find((x) => x?.type === 'line');
+	            if (childLine) {
+	              const a = obj.calcTransformMatrix?.();
+	              const p1 = fabric.util.transformPoint(new fabric.Point(childLine.x1, childLine.y1), a);
+	              const p2 = fabric.util.transformPoint(new fabric.Point(childLine.x2, childLine.y2), a);
+	              return [normPoint(p1.x, p1.y), normPoint(p2.x, p2.y)];
+	            }
+	          }
+	        } catch (e) { /* ignore */ }
+	        return [];
+	      };
+	      const rows = [];
+	      try {
+	        (fabricCanvas.getObjects?.() || []).forEach((obj) => {
+	          const data = obj?.data || {};
+	          const kind = safeText(data.kind || obj?.type || 'annotation', 'annotation');
+	          if (kind === 'calib_point') return;
+	          const row = {
+	            uid: safeText(data.uid || ''),
+	            kind,
+	            text: objectText(obj),
+	            color: safeText(obj?.stroke || obj?.fill || obj?._objects?.[0]?.stroke || obj?._objects?.[0]?.fill || ''),
+	            line_style: safeText(data.line_style || ''),
+	            box: normBox(obj),
+	            points: linePoints(obj),
+	          };
+	          if (row.box || row.points.length || row.text) rows.push(row);
+	        });
+	      } catch (e) { /* ignore */ }
+	      try {
+	        (Array.isArray(fxState.layers) ? fxState.layers : []).forEach((layer) => {
+	          const kind = safeText(layer?.kind || layer?.type || 'fx', 'fx');
+	          if (kind === 'freeze') return;
+	          const row = { uid: safeText(layer?.id || ''), kind, text: '', color: '', line_style: '', points: [] };
+	          if (kind === 'spotlight') {
+	            row.box = {
+	              x: clamp((Number(layer.cx || 0) - Number(layer.r || 0)) / Math.max(1, canvasW), 0, 1),
+	              y: clamp((Number(layer.cy || 0) - Number(layer.r || 0)) / Math.max(1, canvasH), 0, 1),
+	              w: clamp((Number(layer.r || 0) * 2) / Math.max(1, canvasW), 0, 1),
+	              h: clamp((Number(layer.r || 0) * 2) / Math.max(1, canvasH), 0, 1),
+	            };
+	          } else {
+	            row.box = {
+	              x: clamp(Number(layer.x || 0) / Math.max(1, canvasW), 0, 1),
+	              y: clamp(Number(layer.y || 0) / Math.max(1, canvasH), 0, 1),
+	              w: clamp(Number(layer.w || 0) / Math.max(1, canvasW), 0, 1),
+	              h: clamp(Number(layer.h || 0) / Math.max(1, canvasH), 0, 1),
+	            };
+	          }
+	          rows.push(row);
+	        });
+	      } catch (e) { /* ignore */ }
+	      return rows.slice(0, 120);
+	    };
+
 	    const showAiProPanel = () => {
 	      const wrap = document.createElement('div');
 	      wrap.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(2,6,23,.72);display:flex;align-items:center;justify-content:center;padding:18px;';
@@ -10337,6 +10425,7 @@
 	            <button type="button" class="button primary" data-ai-pro-act="detect_actions">Detectar acciones</button>
 	            <button type="button" class="button" data-ai-pro-act="action_dataset">Dataset acciones</button>
 	            <button type="button" class="button primary" data-ai-pro-act="tactical_labels">Etiquetas tácticas</button>
+	            <button type="button" class="button primary" data-ai-pro-act="freeze_annotation_feedback">Enseñar freeze</button>
 	            <button type="button" class="button" data-ai-pro-act="ai_review">Revisión IA</button>
 	            <button type="button" class="button" data-ai-pro-act="active_learning">Qué necesita aprender</button>
 	            <button type="button" class="button" data-ai-pro-act="contrast_pair">Par comparativo</button>
@@ -10516,6 +10605,35 @@
 	          const data = await aiProPost({ action: 'tactical_labels', clip_id: clipId });
 	          write(JSON.stringify({ labels: data.labels || [], learning: data.learning || {} }, null, 2));
 	          setStatus('IA Pro: etiquetas tácticas cargadas.');
+	          return;
+	        }
+	        if (act === 'freeze_annotation_feedback') {
+	          const annotations = extractAiFreezeAnnotations();
+	          if (!annotations.length) {
+	            write('No hay flechas, textos, áreas o FX para enseñar.');
+	            setStatus('IA Pro: dibuja flechas/textos/zonas antes de enseñar el freeze.', true);
+	            return;
+	          }
+	          const savedClipId = Number(await saveClip({ forceNew: false }) || clipId) || clipId;
+	          const rawLabels = (window.prompt('Etiquetas opcionales separadas por coma', '2v1, ultimo_tercio') || '')
+	            .split(',')
+	            .map((x) => safeText(x).trim())
+	            .filter(Boolean);
+	          const canvasPayload = (() => {
+	            try { return fabricCanvas.toDatalessJSON(['data']); } catch (e) { return {}; }
+	          })();
+	          const data = await aiProPost({
+	            action: 'freeze_annotation_feedback',
+	            clip_id: savedClipId,
+	            time_s: Number(video.currentTime || 0) || 0,
+	            annotations,
+	            labels: rawLabels,
+	            canvas: canvasPayload,
+	            fx: { layers: Array.isArray(fxState.layers) ? fxState.layers : [] },
+	            note: 'freeze_frame_anotado_manual',
+	          });
+	          write(JSON.stringify({ created: data.created || [], annotations: data.annotations, concepts: data.concepts || [], learning: data.learning || {} }, null, 2));
+	          setStatus(`IA Pro: freeze enseñado (${data.annotations || annotations.length} anotaciones).`);
 	          return;
 	        }
 	        if (act === 'contrast_pair') {

@@ -51134,6 +51134,13 @@ def _video_studio_ai_target_learning_labels() -> list[str]:
         'finalizacion',
         'recuperacion',
         'perdida',
+        'freeze_annotation',
+        'annotation_arrow',
+        'annotation_pass',
+        'annotation_movement',
+        'annotation_space',
+        'annotation_text',
+        'superioridad_2v1',
     ]
 
 
@@ -51195,6 +51202,93 @@ def _video_studio_ai_learning_summary(team, video) -> dict:
             'guardar ejemplos de carriles con balón y estructura visible',
         ],
     }
+
+
+def _video_studio_ai_annotation_concepts(annotations: list[dict], raw_labels=None) -> list[str]:
+    concepts = []
+    for raw in (raw_labels if isinstance(raw_labels, list) else []):
+        key = _video_studio_ai_action_key(str(raw or ''))
+        if key and key not in concepts:
+            concepts.append(key)
+    for item in (annotations if isinstance(annotations, list) else []):
+        if not isinstance(item, dict):
+            continue
+        kind = str(item.get('kind') or '').strip()
+        text = _video_studio_ai_text_fingerprint(item.get('text') or item.get('label') or '')
+        color = str(item.get('color') or '').lower()
+        style = str(item.get('line_style') or '').lower()
+        if kind in {'arrow', 'curve_arrow', 'movement_line', 'line'}:
+            for key in ('annotation_arrow',):
+                if key not in concepts:
+                    concepts.append(key)
+            if kind == 'movement_line' or style in {'dash', 'dot'}:
+                if 'annotation_movement' not in concepts:
+                    concepts.append('annotation_movement')
+            else:
+                if 'annotation_pass' not in concepts:
+                    concepts.append('annotation_pass')
+        if kind in {'space_zone', 'surface_area', 'shape_rect', 'shape_ellipse', 'spotlight'}:
+            if 'annotation_space' not in concepts:
+                concepts.append('annotation_space')
+        if kind.startswith('text') or kind in {'callout'} or text:
+            if 'annotation_text' not in concepts:
+                concepts.append('annotation_text')
+        if '2v1' in text or '2 v 1' in text or '2 vs 1' in text or '2vs1' in text:
+            if 'superioridad_2v1' not in concepts:
+                concepts.append('superioridad_2v1')
+        if 'pase' in text:
+            if 'annotation_pass' not in concepts:
+                concepts.append('annotation_pass')
+        if 'desmarque' in text or 'movimiento' in text or 'ruptura' in text:
+            if 'annotation_movement' not in concepts:
+                concepts.append('annotation_movement')
+        if 'espacio' in text or color in {'#22d3ee', '#34d399'}:
+            if 'annotation_space' not in concepts:
+                concepts.append('annotation_space')
+    if annotations and 'freeze_annotation' not in concepts:
+        concepts.insert(0, 'freeze_annotation')
+    return concepts[:24]
+
+
+def _video_studio_ai_normalize_freeze_annotations(raw) -> list[dict]:
+    rows = raw if isinstance(raw, list) else []
+    out = []
+    for item in rows[:120]:
+        if not isinstance(item, dict):
+            continue
+        kind = re.sub(r'[^a-z0-9_:-]+', '_', str(item.get('kind') or 'annotation').strip().lower()).strip('_')[:60] or 'annotation'
+        row = {
+            'uid': str(item.get('uid') or '')[:100],
+            'kind': kind,
+            'text': _sanitize_task_text(str(item.get('text') or item.get('label') or '').strip(), multiline=False, max_len=180),
+            'color': str(item.get('color') or '')[:40],
+            'line_style': str(item.get('line_style') or '')[:20],
+        }
+        points = item.get('points') if isinstance(item.get('points'), list) else []
+        norm_points = []
+        for p in points[:24]:
+            if not isinstance(p, dict):
+                continue
+            try:
+                norm_points.append({'x': round(max(0.0, min(1.0, float(p.get('x')))), 5), 'y': round(max(0.0, min(1.0, float(p.get('y')))), 5)})
+            except Exception:
+                continue
+        if norm_points:
+            row['points'] = norm_points
+        box = item.get('box') if isinstance(item.get('box'), dict) else {}
+        if box:
+            try:
+                row['box'] = {
+                    'x': round(max(0.0, min(1.0, float(box.get('x')))), 5),
+                    'y': round(max(0.0, min(1.0, float(box.get('y')))), 5),
+                    'w': round(max(0.0, min(1.0, float(box.get('w')))), 5),
+                    'h': round(max(0.0, min(1.0, float(box.get('h')))), 5),
+                }
+            except Exception:
+                pass
+        if row.get('points') or row.get('box') or row.get('text'):
+            out.append(row)
+    return out
 
 
 def _video_studio_ai_normalize_field_points(raw) -> dict:
@@ -52343,6 +52437,64 @@ def analysis_video_studio_ai_pro_api(request):
         clip.overlay = overlay
         clip.save(update_fields=['overlay', 'updated_at'])
         return JsonResponse({'ok': True, 'action': 'tactical_quick_feedback', 'created': created_rows, 'learning': _video_studio_ai_learning_summary(primary_team, video)})
+
+    if action == 'freeze_annotation_feedback':
+        if not clip:
+            return JsonResponse({'ok': False, 'error': 'clip_id requerido.'}, status=400)
+        annotations = _video_studio_ai_normalize_freeze_annotations(data.get('annotations'))
+        if not annotations:
+            return JsonResponse({'ok': False, 'error': 'No hay anotaciones tácticas para guardar.'}, status=400)
+        concepts = _video_studio_ai_annotation_concepts(annotations, data.get('labels'))
+        try:
+            time_s = max(0.0, float(data.get('time_s') if data.get('time_s') is not None else clip.in_seconds))
+        except Exception:
+            time_s = float(clip.in_seconds)
+        username = request.user.get_username() if request.user and request.user.is_authenticated else ''
+        payload_base = {
+            'kind': 'freeze_annotation',
+            'source': 'manual_freeze_frame',
+            'time_s': round(time_s, 3),
+            'annotations': annotations,
+            'concepts': concepts,
+            'canvas': data.get('canvas') if isinstance(data.get('canvas'), dict) else {},
+            'fx': data.get('fx') if isinstance(data.get('fx'), dict) else {},
+            'note': _sanitize_task_text(str(data.get('note') or '').strip(), multiline=True, max_len=1000),
+        }
+        created_rows = []
+        for key in concepts[:24]:
+            example = VideoAiActionExample.objects.create(
+                team=primary_team,
+                video=video,
+                clip=clip,
+                action_key=key,
+                label=key.replace('_', ' '),
+                is_positive=True,
+                start_ms=int(round(time_s * 1000.0)),
+                end_ms=int(round(time_s * 1000.0)),
+                confidence=1.0,
+                payload={**payload_base, 'target_concept': key},
+                created_by=username[:80],
+                created_by_user=request.user if request.user.is_authenticated else None,
+            )
+            created_rows.append({'id': int(example.id), 'key': key})
+        overlay = clip.overlay if isinstance(getattr(clip, 'overlay', None), dict) else {}
+        ai_pro = overlay.get('ai_pro') if isinstance(overlay.get('ai_pro'), dict) else {}
+        freeze_rows = ai_pro.get('freeze_annotations') if isinstance(ai_pro.get('freeze_annotations'), list) else []
+        freeze_rows.append({'time_s': round(time_s, 3), 'annotations': annotations, 'concepts': concepts, 'examples': created_rows})
+        ai_pro['freeze_annotations'] = freeze_rows[-120:]
+        overlay['ai_pro'] = ai_pro
+        clip.overlay = overlay
+        clip.save(update_fields=['overlay', 'updated_at'])
+        return JsonResponse(
+            {
+                'ok': True,
+                'action': 'freeze_annotation_feedback',
+                'created': created_rows,
+                'annotations': len(annotations),
+                'concepts': concepts,
+                'learning': _video_studio_ai_learning_summary(primary_team, video),
+            }
+        )
 
     if action == 'contrast_pair':
         label_key = _video_studio_ai_action_key(str(data.get('action_key') or data.get('label_key') or ''))
