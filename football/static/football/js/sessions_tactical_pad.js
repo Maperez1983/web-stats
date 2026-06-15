@@ -14696,12 +14696,88 @@
 						            const label = new THREE.Mesh(new THREE.PlaneGeometry(4.7, 0.58), makeSignMat(idx === 0 ? 'MALAGA CF' : 'MCF', { w: 900, h: 260, bg: '#064f9e', fg: '#f8fafc', font: '900 58px Arial, sans-serif' }));
 						            label.position.set(0, 1.05, -0.86);
 						            label.rotation.y = Math.PI;
-						            label.userData = { kind: 'pitch_3d_dedicated_completion_near_bench_brand' };
-						            benchGroup.add(label);
-						            benchGroup.position.set(x, 0.04, -(metersH / 2 + 1.65));
-						            dedicatedFinish.add(benchGroup);
-						          });
-						          root.add(dedicatedFinish);
+							            label.userData = { kind: 'pitch_3d_dedicated_completion_near_bench_brand' };
+							            benchGroup.add(label);
+							            benchGroup.position.set(x, 0.04, -(metersH / 2 + 1.65));
+							            dedicatedFinish.add(benchGroup);
+							          });
+							          try {
+							            const finalBlueMat = new THREE.MeshStandardMaterial({ color: 0x0869b8, roughness: 0.54, metalness: 0.02 });
+							            const finalDarkBlueMat = new THREE.MeshStandardMaterial({ color: 0x063d78, roughness: 0.60, metalness: 0.02 });
+							            const finalWhiteMat = new THREE.MeshStandardMaterial({ color: 0xf7fbff, roughness: 0.48, metalness: 0.01 });
+							            const finalConcreteMat = new THREE.MeshStandardMaterial({ color: 0xe7e8df, roughness: 0.74, metalness: 0.01 });
+							            const finalGlassMat = new THREE.MeshPhysicalMaterial({ color: 0xdff8ff, roughness: 0.10, metalness: 0.02, transparent: true, opacity: 0.36, transmission: 0.18, side: THREE.DoubleSide });
+							            const finalSteelMat = new THREE.MeshStandardMaterial({ color: 0x54616b, roughness: 0.38, metalness: 0.34 });
+							            const finalBlackMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.78, metalness: 0.04 });
+							            // Capa final: tapa barras negras heredadas con bloques de grada y deja aperturas limpias tipo vomitorios.
+							            [
+							              { z: metersH / 2 + 6.72, y: 4.20, w: metersW * 0.69 },
+							              { z: metersH / 2 + 7.66, y: 4.66, w: metersW * 0.68 },
+							              { z: metersH / 2 + 10.48, y: 5.58, w: metersW * 0.63 },
+							            ].forEach((band, idx) => {
+							              addRotMesh(new THREE.BoxGeometry(band.w, 0.105, 0.42), idx === 1 ? finalDarkBlueMat : finalBlueMat, -1.2, band.y, band.z, -0.105, 0, 0, 'pitch_3d_rosaleda_final_seal_main_stand_blue_cleanup_band');
+							            });
+							            [-0.39, -0.19, 0.02, 0.23, 0.43].forEach((ratio) => {
+							              addRotMesh(new THREE.BoxGeometry(0.82, 0.16, 6.7), finalConcreteMat, ratio * metersW, 4.88, metersH / 2 + 8.62, -0.105, 0, 0, 'pitch_3d_rosaleda_final_seal_clean_main_stair');
+							              addMesh(new THREE.BoxGeometry(3.5, 0.92, 0.18), finalBlackMat, ratio * metersW, 3.34, metersH / 2 + 5.90, 'pitch_3d_rosaleda_final_seal_main_vomitory_shadow');
+							            });
+							            const finalText = addRotMesh(
+							              new THREE.PlaneGeometry(metersW * 0.62, 4.80),
+							              makeTransparentSeatTextMat('MALAGA CF', { w: 2400, h: 430, fg: '#ffffff', font: '900 220px Arial, sans-serif' }),
+							              -1.2,
+							              5.42,
+							              metersH / 2 + 9.02,
+							              -(Math.PI / 2) - 0.105,
+							              Math.PI,
+							              0,
+							              'pitch_3d_rosaleda_final_seal_readable_main_seat_text'
+							            );
+							            finalText.renderOrder = 110;
+							            try {
+							              finalText.material.depthTest = false;
+							              finalText.material.depthWrite = false;
+							              finalText.material.transparent = true;
+							              finalText.material.opacity = 0.92;
+							            } catch (e) { /* ignore */ }
+							            // Banquillos y vallas subidos al borde visible de cámara, sin invadir el área de juego principal.
+							            const addVisibleTouchlineDugout = (x, label) => {
+							              const dugout = new THREE.Group();
+							              dugout.position.set(x, 0.08, -(metersH / 2 - 0.35));
+							              dugout.userData = { kind: 'pitch_3d_rosaleda_final_seal_visible_touchline_dugout' };
+							              const part = (geo, mat, px, py, pz, kind) => {
+							                const mesh = new THREE.Mesh(geo, mat);
+							                mesh.position.set(px, py, pz);
+							                mesh.userData = { kind };
+							                dugout.add(mesh);
+							                return mesh;
+							              };
+							              part(new THREE.BoxGeometry(13.2, 0.14, 1.72), finalBlackMat, 0, 0.14, 0.10, 'pitch_3d_rosaleda_final_seal_dugout_base');
+							              for (let r = 0; r < 6; r += 1) {
+							                const t = r / 5;
+							                const panel = part(new THREE.BoxGeometry(12.8, 0.044, 0.32), finalGlassMat, 0, 0.74 + Math.sin(t * Math.PI * 0.62) * 0.98, 0.70 - t * 1.22, 'pitch_3d_rosaleda_final_seal_dugout_glass_panel');
+							                panel.rotation.x = 0.42 - t * 0.30;
+							              }
+							              part(new THREE.BoxGeometry(13.0, 0.09, 0.13), finalSteelMat, 0, 1.92, 0.02, 'pitch_3d_rosaleda_final_seal_dugout_top_rail');
+							              for (let s = 0; s < 8; s += 1) {
+							                const sx = -4.8 + s * 1.36;
+							                part(new THREE.BoxGeometry(0.74, 0.18, 0.42), finalBlueMat, sx, 0.46, -0.08, 'pitch_3d_rosaleda_final_seal_dugout_blue_seat');
+							                const back = part(new THREE.BoxGeometry(0.74, 0.60, 0.10), finalBlueMat, sx, 0.80, -0.36, 'pitch_3d_rosaleda_final_seal_dugout_blue_back');
+							                back.rotation.x = 0.18;
+							              }
+							              const sign = new THREE.Mesh(new THREE.PlaneGeometry(4.8, 0.52), makeSignMat(label, { w: 960, h: 240, bg: '#0869b8', fg: '#f8fafc', font: '900 54px Arial, sans-serif', stroke: 'rgba(255,255,255,0.24)' }));
+							              sign.position.set(0, 0.84, 0.92);
+							              sign.userData = { kind: 'pitch_3d_rosaleda_final_seal_dugout_brand' };
+							              dugout.add(sign);
+							              dedicatedFinish.add(dugout);
+							            };
+							            addVisibleTouchlineDugout(-26.0, 'MALAGA CF');
+							            addVisibleTouchlineDugout(-10.2, 'MCF');
+							            ['2J FOOTBALL INTELLIGENCE', 'LA ROSALEDA', 'PARTNER', 'SPONSOR'].forEach((label, idx) => {
+							              const x = -metersW * 0.34 + idx * (metersW * 0.22);
+							              addMesh(new THREE.BoxGeometry(metersW * 0.18, 0.58, 0.11), makeSignMat(label, { w: 1100, h: 250, bg: idx % 2 ? '#111827' : '#0869b8', fg: '#f8fafc', font: '900 46px Arial, sans-serif' }), x, 0.82, -(metersH / 2 - 0.82), 'pitch_3d_rosaleda_final_seal_visible_touchline_board');
+							            });
+							          } catch (e) { /* ignore */ }
+							          root.add(dedicatedFinish);
 						        }
 						      } catch (e) { /* ignore */ }
 
