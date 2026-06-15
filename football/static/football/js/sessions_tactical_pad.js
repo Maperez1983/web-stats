@@ -14417,7 +14417,7 @@
 							                5.36,
 							                metersH / 2 + 9.00,
 							                -(Math.PI / 2) - 0.105,
-							                0,
+							                Math.PI,
 							                0,
 							                'pitch_3d_rosaleda_final_polish_readable_white_malaga_cf_on_seats'
 							              );
