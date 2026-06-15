@@ -8610,7 +8610,11 @@ def _dashboard_data_impl(request, *, _json):
         return _json(payload)
 
     force_fresh = str(request.GET.get('fresh') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    full_metrics = str(request.GET.get('full') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    light_mode = not full_metrics
     cache_key = _dashboard_cache_key_for_request(primary_team.id, request, workspace=workspace)
+    if full_metrics:
+        cache_key = f'{cache_key}:full'
     if not force_fresh:
         cached_payload = None
         try:
@@ -8835,41 +8839,48 @@ def _dashboard_data_impl(request, *, _json):
     # Evitar mostrar el "último partido" como si fuera el próximo rival.
     if not _next_match_payload_is_reliable(next_match):
         next_match = None
-    try:
-        team_metrics = compute_team_metrics(primary_team, scope=Match.CONTEXT_LEAGUE, request=request)
-    except Exception:
-        logger.exception('dashboard_data: compute_team_metrics falló')
+    if light_mode:
+        # La entrada al área entrenador debe responder rápido. En producción, calcular métricas
+        # completas de equipo/jugadores en frío puede superar el timeout del proxy y acabar en 502.
         team_metrics = {'total_events': 0, 'top_event_types': [], 'top_results': []}
-    try:
-        player_metrics = compute_player_metrics(primary_team, scope=Match.CONTEXT_LEAGUE, request=request)
-        current_roster_season = None
-        try:
-            current_roster_season = selected_club_season_for_request(request, workspace=workspace)
-        except Exception:
-            current_roster_season = None
-        if current_roster_season and bool(getattr(current_roster_season, 'is_active', False)):
-            current_roster_ids = {
-                int(player.id)
-                for player in _operational_roster_players_for_team(
-                    request,
-                    primary_team,
-                    season=current_roster_season,
-                    confirmed_only=True,
-                )
-                if getattr(player, 'id', None)
-            }
-            player_metrics = [
-                row for row in (player_metrics or [])
-                if int(_parse_int(row.get('player_id')) or 0) in current_roster_ids
-            ]
-    except Exception:
-        logger.exception('dashboard_data: compute_player_metrics falló')
         player_metrics = []
-    try:
-        player_cards = compute_player_cards(primary_team, request=request)
-    except Exception:
-        logger.exception('dashboard_data: compute_player_cards falló')
         player_cards = []
+    else:
+        try:
+            team_metrics = compute_team_metrics(primary_team, scope=Match.CONTEXT_LEAGUE, request=request)
+        except Exception:
+            logger.exception('dashboard_data: compute_team_metrics falló')
+            team_metrics = {'total_events': 0, 'top_event_types': [], 'top_results': []}
+        try:
+            player_metrics = compute_player_metrics(primary_team, scope=Match.CONTEXT_LEAGUE, request=request)
+            current_roster_season = None
+            try:
+                current_roster_season = selected_club_season_for_request(request, workspace=workspace)
+            except Exception:
+                current_roster_season = None
+            if current_roster_season and bool(getattr(current_roster_season, 'is_active', False)):
+                current_roster_ids = {
+                    int(player.id)
+                    for player in _operational_roster_players_for_team(
+                        request,
+                        primary_team,
+                        season=current_roster_season,
+                        confirmed_only=True,
+                    )
+                    if getattr(player, 'id', None)
+                }
+                player_metrics = [
+                    row for row in (player_metrics or [])
+                    if int(_parse_int(row.get('player_id')) or 0) in current_roster_ids
+                ]
+        except Exception:
+            logger.exception('dashboard_data: compute_player_metrics falló')
+            player_metrics = []
+        try:
+            player_cards = compute_player_cards(primary_team, request=request)
+        except Exception:
+            logger.exception('dashboard_data: compute_player_cards falló')
+            player_cards = []
     player_cards_scope = {'type': 'global', 'label': 'Jugador · datos La Preferente'}
     competition_name = ''
     season_name = ''
@@ -27643,22 +27654,25 @@ def coach_role_trainer_page(request):
             {'label': 'Tarjetas', 'value': card_total},
         ],
     }
+    selected_player_id = _parse_int(request.GET.get('player'))
+    trainer_full_players = str(request.GET.get('full') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
     player_dashboard_rows = (
         compute_player_dashboard(primary_team, scope=stats_scope, tournament_name=tournament_filter, request=request)
-        if primary_team
+        if primary_team and (selected_player_id or trainer_full_players)
         else []
     )
+    player_option_rows = player_dashboard_rows or player_cards
     coach_player_options = [
         {
-            'id': item.get('player_id'),
+            'id': item.get('player_id') or item.get('id'),
             'name': item.get('name'),
             'number': item.get('number'),
         }
-        for item in sorted(player_dashboard_rows, key=lambda row: (str(row.get('name') or '').lower(), row.get('player_id') or 0))
+        for item in sorted(player_option_rows, key=lambda row: (str(row.get('name') or '').lower(), row.get('player_id') or row.get('id') or 0))
     ]
     coach_player_cards_all = [
         {
-            'id': item.get('player_id'),
+            'id': item.get('player_id') or item.get('id'),
             'name': item.get('name'),
             'number': item.get('number'),
             'minutes': int(item.get('minutes', 0) or 0),
@@ -27669,7 +27683,7 @@ def coach_role_trainer_page(request):
             'photo_url': item.get('photo_url') or '',
         }
         for item in sorted(
-            player_dashboard_rows,
+            player_option_rows,
             key=lambda row: (
                 -int(row.get('minutes', 0) or 0),
                 int(row.get('number') or 9999),
@@ -27677,7 +27691,6 @@ def coach_role_trainer_page(request):
             ),
         )
     ]
-    selected_player_id = _parse_int(request.GET.get('player'))
     selected_player = Player.objects.filter(id=selected_player_id, team=primary_team).first() if selected_player_id else None
     selected_player_stats = next((item for item in player_dashboard_rows if item.get('player_id') == selected_player_id), None) if selected_player_id else None
     coach_player_match_options = []
