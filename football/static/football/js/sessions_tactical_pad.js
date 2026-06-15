@@ -13402,6 +13402,41 @@
 						            try { mesh.rotation.set(rotX || 0, rotY || 0, rotZ || 0); } catch (e) { /* ignore */ }
 						            return mesh;
 						          };
+						          const addReadableAdBoard = (label, x, y, z, length, height, facing, kind, opts = {}) => {
+						            const bg = opts.bg || '#064f9e';
+						            const shellMat = new THREE.MeshStandardMaterial({
+						              color: new THREE.Color(bg),
+						              roughness: 0.48,
+						              metalness: 0.04,
+						            });
+						            const signMat = makeSignMat(label, {
+						              w: opts.w || 1100,
+						              h: opts.h || 260,
+						              bg,
+						              fg: opts.fg || '#f8fafc',
+						              font: opts.font || '900 50px Arial, sans-serif',
+						              stroke: opts.stroke || 'rgba(255,255,255,0.22)',
+						            });
+						            const thick = opts.thick || 0.12;
+						            let shell;
+						            let face;
+						            if (facing === 'north' || facing === 'south') {
+						              const sign = facing === 'north' ? 1 : -1;
+						              shell = addMesh(new THREE.BoxGeometry(length, height, thick), shellMat, x, y, z, `${kind}_shell`);
+						              face = addRotMesh(new THREE.PlaneGeometry(length * 0.94, height * 0.78), signMat, x, y, z + sign * (thick / 2 + 0.012), 0, sign > 0 ? 0 : Math.PI, 0, `${kind}_readable_face`);
+						            } else {
+						              const sign = facing === 'east' ? 1 : -1;
+						              shell = addMesh(new THREE.BoxGeometry(thick, height, length), shellMat, x, y, z, `${kind}_shell`);
+						              face = addRotMesh(new THREE.PlaneGeometry(length * 0.94, height * 0.78), signMat, x + sign * (thick / 2 + 0.012), y, z, 0, sign > 0 ? Math.PI / 2 : -Math.PI / 2, 0, `${kind}_readable_face`);
+						            }
+						            try {
+						              shell.castShadow = true;
+						              shell.receiveShadow = true;
+						              face.renderOrder = 70;
+						              face.material.depthWrite = false;
+						            } catch (e) { /* ignore */ }
+						            return face;
+						          };
 						          const addInstancedSeats = () => {
 						            try {
 						              const seatGeo = new THREE.BoxGeometry(0.44, 0.095, 0.23);
@@ -13461,13 +13496,13 @@
 						              const labels = ['2J FOOTBALL INTELLIGENCE', 'PARTNER', 'ESTADIO', 'SPONSOR'];
 						              for (let i = 0; i < 10; i += 1) {
 						                const x = -metersW * 0.45 + i * (metersW * 0.10);
-						                addMesh(new THREE.BoxGeometry(metersW * 0.085, 0.82, 0.16), makeSignMat(labels[i % labels.length], { w: 900, h: 260, font: '900 54px Arial, sans-serif' }), x, 0.86, -(metersH / 2 + 2.72), 'pitch_3d_dedicated_completion_segmented_near_ad_board');
-						                addMesh(new THREE.BoxGeometry(metersW * 0.085, 0.82, 0.16), makeSignMat(labels[(i + 2) % labels.length], { w: 900, h: 260, font: '900 54px Arial, sans-serif' }), x, 0.86, metersH / 2 + 2.72, 'pitch_3d_dedicated_completion_segmented_far_ad_board');
+						                addReadableAdBoard(labels[i % labels.length], x, 0.86, -(metersH / 2 + 2.72), metersW * 0.085, 0.82, 'north', 'pitch_3d_dedicated_completion_segmented_near_ad_board', { w: 900, h: 260, font: '900 54px Arial, sans-serif' });
+						                addReadableAdBoard(labels[(i + 2) % labels.length], x, 0.86, metersH / 2 + 2.72, metersW * 0.085, 0.82, 'south', 'pitch_3d_dedicated_completion_segmented_far_ad_board', { w: 900, h: 260, font: '900 54px Arial, sans-serif' });
 						              }
 						              for (let i = 0; i < 7; i += 1) {
 						                const z = -metersH * 0.39 + i * (metersH * 0.13);
-						                addMesh(new THREE.BoxGeometry(0.16, 0.82, metersH * 0.105), makeSignMat(labels[(i + 1) % labels.length], { w: 900, h: 260, font: '900 54px Arial, sans-serif' }), -(metersW / 2 + 2.72), 0.86, z, 'pitch_3d_dedicated_completion_segmented_side_ad_board');
-						                addMesh(new THREE.BoxGeometry(0.16, 0.82, metersH * 0.105), makeSignMat(labels[(i + 3) % labels.length], { w: 900, h: 260, font: '900 54px Arial, sans-serif' }), metersW / 2 + 2.72, 0.86, z, 'pitch_3d_dedicated_completion_segmented_side_ad_board');
+						                addReadableAdBoard(labels[(i + 1) % labels.length], -(metersW / 2 + 2.72), 0.86, z, metersH * 0.105, 0.82, 'east', 'pitch_3d_dedicated_completion_segmented_left_ad_board', { w: 900, h: 260, font: '900 54px Arial, sans-serif' });
+						                addReadableAdBoard(labels[(i + 3) % labels.length], metersW / 2 + 2.72, 0.86, z, metersH * 0.105, 0.82, 'west', 'pitch_3d_dedicated_completion_segmented_right_ad_board', { w: 900, h: 260, font: '900 54px Arial, sans-serif' });
 						              }
 						            } catch (e) { /* ignore */ }
 						          };
@@ -13537,13 +13572,11 @@
 						              const nearLabels = ['', '2J FOOTBALL INTELLIGENCE', 'ESTADIO', 'PARTNER', 'SPONSOR'];
 						              for (let i = 0; i < 12; i += 1) {
 						                const x = -metersW * 0.48 + i * (metersW * 0.087);
-						                const mat = makeSignMat(nearLabels[i % nearLabels.length], { w: 1100, h: 260, bg: i % 2 ? '#071b33' : '#064f9e', fg: '#f8fafc', font: '900 52px Arial, sans-serif', stroke: 'rgba(255,255,255,0.22)' });
-						                addMesh(new THREE.BoxGeometry(metersW * 0.077, 0.74, 0.12), mat, x, 0.62, -(metersH / 2 + 1.05), 'pitch_3d_dedicated_reference_continuous_near_blue_valla');
+						                addReadableAdBoard(nearLabels[i % nearLabels.length], x, 0.62, -(metersH / 2 + 1.05), metersW * 0.077, 0.74, 'north', 'pitch_3d_dedicated_reference_continuous_near_blue_valla', { w: 1100, h: 260, bg: i % 2 ? '#071b33' : '#064f9e', fg: '#f8fafc', font: '900 52px Arial, sans-serif', stroke: 'rgba(255,255,255,0.22)' });
 						              }
 						              for (let i = 0; i < 12; i += 1) {
 						                const x = -metersW * 0.48 + i * (metersW * 0.087);
-						                const mat = makeSignMat(nearLabels[(i + 2) % nearLabels.length], { w: 1100, h: 260, bg: '#064f9e', fg: '#f8fafc', font: '900 52px Arial, sans-serif', stroke: 'rgba(255,255,255,0.20)' });
-						                addMesh(new THREE.BoxGeometry(metersW * 0.077, 0.74, 0.12), mat, x, 0.62, metersH / 2 + 1.05, 'pitch_3d_dedicated_reference_continuous_far_blue_valla');
+						                addReadableAdBoard(nearLabels[(i + 2) % nearLabels.length], x, 0.62, metersH / 2 + 1.05, metersW * 0.077, 0.74, 'south', 'pitch_3d_dedicated_reference_continuous_far_blue_valla', { w: 1100, h: 260, bg: '#064f9e', fg: '#f8fafc', font: '900 52px Arial, sans-serif', stroke: 'rgba(255,255,255,0.20)' });
 						              }
 						              [-1, 1].forEach((sideSign) => {
 						                for (let i = 0; i < 8; i += 1) {
@@ -14008,9 +14041,8 @@
 						              for (let i = 0; i < 11; i += 1) {
 						                const x = -metersW * 0.46 + i * (metersW * 0.092);
 						                const label = adLabels[(i + 1) % adLabels.length];
-						                const mat = makeSignMat(label, { w: 1200, h: 240, bg: i % 2 ? '#071b33' : '#064f9e', fg: '#f8fafc', font: '900 50px Arial, sans-serif', stroke: 'rgba(255,255,255,0.20)' });
-						                addMesh(new THREE.BoxGeometry(metersW * 0.082, 0.58, 0.10), mat, x, 0.64, -(metersH / 2 + 0.62), 'pitch_3d_rosaleda_photo_near_continuous_ad_board');
-						                addMesh(new THREE.BoxGeometry(metersW * 0.082, 0.58, 0.10), mat, x, 0.64, metersH / 2 + 0.62, 'pitch_3d_rosaleda_photo_far_continuous_ad_board');
+						                addReadableAdBoard(label, x, 0.64, -(metersH / 2 + 0.62), metersW * 0.082, 0.58, 'north', 'pitch_3d_rosaleda_photo_near_continuous_ad_board', { w: 1200, h: 240, bg: i % 2 ? '#071b33' : '#064f9e', fg: '#f8fafc', font: '900 50px Arial, sans-serif', stroke: 'rgba(255,255,255,0.20)' });
+						                addReadableAdBoard(label, x, 0.64, metersH / 2 + 0.62, metersW * 0.082, 0.58, 'south', 'pitch_3d_rosaleda_photo_far_continuous_ad_board', { w: 1200, h: 240, bg: i % 2 ? '#071b33' : '#064f9e', fg: '#f8fafc', font: '900 50px Arial, sans-serif', stroke: 'rgba(255,255,255,0.20)' });
 						              }
 						              const addGoalNet = (sideSign) => {
 						                const z = sideSign * (metersH / 2 - 0.05);
@@ -14309,7 +14341,7 @@
 						              addPhotoDugout(-8.8, '');
 						              ['2J FOOTBALL INTELLIGENCE', 'ESTADIO', 'PARTNER', 'SPONSOR'].forEach((label, idx) => {
 						                const x = -metersW * 0.36 + idx * (metersW * 0.24);
-						                addMesh(new THREE.BoxGeometry(metersW * 0.18, 0.72, 0.15), makeSignMat(label, { w: 1200, h: 260, bg: idx % 2 ? '#064f9e' : '#111827', fg: '#f8fafc', font: '900 54px Arial, sans-serif' }), x, 0.86, metersH / 2 + 2.18, 'pitch_3d_rosaleda_final_photo_main_pitchside_ad_board');
+						                addReadableAdBoard(label, x, 0.86, metersH / 2 + 2.18, metersW * 0.18, 0.72, 'south', 'pitch_3d_rosaleda_final_photo_main_pitchside_ad_board', { w: 1200, h: 260, bg: idx % 2 ? '#064f9e' : '#111827', fg: '#f8fafc', font: '900 54px Arial, sans-serif' });
 						              });
 							              const blockLetters = {
 							                M: ['10001', '11011', '10101', '10101', '10001', '10001', '10001'],
@@ -14487,7 +14519,7 @@
 							              addPart(new THREE.BoxGeometry(metersW + 13.5, 0.18, 0.18), blueSeatDarkMat, 0, 0.48, -(metersH / 2 + 0.06), 'pitch_3d_rosaleda_final_polish_near_blue_pitch_lip');
 							              ['', '2J FOOTBALL INTELLIGENCE', 'PARTNER', 'ESTADIO', 'SPONSOR'].forEach((label, idx) => {
 							                const x = -metersW * 0.42 + idx * (metersW * 0.21);
-							                addPart(new THREE.BoxGeometry(metersW * 0.17, 0.66, 0.12), makeSignMat(label, { w: 1180, h: 260, bg: idx % 2 ? '#101827' : '#075fae', fg: '#f8fafc', font: '900 48px Arial, sans-serif', stroke: 'rgba(255,255,255,0.22)' }), x, 0.92, -(metersH / 2 + 1.80), 'pitch_3d_rosaleda_final_polish_near_reference_ad_board');
+							                addReadableAdBoard(label, x, 0.92, -(metersH / 2 + 1.80), metersW * 0.17, 0.66, 'north', 'pitch_3d_rosaleda_final_polish_near_reference_ad_board', { w: 1180, h: 260, bg: idx % 2 ? '#101827' : '#075fae', fg: '#f8fafc', font: '900 48px Arial, sans-serif', stroke: 'rgba(255,255,255,0.22)' });
 							              });
 							              const addForegroundDugout = (x, label) => {
 							                const dugout = new THREE.Group();
@@ -14786,8 +14818,8 @@
 							            addVisibleTouchlineDugout(-10.2, '');
 							            ['2J FOOTBALL INTELLIGENCE', 'ESTADIO', 'PARTNER', 'SPONSOR'].forEach((label, idx) => {
 							              const x = -metersW * 0.34 + idx * (metersW * 0.22);
-							              addMesh(new THREE.BoxGeometry(metersW * 0.18, 0.58, 0.11), makeSignMat(label, { w: 1100, h: 250, bg: idx % 2 ? '#111827' : '#0869b8', fg: '#f8fafc', font: '900 46px Arial, sans-serif' }), x, 0.82, -(metersH / 2 - 0.82), 'pitch_3d_rosaleda_final_seal_visible_touchline_board');
-							            });
+							              addReadableAdBoard(label, x, 0.82, -(metersH / 2 - 0.82), metersW * 0.18, 0.58, 'north', 'pitch_3d_rosaleda_final_seal_visible_touchline_board', { w: 1100, h: 250, bg: idx % 2 ? '#111827' : '#0869b8', fg: '#f8fafc', font: '900 46px Arial, sans-serif' });
+						            });
 							          } catch (e) { /* ignore */ }
 							          root.add(dedicatedFinish);
 						        }
