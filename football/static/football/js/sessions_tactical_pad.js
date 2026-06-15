@@ -14210,6 +14210,45 @@
 						                addRotMesh(new THREE.BoxGeometry(0.10, 0.10, 7.8), roofShadowMat, x, 11.20, metersH / 2 + 17.35, -0.33, 0, 0, 'pitch_3d_rosaleda_final_photo_dense_roof_raker');
 						                if (Math.abs(i) <= 16) addMesh(new THREE.BoxGeometry(0.46, 0.055, 0.11), lampMat, x, 10.42, metersH / 2 + 13.76, 'pitch_3d_rosaleda_final_photo_roof_light_strip_cells');
 						              }
+						              const glassDugoutMat = new THREE.MeshPhysicalMaterial({ color: 0xdaf7ff, roughness: 0.10, metalness: 0.02, transparent: true, opacity: 0.34, transmission: 0.18, side: THREE.DoubleSide });
+						              const addPhotoDugout = (x, label) => {
+						                const group = new THREE.Group();
+						                group.position.set(x, 0.12, metersH / 2 + 1.24);
+						                group.rotation.y = Math.PI;
+						                group.userData = { kind: 'pitch_3d_rosaleda_final_photo_visible_dugout' };
+						                const addPart = (geo, mat, px, py, pz, kind) => {
+						                  const part = new THREE.Mesh(geo, mat);
+						                  part.position.set(px, py, pz);
+						                  part.userData = { kind };
+						                  group.add(part);
+						                  return part;
+						                };
+						                addPart(new THREE.BoxGeometry(14.8, 0.18, 2.30), shadowVoidMat, 0, 0.14, 0.25, 'pitch_3d_rosaleda_final_photo_dugout_dark_platform');
+						                for (let r = 0; r < 8; r += 1) {
+						                  const t = r / 7;
+						                  const panel = addPart(new THREE.BoxGeometry(14.2, 0.050, 0.42), glassDugoutMat, 0, 0.84 + Math.sin(t * Math.PI * 0.60) * 1.18, -0.82 + t * 1.58, 'pitch_3d_rosaleda_final_photo_dugout_curved_glass');
+						                  panel.rotation.x = -0.48 + t * 0.32;
+						                }
+						                addPart(new THREE.BoxGeometry(14.5, 0.10, 0.14), roofShadowMat, 0, 2.16, 0.05, 'pitch_3d_rosaleda_final_photo_dugout_top_frame');
+						                for (let s = 0; s < 10; s += 1) {
+						                  const sx = -5.80 + s * 1.28;
+						                  addPart(new THREE.BoxGeometry(0.76, 0.20, 0.52), deepBlueMat, sx, 0.52, 0.26, 'pitch_3d_rosaleda_final_photo_dugout_blue_seat');
+						                  const back = addPart(new THREE.BoxGeometry(0.76, 0.70, 0.11), deepBlueMat, sx, 0.91, 0.58, 'pitch_3d_rosaleda_final_photo_dugout_blue_back');
+						                  back.rotation.x = -0.20;
+						                }
+						                const sign = new THREE.Mesh(new THREE.PlaneGeometry(5.4, 0.60), makeSignMat(label, { w: 1000, h: 260, bg: '#064f9e', fg: '#f8fafc', font: '900 58px Arial, sans-serif' }));
+						                sign.position.set(0, 1.02, -1.04);
+						                sign.rotation.y = Math.PI;
+						                sign.userData = { kind: 'pitch_3d_rosaleda_final_photo_dugout_label' };
+						                group.add(sign);
+						                dedicatedFinish.add(group);
+						              };
+						              addPhotoDugout(-25.0, 'MALAGA CF');
+						              addPhotoDugout(-8.8, 'MCF');
+						              ['2J FOOTBALL INTELLIGENCE', 'LA ROSALEDA', 'PARTNER', 'SPONSOR'].forEach((label, idx) => {
+						                const x = -metersW * 0.36 + idx * (metersW * 0.24);
+						                addMesh(new THREE.BoxGeometry(metersW * 0.18, 0.72, 0.15), makeSignMat(label, { w: 1200, h: 260, bg: idx % 2 ? '#064f9e' : '#111827', fg: '#f8fafc', font: '900 54px Arial, sans-serif' }), x, 0.86, metersH / 2 + 2.18, 'pitch_3d_rosaleda_final_photo_main_pitchside_ad_board');
+						              });
 						              const blockLetters = {
 						                M: ['10001', '11011', '10101', '10101', '10001', '10001', '10001'],
 						                A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'],
