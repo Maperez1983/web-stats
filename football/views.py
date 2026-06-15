@@ -46876,11 +46876,15 @@ def analysis_rival_video_chunk_init_api(request):
         return JsonResponse({'ok': False, 'error': 'total_chunks inválido.'}, status=400)
     if size_bytes <= 0:
         return JsonResponse({'ok': False, 'error': 'size_bytes inválido.'}, status=400)
+    max_mb = int(getattr(settings, 'ANALYSIS_VIDEO_MAX_UPLOAD_MB', 0) or 0)
+    if max_mb and int(size_bytes) > max_mb * 1024 * 1024:
+        return JsonResponse({'ok': False, 'error': f'El vídeo supera el límite de {max_mb}MB.'}, status=400)
 
     video_title = (data.get('video_title') or '').strip() or 'Vídeo rival'
     video_source = (data.get('video_source') or RivalVideo.SOURCE_MANUAL).strip()
     rival_team_id = _parse_int(data.get('video_team_id'))
     folder_id = _parse_int(data.get('video_folder_id'))
+    want_personal = str(data.get('video_personal') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
     notes = (data.get('video_notes') or '').strip()
     assigned = data.get('assigned_player_ids')
     if not isinstance(assigned, list):
@@ -46909,6 +46913,7 @@ def analysis_rival_video_chunk_init_api(request):
                 'video_source': video_source if video_source in {c[0] for c in RivalVideo.SOURCE_CHOICES} else RivalVideo.SOURCE_MANUAL,
                 'video_team_id': int(rival_team_id or 0),
                 'video_folder_id': int(folder_id or 0),
+                'video_personal': bool(want_personal),
                 'video_notes': notes[:4000],
                 'assigned_player_ids': assigned_ids,
             },
@@ -47012,11 +47017,12 @@ def analysis_rival_video_chunk_finish_api(request):
     video_source = str(meta.get('video_source') or RivalVideo.SOURCE_MANUAL).strip()
     rival_team_id = _parse_int(meta.get('video_team_id'))
     folder_id = _parse_int(meta.get('video_folder_id'))
+    want_personal = bool(meta.get('video_personal'))
     notes = str(meta.get('video_notes') or '').strip()
     assigned_ids = meta.get('assigned_player_ids') if isinstance(meta.get('assigned_player_ids'), list) else []
     assigned_ids = [int(x) for x in assigned_ids if str(x).isdigit()][:200]
     rival_team = Team.objects.filter(id=int(rival_team_id)).first() if rival_team_id else None
-    folder = AnalystVideoFolder.objects.filter(id=int(folder_id), team=primary_team).first() if folder_id else None
+    folder = AnalystVideoFolder.objects.filter(id=int(folder_id), team=primary_team).first() if folder_id and not want_personal else None
     selected_video_season = selected_club_season_for_request(request, workspace=_get_active_workspace(request))
 
     tmp = tempfile.NamedTemporaryFile(prefix='2j-video-', suffix=Path(session.original_name or 'upload.mp4').suffix or '.mp4', delete=False)
@@ -47034,23 +47040,25 @@ def analysis_rival_video_chunk_finish_api(request):
         from django.core.files import File  # noqa: WPS433 (lazy import)
         with open(tmp_path, 'rb') as assembled:
             entry = RivalVideo.objects.create(
-                team=primary_team,
-                club_season=selected_video_season,
+                team=None if want_personal else primary_team,
+                club_season=None if want_personal else selected_video_season,
                 rival_team=rival_team,
                 folder=folder,
+                owner_user=request.user if want_personal else None,
                 title=video_title[:180],
                 source=video_source if video_source in {c[0] for c in RivalVideo.SOURCE_CHOICES} else RivalVideo.SOURCE_MANUAL,
                 notes=notes[:4000],
             )
             entry.video.save(Path(session.original_name or 'video.mp4').name, File(assembled), save=True)
-            if assigned_ids:
+            if assigned_ids and primary_team and not want_personal:
                 entry.assigned_players.set(Player.objects.filter(team=primary_team, id__in=assigned_ids))
             # AutoCut automático (background): crea colección "AutoCut" + marcadores.
             try:
                 _video_studio_schedule_autocut_after_upload(
                     video_id=int(entry.id),
-                    team_id=int(getattr(primary_team, 'id', 0) or 0) or None,
-                    owner_user_id=None,
+                    team_id=int(getattr(entry, 'team_id', 0) or 0) or None,
+                    owner_user_id=int(getattr(entry, 'owner_user_id', 0) or 0) or None,
+                    workspace_id=int(getattr(_get_active_workspace(request), 'id', 0) or 0) or None,
                     created_by=request.user.get_username() if request.user.is_authenticated else '',
                 )
             except Exception:

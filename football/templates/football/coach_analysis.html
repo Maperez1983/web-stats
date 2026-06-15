@@ -1476,12 +1476,23 @@
 	        const chunkInitUrl = "{% url 'analysis-rival-video-chunk-init-api' %}";
 	        const chunkPutUrl = "{% url 'analysis-rival-video-chunk-put-api' %}";
 	        const chunkFinishUrl = "{% url 'analysis-rival-video-chunk-finish-api' %}";
-	        const chunkThresholdBytes = 80 * 1024 * 1024; // >80MB: chunk upload
-	        const chunkSize = 8 * 1024 * 1024; // 8MB
+	        const studioUrlTemplate = "{% url 'analysis-video-studio' 0 %}";
+	        const chunkThresholdBytes = 12 * 1024 * 1024;
+	        const chunkSize = 4 * 1024 * 1024;
 
 	        const setProgress = (pct) => {
 	          if (bar) bar.value = pct;
 	          if (label) label.textContent = `${pct}%`;
+	        };
+	        const setStatus = (text) => {
+	          if (label) label.textContent = text;
+	        };
+	        const openStudio = (videoId) => {
+	          if (!videoId) {
+	            window.location.reload();
+	            return;
+	          }
+	          window.location.href = studioUrlTemplate.replace('/0/', `/${videoId}/`);
 	        };
 
 	        const getCsrf = () => {
@@ -1497,6 +1508,7 @@
 	          const teamId = String(document.querySelector('input[name="video_team_id"]')?.value || '').trim();
 	          const folderId = String(document.getElementById('video_folder_id')?.value || '').trim();
 	          const notes = String(document.getElementById('video_notes')?.value || '').trim();
+	          const personal = Boolean(form.querySelector('input[name="video_personal"]')?.checked);
 	          const assignedSel = document.getElementById('assigned_player_ids');
 	          const assigned = assignedSel ? Array.from(assignedSel.selectedOptions).map((o) => String(o.value || '')).filter(Boolean) : [];
 
@@ -1513,6 +1525,7 @@
 	              video_source: source,
 	              video_team_id: teamId,
 	              video_folder_id: folderId,
+	              video_personal: personal ? 1 : 0,
 	              video_notes: notes,
 	              assigned_player_ids: assigned,
 	            }),
@@ -1533,6 +1546,7 @@
 	            fd.append('chunk', chunk, `${file.name}.part`);
 	            let ok = false;
 	            for (let attempt = 0; attempt < 3 && !ok; attempt += 1) {
+	              setStatus(`Subiendo parte ${idx + 1}/${totalChunks}`);
 	              const resp = await fetch(chunkPutUrl, { method: 'POST', credentials: 'same-origin', body: fd });
 	              const data = await resp.json().catch(() => ({}));
 	              ok = Boolean(resp.ok && data?.ok);
@@ -1544,6 +1558,7 @@
 	            setProgress(pct);
 	          }
 
+	          setStatus('Finalizando vídeo...');
 	          const finResp = await fetch(chunkFinishUrl, {
 	            method: 'POST',
 	            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
@@ -1552,6 +1567,7 @@
 	          });
 	          const finData = await finResp.json().catch(() => ({}));
 	          if (!finResp.ok || !finData?.ok) throw new Error(finData?.error || 'finish');
+	          return Number(finData.video_id || 0) || 0;
 	        };
 	
 	        form.addEventListener('submit', (ev) => {
@@ -1570,7 +1586,7 @@
 	            if (wrap) wrap.classList.add('is-visible');
 	            if (submit) submit.disabled = true;
 	            uploadChunked(file)
-	              .then(() => window.location.reload())
+	              .then((videoId) => openStudio(videoId))
 	              .catch(() => {
 	                if (wrap) wrap.classList.remove('is-visible');
 	                if (submit) submit.disabled = false;
@@ -1582,6 +1598,7 @@
 	          const xhr = new XMLHttpRequest();
 	          xhr.open('POST', form.getAttribute('action') || window.location.href);
 	          xhr.withCredentials = true;
+	          xhr.setRequestHeader('Accept', 'application/json');
 	          setProgress(0);
 	          if (wrap) wrap.classList.add('is-visible');
 	          if (submit) submit.disabled = true;
@@ -1594,7 +1611,9 @@
 	
 	          xhr.addEventListener('load', () => {
 	            if (xhr.status >= 200 && xhr.status < 300) {
-	              window.location.reload();
+	              let data = {};
+	              try { data = JSON.parse(xhr.responseText || '{}'); } catch (e) { data = {}; }
+	              openStudio(Number(data.video_id || 0) || 0);
 	              return;
 	            }
 	            if (wrap) wrap.classList.remove('is-visible');
