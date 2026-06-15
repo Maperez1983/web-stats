@@ -9457,11 +9457,11 @@
 										        if (isDedicatedPitch3dMalagaStadiumSrc(__pitch3dAssetUrl('pitch3dStadiumModelSrc'))) {
 										          pitch3dCamera.fov = 41;
 										          pitch3dOrbit.theta = -2.34;
-										          pitch3dOrbit.phi = 1.10;
-										          pitch3dOrbit.radius = Math.max(126, metersW * 1.18);
-										          targetX = -4.8;
-										          targetY = 6.20;
-										          targetZ = 4.80;
+						          pitch3dOrbit.phi = 1.10;
+										          pitch3dOrbit.radius = Math.max(112, metersW * 1.04);
+										          targetX = -8.8;
+										          targetY = 4.80;
+										          targetZ = 3.20;
 										        } else {
 										          pitch3dCamera.fov = 42;
 										          pitch3dOrbit.theta = -2.25;
@@ -14829,6 +14829,188 @@
 							              const x = -metersW * 0.34 + idx * (metersW * 0.22);
 							              addReadableAdBoard(label, x, 0.82, -(metersH / 2 - 0.82), metersW * 0.18, 0.58, 'north', 'pitch_3d_rosaleda_final_seal_visible_touchline_board', { w: 1100, h: 250, bg: idx % 2 ? '#111827' : '#0869b8', fg: '#f8fafc', font: '900 46px Arial, sans-serif' });
 						            });
+							          } catch (e) { /* ignore */ }
+							          try {
+							            const premiumBlue = new THREE.MeshStandardMaterial({ color: 0x0875c9, roughness: 0.50, metalness: 0.025 });
+							            const premiumBlueDark = new THREE.MeshStandardMaterial({ color: 0x053c73, roughness: 0.58, metalness: 0.025 });
+							            const premiumWhite = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.46, metalness: 0.01 });
+							            const premiumConcrete = new THREE.MeshStandardMaterial({ color: 0xe5e7dc, roughness: 0.78, metalness: 0.015 });
+							            const premiumAsphalt = new THREE.MeshStandardMaterial({ color: 0x151a21, roughness: 0.84, metalness: 0.035 });
+							            const premiumSteel = new THREE.MeshStandardMaterial({ color: 0x3f4a55, roughness: 0.36, metalness: 0.42 });
+							            const premiumGlass = new THREE.MeshPhysicalMaterial({ color: 0xdaf8ff, roughness: 0.08, metalness: 0.02, transparent: true, opacity: 0.42, transmission: 0.20, side: THREE.DoubleSide });
+							            const premiumLight = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
+							            const premiumShadow = new THREE.MeshBasicMaterial({ color: 0x030712, transparent: true, opacity: 0.24, depthWrite: false });
+							            const cleanKinds = [
+							              'white_seat_mosaic',
+							              'white_crest_mosaic',
+							              'readable_white_malaga',
+							              'readable_main_seat_text',
+							              'main_stand_round_crest',
+							              'real_white_malaga_cf',
+							              'seat_mosaic_cell',
+							              'seat_mosaic_highlight',
+							              'transparent_matchday',
+							            ];
+							            dedicatedFinish.traverse((node) => {
+							              const kind = safeText(node?.userData?.kind || '');
+							              if (!kind) return;
+							              if (cleanKinds.some((needle) => kind.includes(needle))) node.visible = false;
+							            });
+							            const finalGroup = new THREE.Group();
+							            finalGroup.userData = { kind: 'pitch_3d_rosaleda_reference_architect_final_pass' };
+							            dedicatedFinish.add(finalGroup);
+							            const addFinalPart = (geo, mat, x, y, z, kind) => {
+							              const mesh = new THREE.Mesh(geo, mat);
+							              mesh.position.set(x, y, z);
+							              mesh.userData = { kind };
+							              try { mesh.castShadow = true; mesh.receiveShadow = true; } catch (e) { /* ignore */ }
+							              finalGroup.add(mesh);
+							              return mesh;
+							            };
+							            const addFinalRot = (geo, mat, x, y, z, rx, ry, rz, kind) => {
+							              const mesh = addFinalPart(geo, mat, x, y, z, kind);
+							              mesh.rotation.set(rx || 0, ry || 0, rz || 0);
+							              return mesh;
+							            };
+							            const addSeatRows = (opts) => {
+							              const rows = opts.rows || 12;
+							              const cols = opts.cols || 42;
+							              const seatGeo = new THREE.BoxGeometry(opts.seatW || 0.42, 0.11, opts.seatD || 0.28);
+							              const backGeo = new THREE.BoxGeometry(opts.seatW || 0.42, 0.30, 0.08);
+							              const blueMatrices = [];
+							              const darkMatrices = [];
+							              const whiteMatrices = [];
+							              const blueBack = [];
+							              const darkBack = [];
+							              const whiteBack = [];
+							              const matrix = new THREE.Matrix4();
+							              const quat = new THREE.Quaternion().setFromEuler(new THREE.Euler(opts.rx || -0.08, opts.ry || 0, opts.rz || 0));
+							              for (let row = 0; row < rows; row += 1) {
+							                for (let col = 0; col < cols; col += 1) {
+							                  const t = cols <= 1 ? 0 : col / (cols - 1);
+							                  const x = opts.x0 + (opts.x1 - opts.x0) * t + row * (opts.rowDx || 0);
+							                  const z = opts.z0 + (opts.z1 - opts.z0) * t + row * (opts.rowDz || 0);
+							                  const y = opts.y0 + row * (opts.rowY || 0.23);
+							                  if ((opts.aisles || []).some((ratio) => Math.abs(t - ratio) < 0.018)) continue;
+							                  const tone = (row + col) % 17 === 0 ? 'white' : ((row + col) % 5 === 0 ? 'dark' : 'blue');
+							                  const targetSeats = tone === 'white' ? whiteMatrices : (tone === 'dark' ? darkMatrices : blueMatrices);
+							                  const targetBacks = tone === 'white' ? whiteBack : (tone === 'dark' ? darkBack : blueBack);
+							                  matrix.compose(new THREE.Vector3(x, y, z), quat, new THREE.Vector3(1, 1, 1));
+							                  targetSeats.push(matrix.clone());
+							                  matrix.compose(new THREE.Vector3(x, y + 0.23, z + (opts.backZ || 0.17)), quat, new THREE.Vector3(1, 1, 1));
+							                  targetBacks.push(matrix.clone());
+							                }
+							              }
+							              const inst = (geo, mat, items, kind) => {
+							                if (!items.length) return;
+							                const mesh = new THREE.InstancedMesh(geo, mat, items.length);
+							                items.forEach((m, idx) => mesh.setMatrixAt(idx, m));
+							                mesh.instanceMatrix.needsUpdate = true;
+							                mesh.userData = { kind, count: items.length };
+							                mesh.castShadow = true;
+							                mesh.receiveShadow = true;
+							                finalGroup.add(mesh);
+							              };
+							              inst(seatGeo, premiumBlue, blueMatrices, 'pitch_3d_rosaleda_reference_architect_individual_blue_seats');
+							              inst(seatGeo, premiumBlueDark, darkMatrices, 'pitch_3d_rosaleda_reference_architect_individual_dark_blue_seats');
+							              inst(seatGeo, premiumWhite, whiteMatrices, 'pitch_3d_rosaleda_reference_architect_individual_white_seats');
+							              inst(backGeo, premiumBlue, blueBack, 'pitch_3d_rosaleda_reference_architect_individual_blue_seat_backs');
+							              inst(backGeo, premiumBlueDark, darkBack, 'pitch_3d_rosaleda_reference_architect_individual_dark_blue_seat_backs');
+							              inst(backGeo, premiumWhite, whiteBack, 'pitch_3d_rosaleda_reference_architect_individual_white_seat_backs');
+							            };
+							            addSeatRows({
+							              x0: -metersW * 0.41,
+							              x1: metersW * 0.41,
+							              z0: metersH / 2 + 5.78,
+							              z1: metersH / 2 + 5.78,
+							              y0: 3.18,
+							              rowY: 0.21,
+							              rowDz: 0.34,
+							              rows: 18,
+							              cols: 72,
+							              aisles: [0.13, 0.29, 0.45, 0.61, 0.77, 0.91],
+							              backZ: 0.13,
+							            });
+							            addSeatRows({
+							              x0: -metersW * 0.47,
+							              x1: metersW * 0.47,
+							              z0: -(metersH / 2 + 3.72),
+							              z1: -(metersH / 2 + 3.72),
+							              y0: 1.02,
+							              rowY: 0.20,
+							              rowDz: -0.34,
+							              rows: 13,
+							              cols: 76,
+							              aisles: [0.18, 0.34, 0.50, 0.66, 0.82],
+							              backZ: -0.13,
+						                });
+							            [-1, 1].forEach((sideSign) => {
+							              addSeatRows({
+							                x0: sideSign * (metersW / 2 + 3.72),
+							                x1: sideSign * (metersW / 2 + 3.72),
+							                z0: -metersH * 0.42,
+							                z1: metersH * 0.42,
+							                y0: 1.06,
+							                rowY: 0.20,
+							                rowDx: sideSign * 0.32,
+							                rows: 12,
+							                cols: 52,
+							                aisles: [0.19, 0.38, 0.59, 0.80],
+							                rx: -0.055,
+							                ry: sideSign > 0 ? Math.PI / 2 : -Math.PI / 2,
+							                backZ: 0,
+							              });
+							              addFinalPart(new THREE.BoxGeometry(0.42, 2.0, metersH + 12.0), premiumAsphalt, sideSign * (metersW / 2 + 2.92), 1.34, 0, 'pitch_3d_rosaleda_reference_architect_side_shadow_fascia');
+							            });
+							            addFinalRot(new THREE.PlaneGeometry(metersW * 0.86, metersH * 0.50), premiumShadow, -4.5, 0.075, -metersH * 0.15, -Math.PI / 2, 0, -0.055, 'pitch_3d_rosaleda_reference_architect_strong_roof_shadow_on_pitch');
+							            addFinalPart(new THREE.BoxGeometry(metersW + 34.0, 0.30, 0.28), premiumSteel, 0, 10.52, metersH / 2 + 13.38, 'pitch_3d_rosaleda_reference_architect_front_roof_black_truss');
+							            addFinalPart(new THREE.BoxGeometry(metersW + 34.0, 0.24, 0.24), premiumSteel, 0, 11.82, metersH / 2 + 20.96, 'pitch_3d_rosaleda_reference_architect_rear_roof_black_truss');
+							            for (let i = -25; i <= 25; i += 1) {
+							              const x = i * ((metersW + 28.0) / 50);
+							              addFinalRot(new THREE.BoxGeometry(0.08, 0.08, 8.0), premiumSteel, x, 11.12, metersH / 2 + 17.28, -0.33, 0, 0, 'pitch_3d_rosaleda_reference_architect_roof_raker_beam');
+							              if (i % 2 === 0) {
+							                addFinalRot(new THREE.BoxGeometry(2.28, 0.07, 0.08), premiumSteel, x + 0.48, 10.86, metersH / 2 + 14.72, 0, 0, 0.42, 'pitch_3d_rosaleda_reference_architect_roof_x_lattice_a');
+							                addFinalRot(new THREE.BoxGeometry(2.28, 0.07, 0.08), premiumSteel, x - 0.48, 10.86, metersH / 2 + 14.72, 0, 0, -0.42, 'pitch_3d_rosaleda_reference_architect_roof_x_lattice_b');
+							              }
+							              if (Math.abs(i) <= 22) addFinalPart(new THREE.BoxGeometry(0.46, 0.052, 0.12), premiumLight, x, 10.20, metersH / 2 + 13.10, 'pitch_3d_rosaleda_reference_architect_individual_roof_light');
+							            }
+							            const addPremiumDugout = (x) => {
+							              const dugout = new THREE.Group();
+							              dugout.position.set(x, 0.18, -(metersH / 2 + 1.58));
+							              dugout.userData = { kind: 'pitch_3d_rosaleda_reference_architect_curved_dugout' };
+							              const part = (geo, mat, px, py, pz, kind) => {
+							                const mesh = new THREE.Mesh(geo, mat);
+							                mesh.position.set(px, py, pz);
+							                mesh.userData = { kind };
+							                dugout.add(mesh);
+							                return mesh;
+							              };
+							              part(new THREE.BoxGeometry(14.8, 0.16, 2.16), premiumAsphalt, 0, 0.12, 0.18, 'pitch_3d_rosaleda_reference_architect_dugout_base');
+							              for (let r = 0; r < 9; r += 1) {
+							                const t = r / 8;
+							                const panel = part(new THREE.BoxGeometry(14.4, 0.038, 0.30), premiumGlass, 0, 0.70 + Math.sin(t * Math.PI * 0.66) * 1.18, 0.92 - t * 1.50, 'pitch_3d_rosaleda_reference_architect_dugout_segmented_glass_roof');
+							                panel.rotation.x = 0.50 - t * 0.34;
+							              }
+							              for (let s = 0; s < 9; s += 1) {
+							                const sx = -5.25 + s * 1.31;
+							                part(new THREE.BoxGeometry(0.76, 0.20, 0.52), premiumBlue, sx, 0.47, -0.08, 'pitch_3d_rosaleda_reference_architect_dugout_real_blue_seat');
+							                const back = part(new THREE.BoxGeometry(0.76, 0.68, 0.11), premiumBlue, sx, 0.84, -0.40, 'pitch_3d_rosaleda_reference_architect_dugout_real_blue_back');
+							                back.rotation.x = 0.19;
+							              }
+							              part(new THREE.BoxGeometry(14.6, 0.10, 0.13), premiumSteel, 0, 1.98, 0.02, 'pitch_3d_rosaleda_reference_architect_dugout_top_frame');
+							              finalGroup.add(dugout);
+							            };
+							            addPremiumDugout(-25.8);
+							            addPremiumDugout(-9.4);
+							            ['2J FOOTBALL INTELLIGENCE', 'PARTNER', 'SPONSOR', 'MATCHDAY', '2J FOOTBALL INTELLIGENCE'].forEach((label, idx) => {
+							              const x = -metersW * 0.43 + idx * (metersW * 0.215);
+							              addReadableAdBoard(label, x, 1.02, -(metersH / 2 + 2.62), metersW * 0.18, 0.72, 'north', 'pitch_3d_rosaleda_reference_architect_front_readable_ad_board', { w: 1220, h: 270, bg: idx % 2 ? '#101827' : '#075fae', fg: '#f8fafc', font: '900 48px Arial, sans-serif' });
+							            });
+							            addFinalPart(new THREE.BoxGeometry(metersW + 12.0, 0.06, 0.06), premiumGlass, 0, 1.42, -(metersH / 2 + 3.36), 'pitch_3d_rosaleda_reference_architect_front_glass_rail_top');
+							            addFinalPart(new THREE.BoxGeometry(metersW + 12.0, 0.05, 0.05), premiumGlass, 0, 0.84, -(metersH / 2 + 3.36), 'pitch_3d_rosaleda_reference_architect_front_glass_rail_mid');
+							            for (let i = -21; i <= 21; i += 1) {
+							              addFinalPart(new THREE.BoxGeometry(0.045, 1.12, 0.045), premiumGlass, i * ((metersW + 10.0) / 42), 0.90, -(metersH / 2 + 3.36), 'pitch_3d_rosaleda_reference_architect_front_glass_rail_post');
+							            }
 							          } catch (e) { /* ignore */ }
 							          root.add(dedicatedFinish);
 						        }
