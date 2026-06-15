@@ -9455,13 +9455,13 @@
 							      } else if (k === 'render_original') {
 							        // Vista estilo La Rosaleda: esquina interior, baja y cercana, con banquillos, vallas y grada principal legibles.
 										        if (isDedicatedPitch3dMalagaStadiumSrc(__pitch3dAssetUrl('pitch3dStadiumModelSrc'))) {
-										          pitch3dCamera.fov = 46;
-										          pitch3dOrbit.theta = -2.48;
-						          pitch3dOrbit.phi = 1.25;
-										          pitch3dOrbit.radius = Math.max(88, metersW * 0.82);
-										          targetX = -13.5;
-										          targetY = 2.85;
-										          targetZ = 0.75;
+										          pitch3dCamera.fov = 41;
+										          pitch3dOrbit.theta = -2.34;
+						          pitch3dOrbit.phi = 1.10;
+										          pitch3dOrbit.radius = Math.max(112, metersW * 1.04);
+										          targetX = -8.8;
+										          targetY = 4.80;
+										          targetZ = 3.20;
 										        } else {
 										          pitch3dCamera.fov = 42;
 										          pitch3dOrbit.theta = -2.25;
