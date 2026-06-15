@@ -14410,6 +14410,18 @@
 							                }
 							                cursor += (5.0 * (cellW + gapW)) + letterGap;
 							              }
+							              const readableSeatText = addRotPart(
+							                new THREE.PlaneGeometry(metersW * 0.54, 4.55),
+							                makeTransparentSeatTextMat('MALAGA CF', { w: 1900, h: 360, fg: '#f8fafc', font: '900 190px Arial, sans-serif' }),
+							                -1.2,
+							                5.18,
+							                metersH / 2 + 9.08,
+							                -(Math.PI / 2) - 0.105,
+							                0,
+							                0,
+							                'pitch_3d_rosaleda_final_polish_readable_white_malaga_cf_on_seats'
+							              );
+							              readableSeatText.renderOrder = 80;
 							              [-0.455, -0.305, -0.145, 0.015, 0.180, 0.345, 0.495].forEach((ratio) => {
 							                addRotPart(new THREE.BoxGeometry(0.86, 0.19, 8.4), concreteCleanMat, ratio * metersW, 4.88, metersH / 2 + 8.42, -0.11, 0, 0, 'pitch_3d_rosaleda_final_polish_main_clean_vertical_aisle');
 							              });
