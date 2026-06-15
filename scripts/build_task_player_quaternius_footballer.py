@@ -45,14 +45,28 @@ def assign_skin_material(obj):
     mesh = obj.data
     skin = make_mat('footballer_skin', (0.72, 0.50, 0.34, 1.0), 0.58)
     hair = make_mat('footballer_dark_hair', (0.035, 0.025, 0.018, 1.0), 0.76)
+    jersey = make_mat('footballer_green_jersey_base', (0.00, 0.46, 0.29, 1.0), 0.60)
+    shorts = make_mat('footballer_dark_shorts_base', (0.02, 0.05, 0.10, 1.0), 0.70)
+    socks = make_mat('footballer_white_socks_base', (0.93, 0.95, 0.90, 1.0), 0.66)
+    boots = make_mat('footballer_black_boots_base', (0.01, 0.012, 0.016, 1.0), 0.54)
     mesh.materials.clear()
-    for mat in (skin, hair):
+    for mat in (skin, hair, jersey, shorts, socks, boots):
         mesh.materials.append(mat)
     for poly in mesh.polygons:
-        _, depth, y = poly_center(mesh, poly)
+        x, depth, y = poly_center(mesh, poly)
         mat_index = 0
         if y > 1.62 and (depth > 0.035 or y > 1.72):
             mat_index = 1
+        elif 0.90 <= y <= 1.50 and abs(x) <= 0.52:
+            mat_index = 2
+        elif 1.03 <= y <= 1.32 and 0.30 <= abs(x) <= 0.66:
+            mat_index = 2
+        elif 0.50 <= y < 0.91 and abs(x) <= 0.33:
+            mat_index = 3
+        elif 0.13 <= y < 0.45 and 0.055 <= abs(x) <= 0.22:
+            mat_index = 4
+        elif y < 0.13 and 0.045 <= abs(x) <= 0.24:
+            mat_index = 5
         poly.material_index = mat_index
 
 
