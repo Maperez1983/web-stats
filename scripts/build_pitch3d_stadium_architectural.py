@@ -202,6 +202,117 @@ def sloped_panel(name, xmin, xmax, ymin, ymax, z0, z1, material, axis="y"):
     return obj
 
 
+def box_mesh_part(verts, faces, cx, cy, cz, sx, sy, sz):
+    start = len(verts)
+    hx, hy, hz = sx / 2, sy / 2, sz / 2
+    verts.extend((
+        (cx - hx, cy - hy, cz - hz), (cx + hx, cy - hy, cz - hz), (cx + hx, cy + hy, cz - hz), (cx - hx, cy + hy, cz - hz),
+        (cx - hx, cy - hy, cz + hz), (cx + hx, cy - hy, cz + hz), (cx + hx, cy + hy, cz + hz), (cx - hx, cy + hy, cz + hz),
+    ))
+    faces.extend((
+        (start + 0, start + 1, start + 2, start + 3),
+        (start + 4, start + 7, start + 6, start + 5),
+        (start + 0, start + 4, start + 5, start + 1),
+        (start + 1, start + 5, start + 6, start + 2),
+        (start + 2, start + 6, start + 7, start + 3),
+        (start + 3, start + 7, start + 4, start + 0),
+    ))
+
+
+def batched_box_mesh(name, parts, material):
+    if not parts:
+        return None
+    verts = []
+    faces = []
+    for part in parts:
+        box_mesh_part(verts, faces, *part)
+    mesh = bpy.data.meshes.new(name)
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.scene.collection.objects.link(obj)
+    obj.data.materials.append(material)
+    try:
+        obj.modifiers.new(name="weighted_normals", type="WEIGHTED_NORMAL")
+    except Exception:
+        pass
+    return obj
+
+
+def letter_pixels(text):
+    font = {
+        "A": ("01110", "10001", "10001", "11111", "10001", "10001", "10001"),
+        "C": ("01111", "10000", "10000", "10000", "10000", "10000", "01111"),
+        "F": ("11111", "10000", "10000", "11110", "10000", "10000", "10000"),
+        "G": ("01111", "10000", "10000", "10111", "10001", "10001", "01111"),
+        "L": ("10000", "10000", "10000", "10000", "10000", "10000", "11111"),
+        "M": ("10001", "11011", "10101", "10101", "10001", "10001", "10001"),
+        " ": ("000", "000", "000", "000", "000", "000", "000"),
+    }
+    rows = ["" for _ in range(7)]
+    for ch in text:
+        glyph = font.get(ch.upper(), font[" "])
+        for i, row in enumerate(glyph):
+            rows[i] += row + "0"
+    return rows
+
+
+def is_letter_seat(text, col, row):
+    pixels = letter_pixels(text)
+    if row < 0 or row >= len(pixels):
+        return False
+    if col < 0 or col >= len(pixels[row]):
+        return False
+    return pixels[row][col] == "1"
+
+
+def add_real_seat_bank(prefix, side, rows, cols, x_min, x_max, y_min, y_max, z_min, z_max, primary, secondary, dark):
+    blue_parts = []
+    white_parts = []
+    dark_parts = []
+    dx = (x_max - x_min) / cols if cols else 0
+    dy = (y_max - y_min) / rows if rows else 0
+    for row in range(rows):
+        rt = row / max(rows - 1, 1)
+        for col in range(cols):
+            ct = col / max(cols - 1, 1)
+            x = x_min + dx * (col + 0.5)
+            y = y_min + dy * (row + 0.5)
+            zt = ct if side in ("east", "west") else rt
+            z = z_min + (z_max - z_min) * zt
+            if side in ("north", "south") and any(abs(x - aisle) < 2.0 for aisle in (-54, -30, -6, 18, 42, 66)):
+                continue
+            if side in ("east", "west") and any(abs(y - aisle) < 2.0 for aisle in (-36, -12, 12, 36)):
+                continue
+
+            letter = False
+            if side == "north" and 9 <= row <= 15 and 10 <= col <= cols - 12:
+                glyph_col = int((col - 10) / max(cols - 22, 1) * len(letter_pixels("MALAGA CF")[0]))
+                glyph_row = int((row - 9) / 7 * 7)
+                letter = is_letter_seat("MALAGA CF", glyph_col, glyph_row)
+            if side == "west" and 8 <= row <= 16 and 7 <= col <= cols - 8:
+                glyph_col = int((col - 7) / max(cols - 15, 1) * len(letter_pixels("MCF")[0]))
+                glyph_row = int((row - 8) / 9 * 7)
+                letter = is_letter_seat("MCF", glyph_col, glyph_row)
+
+            target = white_parts if letter else blue_parts
+            if side in ("north", "south"):
+                outward = 1 if side == "north" else -1
+                target.append((x, y, z + 0.10, min(dx * 0.62, 0.72), min(abs(dy) * 0.48, 0.28), 0.16))
+                target.append((x, y + outward * min(abs(dy) * 0.24, 0.16), z + 0.39, min(dx * 0.62, 0.72), 0.10, 0.46))
+                if col % 5 == 0:
+                    dark_parts.append((x, y - outward * min(abs(dy) * 0.18, 0.12), z + 0.05, 0.06, 0.08, 0.18))
+            else:
+                outward = 1 if side == "east" else -1
+                target.append((x, y, z + 0.10, min(abs(dx) * 0.48, 0.28), min(dy * 0.62, 0.72), 0.16))
+                target.append((x + outward * min(abs(dx) * 0.24, 0.16), y, z + 0.39, 0.10, min(dy * 0.62, 0.72), 0.46))
+                if row % 5 == 0:
+                    dark_parts.append((x - outward * min(abs(dx) * 0.18, 0.12), y, z + 0.05, 0.08, 0.06, 0.18))
+    batched_box_mesh(f"{prefix}_individual_blue_seats_TEAM_PRIMARY", blue_parts, primary)
+    batched_box_mesh(f"{prefix}_individual_white_letter_seats_TEAM_SECONDARY", white_parts, secondary)
+    batched_box_mesh(f"{prefix}_dark_seat_brackets", dark_parts, dark)
+
+
 def add_dugout(prefix, x, y, label, primary, secondary, black, metal, glass):
     cube(f"{prefix}_dark_technical_plinth", (x, y, 0.20), (16.6, 3.2, 0.22), black, bevel=0.025)
     cube(f"{prefix}_rear_kick_wall_TEAM_PRIMARY", (x, y + 1.20, 0.62), (15.8, 0.22, 0.82), primary, bevel=0.018)
@@ -289,6 +400,10 @@ def add_architectural_stadium():
     for y in (-36, -12, 12, 36):
         sloped_panel(f"arch_east_concrete_aisle_cut_{y}", 60.0, 97.0, y, y + 4.2, 2.35, 18.58, concrete, axis="x")
         sloped_panel(f"arch_west_concrete_aisle_cut_{y}", -97.0, -60.0, y, y + 4.2, 2.35, 18.58, concrete, axis="x")
+    add_real_seat_bank("arch_north_realistic", "north", 23, 110, -73.0, 73.0, 41.0, 77.0, 2.65, 18.30, primary, secondary, dark_concrete)
+    add_real_seat_bank("arch_south_realistic", "south", 23, 110, -73.0, 73.0, -77.0, -41.0, 18.30, 2.65, primary, secondary, dark_concrete)
+    add_real_seat_bank("arch_east_realistic", "east", 70, 22, 61.5, 96.0, -44.0, 44.0, 2.65, 18.20, primary, secondary, dark_concrete)
+    add_real_seat_bank("arch_west_realistic", "west", 70, 22, -96.0, -61.5, -44.0, 44.0, 18.20, 2.65, primary, secondary, dark_concrete)
     cube("arch_northeast_corner_solid_bowl_fill", (79.0, 61.0, 8.8), (45.0, 42.0, 17.2), dark_concrete, bevel=0.035)
     cube("arch_northwest_corner_solid_bowl_fill", (-79.0, 61.0, 8.8), (45.0, 42.0, 17.2), dark_concrete, bevel=0.035)
     cube("arch_southeast_corner_solid_bowl_fill", (79.0, -61.0, 8.8), (45.0, 42.0, 17.2), dark_concrete, bevel=0.035)
