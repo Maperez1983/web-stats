@@ -8,14 +8,18 @@ football clips used by the tactical 3D task view for avatar motion.
 - Refresh script: `Blender -b --python scripts/build_task_player_quaternius_footballer.py`
 - Preview script: `node scripts/capture_task_player_avatar_preview.mjs`
 - Embedded clips: `idle`, `run`, `pass`, `cross`, `shot`, `press`, `control`
+- Optional mocap source: set `TASK_PLAYER_MOCAP_SOURCE=/path/to/actions.glb` before
+  running the refresh script to append compatible external action clips.
 
 The tactical task 3D view scales this model at runtime and can tint its skin-like
 materials. A `footballer_*` material marker is kept so the runtime does not add
 the older rigid procedural clothing overlay on top of the animated mesh.
 
-The bundled clips are procedural first-pass actions, not final mocap. For
-high-end action recreation, retarget licensed mocap football clips onto this rig
-or replace it with a licensed footballer GLB using a compatible humanoid rig.
+The tactical 3D view also adds contextual ball cues for pass, cross, shot,
+control and carry actions. The bundled clips are procedural first-pass actions,
+not final mocap. For high-end action recreation, retarget licensed mocap
+football clips onto this rig or replace it with a licensed footballer GLB using
+a compatible humanoid rig.
 
 ## Premium replacement
 

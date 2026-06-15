@@ -8886,6 +8886,7 @@
 						      const raw = safeText(text).toLowerCase();
 						      if (/(tiro|remate|finaliz|shoot|shot)/i.test(raw)) return 'shot';
 						      if (/(centro|cross|cambio de orientaci[oó]n)/i.test(raw)) return 'cross';
+						      if (/(control orientado|control|recepci[oó]n|primer toque|first touch|receive|touch)/i.test(raw)) return 'control';
 						      if (/(conducci[oó]n|conduce|drive|carry)/i.test(raw)) return 'carry';
 						      if (/(pase|circulaci[oó]n|pared|tercer hombre|pass)/i.test(raw)) return 'pass';
 						      if (/(presi[oó]n|press)/i.test(raw)) return 'press';
@@ -8896,6 +8897,7 @@
 						      const key = safeText(action);
 						      if (key === 'shot') return 'TIRO';
 						      if (key === 'cross') return 'CENTRO';
+						      if (key === 'control') return 'CONTROL';
 						      if (key === 'carry') return 'CONDUCE';
 						      if (key === 'press') return 'PRESIONA';
 						      if (key === 'pass') return 'PASE';
@@ -8906,6 +8908,7 @@
 						      const key = safeText(action);
 						      if (key === 'shot') return 0xef4444;
 						      if (key === 'cross') return 0x38bdf8;
+						      if (key === 'control') return 0x14b8a6;
 						      if (key === 'carry') return 0x22c55e;
 						      if (key === 'press') return 0xf97316;
 						      if (key === 'pass') return 0xfacc15;
@@ -8916,6 +8919,7 @@
 						      const key = safeText(action, 'move');
 						      if (key === 'shot') return { lean: -0.16, roll: 0.08, stride: 0.24, cue: 0xef4444 };
 						      if (key === 'cross') return { lean: -0.11, roll: -0.10, stride: 0.18, cue: 0x38bdf8 };
+						      if (key === 'control') return { lean: -0.07, roll: -0.03, stride: 0.12, cue: 0x14b8a6 };
 						      if (key === 'carry') return { lean: -0.08, roll: 0.03, stride: 0.14, cue: 0x22c55e };
 						      if (key === 'press') return { lean: -0.18, roll: 0.00, stride: 0.10, cue: 0xf97316 };
 						      if (key === 'pass') return { lean: -0.10, roll: 0.04, stride: 0.16, cue: 0xfacc15 };
@@ -8988,11 +8992,54 @@
 						      } catch (e) { /* ignore */ }
 						    };
 
+						    const addPitch3dActionBallCue = (holder, action) => {
+						      if (!holder || !window.THREE) return;
+						      try {
+						        const key = safeText(action, 'move');
+						        if (!['pass', 'cross', 'shot', 'control', 'carry'].includes(key)) return;
+						        const THREE = window.THREE;
+						        const ballGroup = new THREE.Group();
+						        ballGroup.name = 'pitch3d_avatar_action_ball';
+						        ballGroup.userData = { kind: 'token_action_ball', action: key };
+						        const ballMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.48, metalness: 0.02 });
+						        const seamMat = new THREE.MeshBasicMaterial({ color: 0x111827, transparent: true, opacity: 0.72, depthWrite: false });
+						        const ball = new THREE.Mesh(new THREE.SphereGeometry(0.105, 24, 16), ballMat);
+						        ball.castShadow = true;
+						        ball.receiveShadow = true;
+						        ballGroup.add(ball);
+						        for (let i = 0; i < 3; i += 1) {
+						          const ring = new THREE.Mesh(new THREE.TorusGeometry(0.108, 0.0035, 6, 40), seamMat);
+						          ring.rotation.set(i === 0 ? Math.PI / 2 : 0, i === 1 ? Math.PI / 2 : 0, i === 2 ? Math.PI / 2 : 0);
+						          ballGroup.add(ring);
+						        }
+						        const positions = {
+						          control: [0.20, 0.125, -0.35],
+						          carry: [0.16, 0.125, -0.52],
+						          pass: [0.28, 0.135, -0.70],
+						          cross: [0.34, 0.155, -0.86],
+						          shot: [0.38, 0.150, -0.92],
+						        };
+						        const pos = positions[key] || positions.pass;
+						        ballGroup.position.set(pos[0], pos[1], pos[2]);
+						        const trailColor = pitch3dActionColor(key, 0xfacc15);
+						        if (['pass', 'cross', 'shot'].includes(key)) {
+						          const trailMat = new THREE.MeshBasicMaterial({ color: trailColor, transparent: true, opacity: key === 'shot' ? 0.30 : 0.22, depthWrite: false, side: THREE.DoubleSide });
+						          const trail = new THREE.Mesh(new THREE.PlaneGeometry(key === 'shot' ? 1.15 : 0.82, 0.035), trailMat);
+						          trail.name = 'pitch3d_avatar_action_ball_trail';
+						          trail.position.set(-0.36, 0.002, 0.08);
+						          trail.rotation.y = -0.08;
+						          ballGroup.add(trail);
+						        }
+						        holder.add(ballGroup);
+						      } catch (e) { /* ignore */ }
+						    };
+
 						    const pitch3dRouteLiftForAction = (action, t, dist = 0) => {
 						      const key = safeText(action);
 						      const k = Math.sin(Math.PI * clamp(Number(t) || 0, 0, 1));
 						      if (key === 'shot') return k * Math.min(4.2, 1.10 + (dist * 0.08));
 						      if (key === 'cross') return k * Math.min(3.6, 0.85 + (dist * 0.06));
+						      if (key === 'control') return k * 0.18;
 						      if (key === 'carry') return k * 0.28;
 						      if (key === 'pass') return k * Math.min(2.2, 0.35 + (dist * 0.045));
 						      return k * 1.35;
@@ -9199,6 +9246,7 @@
 							    let pitch3dTrailRoot = null;
 							    let pitch3dPerf = { frames: 0, lastAt: 0, fps: 0, meshCount: 0, budget: 'normal', quality: 'normal' };
 							    let pitch3dAvatarMixers = [];
+							    let pitch3dAvatarMicroActors = [];
 							    let pitch3dAvatarAnimLastAt = 0;
 
 							    const clearPitch3dGhosts = () => {
@@ -9590,6 +9638,7 @@
 						      if (!pitch3dScene || !pitch3dCamera) return;
 						      disposePitch3dRoot();
 						      pitch3dAvatarMixers = [];
+						      pitch3dAvatarMicroActors = [];
 						      pitch3dAvatarAnimLastAt = 0;
 						      const root = new THREE.Group();
 						      pitch3dRoot = root;
@@ -15622,10 +15671,10 @@
 					        } catch (e) { /* ignore */ }
 						      };
 						      const startPitch3dPlayerAnimation = (model, tokenAction = 'move') => {
-						        if (!model || !window.THREE) return;
+						        if (!model || !window.THREE) return false;
 						        try {
 						          const animations = Array.isArray(__pitch3dPlayerModelCache.animations) ? __pitch3dPlayerModelCache.animations : [];
-						          if (!animations.length || typeof THREE.AnimationMixer !== 'function') return;
+						          if (!animations.length || typeof THREE.AnimationMixer !== 'function') return false;
 						          const key = safeText(tokenAction, 'move');
 						          const pattern = key === 'shot' ? /shot|shoot|kick/i
 						            : key === 'cross' ? /cross/i
@@ -15639,12 +15688,15 @@
 						            || animations.find((clip) => /idle/i.test(safeText(clip?.name)))
 						            || animations.find((clip) => /run|walk/i.test(safeText(clip?.name)))
 						            || animations[0];
-						          if (!preferred) return;
+						          if (!preferred) return false;
 						          const mixer = new THREE.AnimationMixer(model);
 						          const action = mixer.clipAction(preferred);
 						          try { action.enabled = true; action.setLoop(THREE.LoopRepeat, Infinity); action.fadeIn(0.12); action.play(); } catch (e) { /* ignore */ }
 						          pitch3dAvatarMixers.push(mixer);
+						          model.userData.pitch3dAnimatedClip = safeText(preferred?.name);
+						          return true;
 						        } catch (e) { /* ignore */ }
+						        return false;
 						      };
 						      const posePitch3dPlayerModel = (model) => {
 						        if (!model) return;
@@ -15790,18 +15842,26 @@
 						              hair: tokenKind.includes('rival') ? '#111827' : '#172554',
 						              boot: '#0f172a',
 						            });
-						            posePitch3dPlayerModel(model);
 						            fitPitch3dPlayerModel(model, playerMetrics.heightMeters, {
 						              massFactor: playerMetrics.massFactor,
 						              depthFactor: playerMetrics.depthFactor,
 						            });
-						            startPitch3dPlayerAnimation(model, tokenAction);
+						            const hasEmbeddedAction = startPitch3dPlayerAnimation(model, tokenAction);
+						            if (!hasEmbeddedAction) posePitch3dPlayerModel(model);
 						            holder.add(model);
 						            if (!pitch3dPlayerModelHasEmbeddedKit(model)) {
 						              addPitch3dPlayerKitOverlay(holder, o, { shirt: stripe || fill, base: fill || '#ffffff' });
 						            }
+						            addPitch3dActionBallCue(holder, tokenAction);
 						            holder.rotation.y = (Number(facingDeg) || 0) * (Math.PI / 180);
 						            applyPitch3dActionPose(holder, tokenAction, 0.82);
+						            pitch3dAvatarMicroActors.push({
+						              holder,
+						              seed: ((Number(num) || 1) * 0.37) + (String(uid).length * 0.11),
+						              baseY: Number(holder.position.y) || 0,
+						              baseRoll: Number(holder.rotation.z) || 0,
+						              action: tokenAction,
+						            });
 						            mesh.add(holder);
 						            externalAvatar3dUsed = true;
 						          }
@@ -16675,6 +16735,25 @@
 								        if (pitch3dAvatarMixers.length) {
 								          pitch3dAvatarMixers.forEach((mixer) => {
 								            try { mixer.update(delta); } catch (e) { /* ignore */ }
+								          });
+								        }
+								        if (pitch3dAvatarMicroActors.length) {
+								          const t = nowMs / 1000;
+								          pitch3dAvatarMicroActors.forEach((item) => {
+								            try {
+								              const holder = item?.holder;
+								              if (!holder) return;
+								              const key = safeText(item.action, 'move');
+								              const amp = key === 'press' ? 0.024 : key === 'run' || key === 'carry' ? 0.020 : 0.012;
+								              const freq = key === 'press' ? 6.2 : key === 'run' || key === 'carry' ? 5.4 : 2.4;
+								              holder.position.y = (Number(item.baseY) || 0) + (Math.sin((t + (Number(item.seed) || 0)) * freq) * amp);
+								              holder.rotation.z = (Number(item.baseRoll) || 0) + (Math.sin((t + (Number(item.seed) || 0)) * (freq * 0.5)) * 0.012);
+								              const ball = holder.getObjectByName ? holder.getObjectByName('pitch3d_avatar_action_ball') : null;
+								              if (ball) {
+								                ball.rotation.y += delta * (key === 'shot' ? 10.0 : key === 'cross' ? 7.0 : 4.2);
+								                ball.position.y += Math.sin((t + (Number(item.seed) || 0)) * 5.0) * 0.0008;
+								              }
+								            } catch (e) { /* ignore */ }
 								          });
 								        }
 								      } catch (e) { /* ignore */ }

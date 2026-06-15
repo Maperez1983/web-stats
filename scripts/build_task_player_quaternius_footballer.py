@@ -18,6 +18,7 @@ OUT_PATH = IN_PATH
 if os.path.abspath(IN_PATH) == os.path.abspath(SOURCE_PATH):
     OUT_PATH = os.path.join(ROOT, 'football/static/football/models/avatar/player_humanoid.glb')
 COPY_PATH = os.path.join(ROOT, 'football/static/football/models/avatar/player_premium_mpfb.glb')
+MOCAP_SOURCE_PATH = os.environ.get('TASK_PLAYER_MOCAP_SOURCE', '').strip()
 
 
 def make_mat(name, color, roughness=0.68):
@@ -191,6 +192,40 @@ def create_football_actions(armature):
     armature.animation_data.action = bpy.data.actions.get('idle')
 
 
+def import_compatible_mocap_actions(armature):
+    if not MOCAP_SOURCE_PATH or not os.path.exists(MOCAP_SOURCE_PATH):
+        return []
+
+    before_objects = set(bpy.data.objects)
+    before_actions = set(bpy.data.actions)
+    ext = os.path.splitext(MOCAP_SOURCE_PATH)[1].lower()
+    if ext in {'.glb', '.gltf'}:
+        bpy.ops.import_scene.gltf(filepath=MOCAP_SOURCE_PATH)
+    elif ext == '.fbx':
+        bpy.ops.import_scene.fbx(filepath=MOCAP_SOURCE_PATH)
+    else:
+        return []
+
+    imported_actions = [action for action in bpy.data.actions if action not in before_actions]
+    kept = []
+    armature.animation_data_create()
+    for action in imported_actions:
+        if not action.fcurves:
+            continue
+        action.name = f'mocap_{action.name}'
+        action.use_fake_user = True
+        track = armature.animation_data.nla_tracks.new()
+        track.name = action.name
+        strip = track.strips.new(action.name, int(action.frame_range[0]), action)
+        strip.frame_end = action.frame_range[1]
+        strip.use_auto_blend = True
+        kept.append(action.name)
+
+    for obj in [obj for obj in bpy.data.objects if obj not in before_objects]:
+        bpy.data.objects.remove(obj, do_unlink=True)
+    return kept
+
+
 def main():
     bpy.ops.object.select_all(action='SELECT')
     bpy.ops.object.delete()
@@ -206,6 +241,7 @@ def main():
     if armature:
         pose_armature(armature)
         create_football_actions(armature)
+        import_compatible_mocap_actions(armature)
 
     bpy.ops.export_scene.gltf(
         filepath=OUT_PATH,
