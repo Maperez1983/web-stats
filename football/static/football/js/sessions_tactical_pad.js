@@ -13334,7 +13334,15 @@
 						                ctx.font = opts.font || '900 112px Arial, sans-serif';
 						                ctx.textAlign = 'center';
 						                ctx.textBaseline = 'middle';
-						                ctx.fillText(text, c.width / 2, c.height / 2);
+						                if (opts.flipX) {
+						                  ctx.save();
+						                  ctx.translate(c.width, 0);
+						                  ctx.scale(-1, 1);
+						                  ctx.fillText(text, c.width / 2, c.height / 2);
+						                  ctx.restore();
+						                } else {
+						                  ctx.fillText(text, c.width / 2, c.height / 2);
+						                }
 						              }, opts.w || 1600, opts.h || 360);
 						              return new THREE.MeshBasicMaterial({ map: tex?.tex || null, transparent: true, side: THREE.DoubleSide, toneMapped: false });
 						            } catch (e) {
@@ -13416,6 +13424,7 @@
 						              fg: opts.fg || '#f8fafc',
 						              font: opts.font || '900 50px Arial, sans-serif',
 						              stroke: opts.stroke || 'rgba(255,255,255,0.22)',
+						              flipX: Boolean(opts.flipX || facing === 'south'),
 						            });
 						            const thick = opts.thick || 0.12;
 						            let shell;
