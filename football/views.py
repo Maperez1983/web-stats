@@ -4229,6 +4229,7 @@ def _workspace_access_module_catalog(kind):
         {'key': 'tactics', 'label': 'Táctica'},
         {'key': 'manual_stats', 'label': 'Est. manuales'},
     ]
+    return entries
 
 
 def _workspace_competition_provider_choices():

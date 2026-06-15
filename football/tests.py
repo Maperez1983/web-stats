@@ -3535,6 +3535,13 @@ class PlatformWorkspaceTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
 
+    def test_club_access_module_catalog_is_iterable(self):
+        catalog = football_views._workspace_access_module_catalog(Workspace.KIND_CLUB)
+
+        self.assertIsInstance(catalog, list)
+        self.assertIn('dashboard', {entry.get('key') for entry in catalog})
+        self.assertIn('sessions', {entry.get('key') for entry in catalog})
+
     def test_platform_overview_bootstraps_primary_and_task_studio_workspaces(self):
         self.client.force_login(self.admin_user)
 
