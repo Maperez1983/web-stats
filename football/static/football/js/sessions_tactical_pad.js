@@ -14225,17 +14225,17 @@
 						                addRotMesh(new THREE.BoxGeometry(0.88, 0.18, 7.9), concreteEdgeMat, ratio * metersW, 4.70, metersH / 2 + 8.55, -0.095, 0, 0, 'pitch_3d_rosaleda_final_clean_main_stair_aisle');
 						                if (idx > 0 && idx < 5) addMesh(new THREE.BoxGeometry(4.2, 1.08, 0.22), shadowVoidMat, ratio * metersW, 3.70, metersH / 2 + 6.06, 'pitch_3d_rosaleda_final_clean_main_tunnel_shadow');
 						              });
-						              addRotMesh(
-						                new THREE.PlaneGeometry(metersW * 0.72, 6.6),
-						                makeProfessionalSeatMosaicMat('MALAGA CF', { w: 2200, h: 500, font: '900 162px Arial, sans-serif' }),
-						                -2.6,
-						                4.86,
-						                metersH / 2 + 6.72,
-						                -0.14,
-						                Math.PI,
-						                0,
-						                'pitch_3d_rosaleda_final_single_clean_main_stand_malaga_cf_mosaic'
-						              );
+							              addRotMesh(
+							                new THREE.PlaneGeometry(metersW * 0.72, 6.6),
+							                makeProfessionalSeatMosaicMat('MALAGA CF', { w: 2200, h: 500, font: '900 162px Arial, sans-serif' }),
+							                -2.6,
+							                4.42,
+							                metersH / 2 + 8.02,
+							                -(Math.PI / 2) - 0.105,
+							                0,
+							                0,
+							                'pitch_3d_rosaleda_final_single_clean_main_stand_malaga_cf_mosaic'
+							              );
 						              // Densidad azul en las gradas laterales para acercarse a la referencia fotográfica.
 						              for (let row = 0; row < 12; row += 1) {
 						                const y = 1.42 + row * 0.25;
@@ -14370,10 +14370,10 @@
 							                new THREE.PlaneGeometry(metersW * 0.745, 6.85),
 							                makeProfessionalSeatMosaicMat('MALAGA CF', { w: 2600, h: 520, bg: '#075fae', fg: '#f7fbff', font: '900 164px Arial, sans-serif' }),
 							                -2.0,
-							                4.72,
-							                metersH / 2 + 7.98,
-							                -0.132,
-							                Math.PI,
+							                4.64,
+							                metersH / 2 + 8.34,
+							                -(Math.PI / 2) - 0.105,
+							                0,
 							                0,
 							                'pitch_3d_rosaleda_final_polish_single_seat_malaga_cf_mosaic'
 							              );
