@@ -50,7 +50,7 @@
         top: calc(100% + 10px);
         left: 0;
         z-index: 120;
-        width: min(560px, 92vw);
+        width: min(760px, 94vw);
         padding: 0.75rem;
         border-radius: 18px;
         border: 1px solid rgba(255,255,255,0.14);
@@ -59,7 +59,28 @@
         display: grid;
         gap: 0.65rem;
       }
-      .vs-menu-grid { display: grid; gap: 0.45rem; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+      .vs-menu-grid { display: grid; gap: 0.45rem; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+      .vs-resource-layout { display:grid; grid-template-columns:minmax(0,1fr) 220px; gap:0.65rem; align-items:start; }
+      .vs-resource-main { display:grid; gap:0.55rem; min-width:0; }
+      .vs-resource-tools { display:grid; gap:0.45rem; }
+      .vs-resource-search { min-height:38px; border-radius:999px; padding:0 0.85rem; border:1px solid rgba(148,163,184,0.22); background:rgba(255,255,255,0.05); color:#f3f7ff; font-weight:900; }
+      .vs-resource-tabs { display:flex; gap:0.35rem; flex-wrap:wrap; }
+      .vs-resource-tab { min-height:32px; border-radius:999px; border:1px solid rgba(255,255,255,0.14); background:rgba(255,255,255,0.04); color:#dbeafe; padding:0 0.65rem; font-size:0.66rem; font-weight:950; letter-spacing:0.04em; text-transform:uppercase; cursor:pointer; }
+      .vs-resource-tab.active { background:rgba(34,211,238,0.16); border-color:rgba(34,211,238,0.46); color:#eff6ff; }
+      .vs-resource-preview { position:sticky; top:0; min-height:210px; border-radius:16px; border:1px solid rgba(148,163,184,0.18); background:rgba(2,6,23,0.42); padding:0.75rem; display:grid; gap:0.55rem; }
+      .vs-resource-preview-canvas { height:108px; border-radius:12px; border:1px solid rgba(148,163,184,0.16); background:linear-gradient(135deg, rgba(22,101,52,0.46), rgba(21,128,61,0.28)); position:relative; overflow:hidden; }
+      .vs-resource-preview-canvas::before { content:""; position:absolute; inset:14px 18px; border:1px solid rgba(255,255,255,0.35); border-radius:8px; }
+      .vs-resource-preview-title { font-size:0.78rem; font-weight:950; letter-spacing:0.07em; text-transform:uppercase; color:#f8fafc; }
+      .vs-resource-preview-text { font-size:0.78rem; line-height:1.35; color:rgba(226,232,240,0.76); font-weight:800; }
+      .vs-preview-mark { position:absolute; left:50%; top:50%; width:44%; height:3px; background:#fff; border-radius:999px; transform:translate(-50%,-50%) rotate(-16deg); box-shadow:0 2px 8px rgba(0,0,0,0.35); }
+      .vs-preview-mark::after { content:""; position:absolute; right:-4px; top:50%; width:13px; height:13px; border-right:3px solid currentColor; border-top:3px solid currentColor; transform:translateY(-50%) rotate(45deg); color:inherit; }
+      .vs-preview-mark.dash { background:repeating-linear-gradient(90deg,#fff 0 12px,transparent 12px 22px); }
+      .vs-preview-mark.curve { width:58%; height:42%; background:transparent; border-top:4px solid #facc15; border-radius:999px 999px 0 0; transform:translate(-50%,-32%) rotate(-8deg); }
+      .vs-preview-mark.ring { width:44px; height:30px; background:rgba(250,204,21,0.12); border:4px solid #facc15; transform:translate(-50%,-50%); }
+      .vs-preview-mark.zone { width:56%; height:44%; background:rgba(34,211,238,0.14); border:2px dashed rgba(34,211,238,0.9); transform:translate(-50%,-50%); }
+      .vs-preview-mark.ring::after, .vs-preview-mark.zone::after { display:none; }
+      .vs-quick-resources { display:flex; gap:0.4rem; flex-wrap:wrap; margin:-0.25rem 0 0.7rem; padding:0.55rem; border-radius:16px; border:1px solid rgba(148,163,184,0.14); background:rgba(255,255,255,0.025); }
+      .vs-quick-resources .button { min-height:32px; padding:0.42rem 0.62rem; font-size:0.64rem; }
       .vs-chip {
         border-radius: 999px;
         padding: 0.62rem 0.82rem;
@@ -78,8 +99,11 @@
         user-select: none;
       }
       .vs-chip:hover { border-color: rgba(34,211,238,0.42); background: rgba(34,211,238,0.10); }
+      .vs-chip[hidden] { display:none !important; }
       .vs-chip .dot { width: 10px; height: 10px; border-radius: 999px; background: rgba(148,163,184,0.9); }
       .vs-chip[data-vs-kind="template"] .dot { background: rgba(34,211,238,0.95); }
+      .vs-chip[data-vs-kind="tactic"] .dot { background: rgba(96,165,250,0.95); }
+      .vs-chip[data-vs-kind="tv"] .dot { background: rgba(52,211,153,0.95); }
       .vs-chip[data-vs-kind="tool"] .dot { background: rgba(250,204,21,0.95); }
       .vs-chip[data-vs-kind="fx"] .dot { background: rgba(244,63,94,0.95); }
       .vs-menu-muted { color: rgba(226,232,240,0.72); font-weight: 800; font-size: 0.78rem; }
@@ -120,6 +144,8 @@
       .row { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:0.6rem; padding:0.65rem 0.75rem; border-radius: 16px; border:1px solid rgba(148,163,184,0.14); background: rgba(255,255,255,0.03); color: #f3f7ff; }
       .row strong { font-weight:900; color: #f3f7ff; }
       .row small { color: rgba(226,232,240,0.7); font-weight:800; }
+      .vs-layer-timeline { height:6px; border-radius:999px; background:rgba(148,163,184,0.18); overflow:hidden; margin-top:0.22rem; }
+      .vs-layer-timeline span { display:block; height:100%; border-radius:999px; background:linear-gradient(90deg,#22d3ee,#facc15); }
       .split { margin-top: 1rem; padding-top: 0.95rem; border-top: 1px solid rgba(148,163,184,0.16); }
       .k { display:inline-flex; align-items:center; justify-content:center; min-width: 26px; padding: 0.1rem 0.4rem; border-radius: 10px; border: 1px solid rgba(148,163,184,0.22); background: rgba(2, 6, 23, 0.35); font-weight: 900; font-size: 0.72rem; }
       .hint { color: rgba(226,232,240,0.72); font-weight:800; font-size:0.85rem; }
@@ -169,6 +195,8 @@
         .card { border-radius:18px; padding:0.75rem; }
         .row { grid-template-columns:1fr; }
         .vs-status-row { grid-template-columns:1fr; }
+        .vs-resource-layout { grid-template-columns:1fr; }
+        .vs-resource-preview { position:static; min-height:0; }
       }
 
       /* Accordion para evitar scroll infinito */
@@ -294,15 +322,27 @@
 			              <details class="vs-menu" id="vs-resources-menu">
 			                <summary class="button" title="Recursos rápidos (estilo Táctica): 1 clic para insertar guías o activar herramientas">Recursos</summary>
 			                <div class="vs-menu-body">
+			                  <div class="vs-resource-layout">
+			                    <div class="vs-resource-main">
+			                      <input type="search" class="vs-resource-search" id="vs-resource-search" placeholder="Buscar: aro, flecha, bloque, 2v1..." />
+			                      <div class="vs-resource-tabs" id="vs-resource-tabs" aria-label="Filtrar recursos">
+			                        <button type="button" class="vs-resource-tab active" data-vs-resource-filter="all">Todos</button>
+			                        <button type="button" class="vs-resource-tab" data-vs-resource-filter="tv">TV</button>
+			                        <button type="button" class="vs-resource-tab" data-vs-resource-filter="tactic">Táctica</button>
+			                        <button type="button" class="vs-resource-tab" data-vs-resource-filter="template">Campo</button>
+			                        <button type="button" class="vs-resource-tab" data-vs-resource-filter="tool">Dibujo</button>
+			                        <button type="button" class="vs-resource-tab" data-vs-resource-filter="fx">FX</button>
+			                      </div>
+			                      <div class="vs-resource-tools">
 			                  <div class="vs-menu-muted">Plantillas (1 clic)</div>
-			                  <div class="vs-menu-grid">
+			                  <div class="vs-menu-grid" data-vs-resource-section="template">
 			                    <button type="button" class="vs-chip" data-vs-resource="template:lanes_manual" data-vs-kind="template"><span class="dot"></span>Carriles manual</button>
 			                    <button type="button" class="vs-chip" data-vs-resource="template:grid_manual" data-vs-kind="template"><span class="dot"></span>Cuadrícula manual</button>
 			                    <button type="button" class="vs-chip" data-vs-resource="template:central_box" data-vs-kind="template"><span class="dot"></span>Caja central</button>
 			                    <button type="button" class="vs-chip" data-vs-resource="template:final_third" data-vs-kind="template"><span class="dot"></span>Último tercio</button>
 			                  </div>
 			                  <div class="vs-menu-muted" style="margin-top:0.25rem;">Tácticos (1 clic)</div>
-			                  <div class="vs-menu-grid">
+			                  <div class="vs-menu-grid" data-vs-resource-section="tactic">
 			                    <button type="button" class="vs-chip" data-vs-resource="tactic:2v1" data-vs-kind="tactic"><span class="dot"></span>2v1</button>
 			                    <button type="button" class="vs-chip" data-vs-resource="tactic:third_man" data-vs-kind="tactic"><span class="dot"></span>Tercer hombre</button>
 			                    <button type="button" class="vs-chip" data-vs-resource="tactic:defensive_line" data-vs-kind="tactic"><span class="dot"></span>Línea defensiva</button>
@@ -314,7 +354,7 @@
 			                    <button type="button" class="vs-chip" data-vs-resource="tactic:shift" data-vs-kind="tactic"><span class="dot"></span>Basculación</button>
 			                  </div>
 			                  <div class="vs-menu-muted" style="margin-top:0.25rem;">TV / Captura (1 clic)</div>
-			                  <div class="vs-menu-grid">
+			                  <div class="vs-menu-grid" data-vs-resource-section="tv">
 			                    <button type="button" class="vs-chip" data-vs-resource="tv:dashed_pass" data-vs-kind="tv"><span class="dot"></span>Pase discontinuo</button>
 			                    <button type="button" class="vs-chip" data-vs-resource="tv:white_run" data-vs-kind="tv"><span class="dot"></span>Carrera blanca</button>
 			                    <button type="button" class="vs-chip" data-vs-resource="tv:curved_run" data-vs-kind="tv"><span class="dot"></span>Desmarque curvo</button>
@@ -324,7 +364,7 @@
 			                    <button type="button" class="vs-chip" data-vs-resource="tv:pressure_jump" data-vs-kind="tv"><span class="dot"></span>Salto presión TV</button>
 			                  </div>
 			                  <div class="vs-menu-muted" style="margin-top:0.25rem;">Herramientas (1 clic)</div>
-			                  <div class="vs-menu-grid">
+			                  <div class="vs-menu-grid" data-vs-resource-section="tool">
 			                    <button type="button" class="vs-chip" data-vs-resource="tool:arrow" data-vs-kind="tool"><span class="dot"></span>Flecha</button>
 			                    <button type="button" class="vs-chip" data-vs-resource="tool:move" data-vs-kind="tool"><span class="dot"></span>Trayectoria</button>
 			                    <button type="button" class="vs-chip" data-vs-resource="tool:text" data-vs-kind="tool"><span class="dot"></span>Texto</button>
@@ -333,13 +373,21 @@
 			                    <button type="button" class="vs-chip" data-vs-resource="tool:space" data-vs-kind="tool"><span class="dot"></span>Espacio móvil</button>
 			                  </div>
 			                  <div class="vs-menu-muted" style="margin-top:0.25rem;">FX (1 clic)</div>
-			                  <div class="vs-menu-grid">
+			                  <div class="vs-menu-grid" data-vs-resource-section="fx">
 			                    <button type="button" class="vs-chip" data-vs-resource="fx:spot" data-vs-kind="fx"><span class="dot"></span>Spotlight</button>
 			                    <button type="button" class="vs-chip" data-vs-resource="fx:blur" data-vs-kind="fx"><span class="dot"></span>Blur</button>
 			                    <button type="button" class="vs-chip" data-vs-resource="fx:freeze" data-vs-kind="fx"><span class="dot"></span>Freeze</button>
 			                  </div>
 			                  <div class="vs-menu-muted" style="margin-top:0.25rem;">Recientes</div>
 			                  <div class="vs-menu-grid" id="vs-resources-recent"></div>
+			                      </div>
+			                    </div>
+			                    <aside class="vs-resource-preview" id="vs-resource-preview" aria-live="polite">
+			                      <div class="vs-resource-preview-canvas"><span class="vs-preview-mark"></span></div>
+			                      <div class="vs-resource-preview-title" id="vs-resource-preview-title">Recursos</div>
+			                      <div class="vs-resource-preview-text" id="vs-resource-preview-text">Pasa por encima o filtra para elegir flechas, aros, bloques, carriles y efectos.</div>
+			                    </aside>
+			                  </div>
 			                </div>
 			              </details>
             </div>
@@ -379,6 +427,20 @@
               <button type="button" class="button" id="vs-arrow-double" title="Doble punta (flechas/trayectorias)">↔︎</button>
             </div>
           </div>
+
+		          <div class="vs-quick-resources" aria-label="Recursos rápidos">
+		            <button type="button" class="button primary" data-vs-resource="tv:dashed_pass">Pase</button>
+		            <button type="button" class="button" data-vs-resource="tv:white_run">Carrera</button>
+		            <button type="button" class="button" data-vs-resource="tv:player_ring">Aro</button>
+		            <button type="button" class="button" data-vs-resource="tv:spot_player">Foco</button>
+		            <button type="button" class="button" data-vs-resource="tactic:2v1">2v1</button>
+		            <button type="button" class="button" data-vs-resource="tactic:third_man">3er hombre</button>
+		            <button type="button" class="button" data-vs-resource="template:lanes_manual">Carriles</button>
+		            <button type="button" class="button" data-vs-resource="tactic:block_low">Bloque bajo</button>
+		            <button type="button" class="button" data-vs-resource="tactic:press_jump">Salto presión</button>
+		            <button type="button" class="button" data-vs-resource="tactic:shift">Basculación</button>
+		            <button type="button" class="button primary" id="vs-capture-primary">Guardar captura</button>
+		          </div>
 
 			          <div class="stage" id="vs-stage">
 			            <video id="vs-video" controls preload="metadata" playsinline crossorigin="anonymous">
@@ -669,6 +731,20 @@
                 </label>
                 <div id="vs-layer-style-form" style="display:none; gap:0.45rem;">
                   <div class="hint">Estilo de capa</div>
+                  <div style="display:grid; grid-template-columns: 0.7fr 1fr 1fr; gap:0.45rem; align-items:end;">
+                    <label>
+                      Color
+                      <input type="color" id="vs-layer-color" value="#22d3ee" style="height:38px; padding:0.15rem;" />
+                    </label>
+                    <label>
+                      Grosor
+                      <input type="number" id="vs-layer-width" min="1" max="32" step="1" value="6" />
+                    </label>
+                    <label>
+                      Opacidad
+                      <input type="number" id="vs-layer-opacity" min="0.05" max="1" step="0.05" value="1" />
+                    </label>
+                  </div>
                   <label>
                     Línea
                     <select id="vs-layer-line-style">

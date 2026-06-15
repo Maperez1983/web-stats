@@ -280,6 +280,7 @@
 		    const btnRecord = document.getElementById('vs-record');
 		    const btnStillClip = document.getElementById('vs-still-clip');
 			    const btnSnap = document.getElementById('vs-snap');
+			    const btnCapturePrimary = document.getElementById('vs-capture-primary');
 			    const btnDorsalOcr = document.getElementById('vs-dorsal-ocr');
 			    const btnFreeze = document.getElementById('vs-freeze');
 			    const btnTrackAuto = document.getElementById('vs-track-auto');
@@ -352,6 +353,11 @@
 	    const templateClearBtn = document.getElementById('vs-template-clear');
 	    const resourcesMenu = document.getElementById('vs-resources-menu');
 	    const resourcesRecentWrap = document.getElementById('vs-resources-recent');
+	    const resourceSearchInput = document.getElementById('vs-resource-search');
+	    const resourceTabsWrap = document.getElementById('vs-resource-tabs');
+	    const resourcePreview = document.getElementById('vs-resource-preview');
+	    const resourcePreviewTitle = document.getElementById('vs-resource-preview-title');
+	    const resourcePreviewText = document.getElementById('vs-resource-preview-text');
 	    const templateParamsWrap = document.getElementById('vs-template-params');
 	    const templateLanesCountInput = document.getElementById('vs-template-lanes-count');
 	    const templateLanesStrokeInput = document.getElementById('vs-template-lanes-stroke');
@@ -683,6 +689,9 @@
     const fxBlurInput = document.getElementById('vs-fx-blur');
     const fxOpacityInput = document.getElementById('vs-fx-opacity');
     const layerStyleForm = document.getElementById('vs-layer-style-form');
+    const layerColorInput = document.getElementById('vs-layer-color');
+    const layerWidthInput = document.getElementById('vs-layer-width');
+    const layerOpacityInput = document.getElementById('vs-layer-opacity');
     const layerLineStyleSelect = document.getElementById('vs-layer-line-style');
     const layerDoubleHeadToggle = document.getElementById('vs-layer-double-head');
     const layerLockedToggle = document.getElementById('vs-layer-locked');
@@ -2246,6 +2255,7 @@
     const renderDrawLayers = () => {
       if (!drawLayersList) return;
       const objs = (fabricCanvas.getObjects?.() || []).slice(0, 160);
+      const dur = Math.max(1, Number(video.duration) || Number(outInput?.value) || 90);
       const rows = objs.slice().reverse().slice(0, 60).map((obj) => {
         ensureLayerData(obj);
         if (obj?.data?.hidden_list) return '';
@@ -2254,16 +2264,22 @@
         const tIn = Number(obj?.data?.t_in_s) || 0;
         const tOut = Number(obj?.data?.t_out_s) || 0;
         const label = `${fmtTimeShort(tIn)} → ${fmtTimeShort(tOut || tIn)}`;
+        const left = clamp((Math.min(tIn, tOut || tIn) / dur) * 100, 0, 100);
+        const right = clamp((Math.max(tIn, tOut || tIn) / dur) * 100, 0, 100);
+        const width = clamp(Math.max(2, right - left), 2, 100 - left);
         const isSel = activeObject() === obj;
         return `
           <div class="row" style="${isSel ? 'border-color: rgba(34,211,238,0.55); background: rgba(34,211,238,0.07);' : ''}">
             <div style="display:flex; flex-direction:column; gap:0.05rem;">
               <strong>${kindLabel(obj)}</strong>
               <small>${label}</small>
+              <div class="vs-layer-timeline"><span style="margin-left:${left}%;width:${width}%;"></span></div>
             </div>
             <div style="display:flex; gap:0.35rem; flex-wrap:wrap;">
               <button type="button" class="button" data-vs-draw-select="${uid}">Seleccionar</button>
               <button type="button" class="button" data-vs-draw-seek="${uid}">Ir</button>
+              <button type="button" class="button" data-vs-draw-kf="${uid}">Keyframe</button>
+              <button type="button" class="button" data-vs-draw-dup="${uid}">Duplicar</button>
               <button type="button" class="button danger" data-vs-draw-del="${uid}">Borrar</button>
             </div>
           </div>
@@ -2297,6 +2313,27 @@
           if (!obj) return;
           const tIn = Number(obj?.data?.t_in_s) || 0;
           try { video.currentTime = Math.max(0, tIn); } catch (e) { /* ignore */ }
+        });
+      });
+      Array.from(drawLayersList.querySelectorAll('[data-vs-draw-kf]')).forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const uid = safeText(btn.getAttribute('data-vs-draw-kf'));
+          const obj = uidMap.get(uid);
+          if (!obj) return;
+          try { fabricCanvas.setActiveObject(obj); } catch (e) { /* ignore */ }
+          selectedFxId = 0;
+          assignLayerFollowMode('manual');
+        });
+      });
+      Array.from(drawLayersList.querySelectorAll('[data-vs-draw-dup]')).forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const uid = safeText(btn.getAttribute('data-vs-draw-dup'));
+          const obj = uidMap.get(uid);
+          if (!obj) return;
+          try { fabricCanvas.setActiveObject(obj); } catch (e) { /* ignore */ }
+          selectedFxId = 0;
+          updateLayerPanel();
+          try { layerDuplicateBtn?.click?.(); } catch (e) { /* ignore */ }
         });
       });
       Array.from(drawLayersList.querySelectorAll('[data-vs-draw-del]')).forEach((btn) => {
@@ -2735,6 +2772,10 @@
 	        return String(tool || '');
 	      })();
 	      if (tool === 'player') setStatus('Herramienta: Jugador. Haz clic sobre el futbolista en el vídeo; luego pon dorsal/nombre y OK.');
+	      else if (tool === 'text') setStatus('Herramienta: Texto. Haz clic sobre el vídeo y escribe la explicación.');
+	      else if (tool === 'area' || tool === 'space') setStatus(`Herramienta: ${toolLabel}. Clic para añadir puntos; doble clic para cerrar; Esc cancela.`);
+	      else if (tool === 'spot' || tool === 'blur') setStatus(`Herramienta: ${toolLabel}. Arrastra sobre el vídeo para definir la zona.`);
+	      else if (tool === 'arrow' || tool === 'curve' || tool === 'move' || tool === 'line' || tool === 'rect' || tool === 'circle' || tool === 'measure') setStatus(`Herramienta: ${toolLabel}. Arrastra sobre el vídeo para dibujar.`);
 	      else setStatus(`Herramienta: ${toolLabel}`);
 	    };
     setTool('select');
@@ -2788,6 +2829,33 @@
 	      return true;
 	    };
 
+	    const walkFabricObject = (obj, fn) => {
+	      if (!obj || typeof fn !== 'function') return;
+	      try { fn(obj); } catch (e) { /* ignore */ }
+	      try {
+	        if (Array.isArray(obj._objects)) obj._objects.forEach((child) => walkFabricObject(child, fn));
+	      } catch (e) { /* ignore */ }
+	    };
+	    const firstPaintColor = (obj) => {
+	      let found = '';
+	      walkFabricObject(obj, (child) => {
+	        if (found) return;
+	        const stroke = safeText(child?.stroke, '');
+	        const fill = safeText(child?.fill, '');
+	        if (stroke && !stroke.startsWith('rgba(0,0,0,0')) found = stroke;
+	        else if (fill && !fill.startsWith('rgba(0,0,0,0')) found = fill;
+	      });
+	      const m = String(found || '').match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+	      return m ? found : strokeColor();
+	    };
+	    const firstStrokeWidth = (obj) => {
+	      let found = 0;
+	      walkFabricObject(obj, (child) => {
+	        if (!found && Number(child?.strokeWidth)) found = Number(child.strokeWidth);
+	      });
+	      return clamp(Math.round(found || strokeWidth() || 6), 1, 32);
+	    };
+
 	    const updateLayerPanel = () => {
 	      if (!layerEmpty || !layerForm) return;
 	      const target = currentLayerTarget();
@@ -2838,6 +2906,9 @@
 	      const showLineStyle = (kind === 'arrow' || kind === 'curve_arrow' || kind === 'movement_line' || kind === 'line' || kind === 'shape_rect' || kind === 'shape_ellipse');
 	      const showDoubleHead = (kind === 'arrow' || kind === 'curve_arrow' || kind === 'movement_line');
 	      if (layerStyleForm) layerStyleForm.style.display = '';
+	      if (layerColorInput) layerColorInput.value = firstPaintColor(obj);
+	      if (layerWidthInput) layerWidthInput.value = String(firstStrokeWidth(obj));
+	      if (layerOpacityInput) layerOpacityInput.value = String(clamp(Number(obj.opacity ?? 1), 0.05, 1));
 	      if (layerLineStyleSelect) {
 	        const ls = safeText(obj?.data?.line_style, '');
 	        layerLineStyleSelect.value = (ls === 'solid' || ls === 'dash' || ls === 'dot') ? ls : '';
@@ -2885,6 +2956,20 @@
 	      const kind = safeText(obj?.data?.kind, '');
 	      const showLineStyle = (kind === 'arrow' || kind === 'curve_arrow' || kind === 'movement_line' || kind === 'line' || kind === 'shape_rect' || kind === 'shape_ellipse');
 	      const showDoubleHead = (kind === 'arrow' || kind === 'curve_arrow' || kind === 'movement_line');
+	      const color = safeText(layerColorInput?.value, '');
+	      const width = clamp(Math.round(Number(layerWidthInput?.value || 0) || strokeWidth() || 6), 1, 32);
+	      const opacity = clamp(Number(layerOpacityInput?.value ?? 1), 0.05, 1);
+
+	      try {
+	        obj.set({ opacity });
+	        walkFabricObject(obj, (child) => {
+	          const type = safeText(child?.type, '');
+	          if (color && (child?.stroke || type === 'line' || type === 'path' || type === 'polyline')) child.set?.({ stroke: color });
+	          if (color && child?.fill && !String(child.fill || '').startsWith('rgba(0,0,0,0)') && type !== 'textbox' && type !== 'text') child.set?.({ fill: colorToRgba(color, 0.18, color) });
+	          if (Number(child?.strokeWidth)) child.set?.({ strokeWidth: width, strokeUniform: true });
+	        });
+	        obj.dirty = true;
+	      } catch (e) { /* ignore */ }
 
 	      if (showLineStyle && layerLineStyleSelect) {
 	        const v = safeText(layerLineStyleSelect.value, '');
@@ -2948,7 +3033,7 @@
     [layerInInput, layerOutInput, layerFadeInInput, layerFadeOutInput, layerAnimSelect].forEach((el) => {
       el?.addEventListener('change', () => { applyLayerPanelEdits(); updateLayerPanel(); renderMiniTimeline(); });
     });
-    [layerLineStyleSelect, layerDoubleHeadToggle, layerLockedToggle].forEach((el) => {
+    [layerColorInput, layerWidthInput, layerOpacityInput, layerLineStyleSelect, layerDoubleHeadToggle, layerLockedToggle].forEach((el) => {
       el?.addEventListener('change', () => applyLayerStyleEdits());
     });
     [fxIntensityInput, fxFeatherInput, fxBlurInput, fxOpacityInput].forEach((el) => {
@@ -5068,6 +5153,76 @@
 	      if (k.startsWith('fx:')) return 'fx';
 	      return '';
 	    };
+	    let activeResourceFilter = 'all';
+	    const resourceDescriptionForKey = (key) => {
+	      const k = safeText(key, '');
+	      if (k === 'template:lanes_manual') return 'Divide el campo en carriles editables para explicar ocupación y amplitud.';
+	      if (k === 'template:grid_manual') return 'Añade cuadrícula editable para ubicar zonas y alturas.';
+	      if (k === 'template:central_box') return 'Marca una zona central para estructura, pivotes o superioridades.';
+	      if (k === 'template:final_third') return 'Resalta el último tercio para ataques y finalizaciones.';
+	      if (k === 'tactic:2v1') return 'Plantilla de superioridad con jugadores, zona y flechas.';
+	      if (k === 'tactic:third_man') return 'Secuencia para explicar tercer hombre y continuidad.';
+	      if (k === 'tactic:defensive_line') return 'Línea defensiva con referencias de salto y altura.';
+	      if (k === 'tactic:block_low') return 'Bloque bajo: dos líneas y zona defensiva.';
+	      if (k === 'tactic:block_mid') return 'Bloque medio: estructura compacta a media altura.';
+	      if (k === 'tactic:block_high') return 'Bloque alto: presión y altura defensiva.';
+	      if (k === 'tactic:free_space') return 'Zona libre con flechas de pase/movimiento.';
+	      if (k === 'tactic:press_jump') return 'Salto de presión con referencia de jugador y zona.';
+	      if (k === 'tactic:shift') return 'Basculación del bloque hacia un lado.';
+	      if (k === 'tv:dashed_pass') return 'Flecha de pase discontinua estilo retransmisión.';
+	      if (k === 'tv:white_run') return 'Flecha blanca de carrera o desmarque.';
+	      if (k === 'tv:curved_run') return 'Desmarque curvo para atacar espalda o intervalo.';
+	      if (k === 'tv:player_ring') return 'Aro para señalar un futbolista en imagen parada.';
+	      if (k === 'tv:spot_player') return 'Foco visual para destacar un jugador o duelo.';
+	      if (k === 'tv:duel_2v1') return 'Paquete TV con aros, flechas y etiqueta 2v1.';
+	      if (k === 'tv:pressure_jump') return 'Recurso TV para salto de presión.';
+	      if (k.startsWith('tool:')) return 'Activa la herramienta manual para dibujar sobre el vídeo.';
+	      if (k === 'fx:spot') return 'Crea un spotlight editable en la capa FX.';
+	      if (k === 'fx:blur') return 'Crea un blur editable para tapar o enfatizar zonas.';
+	      if (k === 'fx:freeze') return 'Congela el frame actual para anotar encima.';
+	      return 'Recurso de edición rápida.';
+	    };
+	    const previewClassForResourceKey = (key) => {
+	      const k = safeText(key, '');
+	      if (k.includes('dash') || k.includes('pass')) return 'dash';
+	      if (k.includes('curve') || k.includes('run')) return 'curve';
+	      if (k.includes('ring') || k.includes('spot_player')) return 'ring';
+	      if (k.includes('block') || k.includes('zone') || k.includes('lanes') || k.includes('third')) return 'zone';
+	      return '';
+	    };
+	    const updateResourcePreview = (key) => {
+	      if (!resourcePreview) return;
+	      const k = safeText(key, '');
+	      const title = labelForResourceKey(k) || 'Recursos';
+	      if (resourcePreviewTitle) resourcePreviewTitle.textContent = title;
+	      if (resourcePreviewText) resourcePreviewText.textContent = resourceDescriptionForKey(k);
+	      try {
+	        const mark = resourcePreview.querySelector('.vs-preview-mark');
+	        if (mark) mark.className = `vs-preview-mark ${previewClassForResourceKey(k)}`.trim();
+	      } catch (e) { /* ignore */ }
+	    };
+	    const applyResourceFilter = () => {
+	      const q = safeText(resourceSearchInput?.value, '').trim().toLowerCase();
+	      const filter = safeText(activeResourceFilter, 'all');
+	      const chips = Array.from(resourcesMenu?.querySelectorAll?.('[data-vs-resource]') || []);
+	      chips.forEach((btn) => {
+	        const key = safeText(btn.getAttribute('data-vs-resource'), '');
+	        const kind = safeText(btn.getAttribute('data-vs-kind'), kindForResourceKey(key));
+	        const label = safeText(btn.textContent, '').toLowerCase();
+	        const text = `${key} ${label} ${resourceDescriptionForKey(key)}`.toLowerCase();
+	        const inFilter = filter === 'all' || kind === filter;
+	        const inSearch = !q || text.includes(q);
+	        btn.hidden = !(inFilter && inSearch);
+	      });
+	      try {
+	        Array.from(document.querySelectorAll?.('[data-vs-resource-section]') || []).forEach((section) => {
+	          const visible = Array.from(section.querySelectorAll('[data-vs-resource]')).some((b) => !b.hidden);
+	          section.style.display = visible ? '' : 'none';
+	          const muted = section.previousElementSibling;
+	          if (muted && muted.classList?.contains('vs-menu-muted')) muted.style.display = visible ? '' : 'none';
+	        });
+	      } catch (e) { /* ignore */ }
+	    };
 	    const renderResourceRecents = () => {
 	      if (!resourcesRecentWrap) return;
 	      const items = readResourceRecents();
@@ -5396,16 +5551,33 @@
 	        Array.from((root || document).querySelectorAll?.('[data-vs-resource]') || []).forEach((btn) => {
 	          if (btn.__vsResourceWired) return;
 	          btn.__vsResourceWired = true;
+	          btn.addEventListener('mouseenter', () => updateResourcePreview(btn.getAttribute('data-vs-resource')));
+	          btn.addEventListener('focus', () => updateResourcePreview(btn.getAttribute('data-vs-resource')));
 	          btn.addEventListener('click', () => useResource(btn.getAttribute('data-vs-resource')));
 	        });
 	      } catch (e) { /* ignore */ }
 	    };
 	    wireResourceButtons(document);
+	    resourceSearchInput?.addEventListener?.('input', () => applyResourceFilter());
+	    try {
+	      Array.from(resourceTabsWrap?.querySelectorAll?.('[data-vs-resource-filter]') || []).forEach((btn) => {
+	        btn.addEventListener('click', () => {
+	          activeResourceFilter = safeText(btn.getAttribute('data-vs-resource-filter'), 'all');
+	          Array.from(resourceTabsWrap.querySelectorAll('[data-vs-resource-filter]')).forEach((b) => b.classList.toggle('active', b === btn));
+	          applyResourceFilter();
+	        });
+	      });
+	    } catch (e) { /* ignore */ }
+	    btnCapturePrimary?.addEventListener?.('click', () => {
+	      try { btnSnap?.click?.(); } catch (e) { /* ignore */ }
+	    });
 	    resourcesMenu?.addEventListener?.('toggle', () => {
 	      // Al abrir, re-cablea los "recientes" (se re-renderizan).
 	      if (resourcesMenu?.open) {
 	        renderResourceRecents();
 	        wireResourceButtons(resourcesMenu);
+	        applyResourceFilter();
+	        updateResourcePreview('tv:dashed_pass');
 	      }
 	    });
 	    btnRedo?.addEventListener('click', () => {
