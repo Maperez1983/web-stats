@@ -1737,10 +1737,14 @@
 	              data-player-card
 	              data-player-name="{{ item.name|lower }}"
 	              data-player-number="{{ item.number|default:'' }}"
-	              {% if forloop.counter > 6 %}hidden{% endif %}
+              {% if forloop.counter > 6 %}hidden{% endif %}
             >
               <div class="individual-head">
+                {% if item.photo_url %}
                 <img class="individual-avatar" src="{{ item.photo_url|default:'' }}" alt="{{ item.name }}" />
+                {% else %}
+                <span class="individual-avatar" aria-hidden="true"></span>
+                {% endif %}
                 <div>
                   <strong>{% if item.number %}#{{ item.number }} {% endif %}{{ item.name }}</strong>
                   <span class="meta">{{ item.position }}</span>

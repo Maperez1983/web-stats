@@ -27809,7 +27809,7 @@ def coach_role_trainer_page(request):
                 'name': player.name,
                 'number': player.number,
                 'position': player.position or '-',
-                'photo_url': resolve_player_photo_url(request, player),
+                'photo_url': '',
                 'minutes': 0,
                 'pj': 0,
                 'goals': 0,
