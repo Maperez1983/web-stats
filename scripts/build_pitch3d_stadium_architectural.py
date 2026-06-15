@@ -202,6 +202,38 @@ def sloped_panel(name, xmin, xmax, ymin, ymax, z0, z1, material, axis="y"):
     return obj
 
 
+def add_dugout(prefix, x, y, label, primary, secondary, black, metal, glass):
+    cube(f"{prefix}_dark_technical_plinth", (x, y, 0.20), (16.6, 3.2, 0.22), black, bevel=0.025)
+    cube(f"{prefix}_rear_kick_wall_TEAM_PRIMARY", (x, y + 1.20, 0.62), (15.8, 0.22, 0.82), primary, bevel=0.018)
+    cube(f"{prefix}_front_clear_guard", (x, y - 1.08, 0.88), (15.2, 0.08, 1.02), glass, (math.radians(-4), 0, 0), bevel=0.006)
+    cube(f"{prefix}_left_clear_side", (x - 7.85, y, 0.95), (0.10, 2.72, 1.55), glass, bevel=0.006)
+    cube(f"{prefix}_right_clear_side", (x + 7.85, y, 0.95), (0.10, 2.72, 1.55), glass, bevel=0.006)
+    for i in range(7):
+        t = i / 6
+        z = 1.15 + math.sin(t * math.pi * 0.72) * 1.05
+        yy = y - 0.92 + t * 1.92
+        cube(f"{prefix}_curved_polycarbonate_roof_{i:02d}", (x, yy, z), (15.8, 0.10, 0.40), glass, (math.radians(24 - t * 30), 0, 0), bevel=0.006)
+    cube(f"{prefix}_front_aluminium_rail", (x, y - 1.22, 1.38), (16.0, 0.10, 0.10), metal, bevel=0.004)
+    cube(f"{prefix}_top_aluminium_spine", (x, y + 0.10, 2.22), (16.1, 0.12, 0.12), metal, bevel=0.004)
+    for sx in (-7.8, -5.2, -2.6, 0, 2.6, 5.2, 7.8):
+        cube(f"{prefix}_canopy_rib_{sx:.1f}", (x + sx, y, 1.42), (0.08, 2.56, 0.08), metal, (math.radians(-10), 0, 0), bevel=0.003)
+    for idx in range(10):
+        sx = x - 5.85 + idx * 1.30
+        cube(f"{prefix}_individual_blue_seat_{idx:02d}", (sx, y + 0.26, 0.60), (0.82, 0.62, 0.22), primary, bevel=0.035)
+        cube(f"{prefix}_individual_blue_back_{idx:02d}", (sx, y + 0.58, 1.02), (0.82, 0.13, 0.82), primary, (math.radians(-12), 0, 0), bevel=0.028)
+        cube(f"{prefix}_seat_metal_leg_l_{idx:02d}", (sx - 0.31, y + 0.12, 0.34), (0.08, 0.08, 0.36), metal, bevel=0.002)
+        cube(f"{prefix}_seat_metal_leg_r_{idx:02d}", (sx + 0.31, y + 0.12, 0.34), (0.08, 0.08, 0.36), metal, bevel=0.002)
+    bpy.ops.object.text_add(location=(x, y - 1.34, 1.05), rotation=(math.radians(76), 0, 0))
+    text = bpy.context.object
+    text.name = f"{prefix}_front_brand_{label.replace(' ', '_')}_TEAM_SECONDARY"
+    text.data.body = label
+    text.data.align_x = "CENTER"
+    text.data.align_y = "CENTER"
+    text.data.size = 0.82
+    text.data.extrude = 0.018
+    text.data.materials.append(secondary)
+
+
 def add_seat_rows(prefix, ix, iy, radius, start, end, z0, rise, seat_mat, step_mat, rows):
     step = (end - start) / rows
     for row in range(rows):
@@ -289,20 +321,35 @@ def add_architectural_stadium():
             cube(f"arch_corner_outer_wall_TEAM_ACCENT_{sx}_{sy}", (sx * 91.0, sy * 72.0, 12.0), (12.0, 1.0, 11.0), accent, bevel=0.02)
             cube(f"arch_corner_side_wall_TEAM_ACCENT_{sx}_{sy}", (sx * 96.0, sy * 62.0, 12.0), (1.0, 18.0, 11.0), accent, bevel=0.02)
 
-    # Main stand tunnel and integrated grandstand over it.
-    cube("arch_players_tunnel_black_mouth", (0, -39.2, 2.7), (13.2, 1.0, 3.3), black, bevel=0.03)
-    cube("arch_players_tunnel_left_cheek", (-16.0, -47.0, 5.1), (20.0, 17.0, 9.6), dark_concrete, (0.035, 0, 0), bevel=0.04)
-    cube("arch_players_tunnel_right_cheek", (16.0, -47.0, 5.1), (20.0, 17.0, 9.6), dark_concrete, (0.035, 0, 0), bevel=0.04)
-    cube("arch_tunnel_lintel_and_vomitory_frame", (0, -40.0, 5.1), (20.0, 1.2, 1.0), concrete, bevel=0.03)
-    cube("arch_tunnel_structural_roof_slab", (0, -43.4, 6.9), (34.0, 10.0, 1.15), dark_concrete, bevel=0.025)
-    cube("arch_tunnel_integrated_lower_stand_slab", (0, -45.8, 8.4), (56.0, 15.0, 0.85), concrete, (0.07, 0, 0), bevel=0.018)
-    cube("arch_tunnel_integrated_lower_seats_TEAM_PRIMARY", (0, -45.8, 9.05), (52.0, 13.2, 0.46), primary, (0.07, 0, 0), bevel=0.012)
-    cube("arch_tunnel_integrated_upper_stand_slab", (0, -55.0, 13.0), (104.0, 19.5, 0.85), concrete, (0.13, 0, 0), bevel=0.018)
-    cube("arch_tunnel_overbuild_seat_deck_TEAM_PRIMARY", (0, -54.0, 13.65), (100.0, 18.0, 0.58), primary, (0.13, 0, 0), bevel=0.015)
-    cube("arch_tunnel_left_vertical_support", (-31.0, -47.0, 6.2), (2.2, 19.0, 11.8), dark_concrete, bevel=0.025)
-    cube("arch_tunnel_right_vertical_support", (31.0, -47.0, 6.2), (2.2, 19.0, 11.8), dark_concrete, bevel=0.025)
-    cube("arch_tunnel_back_wall_solid", (0, -58.5, 8.6), (62.0, 1.6, 11.2), dark_concrete, bevel=0.025)
-    cube("arch_tunnel_rear_opaque_wall_TEAM_ACCENT", (0, -63.5, 13.6), (106.0, 1.2, 10.8), accent, bevel=0.03)
+    # Reference-style technical area: low dugouts and a restrained dressing-room tunnel.
+    add_dugout("arch_home_dugout", -22.0, -37.55, "MALAGA CF", primary, secondary, black, metal, glass)
+    add_dugout("arch_away_dugout", 22.0, -37.55, "MCF", primary, secondary, black, metal, glass)
+    cube("arch_touchline_dark_asphalt_technical_lane", (0.0, -38.15, 0.075), (68.0, 3.7, 0.10), asphalt, bevel=0.01)
+    cube("arch_low_blue_touchline_wall_TEAM_PRIMARY", (0, -35.70, 0.70), (112.0, 0.28, 1.02), primary, bevel=0.015)
+    for idx, x in enumerate((-44, -25, -6, 13, 32, 51)):
+        label = ("2J FOOTBALL INTELLIGENCE", "MALAGA CF", "PARTNER", "LA ROSALEDA", "SPONSOR", "MCF")[idx]
+        cube(f"arch_pitchside_ad_board_{idx:02d}_{label.replace(' ', '_')}", (x, -35.47, 1.15), (14.6, 0.18, 1.02), led if idx % 2 == 0 else accent, bevel=0.01)
+        bpy.ops.object.text_add(location=(x, -35.60, 1.20), rotation=(math.radians(82), 0, 0))
+        ad = bpy.context.object
+        ad.name = f"arch_pitchside_ad_text_{idx:02d}_{label.replace(' ', '_')}_TEAM_SECONDARY"
+        ad.data.body = label
+        ad.data.align_x = "CENTER"
+        ad.data.align_y = "CENTER"
+        ad.data.size = 0.70
+        ad.data.extrude = 0.012
+        ad.data.materials.append(secondary)
+    cube("arch_players_tunnel_black_mouth", (0, -39.25, 1.55), (8.4, 0.56, 2.55), black, bevel=0.025)
+    cube("arch_players_tunnel_left_jamb", (-4.85, -39.10, 1.75), (0.82, 1.10, 3.05), concrete, bevel=0.025)
+    cube("arch_players_tunnel_right_jamb", (4.85, -39.10, 1.75), (0.82, 1.10, 3.05), concrete, bevel=0.025)
+    cube("arch_players_tunnel_header_clean", (0, -39.10, 3.25), (10.4, 1.08, 0.72), concrete, bevel=0.025)
+    cube("arch_players_tunnel_recess_glow", (0, -39.55, 1.52), (6.5, 0.08, 1.70), led, bevel=0.006)
+    cube("arch_players_tunnel_clear_walkway", (0, -37.62, 0.22), (8.2, 2.85, 0.20), concrete, bevel=0.012)
+    cube("arch_players_tunnel_blue_side_rail_l_TEAM_PRIMARY", (-4.75, -37.72, 0.82), (0.18, 2.75, 0.92), primary, bevel=0.01)
+    cube("arch_players_tunnel_blue_side_rail_r_TEAM_PRIMARY", (4.75, -37.72, 0.82), (0.18, 2.75, 0.92), primary, bevel=0.01)
+    cube("arch_tunnel_integrated_lower_stand_slab", (0, -45.8, 7.8), (54.0, 13.5, 0.72), concrete, (0.07, 0, 0), bevel=0.018)
+    cube("arch_tunnel_integrated_lower_seats_TEAM_PRIMARY", (0, -45.6, 8.35), (50.0, 12.0, 0.42), primary, (0.07, 0, 0), bevel=0.012)
+    cube("arch_tunnel_integrated_upper_stand_slab", (0, -55.0, 12.4), (92.0, 17.0, 0.72), concrete, (0.13, 0, 0), bevel=0.018)
+    cube("arch_tunnel_overbuild_seat_deck_TEAM_PRIMARY", (0, -54.0, 12.95), (88.0, 15.6, 0.46), primary, (0.13, 0, 0), bevel=0.015)
 
     # Vomitories, stairs, handrails and sector breaks.
     for x in (-54, -36, -18, 0, 18, 36, 54):
