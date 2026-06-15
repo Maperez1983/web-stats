@@ -166,3 +166,52 @@
     });
   })();
 </script>
+{% if static_build_id %}
+<script>
+  (function () {
+    try {
+      var build = "{{ static_build_id|escapejs }}";
+      if (!build) return;
+      var buildKey = "2j_static_build_id";
+      var refreshKey = "2j_cache_refresh_" + build;
+      var previous = "";
+      try { previous = window.localStorage && window.localStorage.getItem(buildKey) || ""; } catch (e) {}
+      if (!previous || previous === build) {
+        try { window.localStorage && window.localStorage.setItem(buildKey, build); } catch (e) {}
+        return;
+      }
+      try {
+        if (window.sessionStorage && window.sessionStorage.getItem(refreshKey)) {
+          window.localStorage && window.localStorage.setItem(buildKey, build);
+          return;
+        }
+        window.sessionStorage && window.sessionStorage.setItem(refreshKey, "1");
+      } catch (e) {}
+      var clearCaches = function () {
+        if (!("caches" in window)) return Promise.resolve();
+        return caches.keys().then(function (keys) {
+          return Promise.all(keys.map(function (key) {
+            return key.indexOf("webstats-") === 0 ? caches.delete(key) : Promise.resolve(false);
+          }));
+        });
+      };
+      var unregisterWorkers = function () {
+        if (!("serviceWorker" in navigator)) return Promise.resolve();
+        return navigator.serviceWorker.getRegistrations().then(function (regs) {
+          return Promise.all(regs.map(function (reg) { return reg.unregister(); }));
+        });
+      };
+      Promise.all([clearCaches(), unregisterWorkers()]).catch(function () {}).then(function () {
+        try { window.localStorage && window.localStorage.setItem(buildKey, build); } catch (e) {}
+        try {
+          var url = new URL(window.location.href);
+          url.searchParams.set("fresh", "1");
+          window.location.replace(url.toString());
+        } catch (e) {
+          window.location.reload();
+        }
+      });
+    } catch (e) {}
+  })();
+</script>
+{% endif %}
