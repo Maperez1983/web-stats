@@ -25424,6 +25424,63 @@
 	      return factory(left, top);
 	    };
 
+	    const constrainNewGraphicObjectToWorld = (object) => {
+	      if (!object) return;
+	      const kind = safeText(object?.data?.kind).toLowerCase();
+	      if (!kind) return;
+	      if (kind.includes('divider') || isLongStrokeObject(object)) return;
+	      const isZoneLike = kind === 'zone'
+	        || kind.startsWith('shape-')
+	        || kind === 'goal'
+	        || kind.startsWith('goal_')
+	        || kind.startsWith('goal-');
+	      if (!isZoneLike) return;
+	      const { w, h } = worldSize();
+	      const worldW = Math.max(1, Number(w) || 0);
+	      const worldH = Math.max(1, Number(h) || 0);
+	      let maxW = Math.min(220, worldW * 0.34);
+	      let maxH = Math.min(160, worldH * 0.34);
+	      if (kind === 'zone' || kind.startsWith('shape-lane-') || kind === 'shape-rect' || kind === 'shape-rect-long') {
+	        maxW = Math.min(190, worldW * 0.28);
+	        maxH = Math.min(120, worldH * 0.28);
+	      } else if (kind === 'shape-band-h') {
+	        maxW = Math.min(260, worldW * 0.42);
+	        maxH = Math.min(90, worldH * 0.20);
+	      } else if (kind === 'shape-band-v') {
+	        maxW = Math.min(90, worldW * 0.20);
+	        maxH = Math.min(260, worldH * 0.42);
+	      }
+	      maxW = Math.max(36, maxW);
+	      maxH = Math.max(28, maxH);
+	      try { object.setCoords(); } catch (e) { /* ignore */ }
+	      let bbox = null;
+	      try { bbox = object.getBoundingRect(true, true); } catch (e) { bbox = null; }
+	      const bw = Math.max(1, Number(bbox?.width) || Number(object.width) || 1);
+	      const bh = Math.max(1, Number(bbox?.height) || Number(object.height) || 1);
+	      const fitScale = Math.min(1, maxW / bw, maxH / bh);
+	      if (isFinite(fitScale) && fitScale > 0 && fitScale < 1) {
+	        object.set({
+	          scaleX: (Number(object.scaleX) || 1) * fitScale,
+	          scaleY: (Number(object.scaleY) || 1) * fitScale,
+	        });
+	        try { object.setCoords(); } catch (e) { /* ignore */ }
+	      }
+	      try { bbox = object.getBoundingRect(true, true); } catch (e) { bbox = null; }
+	      const finalW = Math.max(1, Number(bbox?.width) || 1);
+	      const finalH = Math.max(1, Number(bbox?.height) || 1);
+	      const halfW = finalW / 2;
+	      const halfH = finalH / 2;
+	      const currentCenter = object.getCenterPoint ? object.getCenterPoint() : { x: Number(object.left) || 0, y: Number(object.top) || 0 };
+	      const nextX = clamp(Number(currentCenter.x) || 0, Math.min(halfW, worldW / 2), Math.max(worldW - halfW, worldW / 2));
+	      const nextY = clamp(Number(currentCenter.y) || 0, Math.min(halfH, worldH / 2), Math.max(worldH - halfH, worldH / 2));
+	      try {
+	        object.setPositionByOrigin(new fabric.Point(nextX, nextY), 'center', 'center');
+	        object.setCoords();
+	      } catch (e) {
+	        object.set({ left: nextX, top: nextY, originX: 'center', originY: 'center' });
+	      }
+	    };
+
 				    const addObject = (object) => {
 				      if (!object) return;
 				      // Figuras de fondo: al crearlas queremos permitir edición inmediata (mover/escala).
@@ -25433,6 +25490,7 @@
 			        object.data.background_edit = true;
 			      }
 			      normalizeEditableObject(object);
+		      constrainNewGraphicObjectToWorld(object);
 			      canvas.add(object);
 		      if (isBackgroundShape(object)) canvas.sendToBack(object);
 		      canvas.setActiveObject(object);
