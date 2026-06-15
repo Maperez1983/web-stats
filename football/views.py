@@ -43789,25 +43789,27 @@ def analysis_page(request):
             except Exception:
                 video_inbox_unread_count = 0
 
-    rival_videos_qs = RivalVideo.objects.select_related('rival_team', 'folder', 'folder__base_video').prefetch_related('assigned_players').order_by('-is_base', '-created_at')
-    if primary_team:
-        # Multi-equipo: no mezclar vídeos entre clubs/categorías.
-        rival_videos_qs = rival_videos_qs.filter(
-            Q(team=primary_team)
-            | Q(team__isnull=True, folder__team=primary_team)
-            | Q(team__isnull=True, folder__isnull=True, owner_user=request.user)
-        )
-    elif request.user.is_authenticated:
-        rival_videos_qs = rival_videos_qs.filter(team__isnull=True, folder__isnull=True, owner_user=request.user)
-    if selected_team:
-        rival_videos_qs = rival_videos_qs.filter(rival_team=selected_team)
-    else:
-        rival_videos_qs = rival_videos_qs.filter(rival_team__isnull=True)
-    if selected_folder_id:
-        rival_videos_qs = rival_videos_qs.filter(folder_id=selected_folder_id)
-    if analysis_selected_season:
-        rival_videos_qs = _apply_club_season_filter(rival_videos_qs, analysis_selected_season, 'created_at', analysis_season_start, analysis_season_end, datetime_field=True)
-    rival_videos = list(rival_videos_qs[:40])
+    rival_videos = []
+    if active_tab in {'videos', 'studio'}:
+        rival_videos_qs = RivalVideo.objects.select_related('rival_team', 'folder', 'folder__base_video').prefetch_related('assigned_players').order_by('-is_base', '-created_at')
+        if primary_team:
+            # Multi-equipo: no mezclar vídeos entre clubs/categorías.
+            rival_videos_qs = rival_videos_qs.filter(
+                Q(team=primary_team)
+                | Q(team__isnull=True, folder__team=primary_team)
+                | Q(team__isnull=True, folder__isnull=True, owner_user=request.user)
+            )
+        elif request.user.is_authenticated:
+            rival_videos_qs = rival_videos_qs.filter(team__isnull=True, folder__isnull=True, owner_user=request.user)
+        if selected_team:
+            rival_videos_qs = rival_videos_qs.filter(rival_team=selected_team)
+        else:
+            rival_videos_qs = rival_videos_qs.filter(rival_team__isnull=True)
+        if selected_folder_id:
+            rival_videos_qs = rival_videos_qs.filter(folder_id=selected_folder_id)
+        if analysis_selected_season:
+            rival_videos_qs = _apply_club_season_filter(rival_videos_qs, analysis_selected_season, 'created_at', analysis_season_start, analysis_season_end, datetime_field=True)
+        rival_videos = list(rival_videos_qs[:20])
     # Ordena poniendo el vídeo base de la carpeta (si existe) el primero.
     try:
         folder_base_id = 0
@@ -43818,26 +43820,11 @@ def analysis_page(request):
             rival_videos.sort(key=lambda v: (0 if int(getattr(v, 'id', 0) or 0) == folder_base_id else 1, -int(getattr(v, 'id', 0) or 0)))
     except Exception:
         pass
-    for v in rival_videos:
-        try:
-            is_youtube = bool(
-                getattr(v, 'source', '') == RivalVideo.SOURCE_YOUTUBE
-                and str(getattr(v, 'source_url', '') or '').strip()
-                and not getattr(v, 'video', None)
-            )
-            if not is_youtube:
-                continue
-            yt_id = _extract_youtube_video_id(str(getattr(v, 'source_url', '') or '').strip())
-            setattr(v, 'youtube_id', yt_id)
-            if yt_id:
-                setattr(
-                    v,
-                    'youtube_embed_url',
-                    f'https://www.youtube-nocookie.com/embed/{yt_id}?rel=0&modestbranding=1&playsinline=1',
-                )
-        except Exception:
-            continue
-    analyst_players = _operational_roster_players_for_team(request, primary_team, confirmed_only=True) if primary_team else []
+    analyst_players = (
+        _operational_roster_players_for_team(request, primary_team, confirmed_only=True)
+        if primary_team and active_tab == 'videos'
+        else []
+    )
     match_options = []
     match_reports = []
     if primary_team:

@@ -966,24 +966,15 @@
 	                  </form>
 	                  {% endif %}
 	                </div>
-                {% if video.youtube_embed_url %}
-                <div style="position:relative; width:100%; aspect-ratio:16/9; border-radius:12px; overflow:hidden; border:1px solid rgba(148,163,184,0.35); background:#020617;">
-                  <iframe
-                    title="YouTube"
-                    src="{{ video.youtube_embed_url }}"
-                    style="position:absolute; inset:0; width:100%; height:100%; border:0;"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    allowfullscreen
-                    referrerpolicy="strict-origin-when-cross-origin"
-                  ></iframe>
-                </div>
-                {% elif video.video %}
-                <video controls preload="metadata">
-                  <source src="{{ video.video.url }}" />
-                </video>
-                {% else %}
-                <p class="error" style="margin:0;">Vídeo no disponible (sin archivo y sin enlace).</p>
-                {% endif %}
+                <p class="meta" style="margin:0;">
+                  {% if video.source_url %}
+                    Enlace externo guardado. Abre Video Studio para reproducir, cortar y anotar.
+                  {% elif video.video %}
+                    Archivo guardado. Abre Video Studio para reproducir, cortar y anotar.
+                  {% else %}
+                    Vídeo no disponible (sin archivo y sin enlace).
+                  {% endif %}
+                </p>
 	                {% if video.notes %}
 	                <p class="meta" style="margin-top:0.55rem;">{{ video.notes }}</p>
 	                {% endif %}
