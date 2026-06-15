@@ -50971,6 +50971,35 @@ def _video_studio_ai_action_motion(points: list) -> dict:
     }
 
 
+def _video_studio_ai_text_fingerprint(value) -> str:
+    """
+    Texto estable para matching táctico: minúsculas, sin tildes y con espacios normalizados.
+    """
+    raw = unicodedata.normalize('NFKD', str(value or '').lower())
+    raw = ''.join(ch for ch in raw if not unicodedata.combining(ch))
+    raw = re.sub(r'[^a-z0-9_:+#\-/]+', ' ', raw)
+    return re.sub(r'\s+', ' ', raw).strip()
+
+
+def _video_studio_ai_keyword_match(keyword_fp: str, text_fp: str) -> bool:
+    keyword_fp = _video_studio_ai_text_fingerprint(keyword_fp)
+    text_fp = _video_studio_ai_text_fingerprint(text_fp)
+    if not keyword_fp or not text_fp:
+        return False
+    if keyword_fp in text_fp:
+        return True
+    tokens = [t for t in keyword_fp.split() if len(t) > 1]
+    if len(tokens) <= 1:
+        return False
+    pos = 0
+    for token in text_fp.split():
+        if token == tokens[pos]:
+            pos += 1
+            if pos >= len(tokens):
+                return True
+    return False
+
+
 def _video_studio_ai_action_feedback_bias(team, video, action_key: str) -> float:
     try:
         qs = VideoAiActionExample.objects.filter(team=team, video=video, action_key=str(action_key or '')[:80])
@@ -51054,16 +51083,35 @@ def _video_studio_ai_default_knowledge_entries() -> list[dict]:
     }
 
     def _entry(source_key, pack, category, concept_key, title, summary, *, keywords=None, actions=None, visual_signals=None, zones=None, lanes=None, confidence_bias=0.05, payload_extra=None):
+        keywords = keywords or []
+        visual_signals = visual_signals or []
+        zones = zones or []
+        lanes = lanes or []
         payload = {
             'pack': pack,
-            'keywords': keywords or [],
+            'keywords': keywords,
+            'keyword_fingerprints': [_video_studio_ai_text_fingerprint(k) for k in keywords if str(k or '').strip()],
             'actions': actions or [],
-            'visual_signals': visual_signals or [],
-            'zones': zones or [],
-            'lanes': lanes or [],
+            'visual_signals': visual_signals,
+            'zones': zones,
+            'lanes': lanes,
             'confidence_bias': float(confidence_bias or 0.0),
+            'evidence_requirements': {
+                'needs_field_calibration': bool(zones or lanes),
+                'needs_attack_direction': bool(zones or lanes or any(sig in {'progression', 'positive_progression'} for sig in visual_signals)),
+                'needs_ball_confirmation': bool(actions and any(a in {'progresion', 'transicion_ofensiva', 'robo', 'centro_lateral', 'finalizacion', 'abp'} for a in actions)),
+                'minimum_visual_cues': [*visual_signals[:4], *zones[:2], *lanes[:2]],
+            },
+            'coach_question': f'¿Se ve claramente {title.lower()} o solo una pista parcial?',
+            'capture_must_show': ['balon', 'poseedor/receptor', 'zona', 'consecuencia'],
+            'training_labels': actions or [],
+            'epistemic_policy': 'afirmar solo con texto/feedback o con calibracion+direccion+balon; si no, devolver como hipotesis.',
         }
         if isinstance(payload_extra, dict):
+            if isinstance(payload_extra.get('evidence_requirements'), dict):
+                merged_req = dict(payload['evidence_requirements'])
+                merged_req.update(payload_extra.get('evidence_requirements') or {})
+                payload_extra = {**payload_extra, 'evidence_requirements': merged_req}
             payload.update(payload_extra)
         # Compatibilidad con el clasificador existente.
         payload['signals'] = list(payload['visual_signals'])
@@ -51211,11 +51259,20 @@ def _video_studio_ai_active_knowledge(team) -> list[dict]:
         return _video_studio_ai_default_knowledge_entries()
     out = []
     seen = set()
+    default_payload_by_key = {
+        str(item.get('concept_key') or ''): item.get('payload') if isinstance(item.get('payload'), dict) else {}
+        for item in _video_studio_ai_default_knowledge_entries()
+    }
     for row in rows:
         key = str(row.concept_key or '')
         if key in seen:
             continue
         seen.add(key)
+        row_payload = row.payload if isinstance(row.payload, dict) else {}
+        default_payload = default_payload_by_key.get(key) if isinstance(default_payload_by_key.get(key), dict) else {}
+        payload = {**default_payload, **row_payload}
+        if not payload.get('keyword_fingerprints') and isinstance(payload.get('keywords'), list):
+            payload['keyword_fingerprints'] = [_video_studio_ai_text_fingerprint(k) for k in payload.get('keywords') if str(k or '').strip()]
         out.append(
             {
                 'source_key': row.source_key,
@@ -51224,7 +51281,7 @@ def _video_studio_ai_active_knowledge(team) -> list[dict]:
                 'concept_key': row.concept_key,
                 'title': row.title,
                 'summary': row.summary,
-                'payload': row.payload if isinstance(row.payload, dict) else {},
+                'payload': payload,
             }
         )
     return out
@@ -51275,6 +51332,7 @@ def _video_studio_ai_detect_actions_for_clip(*, team, video, clip) -> dict:
     )
     timeline_text = ' '.join([str(r.get('kind') or '') + ' ' + str(r.get('label') or '') for r in timeline_rows]).lower()
     combined = f'{text} {timeline_text}'
+    combined_fp = _video_studio_ai_text_fingerprint(combined)
     knowledge = _video_studio_ai_active_knowledge(team)
 
     def _score(key, base, reasons):
@@ -51325,11 +51383,19 @@ def _video_studio_ai_detect_actions_for_clip(*, team, video, clip) -> dict:
     if 'abp' in combined or 'corner' in combined or 'falta' in combined:
         actions.append(_score('abp', 0.70 + q_bonus, ['evento_parado', 'timeline_tags']))
 
+    tactical_review = []
     knowledge_hits = []
     for concept in knowledge:
         payload = concept.get('payload') if isinstance(concept.get('payload'), dict) else {}
         keywords = [str(k or '').strip().lower() for k in (payload.get('keywords') if isinstance(payload.get('keywords'), list) else []) if str(k or '').strip()]
-        matched = [kw for kw in keywords if kw and kw in combined]
+        keyword_fps = payload.get('keyword_fingerprints') if isinstance(payload.get('keyword_fingerprints'), list) else []
+        if not keyword_fps:
+            keyword_fps = [_video_studio_ai_text_fingerprint(k) for k in keywords]
+        matched = [
+            keywords[idx] if idx < len(keywords) else fp
+            for idx, fp in enumerate(keyword_fps)
+            if _video_studio_ai_keyword_match(fp, combined_fp)
+        ]
         lanes = payload.get('lanes') if isinstance(payload.get('lanes'), list) else []
         lane_match = bool(start_zone.get('lane') in lanes or end_zone.get('lane') in lanes)
         zones = payload.get('zones') if isinstance(payload.get('zones'), list) else []
@@ -51354,6 +51420,17 @@ def _video_studio_ai_detect_actions_for_clip(*, team, video, clip) -> dict:
             signal_match = True
         if not matched and not lane_match and not zone_match and not signal_match:
             continue
+        evidence = payload.get('evidence_requirements') if isinstance(payload.get('evidence_requirements'), dict) else {}
+        missing_evidence = []
+        if evidence.get('needs_field_calibration') and not has_field_calibration:
+            missing_evidence.append('calibrar_campo')
+        if evidence.get('needs_attack_direction') and not has_attack_direction:
+            missing_evidence.append('validar_direccion_ataque')
+        if evidence.get('needs_ball_confirmation') and not has_confirmed_ball:
+            missing_evidence.append('confirmar_balon_poseedor')
+        evidence_level = 'confirmed' if matched and not missing_evidence else ('supported' if matched or (zone_match and signal_match) else 'weak_visual')
+        if missing_evidence:
+            evidence_level = 'hypothesis'
         knowledge_hits.append(
             {
                 'concept_key': concept.get('concept_key'),
@@ -51364,11 +51441,26 @@ def _video_studio_ai_detect_actions_for_clip(*, team, video, clip) -> dict:
                 'lane_match': bool(lane_match),
                 'zone_match': bool(zone_match),
                 'visual_match': bool(signal_match),
+                'evidence_level': evidence_level,
+                'missing_evidence': missing_evidence[:6],
+                'evidence_requirements': evidence,
                 'coach_question': payload.get('coach_question') or '',
                 'capture_must_show': payload.get('capture_must_show') if isinstance(payload.get('capture_must_show'), list) else [],
                 'training_transfer': payload.get('training_transfer') or '',
             }
         )
+        if len(tactical_review) < 8:
+            tactical_review.append(
+                {
+                    'concept_key': concept.get('concept_key'),
+                    'title': concept.get('title'),
+                    'evidence_level': evidence_level,
+                    'missing_evidence': missing_evidence[:6],
+                    'coach_question': payload.get('coach_question') or '',
+                    'capture_must_show': payload.get('capture_must_show') if isinstance(payload.get('capture_must_show'), list) else [],
+                    'training_labels': payload.get('training_labels') if isinstance(payload.get('training_labels'), list) else [],
+                }
+            )
         try:
             concept_bias = max(0.0, min(0.18, float(payload.get('confidence_bias') or 0.0)))
         except Exception:
@@ -51403,6 +51495,7 @@ def _video_studio_ai_detect_actions_for_clip(*, team, video, clip) -> dict:
                 + (0.04 if lane_match else 0.0)
                 + (0.03 if zone_match else 0.0)
                 + (0.03 if signal_match else 0.0)
+                - (0.04 * len(missing_evidence[:2]))
             )
             actions.append(
                 _score(
@@ -51426,6 +51519,7 @@ def _video_studio_ai_detect_actions_for_clip(*, team, video, clip) -> dict:
         'game_calibration': calibration,
         'timeline_events': len(timeline_rows),
         'knowledge_hits': knowledge_hits[:12],
+        'tactical_review': tactical_review[:8],
         'quality': quality,
         'actions': actions[:8],
         'sequence': sequence,
