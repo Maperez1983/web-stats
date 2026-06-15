@@ -266,11 +266,12 @@ def is_letter_seat(text, col, row):
     return pixels[row][col] == "1"
 
 
-def add_real_seat_bank(prefix, side, rows, cols, x_min, x_max, y_min, y_max, z_min, z_max, primary, primary_alt, secondary, dark):
+def add_real_seat_bank(prefix, side, rows, cols, x_min, x_max, y_min, y_max, z_min, z_max, primary, primary_alt, seat_highlight, secondary, shadow):
     blue_parts = []
     alt_parts = []
+    highlight_parts = []
     white_parts = []
-    dark_parts = []
+    shadow_parts = []
     dx = (x_max - x_min) / cols if cols else 0
     dy = (y_max - y_min) / rows if rows else 0
     for row in range(rows):
@@ -300,23 +301,28 @@ def add_real_seat_bank(prefix, side, rows, cols, x_min, x_max, y_min, y_max, z_m
             if side in ("north", "south"):
                 outward = 1 if side == "north" else -1
                 if col == 0:
-                    dark_parts.append(((x_min + x_max) / 2, y - outward * min(abs(dy) * 0.38, 0.26), z + 0.06, x_max - x_min, 0.055, 0.12))
-                target.append((x, y, z + 0.14, min(dx * 0.72, 0.90), min(abs(dy) * 0.62, 0.46), 0.22))
-                target.append((x, y + outward * min(abs(dy) * 0.30, 0.22), z + 0.58, min(dx * 0.72, 0.90), 0.14, 0.78))
-                if col % 4 == 0:
-                    dark_parts.append((x, y - outward * min(abs(dy) * 0.08, 0.08), z + 0.09, 0.07, 0.10, 0.24))
+                    shadow_parts.append(((x_min + x_max) / 2, y - outward * min(abs(dy) * 0.32, 0.22), z + 0.05, x_max - x_min, 0.035, 0.08))
+                target.append((x, y, z + 0.13, min(dx * 0.58, 0.62), min(abs(dy) * 0.42, 0.34), 0.18))
+                target.append((x, y + outward * min(abs(dy) * 0.24, 0.18), z + 0.50, min(dx * 0.58, 0.62), 0.10, 0.58))
+                if not letter and (row + col) % 3 == 0:
+                    highlight_parts.append((x, y + outward * min(abs(dy) * 0.03, 0.03), z + 0.24, min(dx * 0.36, 0.42), 0.035, 0.035))
+                if col % 8 == 0:
+                    shadow_parts.append((x, y - outward * min(abs(dy) * 0.06, 0.055), z + 0.08, 0.035, 0.055, 0.16))
             else:
                 outward = 1 if side == "east" else -1
                 if row == 0:
-                    dark_parts.append((x - outward * min(abs(dx) * 0.38, 0.26), (y_min + y_max) / 2, z + 0.06, 0.055, y_max - y_min, 0.12))
-                target.append((x, y, z + 0.14, min(abs(dx) * 0.62, 0.46), min(dy * 0.72, 0.90), 0.22))
-                target.append((x + outward * min(abs(dx) * 0.30, 0.22), y, z + 0.58, 0.14, min(dy * 0.72, 0.90), 0.78))
-                if row % 4 == 0:
-                    dark_parts.append((x - outward * min(abs(dx) * 0.08, 0.08), y, z + 0.09, 0.10, 0.07, 0.24))
+                    shadow_parts.append((x - outward * min(abs(dx) * 0.32, 0.22), (y_min + y_max) / 2, z + 0.05, 0.035, y_max - y_min, 0.08))
+                target.append((x, y, z + 0.13, min(abs(dx) * 0.42, 0.34), min(dy * 0.58, 0.62), 0.18))
+                target.append((x + outward * min(abs(dx) * 0.24, 0.18), y, z + 0.50, 0.10, min(dy * 0.58, 0.62), 0.58))
+                if not letter and (row + col) % 3 == 0:
+                    highlight_parts.append((x + outward * min(abs(dx) * 0.03, 0.03), y, z + 0.24, 0.035, min(dy * 0.36, 0.42), 0.035))
+                if row % 8 == 0:
+                    shadow_parts.append((x - outward * min(abs(dx) * 0.06, 0.055), y, z + 0.08, 0.055, 0.035, 0.16))
     batched_box_mesh(f"{prefix}_individual_blue_seats_TEAM_PRIMARY", blue_parts, primary)
     batched_box_mesh(f"{prefix}_individual_alt_blue_seats_TEAM_PRIMARY_DARKER_SEAT_FIELD", alt_parts, primary_alt)
+    batched_box_mesh(f"{prefix}_individual_plastic_highlights", highlight_parts, seat_highlight)
     batched_box_mesh(f"{prefix}_individual_white_letter_seats_TEAM_SECONDARY", white_parts, secondary)
-    batched_box_mesh(f"{prefix}_dark_seat_brackets", dark_parts, dark)
+    batched_box_mesh(f"{prefix}_blue_seat_shadow_gaps", shadow_parts, shadow)
 
 
 def add_dugout(prefix, x, y, label, primary, secondary, black, metal, glass):
@@ -364,6 +370,8 @@ def add_seat_rows(prefix, ix, iy, radius, start, end, z0, rise, seat_mat, step_m
 def add_architectural_stadium():
     primary = mat("TEAM_PRIMARY", rgba_env("PITCH3D_TEAM_PRIMARY", (0.015, 0.38, 0.25, 1)), 0.50, 0.02)
     primary_alt = mat("TEAM_PRIMARY_DARKER_SEAT_FIELD", rgba_env("PITCH3D_TEAM_PRIMARY_DARK", (0.010, 0.27, 0.19, 1)), 0.56, 0.01)
+    seat_highlight = mat("ARCH_SEAT_PLASTIC_HIGHLIGHT", (0.10, 0.58, 0.94, 1), 0.32, 0.04)
+    seat_shadow = mat("ARCH_SEAT_BLUE_SHADOW_GAPS", (0.015, 0.12, 0.24, 1), 0.72, 0.0)
     accent = mat("TEAM_ACCENT", rgba_env("PITCH3D_TEAM_ACCENT", (0.025, 0.14, 0.12, 1)), 0.48, 0.04)
     secondary = mat("TEAM_SECONDARY", rgba_env("PITCH3D_TEAM_SECONDARY", (0.92, 0.94, 0.90, 1)), 0.50, 0.03)
     concrete = mat("ARCH_PRECAST_CONCRETE", (0.58, 0.62, 0.58, 1), 0.82, 0.02)
@@ -406,10 +414,10 @@ def add_architectural_stadium():
     for y in (-36, -12, 12, 36):
         sloped_panel(f"arch_east_concrete_aisle_cut_{y}", 60.0, 97.0, y, y + 4.2, 2.35, 18.58, concrete, axis="x")
         sloped_panel(f"arch_west_concrete_aisle_cut_{y}", -97.0, -60.0, y, y + 4.2, 2.35, 18.58, concrete, axis="x")
-    add_real_seat_bank("arch_north_realistic", "north", 23, 110, -73.0, 73.0, 41.0, 77.0, 2.65, 18.30, primary, primary_alt, secondary, dark_concrete)
-    add_real_seat_bank("arch_south_realistic", "south", 23, 110, -73.0, 73.0, -77.0, -41.0, 18.30, 2.65, primary, primary_alt, secondary, dark_concrete)
-    add_real_seat_bank("arch_east_realistic", "east", 70, 22, 61.5, 96.0, -44.0, 44.0, 2.65, 18.20, primary, primary_alt, secondary, dark_concrete)
-    add_real_seat_bank("arch_west_realistic", "west", 70, 22, -96.0, -61.5, -44.0, 44.0, 18.20, 2.65, primary, primary_alt, secondary, dark_concrete)
+    add_real_seat_bank("arch_north_realistic", "north", 30, 142, -73.0, 73.0, 41.0, 77.0, 2.65, 18.30, primary, primary_alt, seat_highlight, secondary, seat_shadow)
+    add_real_seat_bank("arch_south_realistic", "south", 30, 142, -73.0, 73.0, -77.0, -41.0, 18.30, 2.65, primary, primary_alt, seat_highlight, secondary, seat_shadow)
+    add_real_seat_bank("arch_east_realistic", "east", 86, 28, 61.5, 96.0, -44.0, 44.0, 2.65, 18.20, primary, primary_alt, seat_highlight, secondary, seat_shadow)
+    add_real_seat_bank("arch_west_realistic", "west", 86, 28, -96.0, -61.5, -44.0, 44.0, 18.20, 2.65, primary, primary_alt, seat_highlight, secondary, seat_shadow)
     cube("arch_northeast_corner_solid_bowl_fill", (79.0, 61.0, 8.8), (45.0, 42.0, 17.2), dark_concrete, bevel=0.035)
     cube("arch_northwest_corner_solid_bowl_fill", (-79.0, 61.0, 8.8), (45.0, 42.0, 17.2), dark_concrete, bevel=0.035)
     cube("arch_southeast_corner_solid_bowl_fill", (79.0, -61.0, 8.8), (45.0, 42.0, 17.2), dark_concrete, bevel=0.035)
