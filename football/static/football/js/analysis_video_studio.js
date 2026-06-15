@@ -4894,15 +4894,17 @@
         setStatus('Plantilla no soportada.', true);
         return;
       }
-      const group = new fabric.Group(objs, { selectable: true });
-      group.data = seedLayerDataNow({ kind: 'template', template: name });
-      fabricCanvas.add(group);
+      const layer = objs.length === 1 ? objs[0] : new fabric.Group(objs, { selectable: true });
+      layer.set?.({ selectable: true, evented: true });
+      layer.data = seedLayerDataNow({ kind: 'template', template: name });
+      fabricCanvas.add(layer);
       pushHistory();
-      try { fabricCanvas.setActiveObject(group); } catch (e) { /* ignore */ }
+      try { fabricCanvas.setActiveObject(layer); } catch (e) { /* ignore */ }
       selectedFxId = 0;
       updateLayerPanel();
       renderFxList();
       renderDrawLayers();
+      try { fabricCanvas.requestRenderAll(); } catch (e) { /* ignore */ }
       setStatus('Plantilla aplicada.');
     };
 
@@ -5160,8 +5162,8 @@
 	      const makeRing = (x, y, color = yellow, opts = {}) => {
 	        const r = clamp(Math.min(w, h) * (opts.scale || 0.032), 14, 36);
 	        const halo = new fabric.Circle({
-	          left: px(x),
-	          top: py(y),
+	          left: 0,
+	          top: 0,
 	          radius: r * 1.28,
 	          originX: 'center',
 	          originY: 'center',
@@ -5172,8 +5174,8 @@
 	          evented: false,
 	        });
 	        const ring = new fabric.Circle({
-	          left: px(x),
-	          top: py(y),
+	          left: 0,
+	          top: 0,
 	          radius: r,
 	          originX: 'center',
 	          originY: 'center',
@@ -5185,15 +5187,23 @@
 	          strokeUniform: true,
 	          shadow: 'rgba(0,0,0,0.32) 0 2px 7px',
 	        });
-	        const group = new fabric.Group([halo, ring], { selectable: true, evented: true });
+	        const group = new fabric.Group([halo, ring], {
+	          left: px(x),
+	          top: py(y),
+	          originX: 'center',
+	          originY: 'center',
+	          selectable: true,
+	          evented: true,
+	        });
 	        group.data = seedLayerDataNow({ kind: 'player_ring', preset: key, anim: 'pop', anim_ms: 450 });
 	        return group;
 	      };
 	      const makeSpot = (x, y, color = yellow) => {
 	        const r = clamp(Math.min(w, h) * 0.082, 36, 92);
+	        const ringR = clamp(Math.min(w, h) * 0.027, 14, 36);
 	        const spot = new fabric.Circle({
-	          left: px(x),
-	          top: py(y),
+	          left: 0,
+	          top: 0,
 	          radius: r,
 	          originX: 'center',
 	          originY: 'center',
@@ -5204,7 +5214,28 @@
 	          evented: false,
 	          strokeUniform: true,
 	        });
-	        const group = new fabric.Group([spot, makeRing(x, y, color, { scale: 0.027 })], { selectable: true, evented: true });
+	        const halo = new fabric.Circle({
+	          left: 0,
+	          top: 0,
+	          radius: ringR,
+	          originX: 'center',
+	          originY: 'center',
+	          fill: 'rgba(0,0,0,0)',
+	          stroke: color,
+	          strokeWidth: Math.max(3, Math.round(sw * 0.55)),
+	          selectable: false,
+	          evented: false,
+	          strokeUniform: true,
+	          shadow: 'rgba(0,0,0,0.32) 0 2px 7px',
+	        });
+	        const group = new fabric.Group([spot, halo], {
+	          left: px(x),
+	          top: py(y),
+	          originX: 'center',
+	          originY: 'center',
+	          selectable: true,
+	          evented: true,
+	        });
 	        group.data = seedLayerDataNow({ kind: 'spotlight_marker', preset: key, anim: 'pop', anim_ms: 450 });
 	        return group;
 	      };
@@ -5309,9 +5340,52 @@
 	        setStatus(`Tool: ${labelForResourceKey(k)}`);
 	        return;
 	      }
-	      // FX (son tools realmente)
-	      if (k === 'fx:spot') { setTool('spot'); pushResourceRecent(k); closeResourcesMenu(); setStatus('FX: Spotlight'); return; }
-	      if (k === 'fx:blur') { setTool('blur'); pushResourceRecent(k); closeResourcesMenu(); setStatus('FX: Blur'); return; }
+	      // FX: el menú crea un efecto usable de inmediato; los botones superiores permiten dibujarlo a mano.
+	      if (k === 'fx:spot') {
+	        const layer = {
+	          id: fxSeq++,
+	          ...seedLayerDataNow({ t_in_s: Number(video.currentTime) || 0, fade_in_ms: 150, fade_out_ms: 150 }),
+	          kind: 'spotlight',
+	          cx: (Number(fxEl?.width) || 1280) * 0.5,
+	          cy: (Number(fxEl?.height) || 720) * 0.48,
+	          r: Math.max(42, Math.min(Number(fxEl?.width) || 1280, Number(fxEl?.height) || 720) * 0.15),
+	          intensity: 0.68,
+	          feather: 0.18,
+	        };
+	        fxState.layers = [...(Array.isArray(fxState.layers) ? fxState.layers : []), layer].slice(0, 80);
+	        selectedFxId = layer.id;
+	        setTool('select');
+	        renderFxList();
+	        updateLayerPanel();
+	        pushResourceRecent(k);
+	        closeResourcesMenu();
+	        setStatus('Spotlight añadido.');
+	        return;
+	      }
+	      if (k === 'fx:blur') {
+	        const fw = Number(fxEl?.width) || 1280;
+	        const fh = Number(fxEl?.height) || 720;
+	        const layer = {
+	          id: fxSeq++,
+	          ...seedLayerDataNow({ t_in_s: Number(video.currentTime) || 0, fade_in_ms: 150, fade_out_ms: 150 }),
+	          kind: 'blur',
+	          x: fw * 0.34,
+	          y: fh * 0.34,
+	          w: fw * 0.32,
+	          h: fh * 0.24,
+	          blur_px: 10,
+	          opacity: 1,
+	        };
+	        fxState.layers = [...(Array.isArray(fxState.layers) ? fxState.layers : []), layer].slice(0, 80);
+	        selectedFxId = layer.id;
+	        setTool('select');
+	        renderFxList();
+	        updateLayerPanel();
+	        pushResourceRecent(k);
+	        closeResourcesMenu();
+	        setStatus('Blur añadido.');
+	        return;
+	      }
 	      if (k === 'fx:freeze') { try { btnFreeze?.click?.(); } catch (e) { /* ignore */ } pushResourceRecent(k); closeResourcesMenu(); return; }
 	    };
 
@@ -9521,6 +9595,21 @@
       { kind: 'tag', label: 'Salida vs presión', hotkey: '8', color: '#38bdf8' },
       { kind: 'tag', label: 'Transición', hotkey: '9', color: '#cbd5e1' },
     ]);
+    const defaultEventPresetsForPack = (pack) => {
+      const p = safeText(pack, defaultPack) === 'own' ? 'own' : 'rival';
+      if (p === 'own') return defaultEventPresets();
+      return [
+        { kind: 'press', label: 'Presión rival', hotkey: '1', color: '#fb7185' },
+        { kind: 'turnover', label: 'Pérdida rival', hotkey: '2', color: '#f59e0b' },
+        { kind: 'shot', label: 'Finalización rival', hotkey: '3', color: '#facc15' },
+        { kind: 'abp', label: 'ABP rival', hotkey: '4', color: '#a78bfa' },
+        { kind: 'tag', label: 'Transición rival', hotkey: '5', color: '#60a5fa' },
+        { kind: 'tag', label: 'Salida rival', hotkey: '6', color: '#38bdf8' },
+        { kind: 'tag', label: 'Centro rival', hotkey: '7', color: '#34d399' },
+        { kind: 'tag', label: 'Bloque rival', hotkey: '8', color: '#cbd5e1' },
+        { kind: 'note', label: 'Nota rival', hotkey: '9', color: '#94a3b8' },
+      ];
+    };
     let eventPresets = defaultEventPresets();
 
     const sanitizeEventPresets = (raw) => {
