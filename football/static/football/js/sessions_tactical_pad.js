@@ -8150,7 +8150,9 @@
 						        return '';
 						      }
 						    };
-						    const isDedicatedPitch3dReferenceStadiumSrc = (src) => /stadium_benagalbon_reference(?:\.[a-f0-9]+)?\.glb(?:[?#].*)?$/i.test(safeText(src || ''));
+						    const isLegacyPitch3dReferenceStadiumSrc = (src) => /stadium_benagalbon_reference(?:\.[a-f0-9]+)?\.glb(?:[?#].*)?$/i.test(safeText(src || ''));
+						    const isDedicatedPitch3dMalagaStadiumSrc = (src) => /stadium_malaga_rosaleda(?:\.[a-f0-9]+)?\.glb(?:[?#].*)?$/i.test(safeText(src || ''));
+						    const isDedicatedPitch3dReferenceStadiumSrc = (src) => isLegacyPitch3dReferenceStadiumSrc(src) || isDedicatedPitch3dMalagaStadiumSrc(src);
 						    const ensurePitch3dGltfLoaderClass = async () => {
 						      try { if (window.__WEBSTATS_GLTF_LOADER_CLASS) return true; } catch (e) { /* ignore */ }
 						      if (window.__webstats_gltf_loader_promise) return !!(await window.__webstats_gltf_loader_promise);
@@ -13108,10 +13110,10 @@
 						                    const materialName = Array.isArray(node.material)
 						                      ? node.material.map((m) => safeText(m?.name)).join(' ').toUpperCase()
 						                      : safeText(node.material?.name).toUpperCase();
-						                    if (isDedicatedReferenceStadium) {
-						                      node.visible = false;
-						                      node.userData.replaced_by_clean_procedural_dedicated_stadium = true;
-						                      return;
+							                    if (isLegacyPitch3dReferenceStadiumSrc(stadiumModelSrc)) {
+							                      node.visible = false;
+							                      node.userData.replaced_by_clean_procedural_dedicated_stadium = true;
+							                      return;
 						                      const quality = safeText(document.body?.dataset?.pitch3dQuality || 'normal');
 						                      const compactViewport = Math.max(window.innerWidth || 0, window.innerHeight || 0) < 900;
 						                      const detailName = `${meshName} ${materialName}`;
@@ -13294,7 +13296,7 @@
 						      addPitchSideDetails3d();
 						      try {
 						        const stadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
-						        if (isDedicatedPitch3dReferenceStadiumSrc(stadiumModelSrc)) {
+							        if (isLegacyPitch3dReferenceStadiumSrc(stadiumModelSrc)) {
 						          const dedicatedFinish = new THREE.Group();
 						          dedicatedFinish.userData = { kind: 'pitch_3d_dedicated_reference_completion_layer' };
 						          const concreteMat = new THREE.MeshStandardMaterial({ color: 0xcfd6d1, roughness: 0.76, metalness: 0.03 });

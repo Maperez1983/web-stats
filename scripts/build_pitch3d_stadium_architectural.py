@@ -1,11 +1,28 @@
 import math
+import os
 from pathlib import Path
 
 import bpy
 
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "football/static/football/models/pitch3d/stadium_architectural_complete.glb"
+OUT = Path(os.environ.get("PITCH3D_STADIUM_OUT") or ROOT / "football/static/football/models/pitch3d/stadium_architectural_complete.glb")
+
+
+def rgba_env(name, fallback):
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return fallback
+    if raw.startswith("#") and len(raw) in (7, 9):
+        try:
+            r = int(raw[1:3], 16) / 255
+            g = int(raw[3:5], 16) / 255
+            b = int(raw[5:7], 16) / 255
+            a = int(raw[7:9], 16) / 255 if len(raw) == 9 else fallback[3]
+            return (r, g, b, a)
+        except Exception:
+            return fallback
+    return fallback
 
 
 def clear_scene():
@@ -196,10 +213,10 @@ def add_seat_rows(prefix, ix, iy, radius, start, end, z0, rise, seat_mat, step_m
 
 
 def add_architectural_stadium():
-    primary = mat("TEAM_PRIMARY", (0.015, 0.38, 0.25, 1), 0.50, 0.02)
-    primary_alt = mat("TEAM_PRIMARY_DARKER_SEAT_FIELD", (0.010, 0.27, 0.19, 1), 0.56, 0.01)
-    accent = mat("TEAM_ACCENT", (0.025, 0.14, 0.12, 1), 0.48, 0.04)
-    secondary = mat("TEAM_SECONDARY", (0.92, 0.94, 0.90, 1), 0.50, 0.03)
+    primary = mat("TEAM_PRIMARY", rgba_env("PITCH3D_TEAM_PRIMARY", (0.015, 0.38, 0.25, 1)), 0.50, 0.02)
+    primary_alt = mat("TEAM_PRIMARY_DARKER_SEAT_FIELD", rgba_env("PITCH3D_TEAM_PRIMARY_DARK", (0.010, 0.27, 0.19, 1)), 0.56, 0.01)
+    accent = mat("TEAM_ACCENT", rgba_env("PITCH3D_TEAM_ACCENT", (0.025, 0.14, 0.12, 1)), 0.48, 0.04)
+    secondary = mat("TEAM_SECONDARY", rgba_env("PITCH3D_TEAM_SECONDARY", (0.92, 0.94, 0.90, 1)), 0.50, 0.03)
     concrete = mat("ARCH_PRECAST_CONCRETE", (0.58, 0.62, 0.58, 1), 0.82, 0.02)
     dark_concrete = mat("ARCH_DARK_CONCRETE_STRUCTURE", (0.24, 0.27, 0.27, 1), 0.86, 0.02)
     black = mat("ARCH_DEEP_RECESSES", (0.006, 0.008, 0.011, 1), 0.90, 0)
@@ -340,6 +357,21 @@ def add_architectural_stadium():
     crest = bpy.context.object
     crest.name = "arch_round_roof_crest_TEAM_PRIMARY"
     crest.data.materials.append(primary_alt)
+    team_name = os.environ.get("PITCH3D_TEAM_NAME", "").strip()
+    if team_name:
+        for text, loc, size in (
+            (team_name, (0, 51.2, 12.35), 7.2),
+            (os.environ.get("PITCH3D_TEAM_CREST_TEXT", "MCF"), (-43.0, 51.0, 11.2), 5.6),
+        ):
+            bpy.ops.object.text_add(location=loc, rotation=(math.radians(72), 0, 0))
+            obj = bpy.context.object
+            obj.name = f"arch_seat_lettering_{text.replace(' ', '_')}_TEAM_SECONDARY"
+            obj.data.body = text
+            obj.data.align_x = "CENTER"
+            obj.data.align_y = "CENTER"
+            obj.data.size = size
+            obj.data.extrude = 0.045
+            obj.data.materials.append(secondary)
 
 
 def add_lighting():
