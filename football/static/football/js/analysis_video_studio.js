@@ -313,6 +313,9 @@
     const btnSpaceFollowPlay = document.getElementById('vs-space-follow-play');
     const btnSpaceFollowPlayer = document.getElementById('vs-space-follow-player');
     const btnSpaceFollowManual = document.getElementById('vs-space-follow-manual');
+    const btnLayerFollowPlayer = document.getElementById('vs-layer-follow-player');
+    const btnLayerFollowPlay = document.getElementById('vs-layer-follow-play');
+    const btnLayerFollowManual = document.getElementById('vs-layer-follow-manual');
     const btnMove = document.getElementById('vs-tool-move');
     const btnSpot = document.getElementById('vs-tool-spot');
     const btnBlur = document.getElementById('vs-tool-blur');
@@ -1839,6 +1842,34 @@
 	        }
 	      }
 	      if (mode === 'manual' && obj.data?.track && Array.isArray(obj.data.kf)) {
+	        const pos = interpKeyframes(obj.data.kf, nowS);
+	        if (pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)) return setObjectCenterPoint(obj, pos);
+	      }
+	      return false;
+	    };
+
+	    const applyObjectFollow = (obj, nowS) => {
+	      if (!obj || !obj.data || !obj.data.track) return false;
+	      const kind = safeText(obj?.data?.kind, '');
+	      if (kind === 'player_marker' || kind === 'tactical_link') return false;
+	      const mode = safeText(obj.data.follow_mode, 'manual');
+	      if (mode === 'play') {
+	        const ref = playCentroidAt(nowS);
+	        const off = obj.data.follow_offset || {};
+	        if (ref && Number.isFinite(Number(off.x)) && Number.isFinite(Number(off.y))) {
+	          return setObjectCenterPoint(obj, { x: ref.x + Number(off.x), y: ref.y + Number(off.y) });
+	        }
+	      }
+	      if (mode === 'player') {
+	        const uid = safeText(obj.data.follow_player_uid, '');
+	        const marker = getPlayerMarkers().find((m) => safeText(m?.data?.uid, '') === uid);
+	        const ref = marker ? markerPointAt(marker, nowS) : null;
+	        const off = obj.data.follow_offset || {};
+	        if (ref && Number.isFinite(Number(off.x)) && Number.isFinite(Number(off.y))) {
+	          return setObjectCenterPoint(obj, { x: ref.x + Number(off.x), y: ref.y + Number(off.y) });
+	        }
+	      }
+	      if (mode === 'manual' && Array.isArray(obj.data.kf)) {
 	        const pos = interpKeyframes(obj.data.kf, nowS);
 	        if (pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)) return setObjectCenterPoint(obj, pos);
 	      }
@@ -3714,8 +3745,10 @@
 		    fabricCanvas.on('object:moving', (opt) => {
 		      const obj = opt?.target;
 		      if (!obj || !obj.data) return;
-		      if (safeText(obj.data.kind) !== 'player_marker') return;
+		      const kind = safeText(obj.data.kind);
+		      if (kind === 'tactical_link') return;
 		      if (!obj.data.track) return;
+		      if (kind !== 'player_marker' && safeText(obj.data.follow_mode, 'manual') !== 'manual') return;
 		      if (video.paused) return;
 		      if (!trackingAutoKeyframes) return;
 		      try {
@@ -3742,7 +3775,7 @@
 		      const obj = opt?.target;
 		      if (!obj || !obj.data) return;
 		      const kind = safeText(obj.data.kind);
-	      if (kind !== 'player_marker' && kind !== 'space_zone') return;
+	      if (kind === 'tactical_link') return;
 	      if (!obj.data.track) return;
 		      try {
 		        const t = Number(video.currentTime) || 0;
@@ -3750,7 +3783,7 @@
 		        const x = Number(c?.x ?? obj.left) || 0;
 		        const y = Number(c?.y ?? obj.top) || 0;
 		        upsertKeyframe(obj, { t, x, y });
-		        if (kind === 'space_zone') {
+		        if (kind !== 'player_marker') {
 		          obj.data.follow_mode = 'manual';
 		          obj.data.follow_player_uid = '';
 		          obj.data.follow_offset = null;
@@ -3759,7 +3792,7 @@
 		        trackingLastKfPos = { x, y };
 		        pushHistory();
 		        renderDrawLayers();
-		        setStatus(`${kind === 'space_zone' ? 'Espacio' : 'Jugador'}: posición guardada @ ${fmtTime(t)}`);
+		        setStatus(`${kind === 'player_marker' ? 'Jugador' : (kind === 'space_zone' ? 'Espacio' : 'Recurso')}: posición guardada @ ${fmtTime(t)}`);
 		      } catch (e) { /* ignore */ }
 		    });
     fabricCanvas.on('selection:created', () => { selectedFxId = 0; updateLayerPanel(); renderFxList(); renderDrawLayers(); renderMiniTimeline(); });
@@ -3828,6 +3861,77 @@
 	    btnSpaceFollowPlay?.addEventListener('click', () => assignSpaceFollowMode('play'));
 	    btnSpaceFollowPlayer?.addEventListener('click', () => assignSpaceFollowMode('player'));
 	    btnSpaceFollowManual?.addEventListener('click', () => assignSpaceFollowMode('manual'));
+
+	    const selectedFollowResources = () => (
+	      selectedObjectsForSpace().filter((obj) => {
+	        const kind = safeText(obj?.data?.kind, '');
+	        return obj && kind !== 'player_marker' && kind !== 'tactical_link';
+	      })
+	    );
+
+	    const selectedFollowMarker = () => (
+	      selectedObjectsForSpace().find((obj) => safeText(obj?.data?.kind, '') === 'player_marker') || null
+	    );
+
+	    const assignLayerFollowMode = (mode) => {
+	      const resources = selectedFollowResources();
+	      if (!resources.length) {
+	        setStatus('Selecciona un recurso visual para aplicar seguimiento.', true);
+	        return;
+	      }
+	      const nowS = Number(video.currentTime) || 0;
+	      const marker = mode === 'player' ? selectedFollowMarker() : null;
+	      if (mode === 'player' && !marker) {
+	        setStatus('Selecciona a la vez el recurso y un marcador Jugador.', true);
+	        return;
+	      }
+	      const ref = (() => {
+	        if (mode === 'play') return playCentroidAt(nowS);
+	        if (mode === 'player') return markerPointAt(marker, nowS);
+	        return null;
+	      })();
+	      if ((mode === 'play' || mode === 'player') && !ref) {
+	        setStatus(mode === 'play' ? 'No hay marcadores Jugador visibles para seguir la jugada.' : 'No se pudo leer la posición del jugador.', true);
+	        return;
+	      }
+	      let changed = 0;
+	      resources.forEach((obj) => {
+	        ensureLayerData(obj);
+	        const center = objectCenterPoint(obj);
+	        if (!center) return;
+	        obj.data.track = true;
+	        if (mode === 'play') {
+	          obj.data.follow_mode = 'play';
+	          obj.data.follow_player_uid = '';
+	          obj.data.follow_offset = { x: center.x - ref.x, y: center.y - ref.y };
+	        } else if (mode === 'player') {
+	          ensureLayerData(marker);
+	          obj.data.follow_mode = 'player';
+	          obj.data.follow_player_uid = safeText(marker.data.uid, '');
+	          obj.data.follow_offset = { x: center.x - ref.x, y: center.y - ref.y };
+	        } else {
+	          obj.data.follow_mode = 'manual';
+	          obj.data.follow_player_uid = '';
+	          obj.data.follow_offset = null;
+	        }
+	        upsertKeyframe(obj, { t: nowS, x: center.x, y: center.y });
+	        changed += 1;
+	      });
+	      if (!changed) {
+	        setStatus('No se pudo leer la posición del recurso.', true);
+	        return;
+	      }
+	      pushHistory();
+	      updateLayerPanel();
+	      renderDrawLayers();
+	      try { applyTimedLayers(); fabricCanvas.requestRenderAll(); } catch (e) { /* ignore */ }
+	      if (mode === 'player') setStatus(`${changed} recurso(s): seguirán al jugador seleccionado.`);
+	      else if (mode === 'play') setStatus(`${changed} recurso(s): seguirán la jugada.`);
+	      else setStatus(`${changed} recurso(s): keyframe @ ${fmtTime(nowS)}.`);
+	    };
+	    btnLayerFollowPlayer?.addEventListener('click', () => assignLayerFollowMode('player'));
+	    btnLayerFollowPlay?.addEventListener('click', () => assignLayerFollowMode('play'));
+	    btnLayerFollowManual?.addEventListener('click', () => assignLayerFollowMode('manual'));
 
       const pushPlayerRecent = (number, name) => {
         const n = safeText(number, '').trim();
@@ -10316,6 +10420,14 @@
 	            try { applySpaceFollow(obj, nowS); } catch (e) { /* ignore */ }
 	          }
 	          try { applySpaceZoneLiveStyle(obj, isSpaceZoneOccupied(obj, nowS)); } catch (e) { /* ignore */ }
+	        }
+
+	        if (safeText(obj?.data?.kind) !== 'space_zone' && obj.visible && obj.data?.track) {
+	          anyAnim = true;
+	          const editingThis = Boolean(activeObj && obj === activeObj && video.paused && isTransforming);
+	          if (!editingThis) {
+	            try { applyObjectFollow(obj, nowS); } catch (e) { /* ignore */ }
+	          }
 	        }
 
 	        if (safeText(obj?.data?.kind) === 'tactical_link' && obj.visible) {
