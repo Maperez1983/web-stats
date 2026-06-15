@@ -300,6 +300,7 @@ class Command(BaseCommand):
         ball_pts = []
         widths = []
         depths = []
+        lane_samples = []
         pressure_vals = []
         unique_player_ids = set()
         for frame in frames:
@@ -313,6 +314,25 @@ class Command(BaseCommand):
                 ys = [float(p.get("y_rel") or 0.0) for p in people]
                 widths.append((max(xs) - min(xs), max(ys) - min(ys), len(people)))
                 depths.append((min(xs), max(xs), sum(xs) / len(xs), len(people)))
+                lane_counts = {
+                    "carril_exterior_izquierdo": 0,
+                    "carril_interior_izquierdo": 0,
+                    "carril_central": 0,
+                    "carril_interior_derecho": 0,
+                    "carril_exterior_derecho": 0,
+                }
+                for y in ys:
+                    if y < 0.18:
+                        lane_counts["carril_exterior_izquierdo"] += 1
+                    elif y < 0.36:
+                        lane_counts["carril_interior_izquierdo"] += 1
+                    elif y <= 0.64:
+                        lane_counts["carril_central"] += 1
+                    elif y <= 0.82:
+                        lane_counts["carril_interior_derecho"] += 1
+                    else:
+                        lane_counts["carril_exterior_derecho"] += 1
+                lane_samples.append(lane_counts)
             ball = max(balls, key=lambda d: float(d.get("conf") or 0.0), default=None)
             possessor = None
             if ball:
@@ -363,6 +383,12 @@ class Command(BaseCommand):
         avg_width = sum(w[0] for w in widths) / len(widths) if widths else 0.0
         avg_depth = sum((d[1] - d[0]) for d in depths) / len(depths) if depths else 0.0
         avg_line_x = sum(d[2] for d in depths) / len(depths) if depths else None
+        lane_density = {}
+        if lane_samples:
+            lane_keys = list(lane_samples[0].keys())
+            lane_density = {key: round(sum(sample.get(key, 0) for sample in lane_samples) / len(lane_samples), 3) for key in lane_keys}
+        occupied_lane_avg = sum(1 for value in lane_density.values() if float(value or 0.0) >= 0.75) if lane_density else 0
+        compactness = (avg_people / max(0.08, avg_width * avg_depth)) if avg_people and avg_width and avg_depth else 0.0
         ball_jumps = [
             math.hypot(float(b.get("x", 0.0)) - float(a.get("x", 0.0)), float(b.get("y", 0.0)) - float(a.get("y", 0.0)))
             for a, b in zip(ball_pts, ball_pts[1:])
@@ -459,6 +485,9 @@ class Command(BaseCommand):
                 "avg_width": round(avg_width, 4),
                 "avg_depth": round(avg_depth, 4),
                 "avg_line_x": round(avg_line_x, 4) if avg_line_x is not None else None,
+                "lane_density": lane_density,
+                "occupied_lane_avg": occupied_lane_avg,
+                "compactness": round(compactness, 4),
                 "field_height_hint": field_height_hint,
                 "block_height_hint": block_height_hint,
                 "block_evidence_level": block_evidence_level,
@@ -482,6 +511,8 @@ class Command(BaseCommand):
         avg_players = float(shape.get("avg_players") or 0.0)
         avg_width = float(shape.get("avg_width") or 0.0)
         avg_depth = float(shape.get("avg_depth") or 0.0)
+        occupied_lane_avg = int(shape.get("occupied_lane_avg") or 0)
+        compactness = float(shape.get("compactness") or 0.0)
         block_height_hint = str(shape.get("block_height_hint") or "")
         block_evidence_level = str(shape.get("block_evidence_level") or "")
         avg_pressure = pressure.get("avg_nearest_opponent")
@@ -491,7 +522,7 @@ class Command(BaseCommand):
                 "key": "lectura_bloque",
                 "concept": "coach_defensa_distancias_bloque",
                 "title": "Bloque: altura y distancias",
-                "score": 0.42 + min(0.14, avg_players / 80.0) + min(0.10, avg_depth * 0.35) + (0.06 if block_evidence_level == "supported" else 0.0),
+                "score": 0.42 + min(0.14, avg_players / 80.0) + min(0.10, avg_depth * 0.35) + min(0.08, compactness / 220.0) + (0.06 if block_evidence_level == "supported" else 0.0),
                 "when": avg_players >= 8 and bool(block_height_hint),
                 "roles": ["linea defensiva", "linea media", "intervalos", "espacio a espalda"],
                 "why": f"La IA estima {block_height_hint.replace('_', ' ')} desde la altura media del bloque; debe revisarse con líneas y distancias visibles.",
@@ -500,8 +531,8 @@ class Command(BaseCommand):
                 "key": "ocupacion_5_carriles",
                 "concept": "espacio_5_carriles",
                 "title": "Ocupación de 5 carriles",
-                "score": 0.40 + min(0.18, avg_width * 0.32) + min(0.10, avg_players / 90.0),
-                "when": avg_players >= 8 and avg_width >= 0.42,
+                "score": 0.40 + min(0.18, avg_width * 0.32) + min(0.10, avg_players / 90.0) + min(0.08, occupied_lane_avg / 30.0),
+                "when": avg_players >= 8 and (avg_width >= 0.42 or occupied_lane_avg >= 3),
                 "roles": ["carril exterior", "carril interior", "carril central", "lado débil"],
                 "why": "La ocupación ancha permite revisar si exteriores, interiores y carril central están complementados o se pisan zonas.",
             },

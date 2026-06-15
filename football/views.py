@@ -51093,6 +51093,110 @@ def _video_studio_ai_action_feedback_bias(team, video, action_key: str) -> float
         return 0.0
 
 
+def _video_studio_ai_tactical_label_presets() -> list[dict]:
+    return [
+        {'key': 'bloque_bajo', 'label': 'Bloque bajo', 'group': 'bloques', 'needs': ['campo', 'direccion', 'lineas']},
+        {'key': 'bloque_medio', 'label': 'Bloque medio', 'group': 'bloques', 'needs': ['campo', 'direccion', 'lineas']},
+        {'key': 'bloque_alto', 'label': 'Bloque alto', 'group': 'bloques', 'needs': ['campo', 'direccion', 'presion']},
+        {'key': 'ocupacion_5_carriles', 'label': '5 carriles', 'group': 'espacios', 'needs': ['campo', 'anchura']},
+        {'key': 'carril_exterior', 'label': 'Carril exterior', 'group': 'carriles', 'needs': ['campo']},
+        {'key': 'carril_interior', 'label': 'Carril interior', 'group': 'carriles', 'needs': ['campo']},
+        {'key': 'carril_central', 'label': 'Carril central', 'group': 'carriles', 'needs': ['campo']},
+        {'key': 'presion_alta', 'label': 'Presión alta', 'group': 'defensa', 'needs': ['poseedor', 'rivales_cerca']},
+        {'key': 'linea_alta', 'label': 'Línea alta', 'group': 'defensa', 'needs': ['linea_defensiva', 'espalda']},
+        {'key': 'bloque_compacto', 'label': 'Bloque compacto', 'group': 'defensa', 'needs': ['distancias_lineas']},
+        {'key': 'equipo_partido', 'label': 'Equipo partido', 'group': 'errores', 'needs': ['distancias_lineas']},
+        {'key': 'lado_debil', 'label': 'Lado débil', 'group': 'espacios', 'needs': ['basculacion', 'carril_opuesto']},
+        {'key': 'distancia_entre_lineas', 'label': 'Distancia entre líneas', 'group': 'estructura', 'needs': ['linea_media', 'linea_defensiva']},
+        {'key': 'presion_tras_perdida', 'label': 'Presión tras pérdida', 'group': 'transiciones', 'needs': ['perdida', '5s_posteriores']},
+    ]
+
+
+def _video_studio_ai_target_learning_labels() -> list[str]:
+    return [
+        'bloque_bajo',
+        'bloque_medio',
+        'bloque_alto',
+        'ocupacion_5_carriles',
+        'carril_exterior',
+        'carril_interior',
+        'carril_central',
+        'presion_alta',
+        'linea_alta',
+        'bloque_compacto',
+        'equipo_partido',
+        'lado_debil',
+        'distancia_entre_lineas',
+        'presion_tras_perdida',
+        'ball_visible',
+        'ruptura',
+        'centro_lateral',
+        'finalizacion',
+        'recuperacion',
+        'perdida',
+    ]
+
+
+def _video_studio_ai_action_key(value: str) -> str:
+    raw = str(value or '').strip().lower()
+    key = re.sub(r'[^a-z0-9_:-]+', '_', _video_studio_ai_text_fingerprint(raw)).strip('_')[:80]
+    return key or slugify(raw).replace('-', '_')[:80]
+
+
+def _video_studio_ai_learning_summary(team, video) -> dict:
+    rows = list(VideoAiActionExample.objects.filter(team=team, video=video).order_by('-created_at')[:5000])
+    by_key = defaultdict(lambda: {'positive': 0, 'negative': 0, 'human': 0, 'contrast_positive': 0, 'contrast_negative': 0})
+    evidence = Counter()
+    for row in rows:
+        key = str(row.action_key or 'unknown')
+        bucket = by_key[key]
+        if row.is_positive:
+            bucket['positive'] += 1
+        else:
+            bucket['negative'] += 1
+        payload = row.payload if isinstance(row.payload, dict) else {}
+        if payload.get('source') in {'tactical_quick_feedback', 'contrast_pair'} or payload.get('kind') in {'tactical_quick_feedback', 'contrast_pair'}:
+            bucket['human'] += 1
+        if payload.get('kind') == 'contrast_pair':
+            if row.is_positive:
+                bucket['contrast_positive'] += 1
+            else:
+                bucket['contrast_negative'] += 1
+        level = str(payload.get('evidence_level') or payload.get('evidence') or '').strip()
+        if level:
+            evidence[level] += 1
+    labels = []
+    for key in _video_studio_ai_target_learning_labels():
+        counts = by_key[key]
+        pos = int(counts['positive'])
+        neg = int(counts['negative'])
+        labels.append(
+            {
+                'key': key,
+                **counts,
+                'total': pos + neg,
+                'need_positive': max(0, 10 - pos),
+                'need_negative': max(0, 5 - neg),
+                'ready_rules': pos >= 10 and neg >= 5,
+                'ready_finetune': pos >= 50 and neg >= 20,
+            }
+        )
+    labels.sort(key=lambda r: (bool(r.get('ready_rules')), int(r.get('need_positive', 0)) + int(r.get('need_negative', 0)), r.get('key')))
+    return {
+        'examples': len(rows),
+        'labels': labels,
+        'evidence': dict(evidence.most_common()),
+        'calibration': _video_studio_ai_get_game_calibration(team, video),
+        'tracking_anchors': VideoAiCorrectionExample.objects.filter(team=team, video=video).count(),
+        'recommendations': [
+            'etiquetar positivos y negativos de bloque bajo/medio/alto',
+            'crear pares comparativos: si es bloque bajo vs si no lo es',
+            'validar campo y dirección antes de exigir etiquetas confirmadas',
+            'guardar ejemplos de carriles con balón y estructura visible',
+        ],
+    }
+
+
 def _video_studio_ai_normalize_field_points(raw) -> dict:
     points = raw if isinstance(raw, dict) else {}
     out = {}
@@ -52097,6 +52201,16 @@ def analysis_video_studio_ai_pro_api(request):
         packs = Counter(str(((e.get('payload') if isinstance(e.get('payload'), dict) else {}) or {}).get('pack') or e.get('category') or 'otros') for e in entries)
         return JsonResponse({'ok': True, 'action': 'knowledge', 'entries': entries[:300], 'sources': sources, 'packs': dict(sorted(packs.items()))})
 
+    if action == 'tactical_labels':
+        return JsonResponse(
+            {
+                'ok': True,
+                'action': 'tactical_labels',
+                'labels': _video_studio_ai_tactical_label_presets(),
+                'learning': _video_studio_ai_learning_summary(primary_team, video),
+            }
+        )
+
     if action == 'knowledge_add':
         concept_key = re.sub(r'[^a-z0-9_:-]+', '_', str(data.get('concept_key') or data.get('title') or '').strip().lower()).strip('_')[:100]
         title = _sanitize_task_text(str(data.get('title') or concept_key).strip(), multiline=False, max_len=160)
@@ -52139,9 +52253,7 @@ def analysis_video_studio_ai_pro_api(request):
 
     if action == 'action_feedback':
         raw_action_key = str(data.get('action_key') or '').strip().lower()
-        action_key = re.sub(r'[^a-z0-9_:-]+', '_', raw_action_key).strip('_')[:80]
-        if not action_key:
-            action_key = slugify(raw_action_key).replace('-', '_')[:80]
+        action_key = _video_studio_ai_action_key(raw_action_key)
         if not action_key:
             return JsonResponse({'ok': False, 'error': 'action_key requerido.'}, status=400)
         try:
@@ -52176,6 +52288,100 @@ def analysis_video_studio_ai_pro_api(request):
             clip.save(update_fields=['overlay', 'updated_at'])
         return JsonResponse({'ok': True, 'action': 'action_feedback', 'example_id': int(example.id)})
 
+    if action == 'tactical_quick_feedback':
+        if not clip:
+            return JsonResponse({'ok': False, 'error': 'clip_id requerido.'}, status=400)
+        raw_labels = data.get('labels') if isinstance(data.get('labels'), list) else [data.get('action_key') or data.get('label_key')]
+        labels = []
+        for raw in raw_labels:
+            key = _video_studio_ai_action_key(str(raw or ''))
+            if key and key not in labels:
+                labels.append(key)
+        if not labels:
+            return JsonResponse({'ok': False, 'error': 'labels requerido.'}, status=400)
+        is_positive = bool(data.get('is_positive', True))
+        evidence_level = str(data.get('evidence_level') or ('confirmed' if is_positive else 'human_negative')).strip()[:40]
+        detected = _video_studio_ai_detect_actions_for_clip(team=primary_team, video=video, clip=clip)
+        field_context = detected.get('field_context') if isinstance(detected, dict) else {}
+        try:
+            start_s = max(0.0, float(data.get('start_s') if data.get('start_s') is not None else clip.in_seconds))
+            end_s = max(start_s, float(data.get('end_s') if data.get('end_s') is not None else clip.out_seconds))
+        except Exception:
+            start_s = float(clip.in_seconds)
+            end_s = float(clip.out_seconds)
+        username = request.user.get_username() if request.user and request.user.is_authenticated else ''
+        created_rows = []
+        for key in labels[:12]:
+            example = VideoAiActionExample.objects.create(
+                team=primary_team,
+                video=video,
+                clip=clip,
+                action_key=key,
+                label=_sanitize_task_text(str(data.get('label') or key.replace('_', ' ')).strip(), multiline=False, max_len=120),
+                is_positive=is_positive,
+                start_ms=int(round(start_s * 1000.0)),
+                end_ms=int(round(end_s * 1000.0)),
+                confidence=1.0,
+                payload={
+                    'kind': 'tactical_quick_feedback',
+                    'source': 'tactical_quick_feedback',
+                    'evidence_level': evidence_level,
+                    'field_context': field_context,
+                    'detected_actions': detected.get('actions')[:6] if isinstance(detected.get('actions'), list) else [],
+                    'note': _sanitize_task_text(str(data.get('note') or '').strip(), multiline=True, max_len=800),
+                },
+                created_by=username[:80],
+                created_by_user=request.user if request.user.is_authenticated else None,
+            )
+            created_rows.append({'id': int(example.id), 'key': key, 'positive': bool(is_positive)})
+        overlay = clip.overlay if isinstance(getattr(clip, 'overlay', None), dict) else {}
+        ai_pro = overlay.get('ai_pro') if isinstance(overlay.get('ai_pro'), dict) else {}
+        tactical = ai_pro.get('tactical_feedback') if isinstance(ai_pro.get('tactical_feedback'), list) else []
+        tactical.extend([{**row, 'evidence_level': evidence_level} for row in created_rows])
+        ai_pro['tactical_feedback'] = tactical[-400:]
+        overlay['ai_pro'] = ai_pro
+        clip.overlay = overlay
+        clip.save(update_fields=['overlay', 'updated_at'])
+        return JsonResponse({'ok': True, 'action': 'tactical_quick_feedback', 'created': created_rows, 'learning': _video_studio_ai_learning_summary(primary_team, video)})
+
+    if action == 'contrast_pair':
+        label_key = _video_studio_ai_action_key(str(data.get('action_key') or data.get('label_key') or ''))
+        if not label_key:
+            return JsonResponse({'ok': False, 'error': 'action_key requerido.'}, status=400)
+        positive_clip_id = _parse_int(data.get('positive_clip_id')) or (clip.id if clip else None)
+        negative_clip_id = _parse_int(data.get('negative_clip_id'))
+        positive_clip = VideoClip.objects.filter(team=primary_team, video=video, id=int(positive_clip_id)).first() if positive_clip_id else None
+        negative_clip = VideoClip.objects.filter(team=primary_team, video=video, id=int(negative_clip_id)).first() if negative_clip_id else None
+        if not positive_clip or not negative_clip:
+            return JsonResponse({'ok': False, 'error': 'positive_clip_id y negative_clip_id requeridos.'}, status=400)
+        contrast_id = f'{label_key}:{positive_clip.id}:{negative_clip.id}:{int(timezone.now().timestamp())}'
+        username = request.user.get_username() if request.user and request.user.is_authenticated else ''
+        created_rows = []
+        for row_clip, is_positive in ((positive_clip, True), (negative_clip, False)):
+            example = VideoAiActionExample.objects.create(
+                team=primary_team,
+                video=video,
+                clip=row_clip,
+                action_key=label_key,
+                label=label_key.replace('_', ' '),
+                is_positive=is_positive,
+                start_ms=int(row_clip.in_ms or 0),
+                end_ms=int(row_clip.out_ms or 0),
+                confidence=1.0,
+                payload={
+                    'kind': 'contrast_pair',
+                    'source': 'contrast_pair',
+                    'contrast_id': contrast_id,
+                    'positive_clip_id': int(positive_clip.id),
+                    'negative_clip_id': int(negative_clip.id),
+                    'note': _sanitize_task_text(str(data.get('note') or '').strip(), multiline=True, max_len=800),
+                },
+                created_by=username[:80],
+                created_by_user=request.user if request.user.is_authenticated else None,
+            )
+            created_rows.append({'id': int(example.id), 'clip_id': int(row_clip.id), 'positive': bool(is_positive)})
+        return JsonResponse({'ok': True, 'action': 'contrast_pair', 'label': label_key, 'contrast_id': contrast_id, 'created': created_rows, 'learning': _video_studio_ai_learning_summary(primary_team, video)})
+
     if action == 'action_dataset':
         rows = list(VideoAiActionExample.objects.filter(team=primary_team, video=video).order_by('-created_at')[:1000])
         by_key = defaultdict(lambda: {'positive': 0, 'negative': 0})
@@ -52190,12 +52396,14 @@ def analysis_video_studio_ai_pro_api(request):
         calibrations = VideoAiGameCalibration.objects.filter(team=primary_team, video=video).count()
         knowledge = VideoAiKnowledgeEntry.objects.filter(Q(team=primary_team) | Q(team__isnull=True), is_active=True).count()
         clips_total = VideoClip.objects.filter(team=primary_team, video=video).count()
+        learning = _video_studio_ai_learning_summary(primary_team, video)
         return JsonResponse(
             {
                 'ok': True,
                 'action': 'action_dataset',
                 'examples': len(rows),
                 'labels': labels[:80],
+                'learning': learning,
                 'dataset': {
                     'action_examples': len(rows),
                     'tracking_anchors': corrections,
@@ -52335,21 +52543,8 @@ def analysis_video_studio_ai_pro_api(request):
         return JsonResponse({'ok': True, 'action': 'ai_review', 'items': items, 'needs_review': [r for r in items if r.get('needs_review')][:40]})
 
     if action == 'active_learning':
-        rows = list(VideoAiActionExample.objects.filter(team=primary_team, video=video).order_by('-created_at')[:2000])
-        by_key = defaultdict(lambda: {'positive': 0, 'negative': 0})
-        for row in rows:
-            bucket = by_key[str(row.action_key or 'unknown')]
-            if row.is_positive:
-                bucket['positive'] += 1
-            else:
-                bucket['negative'] += 1
-        target_labels = ['ball_visible', 'pase_largo_espalda_lateral', 'ruptura', 'recepcion', 'centro_lateral', 'finalizacion', 'perdida', 'recuperacion']
-        needs = []
-        for key in target_labels:
-            pos = int(by_key[key]['positive'])
-            neg = int(by_key[key]['negative'])
-            needs.append({'key': key, 'positive': pos, 'negative': neg, 'need_positive': max(0, 10 - pos), 'need_negative': max(0, 5 - neg), 'ready': pos >= 10 and neg >= 5})
-        return JsonResponse({'ok': True, 'action': 'active_learning', 'needs': needs, 'message': 'Prioriza etiquetas con más need_positive/need_negative.'})
+        learning = _video_studio_ai_learning_summary(primary_team, video)
+        return JsonResponse({'ok': True, 'action': 'active_learning', 'needs': learning.get('labels')[:80], 'learning': learning, 'message': 'Prioriza etiquetas con más need_positive/need_negative.'})
 
     if action == 'team_profile':
         clips = list(VideoClip.objects.filter(team=primary_team, video=video).order_by('in_ms')[:200])
@@ -52400,21 +52595,16 @@ def analysis_video_studio_ai_pro_api(request):
         return JsonResponse({'ok': True, 'action': 'sequence_detect', 'clip_id': int(clip.id), 'sequence': sequence, 'limits': detected.get('epistemic_limits') if isinstance(detected, dict) else {}})
 
     if action == 'model_plan':
-        examples = list(VideoAiActionExample.objects.filter(team=primary_team, video=video).values('action_key', 'is_positive')[:5000])
-        by_key = defaultdict(lambda: {'positive': 0, 'negative': 0})
-        for row in examples:
-            if row.get('is_positive'):
-                by_key[str(row.get('action_key') or 'unknown')]['positive'] += 1
-            else:
-                by_key[str(row.get('action_key') or 'unknown')]['negative'] += 1
-        labels = [{'key': k, **v, 'ready': int(v['positive']) >= 50 and int(v['negative']) >= 20} for k, v in sorted(by_key.items())]
+        learning = _video_studio_ai_learning_summary(primary_team, video)
+        labels = learning.get('labels') if isinstance(learning.get('labels'), list) else []
         return JsonResponse(
             {
                 'ok': True,
                 'action': 'model_plan',
-                'mode': 'dataset_collection' if not any(r['ready'] for r in labels) else 'ready_for_local_finetune',
+                'mode': 'dataset_collection' if not any(r.get('ready_finetune') for r in labels) else 'ready_for_local_finetune',
                 'labels': labels[:80],
-                'minimums': {'ball_detector': '200-500 frames anotados', 'action_label': '50 positivos + 20 negativos por acción', 'tracking_identity': '25+ anclajes por tipo de situación'},
+                'learning': learning,
+                'minimums': {'ball_detector': '200-500 frames anotados', 'action_label': '50 positivos + 20 negativos por acción', 'rules_label': '10 positivos + 5 negativos por etiqueta táctica', 'tracking_identity': '25+ anclajes por tipo de situación'},
                 'next_command': 'video_ai_train_yolo para balón/persona cuando haya dataset exportado',
             }
         )

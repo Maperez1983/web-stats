@@ -10336,8 +10336,10 @@
 	            <button type="button" class="button" data-ai-pro-act="patterns">Patrones</button>
 	            <button type="button" class="button primary" data-ai-pro-act="detect_actions">Detectar acciones</button>
 	            <button type="button" class="button" data-ai-pro-act="action_dataset">Dataset acciones</button>
+	            <button type="button" class="button primary" data-ai-pro-act="tactical_labels">Etiquetas tácticas</button>
 	            <button type="button" class="button" data-ai-pro-act="ai_review">Revisión IA</button>
 	            <button type="button" class="button" data-ai-pro-act="active_learning">Qué necesita aprender</button>
+	            <button type="button" class="button" data-ai-pro-act="contrast_pair">Par comparativo</button>
 	            <button type="button" class="button" data-ai-pro-act="team_profile">Perfil equipo/rival</button>
 	            <button type="button" class="button" data-ai-pro-act="ball_example">Ejemplo balón</button>
 	            <button type="button" class="button" data-ai-pro-act="field_homography">Campo real</button>
@@ -10353,6 +10355,22 @@
 	            <button type="button" class="button primary" data-ai-pro-act="senior_analyst_seed">Criterio senior</button>
 	            <button type="button" class="button primary" data-ai-pro-act="senior_coach_seed">Criterio entrenador</button>
 	            <button type="button" class="button" data-ai-pro-act="knowledge">Base táctica</button>
+	          </div>
+	          <div style="margin-top:12px;border-top:1px solid rgba(148,163,184,.18);padding-top:12px;">
+	            <div style="font-size:.78rem;color:#cbd5e1;margin-bottom:8px;">Etiquetado táctico rápido</div>
+	            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:6px;">
+	              <button type="button" class="button primary" data-ai-tactical-key="bloque_bajo">Bloque bajo +</button>
+	              <button type="button" class="button primary" data-ai-tactical-key="bloque_medio">Bloque medio +</button>
+	              <button type="button" class="button primary" data-ai-tactical-key="bloque_alto">Bloque alto +</button>
+	              <button type="button" class="button" data-ai-tactical-key="ocupacion_5_carriles">5 carriles +</button>
+	              <button type="button" class="button" data-ai-tactical-key="carril_exterior">Carril exterior +</button>
+	              <button type="button" class="button" data-ai-tactical-key="carril_interior">Carril interior +</button>
+	              <button type="button" class="button" data-ai-tactical-key="carril_central">Carril central +</button>
+	              <button type="button" class="button" data-ai-tactical-key="presion_alta">Presión alta +</button>
+	              <button type="button" class="button" data-ai-tactical-key="linea_alta">Línea alta +</button>
+	              <button type="button" class="button" data-ai-tactical-key="bloque_compacto">Bloque compacto +</button>
+	              <button type="button" class="button danger" data-ai-tactical-negative>Etiqueta NO</button>
+	            </div>
 	          </div>
 	          <pre data-ai-pro-out style="white-space:pre-wrap;background:rgba(2,6,23,.45);border:1px solid rgba(148,163,184,.18);border-radius:12px;padding:10px;min-height:110px;margin-top:12px;color:#dbeafe;font-size:.78rem;"></pre>
 	        </div>
@@ -10494,6 +10512,29 @@
 	          setStatus('IA Pro: dataset de acciones cargado.');
 	          return;
 	        }
+	        if (act === 'tactical_labels') {
+	          const data = await aiProPost({ action: 'tactical_labels', clip_id: clipId });
+	          write(JSON.stringify({ labels: data.labels || [], learning: data.learning || {} }, null, 2));
+	          setStatus('IA Pro: etiquetas tácticas cargadas.');
+	          return;
+	        }
+	        if (act === 'contrast_pair') {
+	          const key = (window.prompt('Etiqueta comparativa', 'bloque_bajo') || '').trim();
+	          if (!key) { write('Cancelado.'); return; }
+	          const negativeId = Number(window.prompt('Clip negativo / NO es esa etiqueta', '') || 0) || 0;
+	          if (!negativeId) { write('Cancelado: falta clip negativo.'); return; }
+	          const data = await aiProPost({
+	            action: 'contrast_pair',
+	            clip_id: clipId,
+	            positive_clip_id: clipId,
+	            negative_clip_id: negativeId,
+	            action_key: key,
+	            note: 'par_comparativo_desde_panel_ia_pro',
+	          });
+	          write(JSON.stringify(data, null, 2));
+	          setStatus(`IA Pro: par comparativo guardado para ${safeText(key)}.`);
+	          return;
+	        }
 	        if (['ai_review', 'active_learning', 'team_profile', 'field_homography', 'sequence_detect', 'model_plan'].includes(act)) {
 	          const data = await aiProPost({ action: act, clip_id: clipId });
 	          write(JSON.stringify(data, null, 2));
@@ -10606,6 +10647,31 @@
 	      };
 	      wrap.addEventListener('click', async (ev) => {
 	        if (ev.target?.closest?.('[data-ai-pro-close]')) { try { wrap.remove(); } catch (e) { /* ignore */ } return; }
+	        const tacticalBtn = ev.target?.closest?.('[data-ai-tactical-key],[data-ai-tactical-negative]');
+	        if (tacticalBtn) {
+	          try {
+	            const clipId = await ensureActiveClipForAiPro();
+	            const key = safeText(tacticalBtn.getAttribute('data-ai-tactical-key') || '') || safeText(window.prompt('Etiqueta táctica negativa', 'bloque_bajo') || '');
+	            if (!key) { write('Cancelado.'); return; }
+	            const isNegative = Boolean(tacticalBtn.hasAttribute('data-ai-tactical-negative'));
+	            const data = await aiProPost({
+	              action: 'tactical_quick_feedback',
+	              clip_id: clipId,
+	              labels: [key],
+	              is_positive: !isNegative,
+	              evidence_level: isNegative ? 'human_negative' : 'confirmed',
+	              start_s: Number(inInput?.value || 0) || undefined,
+	              end_s: Number(outInput?.value || 0) || undefined,
+	              note: 'etiqueta_rapida_panel_ia_pro',
+	            });
+	            write(JSON.stringify({ created: data.created || [], learning: data.learning || {} }, null, 2));
+	            setStatus(`IA Pro: etiqueta ${isNegative ? 'negativa' : 'positiva'} guardada (${safeText(key)}).`);
+	          } catch (e) {
+	            write(safeText(e?.message, 'error'));
+	            setStatus(`IA Pro: ${safeText(e?.message, 'error')}`, true);
+	          }
+	          return;
+	        }
 	        const btn = ev.target?.closest?.('[data-ai-pro-act]');
 	        if (!btn) return;
 	        try { await run(safeText(btn.getAttribute('data-ai-pro-act'))); }
