@@ -325,27 +325,35 @@ def add_real_seat_bank(prefix, side, rows, cols, x_min, x_max, y_min, y_max, z_m
     batched_box_mesh(f"{prefix}_blue_seat_shadow_gaps", shadow_parts, shadow)
 
 
-def add_dugout(prefix, x, y, label, primary, secondary, black, metal, glass):
-    cube(f"{prefix}_dark_technical_plinth", (x, y, 0.20), (16.6, 3.2, 0.22), black, bevel=0.025)
-    cube(f"{prefix}_rear_kick_wall_TEAM_PRIMARY", (x, y + 1.20, 0.62), (15.8, 0.22, 0.82), primary, bevel=0.018)
-    cube(f"{prefix}_front_clear_guard", (x, y - 1.08, 0.88), (15.2, 0.08, 1.02), glass, (math.radians(-4), 0, 0), bevel=0.006)
-    cube(f"{prefix}_left_clear_side", (x - 7.85, y, 0.95), (0.10, 2.72, 1.55), glass, bevel=0.006)
-    cube(f"{prefix}_right_clear_side", (x + 7.85, y, 0.95), (0.10, 2.72, 1.55), glass, bevel=0.006)
-    for i in range(7):
-        t = i / 6
-        z = 1.15 + math.sin(t * math.pi * 0.72) * 1.05
-        yy = y - 0.92 + t * 1.92
-        cube(f"{prefix}_curved_polycarbonate_roof_{i:02d}", (x, yy, z), (15.8, 0.10, 0.40), glass, (math.radians(24 - t * 30), 0, 0), bevel=0.006)
-    cube(f"{prefix}_front_aluminium_rail", (x, y - 1.22, 1.38), (16.0, 0.10, 0.10), metal, bevel=0.004)
-    cube(f"{prefix}_top_aluminium_spine", (x, y + 0.10, 2.22), (16.1, 0.12, 0.12), metal, bevel=0.004)
-    for sx in (-7.8, -5.2, -2.6, 0, 2.6, 5.2, 7.8):
-        cube(f"{prefix}_canopy_rib_{sx:.1f}", (x + sx, y, 1.42), (0.08, 2.56, 0.08), metal, (math.radians(-10), 0, 0), bevel=0.003)
+def add_dugout(prefix, x, y, label, primary, secondary, black, metal, glass, seat_highlight=None):
+    seat_mat = seat_highlight or primary
+    cube(f"{prefix}_dark_technical_plinth", (x, y, 0.18), (17.2, 3.55, 0.20), black, bevel=0.025)
+    cube(f"{prefix}_blue_rear_brand_wall_TEAM_PRIMARY", (x, y + 1.32, 0.70), (16.4, 0.24, 1.02), primary, bevel=0.018)
+    cube(f"{prefix}_front_clear_polycarbonate", (x, y - 1.22, 0.98), (15.8, 0.08, 1.22), glass, (math.radians(-4), 0, 0), bevel=0.006)
+    cube(f"{prefix}_left_clear_polycarbonate_side", (x - 8.20, y, 1.04), (0.10, 3.05, 1.72), glass, bevel=0.006)
+    cube(f"{prefix}_right_clear_polycarbonate_side", (x + 8.20, y, 1.04), (0.10, 3.05, 1.72), glass, bevel=0.006)
+    for i in range(9):
+        t = i / 8
+        z = 1.08 + math.sin(t * math.pi) * 1.28
+        yy = y - 1.14 + t * 2.28
+        cube(f"{prefix}_arched_clear_roof_panel_{i:02d}", (x, yy, z), (16.2, 0.11, 0.44), glass, (math.radians(34 - t * 68), 0, 0), bevel=0.006)
+    cube(f"{prefix}_white_front_base_frame", (x, y - 1.42, 0.56), (16.6, 0.12, 0.16), secondary, bevel=0.006)
+    cube(f"{prefix}_white_rear_base_frame", (x, y + 1.48, 0.56), (16.6, 0.12, 0.16), secondary, bevel=0.006)
+    cube(f"{prefix}_front_aluminium_rail", (x, y - 1.32, 1.48), (16.4, 0.10, 0.10), metal, bevel=0.004)
+    cube(f"{prefix}_top_aluminium_spine", (x, y + 0.02, 2.42), (16.5, 0.12, 0.12), metal, bevel=0.004)
+    for sx in (-8.1, -5.4, -2.7, 0, 2.7, 5.4, 8.1):
+        cube(f"{prefix}_white_canopy_arch_{sx:.1f}", (x + sx, y, 1.54), (0.10, 3.02, 0.10), secondary, (math.radians(-12), 0, 0), bevel=0.004)
     for idx in range(10):
         sx = x - 5.85 + idx * 1.30
-        cube(f"{prefix}_individual_blue_seat_{idx:02d}", (sx, y + 0.26, 0.60), (0.82, 0.62, 0.22), primary, bevel=0.035)
-        cube(f"{prefix}_individual_blue_back_{idx:02d}", (sx, y + 0.58, 1.02), (0.82, 0.13, 0.82), primary, (math.radians(-12), 0, 0), bevel=0.028)
-        cube(f"{prefix}_seat_metal_leg_l_{idx:02d}", (sx - 0.31, y + 0.12, 0.34), (0.08, 0.08, 0.36), metal, bevel=0.002)
-        cube(f"{prefix}_seat_metal_leg_r_{idx:02d}", (sx + 0.31, y + 0.12, 0.34), (0.08, 0.08, 0.36), metal, bevel=0.002)
+        cube(f"{prefix}_individual_bright_blue_seat_{idx:02d}", (sx, y + 0.22, 0.60), (0.88, 0.62, 0.24), seat_mat, bevel=0.040)
+        cube(f"{prefix}_individual_bright_blue_back_{idx:02d}", (sx, y + 0.58, 1.04), (0.88, 0.14, 0.86), seat_mat, (math.radians(-12), 0, 0), bevel=0.032)
+        cube(f"{prefix}_seat_white_arm_l_{idx:02d}", (sx - 0.47, y + 0.28, 0.78), (0.05, 0.45, 0.10), secondary, bevel=0.004)
+        cube(f"{prefix}_seat_white_arm_r_{idx:02d}", (sx + 0.47, y + 0.28, 0.78), (0.05, 0.45, 0.10), secondary, bevel=0.004)
+        cube(f"{prefix}_seat_metal_leg_l_{idx:02d}", (sx - 0.31, y + 0.08, 0.34), (0.06, 0.06, 0.34), metal, bevel=0.002)
+        cube(f"{prefix}_seat_metal_leg_r_{idx:02d}", (sx + 0.31, y + 0.08, 0.34), (0.06, 0.06, 0.34), metal, bevel=0.002)
+    for sx in (-7.4, 7.4):
+        cube(f"{prefix}_small_blue_equipment_box_{sx:.1f}", (x + sx, y - 1.78, 0.36), (0.9, 0.62, 0.54), primary, bevel=0.025)
+        cube(f"{prefix}_equipment_box_lid_{sx:.1f}", (x + sx, y - 1.78, 0.66), (0.94, 0.66, 0.05), secondary, bevel=0.006)
     bpy.ops.object.text_add(location=(x, y - 1.34, 1.05), rotation=(math.radians(76), 0, 0))
     text = bpy.context.object
     text.name = f"{prefix}_front_brand_{label.replace(' ', '_')}_TEAM_SECONDARY"
@@ -355,6 +363,19 @@ def add_dugout(prefix, x, y, label, primary, secondary, black, metal, glass):
     text.data.size = 0.82
     text.data.extrude = 0.018
     text.data.materials.append(secondary)
+
+
+def add_ad_board(prefix, loc, scale, label, board_mat, text_mat, rotation):
+    cube(f"{prefix}_{label.replace(' ', '_')}_board", loc, scale, board_mat, bevel=0.010)
+    bpy.ops.object.text_add(location=(loc[0], loc[1], loc[2] + 0.04), rotation=rotation)
+    text = bpy.context.object
+    text.name = f"{prefix}_{label.replace(' ', '_')}_text_TEAM_SECONDARY"
+    text.data.body = label
+    text.data.align_x = "CENTER"
+    text.data.align_y = "CENTER"
+    text.data.size = 0.62 if len(label) > 12 else 0.82
+    text.data.extrude = 0.012
+    text.data.materials.append(text_mat)
 
 
 def add_seat_rows(prefix, ix, iy, radius, start, end, z0, rise, seat_mat, step_mat, rows):
@@ -451,22 +472,28 @@ def add_architectural_stadium():
             cube(f"arch_corner_side_wall_TEAM_ACCENT_{sx}_{sy}", (sx * 96.0, sy * 62.0, 12.0), (1.0, 18.0, 11.0), accent, bevel=0.02)
 
     # Reference-style technical area: low dugouts and a restrained dressing-room tunnel.
-    add_dugout("arch_home_dugout", -22.0, -35.05, "MALAGA CF", primary, secondary, black, metal, glass)
-    add_dugout("arch_away_dugout", 22.0, -35.05, "MCF", primary, secondary, black, metal, glass)
-    cube("arch_touchline_dark_asphalt_technical_lane", (0.0, -35.65, 0.075), (68.0, 3.7, 0.10), asphalt, bevel=0.01)
-    cube("arch_low_blue_touchline_wall_TEAM_PRIMARY", (0, -33.90, 0.70), (112.0, 0.28, 1.02), primary, bevel=0.015)
-    for idx, x in enumerate((-44, -25, -6, 13, 32, 51)):
-        label = ("2J FOOTBALL INTELLIGENCE", "MALAGA CF", "PARTNER", "LA ROSALEDA", "SPONSOR", "MCF")[idx]
-        cube(f"arch_pitchside_ad_board_{idx:02d}_{label.replace(' ', '_')}", (x, -33.70, 1.15), (14.6, 0.18, 1.02), led if idx % 2 == 0 else accent, bevel=0.01)
-        bpy.ops.object.text_add(location=(x, -33.83, 1.20), rotation=(math.radians(82), 0, 0))
-        ad = bpy.context.object
-        ad.name = f"arch_pitchside_ad_text_{idx:02d}_{label.replace(' ', '_')}_TEAM_SECONDARY"
-        ad.data.body = label
-        ad.data.align_x = "CENTER"
-        ad.data.align_y = "CENTER"
-        ad.data.size = 0.70
-        ad.data.extrude = 0.012
-        ad.data.materials.append(secondary)
+    add_dugout("arch_home_dugout", -24.5, -35.05, "MALAGA CF", primary, secondary, black, metal, glass, seat_highlight)
+    add_dugout("arch_away_dugout", 24.5, -35.05, "MCF", primary, secondary, black, metal, glass, seat_highlight)
+    cube("arch_touchline_dark_asphalt_technical_lane", (0.0, -35.65, 0.075), (78.0, 4.05, 0.10), asphalt, bevel=0.01)
+    cube("arch_low_blue_touchline_wall_TEAM_PRIMARY", (0, -33.90, 0.70), (114.0, 0.28, 1.02), primary, bevel=0.015)
+    cube("arch_dugout_back_dark_service_strip", (0, -37.90, 0.32), (78.0, 0.28, 0.48), black, bevel=0.008)
+    south_labels = (
+        "2J FOOTBALL INTELLIGENCE", "MALAGA CF", "PARTNER", "LA ROSALEDA",
+        "2J FOOTBALL INTELLIGENCE", "SPONSOR", "PARTNER",
+    )
+    for idx, x in enumerate((-48, -31, -14, 3, 20, 37, 52)):
+        label = south_labels[idx]
+        add_ad_board(f"arch_south_pitchside_ad_{idx:02d}", (x, -33.70, 1.15), (14.2, 0.18, 1.06), label, primary if idx in (1, 3, 6) else accent, secondary, (math.radians(82), 0, 0))
+    north_labels = ("SPONSOR", "2J FOOTBALL INTELLIGENCE", "LA ROSALEDA", "PARTNER", "MALAGA CF", "2J FOOTBALL INTELLIGENCE", "SPONSOR")
+    for idx, x in enumerate((-50, -33, -16, 1, 18, 35, 52)):
+        label = north_labels[idx]
+        add_ad_board(f"arch_north_pitchside_ad_{idx:02d}", (x, 33.70, 1.15), (14.2, 0.18, 1.06), label, primary if idx in (2, 4) else accent, secondary, (math.radians(-82), 0, math.pi))
+    east_labels = ("PARTNER", "2J FOOTBALL INTELLIGENCE", "MALAGA CF", "SPONSOR")
+    for idx, y in enumerate((-27, -9, 9, 27)):
+        add_ad_board(f"arch_east_pitchside_ad_{idx:02d}", (53.70, y, 1.15), (0.18, 14.6, 1.06), east_labels[idx], primary if idx == 2 else accent, secondary, (math.radians(82), 0, math.radians(-90)))
+    west_labels = ("SPONSOR", "LA ROSALEDA", "2J FOOTBALL INTELLIGENCE", "PARTNER")
+    for idx, y in enumerate((-27, -9, 9, 27)):
+        add_ad_board(f"arch_west_pitchside_ad_{idx:02d}", (-53.70, y, 1.15), (0.18, 14.6, 1.06), west_labels[idx], primary if idx == 1 else accent, secondary, (math.radians(82), 0, math.radians(90)))
     cube("arch_players_tunnel_black_mouth", (0, -36.85, 1.55), (8.4, 0.56, 2.55), black, bevel=0.025)
     cube("arch_players_tunnel_left_jamb", (-4.85, -36.70, 1.75), (0.82, 1.10, 3.05), concrete, bevel=0.025)
     cube("arch_players_tunnel_right_jamb", (4.85, -36.70, 1.75), (0.82, 1.10, 3.05), concrete, bevel=0.025)
