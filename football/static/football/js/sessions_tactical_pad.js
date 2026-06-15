@@ -25610,19 +25610,23 @@
 	      if (!object) return;
 	      const kind = safeText(object?.data?.kind).toLowerCase();
 	      if (!kind) return;
-	      if (kind.includes('divider') || isLongStrokeObject(object)) return;
+	      if (kind.includes('divider')) return;
+	      const isLongStroke = isLongStrokeObject(object);
 	      const isZoneLike = kind === 'zone'
 	        || kind.startsWith('shape-')
 	        || kind === 'goal'
 	        || kind.startsWith('goal_')
 	        || kind.startsWith('goal-');
-	      if (!isZoneLike) return;
+	      if (!isZoneLike && !isLongStroke) return;
 	      const { w, h } = worldSize();
 	      const worldW = Math.max(1, Number(w) || 0);
 	      const worldH = Math.max(1, Number(h) || 0);
 	      let maxW = Math.min(220, worldW * 0.34);
 	      let maxH = Math.min(160, worldH * 0.34);
-	      if (kind === 'zone' || kind.startsWith('shape-lane-') || kind === 'shape-rect' || kind === 'shape-rect-long') {
+	      if (isLongStroke) {
+	        maxW = Math.min(190, worldW * 0.30);
+	        maxH = Math.min(110, worldH * 0.22);
+	      } else if (kind === 'zone' || kind.startsWith('shape-lane-') || kind === 'shape-rect' || kind === 'shape-rect-long') {
 	        maxW = Math.min(190, worldW * 0.28);
 	        maxH = Math.min(120, worldH * 0.28);
 	      } else if (kind === 'shape-band-h') {
