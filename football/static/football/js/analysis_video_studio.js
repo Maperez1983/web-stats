@@ -4933,6 +4933,13 @@
 	      if (k === 'tactic:free_space') return 'Zona libre';
 	      if (k === 'tactic:press_jump') return 'Presión/salto';
 	      if (k === 'tactic:shift') return 'Basculación';
+	      if (k === 'tv:dashed_pass') return 'Pase discontinuo';
+	      if (k === 'tv:white_run') return 'Carrera blanca';
+	      if (k === 'tv:curved_run') return 'Desmarque curvo';
+	      if (k === 'tv:player_ring') return 'Aro jugador';
+	      if (k === 'tv:spot_player') return 'Foco jugador';
+	      if (k === 'tv:duel_2v1') return '2v1 TV';
+	      if (k === 'tv:pressure_jump') return 'Salto presión TV';
 	      if (k === 'tool:arrow') return 'Flecha';
 	      if (k === 'tool:move') return 'Trayectoria';
 	      if (k === 'tool:text') return 'Texto';
@@ -4948,6 +4955,7 @@
 	      const k = safeText(key, '');
 	      if (k.startsWith('template:')) return 'template';
 	      if (k.startsWith('tactic:')) return 'tactic';
+	      if (k.startsWith('tv:')) return 'tv';
 	      if (k.startsWith('tool:')) return 'tool';
 	      if (k.startsWith('fx:')) return 'fx';
 	      return '';
@@ -4983,6 +4991,180 @@
 	    const closeResourcesMenu = () => {
 	      try { if (resourcesMenu && resourcesMenu.tagName === 'DETAILS') resourcesMenu.open = false; } catch (e) { /* ignore */ }
 	    };
+	    const addTvResource = (resourceKey) => {
+	      const key = safeText(resourceKey, '');
+	      const w = Number(fabricCanvas.getWidth?.()) || 0;
+	      const h = Number(fabricCanvas.getHeight?.()) || 0;
+	      if (!key || !w || !h) { setStatus('Recurso TV no disponible.', true); return false; }
+	      const px = (x) => clamp(Number(x) || 0, 0.02, 0.98) * w;
+	      const py = (y) => clamp(Number(y) || 0, 0.02, 0.98) * h;
+	      const sw = clamp(Math.round(strokeWidth() || 6), 4, 16);
+	      const yellow = '#facc15';
+	      const white = '#ffffff';
+	      const red = '#fb7185';
+	      const cyan = '#22d3ee';
+	      const makeHead = (x2, y2, angle, color) => {
+	        const headLen = clamp(18 + sw, 18, 38);
+	        return new fabric.Polygon([
+	          { x: x2, y: y2 },
+	          { x: x2 - headLen * Math.cos(angle - Math.PI / 7), y: y2 - headLen * Math.sin(angle - Math.PI / 7) },
+	          { x: x2 - headLen * Math.cos(angle + Math.PI / 7), y: y2 - headLen * Math.sin(angle + Math.PI / 7) },
+	        ], { fill: color, selectable: false, evented: false, shadow: 'rgba(0,0,0,0.32) 0 2px 7px' });
+	      };
+	      const makeArrow = (a, b, color = white, opts = {}) => {
+	        const x1 = px(a[0]); const y1 = py(a[1]);
+	        const x2 = px(b[0]); const y2 = py(b[1]);
+	        const line = new fabric.Line([x1, y1, x2, y2], {
+	          stroke: color,
+	          strokeWidth: opts.strokeWidth || sw,
+	          strokeDashArray: opts.dash || null,
+	          strokeLineCap: 'round',
+	          strokeLineJoin: 'round',
+	          selectable: false,
+	          evented: false,
+	          strokeUniform: true,
+	          objectCaching: false,
+	          shadow: 'rgba(0,0,0,0.32) 0 2px 7px',
+	        });
+	        const group = new fabric.Group([line, makeHead(x2, y2, Math.atan2(y2 - y1, x2 - x1), color)], { selectable: true, evented: true });
+	        group.data = seedLayerDataNow({ kind: opts.kind || 'arrow', preset: key, anim: 'draw', anim_ms: 700, line_style: opts.dash ? 'dash' : 'solid' });
+	        return group;
+	      };
+	      const makeCurve = (a, c, b, color = yellow, opts = {}) => {
+	        const x1 = px(a[0]); const y1 = py(a[1]);
+	        const cx = px(c[0]); const cy = py(c[1]);
+	        const x2 = px(b[0]); const y2 = py(b[1]);
+	        const path = new fabric.Path(`M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`, {
+	          fill: '',
+	          stroke: color,
+	          strokeWidth: opts.strokeWidth || sw,
+	          strokeDashArray: opts.dash || null,
+	          strokeLineCap: 'round',
+	          strokeLineJoin: 'round',
+	          selectable: false,
+	          evented: false,
+	          strokeUniform: true,
+	          objectCaching: false,
+	          shadow: 'rgba(0,0,0,0.32) 0 2px 7px',
+	        });
+	        const group = new fabric.Group([path, makeHead(x2, y2, Math.atan2(y2 - cy, x2 - cx), color)], { selectable: true, evented: true });
+	        group.data = seedLayerDataNow({ kind: 'movement_line', preset: key, anim: 'draw', anim_ms: 750, line_style: opts.dash ? 'dash' : 'solid' });
+	        return group;
+	      };
+	      const makeRing = (x, y, color = yellow, opts = {}) => {
+	        const r = clamp(Math.min(w, h) * (opts.scale || 0.032), 14, 36);
+	        const halo = new fabric.Circle({
+	          left: px(x),
+	          top: py(y),
+	          radius: r * 1.28,
+	          originX: 'center',
+	          originY: 'center',
+	          fill: colorToRgba(color, 0.14, 'rgba(250,204,21,0.14)'),
+	          stroke: colorToRgba(color, 0.34, 'rgba(250,204,21,0.34)'),
+	          strokeWidth: Math.max(2, Math.round(sw * 0.30)),
+	          selectable: false,
+	          evented: false,
+	        });
+	        const ring = new fabric.Circle({
+	          left: px(x),
+	          top: py(y),
+	          radius: r,
+	          originX: 'center',
+	          originY: 'center',
+	          fill: 'rgba(0,0,0,0)',
+	          stroke: color,
+	          strokeWidth: Math.max(3, Math.round(sw * 0.55)),
+	          selectable: false,
+	          evented: false,
+	          strokeUniform: true,
+	          shadow: 'rgba(0,0,0,0.32) 0 2px 7px',
+	        });
+	        const group = new fabric.Group([halo, ring], { selectable: true, evented: true });
+	        group.data = seedLayerDataNow({ kind: 'player_ring', preset: key, anim: 'pop', anim_ms: 450 });
+	        return group;
+	      };
+	      const makeSpot = (x, y, color = yellow) => {
+	        const r = clamp(Math.min(w, h) * 0.082, 36, 92);
+	        const spot = new fabric.Circle({
+	          left: px(x),
+	          top: py(y),
+	          radius: r,
+	          originX: 'center',
+	          originY: 'center',
+	          fill: colorToRgba(color, 0.17, 'rgba(250,204,21,0.17)'),
+	          stroke: colorToRgba(color, 0.42, 'rgba(250,204,21,0.42)'),
+	          strokeWidth: Math.max(2, Math.round(sw * 0.35)),
+	          selectable: false,
+	          evented: false,
+	          strokeUniform: true,
+	        });
+	        const group = new fabric.Group([spot, makeRing(x, y, color, { scale: 0.027 })], { selectable: true, evented: true });
+	        group.data = seedLayerDataNow({ kind: 'spotlight_marker', preset: key, anim: 'pop', anim_ms: 450 });
+	        return group;
+	      };
+	      const makeLabel = (text, x, y, color = white) => {
+	        const label = new fabric.Textbox(safeText(text, ''), {
+	          left: px(x),
+	          top: py(y),
+	          width: Math.min(w * 0.26, 220),
+	          fontSize: clamp(Math.round(Math.min(w, h) * 0.042), 18, 34),
+	          fontFamily: 'Arial',
+	          fontWeight: 900,
+	          fill: color,
+	          textAlign: 'center',
+	          originX: 'center',
+	          originY: 'center',
+	          stroke: 'rgba(2,6,23,0.92)',
+	          strokeWidth: 4,
+	          paintFirst: 'stroke',
+	          selectable: true,
+	          evented: true,
+	        });
+	        label.data = seedLayerDataNow({ kind: 'text_caption', preset: key, text: safeText(text, '') });
+	        return label;
+	      };
+	      const add = [];
+	      if (key === 'dashed_pass') {
+	        add.push(makeArrow([0.20, 0.54], [0.43, 0.47], white, { dash: [14, 12], strokeWidth: Math.max(4, sw * 0.75), kind: 'pass_line' }));
+	      } else if (key === 'white_run') {
+	        add.push(makeArrow([0.45, 0.70], [0.73, 0.43], white, { strokeWidth: Math.max(5, sw * 0.85), kind: 'movement_line' }));
+	      } else if (key === 'curved_run') {
+	        add.push(makeCurve([0.28, 0.70], [0.48, 0.36], [0.68, 0.51], yellow, { strokeWidth: Math.max(5, sw * 0.85) }));
+	      } else if (key === 'player_ring') {
+	        add.push(makeRing(0.72, 0.34, yellow));
+	      } else if (key === 'spot_player') {
+	        add.push(makeSpot(0.72, 0.34, yellow));
+	      } else if (key === 'duel_2v1') {
+	        add.push(makeRing(0.47, 0.52, red, { scale: 0.030 }));
+	        add.push(makeRing(0.67, 0.43, yellow, { scale: 0.030 }));
+	        add.push(makeArrow([0.21, 0.55], [0.43, 0.49], white, { dash: [14, 12], strokeWidth: Math.max(4, sw * 0.72), kind: 'pass_line' }));
+	        add.push(makeArrow([0.50, 0.55], [0.73, 0.40], white, { strokeWidth: Math.max(5, sw * 0.82), kind: 'movement_line' }));
+	        add.push(makeCurve([0.36, 0.66], [0.50, 0.38], [0.63, 0.49], yellow, { strokeWidth: Math.max(5, sw * 0.82) }));
+	        add.push(makeLabel('2v1', 0.55, 0.38, white));
+	      } else if (key === 'pressure_jump') {
+	        add.push(makeRing(0.44, 0.55, red, { scale: 0.030 }));
+	        add.push(makeArrow([0.30, 0.66], [0.48, 0.52], red, { dash: [12, 10], strokeWidth: Math.max(5, sw * 0.82), kind: 'pressure_jump' }));
+	        add.push(makeLabel('SALTO', 0.49, 0.43, white));
+	      }
+	      if (!add.length) { setStatus('Recurso TV no soportado.', true); return false; }
+	      add.forEach((obj) => {
+	        try { fabricCanvas.add(obj); } catch (e) { /* ignore */ }
+	      });
+	      pushHistory();
+	      try {
+	        const sel = new fabric.ActiveSelection(add, { canvas: fabricCanvas });
+	        fabricCanvas.setActiveObject(sel);
+	      } catch (e) {
+	        try { fabricCanvas.setActiveObject(add[add.length - 1]); } catch (e2) { /* ignore */ }
+	      }
+	      selectedFxId = 0;
+	      updateLayerPanel();
+	      renderFxList();
+	      renderDrawLayers();
+	      try { fabricCanvas.requestRenderAll(); } catch (e) { /* ignore */ }
+	      setStatus(`Recurso TV aplicado: ${labelForResourceKey(`tv:${key}`) || key}.`);
+	      return true;
+	    };
 	    const useResource = (key) => {
 	      const k = safeText(key, '');
 	      if (!k) return;
@@ -4999,6 +5181,14 @@
 	      if (k.startsWith('tactic:')) {
 	        const presetKey = k.split(':').slice(1).join(':');
 	        if (addTacticalPreset(presetKey)) {
+	          pushResourceRecent(k);
+	          closeResourcesMenu();
+	        }
+	        return;
+	      }
+	      if (k.startsWith('tv:')) {
+	        const presetKey = k.split(':').slice(1).join(':');
+	        if (addTvResource(presetKey)) {
 	          pushResourceRecent(k);
 	          closeResourcesMenu();
 	        }
