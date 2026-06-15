@@ -27443,6 +27443,10 @@ def coach_role_trainer_page(request):
     trainer_selected_season, trainer_season_start, trainer_season_end = _selected_club_season_bounds(request, workspace=workspace)
     stats_scope = _get_stats_scope_for_request(request, primary_team)
     tournament_filter = _get_tournament_filter_for_request(request, primary_team, scope=stats_scope)
+    selected_player_id = _parse_int(request.GET.get('player'))
+    selected_match_id = _parse_int(request.GET.get('match'))
+    trainer_full_players = str(request.GET.get('full') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    trainer_fast_entry = not selected_player_id and not selected_match_id and not trainer_full_players
 
     # UX/Rendimiento: el default de scope es "Liga". Si el equipo no tiene acciones con
     # `match.context="league"`, el dashboard queda vacío aunque existan datos (torneos/amistosos).
@@ -27504,6 +27508,10 @@ def coach_role_trainer_page(request):
         base_events_qs = base_events_qs.filter(match__tournament_name=tournament_filter)
     if trainer_selected_season:
         base_events_qs = _apply_date_bounds(base_events_qs, 'match__date', trainer_season_start, trainer_season_end)
+    if trainer_fast_entry:
+        # La entrada del área entrenador debe abrir rápido. El detalle completo sigue disponible
+        # al seleccionar jugador/partido o al añadir ?full=1.
+        base_events_qs = base_events_qs.order_by('-match__date', '-match_id', '-minute', '-id')[:2500]
     events = (
         _filter_stats_events(
             base_events_qs,
@@ -27620,7 +27628,7 @@ def coach_role_trainer_page(request):
     # Lectura de plantilla (tarjetas) respetando el ámbito seleccionado.
     player_cards = (
         compute_player_cards(primary_team, scope=stats_scope, tournament_name=tournament_filter, request=request)
-        if primary_team
+        if primary_team and not trainer_fast_entry
         else []
     )
     yellows = sum(int(item.get('yellow_cards', 0) or 0) for item in player_cards)
@@ -27636,12 +27644,12 @@ def coach_role_trainer_page(request):
     duels_won_by_player = {}
     recoveries_by_player = {}
     for event in events:
-        player = event.player
-        if not player:
+        player_id = getattr(event, 'player_id', None)
+        if not player_id:
             continue
         duel_event = classify_duel_event(event.event_type, event.result, event.observation, event.zone)
         if duel_event.get('is_duel') and duel_event.get('won'):
-            duels_won_by_player[player.id] = duels_won_by_player.get(player.id, 0) + 1
+            duels_won_by_player[player_id] = duels_won_by_player.get(player_id, 0) + 1
         event_text = ' '.join(
             [
                 str(event.event_type or ''),
@@ -27650,7 +27658,7 @@ def coach_role_trainer_page(request):
             ]
         )
         if contains_keyword(event_text, ['robo', 'recuper', 'intercep']):
-            recoveries_by_player[player.id] = recoveries_by_player.get(player.id, 0) + 1
+            recoveries_by_player[player_id] = recoveries_by_player.get(player_id, 0) + 1
 
     def _top_player_from_counter(counter_dict):
         if not counter_dict:
@@ -27786,14 +27794,31 @@ def coach_role_trainer_page(request):
             {'label': 'Tarjetas', 'value': card_total},
         ],
     }
-    selected_player_id = _parse_int(request.GET.get('player'))
-    trainer_full_players = str(request.GET.get('full') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
     player_dashboard_rows = (
         compute_player_dashboard(primary_team, scope=stats_scope, tournament_name=tournament_filter, request=request)
         if primary_team and (selected_player_id or trainer_full_players)
         else []
     )
-    player_option_rows = player_dashboard_rows or player_cards
+    if player_dashboard_rows or player_cards:
+        player_option_rows = player_dashboard_rows or player_cards
+    elif primary_team:
+        player_option_rows = [
+            {
+                'id': player.id,
+                'player_id': player.id,
+                'name': player.name,
+                'number': player.number,
+                'position': player.position or '-',
+                'photo_url': resolve_player_photo_url(request, player),
+                'minutes': 0,
+                'pj': 0,
+                'goals': 0,
+                'assists': 0,
+            }
+            for player in Player.objects.filter(team=primary_team).only('id', 'name', 'number', 'position').order_by('name')[:80]
+        ]
+    else:
+        player_option_rows = []
     coach_player_options = [
         {
             'id': item.get('player_id') or item.get('id'),
@@ -27951,7 +27976,7 @@ def coach_role_trainer_page(request):
         match_qs = match_qs.filter(context=stats_scope)
     if stats_scope == Match.CONTEXT_TOURNAMENT and tournament_filter:
         match_qs = match_qs.filter(tournament_name=tournament_filter)
-    team_matches = list(match_qs)
+    team_matches = list(match_qs[:8] if trainer_fast_entry else match_qs)
     coach_match_rows = []
     for match in team_matches:
         match_events = match_events_map.get(match.id, [])
@@ -27975,7 +28000,6 @@ def coach_role_trainer_page(request):
             }
         )
 
-    selected_match_id = _parse_int(request.GET.get('match'))
     valid_match_ids = {row['match_id'] for row in coach_match_rows}
     if selected_match_id not in valid_match_ids:
         selected_match_id = None
