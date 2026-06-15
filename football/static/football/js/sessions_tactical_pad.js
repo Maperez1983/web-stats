@@ -9453,12 +9453,12 @@
 						      } else if (k === 'render_original') {
 							        // Vista estilo La Rosaleda: esquina interior, baja y cercana, con banquillos, vallas y grada principal legibles.
 										        pitch3dCamera.fov = 42;
-										        pitch3dOrbit.theta = -2.48;
-										        pitch3dOrbit.phi = 1.16;
-										        pitch3dOrbit.radius = Math.max(88, metersW * 0.84);
-										        targetX = -4.4;
-										        targetY = 3.95;
-										        targetZ = -1.35;
+										        pitch3dOrbit.theta = -2.25;
+										        pitch3dOrbit.phi = 1.12;
+										        pitch3dOrbit.radius = Math.max(82, metersW * 0.78);
+										        targetX = -1.6;
+										        targetY = 4.20;
+										        targetZ = 2.15;
 						      } else if (k === 'clean_pitch_render') {
 							        // Composición de campo limpio: esquina alta y campo completo.
 							        pitch3dOrbit.theta = -2.26;
@@ -14411,17 +14411,23 @@
 							                cursor += (5.0 * (cellW + gapW)) + letterGap;
 							              }
 							              const readableSeatText = addRotPart(
-							                new THREE.PlaneGeometry(metersW * 0.54, 4.55),
-							                makeTransparentSeatTextMat('MALAGA CF', { w: 1900, h: 360, fg: '#f8fafc', font: '900 190px Arial, sans-serif' }),
+							                new THREE.PlaneGeometry(metersW * 0.66, 5.20),
+							                makeTransparentSeatTextMat('MALAGA CF', { w: 2400, h: 430, fg: '#ffffff', font: '900 218px Arial, sans-serif' }),
 							                -1.2,
-							                5.18,
-							                metersH / 2 + 9.08,
+							                5.36,
+							                metersH / 2 + 9.00,
 							                -(Math.PI / 2) - 0.105,
 							                0,
 							                0,
 							                'pitch_3d_rosaleda_final_polish_readable_white_malaga_cf_on_seats'
 							              );
 							              readableSeatText.renderOrder = 80;
+							              try {
+							                readableSeatText.material.depthTest = false;
+							                readableSeatText.material.depthWrite = false;
+							                readableSeatText.material.opacity = 0.88;
+							                readableSeatText.material.transparent = true;
+							              } catch (e) { /* ignore */ }
 							              [-0.455, -0.305, -0.145, 0.015, 0.180, 0.345, 0.495].forEach((ratio) => {
 							                addRotPart(new THREE.BoxGeometry(0.86, 0.19, 8.4), concreteCleanMat, ratio * metersW, 4.88, metersH / 2 + 8.42, -0.11, 0, 0, 'pitch_3d_rosaleda_final_polish_main_clean_vertical_aisle');
 							              });
