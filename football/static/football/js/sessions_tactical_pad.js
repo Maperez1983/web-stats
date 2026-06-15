@@ -13458,7 +13458,7 @@
 						          };
 						          const addSegmentedAdBoards = () => {
 						            try {
-						              const labels = ['2J FOOTBALL INTELLIGENCE', 'PARTNER', 'LA ROSALEDA', 'SPONSOR'];
+						              const labels = ['2J FOOTBALL INTELLIGENCE', 'PARTNER', 'ESTADIO', 'SPONSOR'];
 						              for (let i = 0; i < 10; i += 1) {
 						                const x = -metersW * 0.45 + i * (metersW * 0.10);
 						                addMesh(new THREE.BoxGeometry(metersW * 0.085, 0.82, 0.16), makeSignMat(labels[i % labels.length], { w: 900, h: 260, font: '900 54px Arial, sans-serif' }), x, 0.86, -(metersH / 2 + 2.72), 'pitch_3d_dedicated_completion_segmented_near_ad_board');
@@ -13520,8 +13520,8 @@
 						          };
 						          const addSeatMosaic = () => {
 						            try {
-						              addRotMesh(new THREE.PlaneGeometry(metersW * 0.58, 3.05), makeTransparentSeatTextMat('MALAGA CF', { font: '900 160px Arial, sans-serif' }), 0, 4.36, metersH / 2 + 7.42, -0.18, Math.PI, 0, 'pitch_3d_dedicated_completion_main_stand_white_seat_mosaic');
-						              addRotMesh(new THREE.CircleGeometry(2.55, 64), makeTransparentSeatTextMat('MCF', { w: 512, h: 512, font: '900 118px Arial, sans-serif' }), -(metersW / 2 + 7.48), 3.22, -metersH * 0.15, -0.10, -Math.PI / 2, 0, 'pitch_3d_dedicated_completion_side_stand_white_crest_mosaic');
+						              addRotMesh(new THREE.PlaneGeometry(metersW * 0.58, 3.05), makeTransparentSeatTextMat('', { font: '900 160px Arial, sans-serif' }), 0, 4.36, metersH / 2 + 7.42, -0.18, Math.PI, 0, 'pitch_3d_dedicated_completion_main_stand_white_seat_mosaic');
+						              addRotMesh(new THREE.CircleGeometry(2.55, 64), makeTransparentSeatTextMat('', { w: 512, h: 512, font: '900 118px Arial, sans-serif' }), -(metersW / 2 + 7.48), 3.22, -metersH * 0.15, -0.10, -Math.PI / 2, 0, 'pitch_3d_dedicated_completion_side_stand_white_crest_mosaic');
 						            } catch (e) { /* ignore */ }
 						          };
 						          const addPhotoReferencePitchsideLayer = () => {
@@ -13534,7 +13534,7 @@
 						              addMesh(new THREE.BoxGeometry(metersW + 10.8, 0.06, 2.15), walkwayMat, 0, 0.07, metersH / 2 + 1.95, 'pitch_3d_dedicated_reference_far_dark_technical_walkway');
 						              addMesh(new THREE.BoxGeometry(2.15, 0.06, metersH + 8.6), walkwayMat, -(metersW / 2 + 1.92), 0.07, 0, 'pitch_3d_dedicated_reference_left_dark_technical_walkway');
 						              addMesh(new THREE.BoxGeometry(2.15, 0.06, metersH + 8.6), walkwayMat, metersW / 2 + 1.92, 0.07, 0, 'pitch_3d_dedicated_reference_right_dark_technical_walkway');
-						              const nearLabels = ['MALAGA CF', '2J FOOTBALL INTELLIGENCE', 'LA ROSALEDA', 'PARTNER', 'SPONSOR'];
+						              const nearLabels = ['', '2J FOOTBALL INTELLIGENCE', 'ESTADIO', 'PARTNER', 'SPONSOR'];
 						              for (let i = 0; i < 12; i += 1) {
 						                const x = -metersW * 0.48 + i * (metersW * 0.087);
 						                const mat = makeSignMat(nearLabels[i % nearLabels.length], { w: 1100, h: 260, bg: i % 2 ? '#071b33' : '#064f9e', fg: '#f8fafc', font: '900 52px Arial, sans-serif', stroke: 'rgba(255,255,255,0.22)' });
@@ -13572,7 +13572,7 @@
 						              const whiteSeatMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.44, metalness: 0.01 });
 						              const roofDarkMat = new THREE.MeshStandardMaterial({ color: 0x25323a, roughness: 0.50, metalness: 0.22 });
 						              const warmLightMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc, toneMapped: false });
-						              addRotMesh(new THREE.CircleGeometry(3.05, 72), makeSignMat('MCF', { w: 512, h: 512, bg: '#1d72c9', fg: '#f8fafc', font: '900 132px Arial, sans-serif', stroke: '#f8fafc' }), -(metersW / 2 + 5.92), 4.45, -metersH * 0.12, -0.12, -Math.PI / 2, 0, 'pitch_3d_dedicated_reference_large_side_stand_mcf_crest');
+						              addRotMesh(new THREE.CircleGeometry(3.05, 72), makeSignMat('', { w: 512, h: 512, bg: '#1d72c9', fg: '#f8fafc', font: '900 132px Arial, sans-serif', stroke: '#f8fafc' }), -(metersW / 2 + 5.92), 4.45, -metersH * 0.12, -0.12, -Math.PI / 2, 0, 'pitch_3d_dedicated_reference_large_side_stand_mcf_crest');
 						              // Evitamos el escudo lateral derecho: desde la cámara de referencia quedaba cortado en el borde.
 						              // El lettering se resuelve con asientos blancos instanciados; evitamos planos de texto superpuestos.
 						              [-0.34, -0.12, 0.12, 0.34].forEach((ratio, idx) => {
@@ -13728,10 +13728,10 @@
 						                addPart(new THREE.BoxGeometry(4.8, 1.9, 0.03), netMat, 0, 1.04, 0.55, 'pitch_3d_reference_training_goal_net');
 						                dedicatedFinish.add(group);
 						              };
-						              addVisibleDugout(-22.0, 'MALAGA CF');
-						              addVisibleDugout(-6.2, 'MCF');
-						              addVisibleDugout(-18.0, 'MALAGA CF', metersH / 2 + 1.10, Math.PI);
-						              addVisibleDugout(2.0, 'MCF', metersH / 2 + 1.10, Math.PI);
+						              addVisibleDugout(-22.0, '');
+						              addVisibleDugout(-6.2, '');
+						              addVisibleDugout(-18.0, '', metersH / 2 + 1.10, Math.PI);
+						              addVisibleDugout(2.0, '', metersH / 2 + 1.10, Math.PI);
 						              addTrainingGoal(-32.0, -(metersH / 2 + 0.82), 0, 'pitch_3d_reference_near_training_goal_left');
 						              addTrainingGoal(32.0, metersH / 2 + 0.82, Math.PI, 'pitch_3d_reference_far_training_goal_right');
 						              for (let i = -9; i <= 9; i += 1) {
@@ -13768,7 +13768,7 @@
 						                  ctx.font = '900 174px Arial, sans-serif';
 						                  ctx.textAlign = 'center';
 						                  ctx.textBaseline = 'middle';
-						                  ctx.fillText('MALAGA CF', canvas.width / 2, canvas.height / 2 + 2);
+						                  ctx.fillText('', canvas.width / 2, canvas.height / 2 + 2);
 						                  mask = ctx.getImageData(0, 0, canvas.width, canvas.height);
 						                  return mask;
 						                };
@@ -13821,7 +13821,7 @@
 						                }
 						              }
 						              // Sin escudo lateral grande: desde esta cámara entraba cortado por el borde del canvas.
-						              addRotMesh(new THREE.CircleGeometry(2.65, 96), makeSignMat('MCF', { w: 640, h: 640, bg: '#1d72c9', fg: '#f8fafc', font: '900 150px Arial, sans-serif', stroke: '#f8fafc' }), 0, 9.08, metersH / 2 + 14.05, 0, Math.PI, 0, 'pitch_3d_rosaleda_roof_center_hanging_crest');
+						              addRotMesh(new THREE.CircleGeometry(2.65, 96), makeSignMat('', { w: 640, h: 640, bg: '#1d72c9', fg: '#f8fafc', font: '900 150px Arial, sans-serif', stroke: '#f8fafc' }), 0, 9.08, metersH / 2 + 14.05, 0, Math.PI, 0, 'pitch_3d_rosaleda_roof_center_hanging_crest');
 						              for (let i = -12; i <= 12; i += 1) {
 						                const x = i * ((metersW + 14.0) / 24);
 						                addRotMesh(new THREE.BoxGeometry(0.075, 2.85, 5.9), frameSteelMat, x, 10.55, metersH / 2 + 17.45, -0.37, 0, 0, 'pitch_3d_rosaleda_main_roof_deep_raker');
@@ -13876,8 +13876,8 @@
 						                dugout.position.set(x, 0.04, -(metersH / 2 + 1.00));
 						                dedicatedFinish.add(dugout);
 						              };
-						              addReferenceDugout(-24.0, 'MALAGA CF');
-						              addReferenceDugout(-9.4, 'MCF');
+						              addReferenceDugout(-24.0, '');
+						              addReferenceDugout(-9.4, '');
 						            } catch (e) { /* ignore */ }
 						          };
 						          const addRosaledaDepthAndCameraFinish = () => {
@@ -13932,8 +13932,8 @@
 						                group.rotation.y = Math.PI;
 						                dedicatedFinish.add(group);
 						              };
-						              addFarDugout(-21.0, 'MALAGA CF');
-						              addFarDugout(-6.0, 'MCF');
+						              addFarDugout(-21.0, '');
+						              addFarDugout(-6.0, '');
 						            } catch (e) { /* ignore */ }
 						          };
 						          const addRosaledaStructuralCleanup = () => {
@@ -14004,7 +14004,7 @@
 						              addRotMesh(new THREE.BoxGeometry(metersW * 0.46, 0.025, metersH * 0.42), shadowBreakMat, metersW * 0.12, 0.162, -metersH * 0.03, 0, -0.08, 0, 'pitch_3d_rosaleda_photo_pitch_sunlit_lift');
 						              addMesh(new THREE.BoxGeometry(metersW + 11.4, 0.08, 1.10), darkTrackMat, 0, 0.12, -(metersH / 2 + 1.25), 'pitch_3d_rosaleda_photo_near_black_service_lane');
 						              addMesh(new THREE.BoxGeometry(metersW + 11.4, 0.08, 1.06), darkTrackMat, 0, 0.12, metersH / 2 + 1.25, 'pitch_3d_rosaleda_photo_far_black_service_lane');
-						              const adLabels = ['2J FOOTBALL INTELLIGENCE', 'LA ROSALEDA', 'MALAGA CF', 'PARTNER', 'SPONSOR'];
+						              const adLabels = ['2J FOOTBALL INTELLIGENCE', 'ESTADIO', '', 'PARTNER', 'SPONSOR'];
 						              for (let i = 0; i < 11; i += 1) {
 						                const x = -metersW * 0.46 + i * (metersW * 0.092);
 						                const label = adLabels[(i + 1) % adLabels.length];
@@ -14035,7 +14035,7 @@
 						                  addMesh(new THREE.BoxGeometry(metersW * 0.086, 0.13, 0.28), mat, ratio * metersW, y, z, 'pitch_3d_rosaleda_photo_main_dense_lower_seat_block');
 						                });
 						              }
-						              // Sin overlay fotográfico adicional de MALAGA CF para no pisar el mosaico real.
+						              // Sin overlay fotográfico adicional de MATCHDAY para no pisar el mosaico real.
 						              for (let i = -18; i <= 18; i += 1) {
 						                const x = i * ((metersW + 16.0) / 36);
 						                addMesh(new THREE.BoxGeometry(0.34, 0.055, 0.10), brightWhiteMat, x, 10.52, metersH / 2 + 14.28, 'pitch_3d_rosaleda_photo_roof_pin_light');
@@ -14094,8 +14094,8 @@
 						                group.add(labelMesh);
 						                dedicatedFinish.add(group);
 						              };
-						              addReferenceBench(-26.8, 'MALAGA CF');
-						              addReferenceBench(-11.2, 'MCF');
+						              addReferenceBench(-26.8, '');
+						              addReferenceBench(-11.2, '');
 						              const addTrainingGoal = (x, z, rotY, kind) => {
 						                const group = new THREE.Group();
 						                group.position.set(x, 0.14, z);
@@ -14156,7 +14156,7 @@
 						                  ctx.font = '900 214px Arial, sans-serif';
 						                  ctx.textAlign = 'center';
 						                  ctx.textBaseline = 'middle';
-						                  ctx.fillText('MALAGA CF', c.width / 2, c.height / 2 + 4);
+						                  ctx.fillText('', c.width / 2, c.height / 2 + 4);
 						                  mask = ctx.getImageData(0, 0, c.width, c.height);
 						                  return mask;
 						                };
@@ -14239,7 +14239,7 @@
 						              });
 							              addRotMesh(
 							                new THREE.PlaneGeometry(metersW * 0.72, 6.6),
-							                makeProfessionalSeatMosaicMat('MALAGA CF', { w: 2200, h: 500, font: '900 162px Arial, sans-serif' }),
+							                makeProfessionalSeatMosaicMat('', { w: 2200, h: 500, font: '900 162px Arial, sans-serif' }),
 							                -2.6,
 							                4.42,
 							                metersH / 2 + 8.02,
@@ -14305,9 +14305,9 @@
 						                group.add(sign);
 						                dedicatedFinish.add(group);
 						              };
-						              addPhotoDugout(-25.0, 'MALAGA CF');
-						              addPhotoDugout(-8.8, 'MCF');
-						              ['2J FOOTBALL INTELLIGENCE', 'LA ROSALEDA', 'PARTNER', 'SPONSOR'].forEach((label, idx) => {
+						              addPhotoDugout(-25.0, '');
+						              addPhotoDugout(-8.8, '');
+						              ['2J FOOTBALL INTELLIGENCE', 'ESTADIO', 'PARTNER', 'SPONSOR'].forEach((label, idx) => {
 						                const x = -metersW * 0.36 + idx * (metersW * 0.24);
 						                addMesh(new THREE.BoxGeometry(metersW * 0.18, 0.72, 0.15), makeSignMat(label, { w: 1200, h: 260, bg: idx % 2 ? '#064f9e' : '#111827', fg: '#f8fafc', font: '900 54px Arial, sans-serif' }), x, 0.86, metersH / 2 + 2.18, 'pitch_3d_rosaleda_final_photo_main_pitchside_ad_board');
 						              });
@@ -14380,7 +14380,7 @@
 							              addRotPart(new THREE.BoxGeometry(metersW * 0.78, 0.18, 7.7), blueSeatDarkMat, -2.0, 4.58, metersH / 2 + 8.72, -0.115, 0, 0, 'pitch_3d_rosaleda_final_polish_main_blue_seat_canvas');
 							              addRotPart(
 							                new THREE.PlaneGeometry(metersW * 0.745, 6.85),
-							                makeProfessionalSeatMosaicMat('MALAGA CF', { w: 2600, h: 520, bg: '#075fae', fg: '#f7fbff', font: '900 164px Arial, sans-serif' }),
+							                makeProfessionalSeatMosaicMat('', { w: 2600, h: 520, bg: '#075fae', fg: '#f7fbff', font: '900 164px Arial, sans-serif' }),
 							                -2.0,
 							                4.64,
 							                metersH / 2 + 8.34,
@@ -14397,7 +14397,7 @@
 							                C: ['01111', '10000', '10000', '10000', '10000', '10000', '01111'],
 							                F: ['11111', '10000', '10000', '11110', '10000', '10000', '10000'],
 							              };
-							              const word = 'MALAGA CF';
+							              const word = '';
 							              const cellW = 0.98;
 							              const cellZ = 0.34;
 							              const gapW = 0.10;
@@ -14424,7 +14424,7 @@
 							              }
 							              const readableSeatText = addRotPart(
 							                new THREE.PlaneGeometry(metersW * 0.66, 5.20),
-							                makeTransparentSeatTextMat('MALAGA CF', { w: 2400, h: 430, fg: '#ffffff', font: '900 218px Arial, sans-serif' }),
+							                makeTransparentSeatTextMat('', { w: 2400, h: 430, fg: '#ffffff', font: '900 218px Arial, sans-serif' }),
 							                -1.2,
 							                5.36,
 							                metersH / 2 + 9.00,
@@ -14485,7 +14485,7 @@
 							              // Primer plano tipo foto: banquillos, pasillo técnico, vallas y objetivos auxiliares visibles desde la cámara.
 							              addPart(new THREE.BoxGeometry(metersW + 14.0, 0.10, 2.42), apronMat, 0, 0.18, -(metersH / 2 + 0.82), 'pitch_3d_rosaleda_final_polish_near_dark_technical_apron');
 							              addPart(new THREE.BoxGeometry(metersW + 13.5, 0.18, 0.18), blueSeatDarkMat, 0, 0.48, -(metersH / 2 + 0.06), 'pitch_3d_rosaleda_final_polish_near_blue_pitch_lip');
-							              ['MALAGA CF', '2J FOOTBALL INTELLIGENCE', 'PARTNER', 'LA ROSALEDA', 'SPONSOR'].forEach((label, idx) => {
+							              ['', '2J FOOTBALL INTELLIGENCE', 'PARTNER', 'ESTADIO', 'SPONSOR'].forEach((label, idx) => {
 							                const x = -metersW * 0.42 + idx * (metersW * 0.21);
 							                addPart(new THREE.BoxGeometry(metersW * 0.17, 0.66, 0.12), makeSignMat(label, { w: 1180, h: 260, bg: idx % 2 ? '#101827' : '#075fae', fg: '#f8fafc', font: '900 48px Arial, sans-serif', stroke: 'rgba(255,255,255,0.22)' }), x, 0.92, -(metersH / 2 + 1.80), 'pitch_3d_rosaleda_final_polish_near_reference_ad_board');
 							              });
@@ -14519,8 +14519,8 @@
 							                dugout.add(sign);
 							                polishGroup.add(dugout);
 							              };
-							              addForegroundDugout(-26.0, 'MALAGA CF');
-							              addForegroundDugout(-10.0, 'MCF');
+							              addForegroundDugout(-26.0, '');
+							              addForegroundDugout(-10.0, '');
 							              [-39.0, -33.2].forEach((x, idx) => {
 							                const goal = new THREE.Group();
 							                goal.position.set(x, 0.20, -(metersH / 2 + 1.96 + idx * 0.34));
@@ -14598,7 +14598,7 @@
 						          addSideStand(1);
 						          addInstancedSeats();
 						          addPerimeterRoofFinish();
-						          // Desactivado: esta capa pintaba otro MALAGA CF encima del mosaico de asientos.
+						          // Desactivado: esta capa pintaba otro MATCHDAY encima del mosaico de asientos.
 						          addPhotoReferencePitchsideLayer();
 						          addReferenceIdentityAndLightingPass();
 						          addReferenceBowlDepthPass();
@@ -14624,7 +14624,7 @@
 						          });
 						          addMesh(new THREE.BoxGeometry(metersW + 5.0, 0.10, 0.12), lightMat, 0, 8.26, northFacadeZ - 0.22, 'pitch_3d_dedicated_completion_north_light_bar');
 						          // Desactivado: antiguo panel plano de lettering que se superponía al nombre de asientos.
-						          addRotMesh(new THREE.CircleGeometry(2.35, 64), makeSignMat('MCF', { w: 512, h: 512, bg: '#1d72c9', fg: '#f8fafc', font: '900 132px Arial, sans-serif', stroke: '#f8fafc' }), 0, 8.12, metersH / 2 + 14.46, 0, Math.PI, 0, 'pitch_3d_dedicated_completion_main_stand_round_crest');
+						          addRotMesh(new THREE.CircleGeometry(2.35, 64), makeSignMat('', { w: 512, h: 512, bg: '#1d72c9', fg: '#f8fafc', font: '900 132px Arial, sans-serif', stroke: '#f8fafc' }), 0, 8.12, metersH / 2 + 14.46, 0, Math.PI, 0, 'pitch_3d_dedicated_completion_main_stand_round_crest');
 						          addMesh(new THREE.BoxGeometry(metersW + 18.5, 2.25, 0.34), concreteMat, 0, 7.45, metersH / 2 + 14.95, 'pitch_3d_dedicated_completion_main_stand_back_wall');
 						          addMesh(new THREE.BoxGeometry(metersW + 17.0, 0.72, 0.38), darkVoidMat, 0, 8.05, metersH / 2 + 14.72, 'pitch_3d_dedicated_completion_main_stand_shadow_box_level');
 						          addRotMesh(new THREE.BoxGeometry(metersW + 24.0, 0.18, 9.2), roofMat, 0, 11.55, metersH / 2 + 18.55, -0.055, 0, 0, 'pitch_3d_dedicated_completion_main_stand_roof_canopy');
@@ -14671,7 +14671,7 @@
 						              back.rotation.x = -0.22;
 						            }
 						            [-6.18, 6.18].forEach((sx) => {
-						              const badge = new THREE.Mesh(new THREE.CircleGeometry(0.46, 32), makeSignMat('MCF', { w: 512, h: 512, bg: '#1d72c9', fg: '#f8fafc', font: '900 112px Arial, sans-serif', stroke: '#f8fafc' }));
+						              const badge = new THREE.Mesh(new THREE.CircleGeometry(0.46, 32), makeSignMat('', { w: 512, h: 512, bg: '#1d72c9', fg: '#f8fafc', font: '900 112px Arial, sans-serif', stroke: '#f8fafc' }));
 						              badge.position.set(sx, 1.18, -1.02);
 						              badge.rotation.y = Math.PI;
 						              badge.userData = { kind: 'pitch_3d_dedicated_completion_dugout_end_badge' };
@@ -14705,7 +14705,7 @@
 						              const back = addBenchPart(new THREE.BoxGeometry(0.82, 0.70, 0.12), benchMat, sx, 0.92, 0.66, 'pitch_3d_dedicated_completion_near_bench_blue_back');
 						              back.rotation.x = -0.22;
 						            }
-						            const label = new THREE.Mesh(new THREE.PlaneGeometry(4.7, 0.58), makeSignMat(idx === 0 ? 'MALAGA CF' : 'MCF', { w: 900, h: 260, bg: '#064f9e', fg: '#f8fafc', font: '900 58px Arial, sans-serif' }));
+						            const label = new THREE.Mesh(new THREE.PlaneGeometry(4.7, 0.58), makeSignMat('', { w: 900, h: 260, bg: '#064f9e', fg: '#f8fafc', font: '900 58px Arial, sans-serif' }));
 						            label.position.set(0, 1.05, -0.86);
 						            label.rotation.y = Math.PI;
 							            label.userData = { kind: 'pitch_3d_dedicated_completion_near_bench_brand' };
@@ -14735,7 +14735,7 @@
 							            });
 							            const finalText = addRotMesh(
 							              new THREE.PlaneGeometry(metersW * 0.62, 4.80),
-							              makeTransparentSeatTextMat('MALAGA CF', { w: 2400, h: 430, fg: '#ffffff', font: '900 220px Arial, sans-serif' }),
+							              makeTransparentSeatTextMat('', { w: 2400, h: 430, fg: '#ffffff', font: '900 220px Arial, sans-serif' }),
 							              -1.2,
 							              5.42,
 							              metersH / 2 + 9.02,
@@ -14782,9 +14782,9 @@
 							              dugout.add(sign);
 							              dedicatedFinish.add(dugout);
 							            };
-							            addVisibleTouchlineDugout(-26.0, 'MALAGA CF');
-							            addVisibleTouchlineDugout(-10.2, 'MCF');
-							            ['2J FOOTBALL INTELLIGENCE', 'LA ROSALEDA', 'PARTNER', 'SPONSOR'].forEach((label, idx) => {
+							            addVisibleTouchlineDugout(-26.0, '');
+							            addVisibleTouchlineDugout(-10.2, '');
+							            ['2J FOOTBALL INTELLIGENCE', 'ESTADIO', 'PARTNER', 'SPONSOR'].forEach((label, idx) => {
 							              const x = -metersW * 0.34 + idx * (metersW * 0.22);
 							              addMesh(new THREE.BoxGeometry(metersW * 0.18, 0.58, 0.11), makeSignMat(label, { w: 1100, h: 250, bg: idx % 2 ? '#111827' : '#0869b8', fg: '#f8fafc', font: '900 46px Arial, sans-serif' }), x, 0.82, -(metersH / 2 - 0.82), 'pitch_3d_rosaleda_final_seal_visible_touchline_board');
 							            });

@@ -288,14 +288,6 @@ def add_real_seat_bank(prefix, side, rows, cols, x_min, x_max, y_min, y_max, z_m
                 continue
 
             letter = False
-            if side == "north" and 9 <= row <= 15 and 10 <= col <= cols - 12:
-                glyph_col = int((col - 10) / max(cols - 22, 1) * len(letter_pixels("MALAGA CF")[0]))
-                glyph_row = int((row - 9) / 7 * 7)
-                letter = is_letter_seat("MALAGA CF", glyph_col, glyph_row)
-            if side == "west" and 8 <= row <= 16 and 7 <= col <= cols - 8:
-                glyph_col = int((col - 7) / max(cols - 15, 1) * len(letter_pixels("MCF")[0]))
-                glyph_row = int((row - 8) / 9 * 7)
-                letter = is_letter_seat("MCF", glyph_col, glyph_row)
 
             target = white_parts if letter else (alt_parts if row % 2 else blue_parts)
             if side in ("north", "south"):
@@ -354,15 +346,16 @@ def add_dugout(prefix, x, y, label, primary, secondary, black, metal, glass, sea
     for sx in (-7.4, 7.4):
         cube(f"{prefix}_small_blue_equipment_box_{sx:.1f}", (x + sx, y - 1.78, 0.36), (0.9, 0.62, 0.54), primary, bevel=0.025)
         cube(f"{prefix}_equipment_box_lid_{sx:.1f}", (x + sx, y - 1.78, 0.66), (0.94, 0.66, 0.05), secondary, bevel=0.006)
-    bpy.ops.object.text_add(location=(x, y - 1.34, 1.05), rotation=(math.radians(76), 0, 0))
-    text = bpy.context.object
-    text.name = f"{prefix}_front_brand_{label.replace(' ', '_')}_TEAM_SECONDARY"
-    text.data.body = label
-    text.data.align_x = "CENTER"
-    text.data.align_y = "CENTER"
-    text.data.size = 0.82
-    text.data.extrude = 0.018
-    text.data.materials.append(secondary)
+    if label:
+        bpy.ops.object.text_add(location=(x, y - 1.34, 1.05), rotation=(math.radians(76), 0, 0))
+        text = bpy.context.object
+        text.name = f"{prefix}_front_brand_{label.replace(' ', '_')}_TEAM_SECONDARY"
+        text.data.body = label
+        text.data.align_x = "CENTER"
+        text.data.align_y = "CENTER"
+        text.data.size = 0.82
+        text.data.extrude = 0.018
+        text.data.materials.append(secondary)
 
 
 def add_ad_board(prefix, loc, scale, label, board_mat, text_mat, rotation):
@@ -487,26 +480,26 @@ def add_architectural_stadium():
             cube(f"arch_corner_side_wall_TEAM_ACCENT_{sx}_{sy}", (sx * 96.0, sy * 62.0, 12.0), (1.0, 18.0, 11.0), accent, bevel=0.02)
 
     # Reference-style technical area: low dugouts and a restrained dressing-room tunnel.
-    add_dugout("arch_home_dugout", -24.5, -35.05, "MALAGA CF", primary, secondary, black, metal, glass, seat_highlight)
-    add_dugout("arch_away_dugout", 24.5, -35.05, "MCF", primary, secondary, black, metal, glass, seat_highlight)
+    add_dugout("arch_home_dugout", -24.5, -35.05, "", primary, secondary, black, metal, glass, seat_highlight)
+    add_dugout("arch_away_dugout", 24.5, -35.05, "", primary, secondary, black, metal, glass, seat_highlight)
     cube("arch_touchline_dark_asphalt_technical_lane", (0.0, -35.65, 0.075), (78.0, 4.05, 0.10), asphalt, bevel=0.01)
     cube("arch_low_blue_touchline_wall_TEAM_PRIMARY", (0, -33.90, 0.70), (114.0, 0.28, 1.02), primary, bevel=0.015)
     cube("arch_dugout_back_dark_service_strip", (0, -37.90, 0.32), (78.0, 0.28, 0.48), black, bevel=0.008)
     south_labels = (
-        "2J FOOTBALL INTELLIGENCE", "MALAGA CF", "PARTNER", "LA ROSALEDA",
+        "2J FOOTBALL INTELLIGENCE", "PARTNER", "SPONSOR", "MATCHDAY",
         "2J FOOTBALL INTELLIGENCE", "SPONSOR", "PARTNER",
     )
     for idx, x in enumerate((-48, -31, -14, 3, 20, 37, 52)):
         label = south_labels[idx]
         add_ad_board(f"arch_south_pitchside_ad_{idx:02d}", (x, -33.70, 1.15), (14.2, 0.18, 1.06), label, primary if idx in (1, 3, 6) else accent, secondary, (math.radians(82), 0, 0))
-    north_labels = ("SPONSOR", "2J FOOTBALL INTELLIGENCE", "LA ROSALEDA", "PARTNER", "MALAGA CF", "2J FOOTBALL INTELLIGENCE", "SPONSOR")
+    north_labels = ("SPONSOR", "2J FOOTBALL INTELLIGENCE", "MATCHDAY", "PARTNER", "SPONSOR", "2J FOOTBALL INTELLIGENCE", "PARTNER")
     for idx, x in enumerate((-50, -33, -16, 1, 18, 35, 52)):
         label = north_labels[idx]
         add_ad_board(f"arch_north_pitchside_ad_{idx:02d}", (x, 33.70, 1.15), (14.2, 0.18, 1.06), label, primary if idx in (2, 4) else accent, secondary, (math.radians(-82), 0, math.pi))
-    east_labels = ("PARTNER", "2J FOOTBALL INTELLIGENCE", "MALAGA CF", "SPONSOR")
+    east_labels = ("PARTNER", "2J FOOTBALL INTELLIGENCE", "MATCHDAY", "SPONSOR")
     for idx, y in enumerate((-27, -9, 9, 27)):
         add_ad_board(f"arch_east_pitchside_ad_{idx:02d}", (53.70, y, 1.15), (0.18, 14.6, 1.06), east_labels[idx], primary if idx == 2 else accent, secondary, (math.radians(82), 0, math.radians(-90)))
-    west_labels = ("SPONSOR", "LA ROSALEDA", "2J FOOTBALL INTELLIGENCE", "PARTNER")
+    west_labels = ("SPONSOR", "MATCHDAY", "2J FOOTBALL INTELLIGENCE", "PARTNER")
     for idx, y in enumerate((-27, -9, 9, 27)):
         add_ad_board(f"arch_west_pitchside_ad_{idx:02d}", (-53.70, y, 1.15), (0.18, 14.6, 1.06), west_labels[idx], primary if idx == 1 else accent, secondary, (math.radians(82), 0, math.radians(90)))
     cube("arch_players_tunnel_black_mouth", (0, -36.85, 1.55), (8.4, 0.56, 2.55), black, bevel=0.025)
