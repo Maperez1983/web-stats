@@ -9034,7 +9034,9 @@
 						        const routes = Array.isArray(data.interactive_routes) ? data.interactive_routes : [];
 						        const routed = routes.map((r) => safeText(r?.action || r?.type || r?.label)).find(Boolean);
 						        if (routed) return pitch3dInferAction(routed, fallback);
-						      } catch (e) { /* ignore */ }
+						      } catch (e) {
+						        try { console.warn('rosaleda_procedural_finish_failed', e?.message || e); } catch (inner) { /* ignore */ }
+						      }
 						      return pitch3dInferAction(contextText, fallback);
 						    };
 
