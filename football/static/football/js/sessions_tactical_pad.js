@@ -13307,10 +13307,9 @@
 						              }
 						            };
 						            const activeStadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
-						            const activeDedicatedReferenceStadium = isDedicatedPitch3dReferenceStadiumSrc(activeStadiumModelSrc);
-						            if (!activeDedicatedReferenceStadium && addProfessionalStadiumAsset()) return;
+						            const activeDedicatedReferenceStadium = true;
 						            const pendingStadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
-						            const pendingDedicatedReferenceStadium = isDedicatedPitch3dReferenceStadiumSrc(pendingStadiumModelSrc);
+						            const pendingDedicatedReferenceStadium = true;
 						            if (!pendingDedicatedReferenceStadium) {
 						              __pitch3dLoadStadiumModel(() => {
 						                try { addProfessionalStadiumAsset(); } catch (e) { /* ignore */ }
