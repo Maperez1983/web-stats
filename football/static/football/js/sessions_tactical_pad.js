@@ -235,7 +235,7 @@
 	    emoji_whistle: 'un silbato emoji',
 	    emoji_stopwatch: 'un cronómetro emoji',
 	  };
-  const EMOJI_LIBRARY = {
+	  const EMOJI_LIBRARY = {
     emoji_ball: '⚽',
     emoji_cone: '🔺',
     emoji_pole: '📍',
@@ -252,6 +252,36 @@
 	    emoji_whistle: '📣',
 	    emoji_stopwatch: '⏱️',
 	  };
+	  const PITCH3D_INSERT_GROUPS = [
+	    {
+	      label: 'Chapas',
+	      items: ['player_local', 'player_rival', 'player_away', 'goalkeeper_local', 'goalkeeper_rival'],
+	    },
+	    {
+	      label: 'Balón y material',
+	      items: ['ball', 'cone', 'cone_striped', 'pole_marker', 'ring', 'ladder', 'ladder_L', 'ladder_zigzag', 'hurdle', 'mini_hurdle', 'tape', 'gate', 'mannequin', 'wall', 'rebounder', 'barrier'],
+	    },
+	    {
+	      label: 'Porterías',
+	      items: ['goal', 'goal_posts', 'goal_3d', 'goal_mini', 'goal_target', 'goal_popup', 'goal_futsal'],
+	    },
+	    {
+	      label: 'Líneas y flechas',
+	      items: ['line_solid', 'line_thick', 'line_dash', 'line_dot', 'line_double', 'line_curve', 'line_wave', 'line_pressure', 'line_defensive', 'line_offside', 'arrow_solid', 'arrow_thick', 'arrow_dash', 'arrow_dot', 'arrow_curve', 'arrow_curve_left', 'measure'],
+	    },
+	    {
+	      label: 'Zonas y formas',
+	      items: ['zone', 'shape_circle', 'shape_square', 'shape_rect', 'shape_rect_long', 'shape_triangle', 'shape_diamond', 'shape_u', 'shape_lane_3', 'shape_lane_4', 'shape_lane_divider_v', 'shape_lane_divider_h', 'shape_band_h', 'shape_band_v'],
+	    },
+	    {
+	      label: 'Marcadores',
+	      items: ['marker_start', 'marker_end', 'marker_pass', 'marker_shot', 'marker_support', 'text'],
+	    },
+	    {
+	      label: 'Emojis',
+	      items: ['emoji_ball', 'emoji_cone', 'emoji_pole', 'emoji_ladder', 'emoji_ring', 'emoji_hurdle', 'emoji_bib', 'emoji_mannequin', 'emoji_wall', 'emoji_goal', 'emoji_mini_goal', 'emoji_coach', 'emoji_staff', 'emoji_whistle', 'emoji_stopwatch'],
+	    },
+	  ];
 
   const createSvgNode = (doc, tag, attrs) => {
     const node = doc.createElementNS('http://www.w3.org/2000/svg', tag);
@@ -2089,6 +2119,66 @@
 			    let pitch3dStepMetaEl = document.getElementById('task-pitch-3d-step-meta');
 			    let pitch3dPrevBtn = document.getElementById('task-pitch-3d-prev');
 			    let pitch3dNextBtn = document.getElementById('task-pitch-3d-next');
+			    const pitch3dTokenKinds = new Set(['player_local', 'player_rival', 'player_away', 'goalkeeper_local', 'goalkeeper_rival']);
+			    const labelForPitch3dInsert = (kind) => {
+			      const raw = RESOURCE_LABELS[kind] || kind;
+			      return safeText(raw)
+			        .replace(/^(un|una|el|la)\s+/i, '')
+			        .replace(/^jugador local$/i, 'chapa local')
+			        .replace(/^jugador rival$/i, 'chapa rival')
+			        .replace(/^jugador con segunda equipación$/i, 'chapa 2ª equipación')
+			        .replace(/^portero$/i, 'portero local')
+			        .replace(/^./, (ch) => ch.toUpperCase());
+			    };
+			    const populatePitch3dInsertOptions = () => {
+			      if (!pitch3dInsertSelect || pitch3dInsertSelect.dataset.resourcesReady === '1') return;
+			      const previous = safeText(pitch3dInsertSelect.value);
+			      pitch3dInsertSelect.innerHTML = '';
+			      const empty = document.createElement('option');
+			      empty.value = '';
+			      empty.textContent = 'Insertar';
+			      empty.selected = true;
+			      pitch3dInsertSelect.appendChild(empty);
+			      const insertedKinds = new Set();
+			      PITCH3D_INSERT_GROUPS.forEach((group) => {
+			        const optgroup = document.createElement('optgroup');
+			        optgroup.label = safeText(group.label, 'Recursos');
+			        (group.items || []).forEach((kind) => {
+			          if (!kind) return;
+			          const option = document.createElement('option');
+			          option.value = kind;
+			          option.textContent = labelForPitch3dInsert(kind);
+			          optgroup.appendChild(option);
+			          insertedKinds.add(kind);
+			        });
+			        if (optgroup.children.length) pitch3dInsertSelect.appendChild(optgroup);
+			      });
+			      const dynamicGroup = document.createElement('optgroup');
+			      dynamicGroup.label = 'Recursos del club';
+			      Array.from(document.querySelectorAll('button[data-add]') || []).forEach((button) => {
+			        const kind = safeText(button?.dataset?.add);
+			        if (!kind || insertedKinds.has(kind)) return;
+			        if (safeText(button?.dataset?.action)) return;
+			        const option = document.createElement('option');
+			        option.value = kind;
+			        option.textContent = safeText(button.getAttribute('title') || button.getAttribute('aria-label') || button.textContent || kind, kind);
+			        dynamicGroup.appendChild(option);
+			        insertedKinds.add(kind);
+			      });
+			      if (dynamicGroup.children.length) pitch3dInsertSelect.appendChild(dynamicGroup);
+			      pitch3dInsertSelect.dataset.resourcesReady = '1';
+			      if (previous) {
+			        const hasPrevious = Array.from(pitch3dInsertSelect.options || []).some((option) => safeText(option.value) === previous);
+			        if (hasPrevious) pitch3dInsertSelect.value = previous;
+			      }
+			    };
+			    const pitch3dFactoryForKind = (kindRaw) => {
+			      const kind = safeText(kindRaw);
+			      if (!kind) return null;
+			      if (pitch3dTokenKinds.has(kind)) return playerTokenFactory(kind, null, { style: 'disk' });
+			      return simpleFactory(kind);
+			    };
+			    populatePitch3dInsertOptions();
 			    let pitch3dPresentBtn = document.getElementById('task-pitch-3d-present');
 			    let pitch3dFullscreenBtn = document.getElementById('task-pitch-3d-fullscreen');
 			    try {
@@ -16859,6 +16949,17 @@
 						          if (label) addBillboardLabel3d(label, pos.x, 1.15, pos.z, { bg: 'rgba(2,6,23,0.72)', fill: '#f8fafc', size: 160 });
 						          return;
 						        }
+						        if (EMOJI_LIBRARY[kind]) {
+						          const pos = mapPoint2dTo3d(Number(o?.left) || 0, Number(o?.top) || 0);
+						          addBillboardLabel3d(EMOJI_LIBRARY[kind], pos.x, 1.05, pos.z, { bg: 'rgba(2,6,23,0.34)', fill: '#f8fafc', size: 180 });
+						          return;
+						        }
+						        if (kind === 'url_asset' || kind === 'pdf_asset') {
+						          const pos = mapPoint2dTo3d(Number(o?.left) || 0, Number(o?.top) || 0);
+						          const label = safeText(o?.data?.title) || (kind === 'pdf_asset' ? 'PDF' : 'Recurso');
+						          addBillboardLabel3d(label.slice(0, 20), pos.x, 1.05, pos.z, { bg: 'rgba(15,23,42,0.78)', fill: '#f8fafc', size: 132 });
+						          return;
+						        }
 						        if (addTrainingResource3d(o, kind, colorInt)) return;
 
 						        // Lineas simples.
@@ -16870,9 +16971,36 @@
 						          addLine3d(a3, b3, colorInt, thickness, 0.9);
 						          return;
 						        }
+						        if (type === 'path' && (kind === 'line-curve' || kind === 'line-wave' || kind === 'shape-u')) {
+						          const widthPx = Math.max(80, groupWidthPx || Number(o?.width) || 140);
+						          const heightPx = Math.max(36, groupHeightPx || Number(o?.height) || 70);
+						          const half = widthPx / 2;
+						          const a2 = transformPoint2d(-half, 0, o);
+						          const b2 = transformPoint2d(half, 0, o);
+						          const a3 = mapPoint2dTo3d(a2.x, a2.y);
+						          const b3 = mapPoint2dTo3d(b2.x, b2.y);
+						          if (kind === 'shape-u') {
+						            const leftTop = transformPoint2d(-half, -heightPx / 2, o);
+						            const leftBottom = transformPoint2d(-half, heightPx / 2, o);
+						            const rightBottom = transformPoint2d(half, heightPx / 2, o);
+						            const rightTop = transformPoint2d(half, -heightPx / 2, o);
+						            const p1 = mapPoint2dTo3d(leftTop.x, leftTop.y);
+						            const p2 = mapPoint2dTo3d(leftBottom.x, leftBottom.y);
+						            const p3 = mapPoint2dTo3d(rightBottom.x, rightBottom.y);
+						            const p4 = mapPoint2dTo3d(rightTop.x, rightTop.y);
+						            addLine3d(p1, p2, colorInt, thickness, 0.92);
+						            addLine3d(p2, p3, colorInt, thickness, 0.92);
+						            addLine3d(p3, p4, colorInt, thickness, 0.92);
+						          } else {
+						            const c2 = transformPoint2d(0, kind === 'line-wave' ? -heightPx * 0.55 : -heightPx * 0.70, o);
+						            const c3 = mapPoint2dTo3d(c2.x, c2.y);
+						            addCurve3d(a3, b3, c3, colorInt, Math.max(0.08, thickness), 0.92);
+						          }
+						          return;
+						        }
 
 						        // Zonas (grupo).
-						        if (type === 'group' && (kind === 'zone' || kind === 'shape-rect' || kind === 'shape-rect-long' || kind === 'shape-square')) {
+						        if (type === 'group' && (kind === 'zone' || kind === 'shape-rect' || kind === 'shape-rect-long' || kind === 'shape-square' || kind.startsWith('shape-lane-') || kind.startsWith('shape-band-'))) {
 						          const wPx = Math.max(12, groupWidthPx || 0);
 						          const hPx = Math.max(12, groupHeightPx || 0);
 						          const center2d = { x: Number(o?.left) || 0, y: Number(o?.top) || 0 };
@@ -16926,7 +17054,7 @@
 						        }
 
 						        // Zonas / rectángulos (incluye “zone”, shape-rect*, etc.).
-						        if (type === 'rect' || kind === 'zone' || kind === 'shape-rect' || kind === 'shape-rect-long' || kind === 'shape-square') {
+						        if (type === 'rect' || type === 'triangle' || kind === 'zone' || kind === 'shape-rect' || kind === 'shape-rect-long' || kind === 'shape-square' || kind === 'shape-triangle' || kind === 'shape-diamond') {
 						          const wPx = Math.max(8, Number(o?.width) || 0) * (Number(o?.scaleX) || 1);
 						          const hPx = Math.max(8, Number(o?.height) || 0) * (Number(o?.scaleY) || 1);
 						          const center2d = { x: Number(o?.left) || 0, y: Number(o?.top) || 0 };
@@ -17988,7 +18116,11 @@
 						        return false;
 						      }
 						      try {
-						        const factory = simpleFactory(kind);
+						        const factory = pitch3dFactoryForKind(kind);
+						        if (!factory) {
+						          setStatus('No se pudo insertar el elemento en 3D.', true);
+						          return false;
+						        }
 						        const placed = addObject(objectAtPointer(factory, point));
 						        if (!placed) {
 						          setStatus('No se pudo insertar el elemento en 3D.', true);
