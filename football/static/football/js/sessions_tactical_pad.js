@@ -13417,6 +13417,15 @@
 							        if (shouldUseRosaledaProceduralFinish) {
 						          const dedicatedFinish = new THREE.Group();
 						          dedicatedFinish.userData = { kind: 'pitch_3d_dedicated_reference_completion_layer' };
+						          try {
+						            const debugProbe = new THREE.Mesh(
+						              new THREE.BoxGeometry(8.0, 3.0, 8.0),
+						              new THREE.MeshBasicMaterial({ color: 0xff0066, toneMapped: false })
+						            );
+						            debugProbe.position.set(0, 2.2, 0);
+						            debugProbe.userData = { kind: 'pitch_3d_rosaleda_debug_probe' };
+						            dedicatedFinish.add(debugProbe);
+						          } catch (e) { /* ignore */ }
 						          const concreteMat = new THREE.MeshStandardMaterial({ color: 0xcfd6d1, roughness: 0.76, metalness: 0.03 });
 						          const darkVoidMat = new THREE.MeshStandardMaterial({ color: 0x1f3345, roughness: 0.78, metalness: 0.06 });
 						          const seatMat = new THREE.MeshStandardMaterial({ color: 0x1261ad, roughness: 0.58, metalness: 0.02 });
