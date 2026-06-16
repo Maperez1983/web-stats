@@ -13328,11 +13328,53 @@
 						                return false;
 						              }
 						            };
+						            const hasProfessionalStadiumInScene = () => {
+						              let found = false;
+						              try {
+						                root.traverse((node) => {
+						                  const kind = safeText(node?.userData?.kind || '');
+						                  if (
+						                    kind.includes('pitch_3d_professional_blender_stadium')
+						                    || kind.includes('pitch_3d_dedicated_reference_stadium_mesh')
+						                  ) found = true;
+						                });
+						              } catch (e) { /* ignore */ }
+						              return found;
+						            };
+						            const forceStadiumModelRecoveryLoad = () => {
+						              const stadiumSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
+						              if (!stadiumSrc || isLegacyPitch3dReferenceStadiumSrc(stadiumSrc) || hasProfessionalStadiumInScene()) return;
+						              try {
+						                const LoaderClass = window.__WEBSTATS_GLTF_LOADER_CLASS;
+						                if (typeof LoaderClass !== 'function') {
+						                  window.setTimeout(forceStadiumModelRecoveryLoad, 120);
+						                  return;
+						                }
+						                if (window.__WEBSTATS_PITCH3D_STADIUM_RECOVERY_LOADING) return;
+						                window.__WEBSTATS_PITCH3D_STADIUM_RECOVERY_LOADING = true;
+						                const loader = new LoaderClass();
+						                loader.load(stadiumSrc, (gltf) => {
+						                  try {
+						                    __pitch3dStadiumModelCache.scene = gltf?.scene || null;
+						                    __pitch3dStadiumModelCache.loading = false;
+						                    __pitch3dStadiumModelCache.failed = false;
+						                  } catch (e) { /* ignore */ }
+						                  try { if (!hasProfessionalStadiumInScene()) addProfessionalStadiumAsset(); } catch (e) { /* ignore */ }
+						                  window.__WEBSTATS_PITCH3D_STADIUM_RECOVERY_LOADING = false;
+						                }, undefined, () => {
+						                  window.__WEBSTATS_PITCH3D_STADIUM_RECOVERY_LOADING = false;
+						                });
+						              } catch (e) {
+						                window.__WEBSTATS_PITCH3D_STADIUM_RECOVERY_LOADING = false;
+						              }
+						            };
 						            const eagerStadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
 						            if (eagerStadiumModelSrc && !isLegacyPitch3dReferenceStadiumSrc(eagerStadiumModelSrc)) {
 						              __pitch3dLoadStadiumModel(() => {
 						                try { addProfessionalStadiumAsset(); } catch (e) { /* ignore */ }
 						              });
+						              window.setTimeout(forceStadiumModelRecoveryLoad, 180);
+						              window.setTimeout(forceStadiumModelRecoveryLoad, 900);
 						            }
 						            const activeStadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
 						            const activeDedicatedReferenceStadium = isDedicatedPitch3dReferenceStadiumSrc(activeStadiumModelSrc);
