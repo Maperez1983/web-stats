@@ -15274,6 +15274,21 @@
 							              const signature = `${kind} ${name}`;
 							              if (conflictKinds.some((needle) => signature.includes(needle))) node.visible = false;
 							              if (/side_(white_)?stair|side_stair_rail|corner_podium|corner_seat_band|near_clean_concrete_aisle/.test(signature)) node.visible = false;
+							              if (node?.isMesh && node?.geometry) {
+							                try {
+							                  if (!node.geometry.boundingBox) node.geometry.computeBoundingBox();
+							                  const box = node.geometry.boundingBox;
+							                  const sx = Math.abs(box.max.x - box.min.x) * Math.abs(node.scale?.x || 1);
+							                  const sy = Math.abs(box.max.y - box.min.y) * Math.abs(node.scale?.y || 1);
+							                  const sz = Math.abs(box.max.z - box.min.z) * Math.abs(node.scale?.z || 1);
+							                  const px = Math.abs(node.position?.x || 0);
+							                  const py = Number(node.position?.y || 0);
+							                  const pz = Math.abs(node.position?.z || 0);
+							                  const lateralBeam = px > (metersW / 2 + 3.0) && py > 0.70 && py < 3.40 && sx > 2.7 && sx < 8.2 && sy < 0.36 && sz < 1.65;
+							                  const cornerBeam = px > (metersW / 2 + 1.0) && pz > (metersH / 2 + 1.0) && py > 0.70 && py < 3.40 && (sx > 2.5 || sz > 2.5) && sy < 0.42;
+							                  if (lateralBeam || cornerBeam) node.visible = false;
+							                } catch (e) { /* ignore */ }
+							              }
 							            });
 							            for (let i = 0; i < 11; i += 1) {
 							              const x = -metersW * 0.48 + i * (metersW * 0.096);
