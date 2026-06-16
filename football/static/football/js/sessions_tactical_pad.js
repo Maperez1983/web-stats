@@ -9034,9 +9034,7 @@
 						        const routes = Array.isArray(data.interactive_routes) ? data.interactive_routes : [];
 						        const routed = routes.map((r) => safeText(r?.action || r?.type || r?.label)).find(Boolean);
 						        if (routed) return pitch3dInferAction(routed, fallback);
-						      } catch (e) {
-						        try { console.warn('rosaleda_procedural_finish_failed', e?.message || e); } catch (inner) { /* ignore */ }
-						      }
+						      } catch (e) { /* ignore */ }
 						      return pitch3dInferAction(contextText, fallback);
 						    };
 
@@ -13307,9 +13305,10 @@
 						              }
 						            };
 						            const activeStadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
-						            const activeDedicatedReferenceStadium = true;
+						            const activeDedicatedReferenceStadium = isDedicatedPitch3dReferenceStadiumSrc(activeStadiumModelSrc);
+						            if (!activeDedicatedReferenceStadium && addProfessionalStadiumAsset()) return;
 						            const pendingStadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
-						            const pendingDedicatedReferenceStadium = true;
+						            const pendingDedicatedReferenceStadium = isDedicatedPitch3dReferenceStadiumSrc(pendingStadiumModelSrc);
 						            if (!pendingDedicatedReferenceStadium) {
 						              __pitch3dLoadStadiumModel(() => {
 						                try { addProfessionalStadiumAsset(); } catch (e) { /* ignore */ }
@@ -13406,26 +13405,10 @@
 						      };
 						      try {
 						        const stadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
-						        const bodyStadiumModelSrc = safeText(document.body?.dataset?.pitch3dStadiumModelSrc || '');
-						        const shouldUseRosaledaProceduralFinish = (
-						          true
-						          ||
-						          isDedicatedPitch3dReferenceStadiumSrc(stadiumModelSrc)
-						          || isDedicatedPitch3dReferenceStadiumSrc(bodyStadiumModelSrc)
-						          || (!stadiumModelSrc && !bodyStadiumModelSrc)
-						        );
+						        const shouldUseRosaledaProceduralFinish = isDedicatedPitch3dReferenceStadiumSrc(stadiumModelSrc);
 							        if (shouldUseRosaledaProceduralFinish) {
 						          const dedicatedFinish = new THREE.Group();
 						          dedicatedFinish.userData = { kind: 'pitch_3d_dedicated_reference_completion_layer' };
-						          try {
-						            const debugProbe = new THREE.Mesh(
-						              new THREE.BoxGeometry(8.0, 3.0, 8.0),
-						              new THREE.MeshBasicMaterial({ color: 0xff0066, toneMapped: false })
-						            );
-						            debugProbe.position.set(0, 2.2, 0);
-						            debugProbe.userData = { kind: 'pitch_3d_rosaleda_debug_probe' };
-						            dedicatedFinish.add(debugProbe);
-						          } catch (e) { /* ignore */ }
 						          const concreteMat = new THREE.MeshStandardMaterial({ color: 0xcfd6d1, roughness: 0.76, metalness: 0.03 });
 						          const darkVoidMat = new THREE.MeshStandardMaterial({ color: 0x1f3345, roughness: 0.78, metalness: 0.06 });
 						          const seatMat = new THREE.MeshStandardMaterial({ color: 0x1261ad, roughness: 0.58, metalness: 0.02 });
