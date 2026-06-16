@@ -25421,6 +25421,8 @@
 	      json.objects = (json.objects || []).filter((item) => !(item?.data?.base));
 	      return json;
 	    };
+	    try { window.__WEBSTATS_TPAD_CANVAS = canvas; } catch (e) { /* ignore */ }
+	    try { window.__WEBSTATS_SERIALIZE_CANVAS_ONLY = serializeCanvasOnly; } catch (e) { /* ignore */ }
     const normalizeTimeline = (raw) => {
       if (!Array.isArray(raw)) return [];
       return raw
