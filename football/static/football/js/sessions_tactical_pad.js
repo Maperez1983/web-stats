@@ -25612,12 +25612,33 @@
 	      if (!kind) return;
 	      if (kind.includes('divider')) return;
 	      const isLongStroke = isLongStrokeObject(object);
+	      const isEquipmentLike = [
+	        'ball',
+	        'cone',
+	        'cone-striped',
+	        'pole-marker',
+	        'ring',
+	        'ladder',
+	        'ladder_l',
+	        'ladder_zigzag',
+	        'hurdle',
+	        'mini_hurdle',
+	        'tape',
+	        'gate',
+	        'mannequin',
+	        'wall',
+	        'rebounder',
+	        'barrier',
+	        'measure',
+	      ].includes(kind);
+	      const isMarkerLike = kind.startsWith('marker_');
+	      const isEmojiLike = kind.startsWith('emoji_');
 	      const isZoneLike = kind === 'zone'
 	        || kind.startsWith('shape-')
 	        || kind === 'goal'
 	        || kind.startsWith('goal_')
 	        || kind.startsWith('goal-');
-	      if (!isZoneLike && !isLongStroke) return;
+	      if (!isZoneLike && !isLongStroke && !isEquipmentLike && !isMarkerLike && !isEmojiLike) return;
 	      const { w, h } = worldSize();
 	      const worldW = Math.max(1, Number(w) || 0);
 	      const worldH = Math.max(1, Number(h) || 0);
@@ -25626,6 +25647,15 @@
 	      if (isLongStroke) {
 	        maxW = Math.min(190, worldW * 0.30);
 	        maxH = Math.min(110, worldH * 0.22);
+	      } else if (isMarkerLike || isEmojiLike || ['ball', 'cone', 'cone-striped', 'pole-marker', 'ring'].includes(kind)) {
+	        maxW = Math.min(54, worldW * 0.10);
+	        maxH = Math.min(54, worldH * 0.12);
+	      } else if (['ladder', 'ladder_l', 'ladder_zigzag', 'tape', 'gate', 'hurdle', 'mini_hurdle', 'measure'].includes(kind)) {
+	        maxW = Math.min(150, worldW * 0.24);
+	        maxH = Math.min(86, worldH * 0.18);
+	      } else if (['mannequin', 'wall', 'rebounder', 'barrier'].includes(kind)) {
+	        maxW = Math.min(150, worldW * 0.24);
+	        maxH = Math.min(120, worldH * 0.24);
 	      } else if (kind === 'zone' || kind.startsWith('shape-lane-') || kind === 'shape-rect' || kind === 'shape-rect-long') {
 	        maxW = Math.min(190, worldW * 0.28);
 	        maxH = Math.min(120, worldH * 0.28);
