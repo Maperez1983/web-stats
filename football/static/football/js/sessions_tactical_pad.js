@@ -16404,10 +16404,45 @@
 						        } catch (e) { /* ignore */ }
 						        return null;
 						      };
+						      const materializeFabricObject3d = async (obj) => {
+						        const CanvasCtor = fabricLib ? (fabricLib.StaticCanvas || fabricLib.Canvas) : null;
+						        if (!obj || !CanvasCtor || typeof CanvasCtor !== 'function') return null;
+						        if (typeof cloneObjectAsync === 'function' && typeof obj.clone === 'function') {
+						          return cloneObjectAsync(obj);
+						        }
+						        const snapshot = sanitizeLoadedState({
+						          version: safeText(obj?.version || fabricLib?.version || '5.3.0'),
+						          objects: [obj],
+						        });
+						        const tmpEl = document.createElement('canvas');
+						        tmpEl.width = 4;
+						        tmpEl.height = 4;
+						        const tmp = new CanvasCtor(tmpEl, {
+						          width: 4,
+						          height: 4,
+						          backgroundColor: 'transparent',
+						          renderOnAddRemove: false,
+						          enableRetinaScaling: false,
+						        });
+						        return new Promise((resolve) => {
+						          try {
+						            tmp.loadFromJSON(snapshot, () => {
+						              let revived = null;
+						              try { revived = tmp.getObjects()?.[0] || null; } catch (e) { revived = null; }
+						              try { tmp.remove(revived); } catch (e) { /* ignore */ }
+						              try { tmp.dispose?.(); } catch (e) { /* ignore */ }
+						              resolve(revived);
+						            });
+						          } catch (error) {
+						            try { tmp.dispose?.(); } catch (e) { /* ignore */ }
+						            resolve(null);
+						          }
+						        });
+						      };
 						      const renderFabricObjectTexture3d = async (obj, options = {}) => {
 						        const CanvasCtor = fabricLib ? (fabricLib.StaticCanvas || fabricLib.Canvas) : null;
-						        if (!obj || !CanvasCtor || typeof CanvasCtor !== 'function' || typeof cloneObjectAsync !== 'function') return null;
-						        const cloned = await cloneObjectAsync(obj);
+						        if (!obj || !CanvasCtor || typeof CanvasCtor !== 'function') return null;
+						        const cloned = await materializeFabricObject3d(obj);
 						        if (!cloned) return null;
 						        const padding = clamp(Number(options.padding) || 18, 8, 56);
 						        const multiplier = clamp(Number(options.multiplier) || 2, 1, 4);
