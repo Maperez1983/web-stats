@@ -8248,7 +8248,7 @@
 						    };
 						    const isLegacyPitch3dReferenceStadiumSrc = (src) => /stadium_benagalbon_reference(?:\.[a-f0-9]+)?\.glb(?:[?#].*)?$/i.test(safeText(src || ''));
 						    const isDedicatedPitch3dMalagaStadiumSrc = (src) => /stadium_malaga_rosaleda(?:\.[a-f0-9]+)?\.glb(?:[?#].*)?$/i.test(safeText(src || ''));
-						    const isDedicatedPitch3dReferenceStadiumSrc = (src) => isLegacyPitch3dReferenceStadiumSrc(src) || isDedicatedPitch3dMalagaStadiumSrc(src);
+						    const isDedicatedPitch3dReferenceStadiumSrc = (src) => isLegacyPitch3dReferenceStadiumSrc(src);
 						    const ensurePitch3dGltfLoaderClass = async () => {
 						      try { if (window.__WEBSTATS_GLTF_LOADER_CLASS) return true; } catch (e) { /* ignore */ }
 						      if (window.__webstats_gltf_loader_promise) return !!(await window.__webstats_gltf_loader_promise);
