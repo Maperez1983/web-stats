@@ -15159,11 +15159,41 @@
 							              if (Math.abs(i) <= 24) addPhotoPart(new THREE.BoxGeometry(0.38, 0.050, 0.11), photoLight, x, 10.14, metersH / 2 + 12.62, 'pitch_3d_rosaleda_photo_roof_bright_light_cell');
 							            }
 							            const adLabels = ['2J FOOTBALL INTELLIGENCE', 'PARTNER', 'SPONSOR', 'ESTADIO', 'MATCHDAY'];
+							            const conflictKinds = [
+							              'pitch_3d_rosaleda_final_polish_near_reference_ad_board',
+							              'pitch_3d_rosaleda_final_seal_visible_touchline_board',
+							              'pitch_3d_rosaleda_reference_architect_front_readable_ad_board',
+							              'pitch_3d_rosaleda_photo_continuous_near_ad_board',
+							              'pitch_3d_rosaleda_photo_near_clean_concrete_aisle',
+							              'pitch_3d_rosaleda_photo_near_stand_dark_mid_concourse',
+							            ];
+							            dedicatedFinish.traverse((node) => {
+							              const kind = safeText(node?.userData?.kind || '');
+							              if (!kind) return;
+							              if (conflictKinds.some((needle) => kind.includes(needle))) node.visible = false;
+							            });
 							            for (let i = 0; i < 11; i += 1) {
 							              const x = -metersW * 0.48 + i * (metersW * 0.096);
-							              addReadableAdBoard(adLabels[i % adLabels.length], x, 0.94, -(metersH / 2 + 2.96), metersW * 0.082, 0.72, 'north', 'pitch_3d_rosaleda_photo_continuous_near_ad_board', { w: 980, h: 250, bg: i % 2 ? '#111827' : '#075fae', fg: '#f8fafc', font: '900 46px Arial, sans-serif' });
 							              addReadableAdBoard(adLabels[(i + 2) % adLabels.length], x, 0.94, metersH / 2 + 2.96, metersW * 0.082, 0.72, 'south', 'pitch_3d_rosaleda_photo_continuous_far_ad_board', { w: 980, h: 250, bg: i % 2 ? '#075fae' : '#111827', fg: '#f8fafc', font: '900 46px Arial, sans-serif' });
 							            }
+							            [
+							              { x: -48.0, w: 9.8, label: 'SPONSOR', bg: '#111827' },
+							              { x: -36.6, w: 8.4, label: '2J FOOTBALL INTELLIGENCE', bg: '#075fae' },
+							              { x: 5.2, w: 9.8, label: 'PARTNER', bg: '#075fae' },
+							              { x: 18.4, w: 10.6, label: 'ESTADIO', bg: '#111827' },
+							              { x: 33.0, w: 11.0, label: '2J FOOTBALL INTELLIGENCE', bg: '#075fae' },
+							              { x: 47.2, w: 8.4, label: 'SPONSOR', bg: '#111827' },
+							            ].forEach((board, idx) => {
+							              addReadableAdBoard(board.label, board.x, 0.86, -(metersH / 2 + 3.10), board.w, 0.66, 'north', 'pitch_3d_rosaleda_photo_clean_near_ad_board_with_dugout_gaps', { w: 980, h: 250, bg: board.bg, fg: '#f8fafc', font: idx === 1 || idx === 4 ? '900 38px Arial, sans-serif' : '900 48px Arial, sans-serif' });
+							            });
+							            addPhotoPart(new THREE.BoxGeometry(16.2, 0.09, 2.18), photoDark, -26.5, 0.16, -(metersH / 2 + 3.04), 'pitch_3d_rosaleda_photo_dugout_clear_technical_pad_left');
+							            addPhotoPart(new THREE.BoxGeometry(16.2, 0.09, 2.18), photoDark, -9.0, 0.16, -(metersH / 2 + 3.04), 'pitch_3d_rosaleda_photo_dugout_clear_technical_pad_right');
+							            addPhotoPart(new THREE.BoxGeometry(9.0, 0.10, 3.2), photoDark, 0, 0.14, -(metersH / 2 + 3.28), 'pitch_3d_rosaleda_photo_tunnel_clear_opening_floor');
+							            [-0.38, -0.18, 0.18, 0.38].forEach((ratio) => {
+							              addPhotoRot(new THREE.BoxGeometry(1.12, 0.10, 3.8), photoConcrete, ratio * metersW, 1.18, -(metersH / 2 + 5.06), -0.045, 0, 0, 'pitch_3d_rosaleda_photo_integrated_near_stair_tread');
+							              addPhotoPart(new THREE.BoxGeometry(0.050, 0.72, 3.2), photoGlass, ratio * metersW - 0.68, 1.05, -(metersH / 2 + 4.86), 'pitch_3d_rosaleda_photo_integrated_near_stair_low_rail');
+							              addPhotoPart(new THREE.BoxGeometry(0.050, 0.72, 3.2), photoGlass, ratio * metersW + 0.68, 1.05, -(metersH / 2 + 4.86), 'pitch_3d_rosaleda_photo_integrated_near_stair_low_rail');
+							            });
 							          } catch (e) { /* ignore */ }
 							          root.add(dedicatedFinish);
 						        }
