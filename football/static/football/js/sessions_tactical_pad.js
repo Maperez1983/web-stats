@@ -13399,10 +13399,10 @@
 						          addCornerFlag((metersW / 2), -(metersH / 2), -1, 1);
 						          addCornerFlag(-(metersW / 2), (metersH / 2), 1, -1);
 						          addCornerFlag((metersW / 2), (metersH / 2), -1, -1);
+						          addPitchSideDetails3d();
 						        }
 						        } catch (e) { /* ignore */ }
 						      };
-						      addPitchSideDetails3d();
 						      try {
 						        const stadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
 							        if (isDedicatedPitch3dReferenceStadiumSrc(stadiumModelSrc)) {
