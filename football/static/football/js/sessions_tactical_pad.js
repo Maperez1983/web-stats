@@ -13328,6 +13328,12 @@
 						                return false;
 						              }
 						            };
+						            const eagerStadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
+						            if (eagerStadiumModelSrc && !isLegacyPitch3dReferenceStadiumSrc(eagerStadiumModelSrc)) {
+						              __pitch3dLoadStadiumModel(() => {
+						                try { addProfessionalStadiumAsset(); } catch (e) { /* ignore */ }
+						              });
+						            }
 						            const activeStadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
 						            const activeDedicatedReferenceStadium = isDedicatedPitch3dReferenceStadiumSrc(activeStadiumModelSrc);
 						            if (!activeDedicatedReferenceStadium && addProfessionalStadiumAsset()) return;
