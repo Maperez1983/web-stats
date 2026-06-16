@@ -2181,6 +2181,43 @@
 			    populatePitch3dInsertOptions();
 			    let pitch3dPresentBtn = document.getElementById('task-pitch-3d-present');
 			    let pitch3dFullscreenBtn = document.getElementById('task-pitch-3d-fullscreen');
+			    const syncPitch3dDomRefs = () => {
+			      try { pitch3dModal = document.getElementById('task-pitch-3d-modal') || pitch3dModal; } catch (e) { /* ignore */ }
+			      try { pitch3dCloseBtn = document.getElementById('task-pitch-3d-close') || pitch3dCloseBtn; } catch (e) { /* ignore */ }
+			      try { pitch3dCanvasEl = document.getElementById('task-pitch-3d-canvas') || pitch3dCanvasEl; } catch (e) { /* ignore */ }
+			      try { pitch3dCameraSelect = document.getElementById('task-pitch-3d-camera') || pitch3dCameraSelect; } catch (e) { /* ignore */ }
+			      try { pitch3dSurfaceSelect = document.getElementById('task-pitch-3d-surface') || pitch3dSurfaceSelect; } catch (e) { /* ignore */ }
+			      try { pitch3dFormatSelect = document.getElementById('task-pitch-3d-format') || pitch3dFormatSelect; } catch (e) { /* ignore */ }
+			      try { pitch3dFollowSelect = document.getElementById('task-pitch-3d-follow') || pitch3dFollowSelect; } catch (e) { /* ignore */ }
+			      try { pitch3dInsertSelect = document.getElementById('task-pitch-3d-insert') || pitch3dInsertSelect; } catch (e) { /* ignore */ }
+			      try { pitch3dLayerDrawInput = document.getElementById('task-pitch-3d-layer-draw') || pitch3dLayerDrawInput; } catch (e) { /* ignore */ }
+			      try { pitch3dLayerGhostsInput = document.getElementById('task-pitch-3d-layer-ghosts') || pitch3dLayerGhostsInput; } catch (e) { /* ignore */ }
+			      try { pitch3dLayerTrailsInput = document.getElementById('task-pitch-3d-layer-trails') || pitch3dLayerTrailsInput; } catch (e) { /* ignore */ }
+			      try { pitch3dThemeSelect = document.getElementById('task-pitch-3d-theme') || pitch3dThemeSelect; } catch (e) { /* ignore */ }
+			      try { pitch3dRefreshBtn = document.getElementById('task-pitch-3d-refresh') || pitch3dRefreshBtn; } catch (e) { /* ignore */ }
+			      try { pitch3dSnapTacticBtn = document.getElementById('task-pitch-3d-snap-tactic') || pitch3dSnapTacticBtn; } catch (e) { /* ignore */ }
+			      try { pitch3dPlayBtn = document.getElementById('task-pitch-3d-play') || pitch3dPlayBtn; } catch (e) { /* ignore */ }
+			      try { pitch3dSnapBtn = document.getElementById('task-pitch-3d-snap') || pitch3dSnapBtn; } catch (e) { /* ignore */ }
+			      try { pitch3dRecordBtn = document.getElementById('task-pitch-3d-record') || pitch3dRecordBtn; } catch (e) { /* ignore */ }
+			      try { pitch3dActionSelect = document.getElementById('task-pitch-3d-action') || pitch3dActionSelect; } catch (e) { /* ignore */ }
+			      try { pitch3dActionApplyBtn = document.getElementById('task-pitch-3d-action-apply') || pitch3dActionApplyBtn; } catch (e) { /* ignore */ }
+			      try { pitch3dPhaseSaveBtn = document.getElementById('task-pitch-3d-phase-save') || pitch3dPhaseSaveBtn; } catch (e) { /* ignore */ }
+			      try { pitch3dPhaseDupBtn = document.getElementById('task-pitch-3d-phase-dup') || pitch3dPhaseDupBtn; } catch (e) { /* ignore */ }
+			      try { pitch3dTemplateBtn = document.getElementById('task-pitch-3d-template') || pitch3dTemplateBtn; } catch (e) { /* ignore */ }
+			      try { pitch3dValidateBtn = document.getElementById('task-pitch-3d-validate') || pitch3dValidateBtn; } catch (e) { /* ignore */ }
+			      try { pitch3dClampBtn = document.getElementById('task-pitch-3d-clamp') || pitch3dClampBtn; } catch (e) { /* ignore */ }
+			      try { pitch3dQualityBtn = document.getElementById('task-pitch-3d-quality') || pitch3dQualityBtn; } catch (e) { /* ignore */ }
+			      try { pitch3dHud = document.getElementById('task-pitch-3d-hud') || pitch3dHud; } catch (e) { /* ignore */ }
+			      try { pitch3dStepTitleEl = document.getElementById('task-pitch-3d-step-title') || pitch3dStepTitleEl; } catch (e) { /* ignore */ }
+			      try { pitch3dStepMetaEl = document.getElementById('task-pitch-3d-step-meta') || pitch3dStepMetaEl; } catch (e) { /* ignore */ }
+			      try { pitch3dPrevBtn = document.getElementById('task-pitch-3d-prev') || pitch3dPrevBtn; } catch (e) { /* ignore */ }
+			      try { pitch3dNextBtn = document.getElementById('task-pitch-3d-next') || pitch3dNextBtn; } catch (e) { /* ignore */ }
+			      try { pitch3dPresentBtn = document.getElementById('task-pitch-3d-present') || pitch3dPresentBtn; } catch (e) { /* ignore */ }
+			      try { pitch3dFullscreenBtn = document.getElementById('task-pitch-3d-fullscreen') || pitch3dFullscreenBtn; } catch (e) { /* ignore */ }
+			      try {
+			        if (pitch3dModal && pitch3dModal.parentElement !== document.body) document.body.appendChild(pitch3dModal);
+			      } catch (e) { /* ignore */ }
+			    };
 			    try {
 			      if (pitch3dModal && pitch3dModal.parentElement !== document.body) {
 			        document.body.appendChild(pitch3dModal);
@@ -8151,6 +8188,7 @@
 						    // Vista 3D (presentación): renderiza la pizarra actual (y los escenarios si existen) en un visor 3D.
 						    // Inspirado en flujos típicos de la competencia: toggle 2D↔3D + presets de cámara + export.
 						    const canUsePitch3d = () => {
+						      try { syncPitch3dDomRefs(); } catch (e) { /* ignore */ }
 						      try { return !!(pitch3dModal && pitch3dCanvasEl && window.THREE && typeof window.THREE.WebGLRenderer === 'function'); } catch (e) { return false; }
 						    };
 
@@ -9440,6 +9478,7 @@
 						    };
 
 						    const ensurePitch3d = () => {
+						      try { syncPitch3dDomRefs(); } catch (e) { /* ignore */ }
 						      if (!canUsePitch3d()) return false;
 						      if (pitch3dRenderer && pitch3dScene && pitch3dCamera) return true;
 						      try {
@@ -17771,6 +17810,7 @@
 							    };
 
 						    const openPitch3d = () => {
+							      try { syncPitch3dDomRefs(); } catch (e) { /* ignore */ }
 							      if (!canUsePitch3d()) {
 							        setStatus('Vista 3D no disponible en este dispositivo/navegador.', true);
 							        return;
