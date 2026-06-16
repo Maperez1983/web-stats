@@ -13304,30 +13304,32 @@
 						                return false;
 						              }
 						            };
-						            if (addProfessionalStadiumAsset()) return;
+						            const activeStadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
+						            const activeDedicatedReferenceStadium = isDedicatedPitch3dReferenceStadiumSrc(activeStadiumModelSrc);
+						            if (!activeDedicatedReferenceStadium && addProfessionalStadiumAsset()) return;
 						            const pendingStadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
 						            const pendingDedicatedReferenceStadium = isDedicatedPitch3dReferenceStadiumSrc(pendingStadiumModelSrc);
-						            __pitch3dLoadStadiumModel(() => {
-						              try { addProfessionalStadiumAsset(); } catch (e) { /* ignore */ }
-						            });
-						            if (pendingDedicatedReferenceStadium) return;
-						            addGreenApron();
-						            addGroundedExteriorStructure();
-						            addExteriorCompletion();
-						            addAuthenticExteriorEnvelope();
-						            addReferenceStand({ kind: 'pitch_3d_ref_main_north_stand', x: 0, z: metersH / 2 + 7.2, w: metersW + 24, rows: 18, rotY: 0 });
-						            addReferenceStand({ kind: 'pitch_3d_ref_south_stand_continuous_over_tunnel', x: 0, z: -(metersH / 2 + 7.2), w: metersW + 24, rows: 18, rotY: Math.PI });
-						            addReferenceStand({ kind: 'pitch_3d_ref_west_stand', x: -(metersW / 2 + 7.0), z: 0, w: metersH + 13, rows: 16, rotY: -Math.PI / 2 });
-						            addReferenceStand({ kind: 'pitch_3d_ref_east_stand', x: metersW / 2 + 7.0, z: 0, w: metersH + 13, rows: 16, rotY: Math.PI / 2 });
-						            addCornerBowl({ kind: 'pitch_3d_ref_corner_north_west_bowl', x: -(metersW / 2 + 5.4), z: metersH / 2 + 5.4, rotY: -Math.PI / 4 });
-						            addCornerBowl({ kind: 'pitch_3d_ref_corner_north_east_bowl', x: metersW / 2 + 5.4, z: metersH / 2 + 5.4, rotY: Math.PI / 4 });
-						            addCornerBowl({ kind: 'pitch_3d_ref_corner_south_west_bowl', x: -(metersW / 2 + 5.4), z: -(metersH / 2 + 5.4), rotY: -Math.PI * 0.75 });
-						            addCornerBowl({ kind: 'pitch_3d_ref_corner_south_east_bowl', x: metersW / 2 + 5.4, z: -(metersH / 2 + 5.4), rotY: Math.PI * 0.75 });
-						            addIntegratedTunnelAndRoofRing();
-						            addOpenAccessCorrections();
-						            addReferenceStadiumInspirationUpgrades();
-						            addReferenceStadiumTenPointDetailPass();
-						            const makeBadge = () => {
+						            if (!pendingDedicatedReferenceStadium) {
+						              __pitch3dLoadStadiumModel(() => {
+						                try { addProfessionalStadiumAsset(); } catch (e) { /* ignore */ }
+						              });
+						              addGreenApron();
+						              addGroundedExteriorStructure();
+						              addExteriorCompletion();
+						              addAuthenticExteriorEnvelope();
+						              addReferenceStand({ kind: 'pitch_3d_ref_main_north_stand', x: 0, z: metersH / 2 + 7.2, w: metersW + 24, rows: 18, rotY: 0 });
+						              addReferenceStand({ kind: 'pitch_3d_ref_south_stand_continuous_over_tunnel', x: 0, z: -(metersH / 2 + 7.2), w: metersW + 24, rows: 18, rotY: Math.PI });
+						              addReferenceStand({ kind: 'pitch_3d_ref_west_stand', x: -(metersW / 2 + 7.0), z: 0, w: metersH + 13, rows: 16, rotY: -Math.PI / 2 });
+						              addReferenceStand({ kind: 'pitch_3d_ref_east_stand', x: metersW / 2 + 7.0, z: 0, w: metersH + 13, rows: 16, rotY: Math.PI / 2 });
+						              addCornerBowl({ kind: 'pitch_3d_ref_corner_north_west_bowl', x: -(metersW / 2 + 5.4), z: metersH / 2 + 5.4, rotY: -Math.PI / 4 });
+						              addCornerBowl({ kind: 'pitch_3d_ref_corner_north_east_bowl', x: metersW / 2 + 5.4, z: metersH / 2 + 5.4, rotY: Math.PI / 4 });
+						              addCornerBowl({ kind: 'pitch_3d_ref_corner_south_west_bowl', x: -(metersW / 2 + 5.4), z: -(metersH / 2 + 5.4), rotY: -Math.PI * 0.75 });
+						              addCornerBowl({ kind: 'pitch_3d_ref_corner_south_east_bowl', x: metersW / 2 + 5.4, z: -(metersH / 2 + 5.4), rotY: Math.PI * 0.75 });
+						              addIntegratedTunnelAndRoofRing();
+						              addOpenAccessCorrections();
+						              addReferenceStadiumInspirationUpgrades();
+						              addReferenceStadiumTenPointDetailPass();
+						              const makeBadge = () => {
 						              const c = document.createElement('canvas');
 						              c.width = 512;
 						              c.height = 512;
@@ -13397,6 +13399,7 @@
 						          addCornerFlag((metersW / 2), -(metersH / 2), -1, 1);
 						          addCornerFlag(-(metersW / 2), (metersH / 2), 1, -1);
 						          addCornerFlag((metersW / 2), (metersH / 2), -1, -1);
+						        }
 						        } catch (e) { /* ignore */ }
 						      };
 						      addPitchSideDetails3d();
