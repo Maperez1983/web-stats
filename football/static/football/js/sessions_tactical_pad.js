@@ -15380,7 +15380,6 @@
 							              } catch (e) { /* ignore */ }
 							            };
 							            dedicatedFinish.traverse(hideLegacyNoiseNode);
-							            root.traverse(hideLegacyNoiseNode);
 							            const finalAdLabels = [
 							              { x: -47.0, w: 9.0, label: 'SPONSOR', bg: '#101827' },
 							              { x: -36.0, w: 8.8, label: '2J FOOTBALL INTELLIGENCE', bg: '#075fae' },
