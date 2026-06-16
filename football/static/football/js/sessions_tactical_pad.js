@@ -15786,6 +15786,40 @@
 						          } catch (e) { /* ignore */ }
 						        });
 						      }
+						      try {
+						        const lateStadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
+						        const triggerLateStadiumRecovery = () => {
+						          try {
+						            if (!lateStadiumModelSrc || isLegacyPitch3dReferenceStadiumSrc(lateStadiumModelSrc) || hasProfessionalStadiumInScene()) return;
+						            const LoaderClass = window.__WEBSTATS_GLTF_LOADER_CLASS;
+						            if (typeof LoaderClass !== 'function') {
+						              window.setTimeout(triggerLateStadiumRecovery, 120);
+						              return;
+						            }
+						            if (window.__WEBSTATS_PITCH3D_STADIUM_RECOVERY_LOADING) return;
+						            window.__WEBSTATS_PITCH3D_STADIUM_RECOVERY_LOADING = true;
+						            const loader = new LoaderClass();
+						            loader.load(lateStadiumModelSrc, (gltf) => {
+						              try {
+						                __pitch3dStadiumModelCache.scene = gltf?.scene || null;
+						                __pitch3dStadiumModelCache.loading = false;
+						                __pitch3dStadiumModelCache.failed = false;
+						              } catch (e) { /* ignore */ }
+						              try { if (!hasProfessionalStadiumInScene()) addProfessionalStadiumAsset(); } catch (e) { /* ignore */ }
+						              window.__WEBSTATS_PITCH3D_STADIUM_RECOVERY_LOADING = false;
+						            }, undefined, () => {
+						              window.__WEBSTATS_PITCH3D_STADIUM_RECOVERY_LOADING = false;
+						            });
+						          } catch (e) {
+						            window.__WEBSTATS_PITCH3D_STADIUM_RECOVERY_LOADING = false;
+						          }
+						        };
+						        if (lateStadiumModelSrc && !isLegacyPitch3dReferenceStadiumSrc(lateStadiumModelSrc)) {
+						          window.setTimeout(triggerLateStadiumRecovery, 80);
+						          window.setTimeout(triggerLateStadiumRecovery, 700);
+						          window.setTimeout(triggerLateStadiumRecovery, 1800);
+						        }
+						      } catch (e) { /* ignore */ }
 
 							      // Spotlight (halo) para seguimiento / selección.
 							      try {
