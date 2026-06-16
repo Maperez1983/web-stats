@@ -13407,10 +13407,10 @@
 						        const stadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
 						        const bodyStadiumModelSrc = safeText(document.body?.dataset?.pitch3dStadiumModelSrc || '');
 						        const shouldUseRosaledaProceduralFinish = (
+						          true
+						          ||
 						          isDedicatedPitch3dReferenceStadiumSrc(stadiumModelSrc)
 						          || isDedicatedPitch3dReferenceStadiumSrc(bodyStadiumModelSrc)
-						          || activeDedicatedReferenceStadium
-						          || pendingDedicatedReferenceStadium
 						          || (!stadiumModelSrc && !bodyStadiumModelSrc)
 						        );
 							        if (shouldUseRosaledaProceduralFinish) {
