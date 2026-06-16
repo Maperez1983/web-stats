@@ -15318,7 +15318,6 @@
 							              });
 							            });
 							            const legacyVisualNoise = [
-							              'pitch_3d_dedicated_completion_',
 							              'pitch_3d_dedicated_reference_',
 							              'pitch_3d_rosaleda_reference_',
 							              'pitch_3d_rosaleda_final_',
@@ -15342,6 +15341,12 @@
 							              const name = safeText(node?.name || '');
 							              const signature = `${kind} ${name}`;
 							              if (kind && !keepPhotoLayer(kind) && legacyVisualNoise.some((needle) => signature.includes(needle))) {
+							                node.visible = false;
+							                return;
+							              }
+							              if (
+							                /pitch_3d_dedicated_completion_(long_green_seat_band|side_green_seat_band|individual_(dark_)?seat_field|long_white_stair|long_stair_rail|side_white_stair|side_stair_rail|corner_podium|corner_seat_band|long_pitchside_board|side_pitchside_board)/.test(signature)
+							              ) {
 							                node.visible = false;
 							                return;
 							              }
