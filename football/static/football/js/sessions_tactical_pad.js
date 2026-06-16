@@ -8913,6 +8913,30 @@
 						      const v = clamp((z / Math.max(1, Number(metersH) || 68)) + 0.5, 0, 1);
 						      return { x: u * w, y: v * h };
 						    };
+						    const objectBaseWidth2d = (o) => {
+						      if (!o || typeof o !== 'object') return 0;
+						      if (Number.isFinite(Number(o.width)) && Number(o.width) > 0) return Number(o.width);
+						      if (Number.isFinite(Number(o.radius)) && Number(o.radius) > 0) return Number(o.radius) * 2;
+						      if (Number.isFinite(Number(o.rx)) && Number(o.rx) > 0) return Number(o.rx) * 2;
+						      return 0;
+						    };
+						    const objectBaseHeight2d = (o) => {
+						      if (!o || typeof o !== 'object') return 0;
+						      if (Number.isFinite(Number(o.height)) && Number(o.height) > 0) return Number(o.height);
+						      if (Number.isFinite(Number(o.radius)) && Number(o.radius) > 0) return Number(o.radius) * 2;
+						      if (Number.isFinite(Number(o.ry)) && Number(o.ry) > 0) return Number(o.ry) * 2;
+						      return 0;
+						    };
+						    const objectCenterPoint2d = (o) => {
+						      if (!o || typeof o !== 'object') return { x: 0, y: 0 };
+						      const ox = safeText(o?.originX, 'center');
+						      const oy = safeText(o?.originY, 'center');
+						      const width = objectBaseWidth2d(o);
+						      const height = objectBaseHeight2d(o);
+						      const localX = ox === 'left' ? (width / 2) : (ox === 'right' ? -(width / 2) : 0);
+						      const localY = oy === 'top' ? (height / 2) : (oy === 'bottom' ? -(height / 2) : 0);
+						      return transformPoint2d(localX, localY, o);
+						    };
 
 						    const pitch3dUidForObject = (o, fallback = '') => {
 						      const data = o?.data || {};
@@ -15959,7 +15983,8 @@
 						        return mesh;
 						      };
 						      const addResourceGroup3d = (o, kind) => {
-						        const center3d = mapPoint2dTo3d(Number(o?.left) || 0, Number(o?.top) || 0);
+						        const center2d = objectCenterPoint2d(o);
+						        const center3d = mapPoint2dTo3d(center2d.x, center2d.y);
 						        const group = new THREE.Group();
 						        group.position.set(center3d.x, 0, center3d.z);
 						        group.rotation.y = -deg2rad(o?.angle || 0);
@@ -16011,7 +16036,8 @@
 						        try {
 						          const wPx = Math.max(14, (Number(o?.width) || 0) * (Number(o?.scaleX) || 1));
 						          const hPx = Math.max(14, (Number(o?.height) || 0) * (Number(o?.scaleY) || 1));
-						          const center3d = mapPoint2dTo3d(Number(o?.left) || 0, Number(o?.top) || 0);
+						          const center2d = objectCenterPoint2d(o);
+						          const center3d = mapPoint2dTo3d(center2d.x, center2d.y);
 						          const wM = (wPx / Math.max(1, sourceW)) * metersW;
 						          const hM = (hPx / Math.max(1, sourceH)) * metersH;
 						          const group = new THREE.Group();
@@ -16127,6 +16153,7 @@
 						        const paleMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.62, metalness: 0.02 });
 						        const darkMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.72, metalness: 0.08 });
 						        const glassMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false });
+						        if (addObjectExactLook3d(o, { kind: resourceKind, upright: true, visible: !!pitch3dDrawablesEnabled, padding: 12, multiplier: 2 })) return true;
 						        const group = addResourceGroup3d(o, resourceKind);
 						        const addLocalBox = (x, y, z, bw, bh, bd, material = mat, name = resourceKind) => addResourceMesh3d(group, new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), material), name).position.set(x, y, z);
 						        const addLocalCylinder = (x, y, z, radiusTop, radiusBottom, height, material = mat, radial = 18, name = resourceKind) => addResourceMesh3d(group, new THREE.Mesh(new THREE.CylinderGeometry(radiusTop, radiusBottom, height, radial), material), name).position.set(x, y, z);
@@ -16534,6 +16561,44 @@
 						          try { rendered.dispose?.(); } catch (e) { /* ignore */ }
 						        }).catch(() => {});
 						      };
+						      const addObjectExactLook3d = (o, options = {}) => {
+						        if (!o) return false;
+						        const center2d = objectCenterPoint2d(o);
+						        const upright = options.upright === true;
+						        const padding = clamp(Number(options.padding) || 14, 6, 42);
+						        const multiplier = clamp(Number(options.multiplier) || 2, 1, 4);
+						        renderFabricObjectTexture3d(o, { padding, multiplier }).then((rendered) => {
+						          if (!rendered || !root) return;
+						          try {
+						            const center3d = mapPoint2dTo3d(center2d.x, center2d.y);
+						            const widthMeters = Math.max(0.40, (Number(rendered.widthPx) / Math.max(1, sourceW)) * metersW);
+						            const heightMeters = Math.max(0.40, (Number(rendered.heightPx) / Math.max(1, sourceH)) * metersH);
+						            const mat = new THREE.MeshBasicMaterial({
+						              map: rendered.texture,
+						              transparent: true,
+						              depthWrite: false,
+						              side: THREE.DoubleSide,
+						              alphaTest: 0.02,
+						            });
+						            let node = null;
+						            if (upright) {
+						              node = new THREE.Sprite(mat);
+						              node.center.set(0.5, 0);
+						              node.scale.set(widthMeters, heightMeters, 1);
+						              node.position.set(center3d.x, 0.04, center3d.z);
+						            } else {
+						              node = new THREE.Mesh(new THREE.PlaneGeometry(widthMeters, heightMeters), mat);
+						              node.rotation.x = -Math.PI / 2;
+						              node.position.set(center3d.x, 0.035, center3d.z);
+						            }
+						            node.userData = { kind: safeText(options.kind, 'pitch_3d_exact_look_object'), source_kind: safeText(o?.data?.kind) };
+						            node.visible = options.visible !== false;
+						            root.add(node);
+						          } catch (e) { /* ignore */ }
+						          try { rendered.dispose?.(); } catch (e) { /* ignore */ }
+						        }).catch(() => {});
+						        return true;
+						      };
 						      const addToken3dKitDetails = (body, o, colors) => {
 						        if (!body) return;
 						        try {
@@ -16821,7 +16886,8 @@
 						        const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.65, metalness: 0.02, transparent: true, opacity: 0 });
 						        const mesh = new THREE.Mesh(geo, mat);
 						        mesh.position.y = 0.14;
-						        const pos = map2dToPitch(Number(o.left) || 0, Number(o.top) || 0, sourceW, sourceH, metersW, metersH, orientation);
+						        const center2d = objectCenterPoint2d(o);
+						        const pos = map2dToPitch(center2d.x, center2d.y, sourceW, sourceH, metersW, metersH, orientation);
 						        mesh.position.x = pos.x;
 						        mesh.position.z = pos.z;
 						        mesh.userData = { kind: 'token', uid, facing_deg: facingDeg, fov_visible: fovVisible, fov_width_deg: fovWidthDeg };
@@ -16855,7 +16921,8 @@
 						        tokens.forEach((o) => {
 						          const role = safeText(o?.data?.token_role).toLowerCase();
 						          if (!role) return;
-						          const pos = mapPoint2dTo3d(Number(o.left) || 0, Number(o.top) || 0);
+						          const center2d = objectCenterPoint2d(o);
+						          const pos = mapPoint2dTo3d(center2d.x, center2d.y);
 						          addRoleBadge3d(o, pos, role);
 						        });
 						      } catch (e) { /* ignore */ }
@@ -16864,7 +16931,8 @@
 						        const geo = new THREE.SphereGeometry(0.35, 18, 14);
 						        const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, metalness: 0.02 });
 						        const mesh = new THREE.Mesh(geo, mat);
-						        const pos = map2dToPitch(Number(o.left) || 0, Number(o.top) || 0, sourceW, sourceH, metersW, metersH, orientation);
+						        const center2d = objectCenterPoint2d(o);
+						        const pos = map2dToPitch(center2d.x, center2d.y, sourceW, sourceH, metersW, metersH, orientation);
 						        mesh.position.set(pos.x, 0.35, pos.z);
 						        const uid = pitch3dUidForObject(o, 'ball');
 						        mesh.userData = { kind: 'ball', uid };
@@ -16950,17 +17018,23 @@
 						        const groupHeightPx = (Number(o?.height) || 0) * (Number(o?.scaleY) || 1);
 						        if (kind === 'text') {
 						          const label = safeText(o?.text || o?.data?.label || o?.data?.text).slice(0, 42);
-						          const pos = mapPoint2dTo3d(Number(o?.left) || 0, Number(o?.top) || 0);
+						          if (addObjectExactLook3d(o, { kind: 'pitch_3d_text', upright: true, visible: !!pitch3dDrawablesEnabled, padding: 10, multiplier: 2 })) return;
+						          const center2d = objectCenterPoint2d(o);
+						          const pos = mapPoint2dTo3d(center2d.x, center2d.y);
 						          if (label) addBillboardLabel3d(label, pos.x, 1.15, pos.z, { bg: 'rgba(2,6,23,0.72)', fill: '#f8fafc', size: 160 });
 						          return;
 						        }
 						        if (EMOJI_LIBRARY[kind]) {
-						          const pos = mapPoint2dTo3d(Number(o?.left) || 0, Number(o?.top) || 0);
+						          if (addObjectExactLook3d(o, { kind: `pitch_3d_${kind}`, upright: true, visible: !!pitch3dDrawablesEnabled, padding: 8, multiplier: 2 })) return;
+						          const center2d = objectCenterPoint2d(o);
+						          const pos = mapPoint2dTo3d(center2d.x, center2d.y);
 						          addBillboardLabel3d(EMOJI_LIBRARY[kind], pos.x, 1.05, pos.z, { bg: 'rgba(2,6,23,0.34)', fill: '#f8fafc', size: 180 });
 						          return;
 						        }
 						        if (kind === 'url_asset' || kind === 'pdf_asset') {
-						          const pos = mapPoint2dTo3d(Number(o?.left) || 0, Number(o?.top) || 0);
+						          if (addObjectExactLook3d(o, { kind: `pitch_3d_${kind}`, upright: true, visible: !!pitch3dDrawablesEnabled, padding: 10, multiplier: 2 })) return;
+						          const center2d = objectCenterPoint2d(o);
+						          const pos = mapPoint2dTo3d(center2d.x, center2d.y);
 						          const label = safeText(o?.data?.title) || (kind === 'pdf_asset' ? 'PDF' : 'Recurso');
 						          addBillboardLabel3d(label.slice(0, 20), pos.x, 1.05, pos.z, { bg: 'rgba(15,23,42,0.78)', fill: '#f8fafc', size: 132 });
 						          return;
@@ -17008,7 +17082,7 @@
 						        if (type === 'group' && (kind === 'zone' || kind === 'shape-rect' || kind === 'shape-rect-long' || kind === 'shape-square' || kind.startsWith('shape-lane-') || kind.startsWith('shape-band-'))) {
 						          const wPx = Math.max(12, groupWidthPx || 0);
 						          const hPx = Math.max(12, groupHeightPx || 0);
-						          const center2d = { x: Number(o?.left) || 0, y: Number(o?.top) || 0 };
+						          const center2d = objectCenterPoint2d(o);
 						          const center3d = mapPoint2dTo3d(center2d.x, center2d.y);
 						          const wM = (wPx / Math.max(1, sourceW)) * metersW;
 						          const hM = (hPx / Math.max(1, sourceH)) * metersH;
@@ -17062,7 +17136,7 @@
 						        if (type === 'rect' || type === 'triangle' || kind === 'zone' || kind === 'shape-rect' || kind === 'shape-rect-long' || kind === 'shape-square' || kind === 'shape-triangle' || kind === 'shape-diamond') {
 						          const wPx = Math.max(8, Number(o?.width) || 0) * (Number(o?.scaleX) || 1);
 						          const hPx = Math.max(8, Number(o?.height) || 0) * (Number(o?.scaleY) || 1);
-						          const center2d = { x: Number(o?.left) || 0, y: Number(o?.top) || 0 };
+						          const center2d = objectCenterPoint2d(o);
 						          const center3d = mapPoint2dTo3d(center2d.x, center2d.y);
 						          const wM = (wPx / Math.max(1, sourceW)) * metersW;
 						          const hM = (hPx / Math.max(1, sourceH)) * metersH;
@@ -17077,11 +17151,13 @@
 						        if (type === 'circle' || kind === 'shape-circle') {
 						          const radiusPx = Math.max(6, Number(o?.radius) || 0) * (Number(o?.scaleX) || 1);
 						          const diameterPx = radiusPx * 2;
-						          const center2d = { x: Number(o?.left) || 0, y: Number(o?.top) || 0 };
+						          const center2d = objectCenterPoint2d(o);
 						          const center3d = mapPoint2dTo3d(center2d.x, center2d.y);
 						          const dM = (diameterPx / Math.max(1, sourceW)) * metersW;
 						          addZonePlane3d(center3d, dM, dM, colorInt, 0.12);
+						          return;
 						        }
+						        addObjectExactLook3d(o, { kind: `pitch_3d_fallback_${kind || type || 'object'}`, upright: true, visible: !!pitch3dDrawablesEnabled, padding: 10, multiplier: 2 });
 						      };
 						      drawables.forEach(addDrawable);
 
