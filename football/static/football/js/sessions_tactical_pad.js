@@ -14741,14 +14741,9 @@
 						          addPerimeterRoofFinish();
 						          // Desactivado: esta capa pintaba otro MATCHDAY encima del mosaico de asientos.
 						          addPhotoReferencePitchsideLayer();
-						          addReferenceIdentityAndLightingPass();
-						          addReferenceBowlDepthPass();
-						          addReferenceBenchesAndTrainingGoalsPass();
-						          addRosaledaPremiumFinish();
-						          addRosaledaDepthAndCameraFinish();
-						          addRosaledaStructuralCleanup();
-						          addRosaledaPhotographicFinish();
-						          addRosaledaReferenceForegroundPass();
+						          // El acabado dedicado se apoya en la capa fotográfica limpia inferior.
+						          // Las capas intermedias y finales añadían una segunda y tercera versión
+						          // de gradas, vallas y lettering, provocando solapes visibles.
 						          [-1, 1].forEach((sx) => {
 						            [-1, 1].forEach((sz) => {
 						              addMesh(new THREE.BoxGeometry(8.0, 0.46, 8.0), concreteMat, sx * (metersW / 2 + 6.0), 0.36, sz * (metersH / 2 + 6.0), 'pitch_3d_dedicated_completion_corner_podium');
@@ -14780,9 +14775,8 @@
 						            addRotMesh(new THREE.BoxGeometry(0.13, 0.13, 6.9), concreteMat, x + 2.6, 10.92, metersH / 2 + 18.62, 0.32, 0, 0, 'pitch_3d_dedicated_completion_roof_diagonal_brace');
 						            addMesh(new THREE.BoxGeometry(0.72, 0.10, 0.14), lightMat, x, 10.28, metersH / 2 + 15.18, 'pitch_3d_dedicated_completion_individual_floodlight_pod');
 							          }
-							          addRoofLatticePass();
-							          addRosaledaReferenceFinalMatchPass();
-							          addRosaledaArchitecturalFinalPolish();
+							          // La estructura de cubierta y el resto de detalle fino salen de la
+							          // capa photo_* creada más abajo, evitando geometría duplicada.
 							          [].forEach((x) => {
 						            const dugout = new THREE.Group();
 						            dugout.userData = { kind: 'pitch_3d_dedicated_completion_curved_dugout' };
@@ -15326,6 +15320,8 @@
 							            const legacyVisualNoise = [
 							              'pitch_3d_dedicated_completion_',
 							              'pitch_3d_dedicated_reference_',
+							              'pitch_3d_rosaleda_reference_',
+							              'pitch_3d_rosaleda_final_',
 							              'pitch_3d_rosaleda_final_polish_',
 							              'pitch_3d_rosaleda_final_seal_',
 							              'pitch_3d_rosaleda_reference_architect_',
@@ -15394,10 +15390,8 @@
 							            addPhotoPart(new THREE.BoxGeometry(8.2, 0.12, 2.85), photoDark, -18.2, 0.18, -(metersH / 2 + 3.22), 'pitch_3d_rosaleda_photo_dugout_gap_clean_dark_floor_left');
 							            addPhotoPart(new THREE.BoxGeometry(7.8, 0.12, 2.85), photoDark, -9.0, 0.18, -(metersH / 2 + 3.22), 'pitch_3d_rosaleda_photo_dugout_gap_clean_dark_floor_right');
 							            addPhotoPart(new THREE.BoxGeometry(7.4, 0.14, 3.15), photoDark, 0, 0.18, -(metersH / 2 + 3.32), 'pitch_3d_rosaleda_photo_central_tunnel_gap_clean_dark_floor');
-							            [-0.36, -0.18, 0.18, 0.36].forEach((ratio) => {
-							              addPhotoPart(new THREE.BoxGeometry(1.10, 0.92, 0.20), photoConcrete, ratio * metersW, 1.12, -(metersH / 2 + 4.92), 'pitch_3d_rosaleda_photo_integrated_low_vomitory_sidewall');
-							              addPhotoPart(new THREE.BoxGeometry(2.85, 0.74, 0.18), photoDark, ratio * metersW, 1.18, -(metersH / 2 + 5.04), 'pitch_3d_rosaleda_photo_integrated_low_vomitory_shadow');
-							            });
+							            // Se eliminan los falsos vomitorios sobresalientes frente a las vallas:
+							            // en cámara parecían vigas en el aire y no accesos reales.
 							          } catch (e) { /* ignore */ }
 							          root.add(dedicatedFinish);
 						        }
