@@ -10150,12 +10150,14 @@
 						      addGrassFiberSheen3d();
 						      addPitchPaint3d();
 
+						      const darkMat = new THREE.MeshStandardMaterial({ color: 0x0a1420, roughness: 0.70, metalness: 0.08 });
+						      const metalMat = new THREE.MeshStandardMaterial({ color: 0xcbd8dd, roughness: 0.28, metalness: 0.36 });
+						      const flagPoleMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.32, metalness: 0.18 });
+						      const flagMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.48, metalness: 0, side: THREE.DoubleSide });
 						      const addPitchSideDetails3d = () => {
 						        try {
 						          if (!window.THREE || ['whiteboard', 'blackboard'].includes(grass.toLowerCase())) return;
-						          const darkMat = new THREE.MeshStandardMaterial({ color: 0x0a1420, roughness: 0.70, metalness: 0.08 });
 						          const carbonMat = new THREE.MeshStandardMaterial({ color: 0x101820, roughness: 0.46, metalness: 0.18 });
-						          const metalMat = new THREE.MeshStandardMaterial({ color: 0xcbd8dd, roughness: 0.28, metalness: 0.36 });
 						          const ledTrimMat = new THREE.MeshStandardMaterial({ color: 0x07131f, roughness: 0.34, metalness: 0.22 });
 						          const glassMat = new THREE.MeshPhysicalMaterial({
 						            color: 0xdff7ff,
@@ -10170,8 +10172,6 @@
 						          });
 						          const benchSeatMat = new THREE.MeshStandardMaterial({ color: toColorInt(stadiumPalette3d.primary, 0x047857), roughness: 0.48, metalness: 0.03 });
 						          const benchPadMat = new THREE.MeshStandardMaterial({ color: toColorInt(stadiumPalette3d.accent, 0x082f49), roughness: 0.42, metalness: 0.02 });
-						          const flagPoleMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.32, metalness: 0.18 });
-						          const flagMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.48, metalness: 0, side: THREE.DoubleSide });
 						          const concreteMat = new THREE.MeshStandardMaterial({ color: 0xcbd5d1, roughness: 0.82, metalness: 0.01 });
 						          const stepMat = new THREE.MeshStandardMaterial({ color: 0x9aa7a7, roughness: 0.78, metalness: 0.02 });
 						          const aisleMat = new THREE.MeshStandardMaterial({ color: 0xe5e7eb, roughness: 0.70, metalness: 0.02 });
