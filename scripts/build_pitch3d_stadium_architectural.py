@@ -486,12 +486,14 @@ def add_architectural_stadium():
     cube("arch_low_blue_touchline_wall_TEAM_PRIMARY", (0, -33.90, 0.70), (114.0, 0.28, 1.02), primary, bevel=0.015)
     cube("arch_dugout_back_dark_service_strip", (0, -37.90, 0.32), (78.0, 0.28, 0.48), black, bevel=0.008)
     south_labels = (
-        "2J FOOTBALL INTELLIGENCE", "PARTNER", "SPONSOR", "MATCHDAY",
-        "2J FOOTBALL INTELLIGENCE", "SPONSOR", "PARTNER",
+        "SPONSOR", "2J FOOTBALL INTELLIGENCE", "PARTNER",
+        "MATCHDAY", "2J FOOTBALL INTELLIGENCE", "SPONSOR",
     )
-    for idx, x in enumerate((-48, -31, -14, 3, 20, 37, 52)):
+    # Keep clear gaps for both dugouts and the central players tunnel.
+    for idx, x in enumerate((-49, -37, 6, 20, 35, 49)):
         label = south_labels[idx]
-        add_ad_board(f"arch_south_pitchside_ad_{idx:02d}", (x, -33.70, 1.15), (14.2, 0.18, 1.06), label, primary if idx in (1, 3, 6) else accent, secondary, (math.radians(82), 0, 0))
+        width = 10.0 if idx in (0, 2, 3, 5) else 11.8
+        add_ad_board(f"arch_south_pitchside_ad_{idx:02d}", (x, -33.70, 1.15), (width, 0.18, 1.06), label, primary if idx in (1, 3, 4) else accent, secondary, (math.radians(82), 0, 0))
     north_labels = ("SPONSOR", "2J FOOTBALL INTELLIGENCE", "MATCHDAY", "PARTNER", "SPONSOR", "2J FOOTBALL INTELLIGENCE", "PARTNER")
     for idx, x in enumerate((-50, -33, -16, 1, 18, 35, 52)):
         label = north_labels[idx]
@@ -519,13 +521,21 @@ def add_architectural_stadium():
     for x in (-54, -36, -18, 0, 18, 36, 54):
         for side, y, sign in (("north", 40.1, 1), ("south", -40.1, -1)):
             cube(f"arch_{side}_lower_vomitory_{x}", (x, y, 3.8), (4.2, 0.70, 2.7), black, bevel=0.015)
-            cube(f"arch_{side}_upper_stair_aisle_{x}", (x, y + sign * 15.0, 10.5), (1.28, 28.0, 0.30), concrete, (-0.10 * sign, 0, 0), bevel=0.008)
-            cube(f"arch_{side}_aisle_handrail_l_{x}", (x - 0.82, y + sign * 15.0, 11.0), (0.07, 26.0, 0.72), metal, (-0.10 * sign, 0, 0), bevel=0.004)
-            cube(f"arch_{side}_aisle_handrail_r_{x}", (x + 0.82, y + sign * 15.0, 11.0), (0.07, 26.0, 0.72), metal, (-0.10 * sign, 0, 0), bevel=0.004)
+            for step_idx in range(5):
+                step_y = y + sign * (5.2 + step_idx * 3.4)
+                step_z = 5.2 + step_idx * 1.05
+                cube(f"arch_{side}_integrated_stair_tread_{x}_{step_idx}", (x, step_y, step_z), (1.18, 2.35, 0.16), concrete, (-0.045 * sign, 0, 0), bevel=0.006)
+            cube(f"arch_{side}_low_aisle_handrail_l_{x}", (x - 0.72, y + sign * 12.0, 8.2), (0.055, 16.0, 0.42), metal, (-0.07 * sign, 0, 0), bevel=0.004)
+            cube(f"arch_{side}_low_aisle_handrail_r_{x}", (x + 0.72, y + sign * 12.0, 8.2), (0.055, 16.0, 0.42), metal, (-0.07 * sign, 0, 0), bevel=0.004)
     for y in (-36, -18, 0, 18, 36):
         for side, x, sign in (("east", 58.1, 1), ("west", -58.1, -1)):
             cube(f"arch_{side}_lower_vomitory_{y}", (x, y, 3.8), (0.70, 4.2, 2.7), black, bevel=0.015)
-            cube(f"arch_{side}_upper_stair_aisle_{y}", (x + sign * 15.0, y, 10.5), (28.0, 1.28, 0.30), concrete, (0, -0.10 * sign, 0), bevel=0.008)
+            for step_idx in range(5):
+                step_x = x + sign * (5.2 + step_idx * 3.4)
+                step_z = 5.2 + step_idx * 1.05
+                cube(f"arch_{side}_integrated_stair_tread_{y}_{step_idx}", (step_x, y, step_z), (2.35, 1.18, 0.16), concrete, (0, -0.045 * sign, 0), bevel=0.006)
+            cube(f"arch_{side}_low_aisle_handrail_l_{y}", (x + sign * 12.0, y - 0.72, 8.2), (16.0, 0.055, 0.42), metal, (0, -0.07 * sign, 0), bevel=0.004)
+            cube(f"arch_{side}_low_aisle_handrail_r_{y}", (x + sign * 12.0, y + 0.72, 8.2), (16.0, 0.055, 0.42), metal, (0, -0.07 * sign, 0), bevel=0.004)
 
     # Pitchside wall and crisp LED advertising ribbon.
     flat_ring("arch_black_pitch_retaining_wall", 54.5, 36.5, 56.1, 38.1, 4.5, 6.1, 1.10, black)
