@@ -18088,6 +18088,8 @@
 						      } catch (e) { /* ignore */ }
 						      openPitch3d();
 						    };
+						    try { window.__WEBSTATS_OPEN_PITCH3D = openPitch3dWhenReady; } catch (e) { /* ignore */ }
+						    try { window.__WEBSTATS_CLOSE_PITCH3D = closePitch3d; } catch (e) { /* ignore */ }
 						    pitch3dOpenBtn?.addEventListener('click', (ev) => { ev.preventDefault(); openPitch3dWhenReady(); });
 						    document.addEventListener('click', (ev) => {
 						      const trigger = ev.target?.closest?.('#pitch-3d-open');

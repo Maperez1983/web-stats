@@ -8308,7 +8308,7 @@
             try { window.__webstatsEnsureEditorStack = ensureEditorStack; } catch (e) { /* ignore */ }
             try { window.__webstatsEnsure3dStack = ensure3dStack; } catch (e) { /* ignore */ }
 
-		        const hookClick = (id, ensureFn, markerKey) => {
+		        const hookClick = (id, ensureFn, markerKey, onReady) => {
 		          const el = document.getElementById(id);
 		          if (!el) return;
 		          const key = markerKey || 'webstatsReady';
@@ -8328,6 +8328,12 @@
 		              const ok = await ensureFn();
 		              if (!ok) return;
 		              try { el.dataset[key] = '1'; } catch (e) { /* ignore */ }
+		              if (typeof onReady === 'function') {
+		                try {
+		                  const handled = await onReady(el);
+		                  if (handled) return;
+		                } catch (e) { /* ignore */ }
+		              }
 		              // Re-dispara el click para que lo capture el handler real.
 		              try { el.click(); } catch (e) { /* ignore */ }
 		            } catch (e) { /* ignore */ }
@@ -8348,7 +8354,15 @@
 		        hookClick('pitch-size-fit', ensureEditorStack, 'webstatsEditorReady');
 		        hookClick('task-sim-toggle', ensureEditorStack, 'webstatsEditorReady');
 		        hookClick('task-sim-open', ensureEditorStack, 'webstatsEditorReady');
-		        hookClick('pitch-3d-open', ensure3dStack, 'webstats3dReady');
+		        hookClick('pitch-3d-open', ensure3dStack, 'webstats3dReady', async () => {
+		          try {
+		            if (typeof window.__WEBSTATS_OPEN_PITCH3D === 'function') {
+		              await window.__WEBSTATS_OPEN_PITCH3D();
+		              return true;
+		            }
+		          } catch (e) { /* ignore */ }
+		          return false;
+		        });
 		        hookClick('task-playbook-open-sim', ensureEditorStack, 'webstatsEditorReady');
 			        hookClick('task-playbook-open-video', ensureEditorStack, 'webstatsEditorReady');
 			        hookClick('task-playbook-export-pack', ensureEditorStack, 'webstatsEditorReady');
@@ -8410,7 +8424,16 @@
 		        hookClick(
 		          'pitch-3d-open',
 		          () => ensureEditorStack().then((ok) => (ok ? ensureThree().then(() => true) : false)),
-		          'webstatsThreeReady'
+		          'webstatsThreeReady',
+		          async () => {
+		            try {
+		              if (typeof window.__WEBSTATS_OPEN_PITCH3D === 'function') {
+		                await window.__WEBSTATS_OPEN_PITCH3D();
+		                return true;
+		              }
+		            } catch (e) { /* ignore */ }
+		            return false;
+		          }
 		        );
 		        // 3D del simulador (usa visor dedicado)
 		        hookClick(
