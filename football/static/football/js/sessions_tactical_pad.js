@@ -15166,6 +15166,12 @@
 							              'pitch_3d_rosaleda_photo_continuous_near_ad_board',
 							              'pitch_3d_rosaleda_photo_near_clean_concrete_aisle',
 							              'pitch_3d_rosaleda_photo_near_stand_dark_mid_concourse',
+							              'pitch_3d_dedicated_completion_side_white_stair',
+							              'pitch_3d_dedicated_completion_side_stair_rail',
+							              'pitch_3d_dedicated_completion_corner_podium',
+							              'pitch_3d_dedicated_completion_corner_seat_band',
+							              'pitch_3d_rosaleda_photo_integrated_near_stair_tread',
+							              'pitch_3d_rosaleda_photo_integrated_near_stair_low_rail',
 							            ];
 							            dedicatedFinish.traverse((node) => {
 							              const kind = safeText(node?.userData?.kind || '');
@@ -15190,9 +15196,16 @@
 							            addPhotoPart(new THREE.BoxGeometry(16.2, 0.09, 2.18), photoDark, -9.0, 0.16, -(metersH / 2 + 3.04), 'pitch_3d_rosaleda_photo_dugout_clear_technical_pad_right');
 							            addPhotoPart(new THREE.BoxGeometry(9.0, 0.10, 3.2), photoDark, 0, 0.14, -(metersH / 2 + 3.28), 'pitch_3d_rosaleda_photo_tunnel_clear_opening_floor');
 							            [-0.38, -0.18, 0.18, 0.38].forEach((ratio) => {
-							              addPhotoRot(new THREE.BoxGeometry(1.12, 0.10, 3.8), photoConcrete, ratio * metersW, 1.18, -(metersH / 2 + 5.06), -0.045, 0, 0, 'pitch_3d_rosaleda_photo_integrated_near_stair_tread');
-							              addPhotoPart(new THREE.BoxGeometry(0.050, 0.72, 3.2), photoGlass, ratio * metersW - 0.68, 1.05, -(metersH / 2 + 4.86), 'pitch_3d_rosaleda_photo_integrated_near_stair_low_rail');
-							              addPhotoPart(new THREE.BoxGeometry(0.050, 0.72, 3.2), photoGlass, ratio * metersW + 0.68, 1.05, -(metersH / 2 + 4.86), 'pitch_3d_rosaleda_photo_integrated_near_stair_low_rail');
+							              addPhotoRot(new THREE.BoxGeometry(0.92, 0.055, 2.35), photoConcrete, ratio * metersW, 0.82, -(metersH / 2 + 4.52), -0.035, 0, 0, 'pitch_3d_rosaleda_photo_flush_near_stair_tread');
+							              addPhotoPart(new THREE.BoxGeometry(0.036, 0.42, 2.0), photoGlass, ratio * metersW - 0.56, 0.88, -(metersH / 2 + 4.38), 'pitch_3d_rosaleda_photo_flush_near_stair_low_rail');
+							              addPhotoPart(new THREE.BoxGeometry(0.036, 0.42, 2.0), photoGlass, ratio * metersW + 0.56, 0.88, -(metersH / 2 + 4.38), 'pitch_3d_rosaleda_photo_flush_near_stair_low_rail');
+							            });
+							            [-1, 1].forEach((sideSign) => {
+							              [-0.34, -0.12, 0.12, 0.34].forEach((ratio) => {
+							                addPhotoPart(new THREE.BoxGeometry(2.55, 0.055, 0.82), photoConcrete, sideSign * (metersW / 2 + 4.78), 0.86, ratio * metersH, 'pitch_3d_rosaleda_photo_flush_side_stair_tread');
+							                addPhotoPart(new THREE.BoxGeometry(2.12, 0.036, 0.036), photoGlass, sideSign * (metersW / 2 + 4.78), 1.18, ratio * metersH - 0.52, 'pitch_3d_rosaleda_photo_flush_side_stair_low_rail');
+							                addPhotoPart(new THREE.BoxGeometry(2.12, 0.036, 0.036), photoGlass, sideSign * (metersW / 2 + 4.78), 1.18, ratio * metersH + 0.52, 'pitch_3d_rosaleda_photo_flush_side_stair_low_rail');
+							              });
 							            });
 							          } catch (e) { /* ignore */ }
 							          root.add(dedicatedFinish);
