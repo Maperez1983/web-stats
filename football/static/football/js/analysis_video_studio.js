@@ -7341,6 +7341,18 @@
               reseedFxSeq();
               renderFxList();
             }
+            if (Array.isArray(payload?.slides)) {
+              slides = payload.slides
+                .slice(0, 24)
+                .map((s) => ({
+                  id: safeText(s?.id, '') || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                  label: safeText(s?.label, 'Captura').slice(0, 140),
+                  time_s: Number(s?.time_s) || 0,
+                  image_data: safeText(s?.image_data, ''),
+                }))
+                .filter((s) => s.image_data);
+              renderSlides();
+            }
             activeProjectId = id;
             if (projectTitleInput) projectTitleInput.value = safeText(found?.title);
             pushHistory();
@@ -7396,7 +7408,20 @@
     const saveProject = async () => {
       if (!projectSaveUrl || !videoId) return;
       const title = safeText(projectTitleInput?.value, 'Proyecto').slice(0, 180);
-      const payload = { canvas: fabricCanvas.toDatalessJSON(['data']), fx: { layers: fxState.layers }, in: Number(inInput?.value || 0) || 0, out: Number(outInput?.value || 0) || 0 };
+      const payload = {
+        canvas: fabricCanvas.toDatalessJSON(['data']),
+        fx: { layers: fxState.layers },
+        in: Number(inInput?.value || 0) || 0,
+        out: Number(outInput?.value || 0) || 0,
+        slides: (Array.isArray(slides) ? slides : [])
+          .slice(0, 24)
+          .map((s) => ({
+            label: safeText(s?.label, '').slice(0, 140),
+            time_s: Number(s?.time_s) || 0,
+            image_data: safeText(s?.image_data, ''),
+          }))
+          .filter((s) => s.image_data),
+      };
       try {
         const resp = await fetch(projectSaveUrl, {
           method: 'POST',

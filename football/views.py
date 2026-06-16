@@ -42516,6 +42516,7 @@ def analysis_page(request):
         return f'?{encoded}' if encoded else ''
     team_url = (request.GET.get('team_url') or '').strip()
     team_id = (request.GET.get('team_id') or '').strip()
+    selected_video_match_id = _parse_int(request.GET.get('video_match_id') or request.POST.get('video_match_id'))
     raw_text = ''
     roster = []
     probable_eleven = []
@@ -42716,10 +42717,12 @@ def analysis_page(request):
             video_source = (request.POST.get('video_source') or RivalVideo.SOURCE_MANUAL).strip()
             rival_team_id = _parse_int(request.POST.get('video_team_id'))
             folder_id = _parse_int(request.POST.get('video_folder_id'))
+            match_id = _parse_int(request.POST.get('video_match_id'))
             want_personal = str(request.POST.get('video_personal') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
             video_file = request.FILES.get('video_file')
             rival_team = Team.objects.filter(id=rival_team_id).first() if rival_team_id else None
             folder = AnalystVideoFolder.objects.filter(id=folder_id, team=primary_team).first() if folder_id and primary_team else None
+            match_obj = _team_match_queryset(primary_team).filter(id=int(match_id)).first() if match_id and primary_team and not want_personal else None
             wants_json_response = 'application/json' in str(request.headers.get('Accept') or '').lower()
             if not video_file:
                 video_error = 'Selecciona un vídeo para subir.'
@@ -42736,6 +42739,7 @@ def analysis_page(request):
                         team=None if want_personal else primary_team,
                         club_season=None if want_personal else analysis_selected_season,
                         folder=None if want_personal else folder,
+                        match=None if want_personal else match_obj,
                         owner_user=request.user if want_personal else None,
                         rival_team=rival_team,
                         title=video_title,
@@ -42794,6 +42798,7 @@ def analysis_page(request):
         elif form_action == 'assign_video_players':
             video_id = _parse_int(request.POST.get('video_id'))
             folder_id = _parse_int(request.POST.get('video_folder_id'))
+            match_id = _parse_int(request.POST.get('video_match_id'))
             entry = RivalVideo.objects.select_related('folder').filter(id=video_id).first()
             if not entry:
                 video_error = 'Vídeo no encontrado.'
@@ -42808,12 +42813,14 @@ def analysis_page(request):
                     video_error = 'No autorizado.'
                 else:
                     folder = AnalystVideoFolder.objects.filter(id=folder_id, team=primary_team).first() if folder_id else None
+                    match_obj = _team_match_queryset(primary_team).filter(id=int(match_id)).first() if match_id else None
                     entry.folder = folder
+                    entry.match = match_obj
                     if not entry_team_id:
                         entry.team = primary_team
-                        entry.save(update_fields=['folder', 'team'])
+                        entry.save(update_fields=['folder', 'match', 'team'])
                     else:
-                        entry.save(update_fields=['folder'])
+                        entry.save(update_fields=['folder', 'match'])
                     assigned_player_ids = [
                         player_id
                         for player_id in (_parse_int(value) for value in request.POST.getlist('assigned_player_ids'))
@@ -43801,7 +43808,12 @@ def analysis_page(request):
 
     rival_videos = []
     if active_tab in {'videos', 'studio'}:
-        rival_videos_qs = RivalVideo.objects.select_related('rival_team', 'folder', 'folder__base_video').prefetch_related('assigned_players').order_by('-is_base', '-created_at')
+        rival_videos_qs = (
+            RivalVideo.objects
+            .select_related('rival_team', 'folder', 'folder__base_video', 'match', 'match__home_team', 'match__away_team')
+            .prefetch_related('assigned_players')
+            .order_by('-is_base', '-created_at')
+        )
         if primary_team:
             # Multi-equipo: no mezclar vídeos entre clubs/categorías.
             rival_videos_qs = rival_videos_qs.filter(
@@ -43817,6 +43829,8 @@ def analysis_page(request):
             rival_videos_qs = rival_videos_qs.filter(rival_team__isnull=True)
         if selected_folder_id:
             rival_videos_qs = rival_videos_qs.filter(folder_id=selected_folder_id)
+        if selected_video_match_id:
+            rival_videos_qs = rival_videos_qs.filter(match_id=int(selected_video_match_id))
         if analysis_selected_season:
             rival_videos_qs = _apply_club_season_filter(rival_videos_qs, analysis_selected_season, 'created_at', analysis_season_start, analysis_season_end, datetime_field=True)
         rival_videos = list(rival_videos_qs[:20])
@@ -43871,6 +43885,91 @@ def analysis_page(request):
         except Exception:
             match_reports = []
 
+    def _analysis_video_match_label(match):
+        if not match:
+            return 'Sin partido asignado'
+        try:
+            if getattr(match, 'home_team', None) and getattr(match, 'away_team', None):
+                base = f'{match.home_team.display_name} vs {match.away_team.display_name}'
+            else:
+                base = f'Partido {match.id}'
+        except Exception:
+            base = f'Partido {getattr(match, "id", "") or ""}'.strip()
+        parts = []
+        try:
+            if match.round:
+                parts.append(str(match.round))
+        except Exception:
+            pass
+        try:
+            if match.date:
+                parts.append(match.date.strftime('%d/%m/%Y'))
+        except Exception:
+            pass
+        suffix = ' · '.join([p for p in parts if p])
+        return f'{base} · {suffix}' if suffix else base
+
+    analysis_match_library = []
+    if rival_videos:
+        video_ids = [int(v.id) for v in rival_videos if getattr(v, 'id', None)]
+        clip_counts = {
+            int(row['video_id']): int(row['c'] or 0)
+            for row in VideoClip.objects.filter(video_id__in=video_ids).values('video_id').annotate(c=Count('id'))
+        }
+        export_counts = {
+            int(row['video_id']): int(row['c'] or 0)
+            for row in VideoExportAsset.objects.filter(video_id__in=video_ids).values('video_id').annotate(c=Count('id'))
+        }
+        project_counts = {}
+        capture_counts = {}
+        for project in VideoTelestrationProject.objects.filter(video_id__in=video_ids).only('video_id', 'payload'):
+            vid = int(getattr(project, 'video_id', 0) or 0)
+            if not vid:
+                continue
+            project_counts[vid] = project_counts.get(vid, 0) + 1
+            payload = project.payload if isinstance(getattr(project, 'payload', None), dict) else {}
+            slides = payload.get('slides') if isinstance(payload, dict) else None
+            if isinstance(slides, list):
+                capture_counts[vid] = capture_counts.get(vid, 0) + len(slides)
+
+        grouped = {}
+        for video in rival_videos:
+            match_id_value = int(getattr(video, 'match_id', 0) or 0)
+            key = match_id_value or 0
+            if key not in grouped:
+                grouped[key] = {
+                    'match_id': match_id_value,
+                    'label': _analysis_video_match_label(getattr(video, 'match', None)),
+                    'date': getattr(getattr(video, 'match', None), 'date', None),
+                    'videos': [],
+                    'video_count': 0,
+                    'clip_count': 0,
+                    'capture_count': 0,
+                    'project_count': 0,
+                    'export_count': 0,
+                }
+            row = grouped[key]
+            vid = int(getattr(video, 'id', 0) or 0)
+            video.analysis_clip_count = int(clip_counts.get(vid, 0))
+            video.analysis_capture_count = int(capture_counts.get(vid, 0))
+            video.analysis_project_count = int(project_counts.get(vid, 0))
+            video.analysis_export_count = int(export_counts.get(vid, 0))
+            row['videos'].append(video)
+            row['video_count'] += 1
+            row['clip_count'] += int(video.analysis_clip_count)
+            row['capture_count'] += int(video.analysis_capture_count)
+            row['project_count'] += int(video.analysis_project_count)
+            row['export_count'] += int(video.analysis_export_count)
+        analysis_match_library = sorted(
+            grouped.values(),
+            key=lambda item: (
+                1 if item.get('match_id') else 0,
+                item.get('date') or date.min,
+                item.get('match_id') or 0,
+            ),
+            reverse=True,
+        )
+
     folder_reports = []
     if primary_team and selected_folder_id:
         try:
@@ -43894,6 +43993,8 @@ def analysis_page(request):
             'team_id': team_id,
             'active_tab': active_tab,
             'analysis_video_view': analysis_video_view,
+            'analysis_match_library': analysis_match_library,
+            'selected_video_match_id': int(selected_video_match_id or 0),
             'tab_link_reports': _tab_link('reports', view=None),
             'tab_link_upload': _tab_link('videos', view='upload'),
             'tab_link_library': _tab_link('videos', view='library'),
@@ -46897,6 +46998,7 @@ def analysis_rival_video_chunk_init_api(request):
     video_source = (data.get('video_source') or RivalVideo.SOURCE_MANUAL).strip()
     rival_team_id = _parse_int(data.get('video_team_id'))
     folder_id = _parse_int(data.get('video_folder_id'))
+    match_id = _parse_int(data.get('video_match_id'))
     want_personal = str(data.get('video_personal') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
     notes = (data.get('video_notes') or '').strip()
     assigned = data.get('assigned_player_ids')
@@ -46926,6 +47028,7 @@ def analysis_rival_video_chunk_init_api(request):
                 'video_source': video_source if video_source in {c[0] for c in RivalVideo.SOURCE_CHOICES} else RivalVideo.SOURCE_MANUAL,
                 'video_team_id': int(rival_team_id or 0),
                 'video_folder_id': int(folder_id or 0),
+                'video_match_id': int(match_id or 0),
                 'video_personal': bool(want_personal),
                 'video_notes': notes[:4000],
                 'assigned_player_ids': assigned_ids,
@@ -47030,12 +47133,14 @@ def analysis_rival_video_chunk_finish_api(request):
     video_source = str(meta.get('video_source') or RivalVideo.SOURCE_MANUAL).strip()
     rival_team_id = _parse_int(meta.get('video_team_id'))
     folder_id = _parse_int(meta.get('video_folder_id'))
+    match_id = _parse_int(meta.get('video_match_id'))
     want_personal = bool(meta.get('video_personal'))
     notes = str(meta.get('video_notes') or '').strip()
     assigned_ids = meta.get('assigned_player_ids') if isinstance(meta.get('assigned_player_ids'), list) else []
     assigned_ids = [int(x) for x in assigned_ids if str(x).isdigit()][:200]
     rival_team = Team.objects.filter(id=int(rival_team_id)).first() if rival_team_id else None
     folder = AnalystVideoFolder.objects.filter(id=int(folder_id), team=primary_team).first() if folder_id and not want_personal else None
+    match_obj = _team_match_queryset(primary_team).filter(id=int(match_id)).first() if match_id and not want_personal else None
     selected_video_season = selected_club_season_for_request(request, workspace=_get_active_workspace(request))
 
     tmp = tempfile.NamedTemporaryFile(prefix='2j-video-', suffix=Path(session.original_name or 'upload.mp4').suffix or '.mp4', delete=False)
@@ -47057,6 +47162,7 @@ def analysis_rival_video_chunk_finish_api(request):
                 club_season=None if want_personal else selected_video_season,
                 rival_team=rival_team,
                 folder=folder,
+                match=None if want_personal else match_obj,
                 owner_user=request.user if want_personal else None,
                 title=video_title[:180],
                 source=video_source if video_source in {c[0] for c in RivalVideo.SOURCE_CHOICES} else RivalVideo.SOURCE_MANUAL,
@@ -47161,6 +47267,7 @@ def analysis_rival_video_import_youtube_api(request):
     requested_title = _sanitize_task_text(str(data.get('video_title') or '').strip(), multiline=False, max_len=180)
     rival_team_id = _parse_int(data.get('video_team_id'))
     folder_id = _parse_int(data.get('video_folder_id'))
+    match_id = _parse_int(data.get('video_match_id'))
     notes = _sanitize_task_text(str(data.get('video_notes') or '').strip(), multiline=True, max_len=4000)
     want_personal = str(data.get('video_personal') or data.get('personal') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
 
@@ -47187,6 +47294,7 @@ def analysis_rival_video_import_youtube_api(request):
     folder = None
     if folder_id and primary_team and not want_personal:
         folder = AnalystVideoFolder.objects.filter(id=int(folder_id), team=primary_team).first()
+    match_obj = _team_match_queryset(primary_team).filter(id=int(match_id)).first() if match_id and primary_team and not want_personal else None
     selected_video_season = selected_club_season_for_request(request, workspace=_get_active_workspace(request))
 
     title = requested_title
@@ -47199,6 +47307,7 @@ def analysis_rival_video_import_youtube_api(request):
             club_season=None if want_personal else selected_video_season,
             rival_team=rival_team,
             folder=folder,
+            match=None if want_personal else match_obj,
             owner_user=request.user if want_personal else None,
             title=title[:180],
             source=RivalVideo.SOURCE_YOUTUBE,

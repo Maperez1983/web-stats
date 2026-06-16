@@ -856,6 +856,15 @@
                 </select>
               </div>
               <div>
+                <label for="video_match_id">Partido</label>
+                <select id="video_match_id" name="video_match_id">
+                  <option value="">Sin partido asignado</option>
+                  {% for match in match_options %}
+                  <option value="{{ match.id }}" {% if selected_video_match_id == match.id %}selected{% endif %}>{{ match.label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
                 <label for="video_source">Fuente</label>
                 <select id="video_source" name="video_source">
                   {% for value,label in video_sources %}
@@ -946,15 +955,33 @@
 	              </div>
 	            </details>
 	            <div class="grid analysis-library-only">
-	              {% for video in rival_videos %}
+	              {% for match_group in analysis_match_library %}
+	              <section class="item item-wide" style="background:rgba(2,6,23,0.42);">
+	                <div style="display:flex; justify-content:space-between; gap:0.75rem; flex-wrap:wrap; align-items:flex-start;">
+	                  <div>
+	                    <h3 style="margin:0;">{{ match_group.label }}</h3>
+	                    <p class="meta" style="margin-top:0.25rem;">
+	                      {{ match_group.video_count }} vídeo(s) · {{ match_group.clip_count }} clip(s) · {{ match_group.capture_count }} captura(s) · {{ match_group.export_count }} export(s)
+	                    </p>
+	                  </div>
+	                  {% if match_group.match_id %}
+	                    <a class="button ghost" href="?tab=videos&view=library&video_match_id={{ match_group.match_id }}{% if team_id %}&team_id={{ team_id }}{% endif %}">Filtrar partido</a>
+	                  {% endif %}
+	                </div>
+	                <div class="grid">
+	              {% for video in match_group.videos %}
 	              <article class="item video-item">
 	                <h4>{{ video.title }}</h4>
 	                <p class="meta">
 	                  {{ video.get_source_display }} · {{ video.created_at|date:"d/m/Y H:i" }}
+	                  {% if video.match %} · {{ video.match.round|default:"Partido" }}{% if video.match.date %} · {{ video.match.date|date:"d/m/Y" }}{% endif %}{% endif %}
 	                  {% if video.folder %} · Carpeta {{ video.folder.name }}{% endif %}
 	                  {% if video.folder and video.folder.base_video_id == video.id %} · <span style="color:#fde68a; font-weight:900;">BASE</span>{% endif %}
 	                  {% if not video.folder and video.is_base %} · <span style="color:#fde68a; font-weight:900;">BASE</span>{% endif %}
 	                  {% if video.source_url %} · <a href="{{ video.source_url }}" target="_blank" rel="noopener">Origen</a>{% endif %}
+	                </p>
+	                <p class="meta" style="margin:-0.15rem 0 0.6rem;">
+	                  {{ video.analysis_clip_count|default:0 }} clip(s) · {{ video.analysis_capture_count|default:0 }} captura(s) · {{ video.analysis_project_count|default:0 }} proyecto(s) · {{ video.analysis_export_count|default:0 }} export(s)
 	                </p>
 	                <div class="actions" style="justify-content:flex-start; margin:-0.25rem 0 0.6rem;">
 	                  <a class="button ghost" href="{% url 'analysis-video-studio' video.id %}">Video Studio</a>
@@ -1008,6 +1035,15 @@
 	                        </select>
 	                      </div>
 	                      <div style="margin-top:0.75rem;">
+	                        <label for="video-match-{{ video.id }}">Partido</label>
+	                        <select id="video-match-{{ video.id }}" name="video_match_id">
+	                          <option value="">Sin partido asignado</option>
+	                          {% for match in match_options %}
+	                          <option value="{{ match.id }}" {% if video.match_id == match.id %}selected{% endif %}>{{ match.label }}</option>
+	                          {% endfor %}
+	                        </select>
+	                      </div>
+	                      <div style="margin-top:0.75rem;">
 	                        <label for="video-players-{{ video.id }}">Jugadores asignados</label>
 	                        <select id="video-players-{{ video.id }}" class="multi-select" name="assigned_player_ids" multiple>
 	                          {% for player in analyst_players %}
@@ -1032,8 +1068,13 @@
                 </form>
               </article>
               {% empty %}
-              <article class="item"><p class="meta">Sin vídeos cargados todavía.</p></article>
+              <article class="item"><p class="meta">Sin vídeos en este partido.</p></article>
               {% endfor %}
+	                </div>
+	              </section>
+	              {% empty %}
+	              <article class="item"><p class="meta">Sin vídeos cargados todavía.</p></article>
+	              {% endfor %}
             </div>
           </div>
 	        </div>
@@ -1519,6 +1560,7 @@
 	          const source = String(document.getElementById('video_source')?.value || '').trim();
 	          const teamId = String(document.querySelector('input[name="video_team_id"]')?.value || '').trim();
 	          const folderId = String(document.getElementById('video_folder_id')?.value || '').trim();
+	          const matchId = String(document.getElementById('video_match_id')?.value || '').trim();
 	          const notes = String(document.getElementById('video_notes')?.value || '').trim();
 	          const personal = Boolean(form.querySelector('input[name="video_personal"]')?.checked);
 	          const assignedSel = document.getElementById('assigned_player_ids');
@@ -1537,6 +1579,7 @@
 	              video_source: source,
 	              video_team_id: teamId,
 	              video_folder_id: folderId,
+	              video_match_id: matchId,
 	              video_personal: personal ? 1 : 0,
 	              video_notes: notes,
 	              assigned_player_ids: assigned,
@@ -1706,6 +1749,7 @@
               const csrf = getCsrf();
               const teamInp = document.querySelector('input[name="video_team_id"]');
               const folderEl = document.getElementById('video_folder_id');
+              const matchEl = document.getElementById('video_match_id');
               const titleEl = document.getElementById('video_title');
               const notesEl = document.getElementById('video_notes');
               const personalEl = document.getElementById('video_personal_youtube');
@@ -1713,6 +1757,7 @@
                 url: url,
                 video_team_id: String(teamInp && teamInp.value ? teamInp.value : '').trim(),
                 video_folder_id: String(folderEl && folderEl.value ? folderEl.value : '').trim(),
+                video_match_id: String(matchEl && matchEl.value ? matchEl.value : '').trim(),
                 video_title: String(titleEl && titleEl.value ? titleEl.value : '').trim(),
                 video_notes: String(notesEl && notesEl.value ? notesEl.value : '').trim(),
                 video_personal: (personalEl && personalEl.checked) ? 1 : 0,

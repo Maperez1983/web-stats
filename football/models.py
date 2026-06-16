@@ -2044,6 +2044,14 @@ class RivalVideo(models.Model):
         help_text='Propietario cuando el vídeo está en biblioteca personal (sin team/folder).',
     )
     rival_team = models.ForeignKey(Team, on_delete=models.SET_NULL, null=True, blank=True, related_name='rival_videos')
+    match = models.ForeignKey(
+        Match,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='analysis_videos',
+        help_text='Partido al que pertenece este vídeo de análisis.',
+    )
     folder = models.ForeignKey(
         AnalystVideoFolder,
         on_delete=models.SET_NULL,
@@ -2083,6 +2091,9 @@ class RivalVideo(models.Model):
 
     class Meta:
         ordering = ['-created_at', '-id']
+        indexes = [
+            models.Index(fields=['match', '-created_at'], name='rivalvideo_match_created_idx'),
+        ]
 
     def __str__(self):
         team_label = self.rival_team.name if self.rival_team else 'Rival'
