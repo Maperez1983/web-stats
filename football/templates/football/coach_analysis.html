@@ -212,6 +212,8 @@
       body[data-active-tab="rivals"] [data-tab="videos"],
       body[data-active-tab="rivals"] [data-tab="studio"],
       body[data-active-tab="rivals"] [data-tab="insights"] { display: none; }
+      body[data-active-tab="videos"][data-video-view="upload"] .analysis-library-only { display: none !important; }
+      body[data-active-tab="videos"][data-video-view="library"] .analysis-upload-only { display: none !important; }
       .grid {
         display: grid;
         gap: 1rem;
@@ -507,30 +509,39 @@
 		      }
 		    </style>
 		  </head>
-	  <body class="prod-commercial" data-active-tab="{{ active_tab|default:'reports' }}">
+	  <body class="prod-commercial" data-active-tab="{{ active_tab|default:'videos' }}" data-video-view="{{ analysis_video_view|default:'upload' }}">
 	    <div class="page product-shell">
       {% include 'football/includes/dragon_nav.html' %}
       <header>
         <div>
-          <p>Área técnica · Cuerpo técnico <span class="product-chip role">Fase 4 · Scouting Rival</span></p>
+          <p>Área técnica · Cuerpo técnico <span class="product-chip role">Análisis de vídeo</span></p>
           <h1>{{ section_title }}</h1>
         </div>
         <a class="button ghost" href="{% url 'coach-detail' %}">Volver</a>
       </header>
 	      <article class="panel">
-		        {% if active_tab == 'videos' %}
+		        {% if active_tab == 'videos' and analysis_video_view == 'upload' %}
 		          <p class="meta" style="margin:0;">
-		            Biblioteca de vídeos: organiza por carpetas, sube archivo o enlaza YouTube y abre clips en el editor.
+		            Carga un vídeo desde archivo o YouTube. Al terminar se abre Video Studio para cortar, marcar y editar.
+		          </p>
+		        {% elif active_tab == 'videos' %}
+		          <p class="meta" style="margin:0;">
+		            Biblioteca: vídeos, clips, playlists y carpetas guardadas para el cuerpo técnico.
+		          </p>
+		        {% elif active_tab == 'studio' %}
+		          <p class="meta" style="margin:0;">
+		            Edición: abre Video Studio sobre un vídeo existente para cortar, marcar, crear clips o exportar.
 		          </p>
 		        {% else %}
 		          <p>{{ description }}</p>
 		        {% endif %}
 			        <nav class="tab-nav" aria-label="Secciones análisis">
-			          <a class="{% if active_tab == 'videos' %}is-active{% endif %}" href="{{ tab_link_videos }}">Vídeos</a>
-				          <a class="{% if active_tab == 'studio' %}is-active{% endif %}" href="{{ tab_link_studio }}">Editor</a>
+			          <a class="{% if active_tab == 'videos' and analysis_video_view == 'upload' %}is-active{% endif %}" href="{{ tab_link_upload }}">Cargar vídeo</a>
+			          <a class="{% if active_tab == 'videos' and analysis_video_view == 'library' %}is-active{% endif %}" href="{{ tab_link_library }}">Biblioteca</a>
+				          <a class="{% if active_tab == 'studio' %}is-active{% endif %}" href="{{ tab_link_studio }}">Edición</a>
 			        </nav>
 
-		        {% if active_tab != 'videos' %}
+		        {% if active_tab == 'reports' or active_tab == 'insights' or active_tab == 'rivals' %}
 		        <section class="analysis-summary" aria-label="Resumen rival">
 		          <div class="analysis-summary-main">
 		            <div class="analysis-summary-crest">
@@ -741,15 +752,15 @@
         <div data-tab="videos">
         <div class="grid" style="margin-top:1rem;">
 	          <div class="item item-wide">
-	            <h3>Biblioteca de vídeos</h3>
-	            <div class="actions" style="justify-content:flex-start; margin:0.65rem 0 0.2rem;">
+	            <h3 class="analysis-library-only">Biblioteca de vídeos</h3>
+	            <div class="actions analysis-library-only" style="justify-content:flex-start; margin:0.65rem 0 0.2rem;">
 	              <a class="button ghost" href="{% url 'analysis-video-inbox' %}">
 	                Bandeja{% if video_inbox_unread_count %} ({{ video_inbox_unread_count }} sin leer){% endif %}
 	              </a>
 	              <a class="button ghost" href="{% url 'analysis-video-inbox' %}?filter=playlist">Playlists</a>
 	              <a class="button ghost" href="{% url 'analysis-video-inbox' %}?filter=clip">Clips</a>
 	            </div>
-	            <details class="collapsible" {% if folder_message or folder_error or selected_folder_id %}open{% endif %}>
+	            <details class="collapsible analysis-library-only" {% if folder_message or folder_error or selected_folder_id %}open{% endif %}>
 	              <summary>
 	                Carpetas y organización
 	                {% if selected_folder_id %}<span class="meta" style="font-weight:600;">· filtro activo</span>{% endif %}
@@ -773,9 +784,9 @@
 	                </form>
 		                {% if video_folders %}
 		                <div class="folder-list">
-		                  <a class="folder-chip {% if not selected_folder_id %}is-active{% endif %}" href="?tab=videos{% if team_id %}&team_id={{ team_id }}{% endif %}">Todas</a>
+		                  <a class="folder-chip {% if not selected_folder_id %}is-active{% endif %}" href="?tab=videos&view=library{% if team_id %}&team_id={{ team_id }}{% endif %}">Todas</a>
 		                  {% for folder in video_folders %}
-		                  <a class="folder-chip {% if selected_folder_id == folder.id %}is-active{% endif %}" href="?tab=videos{% if team_id %}&team_id={{ team_id }}{% endif %}&folder={{ folder.id }}">
+		                  <a class="folder-chip {% if selected_folder_id == folder.id %}is-active{% endif %}" href="?tab=videos&view=library{% if team_id %}&team_id={{ team_id }}{% endif %}&folder={{ folder.id }}">
 		                    {{ folder.name }}{% if folder.rival_team %} · {{ folder.rival_team.display_name }}{% endif %}
 		                    {% if folder.is_visible_to_players %}
 		                      <span style="display:inline-flex; align-items:center; justify-content:center; padding:0.1rem 0.4rem; border-radius:999px; border:1px solid rgba(34,211,238,0.35); background: rgba(34,211,238,0.12); color: rgba(207,250,254,0.95); font-weight:900; font-size:0.7rem; letter-spacing:0.08em; text-transform:uppercase;">Jugadores</span>
@@ -813,12 +824,12 @@
 			              </div>
 			            </details>
 
-			            <div class="meta" style="margin-top:0.75rem;">
-			              Los informes (PPTX/PDF) se gestionan en la pestaña <strong>Informes</strong>.
+			            <div class="meta analysis-library-only" style="margin-top:0.75rem;">
+			              Los vídeos, clips y playlists guardados se gestionan desde esta biblioteca.
 			            </div>
 		
-		            <details class="collapsible" style="margin-top:0.75rem;" {% if video_message or video_error %}open{% endif %}>
-		              <summary>Añadir vídeo (archivo / YouTube)</summary>
+		            <details class="collapsible analysis-upload-only" style="margin-top:0.75rem;" {% if analysis_video_view == 'upload' or video_message or video_error %}open{% endif %}>
+		              <summary>Cargar vídeo</summary>
 		              <div class="collapsible-body">
 		            <form
 		              class="form"
@@ -881,7 +892,7 @@
                 </select>
               </div>
 	              <div class="actions">
-	                <button class="button" type="submit" id="video-upload-submit">Subir vídeo</button>
+	                <button class="button" type="submit" id="video-upload-submit">Subir y abrir Studio</button>
 	              </div>
 		              <div class="upload-progress" id="video-upload-progress">
 		                <progress id="video-upload-progress-bar" value="0" max="100"></progress>
@@ -934,7 +945,7 @@
 	              {% endif %}
 	              </div>
 	            </details>
-	            <div class="grid">
+	            <div class="grid analysis-library-only">
 	              {% for video in rival_videos %}
 	              <article class="item video-item">
 	                <h4>{{ video.title }}</h4>
@@ -1031,12 +1042,13 @@
 	        <div data-tab="studio">
 	        <div class="grid" style="margin-top:1rem;">
 	          <div class="item item-wide">
-	            <h3>Video Studio (editor)</h3>
+	            <h3>Edición</h3>
 	            <p class="meta" style="margin:0.35rem 0 0;">
-		              Aquí solo se abre el editor. Para subir/crear vídeos (archivo o YouTube) ve a la pestaña “Vídeos”.
+		              Abre un vídeo existente en Video Studio para cortar, marcar, crear clips o exportar.
 		            </p>
 	            <div class="actions" style="justify-content:flex-start; margin-top:0.85rem;">
-	              <a class="button ghost" href="{{ tab_link_videos }}">Ir a Vídeos</a>
+	              <a class="button ghost" href="{{ tab_link_upload }}">Cargar vídeo</a>
+	              <a class="button ghost" href="{{ tab_link_library }}">Biblioteca</a>
 	              <a class="button ghost" href="{% url 'analysis-video-inbox' %}">Bandeja</a>
 	            </div>
 	          </div>
@@ -1052,7 +1064,7 @@
 	            </div>
 	          </article>
 	          {% empty %}
-	          <article class="item"><p class="meta">No hay vídeos todavía. Ve a la pestaña “Vídeos” para subir uno (archivo o YouTube).</p></article>
+	          <article class="item"><p class="meta">No hay vídeos todavía. Usa “Cargar vídeo” para subir uno desde archivo o YouTube.</p></article>
 	          {% endfor %}
 	        </div>
 	        </div>

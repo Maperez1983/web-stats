@@ -42500,9 +42500,18 @@ def analysis_page(request):
     active_tab = str(request.GET.get('tab') or '').strip().lower() or 'videos'
     if active_tab not in {'reports', 'videos', 'studio', 'insights', 'rivals'}:
         active_tab = 'videos'
-    def _tab_link(tab_name):
+    analysis_video_view = str(request.GET.get('view') or '').strip().lower()
+    if analysis_video_view not in {'upload', 'library'}:
+        analysis_video_view = 'upload'
+
+    def _tab_link(tab_name, **extra_params):
         params = request.GET.copy()
         params['tab'] = tab_name
+        for key, value in extra_params.items():
+            if value is None:
+                params.pop(key, None)
+            else:
+                params[key] = value
         encoded = params.urlencode()
         return f'?{encoded}' if encoded else ''
     team_url = (request.GET.get('team_url') or '').strip()
@@ -43879,16 +43888,19 @@ def analysis_page(request):
         request,
         'football/coach_analysis.html',
         {
-            'section_title': 'Análisis rival',
-            'description': 'Indicadores y notas tácticas para el próximo rival.',
+            'section_title': 'Análisis de vídeo',
+            'description': 'Carga, biblioteca y edición de vídeos del cuerpo técnico.',
             'team_url': team_url,
             'team_id': team_id,
             'active_tab': active_tab,
-            'tab_link_reports': _tab_link('reports'),
-            'tab_link_videos': _tab_link('videos'),
-            'tab_link_studio': _tab_link('studio'),
-            'tab_link_insights': _tab_link('insights'),
-            'tab_link_rivals': _tab_link('rivals'),
+            'analysis_video_view': analysis_video_view,
+            'tab_link_reports': _tab_link('reports', view=None),
+            'tab_link_upload': _tab_link('videos', view='upload'),
+            'tab_link_library': _tab_link('videos', view='library'),
+            'tab_link_videos': _tab_link('videos', view='library'),
+            'tab_link_studio': _tab_link('studio', view=None),
+            'tab_link_insights': _tab_link('insights', view=None),
+            'tab_link_rivals': _tab_link('rivals', view=None),
             'teams': Team.objects.order_by('name'),
             'raw_text': raw_text,
             'roster': roster,
