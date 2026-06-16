@@ -15319,6 +15319,81 @@
 							                addPhotoPart(new THREE.BoxGeometry(2.12, 0.036, 0.036), photoGlass, sideSign * (metersW / 2 + 4.78), 1.18, ratio * metersH + 0.52, 'pitch_3d_rosaleda_photo_flush_side_stair_low_rail');
 							              });
 							            });
+							            const legacyVisualNoise = [
+							              'pitch_3d_dedicated_completion_',
+							              'pitch_3d_dedicated_reference_',
+							              'pitch_3d_rosaleda_final_polish_',
+							              'pitch_3d_rosaleda_final_seal_',
+							              'pitch_3d_rosaleda_reference_architect_',
+							              'pitch_3d_rosaleda_clean_',
+							              'pitch_3d_rosaleda_main_stand_clean_',
+							              'pitch_3d_rosaleda_photo_main_stand_dark_mid_concourse',
+							              'pitch_3d_rosaleda_photo_near_stand_dark_mid_concourse',
+							              'pitch_3d_stadium_vomitory_access_portal',
+							              'pitch_3d_stadium_pitchside_camera_operator',
+							              'pitch_3d_stadium_steward_silhouette',
+							            ];
+							            const keepPhotoLayer = (kind) => (
+							              kind.includes('pitch_3d_rosaleda_photo_')
+							              || kind.includes('pitch_3d_rosaleda_photo_reference_detail_pass')
+							            );
+							            const hideLegacyNoiseNode = (node) => {
+							              const kind = safeText(node?.userData?.kind || '');
+							              const name = safeText(node?.name || '');
+							              const signature = `${kind} ${name}`;
+							              if (kind && !keepPhotoLayer(kind) && legacyVisualNoise.some((needle) => signature.includes(needle))) {
+							                node.visible = false;
+							                return;
+							              }
+							              if (!node?.isMesh || !node.geometry) return;
+							              try {
+							                if (!node.geometry.boundingBox) node.geometry.computeBoundingBox();
+							                const box = node.geometry.boundingBox;
+							                const sx = Math.abs(box.max.x - box.min.x) * Math.abs(node.scale?.x || 1);
+							                const sy = Math.abs(box.max.y - box.min.y) * Math.abs(node.scale?.y || 1);
+							                const sz = Math.abs(box.max.z - box.min.z) * Math.abs(node.scale?.z || 1);
+							                const px = Number(node.position?.x || 0);
+							                const py = Number(node.position?.y || 0);
+							                const pz = Number(node.position?.z || 0);
+							                const mats = Array.isArray(node.material) ? node.material : [node.material];
+							                const darkMaterial = mats.some((mat) => {
+							                  try {
+							                    const c = mat?.color;
+							                    if (!c) return false;
+							                    return ((c.r || 0) + (c.g || 0) + (c.b || 0)) < 0.20;
+							                  } catch (e) {
+							                    return false;
+							                  }
+							                });
+							                const nearBowl = Math.abs(pz) > (metersH / 2 + 0.75) || Math.abs(px) > (metersW / 2 + 0.75);
+							                const freestandingBlackSlug = darkMaterial && nearBowl && py > 0.45 && py < 4.80 && sy > 0.45 && Math.max(sx, sz) < 6.25;
+							                const dugoutConflictBoard = signature.includes('ad_board')
+							                  && pz < -(metersH / 2 + 0.40)
+							                  && pz > -(metersH / 2 + 4.40)
+							                  && ((px > -35.8 && px < -1.5) || Math.abs(px) < 5.4);
+							                if (freestandingBlackSlug || dugoutConflictBoard) node.visible = false;
+							              } catch (e) { /* ignore */ }
+							            };
+							            dedicatedFinish.traverse(hideLegacyNoiseNode);
+							            root.traverse(hideLegacyNoiseNode);
+							            const finalAdLabels = [
+							              { x: -47.0, w: 9.0, label: 'SPONSOR', bg: '#101827' },
+							              { x: -36.0, w: 8.8, label: '2J FOOTBALL INTELLIGENCE', bg: '#075fae' },
+							              { x: -1.0, w: 8.6, label: 'LA ROSALEDA', bg: '#075fae' },
+							              { x: 12.6, w: 9.0, label: 'PARTNER', bg: '#101827' },
+							              { x: 26.0, w: 9.4, label: '2J FOOTBALL INTELLIGENCE', bg: '#075fae' },
+							              { x: 42.0, w: 8.6, label: 'SPONSOR', bg: '#101827' },
+							            ];
+							            finalAdLabels.forEach((board, idx) => {
+							              addReadableAdBoard(board.label, board.x, 0.90, -(metersH / 2 + 3.28), board.w, 0.66, 'north', 'pitch_3d_rosaleda_photo_final_non_overlapping_near_ad_board', { w: 1120, h: 260, bg: board.bg, fg: '#f8fafc', font: idx === 1 || idx === 4 ? '900 36px Arial, sans-serif' : '900 48px Arial, sans-serif' });
+							            });
+							            addPhotoPart(new THREE.BoxGeometry(8.2, 0.12, 2.85), photoDark, -18.2, 0.18, -(metersH / 2 + 3.22), 'pitch_3d_rosaleda_photo_dugout_gap_clean_dark_floor_left');
+							            addPhotoPart(new THREE.BoxGeometry(7.8, 0.12, 2.85), photoDark, -9.0, 0.18, -(metersH / 2 + 3.22), 'pitch_3d_rosaleda_photo_dugout_gap_clean_dark_floor_right');
+							            addPhotoPart(new THREE.BoxGeometry(7.4, 0.14, 3.15), photoDark, 0, 0.18, -(metersH / 2 + 3.32), 'pitch_3d_rosaleda_photo_central_tunnel_gap_clean_dark_floor');
+							            [-0.36, -0.18, 0.18, 0.36].forEach((ratio) => {
+							              addPhotoPart(new THREE.BoxGeometry(1.10, 0.92, 0.20), photoConcrete, ratio * metersW, 1.12, -(metersH / 2 + 4.92), 'pitch_3d_rosaleda_photo_integrated_low_vomitory_sidewall');
+							              addPhotoPart(new THREE.BoxGeometry(2.85, 0.74, 0.18), photoDark, ratio * metersW, 1.18, -(metersH / 2 + 5.04), 'pitch_3d_rosaleda_photo_integrated_low_vomitory_shadow');
+							            });
 							          } catch (e) { /* ignore */ }
 							          root.add(dedicatedFinish);
 						        }
