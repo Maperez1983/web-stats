@@ -15178,6 +15178,13 @@
 							              if (!kind) return;
 							              if (conflictKinds.some((needle) => kind.includes(needle))) node.visible = false;
 							            });
+							            root.traverse((node) => {
+							              const kind = safeText(node?.userData?.kind || '');
+							              const name = safeText(node?.name || '');
+							              const signature = `${kind} ${name}`;
+							              if (conflictKinds.some((needle) => signature.includes(needle))) node.visible = false;
+							              if (/side_(white_)?stair|side_stair_rail|corner_podium|corner_seat_band|near_clean_concrete_aisle/.test(signature)) node.visible = false;
+							            });
 							            for (let i = 0; i < 11; i += 1) {
 							              const x = -metersW * 0.48 + i * (metersW * 0.096);
 							              addReadableAdBoard(adLabels[(i + 2) % adLabels.length], x, 0.94, metersH / 2 + 2.96, metersW * 0.082, 0.72, 'south', 'pitch_3d_rosaleda_photo_continuous_far_ad_board', { w: 980, h: 250, bg: i % 2 ? '#075fae' : '#111827', fg: '#f8fafc', font: '900 46px Arial, sans-serif' });
