@@ -13402,7 +13402,7 @@
 						      addPitchSideDetails3d();
 						      try {
 						        const stadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
-							        if (isLegacyPitch3dReferenceStadiumSrc(stadiumModelSrc)) {
+							        if (isDedicatedPitch3dReferenceStadiumSrc(stadiumModelSrc)) {
 						          const dedicatedFinish = new THREE.Group();
 						          dedicatedFinish.userData = { kind: 'pitch_3d_dedicated_reference_completion_layer' };
 						          const concreteMat = new THREE.MeshStandardMaterial({ color: 0xcfd6d1, roughness: 0.76, metalness: 0.03 });
