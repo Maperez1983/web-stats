@@ -9455,13 +9455,13 @@
 							      } else if (k === 'render_original') {
 							        // Vista estilo La Rosaleda: esquina interior, baja y cercana, con banquillos, vallas y grada principal legibles.
 										        if (isDedicatedPitch3dMalagaStadiumSrc(__pitch3dAssetUrl('pitch3dStadiumModelSrc'))) {
-										          pitch3dCamera.fov = 41;
-										          pitch3dOrbit.theta = -2.34;
-						          pitch3dOrbit.phi = 1.10;
-										          pitch3dOrbit.radius = Math.max(112, metersW * 1.04);
-										          targetX = -8.8;
-										          targetY = 4.80;
-										          targetZ = 3.20;
+										          pitch3dCamera.fov = 43;
+										          pitch3dOrbit.theta = -2.38;
+						          pitch3dOrbit.phi = 1.13;
+										          pitch3dOrbit.radius = Math.max(104, metersW * 0.97);
+										          targetX = -8.2;
+										          targetY = 4.15;
+										          targetZ = 2.65;
 										        } else {
 										          pitch3dCamera.fov = 42;
 										          pitch3dOrbit.theta = -2.25;
@@ -15010,6 +15010,153 @@
 							            addFinalPart(new THREE.BoxGeometry(metersW + 12.0, 0.05, 0.05), premiumGlass, 0, 0.84, -(metersH / 2 + 3.36), 'pitch_3d_rosaleda_reference_architect_front_glass_rail_mid');
 							            for (let i = -21; i <= 21; i += 1) {
 							              addFinalPart(new THREE.BoxGeometry(0.045, 1.12, 0.045), premiumGlass, i * ((metersW + 10.0) / 42), 0.90, -(metersH / 2 + 3.36), 'pitch_3d_rosaleda_reference_architect_front_glass_rail_post');
+							            }
+							          } catch (e) { /* ignore */ }
+							          try {
+							            const photoBlue = new THREE.MeshStandardMaterial({ color: 0x0a6ebd, roughness: 0.48, metalness: 0.025 });
+							            const photoDeepBlue = new THREE.MeshStandardMaterial({ color: 0x063668, roughness: 0.60, metalness: 0.025 });
+							            const photoWhite = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.45, metalness: 0.01 });
+							            const photoConcrete = new THREE.MeshStandardMaterial({ color: 0xd8d8cf, roughness: 0.80, metalness: 0.01 });
+							            const photoDark = new THREE.MeshStandardMaterial({ color: 0x0b1118, roughness: 0.78, metalness: 0.05 });
+							            const photoSteel = new THREE.MeshStandardMaterial({ color: 0x2d3742, roughness: 0.34, metalness: 0.48 });
+							            const photoGlass = new THREE.MeshPhysicalMaterial({ color: 0xdff8ff, roughness: 0.08, metalness: 0.02, transparent: true, opacity: 0.46, transmission: 0.24, side: THREE.DoubleSide });
+							            const photoNet = new THREE.MeshBasicMaterial({ color: 0xf8fafc, transparent: true, opacity: 0.32, side: THREE.DoubleSide });
+							            const photoLight = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
+							            const photoShadow = new THREE.MeshBasicMaterial({ color: 0x020617, transparent: true, opacity: 0.18, depthWrite: false });
+							            const photoFinish = new THREE.Group();
+							            photoFinish.userData = { kind: 'pitch_3d_rosaleda_photo_reference_detail_pass' };
+							            dedicatedFinish.add(photoFinish);
+							            const addPhotoPart = (geo, mat, x, y, z, kind) => {
+							              const mesh = new THREE.Mesh(geo, mat);
+							              mesh.position.set(x, y, z);
+							              mesh.userData = { kind };
+							              try { mesh.castShadow = true; mesh.receiveShadow = true; } catch (e) { /* ignore */ }
+							              photoFinish.add(mesh);
+							              return mesh;
+							            };
+							            const addPhotoRot = (geo, mat, x, y, z, rx, ry, rz, kind) => {
+							              const mesh = addPhotoPart(geo, mat, x, y, z, kind);
+							              mesh.rotation.set(rx || 0, ry || 0, rz || 0);
+							              return mesh;
+							            };
+							            const addMiniSeatBlock = (x0, x1, z, y, rows, cols, rowDz, prefix) => {
+							              const seatGeo = new THREE.BoxGeometry(0.32, 0.09, 0.22);
+							              const backGeo = new THREE.BoxGeometry(0.32, 0.23, 0.06);
+							              const mats = [photoBlue, photoDeepBlue, photoWhite];
+							              const groups = [[], [], []];
+							              const backs = [[], [], []];
+							              const matrix = new THREE.Matrix4();
+							              const quat = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.08, 0, 0));
+							              for (let row = 0; row < rows; row += 1) {
+							                for (let col = 0; col < cols; col += 1) {
+							                  const t = cols <= 1 ? 0 : col / (cols - 1);
+							                  if ([0.18, 0.35, 0.52, 0.69, 0.86].some((a) => Math.abs(t - a) < 0.016)) continue;
+							                  const tone = (row + col) % 21 === 0 ? 2 : ((row + col) % 6 === 0 ? 1 : 0);
+							                  const x = x0 + (x1 - x0) * t;
+							                  const yy = y + row * 0.18;
+							                  const zz = z + row * rowDz;
+							                  matrix.compose(new THREE.Vector3(x, yy, zz), quat, new THREE.Vector3(1, 1, 1));
+							                  groups[tone].push(matrix.clone());
+							                  matrix.compose(new THREE.Vector3(x, yy + 0.18, zz + Math.sign(rowDz || 1) * 0.11), quat, new THREE.Vector3(1, 1, 1));
+							                  backs[tone].push(matrix.clone());
+							                }
+							              }
+							              [0, 1, 2].forEach((idx) => {
+							                if (!groups[idx].length) return;
+							                const inst = new THREE.InstancedMesh(seatGeo, mats[idx], groups[idx].length);
+							                groups[idx].forEach((m, i) => inst.setMatrixAt(i, m));
+							                inst.instanceMatrix.needsUpdate = true;
+							                inst.userData = { kind: `${prefix}_photo_real_seat_pads`, count: groups[idx].length };
+							                photoFinish.add(inst);
+							                const backInst = new THREE.InstancedMesh(backGeo, mats[idx], backs[idx].length);
+							                backs[idx].forEach((m, i) => backInst.setMatrixAt(i, m));
+							                backInst.instanceMatrix.needsUpdate = true;
+							                backInst.userData = { kind: `${prefix}_photo_real_seat_backs`, count: backs[idx].length };
+							                photoFinish.add(backInst);
+							              });
+							            };
+							            addMiniSeatBlock(-metersW * 0.46, metersW * 0.46, -(metersH / 2 + 4.95), 0.78, 18, 96, -0.22, 'pitch_3d_rosaleda_photo_near_lower_tier');
+							            addMiniSeatBlock(-metersW * 0.43, metersW * 0.43, metersH / 2 + 6.30, 3.06, 22, 92, 0.24, 'pitch_3d_rosaleda_photo_main_upper_tier');
+							            addPhotoPart(new THREE.BoxGeometry(metersW + 20.0, 0.24, 0.36), photoDark, 0, 4.46, metersH / 2 + 5.06, 'pitch_3d_rosaleda_photo_main_stand_dark_mid_concourse');
+							            addPhotoPart(new THREE.BoxGeometry(metersW + 18.0, 0.16, 0.28), photoDark, 0, 2.16, -(metersH / 2 + 3.08), 'pitch_3d_rosaleda_photo_near_stand_dark_mid_concourse');
+							            [-0.42, -0.26, -0.10, 0.08, 0.25, 0.42].forEach((ratio) => {
+							              addPhotoRot(new THREE.BoxGeometry(0.84, 0.12, 5.8), photoConcrete, ratio * metersW, 2.38, -(metersH / 2 + 5.84), -0.08, 0, 0, 'pitch_3d_rosaleda_photo_near_clean_concrete_aisle');
+							              addPhotoRot(new THREE.BoxGeometry(0.92, 0.14, 7.2), photoConcrete, ratio * metersW, 4.76, metersH / 2 + 8.84, -0.105, 0, 0, 'pitch_3d_rosaleda_photo_main_clean_concrete_aisle');
+							            });
+							            const addDetailedDugout = (x) => {
+							              const g = new THREE.Group();
+							              g.position.set(x, 0.10, -(metersH / 2 + 2.15));
+							              g.userData = { kind: 'pitch_3d_rosaleda_photo_detailed_real_dugout' };
+							              const part = (geo, mat, px, py, pz, kind) => {
+							                const mesh = new THREE.Mesh(geo, mat);
+							                mesh.position.set(px, py, pz);
+							                mesh.userData = { kind };
+							                g.add(mesh);
+							                return mesh;
+							              };
+							              part(new THREE.BoxGeometry(15.6, 0.18, 2.05), photoDark, 0, 0.12, 0.25, 'pitch_3d_rosaleda_photo_dugout_floor');
+							              for (let i = -6; i <= 6; i += 1) {
+							                const rib = part(new THREE.BoxGeometry(0.06, 1.65, 0.08), photoSteel, i * 1.18, 1.25, -0.20, 'pitch_3d_rosaleda_photo_dugout_metal_rib');
+							                rib.rotation.x = -0.32;
+							              }
+							              for (let r = 0; r < 8; r += 1) {
+							                const t = r / 7;
+							                const panel = part(new THREE.BoxGeometry(15.0, 0.040, 0.34), photoGlass, 0, 0.78 + Math.sin(t * Math.PI * 0.66) * 1.10, 0.84 - t * 1.42, 'pitch_3d_rosaleda_photo_dugout_curved_glass_segment');
+							                panel.rotation.x = 0.48 - t * 0.32;
+							              }
+							              part(new THREE.BoxGeometry(15.2, 0.09, 0.13), photoSteel, 0, 2.02, 0.02, 'pitch_3d_rosaleda_photo_dugout_top_spine');
+							              for (let s = 0; s < 10; s += 1) {
+							                const sx = -5.9 + s * 1.31;
+							                part(new THREE.BoxGeometry(0.76, 0.20, 0.52), photoBlue, sx, 0.47, -0.08, 'pitch_3d_rosaleda_photo_dugout_blue_bucket_seat');
+							                const back = part(new THREE.BoxGeometry(0.76, 0.70, 0.11), photoBlue, sx, 0.86, -0.40, 'pitch_3d_rosaleda_photo_dugout_blue_bucket_back');
+							                back.rotation.x = 0.20;
+							              }
+							              [-7.15, 7.15].forEach((sx) => {
+							                part(new THREE.BoxGeometry(0.75, 0.62, 0.68), photoDeepBlue, sx, 0.36, 1.36, 'pitch_3d_rosaleda_photo_dugout_equipment_box');
+							                part(new THREE.BoxGeometry(0.52, 0.44, 0.52), photoWhite, sx * 0.94, 0.31, 1.42, 'pitch_3d_rosaleda_photo_dugout_cooler');
+							              });
+							              photoFinish.add(g);
+							            };
+							            addDetailedDugout(-26.5);
+							            addDetailedDugout(-9.0);
+							            const addSmallGoal = (x, z, ry) => {
+							              const g = new THREE.Group();
+							              g.position.set(x, 0.12, z);
+							              g.rotation.y = ry || 0;
+							              g.userData = { kind: 'pitch_3d_rosaleda_photo_spare_training_goal_detailed' };
+							              const part = (geo, mat, px, py, pz, kind) => {
+							                const mesh = new THREE.Mesh(geo, mat);
+							                mesh.position.set(px, py, pz);
+							                mesh.userData = { kind };
+							                g.add(mesh);
+							                return mesh;
+							              };
+							              part(new THREE.BoxGeometry(5.5, 0.07, 0.07), photoWhite, 0, 1.72, 0, 'pitch_3d_rosaleda_photo_spare_goal_crossbar');
+							              part(new THREE.BoxGeometry(0.07, 1.72, 0.07), photoWhite, -2.75, 0.86, 0, 'pitch_3d_rosaleda_photo_spare_goal_post');
+							              part(new THREE.BoxGeometry(0.07, 1.72, 0.07), photoWhite, 2.75, 0.86, 0, 'pitch_3d_rosaleda_photo_spare_goal_post');
+							              part(new THREE.PlaneGeometry(5.5, 1.58), photoNet, 0, 0.92, 0.64, 'pitch_3d_rosaleda_photo_spare_goal_net');
+							              photoFinish.add(g);
+							            };
+							            addSmallGoal(-40.0, -(metersH / 2 + 2.94), 0);
+							            addSmallGoal(-34.0, -(metersH / 2 + 3.20), 0);
+							            addPhotoRot(new THREE.PlaneGeometry(metersW * 0.62, metersH * 0.42), photoShadow, -9.0, 0.082, -metersH * 0.16, -Math.PI / 2, 0, -0.08, 'pitch_3d_rosaleda_photo_soft_roof_shadow_large_diagonal');
+							            addPhotoRot(new THREE.PlaneGeometry(metersW * 0.26, metersH * 0.34), new THREE.MeshBasicMaterial({ color: 0x020617, transparent: true, opacity: 0.08, depthWrite: false }), metersW * 0.26, 0.084, metersH * 0.16, -Math.PI / 2, 0, -0.04, 'pitch_3d_rosaleda_photo_secondary_roof_shadow');
+							            addPhotoPart(new THREE.BoxGeometry(metersW + 36.0, 0.34, 0.32), photoSteel, 0, 10.48, metersH / 2 + 12.96, 'pitch_3d_rosaleda_photo_black_front_roof_chord');
+							            addPhotoPart(new THREE.BoxGeometry(metersW + 35.0, 0.24, 0.26), photoSteel, 0, 11.94, metersH / 2 + 20.72, 'pitch_3d_rosaleda_photo_black_rear_roof_chord');
+							            for (let i = -28; i <= 28; i += 1) {
+							              const x = i * ((metersW + 32.0) / 56);
+							              addPhotoRot(new THREE.BoxGeometry(0.070, 0.070, 8.4), photoSteel, x, 11.18, metersH / 2 + 17.10, -0.34, 0, 0, 'pitch_3d_rosaleda_photo_roof_fine_raker');
+							              if (i % 2 === 0) {
+							                addPhotoRot(new THREE.BoxGeometry(2.18, 0.060, 0.070), photoSteel, x + 0.46, 10.90, metersH / 2 + 14.42, 0, 0, 0.42, 'pitch_3d_rosaleda_photo_roof_x_brace_a');
+							                addPhotoRot(new THREE.BoxGeometry(2.18, 0.060, 0.070), photoSteel, x - 0.46, 10.90, metersH / 2 + 14.42, 0, 0, -0.42, 'pitch_3d_rosaleda_photo_roof_x_brace_b');
+							              }
+							              if (Math.abs(i) <= 24) addPhotoPart(new THREE.BoxGeometry(0.38, 0.050, 0.11), photoLight, x, 10.14, metersH / 2 + 12.62, 'pitch_3d_rosaleda_photo_roof_bright_light_cell');
+							            }
+							            const adLabels = ['2J FOOTBALL INTELLIGENCE', 'PARTNER', 'SPONSOR', 'ESTADIO', 'MATCHDAY'];
+							            for (let i = 0; i < 11; i += 1) {
+							              const x = -metersW * 0.48 + i * (metersW * 0.096);
+							              addReadableAdBoard(adLabels[i % adLabels.length], x, 0.94, -(metersH / 2 + 2.96), metersW * 0.082, 0.72, 'north', 'pitch_3d_rosaleda_photo_continuous_near_ad_board', { w: 980, h: 250, bg: i % 2 ? '#111827' : '#075fae', fg: '#f8fafc', font: '900 46px Arial, sans-serif' });
+							              addReadableAdBoard(adLabels[(i + 2) % adLabels.length], x, 0.94, metersH / 2 + 2.96, metersW * 0.082, 0.72, 'south', 'pitch_3d_rosaleda_photo_continuous_far_ad_board', { w: 980, h: 250, bg: i % 2 ? '#075fae' : '#111827', fg: '#f8fafc', font: '900 46px Arial, sans-serif' });
 							            }
 							          } catch (e) { /* ignore */ }
 							          root.add(dedicatedFinish);
