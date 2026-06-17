@@ -16132,6 +16132,16 @@
 						          sceneAsset.traverse((node) => {
 						            if (!node || !node.isMesh || !node.geometry) return;
 						            const nodeName = safeText(node.name || node.material?.name || '').toUpperCase();
+						            const skipCornerMass = (
+						              nodeName.includes('CORNER_SOLID')
+						              || nodeName.includes('SOLID_BOWL_CLOSURE')
+						              || nodeName.includes('GROUND_MASS')
+						              || nodeName.includes('STRUCTURAL_MASS')
+						              || nodeName.includes('TICKET_OFFICE_BLOCK')
+						              || nodeName.includes('WAYFINDING_TOWER')
+						              || nodeName.includes('MEGA_COLUMN')
+						              || nodeName.includes('CORNER_PODIUM_MASS')
+						            );
 						            if (
 						              nodeName.includes('BOARD')
 						              || nodeName.includes('SPONSOR')
@@ -16139,6 +16149,7 @@
 						              || nodeName.includes('DUGOUT')
 						              || nodeName.includes('BENCH')
 						              || nodeName.includes('TUNNEL')
+						              || skipCornerMass
 						            ) return;
 						            const mesh = new THREE.Mesh();
 						            try { mesh.geometry = node.geometry.clone ? node.geometry.clone() : node.geometry; } catch (e) { mesh.geometry = node.geometry; }
@@ -16152,6 +16163,9 @@
 						          const runtimeConcrete = new THREE.MeshStandardMaterial({ color: 0xd9ddd7, roughness: 0.72, metalness: 0.04, side: THREE.DoubleSide });
 						          const runtimeGlass = new THREE.MeshPhysicalMaterial({ color: 0xbfe8ff, roughness: 0.14, metalness: 0.02, transparent: true, opacity: 0.40, transmission: 0.16, side: THREE.DoubleSide });
 						          const runtimeFrame = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.42, metalness: 0.28, side: THREE.DoubleSide });
+						          const runtimeFacadeDark = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.68, metalness: 0.08, side: THREE.DoubleSide });
+						          const runtimeFacadePanel = new THREE.MeshStandardMaterial({ color: 0xe5e7eb, roughness: 0.58, metalness: 0.06, side: THREE.DoubleSide });
+						          const runtimeFacadeLouver = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.48, metalness: 0.14, side: THREE.DoubleSide });
 						          const runtimeLightBar = new THREE.MeshStandardMaterial({ color: 0xe0f2fe, roughness: 0.16, metalness: 0.02, emissive: 0xe0f2fe, emissiveIntensity: 0.44, side: THREE.DoubleSide });
 						          const addRuntimeBox = (x, y, z, sx, sy, sz, mat, kind, ry = 0) => {
 						            const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), mat);
@@ -16168,10 +16182,18 @@
 						            [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
 						              const cx = sx * 102;
 						              const cz = sz * 84;
+						              addRuntimeBox(cx + sx * 1.8, 4.5, cz + sz * 1.8, 11.6, 7.2, 11.6, runtimeFacadePanel, 'pitch_3d_runtime_corner_facade_core', sx * sz * 0.12);
+						              addRuntimeBox(cx - sx * 1.2, 4.9, cz - sz * 5.6, 13.4, 1.3, 0.46, runtimeFacadeDark, 'pitch_3d_runtime_corner_facade_front_band');
+						              addRuntimeBox(cx + sx * 5.6, 4.9, cz - sz * 1.2, 0.46, 1.3, 13.4, runtimeFacadeDark, 'pitch_3d_runtime_corner_facade_side_band');
+						              addRuntimeBox(cx - sx * 0.9, 8.95, cz - sz * 1.6, 12.6, 0.28, 8.8, runtimeConcrete, 'pitch_3d_runtime_corner_roof_slab', sx * sz * 0.10);
 						              addRuntimeBox(cx, 7.6, cz, 12.0, 6.4, 0.28, runtimeGlass, 'pitch_3d_runtime_corner_glass_front', sx < 0 ? Math.PI : 0);
 						              addRuntimeBox(cx + sx * 4.1, 7.6, cz + sz * 4.6, 0.28, 6.4, 9.6, runtimeGlass, 'pitch_3d_runtime_corner_glass_side');
 						              [-3.8, 0, 3.8].forEach((ox) => addRuntimeBox(cx + ox, 7.6, cz - sz * 0.28, 0.14, 6.5, 0.34, runtimeFrame, 'pitch_3d_runtime_corner_mullion'));
 						              [-3.0, 3.0].forEach((oz) => addRuntimeBox(cx + sx * 4.25, 7.6, cz + oz, 0.34, 6.5, 0.14, runtimeFrame, 'pitch_3d_runtime_corner_side_mullion'));
+						              [-4.2, -1.4, 1.4, 4.2].forEach((ox) => addRuntimeBox(cx + ox, 5.1, cz - sz * 5.75, 0.22, 5.0, 0.18, runtimeFacadeLouver, 'pitch_3d_runtime_corner_front_louver'));
+						              [-4.2, -1.4, 1.4, 4.2].forEach((oz) => addRuntimeBox(cx + sx * 5.75, 5.1, cz + oz, 0.18, 5.0, 0.22, runtimeFacadeLouver, 'pitch_3d_runtime_corner_side_louver'));
+						              addRuntimeBox(cx - sx * 5.1, 1.5, cz - sz * 5.2, 3.4, 2.4, 2.8, runtimeFacadeDark, 'pitch_3d_runtime_corner_entry_void', sx * sz * 0.10);
+						              addRuntimeBox(cx - sx * 4.9, 2.95, cz - sz * 5.1, 3.8, 0.22, 0.24, runtimeGlass, 'pitch_3d_runtime_corner_entry_canopy', sx * sz * 0.10);
 						            });
 						            [-1, 1].forEach((sign) => {
 						              addRuntimeBox(0, 13.2, sign * 82.8, 164, 0.12, 0.18, runtimeLightBar, 'pitch_3d_runtime_under_roof_light_long');
