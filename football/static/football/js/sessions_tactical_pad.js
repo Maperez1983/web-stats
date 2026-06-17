@@ -13424,6 +13424,7 @@
 						              __pitch3dLoadStadiumModel(() => {
 						                try { addProfessionalStadiumAsset(); } catch (e) { /* ignore */ }
 						              });
+						            } else {
 						              addGreenApron();
 						              addGroundedExteriorStructure();
 						              addExteriorCompletion();
@@ -13471,47 +13472,47 @@
 						            badge.position.set(0, 7.25, metersH / 2 + 10.05);
 						            badge.rotation.y = Math.PI;
 						            badge.userData = { kind: 'pitch_3d_ref_main_badge' };
-						            stadium.add(badge);
-						            root.add(stadium);
-						            addFinishedStadiumClosure();
-						          };
-						          addFromScratchReferenceStadium();
-						          const addCornerFlag = (x, z, flipX, flipZ) => {
-						            const group = new THREE.Group();
-						            group.position.set(x, 0, z);
-						            group.userData = { kind: 'pitch_3d_corner_flag' };
-						            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.62, 14), flagPoleMat);
-						            pole.position.set(0, 0.81, 0);
-						            pole.userData = { kind: 'pitch_3d_corner_flag_pole' };
-						            group.add(pole);
-						            const flagGeo = new THREE.PlaneGeometry(0.58, 0.38, 4, 1);
-						            try {
-						              const pos = flagGeo.attributes.position;
-						              for (let i = 0; i < pos.count; i += 1) {
-						                const px = pos.getX(i);
-						                const py = pos.getY(i);
-						                pos.setZ(i, Math.sin((px + py) * 8.0) * 0.025);
-						              }
-						              pos.needsUpdate = true;
-						              flagGeo.computeVertexNormals();
-						            } catch (e) { /* ignore */ }
-						            const flag = new THREE.Mesh(flagGeo, flagMat);
-						            flag.position.set(0.31 * flipX, 1.36, 0.10 * flipZ);
-						            flag.rotation.y = flipX < 0 ? Math.PI : 0;
-						            flag.userData = { kind: 'pitch_3d_corner_flag_cloth' };
-						            group.add(flag);
-						            const base = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.18, 0.05, 18), darkMat);
-						            base.position.set(0, 0.025, 0);
-						            base.userData = { kind: 'pitch_3d_corner_flag_base' };
-						            group.add(base);
-						            root.add(group);
-						          };
-						          addCornerFlag(-(metersW / 2), -(metersH / 2), 1, 1);
-						          addCornerFlag((metersW / 2), -(metersH / 2), -1, 1);
-						          addCornerFlag(-(metersW / 2), (metersH / 2), 1, -1);
-						          addCornerFlag((metersW / 2), (metersH / 2), -1, -1);
-						          addPitchSideDetails3d();
-						        }
+						              stadium.add(badge);
+						              root.add(stadium);
+						              addFinishedStadiumClosure();
+						            };
+						            addFromScratchReferenceStadium();
+						            const addCornerFlag = (x, z, flipX, flipZ) => {
+						              const group = new THREE.Group();
+						              group.position.set(x, 0, z);
+						              group.userData = { kind: 'pitch_3d_corner_flag' };
+						              const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.62, 14), flagPoleMat);
+						              pole.position.set(0, 0.81, 0);
+						              pole.userData = { kind: 'pitch_3d_corner_flag_pole' };
+						              group.add(pole);
+						              const flagGeo = new THREE.PlaneGeometry(0.58, 0.38, 4, 1);
+						              try {
+						                const pos = flagGeo.attributes.position;
+						                for (let i = 0; i < pos.count; i += 1) {
+						                  const px = pos.getX(i);
+						                  const py = pos.getY(i);
+						                  pos.setZ(i, Math.sin((px + py) * 8.0) * 0.025);
+						                }
+						                pos.needsUpdate = true;
+						                flagGeo.computeVertexNormals();
+						              } catch (e) { /* ignore */ }
+						              const flag = new THREE.Mesh(flagGeo, flagMat);
+						              flag.position.set(0.31 * flipX, 1.36, 0.10 * flipZ);
+						              flag.rotation.y = flipX < 0 ? Math.PI : 0;
+						              flag.userData = { kind: 'pitch_3d_corner_flag_cloth' };
+						              group.add(flag);
+						              const base = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.18, 0.05, 18), darkMat);
+						              base.position.set(0, 0.025, 0);
+						              base.userData = { kind: 'pitch_3d_corner_flag_base' };
+						              group.add(base);
+						              root.add(group);
+						            };
+						            addCornerFlag(-(metersW / 2), -(metersH / 2), 1, 1);
+						            addCornerFlag((metersW / 2), -(metersH / 2), -1, 1);
+						            addCornerFlag(-(metersW / 2), (metersH / 2), 1, -1);
+						            addCornerFlag((metersW / 2), (metersH / 2), -1, -1);
+						            addPitchSideDetails3d();
+						          }
 						        } catch (e) { /* ignore */ }
 						      };
 						      try {
