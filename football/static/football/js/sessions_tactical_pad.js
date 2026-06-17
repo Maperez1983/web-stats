@@ -11135,6 +11135,27 @@
 						              dugout.add(sideBrand);
 						              root.add(dugout);
 						            };
+						            const addTouchlineStand = (x, zBase, rotY = 0) => {
+						              const stand = new THREE.Group();
+						              stand.position.set(x, 0, zBase);
+						              stand.rotation.y = rotY;
+						              stand.userData = { kind: 'pitch_3d_visible_touchline_stand' };
+						              addBox(stand, new THREE.BoxGeometry(16.8, 0.18, 2.46), concreteMat, 0, 0.12, 0, 0, 0, 0, 'pitch_3d_visible_touchline_stand_base');
+						              addBox(stand, new THREE.BoxGeometry(16.0, 0.22, 0.56), visibleFasciaMat, 0, 0.64, -1.02, 0, 0, 0, 'pitch_3d_visible_touchline_stand_pitch_fascia');
+						              for (let row = 0; row < 5; row += 1) {
+						                const y = 0.40 + (row * 0.30);
+						                const z = 0.22 + (row * 0.34);
+						                addBox(stand, new THREE.BoxGeometry(15.6 - row * 0.45, 0.14, 0.42), concreteMat, 0, y, z, -0.10, 0, 0, 'pitch_3d_visible_touchline_stand_riser');
+						                for (let i = 0; i < 10; i += 1) {
+						                  const sx = -6.1 + (i * 1.36);
+						                  if (Math.abs(sx) < 0.86) continue;
+						                  addBox(stand, new THREE.BoxGeometry(0.86, 0.16, 0.44), benchSeatMat, sx, y + 0.12, z - 0.02, -0.10, 0, 0, 'pitch_3d_visible_touchline_stand_seat');
+						                  addBox(stand, new THREE.BoxGeometry(0.88, 0.44, 0.12), benchPadMat, sx, y + 0.34, z + 0.20, -0.18, 0, 0, 'pitch_3d_visible_touchline_stand_backrest');
+						                }
+						              }
+						              addBox(stand, new THREE.BoxGeometry(15.2, 0.10, 0.14), glassMat, 0, 1.92, 1.72, 0, 0, 0, 'pitch_3d_visible_touchline_stand_guardrail');
+						              root.add(stand);
+						            };
 						            const addTunnel = (portalZ, rotY = 0) => {
 						              const tunnelGroup = new THREE.Group();
 						              tunnelGroup.position.set(0, 0, portalZ);
@@ -11155,11 +11176,10 @@
 						              root.add(tunnelGroup);
 						            };
 						            addDugout(-18.0, -(metersH / 2 + 2.05), 0, 0);
-						            addDugout(18.0, -(metersH / 2 + 2.05), 1, 0);
+						            addTouchlineStand(18.0, -(metersH / 2 + 2.05), 0);
 						            addTunnel(-(metersH / 2 + 4.20), 0);
-						            addDugout(-18.0, metersH / 2 + 2.05, 2, Math.PI);
-						            addDugout(18.0, metersH / 2 + 2.05, 0, Math.PI);
-						            addTunnel(metersH / 2 + 4.20, Math.PI);
+						            addTouchlineStand(-18.0, metersH / 2 + 2.05, Math.PI);
+						            addTouchlineStand(18.0, metersH / 2 + 2.05, Math.PI);
 						          };
 						          addVisibleTechnicalArea();
 						          const addFinishedStadiumClosure = () => {
@@ -16129,6 +16149,8 @@
 						              || nodeName.includes('DUGOUT')
 						              || nodeName.includes('BENCH')
 						              || nodeName.includes('TUNNEL')
+						              || nodeName.includes('OPENING')
+						              || nodeName.includes('PORTAL')
 						              || skipCornerMass
 						            ) return;
 						            const mesh = new THREE.Mesh();
