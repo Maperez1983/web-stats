@@ -10305,9 +10305,10 @@
 						            ctx.strokeRect(12, 12, c.width - 24, c.height - 24);
 						          }, 2048, 384)?.tex || null;
 						          const adMats = [
-						            new THREE.MeshBasicMaterial({ map: makeAdTexture('SEGUNDA JUGADA', stadiumPalette3d.primary), side: THREE.FrontSide, toneMapped: false, transparent: true, opacity: 0.96 }),
-						            new THREE.MeshBasicMaterial({ map: makeAdTexture('TACTICA 3D', stadiumPalette3d.accent), side: THREE.FrontSide, toneMapped: false, transparent: true, opacity: 0.96 }),
-						            new THREE.MeshBasicMaterial({ map: makeAdTexture('ANALISIS PRO', stadiumPalette3d.secondary), side: THREE.FrontSide, toneMapped: false, transparent: true, opacity: 0.96 }),
+						            new THREE.MeshBasicMaterial({ map: makeAdTexture('2J FOOTBALL INTELLIGENCE', stadiumPalette3d.primary), side: THREE.FrontSide, toneMapped: false, transparent: true, opacity: 0.96 }),
+						            new THREE.MeshBasicMaterial({ map: makeAdTexture('PARTNER', stadiumPalette3d.accent), side: THREE.FrontSide, toneMapped: false, transparent: true, opacity: 0.96 }),
+						            new THREE.MeshBasicMaterial({ map: makeAdTexture('SPONSOR', stadiumPalette3d.secondary), side: THREE.FrontSide, toneMapped: false, transparent: true, opacity: 0.96 }),
+						            new THREE.MeshBasicMaterial({ map: makeAdTexture('LA ROSALEDA', '#1d4ed8'), side: THREE.FrontSide, toneMapped: false, transparent: true, opacity: 0.96 }),
 						          ];
 						          const addAdPanel = (x, z, w, rotY, matIndex = 0) => {
 						            const g = new THREE.Group();
@@ -11075,6 +11076,7 @@
 						            addDugout(18.0, metersH / 2 + 2.05, 0, Math.PI);
 						            addTunnel(metersH / 2 + 4.20, Math.PI);
 						          };
+						          addVisibleTechnicalArea();
 						          const addFinishedStadiumClosure = () => {
 						            try {
 						              const finish = new THREE.Group();
@@ -16010,6 +16012,15 @@
 						          try { sceneAsset.updateMatrixWorld(true); } catch (e) { /* ignore */ }
 						          sceneAsset.traverse((node) => {
 						            if (!node || !node.isMesh || !node.geometry) return;
+						            const nodeName = safeText(node.name || node.material?.name || '').toUpperCase();
+						            if (
+						              nodeName.includes('BOARD')
+						              || nodeName.includes('SPONSOR')
+						              || nodeName.includes('PARTNER')
+						              || nodeName.includes('DUGOUT')
+						              || nodeName.includes('BENCH')
+						              || nodeName.includes('TUNNEL')
+						            ) return;
 						            const mesh = new THREE.Mesh();
 						            try { mesh.geometry = node.geometry.clone ? node.geometry.clone() : node.geometry; } catch (e) { mesh.geometry = node.geometry; }
 						            mesh.material = runtimeMaterialForName(node.name || node.material?.name || '');
@@ -16019,7 +16030,51 @@
 						            try { mesh.castShadow = true; mesh.receiveShadow = true; mesh.frustumCulled = false; } catch (e) { /* ignore */ }
 						            stadiumAsset.add(mesh);
 						          });
+						          const runtimeConcrete = new THREE.MeshStandardMaterial({ color: 0xd9ddd7, roughness: 0.72, metalness: 0.04, side: THREE.DoubleSide });
+						          const runtimeGlass = new THREE.MeshPhysicalMaterial({ color: 0xbfe8ff, roughness: 0.14, metalness: 0.02, transparent: true, opacity: 0.40, transmission: 0.16, side: THREE.DoubleSide });
+						          const runtimeFrame = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.42, metalness: 0.28, side: THREE.DoubleSide });
+						          const runtimeLightBar = new THREE.MeshStandardMaterial({ color: 0xe0f2fe, roughness: 0.16, metalness: 0.02, emissive: 0xe0f2fe, emissiveIntensity: 0.44, side: THREE.DoubleSide });
+						          const addRuntimeBox = (x, y, z, sx, sy, sz, mat, kind, ry = 0) => {
+						            const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), mat);
+						            mesh.position.set(x, y, z);
+						            mesh.rotation.y = ry;
+						            mesh.userData = { kind };
+						            try { mesh.castShadow = true; mesh.receiveShadow = true; mesh.frustumCulled = false; } catch (e) { /* ignore */ }
+						            stadiumAsset.add(mesh);
+						            return mesh;
+						          };
+						          try {
+						            const halfW = 126;
+						            const halfD = 108;
+						            [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
+						              const cx = sx * 102;
+						              const cz = sz * 84;
+						              addRuntimeBox(cx, 7.6, cz, 12.0, 6.4, 0.28, runtimeGlass, 'pitch_3d_runtime_corner_glass_front', sx < 0 ? Math.PI : 0);
+						              addRuntimeBox(cx + sx * 4.1, 7.6, cz + sz * 4.6, 0.28, 6.4, 9.6, runtimeGlass, 'pitch_3d_runtime_corner_glass_side');
+						              [-3.8, 0, 3.8].forEach((ox) => addRuntimeBox(cx + ox, 7.6, cz - sz * 0.28, 0.14, 6.5, 0.34, runtimeFrame, 'pitch_3d_runtime_corner_mullion'));
+						              [-3.0, 3.0].forEach((oz) => addRuntimeBox(cx + sx * 4.25, 7.6, cz + oz, 0.34, 6.5, 0.14, runtimeFrame, 'pitch_3d_runtime_corner_side_mullion'));
+						            });
+						            [-1, 1].forEach((sign) => {
+						              addRuntimeBox(0, 13.2, sign * 82.8, 164, 0.12, 0.18, runtimeLightBar, 'pitch_3d_runtime_under_roof_light_long');
+						              addRuntimeBox(sign * 118.0, 13.2, 0, 0.18, 0.12, 110, runtimeLightBar, 'pitch_3d_runtime_under_roof_light_end');
+						            });
+						            [
+						              [-96, 24, -74], [96, 24, -74], [-96, 24, 74], [96, 24, 74],
+						              [0, 22, -84], [0, 22, 84]
+						            ].forEach(([x, y, z]) => {
+						              const flood = new THREE.PointLight(0xf8fbff, 0.58, 230, 1.4);
+						              flood.position.set(x, y, z);
+						              flood.userData = { kind: 'pitch_3d_runtime_floodlight' };
+						              stadiumAsset.add(flood);
+						            });
+						          } catch (e) { /* ignore */ }
 						          root.add(stadiumAsset);
+						          try {
+						            if (!root.userData.pitch3dRuntimePitchsideDetailsMounted) {
+						              root.userData.pitch3dRuntimePitchsideDetailsMounted = true;
+						              addPitchSideDetails3d();
+						            }
+						          } catch (e) { /* ignore */ }
 						          updatePitch3dStadiumDebug({
 						            event: 'late-stadium-mount:root-add',
 						            childCount: root.children?.length || 0,
