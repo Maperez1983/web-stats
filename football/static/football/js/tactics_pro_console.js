@@ -7,6 +7,7 @@
 
   const STORAGE_KEY = 'webstats:tactics:pro-console:v1';
   const AI_KEY = 'webstats:tactics:ai-context:v1';
+  const PLUS_KEY = 'webstats:tactics:plus-workflow:v1';
 
   const $ = (selector, root) => (root || document).querySelector(selector);
   const $$ = (selector, root) => Array.from((root || document).querySelectorAll(selector));
@@ -90,7 +91,7 @@
   const bringLayersBehindPlayers = (canvas) => {
     try {
       canvas.getObjects().forEach((obj) => {
-        if (obj && obj.data && ['channels', 'block', 'compare'].includes(obj.data.ws_tactics_layer)) {
+        if (obj && obj.data && ['channels', 'block', 'compare', 'sync', 'timeline', 'talk', 'rival', 'match_compare', 'checklist', 'training', 'player_view'].includes(obj.data.ws_tactics_layer)) {
           canvas.sendToBack(obj);
         }
       });
@@ -233,6 +234,43 @@
       evented: true,
       objectCaching: false,
     }), layer || 'zones');
+  };
+
+  const savePlusPayload = (patch) => {
+    try {
+      const prev = JSON.parse(window.localStorage.getItem(PLUS_KEY) || '{}') || {};
+      window.localStorage.setItem(PLUS_KEY, JSON.stringify(Object.assign(prev, patch || {}, { updated_at: new Date().toISOString() })));
+    } catch (e) {
+      /* ignore */
+    }
+  };
+
+  const addBoardCard = (canvas, title, lines, x, y, w, h, layer, color) => {
+    const size = canvasSize(canvas);
+    const rect = makeZone(canvas, x, y, w, h, color || 'rgba(15, 23, 42, 0.68)', '', layer);
+    rect.set({
+      stroke: 'rgba(226, 232, 240, 0.38)',
+      strokeDashArray: null,
+      rx: 14,
+      ry: 14,
+    });
+    const text = makeText(canvas, `${title}\n${(lines || []).join('\n')}`, x + 0.018, y + 0.026, {
+      width: size.w * Math.max(0.1, w - 0.04),
+      fontSize: Math.max(12, Math.round(size.w * 0.012)),
+      lineHeight: 1.22,
+      fill: '#f8fafc',
+      backgroundColor: 'rgba(0, 0, 0, 0)',
+      layer,
+    });
+    text.set({ fontWeight: 800 });
+    const group = new window.fabric.Group([rect, text], {
+      left: 0,
+      top: 0,
+      selectable: true,
+      evented: true,
+      objectCaching: false,
+    });
+    return tagObject(group, layer);
   };
 
   const clearProLayer = async (layer) => {
@@ -466,6 +504,155 @@
     setStatus('Vista 3D solicitada.');
   };
 
+  const addVideoBoardSync = async () => {
+    const canvas = await waitForCanvas();
+    add(canvas, addBoardCard(canvas, 'Vídeo + pizarra sincronizada', [
+      'Clip: selecciona desde Biblioteca',
+      '00:00 Fase 1 · inicio',
+      '00:04 Fase 2 · ventaja',
+      '00:08 Fase 3 · corrección',
+    ], 0.05, 0.08, 0.36, 0.22, 'sync', 'rgba(14, 165, 233, 0.16)'));
+    add(canvas, makeArrow(canvas, 0.44, 0.19, 0.58, 0.19, '#38bdf8', true, 'sync'));
+    savePlusPayload({ video_board_sync: true });
+    requestRender(canvas);
+    setStatus('Plantilla de sincronización vídeo-pizarra añadida.');
+  };
+
+  const addClubPrinciples = async () => {
+    const canvas = await waitForCanvas();
+    const principles = [
+      'Presionar fuera',
+      'Lateral salta con cobertura',
+      'Pivote protege intervalo',
+      'Cerrar pase interior',
+      'Atacar lado débil',
+      'Primer pase tras robo',
+    ];
+    add(canvas, addBoardCard(canvas, 'Principios del club', principles.map((p) => `· ${p}`), 0.62, 0.07, 0.32, 0.30, 'labels', 'rgba(34, 197, 94, 0.13)'));
+    savePlusPayload({ club_principles: principles });
+    requestRender(canvas);
+    setStatus('Banco de principios del club añadido.');
+  };
+
+  const addPlayerCorrections = async () => {
+    const canvas = await waitForCanvas();
+    add(canvas, addBoardCard(canvas, 'Correcciones por jugador', [
+      '#2 temporiza antes de saltar',
+      '#6 perfilado para ver espalda',
+      '#8 cerrar línea de pase',
+      '#9 orientar presión',
+    ], 0.05, 0.67, 0.40, 0.24, 'player_view', 'rgba(168, 85, 247, 0.13)'));
+    add(canvas, makeText(canvas, 'Vista individual: compartir solo consignas del jugador seleccionado', 0.50, 0.88, {
+      width: canvasSize(canvas).w * 0.42,
+      layer: 'player_view',
+      fill: '#f5d0fe',
+    }));
+    savePlusPayload({ player_corrections: true });
+    requestRender(canvas);
+    setStatus('Correcciones por jugador añadidas.');
+  };
+
+  const addTacticalTimeline = async () => {
+    const canvas = await waitForCanvas();
+    add(canvas, addBoardCard(canvas, 'Timeline táctico', [
+      '1 · Preparar: atraer presión',
+      '2 · Progresar: tercer hombre',
+      '3 · Acelerar: atacar espalda',
+      '4 · Finalizar: ocupar área',
+    ], 0.05, 0.39, 0.43, 0.23, 'timeline', 'rgba(250, 204, 21, 0.13)'));
+    add(canvas, makeArrow(canvas, 0.10, 0.57, 0.42, 0.57, '#facc15', false, 'timeline'));
+    savePlusPayload({ tactical_timeline: true });
+    requestRender(canvas);
+    setStatus('Timeline táctico añadido.');
+  };
+
+  const addTalkPack = async () => {
+    const canvas = await waitForCanvas();
+    add(canvas, addBoardCard(canvas, 'Pack charla vestuario', [
+      '1. Problema detectado',
+      '2. Principio del club',
+      '3. Clip real',
+      '4. Pizarra corregida',
+      '5. Tarea de entrenamiento',
+    ], 0.54, 0.39, 0.40, 0.26, 'talk', 'rgba(20, 184, 166, 0.13)'));
+    savePlusPayload({ talk_pack: true });
+    requestRender(canvas);
+    setStatus('Pack para charla creado.');
+  };
+
+  const addRivalLibraryCard = async () => {
+    const canvas = await waitForCanvas();
+    add(canvas, addBoardCard(canvas, 'Biblioteca por rival', [
+      'Salida: patrón principal',
+      'Presión: trigger de salto',
+      'ABP: zona fuerte',
+      'Debilidad: lado débil',
+      'Jugador clave: perfil y pie dominante',
+    ], 0.55, 0.67, 0.39, 0.24, 'rival', 'rgba(239, 68, 68, 0.13)'));
+    savePlusPayload({ rival_library: true });
+    requestRender(canvas);
+    setStatus('Ficha de biblioteca por rival añadida.');
+  };
+
+  const addMatchComparator = async () => {
+    const canvas = await waitForCanvas();
+    add(canvas, makeZone(canvas, 0.05, 0.08, 0.26, 0.26, 'rgba(14, 165, 233, 0.10)', 'Partido A', 'match_compare'));
+    add(canvas, makeZone(canvas, 0.37, 0.08, 0.26, 0.26, 'rgba(34, 197, 94, 0.10)', 'Partido B', 'match_compare'));
+    add(canvas, makeZone(canvas, 0.69, 0.08, 0.26, 0.26, 'rgba(250, 204, 21, 0.10)', 'Patrón repetido', 'match_compare'));
+    add(canvas, makeText(canvas, 'Comparador: mismo concepto en varios partidos · frecuencia · corrección', 0.08, 0.31, {
+      width: canvasSize(canvas).w * 0.84,
+      layer: 'match_compare',
+      fill: '#fef9c3',
+    }));
+    savePlusPayload({ match_comparator: true });
+    requestRender(canvas);
+    setStatus('Comparador entre partidos añadido.');
+  };
+
+  const addAnalysisChecklist = async () => {
+    const canvas = await waitForCanvas();
+    const lastTags = readState().last_tags || [];
+    add(canvas, addBoardCard(canvas, 'Checklist análisis', [
+      `Fase: ${lastTags[0] || 'definir'}`,
+      'Bloque: bajo / medio / alto',
+      'Carril: exterior / half-space / central',
+      'Superioridad: 2v1 / 3v2 / libre',
+      'Riesgo: espalda / intervalo / rechace',
+      'Solución: pase / conducción / pausa',
+    ], 0.08, 0.10, 0.42, 0.35, 'checklist', 'rgba(59, 130, 246, 0.13)'));
+    savePlusPayload({ analysis_checklist: true });
+    requestRender(canvas);
+    setStatus('Checklist de análisis añadido.');
+  };
+
+  const convertToTrainingTask = async () => {
+    const canvas = await waitForCanvas();
+    add(canvas, addBoardCard(canvas, 'Convertir en entrenamiento', [
+      'Objetivo: reproducir situación del partido',
+      'Espacio: carril + zona de finalización',
+      'Regla: punto extra si aparece tercer hombre',
+      'Corrección: perfil corporal y timing',
+    ], 0.08, 0.49, 0.42, 0.25, 'training', 'rgba(34, 197, 94, 0.14)'));
+    $('#tactics-save-task-top')?.click();
+    savePlusPayload({ training_task: true });
+    requestRender(canvas);
+    setStatus('Bloque de tarea de entrenamiento añadido; guardado como tarea solicitado.');
+  };
+
+  const addPlayerView = async () => {
+    const canvas = await waitForCanvas();
+    add(canvas, makeZone(canvas, 0.56, 0.47, 0.36, 0.38, 'rgba(168, 85, 247, 0.11)', 'Vista jugador', 'player_view'));
+    add(canvas, makeText(canvas, 'Jugador: clips asignados · corrección individual · consigna · fecha revisión', 0.59, 0.54, {
+      width: canvasSize(canvas).w * 0.30,
+      layer: 'player_view',
+      fill: '#f5d0fe',
+    }));
+    openVideoLibrary();
+    savePlusPayload({ player_view: true });
+    requestRender(canvas);
+    setStatus('Vista jugador preparada y biblioteca abierta.');
+  };
+
   const bindAction = (root) => {
     root.addEventListener('click', async (event) => {
       const btn = event.target.closest('[data-tactics-pro]');
@@ -485,6 +672,16 @@
         else if (action === 'export') openExportPack();
         else if (action === 'animation') openAnimation();
         else if (action === '3d') open3d();
+        else if (action === 'sync') await addVideoBoardSync();
+        else if (action === 'principles') await addClubPrinciples();
+        else if (action === 'corrections') await addPlayerCorrections();
+        else if (action === 'timeline') await addTacticalTimeline();
+        else if (action === 'talkpack') await addTalkPack();
+        else if (action === 'rival-library') await addRivalLibraryCard();
+        else if (action === 'match-compare') await addMatchComparator();
+        else if (action === 'checklist') await addAnalysisChecklist();
+        else if (action === 'training') await convertToTrainingTask();
+        else if (action === 'player-view') await addPlayerView();
         else if (action === 'clear') await clearProLayer('');
         else if (action === 'clear-channels') await clearProLayer('channels');
       } catch (err) {
@@ -545,6 +742,22 @@
           <button type="button" data-tactics-pro="tags">Etiquetas fútbol</button>
           <button type="button" data-tactics-pro="compare">Plan vs realidad</button>
           <button type="button" data-tactics-pro="ai">Guardar contexto IA</button>
+        </div>
+      </div>
+
+      <div class="tactics-pro-block">
+        <h4>Plus</h4>
+        <div class="tactics-pro-grid">
+          <button type="button" data-tactics-pro="sync">Vídeo + pizarra</button>
+          <button type="button" data-tactics-pro="principles">Principios club</button>
+          <button type="button" data-tactics-pro="corrections">Correcciones jugador</button>
+          <button type="button" data-tactics-pro="timeline">Timeline táctico</button>
+          <button type="button" data-tactics-pro="talkpack">Pack charla</button>
+          <button type="button" data-tactics-pro="rival-library">Biblioteca rival</button>
+          <button type="button" data-tactics-pro="match-compare">Comparar partidos</button>
+          <button type="button" data-tactics-pro="checklist">Checklist análisis</button>
+          <button type="button" data-tactics-pro="training">Pasar a entreno</button>
+          <button type="button" data-tactics-pro="player-view">Vista jugador</button>
         </div>
       </div>
     </div>
