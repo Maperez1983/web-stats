@@ -11290,6 +11290,8 @@
 						            const visibleFasciaMat = new THREE.MeshStandardMaterial({ color: toColorInt(stadiumPalette3d.accent, 0x073b32), roughness: 0.50, metalness: 0.06 });
 						            const serviceWalkMat = new THREE.MeshStandardMaterial({ color: 0x4b5563, roughness: 0.78, metalness: 0.04 });
 						            const serviceEdgeMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.62, metalness: 0.12 });
+						            const aisleStripeMat = new THREE.MeshStandardMaterial({ color: 0xf3f4f6, roughness: 0.66, metalness: 0.01 });
+						            const landingMat = new THREE.MeshStandardMaterial({ color: 0xb6c0c3, roughness: 0.72, metalness: 0.02 });
 						            const tunnelCoverMat = new THREE.MeshPhysicalMaterial({ color: 0xe4f6ff, roughness: 0.10, metalness: 0.02, transparent: true, opacity: 0.34, transmission: 0.24, side: THREE.DoubleSide });
 						            addBox(root, new THREE.BoxGeometry(33.2, 0.10, 1.18), serviceWalkMat, -18.0, 0.07, -(metersH / 2 + 3.36), 0, 0, 0, 'pitch_3d_visible_dugout_service_walk_left');
 						            addBox(root, new THREE.BoxGeometry(33.2, 0.10, 1.18), serviceWalkMat, 18.0, 0.07, -(metersH / 2 + 3.36), 0, 0, 0, 'pitch_3d_visible_dugout_service_walk_right');
@@ -11359,19 +11361,25 @@
 						              stand.userData = { kind: 'pitch_3d_visible_touchline_stand' };
 						              addBox(stand, new THREE.BoxGeometry(16.2, 0.12, 2.12), concreteMat, 0, 0.08, 0, 0, 0, 0, 'pitch_3d_visible_touchline_stand_base');
 						              addBox(stand, new THREE.BoxGeometry(16.0, 0.18, 0.38), visibleFasciaMat, 0, 0.50, -0.94, 0, 0, 0, 'pitch_3d_visible_touchline_stand_pitch_fascia');
+						              addBox(stand, new THREE.BoxGeometry(15.8, 0.22, 0.82), landingMat, 0, 0.18, 0.58, -0.08, 0, 0, 'pitch_3d_visible_touchline_stand_front_landing');
+						              addBox(stand, new THREE.BoxGeometry(15.8, 0.10, 0.14), metalMat, 0, 0.42, -0.96, 0, 0, 0, 'pitch_3d_visible_touchline_stand_front_trim');
 						              [-4.9, 0, 4.9].forEach((portalX, portalIdx) => {
 						                addBox(stand, new THREE.BoxGeometry(0.42, 1.08, 0.28), concreteMat, portalX - 0.78, 0.88, 0.22, 0, 0, 0, 'pitch_3d_visible_touchline_stand_vomitory_left_jamb');
 						                addBox(stand, new THREE.BoxGeometry(0.42, 1.08, 0.28), concreteMat, portalX + 0.78, 0.88, 0.22, 0, 0, 0, 'pitch_3d_visible_touchline_stand_vomitory_right_jamb');
 						                addBox(stand, new THREE.BoxGeometry(1.86, 0.22, 0.26), concreteMat, portalX, 1.42, 0.24, 0, 0, 0, 'pitch_3d_visible_touchline_stand_vomitory_header');
 						                addBox(stand, new THREE.BoxGeometry(1.18, 0.86, 0.10), tunnelWallMat, portalX, 0.82, 0.10, 0, 0, 0, 'pitch_3d_visible_touchline_stand_vomitory_shadow');
-						                if (portalIdx < 2) {
-						                  addBox(stand, new THREE.BoxGeometry(0.08, 0.84, 1.18), metalMat, portalX + 1.16, 0.92, 0.70, -0.06, 0, 0, 'pitch_3d_visible_touchline_stand_vomitory_handrail');
-						                }
+						                addBox(stand, new THREE.BoxGeometry(0.08, 0.84, 1.18), metalMat, portalX - 1.16, 0.92, 0.70, -0.06, 0, 0, 'pitch_3d_visible_touchline_stand_vomitory_handrail');
+						                addBox(stand, new THREE.BoxGeometry(0.08, 0.84, 1.18), metalMat, portalX + 1.16, 0.92, 0.70, -0.06, 0, 0, 'pitch_3d_visible_touchline_stand_vomitory_handrail');
+						                addBox(stand, new THREE.BoxGeometry(1.54, 0.06, 0.92), landingMat, portalX, 0.22, 0.48, -0.10, 0, 0, 'pitch_3d_visible_touchline_stand_vomitory_landing');
+						                addBox(stand, new THREE.BoxGeometry(1.54, 0.04, 0.16), aisleStripeMat, portalX, 0.28, -0.08, 0, 0, 0, 'pitch_3d_visible_touchline_stand_vomitory_threshold');
 						              });
-						              for (let row = 0; row < 5; row += 1) {
+						              for (let row = 0; row < 6; row += 1) {
 						                const y = 0.30 + (row * 0.28);
 						                const z = 0.14 + (row * 0.28);
 						                addBox(stand, new THREE.BoxGeometry(15.2 - row * 0.42, 0.12, 0.36), concreteMat, 0, y, z, -0.10, 0, 0, 'pitch_3d_visible_touchline_stand_riser');
+						                addBox(stand, new THREE.BoxGeometry(1.24, 0.04, 0.18), aisleStripeMat, -4.9, y + 0.18, z + 0.03, -0.10, 0, 0, 'pitch_3d_visible_touchline_stand_aisle_marker');
+						                addBox(stand, new THREE.BoxGeometry(1.24, 0.04, 0.18), aisleStripeMat, 0, y + 0.18, z + 0.03, -0.10, 0, 0, 'pitch_3d_visible_touchline_stand_aisle_marker');
+						                addBox(stand, new THREE.BoxGeometry(1.24, 0.04, 0.18), aisleStripeMat, 4.9, y + 0.18, z + 0.03, -0.10, 0, 0, 'pitch_3d_visible_touchline_stand_aisle_marker');
 						                for (let i = 0; i < 10; i += 1) {
 						                  const sx = -6.1 + (i * 1.36);
 						                  if (Math.abs(sx) < 0.86 || Math.abs(sx - 4.9) < 0.9 || Math.abs(sx + 4.9) < 0.9) continue;
@@ -11379,7 +11387,9 @@
 						                  addBox(stand, new THREE.BoxGeometry(0.88, 0.38, 0.10), benchPadMat, sx, y + 0.28, z + 0.16, -0.18, 0, 0, 'pitch_3d_visible_touchline_stand_backrest');
 						                }
 						              }
+						              addBox(stand, new THREE.BoxGeometry(15.4, 0.34, 0.72), concreteMat, 0, 2.12, 2.06, -0.10, 0, 0, 'pitch_3d_visible_touchline_stand_rear_concourse');
 						              addBox(stand, new THREE.BoxGeometry(15.2, 0.08, 0.12), glassMat, 0, 1.62, 1.36, 0, 0, 0, 'pitch_3d_visible_touchline_stand_guardrail');
+						              addBox(stand, new THREE.BoxGeometry(15.2, 0.06, 0.12), metalMat, 0, 2.38, 2.24, 0, 0, 0, 'pitch_3d_visible_touchline_stand_rear_guardrail');
 						              root.add(stand);
 						            };
 						            const addTunnel = (portalZ, rotY = 0) => {
@@ -16405,6 +16415,8 @@
 						          const runtimeFacadeDark = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.68, metalness: 0.08, side: THREE.DoubleSide });
 						          const runtimeFacadePanel = new THREE.MeshStandardMaterial({ color: 0xe5e7eb, roughness: 0.58, metalness: 0.06, side: THREE.DoubleSide });
 						          const runtimeFacadeLouver = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.48, metalness: 0.14, side: THREE.DoubleSide });
+						          const runtimeFacadeMid = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.56, metalness: 0.10, side: THREE.DoubleSide });
+						          const runtimeSeatDark = new THREE.MeshStandardMaterial({ color: 0x0f4c81, roughness: 0.56, metalness: 0.02, side: THREE.DoubleSide });
 						          const runtimeLightBar = new THREE.MeshStandardMaterial({ color: 0xe0f2fe, roughness: 0.16, metalness: 0.02, emissive: 0xe0f2fe, emissiveIntensity: 0.44, side: THREE.DoubleSide });
 						          const addRuntimeBox = (x, y, z, sx, sy, sz, mat, kind, ry = 0) => {
 						            const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), mat);
@@ -16418,21 +16430,38 @@
 						          try {
 						            const halfW = 126;
 						            const halfD = 108;
+						            [-1, 1].forEach((sign) => {
+						              addRuntimeBox(0, 5.65, sign * 92.5, 160, 1.35, 0.44, runtimeFacadeDark, 'pitch_3d_runtime_main_fascia_band');
+						              addRuntimeBox(0, 7.25, sign * 94.8, 144, 2.6, 0.24, runtimeGlass, 'pitch_3d_runtime_main_glazed_concourse');
+						              addRuntimeBox(0, 11.95, sign * 80.6, 168, 0.48, 0.62, runtimeFrame, 'pitch_3d_runtime_roof_edge_beam');
+						              [-54, -18, 18, 54].forEach((x) => addRuntimeBox(x, 7.24, sign * 94.6, 0.18, 2.55, 0.42, runtimeFrame, 'pitch_3d_runtime_main_glass_mullion'));
+						            });
+						            [-1, 1].forEach((sign) => {
+						              addRuntimeBox(sign * 104.5, 5.65, 0, 0.44, 1.35, 92, runtimeFacadeDark, 'pitch_3d_runtime_side_fascia_band');
+						              addRuntimeBox(sign * 106.8, 7.25, 0, 0.24, 2.6, 78, runtimeGlass, 'pitch_3d_runtime_side_glazed_concourse');
+						              addRuntimeBox(sign * 92.4, 11.95, 0, 0.62, 0.48, 108, runtimeFrame, 'pitch_3d_runtime_side_roof_edge_beam');
+						              [-28, 0, 28].forEach((z) => addRuntimeBox(sign * 106.6, 7.24, z, 0.42, 2.55, 0.18, runtimeFrame, 'pitch_3d_runtime_side_glass_mullion'));
+						            });
 						            [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
 						              const cx = sx * 102;
 						              const cz = sz * 84;
 						              addRuntimeBox(cx + sx * 1.8, 4.5, cz + sz * 1.8, 11.6, 7.2, 11.6, runtimeFacadePanel, 'pitch_3d_runtime_corner_facade_core', sx * sz * 0.12);
 						              addRuntimeBox(cx - sx * 1.2, 4.9, cz - sz * 5.6, 13.4, 1.3, 0.46, runtimeFacadeDark, 'pitch_3d_runtime_corner_facade_front_band');
 						              addRuntimeBox(cx + sx * 5.6, 4.9, cz - sz * 1.2, 0.46, 1.3, 13.4, runtimeFacadeDark, 'pitch_3d_runtime_corner_facade_side_band');
+						              addRuntimeBox(cx - sx * 0.2, 2.05, cz - sz * 4.8, 6.2, 3.0, 0.26, runtimeGlass, 'pitch_3d_runtime_corner_entry_glazing', sx * sz * 0.10);
+						              addRuntimeBox(cx + sx * 4.8, 2.05, cz + sz * 0.2, 0.26, 3.0, 6.2, runtimeGlass, 'pitch_3d_runtime_corner_side_entry_glazing');
 						              addRuntimeBox(cx - sx * 0.9, 8.95, cz - sz * 1.6, 12.6, 0.28, 8.8, runtimeConcrete, 'pitch_3d_runtime_corner_roof_slab', sx * sz * 0.10);
 						              addRuntimeBox(cx, 7.6, cz, 12.0, 6.4, 0.28, runtimeGlass, 'pitch_3d_runtime_corner_glass_front', sx < 0 ? Math.PI : 0);
 						              addRuntimeBox(cx + sx * 4.1, 7.6, cz + sz * 4.6, 0.28, 6.4, 9.6, runtimeGlass, 'pitch_3d_runtime_corner_glass_side');
 						              [-3.8, 0, 3.8].forEach((ox) => addRuntimeBox(cx + ox, 7.6, cz - sz * 0.28, 0.14, 6.5, 0.34, runtimeFrame, 'pitch_3d_runtime_corner_mullion'));
 						              [-3.0, 3.0].forEach((oz) => addRuntimeBox(cx + sx * 4.25, 7.6, cz + oz, 0.34, 6.5, 0.14, runtimeFrame, 'pitch_3d_runtime_corner_side_mullion'));
+						              [-2.8, 0, 2.8].forEach((ox) => addRuntimeBox(cx + ox, 3.2, cz - sz * 5.72, 0.16, 2.2, 0.14, runtimeFrame, 'pitch_3d_runtime_corner_entry_mullion'));
+						              [-2.8, 0, 2.8].forEach((oz) => addRuntimeBox(cx + sx * 5.72, 3.2, cz + oz, 0.14, 2.2, 0.16, runtimeFrame, 'pitch_3d_runtime_corner_side_entry_mullion'));
 						              [-4.2, -1.4, 1.4, 4.2].forEach((ox) => addRuntimeBox(cx + ox, 5.1, cz - sz * 5.75, 0.22, 5.0, 0.18, runtimeFacadeLouver, 'pitch_3d_runtime_corner_front_louver'));
 						              [-4.2, -1.4, 1.4, 4.2].forEach((oz) => addRuntimeBox(cx + sx * 5.75, 5.1, cz + oz, 0.18, 5.0, 0.22, runtimeFacadeLouver, 'pitch_3d_runtime_corner_side_louver'));
 						              addRuntimeBox(cx - sx * 5.1, 1.5, cz - sz * 5.2, 3.4, 2.4, 2.8, runtimeFacadeDark, 'pitch_3d_runtime_corner_entry_void', sx * sz * 0.10);
 						              addRuntimeBox(cx - sx * 4.9, 2.95, cz - sz * 5.1, 3.8, 0.22, 0.24, runtimeGlass, 'pitch_3d_runtime_corner_entry_canopy', sx * sz * 0.10);
+						              addRuntimeBox(cx + sx * 1.7, 1.05, cz + sz * 1.7, 9.6, 0.18, 9.6, runtimeFacadeMid, 'pitch_3d_runtime_corner_plaza');
 						            });
 						            [-1, 1].forEach((sign) => {
 						              addRuntimeBox(0, 13.2, sign * 82.8, 164, 0.12, 0.18, runtimeLightBar, 'pitch_3d_runtime_under_roof_light_long');
@@ -16467,6 +16496,11 @@
 						              fill.position.set(x, y, z);
 						              fill.userData = { kind: 'pitch_3d_runtime_stand_fill_light' };
 						              stadiumAsset.add(fill);
+						            });
+						            [-1, 1].forEach((sign) => {
+						              for (let i = -3; i <= 3; i += 1) {
+						                addRuntimeBox(i * 18.5, 3.34, sign * 93.6, 7.2, 0.12, 1.14, runtimeSeatDark, 'pitch_3d_runtime_lower_bowl_shadow_band');
+						              }
 						            });
 						          } catch (e) { /* ignore */ }
 						          root.add(stadiumAsset);
