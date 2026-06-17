@@ -11380,7 +11380,9 @@
 						              pod.position.set(x, 0, z);
 						              pod.userData = { kind: 'pitch_3d_visible_pitchside_mopup' };
 						              addBox(pod, new THREE.BoxGeometry(w, 0.42, 0.56), serviceEdgeMat, 0, 0.20, 0, 0, 0, 0, 'pitch_3d_visible_pitchside_mopup_base');
+						              addBox(pod, new THREE.BoxGeometry(w * 0.98, 0.14, 0.18), carbonMat, 0, 0.34, 0.10, 0, 0, 0, 'pitch_3d_visible_pitchside_mopup_shadow_apron');
 						              addBox(pod, new THREE.BoxGeometry(w * 0.96, 0.28, 0.08), metalMat, 0, 0.46, -0.22, 0, 0, 0, 'pitch_3d_visible_pitchside_mopup_cap');
+						              addBox(pod, new THREE.BoxGeometry(w * 0.86, 0.08, 0.04), glassMat, 0, 0.54, -0.24, 0, 0, 0, 'pitch_3d_visible_pitchside_mopup_led_gloss');
 						              const face = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.90, 0.26), adMatFor(labelIndex));
 						              face.position.set(0, 0.46, -0.285);
 						              face.userData = { kind: 'pitch_3d_visible_pitchside_mopup_face' };
@@ -11498,7 +11500,9 @@
 						              addBox(tunnelGroup, new THREE.BoxGeometry(0.10, 1.18, 4.35), metalMat, 4.58, 0.98, 1.88, -0.05, 0, 0, 'pitch_3d_visible_tunnel_side_rail_r');
 						              addBox(tunnelGroup, new THREE.BoxGeometry(11.4, 0.48, 0.28), visibleFasciaMat, 0, 3.10, -0.04, 0, 0, 0, 'pitch_3d_visible_tunnel_header_fascia');
 						              addBox(tunnelGroup, new THREE.BoxGeometry(10.2, 0.12, 0.22), tunnelTrimMat, 0, 2.36, -0.22, 0, 0, 0, 'pitch_3d_visible_tunnel_header_trim');
+						              addBox(tunnelGroup, new THREE.BoxGeometry(7.05, 0.06, 4.84), carbonMat, 0, 0.30, 1.98, -0.09, 0, 0, 'pitch_3d_visible_tunnel_rubber_walkway');
 						              [-2.45, 0, 2.45].forEach((x) => addBox(tunnelGroup, new THREE.BoxGeometry(0.14, 1.52, 0.08), tunnelLightMat, x, 1.34, 0.78, 0, 0, 0, 'pitch_3d_visible_tunnel_linear_light'));
+						              [-2.75, -0.92, 0.92, 2.75].forEach((x) => addBox(tunnelGroup, new THREE.BoxGeometry(0.08, 0.82, 0.08), metalMat, x, 0.64, 3.70, 0, 0, 0, 'pitch_3d_visible_tunnel_walkway_bollard'));
 						              addBox(tunnelGroup, new THREE.BoxGeometry(9.2, 0.08, 1.18), tunnelCoverMat, 0, 2.76, 0.36, -0.18, 0, 0, 'pitch_3d_visible_tunnel_glass_cap');
 						              addBox(tunnelGroup, new THREE.BoxGeometry(8.2, 0.06, 3.66), tunnelCoverMat, 0, 1.76, 1.74, -0.18, 0, 0, 'pitch_3d_visible_tunnel_glass_slide');
 						              root.add(tunnelGroup);
@@ -16509,6 +16513,7 @@
 						          const runtimeFacadeLouver = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.48, metalness: 0.14, side: THREE.DoubleSide });
 						          const runtimeFacadeMid = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.56, metalness: 0.10, side: THREE.DoubleSide });
 						          const runtimeSeatDark = new THREE.MeshStandardMaterial({ color: 0x0f4c81, roughness: 0.56, metalness: 0.02, side: THREE.DoubleSide });
+						          const runtimeSeatLight = new THREE.MeshStandardMaterial({ color: 0x4c9fe0, roughness: 0.54, metalness: 0.02, side: THREE.DoubleSide });
 						          const runtimeRoofSolid = new THREE.MeshStandardMaterial({ color: 0xdddccd, roughness: 0.42, metalness: 0.14, side: THREE.DoubleSide });
 						          const runtimeLightBar = new THREE.MeshStandardMaterial({ color: 0xe0f2fe, roughness: 0.16, metalness: 0.02, emissive: 0xe0f2fe, emissiveIntensity: 0.44, side: THREE.DoubleSide });
 						          const addRuntimeBox = (x, y, z, sx, sy, sz, mat, kind, ry = 0) => {
@@ -16560,6 +16565,8 @@
 						              addRuntimeBox(cx - sx * 0.9, 8.95, cz - sz * 1.6, 12.6, 0.28, 8.8, runtimeConcrete, 'pitch_3d_runtime_corner_roof_slab', sx * sz * 0.10);
 						              addRuntimeBox(cx, 7.6, cz, 12.0, 6.4, 0.28, runtimeGlass, 'pitch_3d_runtime_corner_glass_front', sx < 0 ? Math.PI : 0);
 						              addRuntimeBox(cx + sx * 4.1, 7.6, cz + sz * 4.6, 0.28, 6.4, 9.6, runtimeGlass, 'pitch_3d_runtime_corner_glass_side');
+						              addRuntimeBox(cx + sx * 2.1, 5.82, cz + sz * 2.1, 8.6, 0.16, 8.6, runtimeFacadeMid, 'pitch_3d_runtime_corner_mid_terrace', sx * sz * 0.10);
+						              addRuntimeBox(cx + sx * 2.1, 5.02, cz + sz * 2.1, 7.8, 1.28, 7.8, runtimeGlass, 'pitch_3d_runtime_corner_mid_glazing', sx * sz * 0.10);
 						              [-3.8, 0, 3.8].forEach((ox) => addRuntimeBox(cx + ox, 7.6, cz - sz * 0.28, 0.14, 6.5, 0.34, runtimeFrame, 'pitch_3d_runtime_corner_mullion'));
 						              [-3.0, 3.0].forEach((oz) => addRuntimeBox(cx + sx * 4.25, 7.6, cz + oz, 0.34, 6.5, 0.14, runtimeFrame, 'pitch_3d_runtime_corner_side_mullion'));
 						              [-2.8, 0, 2.8].forEach((ox) => addRuntimeBox(cx + ox, 3.2, cz - sz * 5.72, 0.16, 2.2, 0.14, runtimeFrame, 'pitch_3d_runtime_corner_entry_mullion'));
@@ -16570,6 +16577,7 @@
 						              addRuntimeBox(cx - sx * 4.9, 2.95, cz - sz * 5.1, 3.8, 0.22, 0.24, runtimeGlass, 'pitch_3d_runtime_corner_entry_canopy', sx * sz * 0.10);
 						              addRuntimeBox(cx + sx * 1.7, 1.05, cz + sz * 1.7, 9.6, 0.18, 9.6, runtimeFacadeMid, 'pitch_3d_runtime_corner_plaza');
 						              addRuntimeBox(cx + sx * 6.6, 5.8, cz + sz * 6.6, 0.32, 6.4, 0.32, runtimeFrame, 'pitch_3d_runtime_corner_roof_support');
+						              [-1.9, 1.9].forEach((n) => addRuntimeBox(cx + sx * (6.2 + n), 3.24, cz + sz * 6.2, 1.6, 0.10, 0.22, runtimeFacadeMid, 'pitch_3d_runtime_corner_stair_landing'));
 						            });
 						            [-1, 1].forEach((sign) => {
 						              addRuntimeBox(0, 13.2, sign * 82.8, 164, 0.12, 0.18, runtimeLightBar, 'pitch_3d_runtime_under_roof_light_long');
@@ -16608,6 +16616,22 @@
 						            [-1, 1].forEach((sign) => {
 						              for (let i = -3; i <= 3; i += 1) {
 						                addRuntimeBox(i * 18.5, 3.34, sign * 93.6, 7.2, 0.12, 1.14, runtimeSeatDark, 'pitch_3d_runtime_lower_bowl_shadow_band');
+						              }
+						            });
+						            [
+						              { axis: 'z', sign: -1, span: 112, baseZ: -88.8, startX: -48, count: 8 },
+						              { axis: 'z', sign: 1, span: 112, baseZ: 88.8, startX: -48, count: 8 },
+						              { axis: 'x', sign: -1, span: 76, baseX: -98.8, startZ: -33, count: 6 },
+						              { axis: 'x', sign: 1, span: 76, baseX: 98.8, startZ: -33, count: 6 },
+						            ].forEach((cfg) => {
+						              for (let i = 0; i < cfg.count; i += 1) {
+						                const offset = (cfg.axis === 'z') ? (cfg.startX + i * 13.6) : (cfg.startZ + i * 13.2);
+						                const mat = (i % 3 === 0) ? runtimeSeatLight : runtimeSeatDark;
+						                if (cfg.axis === 'z') {
+						                  addRuntimeBox(offset, 6.04, cfg.baseZ, 8.6, 0.08, 1.22, mat, 'pitch_3d_runtime_mid_bowl_seat_band');
+						                } else {
+						                  addRuntimeBox(cfg.baseX, 6.04, offset, 1.22, 0.08, 8.2, mat, 'pitch_3d_runtime_mid_bowl_seat_band');
+						                }
 						              }
 						            });
 						          } catch (e) { /* ignore */ }
