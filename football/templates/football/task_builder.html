@@ -448,6 +448,46 @@
         border-radius: 12px;
         line-height: 1.05;
       }
+      body.tactics-mode .tactics-flowbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.42rem;
+        margin-top: 0.62rem;
+      }
+      body.tactics-mode .tactics-flowbar button {
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.68);
+        color: rgba(226, 232, 240, 0.92);
+        cursor: pointer;
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        min-height: 34px;
+        padding: 0.42rem 0.74rem;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      body.tactics-mode .tactics-flowbar button.is-active {
+        border-color: rgba(250, 204, 21, 0.58);
+        background: rgba(250, 204, 21, 0.17);
+        color: rgba(255, 251, 235, 0.98);
+      }
+      body.tactics-mode .tactics-save-menu {
+        position: relative;
+      }
+      body.tactics-mode .tactics-save-menu > summary {
+        list-style: none;
+      }
+      body.tactics-mode .tactics-save-menu > summary::-webkit-details-marker {
+        display: none;
+      }
+      body.tactics-mode .tactics-save-menu .action-menu-body {
+        min-width: min(360px, calc(100vw - 2rem));
+      }
+      body.tactics-mode .tactics-hidden-action {
+        display: none !important;
+      }
       body.tactics-mode #tactics-save-task-top,
       body.tactics-mode #tactics-save-task-system-top,
       body.tactics-mode #tactics-save-clip-top,
@@ -783,6 +823,20 @@
         align-items: center;
         gap: 0.32rem;
       }
+      body.tactics-mode .tactics-active-mode {
+        border: 1px solid rgba(34, 211, 238, 0.26);
+        border-radius: 999px;
+        background: rgba(8, 47, 73, 0.22);
+        color: rgba(224, 242, 254, 0.96);
+        flex: 0 0 auto;
+        font-size: 0.68rem;
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        min-height: 34px;
+        padding: 0.48rem 0.72rem;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
       body.tactics-mode .tactics-toolbar-primary {
         justify-content: flex-start;
       }
@@ -954,6 +1008,10 @@
       }
       body.tactics-mode .tactics-quickbar #tactics-overlays-open,
       body.tactics-mode .tactics-quickbar #tactics-zones-open,
+      body.tactics-mode .tactics-quickbar #tactics-tool-local,
+      body.tactics-mode .tactics-quickbar #tactics-tool-rival,
+      body.tactics-mode .tactics-quickbar #tactics-tool-ball,
+      body.tactics-mode .tactics-quickbar #tactics-tool-arrow,
       body.tactics-mode .tactics-quickbar #tactics-tool-text,
       body.tactics-mode .tactics-quickbar #tactics-export-image-hq,
       body.tactics-mode .tactics-quickbar #task-tactics-layout-toggle {
@@ -5006,13 +5064,21 @@
 	              Crear tarea · Editor visual dedicado
 	            {% endif %}
 	          </h1>
-          <p class="meta">
+	          <p class="meta">
             {% if tactics_mode %}
-              Pizarra táctica + Playbook (clips), exportaciones y compartir. No crea tareas ni requiere sesión.
+              Elige un flujo, dibuja o anima la jugada y guarda como clip, tarea, captura o pack.
             {% else %}
               Superficie real de juego, recursos básicos y ficha corta para que la pizarra sea lo principal.
             {% endif %}
           </p>
+          {% if tactics_mode %}
+          <div class="tactics-flowbar" id="tactics-flowbar" aria-label="Flujos rápidos de táctica">
+            <button type="button" class="is-active" data-tactics-flow="draw">Dibujar jugada</button>
+            <button type="button" data-tactics-flow="animate">Animar jugada</button>
+            <button type="button" data-tactics-flow="task">Crear tarea</button>
+            <button type="button" data-tactics-flow="present">Preparar charla</button>
+          </div>
+          {% endif %}
         </div>
 				        <div class="actions">
 		              {% if analysis_item_mode %}
@@ -5024,29 +5090,47 @@
 	                onclick="try{var f=document.getElementById('task-builder-form');if(!f)return;var b=document.getElementById('task-submit-btn');if(f.requestSubmit){f.requestSubmit(b||undefined);}else if(b){b.click();}else{f.submit();}}catch(e){};return false;"
 	              >Guardar</button>
 			              {% elif tactics_mode %}
+                    <details class="action-menu tactics-save-menu" id="tactics-save-menu">
+                      <summary class="button primary action-summary" aria-label="Guardar táctica">Guardar como...</summary>
+                      <div class="action-menu-body" role="menu">
+                        <div class="action-menu-group">
+                          <div class="action-menu-title">Destino</div>
+                          <div class="action-menu-row">
+                            <button type="button" class="button" onclick="try{document.getElementById('tactics-save-top')?.click();document.getElementById('tactics-save-menu').open=false;}catch(e){};return false;">Clip fijo de Playbook</button>
+                            <button type="button" class="button" onclick="try{document.getElementById('tactics-save-clip-top')?.click();document.getElementById('tactics-save-menu').open=false;}catch(e){};return false;">Animación / clip</button>
+                            <button type="button" class="button" onclick="try{document.getElementById('tactics-save-task-top')?.click();document.getElementById('tactics-save-menu').open=false;}catch(e){};return false;">Tarea de entrenamiento</button>
+                            <button type="button" class="button" onclick="try{document.getElementById('tactics-export-image-hq')?.click();document.getElementById('tactics-save-menu').open=false;}catch(e){};return false;">Captura HQ</button>
+                            <button type="button" class="button" onclick="try{document.getElementById('task-playbook-export-pack')?.click();document.getElementById('tactics-save-menu').open=false;}catch(e){};return false;">Pack charla</button>
+                            {% if request.user.is_superuser %}
+                            <button type="button" class="button" onclick="try{document.getElementById('tactics-save-task-system-top')?.click();document.getElementById('tactics-save-menu').open=false;}catch(e){};return false;">Tarea sistema</button>
+                            {% endif %}
+                          </div>
+                        </div>
+                      </div>
+                    </details>
 			              <button
 			                type="button"
-			                class="button primary"
+			                class="button tactics-hidden-action"
 			                id="tactics-save-top"
 			                title="Guardar táctica (fija) en Playbook"
 			              >Guardar táctica</button>
 			              <button
 			                type="button"
-			                class="button"
+			                class="button tactics-hidden-action"
 			                id="tactics-save-task-top"
 			                title="Guardar la pizarra como tarea en Biblioteca (Interactivas)"
 			              >Guardar como tarea</button>
 			              {% if request.user.is_superuser %}
 			              <button
 			                type="button"
-			                class="button"
+			                class="button tactics-hidden-action"
 			                id="tactics-save-task-system-top"
 			                title="Guardar la pizarra como tarea global (solo sistema)"
 			              >Guardar tarea (sistema)</button>
 			              {% endif %}
 			              <button
 			                type="button"
-			                class="button"
+			                class="button tactics-hidden-action"
 			                id="tactics-save-clip-top"
 			                title="Guardar clip (simulación) en Playbook"
 			              >Guardar clip</button>
@@ -5378,6 +5462,7 @@
                   <button type="button" class="surface-trigger" id="task-tactics-panel-toggle" title="Abrir/cerrar Playbook" aria-label="Abrir/cerrar Playbook">Playbook</button>
                   <button type="button" class="surface-trigger" id="task-tactics-tools-toggle" title="Mostrar/ocultar herramientas" aria-label="Mostrar/ocultar herramientas">Herramientas</button>
                   <button type="button" class="surface-trigger" id="task-tactics-sim-open" title="Abrir simulador" aria-label="Abrir simulador">Simulador</button>
+                  <span class="tactics-active-mode" id="tactics-active-mode" aria-live="polite">Modo: Dibujar</span>
                   <div class="tactics-quickbar" id="tactics-quickbar" aria-label="Barra rápida de táctica">
                     <div class="tactics-mode-toggle" id="tactics-mode-toggle" role="tablist" aria-label="Modo de pizarra">
                       <button type="button" class="is-active" id="tactics-mode-static" data-tactics-board="static" role="tab" aria-selected="true">Estática</button>

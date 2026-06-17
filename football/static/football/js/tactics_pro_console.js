@@ -568,6 +568,85 @@
     setEasyAnimationMode(false);
   };
 
+  const setFlowActive = (flow) => {
+    const key = safe(flow || 'draw') || 'draw';
+    $$('#tactics-flowbar [data-tactics-flow]').forEach((btn) => {
+      const active = safe(btn.dataset.tacticsFlow) === key;
+      btn.classList.toggle('is-active', active);
+      try { btn.setAttribute('aria-pressed', active ? 'true' : 'false'); } catch (e) { /* ignore */ }
+    });
+  };
+
+  const updateModeBadge = (label) => {
+    const badge = $('#tactics-active-mode');
+    if (!badge) return;
+    badge.textContent = `Modo: ${safe(label || 'Dibujar') || 'Dibujar'}`;
+  };
+
+  const runTacticsFlow = (flow) => {
+    const key = safe(flow || 'draw') || 'draw';
+    setFlowActive(key);
+    if (key === 'animate') {
+      updateModeBadge('Animar');
+      setEasyAnimationMode(true);
+      return;
+    }
+    if (key === 'task') {
+      setEasyAnimationMode(false);
+      updateModeBadge('Crear tarea');
+      activatePane('tacticalpro');
+      setStatus('Crear tarea: dibuja la situación y usa Guardar como... > Tarea de entrenamiento.');
+      return;
+    }
+    if (key === 'present') {
+      setEasyAnimationMode(false);
+      updateModeBadge('Presentar');
+      openPresentation();
+      setStatus('Preparar charla: añade llamadas, guarda pack o exporta captura.');
+      return;
+    }
+    updateModeBadge('Dibujar');
+    setEasyAnimationMode(false);
+    clickFirst('#tactics-mode-static');
+    setStatus('Dibujar jugada: usa fichas, balón, flechas, carriles y zonas.');
+  };
+
+  const bindFlowbar = () => {
+    const flowbar = $('#tactics-flowbar');
+    if (!flowbar || flowbar.dataset.bound === '1') return;
+    flowbar.dataset.bound = '1';
+    flowbar.addEventListener('click', (event) => {
+      const btn = event.target.closest('[data-tactics-flow]');
+      if (!btn) return;
+      event.preventDefault();
+      runTacticsFlow(btn.dataset.tacticsFlow);
+    });
+  };
+
+  const bindModeBadge = () => {
+    if (document.body.dataset.tacticsModeBadgeBound === '1') return;
+    document.body.dataset.tacticsModeBadgeBound = '1';
+    document.addEventListener('click', (event) => {
+      const target = event.target.closest('[data-tactics-tool], [data-tactics-board], [data-tactics-generate], #tactics-overlays-open, #tactics-zones-open');
+      if (!target) return;
+      const board = safe(target.dataset.tacticsBoard);
+      const tool = safe(target.dataset.tacticsTool);
+      const gen = safe(target.dataset.tacticsGenerate);
+      if (board === 'interactive') updateModeBadge('Interactiva');
+      else if (board === 'static') updateModeBadge('Dibujar');
+      else if (tool === 'player_local') updateModeBadge('Jugador local');
+      else if (tool === 'player_rival') updateModeBadge('Jugador rival');
+      else if (tool === 'ball') updateModeBadge('Balón');
+      else if (tool === 'arrow_solid') updateModeBadge('Flecha');
+      else if (tool === 'text') updateModeBadge('Texto');
+      else if (tool === 'route_move') updateModeBadge('Ruta');
+      else if (tool === 'route_play') updateModeBadge('Reproducir');
+      else if (gen) updateModeBadge('Secuencia');
+      else if (target.id === 'tactics-overlays-open') updateModeBadge('Carriles');
+      else if (target.id === 'tactics-zones-open') updateModeBadge('Zonas');
+    }, true);
+  };
+
   const addVideoBoardSync = async () => {
     const canvas = await waitForCanvas();
     add(canvas, addBoardCard(canvas, 'Vídeo + pizarra sincronizada', [
@@ -899,6 +978,9 @@
     animChip.title = 'Activa rutas y controles mínimos para animar chapas';
     animChip.addEventListener('click', () => setEasyAnimationMode(true));
     if (quickbar) quickbar.appendChild(animChip);
+
+    bindFlowbar();
+    bindModeBadge();
 
     const params = new URL(window.location.href).searchParams;
     if (params.get('pane') === 'tacticalpro' || params.get('pro') === '1') {

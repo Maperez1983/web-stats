@@ -33673,6 +33673,7 @@
 	              let tacticsInteractiveEnabled = false;
 	              let interactiveRouteMode = false;
 	              let interactiveRouteFrom = null; // { obj, start:{x,y} }
+	              let interactiveDirectDrag = null; // { obj, start:{x,y}, moved:boolean }
 	              let interactiveRoutesPlaying = false;
 	              let interactiveRoutesAnimFrame = null;
 	              let interactiveRoutesStartAt = 0;
@@ -33684,6 +33685,9 @@
                 return kind === 'token' || kind === 'ball';
               };
               const getUidForObj = (obj) => safeText(obj?.data?.layer_uid) || safeText(obj?.data?.playerId) || '';
+              const isEasyAnimationActive = () => {
+                try { return !!document.body?.classList?.contains('tactics-easy-animation'); } catch (e) { return false; }
+              };
               const ensureInteractiveRoutes = (obj) => {
                 if (!obj) return [];
                 obj.data = obj.data || {};
@@ -33722,6 +33726,7 @@
 	                  stopInteractiveRoutesPlayback();
 	                  interactiveRouteMode = false;
 	                  interactiveRouteFrom = null;
+	                  interactiveDirectDrag = null;
 	                  highlightTacticsQuickTool(''); // limpia chip activo
 	                }
                 if (persist) {
@@ -33752,9 +33757,12 @@
 	              const setInteractiveRouteMode = (on) => {
 	                interactiveRouteMode = !!on;
 	                interactiveRouteFrom = null;
+	                interactiveDirectDrag = null;
 	                if (interactiveRouteMode) stopInteractiveRoutesPlayback();
 	                if (interactiveRouteMode) {
-	                  setStatus('Ruta (Interactiva): toca una ficha y arrastra hasta el destino. (Shift: mantener activo)', false);
+	                  setStatus(isEasyAnimationActive()
+	                    ? 'Animar fácil: arrastra una ficha hasta el destino; la ruta queda creada y la ficha vuelve al origen.'
+	                    : 'Ruta (Interactiva): toca una ficha y arrastra hasta el destino. (Shift: mantener activo)', false);
 	                  highlightTacticsQuickTool('route_move');
 	                } else {
                   setStatus('Modo selección activo.');
@@ -33797,6 +33805,7 @@
                 const next = {
                   v: 1,
                   t: Date.now(),
+                  from: { x: Number(fromPt.x) || 0, y: Number(fromPt.y) || 0 },
                   to: { x: Number(toPt.x) || 0, y: Number(toPt.y) || 0 },
                 };
                 routes.push(next);
@@ -34865,17 +34874,68 @@
               // Captura gesto de ruta (click/touch) en modo interactivo.
               // Lo hacemos sobre el canvas: down (elige ficha) + up (destino) => guarda ruta.
               try {
+                canvas.on('object:moving', (opt) => {
+                  if (!tacticsInteractiveEnabled || !isEasyAnimationActive()) return;
+                  if (pendingFactory || isSimulating) return;
+                  const target = opt?.target;
+                  if (!target || !isTokenLike(target)) return;
+                  if (!interactiveDirectDrag || interactiveDirectDrag.obj !== target) {
+                    const start = {
+                      x: Number(target.__tacticsRouteStartLeft ?? target.left) || 0,
+                      y: Number(target.__tacticsRouteStartTop ?? target.top) || 0,
+                    };
+                    interactiveDirectDrag = { obj: target, start, moved: false };
+                  }
+                  const current = { x: Number(target.left) || 0, y: Number(target.top) || 0 };
+                  if (distance(interactiveDirectDrag.start, current) >= 8) {
+                    interactiveDirectDrag.moved = true;
+                    interactiveRouteFrom = null;
+                  }
+                });
+                canvas.on('object:modified', (opt) => {
+                  if (!tacticsInteractiveEnabled || !isEasyAnimationActive()) return;
+                  if (!interactiveDirectDrag || !interactiveDirectDrag.obj) return;
+                  const target = opt?.target;
+                  if (target && target !== interactiveDirectDrag.obj) return;
+                  const obj = interactiveDirectDrag.obj;
+                  const from = interactiveDirectDrag.start || { x: Number(obj.left) || 0, y: Number(obj.top) || 0 };
+                  const to = { x: Number(obj.left) || 0, y: Number(obj.top) || 0 };
+                  const shouldCreate = interactiveDirectDrag.moved && distance(from, to) >= 8;
+                  interactiveDirectDrag = null;
+                  interactiveRouteFrom = null;
+                  if (!shouldCreate) return;
+                  try {
+                    obj.set({ left: from.x, top: from.y });
+                    obj.setCoords?.();
+                    canvas.setActiveObject(obj);
+                  } catch (e) { /* ignore */ }
+                  addInteractiveRoute(obj, from, to);
+                  try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+                  setStatus('Ruta creada: la ficha vuelve al origen para reproducir la animación con ▶.');
+                });
                 canvas.on('mouse:down', (opt) => {
                   if (!tacticsInteractiveEnabled || !interactiveRouteMode) return;
                   if (pendingFactory) return; // si está en modo insertar, no interferir
                   const target = opt?.target;
                   if (!target || !isTokenLike(target)) return;
                   const p = canvas.getPointer(opt.e);
-                  interactiveRouteFrom = { obj: target, start: { x: Number(target.left) || Number(p.x) || 0, y: Number(target.top) || Number(p.y) || 0 } };
+                  const start = { x: Number(target.left) || Number(p.x) || 0, y: Number(target.top) || Number(p.y) || 0 };
+                  interactiveRouteFrom = { obj: target, start };
+                  if (isEasyAnimationActive()) {
+                    interactiveDirectDrag = { obj: target, start, moved: false };
+                    try {
+                      target.__tacticsRouteStartLeft = start.x;
+                      target.__tacticsRouteStartTop = start.y;
+                    } catch (e) { /* ignore */ }
+                  }
                   try { opt.e?.preventDefault?.(); } catch (e) { /* ignore */ }
                 });
                 canvas.on('mouse:up', (opt) => {
                   if (!tacticsInteractiveEnabled || !interactiveRouteMode) return;
+                  if (interactiveDirectDrag && interactiveDirectDrag.moved) {
+                    interactiveRouteFrom = null;
+                    return;
+                  }
                   if (!interactiveRouteFrom || !interactiveRouteFrom.obj) return;
                   const p = canvas.getPointer(opt.e);
                   const from = interactiveRouteFrom.start || { x: Number(interactiveRouteFrom.obj.left) || 0, y: Number(interactiveRouteFrom.obj.top) || 0 };
