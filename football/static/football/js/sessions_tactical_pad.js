@@ -17338,7 +17338,7 @@
 						      stopPitch3dPlayback();
 						      updatePitch3dPlaybackButton();
 						      syncPitch3dNavUi(steps.length);
-						      const step = steps[idx];
+						      const step = resolvePitch3dRenderStep(steps[idx], idx);
 						      const meta = pitch3dStepMetaText(step, idx, steps.length);
 						      setPitch3dHud(step.title, meta);
 						      buildPitch3dRoot(step.state, {
@@ -17371,6 +17371,36 @@
 						        sourceH: parseIntSafe(s.canvas_height) || Number(worldHeight) || 720,
 						        routes: (s.routes && typeof s.routes === 'object') ? s.routes : {},
 						      }));
+						    };
+
+						    const resolvePitch3dRenderStep = (step, index) => {
+						      const fallback = step && typeof step === 'object' ? step : {
+						        title: `Paso ${Number(index) + 1}`,
+						        duration: 3,
+						        description: '',
+						        state: { version: '5.3.0', objects: [] },
+						        sourceW: Number(worldWidth) || 1280,
+						        sourceH: Number(worldHeight) || 720,
+						        routes: {},
+						      };
+						      const isEditingActiveStep = !!canvas
+						        && !isSimulating
+						        && (Number(index) === Number(activeStepIndex) || Number(activeStepIndex) < 0);
+						      if (!isEditingActiveStep) return fallback;
+						      try {
+						        const { w, h } = worldSize();
+						        return {
+						          ...fallback,
+						          state: serializeCanvasOnly(),
+						          sourceW: Math.round(Number(w) || Number(fallback.sourceW) || Number(worldWidth) || 1280),
+						          sourceH: Math.round(Number(h) || Number(fallback.sourceH) || Number(worldHeight) || 720),
+						          routes: (timeline[activeStepIndex]?.routes && typeof timeline[activeStepIndex].routes === 'object')
+						            ? timeline[activeStepIndex].routes
+						            : fallback.routes,
+						        };
+						      } catch (e) {
+						        return fallback;
+						      }
 						    };
 
 						    const interpolateAndRenderPitch3d = (fromStep, toStep, alpha, options = {}) => {
@@ -17835,6 +17865,7 @@
 							      try { applyPitch3dLightingTheme(); } catch (e) { /* ignore */ }
 							      stopPitch3dPlayback();
 							      updatePitch3dPlaybackButton();
+							      try { persistActiveStepSnapshot(); } catch (e) { /* ignore */ }
 							      try { showPitch3dStep(activeStepIndex >= 0 ? activeStepIndex : 0, { keepFollow: false }); } catch (e) { /* ignore */ }
 							      try { applyPitch3dLayerVisibility(); } catch (e) { /* ignore */ }
 							      try { applyPitch3dPerformanceBudget(); } catch (e) { /* ignore */ }
