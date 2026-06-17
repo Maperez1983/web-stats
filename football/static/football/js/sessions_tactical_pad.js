@@ -8419,17 +8419,51 @@
 						      return null;
 						    };
 						    const __pitch3dStadiumModelCache = { loading: false, scene: null, failed: false, callbacks: [] };
+						    const updatePitch3dStadiumDebug = (patch = {}) => {
+						      try {
+						        const prev = window.__WEBSTATS_PITCH3D_STADIUM_DEBUG || {};
+						        const events = Array.isArray(prev.events) ? prev.events.slice(-59) : [];
+						        const entry = Object.assign({ at: Date.now() }, patch || {});
+						        events.push(entry);
+						        window.__WEBSTATS_PITCH3D_STADIUM_DEBUG = Object.assign({}, prev, patch || {}, {
+						          events,
+						          at: entry.at,
+						        });
+						      } catch (e) { /* ignore */ }
+						    };
 						    const __pitch3dLoadStadiumModel = (onLoad) => {
 						      const src = __pitch3dAssetUrl('pitch3dStadiumModelSrc');
-						      if (!src || !window.THREE) return null;
+						      updatePitch3dStadiumDebug({
+						        event: 'loadStadiumModel:enter',
+						        src,
+						        hasThree: !!window.THREE,
+						        hasScene: !!__pitch3dStadiumModelCache.scene,
+						        loading: !!__pitch3dStadiumModelCache.loading,
+						        failed: !!__pitch3dStadiumModelCache.failed,
+						      });
+						      if (!src || !window.THREE) {
+						        updatePitch3dStadiumDebug({ event: 'loadStadiumModel:missing-src-or-three', src, hasThree: !!window.THREE });
+						        return null;
+						      }
 						      if (__pitch3dStadiumModelCache.scene) {
 						        try { if (typeof onLoad === 'function') onLoad(__pitch3dStadiumModelCache.scene); } catch (e) { /* ignore */ }
+						        updatePitch3dStadiumDebug({ event: 'loadStadiumModel:cache-hit', src });
 						        return __pitch3dStadiumModelCache.scene;
 						      }
 						      if (typeof onLoad === 'function') __pitch3dStadiumModelCache.callbacks.push(onLoad);
-						      if (__pitch3dStadiumModelCache.loading || __pitch3dStadiumModelCache.failed) return null;
+						      if (__pitch3dStadiumModelCache.loading || __pitch3dStadiumModelCache.failed) {
+						        updatePitch3dStadiumDebug({
+						          event: 'loadStadiumModel:short-circuit',
+						          src,
+						          loading: !!__pitch3dStadiumModelCache.loading,
+						          failed: !!__pitch3dStadiumModelCache.failed,
+						          callbacks: (__pitch3dStadiumModelCache.callbacks || []).length,
+						        });
+						        return null;
+						      }
 						      const LoaderClass = window.__WEBSTATS_GLTF_LOADER_CLASS;
 						      if (typeof LoaderClass !== 'function') {
+						        updatePitch3dStadiumDebug({ event: 'loadStadiumModel:no-loader-class', src });
 						        try {
 						          if (!__pitch3dStadiumModelCache.loaderRetryScheduled) {
 						            __pitch3dStadiumModelCache.loaderRetryScheduled = true;
@@ -8444,10 +8478,18 @@
 						      __pitch3dStadiumModelCache.loading = true;
 						      try {
 						        const loader = new LoaderClass();
+						        updatePitch3dStadiumDebug({ event: 'loadStadiumModel:request', src });
 						        loader.load(src, (gltf) => {
 						          const scene = gltf?.scene || null;
 						          __pitch3dStadiumModelCache.scene = scene;
 						          __pitch3dStadiumModelCache.loading = false;
+						          __pitch3dStadiumModelCache.failed = false;
+						          updatePitch3dStadiumDebug({
+						            event: 'loadStadiumModel:success',
+						            src,
+						            hasScene: !!scene,
+						            childCount: scene?.children?.length || 0,
+						          });
 						          const callbacks = __pitch3dStadiumModelCache.callbacks.splice(0);
 						          callbacks.forEach((cb) => {
 						            try { cb(scene); } catch (e) { /* ignore */ }
@@ -8455,10 +8497,12 @@
 						        }, undefined, () => {
 						          __pitch3dStadiumModelCache.loading = false;
 						          __pitch3dStadiumModelCache.failed = true;
+						          updatePitch3dStadiumDebug({ event: 'loadStadiumModel:error', src });
 						          __pitch3dStadiumModelCache.callbacks.splice(0);
 						        });
 						      } catch (e) {
 						        __pitch3dStadiumModelCache.loading = false;
+						        updatePitch3dStadiumDebug({ event: 'loadStadiumModel:throw', src, error: safeText(e?.message || e) });
 						      }
 						      return null;
 						    };
@@ -13264,11 +13308,23 @@
 						            };
 						            const addProfessionalStadiumAsset = () => {
 						              try {
+						                updatePitch3dStadiumDebug({ event: 'addProfessionalStadiumAsset:enter' });
 						                const asset = __pitch3dStadiumModelCache.scene || __pitch3dLoadStadiumModel();
-						                if (!asset) return false;
+						                if (!asset) {
+						                  updatePitch3dStadiumDebug({
+						                    event: 'addProfessionalStadiumAsset:no-asset',
+						                    hasCachedScene: !!__pitch3dStadiumModelCache.scene,
+						                    loading: !!__pitch3dStadiumModelCache.loading,
+						                    failed: !!__pitch3dStadiumModelCache.failed,
+						                  });
+						                  return false;
+						                }
 						                const stadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
 						                const isDedicatedReferenceStadium = isDedicatedPitch3dReferenceStadiumSrc(stadiumModelSrc);
-						                if (isDedicatedReferenceStadium) return false;
+						                if (isDedicatedReferenceStadium) {
+						                  updatePitch3dStadiumDebug({ event: 'addProfessionalStadiumAsset:dedicated-reference-skip', stadiumModelSrc });
+						                  return false;
+						                }
 						                removeProceduralStadiumParts();
 						                const stadiumAsset = asset.clone(true);
 						                stadiumAsset.name = 'stadium_bowl_premium_asset';
@@ -13376,9 +13432,15 @@
 						                });
 						                enhanceProfessionalStadiumAsset(stadiumAsset);
 						                root.add(stadiumAsset);
+						                updatePitch3dStadiumDebug({
+						                  event: 'addProfessionalStadiumAsset:root-add',
+						                  childCount: root.children?.length || 0,
+						                  stadiumChildren: stadiumAsset.children?.length || 0,
+						                });
 						                if (!isDedicatedReferenceStadium) addProfessionalStadiumAtmosphere(stadiumAsset, { dedicatedReference: false });
 						                return true;
 						              } catch (e) {
+						                updatePitch3dStadiumDebug({ event: 'addProfessionalStadiumAsset:throw', error: safeText(e?.message || e) });
 						                return false;
 						              }
 						            };
@@ -13423,6 +13485,11 @@
 						              }
 						            };
 						            const eagerStadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
+						            updatePitch3dStadiumDebug({
+						              event: 'stadium-builder:eager-check',
+						              eagerStadiumModelSrc,
+						              dedicated: isDedicatedPitch3dReferenceStadiumSrc(eagerStadiumModelSrc),
+						            });
 						            if (eagerStadiumModelSrc && !isDedicatedPitch3dReferenceStadiumSrc(eagerStadiumModelSrc)) {
 						              __pitch3dLoadStadiumModel(() => {
 						                try { addProfessionalStadiumAsset(); } catch (e) { /* ignore */ }
@@ -13432,9 +13499,19 @@
 						            }
 						            const activeStadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
 						            const activeDedicatedReferenceStadium = isDedicatedPitch3dReferenceStadiumSrc(activeStadiumModelSrc);
+						            updatePitch3dStadiumDebug({
+						              event: 'stadium-builder:active-check',
+						              activeStadiumModelSrc,
+						              activeDedicatedReferenceStadium,
+						            });
 						            if (!activeDedicatedReferenceStadium && addProfessionalStadiumAsset()) return;
 						            const pendingStadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
 						            const pendingDedicatedReferenceStadium = isDedicatedPitch3dReferenceStadiumSrc(pendingStadiumModelSrc);
+						            updatePitch3dStadiumDebug({
+						              event: 'stadium-builder:pending-check',
+						              pendingStadiumModelSrc,
+						              pendingDedicatedReferenceStadium,
+						            });
 						            if (!pendingDedicatedReferenceStadium) {
 						              __pitch3dLoadStadiumModel(() => {
 						                try { addProfessionalStadiumAsset(); } catch (e) { /* ignore */ }
@@ -13532,6 +13609,11 @@
 						      };
 						      try {
 						        const stadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
+						        updatePitch3dStadiumDebug({
+						          event: 'stadium-finish:enter',
+						          stadiumModelSrc,
+						          dedicatedFinish: isDedicatedPitch3dReferenceStadiumSrc(stadiumModelSrc),
+						        });
 						        const shouldUseRosaledaProceduralFinish = isDedicatedPitch3dReferenceStadiumSrc(stadiumModelSrc);
 							        if (shouldUseRosaledaProceduralFinish) {
 						          const dedicatedFinish = new THREE.Group();
@@ -15526,7 +15608,9 @@
 							          } catch (e) { /* ignore */ }
 							          root.add(dedicatedFinish);
 						        }
-						      } catch (e) { /* ignore */ }
+						      } catch (e) {
+						        updatePitch3dStadiumDebug({ event: 'stadium-finish:throw', error: safeText(e?.message || e) });
+						      }
 
 						      // El campo es una pieza 3D, no una lámina 2D: base con canto visible y borde interior.
 						      try {
