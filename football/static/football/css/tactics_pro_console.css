@@ -73,7 +73,7 @@ body.tactics-mode #tactics-pro-open {
 }
 
 body.tactics-mode .tactics-easy-anim-dock {
-  align-items: center;
+  align-items: stretch;
   background: rgba(2, 6, 23, 0.86);
   border: 1px solid rgba(34, 211, 238, 0.34);
   border-radius: 16px;
@@ -82,16 +82,28 @@ body.tactics-mode .tactics-easy-anim-dock {
   color: rgba(248, 250, 252, 0.96);
   display: none;
   gap: 0.45rem;
+  flex-direction: column;
   left: 50%;
-  max-width: min(680px, calc(100vw - 24px));
+  max-width: min(920px, calc(100vw - 24px));
   padding: 0.55rem;
   position: fixed;
   transform: translateX(-50%);
-  z-index: 2500;
+  z-index: 12000;
 }
 
 body.tactics-mode.tactics-easy-animation .tactics-easy-anim-dock {
   display: flex;
+}
+
+body.tactics-mode .tactics-easy-anim-dock .easy-main,
+body.tactics-mode .tactics-easy-anim-dock .easy-templates,
+body.tactics-mode .tactics-easy-anim-dock .easy-route-timeline {
+  align-items: center;
+  display: flex;
+  gap: 0.4rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 body.tactics-mode .tactics-easy-anim-dock strong {
@@ -115,6 +127,59 @@ body.tactics-mode .tactics-easy-anim-dock button {
   font-weight: 950;
   min-height: 34px;
   padding: 0.45rem 0.7rem;
+  white-space: nowrap;
+}
+
+body.tactics-mode .tactics-easy-anim-dock .easy-play-primary {
+  background: rgba(250, 204, 21, 0.22);
+  border-color: rgba(250, 204, 21, 0.60);
+  color: rgba(255, 251, 235, 0.98);
+  font-size: 0.92rem;
+  min-height: 42px;
+  padding: 0.55rem 1rem;
+}
+
+body.tactics-mode .tactics-easy-anim-dock .easy-templates button {
+  background: rgba(15, 23, 42, 0.72);
+  border-color: rgba(148, 163, 184, 0.24);
+  color: rgba(226, 232, 240, 0.94);
+  font-size: 0.68rem;
+  min-height: 30px;
+  padding: 0.34rem 0.56rem;
+}
+
+body.tactics-mode .tactics-easy-anim-dock .easy-route-timeline {
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+  padding-top: 0.42rem;
+}
+
+body.tactics-mode .tactics-easy-anim-dock .easy-route-timeline .empty {
+  color: rgba(203, 213, 225, 0.76);
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 0.25rem 0.35rem;
+  white-space: nowrap;
+}
+
+body.tactics-mode .tactics-easy-anim-dock .easy-route-timeline button {
+  align-items: center;
+  background: rgba(34, 211, 238, 0.10);
+  border-color: rgba(34, 211, 238, 0.24);
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.08rem;
+  min-height: 42px;
+  min-width: 74px;
+  padding: 0.34rem 0.55rem;
+}
+
+body.tactics-mode .tactics-easy-anim-dock .easy-route-timeline button small {
+  color: rgba(186, 230, 253, 0.84);
+  font-size: 0.58rem;
+  font-weight: 800;
+  max-width: 86px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 body.tactics-mode .tactics-easy-anim-dock button:hover,
@@ -130,7 +195,7 @@ body.tactics-mode #tactics-easy-animate-open {
 
 @media (max-width: 640px) {
   body.tactics-mode .tactics-easy-anim-dock {
-    justify-content: center;
-    overflow-x: auto;
+    max-height: 38vh;
+    overflow: auto;
   }
 }

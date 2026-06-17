@@ -950,12 +950,23 @@
     dock.className = 'tactics-easy-anim-dock';
     dock.setAttribute('aria-label', 'Animación fácil');
     dock.innerHTML = `
-      <strong>Animar fácil</strong>
-      <button type="button" data-tactics-pro="easy-route">Ruta</button>
-      <button type="button" data-tactics-pro="easy-play">▶</button>
-      <button type="button" data-tactics-pro="easy-seq">Secuencia</button>
-      <button type="button" data-tactics-pro="easy-save">Guardar</button>
-      <button type="button" data-tactics-pro="easy-off">Salir</button>
+      <div class="easy-main">
+        <strong>Animar fácil</strong>
+        <button type="button" data-tactics-pro="easy-route">Ruta</button>
+        <button type="button" class="easy-play-primary" data-tactics-pro="easy-play">▶ Probar</button>
+        <button type="button" data-tactics-undo-route="1">Deshacer ruta</button>
+        <button type="button" data-tactics-export-animation="1">Exportar</button>
+        <button type="button" data-tactics-pro="easy-save">Guardar</button>
+        <button type="button" data-tactics-pro="easy-off">Salir</button>
+      </div>
+      <div class="easy-templates" aria-label="Plantillas de animación">
+        <button type="button" data-tactics-template="run">Desmarque</button>
+        <button type="button" data-tactics-template="pass_support">Pase + apoyo</button>
+        <button type="button" data-tactics-template="third_man">Tercer hombre</button>
+        <button type="button" data-tactics-template="switch_play">Cambio orientación</button>
+        <button type="button" data-tactics-template="press_loss">Presión pérdida</button>
+      </div>
+      <div class="easy-route-timeline" id="tactics-easy-route-timeline" aria-label="Timeline de rutas"><span class="empty">Sin rutas</span></div>
     `;
     document.body.appendChild(dock);
     bindAction(dock);

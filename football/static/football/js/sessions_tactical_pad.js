@@ -33747,12 +33747,48 @@
                 });
                 return count;
               };
+              const collectInteractiveRouteRows = () => {
+                const rows = [];
+                (canvas.getObjects() || []).forEach((obj) => {
+                  if (!obj || !isTokenLike(obj)) return;
+                  const routes = Array.isArray(obj?.data?.interactive_routes) ? obj.data.interactive_routes : [];
+                  routes.forEach((route, index) => {
+                    rows.push({
+                      obj,
+                      uid: getUidForObj(obj),
+                      index,
+                      t: Number(route?.t) || 0,
+                      label: safeText(obj?.data?.number) || safeText(obj?.data?.playerName) || safeText(obj?.data?.token_label) || (safeText(obj?.data?.kind) === 'ball' ? 'Balón' : 'Ficha'),
+                    });
+                  });
+                });
+                return rows.sort((a, b) => (a.t || 0) - (b.t || 0));
+              };
+              const renderEasyRouteTimeline = () => {
+                const host = document.getElementById('tactics-easy-route-timeline');
+                if (!host) return;
+                const rows = collectInteractiveRouteRows();
+                if (!rows.length) {
+                  host.innerHTML = '<span class="empty">Sin rutas</span>';
+                  return;
+                }
+                const esc = (value) => safeText(value)
+                  .replace(/&/g, '&amp;')
+                  .replace(/</g, '&lt;')
+                  .replace(/>/g, '&gt;')
+                  .replace(/"/g, '&quot;')
+                  .replace(/'/g, '&#39;');
+                host.innerHTML = rows.slice(0, 12).map((row, idx) => (
+                  `<button type="button" data-tactics-route-focus="${esc(row.uid)}" data-tactics-route-index="${row.index}">Paso ${idx + 1}<small>${esc(row.label)}</small></button>`
+                )).join('');
+              };
               const syncRouteSummary = () => {
                 const n = countInteractiveRoutes();
                 if (tacticsRouteSummary) tacticsRouteSummary.textContent = `Rutas: ${n}`;
                 tacticsRouteCountEls.forEach((el) => {
                   try { el.textContent = `${n} ruta${n === 1 ? '' : 's'}`; } catch (e) { /* ignore */ }
                 });
+                renderEasyRouteTimeline();
               };
 
 	              const setTacticsInteractiveEnabled = (enabled, { persist = true } = {}) => {
@@ -33919,6 +33955,16 @@
 	                return true;
 	              };
 
+	              const removeLastInteractiveRouteAny = () => {
+	                const rows = collectInteractiveRouteRows();
+	                if (!rows.length) {
+	                  setStatus('No hay rutas para deshacer.');
+	                  return false;
+	                }
+	                const last = rows[rows.length - 1];
+	                return removeLastInteractiveRouteForObject(last.obj);
+	              };
+
 	              const isEditableTarget = (node) => {
 	                const el = node && node.nodeType === 1 ? node : null;
 	                if (!el) return false;
@@ -33975,6 +34021,10 @@
 	                  const start = { x: Number(obj.left) || 0, y: Number(obj.top) || 0 };
 	                  const points = [start];
 	                  routes.forEach((r) => {
+	                    const from = r?.from || null;
+	                    if (from && points.length === 1 && distance(points[0], from) >= 6) {
+	                      points[0] = { x: Number(from.x) || 0, y: Number(from.y) || 0 };
+	                    }
 	                    const to = r?.to || {};
 	                    const pt = { x: Number(to.x) || 0, y: Number(to.y) || 0 };
 	                    const prev = points[points.length - 1] || start;
@@ -34859,6 +34909,69 @@
                 try { if (tacticsFormationMenu) tacticsFormationMenu.open = false; } catch (e) { /* ignore */ }
               };
 
+              const firstTokenLike = () => {
+                const active = canvas.getActiveObject?.();
+                if (active && isTokenLike(active)) return active;
+                if (active && safeText(active?.type) === 'activeSelection' && typeof active.getObjects === 'function') {
+                  const found = (active.getObjects() || []).find((obj) => obj && isTokenLike(obj));
+                  if (found) return found;
+                }
+                return (canvas.getObjects() || []).find((obj) => obj && isTokenLike(obj)) || null;
+              };
+
+              const findEasyAnimationBall = () => (canvas.getObjects() || []).find((obj) => obj && safeText(obj?.data?.kind) === 'ball') || null;
+
+              const addEasyAnimationTemplate = (kind) => {
+                if (isSimulating) {
+                  setStatus('Sal del simulador para aplicar una plantilla.', true);
+                  return;
+                }
+                setTacticsInteractiveEnabled(true);
+                setInteractiveRouteMode(false);
+                const { w, h } = worldSize();
+                const primary = firstTokenLike();
+                if (!primary) {
+                  generateInteractiveDemo();
+                  setStatus('Plantilla demo creada. Ahora puedes editar las rutas.');
+                  return;
+                }
+                const start = { x: Number(primary.left) || w * 0.42, y: Number(primary.top) || h * 0.50 };
+                const clampPoint = (point) => ({
+                  x: clamp(Number(point.x) || 0, w * 0.04, w * 0.96),
+                  y: clamp(Number(point.y) || 0, h * 0.08, h * 0.92),
+                });
+                const addRouteToPrimary = (dx, dy) => addInteractiveRoute(primary, start, clampPoint({ x: start.x + (w * dx), y: start.y + (h * dy) }));
+                const ball = findEasyAnimationBall();
+                if (kind === 'pass_support') {
+                  addRouteToPrimary(0.14, -0.10);
+                  if (ball) addInteractiveRoute(ball, { x: Number(ball.left) || start.x, y: Number(ball.top) || start.y }, clampPoint({ x: start.x + w * 0.28, y: start.y - h * 0.02 }));
+                  setStatus('Plantilla pase + apoyo creada. Pulsa ▶ para probar o Exportar para preparar pasos.');
+                  return;
+                }
+                if (kind === 'third_man') {
+                  addRouteToPrimary(0.18, 0.12);
+                  if (ball) {
+                    addInteractiveRoute(ball, { x: Number(ball.left) || start.x, y: Number(ball.top) || start.y }, clampPoint({ x: start.x + w * 0.18, y: start.y - h * 0.10 }));
+                    addInteractiveRoute(ball, clampPoint({ x: start.x + w * 0.18, y: start.y - h * 0.10 }), clampPoint({ x: start.x + w * 0.36, y: start.y + h * 0.08 }));
+                  }
+                  setStatus('Plantilla tercer hombre creada. Pulsa ▶ para probar o Exportar para preparar pasos.');
+                  return;
+                }
+                if (kind === 'press_loss') {
+                  addRouteToPrimary(-0.10, 0.00);
+                  setStatus('Plantilla presión tras pérdida creada. Pulsa ▶ para probar o Exportar para preparar pasos.');
+                  return;
+                }
+                if (kind === 'switch_play') {
+                  addRouteToPrimary(0.12, 0.18);
+                  if (ball) addInteractiveRoute(ball, { x: Number(ball.left) || start.x, y: Number(ball.top) || start.y }, clampPoint({ x: start.x + w * 0.35, y: h - start.y }));
+                  setStatus('Plantilla cambio de orientación creada. Pulsa ▶ para probar o Exportar para preparar pasos.');
+                  return;
+                }
+                addRouteToPrimary(0.20, -0.14);
+                setStatus('Plantilla desmarque creada. Pulsa ▶ para probar o Exportar para preparar pasos.');
+              };
+
 	                if (tacticsQuickbar) {
 	                tacticsQuickbar.addEventListener('click', (event) => {
                   const btn = event.target.closest('[data-tactics-tool]');
@@ -34903,6 +35016,38 @@
                     clearInteractiveRoutes();
                     return;
                   }
+                  const undoRouteBtn = event.target.closest('[data-tactics-undo-route]');
+                  if (undoRouteBtn) {
+                    event.preventDefault();
+                    removeLastInteractiveRouteAny();
+                    return;
+                  }
+                  const templateBtn = event.target.closest('[data-tactics-template]');
+                  if (templateBtn) {
+                    event.preventDefault();
+                    addEasyAnimationTemplate(safeText(templateBtn.getAttribute('data-tactics-template')) || 'run');
+                    return;
+                  }
+                  const exportAnimBtn = event.target.closest('[data-tactics-export-animation]');
+                  if (exportAnimBtn) {
+                    event.preventDefault();
+                    generateSimulationFromRoutes('seq');
+                    try { setTacticsPanelOpen(true); } catch (e) { /* ignore */ }
+                    try { if (simPopover) simPopover.hidden = false; } catch (e) { /* ignore */ }
+                    setStatus('Animación preparada para exportar: usa PNG pasos o Pack en el panel.');
+                    return;
+                  }
+                  const focusRouteBtn = event.target.closest('[data-tactics-route-focus]');
+                  if (focusRouteBtn) {
+                    event.preventDefault();
+                    const uid = safeText(focusRouteBtn.getAttribute('data-tactics-route-focus'));
+                    const obj = (canvas.getObjects() || []).find((item) => getUidForObj(item) === uid);
+                    if (obj) {
+                      try { canvas.setActiveObject(obj); obj.setCoords?.(); canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+                      setStatus('Ruta seleccionada.');
+                    }
+                    return;
+                  }
                   const formationBtn = event.target.closest('[data-tactics-formation]');
                   if (formationBtn) {
                     event.preventDefault();
@@ -34910,8 +35055,44 @@
                     applyFormation(spec);
                     return;
                   }
-                });
+	                });
               }
+
+              try {
+                document.addEventListener('click', (event) => {
+                  const undoRouteBtn = event.target.closest('[data-tactics-undo-route]');
+                  if (undoRouteBtn) {
+                    event.preventDefault();
+                    removeLastInteractiveRouteAny();
+                    return;
+                  }
+                  const templateBtn = event.target.closest('[data-tactics-template]');
+                  if (templateBtn) {
+                    event.preventDefault();
+                    addEasyAnimationTemplate(safeText(templateBtn.getAttribute('data-tactics-template')) || 'run');
+                    return;
+                  }
+                  const exportAnimBtn = event.target.closest('[data-tactics-export-animation]');
+                  if (exportAnimBtn) {
+                    event.preventDefault();
+                    generateSimulationFromRoutes('seq');
+                    try { setTacticsPanelOpen(true); } catch (e) { /* ignore */ }
+                    try { if (simPopover) simPopover.hidden = false; } catch (e) { /* ignore */ }
+                    setStatus('Animación preparada para exportar: usa PNG pasos o Pack en el panel.');
+                    return;
+                  }
+                  const focusRouteBtn = event.target.closest('[data-tactics-route-focus]');
+                  if (focusRouteBtn) {
+                    event.preventDefault();
+                    const uid = safeText(focusRouteBtn.getAttribute('data-tactics-route-focus'));
+                    const obj = (canvas.getObjects() || []).find((item) => getUidForObj(item) === uid);
+                    if (obj) {
+                      try { canvas.setActiveObject(obj); obj.setCoords?.(); canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+                      setStatus('Ruta seleccionada.');
+                    }
+                  }
+                }, true);
+              } catch (e) { /* ignore */ }
 
               // Captura gesto de ruta (click/touch) en modo interactivo.
               // Lo hacemos sobre el canvas: down (elige ficha) + up (destino) => guarda ruta.
