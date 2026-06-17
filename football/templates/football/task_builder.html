@@ -3037,10 +3037,14 @@
 	        align-items: center;
 	        gap: 0.45rem;
 	      }
-      .pitch-size {
+      .pitch-size,
+      .selected-size {
         display: flex;
         align-items: center;
         gap: 0.45rem;
+      }
+      .selected-size[hidden] {
+        display: none !important;
       }
       body.focus-mode .builder {
         grid-template-columns: 1fr;
@@ -3169,7 +3173,8 @@
 		        display: block;
 		      }
 	      .pitch-zoom button,
-	      .pitch-size button {
+	      .pitch-size button,
+	      .selected-size button {
 	        border-radius: 10px;
 	        padding: 8px 10px;
 	        border: 1px solid rgba(255,255,255,0.18);
@@ -3178,11 +3183,15 @@
 	        min-width: 38px;
 	      }
 	      .pitch-zoom .zoom-readout,
-	      .pitch-size .zoom-readout {
+	      .pitch-size .zoom-readout,
+	      .selected-size .zoom-readout {
 	        min-width: 54px;
 	        text-align: center;
 	        font-weight: 700;
 	        color: rgba(226,232,240,0.8);
+	      }
+	      .selected-size .zoom-readout {
+	        min-width: 94px;
 	      }
       .resource-section {
         display: flex;
@@ -5709,6 +5718,12 @@
 	                    </div>
                     </div>
                   </details>
+                  <div class="selected-size" id="selected-size-controls" title="Tamaño del elemento seleccionado" hidden>
+                    <button type="button" id="selected-size-down" title="Elemento más pequeño">-</button>
+                    <span class="zoom-readout" id="selected-size-label">Elemento 100%</span>
+                    <button type="button" id="selected-size-up" title="Elemento más grande">+</button>
+                    <button type="button" id="selected-size-reset" title="Restablecer tamaño">100%</button>
+                  </div>
                   {% if not tactics_mode %}
                   <button type="button" class="surface-trigger" id="pitch-3d-open" title="Representación 3D (presentación)" aria-label="Representación 3D">
                     <span>Representación 3D</span>

@@ -1244,6 +1244,11 @@
 	    const stageSizeUpButton = document.getElementById('pitch-size-up');
 	    const stageSizeFitButton = document.getElementById('pitch-size-fit');
 	    const stageSizeLabel = document.getElementById('pitch-size-label');
+	    const selectedSizeControls = document.getElementById('selected-size-controls');
+	    const selectedSizeDownButton = document.getElementById('selected-size-down');
+	    const selectedSizeUpButton = document.getElementById('selected-size-up');
+	    const selectedSizeResetButton = document.getElementById('selected-size-reset');
+	    const selectedSizeLabel = document.getElementById('selected-size-label');
 	    const pitchFormatInput = document.getElementById('draw-task-pitch-format');
     const stateInput = document.getElementById('draw-canvas-state');
     const widthInput = document.getElementById('draw-canvas-width');
@@ -4921,6 +4926,71 @@
 	      return false;
 	    };
 	    const activeInspectableObject = () => canvas.getActiveObject() || null;
+	    const ensureSelectedSizeBase = (object) => {
+	      if (!object) return { x: 1, y: 1 };
+	      const data = object.data || {};
+	      const baseX = Number(data.quick_size_base_x);
+	      const baseY = Number(data.quick_size_base_y);
+	      if (baseX > 0 && baseY > 0) return { x: baseX, y: baseY };
+	      const currentX = Math.max(0.001, Number(object.scaleX) || 1);
+	      const currentY = Math.max(0.001, Number(object.scaleY) || currentX);
+	      object.data = { ...data, quick_size_base_x: currentX, quick_size_base_y: currentY };
+	      return { x: currentX, y: currentY };
+	    };
+	    const selectedObjectScalePercent = (object) => {
+	      if (!object) return 100;
+	      const stored = Number(object?.data?.quick_size_percent);
+	      if (stored > 0) return Math.round(stored);
+	      const sx = Number(object.scaleX) || 1;
+	      const sy = Number(object.scaleY) || sx;
+	      const base = ensureSelectedSizeBase(object);
+	      const percent = Math.round((((sx / base.x) + (sy / base.y)) / 2) * 100);
+	      object.data = { ...(object.data || {}), quick_size_percent: percent };
+	      return percent;
+	    };
+	    const refreshSelectedSizePercentFromScale = (object) => {
+	      if (!object) return 100;
+	      const sx = Number(object.scaleX) || 1;
+	      const sy = Number(object.scaleY) || sx;
+	      const base = ensureSelectedSizeBase(object);
+	      const percent = Math.round((((sx / base.x) + (sy / base.y)) / 2) * 100);
+	      object.data = { ...(object.data || {}), quick_size_percent: percent };
+	      return percent;
+	    };
+	    const syncSelectedSizeControls = () => {
+	      if (!selectedSizeControls) return;
+	      const active = activeInspectableObject();
+	      const enabled = !!active && !active?.data?.base;
+	      selectedSizeControls.hidden = !enabled;
+	      const locked = !!active?.data?.locked;
+	      [selectedSizeDownButton, selectedSizeUpButton, selectedSizeResetButton].forEach((button) => {
+	        if (button) button.disabled = !enabled || locked;
+	      });
+	      if (selectedSizeLabel) {
+	        selectedSizeLabel.textContent = enabled ? `Elemento ${selectedObjectScalePercent(active)}%` : 'Elemento 100%';
+	      }
+	    };
+	    const setSelectedObjectUniformScale = (percent, message = 'Tamaño actualizado.') => {
+	      const active = activeInspectableObject();
+	      if (!active || active?.data?.base) return;
+	      const base = ensureSelectedSizeBase(active);
+	      const maxRelative = Math.min(
+	        maxScaleForObject(active) / Math.max(0.001, base.x),
+	        maxScaleForObject(active) / Math.max(0.001, base.y),
+	      );
+	      const nextRelative = clamp(Number(percent) / 100, 0.4, Math.max(0.4, maxRelative));
+	      const nextPercent = Math.round(nextRelative * 100);
+	      applyToActiveFlexibleObject((target) => {
+	        const targetBase = ensureSelectedSizeBase(target);
+	        const nextX = clampScale(targetBase.x * nextRelative, maxScaleForObject(target));
+	        const nextY = clampScale(targetBase.y * nextRelative, maxScaleForObject(target));
+	        target.set({ scaleX: nextX, scaleY: nextY });
+	        target.data = { ...(target.data || {}), quick_size_percent: nextPercent };
+	        if (scaleXInput) scaleXInput.value = String(Math.round(nextX * 100));
+	        if (scaleYInput) scaleYInput.value = String(Math.round(nextY * 100));
+	      }, message);
+	      syncSelectedSizeControls();
+	    };
 	    const setObjectData = (object, patch) => {
 	      if (!object || typeof object !== 'object') return;
 	      object.data = { ...(object.data || {}), ...(patch || {}) };
@@ -6013,6 +6083,7 @@
 			        if (backgroundEditActions) backgroundEditActions.hidden = true;
 			        selectionDockDismissed = false;
 			        selectionDockDismissedUid = '';
+				        syncSelectedSizeControls();
 				        try { if (selectionDockEl) selectionDockEl.hidden = true; } catch (e) { /* ignore */ }
 				        return;
 				      }
@@ -6031,6 +6102,7 @@
 			      selectionDockDismissed = false;
 			      selectionDockDismissedUid = '';
 				      selectionToolbar.hidden = false;
+			      syncSelectedSizeControls();
 			      try { syncSelectionInspectorDock(); } catch (e) { /* ignore */ }
 			      try { if (selectionDockEl) selectionDockEl.hidden = !shouldDockSelectionInspector(); } catch (e) { /* ignore */ }
 			      const canColor = isColorizableObject(active);
@@ -32857,6 +32929,9 @@
 		    canvas.on('selection:created', syncInspector);
 		    canvas.on('selection:updated', syncInspector);
 		    canvas.on('selection:cleared', syncInspector);
+		    canvas.on('selection:created', syncSelectedSizeControls);
+		    canvas.on('selection:updated', syncSelectedSizeControls);
+		    canvas.on('selection:cleared', syncSelectedSizeControls);
 		    canvas.on('selection:created', syncTokenAdaptiveUi);
 		    canvas.on('selection:updated', syncTokenAdaptiveUi);
 		    canvas.on('selection:cleared', syncTokenAdaptiveUi);
@@ -33156,11 +33231,28 @@
 	      applyToActiveFlexibleObject((active) => {
 	        active.scaleX = clampScale(Number(scaleXInput.value) / 100, maxScaleForObject(active));
 	      }, 'Longitud actualizada.');
+	      refreshSelectedSizePercentFromScale(activeInspectableObject());
+	      syncSelectedSizeControls();
 	    });
 	    scaleYInput?.addEventListener('input', () => {
 	      applyToActiveFlexibleObject((active) => {
 	        active.scaleY = clampScale(Number(scaleYInput.value) / 100, maxScaleForObject(active));
 	      }, 'Altura actualizada.');
+	      refreshSelectedSizePercentFromScale(activeInspectableObject());
+	      syncSelectedSizeControls();
+	    });
+	    selectedSizeDownButton?.addEventListener('click', () => {
+	      const active = activeInspectableObject();
+	      if (!active) return;
+	      setSelectedObjectUniformScale(selectedObjectScalePercent(active) - 10, 'Elemento más pequeño.');
+	    });
+	    selectedSizeUpButton?.addEventListener('click', () => {
+	      const active = activeInspectableObject();
+	      if (!active) return;
+	      setSelectedObjectUniformScale(selectedObjectScalePercent(active) + 10, 'Elemento más grande.');
+	    });
+	    selectedSizeResetButton?.addEventListener('click', () => {
+	      setSelectedObjectUniformScale(100, 'Tamaño restablecido.');
 	    });
     rotationInput?.addEventListener('input', () => {
       applyToActiveFlexibleObject((active) => {
@@ -37251,6 +37343,8 @@
 		    canvas.on('object:scaling', (opt) => {
 		      const target = opt?.target;
 		      if (!target) return;
+		      try { refreshSelectedSizePercentFromScale(target); } catch (error) { /* ignore */ }
+		      try { syncSelectedSizeControls(); } catch (error) { /* ignore */ }
 		      const kind = safeText(target?.data?.kind);
 		      if (!kind || !kind.startsWith('arrow')) return;
 		      if (!Array.isArray(target._objects)) return;
