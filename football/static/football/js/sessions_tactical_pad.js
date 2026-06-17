@@ -420,7 +420,7 @@
 			    const preset = String(presetKey || 'full_pitch').trim();
 			    const orientation = safeText(orientationKey, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
 			    const normalizedGrass = safeText(grassStyleKey, 'classic').toLowerCase();
-			    let grassStyle = (['classic', 'realistic', 'pro', 'stadium_top', 'stadium_premium', 'broadcast', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'].includes(normalizedGrass))
+			    let grassStyle = (['classic', 'realistic', 'pro', 'stadium_close', 'stadium_top', 'stadium_full', 'stadium_premium', 'broadcast', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'].includes(normalizedGrass))
 			      ? normalizedGrass
 			      : 'classic';
 			    try {
@@ -428,7 +428,9 @@
 			        grassStyle = 'classic';
 			      }
 			    } catch (e) { /* ignore */ }
-			    const isStadiumTop = grassStyle === 'stadium_top' || grassStyle === 'stadium_premium';
+			    const isStadiumTop = ['stadium_close', 'stadium_top', 'stadium_full', 'stadium_premium'].includes(grassStyle);
+			    const isStadiumFull = grassStyle === 'stadium_full';
+			    const isStadiumClose = grassStyle === 'stadium_close';
 			    const isStadiumPremium = grassStyle === 'stadium_premium';
 			    const formForAssets = (() => {
 			      try { return document.getElementById('task-builder-form'); } catch (e) { return null; }
@@ -477,7 +479,9 @@
 		      classic: ['#5f8f42', '#557f3c'],
 		      realistic: ['#4f7f3a', '#3f6e35'],
 		      pro: ['#2f6a3a', '#245934'],
+		      stadium_close: ['#2e7b3c', '#1f6533'],
 		      stadium_top: ['#2e7b3c', '#1f6533'],
+		      stadium_full: ['#2e7b3c', '#1f6533'],
 		      stadium_premium: ['#36a544', '#1e7f35'],
 		      broadcast: ['#155e3a', '#0f4d2f'],
 		      artificial: ['#2fb46d', '#1f8d55'],
@@ -734,13 +738,29 @@
         const portrait = orientation === 'portrait';
         const effectiveW = portrait ? stageH : stageW;
         const effectiveH = portrait ? stageW : stageH;
+        const zoom = isStadiumClose ? 1.18 : 1;
+        const imgW = effectiveW * zoom;
+        const imgH = effectiveH * zoom;
+        if (isStadiumFull) {
+          const bg = createSvgNode(doc, 'image', {
+            href: stadiumTopImageSrc,
+            x: 0,
+            y: 0,
+            width: effectiveW,
+            height: effectiveH,
+            preserveAspectRatio: 'xMidYMid slice',
+            opacity: 0.34,
+          });
+          try { bg.setAttribute('xlink:href', stadiumTopImageSrc); } catch (e) { /* ignore */ }
+          drawRoot.appendChild(bg);
+        }
         const img = createSvgNode(doc, 'image', {
           href: stadiumTopImageSrc,
-          x: 0,
-          y: 0,
-          width: effectiveW,
-          height: effectiveH,
-          preserveAspectRatio: 'xMidYMid slice',
+          x: (effectiveW - imgW) / 2,
+          y: (effectiveH - imgH) / 2,
+          width: imgW,
+          height: imgH,
+          preserveAspectRatio: isStadiumFull ? 'xMidYMid meet' : 'xMidYMid slice',
         });
         try { img.setAttribute('xlink:href', stadiumTopImageSrc); } catch (e) { /* ignore */ }
         drawRoot.appendChild(img);
@@ -909,7 +929,18 @@
         const portrait = orientation === 'portrait';
         const effectiveW = portrait ? stageH : stageW;
         const effectiveH = portrait ? stageW : stageH;
-        pitchBox = { x: 0, y: 0, width: effectiveW, height: effectiveH };
+        if (isStadiumFull) {
+          pitchBox = { x: 0, y: 0, width: effectiveW, height: effectiveH };
+        } else if (isStadiumClose) {
+          pitchBox = {
+            x: effectiveW * 0.09,
+            y: effectiveH * 0.09,
+            width: effectiveW * 0.82,
+            height: effectiveH * 0.82,
+          };
+        } else {
+          pitchBox = { x: 0, y: 0, width: effectiveW, height: effectiveH };
+        }
         drawStadiumBackdrop();
         return;
       }
@@ -4403,7 +4434,9 @@
 					      broadcast: 'Broadcast',
 					      realistic: 'Realista',
 					      pro: 'PRO',
+					      stadium_close: 'Campo cercano',
 					      stadium_top: 'Cenital 3D',
+					      stadium_full: 'Estadio completo',
 					      stadium_premium: '3D presentación',
 					      uefa_b: 'UEFA B',
 					      natural: 'Natural',
@@ -4414,7 +4447,7 @@
 					      dry: 'Seco',
 					      wet: 'Mojado',
 					    };
-					    const GRASS_STYLE_ORDER = ['classic', 'broadcast', 'realistic', 'pro', 'stadium_top', 'stadium_premium', 'uefa_b', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet'];
+					    const GRASS_STYLE_ORDER = ['stadium_close', 'stadium_top', 'stadium_full', 'stadium_premium', 'classic', 'broadcast', 'realistic', 'pro', 'uefa_b', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet'];
 					    const normalizeGrassStyleForMode = (value) => {
 					      const next = safeText(value, 'stadium_top').toLowerCase();
 					      if (!GRASS_STYLE_ORDER.includes(next)) return 'stadium_top';
