@@ -428,6 +428,10 @@
 			        grassStyle = 'classic';
 			      }
 			    } catch (e) { /* ignore */ }
+			    const format3d = safeText(document.getElementById('task-pitch-3d-format')?.value, 'f11').toLowerCase();
+			    if (format3d !== 'f11' && ['stadium_close', 'stadium_top', 'stadium_full', 'stadium_premium'].includes(grassStyle)) {
+			      grassStyle = 'classic';
+			    }
 			    const isStadiumTop = ['stadium_close', 'stadium_top', 'stadium_full', 'stadium_premium'].includes(grassStyle);
 			    const isStadiumFull = grassStyle === 'stadium_full';
 			    const isStadiumClose = grassStyle === 'stadium_close';
@@ -437,7 +441,6 @@
 			    })();
 			    const stadiumTopImageSrc = (() => {
 			      if (!isStadiumTop) return '';
-			      const format3d = safeText(document.getElementById('task-pitch-3d-format')?.value, 'f11').toLowerCase();
 			      if (format3d !== 'f11') return '';
 			      const key = orientation === 'portrait' ? 'pitch3dStadiumTopVSrc' : 'pitch3dStadiumTopHSrc';
 			      const fallback = orientation === 'portrait'
