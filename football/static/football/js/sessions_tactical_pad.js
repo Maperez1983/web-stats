@@ -10317,7 +10317,7 @@
 						            group.add(mesh);
 						            return mesh;
 						          };
-						          const makeAdTexture = (label, accent = '#14b8a6', flipX = false) => makePitch3dCanvasTexture((ctx, c) => {
+						          const makeAdTexture = (label, accent = '#14b8a6') => makePitch3dCanvasTexture((ctx, c) => {
 						            const bg = ctx.createLinearGradient(0, 0, c.width, 0);
 						            bg.addColorStop(0, '#020617');
 						            bg.addColorStop(0.18, '#052e3f');
@@ -10348,15 +10348,7 @@
 						            ctx.textBaseline = 'middle';
 						            ctx.shadowColor = 'rgba(255,255,255,0.72)';
 						            ctx.shadowBlur = 18;
-						            if (flipX) {
-						              ctx.save();
-						              ctx.translate(c.width, 0);
-						              ctx.scale(-1, 1);
-						              ctx.fillText(label, c.width / 2, c.height / 2 + 1);
-						              ctx.restore();
-						            } else {
-						              ctx.fillText(label, c.width / 2, c.height / 2 + 1);
-						            }
+						            ctx.fillText(label, c.width / 2, c.height / 2 + 1);
 						            ctx.shadowBlur = 0;
 						            ctx.strokeStyle = 'rgba(180,255,237,0.48)';
 						            ctx.lineWidth = 4;
@@ -10369,12 +10361,12 @@
 						            { label: 'LA ROSALEDA', accent: '#1d4ed8' },
 						          ];
 						          const adMatCache = new Map();
-						          const adMatFor = (matIndex = 0, flipX = false) => {
+						          const adMatFor = (matIndex = 0) => {
 						            const config = adConfigs[((matIndex % adConfigs.length) + adConfigs.length) % adConfigs.length];
-						            const key = `${config.label}|${config.accent}|${flipX ? 'flip' : 'plain'}`;
+						            const key = `${config.label}|${config.accent}`;
 						            if (!adMatCache.has(key)) {
 						              adMatCache.set(key, new THREE.MeshBasicMaterial({
-						                map: makeAdTexture(config.label, config.accent, flipX),
+						                map: makeAdTexture(config.label, config.accent),
 						                side: THREE.FrontSide,
 						                toneMapped: false,
 						                transparent: true,
@@ -10382,13 +10374,6 @@
 						              }));
 						            }
 						            return adMatCache.get(key);
-						          };
-						          const needsMirroredBoardText = (yaw) => {
-						            const full = Math.PI * 2;
-						            let normalized = yaw % full;
-						            if (normalized < 0) normalized += full;
-						            const epsilon = 0.001;
-						            return Math.abs(normalized - Math.PI) < epsilon || Math.abs(normalized - (Math.PI * 1.5)) < epsilon;
 						          };
 						          const addAdPanel = (x, z, w, rotY, matIndex = 0) => {
 						            const g = new THREE.Group();
@@ -10405,13 +10390,11 @@
 						              addBox(g, new THREE.BoxGeometry(0.10, 0.70, 0.08), metalMat, -(w / 2) + 0.55, 0.46, -0.40 + s, -0.22, 0, 0, 'pitch_3d_led_rear_support');
 						              addBox(g, new THREE.BoxGeometry(0.10, 0.70, 0.08), metalMat, (w / 2) - 0.55, 0.46, -0.40 + s, -0.22, 0, 0, 'pitch_3d_led_rear_support');
 						            }
-						            const frontFlipX = needsMirroredBoardText(rotY);
-						            const backFlipX = !frontFlipX;
-						            const face = new THREE.Mesh(new THREE.PlaneGeometry(w, 1.05), adMatFor(matIndex, frontFlipX));
+						            const face = new THREE.Mesh(new THREE.PlaneGeometry(w, 1.05), adMatFor(matIndex));
 						            face.position.set(0, 0.80, 0.125);
 						            face.userData = { kind: 'pitch_3d_ad_face' };
 						            g.add(face);
-						            const back = new THREE.Mesh(new THREE.PlaneGeometry(w, 1.02), adMatFor(matIndex, backFlipX));
+						            const back = new THREE.Mesh(new THREE.PlaneGeometry(w, 1.02), adMatFor(matIndex));
 						            back.position.set(0, 0.80, -0.125);
 						            back.rotation.y = Math.PI;
 						            back.userData = { kind: 'pitch_3d_ad_back_face' };
@@ -13863,14 +13846,13 @@
 						              roughness: 0.48,
 						              metalness: 0.04,
 						            });
-						            const makeBoardMat = (flipX) => makeSignMat(label, {
+						            const makeBoardMat = () => makeSignMat(label, {
 						              w: opts.w || 1100,
 						              h: opts.h || 260,
 						              bg,
 						              fg: opts.fg || '#f8fafc',
 						              font: opts.font || '900 50px Arial, sans-serif',
 						              stroke: opts.stroke || 'rgba(255,255,255,0.22)',
-						              flipX,
 						            });
 						            const boardYaw = (
 						              facing === 'south' ? Math.PI
@@ -13878,10 +13860,8 @@
 						              : facing === 'west' ? -Math.PI / 2
 						              : 0
 						            );
-						            const frontFlipX = Boolean(opts.flipX || facing === 'south' || facing === 'west');
-						            const backFlipX = !frontFlipX;
-						            const frontMat = makeBoardMat(frontFlipX);
-						            const backMat = makeBoardMat(backFlipX);
+						            const frontMat = makeBoardMat();
+						            const backMat = makeBoardMat();
 						            const thick = opts.thick || 0.12;
 						            let shell;
 						            let face;
