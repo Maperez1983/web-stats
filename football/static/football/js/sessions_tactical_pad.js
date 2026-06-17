@@ -9672,13 +9672,13 @@
 							      } else if (k === 'render_original') {
 							        // Vista estilo La Rosaleda: esquina interior, baja y cercana, con banquillos, vallas y grada principal legibles.
 										        if (isDedicatedPitch3dMalagaStadiumSrc(__pitch3dAssetUrl('pitch3dStadiumModelSrc'))) {
-										          pitch3dCamera.fov = 43;
-										          pitch3dOrbit.theta = -2.38;
-						          pitch3dOrbit.phi = 1.13;
-										          pitch3dOrbit.radius = Math.max(104, metersW * 0.97);
-										          targetX = -8.2;
-										          targetY = 4.15;
-										          targetZ = 2.65;
+										          pitch3dCamera.fov = 42;
+										          pitch3dOrbit.theta = -2.54;
+							          pitch3dOrbit.phi = 1.04;
+										          pitch3dOrbit.radius = Math.max(142, metersW * 1.32);
+										          targetX = -4.8;
+										          targetY = 7.8;
+										          targetZ = 4.6;
 										        } else {
 										          pitch3dCamera.fov = 42;
 										          pitch3dOrbit.theta = -2.25;
@@ -11485,6 +11485,7 @@
 						            } catch (e) { /* ignore */ }
 						          };
 						          const addFromScratchReferenceStadium = () => {
+						            updatePitch3dStadiumDebug({ event: 'addFromScratchReferenceStadium:enter' });
 						            const stadium = new THREE.Group();
 						            stadium.userData = { kind: 'pitch_3d_from_scratch_reference_stadium' };
 						            const primaryHex = stadiumPalette3d.primary;
@@ -13568,7 +13569,16 @@
 						              root.add(stadium);
 						              addFinishedStadiumClosure();
 						            };
-						            addFromScratchReferenceStadium();
+						            try {
+						              addFromScratchReferenceStadium();
+						              updatePitch3dStadiumDebug({
+						                event: 'addFromScratchReferenceStadium:done',
+						                rootChildren: root.children?.length || 0,
+						              });
+						            } catch (e) {
+						              updatePitch3dStadiumDebug({ event: 'addFromScratchReferenceStadium:throw', error: safeText(e?.message || e) });
+						              throw e;
+						            }
 						            const addCornerFlag = (x, z, flipX, flipZ) => {
 						              const group = new THREE.Group();
 						              group.position.set(x, 0, z);
@@ -15925,11 +15935,94 @@
 						          } catch (e) { /* ignore */ }
 						        });
 						      }
+						      const hasVisibleRuntimeStadiumAsset = () => {
+						        let found = false;
+						        try {
+						          root.traverse((node) => {
+						            const kind = safeText(node?.userData?.kind || '');
+						            if (
+						              kind.includes('pitch_3d_professional_blender_stadium')
+						              || kind.includes('pitch_3d_simple_runtime_stadium_asset')
+						            ) found = true;
+						          });
+						        } catch (e) { /* ignore */ }
+						        return found;
+						      };
+						      const mountSimpleRuntimeStadiumAsset = (sceneAsset) => {
+						        try {
+						          if (!sceneAsset || hasVisibleRuntimeStadiumAsset()) return false;
+						          const stadiumAsset = new THREE.Group();
+						          const runtimeMaterialCache = new Map();
+						          const runtimeMaterialForName = (nameRaw) => {
+						            const name = safeText(nameRaw).toUpperCase();
+						            let key = 'concrete';
+						            if (name.includes('GLASS')) key = 'glass';
+						            else if (name.includes('TEAM_PRIMARY') || name.includes('SEAT') || name.includes('SEATING')) key = 'seat_primary';
+						            else if (name.includes('TEAM_SECONDARY') || name.includes('WHITE')) key = 'seat_secondary';
+						            else if (name.includes('BOARD') || name.includes('SPONSOR') || name.includes('PARTNER')) key = 'board';
+						            else if (name.includes('DARK') || name.includes('VOID') || name.includes('OPENING') || name.includes('BLACK')) key = 'dark';
+						            else if (name.includes('ROOF') || name.includes('TRUSS') || name.includes('METAL')) key = 'roof';
+						            if (runtimeMaterialCache.has(key)) return runtimeMaterialCache.get(key);
+						            let mat = null;
+						            if (key === 'glass') {
+						              mat = new THREE.MeshPhysicalMaterial({ color: 0xc7f0ff, roughness: 0.12, metalness: 0.02, transparent: true, opacity: 0.30, transmission: 0.18, side: THREE.DoubleSide });
+						            } else if (key === 'seat_primary') {
+						              mat = new THREE.MeshStandardMaterial({ color: 0x1261ad, roughness: 0.58, metalness: 0.02, side: THREE.DoubleSide });
+						            } else if (key === 'seat_secondary') {
+						              mat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.48, metalness: 0.01, side: THREE.DoubleSide });
+						            } else if (key === 'board') {
+						              mat = new THREE.MeshStandardMaterial({ color: 0x064f9e, roughness: 0.42, metalness: 0.06, emissive: 0x022c5f, emissiveIntensity: 0.12, side: THREE.DoubleSide });
+						            } else if (key === 'dark') {
+						              mat = new THREE.MeshStandardMaterial({ color: 0x1f3345, roughness: 0.78, metalness: 0.06, side: THREE.DoubleSide });
+						            } else if (key === 'roof') {
+						              mat = new THREE.MeshStandardMaterial({ color: 0xd7d6c8, roughness: 0.48, metalness: 0.10, side: THREE.DoubleSide });
+						            } else {
+						              mat = new THREE.MeshStandardMaterial({ color: 0xcfd6d1, roughness: 0.76, metalness: 0.03, side: THREE.DoubleSide });
+						            }
+						            runtimeMaterialCache.set(key, mat);
+						            return mat;
+						          };
+						          stadiumAsset.name = 'stadium_bowl_simple_runtime_asset';
+						          stadiumAsset.userData = { kind: 'pitch_3d_simple_runtime_stadium_asset' };
+						          try { sceneAsset.updateMatrixWorld(true); } catch (e) { /* ignore */ }
+						          sceneAsset.traverse((node) => {
+						            if (!node || !node.isMesh || !node.geometry) return;
+						            const mesh = new THREE.Mesh();
+						            try { mesh.geometry = node.geometry.clone ? node.geometry.clone() : node.geometry; } catch (e) { mesh.geometry = node.geometry; }
+						            mesh.material = runtimeMaterialForName(node.name || node.material?.name || '');
+						            try { mesh.applyMatrix4(node.matrixWorld.clone()); } catch (e) { /* ignore */ }
+						            mesh.matrixAutoUpdate = false;
+						            mesh.userData = Object.assign({}, node.userData || {}, { kind: 'pitch_3d_simple_runtime_stadium_asset_mesh' });
+						            try { mesh.castShadow = true; mesh.receiveShadow = true; mesh.frustumCulled = false; } catch (e) { /* ignore */ }
+						            stadiumAsset.add(mesh);
+						          });
+						          root.add(stadiumAsset);
+						          updatePitch3dStadiumDebug({
+						            event: 'late-stadium-mount:root-add',
+						            childCount: root.children?.length || 0,
+						            stadiumChildren: stadiumAsset.children?.length || 0,
+						          });
+						          return true;
+						        } catch (e) {
+						          updatePitch3dStadiumDebug({ event: 'late-stadium-mount:throw', error: safeText(e?.message || e) });
+						          return false;
+						        }
+						      };
 						      try {
 						        const lateStadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
+						        updatePitch3dStadiumDebug({
+						          event: 'late-stadium-recovery:enter',
+						          lateStadiumModelSrc,
+						          dedicated: isDedicatedPitch3dReferenceStadiumSrc(lateStadiumModelSrc),
+						        });
+						        if (lateStadiumModelSrc && !isDedicatedPitch3dReferenceStadiumSrc(lateStadiumModelSrc)) {
+						          __pitch3dLoadStadiumModel((scene) => {
+						            try { mountSimpleRuntimeStadiumAsset(scene || __pitch3dStadiumModelCache.scene); } catch (e) { /* ignore */ }
+						          });
+						        }
 						        const triggerLateStadiumRecovery = () => {
 						          try {
-						            if (!lateStadiumModelSrc || isDedicatedPitch3dReferenceStadiumSrc(lateStadiumModelSrc) || hasProfessionalStadiumInScene()) return;
+						            if (!lateStadiumModelSrc || isDedicatedPitch3dReferenceStadiumSrc(lateStadiumModelSrc) || hasVisibleRuntimeStadiumAsset()) return;
 						            const LoaderClass = window.__WEBSTATS_GLTF_LOADER_CLASS;
 						            if (typeof LoaderClass !== 'function') {
 						              window.setTimeout(triggerLateStadiumRecovery, 120);
@@ -15944,7 +16037,7 @@
 						                __pitch3dStadiumModelCache.loading = false;
 						                __pitch3dStadiumModelCache.failed = false;
 						              } catch (e) { /* ignore */ }
-						              try { if (!hasProfessionalStadiumInScene()) addProfessionalStadiumAsset(); } catch (e) { /* ignore */ }
+						              try { mountSimpleRuntimeStadiumAsset(__pitch3dStadiumModelCache.scene); } catch (e) { /* ignore */ }
 						              window.__WEBSTATS_PITCH3D_STADIUM_RECOVERY_LOADING = false;
 						            }, undefined, () => {
 						              window.__WEBSTATS_PITCH3D_STADIUM_RECOVERY_LOADING = false;
