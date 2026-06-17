@@ -43999,6 +43999,7 @@ def analysis_page(request):
     tactics_url_playbook = _append_query(tactics_url, pane='playbook')
     tactics_url_export = _append_query(tactics_url, pane='exportar')
     tactics_url_pro = _append_query(tactics_url, pane='tacticalpro')
+    tactics_url_easy_animation = _append_query(tactics_url, pane='tacticalpro', anim='easy')
 
     return render(
         request,
@@ -44024,6 +44025,7 @@ def analysis_page(request):
             'tactics_url_playbook': tactics_url_playbook,
             'tactics_url_export': tactics_url_export,
             'tactics_url_pro': tactics_url_pro,
+            'tactics_url_easy_animation': tactics_url_easy_animation,
             'teams': Team.objects.order_by('name'),
             'raw_text': raw_text,
             'roster': roster,

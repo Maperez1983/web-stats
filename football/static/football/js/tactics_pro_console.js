@@ -504,6 +504,63 @@
     setStatus('Vista 3D solicitada.');
   };
 
+  const clickFirst = (selectors) => {
+    const list = Array.isArray(selectors) ? selectors : [selectors];
+    for (let i = 0; i < list.length; i += 1) {
+      const el = $(list[i]);
+      if (el) {
+        el.click();
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const setEasyAnimationMode = (enabled) => {
+    const on = enabled !== false;
+    document.body.classList.toggle('tactics-easy-animation', on);
+    persist({ easy_animation: on });
+    if (on) {
+      clickFirst('#tactics-mode-interactive');
+      window.setTimeout(() => {
+        clickFirst(['#tactics-tool-route', '.tactics-interactive-dock [data-tactics-tool="route_move"]']);
+      }, 80);
+      setStatus('Animar fácil: selecciona una chapa, pulsa/arrastra hasta destino y usa ▶ para previsualizar.');
+    } else {
+      setStatus('Animar fácil desactivado.');
+    }
+  };
+
+  const easyAnimationRoute = () => {
+    setEasyAnimationMode(true);
+    window.setTimeout(() => {
+      clickFirst(['#tactics-tool-route', '.tactics-interactive-dock [data-tactics-tool="route_move"]']);
+    }, 90);
+  };
+
+  const easyAnimationPlay = () => {
+    setEasyAnimationMode(true);
+    window.setTimeout(() => {
+      clickFirst(['#tactics-tool-route-play', '.tactics-interactive-dock [data-tactics-tool="route_play"]']);
+    }, 90);
+  };
+
+  const easyAnimationSequence = () => {
+    setEasyAnimationMode(true);
+    window.setTimeout(() => {
+      clickFirst(['.tactics-interactive-dock [data-tactics-generate="seq"]', '[data-tactics-generate="seq"]']);
+      activatePane('animacion');
+    }, 120);
+  };
+
+  const easyAnimationSave = () => {
+    setEasyAnimationMode(true);
+    window.setTimeout(() => {
+      clickFirst(['#tactics-save-clip-top', '#task-sim-clip-save']);
+      activatePane('playbook');
+    }, 120);
+  };
+
   const addVideoBoardSync = async () => {
     const canvas = await waitForCanvas();
     add(canvas, addBoardCard(canvas, 'Vídeo + pizarra sincronizada', [
@@ -672,6 +729,11 @@
         else if (action === 'export') openExportPack();
         else if (action === 'animation') openAnimation();
         else if (action === '3d') open3d();
+        else if (action === 'easy-animate') setEasyAnimationMode(true);
+        else if (action === 'easy-route') easyAnimationRoute();
+        else if (action === 'easy-play') easyAnimationPlay();
+        else if (action === 'easy-seq') easyAnimationSequence();
+        else if (action === 'easy-save') easyAnimationSave();
         else if (action === 'sync') await addVideoBoardSync();
         else if (action === 'principles') await addClubPrinciples();
         else if (action === 'corrections') await addPlayerCorrections();
@@ -698,6 +760,17 @@
           <p>Plantillas, capas, presentación, IA, vídeo y exportación.</p>
         </div>
         <button type="button" class="button ghost" data-tactics-pro="clear">Limpiar PRO</button>
+      </div>
+
+      <div class="tactics-pro-block">
+        <h4>Animación simple</h4>
+        <div class="tactics-pro-grid">
+          <button type="button" data-tactics-pro="easy-animate">Animar fácil</button>
+          <button type="button" data-tactics-pro="easy-route">Crear ruta</button>
+          <button type="button" data-tactics-pro="easy-play">Reproducir</button>
+          <button type="button" data-tactics-pro="easy-seq">Crear secuencia</button>
+          <button type="button" data-tactics-pro="easy-save">Guardar animación</button>
+        </div>
       </div>
 
       <div class="tactics-pro-block">
@@ -785,6 +858,19 @@
     else tabs.insertAdjacentElement('afterend', pane);
     bindAction(pane);
 
+    const dock = document.createElement('div');
+    dock.className = 'tactics-easy-anim-dock';
+    dock.setAttribute('aria-label', 'Animación fácil');
+    dock.innerHTML = `
+      <strong>Animar fácil</strong>
+      <button type="button" data-tactics-pro="easy-route">Ruta</button>
+      <button type="button" data-tactics-pro="easy-play">▶</button>
+      <button type="button" data-tactics-pro="easy-seq">Secuencia</button>
+      <button type="button" data-tactics-pro="easy-save">Guardar</button>
+    `;
+    document.body.appendChild(dock);
+    bindAction(dock);
+
     const chip = document.createElement('button');
     chip.type = 'button';
     chip.className = 'surface-trigger tactics-chip';
@@ -795,9 +881,22 @@
     const quickbar = $('#tactics-quickbar');
     if (quickbar) quickbar.appendChild(chip);
 
+    const animChip = document.createElement('button');
+    animChip.type = 'button';
+    animChip.className = 'surface-trigger tactics-chip';
+    animChip.id = 'tactics-easy-animate-open';
+    animChip.textContent = 'Animar fácil';
+    animChip.title = 'Activa rutas y controles mínimos para animar chapas';
+    animChip.addEventListener('click', () => setEasyAnimationMode(true));
+    if (quickbar) quickbar.appendChild(animChip);
+
     const params = new URL(window.location.href).searchParams;
     if (params.get('pane') === 'tacticalpro' || params.get('pro') === '1') {
       window.setTimeout(() => activatePane('tacticalpro'), 100);
+    }
+    const state = readState();
+    if (state.easy_animation === true || params.get('anim') === 'easy') {
+      window.setTimeout(() => setEasyAnimationMode(true), 220);
     }
   };
 
