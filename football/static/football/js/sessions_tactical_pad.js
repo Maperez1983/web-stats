@@ -16803,13 +16803,52 @@
 						          }
 						        });
 						      };
-						    const renderFabricObjectTexture3d = async (obj, options = {}) => {
+						      const renderFabricObjectTexture3d = async (obj, options = {}) => {
 						        const CanvasCtor = fabricLib ? (fabricLib.StaticCanvas || fabricLib.Canvas) : null;
 						        if (!obj || !CanvasCtor || typeof CanvasCtor !== 'function') return null;
-						        const cloned = await materializeFabricObject3d(resolveLiveFabricObject3d(obj) || obj);
-						        if (!cloned) return null;
 						        const padding = clamp(Number(options.padding) || 18, 8, 56);
 						        const multiplier = clamp(Number(options.multiplier) || 2, 1, 4);
+						        const buildTexturePayload = (sourceCanvas, widthPxHint = 0, heightPxHint = 0) => {
+						          if (!sourceCanvas) return null;
+						          const sourceW = Math.max(1, Number(sourceCanvas.width) || Number(widthPxHint) || 1);
+						          const sourceH = Math.max(1, Number(sourceCanvas.height) || Number(heightPxHint) || 1);
+						          const outW = clamp(Math.ceil((sourceW + (padding * 2)) * multiplier), 96, 1024);
+						          const outH = clamp(Math.ceil((sourceH + (padding * 2)) * multiplier), 96, 1024);
+						          const off = document.createElement('canvas');
+						          off.width = outW;
+						          off.height = outH;
+						          const ctx = off.getContext('2d');
+						          if (!ctx) return null;
+						          ctx.clearRect(0, 0, outW, outH);
+						          const drawW = outW - (padding * 2 * multiplier);
+						          const drawH = outH - (padding * 2 * multiplier);
+						          ctx.drawImage(sourceCanvas, padding * multiplier, padding * multiplier, drawW, drawH);
+						          const tex = new THREE.CanvasTexture(off);
+						          tex.anisotropy = getPitch3dMaxAnisotropy();
+						          tex.needsUpdate = true;
+						          try {
+						            tex.generateMipmaps = true;
+						            if (THREE.LinearMipmapLinearFilter) tex.minFilter = THREE.LinearMipmapLinearFilter;
+						            if (THREE.LinearFilter) tex.magFilter = THREE.LinearFilter;
+						          } catch (e) { /* ignore */ }
+						          return {
+						            canvas: off,
+						            texture: tex,
+						            widthPx: sourceW,
+						            heightPx: sourceH,
+						            dispose: () => {},
+						          };
+						        };
+						        const liveObject = resolveLiveFabricObject3d(obj);
+						        if (liveObject && typeof liveObject.toCanvasElement === 'function') {
+						          try {
+						            const liveCanvasEl = liveObject.toCanvasElement({ enableRetinaScaling: false, multiplier: Math.max(1, multiplier) });
+						            const livePayload = buildTexturePayload(liveCanvasEl, liveCanvasEl?.width, liveCanvasEl?.height);
+						            if (livePayload) return livePayload;
+						          } catch (e) { /* ignore */ }
+						        }
+						        const cloned = await materializeFabricObject3d(liveObject || obj);
+						        if (!cloned) return null;
 						        try {
 						          cloned.setCoords?.();
 						        } catch (e) { /* ignore */ }
@@ -16847,23 +16886,15 @@
 						        } catch (e) { /* ignore */ }
 						        sc.add(cloned);
 						        try { sc.renderAll(); } catch (e) { /* ignore */ }
-						        const tex = new THREE.CanvasTexture(off);
-						        tex.anisotropy = getPitch3dMaxAnisotropy();
-						        tex.needsUpdate = true;
-						        try {
-						          tex.generateMipmaps = true;
-						          if (THREE.LinearMipmapLinearFilter) tex.minFilter = THREE.LinearMipmapLinearFilter;
-						          if (THREE.LinearFilter) tex.magFilter = THREE.LinearFilter;
-						        } catch (e) { /* ignore */ }
-						        return {
-						          canvas: off,
-						          texture: tex,
-						          widthPx: rawW,
-						          heightPx: rawH,
-						          dispose: () => {
-						            try { sc.dispose?.(); } catch (e) { /* ignore */ }
-						          },
+						        const payload = buildTexturePayload(off, rawW, rawH);
+						        if (!payload) {
+						          try { sc.dispose?.(); } catch (e) { /* ignore */ }
+						          return null;
+						        }
+						        payload.dispose = () => {
+						          try { sc.dispose?.(); } catch (e) { /* ignore */ }
 						        };
+						        return payload;
 						      };
 						      const addTokenExactLook3d = (anchor, o) => {
 						        if (!anchor || !o) return;
