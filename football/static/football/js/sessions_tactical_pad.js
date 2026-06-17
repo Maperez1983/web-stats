@@ -11107,31 +11107,49 @@
 						          };
 						          const addVisibleTechnicalArea = () => {
 						            const visibleFasciaMat = new THREE.MeshStandardMaterial({ color: toColorInt(stadiumPalette3d.accent, 0x073b32), roughness: 0.50, metalness: 0.06 });
+						            const serviceWalkMat = new THREE.MeshStandardMaterial({ color: 0x6b7280, roughness: 0.72, metalness: 0.05 });
+						            const tunnelCoverMat = new THREE.MeshPhysicalMaterial({ color: 0xe4f6ff, roughness: 0.10, metalness: 0.02, transparent: true, opacity: 0.34, transmission: 0.24, side: THREE.DoubleSide });
+						            addBox(root, new THREE.BoxGeometry(40.8, 0.12, 1.56), serviceWalkMat, -18.0, 0.08, -(metersH / 2 + 3.54), 0, 0, 0, 'pitch_3d_visible_dugout_service_walk_left');
+						            addBox(root, new THREE.BoxGeometry(40.8, 0.12, 1.56), serviceWalkMat, 18.0, 0.08, -(metersH / 2 + 3.54), 0, 0, 0, 'pitch_3d_visible_dugout_service_walk_right');
+						            addBox(root, new THREE.BoxGeometry(12.4, 0.12, 1.56), serviceWalkMat, 0, 0.08, -(metersH / 2 + 3.54), 0, 0, 0, 'pitch_3d_visible_tunnel_service_walk');
 						            const addDugout = (x, zBase, labelIndex, rotY = 0) => {
 						              const dugout = new THREE.Group();
 						              dugout.position.set(x, 0, zBase);
 						              dugout.rotation.y = rotY;
 						              dugout.userData = { kind: 'pitch_3d_visible_pitchside_dugout' };
-						              addBox(dugout, new THREE.BoxGeometry(13.8, 0.20, 2.25), carbonMat, 0, 0.18, 0, 0, 0, 0, 'pitch_3d_visible_dugout_floor');
-						              addBox(dugout, new THREE.BoxGeometry(14.2, 0.12, 0.18), metalMat, 0, 1.12, -0.98, 0, 0, 0, 'pitch_3d_visible_dugout_front_rail');
-						              addBox(dugout, new THREE.BoxGeometry(14.2, 0.10, 0.18), metalMat, 0, 2.24, 0.20, 0, 0, 0, 'pitch_3d_visible_dugout_roof_spine');
-						              for (let i = -6; i <= 6; i += 1) {
-						                addBox(dugout, new THREE.BoxGeometry(0.055, 1.45, 0.06), metalMat, i, 1.34, -0.20, -0.40, 0, 0, 'pitch_3d_visible_dugout_canopy_rib');
+						              addBox(dugout, new THREE.BoxGeometry(16.8, 0.22, 2.54), carbonMat, 0, 0.18, 0, 0, 0, 0, 'pitch_3d_visible_dugout_floor');
+						              addBox(dugout, new THREE.BoxGeometry(17.1, 0.14, 0.22), metalMat, 0, 1.10, -1.08, 0, 0, 0, 'pitch_3d_visible_dugout_front_rail');
+						              addBox(dugout, new THREE.BoxGeometry(16.7, 0.16, 0.26), metalMat, 0, 2.30, 0.78, 0, 0, 0, 'pitch_3d_visible_dugout_rear_spine');
+						              addBox(dugout, new THREE.BoxGeometry(16.8, 0.14, 0.16), metalMat, 0, 0.24, -1.14, 0, 0, 0, 'pitch_3d_visible_dugout_front_kickplate');
+						              addBox(dugout, new THREE.BoxGeometry(16.0, 0.26, 0.32), concreteMat, 0, 0.34, 1.08, 0, 0, 0, 'pitch_3d_visible_dugout_rear_base');
+						              for (let i = -7; i <= 7; i += 1) {
+						                addBox(dugout, new THREE.BoxGeometry(0.065, 1.58, 0.08), metalMat, i * 1.06, 1.38, -0.02, -0.48, 0, 0, 'pitch_3d_visible_dugout_canopy_rib');
 						              }
-						              for (let i = 0; i < 5; i += 1) {
-						                const t = i / 4;
-						                addBox(dugout, new THREE.BoxGeometry(13.9, 0.055, 0.42), glassMat, 0, 1.24 + (Math.sin(t * Math.PI * 0.56) * 0.92), -0.94 + (t * 1.48), -0.42 + (t * 0.25), 0, 0, 'pitch_3d_visible_dugout_glass_canopy');
+						              for (let i = 0; i < 6; i += 1) {
+						                const t = i / 5;
+						                addBox(dugout, new THREE.BoxGeometry(16.1, 0.07, 0.46), glassMat, 0, 1.18 + (Math.sin(t * Math.PI * 0.62) * 1.02), -1.00 + (t * 1.90), -0.48 + (t * 0.32), 0, 0, 'pitch_3d_visible_dugout_glass_canopy');
 						              }
-						              addBox(dugout, new THREE.BoxGeometry(13.2, 0.82, 0.10), glassMat, 0, 1.08, -1.08, -0.10, 0, 0, 'pitch_3d_visible_dugout_front_glass');
-						              for (let i = 0; i < 10; i += 1) {
-						                const sx = -5.45 + (i * 1.20);
-						                addBox(dugout, new THREE.BoxGeometry(0.74, 0.20, 0.55), benchSeatMat, sx, 0.58, 0.25, 0, 0, 0, 'pitch_3d_visible_dugout_seat');
-						                addBox(dugout, new THREE.BoxGeometry(0.76, 0.82, 0.14), benchPadMat, sx, 0.96, 0.56, -0.22, 0, 0, 'pitch_3d_visible_dugout_backrest');
+						              addBox(dugout, new THREE.BoxGeometry(16.0, 0.92, 0.10), glassMat, 0, 1.12, -1.16, -0.10, 0, 0, 'pitch_3d_visible_dugout_front_glass');
+						              addBox(dugout, new THREE.BoxGeometry(0.18, 1.92, 2.18), glassMat, -8.04, 1.08, -0.04, -0.06, 0, 0, 'pitch_3d_visible_dugout_left_glass_end');
+						              addBox(dugout, new THREE.BoxGeometry(0.18, 1.92, 2.18), glassMat, 8.04, 1.08, -0.04, -0.06, 0, 0, 'pitch_3d_visible_dugout_right_glass_end');
+						              addBox(dugout, new THREE.BoxGeometry(16.2, 0.10, 0.34), tunnelCoverMat, 0, 2.22, 0.98, 0, 0, 0, 'pitch_3d_visible_dugout_top_glass_edge');
+						              for (let i = 0; i < 12; i += 1) {
+						                const sx = -6.65 + (i * 1.21);
+						                addBox(dugout, new THREE.BoxGeometry(0.86, 0.16, 0.64), metalMat, sx, 0.46, 0.46, 0, 0, 0, 'pitch_3d_visible_dugout_seat_shell');
+						                addBox(dugout, new THREE.BoxGeometry(0.78, 0.18, 0.56), benchSeatMat, sx, 0.58, 0.42, 0, 0, 0, 'pitch_3d_visible_dugout_seat');
+						                addBox(dugout, new THREE.BoxGeometry(0.82, 0.92, 0.16), benchPadMat, sx, 1.00, 0.78, -0.24, 0, 0, 'pitch_3d_visible_dugout_backrest');
+						                addBox(dugout, new THREE.BoxGeometry(0.10, 0.34, 0.10), metalMat, sx - 0.30, 0.27, 0.42, 0, 0, 0, 'pitch_3d_visible_dugout_seat_leg');
+						                addBox(dugout, new THREE.BoxGeometry(0.10, 0.34, 0.10), metalMat, sx + 0.30, 0.27, 0.42, 0, 0, 0, 'pitch_3d_visible_dugout_seat_leg');
 						              }
-						              const label = new THREE.Mesh(new THREE.PlaneGeometry(5.8, 0.68), adMats[labelIndex % adMats.length]);
-						              label.position.set(0, 1.20, -1.06);
+						              const label = new THREE.Mesh(new THREE.PlaneGeometry(6.2, 0.78), adMatFor(labelIndex, false));
+						              label.position.set(0, 1.30, -1.13);
 						              label.userData = { kind: 'pitch_3d_visible_dugout_label' };
 						              dugout.add(label);
+						              const sideBrand = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 0.56), adMatFor(labelIndex, false));
+						              sideBrand.position.set(-6.9, 0.92, 1.26);
+						              sideBrand.rotation.y = Math.PI / 2;
+						              sideBrand.userData = { kind: 'pitch_3d_visible_dugout_side_brand' };
+						              dugout.add(sideBrand);
 						              root.add(dugout);
 						            };
 						            const addTunnel = (portalZ, rotY = 0) => {
@@ -11149,6 +11167,8 @@
 						              addBox(tunnelGroup, new THREE.BoxGeometry(0.10, 1.18, 4.35), metalMat, -4.58, 0.98, 1.88, -0.05, 0, 0, 'pitch_3d_visible_tunnel_side_rail_l');
 						              addBox(tunnelGroup, new THREE.BoxGeometry(0.10, 1.18, 4.35), metalMat, 4.58, 0.98, 1.88, -0.05, 0, 0, 'pitch_3d_visible_tunnel_side_rail_r');
 						              addBox(tunnelGroup, new THREE.BoxGeometry(11.4, 0.48, 0.28), visibleFasciaMat, 0, 3.10, -0.04, 0, 0, 0, 'pitch_3d_visible_tunnel_header_fascia');
+						              addBox(tunnelGroup, new THREE.BoxGeometry(9.2, 0.08, 1.18), tunnelCoverMat, 0, 2.76, 0.36, -0.18, 0, 0, 'pitch_3d_visible_tunnel_glass_cap');
+						              addBox(tunnelGroup, new THREE.BoxGeometry(8.2, 0.06, 3.66), tunnelCoverMat, 0, 1.76, 1.74, -0.18, 0, 0, 'pitch_3d_visible_tunnel_glass_slide');
 						              root.add(tunnelGroup);
 						            };
 						            addDugout(-18.0, -(metersH / 2 + 2.05), 0, 0);
