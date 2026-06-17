@@ -42498,7 +42498,7 @@ def analysis_page(request):
     analysis_selected_season, analysis_season_start, analysis_season_end = _selected_club_season_bounds(request, workspace=workspace)
     analysis_season_read_only = season_history_services.selected_club_season_is_read_only(analysis_selected_season)
     active_tab = str(request.GET.get('tab') or '').strip().lower() or 'videos'
-    if active_tab not in {'reports', 'videos', 'studio', 'insights', 'rivals'}:
+    if active_tab not in {'reports', 'videos', 'studio', 'tactics', 'insights', 'rivals'}:
         active_tab = 'videos'
     analysis_video_view = str(request.GET.get('view') or '').strip().lower()
     if analysis_video_view not in {'upload', 'library'}:
@@ -43983,12 +43983,28 @@ def analysis_page(request):
         except Exception:
             folder_reports = []
 
+    def _append_query(url, **params):
+        clean_params = {key: value for key, value in params.items() if value not in (None, '')}
+        if not clean_params:
+            return url
+        separator = '&' if '?' in url else '?'
+        return f'{url}{separator}{urlencode(clean_params)}'
+
+    try:
+        tactics_url = reverse('coach-tactics')
+        if primary_team:
+            tactics_url = _append_query(tactics_url, team=int(primary_team.id))
+    except Exception:
+        tactics_url = '/coach/tactica/'
+    tactics_url_playbook = _append_query(tactics_url, pane='playbook')
+    tactics_url_export = _append_query(tactics_url, pane='exportar')
+
     return render(
         request,
         'football/coach_analysis.html',
         {
-            'section_title': 'Análisis de vídeo',
-            'description': 'Carga, biblioteca y edición de vídeos del cuerpo técnico.',
+            'section_title': 'Análisis',
+            'description': 'Carga, biblioteca, edición de vídeo y pizarra táctica del cuerpo técnico.',
             'team_url': team_url,
             'team_id': team_id,
             'active_tab': active_tab,
@@ -44000,8 +44016,12 @@ def analysis_page(request):
             'tab_link_library': _tab_link('videos', view='library'),
             'tab_link_videos': _tab_link('videos', view='library'),
             'tab_link_studio': _tab_link('studio', view=None),
+            'tab_link_tactics': _tab_link('tactics', view=None),
             'tab_link_insights': _tab_link('insights', view=None),
             'tab_link_rivals': _tab_link('rivals', view=None),
+            'tactics_url': tactics_url,
+            'tactics_url_playbook': tactics_url_playbook,
+            'tactics_url_export': tactics_url_export,
             'teams': Team.objects.order_by('name'),
             'raw_text': raw_text,
             'roster': roster,

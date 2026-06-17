@@ -194,23 +194,33 @@
       [data-tab] { display: block; }
       body[data-active-tab="reports"] [data-tab="videos"],
       body[data-active-tab="reports"] [data-tab="studio"],
+      body[data-active-tab="reports"] [data-tab="tactics"],
       body[data-active-tab="reports"] [data-tab="insights"],
       body[data-active-tab="reports"] [data-tab="rivals"] { display: none; }
       body[data-active-tab="videos"] [data-tab="reports"],
       body[data-active-tab="videos"] [data-tab="studio"],
+      body[data-active-tab="videos"] [data-tab="tactics"],
       body[data-active-tab="videos"] [data-tab="insights"],
       body[data-active-tab="videos"] [data-tab="rivals"] { display: none; }
       body[data-active-tab="studio"] [data-tab="reports"],
       body[data-active-tab="studio"] [data-tab="videos"],
+      body[data-active-tab="studio"] [data-tab="tactics"],
       body[data-active-tab="studio"] [data-tab="insights"],
       body[data-active-tab="studio"] [data-tab="rivals"] { display: none; }
+      body[data-active-tab="tactics"] [data-tab="reports"],
+      body[data-active-tab="tactics"] [data-tab="videos"],
+      body[data-active-tab="tactics"] [data-tab="studio"],
+      body[data-active-tab="tactics"] [data-tab="insights"],
+      body[data-active-tab="tactics"] [data-tab="rivals"] { display: none; }
       body[data-active-tab="insights"] [data-tab="reports"],
       body[data-active-tab="insights"] [data-tab="videos"],
       body[data-active-tab="insights"] [data-tab="studio"],
+      body[data-active-tab="insights"] [data-tab="tactics"],
       body[data-active-tab="insights"] [data-tab="rivals"] { display: none; }
       body[data-active-tab="rivals"] [data-tab="reports"],
       body[data-active-tab="rivals"] [data-tab="videos"],
       body[data-active-tab="rivals"] [data-tab="studio"],
+      body[data-active-tab="rivals"] [data-tab="tactics"],
       body[data-active-tab="rivals"] [data-tab="insights"] { display: none; }
       body[data-active-tab="videos"][data-video-view="upload"] .analysis-library-only { display: none !important; }
       body[data-active-tab="videos"][data-video-view="library"] .analysis-upload-only { display: none !important; }
@@ -514,7 +524,7 @@
       {% include 'football/includes/dragon_nav.html' %}
       <header>
         <div>
-          <p>Área técnica · Cuerpo técnico <span class="product-chip role">Análisis de vídeo</span></p>
+          <p>Área técnica · Cuerpo técnico <span class="product-chip role">Análisis + táctica</span></p>
           <h1>{{ section_title }}</h1>
         </div>
         <a class="button ghost" href="{% url 'coach-detail' %}">Volver</a>
@@ -532,6 +542,10 @@
 		          <p class="meta" style="margin:0;">
 		            Edición: abre Video Studio sobre un vídeo existente para cortar, marcar, crear clips o exportar.
 		          </p>
+		        {% elif active_tab == 'tactics' %}
+		          <p class="meta" style="margin:0;">
+		            Pizarra táctica: jugadas libres, secuencias 2D/3D, Playbook y exportaciones.
+		          </p>
 		        {% else %}
 		          <p>{{ description }}</p>
 		        {% endif %}
@@ -539,6 +553,7 @@
 			          <a class="{% if active_tab == 'videos' and analysis_video_view == 'upload' %}is-active{% endif %}" href="{{ tab_link_upload }}">Cargar vídeo</a>
 			          <a class="{% if active_tab == 'videos' and analysis_video_view == 'library' %}is-active{% endif %}" href="{{ tab_link_library }}">Biblioteca</a>
 				          <a class="{% if active_tab == 'studio' %}is-active{% endif %}" href="{{ tab_link_studio }}">Edición</a>
+				          <a class="{% if active_tab == 'tactics' %}is-active{% endif %}" href="{{ tab_link_tactics }}">Pizarra táctica</a>
 			        </nav>
 
 		        {% if active_tab == 'reports' or active_tab == 'insights' or active_tab == 'rivals' %}
@@ -1107,6 +1122,47 @@
 	          {% empty %}
 	          <article class="item"><p class="meta">No hay vídeos todavía. Usa “Cargar vídeo” para subir uno desde archivo o YouTube.</p></article>
 	          {% endfor %}
+	        </div>
+	        </div>
+
+	        <div data-tab="tactics">
+	        <div class="grid" style="margin-top:1rem;">
+	          <div class="item item-wide">
+	            <h3>Pizarra táctica + Playbook</h3>
+	            <p class="meta" style="margin:0.35rem 0 0;">
+	              Editor táctico independiente para preparar jugadas, animaciones, clips de Playbook y material exportable.
+	            </p>
+	            <div class="actions" style="justify-content:flex-start; margin-top:0.85rem;">
+	              <a class="button" href="{{ tactics_url }}">Abrir pizarra</a>
+	              <a class="button ghost" href="{{ tactics_url_playbook }}">Playbook</a>
+	              <a class="button ghost" href="{{ tactics_url_export }}">Exportar</a>
+	              <a class="button ghost" href="{{ tab_link_studio }}">Video Studio</a>
+	            </div>
+	          </div>
+	          <article class="item">
+	            <h4>Pizarra libre</h4>
+	            <p class="meta">Campo, jugadores, balón, flechas, curvas, zonas, texto y estructuras.</p>
+	          </article>
+	          <article class="item">
+	            <h4>Animación 2D/3D</h4>
+	            <p class="meta">Secuencias por fases para explicar movimientos, presión, bloque y circulación.</p>
+	          </article>
+	          <article class="item">
+	            <h4>Playbook</h4>
+	            <p class="meta">Clips tácticos guardados por equipo para recuperar, presentar o compartir.</p>
+	          </article>
+	          <article class="item">
+	            <h4>Exportaciones</h4>
+	            <p class="meta">Capturas, paquetes de trabajo y datos reutilizables para cuerpo técnico.</p>
+	          </article>
+	          <article class="item">
+	            <h4>Conexión con vídeo</h4>
+	            <p class="meta">Acceso directo a Video Studio para complementar la pizarra con cortes reales.</p>
+	          </article>
+	          <article class="item">
+	            <h4>Plantilla activa</h4>
+	            <p class="meta">Jugadores, dorsales y equipo se arrastran desde el contexto del club.</p>
+	          </article>
 	        </div>
 	        </div>
 
