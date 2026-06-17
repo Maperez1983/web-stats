@@ -10267,7 +10267,7 @@
 						            group.add(mesh);
 						            return mesh;
 						          };
-						          const makeAdTexture = (label, accent = '#14b8a6') => makePitch3dCanvasTexture((ctx, c) => {
+						          const makeAdTexture = (label, accent = '#14b8a6', flipX = false) => makePitch3dCanvasTexture((ctx, c) => {
 						            const bg = ctx.createLinearGradient(0, 0, c.width, 0);
 						            bg.addColorStop(0, '#020617');
 						            bg.addColorStop(0.18, '#052e3f');
@@ -10298,18 +10298,48 @@
 						            ctx.textBaseline = 'middle';
 						            ctx.shadowColor = 'rgba(255,255,255,0.72)';
 						            ctx.shadowBlur = 18;
-						            ctx.fillText(label, c.width / 2, c.height / 2 + 1);
+						            if (flipX) {
+						              ctx.save();
+						              ctx.translate(c.width, 0);
+						              ctx.scale(-1, 1);
+						              ctx.fillText(label, c.width / 2, c.height / 2 + 1);
+						              ctx.restore();
+						            } else {
+						              ctx.fillText(label, c.width / 2, c.height / 2 + 1);
+						            }
 						            ctx.shadowBlur = 0;
 						            ctx.strokeStyle = 'rgba(180,255,237,0.48)';
 						            ctx.lineWidth = 4;
 						            ctx.strokeRect(12, 12, c.width - 24, c.height - 24);
 						          }, 2048, 384)?.tex || null;
-						          const adMats = [
-						            new THREE.MeshBasicMaterial({ map: makeAdTexture('2J FOOTBALL INTELLIGENCE', stadiumPalette3d.primary), side: THREE.FrontSide, toneMapped: false, transparent: true, opacity: 0.96 }),
-						            new THREE.MeshBasicMaterial({ map: makeAdTexture('PARTNER', stadiumPalette3d.accent), side: THREE.FrontSide, toneMapped: false, transparent: true, opacity: 0.96 }),
-						            new THREE.MeshBasicMaterial({ map: makeAdTexture('SPONSOR', stadiumPalette3d.secondary), side: THREE.FrontSide, toneMapped: false, transparent: true, opacity: 0.96 }),
-						            new THREE.MeshBasicMaterial({ map: makeAdTexture('LA ROSALEDA', '#1d4ed8'), side: THREE.FrontSide, toneMapped: false, transparent: true, opacity: 0.96 }),
+						          const adConfigs = [
+						            { label: '2J FOOTBALL INTELLIGENCE', accent: stadiumPalette3d.primary },
+						            { label: 'PARTNER', accent: stadiumPalette3d.accent },
+						            { label: 'SPONSOR', accent: stadiumPalette3d.secondary },
+						            { label: 'LA ROSALEDA', accent: '#1d4ed8' },
 						          ];
+						          const adMatCache = new Map();
+						          const adMatFor = (matIndex = 0, flipX = false) => {
+						            const config = adConfigs[((matIndex % adConfigs.length) + adConfigs.length) % adConfigs.length];
+						            const key = `${config.label}|${config.accent}|${flipX ? 'flip' : 'plain'}`;
+						            if (!adMatCache.has(key)) {
+						              adMatCache.set(key, new THREE.MeshBasicMaterial({
+						                map: makeAdTexture(config.label, config.accent, flipX),
+						                side: THREE.FrontSide,
+						                toneMapped: false,
+						                transparent: true,
+						                opacity: 0.96,
+						              }));
+						            }
+						            return adMatCache.get(key);
+						          };
+						          const needsMirroredBoardText = (yaw) => {
+						            const full = Math.PI * 2;
+						            let normalized = yaw % full;
+						            if (normalized < 0) normalized += full;
+						            const epsilon = 0.001;
+						            return Math.abs(normalized - Math.PI) < epsilon || Math.abs(normalized - (Math.PI * 1.5)) < epsilon;
+						          };
 						          const addAdPanel = (x, z, w, rotY, matIndex = 0) => {
 						            const g = new THREE.Group();
 						            g.position.set(x, 0, z);
@@ -10325,11 +10355,13 @@
 						              addBox(g, new THREE.BoxGeometry(0.10, 0.70, 0.08), metalMat, -(w / 2) + 0.55, 0.46, -0.40 + s, -0.22, 0, 0, 'pitch_3d_led_rear_support');
 						              addBox(g, new THREE.BoxGeometry(0.10, 0.70, 0.08), metalMat, (w / 2) - 0.55, 0.46, -0.40 + s, -0.22, 0, 0, 'pitch_3d_led_rear_support');
 						            }
-						            const face = new THREE.Mesh(new THREE.PlaneGeometry(w, 1.05), adMats[matIndex % adMats.length]);
+						            const frontFlipX = needsMirroredBoardText(rotY);
+						            const backFlipX = !frontFlipX;
+						            const face = new THREE.Mesh(new THREE.PlaneGeometry(w, 1.05), adMatFor(matIndex, frontFlipX));
 						            face.position.set(0, 0.80, 0.125);
 						            face.userData = { kind: 'pitch_3d_ad_face' };
 						            g.add(face);
-						            const back = new THREE.Mesh(new THREE.PlaneGeometry(w, 1.02), adMats[(matIndex + 1) % adMats.length]);
+						            const back = new THREE.Mesh(new THREE.PlaneGeometry(w, 1.02), adMatFor(matIndex, backFlipX));
 						            back.position.set(0, 0.80, -0.125);
 						            back.rotation.y = Math.PI;
 						            back.userData = { kind: 'pitch_3d_ad_back_face' };
@@ -13761,32 +13793,49 @@
 						              roughness: 0.48,
 						              metalness: 0.04,
 						            });
-						            const signMat = makeSignMat(label, {
+						            const makeBoardMat = (flipX) => makeSignMat(label, {
 						              w: opts.w || 1100,
 						              h: opts.h || 260,
 						              bg,
 						              fg: opts.fg || '#f8fafc',
 						              font: opts.font || '900 50px Arial, sans-serif',
 						              stroke: opts.stroke || 'rgba(255,255,255,0.22)',
-						              flipX: Boolean(opts.flipX || facing === 'south'),
+						              flipX,
 						            });
+						            const boardYaw = (
+						              facing === 'south' ? Math.PI
+						              : facing === 'east' ? Math.PI / 2
+						              : facing === 'west' ? -Math.PI / 2
+						              : 0
+						            );
+						            const frontFlipX = Boolean(opts.flipX || facing === 'south' || facing === 'west');
+						            const backFlipX = !frontFlipX;
+						            const frontMat = makeBoardMat(frontFlipX);
+						            const backMat = makeBoardMat(backFlipX);
 						            const thick = opts.thick || 0.12;
 						            let shell;
 						            let face;
+						            let backFace;
 						            if (facing === 'north' || facing === 'south') {
 						              const sign = facing === 'north' ? 1 : -1;
 						              shell = addMesh(new THREE.BoxGeometry(length, height, thick), shellMat, x, y, z, `${kind}_shell`);
-						              face = addRotMesh(new THREE.PlaneGeometry(length * 0.94, height * 0.78), signMat, x, y, z + sign * (thick / 2 + 0.012), 0, sign > 0 ? 0 : Math.PI, 0, `${kind}_readable_face`);
+						              face = addRotMesh(new THREE.PlaneGeometry(length * 0.94, height * 0.78), frontMat, x, y, z + sign * (thick / 2 + 0.012), 0, boardYaw, 0, `${kind}_readable_face`);
+						              backFace = addRotMesh(new THREE.PlaneGeometry(length * 0.94, height * 0.78), backMat, x, y, z - sign * (thick / 2 + 0.012), 0, boardYaw + Math.PI, 0, `${kind}_readable_back_face`);
 						            } else {
 						              const sign = facing === 'east' ? 1 : -1;
 						              shell = addMesh(new THREE.BoxGeometry(thick, height, length), shellMat, x, y, z, `${kind}_shell`);
-						              face = addRotMesh(new THREE.PlaneGeometry(length * 0.94, height * 0.78), signMat, x + sign * (thick / 2 + 0.012), y, z, 0, sign > 0 ? Math.PI / 2 : -Math.PI / 2, 0, `${kind}_readable_face`);
+						              face = addRotMesh(new THREE.PlaneGeometry(length * 0.94, height * 0.78), frontMat, x + sign * (thick / 2 + 0.012), y, z, 0, boardYaw, 0, `${kind}_readable_face`);
+						              backFace = addRotMesh(new THREE.PlaneGeometry(length * 0.94, height * 0.78), backMat, x - sign * (thick / 2 + 0.012), y, z, 0, boardYaw + Math.PI, 0, `${kind}_readable_back_face`);
 						            }
 						            try {
 						              shell.castShadow = true;
 						              shell.receiveShadow = true;
 						              face.renderOrder = 70;
 						              face.material.depthWrite = false;
+						              if (backFace) {
+						                backFace.renderOrder = 70;
+						                backFace.material.depthWrite = false;
+						              }
 						            } catch (e) { /* ignore */ }
 						            return face;
 						          };
