@@ -16859,14 +16859,20 @@
 						            });
 						            let tokenNode = null;
 						            if (tokenStyle === 'jersey') {
-						              tokenNode = new THREE.Sprite(mat);
+						              const spriteMat = new THREE.SpriteMaterial({
+						                map: rendered.texture,
+						                transparent: true,
+						                depthWrite: false,
+						                alphaTest: 0.02,
+						              });
+						              tokenNode = new THREE.Sprite(spriteMat);
 						              tokenNode.center.set(0.5, 0);
 						              tokenNode.scale.set(widthMeters, heightMeters, 1);
-						              tokenNode.position.set(0, 0.04, 0);
+						              tokenNode.position.set(0, 0.12, 0);
 						            } else {
 						              tokenNode = new THREE.Mesh(new THREE.PlaneGeometry(widthMeters, heightMeters), mat);
 						              tokenNode.rotation.x = -Math.PI / 2;
-						              tokenNode.position.set(0, 0.035, 0);
+						              tokenNode.position.set(0, 0.08, 0);
 						            }
 						            tokenNode.userData = { kind: 'token_exact_look_3d', token_style: tokenStyle };
 						            anchor.add(tokenNode);
@@ -16896,14 +16902,20 @@
 						            });
 						            let node = null;
 						            if (upright) {
-						              node = new THREE.Sprite(mat);
+						              const spriteMat = new THREE.SpriteMaterial({
+						                map: rendered.texture,
+						                transparent: true,
+						                depthWrite: false,
+						                alphaTest: 0.02,
+						              });
+						              node = new THREE.Sprite(spriteMat);
 						              node.center.set(0.5, 0);
 						              node.scale.set(widthMeters, heightMeters, 1);
-						              node.position.set(center3d.x, 0.04, center3d.z);
+						              node.position.set(center3d.x, 0.10, center3d.z);
 						            } else {
 						              node = new THREE.Mesh(new THREE.PlaneGeometry(widthMeters, heightMeters), mat);
 						              node.rotation.x = -Math.PI / 2;
-						              node.position.set(center3d.x, 0.035, center3d.z);
+						              node.position.set(center3d.x, 0.08, center3d.z);
 						            }
 						            node.userData = { kind: safeText(options.kind, 'pitch_3d_exact_look_object'), source_kind: safeText(o?.data?.kind) };
 						            node.visible = options.visible !== false;
