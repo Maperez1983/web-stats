@@ -9203,24 +9203,6 @@
 						    };
 						    const objectBaseWidth2d = (o) => {
 						      if (!o || typeof o !== 'object') return 0;
-						      const liveCanvas = canvas && typeof canvas.getObjects === 'function' ? canvas : null;
-						      const liveObjects = liveCanvas ? (Array.isArray(liveCanvas.getObjects?.()) ? liveCanvas.getObjects() : []) : [];
-						      const live = liveObjects.find((candidate) => {
-						        if (!candidate) return false;
-						        const uid = safeText(o?.data?.playerId) || safeText(o?.data?.layer_uid) || safeText(o?.data?.uid) || safeText(o?.data?.playerNumber);
-						        const candidateUid = safeText(candidate?.data?.playerId) || safeText(candidate?.data?.layer_uid) || safeText(candidate?.data?.uid) || safeText(candidate?.data?.playerNumber);
-						        if (uid && candidateUid && uid === candidateUid) return true;
-						        if (safeText(candidate?.data?.kind) !== safeText(o?.data?.kind)) return false;
-						        if (safeText(candidate?.type) !== safeText(o?.type)) return false;
-						        return Math.abs((Number(candidate?.left) || 0) - (Number(o?.left) || 0)) <= 2
-						          && Math.abs((Number(candidate?.top) || 0) - (Number(o?.top) || 0)) <= 2;
-						      }) || null;
-						      try {
-						        if (live && typeof live.getScaledWidth === 'function') {
-						          const scaled = Number(live.getScaledWidth());
-						          if (Number.isFinite(scaled) && scaled > 0) return scaled;
-						        }
-						      } catch (e) { /* ignore */ }
 						      if (Number.isFinite(Number(o.width)) && Number(o.width) > 0) return Number(o.width);
 						      if (Number.isFinite(Number(o.radius)) && Number(o.radius) > 0) return Number(o.radius) * 2;
 						      if (Number.isFinite(Number(o.rx)) && Number(o.rx) > 0) return Number(o.rx) * 2;
@@ -9228,24 +9210,6 @@
 						    };
 						    const objectBaseHeight2d = (o) => {
 						      if (!o || typeof o !== 'object') return 0;
-						      const liveCanvas = canvas && typeof canvas.getObjects === 'function' ? canvas : null;
-						      const liveObjects = liveCanvas ? (Array.isArray(liveCanvas.getObjects?.()) ? liveCanvas.getObjects() : []) : [];
-						      const live = liveObjects.find((candidate) => {
-						        if (!candidate) return false;
-						        const uid = safeText(o?.data?.playerId) || safeText(o?.data?.layer_uid) || safeText(o?.data?.uid) || safeText(o?.data?.playerNumber);
-						        const candidateUid = safeText(candidate?.data?.playerId) || safeText(candidate?.data?.layer_uid) || safeText(candidate?.data?.uid) || safeText(candidate?.data?.playerNumber);
-						        if (uid && candidateUid && uid === candidateUid) return true;
-						        if (safeText(candidate?.data?.kind) !== safeText(o?.data?.kind)) return false;
-						        if (safeText(candidate?.type) !== safeText(o?.type)) return false;
-						        return Math.abs((Number(candidate?.left) || 0) - (Number(o?.left) || 0)) <= 2
-						          && Math.abs((Number(candidate?.top) || 0) - (Number(o?.top) || 0)) <= 2;
-						      }) || null;
-						      try {
-						        if (live && typeof live.getScaledHeight === 'function') {
-						          const scaled = Number(live.getScaledHeight());
-						          if (Number.isFinite(scaled) && scaled > 0) return scaled;
-						        }
-						      } catch (e) { /* ignore */ }
 						      if (Number.isFinite(Number(o.height)) && Number(o.height) > 0) return Number(o.height);
 						      if (Number.isFinite(Number(o.radius)) && Number(o.radius) > 0) return Number(o.radius) * 2;
 						      if (Number.isFinite(Number(o.ry)) && Number(o.ry) > 0) return Number(o.ry) * 2;
@@ -9253,26 +9217,6 @@
 						    };
 						    const objectCenterPoint2d = (o) => {
 						      if (!o || typeof o !== 'object') return { x: 0, y: 0 };
-						      const liveCanvas = canvas && typeof canvas.getObjects === 'function' ? canvas : null;
-						      const liveObjects = liveCanvas ? (Array.isArray(liveCanvas.getObjects?.()) ? liveCanvas.getObjects() : []) : [];
-						      const live = liveObjects.find((candidate) => {
-						        if (!candidate) return false;
-						        const uid = safeText(o?.data?.playerId) || safeText(o?.data?.layer_uid) || safeText(o?.data?.uid) || safeText(o?.data?.playerNumber);
-						        const candidateUid = safeText(candidate?.data?.playerId) || safeText(candidate?.data?.layer_uid) || safeText(candidate?.data?.uid) || safeText(candidate?.data?.playerNumber);
-						        if (uid && candidateUid && uid === candidateUid) return true;
-						        if (safeText(candidate?.data?.kind) !== safeText(o?.data?.kind)) return false;
-						        if (safeText(candidate?.type) !== safeText(o?.type)) return false;
-						        return Math.abs((Number(candidate?.left) || 0) - (Number(o?.left) || 0)) <= 2
-						          && Math.abs((Number(candidate?.top) || 0) - (Number(o?.top) || 0)) <= 2;
-						      }) || null;
-						      try {
-						        if (live && typeof live.getCenterPoint === 'function') {
-						          const pt = live.getCenterPoint();
-						          if (pt && Number.isFinite(Number(pt.x)) && Number.isFinite(Number(pt.y))) {
-						            return { x: Number(pt.x), y: Number(pt.y) };
-						          }
-						        }
-						      } catch (e) { /* ignore */ }
 						      const ox = safeText(o?.originX, 'center');
 						      const oy = safeText(o?.originY, 'center');
 						      const width = objectBaseWidth2d(o);
@@ -16583,20 +16527,11 @@
 
 						      const deg2rad = (deg) => (Number(deg) || 0) * (Math.PI / 180);
 						      const transformPoint2d = (localX, localY, obj) => {
-						        const liveObj = resolveLiveFabricObject3d(obj) || obj;
-						        try {
-						          if (liveObj && fabricLib?.util?.transformPoint && typeof liveObj.calcTransformMatrix === 'function' && typeof fabricLib.Point === 'function') {
-						            const transformed = fabricLib.util.transformPoint(new fabricLib.Point(Number(localX) || 0, Number(localY) || 0), liveObj.calcTransformMatrix());
-						            if (transformed && Number.isFinite(Number(transformed.x)) && Number.isFinite(Number(transformed.y))) {
-						              return { x: Number(transformed.x), y: Number(transformed.y) };
-						            }
-						          }
-						        } catch (e) { /* ignore */ }
-						        const sx = Number(liveObj?.scaleX);
-						        const sy = Number(liveObj?.scaleY);
+						        const sx = Number(obj?.scaleX);
+						        const sy = Number(obj?.scaleY);
 						        const scaleX = Number.isFinite(sx) ? sx : 1;
 						        const scaleY = Number.isFinite(sy) ? sy : 1;
-						        const angle = deg2rad(liveObj?.angle || 0);
+						        const angle = deg2rad(obj?.angle || 0);
 						        const cos = Math.cos(angle);
 						        const sin = Math.sin(angle);
 						        const x = (Number(localX) || 0) * scaleX;
@@ -16604,8 +16539,8 @@
 						        const rx = (x * cos) - (y * sin);
 						        const ry = (x * sin) + (y * cos);
 						        return {
-						          x: (Number(liveObj?.left) || 0) + rx,
-						          y: (Number(liveObj?.top) || 0) + ry,
+						          x: (Number(obj?.left) || 0) + rx,
+						          y: (Number(obj?.top) || 0) + ry,
 						        };
 						      };
 						      const mapPoint2dTo3d = (xPx, yPx) => map2dToPitch(xPx, yPx, sourceW, sourceH, metersW, metersH, orientation, sourcePitchBox);
