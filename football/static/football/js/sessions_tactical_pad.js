@@ -8963,11 +8963,55 @@
 							      return tex;
 							    };
 
-							    const map2dToPitch = (xPx, yPx, sourceW, sourceH, metersW, metersH, orientation) => {
-						      const w = Math.max(1, Number(sourceW) || 1280);
-						      const h = Math.max(1, Number(sourceH) || 720);
-						      const u = clamp((Number(xPx) || 0) / w, 0, 1);
-						      const v = clamp((Number(yPx) || 0) / h, 0, 1);
+							    const pitchBox2dForPreset = (sourceW, sourceH, preset, orientation, fieldFormat) => {
+						      const bleed = 30;
+						      const stageW = Math.max(1, (Number(sourceW) || 1280) - (bleed * 2));
+						      const stageH = Math.max(1, (Number(sourceH) || 720) - (bleed * 2));
+						      const createStageBox = (desiredAspect = 105 / 68, fitMode = 'contain') => {
+						        const portrait = safeText(orientation) === 'portrait';
+						        const effectiveW = portrait ? stageH : stageW;
+						        const effectiveH = portrait ? stageW : stageH;
+						        const fit = safeText(fitMode, 'contain') === 'cover' ? 'cover' : 'contain';
+						        let width = effectiveW;
+						        let height = width / desiredAspect;
+						        if (fit === 'contain') {
+						          if (height > effectiveH) {
+						            height = effectiveH;
+						            width = height * desiredAspect;
+						          }
+						        } else {
+						          height = effectiveH;
+						          width = height * desiredAspect;
+						          if (width < effectiveW) {
+						            width = effectiveW;
+						            height = width / desiredAspect;
+						          }
+						        }
+						        return {
+						          x: (effectiveW - width) / 2,
+						          y: (effectiveH - height) / 2,
+						          width,
+						          height,
+						        };
+						      };
+						      const key = safeText(preset, 'full_pitch');
+						      if (key === 'full_pitch' || key === 'blank' || key === 'seven_side') {
+						        return { x: 0, y: 0, width: stageW, height: stageH };
+						      }
+						      if (key === 'half_pitch') return createStageBox((52.5 / 68), 'contain');
+						      if (key === 'attacking_third' || key === 'middle_third' || key === 'defensive_third') return createStageBox((35 / 68), 'contain');
+						      if (key === 'seven_side_single') return createStageBox((65 / 45), 'contain');
+						      if (key === 'futsal') return createStageBox((40 / 20), 'cover');
+						      const profile = getPitch3dFieldProfile(fieldFormat);
+						      return createStageBox((Number(profile?.w) || 105) / Math.max(1, Number(profile?.h) || 68), 'contain');
+						    };
+
+							    const map2dToPitch = (xPx, yPx, sourceW, sourceH, metersW, metersH, orientation, pitchBox = null) => {
+						      const box = pitchBox && Number.isFinite(Number(pitchBox.width)) && Number.isFinite(Number(pitchBox.height))
+						        ? pitchBox
+						        : { x: 0, y: 0, width: Math.max(1, Number(sourceW) || 1280), height: Math.max(1, Number(sourceH) || 720) };
+						      const u = clamp(((Number(xPx) || 0) - (Number(box.x) || 0)) / Math.max(1, Number(box.width) || 1), 0, 1);
+						      const v = clamp(((Number(yPx) || 0) - (Number(box.y) || 0)) / Math.max(1, Number(box.height) || 1), 0, 1);
 						      let x = (u - 0.5) * metersW;
 						      let z = (v - 0.5) * metersH;
 						      if (safeText(orientation) === 'portrait') {
@@ -8980,9 +9024,10 @@
 						      return { x, z };
 						    };
 
-							    const mapPitchTo2d = (xM, zM, sourceW, sourceH, metersW, metersH, orientation) => {
-						      const w = Math.max(1, Number(sourceW) || 1280);
-						      const h = Math.max(1, Number(sourceH) || 720);
+							    const mapPitchTo2d = (xM, zM, sourceW, sourceH, metersW, metersH, orientation, pitchBox = null) => {
+						      const box = pitchBox && Number.isFinite(Number(pitchBox.width)) && Number.isFinite(Number(pitchBox.height))
+						        ? pitchBox
+						        : { x: 0, y: 0, width: Math.max(1, Number(sourceW) || 1280), height: Math.max(1, Number(sourceH) || 720) };
 						      let x = Number(xM) || 0;
 						      let z = Number(zM) || 0;
 						      if (safeText(orientation) === 'portrait') {
@@ -8993,7 +9038,10 @@
 						      }
 						      const u = clamp((x / Math.max(1, Number(metersW) || 105)) + 0.5, 0, 1);
 						      const v = clamp((z / Math.max(1, Number(metersH) || 68)) + 0.5, 0, 1);
-						      return { x: u * w, y: v * h };
+						      return {
+						        x: (Number(box.x) || 0) + (u * Math.max(1, Number(box.width) || 1)),
+						        y: (Number(box.y) || 0) + (v * Math.max(1, Number(box.height) || 1)),
+						      };
 						    };
 						    const objectBaseWidth2d = (o) => {
 						      if (!o || typeof o !== 'object') return 0;
@@ -9654,9 +9702,10 @@
 						      const out = { x: 0, z: 0, spread: Math.max(18, Math.min(Number(metersW) || 105, Number(metersH) || 68) * 0.28), count: 0 };
 						      try {
 						        const { w, h } = worldSize();
+						        const focusPitchBox = pitchBox2dForPreset(Number(w) || 1280, Number(h) || 720, presetSelect?.value || 'full_pitch', pitchOrientation, pitch3dFormat);
 						        const items = (canvas.getObjects?.() || [])
 						          .filter((o) => o && !o?.data?.base && safeText(o?.data?.kind) !== 'preview-background')
-						          .map((o) => map2dToPitch(Number(o.left) || 0, Number(o.top) || 0, Number(w) || 1280, Number(h) || 720, metersW, metersH, pitchOrientation));
+						          .map((o) => map2dToPitch(Number(o.left) || 0, Number(o.top) || 0, Number(w) || 1280, Number(h) || 720, metersW, metersH, pitchOrientation, focusPitchBox));
 						        if (!items.length) return out;
 						        const xs = items.map((p) => Number(p.x) || 0);
 						        const zs = items.map((p) => Number(p.z) || 0);
@@ -9912,6 +9961,7 @@
 						      const metersH = meters.h;
 						      const sourceW = Number(options.sourceW) || (Number(worldWidth) || 1280);
 						      const sourceH = Number(options.sourceH) || (Number(worldHeight) || 720);
+						      const sourcePitchBox = pitchBox2dForPreset(sourceW, sourceH, preset, orientation, fieldFormat);
 							      try { addPitch3dRenderBackdrop(root, metersW, metersH); } catch (e) { /* ignore */ }
 
 						      // Suelo
@@ -16265,7 +16315,7 @@
 						          y: (Number(obj?.top) || 0) + ry,
 						        };
 						      };
-						      const mapPoint2dTo3d = (xPx, yPx) => map2dToPitch(xPx, yPx, sourceW, sourceH, metersW, metersH, orientation);
+						      const mapPoint2dTo3d = (xPx, yPx) => map2dToPitch(xPx, yPx, sourceW, sourceH, metersW, metersH, orientation, sourcePitchBox);
 
 						      const parseColorInt = (maybe) => toColorInt(safeText(maybe || ''), 0x22d3ee);
 						      const addLine3d = (p1, p2, colorInt, thickness = 0.11, opacity = 0.95) => {
@@ -17373,7 +17423,7 @@
 						        const mesh = new THREE.Mesh(geo, mat);
 						        mesh.position.y = 0.14;
 						        const center2d = objectCenterPoint2d(o);
-						        const pos = map2dToPitch(center2d.x, center2d.y, sourceW, sourceH, metersW, metersH, orientation);
+						        const pos = map2dToPitch(center2d.x, center2d.y, sourceW, sourceH, metersW, metersH, orientation, sourcePitchBox);
 						        mesh.position.x = pos.x;
 						        mesh.position.z = pos.z;
 						        mesh.userData = { kind: 'token', uid, facing_deg: facingDeg, fov_visible: fovVisible, fov_width_deg: fovWidthDeg };
@@ -17418,7 +17468,7 @@
 						        const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, metalness: 0.02 });
 						        const mesh = new THREE.Mesh(geo, mat);
 						        const center2d = objectCenterPoint2d(o);
-						        const pos = map2dToPitch(center2d.x, center2d.y, sourceW, sourceH, metersW, metersH, orientation);
+						        const pos = map2dToPitch(center2d.x, center2d.y, sourceW, sourceH, metersW, metersH, orientation, sourcePitchBox);
 						        mesh.position.set(pos.x, 0.35, pos.z);
 						        const uid = pitch3dUidForObject(o, 'ball');
 						        mesh.userData = { kind: 'ball', uid };
@@ -17782,14 +17832,16 @@
 						      const hA = Math.max(1, Number(fromStep?.sourceH) || 720);
 						      const wB = Math.max(1, Number(toStep?.sourceW) || wA);
 						      const hB = Math.max(1, Number(toStep?.sourceH) || hA);
+						      const pitchBoxA = pitchBox2dForPreset(wA, hA, preset, orientation, fieldFormat);
+						      const pitchBoxB = pitchBox2dForPreset(wB, hB, preset, orientation, fieldFormat);
 							      const aObjs = Array.isArray(fromStep?.state?.objects) ? fromStep.state.objects : [];
 							      const bObjs = Array.isArray(toStep?.state?.objects) ? toStep.state.objects : [];
 						      const routesA = (fromStep?.routes && typeof fromStep.routes === 'object') ? fromStep.routes : {};
 						      const routesB = (toStep?.routes && typeof toStep.routes === 'object') ? toStep.routes : {};
 						      const routeForUid = (uid) => pitch3dRouteForUid(routesA, uid) || pitch3dRouteForUid(routesB, uid);
-						      const routeSample3d = (route, t, srcW, srcH, height = 0.06, isBall = false, actionRaw = '') => {
+						      const routeSample3d = (route, t, srcW, srcH, srcPitchBox, height = 0.06, isBall = false, actionRaw = '') => {
 						        const pt = samplePitch3dRoutePoint(route?.points, t);
-						        const mapped = map2dToPitch(pt.x, pt.y, srcW, srcH, metersW, metersH, orientation);
+						        const mapped = map2dToPitch(pt.x, pt.y, srcW, srcH, metersW, metersH, orientation, srcPitchBox);
 						        const pts = normalizePitch3dRoutePoints(route?.points);
 						        const dist = pts.reduce((sum, cur, index, arr) => {
 						          if (!index) return sum;
@@ -17819,7 +17871,7 @@
 							            const mat = ghostMat.clone();
 							            mat.color = new THREE.Color(c);
 							            const mesh = new THREE.Mesh(geo, mat);
-							            const p = map2dToPitch(Number(o.left) || 0, Number(o.top) || 0, wA, hA, metersW, metersH, orientation);
+							            const p = map2dToPitch(Number(o.left) || 0, Number(o.top) || 0, wA, hA, metersW, metersH, orientation, pitchBoxA);
 							            mesh.position.set(p.x, 0.05, p.z);
 							            mesh.userData = { kind: 'ghost', uid };
 							            pitch3dGhostRoot.add(mesh);
@@ -17841,7 +17893,7 @@
 							            const route = routeForUid(uid);
 							            if (route) {
 							              const pts = normalizePitch3dRoutePoints(route.points).map((pt, i, arr) => {
-							                const mapped = map2dToPitch(pt.x, pt.y, wA, hA, metersW, metersH, orientation);
+							                const mapped = map2dToPitch(pt.x, pt.y, wA, hA, metersW, metersH, orientation, pitchBoxA);
 							                return new THREE.Vector3(mapped.x, 0.05 + (Math.sin((i / Math.max(1, arr.length - 1)) * Math.PI) * 0.08), mapped.z);
 							              });
 							              if (pts.length >= 2) {
@@ -17864,8 +17916,8 @@
 							            }
 							            const b = mapB.get(uid) || null;
 							            if (!b) return;
-							            const a3 = map2dToPitch(Number(o.left) || 0, Number(o.top) || 0, wA, hA, metersW, metersH, orientation);
-							            const b3 = map2dToPitch(Number(b.left) || 0, Number(b.top) || 0, wB, hB, metersW, metersH, orientation);
+							            const a3 = map2dToPitch(Number(o.left) || 0, Number(o.top) || 0, wA, hA, metersW, metersH, orientation, pitchBoxA);
+							            const b3 = map2dToPitch(Number(b.left) || 0, Number(b.top) || 0, wB, hB, metersW, metersH, orientation, pitchBoxB);
 							            const pts = [new THREE.Vector3(a3.x, 0.03, a3.z), new THREE.Vector3(b3.x, 0.03, b3.z)];
 							            const geo = new THREE.BufferGeometry().setFromPoints(pts);
 							            const mat = new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.35 });
@@ -17897,14 +17949,14 @@
 							        const activeAction = safeText(route?.action || pitch3dInferAction(`${safeText(fromStep?.title)} ${safeText(fromStep?.description)} ${safeText(toStep?.title)} ${safeText(toStep?.description)}`, 'move'));
 							        let movedDist = 0;
 							        if (route) {
-							          const before = routeSample3d(route, Math.max(0, alpha - 0.04), wA, hA, 0.10, false);
-							          const pRoute = routeSample3d(route, alpha, wA, hA, 0.10, false);
+							          const before = routeSample3d(route, Math.max(0, alpha - 0.04), wA, hA, pitchBoxA, 0.10, false);
+							          const pRoute = routeSample3d(route, alpha, wA, hA, pitchBoxA, 0.10, false);
 							          movedDist = Math.hypot(pRoute.x - before.x, pRoute.z - before.z) * 24;
 							          node.position.x = pRoute.x;
 							          node.position.z = pRoute.z;
 							        } else {
-							        const pA = map2dToPitch(Number(a.left) || 0, Number(a.top) || 0, wA, hA, metersW, metersH, orientation);
-							        const pB = map2dToPitch(Number(b.left) || 0, Number(b.top) || 0, wB, hB, metersW, metersH, orientation);
+							        const pA = map2dToPitch(Number(a.left) || 0, Number(a.top) || 0, wA, hA, metersW, metersH, orientation, pitchBoxA);
+							        const pB = map2dToPitch(Number(b.left) || 0, Number(b.top) || 0, wB, hB, metersW, metersH, orientation, pitchBoxB);
 							        movedDist = Math.hypot(pB.x - pA.x, pB.z - pA.z);
 							        node.position.x = pA.x + ((pB.x - pA.x) * alpha);
 							        node.position.z = pA.z + ((pB.z - pA.z) * alpha);
@@ -17958,11 +18010,11 @@
 								          const aBall = aObjs.find((o) => safeText(o?.data?.kind) === 'ball' && (pitch3dUidForObject(o, 'ball') === ballUid || ballUid === 'ball')) || null;
 								          const bBall = bObjs.find((o) => safeText(o?.data?.kind) === 'ball' && (pitch3dUidForObject(o, 'ball') === ballUid || ballUid === 'ball')) || aBall;
 								          if (aBall && bBall) {
-								            const pA = map2dToPitch(Number(aBall.left) || 0, Number(aBall.top) || 0, wA, hA, metersW, metersH, orientation);
-								            const pB = map2dToPitch(Number(bBall.left) || 0, Number(bBall.top) || 0, wB, hB, metersW, metersH, orientation);
+								            const pA = map2dToPitch(Number(aBall.left) || 0, Number(aBall.top) || 0, wA, hA, metersW, metersH, orientation, pitchBoxA);
+								            const pB = map2dToPitch(Number(bBall.left) || 0, Number(bBall.top) || 0, wB, hB, metersW, metersH, orientation, pitchBoxB);
 								            const route = routeForUid(ballUid) || routeForUid('ball');
 								            const ballAction = safeText(route?.action || pitch3dInferAction(`${fromStep?.title || ''} ${fromStep?.description || ''}`, 'pass'));
-								            const routePos = route ? routeSample3d(route, alpha, wA, hA, 0.35, true, ballAction) : null;
+								            const routePos = route ? routeSample3d(route, alpha, wA, hA, pitchBoxA, 0.35, true, ballAction) : null;
 								            const currentX = routePos ? routePos.x : (pA.x + ((pB.x - pA.x) * alpha));
 								            const currentZ = routePos ? routePos.z : (pA.z + ((pB.z - pA.z) * alpha));
 								            const dx = pB.x - pA.x;
