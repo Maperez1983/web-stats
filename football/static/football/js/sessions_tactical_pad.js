@@ -11269,7 +11269,7 @@
 						              pod.add(face);
 						              root.add(pod);
 						            };
-						            [-29.5, -18.5, 18.5, 29.5].forEach((x, idx) => addPitchsideMopup(x, -(metersH / 2 + 2.72), 6.8, idx));
+						            [-32.0, 32.0].forEach((x, idx) => addPitchsideMopup(x, -(metersH / 2 + 2.72), 7.2, idx));
 						            const addDugout = (x, zBase, labelIndex, rotY = 0) => {
 						              const dugout = new THREE.Group();
 						              dugout.position.set(x, 0, zBase);
@@ -16321,11 +16321,20 @@
 						              nodeName.includes('BOARD')
 						              || nodeName.includes('SPONSOR')
 						              || nodeName.includes('PARTNER')
+						              || nodeName.includes('MATCHDAY')
+						              || nodeName.includes('FOOTBALL')
+						              || nodeName.includes('INTELLIGENCE')
+						              || nodeName.includes('ROSALEDA')
+						              || nodeName.includes('SIGNAGE')
+						              || nodeName.includes('AD_')
+						              || nodeName.includes('TEXT')
 						              || nodeName.includes('DUGOUT')
 						              || nodeName.includes('BENCH')
 						              || nodeName.includes('TUNNEL')
 						              || nodeName.includes('OPENING')
 						              || nodeName.includes('PORTAL')
+						              || nodeName.includes('VOMITORY')
+						              || nodeName.includes('ACCESS')
 						              || skipCornerMass
 						            ) return;
 						            const mesh = new THREE.Mesh();
