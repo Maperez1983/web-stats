@@ -11248,11 +11248,28 @@
 						          };
 						          const addVisibleTechnicalArea = () => {
 						            const visibleFasciaMat = new THREE.MeshStandardMaterial({ color: toColorInt(stadiumPalette3d.accent, 0x073b32), roughness: 0.50, metalness: 0.06 });
-						            const serviceWalkMat = new THREE.MeshStandardMaterial({ color: 0x6b7280, roughness: 0.72, metalness: 0.05 });
+						            const serviceWalkMat = new THREE.MeshStandardMaterial({ color: 0x4b5563, roughness: 0.78, metalness: 0.04 });
+						            const serviceEdgeMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.62, metalness: 0.12 });
 						            const tunnelCoverMat = new THREE.MeshPhysicalMaterial({ color: 0xe4f6ff, roughness: 0.10, metalness: 0.02, transparent: true, opacity: 0.34, transmission: 0.24, side: THREE.DoubleSide });
-						            addBox(root, new THREE.BoxGeometry(40.8, 0.12, 1.56), serviceWalkMat, -18.0, 0.08, -(metersH / 2 + 3.54), 0, 0, 0, 'pitch_3d_visible_dugout_service_walk_left');
-						            addBox(root, new THREE.BoxGeometry(40.8, 0.12, 1.56), serviceWalkMat, 18.0, 0.08, -(metersH / 2 + 3.54), 0, 0, 0, 'pitch_3d_visible_dugout_service_walk_right');
-						            addBox(root, new THREE.BoxGeometry(12.4, 0.12, 1.56), serviceWalkMat, 0, 0.08, -(metersH / 2 + 3.54), 0, 0, 0, 'pitch_3d_visible_tunnel_service_walk');
+						            addBox(root, new THREE.BoxGeometry(33.2, 0.10, 1.18), serviceWalkMat, -18.0, 0.07, -(metersH / 2 + 3.36), 0, 0, 0, 'pitch_3d_visible_dugout_service_walk_left');
+						            addBox(root, new THREE.BoxGeometry(33.2, 0.10, 1.18), serviceWalkMat, 18.0, 0.07, -(metersH / 2 + 3.36), 0, 0, 0, 'pitch_3d_visible_dugout_service_walk_right');
+						            addBox(root, new THREE.BoxGeometry(10.2, 0.10, 1.18), serviceWalkMat, 0, 0.07, -(metersH / 2 + 3.36), 0, 0, 0, 'pitch_3d_visible_tunnel_service_walk');
+						            addBox(root, new THREE.BoxGeometry(33.4, 0.08, 0.18), serviceEdgeMat, -18.0, 0.13, -(metersH / 2 + 2.82), 0, 0, 0, 'pitch_3d_visible_dugout_service_walk_left_edge');
+						            addBox(root, new THREE.BoxGeometry(33.4, 0.08, 0.18), serviceEdgeMat, 18.0, 0.13, -(metersH / 2 + 2.82), 0, 0, 0, 'pitch_3d_visible_dugout_service_walk_right_edge');
+						            addBox(root, new THREE.BoxGeometry(10.4, 0.08, 0.18), serviceEdgeMat, 0, 0.13, -(metersH / 2 + 2.82), 0, 0, 0, 'pitch_3d_visible_tunnel_service_walk_edge');
+						            const addPitchsideMopup = (x, z, w, labelIndex) => {
+						              const pod = new THREE.Group();
+						              pod.position.set(x, 0, z);
+						              pod.userData = { kind: 'pitch_3d_visible_pitchside_mopup' };
+						              addBox(pod, new THREE.BoxGeometry(w, 0.42, 0.56), serviceEdgeMat, 0, 0.20, 0, 0, 0, 0, 'pitch_3d_visible_pitchside_mopup_base');
+						              addBox(pod, new THREE.BoxGeometry(w * 0.96, 0.28, 0.08), metalMat, 0, 0.46, -0.22, 0, 0, 0, 'pitch_3d_visible_pitchside_mopup_cap');
+						              const face = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.90, 0.26), adMatFor(labelIndex));
+						              face.position.set(0, 0.46, -0.285);
+						              face.userData = { kind: 'pitch_3d_visible_pitchside_mopup_face' };
+						              pod.add(face);
+						              root.add(pod);
+						            };
+						            [-29.5, -18.5, 18.5, 29.5].forEach((x, idx) => addPitchsideMopup(x, -(metersH / 2 + 2.72), 6.8, idx));
 						            const addDugout = (x, zBase, labelIndex, rotY = 0) => {
 						              const dugout = new THREE.Group();
 						              dugout.position.set(x, 0, zBase);
@@ -11298,20 +11315,20 @@
 						              stand.position.set(x, 0, zBase);
 						              stand.rotation.y = rotY;
 						              stand.userData = { kind: 'pitch_3d_visible_touchline_stand' };
-						              addBox(stand, new THREE.BoxGeometry(16.8, 0.18, 2.46), concreteMat, 0, 0.12, 0, 0, 0, 0, 'pitch_3d_visible_touchline_stand_base');
-						              addBox(stand, new THREE.BoxGeometry(16.0, 0.22, 0.56), visibleFasciaMat, 0, 0.64, -1.02, 0, 0, 0, 'pitch_3d_visible_touchline_stand_pitch_fascia');
+						              addBox(stand, new THREE.BoxGeometry(16.2, 0.12, 2.12), concreteMat, 0, 0.08, 0, 0, 0, 0, 'pitch_3d_visible_touchline_stand_base');
+						              addBox(stand, new THREE.BoxGeometry(16.0, 0.18, 0.38), visibleFasciaMat, 0, 0.50, -0.94, 0, 0, 0, 'pitch_3d_visible_touchline_stand_pitch_fascia');
 						              for (let row = 0; row < 5; row += 1) {
-						                const y = 0.40 + (row * 0.30);
-						                const z = 0.22 + (row * 0.34);
-						                addBox(stand, new THREE.BoxGeometry(15.6 - row * 0.45, 0.14, 0.42), concreteMat, 0, y, z, -0.10, 0, 0, 'pitch_3d_visible_touchline_stand_riser');
+						                const y = 0.30 + (row * 0.28);
+						                const z = 0.14 + (row * 0.28);
+						                addBox(stand, new THREE.BoxGeometry(15.2 - row * 0.42, 0.12, 0.36), concreteMat, 0, y, z, -0.10, 0, 0, 'pitch_3d_visible_touchline_stand_riser');
 						                for (let i = 0; i < 10; i += 1) {
 						                  const sx = -6.1 + (i * 1.36);
 						                  if (Math.abs(sx) < 0.86) continue;
-						                  addBox(stand, new THREE.BoxGeometry(0.86, 0.16, 0.44), benchSeatMat, sx, y + 0.12, z - 0.02, -0.10, 0, 0, 'pitch_3d_visible_touchline_stand_seat');
-						                  addBox(stand, new THREE.BoxGeometry(0.88, 0.44, 0.12), benchPadMat, sx, y + 0.34, z + 0.20, -0.18, 0, 0, 'pitch_3d_visible_touchline_stand_backrest');
+						                  addBox(stand, new THREE.BoxGeometry(0.86, 0.14, 0.38), benchSeatMat, sx, y + 0.10, z - 0.01, -0.10, 0, 0, 'pitch_3d_visible_touchline_stand_seat');
+						                  addBox(stand, new THREE.BoxGeometry(0.88, 0.38, 0.10), benchPadMat, sx, y + 0.28, z + 0.16, -0.18, 0, 0, 'pitch_3d_visible_touchline_stand_backrest');
 						                }
 						              }
-						              addBox(stand, new THREE.BoxGeometry(15.2, 0.10, 0.14), glassMat, 0, 1.92, 1.72, 0, 0, 0, 'pitch_3d_visible_touchline_stand_guardrail');
+						              addBox(stand, new THREE.BoxGeometry(15.2, 0.08, 0.12), glassMat, 0, 1.62, 1.36, 0, 0, 0, 'pitch_3d_visible_touchline_stand_guardrail');
 						              root.add(stand);
 						            };
 						            const addTunnel = (portalZ, rotY = 0) => {
