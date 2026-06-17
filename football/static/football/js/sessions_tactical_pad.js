@@ -17617,9 +17617,21 @@
 						          addBillboardLabel3d(label.slice(0, 20), pos.x, 1.05, pos.z, { bg: 'rgba(15,23,42,0.78)', fill: '#f8fafc', size: 132 });
 						          return;
 						        }
-						        const isTacticalArrowOrLine = type === 'group'
-						          && (kind.startsWith('arrow') || kind.startsWith('line_') || kind.startsWith('line-') || kind === 'line-double' || kind === 'arrow');
-						        if (!isTacticalArrowOrLine && addTrainingResource3d(o, kind, colorInt)) return;
+						        const isNativeTacticalRenderable =
+						          type === 'line'
+						          || type === 'rect'
+						          || type === 'circle'
+						          || type === 'triangle'
+						          || type === 'path'
+						          || kind === 'zone'
+						          || kind.startsWith('shape-')
+						          || kind.startsWith('shape_')
+						          || kind.startsWith('arrow')
+						          || kind.startsWith('line-')
+						          || kind.startsWith('line_')
+						          || kind === 'line-double'
+						          || kind === 'arrow';
+						        if (!isNativeTacticalRenderable && addTrainingResource3d(o, kind, colorInt)) return;
 
 						        // Lineas simples.
 						        if (type === 'line') {
