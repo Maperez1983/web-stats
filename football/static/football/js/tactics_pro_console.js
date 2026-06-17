@@ -516,10 +516,12 @@
     return false;
   };
 
-  const setEasyAnimationMode = (enabled) => {
+  const setEasyAnimationMode = (enabled, options) => {
     const on = enabled !== false;
+    const opts = options || {};
     document.body.classList.toggle('tactics-easy-animation', on);
-    persist({ easy_animation: on });
+    if (opts.persist === true) persist({ easy_animation: on });
+    else if (!on) persist({ easy_animation: false });
     if (on) {
       clickFirst('#tactics-mode-interactive');
       window.setTimeout(() => {
@@ -527,6 +529,7 @@
       }, 80);
       setStatus('Animar fácil: selecciona una chapa, pulsa/arrastra hasta destino y usa ▶ para previsualizar.');
     } else {
+      clickFirst('#tactics-mode-static');
       setStatus('Animar fácil desactivado.');
     }
   };
@@ -559,6 +562,10 @@
       clickFirst(['#tactics-save-clip-top', '#task-sim-clip-save']);
       activatePane('playbook');
     }, 120);
+  };
+
+  const easyAnimationOff = () => {
+    setEasyAnimationMode(false);
   };
 
   const addVideoBoardSync = async () => {
@@ -734,6 +741,7 @@
         else if (action === 'easy-play') easyAnimationPlay();
         else if (action === 'easy-seq') easyAnimationSequence();
         else if (action === 'easy-save') easyAnimationSave();
+        else if (action === 'easy-off') easyAnimationOff();
         else if (action === 'sync') await addVideoBoardSync();
         else if (action === 'principles') await addClubPrinciples();
         else if (action === 'corrections') await addPlayerCorrections();
@@ -770,6 +778,7 @@
           <button type="button" data-tactics-pro="easy-play">Reproducir</button>
           <button type="button" data-tactics-pro="easy-seq">Crear secuencia</button>
           <button type="button" data-tactics-pro="easy-save">Guardar animación</button>
+          <button type="button" data-tactics-pro="easy-off">Salir animación</button>
         </div>
       </div>
 
@@ -867,6 +876,7 @@
       <button type="button" data-tactics-pro="easy-play">▶</button>
       <button type="button" data-tactics-pro="easy-seq">Secuencia</button>
       <button type="button" data-tactics-pro="easy-save">Guardar</button>
+      <button type="button" data-tactics-pro="easy-off">Salir</button>
     `;
     document.body.appendChild(dock);
     bindAction(dock);
@@ -894,10 +904,26 @@
     if (params.get('pane') === 'tacticalpro' || params.get('pro') === '1') {
       window.setTimeout(() => activatePane('tacticalpro'), 100);
     }
-    const state = readState();
-    if (state.easy_animation === true || params.get('anim') === 'easy') {
-      window.setTimeout(() => setEasyAnimationMode(true), 220);
+    if (params.get('anim') === 'easy') {
+      window.setTimeout(() => setEasyAnimationMode(true, { persist: false }), 220);
+    } else {
+      // Evita que una sesión anterior deje la pizarra bloqueada en Interactiva/Ruta.
+      persist({ easy_animation: false });
     }
+
+    document.addEventListener('click', (event) => {
+      try {
+        if (!document.body.classList.contains('tactics-easy-animation')) return;
+        const target = event.target;
+        if (!target || !target.closest) return;
+        if (target.closest('.tactics-easy-anim-dock') || target.closest('#tactics-pro-console')) return;
+        if (target.closest('.resource-panel button') || target.closest('.player-bank button') || target.closest('[data-add]')) {
+          setEasyAnimationMode(false);
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    }, true);
   };
 
   if (document.readyState === 'loading') {
