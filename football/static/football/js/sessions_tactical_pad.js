@@ -9042,6 +9042,29 @@
 						        || safeText(data.playerNumber)
 						        || safeText(fallback);
 						    };
+						    const resolveLiveFabricObject3d = (obj) => {
+						      const liveCanvas = canvas && typeof canvas.getObjects === 'function' ? canvas : null;
+						      if (!obj || !liveCanvas) return null;
+						      const liveObjects = Array.isArray(liveCanvas.getObjects?.()) ? liveCanvas.getObjects() : [];
+						      if (!liveObjects.length) return null;
+						      const uid = pitch3dUidForObject(obj);
+						      if (uid) {
+						        const byUid = liveObjects.find((candidate) => pitch3dUidForObject(candidate) === uid);
+						        if (byUid) return byUid;
+						      }
+						      const kind = safeText(obj?.data?.kind);
+						      const type = safeText(obj?.type);
+						      const left = Number(obj?.left);
+						      const top = Number(obj?.top);
+						      const byShape = liveObjects.find((candidate) => {
+						        if (safeText(candidate?.data?.kind) !== kind) return false;
+						        if (safeText(candidate?.type) !== type) return false;
+						        const dx = Math.abs((Number(candidate?.left) || 0) - (Number.isFinite(left) ? left : 0));
+						        const dy = Math.abs((Number(candidate?.top) || 0) - (Number.isFinite(top) ? top : 0));
+						        return dx <= 2 && dy <= 2;
+						      });
+						      return byShape || null;
+						    };
 
 						    const normalizePitch3dRoutePoints = (points) => {
 						      const list = Array.isArray(points) ? points : [];
@@ -16780,10 +16803,10 @@
 						          }
 						        });
 						      };
-						      const renderFabricObjectTexture3d = async (obj, options = {}) => {
+						    const renderFabricObjectTexture3d = async (obj, options = {}) => {
 						        const CanvasCtor = fabricLib ? (fabricLib.StaticCanvas || fabricLib.Canvas) : null;
 						        if (!obj || !CanvasCtor || typeof CanvasCtor !== 'function') return null;
-						        const cloned = await materializeFabricObject3d(obj);
+						        const cloned = await materializeFabricObject3d(resolveLiveFabricObject3d(obj) || obj);
 						        if (!cloned) return null;
 						        const padding = clamp(Number(options.padding) || 18, 8, 56);
 						        const multiplier = clamp(Number(options.multiplier) || 2, 1, 4);
