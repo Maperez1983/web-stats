@@ -8973,7 +8973,21 @@
 						      const height = objectBaseHeight2d(o);
 						      const localX = ox === 'left' ? (width / 2) : (ox === 'right' ? -(width / 2) : 0);
 						      const localY = oy === 'top' ? (height / 2) : (oy === 'bottom' ? -(height / 2) : 0);
-						      return transformPoint2d(localX, localY, o);
+						      const sx = Number(o?.scaleX);
+						      const sy = Number(o?.scaleY);
+						      const scaleX = Number.isFinite(sx) ? sx : 1;
+						      const scaleY = Number.isFinite(sy) ? sy : 1;
+						      const angle = ((Number(o?.angle) || 0) * Math.PI) / 180;
+						      const cos = Math.cos(angle);
+						      const sin = Math.sin(angle);
+						      const x = (Number(localX) || 0) * scaleX;
+						      const y = (Number(localY) || 0) * scaleY;
+						      const rx = (x * cos) - (y * sin);
+						      const ry = (x * sin) + (y * cos);
+						      return {
+						        x: (Number(o?.left) || 0) + rx,
+						        y: (Number(o?.top) || 0) + ry,
+						      };
 						    };
 
 						    const pitch3dUidForObject = (o, fallback = '') => {
