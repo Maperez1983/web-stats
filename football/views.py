@@ -25543,7 +25543,7 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa', one_p
             pitch_preset = (request.POST.get('draw_task_pitch_preset') or 'full_pitch').strip()
             pitch_orientation = (request.POST.get('draw_task_pitch_orientation') or 'landscape').strip().lower()
             pitch_grass_style = (request.POST.get('draw_task_pitch_grass_style') or 'classic').strip().lower()
-            if pitch_grass_style not in {'classic', 'broadcast', 'realistic', 'pro', 'artificial', 'dry', 'wet', 'uefa_b', 'whiteboard', 'blackboard'}:
+            if pitch_grass_style not in {'classic', 'broadcast', 'realistic', 'pro', 'stadium_top', 'stadium_premium', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'}:
                 pitch_grass_style = 'classic'
             try:
                 pitch_zoom = float(str(request.POST.get('draw_task_pitch_zoom') or '1.0').strip())
@@ -38329,7 +38329,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
         pitch_preset = 'full_pitch'
     if pitch_orientation not in {'landscape', 'portrait'}:
         pitch_orientation = 'landscape'
-    if pitch_grass_style not in {'classic', 'broadcast', 'realistic', 'pro', 'artificial', 'dry', 'wet', 'uefa_b', 'whiteboard', 'blackboard'}:
+    if pitch_grass_style not in {'classic', 'broadcast', 'realistic', 'pro', 'stadium_top', 'stadium_premium', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'}:
         pitch_grass_style = 'classic'
     try:
         pitch_zoom = float(pitch_zoom or 1.0)
@@ -40318,7 +40318,7 @@ def _build_task_studio_draft_pdf_context(request, owner, pdf_style='uefa'):
             pitch_preset = (request.POST.get('draw_task_pitch_preset') or 'full_pitch').strip()
             pitch_orientation = (request.POST.get('draw_task_pitch_orientation') or 'landscape').strip().lower()
             pitch_grass_style = (request.POST.get('draw_task_pitch_grass_style') or 'classic').strip().lower()
-            if pitch_grass_style not in {'classic', 'broadcast', 'realistic', 'pro', 'artificial', 'dry', 'wet', 'uefa_b', 'whiteboard', 'blackboard'}:
+            if pitch_grass_style not in {'classic', 'broadcast', 'realistic', 'pro', 'stadium_top', 'stadium_premium', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'}:
                 pitch_grass_style = 'classic'
             try:
                 pitch_zoom = float(str(request.POST.get('draw_task_pitch_zoom') or '1.0').strip())

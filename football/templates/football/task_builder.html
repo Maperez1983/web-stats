@@ -5340,6 +5340,8 @@
 				        data-pitch3d-benagalbon-crest-src="{% static 'football/images/kit_logos/benagalbon_crest_alpha.png' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 				        data-pitch3d-goal-model-src="{% static 'football/models/pitch3d/goal_premium.glb' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 				        data-pitch3d-stadium-model-src="{% static 'football/models/pitch3d/stadium_malaga_rosaleda.glb' %}?v=rosaleda-access-20260616{% if static_build_id %}-{{ static_build_id|urlencode }}{% endif %}"
+				        data-pitch3d-stadium-top-h-src="{% static 'football/images/pitch3d/stadium_rosaleda_top_h.png' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
+				        data-pitch3d-stadium-top-v-src="{% static 'football/images/pitch3d/stadium_rosaleda_top_v.png' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 				        data-pitch3d-player-model-src="{% if pitch3d_player_model_src %}{{ pitch3d_player_model_src }}{% else %}{% static 'football/models/avatar/player_humanoid.glb' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}{% endif %}"
 				        data-stadium-primary-color="{{ stadium_palette.primary|default:'#047857' }}"
 				        data-stadium-secondary-color="{{ stadium_palette.secondary|default:'#f8fafc' }}"
@@ -5654,6 +5656,8 @@
 			                        {% if initial.pitch_grass_style == 'broadcast' %}Broadcast
 			                        {% elif initial.pitch_grass_style == 'realistic' %}Realista
 			                        {% elif initial.pitch_grass_style == 'pro' %}PRO
+			                        {% elif initial.pitch_grass_style == 'stadium_top' %}Cenital 3D
+			                        {% elif initial.pitch_grass_style == 'stadium_premium' %}3D presentación
 			                        {% elif initial.pitch_grass_style == 'uefa_b' %}UEFA B
 			                        {% elif initial.pitch_grass_style == 'natural' %}Natural
 			                        {% elif initial.pitch_grass_style == 'artificial' %}Artificial
@@ -5675,6 +5679,8 @@
 		                        <option value="broadcast" {% if initial.pitch_grass_style == 'broadcast' %}selected{% endif %}>Broadcast</option>
 		                        <option value="realistic" {% if initial.pitch_grass_style == 'realistic' %}selected{% endif %}>Realista</option>
 		                        <option value="pro" {% if initial.pitch_grass_style == 'pro' %}selected{% endif %}>PRO</option>
+		                        <option value="stadium_top" {% if initial.pitch_grass_style == 'stadium_top' %}selected{% endif %}>Cenital 3D</option>
+		                        <option value="stadium_premium" {% if initial.pitch_grass_style == 'stadium_premium' %}selected{% endif %}>3D presentación</option>
 		                        <option value="uefa_b" {% if initial.pitch_grass_style == 'uefa_b' %}selected{% endif %}>UEFA B</option>
 		                        <option value="natural" {% if initial.pitch_grass_style == 'natural' %}selected{% endif %}>Natural</option>
 		                        <option value="artificial" {% if initial.pitch_grass_style == 'artificial' %}selected{% endif %}>Artificial</option>

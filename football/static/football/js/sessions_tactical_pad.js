@@ -420,7 +420,7 @@
 			    const preset = String(presetKey || 'full_pitch').trim();
 			    const orientation = safeText(orientationKey, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
 			    const normalizedGrass = safeText(grassStyleKey, 'classic').toLowerCase();
-			    let grassStyle = (['classic', 'realistic', 'pro', 'broadcast', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'].includes(normalizedGrass))
+			    let grassStyle = (['classic', 'realistic', 'pro', 'stadium_top', 'stadium_premium', 'broadcast', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'].includes(normalizedGrass))
 			      ? normalizedGrass
 			      : 'classic';
 			    try {
@@ -428,6 +428,19 @@
 			        grassStyle = 'classic';
 			      }
 			    } catch (e) { /* ignore */ }
+			    const isStadiumTop = grassStyle === 'stadium_top' || grassStyle === 'stadium_premium';
+			    const isStadiumPremium = grassStyle === 'stadium_premium';
+			    const formForAssets = (() => {
+			      try { return document.getElementById('task-builder-form'); } catch (e) { return null; }
+			    })();
+			    const stadiumTopImageSrc = (() => {
+			      if (!isStadiumTop) return '';
+			      const key = orientation === 'portrait' ? 'pitch3dStadiumTopHSrc' : 'pitch3dStadiumTopVSrc';
+			      const fallback = orientation === 'portrait'
+			        ? '/static/football/images/pitch3d/stadium_rosaleda_top_h.png'
+			        : '/static/football/images/pitch3d/stadium_rosaleda_top_v.png';
+			      return safeText(formForAssets?.dataset?.[key], fallback) || fallback;
+			    })();
 		    // Lienzo con proporción real 105x68 (escalado) y un pequeño "bleed" para que el trazo
 		    // del borde no se recorte incluso con overflow hidden.
 		    const stageW = orientation === 'portrait' ? 680 : 1050;
@@ -464,6 +477,8 @@
 		      classic: ['#5f8f42', '#557f3c'],
 		      realistic: ['#4f7f3a', '#3f6e35'],
 		      pro: ['#2f6a3a', '#245934'],
+		      stadium_top: ['#2e7b3c', '#1f6533'],
+		      stadium_premium: ['#36a544', '#1e7f35'],
 		      broadcast: ['#155e3a', '#0f4d2f'],
 		      artificial: ['#2fb46d', '#1f8d55'],
 		      dry: ['#7b9a45', '#6b8a3a'],
@@ -543,7 +558,7 @@
     //   (en editor se verá el fondo del panel; en PDF quedará blanco).
     // En el editor rellenamos el exterior con césped para que no parezca que hay “huecos” alrededor.
     // El recorte para PDF/cards ya se hace al exportar la preview (data-pitch-box).
-    const fillOutside = `url(#${grassFillId})`;
+    const fillOutside = isStadiumTop ? '#eaf6fb' : `url(#${grassFillId})`;
     root.appendChild(createSvgNode(doc, 'rect', {
       x: -bleed,
       y: -bleed,
@@ -595,6 +610,25 @@
       return { x: offsetX, y: offsetY, width, height };
     };
     let stage = createStage(orientation);
+    if (isStadiumTop && ['full_pitch', 'seven_side'].includes(preset)) {
+      const portrait = orientation === 'portrait';
+      const effectiveW = portrait ? stageH : stageW;
+      const effectiveH = portrait ? stageW : stageH;
+      const targetW = effectiveW * (isStadiumPremium ? 0.68 : 0.72);
+      const targetH = effectiveH * (isStadiumPremium ? 0.66 : 0.70);
+      let width = targetW;
+      let height = width / (105 / 68);
+      if (height > targetH) {
+        height = targetH;
+        width = height * (105 / 68);
+      }
+      stage = {
+        x: (effectiveW - width) / 2,
+        y: (effectiveH - height) / 2,
+        width,
+        height,
+      };
+    }
     // Caja del rectángulo de juego dentro del viewBox, para poder recortar previews/PDF
     // y evitar márgenes vacíos enormes en superficies parciales (tercios, medio campo, futsal, etc).
     let pitchBox = { x: stage.x, y: stage.y, width: stage.width, height: stage.height };
@@ -694,6 +728,119 @@
 	      }));
 	    };
 
+    const drawStadiumBackdrop = () => {
+      if (!isStadiumTop) return;
+      if (stadiumTopImageSrc) {
+        const portrait = orientation === 'portrait';
+        const effectiveW = portrait ? stageH : stageW;
+        const effectiveH = portrait ? stageW : stageH;
+        const img = createSvgNode(doc, 'image', {
+          href: stadiumTopImageSrc,
+          x: 0,
+          y: 0,
+          width: effectiveW,
+          height: effectiveH,
+          preserveAspectRatio: 'xMidYMid slice',
+        });
+        try { img.setAttribute('xlink:href', stadiumTopImageSrc); } catch (e) { /* ignore */ }
+        drawRoot.appendChild(img);
+        return;
+      }
+      const padX = stage.width * (isStadiumPremium ? 0.28 : 0.23);
+      const padY = stage.height * (isStadiumPremium ? 0.32 : 0.27);
+      const outer = {
+        x: stage.x - padX,
+        y: stage.y - padY,
+        width: stage.width + (padX * 2),
+        height: stage.height + (padY * 2),
+      };
+      const bowl = {
+        x: stage.x - (stage.width * 0.13),
+        y: stage.y - (stage.height * 0.16),
+        width: stage.width * 1.26,
+        height: stage.height * 1.32,
+      };
+      drawRoot.appendChild(createSvgNode(doc, 'rect', {
+        x: outer.x,
+        y: outer.y,
+        width: outer.width,
+        height: outer.height,
+        rx: Math.min(outer.width, outer.height) * 0.18,
+        ry: Math.min(outer.width, outer.height) * 0.18,
+        fill: isStadiumPremium ? '#e8e3d3' : '#eee9dc',
+        stroke: '#d8d2bf',
+        'stroke-width': 2,
+      }));
+      drawRoot.appendChild(createSvgNode(doc, 'rect', {
+        x: bowl.x,
+        y: bowl.y,
+        width: bowl.width,
+        height: bowl.height,
+        rx: Math.min(bowl.width, bowl.height) * 0.11,
+        ry: Math.min(bowl.width, bowl.height) * 0.11,
+        fill: '#f8f4e9',
+        stroke: 'rgba(100,116,139,0.28)',
+        'stroke-width': 3,
+      }));
+      drawRoot.appendChild(createSvgNode(doc, 'rect', {
+        x: stage.x - (stage.width * 0.065),
+        y: stage.y - (stage.height * 0.075),
+        width: stage.width * 1.13,
+        height: stage.height * 1.15,
+        rx: 28,
+        ry: 28,
+        fill: '#0f172a',
+        opacity: 0.30,
+      }));
+      const seat = isStadiumPremium ? '#075da8' : '#0f5d9f';
+      const seatDark = isStadiumPremium ? '#073f78' : '#0a477a';
+      const aisle = 'rgba(248,250,252,0.74)';
+      const sideW = stage.width * 0.11;
+      const endH = stage.height * 0.13;
+      const seatBlocks = [
+        { x: stage.x - sideW, y: stage.y - endH, width: sideW, height: stage.height + (endH * 2), dir: 'v' },
+        { x: stage.x + stage.width, y: stage.y - endH, width: sideW, height: stage.height + (endH * 2), dir: 'v' },
+        { x: stage.x - sideW, y: stage.y - endH, width: stage.width + (sideW * 2), height: endH, dir: 'h' },
+        { x: stage.x - sideW, y: stage.y + stage.height, width: stage.width + (sideW * 2), height: endH, dir: 'h' },
+      ];
+      seatBlocks.forEach((block, blockIndex) => {
+        drawRoot.appendChild(createSvgNode(doc, 'rect', {
+          x: block.x,
+          y: block.y,
+          width: block.width,
+          height: block.height,
+          rx: 10,
+          ry: 10,
+          fill: blockIndex % 2 === 0 ? seat : seatDark,
+          opacity: 0.96,
+        }));
+        const steps = block.dir === 'v' ? 18 : 14;
+        for (let i = 1; i < steps; i += 1) {
+          const ratio = i / steps;
+          const attrs = block.dir === 'v'
+            ? { x1: block.x, y1: block.y + (block.height * ratio), x2: block.x + block.width, y2: block.y + (block.height * ratio) }
+            : { x1: block.x + (block.width * ratio), y1: block.y, x2: block.x + (block.width * ratio), y2: block.y + block.height };
+          drawRoot.appendChild(createSvgNode(doc, 'line', {
+            ...attrs,
+            stroke: i % 5 === 0 ? aisle : 'rgba(255,255,255,0.22)',
+            'stroke-width': i % 5 === 0 ? 2.2 : 1,
+          }));
+        }
+      });
+      drawRoot.appendChild(createSvgNode(doc, 'rect', {
+        x: stage.x - (stage.width * 0.025),
+        y: stage.y - (stage.height * 0.025),
+        width: stage.width * 1.05,
+        height: stage.height * 1.05,
+        rx: 18,
+        ry: 18,
+        fill: 'none',
+        stroke: isStadiumPremium ? '#0b4f91' : '#155e75',
+        'stroke-width': 8,
+        opacity: 0.95,
+      }));
+    };
+
     const drawGoal = (x, centerY, goalDepth, goalHeight, side) => {
       const topY = centerY - (goalHeight / 2);
       const bottomY = centerY + (goalHeight / 2);
@@ -758,7 +905,16 @@
     };
 
     const drawFullPitch = () => {
+      if (isStadiumTop && stadiumTopImageSrc) {
+        const portrait = orientation === 'portrait';
+        const effectiveW = portrait ? stageH : stageW;
+        const effectiveH = portrait ? stageW : stageH;
+        pitchBox = { x: 0, y: 0, width: effectiveW, height: effectiveH };
+        drawStadiumBackdrop();
+        return;
+      }
       pitchBox = { x: stage.x, y: stage.y, width: stage.width, height: stage.height };
+      drawStadiumBackdrop();
       drawFrame(stage.x, stage.y, stage.width, stage.height, 4);
       const centerX = stage.x + (stage.width / 2);
       const centerY = stage.y + (stage.height / 2);
@@ -4247,6 +4403,8 @@
 					      broadcast: 'Broadcast',
 					      realistic: 'Realista',
 					      pro: 'PRO',
+					      stadium_top: 'Cenital 3D',
+					      stadium_premium: '3D presentación',
 					      uefa_b: 'UEFA B',
 					      natural: 'Natural',
 					      artificial: 'Artificial',
@@ -4256,7 +4414,7 @@
 					      dry: 'Seco',
 					      wet: 'Mojado',
 					    };
-					    const GRASS_STYLE_ORDER = ['classic', 'broadcast', 'realistic', 'pro', 'uefa_b', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet'];
+					    const GRASS_STYLE_ORDER = ['classic', 'broadcast', 'realistic', 'pro', 'stadium_top', 'stadium_premium', 'uefa_b', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet'];
 					    const normalizeGrassStyleForMode = (value) => {
 					      const next = safeText(value, 'classic').toLowerCase();
 					      if (!GRASS_STYLE_ORDER.includes(next)) return 'classic';
