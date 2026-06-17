@@ -10493,11 +10493,13 @@
 						            side: THREE.DoubleSide,
 						          });
 						          const benchSeatMat = new THREE.MeshStandardMaterial({ color: toColorInt(stadiumPalette3d.primary, 0x047857), roughness: 0.48, metalness: 0.03 });
+						          const benchSeatAltMat = new THREE.MeshStandardMaterial({ color: toColorInt(lightenHex(stadiumPalette3d.primary, 0.10), 0x1d4ed8), roughness: 0.44, metalness: 0.03 });
 						          const benchPadMat = new THREE.MeshStandardMaterial({ color: toColorInt(stadiumPalette3d.accent, 0x082f49), roughness: 0.42, metalness: 0.02 });
 						          const concreteMat = new THREE.MeshStandardMaterial({ color: 0xcbd5d1, roughness: 0.82, metalness: 0.01 });
 						          const stepMat = new THREE.MeshStandardMaterial({ color: 0x9aa7a7, roughness: 0.78, metalness: 0.02 });
 						          const aisleMat = new THREE.MeshStandardMaterial({ color: 0xe5e7eb, roughness: 0.70, metalness: 0.02 });
 						          const tunnelWallMat = new THREE.MeshStandardMaterial({ color: 0x13202a, roughness: 0.64, metalness: 0.05 });
+						          const tunnelTrimMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.42, metalness: 0.22 });
 						          const tunnelLightMat = new THREE.MeshBasicMaterial({ color: 0xd9fff2, transparent: true, opacity: 0.58, toneMapped: false });
 						          const addBox = (group, geo, mat, x, y, z, rx = 0, ry = 0, rz = 0, kind = 'pitch_side_detail') => {
 						            const mesh = new THREE.Mesh(geo, mat);
@@ -11303,6 +11305,8 @@
 						              root.add(pod);
 						            };
 						            [-32.0, 32.0].forEach((x, idx) => addPitchsideMopup(x, -(metersH / 2 + 2.72), 7.2, idx));
+						            addBox(root, new THREE.BoxGeometry(metersW + 6.6, 0.16, 0.28), visibleFasciaMat, 0, 0.56, -(metersH / 2 + 2.22), 0, 0, 0, 'pitch_3d_visible_lower_pitchside_fascia_near');
+						            addBox(root, new THREE.BoxGeometry(metersW + 6.6, 0.14, 0.20), metalMat, 0, 0.82, -(metersH / 2 + 2.08), 0, 0, 0, 'pitch_3d_visible_lower_pitchside_cap_near');
 						            const addDugout = (x, zBase, labelIndex, rotY = 0) => {
 						              const dugout = new THREE.Group();
 						              dugout.position.set(x, 0, zBase);
@@ -11327,7 +11331,7 @@
 						              for (let i = 0; i < 12; i += 1) {
 						                const sx = -6.65 + (i * 1.21);
 						                addBox(dugout, new THREE.BoxGeometry(0.86, 0.16, 0.64), metalMat, sx, 0.46, 0.46, 0, 0, 0, 'pitch_3d_visible_dugout_seat_shell');
-						                addBox(dugout, new THREE.BoxGeometry(0.78, 0.18, 0.56), benchSeatMat, sx, 0.58, 0.42, 0, 0, 0, 'pitch_3d_visible_dugout_seat');
+						                addBox(dugout, new THREE.BoxGeometry(0.78, 0.18, 0.56), i % 3 === 0 ? benchSeatAltMat : benchSeatMat, sx, 0.58, 0.42, 0, 0, 0, 'pitch_3d_visible_dugout_seat');
 						                addBox(dugout, new THREE.BoxGeometry(0.82, 0.92, 0.16), benchPadMat, sx, 1.00, 0.78, -0.24, 0, 0, 'pitch_3d_visible_dugout_backrest');
 						                addBox(dugout, new THREE.BoxGeometry(0.10, 0.34, 0.10), metalMat, sx - 0.30, 0.27, 0.42, 0, 0, 0, 'pitch_3d_visible_dugout_seat_leg');
 						                addBox(dugout, new THREE.BoxGeometry(0.10, 0.34, 0.10), metalMat, sx + 0.30, 0.27, 0.42, 0, 0, 0, 'pitch_3d_visible_dugout_seat_leg');
@@ -11350,14 +11354,23 @@
 						              stand.userData = { kind: 'pitch_3d_visible_touchline_stand' };
 						              addBox(stand, new THREE.BoxGeometry(16.2, 0.12, 2.12), concreteMat, 0, 0.08, 0, 0, 0, 0, 'pitch_3d_visible_touchline_stand_base');
 						              addBox(stand, new THREE.BoxGeometry(16.0, 0.18, 0.38), visibleFasciaMat, 0, 0.50, -0.94, 0, 0, 0, 'pitch_3d_visible_touchline_stand_pitch_fascia');
+						              [-4.9, 0, 4.9].forEach((portalX, portalIdx) => {
+						                addBox(stand, new THREE.BoxGeometry(0.42, 1.08, 0.28), concreteMat, portalX - 0.78, 0.88, 0.22, 0, 0, 0, 'pitch_3d_visible_touchline_stand_vomitory_left_jamb');
+						                addBox(stand, new THREE.BoxGeometry(0.42, 1.08, 0.28), concreteMat, portalX + 0.78, 0.88, 0.22, 0, 0, 0, 'pitch_3d_visible_touchline_stand_vomitory_right_jamb');
+						                addBox(stand, new THREE.BoxGeometry(1.86, 0.22, 0.26), concreteMat, portalX, 1.42, 0.24, 0, 0, 0, 'pitch_3d_visible_touchline_stand_vomitory_header');
+						                addBox(stand, new THREE.BoxGeometry(1.18, 0.86, 0.10), tunnelWallMat, portalX, 0.82, 0.10, 0, 0, 0, 'pitch_3d_visible_touchline_stand_vomitory_shadow');
+						                if (portalIdx < 2) {
+						                  addBox(stand, new THREE.BoxGeometry(0.08, 0.84, 1.18), metalMat, portalX + 1.16, 0.92, 0.70, -0.06, 0, 0, 'pitch_3d_visible_touchline_stand_vomitory_handrail');
+						                }
+						              });
 						              for (let row = 0; row < 5; row += 1) {
 						                const y = 0.30 + (row * 0.28);
 						                const z = 0.14 + (row * 0.28);
 						                addBox(stand, new THREE.BoxGeometry(15.2 - row * 0.42, 0.12, 0.36), concreteMat, 0, y, z, -0.10, 0, 0, 'pitch_3d_visible_touchline_stand_riser');
 						                for (let i = 0; i < 10; i += 1) {
 						                  const sx = -6.1 + (i * 1.36);
-						                  if (Math.abs(sx) < 0.86) continue;
-						                  addBox(stand, new THREE.BoxGeometry(0.86, 0.14, 0.38), benchSeatMat, sx, y + 0.10, z - 0.01, -0.10, 0, 0, 'pitch_3d_visible_touchline_stand_seat');
+						                  if (Math.abs(sx) < 0.86 || Math.abs(sx - 4.9) < 0.9 || Math.abs(sx + 4.9) < 0.9) continue;
+						                  addBox(stand, new THREE.BoxGeometry(0.86, 0.14, 0.38), ((i + row) % 4 === 0) ? benchSeatAltMat : benchSeatMat, sx, y + 0.10, z - 0.01, -0.10, 0, 0, 'pitch_3d_visible_touchline_stand_seat');
 						                  addBox(stand, new THREE.BoxGeometry(0.88, 0.38, 0.10), benchPadMat, sx, y + 0.28, z + 0.16, -0.18, 0, 0, 'pitch_3d_visible_touchline_stand_backrest');
 						                }
 						              }
@@ -11379,6 +11392,8 @@
 						              addBox(tunnelGroup, new THREE.BoxGeometry(0.10, 1.18, 4.35), metalMat, -4.58, 0.98, 1.88, -0.05, 0, 0, 'pitch_3d_visible_tunnel_side_rail_l');
 						              addBox(tunnelGroup, new THREE.BoxGeometry(0.10, 1.18, 4.35), metalMat, 4.58, 0.98, 1.88, -0.05, 0, 0, 'pitch_3d_visible_tunnel_side_rail_r');
 						              addBox(tunnelGroup, new THREE.BoxGeometry(11.4, 0.48, 0.28), visibleFasciaMat, 0, 3.10, -0.04, 0, 0, 0, 'pitch_3d_visible_tunnel_header_fascia');
+						              addBox(tunnelGroup, new THREE.BoxGeometry(10.2, 0.12, 0.22), tunnelTrimMat, 0, 2.36, -0.22, 0, 0, 0, 'pitch_3d_visible_tunnel_header_trim');
+						              [-2.45, 0, 2.45].forEach((x) => addBox(tunnelGroup, new THREE.BoxGeometry(0.14, 1.52, 0.08), tunnelLightMat, x, 1.34, 0.78, 0, 0, 0, 'pitch_3d_visible_tunnel_linear_light'));
 						              addBox(tunnelGroup, new THREE.BoxGeometry(9.2, 0.08, 1.18), tunnelCoverMat, 0, 2.76, 0.36, -0.18, 0, 0, 'pitch_3d_visible_tunnel_glass_cap');
 						              addBox(tunnelGroup, new THREE.BoxGeometry(8.2, 0.06, 3.66), tunnelCoverMat, 0, 1.76, 1.74, -0.18, 0, 0, 'pitch_3d_visible_tunnel_glass_slide');
 						              root.add(tunnelGroup);
@@ -16426,6 +16441,27 @@
 						              flood.position.set(x, y, z);
 						              flood.userData = { kind: 'pitch_3d_runtime_floodlight' };
 						              stadiumAsset.add(flood);
+						            });
+						            [
+						              [0, 13.6, -74, 0, 0, 0],
+						              [0, 13.6, 74, 0, Math.PI, 0],
+						              [-108, 13.2, 0, 0, Math.PI / 2, 0],
+						              [108, 13.2, 0, 0, -Math.PI / 2, 0],
+						            ].forEach(([x, y, z, rx, ry, rz]) => {
+						              const glow = new THREE.Mesh(new THREE.BoxGeometry(62, 0.10, 0.16), runtimeLightBar);
+						              glow.position.set(x, y, z);
+						              glow.rotation.set(rx, ry, rz);
+						              glow.userData = { kind: 'pitch_3d_runtime_underroof_light_bar' };
+						              stadiumAsset.add(glow);
+						            });
+						            [
+						              [-56, 11.8, -60], [56, 11.8, -60], [-56, 11.8, 60], [56, 11.8, 60],
+						              [-92, 11.6, -26], [92, 11.6, -26], [-92, 11.6, 26], [92, 11.6, 26],
+						            ].forEach(([x, y, z]) => {
+						              const fill = new THREE.PointLight(0xeaf6ff, 0.22, 96, 1.8);
+						              fill.position.set(x, y, z);
+						              fill.userData = { kind: 'pitch_3d_runtime_stand_fill_light' };
+						              stadiumAsset.add(fill);
 						            });
 						          } catch (e) { /* ignore */ }
 						          root.add(stadiumAsset);
