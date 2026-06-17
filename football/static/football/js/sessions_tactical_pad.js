@@ -16968,6 +16968,7 @@
 						            });
 						            let tokenNode = null;
 						            if (tokenStyle === 'jersey') {
+						              const spriteScale = 0.34;
 						              const spriteMat = new THREE.SpriteMaterial({
 						                map: rendered.texture,
 						                transparent: true,
@@ -16976,7 +16977,7 @@
 						              });
 						              tokenNode = new THREE.Sprite(spriteMat);
 						              tokenNode.center.set(0.5, 0);
-						              tokenNode.scale.set(widthMeters, heightMeters, 1);
+						              tokenNode.scale.set(widthMeters * spriteScale, heightMeters * spriteScale, 1);
 						              tokenNode.position.set(0, 0.12, 0);
 						            } else {
 						              tokenNode = new THREE.Mesh(new THREE.PlaneGeometry(widthMeters, heightMeters), mat);
@@ -17011,6 +17012,7 @@
 						            });
 						            let node = null;
 						            if (upright) {
+						              const spriteScale = 0.50;
 						              const spriteMat = new THREE.SpriteMaterial({
 						                map: rendered.texture,
 						                transparent: true,
@@ -17019,7 +17021,7 @@
 						              });
 						              node = new THREE.Sprite(spriteMat);
 						              node.center.set(0.5, 0);
-						              node.scale.set(widthMeters, heightMeters, 1);
+						              node.scale.set(widthMeters * spriteScale, heightMeters * spriteScale, 1);
 						              node.position.set(center3d.x, 0.10, center3d.z);
 						            } else {
 						              node = new THREE.Mesh(new THREE.PlaneGeometry(widthMeters, heightMeters), mat);
@@ -17474,7 +17476,9 @@
 						          addBillboardLabel3d(label.slice(0, 20), pos.x, 1.05, pos.z, { bg: 'rgba(15,23,42,0.78)', fill: '#f8fafc', size: 132 });
 						          return;
 						        }
-						        if (addTrainingResource3d(o, kind, colorInt)) return;
+						        const isTacticalArrowOrLine = type === 'group'
+						          && (kind.startsWith('arrow') || kind.startsWith('line_') || kind.startsWith('line-') || kind === 'line-double' || kind === 'arrow');
+						        if (!isTacticalArrowOrLine && addTrainingResource3d(o, kind, colorInt)) return;
 
 						        // Lineas simples.
 						        if (type === 'line') {
