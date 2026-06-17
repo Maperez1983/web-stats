@@ -13268,6 +13268,7 @@
 						                if (!asset) return false;
 						                const stadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
 						                const isDedicatedReferenceStadium = isDedicatedPitch3dReferenceStadiumSrc(stadiumModelSrc);
+						                if (isDedicatedReferenceStadium) return false;
 						                removeProceduralStadiumParts();
 						                const stadiumAsset = asset.clone(true);
 						                stadiumAsset.name = 'stadium_bowl_premium_asset';
@@ -13396,7 +13397,7 @@
 						            };
 						            const forceStadiumModelRecoveryLoad = () => {
 						              const stadiumSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
-						              if (!stadiumSrc || isLegacyPitch3dReferenceStadiumSrc(stadiumSrc) || hasProfessionalStadiumInScene()) return;
+						              if (!stadiumSrc || isDedicatedPitch3dReferenceStadiumSrc(stadiumSrc) || hasProfessionalStadiumInScene()) return;
 						              try {
 						                const LoaderClass = window.__WEBSTATS_GLTF_LOADER_CLASS;
 						                if (typeof LoaderClass !== 'function') {
@@ -13422,7 +13423,7 @@
 						              }
 						            };
 						            const eagerStadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
-						            if (eagerStadiumModelSrc && !isLegacyPitch3dReferenceStadiumSrc(eagerStadiumModelSrc)) {
+						            if (eagerStadiumModelSrc && !isDedicatedPitch3dReferenceStadiumSrc(eagerStadiumModelSrc)) {
 						              __pitch3dLoadStadiumModel(() => {
 						                try { addProfessionalStadiumAsset(); } catch (e) { /* ignore */ }
 						              });
@@ -15844,7 +15845,7 @@
 						        const lateStadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
 						        const triggerLateStadiumRecovery = () => {
 						          try {
-						            if (!lateStadiumModelSrc || isLegacyPitch3dReferenceStadiumSrc(lateStadiumModelSrc) || hasProfessionalStadiumInScene()) return;
+						            if (!lateStadiumModelSrc || isDedicatedPitch3dReferenceStadiumSrc(lateStadiumModelSrc) || hasProfessionalStadiumInScene()) return;
 						            const LoaderClass = window.__WEBSTATS_GLTF_LOADER_CLASS;
 						            if (typeof LoaderClass !== 'function') {
 						              window.setTimeout(triggerLateStadiumRecovery, 120);
