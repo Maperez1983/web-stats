@@ -16508,7 +16508,11 @@
 						        } catch (e) { /* ignore */ }
 						        return path;
 						      };
-						      const pxToPitchMeters = () => Math.max(0.018, ((metersW / Math.max(1, sourceW)) + (metersH / Math.max(1, sourceH))) / 2);
+						      const sourcePitchBoxWidth = Math.max(1, Number(sourcePitchBox?.width) || Math.max(1, sourceW));
+						      const sourcePitchBoxHeight = Math.max(1, Number(sourcePitchBox?.height) || Math.max(1, sourceH));
+						      const pxToPitchMetersX = (px) => (Math.max(0, Number(px) || 0) / sourcePitchBoxWidth) * metersW;
+						      const pxToPitchMetersZ = (px) => (Math.max(0, Number(px) || 0) / sourcePitchBoxHeight) * metersH;
+						      const pxToPitchMeters = () => Math.max(0.018, (pxToPitchMetersX(1) + pxToPitchMetersZ(1)) / 2);
 						      const addResourceMesh3d = (group, mesh, kind) => {
 						        if (!group || !mesh) return mesh;
 						        mesh.userData = { kind: kind || 'pitch_3d_adapter_resource_mesh' };
@@ -16573,8 +16577,8 @@
 						          const hPx = Math.max(14, (Number(o?.height) || 0) * (Number(o?.scaleY) || 1));
 						          const center2d = objectCenterPoint2d(o);
 						          const center3d = mapPoint2dTo3d(center2d.x, center2d.y);
-						          const wM = (wPx / Math.max(1, sourceW)) * metersW;
-						          const hM = (hPx / Math.max(1, sourceH)) * metersH;
+						          const wM = pxToPitchMetersX(wPx);
+						          const hM = pxToPitchMetersZ(hPx);
 						          const group = new THREE.Group();
 						          group.position.set(center3d.x, 0, center3d.z);
 						          group.rotation.y = -deg2rad(o?.angle || 0);
@@ -17100,8 +17104,8 @@
 						        renderFabricObjectTexture3d(o, { padding: tokenStyle === 'jersey' ? 24 : 18, multiplier: 2 }).then((rendered) => {
 						          if (!rendered || !anchor?.parent) return;
 						          try {
-						            const widthMeters = Math.max(0.65, (Number(rendered.widthPx) / Math.max(1, sourceW)) * metersW);
-						            const heightMeters = Math.max(0.65, (Number(rendered.heightPx) / Math.max(1, sourceH)) * metersH);
+						            const widthMeters = Math.max(0.65, pxToPitchMetersX(Number(rendered.widthPx)));
+						            const heightMeters = Math.max(0.65, pxToPitchMetersZ(Number(rendered.heightPx)));
 						            const mat = new THREE.MeshBasicMaterial({
 						              map: rendered.texture,
 						              transparent: true,
@@ -17144,8 +17148,8 @@
 						          if (!rendered || !root) return;
 						          try {
 						            const center3d = mapPoint2dTo3d(center2d.x, center2d.y);
-						            const widthMeters = Math.max(0.40, (Number(rendered.widthPx) / Math.max(1, sourceW)) * metersW);
-						            const heightMeters = Math.max(0.40, (Number(rendered.heightPx) / Math.max(1, sourceH)) * metersH);
+						            const widthMeters = Math.max(0.40, pxToPitchMetersX(Number(rendered.widthPx)));
+						            const heightMeters = Math.max(0.40, pxToPitchMetersZ(Number(rendered.heightPx)));
 						            const mat = new THREE.MeshBasicMaterial({
 						              map: rendered.texture,
 						              transparent: true,
@@ -17678,8 +17682,8 @@
 						          const hPx = Math.max(12, groupHeightPx || 0);
 						          const center2d = objectCenterPoint2d(o);
 						          const center3d = mapPoint2dTo3d(center2d.x, center2d.y);
-						          const wM = (wPx / Math.max(1, sourceW)) * metersW;
-						          const hM = (hPx / Math.max(1, sourceH)) * metersH;
+						          const wM = pxToPitchMetersX(wPx);
+						          const hM = pxToPitchMetersZ(hPx);
 						          const plane = addZonePlane3d(center3d, wM, hM, colorInt, 0.14);
 						          const ang = deg2rad(o?.angle || 0);
 						          if (plane) plane.rotation.y = -ang;
@@ -17732,8 +17736,8 @@
 						          const hPx = Math.max(8, Number(o?.height) || 0) * (Number(o?.scaleY) || 1);
 						          const center2d = objectCenterPoint2d(o);
 						          const center3d = mapPoint2dTo3d(center2d.x, center2d.y);
-						          const wM = (wPx / Math.max(1, sourceW)) * metersW;
-						          const hM = (hPx / Math.max(1, sourceH)) * metersH;
+						          const wM = pxToPitchMetersX(wPx);
+						          const hM = pxToPitchMetersZ(hPx);
 						          const plane = addZonePlane3d(center3d, wM, hM, colorInt, 0.14);
 						          // Rotación alrededor de Y según el ángulo (2D).
 						          const ang = deg2rad(o?.angle || 0);
@@ -17747,7 +17751,7 @@
 						          const diameterPx = radiusPx * 2;
 						          const center2d = objectCenterPoint2d(o);
 						          const center3d = mapPoint2dTo3d(center2d.x, center2d.y);
-						          const dM = (diameterPx / Math.max(1, sourceW)) * metersW;
+						          const dM = Math.max(pxToPitchMetersX(diameterPx), pxToPitchMetersZ(diameterPx));
 						          addZonePlane3d(center3d, dM, dM, colorInt, 0.12);
 						          return;
 						        }
