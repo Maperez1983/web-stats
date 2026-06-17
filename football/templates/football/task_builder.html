@@ -7,6 +7,9 @@
     <title>{% if tactics_mode %}Táctica{% elif task %}Editar tarea{% else %}Crear tarea{% endif %} · {{ scope_title }}</title>
 	    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
 	    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+	    {% if tactics_mode %}
+	    <link rel="stylesheet" href="{% static 'football/css/tactics_pro_console.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+	    {% endif %}
 		    <script>
 		      window.__webstatsTaskLandingGo = function(href) {
 		        try {
@@ -13257,6 +13260,9 @@
         else boot();
       })();
     </script>
+    {% endif %}
+    {% if tactics_mode %}
+    <script src="{% static 'football/js/tactics_pro_console.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
     {% endif %}
   </body>
 </html>

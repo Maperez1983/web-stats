@@ -43998,6 +43998,7 @@ def analysis_page(request):
         tactics_url = '/coach/tactica/'
     tactics_url_playbook = _append_query(tactics_url, pane='playbook')
     tactics_url_export = _append_query(tactics_url, pane='exportar')
+    tactics_url_pro = _append_query(tactics_url, pane='tacticalpro')
 
     return render(
         request,
@@ -44022,6 +44023,7 @@ def analysis_page(request):
             'tactics_url': tactics_url,
             'tactics_url_playbook': tactics_url_playbook,
             'tactics_url_export': tactics_url_export,
+            'tactics_url_pro': tactics_url_pro,
             'teams': Team.objects.order_by('name'),
             'raw_text': raw_text,
             'roster': roster,
