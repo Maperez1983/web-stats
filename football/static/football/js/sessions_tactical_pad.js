@@ -437,10 +437,12 @@
 			    })();
 			    const stadiumTopImageSrc = (() => {
 			      if (!isStadiumTop) return '';
-			      const key = orientation === 'portrait' ? 'pitch3dStadiumTopHSrc' : 'pitch3dStadiumTopVSrc';
+			      const format3d = safeText(document.getElementById('task-pitch-3d-format')?.value, 'f11').toLowerCase();
+			      if (format3d !== 'f11') return '';
+			      const key = orientation === 'portrait' ? 'pitch3dStadiumTopVSrc' : 'pitch3dStadiumTopHSrc';
 			      const fallback = orientation === 'portrait'
-			        ? '/static/football/images/pitch3d/stadium_rosaleda_top_h.png'
-			        : '/static/football/images/pitch3d/stadium_rosaleda_top_v.png';
+			        ? '/static/football/images/pitch3d/stadium_rosaleda_top_v.png'
+			        : '/static/football/images/pitch3d/stadium_rosaleda_top_h.png';
 			      return safeText(formForAssets?.dataset?.[key], fallback) || fallback;
 			    })();
 		    // Lienzo con proporción real 105x68 (escalado) y un pequeño "bleed" para que el trazo
@@ -9920,9 +9922,12 @@
 							      let targetZ = 0;
 							      pitch3dCamera.fov = 48;
 						      if (k === 'top_h' || k === 'top_v') {
-							        pitch3dOrbit.theta = k === 'top_h' ? 0 : (Math.PI / 2);
+							        pitch3dOrbit.theta = 0;
 							        pitch3dOrbit.phi = 0.02;
-							        pitch3dOrbit.radius = Math.max(70, Math.max(metersW, metersH) * 1.25);
+							        pitch3dOrbit.radius = k === 'top_v'
+							          ? Math.max(86, Math.max(metersW, metersH) * 1.62)
+							          : Math.max(70, Math.max(metersW, metersH) * 1.25);
+							        targetY = 0;
 						      } else if (k === 'reference_photo') {
 						        // Vista calibrada contra la foto de referencia: esquina alta, grada principal y banquillos visibles.
 							        pitch3dCamera.fov = 42;
@@ -18925,6 +18930,13 @@
 						    pitch3dFormatSelect?.addEventListener('change', () => {
 						      pitch3dFormat = normalizePitch3dFormat(pitch3dFormatSelect?.value);
 						      syncPitch3dFormatUi();
+						      try {
+						        if (pitch3dSurfaceSelect && pitch3dFormat !== 'f11' && ['stadium_top', 'stadium_premium'].includes(safeText(pitch3dSurfaceSelect.value, '').toLowerCase())) {
+						          pitch3dSurfaceSelect.value = 'classic';
+						          pitchGrassStyle = 'classic';
+						          syncGrassUi();
+						        }
+						      } catch (e) { /* ignore */ }
 						      try { window.localStorage.setItem(PITCH3D_FORMAT_STORAGE_KEY, pitch3dFormat); } catch (e) { /* ignore */ }
 						      if (pitch3dOpen) {
 						        stopPitch3dPlayback();
@@ -26843,6 +26855,13 @@
 				      pitchOrientation = normalized;
 				      syncOrientationUi();
 				      applyStageSizeUi({ noFit: true });
+				      try {
+				        const currentCamera = safeText(pitch3dCameraSelect?.value, '');
+				        if (currentCamera === 'top_h' || currentCamera === 'top_v') {
+				          const nextCamera = pitchOrientation === 'portrait' ? 'top_v' : 'top_h';
+				          if (pitch3dCameraSelect) pitch3dCameraSelect.value = nextCamera;
+				        }
+				      } catch (e) { /* ignore */ }
 				      if (!zoomTouched) {
 				        pitchZoom = 1.0;
 				        syncZoomUi();
