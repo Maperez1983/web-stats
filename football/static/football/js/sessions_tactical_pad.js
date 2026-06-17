@@ -4416,8 +4416,8 @@
 					    };
 					    const GRASS_STYLE_ORDER = ['classic', 'broadcast', 'realistic', 'pro', 'stadium_top', 'stadium_premium', 'uefa_b', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet'];
 					    const normalizeGrassStyleForMode = (value) => {
-					      const next = safeText(value, 'classic').toLowerCase();
-					      if (!GRASS_STYLE_ORDER.includes(next)) return 'classic';
+					      const next = safeText(value, 'stadium_top').toLowerCase();
+					      if (!GRASS_STYLE_ORDER.includes(next)) return 'stadium_top';
 					      return next;
 					    };
 					    let pitchGrassStyle = normalizeGrassStyleForMode(grassStyleInput?.value);
