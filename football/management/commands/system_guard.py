@@ -29,16 +29,23 @@ class Command(BaseCommand):
             action="store_true",
             help="Imprime el reporte completo en JSON.",
         )
+        parser.add_argument(
+            "--auto-fix",
+            action="store_true",
+            help="Aplica autorreparaciones seguras para incidencias conocidas y vuelve a verificar.",
+        )
 
     def handle(self, *args, **options):
         with_smoke = bool(options.get("with_smoke"))
         without_llm = bool(options.get("without_llm"))
         want_json = bool(options.get("json"))
+        auto_fix = bool(options.get("auto_fix"))
 
         report = run_system_guard(
             run_smoke=with_smoke,
             smoke_verbosity=int(options.get("verbosity") or 1),
             run_llm=not without_llm,
+            auto_fix=auto_fix,
         )
 
         if want_json:
@@ -62,6 +69,22 @@ class Command(BaseCommand):
             else:
                 self.stdout.write(f"  {key}: OK · management command {item.get('command')}")
 
+        issues = report.get("issues") or []
+        if issues:
+            self.stdout.write("issues:")
+            for item in issues[:20]:
+                sev = str(item.get("severity") or "warning").upper()
+                auto = " · autofix" if item.get("autofix") else ""
+                self.stdout.write(f"  {sev} {item.get('id')}: {item.get('message')}{auto}")
+
+        autofix = report.get("autofix") or {}
+        if autofix.get("requested"):
+            self.stdout.write("autofix:")
+            for item in (autofix.get("applied") or [])[:20]:
+                self.stdout.write(f"  applied: {item.get('issue_id')} · {item.get('action')} · {item.get('path') or ''}")
+            for item in (autofix.get("skipped") or [])[:20]:
+                self.stdout.write(f"  skipped: {item.get('issue_id')} · {item.get('reason') or item.get('error') or ''}")
+
         smoke = report.get("evidence", {}).get("smoke", {})
         if smoke.get("requested"):
             self.stdout.write("smoke:")
@@ -82,6 +105,8 @@ class Command(BaseCommand):
                     self.stdout.write(f"  blocker: {row}")
                 for row in (review.get("warnings") or [])[:6]:
                     self.stdout.write(f"  warning: {row}")
+                for row in (review.get("autofix_candidates") or [])[:6]:
+                    self.stdout.write(f"  autofix-candidate: {row}")
             else:
                 self.stdout.write(f"llm review: unavailable · {llm_review.get('error') or 'no_review'}")
 

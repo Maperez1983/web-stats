@@ -614,6 +614,7 @@ def system_healthcheck_api(request):
     include_guard = str(request.GET.get('guard') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
     include_guard_smoke = str(request.GET.get('guard_smoke') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
     include_guard_llm = str(request.GET.get('guard_llm') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    include_guard_fix = str(request.GET.get('guard_fix') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
     # PDF smoke test (WeasyPrint)
     pdf_smoke = {'ok': False, 'detail': 'not checked'}
     if weasyprint:
@@ -669,6 +670,7 @@ def system_healthcheck_api(request):
             report['system_guard'] = run_system_guard(
                 run_smoke=include_guard_smoke,
                 run_llm=include_guard_llm,
+                auto_fix=include_guard_fix,
             )
         except Exception as exc:
             report['system_guard'] = {
