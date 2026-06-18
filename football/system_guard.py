@@ -11,6 +11,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.core.management import call_command
+from django.urls import NoReverseMatch, reverse
 
 from football.healthchecks import run_system_healthcheck
 from football.local_llm import call_ollama_json, local_llm_config
@@ -54,6 +55,34 @@ MODULE_SMOKE_MAP = {
     },
 }
 
+CORE_ROUTE_MAP = {
+    "dashboard": {"label": "Home / dashboard", "name": "dashboard-home"},
+    "match_hub": {"label": "Partido / match hub", "name": "match-hub"},
+    "task_builder": {"label": "Editor de tareas", "name": "sessions-task-create"},
+    "ai_trainer": {"label": "IA Trainer", "name": "ai-trainer"},
+    "pdf_viewer": {"label": "Visor PDF", "name": "pdf-viewer"},
+    "trainer_role": {"label": "Rol entrenador", "name": "coach-role-trainer"},
+}
+
+CORE_ASSET_MAP = {
+    "task_builder_template": {
+        "label": "Template task builder",
+        "path": "football/templates/football/task_builder.html",
+    },
+    "dashboard_template": {
+        "label": "Template dashboard",
+        "path": "football/templates/football/dashboard.html",
+    },
+    "tactical_pad_js": {
+        "label": "JS tactical pad",
+        "path": "football/static/football/js/sessions_tactical_pad.js",
+    },
+    "video_studio_js": {
+        "label": "JS video studio",
+        "path": "football/static/football/js/analysis_video_studio.js",
+    },
+}
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -84,6 +113,42 @@ def _module_inventory() -> dict:
                 "command": str(meta.get("command") or ""),
                 "available": True,
             }
+    return out
+
+
+def _route_inventory() -> dict:
+    out = {}
+    for key, meta in CORE_ROUTE_MAP.items():
+        name = str(meta.get("name") or "").strip()
+        try:
+            url = reverse(name)
+            out[key] = {
+                "label": meta.get("label"),
+                "name": name,
+                "ok": True,
+                "url": url,
+            }
+        except NoReverseMatch as exc:
+            out[key] = {
+                "label": meta.get("label"),
+                "name": name,
+                "ok": False,
+                "url": "",
+                "error": f"NoReverseMatch: {exc}",
+            }
+    return out
+
+
+def _asset_inventory() -> dict:
+    out = {}
+    for key, meta in CORE_ASSET_MAP.items():
+        path = Path(settings.BASE_DIR) / str(meta.get("path") or "")
+        out[key] = {
+            "label": meta.get("label"),
+            "path": str(path),
+            "ok": path.exists(),
+            "size": int(path.stat().st_size) if path.exists() else 0,
+        }
     return out
 
 
@@ -204,12 +269,16 @@ def _run_management_smoke(command_name: str, *, verbosity: int = 1) -> dict:
 def collect_system_guard_evidence(*, run_smoke: bool = False, smoke_verbosity: int = 1) -> dict:
     health = run_system_healthcheck()
     inventory = _module_inventory()
+    route_inventory = _route_inventory()
+    asset_inventory = _asset_inventory()
     cfg = local_llm_config()
     ollama_probe = _probe_ollama(cfg)
     evidence = {
         "environment": _environment_snapshot(),
         "healthcheck": health,
         "module_inventory": inventory,
+        "route_inventory": route_inventory,
+        "asset_inventory": asset_inventory,
         "local_llm": {
             "enabled": bool(cfg.get("enabled")),
             "provider": str(cfg.get("provider") or ""),
@@ -290,6 +359,27 @@ def _derive_issues(evidence: dict) -> list[dict]:
                 message=f"Falta el smoke script del módulo {key}.",
                 detail=item.get("path"),
             ))
+    for key, item in (evidence.get("route_inventory") or {}).items():
+        if not isinstance(item, dict) or item.get("ok"):
+            continue
+        issues.append(_issue(
+            f"missing_route_{key}",
+            severity="blocker",
+            area="routing",
+            message=f"Falta o no resuelve la ruta crítica {key}.",
+            detail=item.get("error") or item.get("name"),
+        ))
+    for key, item in (evidence.get("asset_inventory") or {}).items():
+        if not isinstance(item, dict) or item.get("ok"):
+            continue
+        path_value = str(item.get("path") or "")
+        issues.append(_issue(
+            f"missing_asset_{key}",
+            severity="blocker",
+            area="assets",
+            message=f"Falta el asset crítico {key}.",
+            detail=path_value,
+        ))
     llm = evidence.get("local_llm") if isinstance(evidence.get("local_llm"), dict) else {}
     probe = llm.get("probe") if isinstance(llm.get("probe"), dict) else {}
     if llm.get("enabled") and not probe.get("reachable"):
