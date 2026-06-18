@@ -12030,6 +12030,7 @@
 						        if (useHandcraftedDedicatedReferenceStadium) {
 						          const dedicatedFinish = new THREE.Group();
 						          dedicatedFinish.userData = { kind: 'pitch_3d_dedicated_reference_completion_layer' };
+						          root.add(dedicatedFinish);
 						          const concreteMat = new THREE.MeshStandardMaterial({ color: 0xcfd6d1, roughness: 0.76, metalness: 0.03 });
 						          const darkVoidMat = new THREE.MeshStandardMaterial({ color: 0x1f3345, roughness: 0.78, metalness: 0.06 });
 						          const seatMat = new THREE.MeshStandardMaterial({ color: 0x1261ad, roughness: 0.58, metalness: 0.02 });
@@ -12179,11 +12180,18 @@
 						            dedicatedFinish.add(mesh);
 						            return mesh;
 						          };
-                              const addRotMesh = (geo, mat, x, y, z, rotX, rotY, rotZ, kind) => {
-                                const mesh = addMesh(geo, mat, x, y, z, kind);
-                                try { mesh.rotation.set(rotX || 0, rotY || 0, rotZ || 0); } catch (e) { /* ignore */ }
-                                return mesh;
-                              };
+						          const addRotMesh = (geo, mat, x, y, z, rotX, rotY, rotZ, kind) => {
+						            const mesh = addMesh(geo, mat, x, y, z, kind);
+						            try { mesh.rotation.set(rotX || 0, rotY || 0, rotZ || 0); } catch (e) { /* ignore */ }
+						            return mesh;
+						          };
+						          const runDedicatedPass = (fn) => {
+						            try {
+						              if (typeof fn === 'function') fn();
+						            } catch (error) {
+						              try { console.warn('[pitch3d] dedicated stadium pass skipped', error); } catch (e) { /* ignore */ }
+						            }
+						          };
                               const cleanupDedicateForegroundOverlaps = () => {
                                 if (!dedicatedLayerOptions.cleanupOverlappingForegroundElements) return;
                                 try {
@@ -14098,13 +14106,14 @@
 							            }
 				                addRoofLatticePass();
 						          }
-				              addRosaledaReferenceFinalMatchPass();
-				              addRosaledaArchitecturalFinalPolish();
-              cleanupDedicateForegroundOverlaps();
-              addDedicatedReferenceLightingRig();
-              root.add(dedicatedFinish);
+				              runDedicatedPass(addRosaledaReferenceFinalMatchPass);
+				              runDedicatedPass(addRosaledaArchitecturalFinalPolish);
+              runDedicatedPass(cleanupDedicateForegroundOverlaps);
+              runDedicatedPass(addDedicatedReferenceLightingRig);
 						        }
-						      } catch (e) { /* ignore */ }
+						      } catch (e) {
+                    try { console.warn('[pitch3d] dedicated stadium build failed', e); } catch (err) { /* ignore */ }
+                  }
 
 						      // El campo es una pieza 3D, no una lámina 2D: base con canto visible y borde interior.
 						      try {
