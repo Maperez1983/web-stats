@@ -26861,6 +26861,18 @@ def session_task_interactive_sheet(request, task_id):
     if sheet_style not in {'uefa', 'club'}:
         sheet_style = 'uefa'
 
+    edit_graphic_url = ''
+    try:
+        if _is_task_editable(task):
+            scope_key = _task_scope_for_item(task)
+            layout0 = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+            meta0 = layout0.get('meta') if isinstance(layout0.get('meta'), dict) else {}
+            is_performed = str(meta0.get('source') or '').strip().lower() == 'performed' or bool(str(meta0.get('performed_on') or '').strip())
+            if not is_performed:
+                edit_graphic_url = reverse(_task_builder_edit_route_name(scope_key), args=[int(task.id)]) + '?back_to=detail'
+    except Exception:
+        edit_graphic_url = ''
+
     preview_url = ''
     try:
         if not getattr(task, 'task_preview_image', None):
@@ -26897,12 +26909,20 @@ def session_task_interactive_sheet(request, task_id):
             'html_sheet_url_club': reverse('session-task-html-sheet', args=[task.id]) + '?style=club',
             'pdf_url_uefa': reverse('session-task-pdf', args=[task.id]) + '?style=uefa&one_page=1',
             'pdf_url_club': reverse('session-task-pdf', args=[task.id]) + '?style=club&one_page=1',
-            'detail_url': reverse('session-task-detail', args=[task.id]),
+            'detail_url': reverse('session-task-detail', args=[task.id]) + '?edit=1',
+            'edit_detail_url': reverse('session-task-detail', args=[task.id]) + '?edit=1',
+            'edit_graphic_url': edit_graphic_url,
             'bookmark_toggle_url': reverse('session-task-bookmark-toggle', args=[task.id]),
             'save_interactive_collection_url': reverse('session-task-html-sheet-save', args=[task.id]),
             'interactive_sheet_absolute_url': request.build_absolute_uri(
                 reverse('session-task-html-sheet', args=[task.id]) + f'?style={sheet_style}'
             ),
+            'back_url': reverse('training-session-detail', args=[task.session_id])
+            if getattr(task, 'session_id', None) and not _is_library_session(getattr(task, 'session', None))
+            else reverse('sessions') + '?tab=library',
+            'back_label': 'Volver al entreno'
+            if getattr(task, 'session_id', None) and not _is_library_session(getattr(task, 'session', None))
+            else 'Volver a biblioteca',
             'task_version_label': f'v{int(getattr(task, "workflow_version_number", 1) or 1)}',
             'task_updated_label': timezone.localtime(getattr(task, 'updated_at', timezone.now())).strftime('%d/%m/%Y %H:%M'),
             'saved_interactive_collection': SessionTaskCollectionItem.objects.filter(
@@ -41827,6 +41847,17 @@ def session_task_detail_page(request, task_id):
     except Exception:
         back_url = _sessions_library_back_url(source=request.GET.get('library_source') or '')
         back_label = 'Volver a biblioteca'
+
+    wants_edit_mode = str(request.GET.get('edit') or request.GET.get('legacy') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    if request.method == 'GET' and not wants_edit_mode:
+        params = request.GET.copy()
+        params.pop('edit', None)
+        params.pop('legacy', None)
+        if not str(params.get('style') or '').strip():
+            params['style'] = 'uefa'
+        query = params.urlencode()
+        url = reverse('session-task-html-sheet', args=[task.id])
+        return redirect(f'{url}?{query}' if query else url)
 
     feedback = ''
     error = ''

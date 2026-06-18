@@ -251,7 +251,9 @@
     <div class="topbar interactive-only">
       <strong>Ficha interactiva</strong>
       <nav>
-        <a class="btn" href="{{ detail_url }}">Volver</a>
+        <a class="btn" href="{{ back_url|default:detail_url }}">{{ back_label|default:"Volver" }}</a>
+        <a class="btn primary" href="{{ edit_detail_url|default:detail_url }}">Editar datos</a>
+        {% if edit_graphic_url %}<a class="btn primary" href="{{ edit_graphic_url }}">Editar pizarra</a>{% endif %}
         <a class="btn {% if sheet_style == 'uefa' %}primary{% endif %}" href="{{ html_sheet_url_uefa }}">UEFA</a>
         <a class="btn {% if sheet_style == 'club' %}primary{% endif %}" href="{{ html_sheet_url_club }}">Club</a>
         <button type="button" class="btn" id="presentation-toggle">Presentar</button>
