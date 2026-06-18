@@ -14985,8 +14985,12 @@
 							              const darkVoidCleanMat = new THREE.MeshStandardMaterial({ color: 0x111821, roughness: 0.82, metalness: 0.02 });
 							              const darkRoofMat = new THREE.MeshStandardMaterial({ color: 0x1b2733, roughness: 0.46, metalness: 0.38 });
 							              const midRoofMat = new THREE.MeshStandardMaterial({ color: 0x4b5b66, roughness: 0.42, metalness: 0.35 });
+							              const steelDarkMat = new THREE.MeshStandardMaterial({ color: 0x33424f, roughness: 0.40, metalness: 0.34 });
+							              const facadeMat = new THREE.MeshStandardMaterial({ color: 0x3c4c59, roughness: 0.64, metalness: 0.10 });
+							              const facadeGlassMat = new THREE.MeshStandardMaterial({ color: 0xc7e2ef, roughness: 0.16, metalness: 0.04, transparent: true, opacity: 0.42 });
 							              const railCleanMat = new THREE.MeshStandardMaterial({ color: 0xc8d2d8, roughness: 0.34, metalness: 0.32, transparent: true, opacity: 0.74 });
 							              const lightStripMat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
+							              const softLightMat = new THREE.MeshBasicMaterial({ color: 0xdff6ff, transparent: true, opacity: 0.34, depthWrite: false, toneMapped: false });
 							              const apronMat = new THREE.MeshStandardMaterial({ color: 0x20262e, roughness: 0.86, metalness: 0.04 });
 							              const glassCleanMat = new THREE.MeshPhysicalMaterial({ color: 0xdcf7ff, roughness: 0.10, metalness: 0.02, transparent: true, opacity: 0.36, transmission: 0.18, side: THREE.DoubleSide });
 							              const polishGroup = new THREE.Group();
@@ -15008,6 +15012,9 @@
 
 							              // Composición principal: una sola grada limpia evita que las capas de lettering anteriores se vean duplicadas.
 							              addRotPart(new THREE.BoxGeometry(metersW * 0.78, 0.18, 7.7), blueSeatDarkMat, -2.0, 4.58, metersH / 2 + 8.72, -0.115, 0, 0, 'pitch_3d_rosaleda_final_polish_main_blue_seat_canvas');
+							              addPart(new THREE.BoxGeometry(metersW * 0.84, 0.28, 0.26), steelDarkMat, -2.0, 3.74, metersH / 2 + 5.98, 'pitch_3d_rosaleda_final_polish_main_lower_tier_shadow_fascia');
+							              addPart(new THREE.BoxGeometry(metersW * 0.88, 0.24, 0.22), steelDarkMat, -1.8, 6.38, metersH / 2 + 10.82, 'pitch_3d_rosaleda_final_polish_main_middle_tier_shadow_fascia');
+							              addPart(new THREE.BoxGeometry(metersW * 0.78, 0.20, 0.18), railCleanMat, -2.0, 7.10, metersH / 2 + 11.88, 'pitch_3d_rosaleda_final_polish_main_upper_guardrail');
 							              addRotPart(
 							                new THREE.PlaneGeometry(metersW * 0.745, 6.85),
                 makeProfessionalSeatMosaicMat(dedicatedTextForTeam(), { w: 2600, h: 520, bg: '#075fae', fg: '#f7fbff', font: '900 164px Arial, sans-serif' }),
@@ -15022,9 +15029,17 @@
 							              [-0.455, -0.305, -0.145, 0.015, 0.180, 0.345, 0.495].forEach((ratio) => {
 							                addRotPart(new THREE.BoxGeometry(0.86, 0.19, 8.4), concreteCleanMat, ratio * metersW, 4.88, metersH / 2 + 8.42, -0.11, 0, 0, 'pitch_3d_rosaleda_final_polish_main_clean_vertical_aisle');
 							              });
+							              for (let col = -44; col <= 44; col += 1) {
+							                const x = -2.0 + col * (metersW * 0.0084);
+							                if ([-0.455, -0.305, -0.145, 0.015, 0.180, 0.345, 0.495].some((ratio) => Math.abs(x - ratio * metersW) < 0.52)) continue;
+							                addRotPart(new THREE.BoxGeometry(0.035, 0.055, 6.55), whiteSeatPolishMat, x, 4.82, metersH / 2 + 8.06, -0.118, 0, 0, 'pitch_3d_rosaleda_final_polish_main_seat_vertical_break');
+							              }
 							              [-0.36, -0.18, 0.00, 0.18, 0.36].forEach((ratio) => {
 							                addPart(new THREE.BoxGeometry(4.4, 1.22, 0.24), darkVoidCleanMat, ratio * metersW, 3.48, metersH / 2 + 5.94, 'pitch_3d_rosaleda_final_polish_main_tunnel_shadow_clean');
 							              });
+							              for (let row = 0; row < 6; row += 1) {
+							                addPart(new THREE.BoxGeometry(metersW * 0.80, 0.035, 0.09), softLightMat, -2.0, 4.02 + row * 0.48, metersH / 2 + 6.52 + row * 0.78, 'pitch_3d_rosaleda_final_polish_main_seat_row_highlight');
+							              }
 
 							              // Gradas laterales y baja cercana como superficies continuas, para tapar piezas flotantes antiguas.
 							              for (let row = 0; row < 16; row += 1) {
@@ -15035,6 +15050,12 @@
 							                  addRotPart(new THREE.BoxGeometry(metersW * 0.086, 0.125, 0.40), mat, ratio * metersW, y, z, -0.075, 0, 0, 'pitch_3d_rosaleda_final_polish_near_dense_blue_seats');
 							                });
 							              }
+							              addPart(new THREE.BoxGeometry(metersW + 8.6, 0.22, 0.20), steelDarkMat, 0, 1.54, -(metersH / 2 + 3.36), 'pitch_3d_rosaleda_final_polish_near_lower_bowl_front_fascia');
+							              addPart(new THREE.BoxGeometry(metersW + 7.4, 0.18, 0.16), railCleanMat, 0, 3.18, -(metersH / 2 + 6.88), 'pitch_3d_rosaleda_final_polish_near_middle_guardrail');
+							              for (let col = -30; col <= 30; col += 1) {
+							                const x = col * (metersW * 0.014);
+							                addRotPart(new THREE.BoxGeometry(0.03, 0.045, 5.65), whiteSeatPolishMat, x, 2.28, -(metersH / 2 + 6.36), -0.078, 0, 0, 'pitch_3d_rosaleda_final_polish_near_seat_break');
+							              }
 							              [-1, 1].forEach((sideSign) => {
 							                addPart(new THREE.BoxGeometry(0.28, 0.34, metersH + 10.0), darkVoidCleanMat, sideSign * (metersW / 2 + 3.42), 1.08, 0, 'pitch_3d_rosaleda_final_polish_side_low_dark_fascia');
 							                for (let row = 0; row < 15; row += 1) {
@@ -15044,6 +15065,11 @@
 							                    const mat = (row + idx) % 11 === 0 ? whiteSeatPolishMat : ((row + idx) % 4 === 0 ? blueSeatDarkMat : blueSeatMat);
 							                    addRotPart(new THREE.BoxGeometry(0.38, 0.12, metersH * 0.078), mat, x, y, ratio * metersH, -0.055, 0, 0, 'pitch_3d_rosaleda_final_polish_side_dense_blue_seats');
 							                  });
+							                }
+							                addPart(new THREE.BoxGeometry(0.18, 0.22, metersH + 9.4), steelDarkMat, sideSign * (metersW / 2 + 5.88), 3.12, 0, 'pitch_3d_rosaleda_final_polish_side_middle_fascia');
+							                addPart(new THREE.BoxGeometry(0.16, 0.18, metersH + 8.6), railCleanMat, sideSign * (metersW / 2 + 7.12), 5.88, 0, 'pitch_3d_rosaleda_final_polish_side_upper_guardrail');
+							                for (let col = -16; col <= 16; col += 1) {
+							                  addRotPart(new THREE.BoxGeometry(0.025, 0.04, 1.55), whiteSeatPolishMat, sideSign * (metersW / 2 + 6.56), 2.22, col * (metersH * 0.028), -0.058, 0, 0, 'pitch_3d_rosaleda_final_polish_side_seat_break');
 							                }
 							              });
 
@@ -15060,10 +15086,26 @@
 							                }
 							                if (Math.abs(i) <= 19) addPart(new THREE.BoxGeometry(0.42, 0.050, 0.10), lightStripMat, x, 10.02, metersH / 2 + 13.45, 'pitch_3d_rosaleda_final_polish_front_floodlight_cells');
 							              }
+							              [-1, 1].forEach((sideSign) => {
+							                addRotPart(new THREE.BoxGeometry(3.8, 0.18, metersH + 9.0), darkRoofMat, sideSign * (metersW / 2 + 9.12), 9.92, 0, 0, sideSign * 0.028, 0, 'pitch_3d_rosaleda_final_polish_side_roof_underside');
+							                for (let i = -6; i <= 6; i += 1) {
+							                  const z = i * ((metersH + 4.0) / 12);
+							                  addRotPart(new THREE.BoxGeometry(4.4, 0.08, 0.10), steelDarkMat, sideSign * (metersW / 2 + 10.04), 10.16, z, 0, 0, sideSign * 0.34, 'pitch_3d_rosaleda_final_polish_side_roof_diagonal_brace');
+							                  addPart(new THREE.BoxGeometry(0.18, 0.045, 0.46), lightStripMat, sideSign * (metersW / 2 + 8.72), 9.26, z, 'pitch_3d_rosaleda_final_polish_side_roof_light_cell');
+							                }
+							              });
 
 							              // Primer plano tipo foto: banquillos, pasillo técnico, vallas y objetivos auxiliares visibles desde la cámara.
 							              addPart(new THREE.BoxGeometry(metersW + 14.0, 0.10, 2.42), apronMat, 0, 0.18, -(metersH / 2 + 0.82), 'pitch_3d_rosaleda_final_polish_near_dark_technical_apron');
 							              addPart(new THREE.BoxGeometry(metersW + 13.5, 0.18, 0.18), blueSeatDarkMat, 0, 0.48, -(metersH / 2 + 0.06), 'pitch_3d_rosaleda_final_polish_near_blue_pitch_lip');
+							              addPart(new THREE.BoxGeometry(7.2, 0.20, 0.52), steelDarkMat, 0, 0.42, -(metersH / 2 + 1.42), 'pitch_3d_rosaleda_final_polish_tunnel_portal_lintel');
+							              addPart(new THREE.BoxGeometry(0.24, 1.64, 1.65), concreteCleanMat, -3.60, 0.98, -(metersH / 2 + 1.18), 'pitch_3d_rosaleda_final_polish_tunnel_portal_frame_l');
+							              addPart(new THREE.BoxGeometry(0.24, 1.64, 1.65), concreteCleanMat, 3.60, 0.98, -(metersH / 2 + 1.18), 'pitch_3d_rosaleda_final_polish_tunnel_portal_frame_r');
+							              addPart(new THREE.BoxGeometry(6.40, 1.26, 0.24), darkVoidCleanMat, 0, 0.92, -(metersH / 2 + 1.12), 'pitch_3d_rosaleda_final_polish_tunnel_dark_opening');
+							              addRotPart(new THREE.BoxGeometry(4.90, 0.08, 1.82), blueSeatDarkMat, 0, 0.12, -(metersH / 2 + 0.92), -0.18, 0, 0, 'pitch_3d_rosaleda_final_polish_tunnel_blue_walkway');
+							              for (let i = -5; i <= 5; i += 1) {
+							                addPart(new THREE.BoxGeometry(0.10, 0.025, 0.42), concreteCleanMat, i * 0.42, 0.22, -(metersH / 2 + 0.34), 'pitch_3d_rosaleda_final_polish_tunnel_step_hint');
+							              }
               [dedicatedBenchLabel(0), '2J FOOTBALL INTELLIGENCE', 'PARTNER', 'LA ROSALEDA', 'SPONSOR'].forEach((label, idx) => {
 							                const x = -metersW * 0.42 + idx * (metersW * 0.21);
 							                addPart(new THREE.BoxGeometry(metersW * 0.17, 0.66, 0.12), makeSignMat(label, { w: 1180, h: 260, bg: idx % 2 ? '#101827' : '#075fae', fg: '#f8fafc', font: '900 48px Arial, sans-serif', stroke: 'rgba(255,255,255,0.22)' }), x, 0.92, -(metersH / 2 + 1.80), 'pitch_3d_rosaleda_final_polish_near_reference_ad_board');
@@ -15111,11 +15153,16 @@
 							                  panel.rotation.x = 0.46 - t * 0.30;
 							                }
 							                dPart(new THREE.BoxGeometry(13.5, 0.09, 0.13), midRoofMat, 0, 1.98, 0.02, 'pitch_3d_rosaleda_final_polish_dugout_top_rail');
+							                [-6.62, 6.62].forEach((sx) => {
+							                  dPart(new THREE.BoxGeometry(0.12, 1.42, 1.80), glassCleanMat, sx, 0.92, 0.02, 'pitch_3d_rosaleda_final_polish_dugout_side_glass');
+							                  dPart(new THREE.BoxGeometry(0.08, 1.52, 0.10), steelDarkMat, sx, 0.98, 0.10, 'pitch_3d_rosaleda_final_polish_dugout_side_post');
+							                });
 							                for (let s = 0; s < 9; s += 1) {
 							                  const sx = -5.15 + s * 1.28;
 							                  dPart(new THREE.BoxGeometry(0.74, 0.19, 0.46), blueSeatMat, sx, 0.48, -0.10, 'pitch_3d_rosaleda_final_polish_dugout_blue_seat');
 							                  const back = dPart(new THREE.BoxGeometry(0.74, 0.64, 0.10), blueSeatMat, sx, 0.84, -0.42, 'pitch_3d_rosaleda_final_polish_dugout_blue_back');
 							                  back.rotation.x = 0.20;
+							                  dPart(new THREE.BoxGeometry(0.58, 0.08, 0.26), whiteSeatPolishMat, sx, 0.55, -0.16, 'pitch_3d_rosaleda_final_polish_dugout_seat_pad');
 							                }
 							                const sign = new THREE.Mesh(new THREE.PlaneGeometry(4.9, 0.54), makeSignMat(label, { w: 960, h: 240, bg: '#075fae', fg: '#f8fafc', font: '900 54px Arial, sans-serif', stroke: 'rgba(255,255,255,0.24)' }));
                                     sign.position.set(0, 0.84, 1.02);
@@ -15135,6 +15182,9 @@
                                     };
                                     const benchBand = new THREE.BoxGeometry(5.4, 0.14, 1.95);
                                     addSubPart(benchBand, darkVoidCleanMat, 0, 0.16, 0.20, 'pitch_3d_rosaleda_final_polish_near_substitute_base');
+                                    addSubPart(new THREE.BoxGeometry(5.7, 0.09, 0.16), steelDarkMat, 0, 1.18, 0.96, 'pitch_3d_rosaleda_final_polish_near_substitute_top_rail');
+                                    addSubPart(new THREE.BoxGeometry(0.10, 1.06, 1.52), glassCleanMat, -2.82, 0.66, 0.28, 'pitch_3d_rosaleda_final_polish_near_substitute_side_l');
+                                    addSubPart(new THREE.BoxGeometry(0.10, 1.06, 1.52), glassCleanMat, 2.82, 0.66, 0.28, 'pitch_3d_rosaleda_final_polish_near_substitute_side_r');
                                     for (let row = 0; row < 4; row += 1) {
                                       const y = 0.52 + row * 0.18;
                                       const z = -0.02 + row * 0.12;
@@ -15174,6 +15224,30 @@
 							              }
 							              addPart(new THREE.BoxGeometry(metersW + 8.0, 0.052, 0.052), railCleanMat, 0, 1.35, -(metersH / 2 + 2.76), 'pitch_3d_rosaleda_final_polish_near_guardrail_top');
 							              addPart(new THREE.BoxGeometry(metersW + 8.0, 0.046, 0.046), railCleanMat, 0, 0.78, -(metersH / 2 + 2.76), 'pitch_3d_rosaleda_final_polish_near_guardrail_mid');
+							              for (let i = -14; i <= 14; i += 1) {
+							                addPart(new THREE.BoxGeometry(0.28, 0.03, 2.35), steelDarkMat, i * ((metersW + 6.5) / 28), 0.04, -(metersH / 2 + 2.32), 'pitch_3d_rosaleda_final_polish_near_drain_channel');
+							              }
+							              [-1, 1].forEach((sideSign) => {
+							                for (let i = -8; i <= 8; i += 1) {
+							                  addPart(new THREE.BoxGeometry(1.18, 0.05, 0.82), facadeMat, sideSign * (metersW / 2 + 2.68), 0.08, i * (metersH * 0.105), 'pitch_3d_rosaleda_final_polish_side_service_hatch');
+							                }
+							              });
+							              [-1, 1].forEach((sx) => {
+							                [-1, 1].forEach((sz) => {
+							                  const cornerX = sx * (metersW / 2 + 7.42);
+							                  const cornerZ = sz * (metersH / 2 + 7.42);
+							                  addPart(new THREE.BoxGeometry(4.6, 4.2, 0.28), facadeMat, cornerX, 3.10, cornerZ - sz * 1.76, 'pitch_3d_rosaleda_final_polish_corner_inner_wall_a');
+							                  addPart(new THREE.BoxGeometry(0.28, 4.2, 4.6), facadeMat, cornerX - sx * 1.76, 3.10, cornerZ, 'pitch_3d_rosaleda_final_polish_corner_inner_wall_b');
+							                  addPart(new THREE.BoxGeometry(2.9, 1.05, 0.08), facadeGlassMat, cornerX, 3.38, cornerZ - sz * 1.90, 'pitch_3d_rosaleda_final_polish_corner_window_band_a');
+							                  addPart(new THREE.BoxGeometry(0.08, 1.05, 2.9), facadeGlassMat, cornerX - sx * 1.90, 3.38, cornerZ, 'pitch_3d_rosaleda_final_polish_corner_window_band_b');
+							                  addRotPart(new THREE.BoxGeometry(2.4, 0.12, 0.14), steelDarkMat, cornerX - sx * 0.95, 5.24, cornerZ - sz * 0.95, 0, Math.PI / 4 * sx * sz, 0, 'pitch_3d_rosaleda_final_polish_corner_roof_brace');
+							                });
+							              });
+							              addPart(new THREE.BoxGeometry(metersW * 0.36, 0.20, 0.22), steelDarkMat, 0, 8.24, metersH / 2 + 13.46, 'pitch_3d_rosaleda_final_polish_identity_fascia');
+							              addRotPart(new THREE.PlaneGeometry(metersW * 0.34, 0.82), makeSignMat(dedicatedTextForTeam(), { w: 1600, h: 260, bg: '#0a4f92', fg: '#f8fafc', font: '900 92px Arial, sans-serif' }), 0, 8.26, metersH / 2 + 13.30, 0, Math.PI, 0, 'pitch_3d_rosaleda_final_polish_identity_fascia_text');
+							              [-1, 1].forEach((sx) => {
+							                addRotPart(new THREE.CircleGeometry(0.96, 40), makeSignMat(dedicatedAbbrevForTeam(), { w: 512, h: 512, bg: '#075fae', fg: '#f8fafc', font: '900 122px Arial, sans-serif' }), sx * (metersW * 0.24), 8.64, metersH / 2 + 13.42, 0, Math.PI, 0, 'pitch_3d_rosaleda_final_polish_identity_roundel');
+							              });
 							            } catch (e) { /* ignore */ }
 							          };
 							          const addLongStand = (sideSign) => {
