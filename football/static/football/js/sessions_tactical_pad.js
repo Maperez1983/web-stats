@@ -11396,6 +11396,8 @@
 						            [-32.0, -20.5, 20.5, 32.0].forEach((x, idx) => addPitchsideMopup(x, -(metersH / 2 + 2.72), idx % 2 === 0 ? 7.2 : 5.4, idx));
 						            addBox(root, new THREE.BoxGeometry(metersW + 6.6, 0.16, 0.28), visibleFasciaMat, 0, 0.56, -(metersH / 2 + 2.22), 0, 0, 0, 'pitch_3d_visible_lower_pitchside_fascia_near');
 						            addBox(root, new THREE.BoxGeometry(metersW + 6.6, 0.14, 0.20), metalMat, 0, 0.82, -(metersH / 2 + 2.08), 0, 0, 0, 'pitch_3d_visible_lower_pitchside_cap_near');
+						            addBox(root, new THREE.BoxGeometry(metersW + 7.2, 0.12, 0.24), visibleFasciaMat, 0, 0.52, metersH / 2 + 2.22, 0, Math.PI, 0, 'pitch_3d_visible_lower_pitchside_fascia_far');
+						            addBox(root, new THREE.BoxGeometry(metersW + 7.2, 0.10, 0.18), metalMat, 0, 0.80, metersH / 2 + 2.08, 0, Math.PI, 0, 'pitch_3d_visible_lower_pitchside_cap_far');
 						            const addDugout = (x, zBase, labelIndex, rotY = 0) => {
 						              const dugout = new THREE.Group();
 						              dugout.position.set(x, 0, zBase);
@@ -16547,9 +16549,14 @@
 						              addRuntimeBox(0, 12.46, sign * 78.6, 170, 0.22, 6.8, runtimeRoofSolid, 'pitch_3d_runtime_roof_canopy_long');
 						              for (let i = -6; i <= 6; i += 1) {
 						                addRuntimeBox(i * 12.8, 12.18, sign * 79.6, 0.18, 2.8, 5.8, runtimeFrame, 'pitch_3d_runtime_roof_truss_long', sign * 0.04);
+						                addRuntimeBox(i * 12.8, 11.38, sign * 82.2, 0.10, 1.6, 0.12, runtimeFrame, 'pitch_3d_runtime_roof_hanger_long');
 						              }
 						              [-54, -18, 18, 54].forEach((x) => addRuntimeBox(x, 7.24, sign * 94.6, 0.18, 2.55, 0.42, runtimeFrame, 'pitch_3d_runtime_main_glass_mullion'));
 						              [-54, -18, 18, 54].forEach((x) => addRuntimeBox(x, 8.66, sign * 92.6, 12.4, 0.14, 0.26, runtimeFacadeMid, 'pitch_3d_runtime_main_corporate_box_band'));
+						              [-36, 0, 36].forEach((x) => {
+						                addRuntimeBox(x, 3.24, sign * 92.7, 3.8, 1.52, 0.18, runtimeFacadeDark, 'pitch_3d_runtime_main_mid_vomitory_shadow');
+						                addRuntimeBox(x, 4.18, sign * 92.58, 4.6, 0.22, 0.22, runtimeConcrete, 'pitch_3d_runtime_main_mid_vomitory_header');
+						              });
 						            });
 						            [-1, 1].forEach((sign) => {
 						              addRuntimeBox(sign * 104.5, 5.65, 0, 0.44, 1.35, 92, runtimeFacadeDark, 'pitch_3d_runtime_side_fascia_band');
@@ -16558,9 +16565,14 @@
 						              addRuntimeBox(sign * 90.6, 12.46, 0, 6.8, 0.22, 112, runtimeRoofSolid, 'pitch_3d_runtime_roof_canopy_end');
 						              for (let i = -4; i <= 4; i += 1) {
 						                addRuntimeBox(sign * 91.6, 12.18, i * 11.2, 5.8, 2.8, 0.18, runtimeFrame, 'pitch_3d_runtime_roof_truss_end');
+						                addRuntimeBox(sign * 94.2, 11.38, i * 11.2, 0.12, 1.6, 0.10, runtimeFrame, 'pitch_3d_runtime_roof_hanger_end');
 						              }
 						              [-28, 0, 28].forEach((z) => addRuntimeBox(sign * 106.6, 7.24, z, 0.42, 2.55, 0.18, runtimeFrame, 'pitch_3d_runtime_side_glass_mullion'));
 						              [-28, 0, 28].forEach((z) => addRuntimeBox(sign * 104.8, 8.66, z, 0.26, 0.14, 12.4, runtimeFacadeMid, 'pitch_3d_runtime_side_corporate_box_band'));
+						              [-22, 22].forEach((z) => {
+						                addRuntimeBox(sign * 104.7, 3.24, z, 0.18, 1.52, 3.8, runtimeFacadeDark, 'pitch_3d_runtime_side_mid_vomitory_shadow');
+						                addRuntimeBox(sign * 104.58, 4.18, z, 0.22, 0.22, 4.6, runtimeConcrete, 'pitch_3d_runtime_side_mid_vomitory_header');
+						              });
 						            });
 						            addRuntimeBox(0, 10.75, -95.4, 30, 1.92, 8.2, runtimeFacadeDark, 'pitch_3d_runtime_main_press_box');
 						            addRuntimeBox(0, 10.95, -99.6, 24, 1.28, 0.24, runtimeGlass, 'pitch_3d_runtime_main_press_box_glass');
@@ -16622,6 +16634,7 @@
 						            [
 						              [-56, 11.8, -60], [56, 11.8, -60], [-56, 11.8, 60], [56, 11.8, 60],
 						              [-92, 11.6, -26], [92, 11.6, -26], [-92, 11.6, 26], [92, 11.6, 26],
+						              [0, 10.8, -60], [0, 10.8, 60],
 						            ].forEach(([x, y, z]) => {
 						              const fill = new THREE.PointLight(0xeaf6ff, 0.22, 96, 1.8);
 						              fill.position.set(x, y, z);
