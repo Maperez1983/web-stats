@@ -3623,6 +3623,18 @@
         grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 0.5rem;
       }
+      .space-team-grid {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.5rem;
+      }
+      .space-team-grid label {
+        min-width: 0;
+      }
+      .space-team-grid select {
+        min-width: 0;
+      }
       .space-coach-grid label {
         min-width: 0;
       }
@@ -4140,6 +4152,7 @@
         .compact-grid {
           grid-template-columns: 1fr;
         }
+        .space-team-grid,
         .space-coach-grid,
         .space-coach-result {
           grid-template-columns: 1fr;
@@ -7388,6 +7401,50 @@
                     Nº jugadores
                     <input type="text" name="draw_task_player_count" id="draw-task-player-count" value="{{ initial.player_count }}" placeholder="Ej: 6v6 + 2 porteros" />
                   </label>
+                  <div class="space-team-grid" aria-label="Participantes de la tarea">
+                    <label>
+                      Equipo A
+                      <select id="task-team-a-count" data-player-count-part>
+                        <option value="">--</option>
+                        {% for n in "0123456789"|make_list %}
+                        <option value="{{ forloop.counter0 }}">{{ forloop.counter0 }}</option>
+                        {% endfor %}
+                        <option value="10">10</option>
+                        <option value="11">11</option>
+                      </select>
+                    </label>
+                    <label>
+                      Equipo B
+                      <select id="task-team-b-count" data-player-count-part>
+                        <option value="">--</option>
+                        {% for n in "0123456789"|make_list %}
+                        <option value="{{ forloop.counter0 }}">{{ forloop.counter0 }}</option>
+                        {% endfor %}
+                        <option value="10">10</option>
+                        <option value="11">11</option>
+                      </select>
+                    </label>
+                    <label>
+                      Comodines
+                      <select id="task-neutral-count" data-player-count-part>
+                        <option value="">0</option>
+                        {% for n in "012345"|make_list %}
+                        <option value="{{ forloop.counter0 }}">{{ forloop.counter0 }}</option>
+                        {% endfor %}
+                      </select>
+                    </label>
+                    <label>
+                      Porteros
+                      <select id="task-goalkeeper-count" data-player-count-part>
+                        <option value="">0</option>
+                        <option value="0">0</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                      </select>
+                    </label>
+                  </div>
                   <label>
                     Dimensiones
                     <input type="text" name="draw_task_dimensions" id="draw-task-dimensions" value="{{ initial.dimensions }}" placeholder="Ej: 40x30 m" />

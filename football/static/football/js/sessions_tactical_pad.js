@@ -1261,6 +1261,10 @@
     const livePreviewImg = document.getElementById('task-live-preview');
     const livePreviewPlaceholder = document.getElementById('task-live-preview-placeholder');
 	    const playerCountInput = form.querySelector('[name="draw_task_player_count"]');
+	    const teamACountInput = document.getElementById('task-team-a-count');
+	    const teamBCountInput = document.getElementById('task-team-b-count');
+	    const neutralCountInput = document.getElementById('task-neutral-count');
+	    const goalkeeperCountInput = document.getElementById('task-goalkeeper-count');
 	    const dimensionsInput = document.getElementById('draw-task-dimensions') || form.querySelector('[name="draw_task_dimensions"]');
 	    const trainingTypeInput = form.querySelector('[name="draw_task_training_type"]');
 	    const spaceDescriptionInput = form.querySelector('[name="draw_task_space"]');
@@ -4607,6 +4611,58 @@
 		      if (nums.length === 1) return Number(nums[0]) || 0;
 		      return nums.reduce((sum, n) => sum + (Number(n) || 0), 0);
 		    };
+		    const parseStructuredPlayerCount = (value) => {
+		      const raw = safeText(value).toLowerCase();
+		      const result = { a: '', b: '', neutrals: '', goalkeepers: '' };
+		      if (!raw) return result;
+		      const versus = raw.match(/(\d+)\s*(?:v|vs|x|contra)\s*(\d+)/i);
+		      if (versus) {
+		        result.a = String(Number(versus[1]) || 0);
+		        result.b = String(Number(versus[2]) || 0);
+		      }
+		      const neutral = raw.match(/\+\s*(\d+)\s*(?:comod|neutral|joker|apoyo)/i);
+		      if (neutral) result.neutrals = String(Number(neutral[1]) || 0);
+		      const goalkeeper = raw.match(/\+\s*(\d+)\s*(?:port|gk|porter)/i);
+		      if (goalkeeper) result.goalkeepers = String(Number(goalkeeper[1]) || 0);
+		      return result;
+		    };
+		    const structuredPlayerParts = () => ({
+		      a: Number(teamACountInput?.value) || 0,
+		      b: Number(teamBCountInput?.value) || 0,
+		      neutrals: Number(neutralCountInput?.value) || 0,
+		      goalkeepers: Number(goalkeeperCountInput?.value) || 0,
+		    });
+		    const structuredPlayerTotal = () => {
+		      const p = structuredPlayerParts();
+		      return p.a + p.b + p.neutrals + p.goalkeepers;
+		    };
+		    const structuredPlayerText = () => {
+		      const p = structuredPlayerParts();
+		      const base = (p.a > 0 || p.b > 0) ? `${p.a}v${p.b}` : '';
+		      const extras = [];
+		      if (p.neutrals > 0) extras.push(`${p.neutrals} comod${p.neutrals === 1 ? 'ín' : 'ines'}`);
+		      if (p.goalkeepers > 0) extras.push(`${p.goalkeepers} portero${p.goalkeepers === 1 ? '' : 's'}`);
+		      if (base && extras.length) return `${base} + ${extras.join(' + ')}`;
+		      if (base) return base;
+		      if (extras.length) return extras.join(' + ');
+		      return '';
+		    };
+		    const syncPlayerCountFromStructuredInputs = () => {
+		      if (!playerCountInput) return;
+		      const next = structuredPlayerText();
+		      if (!next) return;
+		      playerCountInput.value = next;
+		      try { playerCountInput.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) { /* ignore */ }
+		      try { playerCountInput.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) { /* ignore */ }
+		    };
+		    const hydrateStructuredPlayerInputs = () => {
+		      if (!teamACountInput && !teamBCountInput && !neutralCountInput && !goalkeeperCountInput) return;
+		      const parsed = parseStructuredPlayerCount(playerCountInput?.value);
+		      if (teamACountInput && parsed.a !== '') teamACountInput.value = parsed.a;
+		      if (teamBCountInput && parsed.b !== '') teamBCountInput.value = parsed.b;
+		      if (neutralCountInput && parsed.neutrals !== '') neutralCountInput.value = parsed.neutrals;
+		      if (goalkeeperCountInput && parsed.goalkeepers !== '') goalkeeperCountInput.value = parsed.goalkeepers;
+		    };
 		    const formatMeters = (value) => {
 		      const n = Number(value);
 		      if (!Number.isFinite(n)) return '';
@@ -4646,7 +4702,8 @@
 		        if (spaceWidthInput) spaceWidthInput.value = formatMeters(parsedDims.w);
 		        if (spaceLengthInput) spaceLengthInput.value = formatMeters(parsedDims.l);
 		      }
-		      const inferredPlayers = parseTaskPlayerCount(playerCountInput?.value || legacyPlayersInput?.value);
+		      const structuredTotal = structuredPlayerTotal();
+		      const inferredPlayers = structuredTotal || parseTaskPlayerCount(playerCountInput?.value || legacyPlayersInput?.value);
 		      if (inferredPlayers > 0 && !options.keepManualPlayers && spacePlayersInput && !safeText(spacePlayersInput.value)) {
 		        spacePlayersInput.value = String(inferredPlayers);
 		      }
@@ -4671,6 +4728,7 @@
 		    };
 		    const initSpaceCoach = () => {
 		      if (!spaceCoachEl) return;
+		      hydrateStructuredPlayerInputs();
 		      const dims = parseTaskDimensionsMeters(dimensionsInput?.value);
 		      if (dims) {
 		        if (spaceWidthInput) spaceWidthInput.value = formatMeters(dims.w);
@@ -4682,7 +4740,7 @@
 		          if (spaceLengthInput) spaceLengthInput.value = formatMeters(preset.l);
 		        }
 		      }
-		      const players = parseTaskPlayerCount(playerCountInput?.value || legacyPlayersInput?.value);
+		      const players = structuredPlayerTotal() || parseTaskPlayerCount(playerCountInput?.value || legacyPlayersInput?.value);
 		      if (players > 0 && spacePlayersInput) spacePlayersInput.value = String(players);
 		      const typeRaw = safeText(trainingTypeInput?.value).toLowerCase();
 		      if (spaceObjectiveInput && typeRaw) {
@@ -4697,6 +4755,14 @@
 		      [dimensionsInput, playerCountInput, legacyPlayersInput, trainingTypeInput].forEach((input) => {
 		        input?.addEventListener('input', () => updateSpaceCoach());
 		        input?.addEventListener('change', () => updateSpaceCoach());
+		      });
+		      [teamACountInput, teamBCountInput, neutralCountInput, goalkeeperCountInput].forEach((input) => {
+		        input?.addEventListener('change', () => {
+		          syncPlayerCountFromStructuredInputs();
+		          const total = structuredPlayerTotal();
+		          if (total > 0 && spacePlayersInput) spacePlayersInput.value = String(total);
+		          updateSpaceCoach({ keepManualPlayers: true });
+		        });
 		      });
 		      [spaceWidthInput, spaceLengthInput].forEach((input) => {
 		        input?.addEventListener('input', () => updateSpaceCoach({ keepManual: true }));
