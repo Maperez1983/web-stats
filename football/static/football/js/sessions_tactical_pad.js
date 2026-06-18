@@ -16623,6 +16623,10 @@
 						      };
 						      const mountSimpleRuntimeStadiumAsset = (sceneAsset) => {
 						        try {
+						          if (fieldFormat !== 'f11') {
+						            updatePitch3dStadiumDebug({ event: 'late-stadium-mount:skip-non-f11', fieldFormat });
+						            return false;
+						          }
 						          if (!sceneAsset || hasVisibleRuntimeStadiumAsset()) return false;
 						          const stadiumAsset = new THREE.Group();
 						          const runtimeMaterialCache = new Map();
@@ -16870,13 +16874,14 @@
 						          lateStadiumModelSrc,
 						          dedicated: isDedicatedPitch3dReferenceStadiumSrc(lateStadiumModelSrc),
 						        });
-						        if (lateStadiumModelSrc && !isDedicatedPitch3dReferenceStadiumSrc(lateStadiumModelSrc)) {
+						        if (fieldFormat === 'f11' && lateStadiumModelSrc && !isDedicatedPitch3dReferenceStadiumSrc(lateStadiumModelSrc)) {
 						          __pitch3dLoadStadiumModel((scene) => {
 						            try { mountSimpleRuntimeStadiumAsset(scene || __pitch3dStadiumModelCache.scene); } catch (e) { /* ignore */ }
 						          });
 						        }
 						        const triggerLateStadiumRecovery = () => {
 						          try {
+						            if (fieldFormat !== 'f11') return;
 						            if (!lateStadiumModelSrc || isDedicatedPitch3dReferenceStadiumSrc(lateStadiumModelSrc) || hasVisibleRuntimeStadiumAsset()) return;
 						            const LoaderClass = window.__WEBSTATS_GLTF_LOADER_CLASS;
 						            if (typeof LoaderClass !== 'function') {
@@ -16901,7 +16906,7 @@
 						            window.__WEBSTATS_PITCH3D_STADIUM_RECOVERY_LOADING = false;
 						          }
 						        };
-						        if (lateStadiumModelSrc && !isLegacyPitch3dReferenceStadiumSrc(lateStadiumModelSrc)) {
+						        if (fieldFormat === 'f11' && lateStadiumModelSrc && !isLegacyPitch3dReferenceStadiumSrc(lateStadiumModelSrc)) {
 						          window.setTimeout(triggerLateStadiumRecovery, 80);
 						          window.setTimeout(triggerLateStadiumRecovery, 700);
 						          window.setTimeout(triggerLateStadiumRecovery, 1800);
