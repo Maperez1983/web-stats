@@ -9661,6 +9661,16 @@
 						      const sourceW = Number(options.sourceW) || (Number(worldWidth) || 1280);
 						      const sourceH = Number(options.sourceH) || (Number(worldHeight) || 720);
 							      try { addPitch3dRenderBackdrop(root, metersW, metersH); } catch (e) { /* ignore */ }
+						      try {
+						        const runtimeStadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
+						        if (runtimeStadiumModelSrc) {
+						          __pitch3dLoadStadiumModel(() => {
+						            try {
+						              if (pitch3dRoot === root) buildPitch3dRoot(state, options);
+						            } catch (e) { /* ignore */ }
+						          });
+						        }
+						      } catch (e) { /* ignore */ }
 
 						      // Suelo
 						      let tex = null;
