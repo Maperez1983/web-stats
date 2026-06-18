@@ -386,13 +386,18 @@
 		    }
 		  };
 
-			  const buildPitchSvg = (presetKey, orientationKey = 'landscape', grassStyleKey = 'classic') => {
-			    const preset = String(presetKey || 'full_pitch').trim();
-			    const orientation = safeText(orientationKey, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
-			    const normalizedGrass = safeText(grassStyleKey, 'classic').toLowerCase();
-			    let grassStyle = (['classic', 'realistic', 'pro', 'broadcast', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'].includes(normalizedGrass))
-			      ? normalizedGrass
-			      : 'classic';
+		  const buildPitchSvg = (presetKey, orientationKey = 'landscape', grassStyleKey = 'classic') => {
+		    const preset = String(presetKey || 'full_pitch').trim();
+		    const orientation = safeText(orientationKey, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
+		    const normalizedGrass = safeText(grassStyleKey, 'classic').toLowerCase();
+		    let grassStyle = ([
+		      'classic', 'realistic', 'pro', 'broadcast',
+		      'stadium_close', 'stadium_top', 'stadium_full', 'stadium_premium',
+		      'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b',
+		      'coachboard', 'whiteboard', 'blackboard',
+		    ].includes(normalizedGrass))
+		      ? normalizedGrass
+		      : 'classic';
 			    try {
 			      if (window.__WEBSTATS_TACTICS_MODE === true && ['coachboard', 'whiteboard', 'blackboard'].includes(grassStyle)) {
 			        grassStyle = 'classic';
@@ -449,6 +454,45 @@
 		    defs.appendChild(gradient);
 
 		    let grassFillId = 'pitch-bg';
+		    if (grassStyle.startsWith('stadium_')) {
+		      const formEl = document.getElementById('task-builder-form');
+		      const stadiumTopSrc = orientation === 'portrait'
+		        ? safeText(formEl?.dataset?.pitch3dStadiumTopVSrc || '')
+		        : safeText(formEl?.dataset?.pitch3dStadiumTopHSrc || '');
+		      if (stadiumTopSrc) {
+		        grassFillId = 'pitch-stadium-top-img';
+		        const pattern = createSvgNode(doc, 'pattern', {
+		          id: grassFillId,
+		          patternUnits: 'userSpaceOnUse',
+		          x: -bleed,
+		          y: -bleed,
+		          width: stageW + (bleed * 2),
+		          height: stageH + (bleed * 2),
+		        });
+		        const stadiumImage = createSvgNode(doc, 'image', {
+		          href: stadiumTopSrc,
+		          x: -bleed,
+		          y: -bleed,
+		          width: stageW + (bleed * 2),
+		          height: stageH + (bleed * 2),
+		          preserveAspectRatio: 'xMidYMid slice',
+		        });
+		        try { stadiumImage.setAttribute('xlink:href', stadiumTopSrc); } catch (e) { /* ignore */ }
+		        pattern.appendChild(stadiumImage);
+		        if (grassStyle === 'stadium_close' || grassStyle === 'stadium_premium') {
+		          pattern.appendChild(createSvgNode(doc, 'rect', {
+		            x: -bleed,
+		            y: -bleed,
+		            width: stageW + (bleed * 2),
+		            height: stageH + (bleed * 2),
+		            fill: grassStyle === 'stadium_premium' ? 'rgba(2, 6, 23, 0.10)' : 'rgba(255,255,255,0.04)',
+		          }));
+		        }
+		        defs.appendChild(pattern);
+		      } else {
+		        grassStyle = 'classic';
+		      }
+		    }
 		    if (grassStyle === 'blackboard') {
 		      grassFillId = 'pitch-blackboard';
 		      const pattern = createSvgNode(doc, 'pattern', { id: grassFillId, patternUnits: 'userSpaceOnUse', width: 120, height: 120 });
@@ -480,7 +524,7 @@
 			      }));
 			      pattern.appendChild(createSvgNode(doc, 'rect', { x: 0, y: 0, width: 96, height: 96, fill: 'rgba(0,0,0,0.04)' }));
 			      defs.appendChild(pattern);
-			    } else if (grassStyle !== 'classic') {
+			    } else if (grassStyle !== 'classic' && !grassStyle.startsWith('stadium_')) {
 			      const dataUrl = __buildGrassTextureDataUrl(grassStyle);
 			      if (dataUrl) {
 			        grassFillId = 'pitch-grass-img';
@@ -4110,6 +4154,10 @@
 			    // y provocar un fallback a `full_pitch` inesperado (parece que "cambia la superficie" al guardar un clip).
 			    let pitchPreset = safeText(presetSelect?.value, 'full_pitch') || 'full_pitch';
 					    const GRASS_STYLE_LABEL = {
+					      stadium_close: 'Campo cercano',
+					      stadium_top: 'Cenital 3D',
+					      stadium_full: 'Estadio completo',
+					      stadium_premium: '3D presentación',
 					      classic: 'Césped',
 					      broadcast: 'Broadcast',
 					      realistic: 'Realista',
@@ -4122,8 +4170,16 @@
 					      indoor: 'Indoor',
 					      dry: 'Seco',
 					      wet: 'Mojado',
+					      coachboard: 'Tablero',
+					      whiteboard: 'Blanca',
+					      blackboard: 'Negra',
 					    };
-					    const GRASS_STYLE_ORDER = ['classic', 'broadcast', 'realistic', 'pro', 'uefa_b', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet'];
+					    const GRASS_STYLE_ORDER = [
+					      'stadium_close', 'stadium_top', 'stadium_full', 'stadium_premium',
+					      'classic', 'broadcast', 'realistic', 'pro', 'uefa_b',
+					      'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet',
+					      'coachboard', 'whiteboard', 'blackboard',
+					    ];
 					    const normalizeGrassStyleForMode = (value) => {
 					      const next = safeText(value, 'classic').toLowerCase();
 					      if (!GRASS_STYLE_ORDER.includes(next)) return 'classic';
@@ -12024,7 +12080,10 @@
 						            };
                               const dedicatedReferenceModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
                               const isDedicatedReferenceStadiumModel = isDedicatedPitch3dReferenceStadiumSrc(dedicatedReferenceModelSrc);
-                              const useModelBackedRosaledaStadium = /stadium_malaga_rosaleda(?:\.[a-f0-9]+)?\.glb(?:[?#].*)?$/i.test(dedicatedReferenceModelSrc) && normalizePitch3dFormat(options.fieldFormat || pitch3dFormat) === 'f11';
+                              // El GLB de Rosaleda está descargando en producción pero no está entrando de forma
+                              // consistente en escena. Hasta cerrar ese loader dejamos activa la ruta artesanal,
+                              // que es la que ya conseguimos ver estable ayer en todos los entornos.
+                              const useModelBackedRosaledaStadium = false;
                               const ensureModelBackedRosaledaRequested = () => {
                                 if (!useModelBackedRosaledaStadium) return false;
                                 try {
