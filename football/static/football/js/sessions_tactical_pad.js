@@ -15146,23 +15146,26 @@
 							                  dugout.add(part);
 							                  return part;
 							                };
-							                dPart(new THREE.BoxGeometry(13.6, 0.16, 1.92), darkVoidCleanMat, 0, 0.12, 0.12, 'pitch_3d_rosaleda_final_polish_dugout_dark_base');
-							                for (let r = 0; r < 7; r += 1) {
-							                  const t = r / 6;
-							                  const panel = dPart(new THREE.BoxGeometry(13.2, 0.045, 0.34), glassCleanMat, 0, 0.78 + Math.sin(t * Math.PI * 0.64) * 1.05, 0.82 - t * 1.36, 'pitch_3d_rosaleda_final_polish_dugout_curved_glass');
+							                dPart(new THREE.BoxGeometry(14.4, 0.16, 2.04), darkVoidCleanMat, 0, 0.12, 0.16, 'pitch_3d_rosaleda_final_polish_dugout_dark_base');
+							                dPart(new THREE.BoxGeometry(14.8, 0.05, 0.16), steelDarkMat, 0, 0.24, 1.02, 'pitch_3d_rosaleda_final_polish_dugout_front_kickrail');
+							                for (let r = 0; r < 8; r += 1) {
+							                  const t = r / 7;
+							                  const panel = dPart(new THREE.BoxGeometry(14.0, 0.042, 0.32), glassCleanMat, 0, 0.76 + Math.sin(t * Math.PI * 0.64) * 1.12, 0.92 - t * 1.54, 'pitch_3d_rosaleda_final_polish_dugout_curved_glass');
 							                  panel.rotation.x = 0.46 - t * 0.30;
 							                }
-							                dPart(new THREE.BoxGeometry(13.5, 0.09, 0.13), midRoofMat, 0, 1.98, 0.02, 'pitch_3d_rosaleda_final_polish_dugout_top_rail');
-							                [-6.62, 6.62].forEach((sx) => {
-							                  dPart(new THREE.BoxGeometry(0.12, 1.42, 1.80), glassCleanMat, sx, 0.92, 0.02, 'pitch_3d_rosaleda_final_polish_dugout_side_glass');
-							                  dPart(new THREE.BoxGeometry(0.08, 1.52, 0.10), steelDarkMat, sx, 0.98, 0.10, 'pitch_3d_rosaleda_final_polish_dugout_side_post');
+							                dPart(new THREE.BoxGeometry(14.3, 0.09, 0.13), midRoofMat, 0, 2.02, 0.00, 'pitch_3d_rosaleda_final_polish_dugout_top_rail');
+							                [-7.02, 7.02].forEach((sx) => {
+							                  dPart(new THREE.BoxGeometry(0.12, 1.46, 1.92), glassCleanMat, sx, 0.94, 0.06, 'pitch_3d_rosaleda_final_polish_dugout_side_glass');
+							                  dPart(new THREE.BoxGeometry(0.08, 1.58, 0.10), steelDarkMat, sx, 1.00, 0.12, 'pitch_3d_rosaleda_final_polish_dugout_side_post');
 							                });
-							                for (let s = 0; s < 9; s += 1) {
-							                  const sx = -5.15 + s * 1.28;
-							                  dPart(new THREE.BoxGeometry(0.74, 0.19, 0.46), blueSeatMat, sx, 0.48, -0.10, 'pitch_3d_rosaleda_final_polish_dugout_blue_seat');
-							                  const back = dPart(new THREE.BoxGeometry(0.74, 0.64, 0.10), blueSeatMat, sx, 0.84, -0.42, 'pitch_3d_rosaleda_final_polish_dugout_blue_back');
+							                for (let s = 0; s < 10; s += 1) {
+							                  const sx = -5.85 + s * 1.30;
+							                  dPart(new THREE.BoxGeometry(0.76, 0.19, 0.48), blueSeatMat, sx, 0.48, -0.12, 'pitch_3d_rosaleda_final_polish_dugout_blue_seat');
+							                  const back = dPart(new THREE.BoxGeometry(0.76, 0.68, 0.10), blueSeatMat, sx, 0.86, -0.46, 'pitch_3d_rosaleda_final_polish_dugout_blue_back');
 							                  back.rotation.x = 0.20;
-							                  dPart(new THREE.BoxGeometry(0.58, 0.08, 0.26), whiteSeatPolishMat, sx, 0.55, -0.16, 'pitch_3d_rosaleda_final_polish_dugout_seat_pad');
+							                  dPart(new THREE.BoxGeometry(0.60, 0.08, 0.28), whiteSeatPolishMat, sx, 0.55, -0.18, 'pitch_3d_rosaleda_final_polish_dugout_seat_pad');
+							                  dPart(new THREE.BoxGeometry(0.10, 0.34, 0.08), steelDarkMat, sx - 0.28, 0.30, -0.10, 'pitch_3d_rosaleda_final_polish_dugout_seat_leg_l');
+							                  dPart(new THREE.BoxGeometry(0.10, 0.34, 0.08), steelDarkMat, sx + 0.28, 0.30, -0.10, 'pitch_3d_rosaleda_final_polish_dugout_seat_leg_r');
 							                }
 							                const sign = new THREE.Mesh(new THREE.PlaneGeometry(4.9, 0.54), makeSignMat(label, { w: 960, h: 240, bg: '#075fae', fg: '#f8fafc', font: '900 54px Arial, sans-serif', stroke: 'rgba(255,255,255,0.24)' }));
                                     sign.position.set(0, 0.84, 1.02);
@@ -15172,7 +15175,7 @@
                                   };
                                   const addForegroundBenchSubstitute = (x) => {
                                     const block = new THREE.Group();
-                                    block.position.set(x, 0, -(metersH / 2 + 1.08));
+                                    block.position.set(x - 0.25, 0, -(metersH / 2 + 1.02));
                                     block.userData = { kind: 'pitch_3d_rosaleda_final_polish_near_bench_substitute' };
                                     const addSubPart = (geo, mat, px, py, pz, kind) => {
                                       const mesh = new THREE.Mesh(geo, mat);
@@ -15180,11 +15183,12 @@
                                       mesh.userData = { kind };
                                       block.add(mesh);
                                     };
-                                    const benchBand = new THREE.BoxGeometry(5.4, 0.14, 1.95);
+                                    const benchBand = new THREE.BoxGeometry(6.1, 0.14, 2.02);
                                     addSubPart(benchBand, darkVoidCleanMat, 0, 0.16, 0.20, 'pitch_3d_rosaleda_final_polish_near_substitute_base');
-                                    addSubPart(new THREE.BoxGeometry(5.7, 0.09, 0.16), steelDarkMat, 0, 1.18, 0.96, 'pitch_3d_rosaleda_final_polish_near_substitute_top_rail');
-                                    addSubPart(new THREE.BoxGeometry(0.10, 1.06, 1.52), glassCleanMat, -2.82, 0.66, 0.28, 'pitch_3d_rosaleda_final_polish_near_substitute_side_l');
-                                    addSubPart(new THREE.BoxGeometry(0.10, 1.06, 1.52), glassCleanMat, 2.82, 0.66, 0.28, 'pitch_3d_rosaleda_final_polish_near_substitute_side_r');
+                                    addSubPart(new THREE.BoxGeometry(6.3, 0.09, 0.16), steelDarkMat, 0, 1.18, 1.02, 'pitch_3d_rosaleda_final_polish_near_substitute_top_rail');
+                                    addSubPart(new THREE.BoxGeometry(0.10, 1.12, 1.66), glassCleanMat, -3.16, 0.68, 0.30, 'pitch_3d_rosaleda_final_polish_near_substitute_side_l');
+                                    addSubPart(new THREE.BoxGeometry(0.10, 1.12, 1.66), glassCleanMat, 3.16, 0.68, 0.30, 'pitch_3d_rosaleda_final_polish_near_substitute_side_r');
+                                    addSubPart(new THREE.BoxGeometry(6.0, 0.04, 0.14), steelDarkMat, 0, 0.24, 1.02, 'pitch_3d_rosaleda_final_polish_near_substitute_front_kickrail');
                                     for (let row = 0; row < 4; row += 1) {
                                       const y = 0.52 + row * 0.18;
                                       const z = -0.02 + row * 0.12;
@@ -15236,12 +15240,33 @@
 							                [-1, 1].forEach((sz) => {
 							                  const cornerX = sx * (metersW / 2 + 7.42);
 							                  const cornerZ = sz * (metersH / 2 + 7.42);
+							                  addRotPart(new THREE.BoxGeometry(5.9, 0.18, 3.8), darkVoidCleanMat, cornerX - sx * 1.05, 1.62, cornerZ - sz * 1.05, -0.14, Math.PI / 4 * sx * sz, 0, 'pitch_3d_rosaleda_final_polish_corner_bowl_filler');
 							                  addPart(new THREE.BoxGeometry(4.6, 4.2, 0.28), facadeMat, cornerX, 3.10, cornerZ - sz * 1.76, 'pitch_3d_rosaleda_final_polish_corner_inner_wall_a');
 							                  addPart(new THREE.BoxGeometry(0.28, 4.2, 4.6), facadeMat, cornerX - sx * 1.76, 3.10, cornerZ, 'pitch_3d_rosaleda_final_polish_corner_inner_wall_b');
 							                  addPart(new THREE.BoxGeometry(2.9, 1.05, 0.08), facadeGlassMat, cornerX, 3.38, cornerZ - sz * 1.90, 'pitch_3d_rosaleda_final_polish_corner_window_band_a');
 							                  addPart(new THREE.BoxGeometry(0.08, 1.05, 2.9), facadeGlassMat, cornerX - sx * 1.90, 3.38, cornerZ, 'pitch_3d_rosaleda_final_polish_corner_window_band_b');
+							                  addRotPart(new THREE.BoxGeometry(2.9, 0.16, 2.2), blueSeatDarkMat, cornerX - sx * 0.88, 2.16, cornerZ - sz * 0.88, -0.12, Math.PI / 4 * sx * sz, 0, 'pitch_3d_rosaleda_final_polish_corner_seat_patch');
+							                  addRotPart(new THREE.BoxGeometry(2.2, 0.14, 1.4), railCleanMat, cornerX - sx * 1.22, 4.94, cornerZ - sz * 1.22, 0, Math.PI / 4 * sx * sz, 0, 'pitch_3d_rosaleda_final_polish_corner_upper_guard');
 							                  addRotPart(new THREE.BoxGeometry(2.4, 0.12, 0.14), steelDarkMat, cornerX - sx * 0.95, 5.24, cornerZ - sz * 0.95, 0, Math.PI / 4 * sx * sz, 0, 'pitch_3d_rosaleda_final_polish_corner_roof_brace');
 							                });
+							              });
+							              for (let row = 0; row < 10; row += 1) {
+							                const y = 1.44 + row * 0.22;
+							                const z = -(metersH / 2 + 4.26 + row * 0.34);
+							                [-0.47, -0.37, -0.27, -0.17, -0.07, 0.03, 0.13, 0.23, 0.33, 0.43].forEach((ratio, idx) => {
+							                  const mat = idx % 5 === 0 ? whiteSeatPolishMat : (idx % 2 === 0 ? blueSeatDarkMat : blueSeatMat);
+							                  addRotPart(new THREE.BoxGeometry(metersW * 0.040, 0.11, 0.32), mat, ratio * metersW, y, z, -0.078, 0, 0, 'pitch_3d_rosaleda_final_polish_near_fine_seat_rhythm');
+							                });
+							              }
+							              [-1, 1].forEach((sideSign) => {
+							                for (let band = 0; band < 3; band += 1) {
+							                  const x = sideSign * (metersW / 2 + 4.82 + band * 0.92);
+							                  for (let row = 0; row < 12; row += 1) {
+							                    const z = -metersH * 0.42 + row * (metersH * 0.07);
+							                    const y = 1.34 + band * 0.48 + row * 0.08;
+							                    addRotPart(new THREE.BoxGeometry(0.18, 0.08, metersH * 0.030), row % 4 === 0 ? whiteSeatPolishMat : blueSeatDarkMat, x, y, z, -0.06, 0, 0, 'pitch_3d_rosaleda_final_polish_side_fine_seat_rhythm');
+							                  }
+							                }
 							              });
 							              addPart(new THREE.BoxGeometry(metersW * 0.36, 0.20, 0.22), steelDarkMat, 0, 8.24, metersH / 2 + 13.46, 'pitch_3d_rosaleda_final_polish_identity_fascia');
 							              addRotPart(new THREE.PlaneGeometry(metersW * 0.34, 0.82), makeSignMat(dedicatedTextForTeam(), { w: 1600, h: 260, bg: '#0a4f92', fg: '#f8fafc', font: '900 92px Arial, sans-serif' }), 0, 8.26, metersH / 2 + 13.30, 0, Math.PI, 0, 'pitch_3d_rosaleda_final_polish_identity_fascia_text');
