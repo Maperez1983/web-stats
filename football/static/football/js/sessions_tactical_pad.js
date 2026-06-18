@@ -13961,6 +13961,11 @@
 						              eagerStadiumModelSrc,
 						              dedicated: isDedicatedPitch3dReferenceStadiumSrc(eagerStadiumModelSrc),
 						            });
+						            if (fieldFormat !== 'f11') {
+						              updatePitch3dStadiumDebug({ event: 'stadium-builder:skip-non-f11', fieldFormat });
+						              addGreenApron();
+						              return;
+						            }
 						            if (eagerStadiumModelSrc && !isDedicatedPitch3dReferenceStadiumSrc(eagerStadiumModelSrc)) {
 						              __pitch3dLoadStadiumModel(() => {
 						                try { addProfessionalStadiumAsset(); } catch (e) { /* ignore */ }
