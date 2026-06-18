@@ -14999,6 +14999,7 @@
 							              const railCleanMat = new THREE.MeshStandardMaterial({ color: 0xc8d2d8, roughness: 0.34, metalness: 0.32, transparent: true, opacity: 0.74 });
 							              const lightStripMat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
 							              const softLightMat = new THREE.MeshBasicMaterial({ color: 0xdff6ff, transparent: true, opacity: 0.34, depthWrite: false, toneMapped: false });
+							              const softShadowMat = new THREE.MeshBasicMaterial({ color: 0x06111d, transparent: true, opacity: 0.14, depthWrite: false });
 							              const adFaceMat = new THREE.MeshBasicMaterial({ color: 0xe8eef5, transparent: true, opacity: 0.08, depthWrite: false, toneMapped: false });
 							              const apronMat = new THREE.MeshStandardMaterial({ color: 0x20262e, roughness: 0.86, metalness: 0.04 });
 							              const glassCleanMat = new THREE.MeshPhysicalMaterial({ color: 0xdcf7ff, roughness: 0.10, metalness: 0.02, transparent: true, opacity: 0.36, transmission: 0.18, side: THREE.DoubleSide });
@@ -15049,6 +15050,8 @@
 							              for (let row = 0; row < 6; row += 1) {
 							                addPart(new THREE.BoxGeometry(metersW * 0.80, 0.035, 0.09), softLightMat, -2.0, 4.02 + row * 0.48, metersH / 2 + 6.52 + row * 0.78, 'pitch_3d_rosaleda_final_polish_main_seat_row_highlight');
 							              }
+							              addRotPart(new THREE.PlaneGeometry(metersW * 0.82, 2.20), softShadowMat, -2.4, 3.84, metersH / 2 + 6.94, -0.13, Math.PI, 0, 'pitch_3d_rosaleda_final_polish_main_lower_bowl_shadow_band');
+							              addRotPart(new THREE.PlaneGeometry(metersW * 0.70, 1.60), softShadowMat, -1.8, 6.14, metersH / 2 + 10.18, -0.12, Math.PI, 0, 'pitch_3d_rosaleda_final_polish_main_middle_bowl_shadow_band');
 
 							              // Gradas laterales y baja cercana como superficies continuas, para tapar piezas flotantes antiguas.
 							              for (let row = 0; row < 16; row += 1) {
@@ -15061,6 +15064,7 @@
 							              }
 							              addPart(new THREE.BoxGeometry(metersW + 8.6, 0.22, 0.20), steelDarkMat, 0, 1.54, -(metersH / 2 + 3.36), 'pitch_3d_rosaleda_final_polish_near_lower_bowl_front_fascia');
 							              addPart(new THREE.BoxGeometry(metersW + 7.4, 0.18, 0.16), railCleanMat, 0, 3.18, -(metersH / 2 + 6.88), 'pitch_3d_rosaleda_final_polish_near_middle_guardrail');
+							              addRotPart(new THREE.PlaneGeometry(metersW + 5.2, 1.26), softShadowMat, 0, 2.42, -(metersH / 2 + 5.88), -0.078, 0, 0, 'pitch_3d_rosaleda_final_polish_near_bowl_shadow_band');
 							              for (let col = -30; col <= 30; col += 1) {
 							                const x = col * (metersW * 0.014);
 							                addRotPart(new THREE.BoxGeometry(0.03, 0.045, 5.65), whiteSeatPolishMat, x, 2.28, -(metersH / 2 + 6.36), -0.078, 0, 0, 'pitch_3d_rosaleda_final_polish_near_seat_break');
@@ -15077,6 +15081,7 @@
 							                }
 							                addPart(new THREE.BoxGeometry(0.18, 0.22, metersH + 9.4), steelDarkMat, sideSign * (metersW / 2 + 5.88), 3.12, 0, 'pitch_3d_rosaleda_final_polish_side_middle_fascia');
 							                addPart(new THREE.BoxGeometry(0.16, 0.18, metersH + 8.6), railCleanMat, sideSign * (metersW / 2 + 7.12), 5.88, 0, 'pitch_3d_rosaleda_final_polish_side_upper_guardrail');
+							                addRotPart(new THREE.PlaneGeometry(1.20, metersH + 6.4), softShadowMat, sideSign * (metersW / 2 + 5.74), 3.48, 0, -0.06, sideSign > 0 ? Math.PI / 2 : -Math.PI / 2, 0, 'pitch_3d_rosaleda_final_polish_side_bowl_shadow_band');
 							                for (let col = -16; col <= 16; col += 1) {
 							                  addRotPart(new THREE.BoxGeometry(0.025, 0.04, 1.55), whiteSeatPolishMat, sideSign * (metersW / 2 + 6.56), 2.22, col * (metersH * 0.028), -0.058, 0, 0, 'pitch_3d_rosaleda_final_polish_side_seat_break');
 							                }
@@ -15102,7 +15107,15 @@
 							                  addRotPart(new THREE.BoxGeometry(4.4, 0.08, 0.10), steelDarkMat, sideSign * (metersW / 2 + 10.04), 10.16, z, 0, 0, sideSign * 0.34, 'pitch_3d_rosaleda_final_polish_side_roof_diagonal_brace');
 							                  addPart(new THREE.BoxGeometry(0.18, 0.045, 0.46), lightStripMat, sideSign * (metersW / 2 + 8.72), 9.26, z, 'pitch_3d_rosaleda_final_polish_side_roof_light_cell');
 							                }
+							                for (let i = -5; i <= 5; i += 1) {
+							                  const z = i * ((metersH + 3.0) / 10);
+							                  addPart(new THREE.BoxGeometry(0.10, 0.38, 0.10), steelDarkMat, sideSign * (metersW / 2 + 8.54), 8.74, z, 'pitch_3d_rosaleda_final_polish_side_roof_hanger');
+							                }
 							              });
+							              for (let i = -10; i <= 10; i += 1) {
+							                const x = i * ((metersW + 18.0) / 20);
+							                addPart(new THREE.BoxGeometry(0.06, 0.06, 0.48), steelDarkMat, x, 10.24, metersH / 2 + 13.94, 'pitch_3d_rosaleda_final_polish_main_roof_front_speaker_mount');
+							              }
 
 							              // Primer plano tipo foto: banquillos, pasillo técnico, vallas y objetivos auxiliares visibles desde la cámara.
 							              addPart(new THREE.BoxGeometry(metersW + 14.0, 0.10, 2.42), apronMat, 0, 0.18, -(metersH / 2 + 0.82), 'pitch_3d_rosaleda_final_polish_near_dark_technical_apron');
@@ -15115,6 +15128,10 @@
 							              for (let i = -5; i <= 5; i += 1) {
 							                addPart(new THREE.BoxGeometry(0.10, 0.025, 0.42), concreteCleanMat, i * 0.42, 0.22, -(metersH / 2 + 0.34), 'pitch_3d_rosaleda_final_polish_tunnel_step_hint');
 							              }
+							              addPart(new THREE.BoxGeometry(8.2, 0.06, 0.22), steelDarkMat, 0, 0.20, -(metersH / 2 + 1.96), 'pitch_3d_rosaleda_final_polish_front_service_cable_trench');
+							              [-1, 1].forEach((sx) => {
+							                addPart(new THREE.BoxGeometry(0.22, 0.26, 0.32), facadeMat, sx * 4.48, 0.13, -(metersH / 2 + 1.94), 'pitch_3d_rosaleda_final_polish_tunnel_service_box');
+							              });
               [dedicatedBenchLabel(0), '2J FOOTBALL INTELLIGENCE', 'PARTNER', 'LA ROSALEDA', 'SPONSOR'].forEach((label, idx) => {
 							                const x = -metersW * 0.42 + idx * (metersW * 0.21);
 							                addPart(new THREE.BoxGeometry(metersW * 0.17, 0.66, 0.12), makeSignMat(label, { w: 1180, h: 260, bg: idx % 2 ? '#101827' : '#075fae', fg: '#f8fafc', font: '900 48px Arial, sans-serif', stroke: 'rgba(255,255,255,0.22)' }), x, 0.92, -(metersH / 2 + 1.80), 'pitch_3d_rosaleda_final_polish_near_reference_ad_board');
@@ -15246,6 +15263,9 @@
 							                for (let i = -8; i <= 8; i += 1) {
 							                  addPart(new THREE.BoxGeometry(1.18, 0.05, 0.82), facadeMat, sideSign * (metersW / 2 + 2.68), 0.08, i * (metersH * 0.105), 'pitch_3d_rosaleda_final_polish_side_service_hatch');
 							                }
+							                for (let i = -6; i <= 6; i += 1) {
+							                  addPart(new THREE.BoxGeometry(0.32, 0.18, 0.24), steelDarkMat, sideSign * (metersW / 2 + 2.14), 0.16, i * (metersH * 0.135), 'pitch_3d_rosaleda_final_polish_side_media_box');
+							                }
 							              });
 							              [-1, 1].forEach((sx) => {
 							                [-1, 1].forEach((sz) => {
@@ -15286,6 +15306,7 @@
 							              });
 							              addRotPart(new THREE.PlaneGeometry(metersW * 0.84, 5.40), softLightMat, -3.0, 8.72, metersH / 2 + 12.84, -0.10, Math.PI, 0, 'pitch_3d_rosaleda_final_polish_main_stand_soft_bloom');
 							              addRotPart(new THREE.PlaneGeometry(metersW * 0.44, 2.20), softLightMat, -21.0, 1.86, -(metersH / 2 + 1.26), -0.06, 0, 0, 'pitch_3d_rosaleda_final_polish_dugout_soft_bloom');
+							              addRotPart(new THREE.PlaneGeometry(metersW * 0.52, 1.80), softShadowMat, -24.0, 0.96, -(metersH / 2 + 1.92), -0.05, 0, 0, 'pitch_3d_rosaleda_final_polish_dugout_ground_shadow');
 							            } catch (e) { /* ignore */ }
 							          };
 							          const addLongStand = (sideSign) => {
