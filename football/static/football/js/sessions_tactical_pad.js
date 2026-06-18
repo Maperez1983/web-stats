@@ -11016,6 +11016,30 @@
 						            const standW = Math.min(78, metersW * 0.74);
 						            const rows = 8;
 						            const tunnelW = 7.1;
+						            const addSeatMaterialSelector = (x, r, cfg = {}, seatGapRef) => {
+						              const base = Math.round((x * 8.4) + (r * 13) + (Number(cfg.offset) || 0) * 19 + (seatGapRef || 1));
+						              const seed = Math.abs(base % 23);
+						              const matA = cfg.seatA || new THREE.MeshStandardMaterial({ color: 0x047857, roughness: 0.56, metalness: 0.02 });
+						              const matB = cfg.seatB || new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.52, metalness: 0.02 });
+						              const matC = cfg.seatC || new THREE.MeshStandardMaterial({ color: 0x1a2a25, roughness: 0.58, metalness: 0.03 });
+						              if (seed === 4) return matC;
+						              return seed % 7 === 0 ? matB : matA;
+						            };
+						            const addPremiumVomitoryPocket = (x) => {
+						              addBox(g, new THREE.BoxGeometry(3.45, 0.22, 1.95), concreteMat, x, 0.54, concourseZ + 0.34, -0.02, 0, 0, 'pitch_3d_stand_mid_vomitory_court');
+						              addBox(g, new THREE.BoxGeometry(3.00, 1.30, 1.68), tunnelWallMat, x, 1.32, concourseZ + 0.56, -0.02, 0, 0, 'pitch_3d_stand_mid_vomitory_chamber_wall');
+						              addBox(g, new THREE.BoxGeometry(0.10, 1.48, 2.05), metalMat, x - 1.72, 1.32, concourseZ + 0.58, -0.02, 0, 0, 'pitch_3d_stand_mid_vomitory_guard_rail_l');
+						              addBox(g, new THREE.BoxGeometry(0.10, 1.48, 2.05), metalMat, x + 1.72, 1.32, concourseZ + 0.58, -0.02, 0, 0, 'pitch_3d_stand_mid_vomitory_guard_rail_r');
+						              addBox(g, new THREE.BoxGeometry(3.28, 0.28, 0.16), tunnelLightMat, x, 2.24, concourseZ + 0.12, 0, 0, 0, 'pitch_3d_stand_mid_vomitory_glow');
+						              addBox(g, new THREE.BoxGeometry(1.12, 0.16, 0.76), stepMat, x, 2.45, concourseZ + 0.95, -0.02, 0, 0, 'pitch_3d_stand_mid_vomitory_stair');
+						            };
+						            const addPremiumLowVomitoryPocket = (x) => {
+						              addBox(g, new THREE.BoxGeometry(3.60, 0.22, 2.05), tunnelWallMat, x, 0.72, concourseZ - 1.18, -0.02, 0, 0, 'pitch_3d_stand_lower_vomitory_court');
+						              addBox(g, new THREE.BoxGeometry(3.08, 1.60, 1.76), tunnelWallMat, x, 1.84, concourseZ - 0.94, -0.02, 0, 0, 'pitch_3d_stand_lower_vomitory_chamber');
+						              addBox(g, new THREE.BoxGeometry(0.10, 1.80, 2.25), metalMat, x - 1.82, 1.90, concourseZ - 0.98, -0.02, 0, 0, 'pitch_3d_stand_lower_vomitory_guard_rail_l');
+						              addBox(g, new THREE.BoxGeometry(0.10, 1.80, 2.25), metalMat, x + 1.82, 1.90, concourseZ - 0.98, -0.02, 0, 0, 'pitch_3d_stand_lower_vomitory_guard_rail_r');
+						              addBox(g, new THREE.BoxGeometry(3.40, 0.20, 0.16), tunnelLightMat, x, 2.80, concourseZ - 1.34, 0, 0, 0, 'pitch_3d_stand_lower_vomitory_glow');
+						            };
 						            const addTier = (cfg) => {
 						              const tierRows = Number(cfg.rows) || 6;
 						              const tierW = Number(cfg.w) || standW;
@@ -11026,6 +11050,7 @@
 						              const tierKind = safeText(cfg.kind, 'technical_stand');
 						              const seatA = cfg.seatA || seatMatA;
 						              const seatB = cfg.seatB || seatMatB;
+						              const seatC = cfg.seatC || seatMatC;
 						              const tierHalf = tierW / 2 - 2.0;
 						              for (let r = 0; r < tierRows; r += 1) {
 						                const y = baseY + (r * rowRise);
@@ -11038,7 +11063,7 @@
 						                  if (Math.abs(x) < Number(cfg.centerGap || 5.2)) continue;
 						                  if (Math.abs(x - 20) < 1.55 || Math.abs(x + 20) < 1.55) continue;
 						                  if (Math.abs(x - 33) < 1.25 || Math.abs(x + 33) < 1.25) continue;
-						                  const mat = ((Math.floor((x + tierHalf) / seatGap) + r + Number(cfg.offset || 0)) % 8 === 0) ? seatB : seatA;
+						                  const mat = addSeatMaterialSelector(x, r, { seatA, seatB, seatC, offset: cfg.offset }, seatGap);
 						                  addBox(g, new THREE.BoxGeometry(0.68, 0.20, 0.42), mat, x, baseY + 0.26 + (r * rowRise), baseZ + (r * rowDepth) - 0.06, -0.10, 0, 0, `pitch_3d_${tierKind}_seat`);
 						                  addBox(g, new THREE.BoxGeometry(0.68, 0.36, 0.10), mat, x, baseY + 0.44 + (r * rowRise), baseZ + (r * rowDepth) + 0.21, -0.18, 0, 0, `pitch_3d_${tierKind}_backrest`);
 						                }
@@ -11070,13 +11095,14 @@
 						            }
 						            const seatMatA = new THREE.MeshStandardMaterial({ color: 0x047857, roughness: 0.56, metalness: 0.02 });
 						            const seatMatB = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.52, metalness: 0.02 });
+						            const seatMatC = new THREE.MeshStandardMaterial({ color: 0x1a2a25, roughness: 0.58, metalness: 0.03 });
 						            const seatGap = 1.14;
 						            const half = standW / 2 - 2.0;
 						            for (let r = 0; r < rows; r += 1) {
 						              for (let x = -half; x <= half; x += seatGap) {
 						                if (Math.abs(x) < 5.2) continue;
 						                if (Math.abs(x - 20) < 1.55 || Math.abs(x + 20) < 1.55) continue;
-						                const mat = ((Math.floor((x + half) / seatGap) + r) % 8 === 0) ? seatMatB : seatMatA;
+						                const mat = addSeatMaterialSelector(x, r, { seatA: seatMatA, seatB: seatMatB, seatC: seatMatC }, seatGap);
 						                addBox(g, new THREE.BoxGeometry(0.68, 0.20, 0.42), mat, x, 0.88 + (r * 0.39), (r * 0.93) - 0.06, -0.10, 0, 0, 'pitch_3d_technical_stand_seat');
 						                addBox(g, new THREE.BoxGeometry(0.68, 0.36, 0.10), mat, x, 1.06 + (r * 0.39), (r * 0.93) + 0.21, -0.18, 0, 0, 'pitch_3d_technical_stand_backrest');
 						              }
@@ -11101,10 +11127,7 @@
 						              addBox(g, new THREE.BoxGeometry(0.32, 6.35, 0.34), concreteMat, x, 3.30, concourseZ + 3.30, -0.02, 0, 0, 'pitch_3d_stand_vertical_column');
 						              addBox(g, new THREE.BoxGeometry(0.22, 5.55, 0.24), metalMat, x, 6.35, upperConcourseZ + 2.85, -0.02, 0, 0, 'pitch_3d_stand_upper_column');
 						            });
-						            [-12, 12].forEach((x) => {
-						              addBox(g, new THREE.BoxGeometry(4.0, 1.35, 0.32), tunnelWallMat, x, 4.70, concourseZ + 0.34, 0, 0, 0, 'pitch_3d_stand_mid_vomitory');
-						              addBox(g, new THREE.BoxGeometry(3.55, 0.92, 0.08), tunnelLightMat, x, 4.60, concourseZ + 0.14, 0, 0, 0, 'pitch_3d_stand_mid_vomitory_glow');
-						            });
+						            [-12, 12].forEach((x) => addPremiumVomitoryPocket(x));
 						            const suiteMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.44, metalness: 0.18 });
 						            const suiteGlassMat = new THREE.MeshStandardMaterial({ color: 0xcffafe, roughness: 0.12, metalness: 0.02, transparent: true, opacity: 0.44 });
 						            addBox(g, new THREE.BoxGeometry(standW * 0.68, 1.18, 0.52), suiteMat, 0, 5.28, upperConcourseZ - 1.48, 0, 0, 0, 'pitch_3d_main_stand_vip_suite_back');
@@ -11112,12 +11135,7 @@
 						            [-0.28, -0.14, 0, 0.14, 0.28].forEach((ratio) => {
 						              addBox(g, new THREE.BoxGeometry(0.12, 1.05, 0.18), metalMat, ratio * standW, 5.30, upperConcourseZ - 1.70, 0, 0, 0, 'pitch_3d_main_stand_vip_mullion');
 						            });
-						            [-standW * 0.36, standW * 0.36].forEach((x) => {
-						              addBox(g, new THREE.BoxGeometry(3.15, 1.95, 0.42), tunnelWallMat, x, 2.45, concourseZ - 1.70, 0, 0, 0, 'pitch_3d_main_stand_lower_vomitory_cut');
-						              addBox(g, new THREE.BoxGeometry(2.64, 1.40, 0.08), tunnelLightMat, x, 2.42, concourseZ - 1.95, 0, 0, 0, 'pitch_3d_main_stand_lower_vomitory_depth');
-						              addBox(g, new THREE.BoxGeometry(0.10, 1.68, 2.85), metalMat, x - 1.78, 2.35, concourseZ - 0.72, 0, 0, 0, 'pitch_3d_main_stand_vomitory_rail');
-						              addBox(g, new THREE.BoxGeometry(0.10, 1.68, 2.85), metalMat, x + 1.78, 2.35, concourseZ - 0.72, 0, 0, 0, 'pitch_3d_main_stand_vomitory_rail');
-						            });
+						            [-standW * 0.36, standW * 0.36].forEach((x) => addPremiumLowVomitoryPocket(x));
 						            for (let i = -5; i <= 5; i += 1) {
 						              addBox(g, new THREE.BoxGeometry(0.24, 3.60, 0.24), concreteMat, i * (standW * 0.085), 2.05, -0.52, -0.02, 0, 0, 'pitch_3d_main_stand_undercroft_pier');
 						            }
@@ -11140,10 +11158,24 @@
 						            const seatGap = Number(opts.seatGap) || 1.22;
 						            const seatMatA = new THREE.MeshStandardMaterial({ color: 0x047857, roughness: 0.56, metalness: 0.02 });
 						            const seatMatB = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.52, metalness: 0.02 });
+						            const seatMatC = new THREE.MeshStandardMaterial({ color: 0x0c3b2e, roughness: 0.58, metalness: 0.03 });
+						            const pickSeatMaterial = (sx, rowIndex, cfg = {}, spanBias = 1) => {
+						              const cfgOffset = Number(cfg.offset) || 0;
+						              const seed = Math.abs(Math.round((sx * 11.7) + (rowIndex * 17) + cfgOffset * 31 + spanBias * 41));
+						              if (seed % 13 === 0) return cfg.seatC || seatMatC;
+						              return seed % 6 === 0 ? (cfg.seatB || seatMatB) : (cfg.seatA || seatMatA);
+						            };
+						            const addConcourseTransition = (z, isUpper = false) => {
+						              const h = isUpper ? 6.28 : 3.32;
+						              const d = isUpper ? 3.30 : 1.10;
+						              addBox(g, new THREE.BoxGeometry(standW + 1.65, 0.18, d), concreteMat, 0, h - 0.22, z, 0, 0, 0, `pitch_3d_peripheral_${isUpper ? 'upper' : 'lower'}_concourse_transition`);
+						              addBox(g, new THREE.BoxGeometry(standW + 1.55, 0.10, Math.max(0.18, d - 0.35)), metalMat, 0, h + 0.14, z + 0.12, 0, 0, 0, `pitch_3d_peripheral_${isUpper ? 'upper' : 'lower'}_concourse_guard`);
+						              addBox(g, new THREE.BoxGeometry(standW + 1.55, 0.09, 0.20), glassMat, 0, h + 0.22, z + 0.35, 0, 0, 0, `pitch_3d_peripheral_${isUpper ? 'upper' : 'lower'}_concourse_glass_strip`);
+						            };
 						            g.position.set(Number(opts.x) || 0, 0, Number(opts.z) || 0);
 						            g.rotation.y = Number(opts.rotY) || 0;
 						            g.userData = { kind: safeText(opts.kind, 'pitch_3d_peripheral_stand') };
-						            const drawTier = (cfg) => {
+							            const drawTier = (cfg) => {
 						              const tierRows = Number(cfg.rows) || 5;
 						              const tierW = Number(cfg.w) || standW;
 						              const baseY = Number(cfg.baseY) || 0;
@@ -11162,7 +11194,7 @@
 						                for (let sx = -tierHalf; sx <= tierHalf; sx += seatGap) {
 						                  if (Math.abs(sx) < Number(cfg.centerGap || 3.4)) continue;
 						                  if (Math.abs(sx - (tierW * 0.28)) < 1.20 || Math.abs(sx + (tierW * 0.28)) < 1.20) continue;
-						                  const mat = ((Math.floor((sx + tierHalf) / seatGap) + r + Number(cfg.offset || 0)) % 8 === 0) ? seatMatB : seatMatA;
+						                  const mat = pickSeatMaterial(sx, r, cfg);
 						                  addBox(g, new THREE.BoxGeometry(0.66, 0.19, 0.40), mat, sx, baseY + 0.25 + (r * rowRise), baseZ + (r * rowDepth) - 0.06, -0.10, 0, 0, `pitch_3d_${tierKind}_seat`);
 						                  addBox(g, new THREE.BoxGeometry(0.66, 0.34, 0.10), mat, sx, baseY + 0.42 + (r * rowRise), baseZ + (r * rowDepth) + 0.20, -0.18, 0, 0, `pitch_3d_${tierKind}_backrest`);
 						                }
@@ -11180,11 +11212,13 @@
 						            const concourseZ = rowsLower * 0.86 + 0.82;
 						            addBox(g, new THREE.BoxGeometry(standW + 1.8, 0.30, 1.08), concreteMat, 0, 3.32, concourseZ, 0, 0, 0, 'pitch_3d_peripheral_concourse_ring');
 						            addBox(g, new THREE.BoxGeometry(standW + 1.8, 0.14, 0.20), metalMat, 0, 3.76, concourseZ - 0.60, 0, 0, 0, 'pitch_3d_peripheral_guardrail');
+						            addConcourseTransition(concourseZ);
 						            addBox(g, new THREE.BoxGeometry(standW * 0.90, 0.34, 5.0), concreteMat, 0, 3.42, concourseZ + 2.55, -0.035, 0, 0, 'pitch_3d_peripheral_middle_raker');
 						            drawTier({ kind: 'peripheral_middle_tier', w: standW * 0.90, rows: rowsMiddle, baseY: 3.78, baseZ: concourseZ + 0.88, rowRise: 0.34, rowDepth: 0.78, centerGap: 3.0, offset: 3 });
 						            const upperZ = concourseZ + 6.10;
 						            addBox(g, new THREE.BoxGeometry(standW * 0.80, 0.30, 0.95), concreteMat, 0, 5.82, upperZ, 0, 0, 0, 'pitch_3d_peripheral_upper_concourse');
 						            addBox(g, new THREE.BoxGeometry(standW * 0.76, 0.32, 4.0), concreteMat, 0, 5.96, upperZ + 2.15, -0.035, 0, 0, 'pitch_3d_peripheral_upper_raker');
+						            addConcourseTransition(upperZ + 2.15, true);
 						            drawTier({ kind: 'peripheral_upper_tier', w: standW * 0.76, rows: rowsUpper, baseY: 6.30, baseZ: upperZ + 0.72, rowRise: 0.32, rowDepth: 0.74, centerGap: 2.6, offset: 5 });
 						            [-0.42, -0.24, 0, 0.24, 0.42].forEach((ratio) => {
 						              const cx = ratio * standW;
@@ -11283,6 +11317,7 @@
 						            });
 						            const seatMatA = new THREE.MeshStandardMaterial({ color: 0x047857, roughness: 0.56, metalness: 0.02 });
 						            const seatMatB = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.52, metalness: 0.02 });
+						            const seatMatC = new THREE.MeshStandardMaterial({ color: 0x1c2f2b, roughness: 0.60, metalness: 0.03 });
 						            const premiumConcreteMat = new THREE.MeshStandardMaterial({ color: 0xd8ddd7, roughness: 0.74, metalness: 0.03 });
 						            const shadowMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.80, metalness: 0.02 });
 						            const fasciaMat = new THREE.MeshStandardMaterial({ color: 0x063f33, roughness: 0.58, metalness: 0.08 });
@@ -11332,6 +11367,14 @@
 						            addContinuousBowlRun('x', -1, metersH + 19.0, 0, 0);
 						            const addPitchTightBowl = (axis, sign, span, center, skipCenter) => {
 						              const railY = 2.34;
+						              const selectTightSeat = (p, row, cfg = {}) => {
+						                const seatA = cfg.seatA || new THREE.MeshStandardMaterial({ color: 0x047857, roughness: 0.56, metalness: 0.02 });
+						                const seatB = cfg.seatB || new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.52, metalness: 0.02 });
+						                const seatC = cfg.seatC || new THREE.MeshStandardMaterial({ color: 0x1c2f2b, roughness: 0.60, metalness: 0.03 });
+						                const seed = Math.abs(Math.round((p * 11.2) + (row * 13) + span * 0.13));
+						                if (seed % 17 === 0) return seatC;
+						                return seed % 5 === 0 ? seatB : seatA;
+						              };
 						              if (axis === 'z') {
 						                addBox(g, new THREE.BoxGeometry(span, 0.30, 3.1), premiumConcreteMat, center, 0.32, sign * innerBowlZ, -0.040, 0, 0, 'pitch_3d_tight_lower_bowl_foundation');
 						                addBox(g, new THREE.BoxGeometry(span * 0.98, 0.24, 2.35), stepMat, center, 0.80, sign * (innerBowlZ + 0.72), -0.050, 0, 0, 'pitch_3d_tight_lower_bowl_steps');
@@ -11345,7 +11388,7 @@
 						              for (let r = 0; r < 3; r += 1) {
 						                for (let p = -span / 2 + 1.2; p <= span / 2 - 1.2; p += step) {
 						                  if (skipCenter && Math.abs(p) < skipCenter) continue;
-						                  const mat = ((Math.floor((p + span / 2) / step) + r) % 7 === 0) ? seatMatB : seatMatA;
+						                  const mat = selectTightSeat(p, r, { seatA: seatMatA, seatB: seatMatB, seatC: seatMatC, seatSpan: span });
 						                  if (axis === 'z') {
 						                    addBox(g, new THREE.BoxGeometry(0.62, 0.17, 0.36), mat, center + p, 0.98 + (r * 0.32), sign * (innerBowlZ + 0.75 + (r * 0.58)), -0.10, 0, 0, 'pitch_3d_tight_lower_bowl_seat');
 						                  } else {
@@ -11373,13 +11416,17 @@
 						            });
 						            const addVomitory = (axis, sign, pos) => {
 						              if (axis === 'z') {
-						                addBox(g, new THREE.BoxGeometry(3.10, 1.72, 0.34), shadowMat, pos, 2.22, sign * (bowlZ - 1.85), 0, 0, 0, 'pitch_3d_bowl_vomitory_dark_opening');
-						                addBox(g, new THREE.BoxGeometry(0.12, 1.60, 4.2), metalMat, pos - 1.78, 2.10, sign * (bowlZ + 0.05), 0, 0, 0, 'pitch_3d_bowl_vomitory_side_rail');
-						                addBox(g, new THREE.BoxGeometry(0.12, 1.60, 4.2), metalMat, pos + 1.78, 2.10, sign * (bowlZ + 0.05), 0, 0, 0, 'pitch_3d_bowl_vomitory_side_rail');
+						                addBox(g, new THREE.BoxGeometry(2.88, 1.60, 0.32), shadowMat, pos, 2.22, sign * (bowlZ - 1.82), 0, 0, 0, 'pitch_3d_bowl_vomitory_dark_opening');
+						                addBox(g, new THREE.BoxGeometry(0.10, 1.55, 3.80), stepMat, pos, 2.58, sign * (bowlZ - 0.72), 0, 0, 0, 'pitch_3d_bowl_vomitory_decompression_stair');
+						                addBox(g, new THREE.BoxGeometry(0.10, 1.68, 4.2), metalMat, pos - 1.45, 2.10, sign * (bowlZ + 0.05), 0, 0, 0, 'pitch_3d_bowl_vomitory_side_rail');
+						                addBox(g, new THREE.BoxGeometry(0.10, 1.68, 4.2), metalMat, pos + 1.45, 2.10, sign * (bowlZ + 0.05), 0, 0, 0, 'pitch_3d_bowl_vomitory_side_rail');
+						                addBox(g, new THREE.BoxGeometry(1.90, 0.16, 0.16), tunnelLightMat, pos, 3.16, sign * (bowlZ - 0.56), 0, 0, 0, 'pitch_3d_bowl_vomitory_illumination');
 						              } else {
-						                addBox(g, new THREE.BoxGeometry(0.34, 1.72, 3.10), shadowMat, sign * (bowlX - 1.85), 2.22, pos, 0, 0, 0, 'pitch_3d_end_vomitory_dark_opening');
-						                addBox(g, new THREE.BoxGeometry(4.2, 1.60, 0.12), metalMat, sign * (bowlX + 0.05), 2.10, pos - 1.78, 0, 0, 0, 'pitch_3d_end_vomitory_side_rail');
-						                addBox(g, new THREE.BoxGeometry(4.2, 1.60, 0.12), metalMat, sign * (bowlX + 0.05), 2.10, pos + 1.78, 0, 0, 0, 'pitch_3d_end_vomitory_side_rail');
+						                addBox(g, new THREE.BoxGeometry(0.32, 1.60, 2.88), shadowMat, sign * (bowlX - 1.82), 2.15, pos, 0, 0, 0, 'pitch_3d_end_vomitory_dark_opening');
+						                addBox(g, new THREE.BoxGeometry(3.80, 1.55, 0.10), stepMat, sign * (bowlX - 0.72), 2.58, pos, 0, 0, 0, 'pitch_3d_end_vomitory_decompression_stair');
+						                addBox(g, new THREE.BoxGeometry(4.2, 1.68, 0.10), metalMat, sign * (bowlX + 0.05), 2.10, pos - 1.45, 0, 0, 0, 'pitch_3d_end_vomitory_side_rail');
+						                addBox(g, new THREE.BoxGeometry(4.2, 1.68, 0.10), metalMat, sign * (bowlX + 0.05), 2.10, pos + 1.45, 0, 0, 0, 'pitch_3d_end_vomitory_side_rail');
+						                addBox(g, new THREE.BoxGeometry(0.16, 0.16, 1.90), tunnelLightMat, sign * (bowlX - 0.56), 3.16, pos, 0, 0, 0, 'pitch_3d_end_vomitory_illumination');
 						              }
 						            };
 						            [-metersW * 0.28, 0, metersW * 0.28].forEach((x) => addVomitory('z', 1, x));
