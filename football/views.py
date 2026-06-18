@@ -680,6 +680,36 @@ def system_healthcheck_api(request):
     return JsonResponse(report)
 
 
+@require_POST
+def system_guard_chat_api(request):
+    if not _is_admin_user(request.user):
+        workspace = _get_active_workspace(request)
+        if not (workspace and _can_manage_workspace(request.user, workspace)):
+            return JsonResponse({'ok': False, 'error': 'No autorizado'}, status=403)
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except Exception:
+        payload = {}
+    question = str(payload.get('message') or '').strip()
+    if not question:
+        return JsonResponse({'ok': False, 'error': 'Mensaje vacío.'}, status=400)
+    run_smoke = str(payload.get('run_smoke') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    auto_fix = str(payload.get('auto_fix') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    history = payload.get('history') if isinstance(payload.get('history'), list) else []
+    try:
+        from football.system_guard import run_system_guard_chat  # lazy import
+
+        result = run_system_guard_chat(
+            question=question,
+            history=history,
+            run_smoke=run_smoke,
+            auto_fix=auto_fix,
+        )
+        return JsonResponse({'ok': True, **result})
+    except Exception as exc:
+        return JsonResponse({'ok': False, 'error': f'{exc.__class__.__name__}: {exc}'}, status=500)
+
+
 def kpi_audit(request):
     """
     Auditoría rápida (solo admin) de KPIs por jugador.

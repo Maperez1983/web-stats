@@ -46,6 +46,19 @@
       .muted { color: rgba(226,232,240,0.72); }
       .actions { display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; justify-content:flex-end; margin-top:0.75rem; }
       .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 0.9em; }
+      .guard-chat { margin-top: 0.95rem; }
+      .guard-chat-log { display:grid; gap:0.55rem; max-height: 420px; overflow:auto; padding-right:0.15rem; }
+      .guard-msg { border-radius: 14px; padding: 0.65rem 0.75rem; border:1px solid rgba(148,163,184,0.16); background: rgba(255,255,255,0.04); }
+      .guard-msg.user { background: rgba(34,211,238,0.08); border-color: rgba(34,211,238,0.20); }
+      .guard-msg.assistant { background: rgba(15,23,42,0.55); }
+      .guard-msg .role { display:block; font-size:0.68rem; font-weight:950; letter-spacing:0.08em; text-transform:uppercase; color: rgba(226,232,240,0.72); margin-bottom:0.24rem; }
+      .guard-msg .body { white-space:pre-wrap; line-height:1.45; font-weight:800; color:#e5e7eb; }
+      .guard-badges { display:flex; flex-wrap:wrap; gap:0.35rem; margin-top:0.45rem; }
+      .guard-badge { border-radius:999px; padding:0.22rem 0.5rem; font-size:0.68rem; font-weight:950; letter-spacing:0.05em; border:1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); }
+      .guard-controls { display:grid; gap:0.65rem; margin-top:0.75rem; }
+      .guard-toggles { display:flex; gap:0.65rem; flex-wrap:wrap; align-items:center; }
+      .guard-toggle { display:inline-flex; align-items:center; gap:0.45rem; font-size:0.78rem; font-weight:900; text-transform:none; letter-spacing:0; }
+      .guard-statusline { min-height:1.2rem; color: rgba(226,232,240,0.72); font-size:0.76rem; font-weight:850; }
     </style>
   </head>
   <body>
@@ -372,6 +385,31 @@
         </section>
         {% endif %}
       </div>
+      <section class="card guard-chat">
+        <div class="section-title">Guardián del sistema</div>
+        <p class="muted" style="margin:0 0 0.65rem;">Ventana de interacción con el guard del sistema: revisa estado, explica incidencias y puede ejecutar smoke o auto-fix seguro.</p>
+        <div id="guard-chat-log" class="guard-chat-log">
+          <div class="guard-msg assistant">
+            <span class="role">Guardián</span>
+            <div class="body">Puedo revisar el sistema, resumir su estado y ejecutar auto-fix seguro sobre checks conocidos.</div>
+          </div>
+        </div>
+        <div class="guard-controls">
+          <div class="guard-toggles">
+            <label class="guard-toggle"><input type="checkbox" id="guard-run-smoke" /> Incluir smoke</label>
+            <label class="guard-toggle"><input type="checkbox" id="guard-auto-fix" /> Auto-fix seguro</label>
+          </div>
+          <label style="gap:0.45rem;">
+            Mensaje
+            <textarea id="guard-chat-input" style="min-height:88px;" placeholder="Ej.: revisa el sistema y dime si hay algo roto, o ejecuta auto-fix seguro y resume el estado."></textarea>
+          </label>
+          <div class="actions" style="justify-content:flex-start;">
+            <button type="button" class="btn primary" id="guard-chat-send">Enviar</button>
+            <button type="button" class="btn" id="guard-chat-clear">Limpiar</button>
+          </div>
+          <div id="guard-chat-status" class="guard-statusline"></div>
+        </div>
+      </section>
     </main>
 
     <script>
@@ -425,6 +463,109 @@
           const ok = await doCopy(buildText(article));
           btn.textContent = ok ? 'Copiado' : 'No se pudo copiar';
           window.setTimeout(() => { btn.textContent = 'Copiar'; }, 1200);
+        });
+
+        const guardLogEl = document.getElementById('guard-chat-log');
+        const guardInputEl = document.getElementById('guard-chat-input');
+        const guardSendEl = document.getElementById('guard-chat-send');
+        const guardClearEl = document.getElementById('guard-chat-clear');
+        const guardSmokeEl = document.getElementById('guard-run-smoke');
+        const guardFixEl = document.getElementById('guard-auto-fix');
+        const guardStatusEl = document.getElementById('guard-chat-status');
+        const guardApiUrl = "{% url 'system-guard-chat-api' %}";
+        const guardHistory = [];
+
+        const guardCsrfToken = () => {
+          const raw = document.cookie.split(';').map((row) => row.trim()).find((row) => row.startsWith('csrftoken='));
+          return raw ? decodeURIComponent(raw.split('=').slice(1).join('=')) : '';
+        };
+        const guardSetStatus = (text, isError = false) => {
+          if (!guardStatusEl) return;
+          guardStatusEl.textContent = text || '';
+          guardStatusEl.style.color = isError ? '#fca5a5' : 'rgba(226,232,240,0.72)';
+        };
+        const guardRenderMessage = (role, text, extra = []) => {
+          if (!guardLogEl) return;
+          const wrap = document.createElement('div');
+          wrap.className = `guard-msg ${role}`;
+          const label = document.createElement('span');
+          label.className = 'role';
+          label.textContent = role === 'user' ? 'Tú' : 'Guardián';
+          const body = document.createElement('div');
+          body.className = 'body';
+          body.textContent = text || '';
+          wrap.appendChild(label);
+          wrap.appendChild(body);
+          if (Array.isArray(extra) && extra.length) {
+            const badges = document.createElement('div');
+            badges.className = 'guard-badges';
+            extra.slice(0, 6).forEach((row) => {
+              const chip = document.createElement('span');
+              chip.className = 'guard-badge';
+              chip.textContent = String(row || '');
+              badges.appendChild(chip);
+            });
+            wrap.appendChild(badges);
+          }
+          guardLogEl.appendChild(wrap);
+          guardLogEl.scrollTop = guardLogEl.scrollHeight;
+        };
+        const guardSendMessage = async () => {
+          const message = String(guardInputEl?.value || '').trim();
+          if (!message) {
+            guardSetStatus('Escribe un mensaje.', true);
+            return;
+          }
+          guardRenderMessage('user', message);
+          guardHistory.push({ role: 'user', content: message });
+          guardInputEl.value = '';
+          guardSetStatus('Consultando guardián…');
+          try {
+            const resp = await fetch(guardApiUrl, {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': guardCsrfToken(),
+                Accept: 'application/json',
+              },
+              body: JSON.stringify({
+                message,
+                run_smoke: Boolean(guardSmokeEl?.checked),
+                auto_fix: Boolean(guardFixEl?.checked),
+                history: guardHistory,
+              }),
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || !data?.ok) throw new Error(data?.error || `HTTP ${resp.status}`);
+            const response = data?.chat?.response || {};
+            const text = String(response.message || 'Sin respuesta útil del guardián.');
+            const highlights = Array.isArray(response.highlights) ? response.highlights : [];
+            guardRenderMessage('assistant', text, highlights);
+            guardHistory.push({ role: 'assistant', content: text });
+            const issueSummary = data?.report?.issue_summary || {};
+            guardSetStatus(`Estado: ${response.status || (data.ok ? 'ok' : 'watch')} · blockers ${issueSummary.blockers || 0} · warnings ${issueSummary.warnings || 0}`);
+          } catch (error) {
+            const msg = error?.message || 'No se pudo consultar el guardián.';
+            guardRenderMessage('assistant', `Error: ${msg}`);
+            guardHistory.push({ role: 'assistant', content: `Error: ${msg}` });
+            guardSetStatus(msg, true);
+          }
+        };
+        guardSendEl?.addEventListener('click', guardSendMessage);
+        guardInputEl?.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+            event.preventDefault();
+            guardSendMessage();
+          }
+        });
+        guardClearEl?.addEventListener('click', () => {
+          guardHistory.length = 0;
+          if (guardLogEl) {
+            guardLogEl.innerHTML = '';
+            guardRenderMessage('assistant', 'Conversación reiniciada. Puedo revisar el sistema, resumir su estado y ejecutar auto-fix seguro sobre checks conocidos.');
+          }
+          guardSetStatus('');
         });
       })();
     </script>

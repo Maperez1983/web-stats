@@ -649,6 +649,50 @@ def build_system_guard_prompt(evidence: dict, issues: list[dict]) -> str:
     )
 
 
+def build_system_guard_chat_prompt(report: dict, question: str, history: list[dict] | None = None) -> str:
+    compact = _compact_evidence_for_llm(
+        report.get("evidence") if isinstance(report.get("evidence"), dict) else {},
+        report.get("issues") if isinstance(report.get("issues"), list) else [],
+    )
+    history_rows = []
+    for row in (history or [])[-8:]:
+        if not isinstance(row, dict):
+            continue
+        role = str(row.get("role") or "").strip().lower()
+        content = str(row.get("content") or "").strip()
+        if role in {"user", "assistant"} and content:
+            history_rows.append({"role": role, "content": content[:1200]})
+    payload = json.dumps(
+        {
+            "question": str(question or "").strip()[:3000],
+            "history": history_rows,
+            "report": {
+                "ok": bool(report.get("ok")),
+                "issue_summary": report.get("issue_summary"),
+                "issues": report.get("issues"),
+                "autofix": report.get("autofix"),
+                "compact_evidence": compact,
+            },
+        },
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+    return (
+        "Eres el Guardian del sistema de una plataforma SaaS de fútbol. "
+        "Respondes al usuario como una consola técnica conversacional. "
+        "Debes usar SOLO el JSON recibido. "
+        "Tu misión es explicar el estado, detectar riesgos, proponer pasos y decir con claridad si el sistema está sano o no. "
+        "No inventes datos, rutas ni acciones fuera del reporte. "
+        "Devuelve SOLO JSON válido con estas claves exactas: "
+        "status:string, message:string, highlights:list, actions:list. "
+        "status debe ser uno de: ok, watch, risk, fail. "
+        "highlights: máximo 6 strings. "
+        "actions: máximo 6 objetos {label, reason}. "
+        "Escribe en español, directo y breve.\n\n"
+        f"CHAT_GUARD_JSON={payload}"
+    )
+
+
 def _severity_rank(value: str) -> int:
     return {"info": 0, "warning": 1, "blocker": 2}.get(str(value or "").lower(), 0)
 
@@ -722,3 +766,39 @@ def run_system_guard(
     report["llm_review"]["error"] = str(error or "")
     report["llm_review"]["review"] = parsed if isinstance(parsed, dict) else None
     return report
+
+
+def run_system_guard_chat(
+    *,
+    question: str,
+    history: list[dict] | None = None,
+    run_smoke: bool = False,
+    auto_fix: bool = False,
+) -> dict:
+    report = run_system_guard(run_smoke=run_smoke, run_llm=False, auto_fix=auto_fix)
+    cfg = local_llm_config()
+    if not cfg.get("enabled") or str(cfg.get("provider") or "").lower() != "ollama":
+        return {
+            "ok": bool(report.get("ok")),
+            "report": report,
+            "chat": {
+                "available": False,
+                "error": "local_llm_disabled_or_unsupported",
+                "response": None,
+            },
+        }
+    parsed, error = call_ollama_json(
+        build_system_guard_chat_prompt(report, question, history or []),
+        model=cfg.get("model"),
+        base_url=cfg.get("base_url"),
+        timeout=cfg.get("timeout"),
+    )
+    return {
+        "ok": bool(report.get("ok")),
+        "report": report,
+        "chat": {
+            "available": isinstance(parsed, dict),
+            "error": str(error or ""),
+            "response": parsed if isinstance(parsed, dict) else None,
+        },
+    }
