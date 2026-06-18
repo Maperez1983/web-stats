@@ -9373,12 +9373,44 @@
 						      pitch3dRoot = null;
 						    };
 
+						    const createPitch3dRenderer = () => {
+						      if (!pitch3dCanvasEl || !window.THREE) return null;
+						      const attempts = [
+						        { antialias: true, alpha: false, preserveDrawingBuffer: true, powerPreference: 'high-performance', failIfMajorPerformanceCaveat: false },
+						        { antialias: false, alpha: false, preserveDrawingBuffer: true, powerPreference: 'high-performance', failIfMajorPerformanceCaveat: false },
+						        { antialias: false, alpha: false, preserveDrawingBuffer: false, powerPreference: 'default', failIfMajorPerformanceCaveat: false },
+						        { antialias: false, alpha: true, preserveDrawingBuffer: false, powerPreference: 'default', failIfMajorPerformanceCaveat: false },
+						      ];
+						      let lastError = null;
+						      for (let i = 0; i < attempts.length; i += 1) {
+						        const opts = Object.assign({ canvas: pitch3dCanvasEl }, attempts[i]);
+						        try {
+						          const renderer = new THREE.WebGLRenderer(opts);
+						          try {
+						            window.__WEBSTATS_PITCH3D_RENDERER_PROFILE = {
+						              attempt: i,
+						              antialias: !!opts.antialias,
+						              alpha: !!opts.alpha,
+						              preserveDrawingBuffer: !!opts.preserveDrawingBuffer,
+						              powerPreference: safeText(opts.powerPreference, 'default'),
+						            };
+						          } catch (e) { /* ignore */ }
+						          return renderer;
+						        } catch (err) {
+						          lastError = err;
+						        }
+						      }
+						      try { window.__WEBSTATS_PITCH3D_RENDERER_ERROR = String(lastError?.message || lastError || 'renderer_init_failed'); } catch (e) { /* ignore */ }
+						      return null;
+						    };
+
 						    const ensurePitch3d = () => {
 						      if (!canUsePitch3d()) return false;
 						      if (pitch3dRenderer && pitch3dScene && pitch3dCamera) return true;
 						      if (pitch3dRendererInitFailed) return false;
 						      try {
-						        const renderer = new THREE.WebGLRenderer({ canvas: pitch3dCanvasEl, antialias: true, alpha: false, preserveDrawingBuffer: true });
+						        const renderer = createPitch3dRenderer();
+						        if (!renderer) throw new Error('renderer_init_failed');
 						        renderer.setPixelRatio(getPitch3dRenderPixelRatio());
 						        renderer.setClearColor(0xaed8f3, 1);
 						        try {
