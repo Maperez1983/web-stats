@@ -3597,6 +3597,82 @@
         letter-spacing: 0.12em;
         text-transform: uppercase;
       }
+      .space-coach {
+        grid-column: 1 / -1;
+        display: grid;
+        gap: 0.65rem;
+        padding: 0.75rem;
+        border-radius: 14px;
+        border: 1px solid rgba(56, 189, 248, 0.2);
+        background: rgba(8, 47, 73, 0.28);
+      }
+      .space-coach-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+      }
+      .space-coach-head strong {
+        font-size: 0.76rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .space-coach-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.5rem;
+      }
+      .space-coach-grid label {
+        min-width: 0;
+      }
+      .space-coach-grid input,
+      .space-coach-grid select {
+        min-width: 0;
+      }
+      .space-coach-result {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.45rem;
+      }
+      .space-coach-stat {
+        padding: 0.55rem;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.1);
+        background: rgba(15, 23, 42, 0.42);
+      }
+      .space-coach-stat span {
+        display: block;
+        font-size: 0.66rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(226,232,240,0.64);
+      }
+      .space-coach-stat strong {
+        display: block;
+        margin-top: 0.15rem;
+        font-size: 0.92rem;
+      }
+      .space-coach-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+      }
+      .space-coach-actions button {
+        border-radius: 10px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.06);
+        color: rgba(248,250,252,0.92);
+        padding: 0.48rem 0.62rem;
+        font-weight: 800;
+        cursor: pointer;
+      }
+      .space-coach-note {
+        margin: 0;
+        color: rgba(226,232,240,0.78);
+        font-size: 0.78rem;
+        line-height: 1.35;
+      }
       .assign-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(138px, 1fr));
@@ -4062,6 +4138,10 @@
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
         .compact-grid {
+          grid-template-columns: 1fr;
+        }
+        .space-coach-grid,
+        .space-coach-result {
           grid-template-columns: 1fr;
         }
         .pitch-viewport {
@@ -7306,12 +7386,65 @@
                   </label>
                   <label>
                     Nº jugadores
-                    <input type="text" name="draw_task_player_count" value="{{ initial.player_count }}" placeholder="Ej: 6v6 + 2 porteros" />
+                    <input type="text" name="draw_task_player_count" id="draw-task-player-count" value="{{ initial.player_count }}" placeholder="Ej: 6v6 + 2 porteros" />
                   </label>
                   <label>
                     Dimensiones
-                    <input type="text" name="draw_task_dimensions" value="{{ initial.dimensions }}" placeholder="Ej: 40x30 m" />
+                    <input type="text" name="draw_task_dimensions" id="draw-task-dimensions" value="{{ initial.dimensions }}" placeholder="Ej: 40x30 m" />
                   </label>
+                  <div class="space-coach" id="task-space-coach">
+                    <div class="space-coach-head">
+                      <strong>Espacio por jugador</strong>
+                      <span class="meta">Calcula densidad y propone medidas de tarea.</span>
+                    </div>
+                    <div class="space-coach-grid">
+                      <label>
+                        Ancho m
+                        <input type="number" id="task-space-width" min="5" max="120" step="1" inputmode="decimal" />
+                      </label>
+                      <label>
+                        Largo m
+                        <input type="number" id="task-space-length" min="5" max="120" step="1" inputmode="decimal" />
+                      </label>
+                      <label>
+                        Jugadores
+                        <input type="number" id="task-space-players" min="1" max="30" step="1" inputmode="numeric" />
+                      </label>
+                      <label>
+                        Objetivo
+                        <select id="task-space-objective">
+                          <option value="possession">Conservación</option>
+                          <option value="position">Juego de posición</option>
+                          <option value="pressing">Presión / robo</option>
+                          <option value="finishing">Finalización</option>
+                          <option value="transition">Transición</option>
+                          <option value="speed">Velocidad / profundidad</option>
+                        </select>
+                      </label>
+                    </div>
+                    <div class="space-coach-result" aria-live="polite">
+                      <div class="space-coach-stat">
+                        <span>Área</span>
+                        <strong id="task-space-area">-- m²</strong>
+                      </div>
+                      <div class="space-coach-stat">
+                        <span>Por jugador</span>
+                        <strong id="task-space-per-player">-- m²/j</strong>
+                      </div>
+                      <div class="space-coach-stat">
+                        <span>Lectura</span>
+                        <strong id="task-space-density">--</strong>
+                      </div>
+                    </div>
+                    <p class="space-coach-note" id="task-space-recommendation">Introduce dimensiones y jugadores para recibir una recomendación.</p>
+                    <div class="space-coach-actions">
+                      <button type="button" id="task-space-apply-recommended">Aplicar recomendado</button>
+                      <button type="button" id="task-space-apply-current">Actualizar dimensiones</button>
+                      <button type="button" data-space-target="tight">Más presión</button>
+                      <button type="button" data-space-target="balanced">Equilibrado</button>
+                      <button type="button" data-space-target="wide">Más profundidad</button>
+                    </div>
+                  </div>
                   <label>
                     Edad
                     <input type="text" name="draw_task_age_group" value="{{ initial.age_group }}" placeholder="Ej: Cadete / Juvenil" />

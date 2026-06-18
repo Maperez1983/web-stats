@@ -1261,6 +1261,20 @@
     const livePreviewImg = document.getElementById('task-live-preview');
     const livePreviewPlaceholder = document.getElementById('task-live-preview-placeholder');
 	    const playerCountInput = form.querySelector('[name="draw_task_player_count"]');
+	    const dimensionsInput = document.getElementById('draw-task-dimensions') || form.querySelector('[name="draw_task_dimensions"]');
+	    const trainingTypeInput = form.querySelector('[name="draw_task_training_type"]');
+	    const spaceDescriptionInput = form.querySelector('[name="draw_task_space"]');
+	    const spaceCoachEl = document.getElementById('task-space-coach');
+	    const spaceWidthInput = document.getElementById('task-space-width');
+	    const spaceLengthInput = document.getElementById('task-space-length');
+	    const spacePlayersInput = document.getElementById('task-space-players');
+	    const spaceObjectiveInput = document.getElementById('task-space-objective');
+	    const spaceAreaEl = document.getElementById('task-space-area');
+	    const spacePerPlayerEl = document.getElementById('task-space-per-player');
+	    const spaceDensityEl = document.getElementById('task-space-density');
+	    const spaceRecommendationEl = document.getElementById('task-space-recommendation');
+	    const spaceApplyRecommendedBtn = document.getElementById('task-space-apply-recommended');
+	    const spaceApplyCurrentBtn = document.getElementById('task-space-apply-current');
 	    const legacyPlayersInput = form.querySelector('[name="draw_task_players"]');
 				    const statusEl = document.getElementById('task-builder-status');
 				    const drillsStripEl = document.getElementById('task-drills-strip');
@@ -4552,6 +4566,174 @@
 		        || kind.startsWith('arrow_');
 		    };
 		    const maxScaleForObject = (obj) => (isLongStrokeObject(obj) ? 12.0 : 2.6);
+		    const SPACE_OBJECTIVE_RULES = {
+		      possession: { label: 'Conservación', target: 95, min: 70, max: 125, ratio: 1.25, note: 'Espacio medio-bajo: apoyos cercanos, orientación corporal y decisión rápida bajo presión.' },
+		      position: { label: 'Juego de posición', target: 130, min: 105, max: 165, ratio: 1.35, note: 'Espacio medio: permite fijar, atraer, encontrar tercer hombre y respetar distancias de relación.' },
+		      pressing: { label: 'Presión / robo', target: 75, min: 50, max: 100, ratio: 1.15, note: 'Espacio reducido: aumenta duelos, cierre de líneas y velocidad de acoso tras pérdida.' },
+		      finishing: { label: 'Finalización', target: 115, min: 85, max: 155, ratio: 1.45, note: 'Espacio medio con profundidad: facilita último pase, llegada al área y decisión cerca de portería.' },
+		      transition: { label: 'Transición', target: 170, min: 130, max: 220, ratio: 1.55, note: 'Espacio alto: abre metros para correr, temporizar, atacar ventajas y reorganizar tras pérdida.' },
+		      speed: { label: 'Velocidad / profundidad', target: 220, min: 170, max: 300, ratio: 1.75, note: 'Espacio muy amplio: prioriza esfuerzos largos, rupturas y defensa de grandes espacios.' },
+		    };
+		    const PITCH_REAL_DIMENSIONS = {
+		      full_pitch: { w: 68, l: 105 },
+		      half_pitch: { w: 68, l: 52 },
+		      attacking_third: { w: 68, l: 35 },
+		      middle_third: { w: 68, l: 35 },
+		      defensive_third: { w: 68, l: 35 },
+		      seven_side: { w: 45, l: 65 },
+		      seven_side_single: { w: 45, l: 65 },
+		      futsal: { w: 20, l: 40 },
+		      blank: { w: 68, l: 105 },
+		    };
+		    const parseTaskDimensionsMeters = (value) => {
+		      const raw = safeText(value).replace(',', '.');
+		      if (!raw) return null;
+		      const match = raw.match(/(\d+(?:\.\d+)?)\s*(?:x|×|\*)\s*(\d+(?:\.\d+)?)/i);
+		      if (!match) return null;
+		      const a = Number(match[1]);
+		      const b = Number(match[2]);
+		      if (!(a > 0 && b > 0)) return null;
+		      return { w: Math.round(a * 10) / 10, l: Math.round(b * 10) / 10 };
+		    };
+		    const parseTaskPlayerCount = (value) => {
+		      const raw = safeText(value).toLowerCase();
+		      if (!raw) return 0;
+		      let total = 0;
+		      const versus = raw.match(/(\d+)\s*(?:v|vs|x|contra)\s*(\d+)/i);
+		      if (versus) total += (Number(versus[1]) || 0) + (Number(versus[2]) || 0);
+		      (raw.match(/\+\s*(\d+)/g) || []).forEach((part) => { total += Number(String(part).replace(/\D/g, '')) || 0; });
+		      if (total > 0) return total;
+		      const nums = raw.match(/\d+/g) || [];
+		      if (nums.length === 1) return Number(nums[0]) || 0;
+		      return nums.reduce((sum, n) => sum + (Number(n) || 0), 0);
+		    };
+		    const formatMeters = (value) => {
+		      const n = Number(value);
+		      if (!Number.isFinite(n)) return '';
+		      return String(Math.round(n * 10) / 10).replace(/\.0$/, '');
+		    };
+		    const dimensionsText = (w, l) => `${formatMeters(w)}x${formatMeters(l)} m`;
+		    const recommendedDimensionsFor = (players, rule, variant = 'balanced') => {
+		      const count = Math.max(1, Number(players) || 1);
+		      const multiplier = variant === 'tight' ? 0.82 : (variant === 'wide' ? 1.18 : 1);
+		      const targetArea = Math.max(50, count * (Number(rule?.target) || 110) * multiplier);
+		      const ratio = Math.max(0.75, Number(rule?.ratio) || 1.35);
+		      const width = Math.sqrt(targetArea / ratio);
+		      const length = width * ratio;
+		      return { w: Math.max(8, Math.round(width)), l: Math.max(8, Math.round(length)), area: Math.round(targetArea) };
+		    };
+		    const classifySpaceDensity = (m2pp, rule) => {
+		      const value = Number(m2pp) || 0;
+		      if (!value) return 'Sin datos';
+		      const min = Number(rule?.min) || 70;
+		      const max = Number(rule?.max) || 150;
+		      if (value < min * 0.78) return 'Muy denso';
+		      if (value < min) return 'Denso';
+		      if (value <= max) return 'Adecuado';
+		      if (value <= max * 1.28) return 'Amplio';
+		      return 'Muy amplio';
+		    };
+		    const writeTaskDimensionsFromSpaceCoach = (dims) => {
+		      if (!dims || !dimensionsInput) return;
+		      dimensionsInput.value = dimensionsText(dims.w, dims.l);
+		      try { dimensionsInput.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) { /* ignore */ }
+		      try { dimensionsInput.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) { /* ignore */ }
+		    };
+		    const updateSpaceCoach = (options = {}) => {
+		      if (!spaceCoachEl) return null;
+		      const parsedDims = parseTaskDimensionsMeters(dimensionsInput?.value);
+		      if (parsedDims && !options.keepManual) {
+		        if (spaceWidthInput) spaceWidthInput.value = formatMeters(parsedDims.w);
+		        if (spaceLengthInput) spaceLengthInput.value = formatMeters(parsedDims.l);
+		      }
+		      const inferredPlayers = parseTaskPlayerCount(playerCountInput?.value || legacyPlayersInput?.value);
+		      if (inferredPlayers > 0 && !options.keepManualPlayers && spacePlayersInput && !safeText(spacePlayersInput.value)) {
+		        spacePlayersInput.value = String(inferredPlayers);
+		      }
+		      const w = Number(safeText(spaceWidthInput?.value).replace(',', '.')) || Number(parsedDims?.w) || 0;
+		      const l = Number(safeText(spaceLengthInput?.value).replace(',', '.')) || Number(parsedDims?.l) || 0;
+		      const players = Number(spacePlayersInput?.value) || inferredPlayers || 0;
+		      const objective = safeText(spaceObjectiveInput?.value, 'possession');
+		      const rule = SPACE_OBJECTIVE_RULES[objective] || SPACE_OBJECTIVE_RULES.possession;
+		      const area = (w > 0 && l > 0) ? Math.round(w * l) : 0;
+		      const perPlayer = (area > 0 && players > 0) ? Math.round(area / players) : 0;
+		      const density = classifySpaceDensity(perPlayer, rule);
+		      const suggested = recommendedDimensionsFor(players || inferredPlayers || 10, rule, safeText(options.variant, 'balanced'));
+		      if (spaceAreaEl) spaceAreaEl.textContent = area ? `${area} m²` : '-- m²';
+		      if (spacePerPlayerEl) spacePerPlayerEl.textContent = perPlayer ? `${perPlayer} m²/j` : '-- m²/j';
+		      if (spaceDensityEl) spaceDensityEl.textContent = density;
+		      if (spaceRecommendationEl) {
+		        const target = `${rule.min}-${rule.max} m²/j`;
+		        const suggestionText = players ? `${dimensionsText(suggested.w, suggested.l)} (${Math.round(suggested.area / Math.max(1, players))} m²/j)` : dimensionsText(suggested.w, suggested.l);
+		        spaceRecommendationEl.textContent = `${rule.label}: rango orientativo ${target}. Recomendado ahora: ${suggestionText}. ${rule.note}`;
+		      }
+		      return { w, l, players, area, perPlayer, density, rule, suggested };
+		    };
+		    const initSpaceCoach = () => {
+		      if (!spaceCoachEl) return;
+		      const dims = parseTaskDimensionsMeters(dimensionsInput?.value);
+		      if (dims) {
+		        if (spaceWidthInput) spaceWidthInput.value = formatMeters(dims.w);
+		        if (spaceLengthInput) spaceLengthInput.value = formatMeters(dims.l);
+		      } else {
+		        const preset = PITCH_REAL_DIMENSIONS[safeText(presetSelect?.value, 'full_pitch')] || null;
+		        if (preset) {
+		          if (spaceWidthInput) spaceWidthInput.value = formatMeters(preset.w);
+		          if (spaceLengthInput) spaceLengthInput.value = formatMeters(preset.l);
+		        }
+		      }
+		      const players = parseTaskPlayerCount(playerCountInput?.value || legacyPlayersInput?.value);
+		      if (players > 0 && spacePlayersInput) spacePlayersInput.value = String(players);
+		      const typeRaw = safeText(trainingTypeInput?.value).toLowerCase();
+		      if (spaceObjectiveInput && typeRaw) {
+		        if (typeRaw.includes('trans')) spaceObjectiveInput.value = 'transition';
+		        else if (typeRaw.includes('pres') || typeRaw.includes('robo')) spaceObjectiveInput.value = 'pressing';
+		        else if (typeRaw.includes('final') || typeRaw.includes('remate')) spaceObjectiveInput.value = 'finishing';
+		        else if (typeRaw.includes('posici')) spaceObjectiveInput.value = 'position';
+		        else if (typeRaw.includes('veloc') || typeRaw.includes('profund')) spaceObjectiveInput.value = 'speed';
+		        else if (typeRaw.includes('conserv') || typeRaw.includes('poses')) spaceObjectiveInput.value = 'possession';
+		      }
+		      updateSpaceCoach();
+		      [dimensionsInput, playerCountInput, legacyPlayersInput, trainingTypeInput].forEach((input) => {
+		        input?.addEventListener('input', () => updateSpaceCoach());
+		        input?.addEventListener('change', () => updateSpaceCoach());
+		      });
+		      [spaceWidthInput, spaceLengthInput].forEach((input) => {
+		        input?.addEventListener('input', () => updateSpaceCoach({ keepManual: true }));
+		        input?.addEventListener('change', () => updateSpaceCoach({ keepManual: true }));
+		      });
+		      spacePlayersInput?.addEventListener('input', () => updateSpaceCoach({ keepManualPlayers: true }));
+		      spacePlayersInput?.addEventListener('change', () => updateSpaceCoach({ keepManualPlayers: true }));
+		      spaceObjectiveInput?.addEventListener('change', () => updateSpaceCoach({ keepManual: true, keepManualPlayers: true }));
+		      spaceApplyCurrentBtn?.addEventListener('click', () => {
+		        const data = updateSpaceCoach({ keepManual: true, keepManualPlayers: true });
+		        if (!data || !(data.w > 0 && data.l > 0)) return;
+		        writeTaskDimensionsFromSpaceCoach({ w: data.w, l: data.l });
+		        if (spaceDescriptionInput && !safeText(spaceDescriptionInput.value)) spaceDescriptionInput.value = `${data.density} · ${data.perPlayer || '--'} m²/jugador`;
+		        setStatus('Dimensiones actualizadas desde espacio por jugador.');
+		      });
+		      spaceApplyRecommendedBtn?.addEventListener('click', () => {
+		        const data = updateSpaceCoach({ keepManual: true, keepManualPlayers: true });
+		        if (!data) return;
+		        writeTaskDimensionsFromSpaceCoach(data.suggested);
+		        if (spaceWidthInput) spaceWidthInput.value = formatMeters(data.suggested.w);
+		        if (spaceLengthInput) spaceLengthInput.value = formatMeters(data.suggested.l);
+		        updateSpaceCoach({ keepManual: true, keepManualPlayers: true });
+		        setStatus('Dimensiones recomendadas aplicadas.');
+		      });
+		      spaceCoachEl.querySelectorAll('button[data-space-target]').forEach((button) => {
+		        button.addEventListener('click', () => {
+		          const variant = safeText(button.dataset.spaceTarget, 'balanced');
+		          const data = updateSpaceCoach({ keepManual: true, keepManualPlayers: true, variant });
+		          if (!data) return;
+		          writeTaskDimensionsFromSpaceCoach(data.suggested);
+		          if (spaceWidthInput) spaceWidthInput.value = formatMeters(data.suggested.w);
+		          if (spaceLengthInput) spaceLengthInput.value = formatMeters(data.suggested.l);
+		          updateSpaceCoach({ keepManual: true, keepManualPlayers: true });
+		          setStatus('Variante de espacio aplicada.');
+		        });
+		      });
+		    };
 	    const worldSize = () => {
 	      const w = Number(worldWidth) || 0;
 	      const h = Number(worldHeight) || 0;
@@ -31629,6 +31811,7 @@
 				    try { initLayoutRecalcObservers(); } catch (e) { /* ignore */ }
 				    initPitchResizer();
 				    setPreset(presetSelect.value || 'full_pitch');
+				    initSpaceCoach();
 		    // Si la tarea es nueva (sin objetos guardados), aseguramos que el "mundo" (canvas_width/height)
 		    // coincide con el viewBox del SVG. Si no, el viewportTransform crea barras/offsets y los punteros
 		    // quedan desincronizados: parece que no se pueden colocar chapas en todo el campo.
@@ -36933,10 +37116,14 @@
 	    presetButtons.forEach((button) => {
 	      button.addEventListener('click', () => {
 	        setPreset(button.dataset.preset || 'full_pitch');
+	        updateSpaceCoach();
         setSurfaceMenuOpen(false);
       });
     });
-	    presetSelect.addEventListener('change', () => setPreset(presetSelect.value || 'full_pitch'));
+	    presetSelect.addEventListener('change', () => {
+	      setPreset(presetSelect.value || 'full_pitch');
+	      updateSpaceCoach();
+	    });
 	    const togglePitchOrientation = () => {
 	      applyPitchOrientation(pitchOrientation === 'portrait' ? 'landscape' : 'portrait', { preserveObjects: true, pushHistory: true });
 	    };
