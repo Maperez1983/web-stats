@@ -8415,6 +8415,46 @@
 						      }
 						      return null;
 						    };
+						    const __pitch3dStadiumModelCache = { loading: false, scene: null, failed: false, callbacks: [], src: '' };
+						    const __pitch3dLoadStadiumModel = (onLoad) => {
+						      const src = __pitch3dAssetUrl('pitch3dStadiumModelSrc');
+						      if (!src || !window.THREE) return null;
+						      if (__pitch3dStadiumModelCache.src !== src) {
+						        __pitch3dStadiumModelCache.loading = false;
+						        __pitch3dStadiumModelCache.scene = null;
+						        __pitch3dStadiumModelCache.failed = false;
+						        __pitch3dStadiumModelCache.callbacks = [];
+						        __pitch3dStadiumModelCache.src = src;
+						      }
+						      if (__pitch3dStadiumModelCache.scene) {
+						        try { if (typeof onLoad === 'function') onLoad(__pitch3dStadiumModelCache.scene); } catch (e) { /* ignore */ }
+						        return __pitch3dStadiumModelCache.scene;
+						      }
+						      if (typeof onLoad === 'function') __pitch3dStadiumModelCache.callbacks.push(onLoad);
+						      if (__pitch3dStadiumModelCache.loading || __pitch3dStadiumModelCache.failed) return null;
+						      const LoaderClass = window.__WEBSTATS_GLTF_LOADER_CLASS;
+						      if (typeof LoaderClass !== 'function') return null;
+						      __pitch3dStadiumModelCache.loading = true;
+						      try {
+						        const loader = new LoaderClass();
+						        loader.load(src, (gltf) => {
+						          const scene = gltf?.scene || null;
+						          __pitch3dStadiumModelCache.scene = scene;
+						          __pitch3dStadiumModelCache.loading = false;
+						          const callbacks = __pitch3dStadiumModelCache.callbacks.splice(0);
+						          callbacks.forEach((cb) => {
+						            try { cb(scene); } catch (e) { /* ignore */ }
+						          });
+						        }, undefined, () => {
+						          __pitch3dStadiumModelCache.loading = false;
+						          __pitch3dStadiumModelCache.failed = true;
+						          __pitch3dStadiumModelCache.callbacks.splice(0);
+						        });
+						      } catch (e) {
+						        __pitch3dStadiumModelCache.loading = false;
+						      }
+						      return null;
+						    };
 
 						    try {
 						      const premiumGrassSrc = __pitch3dAssetUrl('pitch3dGrassAlbedoSrc');
@@ -9752,9 +9792,75 @@
 						      const sourceW = Number(options.sourceW) || (Number(worldWidth) || 1280);
 						      const sourceH = Number(options.sourceH) || (Number(worldHeight) || 720);
 							      try { addPitch3dRenderBackdrop(root, metersW, metersH); } catch (e) { /* ignore */ }
-						      try {
-						        const runtimeStadiumModelSrc = '';
-						      } catch (e) { /* ignore */ }
+						      const runtimeStadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc'));
+						      const rerenderPitch3dWithModel = () => {
+						        try {
+						          if (!pitch3dOpen) return;
+						          showPitch3dStep(activeStepIndex >= 0 ? activeStepIndex : pitch3dCurrentStep, { keepFollow: true });
+						        } catch (e) { /* ignore */ }
+						      };
+						      const addModelBackedRosaledaStadium = () => {
+						        if (!runtimeStadiumModelSrc || !window.THREE) return false;
+						        const assetScene = __pitch3dStadiumModelCache.scene || __pitch3dLoadStadiumModel(() => {
+						          try {
+						            if (pitch3dRoot !== root) return;
+						            rerenderPitch3dWithModel();
+						          } catch (e) { /* ignore */ }
+						        });
+						        if (!assetScene) return false;
+						        try {
+						          const stadiumAsset = assetScene.clone(true);
+						          const stadiumContainer = new THREE.Group();
+						          stadiumContainer.name = 'pitch3d_stadium_malaga_rosaleda_container';
+						          stadiumContainer.userData = { kind: 'pitch_3d_professional_blender_stadium_container', source: 'stadium_malaga_rosaleda_glb' };
+						          stadiumAsset.name = 'pitch3d_stadium_malaga_rosaleda_asset';
+						          stadiumAsset.userData = Object.assign({}, stadiumAsset.userData || {}, {
+						            kind: 'pitch_3d_professional_blender_stadium_asset',
+						            source: 'stadium_malaga_rosaleda_glb',
+						          });
+						          const hiddenNodePattern = /\b(GRASS|TURF|PITCH|FIELD|LINE|MARK|CENTER|SPOT|GOAL|NET|BALL|CORNER_FLAG|TRAINING_GOAL)\b/;
+						          stadiumAsset.traverse((node) => {
+						            if (!node?.isMesh) return;
+						            const nodeName = safeText(node?.name || '').toUpperCase();
+						            if (hiddenNodePattern.test(nodeName)) {
+						              node.visible = false;
+						              return;
+						            }
+						            try { if (node.geometry) node.geometry = node.geometry.clone(); } catch (e) { /* ignore */ }
+						            try {
+						              if (Array.isArray(node.material)) {
+						                node.material = node.material.map((mat) => tuneProfessionalStadiumMaterial(node, normalizeRuntimeStadiumMaterial(node, mat)));
+						              } else if (node.material) {
+						                node.material = tuneProfessionalStadiumMaterial(node, normalizeRuntimeStadiumMaterial(node, node.material));
+						              }
+						            } catch (e) { /* ignore */ }
+						          });
+						          stadiumContainer.add(stadiumAsset);
+						          const rawBox = new THREE.Box3().setFromObject(stadiumAsset);
+						          const size = rawBox.getSize(new THREE.Vector3());
+						          const center = rawBox.getCenter(new THREE.Vector3());
+						          const targetOuterW = metersW + 86.0;
+						          const targetOuterH = metersH + 74.0;
+						          let scale = 1;
+						          if (size.x > 0.01 && size.z > 0.01) {
+						            const scaleX = targetOuterW / size.x;
+						            const scaleZ = targetOuterH / size.z;
+						            scale = clamp(Math.min(scaleX, scaleZ), 0.58, 2.35);
+						          }
+						          stadiumContainer.scale.setScalar(scale);
+						          stadiumAsset.position.set(-center.x, -rawBox.min.y, -center.z);
+						          enhanceProfessionalStadiumAsset(stadiumAsset);
+						          root.add(stadiumContainer);
+						          try {
+						            window.__WEBSTATS_PITCH3D_STADIUM_SOURCE = 'stadium_malaga_rosaleda_glb';
+						          } catch (e) { /* ignore */ }
+						          return true;
+						        } catch (e) {
+						          try { console.warn('[pitch3d] model-backed rosaleda build failed', e); } catch (err) { /* ignore */ }
+						          return false;
+						        }
+						      };
+						      addModelBackedRosaledaStadium();
 
 						      // Suelo
 						      let tex = null;
@@ -12118,8 +12224,10 @@
 						          addCornerFlag((metersW / 2), (metersH / 2), -1, -1);
 						        } catch (e) { /* ignore */ }
 						      };
-						      const useHandcraftedDedicatedReferenceStadium = true;
-						      addPitchSideDetails3d();
+						      const useHandcraftedDedicatedReferenceStadium = false;
+						      if (useHandcraftedDedicatedReferenceStadium) {
+						        addPitchSideDetails3d();
+						      }
 						      try {
 						        if (useHandcraftedDedicatedReferenceStadium) {
 						          const dedicatedFinish = new THREE.Group();
@@ -16867,9 +16975,12 @@
 						    const openPitch3dWhenReady = async () => {
 						      const openedAt = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
 						      const needsAvatarAssets = safeText(pitch3dPlayerModeSelect?.value || pitch3dPlayerMode, 'chip') === 'avatar';
+						      const needsStadiumAsset = !!safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc'));
 						      try {
-						        if (needsAvatarAssets) {
+						        if (needsAvatarAssets || needsStadiumAsset) {
 						          await ensurePitch3dGltfLoaderClass();
+						        }
+						        if (needsAvatarAssets) {
 						          await ensurePitch3dSkeletonUtils();
 						        }
 						      } catch (e) { /* ignore */ }
