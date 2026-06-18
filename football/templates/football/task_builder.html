@@ -8717,8 +8717,6 @@
 			          setStatus('Cargando 3D…');
 			          return ensureEditorStack()
 			            .then(() => ensureThree())
-			            .then(() => ensureGltfLoader())
-			            .then(() => ensureSkeletonUtils())
 			            .then(() => ensureSim3d())
 			            .then(() => { setStatus(''); return true; })
 			            .catch(() => { setStatus('No se pudo cargar la Vista 3D.'); return false; });
