@@ -25153,6 +25153,7 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
 
     methodology_rows = []
     for label, value in [
+        ('Contexto', str(meta.get('game_context') or '').strip()),
         ('Momento', _choice_label(GAME_MOMENT_CHOICES, meta.get('game_moment'))),
         ('Principio', str(meta.get('principle') or '').strip()),
         ('Subprincipio', str(meta.get('subprinciple') or '').strip()),
@@ -25410,6 +25411,7 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa', one_p
     selected_coord_skills = _sanitize_task_text((request.POST.get('draw_task_coordination_skills') or '').strip(), multiline=False, max_len=80)
     selected_tactical_intent = _sanitize_task_text((request.POST.get('draw_task_tactical_intent') or '').strip(), multiline=False, max_len=80)
     game_moment = _clean_choice_value(request.POST.get('draw_task_game_moment'), {key for key, _ in GAME_MOMENT_CHOICES}, max_len=40)
+    game_context = _sanitize_task_text((request.POST.get('draw_task_game_context') or '').strip(), multiline=True, max_len=1000)
     principle = _clean_short_text(request.POST.get('draw_task_principle'), max_len=120)
     subprinciple = _clean_short_text(request.POST.get('draw_task_subprinciple'), max_len=160)
     provocation_rule = _sanitize_task_text((request.POST.get('draw_task_provocation_rule') or '').strip(), multiline=True, max_len=500)
@@ -25478,6 +25480,7 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa', one_p
                 'pitch_format': selected_pitch_format,
                 'game_phase': selected_phase,
                 'game_moment': game_moment,
+                'game_context': game_context,
                 'principle': principle,
                 'subprinciple': subprinciple,
                 'provocation_rule': provocation_rule,
@@ -37777,6 +37780,7 @@ def _task_builder_initial_values(task):
         'pitch_format': str(meta.get('pitch_format') or ''),
         'game_phase': str(meta.get('game_phase') or ''),
         'game_moment': str(meta.get('game_moment') or ''),
+        'game_context': str(meta.get('game_context') or ''),
         'principle': str(meta.get('principle') or ''),
         'subprinciple': str(meta.get('subprinciple') or ''),
         'provocation_rule': str(meta.get('provocation_rule') or ''),
@@ -38121,6 +38125,12 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
         _clean_choice_value(raw_game_moment, {key for key, _ in GAME_MOMENT_CHOICES}, max_len=40)
         if raw_game_moment is not None
         else str(existing_meta.get('game_moment') or '')
+    )
+    raw_game_context = request.POST.get('draw_task_game_context')
+    game_context = (
+        _sanitize_task_text(str(raw_game_context or '').strip(), multiline=True, max_len=1000)
+        if raw_game_context is not None
+        else str(existing_meta.get('game_context') or '')
     )
     raw_principle = request.POST.get('draw_task_principle')
     principle = (
@@ -38490,6 +38500,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
             'multi_board': bool(multi_board_enabled),
             'game_phase': selected_phase,
             'game_moment': game_moment,
+            'game_context': game_context,
             'principle': principle,
             'subprinciple': subprinciple,
             'provocation_rule': provocation_rule,
@@ -40198,6 +40209,7 @@ def _build_task_studio_draft_pdf_context(request, owner, pdf_style='uefa'):
     selected_coord_skills = _sanitize_task_text((request.POST.get('draw_task_coordination_skills') or '').strip(), multiline=False, max_len=80)
     selected_tactical_intent = _sanitize_task_text((request.POST.get('draw_task_tactical_intent') or '').strip(), multiline=False, max_len=80)
     game_moment = _clean_choice_value(request.POST.get('draw_task_game_moment'), {key for key, _ in GAME_MOMENT_CHOICES}, max_len=40)
+    game_context = _sanitize_task_text((request.POST.get('draw_task_game_context') or '').strip(), multiline=True, max_len=1000)
     principle = _clean_short_text(request.POST.get('draw_task_principle'), max_len=120)
     subprinciple = _clean_short_text(request.POST.get('draw_task_subprinciple'), max_len=160)
     provocation_rule = _sanitize_task_text((request.POST.get('draw_task_provocation_rule') or '').strip(), multiline=True, max_len=500)
@@ -40258,6 +40270,7 @@ def _build_task_studio_draft_pdf_context(request, owner, pdf_style='uefa'):
             'pitch_format': selected_pitch_format,
             'game_phase': selected_phase,
             'game_moment': game_moment,
+            'game_context': game_context,
             'principle': principle,
             'subprinciple': subprinciple,
             'provocation_rule': provocation_rule,

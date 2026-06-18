@@ -7403,6 +7403,10 @@
                     Objetivo
                     <textarea name="draw_task_objective" rows="2" style="min-height:52px; resize:vertical;">{{ initial.objective }}</textarea>
                   </label>
+                  <label style="grid-column:1 / -1;">
+                    Contexto / situación de juego
+                    <textarea name="draw_task_game_context" rows="3" maxlength="1000" placeholder="Ej: rival en bloque medio, robo en carril central y necesidad de progresar antes de que cierre la ayuda">{{ initial.game_context }}</textarea>
+                  </label>
                   <label>
                     Momento del juego
                     <select name="draw_task_game_moment" id="draw-task-game-moment">
