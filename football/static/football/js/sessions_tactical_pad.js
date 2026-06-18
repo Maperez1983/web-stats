@@ -13307,7 +13307,8 @@
 						          };
                               const dedicatedReferenceModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
                               const isDedicatedReferenceStadiumModel = isDedicatedPitch3dReferenceStadiumSrc(dedicatedReferenceModelSrc);
-                              if (!isDedicatedReferenceStadiumModel) {
+                              const useHandcraftedDedicatedReferenceStadium = true;
+                              if (!isDedicatedReferenceStadiumModel && !useHandcraftedDedicatedReferenceStadium) {
                                 addFromScratchReferenceStadium();
                               }
 						          const addCornerFlag = (x, z, flipX, flipZ) => {
@@ -13348,7 +13349,7 @@
 						      };
 						      addPitchSideDetails3d();
 						      try {
-						        if (isDedicatedReferenceStadiumModel) {
+						        if (isDedicatedReferenceStadiumModel || useHandcraftedDedicatedReferenceStadium) {
 						          const dedicatedFinish = new THREE.Group();
 						          dedicatedFinish.userData = { kind: 'pitch_3d_dedicated_reference_completion_layer' };
 						          const concreteMat = new THREE.MeshStandardMaterial({ color: 0xcfd6d1, roughness: 0.76, metalness: 0.03 });
