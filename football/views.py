@@ -25384,6 +25384,7 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         'club_dragon_url': club_dragon_url,
         'club_logo_url': club_logo_url,
         'task_preview_url': preview_url,
+        'task_3d_preview_url': str(meta.get('pitch3d_preview_data_v1') or ''),
         'template_bg_src': _system_pdf_template_bg_src('pdf_template_task_bg_asset_id', max_width=2200, max_height=3100, quality=72) if pdf_style == 'uefa' else '',
         'pdf_text_heavy': pdf_text_heavy,
         'pdf_text_superheavy': pdf_text_superheavy,
@@ -25412,6 +25413,7 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa', one_p
     selected_tactical_intent = _sanitize_task_text((request.POST.get('draw_task_tactical_intent') or '').strip(), multiline=False, max_len=80)
     game_moment = _clean_choice_value(request.POST.get('draw_task_game_moment'), {key for key, _ in GAME_MOMENT_CHOICES}, max_len=40)
     game_context = _sanitize_task_text((request.POST.get('draw_task_game_context') or '').strip(), multiline=True, max_len=1000)
+    pitch3d_preview_data = _clean_task_3d_preview_data_url(request.POST.get('draw_canvas_3d_preview_data') or '')
     principle = _clean_short_text(request.POST.get('draw_task_principle'), max_len=120)
     subprinciple = _clean_short_text(request.POST.get('draw_task_subprinciple'), max_len=160)
     provocation_rule = _sanitize_task_text((request.POST.get('draw_task_provocation_rule') or '').strip(), multiline=True, max_len=500)
@@ -25481,6 +25483,7 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa', one_p
                 'game_phase': selected_phase,
                 'game_moment': game_moment,
                 'game_context': game_context,
+                'pitch3d_preview_data_v1': pitch3d_preview_data,
                 'principle': principle,
                 'subprinciple': subprinciple,
                 'provocation_rule': provocation_rule,
@@ -33049,6 +33052,16 @@ def _build_embedded_preview_data_url(raw_bytes: bytes, *, max_w: int = 1280, max
     return task_library_services.build_embedded_preview_data_url(raw_bytes, max_w=max_w, max_h=max_h)
 
 
+def _clean_task_3d_preview_data_url(data_url: str) -> str:
+    raw_bytes, _extension = _decode_canvas_data_url(data_url)
+    if not raw_bytes or len(raw_bytes) > 10_000_000:
+        return ''
+    try:
+        return _build_embedded_preview_data_url(raw_bytes, max_w=1800, max_h=1100)
+    except Exception:
+        return ''
+
+
 def _embedded_preview_bytes_from_task(task_obj):
     """
     Return (raw_bytes, mime) from `tactical_layout.meta.preview_data_embedded_v1` when present.
@@ -37802,6 +37815,7 @@ def _task_builder_initial_values(task):
         'pitch_orientation': str(meta.get('pitch_orientation') or 'landscape'),
         'pitch_zoom': str(meta.get('pitch_zoom') or '1.00'),
         'pitch_grass_style': str(meta.get('pitch_grass_style') or DEFAULT_TASK_PITCH_GRASS_STYLE),
+        'pitch3d_preview_data': str(meta.get('pitch3d_preview_data_v1') or ''),
         'series': str(meta.get('series') or ''),
         'repetitions': str(meta.get('repetitions') or ''),
         'player_count': str(meta.get('player_count') or ''),
@@ -38131,6 +38145,12 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
         _sanitize_task_text(str(raw_game_context or '').strip(), multiline=True, max_len=1000)
         if raw_game_context is not None
         else str(existing_meta.get('game_context') or '')
+    )
+    raw_pitch3d_preview = request.POST.get('draw_canvas_3d_preview_data')
+    pitch3d_preview_data = (
+        _clean_task_3d_preview_data_url(raw_pitch3d_preview)
+        if raw_pitch3d_preview is not None and str(raw_pitch3d_preview or '').strip()
+        else str(existing_meta.get('pitch3d_preview_data_v1') or '')
     )
     raw_principle = request.POST.get('draw_task_principle')
     principle = (
@@ -38501,6 +38521,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
             'game_phase': selected_phase,
             'game_moment': game_moment,
             'game_context': game_context,
+            'pitch3d_preview_data_v1': pitch3d_preview_data,
             'principle': principle,
             'subprinciple': subprinciple,
             'provocation_rule': provocation_rule,
@@ -39050,6 +39071,12 @@ def _save_task_studio_entry(request, owner, existing_task=None):
     else:
         category_tags_raw = _sanitize_task_text((raw_category_tags or '').strip(), multiline=False, max_len=240)
         category_tags = [tag.strip() for tag in category_tags_raw.split(',') if tag.strip()]
+    raw_pitch3d_preview = request.POST.get('draw_canvas_3d_preview_data')
+    pitch3d_preview_data = (
+        _clean_task_3d_preview_data_url(raw_pitch3d_preview)
+        if raw_pitch3d_preview is not None and str(raw_pitch3d_preview or '').strip()
+        else str(existing_meta.get('pitch3d_preview_data_v1') or '')
+    )
     if 'assigned_player_ids' in request.POST:
         assigned_player_ids = [
             player_id
@@ -39166,6 +39193,7 @@ def _save_task_studio_entry(request, owner, existing_task=None):
             'player_count': player_count,
             'age_group': age_group,
             'training_type': training_type,
+            'pitch3d_preview_data_v1': pitch3d_preview_data,
             'category_tags': category_tags,
             'assigned_player_ids': assigned_player_ids,
             'assigned_player_names': [player.name for player in assigned_players],
@@ -40210,6 +40238,7 @@ def _build_task_studio_draft_pdf_context(request, owner, pdf_style='uefa'):
     selected_tactical_intent = _sanitize_task_text((request.POST.get('draw_task_tactical_intent') or '').strip(), multiline=False, max_len=80)
     game_moment = _clean_choice_value(request.POST.get('draw_task_game_moment'), {key for key, _ in GAME_MOMENT_CHOICES}, max_len=40)
     game_context = _sanitize_task_text((request.POST.get('draw_task_game_context') or '').strip(), multiline=True, max_len=1000)
+    pitch3d_preview_data = _clean_task_3d_preview_data_url(request.POST.get('draw_canvas_3d_preview_data') or '')
     principle = _clean_short_text(request.POST.get('draw_task_principle'), max_len=120)
     subprinciple = _clean_short_text(request.POST.get('draw_task_subprinciple'), max_len=160)
     provocation_rule = _sanitize_task_text((request.POST.get('draw_task_provocation_rule') or '').strip(), multiline=True, max_len=500)
@@ -40271,6 +40300,7 @@ def _build_task_studio_draft_pdf_context(request, owner, pdf_style='uefa'):
             'game_phase': selected_phase,
             'game_moment': game_moment,
             'game_context': game_context,
+            'pitch3d_preview_data_v1': pitch3d_preview_data,
             'principle': principle,
             'subprinciple': subprinciple,
             'provocation_rule': provocation_rule,
@@ -41732,6 +41762,7 @@ def session_task_detail_page(request, task_id):
     original_version = meta.get('original_version') if isinstance(meta.get('original_version'), dict) else {}
     original_task_sheet = original_version.get('task_sheet') if isinstance(original_version.get('task_sheet'), dict) else {}
     original_preview_url = _storage_url_or_empty(original_version.get('task_preview_image') if isinstance(original_version, dict) else '')
+    task_3d_preview_url = str(meta.get('pitch3d_preview_data_v1') or '').strip()
     pdf_excerpt = str(meta.get('pdf_segment_excerpt') or meta.get('extracted_text_excerpt') or '').strip()
     detected_materials = analysis_meta.get('detected_materials') if isinstance(analysis_meta.get('detected_materials'), list) else []
     animation_frames = _normalize_animation_timeline(layout.get('timeline') if isinstance(layout, dict) else [])
@@ -41857,6 +41888,7 @@ def session_task_detail_page(request, task_id):
             'original_version': original_version,
             'original_task_sheet': original_task_sheet,
             'original_preview_url': original_preview_url,
+            'task_3d_preview_url': task_3d_preview_url,
             'is_editable_task': is_editable_task,
             'is_imported_task': is_imported_task,
             'is_performed_task': is_performed_task,

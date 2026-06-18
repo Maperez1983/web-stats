@@ -860,6 +860,12 @@
 	                  <div class="preview-frame" style="border:none;" aria-label="Vista gráfica de la tarea">
                       <div class="preview-img"><img src="{{ task_preview_url }}" alt="Vista gráfica de la tarea" /></div>
                     </div>
+                    {% if task_3d_preview_url %}
+                    <div class="club-panel-head" style="margin-top:10px;">Representación 3D</div>
+                    <div class="preview-frame" style="border:none;" aria-label="Vista 3D de la tarea">
+                      <div class="preview-img"><img src="{{ task_3d_preview_url }}" alt="Representación 3D de la tarea" /></div>
+                    </div>
+                    {% endif %}
                   {% else %}
                   <div class="field">
                     <span class="mid-line"></span>
@@ -1153,6 +1159,12 @@
 		          <div class="preview-frame" style="border:1px solid #d5dde7; height:{{ pdf_graphic_height_px|default:380 }}px;" aria-label="Vista gráfica de la tarea">
                 <div class="preview-img"><img src="{{ task_preview_url }}" alt="Vista gráfica de la tarea" /></div>
               </div>
+              {% if task_3d_preview_url %}
+              <div class="uefa-section" style="margin-top:10px;">Representación 3D</div>
+              <div class="preview-frame" style="border:1px solid #d5dde7; height:260px;" aria-label="Vista 3D de la tarea">
+                <div class="preview-img"><img src="{{ task_3d_preview_url }}" alt="Representación 3D de la tarea" /></div>
+              </div>
+              {% endif %}
 	          {% else %}
 	          <div class="field" style="height:{{ pdf_graphic_height_px|default:380 }}px;">
 	            <span class="mid-line"></span>

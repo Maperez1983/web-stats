@@ -742,6 +742,15 @@
       </section>
       {% endif %}
 
+      {% if task_3d_preview_url %}
+      <section class="panel">
+        <h2>Representación 3D</h2>
+        <div class="preview-stadium">
+          <img class="preview" src="{{ task_3d_preview_url }}" alt="Representación 3D de {{ task.title }}" />
+        </div>
+      </section>
+      {% endif %}
+
 	      <section class="panel">
 	        <h2>Datos extraídos</h2>
 	        <p><strong>Objetivo:</strong> {{ task.objective|default:"-" }}</p>

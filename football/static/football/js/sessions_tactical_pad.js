@@ -1257,6 +1257,7 @@
     const widthInput = document.getElementById('draw-canvas-width');
     const heightInput = document.getElementById('draw-canvas-height');
 	    const previewInput = document.getElementById('draw-canvas-preview-data');
+	    const pitch3dPreviewInput = document.getElementById('draw-canvas-3d-preview-data');
 	    const timelinePreviewsInput = document.getElementById('draw-canvas-timeline-previews');
     const livePreviewImg = document.getElementById('task-live-preview');
     const livePreviewPlaceholder = document.getElementById('task-live-preview-placeholder');
@@ -2272,6 +2273,7 @@
 			              '        </select>',
 			              '        <button type="button" class="button" id="task-pitch-3d-refresh" title="Sincroniza con la pizarra actual">Actualizar</button>',
 			              '        <button type="button" class="button primary" id="task-pitch-3d-snap-tactic" title="Descarga PNG enfocando la táctica">PNG táctica</button>',
+			              '        <button type="button" class="button" id="task-pitch-3d-save-sheet" title="Guarda esta vista 3D para imprimirla en la ficha">Guardar en ficha</button>',
 			              '        <button type="button" class="button" id="task-pitch-3d-play" title="Reproduce escenarios (si existen)">▶</button>',
 			              '        <button type="button" class="button" id="task-pitch-3d-record" title="Grabar WebM (beta)">REC</button>',
 			              '        <select id="task-pitch-3d-action" title="Tipo de acción para rutas del elemento seleccionado">',
@@ -2324,6 +2326,7 @@
 			    let pitch3dSnapTacticBtn = document.getElementById('task-pitch-3d-snap-tactic');
 			    let pitch3dPlayBtn = document.getElementById('task-pitch-3d-play');
 			    let pitch3dSnapBtn = document.getElementById('task-pitch-3d-snap');
+			    let pitch3dSaveSheetBtn = document.getElementById('task-pitch-3d-save-sheet');
 			    let pitch3dRecordBtn = document.getElementById('task-pitch-3d-record');
 			    let pitch3dActionSelect = document.getElementById('task-pitch-3d-action');
 			    let pitch3dActionApplyBtn = document.getElementById('task-pitch-3d-action-apply');
@@ -2417,6 +2420,7 @@
 			      try { pitch3dSnapTacticBtn = document.getElementById('task-pitch-3d-snap-tactic') || pitch3dSnapTacticBtn; } catch (e) { /* ignore */ }
 			      try { pitch3dPlayBtn = document.getElementById('task-pitch-3d-play') || pitch3dPlayBtn; } catch (e) { /* ignore */ }
 			      try { pitch3dSnapBtn = document.getElementById('task-pitch-3d-snap') || pitch3dSnapBtn; } catch (e) { /* ignore */ }
+			      try { pitch3dSaveSheetBtn = document.getElementById('task-pitch-3d-save-sheet') || pitch3dSaveSheetBtn; } catch (e) { /* ignore */ }
 			      try { pitch3dRecordBtn = document.getElementById('task-pitch-3d-record') || pitch3dRecordBtn; } catch (e) { /* ignore */ }
 			      try { pitch3dActionSelect = document.getElementById('task-pitch-3d-action') || pitch3dActionSelect; } catch (e) { /* ignore */ }
 			      try { pitch3dActionApplyBtn = document.getElementById('task-pitch-3d-action-apply') || pitch3dActionApplyBtn; } catch (e) { /* ignore */ }
@@ -19150,6 +19154,41 @@
 						      }
 						    };
 
+						    const capturePitch3dForSheet = (options = {}) => {
+						      if (!pitch3dRenderer || !pitch3dCanvasEl || !pitch3dScene || !pitch3dCamera) return '';
+						      const previousCamera = safeText(pitch3dCameraSelect?.value);
+						      try {
+						        if (options.focus !== false) {
+						          if (pitch3dCameraSelect) pitch3dCameraSelect.value = 'task_focus';
+						          const meters = pitchMetersForPreset(presetSelect?.value || 'full_pitch', pitch3dFormat);
+						          setCameraPreset('task_focus', meters.w, meters.h);
+						        }
+						        try { resizePitch3d(); } catch (e) { /* ignore */ }
+						        try { pitch3dRenderer.render(pitch3dScene, pitch3dCamera); } catch (e) { /* ignore */ }
+						        const dataUrl = pitch3dCanvasEl.toDataURL('image/jpeg', 0.88);
+						        if (pitch3dPreviewInput && dataUrl && dataUrl.startsWith('data:image/')) {
+						          pitch3dPreviewInput.value = dataUrl;
+						        }
+						        return dataUrl || '';
+						      } catch (e) {
+						        return '';
+						      } finally {
+						        if (options.restoreCamera !== false && previousCamera && pitch3dCameraSelect) {
+						          try {
+						            pitch3dCameraSelect.value = previousCamera;
+						            const meters = pitchMetersForPreset(presetSelect?.value || 'full_pitch', pitch3dFormat);
+						            setCameraPreset(previousCamera, meters.w, meters.h);
+						            pitch3dRenderer.render(pitch3dScene, pitch3dCamera);
+						          } catch (e) { /* ignore */ }
+						        }
+						      }
+						    };
+
+						    const savePitch3dForSheet = () => {
+						      const dataUrl = capturePitch3dForSheet({ focus: true });
+						      setStatus(dataUrl ? 'Captura 3D guardada para la ficha.' : 'No se pudo guardar la captura 3D para la ficha.', !dataUrl);
+						    };
+
 						    const findCanvasObjectByPitch3dUid = (uidRaw) => {
 						      const uid = safeText(uidRaw);
 						      if (!uid || !canvas) return null;
@@ -19522,6 +19561,7 @@
 						    });
 						    pitch3dSnapBtn?.addEventListener('click', (ev) => { ev.preventDefault(); snapPitch3dPng(); });
 						    pitch3dSnapTacticBtn?.addEventListener('click', (ev) => { ev.preventDefault(); snapPitch3dTacticPng(); });
+						    pitch3dSaveSheetBtn?.addEventListener('click', (ev) => { ev.preventDefault(); savePitch3dForSheet(); });
 						    pitch3dRecordBtn?.addEventListener('click', (ev) => { ev.preventDefault(); togglePitch3dRecord(); });
 						    pitch3dActionApplyBtn?.addEventListener('click', (ev) => { ev.preventDefault(); applyPitch3dSelectedAction(); });
 						    pitch3dPhaseSaveBtn?.addEventListener('click', (ev) => { ev.preventDefault(); savePitch3dCurrentPhase(false); });
@@ -31701,6 +31741,11 @@
 		      const dataUrl = await buildPreviewData(previewOptions);
 	      if (previewInput) previewInput.value = dataUrl;
 	      if (applyLive) applyLivePreview(dataUrl);
+	      try {
+	        if (pitch3dPreviewInput && pitch3dRenderer && pitch3dCanvasEl && !safeText(pitch3dPreviewInput.value)) {
+	          capturePitch3dForSheet({ focus: true });
+	        }
+	      } catch (error) { /* ignore */ }
 	      if (timelinePreviewsInput) timelinePreviewsInput.value = '';
 	      return dataUrl;
 	    };
