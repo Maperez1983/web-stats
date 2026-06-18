@@ -46,7 +46,7 @@ from django.db import IntegrityError
 from django.db import transaction
 from django.db.models import Count, F, Max, Q, Sum
 from django.db.utils import OperationalError, ProgrammingError
-from django.http import FileResponse, Http404, HttpResponse, JsonResponse, StreamingHttpResponse
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse, QueryDict, StreamingHttpResponse
 from django.shortcuts import render, redirect
 from django.template.loader import render_to_string
 from django.templatetags.static import static
@@ -26913,6 +26913,7 @@ def session_task_interactive_sheet(request, task_id):
             'edit_detail_url': reverse('session-task-detail', args=[task.id]) + '?edit=1',
             'edit_graphic_url': edit_graphic_url,
             'bookmark_toggle_url': reverse('session-task-bookmark-toggle', args=[task.id]),
+            'quick_update_url': reverse('session-task-html-sheet-update', args=[task.id]),
             'save_interactive_collection_url': reverse('session-task-html-sheet-save', args=[task.id]),
             'interactive_sheet_absolute_url': request.build_absolute_uri(
                 reverse('session-task-html-sheet', args=[task.id]) + f'?style={sheet_style}'
@@ -26923,6 +26924,7 @@ def session_task_interactive_sheet(request, task_id):
             'back_label': 'Volver al entreno'
             if getattr(task, 'session_id', None) and not _is_library_session(getattr(task, 'session', None))
             else 'Volver a biblioteca',
+            'task_blocks': SessionTask.BLOCK_CHOICES,
             'task_version_label': f'v{int(getattr(task, "workflow_version_number", 1) or 1)}',
             'task_updated_label': timezone.localtime(getattr(task, 'updated_at', timezone.now())).strftime('%d/%m/%Y %H:%M'),
             'saved_interactive_collection': SessionTaskCollectionItem.objects.filter(
@@ -26934,6 +26936,50 @@ def session_task_interactive_sheet(request, task_id):
         }
     )
     return render(request, 'football/session_task_interactive_sheet.html', context)
+
+
+@authenticated_write
+@require_POST
+def update_session_task_interactive_sheet(request, task_id):
+    if not _can_access_sessions_workspace(request.user):
+        return JsonResponse({'error': 'No tienes permisos para acceder a sesiones.'}, status=403)
+    task = (
+        SessionTask.objects
+        .select_related('session__microcycle__team')
+        .filter(id=task_id, deleted_at__isnull=True)
+        .first()
+    )
+    if not task:
+        return JsonResponse({'error': 'Tarea no encontrada.'}, status=404)
+    if not _is_task_editable(task):
+        return JsonResponse({'error': 'La tarea no se puede editar.'}, status=403)
+    try:
+        data = request.POST.copy()
+        if not data:
+            try:
+                payload = json.loads(request.body.decode('utf-8') or '{}')
+            except Exception:
+                payload = {}
+            if isinstance(payload, dict):
+                data = QueryDict('', mutable=True)
+                for key, value in payload.items():
+                    data[str(key)] = '' if value is None else str(value)
+        _update_library_task_from_post(task, data, scope_key=_task_scope_for_item(task))
+        task.refresh_from_db()
+        return JsonResponse(
+            {
+                'ok': True,
+                'title': task.title,
+                'objective': task.objective,
+                'block': task.get_block_display(),
+                'duration_minutes': int(task.duration_minutes or 0),
+                'updated_at': timezone.localtime(getattr(task, 'updated_at', timezone.now())).strftime('%d/%m/%Y %H:%M'),
+            }
+        )
+    except ValueError as exc:
+        return JsonResponse({'error': str(exc)}, status=400)
+    except Exception:
+        return JsonResponse({'error': 'No se pudo guardar la ficha.'}, status=500)
 
 
 @authenticated_write
@@ -37657,6 +37703,100 @@ def _task_builder_edit_route_name(scope_key):
     }.get(scope_key, 'sessions-task-edit')
 
 
+def _create_quick_task_draft(request, primary_team, scope_key):
+    library_repository = _normalize_library_repository(
+        request.GET.get('repo') or request.GET.get('library_repo') or LIBRARY_REPOSITORY_INTERACTIVE
+    )
+    target_session = None
+    try:
+        wants_session = str(request.GET.get('assign') or request.GET.get('use_session') or '').strip().lower() in {'1', 'true', 'yes', 'on', 'si', 'sí'}
+        target_session_id = _parse_int(request.GET.get('session_id') or request.GET.get('from_session'))
+        if wants_session and target_session_id:
+            target_session = (
+                TrainingSession.objects
+                .select_related('microcycle')
+                .filter(id=int(target_session_id), microcycle__team=primary_team)
+                .first()
+            )
+    except Exception:
+        target_session = None
+    if not target_session:
+        target_session = _get_or_create_library_session_with_repository(primary_team, scope_key, repository=library_repository)
+    is_library = _is_library_session(target_session)
+    title = _sanitize_task_text(str(request.GET.get('title') or '').strip(), multiline=False, max_len=160) or 'Nueva tarea'
+    pitch_preset = 'full_pitch'
+    pitch_orientation = 'landscape'
+    pitch_grass_style = DEFAULT_TASK_PITCH_GRASS_STYLE
+    try:
+        default_surface = _default_task_surface_for_request(request, primary_team)
+    except Exception:
+        default_surface = ''
+    try:
+        default_age = _default_task_age_group_for_team(primary_team)
+    except Exception:
+        default_age = ''
+    tactical_layout = {
+        'tokens': [],
+        'timeline': [],
+        'meta': {
+            'scope': scope_key,
+            'source': 'quick-html-draft',
+            **({'repository': library_repository} if is_library else {}),
+            'is_template': bool(is_library),
+            'surface': default_surface,
+            'pitch_preset': pitch_preset,
+            'pitch_orientation': pitch_orientation,
+            'pitch_zoom': 1.0,
+            'pitch_grass_style': pitch_grass_style,
+            'age_group': default_age,
+            'graphic_editor': {
+                'canvas_state': _starter_canvas_state(pitch_preset),
+                'canvas_width': 1280,
+                'canvas_height': 720,
+            },
+            'analysis': {
+                'task_sheet': {
+                    'description': '',
+                    'description_html': '',
+                    'coaching_html': '',
+                    'rules_html': '',
+                    'players': '',
+                    'space': '',
+                    'dimensions': '',
+                    'materials': '',
+                },
+            },
+        },
+    }
+    task = SessionTask.objects.create(
+        session=target_session,
+        title=title[:160],
+        block=SessionTask.BLOCK_MAIN_1,
+        duration_minutes=15,
+        objective='',
+        coaching_points='',
+        confrontation_rules='',
+        tactical_layout=tactical_layout,
+        status=SessionTask.STATUS_PLANNED,
+        order=SessionTask.objects.filter(session=target_session, deleted_at__isnull=True).count() + 1,
+        notes='Borrador creado desde ficha HTML',
+    )
+    try:
+        if is_library:
+            layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+            layout = dict(layout)
+            meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+            meta = dict(meta)
+            meta['library_source_task_id'] = int(task.id)
+            meta['is_template'] = True
+            layout['meta'] = meta
+            task.tactical_layout = layout
+            task.save(update_fields=['tactical_layout'])
+    except Exception:
+        pass
+    return task
+
+
 def _build_tactical_player_catalog(request, primary_team):
     catalog = []
     if not primary_team:
@@ -39436,6 +39576,21 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             status=503,
         )
     task = None
+    if not task_id and request.method == 'GET':
+        editor_requested = str(request.GET.get('editor') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+        quick_disabled = str(request.GET.get('quick') or '').strip().lower() in {'0', 'false', 'no', 'off'}
+        assistant_mode = str(request.GET.get('pane') or '').strip().lower() in {'assistant', 'recommender', 'ia'}
+        if not editor_requested and not quick_disabled and not assistant_mode:
+            task = _create_quick_task_draft(request, primary_team, scope_key)
+            params = request.GET.copy()
+            for key in ('quick', 'editor', 'pane', 'title'):
+                params.pop(key, None)
+            if not str(params.get('style') or '').strip():
+                params['style'] = 'uefa'
+            params['draft'] = '1'
+            query = params.urlencode()
+            url = reverse('session-task-html-sheet', args=[int(task.id)])
+            return redirect(f'{url}?{query}' if query else url)
     if task_id:
         task = (
             SessionTask.objects
@@ -39616,6 +39771,8 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             else:
                 task = _save_task_builder_entry(request, primary_team, scope_key, existing_task=task)
                 feedback = 'Tarea guardada correctamente.'
+                if task and str(request.GET.get('back_to') or '').strip().lower() in {'detail', 'task_detail', 'ficha'}:
+                    return redirect(reverse('session-task-html-sheet', args=[int(task.id)]) + '?style=uefa')
                 try:
                     dest_session = getattr(task, 'session', None)
                     is_library = _is_library_session(dest_session)

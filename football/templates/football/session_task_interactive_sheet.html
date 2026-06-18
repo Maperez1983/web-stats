@@ -221,8 +221,27 @@
       }
       .qr-url { overflow-wrap: anywhere; font-size: 12px; color: #475569; }
       .status-line { margin-top: 8px; color: #475569; font-weight: 800; min-height: 18px; }
+      .quick-edit {
+        display: grid;
+        grid-template-columns: minmax(220px, 1.4fr) minmax(150px, .7fr) 110px minmax(220px, 1.6fr) auto;
+        gap: 10px;
+        align-items: end;
+      }
+      .quick-edit label { display: grid; gap: 5px; }
+      .quick-edit input,
+      .quick-edit select,
+      .quick-edit textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 8px 10px;
+        font: inherit;
+        font-weight: 700;
+        background: #fff;
+      }
+      .quick-edit textarea { min-height: 40px; resize: vertical; }
       @media (max-width: 860px) {
-        .grid, .method-grid { grid-template-columns: 1fr; }
+        .grid, .method-grid, .quick-edit { grid-template-columns: 1fr; }
         .hero { grid-template-columns: 58px 1fr; }
         .badge-stack { grid-column: 1 / -1; justify-items: start; }
       }
@@ -275,6 +294,35 @@
         <div class="badge-stack">
           <div class="badge">{{ sheet_style|upper }}</div>
           <div class="version">{{ task_version_label }} · {{ task_updated_label }}</div>
+        </div>
+      </section>
+
+      <section class="card interactive-only" style="margin-top:14px;">
+        <div class="head soft">Edición rápida</div>
+        <div class="body">
+          <form class="quick-edit" id="quick-task-form" data-update-url="{{ quick_update_url }}">
+            <label>
+              <span class="label">Título</span>
+              <input type="text" name="task_title" value="{{ task.title }}" maxlength="160" required />
+            </label>
+            <label>
+              <span class="label">Bloque</span>
+              <select name="task_block">
+                {% for value,label in task_blocks %}
+                <option value="{{ value }}"{% if task.block == value %} selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              <span class="label">Min</span>
+              <input type="number" name="task_minutes" min="5" max="90" value="{{ task.duration_minutes }}" />
+            </label>
+            <label>
+              <span class="label">Objetivo</span>
+              <textarea name="task_objective" rows="1">{{ task.objective }}</textarea>
+            </label>
+            <button type="submit" class="btn primary">Guardar</button>
+          </form>
         </div>
       </section>
 
@@ -361,7 +409,7 @@
           <div class="head soft">Ficha técnica</div>
           <div class="body">
             <div class="facts">
-              <div class="fact"><span class="label">Objetivo</span><div class="value">{{ task.objective|default:"-" }}</div></div>
+              <div class="fact"><span class="label">Objetivo</span><div class="value" data-quick-objective>{{ task.objective|default:"-" }}</div></div>
               <div class="fact"><span class="label">Espacio</span><div class="value">{{ space_label }}</div></div>
               <div class="fact"><span class="label">Tipo</span><div class="value">{{ strategy_label }}</div></div>
               <div class="fact"><span class="label">Intención</span><div class="value">{{ tactical_intent_label }}</div></div>
@@ -522,6 +570,35 @@
           a.remove();
           URL.revokeObjectURL(url);
           setStatus('HTML interactivo exportado.');
+        });
+
+        document.getElementById('quick-task-form')?.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const form = event.currentTarget;
+          const url = form?.dataset?.updateUrl || '';
+          if (!url) return;
+          const btn = form.querySelector('button[type="submit"]');
+          if (btn) btn.disabled = true;
+          try {
+            const payload = Object.fromEntries(new FormData(form).entries());
+            const response = await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+              credentials: 'same-origin',
+              body: JSON.stringify(payload),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || !data.ok) throw new Error(data.error || 'No se pudo guardar la ficha.');
+            const titleEl = document.querySelector('.hero h1');
+            if (titleEl && data.title) titleEl.textContent = data.title;
+            const objectiveEl = document.querySelector('[data-quick-objective]');
+            if (objectiveEl) objectiveEl.textContent = data.objective || '-';
+            setStatus('Ficha actualizada.');
+          } catch (err) {
+            setStatus(err.message || 'No se pudo guardar la ficha.', true);
+          } finally {
+            if (btn) btn.disabled = false;
+          }
         });
 
         document.getElementById('save-library')?.addEventListener('click', async (event) => {
