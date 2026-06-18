@@ -8309,7 +8309,16 @@
 						      try {
 						        const loader = new LoaderClass();
 						        loader.load(src, (gltf) => {
-						          const scene = gltf?.scene || null;
+						          const scene = gltf?.scene || gltf?.scenes?.[0] || null;
+                          try {
+                            window.__WEBSTATS_PITCH3D_STADIUM_MODEL_INFO = {
+                              src,
+                              loaded: true,
+                              hasScene: !!scene,
+                              sceneChildren: Number(scene?.children?.length || 0),
+                              sceneType: safeText(scene?.type || ''),
+                            };
+                          } catch (e) { /* ignore */ }
 						          __pitch3dStadiumModelCache.scene = scene;
 						          __pitch3dStadiumModelCache.loading = false;
 						          const callbacks = __pitch3dStadiumModelCache.callbacks.splice(0);
@@ -8319,10 +8328,25 @@
 						        }, undefined, () => {
 						          __pitch3dStadiumModelCache.loading = false;
 						          __pitch3dStadiumModelCache.failed = true;
+                      try {
+                        window.__WEBSTATS_PITCH3D_STADIUM_MODEL_INFO = {
+                          src,
+                          loaded: false,
+                          failed: true,
+                        };
+                      } catch (e) { /* ignore */ }
 						          __pitch3dStadiumModelCache.callbacks.splice(0);
 						        });
 						      } catch (e) {
 						        __pitch3dStadiumModelCache.loading = false;
+                    try {
+                      window.__WEBSTATS_PITCH3D_STADIUM_MODEL_INFO = {
+                        src,
+                        loaded: false,
+                        failed: true,
+                        error: safeText(e?.message || e),
+                      };
+                    } catch (err) { /* ignore */ }
 						      }
 						      return null;
 						    };
@@ -12049,8 +12073,23 @@
 						                });
 						                enhanceProfessionalStadiumAsset(stadiumAsset);
 						                root.add(stadiumAsset);
+                            try {
+                              window.__WEBSTATS_PITCH3D_STADIUM_ATTACH_INFO = {
+                                attached: true,
+                                childCount: Number(stadiumAsset?.children?.length || 0),
+                                source_model: dedicatedReferenceModelSrc,
+                              };
+                            } catch (e) { /* ignore */ }
 						                return true;
 						              } catch (e) {
+                            try {
+                              console.warn('[pitch3d] model-backed rosaleda attach failed', e);
+                              window.__WEBSTATS_PITCH3D_STADIUM_ATTACH_INFO = {
+                                attached: false,
+                                error: safeText(e?.message || e),
+                                source_model: dedicatedReferenceModelSrc,
+                              };
+                            } catch (err) { /* ignore */ }
 						                return false;
 						              }
 						            };
