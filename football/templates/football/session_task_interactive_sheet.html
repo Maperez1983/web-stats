@@ -14,6 +14,7 @@
         --line: #d8e0ea;
         --paper: #f6f8fb;
         --card: #ffffff;
+        --ok: #11845b;
       }
       * { box-sizing: border-box; }
       body {
@@ -24,6 +25,12 @@
       }
       body.style-uefa { --primary: #0f7a35; --accent: #17324d; }
       body.style-club { --primary: {{ pdf_palette.primary|default:"#0f7a35" }}; --accent: {{ pdf_palette.accent|default:"#102734" }}; }
+      body.presentation-mode { background: #07111f; }
+      body.presentation-mode .shell { max-width: none; padding: 18px; }
+      body.presentation-mode .topbar { background: rgba(7,17,31,.92); color: #fff; border-color: rgba(255,255,255,.12); }
+      body.presentation-mode .presentation-focus { grid-column: 1 / -1; }
+      body.presentation-mode .presentation-focus .media,
+      body.presentation-mode .presentation-focus .sequence-screen { min-height: calc(100vh - 255px); }
       .shell { max-width: 1180px; margin: 0 auto; padding: 20px; }
       .topbar {
         position: sticky;
@@ -48,8 +55,11 @@
         font-weight: 800;
         text-decoration: none;
         cursor: pointer;
+        white-space: nowrap;
       }
       .btn.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+      .btn.ok { background: var(--ok); color: #fff; border-color: var(--ok); }
+      .btn[disabled] { opacity: .58; cursor: default; }
       .hero {
         display: grid;
         grid-template-columns: 76px 1fr auto;
@@ -60,6 +70,7 @@
         background: linear-gradient(135deg, var(--primary), var(--accent));
         color: #fff;
       }
+      body.style-club .hero { padding: 22px; box-shadow: 0 18px 46px rgba(15,23,42,.22); }
       .logo {
         width: 66px;
         height: 66px;
@@ -71,7 +82,9 @@
       .kicker { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; opacity: .82; font-weight: 900; }
       h1 { margin: 4px 0 0; font-size: 30px; line-height: 1.08; }
       .sub { margin-top: 6px; opacity: .9; font-weight: 700; }
+      .badge-stack { display: grid; gap: 8px; justify-items: end; }
       .badge { padding: 9px 12px; border-radius: 10px; background: rgba(255,255,255,.14); font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
+      .version { font-size: 12px; font-weight: 800; opacity: .86; }
       .grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(320px, .8fr); gap: 14px; margin-top: 14px; }
       .card {
         border: 1px solid var(--line);
@@ -80,6 +93,10 @@
         overflow: hidden;
       }
       .head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
         padding: 10px 13px;
         background: var(--primary);
         color: #fff;
@@ -93,9 +110,14 @@
       .fact { border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }
       .label { display: block; color: var(--muted); font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
       .value { margin-top: 3px; font-weight: 750; line-height: 1.35; white-space: pre-line; }
+      .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+      .tab { border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 8px 11px; font-weight: 900; cursor: pointer; }
+      .tab.is-active { background: var(--accent); color: #fff; border-color: var(--accent); }
+      .tab-panel { display: none; }
+      .tab-panel.is-active { display: block; }
       .media {
         width: 100%;
-        min-height: 320px;
+        min-height: 360px;
         border-radius: 10px;
         border: 1px solid var(--line);
         background: #fff;
@@ -105,17 +127,19 @@
         overflow: hidden;
       }
       .media img { width: 100%; height: 100%; object-fit: contain; display: block; }
-      .media.is-3d { min-height: 230px; margin-top: 10px; background: #07111f; }
+      .media.is-3d { min-height: 360px; background: #07111f; }
+      .method-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+      .method-item { border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px; background: #fbfdff; }
       .sequence-stage { display: grid; gap: 10px; }
       .sequence-screen {
-        min-height: 360px;
+        min-height: 390px;
         border: 1px solid var(--line);
         border-radius: 10px;
         background: #ecf7e8;
         overflow: hidden;
         position: relative;
       }
-      .frame { display: none; height: 360px; position: relative; }
+      .frame { display: none; height: 390px; position: relative; }
       .frame.is-active { display: block; }
       .field {
         position: relative;
@@ -153,10 +177,7 @@
         box-shadow: 0 4px 10px rgba(15,23,42,.22);
         z-index: 3;
       }
-      .token.material {
-        border-radius: 8px;
-        background: #f97316;
-      }
+      .token.material { border-radius: 8px; background: #f97316; }
       .frame-title {
         position: absolute;
         left: 14px;
@@ -169,6 +190,13 @@
         font-weight: 900;
       }
       .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+      .speed-select {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        padding: 8px 10px;
+        font-weight: 800;
+      }
       .timeline { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
       .step {
         flex: 0 0 auto;
@@ -182,10 +210,21 @@
       .step.is-active { background: var(--accent); color: #fff; border-color: var(--accent); }
       .copy { white-space: pre-line; line-height: 1.45; }
       .print-frame { display: none; }
+      .qr-wrap { display: grid; grid-template-columns: 116px 1fr; gap: 12px; align-items: center; }
+      .qr-img {
+        width: 108px;
+        height: 108px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        object-fit: contain;
+      }
+      .qr-url { overflow-wrap: anywhere; font-size: 12px; color: #475569; }
+      .status-line { margin-top: 8px; color: #475569; font-weight: 800; min-height: 18px; }
       @media (max-width: 860px) {
-        .grid { grid-template-columns: 1fr; }
+        .grid, .method-grid { grid-template-columns: 1fr; }
         .hero { grid-template-columns: 58px 1fr; }
-        .hero .badge { grid-column: 1 / -1; justify-self: start; }
+        .badge-stack { grid-column: 1 / -1; justify-items: start; }
       }
       @media print {
         @page { size: A4; margin: 10mm; }
@@ -197,11 +236,14 @@
         .card { break-inside: avoid; border-radius: 8px; }
         .body { padding: 9px; }
         .media { min-height: 250px; }
-        .media.is-3d { min-height: 170px; }
+        .media.is-3d { min-height: 190px; }
+        .tab-panel { display: block !important; margin-bottom: 8px; }
+        .tab-panel:not(.print-primary) { break-before: avoid; }
         .sequence-screen { min-height: 250px; }
         .sequence-screen .frame { display: none !important; }
         .sequence-screen .frame:first-child { display: block !important; height: 250px; }
         .print-frame { display: block; margin-top: 6px; color: #475569; font-weight: 800; }
+        .qr-card { display: block !important; }
       }
     </style>
   </head>
@@ -212,12 +254,15 @@
         <a class="btn" href="{{ detail_url }}">Volver</a>
         <a class="btn {% if sheet_style == 'uefa' %}primary{% endif %}" href="{{ html_sheet_url_uefa }}">UEFA</a>
         <a class="btn {% if sheet_style == 'club' %}primary{% endif %}" href="{{ html_sheet_url_club }}">Club</a>
+        <button type="button" class="btn" id="presentation-toggle">Presentar</button>
+        <button type="button" class="btn" id="download-html">Exportar HTML</button>
+        <button type="button" class="btn {% if saved_interactive_collection %}ok{% endif %}" id="save-library" data-url="{{ save_interactive_collection_url }}">{% if saved_interactive_collection %}Guardada{% else %}Guardar biblioteca{% endif %}</button>
         <button type="button" class="btn primary" onclick="window.print()">Imprimir / guardar PDF</button>
         <a class="btn" href="{% if sheet_style == 'club' %}{{ pdf_url_club }}{% else %}{{ pdf_url_uefa }}{% endif %}" target="_blank" rel="noopener">PDF servidor</a>
       </nav>
     </div>
 
-    <main class="shell">
+    <main class="shell" data-sheet-title="{{ task.title|slugify|default:'tarea' }}">
       <section class="hero">
         <img class="logo" src="{{ logo_url }}" alt="" />
         <div>
@@ -225,30 +270,88 @@
           <h1>{{ task.title }}</h1>
           <div class="sub">{{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %} · {{ task.get_block_display }} · {{ task.duration_minutes }} min</div>
         </div>
-        <div class="badge">{{ sheet_style|upper }}</div>
+        <div class="badge-stack">
+          <div class="badge">{{ sheet_style|upper }}</div>
+          <div class="version">{{ task_version_label }} · {{ task_updated_label }}</div>
+        </div>
       </section>
 
       <section class="grid">
-        <div class="card">
-          <div class="head">Representación</div>
+        <div class="card presentation-focus">
+          <div class="head">
+            <span>Representación</span>
+            <span class="interactive-only" id="tab-status">2D</span>
+          </div>
           <div class="body">
-            {% if task_preview_url %}
-            <div class="media"><img src="{{ task_preview_url }}" alt="Representación 2D" /></div>
-            {% else %}
-            <div class="sequence-screen">
-              <div class="frame is-active">
-                <div class="field">
-                  {% for token in tokens %}
-                  <span class="token {% if token.type == 'material' %}material{% endif %}" style="left:{{ token.x }}%; top:{{ token.y }}%;">{% if token.type == 'material' %}{{ token.icon|default:token.label }}{% else %}{{ token.label|default:"?"|slice:":3" }}{% endif %}</span>
+            <div class="tabs interactive-only" role="tablist">
+              <button type="button" class="tab is-active" data-tab="panel-2d">2D</button>
+              <button type="button" class="tab" data-tab="panel-3d">3D</button>
+              <button type="button" class="tab" data-tab="panel-sequence">Secuencia</button>
+            </div>
+
+            <div class="tab-panel is-active print-primary" id="panel-2d">
+              {% if task_preview_url %}
+              <div class="media"><img src="{{ task_preview_url }}" alt="Representación 2D" /></div>
+              {% else %}
+              <div class="sequence-screen">
+                <div class="frame is-active">
+                  <div class="field">
+                    {% for token in tokens %}
+                    <span class="token {% if token.type == 'material' %}material{% endif %}" style="left:{{ token.x }}%; top:{{ token.y }}%;">{% if token.type == 'material' %}{{ token.icon|default:token.label }}{% else %}{{ token.label|default:"?"|slice:":3" }}{% endif %}</span>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+              {% endif %}
+            </div>
+
+            <div class="tab-panel" id="panel-3d">
+              {% if task_3d_preview_url %}
+              <div class="media is-3d"><img src="{{ task_3d_preview_url }}" alt="Representación 3D" /></div>
+              {% else %}
+              <div class="media"><span class="label">Sin representación 3D guardada</span></div>
+              {% endif %}
+            </div>
+
+            <div class="tab-panel" id="panel-sequence">
+              {% if animation_frame_cards %}
+              <div class="sequence-stage">
+                <div class="controls interactive-only">
+                  <button type="button" class="btn" id="seq-prev">Anterior</button>
+                  <button type="button" class="btn primary" id="seq-play">Play</button>
+                  <button type="button" class="btn" id="seq-next">Siguiente</button>
+                  <button type="button" class="btn" id="seq-restart">Reiniciar</button>
+                  <select class="speed-select" id="seq-speed" aria-label="Velocidad">
+                    <option value="0.5">0.5x</option>
+                    <option value="1" selected>1x</option>
+                    <option value="2">2x</option>
+                  </select>
+                  <label class="label" style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="seq-pause-step" /> Pausa por fase</label>
+                  <span class="label" id="seq-status">Frame 1 de {{ animation_frame_cards|length }}</span>
+                </div>
+                <div class="sequence-screen" id="sequence-screen">
+                  {% for frame in animation_frame_cards %}
+                  <article class="frame{% if forloop.first %} is-active{% endif %}" data-frame-index="{{ forloop.counter0 }}" data-duration="{{ frame.duration }}">
+                    <div class="field">
+                      {% for token in frame.tokens %}
+                      <span class="token {% if token.type == 'material' %}material{% endif %}" style="left:{{ token.x }}%; top:{{ token.y }}%;">{% if token.type == 'material' %}{{ token.icon|default:token.label }}{% else %}{{ token.label|default:"?"|slice:":3" }}{% endif %}</span>
+                      {% endfor %}
+                    </div>
+                    <div class="frame-title">Fase {{ forloop.counter }} · {{ frame.title }}</div>
+                  </article>
+                  {% endfor %}
+                </div>
+                <div class="print-frame">Modo impresión: se muestra el frame inicial de la secuencia.</div>
+                <div class="timeline interactive-only">
+                  {% for frame in animation_frame_cards %}
+                  <button type="button" class="step{% if forloop.first %} is-active{% endif %}" data-step-index="{{ forloop.counter0 }}">Fase {{ forloop.counter }} · {{ frame.title }}</button>
                   {% endfor %}
                 </div>
               </div>
+              {% else %}
+              <div class="media"><span class="label">Sin secuencia animada guardada</span></div>
+              {% endif %}
             </div>
-            {% endif %}
-            {% if task_3d_preview_url %}
-            <div class="head soft" style="margin-top:10px;">Representación 3D</div>
-            <div class="media is-3d"><img src="{{ task_3d_preview_url }}" alt="Representación 3D" /></div>
-            {% endif %}
           </div>
         </div>
 
@@ -263,48 +366,35 @@
               <div class="fact"><span class="label">Dinámica</span><div class="value">{{ dynamics_label }}</div></div>
               <div class="fact"><span class="label">Carga</span><div class="value">{{ coordination_skills_label }}</div></div>
             </div>
+            <div class="status-line interactive-only" id="sheet-status"></div>
           </div>
         </aside>
       </section>
 
-      {% if task_meta.game_context %}
-      <section class="card" style="margin-top:14px;">
-        <div class="head soft">Contexto / situación de juego</div>
-        <div class="body copy">{{ task_meta.game_context }}</div>
-      </section>
-      {% endif %}
-
-      {% if animation_frame_cards %}
-      <section class="card" style="margin-top:14px;">
-        <div class="head">Reproducción de la secuencia</div>
-        <div class="body sequence-stage">
-          <div class="controls interactive-only">
-            <button type="button" class="btn" id="seq-prev">Anterior</button>
-            <button type="button" class="btn primary" id="seq-play">Play</button>
-            <button type="button" class="btn" id="seq-next">Siguiente</button>
-            <span class="label" id="seq-status">Frame 1 de {{ animation_frame_cards|length }}</span>
-          </div>
-          <div class="sequence-screen" id="sequence-screen">
-            {% for frame in animation_frame_cards %}
-            <article class="frame{% if forloop.first %} is-active{% endif %}" data-frame-index="{{ forloop.counter0 }}" data-duration="{{ frame.duration }}">
-              <div class="field">
-                {% for token in frame.tokens %}
-                <span class="token {% if token.type == 'material' %}material{% endif %}" style="left:{{ token.x }}%; top:{{ token.y }}%;">{% if token.type == 'material' %}{{ token.icon|default:token.label }}{% else %}{{ token.label|default:"?"|slice:":3" }}{% endif %}</span>
-                {% endfor %}
+      <section class="grid">
+        <div class="card">
+          <div class="head soft">Contexto de juego</div>
+          <div class="body copy">{% if task_meta.game_context %}{{ task_meta.game_context }}{% else %}-{% endif %}</div>
+        </div>
+        <div class="card">
+          <div class="head soft">Metodología</div>
+          <div class="body">
+            <div class="method-grid">
+              <div class="method-item"><span class="label">Principio</span><div class="value">{{ task_meta.principle|default:"-" }}</div></div>
+              <div class="method-item"><span class="label">Subprincipio</span><div class="value">{{ task_meta.subprinciple|default:"-" }}</div></div>
+              <div class="method-item"><span class="label">Regla de provocación</span><div class="value">{{ task_meta.provocation_rule|default:"-" }}</div></div>
+              <div class="method-item"><span class="label">Criterios de éxito</span><div class="value">{% if success_criteria_rich_html %}{{ success_criteria_rich_html|safe }}{% else %}{{ task_meta.success_criteria|default:"-" }}{% endif %}</div></div>
+              <div class="method-item"><span class="label">Variantes / progresión</span><div class="value">{% if progression_rich_html %}{{ progression_rich_html|safe }}{% else %}{{ task_meta.progression|default:"-" }}{% endif %}</div></div>
+              <div class="method-item">
+                <span class="label">Preguntas guiadas</span>
+                <div class="value">{% if task_meta.guided_questions %}{{ task_meta.guided_questions }}{% else %}¿Qué ventaja queremos provocar?
+¿Qué señal activa la progresión?
+¿Cómo reajustamos tras pérdida?{% endif %}</div>
               </div>
-              <div class="frame-title">Fase {{ forloop.counter }} · {{ frame.title }}</div>
-            </article>
-            {% endfor %}
-          </div>
-          <div class="print-frame">Modo impresión: se muestra el frame inicial de la secuencia.</div>
-          <div class="timeline interactive-only">
-            {% for frame in animation_frame_cards %}
-            <button type="button" class="step{% if forloop.first %} is-active{% endif %}" data-step-index="{{ forloop.counter0 }}">Fase {{ forloop.counter }} · {{ frame.title }}</button>
-            {% endfor %}
+            </div>
           </div>
         </div>
       </section>
-      {% endif %}
 
       <section class="grid">
         <div class="card">
@@ -323,14 +413,51 @@
           </div>
         </div>
       </section>
+
+      <section class="card qr-card" style="margin-top:14px;">
+        <div class="head soft">Acceso interactivo</div>
+        <div class="body qr-wrap">
+          <img class="qr-img" id="qr-image" alt="QR de acceso" />
+          <div>
+            <div class="value">Abrir ficha animada</div>
+            <div class="qr-url" id="qr-url">{{ interactive_sheet_absolute_url }}</div>
+          </div>
+        </div>
+      </section>
     </main>
 
     <script>
       (() => {
+        const statusLine = document.getElementById('sheet-status');
+        const setStatus = (text, isError = false) => {
+          if (!statusLine) return;
+          statusLine.textContent = text || '';
+          statusLine.style.color = isError ? '#b42318' : '#11845b';
+        };
+        const getCookie = (name) => {
+          const value = `; ${document.cookie}`;
+          const parts = value.split(`; ${name}=`);
+          if (parts.length === 2) return parts.pop().split(';').shift();
+          return '';
+        };
+
+        document.querySelectorAll('.tab[data-tab]').forEach((tab) => {
+          tab.addEventListener('click', () => {
+            const id = tab.dataset.tab;
+            document.querySelectorAll('.tab').forEach((el) => el.classList.toggle('is-active', el === tab));
+            document.querySelectorAll('.tab-panel').forEach((el) => el.classList.toggle('is-active', el.id === id));
+            const label = tab.textContent.trim();
+            const tabStatus = document.getElementById('tab-status');
+            if (tabStatus) tabStatus.textContent = label;
+          });
+        });
+
         const frames = Array.from(document.querySelectorAll('.frame[data-frame-index]'));
         const steps = Array.from(document.querySelectorAll('.step[data-step-index]'));
-        const status = document.getElementById('seq-status');
+        const seqStatus = document.getElementById('seq-status');
         const play = document.getElementById('seq-play');
+        const speed = document.getElementById('seq-speed');
+        const pauseStep = document.getElementById('seq-pause-step');
         let index = 0;
         let timer = null;
         const setFrame = (next) => {
@@ -338,7 +465,7 @@
           index = (next + frames.length) % frames.length;
           frames.forEach((frame, i) => frame.classList.toggle('is-active', i === index));
           steps.forEach((step, i) => step.classList.toggle('is-active', i === index));
-          if (status) status.textContent = `Frame ${index + 1} de ${frames.length}`;
+          if (seqStatus) seqStatus.textContent = `Frame ${index + 1} de ${frames.length}`;
         };
         const stop = () => {
           if (timer) window.clearTimeout(timer);
@@ -347,14 +474,18 @@
         };
         const tick = () => {
           const frame = frames[index];
-          const seconds = Math.max(1, Math.min(Number(frame?.dataset?.duration) || 3, 20));
+          const raw = Number(frame?.dataset?.duration) || 3;
+          const multiplier = Number(speed?.value) || 1;
+          const seconds = Math.max(.35, Math.min(raw / multiplier, 20));
           timer = window.setTimeout(() => {
             setFrame(index + 1);
+            if (pauseStep?.checked) { stop(); return; }
             tick();
           }, seconds * 1000);
         };
         document.getElementById('seq-prev')?.addEventListener('click', () => { stop(); setFrame(index - 1); });
         document.getElementById('seq-next')?.addEventListener('click', () => { stop(); setFrame(index + 1); });
+        document.getElementById('seq-restart')?.addEventListener('click', () => { stop(); setFrame(0); });
         play?.addEventListener('click', () => {
           if (timer) { stop(); return; }
           play.textContent = 'Pausa';
@@ -364,6 +495,63 @@
           stop();
           setFrame(Number(step.dataset.stepIndex) || 0);
         }));
+
+        document.getElementById('presentation-toggle')?.addEventListener('click', () => {
+          document.body.classList.toggle('presentation-mode');
+          const active = document.body.classList.contains('presentation-mode');
+          document.getElementById('presentation-toggle').textContent = active ? 'Salir presentación' : 'Presentar';
+          if (active) document.querySelector('[data-tab="panel-sequence"]')?.click();
+        });
+
+        document.getElementById('download-html')?.addEventListener('click', () => {
+          const clone = document.documentElement.cloneNode(true);
+          clone.querySelectorAll('.topbar .btn, script').forEach((el) => {
+            if (el.id !== 'qr-image') el.remove();
+          });
+          const html = '<!doctype html>\n' + clone.outerHTML;
+          const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          const title = document.querySelector('.shell')?.dataset?.sheetTitle || 'ficha-interactiva';
+          a.href = url;
+          a.download = `${title}-interactiva.html`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+          setStatus('HTML interactivo exportado.');
+        });
+
+        document.getElementById('save-library')?.addEventListener('click', async (event) => {
+          const btn = event.currentTarget;
+          const url = btn?.dataset?.url || '';
+          if (!url) return;
+          btn.disabled = true;
+          try {
+            const response = await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+              credentials: 'same-origin',
+              body: JSON.stringify({}),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || !data.ok) throw new Error(data.error || 'No se pudo guardar en biblioteca.');
+            btn.textContent = 'Guardada';
+            btn.classList.add('ok');
+            setStatus(`Guardada en ${data.collection_name || 'biblioteca'}.`);
+          } catch (err) {
+            setStatus(err.message || 'No se pudo guardar en biblioteca.', true);
+          } finally {
+            btn.disabled = false;
+          }
+        });
+
+        const qrImg = document.getElementById('qr-image');
+        const qrUrl = document.getElementById('qr-url')?.textContent?.trim() || window.location.href;
+        if (qrImg) {
+          const encoded = encodeURIComponent(qrUrl);
+          qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=216x216&margin=10&data=${encoded}`;
+        }
       })();
     </script>
   </body>

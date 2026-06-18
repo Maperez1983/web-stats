@@ -272,6 +272,7 @@ urlpatterns = [
     path('coach/sesiones/sesion-importada/<int:doc_id>/archivo/', views.imported_session_file, name='imported-session-file'),
     path('coach/sesiones/sesion-importada/<int:doc_id>/preview/', views.imported_session_preview_file, name='imported-session-preview-file'),
     path('coach/sesiones/tarea/<int:task_id>/ficha-html/', views.session_task_interactive_sheet, name='session-task-html-sheet'),
+    path('coach/sesiones/tarea/<int:task_id>/ficha-html/guardar/', views.save_session_task_interactive_sheet, name='session-task-html-sheet-save'),
     path('coach/sesiones/tarea/<int:task_id>/pdf/', views.session_task_pdf, name='session-task-pdf'),
     path('coach/sesiones/sesion/<int:session_id>/pdf/', session_pdf.session_plan_pdf, name='session-plan-pdf'),
     path('coach/sesiones/sesion/<int:session_id>/', views.training_session_detail_page, name='training-session-detail'),

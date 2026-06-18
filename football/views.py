@@ -26898,9 +26898,54 @@ def session_task_interactive_sheet(request, task_id):
             'pdf_url_uefa': reverse('session-task-pdf', args=[task.id]) + '?style=uefa&one_page=1',
             'pdf_url_club': reverse('session-task-pdf', args=[task.id]) + '?style=club&one_page=1',
             'detail_url': reverse('session-task-detail', args=[task.id]),
+            'bookmark_toggle_url': reverse('session-task-bookmark-toggle', args=[task.id]),
+            'save_interactive_collection_url': reverse('session-task-html-sheet-save', args=[task.id]),
+            'interactive_sheet_absolute_url': request.build_absolute_uri(
+                reverse('session-task-html-sheet', args=[task.id]) + f'?style={sheet_style}'
+            ),
+            'task_version_label': f'v{int(getattr(task, "workflow_version_number", 1) or 1)}',
+            'task_updated_label': timezone.localtime(getattr(task, 'updated_at', timezone.now())).strftime('%d/%m/%Y %H:%M'),
+            'saved_interactive_collection': SessionTaskCollectionItem.objects.filter(
+                task=task,
+                collection__team=team,
+                collection__repository=SessionTaskCollection.REPO_INTERACTIVE,
+                collection__name='Fichas interactivas',
+            ).exists(),
         }
     )
     return render(request, 'football/session_task_interactive_sheet.html', context)
+
+
+@authenticated_write
+@require_POST
+def save_session_task_interactive_sheet(request, task_id):
+    if not _can_access_sessions_workspace(request.user):
+        return JsonResponse({'error': 'No tienes permisos para acceder a sesiones.'}, status=403)
+    task = (
+        SessionTask.objects
+        .select_related('session__microcycle__team')
+        .filter(id=task_id, deleted_at__isnull=True)
+        .first()
+    )
+    if not task:
+        return JsonResponse({'error': 'Tarea no encontrada.'}, status=404)
+    team = task.session.microcycle.team
+    collection, _ = SessionTaskCollection.objects.get_or_create(
+        team=team,
+        repository=SessionTaskCollection.REPO_INTERACTIVE,
+        name='Fichas interactivas',
+        defaults={'created_by_user': request.user if request.user.is_authenticated else None},
+    )
+    _, created = SessionTaskCollectionItem.objects.get_or_create(collection=collection, task=task)
+    return JsonResponse(
+        {
+            'ok': True,
+            'saved': True,
+            'created': bool(created),
+            'collection_id': collection.id,
+            'collection_name': collection.name,
+        }
+    )
 
 
 def _resolve_static_asset_file(asset_value):
