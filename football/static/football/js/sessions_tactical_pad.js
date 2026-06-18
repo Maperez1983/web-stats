@@ -454,40 +454,21 @@
 		    defs.appendChild(gradient);
 
 		    let grassFillId = 'pitch-bg';
+		    let stadiumBackgroundSrc = '';
 		    if (grassStyle.startsWith('stadium_')) {
 		      const formEl = document.getElementById('task-builder-form');
-		      const stadiumTopSrc = orientation === 'portrait'
+		      stadiumBackgroundSrc = orientation === 'portrait'
 		        ? safeText(formEl?.dataset?.pitch3dStadiumTopVSrc || '')
 		        : safeText(formEl?.dataset?.pitch3dStadiumTopHSrc || '');
-		      if (stadiumTopSrc) {
-		        grassFillId = 'pitch-stadium-top-img';
+		      if (stadiumBackgroundSrc) {
+		        grassFillId = 'pitch-stadium-clear';
 		        const pattern = createSvgNode(doc, 'pattern', {
 		          id: grassFillId,
 		          patternUnits: 'userSpaceOnUse',
-		          x: -bleed,
-		          y: -bleed,
-		          width: stageW + (bleed * 2),
-		          height: stageH + (bleed * 2),
+		          width: 1,
+		          height: 1,
 		        });
-		        const stadiumImage = createSvgNode(doc, 'image', {
-		          href: stadiumTopSrc,
-		          x: -bleed,
-		          y: -bleed,
-		          width: stageW + (bleed * 2),
-		          height: stageH + (bleed * 2),
-		          preserveAspectRatio: 'xMidYMid slice',
-		        });
-		        try { stadiumImage.setAttribute('xlink:href', stadiumTopSrc); } catch (e) { /* ignore */ }
-		        pattern.appendChild(stadiumImage);
-		        if (grassStyle === 'stadium_close' || grassStyle === 'stadium_premium') {
-		          pattern.appendChild(createSvgNode(doc, 'rect', {
-		            x: -bleed,
-		            y: -bleed,
-		            width: stageW + (bleed * 2),
-		            height: stageH + (bleed * 2),
-		            fill: grassStyle === 'stadium_premium' ? 'rgba(2, 6, 23, 0.10)' : 'rgba(255,255,255,0.04)',
-		          }));
-		        }
+		        pattern.appendChild(createSvgNode(doc, 'rect', { x: 0, y: 0, width: 1, height: 1, fill: 'transparent' }));
 		        defs.appendChild(pattern);
 		      } else {
 		        grassStyle = 'classic';
@@ -557,16 +538,38 @@
     //   (en editor se verá el fondo del panel; en PDF quedará blanco).
     // En el editor rellenamos el exterior con césped para que no parezca que hay “huecos” alrededor.
     // El recorte para PDF/cards ya se hace al exportar la preview (data-pitch-box).
-    const fillOutside = `url(#${grassFillId})`;
-    root.appendChild(createSvgNode(doc, 'rect', {
-      x: -bleed,
-      y: -bleed,
-      width: stageW + (bleed * 2),
-      height: stageH + (bleed * 2),
-      // En el editor siempre rellenamos el exterior con césped para evitar que la superficie
-      // parezca “negra” o vacía al cambiar de preset (la exportación ya recorta por `data-pitch-box`).
-      fill: fillOutside,
-    }));
+    if (stadiumBackgroundSrc) {
+      const bg = createSvgNode(doc, 'image', {
+        href: stadiumBackgroundSrc,
+        x: -bleed,
+        y: -bleed,
+        width: stageW + (bleed * 2),
+        height: stageH + (bleed * 2),
+        preserveAspectRatio: 'xMidYMid slice',
+      });
+      try { bg.setAttribute('xlink:href', stadiumBackgroundSrc); } catch (e) { /* ignore */ }
+      root.appendChild(bg);
+      if (grassStyle === 'stadium_close' || grassStyle === 'stadium_premium') {
+        root.appendChild(createSvgNode(doc, 'rect', {
+          x: -bleed,
+          y: -bleed,
+          width: stageW + (bleed * 2),
+          height: stageH + (bleed * 2),
+          fill: grassStyle === 'stadium_premium' ? 'rgba(2, 6, 23, 0.10)' : 'rgba(255,255,255,0.04)',
+        }));
+      }
+    } else {
+      const fillOutside = `url(#${grassFillId})`;
+      root.appendChild(createSvgNode(doc, 'rect', {
+        x: -bleed,
+        y: -bleed,
+        width: stageW + (bleed * 2),
+        height: stageH + (bleed * 2),
+        // En el editor siempre rellenamos el exterior con césped para evitar que la superficie
+        // parezca “negra” o vacía al cambiar de preset (la exportación ya recorta por `data-pitch-box`).
+        fill: fillOutside,
+      }));
+    }
     const drawRoot = createSvgNode(doc, 'g');
     if (orientation === 'portrait') {
       drawRoot.setAttribute('transform', `translate(${stageW} 0) rotate(90)`);
@@ -642,7 +645,7 @@
 	        height,
 	        rx: corner,
 	        ry: corner,
-	        fill: `url(#${grassFillId})`,
+	        fill: stadiumBackgroundSrc ? 'transparent' : `url(#${grassFillId})`,
 	        stroke: line,
 	        'stroke-width': lineWidth,
 	      }));
@@ -680,7 +683,7 @@
 	        }
 	      }
 
-	      const showStripes = !(grassStyle === 'whiteboard' || grassStyle === 'blackboard' || grassStyle === 'coachboard');
+	      const showStripes = !(stadiumBackgroundSrc || grassStyle === 'whiteboard' || grassStyle === 'blackboard' || grassStyle === 'coachboard');
 	      if (showStripes) {
 	        const stripeW = width / 12;
 	        for (let index = 0; index < 12; index += 1) {
