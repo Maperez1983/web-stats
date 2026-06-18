@@ -4,60 +4,91 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-	    <title>Segunda Jugada · 2J Football Intelligence</title>
+    <title>Segunda Jugada · 2J Football Intelligence</title>
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     {% include 'football/pwa_head.html' %}
     <style>
       :root {
-        --midnight: #08111d;
-        --panel: #0f192a;
-        --panel-soft: rgba(15, 25, 42, 0.78);
-        --pitch: #2f7d32;
-        --amber: #f4b400;
-        --ice: #f5f7fa;
-        --slate: #91a1b9;
-        --line: rgba(145, 161, 185, 0.2);
+        --bg: #07101a;
+        --bg-soft: #0c1726;
+        --panel: rgba(12, 23, 38, 0.86);
+        --panel-strong: rgba(15, 28, 46, 0.96);
+        --line: rgba(150, 169, 191, 0.18);
+        --line-strong: rgba(150, 169, 191, 0.28);
+        --text: #f3f6fb;
+        --muted: #9caec5;
+        --muted-soft: #c4d0df;
+        --accent: #f2bd2d;
+        --accent-2: #4f9a43;
+        --shadow: 0 28px 70px rgba(0, 0, 0, 0.28);
       }
       * { box-sizing: border-box; }
       body {
         margin: 0;
-        color: var(--ice);
+        color: var(--text);
         font-family: "Avenir Next", "Inter", "Segoe UI", sans-serif;
         background:
-          radial-gradient(circle at top left, rgba(47, 125, 50, 0.24), transparent 28%),
-          radial-gradient(circle at top right, rgba(244, 180, 0, 0.14), transparent 24%),
-          linear-gradient(180deg, #050c17, #08111d 52%, #091321);
+          radial-gradient(circle at top left, rgba(79, 154, 67, 0.18), transparent 24%),
+          radial-gradient(circle at top right, rgba(242, 189, 45, 0.12), transparent 22%),
+          linear-gradient(180deg, #050b13 0%, #07101a 38%, #0a1521 100%);
       }
-      .page { max-width: 1200px; margin: 0 auto; padding: 1.2rem; }
-      .topbar, .hero, .proof-grid, .cta-band, .capture-grid { display: grid; gap: 1rem; }
+      a { color: inherit; }
+      .page {
+        max-width: 1220px;
+        margin: 0 auto;
+        padding: 1.25rem;
+      }
+      .topbar,
+      .hero,
+      .hero-actions,
+      .hero-highlights,
+      .summary-grid,
+      .product-grid,
+      .workflow,
+      .closing {
+        display: grid;
+        gap: 1rem;
+      }
       .topbar {
         grid-template-columns: 1fr auto;
         align-items: center;
-        margin-bottom: 1.2rem;
+        padding: 0.95rem 1.1rem;
+        margin-bottom: 1.35rem;
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        background: rgba(10, 18, 30, 0.9);
+        box-shadow: 0 18px 42px rgba(0, 0, 0, 0.18);
       }
       .brand {
         display: inline-flex;
         align-items: center;
-        gap: .9rem;
+        gap: 0.95rem;
+        min-width: 0;
       }
-      .brand img { width: 172px; height: auto; }
+      .brand img {
+        width: 168px;
+        height: auto;
+      }
+      .brand-copy {
+        min-width: 0;
+      }
       .brand-copy strong {
         display: block;
-        font-size: .8rem;
-        letter-spacing: .22em;
+        font-size: 0.8rem;
+        letter-spacing: 0.22em;
         text-transform: uppercase;
-        color: #ebf0f6;
       }
       .brand-copy span {
         display: block;
-        margin-top: .18rem;
-        color: var(--slate);
-        font-size: .9rem;
+        margin-top: 0.18rem;
+        color: var(--muted);
+        font-size: 0.95rem;
       }
       .top-actions {
         display: inline-flex;
-        gap: .75rem;
+        align-items: center;
+        gap: 0.75rem;
         flex-wrap: wrap;
         justify-content: end;
       }
@@ -65,412 +96,518 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: .8rem 1.05rem;
+        min-height: 46px;
+        padding: 0.82rem 1.2rem;
         border-radius: 999px;
-        text-decoration: none;
-        font-size: .78rem;
-        font-weight: 800;
-        letter-spacing: .08em;
-        text-transform: uppercase;
         border: 1px solid var(--line);
-        color: var(--ice);
-        background: rgba(255,255,255,.04);
+        background: rgba(255, 255, 255, 0.03);
+        text-decoration: none;
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text);
       }
       .button.primary {
-        border: none;
-        color: #0a1520;
-        background: linear-gradient(135deg, #f5c538, #f4b400);
+        border-color: transparent;
+        color: #0d1622;
+        background: linear-gradient(135deg, #f4c93d, #4f9a43);
+        box-shadow: 0 14px 26px rgba(79, 154, 67, 0.24);
+      }
+      .button.ghost {
+        background: transparent;
       }
       .hero {
-        grid-template-columns: 1.12fr .88fr;
-        padding: 1.4rem;
+        grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);
+        align-items: center;
+        gap: 1.4rem;
+        padding: 1.45rem;
         border: 1px solid var(--line);
-        border-radius: 28px;
-        background: linear-gradient(135deg, rgba(16, 26, 45, 0.94), rgba(9, 17, 30, 0.92));
-        box-shadow: 0 32px 74px rgba(0, 0, 0, 0.34);
+        border-radius: 30px;
+        background:
+          linear-gradient(135deg, rgba(15, 26, 42, 0.98), rgba(8, 17, 29, 0.95)),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent);
+        box-shadow: var(--shadow);
       }
       .eyebrow {
         display: inline-flex;
         align-items: center;
-        padding: .28rem .65rem;
+        gap: 0.45rem;
+        padding: 0.38rem 0.76rem;
         border-radius: 999px;
-        border: 1px solid rgba(244, 180, 0, 0.18);
-        background: linear-gradient(135deg, rgba(244, 180, 0, 0.1), rgba(47, 125, 50, 0.12));
-        color: #fff4cf;
-        font-size: .74rem;
-        letter-spacing: .08em;
+        border: 1px solid rgba(242, 189, 45, 0.18);
+        background: linear-gradient(135deg, rgba(242, 189, 45, 0.1), rgba(79, 154, 67, 0.14));
+        color: #fff2c4;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.11em;
         text-transform: uppercase;
       }
       h1 {
-        margin: .7rem 0 .5rem;
-        font-size: clamp(2.4rem, 5vw, 4.4rem);
-        line-height: .96;
+        margin: 0.8rem 0 0.7rem;
+        max-width: 13ch;
+        font-size: clamp(2.55rem, 4.8vw, 4.7rem);
+        line-height: 0.95;
+        letter-spacing: -0.04em;
+        text-wrap: balance;
       }
-      .hero p {
+      .hero-copy p {
+        margin: 0;
         max-width: 58ch;
-        color: #e2e8f0;
-        font-size: 1.02rem;
-        line-height: 1.6;
+        color: var(--muted-soft);
+        font-size: 1.06rem;
+        line-height: 1.65;
       }
-      .hero-side {
-        display: grid;
-        gap: .85rem;
-        align-content: start;
+      .hero-actions {
+        grid-template-columns: auto auto;
+        justify-content: start;
+        margin-top: 1.3rem;
+      }
+      .hero-highlights {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        margin-top: 1.2rem;
+      }
+      .highlight {
+        padding: 0.95rem 1rem;
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.025);
+      }
+      .highlight strong {
+        display: block;
+        margin-bottom: 0.28rem;
+        font-size: 1rem;
+        color: #fff7d6;
+      }
+      .highlight span {
+        color: var(--muted);
+        line-height: 1.55;
+        font-size: 0.95rem;
       }
       .hero-visual {
-        margin-top: 1rem;
-        border: 1px solid rgba(145, 161, 185, 0.18);
-        border-radius: 24px;
-        overflow: hidden;
-        background: rgba(6, 12, 22, 0.92);
-        box-shadow: 0 24px 58px rgba(0, 0, 0, 0.3);
+        display: grid;
+        gap: 1rem;
       }
-      .shot-browser {
+      .hero-frame,
+      .summary-card,
+      .product-card,
+      .workflow-card,
+      .closing {
+        border: 1px solid var(--line);
+        border-radius: 26px;
+        background: var(--panel);
+      }
+      .hero-frame {
+        overflow: hidden;
+        background: #09111d;
+      }
+      .frame-top {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: .8rem;
-        padding: .72rem .9rem;
-        border-bottom: 1px solid rgba(255,255,255,.08);
-        background: rgba(255,255,255,.03);
+        gap: 0.8rem;
+        padding: 0.8rem 0.95rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+        background: rgba(255, 255, 255, 0.03);
       }
-      .shot-dots {
+      .dots {
         display: inline-flex;
-        gap: .35rem;
+        gap: 0.32rem;
       }
-      .shot-dots span {
+      .dots span {
         width: 9px;
         height: 9px;
-        border-radius: 999px;
-        background: rgba(255,255,255,.18);
+        border-radius: 50%;
       }
-      .shot-dots span:nth-child(1) { background: rgba(239, 68, 68, 0.75); }
-      .shot-dots span:nth-child(2) { background: rgba(244, 180, 0, 0.75); }
-      .shot-dots span:nth-child(3) { background: rgba(47, 125, 50, 0.8); }
-      .shot-browser strong {
-        font-size: .72rem;
-        letter-spacing: .12em;
+      .dots span:nth-child(1) { background: rgba(239, 68, 68, 0.86); }
+      .dots span:nth-child(2) { background: rgba(242, 189, 45, 0.9); }
+      .dots span:nth-child(3) { background: rgba(79, 154, 67, 0.9); }
+      .frame-top strong {
+        font-size: 0.72rem;
+        letter-spacing: 0.15em;
         text-transform: uppercase;
-        color: #dbe3ee;
+        color: #dde7f3;
       }
-      .hero-shot {
-        position: relative;
-        min-height: 360px;
-        background: rgba(6, 12, 22, 0.92);
-      }
-      .hero-shot img {
-        width: 100%;
-        height: 100%;
-        min-height: 360px;
+      .hero-frame img {
         display: block;
+        width: 100%;
+        min-height: 430px;
         object-fit: cover;
         object-position: center top;
       }
-      .hero-shot::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background:
-          linear-gradient(90deg, rgba(8, 17, 29, 0.18) 0 14.28%, transparent 14.28% 28.56%, rgba(8, 17, 29, 0.14) 28.56% 42.84%, transparent 42.84% 57.12%, rgba(8, 17, 29, 0.14) 57.12% 71.4%, transparent 71.4% 85.68%, rgba(8, 17, 29, 0.18) 85.68% 100%);
-        mix-blend-mode: multiply;
-        pointer-events: none;
+      .frame-caption {
+        padding: 0.95rem 1rem 1.05rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.07);
+        background: rgba(255, 255, 255, 0.03);
       }
-      .hero-shot-caption {
-        padding: .85rem 1rem 1rem;
-        border-top: 1px solid rgba(255,255,255,.08);
-        background: rgba(255,255,255,.03);
-      }
-      .hero-shot-caption strong {
+      .frame-caption strong {
         display: block;
-        font-size: 1.05rem;
-        color: #f8fafc;
+        margin-bottom: 0.3rem;
+        font-size: 1.08rem;
       }
-      .hero-shot-caption span {
-        display: block;
-        margin-top: .25rem;
-        color: #cbd5e1;
-        line-height: 1.45;
-      }
-      .capture-grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        margin-top: 1rem;
-      }
-      .capture-card {
-        border: 1px solid var(--line);
-        border-radius: 22px;
-        overflow: hidden;
-        background: var(--panel-soft);
-      }
-      .capture-frame {
-        min-height: 240px;
-        position: relative;
-        background: #0b1220;
-      }
-      .capture-frame img {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        object-position: center top;
-      }
-      .capture-frame.live::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(180deg, rgba(8,17,29,.04), rgba(8,17,29,.26));
-        pointer-events: none;
-      }
-      .capture-frame.studio img {
-        object-position: center top;
-      }
-      .capture-frame.studio::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(180deg, rgba(8,17,29,.04), rgba(8,17,29,.22));
-        pointer-events: none;
-      }
-      .capture-frame.club img {
-        object-position: center top;
-      }
-      .capture-frame.club::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(180deg, rgba(8,17,29,.05), rgba(8,17,29,.24));
-        pointer-events: none;
-      }
-      .capture-frame.cycle img { opacity: 0; will-change: opacity; }
-      .capture-frame.cycle img:nth-child(1) { animation: studioShotA 11s ease-in-out infinite; }
-      .capture-frame.cycle img:nth-child(2) { animation: studioShotB 11s ease-in-out infinite; }
-      @keyframes studioShotA {
-        0%, 44% { opacity: 1; }
-        50%, 94% { opacity: 0; }
-        100% { opacity: 1; }
-      }
-      @keyframes studioShotB {
-        0%, 44% { opacity: 0; }
-        50%, 94% { opacity: 1; }
-        100% { opacity: 0; }
-      }
-      @media (prefers-reduced-motion: reduce) {
-        .capture-frame.cycle img { animation: none !important; }
-        .capture-frame.cycle img:nth-child(1) { opacity: 1; }
-        .capture-frame.cycle img:nth-child(2) { display: none; }
-      }
-      .capture-copy {
-        padding: 1rem 1.05rem 1.15rem;
-        border-top: 1px solid rgba(255,255,255,.08);
-        background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.03));
-      }
-      .capture-copy strong {
-        display: block;
-        margin-bottom: .3rem;
-        font-size: 1.1rem;
-        letter-spacing: .01em;
-      }
-      .capture-copy p {
-        margin: 0;
-        color: rgba(219, 228, 240, 0.78);
+      .frame-caption span {
+        color: var(--muted-soft);
         line-height: 1.55;
       }
-      .hero-panel, .track-card, .proof-card, .cta-band {
-        border: 1px solid var(--line);
-        border-radius: 22px;
-        background: var(--panel-soft);
-      }
-      .hero-panel { padding: 1rem; }
-      .hero-panel strong {
-        display: block;
-        font-size: .78rem;
-        letter-spacing: .12em;
-        text-transform: uppercase;
-        color: #fff4cf;
-      }
-      .hero-panel span {
-        display: block;
-        margin-top: .34rem;
-        color: #e2e8f0;
-        line-height: 1.55;
-      }
-      .proof-grid {
+      .summary-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        margin-top: 1rem;
       }
-      .proof-card {
+      .summary-card {
         padding: 1rem;
+        min-height: 100%;
       }
-      .proof-card strong {
+      .summary-card strong {
         display: block;
-        margin-bottom: .32rem;
-        font-size: 1.55rem;
-        color: #ffd057;
-      }
-      .proof-card p {
-        margin: 0;
-        color: var(--slate);
-        line-height: 1.55;
-      }
-      .section-title {
-        margin: 1.5rem 0 .8rem;
-        font-size: .84rem;
-        letter-spacing: .16em;
+        margin-bottom: 0.42rem;
+        font-size: 0.8rem;
+        letter-spacing: 0.12em;
         text-transform: uppercase;
-        color: #d7f5d9;
+        color: #fff1b8;
+      }
+      .summary-card p {
+        margin: 0;
+        color: var(--muted-soft);
+        line-height: 1.6;
+      }
+      .section {
+        margin-top: 1.55rem;
+      }
+      .section-head {
+        display: grid;
+        gap: 0.38rem;
+        margin-bottom: 0.95rem;
+      }
+      .section-label {
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #d4ebd0;
+      }
+      .section-head h2 {
+        margin: 0;
+        font-size: clamp(1.7rem, 2.7vw, 2.4rem);
+        letter-spacing: -0.03em;
+        text-wrap: balance;
+      }
+      .section-head p {
+        margin: 0;
+        max-width: 62ch;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+      .product-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        align-items: start;
+      }
+      .product-card {
+        overflow: hidden;
+        background: var(--panel-strong);
+      }
+      .product-card.featured {
+        transform: translateY(-10px);
+        border-color: rgba(242, 189, 45, 0.28);
+        box-shadow: 0 24px 46px rgba(0, 0, 0, 0.2);
+      }
+      .product-card img {
+        display: block;
+        width: 100%;
+        height: 260px;
+        object-fit: cover;
+        object-position: center top;
+      }
+      .product-copy {
+        padding: 1.05rem 1.05rem 1.2rem;
+      }
+      .product-kicker {
+        display: inline-block;
+        margin-bottom: 0.45rem;
+        color: #ffd96a;
+        font-size: 0.77rem;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .product-copy h3 {
+        margin: 0 0 0.45rem;
+        font-size: 1.32rem;
+      }
+      .product-copy p {
+        margin: 0;
+        color: var(--muted-soft);
+        line-height: 1.6;
+      }
+      .workflow {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      .workflow-card {
+        padding: 1rem 1.05rem 1.1rem;
+      }
+      .workflow-step {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.9rem;
+        height: 1.9rem;
+        margin-bottom: 0.7rem;
+        border-radius: 999px;
+        background: linear-gradient(135deg, rgba(242, 189, 45, 0.22), rgba(79, 154, 67, 0.2));
+        color: #fff4cb;
+        font-size: 0.82rem;
+        font-weight: 800;
+      }
+      .workflow-card h3 {
+        margin: 0 0 0.35rem;
+        font-size: 1.06rem;
+      }
+      .workflow-card p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.6;
       }
       .proof-list {
         margin: 0;
-        padding-left: 1rem;
-        color: #dbe3ee;
-        line-height: 1.8;
+        padding-left: 1.1rem;
+        color: var(--muted-soft);
+        line-height: 1.9;
       }
-      .cta-band {
-        margin-top: 1.25rem;
-        padding: 1rem 1.1rem;
+      .closing {
         grid-template-columns: 1fr auto;
         align-items: center;
+        gap: 1rem;
+        margin-top: 1.55rem;
+        padding: 1.25rem 1.2rem;
+        background:
+          linear-gradient(135deg, rgba(16, 27, 45, 0.96), rgba(11, 21, 35, 0.96)),
+          linear-gradient(90deg, rgba(242, 189, 45, 0.06), transparent 42%);
       }
-      .cta-band h3 {
-        margin: 0 0 .2rem;
-        font-size: 1.3rem;
+      .closing-copy h2 {
+        margin: 0 0 0.35rem;
+        font-size: clamp(1.5rem, 2.5vw, 2.05rem);
       }
-      .cta-band p {
+      .closing-copy p {
         margin: 0;
-        color: var(--slate);
+        color: var(--muted);
+        line-height: 1.6;
       }
-      @media (max-width: 960px) {
-        .hero, .proof-grid, .cta-band, .topbar, .capture-grid {
+      @media (max-width: 1080px) {
+        .hero,
+        .summary-grid,
+        .product-grid,
+        .workflow,
+        .closing {
           grid-template-columns: 1fr;
         }
-        .top-actions { justify-content: start; }
+        .product-card.featured {
+          transform: none;
+        }
+      }
+      @media (max-width: 960px) {
+        .topbar,
+        .hero-actions,
+        .hero-highlights {
+          grid-template-columns: 1fr;
+        }
+        .topbar {
+          justify-items: start;
+        }
+        .top-actions {
+          justify-content: start;
+        }
+      }
+      @media (max-width: 640px) {
+        .page {
+          padding: 0.8rem;
+        }
+        .topbar,
+        .hero,
+        .summary-card,
+        .workflow-card,
+        .closing {
+          border-radius: 22px;
+        }
+        .brand {
+          align-items: flex-start;
+          flex-wrap: wrap;
+        }
+        .brand img {
+          width: 132px;
+        }
+        .hero {
+          padding: 1.05rem;
+        }
+        h1 {
+          max-width: none;
+          font-size: clamp(2.05rem, 9vw, 2.9rem);
+        }
+        .hero-copy p,
+        .section-head p,
+        .frame-caption span,
+        .product-copy p,
+        .workflow-card p,
+        .closing-copy p {
+          font-size: 0.97rem;
+        }
+        .hero-frame img {
+          min-height: 260px;
+        }
+        .product-card img {
+          height: 210px;
+        }
       }
     </style>
   </head>
   <body class="prod-commercial">
     <main class="page">
       <header class="topbar">
-	        <div class="brand">
-	          <img src="{% static 'football/images/2j-mark.svg' %}" alt="2J Football Intelligence" />
-	          <div class="brand-copy">
-	            <strong>Segunda Jugada</strong>
-	            <span>2J · {{ brand_descriptor }}</span>
-	          </div>
-	        </div>
+        <div class="brand">
+          <img src="{% static 'football/images/2j-mark.svg' %}" alt="2J Football Intelligence" />
+          <div class="brand-copy">
+            <strong>Segunda Jugada</strong>
+            <span>2J · {{ brand_descriptor }}</span>
+          </div>
+        </div>
         <div class="top-actions">
-          <a class="button" href="{{ app_login_url }}">Acceso clientes</a>
+          <a class="button ghost" href="{{ app_login_url }}">Acceso clientes</a>
           <a class="button primary" href="{{ app_login_url }}">Entrar a la plataforma</a>
         </div>
       </header>
 
-	      <section class="hero">
-	        <div>
-	          <span class="eyebrow">Football Intelligence</span>
-	          <h1>La plataforma para registrar, entrenar y organizar tu club.</h1>
-		          <p>Segunda Jugada (2J) convierte el partido y el entrenamiento en un flujo de trabajo real: tareas y sesiones, documentos listos para compartir y módulos por cliente/espacio.</p>
-          <div class="hero-visual">
-            <div class="shot-browser">
-              <div class="shot-dots"><span></span><span></span><span></span></div>
-              <strong>Vista de producto</strong>
+      <section class="hero">
+        <div class="hero-copy">
+          <span class="eyebrow">Football Intelligence</span>
+          <h1>Todo el trabajo del club, en una sola plataforma.</h1>
+          <p>2J une partido, entrenamiento, jugadores y staff en un flujo simple. Registras en vivo, diseñas tareas, compartes documentos y organizas el día a día sin saltar entre herramientas.</p>
+          <div class="hero-actions">
+            <a class="button primary" href="{{ app_login_url }}">Entrar ahora</a>
+            <a class="button" href="#productos">Ver productos</a>
+          </div>
+          <div class="hero-highlights" aria-label="Beneficios principales">
+            <article class="highlight">
+              <strong>Más claridad</strong>
+              <span>Una estructura única para sesiones, análisis, convocatorias y seguimiento.</span>
+            </article>
+            <article class="highlight">
+              <strong>Más velocidad</strong>
+              <span>Acciones táctiles, plantillas listas y flujos pensados para el cuerpo técnico.</span>
+            </article>
+            <article class="highlight">
+              <strong>Menos fricción</strong>
+              <span>Todo conectado: el dato del partido sirve para planificar, revisar y compartir.</span>
+            </article>
+          </div>
+        </div>
+
+        <div class="hero-visual">
+          <article class="hero-frame">
+            <div class="frame-top">
+              <div class="dots"><span></span><span></span><span></span></div>
+              <strong>2J Club</strong>
             </div>
-            <div class="hero-shot">
-              <img src="{% static 'football/images/marketing/club-home.png' %}" alt="2J Club screenshot" loading="lazy" />
-              <div class="hero-shot-caption">
-                <strong>2J Club</strong>
-                <span>Portada del cliente con equipo, clasificación, próximo rival y contexto competitivo.</span>
-              </div>
+            <img src="{% static 'football/images/marketing/club-home.png' %}" alt="Portada operativa de 2J Club" loading="lazy" />
+            <div class="frame-caption">
+              <strong>Visión operativa del club</strong>
+              <span>Equipo, clasificación, rival, sesiones y contexto competitivo en una entrada limpia y accionable.</span>
             </div>
-          </div>
-          <div class="proof-grid">
-            <article class="proof-card">
-              <strong>Live</strong>
-              <p>Registro en vivo optimizado para iPad, cronología de acciones y revisión postpartido.</p>
+          </article>
+
+          <div class="summary-grid">
+            <article class="summary-card">
+              <strong>Ideal para</strong>
+              <p>Clubes, academias, canteras y cuerpos técnicos que necesitan orden sin perder ritmo de trabajo.</p>
             </article>
-            <article class="proof-card">
-              <strong>Studio</strong>
-              <p>Creador de tareas, secuencias animadas y PDFs UEFA o corporativos sin salir del flujo de trabajo.</p>
+            <article class="summary-card">
+              <strong>Qué resuelve</strong>
+              <p>Centraliza el partido, el entrenamiento y la gestión diaria para que el staff no dependa de mil herramientas.</p>
             </article>
-            <article class="proof-card">
-              <strong>Club</strong>
-              <p>Cliente modular para convocatorias, sesiones, jugadores, estadísticas y estructura técnica.</p>
+            <article class="summary-card">
+              <strong>Resultado</strong>
+              <p>Menos dispersión, mejor seguimiento y una operativa más clara para técnicos, dirección y jugadores.</p>
             </article>
           </div>
         </div>
-        <div class="hero-side">
-          <section class="hero-panel">
-            <strong>Propuesta</strong>
-            <span>Una plataforma para registrar el partido, diseñar el entrenamiento y gobernar el trabajo del club desde una única estructura modular.</span>
-          </section>
-          <section class="hero-panel">
-            <strong>Identidad</strong>
-            <span>{{ brand_descriptor }}</span>
-          </section>
-          <section class="hero-panel">
-            <strong>Ideal para</strong>
-            <span>Clubes, academias, canteras y cuerpos técnicos que necesitan velocidad operativa sin perder criterio táctico.</span>
-          </section>
+      </section>
+
+      <section class="section" id="productos">
+        <div class="section-head">
+          <span class="section-label">Productos</span>
+          <h2>Tres módulos claros para trabajar mejor.</h2>
+          <p>Cada producto resuelve una parte crítica del trabajo diario, pero todos comparten el mismo lenguaje, la misma lógica y la misma información.</p>
+        </div>
+        <div class="product-grid">
+          <article class="product-card">
+            <img src="{% static 'football/images/marketing/live-actions.png' %}" alt="Registro en vivo en 2J Live" loading="lazy" />
+            <div class="product-copy">
+              <span class="product-kicker">2J Live</span>
+              <h3>Registrar el partido en tiempo real</h3>
+              <p>Captura acciones en iPad, sigue la cronología del juego y revisa el contexto nada más terminar.</p>
+            </div>
+          </article>
+          <article class="product-card featured">
+            <img src="{% static 'football/images/marketing/task-studio-home.png' %}" alt="Editor visual de tareas de 2J Studio" loading="lazy" />
+            <div class="product-copy">
+              <span class="product-kicker">2J Studio</span>
+              <h3>Diseñar tareas y sesiones con criterio visual</h3>
+              <p>Crea ejercicios, secuencias y documentos listos para compartir con el staff o con el jugador.</p>
+            </div>
+          </article>
+          <article class="product-card">
+            <img src="{% static 'football/images/marketing/platform-overview.png' %}" alt="Vista general del club en 2J Club" loading="lazy" />
+            <div class="product-copy">
+              <span class="product-kicker">2J Club</span>
+              <h3>Organizar el club desde una sola vista</h3>
+              <p>Jugadores, staff, sesiones, seguimiento y estructura operativa conectados de forma natural.</p>
+            </div>
+          </article>
         </div>
       </section>
 
-      <h2 class="section-title">Productos</h2>
-      <section class="capture-grid" aria-label="Capturas de producto">
-        <article class="capture-card">
-          <div class="shot-browser">
-            <div class="shot-dots"><span></span><span></span><span></span></div>
-            <strong>2J Live</strong>
-          </div>
-          <div class="capture-frame live">
-            <img src="{% static 'football/images/marketing/live-actions.png' %}" alt="2J Live screenshot" loading="lazy" />
-          </div>
-          <div class="capture-copy">
-            <strong>Registro en vivo para iPad</strong>
-            <p>Acciones táctiles, cronología del partido y lectura inmediata del contexto de juego.</p>
-          </div>
-        </article>
-        <article class="capture-card">
-          <div class="shot-browser">
-            <div class="shot-dots"><span></span><span></span><span></span></div>
-            <strong>2J Studio</strong>
-          </div>
-          <div class="capture-frame studio cycle">
-            <img src="{% static 'football/images/marketing/task-studio-task.png' %}" alt="Editor visual de tareas en 2J Studio" loading="lazy" />
-            <img src="{% static 'football/images/marketing/task-studio-home.png' %}" alt="" aria-hidden="true" loading="lazy" />
-          </div>
-          <div class="capture-copy">
-            <strong>Tareas, tácticas y sesiones (visual)</strong>
-            <p>Pizarra táctica con representación gráfica, animación y PDF listo para compartir con el staff.</p>
-          </div>
-        </article>
-        <article class="capture-card">
-          <div class="shot-browser">
-            <div class="shot-dots"><span></span><span></span><span></span></div>
-            <strong>2J Club</strong>
-          </div>
-          <div class="capture-frame club">
-            <img src="{% static 'football/images/marketing/platform-overview.png' %}" alt="2J Platform screenshot" loading="lazy" />
-          </div>
-          <div class="capture-copy">
-            <strong>Cliente completo del club</strong>
-            <p>Portada operativa, jugadores, staff, planificación y seguimiento conectados en una misma vista.</p>
-          </div>
-        </article>
-      </section>
-
-      <h2 class="section-title">Ventaja</h2>
-      <section class="hero-panel">
-        <ul class="proof-list">
-          {% for point in proof_points %}
-          <li>{{ point }}</li>
-          {% endfor %}
-        </ul>
-      </section>
-
-      <section class="cta-band">
-        <div>
-          <h3>2J Football Intelligence</h3>
-          <p>La plataforma para registrar, analizar, entrenar y organizar el trabajo del club.</p>
+      <section class="section">
+        <div class="section-head">
+          <span class="section-label">Cómo funciona</span>
+          <h2>Un flujo simple de principio a fin.</h2>
+          <p>La lógica de la plataforma es directa: registras, conviertes esa información en trabajo útil y la ordenas para todo el club.</p>
         </div>
-        <a class="button primary" href="{{ app_login_url }}">Entrar</a>
+        <div class="workflow">
+          <article class="workflow-card">
+            <span class="workflow-step">1</span>
+            <h3>Registrar</h3>
+            <p>Recoge partido, acciones y contexto competitivo sin frenar al staff durante el directo.</p>
+          </article>
+          <article class="workflow-card">
+            <span class="workflow-step">2</span>
+            <h3>Preparar</h3>
+            <p>Convierte esa información en tareas, sesiones, documentos y revisiones listas para usar.</p>
+          </article>
+          <article class="workflow-card">
+            <span class="workflow-step">3</span>
+            <h3>Coordinar</h3>
+            <p>Comparte el trabajo, da seguimiento y mantén alineados a técnicos, dirección y jugadores.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <span class="section-label">Ventaja</span>
+          <h2>Más orden, menos ruido.</h2>
+          <p>La plataforma está pensada para hacer visible lo importante y quitar pasos innecesarios al trabajo diario del club.</p>
+        </div>
+        <article class="summary-card">
+          <ul class="proof-list">
+            {% for point in proof_points %}
+            <li>{{ point }}</li>
+            {% endfor %}
+          </ul>
+        </article>
+      </section>
+
+      <section class="closing">
+        <div class="closing-copy">
+          <h2>2J Football Intelligence</h2>
+          <p>Una plataforma clara para registrar, entrenar, analizar y organizar el trabajo del club con menos fricción y mejor criterio.</p>
+        </div>
+        <a class="button primary" href="{{ app_login_url }}">Entrar a la plataforma</a>
       </section>
     </main>
   </body>

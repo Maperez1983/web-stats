@@ -14,6 +14,7 @@
         background:
           radial-gradient(circle at top left, rgba(244, 180, 0, 0.12), transparent 26%),
           radial-gradient(circle at top right, rgba(47, 125, 50, 0.14), transparent 24%),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 18%),
           #08111d;
         color: #e7ebf3;
         font-family: "Avenir Next", "Inter", system-ui, sans-serif;
@@ -22,7 +23,7 @@
       .shell {
         max-width: 1380px;
         margin: 0 auto;
-        padding: 1.25rem;
+        padding: 1.1rem 1.25rem 2.2rem;
       }
 
       .hero,
@@ -35,8 +36,11 @@
       }
 
       .hero {
-        padding: 1.2rem 1.3rem 1.15rem;
+        padding: 1.3rem 1.35rem 1.2rem;
         display: block;
+        background:
+          linear-gradient(135deg, rgba(14, 24, 40, 0.98), rgba(8, 16, 28, 0.96)),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 26%);
       }
 
       .brand-rail {
@@ -51,12 +55,15 @@
       .hero h1 {
         margin: 0;
         font-size: clamp(1.6rem, 3vw, 2.35rem);
+        letter-spacing: -0.03em;
+        text-wrap: balance;
       }
 
       .hero p {
         margin: 0.35rem 0 0;
         color: #aeb9cc;
         max-width: 60ch;
+        line-height: 1.6;
       }
 
       .hero-copy {
@@ -81,6 +88,14 @@
         text-decoration: none;
         font-weight: 700;
         cursor: pointer;
+        transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+      }
+
+      .hero-links a:hover,
+      .submit-btn:hover,
+      .subnav a:hover,
+      .subtab-nav a:hover {
+        transform: translateY(-1px);
       }
 
       .hero-links a.primary-link {
@@ -275,6 +290,9 @@
 
       .panel {
         padding: 1.15rem;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0.015)),
+          rgba(12, 20, 34, 0.92);
       }
 
       .panel h2 {
@@ -309,6 +327,9 @@
         padding: 1rem 1.05rem;
         position: relative;
         overflow: hidden;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.024), rgba(255, 255, 255, 0.014)),
+          rgba(12, 20, 34, 0.92);
       }
 
       .workspace-card {
@@ -440,6 +461,7 @@
       .workspace-card h3 {
         margin: 0;
         font-size: 1.05rem;
+        letter-spacing: -0.02em;
       }
 
       .workspace-card::before {

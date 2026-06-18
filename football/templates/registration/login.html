@@ -3,47 +3,82 @@
 <html lang="es">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Acceso · 2J Football Intelligence</title>
     <style>
       :root {
-        --bg: #08111d;
-        --panel: linear-gradient(180deg, rgba(16, 25, 42, 0.94), rgba(10, 17, 29, 0.96));
-        --line: rgba(244, 180, 0, 0.16);
+        --bg: #07101a;
+        --bg-soft: #0c1726;
+        --panel: rgba(11, 20, 33, 0.92);
+        --panel-strong: rgba(14, 24, 40, 0.98);
+        --line: rgba(145, 161, 185, 0.18);
+        --line-strong: rgba(145, 161, 185, 0.28);
         --text: #f5f7fa;
-        --muted: #91a1b9;
+        --muted: #95a6be;
+        --muted-soft: #c8d3df;
+        --accent: #f4b400;
         --pitch: #2f7d32;
-        --amber: #f4b400;
-        --shadow: 0 30px 72px rgba(0, 0, 0, 0.38);
+        --danger: #fecaca;
+        --danger-bg: rgba(127, 29, 29, 0.35);
+        --success: rgba(220, 252, 231, 0.95);
+        --success-bg: rgba(34, 197, 94, 0.12);
+        --shadow: 0 34px 76px rgba(0, 0, 0, 0.38);
       }
       * { box-sizing: border-box; }
       body {
         margin: 0;
         min-height: 100vh;
-        display: grid;
-        place-items: center;
-        padding: 1rem;
         color: var(--text);
         font-family: "Avenir Next", "Inter", "Segoe UI", sans-serif;
         background:
           radial-gradient(circle at top left, rgba(47, 125, 50, 0.18), transparent 28%),
-          radial-gradient(circle at top right, rgba(244, 180, 0, 0.15), transparent 24%),
-          linear-gradient(180deg, #060d18, #08111d 56%, #050a13);
+          radial-gradient(circle at top right, rgba(244, 180, 0, 0.14), transparent 24%),
+          linear-gradient(180deg, #050b14 0%, #07101a 48%, #09131f 100%);
       }
-      .card {
-        width: min(420px, 100%);
+      .page {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 1rem;
+      }
+      .shell {
+        width: min(1080px, 100%);
+        display: grid;
+        grid-template-columns: minmax(0, 0.96fr) minmax(360px, 0.84fr);
+        gap: 1rem;
+        align-items: stretch;
+      }
+      .brand-panel,
+      .form-panel {
         border: 1px solid var(--line);
-        border-radius: 22px;
-        background: var(--panel);
-        padding: 1.2rem;
+        border-radius: 28px;
         box-shadow: var(--shadow);
       }
-      .brand {
-        display: grid;
-        gap: 0.8rem;
-        margin-bottom: 1.05rem;
+      .brand-panel {
+        position: relative;
+        overflow: hidden;
+        padding: 1.4rem;
+        background:
+          radial-gradient(circle at top left, rgba(244, 180, 0, 0.1), transparent 26%),
+          linear-gradient(145deg, rgba(15, 27, 45, 0.98), rgba(8, 16, 28, 0.96));
       }
-      .brand img {
+      .brand-panel::after {
+        content: "";
+        position: absolute;
+        inset: auto -12% -22% auto;
+        width: 300px;
+        height: 300px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(47, 125, 50, 0.28), transparent 62%);
+        pointer-events: none;
+      }
+      .brand-top {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        gap: 1rem;
+      }
+      .brand-top img {
         width: 196px;
         max-width: 100%;
         height: auto;
@@ -52,190 +87,422 @@
         display: inline-flex;
         align-items: center;
         width: fit-content;
-        padding: 0.3rem 0.7rem;
+        padding: 0.35rem 0.75rem;
         border-radius: 999px;
-        border: 1px solid rgba(244, 180, 0, 0.22);
-        background: linear-gradient(135deg, rgba(244, 180, 0, 0.12), rgba(47, 125, 50, 0.08));
-        color: #fff7dd;
-        font-size: 0.68rem;
-        font-weight: 700;
-        letter-spacing: 0.16em;
+        border: 1px solid rgba(244, 180, 0, 0.2);
+        background: linear-gradient(135deg, rgba(244, 180, 0, 0.12), rgba(47, 125, 50, 0.1));
+        color: #fff4cf;
+        font-size: 0.7rem;
+        font-weight: 800;
+        letter-spacing: 0.15em;
         text-transform: uppercase;
       }
-      h1 {
+      .brand-panel h1 {
         margin: 0;
-        font-size: 1.16rem;
-        letter-spacing: 0.16em;
-        text-transform: uppercase;
+        max-width: 12ch;
+        font-size: clamp(2.3rem, 4.6vw, 3.8rem);
+        line-height: 0.95;
+        letter-spacing: -0.04em;
+        text-wrap: balance;
       }
-      .brand p {
-        color: var(--muted);
+      .brand-panel p {
+        margin: 0;
+        max-width: 48ch;
+        color: var(--muted-soft);
+        font-size: 1.02rem;
+        line-height: 1.65;
       }
-      p { margin: 0.45rem 0; }
-      label {
+      .benefits {
+        margin-top: 1.2rem;
+        display: grid;
+        gap: 0.75rem;
+      }
+      .benefit {
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.03);
+        padding: 0.95rem 1rem;
+      }
+      .benefit strong {
         display: block;
-        margin: 0.7rem 0 0.35rem;
-        font-size: 0.75rem;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        color: rgba(245, 247, 250, 0.8);
+        margin-bottom: 0.22rem;
+        color: #fff6dc;
+        font-size: 1rem;
       }
-      input {
-        width: 100%;
-        border-radius: 10px;
-        border: 1px solid var(--line);
-        background: rgba(18, 28, 48, 0.72);
-        color: var(--text);
-        padding: 0.62rem 0.65rem;
+      .benefit span {
+        color: var(--muted);
+        line-height: 1.55;
       }
-      .password-wrap {
+      .brand-footer {
+        position: relative;
+        z-index: 1;
         display: flex;
-        gap: 0.4rem;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+        margin-top: 1.15rem;
+      }
+      .brand-footer a {
+        display: inline-flex;
         align-items: center;
-      }
-      .password-wrap input {
-        flex: 1;
-      }
-      .icon-btn {
-        border: 1px solid var(--line);
-        background: rgba(255, 255, 255, 0.05);
-        color: var(--text);
-        border-radius: 10px;
-        min-width: 40px;
-        height: 40px;
-        cursor: pointer;
-      }
-      .pill-button {
-        width: 100%;
-        margin-top: 0.95rem;
-        border: none;
+        justify-content: center;
+        padding: 0.68rem 0.92rem;
         border-radius: 999px;
-        padding: 0.7rem;
-        background: linear-gradient(135deg, var(--amber), var(--pitch));
-        color: #081320;
-        font-weight: 700;
-        cursor: pointer;
+        border: 1px solid rgba(145, 161, 185, 0.2);
+        background: rgba(255, 255, 255, 0.03);
+        color: #d9e2ec;
+        text-decoration: none;
+        font-size: 0.76rem;
+        font-weight: 800;
         letter-spacing: 0.08em;
         text-transform: uppercase;
       }
+      .form-panel {
+        padding: 1.3rem;
+        background: linear-gradient(180deg, rgba(14, 24, 40, 0.98), rgba(10, 17, 29, 0.98));
+      }
+      .form-top {
+        display: grid;
+        gap: 0.42rem;
+        margin-bottom: 1rem;
+      }
+      .form-top strong {
+        font-size: 0.78rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #fff4cf;
+      }
+      .form-top h2 {
+        margin: 0;
+        font-size: 1.45rem;
+        letter-spacing: -0.03em;
+      }
+      .form-top p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.55;
+      }
+      .notice {
+        margin-bottom: 0.85rem;
+        border-radius: 14px;
+        padding: 0.72rem 0.82rem;
+        font-size: 0.94rem;
+        line-height: 1.45;
+      }
+      .notice.error {
+        color: var(--danger);
+        border: 1px solid rgba(248, 113, 113, 0.45);
+        background: var(--danger-bg);
+      }
+      .notice.success {
+        color: var(--success);
+        border: 1px solid rgba(34, 197, 94, 0.35);
+        background: var(--success-bg);
+      }
+      form {
+        display: grid;
+        gap: 0.78rem;
+      }
+      .field {
+        display: grid;
+        gap: 0.35rem;
+      }
+      label {
+        display: block;
+        font-size: 0.75rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(245, 247, 250, 0.84);
+      }
+      input[type="text"],
+      input[type="password"] {
+        width: 100%;
+        min-height: 48px;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        background: rgba(18, 28, 48, 0.72);
+        color: var(--text);
+        padding: 0.82rem 0.9rem;
+        font-size: 0.98rem;
+      }
+      input[type="text"]:focus,
+      input[type="password"]:focus {
+        outline: none;
+        border-color: rgba(244, 180, 0, 0.28);
+        box-shadow: 0 0 0 3px rgba(244, 180, 0, 0.1);
+      }
+      .password-wrap {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        gap: 0.45rem;
+        align-items: center;
+      }
+      .icon-btn {
+        min-width: 48px;
+        height: 48px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text);
+        cursor: pointer;
+        font-size: 1rem;
+      }
+      .prefs {
+        display: grid;
+        gap: 0.55rem;
+        padding: 0.9rem 0.95rem;
+        border: 1px solid rgba(145, 161, 185, 0.14);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.03);
+      }
+      .prefs-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.8rem;
+        align-items: flex-start;
+        flex-wrap: wrap;
+      }
+      .checks {
+        display: grid;
+        gap: 0.48rem;
+      }
+      .check {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
+        font-size: 0.74rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: rgba(245, 247, 250, 0.82);
+      }
+      .check input {
+        width: auto;
+        accent-color: var(--accent);
+      }
+      .prefs small {
+        display: block;
+        max-width: 28ch;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+      .primary-btn,
       .ghost-link {
         display: inline-flex;
         align-items: center;
         justify-content: center;
         width: 100%;
-        margin-top: 0.75rem;
-        padding: 0.8rem 1rem;
+        min-height: 48px;
         border-radius: 999px;
-        border: 1px solid rgba(122, 135, 151, 0.28);
-        color: #d7dee8;
         text-decoration: none;
         font-size: 0.78rem;
-        font-weight: 700;
+        font-weight: 800;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        background: rgba(255, 255, 255, 0.03);
       }
-      .error {
-        color: #fecaca;
-        border: 1px solid rgba(248, 113, 113, 0.45);
-        background: rgba(127, 29, 29, 0.35);
-        border-radius: 10px;
-        padding: 0.5rem 0.6rem;
+      .primary-btn {
+        border: none;
+        background: linear-gradient(135deg, var(--accent), var(--pitch));
+        color: #081320;
+        cursor: pointer;
+      }
+      .ghost-link {
+        border: 1px solid rgba(122, 135, 151, 0.28);
+        background: rgba(255, 255, 255, 0.03);
+        color: #d7dee8;
+      }
+      .micro-links,
+      .support-box {
+        display: grid;
+        gap: 0.62rem;
+      }
+      .micro-links {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      .micro-links a {
+        width: 100%;
+        min-height: 42px;
+        padding: 0.55rem 0.7rem;
+        border-radius: 999px;
+        border: 1px solid rgba(122, 135, 151, 0.24);
+        background: rgba(255, 255, 255, 0.025);
+        color: #d7dee8;
+        text-decoration: none;
+        text-align: center;
+        font-size: 0.7rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .support-box {
+        margin-top: 0.35rem;
+        padding-top: 0.85rem;
+        border-top: 1px solid rgba(145, 161, 185, 0.14);
+      }
+      .support-box p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.76rem;
+        line-height: 1.55;
+      }
+      .support-box p strong {
+        color: var(--muted-soft);
+      }
+      .build {
+        color: rgba(145, 161, 185, 0.78);
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      @media (max-width: 980px) {
+        .shell {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media (max-width: 640px) {
+        .page {
+          padding: 0.75rem;
+        }
+        .brand-panel,
+        .form-panel {
+          border-radius: 22px;
+        }
+        .brand-panel,
+        .form-panel {
+          padding: 1rem;
+        }
+        .micro-links {
+          grid-template-columns: 1fr;
+        }
+        .password-wrap {
+          grid-template-columns: minmax(0, 1fr) auto auto;
+        }
       }
     </style>
   </head>
   <body>
-    <main class="card">
-      <div class="brand">
-        <img src="{% static 'football/images/2j-mark.svg' %}" alt="2J Football Intelligence" />
-        <div>
-          <div class="brand-badge">2J Football Intelligence</div>
-          <h1>Acceso 2J</h1>
-          <p>Football Intelligence</p>
-        </div>
-      </div>
+    <main class="page">
+      <section class="shell">
+        <aside class="brand-panel">
+          <div class="brand-top">
+            <img src="{% static 'football/images/2j-mark.svg' %}" alt="2J Football Intelligence" />
+            <div class="brand-badge">2J Football Intelligence</div>
+            <h1>Accede a tu trabajo sin fricción.</h1>
+            <p>Partido, entrenamiento, jugadores y seguimiento técnico dentro de una misma plataforma. Entra y retoma el trabajo del club donde lo dejaste.</p>
 
-      {% if form.errors %}
-      <p class="error">Credenciales inválidas o usuario sin permisos de acceso.</p>
-      {% endif %}
-      {% if request.GET.deleted %}
-      <p class="error" style="border-color: rgba(34,197,94,0.35); background: rgba(34,197,94,0.12); color: rgba(220,252,231,0.95);">
-        Cuenta desactivada correctamente.
-      </p>
-      {% endif %}
+            <div class="benefits">
+              <article class="benefit">
+                <strong>Operativa clara</strong>
+                <span>Una sola estructura para sesiones, análisis, convocatorias y documentos.</span>
+              </article>
+              <article class="benefit">
+                <strong>Trabajo conectado</strong>
+                <span>Lo que registras en el partido alimenta la preparación y el seguimiento diario.</span>
+              </article>
+              <article class="benefit">
+                <strong>Acceso rápido</strong>
+                <span>Login optimizado para volver a entrar rápido desde móvil, iPad o escritorio.</span>
+              </article>
+            </div>
 
-      <form method="post" autocomplete="on">
-        {% csrf_token %}
-        <label for="id_username">Usuario</label>
-        <input
-          id="id_username"
-          type="text"
-          name="username"
-          required
-          autocomplete="username"
-          autocapitalize="none"
-          autocorrect="off"
-          spellcheck="false"
-        />
-
-        <label for="id_password">Contraseña</label>
-        <div class="password-wrap">
-          <input
-            id="id_password"
-            type="password"
-            name="password"
-            required
-            autocomplete="current-password"
-            autocapitalize="none"
-            autocorrect="off"
-            spellcheck="false"
-          />
-          <button type="button" class="icon-btn" data-paste-into="#id_password" aria-label="Pegar contraseña" title="Pegar">📋</button>
-          <button type="button" class="icon-btn" data-toggle-password="#id_password" aria-label="Mostrar u ocultar contraseña" title="Mostrar / ocultar">👁</button>
-        </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:0.8rem;flex-wrap:wrap;margin-top:0.65rem;">
-          <div style="display:flex;flex-direction:column;gap:0.35rem;">
-            <label style="margin:0;display:flex;align-items:center;gap:0.5rem;font-size:0.72rem;letter-spacing:0.06em;text-transform:uppercase;color:rgba(245,247,250,0.8);">
-              <input id="remember_username" type="checkbox" checked style="width:auto;accent-color:var(--amber);" />
-              Recordar usuario
-            </label>
-            <label style="margin:0;display:flex;align-items:center;gap:0.5rem;font-size:0.72rem;letter-spacing:0.06em;text-transform:uppercase;color:rgba(245,247,250,0.8);">
-              <input id="remember_session" name="remember_session" type="checkbox" checked style="width:auto;accent-color:var(--cyan);" />
-              Mantener sesión
-            </label>
+            <div class="brand-footer">
+              <a href="{% url 'product-landing' %}">Conocer 2J</a>
+              <a href="{% url 'support-page' %}">Soporte</a>
+            </div>
           </div>
-          <span style="color:rgba(145,161,185,0.85);font-size:0.72rem;">
-            La contraseña la guarda iOS (Llavero) si tú quieres.
-          </span>
-        </div>
-        <button class="pill-button" type="submit">Entrar</button>
-        {% if public_signup_enabled %}
-        <a class="ghost-link" href="{% url 'signup' %}">Crear cuenta</a>
-        {% endif %}
-        <a class="ghost-link" href="{% url 'product-landing' %}">Conocer 2J</a>
-        <div style="display:flex;gap:0.5rem;justify-content:center;flex-wrap:wrap;margin-top:0.9rem;">
-          <a class="ghost-link" style="width:auto;padding:0.55rem 0.75rem;font-size:0.68rem;" href="{% url 'privacy-policy' %}">Privacidad</a>
-          <a class="ghost-link" style="width:auto;padding:0.55rem 0.75rem;font-size:0.68rem;" href="{% url 'terms-page' %}">Términos</a>
-          <a class="ghost-link" style="width:auto;padding:0.55rem 0.75rem;font-size:0.68rem;" href="{% url 'support-page' %}">Soporte</a>
-        </div>
-      </form>
+        </aside>
 
-      <p style="margin-top:0.9rem;color:rgba(145,161,185,0.8);font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;">
-        Build: {{ static_build_id|default:"local" }}
-      </p>
-      <div style="margin-top:0.65rem;display:flex;flex-direction:column;gap:0.45rem;">
-        <button
-          type="button"
-          class="ghost-link"
-          style="margin-top:0;width:100%;"
-          data-copy-login-url
-        >
-          Copiar URL de login
-        </button>
-        <p style="margin:0;color:rgba(145,161,185,0.75);font-size:0.7rem;">
-          (Solo para soporte) URL actual: <span data-login-url style="color:rgba(226,232,240,0.9);"></span>
-        </p>
-      </div>
+        <section class="form-panel">
+          <div class="form-top">
+            <strong>Acceso seguro</strong>
+            <h2>Entrar a la plataforma</h2>
+            <p>Usa tu usuario y contraseña para acceder a tu espacio de trabajo.</p>
+          </div>
+
+          {% if form.errors %}
+          <p class="notice error">Credenciales inválidas o usuario sin permisos de acceso.</p>
+          {% endif %}
+          {% if request.GET.deleted %}
+          <p class="notice success">Cuenta desactivada correctamente.</p>
+          {% endif %}
+
+          <form method="post" autocomplete="on">
+            {% csrf_token %}
+
+            <div class="field">
+              <label for="id_username">Usuario</label>
+              <input
+                id="id_username"
+                type="text"
+                name="username"
+                required
+                autocomplete="username"
+                autocapitalize="none"
+                autocorrect="off"
+                spellcheck="false"
+              />
+            </div>
+
+            <div class="field">
+              <label for="id_password">Contraseña</label>
+              <div class="password-wrap">
+                <input
+                  id="id_password"
+                  type="password"
+                  name="password"
+                  required
+                  autocomplete="current-password"
+                  autocapitalize="none"
+                  autocorrect="off"
+                  spellcheck="false"
+                />
+                <button type="button" class="icon-btn" data-paste-into="#id_password" aria-label="Pegar contraseña" title="Pegar">📋</button>
+                <button type="button" class="icon-btn" data-toggle-password="#id_password" aria-label="Mostrar u ocultar contraseña" title="Mostrar u ocultar">👁</button>
+              </div>
+            </div>
+
+            <div class="prefs">
+              <div class="prefs-row">
+                <div class="checks">
+                  <label class="check">
+                    <input id="remember_username" type="checkbox" checked />
+                    Recordar usuario
+                  </label>
+                  <label class="check">
+                    <input id="remember_session" name="remember_session" type="checkbox" checked />
+                    Mantener sesión
+                  </label>
+                </div>
+                <small>La contraseña solo la guarda tu dispositivo si tú decides usar Llavero o autocompletado.</small>
+              </div>
+            </div>
+
+            <button class="primary-btn" type="submit">Entrar</button>
+
+            {% if public_signup_enabled %}
+            <a class="ghost-link" href="{% url 'signup' %}">Crear cuenta</a>
+            {% endif %}
+
+            <div class="micro-links">
+              <a href="{% url 'privacy-policy' %}">Privacidad</a>
+              <a href="{% url 'terms-page' %}">Términos</a>
+              <a href="{% url 'support-page' %}">Soporte</a>
+            </div>
+
+            <div class="support-box">
+              <button
+                type="button"
+                class="ghost-link"
+                data-copy-login-url
+              >
+                Copiar URL de login
+              </button>
+              <p><strong>URL actual:</strong> <span data-login-url></span></p>
+              <p class="build">Build: {{ static_build_id|default:"local" }}</p>
+            </div>
+          </form>
+        </section>
+      </section>
     </main>
 
     <script>
@@ -259,7 +526,7 @@
               input.value = text || '';
               input.focus();
             } else {
-              alert('Pegar no está disponible en este dispositivo. Mantén pulsado el campo y elige “Pegar”.');
+              alert('Pegar no está disponible en este dispositivo. Mantén pulsado el campo y elige "Pegar".');
             }
           } catch (err) {
             alert('iOS bloqueó el pegado. Revisa Ajustes > Privacidad y seguridad > Pegar desde otras apps para permitirlo.');
@@ -267,7 +534,6 @@
         });
       });
 
-      // UX: recordar usuario (no contraseña) para acelerar login en iOS/WKWebView.
       (function() {
         const STORAGE_KEY = "webstats:login:remember_username_v1";
         const usernameInput = document.getElementById("id_username");
@@ -281,7 +547,6 @@
           const saved = localStorage.getItem(STORAGE_KEY) || "";
           if (saved) {
             usernameInput.value = saved;
-            // Si ya tenemos usuario, facilita que el foco vaya a contraseña.
             if (passwordInput && !passwordInput.value) {
               passwordInput.focus();
             }
@@ -301,12 +566,10 @@
         }
       })();
 
-      // Soporte: copiar la URL exacta de login desde WKWebView (en iOS la app no muestra barra de dirección).
       (function () {
         const urlLabel = document.querySelector("[data-login-url]");
         const copyBtn = document.querySelector("[data-copy-login-url]");
         const href = String(window.location && window.location.href ? window.location.href : "");
-        // Si llega por http (p.ej. URL persistida antigua), forzamos https para que funcionen cookies Secure.
         try {
           const isHttp = window.location && window.location.protocol === "http:";
           if (isHttp && window.location.host) {
