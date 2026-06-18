@@ -8266,14 +8266,14 @@
 						      const dpr = Math.max(1, Number(window.devicePixelRatio) || 1);
 						      const viewportMax = Math.max(window.innerWidth || 0, window.innerHeight || 0);
 						      const quality = safeText(document.body?.dataset?.pitch3dQuality, 'normal');
-						      if (quality === 'ultra') return Math.min(viewportMax >= 1400 ? 2.65 : 2.05, Math.max(dpr, 1.55));
-						      if (quality === 'high') return Math.min(viewportMax >= 1400 ? 1.95 : 1.65, Math.max(dpr, 1.2));
+						      if (quality === 'ultra') return Math.min(viewportMax >= 1400 ? 3.25 : 2.35, Math.max(dpr, 2));
+						      if (quality === 'high') return Math.min(viewportMax >= 1400 ? 2.6 : 2.0, Math.max(dpr, 1.5));
 						      const budget = safeText(document.body?.dataset?.pitch3dBudget, 'normal');
-						      if (budget === 'economy') return Math.min(viewportMax >= 1100 ? 1.12 : 1.0, dpr);
+						      if (budget === 'economy') return Math.min(1.45, dpr);
 						      const isLargeDesktop = viewportMax >= 1600;
 						      const isDesktop = viewportMax >= 1100;
-						      const maxPixelRatio = isLargeDesktop ? 1.65 : (isDesktop ? 1.4 : 1.2);
-						      const supersampledDpr = isLargeDesktop ? Math.max(dpr, 1.15) : dpr;
+						      const maxPixelRatio = isLargeDesktop ? 3 : (isDesktop ? 2.65 : 2.2);
+						      const supersampledDpr = isLargeDesktop ? Math.max(dpr, 1.5) : dpr;
 						      return Math.min(maxPixelRatio, supersampledDpr);
 						    };
 						    const __pitch3dLoadTextureAsset = (dataKey, onLoad, options = {}) => {
@@ -9197,7 +9197,7 @@
 						        const quality = safeText(document.body?.dataset?.pitch3dQuality, 'normal');
 						        const ultra = quality === 'ultra';
 						        const high = quality === 'high' || ultra;
-						        const economy = !high && (viewportMax < 1180 || meshCount > 900);
+						        const economy = !high && (viewportMax < 900 || meshCount > 1150);
 						        if (document.body) document.body.dataset.pitch3dBudget = economy ? 'economy' : 'normal';
 						        pitch3dPerf.meshCount = meshCount;
 						        pitch3dPerf.budget = economy ? 'economy' : 'normal';
@@ -9226,9 +9226,6 @@
 						            || kind.includes('turnstile_gate')
 						            || kind.includes('entry_gate_light')
 						            || kind.includes('exposed_corner_column')
-						            || kind === 'pitch3d_sky_dome'
-						            || kind === 'pitch3d_sun_disc'
-						            || kind === 'pitch3d_exterior_backdrop'
 						          ) node.visible = ultra || !economy;
 						        });
 						      } catch (e) { /* ignore */ }
@@ -9266,6 +9263,7 @@
 							    let pitch3dAvatarMicroActors = [];
 							    let pitch3dAvatarAnimLastAt = 0;
 							    let pitch3dRendererInitFailed = false;
+							    let pitch3dLastRenderSignature = '';
 
 							    const clearPitch3dGhosts = () => {
 							      if (!pitch3dRoot) return;
@@ -9369,8 +9367,7 @@
 						          dir.castShadow = true;
 							          const viewportMax = Math.max(window.innerWidth || 0, window.innerHeight || 0);
 							          const maxShadowTexture = Number(renderer.capabilities?.maxTextureSize) || 8192;
-							          const quality = safeText(document.body?.dataset?.pitch3dQuality, 'normal');
-							          const desiredShadowSize = quality === 'ultra' ? 4096 : (quality === 'high' ? 3072 : (viewportMax >= 1100 ? 2048 : 1536));
+							          const desiredShadowSize = viewportMax >= 1100 ? 8192 : 4096;
 							          const shadowSize = Math.min(maxShadowTexture, desiredShadowSize);
 							          dir.shadow.mapSize.width = shadowSize;
 							          dir.shadow.mapSize.height = shadowSize;
@@ -9680,14 +9677,9 @@
 						      const meters = pitchMetersForPreset(preset, fieldFormat);
 						      const metersW = meters.w;
 						      const metersH = meters.h;
-						      const perfBudget = safeText(document.body?.dataset?.pitch3dBudget, 'normal');
-						      const perfQuality = safeText(document.body?.dataset?.pitch3dQuality, 'normal');
-						      const economy3d = perfBudget === 'economy' && perfQuality === 'normal';
-						      const high3d = perfQuality === 'high' || perfQuality === 'ultra';
-						      const ultra3d = perfQuality === 'ultra';
 						      const sourceW = Number(options.sourceW) || (Number(worldWidth) || 1280);
 						      const sourceH = Number(options.sourceH) || (Number(worldHeight) || 720);
-							      try { if (!economy3d || high3d) addPitch3dRenderBackdrop(root, metersW, metersH); } catch (e) { /* ignore */ }
+							      try { addPitch3dRenderBackdrop(root, metersW, metersH); } catch (e) { /* ignore */ }
 						      try {
 						        const runtimeStadiumModelSrc = '';
 						      } catch (e) { /* ignore */ }
@@ -9702,11 +9694,9 @@
 						        if (tctx && safeText(pitch3dCameraSelect?.value, 'render_original') === 'render_original') {
 						          const w = texCanvas.width || 1024;
 						          const h = texCanvas.height || 768;
-						          const grainSamples = economy3d ? 2400 : (high3d ? 9800 : 4200);
-						          const bladeSamples = economy3d ? 300 : (high3d ? 1280 : 540);
 						          tctx.save();
 							          tctx.globalAlpha = 0.28;
-							          for (let i = 0; i < grainSamples; i += 1) {
+							          for (let i = 0; i < 9800; i += 1) {
 						            const x = (Math.random() * w) | 0;
 						            const y = (Math.random() * h) | 0;
 							            const g = 86 + ((Math.random() * 92) | 0);
@@ -9714,7 +9704,7 @@
 						            tctx.fillRect(x, y, 1 + ((Math.random() * 3) | 0), 1);
 						          }
 							          tctx.globalAlpha = 0.18;
-							          for (let i = 0; i < bladeSamples; i += 1) {
+							          for (let i = 0; i < 1280; i += 1) {
 						            const x = Math.random() * w;
 						            const y = Math.random() * h;
 						            const len = 10 + Math.random() * 52;
@@ -9747,16 +9737,8 @@
 							        } catch (e) { /* ignore */ }
 							        tex.needsUpdate = true;
 							      }
-							      const pbrW = ultra3d
-							        ? Math.min(4096, Math.max(1536, Math.round(texCanvas?.width || 2048)))
-							        : (high3d
-							          ? Math.min(3072, Math.max(1280, Math.round(texCanvas?.width || 1792)))
-							          : (economy3d ? 1024 : 1536));
-							      const pbrH = ultra3d
-							        ? Math.min(3072, Math.max(1536, Math.round(texCanvas?.height || 1536)))
-							        : (high3d
-							          ? Math.min(2304, Math.max(1024, Math.round(texCanvas?.height || 1344)))
-							          : (economy3d ? 768 : 1152));
+							      const pbrW = Math.min(4096, Math.max(1536, Math.round(texCanvas?.width || 2048)));
+							      const pbrH = Math.min(3072, Math.max(1536, Math.round(texCanvas?.height || 1536)));
 							      const bumpTex = makePitchBumpTexture(pbrW, pbrH);
 							      const normalTex = makePitchNormalTexture(pbrW, pbrH);
 							      const roughnessTex = makePitchRoughnessTexture(pbrW, pbrH);
@@ -9765,7 +9747,7 @@
 							      const isIndoor3d = surfaceKey3d === 'indoor';
 							      const isArtificial3d = surfaceKey3d === 'artificial';
 							      const isBoard3d = ['whiteboard', 'blackboard'].includes(surfaceKey3d);
-							      const groundGeo = new THREE.PlaneGeometry(metersW, metersH, economy3d ? 56 : (high3d ? 128 : 84), economy3d ? 36 : (high3d ? 84 : 54));
+							      const groundGeo = new THREE.PlaneGeometry(metersW, metersH, 128, 84);
 							      try {
 							        const pos = groundGeo.attributes.position;
 							        for (let i = 0; i < pos.count; i += 1) {
@@ -10015,8 +9997,8 @@
 						          root.add(fiber);
 						        } catch (e) { /* ignore */ }
 						      };
-							      if (!economy3d) addPitchWear3d();
-							      if (!economy3d || ultra3d) addGrassFiberSheen3d();
+						      addPitchWear3d();
+						      addGrassFiberSheen3d();
 						      addPitchPaint3d();
 
 						      const addPitchSideDetails3d = () => {
@@ -15909,6 +15891,49 @@
 						      });
 						    } catch (e) { /* ignore */ }
 
+						    const buildPitch3dRenderSignature = (state, options = {}) => {
+						      try {
+						        const objects = Array.isArray(state?.objects) ? state.objects : [];
+						        const routes = (options.routes && typeof options.routes === 'object') ? options.routes : {};
+						        const objectSig = objects.slice(0, 260).map((o, idx) => {
+						          const data = o?.data || {};
+						          return [
+						            idx,
+						            safeText(o?.type),
+						            safeText(data.kind),
+						            Math.round(Number(o?.left) || 0),
+						            Math.round(Number(o?.top) || 0),
+						            Math.round((Number(o?.angle) || 0) * 10),
+						            Math.round((Number(o?.scaleX) || 1) * 100),
+						            Math.round((Number(o?.scaleY) || 1) * 100),
+						            safeText(o?.text || data.label || data.text).slice(0, 32),
+						            safeText(data.playerId || data.layer_uid || data.playerNumber || ''),
+						          ].join(':');
+						        }).join('|');
+						        const routeSig = Object.keys(routes).sort().slice(0, 120).map((key) => {
+						          const route = routes[key] || {};
+						          return [
+						            key,
+						            safeText(route.action),
+						            Array.isArray(route.points) ? route.points.length : 0,
+						          ].join(':');
+						        }).join('|');
+						        return [
+						          safeText(options.preset),
+						          safeText(options.orientation),
+						          safeText(options.grassStyle),
+						          safeText(options.fieldFormat),
+						          Number(options.sourceW) || 0,
+						          Number(options.sourceH) || 0,
+						          Array.isArray(state?.objects) ? state.objects.length : 0,
+						          objectSig,
+						          routeSig,
+						        ].join('~');
+						      } catch (e) {
+						        return `${Date.now()}`;
+						      }
+						    };
+
 						    const updatePitch3dPlaybackButton = () => {
 						      if (!pitch3dPlayBtn) return;
 						      const hasSteps = Array.isArray(timeline) && timeline.length > 1;
@@ -15928,14 +15953,22 @@
 						        pitch3dCurrentStep = 0;
 						        syncPitch3dNavUi(0);
 						        setPitch3dHud('Pizarra', 'Sin escenarios.');
-						        buildPitch3dRoot(serializeCanvasOnly(), {
+						        const state = serializeCanvasOnly();
+						        const renderOptions = {
 						          preset: presetSelect?.value || 'full_pitch',
 						          orientation: pitchOrientation,
 						          grassStyle: pitchGrassStyle,
 						          fieldFormat: pitch3dFormat,
 						          sourceW: Number(worldWidth) || 1280,
 						          sourceH: Number(worldHeight) || 720,
-						        });
+						        };
+						        const signature = buildPitch3dRenderSignature(state, renderOptions);
+						        if (!(pitch3dRoot && signature === pitch3dLastRenderSignature)) {
+						          buildPitch3dRoot(state, renderOptions);
+						          pitch3dLastRenderSignature = signature;
+						        } else {
+						          try { resizePitch3d(); } catch (e) { /* ignore */ }
+						        }
 						        return;
 						      }
 						      const idx = clamp(Number(index) || 0, 0, steps.length - 1);
@@ -15946,7 +15979,7 @@
 						      const step = steps[idx];
 						      const meta = pitch3dStepMetaText(step, idx, steps.length);
 						      setPitch3dHud(step.title, meta);
-						      buildPitch3dRoot(step.state, {
+						      const renderOptions = {
 						        preset: presetSelect?.value || 'full_pitch',
 						        orientation: pitchOrientation,
 						        grassStyle: pitchGrassStyle,
@@ -15958,7 +15991,14 @@
 						        stepDescription: step.description,
 						        stepIndex: idx,
 						        stepsTotal: steps.length,
-						      });
+						      };
+						      const signature = buildPitch3dRenderSignature(step.state, renderOptions);
+						      if (!(pitch3dRoot && signature === pitch3dLastRenderSignature)) {
+						        buildPitch3dRoot(step.state, renderOptions);
+						        pitch3dLastRenderSignature = signature;
+						      } else {
+						        try { resizePitch3d(); } catch (e) { /* ignore */ }
+						      }
 						      if (options.keepFollow !== true) {
 						        if (pitch3dFollowSelect && safeText(pitch3dFollowSelect.value) === 'selected') pitch3dFollowSelect.value = 'off';
 						        pitch3dSelectedUid = '';
@@ -16422,10 +16462,6 @@
 							      }
 							      try {
 							        if (document.body && !document.body.dataset.pitch3dQuality) document.body.dataset.pitch3dQuality = 'normal';
-							        if (document.body && !document.body.dataset.pitch3dBudget) {
-							          const viewportMax = Math.max(window.innerWidth || 0, window.innerHeight || 0);
-							          document.body.dataset.pitch3dBudget = viewportMax < 1180 ? 'economy' : 'normal';
-							        }
 							      } catch (e) { /* ignore */ }
 							      if (!ensurePitch3d()) {
 							        setStatus('No se pudo inicializar la Vista 3D.', true);
@@ -16442,13 +16478,10 @@
 							      try { syncPitch3dLayersUi(); } catch (e) { /* ignore */ }
 							      try { syncPitch3dInsertUi(); } catch (e) { /* ignore */ }
 							      try { syncPitch3dQualityUi(); } catch (e) { /* ignore */ }
-							      try { resizePitch3d(); } catch (e) { /* ignore */ }
-							      try { applyPitch3dLightingTheme(); } catch (e) { /* ignore */ }
 							      stopPitch3dPlayback();
 							      updatePitch3dPlaybackButton();
 							      try { showPitch3dStep(activeStepIndex >= 0 ? activeStepIndex : 0, { keepFollow: false }); } catch (e) { /* ignore */ }
 							      try { applyPitch3dLayerVisibility(); } catch (e) { /* ignore */ }
-							      try { applyPitch3dPerformanceBudget(); } catch (e) { /* ignore */ }
 							      try {
 							        const perfNow = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
 							        window.__WEBSTATS_PITCH3D_OPEN_PERF = Object.assign({}, window.__WEBSTATS_PITCH3D_OPEN_PERF || {}, {
