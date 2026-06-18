@@ -11988,6 +11988,9 @@
 						                target.add(atmosphere);
 						              } catch (e) { /* ignore */ }
 						            };
+                              const dedicatedReferenceModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
+                              const isDedicatedReferenceStadiumModel = isDedicatedPitch3dReferenceStadiumSrc(dedicatedReferenceModelSrc);
+                              const useHandcraftedDedicatedReferenceStadium = true;
 						            const addProfessionalStadiumAsset = () => {
 						              try {
 						                const asset = __pitch3dStadiumModelCache.scene || __pitch3dLoadStadiumModel();
@@ -12107,10 +12110,7 @@
 						                return false;
 						              }
 						            };
-						            if (addProfessionalStadiumAsset()) return;
-                              const dedicatedReferenceModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
-                              const isDedicatedReferenceStadiumModel = isDedicatedPitch3dReferenceStadiumSrc(dedicatedReferenceModelSrc);
-                              const useHandcraftedDedicatedReferenceStadium = true;
+						            if (!useHandcraftedDedicatedReferenceStadium && addProfessionalStadiumAsset()) return;
 						          const addCornerFlag = (x, z, flipX, flipZ) => {
 						            const group = new THREE.Group();
 						            group.position.set(x, 0, z);
