@@ -11988,129 +11988,7 @@
 						                target.add(atmosphere);
 						              } catch (e) { /* ignore */ }
 						            };
-                              const dedicatedReferenceModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
-                              const isDedicatedReferenceStadiumModel = isDedicatedPitch3dReferenceStadiumSrc(dedicatedReferenceModelSrc);
                               const useHandcraftedDedicatedReferenceStadium = true;
-						            const addProfessionalStadiumAsset = () => {
-						              try {
-						                const asset = __pitch3dStadiumModelCache.scene || __pitch3dLoadStadiumModel();
-						                if (!asset) return false;
-						                const stadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
-						                const isDedicatedReferenceStadium = isDedicatedPitch3dReferenceStadiumSrc(stadiumModelSrc);
-						                removeProceduralStadiumParts();
-						                const stadiumAsset = asset.clone(true);
-						                stadiumAsset.name = 'stadium_bowl_premium_asset';
-						                stadiumAsset.userData = { kind: 'pitch_3d_professional_blender_stadium' };
-						                stadiumAsset.traverse((node) => {
-						                  if (!node || !node.isMesh) return;
-						                  try { if (node.geometry) node.geometry = node.geometry.clone(); } catch (e) { /* ignore */ }
-						                  try {
-						                    const normalizeOne = (mat) => normalizeRuntimeStadiumMaterial(node, mat);
-						                    if (Array.isArray(node.material)) {
-						                      node.material = node.material.map((mat) => {
-						                        const runtimeMat = normalizeOne(mat);
-						                        return isDedicatedReferenceStadium ? runtimeMat : tuneProfessionalStadiumMaterial(node, runtimeMat);
-						                      });
-						                    } else if (node.material) {
-						                      const runtimeMat = normalizeOne(node.material);
-						                      node.material = isDedicatedReferenceStadium ? runtimeMat : tuneProfessionalStadiumMaterial(node, runtimeMat);
-						                    }
-						                  } catch (e) { /* ignore */ }
-						                  node.userData = Object.assign({}, node.userData || {}, { kind: isDedicatedReferenceStadium ? 'pitch_3d_dedicated_reference_stadium_mesh' : 'pitch_3d_professional_blender_stadium_mesh' });
-						                  try {
-						                    const meshName = safeText(node?.name || '').toUpperCase();
-						                    const materialName = Array.isArray(node.material)
-						                      ? node.material.map((m) => safeText(m?.name)).join(' ').toUpperCase()
-						                      : safeText(node.material?.name).toUpperCase();
-						                    if (isDedicatedReferenceStadium) {
-						                      node.visible = false;
-						                      node.userData.replaced_by_clean_procedural_dedicated_stadium = true;
-						                      return;
-						                      const quality = safeText(document.body?.dataset?.pitch3dQuality || 'normal');
-						                      const compactViewport = Math.max(window.innerWidth || 0, window.innerHeight || 0) < 900;
-						                      const detailName = `${meshName} ${materialName}`;
-						                      try {
-						                        const box = new THREE.Box3().setFromObject(node);
-						                        const size = box.getSize(new THREE.Vector3());
-						                        const center = box.getCenter(new THREE.Vector3());
-						                        const lowPitchPlate = center.y < 0.18
-						                          && Math.abs(center.x) < 57
-						                          && Math.abs(center.z) < 38
-						                          && size.x > 40
-						                          && size.z > 4;
-						                        const looseLowStrip = center.y < 1.9
-						                          && (Math.abs(center.z) > 34.2 || Math.abs(center.x) > 52.2)
-						                          && Math.max(size.x, size.z) > 18
-						                          && Math.min(size.x, size.z) < 3.2;
-						                        const redundantBackdrop = detailName.includes('REFERENCE_SOFT_SKY_BACKDROP');
-						                        if (lowPitchPlate || looseLowStrip || redundantBackdrop) {
-						                          node.visible = false;
-						                          node.userData.hidden_by_reference_pitch_overlay_cleanup = lowPitchPlate;
-						                          node.userData.hidden_by_reference_loose_strip_cleanup = looseLowStrip;
-						                          node.userData.hidden_by_reference_backdrop_cleanup = redundantBackdrop;
-						                        } else {
-						                          const mats = Array.isArray(node.material) ? node.material : [node.material];
-						                          const setRuntimeMatColor = (color, opts = {}) => {
-						                            mats.forEach((m) => {
-						                              if (!m) return;
-						                              try {
-						                                m.color = new THREE.Color(color);
-						                                m.vertexColors = false;
-						                                if (Number.isFinite(Number(opts.roughness))) m.roughness = Number(opts.roughness);
-						                                if (Number.isFinite(Number(opts.metalness))) m.metalness = Number(opts.metalness);
-						                                if (Number.isFinite(Number(opts.opacity))) {
-						                                  m.opacity = Number(opts.opacity);
-						                                  m.transparent = m.opacity < 0.999;
-						                                }
-						                                if (opts.emissive) {
-						                                  m.emissive = new THREE.Color(opts.emissive);
-						                                  m.emissiveIntensity = Number(opts.emissiveIntensity) || 0.18;
-						                                }
-						                                m.needsUpdate = true;
-						                              } catch (e) { /* ignore */ }
-						                            });
-						                          };
-						                          if (detailName.includes('GLASS')) {
-						                            setRuntimeMatColor(0xc7efff, { roughness: 0.12, metalness: 0.02, opacity: 0.34 });
-						                          } else if (detailName.includes('BOARD') || detailName.includes('PARTNER')) {
-						                            setRuntimeMatColor(0x073f33, { roughness: 0.42, metalness: 0.06, emissive: 0x022c22, emissiveIntensity: 0.10 });
-						                          } else if (center.z > 41 && center.y > 1.8 && center.y < 8.6 && size.x > 32) {
-						                            setRuntimeMatColor(0x047857, { roughness: 0.58, metalness: 0.02 });
-						                          } else if (center.z > 41 && center.y >= 8.6) {
-						                            setRuntimeMatColor(center.y > 17 ? 0xd8ded8 : 0xc9d1cc, { roughness: 0.62, metalness: 0.05 });
-						                          } else if (center.z > 41 || center.z < -35) {
-						                            setRuntimeMatColor(0x9ca79f, { roughness: 0.70, metalness: 0.03 });
-						                          }
-						                        }
-						                      } catch (e) { /* ignore */ }
-						                      if (quality === 'normal' && compactViewport && (
-						                        detailName.includes('CROWD_') ||
-						                        detailName.includes('GRASS_FINE_FIBER') ||
-						                        detailName.includes('GRASS_CLOSE_CUT') ||
-						                        detailName.includes('TOUCHLINE_CAMERA') ||
-						                        detailName.includes('TRAINING_CONE') ||
-						                        detailName.includes('TOUCHLINE_EQUIPMENT')
-						                      )) {
-						                        node.visible = false;
-						                        node.userData.hidden_by_reference_stadium_lod = true;
-						                      }
-						                    }
-						                    if (!isDedicatedReferenceStadium && (meshName.includes('SEAT') || materialName.includes('SEAT') || meshName.includes('TEAM_PRIMARY') || materialName.includes('TEAM_PRIMARY'))) {
-						                      node.visible = false;
-						                      node.userData.replaced_by_instanced_professional_seating = true;
-						                    }
-						                  } catch (e) { /* ignore */ }
-						                  try { node.castShadow = true; node.receiveShadow = true; } catch (e) { /* ignore */ }
-						                });
-						                enhanceProfessionalStadiumAsset(stadiumAsset);
-						                root.add(stadiumAsset);
-						                if (!isDedicatedReferenceStadium) addProfessionalStadiumAtmosphere(stadiumAsset, { dedicatedReference: false });
-						                return true;
-						              } catch (e) {
-						                return false;
-						              }
-						            };
-						            if (!useHandcraftedDedicatedReferenceStadium && addProfessionalStadiumAsset()) return;
 						          const addCornerFlag = (x, z, flipX, flipZ) => {
 						            const group = new THREE.Group();
 						            group.position.set(x, 0, z);
@@ -12149,7 +12027,7 @@
 						      };
 						      addPitchSideDetails3d();
 						      try {
-						        if (isDedicatedReferenceStadiumModel || useHandcraftedDedicatedReferenceStadium) {
+						        if (useHandcraftedDedicatedReferenceStadium) {
 						          const dedicatedFinish = new THREE.Group();
 						          dedicatedFinish.userData = { kind: 'pitch_3d_dedicated_reference_completion_layer' };
 						          const concreteMat = new THREE.MeshStandardMaterial({ color: 0xcfd6d1, roughness: 0.76, metalness: 0.03 });
