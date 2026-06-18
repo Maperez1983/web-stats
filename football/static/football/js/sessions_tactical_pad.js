@@ -4457,10 +4457,14 @@
 					      dry: 'Seco',
 					      wet: 'Mojado',
 					    };
-					    const GRASS_STYLE_ORDER = ['stadium_close', 'stadium_top', 'stadium_full', 'stadium_premium', 'classic', 'broadcast', 'realistic', 'pro', 'uefa_b', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet'];
-					    const normalizeGrassStyleForMode = (value) => {
+					    const STADIUM_3D_GRASS_STYLES = ['stadium_close', 'stadium_top', 'stadium_full', 'stadium_premium'];
+					    const GRASS_STYLE_ORDER = [...STADIUM_3D_GRASS_STYLES, 'classic', 'broadcast', 'realistic', 'pro', 'uefa_b', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet'];
+					    const currentPitch3dFormatValue = () => safeText(document.getElementById('task-pitch-3d-format')?.value, 'f11').toLowerCase();
+					    const normalizeGrassStyleForMode = (value, options = {}) => {
 					      const next = safeText(value, 'stadium_top').toLowerCase();
 					      if (!GRASS_STYLE_ORDER.includes(next)) return 'stadium_top';
+					      const format = safeText(options?.format, currentPitch3dFormatValue()).toLowerCase();
+					      if (format !== 'f11' && STADIUM_3D_GRASS_STYLES.includes(next)) return 'classic';
 					      return next;
 					    };
 					    let pitchGrassStyle = normalizeGrassStyleForMode(grassStyleInput?.value);
@@ -19103,9 +19107,9 @@
 						      pitch3dFormat = normalizePitch3dFormat(pitch3dFormatSelect?.value);
 						      syncPitch3dFormatUi();
 						      try {
-						        if (pitch3dSurfaceSelect && pitch3dFormat !== 'f11' && ['stadium_top', 'stadium_premium'].includes(safeText(pitch3dSurfaceSelect.value, '').toLowerCase())) {
-						          pitch3dSurfaceSelect.value = 'classic';
-						          pitchGrassStyle = 'classic';
+						        const nextGrassStyle = normalizeGrassStyleForMode(pitchGrassStyle, { format: pitch3dFormat });
+						        if (nextGrassStyle !== pitchGrassStyle) {
+						          pitchGrassStyle = nextGrassStyle;
 						          syncGrassUi();
 						        }
 						      } catch (e) { /* ignore */ }
@@ -19120,7 +19124,7 @@
 						    });
 						    pitch3dSurfaceSelect?.addEventListener('change', () => {
 						      const next = safeText(pitch3dSurfaceSelect?.value, 'classic').trim().toLowerCase();
-						      pitchGrassStyle = normalizeGrassStyleForMode(next);
+						      pitchGrassStyle = normalizeGrassStyleForMode(next, { format: pitch3dFormat });
 						      syncGrassUi();
 						      try { applyPitchSurface(pitchPreset || presetSelect?.value || 'full_pitch', pitchOrientation, pitchGrassStyle); } catch (e) { /* ignore */ }
 						      try { refreshLivePreview(); } catch (e) { /* ignore */ }
