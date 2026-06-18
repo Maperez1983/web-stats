@@ -96,6 +96,12 @@ def build_ai_trainer_context(*, team_name, profile, phase, goal, signals, club_m
         uefa_c_knowledge = uefa_c_context_for_prompt()
     except Exception:
         uefa_c_knowledge = {}
+    try:
+        from .fifa11_injury_knowledge import fifa11_injury_context_for_prompt
+
+        fifa11_injury_knowledge = fifa11_injury_context_for_prompt()
+    except Exception:
+        fifa11_injury_knowledge = {}
 
     return {
         'team': str(team_name or '')[:120],
@@ -121,6 +127,7 @@ def build_ai_trainer_context(*, team_name, profile, phase, goal, signals, club_m
         'task_space_knowledge': task_space_knowledge if isinstance(task_space_knowledge, dict) else {},
         'uefa_b_task_methodology': uefa_b_knowledge if isinstance(uefa_b_knowledge, dict) else {},
         'uefa_c_task_methodology': uefa_c_knowledge if isinstance(uefa_c_knowledge, dict) else {},
+        'fifa11_injury_prevention': fifa11_injury_knowledge if isinstance(fifa11_injury_knowledge, dict) else {},
         'external_web_research': web_research if isinstance(web_research, list) else [],
         'candidate_tasks': suggested_tasks,
         'rule_proposals': [
@@ -156,6 +163,8 @@ def build_ai_trainer_prompt(context):
         'conexion con partido, feedback, nivel del jugador y estructura de sesion. '
         'Si uefa_c_task_methodology esta presente, usalo especialmente para tareas formativas: un objetivo claro, pocos contenidos, '
         'progresion, variantes, toma de decision, seguridad, motivacion y adaptacion al nivel del jugador. '
+        'Si fifa11_injury_prevention esta presente, usalo para calentamientos FIFA 11+, prevencion de lesiones, adaptacion por edad, '
+        'control de riesgos y retorno progresivo; no diagnostiques ni des altas medicas. '
         'Si external_web_research contiene fuentes ok=true, úsalo como información web aportada por el sistema, '
         'citando la fuente por título o dominio cuando afecte a una recomendación. '
         'Si una fuente tiene ok=false, ignórala salvo para advertir que no pudo consultarse. '
