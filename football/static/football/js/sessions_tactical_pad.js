@@ -16980,7 +16980,8 @@
 						        if (fieldFormat !== 'f11') {
 						          try {
 						            const coverMat = new THREE.MeshStandardMaterial({ color: 0x5f8f42, roughness: 0.88, metalness: 0.01 });
-						            const cover = new THREE.Mesh(new THREE.PlaneGeometry(metersW + 18, metersH + 18), coverMat);
+						            const coverSize = Math.max(220, Math.max(metersW, metersH) * 4.2);
+						            const cover = new THREE.Mesh(new THREE.PlaneGeometry(coverSize, coverSize), coverMat);
 						            cover.rotation.x = -Math.PI / 2;
 						            cover.position.y = 0.02;
 						            cover.userData = { kind: 'pitch_3d_nonf11_context_cover' };
