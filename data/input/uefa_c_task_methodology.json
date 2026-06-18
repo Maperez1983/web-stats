@@ -1,0 +1,151 @@
+{
+  "version": "2026-06-18",
+  "title": "UEFA C - temario base para diseno de tareas formativas",
+  "source_note": "Sintesis operativa creada a partir de los modulos UEFA C aportados por el usuario. No reproduce contenido extenso de los documentos.",
+  "import_summary": {
+    "local_folder": "/Volumes/Mac Satecchi/Mac/Downloads/UEFA C",
+    "pdf_documents_detected": 22,
+    "pdf_documents_imported_locally": 15,
+    "duplicates_skipped_locally": 7,
+    "assistant_blueprints_created_locally": 44,
+    "unsupported_files_note": "La plantilla PPTX y .DS_Store no se importan con el importador actual."
+  },
+  "course_areas": [
+    "Entrenador: filosofia, valores, metodologia, planificacion, imparticion y revision.",
+    "Entorno: organizacion, clima de motivacion, cuidado y bienestar.",
+    "Jugador: conocimiento del jugador, capacidades futbolisticas individuales, desarrollo fisico, psicologico y social.",
+    "Juego: jugadores, entrenamiento, formato de juego y entorno de partidos."
+  ],
+  "formative_task_principles": [
+    "En edades de formacion, usar un objetivo principal por tarea y pocos contenidos asociados.",
+    "El objetivo debe redactarse con verbo de accion y relacionarse con el contenido que realmente se entrena.",
+    "No corregirlo todo: las consignas y feedback deben apuntar al objetivo principal.",
+    "La sesion debe progresar de menor a mayor dificultad, de menos a mas jugadores y de menor a mayor complejidad cognitiva.",
+    "La presencia de balon debe ser alta, especialmente en etapas iniciales.",
+    "El calentamiento debe preparar el gesto, la decision o el comportamiento que aparecera despues.",
+    "El cambio entre tareas no debe romper la atencion ni reducir demasiado el compromiso motor.",
+    "La tarea debe admitir variantes para facilitar o dificultar segun la respuesta del jugador."
+  ],
+  "session_structure": [
+    {
+      "phase": "introduccion",
+      "purpose": "Presentar brevemente que se va a trabajar y que debe observar el jugador.",
+      "coaching_focus": ["objetivo claro", "lenguaje simple", "conectar con partido o juego real"]
+    },
+    {
+      "phase": "adaptacion",
+      "purpose": "Activar fisica y psicologicamente con una tarea conectada al objetivo principal.",
+      "coaching_focus": ["balon presente", "intensidad moderada-creciente", "gesto o decision relacionada"]
+    },
+    {
+      "phase": "principal",
+      "purpose": "Desarrollar el objetivo con 2-4 tareas como maximo, progresando dificultad y numero de relaciones.",
+      "coaching_focus": ["progresion", "variabilidad", "toma de decision", "tiempo efectivo alto"]
+    },
+    {
+      "phase": "cierre",
+      "purpose": "Repasar el objetivo, bajar carga si procede y hacer reflexionar al jugador.",
+      "coaching_focus": ["preguntas", "feedback corto", "criterio de exito", "bienestar"]
+    }
+  ],
+  "task_design_controls": [
+    {
+      "key": "objective",
+      "label": "Objetivo",
+      "check": "Debe decir que comportamiento concreto queremos provocar."
+    },
+    {
+      "key": "contents",
+      "label": "Contenidos",
+      "check": "Acciones tecnicas, intenciones tacticas o principios vinculados al objetivo."
+    },
+    {
+      "key": "rules",
+      "label": "Reglas",
+      "check": "Condicionantes que guian la conducta sin quitar naturalidad al juego."
+    },
+    {
+      "key": "space_players",
+      "label": "Espacio y jugadores",
+      "check": "Deben ajustarse al nivel y a la relacion que se quiere entrenar: jugador, jugadores, sector, intersector o equipo."
+    },
+    {
+      "key": "feedback",
+      "label": "Consignas",
+      "check": "Pocas, concretas y directamente relacionadas con el objetivo."
+    },
+    {
+      "key": "progression",
+      "label": "Progresion",
+      "check": "Debe existir una variante facil y una variante dificil."
+    }
+  ],
+  "task_scales": [
+    {
+      "key": "player",
+      "label": "Objetivo jugador",
+      "use_for": ["conduccion", "pase", "control orientado", "proteccion", "entrada", "perfil corporal"],
+      "recommendation": "Usar pocos jugadores, mucho contacto con balon y oposicion adaptada."
+    },
+    {
+      "key": "players",
+      "label": "Objetivo jugadores",
+      "use_for": ["apoyos", "lineas de pase", "superioridad", "ayuda mutua", "marcaje cercano"],
+      "recommendation": "Crear relaciones simples 2v1, 2v2, 3v2, 3v3 con decisiones claras."
+    },
+    {
+      "key": "sector",
+      "label": "Sectorial",
+      "use_for": ["progresar", "defender zona", "crear y ocupar espacio", "finalizar"],
+      "recommendation": "Entrenar zonas o carriles concretos con roles reconocibles."
+    },
+    {
+      "key": "intersector",
+      "label": "Intersectorial",
+      "use_for": ["relaciones entre lineas", "equilibrio", "transiciones", "cambios de orientacion"],
+      "recommendation": "Aumentar jugadores y espacio solo cuando el grupo entienda las relaciones previas."
+    },
+    {
+      "key": "full_structure",
+      "label": "Estructura completa",
+      "use_for": ["modelo de juego", "partido condicionado", "transferencia competitiva"],
+      "recommendation": "Usar cuando el objetivo necesita comportamiento colectivo global."
+    }
+  ],
+  "individual_capabilities": {
+    "attack": ["control orientado", "conduccion", "pase", "regate", "proteccion", "remate", "desmarque", "perfil corporal"],
+    "defense": ["entrada", "interceptacion", "marcaje", "orientacion defensiva", "temporizacion", "cobertura"],
+    "decision": ["mirar antes de recibir", "elegir progresar o conservar", "crear linea de pase", "alejarse o acercarse al nucleo del juego"]
+  },
+  "learning_climate": [
+    "El entrenador debe crear un clima de seguridad, motivacion y participacion.",
+    "El refuerzo debe ser concreto y vinculado al comportamiento observado.",
+    "La tarea debe retar sin bloquear: si hay frustracion excesiva, simplificar.",
+    "El jugador debe participar con autonomia progresiva: preguntas, retos y descubrimiento guiado.",
+    "Cuidar bienestar, hidratacion, descanso, seguridad y adaptacion a maduracion."
+  ],
+  "ollama_usage_rules": [
+    "Cuando el usuario pida una tarea para base, priorizar sencillez, un objetivo y maximo dos contenidos.",
+    "Cuando el usuario pida progresiones, proponer variante facil, variante dificil y criterio de exito observable.",
+    "Cuando el usuario pida revisar una tarea, comprobar objetivo, contenidos, reglas, espacio, jugadores, consignas, progresion y transferencia.",
+    "Cuando el usuario pida sesion completa, construir introduccion, adaptacion, parte principal y cierre.",
+    "No proponer tareas analiticas sin decision si el objetivo es tactico o de juego."
+  ],
+  "pdf_modules": [
+    "Filosofia, valores y creencias",
+    "Metodologia y didactica de la ensenanza",
+    "Planificacion, imparticion y revision",
+    "Organizacion",
+    "Clima de motivacion",
+    "Cuidado y bienestar",
+    "Conocimiento de los jugadores",
+    "Capacidades futbolisticas individuales",
+    "Desarrollo fisico",
+    "Desarrollo psicologico",
+    "Desarrollo social",
+    "Jugadores",
+    "Entrenamiento",
+    "Formato de juego",
+    "Entorno de partidos"
+  ]
+}

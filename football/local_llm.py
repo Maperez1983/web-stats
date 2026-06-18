@@ -90,6 +90,12 @@ def build_ai_trainer_context(*, team_name, profile, phase, goal, signals, club_m
         uefa_b_knowledge = uefa_b_context_for_prompt()
     except Exception:
         uefa_b_knowledge = {}
+    try:
+        from .uefa_c_knowledge import uefa_c_context_for_prompt
+
+        uefa_c_knowledge = uefa_c_context_for_prompt()
+    except Exception:
+        uefa_c_knowledge = {}
 
     return {
         'team': str(team_name or '')[:120],
@@ -114,6 +120,7 @@ def build_ai_trainer_context(*, team_name, profile, phase, goal, signals, club_m
         'learning_memory': learning_memory if isinstance(learning_memory, dict) else {},
         'task_space_knowledge': task_space_knowledge if isinstance(task_space_knowledge, dict) else {},
         'uefa_b_task_methodology': uefa_b_knowledge if isinstance(uefa_b_knowledge, dict) else {},
+        'uefa_c_task_methodology': uefa_c_knowledge if isinstance(uefa_c_knowledge, dict) else {},
         'external_web_research': web_research if isinstance(web_research, list) else [],
         'candidate_tasks': suggested_tasks,
         'rule_proposals': [
@@ -147,6 +154,8 @@ def build_ai_trainer_prompt(context):
         'orientacion condicional de juegos reducidos y ajustes de dimensiones. '
         'Si uefa_b_task_methodology esta presente, usalo para revisar calidad de tareas, clima de aprendizaje, formatos didacticos, '
         'conexion con partido, feedback, nivel del jugador y estructura de sesion. '
+        'Si uefa_c_task_methodology esta presente, usalo especialmente para tareas formativas: un objetivo claro, pocos contenidos, '
+        'progresion, variantes, toma de decision, seguridad, motivacion y adaptacion al nivel del jugador. '
         'Si external_web_research contiene fuentes ok=true, úsalo como información web aportada por el sistema, '
         'citando la fuente por título o dominio cuando afecte a una recomendación. '
         'Si una fuente tiene ok=false, ignórala salvo para advertir que no pudo consultarse. '
