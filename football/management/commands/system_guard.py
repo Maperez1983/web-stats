@@ -84,6 +84,11 @@ class Command(BaseCommand):
                 self.stdout.write(f"  applied: {item.get('issue_id')} · {item.get('action')} · {item.get('path') or ''}")
             for item in (autofix.get("skipped") or [])[:20]:
                 self.stdout.write(f"  skipped: {item.get('issue_id')} · {item.get('reason') or item.get('error') or ''}")
+            preventive = autofix.get("preventive_maintenance") or {}
+            for item in (preventive.get("applied") or [])[:20]:
+                self.stdout.write(f"  preventive-applied: {item.get('issue_id')} · {item.get('action')}")
+            for item in (preventive.get("skipped") or [])[:20]:
+                self.stdout.write(f"  preventive-skipped: {item.get('issue_id')} · {item.get('reason') or item.get('error') or ''}")
 
         smoke = report.get("evidence", {}).get("smoke", {})
         if smoke.get("requested"):

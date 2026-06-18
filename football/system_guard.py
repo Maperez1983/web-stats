@@ -83,6 +83,19 @@ CORE_ASSET_MAP = {
     },
 }
 
+MAINTENANCE_COMMANDS = {
+    "regenerate_task_previews": {
+        "label": "Regenerar previews de tareas",
+        "command": "regenerate_task_previews",
+        "safe_args": {"only": "sessions", "limit": 12, "force": True},
+    },
+    "ai_trainer_reindex": {
+        "label": "Reindexado IA Trainer",
+        "command": "ai_trainer_reindex",
+        "safe_args": {"limit": 120, "force": True},
+    },
+}
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -148,6 +161,18 @@ def _asset_inventory() -> dict:
             "path": str(path),
             "ok": path.exists(),
             "size": int(path.stat().st_size) if path.exists() else 0,
+        }
+    return out
+
+
+def _maintenance_inventory() -> dict:
+    out = {}
+    for key, meta in MAINTENANCE_COMMANDS.items():
+        out[key] = {
+            "label": meta.get("label"),
+            "command": str(meta.get("command") or ""),
+            "safe_args": dict(meta.get("safe_args") or {}),
+            "available": True,
         }
     return out
 
@@ -271,6 +296,7 @@ def collect_system_guard_evidence(*, run_smoke: bool = False, smoke_verbosity: i
     inventory = _module_inventory()
     route_inventory = _route_inventory()
     asset_inventory = _asset_inventory()
+    maintenance_inventory = _maintenance_inventory()
     cfg = local_llm_config()
     ollama_probe = _probe_ollama(cfg)
     evidence = {
@@ -279,6 +305,7 @@ def collect_system_guard_evidence(*, run_smoke: bool = False, smoke_verbosity: i
         "module_inventory": inventory,
         "route_inventory": route_inventory,
         "asset_inventory": asset_inventory,
+        "maintenance_inventory": maintenance_inventory,
         "local_llm": {
             "enabled": bool(cfg.get("enabled")),
             "provider": str(cfg.get("provider") or ""),
@@ -380,6 +407,16 @@ def _derive_issues(evidence: dict) -> list[dict]:
             message=f"Falta el asset crítico {key}.",
             detail=path_value,
         ))
+    for key, item in (evidence.get("maintenance_inventory") or {}).items():
+        if not isinstance(item, dict) or item.get("available"):
+            continue
+        issues.append(_issue(
+            f"maintenance_unavailable_{key}",
+            severity="warning",
+            area="maintenance",
+            message=f"No está disponible el comando de mantenimiento {key}.",
+            detail=item.get("command"),
+        ))
     llm = evidence.get("local_llm") if isinstance(evidence.get("local_llm"), dict) else {}
     probe = llm.get("probe") if isinstance(llm.get("probe"), dict) else {}
     if llm.get("enabled") and not probe.get("reachable"):
@@ -397,6 +434,8 @@ def _derive_issues(evidence: dict) -> list[dict]:
             area="local_llm",
             message="Ollama responde pero el modelo configurado no está cargado.",
             detail=probe.get("model"),
+            autofix=True,
+            autofix_key=f"ollama_pull:{probe.get('model')}",
         ))
     smoke = evidence.get("smoke") if isinstance(evidence.get("smoke"), dict) else {}
     for key, item in (smoke.get("results") or {}).items():
@@ -423,6 +462,79 @@ def _autofix_create_path(target_path: str) -> dict:
         return {"ok": False, "path": str(path), "error": f"{exc.__class__.__name__}: {exc}"}
 
 
+def _run_management_command(command_name: str, **kwargs) -> dict:
+    stdout = StringIO()
+    stderr = StringIO()
+    try:
+        call_command(command_name, stdout=stdout, stderr=stderr, verbosity=1, **kwargs)
+        return {
+            "ok": True,
+            "command": command_name,
+            "kwargs": kwargs,
+            "stdout": stdout.getvalue()[-6000:],
+            "stderr": stderr.getvalue()[-3000:],
+        }
+    except SystemExit as exc:
+        code = int(exc.code or 1) if str(exc.code or "").isdigit() else 1
+        return {
+            "ok": False,
+            "command": command_name,
+            "kwargs": kwargs,
+            "exit_code": code,
+            "stdout": stdout.getvalue()[-6000:],
+            "stderr": stderr.getvalue()[-3000:],
+        }
+    except Exception as exc:
+        return {
+            "ok": False,
+            "command": command_name,
+            "kwargs": kwargs,
+            "error": f"{exc.__class__.__name__}: {exc}",
+            "stdout": stdout.getvalue()[-6000:],
+            "stderr": stderr.getvalue()[-3000:],
+        }
+
+
+def _autofix_regenerate_task_previews() -> dict:
+    result = _run_management_command("regenerate_task_previews", only="sessions", limit=12, force=True)
+    result["action"] = "regenerate_task_previews"
+    return result
+
+
+def _autofix_ai_trainer_reindex() -> dict:
+    result = _run_management_command("ai_trainer_reindex", limit=120, force=True)
+    result["action"] = "ai_trainer_reindex"
+    return result
+
+
+def _autofix_ollama_pull(model_name: str) -> dict:
+    model = str(model_name or "").strip()
+    if not model:
+        return {"ok": False, "error": "empty_model"}
+    cfg = local_llm_config()
+    base_url = str(cfg.get("base_url") or "").rstrip("/")
+    body = json.dumps({"name": model, "stream": False}).encode("utf-8")
+    req = urllib.request.Request(
+        f"{base_url}/api/pull",
+        data=body,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=max(10, int(cfg.get("timeout") or 45))) as resp:
+            payload = json.loads(resp.read().decode("utf-8") or "{}")
+        return {
+            "ok": True,
+            "action": "ollama_pull",
+            "model": model,
+            "detail": payload,
+        }
+    except urllib.error.HTTPError as exc:
+        return {"ok": False, "action": "ollama_pull", "model": model, "error": f"ollama_http_{exc.code}"}
+    except Exception as exc:
+        return {"ok": False, "action": "ollama_pull", "model": model, "error": f"{exc.__class__.__name__}: {exc}"}
+
+
 def _apply_autofix(issue: dict) -> dict:
     autofix_key = str(issue.get("autofix_key") or "").strip()
     if not autofix_key:
@@ -432,6 +544,19 @@ def _apply_autofix(issue: dict) -> dict:
         result = _autofix_create_path(target)
         result["issue_id"] = issue.get("id")
         result["action"] = "create_path"
+        return result
+    if autofix_key == "maintenance:regenerate_task_previews":
+        result = _autofix_regenerate_task_previews()
+        result["issue_id"] = issue.get("id")
+        return result
+    if autofix_key == "maintenance:ai_trainer_reindex":
+        result = _autofix_ai_trainer_reindex()
+        result["issue_id"] = issue.get("id")
+        return result
+    if autofix_key.startswith("ollama_pull:"):
+        model = autofix_key.split(":", 1)[1]
+        result = _autofix_ollama_pull(model)
+        result["issue_id"] = issue.get("id")
         return result
     return {"ok": False, "issue_id": issue.get("id"), "error": "unsupported_autofix"}
 
@@ -443,6 +568,21 @@ def _apply_autofixes(issues: list[dict]) -> dict:
         if not issue.get("autofix"):
             skipped.append({"issue_id": issue.get("id"), "reason": "not_autofixable"})
             continue
+        result = _apply_autofix(issue)
+        if result.get("ok"):
+            applied.append(result)
+        else:
+            skipped.append(result)
+    return {"applied": applied, "skipped": skipped}
+
+
+def _run_proactive_maintenance() -> dict:
+    applied = []
+    skipped = []
+    for issue in (
+        {"id": "preventive_regenerate_task_previews", "autofix_key": "maintenance:regenerate_task_previews"},
+        {"id": "preventive_ai_trainer_reindex", "autofix_key": "maintenance:ai_trainer_reindex"},
+    ):
         result = _apply_autofix(issue)
         if result.get("ok"):
             applied.append(result)
@@ -494,6 +634,7 @@ def run_system_guard(
         "applied": [],
         "skipped": [],
         "reran_after_fix": False,
+        "preventive_maintenance": {"applied": [], "skipped": []},
     }
 
     evidence = initial_evidence
@@ -502,7 +643,9 @@ def run_system_guard(
         fix_result = _apply_autofixes(initial_issues)
         autofix["applied"] = fix_result.get("applied") or []
         autofix["skipped"] = fix_result.get("skipped") or []
-        if autofix["applied"]:
+        maintenance_result = _run_proactive_maintenance()
+        autofix["preventive_maintenance"] = maintenance_result
+        if autofix["applied"] or maintenance_result.get("applied"):
             autofix["reran_after_fix"] = True
             evidence = collect_system_guard_evidence(run_smoke=run_smoke, smoke_verbosity=smoke_verbosity)
             issues = _derive_issues(evidence)
