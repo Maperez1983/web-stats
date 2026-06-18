@@ -591,13 +591,50 @@ def _run_proactive_maintenance() -> dict:
     return {"applied": applied, "skipped": skipped}
 
 
+def _compact_evidence_for_llm(evidence: dict, issues: list[dict]) -> dict:
+    health = evidence.get("healthcheck") if isinstance(evidence.get("healthcheck"), dict) else {}
+    route_inventory = evidence.get("route_inventory") if isinstance(evidence.get("route_inventory"), dict) else {}
+    asset_inventory = evidence.get("asset_inventory") if isinstance(evidence.get("asset_inventory"), dict) else {}
+    smoke = evidence.get("smoke") if isinstance(evidence.get("smoke"), dict) else {}
+    local_llm = evidence.get("local_llm") if isinstance(evidence.get("local_llm"), dict) else {}
+    return {
+        "environment": evidence.get("environment"),
+        "healthcheck": {
+            "ok": bool(health.get("ok")),
+            "database": health.get("database"),
+            "paths": {
+                key: value for key, value in (health.get("paths") or {}).items()
+                if isinstance(value, dict) and not value.get("ok")
+            },
+            "dependencies": {
+                key: value for key, value in (health.get("dependencies") or {}).items()
+                if isinstance(value, dict) and not value.get("ok")
+            },
+        },
+        "routes_with_errors": {
+            key: value for key, value in route_inventory.items()
+            if isinstance(value, dict) and not value.get("ok")
+        },
+        "assets_with_errors": {
+            key: value for key, value in asset_inventory.items()
+            if isinstance(value, dict) and not value.get("ok")
+        },
+        "local_llm_probe": local_llm.get("probe"),
+        "smoke_failures": {
+            key: value for key, value in (smoke.get("results") or {}).items()
+            if isinstance(value, dict) and not value.get("ok")
+        },
+        "issues": issues or [],
+    }
+
+
 def build_system_guard_prompt(evidence: dict, issues: list[dict]) -> str:
-    payload = json.dumps(evidence or {}, ensure_ascii=False, separators=(",", ":"))
-    issues_payload = json.dumps(issues or [], ensure_ascii=False, separators=(",", ":"))
+    compact = _compact_evidence_for_llm(evidence, issues)
+    payload = json.dumps(compact, ensure_ascii=False, separators=(",", ":"))
     return (
         "Eres un revisor senior de fiabilidad para una plataforma SaaS de fútbol. "
         "No eres un asistente conversacional; actúas como una capa de control del sistema. "
-        "Analiza SOLO la evidencia JSON y la lista de incidencias detectadas por el sistema. "
+        "Analiza SOLO la evidencia JSON compacta y la lista de incidencias detectadas por el sistema. "
         "Debes detectar fallos actuales, riesgos probables, huecos de cobertura y priorizar reparación preventiva. "
         "No inventes endpoints ni checks no presentes en la evidencia. "
         "Devuelve SOLO JSON válido con estas claves exactas: "
@@ -608,7 +645,7 @@ def build_system_guard_prompt(evidence: dict, issues: list[dict]) -> str:
         "watch_modules debe listar {module, reason}. "
         "autofix_candidates debe listar {issue_id, why_now, safe_if_known}. "
         "Sé directo, técnico y en español.\n\n"
-        f"EVIDENCE_JSON={payload}\nISSUES_JSON={issues_payload}"
+        f"EVIDENCE_JSON={payload}"
     )
 
 

@@ -8,6 +8,14 @@ DEFAULT_OLLAMA_URL = 'http://127.0.0.1:11434'
 DEFAULT_QWEN_MODEL = 'qwen3:8b'
 
 
+def _ollama_prompt_for_model(prompt, model):
+    text = str(prompt or '').strip()
+    model_name = str(model or '').strip().lower()
+    if model_name.startswith('qwen3') and not text.startswith('/no_think'):
+        return f'/no_think {text}'
+    return text
+
+
 def local_llm_config():
     provider = str(os.getenv('AI_TRAINER_LOCAL_LLM_PROVIDER') or 'ollama').strip().lower()
     enabled = str(os.getenv('AI_TRAINER_LOCAL_LLM_ENABLED') or '1').strip().lower() not in {'0', 'false', 'no', 'off'}
@@ -181,9 +189,10 @@ def build_ai_trainer_prompt(context):
 def call_ollama_json(prompt, *, model=None, base_url=None, timeout=8):
     model = str(model or DEFAULT_QWEN_MODEL).strip() or DEFAULT_QWEN_MODEL
     base_url = str(base_url or DEFAULT_OLLAMA_URL).strip().rstrip('/') or DEFAULT_OLLAMA_URL
+    final_prompt = _ollama_prompt_for_model(prompt, model)
     body = {
         'model': model,
-        'prompt': str(prompt or ''),
+        'prompt': final_prompt,
         'stream': False,
         'format': 'json',
         'options': {
@@ -214,6 +223,8 @@ def call_ollama_json(prompt, *, model=None, base_url=None, timeout=8):
     parsed = _json_from_text(response)
     if not isinstance(parsed, dict):
         return None, 'ollama_invalid_json'
+    if set(parsed.keys()) == {'error'} and model.lower().startswith('qwen3') and not str(prompt or '').strip().startswith('/no_think'):
+        return call_ollama_json(final_prompt, model=model, base_url=base_url, timeout=timeout)
     return parsed, ''
 
 
