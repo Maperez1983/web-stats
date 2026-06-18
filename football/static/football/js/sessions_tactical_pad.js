@@ -2140,6 +2140,46 @@
 			        pitch3dModal.style.zIndex = '2147482600';
 			      }
 			    } catch (e) { /* ignore */ }
+			    const ensurePitch3dFallbackNotice = () => {
+			      try {
+			        let notice = document.getElementById('task-pitch-3d-fallback');
+			        if (notice) return notice;
+			        const body = pitch3dModal?.querySelector?.('.sim-3d-body');
+			        if (!body) return null;
+			        notice = document.createElement('div');
+			        notice.id = 'task-pitch-3d-fallback';
+			        notice.hidden = true;
+			        notice.setAttribute('role', 'status');
+			        notice.style.position = 'absolute';
+			        notice.style.inset = '0';
+			        notice.style.display = 'none';
+			        notice.style.alignItems = 'center';
+			        notice.style.justifyContent = 'center';
+			        notice.style.padding = '1.25rem';
+			        notice.style.background = 'radial-gradient(circle at 50% 22%, rgba(14,165,233,0.14), rgba(15,23,42,0.96) 58%)';
+			        notice.style.zIndex = '4';
+			        notice.innerHTML = [
+			          '<div style="max-width:min(560px,92%); display:grid; gap:0.7rem; padding:1rem 1.1rem; border-radius:14px; border:1px solid rgba(255,255,255,0.14); background:rgba(2,6,23,0.72); box-shadow:0 16px 48px rgba(0,0,0,0.36);">',
+			          '  <strong id="task-pitch-3d-fallback-title" style="font-size:1rem; color:rgba(248,250,252,0.96);">No se ha podido abrir la vista 3D</strong>',
+			          '  <span id="task-pitch-3d-fallback-text" style="font-size:0.92rem; line-height:1.45; color:rgba(226,232,240,0.92);">El navegador no ha podido crear el contexto WebGL necesario para renderizar el estadio.</span>',
+			          '</div>',
+			        ].join('');
+			        body.appendChild(notice);
+			        return notice;
+			      } catch (e) {
+			        return null;
+			      }
+			    };
+			    const setPitch3dFallbackVisible = (visible, title, text) => {
+			      const notice = ensurePitch3dFallbackNotice();
+			      if (!notice) return;
+			      const titleEl = notice.querySelector('#task-pitch-3d-fallback-title');
+			      const textEl = notice.querySelector('#task-pitch-3d-fallback-text');
+			      if (titleEl && title) titleEl.textContent = title;
+			      if (textEl && text) textEl.textContent = text;
+			      notice.hidden = !visible;
+			      notice.style.display = visible ? 'flex' : 'none';
+			    };
 			    const videoLoadBtn = document.getElementById('task-video-load');
 			    const videoClearBtn = document.getElementById('task-video-clear');
 			    const videoFileInput = document.getElementById('task-video-file');
@@ -16456,7 +16496,19 @@
 							    };
 
 						    const openPitch3d = () => {
+							      try {
+							        if (pitch3dModal) {
+							          pitch3dModal.hidden = false;
+							          pitch3dModal.style.display = '';
+							        }
+							        setPitch3dFallbackVisible(false);
+							      } catch (e) { /* ignore */ }
 							      if (!canUsePitch3d()) {
+							        setPitch3dFallbackVisible(
+							          true,
+							          'Vista 3D no disponible',
+							          'Este navegador o dispositivo no ofrece las capacidades mínimas para abrir la representación 3D.'
+							        );
 							        setStatus('Vista 3D no disponible en este dispositivo/navegador.', true);
 							        return;
 							      }
@@ -16464,12 +16516,17 @@
 							        if (document.body && !document.body.dataset.pitch3dQuality) document.body.dataset.pitch3dQuality = 'normal';
 							      } catch (e) { /* ignore */ }
 							      if (!ensurePitch3d()) {
+							        const rendererError = safeText(window.__WEBSTATS_PITCH3D_RENDERER_ERROR, 'No se ha podido crear el contexto WebGL.');
+							        setPitch3dFallbackVisible(
+							          true,
+							          'No se ha podido inicializar la vista 3D',
+							          rendererError
+							        );
 							        setStatus('No se pudo inicializar la Vista 3D.', true);
 							        return;
 							      }
 							      pitch3dOpen = true;
-							      pitch3dModal.hidden = false;
-							      try { pitch3dModal.style.display = ''; } catch (e) { /* ignore */ }
+							      try { setPitch3dFallbackVisible(false); } catch (e) { /* ignore */ }
 							      try { window.__WEBSTATS_PITCH3D_OPEN = true; } catch (e) { /* ignore */ }
 							      setPitch3dPresentation(false);
 							      pitch3dGhostsEnabled = pitch3dLayerGhostsInput ? !!pitch3dLayerGhostsInput.checked : pitch3dGhostsEnabled;
@@ -16496,6 +16553,7 @@
 						    const closePitch3d = () => {
 						      pitch3dOpen = false;
 						      try { window.__WEBSTATS_PITCH3D_OPEN = false; } catch (e) { /* ignore */ }
+						      try { setPitch3dFallbackVisible(false); } catch (e) { /* ignore */ }
 						      stopPitch3dPlayback();
 						      try { setPitch3dPresentation(false); } catch (e) { /* ignore */ }
 						      if (pitch3dRecording) {
