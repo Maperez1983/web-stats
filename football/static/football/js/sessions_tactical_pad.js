@@ -8209,7 +8209,6 @@
 						        return '';
 						      }
 						    };
-						    const isDedicatedPitch3dReferenceStadiumSrc = (src) => /stadium_benagalbon_reference(?:\.[a-f0-9]+)?\.glb(?:[?#].*)?$/i.test(safeText(src || ''));
 						    const ensurePitch3dGltfLoaderClass = async () => {
 						      try { if (window.__WEBSTATS_GLTF_LOADER_CLASS) return true; } catch (e) { /* ignore */ }
 						      if (window.__webstats_gltf_loader_promise) return !!(await window.__webstats_gltf_loader_promise);
@@ -8338,74 +8337,6 @@
 						        });
 						      } catch (e) {
 						        __pitch3dGoalModelCache.loading = false;
-						      }
-						      return null;
-						    };
-						    const __pitch3dStadiumModelCache = { loading: false, scene: null, failed: false, callbacks: [] };
-						    const __pitch3dLoadStadiumModel = (onLoad) => {
-						      const src = '';
-						      if (!src || !window.THREE) return null;
-						      if (__pitch3dStadiumModelCache.scene) {
-						        try { if (typeof onLoad === 'function') onLoad(__pitch3dStadiumModelCache.scene); } catch (e) { /* ignore */ }
-						        return __pitch3dStadiumModelCache.scene;
-						      }
-						      if (typeof onLoad === 'function') __pitch3dStadiumModelCache.callbacks.push(onLoad);
-						      if (__pitch3dStadiumModelCache.loading || __pitch3dStadiumModelCache.failed) return null;
-						      const LoaderClass = window.__WEBSTATS_GLTF_LOADER_CLASS;
-						      if (typeof LoaderClass !== 'function') {
-						        try {
-						          if (!__pitch3dStadiumModelCache.loaderRetryScheduled) {
-						            __pitch3dStadiumModelCache.loaderRetryScheduled = true;
-						            window.setTimeout(() => {
-						              __pitch3dStadiumModelCache.loaderRetryScheduled = false;
-						              __pitch3dLoadStadiumModel();
-						            }, 120);
-						          }
-						        } catch (e) { /* ignore */ }
-						        return null;
-						      }
-						      __pitch3dStadiumModelCache.loading = true;
-						      try {
-						        const loader = new LoaderClass();
-						        loader.load(src, (gltf) => {
-						          const scene = gltf?.scene || gltf?.scenes?.[0] || null;
-                          try {
-                            window.__WEBSTATS_PITCH3D_STADIUM_MODEL_INFO = {
-                              src,
-                              loaded: true,
-                              hasScene: !!scene,
-                              sceneChildren: Number(scene?.children?.length || 0),
-                              sceneType: safeText(scene?.type || ''),
-                            };
-                          } catch (e) { /* ignore */ }
-						          __pitch3dStadiumModelCache.scene = scene;
-						          __pitch3dStadiumModelCache.loading = false;
-						          const callbacks = __pitch3dStadiumModelCache.callbacks.splice(0);
-						          callbacks.forEach((cb) => {
-						            try { cb(scene); } catch (e) { /* ignore */ }
-						          });
-						        }, undefined, () => {
-						          __pitch3dStadiumModelCache.loading = false;
-						          __pitch3dStadiumModelCache.failed = true;
-                      try {
-                        window.__WEBSTATS_PITCH3D_STADIUM_MODEL_INFO = {
-                          src,
-                          loaded: false,
-                          failed: true,
-                        };
-                      } catch (e) { /* ignore */ }
-						          __pitch3dStadiumModelCache.callbacks.splice(0);
-						        });
-						      } catch (e) {
-						        __pitch3dStadiumModelCache.loading = false;
-                    try {
-                      window.__WEBSTATS_PITCH3D_STADIUM_MODEL_INFO = {
-                        src,
-                        loaded: false,
-                        failed: true,
-                        error: safeText(e?.message || e),
-                      };
-                    } catch (err) { /* ignore */ }
 						      }
 						      return null;
 						    };
@@ -12074,7 +12005,6 @@
 						                target.add(atmosphere);
 						              } catch (e) { /* ignore */ }
 						            };
-                              const dedicatedReferenceModelSrc = '';
 						          const addCornerFlag = (x, z, flipX, flipZ) => {
 						            const group = new THREE.Group();
 						            group.position.set(x, 0, z);
