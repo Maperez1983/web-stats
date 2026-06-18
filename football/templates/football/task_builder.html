@@ -3703,6 +3703,61 @@
         text-transform: uppercase;
         color: rgba(220,252,231,0.86);
       }
+      .methodology-coach {
+        grid-column: 1 / -1;
+        display: grid;
+        gap: 0.62rem;
+        padding: 0.78rem;
+        border-radius: 12px;
+        border: 1px solid rgba(56, 189, 248, 0.22);
+        background: rgba(8, 47, 73, 0.22);
+        color: rgba(224, 242, 254, 0.94);
+        font-size: 0.8rem;
+        line-height: 1.35;
+      }
+      .methodology-coach-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.7rem;
+      }
+      .methodology-coach-head strong {
+        display: block;
+        font-size: 0.72rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: rgba(186, 230, 253, 0.9);
+      }
+      .methodology-coach-head span,
+      .methodology-coach-list {
+        color: rgba(224, 242, 254, 0.8);
+      }
+      .methodology-coach-score {
+        white-space: nowrap;
+        font-weight: 800;
+        color: #fef3c7;
+      }
+      .methodology-coach-list {
+        margin: 0;
+        padding-left: 1.1rem;
+      }
+      .methodology-coach-list li + li {
+        margin-top: 0.18rem;
+      }
+      .methodology-coach-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+      }
+      .methodology-coach-actions button {
+        border: 1px solid rgba(186, 230, 253, 0.22);
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.52);
+        color: rgba(240, 249, 255, 0.95);
+        padding: 0.48rem 0.68rem;
+        font-weight: 750;
+        cursor: pointer;
+      }
       .assign-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(138px, 1fr));
@@ -7546,6 +7601,23 @@
                   <div class="task-sheet-summary" id="task-sheet-summary" aria-live="polite">
                     <strong>Resumen de tarea</strong>
                     <span>Completa participantes y dimensiones para obtener lectura automática del espacio.</span>
+                  </div>
+                  <div class="methodology-coach" id="task-methodology-coach" aria-live="polite">
+                    <div class="methodology-coach-head">
+                      <div>
+                        <strong>Coach metodológico</strong>
+                        <span id="task-methodology-headline">Revisa la coherencia UEFA C/B, progresiones y prevención.</span>
+                      </div>
+                      <span class="methodology-coach-score" id="task-methodology-score">--</span>
+                    </div>
+                    <ul class="methodology-coach-list" id="task-methodology-list">
+                      <li>Completa objetivo, contexto, participantes y dimensiones para recibir diagnóstico.</li>
+                    </ul>
+                    <div class="methodology-coach-actions">
+                      <button type="button" id="task-methodology-apply-structure">Completar progresiones</button>
+                      <button type="button" id="task-methodology-apply-questions">Añadir preguntas</button>
+                      <button type="button" id="task-methodology-apply-prevention">Añadir prevención</button>
+                    </div>
                   </div>
                   <label>
                     Edad
@@ -13737,6 +13809,287 @@
               setRecommendedDimensions(target);
             });
           });
+        });
+      })();
+    </script>
+    <script>
+      (function () {
+        const ready = (fn) => {
+          if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn, { once: true });
+          else fn();
+        };
+        ready(() => {
+          const form = document.getElementById('task-builder-form');
+          const coach = document.getElementById('task-methodology-coach');
+          const headlineEl = document.getElementById('task-methodology-headline');
+          const scoreEl = document.getElementById('task-methodology-score');
+          const listEl = document.getElementById('task-methodology-list');
+          if (!form || !coach || !headlineEl || !scoreEl || !listEl) return;
+
+          const field = (name) => form.elements?.namedItem?.(name) || null;
+          const value = (name) => {
+            const node = field(name);
+            if (!node || node instanceof RadioNodeList) return '';
+            return String(node.value || '').trim();
+          };
+          const stripHtml = (raw) => String(raw || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+          const escapeHtml = (raw) => String(raw ?? '').replace(/[&<>"']/g, (ch) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;',
+          }[ch] || ch));
+          const plainFromHtmlName = (name) => stripHtml(value(name));
+          const getText = (...names) => names.map((name) => value(name)).join(' ').trim();
+          const setInputValue = (name, nextValue) => {
+            const node = field(name);
+            if (!node || node instanceof RadioNodeList) return;
+            node.value = String(nextValue || '');
+            try { node.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
+            try { node.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
+          };
+          const setRichHtml = (plainName, html, { append = false } = {}) => {
+            const wrapper = form.querySelector(`[data-rich-editor][data-rich-name="${plainName}"]`);
+            const area = wrapper?.querySelector?.('[data-rich-area]');
+            const plainField = field(plainName);
+            const htmlName = wrapper?.getAttribute?.('data-rich-html-name') || `${plainName}_html`;
+            const htmlField = field(htmlName);
+            const current = append ? String((area?.innerHTML || htmlField?.value || '')).trim() : '';
+            const next = current
+              ? `${current}${String(current).includes('</ul>') ? '' : '<br>'}${html}`
+              : String(html || '').trim();
+            if (area) {
+              area.innerHTML = next;
+              try { area.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
+            }
+            if (plainField && !(plainField instanceof RadioNodeList)) {
+              plainField.value = stripHtml(next);
+              try { plainField.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
+            }
+            if (htmlField && !(htmlField instanceof RadioNodeList)) {
+              htmlField.value = next;
+              try { htmlField.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
+            }
+          };
+          const listHtml = (items) => `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
+          const norm = (text) => String(text || '').toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9 ]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+          const hasAny = (text, words) => {
+            const n = norm(text);
+            return words.some((word) => n.includes(norm(word)));
+          };
+          const parseNumber = (raw) => {
+            const n = Number.parseFloat(String(raw || '').replace(',', '.'));
+            return Number.isFinite(n) && n > 0 ? n : 0;
+          };
+          const parseDimensions = (raw) => {
+            const match = String(raw || '').replace('×', 'x').match(/(\d+(?:[,.]\d+)?)\s*x\s*(\d+(?:[,.]\d+)?)/i);
+            if (!match) return [0, 0];
+            return [parseNumber(match[1]), parseNumber(match[2])];
+          };
+          const inferProfile = () => {
+            const corpus = getText(
+              'draw_task_title',
+              'draw_task_objective',
+              'draw_task_game_context',
+              'draw_task_training_type',
+              'draw_task_space',
+              'draw_task_tactical_intent',
+              'draw_task_principle',
+              'draw_task_subprinciple',
+            );
+            if (hasAny(corpus, ['fifa 11', 'prevencion', 'preventivo', 'calentamiento', 'activacion'])) {
+              return {
+                key: 'prevention',
+                format: 'Calentamiento preventivo FIFA 11+',
+                scale: 'jugador/jugadores',
+                risk: 'Control tecnico, baja fatiga y progresion por edad.',
+                questions: ['¿La tecnica se mantiene cuando sube la intensidad?', '¿Hay dolor o gesto compensado?', '¿La activacion prepara la tarea principal?'],
+              };
+            }
+            if (hasAny(corpus, ['presion', 'robo', 'contra presion', 'tras perdida', 'recuperar'])) {
+              return {
+                key: 'pressing',
+                format: 'Juego reducido de presion o conservacion con regla de robo',
+                scale: 'sectorial',
+                risk: 'Alta demanda de aceleracion, frenada, COD y contacto.',
+                questions: ['¿Cual es el trigger para saltar?', '¿Quien orienta y quien cubre?', '¿Que hacemos si no robamos en la ventana marcada?'],
+              };
+            }
+            if (hasAny(corpus, ['transicion', 'contraataque', 'profundidad', 'espalda', 'sprint'])) {
+              return {
+                key: 'transition',
+                format: 'Oleada con transicion y finalizacion rapida',
+                scale: 'intersectorial',
+                risk: 'Riesgo alto de sprint, desaceleracion y cambios de direccion.',
+                questions: ['¿El primer pase asegura o acelera?', '¿Que carril ataca cada jugador?', '¿Cuando temporizamos en vez de correr?'],
+              };
+            }
+            if (hasAny(corpus, ['finalizacion', 'remate', 'centro', 'pase atras', 'ultimo tercio'])) {
+              return {
+                key: 'finishing',
+                format: 'Oleada o partido condicionado de finalizacion',
+                scale: 'sectorial/intersectorial',
+                risk: 'Controlar golpeos repetidos, sprints cortos y duelos en area.',
+                questions: ['¿Que zona de remate queremos ocupar?', '¿El poseedor fija antes de asistir?', '¿Quien llega al segundo palo o pase atras?'],
+              };
+            }
+            if (hasAny(corpus, ['salida', 'progresion', 'tercer hombre', 'hombre libre', 'juego de posicion', 'posesion', 'conservacion', 'amplitud'])) {
+              return {
+                key: 'positional',
+                format: 'Juego de posicion o conservacion con criterio de progreso',
+                scale: 'sectorial/intersectorial',
+                risk: 'Carga media; vigilar duelos, giros y fatiga si se reducen espacios.',
+                questions: ['¿Donde esta el hombre libre?', '¿Cuando atraer y cuando cambiar?', '¿Que linea queremos superar?'],
+              };
+            }
+            if (hasAny(corpus, ['1v1', 'duelo', 'regate', 'entrada', 'proteccion'])) {
+              return {
+                key: 'duels',
+                format: 'Situacion reducida 1v1/2v1 con oposicion adaptada',
+                scale: 'jugador/jugadores',
+                risk: 'Alta demanda de COD, contacto y tobillo/rodilla.',
+                questions: ['¿Como proteges o orientas el duelo?', '¿Cuando cambias ritmo?', '¿Que apoyo aparece si no puedes superar?'],
+              };
+            }
+            return {
+              key: 'conditioned_match',
+              format: 'Partido condicionado conectado al objetivo',
+              scale: 'estructura completa',
+              risk: 'Carga variable; ajustar reglas para no perder el objetivo.',
+              questions: ['¿Que comportamiento queremos ver?', '¿Que regla lo provoca?', '¿Como sabemos que la tarea tuvo exito?'],
+            };
+          };
+          const evaluate = () => {
+            const objective = value('draw_task_objective');
+            const context = value('draw_task_game_context');
+            const dimensions = value('draw_task_dimensions');
+            const playerCount = value('draw_task_player_count');
+            const rules = getText('draw_task_confrontation_rules', 'draw_task_confrontation_rules_html');
+            const coaching = getText('draw_task_coaching_points', 'draw_task_coaching_points_html');
+            const progression = getText('draw_task_progression', 'draw_task_progression_html');
+            const regression = getText('draw_task_regression', 'draw_task_regression_html');
+            const success = getText('draw_task_success_criteria', 'draw_task_success_criteria_html');
+            const load = value('draw_task_load_target');
+            const [w, l] = parseDimensions(dimensions);
+            const players = parseNumber(document.getElementById('task-space-players')?.value || '');
+            const m2 = w && l && players ? (w * l) / players : 0;
+            const profile = inferProfile();
+            const checks = [
+              { ok: objective.length >= 18, msg: 'Falta un objetivo claro y observable.' },
+              { ok: objective.length <= 240, msg: 'Objetivo demasiado amplio: reduce a un comportamiento principal.' },
+              { ok: context.length >= 25, msg: 'Falta contexto/situacion de juego.' },
+              { ok: !!playerCount || players > 0, msg: 'Faltan participantes.' },
+              { ok: !!dimensions, msg: 'Faltan dimensiones de campo.' },
+              { ok: rules.length >= 12, msg: 'Faltan reglas de confrontacion o puntuacion.' },
+              { ok: coaching.length >= 12, msg: 'Faltan consignas/puntos de coaching.' },
+              { ok: progression.length >= 12, msg: 'Falta variante de progresion.' },
+              { ok: regression.length >= 12, msg: 'Falta variante de regresion.' },
+              { ok: success.length >= 12, msg: 'Falta criterio de exito medible.' },
+              { ok: !!load, msg: 'Falta objetivo de carga o nota preventiva.' },
+            ];
+            const okCount = checks.filter((c) => c.ok).length;
+            const score = Math.round((okCount / checks.length) * 100);
+            const issues = checks.filter((c) => !c.ok).map((c) => c.msg);
+            if (m2 > 0) {
+              if (m2 > 180 && !hasAny(profile.key, ['transition'])) issues.push('Espacio amplio: revisar riesgo de sprint y retorno defensivo.');
+              if (m2 < 70 && hasAny(profile.key, ['transition'])) issues.push('Para transicion/profundidad puede faltar espacio para correr.');
+            }
+            return { profile, score, issues, m2 };
+          };
+          const render = () => {
+            const data = evaluate();
+            scoreEl.textContent = `${data.score}%`;
+            headlineEl.textContent = `Formato recomendado: ${data.profile.format} · escala ${data.profile.scale}.`;
+            const items = [
+              `Lectura preventiva: ${data.profile.risk}`,
+              ...(data.m2 > 0 ? [`Espacio actual: ${data.m2.toFixed(1)} m²/jugador.`] : []),
+              ...(data.issues.length ? data.issues.slice(0, 6) : ['Tarea coherente: revisa que la pizarra represente el contexto y que el criterio de exito sea observable.']),
+            ];
+            listEl.innerHTML = items.map((item) => `<li>${escapeHtml(item)}</li>`).join('');
+          };
+          const applyStructure = () => {
+            const { profile } = evaluate();
+            if (!value('draw_task_training_type')) setInputValue('draw_task_training_type', profile.format);
+            if (!plainFromHtmlName('draw_task_progression_html') && !value('draw_task_progression')) {
+              setRichHtml('draw_task_progression', listHtml([
+                'Aumentar oposicion o reducir tiempo/espacio si el comportamiento aparece con claridad.',
+                'Puntuar doble cuando aparece el principio objetivo en contexto real.',
+                'Pasar de relacion simple a sector/intersector manteniendo la misma intencion.',
+              ]));
+            }
+            if (!plainFromHtmlName('draw_task_regression_html') && !value('draw_task_regression')) {
+              setRichHtml('draw_task_regression', listHtml([
+                'Aumentar tiempo/espacio o anadir comodin si la tarea no emerge.',
+                'Reducir una regla y fijar solo la consigna principal.',
+                'Volver a relacion menor: jugador, pareja o sector reducido.',
+              ]));
+            }
+            if (!plainFromHtmlName('draw_task_success_criteria_html') && !value('draw_task_success_criteria')) {
+              setRichHtml('draw_task_success_criteria', listHtml([
+                'El comportamiento objetivo aparece al menos 6 veces por bloque.',
+                'El equipo reconoce el trigger y decide sin parada del entrenador.',
+                'La tarea mantiene continuidad y calidad tecnica sin compensaciones.',
+              ]));
+            }
+            render();
+          };
+          const applyQuestions = () => {
+            const { profile } = evaluate();
+            setRichHtml('draw_task_coaching_points', `<p><strong>Preguntas guiadas</strong></p>${listHtml(profile.questions)}`, { append: true });
+            render();
+          };
+          const applyPrevention = () => {
+            const { profile } = evaluate();
+            if (!value('draw_task_load_target')) {
+              const load = profile.key === 'transition' ? 'RPE 7-8 · controlar sprint/COD'
+                : profile.key === 'pressing' || profile.key === 'duels' ? 'RPE 7 · controlar COD/contacto'
+                : profile.key === 'prevention' ? 'RPE 3-5 · tecnica preventiva'
+                : 'RPE 5-7 · ajustar por respuesta';
+              setInputValue('draw_task_load_target', load);
+            }
+            setRichHtml('draw_task_coaching_points', `<p><strong>Prevencion</strong></p>${listHtml([
+              'Detener si aparece dolor, cojera, inestabilidad, mareo o gesto compensado.',
+              'Calidad de frenada/aterrizaje antes que velocidad o cantidad.',
+              'Adaptar o excluir jugadores en rehab/carga modificada de sprint, contacto y duelos plenos.',
+            ])}`, { append: true });
+            render();
+          };
+          const watched = [
+            'draw_task_title',
+            'draw_task_objective',
+            'draw_task_game_context',
+            'draw_task_player_count',
+            'draw_task_dimensions',
+            'draw_task_training_type',
+            'draw_task_load_target',
+            'draw_task_principle',
+            'draw_task_subprinciple',
+          ];
+          watched.forEach((name) => {
+            const node = field(name);
+            if (!node || node instanceof RadioNodeList) return;
+            node.addEventListener('input', render);
+            node.addEventListener('change', render);
+          });
+          ['task-space-width', 'task-space-length', 'task-space-players'].forEach((id) => {
+            const node = document.getElementById(id);
+            node?.addEventListener('input', render);
+            node?.addEventListener('change', render);
+          });
+          ['draw-task-coaching-points-html', 'draw-task-confrontation-rules-html', 'draw-task-progression-html', 'draw-task-regression-html', 'draw-task-success-criteria-html'].forEach((id) => {
+            const node = document.getElementById(id);
+            node?.addEventListener('input', render);
+            node?.addEventListener('change', render);
+          });
+          document.getElementById('task-methodology-apply-structure')?.addEventListener('click', applyStructure);
+          document.getElementById('task-methodology-apply-questions')?.addEventListener('click', applyQuestions);
+          document.getElementById('task-methodology-apply-prevention')?.addEventListener('click', applyPrevention);
+          render();
         });
       })();
     </script>
