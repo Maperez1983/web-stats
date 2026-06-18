@@ -235,7 +235,7 @@
 	    emoji_whistle: 'un silbato emoji',
 	    emoji_stopwatch: 'un cronómetro emoji',
 	  };
-	  const EMOJI_LIBRARY = {
+  const EMOJI_LIBRARY = {
     emoji_ball: '⚽',
     emoji_cone: '🔺',
     emoji_pole: '📍',
@@ -252,36 +252,6 @@
 	    emoji_whistle: '📣',
 	    emoji_stopwatch: '⏱️',
 	  };
-	  const PITCH3D_INSERT_GROUPS = [
-	    {
-	      label: 'Chapas',
-	      items: ['player_local', 'player_rival', 'player_away', 'goalkeeper_local', 'goalkeeper_rival'],
-	    },
-	    {
-	      label: 'Balón y material',
-	      items: ['ball', 'cone', 'cone_striped', 'pole_marker', 'ring', 'ladder', 'ladder_L', 'ladder_zigzag', 'hurdle', 'mini_hurdle', 'tape', 'gate', 'mannequin', 'wall', 'rebounder', 'barrier'],
-	    },
-	    {
-	      label: 'Porterías',
-	      items: ['goal', 'goal_posts', 'goal_3d', 'goal_mini', 'goal_target', 'goal_popup', 'goal_futsal'],
-	    },
-	    {
-	      label: 'Líneas y flechas',
-	      items: ['line_solid', 'line_thick', 'line_dash', 'line_dot', 'line_double', 'line_curve', 'line_wave', 'line_pressure', 'line_defensive', 'line_offside', 'arrow_solid', 'arrow_thick', 'arrow_dash', 'arrow_dot', 'arrow_curve', 'arrow_curve_left', 'measure'],
-	    },
-	    {
-	      label: 'Zonas y formas',
-	      items: ['zone', 'shape_circle', 'shape_square', 'shape_rect', 'shape_rect_long', 'shape_triangle', 'shape_diamond', 'shape_u', 'shape_lane_3', 'shape_lane_4', 'shape_lane_divider_v', 'shape_lane_divider_h', 'shape_band_h', 'shape_band_v'],
-	    },
-	    {
-	      label: 'Marcadores',
-	      items: ['marker_start', 'marker_end', 'marker_pass', 'marker_shot', 'marker_support', 'text'],
-	    },
-	    {
-	      label: 'Emojis',
-	      items: ['emoji_ball', 'emoji_cone', 'emoji_pole', 'emoji_ladder', 'emoji_ring', 'emoji_hurdle', 'emoji_bib', 'emoji_mannequin', 'emoji_wall', 'emoji_goal', 'emoji_mini_goal', 'emoji_coach', 'emoji_staff', 'emoji_whistle', 'emoji_stopwatch'],
-	    },
-	  ];
 
   const createSvgNode = (doc, tag, attrs) => {
     const node = doc.createElementNS('http://www.w3.org/2000/svg', tag);
@@ -420,7 +390,7 @@
 			    const preset = String(presetKey || 'full_pitch').trim();
 			    const orientation = safeText(orientationKey, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
 			    const normalizedGrass = safeText(grassStyleKey, 'classic').toLowerCase();
-			    let grassStyle = (['classic', 'realistic', 'pro', 'stadium_close', 'stadium_top', 'stadium_full', 'stadium_premium', 'broadcast', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'].includes(normalizedGrass))
+			    let grassStyle = (['classic', 'realistic', 'pro', 'broadcast', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'].includes(normalizedGrass))
 			      ? normalizedGrass
 			      : 'classic';
 			    try {
@@ -428,26 +398,6 @@
 			        grassStyle = 'classic';
 			      }
 			    } catch (e) { /* ignore */ }
-			    const format3d = safeText(document.getElementById('task-pitch-3d-format')?.value, 'f11').toLowerCase();
-			    if (format3d !== 'f11' && ['stadium_close', 'stadium_top', 'stadium_full', 'stadium_premium'].includes(grassStyle)) {
-			      grassStyle = 'classic';
-			    }
-			    const isStadiumTop = ['stadium_close', 'stadium_top', 'stadium_full', 'stadium_premium'].includes(grassStyle);
-			    const isStadiumFull = grassStyle === 'stadium_full';
-			    const isStadiumClose = grassStyle === 'stadium_close';
-			    const isStadiumPremium = grassStyle === 'stadium_premium';
-			    const formForAssets = (() => {
-			      try { return document.getElementById('task-builder-form'); } catch (e) { return null; }
-			    })();
-			    const stadiumTopImageSrc = (() => {
-			      if (!isStadiumTop) return '';
-			      if (format3d !== 'f11') return '';
-			      const key = orientation === 'portrait' ? 'pitch3dStadiumTopVSrc' : 'pitch3dStadiumTopHSrc';
-			      const fallback = orientation === 'portrait'
-			        ? '/static/football/images/pitch3d/stadium_rosaleda_top_v.png'
-			        : '/static/football/images/pitch3d/stadium_rosaleda_top_h.png';
-			      return safeText(formForAssets?.dataset?.[key], fallback) || fallback;
-			    })();
 		    // Lienzo con proporción real 105x68 (escalado) y un pequeño "bleed" para que el trazo
 		    // del borde no se recorte incluso con overflow hidden.
 		    const stageW = orientation === 'portrait' ? 680 : 1050;
@@ -484,10 +434,6 @@
 		      classic: ['#5f8f42', '#557f3c'],
 		      realistic: ['#4f7f3a', '#3f6e35'],
 		      pro: ['#2f6a3a', '#245934'],
-		      stadium_close: ['#2e7b3c', '#1f6533'],
-		      stadium_top: ['#2e7b3c', '#1f6533'],
-		      stadium_full: ['#2e7b3c', '#1f6533'],
-		      stadium_premium: ['#36a544', '#1e7f35'],
 		      broadcast: ['#155e3a', '#0f4d2f'],
 		      artificial: ['#2fb46d', '#1f8d55'],
 		      dry: ['#7b9a45', '#6b8a3a'],
@@ -567,7 +513,7 @@
     //   (en editor se verá el fondo del panel; en PDF quedará blanco).
     // En el editor rellenamos el exterior con césped para que no parezca que hay “huecos” alrededor.
     // El recorte para PDF/cards ya se hace al exportar la preview (data-pitch-box).
-    const fillOutside = isStadiumTop ? '#eaf6fb' : `url(#${grassFillId})`;
+    const fillOutside = `url(#${grassFillId})`;
     root.appendChild(createSvgNode(doc, 'rect', {
       x: -bleed,
       y: -bleed,
@@ -619,25 +565,6 @@
       return { x: offsetX, y: offsetY, width, height };
     };
     let stage = createStage(orientation);
-    if (isStadiumTop && ['full_pitch', 'seven_side'].includes(preset)) {
-      const portrait = orientation === 'portrait';
-      const effectiveW = portrait ? stageH : stageW;
-      const effectiveH = portrait ? stageW : stageH;
-      const targetW = effectiveW * (isStadiumPremium ? 0.68 : 0.72);
-      const targetH = effectiveH * (isStadiumPremium ? 0.66 : 0.70);
-      let width = targetW;
-      let height = width / (105 / 68);
-      if (height > targetH) {
-        height = targetH;
-        width = height * (105 / 68);
-      }
-      stage = {
-        x: (effectiveW - width) / 2,
-        y: (effectiveH - height) / 2,
-        width,
-        height,
-      };
-    }
     // Caja del rectángulo de juego dentro del viewBox, para poder recortar previews/PDF
     // y evitar márgenes vacíos enormes en superficies parciales (tercios, medio campo, futsal, etc).
     let pitchBox = { x: stage.x, y: stage.y, width: stage.width, height: stage.height };
@@ -737,135 +664,6 @@
 	      }));
 	    };
 
-    const drawStadiumBackdrop = () => {
-      if (!isStadiumTop) return;
-      if (stadiumTopImageSrc) {
-        const portrait = orientation === 'portrait';
-        const effectiveW = portrait ? stageH : stageW;
-        const effectiveH = portrait ? stageW : stageH;
-        const zoom = isStadiumClose ? 1.18 : 1;
-        const imgW = effectiveW * zoom;
-        const imgH = effectiveH * zoom;
-        if (isStadiumFull) {
-          const bg = createSvgNode(doc, 'image', {
-            href: stadiumTopImageSrc,
-            x: 0,
-            y: 0,
-            width: effectiveW,
-            height: effectiveH,
-            preserveAspectRatio: 'xMidYMid slice',
-            opacity: 0.34,
-          });
-          try { bg.setAttribute('xlink:href', stadiumTopImageSrc); } catch (e) { /* ignore */ }
-          drawRoot.appendChild(bg);
-        }
-        const img = createSvgNode(doc, 'image', {
-          href: stadiumTopImageSrc,
-          x: (effectiveW - imgW) / 2,
-          y: (effectiveH - imgH) / 2,
-          width: imgW,
-          height: imgH,
-          preserveAspectRatio: isStadiumFull ? 'xMidYMid meet' : 'xMidYMid slice',
-        });
-        try { img.setAttribute('xlink:href', stadiumTopImageSrc); } catch (e) { /* ignore */ }
-        drawRoot.appendChild(img);
-        return;
-      }
-      const padX = stage.width * (isStadiumPremium ? 0.28 : 0.23);
-      const padY = stage.height * (isStadiumPremium ? 0.32 : 0.27);
-      const outer = {
-        x: stage.x - padX,
-        y: stage.y - padY,
-        width: stage.width + (padX * 2),
-        height: stage.height + (padY * 2),
-      };
-      const bowl = {
-        x: stage.x - (stage.width * 0.13),
-        y: stage.y - (stage.height * 0.16),
-        width: stage.width * 1.26,
-        height: stage.height * 1.32,
-      };
-      drawRoot.appendChild(createSvgNode(doc, 'rect', {
-        x: outer.x,
-        y: outer.y,
-        width: outer.width,
-        height: outer.height,
-        rx: Math.min(outer.width, outer.height) * 0.18,
-        ry: Math.min(outer.width, outer.height) * 0.18,
-        fill: isStadiumPremium ? '#e8e3d3' : '#eee9dc',
-        stroke: '#d8d2bf',
-        'stroke-width': 2,
-      }));
-      drawRoot.appendChild(createSvgNode(doc, 'rect', {
-        x: bowl.x,
-        y: bowl.y,
-        width: bowl.width,
-        height: bowl.height,
-        rx: Math.min(bowl.width, bowl.height) * 0.11,
-        ry: Math.min(bowl.width, bowl.height) * 0.11,
-        fill: '#f8f4e9',
-        stroke: 'rgba(100,116,139,0.28)',
-        'stroke-width': 3,
-      }));
-      drawRoot.appendChild(createSvgNode(doc, 'rect', {
-        x: stage.x - (stage.width * 0.065),
-        y: stage.y - (stage.height * 0.075),
-        width: stage.width * 1.13,
-        height: stage.height * 1.15,
-        rx: 28,
-        ry: 28,
-        fill: '#0f172a',
-        opacity: 0.30,
-      }));
-      const seat = isStadiumPremium ? '#075da8' : '#0f5d9f';
-      const seatDark = isStadiumPremium ? '#073f78' : '#0a477a';
-      const aisle = 'rgba(248,250,252,0.74)';
-      const sideW = stage.width * 0.11;
-      const endH = stage.height * 0.13;
-      const seatBlocks = [
-        { x: stage.x - sideW, y: stage.y - endH, width: sideW, height: stage.height + (endH * 2), dir: 'v' },
-        { x: stage.x + stage.width, y: stage.y - endH, width: sideW, height: stage.height + (endH * 2), dir: 'v' },
-        { x: stage.x - sideW, y: stage.y - endH, width: stage.width + (sideW * 2), height: endH, dir: 'h' },
-        { x: stage.x - sideW, y: stage.y + stage.height, width: stage.width + (sideW * 2), height: endH, dir: 'h' },
-      ];
-      seatBlocks.forEach((block, blockIndex) => {
-        drawRoot.appendChild(createSvgNode(doc, 'rect', {
-          x: block.x,
-          y: block.y,
-          width: block.width,
-          height: block.height,
-          rx: 10,
-          ry: 10,
-          fill: blockIndex % 2 === 0 ? seat : seatDark,
-          opacity: 0.96,
-        }));
-        const steps = block.dir === 'v' ? 18 : 14;
-        for (let i = 1; i < steps; i += 1) {
-          const ratio = i / steps;
-          const attrs = block.dir === 'v'
-            ? { x1: block.x, y1: block.y + (block.height * ratio), x2: block.x + block.width, y2: block.y + (block.height * ratio) }
-            : { x1: block.x + (block.width * ratio), y1: block.y, x2: block.x + (block.width * ratio), y2: block.y + block.height };
-          drawRoot.appendChild(createSvgNode(doc, 'line', {
-            ...attrs,
-            stroke: i % 5 === 0 ? aisle : 'rgba(255,255,255,0.22)',
-            'stroke-width': i % 5 === 0 ? 2.2 : 1,
-          }));
-        }
-      });
-      drawRoot.appendChild(createSvgNode(doc, 'rect', {
-        x: stage.x - (stage.width * 0.025),
-        y: stage.y - (stage.height * 0.025),
-        width: stage.width * 1.05,
-        height: stage.height * 1.05,
-        rx: 18,
-        ry: 18,
-        fill: 'none',
-        stroke: isStadiumPremium ? '#0b4f91' : '#155e75',
-        'stroke-width': 8,
-        opacity: 0.95,
-      }));
-    };
-
     const drawGoal = (x, centerY, goalDepth, goalHeight, side) => {
       const topY = centerY - (goalHeight / 2);
       const bottomY = centerY + (goalHeight / 2);
@@ -930,27 +728,7 @@
     };
 
     const drawFullPitch = () => {
-      if (isStadiumTop && stadiumTopImageSrc) {
-        const portrait = orientation === 'portrait';
-        const effectiveW = portrait ? stageH : stageW;
-        const effectiveH = portrait ? stageW : stageH;
-        if (isStadiumFull) {
-          pitchBox = { x: 0, y: 0, width: effectiveW, height: effectiveH };
-        } else if (isStadiumClose) {
-          pitchBox = {
-            x: effectiveW * 0.09,
-            y: effectiveH * 0.09,
-            width: effectiveW * 0.82,
-            height: effectiveH * 0.82,
-          };
-        } else {
-          pitchBox = { x: 0, y: 0, width: effectiveW, height: effectiveH };
-        }
-        drawStadiumBackdrop();
-        return;
-      }
       pitchBox = { x: stage.x, y: stage.y, width: stage.width, height: stage.height };
-      drawStadiumBackdrop();
       drawFrame(stage.x, stage.y, stage.width, stage.height, 4);
       const centerX = stage.x + (stage.width / 2);
       const centerY = stage.y + (stage.height / 2);
@@ -1247,43 +1025,15 @@
 	    const stageSizeUpButton = document.getElementById('pitch-size-up');
 	    const stageSizeFitButton = document.getElementById('pitch-size-fit');
 	    const stageSizeLabel = document.getElementById('pitch-size-label');
-	    const selectedSizeControls = document.getElementById('selected-size-controls');
-	    const selectedSizeDownButton = document.getElementById('selected-size-down');
-	    const selectedSizeUpButton = document.getElementById('selected-size-up');
-	    const selectedSizeResetButton = document.getElementById('selected-size-reset');
-	    const selectedSizeLabel = document.getElementById('selected-size-label');
 	    const pitchFormatInput = document.getElementById('draw-task-pitch-format');
     const stateInput = document.getElementById('draw-canvas-state');
     const widthInput = document.getElementById('draw-canvas-width');
     const heightInput = document.getElementById('draw-canvas-height');
 	    const previewInput = document.getElementById('draw-canvas-preview-data');
-	    const pitch3dPreviewInput = document.getElementById('draw-canvas-3d-preview-data');
 	    const timelinePreviewsInput = document.getElementById('draw-canvas-timeline-previews');
     const livePreviewImg = document.getElementById('task-live-preview');
     const livePreviewPlaceholder = document.getElementById('task-live-preview-placeholder');
 	    const playerCountInput = form.querySelector('[name="draw_task_player_count"]');
-	    const taskTitleInput = form.querySelector('[name="draw_task_title"]');
-	    const taskObjectiveInput = form.querySelector('[name="draw_task_objective"]');
-	    const gameMomentInput = document.getElementById('draw-task-game-moment');
-	    const teamACountInput = document.getElementById('task-team-a-count');
-	    const teamBCountInput = document.getElementById('task-team-b-count');
-	    const neutralCountInput = document.getElementById('task-neutral-count');
-	    const goalkeeperCountInput = document.getElementById('task-goalkeeper-count');
-	    const dimensionsInput = document.getElementById('draw-task-dimensions') || form.querySelector('[name="draw_task_dimensions"]');
-	    const trainingTypeInput = form.querySelector('[name="draw_task_training_type"]');
-	    const spaceDescriptionInput = form.querySelector('[name="draw_task_space"]');
-	    const spaceCoachEl = document.getElementById('task-space-coach');
-	    const spaceWidthInput = document.getElementById('task-space-width');
-	    const spaceLengthInput = document.getElementById('task-space-length');
-	    const spacePlayersInput = document.getElementById('task-space-players');
-	    const spaceObjectiveInput = document.getElementById('task-space-objective');
-	    const spaceAreaEl = document.getElementById('task-space-area');
-	    const spacePerPlayerEl = document.getElementById('task-space-per-player');
-	    const spaceDensityEl = document.getElementById('task-space-density');
-	    const spaceRecommendationEl = document.getElementById('task-space-recommendation');
-	    const spaceApplyRecommendedBtn = document.getElementById('task-space-apply-recommended');
-	    const spaceApplyCurrentBtn = document.getElementById('task-space-apply-current');
-	    const taskSheetSummaryEl = document.getElementById('task-sheet-summary');
 	    const legacyPlayersInput = form.querySelector('[name="draw_task_players"]');
 				    const statusEl = document.getElementById('task-builder-status');
 				    const drillsStripEl = document.getElementById('task-drills-strip');
@@ -2231,16 +1981,10 @@
 			              '          </select>',
 			              '        <select id="task-pitch-3d-insert" title="Insertar elemento en el campo 3D" aria-label="Insertar en 3D">',
 			              '            <option value="" selected>Insertar</option>',
-			              '            <option value="player_local">Chapa local</option>',
-			              '            <option value="player_rival">Chapa rival</option>',
-			              '            <option value="player_away">Chapa 2ª equipación</option>',
+			              '            <option value="player_local">Jugador local</option>',
+			              '            <option value="player_rival">Jugador rival</option>',
 			              '            <option value="goalkeeper_local">Portero</option>',
-			              '            <option value="goalkeeper_rival">Portero rival</option>',
 			              '            <option value="ball">Balón</option>',
-			              '            <option value="arrow_solid">Flecha</option>',
-			              '            <option value="arrow_dash">Flecha discontinua</option>',
-			              '            <option value="arrow_curve">Flecha curva</option>',
-			              '            <option value="line_solid">Línea</option>',
 			              '            <option value="cone">Cono</option>',
 			              '            <option value="cone_striped">Cono rayas</option>',
 			              '            <option value="mannequin">Maniquí</option>',
@@ -2273,7 +2017,6 @@
 			              '        </select>',
 			              '        <button type="button" class="button" id="task-pitch-3d-refresh" title="Sincroniza con la pizarra actual">Actualizar</button>',
 			              '        <button type="button" class="button primary" id="task-pitch-3d-snap-tactic" title="Descarga PNG enfocando la táctica">PNG táctica</button>',
-			              '        <button type="button" class="button" id="task-pitch-3d-save-sheet" title="Guarda esta vista 3D para imprimirla en la ficha">Guardar en ficha</button>',
 			              '        <button type="button" class="button" id="task-pitch-3d-play" title="Reproduce escenarios (si existen)">▶</button>',
 			              '        <button type="button" class="button" id="task-pitch-3d-record" title="Grabar WebM (beta)">REC</button>',
 			              '        <select id="task-pitch-3d-action" title="Tipo de acción para rutas del elemento seleccionado">',
@@ -2326,7 +2069,6 @@
 			    let pitch3dSnapTacticBtn = document.getElementById('task-pitch-3d-snap-tactic');
 			    let pitch3dPlayBtn = document.getElementById('task-pitch-3d-play');
 			    let pitch3dSnapBtn = document.getElementById('task-pitch-3d-snap');
-			    let pitch3dSaveSheetBtn = document.getElementById('task-pitch-3d-save-sheet');
 			    let pitch3dRecordBtn = document.getElementById('task-pitch-3d-record');
 			    let pitch3dActionSelect = document.getElementById('task-pitch-3d-action');
 			    let pitch3dActionApplyBtn = document.getElementById('task-pitch-3d-action-apply');
@@ -2341,106 +2083,8 @@
 			    let pitch3dStepMetaEl = document.getElementById('task-pitch-3d-step-meta');
 			    let pitch3dPrevBtn = document.getElementById('task-pitch-3d-prev');
 			    let pitch3dNextBtn = document.getElementById('task-pitch-3d-next');
-			    const pitch3dTokenKinds = new Set(['player_local', 'player_rival', 'player_away', 'goalkeeper_local', 'goalkeeper_rival']);
-			    const labelForPitch3dInsert = (kind) => {
-			      const raw = RESOURCE_LABELS[kind] || kind;
-			      return safeText(raw)
-			        .replace(/^(un|una|el|la)\s+/i, '')
-			        .replace(/^jugador local$/i, 'chapa local')
-			        .replace(/^jugador rival$/i, 'chapa rival')
-			        .replace(/^jugador con segunda equipación$/i, 'chapa 2ª equipación')
-			        .replace(/^portero$/i, 'portero local')
-			        .replace(/^./, (ch) => ch.toUpperCase());
-			    };
-			    const populatePitch3dInsertOptions = () => {
-			      if (!pitch3dInsertSelect || pitch3dInsertSelect.dataset.resourcesReady === '1') return;
-			      const previous = safeText(pitch3dInsertSelect.value);
-			      pitch3dInsertSelect.innerHTML = '';
-			      const empty = document.createElement('option');
-			      empty.value = '';
-			      empty.textContent = 'Insertar';
-			      empty.selected = true;
-			      pitch3dInsertSelect.appendChild(empty);
-			      const insertedKinds = new Set();
-			      PITCH3D_INSERT_GROUPS.forEach((group) => {
-			        const optgroup = document.createElement('optgroup');
-			        optgroup.label = safeText(group.label, 'Recursos');
-			        (group.items || []).forEach((kind) => {
-			          if (!kind) return;
-			          const option = document.createElement('option');
-			          option.value = kind;
-			          option.textContent = labelForPitch3dInsert(kind);
-			          optgroup.appendChild(option);
-			          insertedKinds.add(kind);
-			        });
-			        if (optgroup.children.length) pitch3dInsertSelect.appendChild(optgroup);
-			      });
-			      const dynamicGroup = document.createElement('optgroup');
-			      dynamicGroup.label = 'Recursos del club';
-			      Array.from(document.querySelectorAll('button[data-add]') || []).forEach((button) => {
-			        const kind = safeText(button?.dataset?.add);
-			        if (!kind || insertedKinds.has(kind)) return;
-			        if (safeText(button?.dataset?.action)) return;
-			        const option = document.createElement('option');
-			        option.value = kind;
-			        option.textContent = safeText(button.getAttribute('title') || button.getAttribute('aria-label') || button.textContent || kind, kind);
-			        dynamicGroup.appendChild(option);
-			        insertedKinds.add(kind);
-			      });
-			      if (dynamicGroup.children.length) pitch3dInsertSelect.appendChild(dynamicGroup);
-			      pitch3dInsertSelect.dataset.resourcesReady = '1';
-			      if (previous) {
-			        const hasPrevious = Array.from(pitch3dInsertSelect.options || []).some((option) => safeText(option.value) === previous);
-			        if (hasPrevious) pitch3dInsertSelect.value = previous;
-			      }
-			    };
-			    const pitch3dFactoryForKind = (kindRaw) => {
-			      const kind = safeText(kindRaw);
-			      if (!kind) return null;
-			      if (pitch3dTokenKinds.has(kind)) return playerTokenFactory(kind, null, { style: 'disk' });
-			      return simpleFactory(kind);
-			    };
-			    populatePitch3dInsertOptions();
 			    let pitch3dPresentBtn = document.getElementById('task-pitch-3d-present');
 			    let pitch3dFullscreenBtn = document.getElementById('task-pitch-3d-fullscreen');
-			    const syncPitch3dDomRefs = () => {
-			      try { pitch3dModal = document.getElementById('task-pitch-3d-modal') || pitch3dModal; } catch (e) { /* ignore */ }
-			      try { pitch3dCloseBtn = document.getElementById('task-pitch-3d-close') || pitch3dCloseBtn; } catch (e) { /* ignore */ }
-			      try { pitch3dCanvasEl = document.getElementById('task-pitch-3d-canvas') || pitch3dCanvasEl; } catch (e) { /* ignore */ }
-			      try { pitch3dCameraSelect = document.getElementById('task-pitch-3d-camera') || pitch3dCameraSelect; } catch (e) { /* ignore */ }
-			      try { pitch3dSurfaceSelect = document.getElementById('task-pitch-3d-surface') || pitch3dSurfaceSelect; } catch (e) { /* ignore */ }
-			      try { pitch3dFormatSelect = document.getElementById('task-pitch-3d-format') || pitch3dFormatSelect; } catch (e) { /* ignore */ }
-			      try { pitch3dFollowSelect = document.getElementById('task-pitch-3d-follow') || pitch3dFollowSelect; } catch (e) { /* ignore */ }
-			      try { pitch3dInsertSelect = document.getElementById('task-pitch-3d-insert') || pitch3dInsertSelect; } catch (e) { /* ignore */ }
-			      try { pitch3dLayerDrawInput = document.getElementById('task-pitch-3d-layer-draw') || pitch3dLayerDrawInput; } catch (e) { /* ignore */ }
-			      try { pitch3dLayerGhostsInput = document.getElementById('task-pitch-3d-layer-ghosts') || pitch3dLayerGhostsInput; } catch (e) { /* ignore */ }
-			      try { pitch3dLayerTrailsInput = document.getElementById('task-pitch-3d-layer-trails') || pitch3dLayerTrailsInput; } catch (e) { /* ignore */ }
-			      try { pitch3dThemeSelect = document.getElementById('task-pitch-3d-theme') || pitch3dThemeSelect; } catch (e) { /* ignore */ }
-			      try { pitch3dRefreshBtn = document.getElementById('task-pitch-3d-refresh') || pitch3dRefreshBtn; } catch (e) { /* ignore */ }
-			      try { pitch3dSnapTacticBtn = document.getElementById('task-pitch-3d-snap-tactic') || pitch3dSnapTacticBtn; } catch (e) { /* ignore */ }
-			      try { pitch3dPlayBtn = document.getElementById('task-pitch-3d-play') || pitch3dPlayBtn; } catch (e) { /* ignore */ }
-			      try { pitch3dSnapBtn = document.getElementById('task-pitch-3d-snap') || pitch3dSnapBtn; } catch (e) { /* ignore */ }
-			      try { pitch3dSaveSheetBtn = document.getElementById('task-pitch-3d-save-sheet') || pitch3dSaveSheetBtn; } catch (e) { /* ignore */ }
-			      try { pitch3dRecordBtn = document.getElementById('task-pitch-3d-record') || pitch3dRecordBtn; } catch (e) { /* ignore */ }
-			      try { pitch3dActionSelect = document.getElementById('task-pitch-3d-action') || pitch3dActionSelect; } catch (e) { /* ignore */ }
-			      try { pitch3dActionApplyBtn = document.getElementById('task-pitch-3d-action-apply') || pitch3dActionApplyBtn; } catch (e) { /* ignore */ }
-			      try { pitch3dPhaseSaveBtn = document.getElementById('task-pitch-3d-phase-save') || pitch3dPhaseSaveBtn; } catch (e) { /* ignore */ }
-			      try { pitch3dPhaseDupBtn = document.getElementById('task-pitch-3d-phase-dup') || pitch3dPhaseDupBtn; } catch (e) { /* ignore */ }
-			      try { pitch3dTemplateBtn = document.getElementById('task-pitch-3d-template') || pitch3dTemplateBtn; } catch (e) { /* ignore */ }
-			      try { pitch3dValidateBtn = document.getElementById('task-pitch-3d-validate') || pitch3dValidateBtn; } catch (e) { /* ignore */ }
-			      try { pitch3dClampBtn = document.getElementById('task-pitch-3d-clamp') || pitch3dClampBtn; } catch (e) { /* ignore */ }
-			      try { pitch3dQualityBtn = document.getElementById('task-pitch-3d-quality') || pitch3dQualityBtn; } catch (e) { /* ignore */ }
-			      try { pitch3dHud = document.getElementById('task-pitch-3d-hud') || pitch3dHud; } catch (e) { /* ignore */ }
-			      try { pitch3dStepTitleEl = document.getElementById('task-pitch-3d-step-title') || pitch3dStepTitleEl; } catch (e) { /* ignore */ }
-			      try { pitch3dStepMetaEl = document.getElementById('task-pitch-3d-step-meta') || pitch3dStepMetaEl; } catch (e) { /* ignore */ }
-			      try { pitch3dPrevBtn = document.getElementById('task-pitch-3d-prev') || pitch3dPrevBtn; } catch (e) { /* ignore */ }
-			      try { pitch3dNextBtn = document.getElementById('task-pitch-3d-next') || pitch3dNextBtn; } catch (e) { /* ignore */ }
-			      try { pitch3dPresentBtn = document.getElementById('task-pitch-3d-present') || pitch3dPresentBtn; } catch (e) { /* ignore */ }
-			      try { pitch3dFullscreenBtn = document.getElementById('task-pitch-3d-fullscreen') || pitch3dFullscreenBtn; } catch (e) { /* ignore */ }
-			      try {
-			        if (pitch3dModal && pitch3dModal.parentElement !== document.body) document.body.appendChild(pitch3dModal);
-			      } catch (e) { /* ignore */ }
-			    };
 			    try {
 			      if (pitch3dModal && pitch3dModal.parentElement !== document.body) {
 			        document.body.appendChild(pitch3dModal);
@@ -4470,10 +4114,6 @@
 					      broadcast: 'Broadcast',
 					      realistic: 'Realista',
 					      pro: 'PRO',
-					      stadium_close: 'Campo cercano',
-					      stadium_top: 'Cenital 3D',
-					      stadium_full: 'Estadio completo',
-					      stadium_premium: '3D presentación',
 					      uefa_b: 'UEFA B',
 					      natural: 'Natural',
 					      artificial: 'Artificial',
@@ -4483,14 +4123,10 @@
 					      dry: 'Seco',
 					      wet: 'Mojado',
 					    };
-					    const STADIUM_3D_GRASS_STYLES = ['stadium_close', 'stadium_top', 'stadium_full', 'stadium_premium'];
-					    const GRASS_STYLE_ORDER = [...STADIUM_3D_GRASS_STYLES, 'classic', 'broadcast', 'realistic', 'pro', 'uefa_b', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet'];
-					    const currentPitch3dFormatValue = () => safeText(document.getElementById('task-pitch-3d-format')?.value, 'f11').toLowerCase();
-					    const normalizeGrassStyleForMode = (value, options = {}) => {
-					      const next = safeText(value, 'stadium_top').toLowerCase();
-					      if (!GRASS_STYLE_ORDER.includes(next)) return 'stadium_top';
-					      const format = safeText(options?.format, currentPitch3dFormatValue()).toLowerCase();
-					      if (format !== 'f11' && STADIUM_3D_GRASS_STYLES.includes(next)) return 'classic';
+					    const GRASS_STYLE_ORDER = ['classic', 'broadcast', 'realistic', 'pro', 'uefa_b', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet'];
+					    const normalizeGrassStyleForMode = (value) => {
+					      const next = safeText(value, 'classic').toLowerCase();
+					      if (!GRASS_STYLE_ORDER.includes(next)) return 'classic';
 					      return next;
 					    };
 					    let pitchGrassStyle = normalizeGrassStyleForMode(grassStyleInput?.value);
@@ -4578,254 +4214,6 @@
 		        || kind.startsWith('arrow_');
 		    };
 		    const maxScaleForObject = (obj) => (isLongStrokeObject(obj) ? 12.0 : 2.6);
-		    const SPACE_OBJECTIVE_RULES = {
-		      possession: { label: 'Conservación', target: 95, min: 70, max: 125, ratio: 1.25, note: 'Espacio medio-bajo: apoyos cercanos, orientación corporal y decisión rápida bajo presión.' },
-		      position: { label: 'Juego de posición', target: 130, min: 105, max: 165, ratio: 1.35, note: 'Espacio medio: permite fijar, atraer, encontrar tercer hombre y respetar distancias de relación.' },
-		      pressing: { label: 'Presión / robo', target: 75, min: 50, max: 100, ratio: 1.15, note: 'Espacio reducido: aumenta duelos, cierre de líneas y velocidad de acoso tras pérdida.' },
-		      finishing: { label: 'Finalización', target: 115, min: 85, max: 155, ratio: 1.45, note: 'Espacio medio con profundidad: facilita último pase, llegada al área y decisión cerca de portería.' },
-		      transition: { label: 'Transición', target: 170, min: 130, max: 220, ratio: 1.55, note: 'Espacio alto: abre metros para correr, temporizar, atacar ventajas y reorganizar tras pérdida.' },
-		      speed: { label: 'Velocidad / profundidad', target: 220, min: 170, max: 300, ratio: 1.75, note: 'Espacio muy amplio: prioriza esfuerzos largos, rupturas y defensa de grandes espacios.' },
-		    };
-		    const PITCH_REAL_DIMENSIONS = {
-		      full_pitch: { w: 68, l: 105 },
-		      half_pitch: { w: 68, l: 52 },
-		      attacking_third: { w: 68, l: 35 },
-		      middle_third: { w: 68, l: 35 },
-		      defensive_third: { w: 68, l: 35 },
-		      seven_side: { w: 45, l: 65 },
-		      seven_side_single: { w: 45, l: 65 },
-		      futsal: { w: 20, l: 40 },
-		      blank: { w: 68, l: 105 },
-		    };
-		    const parseTaskDimensionsMeters = (value) => {
-		      const raw = safeText(value).replace(',', '.');
-		      if (!raw) return null;
-		      const match = raw.match(/(\d+(?:\.\d+)?)\s*(?:x|×|\*)\s*(\d+(?:\.\d+)?)/i);
-		      if (!match) return null;
-		      const a = Number(match[1]);
-		      const b = Number(match[2]);
-		      if (!(a > 0 && b > 0)) return null;
-		      return { w: Math.round(a * 10) / 10, l: Math.round(b * 10) / 10 };
-		    };
-		    const parseTaskPlayerCount = (value) => {
-		      const raw = safeText(value).toLowerCase();
-		      if (!raw) return 0;
-		      let total = 0;
-		      const versus = raw.match(/(\d+)\s*(?:v|vs|x|contra)\s*(\d+)/i);
-		      if (versus) total += (Number(versus[1]) || 0) + (Number(versus[2]) || 0);
-		      (raw.match(/\+\s*(\d+)/g) || []).forEach((part) => { total += Number(String(part).replace(/\D/g, '')) || 0; });
-		      if (total > 0) return total;
-		      const nums = raw.match(/\d+/g) || [];
-		      if (nums.length === 1) return Number(nums[0]) || 0;
-		      return nums.reduce((sum, n) => sum + (Number(n) || 0), 0);
-		    };
-		    const parseStructuredPlayerCount = (value) => {
-		      const raw = safeText(value).toLowerCase();
-		      const result = { a: '', b: '', neutrals: '', goalkeepers: '' };
-		      if (!raw) return result;
-		      const versus = raw.match(/(\d+)\s*(?:v|vs|x|contra)\s*(\d+)/i);
-		      if (versus) {
-		        result.a = String(Number(versus[1]) || 0);
-		        result.b = String(Number(versus[2]) || 0);
-		      }
-		      const neutral = raw.match(/\+\s*(\d+)\s*(?:comod|neutral|joker|apoyo)/i);
-		      if (neutral) result.neutrals = String(Number(neutral[1]) || 0);
-		      const goalkeeper = raw.match(/\+\s*(\d+)\s*(?:port|gk|porter)/i);
-		      if (goalkeeper) result.goalkeepers = String(Number(goalkeeper[1]) || 0);
-		      return result;
-		    };
-		    const structuredPlayerParts = () => ({
-		      a: Number(teamACountInput?.value) || 0,
-		      b: Number(teamBCountInput?.value) || 0,
-		      neutrals: Number(neutralCountInput?.value) || 0,
-		      goalkeepers: Number(goalkeeperCountInput?.value) || 0,
-		    });
-		    const structuredPlayerTotal = () => {
-		      const p = structuredPlayerParts();
-		      return p.a + p.b + p.neutrals + p.goalkeepers;
-		    };
-		    const structuredPlayerText = () => {
-		      const p = structuredPlayerParts();
-		      const base = (p.a > 0 || p.b > 0) ? `${p.a}v${p.b}` : '';
-		      const extras = [];
-		      if (p.neutrals > 0) extras.push(`${p.neutrals} comod${p.neutrals === 1 ? 'ín' : 'ines'}`);
-		      if (p.goalkeepers > 0) extras.push(`${p.goalkeepers} portero${p.goalkeepers === 1 ? '' : 's'}`);
-		      if (base && extras.length) return `${base} + ${extras.join(' + ')}`;
-		      if (base) return base;
-		      if (extras.length) return extras.join(' + ');
-		      return '';
-		    };
-		    const syncPlayerCountFromStructuredInputs = () => {
-		      if (!playerCountInput) return;
-		      const next = structuredPlayerText();
-		      if (!next) return;
-		      playerCountInput.value = next;
-		      try { playerCountInput.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) { /* ignore */ }
-		      try { playerCountInput.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) { /* ignore */ }
-		    };
-		    const hydrateStructuredPlayerInputs = () => {
-		      if (!teamACountInput && !teamBCountInput && !neutralCountInput && !goalkeeperCountInput) return;
-		      const parsed = parseStructuredPlayerCount(playerCountInput?.value);
-		      if (teamACountInput && parsed.a !== '') teamACountInput.value = parsed.a;
-		      if (teamBCountInput && parsed.b !== '') teamBCountInput.value = parsed.b;
-		      if (neutralCountInput && parsed.neutrals !== '') neutralCountInput.value = parsed.neutrals;
-		      if (goalkeeperCountInput && parsed.goalkeepers !== '') goalkeeperCountInput.value = parsed.goalkeepers;
-		    };
-		    const formatMeters = (value) => {
-		      const n = Number(value);
-		      if (!Number.isFinite(n)) return '';
-		      return String(Math.round(n * 10) / 10).replace(/\.0$/, '');
-		    };
-		    const dimensionsText = (w, l) => `${formatMeters(w)}x${formatMeters(l)} m`;
-		    const recommendedDimensionsFor = (players, rule, variant = 'balanced') => {
-		      const count = Math.max(1, Number(players) || 1);
-		      const multiplier = variant === 'tight' ? 0.82 : (variant === 'wide' ? 1.18 : 1);
-		      const targetArea = Math.max(50, count * (Number(rule?.target) || 110) * multiplier);
-		      const ratio = Math.max(0.75, Number(rule?.ratio) || 1.35);
-		      const width = Math.sqrt(targetArea / ratio);
-		      const length = width * ratio;
-		      return { w: Math.max(8, Math.round(width)), l: Math.max(8, Math.round(length)), area: Math.round(targetArea) };
-		    };
-		    const classifySpaceDensity = (m2pp, rule) => {
-		      const value = Number(m2pp) || 0;
-		      if (!value) return 'Sin datos';
-		      const min = Number(rule?.min) || 70;
-		      const max = Number(rule?.max) || 150;
-		      if (value < min * 0.78) return 'Muy denso';
-		      if (value < min) return 'Denso';
-		      if (value <= max) return 'Adecuado';
-		      if (value <= max * 1.28) return 'Amplio';
-		      return 'Muy amplio';
-		    };
-		    const writeTaskDimensionsFromSpaceCoach = (dims) => {
-		      if (!dims || !dimensionsInput) return;
-		      dimensionsInput.value = dimensionsText(dims.w, dims.l);
-		      try { dimensionsInput.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) { /* ignore */ }
-		      try { dimensionsInput.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) { /* ignore */ }
-		    };
-		    const updateTaskSheetSummary = (data = {}) => {
-		      if (!taskSheetSummaryEl) return;
-		      const bits = [];
-		      const title = safeText(taskTitleInput?.value);
-		      const playersText = safeText(playerCountInput?.value || legacyPlayersInput?.value);
-		      const dimsText = safeText(dimensionsInput?.value);
-		      const momentText = gameMomentInput?.selectedOptions?.[0]?.textContent ? safeText(gameMomentInput.selectedOptions[0].textContent) : '';
-		      const objectiveText = safeText(taskObjectiveInput?.value);
-		      if (title) bits.push(`Título: ${title}`);
-		      if (playersText) bits.push(`Participantes: ${playersText}`);
-		      if (dimsText) bits.push(`Espacio: ${dimsText}`);
-		      if (Number(data.perPlayer) > 0) bits.push(`Densidad: ${data.perPlayer} m²/j (${data.density || 'sin lectura'})`);
-		      if (momentText && safeText(gameMomentInput?.value)) bits.push(`Momento: ${momentText}`);
-		      if (objectiveText) bits.push(`Objetivo definido`);
-		      const body = bits.length ? bits.join(' · ') : 'Completa participantes y dimensiones para obtener lectura automática del espacio.';
-		      taskSheetSummaryEl.innerHTML = `<strong>Resumen de tarea</strong><span>${escapeHtml(body)}</span>`;
-		    };
-		    const updateSpaceCoach = (options = {}) => {
-		      if (!spaceCoachEl) return null;
-		      const parsedDims = parseTaskDimensionsMeters(dimensionsInput?.value);
-		      if (parsedDims && !options.keepManual) {
-		        if (spaceWidthInput) spaceWidthInput.value = formatMeters(parsedDims.w);
-		        if (spaceLengthInput) spaceLengthInput.value = formatMeters(parsedDims.l);
-		      }
-		      const structuredTotal = structuredPlayerTotal();
-		      const inferredPlayers = structuredTotal || parseTaskPlayerCount(playerCountInput?.value || legacyPlayersInput?.value);
-		      if (inferredPlayers > 0 && !options.keepManualPlayers && spacePlayersInput && !safeText(spacePlayersInput.value)) {
-		        spacePlayersInput.value = String(inferredPlayers);
-		      }
-		      const w = Number(safeText(spaceWidthInput?.value).replace(',', '.')) || Number(parsedDims?.w) || 0;
-		      const l = Number(safeText(spaceLengthInput?.value).replace(',', '.')) || Number(parsedDims?.l) || 0;
-		      const players = Number(spacePlayersInput?.value) || inferredPlayers || 0;
-		      const objective = safeText(spaceObjectiveInput?.value, 'possession');
-		      const rule = SPACE_OBJECTIVE_RULES[objective] || SPACE_OBJECTIVE_RULES.possession;
-		      const area = (w > 0 && l > 0) ? Math.round(w * l) : 0;
-		      const perPlayer = (area > 0 && players > 0) ? Math.round(area / players) : 0;
-		      const density = classifySpaceDensity(perPlayer, rule);
-		      const suggested = recommendedDimensionsFor(players || inferredPlayers || 10, rule, safeText(options.variant, 'balanced'));
-		      if (spaceAreaEl) spaceAreaEl.textContent = area ? `${area} m²` : '-- m²';
-		      if (spacePerPlayerEl) spacePerPlayerEl.textContent = perPlayer ? `${perPlayer} m²/j` : '-- m²/j';
-		      if (spaceDensityEl) spaceDensityEl.textContent = density;
-		      if (spaceRecommendationEl) {
-		        const target = `${rule.min}-${rule.max} m²/j`;
-		        const suggestionText = players ? `${dimensionsText(suggested.w, suggested.l)} (${Math.round(suggested.area / Math.max(1, players))} m²/j)` : dimensionsText(suggested.w, suggested.l);
-		        spaceRecommendationEl.textContent = `${rule.label}: rango orientativo ${target}. Recomendado ahora: ${suggestionText}. ${rule.note}`;
-		      }
-		      updateTaskSheetSummary({ w, l, players, area, perPlayer, density, rule, suggested });
-		      return { w, l, players, area, perPlayer, density, rule, suggested };
-		    };
-		    const initSpaceCoach = () => {
-		      if (!spaceCoachEl) return;
-		      hydrateStructuredPlayerInputs();
-		      const dims = parseTaskDimensionsMeters(dimensionsInput?.value);
-		      if (dims) {
-		        if (spaceWidthInput) spaceWidthInput.value = formatMeters(dims.w);
-		        if (spaceLengthInput) spaceLengthInput.value = formatMeters(dims.l);
-		      } else {
-		        const preset = PITCH_REAL_DIMENSIONS[safeText(presetSelect?.value, 'full_pitch')] || null;
-		        if (preset) {
-		          if (spaceWidthInput) spaceWidthInput.value = formatMeters(preset.w);
-		          if (spaceLengthInput) spaceLengthInput.value = formatMeters(preset.l);
-		        }
-		      }
-		      const players = structuredPlayerTotal() || parseTaskPlayerCount(playerCountInput?.value || legacyPlayersInput?.value);
-		      if (players > 0 && spacePlayersInput) spacePlayersInput.value = String(players);
-		      const typeRaw = safeText(trainingTypeInput?.value).toLowerCase();
-		      if (spaceObjectiveInput && typeRaw) {
-		        if (typeRaw.includes('trans')) spaceObjectiveInput.value = 'transition';
-		        else if (typeRaw.includes('pres') || typeRaw.includes('robo')) spaceObjectiveInput.value = 'pressing';
-		        else if (typeRaw.includes('final') || typeRaw.includes('remate')) spaceObjectiveInput.value = 'finishing';
-		        else if (typeRaw.includes('posici')) spaceObjectiveInput.value = 'position';
-		        else if (typeRaw.includes('veloc') || typeRaw.includes('profund')) spaceObjectiveInput.value = 'speed';
-		        else if (typeRaw.includes('conserv') || typeRaw.includes('poses')) spaceObjectiveInput.value = 'possession';
-		      }
-		      updateSpaceCoach();
-		      [dimensionsInput, playerCountInput, legacyPlayersInput, trainingTypeInput, taskTitleInput, taskObjectiveInput, gameMomentInput].forEach((input) => {
-		        input?.addEventListener('input', () => updateSpaceCoach());
-		        input?.addEventListener('change', () => updateSpaceCoach());
-		      });
-		      [teamACountInput, teamBCountInput, neutralCountInput, goalkeeperCountInput].forEach((input) => {
-		        input?.addEventListener('change', () => {
-		          syncPlayerCountFromStructuredInputs();
-		          const total = structuredPlayerTotal();
-		          if (total > 0 && spacePlayersInput) spacePlayersInput.value = String(total);
-		          updateSpaceCoach({ keepManualPlayers: true });
-		        });
-		      });
-		      [spaceWidthInput, spaceLengthInput].forEach((input) => {
-		        input?.addEventListener('input', () => updateSpaceCoach({ keepManual: true }));
-		        input?.addEventListener('change', () => updateSpaceCoach({ keepManual: true }));
-		      });
-		      spacePlayersInput?.addEventListener('input', () => updateSpaceCoach({ keepManualPlayers: true }));
-		      spacePlayersInput?.addEventListener('change', () => updateSpaceCoach({ keepManualPlayers: true }));
-		      spaceObjectiveInput?.addEventListener('change', () => updateSpaceCoach({ keepManual: true, keepManualPlayers: true }));
-		      spaceApplyCurrentBtn?.addEventListener('click', () => {
-		        const data = updateSpaceCoach({ keepManual: true, keepManualPlayers: true });
-		        if (!data || !(data.w > 0 && data.l > 0)) return;
-		        writeTaskDimensionsFromSpaceCoach({ w: data.w, l: data.l });
-		        if (spaceDescriptionInput && !safeText(spaceDescriptionInput.value)) spaceDescriptionInput.value = `${data.density} · ${data.perPlayer || '--'} m²/jugador`;
-		        setStatus('Dimensiones actualizadas desde espacio por jugador.');
-		      });
-		      spaceApplyRecommendedBtn?.addEventListener('click', () => {
-		        const data = updateSpaceCoach({ keepManual: true, keepManualPlayers: true });
-		        if (!data) return;
-		        writeTaskDimensionsFromSpaceCoach(data.suggested);
-		        if (spaceWidthInput) spaceWidthInput.value = formatMeters(data.suggested.w);
-		        if (spaceLengthInput) spaceLengthInput.value = formatMeters(data.suggested.l);
-		        updateSpaceCoach({ keepManual: true, keepManualPlayers: true });
-		        setStatus('Dimensiones recomendadas aplicadas.');
-		      });
-		      spaceCoachEl.querySelectorAll('button[data-space-target]').forEach((button) => {
-		        button.addEventListener('click', () => {
-		          const variant = safeText(button.dataset.spaceTarget, 'balanced');
-		          const data = updateSpaceCoach({ keepManual: true, keepManualPlayers: true, variant });
-		          if (!data) return;
-		          writeTaskDimensionsFromSpaceCoach(data.suggested);
-		          if (spaceWidthInput) spaceWidthInput.value = formatMeters(data.suggested.w);
-		          if (spaceLengthInput) spaceLengthInput.value = formatMeters(data.suggested.l);
-		          updateSpaceCoach({ keepManual: true, keepManualPlayers: true });
-		          setStatus('Variante de espacio aplicada.');
-		        });
-		      });
-		    };
 	    const worldSize = () => {
 	      const w = Number(worldWidth) || 0;
 	      const h = Number(worldHeight) || 0;
@@ -5207,71 +4595,6 @@
 	      return false;
 	    };
 	    const activeInspectableObject = () => canvas.getActiveObject() || null;
-	    const ensureSelectedSizeBase = (object) => {
-	      if (!object) return { x: 1, y: 1 };
-	      const data = object.data || {};
-	      const baseX = Number(data.quick_size_base_x);
-	      const baseY = Number(data.quick_size_base_y);
-	      if (baseX > 0 && baseY > 0) return { x: baseX, y: baseY };
-	      const currentX = Math.max(0.001, Number(object.scaleX) || 1);
-	      const currentY = Math.max(0.001, Number(object.scaleY) || currentX);
-	      object.data = { ...data, quick_size_base_x: currentX, quick_size_base_y: currentY };
-	      return { x: currentX, y: currentY };
-	    };
-	    const selectedObjectScalePercent = (object) => {
-	      if (!object) return 100;
-	      const stored = Number(object?.data?.quick_size_percent);
-	      if (stored > 0) return Math.round(stored);
-	      const sx = Number(object.scaleX) || 1;
-	      const sy = Number(object.scaleY) || sx;
-	      const base = ensureSelectedSizeBase(object);
-	      const percent = Math.round((((sx / base.x) + (sy / base.y)) / 2) * 100);
-	      object.data = { ...(object.data || {}), quick_size_percent: percent };
-	      return percent;
-	    };
-	    const refreshSelectedSizePercentFromScale = (object) => {
-	      if (!object) return 100;
-	      const sx = Number(object.scaleX) || 1;
-	      const sy = Number(object.scaleY) || sx;
-	      const base = ensureSelectedSizeBase(object);
-	      const percent = Math.round((((sx / base.x) + (sy / base.y)) / 2) * 100);
-	      object.data = { ...(object.data || {}), quick_size_percent: percent };
-	      return percent;
-	    };
-	    const syncSelectedSizeControls = () => {
-	      if (!selectedSizeControls) return;
-	      const active = activeInspectableObject();
-	      const enabled = !!active && !active?.data?.base;
-	      selectedSizeControls.hidden = !enabled;
-	      const locked = !!active?.data?.locked;
-	      [selectedSizeDownButton, selectedSizeUpButton, selectedSizeResetButton].forEach((button) => {
-	        if (button) button.disabled = !enabled || locked;
-	      });
-	      if (selectedSizeLabel) {
-	        selectedSizeLabel.textContent = enabled ? `Elemento ${selectedObjectScalePercent(active)}%` : 'Elemento 100%';
-	      }
-	    };
-	    const setSelectedObjectUniformScale = (percent, message = 'Tamaño actualizado.') => {
-	      const active = activeInspectableObject();
-	      if (!active || active?.data?.base) return;
-	      const base = ensureSelectedSizeBase(active);
-	      const maxRelative = Math.min(
-	        maxScaleForObject(active) / Math.max(0.001, base.x),
-	        maxScaleForObject(active) / Math.max(0.001, base.y),
-	      );
-	      const nextRelative = clamp(Number(percent) / 100, 0.4, Math.max(0.4, maxRelative));
-	      const nextPercent = Math.round(nextRelative * 100);
-	      applyToActiveFlexibleObject((target) => {
-	        const targetBase = ensureSelectedSizeBase(target);
-	        const nextX = clampScale(targetBase.x * nextRelative, maxScaleForObject(target));
-	        const nextY = clampScale(targetBase.y * nextRelative, maxScaleForObject(target));
-	        target.set({ scaleX: nextX, scaleY: nextY });
-	        target.data = { ...(target.data || {}), quick_size_percent: nextPercent };
-	        if (scaleXInput) scaleXInput.value = String(Math.round(nextX * 100));
-	        if (scaleYInput) scaleYInput.value = String(Math.round(nextY * 100));
-	      }, message);
-	      syncSelectedSizeControls();
-	    };
 	    const setObjectData = (object, patch) => {
 	      if (!object || typeof object !== 'object') return;
 	      object.data = { ...(object.data || {}), ...(patch || {}) };
@@ -6364,7 +5687,6 @@
 			        if (backgroundEditActions) backgroundEditActions.hidden = true;
 			        selectionDockDismissed = false;
 			        selectionDockDismissedUid = '';
-				        syncSelectedSizeControls();
 				        try { if (selectionDockEl) selectionDockEl.hidden = true; } catch (e) { /* ignore */ }
 				        return;
 				      }
@@ -6383,7 +5705,6 @@
 			      selectionDockDismissed = false;
 			      selectionDockDismissedUid = '';
 				      selectionToolbar.hidden = false;
-			      syncSelectedSizeControls();
 			      try { syncSelectionInspectorDock(); } catch (e) { /* ignore */ }
 			      try { if (selectionDockEl) selectionDockEl.hidden = !shouldDockSelectionInspector(); } catch (e) { /* ignore */ }
 			      const canColor = isColorizableObject(active);
@@ -8734,7 +8055,6 @@
 						    // Vista 3D (presentación): renderiza la pizarra actual (y los escenarios si existen) en un visor 3D.
 						    // Inspirado en flujos típicos de la competencia: toggle 2D↔3D + presets de cámara + export.
 						    const canUsePitch3d = () => {
-						      try { syncPitch3dDomRefs(); } catch (e) { /* ignore */ }
 						      try { return !!(pitch3dModal && pitch3dCanvasEl && window.THREE && typeof window.THREE.WebGLRenderer === 'function'); } catch (e) { return false; }
 						    };
 
@@ -8830,9 +8150,7 @@
 						        return '';
 						      }
 						    };
-						    const isLegacyPitch3dReferenceStadiumSrc = (src) => /stadium_benagalbon_reference(?:\.[a-f0-9]+)?\.glb(?:[?#].*)?$/i.test(safeText(src || ''));
-						    const isDedicatedPitch3dMalagaStadiumSrc = (src) => /stadium_malaga_rosaleda(?:\.[a-f0-9]+)?\.glb(?:[?#].*)?$/i.test(safeText(src || ''));
-						    const isDedicatedPitch3dReferenceStadiumSrc = (src) => isLegacyPitch3dReferenceStadiumSrc(src);
+						    const isDedicatedPitch3dReferenceStadiumSrc = (src) => /stadium_benagalbon_reference(?:\.[a-f0-9]+)?\.glb(?:[?#].*)?$/i.test(safeText(src || ''));
 						    const ensurePitch3dGltfLoaderClass = async () => {
 						      try { if (window.__WEBSTATS_GLTF_LOADER_CLASS) return true; } catch (e) { /* ignore */ }
 						      if (window.__webstats_gltf_loader_promise) return !!(await window.__webstats_gltf_loader_promise);
@@ -8965,51 +8283,17 @@
 						      return null;
 						    };
 						    const __pitch3dStadiumModelCache = { loading: false, scene: null, failed: false, callbacks: [] };
-						    const updatePitch3dStadiumDebug = (patch = {}) => {
-						      try {
-						        const prev = window.__WEBSTATS_PITCH3D_STADIUM_DEBUG || {};
-						        const events = Array.isArray(prev.events) ? prev.events.slice(-59) : [];
-						        const entry = Object.assign({ at: Date.now() }, patch || {});
-						        events.push(entry);
-						        window.__WEBSTATS_PITCH3D_STADIUM_DEBUG = Object.assign({}, prev, patch || {}, {
-						          events,
-						          at: entry.at,
-						        });
-						      } catch (e) { /* ignore */ }
-						    };
 						    const __pitch3dLoadStadiumModel = (onLoad) => {
 						      const src = __pitch3dAssetUrl('pitch3dStadiumModelSrc');
-						      updatePitch3dStadiumDebug({
-						        event: 'loadStadiumModel:enter',
-						        src,
-						        hasThree: !!window.THREE,
-						        hasScene: !!__pitch3dStadiumModelCache.scene,
-						        loading: !!__pitch3dStadiumModelCache.loading,
-						        failed: !!__pitch3dStadiumModelCache.failed,
-						      });
-						      if (!src || !window.THREE) {
-						        updatePitch3dStadiumDebug({ event: 'loadStadiumModel:missing-src-or-three', src, hasThree: !!window.THREE });
-						        return null;
-						      }
+						      if (!src || !window.THREE) return null;
 						      if (__pitch3dStadiumModelCache.scene) {
 						        try { if (typeof onLoad === 'function') onLoad(__pitch3dStadiumModelCache.scene); } catch (e) { /* ignore */ }
-						        updatePitch3dStadiumDebug({ event: 'loadStadiumModel:cache-hit', src });
 						        return __pitch3dStadiumModelCache.scene;
 						      }
 						      if (typeof onLoad === 'function') __pitch3dStadiumModelCache.callbacks.push(onLoad);
-						      if (__pitch3dStadiumModelCache.loading || __pitch3dStadiumModelCache.failed) {
-						        updatePitch3dStadiumDebug({
-						          event: 'loadStadiumModel:short-circuit',
-						          src,
-						          loading: !!__pitch3dStadiumModelCache.loading,
-						          failed: !!__pitch3dStadiumModelCache.failed,
-						          callbacks: (__pitch3dStadiumModelCache.callbacks || []).length,
-						        });
-						        return null;
-						      }
+						      if (__pitch3dStadiumModelCache.loading || __pitch3dStadiumModelCache.failed) return null;
 						      const LoaderClass = window.__WEBSTATS_GLTF_LOADER_CLASS;
 						      if (typeof LoaderClass !== 'function') {
-						        updatePitch3dStadiumDebug({ event: 'loadStadiumModel:no-loader-class', src });
 						        try {
 						          if (!__pitch3dStadiumModelCache.loaderRetryScheduled) {
 						            __pitch3dStadiumModelCache.loaderRetryScheduled = true;
@@ -9024,18 +8308,10 @@
 						      __pitch3dStadiumModelCache.loading = true;
 						      try {
 						        const loader = new LoaderClass();
-						        updatePitch3dStadiumDebug({ event: 'loadStadiumModel:request', src });
 						        loader.load(src, (gltf) => {
 						          const scene = gltf?.scene || null;
 						          __pitch3dStadiumModelCache.scene = scene;
 						          __pitch3dStadiumModelCache.loading = false;
-						          __pitch3dStadiumModelCache.failed = false;
-						          updatePitch3dStadiumDebug({
-						            event: 'loadStadiumModel:success',
-						            src,
-						            hasScene: !!scene,
-						            childCount: scene?.children?.length || 0,
-						          });
 						          const callbacks = __pitch3dStadiumModelCache.callbacks.splice(0);
 						          callbacks.forEach((cb) => {
 						            try { cb(scene); } catch (e) { /* ignore */ }
@@ -9043,12 +8319,10 @@
 						        }, undefined, () => {
 						          __pitch3dStadiumModelCache.loading = false;
 						          __pitch3dStadiumModelCache.failed = true;
-						          updatePitch3dStadiumDebug({ event: 'loadStadiumModel:error', src });
 						          __pitch3dStadiumModelCache.callbacks.splice(0);
 						        });
 						      } catch (e) {
 						        __pitch3dStadiumModelCache.loading = false;
-						        updatePitch3dStadiumDebug({ event: 'loadStadiumModel:throw', src, error: safeText(e?.message || e) });
 						      }
 						      return null;
 						    };
@@ -9509,55 +8783,11 @@
 							      return tex;
 							    };
 
-							    const pitchBox2dForPreset = (sourceW, sourceH, preset, orientation, fieldFormat) => {
-						      const bleed = 30;
-						      const stageW = Math.max(1, (Number(sourceW) || 1280) - (bleed * 2));
-						      const stageH = Math.max(1, (Number(sourceH) || 720) - (bleed * 2));
-						      const createStageBox = (desiredAspect = 105 / 68, fitMode = 'contain') => {
-						        const portrait = safeText(orientation) === 'portrait';
-						        const effectiveW = portrait ? stageH : stageW;
-						        const effectiveH = portrait ? stageW : stageH;
-						        const fit = safeText(fitMode, 'contain') === 'cover' ? 'cover' : 'contain';
-						        let width = effectiveW;
-						        let height = width / desiredAspect;
-						        if (fit === 'contain') {
-						          if (height > effectiveH) {
-						            height = effectiveH;
-						            width = height * desiredAspect;
-						          }
-						        } else {
-						          height = effectiveH;
-						          width = height * desiredAspect;
-						          if (width < effectiveW) {
-						            width = effectiveW;
-						            height = width / desiredAspect;
-						          }
-						        }
-						        return {
-						          x: (effectiveW - width) / 2,
-						          y: (effectiveH - height) / 2,
-						          width,
-						          height,
-						        };
-						      };
-						      const key = safeText(preset, 'full_pitch');
-						      if (key === 'full_pitch' || key === 'blank' || key === 'seven_side') {
-						        return { x: 0, y: 0, width: stageW, height: stageH };
-						      }
-						      if (key === 'half_pitch') return createStageBox((52.5 / 68), 'contain');
-						      if (key === 'attacking_third' || key === 'middle_third' || key === 'defensive_third') return createStageBox((35 / 68), 'contain');
-						      if (key === 'seven_side_single') return createStageBox((65 / 45), 'contain');
-						      if (key === 'futsal') return createStageBox((40 / 20), 'cover');
-						      const profile = getPitch3dFieldProfile(fieldFormat);
-						      return createStageBox((Number(profile?.w) || 105) / Math.max(1, Number(profile?.h) || 68), 'contain');
-						    };
-
-							    const map2dToPitch = (xPx, yPx, sourceW, sourceH, metersW, metersH, orientation, pitchBox = null) => {
-						      const box = pitchBox && Number.isFinite(Number(pitchBox.width)) && Number.isFinite(Number(pitchBox.height))
-						        ? pitchBox
-						        : { x: 0, y: 0, width: Math.max(1, Number(sourceW) || 1280), height: Math.max(1, Number(sourceH) || 720) };
-						      const u = clamp(((Number(xPx) || 0) - (Number(box.x) || 0)) / Math.max(1, Number(box.width) || 1), 0, 1);
-						      const v = clamp(((Number(yPx) || 0) - (Number(box.y) || 0)) / Math.max(1, Number(box.height) || 1), 0, 1);
+							    const map2dToPitch = (xPx, yPx, sourceW, sourceH, metersW, metersH, orientation) => {
+						      const w = Math.max(1, Number(sourceW) || 1280);
+						      const h = Math.max(1, Number(sourceH) || 720);
+						      const u = clamp((Number(xPx) || 0) / w, 0, 1);
+						      const v = clamp((Number(yPx) || 0) / h, 0, 1);
 						      let x = (u - 0.5) * metersW;
 						      let z = (v - 0.5) * metersH;
 						      if (safeText(orientation) === 'portrait') {
@@ -9570,10 +8800,9 @@
 						      return { x, z };
 						    };
 
-							    const mapPitchTo2d = (xM, zM, sourceW, sourceH, metersW, metersH, orientation, pitchBox = null) => {
-						      const box = pitchBox && Number.isFinite(Number(pitchBox.width)) && Number.isFinite(Number(pitchBox.height))
-						        ? pitchBox
-						        : { x: 0, y: 0, width: Math.max(1, Number(sourceW) || 1280), height: Math.max(1, Number(sourceH) || 720) };
+							    const mapPitchTo2d = (xM, zM, sourceW, sourceH, metersW, metersH, orientation) => {
+						      const w = Math.max(1, Number(sourceW) || 1280);
+						      const h = Math.max(1, Number(sourceH) || 720);
 						      let x = Number(xM) || 0;
 						      let z = Number(zM) || 0;
 						      if (safeText(orientation) === 'portrait') {
@@ -9584,48 +8813,7 @@
 						      }
 						      const u = clamp((x / Math.max(1, Number(metersW) || 105)) + 0.5, 0, 1);
 						      const v = clamp((z / Math.max(1, Number(metersH) || 68)) + 0.5, 0, 1);
-						      return {
-						        x: (Number(box.x) || 0) + (u * Math.max(1, Number(box.width) || 1)),
-						        y: (Number(box.y) || 0) + (v * Math.max(1, Number(box.height) || 1)),
-						      };
-						    };
-						    const objectBaseWidth2d = (o) => {
-						      if (!o || typeof o !== 'object') return 0;
-						      if (Number.isFinite(Number(o.width)) && Number(o.width) > 0) return Number(o.width);
-						      if (Number.isFinite(Number(o.radius)) && Number(o.radius) > 0) return Number(o.radius) * 2;
-						      if (Number.isFinite(Number(o.rx)) && Number(o.rx) > 0) return Number(o.rx) * 2;
-						      return 0;
-						    };
-						    const objectBaseHeight2d = (o) => {
-						      if (!o || typeof o !== 'object') return 0;
-						      if (Number.isFinite(Number(o.height)) && Number(o.height) > 0) return Number(o.height);
-						      if (Number.isFinite(Number(o.radius)) && Number(o.radius) > 0) return Number(o.radius) * 2;
-						      if (Number.isFinite(Number(o.ry)) && Number(o.ry) > 0) return Number(o.ry) * 2;
-						      return 0;
-						    };
-						    const objectCenterPoint2d = (o) => {
-						      if (!o || typeof o !== 'object') return { x: 0, y: 0 };
-						      const ox = safeText(o?.originX, 'center');
-						      const oy = safeText(o?.originY, 'center');
-						      const width = objectBaseWidth2d(o);
-						      const height = objectBaseHeight2d(o);
-						      const localX = ox === 'left' ? (width / 2) : (ox === 'right' ? -(width / 2) : 0);
-						      const localY = oy === 'top' ? (height / 2) : (oy === 'bottom' ? -(height / 2) : 0);
-						      const sx = Number(o?.scaleX);
-						      const sy = Number(o?.scaleY);
-						      const scaleX = Number.isFinite(sx) ? sx : 1;
-						      const scaleY = Number.isFinite(sy) ? sy : 1;
-						      const angle = ((Number(o?.angle) || 0) * Math.PI) / 180;
-						      const cos = Math.cos(angle);
-						      const sin = Math.sin(angle);
-						      const x = (Number(localX) || 0) * scaleX;
-						      const y = (Number(localY) || 0) * scaleY;
-						      const rx = (x * cos) - (y * sin);
-						      const ry = (x * sin) + (y * cos);
-						      return {
-						        x: (Number(o?.left) || 0) + rx,
-						        y: (Number(o?.top) || 0) + ry,
-						      };
+						      return { x: u * w, y: v * h };
 						    };
 
 						    const pitch3dUidForObject = (o, fallback = '') => {
@@ -9635,29 +8823,6 @@
 						        || safeText(data.uid)
 						        || safeText(data.playerNumber)
 						        || safeText(fallback);
-						    };
-						    const resolveLiveFabricObject3d = (obj) => {
-						      const liveCanvas = canvas && typeof canvas.getObjects === 'function' ? canvas : null;
-						      if (!obj || !liveCanvas) return null;
-						      const liveObjects = Array.isArray(liveCanvas.getObjects?.()) ? liveCanvas.getObjects() : [];
-						      if (!liveObjects.length) return null;
-						      const uid = pitch3dUidForObject(obj);
-						      if (uid) {
-						        const byUid = liveObjects.find((candidate) => pitch3dUidForObject(candidate) === uid);
-						        if (byUid) return byUid;
-						      }
-						      const kind = safeText(obj?.data?.kind);
-						      const type = safeText(obj?.type);
-						      const left = Number(obj?.left);
-						      const top = Number(obj?.top);
-						      const byShape = liveObjects.find((candidate) => {
-						        if (safeText(candidate?.data?.kind) !== kind) return false;
-						        if (safeText(candidate?.type) !== type) return false;
-						        const dx = Math.abs((Number(candidate?.left) || 0) - (Number.isFinite(left) ? left : 0));
-						        const dy = Math.abs((Number(candidate?.top) || 0) - (Number.isFinite(top) ? top : 0));
-						        return dx <= 2 && dy <= 2;
-						      });
-						      return byShape || null;
 						    };
 
 						    const normalizePitch3dRoutePoints = (points) => {
@@ -10153,7 +9318,6 @@
 						    };
 
 						    const ensurePitch3d = () => {
-						      try { syncPitch3dDomRefs(); } catch (e) { /* ignore */ }
 						      if (!canUsePitch3d()) return false;
 						      if (pitch3dRenderer && pitch3dScene && pitch3dCamera) return true;
 						      try {
@@ -10248,10 +9412,9 @@
 						      const out = { x: 0, z: 0, spread: Math.max(18, Math.min(Number(metersW) || 105, Number(metersH) || 68) * 0.28), count: 0 };
 						      try {
 						        const { w, h } = worldSize();
-						        const focusPitchBox = pitchBox2dForPreset(Number(w) || 1280, Number(h) || 720, presetSelect?.value || 'full_pitch', pitchOrientation, pitch3dFormat);
 						        const items = (canvas.getObjects?.() || [])
 						          .filter((o) => o && !o?.data?.base && safeText(o?.data?.kind) !== 'preview-background')
-						          .map((o) => map2dToPitch(Number(o.left) || 0, Number(o.top) || 0, Number(w) || 1280, Number(h) || 720, metersW, metersH, pitchOrientation, focusPitchBox));
+						          .map((o) => map2dToPitch(Number(o.left) || 0, Number(o.top) || 0, Number(w) || 1280, Number(h) || 720, metersW, metersH, pitchOrientation));
 						        if (!items.length) return out;
 						        const xs = items.map((p) => Number(p.x) || 0);
 						        const zs = items.map((p) => Number(p.z) || 0);
@@ -10275,12 +9438,9 @@
 							      let targetZ = 0;
 							      pitch3dCamera.fov = 48;
 						      if (k === 'top_h' || k === 'top_v') {
-							        pitch3dOrbit.theta = 0;
+							        pitch3dOrbit.theta = k === 'top_h' ? 0 : (Math.PI / 2);
 							        pitch3dOrbit.phi = 0.02;
-							        pitch3dOrbit.radius = k === 'top_v'
-							          ? Math.max(86, Math.max(metersW, metersH) * 1.62)
-							          : Math.max(70, Math.max(metersW, metersH) * 1.25);
-							        targetY = 0;
+							        pitch3dOrbit.radius = Math.max(70, Math.max(metersW, metersH) * 1.25);
 						      } else if (k === 'reference_photo') {
 						        // Vista calibrada contra la foto de referencia: esquina alta, grada principal y banquillos visibles.
 							        pitch3dCamera.fov = 42;
@@ -10290,25 +9450,15 @@
 							        targetX = -4.5;
 							        targetY = 7.9;
 							        targetZ = 4.8;
-							      } else if (k === 'render_original') {
+						      } else if (k === 'render_original') {
 							        // Vista estilo La Rosaleda: esquina interior, baja y cercana, con banquillos, vallas y grada principal legibles.
-										        if (isDedicatedPitch3dMalagaStadiumSrc(__pitch3dAssetUrl('pitch3dStadiumModelSrc'))) {
-										          pitch3dCamera.fov = 42;
-										          pitch3dOrbit.theta = -2.54;
-							          pitch3dOrbit.phi = 1.04;
-										          pitch3dOrbit.radius = Math.max(142, metersW * 1.32);
-										          targetX = -4.8;
-										          targetY = 7.8;
-										          targetZ = 4.6;
-										        } else {
-										          pitch3dCamera.fov = 42;
-										          pitch3dOrbit.theta = -2.25;
-										          pitch3dOrbit.phi = 1.12;
-										          pitch3dOrbit.radius = Math.max(82, metersW * 0.78);
-										          targetX = -1.6;
-										          targetY = 4.20;
-										          targetZ = 2.15;
-										        }
+										        pitch3dCamera.fov = 42;
+										        pitch3dOrbit.theta = -2.48;
+										        pitch3dOrbit.phi = 1.16;
+										        pitch3dOrbit.radius = Math.max(88, metersW * 0.84);
+										        targetX = -4.4;
+										        targetY = 3.95;
+										        targetZ = -1.35;
 						      } else if (k === 'clean_pitch_render') {
 							        // Composición de campo limpio: esquina alta y campo completo.
 							        pitch3dOrbit.theta = -2.26;
@@ -10510,7 +9660,6 @@
 						      const metersH = meters.h;
 						      const sourceW = Number(options.sourceW) || (Number(worldWidth) || 1280);
 						      const sourceH = Number(options.sourceH) || (Number(worldHeight) || 720);
-						      const sourcePitchBox = pitchBox2dForPreset(sourceW, sourceH, preset, orientation, fieldFormat);
 							      try { addPitch3dRenderBackdrop(root, metersW, metersH); } catch (e) { /* ignore */ }
 
 						      // Suelo
@@ -10830,14 +9979,12 @@
 						      addGrassFiberSheen3d();
 						      addPitchPaint3d();
 
-						      const darkMat = new THREE.MeshStandardMaterial({ color: 0x0a1420, roughness: 0.70, metalness: 0.08 });
-						      const metalMat = new THREE.MeshStandardMaterial({ color: 0xcbd8dd, roughness: 0.28, metalness: 0.36 });
-						      const flagPoleMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.32, metalness: 0.18 });
-						      const flagMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.48, metalness: 0, side: THREE.DoubleSide });
 						      const addPitchSideDetails3d = () => {
 						        try {
 						          if (!window.THREE || ['whiteboard', 'blackboard'].includes(grass.toLowerCase())) return;
+						          const darkMat = new THREE.MeshStandardMaterial({ color: 0x0a1420, roughness: 0.70, metalness: 0.08 });
 						          const carbonMat = new THREE.MeshStandardMaterial({ color: 0x101820, roughness: 0.46, metalness: 0.18 });
+						          const metalMat = new THREE.MeshStandardMaterial({ color: 0xcbd8dd, roughness: 0.28, metalness: 0.36 });
 						          const ledTrimMat = new THREE.MeshStandardMaterial({ color: 0x07131f, roughness: 0.34, metalness: 0.22 });
 						          const glassMat = new THREE.MeshPhysicalMaterial({
 						            color: 0xdff7ff,
@@ -10851,13 +9998,13 @@
 						            side: THREE.DoubleSide,
 						          });
 						          const benchSeatMat = new THREE.MeshStandardMaterial({ color: toColorInt(stadiumPalette3d.primary, 0x047857), roughness: 0.48, metalness: 0.03 });
-						          const benchSeatAltMat = new THREE.MeshStandardMaterial({ color: toColorInt(lightenHex(stadiumPalette3d.primary, 0.10), 0x1d4ed8), roughness: 0.44, metalness: 0.03 });
 						          const benchPadMat = new THREE.MeshStandardMaterial({ color: toColorInt(stadiumPalette3d.accent, 0x082f49), roughness: 0.42, metalness: 0.02 });
+						          const flagPoleMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.32, metalness: 0.18 });
+						          const flagMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.48, metalness: 0, side: THREE.DoubleSide });
 						          const concreteMat = new THREE.MeshStandardMaterial({ color: 0xcbd5d1, roughness: 0.82, metalness: 0.01 });
 						          const stepMat = new THREE.MeshStandardMaterial({ color: 0x9aa7a7, roughness: 0.78, metalness: 0.02 });
 						          const aisleMat = new THREE.MeshStandardMaterial({ color: 0xe5e7eb, roughness: 0.70, metalness: 0.02 });
 						          const tunnelWallMat = new THREE.MeshStandardMaterial({ color: 0x13202a, roughness: 0.64, metalness: 0.05 });
-						          const tunnelTrimMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.42, metalness: 0.22 });
 						          const tunnelLightMat = new THREE.MeshBasicMaterial({ color: 0xd9fff2, transparent: true, opacity: 0.58, toneMapped: false });
 						          const addBox = (group, geo, mat, x, y, z, rx = 0, ry = 0, rz = 0, kind = 'pitch_side_detail') => {
 						            const mesh = new THREE.Mesh(geo, mat);
@@ -10905,27 +10052,11 @@
 						            ctx.lineWidth = 4;
 						            ctx.strokeRect(12, 12, c.width - 24, c.height - 24);
 						          }, 2048, 384)?.tex || null;
-						          const adConfigs = [
-						            { label: '2J FOOTBALL INTELLIGENCE', accent: stadiumPalette3d.primary },
-						            { label: 'PARTNER', accent: stadiumPalette3d.accent },
-						            { label: 'SPONSOR', accent: stadiumPalette3d.secondary },
-						            { label: 'LA ROSALEDA', accent: '#1d4ed8' },
+						          const adMats = [
+						            new THREE.MeshBasicMaterial({ map: makeAdTexture('SEGUNDA JUGADA', stadiumPalette3d.primary), side: THREE.FrontSide, toneMapped: false, transparent: true, opacity: 0.96 }),
+						            new THREE.MeshBasicMaterial({ map: makeAdTexture('TACTICA 3D', stadiumPalette3d.accent), side: THREE.FrontSide, toneMapped: false, transparent: true, opacity: 0.96 }),
+						            new THREE.MeshBasicMaterial({ map: makeAdTexture('ANALISIS PRO', stadiumPalette3d.secondary), side: THREE.FrontSide, toneMapped: false, transparent: true, opacity: 0.96 }),
 						          ];
-						          const adMatCache = new Map();
-						          const adMatFor = (matIndex = 0) => {
-						            const config = adConfigs[((matIndex % adConfigs.length) + adConfigs.length) % adConfigs.length];
-						            const key = `${config.label}|${config.accent}`;
-						            if (!adMatCache.has(key)) {
-						              adMatCache.set(key, new THREE.MeshBasicMaterial({
-						                map: makeAdTexture(config.label, config.accent),
-						                side: THREE.FrontSide,
-						                toneMapped: false,
-						                transparent: true,
-						                opacity: 0.96,
-						              }));
-						            }
-						            return adMatCache.get(key);
-						          };
 						          const addAdPanel = (x, z, w, rotY, matIndex = 0) => {
 						            const g = new THREE.Group();
 						            g.position.set(x, 0, z);
@@ -10941,11 +10072,11 @@
 						              addBox(g, new THREE.BoxGeometry(0.10, 0.70, 0.08), metalMat, -(w / 2) + 0.55, 0.46, -0.40 + s, -0.22, 0, 0, 'pitch_3d_led_rear_support');
 						              addBox(g, new THREE.BoxGeometry(0.10, 0.70, 0.08), metalMat, (w / 2) - 0.55, 0.46, -0.40 + s, -0.22, 0, 0, 'pitch_3d_led_rear_support');
 						            }
-						            const face = new THREE.Mesh(new THREE.PlaneGeometry(w, 1.05), adMatFor(matIndex));
+						            const face = new THREE.Mesh(new THREE.PlaneGeometry(w, 1.05), adMats[matIndex % adMats.length]);
 						            face.position.set(0, 0.80, 0.125);
 						            face.userData = { kind: 'pitch_3d_ad_face' };
 						            g.add(face);
-						            const back = new THREE.Mesh(new THREE.PlaneGeometry(w, 1.02), adMatFor(matIndex));
+						            const back = new THREE.Mesh(new THREE.PlaneGeometry(w, 1.02), adMats[(matIndex + 1) % adMats.length]);
 						            back.position.set(0, 0.80, -0.125);
 						            back.rotation.y = Math.PI;
 						            back.userData = { kind: 'pitch_3d_ad_back_face' };
@@ -11688,128 +10819,32 @@
 						          };
 						          const addVisibleTechnicalArea = () => {
 						            const visibleFasciaMat = new THREE.MeshStandardMaterial({ color: toColorInt(stadiumPalette3d.accent, 0x073b32), roughness: 0.50, metalness: 0.06 });
-						            const serviceWalkMat = new THREE.MeshStandardMaterial({ color: 0x4b5563, roughness: 0.78, metalness: 0.04 });
-						            const serviceEdgeMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.62, metalness: 0.12 });
-						            const aisleStripeMat = new THREE.MeshStandardMaterial({ color: 0xf3f4f6, roughness: 0.66, metalness: 0.01 });
-						            const landingMat = new THREE.MeshStandardMaterial({ color: 0xb6c0c3, roughness: 0.72, metalness: 0.02 });
-						            const utilityMat = new THREE.MeshStandardMaterial({ color: 0x6b7280, roughness: 0.74, metalness: 0.06 });
-						            const tunnelCoverMat = new THREE.MeshPhysicalMaterial({ color: 0xe4f6ff, roughness: 0.10, metalness: 0.02, transparent: true, opacity: 0.34, transmission: 0.24, side: THREE.DoubleSide });
-						            addBox(root, new THREE.BoxGeometry(33.2, 0.10, 1.18), serviceWalkMat, -18.0, 0.07, -(metersH / 2 + 3.36), 0, 0, 0, 'pitch_3d_visible_dugout_service_walk_left');
-						            addBox(root, new THREE.BoxGeometry(33.2, 0.10, 1.18), serviceWalkMat, 18.0, 0.07, -(metersH / 2 + 3.36), 0, 0, 0, 'pitch_3d_visible_dugout_service_walk_right');
-						            addBox(root, new THREE.BoxGeometry(10.2, 0.10, 1.18), serviceWalkMat, 0, 0.07, -(metersH / 2 + 3.36), 0, 0, 0, 'pitch_3d_visible_tunnel_service_walk');
-						            addBox(root, new THREE.BoxGeometry(33.4, 0.08, 0.18), serviceEdgeMat, -18.0, 0.13, -(metersH / 2 + 2.82), 0, 0, 0, 'pitch_3d_visible_dugout_service_walk_left_edge');
-						            addBox(root, new THREE.BoxGeometry(33.4, 0.08, 0.18), serviceEdgeMat, 18.0, 0.13, -(metersH / 2 + 2.82), 0, 0, 0, 'pitch_3d_visible_dugout_service_walk_right_edge');
-						            addBox(root, new THREE.BoxGeometry(10.4, 0.08, 0.18), serviceEdgeMat, 0, 0.13, -(metersH / 2 + 2.82), 0, 0, 0, 'pitch_3d_visible_tunnel_service_walk_edge');
-						            const addPitchsideMopup = (x, z, w, labelIndex) => {
-						              const pod = new THREE.Group();
-						              pod.position.set(x, 0, z);
-						              pod.userData = { kind: 'pitch_3d_visible_pitchside_mopup' };
-						              addBox(pod, new THREE.BoxGeometry(w, 0.42, 0.56), serviceEdgeMat, 0, 0.20, 0, 0, 0, 0, 'pitch_3d_visible_pitchside_mopup_base');
-						              addBox(pod, new THREE.BoxGeometry(w * 0.98, 0.14, 0.18), carbonMat, 0, 0.34, 0.10, 0, 0, 0, 'pitch_3d_visible_pitchside_mopup_shadow_apron');
-						              addBox(pod, new THREE.BoxGeometry(w * 0.96, 0.28, 0.08), metalMat, 0, 0.46, -0.22, 0, 0, 0, 'pitch_3d_visible_pitchside_mopup_cap');
-						              addBox(pod, new THREE.BoxGeometry(w * 0.86, 0.08, 0.04), glassMat, 0, 0.54, -0.24, 0, 0, 0, 'pitch_3d_visible_pitchside_mopup_led_gloss');
-						              const face = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.90, 0.26), adMatFor(labelIndex));
-						              face.position.set(0, 0.46, -0.285);
-						              face.userData = { kind: 'pitch_3d_visible_pitchside_mopup_face' };
-						              pod.add(face);
-						              root.add(pod);
-						            };
-						            [-32.0, -20.5, 20.5, 32.0].forEach((x, idx) => addPitchsideMopup(x, -(metersH / 2 + 2.72), idx % 2 === 0 ? 7.2 : 5.4, idx));
-						            addBox(root, new THREE.BoxGeometry(metersW + 6.6, 0.16, 0.28), visibleFasciaMat, 0, 0.56, -(metersH / 2 + 2.22), 0, 0, 0, 'pitch_3d_visible_lower_pitchside_fascia_near');
-						            addBox(root, new THREE.BoxGeometry(metersW + 6.6, 0.14, 0.20), metalMat, 0, 0.82, -(metersH / 2 + 2.08), 0, 0, 0, 'pitch_3d_visible_lower_pitchside_cap_near');
-						            addBox(root, new THREE.BoxGeometry(metersW + 7.2, 0.12, 0.24), visibleFasciaMat, 0, 0.52, metersH / 2 + 2.22, 0, Math.PI, 0, 'pitch_3d_visible_lower_pitchside_fascia_far');
-						            addBox(root, new THREE.BoxGeometry(metersW + 7.2, 0.10, 0.18), metalMat, 0, 0.80, metersH / 2 + 2.08, 0, Math.PI, 0, 'pitch_3d_visible_lower_pitchside_cap_far');
 						            const addDugout = (x, zBase, labelIndex, rotY = 0) => {
 						              const dugout = new THREE.Group();
 						              dugout.position.set(x, 0, zBase);
 						              dugout.rotation.y = rotY;
 						              dugout.userData = { kind: 'pitch_3d_visible_pitchside_dugout' };
-						              addBox(dugout, new THREE.BoxGeometry(16.8, 0.22, 2.54), carbonMat, 0, 0.18, 0, 0, 0, 0, 'pitch_3d_visible_dugout_floor');
-						              addBox(dugout, new THREE.BoxGeometry(17.1, 0.14, 0.22), metalMat, 0, 1.10, -1.08, 0, 0, 0, 'pitch_3d_visible_dugout_front_rail');
-						              addBox(dugout, new THREE.BoxGeometry(16.7, 0.16, 0.26), metalMat, 0, 2.30, 0.78, 0, 0, 0, 'pitch_3d_visible_dugout_rear_spine');
-						              addBox(dugout, new THREE.BoxGeometry(16.8, 0.14, 0.16), metalMat, 0, 0.24, -1.14, 0, 0, 0, 'pitch_3d_visible_dugout_front_kickplate');
-						              addBox(dugout, new THREE.BoxGeometry(16.0, 0.26, 0.32), concreteMat, 0, 0.34, 1.08, 0, 0, 0, 'pitch_3d_visible_dugout_rear_base');
-						              for (let i = -7; i <= 7; i += 1) {
-						                addBox(dugout, new THREE.BoxGeometry(0.065, 1.58, 0.08), metalMat, i * 1.06, 1.38, -0.02, -0.48, 0, 0, 'pitch_3d_visible_dugout_canopy_rib');
+						              addBox(dugout, new THREE.BoxGeometry(13.8, 0.20, 2.25), carbonMat, 0, 0.18, 0, 0, 0, 0, 'pitch_3d_visible_dugout_floor');
+						              addBox(dugout, new THREE.BoxGeometry(14.2, 0.12, 0.18), metalMat, 0, 1.12, -0.98, 0, 0, 0, 'pitch_3d_visible_dugout_front_rail');
+						              addBox(dugout, new THREE.BoxGeometry(14.2, 0.10, 0.18), metalMat, 0, 2.24, 0.20, 0, 0, 0, 'pitch_3d_visible_dugout_roof_spine');
+						              for (let i = -6; i <= 6; i += 1) {
+						                addBox(dugout, new THREE.BoxGeometry(0.055, 1.45, 0.06), metalMat, i, 1.34, -0.20, -0.40, 0, 0, 'pitch_3d_visible_dugout_canopy_rib');
 						              }
-						              for (let i = 0; i < 6; i += 1) {
-						                const t = i / 5;
-						                addBox(dugout, new THREE.BoxGeometry(16.1, 0.07, 0.46), glassMat, 0, 1.18 + (Math.sin(t * Math.PI * 0.62) * 1.02), -1.00 + (t * 1.90), -0.48 + (t * 0.32), 0, 0, 'pitch_3d_visible_dugout_glass_canopy');
+						              for (let i = 0; i < 5; i += 1) {
+						                const t = i / 4;
+						                addBox(dugout, new THREE.BoxGeometry(13.9, 0.055, 0.42), glassMat, 0, 1.24 + (Math.sin(t * Math.PI * 0.56) * 0.92), -0.94 + (t * 1.48), -0.42 + (t * 0.25), 0, 0, 'pitch_3d_visible_dugout_glass_canopy');
 						              }
-						              addBox(dugout, new THREE.BoxGeometry(16.0, 0.92, 0.10), glassMat, 0, 1.12, -1.16, -0.10, 0, 0, 'pitch_3d_visible_dugout_front_glass');
-						              addBox(dugout, new THREE.BoxGeometry(0.18, 1.92, 2.18), glassMat, -8.04, 1.08, -0.04, -0.06, 0, 0, 'pitch_3d_visible_dugout_left_glass_end');
-						              addBox(dugout, new THREE.BoxGeometry(0.18, 1.92, 2.18), glassMat, 8.04, 1.08, -0.04, -0.06, 0, 0, 'pitch_3d_visible_dugout_right_glass_end');
-						              addBox(dugout, new THREE.BoxGeometry(16.2, 0.10, 0.34), tunnelCoverMat, 0, 2.22, 0.98, 0, 0, 0, 'pitch_3d_visible_dugout_top_glass_edge');
-						              addBox(dugout, new THREE.BoxGeometry(16.4, 0.18, 0.26), utilityMat, 0, 0.10, 1.28, 0, 0, 0, 'pitch_3d_visible_dugout_rear_service_plinth');
-						              addBox(dugout, new THREE.BoxGeometry(2.10, 0.84, 0.44), utilityMat, -5.95, 0.56, 1.42, 0, 0, 0, 'pitch_3d_visible_dugout_rear_storage_left');
-						              addBox(dugout, new THREE.BoxGeometry(2.10, 0.84, 0.44), utilityMat, 5.95, 0.56, 1.42, 0, 0, 0, 'pitch_3d_visible_dugout_rear_storage_right');
-						              for (let i = 0; i < 12; i += 1) {
-						                const sx = -6.65 + (i * 1.21);
-						                addBox(dugout, new THREE.BoxGeometry(0.86, 0.16, 0.64), metalMat, sx, 0.46, 0.46, 0, 0, 0, 'pitch_3d_visible_dugout_seat_shell');
-						                addBox(dugout, new THREE.BoxGeometry(0.78, 0.18, 0.56), i % 3 === 0 ? benchSeatAltMat : benchSeatMat, sx, 0.58, 0.42, 0, 0, 0, 'pitch_3d_visible_dugout_seat');
-						                addBox(dugout, new THREE.BoxGeometry(0.82, 0.92, 0.16), benchPadMat, sx, 1.00, 0.78, -0.24, 0, 0, 'pitch_3d_visible_dugout_backrest');
-						                addBox(dugout, new THREE.BoxGeometry(0.10, 0.34, 0.10), metalMat, sx - 0.30, 0.27, 0.42, 0, 0, 0, 'pitch_3d_visible_dugout_seat_leg');
-						                addBox(dugout, new THREE.BoxGeometry(0.10, 0.34, 0.10), metalMat, sx + 0.30, 0.27, 0.42, 0, 0, 0, 'pitch_3d_visible_dugout_seat_leg');
+						              addBox(dugout, new THREE.BoxGeometry(13.2, 0.82, 0.10), glassMat, 0, 1.08, -1.08, -0.10, 0, 0, 'pitch_3d_visible_dugout_front_glass');
+						              for (let i = 0; i < 10; i += 1) {
+						                const sx = -5.45 + (i * 1.20);
+						                addBox(dugout, new THREE.BoxGeometry(0.74, 0.20, 0.55), benchSeatMat, sx, 0.58, 0.25, 0, 0, 0, 'pitch_3d_visible_dugout_seat');
+						                addBox(dugout, new THREE.BoxGeometry(0.76, 0.82, 0.14), benchPadMat, sx, 0.96, 0.56, -0.22, 0, 0, 'pitch_3d_visible_dugout_backrest');
 						              }
-						              const label = new THREE.Mesh(new THREE.PlaneGeometry(6.2, 0.78), adMatFor(labelIndex, false));
-						              label.position.set(0, 1.30, -1.13);
+						              const label = new THREE.Mesh(new THREE.PlaneGeometry(5.8, 0.68), adMats[labelIndex % adMats.length]);
+						              label.position.set(0, 1.20, -1.06);
 						              label.userData = { kind: 'pitch_3d_visible_dugout_label' };
 						              dugout.add(label);
-						              const sideBrand = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 0.56), adMatFor(labelIndex, false));
-						              sideBrand.position.set(-6.9, 0.92, 1.26);
-						              sideBrand.rotation.y = Math.PI / 2;
-						              sideBrand.userData = { kind: 'pitch_3d_visible_dugout_side_brand' };
-						              dugout.add(sideBrand);
 						              root.add(dugout);
-						            };
-						            const addCameraPod = (x, z, rotY = 0) => {
-						              const cam = new THREE.Group();
-						              cam.position.set(x, 0, z);
-						              cam.rotation.y = rotY;
-						              cam.userData = { kind: 'pitch_3d_visible_camera_pod' };
-						              addBox(cam, new THREE.BoxGeometry(1.18, 0.24, 0.96), carbonMat, 0, 0.18, 0, 0, 0, 0, 'pitch_3d_visible_camera_pod_base');
-						              addBox(cam, new THREE.BoxGeometry(0.12, 1.02, 0.12), metalMat, 0, 0.74, 0, 0, 0, 0, 'pitch_3d_visible_camera_pod_mast');
-						              addBox(cam, new THREE.BoxGeometry(0.72, 0.22, 0.34), utilityMat, 0, 1.18, 0.16, -0.18, 0, 0, 'pitch_3d_visible_camera_pod_head');
-						              addBox(cam, new THREE.BoxGeometry(0.18, 0.18, 0.28), glassMat, 0, 1.18, -0.14, 0, 0, 0, 'pitch_3d_visible_camera_pod_lens');
-						              root.add(cam);
-						            };
-						            const addTouchlineStand = (x, zBase, rotY = 0) => {
-						              const stand = new THREE.Group();
-						              stand.position.set(x, 0, zBase);
-						              stand.rotation.y = rotY;
-						              stand.userData = { kind: 'pitch_3d_visible_touchline_stand' };
-						              addBox(stand, new THREE.BoxGeometry(16.2, 0.12, 2.12), concreteMat, 0, 0.08, 0, 0, 0, 0, 'pitch_3d_visible_touchline_stand_base');
-						              addBox(stand, new THREE.BoxGeometry(16.0, 0.18, 0.38), visibleFasciaMat, 0, 0.50, -0.94, 0, 0, 0, 'pitch_3d_visible_touchline_stand_pitch_fascia');
-						              addBox(stand, new THREE.BoxGeometry(15.8, 0.22, 0.82), landingMat, 0, 0.18, 0.58, -0.08, 0, 0, 'pitch_3d_visible_touchline_stand_front_landing');
-						              addBox(stand, new THREE.BoxGeometry(15.8, 0.10, 0.14), metalMat, 0, 0.42, -0.96, 0, 0, 0, 'pitch_3d_visible_touchline_stand_front_trim');
-						              [-4.9, 0, 4.9].forEach((portalX, portalIdx) => {
-						                addBox(stand, new THREE.BoxGeometry(0.42, 1.08, 0.28), concreteMat, portalX - 0.78, 0.88, 0.22, 0, 0, 0, 'pitch_3d_visible_touchline_stand_vomitory_left_jamb');
-						                addBox(stand, new THREE.BoxGeometry(0.42, 1.08, 0.28), concreteMat, portalX + 0.78, 0.88, 0.22, 0, 0, 0, 'pitch_3d_visible_touchline_stand_vomitory_right_jamb');
-						                addBox(stand, new THREE.BoxGeometry(1.86, 0.22, 0.26), concreteMat, portalX, 1.42, 0.24, 0, 0, 0, 'pitch_3d_visible_touchline_stand_vomitory_header');
-						                addBox(stand, new THREE.BoxGeometry(1.18, 0.86, 0.10), tunnelWallMat, portalX, 0.82, 0.10, 0, 0, 0, 'pitch_3d_visible_touchline_stand_vomitory_shadow');
-						                addBox(stand, new THREE.BoxGeometry(0.08, 0.84, 1.18), metalMat, portalX - 1.16, 0.92, 0.70, -0.06, 0, 0, 'pitch_3d_visible_touchline_stand_vomitory_handrail');
-						                addBox(stand, new THREE.BoxGeometry(0.08, 0.84, 1.18), metalMat, portalX + 1.16, 0.92, 0.70, -0.06, 0, 0, 'pitch_3d_visible_touchline_stand_vomitory_handrail');
-						                addBox(stand, new THREE.BoxGeometry(1.54, 0.06, 0.92), landingMat, portalX, 0.22, 0.48, -0.10, 0, 0, 'pitch_3d_visible_touchline_stand_vomitory_landing');
-						                addBox(stand, new THREE.BoxGeometry(1.54, 0.04, 0.16), aisleStripeMat, portalX, 0.28, -0.08, 0, 0, 0, 'pitch_3d_visible_touchline_stand_vomitory_threshold');
-						              });
-						              for (let row = 0; row < 6; row += 1) {
-						                const y = 0.30 + (row * 0.28);
-						                const z = 0.14 + (row * 0.28);
-						                addBox(stand, new THREE.BoxGeometry(15.2 - row * 0.42, 0.12, 0.36), concreteMat, 0, y, z, -0.10, 0, 0, 'pitch_3d_visible_touchline_stand_riser');
-						                addBox(stand, new THREE.BoxGeometry(1.24, 0.04, 0.18), aisleStripeMat, -4.9, y + 0.18, z + 0.03, -0.10, 0, 0, 'pitch_3d_visible_touchline_stand_aisle_marker');
-						                addBox(stand, new THREE.BoxGeometry(1.24, 0.04, 0.18), aisleStripeMat, 0, y + 0.18, z + 0.03, -0.10, 0, 0, 'pitch_3d_visible_touchline_stand_aisle_marker');
-						                addBox(stand, new THREE.BoxGeometry(1.24, 0.04, 0.18), aisleStripeMat, 4.9, y + 0.18, z + 0.03, -0.10, 0, 0, 'pitch_3d_visible_touchline_stand_aisle_marker');
-						                for (let i = 0; i < 10; i += 1) {
-						                  const sx = -6.1 + (i * 1.36);
-						                  if (Math.abs(sx) < 0.86 || Math.abs(sx - 4.9) < 0.9 || Math.abs(sx + 4.9) < 0.9) continue;
-						                  addBox(stand, new THREE.BoxGeometry(0.86, 0.14, 0.38), ((i + row) % 4 === 0) ? benchSeatAltMat : benchSeatMat, sx, y + 0.10, z - 0.01, -0.10, 0, 0, 'pitch_3d_visible_touchline_stand_seat');
-						                  addBox(stand, new THREE.BoxGeometry(0.88, 0.38, 0.10), benchPadMat, sx, y + 0.28, z + 0.16, -0.18, 0, 0, 'pitch_3d_visible_touchline_stand_backrest');
-						                }
-						              }
-						              addBox(stand, new THREE.BoxGeometry(15.4, 0.34, 0.72), concreteMat, 0, 2.12, 2.06, -0.10, 0, 0, 'pitch_3d_visible_touchline_stand_rear_concourse');
-						              addBox(stand, new THREE.BoxGeometry(15.2, 0.08, 0.12), glassMat, 0, 1.62, 1.36, 0, 0, 0, 'pitch_3d_visible_touchline_stand_guardrail');
-						              addBox(stand, new THREE.BoxGeometry(15.2, 0.06, 0.12), metalMat, 0, 2.38, 2.24, 0, 0, 0, 'pitch_3d_visible_touchline_stand_rear_guardrail');
-						              root.add(stand);
 						            };
 						            const addTunnel = (portalZ, rotY = 0) => {
 						              const tunnelGroup = new THREE.Group();
@@ -11826,25 +10861,15 @@
 						              addBox(tunnelGroup, new THREE.BoxGeometry(0.10, 1.18, 4.35), metalMat, -4.58, 0.98, 1.88, -0.05, 0, 0, 'pitch_3d_visible_tunnel_side_rail_l');
 						              addBox(tunnelGroup, new THREE.BoxGeometry(0.10, 1.18, 4.35), metalMat, 4.58, 0.98, 1.88, -0.05, 0, 0, 'pitch_3d_visible_tunnel_side_rail_r');
 						              addBox(tunnelGroup, new THREE.BoxGeometry(11.4, 0.48, 0.28), visibleFasciaMat, 0, 3.10, -0.04, 0, 0, 0, 'pitch_3d_visible_tunnel_header_fascia');
-						              addBox(tunnelGroup, new THREE.BoxGeometry(10.2, 0.12, 0.22), tunnelTrimMat, 0, 2.36, -0.22, 0, 0, 0, 'pitch_3d_visible_tunnel_header_trim');
-						              addBox(tunnelGroup, new THREE.BoxGeometry(7.05, 0.06, 4.84), carbonMat, 0, 0.30, 1.98, -0.09, 0, 0, 'pitch_3d_visible_tunnel_rubber_walkway');
-						              addBox(tunnelGroup, new THREE.BoxGeometry(7.34, 0.04, 0.14), metalMat, 0, 0.34, -0.18, 0, 0, 0, 'pitch_3d_visible_tunnel_walkway_trim_front');
-						              addBox(tunnelGroup, new THREE.BoxGeometry(7.08, 0.04, 0.12), metalMat, 0, 0.34, 4.32, 0, 0, 0, 'pitch_3d_visible_tunnel_walkway_trim_back');
-						              [-2.45, 0, 2.45].forEach((x) => addBox(tunnelGroup, new THREE.BoxGeometry(0.14, 1.52, 0.08), tunnelLightMat, x, 1.34, 0.78, 0, 0, 0, 'pitch_3d_visible_tunnel_linear_light'));
-						              [-2.75, -0.92, 0.92, 2.75].forEach((x) => addBox(tunnelGroup, new THREE.BoxGeometry(0.08, 0.82, 0.08), metalMat, x, 0.64, 3.70, 0, 0, 0, 'pitch_3d_visible_tunnel_walkway_bollard'));
-						              addBox(tunnelGroup, new THREE.BoxGeometry(9.2, 0.08, 1.18), tunnelCoverMat, 0, 2.76, 0.36, -0.18, 0, 0, 'pitch_3d_visible_tunnel_glass_cap');
-						              addBox(tunnelGroup, new THREE.BoxGeometry(8.2, 0.06, 3.66), tunnelCoverMat, 0, 1.76, 1.74, -0.18, 0, 0, 'pitch_3d_visible_tunnel_glass_slide');
 						              root.add(tunnelGroup);
 						            };
 						            addDugout(-18.0, -(metersH / 2 + 2.05), 0, 0);
-						            addTouchlineStand(18.0, -(metersH / 2 + 2.05), 0);
+						            addDugout(18.0, -(metersH / 2 + 2.05), 1, 0);
 						            addTunnel(-(metersH / 2 + 4.20), 0);
-						            addTouchlineStand(-18.0, metersH / 2 + 2.05, Math.PI);
-						            addTouchlineStand(18.0, metersH / 2 + 2.05, Math.PI);
-						            addCameraPod(-42.0, -(metersH / 2 + 2.84), 0);
-						            addCameraPod(42.0, -(metersH / 2 + 2.84), 0);
+						            addDugout(-18.0, metersH / 2 + 2.05, 2, Math.PI);
+						            addDugout(18.0, metersH / 2 + 2.05, 0, Math.PI);
+						            addTunnel(metersH / 2 + 4.20, Math.PI);
 						          };
-						          addVisibleTechnicalArea();
 						          const addFinishedStadiumClosure = () => {
 						            try {
 						              const finish = new THREE.Group();
@@ -12278,7 +11303,6 @@
 						            } catch (e) { /* ignore */ }
 						          };
 						          const addFromScratchReferenceStadium = () => {
-						            updatePitch3dStadiumDebug({ event: 'addFromScratchReferenceStadium:enter' });
 						            const stadium = new THREE.Group();
 						            stadium.userData = { kind: 'pitch_3d_from_scratch_reference_stadium' };
 						            const primaryHex = stadiumPalette3d.primary;
@@ -14102,23 +13126,10 @@
 						            };
 						            const addProfessionalStadiumAsset = () => {
 						              try {
-						                updatePitch3dStadiumDebug({ event: 'addProfessionalStadiumAsset:enter' });
 						                const asset = __pitch3dStadiumModelCache.scene || __pitch3dLoadStadiumModel();
-						                if (!asset) {
-						                  updatePitch3dStadiumDebug({
-						                    event: 'addProfessionalStadiumAsset:no-asset',
-						                    hasCachedScene: !!__pitch3dStadiumModelCache.scene,
-						                    loading: !!__pitch3dStadiumModelCache.loading,
-						                    failed: !!__pitch3dStadiumModelCache.failed,
-						                  });
-						                  return false;
-						                }
+						                if (!asset) return false;
 						                const stadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
 						                const isDedicatedReferenceStadium = isDedicatedPitch3dReferenceStadiumSrc(stadiumModelSrc);
-						                if (isDedicatedReferenceStadium) {
-						                  updatePitch3dStadiumDebug({ event: 'addProfessionalStadiumAsset:dedicated-reference-skip', stadiumModelSrc });
-						                  return false;
-						                }
 						                removeProceduralStadiumParts();
 						                const stadiumAsset = asset.clone(true);
 						                stadiumAsset.name = 'stadium_bowl_premium_asset';
@@ -14144,10 +13155,10 @@
 						                    const materialName = Array.isArray(node.material)
 						                      ? node.material.map((m) => safeText(m?.name)).join(' ').toUpperCase()
 						                      : safeText(node.material?.name).toUpperCase();
-							                    if (isLegacyPitch3dReferenceStadiumSrc(stadiumModelSrc)) {
-							                      node.visible = false;
-							                      node.userData.replaced_by_clean_procedural_dedicated_stadium = true;
-							                      return;
+						                    if (isDedicatedReferenceStadium) {
+						                      node.visible = false;
+						                      node.userData.replaced_by_clean_procedural_dedicated_stadium = true;
+						                      return;
 						                      const quality = safeText(document.body?.dataset?.pitch3dQuality || 'normal');
 						                      const compactViewport = Math.max(window.innerWidth || 0, window.innerHeight || 0) < 900;
 						                      const detailName = `${meshName} ${materialName}`;
@@ -14226,113 +13237,36 @@
 						                });
 						                enhanceProfessionalStadiumAsset(stadiumAsset);
 						                root.add(stadiumAsset);
-						                updatePitch3dStadiumDebug({
-						                  event: 'addProfessionalStadiumAsset:root-add',
-						                  childCount: root.children?.length || 0,
-						                  stadiumChildren: stadiumAsset.children?.length || 0,
-						                });
 						                if (!isDedicatedReferenceStadium) addProfessionalStadiumAtmosphere(stadiumAsset, { dedicatedReference: false });
 						                return true;
 						              } catch (e) {
-						                updatePitch3dStadiumDebug({ event: 'addProfessionalStadiumAsset:throw', error: safeText(e?.message || e) });
 						                return false;
 						              }
 						            };
-						            const hasProfessionalStadiumInScene = () => {
-						              let found = false;
-						              try {
-						                root.traverse((node) => {
-						                  const kind = safeText(node?.userData?.kind || '');
-						                  if (
-						                    kind.includes('pitch_3d_professional_blender_stadium')
-						                    || kind.includes('pitch_3d_dedicated_reference_stadium_mesh')
-						                  ) found = true;
-						                });
-						              } catch (e) { /* ignore */ }
-						              return found;
-						            };
-						            const forceStadiumModelRecoveryLoad = () => {
-						              const stadiumSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
-						              if (!stadiumSrc || isDedicatedPitch3dReferenceStadiumSrc(stadiumSrc) || hasProfessionalStadiumInScene()) return;
-						              try {
-						                const LoaderClass = window.__WEBSTATS_GLTF_LOADER_CLASS;
-						                if (typeof LoaderClass !== 'function') {
-						                  window.setTimeout(forceStadiumModelRecoveryLoad, 120);
-						                  return;
-						                }
-						                if (window.__WEBSTATS_PITCH3D_STADIUM_RECOVERY_LOADING) return;
-						                window.__WEBSTATS_PITCH3D_STADIUM_RECOVERY_LOADING = true;
-						                const loader = new LoaderClass();
-						                loader.load(stadiumSrc, (gltf) => {
-						                  try {
-						                    __pitch3dStadiumModelCache.scene = gltf?.scene || null;
-						                    __pitch3dStadiumModelCache.loading = false;
-						                    __pitch3dStadiumModelCache.failed = false;
-						                  } catch (e) { /* ignore */ }
-						                  try { if (!hasProfessionalStadiumInScene()) addProfessionalStadiumAsset(); } catch (e) { /* ignore */ }
-						                  window.__WEBSTATS_PITCH3D_STADIUM_RECOVERY_LOADING = false;
-						                }, undefined, () => {
-						                  window.__WEBSTATS_PITCH3D_STADIUM_RECOVERY_LOADING = false;
-						                });
-						              } catch (e) {
-						                window.__WEBSTATS_PITCH3D_STADIUM_RECOVERY_LOADING = false;
-						              }
-						            };
-						            const eagerStadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
-						            updatePitch3dStadiumDebug({
-						              event: 'stadium-builder:eager-check',
-						              eagerStadiumModelSrc,
-						              dedicated: isDedicatedPitch3dReferenceStadiumSrc(eagerStadiumModelSrc),
-						            });
-						            if (fieldFormat !== 'f11') {
-						              updatePitch3dStadiumDebug({ event: 'stadium-builder:skip-non-f11', fieldFormat });
-						              addGreenApron();
-						              return;
-						            }
-						            if (eagerStadiumModelSrc && !isDedicatedPitch3dReferenceStadiumSrc(eagerStadiumModelSrc)) {
-						              __pitch3dLoadStadiumModel(() => {
-						                try { addProfessionalStadiumAsset(); } catch (e) { /* ignore */ }
-						              });
-						              window.setTimeout(forceStadiumModelRecoveryLoad, 180);
-						              window.setTimeout(forceStadiumModelRecoveryLoad, 900);
-						            }
-						            const activeStadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
-						            const activeDedicatedReferenceStadium = isDedicatedPitch3dReferenceStadiumSrc(activeStadiumModelSrc);
-						            updatePitch3dStadiumDebug({
-						              event: 'stadium-builder:active-check',
-						              activeStadiumModelSrc,
-						              activeDedicatedReferenceStadium,
-						            });
-						            if (!activeDedicatedReferenceStadium && addProfessionalStadiumAsset()) return;
+						            if (addProfessionalStadiumAsset()) return;
 						            const pendingStadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
 						            const pendingDedicatedReferenceStadium = isDedicatedPitch3dReferenceStadiumSrc(pendingStadiumModelSrc);
-						            updatePitch3dStadiumDebug({
-						              event: 'stadium-builder:pending-check',
-						              pendingStadiumModelSrc,
-						              pendingDedicatedReferenceStadium,
+						            __pitch3dLoadStadiumModel(() => {
+						              try { addProfessionalStadiumAsset(); } catch (e) { /* ignore */ }
 						            });
-						            if (!pendingDedicatedReferenceStadium) {
-						              __pitch3dLoadStadiumModel(() => {
-						                try { addProfessionalStadiumAsset(); } catch (e) { /* ignore */ }
-						              });
-						            } else {
-						              addGreenApron();
-						              addGroundedExteriorStructure();
-						              addExteriorCompletion();
-						              addAuthenticExteriorEnvelope();
-						              addReferenceStand({ kind: 'pitch_3d_ref_main_north_stand', x: 0, z: metersH / 2 + 7.2, w: metersW + 24, rows: 18, rotY: 0 });
-						              addReferenceStand({ kind: 'pitch_3d_ref_south_stand_continuous_over_tunnel', x: 0, z: -(metersH / 2 + 7.2), w: metersW + 24, rows: 18, rotY: Math.PI });
-						              addReferenceStand({ kind: 'pitch_3d_ref_west_stand', x: -(metersW / 2 + 7.0), z: 0, w: metersH + 13, rows: 16, rotY: -Math.PI / 2 });
-						              addReferenceStand({ kind: 'pitch_3d_ref_east_stand', x: metersW / 2 + 7.0, z: 0, w: metersH + 13, rows: 16, rotY: Math.PI / 2 });
-						              addCornerBowl({ kind: 'pitch_3d_ref_corner_north_west_bowl', x: -(metersW / 2 + 5.4), z: metersH / 2 + 5.4, rotY: -Math.PI / 4 });
-						              addCornerBowl({ kind: 'pitch_3d_ref_corner_north_east_bowl', x: metersW / 2 + 5.4, z: metersH / 2 + 5.4, rotY: Math.PI / 4 });
-						              addCornerBowl({ kind: 'pitch_3d_ref_corner_south_west_bowl', x: -(metersW / 2 + 5.4), z: -(metersH / 2 + 5.4), rotY: -Math.PI * 0.75 });
-						              addCornerBowl({ kind: 'pitch_3d_ref_corner_south_east_bowl', x: metersW / 2 + 5.4, z: -(metersH / 2 + 5.4), rotY: Math.PI * 0.75 });
-						              addIntegratedTunnelAndRoofRing();
-						              addOpenAccessCorrections();
-						              addReferenceStadiumInspirationUpgrades();
-						              addReferenceStadiumTenPointDetailPass();
-						              const makeBadge = () => {
+						            if (pendingDedicatedReferenceStadium) return;
+						            addGreenApron();
+						            addGroundedExteriorStructure();
+						            addExteriorCompletion();
+						            addAuthenticExteriorEnvelope();
+						            addReferenceStand({ kind: 'pitch_3d_ref_main_north_stand', x: 0, z: metersH / 2 + 7.2, w: metersW + 24, rows: 18, rotY: 0 });
+						            addReferenceStand({ kind: 'pitch_3d_ref_south_stand_continuous_over_tunnel', x: 0, z: -(metersH / 2 + 7.2), w: metersW + 24, rows: 18, rotY: Math.PI });
+						            addReferenceStand({ kind: 'pitch_3d_ref_west_stand', x: -(metersW / 2 + 7.0), z: 0, w: metersH + 13, rows: 16, rotY: -Math.PI / 2 });
+						            addReferenceStand({ kind: 'pitch_3d_ref_east_stand', x: metersW / 2 + 7.0, z: 0, w: metersH + 13, rows: 16, rotY: Math.PI / 2 });
+						            addCornerBowl({ kind: 'pitch_3d_ref_corner_north_west_bowl', x: -(metersW / 2 + 5.4), z: metersH / 2 + 5.4, rotY: -Math.PI / 4 });
+						            addCornerBowl({ kind: 'pitch_3d_ref_corner_north_east_bowl', x: metersW / 2 + 5.4, z: metersH / 2 + 5.4, rotY: Math.PI / 4 });
+						            addCornerBowl({ kind: 'pitch_3d_ref_corner_south_west_bowl', x: -(metersW / 2 + 5.4), z: -(metersH / 2 + 5.4), rotY: -Math.PI * 0.75 });
+						            addCornerBowl({ kind: 'pitch_3d_ref_corner_south_east_bowl', x: metersW / 2 + 5.4, z: -(metersH / 2 + 5.4), rotY: Math.PI * 0.75 });
+						            addIntegratedTunnelAndRoofRing();
+						            addOpenAccessCorrections();
+						            addReferenceStadiumInspirationUpgrades();
+						            addReferenceStadiumTenPointDetailPass();
+						            const makeBadge = () => {
 						              const c = document.createElement('canvas');
 						              c.width = 512;
 						              c.height = 512;
@@ -14363,67 +13297,51 @@
 						            badge.position.set(0, 7.25, metersH / 2 + 10.05);
 						            badge.rotation.y = Math.PI;
 						            badge.userData = { kind: 'pitch_3d_ref_main_badge' };
-						              stadium.add(badge);
-						              root.add(stadium);
-						              addFinishedStadiumClosure();
-						            };
+						            stadium.add(badge);
+						            root.add(stadium);
+						            addFinishedStadiumClosure();
+						          };
+						          addFromScratchReferenceStadium();
+						          const addCornerFlag = (x, z, flipX, flipZ) => {
+						            const group = new THREE.Group();
+						            group.position.set(x, 0, z);
+						            group.userData = { kind: 'pitch_3d_corner_flag' };
+						            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.62, 14), flagPoleMat);
+						            pole.position.set(0, 0.81, 0);
+						            pole.userData = { kind: 'pitch_3d_corner_flag_pole' };
+						            group.add(pole);
+						            const flagGeo = new THREE.PlaneGeometry(0.58, 0.38, 4, 1);
 						            try {
-						              addFromScratchReferenceStadium();
-						              updatePitch3dStadiumDebug({
-						                event: 'addFromScratchReferenceStadium:done',
-						                rootChildren: root.children?.length || 0,
-						              });
-						            } catch (e) {
-						              updatePitch3dStadiumDebug({ event: 'addFromScratchReferenceStadium:throw', error: safeText(e?.message || e) });
-						              throw e;
-						            }
-						            const addCornerFlag = (x, z, flipX, flipZ) => {
-						              const group = new THREE.Group();
-						              group.position.set(x, 0, z);
-						              group.userData = { kind: 'pitch_3d_corner_flag' };
-						              const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.62, 14), flagPoleMat);
-						              pole.position.set(0, 0.81, 0);
-						              pole.userData = { kind: 'pitch_3d_corner_flag_pole' };
-						              group.add(pole);
-						              const flagGeo = new THREE.PlaneGeometry(0.58, 0.38, 4, 1);
-						              try {
-						                const pos = flagGeo.attributes.position;
-						                for (let i = 0; i < pos.count; i += 1) {
-						                  const px = pos.getX(i);
-						                  const py = pos.getY(i);
-						                  pos.setZ(i, Math.sin((px + py) * 8.0) * 0.025);
-						                }
-						                pos.needsUpdate = true;
-						                flagGeo.computeVertexNormals();
-						              } catch (e) { /* ignore */ }
-						              const flag = new THREE.Mesh(flagGeo, flagMat);
-						              flag.position.set(0.31 * flipX, 1.36, 0.10 * flipZ);
-						              flag.rotation.y = flipX < 0 ? Math.PI : 0;
-						              flag.userData = { kind: 'pitch_3d_corner_flag_cloth' };
-						              group.add(flag);
-						              const base = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.18, 0.05, 18), darkMat);
-						              base.position.set(0, 0.025, 0);
-						              base.userData = { kind: 'pitch_3d_corner_flag_base' };
-						              group.add(base);
-						              root.add(group);
-						            };
-						            addCornerFlag(-(metersW / 2), -(metersH / 2), 1, 1);
-						            addCornerFlag((metersW / 2), -(metersH / 2), -1, 1);
-						            addCornerFlag(-(metersW / 2), (metersH / 2), 1, -1);
-						            addCornerFlag((metersW / 2), (metersH / 2), -1, -1);
-						            addPitchSideDetails3d();
-						          }
+						              const pos = flagGeo.attributes.position;
+						              for (let i = 0; i < pos.count; i += 1) {
+						                const px = pos.getX(i);
+						                const py = pos.getY(i);
+						                pos.setZ(i, Math.sin((px + py) * 8.0) * 0.025);
+						              }
+						              pos.needsUpdate = true;
+						              flagGeo.computeVertexNormals();
+						            } catch (e) { /* ignore */ }
+						            const flag = new THREE.Mesh(flagGeo, flagMat);
+						            flag.position.set(0.31 * flipX, 1.36, 0.10 * flipZ);
+						            flag.rotation.y = flipX < 0 ? Math.PI : 0;
+						            flag.userData = { kind: 'pitch_3d_corner_flag_cloth' };
+						            group.add(flag);
+						            const base = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.18, 0.05, 18), darkMat);
+						            base.position.set(0, 0.025, 0);
+						            base.userData = { kind: 'pitch_3d_corner_flag_base' };
+						            group.add(base);
+						            root.add(group);
+						          };
+						          addCornerFlag(-(metersW / 2), -(metersH / 2), 1, 1);
+						          addCornerFlag((metersW / 2), -(metersH / 2), -1, 1);
+						          addCornerFlag(-(metersW / 2), (metersH / 2), 1, -1);
+						          addCornerFlag((metersW / 2), (metersH / 2), -1, -1);
 						        } catch (e) { /* ignore */ }
 						      };
+						      addPitchSideDetails3d();
 						      try {
 						        const stadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
-						        updatePitch3dStadiumDebug({
-						          event: 'stadium-finish:enter',
-						          stadiumModelSrc,
-						          dedicatedFinish: isDedicatedPitch3dReferenceStadiumSrc(stadiumModelSrc),
-						        });
-						        const shouldUseRosaledaProceduralFinish = isDedicatedPitch3dReferenceStadiumSrc(stadiumModelSrc);
-							        if (shouldUseRosaledaProceduralFinish) {
+						        if (isDedicatedPitch3dReferenceStadiumSrc(stadiumModelSrc)) {
 						          const dedicatedFinish = new THREE.Group();
 						          dedicatedFinish.userData = { kind: 'pitch_3d_dedicated_reference_completion_layer' };
 						          const concreteMat = new THREE.MeshStandardMaterial({ color: 0xcfd6d1, roughness: 0.76, metalness: 0.03 });
@@ -14439,32 +13357,38 @@
 						          const lightMat = new THREE.MeshStandardMaterial({ color: 0xe0f2fe, roughness: 0.18, metalness: 0.02, emissive: 0x7dd3fc, emissiveIntensity: 0.56 });
 						          const glassMat = new THREE.MeshPhysicalMaterial({ color: 0xc7f0ff, roughness: 0.12, metalness: 0.02, transparent: true, opacity: 0.30, transmission: 0.20, side: THREE.DoubleSide });
 						          const shadowMat = new THREE.MeshBasicMaterial({ color: 0x020617, transparent: true, opacity: 0.15, depthWrite: false });
-						          const makeSignMat = (text, opts = {}) => {
-						            try {
-						              const tex = makePitch3dCanvasTexture((ctx, c) => {
-						                ctx.fillStyle = opts.bg || '#064f9e';
-						                ctx.fillRect(0, 0, c.width, c.height);
-						                ctx.strokeStyle = opts.stroke || 'rgba(255,255,255,0.45)';
-						                ctx.lineWidth = 10;
-						                ctx.strokeRect(18, 18, c.width - 36, c.height - 36);
-						                ctx.fillStyle = opts.fg || '#f8fafc';
-						                ctx.font = opts.font || '900 112px Arial, sans-serif';
-						                ctx.textAlign = 'center';
-						                ctx.textBaseline = 'middle';
-						                if (opts.flipX) {
-						                  ctx.save();
-						                  ctx.translate(c.width, 0);
-						                  ctx.scale(-1, 1);
-						                  ctx.fillText(text, c.width / 2, c.height / 2);
-						                  ctx.restore();
-						                } else {
-						                  ctx.fillText(text, c.width / 2, c.height / 2);
-						                }
-						              }, opts.w || 1600, opts.h || 360);
-						              return new THREE.MeshBasicMaterial({ map: tex?.tex || null, transparent: true, side: THREE.DoubleSide, toneMapped: false });
-						            } catch (e) {
-						              return new THREE.MeshBasicMaterial({ color: 0x047857, side: THREE.DoubleSide });
-						            }
+                              const makeSignMat = (text, opts = {}) => {
+                                try {
+                                  const flipHorizontal = !!opts.flipHorizontal;
+                                  const flipVertical = !!opts.flipVertical;
+                                  const tex = makePitch3dCanvasTexture((ctx, c) => {
+			                        ctx.fillStyle = opts.bg || '#064f9e';
+			                        ctx.fillRect(0, 0, c.width, c.height);
+			                        ctx.strokeStyle = opts.stroke || 'rgba(255,255,255,0.45)';
+			                        ctx.lineWidth = 10;
+			                        ctx.strokeRect(18, 18, c.width - 36, c.height - 36);
+			                        ctx.fillStyle = opts.fg || '#f8fafc';
+			                        ctx.font = opts.font || '900 112px Arial, sans-serif';
+			                        ctx.textAlign = 'center';
+			                        ctx.textBaseline = 'middle';
+			                        if (flipHorizontal || flipVertical) {
+			                          ctx.save();
+			                          if (flipHorizontal) {
+			                            ctx.translate(c.width, 0);
+			                            ctx.scale(-1, 1);
+			                          }
+			                          if (flipVertical) {
+			                            ctx.translate(0, c.height);
+			                            ctx.scale(1, -1);
+			                          }
+			                        }
+			                        ctx.fillText(text, c.width / 2, c.height / 2);
+			                        if (flipHorizontal || flipVertical) ctx.restore();
+			                      }, opts.w || 1600, opts.h || 360);
+			                      return new THREE.MeshBasicMaterial({ map: tex?.tex || null, transparent: true, side: THREE.DoubleSide, toneMapped: false });
+			                    } catch (e) {
+			                      return new THREE.MeshBasicMaterial({ color: 0x047857, side: THREE.DoubleSide });
+			                    }
 						          };
 						          const makeTransparentSeatTextMat = (text, opts = {}) => {
 						            try {
@@ -14481,8 +13405,8 @@
 						              return new THREE.MeshBasicMaterial({ color: 0xf8fafc, transparent: true, opacity: 0.92, side: THREE.DoubleSide });
 						            }
 						          };
-						          const makeProfessionalSeatMosaicMat = (text, opts = {}) => {
-						            try {
+                              const makeProfessionalSeatMosaicMat = (text, opts = {}) => {
+                                try {
 						              const tex = makePitch3dCanvasTexture((ctx, c) => {
 						                const blue = opts.bg || '#064f9e';
 						                ctx.fillStyle = blue;
@@ -14511,75 +13435,240 @@
 						              }, opts.w || 1800, opts.h || 420);
 						              return new THREE.MeshStandardMaterial({ map: tex?.tex || null, roughness: 0.72, metalness: 0.01, side: THREE.DoubleSide });
 						            } catch (e) {
-						              return new THREE.MeshBasicMaterial({ color: 0x075da8, side: THREE.DoubleSide });
-						            }
-						          };
-						          const addMesh = (geo, mat, x, y, z, kind) => {
-						            const mesh = new THREE.Mesh(geo, mat);
-						            mesh.position.set(x, y, z);
+                                  return new THREE.MeshBasicMaterial({ color: 0x075da8, side: THREE.DoubleSide });
+                                }
+                              };
+                              const dedicatedTeamName = (() => {
+                                const raw = safeText(tokenTeamName || form?.dataset?.stadiumClubName || form?.dataset?.stadiumTeamName || 'CDB', 'CDB');
+                                return safeText(raw, 'CDB').toUpperCase();
+                              })();
+                              const dedicatedTeamAbbrev = (() => {
+                                if (/BENAGALB[OÓ]N/i.test(dedicatedTeamName)) return 'CDB';
+                                const cleaned = safeText(dedicatedTeamName, 'CDB').replace(/\s+/g, ' ').trim();
+                                const noAccent = (() => {
+                                  try {
+                                    return safeText(cleaned.normalize('NFD').replace(/[\u0300-\u036f]/g, '')); 
+                                  } catch (error) {
+                                    return safeText(cleaned, 'CDB');
+                                  }
+                                })();
+                                const words = noAccent.split(/\s+/).filter(Boolean);
+                                if (!words.length) return 'CDB';
+                                if (words.length === 1) return words[0].slice(0, 3);
+                                const acronym = words.map((w) => safeText(w[0])).join('').replace(/\./g, '').slice(0, 4);
+                                return acronym || words[0].slice(0, 3);
+                              })();
+                              const dedicatedTextForTeam = (fallbackText = 'CDB') => dedicatedTeamName || fallbackText;
+                              const dedicatedAbbrevForTeam = (fallbackText = 'CDB') => dedicatedTeamAbbrev || fallbackText;
+                              const dedicatedBrandLabel = dedicatedTextForTeam();
+                              const dedicatedAbbrevLabel = dedicatedAbbrevForTeam();
+                              const dedicatedBenchLabel = (index = 0) => (index === 0 ? dedicatedBrandLabel : dedicatedAbbrevLabel);
+                              const dedicatedLayerOptions = {
+                                showReferencePitchsideLayer: false,
+                                cleanupOverlappingForegroundElements: true,
+                                addReferenceLightingRig: true,
+                                addSegmentedAdBoards: true,
+                                addArenaEnvelopeBranding: true,
+                                addProfessionalArenaEnvelope: true,
+                              };
+                              const addSignedBoard = (geo, mat, x, y, z, kind, rotY = 0) => addRotMesh(geo, mat, x, y, z, 0, rotY, 0, kind);
+                              const addSignedBoardFacing = (geo, text, opts, x, y, z, kind, rotY = 0, sideSign = 0) => {
+                                const correctedTextOpts = Object.assign({}, opts || {});
+                                const isSideFacing = Math.abs(Math.abs(rotY) - (Math.PI / 2)) < 0.08;
+                                if (isSideFacing && sideSign && typeof sideSign === 'number') {
+                                  correctedTextOpts.flipHorizontal = sideSign < 0;
+                                }
+                                const material = makeSignMat(text, correctedTextOpts);
+                                return addSignedBoard(geo, material, x, y, z, kind, rotY);
+                              };
+                              const addMesh = (geo, mat, x, y, z, kind) => {
+                                const mesh = new THREE.Mesh(geo, mat);
+                                mesh.position.set(x, y, z);
 						            mesh.userData = { kind };
 						            try { mesh.castShadow = true; mesh.receiveShadow = true; } catch (e) { /* ignore */ }
 						            dedicatedFinish.add(mesh);
 						            return mesh;
 						          };
-						          const addRotMesh = (geo, mat, x, y, z, rotX, rotY, rotZ, kind) => {
-						            const mesh = addMesh(geo, mat, x, y, z, kind);
-						            try { mesh.rotation.set(rotX || 0, rotY || 0, rotZ || 0); } catch (e) { /* ignore */ }
-						            return mesh;
-						          };
-						          const addReadableAdBoard = (label, x, y, z, length, height, facing, kind, opts = {}) => {
-						            const bg = opts.bg || '#064f9e';
-						            const shellMat = new THREE.MeshStandardMaterial({
-						              color: new THREE.Color(bg),
-						              roughness: 0.48,
-						              metalness: 0.04,
-						            });
-						            const makeBoardMat = () => makeSignMat(label, {
-						              w: opts.w || 1100,
-						              h: opts.h || 260,
-						              bg,
-						              fg: opts.fg || '#f8fafc',
-						              font: opts.font || '900 50px Arial, sans-serif',
-						              stroke: opts.stroke || 'rgba(255,255,255,0.22)',
-						            });
-						            const boardYaw = (
-						              facing === 'south' ? Math.PI
-						              : facing === 'east' ? Math.PI / 2
-						              : facing === 'west' ? -Math.PI / 2
-						              : 0
-						            );
-						            const frontMat = makeBoardMat();
-						            const backMat = makeBoardMat();
-						            const thick = opts.thick || 0.12;
-						            let shell;
-						            let face;
-						            let backFace;
-						            if (facing === 'north' || facing === 'south') {
-						              const sign = facing === 'north' ? 1 : -1;
-						              shell = addMesh(new THREE.BoxGeometry(length, height, thick), shellMat, x, y, z, `${kind}_shell`);
-						              face = addRotMesh(new THREE.PlaneGeometry(length * 0.94, height * 0.78), frontMat, x, y, z + sign * (thick / 2 + 0.012), 0, boardYaw, 0, `${kind}_readable_face`);
-						              backFace = addRotMesh(new THREE.PlaneGeometry(length * 0.94, height * 0.78), backMat, x, y, z - sign * (thick / 2 + 0.012), 0, boardYaw + Math.PI, 0, `${kind}_readable_back_face`);
-						            } else {
-						              const sign = facing === 'east' ? 1 : -1;
-						              shell = addMesh(new THREE.BoxGeometry(thick, height, length), shellMat, x, y, z, `${kind}_shell`);
-						              face = addRotMesh(new THREE.PlaneGeometry(length * 0.94, height * 0.78), frontMat, x + sign * (thick / 2 + 0.012), y, z, 0, boardYaw, 0, `${kind}_readable_face`);
-						              backFace = addRotMesh(new THREE.PlaneGeometry(length * 0.94, height * 0.78), backMat, x - sign * (thick / 2 + 0.012), y, z, 0, boardYaw + Math.PI, 0, `${kind}_readable_back_face`);
-						            }
-						            try {
-						              shell.castShadow = true;
-						              shell.receiveShadow = true;
-						              face.renderOrder = 70;
-						              face.material.depthWrite = false;
-						              if (backFace) {
-						                backFace.renderOrder = 70;
-						                backFace.material.depthWrite = false;
-						              }
-						            } catch (e) { /* ignore */ }
-						            return face;
-						          };
-						          const addInstancedSeats = () => {
-						            try {
-						              const seatGeo = new THREE.BoxGeometry(0.44, 0.095, 0.23);
+                              const addRotMesh = (geo, mat, x, y, z, rotX, rotY, rotZ, kind) => {
+                                const mesh = addMesh(geo, mat, x, y, z, kind);
+                                try { mesh.rotation.set(rotX || 0, rotY || 0, rotZ || 0); } catch (e) { /* ignore */ }
+                                return mesh;
+                              };
+                              const cleanupDedicateForegroundOverlaps = () => {
+                                if (!dedicatedLayerOptions.cleanupOverlappingForegroundElements) return;
+                                try {
+                                  const groups = [
+                                    {
+                                      key: 'bench_text_bands',
+                                      maxKeep: 2,
+                                      test: (kind) => /pitch_3d_.*(?:bench|dugout)_(?:brand|front_brand|label|front_label)/.test(kind),
+                                      getBucket: (node, kind) => {
+                                        const x = Number.isFinite(Number(node?.position?.x)) ? Number(node.position.x) : 0;
+                                        const z = Number.isFinite(Number(node?.position?.z)) ? Number(node.position.z) : 0;
+                                        const role = /substitute/.test(safeText(kind).toLowerCase()) ? 'substitute' : 'dugout';
+                                        const sideX = x < -0.6 ? 'L' : x > 0.6 ? 'R' : 'C';
+                                        const sideZ = z < -0.6 ? 'N' : z > 0.6 ? 'F' : 'C';
+                                        return `${role}|${sideX}-${sideZ}`;
+                                      },
+                                    },
+                                    {
+                                      key: 'foreground_dugout_and_bench_roles',
+                                      maxKeep: 1,
+                                      test: (kind) => /pitch_3d_(?:dedicated|rosaleda)_.*(?:bench|dugout)/.test(kind),
+                                      getBucket: (node, kind) => {
+                                        const x = Number.isFinite(Number(node?.position?.x)) ? Number(node.position.x) : 0;
+                                        const z = Number.isFinite(Number(node?.position?.z)) ? Number(node.position.z) : 0;
+                                        const role = /substitute/.test(safeText(kind).toLowerCase()) ? 'substitute' : 'dugout';
+                                        const sideX = x < -0.6 ? 'L' : x > 0.6 ? 'R' : 'C';
+                                        const sideZ = z < -0.6 ? 'N' : z > 0.6 ? 'F' : 'C';
+                                        return `${role}|${sideX}-${sideZ}`;
+                                      },
+                                    },
+                                    {
+                                      key: 'training_goals',
+                                      maxKeep: 2,
+                                      test: (kind) => /pitch_3d_.*(?:training_goal|spare_training_goal|spare_goal)/.test(kind),
+                                      getBucket: (node) => {
+                                        const x = Number.isFinite(Number(node?.position?.x)) ? Number(node.position.x) : 0;
+                                        const z = Number.isFinite(Number(node?.position?.z)) ? Number(node.position.z) : 0;
+                                        const sideX = x < -0.6 ? 'L' : x > 0.6 ? 'R' : 'C';
+                                        const sideZ = z < -0.6 ? 'N' : z > 0.6 ? 'F' : 'C';
+                                        return `${sideX}-${sideZ}`;
+                                      },
+                                    },
+                                  {
+                                    key: 'segmented_vallas_text',
+                                    maxKeep: 1,
+                                    test: (kind) => /pitch_3d_(?:dedicated_completion_segmented_|rosaleda_photo_(?:near|far)_continuous_ad_board)/.test(kind),
+                                    getBucket: (node, kind) => {
+                                      const x = Number.isFinite(Number(node?.position?.x)) ? Number(node.position.x) : 0;
+                                      const z = Number.isFinite(Number(node?.position?.z)) ? Number(node.position.z) : 0;
+                                      const sideX = x < -0.6 ? 'L' : x > 0.6 ? 'R' : 'C';
+                                      const sideZ = z < -0.6 ? 'N' : z > 0.6 ? 'F' : 'C';
+                                      return `${safeText(kind).includes('front') ? 'front' : 'rear'}|${sideX}-${sideZ}`;
+                                    },
+                                  },
+                                  ];
+                                  const kindOrder = (kind) => {
+                                    const safeKind = safeText(kind).toLowerCase();
+                                    if (safeKind.includes('pitch_3d_rosaleda_final_polish_')) return 90;
+                                    if (safeKind.includes('pitch_3d_rosaleda_reference_')) return 80;
+                                    if (safeKind.includes('pitch_3d_rosaleda_')) return 70;
+                                    if (safeKind.includes('pitch_3d_dedicated_completion_')) return 60;
+                                    if (safeKind.includes('pitch_3d_dedicated_reference_')) return 40;
+                                    if (safeKind.includes('pitch_3d_reference_')) return 20;
+                                    return 10;
+                                  };
+                                  const centerBias = (node) => {
+                                    const x = Number.isFinite(Number(node?.position?.x)) ? Number(node.position.x) : 0;
+                                    const z = Number.isFinite(Number(node?.position?.z)) ? Number(node.position.z) : 0;
+                                    return -(Math.abs(x) + Math.abs(z) * 0.22);
+                                  };
+                                  const collectByGroup = Object.create(null);
+                                  const toRemove = [];
+                                  const walk = (node, parent) => {
+                                    if (!node || typeof node !== 'object') return;
+                                    const kind = safeText(node?.userData?.kind || '');
+                                      const family = kind ? groups.find((group) => group.test(kind)) : null;
+                                      if (family && node !== dedicatedFinish) {
+                                      const bucket = safeText(family.getBucket ? family.getBucket(node, kind) : 'global') || 'global';
+                                        const familyKey = `${family.key}|${bucket}`;
+                                      if (!collectByGroup[familyKey]) collectByGroup[familyKey] = [];
+                                      collectByGroup[familyKey].push({
+                                        node,
+                                        parent,
+                                        kind,
+                                        priority: kindOrder(kind),
+                                        bias: centerBias(node),
+                                      });
+                                    }
+                                    const children = node.children;
+                                    if (!children || !children.length) return;
+                                    for (let i = 0; i < children.length; i += 1) {
+                                      walk(children[i], node);
+                                    }
+                                  };
+                                      walk(dedicatedFinish, null);
+
+                                  Object.keys(collectByGroup).forEach((key) => {
+                                    const [baseKey] = key.split('|');
+                                    const group = groups.find((g) => g.key === baseKey);
+                                    if (!group) return;
+                                    const items = collectByGroup[key];
+                                    if (!items.length) return;
+                                    const maxKeep = Number.isFinite(Number(group.maxKeep)) ? Math.max(1, Number(group.maxKeep)) : 1;
+                                    items.sort((a, b) => {
+                                      if (b.priority !== a.priority) return b.priority - a.priority;
+                                      if (b.bias !== a.bias) return b.bias - a.bias;
+                                      return 0;
+                                    });
+                                    items.forEach((item, idx) => {
+                                      if (idx >= maxKeep) toRemove.push(item);
+                                    });
+                                  });
+
+                                  toRemove.forEach((item) => {
+                                    const { node, parent } = item;
+                                    try {
+                                      if (parent && typeof parent.remove === 'function') {
+                                        parent.remove(node);
+                                      } else {
+                                        dedicatedFinish.remove(node);
+                                      }
+                                    } catch (e) {
+                                      /* ignore */
+                                    }
+                                  });
+                                } catch (e) {
+                                  /* ignore */
+                                }
+                              };
+                              const addDedicatedReferenceLightingRig = () => {
+                                if (!dedicatedLayerOptions.addReferenceLightingRig) return;
+                                try {
+                                  const ambient = new THREE.AmbientLight(0x9db4cc, 0.26);
+                                  ambient.userData = { kind: 'pitch_3d_dedicated_reference_ambient_light' };
+                                  dedicatedFinish.add(ambient);
+                                  const warmSky = new THREE.HemisphereLight(0xe7f3ff, 0x0b2236, 0.2);
+                                  warmSky.userData = { kind: 'pitch_3d_dedicated_reference_hemisphere_light' };
+                                  dedicatedFinish.add(warmSky);
+                                  const keyLight = new THREE.DirectionalLight(0xfff2c8, 0.26);
+                                  keyLight.position.set(0, 18, metersH / 2 + 6.8);
+                                  keyLight.target.position.set(0, 0.4, 0);
+                                  keyLight.castShadow = true;
+                                  keyLight.shadow.mapSize.set(1024, 1024);
+                                  keyLight.userData = { kind: 'pitch_3d_dedicated_reference_key_light' };
+                                  keyLight.target.userData = { kind: 'pitch_3d_dedicated_reference_key_light_target' };
+                                  dedicatedFinish.add(keyLight);
+                                  dedicatedFinish.add(keyLight.target);
+                                  const fillLight = new THREE.PointLight(0xfff2da, 0.35, metersW * 1.9, 2);
+                                  fillLight.position.set(0, 11, 0);
+                                  fillLight.userData = { kind: 'pitch_3d_dedicated_reference_fill_light' };
+                                  dedicatedFinish.add(fillLight);
+                                  [
+                                    [0, 11.8, metersH / 2 + 1.9],
+                                    [0, 11.8, -(metersH / 2 + 1.9)],
+                                    [-(metersW / 2 + 3.8), 11.8, -(metersH / 2 + 1.2)],
+                                    [(metersW / 2 + 3.8), 11.8, -(metersH / 2 + 1.2)],
+                                  ].forEach(([x, y, z], idx) => {
+                                    const lamp = new THREE.SpotLight(0xfff2d6, 0.42, 85, Math.PI / 4.8, 0.58, 0.9);
+                                    lamp.position.set(x, y, z);
+                                    lamp.target.position.set(0, 0.35, idx < 2 ? 0 : (idx === 2 ? metersH / 2 - 12 : -(metersH / 2 - 12)));
+                                    lamp.penumbra = 0.35;
+                                    lamp.decay = 1.45;
+                                    lamp.castShadow = true;
+                                    lamp.userData = { kind: 'pitch_3d_dedicated_reference_floodlight' };
+                                    lamp.target.userData = { kind: 'pitch_3d_dedicated_reference_floodlight_target' };
+                                    dedicatedFinish.add(lamp);
+                                    dedicatedFinish.add(lamp.target);
+                                  });
+                                } catch (e) {
+                                  /* ignore */
+                                }
+                              };
+                              const addInstancedSeats = () => {
+                                try {
+                                  const seatGeo = new THREE.BoxGeometry(0.44, 0.095, 0.23);
 						              const darkGeo = new THREE.BoxGeometry(0.44, 0.095, 0.23);
 						              const transforms = [];
 						              const darkTransforms = [];
@@ -14631,22 +13720,122 @@
 						              addInstanced(darkGeo, seatDarkMat, darkTransforms, 'pitch_3d_dedicated_completion_individual_dark_seat_field');
 						            } catch (e) { /* ignore */ }
 						          };
-						          const addSegmentedAdBoards = () => {
-						            try {
-						              const labels = ['2J FOOTBALL INTELLIGENCE', 'PARTNER', 'ESTADIO', 'SPONSOR'];
-						              for (let i = 0; i < 10; i += 1) {
-						                const x = -metersW * 0.45 + i * (metersW * 0.10);
-						                addReadableAdBoard(labels[i % labels.length], x, 0.86, -(metersH / 2 + 2.72), metersW * 0.085, 0.82, 'north', 'pitch_3d_dedicated_completion_segmented_near_ad_board', { w: 900, h: 260, font: '900 54px Arial, sans-serif' });
-						                addReadableAdBoard(labels[(i + 2) % labels.length], x, 0.86, metersH / 2 + 2.72, metersW * 0.085, 0.82, 'south', 'pitch_3d_dedicated_completion_segmented_far_ad_board', { w: 900, h: 260, font: '900 54px Arial, sans-serif' });
-						              }
-						              for (let i = 0; i < 7; i += 1) {
-						                const z = -metersH * 0.39 + i * (metersH * 0.13);
-						                addReadableAdBoard(labels[(i + 1) % labels.length], -(metersW / 2 + 2.72), 0.86, z, metersH * 0.105, 0.82, 'east', 'pitch_3d_dedicated_completion_segmented_left_ad_board', { w: 900, h: 260, font: '900 54px Arial, sans-serif' });
-						                addReadableAdBoard(labels[(i + 3) % labels.length], metersW / 2 + 2.72, 0.86, z, metersH * 0.105, 0.82, 'west', 'pitch_3d_dedicated_completion_segmented_right_ad_board', { w: 900, h: 260, font: '900 54px Arial, sans-serif' });
-						              }
-						            } catch (e) { /* ignore */ }
-						          };
-						          const addPerimeterRoofFinish = () => {
+                              const addSegmentedAdBoards = () => {
+                                try {
+                                  const labels = ['2J FOOTBALL INTELLIGENCE', 'PARTNER', 'LA ROSALEDA', 'SPONSOR'];
+                                  for (let i = 0; i < 10; i += 1) {
+                                    const x = -metersW * 0.45 + i * (metersW * 0.10);
+                                    addMesh(new THREE.BoxGeometry(metersW * 0.085, 0.82, 0.16), makeSignMat(labels[i % labels.length], { w: 900, h: 260, font: '900 54px Arial, sans-serif' }), x, 0.86, -(metersH / 2 + 2.72), 'pitch_3d_dedicated_completion_segmented_near_ad_board');
+                                    addSignedBoardFacing(
+                                      new THREE.BoxGeometry(metersW * 0.085, 0.82, 0.16),
+                                      labels[(i + 2) % labels.length],
+                                      { w: 900, h: 260, font: '900 54px Arial, sans-serif', flipHorizontal: true },
+                                      x,
+                                      0.86,
+                                      metersH / 2 + 2.72,
+                                      'pitch_3d_dedicated_completion_segmented_far_ad_board',
+                                      Math.PI,
+                                      -1,
+                                    );
+                                  }
+                                  for (let i = 0; i < 7; i += 1) {
+                                    const z = -metersH * 0.39 + i * (metersH * 0.13);
+                                    addSignedBoardFacing(
+                                      new THREE.BoxGeometry(0.16, 0.82, metersH * 0.105),
+                                      labels[(i + 1) % labels.length],
+                                      { w: 900, h: 260, font: '900 54px Arial, sans-serif' },
+                                      -(metersW / 2 + 2.72),
+                                      0.86,
+                                      z,
+                                      'pitch_3d_dedicated_completion_segmented_side_ad_board',
+                                      -Math.PI / 2,
+                                      -1,
+                                    );
+                                    addSignedBoardFacing(
+                                      new THREE.BoxGeometry(0.16, 0.82, metersH * 0.105),
+                                      labels[(i + 3) % labels.length],
+                                      { w: 900, h: 260, font: '900 54px Arial, sans-serif' },
+                                      metersW / 2 + 2.72,
+                                      0.86,
+                                      z,
+                                      'pitch_3d_dedicated_completion_segmented_side_ad_board',
+                                      Math.PI / 2,
+                                      1,
+                                    );
+                                  }
+                                } catch (e) { /* ignore */ }
+                              };
+                              const addArenaEnvelopeAndBranding = () => {
+                                try {
+                                  const envelopeFacadeMat = new THREE.MeshStandardMaterial({ color: 0x314d66, roughness: 0.58, metalness: 0.10 });
+                                  const envelopeGlassMat = new THREE.MeshPhysicalMaterial({ color: 0xbfd4e7, roughness: 0.16, metalness: 0.02, transparent: true, opacity: 0.34, transmission: 0.20, side: THREE.DoubleSide });
+                                  const enclosureMat = new THREE.MeshStandardMaterial({ color: 0x223142, roughness: 0.72, metalness: 0.05 });
+                                  const promoShellMat = new THREE.MeshStandardMaterial({ color: 0x8aa2ba, roughness: 0.42, metalness: 0.20 });
+                                  const ledCanopyMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc, transparent: true, opacity: 0.5 });
+                                  const podLabels = [dedicatedAbbrevLabel, 'SPONSOR', 'VIP', dedicatedAbbrevLabel];
+
+                                  for (let i = -2; i <= 2; i += 1) {
+                                    const x = (i / 2) * (metersW * 0.16);
+                                    const y = 4.18 + Math.abs(i) * 0.22;
+                                    const z = metersH / 2 + 14.75 + (i % 2 ? 1.05 : -1.05);
+                                    addMesh(new THREE.BoxGeometry(2.95, 0.26, 1.8), envelopeFacadeMat, x, y - 0.02, z, 'pitch_3d_dedicated_envelope_prestige_band_north');
+                                    if (i % 2 === 0) {
+                                      addSignedBoardFacing(
+                                        new THREE.BoxGeometry(2.25, 0.28, 0.10),
+                                        podLabels[Math.abs(i) % podLabels.length],
+                                        { w: 640, h: 210, bg: '#0c2745', fg: '#f8fafc', font: '900 40px Arial, sans-serif', stroke: 'rgba(255,255,255,0.24)' },
+                                        x,
+                                        y,
+                                        z - 0.16,
+                                        'pitch_3d_dedicated_envelope_prestige_pod_north',
+                                        Math.PI,
+                                      );
+                                    }
+                                  }
+
+                                  for (let i = -2; i <= 2; i += 1) {
+                                    const x = (i / 2) * (metersW * 0.16);
+                                    const y = 4.22 + Math.abs(i) * 0.22;
+                                    const z = -(metersH / 2 + 14.75) + (i % 2 ? -1.05 : 1.05);
+                                    addMesh(new THREE.BoxGeometry(2.95, 0.26, 1.8), envelopeFacadeMat, x, y - 0.02, z, 'pitch_3d_dedicated_envelope_prestige_band_south');
+                                  }
+
+                                  [-1, 1].forEach((sideSign) => {
+                                    const x = sideSign * (metersW / 2 + 14.85);
+                                    addMesh(new THREE.BoxGeometry(0.20, 1.52, 7.2), envelopeFacadeMat, x, 2.18, 0, 'pitch_3d_dedicated_envelope_side_wall');
+                                    addMesh(new THREE.BoxGeometry(0.16, 1.50, 7.2), envelopeGlassMat, x - sideSign * 0.02, 2.16, 0, 'pitch_3d_dedicated_envelope_side_glass');
+                                    addMesh(new THREE.BoxGeometry(1.28, 0.12, 0.12), ledCanopyMat, x - sideSign * 0.8, 2.74, -(metersH * 0.16), 'pitch_3d_dedicated_envelope_promo_light');
+
+                                    for (let i = -2; i <= 2; i += 1) {
+                                      const z = i * (metersH * 0.095);
+                                      addMesh(new THREE.BoxGeometry(0.10, 0.10, 0.60), enclosureMat, x + sideSign * 0.58, 3.42, z, 'pitch_3d_dedicated_envelope_service_post');
+                                      if (i % 2 === 0) {
+                                        addSignedBoardFacing(
+                                          new THREE.BoxGeometry(0.60, 0.42, 1.05),
+                                          `${dedicatedAbbrevLabel} 3D`,
+                                          { w: 420, h: 160, bg: '#0f2542', fg: '#f8fafc', font: '700 28px Arial, sans-serif', stroke: 'rgba(255,255,255,0.24)' },
+                                          x + sideSign * (0.58 - (i % 2) * 0.02),
+                                          3.18,
+                                          z,
+                                          `pitch_3d_dedicated_envelope_service_board_${sideSign < 0 ? 'west' : 'east'}_${i}`,
+                                          sideSign * Math.PI / 2,
+                                          sideSign,
+                                        );
+                                      }
+                                    }
+                                  });
+
+                                  for (let i = -1; i <= 1; i += 1) {
+                                    const z = (metersH * 0.32) + (i * 0.95);
+                                    const x = (i * metersW * 0.08);
+                                    const podSign = i >= 0 ? 1 : -1;
+                                    addMesh(new THREE.BoxGeometry(2.2, 1.65, 0.30), promoShellMat, x, 2.96, podSign * (metersH / 2 + 8.85), 'pitch_3d_dedicated_envelope_center_promo_pod');
+                                  }
+                                } catch (e) {
+                                  /* ignore */
+                                }
+                              };
+                              const addPerimeterRoofFinish = () => {
 						            try {
 						              [-1, 1].forEach((sideSign) => {
 						                const x = sideSign * (metersW / 2 + 12.55);
@@ -14693,14 +13882,14 @@
 						              addRotMesh(new THREE.BoxGeometry(metersW * 0.80, 0.035, metersH * 0.36), shadowMat, -metersW * 0.08, 3.68, -metersH * 0.12, 0.015, 0, 0, 'pitch_3d_dedicated_completion_reference_roof_shadow_on_pitch');
 						            } catch (e) { /* ignore */ }
 						          };
-						          const addSeatMosaic = () => {
-						            try {
-						              addRotMesh(new THREE.PlaneGeometry(metersW * 0.58, 3.05), makeTransparentSeatTextMat('', { font: '900 160px Arial, sans-serif' }), 0, 4.36, metersH / 2 + 7.42, -0.18, Math.PI, 0, 'pitch_3d_dedicated_completion_main_stand_white_seat_mosaic');
-						              addRotMesh(new THREE.CircleGeometry(2.55, 64), makeTransparentSeatTextMat('', { w: 512, h: 512, font: '900 118px Arial, sans-serif' }), -(metersW / 2 + 7.48), 3.22, -metersH * 0.15, -0.10, -Math.PI / 2, 0, 'pitch_3d_dedicated_completion_side_stand_white_crest_mosaic');
-						            } catch (e) { /* ignore */ }
-						          };
-						          const addPhotoReferencePitchsideLayer = () => {
-						            try {
+                              const addSeatMosaic = () => {
+                                try {
+                                  addRotMesh(new THREE.PlaneGeometry(metersW * 0.58, 3.05), makeTransparentSeatTextMat(dedicatedTextForTeam(), { font: '900 160px Arial, sans-serif' }), 0, 4.36, metersH / 2 + 7.42, -0.18, Math.PI, 0, 'pitch_3d_dedicated_completion_main_stand_white_seat_mosaic');
+                                  addRotMesh(new THREE.CircleGeometry(2.55, 64), makeTransparentSeatTextMat(dedicatedAbbrevForTeam(), { w: 512, h: 512, font: '900 118px Arial, sans-serif' }), -(metersW / 2 + 7.48), 3.22, -metersH * 0.15, -0.10, -Math.PI / 2, 0, 'pitch_3d_dedicated_completion_side_stand_white_crest_mosaic');
+                                } catch (e) { /* ignore */ }
+                              };
+                const addPhotoReferencePitchsideLayer = () => {
+                  try {
 						              const walkwayMat = new THREE.MeshStandardMaterial({ color: 0x263238, roughness: 0.82, metalness: 0.02 });
 						              const blueRailMat = new THREE.MeshStandardMaterial({ color: 0x075da8, roughness: 0.42, metalness: 0.08 });
 						              const silverMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.32, metalness: 0.32 });
@@ -14709,15 +13898,17 @@
 						              addMesh(new THREE.BoxGeometry(metersW + 10.8, 0.06, 2.15), walkwayMat, 0, 0.07, metersH / 2 + 1.95, 'pitch_3d_dedicated_reference_far_dark_technical_walkway');
 						              addMesh(new THREE.BoxGeometry(2.15, 0.06, metersH + 8.6), walkwayMat, -(metersW / 2 + 1.92), 0.07, 0, 'pitch_3d_dedicated_reference_left_dark_technical_walkway');
 						              addMesh(new THREE.BoxGeometry(2.15, 0.06, metersH + 8.6), walkwayMat, metersW / 2 + 1.92, 0.07, 0, 'pitch_3d_dedicated_reference_right_dark_technical_walkway');
-						              const nearLabels = ['', '2J FOOTBALL INTELLIGENCE', 'ESTADIO', 'PARTNER', 'SPONSOR'];
+              const nearLabels = [dedicatedTextForTeam(), '2J FOOTBALL INTELLIGENCE', 'LA ROSALEDA', 'PARTNER', 'SPONSOR'];
 						              for (let i = 0; i < 12; i += 1) {
 						                const x = -metersW * 0.48 + i * (metersW * 0.087);
-						                addReadableAdBoard(nearLabels[i % nearLabels.length], x, 0.62, -(metersH / 2 + 1.05), metersW * 0.077, 0.74, 'north', 'pitch_3d_dedicated_reference_continuous_near_blue_valla', { w: 1100, h: 260, bg: i % 2 ? '#071b33' : '#064f9e', fg: '#f8fafc', font: '900 52px Arial, sans-serif', stroke: 'rgba(255,255,255,0.22)' });
+						                const mat = makeSignMat(nearLabels[i % nearLabels.length], { w: 1100, h: 260, bg: i % 2 ? '#071b33' : '#064f9e', fg: '#f8fafc', font: '900 52px Arial, sans-serif', stroke: 'rgba(255,255,255,0.22)' });
+						                addMesh(new THREE.BoxGeometry(metersW * 0.077, 0.74, 0.12), mat, x, 0.62, -(metersH / 2 + 1.05), 'pitch_3d_dedicated_reference_continuous_near_blue_valla');
 						              }
-						              for (let i = 0; i < 12; i += 1) {
-						                const x = -metersW * 0.48 + i * (metersW * 0.087);
-						                addReadableAdBoard(nearLabels[(i + 2) % nearLabels.length], x, 0.62, metersH / 2 + 1.05, metersW * 0.077, 0.74, 'south', 'pitch_3d_dedicated_reference_continuous_far_blue_valla', { w: 1100, h: 260, bg: '#064f9e', fg: '#f8fafc', font: '900 52px Arial, sans-serif', stroke: 'rgba(255,255,255,0.20)' });
-						              }
+              for (let i = 0; i < 12; i += 1) {
+                const x = -metersW * 0.48 + i * (metersW * 0.087);
+                const mat = makeSignMat(nearLabels[(i + 2) % nearLabels.length], { w: 1100, h: 260, bg: '#064f9e', fg: '#f8fafc', font: '900 52px Arial, sans-serif', stroke: 'rgba(255,255,255,0.20)', flipHorizontal: true });
+                addSignedBoard(new THREE.BoxGeometry(metersW * 0.077, 0.74, 0.12), mat, x, 0.62, metersH / 2 + 1.05, 'pitch_3d_dedicated_reference_continuous_far_blue_valla', Math.PI);
+              }
 						              [-1, 1].forEach((sideSign) => {
 						                for (let i = 0; i < 8; i += 1) {
 						                  const z = -metersH * 0.44 + i * (metersH * 0.125);
@@ -14726,9 +13917,9 @@
 						              });
 						              for (let i = -12; i <= 12; i += 1) {
 						                const x = i * (metersW / 24);
-						                addMesh(new THREE.BoxGeometry(0.055, 0.86, 0.055), silverMat, x, 0.50, -(metersH / 2 + 1.42), 'pitch_3d_dedicated_reference_near_pitch_fence_post');
-						                addMesh(new THREE.BoxGeometry(0.055, 0.86, 0.055), silverMat, x, 0.50, metersH / 2 + 1.42, 'pitch_3d_dedicated_reference_far_pitch_fence_post');
-						              }
+                addMesh(new THREE.BoxGeometry(0.055, 0.86, 0.055), silverMat, x, 0.50, -(metersH / 2 + 1.42), 'pitch_3d_dedicated_reference_near_pitch_fence_post');
+                addMesh(new THREE.BoxGeometry(0.055, 0.86, 0.055), silverMat, x, 0.50, metersH / 2 + 1.42, 'pitch_3d_dedicated_reference_far_pitch_fence_post');
+              }
 						              addMesh(new THREE.BoxGeometry(metersW + 4.0, 0.055, 0.055), silverMat, 0, 0.92, -(metersH / 2 + 1.42), 'pitch_3d_dedicated_reference_near_pitch_fence_top_rail');
 						              addMesh(new THREE.BoxGeometry(metersW + 4.0, 0.055, 0.055), silverMat, 0, 0.92, metersH / 2 + 1.42, 'pitch_3d_dedicated_reference_far_pitch_fence_top_rail');
 						              [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
@@ -14739,13 +13930,13 @@
 						              addRotMesh(new THREE.BoxGeometry(metersW * 0.78, 0.028, metersH * 0.30), shadowMat, -metersW * 0.10, 0.135, -metersH * 0.15, 0, 0.18, 0, 'pitch_3d_dedicated_reference_photo_roof_shadow_pitch_low');
 						            } catch (e) { /* ignore */ }
 						          };
-						          const addReferenceIdentityAndLightingPass = () => {
-						            try {
+              const addReferenceIdentityAndLightingPass = () => {
+                try {
 						              const royalBlueMat = new THREE.MeshStandardMaterial({ color: 0x075da8, roughness: 0.45, metalness: 0.05 });
 						              const whiteSeatMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.44, metalness: 0.01 });
 						              const roofDarkMat = new THREE.MeshStandardMaterial({ color: 0x25323a, roughness: 0.50, metalness: 0.22 });
 						              const warmLightMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc, toneMapped: false });
-						              addRotMesh(new THREE.CircleGeometry(3.05, 72), makeSignMat('', { w: 512, h: 512, bg: '#1d72c9', fg: '#f8fafc', font: '900 132px Arial, sans-serif', stroke: '#f8fafc' }), -(metersW / 2 + 5.92), 4.45, -metersH * 0.12, -0.12, -Math.PI / 2, 0, 'pitch_3d_dedicated_reference_large_side_stand_mcf_crest');
+              addRotMesh(new THREE.CircleGeometry(3.05, 72), makeSignMat(dedicatedAbbrevLabel, { w: 512, h: 512, bg: '#1d72c9', fg: '#f8fafc', font: '900 132px Arial, sans-serif', stroke: '#f8fafc' }), -(metersW / 2 + 5.92), 4.45, -metersH * 0.12, -0.12, -Math.PI / 2, 0, 'pitch_3d_dedicated_reference_large_side_stand_mcf_crest');
 						              // Evitamos el escudo lateral derecho: desde la cámara de referencia quedaba cortado en el borde.
 						              // El lettering se resuelve con asientos blancos instanciados; evitamos planos de texto superpuestos.
 						              [-0.34, -0.12, 0.12, 0.34].forEach((ratio, idx) => {
@@ -14901,12 +14092,9 @@
 						                addPart(new THREE.BoxGeometry(4.8, 1.9, 0.03), netMat, 0, 1.04, 0.55, 'pitch_3d_reference_training_goal_net');
 						                dedicatedFinish.add(group);
 						              };
-						              addVisibleDugout(-22.0, '');
-						              addVisibleDugout(-6.2, '');
-						              addVisibleDugout(-18.0, '', metersH / 2 + 1.10, Math.PI);
-						              addVisibleDugout(2.0, '', metersH / 2 + 1.10, Math.PI);
-						              addTrainingGoal(-32.0, -(metersH / 2 + 0.82), 0, 'pitch_3d_reference_near_training_goal_left');
-						              addTrainingGoal(32.0, metersH / 2 + 0.82, Math.PI, 'pitch_3d_reference_far_training_goal_right');
+              addVisibleDugout(-22.0, dedicatedBenchLabel(0));
+              addVisibleDugout(-6.2, dedicatedBenchLabel(1));
+              addTrainingGoal(-32.0, -(metersH / 2 + 0.82), 0, 'pitch_3d_reference_near_training_goal_left');
 						              for (let i = -9; i <= 9; i += 1) {
 						                const x = i * ((metersW + 20.0) / 18);
 						                addRotMesh(new THREE.BoxGeometry(0.10, 2.45, 4.4), trussMat, x, 9.88, metersH / 2 + 16.30, -0.34, 0, 0, 'pitch_3d_reference_photo_main_roof_repeated_raker');
@@ -14941,7 +14129,7 @@
 						                  ctx.font = '900 174px Arial, sans-serif';
 						                  ctx.textAlign = 'center';
 						                  ctx.textBaseline = 'middle';
-						                  ctx.fillText('', canvas.width / 2, canvas.height / 2 + 2);
+                  ctx.fillText(dedicatedTextForTeam(), canvas.width / 2, canvas.height / 2 + 2);
 						                  mask = ctx.getImageData(0, 0, canvas.width, canvas.height);
 						                  return mask;
 						                };
@@ -14994,7 +14182,7 @@
 						                }
 						              }
 						              // Sin escudo lateral grande: desde esta cámara entraba cortado por el borde del canvas.
-						              addRotMesh(new THREE.CircleGeometry(2.65, 96), makeSignMat('', { w: 640, h: 640, bg: '#1d72c9', fg: '#f8fafc', font: '900 150px Arial, sans-serif', stroke: '#f8fafc' }), 0, 9.08, metersH / 2 + 14.05, 0, Math.PI, 0, 'pitch_3d_rosaleda_roof_center_hanging_crest');
+              addRotMesh(new THREE.CircleGeometry(2.65, 96), makeSignMat(dedicatedAbbrevLabel, { w: 640, h: 640, bg: '#1d72c9', fg: '#f8fafc', font: '900 150px Arial, sans-serif', stroke: '#f8fafc' }), 0, 9.08, metersH / 2 + 14.05, 0, Math.PI, 0, 'pitch_3d_rosaleda_roof_center_hanging_crest');
 						              for (let i = -12; i <= 12; i += 1) {
 						                const x = i * ((metersW + 14.0) / 24);
 						                addRotMesh(new THREE.BoxGeometry(0.075, 2.85, 5.9), frameSteelMat, x, 10.55, metersH / 2 + 17.45, -0.37, 0, 0, 'pitch_3d_rosaleda_main_roof_deep_raker');
@@ -15049,8 +14237,8 @@
 						                dugout.position.set(x, 0.04, -(metersH / 2 + 1.00));
 						                dedicatedFinish.add(dugout);
 						              };
-						              addReferenceDugout(-24.0, '');
-						              addReferenceDugout(-9.4, '');
+              addReferenceDugout(-24.0, dedicatedBenchLabel(0));
+              addReferenceDugout(-9.4, dedicatedBenchLabel(1));
 						            } catch (e) { /* ignore */ }
 						          };
 						          const addRosaledaDepthAndCameraFinish = () => {
@@ -15105,8 +14293,8 @@
 						                group.rotation.y = Math.PI;
 						                dedicatedFinish.add(group);
 						              };
-						              addFarDugout(-21.0, '');
-						              addFarDugout(-6.0, '');
+              addFarDugout(-21.0, dedicatedBenchLabel(0));
+              addFarDugout(-6.0, dedicatedBenchLabel(1));
 						            } catch (e) { /* ignore */ }
 						          };
 						          const addRosaledaStructuralCleanup = () => {
@@ -15177,12 +14365,14 @@
 						              addRotMesh(new THREE.BoxGeometry(metersW * 0.46, 0.025, metersH * 0.42), shadowBreakMat, metersW * 0.12, 0.162, -metersH * 0.03, 0, -0.08, 0, 'pitch_3d_rosaleda_photo_pitch_sunlit_lift');
 						              addMesh(new THREE.BoxGeometry(metersW + 11.4, 0.08, 1.10), darkTrackMat, 0, 0.12, -(metersH / 2 + 1.25), 'pitch_3d_rosaleda_photo_near_black_service_lane');
 						              addMesh(new THREE.BoxGeometry(metersW + 11.4, 0.08, 1.06), darkTrackMat, 0, 0.12, metersH / 2 + 1.25, 'pitch_3d_rosaleda_photo_far_black_service_lane');
-						              const adLabels = ['2J FOOTBALL INTELLIGENCE', 'ESTADIO', '', 'PARTNER', 'SPONSOR'];
+						              const adLabels = ['2J FOOTBALL INTELLIGENCE', 'LA ROSALEDA', dedicatedTextForTeam(), 'PARTNER', 'SPONSOR'];
 						              for (let i = 0; i < 11; i += 1) {
 						                const x = -metersW * 0.46 + i * (metersW * 0.092);
 						                const label = adLabels[(i + 1) % adLabels.length];
-						                addReadableAdBoard(label, x, 0.64, -(metersH / 2 + 0.62), metersW * 0.082, 0.58, 'north', 'pitch_3d_rosaleda_photo_near_continuous_ad_board', { w: 1200, h: 240, bg: i % 2 ? '#071b33' : '#064f9e', fg: '#f8fafc', font: '900 50px Arial, sans-serif', stroke: 'rgba(255,255,255,0.20)' });
-						                addReadableAdBoard(label, x, 0.64, metersH / 2 + 0.62, metersW * 0.082, 0.58, 'south', 'pitch_3d_rosaleda_photo_far_continuous_ad_board', { w: 1200, h: 240, bg: i % 2 ? '#071b33' : '#064f9e', fg: '#f8fafc', font: '900 50px Arial, sans-serif', stroke: 'rgba(255,255,255,0.20)' });
+						                const mat = makeSignMat(label, { w: 1200, h: 240, bg: i % 2 ? '#071b33' : '#064f9e', fg: '#f8fafc', font: '900 50px Arial, sans-serif', stroke: 'rgba(255,255,255,0.20)' });
+						                addMesh(new THREE.BoxGeometry(metersW * 0.082, 0.58, 0.10), mat, x, 0.64, -(metersH / 2 + 0.62), 'pitch_3d_rosaleda_photo_near_continuous_ad_board');
+						                const farMat = makeSignMat(label, { w: 1200, h: 240, bg: i % 2 ? '#071b33' : '#064f9e', fg: '#f8fafc', font: '900 50px Arial, sans-serif', stroke: 'rgba(255,255,255,0.20)', flipHorizontal: true });
+						                addSignedBoard(new THREE.BoxGeometry(metersW * 0.082, 0.58, 0.10), farMat, x, 0.64, metersH / 2 + 0.62, 'pitch_3d_rosaleda_photo_far_continuous_ad_board', Math.PI);
 						              }
 						              const addGoalNet = (sideSign) => {
 						                const z = sideSign * (metersH / 2 - 0.05);
@@ -15207,7 +14397,7 @@
 						                  addMesh(new THREE.BoxGeometry(metersW * 0.086, 0.13, 0.28), mat, ratio * metersW, y, z, 'pitch_3d_rosaleda_photo_main_dense_lower_seat_block');
 						                });
 						              }
-						              // Sin overlay fotográfico adicional de MATCHDAY para no pisar el mosaico real.
+              // Sin overlay fotográfico adicional del emblema del equipo para no pisar el mosaico real.
 						              for (let i = -18; i <= 18; i += 1) {
 						                const x = i * ((metersW + 16.0) / 36);
 						                addMesh(new THREE.BoxGeometry(0.34, 0.055, 0.10), brightWhiteMat, x, 10.52, metersH / 2 + 14.28, 'pitch_3d_rosaleda_photo_roof_pin_light');
@@ -15266,8 +14456,8 @@
 						                group.add(labelMesh);
 						                dedicatedFinish.add(group);
 						              };
-						              addReferenceBench(-26.8, '');
-						              addReferenceBench(-11.2, '');
+              addReferenceBench(-26.8, dedicatedBenchLabel(0));
+              addReferenceBench(-11.2, dedicatedBenchLabel(1));
 						              const addTrainingGoal = (x, z, rotY, kind) => {
 						                const group = new THREE.Group();
 						                group.position.set(x, 0.14, z);
@@ -15328,7 +14518,7 @@
 						                  ctx.font = '900 214px Arial, sans-serif';
 						                  ctx.textAlign = 'center';
 						                  ctx.textBaseline = 'middle';
-						                  ctx.fillText('', c.width / 2, c.height / 2 + 4);
+                  ctx.fillText(dedicatedTextForTeam(), c.width / 2, c.height / 2 + 4);
 						                  mask = ctx.getImageData(0, 0, c.width, c.height);
 						                  return mask;
 						                };
@@ -15409,17 +14599,17 @@
 						                addRotMesh(new THREE.BoxGeometry(0.88, 0.18, 7.9), concreteEdgeMat, ratio * metersW, 4.70, metersH / 2 + 8.55, -0.095, 0, 0, 'pitch_3d_rosaleda_final_clean_main_stair_aisle');
 						                if (idx > 0 && idx < 5) addMesh(new THREE.BoxGeometry(4.2, 1.08, 0.22), shadowVoidMat, ratio * metersW, 3.70, metersH / 2 + 6.06, 'pitch_3d_rosaleda_final_clean_main_tunnel_shadow');
 						              });
-							              addRotMesh(
-							                new THREE.PlaneGeometry(metersW * 0.72, 6.6),
-							                makeProfessionalSeatMosaicMat('', { w: 2200, h: 500, font: '900 162px Arial, sans-serif' }),
-							                -2.6,
-							                4.42,
-							                metersH / 2 + 8.02,
-							                -(Math.PI / 2) - 0.105,
-							                0,
-							                0,
-							                'pitch_3d_rosaleda_final_single_clean_main_stand_malaga_cf_mosaic'
-							              );
+						              addRotMesh(
+						                new THREE.PlaneGeometry(metersW * 0.72, 6.6),
+                makeProfessionalSeatMosaicMat(dedicatedTextForTeam(), { w: 2200, h: 500, font: '900 162px Arial, sans-serif' }),
+						                -2.6,
+						                4.86,
+						                metersH / 2 + 6.72,
+						                -0.14,
+						                Math.PI,
+						                0,
+						                'pitch_3d_rosaleda_final_single_clean_main_stand_malaga_cf_mosaic'
+						              );
 						              // Densidad azul en las gradas laterales para acercarse a la referencia fotográfica.
 						              for (let row = 0; row < 12; row += 1) {
 						                const y = 1.42 + row * 0.25;
@@ -15445,7 +14635,7 @@
 						                if (Math.abs(i) <= 16) addMesh(new THREE.BoxGeometry(0.46, 0.055, 0.11), lampMat, x, 10.42, metersH / 2 + 13.76, 'pitch_3d_rosaleda_final_photo_roof_light_strip_cells');
 						              }
 						              const glassDugoutMat = new THREE.MeshPhysicalMaterial({ color: 0xdaf7ff, roughness: 0.10, metalness: 0.02, transparent: true, opacity: 0.34, transmission: 0.18, side: THREE.DoubleSide });
-						              const addPhotoDugout = (x, label) => {
+                const addPhotoDugout = (x, label) => {
 						                const group = new THREE.Group();
 						                group.position.set(x, 0.12, metersH / 2 + 1.24);
 						                group.rotation.y = Math.PI;
@@ -15477,45 +14667,50 @@
 						                group.add(sign);
 						                dedicatedFinish.add(group);
 						              };
-						              addPhotoDugout(-25.0, '');
-						              addPhotoDugout(-8.8, '');
-						              ['2J FOOTBALL INTELLIGENCE', 'ESTADIO', 'PARTNER', 'SPONSOR'].forEach((label, idx) => {
+              addPhotoDugout(-25.0, dedicatedBenchLabel(0));
+              addPhotoDugout(-8.8, dedicatedBenchLabel(1));
+						              ['2J FOOTBALL INTELLIGENCE', 'LA ROSALEDA', 'PARTNER', 'SPONSOR'].forEach((label, idx) => {
 						                const x = -metersW * 0.36 + idx * (metersW * 0.24);
-						                addReadableAdBoard(label, x, 0.86, metersH / 2 + 2.18, metersW * 0.18, 0.72, 'south', 'pitch_3d_rosaleda_final_photo_main_pitchside_ad_board', { w: 1200, h: 260, bg: idx % 2 ? '#064f9e' : '#111827', fg: '#f8fafc', font: '900 54px Arial, sans-serif' });
+						                addMesh(new THREE.BoxGeometry(metersW * 0.18, 0.72, 0.15), makeSignMat(label, { w: 1200, h: 260, bg: idx % 2 ? '#064f9e' : '#111827', fg: '#f8fafc', font: '900 54px Arial, sans-serif' }), x, 0.86, metersH / 2 + 2.18, 'pitch_3d_rosaleda_final_photo_main_pitchside_ad_board');
 						              });
-							              const blockLetters = {
-							                M: ['10001', '11011', '10101', '10101', '10001', '10001', '10001'],
-						                A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'],
-						                L: ['10000', '10000', '10000', '10000', '10000', '10000', '11111'],
-						                G: ['01111', '10000', '10000', '10111', '10001', '10001', '01111'],
-						                C: ['01111', '10000', '10000', '10000', '10000', '10000', '01111'],
-						                F: ['11111', '10000', '10000', '11110', '10000', '10000', '10000'],
-						              };
-						              const phrase = '';
-						              const cellW = 1.88;
-						              const cellZ = 0.74;
-						              const cellGap = 0.14;
-						              const letterGap = 0.76;
-						              const totalCols = phrase.split('').reduce((sum, ch) => sum + (ch === ' ' ? 3 : 5) + 1, -1);
-						              let cursor = -(totalCols * (cellW + cellGap)) / 2;
-						              for (const ch of phrase) {
-						                if (ch === ' ') {
-						                  cursor += (3 * (cellW + cellGap)) + letterGap;
-						                  continue;
-						                }
-						                const glyph = blockLetters[ch] || [];
-						                for (let r = 0; r < glyph.length; r += 1) {
-						                  for (let c = 0; c < glyph[r].length; c += 1) {
-						                    if (glyph[r][c] !== '1') continue;
-						                    const x = cursor + c * (cellW + cellGap);
-						                    const y = 5.44 - r * 0.33;
-						                    const z = metersH / 2 + 8.58 - r * 0.075;
-						                    addRotMesh(new THREE.BoxGeometry(cellW, 0.19, cellZ), whiteSeatMat, x, y, z, -0.095, 0, 0, 'pitch_3d_rosaleda_final_readable_malaga_cf_seat_mosaic_cell');
-						                    addRotMesh(new THREE.BoxGeometry(cellW * 0.74, 0.07, cellZ * 0.48), whiteSeatMat, x, y + 0.105, z - 0.055, -0.095, 0, 0, 'pitch_3d_rosaleda_final_readable_malaga_cf_seat_mosaic_highlight');
-						                  }
-						                }
-						                cursor += (5 * (cellW + cellGap)) + letterGap;
-							              }
+              const blockLetters = {
+                M: ['10001', '11011', '10101', '10101', '10001', '10001', '10001'],
+                A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'],
+                L: ['10000', '10000', '10000', '10000', '10000', '10000', '11111'],
+                G: ['01111', '10000', '10000', '10111', '10001', '10001', '01111'],
+                C: ['01111', '10000', '10000', '10000', '10000', '10000', '01111'],
+                F: ['11111', '10000', '10000', '11110', '10000', '10000', '10000'],
+              };
+              const phrase = dedicatedTextForTeam().toUpperCase().replace(/[^A-Z ]/g, '');
+              if (phrase) {
+                const canRenderPhrase = [...phrase].every((ch) => ch === ' ' || blockLetters[ch]);
+                const cellW = 1.88;
+                const cellZ = 0.74;
+                const cellGap = 0.14;
+                const letterGap = 0.76;
+                const totalCols = phrase.split('').reduce((sum, ch) => sum + (ch === ' ' ? 3 : 5) + 1, -1);
+                let cursor = -(totalCols * (cellW + cellGap)) / 2;
+                if (canRenderPhrase) {
+                  for (const ch of phrase) {
+                    if (ch === ' ') {
+                      cursor += (3 * (cellW + cellGap)) + letterGap;
+                      continue;
+                    }
+                    const glyph = blockLetters[ch] || [];
+                    for (let r = 0; r < glyph.length; r += 1) {
+                      for (let c = 0; c < glyph[r].length; c += 1) {
+                        if (glyph[r][c] !== '1') continue;
+                        const x = cursor + c * (cellW + cellGap);
+                        const y = 5.44 - r * 0.33;
+                        const z = metersH / 2 + 8.58 - r * 0.075;
+                        addRotMesh(new THREE.BoxGeometry(cellW, 0.19, cellZ), whiteSeatMat, x, y, z, -0.095, 0, 0, 'pitch_3d_rosaleda_final_readable_team_seat_mosaic_cell');
+                        addRotMesh(new THREE.BoxGeometry(cellW * 0.74, 0.07, cellZ * 0.48), whiteSeatMat, x, y + 0.105, z - 0.055, -0.095, 0, 0, 'pitch_3d_rosaleda_final_readable_team_seat_mosaic_highlight');
+                      }
+                    }
+                    cursor += (5 * (cellW + cellGap)) + letterGap;
+                  }
+                }
+              }
 							            } catch (e) { /* ignore */ }
 							          };
 							          const addRosaledaArchitecturalFinalPolish = () => {
@@ -15552,66 +14747,15 @@
 							              addRotPart(new THREE.BoxGeometry(metersW * 0.78, 0.18, 7.7), blueSeatDarkMat, -2.0, 4.58, metersH / 2 + 8.72, -0.115, 0, 0, 'pitch_3d_rosaleda_final_polish_main_blue_seat_canvas');
 							              addRotPart(
 							                new THREE.PlaneGeometry(metersW * 0.745, 6.85),
-							                makeProfessionalSeatMosaicMat('', { w: 2600, h: 520, bg: '#075fae', fg: '#f7fbff', font: '900 164px Arial, sans-serif' }),
+                makeProfessionalSeatMosaicMat(dedicatedTextForTeam(), { w: 2600, h: 520, bg: '#075fae', fg: '#f7fbff', font: '900 164px Arial, sans-serif' }),
 							                -2.0,
-							                4.64,
-							                metersH / 2 + 8.34,
-							                -(Math.PI / 2) - 0.105,
-							                0,
+							                4.72,
+							                metersH / 2 + 7.98,
+							                -0.132,
+							                Math.PI,
 							                0,
 							                'pitch_3d_rosaleda_final_polish_single_seat_malaga_cf_mosaic'
 							              );
-							              const glyphs = {
-							                M: ['10001', '11011', '10101', '10101', '10001', '10001', '10001'],
-							                A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'],
-							                L: ['10000', '10000', '10000', '10000', '10000', '10000', '11111'],
-							                G: ['01111', '10000', '10000', '10111', '10001', '10001', '01111'],
-							                C: ['01111', '10000', '10000', '10000', '10000', '10000', '01111'],
-							                F: ['11111', '10000', '10000', '11110', '10000', '10000', '10000'],
-							              };
-							              const word = '';
-							              const cellW = 0.98;
-							              const cellZ = 0.34;
-							              const gapW = 0.10;
-							              const letterGap = 0.64;
-							              const totalUnits = word.split('').reduce((sum, ch) => sum + (ch === ' ' ? 3.0 : 5.0) + 1.0, -1.0);
-							              let cursor = -(totalUnits * (cellW + gapW)) / 2;
-							              for (const ch of word) {
-							                if (ch === ' ') {
-							                  cursor += (3.0 * (cellW + gapW)) + letterGap;
-							                  continue;
-							                }
-							                const glyph = glyphs[ch] || [];
-							                for (let r = 0; r < glyph.length; r += 1) {
-							                  for (let c = 0; c < glyph[r].length; c += 1) {
-							                    if (glyph[r][c] !== '1') continue;
-							                    const x = cursor + c * (cellW + gapW);
-							                    const y = 5.48 - r * 0.185;
-							                    const z = metersH / 2 + 9.86 - r * 0.275;
-							                    addRotPart(new THREE.BoxGeometry(cellW, 0.145, cellZ), whiteSeatPolishMat, x, y, z, -0.105, 0, 0, 'pitch_3d_rosaleda_final_polish_real_white_malaga_cf_seats');
-							                    addRotPart(new THREE.BoxGeometry(cellW * 0.74, 0.052, cellZ * 0.52), whiteSeatPolishMat, x, y + 0.096, z - 0.040, -0.105, 0, 0, 'pitch_3d_rosaleda_final_polish_real_white_malaga_cf_seat_highlight');
-							                  }
-							                }
-							                cursor += (5.0 * (cellW + gapW)) + letterGap;
-							              }
-							              const readableSeatText = addRotPart(
-							                new THREE.PlaneGeometry(metersW * 0.66, 5.20),
-							                makeTransparentSeatTextMat('', { w: 2400, h: 430, fg: '#ffffff', font: '900 218px Arial, sans-serif' }),
-							                -1.2,
-							                5.36,
-							                metersH / 2 + 9.00,
-							                -(Math.PI / 2) - 0.105,
-							                Math.PI,
-							                0,
-							                'pitch_3d_rosaleda_final_polish_readable_white_malaga_cf_on_seats'
-							              );
-							              readableSeatText.renderOrder = 80;
-							              try {
-							                readableSeatText.material.depthTest = false;
-							                readableSeatText.material.depthWrite = false;
-							                readableSeatText.material.opacity = 0.88;
-							                readableSeatText.material.transparent = true;
-							              } catch (e) { /* ignore */ }
 							              [-0.455, -0.305, -0.145, 0.015, 0.180, 0.345, 0.495].forEach((ratio) => {
 							                addRotPart(new THREE.BoxGeometry(0.86, 0.19, 8.4), concreteCleanMat, ratio * metersW, 4.88, metersH / 2 + 8.42, -0.11, 0, 0, 'pitch_3d_rosaleda_final_polish_main_clean_vertical_aisle');
 							              });
@@ -15657,14 +14801,14 @@
 							              // Primer plano tipo foto: banquillos, pasillo técnico, vallas y objetivos auxiliares visibles desde la cámara.
 							              addPart(new THREE.BoxGeometry(metersW + 14.0, 0.10, 2.42), apronMat, 0, 0.18, -(metersH / 2 + 0.82), 'pitch_3d_rosaleda_final_polish_near_dark_technical_apron');
 							              addPart(new THREE.BoxGeometry(metersW + 13.5, 0.18, 0.18), blueSeatDarkMat, 0, 0.48, -(metersH / 2 + 0.06), 'pitch_3d_rosaleda_final_polish_near_blue_pitch_lip');
-							              ['', '2J FOOTBALL INTELLIGENCE', 'PARTNER', 'ESTADIO', 'SPONSOR'].forEach((label, idx) => {
+              [dedicatedBenchLabel(0), '2J FOOTBALL INTELLIGENCE', 'PARTNER', 'LA ROSALEDA', 'SPONSOR'].forEach((label, idx) => {
 							                const x = -metersW * 0.42 + idx * (metersW * 0.21);
-							                addReadableAdBoard(label, x, 0.92, -(metersH / 2 + 1.80), metersW * 0.17, 0.66, 'north', 'pitch_3d_rosaleda_final_polish_near_reference_ad_board', { w: 1180, h: 260, bg: idx % 2 ? '#101827' : '#075fae', fg: '#f8fafc', font: '900 48px Arial, sans-serif', stroke: 'rgba(255,255,255,0.22)' });
+							                addPart(new THREE.BoxGeometry(metersW * 0.17, 0.66, 0.12), makeSignMat(label, { w: 1180, h: 260, bg: idx % 2 ? '#101827' : '#075fae', fg: '#f8fafc', font: '900 48px Arial, sans-serif', stroke: 'rgba(255,255,255,0.22)' }), x, 0.92, -(metersH / 2 + 1.80), 'pitch_3d_rosaleda_final_polish_near_reference_ad_board');
 							              });
-							              const addForegroundDugout = (x, label) => {
-							                const dugout = new THREE.Group();
-							                dugout.position.set(x, 0.20, -(metersH / 2 + 1.08));
-							                dugout.userData = { kind: 'pitch_3d_rosaleda_final_polish_visible_foreground_dugout' };
+                                  const addForegroundDugout = (x, label) => {
+                                    const dugout = new THREE.Group();
+                                    dugout.position.set(x, 0.20, -(metersH / 2 + 1.08));
+                                    dugout.userData = { kind: 'pitch_3d_rosaleda_final_polish_visible_foreground_dugout' };
 							                const dPart = (geo, mat, px, py, pz, kind) => {
 							                  const part = new THREE.Mesh(geo, mat);
 							                  part.position.set(px, py, pz);
@@ -15686,13 +14830,37 @@
 							                  back.rotation.x = 0.20;
 							                }
 							                const sign = new THREE.Mesh(new THREE.PlaneGeometry(4.9, 0.54), makeSignMat(label, { w: 960, h: 240, bg: '#075fae', fg: '#f8fafc', font: '900 54px Arial, sans-serif', stroke: 'rgba(255,255,255,0.24)' }));
-							                sign.position.set(0, 0.84, 1.02);
-							                sign.userData = { kind: 'pitch_3d_rosaleda_final_polish_dugout_front_brand' };
-							                dugout.add(sign);
-							                polishGroup.add(dugout);
-							              };
-							              addForegroundDugout(-26.0, '');
-							              addForegroundDugout(-10.0, '');
+                                    sign.position.set(0, 0.84, 1.02);
+                                    sign.userData = { kind: 'pitch_3d_rosaleda_final_polish_dugout_front_brand' };
+                                    dugout.add(sign);
+                                    polishGroup.add(dugout);
+                                  };
+                                  const addForegroundBenchSubstitute = (x) => {
+                                    const block = new THREE.Group();
+                                    block.position.set(x, 0, -(metersH / 2 + 1.08));
+                                    block.userData = { kind: 'pitch_3d_rosaleda_final_polish_near_bench_substitute' };
+                                    const addSubPart = (geo, mat, px, py, pz, kind) => {
+                                      const mesh = new THREE.Mesh(geo, mat);
+                                      mesh.position.set(px, py, pz);
+                                      mesh.userData = { kind };
+                                      block.add(mesh);
+                                    };
+                                    const benchBand = new THREE.BoxGeometry(5.4, 0.14, 1.95);
+                                    addSubPart(benchBand, darkVoidCleanMat, 0, 0.16, 0.20, 'pitch_3d_rosaleda_final_polish_near_substitute_base');
+                                    for (let row = 0; row < 4; row += 1) {
+                                      const y = 0.52 + row * 0.18;
+                                      const z = -0.02 + row * 0.12;
+                                      for (let sx = 0; sx < 5; sx += 1) {
+                                        const px = -2.16 + sx * 1.08;
+                                        addSubPart(new THREE.BoxGeometry(0.92, 0.13, 0.54), row % 2 === 0 ? whiteSeatPolishMat : blueSeatDarkMat, px, y, z, row % 2 === 0 ? 'pitch_3d_rosaleda_final_polish_near_substitute_white_seat' : 'pitch_3d_rosaleda_final_polish_near_substitute_blue_seat');
+                                      }
+                                    }
+                                    const stair = new THREE.BoxGeometry(3.8, 0.10, 0.68);
+                                    addSubPart(stair, stairMat, 0, 0.76, -0.32, 'pitch_3d_rosaleda_final_polish_near_substitute_stair');
+                                    polishGroup.add(block);
+                                  };
+              addForegroundDugout(-26.0, dedicatedBenchLabel(0));
+              addForegroundBenchSubstitute(-10.0);
 							              [-39.0, -33.2].forEach((x, idx) => {
 							                const goal = new THREE.Group();
 							                goal.position.set(x, 0.20, -(metersH / 2 + 1.96 + idx * 0.34));
@@ -15767,14 +14935,26 @@
 						          addLongStand(1);
 						          addLongStand(-1);
 						          addSideStand(-1);
-						          addSideStand(1);
-						          addInstancedSeats();
-						          addPerimeterRoofFinish();
-						          // Desactivado: esta capa pintaba otro MATCHDAY encima del mosaico de asientos.
-						          addPhotoReferencePitchsideLayer();
-						          // El acabado dedicado se apoya en la capa fotográfica limpia inferior.
-						          // Las capas intermedias y finales añadían una segunda y tercera versión
-						          // de gradas, vallas y lettering, provocando solapes visibles.
+          addSideStand(1);
+          addInstancedSeats();
+          if (dedicatedLayerOptions.addSegmentedAdBoards) {
+            addSegmentedAdBoards();
+          }
+          if (dedicatedLayerOptions.addArenaEnvelopeBranding) {
+            addArenaEnvelopeAndBranding();
+          }
+          addPerimeterRoofFinish();
+          if (dedicatedLayerOptions.showReferencePitchsideLayer) {
+            addPhotoReferencePitchsideLayer();
+          }
+						          addReferenceIdentityAndLightingPass();
+						          addReferenceBowlDepthPass();
+						          addReferenceBenchesAndTrainingGoalsPass();
+						          addRosaledaPremiumFinish();
+						          addRosaledaDepthAndCameraFinish();
+						          addRosaledaStructuralCleanup();
+						          addRosaledaPhotographicFinish();
+						          addRosaledaReferenceForegroundPass();
 						          [-1, 1].forEach((sx) => {
 						            [-1, 1].forEach((sz) => {
 						              addMesh(new THREE.BoxGeometry(8.0, 0.46, 8.0), concreteMat, sx * (metersW / 2 + 6.0), 0.36, sz * (metersH / 2 + 6.0), 'pitch_3d_dedicated_completion_corner_podium');
@@ -15791,7 +14971,7 @@
 						          });
 						          addMesh(new THREE.BoxGeometry(metersW + 5.0, 0.10, 0.12), lightMat, 0, 8.26, northFacadeZ - 0.22, 'pitch_3d_dedicated_completion_north_light_bar');
 						          // Desactivado: antiguo panel plano de lettering que se superponía al nombre de asientos.
-						          addRotMesh(new THREE.CircleGeometry(2.35, 64), makeSignMat('', { w: 512, h: 512, bg: '#1d72c9', fg: '#f8fafc', font: '900 132px Arial, sans-serif', stroke: '#f8fafc' }), 0, 8.12, metersH / 2 + 14.46, 0, Math.PI, 0, 'pitch_3d_dedicated_completion_main_stand_round_crest');
+          addRotMesh(new THREE.CircleGeometry(2.35, 64), makeSignMat(dedicatedAbbrevLabel, { w: 512, h: 512, bg: '#1d72c9', fg: '#f8fafc', font: '900 132px Arial, sans-serif', stroke: '#f8fafc' }), 0, 8.12, metersH / 2 + 14.46, 0, Math.PI, 0, 'pitch_3d_dedicated_completion_main_stand_round_crest');
 						          addMesh(new THREE.BoxGeometry(metersW + 18.5, 2.25, 0.34), concreteMat, 0, 7.45, metersH / 2 + 14.95, 'pitch_3d_dedicated_completion_main_stand_back_wall');
 						          addMesh(new THREE.BoxGeometry(metersW + 17.0, 0.72, 0.38), darkVoidMat, 0, 8.05, metersH / 2 + 14.72, 'pitch_3d_dedicated_completion_main_stand_shadow_box_level');
 						          addRotMesh(new THREE.BoxGeometry(metersW + 24.0, 0.18, 9.2), roofMat, 0, 11.55, metersH / 2 + 18.55, -0.055, 0, 0, 'pitch_3d_dedicated_completion_main_stand_roof_canopy');
@@ -15806,633 +14986,14 @@
 						            addRotMesh(new THREE.BoxGeometry(0.13, 0.13, 6.9), concreteMat, x + 2.6, 10.92, metersH / 2 + 18.62, 0.32, 0, 0, 'pitch_3d_dedicated_completion_roof_diagonal_brace');
 						            addMesh(new THREE.BoxGeometry(0.72, 0.10, 0.14), lightMat, x, 10.28, metersH / 2 + 15.18, 'pitch_3d_dedicated_completion_individual_floodlight_pod');
 							          }
-							          // La estructura de cubierta y el resto de detalle fino salen de la
-							          // capa photo_* creada más abajo, evitando geometría duplicada.
-							          [].forEach((x) => {
-						            const dugout = new THREE.Group();
-						            dugout.userData = { kind: 'pitch_3d_dedicated_completion_curved_dugout' };
-						            const frameMat = new THREE.MeshStandardMaterial({ color: 0xd8e2e5, roughness: 0.30, metalness: 0.24 });
-						            const benchMat = new THREE.MeshStandardMaterial({ color: 0x1261ad, roughness: 0.48, metalness: 0.02 });
-						            const addDugoutPart = (geo, mat, px, py, pz, kind) => {
-						              const part = new THREE.Mesh(geo, mat);
-						              part.position.set(px, py, pz);
-						              part.userData = { kind };
-						              dugout.add(part);
-						              return part;
-						            };
-						            addDugoutPart(new THREE.BoxGeometry(13.6, 0.14, 0.14), frameMat, 0, 1.92, -0.08, 'pitch_3d_dedicated_completion_dugout_front_frame');
-						            for (let r = 0; r < 6; r += 1) {
-						              const t = r / 5;
-						              const panel = addDugoutPart(new THREE.BoxGeometry(13.2, 0.055, 0.46), glassMat, 0, 0.98 + Math.sin(t * Math.PI * 0.58) * 1.05, -0.88 + t * 1.52, 'pitch_3d_dedicated_completion_dugout_curved_glass_panel');
-						              panel.rotation.x = -0.46 + t * 0.28;
-						            }
-						            [-6.5, 6.5].forEach((sx) => {
-						              const side = addDugoutPart(new THREE.BoxGeometry(0.14, 1.70, 2.05), glassMat, sx, 1.06, -0.02, 'pitch_3d_dedicated_completion_dugout_glass_side');
-						              side.rotation.x = -0.07;
-						            });
-						            addDugoutPart(new THREE.BoxGeometry(13.5, 0.10, 0.16), frameMat, 0, 2.24, 0.12, 'pitch_3d_dedicated_completion_dugout_roof_spine');
-						            for (let s = -4; s <= 4; s += 1) {
-						              addDugoutPart(new THREE.BoxGeometry(0.82, 0.22, 0.55), benchMat, s * 1.18, 0.52, 0.54, 'pitch_3d_dedicated_completion_dugout_seat');
-						              const back = addDugoutPart(new THREE.BoxGeometry(0.82, 0.72, 0.12), benchMat, s * 1.18, 0.92, 0.86, 'pitch_3d_dedicated_completion_dugout_backrest');
-						              back.rotation.x = -0.22;
-						            }
-						            [-6.18, 6.18].forEach((sx) => {
-						              const badge = new THREE.Mesh(new THREE.CircleGeometry(0.46, 32), makeSignMat('', { w: 512, h: 512, bg: '#1d72c9', fg: '#f8fafc', font: '900 112px Arial, sans-serif', stroke: '#f8fafc' }));
-						              badge.position.set(sx, 1.18, -1.02);
-						              badge.rotation.y = Math.PI;
-						              badge.userData = { kind: 'pitch_3d_dedicated_completion_dugout_end_badge' };
-						              dugout.add(badge);
-						            });
-						            dugout.position.set(x, 0.03, -(metersH / 2 + 2.68));
-						            dedicatedFinish.add(dugout);
-						          });
-						          [].forEach((x, idx) => {
-						            const benchGroup = new THREE.Group();
-						            benchGroup.userData = { kind: 'pitch_3d_dedicated_completion_near_visible_bench_canopy' };
-						            const frameMat = new THREE.MeshStandardMaterial({ color: 0xd8e2e5, roughness: 0.28, metalness: 0.26 });
-						            const benchMat = new THREE.MeshStandardMaterial({ color: 0x1261ad, roughness: 0.46, metalness: 0.02 });
-						            const addBenchPart = (geo, mat, px, py, pz, kind) => {
-						              const part = new THREE.Mesh(geo, mat);
-						              part.position.set(px, py, pz);
-						              part.userData = { kind };
-						              benchGroup.add(part);
-						              return part;
-						            };
-						            addBenchPart(new THREE.BoxGeometry(11.6, 0.16, 2.0), darkVoidMat, 0, 0.18, 0.42, 'pitch_3d_dedicated_completion_near_bench_floor');
-						            for (let r = 0; r < 5; r += 1) {
-						              const t = r / 4;
-						              const panel = addBenchPart(new THREE.BoxGeometry(11.2, 0.050, 0.42), glassMat, 0, 0.92 + Math.sin(t * Math.PI * 0.58) * 0.96, -0.64 + t * 1.36, 'pitch_3d_dedicated_completion_near_bench_glass_roof');
-						              panel.rotation.x = -0.44 + t * 0.25;
-						            }
-						            addBenchPart(new THREE.BoxGeometry(11.8, 0.10, 0.14), frameMat, 0, 2.06, 0.18, 'pitch_3d_dedicated_completion_near_bench_spine');
-						            for (let s = 0; s < 7; s += 1) {
-						              const sx = -4.2 + s * 1.4;
-						              addBenchPart(new THREE.BoxGeometry(0.82, 0.20, 0.55), benchMat, sx, 0.55, 0.34, 'pitch_3d_dedicated_completion_near_bench_blue_seat');
-						              const back = addBenchPart(new THREE.BoxGeometry(0.82, 0.70, 0.12), benchMat, sx, 0.92, 0.66, 'pitch_3d_dedicated_completion_near_bench_blue_back');
-						              back.rotation.x = -0.22;
-						            }
-						            const label = new THREE.Mesh(new THREE.PlaneGeometry(4.7, 0.58), makeSignMat('', { w: 900, h: 260, bg: '#064f9e', fg: '#f8fafc', font: '900 58px Arial, sans-serif' }));
-						            label.position.set(0, 1.05, -0.86);
-						            label.rotation.y = Math.PI;
-							            label.userData = { kind: 'pitch_3d_dedicated_completion_near_bench_brand' };
-							            benchGroup.add(label);
-							            benchGroup.position.set(x, 0.04, -(metersH / 2 + 1.65));
-							            dedicatedFinish.add(benchGroup);
-							          });
-							          try {
-							            const finalBlueMat = new THREE.MeshStandardMaterial({ color: 0x0869b8, roughness: 0.54, metalness: 0.02 });
-							            const finalDarkBlueMat = new THREE.MeshStandardMaterial({ color: 0x063d78, roughness: 0.60, metalness: 0.02 });
-							            const finalWhiteMat = new THREE.MeshStandardMaterial({ color: 0xf7fbff, roughness: 0.48, metalness: 0.01 });
-							            const finalConcreteMat = new THREE.MeshStandardMaterial({ color: 0xe7e8df, roughness: 0.74, metalness: 0.01 });
-							            const finalGlassMat = new THREE.MeshPhysicalMaterial({ color: 0xdff8ff, roughness: 0.10, metalness: 0.02, transparent: true, opacity: 0.36, transmission: 0.18, side: THREE.DoubleSide });
-							            const finalSteelMat = new THREE.MeshStandardMaterial({ color: 0x54616b, roughness: 0.38, metalness: 0.34 });
-							            const finalBlackMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.78, metalness: 0.04 });
-							            // Capa final: tapa barras negras heredadas con bloques de grada y deja aperturas limpias tipo vomitorios.
-							            [
-							              { z: metersH / 2 + 6.72, y: 4.20, w: metersW * 0.69 },
-							              { z: metersH / 2 + 7.66, y: 4.66, w: metersW * 0.68 },
-							              { z: metersH / 2 + 10.48, y: 5.58, w: metersW * 0.63 },
-							            ].forEach((band, idx) => {
-							              addRotMesh(new THREE.BoxGeometry(band.w, 0.105, 0.42), idx === 1 ? finalDarkBlueMat : finalBlueMat, -1.2, band.y, band.z, -0.105, 0, 0, 'pitch_3d_rosaleda_final_seal_main_stand_blue_cleanup_band');
-							            });
-							            [-0.39, -0.19, 0.02, 0.23, 0.43].forEach((ratio) => {
-							              addRotMesh(new THREE.BoxGeometry(0.82, 0.16, 6.7), finalConcreteMat, ratio * metersW, 4.88, metersH / 2 + 8.62, -0.105, 0, 0, 'pitch_3d_rosaleda_final_seal_clean_main_stair');
-							              addMesh(new THREE.BoxGeometry(3.5, 0.92, 0.18), finalBlackMat, ratio * metersW, 3.34, metersH / 2 + 5.90, 'pitch_3d_rosaleda_final_seal_main_vomitory_shadow');
-							            });
-							            const finalText = addRotMesh(
-							              new THREE.PlaneGeometry(metersW * 0.62, 4.80),
-							              makeTransparentSeatTextMat('', { w: 2400, h: 430, fg: '#ffffff', font: '900 220px Arial, sans-serif' }),
-							              -1.2,
-							              5.42,
-							              metersH / 2 + 9.02,
-							              -(Math.PI / 2) - 0.105,
-							              Math.PI,
-							              0,
-							              'pitch_3d_rosaleda_final_seal_readable_main_seat_text'
-							            );
-							            finalText.renderOrder = 110;
-							            try {
-							              finalText.material.depthTest = false;
-							              finalText.material.depthWrite = false;
-							              finalText.material.transparent = true;
-							              finalText.material.opacity = 0.92;
-							            } catch (e) { /* ignore */ }
-							            // Banquillos y vallas subidos al borde visible de cámara, sin invadir el área de juego principal.
-							            const addVisibleTouchlineDugout = (x, label) => {
-							              const dugout = new THREE.Group();
-							              dugout.position.set(x, 0.08, -(metersH / 2 - 0.35));
-							              dugout.userData = { kind: 'pitch_3d_rosaleda_final_seal_visible_touchline_dugout' };
-							              const part = (geo, mat, px, py, pz, kind) => {
-							                const mesh = new THREE.Mesh(geo, mat);
-							                mesh.position.set(px, py, pz);
-							                mesh.userData = { kind };
-							                dugout.add(mesh);
-							                return mesh;
-							              };
-							              part(new THREE.BoxGeometry(13.2, 0.14, 1.72), finalBlackMat, 0, 0.14, 0.10, 'pitch_3d_rosaleda_final_seal_dugout_base');
-							              for (let r = 0; r < 6; r += 1) {
-							                const t = r / 5;
-							                const panel = part(new THREE.BoxGeometry(12.8, 0.044, 0.32), finalGlassMat, 0, 0.74 + Math.sin(t * Math.PI * 0.62) * 0.98, 0.70 - t * 1.22, 'pitch_3d_rosaleda_final_seal_dugout_glass_panel');
-							                panel.rotation.x = 0.42 - t * 0.30;
-							              }
-							              part(new THREE.BoxGeometry(13.0, 0.09, 0.13), finalSteelMat, 0, 1.92, 0.02, 'pitch_3d_rosaleda_final_seal_dugout_top_rail');
-							              for (let s = 0; s < 8; s += 1) {
-							                const sx = -4.8 + s * 1.36;
-							                part(new THREE.BoxGeometry(0.74, 0.18, 0.42), finalBlueMat, sx, 0.46, -0.08, 'pitch_3d_rosaleda_final_seal_dugout_blue_seat');
-							                const back = part(new THREE.BoxGeometry(0.74, 0.60, 0.10), finalBlueMat, sx, 0.80, -0.36, 'pitch_3d_rosaleda_final_seal_dugout_blue_back');
-							                back.rotation.x = 0.18;
-							              }
-							              const sign = new THREE.Mesh(new THREE.PlaneGeometry(4.8, 0.52), makeSignMat(label, { w: 960, h: 240, bg: '#0869b8', fg: '#f8fafc', font: '900 54px Arial, sans-serif', stroke: 'rgba(255,255,255,0.24)' }));
-							              sign.position.set(0, 0.84, 0.92);
-							              sign.userData = { kind: 'pitch_3d_rosaleda_final_seal_dugout_brand' };
-							              dugout.add(sign);
-							              dedicatedFinish.add(dugout);
-							            };
-							            addVisibleTouchlineDugout(-26.0, '');
-							            addVisibleTouchlineDugout(-10.2, '');
-							            ['2J FOOTBALL INTELLIGENCE', 'ESTADIO', 'PARTNER', 'SPONSOR'].forEach((label, idx) => {
-							              const x = -metersW * 0.34 + idx * (metersW * 0.22);
-							              addReadableAdBoard(label, x, 0.82, -(metersH / 2 - 0.82), metersW * 0.18, 0.58, 'north', 'pitch_3d_rosaleda_final_seal_visible_touchline_board', { w: 1100, h: 250, bg: idx % 2 ? '#111827' : '#0869b8', fg: '#f8fafc', font: '900 46px Arial, sans-serif' });
-						            });
-							          } catch (e) { /* ignore */ }
-							          try {
-							            const premiumBlue = new THREE.MeshStandardMaterial({ color: 0x0875c9, roughness: 0.50, metalness: 0.025 });
-							            const premiumBlueDark = new THREE.MeshStandardMaterial({ color: 0x053c73, roughness: 0.58, metalness: 0.025 });
-							            const premiumWhite = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.46, metalness: 0.01 });
-							            const premiumConcrete = new THREE.MeshStandardMaterial({ color: 0xe5e7dc, roughness: 0.78, metalness: 0.015 });
-							            const premiumAsphalt = new THREE.MeshStandardMaterial({ color: 0x151a21, roughness: 0.84, metalness: 0.035 });
-							            const premiumSteel = new THREE.MeshStandardMaterial({ color: 0x3f4a55, roughness: 0.36, metalness: 0.42 });
-							            const premiumGlass = new THREE.MeshPhysicalMaterial({ color: 0xdaf8ff, roughness: 0.08, metalness: 0.02, transparent: true, opacity: 0.42, transmission: 0.20, side: THREE.DoubleSide });
-							            const premiumLight = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
-							            const premiumShadow = new THREE.MeshBasicMaterial({ color: 0x030712, transparent: true, opacity: 0.24, depthWrite: false });
-							            const cleanKinds = [
-							              'white_seat_mosaic',
-							              'white_crest_mosaic',
-							              'readable_white_malaga',
-							              'readable_main_seat_text',
-							              'main_stand_round_crest',
-							              'real_white_malaga_cf',
-							              'seat_mosaic_cell',
-							              'seat_mosaic_highlight',
-							              'transparent_matchday',
-							            ];
-							            dedicatedFinish.traverse((node) => {
-							              const kind = safeText(node?.userData?.kind || '');
-							              if (!kind) return;
-							              if (cleanKinds.some((needle) => kind.includes(needle))) node.visible = false;
-							            });
-							            const finalGroup = new THREE.Group();
-							            finalGroup.userData = { kind: 'pitch_3d_rosaleda_reference_architect_final_pass' };
-							            dedicatedFinish.add(finalGroup);
-							            const addFinalPart = (geo, mat, x, y, z, kind) => {
-							              const mesh = new THREE.Mesh(geo, mat);
-							              mesh.position.set(x, y, z);
-							              mesh.userData = { kind };
-							              try { mesh.castShadow = true; mesh.receiveShadow = true; } catch (e) { /* ignore */ }
-							              finalGroup.add(mesh);
-							              return mesh;
-							            };
-							            const addFinalRot = (geo, mat, x, y, z, rx, ry, rz, kind) => {
-							              const mesh = addFinalPart(geo, mat, x, y, z, kind);
-							              mesh.rotation.set(rx || 0, ry || 0, rz || 0);
-							              return mesh;
-							            };
-							            const addSeatRows = (opts) => {
-							              const rows = opts.rows || 12;
-							              const cols = opts.cols || 42;
-							              const seatGeo = new THREE.BoxGeometry(opts.seatW || 0.42, 0.11, opts.seatD || 0.28);
-							              const backGeo = new THREE.BoxGeometry(opts.seatW || 0.42, 0.30, 0.08);
-							              const blueMatrices = [];
-							              const darkMatrices = [];
-							              const whiteMatrices = [];
-							              const blueBack = [];
-							              const darkBack = [];
-							              const whiteBack = [];
-							              const matrix = new THREE.Matrix4();
-							              const quat = new THREE.Quaternion().setFromEuler(new THREE.Euler(opts.rx || -0.08, opts.ry || 0, opts.rz || 0));
-							              for (let row = 0; row < rows; row += 1) {
-							                for (let col = 0; col < cols; col += 1) {
-							                  const t = cols <= 1 ? 0 : col / (cols - 1);
-							                  const x = opts.x0 + (opts.x1 - opts.x0) * t + row * (opts.rowDx || 0);
-							                  const z = opts.z0 + (opts.z1 - opts.z0) * t + row * (opts.rowDz || 0);
-							                  const y = opts.y0 + row * (opts.rowY || 0.23);
-							                  if ((opts.aisles || []).some((ratio) => Math.abs(t - ratio) < 0.018)) continue;
-							                  const tone = (row + col) % 17 === 0 ? 'white' : ((row + col) % 5 === 0 ? 'dark' : 'blue');
-							                  const targetSeats = tone === 'white' ? whiteMatrices : (tone === 'dark' ? darkMatrices : blueMatrices);
-							                  const targetBacks = tone === 'white' ? whiteBack : (tone === 'dark' ? darkBack : blueBack);
-							                  matrix.compose(new THREE.Vector3(x, y, z), quat, new THREE.Vector3(1, 1, 1));
-							                  targetSeats.push(matrix.clone());
-							                  matrix.compose(new THREE.Vector3(x, y + 0.23, z + (opts.backZ || 0.17)), quat, new THREE.Vector3(1, 1, 1));
-							                  targetBacks.push(matrix.clone());
-							                }
-							              }
-							              const inst = (geo, mat, items, kind) => {
-							                if (!items.length) return;
-							                const mesh = new THREE.InstancedMesh(geo, mat, items.length);
-							                items.forEach((m, idx) => mesh.setMatrixAt(idx, m));
-							                mesh.instanceMatrix.needsUpdate = true;
-							                mesh.userData = { kind, count: items.length };
-							                mesh.castShadow = true;
-							                mesh.receiveShadow = true;
-							                finalGroup.add(mesh);
-							              };
-							              inst(seatGeo, premiumBlue, blueMatrices, 'pitch_3d_rosaleda_reference_architect_individual_blue_seats');
-							              inst(seatGeo, premiumBlueDark, darkMatrices, 'pitch_3d_rosaleda_reference_architect_individual_dark_blue_seats');
-							              inst(seatGeo, premiumWhite, whiteMatrices, 'pitch_3d_rosaleda_reference_architect_individual_white_seats');
-							              inst(backGeo, premiumBlue, blueBack, 'pitch_3d_rosaleda_reference_architect_individual_blue_seat_backs');
-							              inst(backGeo, premiumBlueDark, darkBack, 'pitch_3d_rosaleda_reference_architect_individual_dark_blue_seat_backs');
-							              inst(backGeo, premiumWhite, whiteBack, 'pitch_3d_rosaleda_reference_architect_individual_white_seat_backs');
-							            };
-							            addSeatRows({
-							              x0: -metersW * 0.41,
-							              x1: metersW * 0.41,
-							              z0: metersH / 2 + 5.78,
-							              z1: metersH / 2 + 5.78,
-							              y0: 3.18,
-							              rowY: 0.21,
-							              rowDz: 0.34,
-							              rows: 18,
-							              cols: 72,
-							              aisles: [0.13, 0.29, 0.45, 0.61, 0.77, 0.91],
-							              backZ: 0.13,
-							            });
-							            addSeatRows({
-							              x0: -metersW * 0.47,
-							              x1: metersW * 0.47,
-							              z0: -(metersH / 2 + 3.72),
-							              z1: -(metersH / 2 + 3.72),
-							              y0: 1.02,
-							              rowY: 0.20,
-							              rowDz: -0.34,
-							              rows: 13,
-							              cols: 76,
-							              aisles: [0.18, 0.34, 0.50, 0.66, 0.82],
-							              backZ: -0.13,
-						                });
-							            [-1, 1].forEach((sideSign) => {
-							              addSeatRows({
-							                x0: sideSign * (metersW / 2 + 3.72),
-							                x1: sideSign * (metersW / 2 + 3.72),
-							                z0: -metersH * 0.42,
-							                z1: metersH * 0.42,
-							                y0: 1.06,
-							                rowY: 0.20,
-							                rowDx: sideSign * 0.32,
-							                rows: 12,
-							                cols: 52,
-							                aisles: [0.19, 0.38, 0.59, 0.80],
-							                rx: -0.055,
-							                ry: sideSign > 0 ? Math.PI / 2 : -Math.PI / 2,
-							                backZ: 0,
-							              });
-							              addFinalPart(new THREE.BoxGeometry(0.42, 2.0, metersH + 12.0), premiumAsphalt, sideSign * (metersW / 2 + 2.92), 1.34, 0, 'pitch_3d_rosaleda_reference_architect_side_shadow_fascia');
-							            });
-							            addFinalRot(new THREE.PlaneGeometry(metersW * 0.86, metersH * 0.50), premiumShadow, -4.5, 0.075, -metersH * 0.15, -Math.PI / 2, 0, -0.055, 'pitch_3d_rosaleda_reference_architect_strong_roof_shadow_on_pitch');
-							            addFinalPart(new THREE.BoxGeometry(metersW + 34.0, 0.30, 0.28), premiumSteel, 0, 10.52, metersH / 2 + 13.38, 'pitch_3d_rosaleda_reference_architect_front_roof_black_truss');
-							            addFinalPart(new THREE.BoxGeometry(metersW + 34.0, 0.24, 0.24), premiumSteel, 0, 11.82, metersH / 2 + 20.96, 'pitch_3d_rosaleda_reference_architect_rear_roof_black_truss');
-							            for (let i = -25; i <= 25; i += 1) {
-							              const x = i * ((metersW + 28.0) / 50);
-							              addFinalRot(new THREE.BoxGeometry(0.08, 0.08, 8.0), premiumSteel, x, 11.12, metersH / 2 + 17.28, -0.33, 0, 0, 'pitch_3d_rosaleda_reference_architect_roof_raker_beam');
-							              if (i % 2 === 0) {
-							                addFinalRot(new THREE.BoxGeometry(2.28, 0.07, 0.08), premiumSteel, x + 0.48, 10.86, metersH / 2 + 14.72, 0, 0, 0.42, 'pitch_3d_rosaleda_reference_architect_roof_x_lattice_a');
-							                addFinalRot(new THREE.BoxGeometry(2.28, 0.07, 0.08), premiumSteel, x - 0.48, 10.86, metersH / 2 + 14.72, 0, 0, -0.42, 'pitch_3d_rosaleda_reference_architect_roof_x_lattice_b');
-							              }
-							              if (Math.abs(i) <= 22) addFinalPart(new THREE.BoxGeometry(0.46, 0.052, 0.12), premiumLight, x, 10.20, metersH / 2 + 13.10, 'pitch_3d_rosaleda_reference_architect_individual_roof_light');
-							            }
-							            const addPremiumDugout = (x) => {
-							              const dugout = new THREE.Group();
-							              dugout.position.set(x, 0.18, -(metersH / 2 + 1.58));
-							              dugout.userData = { kind: 'pitch_3d_rosaleda_reference_architect_curved_dugout' };
-							              const part = (geo, mat, px, py, pz, kind) => {
-							                const mesh = new THREE.Mesh(geo, mat);
-							                mesh.position.set(px, py, pz);
-							                mesh.userData = { kind };
-							                dugout.add(mesh);
-							                return mesh;
-							              };
-							              part(new THREE.BoxGeometry(14.8, 0.16, 2.16), premiumAsphalt, 0, 0.12, 0.18, 'pitch_3d_rosaleda_reference_architect_dugout_base');
-							              for (let r = 0; r < 9; r += 1) {
-							                const t = r / 8;
-							                const panel = part(new THREE.BoxGeometry(14.4, 0.038, 0.30), premiumGlass, 0, 0.70 + Math.sin(t * Math.PI * 0.66) * 1.18, 0.92 - t * 1.50, 'pitch_3d_rosaleda_reference_architect_dugout_segmented_glass_roof');
-							                panel.rotation.x = 0.50 - t * 0.34;
-							              }
-							              for (let s = 0; s < 9; s += 1) {
-							                const sx = -5.25 + s * 1.31;
-							                part(new THREE.BoxGeometry(0.76, 0.20, 0.52), premiumBlue, sx, 0.47, -0.08, 'pitch_3d_rosaleda_reference_architect_dugout_real_blue_seat');
-							                const back = part(new THREE.BoxGeometry(0.76, 0.68, 0.11), premiumBlue, sx, 0.84, -0.40, 'pitch_3d_rosaleda_reference_architect_dugout_real_blue_back');
-							                back.rotation.x = 0.19;
-							              }
-							              part(new THREE.BoxGeometry(14.6, 0.10, 0.13), premiumSteel, 0, 1.98, 0.02, 'pitch_3d_rosaleda_reference_architect_dugout_top_frame');
-							              finalGroup.add(dugout);
-							            };
-							            addPremiumDugout(-25.8);
-							            addPremiumDugout(-9.4);
-							            ['2J FOOTBALL INTELLIGENCE', 'PARTNER', 'SPONSOR', 'MATCHDAY', '2J FOOTBALL INTELLIGENCE'].forEach((label, idx) => {
-							              const x = -metersW * 0.43 + idx * (metersW * 0.215);
-							              addReadableAdBoard(label, x, 1.02, -(metersH / 2 + 2.62), metersW * 0.18, 0.72, 'north', 'pitch_3d_rosaleda_reference_architect_front_readable_ad_board', { w: 1220, h: 270, bg: idx % 2 ? '#101827' : '#075fae', fg: '#f8fafc', font: '900 48px Arial, sans-serif' });
-							            });
-							            addFinalPart(new THREE.BoxGeometry(metersW + 12.0, 0.06, 0.06), premiumGlass, 0, 1.42, -(metersH / 2 + 3.36), 'pitch_3d_rosaleda_reference_architect_front_glass_rail_top');
-							            addFinalPart(new THREE.BoxGeometry(metersW + 12.0, 0.05, 0.05), premiumGlass, 0, 0.84, -(metersH / 2 + 3.36), 'pitch_3d_rosaleda_reference_architect_front_glass_rail_mid');
-							            for (let i = -21; i <= 21; i += 1) {
-							              addFinalPart(new THREE.BoxGeometry(0.045, 1.12, 0.045), premiumGlass, i * ((metersW + 10.0) / 42), 0.90, -(metersH / 2 + 3.36), 'pitch_3d_rosaleda_reference_architect_front_glass_rail_post');
-							            }
-							          } catch (e) { /* ignore */ }
-							          try {
-							            const photoBlue = new THREE.MeshStandardMaterial({ color: 0x0a6ebd, roughness: 0.48, metalness: 0.025 });
-							            const photoDeepBlue = new THREE.MeshStandardMaterial({ color: 0x063668, roughness: 0.60, metalness: 0.025 });
-							            const photoWhite = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.45, metalness: 0.01 });
-							            const photoConcrete = new THREE.MeshStandardMaterial({ color: 0xd8d8cf, roughness: 0.80, metalness: 0.01 });
-							            const photoDark = new THREE.MeshStandardMaterial({ color: 0x0b1118, roughness: 0.78, metalness: 0.05 });
-							            const photoSteel = new THREE.MeshStandardMaterial({ color: 0x2d3742, roughness: 0.34, metalness: 0.48 });
-							            const photoGlass = new THREE.MeshPhysicalMaterial({ color: 0xdff8ff, roughness: 0.08, metalness: 0.02, transparent: true, opacity: 0.46, transmission: 0.24, side: THREE.DoubleSide });
-							            const photoNet = new THREE.MeshBasicMaterial({ color: 0xf8fafc, transparent: true, opacity: 0.32, side: THREE.DoubleSide });
-							            const photoLight = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
-							            const photoShadow = new THREE.MeshBasicMaterial({ color: 0x020617, transparent: true, opacity: 0.18, depthWrite: false });
-							            const photoFinish = new THREE.Group();
-							            photoFinish.userData = { kind: 'pitch_3d_rosaleda_photo_reference_detail_pass' };
-							            dedicatedFinish.add(photoFinish);
-							            const addPhotoPart = (geo, mat, x, y, z, kind) => {
-							              const mesh = new THREE.Mesh(geo, mat);
-							              mesh.position.set(x, y, z);
-							              mesh.userData = { kind };
-							              try { mesh.castShadow = true; mesh.receiveShadow = true; } catch (e) { /* ignore */ }
-							              photoFinish.add(mesh);
-							              return mesh;
-							            };
-							            const addPhotoRot = (geo, mat, x, y, z, rx, ry, rz, kind) => {
-							              const mesh = addPhotoPart(geo, mat, x, y, z, kind);
-							              mesh.rotation.set(rx || 0, ry || 0, rz || 0);
-							              return mesh;
-							            };
-							            const addMiniSeatBlock = (x0, x1, z, y, rows, cols, rowDz, prefix) => {
-							              const seatGeo = new THREE.BoxGeometry(0.32, 0.09, 0.22);
-							              const backGeo = new THREE.BoxGeometry(0.32, 0.23, 0.06);
-							              const mats = [photoBlue, photoDeepBlue, photoWhite];
-							              const groups = [[], [], []];
-							              const backs = [[], [], []];
-							              const matrix = new THREE.Matrix4();
-							              const quat = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.08, 0, 0));
-							              for (let row = 0; row < rows; row += 1) {
-							                for (let col = 0; col < cols; col += 1) {
-							                  const t = cols <= 1 ? 0 : col / (cols - 1);
-							                  if ([0.18, 0.35, 0.52, 0.69, 0.86].some((a) => Math.abs(t - a) < 0.016)) continue;
-							                  const tone = (row + col) % 21 === 0 ? 2 : ((row + col) % 6 === 0 ? 1 : 0);
-							                  const x = x0 + (x1 - x0) * t;
-							                  const yy = y + row * 0.18;
-							                  const zz = z + row * rowDz;
-							                  matrix.compose(new THREE.Vector3(x, yy, zz), quat, new THREE.Vector3(1, 1, 1));
-							                  groups[tone].push(matrix.clone());
-							                  matrix.compose(new THREE.Vector3(x, yy + 0.18, zz + Math.sign(rowDz || 1) * 0.11), quat, new THREE.Vector3(1, 1, 1));
-							                  backs[tone].push(matrix.clone());
-							                }
-							              }
-							              [0, 1, 2].forEach((idx) => {
-							                if (!groups[idx].length) return;
-							                const inst = new THREE.InstancedMesh(seatGeo, mats[idx], groups[idx].length);
-							                groups[idx].forEach((m, i) => inst.setMatrixAt(i, m));
-							                inst.instanceMatrix.needsUpdate = true;
-							                inst.userData = { kind: `${prefix}_photo_real_seat_pads`, count: groups[idx].length };
-							                photoFinish.add(inst);
-							                const backInst = new THREE.InstancedMesh(backGeo, mats[idx], backs[idx].length);
-							                backs[idx].forEach((m, i) => backInst.setMatrixAt(i, m));
-							                backInst.instanceMatrix.needsUpdate = true;
-							                backInst.userData = { kind: `${prefix}_photo_real_seat_backs`, count: backs[idx].length };
-							                photoFinish.add(backInst);
-							              });
-							            };
-							            addMiniSeatBlock(-metersW * 0.46, metersW * 0.46, -(metersH / 2 + 4.95), 0.78, 18, 96, -0.22, 'pitch_3d_rosaleda_photo_near_lower_tier');
-							            addMiniSeatBlock(-metersW * 0.43, metersW * 0.43, metersH / 2 + 6.30, 3.06, 22, 92, 0.24, 'pitch_3d_rosaleda_photo_main_upper_tier');
-							            addPhotoPart(new THREE.BoxGeometry(metersW + 20.0, 0.24, 0.36), photoDark, 0, 4.46, metersH / 2 + 5.06, 'pitch_3d_rosaleda_photo_main_stand_dark_mid_concourse');
-							            addPhotoPart(new THREE.BoxGeometry(metersW + 18.0, 0.16, 0.28), photoDark, 0, 2.16, -(metersH / 2 + 3.08), 'pitch_3d_rosaleda_photo_near_stand_dark_mid_concourse');
-							            [-0.42, -0.26, -0.10, 0.08, 0.25, 0.42].forEach((ratio) => {
-							              addPhotoRot(new THREE.BoxGeometry(0.84, 0.12, 5.8), photoConcrete, ratio * metersW, 2.38, -(metersH / 2 + 5.84), -0.08, 0, 0, 'pitch_3d_rosaleda_photo_near_clean_concrete_aisle');
-							              addPhotoRot(new THREE.BoxGeometry(0.92, 0.14, 7.2), photoConcrete, ratio * metersW, 4.76, metersH / 2 + 8.84, -0.105, 0, 0, 'pitch_3d_rosaleda_photo_main_clean_concrete_aisle');
-							            });
-							            const addDetailedDugout = (x) => {
-							              const g = new THREE.Group();
-							              g.position.set(x, 0.10, -(metersH / 2 + 2.15));
-							              g.userData = { kind: 'pitch_3d_rosaleda_photo_detailed_real_dugout' };
-							              const part = (geo, mat, px, py, pz, kind) => {
-							                const mesh = new THREE.Mesh(geo, mat);
-							                mesh.position.set(px, py, pz);
-							                mesh.userData = { kind };
-							                g.add(mesh);
-							                return mesh;
-							              };
-							              part(new THREE.BoxGeometry(15.6, 0.18, 2.05), photoDark, 0, 0.12, 0.25, 'pitch_3d_rosaleda_photo_dugout_floor');
-							              for (let i = -6; i <= 6; i += 1) {
-							                const rib = part(new THREE.BoxGeometry(0.06, 1.65, 0.08), photoSteel, i * 1.18, 1.25, -0.20, 'pitch_3d_rosaleda_photo_dugout_metal_rib');
-							                rib.rotation.x = -0.32;
-							              }
-							              for (let r = 0; r < 8; r += 1) {
-							                const t = r / 7;
-							                const panel = part(new THREE.BoxGeometry(15.0, 0.040, 0.34), photoGlass, 0, 0.78 + Math.sin(t * Math.PI * 0.66) * 1.10, 0.84 - t * 1.42, 'pitch_3d_rosaleda_photo_dugout_curved_glass_segment');
-							                panel.rotation.x = 0.48 - t * 0.32;
-							              }
-							              part(new THREE.BoxGeometry(15.2, 0.09, 0.13), photoSteel, 0, 2.02, 0.02, 'pitch_3d_rosaleda_photo_dugout_top_spine');
-							              for (let s = 0; s < 10; s += 1) {
-							                const sx = -5.9 + s * 1.31;
-							                part(new THREE.BoxGeometry(0.76, 0.20, 0.52), photoBlue, sx, 0.47, -0.08, 'pitch_3d_rosaleda_photo_dugout_blue_bucket_seat');
-							                const back = part(new THREE.BoxGeometry(0.76, 0.70, 0.11), photoBlue, sx, 0.86, -0.40, 'pitch_3d_rosaleda_photo_dugout_blue_bucket_back');
-							                back.rotation.x = 0.20;
-							              }
-							              [-7.15, 7.15].forEach((sx) => {
-							                part(new THREE.BoxGeometry(0.75, 0.62, 0.68), photoDeepBlue, sx, 0.36, 1.36, 'pitch_3d_rosaleda_photo_dugout_equipment_box');
-							                part(new THREE.BoxGeometry(0.52, 0.44, 0.52), photoWhite, sx * 0.94, 0.31, 1.42, 'pitch_3d_rosaleda_photo_dugout_cooler');
-							              });
-							              photoFinish.add(g);
-							            };
-							            addDetailedDugout(-26.5);
-							            addDetailedDugout(-9.0);
-							            const addSmallGoal = (x, z, ry) => {
-							              const g = new THREE.Group();
-							              g.position.set(x, 0.12, z);
-							              g.rotation.y = ry || 0;
-							              g.userData = { kind: 'pitch_3d_rosaleda_photo_spare_training_goal_detailed' };
-							              const part = (geo, mat, px, py, pz, kind) => {
-							                const mesh = new THREE.Mesh(geo, mat);
-							                mesh.position.set(px, py, pz);
-							                mesh.userData = { kind };
-							                g.add(mesh);
-							                return mesh;
-							              };
-							              part(new THREE.BoxGeometry(5.5, 0.07, 0.07), photoWhite, 0, 1.72, 0, 'pitch_3d_rosaleda_photo_spare_goal_crossbar');
-							              part(new THREE.BoxGeometry(0.07, 1.72, 0.07), photoWhite, -2.75, 0.86, 0, 'pitch_3d_rosaleda_photo_spare_goal_post');
-							              part(new THREE.BoxGeometry(0.07, 1.72, 0.07), photoWhite, 2.75, 0.86, 0, 'pitch_3d_rosaleda_photo_spare_goal_post');
-							              part(new THREE.PlaneGeometry(5.5, 1.58), photoNet, 0, 0.92, 0.64, 'pitch_3d_rosaleda_photo_spare_goal_net');
-							              photoFinish.add(g);
-							            };
-							            addSmallGoal(-40.0, -(metersH / 2 + 2.94), 0);
-							            addSmallGoal(-34.0, -(metersH / 2 + 3.20), 0);
-							            addPhotoRot(new THREE.PlaneGeometry(metersW * 0.62, metersH * 0.42), photoShadow, -9.0, 0.082, -metersH * 0.16, -Math.PI / 2, 0, -0.08, 'pitch_3d_rosaleda_photo_soft_roof_shadow_large_diagonal');
-							            addPhotoRot(new THREE.PlaneGeometry(metersW * 0.26, metersH * 0.34), new THREE.MeshBasicMaterial({ color: 0x020617, transparent: true, opacity: 0.08, depthWrite: false }), metersW * 0.26, 0.084, metersH * 0.16, -Math.PI / 2, 0, -0.04, 'pitch_3d_rosaleda_photo_secondary_roof_shadow');
-							            addPhotoPart(new THREE.BoxGeometry(metersW + 36.0, 0.34, 0.32), photoSteel, 0, 10.48, metersH / 2 + 12.96, 'pitch_3d_rosaleda_photo_black_front_roof_chord');
-							            addPhotoPart(new THREE.BoxGeometry(metersW + 35.0, 0.24, 0.26), photoSteel, 0, 11.94, metersH / 2 + 20.72, 'pitch_3d_rosaleda_photo_black_rear_roof_chord');
-							            for (let i = -28; i <= 28; i += 1) {
-							              const x = i * ((metersW + 32.0) / 56);
-							              addPhotoRot(new THREE.BoxGeometry(0.070, 0.070, 8.4), photoSteel, x, 11.18, metersH / 2 + 17.10, -0.34, 0, 0, 'pitch_3d_rosaleda_photo_roof_fine_raker');
-							              if (i % 2 === 0) {
-							                addPhotoRot(new THREE.BoxGeometry(2.18, 0.060, 0.070), photoSteel, x + 0.46, 10.90, metersH / 2 + 14.42, 0, 0, 0.42, 'pitch_3d_rosaleda_photo_roof_x_brace_a');
-							                addPhotoRot(new THREE.BoxGeometry(2.18, 0.060, 0.070), photoSteel, x - 0.46, 10.90, metersH / 2 + 14.42, 0, 0, -0.42, 'pitch_3d_rosaleda_photo_roof_x_brace_b');
-							              }
-							              if (Math.abs(i) <= 24) addPhotoPart(new THREE.BoxGeometry(0.38, 0.050, 0.11), photoLight, x, 10.14, metersH / 2 + 12.62, 'pitch_3d_rosaleda_photo_roof_bright_light_cell');
-							            }
-							            const adLabels = ['2J FOOTBALL INTELLIGENCE', 'PARTNER', 'SPONSOR', 'ESTADIO', 'MATCHDAY'];
-							            const conflictKinds = [
-							              'pitch_3d_rosaleda_final_polish_near_reference_ad_board',
-							              'pitch_3d_rosaleda_final_seal_visible_touchline_board',
-							              'pitch_3d_rosaleda_reference_architect_front_readable_ad_board',
-							              'pitch_3d_rosaleda_photo_continuous_near_ad_board',
-							              'pitch_3d_rosaleda_photo_near_clean_concrete_aisle',
-							              'pitch_3d_rosaleda_photo_near_stand_dark_mid_concourse',
-							              'pitch_3d_dedicated_completion_side_white_stair',
-							              'pitch_3d_dedicated_completion_side_stair_rail',
-							              'pitch_3d_dedicated_completion_corner_podium',
-							              'pitch_3d_dedicated_completion_corner_seat_band',
-							              'pitch_3d_rosaleda_photo_integrated_near_stair_tread',
-							              'pitch_3d_rosaleda_photo_integrated_near_stair_low_rail',
-							            ];
-							            dedicatedFinish.traverse((node) => {
-							              const kind = safeText(node?.userData?.kind || '');
-							              if (!kind) return;
-							              if (conflictKinds.some((needle) => kind.includes(needle))) node.visible = false;
-							            });
-							            root.traverse((node) => {
-							              const kind = safeText(node?.userData?.kind || '');
-							              const name = safeText(node?.name || '');
-							              const signature = `${kind} ${name}`;
-							              if (conflictKinds.some((needle) => signature.includes(needle))) node.visible = false;
-							              if (/side_(white_)?stair|side_stair_rail|corner_podium|corner_seat_band|near_clean_concrete_aisle/.test(signature)) node.visible = false;
-							              if (node?.isMesh && node?.geometry) {
-							                try {
-							                  if (!node.geometry.boundingBox) node.geometry.computeBoundingBox();
-							                  const box = node.geometry.boundingBox;
-							                  const sx = Math.abs(box.max.x - box.min.x) * Math.abs(node.scale?.x || 1);
-							                  const sy = Math.abs(box.max.y - box.min.y) * Math.abs(node.scale?.y || 1);
-							                  const sz = Math.abs(box.max.z - box.min.z) * Math.abs(node.scale?.z || 1);
-							                  const px = Math.abs(node.position?.x || 0);
-							                  const py = Number(node.position?.y || 0);
-							                  const pz = Math.abs(node.position?.z || 0);
-							                  const lateralBeam = px > (metersW / 2 + 3.0) && py > 0.70 && py < 3.40 && sx > 2.7 && sx < 8.2 && sy < 0.36 && sz < 1.65;
-							                  const cornerBeam = px > (metersW / 2 + 1.0) && pz > (metersH / 2 + 1.0) && py > 0.70 && py < 3.40 && (sx > 2.5 || sz > 2.5) && sy < 0.42;
-							                  if (lateralBeam || cornerBeam) node.visible = false;
-							                } catch (e) { /* ignore */ }
-							              }
-							            });
-							            for (let i = 0; i < 11; i += 1) {
-							              const x = -metersW * 0.48 + i * (metersW * 0.096);
-							              addReadableAdBoard(adLabels[(i + 2) % adLabels.length], x, 0.94, metersH / 2 + 2.96, metersW * 0.082, 0.72, 'south', 'pitch_3d_rosaleda_photo_continuous_far_ad_board', { w: 980, h: 250, bg: i % 2 ? '#075fae' : '#111827', fg: '#f8fafc', font: '900 46px Arial, sans-serif' });
-							            }
-							            [
-							              { x: -48.0, w: 9.8, label: 'SPONSOR', bg: '#111827' },
-							              { x: -36.6, w: 8.4, label: '2J FOOTBALL INTELLIGENCE', bg: '#075fae' },
-							              { x: 5.2, w: 9.8, label: 'PARTNER', bg: '#075fae' },
-							              { x: 18.4, w: 10.6, label: 'ESTADIO', bg: '#111827' },
-							              { x: 33.0, w: 11.0, label: '2J FOOTBALL INTELLIGENCE', bg: '#075fae' },
-							              { x: 47.2, w: 8.4, label: 'SPONSOR', bg: '#111827' },
-							            ].forEach((board, idx) => {
-							              addReadableAdBoard(board.label, board.x, 0.86, -(metersH / 2 + 3.10), board.w, 0.66, 'north', 'pitch_3d_rosaleda_photo_clean_near_ad_board_with_dugout_gaps', { w: 980, h: 250, bg: board.bg, fg: '#f8fafc', font: idx === 1 || idx === 4 ? '900 38px Arial, sans-serif' : '900 48px Arial, sans-serif' });
-							            });
-							            addPhotoPart(new THREE.BoxGeometry(16.2, 0.09, 2.18), photoDark, -26.5, 0.16, -(metersH / 2 + 3.04), 'pitch_3d_rosaleda_photo_dugout_clear_technical_pad_left');
-							            addPhotoPart(new THREE.BoxGeometry(16.2, 0.09, 2.18), photoDark, -9.0, 0.16, -(metersH / 2 + 3.04), 'pitch_3d_rosaleda_photo_dugout_clear_technical_pad_right');
-							            addPhotoPart(new THREE.BoxGeometry(9.0, 0.10, 3.2), photoDark, 0, 0.14, -(metersH / 2 + 3.28), 'pitch_3d_rosaleda_photo_tunnel_clear_opening_floor');
-							            [-0.38, -0.18, 0.18, 0.38].forEach((ratio) => {
-							              addPhotoRot(new THREE.BoxGeometry(0.92, 0.055, 2.35), photoConcrete, ratio * metersW, 0.82, -(metersH / 2 + 4.52), -0.035, 0, 0, 'pitch_3d_rosaleda_photo_flush_near_stair_tread');
-							              addPhotoPart(new THREE.BoxGeometry(0.036, 0.42, 2.0), photoGlass, ratio * metersW - 0.56, 0.88, -(metersH / 2 + 4.38), 'pitch_3d_rosaleda_photo_flush_near_stair_low_rail');
-							              addPhotoPart(new THREE.BoxGeometry(0.036, 0.42, 2.0), photoGlass, ratio * metersW + 0.56, 0.88, -(metersH / 2 + 4.38), 'pitch_3d_rosaleda_photo_flush_near_stair_low_rail');
-							            });
-							            [-1, 1].forEach((sideSign) => {
-							              [-0.34, -0.12, 0.12, 0.34].forEach((ratio) => {
-							                addPhotoPart(new THREE.BoxGeometry(2.55, 0.055, 0.82), photoConcrete, sideSign * (metersW / 2 + 4.78), 0.86, ratio * metersH, 'pitch_3d_rosaleda_photo_flush_side_stair_tread');
-							                addPhotoPart(new THREE.BoxGeometry(2.12, 0.036, 0.036), photoGlass, sideSign * (metersW / 2 + 4.78), 1.18, ratio * metersH - 0.52, 'pitch_3d_rosaleda_photo_flush_side_stair_low_rail');
-							                addPhotoPart(new THREE.BoxGeometry(2.12, 0.036, 0.036), photoGlass, sideSign * (metersW / 2 + 4.78), 1.18, ratio * metersH + 0.52, 'pitch_3d_rosaleda_photo_flush_side_stair_low_rail');
-							              });
-							            });
-							            const legacyVisualNoise = [
-							              'pitch_3d_dedicated_reference_',
-							              'pitch_3d_rosaleda_reference_',
-							              'pitch_3d_rosaleda_final_',
-							              'pitch_3d_rosaleda_final_polish_',
-							              'pitch_3d_rosaleda_final_seal_',
-							              'pitch_3d_rosaleda_reference_architect_',
-							              'pitch_3d_rosaleda_clean_',
-							              'pitch_3d_rosaleda_main_stand_clean_',
-							              'pitch_3d_rosaleda_photo_main_stand_dark_mid_concourse',
-							              'pitch_3d_rosaleda_photo_near_stand_dark_mid_concourse',
-							              'pitch_3d_stadium_vomitory_access_portal',
-							              'pitch_3d_stadium_pitchside_camera_operator',
-							              'pitch_3d_stadium_steward_silhouette',
-							            ];
-							            const keepPhotoLayer = (kind) => (
-							              kind.includes('pitch_3d_rosaleda_photo_')
-							              || kind.includes('pitch_3d_rosaleda_photo_reference_detail_pass')
-							            );
-							            const hideLegacyNoiseNode = (node) => {
-							              const kind = safeText(node?.userData?.kind || '');
-							              const name = safeText(node?.name || '');
-							              const signature = `${kind} ${name}`;
-							              if (kind && !keepPhotoLayer(kind) && legacyVisualNoise.some((needle) => signature.includes(needle))) {
-							                node.visible = false;
-							                return;
-							              }
-							              if (
-							                /pitch_3d_dedicated_completion_(long_green_seat_band|side_green_seat_band|individual_(dark_)?seat_field|long_white_stair|long_stair_rail|side_white_stair|side_stair_rail|corner_podium|corner_seat_band|long_pitchside_board|side_pitchside_board)/.test(signature)
-							              ) {
-							                node.visible = false;
-							                return;
-							              }
-							              if (!node?.isMesh || !node.geometry) return;
-							              try {
-							                if (!node.geometry.boundingBox) node.geometry.computeBoundingBox();
-							                const box = node.geometry.boundingBox;
-							                const sx = Math.abs(box.max.x - box.min.x) * Math.abs(node.scale?.x || 1);
-							                const sy = Math.abs(box.max.y - box.min.y) * Math.abs(node.scale?.y || 1);
-							                const sz = Math.abs(box.max.z - box.min.z) * Math.abs(node.scale?.z || 1);
-							                const px = Number(node.position?.x || 0);
-							                const py = Number(node.position?.y || 0);
-							                const pz = Number(node.position?.z || 0);
-							                const mats = Array.isArray(node.material) ? node.material : [node.material];
-							                const darkMaterial = mats.some((mat) => {
-							                  try {
-							                    const c = mat?.color;
-							                    if (!c) return false;
-							                    return ((c.r || 0) + (c.g || 0) + (c.b || 0)) < 0.20;
-							                  } catch (e) {
-							                    return false;
-							                  }
-							                });
-							                const nearBowl = Math.abs(pz) > (metersH / 2 + 0.75) || Math.abs(px) > (metersW / 2 + 0.75);
-							                const freestandingBlackSlug = darkMaterial && nearBowl && py > 0.45 && py < 4.80 && sy > 0.45 && Math.max(sx, sz) < 6.25;
-							                const dugoutConflictBoard = signature.includes('ad_board')
-							                  && pz < -(metersH / 2 + 0.40)
-							                  && pz > -(metersH / 2 + 4.40)
-							                  && ((px > -35.8 && px < -1.5) || Math.abs(px) < 5.4);
-							                if (freestandingBlackSlug || dugoutConflictBoard) node.visible = false;
-							              } catch (e) { /* ignore */ }
-							            };
-							            dedicatedFinish.traverse(hideLegacyNoiseNode);
-							            const finalAdLabels = [
-							              { x: -47.0, w: 9.0, label: 'SPONSOR', bg: '#101827' },
-							              { x: -36.0, w: 8.8, label: '2J FOOTBALL INTELLIGENCE', bg: '#075fae' },
-							              { x: -1.0, w: 8.6, label: 'LA ROSALEDA', bg: '#075fae' },
-							              { x: 12.6, w: 9.0, label: 'PARTNER', bg: '#101827' },
-							              { x: 26.0, w: 9.4, label: '2J FOOTBALL INTELLIGENCE', bg: '#075fae' },
-							              { x: 42.0, w: 8.6, label: 'SPONSOR', bg: '#101827' },
-							            ];
-							            finalAdLabels.forEach((board, idx) => {
-							              addReadableAdBoard(board.label, board.x, 0.90, -(metersH / 2 + 3.28), board.w, 0.66, 'north', 'pitch_3d_rosaleda_photo_final_non_overlapping_near_ad_board', { w: 1120, h: 260, bg: board.bg, fg: '#f8fafc', font: idx === 1 || idx === 4 ? '900 36px Arial, sans-serif' : '900 48px Arial, sans-serif' });
-							            });
-							            addPhotoPart(new THREE.BoxGeometry(8.2, 0.12, 2.85), photoDark, -18.2, 0.18, -(metersH / 2 + 3.22), 'pitch_3d_rosaleda_photo_dugout_gap_clean_dark_floor_left');
-							            addPhotoPart(new THREE.BoxGeometry(7.8, 0.12, 2.85), photoDark, -9.0, 0.18, -(metersH / 2 + 3.22), 'pitch_3d_rosaleda_photo_dugout_gap_clean_dark_floor_right');
-							            addPhotoPart(new THREE.BoxGeometry(7.4, 0.14, 3.15), photoDark, 0, 0.18, -(metersH / 2 + 3.32), 'pitch_3d_rosaleda_photo_central_tunnel_gap_clean_dark_floor');
-							            // Se eliminan los falsos vomitorios sobresalientes frente a las vallas:
-							            // en cámara parecían vigas en el aire y no accesos reales.
-							          } catch (e) { /* ignore */ }
-							          root.add(dedicatedFinish);
+				              addRoofLatticePass();
+				              addRosaledaReferenceFinalMatchPass();
+				              addRosaledaArchitecturalFinalPolish();
+              cleanupDedicateForegroundOverlaps();
+              addDedicatedReferenceLightingRig();
+              root.add(dedicatedFinish);
 						        }
-						      } catch (e) {
-						        updatePitch3dStadiumDebug({ event: 'stadium-finish:throw', error: safeText(e?.message || e) });
-						      }
+						      } catch (e) { /* ignore */ }
 
 						      // El campo es una pieza 3D, no una lámina 2D: base con canto visible y borde interior.
 						      try {
@@ -16747,339 +15308,6 @@
 						          } catch (e) { /* ignore */ }
 						        });
 						      }
-						      const hasVisibleRuntimeStadiumAsset = () => {
-						        let found = false;
-						        try {
-						          root.traverse((node) => {
-						            const kind = safeText(node?.userData?.kind || '');
-						            if (
-						              kind.includes('pitch_3d_professional_blender_stadium')
-						              || kind.includes('pitch_3d_simple_runtime_stadium_asset')
-						            ) found = true;
-						          });
-						        } catch (e) { /* ignore */ }
-						        return found;
-						      };
-						      const mountSimpleRuntimeStadiumAsset = (sceneAsset) => {
-						        try {
-						          if (fieldFormat !== 'f11') {
-						            updatePitch3dStadiumDebug({ event: 'late-stadium-mount:skip-non-f11', fieldFormat });
-						            return false;
-						          }
-						          if (!sceneAsset || hasVisibleRuntimeStadiumAsset()) return false;
-						          const stadiumAsset = new THREE.Group();
-						          const runtimeMaterialCache = new Map();
-						          const runtimeMaterialForName = (nameRaw) => {
-						            const name = safeText(nameRaw).toUpperCase();
-						            let key = 'concrete';
-						            if (name.includes('GLASS')) key = 'glass';
-						            else if (name.includes('TEAM_PRIMARY') || name.includes('SEAT') || name.includes('SEATING')) key = 'seat_primary';
-						            else if (name.includes('TEAM_SECONDARY') || name.includes('WHITE')) key = 'seat_secondary';
-						            else if (name.includes('BOARD') || name.includes('SPONSOR') || name.includes('PARTNER')) key = 'board';
-						            else if (name.includes('DARK') || name.includes('VOID') || name.includes('OPENING') || name.includes('BLACK')) key = 'dark';
-						            else if (name.includes('ROOF') || name.includes('TRUSS') || name.includes('METAL')) key = 'roof';
-						            if (runtimeMaterialCache.has(key)) return runtimeMaterialCache.get(key);
-						            let mat = null;
-						            if (key === 'glass') {
-						              mat = new THREE.MeshPhysicalMaterial({ color: 0xc7f0ff, roughness: 0.12, metalness: 0.02, transparent: true, opacity: 0.30, transmission: 0.18, side: THREE.DoubleSide });
-						            } else if (key === 'seat_primary') {
-						              mat = new THREE.MeshStandardMaterial({ color: 0x1261ad, roughness: 0.58, metalness: 0.02, side: THREE.DoubleSide });
-						            } else if (key === 'seat_secondary') {
-						              mat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.48, metalness: 0.01, side: THREE.DoubleSide });
-						            } else if (key === 'board') {
-						              mat = new THREE.MeshStandardMaterial({ color: 0x064f9e, roughness: 0.42, metalness: 0.06, emissive: 0x022c5f, emissiveIntensity: 0.12, side: THREE.DoubleSide });
-						            } else if (key === 'dark') {
-						              mat = new THREE.MeshStandardMaterial({ color: 0x1f3345, roughness: 0.78, metalness: 0.06, side: THREE.DoubleSide });
-						            } else if (key === 'roof') {
-						              mat = new THREE.MeshStandardMaterial({ color: 0xd7d6c8, roughness: 0.48, metalness: 0.10, side: THREE.DoubleSide });
-						            } else {
-						              mat = new THREE.MeshStandardMaterial({ color: 0xcfd6d1, roughness: 0.76, metalness: 0.03, side: THREE.DoubleSide });
-						            }
-						            runtimeMaterialCache.set(key, mat);
-						            return mat;
-						          };
-						          stadiumAsset.name = 'stadium_bowl_simple_runtime_asset';
-						          stadiumAsset.userData = { kind: 'pitch_3d_simple_runtime_stadium_asset' };
-						          try { sceneAsset.updateMatrixWorld(true); } catch (e) { /* ignore */ }
-						          sceneAsset.traverse((node) => {
-						            if (!node || !node.isMesh || !node.geometry) return;
-						            const nodeName = safeText(node.name || node.material?.name || '').toUpperCase();
-						            const skipCornerMass = (
-						              nodeName.includes('CORNER_SOLID')
-						              || nodeName.includes('SOLID_BOWL_CLOSURE')
-						              || nodeName.includes('GROUND_MASS')
-						              || nodeName.includes('STRUCTURAL_MASS')
-						              || nodeName.includes('TICKET_OFFICE_BLOCK')
-						              || nodeName.includes('WAYFINDING_TOWER')
-						              || nodeName.includes('MEGA_COLUMN')
-						              || nodeName.includes('CORNER_PODIUM_MASS')
-						            );
-						            if (
-						              nodeName.includes('BOARD')
-						              || nodeName.includes('SPONSOR')
-						              || nodeName.includes('PARTNER')
-						              || nodeName.includes('MATCHDAY')
-						              || nodeName.includes('FOOTBALL')
-						              || nodeName.includes('INTELLIGENCE')
-						              || nodeName.includes('ROSALEDA')
-						              || nodeName.includes('SIGNAGE')
-						              || nodeName.includes('AD_')
-						              || nodeName.includes('TEXT')
-						              || nodeName.includes('DUGOUT')
-						              || nodeName.includes('BENCH')
-						              || nodeName.includes('TUNNEL')
-						              || nodeName.includes('OPENING')
-						              || nodeName.includes('PORTAL')
-						              || nodeName.includes('VOMITORY')
-						              || nodeName.includes('ACCESS')
-						              || skipCornerMass
-						            ) return;
-						            const mesh = new THREE.Mesh();
-						            try { mesh.geometry = node.geometry.clone ? node.geometry.clone() : node.geometry; } catch (e) { mesh.geometry = node.geometry; }
-						            mesh.material = runtimeMaterialForName(node.name || node.material?.name || '');
-						            try { mesh.applyMatrix4(node.matrixWorld.clone()); } catch (e) { /* ignore */ }
-						            mesh.matrixAutoUpdate = false;
-						            mesh.userData = Object.assign({}, node.userData || {}, { kind: 'pitch_3d_simple_runtime_stadium_asset_mesh' });
-						            try { mesh.castShadow = true; mesh.receiveShadow = true; mesh.frustumCulled = false; } catch (e) { /* ignore */ }
-						            stadiumAsset.add(mesh);
-						          });
-						          const runtimeConcrete = new THREE.MeshStandardMaterial({ color: 0xd9ddd7, roughness: 0.72, metalness: 0.04, side: THREE.DoubleSide });
-						          const runtimeGlass = new THREE.MeshPhysicalMaterial({ color: 0xbfe8ff, roughness: 0.14, metalness: 0.02, transparent: true, opacity: 0.40, transmission: 0.16, side: THREE.DoubleSide });
-						          const runtimeFrame = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.42, metalness: 0.28, side: THREE.DoubleSide });
-						          const runtimeFacadeDark = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.68, metalness: 0.08, side: THREE.DoubleSide });
-						          const runtimeFacadePanel = new THREE.MeshStandardMaterial({ color: 0xe5e7eb, roughness: 0.58, metalness: 0.06, side: THREE.DoubleSide });
-						          const runtimeFacadeLouver = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.48, metalness: 0.14, side: THREE.DoubleSide });
-						          const runtimeFacadeMid = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.56, metalness: 0.10, side: THREE.DoubleSide });
-						          const runtimeSeatDark = new THREE.MeshStandardMaterial({ color: 0x0f4c81, roughness: 0.56, metalness: 0.02, side: THREE.DoubleSide });
-						          const runtimeSeatLight = new THREE.MeshStandardMaterial({ color: 0x4c9fe0, roughness: 0.54, metalness: 0.02, side: THREE.DoubleSide });
-						          const runtimeSeatMid = new THREE.MeshStandardMaterial({ color: 0x1f6fb9, roughness: 0.55, metalness: 0.02, side: THREE.DoubleSide });
-						          const runtimeRoofSolid = new THREE.MeshStandardMaterial({ color: 0xdddccd, roughness: 0.42, metalness: 0.14, side: THREE.DoubleSide });
-						          const runtimeLightBar = new THREE.MeshStandardMaterial({ color: 0xe0f2fe, roughness: 0.16, metalness: 0.02, emissive: 0xe0f2fe, emissiveIntensity: 0.44, side: THREE.DoubleSide });
-						          const addRuntimeBox = (x, y, z, sx, sy, sz, mat, kind, ry = 0) => {
-						            const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), mat);
-						            mesh.position.set(x, y, z);
-						            mesh.rotation.y = ry;
-						            mesh.userData = { kind };
-						            try { mesh.castShadow = true; mesh.receiveShadow = true; mesh.frustumCulled = false; } catch (e) { /* ignore */ }
-						            stadiumAsset.add(mesh);
-						            return mesh;
-						          };
-						          try {
-						            const halfW = 126;
-						            const halfD = 108;
-						            [-1, 1].forEach((sign) => {
-						              addRuntimeBox(0, 5.65, sign * 92.5, 160, 1.35, 0.44, runtimeFacadeDark, 'pitch_3d_runtime_main_fascia_band');
-						              addRuntimeBox(0, 7.25, sign * 94.8, 144, 2.6, 0.24, runtimeGlass, 'pitch_3d_runtime_main_glazed_concourse');
-						              addRuntimeBox(0, 11.95, sign * 80.6, 168, 0.48, 0.62, runtimeFrame, 'pitch_3d_runtime_roof_edge_beam');
-						              addRuntimeBox(0, 12.46, sign * 78.6, 170, 0.22, 6.8, runtimeRoofSolid, 'pitch_3d_runtime_roof_canopy_long');
-						              for (let i = -6; i <= 6; i += 1) {
-						                addRuntimeBox(i * 12.8, 12.18, sign * 79.6, 0.18, 2.8, 5.8, runtimeFrame, 'pitch_3d_runtime_roof_truss_long', sign * 0.04);
-						                addRuntimeBox(i * 12.8, 11.38, sign * 82.2, 0.10, 1.6, 0.12, runtimeFrame, 'pitch_3d_runtime_roof_hanger_long');
-						              }
-						              [-54, -18, 18, 54].forEach((x) => addRuntimeBox(x, 7.24, sign * 94.6, 0.18, 2.55, 0.42, runtimeFrame, 'pitch_3d_runtime_main_glass_mullion'));
-						              [-54, -18, 18, 54].forEach((x) => addRuntimeBox(x, 8.66, sign * 92.6, 12.4, 0.14, 0.26, runtimeFacadeMid, 'pitch_3d_runtime_main_corporate_box_band'));
-						              [-36, 0, 36].forEach((x) => {
-						                addRuntimeBox(x, 3.24, sign * 92.7, 3.8, 1.52, 0.18, runtimeFacadeDark, 'pitch_3d_runtime_main_mid_vomitory_shadow');
-						                addRuntimeBox(x, 4.18, sign * 92.58, 4.6, 0.22, 0.22, runtimeConcrete, 'pitch_3d_runtime_main_mid_vomitory_header');
-						              });
-						            });
-						            [-1, 1].forEach((sign) => {
-						              addRuntimeBox(sign * 104.5, 5.65, 0, 0.44, 1.35, 92, runtimeFacadeDark, 'pitch_3d_runtime_side_fascia_band');
-						              addRuntimeBox(sign * 106.8, 7.25, 0, 0.24, 2.6, 78, runtimeGlass, 'pitch_3d_runtime_side_glazed_concourse');
-						              addRuntimeBox(sign * 92.4, 11.95, 0, 0.62, 0.48, 108, runtimeFrame, 'pitch_3d_runtime_side_roof_edge_beam');
-						              addRuntimeBox(sign * 90.6, 12.46, 0, 6.8, 0.22, 112, runtimeRoofSolid, 'pitch_3d_runtime_roof_canopy_end');
-						              for (let i = -4; i <= 4; i += 1) {
-						                addRuntimeBox(sign * 91.6, 12.18, i * 11.2, 5.8, 2.8, 0.18, runtimeFrame, 'pitch_3d_runtime_roof_truss_end');
-						                addRuntimeBox(sign * 94.2, 11.38, i * 11.2, 0.12, 1.6, 0.10, runtimeFrame, 'pitch_3d_runtime_roof_hanger_end');
-						              }
-						              [-28, 0, 28].forEach((z) => addRuntimeBox(sign * 106.6, 7.24, z, 0.42, 2.55, 0.18, runtimeFrame, 'pitch_3d_runtime_side_glass_mullion'));
-						              [-28, 0, 28].forEach((z) => addRuntimeBox(sign * 104.8, 8.66, z, 0.26, 0.14, 12.4, runtimeFacadeMid, 'pitch_3d_runtime_side_corporate_box_band'));
-						              [-22, 22].forEach((z) => {
-						                addRuntimeBox(sign * 104.7, 3.24, z, 0.18, 1.52, 3.8, runtimeFacadeDark, 'pitch_3d_runtime_side_mid_vomitory_shadow');
-						                addRuntimeBox(sign * 104.58, 4.18, z, 0.22, 0.22, 4.6, runtimeConcrete, 'pitch_3d_runtime_side_mid_vomitory_header');
-						              });
-						            });
-						            addRuntimeBox(0, 10.75, -95.4, 30, 1.92, 8.2, runtimeFacadeDark, 'pitch_3d_runtime_main_press_box');
-						            addRuntimeBox(0, 10.95, -99.6, 24, 1.28, 0.24, runtimeGlass, 'pitch_3d_runtime_main_press_box_glass');
-						            [-8.8, -2.9, 2.9, 8.8].forEach((x) => addRuntimeBox(x, 10.94, -99.4, 0.16, 1.18, 0.12, runtimeFrame, 'pitch_3d_runtime_main_press_box_mullion'));
-						            addRuntimeBox(0, 10.18, -91.3, 36, 0.18, 0.32, runtimeFrame, 'pitch_3d_runtime_camera_gantry');
-						            [-12, -4, 4, 12].forEach((x) => addRuntimeBox(x, 9.62, -91.1, 0.14, 1.08, 0.14, runtimeFrame, 'pitch_3d_runtime_camera_gantry_post'));
-						            [-9, -3, 3, 9].forEach((x) => addRuntimeBox(x, 10.02, -91.08, 1.2, 0.14, 0.20, runtimeFacadeMid, 'pitch_3d_runtime_camera_gantry_platform'));
-						            [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
-						              const cx = sx * 102;
-						              const cz = sz * 84;
-						              addRuntimeBox(cx + sx * 1.8, 4.5, cz + sz * 1.8, 11.6, 7.2, 11.6, runtimeFacadePanel, 'pitch_3d_runtime_corner_facade_core', sx * sz * 0.12);
-						              addRuntimeBox(cx - sx * 1.2, 4.9, cz - sz * 5.6, 13.4, 1.3, 0.46, runtimeFacadeDark, 'pitch_3d_runtime_corner_facade_front_band');
-						              addRuntimeBox(cx + sx * 5.6, 4.9, cz - sz * 1.2, 0.46, 1.3, 13.4, runtimeFacadeDark, 'pitch_3d_runtime_corner_facade_side_band');
-						              addRuntimeBox(cx - sx * 0.2, 2.05, cz - sz * 4.8, 6.2, 3.0, 0.26, runtimeGlass, 'pitch_3d_runtime_corner_entry_glazing', sx * sz * 0.10);
-						              addRuntimeBox(cx + sx * 4.8, 2.05, cz + sz * 0.2, 0.26, 3.0, 6.2, runtimeGlass, 'pitch_3d_runtime_corner_side_entry_glazing');
-						              addRuntimeBox(cx - sx * 0.9, 8.95, cz - sz * 1.6, 12.6, 0.28, 8.8, runtimeConcrete, 'pitch_3d_runtime_corner_roof_slab', sx * sz * 0.10);
-						              addRuntimeBox(cx, 7.6, cz, 12.0, 6.4, 0.28, runtimeGlass, 'pitch_3d_runtime_corner_glass_front', sx < 0 ? Math.PI : 0);
-						              addRuntimeBox(cx + sx * 4.1, 7.6, cz + sz * 4.6, 0.28, 6.4, 9.6, runtimeGlass, 'pitch_3d_runtime_corner_glass_side');
-						              addRuntimeBox(cx + sx * 2.1, 5.82, cz + sz * 2.1, 8.6, 0.16, 8.6, runtimeFacadeMid, 'pitch_3d_runtime_corner_mid_terrace', sx * sz * 0.10);
-						              addRuntimeBox(cx + sx * 2.1, 5.02, cz + sz * 2.1, 7.8, 1.28, 7.8, runtimeGlass, 'pitch_3d_runtime_corner_mid_glazing', sx * sz * 0.10);
-						              addRuntimeBox(cx + sx * 2.1, 4.28, cz + sz * 2.1, 7.2, 0.12, 7.2, runtimeFacadePanel, 'pitch_3d_runtime_corner_mid_sill', sx * sz * 0.10);
-						              [-3.8, 0, 3.8].forEach((ox) => addRuntimeBox(cx + ox, 7.6, cz - sz * 0.28, 0.14, 6.5, 0.34, runtimeFrame, 'pitch_3d_runtime_corner_mullion'));
-						              [-3.0, 3.0].forEach((oz) => addRuntimeBox(cx + sx * 4.25, 7.6, cz + oz, 0.34, 6.5, 0.14, runtimeFrame, 'pitch_3d_runtime_corner_side_mullion'));
-						              [-2.8, 0, 2.8].forEach((ox) => addRuntimeBox(cx + ox, 3.2, cz - sz * 5.72, 0.16, 2.2, 0.14, runtimeFrame, 'pitch_3d_runtime_corner_entry_mullion'));
-						              [-2.8, 0, 2.8].forEach((oz) => addRuntimeBox(cx + sx * 5.72, 3.2, cz + oz, 0.14, 2.2, 0.16, runtimeFrame, 'pitch_3d_runtime_corner_side_entry_mullion'));
-						              [-4.2, -1.4, 1.4, 4.2].forEach((ox) => addRuntimeBox(cx + ox, 5.1, cz - sz * 5.75, 0.22, 5.0, 0.18, runtimeFacadeLouver, 'pitch_3d_runtime_corner_front_louver'));
-						              [-4.2, -1.4, 1.4, 4.2].forEach((oz) => addRuntimeBox(cx + sx * 5.75, 5.1, cz + oz, 0.18, 5.0, 0.22, runtimeFacadeLouver, 'pitch_3d_runtime_corner_side_louver'));
-						              addRuntimeBox(cx - sx * 5.1, 1.5, cz - sz * 5.2, 3.4, 2.4, 2.8, runtimeFacadeDark, 'pitch_3d_runtime_corner_entry_void', sx * sz * 0.10);
-						              addRuntimeBox(cx - sx * 4.9, 2.95, cz - sz * 5.1, 3.8, 0.22, 0.24, runtimeGlass, 'pitch_3d_runtime_corner_entry_canopy', sx * sz * 0.10);
-						              addRuntimeBox(cx + sx * 1.7, 1.05, cz + sz * 1.7, 9.6, 0.18, 9.6, runtimeFacadeMid, 'pitch_3d_runtime_corner_plaza');
-						              addRuntimeBox(cx + sx * 6.6, 5.8, cz + sz * 6.6, 0.32, 6.4, 0.32, runtimeFrame, 'pitch_3d_runtime_corner_roof_support');
-						              [-1.9, 1.9].forEach((n) => addRuntimeBox(cx + sx * (6.2 + n), 3.24, cz + sz * 6.2, 1.6, 0.10, 0.22, runtimeFacadeMid, 'pitch_3d_runtime_corner_stair_landing'));
-						            });
-						            [-1, 1].forEach((sign) => {
-						              addRuntimeBox(0, 13.2, sign * 82.8, 164, 0.12, 0.18, runtimeLightBar, 'pitch_3d_runtime_under_roof_light_long');
-						              addRuntimeBox(sign * 118.0, 13.2, 0, 0.18, 0.12, 110, runtimeLightBar, 'pitch_3d_runtime_under_roof_light_end');
-						            });
-						            [
-						              [-96, 24, -74], [96, 24, -74], [-96, 24, 74], [96, 24, 74],
-						              [0, 22, -84], [0, 22, 84]
-						            ].forEach(([x, y, z]) => {
-						              const flood = new THREE.PointLight(0xf8fbff, 0.58, 230, 1.4);
-						              flood.position.set(x, y, z);
-						              flood.userData = { kind: 'pitch_3d_runtime_floodlight' };
-						              stadiumAsset.add(flood);
-						            });
-						            [
-						              [0, 13.6, -74, 0, 0, 0],
-						              [0, 13.6, 74, 0, Math.PI, 0],
-						              [-108, 13.2, 0, 0, Math.PI / 2, 0],
-						              [108, 13.2, 0, 0, -Math.PI / 2, 0],
-						            ].forEach(([x, y, z, rx, ry, rz]) => {
-						              const glow = new THREE.Mesh(new THREE.BoxGeometry(62, 0.10, 0.16), runtimeLightBar);
-						              glow.position.set(x, y, z);
-						              glow.rotation.set(rx, ry, rz);
-						              glow.userData = { kind: 'pitch_3d_runtime_underroof_light_bar' };
-						              stadiumAsset.add(glow);
-						            });
-						            [
-						              [-56, 11.8, -60], [56, 11.8, -60], [-56, 11.8, 60], [56, 11.8, 60],
-						              [-92, 11.6, -26], [92, 11.6, -26], [-92, 11.6, 26], [92, 11.6, 26],
-						              [0, 10.8, -60], [0, 10.8, 60],
-						            ].forEach(([x, y, z]) => {
-						              const fill = new THREE.PointLight(0xeaf6ff, 0.22, 96, 1.8);
-						              fill.position.set(x, y, z);
-						              fill.userData = { kind: 'pitch_3d_runtime_stand_fill_light' };
-						              stadiumAsset.add(fill);
-						            });
-						            [-1, 1].forEach((sign) => {
-						              for (let i = -3; i <= 3; i += 1) {
-						                addRuntimeBox(i * 18.5, 3.34, sign * 93.6, 7.2, 0.12, 1.14, runtimeSeatDark, 'pitch_3d_runtime_lower_bowl_shadow_band');
-						              }
-						            });
-						            [
-						              { axis: 'z', sign: -1, span: 112, baseZ: -88.8, startX: -48, count: 8 },
-						              { axis: 'z', sign: 1, span: 112, baseZ: 88.8, startX: -48, count: 8 },
-						              { axis: 'x', sign: -1, span: 76, baseX: -98.8, startZ: -33, count: 6 },
-						              { axis: 'x', sign: 1, span: 76, baseX: 98.8, startZ: -33, count: 6 },
-						            ].forEach((cfg) => {
-						              for (let i = 0; i < cfg.count; i += 1) {
-						                const offset = (cfg.axis === 'z') ? (cfg.startX + i * 13.6) : (cfg.startZ + i * 13.2);
-						                const mat = (i % 4 === 0) ? runtimeSeatLight : ((i % 2 === 0) ? runtimeSeatMid : runtimeSeatDark);
-						                if (cfg.axis === 'z') {
-						                  addRuntimeBox(offset, 6.04, cfg.baseZ, 8.6, 0.08, 1.22, mat, 'pitch_3d_runtime_mid_bowl_seat_band');
-						                } else {
-						                  addRuntimeBox(cfg.baseX, 6.04, offset, 1.22, 0.08, 8.2, mat, 'pitch_3d_runtime_mid_bowl_seat_band');
-						                }
-						              }
-						            });
-						          } catch (e) { /* ignore */ }
-						          root.add(stadiumAsset);
-						          try {
-						            if (!root.userData.pitch3dRuntimePitchsideDetailsMounted) {
-						              root.userData.pitch3dRuntimePitchsideDetailsMounted = true;
-						              addPitchSideDetails3d();
-						            }
-						          } catch (e) { /* ignore */ }
-						          updatePitch3dStadiumDebug({
-						            event: 'late-stadium-mount:root-add',
-						            childCount: root.children?.length || 0,
-						            stadiumChildren: stadiumAsset.children?.length || 0,
-						          });
-						          return true;
-						        } catch (e) {
-						          updatePitch3dStadiumDebug({ event: 'late-stadium-mount:throw', error: safeText(e?.message || e) });
-						          return false;
-						        }
-						      };
-						      try {
-						        const lateStadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
-						        updatePitch3dStadiumDebug({
-						          event: 'late-stadium-recovery:enter',
-						          lateStadiumModelSrc,
-						          dedicated: isDedicatedPitch3dReferenceStadiumSrc(lateStadiumModelSrc),
-						        });
-						        if (fieldFormat === 'f11' && lateStadiumModelSrc && !isDedicatedPitch3dReferenceStadiumSrc(lateStadiumModelSrc)) {
-						          __pitch3dLoadStadiumModel((scene) => {
-						            try { mountSimpleRuntimeStadiumAsset(scene || __pitch3dStadiumModelCache.scene); } catch (e) { /* ignore */ }
-						          });
-						        }
-						        const triggerLateStadiumRecovery = () => {
-						          try {
-						            if (fieldFormat !== 'f11') return;
-						            if (!lateStadiumModelSrc || isDedicatedPitch3dReferenceStadiumSrc(lateStadiumModelSrc) || hasVisibleRuntimeStadiumAsset()) return;
-						            const LoaderClass = window.__WEBSTATS_GLTF_LOADER_CLASS;
-						            if (typeof LoaderClass !== 'function') {
-						              window.setTimeout(triggerLateStadiumRecovery, 120);
-						              return;
-						            }
-						            if (window.__WEBSTATS_PITCH3D_STADIUM_RECOVERY_LOADING) return;
-						            window.__WEBSTATS_PITCH3D_STADIUM_RECOVERY_LOADING = true;
-						            const loader = new LoaderClass();
-						            loader.load(lateStadiumModelSrc, (gltf) => {
-						              try {
-						                __pitch3dStadiumModelCache.scene = gltf?.scene || null;
-						                __pitch3dStadiumModelCache.loading = false;
-						                __pitch3dStadiumModelCache.failed = false;
-						              } catch (e) { /* ignore */ }
-						              try { mountSimpleRuntimeStadiumAsset(__pitch3dStadiumModelCache.scene); } catch (e) { /* ignore */ }
-						              window.__WEBSTATS_PITCH3D_STADIUM_RECOVERY_LOADING = false;
-						            }, undefined, () => {
-						              window.__WEBSTATS_PITCH3D_STADIUM_RECOVERY_LOADING = false;
-						            });
-						          } catch (e) {
-						            window.__WEBSTATS_PITCH3D_STADIUM_RECOVERY_LOADING = false;
-						          }
-						        };
-						        if (fieldFormat === 'f11' && lateStadiumModelSrc && !isLegacyPitch3dReferenceStadiumSrc(lateStadiumModelSrc)) {
-						          window.setTimeout(triggerLateStadiumRecovery, 80);
-						          window.setTimeout(triggerLateStadiumRecovery, 700);
-						          window.setTimeout(triggerLateStadiumRecovery, 1800);
-						        }
-						        if (fieldFormat !== 'f11') {
-						          try {
-						            const coverMat = new THREE.MeshStandardMaterial({ color: 0x5f8f42, roughness: 0.88, metalness: 0.01 });
-						            const coverSize = Math.max(220, Math.max(metersW, metersH) * 4.2);
-						            const cover = new THREE.Mesh(new THREE.PlaneGeometry(coverSize, coverSize), coverMat);
-						            cover.rotation.x = -Math.PI / 2;
-						            cover.position.y = 0.02;
-						            cover.userData = { kind: 'pitch_3d_nonf11_context_cover' };
-						            cover.receiveShadow = true;
-						            root.add(cover);
-						          } catch (e) { /* ignore */ }
-						          try {
-						            root.traverse((node) => {
-						              const kind = safeText(node?.userData?.kind || '').toLowerCase();
-						              if (!kind) return;
-						              if (
-						                kind.includes('stadium')
-						                || kind.includes('backdrop')
-						                || kind.includes('sky_dome')
-						                || kind.includes('sun_disc')
-						                || kind.includes('runtime_')
-						                || kind.includes('exterior')
-						                || kind.includes('green_runoff')
-						              ) {
-						                node.visible = false;
-						              }
-						            });
-						          } catch (e) { /* ignore */ }
-						        }
-						      } catch (e) { /* ignore */ }
 
 							      // Spotlight (halo) para seguimiento / selección.
 							      try {
@@ -17166,7 +15394,7 @@
 						          y: (Number(obj?.top) || 0) + ry,
 						        };
 						      };
-						      const mapPoint2dTo3d = (xPx, yPx) => map2dToPitch(xPx, yPx, sourceW, sourceH, metersW, metersH, orientation, sourcePitchBox);
+						      const mapPoint2dTo3d = (xPx, yPx) => map2dToPitch(xPx, yPx, sourceW, sourceH, metersW, metersH, orientation);
 
 						      const parseColorInt = (maybe) => toColorInt(safeText(maybe || ''), 0x22d3ee);
 						      const addLine3d = (p1, p2, colorInt, thickness = 0.11, opacity = 0.95) => {
@@ -17315,11 +15543,7 @@
 						        } catch (e) { /* ignore */ }
 						        return path;
 						      };
-						      const sourcePitchBoxWidth = Math.max(1, Number(sourcePitchBox?.width) || Math.max(1, sourceW));
-						      const sourcePitchBoxHeight = Math.max(1, Number(sourcePitchBox?.height) || Math.max(1, sourceH));
-						      const pxToPitchMetersX = (px) => (Math.max(0, Number(px) || 0) / sourcePitchBoxWidth) * metersW;
-						      const pxToPitchMetersZ = (px) => (Math.max(0, Number(px) || 0) / sourcePitchBoxHeight) * metersH;
-						      const pxToPitchMeters = () => Math.max(0.018, (pxToPitchMetersX(1) + pxToPitchMetersZ(1)) / 2);
+						      const pxToPitchMeters = () => Math.max(0.018, ((metersW / Math.max(1, sourceW)) + (metersH / Math.max(1, sourceH))) / 2);
 						      const addResourceMesh3d = (group, mesh, kind) => {
 						        if (!group || !mesh) return mesh;
 						        mesh.userData = { kind: kind || 'pitch_3d_adapter_resource_mesh' };
@@ -17329,8 +15553,7 @@
 						        return mesh;
 						      };
 						      const addResourceGroup3d = (o, kind) => {
-						        const center2d = objectCenterPoint2d(o);
-						        const center3d = mapPoint2dTo3d(center2d.x, center2d.y);
+						        const center3d = mapPoint2dTo3d(Number(o?.left) || 0, Number(o?.top) || 0);
 						        const group = new THREE.Group();
 						        group.position.set(center3d.x, 0, center3d.z);
 						        group.rotation.y = -deg2rad(o?.angle || 0);
@@ -17382,10 +15605,9 @@
 						        try {
 						          const wPx = Math.max(14, (Number(o?.width) || 0) * (Number(o?.scaleX) || 1));
 						          const hPx = Math.max(14, (Number(o?.height) || 0) * (Number(o?.scaleY) || 1));
-						          const center2d = objectCenterPoint2d(o);
-						          const center3d = mapPoint2dTo3d(center2d.x, center2d.y);
-						          const wM = pxToPitchMetersX(wPx);
-						          const hM = pxToPitchMetersZ(hPx);
+						          const center3d = mapPoint2dTo3d(Number(o?.left) || 0, Number(o?.top) || 0);
+						          const wM = (wPx / Math.max(1, sourceW)) * metersW;
+						          const hM = (hPx / Math.max(1, sourceH)) * metersH;
 						          const group = new THREE.Group();
 						          group.position.set(center3d.x, 0, center3d.z);
 						          group.rotation.y = -deg2rad(o?.angle || 0);
@@ -17499,7 +15721,6 @@
 						        const paleMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.62, metalness: 0.02 });
 						        const darkMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.72, metalness: 0.08 });
 						        const glassMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false });
-						        if (addObjectExactLook3d(o, { kind: resourceKind, upright: true, visible: !!pitch3dDrawablesEnabled, padding: 12, multiplier: 2 })) return true;
 						        const group = addResourceGroup3d(o, resourceKind);
 						        const addLocalBox = (x, y, z, bw, bh, bd, material = mat, name = resourceKind) => addResourceMesh3d(group, new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), material), name).position.set(x, y, z);
 						        const addLocalCylinder = (x, y, z, radiusTop, radiusBottom, height, material = mat, radial = 18, name = resourceKind) => addResourceMesh3d(group, new THREE.Mesh(new THREE.CylinderGeometry(radiusTop, radiusBottom, height, radial), material), name).position.set(x, y, z);
@@ -17777,219 +15998,6 @@
 						        } catch (e) { /* ignore */ }
 						        return null;
 						      };
-						      const materializeFabricObject3d = async (obj) => {
-						        const CanvasCtor = fabricLib ? (fabricLib.StaticCanvas || fabricLib.Canvas) : null;
-						        if (!obj || !CanvasCtor || typeof CanvasCtor !== 'function') return null;
-						        if (typeof cloneObjectAsync === 'function' && typeof obj.clone === 'function') {
-						          return cloneObjectAsync(obj);
-						        }
-						        const snapshot = sanitizeLoadedState({
-						          version: safeText(obj?.version || fabricLib?.version || '5.3.0'),
-						          objects: [obj],
-						        });
-						        const tmpEl = document.createElement('canvas');
-						        tmpEl.width = 4;
-						        tmpEl.height = 4;
-						        const tmp = new CanvasCtor(tmpEl, {
-						          width: 4,
-						          height: 4,
-						          backgroundColor: 'transparent',
-						          renderOnAddRemove: false,
-						          enableRetinaScaling: false,
-						        });
-						        return new Promise((resolve) => {
-						          try {
-						            tmp.loadFromJSON(snapshot, () => {
-						              let revived = null;
-						              try { revived = tmp.getObjects()?.[0] || null; } catch (e) { revived = null; }
-						              try { tmp.remove(revived); } catch (e) { /* ignore */ }
-						              try { tmp.dispose?.(); } catch (e) { /* ignore */ }
-						              resolve(revived);
-						            });
-						          } catch (error) {
-						            try { tmp.dispose?.(); } catch (e) { /* ignore */ }
-						            resolve(null);
-						          }
-						        });
-						      };
-						      const renderFabricObjectTexture3d = async (obj, options = {}) => {
-						        const CanvasCtor = fabricLib ? (fabricLib.StaticCanvas || fabricLib.Canvas) : null;
-						        if (!obj || !CanvasCtor || typeof CanvasCtor !== 'function') return null;
-						        const padding = clamp(Number(options.padding) || 18, 8, 56);
-						        const multiplier = clamp(Number(options.multiplier) || 2, 1, 4);
-						        const buildTexturePayload = (sourceCanvas, widthPxHint = 0, heightPxHint = 0) => {
-						          if (!sourceCanvas) return null;
-						          const sourceW = Math.max(1, Number(sourceCanvas.width) || Number(widthPxHint) || 1);
-						          const sourceH = Math.max(1, Number(sourceCanvas.height) || Number(heightPxHint) || 1);
-						          const outW = clamp(Math.ceil((sourceW + (padding * 2)) * multiplier), 96, 1024);
-						          const outH = clamp(Math.ceil((sourceH + (padding * 2)) * multiplier), 96, 1024);
-						          const off = document.createElement('canvas');
-						          off.width = outW;
-						          off.height = outH;
-						          const ctx = off.getContext('2d');
-						          if (!ctx) return null;
-						          ctx.clearRect(0, 0, outW, outH);
-						          const drawW = outW - (padding * 2 * multiplier);
-						          const drawH = outH - (padding * 2 * multiplier);
-						          ctx.drawImage(sourceCanvas, padding * multiplier, padding * multiplier, drawW, drawH);
-						          const tex = new THREE.CanvasTexture(off);
-						          tex.anisotropy = getPitch3dMaxAnisotropy();
-						          tex.needsUpdate = true;
-						          try {
-						            tex.generateMipmaps = true;
-						            if (THREE.LinearMipmapLinearFilter) tex.minFilter = THREE.LinearMipmapLinearFilter;
-						            if (THREE.LinearFilter) tex.magFilter = THREE.LinearFilter;
-						          } catch (e) { /* ignore */ }
-						          return {
-						            canvas: off,
-						            texture: tex,
-						            widthPx: sourceW,
-						            heightPx: sourceH,
-						            dispose: () => {},
-						          };
-						        };
-						        const liveObject = resolveLiveFabricObject3d(obj);
-						        if (liveObject && typeof liveObject.toCanvasElement === 'function') {
-						          try {
-						            const liveCanvasEl = liveObject.toCanvasElement({ enableRetinaScaling: false, multiplier: Math.max(1, multiplier) });
-						            const livePayload = buildTexturePayload(liveCanvasEl, liveCanvasEl?.width, liveCanvasEl?.height);
-						            if (livePayload) return livePayload;
-						          } catch (e) { /* ignore */ }
-						        }
-						        const cloned = await materializeFabricObject3d(liveObject || obj);
-						        if (!cloned) return null;
-						        try {
-						          cloned.setCoords?.();
-						        } catch (e) { /* ignore */ }
-						        const bbox = (() => {
-						          try { return cloned.getBoundingRect(true, true); } catch (e) { return null; }
-						        })();
-						        const rawW = Math.max(24, Number(bbox?.width) || Number(cloned.width) || 24);
-						        const rawH = Math.max(24, Number(bbox?.height) || Number(cloned.height) || 24);
-						        const outW = clamp(Math.ceil((rawW + (padding * 2)) * multiplier), 96, 1024);
-						        const outH = clamp(Math.ceil((rawH + (padding * 2)) * multiplier), 96, 1024);
-						        const off = document.createElement('canvas');
-						        off.width = outW;
-						        off.height = outH;
-						        const sc = new CanvasCtor(off, {
-						          width: outW,
-						          height: outH,
-						          backgroundColor: 'transparent',
-						          renderOnAddRemove: false,
-						          enableRetinaScaling: false,
-						        });
-						        try { sc.selection = false; } catch (e) { /* ignore */ }
-						        try { sc.skipTargetFind = true; } catch (e) { /* ignore */ }
-						        try {
-						          cloned.set({
-						            left: outW / 2,
-						            top: outH / 2,
-						            originX: 'center',
-						            originY: 'center',
-						            selectable: false,
-						            evented: false,
-						          });
-						          cloned.objectCaching = false;
-						          cloned.noScaleCache = true;
-						          cloned.setCoords?.();
-						        } catch (e) { /* ignore */ }
-						        sc.add(cloned);
-						        try { sc.renderAll(); } catch (e) { /* ignore */ }
-						        const payload = buildTexturePayload(off, rawW, rawH);
-						        if (!payload) {
-						          try { sc.dispose?.(); } catch (e) { /* ignore */ }
-						          return null;
-						        }
-						        payload.dispose = () => {
-						          try { sc.dispose?.(); } catch (e) { /* ignore */ }
-						        };
-						        return payload;
-						      };
-						      const addTokenExactLook3d = (anchor, o) => {
-						        if (!anchor || !o) return;
-						        const tokenStyle = normalizeTokenStyle(o?.data?.token_style || 'disk');
-						        renderFabricObjectTexture3d(o, { padding: tokenStyle === 'jersey' ? 24 : 18, multiplier: 2 }).then((rendered) => {
-						          if (!rendered || !anchor?.parent) return;
-						          try {
-						            const widthMeters = Math.max(0.65, pxToPitchMetersX(Number(rendered.widthPx)));
-						            const heightMeters = Math.max(0.65, pxToPitchMetersZ(Number(rendered.heightPx)));
-						            const mat = new THREE.MeshBasicMaterial({
-						              map: rendered.texture,
-						              transparent: true,
-						              depthWrite: false,
-						              side: THREE.DoubleSide,
-						              alphaTest: 0.02,
-						            });
-						            let tokenNode = null;
-						            if (tokenStyle === 'jersey') {
-						              const spriteScale = 0.34;
-						              const spriteMat = new THREE.SpriteMaterial({
-						                map: rendered.texture,
-						                transparent: true,
-						                depthWrite: false,
-						                alphaTest: 0.02,
-						              });
-						              tokenNode = new THREE.Sprite(spriteMat);
-						              tokenNode.center.set(0.5, 0);
-						              tokenNode.scale.set(widthMeters * spriteScale, heightMeters * spriteScale, 1);
-						              tokenNode.position.set(0, 0.12, 0);
-						            } else {
-						              tokenNode = new THREE.Mesh(new THREE.PlaneGeometry(widthMeters, heightMeters), mat);
-						              tokenNode.rotation.x = -Math.PI / 2;
-						              tokenNode.position.set(0, 0.08, 0);
-						            }
-						            tokenNode.userData = { kind: 'token_exact_look_3d', token_style: tokenStyle };
-						            anchor.add(tokenNode);
-						            anchor.userData.exact_look = true;
-						          } catch (e) { /* ignore */ }
-						          try { rendered.dispose?.(); } catch (e) { /* ignore */ }
-						        }).catch(() => {});
-						      };
-						      const addObjectExactLook3d = (o, options = {}) => {
-						        if (!o) return false;
-						        const center2d = objectCenterPoint2d(o);
-						        const upright = options.upright === true;
-						        const padding = clamp(Number(options.padding) || 14, 6, 42);
-						        const multiplier = clamp(Number(options.multiplier) || 2, 1, 4);
-						        renderFabricObjectTexture3d(o, { padding, multiplier }).then((rendered) => {
-						          if (!rendered || !root) return;
-						          try {
-						            const center3d = mapPoint2dTo3d(center2d.x, center2d.y);
-						            const widthMeters = Math.max(0.40, pxToPitchMetersX(Number(rendered.widthPx)));
-						            const heightMeters = Math.max(0.40, pxToPitchMetersZ(Number(rendered.heightPx)));
-						            const mat = new THREE.MeshBasicMaterial({
-						              map: rendered.texture,
-						              transparent: true,
-						              depthWrite: false,
-						              side: THREE.DoubleSide,
-						              alphaTest: 0.02,
-						            });
-						            let node = null;
-						            if (upright) {
-						              const spriteScale = 0.50;
-						              const spriteMat = new THREE.SpriteMaterial({
-						                map: rendered.texture,
-						                transparent: true,
-						                depthWrite: false,
-						                alphaTest: 0.02,
-						              });
-						              node = new THREE.Sprite(spriteMat);
-						              node.center.set(0.5, 0);
-						              node.scale.set(widthMeters * spriteScale, heightMeters * spriteScale, 1);
-						              node.position.set(center3d.x, 0.10, center3d.z);
-						            } else {
-						              node = new THREE.Mesh(new THREE.PlaneGeometry(widthMeters, heightMeters), mat);
-						              node.rotation.x = -Math.PI / 2;
-						              node.position.set(center3d.x, 0.08, center3d.z);
-						            }
-						            node.userData = { kind: safeText(options.kind, 'pitch_3d_exact_look_object'), source_kind: safeText(o?.data?.kind) };
-						            node.visible = options.visible !== false;
-						            root.add(node);
-						          } catch (e) { /* ignore */ }
-						          try { rendered.dispose?.(); } catch (e) { /* ignore */ }
-						        }).catch(() => {});
-						        return true;
-						      };
 						      const addToken3dKitDetails = (body, o, colors) => {
 						        if (!body) return;
 						        try {
@@ -18265,6 +16273,7 @@
 						      const addToken = (o) => {
 						        const data = o?.data || {};
 						        const tokenKind = safeText(data.token_kind);
+						        const num = pitch3dTokenNumber(o);
 						        const fill = safeText(data.token_base_color || data.color || (tokenKind.includes('rival') ? '#dc2626' : '#1d4ed8'));
 						        const stripe = safeText(data.token_stripe_color || data.color || fill);
 						        const key = tokenKind.includes('rival') ? stripe : stripe;
@@ -18273,15 +16282,27 @@
 						        const facingDeg = normalizeAngle(Number(data.facing_deg), 0);
 						        const fovVisible = !!data.fov_visible;
 						        const fovWidthDeg = clamp(Number(data.fov_width_deg) || 70, 20, 160);
+						        const playerMetrics = pitch3dPlayerMetrics(o, tokenKind);
+						        const tokenAction = pitch3dActionForObject(
+						          o,
+						          'move',
+						          options.routes && typeof options.routes === 'object' ? options.routes : {},
+						          `${safeText(options.stepTitle)} ${safeText(options.stepDescription)}`,
+						        );
 						        const geo = new THREE.CylinderGeometry(0.75, 0.75, 0.26, 18);
-						        const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.65, metalness: 0.02, transparent: true, opacity: 0 });
+						        const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.65, metalness: 0.02 });
 						        const mesh = new THREE.Mesh(geo, mat);
 						        mesh.position.y = 0.14;
-						        const center2d = objectCenterPoint2d(o);
-						        const pos = map2dToPitch(center2d.x, center2d.y, sourceW, sourceH, metersW, metersH, orientation, sourcePitchBox);
+						        const pos = map2dToPitch(Number(o.left) || 0, Number(o.top) || 0, sourceW, sourceH, metersW, metersH, orientation);
 						        mesh.position.x = pos.x;
 						        mesh.position.z = pos.z;
 						        mesh.userData = { kind: 'token', uid, facing_deg: facingDeg, fov_visible: fovVisible, fov_width_deg: fovWidthDeg };
+						        const useAvatar3d = safeText(pitch3dPlayerMode, 'chip') === 'avatar';
+						        if (useAvatar3d) {
+						          mat.transparent = true;
+						          mat.opacity = 0.12;
+						          mesh.scale.set(0.92, 0.92, 0.92);
+						        }
 
 						        // Sombra “broadcast” simple (sin shadow maps).
 						        try {
@@ -18293,8 +16314,202 @@
 						          shadow.userData = { kind: 'token_shadow' };
 						          mesh.add(shadow);
 						        } catch (e) { /* ignore */ }
-						        try { mesh.renderOrder = 0; } catch (e) { /* ignore */ }
-						        try {
+
+						        // Avatar 3D opcional + orientación corporal. Por defecto mantenemos la chapa.
+						        let externalAvatar3dUsed = false;
+						        if (useAvatar3d) try {
+						          const modelSrc = __pitch3dPlayerModelCache.scene || __pitch3dLoadPlayerModel(() => {
+						            try {
+						              if (pitch3dOpen) showPitch3dStep(activeStepIndex >= 0 ? activeStepIndex : pitch3dCurrentStep, { keepFollow: true });
+						            } catch (e) { /* ignore */ }
+						          });
+						          const model = clonePitch3dPlayerModel(modelSrc);
+						          if (model) {
+						            const holder = new THREE.Group();
+						            holder.userData = { kind: 'token_body_model', facing_deg: facingDeg, src: __pitch3dAssetUrl('pitch3dPlayerModelSrc'), metrics: playerMetrics, action: tokenAction };
+						            tintPitch3dPlayerModel(model, {
+						              shirt: stripe || fill,
+						              base: fill || '#ffffff',
+						              shorts: darkenHex(stripe || fill || '#1d4ed8', 0.56),
+						              skin: '#f2d2b6',
+						              hair: tokenKind.includes('rival') ? '#111827' : '#172554',
+						              boot: '#0f172a',
+						            });
+						            fitPitch3dPlayerModel(model, playerMetrics.heightMeters, {
+						              massFactor: playerMetrics.massFactor,
+						              depthFactor: playerMetrics.depthFactor,
+						            });
+						            const hasEmbeddedAction = startPitch3dPlayerAnimation(model, tokenAction);
+						            if (!hasEmbeddedAction) posePitch3dPlayerModel(model);
+						            holder.add(model);
+						            if (!pitch3dPlayerModelHasEmbeddedKit(model)) {
+						              addPitch3dPlayerKitOverlay(holder, o, { shirt: stripe || fill, base: fill || '#ffffff' });
+						            }
+						            addPitch3dActionBallCue(holder, tokenAction);
+						            holder.rotation.y = (Number(facingDeg) || 0) * (Math.PI / 180);
+						            applyPitch3dActionPose(holder, tokenAction, 0.82);
+						            pitch3dAvatarMicroActors.push({
+						              holder,
+						              seed: ((Number(num) || 1) * 0.37) + (String(uid).length * 0.11),
+						              baseY: Number(holder.position.y) || 0,
+						              baseRoll: Number(holder.rotation.z) || 0,
+						              action: tokenAction,
+						            });
+						            mesh.add(holder);
+						            externalAvatar3dUsed = true;
+						          }
+						        } catch (e) { /* ignore */ }
+						        if (useAvatar3d && !externalAvatar3dUsed) try {
+						          const bodyCol = toColorInt(stripe || fill, color);
+						          const kitBaseCol = toColorInt(fill || '#ffffff', 0xffffff);
+						          const shortsCol = toColorInt(darkenHex(stripe || fill || '#1d4ed8', 0.56), 0x0f172a);
+						          const skinCol = 0xf2d2b6;
+						          const hairCol = tokenKind.includes('rival') ? 0x111827 : 0x172554;
+						          const bodyMat = new THREE.MeshStandardMaterial({ color: bodyCol, roughness: 0.62, metalness: 0.02 });
+						          const trimMat = new THREE.MeshStandardMaterial({ color: kitBaseCol, roughness: 0.66, metalness: 0.01 });
+						          const shortsMat = new THREE.MeshStandardMaterial({ color: shortsCol, roughness: 0.70, metalness: 0.01 });
+						          const skinMat = new THREE.MeshStandardMaterial({ color: skinCol, roughness: 0.58, metalness: 0.0 });
+						          const hairMat = new THREE.MeshStandardMaterial({ color: hairCol, roughness: 0.74, metalness: 0.0 });
+						          const eyeMat = new THREE.MeshBasicMaterial({ color: 0x0f172a });
+						          const sockMat = new THREE.MeshStandardMaterial({ color: kitBaseCol, roughness: 0.70, metalness: 0.01 });
+						          const bootMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.58, metalness: 0.04 });
+						          const body = new THREE.Group();
+						          body.userData = { kind: 'token_body', facing_deg: facingDeg, metrics: playerMetrics, action: tokenAction };
+						          body.scale.set(
+						            1.16 * playerMetrics.massFactor,
+						            1.16 * playerMetrics.heightScale,
+						            1.16 * playerMetrics.depthFactor,
+						          );
+						          const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.31, 0.60, 6, 18), bodyMat);
+						          torso.position.y = 0.82;
+						          torso.scale.set(1.08, 1.02, 0.70);
+						          torso.userData = { kind: 'token_body_torso' };
+						          body.add(torso);
+						          const chestPanel = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.50, 0.052), trimMat);
+						          chestPanel.position.set(0, 0.90, -0.242);
+						          chestPanel.userData = { kind: 'token_body_chest_panel' };
+						          body.add(chestPanel);
+						          const collar = new THREE.Mesh(new THREE.TorusGeometry(0.115, 0.014, 8, 22), trimMat);
+						          collar.position.set(0, 1.18, -0.045);
+						          collar.scale.set(1.20, 0.56, 0.90);
+						          collar.rotation.x = Math.PI / 2;
+						          collar.userData = { kind: 'token_body_collar' };
+						          body.add(collar);
+						          [-0.16, 0.16].forEach((x) => {
+						            const seam = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.48, 0.058), trimMat);
+						            seam.position.set(x, 0.89, -0.252);
+						            seam.userData = { kind: 'token_body_shirt_seam' };
+						            body.add(seam);
+						          });
+						          const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 0.12, 10), skinMat);
+						          neck.position.y = 1.25;
+						          neck.userData = { kind: 'token_body_neck' };
+						          body.add(neck);
+						          const head = new THREE.Mesh(new THREE.SphereGeometry(0.23, 24, 18), skinMat);
+						          head.position.y = 1.44;
+						          head.scale.set(0.92, 1.08, 0.92);
+						          head.userData = { kind: 'token_body_head' };
+						          body.add(head);
+						          const hair = new THREE.Mesh(new THREE.SphereGeometry(0.235, 22, 10, 0, Math.PI * 2, 0, Math.PI * 0.48), hairMat);
+						          hair.position.y = 1.55;
+						          hair.rotation.x = Math.PI;
+						          hair.scale.set(0.96, 0.64, 0.96);
+						          hair.userData = { kind: 'token_body_hair' };
+						          body.add(hair);
+						          [-0.18, 0.18].forEach((x) => {
+						            const ear = new THREE.Mesh(new THREE.SphereGeometry(0.047, 10, 8), skinMat);
+						            ear.position.set(x, 1.44, 0);
+						            ear.scale.set(0.62, 1.08, 0.34);
+						            ear.userData = { kind: 'token_body_ear' };
+						            body.add(ear);
+						          });
+						          [-0.065, 0.065].forEach((x) => {
+						            const eye = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), eyeMat);
+						            eye.position.set(x, 1.46, -0.208);
+						            eye.scale.set(1.00, 0.74, 0.36);
+						            eye.userData = { kind: 'token_body_eye' };
+						            body.add(eye);
+						          });
+						          const nose = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.105, 8, 1), skinMat);
+						          nose.position.set(0, 1.43, -0.225);
+						          nose.rotation.x = -Math.PI / 2;
+						          nose.userData = { kind: 'token_body_nose' };
+						          body.add(nose);
+						          const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.072, 0.010, 0.012), eyeMat);
+						          mouth.position.set(0, 1.365, -0.218);
+						          mouth.userData = { kind: 'token_body_mouth' };
+						          body.add(mouth);
+						          const shoulder = new THREE.Mesh(new THREE.CapsuleGeometry(0.105, 0.48, 5, 12), bodyMat);
+						          shoulder.position.set(0, 1.10, 0);
+						          shoulder.rotation.z = Math.PI / 2;
+						          shoulder.scale.set(1.00, 1.00, 0.72);
+						          shoulder.userData = { kind: 'token_body_shoulders' };
+						          body.add(shoulder);
+						          [
+						            [-0.37, -0.26, -0.19],
+						            [0.37, 0.26, 0.19],
+						          ].forEach(([x, rot, handX], idx) => {
+						            const sleeve = new THREE.Mesh(new THREE.CapsuleGeometry(0.072, 0.20, 4, 10), bodyMat);
+						            sleeve.position.set(x * 0.86, 0.96, -0.015);
+						            sleeve.rotation.z = rot * 0.72;
+						            sleeve.userData = { kind: 'token_body_sleeve' };
+						            body.add(sleeve);
+						            const forearm = new THREE.Mesh(new THREE.CapsuleGeometry(0.050, 0.34, 5, 10), skinMat);
+						            forearm.position.set(x, 0.73, -0.025);
+						            forearm.rotation.z = rot * (idx ? 1.05 : 1.05);
+						            forearm.userData = { kind: 'token_body_forearm' };
+						            body.add(forearm);
+						            const hand = new THREE.Mesh(new THREE.SphereGeometry(0.065, 10, 8), skinMat);
+						            hand.position.set(handX * 2.3, 0.60, -0.02);
+						            hand.userData = { kind: 'token_body_hand' };
+						            body.add(hand);
+						          });
+						          addToken3dKitDetails(body, o, { shirt: stripe || fill, base: fill });
+						          [-0.15, 0.15].forEach((x) => {
+						            const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.080, 0.31, 5, 10), shortsMat);
+						            thigh.position.set(x, 0.22, 0);
+						            thigh.rotation.z = x < 0 ? 0.06 : -0.06;
+						            thigh.userData = { kind: 'token_body_thigh' };
+						            body.add(thigh);
+						            const sock = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.26, 4, 8), sockMat);
+						            sock.position.set(x, 0.01, 0);
+						            sock.userData = { kind: 'token_body_sock' };
+						            body.add(sock);
+						            const knee = new THREE.Mesh(new THREE.SphereGeometry(0.060, 10, 8), skinMat);
+						            knee.position.set(x, 0.12, -0.015);
+						            knee.scale.set(1.00, 0.62, 0.75);
+						            knee.userData = { kind: 'token_body_knee' };
+						            body.add(knee);
+						            const boot = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.070, 0.32), bootMat);
+						            boot.position.set(x, -0.095, -0.075);
+						            boot.rotation.x = -0.08;
+						            boot.userData = { kind: 'token_body_boot' };
+						            body.add(boot);
+						            const studs = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.014, 0.20), trimMat);
+						            studs.position.set(x, -0.139, -0.075);
+						            studs.userData = { kind: 'token_body_boot_studs' };
+						            body.add(studs);
+						          });
+						          // Flecha verde (como en 2D): orienta el cuerpo.
+						          const arrowMat = new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.55, metalness: 0.02, transparent: true, opacity: 0.92 });
+						          const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.5, 10, 1), arrowMat);
+						          arrow.position.set(0, 0.28, -1.03);
+						          arrow.rotation.x = -Math.PI / 2;
+						          arrow.userData = { kind: 'token_facing' };
+						          body.add(arrow);
+						          body.rotation.y = (Number(facingDeg) || 0) * (Math.PI / 180);
+						          applyPitch3dActionPose(body, tokenAction, 0.82);
+						          mesh.add(body);
+
+						          const fovGeom = buildTokenFovGeometry3d(5.8, fovWidthDeg);
+						          const fovMat = new THREE.MeshBasicMaterial({ color: 0x22c55e, transparent: true, opacity: 0.10, side: THREE.DoubleSide, depthWrite: false });
+						          const fov = new THREE.Mesh(fovGeom, fovMat);
+						          fov.userData = { kind: 'token_fov', facing_deg: facingDeg, width_deg: fovWidthDeg };
+						          fov.visible = !!fovVisible;
+						          fov.rotation.y = (Number(facingDeg) || 0) * (Math.PI / 180);
+						          mesh.add(fov);
+						        } catch (e) { /* ignore */ }
+						        if (useAvatar3d && externalAvatar3dUsed) try {
 						          const fovGeom = buildTokenFovGeometry3d(5.8, fovWidthDeg);
 						          const fovMat = new THREE.MeshBasicMaterial({ color: 0x22c55e, transparent: true, opacity: 0.10, side: THREE.DoubleSide, depthWrite: false });
 						          const fov = new THREE.Mesh(fovGeom, fovMat);
@@ -18304,7 +16519,16 @@
 						          mesh.add(fov);
 						        } catch (e) { /* ignore */ }
 						        root.add(mesh);
-						        addTokenExactLook3d(mesh, o);
+						        addToken3dIdentity(mesh, o, color);
+						        const label = safeText(num);
+						        if (label) {
+						          const spr = buildTextSprite(label, { fill: '#0b1220', bg: 'rgba(248,250,252,0.86)', size: 96 });
+						          if (spr) {
+						            spr.position.set(0, 1.05, 0);
+						            spr.userData = { kind: 'token_label', base_scale: Number(spr.scale?.x) || 1.6 };
+						            mesh.add(spr);
+						          }
+						        }
 						      };
 
 						      tokens.forEach(addToken);
@@ -18312,8 +16536,7 @@
 						        tokens.forEach((o) => {
 						          const role = safeText(o?.data?.token_role).toLowerCase();
 						          if (!role) return;
-						          const center2d = objectCenterPoint2d(o);
-						          const pos = mapPoint2dTo3d(center2d.x, center2d.y);
+						          const pos = mapPoint2dTo3d(Number(o.left) || 0, Number(o.top) || 0);
 						          addRoleBadge3d(o, pos, role);
 						        });
 						      } catch (e) { /* ignore */ }
@@ -18322,8 +16545,7 @@
 						        const geo = new THREE.SphereGeometry(0.35, 18, 14);
 						        const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, metalness: 0.02 });
 						        const mesh = new THREE.Mesh(geo, mat);
-						        const center2d = objectCenterPoint2d(o);
-						        const pos = map2dToPitch(center2d.x, center2d.y, sourceW, sourceH, metersW, metersH, orientation, sourcePitchBox);
+						        const pos = map2dToPitch(Number(o.left) || 0, Number(o.top) || 0, sourceW, sourceH, metersW, metersH, orientation);
 						        mesh.position.set(pos.x, 0.35, pos.z);
 						        const uid = pitch3dUidForObject(o, 'ball');
 						        mesh.userData = { kind: 'ball', uid };
@@ -18409,42 +16631,11 @@
 						        const groupHeightPx = (Number(o?.height) || 0) * (Number(o?.scaleY) || 1);
 						        if (kind === 'text') {
 						          const label = safeText(o?.text || o?.data?.label || o?.data?.text).slice(0, 42);
-						          if (addObjectExactLook3d(o, { kind: 'pitch_3d_text', upright: true, visible: !!pitch3dDrawablesEnabled, padding: 10, multiplier: 2 })) return;
-						          const center2d = objectCenterPoint2d(o);
-						          const pos = mapPoint2dTo3d(center2d.x, center2d.y);
+						          const pos = mapPoint2dTo3d(Number(o?.left) || 0, Number(o?.top) || 0);
 						          if (label) addBillboardLabel3d(label, pos.x, 1.15, pos.z, { bg: 'rgba(2,6,23,0.72)', fill: '#f8fafc', size: 160 });
 						          return;
 						        }
-						        if (EMOJI_LIBRARY[kind]) {
-						          if (addObjectExactLook3d(o, { kind: `pitch_3d_${kind}`, upright: true, visible: !!pitch3dDrawablesEnabled, padding: 8, multiplier: 2 })) return;
-						          const center2d = objectCenterPoint2d(o);
-						          const pos = mapPoint2dTo3d(center2d.x, center2d.y);
-						          addBillboardLabel3d(EMOJI_LIBRARY[kind], pos.x, 1.05, pos.z, { bg: 'rgba(2,6,23,0.34)', fill: '#f8fafc', size: 180 });
-						          return;
-						        }
-						        if (kind === 'url_asset' || kind === 'pdf_asset') {
-						          if (addObjectExactLook3d(o, { kind: `pitch_3d_${kind}`, upright: true, visible: !!pitch3dDrawablesEnabled, padding: 10, multiplier: 2 })) return;
-						          const center2d = objectCenterPoint2d(o);
-						          const pos = mapPoint2dTo3d(center2d.x, center2d.y);
-						          const label = safeText(o?.data?.title) || (kind === 'pdf_asset' ? 'PDF' : 'Recurso');
-						          addBillboardLabel3d(label.slice(0, 20), pos.x, 1.05, pos.z, { bg: 'rgba(15,23,42,0.78)', fill: '#f8fafc', size: 132 });
-						          return;
-						        }
-						        const isNativeTacticalRenderable =
-						          type === 'line'
-						          || type === 'rect'
-						          || type === 'circle'
-						          || type === 'triangle'
-						          || type === 'path'
-						          || kind === 'zone'
-						          || kind.startsWith('shape-')
-						          || kind.startsWith('shape_')
-						          || kind.startsWith('arrow')
-						          || kind.startsWith('line-')
-						          || kind.startsWith('line_')
-						          || kind === 'line-double'
-						          || kind === 'arrow';
-						        if (!isNativeTacticalRenderable && addTrainingResource3d(o, kind, colorInt)) return;
+						        if (addTrainingResource3d(o, kind, colorInt)) return;
 
 						        // Lineas simples.
 						        if (type === 'line') {
@@ -18455,42 +16646,15 @@
 						          addLine3d(a3, b3, colorInt, thickness, 0.9);
 						          return;
 						        }
-						        if (type === 'path' && (kind === 'line-curve' || kind === 'line-wave' || kind === 'shape-u')) {
-						          const widthPx = Math.max(80, groupWidthPx || Number(o?.width) || 140);
-						          const heightPx = Math.max(36, groupHeightPx || Number(o?.height) || 70);
-						          const half = widthPx / 2;
-						          const a2 = transformPoint2d(-half, 0, o);
-						          const b2 = transformPoint2d(half, 0, o);
-						          const a3 = mapPoint2dTo3d(a2.x, a2.y);
-						          const b3 = mapPoint2dTo3d(b2.x, b2.y);
-						          if (kind === 'shape-u') {
-						            const leftTop = transformPoint2d(-half, -heightPx / 2, o);
-						            const leftBottom = transformPoint2d(-half, heightPx / 2, o);
-						            const rightBottom = transformPoint2d(half, heightPx / 2, o);
-						            const rightTop = transformPoint2d(half, -heightPx / 2, o);
-						            const p1 = mapPoint2dTo3d(leftTop.x, leftTop.y);
-						            const p2 = mapPoint2dTo3d(leftBottom.x, leftBottom.y);
-						            const p3 = mapPoint2dTo3d(rightBottom.x, rightBottom.y);
-						            const p4 = mapPoint2dTo3d(rightTop.x, rightTop.y);
-						            addLine3d(p1, p2, colorInt, thickness, 0.92);
-						            addLine3d(p2, p3, colorInt, thickness, 0.92);
-						            addLine3d(p3, p4, colorInt, thickness, 0.92);
-						          } else {
-						            const c2 = transformPoint2d(0, kind === 'line-wave' ? -heightPx * 0.55 : -heightPx * 0.70, o);
-						            const c3 = mapPoint2dTo3d(c2.x, c2.y);
-						            addCurve3d(a3, b3, c3, colorInt, Math.max(0.08, thickness), 0.92);
-						          }
-						          return;
-						        }
 
 						        // Zonas (grupo).
-						        if (type === 'group' && (kind === 'zone' || kind === 'shape-rect' || kind === 'shape-rect-long' || kind === 'shape-square' || kind.startsWith('shape-lane-') || kind.startsWith('shape-band-'))) {
+						        if (type === 'group' && (kind === 'zone' || kind === 'shape-rect' || kind === 'shape-rect-long' || kind === 'shape-square')) {
 						          const wPx = Math.max(12, groupWidthPx || 0);
 						          const hPx = Math.max(12, groupHeightPx || 0);
-						          const center2d = objectCenterPoint2d(o);
+						          const center2d = { x: Number(o?.left) || 0, y: Number(o?.top) || 0 };
 						          const center3d = mapPoint2dTo3d(center2d.x, center2d.y);
-						          const wM = pxToPitchMetersX(wPx);
-						          const hM = pxToPitchMetersZ(hPx);
+						          const wM = (wPx / Math.max(1, sourceW)) * metersW;
+						          const hM = (hPx / Math.max(1, sourceH)) * metersH;
 						          const plane = addZonePlane3d(center3d, wM, hM, colorInt, 0.14);
 						          const ang = deg2rad(o?.angle || 0);
 						          if (plane) plane.rotation.y = -ang;
@@ -18538,13 +16702,13 @@
 						        }
 
 						        // Zonas / rectángulos (incluye “zone”, shape-rect*, etc.).
-						        if (type === 'rect' || type === 'triangle' || kind === 'zone' || kind === 'shape-rect' || kind === 'shape-rect-long' || kind === 'shape-square' || kind === 'shape-triangle' || kind === 'shape-diamond') {
+						        if (type === 'rect' || kind === 'zone' || kind === 'shape-rect' || kind === 'shape-rect-long' || kind === 'shape-square') {
 						          const wPx = Math.max(8, Number(o?.width) || 0) * (Number(o?.scaleX) || 1);
 						          const hPx = Math.max(8, Number(o?.height) || 0) * (Number(o?.scaleY) || 1);
-						          const center2d = objectCenterPoint2d(o);
+						          const center2d = { x: Number(o?.left) || 0, y: Number(o?.top) || 0 };
 						          const center3d = mapPoint2dTo3d(center2d.x, center2d.y);
-						          const wM = pxToPitchMetersX(wPx);
-						          const hM = pxToPitchMetersZ(hPx);
+						          const wM = (wPx / Math.max(1, sourceW)) * metersW;
+						          const hM = (hPx / Math.max(1, sourceH)) * metersH;
 						          const plane = addZonePlane3d(center3d, wM, hM, colorInt, 0.14);
 						          // Rotación alrededor de Y según el ángulo (2D).
 						          const ang = deg2rad(o?.angle || 0);
@@ -18556,13 +16720,11 @@
 						        if (type === 'circle' || kind === 'shape-circle') {
 						          const radiusPx = Math.max(6, Number(o?.radius) || 0) * (Number(o?.scaleX) || 1);
 						          const diameterPx = radiusPx * 2;
-						          const center2d = objectCenterPoint2d(o);
+						          const center2d = { x: Number(o?.left) || 0, y: Number(o?.top) || 0 };
 						          const center3d = mapPoint2dTo3d(center2d.x, center2d.y);
-						          const dM = Math.max(pxToPitchMetersX(diameterPx), pxToPitchMetersZ(diameterPx));
+						          const dM = (diameterPx / Math.max(1, sourceW)) * metersW;
 						          addZonePlane3d(center3d, dM, dM, colorInt, 0.12);
-						          return;
 						        }
-						        addObjectExactLook3d(o, { kind: `pitch_3d_fallback_${kind || type || 'object'}`, upright: true, visible: !!pitch3dDrawablesEnabled, padding: 10, multiplier: 2 });
 						      };
 						      drawables.forEach(addDrawable);
 
@@ -18621,7 +16783,7 @@
 						      stopPitch3dPlayback();
 						      updatePitch3dPlaybackButton();
 						      syncPitch3dNavUi(steps.length);
-						      const step = resolvePitch3dRenderStep(steps[idx], idx);
+						      const step = steps[idx];
 						      const meta = pitch3dStepMetaText(step, idx, steps.length);
 						      setPitch3dHud(step.title, meta);
 						      buildPitch3dRoot(step.state, {
@@ -18656,36 +16818,6 @@
 						      }));
 						    };
 
-						    const resolvePitch3dRenderStep = (step, index) => {
-						      const fallback = step && typeof step === 'object' ? step : {
-						        title: `Paso ${Number(index) + 1}`,
-						        duration: 3,
-						        description: '',
-						        state: { version: '5.3.0', objects: [] },
-						        sourceW: Number(worldWidth) || 1280,
-						        sourceH: Number(worldHeight) || 720,
-						        routes: {},
-						      };
-						      const isEditingActiveStep = !!canvas
-						        && !isSimulating
-						        && (Number(index) === Number(activeStepIndex) || Number(activeStepIndex) < 0);
-						      if (!isEditingActiveStep) return fallback;
-						      try {
-						        const { w, h } = worldSize();
-						        return {
-						          ...fallback,
-						          state: serializeCanvasOnly(),
-						          sourceW: Math.round(Number(w) || Number(fallback.sourceW) || Number(worldWidth) || 1280),
-						          sourceH: Math.round(Number(h) || Number(fallback.sourceH) || Number(worldHeight) || 720),
-						          routes: (timeline[activeStepIndex]?.routes && typeof timeline[activeStepIndex].routes === 'object')
-						            ? timeline[activeStepIndex].routes
-						            : fallback.routes,
-						        };
-						      } catch (e) {
-						        return fallback;
-						      }
-						    };
-
 						    const interpolateAndRenderPitch3d = (fromStep, toStep, alpha, options = {}) => {
 						      if (!pitch3dRoot || !pitch3dScene) return;
 						      const preset = safeText(options.preset, 'full_pitch');
@@ -18699,16 +16831,14 @@
 						      const hA = Math.max(1, Number(fromStep?.sourceH) || 720);
 						      const wB = Math.max(1, Number(toStep?.sourceW) || wA);
 						      const hB = Math.max(1, Number(toStep?.sourceH) || hA);
-						      const pitchBoxA = pitchBox2dForPreset(wA, hA, preset, orientation, fieldFormat);
-						      const pitchBoxB = pitchBox2dForPreset(wB, hB, preset, orientation, fieldFormat);
 							      const aObjs = Array.isArray(fromStep?.state?.objects) ? fromStep.state.objects : [];
 							      const bObjs = Array.isArray(toStep?.state?.objects) ? toStep.state.objects : [];
 						      const routesA = (fromStep?.routes && typeof fromStep.routes === 'object') ? fromStep.routes : {};
 						      const routesB = (toStep?.routes && typeof toStep.routes === 'object') ? toStep.routes : {};
 						      const routeForUid = (uid) => pitch3dRouteForUid(routesA, uid) || pitch3dRouteForUid(routesB, uid);
-						      const routeSample3d = (route, t, srcW, srcH, srcPitchBox, height = 0.06, isBall = false, actionRaw = '') => {
+						      const routeSample3d = (route, t, srcW, srcH, height = 0.06, isBall = false, actionRaw = '') => {
 						        const pt = samplePitch3dRoutePoint(route?.points, t);
-						        const mapped = map2dToPitch(pt.x, pt.y, srcW, srcH, metersW, metersH, orientation, srcPitchBox);
+						        const mapped = map2dToPitch(pt.x, pt.y, srcW, srcH, metersW, metersH, orientation);
 						        const pts = normalizePitch3dRoutePoints(route?.points);
 						        const dist = pts.reduce((sum, cur, index, arr) => {
 						          if (!index) return sum;
@@ -18738,7 +16868,7 @@
 							            const mat = ghostMat.clone();
 							            mat.color = new THREE.Color(c);
 							            const mesh = new THREE.Mesh(geo, mat);
-							            const p = map2dToPitch(Number(o.left) || 0, Number(o.top) || 0, wA, hA, metersW, metersH, orientation, pitchBoxA);
+							            const p = map2dToPitch(Number(o.left) || 0, Number(o.top) || 0, wA, hA, metersW, metersH, orientation);
 							            mesh.position.set(p.x, 0.05, p.z);
 							            mesh.userData = { kind: 'ghost', uid };
 							            pitch3dGhostRoot.add(mesh);
@@ -18760,7 +16890,7 @@
 							            const route = routeForUid(uid);
 							            if (route) {
 							              const pts = normalizePitch3dRoutePoints(route.points).map((pt, i, arr) => {
-							                const mapped = map2dToPitch(pt.x, pt.y, wA, hA, metersW, metersH, orientation, pitchBoxA);
+							                const mapped = map2dToPitch(pt.x, pt.y, wA, hA, metersW, metersH, orientation);
 							                return new THREE.Vector3(mapped.x, 0.05 + (Math.sin((i / Math.max(1, arr.length - 1)) * Math.PI) * 0.08), mapped.z);
 							              });
 							              if (pts.length >= 2) {
@@ -18783,8 +16913,8 @@
 							            }
 							            const b = mapB.get(uid) || null;
 							            if (!b) return;
-							            const a3 = map2dToPitch(Number(o.left) || 0, Number(o.top) || 0, wA, hA, metersW, metersH, orientation, pitchBoxA);
-							            const b3 = map2dToPitch(Number(b.left) || 0, Number(b.top) || 0, wB, hB, metersW, metersH, orientation, pitchBoxB);
+							            const a3 = map2dToPitch(Number(o.left) || 0, Number(o.top) || 0, wA, hA, metersW, metersH, orientation);
+							            const b3 = map2dToPitch(Number(b.left) || 0, Number(b.top) || 0, wB, hB, metersW, metersH, orientation);
 							            const pts = [new THREE.Vector3(a3.x, 0.03, a3.z), new THREE.Vector3(b3.x, 0.03, b3.z)];
 							            const geo = new THREE.BufferGeometry().setFromPoints(pts);
 							            const mat = new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.35 });
@@ -18816,14 +16946,14 @@
 							        const activeAction = safeText(route?.action || pitch3dInferAction(`${safeText(fromStep?.title)} ${safeText(fromStep?.description)} ${safeText(toStep?.title)} ${safeText(toStep?.description)}`, 'move'));
 							        let movedDist = 0;
 							        if (route) {
-							          const before = routeSample3d(route, Math.max(0, alpha - 0.04), wA, hA, pitchBoxA, 0.10, false);
-							          const pRoute = routeSample3d(route, alpha, wA, hA, pitchBoxA, 0.10, false);
+							          const before = routeSample3d(route, Math.max(0, alpha - 0.04), wA, hA, 0.10, false);
+							          const pRoute = routeSample3d(route, alpha, wA, hA, 0.10, false);
 							          movedDist = Math.hypot(pRoute.x - before.x, pRoute.z - before.z) * 24;
 							          node.position.x = pRoute.x;
 							          node.position.z = pRoute.z;
 							        } else {
-							        const pA = map2dToPitch(Number(a.left) || 0, Number(a.top) || 0, wA, hA, metersW, metersH, orientation, pitchBoxA);
-							        const pB = map2dToPitch(Number(b.left) || 0, Number(b.top) || 0, wB, hB, metersW, metersH, orientation, pitchBoxB);
+							        const pA = map2dToPitch(Number(a.left) || 0, Number(a.top) || 0, wA, hA, metersW, metersH, orientation);
+							        const pB = map2dToPitch(Number(b.left) || 0, Number(b.top) || 0, wB, hB, metersW, metersH, orientation);
 							        movedDist = Math.hypot(pB.x - pA.x, pB.z - pA.z);
 							        node.position.x = pA.x + ((pB.x - pA.x) * alpha);
 							        node.position.z = pA.z + ((pB.z - pA.z) * alpha);
@@ -18877,11 +17007,11 @@
 								          const aBall = aObjs.find((o) => safeText(o?.data?.kind) === 'ball' && (pitch3dUidForObject(o, 'ball') === ballUid || ballUid === 'ball')) || null;
 								          const bBall = bObjs.find((o) => safeText(o?.data?.kind) === 'ball' && (pitch3dUidForObject(o, 'ball') === ballUid || ballUid === 'ball')) || aBall;
 								          if (aBall && bBall) {
-								            const pA = map2dToPitch(Number(aBall.left) || 0, Number(aBall.top) || 0, wA, hA, metersW, metersH, orientation, pitchBoxA);
-								            const pB = map2dToPitch(Number(bBall.left) || 0, Number(bBall.top) || 0, wB, hB, metersW, metersH, orientation, pitchBoxB);
+								            const pA = map2dToPitch(Number(aBall.left) || 0, Number(aBall.top) || 0, wA, hA, metersW, metersH, orientation);
+								            const pB = map2dToPitch(Number(bBall.left) || 0, Number(bBall.top) || 0, wB, hB, metersW, metersH, orientation);
 								            const route = routeForUid(ballUid) || routeForUid('ball');
 								            const ballAction = safeText(route?.action || pitch3dInferAction(`${fromStep?.title || ''} ${fromStep?.description || ''}`, 'pass'));
-								            const routePos = route ? routeSample3d(route, alpha, wA, hA, pitchBoxA, 0.35, true, ballAction) : null;
+								            const routePos = route ? routeSample3d(route, alpha, wA, hA, 0.35, true, ballAction) : null;
 								            const currentX = routePos ? routePos.x : (pA.x + ((pB.x - pA.x) * alpha));
 								            const currentZ = routePos ? routePos.z : (pA.z + ((pB.z - pA.z) * alpha));
 								            const dx = pB.x - pA.x;
@@ -19126,7 +17256,6 @@
 							    };
 
 						    const openPitch3d = () => {
-							      try { syncPitch3dDomRefs(); } catch (e) { /* ignore */ }
 							      if (!canUsePitch3d()) {
 							        setStatus('Vista 3D no disponible en este dispositivo/navegador.', true);
 							        return;
@@ -19150,7 +17279,6 @@
 							      try { applyPitch3dLightingTheme(); } catch (e) { /* ignore */ }
 							      stopPitch3dPlayback();
 							      updatePitch3dPlaybackButton();
-							      try { persistActiveStepSnapshot(); } catch (e) { /* ignore */ }
 							      try { showPitch3dStep(activeStepIndex >= 0 ? activeStepIndex : 0, { keepFollow: false }); } catch (e) { /* ignore */ }
 							      try { applyPitch3dLayerVisibility(); } catch (e) { /* ignore */ }
 							      try { applyPitch3dPerformanceBudget(); } catch (e) { /* ignore */ }
@@ -19199,41 +17327,6 @@
 						      } catch (e) {
 						        setStatus('No se pudo exportar el PNG táctico 3D.', true);
 						      }
-						    };
-
-						    const capturePitch3dForSheet = (options = {}) => {
-						      if (!pitch3dRenderer || !pitch3dCanvasEl || !pitch3dScene || !pitch3dCamera) return '';
-						      const previousCamera = safeText(pitch3dCameraSelect?.value);
-						      try {
-						        if (options.focus !== false) {
-						          if (pitch3dCameraSelect) pitch3dCameraSelect.value = 'task_focus';
-						          const meters = pitchMetersForPreset(presetSelect?.value || 'full_pitch', pitch3dFormat);
-						          setCameraPreset('task_focus', meters.w, meters.h);
-						        }
-						        try { resizePitch3d(); } catch (e) { /* ignore */ }
-						        try { pitch3dRenderer.render(pitch3dScene, pitch3dCamera); } catch (e) { /* ignore */ }
-						        const dataUrl = pitch3dCanvasEl.toDataURL('image/jpeg', 0.88);
-						        if (pitch3dPreviewInput && dataUrl && dataUrl.startsWith('data:image/')) {
-						          pitch3dPreviewInput.value = dataUrl;
-						        }
-						        return dataUrl || '';
-						      } catch (e) {
-						        return '';
-						      } finally {
-						        if (options.restoreCamera !== false && previousCamera && pitch3dCameraSelect) {
-						          try {
-						            pitch3dCameraSelect.value = previousCamera;
-						            const meters = pitchMetersForPreset(presetSelect?.value || 'full_pitch', pitch3dFormat);
-						            setCameraPreset(previousCamera, meters.w, meters.h);
-						            pitch3dRenderer.render(pitch3dScene, pitch3dCamera);
-						          } catch (e) { /* ignore */ }
-						        }
-						      }
-						    };
-
-						    const savePitch3dForSheet = () => {
-						      const dataUrl = capturePitch3dForSheet({ focus: true });
-						      setStatus(dataUrl ? 'Captura 3D guardada para la ficha.' : 'No se pudo guardar la captura 3D para la ficha.', !dataUrl);
 						    };
 
 						    const findCanvasObjectByPitch3dUid = (uidRaw) => {
@@ -19480,8 +17573,6 @@
 						      } catch (e) { /* ignore */ }
 						      openPitch3d();
 						    };
-						    try { window.__WEBSTATS_OPEN_PITCH3D = openPitch3dWhenReady; } catch (e) { /* ignore */ }
-						    try { window.__WEBSTATS_CLOSE_PITCH3D = closePitch3d; } catch (e) { /* ignore */ }
 						    pitch3dOpenBtn?.addEventListener('click', (ev) => { ev.preventDefault(); openPitch3dWhenReady(); });
 						    document.addEventListener('click', (ev) => {
 						      const trigger = ev.target?.closest?.('#pitch-3d-open');
@@ -19514,13 +17605,6 @@
 						    pitch3dFormatSelect?.addEventListener('change', () => {
 						      pitch3dFormat = normalizePitch3dFormat(pitch3dFormatSelect?.value);
 						      syncPitch3dFormatUi();
-						      try {
-						        const nextGrassStyle = normalizeGrassStyleForMode(pitchGrassStyle, { format: pitch3dFormat });
-						        if (nextGrassStyle !== pitchGrassStyle) {
-						          pitchGrassStyle = nextGrassStyle;
-						          syncGrassUi();
-						        }
-						      } catch (e) { /* ignore */ }
 						      try { window.localStorage.setItem(PITCH3D_FORMAT_STORAGE_KEY, pitch3dFormat); } catch (e) { /* ignore */ }
 						      if (pitch3dOpen) {
 						        stopPitch3dPlayback();
@@ -19532,7 +17616,7 @@
 						    });
 						    pitch3dSurfaceSelect?.addEventListener('change', () => {
 						      const next = safeText(pitch3dSurfaceSelect?.value, 'classic').trim().toLowerCase();
-						      pitchGrassStyle = normalizeGrassStyleForMode(next, { format: pitch3dFormat });
+						      pitchGrassStyle = normalizeGrassStyleForMode(next);
 						      syncGrassUi();
 						      try { applyPitchSurface(pitchPreset || presetSelect?.value || 'full_pitch', pitchOrientation, pitchGrassStyle); } catch (e) { /* ignore */ }
 						      try { refreshLivePreview(); } catch (e) { /* ignore */ }
@@ -19608,7 +17692,6 @@
 						    });
 						    pitch3dSnapBtn?.addEventListener('click', (ev) => { ev.preventDefault(); snapPitch3dPng(); });
 						    pitch3dSnapTacticBtn?.addEventListener('click', (ev) => { ev.preventDefault(); snapPitch3dTacticPng(); });
-						    pitch3dSaveSheetBtn?.addEventListener('click', (ev) => { ev.preventDefault(); savePitch3dForSheet(); });
 						    pitch3dRecordBtn?.addEventListener('click', (ev) => { ev.preventDefault(); togglePitch3dRecord(); });
 						    pitch3dActionApplyBtn?.addEventListener('click', (ev) => { ev.preventDefault(); applyPitch3dSelectedAction(); });
 						    pitch3dPhaseSaveBtn?.addEventListener('click', (ev) => { ev.preventDefault(); savePitch3dCurrentPhase(false); });
@@ -19681,11 +17764,7 @@
 						        return false;
 						      }
 						      try {
-						        const factory = pitch3dFactoryForKind(kind);
-						        if (!factory) {
-						          setStatus('No se pudo insertar el elemento en 3D.', true);
-						          return false;
-						        }
+						        const factory = simpleFactory(kind);
 						        const placed = addObject(objectAtPointer(factory, point));
 						        if (!placed) {
 						          setStatus('No se pudo insertar el elemento en 3D.', true);
@@ -26781,8 +24860,6 @@
 	      json.objects = (json.objects || []).filter((item) => !(item?.data?.base));
 	      return json;
 	    };
-	    try { window.__WEBSTATS_TPAD_CANVAS = canvas; } catch (e) { /* ignore */ }
-	    try { window.__WEBSTATS_SERIALIZE_CANVAS_ONLY = serializeCanvasOnly; } catch (e) { /* ignore */ }
     const normalizeTimeline = (raw) => {
       if (!Array.isArray(raw)) return [];
       return raw
@@ -27440,13 +25517,6 @@
 				      pitchOrientation = normalized;
 				      syncOrientationUi();
 				      applyStageSizeUi({ noFit: true });
-				      try {
-				        const currentCamera = safeText(pitch3dCameraSelect?.value, '');
-				        if (currentCamera === 'top_h' || currentCamera === 'top_v') {
-				          const nextCamera = pitchOrientation === 'portrait' ? 'top_v' : 'top_h';
-				          if (pitch3dCameraSelect) pitch3dCameraSelect.value = nextCamera;
-				        }
-				      } catch (e) { /* ignore */ }
 				      if (!zoomTouched) {
 				        pitchZoom = 1.0;
 				        syncZoomUi();
@@ -27515,97 +25585,6 @@
 	      return factory(left, top);
 	    };
 
-	    const constrainNewGraphicObjectToWorld = (object) => {
-	      if (!object) return;
-	      const kind = safeText(object?.data?.kind).toLowerCase();
-	      if (!kind) return;
-	      if (kind.includes('divider')) return;
-	      const isLongStroke = isLongStrokeObject(object);
-	      const isEquipmentLike = [
-	        'ball',
-	        'cone',
-	        'cone-striped',
-	        'pole-marker',
-	        'ring',
-	        'ladder',
-	        'ladder_l',
-	        'ladder_zigzag',
-	        'hurdle',
-	        'mini_hurdle',
-	        'tape',
-	        'gate',
-	        'mannequin',
-	        'wall',
-	        'rebounder',
-	        'barrier',
-	        'measure',
-	      ].includes(kind);
-	      const isMarkerLike = kind.startsWith('marker_');
-	      const isEmojiLike = kind.startsWith('emoji_');
-	      const isZoneLike = kind === 'zone'
-	        || kind.startsWith('shape-')
-	        || kind === 'goal'
-	        || kind.startsWith('goal_')
-	        || kind.startsWith('goal-');
-	      if (!isZoneLike && !isLongStroke && !isEquipmentLike && !isMarkerLike && !isEmojiLike) return;
-	      const { w, h } = worldSize();
-	      const worldW = Math.max(1, Number(w) || 0);
-	      const worldH = Math.max(1, Number(h) || 0);
-	      let maxW = Math.min(220, worldW * 0.34);
-	      let maxH = Math.min(160, worldH * 0.34);
-	      if (isLongStroke) {
-	        maxW = Math.min(190, worldW * 0.30);
-	        maxH = Math.min(110, worldH * 0.22);
-	      } else if (isMarkerLike || isEmojiLike || ['ball', 'cone', 'cone-striped', 'pole-marker', 'ring'].includes(kind)) {
-	        maxW = Math.min(54, worldW * 0.10);
-	        maxH = Math.min(54, worldH * 0.12);
-	      } else if (['ladder', 'ladder_l', 'ladder_zigzag', 'tape', 'gate', 'hurdle', 'mini_hurdle', 'measure'].includes(kind)) {
-	        maxW = Math.min(150, worldW * 0.24);
-	        maxH = Math.min(86, worldH * 0.18);
-	      } else if (['mannequin', 'wall', 'rebounder', 'barrier'].includes(kind)) {
-	        maxW = Math.min(150, worldW * 0.24);
-	        maxH = Math.min(120, worldH * 0.24);
-	      } else if (kind === 'zone' || kind.startsWith('shape-lane-') || kind === 'shape-rect' || kind === 'shape-rect-long') {
-	        maxW = Math.min(190, worldW * 0.28);
-	        maxH = Math.min(120, worldH * 0.28);
-	      } else if (kind === 'shape-band-h') {
-	        maxW = Math.min(260, worldW * 0.42);
-	        maxH = Math.min(90, worldH * 0.20);
-	      } else if (kind === 'shape-band-v') {
-	        maxW = Math.min(90, worldW * 0.20);
-	        maxH = Math.min(260, worldH * 0.42);
-	      }
-	      maxW = Math.max(36, maxW);
-	      maxH = Math.max(28, maxH);
-	      try { object.setCoords(); } catch (e) { /* ignore */ }
-	      let bbox = null;
-	      try { bbox = object.getBoundingRect(true, true); } catch (e) { bbox = null; }
-	      const bw = Math.max(1, Number(bbox?.width) || Number(object.width) || 1);
-	      const bh = Math.max(1, Number(bbox?.height) || Number(object.height) || 1);
-	      const fitScale = Math.min(1, maxW / bw, maxH / bh);
-	      if (isFinite(fitScale) && fitScale > 0 && fitScale < 1) {
-	        object.set({
-	          scaleX: (Number(object.scaleX) || 1) * fitScale,
-	          scaleY: (Number(object.scaleY) || 1) * fitScale,
-	        });
-	        try { object.setCoords(); } catch (e) { /* ignore */ }
-	      }
-	      try { bbox = object.getBoundingRect(true, true); } catch (e) { bbox = null; }
-	      const finalW = Math.max(1, Number(bbox?.width) || 1);
-	      const finalH = Math.max(1, Number(bbox?.height) || 1);
-	      const halfW = finalW / 2;
-	      const halfH = finalH / 2;
-	      const currentCenter = object.getCenterPoint ? object.getCenterPoint() : { x: Number(object.left) || 0, y: Number(object.top) || 0 };
-	      const nextX = clamp(Number(currentCenter.x) || 0, Math.min(halfW, worldW / 2), Math.max(worldW - halfW, worldW / 2));
-	      const nextY = clamp(Number(currentCenter.y) || 0, Math.min(halfH, worldH / 2), Math.max(worldH - halfH, worldH / 2));
-	      try {
-	        object.setPositionByOrigin(new fabric.Point(nextX, nextY), 'center', 'center');
-	        object.setCoords();
-	      } catch (e) {
-	        object.set({ left: nextX, top: nextY, originX: 'center', originY: 'center' });
-	      }
-	    };
-
 				    const addObject = (object) => {
 				      if (!object) return;
 				      // Figuras de fondo: al crearlas queremos permitir edición inmediata (mover/escala).
@@ -27615,7 +25594,6 @@
 			        object.data.background_edit = true;
 			      }
 			      normalizeEditableObject(object);
-		      constrainNewGraphicObjectToWorld(object);
 			      canvas.add(object);
 		      if (isBackgroundShape(object)) canvas.sendToBack(object);
 		      canvas.setActiveObject(object);
@@ -31788,11 +29766,6 @@
 		      const dataUrl = await buildPreviewData(previewOptions);
 	      if (previewInput) previewInput.value = dataUrl;
 	      if (applyLive) applyLivePreview(dataUrl);
-	      try {
-	        if (pitch3dPreviewInput && pitch3dRenderer && pitch3dCanvasEl && !safeText(pitch3dPreviewInput.value)) {
-	          capturePitch3dForSheet({ focus: true });
-	        }
-	      } catch (error) { /* ignore */ }
 	      if (timelinePreviewsInput) timelinePreviewsInput.value = '';
 	      return dataUrl;
 	    };
@@ -32025,7 +29998,6 @@
 				    try { initLayoutRecalcObservers(); } catch (e) { /* ignore */ }
 				    initPitchResizer();
 				    setPreset(presetSelect.value || 'full_pitch');
-				    initSpaceCoach();
 		    // Si la tarea es nueva (sin objetos guardados), aseguramos que el "mundo" (canvas_width/height)
 		    // coincide con el viewBox del SVG. Si no, el viewportTransform crea barras/offsets y los punteros
 		    // quedan desincronizados: parece que no se pueden colocar chapas en todo el campo.
@@ -33414,9 +31386,6 @@
 		    canvas.on('selection:created', syncInspector);
 		    canvas.on('selection:updated', syncInspector);
 		    canvas.on('selection:cleared', syncInspector);
-		    canvas.on('selection:created', syncSelectedSizeControls);
-		    canvas.on('selection:updated', syncSelectedSizeControls);
-		    canvas.on('selection:cleared', syncSelectedSizeControls);
 		    canvas.on('selection:created', syncTokenAdaptiveUi);
 		    canvas.on('selection:updated', syncTokenAdaptiveUi);
 		    canvas.on('selection:cleared', syncTokenAdaptiveUi);
@@ -33716,28 +31685,11 @@
 	      applyToActiveFlexibleObject((active) => {
 	        active.scaleX = clampScale(Number(scaleXInput.value) / 100, maxScaleForObject(active));
 	      }, 'Longitud actualizada.');
-	      refreshSelectedSizePercentFromScale(activeInspectableObject());
-	      syncSelectedSizeControls();
 	    });
 	    scaleYInput?.addEventListener('input', () => {
 	      applyToActiveFlexibleObject((active) => {
 	        active.scaleY = clampScale(Number(scaleYInput.value) / 100, maxScaleForObject(active));
 	      }, 'Altura actualizada.');
-	      refreshSelectedSizePercentFromScale(activeInspectableObject());
-	      syncSelectedSizeControls();
-	    });
-	    selectedSizeDownButton?.addEventListener('click', () => {
-	      const active = activeInspectableObject();
-	      if (!active) return;
-	      setSelectedObjectUniformScale(selectedObjectScalePercent(active) - 10, 'Elemento más pequeño.');
-	    });
-	    selectedSizeUpButton?.addEventListener('click', () => {
-	      const active = activeInspectableObject();
-	      if (!active) return;
-	      setSelectedObjectUniformScale(selectedObjectScalePercent(active) + 10, 'Elemento más grande.');
-	    });
-	    selectedSizeResetButton?.addEventListener('click', () => {
-	      setSelectedObjectUniformScale(100, 'Tamaño restablecido.');
 	    });
     rotationInput?.addEventListener('input', () => {
       applyToActiveFlexibleObject((active) => {
@@ -34616,7 +32568,6 @@
 	              let tacticsInteractiveEnabled = false;
 	              let interactiveRouteMode = false;
 	              let interactiveRouteFrom = null; // { obj, start:{x,y} }
-	              let interactiveDirectDrag = null; // { obj, start:{x,y}, moved:boolean }
 	              let interactiveRoutesPlaying = false;
 	              let interactiveRoutesAnimFrame = null;
 	              let interactiveRoutesStartAt = 0;
@@ -34628,9 +32579,6 @@
                 return kind === 'token' || kind === 'ball';
               };
               const getUidForObj = (obj) => safeText(obj?.data?.layer_uid) || safeText(obj?.data?.playerId) || '';
-              const isEasyAnimationActive = () => {
-                try { return !!document.body?.classList?.contains('tactics-easy-animation'); } catch (e) { return false; }
-              };
               const ensureInteractiveRoutes = (obj) => {
                 if (!obj) return [];
                 obj.data = obj.data || {};
@@ -34648,48 +32596,12 @@
                 });
                 return count;
               };
-              const collectInteractiveRouteRows = () => {
-                const rows = [];
-                (canvas.getObjects() || []).forEach((obj) => {
-                  if (!obj || !isTokenLike(obj)) return;
-                  const routes = Array.isArray(obj?.data?.interactive_routes) ? obj.data.interactive_routes : [];
-                  routes.forEach((route, index) => {
-                    rows.push({
-                      obj,
-                      uid: getUidForObj(obj),
-                      index,
-                      t: Number(route?.t) || 0,
-                      label: safeText(obj?.data?.number) || safeText(obj?.data?.playerName) || safeText(obj?.data?.token_label) || (safeText(obj?.data?.kind) === 'ball' ? 'Balón' : 'Ficha'),
-                    });
-                  });
-                });
-                return rows.sort((a, b) => (a.t || 0) - (b.t || 0));
-              };
-              const renderEasyRouteTimeline = () => {
-                const host = document.getElementById('tactics-easy-route-timeline');
-                if (!host) return;
-                const rows = collectInteractiveRouteRows();
-                if (!rows.length) {
-                  host.innerHTML = '<span class="empty">Sin rutas</span>';
-                  return;
-                }
-                const esc = (value) => safeText(value)
-                  .replace(/&/g, '&amp;')
-                  .replace(/</g, '&lt;')
-                  .replace(/>/g, '&gt;')
-                  .replace(/"/g, '&quot;')
-                  .replace(/'/g, '&#39;');
-                host.innerHTML = rows.slice(0, 12).map((row, idx) => (
-                  `<button type="button" data-tactics-route-focus="${esc(row.uid)}" data-tactics-route-index="${row.index}">Paso ${idx + 1}<small>${esc(row.label)}</small></button>`
-                )).join('');
-              };
               const syncRouteSummary = () => {
                 const n = countInteractiveRoutes();
                 if (tacticsRouteSummary) tacticsRouteSummary.textContent = `Rutas: ${n}`;
                 tacticsRouteCountEls.forEach((el) => {
                   try { el.textContent = `${n} ruta${n === 1 ? '' : 's'}`; } catch (e) { /* ignore */ }
                 });
-                renderEasyRouteTimeline();
               };
 
 	              const setTacticsInteractiveEnabled = (enabled, { persist = true } = {}) => {
@@ -34705,7 +32617,6 @@
 	                  stopInteractiveRoutesPlayback();
 	                  interactiveRouteMode = false;
 	                  interactiveRouteFrom = null;
-	                  interactiveDirectDrag = null;
 	                  highlightTacticsQuickTool(''); // limpia chip activo
 	                }
                 if (persist) {
@@ -34736,12 +32647,9 @@
 	              const setInteractiveRouteMode = (on) => {
 	                interactiveRouteMode = !!on;
 	                interactiveRouteFrom = null;
-	                interactiveDirectDrag = null;
 	                if (interactiveRouteMode) stopInteractiveRoutesPlayback();
 	                if (interactiveRouteMode) {
-	                  setStatus(isEasyAnimationActive()
-	                    ? 'Animar fácil: arrastra una ficha hasta el destino; la ruta queda creada y la ficha vuelve al origen.'
-	                    : 'Ruta (Interactiva): toca una ficha y arrastra hasta el destino. (Shift: mantener activo)', false);
+	                  setStatus('Ruta (Interactiva): toca una ficha y arrastra hasta el destino. (Shift: mantener activo)', false);
 	                  highlightTacticsQuickTool('route_move');
 	                } else {
                   setStatus('Modo selección activo.');
@@ -34784,7 +32692,6 @@
                 const next = {
                   v: 1,
                   t: Date.now(),
-                  from: { x: Number(fromPt.x) || 0, y: Number(fromPt.y) || 0 },
                   to: { x: Number(toPt.x) || 0, y: Number(toPt.y) || 0 },
                 };
                 routes.push(next);
@@ -34856,16 +32763,6 @@
 	                return true;
 	              };
 
-	              const removeLastInteractiveRouteAny = () => {
-	                const rows = collectInteractiveRouteRows();
-	                if (!rows.length) {
-	                  setStatus('No hay rutas para deshacer.');
-	                  return false;
-	                }
-	                const last = rows[rows.length - 1];
-	                return removeLastInteractiveRouteForObject(last.obj);
-	              };
-
 	              const isEditableTarget = (node) => {
 	                const el = node && node.nodeType === 1 ? node : null;
 	                if (!el) return false;
@@ -34922,10 +32819,6 @@
 	                  const start = { x: Number(obj.left) || 0, y: Number(obj.top) || 0 };
 	                  const points = [start];
 	                  routes.forEach((r) => {
-	                    const from = r?.from || null;
-	                    if (from && points.length === 1 && distance(points[0], from) >= 6) {
-	                      points[0] = { x: Number(from.x) || 0, y: Number(from.y) || 0 };
-	                    }
 	                    const to = r?.to || {};
 	                    const pt = { x: Number(to.x) || 0, y: Number(to.y) || 0 };
 	                    const prev = points[points.length - 1] || start;
@@ -35810,69 +33703,6 @@
                 try { if (tacticsFormationMenu) tacticsFormationMenu.open = false; } catch (e) { /* ignore */ }
               };
 
-              const firstTokenLike = () => {
-                const active = canvas.getActiveObject?.();
-                if (active && isTokenLike(active)) return active;
-                if (active && safeText(active?.type) === 'activeSelection' && typeof active.getObjects === 'function') {
-                  const found = (active.getObjects() || []).find((obj) => obj && isTokenLike(obj));
-                  if (found) return found;
-                }
-                return (canvas.getObjects() || []).find((obj) => obj && isTokenLike(obj)) || null;
-              };
-
-              const findEasyAnimationBall = () => (canvas.getObjects() || []).find((obj) => obj && safeText(obj?.data?.kind) === 'ball') || null;
-
-              const addEasyAnimationTemplate = (kind) => {
-                if (isSimulating) {
-                  setStatus('Sal del simulador para aplicar una plantilla.', true);
-                  return;
-                }
-                setTacticsInteractiveEnabled(true);
-                setInteractiveRouteMode(false);
-                const { w, h } = worldSize();
-                const primary = firstTokenLike();
-                if (!primary) {
-                  generateInteractiveDemo();
-                  setStatus('Plantilla demo creada. Ahora puedes editar las rutas.');
-                  return;
-                }
-                const start = { x: Number(primary.left) || w * 0.42, y: Number(primary.top) || h * 0.50 };
-                const clampPoint = (point) => ({
-                  x: clamp(Number(point.x) || 0, w * 0.04, w * 0.96),
-                  y: clamp(Number(point.y) || 0, h * 0.08, h * 0.92),
-                });
-                const addRouteToPrimary = (dx, dy) => addInteractiveRoute(primary, start, clampPoint({ x: start.x + (w * dx), y: start.y + (h * dy) }));
-                const ball = findEasyAnimationBall();
-                if (kind === 'pass_support') {
-                  addRouteToPrimary(0.14, -0.10);
-                  if (ball) addInteractiveRoute(ball, { x: Number(ball.left) || start.x, y: Number(ball.top) || start.y }, clampPoint({ x: start.x + w * 0.28, y: start.y - h * 0.02 }));
-                  setStatus('Plantilla pase + apoyo creada. Pulsa ▶ para probar o Exportar para preparar pasos.');
-                  return;
-                }
-                if (kind === 'third_man') {
-                  addRouteToPrimary(0.18, 0.12);
-                  if (ball) {
-                    addInteractiveRoute(ball, { x: Number(ball.left) || start.x, y: Number(ball.top) || start.y }, clampPoint({ x: start.x + w * 0.18, y: start.y - h * 0.10 }));
-                    addInteractiveRoute(ball, clampPoint({ x: start.x + w * 0.18, y: start.y - h * 0.10 }), clampPoint({ x: start.x + w * 0.36, y: start.y + h * 0.08 }));
-                  }
-                  setStatus('Plantilla tercer hombre creada. Pulsa ▶ para probar o Exportar para preparar pasos.');
-                  return;
-                }
-                if (kind === 'press_loss') {
-                  addRouteToPrimary(-0.10, 0.00);
-                  setStatus('Plantilla presión tras pérdida creada. Pulsa ▶ para probar o Exportar para preparar pasos.');
-                  return;
-                }
-                if (kind === 'switch_play') {
-                  addRouteToPrimary(0.12, 0.18);
-                  if (ball) addInteractiveRoute(ball, { x: Number(ball.left) || start.x, y: Number(ball.top) || start.y }, clampPoint({ x: start.x + w * 0.35, y: h - start.y }));
-                  setStatus('Plantilla cambio de orientación creada. Pulsa ▶ para probar o Exportar para preparar pasos.');
-                  return;
-                }
-                addRouteToPrimary(0.20, -0.14);
-                setStatus('Plantilla desmarque creada. Pulsa ▶ para probar o Exportar para preparar pasos.');
-              };
-
 	                if (tacticsQuickbar) {
 	                tacticsQuickbar.addEventListener('click', (event) => {
                   const btn = event.target.closest('[data-tactics-tool]');
@@ -35917,38 +33747,6 @@
                     clearInteractiveRoutes();
                     return;
                   }
-                  const undoRouteBtn = event.target.closest('[data-tactics-undo-route]');
-                  if (undoRouteBtn) {
-                    event.preventDefault();
-                    removeLastInteractiveRouteAny();
-                    return;
-                  }
-                  const templateBtn = event.target.closest('[data-tactics-template]');
-                  if (templateBtn) {
-                    event.preventDefault();
-                    addEasyAnimationTemplate(safeText(templateBtn.getAttribute('data-tactics-template')) || 'run');
-                    return;
-                  }
-                  const exportAnimBtn = event.target.closest('[data-tactics-export-animation]');
-                  if (exportAnimBtn) {
-                    event.preventDefault();
-                    generateSimulationFromRoutes('seq');
-                    try { setTacticsPanelOpen(true); } catch (e) { /* ignore */ }
-                    try { if (simPopover) simPopover.hidden = false; } catch (e) { /* ignore */ }
-                    setStatus('Animación preparada para exportar: usa PNG pasos o Pack en el panel.');
-                    return;
-                  }
-                  const focusRouteBtn = event.target.closest('[data-tactics-route-focus]');
-                  if (focusRouteBtn) {
-                    event.preventDefault();
-                    const uid = safeText(focusRouteBtn.getAttribute('data-tactics-route-focus'));
-                    const obj = (canvas.getObjects() || []).find((item) => getUidForObj(item) === uid);
-                    if (obj) {
-                      try { canvas.setActiveObject(obj); obj.setCoords?.(); canvas.requestRenderAll(); } catch (e) { /* ignore */ }
-                      setStatus('Ruta seleccionada.');
-                    }
-                    return;
-                  }
                   const formationBtn = event.target.closest('[data-tactics-formation]');
                   if (formationBtn) {
                     event.preventDefault();
@@ -35956,110 +33754,23 @@
                     applyFormation(spec);
                     return;
                   }
-	                });
+                });
               }
-
-              try {
-                document.addEventListener('click', (event) => {
-                  const undoRouteBtn = event.target.closest('[data-tactics-undo-route]');
-                  if (undoRouteBtn) {
-                    event.preventDefault();
-                    removeLastInteractiveRouteAny();
-                    return;
-                  }
-                  const templateBtn = event.target.closest('[data-tactics-template]');
-                  if (templateBtn) {
-                    event.preventDefault();
-                    addEasyAnimationTemplate(safeText(templateBtn.getAttribute('data-tactics-template')) || 'run');
-                    return;
-                  }
-                  const exportAnimBtn = event.target.closest('[data-tactics-export-animation]');
-                  if (exportAnimBtn) {
-                    event.preventDefault();
-                    generateSimulationFromRoutes('seq');
-                    try { setTacticsPanelOpen(true); } catch (e) { /* ignore */ }
-                    try { if (simPopover) simPopover.hidden = false; } catch (e) { /* ignore */ }
-                    setStatus('Animación preparada para exportar: usa PNG pasos o Pack en el panel.');
-                    return;
-                  }
-                  const focusRouteBtn = event.target.closest('[data-tactics-route-focus]');
-                  if (focusRouteBtn) {
-                    event.preventDefault();
-                    const uid = safeText(focusRouteBtn.getAttribute('data-tactics-route-focus'));
-                    const obj = (canvas.getObjects() || []).find((item) => getUidForObj(item) === uid);
-                    if (obj) {
-                      try { canvas.setActiveObject(obj); obj.setCoords?.(); canvas.requestRenderAll(); } catch (e) { /* ignore */ }
-                      setStatus('Ruta seleccionada.');
-                    }
-                  }
-                }, true);
-              } catch (e) { /* ignore */ }
 
               // Captura gesto de ruta (click/touch) en modo interactivo.
               // Lo hacemos sobre el canvas: down (elige ficha) + up (destino) => guarda ruta.
               try {
-                canvas.on('object:moving', (opt) => {
-                  if (!tacticsInteractiveEnabled || !isEasyAnimationActive()) return;
-                  if (pendingFactory || isSimulating) return;
-                  const target = opt?.target;
-                  if (!target || !isTokenLike(target)) return;
-                  if (!interactiveDirectDrag || interactiveDirectDrag.obj !== target) {
-                    const start = {
-                      x: Number(target.__tacticsRouteStartLeft ?? target.left) || 0,
-                      y: Number(target.__tacticsRouteStartTop ?? target.top) || 0,
-                    };
-                    interactiveDirectDrag = { obj: target, start, moved: false };
-                  }
-                  const current = { x: Number(target.left) || 0, y: Number(target.top) || 0 };
-                  if (distance(interactiveDirectDrag.start, current) >= 8) {
-                    interactiveDirectDrag.moved = true;
-                    interactiveRouteFrom = null;
-                  }
-                });
-                canvas.on('object:modified', (opt) => {
-                  if (!tacticsInteractiveEnabled || !isEasyAnimationActive()) return;
-                  if (!interactiveDirectDrag || !interactiveDirectDrag.obj) return;
-                  const target = opt?.target;
-                  if (target && target !== interactiveDirectDrag.obj) return;
-                  const obj = interactiveDirectDrag.obj;
-                  const from = interactiveDirectDrag.start || { x: Number(obj.left) || 0, y: Number(obj.top) || 0 };
-                  const to = { x: Number(obj.left) || 0, y: Number(obj.top) || 0 };
-                  const shouldCreate = interactiveDirectDrag.moved && distance(from, to) >= 8;
-                  interactiveDirectDrag = null;
-                  interactiveRouteFrom = null;
-                  if (!shouldCreate) return;
-                  try {
-                    obj.set({ left: from.x, top: from.y });
-                    obj.setCoords?.();
-                    canvas.setActiveObject(obj);
-                  } catch (e) { /* ignore */ }
-                  addInteractiveRoute(obj, from, to);
-                  try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
-                  setStatus('Ruta creada: la ficha vuelve al origen para reproducir la animación con ▶.');
-                });
                 canvas.on('mouse:down', (opt) => {
                   if (!tacticsInteractiveEnabled || !interactiveRouteMode) return;
                   if (pendingFactory) return; // si está en modo insertar, no interferir
                   const target = opt?.target;
                   if (!target || !isTokenLike(target)) return;
                   const p = canvas.getPointer(opt.e);
-                  const start = { x: Number(target.left) || Number(p.x) || 0, y: Number(target.top) || Number(p.y) || 0 };
-                  interactiveRouteFrom = { obj: target, start };
-                  if (isEasyAnimationActive()) {
-                    interactiveDirectDrag = { obj: target, start, moved: false };
-                    try {
-                      target.__tacticsRouteStartLeft = start.x;
-                      target.__tacticsRouteStartTop = start.y;
-                    } catch (e) { /* ignore */ }
-                  }
+                  interactiveRouteFrom = { obj: target, start: { x: Number(target.left) || Number(p.x) || 0, y: Number(target.top) || Number(p.y) || 0 } };
                   try { opt.e?.preventDefault?.(); } catch (e) { /* ignore */ }
                 });
                 canvas.on('mouse:up', (opt) => {
                   if (!tacticsInteractiveEnabled || !interactiveRouteMode) return;
-                  if (interactiveDirectDrag && interactiveDirectDrag.moved) {
-                    interactiveRouteFrom = null;
-                    return;
-                  }
                   if (!interactiveRouteFrom || !interactiveRouteFrom.obj) return;
                   const p = canvas.getPointer(opt.e);
                   const from = interactiveRouteFrom.start || { x: Number(interactiveRouteFrom.obj.left) || 0, y: Number(interactiveRouteFrom.obj.top) || 0 };
@@ -37330,14 +35041,10 @@
 	    presetButtons.forEach((button) => {
 	      button.addEventListener('click', () => {
 	        setPreset(button.dataset.preset || 'full_pitch');
-	        updateSpaceCoach();
         setSurfaceMenuOpen(false);
       });
     });
-	    presetSelect.addEventListener('change', () => {
-	      setPreset(presetSelect.value || 'full_pitch');
-	      updateSpaceCoach();
-	    });
+	    presetSelect.addEventListener('change', () => setPreset(presetSelect.value || 'full_pitch'));
 	    const togglePitchOrientation = () => {
 	      applyPitchOrientation(pitchOrientation === 'portrait' ? 'landscape' : 'portrait', { preserveObjects: true, pushHistory: true });
 	    };
@@ -37832,8 +35539,6 @@
 		    canvas.on('object:scaling', (opt) => {
 		      const target = opt?.target;
 		      if (!target) return;
-		      try { refreshSelectedSizePercentFromScale(target); } catch (error) { /* ignore */ }
-		      try { syncSelectedSizeControls(); } catch (error) { /* ignore */ }
 		      const kind = safeText(target?.data?.kind);
 		      if (!kind || !kind.startsWith('arrow')) return;
 		      if (!Array.isArray(target._objects)) return;
