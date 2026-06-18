@@ -10157,19 +10157,20 @@
 						              return seed % 7 === 0 ? matB : matA;
 						            };
 						            const addPremiumVomitoryPocket = (x) => {
-						              addBox(g, new THREE.BoxGeometry(3.45, 0.22, 1.95), concreteMat, x, 0.54, concourseZ + 0.34, -0.02, 0, 0, 'pitch_3d_stand_mid_vomitory_court');
-						              addBox(g, new THREE.BoxGeometry(3.00, 1.30, 1.68), tunnelWallMat, x, 1.32, concourseZ + 0.56, -0.02, 0, 0, 'pitch_3d_stand_mid_vomitory_chamber_wall');
-						              addBox(g, new THREE.BoxGeometry(0.10, 1.48, 2.05), metalMat, x - 1.72, 1.32, concourseZ + 0.58, -0.02, 0, 0, 'pitch_3d_stand_mid_vomitory_guard_rail_l');
-						              addBox(g, new THREE.BoxGeometry(0.10, 1.48, 2.05), metalMat, x + 1.72, 1.32, concourseZ + 0.58, -0.02, 0, 0, 'pitch_3d_stand_mid_vomitory_guard_rail_r');
-						              addBox(g, new THREE.BoxGeometry(3.28, 0.28, 0.16), tunnelLightMat, x, 2.24, concourseZ + 0.12, 0, 0, 0, 'pitch_3d_stand_mid_vomitory_glow');
-						              addBox(g, new THREE.BoxGeometry(1.12, 0.16, 0.76), stepMat, x, 2.45, concourseZ + 0.95, -0.02, 0, 0, 'pitch_3d_stand_mid_vomitory_stair');
+						              addBox(g, new THREE.BoxGeometry(3.72, 0.18, 0.92), concreteMat, x, 3.56, concourseZ - 0.12, 0, 0, 0, 'pitch_3d_stand_mid_vomitory_lintel');
+						              addBox(g, new THREE.BoxGeometry(0.22, 1.72, 1.44), concreteMat, x - 1.72, 3.10, concourseZ + 0.18, -0.02, 0, 0, 'pitch_3d_stand_mid_vomitory_frame_l');
+						              addBox(g, new THREE.BoxGeometry(0.22, 1.72, 1.44), concreteMat, x + 1.72, 3.10, concourseZ + 0.18, -0.02, 0, 0, 'pitch_3d_stand_mid_vomitory_frame_r');
+						              addBox(g, new THREE.BoxGeometry(2.82, 1.34, 0.28), tunnelWallMat, x, 3.02, concourseZ + 0.28, 0, 0, 0, 'pitch_3d_stand_mid_vomitory_dark_portal');
+						              addBox(g, new THREE.BoxGeometry(2.36, 0.76, 0.10), tunnelLightMat, x, 3.10, concourseZ - 0.14, 0, 0, 0, 'pitch_3d_stand_mid_vomitory_glow');
+						              addBox(g, new THREE.BoxGeometry(2.68, 0.12, 0.52), stepMat, x, 3.84, concourseZ + 0.58, -0.12, 0, 0, 'pitch_3d_stand_mid_vomitory_upper_step');
 						            };
 						            const addPremiumLowVomitoryPocket = (x) => {
-						              addBox(g, new THREE.BoxGeometry(3.60, 0.22, 2.05), tunnelWallMat, x, 0.72, concourseZ - 1.18, -0.02, 0, 0, 'pitch_3d_stand_lower_vomitory_court');
-						              addBox(g, new THREE.BoxGeometry(3.08, 1.60, 1.76), tunnelWallMat, x, 1.84, concourseZ - 0.94, -0.02, 0, 0, 'pitch_3d_stand_lower_vomitory_chamber');
-						              addBox(g, new THREE.BoxGeometry(0.10, 1.80, 2.25), metalMat, x - 1.82, 1.90, concourseZ - 0.98, -0.02, 0, 0, 'pitch_3d_stand_lower_vomitory_guard_rail_l');
-						              addBox(g, new THREE.BoxGeometry(0.10, 1.80, 2.25), metalMat, x + 1.82, 1.90, concourseZ - 0.98, -0.02, 0, 0, 'pitch_3d_stand_lower_vomitory_guard_rail_r');
-						              addBox(g, new THREE.BoxGeometry(3.40, 0.20, 0.16), tunnelLightMat, x, 2.80, concourseZ - 1.34, 0, 0, 0, 'pitch_3d_stand_lower_vomitory_glow');
+						              addBox(g, new THREE.BoxGeometry(4.00, 0.18, 0.98), concreteMat, x, 2.98, concourseZ - 1.70, 0, 0, 0, 'pitch_3d_stand_lower_vomitory_lintel');
+						              addBox(g, new THREE.BoxGeometry(0.24, 2.02, 1.62), concreteMat, x - 1.90, 2.08, concourseZ - 1.10, -0.02, 0, 0, 'pitch_3d_stand_lower_vomitory_frame_l');
+						              addBox(g, new THREE.BoxGeometry(0.24, 2.02, 1.62), concreteMat, x + 1.90, 2.08, concourseZ - 1.10, -0.02, 0, 0, 'pitch_3d_stand_lower_vomitory_frame_r');
+						              addBox(g, new THREE.BoxGeometry(3.18, 1.72, 0.30), tunnelWallMat, x, 2.02, concourseZ - 1.02, 0, 0, 0, 'pitch_3d_stand_lower_vomitory_dark_portal');
+						              addBox(g, new THREE.BoxGeometry(2.74, 0.76, 0.10), tunnelLightMat, x, 2.06, concourseZ - 1.44, 0, 0, 0, 'pitch_3d_stand_lower_vomitory_glow');
+						              addBox(g, new THREE.BoxGeometry(2.96, 0.12, 0.56), stepMat, x, 2.88, concourseZ - 0.62, -0.12, 0, 0, 'pitch_3d_stand_lower_vomitory_upper_step');
 						            };
 						            const addTier = (cfg) => {
 						              const tierRows = Number(cfg.rows) || 6;
@@ -10358,8 +10359,11 @@
 						            });
 						            [-0.18, 0.18].forEach((ratio) => {
 						              const vx = ratio * standW;
-						              addBox(g, new THREE.BoxGeometry(3.3, 1.16, 0.28), tunnelWallMat, vx, 4.44, concourseZ + 0.20, 0, 0, 0, 'pitch_3d_peripheral_vomitory');
-						              addBox(g, new THREE.BoxGeometry(2.85, 0.78, 0.07), tunnelLightMat, vx, 4.36, concourseZ + 0.02, 0, 0, 0, 'pitch_3d_peripheral_vomitory_glow');
+						              addBox(g, new THREE.BoxGeometry(3.55, 0.16, 0.88), concreteMat, vx, 5.02, concourseZ - 0.10, 0, 0, 0, 'pitch_3d_peripheral_vomitory_lintel');
+						              addBox(g, new THREE.BoxGeometry(0.20, 1.48, 1.24), concreteMat, vx - 1.62, 4.38, concourseZ + 0.16, -0.02, 0, 0, 'pitch_3d_peripheral_vomitory_frame_l');
+						              addBox(g, new THREE.BoxGeometry(0.20, 1.48, 1.24), concreteMat, vx + 1.62, 4.38, concourseZ + 0.16, -0.02, 0, 0, 'pitch_3d_peripheral_vomitory_frame_r');
+						              addBox(g, new THREE.BoxGeometry(2.62, 1.02, 0.22), tunnelWallMat, vx, 4.34, concourseZ + 0.22, 0, 0, 0, 'pitch_3d_peripheral_vomitory_dark_portal');
+						              addBox(g, new THREE.BoxGeometry(2.26, 0.60, 0.08), tunnelLightMat, vx, 4.28, concourseZ - 0.08, 0, 0, 0, 'pitch_3d_peripheral_vomitory_glow');
 						            });
 						            addBox(g, new THREE.BoxGeometry(0.38, 2.95, rowsLower * 0.84 + 1.1), concreteMat, -(standW / 2 + 0.30), 1.62, 2.45, -0.045, 0, 0, 'pitch_3d_peripheral_side_wall');
 						            addBox(g, new THREE.BoxGeometry(0.38, 2.95, rowsLower * 0.84 + 1.1), concreteMat, standW / 2 + 0.30, 1.62, 2.45, -0.045, 0, 0, 'pitch_3d_peripheral_side_wall');
@@ -13473,8 +13477,8 @@
                                 addSegmentedAdBoards: true,
                                 addArenaEnvelopeBranding: true,
                                 addProfessionalArenaEnvelope: true,
-                                addReferenceBenchesAndTrainingGoalsPass: false,
-                                addRosaledaReferenceForegroundPass: false,
+                                addReferenceBenchesAndTrainingGoalsPass: true,
+                                addRosaledaReferenceForegroundPass: true,
                               };
                               const addSignedBoard = (geo, mat, x, y, z, kind, rotY = 0) => addRotMesh(geo, mat, x, y, z, 0, rotY, 0, kind);
                               const addSignedBoardFacing = (geo, text, opts, x, y, z, kind, rotY = 0, sideSign = 0) => {
@@ -13565,7 +13569,7 @@
                                     {
                                       key: 'segmented_vallas_text',
                                       maxKeep: 1,
-                                      test: (kind) => /pitch_3d_(?:dedicated_completion_segmented_|rosaleda_photo_(?:near|far)_continuous_ad_board)/.test(kind),
+                                      test: (kind) => /pitch_3d_(?:dedicated_completion_segmented_|rosaleda_photo_(?:near|far)_continuous_ad_board|rosaleda_final_(?:photo_main_pitchside_ad_board|near_continuous_blue_ad_band|far_continuous_blue_ad_band)|rosaleda_final_polish_(?:near_reference_ad_board|side_reference_ad_board))/.test(kind),
                                       getBucket: (node, kind) => {
                                         const x = Number.isFinite(Number(node?.position?.x)) ? node.position.x : 0;
                                         const z = Number.isFinite(Number(node?.position?.z)) ? node.position.z : 0;
@@ -15063,6 +15067,31 @@
               [dedicatedBenchLabel(0), '2J FOOTBALL INTELLIGENCE', 'PARTNER', 'LA ROSALEDA', 'SPONSOR'].forEach((label, idx) => {
 							                const x = -metersW * 0.42 + idx * (metersW * 0.21);
 							                addPart(new THREE.BoxGeometry(metersW * 0.17, 0.66, 0.12), makeSignMat(label, { w: 1180, h: 260, bg: idx % 2 ? '#101827' : '#075fae', fg: '#f8fafc', font: '900 48px Arial, sans-serif', stroke: 'rgba(255,255,255,0.22)' }), x, 0.92, -(metersH / 2 + 1.80), 'pitch_3d_rosaleda_final_polish_near_reference_ad_board');
+							              });
+              ['2J FOOTBALL INTELLIGENCE', 'PARTNER', 'LA ROSALEDA', 'SPONSOR'].forEach((label, idx) => {
+							                const z = -metersH * 0.36 + idx * (metersH * 0.24);
+							                addSignedBoardFacing(
+							                  new THREE.BoxGeometry(0.12, 0.62, metersH * 0.18),
+							                  label,
+							                  { w: 1180, h: 260, bg: idx % 2 ? '#101827' : '#075fae', fg: '#f8fafc', font: '900 48px Arial, sans-serif', stroke: 'rgba(255,255,255,0.22)' },
+							                  -(metersW / 2 + 1.72),
+							                  0.90,
+							                  z,
+							                  'pitch_3d_rosaleda_final_polish_side_reference_ad_board',
+							                  -Math.PI / 2,
+							                  -1,
+							                );
+							                addSignedBoardFacing(
+							                  new THREE.BoxGeometry(0.12, 0.62, metersH * 0.18),
+							                  label,
+							                  { w: 1180, h: 260, bg: idx % 2 ? '#101827' : '#075fae', fg: '#f8fafc', font: '900 48px Arial, sans-serif', stroke: 'rgba(255,255,255,0.22)' },
+							                  metersW / 2 + 1.72,
+							                  0.90,
+							                  z,
+							                  'pitch_3d_rosaleda_final_polish_side_reference_ad_board',
+							                  Math.PI / 2,
+							                  1,
+							                );
 							              });
                                   const addForegroundDugout = (x, label) => {
                                     const dugout = new THREE.Group();
