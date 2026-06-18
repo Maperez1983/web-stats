@@ -8343,7 +8343,7 @@
 						    };
 						    const __pitch3dStadiumModelCache = { loading: false, scene: null, failed: false, callbacks: [] };
 						    const __pitch3dLoadStadiumModel = (onLoad) => {
-						      const src = __pitch3dAssetUrl('pitch3dStadiumModelSrc');
+						      const src = '';
 						      if (!src || !window.THREE) return null;
 						      if (__pitch3dStadiumModelCache.scene) {
 						        try { if (typeof onLoad === 'function') onLoad(__pitch3dStadiumModelCache.scene); } catch (e) { /* ignore */ }
@@ -9745,14 +9745,7 @@
 						      const sourceH = Number(options.sourceH) || (Number(worldHeight) || 720);
 							      try { addPitch3dRenderBackdrop(root, metersW, metersH); } catch (e) { /* ignore */ }
 						      try {
-						        const runtimeStadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
-						        if (runtimeStadiumModelSrc) {
-						          __pitch3dLoadStadiumModel(() => {
-						            try {
-						              if (pitch3dRoot === root) buildPitch3dRoot(state, options);
-						            } catch (e) { /* ignore */ }
-						          });
-						        }
+						        const runtimeStadiumModelSrc = '';
 						      } catch (e) { /* ignore */ }
 
 						      // Suelo
@@ -12081,81 +12074,7 @@
 						                target.add(atmosphere);
 						              } catch (e) { /* ignore */ }
 						            };
-                              const dedicatedReferenceModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
-                              const isDedicatedReferenceStadiumModel = isDedicatedPitch3dReferenceStadiumSrc(dedicatedReferenceModelSrc);
-                              // El GLB de Rosaleda está descargando en producción pero no está entrando de forma
-                              // consistente en escena. Hasta cerrar ese loader dejamos activa la ruta artesanal,
-                              // que es la que ya conseguimos ver estable ayer en todos los entornos.
-                              const useModelBackedRosaledaStadium = false;
-                              const ensureModelBackedRosaledaRequested = () => {
-                                if (!useModelBackedRosaledaStadium) return false;
-                                try {
-                                  if (__pitch3dStadiumModelCache.scene) return true;
-                                  __pitch3dLoadStadiumModel(() => {
-                                    try {
-                                      if (pitch3dRoot === root) buildPitch3dRoot(state, options);
-                                    } catch (e) { /* ignore */ }
-                                  });
-                                  return !!__pitch3dStadiumModelCache.scene;
-                                } catch (e) {
-                                  return false;
-                                }
-                              };
-						            const addProfessionalStadiumAsset = () => {
-						              try {
-						                const asset = __pitch3dStadiumModelCache.scene || __pitch3dLoadStadiumModel(() => {
-						                  try {
-						                    if (pitch3dRoot === root) buildPitch3dRoot(state, options);
-						                  } catch (e) { /* ignore */ }
-						                });
-						                if (!asset) return false;
-						                const stadiumAsset = asset.clone(true);
-						                stadiumAsset.name = 'stadium_malaga_rosaleda_asset';
-						                stadiumAsset.userData = {
-                                  kind: isDedicatedReferenceStadiumModel ? 'pitch_3d_dedicated_reference_model_asset' : 'pitch_3d_professional_blender_stadium',
-                                  source_model: dedicatedReferenceModelSrc,
-                                };
-						                stadiumAsset.traverse((node) => {
-						                  if (!node?.isMesh) return;
-						                  try { if (node.geometry) node.geometry = node.geometry.clone(); } catch (e) { /* ignore */ }
-						                  try {
-						                    const normalizeOne = (mat) => normalizeRuntimeStadiumMaterial(node, mat);
-						                    if (Array.isArray(node.material)) node.material = node.material.map(normalizeOne);
-						                    else if (node.material) node.material = normalizeOne(node.material);
-						                  } catch (e) { /* ignore */ }
-						                  try {
-						                    const tuneOne = (mat) => tuneProfessionalStadiumMaterial(node, mat);
-						                    if (Array.isArray(node.material)) node.material = node.material.map(tuneOne);
-						                    else if (node.material) node.material = tuneOne(node.material);
-						                  } catch (e) { /* ignore */ }
-						                  node.userData = Object.assign({}, node.userData || {}, {
-                                    kind: isDedicatedReferenceStadiumModel ? 'pitch_3d_dedicated_reference_stadium_mesh' : 'pitch_3d_rosaleda_runtime_asset_mesh',
-                                  });
-						                  try { node.castShadow = true; node.receiveShadow = true; } catch (e) { /* ignore */ }
-						                });
-						                enhanceProfessionalStadiumAsset(stadiumAsset);
-						                root.add(stadiumAsset);
-                            try {
-                              window.__WEBSTATS_PITCH3D_STADIUM_ATTACH_INFO = {
-                                attached: true,
-                                childCount: Number(stadiumAsset?.children?.length || 0),
-                                source_model: dedicatedReferenceModelSrc,
-                              };
-                            } catch (e) { /* ignore */ }
-						                return true;
-						              } catch (e) {
-                            try {
-                              console.warn('[pitch3d] model-backed rosaleda attach failed', e);
-                              window.__WEBSTATS_PITCH3D_STADIUM_ATTACH_INFO = {
-                                attached: false,
-                                error: safeText(e?.message || e),
-                                source_model: dedicatedReferenceModelSrc,
-                              };
-                            } catch (err) { /* ignore */ }
-						                return false;
-						              }
-						            };
-                              if (useModelBackedRosaledaStadium && __pitch3dStadiumModelCache.scene && addProfessionalStadiumAsset()) return;
+                              const dedicatedReferenceModelSrc = '';
 						          const addCornerFlag = (x, z, flipX, flipZ) => {
 						            const group = new THREE.Group();
 						            group.position.set(x, 0, z);
@@ -12192,7 +12111,7 @@
 						          addCornerFlag((metersW / 2), (metersH / 2), -1, -1);
 						        } catch (e) { /* ignore */ }
 						      };
-						      const useHandcraftedDedicatedReferenceStadium = !useModelBackedRosaledaStadium || !ensureModelBackedRosaledaRequested();
+						      const useHandcraftedDedicatedReferenceStadium = true;
 						      addPitchSideDetails3d();
 						      try {
 						        if (useHandcraftedDedicatedReferenceStadium) {
