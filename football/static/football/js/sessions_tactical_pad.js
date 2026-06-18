@@ -11991,13 +11991,27 @@
                               const dedicatedReferenceModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
                               const isDedicatedReferenceStadiumModel = isDedicatedPitch3dReferenceStadiumSrc(dedicatedReferenceModelSrc);
                               const useModelBackedRosaledaStadium = /stadium_malaga_rosaleda(?:\.[a-f0-9]+)?\.glb(?:[?#].*)?$/i.test(dedicatedReferenceModelSrc) && normalizePitch3dFormat(options.fieldFormat || pitch3dFormat) === 'f11';
+                              const ensureModelBackedRosaledaRequested = () => {
+                                if (!useModelBackedRosaledaStadium) return false;
+                                try {
+                                  if (__pitch3dStadiumModelCache.scene) return true;
+                                  __pitch3dLoadStadiumModel(() => {
+                                    try {
+                                      if (pitch3dRoot === root) buildPitch3dRoot(state, options);
+                                    } catch (e) { /* ignore */ }
+                                  });
+                                  return !!__pitch3dStadiumModelCache.scene;
+                                } catch (e) {
+                                  return false;
+                                }
+                              };
 						            const addProfessionalStadiumAsset = () => {
 						              try {
 						                const asset = __pitch3dStadiumModelCache.scene || __pitch3dLoadStadiumModel(() => {
-                                  try {
-                                    if (pitch3dRoot === root) buildPitch3dRoot(state, options);
-                                  } catch (e) { /* ignore */ }
-                                });
+						                  try {
+						                    if (pitch3dRoot === root) buildPitch3dRoot(state, options);
+						                  } catch (e) { /* ignore */ }
+						                });
 						                if (!asset) return false;
 						                const stadiumAsset = asset.clone(true);
 						                stadiumAsset.name = 'stadium_malaga_rosaleda_asset';
@@ -12030,7 +12044,7 @@
 						                return false;
 						              }
 						            };
-                              if (useModelBackedRosaledaStadium && addProfessionalStadiumAsset()) return;
+                              if (useModelBackedRosaledaStadium && __pitch3dStadiumModelCache.scene && addProfessionalStadiumAsset()) return;
 						          const addCornerFlag = (x, z, flipX, flipZ) => {
 						            const group = new THREE.Group();
 						            group.position.set(x, 0, z);
@@ -12067,7 +12081,7 @@
 						          addCornerFlag((metersW / 2), (metersH / 2), -1, -1);
 						        } catch (e) { /* ignore */ }
 						      };
-						      const useHandcraftedDedicatedReferenceStadium = !useModelBackedRosaledaStadium;
+						      const useHandcraftedDedicatedReferenceStadium = !useModelBackedRosaledaStadium || !ensureModelBackedRosaledaRequested();
 						      addPitchSideDetails3d();
 						      try {
 						        if (useHandcraftedDedicatedReferenceStadium) {
