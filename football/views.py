@@ -26843,6 +26843,66 @@ def session_task_pdf(request, task_id):
     return _build_pdf_response_or_html_fallback(request, html, filename)
 
 
+@login_required
+def session_task_interactive_sheet(request, task_id):
+    if not _can_access_sessions_workspace(request.user):
+        return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
+    task = (
+        SessionTask.objects
+        .select_related('session__microcycle__team')
+        .filter(id=task_id)
+        .first()
+    )
+    if not task:
+        raise Http404('Tarea no encontrada')
+
+    team = task.session.microcycle.team
+    sheet_style = (request.GET.get('style') or 'uefa').strip().lower()
+    if sheet_style not in {'uefa', 'club'}:
+        sheet_style = 'uefa'
+
+    preview_url = ''
+    try:
+        if not getattr(task, 'task_preview_image', None):
+            try:
+                _maybe_render_task_preview_server_side(task, force=True)
+                task.refresh_from_db(fields=['task_preview_image'])
+            except Exception:
+                pass
+        if getattr(task, 'task_preview_image', None):
+            preview_url = _file_field_as_data_url(task.task_preview_image)
+        if not preview_url:
+            embedded = _embedded_preview_bytes_from_task(task)
+            if embedded:
+                raw, mime = embedded
+                preview_url = _image_bytes_as_small_data_uri(raw, mime_type=mime or 'image/jpeg', max_width=3200, max_height=2400, quality=88)
+    except Exception:
+        preview_url = ''
+
+    context = _build_task_pdf_context(
+        request,
+        team=team,
+        session=task.session,
+        microcycle=task.session.microcycle,
+        task=task,
+        tactical_layout=task.tactical_layout if isinstance(task.tactical_layout, dict) else {},
+        pdf_style=sheet_style,
+        preview_url=preview_url,
+        one_page=False,
+    )
+    context.update(
+        {
+            'sheet_style': sheet_style,
+            'html_sheet_url_uefa': reverse('session-task-html-sheet', args=[task.id]) + '?style=uefa',
+            'html_sheet_url_club': reverse('session-task-html-sheet', args=[task.id]) + '?style=club',
+            'pdf_url_uefa': reverse('session-task-pdf', args=[task.id]) + '?style=uefa&one_page=1',
+            'pdf_url_club': reverse('session-task-pdf', args=[task.id]) + '?style=club&one_page=1',
+            'detail_url': reverse('session-task-detail', args=[task.id]),
+        }
+    )
+    return render(request, 'football/session_task_interactive_sheet.html', context)
+
+
 def _resolve_static_asset_file(asset_value):
     raw = str(asset_value or '').strip()
     if not raw:
