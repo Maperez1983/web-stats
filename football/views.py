@@ -611,6 +611,9 @@ def system_healthcheck_api(request):
         return JsonResponse({'ok': False, 'error': f'No se pudo importar healthchecks: {exc}'}, status=500)
 
     report = run_system_healthcheck()
+    include_guard = str(request.GET.get('guard') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    include_guard_smoke = str(request.GET.get('guard_smoke') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    include_guard_llm = str(request.GET.get('guard_llm') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
     # PDF smoke test (WeasyPrint)
     pdf_smoke = {'ok': False, 'detail': 'not checked'}
     if weasyprint:
@@ -659,6 +662,19 @@ def system_healthcheck_api(request):
         report['pydyf_ok'] = False
         report['pydyf_pdf_signature'] = ''
         report['pydyf_pdf_args_ok'] = False
+    if include_guard:
+        try:
+            from football.system_guard import run_system_guard  # lazy import
+
+            report['system_guard'] = run_system_guard(
+                run_smoke=include_guard_smoke,
+                run_llm=include_guard_llm,
+            )
+        except Exception as exc:
+            report['system_guard'] = {
+                'ok': False,
+                'error': f'{exc.__class__.__name__}: {exc}',
+            }
     return JsonResponse(report)
 
 
