@@ -11988,7 +11988,6 @@
 						                target.add(atmosphere);
 						              } catch (e) { /* ignore */ }
 						            };
-                              const useHandcraftedDedicatedReferenceStadium = true;
 						          const addCornerFlag = (x, z, flipX, flipZ) => {
 						            const group = new THREE.Group();
 						            group.position.set(x, 0, z);
@@ -12025,6 +12024,7 @@
 						          addCornerFlag((metersW / 2), (metersH / 2), -1, -1);
 						        } catch (e) { /* ignore */ }
 						      };
+						      const useHandcraftedDedicatedReferenceStadium = true;
 						      addPitchSideDetails3d();
 						      try {
 						        if (useHandcraftedDedicatedReferenceStadium) {
