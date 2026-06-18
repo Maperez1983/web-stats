@@ -59,6 +59,7 @@
       .guard-toggles { display:flex; gap:0.65rem; flex-wrap:wrap; align-items:center; }
       .guard-toggle { display:inline-flex; align-items:center; gap:0.45rem; font-size:0.78rem; font-weight:900; text-transform:none; letter-spacing:0; }
       .guard-statusline { min-height:1.2rem; color: rgba(226,232,240,0.72); font-size:0.76rem; font-weight:850; }
+      .guard-quick-actions { display:flex; gap:0.45rem; flex-wrap:wrap; margin:0 0 0.65rem; }
     </style>
   </head>
   <body>
@@ -395,6 +396,13 @@
           </div>
         </div>
         <div class="guard-controls">
+          <div id="guard-quick-actions" class="guard-quick-actions">
+            <button type="button" class="btn" data-guard-action="status">Revisar estado</button>
+            <button type="button" class="btn" data-guard-action="smoke">Ejecutar smoke</button>
+            <button type="button" class="btn" data-guard-action="auto_fix">Auto-fix seguro</button>
+            <button type="button" class="btn" data-guard-action="previews">Regenerar previews</button>
+            <button type="button" class="btn" data-guard-action="reindex">Reindexar IA</button>
+          </div>
           <div class="guard-toggles">
             <label class="guard-toggle"><input type="checkbox" id="guard-run-smoke" /> Incluir smoke</label>
             <label class="guard-toggle"><input type="checkbox" id="guard-auto-fix" /> Auto-fix seguro</label>
@@ -472,8 +480,16 @@
         const guardSmokeEl = document.getElementById('guard-run-smoke');
         const guardFixEl = document.getElementById('guard-auto-fix');
         const guardStatusEl = document.getElementById('guard-chat-status');
+        const guardQuickActionsEl = document.getElementById('guard-quick-actions');
         const guardApiUrl = "{% url 'system-guard-chat-api' %}";
         const guardHistory = [];
+        const guardActionPresets = {
+          status: { message: 'Revisa el estado actual del sistema y resúmelo.', runSmoke: false, autoFix: false, maintenanceAction: '' },
+          smoke: { message: 'Ejecuta smoke del sistema y resume incidencias.', runSmoke: true, autoFix: false, maintenanceAction: '' },
+          auto_fix: { message: 'Ejecuta auto-fix seguro y resume el estado final.', runSmoke: false, autoFix: true, maintenanceAction: '' },
+          previews: { message: 'Regenera previews y dime el resultado.', runSmoke: false, autoFix: false, maintenanceAction: 'regenerate_task_previews' },
+          reindex: { message: 'Reindexa IA Trainer y dime el resultado.', runSmoke: false, autoFix: false, maintenanceAction: 'ai_trainer_reindex' },
+        };
 
         const guardCsrfToken = () => {
           const raw = document.cookie.split(';').map((row) => row.trim()).find((row) => row.startsWith('csrftoken='));
@@ -510,15 +526,20 @@
           guardLogEl.appendChild(wrap);
           guardLogEl.scrollTop = guardLogEl.scrollHeight;
         };
-        const guardSendMessage = async () => {
-          const message = String(guardInputEl?.value || '').trim();
+        const guardSendMessage = async (preset = null) => {
+          const usePreset = preset && typeof preset === 'object' ? preset : null;
+          const message = usePreset ? String(usePreset.message || '').trim() : String(guardInputEl?.value || '').trim();
           if (!message) {
             guardSetStatus('Escribe un mensaje.', true);
             return;
           }
+          if (usePreset) {
+            if (guardSmokeEl) guardSmokeEl.checked = Boolean(usePreset.runSmoke);
+            if (guardFixEl) guardFixEl.checked = Boolean(usePreset.autoFix);
+          }
           guardRenderMessage('user', message);
           guardHistory.push({ role: 'user', content: message });
-          guardInputEl.value = '';
+          if (guardInputEl) guardInputEl.value = '';
           guardSetStatus('Consultando guardián…');
           try {
             const resp = await fetch(guardApiUrl, {
@@ -531,8 +552,9 @@
               },
               body: JSON.stringify({
                 message,
-                run_smoke: Boolean(guardSmokeEl?.checked),
-                auto_fix: Boolean(guardFixEl?.checked),
+                run_smoke: usePreset ? Boolean(usePreset.runSmoke) : Boolean(guardSmokeEl?.checked),
+                auto_fix: usePreset ? Boolean(usePreset.autoFix) : Boolean(guardFixEl?.checked),
+                maintenance_action: usePreset ? String(usePreset.maintenanceAction || '') : '',
                 history: guardHistory,
               }),
             });
@@ -566,6 +588,14 @@
             guardRenderMessage('assistant', 'Conversación reiniciada. Puedo revisar el sistema, resumir su estado y ejecutar auto-fix seguro sobre checks conocidos.');
           }
           guardSetStatus('');
+        });
+        guardQuickActionsEl?.addEventListener('click', (event) => {
+          const btn = event.target.closest('[data-guard-action]');
+          if (!btn) return;
+          const key = String(btn.getAttribute('data-guard-action') || '').trim();
+          const preset = guardActionPresets[key];
+          if (!preset) return;
+          guardSendMessage(preset);
         });
       })();
     </script>

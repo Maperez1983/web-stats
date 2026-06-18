@@ -695,6 +695,7 @@ def system_guard_chat_api(request):
         return JsonResponse({'ok': False, 'error': 'Mensaje vacío.'}, status=400)
     run_smoke = str(payload.get('run_smoke') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
     auto_fix = str(payload.get('auto_fix') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    maintenance_action = str(payload.get('maintenance_action') or '').strip()
     history = payload.get('history') if isinstance(payload.get('history'), list) else []
     try:
         from football.system_guard import run_system_guard_chat  # lazy import
@@ -704,6 +705,7 @@ def system_guard_chat_api(request):
             history=history,
             run_smoke=run_smoke,
             auto_fix=auto_fix,
+            maintenance_action=maintenance_action,
         )
         return JsonResponse({'ok': True, **result})
     except Exception as exc:

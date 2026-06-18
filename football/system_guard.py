@@ -96,6 +96,14 @@ MAINTENANCE_COMMANDS = {
     },
 }
 
+CHAT_ACTIONS = {
+    "status": {"label": "Revisar estado", "run_smoke": False, "auto_fix": False, "maintenance_action": ""},
+    "smoke": {"label": "Ejecutar smoke", "run_smoke": True, "auto_fix": False, "maintenance_action": ""},
+    "auto_fix": {"label": "Ejecutar auto-fix seguro", "run_smoke": False, "auto_fix": True, "maintenance_action": ""},
+    "previews": {"label": "Regenerar previews", "run_smoke": False, "auto_fix": False, "maintenance_action": "regenerate_task_previews"},
+    "reindex": {"label": "Reindexar IA Trainer", "run_smoke": False, "auto_fix": False, "maintenance_action": "ai_trainer_reindex"},
+}
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -591,6 +599,15 @@ def _run_proactive_maintenance() -> dict:
     return {"applied": applied, "skipped": skipped}
 
 
+def _run_named_maintenance_action(action_name: str) -> dict:
+    action = str(action_name or "").strip()
+    if action == "regenerate_task_previews":
+        return _autofix_regenerate_task_previews()
+    if action == "ai_trainer_reindex":
+        return _autofix_ai_trainer_reindex()
+    return {"ok": False, "error": "unknown_maintenance_action", "action": action}
+
+
 def _compact_evidence_for_llm(evidence: dict, issues: list[dict]) -> dict:
     health = evidence.get("healthcheck") if isinstance(evidence.get("healthcheck"), dict) else {}
     route_inventory = evidence.get("route_inventory") if isinstance(evidence.get("route_inventory"), dict) else {}
@@ -673,6 +690,10 @@ def build_system_guard_chat_prompt(report: dict, question: str, history: list[di
                 "autofix": report.get("autofix"),
                 "compact_evidence": compact,
             },
+            "available_chat_actions": [
+                {"key": key, "label": meta.get("label")}
+                for key, meta in CHAT_ACTIONS.items()
+            ],
         },
         ensure_ascii=False,
         separators=(",", ":"),
@@ -774,8 +795,13 @@ def run_system_guard_chat(
     history: list[dict] | None = None,
     run_smoke: bool = False,
     auto_fix: bool = False,
+    maintenance_action: str = "",
 ) -> dict:
     report = run_system_guard(run_smoke=run_smoke, run_llm=False, auto_fix=auto_fix)
+    maintenance_result = None
+    if str(maintenance_action or "").strip():
+        maintenance_result = _run_named_maintenance_action(maintenance_action)
+        report["maintenance_action"] = maintenance_result
     cfg = local_llm_config()
     if not cfg.get("enabled") or str(cfg.get("provider") or "").lower() != "ollama":
         return {
@@ -785,6 +811,10 @@ def run_system_guard_chat(
                 "available": False,
                 "error": "local_llm_disabled_or_unsupported",
                 "response": None,
+                "quick_actions": [
+                    {"key": key, "label": meta.get("label")}
+                    for key, meta in CHAT_ACTIONS.items()
+                ],
             },
         }
     parsed, error = call_ollama_json(
@@ -800,5 +830,9 @@ def run_system_guard_chat(
             "available": isinstance(parsed, dict),
             "error": str(error or ""),
             "response": parsed if isinstance(parsed, dict) else None,
+            "quick_actions": [
+                {"key": key, "label": meta.get("label")}
+                for key, meta in CHAT_ACTIONS.items()
+            ],
         },
     }
