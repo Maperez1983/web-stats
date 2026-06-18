@@ -16977,6 +16977,34 @@
 						          window.setTimeout(triggerLateStadiumRecovery, 700);
 						          window.setTimeout(triggerLateStadiumRecovery, 1800);
 						        }
+						        if (fieldFormat !== 'f11') {
+						          try {
+						            const coverMat = new THREE.MeshStandardMaterial({ color: 0x5f8f42, roughness: 0.88, metalness: 0.01 });
+						            const cover = new THREE.Mesh(new THREE.PlaneGeometry(metersW + 18, metersH + 18), coverMat);
+						            cover.rotation.x = -Math.PI / 2;
+						            cover.position.y = 0.02;
+						            cover.userData = { kind: 'pitch_3d_nonf11_context_cover' };
+						            cover.receiveShadow = true;
+						            root.add(cover);
+						          } catch (e) { /* ignore */ }
+						          try {
+						            root.traverse((node) => {
+						              const kind = safeText(node?.userData?.kind || '').toLowerCase();
+						              if (!kind) return;
+						              if (
+						                kind.includes('stadium')
+						                || kind.includes('backdrop')
+						                || kind.includes('sky_dome')
+						                || kind.includes('sun_disc')
+						                || kind.includes('runtime_')
+						                || kind.includes('exterior')
+						                || kind.includes('green_runoff')
+						              ) {
+						                node.visible = false;
+						              }
+						            });
+						          } catch (e) { /* ignore */ }
+						        }
 						      } catch (e) { /* ignore */ }
 
 							      // Spotlight (halo) para seguimiento / selección.
