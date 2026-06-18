@@ -13531,6 +13531,215 @@
           })();
         </script>
         {% endif %}
+    <script>
+      (function () {
+        const ready = (fn) => {
+          if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn, { once: true });
+          else fn();
+        };
+        ready(() => {
+          const widthEl = document.getElementById('task-space-width');
+          const lengthEl = document.getElementById('task-space-length');
+          const playersEl = document.getElementById('task-space-players');
+          const objectiveEl = document.getElementById('task-space-objective');
+          const dimensionsEl = document.getElementById('draw-task-dimensions');
+          const playerCountEl = document.getElementById('draw-task-player-count');
+          const areaEl = document.getElementById('task-space-area');
+          const perPlayerEl = document.getElementById('task-space-per-player');
+          const densityEl = document.getElementById('task-space-density');
+          const recommendationEl = document.getElementById('task-space-recommendation');
+          const applyCurrentBtn = document.getElementById('task-space-apply-current');
+          const applyRecommendedBtn = document.getElementById('task-space-apply-recommended');
+          if (!widthEl || !lengthEl || !playersEl || !areaEl || !perPlayerEl || !densityEl || !recommendationEl) return;
+
+          const focusDefs = {
+            force: {
+              label: 'Fuerza especifica',
+              short: 'Fuerza',
+              note: 'Alta tension: aceleraciones, desaceleraciones, cambios de direccion, duelos y robo cercano.',
+            },
+            activation: {
+              label: 'Activacion / recuperacion',
+              short: 'Activacion',
+              note: 'Continuidad con baja orientacion condicional dominante; util para calentar, recuperar o fijar reglas tacticas.',
+            },
+            resistance: {
+              label: 'Resistencia especifica',
+              short: 'Resistencia',
+              note: 'Formato para continuidad, duracion y rangos altos de frecuencia cardiaca.',
+            },
+            speed: {
+              label: 'Velocidad / sprint',
+              short: 'Velocidad',
+              note: 'Espacio para correr, atacar profundidad y sostener acciones de alta velocidad.',
+            },
+          };
+          const matrix = {
+            lt50: { '1_2': ['force', 1], '3_4': ['force', 2], '5_7': ['activation', 2], '8_10': ['activation', 4] },
+            '50_100': { '1_2': ['force', 3], '3_4': ['force', 4], '5_7': ['activation', 1], '8_10': ['activation', 3] },
+            '100_200': { '1_2': ['resistance', 2], '3_4': ['resistance', 4], '5_7': ['speed', 4], '8_10': ['speed', 2] },
+            gt200: { '1_2': ['resistance', 1], '3_4': ['resistance', 3], '5_7': ['speed', 3], '8_10': ['speed', 1] },
+          };
+          const objectiveAlignment = {
+            pressing: ['force'],
+            possession: ['resistance', 'activation'],
+            position: ['resistance', 'activation'],
+            finishing: ['speed', 'force'],
+            transition: ['speed'],
+            speed: ['speed'],
+          };
+          const targetM2 = {
+            pressing: 55,
+            possession: 115,
+            position: 115,
+            finishing: 145,
+            transition: 205,
+            speed: 220,
+          };
+          const parseNumber = (value) => {
+            const n = Number.parseFloat(String(value || '').replace(',', '.'));
+            return Number.isFinite(n) && n > 0 ? n : 0;
+          };
+          const setInput = (el, value) => {
+            if (!el) return;
+            el.value = String(value || '');
+            try { el.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
+            try { el.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
+          };
+          const parseDimensions = (raw) => {
+            const match = String(raw || '').replace('×', 'x').match(/(\d+(?:[,.]\d+)?)\s*x\s*(\d+(?:[,.]\d+)?)/i);
+            if (!match) return null;
+            return [parseNumber(match[1]), parseNumber(match[2])];
+          };
+          const playerBand = (playersTotal) => {
+            const perTeam = Math.max(1, Math.round((Number(playersTotal) || 0) / 2));
+            if (perTeam <= 2) return ['1_2', '1-2/equipo', false];
+            if (perTeam <= 4) return ['3_4', '3-4/equipo', false];
+            if (perTeam <= 7) return ['5_7', '5-7/equipo', false];
+            return ['8_10', perTeam > 10 ? '8-10/equipo aprox.' : '8-10/equipo', perTeam > 10];
+          };
+          const spaceBand = (m2) => {
+            if (m2 < 50) return ['lt50', '<50 m²/j'];
+            if (m2 < 100) return ['50_100', '50-100 m²/j'];
+            if (m2 < 200) return ['100_200', '100-200 m²/j'];
+            return ['gt200', '>200 m²/j'];
+          };
+          const readPart = (id) => {
+            const el = document.getElementById(id);
+            return Math.max(0, Math.round(parseNumber(el?.value || '0')));
+          };
+          const selectedParticipants = () => {
+            const a = readPart('task-team-a-count');
+            const b = readPart('task-team-b-count');
+            const n = readPart('task-neutral-count');
+            const g = readPart('task-goalkeeper-count');
+            const total = a + b + n + g;
+            return { a, b, n, g, total };
+          };
+          const updateParticipantSummary = () => {
+            const parts = selectedParticipants();
+            if (parts.total > 0) setInput(playersEl, parts.total);
+            if (playerCountEl && (parts.a || parts.b)) {
+              const extras = [];
+              if (parts.n) extras.push(`${parts.n} comodin${parts.n === 1 ? '' : 'es'}`);
+              if (parts.g) extras.push(`${parts.g} portero${parts.g === 1 ? '' : 's'}`);
+              setInput(playerCountEl, `${parts.a}v${parts.b}${extras.length ? ` + ${extras.join(' + ')}` : ''}`);
+            }
+          };
+          const applyDimensionsText = () => {
+            const w = Math.round(parseNumber(widthEl.value));
+            const l = Math.round(parseNumber(lengthEl.value));
+            if (w > 0 && l > 0 && dimensionsEl) setInput(dimensionsEl, `${w}x${l} m`);
+          };
+          const setRecommendedDimensions = (target) => {
+            const players = Math.max(1, Math.round(parseNumber(playersEl.value) || selectedParticipants().total || 10));
+            const m2 = Math.max(35, Number(target) || targetM2[String(objectiveEl?.value || '')] || 115);
+            const area = players * m2;
+            const ratio = m2 >= 180 ? 1.55 : (m2 <= 70 ? 1.15 : 1.35);
+            const w = Math.max(8, Math.round(Math.sqrt(area / ratio)));
+            const l = Math.max(10, Math.round(w * ratio));
+            setInput(widthEl, w);
+            setInput(lengthEl, l);
+            setInput(playersEl, players);
+            applyDimensionsText();
+            updateSpaceCoach();
+          };
+          const updateFromDimensionsText = () => {
+            const parsed = parseDimensions(dimensionsEl?.value || '');
+            if (!parsed || !parsed[0] || !parsed[1]) return;
+            if (!parseNumber(widthEl.value)) widthEl.value = String(Math.round(parsed[0]));
+            if (!parseNumber(lengthEl.value)) lengthEl.value = String(Math.round(parsed[1]));
+          };
+          const updateSpaceCoach = () => {
+            const w = parseNumber(widthEl.value);
+            const l = parseNumber(lengthEl.value);
+            const p = parseNumber(playersEl.value);
+            if (!w || !l || !p) {
+              areaEl.textContent = '-- m²';
+              perPlayerEl.textContent = '-- m²/j';
+              densityEl.textContent = '--';
+              recommendationEl.textContent = 'Introduce dimensiones y jugadores para recibir una recomendacion.';
+              return;
+            }
+            const area = w * l;
+            const m2 = area / p;
+            const [sKey, sLabel] = spaceBand(m2);
+            const [pKey, pLabel, fallback] = playerBand(p);
+            const row = matrix[sKey]?.[pKey] || ['activation', 0];
+            const focusKey = row[0];
+            const priority = row[1];
+            const focus = focusDefs[focusKey] || focusDefs.activation;
+            const objective = String(objectiveEl?.value || '').trim();
+            const expected = objectiveAlignment[objective] || [];
+            const aligned = !expected.length || expected.includes(focusKey);
+            areaEl.textContent = `${Math.round(area)} m²`;
+            perPlayerEl.textContent = `${m2.toFixed(1)} m²/j`;
+            densityEl.textContent = `${focus.short} · ${sLabel}`;
+            const alignNote = aligned
+              ? 'Encaja con el objetivo seleccionado.'
+              : 'Si ese no era el objetivo, ajusta dimensiones, jugadores o reglas.';
+            const fallbackNote = fallback ? ' La tabla llega hasta 10 jugadores por equipo; se aplica el tramo mas cercano.' : '';
+            recommendationEl.textContent = `${pLabel}, prioridad ${priority || '-'}: ${focus.note} ${alignNote}${fallbackNote}`;
+          };
+
+          updateFromDimensionsText();
+          updateParticipantSummary();
+          updateSpaceCoach();
+          [widthEl, lengthEl, playersEl, objectiveEl].forEach((el) => {
+            el?.addEventListener('input', updateSpaceCoach);
+            el?.addEventListener('change', updateSpaceCoach);
+          });
+          dimensionsEl?.addEventListener('input', () => {
+            const parsed = parseDimensions(dimensionsEl.value);
+            if (parsed) {
+              widthEl.value = String(Math.round(parsed[0]));
+              lengthEl.value = String(Math.round(parsed[1]));
+              updateSpaceCoach();
+            }
+          });
+          Array.from(document.querySelectorAll('[data-player-count-part]')).forEach((el) => {
+            el.addEventListener('change', () => {
+              updateParticipantSummary();
+              updateSpaceCoach();
+            });
+          });
+          applyCurrentBtn?.addEventListener('click', () => {
+            applyDimensionsText();
+            updateSpaceCoach();
+          });
+          applyRecommendedBtn?.addEventListener('click', () => {
+            setRecommendedDimensions(targetM2[String(objectiveEl?.value || '')] || 115);
+          });
+          Array.from(document.querySelectorAll('[data-space-target]')).forEach((btn) => {
+            btn.addEventListener('click', () => {
+              const key = String(btn.getAttribute('data-space-target') || '').trim();
+              const target = key === 'tight' ? 55 : (key === 'wide' ? 205 : 115);
+              setRecommendedDimensions(target);
+            });
+          });
+        });
+      })();
+    </script>
     {% if task %}
     <script>
       (function () {

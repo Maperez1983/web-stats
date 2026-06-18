@@ -78,6 +78,13 @@ def build_ai_trainer_context(*, team_name, profile, phase, goal, signals, club_m
         if len(suggested_tasks) >= 8:
             break
 
+    try:
+        from .task_space_knowledge import task_space_context_for_prompt
+
+        task_space_knowledge = task_space_context_for_prompt()
+    except Exception:
+        task_space_knowledge = {}
+
     return {
         'team': str(team_name or '')[:120],
         'profile': str(profile or '')[:80],
@@ -99,6 +106,7 @@ def build_ai_trainer_context(*, team_name, profile, phase, goal, signals, club_m
             'behavior_rules': _compact_list(model.get('behavior_rules') if isinstance(model.get('behavior_rules'), list) else [], limit=8),
         },
         'learning_memory': learning_memory if isinstance(learning_memory, dict) else {},
+        'task_space_knowledge': task_space_knowledge if isinstance(task_space_knowledge, dict) else {},
         'external_web_research': web_research if isinstance(web_research, list) else [],
         'candidate_tasks': suggested_tasks,
         'rule_proposals': [
@@ -128,6 +136,8 @@ def build_ai_trainer_prompt(context):
         'Eres un entrenador senior de fútbol y preparador metodológico. '
         'Debes ayudar a planificar microciclos, sesiones y tareas con periodización táctica. '
         'No inventes datos externos. Usa solo el contexto recibido y si falta información, dilo como cautela. '
+        'Si task_space_knowledge esta presente, usalo para calcular/razonar sobre m2 por jugador, numero de participantes, '
+        'orientacion condicional de juegos reducidos y ajustes de dimensiones. '
         'Si external_web_research contiene fuentes ok=true, úsalo como información web aportada por el sistema, '
         'citando la fuente por título o dominio cuando afecte a una recomendación. '
         'Si una fuente tiene ok=false, ignórala salvo para advertir que no pudo consultarse. '
