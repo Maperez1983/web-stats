@@ -3685,6 +3685,24 @@
         font-size: 0.78rem;
         line-height: 1.35;
       }
+      .task-sheet-summary {
+        grid-column: 1 / -1;
+        display: grid;
+        gap: 0.28rem;
+        padding: 0.72rem 0.78rem;
+        border-radius: 12px;
+        border: 1px solid rgba(132, 204, 22, 0.22);
+        background: rgba(20, 83, 45, 0.22);
+        color: rgba(240,253,244,0.92);
+        font-size: 0.8rem;
+        line-height: 1.35;
+      }
+      .task-sheet-summary strong {
+        font-size: 0.72rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: rgba(220,252,231,0.86);
+      }
       .assign-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(138px, 1fr));
@@ -7370,7 +7388,7 @@
                   </label>
                   {% endif %}
                   <label>
-                    Superficie
+                    Entorno
                     <select name="draw_task_surface" id="draw-task-surface">
                       {% for value, label in task_surface_choices %}
                       <option value="{{ value }}" {% if initial.surface == value %}selected{% endif %}>{{ label }}</option>
@@ -7386,6 +7404,15 @@
                     <textarea name="draw_task_objective" rows="2" style="min-height:52px; resize:vertical;">{{ initial.objective }}</textarea>
                   </label>
                   <label>
+                    Momento del juego
+                    <select name="draw_task_game_moment" id="draw-task-game-moment">
+                      <option value="">Selecciona...</option>
+                      {% for value, label in game_moment_choices %}
+                      <option value="{{ value }}" {% if initial.game_moment == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
                     Bloque
                     <select name="draw_task_block">
                       {% for value, label in task_blocks %}
@@ -7398,7 +7425,15 @@
                     <input type="number" name="draw_task_minutes" min="5" max="90" value="{{ initial.minutes|default:15 }}" />
                   </label>
                   <label>
-                    Nº jugadores
+                    Principio
+                    <input type="text" name="draw_task_principle" value="{{ initial.principle }}" maxlength="120" placeholder="Ej: atraer para progresar" />
+                  </label>
+                  <label style="grid-column:1 / -1;">
+                    Subprincipio
+                    <input type="text" name="draw_task_subprinciple" value="{{ initial.subprinciple }}" maxlength="160" placeholder="Ej: fijar fuera para encontrar tercer hombre dentro" />
+                  </label>
+                  <label>
+                    Resumen participantes
                     <input type="text" name="draw_task_player_count" id="draw-task-player-count" value="{{ initial.player_count }}" placeholder="Ej: 6v6 + 2 porteros" />
                   </label>
                   <div class="space-team-grid" aria-label="Participantes de la tarea">
@@ -7446,7 +7481,7 @@
                     </label>
                   </div>
                   <label>
-                    Dimensiones
+                    Resumen dimensiones
                     <input type="text" name="draw_task_dimensions" id="draw-task-dimensions" value="{{ initial.dimensions }}" placeholder="Ej: 40x30 m" />
                   </label>
                   <div class="space-coach" id="task-space-coach">
@@ -7502,16 +7537,20 @@
                       <button type="button" data-space-target="wide">Más profundidad</button>
                     </div>
                   </div>
+                  <div class="task-sheet-summary" id="task-sheet-summary" aria-live="polite">
+                    <strong>Resumen de tarea</strong>
+                    <span>Completa participantes y dimensiones para obtener lectura automática del espacio.</span>
+                  </div>
                   <label>
                     Edad
                     <input type="text" name="draw_task_age_group" value="{{ initial.age_group }}" placeholder="Ej: Cadete / Juvenil" />
                   </label>
                   <label>
-                    Tipo
+                    Tipo / método
                     <input type="text" name="draw_task_training_type" value="{{ initial.training_type }}" placeholder="Ej: Conservación / Finalización" />
                   </label>
                   <label style="grid-column:1 / -1;">
-                    Formato real
+                    Formato de campo
                     <select name="draw_task_pitch_format" id="draw-task-pitch-format">
                       {% for value, label in task_pitch_choices %}
                       <option value="{{ value }}" {% if initial.pitch_format == value %}selected{% endif %}>{{ label }}</option>
@@ -7565,7 +7604,7 @@
                     <input type="hidden" name="draw_task_coaching_points_html" id="draw-task-coaching-points-html" value="{{ initial.coaching_points_html|default:''|escape }}" />
                   </label>
                   <label>
-                    Normas de confrontación
+                    Reglas del juego
                     <div class="rich-editor" data-rich-editor data-rich-name="draw_task_confrontation_rules" data-rich-html-name="draw_task_confrontation_rules_html">
                       <div class="rich-toolbar" aria-label="Formato de texto">
                         <button type="button" data-rich-cmd="bold" title="Negrita">B</button>
@@ -7585,51 +7624,16 @@
                     <input type="hidden" name="draw_task_confrontation_rules_html" id="draw-task-confrontation-rules-html" value="{{ initial.confrontation_rules_html|default:''|escape }}" />
                   </label>
                   <label>
+                    Condicionantes / puntuación
+                    <textarea name="draw_task_provocation_rule" rows="2" maxlength="500" placeholder="Ej: gol doble tras robo en 6 segundos">{{ initial.provocation_rule }}</textarea>
+                  </label>
+                  <label>
                     Material
                     <input type="text" name="draw_task_materials" value="{{ initial.materials }}" placeholder="Conos, petos, porterías..." />
                   </label>
 	                  <label>
-	                    Espacio
+	                    Zona / carriles
 	                    <input type="text" name="draw_task_space" value="{{ initial.space }}" placeholder="Ej: zona central + 2 carriles" />
-	                  </label>
-		                  <label style="grid-column:1 / -1;">
-		                    Pictogramas (opcional)
-		                    <div class="meta" style="margin-top:0.25rem; margin-bottom:0.45rem; opacity:0.86;">
-		                      Útil para calentamientos (técnica de carrera / movilidad). Se imprimen en el PDF como secuencia visual.
-		                    </div>
-		                    <input type="hidden" name="draw_task_drills_json" id="draw-task-drills-json" value="{{ initial.drills_json|default:'[]'|escape }}" />
-		                    <input type="hidden" name="draw_task_drills_icon_color" id="draw-task-drills-icon-color" value="{{ initial.drills_icon_color|default:'#0f7a35'|escape }}" />
-		                    <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; margin-bottom:0.45rem;">
-		                      <input type="text" id="task-drills-search" placeholder="Buscar…" style="flex:1 1 140px; min-width:140px;" />
-		                      <select id="task-drills-filter" style="flex:0 0 auto;">
-	                        <option value="all">Todos</option>
-	                        <option value="running">Carrera</option>
-	                        <option value="running_technique">Técnica carrera</option>
-	                        <option value="mobility">Movilidad</option>
-	                        <option value="physical_field">Carga · campo</option>
-	                        <option value="plyo">Pliometría</option>
-	                        <option value="strength">Fuerza</option>
-	                        <option value="core">Core</option>
-	                        <option value="prehab">Prehab</option>
-	                      </select>
-	                      <select id="task-drills-age" style="flex:0 0 auto;" title="Filtra por edad orientativa (no excluye: deja en “Todas” para ver el catálogo completo).">
-	                        <option value="all">Edades · Todas</option>
-	                        <option value="u8">4–8</option>
-	                        <option value="u12">9–12</option>
-	                        <option value="u16">13–16</option>
-	                        <option value="adult">17+</option>
-	                      </select>
-	                    </div>
-		                    <div class="drills-picker" id="task-drills-picker" style="margin-top:0.35rem;">
-		                      {% for drill in drills_catalog %}
-		                      <label class="chip-toggle" title="{{ drill.label }}" data-drill-cat="{{ drill.category }}" data-drill-label="{{ drill.label }}" data-drill-age-min="{{ drill.age_min|default:'' }}" data-drill-age-max="{{ drill.age_max|default:'' }}">
-		                        <input type="checkbox" value="{{ drill.id }}" {% if drill.id in initial.drills_ids %}checked{% endif %} data-drill-id="{{ drill.id }}" />
-		                        <img class="drill-icon" src="{% static drill.icon_static_path %}" alt="" />
-		                        <button type="button" class="drill-add-to-board" data-drill-add="{{ drill.id }}" title="Añadir pictograma a la pizarra">+</button>
-		                        {{ drill.label }}
-		                      </label>
-		                      {% endfor %}
-		                    </div>
 	                  </label>
 	                </div>
 		              </div>
@@ -7945,6 +7949,45 @@
                       <option value="{{ value }}" {% if initial.complexity == value %}selected{% endif %}>{{ label }}</option>
                       {% endfor %}
                     </select>
+                  </label>
+                  <label style="grid-column:1 / -1;">
+                    Pictogramas (opcional)
+                    <div class="meta" style="margin-top:0.25rem; margin-bottom:0.45rem; opacity:0.86;">
+                      Útil para calentamientos (técnica de carrera / movilidad). Se imprimen en el PDF como secuencia visual.
+                    </div>
+                    <input type="hidden" name="draw_task_drills_json" id="draw-task-drills-json" value="{{ initial.drills_json|default:'[]'|escape }}" />
+                    <input type="hidden" name="draw_task_drills_icon_color" id="draw-task-drills-icon-color" value="{{ initial.drills_icon_color|default:'#0f7a35'|escape }}" />
+                    <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; margin-bottom:0.45rem;">
+                      <input type="text" id="task-drills-search" placeholder="Buscar…" style="flex:1 1 140px; min-width:140px;" />
+                      <select id="task-drills-filter" style="flex:0 0 auto;">
+                        <option value="all">Todos</option>
+                        <option value="running">Carrera</option>
+                        <option value="running_technique">Técnica carrera</option>
+                        <option value="mobility">Movilidad</option>
+                        <option value="physical_field">Carga · campo</option>
+                        <option value="plyo">Pliometría</option>
+                        <option value="strength">Fuerza</option>
+                        <option value="core">Core</option>
+                        <option value="prehab">Prehab</option>
+                      </select>
+                      <select id="task-drills-age" style="flex:0 0 auto;" title="Filtra por edad orientativa (no excluye: deja en “Todas” para ver el catálogo completo).">
+                        <option value="all">Edades · Todas</option>
+                        <option value="u8">4–8</option>
+                        <option value="u12">9–12</option>
+                        <option value="u16">13–16</option>
+                        <option value="adult">17+</option>
+                      </select>
+                    </div>
+                    <div class="drills-picker" id="task-drills-picker" style="margin-top:0.35rem;">
+                      {% for drill in drills_catalog %}
+                      <label class="chip-toggle" title="{{ drill.label }}" data-drill-cat="{{ drill.category }}" data-drill-label="{{ drill.label }}" data-drill-age-min="{{ drill.age_min|default:'' }}" data-drill-age-max="{{ drill.age_max|default:'' }}">
+                        <input type="checkbox" value="{{ drill.id }}" {% if drill.id in initial.drills_ids %}checked{% endif %} data-drill-id="{{ drill.id }}" />
+                        <img class="drill-icon" src="{% static drill.icon_static_path %}" alt="" />
+                        <button type="button" class="drill-add-to-board" data-drill-add="{{ drill.id }}" title="Añadir pictograma a la pizarra">+</button>
+                        {{ drill.label }}
+                      </label>
+                      {% endfor %}
+                    </div>
                   </label>
 	                  <label style="grid-column:1 / -1;">
 	                    Progresión

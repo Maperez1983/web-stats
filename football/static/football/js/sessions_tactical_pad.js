@@ -1261,6 +1261,9 @@
     const livePreviewImg = document.getElementById('task-live-preview');
     const livePreviewPlaceholder = document.getElementById('task-live-preview-placeholder');
 	    const playerCountInput = form.querySelector('[name="draw_task_player_count"]');
+	    const taskTitleInput = form.querySelector('[name="draw_task_title"]');
+	    const taskObjectiveInput = form.querySelector('[name="draw_task_objective"]');
+	    const gameMomentInput = document.getElementById('draw-task-game-moment');
 	    const teamACountInput = document.getElementById('task-team-a-count');
 	    const teamBCountInput = document.getElementById('task-team-b-count');
 	    const neutralCountInput = document.getElementById('task-neutral-count');
@@ -1279,6 +1282,7 @@
 	    const spaceRecommendationEl = document.getElementById('task-space-recommendation');
 	    const spaceApplyRecommendedBtn = document.getElementById('task-space-apply-recommended');
 	    const spaceApplyCurrentBtn = document.getElementById('task-space-apply-current');
+	    const taskSheetSummaryEl = document.getElementById('task-sheet-summary');
 	    const legacyPlayersInput = form.querySelector('[name="draw_task_players"]');
 				    const statusEl = document.getElementById('task-builder-status');
 				    const drillsStripEl = document.getElementById('task-drills-strip');
@@ -4695,6 +4699,23 @@
 		      try { dimensionsInput.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) { /* ignore */ }
 		      try { dimensionsInput.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) { /* ignore */ }
 		    };
+		    const updateTaskSheetSummary = (data = {}) => {
+		      if (!taskSheetSummaryEl) return;
+		      const bits = [];
+		      const title = safeText(taskTitleInput?.value);
+		      const playersText = safeText(playerCountInput?.value || legacyPlayersInput?.value);
+		      const dimsText = safeText(dimensionsInput?.value);
+		      const momentText = gameMomentInput?.selectedOptions?.[0]?.textContent ? safeText(gameMomentInput.selectedOptions[0].textContent) : '';
+		      const objectiveText = safeText(taskObjectiveInput?.value);
+		      if (title) bits.push(`Título: ${title}`);
+		      if (playersText) bits.push(`Participantes: ${playersText}`);
+		      if (dimsText) bits.push(`Espacio: ${dimsText}`);
+		      if (Number(data.perPlayer) > 0) bits.push(`Densidad: ${data.perPlayer} m²/j (${data.density || 'sin lectura'})`);
+		      if (momentText && safeText(gameMomentInput?.value)) bits.push(`Momento: ${momentText}`);
+		      if (objectiveText) bits.push(`Objetivo definido`);
+		      const body = bits.length ? bits.join(' · ') : 'Completa participantes y dimensiones para obtener lectura automática del espacio.';
+		      taskSheetSummaryEl.innerHTML = `<strong>Resumen de tarea</strong><span>${escapeHtml(body)}</span>`;
+		    };
 		    const updateSpaceCoach = (options = {}) => {
 		      if (!spaceCoachEl) return null;
 		      const parsedDims = parseTaskDimensionsMeters(dimensionsInput?.value);
@@ -4724,6 +4745,7 @@
 		        const suggestionText = players ? `${dimensionsText(suggested.w, suggested.l)} (${Math.round(suggested.area / Math.max(1, players))} m²/j)` : dimensionsText(suggested.w, suggested.l);
 		        spaceRecommendationEl.textContent = `${rule.label}: rango orientativo ${target}. Recomendado ahora: ${suggestionText}. ${rule.note}`;
 		      }
+		      updateTaskSheetSummary({ w, l, players, area, perPlayer, density, rule, suggested });
 		      return { w, l, players, area, perPlayer, density, rule, suggested };
 		    };
 		    const initSpaceCoach = () => {
@@ -4752,7 +4774,7 @@
 		        else if (typeRaw.includes('conserv') || typeRaw.includes('poses')) spaceObjectiveInput.value = 'possession';
 		      }
 		      updateSpaceCoach();
-		      [dimensionsInput, playerCountInput, legacyPlayersInput, trainingTypeInput].forEach((input) => {
+		      [dimensionsInput, playerCountInput, legacyPlayersInput, trainingTypeInput, taskTitleInput, taskObjectiveInput, gameMomentInput].forEach((input) => {
 		        input?.addEventListener('input', () => updateSpaceCoach());
 		        input?.addEventListener('change', () => updateSpaceCoach());
 		      });
