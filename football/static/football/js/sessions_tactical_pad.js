@@ -391,6 +391,9 @@
 		    const orientation = safeText(orientationKey, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
 		    const normalizedGrass = safeText(grassStyleKey, 'classic').toLowerCase();
 		    const isStadiumCameraStyle = normalizedGrass.startsWith('stadium_');
+		    const forceTopCamera2d = (() => {
+		      try { return window.__WEBSTATS_TACTICS_MODE === true; } catch (e) { return false; }
+		    })();
 		    let grassStyle = ([
 		      'classic', 'realistic', 'pro', 'broadcast',
 		      'stadium_close', 'stadium_top', 'stadium_full', 'stadium_premium',
@@ -399,7 +402,7 @@
 		    ].includes(normalizedGrass))
 		      ? normalizedGrass
 		      : 'classic';
-		    if (isStadiumCameraStyle) grassStyle = 'stadium_top';
+		    if (forceTopCamera2d || isStadiumCameraStyle) grassStyle = 'stadium_top';
 			    try {
 			      if (window.__WEBSTATS_TACTICS_MODE === true && ['coachboard', 'whiteboard', 'blackboard'].includes(grassStyle)) {
 			        grassStyle = 'classic';
@@ -4234,6 +4237,9 @@
 					    const normalizeGrassStyleForMode = (value) => {
 					      const next = safeText(value, 'classic').toLowerCase();
 					      if (!GRASS_STYLE_ORDER.includes(next)) return 'classic';
+					      try {
+					        if (window.__WEBSTATS_TACTICS_MODE === true) return 'stadium_top';
+					      } catch (e) { /* ignore */ }
 					      if (next.startsWith('stadium_')) return 'stadium_top';
 					      return next;
 					    };
