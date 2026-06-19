@@ -22,8 +22,17 @@
   .guard-msg .body { font-weight:800; line-height:1.5; }
   .guard-badges { display:flex; flex-wrap:wrap; gap:0.35rem; margin-top:0.55rem; }
   .guard-badge { border-radius:999px; padding:0.2rem 0.5rem; border:1px solid rgba(255,255,255,0.16); background:rgba(255,255,255,0.05); font-size:0.72rem; font-weight:900; }
+  .guard-mini-status { display:flex; align-items:center; gap:0.55rem; margin-bottom:0.65rem; position:relative; z-index:1; }
+  .guard-mini-copy { font-size:0.8rem; font-weight:800; color:rgba(226,232,240,0.8); line-height:1.4; }
   .guard-controls { margin-top:0.7rem; }
   .guard-quick-actions { display:flex; flex-wrap:wrap; gap:0.45rem; margin-bottom:0.6rem; }
+  .guard-suggestion-row { display:flex; flex-wrap:wrap; gap:0.45rem; margin-bottom:0.7rem; position:relative; z-index:1; }
+  .guard-suggestion-chip { display:inline-flex; align-items:center; border-radius:999px; padding:0.38rem 0.68rem; font-size:0.73rem; font-weight:900; border:1px solid rgba(163,230,53,0.18); background:rgba(15,23,42,0.44); color:#e2e8f0; cursor:pointer; }
+  .guard-tech-shell { margin-top:0.75rem; position:relative; z-index:1; }
+  .guard-tech-shell summary { cursor:pointer; list-style:none; font-size:0.72rem; font-weight:950; letter-spacing:0.08em; text-transform:uppercase; color:rgba(226,232,240,0.78); }
+  .guard-tech-shell summary::-webkit-details-marker { display:none; }
+  .guard-tech-shell[open] summary { color:#f8fafc; }
+  .guard-tech-panel { margin-top:0.7rem; }
   .guard-meta-grid { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:0.7rem; margin-bottom:0.7rem; }
   .guard-observability { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:0.7rem; margin-bottom:0.75rem; }
   .guard-ob-banner { display:flex; flex-wrap:wrap; gap:0.55rem; align-items:center; margin-bottom:0.7rem; }
@@ -67,6 +76,7 @@
   .guard-score-center { min-width:76px; text-align:center; border-radius:16px; padding:0.5rem 0.7rem; background:linear-gradient(180deg, rgba(20,83,45,0.9), rgba(10,35,25,0.92)); border:1px solid rgba(250,204,21,0.26); box-shadow: inset 0 1px 0 rgba(255,255,255,0.08); }
   .guard-score-center strong { display:block; font-size:1.15rem; font-weight:1000; color:#f8fafc; letter-spacing:0.08em; }
   .guard-score-center span { display:block; margin-top:0.18rem; font-size:0.62rem; font-weight:950; letter-spacing:0.12em; text-transform:uppercase; color:#bbf7d0; }
+  .guard-widget-panel textarea::placeholder { color:rgba(226,232,240,0.46); }
   @media (max-width: 900px) { .guard-meta-grid, .guard-observability { grid-template-columns:1fr 1fr; } }
   @media (max-width: 700px) {
     .guard-meta-grid, .guard-observability { grid-template-columns:1fr; }
@@ -86,86 +96,89 @@
       <button type="button" class="guard-chat-close" id="global-guard-widget-close" aria-label="Ocultar chat">×</button>
     </div>
     <div class="guard-chat-scroll">
-      <div class="guard-score-strip">
-        <div class="guard-score-side">
-          <strong>Local</strong>
-          <span>Sistema</span>
-        </div>
-        <div class="guard-score-center">
-          <strong>2J</strong>
-          <span>Sala VAR</span>
-        </div>
-        <div class="guard-score-side" style="text-align:right;">
-          <strong>Visitante</strong>
-          <span>Usuario</span>
-        </div>
-      </div>
-      <div class="guard-ob-banner">
+      <div class="guard-mini-status">
         <div class="guard-pill" id="global-guard-health-pill" data-state="{{ guard_observability.health_state|default:'amber' }}">
           <span class="guard-pill-dot"></span>
           <span data-guard-health-text>
             {% if guard_observability.health_state == 'red' %}Atención{% elif guard_observability.health_state == 'green' %}Estable{% else %}Vigilancia{% endif %}
           </span>
         </div>
-        <div class="guard-alerts" id="global-guard-alerts">
-          {% for row in guard_observability.alerts %}
-            <button type="button" class="guard-alert-chip" data-level="{{ row.level|default:'repeat' }}" data-guard-alert="{{ row.text|escape }}">{{ row.text }}</button>
-          {% empty %}
-            <button type="button" class="guard-alert-chip" data-level="improvement" data-guard-alert="Sin alertas recientes">Sin alertas recientes</button>
-          {% endfor %}
+        <div class="guard-mini-copy">
+          Pídeme algo en lenguaje natural: navegar, ayudarte con esta pantalla o revisar una incidencia.
         </div>
       </div>
-      <div class="guard-observability" id="global-guard-observability">
-        <div class="guard-ob-card">
-          <span class="guard-ob-label">Tendencia</span>
-          <div class="guard-ob-value" data-guard-ob-value="trend">{{ guard_observability.trend|default:"sin_historial" }}</div>
-          <div class="guard-ob-detail" data-guard-ob-detail="trend">{{ guard_observability.history_count|default:0 }} snapshots{% if guard_observability.recent_statuses %}· {{ guard_observability.recent_statuses|join:", " }}{% endif %}</div>
-        </div>
-        <div class="guard-ob-card">
-          <span class="guard-ob-label">Estabilidad LLM</span>
-          <div class="guard-ob-value" data-guard-ob-value="llm">{{ guard_observability.llm_stability|default:"unknown" }}</div>
-          <div class="guard-ob-detail" data-guard-ob-detail="llm">Degradado {{ guard_observability.degraded_rate_pct|default:0 }}%{% if guard_observability.llm_states %}· {% for row in guard_observability.llm_states %}{{ row.state }} x{{ row.count }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}</div>
-        </div>
-        <div class="guard-ob-card">
-          <span class="guard-ob-label">Operativa</span>
-          <div class="guard-ob-value" data-guard-ob-value="ops">{{ guard_observability.executed_tools|default:0 }} tools</div>
-          <div class="guard-ob-detail" data-guard-ob-detail="ops">{{ guard_observability.turns|default:0 }} turnos · {{ guard_observability.confirmations|default:0 }} confirmaciones{% if guard_observability.last_latency_ms %}· {{ guard_observability.last_latency_ms }} ms{% endif %}</div>
-        </div>
-        <div class="guard-ob-card">
-          <span class="guard-ob-label">Memoria útil</span>
-          <div class="guard-ob-value" data-guard-ob-value="memory">{{ guard_observability.last_status|default:"sin_estado" }}</div>
-          <div class="guard-ob-detail" data-guard-ob-detail="memory">{% if guard_observability.repeated_issues %}Repite {{ guard_observability.repeated_issues.0.issue_id }} x{{ guard_observability.repeated_issues.0.count }}{% elif guard_observability.summary %}{{ guard_observability.summary }}{% else %}Sin incidencias persistentes registradas.{% endif %}</div>
-        </div>
+      <div class="guard-suggestion-row" id="global-guard-suggestions">
+        <button type="button" class="guard-suggestion-chip" data-guard-suggestion="Ayúdame con esta pantalla">Ayúdame con esta pantalla</button>
+        <button type="button" class="guard-suggestion-chip" data-guard-suggestion="Llévame a vídeo análisis">Llévame a vídeo análisis</button>
+        <button type="button" class="guard-suggestion-chip" data-guard-suggestion="Abre biblioteca de tareas">Abre biblioteca de tareas</button>
       </div>
       <div id="global-guard-chat-log" class="guard-chat-log">
         <div class="guard-msg assistant">
           <span class="role">Guardián</span>
-          <div class="body">Estoy en banda para revisar el sistema, resolver dudas del usuario y proponerte la mejor jugada operativa.</div>
+          <div class="body">Estoy listo para ayudarte. Puedes pedirme que te lleve a una zona del sistema, que te explique esta pantalla o que revise un problema mientras trabajo en silencio.</div>
         </div>
       </div>
       <div class="guard-controls">
         <div id="global-guard-quick-actions" class="guard-quick-actions">
-          <button type="button" class="guard-btn" data-guard-action="status">Revisar estado</button>
-          <button type="button" class="guard-btn" data-guard-action="help">Ayudar usuario</button>
-          <button type="button" class="guard-btn" data-guard-action="smoke">Ejecutar smoke</button>
-          <button type="button" class="guard-btn" data-guard-action="auto_fix">Auto-fix seguro</button>
+          <button type="button" class="guard-btn" data-guard-action="goto_library">Biblioteca de tareas</button>
+          <button type="button" class="guard-btn" data-guard-action="goto_analysis">Vídeo análisis</button>
+          <button type="button" class="guard-btn" data-guard-action="help">Ayúdame aquí</button>
         </div>
-        <div class="guard-meta-grid">
-          <label>Autonomía<select id="global-guard-autonomy-mode"><option value="operator">Operador</option><option value="supervised">Supervisado</option><option value="advisor">Advisor</option></select></label>
-          <label>Audiencia<select id="global-guard-audience-mode"><option value="technical">Técnica</option><option value="guided">Guiada</option></select></label>
-          <label>Acciones ejecutadas<input id="global-guard-last-tools" value="0" readonly /></label>
-          <label>Latencia<input id="global-guard-last-latency" value="-" readonly /></label>
-        </div>
-        <div class="guard-toggle-row">
-          <label><input type="checkbox" id="global-guard-run-smoke" /> Incluir smoke</label>
-          <label><input type="checkbox" id="global-guard-auto-fix" /> Auto-fix seguro</label>
-        </div>
-        <label>Mensaje<textarea id="global-guard-chat-input" placeholder="Ej.: hay un error al guardar, explícame qué pasa y cómo resolverlo; o guía al usuario paso a paso."></textarea></label>
+        <label>Mensaje<textarea id="global-guard-chat-input" placeholder="Ej.: llévame a vídeo análisis, abre biblioteca de tareas, ayúdame con esta pantalla, no me deja guardar..."></textarea></label>
         <div class="guard-actions">
           <button type="button" class="guard-btn primary" id="global-guard-chat-send">Enviar</button>
           <button type="button" class="guard-btn" id="global-guard-chat-clear">Limpiar</button>
         </div>
         <div id="global-guard-chat-status" class="guard-statusline"></div>
+        <details class="guard-tech-shell">
+          <summary>Consola técnica</summary>
+          <div class="guard-tech-panel">
+            <div class="guard-alerts" id="global-guard-alerts">
+              {% for row in guard_observability.alerts %}
+                <button type="button" class="guard-alert-chip" data-level="{{ row.level|default:'repeat' }}" data-guard-alert="{{ row.text|escape }}">{{ row.text }}</button>
+              {% empty %}
+                <button type="button" class="guard-alert-chip" data-level="improvement" data-guard-alert="Sin alertas recientes">Sin alertas recientes</button>
+              {% endfor %}
+            </div>
+            <div class="guard-observability" id="global-guard-observability" style="margin-top:0.75rem;">
+              <div class="guard-ob-card">
+                <span class="guard-ob-label">Tendencia</span>
+                <div class="guard-ob-value" data-guard-ob-value="trend">{{ guard_observability.trend|default:"sin_historial" }}</div>
+                <div class="guard-ob-detail" data-guard-ob-detail="trend">{{ guard_observability.history_count|default:0 }} snapshots{% if guard_observability.recent_statuses %}· {{ guard_observability.recent_statuses|join:", " }}{% endif %}</div>
+              </div>
+              <div class="guard-ob-card">
+                <span class="guard-ob-label">Estabilidad LLM</span>
+                <div class="guard-ob-value" data-guard-ob-value="llm">{{ guard_observability.llm_stability|default:"unknown" }}</div>
+                <div class="guard-ob-detail" data-guard-ob-detail="llm">Degradado {{ guard_observability.degraded_rate_pct|default:0 }}%{% if guard_observability.llm_states %}· {% for row in guard_observability.llm_states %}{{ row.state }} x{{ row.count }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}</div>
+              </div>
+              <div class="guard-ob-card">
+                <span class="guard-ob-label">Operativa</span>
+                <div class="guard-ob-value" data-guard-ob-value="ops">{{ guard_observability.executed_tools|default:0 }} tools</div>
+                <div class="guard-ob-detail" data-guard-ob-detail="ops">{{ guard_observability.turns|default:0 }} turnos · {{ guard_observability.confirmations|default:0 }} confirmaciones{% if guard_observability.last_latency_ms %}· {{ guard_observability.last_latency_ms }} ms{% endif %}</div>
+              </div>
+              <div class="guard-ob-card">
+                <span class="guard-ob-label">Memoria útil</span>
+                <div class="guard-ob-value" data-guard-ob-value="memory">{{ guard_observability.last_status|default:"sin_estado" }}</div>
+                <div class="guard-ob-detail" data-guard-ob-detail="memory">{% if guard_observability.repeated_issues %}Repite {{ guard_observability.repeated_issues.0.issue_id }} x{{ guard_observability.repeated_issues.0.count }}{% elif guard_observability.summary %}{{ guard_observability.summary }}{% else %}Sin incidencias persistentes registradas.{% endif %}</div>
+              </div>
+            </div>
+            <div class="guard-quick-actions" style="margin-top:0.75rem;">
+              <button type="button" class="guard-btn" data-guard-action="status">Revisar estado</button>
+              <button type="button" class="guard-btn" data-guard-action="smoke">Ejecutar smoke</button>
+              <button type="button" class="guard-btn" data-guard-action="auto_fix">Auto-fix seguro</button>
+            </div>
+            <div class="guard-meta-grid">
+              <label>Autonomía<select id="global-guard-autonomy-mode"><option value="advisor" selected>Silent</option><option value="operator">Operador</option><option value="supervised">Supervisado</option></select></label>
+              <label>Audiencia<select id="global-guard-audience-mode"><option value="guided" selected>Usuario</option><option value="technical">Técnica</option></select></label>
+              <label>Acciones ejecutadas<input id="global-guard-last-tools" value="0" readonly /></label>
+              <label>Latencia<input id="global-guard-last-latency" value="-" readonly /></label>
+            </div>
+            <div class="guard-toggle-row">
+              <label><input type="checkbox" id="global-guard-run-smoke" /> Incluir smoke</label>
+              <label><input type="checkbox" id="global-guard-auto-fix" /> Auto-fix seguro</label>
+            </div>
+          </div>
+        </details>
       </div>
     </div>
   </section>
@@ -182,6 +195,7 @@
   const inputEl = document.getElementById('global-guard-chat-input');
   const sendEl = document.getElementById('global-guard-chat-send');
   const clearEl = document.getElementById('global-guard-chat-clear');
+  const suggestionsEl = document.getElementById('global-guard-suggestions');
   const smokeEl = document.getElementById('global-guard-run-smoke');
   const fixEl = document.getElementById('global-guard-auto-fix');
   const statusEl = document.getElementById('global-guard-chat-status');
@@ -194,6 +208,21 @@
   const healthPillEl = document.getElementById('global-guard-health-pill');
   const alertsEl = document.getElementById('global-guard-alerts');
   const apiUrl = "{% url 'system-guard-chat-api' %}";
+  const routeCatalog = [
+    { key: 'dashboard', label: 'Portada', url: "{% url 'dashboard-home' %}{% if active_team %}?team={{ active_team.id }}{% endif %}", keywords: ['portada', 'inicio', 'home', 'dashboard'] },
+    { key: 'analysis', label: 'Vídeo análisis', url: "{% url 'analysis' %}{% if active_team %}?team={{ active_team.id }}{% endif %}", keywords: ['video analisis', 'vídeo análisis', 'analisis', 'análisis', 'video', 'vídeo'] },
+    { key: 'library', label: 'Biblioteca de tareas', url: "{% url 'sessions' %}?tab=library&library_repo=traditional{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca de tareas', 'biblioteca', 'tareas', 'ejercicios', 'task library'] },
+    { key: 'task_builder', label: 'Crear tarea', url: "{% url 'sessions-task-create' %}{% if active_team %}?team={{ active_team.id }}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}{% endif %}", keywords: ['crear tarea', 'editor', 'pizarra'] },
+    { key: 'sessions', label: 'Entrenamiento', url: "{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}", keywords: ['entrenamiento', 'entrenos', 'sesiones', 'microciclo'] },
+    { key: 'match', label: 'Partido', url: "{% url 'match-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}", keywords: ['partido', 'match', 'convocatoria', 'once inicial'] },
+    { key: 'players', label: 'Jugadores', url: "{% if can_manage_workspace or is_admin_user %}{% url 'coach-roster' %}?tab=stats{% if active_team %}&team={{ active_team.id }}{% endif %}{% else %}{% url 'player-dashboard' %}{% if active_team %}?team={{ active_team.id }}{% endif %}{% endif %}", keywords: ['jugadores', 'jugador', 'plantilla', 'roster'] },
+    { key: 'agenda', label: 'Agenda', url: "{% url 'team-agenda' %}{% if active_team %}?team={{ active_team.id }}{% endif %}", keywords: ['agenda', 'calendario'] },
+    { key: 'staff', label: 'Staff', url: "{% url 'staff-directory' %}{% if active_team %}?team={{ active_team.id }}{% endif %}", keywords: ['staff', 'cuerpo tecnico', 'cuerpo técnico'] },
+    { key: 'tactics', label: 'Táctica', url: "{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}", keywords: ['tactica', 'táctica', 'abp', 'playbook'] },
+    { key: 'reports', label: 'Informes', url: "{% url 'reports-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}", keywords: ['informes', 'pdf', 'reportes'] },
+    { key: 'ai_trainer', label: 'IA Trainer', url: "{% url 'ai-trainer' %}{% if active_team %}?team={{ active_team.id }}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}{% endif %}", keywords: ['ia trainer', 'ai trainer', 'trainer'] },
+    { key: 'platform', label: 'Platform', url: "{% url 'platform-overview' %}", keywords: ['platform', 'clientes', 'clubes'] },
+  ];
   const history = [];
   let pendingExecution = null;
 
@@ -214,11 +243,128 @@
     toggleEl.setAttribute('aria-expanded', open ? 'true' : 'false');
     toggleEl.textContent = open ? 'Cerrar Ollana' : 'Ollana';
   };
+  const normalizeText = (value) => {
+    try {
+      return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+    } catch (error) {
+      return String(value || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    }
+  };
+  const helpMarkers = ['como', 'cómo', 'ayudame', 'ayúdame', 'explica', 'que hace', 'qué hace', 'para que sirve', 'guia', 'guía'];
+  const screenMarkers = ['esta pantalla', 'esta pagina', 'esta página', 'donde estoy', 'qué puedo hacer aquí', 'que puedo hacer aqui'];
+  const issueMarkers = ['no me deja', 'no funciona', 'error', 'falla', 'fallo', 'problema', 'no aparece', 'no se muestra', 'va lento', 'se ha roto'];
+  const complexTaskMarkers = ['codigo', 'código', 'trabaja hasta', 'arregla', 'mejora', 'haz que', 'consigue', 'profesional', '3d', 'estadio'];
+  const navigationVerbs = ['abre', 'abrir', 'abreme', 'abreme', 'llévame', 'llevame', 've a', 'ir a', 'quiero ir', 'quiero ver', 'quiero abrir', 'vamos a'];
+  const pageGuideCatalog = {
+    'dashboard-home': {
+      title: 'Portada del club',
+      tips: [
+        'Aquí ves el resumen del equipo, agenda, briefing semanal y accesos a las áreas principales.',
+        'Si buscas tareas o entrenamientos, la ruta más directa es Entrenamiento o Biblioteca de tareas.',
+      ],
+      suggestions: ['Abre biblioteca de tareas', 'Llévame a vídeo análisis'],
+    },
+    sessions: {
+      title: 'Entrenamiento',
+      tips: [
+        'Desde aquí organizas microciclos, sesiones y tareas.',
+        'Si quieres reutilizar ejercicios, te conviene abrir Biblioteca de tareas.',
+      ],
+      suggestions: ['Abre biblioteca de tareas', 'Quiero crear una tarea'],
+    },
+    'match-hub': {
+      title: 'Partido',
+      tips: [
+        'En esta zona preparas convocatoria, once inicial y seguimiento del día de partido.',
+        'Si necesitas revisar acciones o incidencias, la ruta natural es Partido.',
+      ],
+      suggestions: ['Ayúdame con esta pantalla', 'Llévame a vídeo análisis'],
+    },
+    analysis: {
+      title: 'Análisis',
+      tips: [
+        'Esta área está pensada para vídeo análisis, rival y elaboración de informes.',
+        'Si quieres entrar directo a vídeo, te puedo llevar a Vídeo análisis.',
+      ],
+      suggestions: ['Llévame a vídeo análisis', 'Ayúdame con esta pantalla'],
+    },
+  };
+  const syncSuggestionRow = () => {
+    if (!suggestionsEl) return;
+    const guide = currentGuide();
+    const defaults = ['Ayúdame con esta pantalla', 'Llévame a vídeo análisis', 'Abre biblioteca de tareas'];
+    const messages = Array.isArray(guide?.suggestions) && guide.suggestions.length ? guide.suggestions : defaults;
+    suggestionsEl.innerHTML = '';
+    messages.slice(0, 3).forEach((message) => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'guard-suggestion-chip';
+      chip.dataset.guardSuggestion = String(message || '');
+      chip.textContent = String(message || '');
+      suggestionsEl.appendChild(chip);
+    });
+  };
+  const detectNavigationIntent = (message) => {
+    const text = normalizeText(message);
+    if (!text) return null;
+    const hasVerb = navigationVerbs.some((token) => text.includes(normalizeText(token)));
+    if (!hasVerb && !routeCatalog.some((route) => route.keywords.some((keyword) => text.includes(normalizeText(keyword))))) return null;
+    let best = null;
+    routeCatalog.forEach((route) => {
+      let score = 0;
+      route.keywords.forEach((keyword) => {
+        const normalizedKeyword = normalizeText(keyword);
+        if (!normalizedKeyword) return;
+        if (text.includes(normalizedKeyword)) score += Math.max(2, normalizedKeyword.split(' ').length * 2);
+      });
+      if (route.key === 'analysis' && text.includes('video')) score += 2;
+      if (route.key === 'library' && text.includes('biblioteca')) score += 2;
+      if (route.key === 'match' && text.includes('partido')) score += 2;
+      if (!best || score > best.score) best = { route, score };
+    });
+    return best && best.score > 0 ? best.route : null;
+  };
+  const navigateToRoute = (route, originalMessage = '') => {
+    if (!route || !route.url) return false;
+    const text = `Te llevo a ${route.label}.`;
+    renderMessage('assistant', text, originalMessage ? [route.label] : []);
+    history.push({ role: 'assistant', content: text });
+    setStatus(`Abriendo ${route.label}…`);
+    window.setTimeout(() => {
+      try { window.location.href = route.url; } catch (error) {}
+    }, 220);
+    return true;
+  };
+  const currentGuide = () => pageGuideCatalog[String(currentPageContext().page || '').trim()] || null;
+  const buildHelpResponse = (message, navigationRoute = null) => {
+    const guide = currentGuide();
+    const lines = [];
+    if (guide) {
+      lines.push(`Estás en ${guide.title}.`);
+      guide.tips.forEach((tip) => lines.push(tip));
+    } else {
+      lines.push('Puedo ayudarte a entender esta pantalla y a llevarte al módulo correcto.');
+    }
+    if (navigationRoute) lines.push(`Si quieres, te llevo directamente a ${navigationRoute.label}.`);
+    return lines.join(' ');
+  };
+  const classifyIntent = (message) => {
+    const text = normalizeText(message);
+    const navigationRoute = detectNavigationIntent(message);
+    if (navigationRoute) return { kind: 'navigate', route: navigationRoute };
+    if (screenMarkers.some((item) => text.includes(normalizeText(item)))) return { kind: 'help' };
+    if (helpMarkers.some((item) => text.includes(normalizeText(item)))) return { kind: 'help' };
+    if (complexTaskMarkers.some((item) => text.includes(normalizeText(item)))) return { kind: 'task' };
+    if (issueMarkers.some((item) => text.includes(normalizeText(item)))) return { kind: 'support' };
+    return { kind: 'support' };
+  };
   const actionPresets = {
     status: { message: 'Revisa el estado actual del sistema y resúmelo para esta pantalla.', runSmoke: false, autoFix: false, maintenanceAction: '' },
     help: { message: 'Ayúdame con esta pantalla y responde como asistente del producto, guiando al usuario de forma clara.', runSmoke: false, autoFix: false, maintenanceAction: '' },
     smoke: { message: 'Ejecuta smoke del sistema y resume incidencias relevantes para esta pantalla.', runSmoke: true, autoFix: false, maintenanceAction: '' },
     auto_fix: { message: 'Propón y, si procede, ejecuta auto-fix seguro para la incidencia detectada.', runSmoke: false, autoFix: true, maintenanceAction: '' },
+    goto_library: { navigation: 'library' },
+    goto_analysis: { navigation: 'analysis' },
   };
   const alertPresetFromRow = (row) => {
     const text = String((row && row.text) || '').trim();
@@ -416,6 +562,10 @@
     const usePreset = preset && typeof preset === 'object' ? preset : null;
     const executeConfirmed = Boolean(options.executeConfirmed);
     const message = usePreset ? String(usePreset.message || '').trim() : String(inputEl?.value || '').trim();
+    const presetNavigationRoute = usePreset && usePreset.navigation
+      ? routeCatalog.find((route) => route.key === String(usePreset.navigation || '').trim())
+      : null;
+    const intent = presetNavigationRoute ? { kind: 'navigate', route: presetNavigationRoute } : classifyIntent(message);
     if (!message) {
       setStatus('Escribe un mensaje.', true);
       return;
@@ -429,8 +579,33 @@
     renderMessage('user', message);
     history.push({ role: 'user', content: message });
     if (inputEl) inputEl.value = '';
-    setStatus('Consultando guardián…');
+    if (intent.kind === 'navigate' && intent.route) {
+      navigateToRoute(intent.route, message);
+      resetPending();
+      return;
+    }
+    if (intent.kind === 'help') {
+      const text = buildHelpResponse(message, detectNavigationIntent(message));
+      renderMessage('assistant', text);
+      history.push({ role: 'assistant', content: text });
+      setStatus('Guía lista.');
+      resetPending();
+      return;
+    }
+    if (intent.kind === 'task') {
+      setStatus('Activando modo operador silencioso…');
+    } else if (intent.kind === 'support') {
+      setStatus('Revisando la incidencia en silencio…');
+    } else {
+      setStatus('Consultando guardián…');
+    }
     try {
+      const resolvedAutonomy = usePreset
+        ? String(autonomyEl?.value || 'advisor')
+        : (intent.kind === 'task' ? 'operator' : String(autonomyEl?.value || 'advisor'));
+      const resolvedAudience = usePreset
+        ? String(audienceEl?.value || 'guided')
+        : (intent.kind === 'task' ? 'technical' : String(audienceEl?.value || 'guided'));
       const resp = await fetch(apiUrl, {
         method: 'POST',
         credentials: 'same-origin',
@@ -440,8 +615,8 @@
           run_smoke: usePreset ? Boolean(usePreset.runSmoke) : Boolean(smokeEl?.checked),
           auto_fix: usePreset ? Boolean(usePreset.autoFix) : Boolean(fixEl?.checked),
           maintenance_action: usePreset ? String(usePreset.maintenanceAction || '') : '',
-          autonomy_mode: String(autonomyEl?.value || 'operator'),
-          audience: String(audienceEl?.value || 'technical'),
+          autonomy_mode: resolvedAutonomy,
+          audience: resolvedAudience,
           execute_confirmed: executeConfirmed,
           history,
           page_context: currentPageContext(),
@@ -526,6 +701,7 @@
     if (lastToolsEl) lastToolsEl.value = '0';
     if (lastLatencyEl) lastLatencyEl.value = '-';
     setStatus('');
+    syncSuggestionRow();
   });
   quickActionsEl?.addEventListener('click', (event) => {
     const btn = event.target.closest('[data-guard-action]');
@@ -548,8 +724,15 @@
     }
     sendMessage(preset);
   });
+  suggestionsEl?.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-guard-suggestion]');
+    if (!btn || !inputEl) return;
+    inputEl.value = String(btn.getAttribute('data-guard-suggestion') || '').trim();
+    sendMessage();
+  });
   toggleEl?.addEventListener('click', () => setOpen(!shellEl?.classList.contains('is-open')));
   closeEl?.addEventListener('click', () => setOpen(false));
+  syncSuggestionRow();
   setOpen(false);
 })();
 </script>
