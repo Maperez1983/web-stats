@@ -10,37 +10,66 @@
     {% include 'football/pwa_head.html' %}
     <style>
       .vs-page { width: min(100%, 1500px); margin: 0 auto; padding: clamp(0.7rem, 1.2vw, 1.1rem); }
-      .vs-head { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:0.85rem; margin-bottom:0.85rem; }
-      .vs-head-main { min-width:0; display:flex; flex-direction:column; gap:0.15rem; }
+      .vs-head {
+        display:grid;
+        grid-template-columns:minmax(0,1fr) auto;
+        align-items:center;
+        gap:0.95rem;
+        margin-bottom:0.95rem;
+        padding:1rem 1.05rem;
+        border-radius:24px;
+        border:1px solid rgba(145, 161, 185, 0.16);
+        background:
+          radial-gradient(720px 260px at 0% 0%, rgba(34,211,238,0.16) 0%, rgba(34,211,238,0) 58%),
+          rgba(12, 20, 34, 0.9);
+        box-shadow: 0 24px 54px rgba(0,0,0,0.24);
+      }
+      .vs-head-main { min-width:0; display:flex; flex-direction:column; gap:0.3rem; }
       .vs-head-actions { min-width:0; display:flex; gap:0.45rem; flex-wrap:wrap; justify-content:flex-end; }
-      .vs-head h1 { margin:0; font-size:1.05rem; letter-spacing:0.08em; text-transform:uppercase; }
+      .vs-kicker { color:#67e8f9; font-size:0.72rem; font-weight:900; letter-spacing:0.18em; text-transform:uppercase; }
+      .vs-head h1 { margin:0; font-size:clamp(1.5rem, 2.8vw, 2.2rem); letter-spacing:-0.03em; text-transform:none; line-height:1.02; }
       .vs-meta { color: rgba(226,232,240,0.72); font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .vs-pills { display:flex; flex-wrap:wrap; gap:0.45rem; }
+      .vs-pill {
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        min-height:30px;
+        padding:0 0.72rem;
+        border-radius:999px;
+        border:1px solid rgba(148,163,184,0.2);
+        background:rgba(255,255,255,0.04);
+        color:rgba(226,232,240,0.86);
+        font-size:0.7rem;
+        font-weight:900;
+        letter-spacing:0.08em;
+        text-transform:uppercase;
+      }
       .vs-grid { display:grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 400px); gap: clamp(0.75rem, 1vw, 1rem); align-items:start; }
       .vs-grid > * { min-width:0; }
       @media (max-width: 1100px) { .vs-grid { grid-template-columns: 1fr; } }
       .card { background: rgba(12, 20, 34, 0.92); border: 1px solid rgba(145, 161, 185, 0.18); border-radius: 22px; box-shadow: 0 22px 52px rgba(0,0,0,0.28); padding: 0.95rem; }
-      .toolbar { display:grid; gap:0.45rem; margin-bottom:0.75rem; min-width:0; }
+      .toolbar { display:grid; gap:0.55rem; margin-bottom:0.75rem; min-width:0; }
       .toolbar .left, .toolbar .right {
         min-width:0;
         display:flex;
-        flex-wrap:wrap;
-        gap:0.35rem;
+        flex-wrap:nowrap;
+        gap:0.45rem;
         align-items:center;
-        overflow:visible;
+        overflow-x:auto;
         overscroll-behavior-x:contain;
         scrollbar-width:thin;
+        padding-bottom:0.08rem;
       }
       .toolbar .left > *, .toolbar .right > * { flex:0 0 auto; }
-      .toolbar input[type="color"] { width: 34px; height: 34px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.14); background: transparent; padding: 0; }
-      .toolbar input[type="range"] { width: 96px; }
-      .toolbar select { width:auto; max-width: 160px; height: 34px; border-radius: 11px; padding: 0 0.5rem; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; font-weight:900; letter-spacing:0.03em; text-transform:uppercase; font-size:0.66rem; }
-      .toolbar #vs-speed { width: 74px; }
-      .toolbar .button { min-height:34px; padding:0.46rem 0.62rem; font-size:0.66rem; letter-spacing:0.035em; }
-      .toolbar .vs-track-toggle { min-height:34px; padding:0 0.55rem; font-size:0.64rem; letter-spacing:0.035em; }
-      .button { min-height:38px; display:inline-flex; align-items:center; justify-content:center; border-radius: 999px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.62rem 0.88rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; white-space:nowrap; cursor:pointer; }
+      .toolbar input[type="color"] { width: 38px; height: 38px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.14); background: transparent; padding: 0; }
+      .toolbar input[type="range"] { width: 120px; }
+      .toolbar select { height: 38px; border-radius: 12px; padding: 0 0.65rem; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; }
+      .button { min-height:38px; display:inline-flex; align-items:center; justify-content:center; border-radius: 999px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.62rem 0.88rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; white-space:nowrap; cursor:pointer; transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, box-shadow 160ms ease; }
       .button.primary { background: linear-gradient(135deg, #22d3ee, #67e8f9); border:none; color:#03253c; }
       .button.danger { background: rgba(127,29,29,0.22); border-color: rgba(248,113,113,0.4); color:#fecaca; }
       .button.ghost { background: rgba(255,255,255,0.02); }
+      .button:hover { transform: translateY(-1px); border-color: rgba(103,232,249,0.34); box-shadow: 0 16px 30px rgba(8,15,30,0.22); }
       .button:disabled { opacity:0.55; cursor:not-allowed; }
       .vs-menu { position: relative; }
       .vs-menu > summary { list-style: none; }
@@ -50,7 +79,7 @@
         top: calc(100% + 10px);
         left: 0;
         z-index: 120;
-        width: min(760px, 94vw);
+        width: min(560px, 92vw);
         padding: 0.75rem;
         border-radius: 18px;
         border: 1px solid rgba(255,255,255,0.14);
@@ -59,28 +88,7 @@
         display: grid;
         gap: 0.65rem;
       }
-      .vs-menu-grid { display: grid; gap: 0.45rem; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
-      .vs-resource-layout { display:grid; grid-template-columns:minmax(0,1fr) 220px; gap:0.65rem; align-items:start; }
-      .vs-resource-main { display:grid; gap:0.55rem; min-width:0; }
-      .vs-resource-tools { display:grid; gap:0.45rem; }
-      .vs-resource-search { min-height:38px; border-radius:999px; padding:0 0.85rem; border:1px solid rgba(148,163,184,0.22); background:rgba(255,255,255,0.05); color:#f3f7ff; font-weight:900; }
-      .vs-resource-tabs { display:flex; gap:0.35rem; flex-wrap:wrap; }
-      .vs-resource-tab { min-height:32px; border-radius:999px; border:1px solid rgba(255,255,255,0.14); background:rgba(255,255,255,0.04); color:#dbeafe; padding:0 0.65rem; font-size:0.66rem; font-weight:950; letter-spacing:0.04em; text-transform:uppercase; cursor:pointer; }
-      .vs-resource-tab.active { background:rgba(34,211,238,0.16); border-color:rgba(34,211,238,0.46); color:#eff6ff; }
-      .vs-resource-preview { position:sticky; top:0; min-height:210px; border-radius:16px; border:1px solid rgba(148,163,184,0.18); background:rgba(2,6,23,0.42); padding:0.75rem; display:grid; gap:0.55rem; }
-      .vs-resource-preview-canvas { height:108px; border-radius:12px; border:1px solid rgba(148,163,184,0.16); background:linear-gradient(135deg, rgba(22,101,52,0.46), rgba(21,128,61,0.28)); position:relative; overflow:hidden; }
-      .vs-resource-preview-canvas::before { content:""; position:absolute; inset:14px 18px; border:1px solid rgba(255,255,255,0.35); border-radius:8px; }
-      .vs-resource-preview-title { font-size:0.78rem; font-weight:950; letter-spacing:0.07em; text-transform:uppercase; color:#f8fafc; }
-      .vs-resource-preview-text { font-size:0.78rem; line-height:1.35; color:rgba(226,232,240,0.76); font-weight:800; }
-      .vs-preview-mark { position:absolute; left:50%; top:50%; width:44%; height:3px; background:#fff; border-radius:999px; transform:translate(-50%,-50%) rotate(-16deg); box-shadow:0 2px 8px rgba(0,0,0,0.35); }
-      .vs-preview-mark::after { content:""; position:absolute; right:-4px; top:50%; width:13px; height:13px; border-right:3px solid currentColor; border-top:3px solid currentColor; transform:translateY(-50%) rotate(45deg); color:inherit; }
-      .vs-preview-mark.dash { background:repeating-linear-gradient(90deg,#fff 0 12px,transparent 12px 22px); }
-      .vs-preview-mark.curve { width:58%; height:42%; background:transparent; border-top:4px solid #facc15; border-radius:999px 999px 0 0; transform:translate(-50%,-32%) rotate(-8deg); }
-      .vs-preview-mark.ring { width:44px; height:30px; background:rgba(250,204,21,0.12); border:4px solid #facc15; transform:translate(-50%,-50%); }
-      .vs-preview-mark.zone { width:56%; height:44%; background:rgba(34,211,238,0.14); border:2px dashed rgba(34,211,238,0.9); transform:translate(-50%,-50%); }
-      .vs-preview-mark.ring::after, .vs-preview-mark.zone::after { display:none; }
-      .vs-quick-resources { display:flex; gap:0.4rem; flex-wrap:wrap; margin:-0.25rem 0 0.7rem; padding:0.55rem; border-radius:16px; border:1px solid rgba(148,163,184,0.14); background:rgba(255,255,255,0.025); }
-      .vs-quick-resources .button { min-height:32px; padding:0.42rem 0.62rem; font-size:0.64rem; }
+      .vs-menu-grid { display: grid; gap: 0.45rem; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
       .vs-chip {
         border-radius: 999px;
         padding: 0.62rem 0.82rem;
@@ -99,12 +107,8 @@
         user-select: none;
       }
       .vs-chip:hover { border-color: rgba(34,211,238,0.42); background: rgba(34,211,238,0.10); }
-      .vs-chip[hidden] { display:none !important; }
       .vs-chip .dot { width: 10px; height: 10px; border-radius: 999px; background: rgba(148,163,184,0.9); }
       .vs-chip[data-vs-kind="template"] .dot { background: rgba(34,211,238,0.95); }
-      .vs-chip[data-vs-kind="tactic"] .dot { background: rgba(96,165,250,0.95); }
-      .vs-chip[data-vs-kind="tv"] .dot { background: rgba(52,211,153,0.95); }
-      .vs-chip[data-vs-kind="tech"] .dot { background: rgba(250,204,21,0.95); }
       .vs-chip[data-vs-kind="tool"] .dot { background: rgba(250,204,21,0.95); }
       .vs-chip[data-vs-kind="fx"] .dot { background: rgba(244,63,94,0.95); }
       .vs-menu-muted { color: rgba(226,232,240,0.72); font-weight: 800; font-size: 0.78rem; }
@@ -145,20 +149,6 @@
       .row { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:0.6rem; padding:0.65rem 0.75rem; border-radius: 16px; border:1px solid rgba(148,163,184,0.14); background: rgba(255,255,255,0.03); color: #f3f7ff; }
       .row strong { font-weight:900; color: #f3f7ff; }
       .row small { color: rgba(226,232,240,0.7); font-weight:800; }
-      .vs-pro-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:0.45rem; }
-      .vs-pro-card { display:grid; gap:0.45rem; padding:0.65rem 0.7rem; border-radius:16px; border:1px solid rgba(148,163,184,0.14); background:rgba(255,255,255,0.03); min-width:0; }
-      .vs-pro-card strong { color:#f8fafc; font-size:0.78rem; letter-spacing:0.06em; text-transform:uppercase; }
-      .vs-pro-card small { color:rgba(226,232,240,0.72); font-weight:800; line-height:1.35; }
-      .vs-pro-card .button { width:100%; min-height:34px; padding:0.46rem 0.58rem; font-size:0.64rem; }
-      .vs-pro-actions { display:flex; gap:0.4rem; flex-wrap:wrap; }
-      .vs-pro-actions .button { width:auto; }
-      .vs-compare-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0.45rem; }
-      .vs-compare-card { display:grid; gap:0.35rem; padding:0.6rem; border-radius:14px; border:1px solid rgba(34,211,238,0.18); background:rgba(2,6,23,0.28); min-width:0; }
-      .vs-compare-card strong, .vs-compare-card small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-      .vs-pattern-list { display:flex; gap:0.35rem; flex-wrap:wrap; }
-      .vs-pattern-list .button { min-height:32px; padding:0.42rem 0.58rem; font-size:0.62rem; }
-      .vs-layer-timeline { height:6px; border-radius:999px; background:rgba(148,163,184,0.18); overflow:hidden; margin-top:0.22rem; }
-      .vs-layer-timeline span { display:block; height:100%; border-radius:999px; background:linear-gradient(90deg,#22d3ee,#facc15); }
       .split { margin-top: 1rem; padding-top: 0.95rem; border-top: 1px solid rgba(148,163,184,0.16); }
       .k { display:inline-flex; align-items:center; justify-content:center; min-width: 26px; padding: 0.1rem 0.4rem; border-radius: 10px; border: 1px solid rgba(148,163,184,0.22); background: rgba(2, 6, 23, 0.35); font-weight: 900; font-size: 0.72rem; }
       .hint { color: rgba(226,232,240,0.72); font-weight:800; font-size:0.85rem; }
@@ -208,8 +198,6 @@
         .card { border-radius:18px; padding:0.75rem; }
         .row { grid-template-columns:1fr; }
         .vs-status-row { grid-template-columns:1fr; }
-        .vs-resource-layout { grid-template-columns:1fr; }
-        .vs-resource-preview { position:static; min-height:0; }
       }
 
       /* Accordion para evitar scroll infinito */
@@ -265,8 +253,14 @@
     <main class="vs-page">
       <div class="vs-head">
         <div class="vs-head-main">
+          <div class="vs-kicker">Analisis de video</div>
           <h1>Video Studio · {{ video.title }}</h1>
           <div class="vs-meta">{% if team %}{{ team.display_name }}{% else %}Biblioteca personal{% endif %} · Telestración y export</div>
+          <div class="vs-pills">
+            <span class="vs-pill">Cortes</span>
+            <span class="vs-pill">Telestracion</span>
+            <span class="vs-pill">Export rapido</span>
+          </div>
         </div>
         <div class="vs-head-actions">
           {% if not team and vs_assignable_teams %}
@@ -335,28 +329,15 @@
 			              <details class="vs-menu" id="vs-resources-menu">
 			                <summary class="button" title="Recursos rápidos (estilo Táctica): 1 clic para insertar guías o activar herramientas">Recursos</summary>
 			                <div class="vs-menu-body">
-			                  <div class="vs-resource-layout">
-			                    <div class="vs-resource-main">
-			                      <input type="search" class="vs-resource-search" id="vs-resource-search" placeholder="Buscar: aro, flecha, bloque, 2v1..." />
-			                      <div class="vs-resource-tabs" id="vs-resource-tabs" aria-label="Filtrar recursos">
-			                        <button type="button" class="vs-resource-tab active" data-vs-resource-filter="all">Todos</button>
-			                        <button type="button" class="vs-resource-tab" data-vs-resource-filter="tv">TV</button>
-			                        <button type="button" class="vs-resource-tab" data-vs-resource-filter="tactic">Táctica</button>
-			                        <button type="button" class="vs-resource-tab" data-vs-resource-filter="template">Campo</button>
-			                        <button type="button" class="vs-resource-tab" data-vs-resource-filter="tech">Técnicos</button>
-			                        <button type="button" class="vs-resource-tab" data-vs-resource-filter="tool">Dibujo</button>
-			                        <button type="button" class="vs-resource-tab" data-vs-resource-filter="fx">FX</button>
-			                      </div>
-			                      <div class="vs-resource-tools">
 			                  <div class="vs-menu-muted">Plantillas (1 clic)</div>
-			                  <div class="vs-menu-grid" data-vs-resource-section="template">
+			                  <div class="vs-menu-grid">
 			                    <button type="button" class="vs-chip" data-vs-resource="template:lanes_manual" data-vs-kind="template"><span class="dot"></span>Carriles manual</button>
 			                    <button type="button" class="vs-chip" data-vs-resource="template:grid_manual" data-vs-kind="template"><span class="dot"></span>Cuadrícula manual</button>
 			                    <button type="button" class="vs-chip" data-vs-resource="template:central_box" data-vs-kind="template"><span class="dot"></span>Caja central</button>
 			                    <button type="button" class="vs-chip" data-vs-resource="template:final_third" data-vs-kind="template"><span class="dot"></span>Último tercio</button>
 			                  </div>
 			                  <div class="vs-menu-muted" style="margin-top:0.25rem;">Tácticos (1 clic)</div>
-			                  <div class="vs-menu-grid" data-vs-resource-section="tactic">
+			                  <div class="vs-menu-grid">
 			                    <button type="button" class="vs-chip" data-vs-resource="tactic:2v1" data-vs-kind="tactic"><span class="dot"></span>2v1</button>
 			                    <button type="button" class="vs-chip" data-vs-resource="tactic:third_man" data-vs-kind="tactic"><span class="dot"></span>Tercer hombre</button>
 			                    <button type="button" class="vs-chip" data-vs-resource="tactic:defensive_line" data-vs-kind="tactic"><span class="dot"></span>Línea defensiva</button>
@@ -367,33 +348,8 @@
 			                    <button type="button" class="vs-chip" data-vs-resource="tactic:press_jump" data-vs-kind="tactic"><span class="dot"></span>Presión/salto</button>
 			                    <button type="button" class="vs-chip" data-vs-resource="tactic:shift" data-vs-kind="tactic"><span class="dot"></span>Basculación</button>
 			                  </div>
-			                  <div class="vs-menu-muted" style="margin-top:0.25rem;">TV / Captura (1 clic)</div>
-			                  <div class="vs-menu-grid" data-vs-resource-section="tv">
-			                    <button type="button" class="vs-chip" data-vs-resource="tv:dashed_pass" data-vs-kind="tv"><span class="dot"></span>Pase discontinuo</button>
-			                    <button type="button" class="vs-chip" data-vs-resource="tv:white_run" data-vs-kind="tv"><span class="dot"></span>Carrera blanca</button>
-			                    <button type="button" class="vs-chip" data-vs-resource="tv:curved_run" data-vs-kind="tv"><span class="dot"></span>Desmarque curvo</button>
-			                    <button type="button" class="vs-chip" data-vs-resource="tv:player_ring" data-vs-kind="tv"><span class="dot"></span>Aro jugador</button>
-			                    <button type="button" class="vs-chip" data-vs-resource="tv:spot_player" data-vs-kind="tv"><span class="dot"></span>Foco jugador</button>
-			                    <button type="button" class="vs-chip" data-vs-resource="tv:duel_2v1" data-vs-kind="tv"><span class="dot"></span>2v1 TV</button>
-			                    <button type="button" class="vs-chip" data-vs-resource="tv:pressure_jump" data-vs-kind="tv"><span class="dot"></span>Salto presión TV</button>
-			                  </div>
-			                  <div class="vs-menu-muted" style="margin-top:0.25rem;">Técnicos de edición (1 clic)</div>
-			                  <div class="vs-menu-grid" data-vs-resource-section="tech">
-			                    <button type="button" class="vs-chip" data-vs-resource="tech:smart_curve" data-vs-kind="tech"><span class="dot"></span>Curva inteligente</button>
-			                    <button type="button" class="vs-chip" data-vs-resource="tech:animated_arrow" data-vs-kind="tech"><span class="dot"></span>Flecha animada</button>
-			                    <button type="button" class="vs-chip" data-vs-resource="tech:player_shadow" data-vs-kind="tech"><span class="dot"></span>Sombra jugador</button>
-			                    <button type="button" class="vs-chip" data-vs-resource="tech:labelled_zone" data-vs-kind="tech"><span class="dot"></span>Zona + nombre</button>
-			                    <button type="button" class="vs-chip" data-vs-resource="tech:defensive_line_auto" data-vs-kind="tech"><span class="dot"></span>Línea automática</button>
-			                    <button type="button" class="vs-chip" data-vs-resource="tech:distance_meter" data-vs-kind="tech"><span class="dot"></span>Medidor distancia</button>
-			                    <button type="button" class="vs-chip" data-vs-resource="tech:visual_timer" data-vs-kind="tech"><span class="dot"></span>Temporizador</button>
-			                    <button type="button" class="vs-chip" data-vs-resource="tech:tactical_zoom" data-vs-kind="tech"><span class="dot"></span>Lupa táctica</button>
-			                    <button type="button" class="vs-chip" data-vs-resource="tech:advanced_focus" data-vs-kind="tech"><span class="dot"></span>Foco avanzado</button>
-			                    <button type="button" class="vs-chip" data-vs-resource="tech:before_after" data-vs-kind="tech"><span class="dot"></span>Antes/después</button>
-			                    <button type="button" class="vs-chip" data-vs-resource="tech:relation_marker" data-vs-kind="tech"><span class="dot"></span>Relación jugadores</button>
-			                    <button type="button" class="vs-chip" data-vs-resource="tech:block_templates" data-vs-kind="tech"><span class="dot"></span>Plantillas bloque</button>
-			                  </div>
 			                  <div class="vs-menu-muted" style="margin-top:0.25rem;">Herramientas (1 clic)</div>
-			                  <div class="vs-menu-grid" data-vs-resource-section="tool">
+			                  <div class="vs-menu-grid">
 			                    <button type="button" class="vs-chip" data-vs-resource="tool:arrow" data-vs-kind="tool"><span class="dot"></span>Flecha</button>
 			                    <button type="button" class="vs-chip" data-vs-resource="tool:move" data-vs-kind="tool"><span class="dot"></span>Trayectoria</button>
 			                    <button type="button" class="vs-chip" data-vs-resource="tool:text" data-vs-kind="tool"><span class="dot"></span>Texto</button>
@@ -402,21 +358,13 @@
 			                    <button type="button" class="vs-chip" data-vs-resource="tool:space" data-vs-kind="tool"><span class="dot"></span>Espacio móvil</button>
 			                  </div>
 			                  <div class="vs-menu-muted" style="margin-top:0.25rem;">FX (1 clic)</div>
-			                  <div class="vs-menu-grid" data-vs-resource-section="fx">
+			                  <div class="vs-menu-grid">
 			                    <button type="button" class="vs-chip" data-vs-resource="fx:spot" data-vs-kind="fx"><span class="dot"></span>Spotlight</button>
 			                    <button type="button" class="vs-chip" data-vs-resource="fx:blur" data-vs-kind="fx"><span class="dot"></span>Blur</button>
 			                    <button type="button" class="vs-chip" data-vs-resource="fx:freeze" data-vs-kind="fx"><span class="dot"></span>Freeze</button>
 			                  </div>
 			                  <div class="vs-menu-muted" style="margin-top:0.25rem;">Recientes</div>
 			                  <div class="vs-menu-grid" id="vs-resources-recent"></div>
-			                      </div>
-			                    </div>
-			                    <aside class="vs-resource-preview" id="vs-resource-preview" aria-live="polite">
-			                      <div class="vs-resource-preview-canvas"><span class="vs-preview-mark"></span></div>
-			                      <div class="vs-resource-preview-title" id="vs-resource-preview-title">Recursos</div>
-			                      <div class="vs-resource-preview-text" id="vs-resource-preview-text">Pasa por encima o filtra para elegir flechas, aros, bloques, carriles y efectos.</div>
-			                    </aside>
-			                  </div>
 			                </div>
 			              </details>
             </div>
@@ -456,23 +404,6 @@
               <button type="button" class="button" id="vs-arrow-double" title="Doble punta (flechas/trayectorias)">↔︎</button>
             </div>
           </div>
-
-		          <div class="vs-quick-resources" aria-label="Recursos rápidos">
-		            <button type="button" class="button primary" data-vs-resource="tv:dashed_pass">Pase</button>
-		            <button type="button" class="button" data-vs-resource="tv:white_run">Carrera</button>
-		            <button type="button" class="button" data-vs-resource="tv:player_ring">Aro</button>
-		            <button type="button" class="button" data-vs-resource="tv:spot_player">Foco</button>
-		            <button type="button" class="button" data-vs-resource="tactic:2v1">2v1</button>
-		            <button type="button" class="button" data-vs-resource="tactic:third_man">3er hombre</button>
-		            <button type="button" class="button" data-vs-resource="template:lanes_manual">Carriles</button>
-		            <button type="button" class="button" data-vs-resource="tactic:block_low">Bloque bajo</button>
-		            <button type="button" class="button" data-vs-resource="tactic:press_jump">Salto presión</button>
-		            <button type="button" class="button" data-vs-resource="tactic:shift">Basculación</button>
-		            <button type="button" class="button" data-vs-resource="tech:animated_arrow">Flecha animada</button>
-		            <button type="button" class="button" data-vs-resource="tech:labelled_zone">Zona</button>
-		            <button type="button" class="button" data-vs-resource="tech:tactical_zoom">Lupa</button>
-		            <button type="button" class="button primary" id="vs-capture-primary">Guardar captura</button>
-		          </div>
 
 			          <div class="stage" id="vs-stage">
 			            <video id="vs-video" controls preload="metadata" playsinline crossorigin="anonymous">
@@ -588,85 +519,11 @@
 	              <input type="text" id="vs-project-title" placeholder="Ej: J2 · Presión alta (clips)" />
 	            </label>
             <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
-              <button type="button" class="button primary" id="vs-project-save">Guardar proyecto/capturas</button>
+              <button type="button" class="button" id="vs-project-save">Guardar</button>
               <button type="button" class="button" id="vs-project-refresh">Actualizar</button>
             </div>
-            <div class="meta" style="margin-top:0.2rem;">Guarda la capa de dibujo actual y las capturas creadas para que aparezcan en Biblioteca.</div>
+            <div class="meta" style="margin-top:0.2rem;">Guarda la capa de dibujo actual para reutilizarla.</div>
             <div class="list" id="vs-projects"></div>
-
-	            <details class="vs-acc" id="vs-pro-workflow" open>
-                <summary>Flujo Pro entrenador</summary>
-                <div class="vs-acc-body">
-                  <div class="hint">Accesos directos para partido, patrones, comparación, IA y exportaciones.</div>
-                  <div class="vs-pro-grid">
-                    <div class="vs-pro-card">
-                      <strong>Partido directo</strong>
-                      <small>Prepara eventos rápidos y auto-clips alrededor del playhead.</small>
-                      <button type="button" class="button primary" id="vs-pro-live-mode">Activar modo partido</button>
-                    </div>
-                    <div class="vs-pro-card">
-                      <strong>Modelo de juego</strong>
-                      <small>Carga botones tácticos de presión, bloques, carriles y transiciones.</small>
-                      <button type="button" class="button" id="vs-pro-model-pack">Cargar pack modelo</button>
-                    </div>
-                    <div class="vs-pro-card">
-                      <strong>Comparador</strong>
-                      <small>Compara dos clips seleccionados sin salir del estudio.</small>
-                      <button type="button" class="button" id="vs-pro-compare">Comparar clips</button>
-                    </div>
-                    <div class="vs-pro-card">
-                      <strong>Presentación</strong>
-                      <small>Convierte timeline o captura actual en slides para jugador.</small>
-                      <button type="button" class="button" id="vs-pro-presentation">Crear slides</button>
-                    </div>
-                    <div class="vs-pro-card">
-                      <strong>Pregunta IA</strong>
-                      <small>Genera lectura táctica de la jugada o de los clips filtrados.</small>
-                      <button type="button" class="button" id="vs-pro-ai-question">Preguntar a IA</button>
-                    </div>
-                    <div class="vs-pro-card">
-                      <strong>Tracking guiado</strong>
-                      <small>Activa marcador jugador y deja preparado el seguimiento por keyframes.</small>
-                      <button type="button" class="button" id="vs-pro-guided-track">Preparar seguimiento</button>
-                    </div>
-                  </div>
-
-                  <div id="vs-pro-compare-panel" class="vs-compare-grid" style="display:none; margin-top:0.55rem;"></div>
-
-                  <div class="vs-pro-card" style="margin-top:0.55rem;">
-                    <strong>Biblioteca de patrones</strong>
-                    <small>Guarda flechas, aros, zonas o grupos seleccionados y reutilízalos sobre otra captura.</small>
-                    <div class="vs-pro-actions">
-                      <input type="text" id="vs-pattern-title" placeholder="Ej: 2v1 banda + pase atrás" style="min-width:180px; flex:1;" />
-                      <button type="button" class="button" id="vs-pattern-save">Guardar patrón</button>
-                      <select id="vs-pattern-select" style="min-width:170px; flex:1;"></select>
-                      <button type="button" class="button" id="vs-pattern-apply">Aplicar</button>
-                    </div>
-                    <div class="vs-pattern-list" id="vs-pattern-list"></div>
-                  </div>
-
-                  <div class="vs-pro-card" style="margin-top:0.55rem;">
-                    <strong>Errores recurrentes</strong>
-                    <small>Crea eventos de revisión para patrones que se repiten en partido.</small>
-                    <div class="vs-pro-actions">
-                      <button type="button" class="button ghost" data-vs-pro-issue="perfil">Mal perfil</button>
-                      <button type="button" class="button ghost" data-vs-pro-issue="intervalo">No cerrar intervalo</button>
-                      <button type="button" class="button ghost" data-vs-pro-issue="perdida_dentro">Pérdida por dentro</button>
-                      <button type="button" class="button ghost" data-vs-pro-issue="linea_hundida">Línea hundida</button>
-                      <button type="button" class="button ghost" data-vs-pro-issue="area">No atacar área</button>
-                    </div>
-                  </div>
-
-                  <div class="vs-pro-card" style="margin-top:0.55rem;">
-                    <strong>Export entrenador / jugador</strong>
-                    <small>Entrenador: informe completo. Jugador: slides con telestración.</small>
-                    <div class="vs-pro-actions">
-                      <button type="button" class="button" id="vs-pro-coach-export">Export entrenador</button>
-                      <button type="button" class="button" id="vs-pro-player-export">Export jugador</button>
-                    </div>
-                  </div>
-                </div>
-	            </details>
 
 	            <details class="vs-acc" open>
                 <summary>Dashboard</summary>
@@ -812,14 +669,6 @@
                   <button type="button" class="button" id="vs-layer-out-now">OUT=Ahora</button>
                   <button type="button" class="button danger" id="vs-layer-del">Borrar capa</button>
                 </div>
-                <div style="display:grid; gap:0.35rem;">
-                  <div class="hint">Movimiento: selecciona un recurso; para seguir futbolista, selecciona también un marcador Jugador con tracking.</div>
-                  <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
-                    <button type="button" class="button" id="vs-layer-follow-player">Seguir jugador</button>
-                    <button type="button" class="button" id="vs-layer-follow-play">Seguir jugada</button>
-                    <button type="button" class="button" id="vs-layer-follow-manual">Keyframe ahora</button>
-                  </div>
-                </div>
                 <label>
                   Fade (ms)
                   <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.45rem;">
@@ -837,20 +686,6 @@
                 </label>
                 <div id="vs-layer-style-form" style="display:none; gap:0.45rem;">
                   <div class="hint">Estilo de capa</div>
-                  <div style="display:grid; grid-template-columns: 0.7fr 1fr 1fr; gap:0.45rem; align-items:end;">
-                    <label>
-                      Color
-                      <input type="color" id="vs-layer-color" value="#22d3ee" style="height:38px; padding:0.15rem;" />
-                    </label>
-                    <label>
-                      Grosor
-                      <input type="number" id="vs-layer-width" min="1" max="32" step="1" value="6" />
-                    </label>
-                    <label>
-                      Opacidad
-                      <input type="number" id="vs-layer-opacity" min="0.05" max="1" step="0.05" value="1" />
-                    </label>
-                  </div>
                   <label>
                     Línea
                     <select id="vs-layer-line-style">

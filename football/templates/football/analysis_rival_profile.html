@@ -15,7 +15,9 @@
       body {
         margin: 0;
         font-family: 'IBM Plex Sans', var(--prod-font-ui, system-ui), sans-serif;
-        background: linear-gradient(180deg, #020417 0%, #050b1c 100%);
+        background:
+          radial-gradient(980px 420px at 12% -4%, rgba(96,165,250,0.18) 0%, rgba(96,165,250,0) 58%),
+          linear-gradient(180deg, #020417 0%, #050b1c 100%);
         color: #f8fafc;
       }
       a { color: inherit; text-decoration: none; }
@@ -56,8 +58,8 @@
         font-size: 0.85rem;
       }
       .hero {
-        border-radius: 22px;
-        padding: 1.1rem;
+        border-radius: 24px;
+        padding: 1.25rem;
         border: 1px solid rgba(255,255,255,0.12);
         background: radial-gradient(1200px 520px at 20% 0%, rgba(96,165,250,0.14) 0%, rgba(15,23,42,0.0) 55%),
           linear-gradient(180deg, rgba(7,11,25,0.6) 0%, rgba(7,11,25,0.35) 100%);
@@ -76,6 +78,13 @@
         gap: 0.9rem;
         min-width: 260px;
       }
+      .hero-kicker {
+        color: #93c5fd;
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
       .crest {
         width: 52px;
         height: 52px;
@@ -86,11 +95,12 @@
       }
       .hero-title h1 {
         margin: 0;
-        font-size: 1.35rem;
-        letter-spacing: 0.01em;
+        font-size: clamp(1.6rem, 3vw, 2.35rem);
+        letter-spacing: -0.03em;
+        line-height: 1;
       }
       .hero-title .meta {
-        margin-top: 0.14rem;
+        margin-top: 0.22rem;
         opacity: 0.72;
       }
       .kpis {
@@ -129,6 +139,13 @@
         letter-spacing: 0.02em;
         opacity: 0.88;
         white-space: nowrap;
+        transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, opacity 160ms ease;
+      }
+      .tab:hover {
+        transform: translateY(-1px);
+        opacity: 1;
+        border-color: rgba(147,197,253,0.32);
+        background: rgba(16, 24, 46, 0.78);
       }
       .tab.is-active {
         opacity: 1;
@@ -330,6 +347,7 @@
               <div class="crest" style="display:grid;place-items:center;font-weight:900;">—</div>
             {% endif %}
             <div style="min-width:0;">
+              <div class="hero-kicker">Scouting rival</div>
               <h1>{{ rival.name|default:"Rival" }}</h1>
               <div class="meta">
                 {% if primary_team %}{{ primary_team.display_name|default:primary_team.name }} · {% endif %}

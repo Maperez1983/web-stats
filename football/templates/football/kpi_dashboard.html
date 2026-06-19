@@ -11,16 +11,49 @@
 	    {% include 'football/pwa_head.html' %}
 	    <style>
       .page { max-width: 1320px; margin: 0 auto; padding: 1.1rem; }
-      .head { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; flex-wrap:wrap; margin-bottom: 0.9rem; }
-      .head h1 { margin:0; font-size:1.05rem; letter-spacing:0.08em; text-transform:uppercase; }
+      .head {
+        display:flex;
+        align-items:flex-start;
+        justify-content:space-between;
+        gap:1rem;
+        flex-wrap:wrap;
+        margin-bottom: 0.95rem;
+        padding: 1rem 1.05rem;
+        border-radius: 24px;
+        border: 1px solid rgba(145, 161, 185, 0.16);
+        background:
+          radial-gradient(760px 260px at 0% 0%, rgba(34,211,238,0.16) 0%, rgba(34,211,238,0) 56%),
+          rgba(12, 20, 34, 0.9);
+        box-shadow: 0 24px 54px rgba(0,0,0,0.24);
+      }
+      .head-copy { display:grid; gap:0.3rem; }
+      .head-kicker { color:#67e8f9; font-size:0.72rem; font-weight:900; letter-spacing:0.18em; text-transform:uppercase; }
+      .head h1 { margin:0; font-size:clamp(1.5rem, 2.8vw, 2.2rem); letter-spacing:-0.03em; text-transform:none; line-height:1.02; }
       .meta { color: rgba(226,232,240,0.72); font-weight:800; }
+      .head-pills { display:flex; flex-wrap:wrap; gap:0.45rem; }
+      .head-pill {
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        min-height:30px;
+        padding:0 0.72rem;
+        border-radius:999px;
+        border:1px solid rgba(148,163,184,0.2);
+        background:rgba(255,255,255,0.04);
+        color:rgba(226,232,240,0.86);
+        font-size:0.7rem;
+        font-weight:900;
+        letter-spacing:0.08em;
+        text-transform:uppercase;
+      }
       .grid { display:grid; grid-template-columns: 1fr; gap: 1rem; align-items:start; }
       .grid.show-settings { grid-template-columns: 0.78fr 1.22fr; }
       @media (max-width: 980px) { .grid.show-settings { grid-template-columns: 1fr; } }
       .card { background: rgba(12, 20, 34, 0.92); border: 1px solid rgba(145, 161, 185, 0.18); border-radius: 22px; box-shadow: 0 22px 52px rgba(0,0,0,0.28); padding: 0.95rem; }
-      .button { border-radius: 999px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.72rem 0.98rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:0.4rem; }
+      .button { border-radius: 999px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.72rem 0.98rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:0.4rem; transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, box-shadow 160ms ease; }
       .button.primary { background: linear-gradient(135deg, #22d3ee, #67e8f9); border:none; color:#03253c; }
       .button.ghost { background: rgba(255,255,255,0.02); }
+      .button:hover { transform: translateY(-1px); border-color: rgba(103,232,249,0.34); box-shadow: 0 16px 30px rgba(8,15,30,0.22); }
       .row { display:flex; align-items:center; justify-content:space-between; gap:0.6rem; padding:0.65rem 0.75rem; border-radius: 16px; border:1px solid rgba(148,163,184,0.14); background: rgba(255,255,255,0.03); }
       .row strong { font-weight: 900; }
       label { display:grid; gap:0.25rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; color: rgba(226,232,240,0.78); }
@@ -40,9 +73,15 @@
     {% include 'football/includes/dragon_nav.html' %}
     <main class="page">
       <div class="head">
-        <div>
+        <div class="head-copy">
+          <div class="head-kicker">KPI dashboard</div>
           <h1>Dashboard</h1>
           <div class="meta">{% if team %}{{ team.display_name|default:team.name }}{% endif %} · Indicadores por rol</div>
+          <div class="head-pills">
+            <span class="head-pill">Coach</span>
+            <span class="head-pill">Analista</span>
+            <span class="head-pill">Fitness</span>
+          </div>
         </div>
         <div style="display:flex; gap:0.55rem; flex-wrap:wrap;">
           <a class="button ghost" href="{% url 'coach-matches' %}{% if team %}?team={{ team.id }}{% endif %}">Partidos</a>
