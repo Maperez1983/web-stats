@@ -179,6 +179,15 @@
 <script>
   (function () {
     const launcherId = 'global-guard-fallback-launcher';
+    const syncLauncherVisibility = function () {
+      try {
+        const launcher = document.getElementById(launcherId);
+        const shell = document.getElementById('global-guard-widget-shell');
+        const toggle = document.getElementById('global-guard-widget-toggle');
+        if (!launcher) return;
+        launcher.style.display = shell && toggle ? 'none' : 'inline-flex';
+      } catch (e) {}
+    };
     const mountLauncher = function () {
       try {
         if (!document.body || document.getElementById(launcherId)) return;
@@ -210,16 +219,8 @@
           try {
             const shell = document.getElementById('global-guard-widget-shell');
             const toggle = document.getElementById('global-guard-widget-toggle');
-            const panel = document.getElementById('global-guard-widget-panel');
             if (shell && toggle) {
-              shell.classList.add('is-open');
-              shell.style.display = 'flex';
-              shell.style.position = 'fixed';
-              shell.style.right = 'max(14px, env(safe-area-inset-right))';
-              shell.style.bottom = 'max(14px, env(safe-area-inset-bottom))';
-              shell.style.zIndex = '2147483647';
-              toggle.setAttribute('aria-expanded', 'true');
-              if (panel) panel.style.display = 'flex';
+              toggle.click();
               const input = document.getElementById('global-guard-chat-input');
               if (input && typeof input.focus === 'function') {
                 window.setTimeout(() => { try { input.focus(); } catch (e) {} }, 80);
@@ -238,6 +239,11 @@
           } catch (e) {}
         });
         document.body.appendChild(btn);
+        syncLauncherVisibility();
+        try {
+          const observer = new MutationObserver(function () { syncLauncherVisibility(); });
+          observer.observe(document.body, { childList: true, subtree: true });
+        } catch (e) {}
       } catch (e) {}
     };
     if (document.readyState === 'loading') {
@@ -245,6 +251,7 @@
     } else {
       mountLauncher();
     }
+    window.addEventListener('load', syncLauncherVisibility);
   })();
 </script>
 <script>

@@ -240,8 +240,15 @@
   const setOpen = (open) => {
     if (!shellEl || !toggleEl) return;
     shellEl.classList.toggle('is-open', Boolean(open));
+    shellEl.style.display = 'flex';
+    shellEl.style.position = 'fixed';
+    shellEl.style.right = 'max(1rem, env(safe-area-inset-right))';
+    shellEl.style.bottom = 'max(1rem, env(safe-area-inset-bottom))';
+    shellEl.style.zIndex = '2147483000';
     toggleEl.setAttribute('aria-expanded', open ? 'true' : 'false');
     toggleEl.textContent = open ? 'Cerrar Ollana' : 'Ollana';
+    const panelEl = document.getElementById('global-guard-widget-panel');
+    if (panelEl) panelEl.style.display = open ? 'flex' : 'none';
   };
   const normalizeText = (value) => {
     try {
