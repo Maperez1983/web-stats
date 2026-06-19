@@ -5546,11 +5546,36 @@ def _team_tactics_palette(workspace, team):
 
 
 def _team_stadium_palette(workspace, team):
+    import colorsys
+
+    def _seeded_hex(hue_degrees, lightness=0.46, saturation=0.70):
+        try:
+            h = (int(hue_degrees) % 360) / 360.0
+            l = max(0.0, min(1.0, float(lightness)))
+            s = max(0.0, min(1.0, float(saturation)))
+            r, g, b = colorsys.hls_to_rgb(h, l, s)
+            return '#%02x%02x%02x' % (int(round(r * 255)), int(round(g * 255)), int(round(b * 255)))
+        except Exception:
+            return '#047857'
+
+    seeded_hue = _team_color_seed(team)
     palette = {
-        'primary': '#047857',
-        'secondary': '#f8fafc',
-        'accent': '#073b32',
+        'primary': _seeded_hex(seeded_hue, 0.46, 0.72),
+        'secondary': '#f3f6f8',
+        'accent': _seeded_hex(seeded_hue, 0.24, 0.62),
     }
+    try:
+        profile = None
+        if workspace and getattr(workspace, 'owner_user_id', None):
+            profile = TaskStudioProfile.objects.filter(user_id=workspace.owner_user_id).only(
+                'primary_color', 'secondary_color', 'accent_color'
+            ).first()
+        if profile:
+            palette['primary'] = _clean_kit_hex(getattr(profile, 'primary_color', ''), palette['primary'])
+            palette['secondary'] = _clean_kit_hex(getattr(profile, 'secondary_color', ''), palette['secondary'])
+            palette['accent'] = _clean_kit_hex(getattr(profile, 'accent_color', ''), palette['accent'])
+    except Exception:
+        pass
     try:
         pref = WorkspacePreference.objects.filter(workspace=workspace, key='kit_theme:v1').only('value').first() if workspace else None
         raw = pref.value if pref and isinstance(pref.value, dict) else {}
