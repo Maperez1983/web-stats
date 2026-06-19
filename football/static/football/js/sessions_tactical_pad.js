@@ -390,6 +390,7 @@
 		    const preset = String(presetKey || 'full_pitch').trim();
 		    const orientation = safeText(orientationKey, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
 		    const normalizedGrass = safeText(grassStyleKey, 'classic').toLowerCase();
+		    const isStadiumCameraStyle = normalizedGrass.startsWith('stadium_');
 		    let grassStyle = ([
 		      'classic', 'realistic', 'pro', 'broadcast',
 		      'stadium_close', 'stadium_top', 'stadium_full', 'stadium_premium',
@@ -398,6 +399,7 @@
 		    ].includes(normalizedGrass))
 		      ? normalizedGrass
 		      : 'classic';
+		    if (isStadiumCameraStyle) grassStyle = 'stadium_top';
 			    try {
 			      if (window.__WEBSTATS_TACTICS_MODE === true && ['coachboard', 'whiteboard', 'blackboard'].includes(grassStyle)) {
 			        grassStyle = 'classic';
@@ -4226,6 +4228,7 @@
 					    const normalizeGrassStyleForMode = (value) => {
 					      const next = safeText(value, 'classic').toLowerCase();
 					      if (!GRASS_STYLE_ORDER.includes(next)) return 'classic';
+					      if (next.startsWith('stadium_')) return 'stadium_top';
 					      return next;
 					    };
 					    let pitchGrassStyle = normalizeGrassStyleForMode(grassStyleInput?.value);
