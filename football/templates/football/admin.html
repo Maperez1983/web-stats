@@ -32,7 +32,18 @@
         align-items: center;
         flex-wrap: wrap;
         margin-bottom: 1rem;
+        padding: 1rem 1.05rem;
+        border-radius: 24px;
+        border: 1px solid rgba(121, 170, 230, 0.18);
+        background:
+          radial-gradient(720px 240px at 0% 0%, rgba(20,216,255,0.12) 0%, rgba(20,216,255,0) 56%),
+          rgba(7, 16, 30, 0.88);
+        box-shadow: 0 24px 54px rgba(0,0,0,0.24);
       }
+      .topbar-copy { display:flex; flex-direction:column; gap:0.3rem; max-width: 520px; }
+      .topbar-kicker { color: rgba(20,216,255,0.92); font-size: 0.72rem; font-weight: 900; letter-spacing: 0.18em; text-transform: uppercase; }
+      .topbar-title { margin:0; font-size: clamp(1.45rem, 2.8vw, 2.1rem); letter-spacing: -0.03em; line-height: 1.02; }
+      .topbar-meta { color: rgba(203,213,225,0.78); font-weight: 700; }
       .module-tabs { display: flex; gap: 0.55rem; flex-wrap: wrap; }
       .module-tab {
         text-decoration: none;
@@ -41,6 +52,13 @@
         padding: 0.48rem 0.8rem;
         border-radius: 999px;
         font-size: 0.85rem;
+        transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+      }
+      .module-tab:hover,
+      .admin-tab:hover {
+        transform: translateY(-1px);
+        border-color: rgba(20,216,255,0.34);
+        box-shadow: 0 14px 24px rgba(2,6,23,0.18);
       }
       .module-tab.is-active {
         color: #041323;
@@ -67,6 +85,7 @@
         padding: 0.45rem 0.75rem;
         border-radius: 999px;
         font-size: 0.82rem;
+        transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
       }
       .admin-tab.is-active {
         color: #041323;
@@ -188,6 +207,11 @@
       <header class="topbar">
         <div class="topbar-brand">
           {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True hide_global_guard_widget=True %}
+          <div class="topbar-copy" style="margin-top:0.5rem;">
+            <div class="topbar-kicker">Club admin</div>
+            <h1 class="topbar-title">Admin</h1>
+            <div class="topbar-meta">Control operativo del club, categorías, plantilla y tareas recientes.</div>
+          </div>
         </div>
         <nav class="module-tabs">
           <a class="module-tab" href="{% url 'dashboard-home' %}">Dashboard</a>
