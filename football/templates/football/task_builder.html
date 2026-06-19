@@ -402,8 +402,31 @@
 	        gap: 1rem;
 	        margin-bottom: 1rem;
 	        flex-wrap: wrap;
+          padding: 1rem 1.05rem;
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 24px;
+          background:
+            linear-gradient(135deg, rgba(8,15,31,0.9), rgba(15,23,42,0.82)),
+            radial-gradient(circle at top left, rgba(56,189,248,0.16), transparent 28%);
+          box-shadow: 0 24px 58px rgba(2, 6, 23, 0.32);
+          backdrop-filter: blur(14px);
+          -webkit-backdrop-filter: blur(14px);
 	      }
-	      body.ui-tablet .topbar {
+      .topbar-copy {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.34rem;
+        max-width: 760px;
+      }
+      .topbar-kicker {
+        color: rgba(125,211,252,0.92);
+        font-size: 0.72rem;
+        font-weight: 950;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+      body.ui-tablet .topbar {
 	        position: sticky;
 	        top: 0;
 	        z-index: 1200;
@@ -416,8 +439,30 @@
 	      }
       .topbar h1 {
         margin: 0;
-        font-size: 1.12rem;
-        letter-spacing: 0.08em;
+        font-size: clamp(1.18rem, 1.9vw, 1.8rem);
+        line-height: 1.02;
+        letter-spacing: -0.03em;
+        text-transform: none;
+        color: #f8fafc;
+      }
+      .topbar-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        align-items: center;
+      }
+      .topbar-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.36rem;
+        padding: 0.42rem 0.72rem;
+        border-radius: 999px;
+        border: 1px solid rgba(148,163,184,0.15);
+        background: rgba(255,255,255,0.05);
+        color: rgba(248,250,252,0.94);
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.05em;
         text-transform: uppercase;
       }
       body.tactics-mode .topbar {
@@ -513,6 +558,19 @@
         display: flex;
         gap: 0.55rem;
         flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-end;
+      }
+      .actions .button,
+      .actions button {
+        transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+      }
+      .actions .button:hover,
+      .actions button:hover {
+        transform: translateY(-1px);
+        border-color: rgba(125,211,252,0.32);
+        background: rgba(255,255,255,0.1);
+        box-shadow: 0 14px 24px rgba(2,6,23,0.18);
       }
       .action-menu {
         position: relative;
@@ -5192,6 +5250,13 @@
         }
       }
       @media (max-width: 760px) {
+        .topbar {
+          padding: 0.9rem;
+        }
+        .actions {
+          width: 100%;
+          justify-content: flex-start;
+        }
         body:not(.tactics-mode) .pitch-side .resource-tabs {
           grid-template-columns: 1fr;
         }
@@ -5227,7 +5292,14 @@
 	      {% include 'football/includes/dragon_nav.html' %}
 	      {% endif %}
       <div class="topbar">
-        <div>
+        <div class="topbar-copy">
+          <div class="topbar-kicker">
+            {% if tactics_mode %}Playbook táctico
+            {% elif analysis_item_mode %}Editor de informe
+            {% elif task %}Biblioteca de tareas
+            {% else %}Nueva tarea
+            {% endif %}
+          </div>
 	          <h1>
 	            {% if analysis_item_mode %}
 	              Informe · {{ analysis_item_title|default:"Pizarra" }} · Editor visual
@@ -5254,6 +5326,20 @@
             <button type="button" data-tactics-flow="present">Preparar charla</button>
           </div>
           {% endif %}
+          <div class="topbar-pills">
+            {% if tactics_mode %}
+            <span class="topbar-pill">Pizarra libre</span>
+            <span class="topbar-pill">Clips</span>
+            <span class="topbar-pill">Compartir</span>
+            {% elif analysis_item_mode %}
+            <span class="topbar-pill">Informe visual</span>
+            <span class="topbar-pill">Edición rápida</span>
+            {% else %}
+            <span class="topbar-pill">{% if task %}Modo edición{% else %}Modo creación{% endif %}</span>
+            <span class="topbar-pill">Ficha + pizarra</span>
+            <span class="topbar-pill">PDF UEFA/Club</span>
+            {% endif %}
+          </div>
         </div>
 				        <div class="actions">
 		              {% if analysis_item_mode %}
@@ -7979,6 +8065,127 @@
 	                      {% endfor %}
 	                    </select>
 	                  </label>
+	                  <div class="section" id="task-methodology-card" style="grid-column:1 / -1; margin:0.35rem 0 0.55rem; padding:0.75rem; border:1px solid rgba(255,255,255,0.10); border-radius:14px; background:rgba(255,255,255,0.035);" data-methodology-picker data-help="Conecta la tarea con la periodización táctica: momento, principio, subprincipio, regla provocadora y carga.">
+	                    <h3 style="margin:0 0 0.55rem;">Metodología</h3>
+	                    <div class="compact-grid" data-methodology-grid>
+	                      <label>
+	                        Momento del juego
+	                        <select name="draw_task_game_moment">
+	                          <option value="">Selecciona...</option>
+	                          {% for value, label in game_moment_choices %}
+	                          <option value="{{ value }}" {% if initial.game_moment == value %}selected{% endif %}>{{ label }}</option>
+	                          {% endfor %}
+	                        </select>
+	                      </label>
+	                      <label>
+	                        Principio
+	                        <input list="task-principle-options" type="text" name="draw_task_principle" value="{{ initial.principle }}" maxlength="120" placeholder="Ej: Presión tras pérdida" />
+	                      </label>
+	                      <label style="grid-column:1 / -1;">
+	                        Subprincipio
+	                        <input type="text" name="draw_task_subprinciple" value="{{ initial.subprinciple }}" maxlength="160" placeholder="Ej: cerrar pase interior y acosar al poseedor" />
+	                      </label>
+	                      <label style="grid-column:1 / -1;">
+	                        Regla provocadora
+	                        <textarea name="draw_task_provocation_rule" rows="2" style="min-height:52px; resize:vertical;" placeholder="Ej: gol doble si recuperamos en 6'' y finalizamos">{{ initial.provocation_rule }}</textarea>
+	                      </label>
+	                      <label>
+	                        Estructura dominante
+	                        <select name="draw_task_dominant_structure">
+	                          <option value="">Selecciona...</option>
+	                          {% for value, label in player_structure_choices %}
+	                          <option value="{{ value }}" {% if initial.dominant_structure == value %}selected{% endif %}>{{ label }}</option>
+	                          {% endfor %}
+	                        </select>
+	                      </label>
+	                      <label>
+	                        Estructura secundaria
+	                        <select name="draw_task_secondary_structure">
+	                          <option value="">Selecciona...</option>
+	                          {% for value, label in player_structure_choices %}
+	                          <option value="{{ value }}" {% if initial.secondary_structure == value %}selected{% endif %}>{{ label }}</option>
+	                          {% endfor %}
+	                        </select>
+	                      </label>
+	                      <label>
+	                        Carga física
+	                        <select name="draw_task_physical_load">
+	                          <option value="">-</option>
+	                          {% for value, label in task_load_level_choices %}
+	                          <option value="{{ value }}" {% if initial.physical_load == value %}selected{% endif %}>{{ label }}</option>
+	                          {% endfor %}
+	                        </select>
+	                      </label>
+	                      <label>
+	                        Carga cognitiva
+	                        <select name="draw_task_cognitive_load">
+	                          <option value="">-</option>
+	                          {% for value, label in task_load_level_choices %}
+	                          <option value="{{ value }}" {% if initial.cognitive_load == value %}selected{% endif %}>{{ label }}</option>
+	                          {% endfor %}
+	                        </select>
+	                      </label>
+	                      <label>
+	                        Carga emocional
+	                        <select name="draw_task_emotional_load">
+	                          <option value="">-</option>
+	                          {% for value, label in task_load_level_choices %}
+	                          <option value="{{ value }}" {% if initial.emotional_load == value %}selected{% endif %}>{{ label }}</option>
+	                          {% endfor %}
+	                        </select>
+	                      </label>
+	                      <label>
+	                        Día microciclo
+	                        <select name="draw_task_md_day">
+	                          <option value="">-</option>
+	                          {% for value, label in task_md_day_choices %}
+	                          <option value="{{ value }}" {% if initial.md_day == value %}selected{% endif %}>{{ label }}</option>
+	                          {% endfor %}
+	                        </select>
+	                      </label>
+	                      <label>
+	                        Carga dominante
+	                        <select name="draw_task_dominant_load">
+	                          <option value="">-</option>
+	                          {% for value, label in task_dominant_load_choices %}
+	                          <option value="{{ value }}" {% if initial.dominant_load == value %}selected{% endif %}>{{ label }}</option>
+	                          {% endfor %}
+	                        </select>
+	                      </label>
+	                      <label>
+	                        Escala
+	                        <select name="draw_task_rpe_scale">
+	                          {% for value, label in task_rpe_scale_choices %}
+	                          <option value="{{ value }}" {% if initial.rpe_scale == value %}selected{% endif %}>{{ label }}</option>
+	                          {% endfor %}
+	                        </select>
+	                      </label>
+	                      <label>
+	                        RPE previsto
+	                        <input type="number" name="draw_task_planned_rpe" min="0" max="20" step="1" value="{{ initial.planned_rpe }}" placeholder="0-10" />
+	                      </label>
+	                      <label>
+	                        sRPE previsto
+	                        <input type="number" value="{{ initial.planned_srpe_load }}" placeholder="auto" readonly />
+	                      </label>
+	                      <label>
+	                        Wellness objetivo
+	                        <input type="number" name="draw_task_wellness_target" min="1" max="10" step="1" value="{{ initial.wellness_target }}" placeholder="1-10" />
+	                      </label>
+	                      <label>
+	                        Monotony
+	                        <input type="text" name="draw_task_monotony_target" value="{{ initial.monotony_target }}" maxlength="40" placeholder="Ej: <2.0" />
+	                      </label>
+	                      <label>
+	                        Strain
+	                        <input type="text" name="draw_task_strain_target" value="{{ initial.strain_target }}" maxlength="60" placeholder="Ej: semana controlada" />
+	                      </label>
+	                      <label style="grid-column:1 / -1;">
+	                        Notas de carga
+	                        <textarea name="draw_task_load_notes" rows="2" style="min-height:52px; resize:vertical;" placeholder="Ej: evitar picos tras partido, controlar aceleraciones y densidad decisional">{{ initial.load_notes }}</textarea>
+	                      </label>
+	                    </div>
+	                  </div>
 		                  <label style="grid-column:1 / -1;">
 		                    Organización
 		                    <div class="rich-editor" data-rich-editor data-rich-name="draw_task_organization" data-rich-html-name="draw_task_organization_html">
@@ -8174,7 +8381,15 @@
 	                </div>
 		              </div>
 		              </div>
-              {% endif %}
+		              {% endif %}
+		              {% endif %}
+
+              {% if not tactics_mode %}
+              <datalist id="task-principle-options">
+                {% for item in model_principle_options %}
+                <option value="{{ item.label }}"></option>
+                {% endfor %}
+              </datalist>
               {% endif %}
 
 			              <div class="side-pane{% if tactics_mode %} is-active{% endif %}" data-pane="playbook" role="tabpanel">
@@ -9012,13 +9227,18 @@
 		              body: 'Aquí están Ficha básica, Ficha avanzada, Asistente, Escenarios, Capas, Exportar y Vista previa.',
 		            },
 		            {
+		              anchor: '#task-methodology-card',
+		              title: '5) Metodología',
+		              body: 'En Ficha avanzada usa “Añadir campo” para mostrar solo el momento, principio, subprincipio, regla provocadora o cargas que necesites.',
+		            },
+		            {
 		              anchor: 'button.side-tab[data-pane=\"preview\"]',
-		              title: '5) Vista previa y PDF',
+		              title: '6) Vista previa y PDF',
 		              body: 'En “Vista previa” verás cómo quedará. El PDF se genera con “Imprimir UEFA/Club”.',
 		            },
 		            {
 		              anchor: '.submit-row .primary',
-		              title: '6) Guardar',
+		              title: '7) Guardar',
 		              body: 'Cuando termines, pulsa “Guardar/Crear tarea”.',
 		            },
 		          ]);
@@ -14168,6 +14388,85 @@
       })();
     </script>
     {% endif %}
+    {% if tactics_mode %}
+    <script src="{% static 'football/js/tactics_pro_console.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+    {% endif %}
+    <script>
+      (function () {
+        const clean = (value) => String(value || '').replace(/\s+/g, ' ').trim();
+        const controlValue = (control) => {
+          if (!control) return '';
+          if (control.matches('select')) {
+            const selectedIndex = Number(control.selectedIndex || 0);
+            const first = control.options && control.options.length ? control.options[0] : null;
+            const firstHasValue = first && clean(first.value);
+            if (selectedIndex <= 0 && firstHasValue) return '';
+          }
+          if (control.type === 'checkbox' || control.type === 'radio') return control.checked ? '1' : '';
+          return clean(control.value);
+        };
+        const labelText = (label, control) => {
+          const direct = Array.from(label.childNodes || [])
+            .filter((node) => node.nodeType === Node.TEXT_NODE)
+            .map((node) => clean(node.textContent))
+            .filter(Boolean)
+            .join(' ');
+          return direct || clean(label.getAttribute('aria-label')) || clean(control?.name).replace(/^.*?_/, '').replace(/_/g, ' ') || 'Campo';
+        };
+        const initPicker = (box) => {
+          if (!box || box.dataset.methodologyReady === '1') return;
+          const grid = box.querySelector('[data-methodology-grid]');
+          if (!grid) return;
+          const labels = Array.from(grid.children || []).filter((el) => el && el.matches && el.matches('label') && el.querySelector('input,select,textarea'));
+          if (!labels.length) return;
+          box.dataset.methodologyReady = '1';
+          const controls = document.createElement('div');
+          controls.className = 'methodology-add-row';
+          controls.style.cssText = 'display:flex;gap:0.5rem;align-items:flex-end;flex-wrap:wrap;margin:0.65rem 0 0.2rem;';
+          const select = document.createElement('select');
+          select.setAttribute('aria-label', 'Campo metodológico a añadir');
+          select.style.cssText = 'max-width:260px;min-width:190px;';
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'button secondary';
+          button.textContent = 'Añadir campo';
+          button.setAttribute('data-help', 'Muestra el campo metodológico seleccionado sin llenar la ficha con opciones que no necesitas.');
+          controls.append(select, button);
+          grid.parentNode.insertBefore(controls, grid);
+          const rows = labels.map((label, index) => {
+            const control = label.querySelector('input,select,textarea');
+            label.dataset.methodologyIndex = String(index);
+            return { index, label, control, text: labelText(label, control) };
+          });
+          const refreshOptions = () => {
+            const hiddenRows = rows.filter((row) => row.label.hidden);
+            select.innerHTML = '';
+            hiddenRows.forEach((row) => {
+              const option = document.createElement('option');
+              option.value = String(row.index);
+              option.textContent = row.text;
+              select.appendChild(option);
+            });
+            const hasHidden = hiddenRows.length > 0;
+            controls.hidden = !hasHidden;
+            select.disabled = !hasHidden;
+            button.disabled = !hasHidden;
+          };
+          rows.forEach((row) => { row.label.hidden = !controlValue(row.control); });
+          button.addEventListener('click', () => {
+            const row = rows.find((item) => String(item.index) === String(select.value));
+            if (!row) return;
+            row.label.hidden = false;
+            refreshOptions();
+            try { row.control?.focus({ preventScroll: true }); } catch (e) {}
+          });
+          refreshOptions();
+        };
+        const boot = () => document.querySelectorAll('[data-methodology-picker]').forEach(initPicker);
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
+        else boot();
+      })();
+    </script>
     {% if tactics_mode %}
     <script src="{% static 'football/js/tactics_pro_console.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
     {% endif %}

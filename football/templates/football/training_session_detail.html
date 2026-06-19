@@ -9,12 +9,55 @@
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     {% include 'football/pwa_head.html' %}
     <style>
-      body { margin:0; background: linear-gradient(180deg, #020417 0%, #050b1c 100%); color:#e5e7eb; font-family:var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif); }
-      .page { max-width: 1160px; margin:0 auto; padding: 1rem 1rem 2.5rem; }
-      .topbar { display:flex; justify-content:space-between; gap:0.65rem; flex-wrap:wrap; align-items:center; margin-bottom: 0.75rem; }
-      .btn { border-radius:999px; border:1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.68rem 0.95rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:0.4rem; }
+      body {
+        margin:0;
+        background:
+          radial-gradient(circle at top, rgba(14,165,233,0.18), transparent 34%),
+          radial-gradient(circle at 80% 12%, rgba(99,102,241,0.18), transparent 30%),
+          linear-gradient(180deg, #020417 0%, #050b1c 100%);
+        color:#e5e7eb;
+        font-family:var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif);
+      }
+      .page { max-width: 1160px; margin:0 auto; padding: 1.15rem 1rem 2.8rem; }
+      .topbar {
+        display:flex;
+        justify-content:space-between;
+        gap:0.9rem;
+        flex-wrap:wrap;
+        align-items:flex-start;
+        margin-bottom: 1rem;
+        padding: 1rem 1.05rem;
+        border: 1px solid rgba(148,163,184,0.18);
+        border-radius: 24px;
+        background: linear-gradient(135deg, rgba(8,15,31,0.88), rgba(15,23,42,0.8));
+        box-shadow: 0 24px 56px rgba(2, 6, 23, 0.34);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+      }
+      .topbar-copy { display:flex; flex-direction:column; gap:0.32rem; max-width: 700px; }
+      .topbar-kicker { color: rgba(125,211,252,0.9); font-size:0.72rem; font-weight:950; letter-spacing:0.16em; text-transform:uppercase; }
+      .topbar h1 { margin:0; font-size:clamp(1.35rem, 2vw, 2rem); line-height:1.02; letter-spacing:-0.03em; color:#f8fafc; }
+      .topbar-subline { display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; color: rgba(226,232,240,0.74); font-weight:850; font-size:0.85rem; }
+      .session-pill {
+        display:inline-flex;
+        align-items:center;
+        gap:0.38rem;
+        padding:0.46rem 0.72rem;
+        border-radius:999px;
+        border:1px solid rgba(148,163,184,0.16);
+        background: rgba(255,255,255,0.05);
+        color:#f8fafc;
+        font-size:0.72rem;
+        font-weight:900;
+        letter-spacing:0.04em;
+        text-transform:uppercase;
+      }
+      .topbar-actions { display:flex; flex-wrap:wrap; gap:0.55rem; justify-content:flex-end; }
+      .btn { border-radius:999px; border:1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.68rem 0.95rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:0.4rem; transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease; }
       .btn.primary { background: linear-gradient(135deg, #22d3ee, #67e8f9); border:none; color:#03253c; }
       .btn.secondary { background: transparent; }
+      .btn:hover { transform: translateY(-1px); border-color: rgba(125,211,252,0.34); background: rgba(255,255,255,0.1); box-shadow: 0 14px 24px rgba(2,6,23,0.18); }
+      .btn.primary:hover { background: linear-gradient(135deg, #67e8f9, #a5f3fc); }
       .meta { color: rgba(226,232,240,0.72); font-weight: 850; }
       .alert { margin:0 0 0.85rem; border-radius:16px; padding:0.75rem 0.85rem; border:1px solid rgba(148,163,184,0.2); background: rgba(2, 6, 23, 0.35); font-weight:850; }
       .alert.ok { border-color: rgba(34,211,238,0.35); }
@@ -154,18 +197,27 @@
 	      #session-edit .player-cell { font-weight:950; letter-spacing:0.02em; }
       .toggle-row { display:flex; gap:0.4rem; flex-wrap:wrap; align-items:center; }
       .view-hidden { display:none !important; }
+      @media (max-width: 720px) {
+        .topbar { padding: 0.9rem; }
+        .topbar-actions { width:100%; justify-content:flex-start; }
+        .session-pill { width:max-content; }
+      }
     </style>
   </head>
   <body class="prod-commercial">
     <main class="page">
       <div class="topbar">
-        <div style="display:flex; flex-direction:column; gap:0.15rem;">
-          <div class="meta">Sesión</div>
-          <div style="font-weight:950; letter-spacing:0.06em; text-transform:uppercase;">
-            {{ session.session_date|date:"d/m/Y" }} · {{ session.focus }}
+        <div class="topbar-copy">
+          <div class="topbar-kicker">Plan de entrenamiento</div>
+          <h1>{{ session_display_title|default:session.focus }}</h1>
+          <div class="topbar-subline">
+            <span class="session-pill">{{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}</span>
+            <span class="session-pill">{{ session.get_intensity_display }}</span>
+            <span class="session-pill">{{ tasks_count }} tareas · {{ task_minutes_total }} min</span>
+            <span class="session-pill">{{ team.name|default:"Equipo" }}</span>
           </div>
         </div>
-	        <div class="toggle-row">
+	        <div class="toggle-row topbar-actions">
 	          <a class="btn secondary" href="{% url 'team-agenda' %}{% if team %}?team={{ team.id }}{% endif %}">← Agenda</a>
 	          <a class="btn secondary" href="{{ planner_url }}">Biblioteca</a>
 	          <a class="btn secondary" href="{{ planner_url }}" title="Ir a biblioteca para seleccionar tareas" aria-label="Añadir tareas">➕ Tareas</a>
@@ -257,10 +309,14 @@
 	          <div class="section-title">Post-sesión (60s)</div>
 	          <div class="box" style="margin-bottom:12px;">
 	            {% if review %}
-	              <div style="display:flex; gap:14px; flex-wrap:wrap;">
-	                <div><span class="k">Duración real</span><div class="v">{% if review.actual_duration_minutes %}{{ review.actual_duration_minutes }} min{% else %}—{% endif %}</div></div>
-	                <div><span class="k">RPE</span><div class="v">{% if review.rpe %}{{ review.rpe }}/10{% else %}—{% endif %}</div></div>
-	              </div>
+		              <div style="display:flex; gap:14px; flex-wrap:wrap;">
+		                <div><span class="k">Duración real</span><div class="v">{% if review.actual_duration_minutes %}{{ review.actual_duration_minutes }} min{% else %}—{% endif %}</div></div>
+		                <div><span class="k">RPE</span><div class="v">{% if review.rpe %}{{ review.rpe }}/10{% else %}—{% endif %}</div></div>
+		                <div><span class="k">Ejecución</span><div class="v">{% if review.execution_score %}{{ review.execution_score }}/10{% else %}—{% endif %}</div></div>
+		                <div><span class="k">Física</span><div class="v">{% if review.physical_load %}{{ review.physical_load }}/10{% else %}—{% endif %}</div></div>
+		                <div><span class="k">Cognitiva</span><div class="v">{% if review.cognitive_load %}{{ review.cognitive_load }}/10{% else %}—{% endif %}</div></div>
+		                <div><span class="k">Emocional</span><div class="v">{% if review.emotional_load %}{{ review.emotional_load }}/10{% else %}—{% endif %}</div></div>
+		              </div>
 	              {% if review.what_worked %}<p style="margin-top:10px;"><strong>Qué funcionó:</strong><br />{{ review.what_worked|linebreaksbr }}</p>{% endif %}
 	              {% if review.what_failed %}<p style="margin-top:10px;"><strong>Qué falló:</strong><br />{{ review.what_failed|linebreaksbr }}</p>{% endif %}
 	              {% if review.next_adjustment %}<p style="margin-top:10px;"><strong>Ajuste siguiente:</strong><br />{{ review.next_adjustment|linebreaksbr }}</p>{% endif %}
@@ -623,6 +679,22 @@
 	              <label>
 	                RPE (1-10)
 	                <input type="number" name="review_rpe" min="1" max="10" value="{% if review and review.rpe %}{{ review.rpe }}{% endif %}" />
+	              </label>
+	              <label>
+	                Ejecución (1-10)
+	                <input type="number" name="review_execution_score" min="1" max="10" value="{% if review and review.execution_score %}{{ review.execution_score }}{% endif %}" />
+	              </label>
+	              <label>
+	                Carga física (1-10)
+	                <input type="number" name="review_physical_load" min="1" max="10" value="{% if review and review.physical_load %}{{ review.physical_load }}{% endif %}" />
+	              </label>
+	              <label>
+	                Carga cognitiva (1-10)
+	                <input type="number" name="review_cognitive_load" min="1" max="10" value="{% if review and review.cognitive_load %}{{ review.cognitive_load }}{% endif %}" />
+	              </label>
+	              <label>
+	                Carga emocional (1-10)
+	                <input type="number" name="review_emotional_load" min="1" max="10" value="{% if review and review.emotional_load %}{{ review.emotional_load }}{% endif %}" />
 	              </label>
 	              <label class="full">
 	                Qué funcionó
