@@ -66394,6 +66394,34 @@ def system_guard_chat_api(request):
     except Exception:
         workspace = None
     can_manage_guard = bool(_is_admin_user(request.user) or (workspace and _can_manage_workspace(request.user, workspace)))
+
+    def _csv_env_values(name: str) -> set[str]:
+        raw = str(os.getenv(name, '') or '').strip()
+        if not raw:
+            return set()
+        return {part.strip() for part in raw.split(',') if part.strip()}
+
+    def _can_operate_guard_code(user, workspace_obj=None) -> bool:
+        user_id = int(getattr(user, 'id', 0) or 0)
+        username = str(getattr(user, 'username', '') or '').strip().lower()
+        email = str(getattr(user, 'email', '') or '').strip().lower()
+        allowed_ids = {
+            int(value) for value in _csv_env_values('OLLANA_OPERATOR_USER_IDS')
+            if str(value).strip().isdigit()
+        }
+        allowed_usernames = {value.lower() for value in _csv_env_values('OLLANA_OPERATOR_USERNAMES')}
+        allowed_emails = {value.lower() for value in _csv_env_values('OLLANA_OPERATOR_USER_EMAILS')}
+        if allowed_ids or allowed_usernames or allowed_emails:
+            return bool(
+                (user_id and user_id in allowed_ids)
+                or (username and username in allowed_usernames)
+                or (email and email in allowed_emails)
+            )
+        if _is_admin_user(user):
+            return True
+        return bool(workspace_obj and int(getattr(workspace_obj, 'owner_user_id', 0) or 0) == user_id)
+
+    can_operate_guard_code = bool(can_manage_guard and _can_operate_guard_code(request.user, workspace))
     try:
         team = _get_primary_team_for_request(request) or _team_from_request_param(request)
     except Exception:
@@ -66404,6 +66432,12 @@ def system_guard_chat_api(request):
         maintenance_action = ''
         execute_confirmed = False
         autonomy_mode = 'advisor'
+    elif not can_operate_guard_code:
+        auto_fix = False
+        maintenance_action = ''
+        execute_confirmed = False
+        if autonomy_mode == 'operator':
+            autonomy_mode = 'supervised'
     page_context = {
         'page': str(payload_page_context.get('page') or request.resolver_match.url_name or '').strip()[:120],
         'path': str(payload_page_context.get('path') or request.path or '').strip()[:240],
@@ -66414,6 +66448,7 @@ def system_guard_chat_api(request):
         'workspace_name': str(getattr(workspace, 'name', '') or '')[:160],
         'user': str(getattr(request.user, 'username', '') or '')[:120],
         'can_manage_guard': can_manage_guard,
+        'can_operate_guard_code': can_operate_guard_code,
     }
     try:
         from football.system_guard import _observability_summary, run_system_guard_chat
@@ -66432,6 +66467,10 @@ def system_guard_chat_api(request):
             execute_confirmed=execute_confirmed,
         )
         result['observability'] = _observability_summary(workspace)
+        result['permissions'] = {
+            'can_manage_guard': can_manage_guard,
+            'can_operate_guard_code': can_operate_guard_code,
+        }
         return JsonResponse({'ok': True, **result})
     except Exception as exc:
         return JsonResponse({'ok': False, 'error': f'{exc.__class__.__name__}: {exc}'}, status=500)
@@ -66466,5 +66505,4 @@ def system_guard_page(request):
             'guard_observability': guard_observability,
         },
     )
-
 

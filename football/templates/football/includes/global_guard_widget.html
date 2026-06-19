@@ -632,10 +632,16 @@
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok || !data?.ok) throw new Error(data?.error || `HTTP ${resp.status}`);
       const response = data?.chat?.response || {};
+      const permissions = data?.permissions && typeof data.permissions === 'object' ? data.permissions : {};
       const text = String(response.message || 'Sin respuesta útil del guardián.');
       const highlights = Array.isArray(response.highlights) ? response.highlights : [];
       renderMessage('assistant', text, highlights, response);
       history.push({ role: 'assistant', content: text });
+      if (intent.kind === 'task' && permissions.can_operate_guard_code === false) {
+        const notice = 'He tratado tu petición en modo supervisado. Solo el usuario operador autorizado puede lanzar cambios de código o auto-fix.';
+        renderMessage('assistant', notice, ['Modo supervisado']);
+        history.push({ role: 'assistant', content: notice });
+      }
       if (response && typeof response.snapshot_diff === 'object' && data && typeof data.observability === 'object') {
         const regressions = Array.isArray(response.snapshot_diff.regressions) ? response.snapshot_diff.regressions : [];
         const improvements = Array.isArray(response.snapshot_diff.improvements) ? response.snapshot_diff.improvements : [];

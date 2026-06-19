@@ -473,6 +473,104 @@ class CanonicalAppBaseUrlNormalizationTests(TestCase):
         self.assertEqual(response['Location'], 'https://app.example.com/2j/')
 
 
+class SystemGuardOperatorPolicyTests(TestCase):
+    def setUp(self):
+        self.team = Team.objects.create(name='Guard Team', is_primary=True)
+        self.workspace_owner = get_user_model().objects.create_user(
+            username='guard-owner',
+            email='owner@example.com',
+            password='pass-1234',
+        )
+        self.workspace = Workspace.objects.create(
+            name='Guard Workspace',
+            primary_team=self.team,
+            owner_user=self.workspace_owner,
+        )
+        self.manager_user = get_user_model().objects.create_user(
+            username='guard-manager',
+            email='manager@example.com',
+            password='pass-1234',
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.manager_user,
+            role=WorkspaceMembership.ROLE_ADMIN,
+        )
+
+    @patch('football.system_guard._observability_summary', return_value={'history_count': 0})
+    @patch('football.system_guard.run_system_guard_chat', return_value={
+        'report': {'issue_summary': {'blockers': 0, 'warnings': 0}},
+        'chat': {'degraded': False, 'response': {'status': 'ok', 'message': 'ok', 'highlights': [], 'actions': [], 'metrics': {'executed_tools': 0, 'latency_ms': 0}}},
+    })
+    @patch('football.views._get_active_workspace')
+    @patch('football.views._get_primary_team_for_request')
+    @patch('football.views._can_access_sessions_workspace', return_value=True)
+    @patch('football.views._can_manage_workspace', return_value=True)
+    @patch('football.views._is_admin_user', return_value=False)
+    def test_guard_code_ops_are_downgraded_for_non_operator_manager(self, _is_admin, _can_manage, _can_access, mock_team, mock_workspace, mock_guard, _mock_ob):
+        mock_workspace.return_value = self.workspace
+        mock_team.return_value = self.team
+        self.client.force_login(self.manager_user)
+        response = self.client.post(
+            reverse('system-guard-chat-api'),
+            data=json.dumps({
+                'message': 'Arregla el sistema y aplica auto-fix en el código.',
+                'run_smoke': True,
+                'auto_fix': True,
+                'maintenance_action': 'ai_trainer_reindex',
+                'autonomy_mode': 'operator',
+                'audience': 'technical',
+            }),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 200)
+        kwargs = mock_guard.call_args.kwargs
+        self.assertTrue(kwargs['run_smoke'])
+        self.assertFalse(kwargs['auto_fix'])
+        self.assertEqual(kwargs['maintenance_action'], '')
+        self.assertEqual(kwargs['autonomy_mode'], 'supervised')
+        self.assertFalse(kwargs['page_context']['can_operate_guard_code'])
+        payload = response.json()
+        self.assertFalse(payload['permissions']['can_operate_guard_code'])
+
+    @patch('football.system_guard._observability_summary', return_value={'history_count': 0})
+    @patch('football.system_guard.run_system_guard_chat', return_value={
+        'report': {'issue_summary': {'blockers': 0, 'warnings': 0}},
+        'chat': {'degraded': False, 'response': {'status': 'ok', 'message': 'ok', 'highlights': [], 'actions': [], 'metrics': {'executed_tools': 0, 'latency_ms': 0}}},
+    })
+    @patch('football.views._get_active_workspace')
+    @patch('football.views._get_primary_team_for_request')
+    @patch('football.views._can_access_sessions_workspace', return_value=True)
+    @patch('football.views._can_manage_workspace', return_value=True)
+    @patch('football.views._is_admin_user', return_value=False)
+    def test_guard_code_ops_are_allowed_for_whitelisted_operator(self, _is_admin, _can_manage, _can_access, mock_team, mock_workspace, mock_guard, _mock_ob):
+        mock_workspace.return_value = self.workspace
+        mock_team.return_value = self.team
+        self.client.force_login(self.manager_user)
+        with patch.dict(os.environ, {'OLLANA_OPERATOR_USERNAMES': 'guard-manager'}, clear=False):
+            response = self.client.post(
+                reverse('system-guard-chat-api'),
+                data=json.dumps({
+                    'message': 'Arregla el sistema y aplica auto-fix en el código.',
+                    'run_smoke': True,
+                    'auto_fix': True,
+                    'maintenance_action': 'ai_trainer_reindex',
+                    'autonomy_mode': 'operator',
+                    'audience': 'technical',
+                }),
+                content_type='application/json',
+            )
+        self.assertEqual(response.status_code, 200)
+        kwargs = mock_guard.call_args.kwargs
+        self.assertTrue(kwargs['run_smoke'])
+        self.assertTrue(kwargs['auto_fix'])
+        self.assertEqual(kwargs['maintenance_action'], 'ai_trainer_reindex')
+        self.assertEqual(kwargs['autonomy_mode'], 'operator')
+        self.assertTrue(kwargs['page_context']['can_operate_guard_code'])
+        payload = response.json()
+        self.assertTrue(payload['permissions']['can_operate_guard_code'])
+
+
 class TacticsLandingModalFallbackTests(TestCase):
     def setUp(self):
         self.team = Team.objects.create(
