@@ -9,6 +9,15 @@
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     {% include 'football/pwa_head.html' %}
     <style>
+      :root {
+        --panel: rgba(17, 24, 39, 0.92);
+        --panel-soft: rgba(255, 255, 255, 0.04);
+        --line: rgba(148, 163, 184, 0.22);
+        --muted: rgba(226, 232, 240, 0.74);
+        --accent: #facc15;
+        --cyan: #38bdf8;
+        --shadow: 0 22px 54px rgba(0, 0, 0, 0.32);
+      }
       body {
         margin: 0;
         font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", sans-serif);
@@ -26,44 +35,161 @@
         margin: 0 auto;
         padding: clamp(0.85rem, 1.4vw, 1.5rem);
       }
-      .head {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
+      .topbar,
+      .hero,
+      .card,
+      .stat-card {
+        box-shadow: var(--shadow);
+      }
+      .topbar {
+        display: flex;
         justify-content: space-between;
-        align-items: start;
+        align-items: flex-start;
+        gap: 1rem;
+        margin: 0 0 1rem;
+        padding: 0.95rem 1.05rem;
+        border-radius: 24px;
+        border: 1px solid var(--line);
+        background: rgba(10, 18, 30, 0.9);
+        flex-wrap: wrap;
+      }
+      .topbar-copy {
+        display: grid;
+        gap: 0.28rem;
+        max-width: 720px;
+      }
+      .topbar-kicker {
+        color: #f6d57a;
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+      .topbar h1 {
+        margin: 0;
+        font-size: clamp(1.45rem, 2.4vw, 2.15rem);
+        line-height: 0.95;
+        letter-spacing: -0.03em;
+      }
+      .topbar-actions {
+        display: inline-flex;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+      }
+      .head {
+        display: none;
+      }
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
         gap: 1rem;
         margin-bottom: 1rem;
+        padding: 1.2rem;
+        border-radius: 26px;
+        border: 1px solid var(--line);
+        background: var(--panel);
       }
-      .head h1 {
-        letter-spacing: 0.08em;
+      .eyebrow {
+        display: inline-flex;
+        width: fit-content;
+        padding: 0.34rem 0.7rem;
+        border-radius: 999px;
+        border: 1px solid rgba(250, 204, 21, 0.18);
+        background: linear-gradient(135deg, rgba(250, 204, 21, 0.12), rgba(56, 189, 248, 0.1));
+        color: #fff4cf;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.14em;
         text-transform: uppercase;
-        font-size: clamp(1rem, 1.4vw, 1.35rem);
-        overflow-wrap: anywhere;
       }
-      .head p { color: rgba(226, 232, 240, 0.74); }
+      .hero h2 {
+        margin: 0.8rem 0 0.55rem;
+        max-width: 13ch;
+        font-size: clamp(2rem, 4.5vw, 3.3rem);
+        line-height: 0.95;
+        letter-spacing: -0.04em;
+        text-wrap: balance;
+      }
+      .hero p {
+        margin: 0;
+        max-width: 58ch;
+        color: var(--muted);
+        line-height: 1.65;
+      }
+      .hero-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin-top: 1rem;
+      }
+      .hero-pill,
       .head a {
-        min-height: 38px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         border-radius: 999px;
-        border: 1px solid rgba(125, 211, 252, 0.26);
-        background: rgba(2, 6, 23, 0.45);
-        color: #e0f2fe;
-        padding: 0.55rem 0.85rem;
-        text-decoration: none;
-        font-weight: 900;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.05);
+        color: #f8fbff;
+        padding: 0.42rem 0.72rem;
         font-size: 0.72rem;
-        white-space: nowrap;
+        font-weight: 900;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        text-decoration: none;
+      }
+      .hero-side {
+        display: grid;
+        gap: 0.75rem;
+      }
+      .stat-card {
+        border-radius: 22px;
+        padding: 1rem;
+        border: 1px solid var(--line);
+        background:
+          radial-gradient(circle at top left, rgba(56, 189, 248, 0.12), transparent 38%),
+          var(--panel-soft);
+      }
+      .stat-card span {
+        display: block;
+        color: #9db4d7;
+        font-size: 0.72rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .stat-card strong {
+        display: block;
+        margin-top: 0.2rem;
+        font-size: 1.35rem;
+      }
+      .stat-card p {
+        margin: 0.45rem 0 0;
+        color: var(--muted);
+        line-height: 1.55;
       }
       .card {
-        background: rgba(17, 24, 39, 0.92);
-        border: 1px solid rgba(148, 163, 184, 0.22);
-        border-radius: 18px;
-        padding: 1rem;
-        box-shadow: 0 22px 54px rgba(0, 0, 0, 0.32);
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        padding: 1.1rem;
+      }
+      .section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: end;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.95rem;
+      }
+      .section-head h3 {
+        margin: 0;
+        font-size: 1.18rem;
+        letter-spacing: -0.02em;
+      }
+      .section-head p {
+        margin: 0.3rem 0 0;
+        color: var(--muted);
+        line-height: 1.6;
       }
       .msg {
         background: #064e3b;
@@ -81,17 +207,18 @@
       .table-wrap {
         overflow: auto;
         scrollbar-gutter: stable;
-        border-radius: 14px;
+        border-radius: 18px;
         border: 1px solid rgba(51, 65, 85, 0.72);
       }
       table {
         width: 100%;
         min-width: 780px;
         border-collapse: collapse;
+        background: rgba(2, 6, 23, 0.24);
       }
       th, td {
         border-bottom: 1px solid #334155;
-        padding: 0.5rem;
+        padding: 0.65rem 0.55rem;
         text-align: left;
         overflow-wrap: anywhere;
       }
@@ -105,28 +232,56 @@
         letter-spacing: 0.08em;
         text-transform: uppercase;
       }
+      tbody tr:hover {
+        background: rgba(255, 255, 255, 0.03);
+      }
       td:first-child {
         font-weight: 900;
         min-width: 180px;
       }
+      .player-name {
+        display: grid;
+        gap: 0.18rem;
+      }
+      .player-name strong {
+        font-size: 0.95rem;
+      }
+      .player-name span {
+        color: #94a3b8;
+        font-size: 0.75rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
       input[type="number"] {
         width: 82px;
-        padding: 0.35rem 0.4rem;
-        border-radius: 10px;
+        padding: 0.48rem 0.45rem;
+        border-radius: 12px;
         border: 1px solid #475569;
         background: #0b1220;
         color: #e2e8f0;
         font-size: 1rem;
         font-weight: 800;
       }
+      input[type="number"]:focus {
+        outline: none;
+        border-color: rgba(56, 189, 248, 0.55);
+        box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12);
+      }
       .actions {
         margin-top: 1rem;
         display: flex;
-        justify-content: flex-end;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+      .actions-copy {
+        color: var(--muted);
+        line-height: 1.55;
       }
       button {
-        min-height: 40px;
-        padding: 0.6rem 1rem;
+        min-height: 46px;
+        padding: 0.72rem 1.05rem;
         border: 0;
         border-radius: 999px;
         background: linear-gradient(135deg, #38bdf8, #facc15);
@@ -136,26 +291,86 @@
         text-transform: uppercase;
         cursor: pointer;
       }
+      .soft-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        padding: 0.72rem 1rem;
+        border-radius: 999px;
+        border: 1px solid rgba(125, 211, 252, 0.26);
+        background: rgba(2, 6, 23, 0.45);
+        color: #e0f2fe;
+        text-decoration: none;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 0.72rem;
+        white-space: nowrap;
+      }
       @media (max-width: 720px) {
-        .head { grid-template-columns: 1fr; }
-        .head a,
-        button { width: 100%; }
-        .card { padding: 0.85rem; border-radius: 16px; }
+        .hero {
+          grid-template-columns: 1fr;
+        }
+        .topbar-actions,
+        .soft-link,
+        button {
+          width: 100%;
+        }
+        .card {
+          padding: 0.9rem;
+          border-radius: 20px;
+        }
       }
     </style>
   </head>
   <body class="prod-commercial">
     <div class="page product-shell">
       {% include 'football/includes/dragon_nav.html' %}
-      <div class="head">
-        <div>
-          <h1 style="margin: 0;">Ajuste Manual de Estadisticas</h1>
-          <p style="margin: 0.3rem 0 0;">{{ team_name }} · Temporada {{ season_name }}</p>
+
+      <header class="topbar">
+        <div class="topbar-copy">
+          <div class="topbar-kicker">Edición operativa</div>
+          <h1>Ajuste manual de estadísticas</h1>
+          <p style="margin: 0; color: var(--muted);">{{ team_name }} · Temporada {{ season_name }}</p>
         </div>
-        <a href="{% url 'dashboard-home' %}">Volver al dashboard</a>
-      </div>
+        <div class="topbar-actions">
+          <a class="soft-link" href="{% url 'dashboard-home' %}">Volver al dashboard</a>
+        </div>
+      </header>
+
+      <section class="hero">
+        <div>
+          <span class="eyebrow">Control fino</span>
+          <h2>Corrige datos sin perder claridad ni ritmo.</h2>
+          <p>Esta vista está pensada para ajustes rápidos después de validar actas, cierres de jornada o consolidación histórica. La prioridad aquí es lectura clara, foco y velocidad de edición.</p>
+          <div class="hero-pills">
+            <span class="hero-pill">Actualización rápida</span>
+            <span class="hero-pill">Visión por plantilla</span>
+            <span class="hero-pill">Menos errores de carga</span>
+          </div>
+        </div>
+        <aside class="hero-side">
+          <article class="stat-card">
+            <span>Jugadores en edición</span>
+            <strong>{{ rows|length }}</strong>
+            <p>La tabla reúne todos los registros de temporada para revisar participación, minutos y producción ofensiva o disciplinaria.</p>
+          </article>
+          <article class="stat-card">
+            <span>Uso recomendado</span>
+            <strong>Post partido</strong>
+            <p>Ideal para corregir diferencias entre dato bruto, acta oficial y criterio interno del cuerpo técnico.</p>
+          </article>
+        </aside>
+      </section>
 
       <div class="card">
+        <div class="section-head">
+          <div>
+            <h3>Plantilla editable</h3>
+            <p>Modifica únicamente los campos necesarios y guarda al final. Los inputs están organizados para lectura horizontal rápida.</p>
+          </div>
+        </div>
         {% if message %}
           <div class="msg">{{ message }}</div>
         {% endif %}
@@ -181,7 +396,12 @@
               <tbody>
                 {% for row in rows %}
                   <tr>
-                    <td>{{ row.player.name }}</td>
+                    <td>
+                      <div class="player-name">
+                        <strong>{{ row.player.name }}</strong>
+                        <span>ID {{ row.player.id }}</span>
+                      </div>
+                    </td>
                     <td><input type="number" min="0" name="pj_{{ row.player.id }}" value="{{ row.pj }}" /></td>
                     <td><input type="number" min="0" name="pt_{{ row.player.id }}" value="{{ row.pt }}" /></td>
                     <td><input type="number" min="0" name="minutes_{{ row.player.id }}" value="{{ row.minutes }}" /></td>
@@ -195,6 +415,7 @@
             </table>
           </div>
           <div class="actions">
+            <div class="actions-copy">Guarda cuando termines la revisión completa. Si solo cambias algunos registros, el resto se mantiene tal como está.</div>
             <button type="submit">Guardar ajustes</button>
           </div>
         </form>
