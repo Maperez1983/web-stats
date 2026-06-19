@@ -9810,6 +9810,31 @@
 						        });
 						        if (!assetScene) return false;
 						        try {
+						          const runtimeNormalizeStadiumMaterial = (node, mat) => {
+						            try {
+						              const cloned = typeof mat?.clone === 'function'
+						                ? mat.clone()
+						                : new THREE.MeshStandardMaterial({ color: 0xd8ded8, roughness: 0.72, metalness: 0.03 });
+						              const nodeName = `${safeText(node?.name || '')} ${safeText(cloned?.name || '')}`.toUpperCase();
+						              const opacity = Number.isFinite(Number(cloned?.opacity)) ? clamp(Number(cloned.opacity), 0, 1) : 1;
+						              if ('opacity' in cloned) cloned.opacity = opacity;
+						              if ('transparent' in cloned) cloned.transparent = !!cloned.transparent || opacity < 0.999;
+						              if ('depthWrite' in cloned && cloned.depthWrite !== false) cloned.depthWrite = true;
+						              if ('depthTest' in cloned && cloned.depthTest !== false) cloned.depthTest = true;
+						              if ('side' in cloned && !Number.isFinite(Number(cloned.side))) cloned.side = THREE.FrontSide;
+						              if (cloned?.color?.set) {
+						                if (nodeName.includes('TEAM_PRIMARY')) cloned.color.set(primaryHex);
+						                else if (nodeName.includes('TEAM_SECONDARY')) cloned.color.set(secondaryHex);
+						                else if (nodeName.includes('TEAM_ACCENT')) cloned.color.set(accentHex);
+						              }
+						              if ('roughness' in cloned && !Number.isFinite(Number(cloned.roughness))) cloned.roughness = 0.72;
+						              if ('metalness' in cloned && !Number.isFinite(Number(cloned.metalness))) cloned.metalness = 0.03;
+						              cloned.needsUpdate = true;
+						              return cloned;
+						            } catch (e) {
+						              return new THREE.MeshStandardMaterial({ color: 0xd8ded8, roughness: 0.72, metalness: 0.03 });
+						            }
+						          };
 						          const stadiumAsset = assetScene.clone(true);
 						          const stadiumContainer = new THREE.Group();
 						          stadiumContainer.name = 'pitch3d_stadium_malaga_rosaleda_container';
@@ -9830,11 +9855,16 @@
 						            try { if (node.geometry) node.geometry = node.geometry.clone(); } catch (e) { /* ignore */ }
 						            try {
 						              if (Array.isArray(node.material)) {
-						                node.material = node.material.map((mat) => tuneProfessionalStadiumMaterial(node, normalizeRuntimeStadiumMaterial(node, mat)));
+						                node.material = node.material.map((mat) => runtimeNormalizeStadiumMaterial(node, mat));
 						              } else if (node.material) {
-						                node.material = tuneProfessionalStadiumMaterial(node, normalizeRuntimeStadiumMaterial(node, node.material));
+						                node.material = runtimeNormalizeStadiumMaterial(node, node.material);
 						              }
 						            } catch (e) { /* ignore */ }
+						            try {
+						              node.castShadow = true;
+						              node.receiveShadow = true;
+						              node.frustumCulled = true;
+						                            } catch (e) { /* ignore */ }
 						          });
 						          stadiumContainer.add(stadiumAsset);
 						          const rawBox = new THREE.Box3().setFromObject(stadiumAsset);
@@ -9850,7 +9880,10 @@
 						          }
 						          stadiumContainer.scale.setScalar(scale);
 						          stadiumAsset.position.set(-center.x, -rawBox.min.y, -center.z);
-						          enhanceProfessionalStadiumAsset(stadiumAsset);
+						          stadiumAsset.userData = Object.assign({}, stadiumAsset.userData || {}, {
+						            kind: 'pitch_3d_professional_blender_stadium',
+						            source: 'stadium_malaga_rosaleda_glb',
+						          });
 						          root.add(stadiumContainer);
 						          try {
 						            window.__WEBSTATS_PITCH3D_STADIUM_SOURCE = 'stadium_malaga_rosaleda_glb';
