@@ -147,7 +147,24 @@ def _acquire_playwright_browser():
     browser = None
     try:
         pw = sync_playwright().start()
-        browser = pw.chromium.launch(args=["--no-sandbox"])
+        try:
+            browser = pw.chromium.launch(args=["--no-sandbox"])
+        except Exception:
+            browser = None
+            for executable_path in [
+                "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+                "/Applications/Chromium.app/Contents/MacOS/Chromium",
+                "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+            ]:
+                if not Path(executable_path).exists():
+                    continue
+                browser = pw.chromium.launch(
+                    executable_path=executable_path,
+                    args=["--headless=new", "--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage"],
+                )
+                break
+            if browser is None:
+                raise
         yield pw, browser
     finally:
         try:

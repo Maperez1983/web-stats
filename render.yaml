@@ -5,7 +5,7 @@ services:
     plan: standard
     branch: main
     buildCommand: ./build.sh
-    startCommand: ./start_asgi.sh
+    startCommand: ./scripts/start_with_ollama.sh
     healthCheckPath: /healthz
     autoDeploy: true
     envVars:
@@ -24,6 +24,18 @@ services:
       # Arranque rápido: `collectstatic` ya se hace en build (`build.sh`).
       - key: RUN_COLLECTSTATIC
         value: "false"
+      - key: INSTALL_OLLAMA
+        value: "true"
+      - key: ENABLE_OLLAMA
+        value: "true"
+      - key: OLLAMA_MODEL
+        value: "qwen3:1.7b"
+      - key: AI_TRAINER_LOCAL_LLM_MODEL
+        value: "qwen3:1.7b"
+      - key: AI_TRAINER_LOCAL_LLM_ENABLED
+        value: "true"
+      - key: AI_TRAINER_OLLAMA_URL
+        value: "http://127.0.0.1:11434"
       # Render expone el hostname externo en esta variable; `webstats/settings.py`
       # lo usa para completar `ALLOWED_HOSTS` y CSRF trusted origins.
       - key: RENDER_EXTERNAL_HOSTNAME

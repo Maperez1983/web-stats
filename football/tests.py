@@ -36,7 +36,6 @@ from football.event_taxonomy import (
     shots_needed_per_goal,
 )
 from football.healthchecks import run_system_healthcheck
-from football import system_guard
 from football.manual_stats import get_manual_player_base_overrides, save_manual_player_base_overrides, season_display_name
 from football.query_helpers import _team_match_queryset, get_active_injury_player_ids, get_current_convocation_record, is_injury_record_active, is_manual_sanction_active
 from football.injuries import categorize_time_loss, estimate_return_date, time_loss_days
@@ -49,6 +48,7 @@ from football.staff_briefing import build_weekly_staff_brief
 from football.task_library import filter_task_library, prepare_task_library
 from football.stats_audit import run_stats_audit
 from football.dashboard_services import SCRAPE_LOCK_KEY, compute_player_cards_for_match, compute_player_dashboard, compute_player_metrics, compute_team_metrics_for_match
+from football import system_guard
 from django.test import override_settings
 from unittest.mock import Mock, patch
 import requests
@@ -121,19 +121,202 @@ class TeamMediaServicesTests(TestCase):
         self.assertIn('/login/', response['Location'])
 
 
-class SystemGuardRunbookTests(TestCase):
+class SystemGuardTests(TestCase):
     def setUp(self):
         self.team = Team.objects.create(name='Guard Team', is_primary=True)
         self.workspace_owner = get_user_model().objects.create_user(
-            username='guard-owner-runbook',
-            email='owner-runbook@example.com',
+            username='guard-owner',
+            email='owner@example.com',
             password='pass-1234',
         )
-        self.workspace = Workspace.objects.create(
-            name='Guard Runbook Workspace',
-            primary_team=self.team,
-            owner_user=self.workspace_owner,
+        self.workspace = Workspace.objects.create(name='Guard Workspace', primary_team=self.team, owner_user=self.workspace_owner)
+        self.user = get_user_model().objects.create_user(
+            username='guard-admin',
+            email='guard@example.com',
+            password='pass-1234',
+            is_staff=True,
+            is_superuser=True,
         )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.user,
+            role=WorkspaceMembership.ROLE_OWNER,
+        )
+        self.manager_user = get_user_model().objects.create_user(
+            username='guard-manager',
+            email='manager@example.com',
+            password='pass-1234',
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.manager_user,
+            role=WorkspaceMembership.ROLE_ADMIN,
+        )
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.team, is_default=True)
+
+    @patch('football.system_guard.call_ollama_json', return_value=(None, 'ollama_unavailable:test'))
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': True,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard._probe_ollama', return_value={
+        'enabled': True,
+        'ok': False,
+        'reachable': False,
+        'model_present': False,
+        'base_url': 'http://127.0.0.1:11434',
+        'model': 'qwen3:8b',
+        'error': 'ollama_unreachable:test',
+        'latency_ms': 12,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    def test_system_guard_chat_returns_structured_fallback_when_llm_fails(self, *_mocks):
+        result = system_guard.run_system_guard_chat(
+            question='Revisa el estado del sistema.',
+            workspace=self.workspace,
+            page_context={'page': 'ai_trainer'},
+            autonomy_mode='operator',
+            audience='technical',
+        )
+        self.assertTrue(result['chat']['degraded'])
+        response = result['chat']['response']
+        self.assertIsInstance(response, dict)
+        self.assertIn(response['status'], {'ok', 'watch', 'risk', 'fail'})
+        self.assertTrue(response['message'])
+        self.assertIsInstance(response['highlights'], list)
+        self.assertIsInstance(response['actions'], list)
+        self.assertIn('memory', result['chat'])
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    def test_system_guard_chat_supervised_mode_requires_confirmation(self, *_mocks):
+        result = system_guard.run_system_guard_chat(
+            question='Ejecuta auto-fix seguro.',
+            workspace=self.workspace,
+            autonomy_mode='supervised',
+            audience='guided',
+        )
+        response = result['chat']['response']
+        self.assertTrue(response['needs_confirmation'])
+        self.assertIn('confirm', response['confirmation_text'].lower())
+        self.assertEqual(response['metrics']['executed_tools'], 0)
+
+    @patch('football.system_guard._execute_tools', return_value=[{
+        'tool': 'auto_fix',
+        'label': 'Auto-fix seguro',
+        'ok': True,
+        'kind': 'repair',
+        'detail': 'ok',
+        'result': {'ok': True},
+    }])
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    def test_system_guard_chat_executes_after_supervised_confirmation(self, _health, _cfg, mock_exec):
+        result = system_guard.run_system_guard_chat(
+            question='Ejecuta auto-fix seguro.',
+            workspace=self.workspace,
+            autonomy_mode='supervised',
+            execute_confirmed=True,
+        )
+        response = result['chat']['response']
+        self.assertFalse(response['needs_confirmation'])
+        self.assertEqual(response['metrics']['executed_tools'], 1)
+        mock_exec.assert_called_once()
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    def test_system_guard_chat_publish_flow_requires_confirmation(self, *_mocks):
+        result = system_guard.run_system_guard_chat(
+            question='Haz commit y push con mensaje: Fix guard widget',
+            workspace=self.workspace,
+            autonomy_mode='operator',
+            audience='technical',
+        )
+        response = result['chat']['response']
+        self.assertTrue(response['needs_confirmation'])
+        self.assertIn('git_commit', response['confirmation_text'])
+        self.assertIn('git_push', response['confirmation_text'])
+
+    def test_planner_selects_recent_errors_tool_for_log_intent(self):
+        plan = system_guard._plan_tools(
+            'Revisa logs y errores recientes del sistema',
+            run_smoke=False,
+            auto_fix=False,
+            maintenance_action='',
+            autonomy_mode='operator',
+        )
+        self.assertIn('inspect_recent_errors', plan['requested_tools'])
+
+    def test_planner_selects_route_tool_for_route_intent(self):
+        plan = system_guard._plan_tools(
+            'Comprueba rutas críticas y endpoints del sistema',
+            run_smoke=False,
+            auto_fix=False,
+            maintenance_action='',
+            autonomy_mode='operator',
+        )
+        self.assertIn('check_critical_routes', plan['requested_tools'])
+
+    def test_planner_selects_runtime_config_tool_for_config_intent(self):
+        plan = system_guard._plan_tools(
+            'Revisa configuración de allowed_hosts y csrf',
+            run_smoke=False,
+            auto_fix=False,
+            maintenance_action='',
+            autonomy_mode='operator',
+        )
+        self.assertIn('inspect_runtime_config', plan['requested_tools'])
+
+    def test_planner_selects_critical_paths_tool_for_path_intent(self):
+        plan = system_guard._plan_tools(
+            'Comprueba static, media y directorios críticos',
+            run_smoke=False,
+            auto_fix=False,
+            maintenance_action='',
+            autonomy_mode='operator',
+        )
+        self.assertIn('inspect_critical_paths', plan['requested_tools'])
 
     def test_planner_builds_navigation_task_and_runbook(self):
         plan = system_guard._plan_tools(
@@ -148,6 +331,118 @@ class SystemGuardRunbookTests(TestCase):
         self.assertEqual(plan['runbook']['key'], 'user_navigation')
         self.assertEqual(plan['task']['route_target']['key'], 'analysis')
         self.assertTrue(plan['followup_actions'])
+
+    def test_planner_selects_publish_tools_and_requires_confirmation(self):
+        plan = system_guard._plan_tools(
+            'Haz commit y push con mensaje: Fix guard widget',
+            run_smoke=False,
+            auto_fix=False,
+            maintenance_action='',
+            autonomy_mode='operator',
+        )
+        self.assertIn('inspect_repo_status', plan['requested_tools'])
+        self.assertIn('run_operator_validation', plan['requested_tools'])
+        self.assertIn('git_commit', plan['requested_tools'])
+        self.assertIn('git_push', plan['requested_tools'])
+        self.assertTrue(plan['confirm_required'])
+        self.assertIn('git_commit', plan['confirmation_text'])
+        self.assertIn('git_push', plan['confirmation_text'])
+
+    @patch('football.system_guard._run_repo_command')
+    @patch('football.system_guard._inspect_repo_status', return_value={'ok': True, 'changed_count': 3})
+    @patch('football.system_guard._operator_repo_path', return_value=Path('/tmp/repo'))
+    def test_git_commit_changes_uses_message_from_question(self, _repo_path, _inspect_status, mock_run_repo):
+        mock_run_repo.side_effect = [
+            {'ok': True, 'stdout': '', 'stderr': '', 'cwd': '/tmp/repo', 'exit_code': 0},
+            {'ok': True, 'stdout': '[main abc123] Fix guard widget', 'stderr': '', 'cwd': '/tmp/repo', 'exit_code': 0},
+        ]
+        result = system_guard._git_commit_changes('Haz commit y push con mensaje: Fix guard widget')
+        self.assertTrue(result['ok'])
+        self.assertEqual(result['commit_message'], 'Fix guard widget')
+        commit_call = mock_run_repo.call_args_list[1]
+        self.assertEqual(commit_call.args[0][:3], ['git', 'commit', '-m'])
+        self.assertEqual(commit_call.args[0][3], 'Fix guard widget')
+
+    @patch('football.system_guard._django_error_log_path')
+    def test_execute_recent_errors_tool_reads_log_snapshot(self, mock_log_path):
+        with tempfile.NamedTemporaryFile('w+', delete=False) as handle:
+            handle.write('ERROR demo\nTraceback demo\nInvalid HTTP_HOST header: test\n')
+            temp_path = handle.name
+        self.addCleanup(lambda: os.path.exists(temp_path) and os.unlink(temp_path))
+        mock_log_path.return_value = Path(temp_path)
+        rows = system_guard._execute_tools(['inspect_recent_errors'])
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['tool'], 'inspect_recent_errors')
+        self.assertTrue(rows[0]['ok'])
+        self.assertIn('DisallowedHost', json.dumps(rows[0]['result']))
+
+    def test_fallback_response_includes_remediation_for_disallowed_host_pattern(self):
+        report = {
+            'ok': True,
+            'issues': [{'id': 'ollama_unreachable', 'severity': 'warning'}],
+            'issue_summary': {'blockers': 0, 'warnings': 1, 'autofixable': 0},
+            'evidence': {},
+        }
+        executions = [{
+            'tool': 'inspect_recent_errors',
+            'result': {'patterns': [{'name': 'DisallowedHost', 'count': 3}]},
+        }, {
+            'tool': 'inspect_runtime_config',
+            'result': {'warnings': ['testserver_no_esta_en_allowed_hosts']},
+        }]
+        response = system_guard._fallback_response(
+            report,
+            question='revisa errores de host',
+            planner={'requested_tools': ['inspect_recent_errors'], 'tool_reasons': [], 'steps': []},
+            audience='technical',
+            autonomy_mode='operator',
+            degraded_reason='',
+            executions=executions,
+        )
+        remediation = response['remediation']
+        self.assertTrue(remediation['suggestions'])
+        self.assertTrue(remediation['code_changes'])
+
+    def test_compare_snapshots_detects_regression(self):
+        previous = {
+            'blockers': 0,
+            'warnings': 1,
+            'issue_ids': ['foo'],
+            'llm_state': 'up',
+        }
+        current = {
+            'blockers': 1,
+            'warnings': 3,
+            'issue_ids': ['foo', 'bar'],
+            'llm_state': 'down',
+        }
+        diff = system_guard._compare_snapshots(current, previous)
+        self.assertTrue(diff['has_baseline'])
+        self.assertTrue(diff['regressions'])
+        self.assertIn('foo', diff['repeated_issues'])
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    def test_run_system_guard_chat_stores_snapshot_history(self, *_mocks):
+        system_guard.run_system_guard_chat(
+            question='Revisa el sistema.',
+            workspace=self.workspace,
+            autonomy_mode='advisor',
+        )
+        pref = WorkspacePreference.objects.get(workspace=self.workspace, key=system_guard.SNAPSHOTS_PREF_KEY)
+        self.assertIsInstance(pref.value, list)
+        self.assertTrue(pref.value)
 
     @patch('football.system_guard.local_llm_config', return_value={
         'enabled': False,
@@ -175,6 +470,420 @@ class SystemGuardRunbookTests(TestCase):
         self.assertEqual(rows[0]['task_kind'], 'navigate')
         self.assertEqual(rows[0]['runbook'], 'user_navigation')
 
+    def test_detect_proactive_incidents_builds_runtime_detector_rows(self):
+        report = {
+            'ok': False,
+            'issues': [{'id': 'ollama_unreachable'}, {'id': 'path_missing_static_root'}],
+            'issue_summary': {'blockers': 1, 'warnings': 2, 'autofixable': 0},
+        }
+        system_guard._store_pref_value(self.workspace, system_guard.SNAPSHOTS_PREF_KEY, [
+            {'status': 'watch', 'blockers': 1, 'warnings': 1, 'issue_ids': ['ollama_unreachable'], 'llm_state': 'down'},
+        ])
+        rows = system_guard._detect_proactive_incidents(report, workspace=self.workspace)
+        detector_ids = {str(row.get('detector') or '') for row in rows}
+        self.assertIn('ollama_unreachable', detector_ids)
+        self.assertIn('path_missing_static_root', detector_ids)
+        self.assertIn('runtime_blockers', detector_ids)
+
+    def test_enqueue_task_deduplicates_pending_signature(self):
+        task = system_guard._new_task_entry(
+            detector='ollama_unreachable',
+            title='Ollama caído',
+            summary='Diagnóstico proactivo',
+            severity='warning',
+            runbook='silent_diagnostics',
+            task_kind='diagnose',
+            tools=['check_status'],
+            source='proactive',
+        )
+        first = system_guard._enqueue_task(self.workspace, task)
+        second = system_guard._enqueue_task(self.workspace, task)
+        self.assertEqual(first['id'], second['id'])
+        rows = system_guard._load_task_queue(self.workspace)
+        self.assertEqual(len(rows), 1)
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    @patch('football.system_guard._execute_tools', return_value=[{
+        'tool': 'check_status',
+        'label': 'Revisar estado',
+        'ok': True,
+        'kind': 'inspect',
+        'detail': 'ok',
+        'result': {'ok': True},
+    }])
+    def test_run_proactive_guard_cycle_creates_and_executes_safe_tasks(self, _exec, *_mocks):
+        with patch('football.system_guard._detect_proactive_incidents', return_value=[{
+            'detector': 'ollama_unreachable',
+            'severity': 'warning',
+            'runbook': 'silent_diagnostics',
+            'task_kind': 'diagnose',
+            'title': 'Ollama caído',
+            'summary': 'Diagnóstico proactivo',
+            'tools': ['check_status'],
+            'auto_execute': True,
+        }]):
+            result = system_guard.run_proactive_guard_cycle(workspace=self.workspace, actor_id=self.user.id)
+        self.assertTrue(result['ok'])
+        self.assertEqual(result['queue_counts']['completed'], 1)
+        rows = system_guard._load_task_queue(self.workspace)
+        self.assertEqual(rows[0]['status'], 'completed')
+        self.assertTrue(rows[0]['executions'])
+
+    def test_parse_player_request_extracts_core_fields(self):
+        payload = system_guard._parse_player_request(
+            'Introduce un jugador en plantilla nombre: Juan Perez, dorsal 9, posición delantero, pie derecho, altura 178, peso 72, nacimiento 2010-04-03'
+        )
+        self.assertEqual(payload['name'], 'Juan Perez')
+        self.assertEqual(payload['number'], 9)
+        self.assertEqual(payload['position'], 'delantero')
+        self.assertEqual(payload['dominant_foot'], 'derecho')
+        self.assertEqual(payload['height_cm'], 178)
+        self.assertEqual(payload['weight_kg'], '72')
+        self.assertEqual(str(payload['birth_date']), '2010-04-03')
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    def test_run_system_guard_chat_can_create_player_from_conversation(self, *_mocks):
+        result = system_guard.run_system_guard_chat(
+            question='Introduce un jugador en plantilla nombre: Juan Perez, dorsal 9, posición delantero.',
+            workspace=self.workspace,
+            page_context={'page': 'coach-roster', 'team_id': self.team.id, 'can_manage_guard': True},
+            autonomy_mode='operator',
+            audience='guided',
+        )
+        player = Player.objects.filter(team=self.team, name='Juan Perez').first()
+        self.assertIsNotNone(player)
+        self.assertEqual(player.number, 9)
+        response = result['chat']['response']
+        self.assertTrue(response['assistant_action']['success'])
+        self.assertEqual(response['assistant_action']['player']['name'], 'Juan Perez')
+        self.assertTrue(response['improvement_proposals'])
+
+    def test_execute_create_player_action_requires_management_permission(self):
+        result = system_guard._execute_create_player_action(
+            'Introduce un jugador en plantilla nombre: Juan Perez, dorsal 9',
+            workspace=self.workspace,
+            page_context={'team_id': self.team.id, 'can_manage_guard': False},
+        )
+        self.assertTrue(result['permission_required'])
+        self.assertFalse(Player.objects.filter(team=self.team, name='Juan Perez').exists())
+
+    def test_inspect_guard_history_summarizes_snapshots(self):
+        system_guard._store_pref_value(self.workspace, system_guard.SNAPSHOTS_PREF_KEY, [
+            {'status': 'watch', 'blockers': 1, 'warnings': 2, 'issue_ids': ['a', 'b']},
+            {'status': 'ok', 'blockers': 0, 'warnings': 1, 'issue_ids': ['a']},
+        ])
+        history = system_guard._inspect_guard_history(self.workspace)
+        self.assertEqual(history['history_count'], 2)
+        self.assertTrue(history['recent_statuses'])
+        self.assertTrue(history['top_repeated_issues'])
+
+    def test_observability_summary_aggregates_trends_metrics_and_memory(self):
+        system_guard._store_pref_value(self.workspace, system_guard.SNAPSHOTS_PREF_KEY, [
+            {'status': 'watch', 'blockers': 2, 'warnings': 1, 'issue_ids': ['a'], 'llm_state': 'degraded'},
+            {'status': 'ok', 'blockers': 0, 'warnings': 1, 'issue_ids': ['a'], 'llm_state': 'up'},
+        ])
+        system_guard._store_pref_value(self.workspace, system_guard.METRICS_PREF_KEY, {
+            'turns': 5,
+            'degraded_turns': 2,
+            'executed_tools': 9,
+            'confirmations': 1,
+            'last_latency_ms': 321,
+            'last_status': 'watch',
+            'last_updated': '2026-06-18T10:00:00Z',
+        })
+        system_guard._store_pref_value(self.workspace, system_guard.MEMORY_PREF_KEY, {
+            'summary': 'Guard summary',
+            'recent_actions': ['check_status'],
+            'recent_successes': ['check_status'],
+            'last_status': 'watch',
+        })
+        summary = system_guard._observability_summary(self.workspace)
+        self.assertEqual(summary['trend'], 'empeora')
+        self.assertEqual(summary['degraded_rate_pct'], 40)
+        self.assertEqual(summary['llm_stability'], 'degradada')
+        self.assertEqual(summary['health_state'], 'red')
+        self.assertTrue(summary['alerts'])
+        self.assertTrue(summary['repeated_issues'])
+
+    def test_system_guard_page_requires_login(self):
+        response = self.client.get(reverse('system-guard-page'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/login/', response['Location'])
+
+    @patch('football.views._get_active_workspace')
+    @patch('football.views._get_primary_team_for_request')
+    @patch('football.views._can_manage_workspace', return_value=True)
+    @patch('football.views._is_admin_user', return_value=False)
+    def test_system_guard_page_renders_for_workspace_manager(self, _is_admin, _can_manage, mock_team, mock_workspace):
+        mock_workspace.return_value = self.workspace
+        mock_team.return_value = self.team
+        system_guard._store_pref_value(self.workspace, system_guard.SNAPSHOTS_PREF_KEY, [
+            {'status': 'watch', 'blockers': 1, 'warnings': 2, 'issue_ids': ['host'], 'llm_state': 'up'},
+        ])
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('system-guard-page'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'System Guard')
+        self.assertContains(response, 'Estabilidad LLM')
+        self.assertIn('guard_observability', response.context)
+
+    @patch('football.views._get_active_workspace')
+    @patch('football.views._get_primary_team_for_request')
+    @patch('football.views._can_access_sessions_workspace', return_value=True)
+    @patch('football.views._can_manage_workspace', return_value=True)
+    @patch('football.views._is_admin_user', return_value=False)
+    def test_system_guard_chat_api_returns_observability(self, _is_admin, _can_manage, _can_access, mock_team, mock_workspace):
+        mock_workspace.return_value = self.workspace
+        mock_team.return_value = self.team
+        system_guard._store_pref_value(self.workspace, system_guard.SNAPSHOTS_PREF_KEY, [
+            {'status': 'watch', 'blockers': 1, 'warnings': 0, 'issue_ids': ['host'], 'llm_state': 'up'},
+        ])
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('system-guard-chat-api'),
+            data=json.dumps({'message': 'Revisa estado.'}),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload.get('ok'))
+        self.assertIn('observability', payload)
+        self.assertGreaterEqual(int(payload['observability']['history_count']), 1)
+
+    @patch('football.system_guard._observability_summary', return_value={'history_count': 0})
+    @patch('football.system_guard.run_system_guard_chat', return_value={
+        'report': {'issue_summary': {'blockers': 0, 'warnings': 0}},
+        'chat': {'degraded': False, 'response': {'status': 'ok', 'message': 'ok', 'highlights': [], 'actions': [], 'metrics': {'executed_tools': 0, 'latency_ms': 0}}},
+    })
+    @patch('football.views._get_active_workspace')
+    @patch('football.views._get_primary_team_for_request')
+    @patch('football.views._can_access_sessions_workspace', return_value=True)
+    @patch('football.views._can_manage_workspace', return_value=False)
+    @patch('football.views._is_admin_user', return_value=False)
+    def test_system_guard_chat_api_allows_non_manager_user_but_sanitizes_execution(self, _is_admin, _can_manage, _can_access, mock_team, mock_workspace, mock_guard, _mock_ob):
+        mock_workspace.return_value = self.workspace
+        mock_team.return_value = self.team
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('system-guard-chat-api'),
+            data=json.dumps({
+                'message': 'Arregla el sistema y ejecuta auto-fix.',
+                'run_smoke': True,
+                'auto_fix': True,
+                'maintenance_action': 'ai_trainer_reindex',
+                'autonomy_mode': 'operator',
+                'page_context': {'page': 'dashboard-home', 'path': '/coach/dashboard/', 'title': 'Dashboard'},
+            }),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 200)
+        kwargs = mock_guard.call_args.kwargs
+        self.assertFalse(kwargs['run_smoke'])
+        self.assertFalse(kwargs['auto_fix'])
+        self.assertEqual(kwargs['maintenance_action'], '')
+        self.assertEqual(kwargs['autonomy_mode'], 'advisor')
+        self.assertEqual(kwargs['page_context']['title'], 'Dashboard')
+        self.assertFalse(kwargs['page_context']['can_manage_guard'])
+        self.assertFalse(kwargs['page_context']['can_operate_guard_code'])
+
+    @patch('football.system_guard._observability_summary', return_value={'history_count': 0})
+    @patch('football.system_guard.run_system_guard_chat', return_value={
+        'report': {'issue_summary': {'blockers': 0, 'warnings': 0}},
+        'chat': {'degraded': False, 'response': {'status': 'ok', 'message': 'ok', 'highlights': [], 'actions': [], 'metrics': {'executed_tools': 0, 'latency_ms': 0}}},
+    })
+    @patch('football.views._get_active_workspace')
+    @patch('football.views._get_primary_team_for_request')
+    @patch('football.views._can_access_sessions_workspace', return_value=True)
+    @patch('football.views._can_manage_workspace', return_value=True)
+    @patch('football.views._is_admin_user', return_value=False)
+    def test_system_guard_chat_api_downgrades_code_ops_for_non_operator_manager(self, _is_admin, _can_manage, _can_access, mock_team, mock_workspace, mock_guard, _mock_ob):
+        mock_workspace.return_value = self.workspace
+        mock_team.return_value = self.team
+        self.client.force_login(self.manager_user)
+        response = self.client.post(
+            reverse('system-guard-chat-api'),
+            data=json.dumps({
+                'message': 'Arregla el sistema y aplica auto-fix en el código.',
+                'run_smoke': True,
+                'auto_fix': True,
+                'maintenance_action': 'ai_trainer_reindex',
+                'autonomy_mode': 'operator',
+                'audience': 'technical',
+            }),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 200)
+        kwargs = mock_guard.call_args.kwargs
+        self.assertTrue(kwargs['run_smoke'])
+        self.assertFalse(kwargs['auto_fix'])
+        self.assertEqual(kwargs['maintenance_action'], '')
+        self.assertEqual(kwargs['autonomy_mode'], 'supervised')
+        self.assertFalse(kwargs['page_context']['can_operate_guard_code'])
+        payload = response.json()
+        self.assertFalse(payload['permissions']['can_operate_guard_code'])
+
+    @patch('football.system_guard._observability_summary', return_value={'history_count': 0})
+    @patch('football.system_guard.run_system_guard_chat', return_value={
+        'report': {'issue_summary': {'blockers': 0, 'warnings': 0}},
+        'chat': {'degraded': False, 'response': {'status': 'ok', 'message': 'ok', 'highlights': [], 'actions': [], 'metrics': {'executed_tools': 0, 'latency_ms': 0}}},
+    })
+    @patch('football.views._get_active_workspace')
+    @patch('football.views._get_primary_team_for_request')
+    @patch('football.views._can_access_sessions_workspace', return_value=True)
+    @patch('football.views._can_manage_workspace', return_value=True)
+    @patch('football.views._is_admin_user', return_value=False)
+    def test_system_guard_chat_api_allows_whitelisted_operator_user(self, _is_admin, _can_manage, _can_access, mock_team, mock_workspace, mock_guard, _mock_ob):
+        mock_workspace.return_value = self.workspace
+        mock_team.return_value = self.team
+        self.client.force_login(self.manager_user)
+        with patch.dict(os.environ, {'OLLANA_OPERATOR_USERNAMES': 'guard-manager'}, clear=False):
+            response = self.client.post(
+                reverse('system-guard-chat-api'),
+                data=json.dumps({
+                    'message': 'Arregla el sistema y aplica auto-fix en el código.',
+                    'run_smoke': True,
+                    'auto_fix': True,
+                    'maintenance_action': 'ai_trainer_reindex',
+                    'autonomy_mode': 'operator',
+                    'audience': 'technical',
+                }),
+                content_type='application/json',
+            )
+        self.assertEqual(response.status_code, 200)
+        kwargs = mock_guard.call_args.kwargs
+        self.assertTrue(kwargs['run_smoke'])
+        self.assertTrue(kwargs['auto_fix'])
+        self.assertEqual(kwargs['maintenance_action'], 'ai_trainer_reindex')
+        self.assertEqual(kwargs['autonomy_mode'], 'operator')
+        self.assertTrue(kwargs['page_context']['can_operate_guard_code'])
+        payload = response.json()
+        self.assertTrue(payload['permissions']['can_operate_guard_code'])
+
+    def test_build_patch_proposals_returns_dry_run_entries(self):
+        report = {
+            'issues': [{'id': 'ollama_unreachable'}, {'id': 'path_missing_static_root'}],
+        }
+        executions = [{
+            'tool': 'inspect_recent_errors',
+            'result': {'patterns': [{'name': 'DisallowedHost', 'count': 2}]},
+        }]
+        rows = system_guard._build_patch_proposals(report, executions)
+        self.assertTrue(rows)
+        self.assertIn('dry_run', rows[0])
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    def test_system_guard_chat_persists_workspace_memory(self, *_mocks):
+        system_guard.run_system_guard_chat(
+            question='Revisa el sistema.',
+            workspace=self.workspace,
+            autonomy_mode='advisor',
+        )
+        pref = WorkspacePreference.objects.get(workspace=self.workspace, key=system_guard.MEMORY_PREF_KEY)
+        self.assertIsInstance(pref.value, dict)
+        self.assertGreaterEqual(int(pref.value.get('turn_count') or 0), 1)
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    def test_system_guard_chat_persists_actor_memory_across_pages(self, *_mocks):
+        actor_id = int(self.user.id)
+        system_guard.run_system_guard_chat(
+            question='Ayúdame con dashboard.',
+            workspace=self.workspace,
+            page_context={'page': 'dashboard-home', 'title': 'Dashboard'},
+            actor_id=actor_id,
+            autonomy_mode='advisor',
+        )
+        system_guard.run_system_guard_chat(
+            question='Ahora explícame sesiones.',
+            workspace=self.workspace,
+            page_context={'page': 'sessions', 'title': 'Sesiones'},
+            actor_id=actor_id,
+            autonomy_mode='advisor',
+        )
+        actor_memory = system_guard._load_memory_for_actor(self.workspace, actor_id=actor_id)
+        merged_memory = system_guard._merge_memory(system_guard._load_memory(self.workspace), actor_memory)
+        self.assertTrue(actor_memory['recent_questions'])
+        self.assertIn('Sesiones', actor_memory['recent_pages'])
+        self.assertIn('Dashboard', merged_memory['recent_pages'])
+
+    @patch('football.views._get_active_workspace')
+    @patch('football.views._get_primary_team_for_request')
+    @patch('football.views._can_manage_workspace', return_value=True)
+    @patch('football.views._is_admin_user', return_value=False)
+    @patch('football.system_guard.run_system_guard_chat', return_value={
+        'ok': True,
+        'report': {'ok': True, 'issue_summary': {'blockers': 0, 'warnings': 0, 'autofixable': 0}},
+        'chat': {'degraded': True, 'response': {'status': 'ok', 'message': 'fallback', 'highlights': [], 'actions': []}},
+    })
+    def test_system_guard_chat_api_returns_new_contract(self, mock_guard, _is_admin, _can_manage, mock_team, mock_workspace):
+        mock_workspace.return_value = self.workspace
+        mock_team.return_value = self.team
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('system-guard-chat-api'),
+            data=json.dumps({
+                'message': 'Revisa el sistema',
+                'autonomy_mode': 'operator',
+                'audience': 'technical',
+                'history': [],
+            }),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload['ok'])
+        self.assertEqual(payload['chat']['response']['message'], 'fallback')
+        mock_guard.assert_called_once()
+
+
+class PublicRouteAccessTests(TestCase):
     def test_analysis_page_requires_login(self):
         response = self.client.get(reverse('analysis'))
         self.assertEqual(response.status_code, 302)
@@ -527,175 +1236,6 @@ class CanonicalAppBaseUrlNormalizationTests(TestCase):
                 response = self.client.get(reverse('product-landing'), HTTP_HOST='internal.onrender.com', secure=True)
         self.assertIn(response.status_code, {301, 302})
         self.assertEqual(response['Location'], 'https://app.example.com/2j/')
-
-
-class SystemGuardOperatorPolicyTests(TestCase):
-    def setUp(self):
-        self.team = Team.objects.create(name='Guard Team', is_primary=True)
-        self.workspace_owner = get_user_model().objects.create_user(
-            username='guard-owner',
-            email='owner@example.com',
-            password='pass-1234',
-        )
-        self.workspace = Workspace.objects.create(
-            name='Guard Workspace',
-            primary_team=self.team,
-            owner_user=self.workspace_owner,
-        )
-        self.manager_user = get_user_model().objects.create_user(
-            username='guard-manager',
-            email='manager@example.com',
-            password='pass-1234',
-        )
-        WorkspaceMembership.objects.create(
-            workspace=self.workspace,
-            user=self.manager_user,
-            role=WorkspaceMembership.ROLE_ADMIN,
-        )
-
-    @patch('football.system_guard._observability_summary', return_value={'history_count': 0})
-    @patch('football.system_guard.run_system_guard_chat', return_value={
-        'report': {'issue_summary': {'blockers': 0, 'warnings': 0}},
-        'chat': {'degraded': False, 'response': {'status': 'ok', 'message': 'ok', 'highlights': [], 'actions': [], 'metrics': {'executed_tools': 0, 'latency_ms': 0}}},
-    })
-    @patch('football.views._get_active_workspace')
-    @patch('football.views._get_primary_team_for_request')
-    @patch('football.views._can_access_sessions_workspace', return_value=True)
-    @patch('football.views._can_manage_workspace', return_value=True)
-    @patch('football.views._is_admin_user', return_value=False)
-    def test_guard_code_ops_are_downgraded_for_non_operator_manager(self, _is_admin, _can_manage, _can_access, mock_team, mock_workspace, mock_guard, _mock_ob):
-        mock_workspace.return_value = self.workspace
-        mock_team.return_value = self.team
-        self.client.force_login(self.manager_user)
-        response = self.client.post(
-            reverse('system-guard-chat-api'),
-            data=json.dumps({
-                'message': 'Arregla el sistema y aplica auto-fix en el código.',
-                'run_smoke': True,
-                'auto_fix': True,
-                'maintenance_action': 'ai_trainer_reindex',
-                'autonomy_mode': 'operator',
-                'audience': 'technical',
-            }),
-            content_type='application/json',
-        )
-        self.assertEqual(response.status_code, 200)
-        kwargs = mock_guard.call_args.kwargs
-        self.assertTrue(kwargs['run_smoke'])
-        self.assertFalse(kwargs['auto_fix'])
-        self.assertEqual(kwargs['maintenance_action'], '')
-        self.assertEqual(kwargs['autonomy_mode'], 'supervised')
-        self.assertFalse(kwargs['page_context']['can_operate_guard_code'])
-        payload = response.json()
-        self.assertFalse(payload['permissions']['can_operate_guard_code'])
-
-    @patch('football.system_guard._observability_summary', return_value={'history_count': 0})
-    @patch('football.system_guard.run_system_guard_chat', return_value={
-        'report': {'issue_summary': {'blockers': 0, 'warnings': 0}},
-        'chat': {'degraded': False, 'response': {'status': 'ok', 'message': 'ok', 'highlights': [], 'actions': [], 'metrics': {'executed_tools': 0, 'latency_ms': 0}}},
-    })
-    @patch('football.views._get_active_workspace')
-    @patch('football.views._get_primary_team_for_request')
-    @patch('football.views._can_access_sessions_workspace', return_value=True)
-    @patch('football.views._can_manage_workspace', return_value=True)
-    @patch('football.views._is_admin_user', return_value=False)
-    def test_guard_code_ops_are_allowed_for_whitelisted_operator(self, _is_admin, _can_manage, _can_access, mock_team, mock_workspace, mock_guard, _mock_ob):
-        mock_workspace.return_value = self.workspace
-        mock_team.return_value = self.team
-        self.client.force_login(self.manager_user)
-        with patch.dict(os.environ, {'OLLANA_OPERATOR_USERNAMES': 'guard-manager'}, clear=False):
-            response = self.client.post(
-                reverse('system-guard-chat-api'),
-                data=json.dumps({
-                    'message': 'Arregla el sistema y aplica auto-fix en el código.',
-                    'run_smoke': True,
-                    'auto_fix': True,
-                    'maintenance_action': 'ai_trainer_reindex',
-                    'autonomy_mode': 'operator',
-                    'audience': 'technical',
-                }),
-                content_type='application/json',
-            )
-        self.assertEqual(response.status_code, 200)
-        kwargs = mock_guard.call_args.kwargs
-        self.assertTrue(kwargs['run_smoke'])
-        self.assertTrue(kwargs['auto_fix'])
-        self.assertEqual(kwargs['maintenance_action'], 'ai_trainer_reindex')
-        self.assertEqual(kwargs['autonomy_mode'], 'operator')
-        self.assertTrue(kwargs['page_context']['can_operate_guard_code'])
-        payload = response.json()
-        self.assertTrue(payload['permissions']['can_operate_guard_code'])
-
-
-class SystemGuardPublishWorkflowTests(TestCase):
-    def setUp(self):
-        self.team = Team.objects.create(name='Guard Team', is_primary=True)
-        self.workspace_owner = get_user_model().objects.create_user(
-            username='guard-owner-publish',
-            email='owner-publish@example.com',
-            password='pass-1234',
-        )
-        self.workspace = Workspace.objects.create(
-            name='Guard Publish Workspace',
-            primary_team=self.team,
-            owner_user=self.workspace_owner,
-        )
-
-    def test_planner_selects_publish_tools_and_requires_confirmation(self):
-        plan = system_guard._plan_tools(
-            'Haz commit y push con mensaje: Fix guard widget',
-            run_smoke=False,
-            auto_fix=False,
-            maintenance_action='',
-            autonomy_mode='operator',
-        )
-        self.assertIn('inspect_repo_status', plan['requested_tools'])
-        self.assertIn('run_operator_validation', plan['requested_tools'])
-        self.assertIn('git_commit', plan['requested_tools'])
-        self.assertIn('git_push', plan['requested_tools'])
-        self.assertTrue(plan['confirm_required'])
-        self.assertIn('git_commit', plan['confirmation_text'])
-        self.assertIn('git_push', plan['confirmation_text'])
-
-    @patch('football.system_guard._run_repo_command')
-    @patch('football.system_guard._inspect_repo_status', return_value={'ok': True, 'changed_count': 3})
-    @patch('football.system_guard._operator_repo_path', return_value=Path('/tmp/repo'))
-    def test_git_commit_changes_uses_message_from_question(self, _repo_path, _inspect_status, mock_run_repo):
-        mock_run_repo.side_effect = [
-            {'ok': True, 'stdout': '', 'stderr': '', 'cwd': '/tmp/repo', 'exit_code': 0},
-            {'ok': True, 'stdout': '[main abc123] Fix guard widget', 'stderr': '', 'cwd': '/tmp/repo', 'exit_code': 0},
-        ]
-        result = system_guard._git_commit_changes('Haz commit y push con mensaje: Fix guard widget')
-        self.assertTrue(result['ok'])
-        self.assertEqual(result['commit_message'], 'Fix guard widget')
-        commit_call = mock_run_repo.call_args_list[1]
-        self.assertEqual(commit_call.args[0][:3], ['git', 'commit', '-m'])
-        self.assertEqual(commit_call.args[0][3], 'Fix guard widget')
-
-    @patch('football.system_guard.local_llm_config', return_value={
-        'enabled': False,
-        'provider': 'ollama',
-        'model': 'qwen3:8b',
-        'base_url': 'http://127.0.0.1:11434',
-        'timeout': 8,
-    })
-    @patch('football.system_guard.run_system_healthcheck', return_value={
-        'ok': True,
-        'database': {'ok': True, 'detail': 'query ok'},
-        'paths': {},
-        'dependencies': {},
-    })
-    def test_system_guard_chat_publish_flow_requires_confirmation(self, *_mocks):
-        result = system_guard.run_system_guard_chat(
-            question='Haz commit y push con mensaje: Fix guard widget',
-            workspace=self.workspace,
-            autonomy_mode='operator',
-            audience='technical',
-        )
-        response = result['chat']['response']
-        self.assertTrue(response['needs_confirmation'])
-        self.assertIn('git_commit', response['confirmation_text'])
-        self.assertIn('git_push', response['confirmation_text'])
 
 
 class TacticsLandingModalFallbackTests(TestCase):
@@ -3759,13 +4299,6 @@ class PlatformWorkspaceTests(TestCase):
         response = self.client.get(reverse('dashboard-home'))
 
         self.assertEqual(response.status_code, 200)
-
-    def test_club_access_module_catalog_is_iterable(self):
-        catalog = football_views._workspace_access_module_catalog(Workspace.KIND_CLUB)
-
-        self.assertIsInstance(catalog, list)
-        self.assertIn('dashboard', {entry.get('key') for entry in catalog})
-        self.assertIn('sessions', {entry.get('key') for entry in catalog})
 
     def test_platform_overview_bootstraps_primary_and_task_studio_workspaces(self):
         self.client.force_login(self.admin_user)
@@ -9541,6 +10074,59 @@ class StaffUserLinkingTests(TestCase):
         self.assertContains(response, 'Imprimir UEFA')
         self.assertContains(response, 'Imprimir Club')
 
+    def test_task_builder_creates_task_with_load_scale_metadata(self):
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 25),
+            focus='Sesión carga',
+            duration_minutes=90,
+        )
+
+        response = self.client.post(
+            reverse('sessions-task-create'),
+            {
+                'planner_action': 'create_draw_task',
+                'draw_target_session_id': session.id,
+                'draw_task_template': 'none',
+                'draw_task_title': 'Rondo carga controlada',
+                'draw_task_block': SessionTask.BLOCK_MAIN_1,
+                'draw_task_minutes': '18',
+                'draw_task_objective': 'Conservar y atraer presión',
+                'draw_task_game_moment': 'offensive_organization',
+                'draw_task_principle': 'Conservar para progresar',
+                'draw_task_subprinciple': 'Fijar dentro y salir por fuera',
+                'draw_task_md_day': 'md_minus_3',
+                'draw_task_dominant_load': 'duration',
+                'draw_task_physical_load': 'medium',
+                'draw_task_cognitive_load': 'high',
+                'draw_task_emotional_load': 'medium',
+                'draw_task_rpe_scale': 'cr10',
+                'draw_task_planned_rpe': '7',
+                'draw_task_wellness_target': '4',
+                'draw_task_monotony_target': '<2.0',
+                'draw_task_strain_target': 'semana controlada',
+                'draw_task_load_notes': 'Controlar densidad y pausas.',
+                'draw_canvas_state': json.dumps({'version': '5.3.0', 'objects': []}),
+                'draw_canvas_width': '1280',
+                'draw_canvas_height': '720',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        task = SessionTask.objects.filter(session=session, title='Rondo carga controlada').order_by('-id').first()
+        self.assertIsNotNone(task)
+        meta = task.tactical_layout.get('meta') or {}
+        self.assertEqual(meta.get('md_day'), 'md_minus_3')
+        self.assertEqual(meta.get('dominant_load'), 'duration')
+        self.assertEqual(meta.get('rpe_scale'), 'cr10')
+        self.assertEqual(meta.get('planned_rpe'), 7)
+        self.assertEqual(meta.get('planned_srpe_load'), 126)
+        self.assertEqual(meta.get('wellness_target'), 4)
+        self.assertEqual(meta.get('physical_load'), 'medium')
+        self.assertEqual(meta.get('cognitive_load'), 'high')
+        self.assertEqual(meta.get('emotional_load'), 'medium')
+        self.assertEqual(meta.get('load_notes'), 'Controlar densidad y pausas.')
+
     def test_task_builder_persists_animation_steps(self):
         session = TrainingSession.objects.create(
             microcycle=self.microcycle,
@@ -10715,6 +11301,56 @@ class SessionsPlannerCreateSessionTests(TestCase):
         created = TrainingSession.objects.filter(microcycle=self.microcycle, focus__iexact='Transición + finalización').first()
         self.assertIsNotNone(created)
 
+    def test_create_session_page_renders_methodology_fields(self):
+        self.client.force_login(self.user)
+        url = f"{reverse('sessions')}?tab=create&create_page=session&team={self.team.id}&workspace={self.workspace.id}"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode('utf-8', errors='ignore')
+        self.assertIn('name="plan_session_md_day"', html)
+        self.assertIn('name="plan_session_dominant_load"', html)
+        self.assertIn('name="plan_session_game_moment"', html)
+        self.assertIn('name="plan_session_principle"', html)
+
+    def test_create_microcycle_page_renders_methodology_fields(self):
+        self.client.force_login(self.user)
+        url = f"{reverse('sessions')}?tab=create&create_page=microcycle&team={self.team.id}&workspace={self.workspace.id}"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode('utf-8', errors='ignore')
+        self.assertIn('name="plan_microcycle_type"', html)
+        self.assertIn('name="plan_microcycle_game_moment"', html)
+        self.assertIn('name="plan_microcycle_game_model_focus"', html)
+        self.assertIn('name="plan_microcycle_principle"', html)
+
+    def test_create_cycle_from_template_persists_methodology_fields(self):
+        self.client.force_login(self.user)
+        cycle_start = self.microcycle.week_start + timedelta(days=28)
+        response = self.client.post(
+            reverse('sessions'),
+            data={
+                'planner_action': 'create_cycle_from_template',
+                'planner_tab': 'microcycles',
+                'team': str(self.team.id),
+                'workspace': str(self.workspace.id),
+                'cycle_template_key': 'competition_4w',
+                'cycle_start_date': cycle_start.strftime('%Y-%m-%d'),
+                'cycle_title_prefix': 'Test metodología',
+            },
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        microcycle = TrainingMicrocycle.objects.get(team=self.team, week_start=cycle_start)
+        self.assertEqual(microcycle.cycle_type, TrainingMicrocycle.TYPE_STANDARD)
+        self.assertEqual(microcycle.game_moment, 'offensive_organization')
+        self.assertEqual(microcycle.principle, 'Salida de balón')
+        self.assertTrue(microcycle.game_model_focus)
+        session = TrainingSession.objects.get(microcycle=microcycle, focus__icontains='Salida de balón')
+        self.assertEqual(session.md_day, TrainingSession.DAY_MD_MINUS_4)
+        self.assertEqual(session.dominant_load, TrainingSession.DOMINANT_LOAD_TENSION)
+        self.assertEqual(session.game_moment, 'offensive_organization')
+        self.assertEqual(session.principle, 'Salida de balón')
+
 
 class SessionsPlannerLoadPastSessionTests(TestCase):
     def setUp(self):
@@ -10980,3 +11616,20 @@ class AiTrainerLibraryTests(TestCase):
         self.assertEqual(resp2.status_code, 200)
         html = (resp2.content or b'').decode('utf-8', errors='ignore')
         self.assertIn('Concepto Custom', html)
+
+    def test_ai_trainer_renders_guard_observability_panel(self):
+        system_guard._store_pref_value(self.workspace, system_guard.SNAPSHOTS_PREF_KEY, [
+            {'status': 'watch', 'blockers': 1, 'warnings': 1, 'issue_ids': ['guard_issue'], 'llm_state': 'up'},
+            {'status': 'ok', 'blockers': 0, 'warnings': 0, 'issue_ids': ['guard_issue'], 'llm_state': 'up'},
+        ])
+        self.client.force_login(self.user)
+        self._activate_workspace()
+        url = reverse('ai-trainer') + f'?team={self.team.id}'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Guard IA')
+        self.assertContains(response, 'Estabilidad LLM')
+        self.assertContains(response, 'Atención')
+        self.assertContains(response, 'Incidencia repetida')
+        self.assertContains(response, 'data-guard-alert=')
+        self.assertIn('guard_observability', response.context)

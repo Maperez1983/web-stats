@@ -543,6 +543,54 @@
       });
       if (actionsEl.childElementCount) wrap.appendChild(actionsEl);
     }
+    if (response && response.assistant_action && typeof response.assistant_action === 'object' && Object.keys(response.assistant_action).length) {
+      const action = response.assistant_action;
+      const actionEl = document.createElement('div');
+      actionEl.className = 'guard-remediation';
+      const card = document.createElement('div');
+      card.className = 'guard-remediation-card';
+      const title = document.createElement('strong');
+      title.textContent = action.kind === 'create_player' ? 'Acción asistida · Jugador' : 'Acción asistida';
+      const body = document.createElement('div');
+      const lines = [];
+      if (action.message) lines.push(String(action.message || ''));
+      if (Array.isArray(action.missing_fields) && action.missing_fields.length) {
+        lines.push(`Faltan: ${action.missing_fields.map((item) => String(item || '')).join(', ')}`);
+      }
+      if (action.player && typeof action.player === 'object') {
+        const parts = [];
+        if (action.player.name) parts.push(String(action.player.name || ''));
+        if (action.player.number) parts.push(`#${String(action.player.number || '')}`);
+        if (action.player.position) parts.push(String(action.player.position || ''));
+        if (action.player.team) parts.push(String(action.player.team || ''));
+        if (parts.length) lines.push(parts.join(' · '));
+      }
+      if (action.permission_required) {
+        lines.push('Permiso requerido: solo un usuario con gestión del workspace puede ejecutar esta acción.');
+      }
+      body.textContent = lines.join('\n');
+      card.appendChild(title);
+      card.appendChild(body);
+      actionEl.appendChild(card);
+      wrap.appendChild(actionEl);
+    }
+    if (response && Array.isArray(response.improvement_proposals) && response.improvement_proposals.length) {
+      const proposalsEl = document.createElement('div');
+      proposalsEl.className = 'guard-remediation';
+      response.improvement_proposals.slice(0, 2).forEach((row) => {
+        if (!row || typeof row !== 'object') return;
+        const card = document.createElement('div');
+        card.className = 'guard-remediation-card';
+        const title = document.createElement('strong');
+        title.textContent = `Mejora · ${String(row.title || 'Propuesta')}`;
+        const body = document.createElement('div');
+        body.textContent = String(row.reason || '');
+        card.appendChild(title);
+        card.appendChild(body);
+        proposalsEl.appendChild(card);
+      });
+      if (proposalsEl.childElementCount) wrap.appendChild(proposalsEl);
+    }
     logEl.appendChild(wrap);
     logEl.scrollTop = logEl.scrollHeight;
   };

@@ -31,30 +31,19 @@
         justify-content: space-between;
         gap: 1rem;
         border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 24px;
+        border-radius: 18px;
         padding: 0.9rem 1rem;
-        background:
-          radial-gradient(720px 240px at 0% 0%, rgba(70,211,255,0.12) 0%, rgba(70,211,255,0) 56%),
-          rgba(7, 16, 30, 0.82);
+        background: rgba(7, 16, 30, 0.82);
         backdrop-filter: blur(4px);
-        box-shadow: 0 24px 54px rgba(0, 0, 0, 0.28);
       }
       .header > div {
         min-width: 0;
       }
-      .header-kicker {
-        color: rgba(125,211,252,0.92);
-        font-size: 0.72rem;
-        font-weight: 900;
-        letter-spacing: 0.18em;
-        text-transform: uppercase;
-      }
       .header h1 {
         margin: 0;
-        font-size: clamp(1.55rem, 2.8vw, 2.25rem);
-        letter-spacing: -0.03em;
-        text-transform: none;
-        line-height: 1.02;
+        font-size: 1rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
       }
       .header p {
         margin: 0.35rem 0 0;
@@ -183,17 +172,14 @@
         font-size: 0.7rem;
         text-align: center;
         white-space: nowrap;
-        transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
       }
       .btn.primary {
         background: linear-gradient(135deg, rgba(244, 180, 0, 0.22), rgba(47, 125, 50, 0.18));
         border-color: rgba(244, 180, 0, 0.38);
       }
       .btn:hover {
-        transform: translateY(-1px);
         border-color: rgba(244, 180, 0, 0.5);
         color: #fff9e8;
-        box-shadow: 0 16px 30px rgba(8,15,30,0.22);
       }
       .btn[aria-disabled="true"] {
         opacity: 0.55;
@@ -315,7 +301,6 @@
 
       <header class="header" style="margin-top: 0.9rem;">
         <div>
-          <div class="header-kicker">Matchday hub</div>
           <h1>Partido</h1>
           <p>{{ team_label }}{% if match_label %} · {{ match_label }}{% endif %}</p>
           <div class="meta">

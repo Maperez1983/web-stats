@@ -1,5 +1,7 @@
 import logging
 import os
+import re
+import unicodedata
 
 from django.db.models import Q
 
@@ -77,6 +79,42 @@ def available_workspaces_for_user(user):
 
 def single_club_fallback_enabled() -> bool:
     return str(os.getenv('ALLOW_SINGLE_CLUB_FALLBACK', '0') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+def _normalize_workspace_group_key(value):
+    raw = unicodedata.normalize('NFKD', str(value or '').strip().lower())
+    ascii_value = ''.join(char for char in raw if not unicodedata.combining(char))
+    return re.sub(r'[^a-z0-9]+', '', ascii_value)
+
+
+def _workspace_group_ids(workspace):
+    if not workspace or workspace.kind != Workspace.KIND_CLUB:
+        return []
+    workspace_id = int(getattr(workspace, 'id', 0) or 0)
+    if not workspace_id:
+        return []
+    group_ids = [workspace_id]
+    workspace_name_key = _normalize_workspace_group_key(getattr(workspace, 'name', '') or '')
+    if not workspace_name_key:
+        return group_ids
+    try:
+        candidate_children = (
+            Workspace.objects
+            .filter(kind=Workspace.KIND_CLUB, is_active=True)
+            .exclude(id=workspace_id)
+            .only('id', 'name', 'notes')
+        )
+        for candidate in candidate_children:
+            candidate_name = str(getattr(candidate, 'name', '') or '').strip()
+            candidate_notes = str(getattr(candidate, 'notes', '') or '').strip()
+            source_match = re.search(r'Separado automáticamente desde\s+(.+?)(?:\.|$)', candidate_notes, flags=re.IGNORECASE)
+            source_key = _normalize_workspace_group_key(source_match.group(1).strip()) if source_match else ''
+            split_parent_key = _normalize_workspace_group_key(candidate_name.split('·', 1)[0].strip()) if '·' in candidate_name else ''
+            if workspace_name_key in {source_key, split_parent_key}:
+                group_ids.append(int(candidate.id))
+    except Exception:
+        logger.debug('No se pudo resolver grupo de workspaces para %s', workspace_id, exc_info=True)
+    return sorted(set(group_ids))
 
 
 def get_active_workspace(request):
@@ -181,11 +219,12 @@ def get_active_workspace(request):
 def workspace_team_links(workspace):
     if not workspace or workspace.kind != Workspace.KIND_CLUB:
         return []
+    workspace_ids = _workspace_group_ids(workspace) or [int(workspace.id)]
     try:
         links = list(
-            WorkspaceTeam.objects.filter(workspace=workspace)
-            .select_related('team')
-            .order_by('-is_default', 'team__name', 'id')
+            WorkspaceTeam.objects.filter(workspace_id__in=workspace_ids)
+            .select_related('workspace', 'team')
+            .order_by('workspace_id', '-is_default', 'team__name', 'id')
         )
     except Exception:
         links = []
@@ -197,12 +236,31 @@ def workspace_team_links(workspace):
                 defaults={'is_default': True},
             )
             links = list(
-                WorkspaceTeam.objects.filter(workspace=workspace)
-                .select_related('team')
-                .order_by('-is_default', 'team__name', 'id')
+                WorkspaceTeam.objects.filter(workspace_id__in=workspace_ids)
+                .select_related('workspace', 'team')
+                .order_by('workspace_id', '-is_default', 'team__name', 'id')
             )
         except Exception:
             links = []
+    deduped_links = []
+    seen_team_ids = set()
+    for link in links:
+        team_id = int(getattr(link, 'team_id', 0) or 0)
+        if team_id and team_id in seen_team_ids:
+            continue
+        if team_id:
+            seen_team_ids.add(team_id)
+        deduped_links.append(link)
+    links = sorted(
+        deduped_links,
+        key=lambda link: (
+            0 if int(getattr(link, 'workspace_id', 0) or 0) == int(workspace.id) and getattr(link, 'is_default', False) else 1,
+            0 if int(getattr(link, 'workspace_id', 0) or 0) == int(workspace.id) else 1,
+            str(getattr(getattr(link, 'team', None), 'category', '') or '').lower(),
+            str(getattr(getattr(link, 'team', None), 'name', '') or '').lower(),
+            int(getattr(link, 'id', 0) or 0),
+        ),
+    )
     return links
 
 

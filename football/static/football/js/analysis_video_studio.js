@@ -280,7 +280,6 @@
 		    const btnRecord = document.getElementById('vs-record');
 		    const btnStillClip = document.getElementById('vs-still-clip');
 			    const btnSnap = document.getElementById('vs-snap');
-			    const btnCapturePrimary = document.getElementById('vs-capture-primary');
 			    const btnDorsalOcr = document.getElementById('vs-dorsal-ocr');
 			    const btnFreeze = document.getElementById('vs-freeze');
 			    const btnTrackAuto = document.getElementById('vs-track-auto');
@@ -314,9 +313,6 @@
     const btnSpaceFollowPlay = document.getElementById('vs-space-follow-play');
     const btnSpaceFollowPlayer = document.getElementById('vs-space-follow-player');
     const btnSpaceFollowManual = document.getElementById('vs-space-follow-manual');
-    const btnLayerFollowPlayer = document.getElementById('vs-layer-follow-player');
-    const btnLayerFollowPlay = document.getElementById('vs-layer-follow-play');
-    const btnLayerFollowManual = document.getElementById('vs-layer-follow-manual');
     const btnMove = document.getElementById('vs-tool-move');
     const btnSpot = document.getElementById('vs-tool-spot');
     const btnBlur = document.getElementById('vs-tool-blur');
@@ -353,11 +349,6 @@
 	    const templateClearBtn = document.getElementById('vs-template-clear');
 	    const resourcesMenu = document.getElementById('vs-resources-menu');
 	    const resourcesRecentWrap = document.getElementById('vs-resources-recent');
-	    const resourceSearchInput = document.getElementById('vs-resource-search');
-	    const resourceTabsWrap = document.getElementById('vs-resource-tabs');
-	    const resourcePreview = document.getElementById('vs-resource-preview');
-	    const resourcePreviewTitle = document.getElementById('vs-resource-preview-title');
-	    const resourcePreviewText = document.getElementById('vs-resource-preview-text');
 	    const templateParamsWrap = document.getElementById('vs-template-params');
 	    const templateLanesCountInput = document.getElementById('vs-template-lanes-count');
 	    const templateLanesStrokeInput = document.getElementById('vs-template-lanes-stroke');
@@ -597,20 +588,6 @@
     const projectSaveBtn = document.getElementById('vs-project-save');
     const projectRefreshBtn = document.getElementById('vs-project-refresh');
     const projectsList = document.getElementById('vs-projects');
-    const proLiveModeBtn = document.getElementById('vs-pro-live-mode');
-    const proModelPackBtn = document.getElementById('vs-pro-model-pack');
-    const proCompareBtn = document.getElementById('vs-pro-compare');
-    const proComparePanel = document.getElementById('vs-pro-compare-panel');
-    const proPresentationBtn = document.getElementById('vs-pro-presentation');
-    const proAiQuestionBtn = document.getElementById('vs-pro-ai-question');
-    const proGuidedTrackBtn = document.getElementById('vs-pro-guided-track');
-    const proCoachExportBtn = document.getElementById('vs-pro-coach-export');
-    const proPlayerExportBtn = document.getElementById('vs-pro-player-export');
-    const patternTitleInput = document.getElementById('vs-pattern-title');
-    const patternSaveBtn = document.getElementById('vs-pattern-save');
-    const patternSelect = document.getElementById('vs-pattern-select');
-    const patternApplyBtn = document.getElementById('vs-pattern-apply');
-    const patternList = document.getElementById('vs-pattern-list');
 
 	    const clipTitleInput = document.getElementById('vs-clip-title');
 	    const clipCollectionInput = document.getElementById('vs-clip-collection');
@@ -647,8 +624,6 @@
     const ctxPhaseSelect = document.getElementById('vs-ctx-phase');
     const eventPresetsWrap = document.getElementById('vs-event-presets');
     const presetsPackSelect = document.getElementById('vs-presets-pack');
-    const defaultPackInput = document.getElementById('vs-default-pack');
-    const defaultPack = safeText(defaultPackInput?.value, 'rival') === 'own' ? 'own' : 'rival';
     const presetsAutoClipSelect = document.getElementById('vs-presets-autoclip');
     const presetsPreInput = document.getElementById('vs-presets-pre');
     const presetsPostInput = document.getElementById('vs-presets-post');
@@ -703,9 +678,6 @@
     const fxBlurInput = document.getElementById('vs-fx-blur');
     const fxOpacityInput = document.getElementById('vs-fx-opacity');
     const layerStyleForm = document.getElementById('vs-layer-style-form');
-    const layerColorInput = document.getElementById('vs-layer-color');
-    const layerWidthInput = document.getElementById('vs-layer-width');
-    const layerOpacityInput = document.getElementById('vs-layer-opacity');
     const layerLineStyleSelect = document.getElementById('vs-layer-line-style');
     const layerDoubleHeadToggle = document.getElementById('vs-layer-double-head');
     const layerLockedToggle = document.getElementById('vs-layer-locked');
@@ -1871,34 +1843,6 @@
 	      return false;
 	    };
 
-	    const applyObjectFollow = (obj, nowS) => {
-	      if (!obj || !obj.data || !obj.data.track) return false;
-	      const kind = safeText(obj?.data?.kind, '');
-	      if (kind === 'player_marker' || kind === 'tactical_link') return false;
-	      const mode = safeText(obj.data.follow_mode, 'manual');
-	      if (mode === 'play') {
-	        const ref = playCentroidAt(nowS);
-	        const off = obj.data.follow_offset || {};
-	        if (ref && Number.isFinite(Number(off.x)) && Number.isFinite(Number(off.y))) {
-	          return setObjectCenterPoint(obj, { x: ref.x + Number(off.x), y: ref.y + Number(off.y) });
-	        }
-	      }
-	      if (mode === 'player') {
-	        const uid = safeText(obj.data.follow_player_uid, '');
-	        const marker = getPlayerMarkers().find((m) => safeText(m?.data?.uid, '') === uid);
-	        const ref = marker ? markerPointAt(marker, nowS) : null;
-	        const off = obj.data.follow_offset || {};
-	        if (ref && Number.isFinite(Number(off.x)) && Number.isFinite(Number(off.y))) {
-	          return setObjectCenterPoint(obj, { x: ref.x + Number(off.x), y: ref.y + Number(off.y) });
-	        }
-	      }
-	      if (mode === 'manual' && Array.isArray(obj.data.kf)) {
-	        const pos = interpKeyframes(obj.data.kf, nowS);
-	        if (pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)) return setObjectCenterPoint(obj, pos);
-	      }
-	      return false;
-	    };
-
 	    const getTrackSmoothStrength = () => clamp(Number(trackSmoothSelect?.value ?? 0.45) || 0, 0, 0.85);
 	    const isTrackAntiJumpEnabled = () => Boolean(trackAntiJumpToggle ? trackAntiJumpToggle.checked : true);
 
@@ -2269,7 +2213,6 @@
     const renderDrawLayers = () => {
       if (!drawLayersList) return;
       const objs = (fabricCanvas.getObjects?.() || []).slice(0, 160);
-      const dur = Math.max(1, Number(video.duration) || Number(outInput?.value) || 90);
       const rows = objs.slice().reverse().slice(0, 60).map((obj) => {
         ensureLayerData(obj);
         if (obj?.data?.hidden_list) return '';
@@ -2278,22 +2221,16 @@
         const tIn = Number(obj?.data?.t_in_s) || 0;
         const tOut = Number(obj?.data?.t_out_s) || 0;
         const label = `${fmtTimeShort(tIn)} → ${fmtTimeShort(tOut || tIn)}`;
-        const left = clamp((Math.min(tIn, tOut || tIn) / dur) * 100, 0, 100);
-        const right = clamp((Math.max(tIn, tOut || tIn) / dur) * 100, 0, 100);
-        const width = clamp(Math.max(2, right - left), 2, 100 - left);
         const isSel = activeObject() === obj;
         return `
           <div class="row" style="${isSel ? 'border-color: rgba(34,211,238,0.55); background: rgba(34,211,238,0.07);' : ''}">
             <div style="display:flex; flex-direction:column; gap:0.05rem;">
               <strong>${kindLabel(obj)}</strong>
               <small>${label}</small>
-              <div class="vs-layer-timeline"><span style="margin-left:${left}%;width:${width}%;"></span></div>
             </div>
             <div style="display:flex; gap:0.35rem; flex-wrap:wrap;">
               <button type="button" class="button" data-vs-draw-select="${uid}">Seleccionar</button>
               <button type="button" class="button" data-vs-draw-seek="${uid}">Ir</button>
-              <button type="button" class="button" data-vs-draw-kf="${uid}">Keyframe</button>
-              <button type="button" class="button" data-vs-draw-dup="${uid}">Duplicar</button>
               <button type="button" class="button danger" data-vs-draw-del="${uid}">Borrar</button>
             </div>
           </div>
@@ -2327,27 +2264,6 @@
           if (!obj) return;
           const tIn = Number(obj?.data?.t_in_s) || 0;
           try { video.currentTime = Math.max(0, tIn); } catch (e) { /* ignore */ }
-        });
-      });
-      Array.from(drawLayersList.querySelectorAll('[data-vs-draw-kf]')).forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const uid = safeText(btn.getAttribute('data-vs-draw-kf'));
-          const obj = uidMap.get(uid);
-          if (!obj) return;
-          try { fabricCanvas.setActiveObject(obj); } catch (e) { /* ignore */ }
-          selectedFxId = 0;
-          assignLayerFollowMode('manual');
-        });
-      });
-      Array.from(drawLayersList.querySelectorAll('[data-vs-draw-dup]')).forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const uid = safeText(btn.getAttribute('data-vs-draw-dup'));
-          const obj = uidMap.get(uid);
-          if (!obj) return;
-          try { fabricCanvas.setActiveObject(obj); } catch (e) { /* ignore */ }
-          selectedFxId = 0;
-          updateLayerPanel();
-          try { layerDuplicateBtn?.click?.(); } catch (e) { /* ignore */ }
         });
       });
       Array.from(drawLayersList.querySelectorAll('[data-vs-draw-del]')).forEach((btn) => {
@@ -2785,12 +2701,7 @@
 	        if (tool === 'blur') return 'Blur';
 	        return String(tool || '');
 	      })();
-	      if (tool === 'player') setStatus('Herramienta: Jugador. Haz clic sobre el futbolista en el vídeo; luego pon dorsal/nombre y OK.');
-	      else if (tool === 'text') setStatus('Herramienta: Texto. Haz clic sobre el vídeo y escribe la explicación.');
-	      else if (tool === 'area' || tool === 'space') setStatus(`Herramienta: ${toolLabel}. Clic para añadir puntos; doble clic para cerrar; Esc cancela.`);
-	      else if (tool === 'spot' || tool === 'blur') setStatus(`Herramienta: ${toolLabel}. Arrastra sobre el vídeo para definir la zona.`);
-	      else if (tool === 'arrow' || tool === 'curve' || tool === 'move' || tool === 'line' || tool === 'rect' || tool === 'circle' || tool === 'measure') setStatus(`Herramienta: ${toolLabel}. Arrastra sobre el vídeo para dibujar.`);
-	      else setStatus(`Herramienta: ${toolLabel}`);
+	      setStatus(`Herramienta: ${toolLabel}`);
 	    };
     setTool('select');
 
@@ -2843,33 +2754,6 @@
 	      return true;
 	    };
 
-	    const walkFabricObject = (obj, fn) => {
-	      if (!obj || typeof fn !== 'function') return;
-	      try { fn(obj); } catch (e) { /* ignore */ }
-	      try {
-	        if (Array.isArray(obj._objects)) obj._objects.forEach((child) => walkFabricObject(child, fn));
-	      } catch (e) { /* ignore */ }
-	    };
-	    const firstPaintColor = (obj) => {
-	      let found = '';
-	      walkFabricObject(obj, (child) => {
-	        if (found) return;
-	        const stroke = safeText(child?.stroke, '');
-	        const fill = safeText(child?.fill, '');
-	        if (stroke && !stroke.startsWith('rgba(0,0,0,0')) found = stroke;
-	        else if (fill && !fill.startsWith('rgba(0,0,0,0')) found = fill;
-	      });
-	      const m = String(found || '').match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
-	      return m ? found : strokeColor();
-	    };
-	    const firstStrokeWidth = (obj) => {
-	      let found = 0;
-	      walkFabricObject(obj, (child) => {
-	        if (!found && Number(child?.strokeWidth)) found = Number(child.strokeWidth);
-	      });
-	      return clamp(Math.round(found || strokeWidth() || 6), 1, 32);
-	    };
-
 	    const updateLayerPanel = () => {
 	      if (!layerEmpty || !layerForm) return;
 	      const target = currentLayerTarget();
@@ -2920,9 +2804,6 @@
 	      const showLineStyle = (kind === 'arrow' || kind === 'curve_arrow' || kind === 'movement_line' || kind === 'line' || kind === 'shape_rect' || kind === 'shape_ellipse');
 	      const showDoubleHead = (kind === 'arrow' || kind === 'curve_arrow' || kind === 'movement_line');
 	      if (layerStyleForm) layerStyleForm.style.display = '';
-	      if (layerColorInput) layerColorInput.value = firstPaintColor(obj);
-	      if (layerWidthInput) layerWidthInput.value = String(firstStrokeWidth(obj));
-	      if (layerOpacityInput) layerOpacityInput.value = String(clamp(Number(obj.opacity ?? 1), 0.05, 1));
 	      if (layerLineStyleSelect) {
 	        const ls = safeText(obj?.data?.line_style, '');
 	        layerLineStyleSelect.value = (ls === 'solid' || ls === 'dash' || ls === 'dot') ? ls : '';
@@ -2970,20 +2851,6 @@
 	      const kind = safeText(obj?.data?.kind, '');
 	      const showLineStyle = (kind === 'arrow' || kind === 'curve_arrow' || kind === 'movement_line' || kind === 'line' || kind === 'shape_rect' || kind === 'shape_ellipse');
 	      const showDoubleHead = (kind === 'arrow' || kind === 'curve_arrow' || kind === 'movement_line');
-	      const color = safeText(layerColorInput?.value, '');
-	      const width = clamp(Math.round(Number(layerWidthInput?.value || 0) || strokeWidth() || 6), 1, 32);
-	      const opacity = clamp(Number(layerOpacityInput?.value ?? 1), 0.05, 1);
-
-	      try {
-	        obj.set({ opacity });
-	        walkFabricObject(obj, (child) => {
-	          const type = safeText(child?.type, '');
-	          if (color && (child?.stroke || type === 'line' || type === 'path' || type === 'polyline')) child.set?.({ stroke: color });
-	          if (color && child?.fill && !String(child.fill || '').startsWith('rgba(0,0,0,0)') && type !== 'textbox' && type !== 'text') child.set?.({ fill: colorToRgba(color, 0.18, color) });
-	          if (Number(child?.strokeWidth)) child.set?.({ strokeWidth: width, strokeUniform: true });
-	        });
-	        obj.dirty = true;
-	      } catch (e) { /* ignore */ }
 
 	      if (showLineStyle && layerLineStyleSelect) {
 	        const v = safeText(layerLineStyleSelect.value, '');
@@ -3047,7 +2914,7 @@
     [layerInInput, layerOutInput, layerFadeInInput, layerFadeOutInput, layerAnimSelect].forEach((el) => {
       el?.addEventListener('change', () => { applyLayerPanelEdits(); updateLayerPanel(); renderMiniTimeline(); });
     });
-    [layerColorInput, layerWidthInput, layerOpacityInput, layerLineStyleSelect, layerDoubleHeadToggle, layerLockedToggle].forEach((el) => {
+    [layerLineStyleSelect, layerDoubleHeadToggle, layerLockedToggle].forEach((el) => {
       el?.addEventListener('change', () => applyLayerStyleEdits());
     });
     [fxIntensityInput, fxFeatherInput, fxBlurInput, fxOpacityInput].forEach((el) => {
@@ -3844,10 +3711,8 @@
 		    fabricCanvas.on('object:moving', (opt) => {
 		      const obj = opt?.target;
 		      if (!obj || !obj.data) return;
-		      const kind = safeText(obj.data.kind);
-		      if (kind === 'tactical_link') return;
+		      if (safeText(obj.data.kind) !== 'player_marker') return;
 		      if (!obj.data.track) return;
-		      if (kind !== 'player_marker' && safeText(obj.data.follow_mode, 'manual') !== 'manual') return;
 		      if (video.paused) return;
 		      if (!trackingAutoKeyframes) return;
 		      try {
@@ -3874,7 +3739,7 @@
 		      const obj = opt?.target;
 		      if (!obj || !obj.data) return;
 		      const kind = safeText(obj.data.kind);
-	      if (kind === 'tactical_link') return;
+	      if (kind !== 'player_marker' && kind !== 'space_zone') return;
 	      if (!obj.data.track) return;
 		      try {
 		        const t = Number(video.currentTime) || 0;
@@ -3882,7 +3747,7 @@
 		        const x = Number(c?.x ?? obj.left) || 0;
 		        const y = Number(c?.y ?? obj.top) || 0;
 		        upsertKeyframe(obj, { t, x, y });
-		        if (kind !== 'player_marker') {
+		        if (kind === 'space_zone') {
 		          obj.data.follow_mode = 'manual';
 		          obj.data.follow_player_uid = '';
 		          obj.data.follow_offset = null;
@@ -3891,7 +3756,7 @@
 		        trackingLastKfPos = { x, y };
 		        pushHistory();
 		        renderDrawLayers();
-		        setStatus(`${kind === 'player_marker' ? 'Jugador' : (kind === 'space_zone' ? 'Espacio' : 'Recurso')}: posición guardada @ ${fmtTime(t)}`);
+		        setStatus(`${kind === 'space_zone' ? 'Espacio' : 'Jugador'}: posición guardada @ ${fmtTime(t)}`);
 		      } catch (e) { /* ignore */ }
 		    });
     fabricCanvas.on('selection:created', () => { selectedFxId = 0; updateLayerPanel(); renderFxList(); renderDrawLayers(); renderMiniTimeline(); });
@@ -3961,77 +3826,6 @@
 	    btnSpaceFollowPlayer?.addEventListener('click', () => assignSpaceFollowMode('player'));
 	    btnSpaceFollowManual?.addEventListener('click', () => assignSpaceFollowMode('manual'));
 
-	    const selectedFollowResources = () => (
-	      selectedObjectsForSpace().filter((obj) => {
-	        const kind = safeText(obj?.data?.kind, '');
-	        return obj && kind !== 'player_marker' && kind !== 'tactical_link';
-	      })
-	    );
-
-	    const selectedFollowMarker = () => (
-	      selectedObjectsForSpace().find((obj) => safeText(obj?.data?.kind, '') === 'player_marker') || null
-	    );
-
-	    const assignLayerFollowMode = (mode) => {
-	      const resources = selectedFollowResources();
-	      if (!resources.length) {
-	        setStatus('Selecciona un recurso visual para aplicar seguimiento.', true);
-	        return;
-	      }
-	      const nowS = Number(video.currentTime) || 0;
-	      const marker = mode === 'player' ? selectedFollowMarker() : null;
-	      if (mode === 'player' && !marker) {
-	        setStatus('Selecciona a la vez el recurso y un marcador Jugador.', true);
-	        return;
-	      }
-	      const ref = (() => {
-	        if (mode === 'play') return playCentroidAt(nowS);
-	        if (mode === 'player') return markerPointAt(marker, nowS);
-	        return null;
-	      })();
-	      if ((mode === 'play' || mode === 'player') && !ref) {
-	        setStatus(mode === 'play' ? 'No hay marcadores Jugador visibles para seguir la jugada.' : 'No se pudo leer la posición del jugador.', true);
-	        return;
-	      }
-	      let changed = 0;
-	      resources.forEach((obj) => {
-	        ensureLayerData(obj);
-	        const center = objectCenterPoint(obj);
-	        if (!center) return;
-	        obj.data.track = true;
-	        if (mode === 'play') {
-	          obj.data.follow_mode = 'play';
-	          obj.data.follow_player_uid = '';
-	          obj.data.follow_offset = { x: center.x - ref.x, y: center.y - ref.y };
-	        } else if (mode === 'player') {
-	          ensureLayerData(marker);
-	          obj.data.follow_mode = 'player';
-	          obj.data.follow_player_uid = safeText(marker.data.uid, '');
-	          obj.data.follow_offset = { x: center.x - ref.x, y: center.y - ref.y };
-	        } else {
-	          obj.data.follow_mode = 'manual';
-	          obj.data.follow_player_uid = '';
-	          obj.data.follow_offset = null;
-	        }
-	        upsertKeyframe(obj, { t: nowS, x: center.x, y: center.y });
-	        changed += 1;
-	      });
-	      if (!changed) {
-	        setStatus('No se pudo leer la posición del recurso.', true);
-	        return;
-	      }
-	      pushHistory();
-	      updateLayerPanel();
-	      renderDrawLayers();
-	      try { applyTimedLayers(); fabricCanvas.requestRenderAll(); } catch (e) { /* ignore */ }
-	      if (mode === 'player') setStatus(`${changed} recurso(s): seguirán al jugador seleccionado.`);
-	      else if (mode === 'play') setStatus(`${changed} recurso(s): seguirán la jugada.`);
-	      else setStatus(`${changed} recurso(s): keyframe @ ${fmtTime(nowS)}.`);
-	    };
-	    btnLayerFollowPlayer?.addEventListener('click', () => assignLayerFollowMode('player'));
-	    btnLayerFollowPlay?.addEventListener('click', () => assignLayerFollowMode('play'));
-	    btnLayerFollowManual?.addEventListener('click', () => assignLayerFollowMode('manual'));
-
       const pushPlayerRecent = (number, name) => {
         const n = safeText(number, '').trim();
         const nm = safeText(name, '').trim().toUpperCase();
@@ -4064,8 +3858,9 @@
 
       playerOkBtn?.addEventListener('click', () => {
         if (!playerPopCanvasPos) return;
-        const number = safeText(playerNumberInput?.value, '').trim() || '?';
+        const number = safeText(playerNumberInput?.value, '').trim();
         const name = safeText(playerNameInput?.value, '').trim();
+        if (!number) { setStatus('Indica al menos el dorsal.', true); return; }
         const created = createPlayerMarkerAt(playerPopCanvasPos, number, name, playerPrefs);
         if (!created) { setStatus('No se pudo crear marcador.', true); return; }
         pushPlayerRecent(created.number, created.name);
@@ -4993,17 +4788,15 @@
         setStatus('Plantilla no soportada.', true);
         return;
       }
-      const layer = objs.length === 1 ? objs[0] : new fabric.Group(objs, { selectable: true });
-      layer.set?.({ selectable: true, evented: true });
-      layer.data = seedLayerDataNow({ kind: 'template', template: name });
-      fabricCanvas.add(layer);
+      const group = new fabric.Group(objs, { selectable: true });
+      group.data = seedLayerDataNow({ kind: 'template', template: name });
+      fabricCanvas.add(group);
       pushHistory();
-      try { fabricCanvas.setActiveObject(layer); } catch (e) { /* ignore */ }
+      try { fabricCanvas.setActiveObject(group); } catch (e) { /* ignore */ }
       selectedFxId = 0;
       updateLayerPanel();
       renderFxList();
       renderDrawLayers();
-      try { fabricCanvas.requestRenderAll(); } catch (e) { /* ignore */ }
       setStatus('Plantilla aplicada.');
     };
 
@@ -5140,25 +4933,6 @@
 	      if (k === 'tactic:free_space') return 'Zona libre';
 	      if (k === 'tactic:press_jump') return 'Presión/salto';
 	      if (k === 'tactic:shift') return 'Basculación';
-	      if (k === 'tv:dashed_pass') return 'Pase discontinuo';
-	      if (k === 'tv:white_run') return 'Carrera blanca';
-	      if (k === 'tv:curved_run') return 'Desmarque curvo';
-	      if (k === 'tv:player_ring') return 'Aro jugador';
-	      if (k === 'tv:spot_player') return 'Foco jugador';
-	      if (k === 'tv:duel_2v1') return '2v1 TV';
-	      if (k === 'tv:pressure_jump') return 'Salto presión TV';
-	      if (k === 'tech:smart_curve') return 'Curva inteligente';
-	      if (k === 'tech:animated_arrow') return 'Flecha animada';
-	      if (k === 'tech:player_shadow') return 'Sombra jugador';
-	      if (k === 'tech:labelled_zone') return 'Zona + nombre';
-	      if (k === 'tech:defensive_line_auto') return 'Línea automática';
-	      if (k === 'tech:distance_meter') return 'Medidor distancia';
-	      if (k === 'tech:visual_timer') return 'Temporizador';
-	      if (k === 'tech:tactical_zoom') return 'Lupa táctica';
-	      if (k === 'tech:advanced_focus') return 'Foco avanzado';
-	      if (k === 'tech:before_after') return 'Antes/después';
-	      if (k === 'tech:relation_marker') return 'Relación jugadores';
-	      if (k === 'tech:block_templates') return 'Plantillas bloque';
 	      if (k === 'tool:arrow') return 'Flecha';
 	      if (k === 'tool:move') return 'Trayectoria';
 	      if (k === 'tool:text') return 'Texto';
@@ -5174,93 +4948,9 @@
 	      const k = safeText(key, '');
 	      if (k.startsWith('template:')) return 'template';
 	      if (k.startsWith('tactic:')) return 'tactic';
-	      if (k.startsWith('tv:')) return 'tv';
-	      if (k.startsWith('tech:')) return 'tech';
 	      if (k.startsWith('tool:')) return 'tool';
 	      if (k.startsWith('fx:')) return 'fx';
 	      return '';
-	    };
-	    let activeResourceFilter = 'all';
-	    const resourceDescriptionForKey = (key) => {
-	      const k = safeText(key, '');
-	      if (k === 'template:lanes_manual') return 'Divide el campo en carriles editables para explicar ocupación y amplitud.';
-	      if (k === 'template:grid_manual') return 'Añade cuadrícula editable para ubicar zonas y alturas.';
-	      if (k === 'template:central_box') return 'Marca una zona central para estructura, pivotes o superioridades.';
-	      if (k === 'template:final_third') return 'Resalta el último tercio para ataques y finalizaciones.';
-	      if (k === 'tactic:2v1') return 'Plantilla de superioridad con jugadores, zona y flechas.';
-	      if (k === 'tactic:third_man') return 'Secuencia para explicar tercer hombre y continuidad.';
-	      if (k === 'tactic:defensive_line') return 'Línea defensiva con referencias de salto y altura.';
-	      if (k === 'tactic:block_low') return 'Bloque bajo: dos líneas y zona defensiva.';
-	      if (k === 'tactic:block_mid') return 'Bloque medio: estructura compacta a media altura.';
-	      if (k === 'tactic:block_high') return 'Bloque alto: presión y altura defensiva.';
-	      if (k === 'tactic:free_space') return 'Zona libre con flechas de pase/movimiento.';
-	      if (k === 'tactic:press_jump') return 'Salto de presión con referencia de jugador y zona.';
-	      if (k === 'tactic:shift') return 'Basculación del bloque hacia un lado.';
-	      if (k === 'tv:dashed_pass') return 'Flecha de pase discontinua estilo retransmisión.';
-	      if (k === 'tv:white_run') return 'Flecha blanca de carrera o desmarque.';
-	      if (k === 'tv:curved_run') return 'Desmarque curvo para atacar espalda o intervalo.';
-	      if (k === 'tv:player_ring') return 'Aro para señalar un futbolista en imagen parada.';
-	      if (k === 'tv:spot_player') return 'Foco visual para destacar un jugador o duelo.';
-	      if (k === 'tv:duel_2v1') return 'Paquete TV con aros, flechas y etiqueta 2v1.';
-	      if (k === 'tv:pressure_jump') return 'Recurso TV para salto de presión.';
-	      if (k === 'tech:smart_curve') return 'Flecha curva con puntos de referencia para ajustar trayectorias de pase o desmarque.';
-	      if (k === 'tech:animated_arrow') return 'Flecha progresiva con animación de trazo para explicar el timing.';
-	      if (k === 'tech:player_shadow') return 'Marca posición real e ideal del jugador con silueta fantasma.';
-	      if (k === 'tech:labelled_zone') return 'Zona sombreada editable con etiqueta táctica.';
-	      if (k === 'tech:defensive_line_auto') return 'Línea de bloque con cuatro referencias de jugador.';
-	      if (k === 'tech:distance_meter') return 'Medición rápida; si el campo está calibrado muestra metros.';
-	      if (k === 'tech:visual_timer') return 'Contador visual para presión, repliegue o toma de decisión.';
-	      if (k === 'tech:tactical_zoom') return 'Lupa táctica para encuadrar una zona concreta.';
-	      if (k === 'tech:advanced_focus') return 'Foco avanzado combinando spotlight FX y aro editable.';
-	      if (k === 'tech:before_after') return 'Compara posición real vs posición ideal en una misma imagen.';
-	      if (k === 'tech:relation_marker') return 'Triángulo/líneas de relación entre jugadores: apoyo, cobertura o 2v1.';
-	      if (k === 'tech:block_templates') return 'Guías rápidas de bloque bajo, medio y alto.';
-	      if (k.startsWith('tool:')) return 'Activa la herramienta manual para dibujar sobre el vídeo.';
-	      if (k === 'fx:spot') return 'Crea un spotlight editable en la capa FX.';
-	      if (k === 'fx:blur') return 'Crea un blur editable para tapar o enfatizar zonas.';
-	      if (k === 'fx:freeze') return 'Congela el frame actual para anotar encima.';
-	      return 'Recurso de edición rápida.';
-	    };
-	    const previewClassForResourceKey = (key) => {
-	      const k = safeText(key, '');
-	      if (k.includes('dash') || k.includes('pass')) return 'dash';
-	      if (k.includes('curve') || k.includes('run') || k.includes('arrow')) return 'curve';
-	      if (k.includes('ring') || k.includes('spot_player') || k.includes('focus') || k.includes('zoom')) return 'ring';
-	      if (k.includes('block') || k.includes('zone') || k.includes('lanes') || k.includes('third') || k.includes('relation')) return 'zone';
-	      return '';
-	    };
-	    const updateResourcePreview = (key) => {
-	      if (!resourcePreview) return;
-	      const k = safeText(key, '');
-	      const title = labelForResourceKey(k) || 'Recursos';
-	      if (resourcePreviewTitle) resourcePreviewTitle.textContent = title;
-	      if (resourcePreviewText) resourcePreviewText.textContent = resourceDescriptionForKey(k);
-	      try {
-	        const mark = resourcePreview.querySelector('.vs-preview-mark');
-	        if (mark) mark.className = `vs-preview-mark ${previewClassForResourceKey(k)}`.trim();
-	      } catch (e) { /* ignore */ }
-	    };
-	    const applyResourceFilter = () => {
-	      const q = safeText(resourceSearchInput?.value, '').trim().toLowerCase();
-	      const filter = safeText(activeResourceFilter, 'all');
-	      const chips = Array.from(resourcesMenu?.querySelectorAll?.('[data-vs-resource]') || []);
-	      chips.forEach((btn) => {
-	        const key = safeText(btn.getAttribute('data-vs-resource'), '');
-	        const kind = safeText(btn.getAttribute('data-vs-kind'), kindForResourceKey(key));
-	        const label = safeText(btn.textContent, '').toLowerCase();
-	        const text = `${key} ${label} ${resourceDescriptionForKey(key)}`.toLowerCase();
-	        const inFilter = filter === 'all' || kind === filter;
-	        const inSearch = !q || text.includes(q);
-	        btn.hidden = !(inFilter && inSearch);
-	      });
-	      try {
-	        Array.from(document.querySelectorAll?.('[data-vs-resource-section]') || []).forEach((section) => {
-	          const visible = Array.from(section.querySelectorAll('[data-vs-resource]')).some((b) => !b.hidden);
-	          section.style.display = visible ? '' : 'none';
-	          const muted = section.previousElementSibling;
-	          if (muted && muted.classList?.contains('vs-menu-muted')) muted.style.display = visible ? '' : 'none';
-	        });
-	      } catch (e) { /* ignore */ }
 	    };
 	    const renderResourceRecents = () => {
 	      if (!resourcesRecentWrap) return;
@@ -5293,539 +4983,6 @@
 	    const closeResourcesMenu = () => {
 	      try { if (resourcesMenu && resourcesMenu.tagName === 'DETAILS') resourcesMenu.open = false; } catch (e) { /* ignore */ }
 	    };
-	    const addTvResource = (resourceKey) => {
-	      const key = safeText(resourceKey, '');
-	      const w = Number(fabricCanvas.getWidth?.()) || 0;
-	      const h = Number(fabricCanvas.getHeight?.()) || 0;
-	      if (!key || !w || !h) { setStatus('Recurso TV no disponible.', true); return false; }
-	      const px = (x) => clamp(Number(x) || 0, 0.02, 0.98) * w;
-	      const py = (y) => clamp(Number(y) || 0, 0.02, 0.98) * h;
-	      const sw = clamp(Math.round(strokeWidth() || 6), 4, 16);
-	      const yellow = '#facc15';
-	      const white = '#ffffff';
-	      const red = '#fb7185';
-	      const cyan = '#22d3ee';
-	      const makeHead = (x2, y2, angle, color) => {
-	        const headLen = clamp(18 + sw, 18, 38);
-	        return new fabric.Polygon([
-	          { x: x2, y: y2 },
-	          { x: x2 - headLen * Math.cos(angle - Math.PI / 7), y: y2 - headLen * Math.sin(angle - Math.PI / 7) },
-	          { x: x2 - headLen * Math.cos(angle + Math.PI / 7), y: y2 - headLen * Math.sin(angle + Math.PI / 7) },
-	        ], { fill: color, selectable: false, evented: false, shadow: 'rgba(0,0,0,0.32) 0 2px 7px' });
-	      };
-	      const makeArrow = (a, b, color = white, opts = {}) => {
-	        const x1 = px(a[0]); const y1 = py(a[1]);
-	        const x2 = px(b[0]); const y2 = py(b[1]);
-	        const line = new fabric.Line([x1, y1, x2, y2], {
-	          stroke: color,
-	          strokeWidth: opts.strokeWidth || sw,
-	          strokeDashArray: opts.dash || null,
-	          strokeLineCap: 'round',
-	          strokeLineJoin: 'round',
-	          selectable: false,
-	          evented: false,
-	          strokeUniform: true,
-	          objectCaching: false,
-	          shadow: 'rgba(0,0,0,0.32) 0 2px 7px',
-	        });
-	        const group = new fabric.Group([line, makeHead(x2, y2, Math.atan2(y2 - y1, x2 - x1), color)], { selectable: true, evented: true });
-	        group.data = seedLayerDataNow({ kind: opts.kind || 'arrow', preset: key, anim: 'draw', anim_ms: 700, line_style: opts.dash ? 'dash' : 'solid' });
-	        return group;
-	      };
-	      const makeCurve = (a, c, b, color = yellow, opts = {}) => {
-	        const x1 = px(a[0]); const y1 = py(a[1]);
-	        const cx = px(c[0]); const cy = py(c[1]);
-	        const x2 = px(b[0]); const y2 = py(b[1]);
-	        const path = new fabric.Path(`M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`, {
-	          fill: '',
-	          stroke: color,
-	          strokeWidth: opts.strokeWidth || sw,
-	          strokeDashArray: opts.dash || null,
-	          strokeLineCap: 'round',
-	          strokeLineJoin: 'round',
-	          selectable: false,
-	          evented: false,
-	          strokeUniform: true,
-	          objectCaching: false,
-	          shadow: 'rgba(0,0,0,0.32) 0 2px 7px',
-	        });
-	        const group = new fabric.Group([path, makeHead(x2, y2, Math.atan2(y2 - cy, x2 - cx), color)], { selectable: true, evented: true });
-	        group.data = seedLayerDataNow({ kind: 'movement_line', preset: key, anim: 'draw', anim_ms: 750, line_style: opts.dash ? 'dash' : 'solid' });
-	        return group;
-	      };
-	      const makeRing = (x, y, color = yellow, opts = {}) => {
-	        const r = clamp(Math.min(w, h) * (opts.scale || 0.032), 14, 36);
-	        const halo = new fabric.Circle({
-	          left: 0,
-	          top: 0,
-	          radius: r * 1.28,
-	          originX: 'center',
-	          originY: 'center',
-	          fill: colorToRgba(color, 0.14, 'rgba(250,204,21,0.14)'),
-	          stroke: colorToRgba(color, 0.34, 'rgba(250,204,21,0.34)'),
-	          strokeWidth: Math.max(2, Math.round(sw * 0.30)),
-	          selectable: false,
-	          evented: false,
-	        });
-	        const ring = new fabric.Circle({
-	          left: 0,
-	          top: 0,
-	          radius: r,
-	          originX: 'center',
-	          originY: 'center',
-	          fill: 'rgba(0,0,0,0)',
-	          stroke: color,
-	          strokeWidth: Math.max(3, Math.round(sw * 0.55)),
-	          selectable: false,
-	          evented: false,
-	          strokeUniform: true,
-	          shadow: 'rgba(0,0,0,0.32) 0 2px 7px',
-	        });
-	        const group = new fabric.Group([halo, ring], {
-	          left: px(x),
-	          top: py(y),
-	          originX: 'center',
-	          originY: 'center',
-	          selectable: true,
-	          evented: true,
-	        });
-	        group.data = seedLayerDataNow({ kind: 'player_ring', preset: key, anim: 'pop', anim_ms: 450 });
-	        return group;
-	      };
-	      const makeSpot = (x, y, color = yellow) => {
-	        const r = clamp(Math.min(w, h) * 0.082, 36, 92);
-	        const ringR = clamp(Math.min(w, h) * 0.027, 14, 36);
-	        const spot = new fabric.Circle({
-	          left: 0,
-	          top: 0,
-	          radius: r,
-	          originX: 'center',
-	          originY: 'center',
-	          fill: colorToRgba(color, 0.17, 'rgba(250,204,21,0.17)'),
-	          stroke: colorToRgba(color, 0.42, 'rgba(250,204,21,0.42)'),
-	          strokeWidth: Math.max(2, Math.round(sw * 0.35)),
-	          selectable: false,
-	          evented: false,
-	          strokeUniform: true,
-	        });
-	        const halo = new fabric.Circle({
-	          left: 0,
-	          top: 0,
-	          radius: ringR,
-	          originX: 'center',
-	          originY: 'center',
-	          fill: 'rgba(0,0,0,0)',
-	          stroke: color,
-	          strokeWidth: Math.max(3, Math.round(sw * 0.55)),
-	          selectable: false,
-	          evented: false,
-	          strokeUniform: true,
-	          shadow: 'rgba(0,0,0,0.32) 0 2px 7px',
-	        });
-	        const group = new fabric.Group([spot, halo], {
-	          left: px(x),
-	          top: py(y),
-	          originX: 'center',
-	          originY: 'center',
-	          selectable: true,
-	          evented: true,
-	        });
-	        group.data = seedLayerDataNow({ kind: 'spotlight_marker', preset: key, anim: 'pop', anim_ms: 450 });
-	        return group;
-	      };
-	      const makeLabel = (text, x, y, color = white) => {
-	        const label = new fabric.Textbox(safeText(text, ''), {
-	          left: px(x),
-	          top: py(y),
-	          width: Math.min(w * 0.26, 220),
-	          fontSize: clamp(Math.round(Math.min(w, h) * 0.042), 18, 34),
-	          fontFamily: 'Arial',
-	          fontWeight: 900,
-	          fill: color,
-	          textAlign: 'center',
-	          originX: 'center',
-	          originY: 'center',
-	          stroke: 'rgba(2,6,23,0.92)',
-	          strokeWidth: 4,
-	          paintFirst: 'stroke',
-	          selectable: true,
-	          evented: true,
-	        });
-	        label.data = seedLayerDataNow({ kind: 'text_caption', preset: key, text: safeText(text, '') });
-	        return label;
-	      };
-	      const add = [];
-	      if (key === 'dashed_pass') {
-	        add.push(makeArrow([0.20, 0.54], [0.43, 0.47], white, { dash: [14, 12], strokeWidth: Math.max(4, sw * 0.75), kind: 'pass_line' }));
-	      } else if (key === 'white_run') {
-	        add.push(makeArrow([0.45, 0.70], [0.73, 0.43], white, { strokeWidth: Math.max(5, sw * 0.85), kind: 'movement_line' }));
-	      } else if (key === 'curved_run') {
-	        add.push(makeCurve([0.28, 0.70], [0.48, 0.36], [0.68, 0.51], yellow, { strokeWidth: Math.max(5, sw * 0.85) }));
-	      } else if (key === 'player_ring') {
-	        add.push(makeRing(0.72, 0.34, yellow));
-	      } else if (key === 'spot_player') {
-	        add.push(makeSpot(0.72, 0.34, yellow));
-	      } else if (key === 'duel_2v1') {
-	        add.push(makeRing(0.47, 0.52, red, { scale: 0.030 }));
-	        add.push(makeRing(0.67, 0.43, yellow, { scale: 0.030 }));
-	        add.push(makeArrow([0.21, 0.55], [0.43, 0.49], white, { dash: [14, 12], strokeWidth: Math.max(4, sw * 0.72), kind: 'pass_line' }));
-	        add.push(makeArrow([0.50, 0.55], [0.73, 0.40], white, { strokeWidth: Math.max(5, sw * 0.82), kind: 'movement_line' }));
-	        add.push(makeCurve([0.36, 0.66], [0.50, 0.38], [0.63, 0.49], yellow, { strokeWidth: Math.max(5, sw * 0.82) }));
-	        add.push(makeLabel('2v1', 0.55, 0.38, white));
-	      } else if (key === 'pressure_jump') {
-	        add.push(makeRing(0.44, 0.55, red, { scale: 0.030 }));
-	        add.push(makeArrow([0.30, 0.66], [0.48, 0.52], red, { dash: [12, 10], strokeWidth: Math.max(5, sw * 0.82), kind: 'pressure_jump' }));
-	        add.push(makeLabel('SALTO', 0.49, 0.43, white));
-	      }
-	      if (!add.length) { setStatus('Recurso TV no soportado.', true); return false; }
-	      add.forEach((obj) => {
-	        try { fabricCanvas.add(obj); } catch (e) { /* ignore */ }
-	      });
-	      pushHistory();
-	      try {
-	        const sel = new fabric.ActiveSelection(add, { canvas: fabricCanvas });
-	        fabricCanvas.setActiveObject(sel);
-	      } catch (e) {
-	        try { fabricCanvas.setActiveObject(add[add.length - 1]); } catch (e2) { /* ignore */ }
-	      }
-	      selectedFxId = 0;
-	      updateLayerPanel();
-	      renderFxList();
-	      renderDrawLayers();
-	      try { fabricCanvas.requestRenderAll(); } catch (e) { /* ignore */ }
-	      setStatus(`Recurso TV aplicado: ${labelForResourceKey(`tv:${key}`) || key}.`);
-	      return true;
-	    };
-	    const addTechResource = (resourceKey) => {
-	      const key = safeText(resourceKey, '');
-	      const w = Number(fabricCanvas.getWidth?.()) || 0;
-	      const h = Number(fabricCanvas.getHeight?.()) || 0;
-	      if (!key || !w || !h) { setStatus('Recurso técnico no disponible.', true); return false; }
-	      const px = (x) => clamp(Number(x) || 0, 0.02, 0.98) * w;
-	      const py = (y) => clamp(Number(y) || 0, 0.02, 0.98) * h;
-	      const sw = clamp(Math.round(strokeWidth() || 6), 3, 16);
-	      const color = strokeColor();
-	      const cyan = '#22d3ee';
-	      const yellow = '#facc15';
-	      const red = '#fb7185';
-	      const green = '#34d399';
-	      const blue = '#60a5fa';
-	      const white = '#ffffff';
-	      const shadow = 'rgba(0,0,0,0.32) 0 2px 7px';
-	      const baseData = (extra = {}) => seedLayerDataNow({ preset: `tech:${key}`, ...(extra || {}) });
-
-	      const makeLabel = (text, x, y, opts = {}) => {
-	        const label = new fabric.Textbox(safeText(text, ''), {
-	          left: px(x),
-	          top: py(y),
-	          width: Math.min(w * 0.36, opts.width || 280),
-	          fontSize: opts.fontSize || clamp(Math.round(Math.min(w, h) * 0.04), 16, 34),
-	          fontFamily: 'Arial',
-	          fontWeight: 900,
-	          fill: opts.color || white,
-	          textAlign: 'center',
-	          originX: 'center',
-	          originY: 'center',
-	          stroke: 'rgba(2,6,23,0.92)',
-	          strokeWidth: opts.strokeWidth || 4,
-	          paintFirst: 'stroke',
-	          selectable: false,
-	          evented: false,
-	        });
-	        return label;
-	      };
-	      const makeHead = (x2, y2, angle, c) => {
-	        const headLen = clamp(18 + sw, 18, 40);
-	        return new fabric.Polygon([
-	          { x: x2, y: y2 },
-	          { x: x2 - headLen * Math.cos(angle - Math.PI / 7), y: y2 - headLen * Math.sin(angle - Math.PI / 7) },
-	          { x: x2 - headLen * Math.cos(angle + Math.PI / 7), y: y2 - headLen * Math.sin(angle + Math.PI / 7) },
-	        ], { fill: c, selectable: false, evented: false, shadow });
-	      };
-	      const makeArrow = (a, b, c = color, opts = {}) => {
-	        const x1 = px(a[0]); const y1 = py(a[1]);
-	        const x2 = px(b[0]); const y2 = py(b[1]);
-	        const line = new fabric.Line([x1, y1, x2, y2], {
-	          stroke: c,
-	          strokeWidth: opts.strokeWidth || sw,
-	          strokeDashArray: opts.dash || null,
-	          strokeLineCap: 'round',
-	          strokeUniform: true,
-	          selectable: false,
-	          evented: false,
-	          objectCaching: false,
-	          shadow,
-	        });
-	        const group = new fabric.Group([line, makeHead(x2, y2, Math.atan2(y2 - y1, x2 - x1), c)], { selectable: true, evented: true });
-	        group.data = baseData({ kind: opts.kind || 'arrow', anim: opts.anim || 'draw', anim_ms: opts.animMs || 800, line_style: opts.dash ? 'dash' : 'solid' });
-	        return group;
-	      };
-	      const makeCurve = (a, cpt, b, c = color, opts = {}) => {
-	        const x1 = px(a[0]); const y1 = py(a[1]);
-	        const cx = px(cpt[0]); const cy = py(cpt[1]);
-	        const x2 = px(b[0]); const y2 = py(b[1]);
-	        const path = new fabric.Path(`M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`, {
-	          fill: '',
-	          stroke: c,
-	          strokeWidth: opts.strokeWidth || sw,
-	          strokeDashArray: opts.dash || null,
-	          strokeLineCap: 'round',
-	          strokeLineJoin: 'round',
-	          selectable: false,
-	          evented: false,
-	          strokeUniform: true,
-	          objectCaching: false,
-	          shadow,
-	        });
-	        const control = new fabric.Circle({
-	          left: cx,
-	          top: cy,
-	          radius: clamp(sw * 0.85, 5, 13),
-	          originX: 'center',
-	          originY: 'center',
-	          fill: c,
-	          stroke: 'rgba(2,6,23,0.8)',
-	          strokeWidth: 2,
-	          selectable: false,
-	          evented: false,
-	        });
-	        const group = new fabric.Group([path, makeHead(x2, y2, Math.atan2(y2 - cy, x2 - cx), c), control], { selectable: true, evented: true });
-	        group.data = baseData({ kind: 'curve_arrow', anim: opts.anim || 'draw', anim_ms: opts.animMs || 850, line_style: opts.dash ? 'dash' : 'solid', control_hint: true });
-	        return group;
-	      };
-	      const makeRing = (x, y, c = yellow, scale = 0.034, opts = {}) => {
-	        const r = clamp(Math.min(w, h) * scale, 14, 40);
-	        const halo = new fabric.Circle({
-	          left: 0,
-	          top: 0,
-	          radius: r * 1.32,
-	          originX: 'center',
-	          originY: 'center',
-	          fill: colorToRgba(c, opts.ghost ? 0.07 : 0.16, 'rgba(250,204,21,0.16)'),
-	          stroke: colorToRgba(c, opts.ghost ? 0.24 : 0.40, 'rgba(250,204,21,0.40)'),
-	          strokeWidth: 2,
-	          selectable: false,
-	          evented: false,
-	        });
-	        const ring = new fabric.Circle({
-	          left: 0,
-	          top: 0,
-	          radius: r,
-	          originX: 'center',
-	          originY: 'center',
-	          fill: 'rgba(0,0,0,0)',
-	          stroke: c,
-	          strokeDashArray: opts.ghost ? [8, 7] : null,
-	          strokeWidth: Math.max(3, Math.round(sw * 0.55)),
-	          strokeUniform: true,
-	          selectable: false,
-	          evented: false,
-	          opacity: opts.ghost ? 0.65 : 1,
-	          shadow,
-	        });
-	        const group = new fabric.Group([halo, ring], {
-	          left: px(x),
-	          top: py(y),
-	          originX: 'center',
-	          originY: 'center',
-	          selectable: true,
-	          evented: true,
-	        });
-	        group.data = baseData({ kind: opts.kind || 'player_ring', anim: opts.ghost ? 'none' : 'pop', anim_ms: 450, ghost: Boolean(opts.ghost) });
-	        return group;
-	      };
-	      const makePlayerDot = (x, y, c = blue, text = '') => {
-	        const r = clamp(Math.min(w, h) * 0.025, 12, 24);
-	        const circle = new fabric.Circle({
-	          left: 0,
-	          top: 0,
-	          radius: r,
-	          originX: 'center',
-	          originY: 'center',
-	          fill: colorToRgba(c, 0.92, c),
-	          stroke: 'rgba(2,6,23,0.85)',
-	          strokeWidth: 3,
-	          selectable: false,
-	          evented: false,
-	        });
-	        const label = new fabric.Text(safeText(text, ''), {
-	          left: 0,
-	          top: 0,
-	          originX: 'center',
-	          originY: 'center',
-	          fill: '#0f172a',
-	          fontSize: clamp(Math.round(r * 0.9), 10, 18),
-	          fontWeight: 900,
-	          selectable: false,
-	          evented: false,
-	        });
-	        const group = new fabric.Group([circle, label], { left: px(x), top: py(y), originX: 'center', originY: 'center', selectable: true, evented: true });
-	        group.data = baseData({ kind: 'player_marker', number: safeText(text, '') });
-	        return group;
-	      };
-	      const makeZone = (x, y, rw, rh, c = cyan, text = '') => {
-	        const rect = new fabric.Rect({
-	          left: px(x),
-	          top: py(y),
-	          width: clamp(Number(rw) || 0.18, 0.04, 0.92) * w,
-	          height: clamp(Number(rh) || 0.18, 0.04, 0.92) * h,
-	          originX: 'center',
-	          originY: 'center',
-	          fill: colorToRgba(c, 0.15, 'rgba(34,211,238,0.15)'),
-	          stroke: colorToRgba(c, 0.82, 'rgba(34,211,238,0.82)'),
-	          strokeWidth: Math.max(2, Math.round(sw * 0.45)),
-	          strokeDashArray: [10, 8],
-	          rx: 14,
-	          ry: 14,
-	          strokeUniform: true,
-	          selectable: false,
-	          evented: false,
-	          objectCaching: false,
-	        });
-	        const label = makeLabel(text || 'Zona', x, y - ((rh || 0.18) * 0.56), { color: white, fontSize: clamp(Math.round(Math.min(w, h) * 0.032), 14, 26), width: 230, strokeWidth: 3 });
-	        const group = new fabric.Group([rect, label], { selectable: true, evented: true });
-	        group.data = baseData({ kind: 'space_zone', label: safeText(text, ''), space_base_fill: colorToRgba(c, 0.15, ''), space_base_stroke: colorToRgba(c, 0.82, '') });
-	        return group;
-	      };
-	      const makeLine = (a, b, c = white, opts = {}) => {
-	        const line = new fabric.Line([px(a[0]), py(a[1]), px(b[0]), py(b[1])], {
-	          stroke: colorToRgba(c, opts.alpha ?? 0.84, c),
-	          strokeWidth: opts.strokeWidth || Math.max(3, Math.round(sw * 0.56)),
-	          strokeDashArray: opts.dash || null,
-	          strokeLineCap: 'round',
-	          strokeUniform: true,
-	          selectable: true,
-	          evented: true,
-	          objectCaching: false,
-	          shadow,
-	        });
-	        line.data = baseData({ kind: 'line', line_style: opts.dash ? 'dash' : 'solid' });
-	        return line;
-	      };
-
-	      const add = [];
-	      if (key === 'smart_curve') {
-	        add.push(makeCurve([0.24, 0.68], [0.50, 0.34], [0.76, 0.54], yellow, { animMs: 900 }));
-	        add.push(makeLabel('Curva editable', 0.50, 0.29, { color: white, fontSize: 20, strokeWidth: 3 }));
-	      } else if (key === 'animated_arrow') {
-	        add.push(makeArrow([0.28, 0.60], [0.72, 0.42], color, { anim: 'draw', animMs: 1100, kind: 'movement_line' }));
-	        add.push(makeLabel('Timing', 0.52, 0.37, { color: white, fontSize: 22, strokeWidth: 3 }));
-	      } else if (key === 'player_shadow') {
-	        add.push(makeRing(0.42, 0.58, white, 0.032, { ghost: true, kind: 'player_shadow_from' }));
-	        add.push(makeRing(0.60, 0.46, yellow, 0.032, { kind: 'player_shadow_to' }));
-	        add.push(makeArrow([0.43, 0.56], [0.58, 0.47], yellow, { dash: [10, 8], kind: 'movement_line' }));
-	        add.push(makeLabel('ideal', 0.62, 0.38, { color: yellow, fontSize: 20, strokeWidth: 3 }));
-	      } else if (key === 'labelled_zone') {
-	        add.push(makeZone(0.58, 0.46, 0.30, 0.22, green, 'Espacio libre'));
-	      } else if (key === 'defensive_line_auto') {
-	        add.push(makeLine([0.20, 0.55], [0.82, 0.55], cyan, { dash: [12, 8], strokeWidth: Math.max(3, sw * 0.72) }));
-	        [0.26, 0.42, 0.58, 0.74].forEach((x, idx) => add.push(makePlayerDot(x, 0.55, blue, String(idx + 2))));
-	        add.push(makeLabel('altura del bloque', 0.52, 0.45, { color: white, fontSize: 20, strokeWidth: 3 }));
-	      } else if (key === 'distance_meter') {
-	        const a = { x: px(0.34), y: py(0.58) };
-	        const b = { x: px(0.66), y: py(0.46) };
-	        const meters = distMeters(a, b);
-	        const label = meters != null ? `${meters.toFixed(1)} m` : 'Distancia';
-	        const line = makeLine([0.34, 0.58], [0.66, 0.46], yellow, { dash: [10, 8], strokeWidth: Math.max(3, sw * 0.65) });
-	        line.data.kind = 'measure';
-	        line.data.meters = meters != null ? Number(meters) : null;
-	        add.push(line);
-	        add.push(makeLabel(label, 0.50, 0.48, { color: white, fontSize: 22, strokeWidth: 3 }));
-	      } else if (key === 'visual_timer') {
-	        const ring = new fabric.Circle({
-	          left: px(0.50),
-	          top: py(0.42),
-	          radius: clamp(Math.min(w, h) * 0.055, 26, 62),
-	          originX: 'center',
-	          originY: 'center',
-	          fill: 'rgba(2,6,23,0.50)',
-	          stroke: yellow,
-	          strokeWidth: Math.max(4, sw * 0.6),
-	          strokeDashArray: [18, 8],
-	          selectable: false,
-	          evented: false,
-	          shadow,
-	        });
-	        const txt = makeLabel('3s', 0.50, 0.42, { color: white, fontSize: clamp(Math.round(Math.min(w, h) * 0.062), 26, 58), strokeWidth: 3 });
-	        const group = new fabric.Group([ring, txt], { selectable: true, evented: true });
-	        group.data = baseData({ kind: 'timer', anim: 'pulse', anim_ms: 1000, seconds: 3 });
-	        add.push(group);
-	      } else if (key === 'tactical_zoom') {
-	        const lens = new fabric.Circle({
-	          left: 0,
-	          top: 0,
-	          radius: clamp(Math.min(w, h) * 0.105, 54, 118),
-	          originX: 'center',
-	          originY: 'center',
-	          fill: 'rgba(255,255,255,0.08)',
-	          stroke: white,
-	          strokeWidth: Math.max(3, sw * 0.55),
-	          strokeUniform: true,
-	          selectable: false,
-	          evented: false,
-	          shadow,
-	        });
-	        const handle = new fabric.Line([54, 54, 106, 106], { stroke: white, strokeWidth: Math.max(5, sw * 0.72), strokeLineCap: 'round', selectable: false, evented: false, shadow });
-	        const txt = makeLabel('ZOOM', 0.50, 0.40, { color: white, fontSize: 20, strokeWidth: 3 });
-	        const group = new fabric.Group([lens, handle, txt], { left: px(0.50), top: py(0.48), originX: 'center', originY: 'center', selectable: true, evented: true });
-	        group.data = baseData({ kind: 'tactical_zoom', anim: 'pop', anim_ms: 450 });
-	        add.push(group);
-	      } else if (key === 'advanced_focus') {
-	        const fw = Number(fxEl?.width) || w;
-	        const fh = Number(fxEl?.height) || h;
-	        const layer = {
-	          id: fxSeq++,
-	          ...seedLayerDataNow({ t_in_s: Number(video.currentTime) || 0, fade_in_ms: 180, fade_out_ms: 180 }),
-	          kind: 'spotlight',
-	          cx: fw * 0.58,
-	          cy: fh * 0.46,
-	          r: Math.max(56, Math.min(fw, fh) * 0.17),
-	          intensity: 0.74,
-	          feather: 0.24,
-	        };
-	        fxState.layers = [...(Array.isArray(fxState.layers) ? fxState.layers : []), layer].slice(0, 80);
-	        selectedFxId = layer.id;
-	        add.push(makeRing(0.58, 0.46, yellow, 0.038, { kind: 'advanced_focus_ring' }));
-	      } else if (key === 'before_after') {
-	        add.push(makeRing(0.40, 0.58, red, 0.030, { ghost: true, kind: 'before_position' }));
-	        add.push(makeLabel('REAL', 0.40, 0.68, { color: red, fontSize: 18, strokeWidth: 3 }));
-	        add.push(makeRing(0.62, 0.47, green, 0.032, { kind: 'after_position' }));
-	        add.push(makeLabel('IDEAL', 0.62, 0.37, { color: green, fontSize: 18, strokeWidth: 3 }));
-	        add.push(makeArrow([0.43, 0.56], [0.59, 0.49], white, { dash: [10, 8], kind: 'movement_line' }));
-	      } else if (key === 'relation_marker') {
-	        add.push(makePlayerDot(0.40, 0.58, blue, '6'));
-	        add.push(makePlayerDot(0.56, 0.46, blue, '8'));
-	        add.push(makePlayerDot(0.70, 0.60, blue, '10'));
-	        add.push(makeLine([0.40, 0.58], [0.56, 0.46], cyan, { dash: [10, 8] }));
-	        add.push(makeLine([0.56, 0.46], [0.70, 0.60], cyan, { dash: [10, 8] }));
-	        add.push(makeLine([0.70, 0.60], [0.40, 0.58], cyan, { dash: [10, 8] }));
-	        add.push(makeLabel('apoyo / cobertura', 0.55, 0.36, { color: white, fontSize: 20, strokeWidth: 3 }));
-	      } else if (key === 'block_templates') {
-	        add.push(makeZone(0.50, 0.34, 0.58, 0.13, red, 'Bloque alto'));
-	        add.push(makeZone(0.50, 0.52, 0.58, 0.13, yellow, 'Bloque medio'));
-	        add.push(makeZone(0.50, 0.70, 0.58, 0.13, blue, 'Bloque bajo'));
-	      }
-	      if (!add.length && key !== 'advanced_focus') { setStatus('Recurso técnico no soportado.', true); return false; }
-	      add.forEach((obj) => {
-	        try { fabricCanvas.add(obj); } catch (e) { /* ignore */ }
-	      });
-	      if (add.length) {
-	        pushHistory();
-	        try {
-	          const sel = new fabric.ActiveSelection(add, { canvas: fabricCanvas });
-	          fabricCanvas.setActiveObject(sel);
-	        } catch (e) {
-	          try { fabricCanvas.setActiveObject(add[add.length - 1]); } catch (e2) { /* ignore */ }
-	        }
-	      }
-	      if (key !== 'advanced_focus') selectedFxId = 0;
-	      updateLayerPanel();
-	      renderFxList();
-	      renderDrawLayers();
-	      try { fabricCanvas.requestRenderAll(); } catch (e) { /* ignore */ }
-	      setStatus(`Recurso técnico aplicado: ${labelForResourceKey(`tech:${key}`) || key}.`);
-	      return true;
-	    };
 	    const useResource = (key) => {
 	      const k = safeText(key, '');
 	      if (!k) return;
@@ -5847,22 +5004,6 @@
 	        }
 	        return;
 	      }
-	      if (k.startsWith('tv:')) {
-	        const presetKey = k.split(':').slice(1).join(':');
-	        if (addTvResource(presetKey)) {
-	          pushResourceRecent(k);
-	          closeResourcesMenu();
-	        }
-	        return;
-	      }
-	      if (k.startsWith('tech:')) {
-	        const presetKey = k.split(':').slice(1).join(':');
-	        if (addTechResource(presetKey)) {
-	          pushResourceRecent(k);
-	          closeResourcesMenu();
-	        }
-	        return;
-	      }
 	      // Herramientas
 	      if (k.startsWith('tool:')) {
 	        const toolKey = k.split(':').slice(1).join(':');
@@ -5872,52 +5013,9 @@
 	        setStatus(`Tool: ${labelForResourceKey(k)}`);
 	        return;
 	      }
-	      // FX: el menú crea un efecto usable de inmediato; los botones superiores permiten dibujarlo a mano.
-	      if (k === 'fx:spot') {
-	        const layer = {
-	          id: fxSeq++,
-	          ...seedLayerDataNow({ t_in_s: Number(video.currentTime) || 0, fade_in_ms: 150, fade_out_ms: 150 }),
-	          kind: 'spotlight',
-	          cx: (Number(fxEl?.width) || 1280) * 0.5,
-	          cy: (Number(fxEl?.height) || 720) * 0.48,
-	          r: Math.max(42, Math.min(Number(fxEl?.width) || 1280, Number(fxEl?.height) || 720) * 0.15),
-	          intensity: 0.68,
-	          feather: 0.18,
-	        };
-	        fxState.layers = [...(Array.isArray(fxState.layers) ? fxState.layers : []), layer].slice(0, 80);
-	        selectedFxId = layer.id;
-	        setTool('select');
-	        renderFxList();
-	        updateLayerPanel();
-	        pushResourceRecent(k);
-	        closeResourcesMenu();
-	        setStatus('Spotlight añadido.');
-	        return;
-	      }
-	      if (k === 'fx:blur') {
-	        const fw = Number(fxEl?.width) || 1280;
-	        const fh = Number(fxEl?.height) || 720;
-	        const layer = {
-	          id: fxSeq++,
-	          ...seedLayerDataNow({ t_in_s: Number(video.currentTime) || 0, fade_in_ms: 150, fade_out_ms: 150 }),
-	          kind: 'blur',
-	          x: fw * 0.34,
-	          y: fh * 0.34,
-	          w: fw * 0.32,
-	          h: fh * 0.24,
-	          blur_px: 10,
-	          opacity: 1,
-	        };
-	        fxState.layers = [...(Array.isArray(fxState.layers) ? fxState.layers : []), layer].slice(0, 80);
-	        selectedFxId = layer.id;
-	        setTool('select');
-	        renderFxList();
-	        updateLayerPanel();
-	        pushResourceRecent(k);
-	        closeResourcesMenu();
-	        setStatus('Blur añadido.');
-	        return;
-	      }
+	      // FX (son tools realmente)
+	      if (k === 'fx:spot') { setTool('spot'); pushResourceRecent(k); closeResourcesMenu(); setStatus('FX: Spotlight'); return; }
+	      if (k === 'fx:blur') { setTool('blur'); pushResourceRecent(k); closeResourcesMenu(); setStatus('FX: Blur'); return; }
 	      if (k === 'fx:freeze') { try { btnFreeze?.click?.(); } catch (e) { /* ignore */ } pushResourceRecent(k); closeResourcesMenu(); return; }
 	    };
 
@@ -5928,33 +5026,16 @@
 	        Array.from((root || document).querySelectorAll?.('[data-vs-resource]') || []).forEach((btn) => {
 	          if (btn.__vsResourceWired) return;
 	          btn.__vsResourceWired = true;
-	          btn.addEventListener('mouseenter', () => updateResourcePreview(btn.getAttribute('data-vs-resource')));
-	          btn.addEventListener('focus', () => updateResourcePreview(btn.getAttribute('data-vs-resource')));
 	          btn.addEventListener('click', () => useResource(btn.getAttribute('data-vs-resource')));
 	        });
 	      } catch (e) { /* ignore */ }
 	    };
 	    wireResourceButtons(document);
-	    resourceSearchInput?.addEventListener?.('input', () => applyResourceFilter());
-	    try {
-	      Array.from(resourceTabsWrap?.querySelectorAll?.('[data-vs-resource-filter]') || []).forEach((btn) => {
-	        btn.addEventListener('click', () => {
-	          activeResourceFilter = safeText(btn.getAttribute('data-vs-resource-filter'), 'all');
-	          Array.from(resourceTabsWrap.querySelectorAll('[data-vs-resource-filter]')).forEach((b) => b.classList.toggle('active', b === btn));
-	          applyResourceFilter();
-	        });
-	      });
-	    } catch (e) { /* ignore */ }
-	    btnCapturePrimary?.addEventListener?.('click', () => {
-	      try { btnSnap?.click?.(); } catch (e) { /* ignore */ }
-	    });
 	    resourcesMenu?.addEventListener?.('toggle', () => {
 	      // Al abrir, re-cablea los "recientes" (se re-renderizan).
 	      if (resourcesMenu?.open) {
 	        renderResourceRecents();
 	        wireResourceButtons(resourcesMenu);
-	        applyResourceFilter();
-	        updateResourcePreview('tv:dashed_pass');
 	      }
 	    });
 	    btnRedo?.addEventListener('click', () => {
@@ -7341,18 +6422,6 @@
               reseedFxSeq();
               renderFxList();
             }
-            if (Array.isArray(payload?.slides)) {
-              slides = payload.slides
-                .slice(0, 24)
-                .map((s) => ({
-                  id: safeText(s?.id, '') || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-                  label: safeText(s?.label, 'Captura').slice(0, 140),
-                  time_s: Number(s?.time_s) || 0,
-                  image_data: safeText(s?.image_data, ''),
-                }))
-                .filter((s) => s.image_data);
-              renderSlides();
-            }
             activeProjectId = id;
             if (projectTitleInput) projectTitleInput.value = safeText(found?.title);
             pushHistory();
@@ -7408,20 +6477,7 @@
     const saveProject = async () => {
       if (!projectSaveUrl || !videoId) return;
       const title = safeText(projectTitleInput?.value, 'Proyecto').slice(0, 180);
-      const payload = {
-        canvas: fabricCanvas.toDatalessJSON(['data']),
-        fx: { layers: fxState.layers },
-        in: Number(inInput?.value || 0) || 0,
-        out: Number(outInput?.value || 0) || 0,
-        slides: (Array.isArray(slides) ? slides : [])
-          .slice(0, 24)
-          .map((s) => ({
-            label: safeText(s?.label, '').slice(0, 140),
-            time_s: Number(s?.time_s) || 0,
-            image_data: safeText(s?.image_data, ''),
-          }))
-          .filter((s) => s.image_data),
-      };
+      const payload = { canvas: fabricCanvas.toDatalessJSON(['data']), fx: { layers: fxState.layers }, in: Number(inInput?.value || 0) || 0, out: Number(outInput?.value || 0) || 0 };
       try {
         const resp = await fetch(projectSaveUrl, {
           method: 'POST',
@@ -10169,21 +9225,6 @@
       { kind: 'tag', label: 'Salida vs presión', hotkey: '8', color: '#38bdf8' },
       { kind: 'tag', label: 'Transición', hotkey: '9', color: '#cbd5e1' },
     ]);
-    const defaultEventPresetsForPack = (pack) => {
-      const p = safeText(pack, defaultPack) === 'own' ? 'own' : 'rival';
-      if (p === 'own') return defaultEventPresets();
-      return [
-        { kind: 'press', label: 'Presión rival', hotkey: '1', color: '#fb7185' },
-        { kind: 'turnover', label: 'Pérdida rival', hotkey: '2', color: '#f59e0b' },
-        { kind: 'shot', label: 'Finalización rival', hotkey: '3', color: '#facc15' },
-        { kind: 'abp', label: 'ABP rival', hotkey: '4', color: '#a78bfa' },
-        { kind: 'tag', label: 'Transición rival', hotkey: '5', color: '#60a5fa' },
-        { kind: 'tag', label: 'Salida rival', hotkey: '6', color: '#38bdf8' },
-        { kind: 'tag', label: 'Centro rival', hotkey: '7', color: '#34d399' },
-        { kind: 'tag', label: 'Bloque rival', hotkey: '8', color: '#cbd5e1' },
-        { kind: 'note', label: 'Nota rival', hotkey: '9', color: '#94a3b8' },
-      ];
-    };
     let eventPresets = defaultEventPresets();
 
     const sanitizeEventPresets = (raw) => {
@@ -10215,7 +9256,6 @@
     const presetsToJson = (items) => {
       try { return JSON.stringify(items, null, 2); } catch (e) { return '[]'; }
     };
-    const autoClipState = { enabled: false, pre: 8, post: 8 };
 
     const renderAutoClipUi = () => {
       if (presetsAutoClipSelect) presetsAutoClipSelect.value = autoClipState.enabled ? '1' : '0';
@@ -10416,268 +9456,6 @@
     presetsAutoClipSelect?.addEventListener('change', onAutoClipChange);
     presetsPreInput?.addEventListener('change', onAutoClipChange);
     presetsPostInput?.addEventListener('change', onAutoClipChange);
-
-    const proModelPresets = () => sanitizeEventPresets([
-      { kind: 'press', label: 'Presión alta: salto', hotkey: '1', color: '#22d3ee' },
-      { kind: 'press', label: 'Presión tras pérdida', hotkey: '2', color: '#38bdf8' },
-      { kind: 'tag', label: 'Bloque alto', hotkey: '3', color: '#34d399' },
-      { kind: 'tag', label: 'Bloque medio', hotkey: '4', color: '#facc15' },
-      { kind: 'tag', label: 'Bloque bajo', hotkey: '5', color: '#fb7185' },
-      { kind: 'tag', label: 'Carril exterior', hotkey: '6', color: '#60a5fa' },
-      { kind: 'tag', label: 'Carril interior', hotkey: '7', color: '#a78bfa' },
-      { kind: 'turnover', label: 'Pérdida por dentro', hotkey: '8', color: '#f97316' },
-      { kind: 'tag', label: '2v1 banda', hotkey: '9', color: '#67e8f9' },
-      { kind: 'note', label: 'Nota entrenador', hotkey: '0', color: '#cbd5e1' },
-    ]);
-
-    const proPatternStorageKey = () => `vs_patterns_v1:${videoId || 'local'}`;
-
-    const loadProPatterns = () => {
-      try {
-        const raw = window.localStorage?.getItem?.(proPatternStorageKey()) || '[]';
-        const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed.slice(0, 60) : [];
-      } catch (e) {
-        return [];
-      }
-    };
-
-    const saveProPatterns = (items) => {
-      try { window.localStorage?.setItem?.(proPatternStorageKey(), JSON.stringify((Array.isArray(items) ? items : []).slice(0, 60))); } catch (e) { /* ignore */ }
-    };
-
-    const renderProPatterns = () => {
-      const items = loadProPatterns();
-      if (patternSelect) {
-        patternSelect.innerHTML = items.length
-          ? items.map((it, idx) => `<option value="${idx}">${escHtml(safeText(it?.title, `Patrón ${idx + 1}`))}</option>`).join('')
-          : '<option value="">Sin patrones</option>';
-      }
-      if (patternList) {
-        patternList.innerHTML = items.length
-          ? items.map((it, idx) => `<button type="button" class="button ghost" data-vs-pattern-pick="${idx}">${escHtml(safeText(it?.title, `Patrón ${idx + 1}`))}</button>`).join('')
-          : '<span class="hint">Selecciona un recurso en el canvas y guárdalo como patrón.</span>';
-        Array.from(patternList.querySelectorAll('[data-vs-pattern-pick]')).forEach((btn) => {
-          btn.addEventListener('click', () => {
-            const idx = Number(btn.getAttribute('data-vs-pattern-pick') || -1);
-            if (patternSelect && idx >= 0) patternSelect.value = String(idx);
-            patternApplyBtn?.click?.();
-          });
-        });
-      }
-    };
-
-    const activePatternObjects = () => {
-      const active = (() => { try { return fabricCanvas.getActiveObject?.() || null; } catch (e) { return null; } })();
-      if (!active) return [];
-      if (safeText(active.type, '') === 'activeSelection' && typeof active.getObjects === 'function') {
-        return active.getObjects().filter(Boolean);
-      }
-      return [active];
-    };
-
-    const saveActiveProPattern = () => {
-      const objects = activePatternObjects();
-      if (!objects.length) {
-        setStatus('Selecciona uno o varios recursos antes de guardar patrón.', true);
-        return;
-      }
-      const payload = objects.map((obj) => {
-        try { ensureLayerData(obj); } catch (e) { /* ignore */ }
-        try { return obj.toObject(['data']); } catch (e) { return null; }
-      }).filter(Boolean);
-      if (!payload.length) {
-        setStatus('No se pudo leer el patrón seleccionado.', true);
-        return;
-      }
-      const title = safeText(patternTitleInput?.value, '') || `Patrón ${loadProPatterns().length + 1}`;
-      const items = loadProPatterns();
-      items.unshift({ title: title.slice(0, 80), objects: payload, created_at: new Date().toISOString() });
-      saveProPatterns(items);
-      if (patternTitleInput) patternTitleInput.value = '';
-      renderProPatterns();
-      setStatus('Patrón guardado.');
-    };
-
-    const applyProPattern = () => {
-      const items = loadProPatterns();
-      const idx = Number(patternSelect?.value || 0);
-      const pattern = items[idx];
-      const objects = Array.isArray(pattern?.objects) ? pattern.objects : [];
-      if (!objects.length || !window.fabric?.util?.enlivenObjects) {
-        setStatus('No hay patrón aplicable.', true);
-        return;
-      }
-      try {
-        fabric.util.enlivenObjects(objects, (enlivened) => {
-          const add = (Array.isArray(enlivened) ? enlivened : []).filter(Boolean);
-          if (!add.length) { setStatus('No se pudo aplicar el patrón.', true); return; }
-          add.forEach((obj, i) => {
-            try {
-              ensureLayerData(obj);
-              obj.data = { ...(obj.data || {}), uid: newUid(), pattern: safeText(pattern?.title, '') };
-              obj.set({ left: (Number(obj.left) || 0) + 24 + (i * 4), top: (Number(obj.top) || 0) + 24 + (i * 4) });
-              fabricCanvas.add(obj);
-            } catch (e) { /* ignore */ }
-          });
-          try {
-            if (add.length > 1) fabricCanvas.setActiveObject(new fabric.ActiveSelection(add, { canvas: fabricCanvas }));
-            else fabricCanvas.setActiveObject(add[0]);
-          } catch (e) { /* ignore */ }
-          try { pushHistory(); updateLayerPanel(); renderDrawLayers(); renderMiniTimeline(); fabricCanvas.requestRenderAll(); } catch (e) { /* ignore */ }
-          setStatus('Patrón aplicado.');
-        });
-      } catch (e) {
-        setStatus('No se pudo aplicar el patrón.', true);
-      }
-    };
-
-    const compareClipCandidates = () => {
-      const selected = selectedClipsOrdered();
-      if (selected.length >= 2) return selected.slice(0, 2);
-      const filtered = applyClipFilters(clipsCache);
-      return filtered.slice(0, 2);
-    };
-
-    const openClipForPro = (clip, play = false) => {
-      if (!clip) return;
-      const start = Number(clip?.in_s) || 0;
-      const end = Number(clip?.out_s) || start;
-      activeClipId = Number(clip?.id) || activeClipId;
-      if (inInput) inInput.value = String(start.toFixed(1));
-      if (outInput) outInput.value = String(end.toFixed(1));
-      if (clipTitleInput) clipTitleInput.value = safeText(clip?.title, '');
-      if (clipCollectionInput) clipCollectionInput.value = safeText(clip?.collection, '');
-      if (clipTagsInput) clipTagsInput.value = (Array.isArray(clip?.tags) ? clip.tags : []).map((t) => safeText(t)).filter(Boolean).join(', ');
-      if (clipNotesInput) clipNotesInput.value = safeText(clip?.notes, '');
-      const overlay = clip?.overlay || {};
-      if (overlay && typeof overlay === 'object' && Array.isArray(overlay?.objects)) {
-        try { restoreJson(overlay); } catch (e) { /* ignore */ }
-      }
-      try { video.currentTime = Math.max(0, start); } catch (e) { /* ignore */ }
-      if (play) {
-        try { video.play?.(); } catch (e) { /* ignore */ }
-      }
-      try { updateClipUiState(); updateLayerPanel(); } catch (e) { /* ignore */ }
-    };
-
-    const renderProCompare = () => {
-      if (!proComparePanel) return;
-      const clips = compareClipCandidates();
-      if (clips.length < 2) {
-        proComparePanel.style.display = 'none';
-        setStatus('Selecciona dos clips o crea al menos dos clips para comparar.', true);
-        return;
-      }
-      proComparePanel.style.display = 'grid';
-      proComparePanel.innerHTML = clips.map((clip, idx) => {
-        const title = safeText(clip?.title, `Clip ${idx + 1}`);
-        const inS = Number(clip?.in_s) || 0;
-        const outS = Number(clip?.out_s) || inS;
-        const tags = Array.isArray(clip?.tags) ? clip.tags : [];
-        return `
-          <div class="vs-compare-card">
-            <strong>${idx === 0 ? 'A' : 'B'} · ${escHtml(title)}</strong>
-            <small>${escHtml(fmtTimeShort(inS))} → ${escHtml(fmtTimeShort(outS))}${tags.length ? ` · ${escHtml(tags.slice(0, 4).join(', '))}` : ''}</small>
-            <div class="vs-pro-actions">
-              <button type="button" class="button" data-vs-pro-open-clip="${idx}">Abrir</button>
-              <button type="button" class="button primary" data-vs-pro-play-clip="${idx}">Play</button>
-            </div>
-          </div>
-        `;
-      }).join('');
-      Array.from(proComparePanel.querySelectorAll('[data-vs-pro-open-clip]')).forEach((btn) => {
-        btn.addEventListener('click', () => openClipForPro(clips[Number(btn.getAttribute('data-vs-pro-open-clip') || 0)], false));
-      });
-      Array.from(proComparePanel.querySelectorAll('[data-vs-pro-play-clip]')).forEach((btn) => {
-        btn.addEventListener('click', () => openClipForPro(clips[Number(btn.getAttribute('data-vs-pro-play-clip') || 0)], true));
-      });
-      setStatus('Comparador preparado con dos clips.');
-    };
-
-    const createProIssue = async (key) => {
-      const map = {
-        perfil: { kind: 'note', label: 'Error recurrente: mal perfil corporal', color: '#facc15' },
-        intervalo: { kind: 'tag', label: 'Error recurrente: no cerrar intervalo', color: '#fb7185' },
-        perdida_dentro: { kind: 'turnover', label: 'Error recurrente: pérdida por dentro', color: '#f97316' },
-        linea_hundida: { kind: 'tag', label: 'Error recurrente: línea hundida', color: '#60a5fa' },
-        area: { kind: 'shot', label: 'Error recurrente: no atacar área', color: '#34d399' },
-      };
-      const item = map[safeText(key, '')] || map.perfil;
-      if (eventKindSelect) eventKindSelect.value = item.kind;
-      if (eventLabelInput) eventLabelInput.value = item.label;
-      try { if (colorInput) colorInput.value = item.color; } catch (e) { /* ignore */ }
-      await addTimelineEvent();
-      await createQuickClipFromPreset(item);
-      setStatus(`${item.label} añadido a Timeline.`);
-    };
-
-    proLiveModeBtn?.addEventListener('click', async () => {
-      autoClipState.enabled = true;
-      autoClipState.pre = Math.max(6, Number(autoClipState.pre) || 8);
-      autoClipState.post = Math.max(6, Number(autoClipState.post) || 8);
-      renderAutoClipUi();
-      try { await saveAutoClipPrefs(); } catch (e) { /* ignore */ }
-      try { document.getElementById('vs-acc-events')?.setAttribute?.('open', ''); } catch (e) { /* ignore */ }
-      setStatus('Modo partido activo: cada evento puede crear clip automático con IN/OUT alrededor del playhead.');
-    });
-
-    proModelPackBtn?.addEventListener('click', async () => {
-      eventPresets = proModelPresets();
-      if (presetsJson) presetsJson.value = presetsToJson(eventPresets);
-      renderEventPresets();
-      try { await saveEventPresets(eventPresets); } catch (e) { /* ignore */ }
-      setPresetsStatus('Pack modelo cargado.');
-      setStatus('Pack modelo de juego cargado en botones de evento.');
-    });
-
-    proCompareBtn?.addEventListener('click', renderProCompare);
-    patternSaveBtn?.addEventListener('click', saveActiveProPattern);
-    patternApplyBtn?.addEventListener('click', applyProPattern);
-
-    proPresentationBtn?.addEventListener('click', async () => {
-      if (Array.isArray(timelineCache) && timelineCache.length) {
-        try { await slidesFromTimeline(); } catch (e) { slidesFromTimelineBtn?.click?.(); }
-      } else {
-        slideAddBtn?.click?.();
-      }
-      setStatus('Presentación preparada en slides.');
-    });
-
-    proAiQuestionBtn?.addEventListener('click', () => {
-      if (aiContextInput) {
-        aiContextInput.value = [
-          'Analiza esta jugada como entrenador.',
-          'Identifica bloque alto/medio/bajo, carriles ocupados, superioridades, riesgos y corrección práctica para jugador.',
-          'Devuelve momentos clave, errores recurrentes y tareas de entrenamiento.'
-        ].join(' ');
-      }
-      fetchAi(true);
-    });
-
-    proGuidedTrackBtn?.addEventListener('click', () => {
-      try { setTool('player'); } catch (e) { btnPlayer?.click?.(); }
-      setStatus('Seguimiento guiado: marca el jugador en este frame y usa AutoTrack IA o keyframes para que el recurso lo siga.');
-    });
-
-    proCoachExportBtn?.addEventListener('click', () => {
-      reportPdfBtn?.click?.();
-      setStatus('Export entrenador iniciado.');
-    });
-
-    proPlayerExportBtn?.addEventListener('click', () => {
-      if (!slides.length) {
-        if (Array.isArray(timelineCache) && timelineCache.length) slidesFromTimelineBtn?.click?.();
-        else slideAddBtn?.click?.();
-      }
-      window.setTimeout(() => exportPdfBtn?.click?.(), 250);
-      setStatus('Export jugador iniciado.');
-    });
-
-    Array.from(document.querySelectorAll('[data-vs-pro-issue]')).forEach((btn) => {
-      btn.addEventListener('click', () => createProIssue(btn.getAttribute('data-vs-pro-issue')));
-    });
-    renderProPatterns();
 
     eventRefreshBtn?.addEventListener('click', refreshTimeline);
     timelineSearchInput?.addEventListener('input', () => renderTimeline(timelineCache));
@@ -11346,14 +10124,6 @@
 	            try { applySpaceFollow(obj, nowS); } catch (e) { /* ignore */ }
 	          }
 	          try { applySpaceZoneLiveStyle(obj, isSpaceZoneOccupied(obj, nowS)); } catch (e) { /* ignore */ }
-	        }
-
-	        if (safeText(obj?.data?.kind) !== 'space_zone' && obj.visible && obj.data?.track) {
-	          anyAnim = true;
-	          const editingThis = Boolean(activeObj && obj === activeObj && video.paused && isTransforming);
-	          if (!editingThis) {
-	            try { applyObjectFollow(obj, nowS); } catch (e) { /* ignore */ }
-	          }
 	        }
 
 	        if (safeText(obj?.data?.kind) === 'tactical_link' && obj.visible) {

@@ -47,6 +47,13 @@ fi
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 
+_ollama_install_flag="$(echo "${INSTALL_OLLAMA:-false}" | tr '[:upper:]' '[:lower:]' | xargs)"
+if [ "${_ollama_install_flag}" = "true" ] || [ "${_ollama_install_flag}" = "1" ] || [ "${_ollama_install_flag}" = "yes" ] || [ "${_ollama_install_flag}" = "on" ]; then
+  bash scripts/install_ollama.sh || {
+    echo "Aviso: no se pudo instalar Ollama; el deploy continuará sin LLM local." >&2
+  }
+fi
+
 # Optional: install Playwright browsers for server-side rendering / scraping.
 # Enable in Render env with INSTALL_PLAYWRIGHT_BROWSERS=true (or 1/yes/on).
 _pw_flag="$(echo "${INSTALL_PLAYWRIGHT_BROWSERS:-false}" | tr '[:upper:]' '[:lower:]' | xargs)"

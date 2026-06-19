@@ -425,6 +425,12 @@ def _normalize_task_pdf_meta(meta):
 
 
 def _build_session_task_sheet(task):
+    def _choice_label(choices, key):
+        raw = str(key or '').strip()
+        if not raw:
+            return ''
+        return dict(choices).get(raw, raw)
+
     meta = _normalize_task_pdf_meta(task.tactical_layout.get('meta') if isinstance(task.tactical_layout, dict) else {})
     analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
     task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
@@ -441,6 +447,56 @@ def _build_session_task_sheet(task):
         text = str(value or '').strip()
         if text:
             contents.append(text)
+    game_moment_choices = (
+        ('attack', 'Ataque organizado'),
+        ('defense', 'Defensa organizada'),
+        ('transition_attack', 'Transición ofensiva'),
+        ('transition_defense', 'Transición defensiva'),
+        ('set_piece_attack', 'ABP ofensiva'),
+        ('set_piece_defense', 'ABP defensiva'),
+    )
+    load_level_choices = (
+        ('low', 'Baja'),
+        ('medium', 'Media'),
+        ('high', 'Alta'),
+        ('max', 'Máxima'),
+    )
+    md_day_choices = (
+        ('md_plus_1', 'MD+1 Recuperación'),
+        ('md_plus_2', 'MD+2 Descanso / compensatorio'),
+        ('md_minus_4', 'MD-4 Tensión'),
+        ('md_minus_3', 'MD-3 Duración'),
+        ('md_minus_2', 'MD-2 Velocidad'),
+        ('md_minus_1', 'MD-1 Activación'),
+        ('md', 'MD Partido'),
+        ('custom', 'Personalizado'),
+    )
+    dominant_load_choices = (
+        ('recovery', 'Recuperación'),
+        ('tension', 'Tensión'),
+        ('duration', 'Duración'),
+        ('speed', 'Velocidad'),
+        ('activation', 'Activación'),
+        ('mixed', 'Mixta'),
+    )
+    methodology_parts = []
+    for label, value in [
+        ('MD', _choice_label(md_day_choices, meta.get('md_day'))),
+        ('Carga dom.', _choice_label(dominant_load_choices, meta.get('dominant_load'))),
+        ('Momento', _choice_label(game_moment_choices, meta.get('game_moment'))),
+        ('Principio', str(meta.get('principle') or '').strip()),
+        ('Subprincipio', str(meta.get('subprinciple') or '').strip()),
+        ('Regla', str(meta.get('provocation_rule') or '').strip()),
+        ('F', _choice_label(load_level_choices, meta.get('physical_load'))),
+        ('C', _choice_label(load_level_choices, meta.get('cognitive_load'))),
+        ('E', _choice_label(load_level_choices, meta.get('emotional_load'))),
+        ('RPE', str(meta.get('planned_rpe') or '').strip()),
+        ('sRPE', str(meta.get('planned_srpe_load') or '').strip()),
+        ('Wellness', str(meta.get('wellness_target') or '').strip()),
+    ]:
+        text = str(value or '').strip()
+        if text:
+            methodology_parts.append(f'{label}: {text}')
     return {
         'title': str(task.title or '').strip() or f'Tarea {task.id}',
         'block_label': task.get_block_display(),
@@ -466,7 +522,13 @@ def _build_session_task_sheet(task):
         'success': str(meta.get('success_criteria') or '').strip(),
         'coordination_label': str(meta.get('coordination') or '').strip(),
         'coordination_skills_label': str(meta.get('coordination_skills') or meta.get('coordination_skills_label') or '').strip(),
-        'tactical_intent_label': str(meta.get('tactical_intent') or '').strip(),
+        'tactical_intent_label': str(meta.get('tactical_intent') or '').strip() or ' · '.join(
+            part for part in [
+                str(meta.get('principle') or '').strip(),
+                str(meta.get('subprinciple') or '').strip(),
+            ] if part
+        ),
+        'methodology_label': ' · '.join(methodology_parts),
     }
 
 
@@ -763,7 +825,7 @@ def build_session_pdf_context(request, team, session, pdf_style='uefa'):
                     pitch_zoom=pitch_zoom,
                     world_width=canvas_width,
                     world_height=canvas_height,
-                    max_side=3200,
+                    max_side=4096,
                 )
                 if png_bytes:
                     return _autocrop_preview_data_url("data:image/png;base64," + base64.b64encode(png_bytes).decode("ascii"))

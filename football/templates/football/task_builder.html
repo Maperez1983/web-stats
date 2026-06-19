@@ -7,9 +7,6 @@
     <title>{% if tactics_mode %}Táctica{% elif task %}Editar tarea{% else %}Crear tarea{% endif %} · {{ scope_title }}</title>
 	    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
 	    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
-	    {% if tactics_mode %}
-	    <link rel="stylesheet" href="{% static 'football/css/tactics_pro_console.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
-	    {% endif %}
 		    <script>
 		      window.__webstatsTaskLandingGo = function(href) {
 		        try {
@@ -493,46 +490,6 @@
         border-radius: 12px;
         line-height: 1.05;
       }
-      body.tactics-mode .tactics-flowbar {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.42rem;
-        margin-top: 0.62rem;
-      }
-      body.tactics-mode .tactics-flowbar button {
-        border: 1px solid rgba(148, 163, 184, 0.24);
-        border-radius: 999px;
-        background: rgba(15, 23, 42, 0.68);
-        color: rgba(226, 232, 240, 0.92);
-        cursor: pointer;
-        font-size: 0.72rem;
-        font-weight: 900;
-        letter-spacing: 0.04em;
-        min-height: 34px;
-        padding: 0.42rem 0.74rem;
-        text-transform: uppercase;
-        white-space: nowrap;
-      }
-      body.tactics-mode .tactics-flowbar button.is-active {
-        border-color: rgba(250, 204, 21, 0.58);
-        background: rgba(250, 204, 21, 0.17);
-        color: rgba(255, 251, 235, 0.98);
-      }
-      body.tactics-mode .tactics-save-menu {
-        position: relative;
-      }
-      body.tactics-mode .tactics-save-menu > summary {
-        list-style: none;
-      }
-      body.tactics-mode .tactics-save-menu > summary::-webkit-details-marker {
-        display: none;
-      }
-      body.tactics-mode .tactics-save-menu .action-menu-body {
-        min-width: min(360px, calc(100vw - 2rem));
-      }
-      body.tactics-mode .tactics-hidden-action {
-        display: none !important;
-      }
       body.tactics-mode #tactics-save-task-top,
       body.tactics-mode #tactics-save-task-system-top,
       body.tactics-mode #tactics-save-clip-top,
@@ -881,20 +838,6 @@
         align-items: center;
         gap: 0.32rem;
       }
-      body.tactics-mode .tactics-active-mode {
-        border: 1px solid rgba(34, 211, 238, 0.26);
-        border-radius: 999px;
-        background: rgba(8, 47, 73, 0.22);
-        color: rgba(224, 242, 254, 0.96);
-        flex: 0 0 auto;
-        font-size: 0.68rem;
-        font-weight: 900;
-        letter-spacing: 0.06em;
-        min-height: 34px;
-        padding: 0.48rem 0.72rem;
-        text-transform: uppercase;
-        white-space: nowrap;
-      }
       body.tactics-mode .tactics-toolbar-primary {
         justify-content: flex-start;
       }
@@ -1066,10 +1009,6 @@
       }
       body.tactics-mode .tactics-quickbar #tactics-overlays-open,
       body.tactics-mode .tactics-quickbar #tactics-zones-open,
-      body.tactics-mode .tactics-quickbar #tactics-tool-local,
-      body.tactics-mode .tactics-quickbar #tactics-tool-rival,
-      body.tactics-mode .tactics-quickbar #tactics-tool-ball,
-      body.tactics-mode .tactics-quickbar #tactics-tool-arrow,
       body.tactics-mode .tactics-quickbar #tactics-tool-text,
       body.tactics-mode .tactics-quickbar #tactics-export-image-hq,
       body.tactics-mode .tactics-quickbar #task-tactics-layout-toggle {
@@ -3095,14 +3034,10 @@
 	        align-items: center;
 	        gap: 0.45rem;
 	      }
-      .pitch-size,
-      .selected-size {
+      .pitch-size {
         display: flex;
         align-items: center;
         gap: 0.45rem;
-      }
-      .selected-size[hidden] {
-        display: none !important;
       }
       body.focus-mode .builder {
         grid-template-columns: 1fr;
@@ -3231,8 +3166,7 @@
 		        display: block;
 		      }
 	      .pitch-zoom button,
-	      .pitch-size button,
-	      .selected-size button {
+	      .pitch-size button {
 	        border-radius: 10px;
 	        padding: 8px 10px;
 	        border: 1px solid rgba(255,255,255,0.18);
@@ -3241,15 +3175,11 @@
 	        min-width: 38px;
 	      }
 	      .pitch-zoom .zoom-readout,
-	      .pitch-size .zoom-readout,
-	      .selected-size .zoom-readout {
+	      .pitch-size .zoom-readout {
 	        min-width: 54px;
 	        text-align: center;
 	        font-weight: 700;
 	        color: rgba(226,232,240,0.8);
-	      }
-	      .selected-size .zoom-readout {
-	        min-width: 94px;
 	      }
       .resource-section {
         display: flex;
@@ -3654,167 +3584,6 @@
         font-size: 0.75rem;
         letter-spacing: 0.12em;
         text-transform: uppercase;
-      }
-      .space-coach {
-        grid-column: 1 / -1;
-        display: grid;
-        gap: 0.65rem;
-        padding: 0.75rem;
-        border-radius: 14px;
-        border: 1px solid rgba(56, 189, 248, 0.2);
-        background: rgba(8, 47, 73, 0.28);
-      }
-      .space-coach-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.65rem;
-        flex-wrap: wrap;
-      }
-      .space-coach-head strong {
-        font-size: 0.76rem;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-      }
-      .space-coach-grid {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 0.5rem;
-      }
-      .space-team-grid {
-        grid-column: 1 / -1;
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 0.5rem;
-      }
-      .space-team-grid label {
-        min-width: 0;
-      }
-      .space-team-grid select {
-        min-width: 0;
-      }
-      .space-coach-grid label {
-        min-width: 0;
-      }
-      .space-coach-grid input,
-      .space-coach-grid select {
-        min-width: 0;
-      }
-      .space-coach-result {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 0.45rem;
-      }
-      .space-coach-stat {
-        padding: 0.55rem;
-        border-radius: 12px;
-        border: 1px solid rgba(255,255,255,0.1);
-        background: rgba(15, 23, 42, 0.42);
-      }
-      .space-coach-stat span {
-        display: block;
-        font-size: 0.66rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: rgba(226,232,240,0.64);
-      }
-      .space-coach-stat strong {
-        display: block;
-        margin-top: 0.15rem;
-        font-size: 0.92rem;
-      }
-      .space-coach-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.45rem;
-      }
-      .space-coach-actions button {
-        border-radius: 10px;
-        border: 1px solid rgba(255,255,255,0.14);
-        background: rgba(255,255,255,0.06);
-        color: rgba(248,250,252,0.92);
-        padding: 0.48rem 0.62rem;
-        font-weight: 800;
-        cursor: pointer;
-      }
-      .space-coach-note {
-        margin: 0;
-        color: rgba(226,232,240,0.78);
-        font-size: 0.78rem;
-        line-height: 1.35;
-      }
-      .task-sheet-summary {
-        grid-column: 1 / -1;
-        display: grid;
-        gap: 0.28rem;
-        padding: 0.72rem 0.78rem;
-        border-radius: 12px;
-        border: 1px solid rgba(132, 204, 22, 0.22);
-        background: rgba(20, 83, 45, 0.22);
-        color: rgba(240,253,244,0.92);
-        font-size: 0.8rem;
-        line-height: 1.35;
-      }
-      .task-sheet-summary strong {
-        font-size: 0.72rem;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        color: rgba(220,252,231,0.86);
-      }
-      .methodology-coach {
-        grid-column: 1 / -1;
-        display: grid;
-        gap: 0.62rem;
-        padding: 0.78rem;
-        border-radius: 12px;
-        border: 1px solid rgba(56, 189, 248, 0.22);
-        background: rgba(8, 47, 73, 0.22);
-        color: rgba(224, 242, 254, 0.94);
-        font-size: 0.8rem;
-        line-height: 1.35;
-      }
-      .methodology-coach-head {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 0.7rem;
-      }
-      .methodology-coach-head strong {
-        display: block;
-        font-size: 0.72rem;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        color: rgba(186, 230, 253, 0.9);
-      }
-      .methodology-coach-head span,
-      .methodology-coach-list {
-        color: rgba(224, 242, 254, 0.8);
-      }
-      .methodology-coach-score {
-        white-space: nowrap;
-        font-weight: 800;
-        color: #fef3c7;
-      }
-      .methodology-coach-list {
-        margin: 0;
-        padding-left: 1.1rem;
-      }
-      .methodology-coach-list li + li {
-        margin-top: 0.18rem;
-      }
-      .methodology-coach-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.45rem;
-      }
-      .methodology-coach-actions button {
-        border: 1px solid rgba(186, 230, 253, 0.22);
-        border-radius: 999px;
-        background: rgba(15, 23, 42, 0.52);
-        color: rgba(240, 249, 255, 0.95);
-        padding: 0.48rem 0.68rem;
-        font-weight: 750;
-        cursor: pointer;
       }
       .assign-grid {
         display: grid;
@@ -4283,11 +4052,6 @@
         .compact-grid {
           grid-template-columns: 1fr;
         }
-        .space-team-grid,
-        .space-coach-grid,
-        .space-coach-result {
-          grid-template-columns: 1fr;
-        }
         .pitch-viewport {
           overflow: hidden;
         }
@@ -4707,25 +4471,7 @@
 	        scrollbar-width: thin;
 	      }
 	      .sim-3d-controls label { white-space: nowrap; }
-	      .sim-3d-controls select {
-	        max-width: min(210px, 42vw);
-	        min-width: 148px;
-	      }
-	      #task-pitch-3d-follow,
-	      #task-pitch-3d-player-mode,
-	      #task-pitch-3d-insert,
-	      #task-pitch-3d-theme,
-	      #task-pitch-3d-play,
-	      #task-pitch-3d-record,
-	      #task-pitch-3d-action,
-	      #task-pitch-3d-action-apply,
-	      #task-pitch-3d-phase-save,
-	      #task-pitch-3d-phase-dup,
-	      #task-pitch-3d-template,
-	      #task-pitch-3d-validate,
-	      #task-pitch-3d-clamp {
-	        display: none;
-	      }
+	      .sim-3d-controls select { max-width: min(210px, 42vw); }
 	      .sim-3d-controls .button,
 	      .sim-3d-controls button {
 	        white-space: nowrap;
@@ -5311,21 +5057,13 @@
 	              Crear tarea · Editor visual dedicado
 	            {% endif %}
 	          </h1>
-	          <p class="meta">
+          <p class="meta">
             {% if tactics_mode %}
-              Elige un flujo, dibuja o anima la jugada y guarda como clip, tarea, captura o pack.
+              Pizarra táctica + Playbook (clips), exportaciones y compartir. No crea tareas ni requiere sesión.
             {% else %}
               Superficie real de juego, recursos básicos y ficha corta para que la pizarra sea lo principal.
             {% endif %}
           </p>
-          {% if tactics_mode %}
-          <div class="tactics-flowbar" id="tactics-flowbar" aria-label="Flujos rápidos de táctica">
-            <button type="button" class="is-active" data-tactics-flow="draw">Dibujar jugada</button>
-            <button type="button" data-tactics-flow="animate">Animar jugada</button>
-            <button type="button" data-tactics-flow="task">Crear tarea</button>
-            <button type="button" data-tactics-flow="present">Preparar charla</button>
-          </div>
-          {% endif %}
           <div class="topbar-pills">
             {% if tactics_mode %}
             <span class="topbar-pill">Pizarra libre</span>
@@ -5351,47 +5089,29 @@
 	                onclick="try{var f=document.getElementById('task-builder-form');if(!f)return;var b=document.getElementById('task-submit-btn');if(f.requestSubmit){f.requestSubmit(b||undefined);}else if(b){b.click();}else{f.submit();}}catch(e){};return false;"
 	              >Guardar</button>
 			              {% elif tactics_mode %}
-                    <details class="action-menu tactics-save-menu" id="tactics-save-menu">
-                      <summary class="button primary action-summary" aria-label="Guardar táctica">Guardar como...</summary>
-                      <div class="action-menu-body" role="menu">
-                        <div class="action-menu-group">
-                          <div class="action-menu-title">Destino</div>
-                          <div class="action-menu-row">
-                            <button type="button" class="button" onclick="try{document.getElementById('tactics-save-top')?.click();document.getElementById('tactics-save-menu').open=false;}catch(e){};return false;">Clip fijo de Playbook</button>
-                            <button type="button" class="button" onclick="try{document.getElementById('tactics-save-clip-top')?.click();document.getElementById('tactics-save-menu').open=false;}catch(e){};return false;">Animación / clip</button>
-                            <button type="button" class="button" onclick="try{document.getElementById('tactics-save-task-top')?.click();document.getElementById('tactics-save-menu').open=false;}catch(e){};return false;">Tarea de entrenamiento</button>
-                            <button type="button" class="button" onclick="try{document.getElementById('tactics-export-image-hq')?.click();document.getElementById('tactics-save-menu').open=false;}catch(e){};return false;">Captura HQ</button>
-                            <button type="button" class="button" onclick="try{document.getElementById('task-playbook-export-pack')?.click();document.getElementById('tactics-save-menu').open=false;}catch(e){};return false;">Pack charla</button>
-                            {% if request.user.is_superuser %}
-                            <button type="button" class="button" onclick="try{document.getElementById('tactics-save-task-system-top')?.click();document.getElementById('tactics-save-menu').open=false;}catch(e){};return false;">Tarea sistema</button>
-                            {% endif %}
-                          </div>
-                        </div>
-                      </div>
-                    </details>
 			              <button
 			                type="button"
-			                class="button tactics-hidden-action"
+			                class="button primary"
 			                id="tactics-save-top"
 			                title="Guardar táctica (fija) en Playbook"
 			              >Guardar táctica</button>
 			              <button
 			                type="button"
-			                class="button tactics-hidden-action"
+			                class="button"
 			                id="tactics-save-task-top"
 			                title="Guardar la pizarra como tarea en Biblioteca (Interactivas)"
 			              >Guardar como tarea</button>
 			              {% if request.user.is_superuser %}
 			              <button
 			                type="button"
-			                class="button tactics-hidden-action"
+			                class="button"
 			                id="tactics-save-task-system-top"
 			                title="Guardar la pizarra como tarea global (solo sistema)"
 			              >Guardar tarea (sistema)</button>
 			              {% endif %}
 			              <button
 			                type="button"
-			                class="button tactics-hidden-action"
+			                class="button"
 			                id="tactics-save-clip-top"
 			                title="Guardar clip (simulación) en Playbook"
 			              >Guardar clip</button>
@@ -5592,8 +5312,6 @@
 				        data-tpad-src="{% static 'football/js/sessions_tactical_pad.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 				        data-three-src="{% static 'vendor/three.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 				        data-three-gltf-loader-src="{% static 'vendor/three/examples/jsm/loaders/GLTFLoader.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
-				        data-three-skeleton-utils-src="{% static 'vendor/three/examples/jsm/utils/SkeletonUtils.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
-				        data-pitch3d-stadium-model-src="{% static 'football/models/pitch3d/stadium_malaga_rosaleda.glb' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 				        data-pitch3d-grass-albedo-src="{% static 'football/images/pitch3d/grass_premium_albedo.png' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 				        data-pitch3d-grass-bump-src="{% static 'football/images/pitch3d/grass_premium_bump.png' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 				        data-pitch3d-grass-normal-src="{% static 'football/images/pitch3d/grass_premium_normal.png' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
@@ -5601,9 +5319,7 @@
 				        data-pitch3d-concrete-albedo-src="{% static 'football/materials/pitch3d/ambientcg/Concrete034/Concrete034_1K-JPG_Color.jpg' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 				        data-pitch3d-benagalbon-crest-src="{% static 'football/images/kit_logos/benagalbon_crest_alpha.png' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 				        data-pitch3d-goal-model-src="{% static 'football/models/pitch3d/goal_premium.glb' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
-				        data-pitch3d-stadium-top-h-src="{% static 'football/images/pitch3d/stadium_rosaleda_top_h.png' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
-				        data-pitch3d-stadium-top-v-src="{% static 'football/images/pitch3d/stadium_rosaleda_top_v.png' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
-				        data-pitch3d-player-model-src="{% if pitch3d_player_model_src %}{{ pitch3d_player_model_src }}{% else %}{% static 'football/models/avatar/player_humanoid.glb' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}{% endif %}"
+				        data-pitch3d-stadium-model-src="{% static 'football/models/pitch3d/stadium_benagalbon_reference.glb' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 				        data-stadium-primary-color="{{ stadium_palette.primary|default:'#047857' }}"
 				        data-stadium-secondary-color="{{ stadium_palette.secondary|default:'#f8fafc' }}"
 				        data-stadium-accent-color="{{ stadium_palette.accent|default:'#073b32' }}"
@@ -5639,11 +5355,10 @@
 	        <input type="hidden" name="draw_canvas_width" id="draw-canvas-width" value="{{ initial.canvas_width }}" />
 	        <input type="hidden" name="draw_canvas_height" id="draw-canvas-height" value="{{ initial.canvas_height }}" />
 	        <input type="hidden" name="draw_canvas_preview_data" id="draw-canvas-preview-data" />
-	        <input type="hidden" name="draw_canvas_3d_preview_data" id="draw-canvas-3d-preview-data" value="{{ initial.pitch3d_preview_data|default:''|escape }}" />
 	        <input type="hidden" name="draw_canvas_timeline_previews" id="draw-canvas-timeline-previews" />
 	        <input type="hidden" name="draw_task_pitch_orientation" id="draw-task-pitch-orientation" value="{{ initial.pitch_orientation|default:'landscape' }}" />
 	        <input type="hidden" name="draw_task_pitch_zoom" id="draw-task-pitch-zoom" value="{{ initial.pitch_zoom|default:'1.00' }}" />
-	        <input type="hidden" name="draw_task_pitch_grass_style" id="draw-task-pitch-grass-style" value="{{ initial.pitch_grass_style|default:'stadium_top' }}" />
+	        <input type="hidden" name="draw_task_pitch_grass_style" id="draw-task-pitch-grass-style" value="{{ initial.pitch_grass_style|default:'classic' }}" />
 	        <div id="assigned-players-hidden" style="display:none;"></div>
 
         {% if not tactics_mode %}
@@ -5726,7 +5441,6 @@
                   <button type="button" class="surface-trigger" id="task-tactics-panel-toggle" title="Abrir/cerrar Playbook" aria-label="Abrir/cerrar Playbook">Playbook</button>
                   <button type="button" class="surface-trigger" id="task-tactics-tools-toggle" title="Mostrar/ocultar herramientas" aria-label="Mostrar/ocultar herramientas">Herramientas</button>
                   <button type="button" class="surface-trigger" id="task-tactics-sim-open" title="Abrir simulador" aria-label="Abrir simulador">Simulador</button>
-                  <span class="tactics-active-mode" id="tactics-active-mode" aria-live="polite">Modo: Dibujar</span>
                   <div class="tactics-quickbar" id="tactics-quickbar" aria-label="Barra rápida de táctica">
                     <div class="tactics-mode-toggle" id="tactics-mode-toggle" role="tablist" aria-label="Modo de pizarra">
                       <button type="button" class="is-active" id="tactics-mode-static" data-tactics-board="static" role="tab" aria-selected="true">Estática</button>
@@ -5918,10 +5632,6 @@
 			                        {% if initial.pitch_grass_style == 'broadcast' %}Broadcast
 			                        {% elif initial.pitch_grass_style == 'realistic' %}Realista
 			                        {% elif initial.pitch_grass_style == 'pro' %}PRO
-			                        {% elif initial.pitch_grass_style == 'stadium_close' %}Campo cercano
-			                        {% elif initial.pitch_grass_style == 'stadium_top' %}Cenital 3D
-			                        {% elif initial.pitch_grass_style == 'stadium_full' %}Estadio completo
-			                        {% elif initial.pitch_grass_style == 'stadium_premium' %}3D presentación
 			                        {% elif initial.pitch_grass_style == 'uefa_b' %}UEFA B
 			                        {% elif initial.pitch_grass_style == 'natural' %}Natural
 			                        {% elif initial.pitch_grass_style == 'artificial' %}Artificial
@@ -5939,10 +5649,6 @@
 		                    <span class="pitch-grass-select-wrap">
 		                      <label class="sr-only" for="pitch-grass-select">Tipo de césped</label>
 		                      <select id="pitch-grass-select" class="pitch-grass-select" aria-label="Tipo de césped">
-		                        <option value="stadium_close" {% if initial.pitch_grass_style == 'stadium_close' %}selected{% endif %}>Campo cercano</option>
-		                        <option value="stadium_top" {% if initial.pitch_grass_style == 'stadium_top' %}selected{% endif %}>Cenital 3D</option>
-		                        <option value="stadium_full" {% if initial.pitch_grass_style == 'stadium_full' %}selected{% endif %}>Estadio completo</option>
-		                        <option value="stadium_premium" {% if initial.pitch_grass_style == 'stadium_premium' %}selected{% endif %}>3D presentación</option>
 		                        <option value="classic" {% if initial.pitch_grass_style == 'classic' %}selected{% endif %}>Césped</option>
 		                        <option value="broadcast" {% if initial.pitch_grass_style == 'broadcast' %}selected{% endif %}>Broadcast</option>
 		                        <option value="realistic" {% if initial.pitch_grass_style == 'realistic' %}selected{% endif %}>Realista</option>
@@ -5971,12 +5677,6 @@
 	                    </div>
                     </div>
                   </details>
-                  <div class="selected-size" id="selected-size-controls" title="Tamaño del elemento seleccionado" hidden>
-                    <button type="button" id="selected-size-down" title="Elemento más pequeño">-</button>
-                    <span class="zoom-readout" id="selected-size-label">Elemento 100%</span>
-                    <button type="button" id="selected-size-up" title="Elemento más grande">+</button>
-                    <button type="button" id="selected-size-reset" title="Restablecer tamaño">100%</button>
-                  </div>
                   {% if not tactics_mode %}
                   <button type="button" class="surface-trigger" id="pitch-3d-open" title="Representación 3D (presentación)" aria-label="Representación 3D">
                     <span>Representación 3D</span>
@@ -6683,10 +6383,6 @@
 				                                <option value="ball">Balón</option>
 				                                <option value="selected">Jugador (tap)</option>
 				                              </select>
-				                            <select id="task-pitch-3d-player-mode" title="Representación de jugadores" aria-label="Representación jugadores">
-				                                <option value="chip" selected>Chapa</option>
-				                                <option value="avatar">Avatar 3D</option>
-				                              </select>
 				                            <select id="task-pitch-3d-insert" title="Insertar elemento en el campo 3D" aria-label="Insertar en 3D">
 				                                <option value="" selected>Insertar</option>
 				                                <option value="player_local">Chapa local</option>
@@ -6712,7 +6408,6 @@
 				                              </select>
 				                            <button type="button" class="button" id="task-pitch-3d-refresh" title="Sincroniza con la pizarra actual">Actualizar</button>
 				                            <button type="button" class="button primary" id="task-pitch-3d-snap-tactic" title="Descarga PNG enfocando la táctica">PNG táctica</button>
-				                            <button type="button" class="button" id="task-pitch-3d-save-sheet" title="Guarda esta vista 3D para imprimirla en la ficha">Guardar en ficha</button>
 				                            <button type="button" class="button" id="task-pitch-3d-play" title="Reproduce escenarios (si existen)">▶</button>
 				                            <button type="button" class="button" id="task-pitch-3d-record" title="Grabar WebM (beta)">REC</button>
 				                            <select id="task-pitch-3d-action" title="Tipo de acción para rutas del elemento seleccionado">
@@ -7531,7 +7226,7 @@
                   </label>
                   {% endif %}
                   <label>
-                    Entorno
+                    Superficie
                     <select name="draw_task_surface" id="draw-task-surface">
                       {% for value, label in task_surface_choices %}
                       <option value="{{ value }}" {% if initial.surface == value %}selected{% endif %}>{{ label }}</option>
@@ -7546,19 +7241,6 @@
                     Objetivo
                     <textarea name="draw_task_objective" rows="2" style="min-height:52px; resize:vertical;">{{ initial.objective }}</textarea>
                   </label>
-                  <label style="grid-column:1 / -1;">
-                    Contexto / situación de juego
-                    <textarea name="draw_task_game_context" rows="3" maxlength="1000" placeholder="Ej: rival en bloque medio, robo en carril central y necesidad de progresar antes de que cierre la ayuda">{{ initial.game_context }}</textarea>
-                  </label>
-                  <label>
-                    Momento del juego
-                    <select name="draw_task_game_moment" id="draw-task-game-moment">
-                      <option value="">Selecciona...</option>
-                      {% for value, label in game_moment_choices %}
-                      <option value="{{ value }}" {% if initial.game_moment == value %}selected{% endif %}>{{ label }}</option>
-                      {% endfor %}
-                    </select>
-                  </label>
                   <label>
                     Bloque
                     <select name="draw_task_block">
@@ -7572,149 +7254,23 @@
                     <input type="number" name="draw_task_minutes" min="5" max="90" value="{{ initial.minutes|default:15 }}" />
                   </label>
                   <label>
-                    Principio
-                    <input type="text" name="draw_task_principle" value="{{ initial.principle }}" maxlength="120" placeholder="Ej: atraer para progresar" />
-                  </label>
-                  <label style="grid-column:1 / -1;">
-                    Subprincipio
-                    <input type="text" name="draw_task_subprinciple" value="{{ initial.subprinciple }}" maxlength="160" placeholder="Ej: fijar fuera para encontrar tercer hombre dentro" />
+                    Nº jugadores
+                    <input type="text" name="draw_task_player_count" value="{{ initial.player_count }}" placeholder="Ej: 6v6 + 2 porteros" />
                   </label>
                   <label>
-                    Resumen participantes
-                    <input type="text" name="draw_task_player_count" id="draw-task-player-count" value="{{ initial.player_count }}" placeholder="Ej: 6v6 + 2 porteros" />
+                    Dimensiones
+                    <input type="text" name="draw_task_dimensions" value="{{ initial.dimensions }}" placeholder="Ej: 40x30 m" />
                   </label>
-                  <div class="space-team-grid" aria-label="Participantes de la tarea">
-                    <label>
-                      Equipo A
-                      <select id="task-team-a-count" data-player-count-part>
-                        <option value="">--</option>
-                        {% for n in "0123456789"|make_list %}
-                        <option value="{{ forloop.counter0 }}">{{ forloop.counter0 }}</option>
-                        {% endfor %}
-                        <option value="10">10</option>
-                        <option value="11">11</option>
-                      </select>
-                    </label>
-                    <label>
-                      Equipo B
-                      <select id="task-team-b-count" data-player-count-part>
-                        <option value="">--</option>
-                        {% for n in "0123456789"|make_list %}
-                        <option value="{{ forloop.counter0 }}">{{ forloop.counter0 }}</option>
-                        {% endfor %}
-                        <option value="10">10</option>
-                        <option value="11">11</option>
-                      </select>
-                    </label>
-                    <label>
-                      Comodines
-                      <select id="task-neutral-count" data-player-count-part>
-                        <option value="">0</option>
-                        {% for n in "012345"|make_list %}
-                        <option value="{{ forloop.counter0 }}">{{ forloop.counter0 }}</option>
-                        {% endfor %}
-                      </select>
-                    </label>
-                    <label>
-                      Porteros
-                      <select id="task-goalkeeper-count" data-player-count-part>
-                        <option value="">0</option>
-                        <option value="0">0</option>
-                        <option value="1">1</option>
-                        <option value="2">2</option>
-                        <option value="3">3</option>
-                        <option value="4">4</option>
-                      </select>
-                    </label>
-                  </div>
-                  <label>
-                    Resumen dimensiones
-                    <input type="text" name="draw_task_dimensions" id="draw-task-dimensions" value="{{ initial.dimensions }}" placeholder="Ej: 40x30 m" />
-                  </label>
-                  <div class="space-coach" id="task-space-coach">
-                    <div class="space-coach-head">
-                      <strong>Espacio por jugador</strong>
-                      <span class="meta">Calcula densidad y propone medidas de tarea.</span>
-                    </div>
-                    <div class="space-coach-grid">
-                      <label>
-                        Ancho m
-                        <input type="number" id="task-space-width" min="5" max="120" step="1" inputmode="decimal" />
-                      </label>
-                      <label>
-                        Largo m
-                        <input type="number" id="task-space-length" min="5" max="120" step="1" inputmode="decimal" />
-                      </label>
-                      <label>
-                        Jugadores
-                        <input type="number" id="task-space-players" min="1" max="30" step="1" inputmode="numeric" />
-                      </label>
-                      <label>
-                        Objetivo
-                        <select id="task-space-objective">
-                          <option value="possession">Conservación</option>
-                          <option value="position">Juego de posición</option>
-                          <option value="pressing">Presión / robo</option>
-                          <option value="finishing">Finalización</option>
-                          <option value="transition">Transición</option>
-                          <option value="speed">Velocidad / profundidad</option>
-                        </select>
-                      </label>
-                    </div>
-                    <div class="space-coach-result" aria-live="polite">
-                      <div class="space-coach-stat">
-                        <span>Área</span>
-                        <strong id="task-space-area">-- m²</strong>
-                      </div>
-                      <div class="space-coach-stat">
-                        <span>Por jugador</span>
-                        <strong id="task-space-per-player">-- m²/j</strong>
-                      </div>
-                      <div class="space-coach-stat">
-                        <span>Lectura</span>
-                        <strong id="task-space-density">--</strong>
-                      </div>
-                    </div>
-                    <p class="space-coach-note" id="task-space-recommendation">Introduce dimensiones y jugadores para recibir una recomendación.</p>
-                    <div class="space-coach-actions">
-                      <button type="button" id="task-space-apply-recommended">Aplicar recomendado</button>
-                      <button type="button" id="task-space-apply-current">Actualizar dimensiones</button>
-                      <button type="button" data-space-target="tight">Más presión</button>
-                      <button type="button" data-space-target="balanced">Equilibrado</button>
-                      <button type="button" data-space-target="wide">Más profundidad</button>
-                    </div>
-                  </div>
-                  <div class="task-sheet-summary" id="task-sheet-summary" aria-live="polite">
-                    <strong>Resumen de tarea</strong>
-                    <span>Completa participantes y dimensiones para obtener lectura automática del espacio.</span>
-                  </div>
-                  <div class="methodology-coach" id="task-methodology-coach" aria-live="polite">
-                    <div class="methodology-coach-head">
-                      <div>
-                        <strong>Coach metodológico</strong>
-                        <span id="task-methodology-headline">Revisa la coherencia UEFA C/B, progresiones y prevención.</span>
-                      </div>
-                      <span class="methodology-coach-score" id="task-methodology-score">--</span>
-                    </div>
-                    <ul class="methodology-coach-list" id="task-methodology-list">
-                      <li>Completa objetivo, contexto, participantes y dimensiones para recibir diagnóstico.</li>
-                    </ul>
-                    <div class="methodology-coach-actions">
-                      <button type="button" id="task-methodology-apply-structure">Completar progresiones</button>
-                      <button type="button" id="task-methodology-apply-questions">Añadir preguntas</button>
-                      <button type="button" id="task-methodology-apply-prevention">Añadir prevención</button>
-                    </div>
-                  </div>
                   <label>
                     Edad
                     <input type="text" name="draw_task_age_group" value="{{ initial.age_group }}" placeholder="Ej: Cadete / Juvenil" />
                   </label>
                   <label>
-                    Tipo / método
+                    Tipo
                     <input type="text" name="draw_task_training_type" value="{{ initial.training_type }}" placeholder="Ej: Conservación / Finalización" />
                   </label>
                   <label style="grid-column:1 / -1;">
-                    Formato de campo
+                    Formato real
                     <select name="draw_task_pitch_format" id="draw-task-pitch-format">
                       {% for value, label in task_pitch_choices %}
                       <option value="{{ value }}" {% if initial.pitch_format == value %}selected{% endif %}>{{ label }}</option>
@@ -7768,7 +7324,7 @@
                     <input type="hidden" name="draw_task_coaching_points_html" id="draw-task-coaching-points-html" value="{{ initial.coaching_points_html|default:''|escape }}" />
                   </label>
                   <label>
-                    Reglas del juego
+                    Normas de confrontación
                     <div class="rich-editor" data-rich-editor data-rich-name="draw_task_confrontation_rules" data-rich-html-name="draw_task_confrontation_rules_html">
                       <div class="rich-toolbar" aria-label="Formato de texto">
                         <button type="button" data-rich-cmd="bold" title="Negrita">B</button>
@@ -7788,16 +7344,51 @@
                     <input type="hidden" name="draw_task_confrontation_rules_html" id="draw-task-confrontation-rules-html" value="{{ initial.confrontation_rules_html|default:''|escape }}" />
                   </label>
                   <label>
-                    Condicionantes / puntuación
-                    <textarea name="draw_task_provocation_rule" rows="2" maxlength="500" placeholder="Ej: gol doble tras robo en 6 segundos">{{ initial.provocation_rule }}</textarea>
-                  </label>
-                  <label>
                     Material
                     <input type="text" name="draw_task_materials" value="{{ initial.materials }}" placeholder="Conos, petos, porterías..." />
                   </label>
 	                  <label>
-	                    Zona / carriles
+	                    Espacio
 	                    <input type="text" name="draw_task_space" value="{{ initial.space }}" placeholder="Ej: zona central + 2 carriles" />
+	                  </label>
+		                  <label style="grid-column:1 / -1;">
+		                    Pictogramas (opcional)
+		                    <div class="meta" style="margin-top:0.25rem; margin-bottom:0.45rem; opacity:0.86;">
+		                      Útil para calentamientos (técnica de carrera / movilidad). Se imprimen en el PDF como secuencia visual.
+		                    </div>
+		                    <input type="hidden" name="draw_task_drills_json" id="draw-task-drills-json" value="{{ initial.drills_json|default:'[]'|escape }}" />
+		                    <input type="hidden" name="draw_task_drills_icon_color" id="draw-task-drills-icon-color" value="{{ initial.drills_icon_color|default:'#0f7a35'|escape }}" />
+		                    <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; margin-bottom:0.45rem;">
+		                      <input type="text" id="task-drills-search" placeholder="Buscar…" style="flex:1 1 140px; min-width:140px;" />
+		                      <select id="task-drills-filter" style="flex:0 0 auto;">
+	                        <option value="all">Todos</option>
+	                        <option value="running">Carrera</option>
+	                        <option value="running_technique">Técnica carrera</option>
+	                        <option value="mobility">Movilidad</option>
+	                        <option value="physical_field">Carga · campo</option>
+	                        <option value="plyo">Pliometría</option>
+	                        <option value="strength">Fuerza</option>
+	                        <option value="core">Core</option>
+	                        <option value="prehab">Prehab</option>
+	                      </select>
+	                      <select id="task-drills-age" style="flex:0 0 auto;" title="Filtra por edad orientativa (no excluye: deja en “Todas” para ver el catálogo completo).">
+	                        <option value="all">Edades · Todas</option>
+	                        <option value="u8">4–8</option>
+	                        <option value="u12">9–12</option>
+	                        <option value="u16">13–16</option>
+	                        <option value="adult">17+</option>
+	                      </select>
+	                    </div>
+		                    <div class="drills-picker" id="task-drills-picker" style="margin-top:0.35rem;">
+		                      {% for drill in drills_catalog %}
+		                      <label class="chip-toggle" title="{{ drill.label }}" data-drill-cat="{{ drill.category }}" data-drill-label="{{ drill.label }}" data-drill-age-min="{{ drill.age_min|default:'' }}" data-drill-age-max="{{ drill.age_max|default:'' }}">
+		                        <input type="checkbox" value="{{ drill.id }}" {% if drill.id in initial.drills_ids %}checked{% endif %} data-drill-id="{{ drill.id }}" />
+		                        <img class="drill-icon" src="{% static drill.icon_static_path %}" alt="" />
+		                        <button type="button" class="drill-add-to-board" data-drill-add="{{ drill.id }}" title="Añadir pictograma a la pizarra">+</button>
+		                        {{ drill.label }}
+		                      </label>
+		                      {% endfor %}
+		                    </div>
 	                  </label>
 	                </div>
 		              </div>
@@ -8234,45 +7825,6 @@
                       <option value="{{ value }}" {% if initial.complexity == value %}selected{% endif %}>{{ label }}</option>
                       {% endfor %}
                     </select>
-                  </label>
-                  <label style="grid-column:1 / -1;">
-                    Pictogramas (opcional)
-                    <div class="meta" style="margin-top:0.25rem; margin-bottom:0.45rem; opacity:0.86;">
-                      Útil para calentamientos (técnica de carrera / movilidad). Se imprimen en el PDF como secuencia visual.
-                    </div>
-                    <input type="hidden" name="draw_task_drills_json" id="draw-task-drills-json" value="{{ initial.drills_json|default:'[]'|escape }}" />
-                    <input type="hidden" name="draw_task_drills_icon_color" id="draw-task-drills-icon-color" value="{{ initial.drills_icon_color|default:'#0f7a35'|escape }}" />
-                    <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; margin-bottom:0.45rem;">
-                      <input type="text" id="task-drills-search" placeholder="Buscar…" style="flex:1 1 140px; min-width:140px;" />
-                      <select id="task-drills-filter" style="flex:0 0 auto;">
-                        <option value="all">Todos</option>
-                        <option value="running">Carrera</option>
-                        <option value="running_technique">Técnica carrera</option>
-                        <option value="mobility">Movilidad</option>
-                        <option value="physical_field">Carga · campo</option>
-                        <option value="plyo">Pliometría</option>
-                        <option value="strength">Fuerza</option>
-                        <option value="core">Core</option>
-                        <option value="prehab">Prehab</option>
-                      </select>
-                      <select id="task-drills-age" style="flex:0 0 auto;" title="Filtra por edad orientativa (no excluye: deja en “Todas” para ver el catálogo completo).">
-                        <option value="all">Edades · Todas</option>
-                        <option value="u8">4–8</option>
-                        <option value="u12">9–12</option>
-                        <option value="u16">13–16</option>
-                        <option value="adult">17+</option>
-                      </select>
-                    </div>
-                    <div class="drills-picker" id="task-drills-picker" style="margin-top:0.35rem;">
-                      {% for drill in drills_catalog %}
-                      <label class="chip-toggle" title="{{ drill.label }}" data-drill-cat="{{ drill.category }}" data-drill-label="{{ drill.label }}" data-drill-age-min="{{ drill.age_min|default:'' }}" data-drill-age-max="{{ drill.age_max|default:'' }}">
-                        <input type="checkbox" value="{{ drill.id }}" {% if drill.id in initial.drills_ids %}checked{% endif %} data-drill-id="{{ drill.id }}" />
-                        <img class="drill-icon" src="{% static drill.icon_static_path %}" alt="" />
-                        <button type="button" class="drill-add-to-board" data-drill-add="{{ drill.id }}" title="Añadir pictograma a la pizarra">+</button>
-                        {{ drill.label }}
-                      </label>
-                      {% endfor %}
-                    </div>
                   </label>
 	                  <label style="grid-column:1 / -1;">
 	                    Progresión
@@ -8779,7 +8331,6 @@
 		        const tpadSrc = String(form.dataset.tpadSrc || '').trim();
 		        const threeSrc = String(form.dataset.threeSrc || '').trim();
 		        const threeGltfLoaderSrc = String(form.dataset.threeGltfLoaderSrc || '').trim();
-		        const threeSkeletonUtilsSrc = String(form.dataset.threeSkeletonUtilsSrc || '').trim();
 		        const threeDracoLoaderSrc = String(form.dataset.threeDracoLoaderSrc || '').trim();
 		        const sim3dSrc = String(form.dataset.sim3dSrc || '').trim();
 		        const statusEl = document.getElementById('task-builder-status');
@@ -8894,18 +8445,6 @@
 			            .catch(() => false);
 			          return window.__webstats_gltf_loader_promise;
 			        };
-			        const ensureSkeletonUtils = () => {
-			          if (!threeSkeletonUtilsSrc) return Promise.resolve(false);
-			          try { if (window.__WEBSTATS_SKELETON_UTILS) return Promise.resolve(true); } catch (e) { /* ignore */ }
-			          if (window.__webstats_skeleton_utils_promise) return window.__webstats_skeleton_utils_promise;
-			          window.__webstats_skeleton_utils_promise = import(threeSkeletonUtilsSrc)
-			            .then((mod) => {
-			              try { window.__WEBSTATS_SKELETON_UTILS = mod; } catch (e) { /* ignore */ }
-			              return !!mod;
-			            })
-			            .catch(() => false);
-			          return window.__webstats_skeleton_utils_promise;
-			        };
 			        const ensureSim3d = () => {
 			          if (!sim3dSrc) return Promise.resolve(true);
 			          return loadOnce(sim3dSrc, '__webstats_sim3d_promise');
@@ -8933,6 +8472,7 @@
 			          setStatus('Cargando 3D…');
 			          return ensureEditorStack()
 			            .then(() => ensureThree())
+			            .then(() => ensureGltfLoader())
 			            .then(() => ensureSim3d())
 			            .then(() => { setStatus(''); return true; })
 			            .catch(() => { setStatus('No se pudo cargar la Vista 3D.'); return false; });
@@ -8943,7 +8483,7 @@
             try { window.__webstatsEnsureEditorStack = ensureEditorStack; } catch (e) { /* ignore */ }
             try { window.__webstatsEnsure3dStack = ensure3dStack; } catch (e) { /* ignore */ }
 
-		        const hookClick = (id, ensureFn, markerKey, onReady) => {
+		        const hookClick = (id, ensureFn, markerKey) => {
 		          const el = document.getElementById(id);
 		          if (!el) return;
 		          const key = markerKey || 'webstatsReady';
@@ -8963,12 +8503,6 @@
 		              const ok = await ensureFn();
 		              if (!ok) return;
 		              try { el.dataset[key] = '1'; } catch (e) { /* ignore */ }
-		              if (typeof onReady === 'function') {
-		                try {
-		                  const handled = await onReady(el);
-		                  if (handled) return;
-		                } catch (e) { /* ignore */ }
-		              }
 		              // Re-dispara el click para que lo capture el handler real.
 		              try { el.click(); } catch (e) { /* ignore */ }
 		            } catch (e) { /* ignore */ }
@@ -8989,15 +8523,7 @@
 		        hookClick('pitch-size-fit', ensureEditorStack, 'webstatsEditorReady');
 		        hookClick('task-sim-toggle', ensureEditorStack, 'webstatsEditorReady');
 		        hookClick('task-sim-open', ensureEditorStack, 'webstatsEditorReady');
-		        hookClick('pitch-3d-open', ensure3dStack, 'webstats3dReady', async () => {
-		          try {
-		            if (typeof window.__WEBSTATS_OPEN_PITCH3D === 'function') {
-		              await window.__WEBSTATS_OPEN_PITCH3D();
-		              return true;
-		            }
-		          } catch (e) { /* ignore */ }
-		          return false;
-		        });
+		        hookClick('pitch-3d-open', ensure3dStack, 'webstats3dReady');
 		        hookClick('task-playbook-open-sim', ensureEditorStack, 'webstatsEditorReady');
 			        hookClick('task-playbook-open-video', ensureEditorStack, 'webstatsEditorReady');
 			        hookClick('task-playbook-export-pack', ensureEditorStack, 'webstatsEditorReady');
@@ -9059,16 +8585,7 @@
 		        hookClick(
 		          'pitch-3d-open',
 		          () => ensureEditorStack().then((ok) => (ok ? ensureThree().then(() => true) : false)),
-		          'webstatsThreeReady',
-		          async () => {
-		            try {
-		              if (typeof window.__WEBSTATS_OPEN_PITCH3D === 'function') {
-		                await window.__WEBSTATS_OPEN_PITCH3D();
-		                return true;
-		              }
-		            } catch (e) { /* ignore */ }
-		            return false;
-		          }
+		          'webstatsThreeReady'
 		        );
 		        // 3D del simulador (usa visor dedicado)
 		        hookClick(
@@ -13821,496 +13338,6 @@
           })();
         </script>
         {% endif %}
-    <script>
-      (function () {
-        const ready = (fn) => {
-          if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn, { once: true });
-          else fn();
-        };
-        ready(() => {
-          const widthEl = document.getElementById('task-space-width');
-          const lengthEl = document.getElementById('task-space-length');
-          const playersEl = document.getElementById('task-space-players');
-          const objectiveEl = document.getElementById('task-space-objective');
-          const dimensionsEl = document.getElementById('draw-task-dimensions');
-          const playerCountEl = document.getElementById('draw-task-player-count');
-          const areaEl = document.getElementById('task-space-area');
-          const perPlayerEl = document.getElementById('task-space-per-player');
-          const densityEl = document.getElementById('task-space-density');
-          const recommendationEl = document.getElementById('task-space-recommendation');
-          const applyCurrentBtn = document.getElementById('task-space-apply-current');
-          const applyRecommendedBtn = document.getElementById('task-space-apply-recommended');
-          if (!widthEl || !lengthEl || !playersEl || !areaEl || !perPlayerEl || !densityEl || !recommendationEl) return;
-
-          const focusDefs = {
-            force: {
-              label: 'Fuerza especifica',
-              short: 'Fuerza',
-              note: 'Alta tension: aceleraciones, desaceleraciones, cambios de direccion, duelos y robo cercano.',
-            },
-            activation: {
-              label: 'Activacion / recuperacion',
-              short: 'Activacion',
-              note: 'Continuidad con baja orientacion condicional dominante; util para calentar, recuperar o fijar reglas tacticas.',
-            },
-            resistance: {
-              label: 'Resistencia especifica',
-              short: 'Resistencia',
-              note: 'Formato para continuidad, duracion y rangos altos de frecuencia cardiaca.',
-            },
-            speed: {
-              label: 'Velocidad / sprint',
-              short: 'Velocidad',
-              note: 'Espacio para correr, atacar profundidad y sostener acciones de alta velocidad.',
-            },
-          };
-          const matrix = {
-            lt50: { '1_2': ['force', 1], '3_4': ['force', 2], '5_7': ['activation', 2], '8_10': ['activation', 4] },
-            '50_100': { '1_2': ['force', 3], '3_4': ['force', 4], '5_7': ['activation', 1], '8_10': ['activation', 3] },
-            '100_200': { '1_2': ['resistance', 2], '3_4': ['resistance', 4], '5_7': ['speed', 4], '8_10': ['speed', 2] },
-            gt200: { '1_2': ['resistance', 1], '3_4': ['resistance', 3], '5_7': ['speed', 3], '8_10': ['speed', 1] },
-          };
-          const objectiveAlignment = {
-            pressing: ['force'],
-            possession: ['resistance', 'activation'],
-            position: ['resistance', 'activation'],
-            finishing: ['speed', 'force'],
-            transition: ['speed'],
-            speed: ['speed'],
-          };
-          const targetM2 = {
-            pressing: 55,
-            possession: 115,
-            position: 115,
-            finishing: 145,
-            transition: 205,
-            speed: 220,
-          };
-          const parseNumber = (value) => {
-            const n = Number.parseFloat(String(value || '').replace(',', '.'));
-            return Number.isFinite(n) && n > 0 ? n : 0;
-          };
-          const setInput = (el, value) => {
-            if (!el) return;
-            el.value = String(value || '');
-            try { el.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
-            try { el.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
-          };
-          const parseDimensions = (raw) => {
-            const match = String(raw || '').replace('×', 'x').match(/(\d+(?:[,.]\d+)?)\s*x\s*(\d+(?:[,.]\d+)?)/i);
-            if (!match) return null;
-            return [parseNumber(match[1]), parseNumber(match[2])];
-          };
-          const playerBand = (playersTotal) => {
-            const perTeam = Math.max(1, Math.round((Number(playersTotal) || 0) / 2));
-            if (perTeam <= 2) return ['1_2', '1-2/equipo', false];
-            if (perTeam <= 4) return ['3_4', '3-4/equipo', false];
-            if (perTeam <= 7) return ['5_7', '5-7/equipo', false];
-            return ['8_10', perTeam > 10 ? '8-10/equipo aprox.' : '8-10/equipo', perTeam > 10];
-          };
-          const spaceBand = (m2) => {
-            if (m2 < 50) return ['lt50', '<50 m²/j'];
-            if (m2 < 100) return ['50_100', '50-100 m²/j'];
-            if (m2 < 200) return ['100_200', '100-200 m²/j'];
-            return ['gt200', '>200 m²/j'];
-          };
-          const readPart = (id) => {
-            const el = document.getElementById(id);
-            return Math.max(0, Math.round(parseNumber(el?.value || '0')));
-          };
-          const selectedParticipants = () => {
-            const a = readPart('task-team-a-count');
-            const b = readPart('task-team-b-count');
-            const n = readPart('task-neutral-count');
-            const g = readPart('task-goalkeeper-count');
-            const total = a + b + n + g;
-            return { a, b, n, g, total };
-          };
-          const updateParticipantSummary = () => {
-            const parts = selectedParticipants();
-            if (parts.total > 0) setInput(playersEl, parts.total);
-            if (playerCountEl && (parts.a || parts.b)) {
-              const extras = [];
-              if (parts.n) extras.push(`${parts.n} comodin${parts.n === 1 ? '' : 'es'}`);
-              if (parts.g) extras.push(`${parts.g} portero${parts.g === 1 ? '' : 's'}`);
-              setInput(playerCountEl, `${parts.a}v${parts.b}${extras.length ? ` + ${extras.join(' + ')}` : ''}`);
-            }
-          };
-          const applyDimensionsText = () => {
-            const w = Math.round(parseNumber(widthEl.value));
-            const l = Math.round(parseNumber(lengthEl.value));
-            if (w > 0 && l > 0 && dimensionsEl) setInput(dimensionsEl, `${w}x${l} m`);
-          };
-          const setRecommendedDimensions = (target) => {
-            const players = Math.max(1, Math.round(parseNumber(playersEl.value) || selectedParticipants().total || 10));
-            const m2 = Math.max(35, Number(target) || targetM2[String(objectiveEl?.value || '')] || 115);
-            const area = players * m2;
-            const ratio = m2 >= 180 ? 1.55 : (m2 <= 70 ? 1.15 : 1.35);
-            const w = Math.max(8, Math.round(Math.sqrt(area / ratio)));
-            const l = Math.max(10, Math.round(w * ratio));
-            setInput(widthEl, w);
-            setInput(lengthEl, l);
-            setInput(playersEl, players);
-            applyDimensionsText();
-            updateSpaceCoach();
-          };
-          const updateFromDimensionsText = () => {
-            const parsed = parseDimensions(dimensionsEl?.value || '');
-            if (!parsed || !parsed[0] || !parsed[1]) return;
-            if (!parseNumber(widthEl.value)) widthEl.value = String(Math.round(parsed[0]));
-            if (!parseNumber(lengthEl.value)) lengthEl.value = String(Math.round(parsed[1]));
-          };
-          const updateSpaceCoach = () => {
-            const w = parseNumber(widthEl.value);
-            const l = parseNumber(lengthEl.value);
-            const p = parseNumber(playersEl.value);
-            if (!w || !l || !p) {
-              areaEl.textContent = '-- m²';
-              perPlayerEl.textContent = '-- m²/j';
-              densityEl.textContent = '--';
-              recommendationEl.textContent = 'Introduce dimensiones y jugadores para recibir una recomendacion.';
-              return;
-            }
-            const area = w * l;
-            const m2 = area / p;
-            const [sKey, sLabel] = spaceBand(m2);
-            const [pKey, pLabel, fallback] = playerBand(p);
-            const row = matrix[sKey]?.[pKey] || ['activation', 0];
-            const focusKey = row[0];
-            const priority = row[1];
-            const focus = focusDefs[focusKey] || focusDefs.activation;
-            const objective = String(objectiveEl?.value || '').trim();
-            const expected = objectiveAlignment[objective] || [];
-            const aligned = !expected.length || expected.includes(focusKey);
-            areaEl.textContent = `${Math.round(area)} m²`;
-            perPlayerEl.textContent = `${m2.toFixed(1)} m²/j`;
-            densityEl.textContent = `${focus.short} · ${sLabel}`;
-            const alignNote = aligned
-              ? 'Encaja con el objetivo seleccionado.'
-              : 'Si ese no era el objetivo, ajusta dimensiones, jugadores o reglas.';
-            const fallbackNote = fallback ? ' La tabla llega hasta 10 jugadores por equipo; se aplica el tramo mas cercano.' : '';
-            recommendationEl.textContent = `${pLabel}, prioridad ${priority || '-'}: ${focus.note} ${alignNote}${fallbackNote}`;
-          };
-
-          updateFromDimensionsText();
-          updateParticipantSummary();
-          updateSpaceCoach();
-          [widthEl, lengthEl, playersEl, objectiveEl].forEach((el) => {
-            el?.addEventListener('input', updateSpaceCoach);
-            el?.addEventListener('change', updateSpaceCoach);
-          });
-          dimensionsEl?.addEventListener('input', () => {
-            const parsed = parseDimensions(dimensionsEl.value);
-            if (parsed) {
-              widthEl.value = String(Math.round(parsed[0]));
-              lengthEl.value = String(Math.round(parsed[1]));
-              updateSpaceCoach();
-            }
-          });
-          Array.from(document.querySelectorAll('[data-player-count-part]')).forEach((el) => {
-            el.addEventListener('change', () => {
-              updateParticipantSummary();
-              updateSpaceCoach();
-            });
-          });
-          applyCurrentBtn?.addEventListener('click', () => {
-            applyDimensionsText();
-            updateSpaceCoach();
-          });
-          applyRecommendedBtn?.addEventListener('click', () => {
-            setRecommendedDimensions(targetM2[String(objectiveEl?.value || '')] || 115);
-          });
-          Array.from(document.querySelectorAll('[data-space-target]')).forEach((btn) => {
-            btn.addEventListener('click', () => {
-              const key = String(btn.getAttribute('data-space-target') || '').trim();
-              const target = key === 'tight' ? 55 : (key === 'wide' ? 205 : 115);
-              setRecommendedDimensions(target);
-            });
-          });
-        });
-      })();
-    </script>
-    <script>
-      (function () {
-        const ready = (fn) => {
-          if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn, { once: true });
-          else fn();
-        };
-        ready(() => {
-          const form = document.getElementById('task-builder-form');
-          const coach = document.getElementById('task-methodology-coach');
-          const headlineEl = document.getElementById('task-methodology-headline');
-          const scoreEl = document.getElementById('task-methodology-score');
-          const listEl = document.getElementById('task-methodology-list');
-          if (!form || !coach || !headlineEl || !scoreEl || !listEl) return;
-
-          const field = (name) => form.elements?.namedItem?.(name) || null;
-          const value = (name) => {
-            const node = field(name);
-            if (!node || node instanceof RadioNodeList) return '';
-            return String(node.value || '').trim();
-          };
-          const stripHtml = (raw) => String(raw || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-          const escapeHtml = (raw) => String(raw ?? '').replace(/[&<>"']/g, (ch) => ({
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#39;',
-          }[ch] || ch));
-          const plainFromHtmlName = (name) => stripHtml(value(name));
-          const getText = (...names) => names.map((name) => value(name)).join(' ').trim();
-          const setInputValue = (name, nextValue) => {
-            const node = field(name);
-            if (!node || node instanceof RadioNodeList) return;
-            node.value = String(nextValue || '');
-            try { node.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
-            try { node.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
-          };
-          const setRichHtml = (plainName, html, { append = false } = {}) => {
-            const wrapper = form.querySelector(`[data-rich-editor][data-rich-name="${plainName}"]`);
-            const area = wrapper?.querySelector?.('[data-rich-area]');
-            const plainField = field(plainName);
-            const htmlName = wrapper?.getAttribute?.('data-rich-html-name') || `${plainName}_html`;
-            const htmlField = field(htmlName);
-            const current = append ? String((area?.innerHTML || htmlField?.value || '')).trim() : '';
-            const next = current
-              ? `${current}${String(current).includes('</ul>') ? '' : '<br>'}${html}`
-              : String(html || '').trim();
-            if (area) {
-              area.innerHTML = next;
-              try { area.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
-            }
-            if (plainField && !(plainField instanceof RadioNodeList)) {
-              plainField.value = stripHtml(next);
-              try { plainField.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
-            }
-            if (htmlField && !(htmlField instanceof RadioNodeList)) {
-              htmlField.value = next;
-              try { htmlField.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
-            }
-          };
-          const listHtml = (items) => `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
-          const norm = (text) => String(text || '').toLowerCase()
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-            .replace(/[^a-z0-9 ]+/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim();
-          const hasAny = (text, words) => {
-            const n = norm(text);
-            return words.some((word) => n.includes(norm(word)));
-          };
-          const parseNumber = (raw) => {
-            const n = Number.parseFloat(String(raw || '').replace(',', '.'));
-            return Number.isFinite(n) && n > 0 ? n : 0;
-          };
-          const parseDimensions = (raw) => {
-            const match = String(raw || '').replace('×', 'x').match(/(\d+(?:[,.]\d+)?)\s*x\s*(\d+(?:[,.]\d+)?)/i);
-            if (!match) return [0, 0];
-            return [parseNumber(match[1]), parseNumber(match[2])];
-          };
-          const inferProfile = () => {
-            const corpus = getText(
-              'draw_task_title',
-              'draw_task_objective',
-              'draw_task_game_context',
-              'draw_task_training_type',
-              'draw_task_space',
-              'draw_task_tactical_intent',
-              'draw_task_principle',
-              'draw_task_subprinciple',
-            );
-            if (hasAny(corpus, ['fifa 11', 'prevencion', 'preventivo', 'calentamiento', 'activacion'])) {
-              return {
-                key: 'prevention',
-                format: 'Calentamiento preventivo FIFA 11+',
-                scale: 'jugador/jugadores',
-                risk: 'Control tecnico, baja fatiga y progresion por edad.',
-                questions: ['¿La tecnica se mantiene cuando sube la intensidad?', '¿Hay dolor o gesto compensado?', '¿La activacion prepara la tarea principal?'],
-              };
-            }
-            if (hasAny(corpus, ['presion', 'robo', 'contra presion', 'tras perdida', 'recuperar'])) {
-              return {
-                key: 'pressing',
-                format: 'Juego reducido de presion o conservacion con regla de robo',
-                scale: 'sectorial',
-                risk: 'Alta demanda de aceleracion, frenada, COD y contacto.',
-                questions: ['¿Cual es el trigger para saltar?', '¿Quien orienta y quien cubre?', '¿Que hacemos si no robamos en la ventana marcada?'],
-              };
-            }
-            if (hasAny(corpus, ['transicion', 'contraataque', 'profundidad', 'espalda', 'sprint'])) {
-              return {
-                key: 'transition',
-                format: 'Oleada con transicion y finalizacion rapida',
-                scale: 'intersectorial',
-                risk: 'Riesgo alto de sprint, desaceleracion y cambios de direccion.',
-                questions: ['¿El primer pase asegura o acelera?', '¿Que carril ataca cada jugador?', '¿Cuando temporizamos en vez de correr?'],
-              };
-            }
-            if (hasAny(corpus, ['finalizacion', 'remate', 'centro', 'pase atras', 'ultimo tercio'])) {
-              return {
-                key: 'finishing',
-                format: 'Oleada o partido condicionado de finalizacion',
-                scale: 'sectorial/intersectorial',
-                risk: 'Controlar golpeos repetidos, sprints cortos y duelos en area.',
-                questions: ['¿Que zona de remate queremos ocupar?', '¿El poseedor fija antes de asistir?', '¿Quien llega al segundo palo o pase atras?'],
-              };
-            }
-            if (hasAny(corpus, ['salida', 'progresion', 'tercer hombre', 'hombre libre', 'juego de posicion', 'posesion', 'conservacion', 'amplitud'])) {
-              return {
-                key: 'positional',
-                format: 'Juego de posicion o conservacion con criterio de progreso',
-                scale: 'sectorial/intersectorial',
-                risk: 'Carga media; vigilar duelos, giros y fatiga si se reducen espacios.',
-                questions: ['¿Donde esta el hombre libre?', '¿Cuando atraer y cuando cambiar?', '¿Que linea queremos superar?'],
-              };
-            }
-            if (hasAny(corpus, ['1v1', 'duelo', 'regate', 'entrada', 'proteccion'])) {
-              return {
-                key: 'duels',
-                format: 'Situacion reducida 1v1/2v1 con oposicion adaptada',
-                scale: 'jugador/jugadores',
-                risk: 'Alta demanda de COD, contacto y tobillo/rodilla.',
-                questions: ['¿Como proteges o orientas el duelo?', '¿Cuando cambias ritmo?', '¿Que apoyo aparece si no puedes superar?'],
-              };
-            }
-            return {
-              key: 'conditioned_match',
-              format: 'Partido condicionado conectado al objetivo',
-              scale: 'estructura completa',
-              risk: 'Carga variable; ajustar reglas para no perder el objetivo.',
-              questions: ['¿Que comportamiento queremos ver?', '¿Que regla lo provoca?', '¿Como sabemos que la tarea tuvo exito?'],
-            };
-          };
-          const evaluate = () => {
-            const objective = value('draw_task_objective');
-            const context = value('draw_task_game_context');
-            const dimensions = value('draw_task_dimensions');
-            const playerCount = value('draw_task_player_count');
-            const rules = getText('draw_task_confrontation_rules', 'draw_task_confrontation_rules_html');
-            const coaching = getText('draw_task_coaching_points', 'draw_task_coaching_points_html');
-            const progression = getText('draw_task_progression', 'draw_task_progression_html');
-            const regression = getText('draw_task_regression', 'draw_task_regression_html');
-            const success = getText('draw_task_success_criteria', 'draw_task_success_criteria_html');
-            const load = value('draw_task_load_target');
-            const [w, l] = parseDimensions(dimensions);
-            const players = parseNumber(document.getElementById('task-space-players')?.value || '');
-            const m2 = w && l && players ? (w * l) / players : 0;
-            const profile = inferProfile();
-            const checks = [
-              { ok: objective.length >= 18, msg: 'Falta un objetivo claro y observable.' },
-              { ok: objective.length <= 240, msg: 'Objetivo demasiado amplio: reduce a un comportamiento principal.' },
-              { ok: context.length >= 25, msg: 'Falta contexto/situacion de juego.' },
-              { ok: !!playerCount || players > 0, msg: 'Faltan participantes.' },
-              { ok: !!dimensions, msg: 'Faltan dimensiones de campo.' },
-              { ok: rules.length >= 12, msg: 'Faltan reglas de confrontacion o puntuacion.' },
-              { ok: coaching.length >= 12, msg: 'Faltan consignas/puntos de coaching.' },
-              { ok: progression.length >= 12, msg: 'Falta variante de progresion.' },
-              { ok: regression.length >= 12, msg: 'Falta variante de regresion.' },
-              { ok: success.length >= 12, msg: 'Falta criterio de exito medible.' },
-              { ok: !!load, msg: 'Falta objetivo de carga o nota preventiva.' },
-            ];
-            const okCount = checks.filter((c) => c.ok).length;
-            const score = Math.round((okCount / checks.length) * 100);
-            const issues = checks.filter((c) => !c.ok).map((c) => c.msg);
-            if (m2 > 0) {
-              if (m2 > 180 && !hasAny(profile.key, ['transition'])) issues.push('Espacio amplio: revisar riesgo de sprint y retorno defensivo.');
-              if (m2 < 70 && hasAny(profile.key, ['transition'])) issues.push('Para transicion/profundidad puede faltar espacio para correr.');
-            }
-            return { profile, score, issues, m2 };
-          };
-          const render = () => {
-            const data = evaluate();
-            scoreEl.textContent = `${data.score}%`;
-            headlineEl.textContent = `Formato recomendado: ${data.profile.format} · escala ${data.profile.scale}.`;
-            const items = [
-              `Lectura preventiva: ${data.profile.risk}`,
-              ...(data.m2 > 0 ? [`Espacio actual: ${data.m2.toFixed(1)} m²/jugador.`] : []),
-              ...(data.issues.length ? data.issues.slice(0, 6) : ['Tarea coherente: revisa que la pizarra represente el contexto y que el criterio de exito sea observable.']),
-            ];
-            listEl.innerHTML = items.map((item) => `<li>${escapeHtml(item)}</li>`).join('');
-          };
-          const applyStructure = () => {
-            const { profile } = evaluate();
-            if (!value('draw_task_training_type')) setInputValue('draw_task_training_type', profile.format);
-            if (!plainFromHtmlName('draw_task_progression_html') && !value('draw_task_progression')) {
-              setRichHtml('draw_task_progression', listHtml([
-                'Aumentar oposicion o reducir tiempo/espacio si el comportamiento aparece con claridad.',
-                'Puntuar doble cuando aparece el principio objetivo en contexto real.',
-                'Pasar de relacion simple a sector/intersector manteniendo la misma intencion.',
-              ]));
-            }
-            if (!plainFromHtmlName('draw_task_regression_html') && !value('draw_task_regression')) {
-              setRichHtml('draw_task_regression', listHtml([
-                'Aumentar tiempo/espacio o anadir comodin si la tarea no emerge.',
-                'Reducir una regla y fijar solo la consigna principal.',
-                'Volver a relacion menor: jugador, pareja o sector reducido.',
-              ]));
-            }
-            if (!plainFromHtmlName('draw_task_success_criteria_html') && !value('draw_task_success_criteria')) {
-              setRichHtml('draw_task_success_criteria', listHtml([
-                'El comportamiento objetivo aparece al menos 6 veces por bloque.',
-                'El equipo reconoce el trigger y decide sin parada del entrenador.',
-                'La tarea mantiene continuidad y calidad tecnica sin compensaciones.',
-              ]));
-            }
-            render();
-          };
-          const applyQuestions = () => {
-            const { profile } = evaluate();
-            setRichHtml('draw_task_coaching_points', `<p><strong>Preguntas guiadas</strong></p>${listHtml(profile.questions)}`, { append: true });
-            render();
-          };
-          const applyPrevention = () => {
-            const { profile } = evaluate();
-            if (!value('draw_task_load_target')) {
-              const load = profile.key === 'transition' ? 'RPE 7-8 · controlar sprint/COD'
-                : profile.key === 'pressing' || profile.key === 'duels' ? 'RPE 7 · controlar COD/contacto'
-                : profile.key === 'prevention' ? 'RPE 3-5 · tecnica preventiva'
-                : 'RPE 5-7 · ajustar por respuesta';
-              setInputValue('draw_task_load_target', load);
-            }
-            setRichHtml('draw_task_coaching_points', `<p><strong>Prevencion</strong></p>${listHtml([
-              'Detener si aparece dolor, cojera, inestabilidad, mareo o gesto compensado.',
-              'Calidad de frenada/aterrizaje antes que velocidad o cantidad.',
-              'Adaptar o excluir jugadores en rehab/carga modificada de sprint, contacto y duelos plenos.',
-            ])}`, { append: true });
-            render();
-          };
-          const watched = [
-            'draw_task_title',
-            'draw_task_objective',
-            'draw_task_game_context',
-            'draw_task_player_count',
-            'draw_task_dimensions',
-            'draw_task_training_type',
-            'draw_task_load_target',
-            'draw_task_principle',
-            'draw_task_subprinciple',
-          ];
-          watched.forEach((name) => {
-            const node = field(name);
-            if (!node || node instanceof RadioNodeList) return;
-            node.addEventListener('input', render);
-            node.addEventListener('change', render);
-          });
-          ['task-space-width', 'task-space-length', 'task-space-players'].forEach((id) => {
-            const node = document.getElementById(id);
-            node?.addEventListener('input', render);
-            node?.addEventListener('change', render);
-          });
-          ['draw-task-coaching-points-html', 'draw-task-confrontation-rules-html', 'draw-task-progression-html', 'draw-task-regression-html', 'draw-task-success-criteria-html'].forEach((id) => {
-            const node = document.getElementById(id);
-            node?.addEventListener('input', render);
-            node?.addEventListener('change', render);
-          });
-          document.getElementById('task-methodology-apply-structure')?.addEventListener('click', applyStructure);
-          document.getElementById('task-methodology-apply-questions')?.addEventListener('click', applyQuestions);
-          document.getElementById('task-methodology-apply-prevention')?.addEventListener('click', applyPrevention);
-          render();
-        });
-      })();
-    </script>
     {% if task %}
     <script>
       (function () {
@@ -14388,9 +13415,6 @@
       })();
     </script>
     {% endif %}
-    {% if tactics_mode %}
-    <script src="{% static 'football/js/tactics_pro_console.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
-    {% endif %}
     <script>
       (function () {
         const clean = (value) => String(value || '').replace(/\s+/g, ' ').trim();
@@ -14467,8 +13491,5 @@
         else boot();
       })();
     </script>
-    {% if tactics_mode %}
-    <script src="{% static 'football/js/tactics_pro_console.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
-    {% endif %}
   </body>
 </html>

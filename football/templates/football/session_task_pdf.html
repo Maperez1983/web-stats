@@ -168,36 +168,20 @@
         height: 410px;
         min-height: 410px;
       }
-      body.pdf-club .preview-frame.is-3d {
-        height: 230px;
-        min-height: 230px;
-      }
       body.pdf-one-page.pdf-club .preview-frame,
       body.pdf-one-page.pdf-club .field {
         height: 345px;
         min-height: 345px;
-      }
-      body.pdf-one-page.pdf-club .preview-frame.is-3d {
-        height: 190px;
-        min-height: 190px;
       }
       body.pdf-text-heavy.pdf-club .preview-frame,
       body.pdf-text-heavy.pdf-club .field {
         height: 360px;
         min-height: 360px;
       }
-      body.pdf-text-heavy.pdf-club .preview-frame.is-3d {
-        height: 205px;
-        min-height: 205px;
-      }
       body.pdf-one-page.pdf-text-heavy.pdf-club .preview-frame,
       body.pdf-one-page.pdf-text-heavy.pdf-club .field {
         height: 310px;
         min-height: 310px;
-      }
-      body.pdf-one-page.pdf-text-heavy.pdf-club .preview-frame.is-3d {
-        height: 175px;
-        min-height: 175px;
       }
       body.pdf-one-page.pdf-club .club-hero {
         padding: 9px 13px;
@@ -894,12 +878,6 @@
 	                  <div class="preview-frame" style="border:none;" aria-label="Vista gráfica de la tarea">
                       <div class="preview-img"><img src="{{ task_preview_url }}" alt="Vista gráfica de la tarea" /></div>
                     </div>
-                    {% if task_3d_preview_url %}
-                    <div class="club-panel-head" style="margin-top:10px;">Representación 3D</div>
-                    <div class="preview-frame is-3d" style="border:none;" aria-label="Vista 3D de la tarea">
-                      <div class="preview-img"><img src="{{ task_3d_preview_url }}" alt="Representación 3D de la tarea" /></div>
-                    </div>
-                    {% endif %}
                   {% else %}
                   <div class="field">
                     <span class="mid-line"></span>
@@ -918,12 +896,6 @@
                     </span>
                     {% endfor %}
 	                  </div>
-                    {% if task_3d_preview_url %}
-                    <div class="club-panel-head" style="margin-top:10px;">Representación 3D</div>
-                    <div class="preview-frame is-3d" style="border:none;" aria-label="Vista 3D de la tarea">
-                      <div class="preview-img"><img src="{{ task_3d_preview_url }}" alt="Representación 3D de la tarea" /></div>
-                    </div>
-                    {% endif %}
 	                  {% endif %}
 	                  {% if task_drills %}
 	                  <div style="margin-top:10px;">
@@ -948,14 +920,6 @@
 	                  {{ task.objective|default:"-"|linebreaksbr }}
 	                </div>
               </div>
-              {% if task_meta.game_context %}
-              <div class="club-panel" style="margin-bottom:8px;">
-                <div class="club-panel-head soft">Contexto / situación de juego</div>
-                <div class="club-panel-body text-block">
-                  {{ task_meta.game_context|linebreaksbr }}
-                </div>
-              </div>
-              {% endif %}
               <div class="club-panel">
                 <div class="club-panel-head soft">Ficha técnica</div>
                 <div class="club-panel-body">
@@ -1182,12 +1146,6 @@
 	            <td>Estrategia</td>
 	            <td><div class="uefa-value">{{ strategy_label }}</div></td>
 	          </tr>
-            {% if task_meta.game_context %}
-            <tr>
-              <td>Contexto</td>
-              <td colspan="3"><div class="uefa-value text-block">{{ task_meta.game_context|linebreaksbr }}</div></td>
-            </tr>
-            {% endif %}
 	          <tr>
 		            <td>Objetivos</td>
 		            <td><div class="uefa-value text-block">{{ task.objective|default:"-"|linebreaksbr }}</div></td>
@@ -1253,12 +1211,6 @@
 		          <div class="preview-frame" style="border:1px solid #d5dde7; height:{{ pdf_graphic_height_px|default:380 }}px;" aria-label="Vista gráfica de la tarea">
                 <div class="preview-img"><img src="{{ task_preview_url }}" alt="Vista gráfica de la tarea" /></div>
               </div>
-              {% if task_3d_preview_url %}
-              <div class="uefa-section" style="margin-top:10px;">Representación 3D</div>
-              <div class="preview-frame is-3d" style="border:1px solid #d5dde7; height:260px;" aria-label="Vista 3D de la tarea">
-                <div class="preview-img"><img src="{{ task_3d_preview_url }}" alt="Representación 3D de la tarea" /></div>
-              </div>
-              {% endif %}
 	          {% else %}
 	          <div class="field" style="height:{{ pdf_graphic_height_px|default:380 }}px;">
 	            <span class="mid-line"></span>
@@ -1277,12 +1229,6 @@
             </span>
             {% endfor %}
           </div>
-          {% if task_3d_preview_url %}
-          <div class="uefa-section" style="margin-top:10px;">Representación 3D</div>
-          <div class="preview-frame is-3d" style="border:1px solid #d5dde7; height:260px;" aria-label="Vista 3D de la tarea">
-            <div class="preview-img"><img src="{{ task_3d_preview_url }}" alt="Representación 3D de la tarea" /></div>
-          </div>
-          {% endif %}
 	          {% endif %}
 	        </div>
 	        {% if task_drills %}

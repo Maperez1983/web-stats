@@ -15,11 +15,14 @@ from urllib.parse import urlencode
 
 from django.conf import settings
 from django.core.management import call_command
+from django.db import transaction
 from django.urls import NoReverseMatch, reverse
+from django.utils import timezone as django_timezone
 
 from football.healthchecks import run_system_healthcheck
 from football.local_llm import call_ollama_json, local_llm_config
-from football.models import WorkspacePreference
+from football.models import Player, WorkspacePreference, WorkspaceSeason, WorkspaceTeam
+from football.season_history_services import ensure_player_season_membership, ensure_workspace_player
 from webstats import settings as app_settings
 
 
@@ -243,6 +246,8 @@ MEMORY_PREF_KEY = "system_guard:memory:v3"
 METRICS_PREF_KEY = "system_guard:metrics:v2"
 SNAPSHOTS_PREF_KEY = "system_guard:snapshots:v1"
 AUDIT_PREF_KEY = "system_guard:audit:v1"
+TASK_QUEUE_PREF_KEY = "system_guard:task_queue:v1"
+PROACTIVE_STATE_PREF_KEY = "system_guard:proactive_state:v1"
 RUNBOOK_LIBRARY = {
     "user_navigation": {
         "label": "Navegación guiada",
@@ -260,6 +265,15 @@ RUNBOOK_LIBRARY = {
             "Leer el contexto de pantalla actual.",
             "Resumir qué se puede hacer aquí.",
             "Proponer 1-2 siguientes acciones concretas.",
+        ],
+    },
+    "user_execution": {
+        "label": "Ejecución asistida",
+        "goal": "Resolver una petición funcional del usuario sin sacarlo del flujo.",
+        "steps": [
+            "Entender la acción solicitada y los datos disponibles.",
+            "Pedir solo los campos imprescindibles si faltan.",
+            "Ejecutar la acción y devolver resultado trazable.",
         ],
     },
     "silent_diagnostics": {
@@ -297,6 +311,48 @@ RUNBOOK_LIBRARY = {
             "Ejecutar herramienta asociada.",
             "Validar resultado y registrar salida.",
         ],
+    },
+}
+PROACTIVE_DETECTORS = {
+    "ollama_unreachable": {
+        "severity": "warning",
+        "runbook": "silent_diagnostics",
+        "task_kind": "diagnose",
+        "summary": "Ollama local no responde y conviene abrir diagnóstico automático.",
+        "tools": ["check_status", "inspect_recent_errors", "inspect_runtime_config"],
+        "auto_execute": True,
+    },
+    "path_missing_static_root": {
+        "severity": "warning",
+        "runbook": "silent_diagnostics",
+        "task_kind": "diagnose",
+        "summary": "Falta un path crítico y conviene revisar paths/runtime.",
+        "tools": ["check_status", "inspect_critical_paths", "inspect_runtime_config"],
+        "auto_execute": True,
+    },
+    "runtime_blockers": {
+        "severity": "critical",
+        "runbook": "silent_diagnostics",
+        "task_kind": "diagnose",
+        "summary": "Se han detectado blockers activos en el sistema.",
+        "tools": ["check_status", "inspect_recent_errors", "check_critical_routes"],
+        "auto_execute": True,
+    },
+    "route_failure": {
+        "severity": "critical",
+        "runbook": "silent_diagnostics",
+        "task_kind": "diagnose",
+        "summary": "Hay rutas críticas fallando y hay que revisar el sistema.",
+        "tools": ["check_status", "check_critical_routes", "inspect_recent_errors"],
+        "auto_execute": True,
+    },
+    "repeated_regression": {
+        "severity": "warning",
+        "runbook": "silent_diagnostics",
+        "task_kind": "diagnose",
+        "summary": "Hay regresiones repetidas que conviene analizar de forma continua.",
+        "tools": ["check_status", "inspect_guard_history", "inspect_recent_errors"],
+        "auto_execute": True,
     },
 }
 KNOWN_FIXES = {
@@ -565,6 +621,11 @@ def _build_task_profile(question: str, *, intent: str, maintenance_action: str =
         scope = "user"
         silent_mode = False
         runbook_key = "user_navigation"
+    elif intent in {"create_player"}:
+        kind = "execute"
+        scope = "user"
+        silent_mode = False
+        runbook_key = "user_execution"
     elif intent == "guide_user":
         kind = "guide"
         scope = "user"
@@ -628,8 +689,17 @@ def _followup_actions(task: dict, planner: dict, *, page_context=None) -> list[d
             actions.append({
                 "type": "navigate",
                 "label": f"Ir a {route.get('label')}",
-                "url": str(route.get("url") or ""),
-                "reason": "Acceso rápido sugerido por Ollana.",
+            "url": str(route.get("url") or ""),
+            "reason": "Acceso rápido sugerido por Ollana.",
+        })
+    if task.get("kind") == "execute":
+        player_route = next((row for row in _guard_route_catalog(page_context) if row.get("key") == "players"), None)
+        if player_route and player_route.get("url"):
+            actions.append({
+                "type": "navigate",
+                "label": "Abrir plantilla",
+                "url": str(player_route.get("url") or ""),
+                "reason": "Acceso directo a la gestión de jugadores.",
             })
     if planner.get("confirm_required"):
         actions.append({
@@ -1088,6 +1158,9 @@ def _observability_summary(workspace) -> dict:
         "recent_successes": [str(item) for item in (memory.get("recent_successes") or [])[:4]],
         "audit_count": len(audit_rows),
         "recent_audits": audit_rows[:3],
+        "task_queue": _task_state_counts(_load_task_queue(workspace)) if workspace else {"pending": 0, "running": 0, "completed": 0, "blocked": 0},
+        "task_queue_preview": _load_task_queue(workspace)[:3] if workspace else [],
+        "proactive_state": _load_proactive_state(workspace) if workspace else {},
     }
 
 
@@ -1104,6 +1177,248 @@ def _append_audit_log(workspace, event: dict):
     rows = _load_audit_log(workspace)
     rows.insert(0, event)
     _store_pref_value(workspace, AUDIT_PREF_KEY, rows[:60])
+
+
+def _detect_proactive_incidents(report: dict, *, workspace=None) -> list[dict]:
+    issues = report.get("issues") if isinstance(report.get("issues"), list) else []
+    issue_ids = {str(row.get("id") or "").strip() for row in issues if isinstance(row, dict)}
+    summary = report.get("issue_summary") if isinstance(report.get("issue_summary"), dict) else {}
+    detections = []
+    for issue_id in sorted(issue_ids):
+        meta = PROACTIVE_DETECTORS.get(issue_id)
+        if not meta:
+            continue
+        detections.append({
+            "detector": issue_id,
+            "severity": str(meta.get("severity") or "warning"),
+            "runbook": str(meta.get("runbook") or "silent_diagnostics"),
+            "task_kind": str(meta.get("task_kind") or "diagnose"),
+            "title": str(meta.get("summary") or issue_id).strip(),
+            "summary": str(meta.get("summary") or issue_id).strip(),
+            "tools": [str(x) for x in (meta.get("tools") or []) if str(x or "").strip()],
+            "auto_execute": bool(meta.get("auto_execute")),
+        })
+    if _safe_int(summary.get("blockers"), 0) > 0 and not any(row.get("detector") == "runtime_blockers" for row in detections):
+        meta = PROACTIVE_DETECTORS["runtime_blockers"]
+        detections.append({
+            "detector": "runtime_blockers",
+            "severity": meta["severity"],
+            "runbook": meta["runbook"],
+            "task_kind": meta["task_kind"],
+            "title": f"Blockers activos: {_safe_int(summary.get('blockers'), 0)}",
+            "summary": meta["summary"],
+            "tools": meta["tools"],
+            "auto_execute": bool(meta["auto_execute"]),
+        })
+    history = _inspect_guard_history(workspace) if workspace else {}
+    repeated = history.get("top_repeated_issues") if isinstance(history.get("top_repeated_issues"), list) else []
+    if repeated:
+        meta = PROACTIVE_DETECTORS["repeated_regression"]
+        detections.append({
+            "detector": "repeated_regression",
+            "severity": meta["severity"],
+            "runbook": meta["runbook"],
+            "task_kind": meta["task_kind"],
+            "title": f"Incidencia repetida: {repeated[0].get('issue_id')}",
+            "summary": meta["summary"],
+            "tools": meta["tools"],
+            "auto_execute": bool(meta["auto_execute"]),
+        })
+    return detections[:8]
+
+
+def _task_result_summary(executions: list[dict]) -> str:
+    if not executions:
+        return ""
+    ok_count = sum(1 for row in executions if isinstance(row, dict) and row.get("ok"))
+    total = len([row for row in executions if isinstance(row, dict)])
+    first_error = next((str(row.get("detail") or row.get("tool") or "") for row in executions if isinstance(row, dict) and not row.get("ok")), "")
+    if first_error:
+        return _truncate(f"{ok_count}/{total} herramientas correctas. Error: {first_error}", 220)
+    return _truncate(f"{ok_count}/{total} herramientas completadas correctamente.", 220)
+
+
+def _execute_queued_task(workspace, task: dict) -> dict:
+    if not workspace or not isinstance(task, dict):
+        return task or {}
+    task_id = str(task.get("id") or "").strip()
+    if not task_id:
+        return task
+    _update_task_entry(workspace, task_id, status="running")
+    executions = _execute_tools(task.get("tools") or [], workspace=workspace, question=str(task.get("question") or task.get("title") or ""))
+    ok = all(bool(row.get("ok")) for row in executions if isinstance(row, dict)) if executions else False
+    updated = _update_task_entry(
+        workspace,
+        task_id,
+        status="completed" if ok else "blocked",
+        executions=executions,
+        result_summary=_task_result_summary(executions),
+        finished_at=_now_iso(),
+    )
+    return updated or task
+
+
+def run_proactive_guard_cycle(*, workspace, actor_id=None, allow_safe_repairs: bool = True, page_context=None) -> dict:
+    if not workspace:
+        return {"ok": False, "error": "workspace_required", "queue": []}
+    report = run_system_guard(
+        run_smoke=False,
+        smoke_verbosity=1,
+        run_llm=False,
+        auto_fix=False,
+        page_context=page_context or {"page": "guard-proactive"},
+        memory=_merge_memory(_load_memory(workspace), _load_memory_for_actor(workspace, actor_id=actor_id)),
+    )
+    detections = _detect_proactive_incidents(report, workspace=workspace)
+    created = []
+    executed = []
+    for detection in detections:
+        task = _new_task_entry(
+            detector=str(detection.get("detector") or ""),
+            title=str(detection.get("title") or detection.get("summary") or ""),
+            summary=str(detection.get("summary") or ""),
+            severity=str(detection.get("severity") or "warning"),
+            runbook=str(detection.get("runbook") or "silent_diagnostics"),
+            task_kind=str(detection.get("task_kind") or "diagnose"),
+            tools=list(detection.get("tools") or []),
+            source="proactive",
+            question=f"Runbook proactivo: {str(detection.get('title') or detection.get('summary') or '')}",
+            auto_execute=bool(detection.get("auto_execute")),
+        )
+        saved = _enqueue_task(workspace, task)
+        created.append(saved)
+        if allow_safe_repairs and bool(saved.get("auto_execute")) and str(saved.get("status") or "") == "pending":
+            executed.append(_execute_queued_task(workspace, saved))
+    state_payload = {
+        "last_cycle_at": _now_iso(),
+        "last_detection_count": len(detections),
+        "last_created_count": len(created),
+        "last_executed_count": len(executed),
+    }
+    _store_proactive_state(workspace, state_payload)
+    _append_audit_log(workspace, {
+        "created_at": _now_iso(),
+        "actor_id": int(actor_id or 0),
+        "question": "Ciclo proactivo del guard",
+        "status": "ok" if report.get("ok") else "watch",
+        "task_kind": "proactive_cycle",
+        "runbook": "silent_diagnostics",
+        "confirmed": False,
+        "executed_tools": [str(row.get("tool") or "") for row in executed if isinstance(row, dict)],
+        "silent_mode": True,
+    })
+    queue_rows = _load_task_queue(workspace)
+    return {
+        "ok": True,
+        "report": report,
+        "detections": detections,
+        "created_tasks": created,
+        "executed_tasks": executed,
+        "queue": queue_rows[:20],
+        "queue_counts": _task_state_counts(queue_rows),
+        "state": state_payload,
+    }
+
+
+def _load_task_queue(workspace) -> list[dict]:
+    payload = _pref_value(workspace, TASK_QUEUE_PREF_KEY, [])
+    if not isinstance(payload, list):
+        return []
+    return [row for row in payload if isinstance(row, dict)][:120]
+
+
+def _store_task_queue(workspace, rows: list[dict]):
+    if not workspace:
+        return
+    cleaned = [row for row in (rows or []) if isinstance(row, dict)][:120]
+    _store_pref_value(workspace, TASK_QUEUE_PREF_KEY, cleaned)
+
+
+def _queue_signature(task: dict) -> str:
+    if not isinstance(task, dict):
+        return ""
+    return "|".join([
+        str(task.get("detector") or "").strip(),
+        str(task.get("runbook") or "").strip(),
+        str(task.get("title") or "").strip(),
+    ])[:240]
+
+
+def _task_state_counts(rows: list[dict]) -> dict:
+    counts = {"pending": 0, "running": 0, "completed": 0, "blocked": 0}
+    for row in rows or []:
+        state = str((row or {}).get("status") or "").strip().lower()
+        if state in counts:
+            counts[state] += 1
+    return counts
+
+
+def _new_task_entry(*, detector: str, title: str, summary: str, severity: str, runbook: str, task_kind: str, tools: list[str], source: str, question: str = "", auto_execute: bool = False) -> dict:
+    task_id = f"guard-task-{int(time.time() * 1000)}-{abs(hash((detector, title, summary))) % 100000}"
+    row = {
+        "id": task_id,
+        "created_at": _now_iso(),
+        "updated_at": _now_iso(),
+        "detector": str(detector or "").strip()[:64],
+        "title": _truncate(title, 160),
+        "summary": _truncate(summary, 280),
+        "severity": str(severity or "warning").strip()[:24],
+        "runbook": str(runbook or "silent_diagnostics").strip()[:64],
+        "task_kind": str(task_kind or "diagnose").strip()[:32],
+        "tools": [str(x) for x in (tools or []) if str(x or "").strip()][:6],
+        "source": str(source or "manual").strip()[:32],
+        "question": _truncate(question, 220),
+        "status": "pending",
+        "auto_execute": bool(auto_execute),
+        "executions": [],
+        "result_summary": "",
+        "signature": "",
+    }
+    row["signature"] = _queue_signature(row)
+    return row
+
+
+def _enqueue_task(workspace, task: dict) -> dict:
+    if not workspace or not isinstance(task, dict):
+        return task or {}
+    rows = _load_task_queue(workspace)
+    signature = _queue_signature(task)
+    for row in rows:
+        if str(row.get("signature") or "") == signature and str(row.get("status") or "") in {"pending", "running"}:
+            return row
+    rows.insert(0, dict(task, signature=signature))
+    _store_task_queue(workspace, rows)
+    return rows[0]
+
+
+def _update_task_entry(workspace, task_id: str, **changes) -> dict | None:
+    if not workspace or not task_id:
+        return None
+    rows = _load_task_queue(workspace)
+    updated = None
+    for idx, row in enumerate(rows):
+        if str(row.get("id") or "") != str(task_id):
+            continue
+        merged = dict(row)
+        merged.update(changes or {})
+        merged["updated_at"] = _now_iso()
+        rows[idx] = merged
+        updated = merged
+        break
+    if updated is not None:
+        _store_task_queue(workspace, rows)
+    return updated
+
+
+def _load_proactive_state(workspace) -> dict:
+    payload = _pref_value(workspace, PROACTIVE_STATE_PREF_KEY, {})
+    return payload if isinstance(payload, dict) else {}
+
+
+def _store_proactive_state(workspace, payload: dict):
+    if not workspace:
+        return
+    _store_pref_value(workspace, PROACTIVE_STATE_PREF_KEY, payload if isinstance(payload, dict) else {})
 
 def _memory_pref_key(actor_id=None) -> str:
     if actor_id:
@@ -1663,8 +1978,268 @@ def _history_tail(history) -> list[dict]:
     return rows
 
 
+def _extract_labeled_value(question: str, labels: list[str]) -> str:
+    text = str(question or "")
+    if not text or not labels:
+        return ""
+    joined = "|".join(re.escape(str(label or "").strip()) for label in labels if str(label or "").strip())
+    if not joined:
+        return ""
+    match = re.search(rf"(?:{joined})\s*[:=]?\s*([^,;\n]+)", text, re.IGNORECASE)
+    return str(match.group(1) if match else "").strip(" .")
+
+
+def _parse_player_request(question: str) -> dict:
+    text = str(question or "").strip()
+    lower = text.lower()
+    name = _extract_labeled_value(text, ["nombre", "player"])
+    if not name:
+        free_name = re.search(
+            r"(?:introduce|añade|agrega|crea|alta(?:\s+de)?|incorpora)\s+(?:un\s+)?jugador(?:\s+en\s+plantilla)?\s+(.+?)(?=,| con | dorsal| numero| número| posicion| posición| pie| altura| peso| nacimiento| fecha|$)",
+            text,
+            re.IGNORECASE,
+        )
+        name = str(free_name.group(1) if free_name else "").strip(" .")
+    number_raw = _extract_labeled_value(text, ["dorsal", "numero", "número", "nº", "num"])
+    position = _extract_labeled_value(text, ["posicion", "posición", "puesto"])
+    preferred_position = _extract_labeled_value(text, ["posicion preferida", "posición preferida", "preferred_position"])
+    dominant_foot = _extract_labeled_value(text, ["pie", "pie dominante", "dominant_foot"])
+    height_raw = _extract_labeled_value(text, ["altura", "height"])
+    weight_raw = _extract_labeled_value(text, ["peso", "weight"])
+    birth_raw = _extract_labeled_value(text, ["fecha nacimiento", "nacimiento", "birth_date"])
+    full_name = _extract_labeled_value(text, ["nombre completo", "full_name"])
+    nickname = _extract_labeled_value(text, ["apodo", "nickname"])
+    origin_team = _extract_labeled_value(text, ["equipo origen", "origen", "origin_team"])
+    is_active = True
+    if re.search(r"\b(inactivo|baja|desactivar)\b", lower):
+        is_active = False
+
+    number = _safe_int(number_raw, 0) if number_raw else None
+    if number == 0:
+        number = None
+    height_cm = _safe_int(re.sub(r"[^\d]", "", height_raw), 0) if height_raw else None
+    if height_cm == 0:
+        height_cm = None
+    weight_value = ""
+    if weight_raw:
+        match = re.search(r"\d+(?:[.,]\d+)?", weight_raw)
+        weight_value = str(match.group(0) if match else "").replace(",", ".")
+    birth_date = None
+    if birth_raw:
+        match = re.search(r"\d{4}-\d{2}-\d{2}", birth_raw)
+        if match:
+            try:
+                birth_date = datetime.strptime(match.group(0), "%Y-%m-%d").date()
+            except ValueError:
+                birth_date = None
+    return {
+        "name": _truncate(name, 120),
+        "full_name": _truncate(full_name, 180),
+        "nickname": _truncate(nickname, 80),
+        "number": number,
+        "position": _truncate(position, 60),
+        "preferred_position": _truncate(preferred_position, 60),
+        "dominant_foot": _truncate(dominant_foot, 16),
+        "height_cm": height_cm,
+        "weight_kg": weight_value[:16],
+        "birth_date": birth_date,
+        "origin_team": _truncate(origin_team, 160),
+        "is_active": bool(is_active),
+    }
+
+
+def _active_workspace_season(workspace):
+    if not workspace:
+        return None
+    season = getattr(workspace, "active_season", None)
+    if season:
+        return season
+    return WorkspaceSeason.objects.filter(workspace=workspace, is_active=True).order_by("-start_date", "-id").first()
+
+
+def _execute_create_player_action(question: str, *, workspace=None, page_context=None) -> dict:
+    page_context = page_context if isinstance(page_context, dict) else {}
+    payload = _parse_player_request(question)
+    if not workspace:
+        return {
+            "kind": "create_player",
+            "executed": False,
+            "success": False,
+            "needs_input": True,
+            "missing_fields": ["contexto_equipo"],
+            "message": "No puedo crear el jugador sin un workspace activo.",
+            "payload": payload,
+        }
+    if not bool(page_context.get("can_manage_guard")):
+        return {
+            "kind": "create_player",
+            "executed": False,
+            "success": False,
+            "needs_input": False,
+            "permission_required": True,
+            "message": "Necesitas permisos de gestión para modificar la plantilla.",
+            "payload": payload,
+        }
+    team_id = _safe_int(page_context.get("team_id"), 0)
+    team = None
+    if team_id and getattr(workspace, "teams", None) is not None:
+        link = workspace.teams.select_related("team").filter(team_id=team_id).first()
+        team = getattr(link, "team", None) if link else None
+    if team is None:
+        team = getattr(workspace, "primary_team", None)
+    if not team:
+        return {
+            "kind": "create_player",
+            "executed": False,
+            "success": False,
+            "needs_input": True,
+            "missing_fields": ["equipo"],
+            "message": "No encuentro el equipo activo para dar de alta al jugador.",
+            "payload": payload,
+        }
+    try:
+        WorkspaceTeam.objects.get_or_create(workspace=workspace, team=team, defaults={"is_default": True})
+    except Exception:
+        pass
+    missing_fields = []
+    if not payload.get("name"):
+        missing_fields.append("nombre")
+    if missing_fields:
+        return {
+            "kind": "create_player",
+            "executed": False,
+            "success": False,
+            "needs_input": True,
+            "missing_fields": missing_fields,
+            "message": "Pásame al menos el nombre del jugador para crear la ficha.",
+            "payload": payload,
+        }
+
+    with transaction.atomic():
+        player = Player.objects.filter(team=team, name__iexact=str(payload.get("name") or "")).order_by("id").first()
+        created = player is None
+        if created:
+            player = Player.objects.create(
+                team=team,
+                name=str(payload.get("name") or "")[:120],
+                full_name=str(payload.get("full_name") or "")[:180],
+                nickname=str(payload.get("nickname") or "")[:80],
+                birth_date=payload.get("birth_date"),
+                height_cm=payload.get("height_cm"),
+                weight_kg=(payload.get("weight_kg") or None),
+                origin_team=str(payload.get("origin_team") or "")[:160],
+                dominant_foot=str(payload.get("dominant_foot") or "")[:16],
+                preferred_position=str(payload.get("preferred_position") or "")[:60],
+                number=payload.get("number"),
+                position=str(payload.get("position") or "")[:60],
+                is_active=bool(payload.get("is_active")),
+            )
+        else:
+            updated_fields = []
+            for field in ("full_name", "nickname", "birth_date", "height_cm", "origin_team", "dominant_foot", "preferred_position", "number", "position"):
+                value = payload.get(field)
+                if value in ("", None) and field not in {"number", "birth_date", "height_cm"}:
+                    continue
+                if getattr(player, field) != value:
+                    setattr(player, field, value)
+                    updated_fields.append(field)
+            weight_value = payload.get("weight_kg") or None
+            if getattr(player, "weight_kg") != weight_value:
+                player.weight_kg = weight_value
+                updated_fields.append("weight_kg")
+            is_active = bool(payload.get("is_active"))
+            if bool(getattr(player, "is_active", True)) != is_active:
+                player.is_active = is_active
+                updated_fields.append("is_active")
+            if updated_fields:
+                player.save(update_fields=sorted(set(updated_fields)))
+
+        ensure_workspace_player(workspace, player, current_team=team, is_active=bool(payload.get("is_active")))
+        season = _active_workspace_season(workspace)
+        if season:
+            ensure_player_season_membership(
+                season,
+                player,
+                team=team,
+                confirmed=False,
+                status=("pending" if bool(payload.get("is_active")) else "inactive"),
+            )
+
+    return {
+        "kind": "create_player",
+        "executed": True,
+        "success": True,
+        "needs_input": False,
+        "message": (
+            f"Jugador añadido a la plantilla: {player.name}."
+            if created else f"Jugador actualizado en plantilla: {player.name}."
+        ),
+        "player": {
+            "id": int(getattr(player, "id", 0) or 0),
+            "name": str(getattr(player, "name", "") or ""),
+            "team": str(getattr(team, "name", "") or ""),
+            "number": getattr(player, "number", None),
+            "position": str(getattr(player, "position", "") or ""),
+        },
+        "payload": payload,
+    }
+
+
+def _build_improvement_proposals(report: dict, *, page_context=None, workspace=None) -> list[dict]:
+    summary = report.get("issue_summary") if isinstance(report.get("issue_summary"), dict) else {}
+    blockers = _safe_int(summary.get("blockers"), 0)
+    warnings = _safe_int(summary.get("warnings"), 0)
+    page = str((page_context or {}).get("page") or "").strip()
+    queue_counts = _task_state_counts(_load_task_queue(workspace)) if workspace else {"pending": 0, "running": 0, "completed": 0, "blocked": 0}
+    proposals = []
+    if blockers > 0:
+        proposals.append({
+            "title": "Cerrar blockers antes de ampliar funcionalidad",
+            "reason": f"Hay {blockers} blocker(s) activos; conviene priorizar estabilidad del sistema.",
+            "priority": "high",
+            "kind": "stability",
+        })
+    if warnings > 0:
+        proposals.append({
+            "title": "Reducir warnings recurrentes",
+            "reason": f"Se mantienen {warnings} warning(s); Ollana puede vigilar regresiones y consolidar remediaciones.",
+            "priority": "medium",
+            "kind": "observability",
+        })
+    if queue_counts.get("pending", 0) == 0 and queue_counts.get("running", 0) == 0:
+        proposals.append({
+            "title": "Programar ciclo proactivo continuo",
+            "reason": "No hay tareas silenciosas en cola; conviene mantener inspección continua con runbooks proactivos.",
+            "priority": "medium",
+            "kind": "automation",
+        })
+    if page in {"dashboard-home", "coach-role-trainer"}:
+        proposals.append({
+            "title": "Añadir accesos guiados por lenguaje natural",
+            "reason": "La portada es el mejor punto para comandos rápidos tipo “llévame a vídeo análisis” o “abre biblioteca de tareas”.",
+            "priority": "medium",
+            "kind": "ux",
+        })
+    proposals.append({
+        "title": "Ampliar acciones asistidas con formularios mínimos",
+        "reason": "El siguiente salto es cubrir altas de jugadores, creación de sesiones y apertura de módulos desde una sola caja conversacional.",
+        "priority": "next",
+        "kind": "assistant",
+    })
+    return proposals[:4]
+
+
+def _resolve_assisted_action(question: str, *, workspace=None, page_context=None) -> dict:
+    intent = _infer_intent(question)
+    if intent == "create_player":
+        return _execute_create_player_action(question, workspace=workspace, page_context=page_context)
+    return {}
+
+
 def _infer_intent(question: str) -> str:
     text = str(question or "").strip().lower()
+    if re.search(r"\b(introduce|añade|agrega|crea|alta|incorpora)\b.*\b(jugador|player|plantilla|roster)\b", text):
+        return "create_player"
     if re.search(r"\b(commit\s+y\s+push|haz\s+commit\s+y\s+push|publica\s+los?\s+cambios?|sube\s+los?\s+cambios?)\b", text):
         return "publish_commit_push"
     if re.search(r"\b(haz\s+commit|crea\s+commit|committea|commitea)\b", text):
@@ -2184,6 +2759,8 @@ def _fallback_response(report: dict, *, question: str, planner: dict, audience: 
         "ui_actions": ui_actions[:4],
         "remediation": remediation,
         "snapshot_diff": snapshot_diff or {},
+        "assistant_action": {},
+        "improvement_proposals": [],
     }
 
 
@@ -2212,6 +2789,8 @@ def _normalize_llm_response(parsed, fallback: dict) -> dict:
         "ui_actions": fallback.get("ui_actions") or [],
         "remediation": fallback.get("remediation") or {},
         "snapshot_diff": fallback.get("snapshot_diff") or {},
+        "assistant_action": fallback.get("assistant_action") or {},
+        "improvement_proposals": fallback.get("improvement_proposals") or [],
     })
     return merged
 
@@ -2243,6 +2822,7 @@ def run_system_guard_chat(
         autonomy_mode=autonomy_mode,
         page_context=page_context,
     )
+    assistant_action = _resolve_assisted_action(question, workspace=workspace, page_context=page_context)
     maintenance_result = None
     executed_tools = []
     if planner.get("confirm_required") and execute_confirmed:
@@ -2287,6 +2867,32 @@ def run_system_guard_chat(
     snapshot_diff = _compare_snapshots(current_snapshot, previous_snapshot)
     fallback["snapshot_diff"] = snapshot_diff
     fallback["remediation"] = _build_remediation_plan(report, executed_tools or [], snapshot_diff=snapshot_diff)
+    fallback["assistant_action"] = assistant_action if isinstance(assistant_action, dict) else {}
+    fallback["improvement_proposals"] = _build_improvement_proposals(report, page_context=page_context, workspace=workspace)
+    if assistant_action:
+        action_message = str(assistant_action.get("message") or "").strip()
+        if action_message:
+            fallback["message"] = action_message
+        if assistant_action.get("success"):
+            fallback["status"] = "ok" if fallback.get("status") != "fail" else fallback.get("status")
+        if assistant_action.get("needs_input"):
+            fallback["status"] = "watch" if fallback.get("status") != "fail" else fallback.get("status")
+        if assistant_action.get("permission_required"):
+            fallback["status"] = "risk" if fallback.get("status") != "fail" else fallback.get("status")
+        payload = assistant_action.get("payload") if isinstance(assistant_action.get("payload"), dict) else {}
+        if payload:
+            collected = []
+            for key in ("name", "number", "position", "dominant_foot"):
+                value = payload.get(key)
+                if value not in ("", None):
+                    collected.append(f"{key}:{value}")
+            if collected:
+                fallback["highlights"] = (fallback.get("highlights") or []) + [f"Datos capturados: {', '.join(collected[:4])}"]
+        if assistant_action.get("missing_fields"):
+            fallback["actions"] = [{
+                "label": "Completar datos del jugador",
+                "reason": "Faltan campos mínimos para ejecutar la petición.",
+            }] + (fallback.get("actions") or [])
     parsed = None
     error = ""
     llm_used = bool(cfg.get("enabled") and str(cfg.get("provider") or "").lower() == "ollama")
@@ -2339,11 +2945,16 @@ def run_system_guard_chat(
     }
     _append_audit_log(workspace, audit_event)
     _store_snapshot(workspace, report=report, response=response, executions=executed_tools)
+    queue_rows = _load_task_queue(workspace)
     return {
         "ok": bool(report.get("ok")),
         "report": report,
         "planner": planner,
         "audit": audit_event,
+        "task_queue": {
+            "counts": _task_state_counts(queue_rows),
+            "items": queue_rows[:6],
+        },
         "chat": {
             "available": isinstance(parsed, dict),
             "degraded": not isinstance(parsed, dict),

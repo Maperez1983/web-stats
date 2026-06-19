@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Ollana Widget Preview</title>
+    <style>
+      :root { color-scheme: dark; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Avenir Next", "Segoe UI", sans-serif;
+        color: #e5e7eb;
+        background:
+          radial-gradient(circle at top left, rgba(34,197,94,0.16), transparent 28%),
+          radial-gradient(circle at bottom right, rgba(250,204,21,0.12), transparent 24%),
+          linear-gradient(180deg, #08111d 0%, #0b1728 52%, #08111d 100%);
+        overflow: hidden;
+      }
+      .app-shell {
+        position: relative;
+        min-height: 100vh;
+        padding: 2rem;
+      }
+      .app-grid {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 1rem;
+        height: calc(100vh - 4rem);
+      }
+      .card {
+        border-radius: 24px;
+        border: 1px solid rgba(148,163,184,0.16);
+        background: rgba(255,255,255,0.04);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+      }
+      .hero {
+        padding: 1.5rem;
+        background:
+          linear-gradient(135deg, rgba(20,83,45,0.66), rgba(8,24,18,0.88)),
+          repeating-linear-gradient(90deg, transparent 0 38px, rgba(255,255,255,0.04) 38px 40px);
+      }
+      .hero h1 {
+        margin: 0;
+        font-size: 2.2rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .hero p {
+        margin: 0.8rem 0 0;
+        max-width: 40rem;
+        color: rgba(226,232,240,0.82);
+        font-weight: 700;
+        line-height: 1.5;
+      }
+      .stack {
+        display: grid;
+        gap: 1rem;
+      }
+      .mini {
+        padding: 1rem 1.1rem;
+        min-height: 11rem;
+        background:
+          linear-gradient(180deg, rgba(15,23,42,0.84), rgba(2,6,23,0.92));
+      }
+      .mini strong {
+        display: block;
+        font-size: 0.78rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(226,232,240,0.7);
+      }
+      .mini span {
+        display: block;
+        margin-top: 0.55rem;
+        font-size: 1.35rem;
+        font-weight: 950;
+      }
+
+      .guard-widget-shell {
+        position: absolute;
+        right: 1rem;
+        bottom: 1rem;
+        z-index: 80;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.75rem;
+      }
+      .guard-widget-toggle {
+        border-radius: 999px;
+        border: 1px solid rgba(250,204,21,0.35);
+        background: linear-gradient(135deg, #14532d, #22c55e 60%, #facc15 140%);
+        color: #f8fafc;
+        padding: 0.82rem 1.05rem;
+        font-size: 0.76rem;
+        font-weight: 950;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        box-shadow: 0 24px 60px rgba(20,83,45,0.34);
+        position: relative;
+        overflow: hidden;
+      }
+      .guard-widget-toggle::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(90deg, transparent 0 18px, rgba(255,255,255,0.08) 18px 20px);
+        opacity: 0.35;
+      }
+      .guard-widget-panel {
+        width: 420px;
+        max-height: 760px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 28px 80px rgba(2,6,23,0.45);
+        border: 1px solid rgba(163,230,53,0.16);
+        background:
+          radial-gradient(circle at top right, rgba(250,204,21,0.14), transparent 30%),
+          linear-gradient(180deg, rgba(8,31,20,0.98) 0%, rgba(3,14,10,0.98) 100%);
+        border-radius: 22px;
+        padding: 0.9rem;
+        color: #e5e7eb;
+        position: relative;
+      }
+      .guard-widget-panel::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+        background-size: 100% 36px, 36px 100%;
+        opacity: 0.22;
+        pointer-events: none;
+      }
+      .guard-chat-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.8rem;
+        align-items: flex-start;
+        margin-bottom: 0.35rem;
+        position: relative;
+        z-index: 1;
+      }
+      .guard-chat-close {
+        border: none;
+        background: rgba(255,255,255,0.08);
+        color: #f8fafc;
+        border-radius: 999px;
+        width: 2rem;
+        height: 2rem;
+        font-size: 1rem;
+        font-weight: 900;
+      }
+      .section-title {
+        margin: 0 0 0.25rem;
+        font-size: 0.78rem;
+        font-weight: 950;
+        letter-spacing: 0.10em;
+        text-transform: uppercase;
+        color: rgba(226,232,240,0.9);
+      }
+      .guard-chat-header p {
+        margin: 0;
+        color: rgba(226,232,240,0.72);
+        font-weight: 800;
+      }
+      .guard-score-strip {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        gap: 0.55rem;
+        align-items: center;
+        margin-bottom: 0.7rem;
+        position: relative;
+        z-index: 1;
+      }
+      .guard-score-side {
+        border-radius: 14px;
+        padding: 0.45rem 0.6rem;
+        background: rgba(255,255,255,0.055);
+        border: 1px solid rgba(255,255,255,0.1);
+      }
+      .guard-score-side strong {
+        display: block;
+        font-size: 0.68rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(226,232,240,0.68);
+      }
+      .guard-score-side span {
+        display: block;
+        margin-top: 0.18rem;
+        font-size: 0.86rem;
+        font-weight: 950;
+        color: #f8fafc;
+      }
+      .guard-score-center {
+        min-width: 76px;
+        text-align: center;
+        border-radius: 16px;
+        padding: 0.5rem 0.7rem;
+        background: linear-gradient(180deg, rgba(20,83,45,0.9), rgba(10,35,25,0.92));
+        border: 1px solid rgba(250,204,21,0.26);
+      }
+      .guard-score-center strong {
+        display: block;
+        font-size: 1.15rem;
+        font-weight: 1000;
+        color: #f8fafc;
+        letter-spacing: 0.08em;
+      }
+      .guard-score-center span {
+        display: block;
+        margin-top: 0.18rem;
+        font-size: 0.62rem;
+        font-weight: 950;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #bbf7d0;
+      }
+      .guard-ob-banner,
+      .guard-alerts,
+      .guard-quick-actions,
+      .guard-actions { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+      .guard-ob-banner { align-items: center; margin-bottom: 0.7rem; position: relative; z-index: 1; }
+      .guard-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        border-radius: 999px;
+        padding: 0.35rem 0.65rem;
+        border: 1px solid rgba(255,255,255,0.16);
+        font-size: 0.74rem;
+        font-weight: 950;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        background: rgba(3,10,8,0.46);
+      }
+      .guard-pill-dot {
+        width: 0.6rem;
+        height: 0.6rem;
+        border-radius: 999px;
+        background: #f87171;
+        box-shadow: 0 0 0 3px rgba(248,113,113,0.16);
+      }
+      .guard-alert-chip,
+      .guard-btn {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        font-size: 0.74rem;
+        font-weight: 900;
+        cursor: default;
+      }
+      .guard-alert-chip {
+        padding: 0.32rem 0.6rem;
+        border: 1px solid rgba(148,163,184,0.2);
+        background: rgba(255,255,255,0.04);
+        color: #e5e7eb;
+      }
+      .guard-alert-chip.regression { border-color: rgba(248,113,113,0.26); background: rgba(127,29,29,0.18); color: #fecaca; }
+      .guard-alert-chip.repeat { border-color: rgba(251,191,36,0.24); background: rgba(120,53,15,0.16); color: #fde68a; }
+      .guard-observability {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.7rem;
+        margin-bottom: 0.75rem;
+        position: relative;
+        z-index: 1;
+      }
+      .guard-ob-card {
+        border: 1px solid rgba(148,163,184,0.16);
+        background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.025));
+        border-radius: 16px;
+        padding: 0.75rem 0.8rem;
+      }
+      .guard-ob-label {
+        display: block;
+        font-size: 0.68rem;
+        font-weight: 950;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: rgba(226,232,240,0.68);
+        margin-bottom: 0.3rem;
+      }
+      .guard-ob-value {
+        font-size: 1rem;
+        font-weight: 950;
+        color: #f8fafc;
+      }
+      .guard-ob-detail {
+        margin-top: 0.28rem;
+        font-size: 0.76rem;
+        font-weight: 800;
+        color: rgba(226,232,240,0.8);
+        line-height: 1.45;
+      }
+      .guard-chat-log {
+        display: grid;
+        gap: 0.45rem;
+        margin-top: 0.65rem;
+        max-height: 24vh;
+        overflow: auto;
+        padding-right: 0.15rem;
+        position: relative;
+        z-index: 1;
+      }
+      .guard-msg {
+        border: 1px solid rgba(148,163,184,0.18);
+        border-radius: 16px;
+        padding: 0.7rem 0.8rem;
+        background: rgba(255,255,255,0.04);
+        backdrop-filter: blur(8px);
+      }
+      .guard-msg.user { background: rgba(20,83,45,0.24); border-color: rgba(134,239,172,0.25); }
+      .guard-msg .role {
+        display: block;
+        font-size: 0.7rem;
+        font-weight: 950;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(226,232,240,0.76);
+        margin-bottom: 0.3rem;
+      }
+      .guard-msg .body { font-weight: 800; line-height: 1.5; }
+      .guard-badges { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.55rem; }
+      .guard-badge {
+        border-radius: 999px;
+        padding: 0.2rem 0.5rem;
+        border: 1px solid rgba(255,255,255,0.16);
+        background: rgba(255,255,255,0.05);
+        font-size: 0.72rem;
+        font-weight: 900;
+      }
+      .guard-controls {
+        margin-top: 0.7rem;
+        position: relative;
+        z-index: 1;
+      }
+      .guard-btn {
+        border: 1px solid rgba(255,255,255,0.18);
+        background: rgba(255,255,255,0.06);
+        color: #f3f7ff;
+        padding: 0.65rem 0.9rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        font-size: 0.72rem;
+      }
+      .guard-btn.primary {
+        background: linear-gradient(135deg, #14532d, #22c55e 68%, #facc15 140%);
+      }
+      .guard-meta-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.7rem;
+        margin: 0.7rem 0;
+      }
+      .guard-meta-grid label,
+      .guard-input-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        font-size: 0.74rem;
+        font-weight: 950;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: rgba(226,232,240,0.86);
+      }
+      .fake-input, .fake-textarea {
+        border: 1px solid rgba(255,255,255,0.18);
+        border-radius: 14px;
+        padding: 0.65rem 0.75rem;
+        background: rgba(2, 6, 23, 0.55);
+        color: #e5e7eb;
+        font: inherit;
+      }
+      .fake-textarea {
+        min-height: 88px;
+        text-transform: none;
+        line-height: 1.5;
+      }
+      .guard-statusline {
+        margin-top: 0.65rem;
+        font-size: 0.76rem;
+        font-weight: 900;
+        color: rgba(226,232,240,0.78);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-shell">
+      <div class="app-grid">
+        <div class="card hero">
+          <h1>Segunda Jugada</h1>
+          <p>Panel táctico, seguimiento diario y control operativo del club. El asistente Ollana queda disponible en cualquier pantalla como inspector del sistema y apoyo directo al usuario.</p>
+        </div>
+        <div class="stack">
+          <div class="card mini">
+            <strong>Próximo partido</strong>
+            <span>Málaga CF vs UD Almería</span>
+          </div>
+          <div class="card mini">
+            <strong>Estado plataforma</strong>
+            <span>2 alertas a vigilar</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="guard-widget-shell">
+        <button class="guard-widget-toggle">Guard IA</button>
+        <section class="guard-widget-panel">
+          <div class="guard-chat-header">
+            <div>
+              <div class="section-title">Cabina Técnica Ollana</div>
+              <p>Inspector del sistema, asistente transversal y analista de partido para cualquier duda o incidencia.</p>
+            </div>
+            <button class="guard-chat-close">×</button>
+          </div>
+
+          <div class="guard-score-strip">
+            <div class="guard-score-side">
+              <strong>Local</strong>
+              <span>Sistema</span>
+            </div>
+            <div class="guard-score-center">
+              <strong>2J</strong>
+              <span>Sala VAR</span>
+            </div>
+            <div class="guard-score-side" style="text-align:right;">
+              <strong>Visitante</strong>
+              <span>Usuario</span>
+            </div>
+          </div>
+
+          <div class="guard-ob-banner">
+            <div class="guard-pill"><span class="guard-pill-dot"></span>Atención</div>
+            <div class="guard-alerts">
+              <span class="guard-alert-chip regression">Blockers suben de 0 a 2</span>
+              <span class="guard-alert-chip repeat">Incidencia repetida: ollama_unreachable x3</span>
+            </div>
+          </div>
+
+          <div class="guard-observability">
+            <div class="guard-ob-card">
+              <span class="guard-ob-label">Tendencia</span>
+              <div class="guard-ob-value">empeora</div>
+              <div class="guard-ob-detail">6 snapshots · ok, watch, watch</div>
+            </div>
+            <div class="guard-ob-card">
+              <span class="guard-ob-label">Estabilidad LLM</span>
+              <div class="guard-ob-value">degradada</div>
+              <div class="guard-ob-detail">Degradado 40% · up x4, degraded x2</div>
+            </div>
+            <div class="guard-ob-card">
+              <span class="guard-ob-label">Operativa</span>
+              <div class="guard-ob-value">14 tools</div>
+              <div class="guard-ob-detail">9 turnos · 1 confirmación · 321 ms</div>
+            </div>
+            <div class="guard-ob-card">
+              <span class="guard-ob-label">Memoria útil</span>
+              <div class="guard-ob-value">watch</div>
+              <div class="guard-ob-detail">Repite ollama_unreachable x3</div>
+            </div>
+          </div>
+
+          <div class="guard-chat-log">
+            <div class="guard-msg assistant">
+              <span class="role">Guardián</span>
+              <div class="body">Estoy en banda para revisar el sistema, resolver dudas del usuario y proponerte la mejor jugada operativa.</div>
+              <div class="guard-badges">
+                <span class="guard-badge">LLM local degradado</span>
+                <span class="guard-badge">2 rutas en riesgo</span>
+              </div>
+            </div>
+            <div class="guard-msg user">
+              <span class="role">Tú</span>
+              <div class="body">Explícame por qué falla el guard y qué debe hacer el usuario.</div>
+            </div>
+            <div class="guard-msg assistant">
+              <span class="role">Guardián</span>
+              <div class="body">Detecto caída intermitente de Ollama y warnings de configuración. Recomiendo mantener modo advisor, revisar servicio local y guiar al usuario para continuar sin acciones destructivas.</div>
+            </div>
+          </div>
+
+          <div class="guard-controls">
+            <div class="guard-quick-actions">
+              <span class="guard-btn">Revisar estado</span>
+              <span class="guard-btn">Ayudar usuario</span>
+              <span class="guard-btn">Ejecutar smoke</span>
+              <span class="guard-btn primary">Auto-fix seguro</span>
+            </div>
+            <div class="guard-meta-grid">
+              <label>Autonomía<div class="fake-input">Advisor</div></label>
+              <label>Audiencia<div class="fake-input">Guiada</div></label>
+              <label>Acciones ejecutadas<div class="fake-input">14</div></label>
+              <label>Latencia<div class="fake-input">321 ms</div></label>
+            </div>
+            <div class="guard-input-wrap">
+              Mensaje
+              <div class="fake-textarea">Ej.: hay un error al guardar, explícame qué pasa y cómo resolverlo; o guía al usuario paso a paso.</div>
+            </div>
+            <div class="guard-actions" style="margin-top:0.75rem;">
+              <span class="guard-btn primary">Enviar</span>
+              <span class="guard-btn">Limpiar</span>
+            </div>
+            <div class="guard-statusline">Estado: watch · blockers 2 · warnings 3 · degradado</div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </body>
+</html>

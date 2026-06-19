@@ -1,4 +1,7 @@
 (() => {
+  if (window.__WEBSTATS_GLOBAL_HELP_LOADED) return;
+  window.__WEBSTATS_GLOBAL_HELP_LOADED = true;
+
   const safeText = (value, fallback = '') => String(value ?? '').trim() || fallback;
   const helpModeKey = 'webstats:help_mode:enabled';
   const demoModeKey = 'webstats:demo_mode:enabled';
@@ -122,6 +125,7 @@
       .ws-help-toggle-active{border-color:rgba(34,211,238,.64)!important;background:rgba(34,211,238,.18)!important;color:#ecfeff!important}
       .ws-help-toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:10001;max-width:min(520px,calc(100vw - 24px));border:1px solid rgba(34,211,238,.36);background:rgba(8,15,28,.96);color:#f8fafc;border-radius:14px;padding:10px 12px;box-shadow:0 16px 40px rgba(0,0,0,.36);font:800 13px/1.3 var(--prod-font-ui,system-ui,sans-serif)}
       .ws-demo-toggle-active{border-color:rgba(251,191,36,.72)!important;background:rgba(251,191,36,.18)!important;color:#fffbeb!important}
+      .ws-demo-floating-toggle{position:fixed;right:max(14px,env(safe-area-inset-right));bottom:max(14px,env(safe-area-inset-bottom));z-index:10001;border:1px solid rgba(251,191,36,.52);background:rgba(8,15,28,.94);color:#fffbeb;border-radius:999px;padding:9px 12px;font:950 12px/1 var(--prod-font-ui,system-ui,sans-serif);box-shadow:0 14px 34px rgba(0,0,0,.34);cursor:pointer}
       .ws-demo-banner{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:10002;max-width:min(680px,calc(100vw - 24px));display:flex;gap:10px;align-items:center;border:1px solid rgba(251,191,36,.48);background:rgba(24,18,5,.96);color:#fffbeb;border-radius:14px;padding:10px 12px;box-shadow:0 18px 44px rgba(0,0,0,.38);font:850 13px/1.25 var(--prod-font-ui,system-ui,sans-serif)}
       .ws-demo-banner button{border:1px solid rgba(251,191,36,.55);background:rgba(251,191,36,.14);color:#fffbeb;border-radius:999px;padding:6px 10px;font:900 12px/1 var(--prod-font-ui,system-ui,sans-serif);cursor:pointer}
       .ws-demo-dialog{position:fixed;inset:0;z-index:10003;display:grid;place-items:center;padding:18px;background:rgba(2,6,23,.5)}
@@ -191,6 +195,13 @@
     [/jugador|jugadores|plantilla|roster/, 'Abre la plantilla y las fichas individuales de jugadores.'],
     [/estadistica|estadisticas|kpi|metricas/, 'Consulta indicadores de rendimiento y seguimiento del equipo o jugador.'],
     [/tactica|pizarra|abp|modelo de juego/, 'Abre herramientas tácticas: modelo de juego, pizarra y acciones a balón parado.'],
+    [/metodologia|periodizacion|microciclo estructurado/, 'Añade contexto metodológico: día relativo al partido, carga dominante, momento del juego y principios del modelo.'],
+    [/dia del microciclo|md[\+\-]|match day/, 'Relaciona la sesión con el partido: recuperación, adquisición, activación o día de competición.'],
+    [/carga dominante/, 'Marca qué tipo de carga predomina en la sesión o tarea: recuperación, tensión, duración, velocidad o activación.'],
+    [/momento del juego/, 'Indica el momento táctico principal: ataque, defensa, transición o balón parado.'],
+    [/principio|subprincipio/, 'Conecta el contenido con el modelo de juego del club para planificar y revisar con más coherencia.'],
+    [/regla provocadora/, 'Define la condición que fuerza el comportamiento táctico buscado dentro de la tarea.'],
+    [/anadir campo|añadir campo/, 'Muestra un campo opcional de metodología y mantiene oculta la información que no necesitas rellenar.'],
     [/analisis|video|clip|scouting/, 'Abre análisis de vídeo, clips, informes y preparación del rival.'],
     [/rival|rivales/, 'Gestiona información del rival y preparación del próximo partido.'],
     [/agenda|calendario/, 'Consulta agenda semanal, entrenamientos, partidos y eventos.'],
@@ -455,6 +466,21 @@
     });
   };
 
+  const ensureFallbackDemoButton = () => {
+    if (document.querySelector('[data-webstats-demo-mode-toggle],#webstats-demo-mode-toggle')) return;
+    ensureHelpModeStyles();
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'ws-demo-floating-toggle';
+    btn.setAttribute('data-webstats-demo-mode-toggle', '');
+    btn.setAttribute('data-help', 'Activa el modo muestra: toca controles para aprender sin ejecutar acciones reales.');
+    btn.setAttribute('title', 'Modo muestra');
+    btn.setAttribute('aria-label', 'Activar modo muestra');
+    btn.setAttribute('aria-pressed', 'false');
+    btn.textContent = 'Demo';
+    document.body.appendChild(btn);
+  };
+
   const closeDemoDialog = () => {
     if (!demoState.dialog) return;
     try { demoState.dialog.remove(); } catch (e) {}
@@ -588,6 +614,7 @@
   };
 
   const wireDemoMode = () => {
+    ensureFallbackDemoButton();
     document.addEventListener('click', (event) => {
       const btn = event.target?.closest?.('[data-webstats-demo-mode-toggle],#webstats-demo-mode-toggle');
       if (!btn) return;

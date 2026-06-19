@@ -22,19 +22,14 @@
       .shell { max-width: 980px; margin: 0 auto; padding: 1.15rem; }
       .panel {
         margin-top: 0.9rem;
-        border-radius: 24px;
+        border-radius: 18px;
         border: 1px solid rgba(255, 255, 255, 0.14);
-        background:
-          radial-gradient(720px 240px at 0% 0%, rgba(34,211,238,0.12) 0%, rgba(34,211,238,0) 56%),
-          rgba(7, 16, 30, 0.78);
-        box-shadow: 0 24px 54px rgba(0, 0, 0, 0.35);
+        background: rgba(7, 16, 30, 0.78);
+        box-shadow: 0 20px 44px rgba(0, 0, 0, 0.35);
         padding: 1rem;
       }
-      .hero { display:grid; gap:0.35rem; }
-      .hero-kicker { color:#67e8f9; font-size:0.72rem; font-weight:900; letter-spacing:0.18em; text-transform:uppercase; }
-      h1 { margin: 0; font-size: clamp(1.6rem, 3vw, 2.35rem); letter-spacing:-0.03em; text-transform: none; line-height:1.02; }
+      h1 { margin: 0; font-size: 1rem; letter-spacing: 0.14em; text-transform: uppercase; }
       .muted { color: rgba(148, 163, 184, 0.78); font-size: 0.85rem; }
-      .hero-pills { display:flex; gap:0.45rem; flex-wrap:wrap; margin-top:0.15rem; }
       .grid { display: grid; grid-template-columns: 1fr; gap: 0.8rem; margin-top: 0.9rem; }
       @media (min-width: 880px) { .grid { grid-template-columns: 1fr 1fr; } }
       .card {
@@ -57,7 +52,6 @@
         font-weight: 800;
         letter-spacing: 0.02em;
       }
-      .pill:hover { transform: translateY(-1px); }
       .cta {
         display: inline-flex;
         align-items: center;
@@ -107,15 +101,7 @@
     {% include 'football/includes/dragon_nav.html' %}
     <div class="shell">
       <div class="panel">
-        <div class="hero">
-          <div class="hero-kicker">Academy</div>
-          <h1>Academia</h1>
-          <div class="hero-pills">
-            <span class="pill">Lecciones</span>
-            <span class="pill">Recomendadas</span>
-            <span class="pill">Biblioteca</span>
-          </div>
-        </div>
+        <h1>Academia</h1>
         <p class="muted" style="margin:0.45rem 0 0;">
           {{ academy_team.category|default:"" }}{% if academy_team.category %} · {% endif %}{{ academy_team.display_name|default:academy_team.name }}
         </p>
