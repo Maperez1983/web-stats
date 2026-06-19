@@ -9,6 +9,16 @@
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     {% include 'football/pwa_head.html' %}
     <style>
+      :root {
+        --panel: rgba(7, 16, 30, 0.78);
+        --panel-soft: rgba(255,255,255,0.03);
+        --line: rgba(255,255,255,0.14);
+        --muted: rgba(148, 163, 184, 0.75);
+        --shadow: 0 20px 44px rgba(0, 0, 0, 0.35);
+      }
+      * {
+        box-sizing: border-box;
+      }
       body {
         margin: 0;
         min-height: 100vh;
@@ -19,18 +29,184 @@
         color: rgba(245, 247, 250, 0.92);
         font-family: "Avenir Next", "Segoe UI", sans-serif;
       }
-      .shell { width: min(100%, 980px); margin: 0 auto; padding: clamp(0.85rem, 1.25vw, 1.2rem); }
+      .shell { width: min(100%, 1080px); margin: 0 auto; padding: 1rem 1rem 2.4rem; }
+      .topbar,
+      .hero,
+      .panel,
+      .info-card {
+        box-shadow: var(--shadow);
+      }
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-top: 0.9rem;
+        margin-bottom: 1rem;
+        padding: 0.95rem 1.05rem;
+        border-radius: 24px;
+        border: 1px solid var(--line);
+        background: rgba(7, 16, 30, 0.84);
+        flex-wrap: wrap;
+      }
+      .topbar-copy {
+        display: grid;
+        gap: 0.28rem;
+        max-width: 760px;
+      }
+      .topbar-kicker {
+        color: #f6d57a;
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+      .topbar h1 {
+        margin: 0;
+        font-size: clamp(1.45rem, 2.6vw, 2.2rem);
+        line-height: 0.95;
+        letter-spacing: -0.03em;
+      }
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
+        gap: 1rem;
+        border-radius: 28px;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        padding: 1.2rem;
+      }
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        padding: 0.34rem 0.7rem;
+        border-radius: 999px;
+        border: 1px solid rgba(244, 180, 0, 0.2);
+        background: linear-gradient(135deg, rgba(244, 180, 0, 0.12), rgba(70, 211, 255, 0.12));
+        color: #fff4cf;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .hero h2 {
+        margin: 0.8rem 0 0.55rem;
+        max-width: 12ch;
+        font-size: clamp(2rem, 4.4vw, 3.2rem);
+        line-height: 0.95;
+        letter-spacing: -0.04em;
+        text-wrap: balance;
+      }
+      .hero p {
+        margin: 0;
+        max-width: 58ch;
+        color: rgba(226, 232, 240, 0.82);
+        line-height: 1.65;
+      }
+      .hero-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin-top: 1rem;
+      }
+      .hero-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 38px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.05);
+        color: rgba(245, 247, 250, 0.92);
+        padding: 0.42rem 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        font-size: 0.72rem;
+      }
+      .hero-side {
+        display: grid;
+        gap: 0.75rem;
+      }
+      .info-card {
+        border-radius: 22px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background:
+          radial-gradient(circle at top left, rgba(70, 211, 255, 0.12), transparent 38%),
+          var(--panel-soft);
+        padding: 1rem;
+      }
+      .info-card span {
+        display: block;
+        color: rgba(148, 163, 184, 0.9);
+        font-size: 0.72rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .info-card strong {
+        display: block;
+        margin-top: 0.2rem;
+        font-size: 1.22rem;
+      }
+      .info-card p {
+        margin: 0.45rem 0 0;
+        color: rgba(226, 232, 240, 0.8);
+        line-height: 1.55;
+      }
       .panel {
         margin-top: 0.9rem;
-        border-radius: 18px;
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        background: rgba(7, 16, 30, 0.78);
-        box-shadow: 0 20px 44px rgba(0, 0, 0, 0.35);
-        padding: 1rem;
+        border-radius: 24px;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        padding: 1.1rem;
+      }
+      .section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: end;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.95rem;
+      }
+      .section-head h3 {
+        margin: 0;
+        font-size: 1.18rem;
+        letter-spacing: -0.02em;
+      }
+      .section-head p {
+        margin: 0.3rem 0 0;
+        color: rgba(148, 163, 184, 0.82);
+        line-height: 1.6;
       }
       h1 { margin: 0; font-size: 1rem; letter-spacing: 0.14em; text-transform: uppercase; overflow-wrap: anywhere; }
       p { color: rgba(226, 232, 240, 0.82); line-height: 1.55; margin: 0.55rem 0; }
-      .muted { color: rgba(148, 163, 184, 0.75); font-size: 0.85rem; }
+      .muted { color: var(--muted); font-size: 0.85rem; }
+      .identity-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.8rem;
+        margin-top: 0.95rem;
+      }
+      .identity-item {
+        border-radius: 18px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.03);
+        padding: 0.9rem;
+      }
+      .identity-item span {
+        display: block;
+        color: rgba(148, 163, 184, 0.84);
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .identity-item strong {
+        display: block;
+        margin-top: 0.22rem;
+        color: rgba(245, 247, 250, 0.96);
+        overflow-wrap: anywhere;
+      }
       .row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.8rem; }
       .pill {
         display: inline-flex;
@@ -50,6 +226,10 @@
         white-space: nowrap;
       }
       .pill:hover { border-color: rgba(244, 180, 0, 0.45); }
+      .pill.primary {
+        background: linear-gradient(135deg, rgba(244, 180, 0, 0.16), rgba(70, 211, 255, 0.16));
+        border-color: rgba(244, 180, 0, 0.3);
+      }
       .danger {
         border-color: rgba(248, 113, 113, 0.4);
         background: rgba(127, 29, 29, 0.22);
@@ -80,6 +260,24 @@
         text-transform: uppercase;
         font-size: 0.7rem;
       }
+      .actions-copy {
+        color: rgba(148, 163, 184, 0.84);
+        line-height: 1.6;
+      }
+      .danger-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-top: 0.9rem;
+      }
+      @media (max-width: 820px) {
+        .hero,
+        .identity-grid {
+          grid-template-columns: 1fr;
+        }
+      }
       @media (max-width: 640px) {
         .panel { border-radius: 16px; padding: 0.85rem; }
         .row .pill,
@@ -90,31 +288,80 @@
   <body class="prod-commercial">
     <div class="shell">
       {% include 'football/includes/dragon_nav.html' %}
+
+      <header class="topbar">
+        <div class="topbar-copy">
+          <div class="topbar-kicker">Perfil y acceso</div>
+          <h1>Cuenta</h1>
+          <div class="muted">Gestiona la información básica del usuario, accesos de ayuda y acciones sensibles asociadas a tu perfil.</div>
+        </div>
+      </header>
+
+      <section class="hero">
+        <div>
+          <span class="eyebrow">Área personal</span>
+          <h2>Controla tu acceso con una experiencia más clara y segura.</h2>
+          <p>Esta pantalla reúne la información principal del usuario, enlaces de soporte y la zona de riesgo para acciones irreversibles, separando bien cada nivel de decisión.</p>
+          <div class="hero-pills">
+            <span class="hero-pill">Soporte directo</span>
+            <span class="hero-pill">Información básica</span>
+            <span class="hero-pill">Acciones sensibles claras</span>
+          </div>
+        </div>
+        <aside class="hero-side">
+          <article class="info-card">
+            <span>Usuario activo</span>
+            <strong>{{ request.user.get_username }}</strong>
+            <p>Identificador principal usado para entrar y operar dentro del entorno del club.</p>
+          </article>
+          <article class="info-card">
+            <span>Estado de cuenta</span>
+            <strong>{% if deleted_ok %}Desactivada{% else %}Operativa{% endif %}</strong>
+            <p>La zona de cuenta prioriza claridad sobre privacidad, acceso y consecuencias de acciones irreversibles.</p>
+          </article>
+        </aside>
+      </section>
+
       <div class="panel">
-        <h1>Cuenta</h1>
+        <div class="section-head">
+          <div>
+            <h3>Resumen de cuenta</h3>
+            <p>Consulta tus datos identificativos y accede rápidamente a ayuda, privacidad y términos del servicio.</p>
+          </div>
+        </div>
         {% if deleted_ok %}
         <div class="msg-ok">Cuenta desactivada</div>
         {% endif %}
-        <p class="muted">Usuario: {{ request.user.get_username }}</p>
-        {% if request.user.email %}
-        <p class="muted">Email: {{ request.user.email }}</p>
-        {% endif %}
+
+        <div class="identity-grid">
+          <article class="identity-item">
+            <span>Usuario</span>
+            <strong>{{ request.user.get_username }}</strong>
+          </article>
+          <article class="identity-item">
+            <span>Email</span>
+            <strong>{% if request.user.email %}{{ request.user.email }}{% else %}Sin email configurado{% endif %}</strong>
+          </article>
+        </div>
 
         <div class="row">
-          <a class="pill" href="{% url 'support-page' %}">Soporte</a>
+          <a class="pill primary" href="{% url 'support-page' %}">Soporte</a>
           <a class="pill" href="{% url 'privacy-policy' %}">Privacidad</a>
           <a class="pill" href="{% url 'terms-page' %}">Términos</a>
         </div>
 
         <div class="box warning">
-          <p>
+          <p class="actions-copy">
             Eliminar/desactivar la cuenta es una acción irreversible. Los datos deportivos del club pueden conservarse
             por motivos operativos, pero tu acceso quedará deshabilitado.
           </p>
-          <form method="post" action="{% url 'account-delete' %}" onsubmit="return confirm('¿Seguro que quieres eliminar tu cuenta? Esta acción es irreversible.');">
-            {% csrf_token %}
-            <button class="pill danger" type="submit">Eliminar cuenta</button>
-          </form>
+          <div class="danger-row">
+            <div class="actions-copy">Antes de seguir, asegúrate de no necesitar más acceso a informes, configuración o trabajo compartido del club.</div>
+            <form method="post" action="{% url 'account-delete' %}" onsubmit="return confirm('¿Seguro que quieres eliminar tu cuenta? Esta acción es irreversible.');">
+              {% csrf_token %}
+              <button class="pill danger" type="submit">Eliminar cuenta</button>
+            </form>
+          </div>
         </div>
       </div>
     </div>
