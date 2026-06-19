@@ -34,7 +34,44 @@
             linear-gradient(180deg, #050c17 0%, #08111d 100%);
 	      }
 	      .headline p { margin: 0; color: var(--muted); line-height: 1.55; }
-	      .headline h1 { margin: 0.25rem 0 0.3rem; font-size: 1.6rem; letter-spacing: -0.03em; text-wrap: balance; }
+	      .headline h1 { margin: 0.25rem 0 0.3rem; font-size: clamp(1.75rem, 3vw, 2.5rem); letter-spacing: -0.04em; text-wrap: balance; line-height: 1.02; }
+        .dash-hero {
+          padding: 1rem 1.05rem;
+          border-radius: 24px;
+          border: 1px solid rgba(255,255,255,0.10);
+          background:
+            radial-gradient(760px 260px at 0% 0%, rgba(244,180,0,0.12) 0%, rgba(244,180,0,0) 56%),
+            rgba(14, 23, 39, 0.94);
+          box-shadow: 0 24px 54px rgba(0,0,0,0.24);
+        }
+        .dash-kicker {
+          color: rgba(244,180,0,0.92);
+          font-size: 0.72rem;
+          font-weight: 900;
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
+        }
+        .dash-pills {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.45rem;
+          margin-top: 0.35rem;
+        }
+        .dash-pill {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 30px;
+          padding: 0 0.72rem;
+          border-radius: 999px;
+          border: 1px solid rgba(148,163,184,0.2);
+          background: rgba(255,255,255,0.04);
+          color: rgba(226,232,240,0.86);
+          font-size: 0.7rem;
+          font-weight: 900;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
 	      .back-link {
 	        color: rgba(255, 242, 199, 0.96);
 	        text-decoration: none;
@@ -60,6 +97,12 @@
         cursor: pointer;
         font-weight: 700;
         border-color: rgba(244, 180, 0, 0.28);
+        transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+      }
+      .toolbar button:hover {
+        transform: translateY(-1px);
+        border-color: rgba(244,180,0,0.4);
+        box-shadow: 0 14px 24px rgba(0,0,0,0.18);
       }
 	      .mode-note {
 	        margin: 0.55rem 0 0;
@@ -450,7 +493,7 @@
   <body class="prod-commercial">
     <div class="product-page product-shell">
       <div class="product-topbar player-dash" style="display:grid;grid-template-columns:1fr auto;align-items:start;margin-bottom:1rem;">
-        <div class="headline product-title-stack">
+        <div class="headline product-title-stack dash-hero">
           <a class="product-brand-strip" href="{% if home_url %}{{ home_url }}{% elif workspace_entry_url %}{{ workspace_entry_url }}{% else %}{% url 'dashboard-home' %}{% endif %}" style="margin-bottom:0.4rem; text-decoration:none; color:inherit;">
 	            <div class="product-brand-strip-copy">
 	              <strong>Segunda Jugada</strong>
@@ -458,8 +501,14 @@
 	            </div>
           </a>
           {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True hide_dragon_logo=False hide_global_guard_widget=True %}
+          <div class="dash-kicker">Player performance</div>
           <p>Dashboard jugadores · {{ team_name }}</p>
           <h1>Vista limpia de rendimiento</h1>
+          <div class="dash-pills">
+            <span class="dash-pill">Jugadores</span>
+            <span class="dash-pill">KPIs</span>
+            <span class="dash-pill">Seguimiento</span>
+          </div>
 	          <p class="mode-note product-inline-note">Perfil activo: <span class="product-chip role">{{ current_role_label }}</span> <span class="product-chip">Fase 4 · Seguimiento Jugadores</span></p>
 		          <form method="get" class="toolbar">
 		            {% if active_workspace and active_workspace.id %}<input type="hidden" name="workspace" value="{{ active_workspace.id }}" />{% endif %}
