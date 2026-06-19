@@ -9796,6 +9796,7 @@
 						      const rerenderPitch3dWithModel = () => {
 						        try {
 						          if (!pitch3dOpen) return;
+						          pitch3dLastRenderSignature = '';
 						          showPitch3dStep(activeStepIndex >= 0 ? activeStepIndex : pitch3dCurrentStep, { keepFollow: true });
 						        } catch (e) { /* ignore */ }
 						      };
