@@ -75,8 +75,8 @@
   }
 </style>
 
-<div class="guard-widget-shell is-open" id="global-guard-widget-shell" style="position:fixed; right:max(1rem, env(safe-area-inset-right)); bottom:max(1rem, env(safe-area-inset-bottom)); z-index:2147483000; display:flex; flex-direction:column; align-items:flex-end; gap:0.75rem; pointer-events:auto;">
-  <button type="button" class="guard-widget-toggle" id="global-guard-widget-toggle" aria-expanded="true" aria-controls="global-guard-widget-panel" style="border-radius:999px; border:1px solid rgba(250,204,21,0.35); background:linear-gradient(135deg, #14532d, #22c55e 60%, #facc15 140%); color:#f8fafc; padding:0.82rem 1.05rem; font-size:0.76rem; font-weight:950; letter-spacing:0.08em; text-transform:uppercase; box-shadow:0 24px 60px rgba(20,83,45,0.34); cursor:pointer; position:relative; overflow:hidden;">Guard IA</button>
+<div class="guard-widget-shell" id="global-guard-widget-shell" style="position:fixed; right:max(1rem, env(safe-area-inset-right)); bottom:max(1rem, env(safe-area-inset-bottom)); z-index:2147483000; display:flex; flex-direction:column; align-items:flex-end; gap:0.75rem; pointer-events:auto;">
+  <button type="button" class="guard-widget-toggle" id="global-guard-widget-toggle" aria-expanded="false" aria-controls="global-guard-widget-panel" style="border-radius:999px; border:1px solid rgba(250,204,21,0.35); background:linear-gradient(135deg, #14532d, #22c55e 60%, #facc15 140%); color:#f8fafc; padding:0.82rem 1.05rem; font-size:0.76rem; font-weight:950; letter-spacing:0.08em; text-transform:uppercase; box-shadow:0 24px 60px rgba(20,83,45,0.34); cursor:pointer; position:relative; overflow:hidden;">Ollana</button>
   <section class="guard-widget-panel" id="global-guard-widget-panel" aria-label="Chat global del guardián del sistema" style="width:min(420px, calc(100vw - 1.5rem)); max-height:min(78vh, 760px); overflow:hidden; display:flex; flex-direction:column; box-shadow:0 28px 80px rgba(2,6,23,0.45); border:1px solid rgba(163,230,53,0.16); background:radial-gradient(circle at top right, rgba(250,204,21,0.14), transparent 30%), linear-gradient(180deg, rgba(8,31,20,0.98) 0%, rgba(3,14,10,0.98) 100%); border-radius:22px; padding:0.9rem; color:#e5e7eb; font-family:var(--prod-font-ui, 'Avenir Next', 'Inter', 'Segoe UI', system-ui, sans-serif); position:relative; isolation:isolate;">
     <div class="guard-chat-header">
       <div>
@@ -212,7 +212,7 @@
     if (!shellEl || !toggleEl) return;
     shellEl.classList.toggle('is-open', Boolean(open));
     toggleEl.setAttribute('aria-expanded', open ? 'true' : 'false');
-    toggleEl.textContent = open ? 'Ocultar Guard IA' : 'Abrir Guard IA';
+    toggleEl.textContent = open ? 'Cerrar Ollana' : 'Ollana';
   };
   const actionPresets = {
     status: { message: 'Revisa el estado actual del sistema y resúmelo para esta pantalla.', runSmoke: false, autoFix: false, maintenanceAction: '' },
@@ -550,6 +550,6 @@
   });
   toggleEl?.addEventListener('click', () => setOpen(!shellEl?.classList.contains('is-open')));
   closeEl?.addEventListener('click', () => setOpen(false));
-  setOpen(true);
+  setOpen(false);
 })();
 </script>
