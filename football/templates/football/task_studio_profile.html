@@ -6,45 +6,476 @@
     <title>Perfil Task Studio</title>
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
     <style>
-      :root { --bg:#08111d; --panel: rgba(11, 19, 33, 0.95); --ink:#f5f7fa; --muted: rgba(226,232,240,0.74); --line: rgba(148,163,184,0.18); }
-      body { margin:0; min-height:100vh; background: var(--bg); color: var(--ink); font-family: system-ui, -apple-system, Segoe UI, Arial; }
-      .wrap { max-width: 900px; margin: 0 auto; padding: 18px 16px; }
-      .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
-      label { display:block; font-size: 13px; opacity: .92; }
-      input { width: 100%; padding: 10px 12px; margin-top: 6px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255,255,255,0.04); color: var(--ink); }
-      button { padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line); background: rgba(250,204,21,0.16); color: var(--ink); font-weight: 700; cursor: pointer; }
+      :root {
+        --bg: #08111d;
+        --panel: rgba(11, 19, 33, 0.95);
+        --panel-soft: rgba(15, 23, 39, 0.84);
+        --ink: #f5f7fa;
+        --muted: rgba(226, 232, 240, 0.74);
+        --line: rgba(148, 163, 184, 0.18);
+        --line-strong: rgba(148, 163, 184, 0.3);
+        --accent: #f4b400;
+        --pitch: #2f7d32;
+        --shadow: 0 28px 68px rgba(0, 0, 0, 0.34);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at top left, rgba(244, 180, 0, 0.1), transparent 24%),
+          radial-gradient(circle at top right, rgba(47, 125, 50, 0.09), transparent 18%),
+          linear-gradient(180deg, #050c17 0%, #08111d 100%);
+        color: var(--ink);
+        font-family: "Avenir Next", "Inter", "Segoe UI", sans-serif;
+      }
+      .wrap {
+        max-width: 1160px;
+        margin: 0 auto;
+        padding: 1rem 1rem 2.4rem;
+      }
+      .topbar,
+      .hero,
+      .panel,
+      .swatch,
+      .tip {
+        border: 1px solid var(--line);
+        box-shadow: var(--shadow);
+      }
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        padding: 0.95rem 1.05rem;
+        border-radius: 24px;
+        background: rgba(10, 18, 30, 0.9);
+        flex-wrap: wrap;
+      }
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.9rem;
+      }
+      .brand img {
+        width: 168px;
+        height: auto;
+      }
+      .brand-copy strong {
+        display: block;
+        font-size: 0.8rem;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+      }
+      .brand-copy span {
+        display: block;
+        margin-top: 0.2rem;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      .topbar-kicker {
+        display: block;
+        margin-bottom: 0.2rem;
+        color: #f6d57a;
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+      .top-actions {
+        display: inline-flex;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        padding: 0.72rem 1rem;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--ink);
+        text-decoration: none;
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+      }
+      .pill:hover,
+      .submit-btn:hover {
+        transform: translateY(-1px);
+        border-color: rgba(244, 180, 0, 0.34);
+      }
+      .pill.primary,
+      .submit-btn {
+        border-color: transparent;
+        color: #09121d;
+        background: linear-gradient(135deg, var(--accent), var(--pitch));
+      }
+      .hero,
+      .panel {
+        border-radius: 28px;
+        background: var(--panel);
+      }
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(300px, 0.95fr);
+        gap: 1rem;
+        padding: 1.25rem;
+        overflow: hidden;
+      }
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        padding: 0.34rem 0.7rem;
+        border-radius: 999px;
+        border: 1px solid rgba(244, 180, 0, 0.2);
+        background: linear-gradient(135deg, rgba(244, 180, 0, 0.12), rgba(47, 125, 50, 0.1));
+        color: #fff4cf;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .hero h1 {
+        margin: 0.85rem 0 0.55rem;
+        max-width: 12ch;
+        font-size: clamp(2.3rem, 5vw, 4rem);
+        line-height: 0.95;
+        letter-spacing: -0.04em;
+        text-wrap: balance;
+      }
+      .hero p {
+        margin: 0;
+        max-width: 58ch;
+        color: var(--muted);
+        line-height: 1.65;
+      }
+      .hero-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin-top: 1rem;
+      }
+      .hero-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.42rem 0.72rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.05);
+        color: #f8fbff;
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+      .preview-card {
+        border-radius: 24px;
+        padding: 1.05rem;
+        background:
+          radial-gradient(circle at top left, rgba(244, 180, 0, 0.16), transparent 36%),
+          linear-gradient(160deg, rgba(7, 16, 30, 0.94), rgba(22, 45, 31, 0.9));
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        display: grid;
+        gap: 1rem;
+        align-content: start;
+      }
+      .preview-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+      .preview-title strong {
+        display: block;
+        font-size: 1.05rem;
+      }
+      .preview-title span {
+        display: block;
+        margin-top: 0.25rem;
+        color: rgba(226, 232, 240, 0.72);
+        font-size: 0.88rem;
+      }
+      .preview-mark {
+        width: 56px;
+        height: 56px;
+        border-radius: 18px;
+        background: linear-gradient(135deg, var(--accent), var(--pitch));
+        display: grid;
+        place-items: center;
+        color: #09121d;
+        font-weight: 900;
+        font-size: 1.1rem;
+      }
+      .swatch-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+      }
+      .swatch {
+        border-radius: 18px;
+        padding: 0.85rem;
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .swatch-color {
+        height: 78px;
+        border-radius: 14px;
+        margin-bottom: 0.7rem;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+      }
+      .swatch span {
+        display: block;
+        color: #9db4d7;
+        font-size: 0.72rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .swatch strong {
+        display: block;
+        margin-top: 0.18rem;
+        font-size: 0.98rem;
+      }
+      .layout {
+        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+        gap: 1rem;
+      }
+      .panel {
+        padding: 1.15rem;
+      }
+      .panel h2 {
+        margin: 0;
+        font-size: 1.2rem;
+        letter-spacing: -0.02em;
+      }
+      .panel p {
+        margin: 0.45rem 0 0;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+      .form-grid {
+        display: grid;
+        gap: 0.9rem;
+        margin-top: 1rem;
+      }
+      .triple-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.9rem;
+      }
+      label {
+        display: grid;
+        gap: 0.38rem;
+        font-size: 0.82rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(245, 247, 250, 0.92);
+      }
+      .field-note {
+        font-size: 0.82rem;
+        font-weight: 600;
+        letter-spacing: normal;
+        text-transform: none;
+        color: var(--muted);
+      }
+      input {
+        width: 100%;
+        min-height: 48px;
+        padding: 0.82rem 0.9rem;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--ink);
+        font: inherit;
+        transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+      }
+      input:focus {
+        outline: none;
+        border-color: rgba(244, 180, 0, 0.44);
+        background: rgba(255, 255, 255, 0.06);
+        box-shadow: 0 0 0 3px rgba(244, 180, 0, 0.12);
+      }
+      .submit-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-top: 1.15rem;
+      }
+      .submit-copy {
+        color: var(--muted);
+        line-height: 1.6;
+      }
+      .submit-btn {
+        min-height: 48px;
+        padding: 0.82rem 1.15rem;
+        border-radius: 999px;
+        font: inherit;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      .tips {
+        display: grid;
+        gap: 0.75rem;
+        margin-top: 1rem;
+      }
+      .tip {
+        border-radius: 20px;
+        padding: 0.9rem 0.95rem;
+        background: var(--panel-soft);
+      }
+      .tip strong {
+        display: block;
+        font-size: 0.92rem;
+      }
+      .tip span {
+        display: block;
+        margin-top: 0.28rem;
+        color: var(--muted);
+        line-height: 1.55;
+      }
+      @media (max-width: 900px) {
+        .hero,
+        .layout,
+        .triple-grid,
+        .swatch-grid {
+          grid-template-columns: 1fr;
+        }
+        .hero h1 {
+          max-width: none;
+        }
+      }
     </style>
   </head>
   <body>
-    <div class="wrap">
-      <h1 style="margin: 0 0 12px;">Perfil Task Studio</h1>
-      <form method="post">
+    <main class="wrap">
+      <header class="topbar">
+        <div class="brand">
+          <img src="{% static 'football/logo-segunda-jugada.png' %}" alt="Segunda Jugada" />
+          <div class="brand-copy">
+            <span class="topbar-kicker">Task Studio</span>
+            <strong>Perfil visual</strong>
+            <span>Configura la identidad base para documentos, branding y entregables.</span>
+          </div>
+        </div>
+        <div class="top-actions">
+          <a class="pill" href="{% url 'task-studio-home' %}">Volver al estudio</a>
+          <a class="pill primary" href="{% url 'task-studio-home' %}#quick-actions">Crear tarea</a>
+        </div>
+      </header>
+
+      <section class="hero">
+        <div>
+          <span class="eyebrow">Identidad comercial</span>
+          <h1>Haz que cada entrega se reconozca al instante.</h1>
+          <p>Este perfil concentra el nombre del documento, la marca visible y la paleta que se aplicará en PDF, fichas, portadas y piezas compartidas desde Task Studio.</p>
+          <div class="hero-pills">
+            <span class="hero-pill">Documentos consistentes</span>
+            <span class="hero-pill">Marca clara</span>
+            <span class="hero-pill">Mejor lectura</span>
+          </div>
+        </div>
+        <aside class="preview-card" aria-label="Vista previa de identidad">
+          <div class="preview-top">
+            <div class="preview-title">
+              <strong>{{ profile.display_name|default:profile.club_name|default:"Tu club" }}</strong>
+              <span>{{ profile.document_name|default:"Plantilla de documento Task Studio" }}</span>
+            </div>
+            <div class="preview-mark">{{ profile.display_name|default:profile.club_name|default:"TS"|slice:":2"|upper }}</div>
+          </div>
+          <div class="swatch-grid">
+            <div class="swatch">
+              <div class="swatch-color" style="background: {{ profile.primary_color|default:'#0f172a' }};"></div>
+              <span>Primario</span>
+              <strong>{{ profile.primary_color|default:"#0f172a" }}</strong>
+            </div>
+            <div class="swatch">
+              <div class="swatch-color" style="background: {{ profile.secondary_color|default:'#f8fafc' }};"></div>
+              <span>Secundario</span>
+              <strong>{{ profile.secondary_color|default:"#f8fafc" }}</strong>
+            </div>
+            <div class="swatch">
+              <div class="swatch-color" style="background: {{ profile.accent_color|default:'#f4b400' }};"></div>
+              <span>Acento</span>
+              <strong>{{ profile.accent_color|default:"#f4b400" }}</strong>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <div class="layout">
+        <form method="post" class="panel">
         {% csrf_token %}
-        <div class="panel" style="display:grid; gap: 10px;">
-          <label>Nombre documento
+          <h2>Datos del perfil</h2>
+          <p>Define una nomenclatura clara y una paleta simple. Si dudas, prioriza contraste alto y una sola llamada de atención mediante el color de acento.</p>
+          <div class="form-grid">
+            <label>Nombre documento
+              <span class="field-note">Nombre interno para plantillas y exportaciones.</span>
             <input type="text" name="document_name" value="{{ profile.document_name }}" />
           </label>
-          <label>Nombre visible
+            <label>Nombre visible
+              <span class="field-note">Texto que verá el usuario final en portadas o cabeceras.</span>
             <input type="text" name="display_name" value="{{ profile.display_name }}" />
           </label>
-          <label>Club
+            <label>Club
+              <span class="field-note">Referencia institucional para unificar toda la producción.</span>
             <input type="text" name="club_name" value="{{ profile.club_name }}" />
           </label>
-          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-            <label>Primario
+            <div class="triple-grid">
+              <label>Primario
+                <span class="field-note">Fondo o tono dominante.</span>
               <input type="text" name="primary_color" value="{{ profile.primary_color }}" />
             </label>
-            <label>Secundario
+              <label>Secundario
+                <span class="field-note">Soporte visual para bloques y respiros.</span>
               <input type="text" name="secondary_color" value="{{ profile.secondary_color }}" />
             </label>
-            <label>Acento
+              <label>Acento
+                <span class="field-note">Úsalo solo para foco y acciones clave.</span>
               <input type="text" name="accent_color" value="{{ profile.accent_color }}" />
             </label>
+            </div>
           </div>
-          <button type="submit">Guardar</button>
-        </div>
-      </form>
-    </div>
+          <div class="submit-row">
+            <div class="submit-copy">Los cambios se aplicarán al ecosistema de documentos y entregables de Task Studio.</div>
+            <button class="submit-btn" type="submit">Guardar perfil</button>
+          </div>
+        </form>
+
+        <aside class="panel">
+          <h2>Buenas prácticas</h2>
+          <p>Una estética comercial no depende de muchos efectos. Depende de decisiones claras, repetibles y fáciles de leer.</p>
+          <div class="tips">
+            <article class="tip">
+              <strong>Menos colores, más consistencia</strong>
+              <span>Mantén un color principal oscuro o sólido, uno secundario neutro y un solo acento para estados de acción.</span>
+            </article>
+            <article class="tip">
+              <strong>Nombre visible corto</strong>
+              <span>Funciona mejor en cabeceras, portadas, miniaturas y formatos móviles si no supera dos o tres palabras.</span>
+            </article>
+            <article class="tip">
+              <strong>Contraste primero</strong>
+              <span>Antes de decorar, asegura que titulares, datos y CTA destaquen con claridad en cualquier pantalla.</span>
+            </article>
+          </div>
+        </aside>
+      </div>
+    </main>
   </body>
 </html>
