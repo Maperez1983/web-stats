@@ -9883,14 +9883,14 @@
 						              if ('depthTest' in cloned && cloned.depthTest !== false) cloned.depthTest = true;
 						              if ('side' in cloned && !Number.isFinite(Number(cloned.side))) cloned.side = THREE.FrontSide;
 						              if (cloned?.color?.set) {
-						                if (nodeName.includes('TEAM_PRIMARY')) cloned.color.set(primaryHex);
-						                else if (nodeName.includes('TEAM_SECONDARY')) cloned.color.set(secondaryHex);
-						                else if (nodeName.includes('TEAM_ACCENT')) cloned.color.set(accentHex);
-						                else if (isSeat) cloned.color.set(primaryHex);
-						                else if (isAccentBand) cloned.color.set(accentHex);
-						                else if (isConcrete) cloned.color.lerp(new THREE.Color(secondaryHex), 0.22);
-						                else if (isMetal) cloned.color.lerp(new THREE.Color(secondaryHex), 0.12);
-						                else if (isRoof) cloned.color.lerp(new THREE.Color(secondaryHex), 0.32);
+						                if (nodeName.includes('TEAM_PRIMARY')) cloned.color.set(stadiumPalette3d.primary);
+						                else if (nodeName.includes('TEAM_SECONDARY')) cloned.color.set(stadiumPalette3d.secondary);
+						                else if (nodeName.includes('TEAM_ACCENT')) cloned.color.set(stadiumPalette3d.accent);
+						                else if (isSeat) cloned.color.set(stadiumPalette3d.primary);
+						                else if (isAccentBand) cloned.color.set(stadiumPalette3d.accent);
+						                else if (isConcrete) cloned.color.lerp(new THREE.Color(stadiumPalette3d.secondary), 0.22);
+						                else if (isMetal) cloned.color.lerp(new THREE.Color(stadiumPalette3d.secondary), 0.12);
+						                else if (isRoof) cloned.color.lerp(new THREE.Color(stadiumPalette3d.secondary), 0.32);
 						              }
 						              if (isSeat && cloned?.color?.multiplyScalar) {
 						                const jitter = 0.82 + (stadiumColorSeed(nodeName) * 0.22);
@@ -9919,7 +9919,7 @@
 						                const brandTexture = makeTeamBrandTexture(nodeName.includes('TEAM_ACCENT') ? 'accent' : 'primary');
 						                if (brandTexture) {
 						                  cloned.map = brandTexture;
-						                  if ('emissive' in cloned && cloned.emissive?.set) cloned.emissive.set(secondaryHex);
+						                  if ('emissive' in cloned && cloned.emissive?.set) cloned.emissive.set(stadiumPalette3d.secondary);
 						                  if ('emissiveIntensity' in cloned) cloned.emissiveIntensity = 0.42;
 						                  cloned.transparent = false;
 						                }
