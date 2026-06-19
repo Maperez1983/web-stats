@@ -187,7 +187,7 @@
     <div class="page">
       <header class="topbar">
         <div class="topbar-brand">
-          {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True %}
+          {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True hide_global_guard_widget=True %}
         </div>
         <nav class="module-tabs">
           <a class="module-tab" href="{% url 'dashboard-home' %}">Dashboard</a>
@@ -796,5 +796,8 @@
         applyAdminMatchFilters();
       }
     </script>
+    {% if request.user.is_authenticated %}
+      {% include 'football/includes/global_guard_widget.html' %}
+    {% endif %}
   </body>
 </html>

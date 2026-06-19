@@ -198,7 +198,7 @@
   </head>
   <body class="prod-commercial">
     <div class="container">
-      {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True %}
+      {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True hide_global_guard_widget=True %}
       <header>
         <div>
           <p class="meta">Resumen individual del partido</p>
@@ -272,5 +272,8 @@
       </section>
     </div>
     <script src="{% static 'football/js/kpi_customizer.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>
+    {% if request.user.is_authenticated %}
+      {% include 'football/includes/global_guard_widget.html' %}
+    {% endif %}
   </body>
 </html>

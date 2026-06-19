@@ -457,7 +457,7 @@
 	              <span>2J Player · Football Intelligence</span>
 	            </div>
           </a>
-          {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True hide_dragon_logo=False %}
+          {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True hide_dragon_logo=False hide_global_guard_widget=True %}
           <p>Dashboard jugadores · {{ team_name }}</p>
           <h1>Vista limpia de rendimiento</h1>
 	          <p class="mode-note product-inline-note">Perfil activo: <span class="product-chip role">{{ current_role_label }}</span> <span class="product-chip">Fase 4 · Seguimiento Jugadores</span></p>
@@ -868,5 +868,8 @@
             applySort();
           })();
         </script>
+        {% if request.user.is_authenticated %}
+          {% include 'football/includes/global_guard_widget.html' %}
+        {% endif %}
 	  </body>
 	</html>

@@ -1,0 +1,408 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>System Guard · {{ team.name|default:"Equipo" }}</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      body { margin:0; background: linear-gradient(180deg, #020417 0%, #050b1c 100%); color:#e5e7eb; font-family:var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif); }
+      .page { max-width: 1120px; margin:0 auto; padding: 1rem 1rem 2.5rem; }
+      .top { display:flex; justify-content:space-between; align-items:flex-start; gap:0.8rem; flex-wrap:wrap; margin-bottom: 0.85rem; }
+      h1 { margin:0; font-size: 1.05rem; letter-spacing:0.08em; text-transform:uppercase; }
+      .meta { color: rgba(226,232,240,0.72); font-weight: 850; }
+      .btn { border-radius:999px; border:1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.65rem 0.9rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:0.4rem; }
+      .btn.primary { background: linear-gradient(135deg, #22d3ee, #67e8f9); border:none; color:#03253c; }
+      .card { border:1px solid rgba(148,163,184,0.18); background: rgba(2, 6, 23, 0.36); border-radius: 18px; padding: 0.9rem; }
+      .section-title { margin: 0 0 0.55rem; font-size:0.78rem; font-weight:950; letter-spacing:0.10em; text-transform:uppercase; color: rgba(226,232,240,0.9); }
+      .muted { color: rgba(226,232,240,0.72); }
+      label { display:flex; flex-direction:column; gap:0.35rem; font-size:0.74rem; font-weight:950; letter-spacing:0.06em; text-transform:uppercase; color: rgba(226,232,240,0.86); }
+      input, textarea, select { width:100%; border:1px solid rgba(255,255,255,0.18); border-radius: 14px; padding: 0.65rem 0.75rem; background: rgba(2, 6, 23, 0.55); color:#e5e7eb; font: inherit; text-transform:none; }
+      .actions { display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; justify-content:flex-end; margin-top:0.75rem; }
+      .guard-chat-log { display:grid; gap:0.45rem; margin-top:0.65rem; }
+      .guard-msg { border:1px solid rgba(148,163,184,0.18); border-radius:16px; padding:0.7rem 0.8rem; background:rgba(255,255,255,0.04); }
+      .guard-msg.user { background:rgba(8,145,178,0.14); border-color:rgba(34,211,238,0.26); }
+      .guard-msg .role { display:block; font-size:0.7rem; font-weight:950; letter-spacing:0.08em; text-transform:uppercase; color:rgba(226,232,240,0.76); margin-bottom:0.3rem; }
+      .guard-msg .body { font-weight:800; line-height:1.5; }
+      .guard-badges { display:flex; flex-wrap:wrap; gap:0.35rem; margin-top:0.55rem; }
+      .guard-badge { border-radius:999px; padding:0.2rem 0.5rem; border:1px solid rgba(255,255,255,0.16); background:rgba(255,255,255,0.05); font-size:0.72rem; font-weight:900; }
+      .guard-meta-grid { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:0.7rem; margin-bottom:0.7rem; }
+      .guard-observability { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:0.7rem; margin-bottom:0.85rem; }
+      .guard-ob-card { border:1px solid rgba(148,163,184,0.16); background:rgba(255,255,255,0.04); border-radius:16px; padding:0.75rem 0.8rem; }
+      .guard-ob-label { display:block; font-size:0.68rem; font-weight:950; letter-spacing:0.1em; text-transform:uppercase; color:rgba(226,232,240,0.68); margin-bottom:0.3rem; }
+      .guard-ob-value { font-size:1rem; font-weight:950; color:#f8fafc; }
+      .guard-ob-detail { margin-top:0.28rem; font-size:0.76rem; font-weight:800; color:rgba(226,232,240,0.8); line-height:1.45; }
+      .guard-toggle-row { display:flex; flex-wrap:wrap; gap:0.9rem; margin:0.65rem 0 0.35rem; }
+      .guard-toggle-row label { flex-direction:row; align-items:center; gap:0.45rem; text-transform:none; letter-spacing:0.02em; font-size:0.76rem; }
+      .guard-statusline { margin-top:0.65rem; font-size:0.76rem; font-weight:900; color:rgba(226,232,240,0.78); }
+      .guard-plan, .guard-remediation, .guard-diff { display:grid; gap:0.35rem; margin-top:0.55rem; }
+      .guard-plan-row { font-size:0.76rem; font-weight:800; color:rgba(226,232,240,0.82); }
+      .guard-remediation-card { border:1px solid rgba(148,163,184,0.16); border-radius:14px; padding:0.55rem 0.65rem; background:rgba(255,255,255,0.03); }
+      .guard-remediation-card strong { display:block; font-size:0.74rem; letter-spacing:0.06em; text-transform:uppercase; margin-bottom:0.22rem; }
+      .guard-remediation-card div { font-size:0.76rem; font-weight:800; color:rgba(226,232,240,0.82); line-height:1.45; }
+      .guard-diff-card { border-radius:14px; padding:0.55rem 0.65rem; font-size:0.76rem; font-weight:900; }
+      .guard-diff-card.regression { border:1px solid rgba(248,113,113,0.22); background:rgba(127,29,29,0.18); color:#fecaca; }
+      .guard-diff-card.improvement { border:1px solid rgba(74,222,128,0.22); background:rgba(20,83,45,0.18); color:#bbf7d0; }
+      @media (max-width: 900px) { .guard-meta-grid, .guard-observability { grid-template-columns:1fr 1fr; } }
+      @media (max-width: 700px) { .guard-meta-grid, .guard-observability { grid-template-columns:1fr; } }
+    </style>
+  </head>
+  <body>
+    {% include 'football/includes/dragon_nav.html' %}
+    <main class="page">
+      <div class="top">
+        <div>
+          <h1>System Guard</h1>
+          <div class="meta">Panel continuo de vigilancia operativa · {{ team.name|default:"Equipo" }}</div>
+        </div>
+        <div style="display:flex; gap:0.55rem; flex-wrap:wrap;">
+          <a class="btn" href="{% url 'dashboard-home' %}">Dashboard</a>
+          <a class="btn" href="{% url 'ai-trainer' %}?team={{ team.id }}">IA-Trainer</a>
+        </div>
+      </div>
+
+      <section class="card">
+        <div class="section-title">Guardián del sistema</div>
+        <p class="muted" style="margin:0 0 0.45rem;">Supervisa el estado, detecta regresiones, propone cambios y guía al usuario cuando el entorno se degrada.</p>
+        {% if guard_observability %}
+          <div class="guard-observability">
+            <div class="guard-ob-card">
+              <span class="guard-ob-label">Tendencia</span>
+              <div class="guard-ob-value">{{ guard_observability.trend|default:"sin_historial" }}</div>
+              <div class="guard-ob-detail">
+                {{ guard_observability.history_count|default:0 }} snapshots
+                {% if guard_observability.recent_statuses %}· {{ guard_observability.recent_statuses|join:", " }}{% endif %}
+              </div>
+            </div>
+            <div class="guard-ob-card">
+              <span class="guard-ob-label">Estabilidad LLM</span>
+              <div class="guard-ob-value">{{ guard_observability.llm_stability|default:"unknown" }}</div>
+              <div class="guard-ob-detail">
+                Degradado {{ guard_observability.degraded_rate_pct|default:0 }}%
+                {% if guard_observability.llm_states %}· {% for row in guard_observability.llm_states %}{{ row.state }} x{{ row.count }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}
+              </div>
+            </div>
+            <div class="guard-ob-card">
+              <span class="guard-ob-label">Operativa</span>
+              <div class="guard-ob-value">{{ guard_observability.executed_tools|default:0 }} tools</div>
+              <div class="guard-ob-detail">
+                {{ guard_observability.turns|default:0 }} turnos · {{ guard_observability.confirmations|default:0 }} confirmaciones
+                {% if guard_observability.last_latency_ms %}· {{ guard_observability.last_latency_ms }} ms{% endif %}
+              </div>
+            </div>
+            <div class="guard-ob-card">
+              <span class="guard-ob-label">Memoria útil</span>
+              <div class="guard-ob-value">{{ guard_observability.last_status|default:"sin_estado" }}</div>
+              <div class="guard-ob-detail">
+                {% if guard_observability.repeated_issues %}
+                  Repite {{ guard_observability.repeated_issues.0.issue_id }} x{{ guard_observability.repeated_issues.0.count }}
+                {% elif guard_observability.summary %}
+                  {{ guard_observability.summary }}
+                {% else %}
+                  Sin incidencias persistentes registradas.
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        {% endif %}
+        <div id="guard-chat-log" class="guard-chat-log">
+          <div class="guard-msg assistant">
+            <span class="role">Guardián</span>
+            <div class="body">Panel listo. Puedo revisar el sistema, detectar regresiones entre ejecuciones y sugerir correcciones operativas o de código.</div>
+          </div>
+        </div>
+        <div class="guard-controls">
+          <div id="guard-quick-actions" class="guard-quick-actions" style="display:flex; flex-wrap:wrap; gap:0.45rem; margin:0.65rem 0;">
+            <button type="button" class="btn" data-guard-action="status">Revisar estado</button>
+            <button type="button" class="btn" data-guard-action="smoke">Ejecutar smoke</button>
+            <button type="button" class="btn" data-guard-action="auto_fix">Auto-fix seguro</button>
+            <button type="button" class="btn" data-guard-action="previews">Regenerar previews</button>
+            <button type="button" class="btn" data-guard-action="reindex">Reindexar IA</button>
+          </div>
+          <div class="guard-meta-grid">
+            <label>
+              Autonomía
+              <select id="guard-autonomy-mode">
+                <option value="operator">Operador</option>
+                <option value="supervised">Supervisado</option>
+                <option value="advisor">Advisor</option>
+              </select>
+            </label>
+            <label>
+              Audiencia
+              <select id="guard-audience-mode">
+                <option value="technical">Técnica</option>
+                <option value="guided">Guiada</option>
+              </select>
+            </label>
+            <label>
+              Acciones ejecutadas
+              <input id="guard-last-tools" value="0" readonly />
+            </label>
+            <label>
+              Latencia
+              <input id="guard-last-latency" value="-" readonly />
+            </label>
+          </div>
+          <div class="guard-toggle-row">
+            <label><input type="checkbox" id="guard-run-smoke" /> Incluir smoke</label>
+            <label><input type="checkbox" id="guard-auto-fix" /> Auto-fix seguro</label>
+          </div>
+          <label style="gap:0.45rem;">
+            Mensaje
+            <textarea id="guard-chat-input" style="min-height:100px;" placeholder="Ej.: revisa logs, rutas críticas, configuración runtime y dime si hay regresiones respecto a la ejecución anterior."></textarea>
+          </label>
+          <div class="actions" style="justify-content:flex-start;">
+            <button type="button" class="btn primary" id="guard-chat-send">Enviar</button>
+            <button type="button" class="btn" id="guard-chat-clear">Limpiar</button>
+          </div>
+          <div id="guard-chat-status" class="guard-statusline"></div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      (() => {
+        const guardLogEl = document.getElementById('guard-chat-log');
+        const guardInputEl = document.getElementById('guard-chat-input');
+        const guardSendEl = document.getElementById('guard-chat-send');
+        const guardClearEl = document.getElementById('guard-chat-clear');
+        const guardSmokeEl = document.getElementById('guard-run-smoke');
+        const guardFixEl = document.getElementById('guard-auto-fix');
+        const guardStatusEl = document.getElementById('guard-chat-status');
+        const guardQuickActionsEl = document.getElementById('guard-quick-actions');
+        const guardAutonomyEl = document.getElementById('guard-autonomy-mode');
+        const guardAudienceEl = document.getElementById('guard-audience-mode');
+        const guardLastToolsEl = document.getElementById('guard-last-tools');
+        const guardLastLatencyEl = document.getElementById('guard-last-latency');
+        const guardApiUrl = "{% url 'system-guard-chat-api' %}";
+        const guardHistory = [];
+        let guardPendingExecution = null;
+        const guardActionPresets = {
+          status: { message: 'Revisa el estado actual del sistema y resúmelo.', runSmoke: false, autoFix: false, maintenanceAction: '' },
+          smoke: { message: 'Ejecuta smoke del sistema y resume incidencias.', runSmoke: true, autoFix: false, maintenanceAction: '' },
+          auto_fix: { message: 'Ejecuta auto-fix seguro y resume el estado final.', runSmoke: false, autoFix: true, maintenanceAction: '' },
+          previews: { message: 'Regenera previews y dime el resultado.', runSmoke: false, autoFix: false, maintenanceAction: 'regenerate_task_previews' },
+          reindex: { message: 'Reindexa IA Trainer y dime el resultado.', runSmoke: false, autoFix: false, maintenanceAction: 'ai_trainer_reindex' },
+        };
+        const guardCsrfToken = () => {
+          const raw = document.cookie.split(';').map((row) => row.trim()).find((row) => row.startsWith('csrftoken='));
+          return raw ? decodeURIComponent(raw.split('=').slice(1).join('=')) : '';
+        };
+        const guardSetStatus = (text, isError = false) => {
+          guardStatusEl.textContent = text || '';
+          guardStatusEl.style.color = isError ? '#fca5a5' : 'rgba(226,232,240,0.78)';
+        };
+        const guardRenderMessage = (role, text, extra = [], response = null) => {
+          const wrap = document.createElement('div');
+          wrap.className = `guard-msg ${role}`;
+          const label = document.createElement('span');
+          label.className = 'role';
+          label.textContent = role === 'user' ? 'Tú' : 'Guardián';
+          const body = document.createElement('div');
+          body.className = 'body';
+          body.textContent = text || '';
+          wrap.appendChild(label);
+          wrap.appendChild(body);
+          if (Array.isArray(extra) && extra.length) {
+            const badges = document.createElement('div');
+            badges.className = 'guard-badges';
+            extra.slice(0, 6).forEach((row) => {
+              const chip = document.createElement('span');
+              chip.className = 'guard-badge';
+              chip.textContent = String(row || '');
+              badges.appendChild(chip);
+            });
+            wrap.appendChild(badges);
+          }
+          if (response && Array.isArray(response.plan) && response.plan.length) {
+            const planEl = document.createElement('div');
+            planEl.className = 'guard-plan';
+            response.plan.slice(0, 4).forEach((row) => {
+              const line = document.createElement('div');
+              line.className = 'guard-plan-row';
+              line.textContent = `${row && row.done ? 'OK' : 'PEND'} · ${String((row && row.step) || '')}`;
+              planEl.appendChild(line);
+            });
+            wrap.appendChild(planEl);
+          }
+          if (response && response.snapshot_diff) {
+            const diffEl = document.createElement('div');
+            diffEl.className = 'guard-diff';
+            (response.snapshot_diff.regressions || []).slice(0, 2).forEach((item) => {
+              const row = document.createElement('div');
+              row.className = 'guard-diff-card regression';
+              row.textContent = `Regresión · ${String(item || '')}`;
+              diffEl.appendChild(row);
+            });
+            (response.snapshot_diff.improvements || []).slice(0, 2).forEach((item) => {
+              const row = document.createElement('div');
+              row.className = 'guard-diff-card improvement';
+              row.textContent = `Mejora · ${String(item || '')}`;
+              diffEl.appendChild(row);
+            });
+            if (diffEl.childElementCount) wrap.appendChild(diffEl);
+          }
+          if (response && response.remediation) {
+            const remediationEl = document.createElement('div');
+            remediationEl.className = 'guard-remediation';
+            const patchProposals = Array.isArray(response.remediation.patch_proposals) ? response.remediation.patch_proposals : [];
+            (response.remediation.suggestions || []).slice(0, 2).forEach((row) => {
+              const card = document.createElement('div');
+              card.className = 'guard-remediation-card';
+              const title = document.createElement('strong');
+              title.textContent = String(row.title || 'Remediación');
+              const body = document.createElement('div');
+              body.textContent = Array.isArray(row.steps) ? row.steps.map((item) => `• ${String(item)}`).join('\n') : '';
+              card.appendChild(title);
+              card.appendChild(body);
+              remediationEl.appendChild(card);
+            });
+            (response.remediation.code_changes || []).slice(0, 1).forEach((row) => {
+              const card = document.createElement('div');
+              card.className = 'guard-remediation-card';
+              const title = document.createElement('strong');
+              title.textContent = `Cambio de código · ${String(row.title || 'Propuesta')}`;
+              const body = document.createElement('div');
+              body.textContent = `${String(row.proposal || row.reason || '')}`;
+              card.appendChild(title);
+              card.appendChild(body);
+              remediationEl.appendChild(card);
+            });
+            patchProposals.slice(0, 1).forEach((row) => {
+              const card = document.createElement('div');
+              card.className = 'guard-remediation-card';
+              const title = document.createElement('strong');
+              title.textContent = `Patch dry-run · ${String(row.title || 'Propuesta')}`;
+              const body = document.createElement('div');
+              const files = Array.isArray(row.files) ? row.files.join(', ') : '';
+              body.textContent = `${String(row.summary || '')}${files ? `\nFiles: ${files}` : ''}${row.dry_run ? `\nDry run: ${row.dry_run}` : ''}`;
+              card.appendChild(title);
+              card.appendChild(body);
+              remediationEl.appendChild(card);
+            });
+            if (remediationEl.childElementCount) wrap.appendChild(remediationEl);
+          }
+          guardLogEl.appendChild(wrap);
+          guardLogEl.scrollTop = guardLogEl.scrollHeight;
+        };
+        const guardApplyMetrics = (response) => {
+          const metrics = response && response.metrics ? response.metrics : {};
+          guardLastToolsEl.value = String(metrics.executed_tools ?? '-');
+          guardLastLatencyEl.value = metrics.latency_ms ? `${metrics.latency_ms} ms` : '-';
+        };
+        const guardResetPending = () => {
+          guardPendingExecution = null;
+          guardSendEl.textContent = 'Enviar';
+          guardSendEl.dataset.confirming = '0';
+        };
+        const guardSendMessage = async (preset = null, options = {}) => {
+          const usePreset = preset && typeof preset === 'object' ? preset : null;
+          const executeConfirmed = Boolean(options.executeConfirmed);
+          const message = usePreset ? String(usePreset.message || '').trim() : String(guardInputEl.value || '').trim();
+          if (!message) {
+            guardSetStatus('Escribe un mensaje.', true);
+            return;
+          }
+          if (usePreset && guardPendingExecution && !executeConfirmed) guardResetPending();
+          if (usePreset) {
+            guardSmokeEl.checked = Boolean(usePreset.runSmoke);
+            guardFixEl.checked = Boolean(usePreset.autoFix);
+          }
+          guardRenderMessage('user', message);
+          guardHistory.push({ role: 'user', content: message });
+          guardInputEl.value = '';
+          guardSetStatus('Consultando guardián…');
+          try {
+            const resp = await fetch(guardApiUrl, {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': guardCsrfToken(),
+                Accept: 'application/json',
+              },
+              body: JSON.stringify({
+                message,
+                run_smoke: usePreset ? Boolean(usePreset.runSmoke) : Boolean(guardSmokeEl.checked),
+                auto_fix: usePreset ? Boolean(usePreset.autoFix) : Boolean(guardFixEl.checked),
+                maintenance_action: usePreset ? String(usePreset.maintenanceAction || '') : '',
+                autonomy_mode: String(guardAutonomyEl.value || 'operator'),
+                audience: String(guardAudienceEl.value || 'technical'),
+                execute_confirmed: executeConfirmed,
+                history: guardHistory,
+              }),
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || !data?.ok) throw new Error(data?.error || `HTTP ${resp.status}`);
+            const response = data?.chat?.response || {};
+            const text = String(response.message || 'Sin respuesta útil del guardián.');
+            const highlights = Array.isArray(response.highlights) ? response.highlights : [];
+            guardRenderMessage('assistant', text, highlights, response);
+            guardHistory.push({ role: 'assistant', content: text });
+            guardApplyMetrics(response);
+            const summary = data?.report?.issue_summary || {};
+            const degraded = data?.chat?.degraded ? ' · degradado' : '';
+            const confirm = response.needs_confirmation ? ` · ${response.confirmation_text || 'pendiente de confirmación'}` : '';
+            guardSetStatus(`Estado: ${response.status || 'watch'} · blockers ${summary.blockers || 0} · warnings ${summary.warnings || 0}${degraded}${confirm}`);
+            if (response.needs_confirmation) {
+              guardPendingExecution = {
+                message,
+                runSmoke: usePreset ? Boolean(usePreset.runSmoke) : Boolean(guardSmokeEl.checked),
+                autoFix: usePreset ? Boolean(usePreset.autoFix) : Boolean(guardFixEl.checked),
+                maintenanceAction: usePreset ? String(usePreset.maintenanceAction || '') : '',
+              };
+              guardSendEl.textContent = 'Confirmar ejecución';
+              guardSendEl.dataset.confirming = '1';
+            } else {
+              guardResetPending();
+            }
+          } catch (error) {
+            guardRenderMessage('assistant', `Error: ${error?.message || 'No se pudo consultar el guardián.'}`);
+            guardSetStatus(error?.message || 'No se pudo consultar el guardián.', true);
+            guardResetPending();
+          }
+        };
+        guardSendEl.addEventListener('click', () => {
+          if (guardPendingExecution && guardSendEl.dataset.confirming === '1') {
+            const ok = window.confirm(`Se va a ejecutar esta acción supervisada:\n\n${guardPendingExecution.message}\n\n¿Confirmas la ejecución?`);
+            if (!ok) {
+              guardSetStatus('Ejecución cancelada por el usuario.', true);
+              guardResetPending();
+              return;
+            }
+            const payload = { ...guardPendingExecution };
+            guardResetPending();
+            guardSendMessage(payload, { executeConfirmed: true });
+            return;
+          }
+          guardSendMessage();
+        });
+        guardInputEl.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+            event.preventDefault();
+            guardSendMessage();
+          }
+        });
+        guardClearEl.addEventListener('click', () => {
+          guardHistory.length = 0;
+          guardLogEl.innerHTML = '';
+          guardRenderMessage('assistant', 'Conversación reiniciada. Puedo revisar estado, detectar regresiones y proponer remediaciones.');
+          guardResetPending();
+          guardLastToolsEl.value = '0';
+          guardLastLatencyEl.value = '-';
+          guardSetStatus('');
+        });
+        guardQuickActionsEl.addEventListener('click', (event) => {
+          const btn = event.target.closest('[data-guard-action]');
+          if (!btn) return;
+          const preset = guardActionPresets[String(btn.getAttribute('data-guard-action') || '').trim()];
+          if (!preset) return;
+          guardSendMessage(preset);
+        });
+      })();
+    </script>
+  </body>
+</html>

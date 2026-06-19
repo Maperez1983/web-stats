@@ -1321,7 +1321,7 @@
         </div>
       </header>
 
-      {% include 'football/includes/dragon_nav.html' with hide_dragon_logo=True %}
+      {% include 'football/includes/dragon_nav.html' with hide_dragon_logo=True hide_global_guard_widget=True %}
 
       <section id="setup-banner" class="setup-banner" hidden></section>
 
@@ -2418,5 +2418,8 @@
       loadBuildInfo();
       renderDashboard();
     </script>
+    {% if request.user.is_authenticated %}
+      {% include 'football/includes/global_guard_widget.html' %}
+    {% endif %}
   </body>
 </html>

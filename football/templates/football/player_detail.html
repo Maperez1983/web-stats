@@ -718,7 +718,7 @@
 	          <span>2J Player · Football Intelligence</span>
 	        </div>
       </a>
-      {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True hide_dragon_logo=False %}
+      {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True hide_dragon_logo=False hide_global_guard_widget=True %}
       <header>
         <div class="player-head-main">
           <div class="player-photo-mini">
@@ -2292,5 +2292,8 @@
 	      })();
 	    </script>
 	    <script src="{% static 'football/js/kpi_customizer.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>
+      {% if request.user.is_authenticated %}
+        {% include 'football/includes/global_guard_widget.html' %}
+      {% endif %}
 	  </body>
 	</html>

@@ -5,21 +5,13 @@ import urllib.request
 
 
 DEFAULT_OLLAMA_URL = 'http://127.0.0.1:11434'
-DEFAULT_QWEN_MODEL = 'qwen3:8b'
-
-
-def _ollama_prompt_for_model(prompt, model):
-    text = str(prompt or '').strip()
-    model_name = str(model or '').strip().lower()
-    if model_name.startswith('qwen3') and not text.startswith('/no_think'):
-        return f'/no_think {text}'
-    return text
+DEFAULT_QWEN_MODEL = 'qwen3:1.7b'
 
 
 def local_llm_config():
     provider = str(os.getenv('AI_TRAINER_LOCAL_LLM_PROVIDER') or 'ollama').strip().lower()
     enabled = str(os.getenv('AI_TRAINER_LOCAL_LLM_ENABLED') or '1').strip().lower() not in {'0', 'false', 'no', 'off'}
-    model = str(os.getenv('AI_TRAINER_LOCAL_LLM_MODEL') or DEFAULT_QWEN_MODEL).strip() or DEFAULT_QWEN_MODEL
+    model = str(os.getenv('AI_TRAINER_LOCAL_LLM_MODEL') or os.getenv('OLLAMA_MODEL') or DEFAULT_QWEN_MODEL).strip() or DEFAULT_QWEN_MODEL
     base_url = str(os.getenv('AI_TRAINER_OLLAMA_URL') or DEFAULT_OLLAMA_URL).strip().rstrip('/') or DEFAULT_OLLAMA_URL
     timeout = 45
     try:
@@ -86,31 +78,6 @@ def build_ai_trainer_context(*, team_name, profile, phase, goal, signals, club_m
         if len(suggested_tasks) >= 8:
             break
 
-    try:
-        from .task_space_knowledge import task_space_context_for_prompt
-
-        task_space_knowledge = task_space_context_for_prompt()
-    except Exception:
-        task_space_knowledge = {}
-    try:
-        from .uefa_b_knowledge import uefa_b_context_for_prompt
-
-        uefa_b_knowledge = uefa_b_context_for_prompt()
-    except Exception:
-        uefa_b_knowledge = {}
-    try:
-        from .uefa_c_knowledge import uefa_c_context_for_prompt
-
-        uefa_c_knowledge = uefa_c_context_for_prompt()
-    except Exception:
-        uefa_c_knowledge = {}
-    try:
-        from .fifa11_injury_knowledge import fifa11_injury_context_for_prompt
-
-        fifa11_injury_knowledge = fifa11_injury_context_for_prompt()
-    except Exception:
-        fifa11_injury_knowledge = {}
-
     return {
         'team': str(team_name or '')[:120],
         'profile': str(profile or '')[:80],
@@ -132,10 +99,6 @@ def build_ai_trainer_context(*, team_name, profile, phase, goal, signals, club_m
             'behavior_rules': _compact_list(model.get('behavior_rules') if isinstance(model.get('behavior_rules'), list) else [], limit=8),
         },
         'learning_memory': learning_memory if isinstance(learning_memory, dict) else {},
-        'task_space_knowledge': task_space_knowledge if isinstance(task_space_knowledge, dict) else {},
-        'uefa_b_task_methodology': uefa_b_knowledge if isinstance(uefa_b_knowledge, dict) else {},
-        'uefa_c_task_methodology': uefa_c_knowledge if isinstance(uefa_c_knowledge, dict) else {},
-        'fifa11_injury_prevention': fifa11_injury_knowledge if isinstance(fifa11_injury_knowledge, dict) else {},
         'external_web_research': web_research if isinstance(web_research, list) else [],
         'candidate_tasks': suggested_tasks,
         'rule_proposals': [
@@ -165,14 +128,6 @@ def build_ai_trainer_prompt(context):
         'Eres un entrenador senior de fútbol y preparador metodológico. '
         'Debes ayudar a planificar microciclos, sesiones y tareas con periodización táctica. '
         'No inventes datos externos. Usa solo el contexto recibido y si falta información, dilo como cautela. '
-        'Si task_space_knowledge esta presente, usalo para calcular/razonar sobre m2 por jugador, numero de participantes, '
-        'orientacion condicional de juegos reducidos y ajustes de dimensiones. '
-        'Si uefa_b_task_methodology esta presente, usalo para revisar calidad de tareas, clima de aprendizaje, formatos didacticos, '
-        'conexion con partido, feedback, nivel del jugador y estructura de sesion. '
-        'Si uefa_c_task_methodology esta presente, usalo especialmente para tareas formativas: un objetivo claro, pocos contenidos, '
-        'progresion, variantes, toma de decision, seguridad, motivacion y adaptacion al nivel del jugador. '
-        'Si fifa11_injury_prevention esta presente, usalo para calentamientos FIFA 11+, prevencion de lesiones, adaptacion por edad, '
-        'control de riesgos y retorno progresivo; no diagnostiques ni des altas medicas. '
         'Si external_web_research contiene fuentes ok=true, úsalo como información web aportada por el sistema, '
         'citando la fuente por título o dominio cuando afecte a una recomendación. '
         'Si una fuente tiene ok=false, ignórala salvo para advertir que no pudo consultarse. '
@@ -187,12 +142,11 @@ def build_ai_trainer_prompt(context):
 
 
 def call_ollama_json(prompt, *, model=None, base_url=None, timeout=8):
-    model = str(model or DEFAULT_QWEN_MODEL).strip() or DEFAULT_QWEN_MODEL
+    model = str(model or os.getenv('OLLAMA_MODEL') or DEFAULT_QWEN_MODEL).strip() or DEFAULT_QWEN_MODEL
     base_url = str(base_url or DEFAULT_OLLAMA_URL).strip().rstrip('/') or DEFAULT_OLLAMA_URL
-    final_prompt = _ollama_prompt_for_model(prompt, model)
     body = {
         'model': model,
-        'prompt': final_prompt,
+        'prompt': str(prompt or ''),
         'stream': False,
         'format': 'json',
         'options': {
@@ -223,8 +177,6 @@ def call_ollama_json(prompt, *, model=None, base_url=None, timeout=8):
     parsed = _json_from_text(response)
     if not isinstance(parsed, dict):
         return None, 'ollama_invalid_json'
-    if set(parsed.keys()) == {'error'} and model.lower().startswith('qwen3') and not str(prompt or '').strip().startswith('/no_think'):
-        return call_ollama_json(final_prompt, model=model, base_url=base_url, timeout=timeout)
     return parsed, ''
 
 

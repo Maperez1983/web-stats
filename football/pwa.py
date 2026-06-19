@@ -29,6 +29,10 @@ def _build_id() -> str:
     try:
         base_dir = Path(__file__).resolve().parent.parent
         candidates = [
+            base_dir / "football" / "pwa.py",
+            base_dir / "football" / "templates" / "football" / "pwa_head.html",
+            base_dir / "football" / "templates" / "football" / "includes" / "global_guard_widget.html",
+            base_dir / "football" / "templates" / "football" / "includes" / "dragon_nav.html",
             base_dir / "football" / "static" / "football" / "js" / "match_actions_live.js",
             base_dir / "football" / "static" / "football" / "js" / "match_actions_page.js",
             base_dir / "football" / "static" / "football" / "js" / "match_actions_chrome.js",
@@ -36,6 +40,7 @@ def _build_id() -> str:
             base_dir / "football" / "static" / "football" / "js" / "analysis_video_studio.js",
             base_dir / "football" / "static" / "football" / "js" / "analysis_video_studio_simple_ui.js",
             base_dir / "football" / "static" / "football" / "js" / "analysis_video_studio_youtube.js",
+            base_dir / "football" / "static" / "football" / "js" / "global_help.js",
             # Tactical Pad: muy sensible a cache en iOS/Safari. Si no hay env de commit, el SW debe cambiar
             # cuando cambie el editor para evitar que se quede pegado a assets viejos.
             base_dir / "football" / "static" / "football" / "js" / "sessions_tactical_pad.js",

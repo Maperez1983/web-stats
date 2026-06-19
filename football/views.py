@@ -66369,3 +66369,102 @@ def task_assistant_knowledge_upload_api(request):
             'errors': errors,
         }
     )
+@login_required
+@require_POST
+def system_guard_chat_api(request):
+    if not _can_access_sessions_workspace(request.user):
+        return JsonResponse({'ok': False, 'error': 'No autorizado'}, status=403)
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except Exception:
+        payload = {}
+    question = str(payload.get('message') or '').strip()
+    if not question:
+        return JsonResponse({'ok': False, 'error': 'Mensaje vacío.'}, status=400)
+    run_smoke = str(payload.get('run_smoke') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    auto_fix = str(payload.get('auto_fix') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    maintenance_action = str(payload.get('maintenance_action') or '').strip()
+    autonomy_mode = str(payload.get('autonomy_mode') or 'operator').strip().lower()
+    audience = str(payload.get('audience') or 'technical').strip().lower()
+    execute_confirmed = str(payload.get('execute_confirmed') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    history = payload.get('history') if isinstance(payload.get('history'), list) else []
+    payload_page_context = payload.get('page_context') if isinstance(payload.get('page_context'), dict) else {}
+    try:
+        workspace = _get_active_workspace(request)
+    except Exception:
+        workspace = None
+    can_manage_guard = bool(_is_admin_user(request.user) or (workspace and _can_manage_workspace(request.user, workspace)))
+    try:
+        team = _get_primary_team_for_request(request) or _team_from_request_param(request)
+    except Exception:
+        team = None
+    if not can_manage_guard:
+        run_smoke = False
+        auto_fix = False
+        maintenance_action = ''
+        execute_confirmed = False
+        autonomy_mode = 'advisor'
+    page_context = {
+        'page': str(payload_page_context.get('page') or request.resolver_match.url_name or '').strip()[:120],
+        'path': str(payload_page_context.get('path') or request.path or '').strip()[:240],
+        'title': str(payload_page_context.get('title') or '').strip()[:200],
+        'team_id': int(getattr(team, 'id', 0) or 0),
+        'team_name': str(getattr(team, 'name', '') or '')[:160],
+        'workspace_id': int(getattr(workspace, 'id', 0) or 0),
+        'workspace_name': str(getattr(workspace, 'name', '') or '')[:160],
+        'user': str(getattr(request.user, 'username', '') or '')[:120],
+        'can_manage_guard': can_manage_guard,
+    }
+    try:
+        from football.system_guard import _observability_summary, run_system_guard_chat
+
+        result = run_system_guard_chat(
+            question=question,
+            history=history,
+            run_smoke=run_smoke,
+            auto_fix=auto_fix,
+            maintenance_action=maintenance_action,
+            workspace=workspace,
+            page_context=page_context,
+            actor_id=int(getattr(request.user, 'id', 0) or 0),
+            autonomy_mode=autonomy_mode,
+            audience=audience,
+            execute_confirmed=execute_confirmed,
+        )
+        result['observability'] = _observability_summary(workspace)
+        return JsonResponse({'ok': True, **result})
+    except Exception as exc:
+        return JsonResponse({'ok': False, 'error': f'{exc.__class__.__name__}: {exc}'}, status=500)
+
+
+@login_required
+@ensure_csrf_cookie
+def system_guard_page(request):
+    if not _can_access_sessions_workspace(request.user):
+        return HttpResponse('No tienes permisos para acceder al guardián del sistema.', status=403)
+    try:
+        workspace = _get_active_workspace(request)
+    except Exception:
+        workspace = None
+    if not (_is_admin_user(request.user) or (workspace and _can_manage_workspace(request.user, workspace))):
+        return HttpResponse('No autorizado.', status=403)
+    team = _get_primary_team_for_request(request) or _team_from_request_param(request)
+    if not team:
+        return HttpResponse('Equipo no configurado.', status=400)
+    guard_observability = {}
+    try:
+        from football.system_guard import _observability_summary
+        guard_observability = _observability_summary(workspace)
+    except Exception:
+        guard_observability = {}
+    return render(
+        request,
+        'football/system_guard.html',
+        {
+            'team': team,
+            'workspace': workspace,
+            'guard_observability': guard_observability,
+        },
+    )
+
+

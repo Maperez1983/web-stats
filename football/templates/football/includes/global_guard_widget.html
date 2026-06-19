@@ -1,0 +1,555 @@
+<style>
+  .guard-widget-shell { position:fixed; right:1rem; bottom:1rem; z-index:2147483000; display:flex; flex-direction:column; align-items:flex-end; gap:0.75rem; pointer-events:auto; }
+  .guard-widget-toggle { border-radius:999px; border:1px solid rgba(250,204,21,0.35); background:linear-gradient(135deg, #14532d, #22c55e 60%, #facc15 140%); color:#f8fafc; padding:0.82rem 1.05rem; font-size:0.76rem; font-weight:950; letter-spacing:0.08em; text-transform:uppercase; box-shadow:0 24px 60px rgba(20,83,45,0.34); cursor:pointer; position:relative; overflow:hidden; }
+  .guard-widget-toggle::before { content:""; position:absolute; inset:0; background:repeating-linear-gradient(90deg, transparent 0 18px, rgba(255,255,255,0.08) 18px 20px); opacity:0.35; pointer-events:none; }
+  .guard-widget-panel { width:min(420px, calc(100vw - 1.5rem)); max-height:min(78vh, 760px); overflow:hidden; display:flex; flex-direction:column; box-shadow:0 28px 80px rgba(2,6,23,0.45); border:1px solid rgba(163,230,53,0.16); background:
+    radial-gradient(circle at top right, rgba(250,204,21,0.14), transparent 30%),
+    linear-gradient(180deg, rgba(8,31,20,0.98) 0%, rgba(3,14,10,0.98) 100%);
+    border-radius:22px; padding:0.9rem; color:#e5e7eb; font-family:var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif); position:relative; isolation:isolate; }
+  .guard-widget-panel::before { content:""; position:absolute; inset:0; background:
+    linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 100% 36px, 36px 100%;
+    opacity:0.22; pointer-events:none; }
+  .guard-widget-shell:not(.is-open) .guard-widget-panel { display:none; }
+  .guard-chat-header { display:flex; justify-content:space-between; gap:0.8rem; align-items:flex-start; margin-bottom:0.35rem; }
+  .guard-chat-close { border:none; background:rgba(255,255,255,0.08); color:#f8fafc; border-radius:999px; width:2rem; height:2rem; font-size:1rem; font-weight:900; cursor:pointer; position:relative; z-index:1; }
+  .guard-chat-scroll { overflow:auto; padding-right:0.15rem; }
+  .guard-chat-log { display:grid; gap:0.45rem; margin-top:0.65rem; max-height:24vh; overflow:auto; padding-right:0.15rem; position:relative; z-index:1; }
+  .guard-msg { border:1px solid rgba(148,163,184,0.18); border-radius:16px; padding:0.7rem 0.8rem; background:rgba(255,255,255,0.04); backdrop-filter: blur(8px); }
+  .guard-msg.user { background:rgba(20,83,45,0.24); border-color:rgba(134,239,172,0.25); }
+  .guard-msg .role { display:block; font-size:0.7rem; font-weight:950; letter-spacing:0.08em; text-transform:uppercase; color:rgba(226,232,240,0.76); margin-bottom:0.3rem; }
+  .guard-msg .body { font-weight:800; line-height:1.5; }
+  .guard-badges { display:flex; flex-wrap:wrap; gap:0.35rem; margin-top:0.55rem; }
+  .guard-badge { border-radius:999px; padding:0.2rem 0.5rem; border:1px solid rgba(255,255,255,0.16); background:rgba(255,255,255,0.05); font-size:0.72rem; font-weight:900; }
+  .guard-controls { margin-top:0.7rem; }
+  .guard-quick-actions { display:flex; flex-wrap:wrap; gap:0.45rem; margin-bottom:0.6rem; }
+  .guard-meta-grid { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:0.7rem; margin-bottom:0.7rem; }
+  .guard-observability { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:0.7rem; margin-bottom:0.75rem; }
+  .guard-ob-banner { display:flex; flex-wrap:wrap; gap:0.55rem; align-items:center; margin-bottom:0.7rem; }
+  .guard-pill { display:inline-flex; align-items:center; gap:0.4rem; border-radius:999px; padding:0.35rem 0.65rem; border:1px solid rgba(255,255,255,0.16); font-size:0.74rem; font-weight:950; letter-spacing:0.04em; text-transform:uppercase; background:rgba(3,10,8,0.46); }
+  .guard-pill-dot { width:0.6rem; height:0.6rem; border-radius:999px; background:#fbbf24; box-shadow:0 0 0 3px rgba(251,191,36,0.16); }
+  .guard-pill[data-state="green"] .guard-pill-dot { background:#4ade80; box-shadow:0 0 0 3px rgba(74,222,128,0.16); }
+  .guard-pill[data-state="amber"] .guard-pill-dot { background:#fbbf24; box-shadow:0 0 0 3px rgba(251,191,36,0.16); }
+  .guard-pill[data-state="red"] .guard-pill-dot { background:#f87171; box-shadow:0 0 0 3px rgba(248,113,113,0.16); }
+  .guard-alerts { display:flex; flex-wrap:wrap; gap:0.45rem; }
+  .guard-alert-chip { display:inline-flex; align-items:center; border-radius:999px; padding:0.32rem 0.6rem; font-size:0.74rem; font-weight:900; border:1px solid rgba(148,163,184,0.2); background:rgba(255,255,255,0.04); color:#e5e7eb; cursor:pointer; }
+  .guard-alert-chip[data-level="regression"] { border-color:rgba(248,113,113,0.26); background:rgba(127,29,29,0.18); color:#fecaca; }
+  .guard-alert-chip[data-level="improvement"] { border-color:rgba(74,222,128,0.26); background:rgba(20,83,45,0.18); color:#bbf7d0; }
+  .guard-alert-chip[data-level="repeat"] { border-color:rgba(251,191,36,0.24); background:rgba(120,53,15,0.16); color:#fde68a; }
+  .guard-ob-card { border:1px solid rgba(148,163,184,0.16); background:linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.025)); border-radius:16px; padding:0.75rem 0.8rem; }
+  .guard-ob-label { display:block; font-size:0.68rem; font-weight:950; letter-spacing:0.1em; text-transform:uppercase; color:rgba(226,232,240,0.68); margin-bottom:0.3rem; }
+  .guard-ob-value { font-size:1rem; font-weight:950; color:#f8fafc; }
+  .guard-ob-detail { margin-top:0.28rem; font-size:0.76rem; font-weight:800; color:rgba(226,232,240,0.8); line-height:1.45; }
+  .guard-toggle-row { display:flex; flex-wrap:wrap; gap:0.9rem; margin:0.65rem 0 0.35rem; }
+  .guard-toggle-row label { display:flex; flex-direction:row; align-items:center; gap:0.45rem; text-transform:none; letter-spacing:0.02em; font-size:0.76rem; color:rgba(226,232,240,0.86); }
+  .guard-widget-panel label { display:flex; flex-direction:column; gap:0.35rem; font-size:0.74rem; font-weight:950; letter-spacing:0.06em; text-transform:uppercase; color: rgba(226,232,240,0.86); position:relative; z-index:1; }
+  .guard-widget-panel input, .guard-widget-panel textarea, .guard-widget-panel select { width:100%; border:1px solid rgba(255,255,255,0.18); border-radius:14px; padding:0.65rem 0.75rem; background:rgba(2, 6, 23, 0.55); color:#e5e7eb; font:inherit; text-transform:none; }
+  .guard-widget-panel textarea { min-height:88px; }
+  .guard-statusline { margin-top:0.65rem; font-size:0.76rem; font-weight:900; color:rgba(226,232,240,0.78); }
+  .guard-plan { display:grid; gap:0.25rem; margin-top:0.55rem; }
+  .guard-plan-row { font-size:0.76rem; font-weight:800; color:rgba(226,232,240,0.82); }
+  .guard-remediation { display:grid; gap:0.35rem; margin-top:0.55rem; }
+  .guard-remediation-card { border:1px solid rgba(148,163,184,0.16); border-radius:14px; padding:0.55rem 0.65rem; background:rgba(255,255,255,0.03); }
+  .guard-remediation-card strong { display:block; font-size:0.74rem; letter-spacing:0.06em; text-transform:uppercase; margin-bottom:0.22rem; }
+  .guard-remediation-card div { font-size:0.76rem; font-weight:800; color:rgba(226,232,240,0.82); line-height:1.45; white-space:pre-line; }
+  .guard-diff { display:grid; gap:0.35rem; margin-top:0.55rem; }
+  .guard-diff-card { border-radius:14px; padding:0.55rem 0.65rem; font-size:0.76rem; font-weight:900; }
+  .guard-diff-card.regression { border:1px solid rgba(248,113,113,0.22); background:rgba(127,29,29,0.18); color:#fecaca; }
+  .guard-diff-card.improvement { border:1px solid rgba(74,222,128,0.22); background:rgba(20,83,45,0.18); color:#bbf7d0; }
+  .guard-actions { display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; justify-content:flex-start; margin-top:0.75rem; }
+  .guard-btn { border-radius:999px; border:1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.65rem 0.9rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:0.4rem; }
+  .guard-btn.primary { background: linear-gradient(135deg, #14532d, #22c55e 68%, #facc15 140%); border:none; color:#f8fafc; }
+  .guard-score-strip { display:grid; grid-template-columns:1fr auto 1fr; gap:0.55rem; align-items:center; margin-bottom:0.7rem; position:relative; z-index:1; }
+  .guard-score-side { border-radius:14px; padding:0.45rem 0.6rem; background:rgba(255,255,255,0.055); border:1px solid rgba(255,255,255,0.1); }
+  .guard-score-side strong { display:block; font-size:0.68rem; letter-spacing:0.08em; text-transform:uppercase; color:rgba(226,232,240,0.68); }
+  .guard-score-side span { display:block; margin-top:0.18rem; font-size:0.86rem; font-weight:950; color:#f8fafc; }
+  .guard-score-center { min-width:76px; text-align:center; border-radius:16px; padding:0.5rem 0.7rem; background:linear-gradient(180deg, rgba(20,83,45,0.9), rgba(10,35,25,0.92)); border:1px solid rgba(250,204,21,0.26); box-shadow: inset 0 1px 0 rgba(255,255,255,0.08); }
+  .guard-score-center strong { display:block; font-size:1.15rem; font-weight:1000; color:#f8fafc; letter-spacing:0.08em; }
+  .guard-score-center span { display:block; margin-top:0.18rem; font-size:0.62rem; font-weight:950; letter-spacing:0.12em; text-transform:uppercase; color:#bbf7d0; }
+  @media (max-width: 900px) { .guard-meta-grid, .guard-observability { grid-template-columns:1fr 1fr; } }
+  @media (max-width: 700px) {
+    .guard-meta-grid, .guard-observability { grid-template-columns:1fr; }
+    .guard-widget-shell { right:0.75rem; left:0.75rem; bottom:0.75rem; align-items:stretch; }
+    .guard-widget-panel { width:auto; max-height:72vh; }
+  }
+</style>
+
+<div class="guard-widget-shell is-open" id="global-guard-widget-shell" style="position:fixed; right:max(1rem, env(safe-area-inset-right)); bottom:max(1rem, env(safe-area-inset-bottom)); z-index:2147483000; display:flex; flex-direction:column; align-items:flex-end; gap:0.75rem; pointer-events:auto;">
+  <button type="button" class="guard-widget-toggle" id="global-guard-widget-toggle" aria-expanded="true" aria-controls="global-guard-widget-panel" style="border-radius:999px; border:1px solid rgba(250,204,21,0.35); background:linear-gradient(135deg, #14532d, #22c55e 60%, #facc15 140%); color:#f8fafc; padding:0.82rem 1.05rem; font-size:0.76rem; font-weight:950; letter-spacing:0.08em; text-transform:uppercase; box-shadow:0 24px 60px rgba(20,83,45,0.34); cursor:pointer; position:relative; overflow:hidden;">Guard IA</button>
+  <section class="guard-widget-panel" id="global-guard-widget-panel" aria-label="Chat global del guardián del sistema" style="width:min(420px, calc(100vw - 1.5rem)); max-height:min(78vh, 760px); overflow:hidden; display:flex; flex-direction:column; box-shadow:0 28px 80px rgba(2,6,23,0.45); border:1px solid rgba(163,230,53,0.16); background:radial-gradient(circle at top right, rgba(250,204,21,0.14), transparent 30%), linear-gradient(180deg, rgba(8,31,20,0.98) 0%, rgba(3,14,10,0.98) 100%); border-radius:22px; padding:0.9rem; color:#e5e7eb; font-family:var(--prod-font-ui, 'Avenir Next', 'Inter', 'Segoe UI', system-ui, sans-serif); position:relative; isolation:isolate;">
+    <div class="guard-chat-header">
+      <div>
+        <div class="section-title" style="margin:0 0 0.25rem; font-size:0.78rem; font-weight:950; letter-spacing:0.10em; text-transform:uppercase; color: rgba(226,232,240,0.9);">Cabina Técnica Ollana</div>
+        <p style="margin:0; color:rgba(226,232,240,0.72); font-weight:800;">Inspector del sistema, asistente transversal y analista de partido para cualquier duda o incidencia.</p>
+      </div>
+      <button type="button" class="guard-chat-close" id="global-guard-widget-close" aria-label="Ocultar chat">×</button>
+    </div>
+    <div class="guard-chat-scroll">
+      <div class="guard-score-strip">
+        <div class="guard-score-side">
+          <strong>Local</strong>
+          <span>Sistema</span>
+        </div>
+        <div class="guard-score-center">
+          <strong>2J</strong>
+          <span>Sala VAR</span>
+        </div>
+        <div class="guard-score-side" style="text-align:right;">
+          <strong>Visitante</strong>
+          <span>Usuario</span>
+        </div>
+      </div>
+      <div class="guard-ob-banner">
+        <div class="guard-pill" id="global-guard-health-pill" data-state="{{ guard_observability.health_state|default:'amber' }}">
+          <span class="guard-pill-dot"></span>
+          <span data-guard-health-text>
+            {% if guard_observability.health_state == 'red' %}Atención{% elif guard_observability.health_state == 'green' %}Estable{% else %}Vigilancia{% endif %}
+          </span>
+        </div>
+        <div class="guard-alerts" id="global-guard-alerts">
+          {% for row in guard_observability.alerts %}
+            <button type="button" class="guard-alert-chip" data-level="{{ row.level|default:'repeat' }}" data-guard-alert="{{ row.text|escape }}">{{ row.text }}</button>
+          {% empty %}
+            <button type="button" class="guard-alert-chip" data-level="improvement" data-guard-alert="Sin alertas recientes">Sin alertas recientes</button>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="guard-observability" id="global-guard-observability">
+        <div class="guard-ob-card">
+          <span class="guard-ob-label">Tendencia</span>
+          <div class="guard-ob-value" data-guard-ob-value="trend">{{ guard_observability.trend|default:"sin_historial" }}</div>
+          <div class="guard-ob-detail" data-guard-ob-detail="trend">{{ guard_observability.history_count|default:0 }} snapshots{% if guard_observability.recent_statuses %}· {{ guard_observability.recent_statuses|join:", " }}{% endif %}</div>
+        </div>
+        <div class="guard-ob-card">
+          <span class="guard-ob-label">Estabilidad LLM</span>
+          <div class="guard-ob-value" data-guard-ob-value="llm">{{ guard_observability.llm_stability|default:"unknown" }}</div>
+          <div class="guard-ob-detail" data-guard-ob-detail="llm">Degradado {{ guard_observability.degraded_rate_pct|default:0 }}%{% if guard_observability.llm_states %}· {% for row in guard_observability.llm_states %}{{ row.state }} x{{ row.count }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}</div>
+        </div>
+        <div class="guard-ob-card">
+          <span class="guard-ob-label">Operativa</span>
+          <div class="guard-ob-value" data-guard-ob-value="ops">{{ guard_observability.executed_tools|default:0 }} tools</div>
+          <div class="guard-ob-detail" data-guard-ob-detail="ops">{{ guard_observability.turns|default:0 }} turnos · {{ guard_observability.confirmations|default:0 }} confirmaciones{% if guard_observability.last_latency_ms %}· {{ guard_observability.last_latency_ms }} ms{% endif %}</div>
+        </div>
+        <div class="guard-ob-card">
+          <span class="guard-ob-label">Memoria útil</span>
+          <div class="guard-ob-value" data-guard-ob-value="memory">{{ guard_observability.last_status|default:"sin_estado" }}</div>
+          <div class="guard-ob-detail" data-guard-ob-detail="memory">{% if guard_observability.repeated_issues %}Repite {{ guard_observability.repeated_issues.0.issue_id }} x{{ guard_observability.repeated_issues.0.count }}{% elif guard_observability.summary %}{{ guard_observability.summary }}{% else %}Sin incidencias persistentes registradas.{% endif %}</div>
+        </div>
+      </div>
+      <div id="global-guard-chat-log" class="guard-chat-log">
+        <div class="guard-msg assistant">
+          <span class="role">Guardián</span>
+          <div class="body">Estoy en banda para revisar el sistema, resolver dudas del usuario y proponerte la mejor jugada operativa.</div>
+        </div>
+      </div>
+      <div class="guard-controls">
+        <div id="global-guard-quick-actions" class="guard-quick-actions">
+          <button type="button" class="guard-btn" data-guard-action="status">Revisar estado</button>
+          <button type="button" class="guard-btn" data-guard-action="help">Ayudar usuario</button>
+          <button type="button" class="guard-btn" data-guard-action="smoke">Ejecutar smoke</button>
+          <button type="button" class="guard-btn" data-guard-action="auto_fix">Auto-fix seguro</button>
+        </div>
+        <div class="guard-meta-grid">
+          <label>Autonomía<select id="global-guard-autonomy-mode"><option value="operator">Operador</option><option value="supervised">Supervisado</option><option value="advisor">Advisor</option></select></label>
+          <label>Audiencia<select id="global-guard-audience-mode"><option value="technical">Técnica</option><option value="guided">Guiada</option></select></label>
+          <label>Acciones ejecutadas<input id="global-guard-last-tools" value="0" readonly /></label>
+          <label>Latencia<input id="global-guard-last-latency" value="-" readonly /></label>
+        </div>
+        <div class="guard-toggle-row">
+          <label><input type="checkbox" id="global-guard-run-smoke" /> Incluir smoke</label>
+          <label><input type="checkbox" id="global-guard-auto-fix" /> Auto-fix seguro</label>
+        </div>
+        <label>Mensaje<textarea id="global-guard-chat-input" placeholder="Ej.: hay un error al guardar, explícame qué pasa y cómo resolverlo; o guía al usuario paso a paso."></textarea></label>
+        <div class="guard-actions">
+          <button type="button" class="guard-btn primary" id="global-guard-chat-send">Enviar</button>
+          <button type="button" class="guard-btn" id="global-guard-chat-clear">Limpiar</button>
+        </div>
+        <div id="global-guard-chat-status" class="guard-statusline"></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  if (window.__globalGuardWidgetInitialized) return;
+  window.__globalGuardWidgetInitialized = true;
+  const shellEl = document.getElementById('global-guard-widget-shell');
+  const toggleEl = document.getElementById('global-guard-widget-toggle');
+  const closeEl = document.getElementById('global-guard-widget-close');
+  const logEl = document.getElementById('global-guard-chat-log');
+  const inputEl = document.getElementById('global-guard-chat-input');
+  const sendEl = document.getElementById('global-guard-chat-send');
+  const clearEl = document.getElementById('global-guard-chat-clear');
+  const smokeEl = document.getElementById('global-guard-run-smoke');
+  const fixEl = document.getElementById('global-guard-auto-fix');
+  const statusEl = document.getElementById('global-guard-chat-status');
+  const quickActionsEl = document.getElementById('global-guard-quick-actions');
+  const autonomyEl = document.getElementById('global-guard-autonomy-mode');
+  const audienceEl = document.getElementById('global-guard-audience-mode');
+  const lastToolsEl = document.getElementById('global-guard-last-tools');
+  const lastLatencyEl = document.getElementById('global-guard-last-latency');
+  const observabilityEl = document.getElementById('global-guard-observability');
+  const healthPillEl = document.getElementById('global-guard-health-pill');
+  const alertsEl = document.getElementById('global-guard-alerts');
+  const apiUrl = "{% url 'system-guard-chat-api' %}";
+  const history = [];
+  let pendingExecution = null;
+
+  const mountToBody = () => {
+    if (!shellEl || !document.body) return;
+    if (shellEl.parentElement === document.body) return;
+    document.body.appendChild(shellEl);
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', mountToBody, { once: true });
+  } else {
+    mountToBody();
+  }
+
+  const setOpen = (open) => {
+    if (!shellEl || !toggleEl) return;
+    shellEl.classList.toggle('is-open', Boolean(open));
+    toggleEl.setAttribute('aria-expanded', open ? 'true' : 'false');
+    toggleEl.textContent = open ? 'Ocultar Guard IA' : 'Abrir Guard IA';
+  };
+  const actionPresets = {
+    status: { message: 'Revisa el estado actual del sistema y resúmelo para esta pantalla.', runSmoke: false, autoFix: false, maintenanceAction: '' },
+    help: { message: 'Ayúdame con esta pantalla y responde como asistente del producto, guiando al usuario de forma clara.', runSmoke: false, autoFix: false, maintenanceAction: '' },
+    smoke: { message: 'Ejecuta smoke del sistema y resume incidencias relevantes para esta pantalla.', runSmoke: true, autoFix: false, maintenanceAction: '' },
+    auto_fix: { message: 'Propón y, si procede, ejecuta auto-fix seguro para la incidencia detectada.', runSmoke: false, autoFix: true, maintenanceAction: '' },
+  };
+  const alertPresetFromRow = (row) => {
+    const text = String((row && row.text) || '').trim();
+    const level = String((row && row.level) || '').trim().toLowerCase();
+    if (!text || text === 'Sin alertas recientes') return null;
+    if (level === 'regression') return { message: `Ataja esta regresión: ${text}. Revisa estado, logs y configuración implicada y guía al usuario con pasos concretos.`, runSmoke: true, autoFix: false, maintenanceAction: '' };
+    if (level === 'repeat') return { message: `Investiga esta incidencia repetida: ${text}. Compara ejecuciones previas y dame la remediación prioritaria para sistema y usuario.`, runSmoke: false, autoFix: false, maintenanceAction: '' };
+    return { message: `Resume esta mejora y cómo consolidarla sin romper el sistema: ${text}.`, runSmoke: false, autoFix: false, maintenanceAction: '' };
+  };
+  const csrfToken = () => {
+    const raw = document.cookie.split(';').map((row) => row.trim()).find((row) => row.startsWith('csrftoken='));
+    return raw ? decodeURIComponent(raw.split('=').slice(1).join('=')) : '';
+  };
+  const setStatus = (text, isError = false) => {
+    if (!statusEl) return;
+    statusEl.textContent = text || '';
+    statusEl.style.color = isError ? '#fca5a5' : 'rgba(226,232,240,0.78)';
+  };
+  const renderMessage = (role, text, extra = [], response = null) => {
+    if (!logEl) return;
+    const wrap = document.createElement('div');
+    wrap.className = `guard-msg ${role}`;
+    const label = document.createElement('span');
+    label.className = 'role';
+    label.textContent = role === 'user' ? 'Tú' : 'Guardián';
+    const body = document.createElement('div');
+    body.className = 'body';
+    body.textContent = text || '';
+    wrap.appendChild(label);
+    wrap.appendChild(body);
+    if (Array.isArray(extra) && extra.length) {
+      const badges = document.createElement('div');
+      badges.className = 'guard-badges';
+      extra.slice(0, 6).forEach((row) => {
+        const chip = document.createElement('span');
+        chip.className = 'guard-badge';
+        chip.textContent = String(row || '');
+        badges.appendChild(chip);
+      });
+      wrap.appendChild(badges);
+    }
+    if (response && Array.isArray(response.plan) && response.plan.length) {
+      const planEl = document.createElement('div');
+      planEl.className = 'guard-plan';
+      response.plan.slice(0, 4).forEach((row) => {
+        const line = document.createElement('div');
+        line.className = 'guard-plan-row';
+        line.textContent = `${row && row.done ? 'OK' : 'PEND'} · ${String((row && row.step) || '')}`;
+        planEl.appendChild(line);
+      });
+      wrap.appendChild(planEl);
+    }
+    if (response && response.snapshot_diff && typeof response.snapshot_diff === 'object') {
+      const diffEl = document.createElement('div');
+      diffEl.className = 'guard-diff';
+      (Array.isArray(response.snapshot_diff.regressions) ? response.snapshot_diff.regressions : []).slice(0, 2).forEach((item) => {
+        const row = document.createElement('div');
+        row.className = 'guard-diff-card regression';
+        row.textContent = `Regresión · ${String(item || '')}`;
+        diffEl.appendChild(row);
+      });
+      (Array.isArray(response.snapshot_diff.improvements) ? response.snapshot_diff.improvements : []).slice(0, 2).forEach((item) => {
+        const row = document.createElement('div');
+        row.className = 'guard-diff-card improvement';
+        row.textContent = `Mejora · ${String(item || '')}`;
+        diffEl.appendChild(row);
+      });
+      if (diffEl.childElementCount) wrap.appendChild(diffEl);
+    }
+    if (response && response.remediation && typeof response.remediation === 'object') {
+      const remediationEl = document.createElement('div');
+      remediationEl.className = 'guard-remediation';
+      const suggestions = Array.isArray(response.remediation.suggestions) ? response.remediation.suggestions : [];
+      const codeChanges = Array.isArray(response.remediation.code_changes) ? response.remediation.code_changes : [];
+      const patchProposals = Array.isArray(response.remediation.patch_proposals) ? response.remediation.patch_proposals : [];
+      const guides = Array.isArray(response.remediation.user_guidance) ? response.remediation.user_guidance : [];
+      suggestions.slice(0, 2).forEach((row) => {
+        const card = document.createElement('div');
+        card.className = 'guard-remediation-card';
+        const title = document.createElement('strong');
+        title.textContent = String(row.title || 'Remediación');
+        const body = document.createElement('div');
+        body.textContent = Array.isArray(row.steps) ? row.steps.map((item) => `• ${String(item)}`).join('\n') : '';
+        card.appendChild(title);
+        card.appendChild(body);
+        remediationEl.appendChild(card);
+      });
+      codeChanges.slice(0, 1).forEach((row) => {
+        const card = document.createElement('div');
+        card.className = 'guard-remediation-card';
+        const title = document.createElement('strong');
+        title.textContent = `Cambio de código · ${String(row.title || 'Propuesta')}`;
+        const body = document.createElement('div');
+        const files = Array.isArray(row.files) ? row.files.join(', ') : '';
+        body.textContent = `${String(row.reason || '')}${files ? `\nFiles: ${files}` : ''}`;
+        card.appendChild(title);
+        card.appendChild(body);
+        remediationEl.appendChild(card);
+      });
+      patchProposals.slice(0, 1).forEach((row) => {
+        const card = document.createElement('div');
+        card.className = 'guard-remediation-card';
+        const title = document.createElement('strong');
+        title.textContent = `Patch dry-run · ${String(row.title || 'Propuesta')}`;
+        const body = document.createElement('div');
+        const files = Array.isArray(row.files) ? row.files.join(', ') : '';
+        body.textContent = `${String(row.summary || '')}${files ? `\nFiles: ${files}` : ''}${row.dry_run ? `\nDry run: ${row.dry_run}` : ''}`;
+        card.appendChild(title);
+        card.appendChild(body);
+        remediationEl.appendChild(card);
+      });
+      guides.slice(0, 1).forEach((item) => {
+        const card = document.createElement('div');
+        card.className = 'guard-remediation-card';
+        const title = document.createElement('strong');
+        title.textContent = 'Guía usuario';
+        const body = document.createElement('div');
+        body.textContent = String(item || '');
+        card.appendChild(title);
+        card.appendChild(body);
+        remediationEl.appendChild(card);
+      });
+      if (remediationEl.childElementCount) wrap.appendChild(remediationEl);
+    }
+    logEl.appendChild(wrap);
+    logEl.scrollTop = logEl.scrollHeight;
+  };
+  const applyMetrics = (response) => {
+    const metrics = response && response.metrics ? response.metrics : {};
+    if (lastToolsEl) lastToolsEl.value = String(metrics.executed_tools ?? '-');
+    if (lastLatencyEl) lastLatencyEl.value = metrics.latency_ms ? `${metrics.latency_ms} ms` : '-';
+  };
+  const applyObservability = (payload) => {
+    if (!observabilityEl || !payload || typeof payload.observability !== 'object') return;
+    const ob = payload.observability || {};
+    const repeated = Array.isArray(ob.repeated_issues) ? ob.repeated_issues : [];
+    const llmStates = Array.isArray(ob.llm_states) ? ob.llm_states : [];
+    const recentStatuses = Array.isArray(ob.recent_statuses) ? ob.recent_statuses : [];
+    const alerts = Array.isArray(ob.alerts) ? ob.alerts : [];
+    const setText = (selector, text) => {
+      const node = observabilityEl.querySelector(selector);
+      if (node) node.textContent = text || '';
+    };
+    if (healthPillEl) {
+      const state = String(ob.health_state || 'amber');
+      healthPillEl.dataset.state = state;
+      const textNode = healthPillEl.querySelector('[data-guard-health-text]');
+      if (textNode) textNode.textContent = state === 'red' ? 'Atención' : (state === 'green' ? 'Estable' : 'Vigilancia');
+    }
+    if (alertsEl) {
+      alertsEl.innerHTML = '';
+      const rows = alerts.length ? alerts : [{ level: 'improvement', text: 'Sin alertas recientes' }];
+      rows.slice(0, 4).forEach((row) => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'guard-alert-chip';
+        chip.dataset.level = String(row.level || 'repeat');
+        chip.dataset.guardAlert = String(row.text || '');
+        chip.textContent = String(row.text || '');
+        alertsEl.appendChild(chip);
+      });
+    }
+    setText('[data-guard-ob-value="trend"]', String(ob.trend || 'sin_historial'));
+    setText('[data-guard-ob-detail="trend"]', `${Number(ob.history_count || 0)} snapshots${recentStatuses.length ? ` · ${recentStatuses.join(', ')}` : ''}`);
+    setText('[data-guard-ob-value="llm"]', String(ob.llm_stability || 'unknown'));
+    setText('[data-guard-ob-detail="llm"]', `Degradado ${Number(ob.degraded_rate_pct || 0)}%${llmStates.length ? ` · ${llmStates.map((row) => `${String(row.state || 'unknown')} x${Number(row.count || 0)}`).join(', ')}` : ''}`);
+    setText('[data-guard-ob-value="ops"]', `${Number(ob.executed_tools || 0)} tools`);
+    setText('[data-guard-ob-detail="ops"]', `${Number(ob.turns || 0)} turnos · ${Number(ob.confirmations || 0)} confirmaciones${ob.last_latency_ms ? ` · ${Number(ob.last_latency_ms)} ms` : ''}`);
+    setText('[data-guard-ob-value="memory"]', String(ob.last_status || 'sin_estado'));
+    if (repeated.length) {
+      setText('[data-guard-ob-detail="memory"]', `Repite ${String(repeated[0].issue_id || '')} x${Number(repeated[0].count || 0)}`);
+    } else if (ob.summary) {
+      setText('[data-guard-ob-detail="memory"]', String(ob.summary));
+    } else {
+      setText('[data-guard-ob-detail="memory"]', 'Sin incidencias persistentes registradas.');
+    }
+  };
+  const resetPending = () => {
+    pendingExecution = null;
+    if (sendEl) {
+      sendEl.textContent = 'Enviar';
+      sendEl.dataset.confirming = '0';
+    }
+  };
+  const currentPageContext = () => ({
+    page: "{{ request.resolver_match.url_name|default:''|escapejs }}",
+    path: window.location.pathname,
+    title: document.title,
+    team_id: Number("{{ active_team.id|default:0 }}") || 0,
+    team_name: "{{ active_team.name|default:''|escapejs }}",
+    workspace_id: Number("{{ active_workspace.id|default:0 }}") || 0,
+    workspace_name: "{{ active_workspace.name|default:''|escapejs }}",
+  });
+  const sendMessage = async (preset = null, options = {}) => {
+    const usePreset = preset && typeof preset === 'object' ? preset : null;
+    const executeConfirmed = Boolean(options.executeConfirmed);
+    const message = usePreset ? String(usePreset.message || '').trim() : String(inputEl?.value || '').trim();
+    if (!message) {
+      setStatus('Escribe un mensaje.', true);
+      return;
+    }
+    if (usePreset && pendingExecution && !executeConfirmed) resetPending();
+    if (usePreset) {
+      if (smokeEl) smokeEl.checked = Boolean(usePreset.runSmoke);
+      if (fixEl) fixEl.checked = Boolean(usePreset.autoFix);
+    }
+    setOpen(true);
+    renderMessage('user', message);
+    history.push({ role: 'user', content: message });
+    if (inputEl) inputEl.value = '';
+    setStatus('Consultando guardián…');
+    try {
+      const resp = await fetch(apiUrl, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken(), Accept: 'application/json' },
+        body: JSON.stringify({
+          message,
+          run_smoke: usePreset ? Boolean(usePreset.runSmoke) : Boolean(smokeEl?.checked),
+          auto_fix: usePreset ? Boolean(usePreset.autoFix) : Boolean(fixEl?.checked),
+          maintenance_action: usePreset ? String(usePreset.maintenanceAction || '') : '',
+          autonomy_mode: String(autonomyEl?.value || 'operator'),
+          audience: String(audienceEl?.value || 'technical'),
+          execute_confirmed: executeConfirmed,
+          history,
+          page_context: currentPageContext(),
+        }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data?.ok) throw new Error(data?.error || `HTTP ${resp.status}`);
+      const response = data?.chat?.response || {};
+      const text = String(response.message || 'Sin respuesta útil del guardián.');
+      const highlights = Array.isArray(response.highlights) ? response.highlights : [];
+      renderMessage('assistant', text, highlights, response);
+      history.push({ role: 'assistant', content: text });
+      if (response && typeof response.snapshot_diff === 'object' && data && typeof data.observability === 'object') {
+        const regressions = Array.isArray(response.snapshot_diff.regressions) ? response.snapshot_diff.regressions : [];
+        const improvements = Array.isArray(response.snapshot_diff.improvements) ? response.snapshot_diff.improvements : [];
+        if (regressions.length || improvements.length) {
+          const nextAlerts = [];
+          regressions.slice(0, 2).forEach((item) => nextAlerts.push({ level: 'regression', text: String(item || '') }));
+          improvements.slice(0, 1).forEach((item) => nextAlerts.push({ level: 'improvement', text: String(item || '') }));
+          data.observability.alerts = nextAlerts;
+          data.observability.regression_count = regressions.length;
+          data.observability.improvement_count = improvements.length;
+          data.observability.health_state = regressions.length ? 'red' : (improvements.length ? 'green' : (data.observability.health_state || 'amber'));
+        }
+      }
+      applyMetrics(response);
+      applyObservability(data);
+      const summary = data?.report?.issue_summary || {};
+      const degraded = data?.chat?.degraded ? ' · degradado' : '';
+      const confirm = response.needs_confirmation ? ` · ${response.confirmation_text || 'pendiente de confirmación'}` : '';
+      setStatus(`Estado: ${response.status || 'watch'} · blockers ${summary.blockers || 0} · warnings ${summary.warnings || 0}${degraded}${confirm}`);
+      if (response.needs_confirmation) {
+        pendingExecution = {
+          message,
+          runSmoke: usePreset ? Boolean(usePreset.runSmoke) : Boolean(smokeEl?.checked),
+          autoFix: usePreset ? Boolean(usePreset.autoFix) : Boolean(fixEl?.checked),
+          maintenanceAction: usePreset ? String(usePreset.maintenanceAction || '') : '',
+        };
+        if (sendEl) {
+          sendEl.textContent = 'Confirmar ejecución';
+          sendEl.dataset.confirming = '1';
+        }
+      } else {
+        resetPending();
+      }
+    } catch (error) {
+      const msg = error?.message || 'No se pudo consultar el guardián.';
+      renderMessage('assistant', `Error: ${msg}`);
+      history.push({ role: 'assistant', content: `Error: ${msg}` });
+      setStatus(msg, true);
+      resetPending();
+    }
+  };
+  sendEl?.addEventListener('click', () => {
+    if (pendingExecution && sendEl?.dataset.confirming === '1') {
+      const ok = window.confirm(`Se va a ejecutar esta acción supervisada:\n\n${pendingExecution.message}\n\n¿Confirmas la ejecución?`);
+      if (!ok) {
+        setStatus('Ejecución cancelada por el usuario.', true);
+        resetPending();
+        return;
+      }
+      const payload = { ...pendingExecution };
+      resetPending();
+      sendMessage(payload, { executeConfirmed: true });
+      return;
+    }
+    sendMessage();
+  });
+  inputEl?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+      event.preventDefault();
+      sendMessage();
+    }
+  });
+  clearEl?.addEventListener('click', () => {
+    history.length = 0;
+    if (logEl) {
+      logEl.innerHTML = '';
+      renderMessage('assistant', 'Conversación reiniciada. Puedo revisar estado, guiar al usuario y responder sobre esta pantalla o sobre el sistema.');
+    }
+    resetPending();
+    if (lastToolsEl) lastToolsEl.value = '0';
+    if (lastLatencyEl) lastLatencyEl.value = '-';
+    setStatus('');
+  });
+  quickActionsEl?.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-guard-action]');
+    if (!btn) return;
+    const key = String(btn.getAttribute('data-guard-action') || '').trim();
+    const preset = actionPresets[key];
+    if (!preset) return;
+    sendMessage(preset);
+  });
+  alertsEl?.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-guard-alert]');
+    if (!btn) return;
+    const preset = alertPresetFromRow({
+      text: String(btn.getAttribute('data-guard-alert') || '').trim(),
+      level: String(btn.getAttribute('data-level') || '').trim().toLowerCase(),
+    });
+    if (!preset) {
+      setStatus('No hay una acción prioritaria para esta alerta.', true);
+      return;
+    }
+    sendMessage(preset);
+  });
+  toggleEl?.addEventListener('click', () => setOpen(!shellEl?.classList.contains('is-open')));
+  closeEl?.addEventListener('click', () => setOpen(false));
+  setOpen(true);
+})();
+</script>

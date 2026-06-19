@@ -1300,7 +1300,7 @@
     <div class="page product-shell">
       <header class="topbar">
         <div>
-          {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True %}
+          {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True hide_global_guard_widget=True %}
           <div style="margin-top:0.55rem;">
 	            <h1>Segunda Jugada · 2J Club</h1>
           </div>
@@ -2415,5 +2415,8 @@
         });
       }
     </script>
+    {% if request.user.is_authenticated %}
+      {% include 'football/includes/global_guard_widget.html' %}
+    {% endif %}
   </body>
 </html>

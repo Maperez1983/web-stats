@@ -213,9 +213,9 @@
       {% if can_access_platform %}
       <button type="button" class="nav-command-btn nav-command-btn--panel" id="webstats-reset-cache" title="Útil en iPad/PWA cuando no ves cambios tras un deploy">Reset caché</button>
       {% endif %}
-      {% if can_access_platform and active_workspace_options and active_workspace_options|length > 1 %}
-      <div class="nav-more-subtitle">Clientes</div>
-      {% for ws in active_workspace_options %}
+  {% if can_access_platform and active_workspace_options and active_workspace_options|length > 1 %}
+  <div class="nav-more-subtitle">Clientes</div>
+  {% for ws in active_workspace_options %}
         {% if ws.kind == 'club' %}
         <a href="{% url 'platform-workspace-enter' ws.id %}">Entrar · {{ ws.label }}</a>
         {% endif %}
@@ -232,8 +232,8 @@
       <a href="{% url 'match-action-page' %}{% if active_match_id or active_team %}?{% if active_match_id %}match_id={{ active_match_id }}{% endif %}{% if active_team %}{% if active_match_id %}&{% endif %}team={{ active_team.id }}{% endif %}{% endif %}">Registro de acciones</a>
       {% if can_access_staff|default:False %}
       <a href="{% url 'coach-matches' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Partidos</a>
-      {% endif %}
-      {% endif %}
+  {% endif %}
+{% endif %}
 	      {% if workspace_module_access.match_actions|default:True %}
 	      <a href="{% url 'match-report-pdf' %}{% if active_match_id %}?match_id={{ active_match_id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% endif %}" target="_blank" rel="noreferrer">Ficha final (PDF)</a>
 	      {% endif %}
@@ -387,6 +387,9 @@
   });
 })();
 </script>
+{% endif %}
+{% if request.user.is_authenticated and not hide_global_guard_widget %}
+  {% include 'football/includes/global_guard_widget.html' %}
 {% endif %}
 
 {# Guía/tours (carga ligera y sin dependencias externas) #}

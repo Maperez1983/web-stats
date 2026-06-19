@@ -138,6 +138,115 @@
 </script>
 <script src="{% static 'football/js/pdf_viewer.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
 {% if request.user.is_authenticated %}
+<script src="{% static 'football/js/global_help.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+<script>
+  (function () {
+    try {
+      var clearKey = 'webstats:sw-reset:{{ static_build_id|default:"dev"|escapejs }}';
+      if (window.sessionStorage && window.sessionStorage.getItem(clearKey) === '1') return;
+      var markDone = function () {
+        try { window.sessionStorage && window.sessionStorage.setItem(clearKey, '1'); } catch (e) {}
+      };
+      var reset = async function () {
+        try {
+          if ('serviceWorker' in navigator && typeof navigator.serviceWorker.getRegistrations === 'function') {
+            var regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all((regs || []).map(function (reg) {
+              try { return reg.unregister(); } catch (e) { return Promise.resolve(false); }
+            }));
+          }
+        } catch (e) {}
+        try {
+          if ('caches' in window && typeof caches.keys === 'function') {
+            var keys = await caches.keys();
+            await Promise.all((keys || []).map(function (key) {
+              key = String(key || '');
+              if (!key || !key.startsWith('webstats-')) return Promise.resolve(false);
+              try { return caches.delete(key); } catch (e) { return Promise.resolve(false); }
+            }));
+          }
+        } catch (e) {}
+        markDone();
+      };
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () { reset(); }, { once: true });
+      } else {
+        reset();
+      }
+    } catch (e) {}
+  })();
+</script>
+<script>
+  (function () {
+    const launcherId = 'global-guard-fallback-launcher';
+    const mountLauncher = function () {
+      try {
+        if (!document.body || document.getElementById(launcherId)) return;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.id = launcherId;
+        btn.textContent = 'Ollana';
+        btn.setAttribute('aria-label', 'Abrir Ollana');
+        btn.style.position = 'fixed';
+        btn.style.right = 'max(14px, env(safe-area-inset-right))';
+        btn.style.bottom = 'max(14px, env(safe-area-inset-bottom))';
+        btn.style.zIndex = '2147483647';
+        btn.style.border = '1px solid rgba(250,204,21,0.42)';
+        btn.style.borderRadius = '999px';
+        btn.style.background = 'linear-gradient(135deg, #14532d, #22c55e 58%, #facc15 140%)';
+        btn.style.color = '#f8fafc';
+        btn.style.padding = '12px 16px';
+        btn.style.fontFamily = 'var(--prod-font-ui, Avenir Next, Inter, Segoe UI, system-ui, sans-serif)';
+        btn.style.fontSize = '12px';
+        btn.style.fontWeight = '950';
+        btn.style.letterSpacing = '.08em';
+        btn.style.textTransform = 'uppercase';
+        btn.style.boxShadow = '0 18px 48px rgba(20,83,45,.38)';
+        btn.style.cursor = 'pointer';
+        btn.style.pointerEvents = 'auto';
+        btn.style.webkitAppearance = 'none';
+        btn.style.appearance = 'none';
+        btn.addEventListener('click', function () {
+          try {
+            const shell = document.getElementById('global-guard-widget-shell');
+            const toggle = document.getElementById('global-guard-widget-toggle');
+            const panel = document.getElementById('global-guard-widget-panel');
+            if (shell && toggle) {
+              shell.classList.add('is-open');
+              shell.style.display = 'flex';
+              shell.style.position = 'fixed';
+              shell.style.right = 'max(14px, env(safe-area-inset-right))';
+              shell.style.bottom = 'max(14px, env(safe-area-inset-bottom))';
+              shell.style.zIndex = '2147483647';
+              toggle.setAttribute('aria-expanded', 'true');
+              if (panel) panel.style.display = 'flex';
+              const input = document.getElementById('global-guard-chat-input');
+              if (input && typeof input.focus === 'function') {
+                window.setTimeout(() => { try { input.focus(); } catch (e) {} }, 80);
+              }
+              return;
+            }
+          } catch (e) {}
+          try {
+            const nextUrl = new URL("{% url 'system-guard-page' %}", window.location.origin);
+            const current = new URL(window.location.href);
+            const team = current.searchParams.get('team') || "{{ active_team.id|default:'' }}";
+            const workspace = current.searchParams.get('workspace') || "{{ active_workspace.id|default:'' }}";
+            if (team) nextUrl.searchParams.set('team', team);
+            if (workspace) nextUrl.searchParams.set('workspace', workspace);
+            window.location.href = nextUrl.pathname + nextUrl.search;
+          } catch (e) {}
+        });
+        document.body.appendChild(btn);
+      } catch (e) {}
+    };
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', mountLauncher, { once: true });
+    } else {
+      mountLauncher();
+    }
+  })();
+</script>
 <script>
   (function () {
     // Mantiene la sesión viva en WebView/PWA cuando el usuario está leyendo/edita sin hacer requests.
