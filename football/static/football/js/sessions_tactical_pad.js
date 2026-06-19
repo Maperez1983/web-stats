@@ -9876,12 +9876,14 @@
 						              const isMetal = /RAIL|TRUSS|COLUMN|STEEL|METAL|FRAME|GUARDRAIL/.test(nodeName);
 						              const isLightOrBoard = /LED|SCOREBOARD|BOARD|SCREEN|SIGN/.test(nodeName);
 						              const isRoof = /ROOF|SOFFIT|CANOPY/.test(nodeName);
-						              const opacity = Number.isFinite(Number(cloned?.opacity)) ? clamp(Number(cloned.opacity), 0, 1) : 1;
-						              if ('opacity' in cloned) cloned.opacity = opacity;
-						              if ('transparent' in cloned) cloned.transparent = !!cloned.transparent || opacity < 0.999;
+						              if ('alphaMap' in cloned && !isGlass) cloned.alphaMap = null;
+						              if ('alphaTest' in cloned && !isGlass) cloned.alphaTest = 0;
+						              if ('opacity' in cloned) cloned.opacity = isGlass ? 0.34 : 1;
+						              if ('transparent' in cloned) cloned.transparent = !!isGlass;
 						              if ('depthWrite' in cloned && cloned.depthWrite !== false) cloned.depthWrite = true;
 						              if ('depthTest' in cloned && cloned.depthTest !== false) cloned.depthTest = true;
-						              if ('side' in cloned && !Number.isFinite(Number(cloned.side))) cloned.side = THREE.FrontSide;
+						              if ('colorWrite' in cloned) cloned.colorWrite = true;
+						              if ('side' in cloned) cloned.side = isGlass ? THREE.DoubleSide : THREE.DoubleSide;
 						              if (cloned?.color?.set) {
 						                if (nodeName.includes('TEAM_PRIMARY')) cloned.color.set(stadiumPalette3d.primary);
 						                else if (nodeName.includes('TEAM_SECONDARY')) cloned.color.set(stadiumPalette3d.secondary);
@@ -9897,11 +9899,8 @@
 						                cloned.color.multiplyScalar(jitter);
 						              }
 						              if (isGlass) {
-						                cloned.transparent = true;
-						                cloned.opacity = 0.34;
 						                if ('roughness' in cloned) cloned.roughness = 0.10;
 						                if ('metalness' in cloned) cloned.metalness = 0.02;
-						                if ('side' in cloned) cloned.side = THREE.DoubleSide;
 						                              } else if (isMetal) {
 						                if ('roughness' in cloned) cloned.roughness = 0.34;
 						                if ('metalness' in cloned) cloned.metalness = 0.34;
@@ -9926,6 +9925,9 @@
 						              }
 						              if ('roughness' in cloned && !Number.isFinite(Number(cloned.roughness))) cloned.roughness = 0.72;
 						              if ('metalness' in cloned && !Number.isFinite(Number(cloned.metalness))) cloned.metalness = 0.03;
+						              try {
+						                if ('needsUpdate' in cloned.map && cloned.map) cloned.map.needsUpdate = true;
+						              } catch (e) { /* ignore */ }
 						              cloned.needsUpdate = true;
 						              return cloned;
 						            } catch (e) {
@@ -9949,6 +9951,7 @@
 						              node.visible = false;
 						              return;
 						            }
+						            node.visible = true;
 						            try { if (node.geometry) node.geometry = node.geometry.clone(); } catch (e) { /* ignore */ }
 						            try {
 						              if (Array.isArray(node.material)) {
@@ -9981,6 +9984,15 @@
 						            kind: 'pitch_3d_professional_blender_stadium',
 						            source: 'stadium_malaga_rosaleda_glb',
 						          });
+						          try {
+						            window.__WEBSTATS_PITCH3D_STADIUM_ATTACH_INFO = {
+						              source: 'stadium_malaga_rosaleda_glb',
+						              scale,
+						              size: { x: size.x, y: size.y, z: size.z },
+						              center: { x: center.x, y: center.y, z: center.z },
+						              rootChildren: root.children.length + 1,
+						            };
+						          } catch (e) { /* ignore */ }
 						          root.add(stadiumContainer);
 						          try {
 						            window.__WEBSTATS_PITCH3D_STADIUM_SOURCE = 'stadium_malaga_rosaleda_glb';
