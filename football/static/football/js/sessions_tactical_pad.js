@@ -9810,12 +9810,72 @@
 						        });
 						        if (!assetScene) return false;
 						        try {
+						          const teamBrandName = safeText(tokenTeamName || form?.dataset?.stadiumClubName || form?.dataset?.stadiumTeamName || 'LOCAL', 'LOCAL').trim().toUpperCase();
+						          const teamBrandAbbrev = (() => {
+						            const words = teamBrandName.split(/\s+/).filter(Boolean);
+						            if (!words.length) return 'FC';
+						            if (words.length === 1) return words[0].slice(0, 3);
+						            return words.map((word) => safeText(word[0])).join('').slice(0, 4) || words[0].slice(0, 3);
+						          })();
+						          const makeTeamBrandTexture = (() => {
+						            const cache = new Map();
+						            return (variant = 'primary') => {
+						              if (cache.has(variant)) return cache.get(variant);
+						              const texture = makePitch3dCanvasTexture((ctx, c) => {
+						                const primary = stadiumPalette3d.primary;
+						                const secondary = stadiumPalette3d.secondary;
+						                const accent = stadiumPalette3d.accent;
+						                const bg = ctx.createLinearGradient(0, 0, c.width, 0);
+						                if (variant === 'accent') {
+						                  bg.addColorStop(0, accent);
+						                  bg.addColorStop(0.52, primary);
+						                  bg.addColorStop(1, accent);
+						                } else {
+						                  bg.addColorStop(0, '#04131f');
+						                  bg.addColorStop(0.22, primary);
+						                  bg.addColorStop(0.68, accent);
+						                  bg.addColorStop(1, '#04131f');
+						                }
+						                ctx.fillStyle = bg;
+						                ctx.fillRect(0, 0, c.width, c.height);
+						                ctx.fillStyle = 'rgba(255,255,255,0.14)';
+						                for (let x = 0; x < c.width; x += 56) ctx.fillRect(x, 0, 3, c.height);
+						                ctx.strokeStyle = 'rgba(255,255,255,0.42)';
+						                ctx.lineWidth = 10;
+						                ctx.strokeRect(18, 18, c.width - 36, c.height - 36);
+						                ctx.fillStyle = secondary;
+						                ctx.textAlign = 'center';
+						                ctx.textBaseline = 'middle';
+						                ctx.font = '900 120px Arial, sans-serif';
+						                ctx.fillText(teamBrandAbbrev, c.width * 0.18, c.height * 0.52);
+						                ctx.font = '900 74px Arial, sans-serif';
+						                ctx.fillText(teamBrandName.slice(0, 18), c.width * 0.60, c.height * 0.48);
+						                ctx.font = '800 34px Arial, sans-serif';
+						                ctx.fillText('SEGUNDA JUGADA', c.width * 0.60, c.height * 0.76);
+						              }, 1600, 320)?.tex || null;
+						              cache.set(variant, texture);
+						              return texture;
+						            };
+						          })();
+						          const stadiumColorSeed = (text) => {
+						            const raw = safeText(text || '').toUpperCase();
+						            let hash = 0;
+						            for (let i = 0; i < raw.length; i += 1) hash = ((hash * 33) + raw.charCodeAt(i)) >>> 0;
+						            return (hash % 1000) / 1000;
+						          };
 						          const runtimeNormalizeStadiumMaterial = (node, mat) => {
 						            try {
 						              const cloned = typeof mat?.clone === 'function'
 						                ? mat.clone()
 						                : new THREE.MeshStandardMaterial({ color: 0xd8ded8, roughness: 0.72, metalness: 0.03 });
 						              const nodeName = `${safeText(node?.name || '')} ${safeText(cloned?.name || '')}`.toUpperCase();
+						              const isSeat = /SEAT|SEATING|ROW_|CARPET_TEAM_PRIMARY|BLUE_SEAT|SEAT_FIELD/.test(nodeName);
+						              const isConcrete = /CONCRETE|TERRACE|CONCOURSE|BOWL|LIP|AISLE|STAIR|VOMITORY|FOUNDATION|SHELL/.test(nodeName);
+						              const isAccentBand = /FASCIA|APRON|OUTER_FACADE|TEAM_ACCENT|RING|TRIM|BAND/.test(nodeName);
+						                              const isGlass = /GLASS|TRANSLUCENT/.test(nodeName);
+						              const isMetal = /RAIL|TRUSS|COLUMN|STEEL|METAL|FRAME|GUARDRAIL/.test(nodeName);
+						              const isLightOrBoard = /LED|SCOREBOARD|BOARD|SCREEN|SIGN/.test(nodeName);
+						              const isRoof = /ROOF|SOFFIT|CANOPY/.test(nodeName);
 						              const opacity = Number.isFinite(Number(cloned?.opacity)) ? clamp(Number(cloned.opacity), 0, 1) : 1;
 						              if ('opacity' in cloned) cloned.opacity = opacity;
 						              if ('transparent' in cloned) cloned.transparent = !!cloned.transparent || opacity < 0.999;
@@ -9826,6 +9886,43 @@
 						                if (nodeName.includes('TEAM_PRIMARY')) cloned.color.set(primaryHex);
 						                else if (nodeName.includes('TEAM_SECONDARY')) cloned.color.set(secondaryHex);
 						                else if (nodeName.includes('TEAM_ACCENT')) cloned.color.set(accentHex);
+						                else if (isSeat) cloned.color.set(primaryHex);
+						                else if (isAccentBand) cloned.color.set(accentHex);
+						                else if (isConcrete) cloned.color.lerp(new THREE.Color(secondaryHex), 0.22);
+						                else if (isMetal) cloned.color.lerp(new THREE.Color(secondaryHex), 0.12);
+						                else if (isRoof) cloned.color.lerp(new THREE.Color(secondaryHex), 0.32);
+						              }
+						              if (isSeat && cloned?.color?.multiplyScalar) {
+						                const jitter = 0.82 + (stadiumColorSeed(nodeName) * 0.22);
+						                cloned.color.multiplyScalar(jitter);
+						              }
+						              if (isGlass) {
+						                cloned.transparent = true;
+						                cloned.opacity = 0.34;
+						                if ('roughness' in cloned) cloned.roughness = 0.10;
+						                if ('metalness' in cloned) cloned.metalness = 0.02;
+						                if ('side' in cloned) cloned.side = THREE.DoubleSide;
+						                              } else if (isMetal) {
+						                if ('roughness' in cloned) cloned.roughness = 0.34;
+						                if ('metalness' in cloned) cloned.metalness = 0.34;
+						              } else if (isConcrete) {
+						                if ('roughness' in cloned) cloned.roughness = 0.86;
+						                if ('metalness' in cloned) cloned.metalness = 0.02;
+						              } else if (isRoof) {
+						                if ('roughness' in cloned) cloned.roughness = 0.42;
+						                if ('metalness' in cloned) cloned.metalness = 0.16;
+						              } else if (isSeat) {
+						                if ('roughness' in cloned) cloned.roughness = 0.56;
+						                if ('metalness' in cloned) cloned.metalness = 0.02;
+						              }
+						              if (isLightOrBoard) {
+						                const brandTexture = makeTeamBrandTexture(nodeName.includes('TEAM_ACCENT') ? 'accent' : 'primary');
+						                if (brandTexture) {
+						                  cloned.map = brandTexture;
+						                  if ('emissive' in cloned && cloned.emissive?.set) cloned.emissive.set(secondaryHex);
+						                  if ('emissiveIntensity' in cloned) cloned.emissiveIntensity = 0.42;
+						                  cloned.transparent = false;
+						                }
 						              }
 						              if ('roughness' in cloned && !Number.isFinite(Number(cloned.roughness))) cloned.roughness = 0.72;
 						              if ('metalness' in cloned && !Number.isFinite(Number(cloned.metalness))) cloned.metalness = 0.03;
