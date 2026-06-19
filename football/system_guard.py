@@ -11,6 +11,7 @@ import urllib.request
 from datetime import datetime, timezone
 from io import StringIO
 from pathlib import Path
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.core.management import call_command
@@ -241,6 +242,63 @@ AUDIENCE_MODES = {"technical", "guided"}
 MEMORY_PREF_KEY = "system_guard:memory:v3"
 METRICS_PREF_KEY = "system_guard:metrics:v2"
 SNAPSHOTS_PREF_KEY = "system_guard:snapshots:v1"
+AUDIT_PREF_KEY = "system_guard:audit:v1"
+RUNBOOK_LIBRARY = {
+    "user_navigation": {
+        "label": "Navegación guiada",
+        "goal": "Llevar al usuario al módulo correcto con el menor número de pasos.",
+        "steps": [
+            "Identificar destino funcional o pantalla objetivo.",
+            "Confirmar ruta y contexto de equipo/workspace.",
+            "Ejecutar navegación o dejar acceso directo.",
+        ],
+    },
+    "user_guidance": {
+        "label": "Guía de usuario",
+        "goal": "Explicar la pantalla y el siguiente paso útil sin ruido técnico.",
+        "steps": [
+            "Leer el contexto de pantalla actual.",
+            "Resumir qué se puede hacer aquí.",
+            "Proponer 1-2 siguientes acciones concretas.",
+        ],
+    },
+    "silent_diagnostics": {
+        "label": "Diagnóstico silencioso",
+        "goal": "Inspeccionar estado, errores y configuración sin interrumpir al usuario.",
+        "steps": [
+            "Diagnosticar estado base.",
+            "Revisar evidencia prioritaria.",
+            "Resumir hallazgos y riesgo operativo.",
+        ],
+    },
+    "safe_repair": {
+        "label": "Reparación segura",
+        "goal": "Corregir incidencias controladas y verificar que el sistema sigue estable.",
+        "steps": [
+            "Diagnosticar la incidencia.",
+            "Aplicar corrección segura o remediación propuesta.",
+            "Verificar con check/smoke.",
+        ],
+    },
+    "operator_publish": {
+        "label": "Publicación gobernada",
+        "goal": "Validar, consolidar cambios y publicar solo con confirmación.",
+        "steps": [
+            "Inspeccionar repo y validación.",
+            "Crear commit limpio.",
+            "Solicitar confirmación y publicar.",
+        ],
+    },
+    "maintenance_runbook": {
+        "label": "Mantenimiento operativo",
+        "goal": "Ejecutar acciones internas del sistema con trazabilidad.",
+        "steps": [
+            "Identificar acción de mantenimiento.",
+            "Ejecutar herramienta asociada.",
+            "Validar resultado y registrar salida.",
+        ],
+    },
+}
 KNOWN_FIXES = {
     "DisallowedHost": {
         "title": "Corregir `DisallowedHost`",
@@ -365,6 +423,228 @@ def _tool_catalog() -> list[dict]:
             }
         )
     return rows
+
+
+def _compact_query(params: dict) -> str:
+    safe = {str(key): value for key, value in (params or {}).items() if value not in (None, "", 0, "0")}
+    return f"?{urlencode(safe)}" if safe else ""
+
+
+def _guard_route_catalog(page_context=None) -> list[dict]:
+    context = page_context if isinstance(page_context, dict) else {}
+    team_id = _safe_int(context.get("team_id"), 0)
+    workspace_id = _safe_int(context.get("workspace_id"), 0)
+    team_qs = {"team": team_id} if team_id else {}
+    workspace_qs = {"workspace": workspace_id} if workspace_id else {}
+    rows = []
+    definitions = [
+        {
+            "key": "dashboard",
+            "label": "Portada",
+            "url_name": "dashboard-home",
+            "keywords": ["portada", "inicio", "home", "dashboard"],
+            "query": team_qs,
+        },
+        {
+            "key": "analysis",
+            "label": "Vídeo análisis",
+            "url_name": "analysis",
+            "keywords": ["video analisis", "vídeo análisis", "analisis", "análisis", "video", "vídeo"],
+            "query": team_qs,
+        },
+        {
+            "key": "library",
+            "label": "Biblioteca de tareas",
+            "url_name": "sessions",
+            "keywords": ["biblioteca de tareas", "biblioteca", "tareas", "ejercicios", "task library"],
+            "query": {"tab": "library", "library_repo": "traditional", **team_qs, **workspace_qs},
+        },
+        {
+            "key": "task_builder",
+            "label": "Crear tarea",
+            "url_name": "sessions-task-create",
+            "keywords": ["crear tarea", "nueva tarea", "pizarra", "editor"],
+            "query": {**team_qs, **workspace_qs},
+        },
+        {
+            "key": "sessions",
+            "label": "Entrenamiento",
+            "url_name": "sessions",
+            "keywords": ["entrenamiento", "sesiones", "microciclo", "entrenos"],
+            "query": team_qs,
+        },
+        {
+            "key": "match",
+            "label": "Partido",
+            "url_name": "match-hub",
+            "keywords": ["partido", "match", "convocatoria", "once inicial"],
+            "query": team_qs,
+        },
+        {
+            "key": "players",
+            "label": "Jugadores",
+            "url_name": "coach-roster",
+            "keywords": ["jugadores", "jugador", "plantilla", "roster"],
+            "query": {"tab": "stats", **team_qs},
+        },
+        {
+            "key": "agenda",
+            "label": "Agenda",
+            "url_name": "team-agenda",
+            "keywords": ["agenda", "calendario"],
+            "query": team_qs,
+        },
+        {
+            "key": "staff",
+            "label": "Staff",
+            "url_name": "staff-directory",
+            "keywords": ["staff", "cuerpo tecnico", "cuerpo técnico"],
+            "query": team_qs,
+        },
+        {
+            "key": "tactics",
+            "label": "Táctica",
+            "url_name": "coach-tactics",
+            "keywords": ["tactica", "táctica", "abp", "playbook"],
+            "query": team_qs,
+        },
+        {
+            "key": "reports",
+            "label": "Informes",
+            "url_name": "reports-hub",
+            "keywords": ["informes", "reporte", "reportes", "pdf"],
+            "query": team_qs,
+        },
+        {
+            "key": "ai_trainer",
+            "label": "IA Trainer",
+            "url_name": "ai-trainer",
+            "keywords": ["ia trainer", "ai trainer", "trainer"],
+            "query": {**team_qs, **workspace_qs},
+        },
+    ]
+    for row in definitions:
+        try:
+            base_url = reverse(str(row.get("url_name") or "").strip())
+        except NoReverseMatch:
+            continue
+        rows.append({
+            "key": str(row.get("key") or ""),
+            "label": str(row.get("label") or ""),
+            "url": f"{base_url}{_compact_query(row.get('query') or {})}",
+            "keywords": [str(item or "") for item in (row.get("keywords") or []) if str(item or "").strip()],
+        })
+    return rows
+
+
+def _match_route_target(question: str, page_context=None) -> dict | None:
+    text = str(question or "").strip().lower()
+    if not text:
+        return None
+    route_rows = _guard_route_catalog(page_context)
+    best = None
+    for route in route_rows:
+        score = 0
+        for keyword in route.get("keywords") or []:
+            token = str(keyword or "").strip().lower()
+            if token and token in text:
+                score += max(2, len(token.split()) * 2)
+        if score > 0 and (best is None or score > best.get("score", 0)):
+            best = {"score": score, **route}
+    return best if best and best.get("score", 0) > 0 else None
+
+
+def _build_task_profile(question: str, *, intent: str, maintenance_action: str = "", page_context=None) -> dict:
+    route_target = _match_route_target(question, page_context)
+    kind = "support"
+    scope = "user"
+    silent_mode = True
+    runbook_key = "silent_diagnostics"
+    if route_target and re.search(r"\b(abre|abrir|ll[ée]vame|llevame|ve a|ir a|quiero ir|quiero abrir|quiero ver)\b", str(question or "").lower()):
+        kind = "navigate"
+        scope = "user"
+        silent_mode = False
+        runbook_key = "user_navigation"
+    elif intent == "guide_user":
+        kind = "guide"
+        scope = "user"
+        silent_mode = False
+        runbook_key = "user_guidance"
+    elif intent in {"publish_commit_push", "publish_commit", "publish_push"} or maintenance_action in {"git_commit_push", "git_commit", "git_push"}:
+        kind = "publish"
+        scope = "code"
+        silent_mode = True
+        runbook_key = "operator_publish"
+    elif intent in {"repair"} or maintenance_action in {"regenerate_task_previews", "ai_trainer_reindex"}:
+        kind = "repair" if intent == "repair" else "maintenance"
+        scope = "system" if kind == "repair" else "maintenance"
+        silent_mode = True
+        runbook_key = "safe_repair" if kind == "repair" else "maintenance_runbook"
+    elif intent in {"inspect_repo", "operator_validate", "inspect_errors", "inspect_routes", "inspect_config", "inspect_paths", "inspect_history", "diagnose_smoke", "diagnose_status"}:
+        kind = "diagnose"
+        scope = "system"
+        silent_mode = True
+        runbook_key = "silent_diagnostics"
+    return {
+        "kind": kind,
+        "scope": scope,
+        "silent_mode": bool(silent_mode),
+        "route_target": route_target or {},
+        "runbook_key": runbook_key,
+        "current_page": str((page_context or {}).get("page") or "").strip()[:120] if isinstance(page_context, dict) else "",
+    }
+
+
+def _runbook_payload(runbook_key: str, *, task: dict, requested_tools: list[str], confirm_required: bool) -> dict:
+    meta = RUNBOOK_LIBRARY.get(runbook_key) or RUNBOOK_LIBRARY["silent_diagnostics"]
+    stages = []
+    for step in meta.get("steps") or []:
+        stages.append({"label": str(step), "done": False})
+    if requested_tools:
+        stages.append({"label": f"Herramientas: {', '.join(requested_tools[:4])}", "done": False})
+    if confirm_required:
+        stages.append({"label": "Esperar confirmación antes de cambios sensibles", "done": False})
+    return {
+        "key": str(runbook_key or ""),
+        "label": str(meta.get("label") or ""),
+        "goal": str(meta.get("goal") or ""),
+        "stages": stages[:6],
+        "task_kind": str((task or {}).get("kind") or ""),
+    }
+
+
+def _followup_actions(task: dict, planner: dict, *, page_context=None) -> list[dict]:
+    actions = []
+    route_target = task.get("route_target") if isinstance(task, dict) else {}
+    if isinstance(route_target, dict) and route_target.get("url"):
+        actions.append({
+            "type": "navigate",
+            "label": f"Abrir {route_target.get('label')}",
+            "url": str(route_target.get("url") or ""),
+            "reason": "Navegación directa a la zona solicitada.",
+        })
+    if task.get("kind") == "guide":
+        for route in _guard_route_catalog(page_context)[:3]:
+            actions.append({
+                "type": "navigate",
+                "label": f"Ir a {route.get('label')}",
+                "url": str(route.get("url") or ""),
+                "reason": "Acceso rápido sugerido por Ollana.",
+            })
+    if planner.get("confirm_required"):
+        actions.append({
+            "type": "confirm_execution",
+            "label": "Confirmar ejecución",
+            "reason": str(planner.get("confirmation_text") or "Acción sensible pendiente."),
+        })
+    if task.get("kind") in {"support", "diagnose", "repair"}:
+        actions.append({
+            "type": "prompt",
+            "label": "Explicar incidencia",
+            "prompt": "Explícame la causa raíz y el siguiente paso recomendado.",
+            "reason": "Pedir una guía más concreta al guard.",
+        })
+    return actions[:4]
 
 
 def _environment_snapshot() -> dict:
@@ -737,6 +1017,7 @@ def _observability_summary(workspace) -> dict:
     if not isinstance(metrics, dict):
         metrics = {}
     memory = _load_memory(workspace) if workspace else {}
+    audit_rows = _load_audit_log(workspace) if workspace else []
     history = _inspect_guard_history(workspace)
     llm_counter = {}
     for row in rows[:10]:
@@ -805,7 +1086,24 @@ def _observability_summary(workspace) -> dict:
         "summary": str(memory.get("summary") or "").strip()[:280],
         "recent_actions": [str(item) for item in (memory.get("recent_actions") or [])[:4]],
         "recent_successes": [str(item) for item in (memory.get("recent_successes") or [])[:4]],
+        "audit_count": len(audit_rows),
+        "recent_audits": audit_rows[:3],
     }
+
+
+def _load_audit_log(workspace) -> list[dict]:
+    payload = _pref_value(workspace, AUDIT_PREF_KEY, [])
+    if not isinstance(payload, list):
+        return []
+    return [row for row in payload if isinstance(row, dict)][:60]
+
+
+def _append_audit_log(workspace, event: dict):
+    if not workspace or not isinstance(event, dict):
+        return
+    rows = _load_audit_log(workspace)
+    rows.insert(0, event)
+    _store_pref_value(workspace, AUDIT_PREF_KEY, rows[:60])
 
 def _memory_pref_key(actor_id=None) -> str:
     if actor_id:
@@ -1420,8 +1718,9 @@ def _tool_reason(tool_key: str, intent: str, question: str) -> str:
     return mapping.get(tool_key, f"Acción seleccionada para la intención {intent} en: {_truncate(question, 80)}")
 
 
-def _plan_tools(question: str, *, run_smoke: bool, auto_fix: bool, maintenance_action: str, autonomy_mode: str) -> dict:
+def _plan_tools(question: str, *, run_smoke: bool, auto_fix: bool, maintenance_action: str, autonomy_mode: str, page_context=None) -> dict:
     intent = _infer_intent(question)
+    task = _build_task_profile(question, intent=intent, maintenance_action=maintenance_action, page_context=page_context)
     requested_tools = []
     steps = [{"step": "Diagnosticar estado base", "done": True}]
     if maintenance_action == "git_commit_push":
@@ -1498,13 +1797,23 @@ def _plan_tools(question: str, *, run_smoke: bool, auto_fix: bool, maintenance_a
     if sensitive:
         confirm_required = True
         confirm_text = f"Confirmación requerida antes de ejecutar: {', '.join(sensitive)}."
+    runbook = _runbook_payload(
+        str(task.get("runbook_key") or "silent_diagnostics"),
+        task=task,
+        requested_tools=requested_tools,
+        confirm_required=confirm_required,
+    )
+    followup_actions = _followup_actions(task, {"confirm_required": confirm_required, "confirmation_text": confirm_text}, page_context=page_context)
     return {
         "intent": intent,
+        "task": task,
+        "runbook": runbook,
         "requested_tools": requested_tools,
         "tool_reasons": tool_reasons,
         "steps": steps[:6],
         "confirm_required": confirm_required,
         "confirmation_text": confirm_text,
+        "followup_actions": followup_actions,
     }
 
 
@@ -1851,6 +2160,9 @@ def _fallback_response(report: dict, *, question: str, planner: dict, audience: 
         message += f" Respuesta en modo degradado: {degraded_reason}."
     remediation = _build_remediation_plan(report, executions or [], snapshot_diff=snapshot_diff or {})
     actions = _fallback_actions(report, executions or [], planner)
+    task = planner.get("task") if isinstance(planner.get("task"), dict) else {}
+    runbook = planner.get("runbook") if isinstance(planner.get("runbook"), dict) else {}
+    ui_actions = planner.get("followup_actions") if isinstance(planner.get("followup_actions"), list) else []
     return {
         "status": status if status in {"ok", "watch", "risk", "fail"} else "watch",
         "message": message,
@@ -1866,6 +2178,10 @@ def _fallback_response(report: dict, *, question: str, planner: dict, audience: 
         "mode": autonomy_mode,
         "audience": audience,
         "degraded_reason": str(degraded_reason or ""),
+        "task": task,
+        "runbook": runbook,
+        "silent_mode": bool(task.get("silent_mode")),
+        "ui_actions": ui_actions[:4],
         "remediation": remediation,
         "snapshot_diff": snapshot_diff or {},
     }
@@ -1890,6 +2206,10 @@ def _normalize_llm_response(parsed, fallback: dict) -> dict:
         "highlights": highlights or fallback.get("highlights") or [],
         "actions": actions or fallback.get("actions") or [],
         "degraded_reason": str(fallback.get("degraded_reason") or ""),
+        "task": fallback.get("task") or {},
+        "runbook": fallback.get("runbook") or {},
+        "silent_mode": bool(fallback.get("silent_mode")),
+        "ui_actions": fallback.get("ui_actions") or [],
         "remediation": fallback.get("remediation") or {},
         "snapshot_diff": fallback.get("snapshot_diff") or {},
     })
@@ -1921,6 +2241,7 @@ def run_system_guard_chat(
         auto_fix=auto_fix,
         maintenance_action=maintenance_action,
         autonomy_mode=autonomy_mode,
+        page_context=page_context,
     )
     maintenance_result = None
     executed_tools = []
@@ -2005,10 +2326,24 @@ def run_system_guard_chat(
         executed_tools=executed_tools,
         latency_ms=latency_ms,
     )
+    audit_event = {
+        "created_at": _now_iso(),
+        "actor_id": int(actor_id or 0),
+        "question": _truncate(question, 220),
+        "status": str(response.get("status") or "").strip()[:32],
+        "task_kind": str((response.get("task") or {}).get("kind") or (planner.get("task") or {}).get("kind") or "").strip()[:32],
+        "runbook": str((response.get("runbook") or {}).get("key") or (planner.get("runbook") or {}).get("key") or "").strip()[:64],
+        "confirmed": bool(execute_confirmed),
+        "executed_tools": [str(row.get("tool") or "") for row in executed_tools if isinstance(row, dict)][:8],
+        "silent_mode": bool(response.get("silent_mode")),
+    }
+    _append_audit_log(workspace, audit_event)
     _store_snapshot(workspace, report=report, response=response, executions=executed_tools)
     return {
         "ok": bool(report.get("ok")),
         "report": report,
+        "planner": planner,
+        "audit": audit_event,
         "chat": {
             "available": isinstance(parsed, dict),
             "degraded": not isinstance(parsed, dict),

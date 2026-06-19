@@ -66,6 +66,14 @@
   .guard-diff-card { border-radius:14px; padding:0.55rem 0.65rem; font-size:0.76rem; font-weight:900; }
   .guard-diff-card.regression { border:1px solid rgba(248,113,113,0.22); background:rgba(127,29,29,0.18); color:#fecaca; }
   .guard-diff-card.improvement { border:1px solid rgba(74,222,128,0.22); background:rgba(20,83,45,0.18); color:#bbf7d0; }
+  .guard-runbook { display:grid; gap:0.35rem; margin-top:0.6rem; }
+  .guard-runbook-card { border:1px solid rgba(250,204,21,0.18); border-radius:14px; padding:0.55rem 0.65rem; background:rgba(250,204,21,0.06); }
+  .guard-runbook-card strong { display:block; font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; color:#fde68a; margin-bottom:0.22rem; }
+  .guard-runbook-card div { font-size:0.76rem; font-weight:800; color:rgba(248,250,252,0.86); line-height:1.45; }
+  .guard-ui-actions { display:flex; flex-wrap:wrap; gap:0.45rem; margin-top:0.7rem; }
+  .guard-ui-action { border-radius:999px; border:1px solid rgba(163,230,53,0.18); background:rgba(15,23,42,0.54); color:#f8fafc; padding:0.48rem 0.72rem; font-size:0.72rem; font-weight:950; cursor:pointer; }
+  .guard-ui-action[data-kind="confirm_execution"] { border-color:rgba(250,204,21,0.28); background:rgba(120,53,15,0.28); color:#fde68a; }
+  .guard-ui-action[data-kind="navigate"] { border-color:rgba(74,222,128,0.26); background:rgba(20,83,45,0.24); color:#bbf7d0; }
   .guard-actions { display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; justify-content:flex-start; margin-top:0.75rem; }
   .guard-btn { border-radius:999px; border:1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.65rem 0.9rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:0.4rem; }
   .guard-btn.primary { background: linear-gradient(135deg, #14532d, #22c55e 68%, #facc15 140%); border:none; color:#f8fafc; }
@@ -424,6 +432,28 @@
       });
       wrap.appendChild(planEl);
     }
+    if (response && response.runbook && typeof response.runbook === 'object') {
+      const runbookEl = document.createElement('div');
+      runbookEl.className = 'guard-runbook';
+      const card = document.createElement('div');
+      card.className = 'guard-runbook-card';
+      const title = document.createElement('strong');
+      const taskKind = response?.task?.kind ? ` · ${String(response.task.kind)}` : '';
+      title.textContent = `Runbook${taskKind} · ${String(response.runbook.label || response.runbook.key || 'operativo')}`;
+      const bodyText = [];
+      if (response.runbook.goal) bodyText.push(String(response.runbook.goal));
+      const stages = Array.isArray(response.runbook.stages) ? response.runbook.stages : [];
+      if (stages.length) {
+        bodyText.push(stages.slice(0, 3).map((row) => `${row && row.done ? 'OK' : 'PEND'} · ${String((row && row.label) || '')}`).join('\n'));
+      }
+      if (response.silent_mode) bodyText.push('Modo silencioso activo: Ollana trabaja en segundo plano y solo te resume lo importante.');
+      const bodyNode = document.createElement('div');
+      bodyNode.textContent = bodyText.join('\n');
+      card.appendChild(title);
+      card.appendChild(bodyNode);
+      runbookEl.appendChild(card);
+      wrap.appendChild(runbookEl);
+    }
     if (response && response.snapshot_diff && typeof response.snapshot_diff === 'object') {
       const diffEl = document.createElement('div');
       diffEl.className = 'guard-diff';
@@ -496,8 +526,43 @@
       });
       if (remediationEl.childElementCount) wrap.appendChild(remediationEl);
     }
+    if (response && Array.isArray(response.ui_actions) && response.ui_actions.length) {
+      const actionsEl = document.createElement('div');
+      actionsEl.className = 'guard-ui-actions';
+      response.ui_actions.slice(0, 4).forEach((row) => {
+        if (!row || typeof row !== 'object') return;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'guard-ui-action';
+        btn.dataset.kind = String(row.type || '').trim();
+        if (row.url) btn.dataset.url = String(row.url || '');
+        if (row.prompt) btn.dataset.prompt = String(row.prompt || '');
+        if (row.reason) btn.title = String(row.reason || '');
+        btn.textContent = String(row.label || 'Acción');
+        actionsEl.appendChild(btn);
+      });
+      if (actionsEl.childElementCount) wrap.appendChild(actionsEl);
+    }
     logEl.appendChild(wrap);
     logEl.scrollTop = logEl.scrollHeight;
+  };
+  const triggerUiAction = (button) => {
+    if (!button) return;
+    const kind = String(button.dataset.kind || '').trim();
+    if (kind === 'navigate' && button.dataset.url) {
+      window.location.href = String(button.dataset.url || '');
+      return;
+    }
+    if (kind === 'prompt' && button.dataset.prompt && inputEl) {
+      inputEl.value = String(button.dataset.prompt || '');
+      inputEl.focus();
+      setStatus('Prompt preparado.');
+      return;
+    }
+    if (kind === 'confirm_execution' && pendingExecution && sendEl?.dataset.confirming === '1') {
+      sendEl.click();
+      return;
+    }
   };
   const applyMetrics = (response) => {
     const metrics = response && response.metrics ? response.metrics : {};
@@ -660,7 +725,9 @@
       const summary = data?.report?.issue_summary || {};
       const degraded = data?.chat?.degraded ? ' · degradado' : '';
       const confirm = response.needs_confirmation ? ` · ${response.confirmation_text || 'pendiente de confirmación'}` : '';
-      setStatus(`Estado: ${response.status || 'watch'} · blockers ${summary.blockers || 0} · warnings ${summary.warnings || 0}${degraded}${confirm}`);
+      const taskMode = response.silent_mode ? ' · silencioso' : '';
+      const taskKind = response?.task?.kind ? ` · ${String(response.task.kind)}` : '';
+      setStatus(`Estado: ${response.status || 'watch'}${taskKind} · blockers ${summary.blockers || 0} · warnings ${summary.warnings || 0}${degraded}${taskMode}${confirm}`);
       if (response.needs_confirmation) {
         pendingExecution = {
           message,
@@ -723,6 +790,11 @@
     const preset = actionPresets[key];
     if (!preset) return;
     sendMessage(preset);
+  });
+  logEl?.addEventListener('click', (event) => {
+    const btn = event.target.closest('.guard-ui-action');
+    if (!btn) return;
+    triggerUiAction(btn);
   });
   alertsEl?.addEventListener('click', (event) => {
     const btn = event.target.closest('[data-guard-alert]');

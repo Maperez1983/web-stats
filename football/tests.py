@@ -120,6 +120,61 @@ class TeamMediaServicesTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn('/login/', response['Location'])
 
+
+class SystemGuardRunbookTests(TestCase):
+    def setUp(self):
+        self.team = Team.objects.create(name='Guard Team', is_primary=True)
+        self.workspace_owner = get_user_model().objects.create_user(
+            username='guard-owner-runbook',
+            email='owner-runbook@example.com',
+            password='pass-1234',
+        )
+        self.workspace = Workspace.objects.create(
+            name='Guard Runbook Workspace',
+            primary_team=self.team,
+            owner_user=self.workspace_owner,
+        )
+
+    def test_planner_builds_navigation_task_and_runbook(self):
+        plan = system_guard._plan_tools(
+            'Llévame a vídeo análisis',
+            run_smoke=False,
+            auto_fix=False,
+            maintenance_action='',
+            autonomy_mode='advisor',
+            page_context={'team_id': self.team.id, 'workspace_id': self.workspace.id},
+        )
+        self.assertEqual(plan['task']['kind'], 'navigate')
+        self.assertEqual(plan['runbook']['key'], 'user_navigation')
+        self.assertEqual(plan['task']['route_target']['key'], 'analysis')
+        self.assertTrue(plan['followup_actions'])
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    def test_run_system_guard_chat_stores_audit_log(self, *_mocks):
+        result = system_guard.run_system_guard_chat(
+            question='Llévame a vídeo análisis',
+            workspace=self.workspace,
+            page_context={'team_id': self.team.id, 'workspace_id': self.workspace.id},
+            autonomy_mode='advisor',
+        )
+        self.assertIn('audit', result)
+        rows = system_guard._load_audit_log(self.workspace)
+        self.assertTrue(rows)
+        self.assertEqual(rows[0]['task_kind'], 'navigate')
+        self.assertEqual(rows[0]['runbook'], 'user_navigation')
+
     def test_analysis_page_requires_login(self):
         response = self.client.get(reverse('analysis'))
         self.assertEqual(response.status_code, 302)
