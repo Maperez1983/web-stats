@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Snapshot rendimiento · {{ player.name }}</title>
     <style>
-      /* Snapshot "como en la ficha" (modo oscuro). */
       :root{
         color-scheme: dark;
         --prod-bg: #0b1626;
@@ -21,23 +20,98 @@
         --prod-secondary: #f4b400;
         --prod-shadow-md: 0 16px 36px rgba(0, 0, 0, 0.22);
       }
+      * {
+        box-sizing: border-box;
+      }
       body{
         margin:0;
         padding:18px;
-        font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-        background:var(--prod-bg);
+        font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", sans-serif);
+        background:
+          radial-gradient(circle at top left, rgba(244, 180, 0, 0.08), transparent 26%),
+          radial-gradient(circle at top right, rgba(47, 125, 50, 0.08), transparent 22%),
+          var(--prod-bg);
         color:var(--prod-text);
+      }
+      .frame {
+        max-width: 1160px;
+        margin: 0 auto;
       }
       .card{
         background:var(--prod-panel);
         border:1px solid var(--prod-line);
-        border-radius:16px;
-        padding:18px;
-        box-shadow:var(--prod-shadow-md);
+        border-radius:24px;
+        padding:20px;
+        box-shadow: 0 24px 56px rgba(0, 0, 0, 0.28);
       }
-      h2{margin:0 0 12px;font-size:18px;}
+      .snapshot-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 1rem;
+        align-items: start;
+        margin-bottom: 1rem;
+      }
+      .snapshot-kicker {
+        color: rgba(255, 242, 199, 0.96);
+        font-size: 0.72rem;
+        font-weight: 950;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+      h2 {
+        margin: 0.3rem 0 0;
+        font-size: clamp(1.2rem, 1rem + 1vw, 1.8rem);
+        line-height: 1.05;
+        letter-spacing: -0.03em;
+      }
+      .snapshot-subtitle {
+        margin: 0.45rem 0 0;
+        color: var(--prod-muted-soft);
+        line-height: 1.55;
+        max-width: 64ch;
+      }
+      .snapshot-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        justify-content: flex-end;
+      }
+      .snapshot-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 40px;
+        padding: 0.55rem 0.8rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.05);
+        color: var(--prod-text);
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      .section-shell {
+        margin-top: 1rem;
+        border-radius: 18px;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(2, 6, 23, 0.12);
+        padding: 0.95rem;
+      }
+      .section-shell h3 {
+        margin: 0 0 0.3rem;
+        font-size: 0.9rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .section-shell p {
+        margin: 0;
+        color: var(--prod-muted);
+        line-height: 1.55;
+        font-size: 0.85rem;
+      }
 
-      /* --- KPI rings --- (misma estructura que ficha) */
       .performance-rings {
         margin-top: 0.95rem;
         display: grid;
@@ -105,11 +179,38 @@
       .field-zone{ position:absolute; border-radius:14px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:11px; color:#fff; font-weight:900; text-align:center; padding:4px; text-transform:uppercase; letter-spacing:0.04em; text-shadow: 0 2px 8px rgba(2,6,23,0.95); }
       .field-zone span{ display:inline-flex; align-items:center; justify-content:center; max-width:100%; padding:3px 8px; border-radius:999px; background: rgba(2,6,23,0.66); border:1px solid rgba(255,255,255,0.14); }
       .zone-count{ margin-top:4px; font-size:13px; font-weight:1000; color:#facc15; background: rgba(2,6,23,0.75); border-color: rgba(250,204,21,0.25); }
+      @media (max-width: 720px) {
+        .snapshot-head,
+        .radar-grid,
+        .radar-trends {
+          grid-template-columns: 1fr;
+        }
+        .snapshot-pills {
+          justify-content: flex-start;
+        }
+      }
     </style>
   </head>
   <body>
-    <div id="perf-snapshot" class="card">
-      <h2>Rendimiento, KPI y mapa de calor</h2>
+    <div class="frame">
+      <div id="perf-snapshot" class="card">
+        <div class="snapshot-head">
+          <div>
+            <div class="snapshot-kicker">Player snapshot</div>
+            <h2>Rendimiento, KPI y mapa de calor</h2>
+            <p class="snapshot-subtitle">Resumen visual concentrado para lectura rápida de impacto, consistencia y distribución espacial del jugador dentro del equipo.</p>
+          </div>
+          <div class="snapshot-pills">
+            <span class="snapshot-pill">{{ player.name }}</span>
+            {% if stats.position %}<span class="snapshot-pill">{{ stats.position }}</span>{% endif %}
+            {% if stats.profile %}<span class="snapshot-pill">{{ stats.profile }}</span>{% endif %}
+          </div>
+        </div>
+
+      <div class="section-shell">
+        <h3>Indicadores clave</h3>
+        <p>Los anillos ayudan a leer el peso relativo del jugador de un vistazo, mientras que los bloques inferiores aceleran la comparación entre volumen, eficiencia y producción.</p>
+      </div>
 
       <div class="performance-rings">
         {% for kpi in visual_kpis %}
@@ -239,6 +340,11 @@
         {% endif %}
       </div>
 
+      <div class="section-shell">
+        <h3>Mapa de calor</h3>
+        <p>Distribución estimada del uso del espacio para entender mejor dónde participa, fija o impacta más el jugador.</p>
+      </div>
+
       <div class="performance-map">
         <div class="field-diagram">
           <img class="field-bg" src="{{ pitch_src }}" alt="Campo" />
@@ -254,6 +360,7 @@
       {% if stats.matches %}
         {{ stats.matches|json_script:"player-trend-matches" }}
       {% endif %}
+      </div>
     </div>
 
     <script>
