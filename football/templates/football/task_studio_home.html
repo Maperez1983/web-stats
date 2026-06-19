@@ -63,6 +63,15 @@
         letter-spacing: 0.22em;
         text-transform: uppercase;
       }
+      .topbar-kicker {
+        display: block;
+        margin-bottom: 0.2rem;
+        color: #f6d57a;
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
       .brand-copy span {
         display: block;
         margin-top: 0.18rem;
@@ -96,6 +105,19 @@
         border-color: transparent;
         color: #09121d;
         background: linear-gradient(135deg, var(--accent), var(--pitch));
+      }
+      .pill,
+      .action-btn,
+      .quick-card,
+      .task-card {
+        transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+      }
+      .pill:hover,
+      .action-btn:hover,
+      .quick-card:hover,
+      .task-card:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 14px 24px rgba(0, 0, 0, 0.16);
       }
       .hero,
       .panel,
@@ -144,6 +166,26 @@
         gap: 0.7rem;
         flex-wrap: wrap;
         margin-top: 1.1rem;
+      }
+      .hero-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin-top: 1rem;
+      }
+      .hero-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.42rem 0.72rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.05);
+        color: #f8fbff;
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
       }
       .stats {
         display: grid;
@@ -326,6 +368,7 @@
         <div class="brand">
           <img src="{% static 'football/images/2j-mark.svg' %}" alt="2J Task Studio" />
           <div class="brand-copy">
+            <span class="topbar-kicker">Entorno privado</span>
             <strong>Segunda Jugada</strong>
             <span>Task Studio · {{ owner.username }}</span>
           </div>
@@ -342,6 +385,11 @@
           <span class="eyebrow">Repositorio privado</span>
           <h1>Tu espacio para crear tareas con claridad.</h1>
           <p>Task Studio reúne identidad, plantilla y ejercicios en un entorno más simple. Preparas tareas privadas, las duplicas rápido y mantienes tu trabajo ordenado para reutilizarlo cuando lo necesites.</p>
+          <div class="hero-pills">
+            <span class="hero-pill">Perfil</span>
+            <span class="hero-pill">Plantilla</span>
+            <span class="hero-pill">Tareas privadas</span>
+          </div>
           <div class="hero-actions">
             <a class="pill primary" href="{% url 'task-studio-task-create' %}">Crear primera tarea</a>
             <a class="pill" href="{% url 'task-studio-roster' %}">Gestionar plantilla</a>

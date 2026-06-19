@@ -75,6 +75,27 @@
         text-transform: uppercase;
         color: var(--pitch);
         font-size: 0.86rem;
+        font-weight: 900;
+      }
+      .hero-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 1rem;
+      }
+      .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.45rem 0.78rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.05);
+        color: #f5f7fa;
+        font-size: 0.74rem;
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
       }
       .primary-grid,
       .secondary-grid {
@@ -244,6 +265,13 @@
         background: rgba(255, 255, 255, 0.04);
         padding: 0.55rem 0.8rem;
         color: var(--muted);
+        transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+      }
+      .staff-pill:hover,
+      .hub-link:hover {
+        transform: translateY(-1px);
+        border-color: rgba(244, 180, 0, 0.22);
+        box-shadow: 0 14px 26px rgba(0, 0, 0, 0.16);
       }
       .stack {
         display: grid;
@@ -396,6 +424,11 @@
 	          {% endif %}
 	          <span>2J Club · {{ team_display_name }}</span>
 	        </div>
+          <div class="hero-badges">
+            <span class="hero-badge">Competición</span>
+            <span class="hero-badge">Plan semanal</span>
+            <span class="hero-badge">Scouting</span>
+          </div>
 
           <section class="card compact" aria-label="Áreas principales">
             <h3>Áreas</h3>

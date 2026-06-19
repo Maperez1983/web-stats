@@ -42,6 +42,13 @@
           linear-gradient(135deg, rgba(14, 24, 40, 0.98), rgba(8, 16, 28, 0.96)),
           linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 26%);
       }
+      .hero-kicker {
+        color: #f6d57a;
+        font-size: 0.74rem;
+        font-weight: 900;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
 
       .brand-rail {
         margin-bottom: 1rem;
@@ -69,6 +76,25 @@
       .hero-copy {
         display: grid;
         gap: 0.9rem;
+      }
+      .hero-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+      }
+      .hero-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.42rem 0.72rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.05);
+        color: #f8fbff;
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
       }
 
       .hero-links {
@@ -172,6 +198,12 @@
         border: 1px solid rgba(160, 180, 215, 0.16);
         background: rgba(255, 255, 255, 0.03);
         padding: 1rem;
+        transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
+      }
+      .quick-card:hover {
+        transform: translateY(-1px);
+        border-color: rgba(244, 180, 0, 0.22);
+        box-shadow: 0 14px 26px rgba(0, 0, 0, 0.16);
       }
       .quick-card strong {
         display: block;
@@ -259,7 +291,7 @@
       .hero-stat strong {
         display: block;
         margin-top: 0.2rem;
-        font-size: 1.25rem;
+        font-size: 1.42rem;
       }
 
       .hero-topline {
@@ -1049,9 +1081,15 @@
         <div class="hero-copy">
           <div class="hero-topline">
 	            <div class="hero-title-block">
+              <div class="hero-kicker">Gobierno y control</div>
 	              <div class="product-kicker">2J Platform</div>
 	              <h1>Platform</h1>
 	              <p>Vista de control para revisar el estado de los clubes, entrar a sus fichas y gestionar la configuración global sin mezclarlo con la operación diaria.</p>
+                <div class="hero-pills">
+                  <span class="hero-pill">Clubes</span>
+                  <span class="hero-pill">Usuarios</span>
+                  <span class="hero-pill">Configuración global</span>
+                </div>
 	            </div>
 	            <div class="hero-links">
 	              <a class="primary-link" href="{% url 'platform-overview' %}?tab=workspace-create">Crear club</a>
