@@ -9,25 +9,185 @@
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     {% include 'football/pwa_head.html' %}
     <style>
+      :root {
+        --bg: #08111d;
+        --panel: rgba(11, 19, 33, 0.95);
+        --panel-soft: rgba(15, 23, 39, 0.84);
+        --line: rgba(148, 163, 184, 0.18);
+        --ink: #e7ebf3;
+        --muted: #aab6c8;
+        --accent: #f4b400;
+        --pitch: #2f7d32;
+        --shadow: 0 28px 68px rgba(0, 0, 0, 0.32);
+      }
+      * {
+        box-sizing: border-box;
+      }
       body {
         margin: 0;
         background:
           radial-gradient(circle at top left, rgba(244, 180, 0, 0.12), transparent 26%),
           radial-gradient(circle at top right, rgba(47, 125, 50, 0.14), transparent 24%),
-          #08111d;
-        color: #e7ebf3;
+          linear-gradient(180deg, #050c17 0%, #08111d 100%);
+        color: var(--ink);
         font-family: "Avenir Next", "Inter", system-ui, sans-serif;
       }
       .shell {
-        max-width: 1180px;
+        max-width: 1220px;
         margin: 0 auto;
+        padding: 1rem 1rem 2.4rem;
+      }
+      .topbar,
+      .hero,
+      .panel,
+      .asset-card {
+        border: 1px solid var(--line);
+        box-shadow: var(--shadow);
+      }
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        padding: 0.95rem 1.05rem;
+        border-radius: 24px;
+        background: rgba(10, 18, 30, 0.9);
+        flex-wrap: wrap;
+      }
+      .topbar-copy {
+        display: grid;
+        gap: 0.28rem;
+        max-width: 760px;
+      }
+      .topbar-kicker {
+        color: #f6d57a;
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+      .topbar h1 {
+        margin: 0;
+        font-size: clamp(1.6rem, 3vw, 2.4rem);
+        line-height: 0.95;
+        letter-spacing: -0.03em;
+      }
+      .topbar-actions {
+        display: inline-flex;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+      }
+      .hero,
+      .panel {
+        border-radius: 28px;
+        background: var(--panel);
+      }
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+        gap: 1rem;
         padding: 1.25rem;
+        margin-bottom: 1rem;
+      }
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        padding: 0.34rem 0.7rem;
+        border-radius: 999px;
+        border: 1px solid rgba(244, 180, 0, 0.2);
+        background: linear-gradient(135deg, rgba(244, 180, 0, 0.12), rgba(47, 125, 50, 0.1));
+        color: #fff4cf;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .hero h2 {
+        margin: 0.8rem 0 0.55rem;
+        max-width: 12ch;
+        font-size: clamp(2.1rem, 4.8vw, 3.8rem);
+        line-height: 0.95;
+        letter-spacing: -0.04em;
+        text-wrap: balance;
+      }
+      .hero p {
+        margin: 0;
+        max-width: 58ch;
+        color: var(--muted);
+        line-height: 1.65;
+      }
+      .hero-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin-top: 1rem;
+      }
+      .hero-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.42rem 0.72rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.05);
+        color: #f8fbff;
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+      .hero-side {
+        display: grid;
+        gap: 0.75rem;
+      }
+      .metric-card {
+        border-radius: 22px;
+        padding: 1rem;
+        background:
+          radial-gradient(circle at top left, rgba(244, 180, 0, 0.12), transparent 38%),
+          rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .metric-card span {
+        display: block;
+        color: #9db4d7;
+        font-size: 0.72rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .metric-card strong {
+        display: block;
+        margin-top: 0.18rem;
+        font-size: 1.3rem;
+      }
+      .metric-card p {
+        margin: 0.45rem 0 0;
+        color: var(--muted);
+        line-height: 1.55;
       }
       .panel {
-        border-radius: 20px;
-        border: 1px solid rgba(255,255,255,0.10);
-        background: rgba(8, 17, 29, 0.72);
-        padding: 1rem;
+        padding: 1.1rem;
+        margin-top: 1rem;
+      }
+      .panel-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: end;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.95rem;
+      }
+      .panel-head h3 {
+        margin: 0;
+        font-size: 1.2rem;
+        letter-spacing: -0.02em;
+      }
+      .panel-head p {
+        margin: 0.3rem 0 0;
+        color: var(--muted);
+        line-height: 1.6;
       }
       .row {
         display: flex;
@@ -36,58 +196,199 @@
         align-items: center;
       }
       .link-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
         border: 1px solid rgba(255,255,255,0.12);
         background: rgba(255,255,255,0.05);
-        color: #e7ebf3;
-        border-radius: 14px;
-        padding: 0.55rem 0.8rem;
+        color: var(--ink);
+        border-radius: 999px;
+        padding: 0.72rem 1rem;
         text-decoration: none;
         cursor: pointer;
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
       }
       .link-btn.primary {
-        background: linear-gradient(90deg, rgba(244, 180, 0, 0.95), rgba(47, 125, 50, 0.95));
+        background: linear-gradient(135deg, var(--accent), var(--pitch));
         color: #08111d;
         border-color: transparent;
-        font-weight: 700;
+        font-weight: 900;
       }
-      input[type="file"]{
+      .link-btn:hover {
+        transform: translateY(-1px);
+        border-color: rgba(244, 180, 0, 0.34);
+        box-shadow: 0 14px 24px rgba(0, 0, 0, 0.16);
+      }
+      input[type="file"] {
         width: 100%;
-        max-width: 520px;
+        max-width: 580px;
+        border-radius: 16px;
+        border: 1px dashed rgba(255, 255, 255, 0.16);
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--muted);
+        padding: 0.82rem 0.9rem;
+      }
+      select {
+        min-height: 48px;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        background: rgba(255,255,255,0.04);
+        color: var(--ink);
+        padding: 0.82rem 0.9rem;
+        font: inherit;
       }
       table {
         width: 100%;
         border-collapse: collapse;
         margin-top: 0.9rem;
+        border-radius: 18px;
+        overflow: hidden;
       }
       th, td {
         text-align: left;
-        padding: 0.55rem 0.55rem;
+        padding: 0.72rem 0.8rem;
         border-bottom: 1px solid rgba(255,255,255,0.10);
         vertical-align: top;
       }
-      th { opacity: 0.9; font-weight: 700; }
-      .meta { opacity: 0.85; font-size: 0.95rem; }
+      th {
+        opacity: 0.92;
+        font-weight: 800;
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #cbd7ea;
+        background: rgba(255,255,255,0.03);
+      }
+      .meta {
+        opacity: 0.85;
+        font-size: 0.95rem;
+        color: var(--muted);
+      }
       .ok { color: rgba(47, 200, 120, 0.95); }
       .warn { color: rgba(244, 180, 0, 0.95); }
+      .form-row {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+        gap: 0.75rem;
+        align-items: end;
+      }
+      .field {
+        display: grid;
+        gap: 0.4rem;
+      }
+      .field span {
+        color: #cbd7ea;
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .asset-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 0.85rem;
+        margin-top: 0.95rem;
+      }
+      .asset-card {
+        display: grid;
+        gap: 0.6rem;
+        padding: 0.8rem;
+        border-radius: 20px;
+        background: var(--panel-soft);
+      }
+      .asset-thumb {
+        display: grid;
+        place-items: center;
+        min-height: 112px;
+        padding: 0.55rem;
+        border-radius: 16px;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.08);
+      }
+      .asset-thumb img {
+        width: 92px;
+        height: 92px;
+        object-fit: contain;
+        display: block;
+        background: #ffffff;
+        border-radius: 14px;
+      }
+      .asset-name {
+        color: #f8fbff;
+        font-size: 0.82rem;
+        font-weight: 800;
+        line-height: 1.4;
+        overflow-wrap: anywhere;
+      }
+      @media (max-width: 920px) {
+        .hero,
+        .form-row {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media (max-width: 720px) {
+        .shell {
+          padding-inline: 0.85rem;
+        }
+        .topbar-actions,
+        .row {
+          width: 100%;
+        }
+        .link-btn {
+          width: 100%;
+        }
+      }
     </style>
   </head>
   <body class="prod-commercial">
     <div class="shell">
-      <div class="row" style="justify-content:space-between; margin-bottom: 0.85rem;">
-        <div>
-          <div class="meta">Plataforma</div>
-          <h1 style="margin:0.15rem 0 0.2rem;">Asistente · Conocimiento del sistema</h1>
-          <div class="meta">Repositorio: <strong>{{ system_team.name }}</strong> (slug: {{ system_team.slug }}) · Documentos activos: {{ docs_count }}</div>
+      <header class="topbar">
+        <div class="topbar-copy">
+          <div class="topbar-kicker">Plataforma</div>
+          <h1>Asistente de conocimiento</h1>
+          <div class="meta">Repositorio: <strong>{{ system_team.name }}</strong> · slug: {{ system_team.slug }} · documentos activos: {{ docs_count }}</div>
         </div>
-        <div class="row">
+        <div class="topbar-actions">
           <a class="link-btn" href="{% url 'platform-overview' %}?tab=clients">Volver</a>
         </div>
-      </div>
+      </header>
+
+      <section class="hero">
+        <div>
+          <span class="eyebrow">Base operativa</span>
+          <h2>Centraliza documentos, plantillas y recursos visuales.</h2>
+          <p>Esta consola prepara el conocimiento que usará el asistente y mantiene la capa gráfica lista para PDFs, pizarras y entregables sin depender de procesos manuales dispersos.</p>
+          <div class="hero-pills">
+            <span class="hero-pill">Conocimiento indexado</span>
+            <span class="hero-pill">Plantillas unificadas</span>
+            <span class="hero-pill">Recursos listos para usar</span>
+          </div>
+        </div>
+        <aside class="hero-side">
+          <article class="metric-card">
+            <span>Repositorio activo</span>
+            <strong>{{ system_team.name }}</strong>
+            <p>Fuente común para referencias internas, automatizaciones y generación de plantillas tácticas.</p>
+          </article>
+          <article class="metric-card">
+            <span>Documentos vivos</span>
+            <strong>{{ docs_count }}</strong>
+            <p>El contenido subido aquí alimenta sugerencias, fondos y materiales reutilizables en toda la plataforma.</p>
+          </article>
+        </aside>
+      </section>
 
       <section class="panel">
-        <h2 style="margin:0 0 0.35rem;">Subir documentos</h2>
-        <div class="meta" style="margin-bottom:0.7rem;">
-          Sube PDFs/TXT/MD o capturas (PNG/JPG/WebP) que quieras que el asistente use como referencia para sugerir tareas/tácticas (para tu uso interno).
+        <div class="panel-head">
+          <div>
+            <h3>Subir documentos</h3>
+            <p>Importa PDFs, texto o capturas para ampliar la base de referencia que utilizará el asistente en sugerencias y contexto interno.</p>
+          </div>
         </div>
         <div class="row">
           <input type="file" id="sys-knowledge-files" accept="application/pdf,text/plain,text/markdown,image/*,.pdf,.txt,.md,.png,.jpg,.jpeg,.webp" multiple />
@@ -112,14 +413,15 @@
       </section>
 
       <section class="panel" style="margin-top:1rem;">
-        <h2 style="margin:0 0 0.35rem;">Plantillas PDF</h2>
-        <div class="meta" style="margin-bottom:0.7rem;">
-          Selecciona un recurso del sistema para usarlo como plantilla de fondo en los PDFs.
-          Recomendación: exporta la diapositiva de PowerPoint a <strong>PNG</strong> (A4 apaisado) y súbela como recurso.
+        <div class="panel-head">
+          <div>
+            <h3>Plantillas PDF</h3>
+            <p>Asigna fondos base para microciclos, sesiones y tareas. La recomendación práctica es subir PNG exportado desde PowerPoint en formato A4 apaisado.</p>
+          </div>
         </div>
-        <div class="row" style="align-items:flex-end;">
-          <label style="display:grid; gap:6px; min-width: 320px;">
-            <span class="meta">Microciclo · fondo</span>
+        <div class="form-row">
+          <label class="field">
+            <span>Microciclo · fondo</span>
             <select id="tpl-microcycle-bg">
               <option value="">(sin plantilla)</option>
               {% for asset in asset_options %}
@@ -129,8 +431,8 @@
               {% endfor %}
             </select>
           </label>
-          <label style="display:grid; gap:6px; min-width: 320px;">
-            <span class="meta">Sesión (UEFA) · fondo</span>
+          <label class="field">
+            <span>Sesión UEFA · fondo</span>
             <select id="tpl-session-bg">
               <option value="">(sin plantilla)</option>
               {% for asset in asset_options %}
@@ -140,8 +442,8 @@
               {% endfor %}
             </select>
           </label>
-          <label style="display:grid; gap:6px; min-width: 320px;">
-            <span class="meta">Tarea (UEFA) · fondo</span>
+          <label class="field">
+            <span>Tarea UEFA · fondo</span>
             <select id="tpl-task-bg">
               <option value="">(sin plantilla)</option>
               {% for asset in asset_options %}
@@ -157,10 +459,11 @@
       </section>
 
       <section class="panel" style="margin-top:1rem;">
-        <h2 style="margin:0 0 0.35rem;">Recursos gráficos (PPTX/IMG)</h2>
-        <div class="meta" style="margin-bottom:0.7rem;">
-          Sube un <strong>PPTX</strong> con imágenes incrustadas o archivos sueltos (PNG/JPG/WebP/GIF). El sistema extrae los recursos
-          y los deja disponibles en la pizarra de tareas (cualquier club/equipo) para tu uso interno.
+        <div class="panel-head">
+          <div>
+            <h3>Recursos gráficos</h3>
+            <p>Sube un PPTX con imágenes incrustadas o archivos sueltos. El sistema los deja disponibles en la pizarra de tareas para cualquier club o equipo.</p>
+          </div>
         </div>
         <div class="row">
           <input type="file" id="sys-assets-files" accept=".zip,.pptx,image/*" multiple />
@@ -170,13 +473,14 @@
 
         {% if assets %}
         <div class="meta" style="margin-top:0.9rem;">Últimos recursos ({{ assets_count }})</div>
-        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:0.6rem;">
+        <div class="asset-grid">
           {% for asset in assets %}
-          <div style="display:grid; gap:6px; justify-items:stretch;">
-            <a class="link-btn" style="padding:0.35rem; border-radius:14px;" href="{% url 'pdf-graphic-asset-file' asset.id %}" target="_blank" rel="noopener" title="{{ asset.title|default:'Recurso' }}">
-              <img src="{% url 'pdf-graphic-asset-file' asset.id %}" alt="{{ asset.title|default:'Recurso' }}" style="width:74px; height:74px; object-fit:contain; display:block; background:#ffffff; border-radius:12px;" loading="lazy" />
+          <div class="asset-card">
+            <a class="asset-thumb" href="{% url 'pdf-graphic-asset-file' asset.id %}" target="_blank" rel="noopener" title="{{ asset.title|default:'Recurso' }}">
+              <img src="{% url 'pdf-graphic-asset-file' asset.id %}" alt="{{ asset.title|default:'Recurso' }}" loading="lazy" />
             </a>
-            <button type="button" class="link-btn" style="padding:0.35rem 0.55rem;" data-asset-delete="{{ asset.id }}">Borrar</button>
+            <div class="asset-name">{{ asset.title|default:"Recurso" }}</div>
+            <button type="button" class="link-btn" data-asset-delete="{{ asset.id }}">Borrar</button>
           </div>
           {% endfor %}
         </div>
