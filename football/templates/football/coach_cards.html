@@ -26,14 +26,26 @@
         justify-content: space-between;
         align-items: start;
         gap: 1rem;
+        padding: 1rem 1.05rem;
+        border-radius: 24px;
+        border: 1px solid rgba(255,255,255,0.10);
+        background:
+          radial-gradient(720px 240px at 0% 0%, rgba(56,189,248,0.12) 0%, rgba(56,189,248,0) 56%),
+          rgba(15, 23, 42, 0.92);
+        box-shadow: 0 24px 54px rgba(0,0,0,0.24);
       }
       .head-main { min-width: 0; }
       .head-actions { display:flex; gap:0.55rem; flex-wrap:wrap; justify-content:flex-end; }
+      .head-kicker { color:#7dd3fc; font-size:0.72rem; font-weight:900; letter-spacing:0.18em; text-transform:uppercase; }
+      .head-pills { display:flex; gap:0.45rem; flex-wrap:wrap; margin-top:0.35rem; }
+      .head-pill { display:inline-flex; align-items:center; justify-content:center; min-height:30px; padding:0 0.72rem; border-radius:999px; border:1px solid rgba(148,163,184,0.2); background:rgba(255,255,255,0.04); color:rgba(226,232,240,0.86); font-size:0.7rem; font-weight:900; letter-spacing:0.08em; text-transform:uppercase; }
       header h1 {
         margin: 0;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
+        letter-spacing: -0.03em;
+        text-transform: none;
+        font-size: clamp(1.6rem, 3vw, 2.3rem);
         overflow-wrap: anywhere;
+        line-height:1.02;
       }
       .grid {
         margin-top: 2rem;
@@ -62,7 +74,9 @@
         font-weight: 800;
         letter-spacing: 0.08em;
         text-transform: uppercase;
+        transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
       }
+      .area-tab:hover { transform: translateY(-1px); border-color: rgba(56,189,248,0.32); box-shadow: 0 16px 30px rgba(8,15,30,0.18); }
       .area-tab.is-active {
         border-color: rgba(56, 189, 248, 0.42);
         background: rgba(8, 47, 73, 0.56);
@@ -195,9 +209,15 @@
       {% include 'football/includes/dragon_nav.html' %}
       <header>
         <div class="head-main">
+          <div class="head-kicker">Staff hub</div>
           <p style="margin:0;color:rgba(226,232,240,0.6);">Cliente · Áreas del staff</p>
           <h1>Cuerpo técnico</h1>
           <p style="margin:.5rem 0 0;color:rgba(226,232,240,0.72);">El trabajo del staff se organiza aquí por áreas: estadísticas grupales, partido, entrenamiento y análisis.</p>
+          <div class="head-pills">
+            <span class="head-pill">Staff</span>
+            <span class="head-pill">Partido</span>
+            <span class="head-pill">Analisis</span>
+          </div>
         </div>
         <div class="head-actions">
           <a class="pill-button" style="border-radius:12px;" href="{% url 'staff-directory' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Staff</a>

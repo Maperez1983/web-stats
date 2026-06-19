@@ -8,13 +8,39 @@
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     {% include 'football/pwa_head.html' %}
     <style>
-      body { margin:0; background: linear-gradient(180deg, #020417 0%, #050b1c 100%); color:#e5e7eb; font-family:var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif); }
+      body {
+        margin:0;
+        background:
+          radial-gradient(900px 380px at 10% -4%, rgba(34,211,238,0.16) 0%, rgba(34,211,238,0) 58%),
+          linear-gradient(180deg, #020417 0%, #050b1c 100%);
+        color:#e5e7eb;
+        font-family:var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif);
+      }
       .page { max-width: 1120px; margin:0 auto; padding: 1rem 1rem 2.5rem; }
-      .top { display:flex; justify-content:space-between; align-items:flex-start; gap:0.8rem; flex-wrap:wrap; margin-bottom: 0.85rem; }
-      h1 { margin:0; font-size: 1.05rem; letter-spacing:0.08em; text-transform:uppercase; }
+      .top {
+        display:flex;
+        justify-content:space-between;
+        align-items:flex-start;
+        gap:0.9rem;
+        flex-wrap:wrap;
+        margin-bottom: 0.95rem;
+        padding:1rem 1.05rem;
+        border-radius:24px;
+        border:1px solid rgba(145, 161, 185, 0.16);
+        background:
+          radial-gradient(720px 240px at 0% 0%, rgba(34,211,238,0.14) 0%, rgba(34,211,238,0) 56%),
+          rgba(12, 20, 34, 0.9);
+        box-shadow: 0 24px 54px rgba(0,0,0,0.24);
+      }
+      .top-copy { display:grid; gap:0.3rem; }
+      .top-kicker { color:#67e8f9; font-size:0.72rem; font-weight:900; letter-spacing:0.18em; text-transform:uppercase; }
+      h1 { margin:0; font-size: clamp(1.5rem, 2.8vw, 2.2rem); letter-spacing:-0.03em; text-transform:none; line-height:1.02; }
       .meta { color: rgba(226,232,240,0.72); font-weight: 850; }
-      .btn { border-radius:999px; border:1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.65rem 0.9rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:0.4rem; }
+      .top-pills { display:flex; flex-wrap:wrap; gap:0.45rem; }
+      .top-pill { display:inline-flex; align-items:center; justify-content:center; min-height:30px; padding:0 0.72rem; border-radius:999px; border:1px solid rgba(148,163,184,0.2); background:rgba(255,255,255,0.04); color:rgba(226,232,240,0.86); font-size:0.7rem; font-weight:900; letter-spacing:0.08em; text-transform:uppercase; }
+      .btn { border-radius:999px; border:1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.65rem 0.9rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:0.4rem; transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease; }
       .btn.primary { background: linear-gradient(135deg, #22d3ee, #67e8f9); border:none; color:#03253c; }
+      .btn:hover { transform: translateY(-1px); border-color: rgba(103,232,249,0.34); box-shadow: 0 16px 30px rgba(8,15,30,0.22); }
       .card { border:1px solid rgba(148,163,184,0.18); background: rgba(2, 6, 23, 0.36); border-radius: 18px; padding: 0.9rem; }
       .section-title { margin: 0 0 0.55rem; font-size:0.78rem; font-weight:950; letter-spacing:0.10em; text-transform:uppercase; color: rgba(226,232,240,0.9); }
       .muted { color: rgba(226,232,240,0.72); }
@@ -53,9 +79,15 @@
     {% include 'football/includes/dragon_nav.html' %}
     <main class="page">
       <div class="top">
-        <div>
+        <div class="top-copy">
+          <div class="top-kicker">System guard</div>
           <h1>System Guard</h1>
           <div class="meta">Panel continuo de vigilancia operativa · {{ team.name|default:"Equipo" }}</div>
+          <div class="top-pills">
+            <span class="top-pill">Estado</span>
+            <span class="top-pill">Smoke</span>
+            <span class="top-pill">Auto fix</span>
+          </div>
         </div>
         <div style="display:flex; gap:0.55rem; flex-wrap:wrap;">
           <a class="btn" href="{% url 'dashboard-home' %}">Dashboard</a>
