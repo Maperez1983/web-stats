@@ -78,6 +78,7 @@
         letter-spacing: 0.18em;
         text-transform: uppercase;
       }
+      .top-actions { display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; }
       .top-pills { display:flex; flex-wrap:wrap; gap:0.45rem; }
       .top-pill {
         display:inline-flex;
@@ -491,8 +492,9 @@
             <span class="top-pill">{% if is_editable_task %}Editable{% else %}Solo lectura{% endif %}</span>
           </div>
         </div>
-        <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-	          <a class="button" href="{{ back_url }}">{{ back_label }}</a>
+        <div class="top-actions">
+          <a class="button" href="{{ back_url }}">{{ back_label }}</a>
+          <a class="button" href="{% url 'task-studio-home' %}">Task Studio</a>
           {% if edit_graphic_url %}
           <a class="button" href="{{ edit_graphic_url }}">Editar pizarra</a>
           {% endif %}
@@ -514,8 +516,6 @@
           >{% if is_bookmarked %}★ Favorita{% else %}☆ Favorita{% endif %}</button>
 	          <a class="button" href="{% url 'session-task-pdf' task.id %}?style=uefa&one_page=1" target="_blank" rel="noopener">Imprimir UEFA</a>
 	          <a class="button" href="{% url 'session-task-pdf' task.id %}?style=club&one_page=1" target="_blank" rel="noopener">Imprimir Club</a>
-	          <a class="button primary" href="{% url 'session-task-html-sheet' task.id %}?style=uefa" target="_blank" rel="noopener">Ficha HTML UEFA</a>
-	          <a class="button primary" href="{% url 'session-task-html-sheet' task.id %}?style=club" target="_blank" rel="noopener">Ficha HTML Club</a>
           {% if task.task_pdf %}
           <a class="button" href="{% url 'session-task-file' task.id %}" target="_blank" rel="noopener">Abrir PDF</a>
           {% endif %}
@@ -910,15 +910,6 @@
 	      <div class="preview-stadium">
 	        <img class="preview" id="task-preview-image" src="{% url 'session-task-preview-file' task.id %}?hd=1&v={{ task.task_preview_image.name|urlencode }}" alt="Vista previa de {{ task.title }}" />
 	      </div>
-      </section>
-      {% endif %}
-
-      {% if task_3d_preview_url %}
-      <section class="panel">
-        <h2>Representación 3D</h2>
-        <div class="preview-stadium">
-          <img class="preview" src="{{ task_3d_preview_url }}" alt="Representación 3D de {{ task.title }}" />
-        </div>
       </section>
       {% endif %}
 
