@@ -36,6 +36,7 @@ from football.event_taxonomy import (
     shots_needed_per_goal,
 )
 from football.healthchecks import run_system_healthcheck
+from football import system_guard
 from football.manual_stats import get_manual_player_base_overrides, save_manual_player_base_overrides, season_display_name
 from football.query_helpers import _team_match_queryset, get_active_injury_player_ids, get_current_convocation_record, is_injury_record_active, is_manual_sanction_active
 from football.injuries import categorize_time_loss, estimate_return_date, time_loss_days
@@ -569,6 +570,77 @@ class SystemGuardOperatorPolicyTests(TestCase):
         self.assertTrue(kwargs['page_context']['can_operate_guard_code'])
         payload = response.json()
         self.assertTrue(payload['permissions']['can_operate_guard_code'])
+
+
+class SystemGuardPublishWorkflowTests(TestCase):
+    def setUp(self):
+        self.team = Team.objects.create(name='Guard Team', is_primary=True)
+        self.workspace_owner = get_user_model().objects.create_user(
+            username='guard-owner-publish',
+            email='owner-publish@example.com',
+            password='pass-1234',
+        )
+        self.workspace = Workspace.objects.create(
+            name='Guard Publish Workspace',
+            primary_team=self.team,
+            owner_user=self.workspace_owner,
+        )
+
+    def test_planner_selects_publish_tools_and_requires_confirmation(self):
+        plan = system_guard._plan_tools(
+            'Haz commit y push con mensaje: Fix guard widget',
+            run_smoke=False,
+            auto_fix=False,
+            maintenance_action='',
+            autonomy_mode='operator',
+        )
+        self.assertIn('inspect_repo_status', plan['requested_tools'])
+        self.assertIn('run_operator_validation', plan['requested_tools'])
+        self.assertIn('git_commit', plan['requested_tools'])
+        self.assertIn('git_push', plan['requested_tools'])
+        self.assertTrue(plan['confirm_required'])
+        self.assertIn('git_commit', plan['confirmation_text'])
+        self.assertIn('git_push', plan['confirmation_text'])
+
+    @patch('football.system_guard._run_repo_command')
+    @patch('football.system_guard._inspect_repo_status', return_value={'ok': True, 'changed_count': 3})
+    @patch('football.system_guard._operator_repo_path', return_value=Path('/tmp/repo'))
+    def test_git_commit_changes_uses_message_from_question(self, _repo_path, _inspect_status, mock_run_repo):
+        mock_run_repo.side_effect = [
+            {'ok': True, 'stdout': '', 'stderr': '', 'cwd': '/tmp/repo', 'exit_code': 0},
+            {'ok': True, 'stdout': '[main abc123] Fix guard widget', 'stderr': '', 'cwd': '/tmp/repo', 'exit_code': 0},
+        ]
+        result = system_guard._git_commit_changes('Haz commit y push con mensaje: Fix guard widget')
+        self.assertTrue(result['ok'])
+        self.assertEqual(result['commit_message'], 'Fix guard widget')
+        commit_call = mock_run_repo.call_args_list[1]
+        self.assertEqual(commit_call.args[0][:3], ['git', 'commit', '-m'])
+        self.assertEqual(commit_call.args[0][3], 'Fix guard widget')
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    def test_system_guard_chat_publish_flow_requires_confirmation(self, *_mocks):
+        result = system_guard.run_system_guard_chat(
+            question='Haz commit y push con mensaje: Fix guard widget',
+            workspace=self.workspace,
+            autonomy_mode='operator',
+            audience='technical',
+        )
+        response = result['chat']['response']
+        self.assertTrue(response['needs_confirmation'])
+        self.assertIn('git_commit', response['confirmation_text'])
+        self.assertIn('git_push', response['confirmation_text'])
 
 
 class TacticsLandingModalFallbackTests(TestCase):

@@ -4,6 +4,7 @@ import json
 import os
 import re
 import socket
+import subprocess
 import time
 import urllib.error
 import urllib.request
@@ -160,6 +161,34 @@ TOOL_SCHEMAS = {
         "runner": "maintenance",
         "maintenance_action": "ai_trainer_reindex",
     },
+    "inspect_repo_status": {
+        "label": "Inspeccionar repositorio",
+        "kind": "inspect",
+        "risk": "medium",
+        "confirmation_required": False,
+        "runner": "repo_status",
+    },
+    "run_operator_validation": {
+        "label": "Validar operador",
+        "kind": "diagnostic",
+        "risk": "medium",
+        "confirmation_required": False,
+        "runner": "operator_validation",
+    },
+    "git_commit": {
+        "label": "Crear commit",
+        "kind": "publish",
+        "risk": "high",
+        "confirmation_required": True,
+        "runner": "git_commit",
+    },
+    "git_push": {
+        "label": "Hacer push",
+        "kind": "publish",
+        "risk": "high",
+        "confirmation_required": True,
+        "runner": "git_push",
+    },
 }
 
 CHAT_ACTIONS = {
@@ -197,6 +226,13 @@ CHAT_ACTIONS = {
         "run_smoke": False,
         "auto_fix": False,
         "maintenance_action": "ai_trainer_reindex",
+    },
+    "publish": {
+        "label": "Commit y push",
+        "tool": "git_push",
+        "run_smoke": False,
+        "auto_fix": False,
+        "maintenance_action": "",
     },
 }
 
@@ -936,6 +972,116 @@ def _run_management_smoke(command_name: str, *, verbosity: int = 1) -> dict:
     return _run_management_command(command_name, verbosity=verbosity)
 
 
+def _operator_repo_path() -> Path | None:
+    raw = str(os.getenv("OLLANA_OPERATOR_REPO_PATH") or settings.BASE_DIR).strip()
+    if not raw:
+        return None
+    path = Path(raw).expanduser().resolve()
+    if not path.exists():
+        return None
+    if (path / ".git").exists():
+        return path
+    return None
+
+
+def _run_repo_command(args: list[str], *, timeout: int = 120) -> dict:
+    repo_path = _operator_repo_path()
+    if repo_path is None:
+        return {"ok": False, "error": "repo_not_available"}
+    try:
+        completed = subprocess.run(
+            args,
+            cwd=str(repo_path),
+            capture_output=True,
+            text=True,
+            timeout=max(5, int(timeout or 120)),
+        )
+    except Exception as exc:
+        return {"ok": False, "error": f"{exc.__class__.__name__}: {exc}", "command": args}
+    return {
+        "ok": completed.returncode == 0,
+        "command": args,
+        "cwd": str(repo_path),
+        "exit_code": int(completed.returncode or 0),
+        "stdout": str(completed.stdout or "")[-8000:],
+        "stderr": str(completed.stderr or "")[-4000:],
+    }
+
+
+def _extract_commit_message(question: str) -> str:
+    text = str(question or "").strip()
+    explicit = re.search(r"mensaje(?:\s+de\s+commit)?\s*[:=]\s*(.+)$", text, re.IGNORECASE)
+    if explicit:
+        value = _truncate(explicit.group(1), 120).strip(" \"'")
+        if value:
+            return value
+    quoted = re.search(r'commit(?:\s+y\s+push|\s+y\s+publica|\s+push)?\s+["“](.+?)["”]', text, re.IGNORECASE)
+    if quoted:
+        value = _truncate(quoted.group(1), 120).strip()
+        if value:
+            return value
+    slug = _truncate(re.sub(r"\s+", " ", text), 72)
+    if slug:
+        return f"Ollana operator: {slug}"
+    return "Ollana operator update"
+
+
+def _inspect_repo_status() -> dict:
+    status = _run_repo_command(["git", "status", "--short", "--branch"], timeout=30)
+    if not status.get("ok"):
+        return status
+    last = _run_repo_command(["git", "log", "-1", "--oneline"], timeout=30)
+    branch = ""
+    lines = [str(row) for row in str(status.get("stdout") or "").splitlines()]
+    if lines and lines[0].startswith("##"):
+        branch = lines[0][2:].strip()
+    changed = [row for row in lines[1:] if str(row).strip()]
+    return {
+        "ok": True,
+        "repo_path": status.get("cwd"),
+        "branch": branch,
+        "changed_files": changed[:80],
+        "changed_count": len(changed),
+        "last_commit": _truncate(last.get("stdout") or "", 200),
+    }
+
+
+def _run_operator_validation() -> dict:
+    check = _run_management_command("check")
+    check["action"] = "operator_validation"
+    return check
+
+
+def _git_commit_changes(question: str) -> dict:
+    repo_path = _operator_repo_path()
+    if repo_path is None:
+        return {"ok": False, "error": "repo_not_available"}
+    status = _inspect_repo_status()
+    if not status.get("ok"):
+        return status
+    if not status.get("changed_count"):
+        return {"ok": False, "error": "no_changes_to_commit", "repo_path": str(repo_path)}
+    add_result = _run_repo_command(["git", "add", "-A"], timeout=60)
+    if not add_result.get("ok"):
+        add_result["action"] = "git_add"
+        return add_result
+    commit_message = _extract_commit_message(question)
+    commit_result = _run_repo_command(["git", "commit", "-m", commit_message], timeout=120)
+    commit_result["action"] = "git_commit"
+    commit_result["commit_message"] = commit_message
+    return commit_result
+
+
+def _git_push_changes() -> dict:
+    remote = str(os.getenv("OLLANA_OPERATOR_GIT_REMOTE") or "origin").strip() or "origin"
+    branch = str(os.getenv("OLLANA_OPERATOR_GIT_BRANCH") or "main").strip() or "main"
+    result = _run_repo_command(["git", "push", remote, f"HEAD:{branch}"], timeout=180)
+    result["action"] = "git_push"
+    result["remote"] = remote
+    result["branch"] = branch
+    return result
+
+
 def _autofix_create_path(target_path: str) -> dict:
     path = Path(str(target_path or "").strip())
     if not str(path):
@@ -1221,6 +1367,16 @@ def _history_tail(history) -> list[dict]:
 
 def _infer_intent(question: str) -> str:
     text = str(question or "").strip().lower()
+    if re.search(r"\b(commit\s+y\s+push|haz\s+commit\s+y\s+push|publica\s+los?\s+cambios?|sube\s+los?\s+cambios?)\b", text):
+        return "publish_commit_push"
+    if re.search(r"\b(haz\s+commit|crea\s+commit|committea|commitea)\b", text):
+        return "publish_commit"
+    if re.search(r"\b(haz\s+push|sube\s+el\s+commit|publica\s+el\s+commit|push)\b", text):
+        return "publish_push"
+    if re.search(r"\b(repo|repositorio|git status|diff|working tree|arbol de trabajo)\b", text):
+        return "inspect_repo"
+    if re.search(r"\b(valida|validacion|valida cambios|ejecuta check|ejecuta tests?)\b", text):
+        return "operator_validate"
     if re.search(r"\b(historial|histórico|historico|regresion|regresiones|tendencia|tendencias)\b", text):
         return "inspect_history"
     if re.search(r"\b(config|configuracion|settings|allowed_hosts|csrf|host)\b", text):
@@ -1246,6 +1402,10 @@ def _infer_intent(question: str) -> str:
 
 def _tool_reason(tool_key: str, intent: str, question: str) -> str:
     mapping = {
+        "inspect_repo_status": "La petición requiere revisar el estado actual del repositorio antes de publicar.",
+        "run_operator_validation": "Conviene validar el proyecto antes de publicar cambios.",
+        "git_commit": "La petición pide consolidar los cambios en un commit.",
+        "git_push": "La petición pide publicar el commit en el remoto configurado.",
         "run_smoke": "El usuario pide validación operativa y conviene ejecutar smoke rápido.",
         "auto_fix": "El usuario pide corrección segura sobre incidencias conocidas.",
         "regenerate_task_previews": "La petición apunta a regenerar previews de tareas.",
@@ -1264,10 +1424,26 @@ def _plan_tools(question: str, *, run_smoke: bool, auto_fix: bool, maintenance_a
     intent = _infer_intent(question)
     requested_tools = []
     steps = [{"step": "Diagnosticar estado base", "done": True}]
-    if maintenance_action == "regenerate_task_previews":
+    if maintenance_action == "git_commit_push":
+        requested_tools.extend(["inspect_repo_status", "run_operator_validation", "git_commit", "git_push"])
+    elif maintenance_action == "git_commit":
+        requested_tools.extend(["inspect_repo_status", "run_operator_validation", "git_commit"])
+    elif maintenance_action == "git_push":
+        requested_tools.extend(["inspect_repo_status", "git_push"])
+    elif maintenance_action == "regenerate_task_previews":
         requested_tools.append("regenerate_task_previews")
     elif maintenance_action == "ai_trainer_reindex":
         requested_tools.append("ai_trainer_reindex")
+    elif intent == "publish_commit_push":
+        requested_tools.extend(["inspect_repo_status", "run_operator_validation", "git_commit", "git_push"])
+    elif intent == "publish_commit":
+        requested_tools.extend(["inspect_repo_status", "run_operator_validation", "git_commit"])
+    elif intent == "publish_push":
+        requested_tools.extend(["inspect_repo_status", "git_push"])
+    elif intent == "inspect_repo":
+        requested_tools.append("inspect_repo_status")
+    elif intent == "operator_validate":
+        requested_tools.extend(["inspect_repo_status", "run_operator_validation"])
     elif auto_fix:
         requested_tools.append("auto_fix")
     elif run_smoke:
@@ -1314,9 +1490,13 @@ def _plan_tools(question: str, *, run_smoke: bool, auto_fix: bool, maintenance_a
         steps.append({"step": f"Evaluar {TOOL_SCHEMAS.get(tool, {}).get('label') or tool}", "done": False})
     confirm_required = False
     confirm_text = ""
+    sensitive = []
     if autonomy_mode == "supervised" and any(tool != "check_status" for tool in requested_tools):
+        sensitive.extend([tool for tool in requested_tools if tool != "check_status"])
+    sensitive.extend([tool for tool in requested_tools if TOOL_SCHEMAS.get(tool, {}).get("confirmation_required")])
+    sensitive = list(dict.fromkeys(sensitive))
+    if sensitive:
         confirm_required = True
-        sensitive = [tool for tool in requested_tools if tool != "check_status"]
         confirm_text = f"Confirmación requerida antes de ejecutar: {', '.join(sensitive)}."
     return {
         "intent": intent,
@@ -1339,11 +1519,15 @@ def _serialize_execution(tool_key: str, result: dict) -> dict:
     }
 
 
-def _execute_tools(requested_tools: list[str], *, smoke_verbosity: int = 1, workspace=None) -> list[dict]:
+def _execute_tools(requested_tools: list[str], *, smoke_verbosity: int = 1, workspace=None, question: str = "") -> list[dict]:
     executions = []
     for tool_key in requested_tools or []:
         if tool_key == "check_status":
             result = {"ok": True, "action": "status_checked"}
+        elif tool_key == "inspect_repo_status":
+            result = _inspect_repo_status()
+        elif tool_key == "run_operator_validation":
+            result = _run_operator_validation()
         elif tool_key == "inspect_recent_errors":
             result = _inspect_recent_errors()
         elif tool_key == "check_critical_routes":
@@ -1362,6 +1546,10 @@ def _execute_tools(requested_tools: list[str], *, smoke_verbosity: int = 1, work
             result = _autofix_regenerate_task_previews()
         elif tool_key == "ai_trainer_reindex":
             result = _autofix_ai_trainer_reindex()
+        elif tool_key == "git_commit":
+            result = _git_commit_changes(question)
+        elif tool_key == "git_push":
+            result = _git_push_changes()
         else:
             result = {"ok": False, "error": "unsupported_tool"}
         executions.append(_serialize_execution(tool_key, result))
@@ -1630,6 +1818,12 @@ def _fallback_response(report: dict, *, question: str, planner: dict, audience: 
             continue
         tool = str(row.get("tool") or "")
         detail = row.get("result") if isinstance(row.get("result"), dict) else {}
+        if tool == "inspect_repo_status" and isinstance(detail, dict) and detail.get("changed_count") is not None:
+            highlights.append(f"Repo: {detail.get('changed_count')} cambio(s) detectado(s)")
+        if tool == "git_commit" and isinstance(detail, dict) and detail.get("ok"):
+            highlights.append("Commit creado correctamente")
+        if tool == "git_push" and isinstance(detail, dict) and detail.get("ok"):
+            highlights.append("Push realizado correctamente")
         if tool == "inspect_recent_errors" and isinstance(detail, dict):
             patterns = detail.get("patterns") if isinstance(detail.get("patterns"), list) else []
             if patterns:
@@ -1643,6 +1837,10 @@ def _fallback_response(report: dict, *, question: str, planner: dict, audience: 
         message = "He revisado el estado del sistema y te lo resumo en pasos simples."
     else:
         message = "He revisado el sistema con modo operativo y resumo el estado actual."
+    if any(str((row or {}).get("tool") or "") == "git_push" and bool((row or {}).get("ok")) for row in (executions or [])):
+        message = "He publicado los cambios solicitados y resumo el resultado."
+    elif any(str((row or {}).get("tool") or "") == "git_commit" and bool((row or {}).get("ok")) for row in (executions or [])):
+        message = "He creado el commit solicitado y resumo el resultado."
     if status == "fail":
         message += " Hay incidencias bloqueantes."
     elif status == "watch":
@@ -1733,7 +1931,12 @@ def run_system_guard_chat(
         maintenance_result = _run_named_maintenance_action(maintenance_action)
         executed_tools.append(_serialize_execution(maintenance_action, maintenance_result))
     elif planner.get("requested_tools") and not planner.get("confirm_required"):
-        executed_tools = _execute_tools(planner.get("requested_tools") or [], smoke_verbosity=smoke_verbosity, workspace=workspace)
+        executed_tools = _execute_tools(
+            planner.get("requested_tools") or [],
+            smoke_verbosity=smoke_verbosity,
+            workspace=workspace,
+            question=question,
+        )
         run_smoke = bool(run_smoke or ("run_smoke" in (planner.get("requested_tools") or [])))
         auto_fix = bool(auto_fix or ("auto_fix" in (planner.get("requested_tools") or [])))
     report = run_system_guard(
