@@ -9865,10 +9865,15 @@
 						          };
 						          const runtimeNormalizeStadiumMaterial = (node, mat) => {
 						            try {
-						              const cloned = typeof mat?.clone === 'function'
-						                ? mat.clone()
-						                : new THREE.MeshStandardMaterial({ color: 0xd8ded8, roughness: 0.72, metalness: 0.03 });
-						              const nodeName = `${safeText(node?.name || '')} ${safeText(cloned?.name || '')}`.toUpperCase();
+						              const sourceColor = (() => {
+						                try {
+						                  if (mat?.color?.isColor) return new THREE.Color(mat.color.getHex());
+						                  if (mat?.color && typeof mat.color === 'object') return new THREE.Color(mat.color.r || 1, mat.color.g || 1, mat.color.b || 1);
+						                } catch (e) { /* ignore */ }
+						                return new THREE.Color(0xd8ded8);
+						              })();
+						              const sourceOpacity = Number.isFinite(Number(mat?.opacity)) ? clamp(Number(mat.opacity), 0, 1) : 1;
+						              const nodeName = `${safeText(node?.name || '')} ${safeText(mat?.name || '')}`.toUpperCase();
 						              const isSeat = /SEAT|SEATING|ROW_|CARPET_TEAM_PRIMARY|BLUE_SEAT|SEAT_FIELD/.test(nodeName);
 						              const isConcrete = /CONCRETE|TERRACE|CONCOURSE|BOWL|LIP|AISLE|STAIR|VOMITORY|FOUNDATION|SHELL/.test(nodeName);
 						              const isAccentBand = /FASCIA|APRON|OUTER_FACADE|TEAM_ACCENT|RING|TRIM|BAND/.test(nodeName);
@@ -9876,14 +9881,22 @@
 						              const isMetal = /RAIL|TRUSS|COLUMN|STEEL|METAL|FRAME|GUARDRAIL/.test(nodeName);
 						              const isLightOrBoard = /LED|SCOREBOARD|BOARD|SCREEN|SIGN/.test(nodeName);
 						              const isRoof = /ROOF|SOFFIT|CANOPY/.test(nodeName);
-						              if ('alphaMap' in cloned && !isGlass) cloned.alphaMap = null;
-						              if ('alphaTest' in cloned && !isGlass) cloned.alphaTest = 0;
-						              if ('opacity' in cloned) cloned.opacity = isGlass ? 0.34 : 1;
-						              if ('transparent' in cloned) cloned.transparent = !!isGlass;
-						              if ('depthWrite' in cloned && cloned.depthWrite !== false) cloned.depthWrite = true;
-						              if ('depthTest' in cloned && cloned.depthTest !== false) cloned.depthTest = true;
-						              if ('colorWrite' in cloned) cloned.colorWrite = true;
-						              if ('side' in cloned) cloned.side = isGlass ? THREE.DoubleSide : THREE.DoubleSide;
+						              const hasVertexColors = !!(node?.geometry?.attributes?.color) || !!mat?.vertexColors;
+						              const cloned = new THREE.MeshStandardMaterial({
+						                color: sourceColor.clone(),
+						                roughness: Number.isFinite(Number(mat?.roughness)) ? clamp(Number(mat.roughness), 0.04, 1) : 0.72,
+						                metalness: Number.isFinite(Number(mat?.metalness)) ? clamp(Number(mat.metalness), 0, 1) : 0.03,
+						                transparent: !!isGlass,
+						                opacity: isGlass ? Math.min(sourceOpacity || 0.34, 0.34) : 1,
+						                side: THREE.DoubleSide,
+						                depthWrite: true,
+						                depthTest: true,
+						                alphaTest: 0,
+						                vertexColors: hasVertexColors,
+						              });
+						              cloned.name = safeText(mat?.name || node?.name || 'stadium_runtime_material');
+						              cloned.userData = Object.assign({}, mat?.userData || {}, { kind: 'pitch_3d_runtime_stadium_material' });
+						              cloned.colorWrite = true;
 						              if (cloned?.color?.set) {
 						                if (nodeName.includes('TEAM_PRIMARY')) cloned.color.set(stadiumPalette3d.primary);
 						                else if (nodeName.includes('TEAM_SECONDARY')) cloned.color.set(stadiumPalette3d.secondary);
@@ -9921,13 +9934,9 @@
 						                  if ('emissive' in cloned && cloned.emissive?.set) cloned.emissive.set(stadiumPalette3d.secondary);
 						                  if ('emissiveIntensity' in cloned) cloned.emissiveIntensity = 0.42;
 						                  cloned.transparent = false;
+						                  cloned.opacity = 1;
 						                }
 						              }
-						              if ('roughness' in cloned && !Number.isFinite(Number(cloned.roughness))) cloned.roughness = 0.72;
-						              if ('metalness' in cloned && !Number.isFinite(Number(cloned.metalness))) cloned.metalness = 0.03;
-						              try {
-						                if ('needsUpdate' in cloned.map && cloned.map) cloned.map.needsUpdate = true;
-						              } catch (e) { /* ignore */ }
 						              cloned.needsUpdate = true;
 						              return cloned;
 						            } catch (e) {
