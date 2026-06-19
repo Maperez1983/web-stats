@@ -8425,9 +8425,19 @@
 						      return null;
 						    };
 						    const __pitch3dStadiumModelCache = { loading: false, scene: null, failed: false, callbacks: [], src: '' };
+						    const __setPitch3dStadiumState = (status, extra = {}) => {
+						      try {
+						        window.__WEBSTATS_PITCH3D_STADIUM_STATE = Object.assign({
+						          status: safeText(status || 'idle', 'idle'),
+						          at: Date.now(),
+						          src: safeText(__pitch3dStadiumModelCache.src || __pitch3dAssetUrl('pitch3dStadiumModelSrc')),
+						        }, extra || {});
+						      } catch (e) { /* ignore */ }
+						    };
 						    const __pitch3dLoadStadiumModel = (onLoad) => {
 						      const src = __pitch3dAssetUrl('pitch3dStadiumModelSrc');
 						      if (!src || !window.THREE) return null;
+						      __setPitch3dStadiumState('requested', { src });
 						      if (__pitch3dStadiumModelCache.src !== src) {
 						        __pitch3dStadiumModelCache.loading = false;
 						        __pitch3dStadiumModelCache.scene = null;
@@ -8436,6 +8446,7 @@
 						        __pitch3dStadiumModelCache.src = src;
 						      }
 						      if (__pitch3dStadiumModelCache.scene) {
+						        __setPitch3dStadiumState('model_ready', { src, fromCache: true });
 						        try { if (typeof onLoad === 'function') onLoad(__pitch3dStadiumModelCache.scene); } catch (e) { /* ignore */ }
 						        return __pitch3dStadiumModelCache.scene;
 						      }
@@ -8444,12 +8455,25 @@
 						      const LoaderClass = window.__WEBSTATS_GLTF_LOADER_CLASS;
 						      if (typeof LoaderClass !== 'function') return null;
 						      __pitch3dStadiumModelCache.loading = true;
+						      __setPitch3dStadiumState('loading', { src });
 						      try {
 						        const loader = new LoaderClass();
 						        loader.load(src, (gltf) => {
 						          const scene = gltf?.scene || null;
 						          __pitch3dStadiumModelCache.scene = scene;
 						          __pitch3dStadiumModelCache.loading = false;
+						          try {
+						            window.__WEBSTATS_PITCH3D_STADIUM_MODEL_INFO = {
+						              src,
+						              loaded: true,
+						              hasScene: !!scene,
+						              childCount: Number(scene?.children?.length) || 0,
+						            };
+						          } catch (e) { /* ignore */ }
+						          __setPitch3dStadiumState(scene ? 'model_ready' : 'model_empty', {
+						            src,
+						            childCount: Number(scene?.children?.length) || 0,
+						          });
 						          const callbacks = __pitch3dStadiumModelCache.callbacks.splice(0);
 						          callbacks.forEach((cb) => {
 						            try { cb(scene); } catch (e) { /* ignore */ }
@@ -8457,10 +8481,19 @@
 						        }, undefined, () => {
 						          __pitch3dStadiumModelCache.loading = false;
 						          __pitch3dStadiumModelCache.failed = true;
+						          try {
+						            window.__WEBSTATS_PITCH3D_STADIUM_MODEL_INFO = {
+						              src,
+						              loaded: false,
+						              failed: true,
+						                            };
+						          } catch (e) { /* ignore */ }
+						          __setPitch3dStadiumState('model_failed', { src });
 						          __pitch3dStadiumModelCache.callbacks.splice(0);
 						        });
 						      } catch (e) {
 						        __pitch3dStadiumModelCache.loading = false;
+						        __setPitch3dStadiumState('model_failed', { src, error: safeText(e?.message || e) });
 						      }
 						      return null;
 						    };
@@ -9811,13 +9844,17 @@
 						      };
 						      const addModelBackedRosaledaStadium = () => {
 						        if (!runtimeStadiumModelSrc || !window.THREE) return false;
+						        __setPitch3dStadiumState('attach_requested', { src: runtimeStadiumModelSrc });
 						        const assetScene = __pitch3dStadiumModelCache.scene || __pitch3dLoadStadiumModel(() => {
 						          try {
 						            if (pitch3dRoot !== root) return;
 						            rerenderPitch3dWithModel();
 						          } catch (e) { /* ignore */ }
 						        });
-						        if (!assetScene) return false;
+						        if (!assetScene) {
+						          __setPitch3dStadiumState('awaiting_model', { src: runtimeStadiumModelSrc });
+						          return false;
+						        }
 						        try {
 						          const teamBrandName = safeText(tokenTeamName || form?.dataset?.stadiumClubName || form?.dataset?.stadiumTeamName || 'LOCAL', 'LOCAL').trim().toUpperCase();
 						          const teamBrandAbbrev = (() => {
@@ -9962,6 +9999,7 @@
 						            source: 'stadium_malaga_rosaleda_glb',
 						          });
 						          const hiddenNodePattern = /\b(GRASS|TURF|PITCH|FIELD|LINE|MARK|CENTER|SPOT|GOAL|NET|BALL|CORNER_FLAG|TRAINING_GOAL)\b/;
+						          let visibleMeshCount = 0;
 						          stadiumAsset.traverse((node) => {
 						            if (!node?.isMesh) return;
 						            const nodeName = safeText(node?.name || '').toUpperCase();
@@ -9970,6 +10008,7 @@
 						              return;
 						            }
 						            node.visible = true;
+						            visibleMeshCount += 1;
 						            try { if (node.geometry) node.geometry = node.geometry.clone(); } catch (e) { /* ignore */ }
 						            try {
 						              if (Array.isArray(node.material)) {
@@ -10002,9 +10041,28 @@
 						            kind: 'pitch_3d_professional_blender_stadium',
 						            source: 'stadium_malaga_rosaleda_glb',
 						          });
+						          if (visibleMeshCount < 25 || !(size.x > 1 && size.z > 1)) {
+						            try {
+						              window.__WEBSTATS_PITCH3D_STADIUM_ATTACH_INFO = {
+						                source: 'stadium_malaga_rosaleda_glb',
+						                failed: true,
+						                reason: 'insufficient_visible_geometry',
+						                visibleMeshCount,
+						                size: { x: size.x, y: size.y, z: size.z },
+						              };
+						            } catch (e) { /* ignore */ }
+						            __setPitch3dStadiumState('attach_failed', {
+						              reason: 'insufficient_visible_geometry',
+						              visibleMeshCount,
+						              size: { x: size.x, y: size.y, z: size.z },
+						            });
+						            return false;
+						          }
 						          try {
 						            window.__WEBSTATS_PITCH3D_STADIUM_ATTACH_INFO = {
 						              source: 'stadium_malaga_rosaleda_glb',
+						              attached: true,
+						              visibleMeshCount,
 						              scale,
 						              size: { x: size.x, y: size.y, z: size.z },
 						              center: { x: center.x, y: center.y, z: center.z },
@@ -10015,8 +10073,14 @@
 						          try {
 						            window.__WEBSTATS_PITCH3D_STADIUM_SOURCE = 'stadium_malaga_rosaleda_glb';
 						          } catch (e) { /* ignore */ }
+						          __setPitch3dStadiumState('attached', {
+						            source: 'stadium_malaga_rosaleda_glb',
+						            visibleMeshCount,
+						            scale,
+						          });
 						          return true;
 						        } catch (e) {
+						          __setPitch3dStadiumState('attach_failed', { error: safeText(e?.message || e) });
 						          try { console.warn('[pitch3d] model-backed rosaleda build failed', e); } catch (err) { /* ignore */ }
 						          return false;
 						        }
