@@ -37,16 +37,49 @@
         background: rgba(7, 16, 30, 0.82);
         backdrop-filter: blur(4px);
       }
+      .header-copy {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        min-width: 0;
+      }
+      .header-kicker {
+        color: rgba(125, 211, 252, 0.92);
+        font-size: 0.72rem;
+        font-weight: 950;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
       .header h1 {
         margin: 0;
-        font-size: 1rem;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
+        font-size: clamp(1.25rem, 2vw, 1.85rem);
+        line-height: 1.02;
+        letter-spacing: -0.03em;
         overflow-wrap: anywhere;
       }
       .header p {
         margin: 0.35rem 0 0;
         color: rgba(226, 232, 240, 0.74);
+      }
+      .header-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+      }
+      .header-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        min-height: 32px;
+        padding: 0.32rem 0.62rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.05);
+        color: rgba(248, 250, 252, 0.92);
+        font-size: 0.7rem;
+        font-weight: 900;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
       }
       .actions {
         display: flex;
@@ -133,6 +166,8 @@
       .btn:hover {
         border-color: rgba(244, 180, 0, 0.5);
         color: #fff9e8;
+        transform: translateY(-1px);
+        box-shadow: 0 14px 24px rgba(0, 0, 0, 0.18);
       }
       .week-grid {
         margin-top: 1rem;
@@ -280,9 +315,15 @@
       {% include 'football/includes/dragon_nav.html' %}
 
 	      <header class="header">
-	        <div>
+	        <div class="header-copy">
+            <div class="header-kicker">Plan semanal</div>
 	          <h1>Agenda semanal</h1>
 	          <p>{{ team_name }} · {{ week_label }}</p>
+            <div class="header-pills">
+              <span class="header-pill">Entrenos</span>
+              <span class="header-pill">Partidos</span>
+              <span class="header-pill">Asistencia</span>
+            </div>
 	        </div>
 	        <div class="actions">
 	          <details class="quick-create">

@@ -20,12 +20,44 @@
         grid-template-columns: minmax(0, 1fr) auto;
         align-items: flex-start;
         gap: 1rem;
+        padding: 1rem 1.05rem;
+        border-radius: 1.2rem;
+        border: 1px solid var(--prod-line, rgba(144, 161, 185, 0.28));
+        background: rgba(15, 23, 42, 0.42);
+        box-shadow: var(--prod-shadow-md, 0 16px 36px rgba(0, 0, 0, 0.24));
+      }
+      .header-kicker {
+        color: rgba(125, 211, 252, 0.94);
+        font-size: 0.72rem;
+        font-weight: 950;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
       }
       header h1 {
         margin: 0.2rem 0 0;
         font-size: clamp(1.45rem, 1rem + 1.2vw, 2rem);
         line-height: 1.08;
         overflow-wrap: anywhere;
+      }
+      .header-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin-top: 0.65rem;
+      }
+      .header-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.38rem 0.68rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.05);
+        color: var(--prod-text, #f5f7fa);
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
       }
       .injury-alert-icon {
         display: inline-flex;
@@ -41,8 +73,9 @@
         font-size: 1rem;
         vertical-align: middle;
       }
-      .btn { display: inline-flex; align-items: center; justify-content: center; padding: 0.35rem 0.8rem; border-radius: 0.7rem; border: 1px solid var(--prod-line-strong, rgba(244, 180, 0, 0.28)); background: rgba(244, 180, 0, 0.1); color: var(--prod-text, #f5f7fa); text-decoration: none; font-weight: 700; white-space: nowrap; }
+      .btn { display: inline-flex; align-items: center; justify-content: center; padding: 0.35rem 0.8rem; border-radius: 0.7rem; border: 1px solid var(--prod-line-strong, rgba(244, 180, 0, 0.28)); background: rgba(244, 180, 0, 0.1); color: var(--prod-text, #f5f7fa); text-decoration: none; font-weight: 700; white-space: nowrap; transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease; }
       .btn.alt { background: var(--prod-panel-flat, rgba(18, 30, 50, 0.94)); border-color: var(--prod-line, rgba(144, 161, 185, 0.28)); color: var(--prod-text, #f5f7fa); }
+      .btn:hover { transform: translateY(-1px); border-color: rgba(244, 180, 0, 0.42); box-shadow: 0 14px 24px rgba(0,0,0,0.18); }
       .card { background: var(--prod-panel-flat, rgba(18, 30, 50, 0.94)); border-radius: 1rem; padding: 1.2rem; margin-top: 1rem; border: 1px solid var(--prod-line, rgba(144, 161, 185, 0.28)); box-shadow: var(--prod-shadow-md, 0 16px 36px rgba(0, 0, 0, 0.24)); }
       .preview-banner {
         margin-top: 1rem;
@@ -696,7 +729,7 @@
             {% endif %}
           </div>
           <div class="player-head-copy">
-          <p style="margin:0;" class="subtle">Jugador · {{ player.team.display_name }}</p>
+          <p class="header-kicker">Jugador · {{ player.team.display_name }}</p>
           <h1>
             {{ player.name }}
             {% if has_active_injury %}
@@ -709,6 +742,12 @@
           {% if current_convocation %}
             <p style="margin:0.35rem 0 0;" class="subtle">Convocatoria activa: {{ current_convocation.round|default:"Sin jornada" }} · {{ current_convocation.opponent_name|default:"Rival pendiente" }}</p>
           {% endif %}
+          <div class="header-pills">
+            {% if player.position %}<span class="header-pill">{{ player.position }}</span>{% endif %}
+            {% if player.number %}<span class="header-pill">#{{ player.number }}</span>{% endif %}
+            {% if player.dominant_foot %}<span class="header-pill">{{ player.dominant_foot }}</span>{% endif %}
+            <span class="header-pill">{% if is_player_readonly %}Vista jugador{% else %}Vista staff{% endif %}</span>
+          </div>
 	        </div>
           </div>
 		        <div class="player-head-actions">
