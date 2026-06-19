@@ -56,15 +56,31 @@
         justify-content: space-between;
         gap: 1rem;
         align-items: center;
+        padding: 1rem 1.05rem;
+        border-radius: 24px;
+        border: 1px solid rgba(244, 180, 0, 0.14);
+        background:
+          radial-gradient(720px 240px at 0% 0%, rgba(244,180,0,0.10) 0%, rgba(244,180,0,0) 56%),
+          rgba(14, 23, 39, 0.94);
+        box-shadow: 0 24px 54px rgba(0,0,0,0.24);
       }
       .title h1 {
         margin: 0;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
+        letter-spacing: -0.03em;
+        text-transform: none;
+        font-size: clamp(1.6rem, 3vw, 2.3rem);
+        line-height: 1.02;
       }
       .title p {
         margin: 0.35rem 0 0;
         color: rgba(226, 232, 240, 0.72);
+      }
+      .title .product-kicker {
+        color: rgba(244,180,0,0.92);
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
       }
       .section-nav {
         margin-top: 1rem;
@@ -83,7 +99,14 @@
 	        font-weight: 700;
 	        letter-spacing: 0.08em;
 	        text-transform: uppercase;
+          transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
 	      }
+      .section-nav a:hover,
+      .workspace-tab:hover {
+        transform: translateY(-1px);
+        border-color: rgba(244,180,0,0.38);
+        box-shadow: 0 16px 30px rgba(8,15,30,0.18);
+      }
       .workspace-tabs {
         margin-top: 1rem;
         display: flex;
@@ -97,11 +120,12 @@
 	        color: rgba(255, 242, 199, 0.96);
 	        border-radius: 999px;
 	        padding: 0.6rem 0.95rem;
-        font-size: 0.78rem;
+	        font-size: 0.78rem;
         font-weight: 800;
         letter-spacing: 0.08em;
         text-transform: uppercase;
         cursor: pointer;
+        transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
       }
 	      .workspace-tab.is-active {
 	        background: rgba(244, 180, 0, 0.92);
