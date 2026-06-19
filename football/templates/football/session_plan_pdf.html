@@ -23,6 +23,9 @@
       .sheet {
         border: 1px solid #d5dde7;
         background: #ffffff;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
       }
       .table {
         width: 100%;
@@ -81,9 +84,9 @@
       .section-title {
         padding: 7px 12px;
         font-size: 13px;
-        font-weight: 800;
+        font-weight: 900;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.08em;
         page-break-after: avoid;
         break-after: avoid;
       }
@@ -136,11 +139,12 @@
       .task-sheet-card {
         border: 1px solid var(--border);
         background: #fff;
-        padding: 10px;
+        padding: 11px;
         margin-bottom: 8px;
-        border-radius: 10px;
+        border-radius: 14px;
         page-break-inside: auto;
         break-inside: auto;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
       }
       .task-sheet-card:last-child {
         margin-bottom: 0;
@@ -170,17 +174,20 @@
       }
       .task-title {
         font-size: 13px;
-        font-weight: 700;
+        font-weight: 800;
+        letter-spacing: 0.01em;
       }
       .task-meta {
-        margin-top: 4px;
+        margin-top: 5px;
         color: #475569;
+        font-size: 10px;
       }
 	      .footer {
 	        padding: 8px 12px;
 	        border-top: 1px solid #d5dde7;
 	        font-size: 9px;
 	        color: {{ pdf_palette.muted }};
+          background: #f8fafc;
 	      }
 
 	      .task-graphic {
@@ -568,6 +575,14 @@
 	                <td colspan="2">{% if card.sheet.coordination_skills_label %}{{ card.sheet.coordination_skills_label }}{% else %}-{% endif %}</td>
 	                <td colspan="2">{% if card.sheet.tactical_intent_label %}{{ card.sheet.tactical_intent_label }}{% else %}-{% endif %}</td>
 	              </tr>
+	              {% if card.sheet.methodology_label %}
+	              <tr>
+	                <td class="rfef-label" colspan="4" style="text-align:center;">Metodología</td>
+	              </tr>
+	              <tr>
+	                <td colspan="4">{{ card.sheet.methodology_label }}</td>
+	              </tr>
+	              {% endif %}
 	            </table>
 	          </div>
 	        </section>
@@ -762,6 +777,14 @@
 	                  {{ card.sheet.focus|default:"-" }}
 	                </td>
 	              </tr>
+	              {% if card.sheet.methodology_label %}
+	              <tr>
+	                <td colspan="2">
+	                  <strong>Metodología</strong>
+	                  {{ card.sheet.methodology_label }}
+	                </td>
+	              </tr>
+	              {% endif %}
 	              <tr>
 	                <td>
 	                  <strong>Variantes</strong>
