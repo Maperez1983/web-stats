@@ -9,12 +9,38 @@
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     {% include 'football/pwa_head.html' %}
     <style>
-      body { margin:0; background: linear-gradient(180deg, #020417 0%, #050b1c 100%); color:#e5e7eb; font-family:var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif); }
-      .page { max-width: 1080px; margin:0 auto; padding: 1rem 1rem 2.5rem; }
-      .top { display:flex; justify-content:space-between; align-items:flex-start; gap:0.8rem; flex-wrap:wrap; margin-bottom: 0.85rem; }
-      h1 { margin:0; font-size: 1.05rem; letter-spacing:0.08em; text-transform:uppercase; }
+      body {
+        margin:0;
+        background:
+          radial-gradient(circle at top, rgba(34, 211, 238, 0.15), transparent 34%),
+          radial-gradient(circle at 84% 10%, rgba(99, 102, 241, 0.16), transparent 28%),
+          linear-gradient(180deg, #020417 0%, #050b1c 100%);
+        color:#e5e7eb;
+        font-family:var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif);
+      }
+      .page { max-width: 1080px; margin:0 auto; padding: 1.1rem 1rem 2.8rem; }
+      .top {
+        display:flex;
+        justify-content:space-between;
+        align-items:flex-start;
+        gap:0.8rem;
+        flex-wrap:wrap;
+        margin-bottom: 1rem;
+        padding: 1rem 1.05rem;
+        border:1px solid rgba(148,163,184,0.18);
+        border-radius: 24px;
+        background: linear-gradient(135deg, rgba(8,15,31,0.88), rgba(15,23,42,0.8));
+        box-shadow: 0 24px 56px rgba(2, 6, 23, 0.34);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+      }
+      .top-copy { display:flex; flex-direction:column; gap:0.34rem; max-width: 720px; }
+      .top-kicker { color: rgba(125,211,252,0.9); font-size:0.72rem; font-weight:950; letter-spacing:0.18em; text-transform:uppercase; }
+      h1 { margin:0; font-size: clamp(1.35rem, 2vw, 2rem); line-height:1.02; letter-spacing:-0.03em; text-transform:none; color:#f8fafc; }
       .meta { color: rgba(226,232,240,0.72); font-weight: 850; }
-      .card { border:1px solid rgba(148,163,184,0.18); background: rgba(2, 6, 23, 0.36); border-radius: 18px; padding: 0.9rem; }
+      .hero-pills { display:flex; flex-wrap:wrap; gap:0.45rem; }
+      .hero-pill { display:inline-flex; align-items:center; gap:0.35rem; padding:0.42rem 0.72rem; border-radius:999px; border:1px solid rgba(148,163,184,0.15); background: rgba(255,255,255,0.05); color:#f8fafc; font-size:0.72rem; font-weight:900; letter-spacing:0.05em; text-transform:uppercase; }
+      .card { border:1px solid rgba(148,163,184,0.18); background: rgba(2, 6, 23, 0.36); border-radius: 22px; padding: 1rem; box-shadow: 0 18px 44px rgba(2, 6, 23, 0.22); }
       .row { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:0.7rem; }
       @media (max-width: 860px) { .row { grid-template-columns: 1fr; } }
       label { display:flex; flex-direction:column; gap:0.35rem; font-size:0.74rem; font-weight:950; letter-spacing:0.06em; text-transform:uppercase; color: rgba(226,232,240,0.86); }
@@ -29,8 +55,10 @@
         text-transform:none;
       }
       textarea { min-height: 120px; resize: vertical; }
-      .btn { border-radius:999px; border:1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.65rem 0.9rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:0.4rem; }
+      .btn { border-radius:999px; border:1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.65rem 0.9rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:0.4rem; transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease; }
       .btn.primary { background: linear-gradient(135deg, #22d3ee, #67e8f9); border:none; color:#03253c; }
+      .btn:hover { transform: translateY(-1px); border-color: rgba(125,211,252,0.34); background: rgba(255,255,255,0.1); box-shadow: 0 14px 24px rgba(2,6,23,0.18); }
+      .btn.primary:hover { background: linear-gradient(135deg, #67e8f9, #a5f3fc); }
       .alert { border-radius: 14px; padding: 0.65rem 0.75rem; font-weight: 850; }
       .alert.ok { background: rgba(34,197,94,0.14); border:1px solid rgba(34,197,94,0.32); color: rgba(187,247,208,0.95); }
       .alert.err { background: rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.32); color: rgba(254,202,202,0.95); }
@@ -42,9 +70,15 @@
     {% include 'football/includes/dragon_nav.html' %}
     <main class="page">
       <div class="top">
-        <div>
+        <div class="top-copy">
+          <div class="top-kicker">Identidad de juego</div>
           <h1>Modelo de juego</h1>
           <div class="meta">{{ workspace.name }} · {{ team.name|default:"Equipo" }}</div>
+          <div class="hero-pills">
+            <span class="hero-pill">Marco común</span>
+            <span class="hero-pill">IA Trainer</span>
+            <span class="hero-pill">Metodología</span>
+          </div>
         </div>
         <div style="display:flex; gap:0.55rem; flex-wrap:wrap;">
           <a class="btn" href="{% url 'sessions' %}?team={{ team.id }}">Entrenos</a>
@@ -57,7 +91,7 @@
 
       <section class="card" style="margin-top:0.9rem;">
         <p class="muted" style="margin:0 0 0.75rem;">
-          Esto sirve para que el club defina un marco común y para que IA‑Trainer proponga tareas coherentes. No genera costes.
+          Define aquí el lenguaje común del cuerpo técnico. Este marco guía la creación de tareas, sesiones y recomendaciones para que todo el sistema empuje en la misma dirección.
         </p>
         <form method="post">
           {% csrf_token %}
@@ -106,6 +140,17 @@
 
           <div class="row" style="grid-template-columns:1fr 1fr; margin-top:0.7rem;">
             <label>
+              Subprincipios (Ataque)
+              <textarea name="attack_subprinciples" placeholder="Uno por línea. Ej: hombre libre por detrás de línea, apoyo de seguridad...">{{ attack_subprinciples_text }}</textarea>
+            </label>
+            <label>
+              Subprincipios (Defensa)
+              <textarea name="defense_subprinciples" placeholder="Ej: primer acosador, cobertura cercana, cerrar pase interior...">{{ defense_subprinciples_text }}</textarea>
+            </label>
+          </div>
+
+          <div class="row" style="grid-template-columns:1fr 1fr; margin-top:0.7rem;">
+            <label>
               Principios (Transición)
               <textarea name="transition_principles" placeholder="Ej: 5'' para finalizar, 6'' para recuperar...">{{ transition_principles_text }}</textarea>
             </label>
@@ -114,6 +159,22 @@
               <textarea name="abp_principles" placeholder="Ej: córner 1er palo, bloqueo, 2ª jugada...">{{ abp_principles_text }}</textarea>
             </label>
           </div>
+
+          <div class="row" style="grid-template-columns:1fr 1fr; margin-top:0.7rem;">
+            <label>
+              Subprincipios (Transición)
+              <textarea name="transition_subprinciples" placeholder="Ej: orientar primera presión, asegurar vigilancia tras pase vertical...">{{ transition_subprinciples_text }}</textarea>
+            </label>
+            <label>
+              Subprincipios (ABP)
+              <textarea name="abp_subprinciples" placeholder="Ej: bloqueo indirecto, caída a rechace, segunda jugada...">{{ abp_subprinciples_text }}</textarea>
+            </label>
+          </div>
+
+          <label style="margin-top:0.7rem;">
+            Reglas de comportamiento
+            <textarea name="behavior_rules" placeholder="Una por línea. Ej: si perdemos por dentro, primera presión al poseedor y cierre del pivote...">{{ behavior_rules_text }}</textarea>
+          </label>
 
           <label style="margin-top:0.7rem;">
             Notas del club / staff

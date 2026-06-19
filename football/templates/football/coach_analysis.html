@@ -15,7 +15,10 @@
 	      body {
 	        margin: 0;
 	        font-family: 'IBM Plex Sans', var(--prod-font-ui, system-ui), sans-serif;
-	        background: linear-gradient(180deg, #020417 0%, #050b1c 100%);
+	        background:
+            radial-gradient(circle at top, rgba(56, 189, 248, 0.15), transparent 32%),
+            radial-gradient(circle at 88% 8%, rgba(244, 180, 0, 0.12), transparent 24%),
+            linear-gradient(180deg, #020417 0%, #050b1c 100%);
 	        color: #f8fafc;
 	      }
       .page {
@@ -26,17 +29,53 @@
       header {
         display: flex;
         justify-content: space-between;
-        align-items: baseline;
-        margin-bottom: 1.5rem;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1.1rem;
+        padding: 1.1rem 1.15rem;
+        border-radius: 26px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: linear-gradient(135deg, rgba(8, 15, 31, 0.9), rgba(15, 23, 42, 0.82));
+        box-shadow: 0 24px 58px rgba(0, 0, 0, 0.34);
+        backdrop-filter: blur(14px);
+      }
+      .header-copy { display:flex; flex-direction:column; gap:0.35rem; min-width:0; }
+      .header-kicker {
+        margin: 0;
+        color: rgba(125, 211, 252, 0.94);
+        font-size: 0.74rem;
+        font-weight: 900;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
       }
       header h1 {
         margin: 0;
-        text-transform: uppercase;
-        letter-spacing: 0.15em;
+        font-size: clamp(1.35rem, 2.1vw, 2rem);
+        line-height: 1.02;
+        letter-spacing: -0.03em;
       }
       header p {
         margin: 0;
         color: rgba(226, 232, 240, 0.7);
+      }
+      .header-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+      }
+      .header-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        border-radius: 999px;
+        padding: 0.42rem 0.72rem;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.05);
+        color: rgba(248, 250, 252, 0.92);
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
       }
       .panel {
         background: rgba(15, 23, 42, 0.95);
@@ -62,12 +101,18 @@
         text-transform: uppercase;
         background: rgba(2, 6, 23, 0.35);
         font-weight: 800;
+        transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
       }
 	      .tab-nav a.is-active {
 	        border-color: rgba(56, 189, 248, 0.55);
 	        box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.18);
 	        background: rgba(56, 189, 248, 0.12);
 	      }
+        .tab-nav a:hover {
+          transform: translateY(-1px);
+          border-color: rgba(125, 211, 252, 0.34);
+          background: rgba(255, 255, 255, 0.08);
+        }
 
 	      .analysis-summary {
 	        margin-top: 1rem;
@@ -194,36 +239,24 @@
       [data-tab] { display: block; }
       body[data-active-tab="reports"] [data-tab="videos"],
       body[data-active-tab="reports"] [data-tab="studio"],
-      body[data-active-tab="reports"] [data-tab="tactics"],
       body[data-active-tab="reports"] [data-tab="insights"],
       body[data-active-tab="reports"] [data-tab="rivals"] { display: none; }
       body[data-active-tab="videos"] [data-tab="reports"],
       body[data-active-tab="videos"] [data-tab="studio"],
-      body[data-active-tab="videos"] [data-tab="tactics"],
       body[data-active-tab="videos"] [data-tab="insights"],
       body[data-active-tab="videos"] [data-tab="rivals"] { display: none; }
       body[data-active-tab="studio"] [data-tab="reports"],
       body[data-active-tab="studio"] [data-tab="videos"],
-      body[data-active-tab="studio"] [data-tab="tactics"],
       body[data-active-tab="studio"] [data-tab="insights"],
       body[data-active-tab="studio"] [data-tab="rivals"] { display: none; }
-      body[data-active-tab="tactics"] [data-tab="reports"],
-      body[data-active-tab="tactics"] [data-tab="videos"],
-      body[data-active-tab="tactics"] [data-tab="studio"],
-      body[data-active-tab="tactics"] [data-tab="insights"],
-      body[data-active-tab="tactics"] [data-tab="rivals"] { display: none; }
       body[data-active-tab="insights"] [data-tab="reports"],
       body[data-active-tab="insights"] [data-tab="videos"],
       body[data-active-tab="insights"] [data-tab="studio"],
-      body[data-active-tab="insights"] [data-tab="tactics"],
       body[data-active-tab="insights"] [data-tab="rivals"] { display: none; }
       body[data-active-tab="rivals"] [data-tab="reports"],
       body[data-active-tab="rivals"] [data-tab="videos"],
       body[data-active-tab="rivals"] [data-tab="studio"],
-      body[data-active-tab="rivals"] [data-tab="tactics"],
       body[data-active-tab="rivals"] [data-tab="insights"] { display: none; }
-      body[data-active-tab="videos"][data-video-view="upload"] .analysis-library-only { display: none !important; }
-      body[data-active-tab="videos"][data-video-view="library"] .analysis-upload-only { display: none !important; }
       .grid {
         display: grid;
         gap: 1rem;
@@ -482,6 +515,47 @@
       .upload-progress .meta {
         white-space: nowrap;
       }
+      .analysis-workflow {
+        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+      }
+      .analysis-workflow-step {
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(2, 6, 23, 0.32);
+        padding: 0.8rem 0.85rem;
+        min-height: 82px;
+      }
+      .analysis-workflow-step strong {
+        display: block;
+        font-size: 0.75rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        margin-bottom: 0.3rem;
+      }
+      .analysis-workflow-step span {
+        display: block;
+        color: rgba(226, 232, 240, 0.74);
+        font-size: 0.86rem;
+        line-height: 1.35;
+      }
+      .studio-result {
+        display: none;
+        margin-top: 0.65rem;
+        align-items: center;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+      }
+      .studio-result.is-visible {
+        display: flex;
+      }
+      @media (max-width: 820px) {
+        .analysis-workflow {
+          grid-template-columns: 1fr;
+        }
+      }
       .report-row {
         display: flex;
         flex-wrap: wrap;
@@ -519,44 +593,51 @@
 		      }
 		    </style>
 		  </head>
-	  <body class="prod-commercial" data-active-tab="{{ active_tab|default:'videos' }}" data-video-view="{{ analysis_video_view|default:'upload' }}">
+	  <body class="prod-commercial" data-active-tab="{{ active_tab|default:'reports' }}">
 	    <div class="page product-shell">
       {% include 'football/includes/dragon_nav.html' %}
       <header>
-        <div>
-          <p>Área técnica · Cuerpo técnico <span class="product-chip role">Análisis + táctica</span></p>
+        <div class="header-copy">
+          <p class="header-kicker">Área técnica · Scouting rival</p>
           <h1>{{ section_title }}</h1>
+          <p>Centraliza vídeo, cortes, hallazgos y contexto competitivo en una única superficie operativa.</p>
+          <div class="header-pills">
+            <span class="header-pill">Vídeo</span>
+            <span class="header-pill">Editor</span>
+            <span class="header-pill">Informe táctico</span>
+            <span class="header-pill">Rival</span>
+          </div>
         </div>
         <a class="button ghost" href="{% url 'coach-detail' %}">Volver</a>
       </header>
 	      <article class="panel">
-		        {% if active_tab == 'videos' and analysis_video_view == 'upload' %}
+		        {% if active_tab == 'videos' %}
 		          <p class="meta" style="margin:0;">
-		            Carga un vídeo desde archivo o YouTube. Al terminar se abre Video Studio para cortar, marcar y editar.
-		          </p>
-		        {% elif active_tab == 'videos' %}
-		          <p class="meta" style="margin:0;">
-		            Biblioteca: vídeos, clips, playlists y carpetas guardadas para el cuerpo técnico.
-		          </p>
-		        {% elif active_tab == 'studio' %}
-		          <p class="meta" style="margin:0;">
-		            Edición: abre Video Studio sobre un vídeo existente para cortar, marcar, crear clips o exportar.
-		          </p>
-		        {% elif active_tab == 'tactics' %}
-		          <p class="meta" style="margin:0;">
-		            Pizarra táctica: jugadas libres, secuencias 2D/3D, Playbook y exportaciones.
+		            Biblioteca de vídeos: organiza por carpetas, sube archivo o enlaza YouTube y abre clips en el editor.
 		          </p>
 		        {% else %}
 		          <p>{{ description }}</p>
 		        {% endif %}
 			        <nav class="tab-nav" aria-label="Secciones análisis">
-			          <a class="{% if active_tab == 'videos' and analysis_video_view == 'upload' %}is-active{% endif %}" href="{{ tab_link_upload }}">Cargar vídeo</a>
-			          <a class="{% if active_tab == 'videos' and analysis_video_view == 'library' %}is-active{% endif %}" href="{{ tab_link_library }}">Biblioteca</a>
-				          <a class="{% if active_tab == 'studio' %}is-active{% endif %}" href="{{ tab_link_studio }}">Edición</a>
-				          <a class="{% if active_tab == 'tactics' %}is-active{% endif %}" href="{{ tab_link_tactics }}">Pizarra táctica</a>
+			          <a class="{% if active_tab == 'videos' %}is-active{% endif %}" href="{{ tab_link_videos }}">Vídeos</a>
+				          <a class="{% if active_tab == 'studio' %}is-active{% endif %}" href="{{ tab_link_studio }}">Editor</a>
 			        </nav>
+              <section class="analysis-workflow" aria-label="Flujo de análisis de vídeo">
+                <div class="analysis-workflow-step">
+                  <strong>1 · Añade vídeo</strong>
+                  <span>Sube archivo o importa YouTube desde la biblioteca.</span>
+                </div>
+                <div class="analysis-workflow-step">
+                  <strong>2 · Abre Studio</strong>
+                  <span>El editor se abre al terminar; también puedes abrirlo desde cada vídeo.</span>
+                </div>
+                <div class="analysis-workflow-step">
+                  <strong>3 · Guarda cortes</strong>
+                  <span>Marca IN/OUT, etiqueta la acción y deja la nota táctica.</span>
+                </div>
+              </section>
 
-		        {% if active_tab == 'reports' or active_tab == 'insights' or active_tab == 'rivals' %}
+		        {% if active_tab != 'videos' %}
 		        <section class="analysis-summary" aria-label="Resumen rival">
 		          <div class="analysis-summary-main">
 		            <div class="analysis-summary-crest">
@@ -767,15 +848,15 @@
         <div data-tab="videos">
         <div class="grid" style="margin-top:1rem;">
 	          <div class="item item-wide">
-	            <h3 class="analysis-library-only">Biblioteca de vídeos</h3>
-	            <div class="actions analysis-library-only" style="justify-content:flex-start; margin:0.65rem 0 0.2rem;">
+	            <h3>Biblioteca de vídeos</h3>
+	            <div class="actions" style="justify-content:flex-start; margin:0.65rem 0 0.2rem;">
 	              <a class="button ghost" href="{% url 'analysis-video-inbox' %}">
 	                Bandeja{% if video_inbox_unread_count %} ({{ video_inbox_unread_count }} sin leer){% endif %}
 	              </a>
 	              <a class="button ghost" href="{% url 'analysis-video-inbox' %}?filter=playlist">Playlists</a>
 	              <a class="button ghost" href="{% url 'analysis-video-inbox' %}?filter=clip">Clips</a>
 	            </div>
-	            <details class="collapsible analysis-library-only" {% if folder_message or folder_error or selected_folder_id %}open{% endif %}>
+	            <details class="collapsible" {% if folder_message or folder_error or selected_folder_id %}open{% endif %}>
 	              <summary>
 	                Carpetas y organización
 	                {% if selected_folder_id %}<span class="meta" style="font-weight:600;">· filtro activo</span>{% endif %}
@@ -799,9 +880,9 @@
 	                </form>
 		                {% if video_folders %}
 		                <div class="folder-list">
-		                  <a class="folder-chip {% if not selected_folder_id %}is-active{% endif %}" href="?tab=videos&view=library{% if team_id %}&team_id={{ team_id }}{% endif %}">Todas</a>
+		                  <a class="folder-chip {% if not selected_folder_id %}is-active{% endif %}" href="?tab=videos{% if team_id %}&team_id={{ team_id }}{% endif %}">Todas</a>
 		                  {% for folder in video_folders %}
-		                  <a class="folder-chip {% if selected_folder_id == folder.id %}is-active{% endif %}" href="?tab=videos&view=library{% if team_id %}&team_id={{ team_id }}{% endif %}&folder={{ folder.id }}">
+		                  <a class="folder-chip {% if selected_folder_id == folder.id %}is-active{% endif %}" href="?tab=videos{% if team_id %}&team_id={{ team_id }}{% endif %}&folder={{ folder.id }}">
 		                    {{ folder.name }}{% if folder.rival_team %} · {{ folder.rival_team.display_name }}{% endif %}
 		                    {% if folder.is_visible_to_players %}
 		                      <span style="display:inline-flex; align-items:center; justify-content:center; padding:0.1rem 0.4rem; border-radius:999px; border:1px solid rgba(34,211,238,0.35); background: rgba(34,211,238,0.12); color: rgba(207,250,254,0.95); font-weight:900; font-size:0.7rem; letter-spacing:0.08em; text-transform:uppercase;">Jugadores</span>
@@ -839,12 +920,12 @@
 			              </div>
 			            </details>
 
-			            <div class="meta analysis-library-only" style="margin-top:0.75rem;">
-			              Los vídeos, clips y playlists guardados se gestionan desde esta biblioteca.
+			            <div class="meta" style="margin-top:0.75rem;">
+			              Los informes (PPTX/PDF) se gestionan en la pestaña <strong>Informes</strong>.
 			            </div>
 		
-		            <details class="collapsible analysis-upload-only" style="margin-top:0.75rem;" {% if analysis_video_view == 'upload' or video_message or video_error %}open{% endif %}>
-		              <summary>Cargar vídeo</summary>
+		            <details class="collapsible" style="margin-top:0.75rem;" {% if video_message or video_error %}open{% endif %}>
+		              <summary>Añadir vídeo (archivo / YouTube)</summary>
 		              <div class="collapsible-body">
 		            <form
 		              class="form"
@@ -867,15 +948,6 @@
                   <option value="">Sin carpeta</option>
                   {% for folder in video_folders %}
                   <option value="{{ folder.id }}" {% if selected_folder_id == folder.id %}selected{% endif %}>{{ folder.name }}{% if folder.rival_team %} · {{ folder.rival_team.display_name }}{% endif %}</option>
-                  {% endfor %}
-                </select>
-              </div>
-              <div>
-                <label for="video_match_id">Partido</label>
-                <select id="video_match_id" name="video_match_id">
-                  <option value="">Sin partido asignado</option>
-                  {% for match in match_options %}
-                  <option value="{{ match.id }}" {% if selected_video_match_id == match.id %}selected{% endif %}>{{ match.label }}</option>
                   {% endfor %}
                 </select>
               </div>
@@ -922,6 +994,10 @@
 		                <progress id="video-upload-progress-bar" value="0" max="100"></progress>
 		                <span class="meta" id="video-upload-progress-label">0%</span>
 		              </div>
+                  <div class="studio-result" id="video-upload-result">
+                    <span class="ok" style="margin:0;">Vídeo listo.</span>
+                    <a class="button ghost" id="video-upload-open-studio" href="#">Abrir Video Studio</a>
+                  </div>
 		            </form>
               <form
                 class="form"
@@ -957,8 +1033,12 @@
                   </div>
                 </div>
                 <div class="actions" style="justify-content:flex-start;">
-                  <button class="button ghost" type="submit" id="video-youtube-submit">Importar de YouTube</button>
+                  <button class="button ghost" type="submit" id="video-youtube-submit">Importar y abrir Studio</button>
                   <span class="meta" id="video-youtube-status" style="margin-left:0.65rem;"></span>
+                </div>
+                <div class="studio-result" id="video-youtube-result">
+                  <span class="ok" style="margin:0;">Enlace listo.</span>
+                  <a class="button ghost" id="video-youtube-open-studio" href="#">Abrir Video Studio</a>
                 </div>
 	              </form>
 	              {% if video_message %}
@@ -969,37 +1049,19 @@
 	              {% endif %}
 	              </div>
 	            </details>
-	            <div class="grid analysis-library-only">
-	              {% for match_group in analysis_match_library %}
-	              <section class="item item-wide" style="background:rgba(2,6,23,0.42);">
-	                <div style="display:flex; justify-content:space-between; gap:0.75rem; flex-wrap:wrap; align-items:flex-start;">
-	                  <div>
-	                    <h3 style="margin:0;">{{ match_group.label }}</h3>
-	                    <p class="meta" style="margin-top:0.25rem;">
-	                      {{ match_group.video_count }} vídeo(s) · {{ match_group.clip_count }} clip(s) · {{ match_group.capture_count }} captura(s) · {{ match_group.export_count }} export(s)
-	                    </p>
-	                  </div>
-	                  {% if match_group.match_id %}
-	                    <a class="button ghost" href="?tab=videos&view=library&video_match_id={{ match_group.match_id }}{% if team_id %}&team_id={{ team_id }}{% endif %}">Filtrar partido</a>
-	                  {% endif %}
-	                </div>
-	                <div class="grid">
-	              {% for video in match_group.videos %}
+	            <div class="grid">
+	              {% for video in rival_videos %}
 	              <article class="item video-item">
 	                <h4>{{ video.title }}</h4>
 	                <p class="meta">
 	                  {{ video.get_source_display }} · {{ video.created_at|date:"d/m/Y H:i" }}
-	                  {% if video.match %} · {{ video.match.round|default:"Partido" }}{% if video.match.date %} · {{ video.match.date|date:"d/m/Y" }}{% endif %}{% endif %}
 	                  {% if video.folder %} · Carpeta {{ video.folder.name }}{% endif %}
 	                  {% if video.folder and video.folder.base_video_id == video.id %} · <span style="color:#fde68a; font-weight:900;">BASE</span>{% endif %}
 	                  {% if not video.folder and video.is_base %} · <span style="color:#fde68a; font-weight:900;">BASE</span>{% endif %}
 	                  {% if video.source_url %} · <a href="{{ video.source_url }}" target="_blank" rel="noopener">Origen</a>{% endif %}
 	                </p>
-	                <p class="meta" style="margin:-0.15rem 0 0.6rem;">
-	                  {{ video.analysis_clip_count|default:0 }} clip(s) · {{ video.analysis_capture_count|default:0 }} captura(s) · {{ video.analysis_project_count|default:0 }} proyecto(s) · {{ video.analysis_export_count|default:0 }} export(s)
-	                </p>
 	                <div class="actions" style="justify-content:flex-start; margin:-0.25rem 0 0.6rem;">
-	                  <a class="button ghost" href="{% url 'analysis-video-studio' video.id %}">Video Studio</a>
+	                  <a class="button ghost" href="{% url 'analysis-video-studio' video.id %}">Abrir en Video Studio</a>
 	                  {% if video.folder %}
 	                  <form method="post" style="margin:0;">
 	                    {% csrf_token %}
@@ -1019,15 +1081,24 @@
 	                  </form>
 	                  {% endif %}
 	                </div>
-                <p class="meta" style="margin:0;">
-                  {% if video.source_url %}
-                    Enlace externo guardado. Abre Video Studio para reproducir, cortar y anotar.
-                  {% elif video.video %}
-                    Archivo guardado. Abre Video Studio para reproducir, cortar y anotar.
-                  {% else %}
-                    Vídeo no disponible (sin archivo y sin enlace).
-                  {% endif %}
-                </p>
+                {% if video.youtube_embed_url %}
+                <div style="position:relative; width:100%; aspect-ratio:16/9; border-radius:12px; overflow:hidden; border:1px solid rgba(148,163,184,0.35); background:#020617;">
+                  <iframe
+                    title="YouTube"
+                    src="{{ video.youtube_embed_url }}"
+                    style="position:absolute; inset:0; width:100%; height:100%; border:0;"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowfullscreen
+                    referrerpolicy="strict-origin-when-cross-origin"
+                  ></iframe>
+                </div>
+                {% elif video.video %}
+                <video controls preload="metadata">
+                  <source src="{{ video.video.url }}" />
+                </video>
+                {% else %}
+                <p class="error" style="margin:0;">Vídeo no disponible (sin archivo y sin enlace).</p>
+                {% endif %}
 	                {% if video.notes %}
 	                <p class="meta" style="margin-top:0.55rem;">{{ video.notes }}</p>
 	                {% endif %}
@@ -1046,15 +1117,6 @@
 	                          <option value="">Sin carpeta</option>
 	                          {% for folder in video_folders %}
 	                          <option value="{{ folder.id }}" {% if video.folder_id == folder.id %}selected{% endif %}>{{ folder.name }}{% if folder.rival_team %} · {{ folder.rival_team.display_name }}{% endif %}</option>
-	                          {% endfor %}
-	                        </select>
-	                      </div>
-	                      <div style="margin-top:0.75rem;">
-	                        <label for="video-match-{{ video.id }}">Partido</label>
-	                        <select id="video-match-{{ video.id }}" name="video_match_id">
-	                          <option value="">Sin partido asignado</option>
-	                          {% for match in match_options %}
-	                          <option value="{{ match.id }}" {% if video.match_id == match.id %}selected{% endif %}>{{ match.label }}</option>
 	                          {% endfor %}
 	                        </select>
 	                      </div>
@@ -1083,13 +1145,8 @@
                 </form>
               </article>
               {% empty %}
-              <article class="item"><p class="meta">Sin vídeos en este partido.</p></article>
+              <article class="item"><p class="meta">Sin vídeos cargados todavía.</p></article>
               {% endfor %}
-	                </div>
-	              </section>
-	              {% empty %}
-	              <article class="item"><p class="meta">Sin vídeos cargados todavía.</p></article>
-	              {% endfor %}
             </div>
           </div>
 	        </div>
@@ -1098,13 +1155,12 @@
 	        <div data-tab="studio">
 	        <div class="grid" style="margin-top:1rem;">
 	          <div class="item item-wide">
-	            <h3>Edición</h3>
+	            <h3>Video Studio (editor)</h3>
 	            <p class="meta" style="margin:0.35rem 0 0;">
-		              Abre un vídeo existente en Video Studio para cortar, marcar, crear clips o exportar.
+		              Aquí solo se abre el editor. Para subir/crear vídeos (archivo o YouTube) ve a la pestaña “Vídeos”.
 		            </p>
 	            <div class="actions" style="justify-content:flex-start; margin-top:0.85rem;">
-	              <a class="button ghost" href="{{ tab_link_upload }}">Cargar vídeo</a>
-	              <a class="button ghost" href="{{ tab_link_library }}">Biblioteca</a>
+	              <a class="button ghost" href="{{ tab_link_videos }}">Ir a Vídeos</a>
 	              <a class="button ghost" href="{% url 'analysis-video-inbox' %}">Bandeja</a>
 	            </div>
 	          </div>
@@ -1120,51 +1176,8 @@
 	            </div>
 	          </article>
 	          {% empty %}
-	          <article class="item"><p class="meta">No hay vídeos todavía. Usa “Cargar vídeo” para subir uno desde archivo o YouTube.</p></article>
+	          <article class="item"><p class="meta">No hay vídeos todavía. Ve a la pestaña “Vídeos” para subir uno (archivo o YouTube).</p></article>
 	          {% endfor %}
-	        </div>
-	        </div>
-
-	        <div data-tab="tactics">
-	        <div class="grid" style="margin-top:1rem;">
-	          <div class="item item-wide">
-	            <h3>Pizarra táctica + Playbook</h3>
-	            <p class="meta" style="margin:0.35rem 0 0;">
-	              Editor táctico independiente para preparar jugadas, animaciones, clips de Playbook y material exportable.
-	            </p>
-	            <div class="actions" style="justify-content:flex-start; margin-top:0.85rem;">
-	              <a class="button" href="{{ tactics_url_pro|default:tactics_url }}">Abrir Tactical Pro</a>
-	              <a class="button ghost" href="{{ tactics_url_easy_animation|default:tactics_url_pro }}">Animar fácil</a>
-	              <a class="button ghost" href="{{ tactics_url }}">Pizarra libre</a>
-	              <a class="button ghost" href="{{ tactics_url_playbook }}">Playbook</a>
-	              <a class="button ghost" href="{{ tactics_url_export }}">Exportar</a>
-	              <a class="button ghost" href="{{ tab_link_studio }}">Video Studio</a>
-	            </div>
-	          </div>
-	          <article class="item">
-	            <h4>Pizarra libre</h4>
-	            <p class="meta">Campo, jugadores, balón, flechas, curvas, zonas, texto y estructuras.</p>
-	          </article>
-	          <article class="item">
-	            <h4>Animación 2D/3D</h4>
-	            <p class="meta">Secuencias por fases para explicar movimientos, presión, bloque y circulación.</p>
-	          </article>
-	          <article class="item">
-	            <h4>Playbook</h4>
-	            <p class="meta">Clips tácticos guardados por equipo para recuperar, presentar o compartir.</p>
-	          </article>
-	          <article class="item">
-	            <h4>Exportaciones</h4>
-	            <p class="meta">Capturas, paquetes de trabajo y datos reutilizables para cuerpo técnico.</p>
-	          </article>
-	          <article class="item">
-	            <h4>Conexión con vídeo</h4>
-	            <p class="meta">Sincroniza clips reales, timeline táctico, comparador plan-realidad y charla de vestuario.</p>
-	          </article>
-	          <article class="item">
-	            <h4>Plantilla activa</h4>
-	            <p class="meta">Jugadores, principios del club, correcciones individuales, rival y vista jugador.</p>
-	          </article>
 	        </div>
 	        </div>
 
@@ -1583,28 +1596,31 @@
 	        const wrap = document.getElementById('video-upload-progress');
 	        const bar = document.getElementById('video-upload-progress-bar');
 	        const label = document.getElementById('video-upload-progress-label');
+          const result = document.getElementById('video-upload-result');
+          const resultLink = document.getElementById('video-upload-open-studio');
 	        const maxMb = Number(form.dataset.maxMb || 0);
 	        const chunkInitUrl = "{% url 'analysis-rival-video-chunk-init-api' %}";
 	        const chunkPutUrl = "{% url 'analysis-rival-video-chunk-put-api' %}";
 	        const chunkFinishUrl = "{% url 'analysis-rival-video-chunk-finish-api' %}";
-	        const studioUrlTemplate = "{% url 'analysis-video-studio' 0 %}";
-	        const chunkThresholdBytes = 12 * 1024 * 1024;
-	        const chunkSize = 4 * 1024 * 1024;
+          const studioUrlTemplate = "{% url 'analysis-video-studio' 0 %}";
+	        const chunkThresholdBytes = 80 * 1024 * 1024; // >80MB: chunk upload
+	        const chunkSize = 8 * 1024 * 1024; // 8MB
 
 	        const setProgress = (pct) => {
 	          if (bar) bar.value = pct;
 	          if (label) label.textContent = `${pct}%`;
 	        };
-	        const setStatus = (text) => {
-	          if (label) label.textContent = text;
-	        };
-	        const openStudio = (videoId) => {
-	          if (!videoId) {
-	            window.location.reload();
-	            return;
-	          }
-	          window.location.href = studioUrlTemplate.replace('/0/', `/${videoId}/`);
-	        };
+          const studioUrl = (videoId) => studioUrlTemplate.replace('/0/', `/${videoId}/`);
+          const openStudio = (videoId) => {
+            if (!videoId) {
+              window.location.reload();
+              return;
+            }
+            const href = studioUrl(videoId);
+            if (resultLink) resultLink.href = href;
+            if (result) result.classList.add('is-visible');
+            window.location.href = href;
+          };
 
 	        const getCsrf = () => {
 	          const inp = form.querySelector('input[name="csrfmiddlewaretoken"]');
@@ -1618,9 +1634,7 @@
 	          const source = String(document.getElementById('video_source')?.value || '').trim();
 	          const teamId = String(document.querySelector('input[name="video_team_id"]')?.value || '').trim();
 	          const folderId = String(document.getElementById('video_folder_id')?.value || '').trim();
-	          const matchId = String(document.getElementById('video_match_id')?.value || '').trim();
 	          const notes = String(document.getElementById('video_notes')?.value || '').trim();
-	          const personal = Boolean(form.querySelector('input[name="video_personal"]')?.checked);
 	          const assignedSel = document.getElementById('assigned_player_ids');
 	          const assigned = assignedSel ? Array.from(assignedSel.selectedOptions).map((o) => String(o.value || '')).filter(Boolean) : [];
 
@@ -1637,8 +1651,6 @@
 	              video_source: source,
 	              video_team_id: teamId,
 	              video_folder_id: folderId,
-	              video_match_id: matchId,
-	              video_personal: personal ? 1 : 0,
 	              video_notes: notes,
 	              assigned_player_ids: assigned,
 	            }),
@@ -1659,7 +1671,6 @@
 	            fd.append('chunk', chunk, `${file.name}.part`);
 	            let ok = false;
 	            for (let attempt = 0; attempt < 3 && !ok; attempt += 1) {
-	              setStatus(`Subiendo parte ${idx + 1}/${totalChunks}`);
 	              const resp = await fetch(chunkPutUrl, { method: 'POST', credentials: 'same-origin', body: fd });
 	              const data = await resp.json().catch(() => ({}));
 	              ok = Boolean(resp.ok && data?.ok);
@@ -1671,7 +1682,6 @@
 	            setProgress(pct);
 	          }
 
-	          setStatus('Finalizando vídeo...');
 	          const finResp = await fetch(chunkFinishUrl, {
 	            method: 'POST',
 	            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
@@ -1680,7 +1690,7 @@
 	          });
 	          const finData = await finResp.json().catch(() => ({}));
 	          if (!finResp.ok || !finData?.ok) throw new Error(finData?.error || 'finish');
-	          return Number(finData.video_id || 0) || 0;
+            return Number(finData.video_id || 0) || 0;
 	        };
 	
 	        form.addEventListener('submit', (ev) => {
@@ -1711,7 +1721,7 @@
 	          const xhr = new XMLHttpRequest();
 	          xhr.open('POST', form.getAttribute('action') || window.location.href);
 	          xhr.withCredentials = true;
-	          xhr.setRequestHeader('Accept', 'application/json');
+            xhr.setRequestHeader('Accept', 'application/json');
 	          setProgress(0);
 	          if (wrap) wrap.classList.add('is-visible');
 	          if (submit) submit.disabled = true;
@@ -1724,9 +1734,13 @@
 	
 	          xhr.addEventListener('load', () => {
 	            if (xhr.status >= 200 && xhr.status < 300) {
-	              let data = {};
-	              try { data = JSON.parse(xhr.responseText || '{}'); } catch (e) { data = {}; }
-	              openStudio(Number(data.video_id || 0) || 0);
+                let data = {};
+                try { data = JSON.parse(xhr.responseText || '{}'); } catch (e) { data = {}; }
+                if (data && data.ok) {
+                  openStudio(Number(data.video_id || 0) || 0);
+                  return;
+                }
+                window.location.reload();
 	              return;
 	            }
 	            if (wrap) wrap.classList.remove('is-visible');
@@ -1754,6 +1768,20 @@
           const urlInput = document.getElementById('youtube_url');
           const rightsConfirm = document.getElementById('youtube_rights_confirm');
           const apiUrl = "{% url 'analysis-rival-video-import-youtube-api' %}";
+          const studioUrlTemplate = "{% url 'analysis-video-studio' 0 %}";
+          const result = document.getElementById('video-youtube-result');
+          const resultLink = document.getElementById('video-youtube-open-studio');
+          const studioUrl = (videoId) => studioUrlTemplate.replace('/0/', `/${videoId}/`);
+          const openStudio = (videoId) => {
+            if (!videoId) {
+              window.location.reload();
+              return;
+            }
+            const href = studioUrl(videoId);
+            if (resultLink) resultLink.href = href;
+            if (result) result.classList.add('is-visible');
+            window.location.href = href;
+          };
 
           if (!enabled) {
             if (submit) submit.disabled = true;
@@ -1807,7 +1835,6 @@
               const csrf = getCsrf();
               const teamInp = document.querySelector('input[name="video_team_id"]');
               const folderEl = document.getElementById('video_folder_id');
-              const matchEl = document.getElementById('video_match_id');
               const titleEl = document.getElementById('video_title');
               const notesEl = document.getElementById('video_notes');
               const personalEl = document.getElementById('video_personal_youtube');
@@ -1815,7 +1842,6 @@
                 url: url,
                 video_team_id: String(teamInp && teamInp.value ? teamInp.value : '').trim(),
                 video_folder_id: String(folderEl && folderEl.value ? folderEl.value : '').trim(),
-                video_match_id: String(matchEl && matchEl.value ? matchEl.value : '').trim(),
                 video_title: String(titleEl && titleEl.value ? titleEl.value : '').trim(),
                 video_notes: String(notesEl && notesEl.value ? notesEl.value : '').trim(),
                 video_personal: (personalEl && personalEl.checked) ? 1 : 0,
@@ -1835,8 +1861,8 @@
                 alert(msg);
                 return;
               }
-              if (status) status.textContent = 'OK';
-              window.location.reload();
+              if (status) status.textContent = 'OK · abriendo Video Studio…';
+              openStudio(Number(data.video_id || 0) || 0);
             } catch (e) {
               if (status) status.textContent = 'Error importando.';
               alert('Error importando desde YouTube.');

@@ -56,10 +56,42 @@
       .top {
         display: flex;
         justify-content: space-between;
-        align-items: center;
-        gap: 0.8rem;
-        margin-bottom: 0.8rem;
+        align-items: flex-start;
+        gap: 0.9rem;
+        margin-bottom: 1rem;
         flex-wrap: wrap;
+        padding: 1rem 1.05rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 24px;
+        background:
+          linear-gradient(135deg, rgba(8, 15, 31, 0.9), rgba(15, 23, 42, 0.82)),
+          radial-gradient(circle at top left, rgba(56, 189, 248, 0.14), transparent 26%);
+        box-shadow: 0 24px 58px rgba(2, 6, 23, 0.32);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+      }
+      .top-copy { display:flex; flex-direction:column; gap:0.34rem; max-width: 680px; }
+      .top-kicker {
+        color: rgba(125, 211, 252, 0.94);
+        font-size: 0.72rem;
+        font-weight: 950;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+      .top-pills { display:flex; flex-wrap:wrap; gap:0.45rem; }
+      .top-pill {
+        display:inline-flex;
+        align-items:center;
+        gap:0.35rem;
+        border-radius:999px;
+        padding:0.42rem 0.72rem;
+        border:1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.05);
+        color: rgba(248,250,252,0.94);
+        font-size:0.72rem;
+        font-weight:900;
+        letter-spacing:0.05em;
+        text-transform:uppercase;
       }
       .button {
         display: inline-flex;
@@ -75,6 +107,13 @@
         letter-spacing: 0.05em;
         text-transform: uppercase;
         font-size: 0.74rem;
+        transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+      }
+      .button:hover {
+        transform: translateY(-1px);
+        border-color: rgba(125, 211, 252, 0.34);
+        background: rgba(255, 255, 255, 0.1);
+        box-shadow: 0 14px 24px rgba(2, 6, 23, 0.18);
       }
       .panel {
         border-radius: 16px;
@@ -85,9 +124,10 @@
       }
       h1 {
         margin: 0;
-        font-size: 1.12rem;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
+        font-size: clamp(1.3rem, 2vw, 1.95rem);
+        line-height: 1.02;
+        letter-spacing: -0.03em;
+        text-transform: none;
       }
       h2 {
         margin: 0 0 0.45rem;
@@ -441,7 +481,16 @@
     <main class="page product-shell">
       {% include 'football/includes/dragon_nav.html' %}
       <header class="top">
-        <h1>Detalle de tarea</h1>
+        <div class="top-copy">
+          <div class="top-kicker">Biblioteca de tarea</div>
+          <h1>{{ task.title }}</h1>
+          <div class="top-pills">
+            <span class="top-pill">{{ task.get_block_display }}</span>
+            <span class="top-pill">{{ task.duration_minutes }} min</span>
+            {% if task.category %}<span class="top-pill">{{ task.category }}</span>{% endif %}
+            <span class="top-pill">{% if is_editable_task %}Editable{% else %}Solo lectura{% endif %}</span>
+          </div>
+        </div>
         <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
 	          <a class="button" href="{{ back_url }}">{{ back_label }}</a>
           {% if edit_graphic_url %}
@@ -480,7 +529,7 @@
       {% endif %}
 
       <section class="panel">
-        <h2>{{ task.title }}</h2>
+        <h2>Contexto de uso</h2>
         <p class="meta">
           {{ scope_title }}
           {% if session_context.session_date %}
@@ -561,6 +610,126 @@
             <label>
               Materiales (ficha interior)
               <input type="text" name="task_sheet_materials" value="{{ task_sheet.materials }}" />
+            </label>
+            <label>
+              Momento del juego
+              <select name="task_game_moment">
+                <option value="">-</option>
+                {% for value, label in game_moment_choices %}
+                <option value="{{ value }}" {% if task_meta.game_moment == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              Día microciclo
+              <select name="task_md_day">
+                <option value="">-</option>
+                {% for value, label in task_md_day_choices %}
+                <option value="{{ value }}" {% if task_meta.md_day == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              Carga dominante
+              <select name="task_dominant_load">
+                <option value="">-</option>
+                {% for value, label in task_dominant_load_choices %}
+                <option value="{{ value }}" {% if task_meta.dominant_load == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              Principio
+              <input type="text" name="task_principle" value="{{ task_meta.principle }}" maxlength="120" />
+            </label>
+            <label style="grid-column:1/-1;">
+              Subprincipio
+              <input type="text" name="task_subprinciple" value="{{ task_meta.subprinciple }}" maxlength="160" />
+            </label>
+            <label style="grid-column:1/-1;">
+              Regla provocadora
+              <textarea name="task_provocation_rule" rows="2" style="min-height:52px; resize:vertical;">{{ task_meta.provocation_rule }}</textarea>
+            </label>
+            <label>
+              Estructura dominante
+              <select name="task_dominant_structure">
+                <option value="">-</option>
+                {% for value, label in player_structure_choices %}
+                <option value="{{ value }}" {% if task_meta.dominant_structure == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              Estructura secundaria
+              <select name="task_secondary_structure">
+                <option value="">-</option>
+                {% for value, label in player_structure_choices %}
+                <option value="{{ value }}" {% if task_meta.secondary_structure == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              Carga física
+              <select name="task_physical_load">
+                <option value="">-</option>
+                {% for value, label in task_load_level_choices %}
+                <option value="{{ value }}" {% if task_meta.physical_load == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              Carga cognitiva
+              <select name="task_cognitive_load">
+                <option value="">-</option>
+                {% for value, label in task_load_level_choices %}
+                <option value="{{ value }}" {% if task_meta.cognitive_load == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              Carga emocional
+              <select name="task_emotional_load">
+                <option value="">-</option>
+                {% for value, label in task_load_level_choices %}
+                <option value="{{ value }}" {% if task_meta.emotional_load == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              Escala
+              <select name="task_rpe_scale">
+                {% for value, label in task_rpe_scale_choices %}
+                <option value="{{ value }}" {% if task_meta.rpe_scale == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              RPE previsto
+              <input type="number" name="task_planned_rpe" min="0" max="20" value="{{ task_meta.planned_rpe|default:'' }}" />
+            </label>
+            <label>
+              sRPE previsto
+              <input type="number" value="{{ task_meta.planned_srpe_load|default:'' }}" readonly />
+            </label>
+            <label>
+              Wellness objetivo
+              <input type="number" name="task_wellness_target" min="1" max="10" value="{{ task_meta.wellness_target|default:'' }}" />
+            </label>
+            <label>
+              Carga objetivo
+              <input type="text" name="task_load_target" value="{{ task_meta.load_target }}" maxlength="180" />
+            </label>
+            <label>
+              Monotony
+              <input type="text" name="task_monotony_target" value="{{ task_meta.monotony_target }}" maxlength="40" />
+            </label>
+            <label>
+              Strain
+              <input type="text" name="task_strain_target" value="{{ task_meta.strain_target }}" maxlength="60" />
+            </label>
+            <label style="grid-column:1/-1;">
+              Notas de carga
+              <textarea name="task_load_notes" rows="2" style="min-height:52px; resize:vertical;">{{ task_meta.load_notes }}</textarea>
             </label>
             <div style="display:flex; align-items:flex-end;">
               <button class="button" type="submit">Guardar cambios</button>
@@ -787,6 +956,24 @@
 	            <span>{% firstof task_sheet.materials task.tactical_layout.meta.resources_summary "-" %}</span>
 	          </div>
 	        </div>
+	      </section>
+
+	      <section class="panel">
+	        <h2>Carga y microciclo</h2>
+	        <div class="sheet-grid">
+	          <div class="sheet-item"><strong>MD</strong><span>{{ task_meta.md_day|default:"-" }}</span></div>
+	          <div class="sheet-item"><strong>Carga dominante</strong><span>{{ task_meta.dominant_load|default:"-" }}</span></div>
+	          <div class="sheet-item"><strong>RPE previsto</strong><span>{{ task_meta.planned_rpe|default:"-" }}</span></div>
+	          <div class="sheet-item"><strong>sRPE previsto</strong><span>{{ task_meta.planned_srpe_load|default:"-" }}</span></div>
+	          <div class="sheet-item"><strong>Wellness objetivo</strong><span>{{ task_meta.wellness_target|default:"-" }}</span></div>
+	          <div class="sheet-item"><strong>Monotony / Strain</strong><span>{{ task_meta.monotony_target|default:"-" }} · {{ task_meta.strain_target|default:"-" }}</span></div>
+	          <div class="sheet-item"><strong>Carga F/C/E</strong><span>{{ task_meta.physical_load|default:"-" }} · {{ task_meta.cognitive_load|default:"-" }} · {{ task_meta.emotional_load|default:"-" }}</span></div>
+	          <div class="sheet-item"><strong>Principio</strong><span>{{ task_meta.principle|default:"-" }}</span></div>
+	        </div>
+	        {% if task_meta.load_notes %}
+	        <p style="margin-top:0.55rem;"><strong>Notas de carga:</strong></p>
+	        <pre>{{ task_meta.load_notes }}</pre>
+	        {% endif %}
 	      </section>
 
       {% if analysis_meta %}

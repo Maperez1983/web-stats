@@ -32,20 +32,31 @@
       .card {
         border: 1px solid var(--line);
         background: var(--panel);
-        border-radius: 18px;
-        padding: 1rem;
+        border-radius: 24px;
+        padding: 1.1rem;
         backdrop-filter: blur(10px);
+        box-shadow: 0 24px 58px rgba(0, 0, 0, 0.28);
       }
       .topline {
         display: flex;
         justify-content: space-between;
         gap: 0.75rem;
-        align-items: center;
-        margin-bottom: 0.9rem;
+        align-items: flex-start;
+        margin-bottom: 1rem;
         flex-wrap: wrap;
+        padding: 1rem 1.05rem;
+        border-radius: 24px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: linear-gradient(135deg, rgba(8,15,31,0.9), rgba(15,23,42,0.82));
+        box-shadow: 0 24px 56px rgba(0,0,0,0.3);
+        backdrop-filter: blur(14px);
       }
-      .title { font-size: 1.25rem; font-weight: 700; letter-spacing: 0.02em; }
+      .top-copy { display:flex; flex-direction:column; gap:0.35rem; max-width: 680px; }
+      .top-kicker { color: rgba(125,211,252,0.92); font-size:0.72rem; font-weight:950; letter-spacing:0.18em; text-transform:uppercase; }
+      .title { font-size: clamp(1.35rem, 2.2vw, 2rem); font-weight: 800; line-height:1.02; letter-spacing: -0.03em; }
       .subtitle { color: var(--muted); font-size: 0.95rem; }
+      .top-pills { display:flex; flex-wrap:wrap; gap:0.45rem; }
+      .top-pill { display:inline-flex; align-items:center; gap:0.35rem; padding:0.42rem 0.72rem; border-radius:999px; border:1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.05); color: var(--ink); font-size:0.72rem; font-weight:900; letter-spacing:0.05em; text-transform:uppercase; }
       .steps {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -95,10 +106,12 @@
         text-decoration: none;
         cursor: pointer;
         font-weight: 700;
+        transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
       }
       .btn-primary { background: rgba(244,180,0,0.14); border-color: rgba(244,180,0,0.34); }
       .btn-danger { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.34); }
       .btn-ghost { background: rgba(2,6,23,0.18); }
+      .btn:hover { transform: translateY(-1px); box-shadow: 0 14px 24px rgba(0,0,0,0.18); border-color: rgba(125,211,252,0.3); }
       .alert {
         border: 1px solid rgba(255,255,255,0.16);
         border-radius: 14px;
@@ -205,9 +218,16 @@
   <body>
     <div class="page">
       <div class="topline">
-        <div>
+        <div class="top-copy">
+          <div class="top-kicker">Cierre y reinicio de ciclo</div>
           <div class="title">Temporada · Cierre y configuración</div>
           <div class="subtitle">{{ workspace.name }}</div>
+          <div class="top-pills">
+            <span class="top-pill">Histórico</span>
+            <span class="top-pill">Informes</span>
+            <span class="top-pill">Nueva temporada</span>
+            <span class="top-pill">Cuestionario</span>
+          </div>
         </div>
         <div class="actions" style="margin:0;">
           <a class="btn btn-ghost" href="{% url 'club-onboarding' %}">Volver a configuración</a>
@@ -355,38 +375,9 @@
             </div>
 
             <div class="alert" style="margin-top:0.9rem;">
-              <strong>Subida de categoría (opcional):</strong> si el equipo activo “sube” (ej. Prebenjamín → Benjamín) puedes
-              <em>renombrarlo</em> y ajustar categoría/formato sin crear un equipo nuevo.
-            </div>
-            <div class="grid" style="margin-top:0.75rem;">
-              <div style="grid-column: 1 / -1;">
-                <label style="text-transform:none;letter-spacing:0;font-size:0.9rem;color:rgba(226,232,240,0.86);">
-                  <input type="checkbox" name="reconvert_team" value="1" />
-                  Reconvertir solo el equipo activo al iniciar la nueva temporada
-                </label>
-              </div>
-              <div>
-                <label for="id_team_name_new">Nuevo nombre (opcional)</label>
-                <input id="id_team_name_new" type="text" name="team_name_new" placeholder="Benagalbón Benjamín" />
-              </div>
-              <div>
-                <label for="id_team_category_new">Nueva categoría (opcional)</label>
-                <input id="id_team_category_new" type="text" name="team_category_new" placeholder="Benjamín" />
-              </div>
-              <div>
-                <label for="id_team_game_format_new">Formato de juego</label>
-                <select id="id_team_game_format_new" name="team_game_format_new">
-                  <option value="">(sin cambios)</option>
-                  <option value="f7">Fútbol 7</option>
-                  <option value="f11">Fútbol 11</option>
-                </select>
-              </div>
-              <div>
-                <label style="text-transform:none;letter-spacing:0;font-size:0.9rem;color:rgba(226,232,240,0.86);">
-                  <input type="checkbox" name="reset_competition_context" value="1" />
-                  Resetear datos de competición (group/team id) para reconfigurar la nueva categoría
-                </label>
-              </div>
+              <strong>Cambios por categoría:</strong> la nueva temporada se abre para el club padre y sus categorías agrupadas.
+              Los ascensos, cambios de nombre, formato F7/F11 o reset de competición se gestionan después desde la pestaña
+              <strong>Categorías</strong>, categoría por categoría.
             </div>
 
             <div class="alert" style="margin-top:0.9rem;">
