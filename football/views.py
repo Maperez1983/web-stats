@@ -5707,6 +5707,15 @@ def _task_pitch3d_asset_context(static_build_id=None, *, player_model_src=''):
     }
 
 
+def _resolve_static_build_id() -> str:
+    try:
+        from football.context_processors import _static_build_id  # noqa: WPS433
+
+        return str(_static_build_id() or '').strip()
+    except Exception:
+        return ''
+
+
 def _team_stadium_ads(workspace, team):
     team_name = ''
     try:
@@ -28678,6 +28687,7 @@ def coach_tactics_page(request):
             back_url = f'{back_url}?team={int(active_team.id)}'
     except Exception:
         back_url = '/'
+    static_build_id = _resolve_static_build_id()
     model_value = _model_of_play_preference(_get_active_workspace(request))
     model_principle_options = _model_principle_options(model_value)
 
@@ -40155,6 +40165,7 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             back_label = 'Volver a ficha'
     except Exception:
         pass
+    static_build_id = _resolve_static_build_id()
     model_value = _model_of_play_preference(_get_active_workspace(request))
     model_principle_options = _model_principle_options(model_value)
     pitch3d_player_model_src = ''
@@ -46730,6 +46741,7 @@ def analysis_video_report_item_tactical_page(request, item_id):
         analysis_item_title = f'Elemento {int(item.id)}'
 
     workspace = _get_active_workspace(request)
+    static_build_id = _resolve_static_build_id()
     pitch3d_assets = _task_pitch3d_asset_context(static_build_id)
 
     return render(
