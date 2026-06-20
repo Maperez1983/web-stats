@@ -9,6 +9,16 @@
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     {% include 'football/pwa_head.html' %}
     <style>
+      :root {
+        --panel: rgba(7, 16, 30, 0.78);
+        --panel-soft: rgba(255,255,255,0.03);
+        --line: rgba(255, 255, 255, 0.14);
+        --muted: rgba(148, 163, 184, 0.75);
+        --shadow: 0 20px 44px rgba(0, 0, 0, 0.35);
+      }
+      * {
+        box-sizing: border-box;
+      }
       body {
         margin: 0;
         min-height: 100vh;
@@ -19,14 +29,137 @@
         color: rgba(245, 247, 250, 0.92);
         font-family: "Avenir Next", "Segoe UI", sans-serif;
       }
-      .shell { width: min(100%, 980px); margin: 0 auto; padding: clamp(0.85rem, 1.25vw, 1.2rem); }
+      .shell { width: min(100%, 1080px); margin: 0 auto; padding: 1rem 1rem 2.4rem; }
+      .topbar,
+      .hero,
+      .panel,
+      .hero-stat {
+        box-shadow: var(--shadow);
+      }
+      .topbar {
+        margin-top: 0.9rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        border-radius: 24px;
+        border: 1px solid var(--line);
+        background: rgba(7, 16, 30, 0.84);
+        padding: 0.95rem 1.05rem;
+        flex-wrap: wrap;
+      }
+      .topbar-copy {
+        display: grid;
+        gap: 0.28rem;
+        max-width: 760px;
+      }
+      .topbar-kicker {
+        color: #f6d57a;
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+      .topbar h1 {
+        margin: 0;
+        font-size: clamp(1.45rem, 2.6vw, 2.2rem);
+        line-height: 0.95;
+        letter-spacing: -0.03em;
+      }
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
+        gap: 1rem;
+        border-radius: 28px;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        padding: 1.2rem;
+      }
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        padding: 0.34rem 0.7rem;
+        border-radius: 999px;
+        border: 1px solid rgba(244, 180, 0, 0.2);
+        background: linear-gradient(135deg, rgba(244, 180, 0, 0.12), rgba(70, 211, 255, 0.12));
+        color: #fff4cf;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .hero h2 {
+        margin: 0.8rem 0 0.55rem;
+        max-width: 13ch;
+        font-size: clamp(2rem, 4.4vw, 3.2rem);
+        line-height: 0.95;
+        letter-spacing: -0.04em;
+        text-wrap: balance;
+      }
+      .hero p {
+        margin: 0;
+        max-width: 58ch;
+        color: rgba(226, 232, 240, 0.82);
+        line-height: 1.65;
+      }
+      .hero-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin-top: 1rem;
+      }
+      .hero-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 38px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.05);
+        color: rgba(245, 247, 250, 0.92);
+        padding: 0.42rem 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        font-size: 0.72rem;
+      }
+      .hero-side {
+        display: grid;
+        gap: 0.75rem;
+      }
+      .hero-stat {
+        border-radius: 22px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background:
+          radial-gradient(circle at top left, rgba(70, 211, 255, 0.12), transparent 38%),
+          var(--panel-soft);
+        padding: 1rem;
+      }
+      .hero-stat span {
+        display: block;
+        color: rgba(148, 163, 184, 0.9);
+        font-size: 0.72rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .hero-stat strong {
+        display: block;
+        margin-top: 0.2rem;
+        font-size: 1.28rem;
+      }
+      .hero-stat p {
+        margin: 0.45rem 0 0;
+        color: rgba(226, 232, 240, 0.8);
+        line-height: 1.55;
+      }
       .panel {
         margin-top: 0.9rem;
-        border-radius: 18px;
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        background: rgba(7, 16, 30, 0.78);
-        box-shadow: 0 20px 44px rgba(0, 0, 0, 0.35);
-        padding: 1rem;
+        border-radius: 24px;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        padding: 1.1rem;
       }
       h1 {
         margin: 0;
@@ -45,7 +178,25 @@
       ul { margin: 0.45rem 0 0; padding-left: 1.15rem; }
       a { color: rgba(244, 180, 0, 0.95); text-decoration: none; }
       a:hover { text-decoration: underline; }
-      .muted { color: rgba(148, 163, 184, 0.75); font-size: 0.85rem; }
+      .muted { color: var(--muted); font-size: 0.85rem; }
+      .section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: end;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.95rem;
+      }
+      .section-head h3 {
+        margin: 0;
+        font-size: 1.18rem;
+        letter-spacing: -0.02em;
+      }
+      .section-head p {
+        margin: 0.3rem 0 0;
+        color: rgba(148, 163, 184, 0.82);
+        line-height: 1.6;
+      }
       .toplinks { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.7rem; }
       .pill {
         display: inline-flex;
@@ -66,11 +217,14 @@
       }
       .pill:hover { border-color: rgba(244, 180, 0, 0.45); }
       .legal-box {
-        border-radius: 14px;
+        border-radius: 18px;
         border: 1px solid rgba(255,255,255,0.12);
         background: rgba(255,255,255,0.03);
-        padding: 0.85rem 0.9rem;
+        padding: 0.95rem 1rem;
         margin-top: 0.9rem;
+      }
+      @media (max-width: 860px) {
+        .hero { grid-template-columns: 1fr; }
       }
       @media (max-width: 640px) {
         .panel { border-radius: 16px; padding: 0.85rem; }
@@ -80,8 +234,46 @@
   </head>
   <body class="prod-commercial">
     <div class="shell">
+      <header class="topbar">
+        <div class="topbar-copy">
+          <div class="topbar-kicker">Marco legal</div>
+          <h1>Política de privacidad</h1>
+          <div class="muted">Explicación estructurada sobre tratamiento de datos, finalidad, conservación y derechos dentro de la plataforma.</div>
+        </div>
+      </header>
+
+      <section class="hero">
+        <div>
+          <span class="eyebrow">Tratamiento de datos</span>
+          <h2>Consulta cómo se gestionan tus datos con más claridad.</h2>
+          <p>Esta política resume qué información se trata dentro de 2J, con qué finalidad, durante cuánto tiempo y qué canales tienes para ejercer tus derechos.</p>
+          <div class="hero-pills">
+            <span class="hero-pill">Privacidad clara</span>
+            <span class="hero-pill">Derechos visibles</span>
+            <span class="hero-pill">Contacto directo</span>
+          </div>
+        </div>
+        <aside class="hero-side">
+          <article class="hero-stat">
+            <span>Última actualización</span>
+            <strong>{{ updated_at }}</strong>
+            <p>La fecha superior marca la versión vigente del documento de privacidad aplicable al servicio.</p>
+          </article>
+          <article class="hero-stat">
+            <span>Uso declarado</span>
+            <strong>Prestación del servicio</strong>
+            <p>La política se centra en cuenta, datos deportivos, archivos subidos y diagnóstico técnico del sistema.</p>
+          </article>
+        </aside>
+      </section>
+
       <div class="panel">
-        <h1>Política de privacidad</h1>
+        <div class="section-head">
+          <div>
+            <h3>Documento de privacidad</h3>
+            <p>Resumen de datos tratados, finalidades, conservación, derechos y responsable del tratamiento.</p>
+          </div>
+        </div>
         <p class="muted">Última actualización: {{ updated_at }}</p>
         <div class="toplinks">
           <a class="pill" href="{% url 'support-page' %}">Soporte</a>
