@@ -742,6 +742,14 @@ class SystemGuardTests(TestCase):
         self.assertTrue(summary['alerts'])
         self.assertTrue(summary['repeated_issues'])
 
+    def test_observability_summary_exposes_scheduled_state(self):
+        system_guard._store_pref_value(self.workspace, system_guard.SCHEDULED_GUARD_STATE_PREF_KEY, {
+            'last_finished_at': '2026-06-20T09:00:00Z',
+            'last_detection_count': 2,
+        })
+        summary = system_guard._observability_summary(self.workspace)
+        self.assertEqual(summary['scheduled_state']['last_finished_at'], '2026-06-20T09:00:00Z')
+
     @patch('football.system_guard.run_proactive_guard_cycle', return_value={'queue_counts': {'completed': 1}, 'detections': [{'id': 'demo'}]})
     def test_maybe_run_scheduled_guard_cycle_respects_interval(self, mock_cycle):
         first = system_guard._maybe_run_scheduled_guard_cycle(workspace=self.workspace, actor_id=self.user.id, force=False)
@@ -771,6 +779,8 @@ class SystemGuardTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'System Guard')
         self.assertContains(response, 'Estabilidad LLM')
+        self.assertContains(response, 'Modo silencioso')
+        self.assertContains(response, 'Crear tarea')
         self.assertIn('guard_observability', response.context)
 
     @patch('football.system_guard._maybe_run_scheduled_guard_cycle', return_value={'ran': False, 'reason': 'interval_not_elapsed'})

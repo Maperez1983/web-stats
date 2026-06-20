@@ -24,10 +24,17 @@
   .guard-badge { border-radius:999px; padding:0.2rem 0.5rem; border:1px solid rgba(255,255,255,0.16); background:rgba(255,255,255,0.05); font-size:0.72rem; font-weight:900; }
   .guard-mini-status { display:flex; align-items:center; gap:0.55rem; margin-bottom:0.65rem; position:relative; z-index:1; }
   .guard-mini-copy { font-size:0.8rem; font-weight:800; color:rgba(226,232,240,0.8); line-height:1.4; }
+  .guard-silent-card { margin-bottom:0.7rem; border:1px solid rgba(163,230,53,0.16); border-radius:18px; padding:0.7rem 0.8rem; background:linear-gradient(180deg, rgba(20,83,45,0.22), rgba(3,14,10,0.28)); position:relative; z-index:1; }
+  .guard-silent-card strong { display:block; font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; color:#bbf7d0; margin-bottom:0.22rem; }
+  .guard-silent-card div { font-size:0.78rem; font-weight:850; color:rgba(248,250,252,0.86); line-height:1.45; white-space:pre-line; }
   .guard-controls { margin-top:0.7rem; }
   .guard-quick-actions { display:flex; flex-wrap:wrap; gap:0.45rem; margin-bottom:0.6rem; }
   .guard-suggestion-row { display:flex; flex-wrap:wrap; gap:0.45rem; margin-bottom:0.7rem; position:relative; z-index:1; }
   .guard-suggestion-chip { display:inline-flex; align-items:center; border-radius:999px; padding:0.38rem 0.68rem; font-size:0.73rem; font-weight:900; border:1px solid rgba(163,230,53,0.18); background:rgba(15,23,42,0.44); color:#e2e8f0; cursor:pointer; }
+  .guard-command-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0.45rem; margin-bottom:0.75rem; position:relative; z-index:1; }
+  .guard-command-chip { display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start; gap:0.18rem; min-height:64px; border-radius:16px; padding:0.7rem 0.75rem; border:1px solid rgba(250,204,21,0.14); background:rgba(15,23,42,0.42); color:#f8fafc; cursor:pointer; text-align:left; }
+  .guard-command-chip strong { display:block; font-size:0.72rem; font-weight:950; letter-spacing:0.08em; text-transform:uppercase; }
+  .guard-command-chip span { display:block; font-size:0.73rem; font-weight:800; color:rgba(226,232,240,0.76); line-height:1.35; }
   .guard-tech-shell { margin-top:0.75rem; position:relative; z-index:1; }
   .guard-tech-shell summary { cursor:pointer; list-style:none; font-size:0.72rem; font-weight:950; letter-spacing:0.08em; text-transform:uppercase; color:rgba(226,232,240,0.78); }
   .guard-tech-shell summary::-webkit-details-marker { display:none; }
@@ -115,10 +122,37 @@
           Pídeme algo en lenguaje natural: navegar, ayudarte con esta pantalla o revisar una incidencia.
         </div>
       </div>
+      <div class="guard-silent-card" id="global-guard-silent-card"
+           data-last-finished="{{ guard_observability.scheduled_state.last_finished_at|default:'' }}"
+           data-queue-pending="{{ guard_observability.task_queue.pending|default:0 }}"
+           data-queue-running="{{ guard_observability.task_queue.running|default:0 }}"
+           data-queue-completed="{{ guard_observability.task_queue.completed|default:0 }}"
+           data-queue-blocked="{{ guard_observability.task_queue.blocked|default:0 }}">
+        <strong>Modo silencioso</strong>
+        <div id="global-guard-silent-copy">Ollana vigila el sistema en segundo plano y te resume solo lo importante.</div>
+      </div>
       <div class="guard-suggestion-row" id="global-guard-suggestions">
         <button type="button" class="guard-suggestion-chip" data-guard-suggestion="Ayúdame con esta pantalla">Ayúdame con esta pantalla</button>
         <button type="button" class="guard-suggestion-chip" data-guard-suggestion="Llévame a vídeo análisis">Llévame a vídeo análisis</button>
         <button type="button" class="guard-suggestion-chip" data-guard-suggestion="Abre biblioteca de tareas">Abre biblioteca de tareas</button>
+      </div>
+      <div class="guard-command-grid" id="global-guard-command-grid">
+        <button type="button" class="guard-command-chip" data-guard-command="Llévame a vídeo análisis">
+          <strong>Ir a vídeo</strong>
+          <span>Abre análisis con una orden directa.</span>
+        </button>
+        <button type="button" class="guard-command-chip" data-guard-command="Abre biblioteca ia trainer">
+          <strong>Biblioteca IA</strong>
+          <span>Entra en tareas filtradas por IA-Trainer.</span>
+        </button>
+        <button type="button" class="guard-command-chip" data-guard-command="Crea una sesión nombre: Activación prepartido, fecha 2026-06-21, hora 18:30, duración 60">
+          <strong>Crear sesión</strong>
+          <span>Lanza una sesión desde el chat.</span>
+        </button>
+        <button type="button" class="guard-command-chip" data-guard-command="Crea una tarea título: Rondo 4x2, objetivo: activar tercer hombre, duración 14, repositorio ia trainer">
+          <strong>Crear tarea</strong>
+          <span>Guarda una tarea en biblioteca.</span>
+        </button>
       </div>
       <div id="global-guard-chat-log" class="guard-chat-log">
         <div class="guard-msg assistant">
@@ -217,6 +251,9 @@
   const sendEl = document.getElementById('global-guard-chat-send');
   const clearEl = document.getElementById('global-guard-chat-clear');
   const suggestionsEl = document.getElementById('global-guard-suggestions');
+  const commandGridEl = document.getElementById('global-guard-command-grid');
+  const silentCardEl = document.getElementById('global-guard-silent-card');
+  const silentCopyEl = document.getElementById('global-guard-silent-copy');
   const smokeEl = document.getElementById('global-guard-run-smoke');
   const fixEl = document.getElementById('global-guard-auto-fix');
   const statusEl = document.getElementById('global-guard-chat-status');
@@ -229,6 +266,7 @@
   const queuePreviewEl = document.getElementById('global-guard-queue-preview');
   const healthPillEl = document.getElementById('global-guard-health-pill');
   const alertsEl = document.getElementById('global-guard-alerts');
+  const storageKey = 'ollana-global-widget:v3';
   const apiUrl = "{% url 'system-guard-chat-api' %}";
   const routeCatalog = [
     { key: 'dashboard', label: 'Portada', url: "{% url 'dashboard-home' %}{% if active_team %}?team={{ active_team.id }}{% endif %}", keywords: ['portada', 'inicio', 'home', 'dashboard'] },
@@ -253,6 +291,19 @@
     if (shellEl.parentElement === document.body) return;
     document.body.appendChild(shellEl);
   };
+  const loadUiState = () => {
+    try {
+      return JSON.parse(window.localStorage.getItem(storageKey) || '{}') || {};
+    } catch (error) {
+      return {};
+    }
+  };
+  const saveUiState = (patch = {}) => {
+    try {
+      const nextState = { ...loadUiState(), ...patch };
+      window.localStorage.setItem(storageKey, JSON.stringify(nextState));
+    } catch (error) {}
+  };
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', mountToBody, { once: true });
   } else {
@@ -271,6 +322,7 @@
     toggleEl.textContent = open ? 'Cerrar Ollana' : 'Ollana';
     const panelEl = document.getElementById('global-guard-widget-panel');
     if (panelEl) panelEl.style.display = open ? 'flex' : 'none';
+    saveUiState({ open: Boolean(open) });
   };
   const normalizeText = (value) => {
     try {
@@ -332,6 +384,35 @@
       chip.textContent = String(message || '');
       suggestionsEl.appendChild(chip);
     });
+  };
+  const syncInputPlaceholder = () => {
+    if (!inputEl) return;
+    const page = String(currentPageContext().page || '').trim();
+    const placeholderMap = {
+      sessions: 'Ej.: crea una tarea título: Rondo 4x2, abre biblioteca ia trainer, crea una sesión para mañana...',
+      analysis: 'Ej.: llévame a vídeo análisis, ayúdame con esta pantalla, revisa una incidencia de clips...',
+      'dashboard-home': 'Ej.: ayúdame con esta pantalla, quiero ir a biblioteca de tareas, revisa el sistema...',
+    };
+    inputEl.placeholder = placeholderMap[page] || 'Ej.: llévame a vídeo análisis, abre biblioteca de tareas, ayúdame con esta pantalla, no me deja guardar...';
+  };
+  const syncSilentCard = (ob = null) => {
+    if (!silentCopyEl) return;
+    const data = ob && typeof ob === 'object' ? ob : {};
+    const scheduled = data.scheduled_state && typeof data.scheduled_state === 'object' ? data.scheduled_state : {};
+    const queue = data.task_queue && typeof data.task_queue === 'object' ? data.task_queue : {};
+    const pieces = [];
+    if (scheduled.last_finished_at) {
+      pieces.push(`Último barrido: ${String(scheduled.last_finished_at).replace('T', ' ').replace('Z', ' UTC')}`);
+    } else {
+      pieces.push('Último barrido: pendiente de primera ejecución.');
+    }
+    const totalQueue = Number(queue.pending || 0) + Number(queue.running || 0) + Number(queue.completed || 0) + Number(queue.blocked || 0);
+    if (totalQueue > 0) {
+      pieces.push(`Cola ${Number(queue.pending || 0)} pendientes · ${Number(queue.running || 0)} en curso · ${Number(queue.completed || 0)} resueltas · ${Number(queue.blocked || 0)} bloqueadas.`);
+    } else {
+      pieces.push('Sin tareas silenciosas registradas todavía.');
+    }
+    silentCopyEl.textContent = pieces.join('\n');
   };
   const detectNavigationIntent = (message) => {
     const text = normalizeText(message);
@@ -722,6 +803,7 @@
         queuePreviewEl.appendChild(card);
       });
     }
+    syncSilentCard(ob);
   };
   const resetPending = () => {
     pendingExecution = null;
@@ -891,6 +973,7 @@
     if (lastLatencyEl) lastLatencyEl.value = '-';
     setStatus('');
     syncSuggestionRow();
+    syncInputPlaceholder();
   });
   quickActionsEl?.addEventListener('click', (event) => {
     const btn = event.target.closest('[data-guard-action]');
@@ -924,9 +1007,27 @@
     inputEl.value = String(btn.getAttribute('data-guard-suggestion') || '').trim();
     sendMessage();
   });
+  commandGridEl?.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-guard-command]');
+    if (!btn || !inputEl) return;
+    inputEl.value = String(btn.getAttribute('data-guard-command') || '').trim();
+    sendMessage();
+  });
   toggleEl?.addEventListener('click', () => setOpen(!shellEl?.classList.contains('is-open')));
   closeEl?.addEventListener('click', () => setOpen(false));
   syncSuggestionRow();
-  setOpen(false);
+  syncInputPlaceholder();
+  syncSilentCard({
+    task_queue: {
+      pending: Number(silentCardEl?.dataset.queuePending || 0),
+      running: Number(silentCardEl?.dataset.queueRunning || 0),
+      completed: Number(silentCardEl?.dataset.queueCompleted || 0),
+      blocked: Number(silentCardEl?.dataset.queueBlocked || 0),
+    },
+    scheduled_state: {
+      last_finished_at: String(silentCardEl?.dataset.lastFinished || ''),
+    },
+  });
+  setOpen(Boolean(loadUiState().open));
 })();
 </script>
