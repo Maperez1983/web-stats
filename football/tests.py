@@ -194,6 +194,7 @@ class SystemGuardTests(TestCase):
         self.assertIsInstance(response['highlights'], list)
         self.assertIsInstance(response['actions'], list)
         self.assertIn('memory', result['chat'])
+        self.assertIn('permissions', response['capabilities'])
 
     @patch('football.system_guard.local_llm_config', return_value={
         'enabled': False,
@@ -347,6 +348,35 @@ class SystemGuardTests(TestCase):
         self.assertTrue(plan['confirm_required'])
         self.assertIn('git_commit', plan['confirmation_text'])
         self.assertIn('git_push', plan['confirmation_text'])
+
+    def test_planner_builds_code_workflow_for_repo_and_validation_intent(self):
+        plan = system_guard._plan_tools(
+            'Revisa el repo y ejecuta tests antes de tocar código',
+            run_smoke=False,
+            auto_fix=False,
+            maintenance_action='',
+            autonomy_mode='operator',
+        )
+        self.assertEqual(plan['task']['kind'], 'code_workflow')
+        self.assertEqual(plan['task']['scope'], 'code')
+        self.assertEqual(plan['runbook']['key'], 'code_diagnostics')
+        self.assertIn('inspect_repo_status', plan['requested_tools'])
+        self.assertIn('run_operator_validation', plan['requested_tools'])
+
+    def test_planner_builds_code_execution_for_code_repair_intent(self):
+        plan = system_guard._plan_tools(
+            'El campo 3d no se muestra bien, trabaja en el código hasta arreglarlo',
+            run_smoke=False,
+            auto_fix=False,
+            maintenance_action='',
+            autonomy_mode='operator',
+        )
+        self.assertEqual(plan['task']['kind'], 'repair')
+        self.assertEqual(plan['task']['scope'], 'code')
+        self.assertEqual(plan['runbook']['key'], 'code_execution')
+        self.assertIn('inspect_repo_status', plan['requested_tools'])
+        self.assertIn('run_operator_validation', plan['requested_tools'])
+        self.assertIn('auto_fix', plan['requested_tools'])
 
     @patch('football.system_guard._run_repo_command')
     @patch('football.system_guard._inspect_repo_status', return_value={'ok': True, 'changed_count': 3})
@@ -605,6 +635,7 @@ class SystemGuardTests(TestCase):
         self.assertEqual(response['assistant_action']['player']['name'], 'Juan Perez')
         self.assertTrue(response['improvement_proposals'])
         self.assertTrue(response['capabilities']['skills'])
+        self.assertTrue(response['runbook']['stages'])
 
     @patch('football.system_guard.local_llm_config', return_value={
         'enabled': False,
@@ -672,6 +703,7 @@ class SystemGuardTests(TestCase):
             page_context={'team_id': self.team.id, 'can_manage_guard': False},
         )
         self.assertTrue(result['permission_required'])
+        self.assertEqual(result['authorization']['policy']['action'], 'create_player')
         self.assertFalse(Player.objects.filter(team=self.team, name='Juan Perez').exists())
 
     def test_execute_create_session_action_requires_management_permission(self):
@@ -732,6 +764,8 @@ class SystemGuardTests(TestCase):
             'summary': 'Guard summary',
             'recent_actions': ['check_status'],
             'recent_successes': ['check_status'],
+            'recent_fixes': ['auto_fix'],
+            'recent_runbooks': ['safe_repair'],
             'last_status': 'watch',
         })
         summary = system_guard._observability_summary(self.workspace)
@@ -741,6 +775,8 @@ class SystemGuardTests(TestCase):
         self.assertEqual(summary['health_state'], 'red')
         self.assertTrue(summary['alerts'])
         self.assertTrue(summary['repeated_issues'])
+        self.assertEqual(summary['recent_fixes'][0], 'auto_fix')
+        self.assertEqual(summary['recent_runbooks'][0], 'safe_repair')
 
     def test_observability_summary_exposes_scheduled_state(self):
         system_guard._store_pref_value(self.workspace, system_guard.SCHEDULED_GUARD_STATE_PREF_KEY, {
@@ -749,6 +785,116 @@ class SystemGuardTests(TestCase):
         })
         summary = system_guard._observability_summary(self.workspace)
         self.assertEqual(summary['scheduled_state']['last_finished_at'], '2026-06-20T09:00:00Z')
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    @patch('football.system_guard._execute_tools', return_value=[{
+        'tool': 'auto_fix',
+        'label': 'Auto-fix seguro',
+        'ok': True,
+        'kind': 'repair',
+        'detail': 'ok',
+        'result': {'ok': True},
+    }])
+    def test_run_system_guard_chat_persists_incident_ledger_and_fix_memory(self, _exec, *_mocks):
+        result = system_guard.run_system_guard_chat(
+            question='Arregla el sistema.',
+            workspace=self.workspace,
+            page_context={'page': 'dashboard-home', 'can_manage_guard': True, 'can_operate_guard_code': True},
+            autonomy_mode='operator',
+            audience='technical',
+        )
+        ledger = system_guard._load_incident_ledger(self.workspace)
+        self.assertTrue(ledger)
+        memory = result['chat']['memory']
+        self.assertIn('auto_fix', memory['recent_fixes'])
+        self.assertTrue(memory['recent_runbooks'])
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    def test_run_system_guard_chat_exposes_operator_plan_for_code_workflow(self, *_mocks):
+        result = system_guard.run_system_guard_chat(
+            question='Revisa el repo y ejecuta tests antes de tocar código',
+            workspace=self.workspace,
+            page_context={'page': 'system-guard', 'can_manage_guard': True, 'can_operate_guard_code': False},
+            autonomy_mode='supervised',
+            audience='technical',
+        )
+        operator_plan = result['chat']['response']['operator_plan']
+        self.assertTrue(operator_plan['active'])
+        self.assertFalse(operator_plan['authorized_for_code'])
+        self.assertTrue(operator_plan['phases'])
+        self.assertTrue(operator_plan['intervention_requested'])
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    @patch('football.system_guard._execute_tools', return_value=[{
+        'tool': 'inspect_repo_status',
+        'label': 'Inspeccionar repositorio',
+        'ok': True,
+        'kind': 'inspect',
+        'detail': 'ok',
+        'result': {'ok': True, 'changed_count': 2},
+    }, {
+        'tool': 'run_operator_validation',
+        'label': 'Validar operador',
+        'ok': True,
+        'kind': 'diagnostic',
+        'detail': 'ok',
+        'result': {'ok': True},
+    }, {
+        'tool': 'auto_fix',
+        'label': 'Auto-fix seguro',
+        'ok': True,
+        'kind': 'repair',
+        'detail': 'ok',
+        'result': {'ok': True},
+    }])
+    def test_run_system_guard_chat_code_repair_sets_publish_readiness(self, _exec, *_mocks):
+        result = system_guard.run_system_guard_chat(
+            question='El campo 3d no se muestra bien, trabaja en el código hasta arreglarlo',
+            workspace=self.workspace,
+            page_context={'page': 'system-guard', 'can_manage_guard': True, 'can_operate_guard_code': True},
+            autonomy_mode='operator',
+            audience='technical',
+        )
+        operator_plan = result['chat']['response']['operator_plan']
+        self.assertTrue(operator_plan['authorized_for_code'])
+        self.assertTrue(operator_plan['publish_ready'])
+        self.assertIn('3d', operator_plan['target_summary'].lower())
 
     @patch('football.system_guard.run_proactive_guard_cycle', return_value={'queue_counts': {'completed': 1}, 'detections': [{'id': 'demo'}]})
     def test_maybe_run_scheduled_guard_cycle_respects_interval(self, mock_cycle):

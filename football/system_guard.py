@@ -256,7 +256,21 @@ AUDIT_PREF_KEY = "system_guard:audit:v1"
 TASK_QUEUE_PREF_KEY = "system_guard:task_queue:v1"
 PROACTIVE_STATE_PREF_KEY = "system_guard:proactive_state:v1"
 SCHEDULED_GUARD_STATE_PREF_KEY = "system_guard:scheduled_cycle:v1"
+INCIDENT_LEDGER_PREF_KEY = "system_guard:incident_ledger:v1"
 SCHEDULED_GUARD_INTERVAL_SECONDS = 300
+ACTION_PERMISSION_MATRIX = {
+    "inspect_system": {"requires_manage_guard": False, "requires_code_operator": False, "scope": "system"},
+    "guide_user": {"requires_manage_guard": False, "requires_code_operator": False, "scope": "user"},
+    "navigate_modules": {"requires_manage_guard": False, "requires_code_operator": False, "scope": "user"},
+    "create_player": {"requires_manage_guard": True, "requires_code_operator": False, "scope": "business"},
+    "create_session": {"requires_manage_guard": True, "requires_code_operator": False, "scope": "business"},
+    "create_task": {"requires_manage_guard": True, "requires_code_operator": False, "scope": "business"},
+    "repair_code": {"requires_manage_guard": True, "requires_code_operator": True, "scope": "code"},
+    "publish_changes": {"requires_manage_guard": True, "requires_code_operator": True, "scope": "code"},
+    "inspect_repo": {"requires_manage_guard": True, "requires_code_operator": True, "scope": "code"},
+    "validate_changes": {"requires_manage_guard": True, "requires_code_operator": True, "scope": "code"},
+    "monitor_incidents": {"requires_manage_guard": True, "requires_code_operator": False, "scope": "system"},
+}
 RUNBOOK_LIBRARY = {
     "user_navigation": {
         "label": "Navegación guiada",
@@ -301,6 +315,24 @@ RUNBOOK_LIBRARY = {
             "Diagnosticar la incidencia.",
             "Aplicar corrección segura o remediación propuesta.",
             "Verificar con check/smoke.",
+        ],
+    },
+    "code_diagnostics": {
+        "label": "Diagnóstico técnico de código",
+        "goal": "Entender el estado del repositorio y la validación antes de tocar código.",
+        "steps": [
+            "Inspeccionar repo y cambios activos.",
+            "Ejecutar validación técnica mínima.",
+            "Definir siguiente paso seguro sobre código.",
+        ],
+    },
+    "code_execution": {
+        "label": "Operación técnica gobernada",
+        "goal": "Preparar una intervención de código con validación y publicación trazables.",
+        "steps": [
+            "Inspeccionar repo y riesgo técnico.",
+            "Validar cambios y resultado esperado.",
+            "Aplicar o publicar solo con permisos y confirmación.",
         ],
     },
     "operator_publish": {
@@ -364,7 +396,7 @@ PROACTIVE_DETECTORS = {
         "auto_execute": True,
     },
 }
-OLLANA_CAPABILITY_VERSION = "v1"
+OLLANA_CAPABILITY_VERSION = "v2"
 OLLANA_CAPABILITIES = {
     "identity": {
         "name": "Ollana",
@@ -376,6 +408,7 @@ OLLANA_CAPABILITIES = {
         "guided_assistant": True,
         "functional_executor": True,
         "code_operator": True,
+        "continuous_operator": True,
     },
     "skills": [
         {"key": "inspect_system", "label": "Inspección del sistema", "scope": "system", "requires_code_operator": False},
@@ -384,6 +417,9 @@ OLLANA_CAPABILITIES = {
         {"key": "create_player", "label": "Alta de jugador", "scope": "business", "requires_code_operator": False},
         {"key": "create_session", "label": "Crear sesión", "scope": "business", "requires_code_operator": False},
         {"key": "create_task", "label": "Crear tarea", "scope": "business", "requires_code_operator": False},
+        {"key": "monitor_incidents", "label": "Memoria de incidencias", "scope": "system", "requires_code_operator": False},
+        {"key": "inspect_repo", "label": "Inspección de repositorio", "scope": "code", "requires_code_operator": True},
+        {"key": "validate_changes", "label": "Validación técnica", "scope": "code", "requires_code_operator": True},
         {"key": "repair_code", "label": "Reparación técnica", "scope": "code", "requires_code_operator": True},
         {"key": "publish_changes", "label": "Commit y push", "scope": "code", "requires_code_operator": True},
     ],
@@ -689,6 +725,9 @@ def _build_task_profile(question: str, *, intent: str, maintenance_action: str =
     scope = "user"
     silent_mode = True
     runbook_key = "silent_diagnostics"
+    lower_question = str(question or "").lower()
+    code_markers = ["codigo", "código", "repo", "repositorio", "git", "commit", "push", "tests", "check"]
+    code_related = any(token in lower_question for token in code_markers)
     if route_target and re.search(r"\b(abre|abrir|ll[ée]vame|llevame|ve a|ir a|quiero ir|quiero abrir|quiero ver)\b", str(question or "").lower()):
         kind = "navigate"
         scope = "user"
@@ -711,9 +750,14 @@ def _build_task_profile(question: str, *, intent: str, maintenance_action: str =
         runbook_key = "operator_publish"
     elif intent in {"repair"} or maintenance_action in {"regenerate_task_previews", "ai_trainer_reindex"}:
         kind = "repair" if intent == "repair" else "maintenance"
-        scope = "system" if kind == "repair" else "maintenance"
+        scope = "code" if (kind == "repair" and code_related) else ("system" if kind == "repair" else "maintenance")
         silent_mode = True
-        runbook_key = "safe_repair" if kind == "repair" else "maintenance_runbook"
+        runbook_key = "code_execution" if (kind == "repair" and code_related) else ("safe_repair" if kind == "repair" else "maintenance_runbook")
+    elif intent in {"inspect_repo", "operator_validate"} or code_related:
+        kind = "code_workflow"
+        scope = "code"
+        silent_mode = True
+        runbook_key = "code_diagnostics"
     elif intent in {"inspect_repo", "operator_validate", "inspect_errors", "inspect_routes", "inspect_config", "inspect_paths", "inspect_history", "diagnose_smoke", "diagnose_status"}:
         kind = "diagnose"
         scope = "system"
@@ -725,6 +769,7 @@ def _build_task_profile(question: str, *, intent: str, maintenance_action: str =
         "silent_mode": bool(silent_mode),
         "route_target": route_target or {},
         "runbook_key": runbook_key,
+        "target_summary": _truncate(question, 220),
         "current_page": str((page_context or {}).get("page") or "").strip()[:120] if isinstance(page_context, dict) else "",
     }
 
@@ -794,6 +839,19 @@ def _followup_actions(task: dict, planner: dict, *, page_context=None) -> list[d
             "label": "Explicar incidencia",
             "prompt": "Explícame la causa raíz y el siguiente paso recomendado.",
             "reason": "Pedir una guía más concreta al guard.",
+        })
+    if str(task.get("scope") or "") == "code":
+        actions.append({
+            "type": "prompt",
+            "label": "Inspeccionar repo",
+            "prompt": "Revisa el repositorio, el diff y el riesgo técnico antes de tocar código.",
+            "reason": "Iniciar diagnóstico técnico sobre código.",
+        })
+        actions.append({
+            "type": "prompt",
+            "label": "Validar cambios",
+            "prompt": "Ejecuta validación técnica y dime si el cambio está listo para publicarse.",
+            "reason": "Forzar un paso de validación antes de publicar.",
         })
     return actions[:4]
 
@@ -1169,6 +1227,7 @@ def _observability_summary(workspace) -> dict:
         metrics = {}
     memory = _load_memory(workspace) if workspace else {}
     audit_rows = _load_audit_log(workspace) if workspace else []
+    incident_ledger = _load_incident_ledger(workspace) if workspace else []
     history = _inspect_guard_history(workspace)
     llm_counter = {}
     for row in rows[:10]:
@@ -1237,8 +1296,12 @@ def _observability_summary(workspace) -> dict:
         "summary": str(memory.get("summary") or "").strip()[:280],
         "recent_actions": [str(item) for item in (memory.get("recent_actions") or [])[:4]],
         "recent_successes": [str(item) for item in (memory.get("recent_successes") or [])[:4]],
+        "recent_fixes": [str(item) for item in (memory.get("recent_fixes") or [])[:4]],
+        "recent_runbooks": [str(item) for item in (memory.get("recent_runbooks") or [])[:4]],
         "audit_count": len(audit_rows),
         "recent_audits": audit_rows[:3],
+        "incident_ledger_count": len(incident_ledger),
+        "incident_ledger_preview": incident_ledger[:3],
         "task_queue": _task_state_counts(_load_task_queue(workspace)) if workspace else {"pending": 0, "running": 0, "completed": 0, "blocked": 0},
         "task_queue_preview": _load_task_queue(workspace)[:3] if workspace else [],
         "proactive_state": _load_proactive_state(workspace) if workspace else {},
@@ -1581,6 +1644,56 @@ def _store_proactive_state(workspace, payload: dict):
         return
     _store_pref_value(workspace, PROACTIVE_STATE_PREF_KEY, payload if isinstance(payload, dict) else {})
 
+
+def _permission_profile(page_context=None) -> dict:
+    context = page_context if isinstance(page_context, dict) else {}
+    can_manage = bool(context.get("can_manage_guard"))
+    can_code = bool(context.get("can_operate_guard_code"))
+    policies = []
+    for action_key, policy in ACTION_PERMISSION_MATRIX.items():
+        requires_manage = bool(policy.get("requires_manage_guard"))
+        requires_code = bool(policy.get("requires_code_operator"))
+        allowed = (not requires_manage or can_manage) and (not requires_code or can_code)
+        policies.append({
+            "action": str(action_key),
+            "scope": str(policy.get("scope") or ""),
+            "requires_manage_guard": requires_manage,
+            "requires_code_operator": requires_code,
+            "allowed": bool(allowed),
+        })
+    return {
+        "roles": {
+            "can_manage_guard": can_manage,
+            "can_operate_guard_code": can_code,
+        },
+        "policies": policies,
+    }
+
+
+def _authorize_guard_action(action_key: str, *, page_context=None) -> dict:
+    policy = ACTION_PERMISSION_MATRIX.get(str(action_key or "").strip()) or {}
+    profile = _permission_profile(page_context=page_context)
+    roles = profile.get("roles") if isinstance(profile.get("roles"), dict) else {}
+    requires_manage = bool(policy.get("requires_manage_guard"))
+    requires_code = bool(policy.get("requires_code_operator"))
+    allowed = (not requires_manage or bool(roles.get("can_manage_guard"))) and (not requires_code or bool(roles.get("can_operate_guard_code")))
+    reasons = []
+    if requires_manage and not bool(roles.get("can_manage_guard")):
+        reasons.append("requires_manage_guard")
+    if requires_code and not bool(roles.get("can_operate_guard_code")):
+        reasons.append("requires_code_operator")
+    return {
+        "allowed": bool(allowed),
+        "reasons": reasons,
+        "policy": {
+            "action": str(action_key or ""),
+            "requires_manage_guard": requires_manage,
+            "requires_code_operator": requires_code,
+            "scope": str(policy.get("scope") or ""),
+        },
+    }
+
+
 def _memory_pref_key(actor_id=None) -> str:
     if actor_id:
         return f"{MEMORY_PREF_KEY}:user:{int(actor_id)}"
@@ -1595,6 +1708,8 @@ def _normalize_memory_payload(payload) -> dict:
         "recent_issues": [str(x) for x in (payload.get("recent_issues") or []) if str(x or "").strip()][:12],
         "recent_actions": [str(x) for x in (payload.get("recent_actions") or []) if str(x or "").strip()][:12],
         "recent_successes": [str(x) for x in (payload.get("recent_successes") or []) if str(x or "").strip()][:12],
+        "recent_fixes": [str(x) for x in (payload.get("recent_fixes") or []) if str(x or "").strip()][:12],
+        "recent_runbooks": [str(x) for x in (payload.get("recent_runbooks") or []) if str(x or "").strip()][:12],
         "recent_questions": [str(x) for x in (payload.get("recent_questions") or []) if str(x or "").strip()][:10],
         "recent_pages": [str(x) for x in (payload.get("recent_pages") or []) if str(x or "").strip()][:8],
         "last_status": str(payload.get("last_status") or "").strip()[:32],
@@ -1616,7 +1731,7 @@ def _merge_memory(global_memory: dict, actor_memory: dict) -> dict:
         if actor_memory.get(key):
             merged[key] = actor_memory.get(key)
     merged["turn_count"] = max(_safe_int(global_memory.get("turn_count") if isinstance(global_memory, dict) else 0, 0), _safe_int(actor_memory.get("turn_count"), 0))
-    for key, limit in (("recent_issues", 12), ("recent_actions", 12), ("recent_successes", 12), ("recent_questions", 10), ("recent_pages", 8)):
+    for key, limit in (("recent_issues", 12), ("recent_actions", 12), ("recent_successes", 12), ("recent_fixes", 12), ("recent_runbooks", 12), ("recent_questions", 10), ("recent_pages", 8)):
         values = []
         seen = set()
         for source in (actor_memory.get(key) or [], global_memory.get(key) if isinstance(global_memory, dict) else []):
@@ -1639,6 +1754,52 @@ def _load_memory(workspace) -> dict:
     return _normalize_memory_payload(payload)
 
 
+def _load_incident_ledger(workspace) -> list[dict]:
+    payload = _pref_value(workspace, INCIDENT_LEDGER_PREF_KEY, [])
+    if not isinstance(payload, list):
+        return []
+    return [row for row in payload if isinstance(row, dict)][:60]
+
+
+def _append_incident_ledger(workspace, entry: dict):
+    if not workspace or not isinstance(entry, dict):
+        return
+    rows = _load_incident_ledger(workspace)
+    rows.insert(0, {
+        "created_at": str(entry.get("created_at") or _now_iso())[:64],
+        "issue_id": str(entry.get("issue_id") or "").strip()[:120],
+        "status": str(entry.get("status") or "").strip()[:32],
+        "runbook": str(entry.get("runbook") or "").strip()[:64],
+        "summary": _truncate(entry.get("summary"), 240),
+        "kind": str(entry.get("kind") or "").strip()[:32],
+    })
+    _store_pref_value(workspace, INCIDENT_LEDGER_PREF_KEY, rows[:60])
+
+
+def _runbook_execution_summary(runbook: dict | None, *, executed_tools=None, assistant_action=None, status: str = "", needs_confirmation: bool = False) -> dict:
+    meta = dict(runbook or {})
+    stages = [dict(row) for row in (meta.get("stages") or []) if isinstance(row, dict)]
+    executions = [row for row in (executed_tools or []) if isinstance(row, dict)]
+    if stages:
+        stages[0]["done"] = True
+    if len(stages) > 1 and (assistant_action or executions):
+        stages[1]["done"] = True
+    if len(stages) > 2 and ((assistant_action and assistant_action.get("success")) or any(bool(row.get("ok")) for row in executions)):
+        stages[2]["done"] = True
+    if stages and needs_confirmation:
+        stages[-1]["done"] = False
+    summary = []
+    if assistant_action and assistant_action.get("success"):
+        summary.append(str(assistant_action.get("kind") or "assistant_action"))
+    for row in executions[:4]:
+        if row.get("ok"):
+            summary.append(str(row.get("tool") or "tool"))
+    meta["stages"] = stages[:6]
+    meta["execution_summary"] = summary[:6]
+    meta["completed"] = not needs_confirmation and status in {"ok", "watch"} and any(stage.get("done") for stage in stages)
+    return meta
+
+
 def _store_memory(workspace, *, report: dict, response: dict, executed_tools: list[dict], question: str = "", page_context: dict | None = None, actor_id=None):
     if not workspace:
         return
@@ -1648,6 +1809,8 @@ def _store_memory(workspace, *, report: dict, response: dict, executed_tools: li
     action_labels = [str(row.get("label") or row.get("tool") or "").strip() for row in executed_tools if isinstance(row, dict)]
     issue_labels = [str(row.get("id") or "").strip() for row in issues[:8] if isinstance(row, dict)]
     success_labels = [str(row.get("tool") or "").strip() for row in executed_tools if isinstance(row, dict) and row.get("ok")]
+    fix_labels = [str(row.get("tool") or "").strip() for row in executed_tools if isinstance(row, dict) and row.get("ok") and str(row.get("kind") or "") in {"repair", "publish", "maintenance"}]
+    runbook_label = str(((response.get("runbook") or {}).get("key") if isinstance(response.get("runbook"), dict) else "") or "").strip()
     message = _truncate(response.get("message"), 280)
     page_label = ""
     if isinstance(page_context, dict):
@@ -1660,6 +1823,8 @@ def _store_memory(workspace, *, report: dict, response: dict, executed_tools: li
         "recent_issues": (issue_labels + current.get("recent_issues", []))[:12],
         "recent_actions": ([x for x in action_labels if x] + current.get("recent_actions", []))[:12],
         "recent_successes": ([x for x in success_labels if x] + current.get("recent_successes", []))[:12],
+        "recent_fixes": ([x for x in fix_labels if x] + current.get("recent_fixes", []))[:12],
+        "recent_runbooks": ([runbook_label] if runbook_label else []) + current.get("recent_runbooks", []),
         "recent_questions": ([str(question).strip()[:220]] if str(question or "").strip() else []) + current.get("recent_questions", []),
         "recent_pages": ([page_label] if page_label else []) + current.get("recent_pages", []),
         "last_status": str(response.get("status") or "").strip()[:32],
@@ -1676,6 +1841,8 @@ def _store_memory(workspace, *, report: dict, response: dict, executed_tools: li
             "recent_issues": (payload.get("recent_issues", []) + global_current.get("recent_issues", []))[:12],
             "recent_actions": (payload.get("recent_actions", []) + global_current.get("recent_actions", []))[:12],
             "recent_successes": (payload.get("recent_successes", []) + global_current.get("recent_successes", []))[:12],
+            "recent_fixes": (payload.get("recent_fixes", []) + global_current.get("recent_fixes", []))[:12],
+            "recent_runbooks": (payload.get("recent_runbooks", []) + global_current.get("recent_runbooks", []))[:12],
             "recent_questions": (payload.get("recent_questions", []) + global_current.get("recent_questions", []))[:10],
             "recent_pages": (payload.get("recent_pages", []) + global_current.get("recent_pages", []))[:8],
             "last_status": payload.get("last_status"),
@@ -2374,7 +2541,8 @@ def _execute_create_session_action(question: str, *, workspace=None, page_contex
             "message": "No puedo crear la sesión sin un workspace activo.",
             "payload": payload,
         }
-    if not bool(page_context.get("can_manage_guard")):
+    auth = _authorize_guard_action("create_session", page_context=page_context)
+    if not auth.get("allowed"):
         return {
             "kind": "create_session",
             "executed": False,
@@ -2382,6 +2550,7 @@ def _execute_create_session_action(question: str, *, workspace=None, page_contex
             "needs_input": False,
             "permission_required": True,
             "message": "Necesitas permisos de gestión para crear sesiones.",
+            "authorization": auth,
             "payload": payload,
         }
     team_id = _safe_int(page_context.get("team_id"), 0)
@@ -2493,7 +2662,8 @@ def _execute_create_task_action(question: str, *, workspace=None, page_context=N
             "message": "No puedo crear la tarea sin un workspace activo.",
             "payload": payload,
         }
-    if not bool(page_context.get("can_manage_guard")):
+    auth = _authorize_guard_action("create_task", page_context=page_context)
+    if not auth.get("allowed"):
         return {
             "kind": "create_task",
             "executed": False,
@@ -2501,6 +2671,7 @@ def _execute_create_task_action(question: str, *, workspace=None, page_context=N
             "needs_input": False,
             "permission_required": True,
             "message": "Necesitas permisos de gestión para crear tareas de biblioteca.",
+            "authorization": auth,
             "payload": payload,
         }
     team_id = _safe_int(page_context.get("team_id"), 0)
@@ -2621,10 +2792,12 @@ def _capability_snapshot(*, page_context=None) -> dict:
             "label": str(row.get("label") or ""),
             "scope": str(row.get("scope") or ""),
         })
+    permission_profile = _permission_profile(page_context=page_context)
     return {
         "identity": dict(OLLANA_CAPABILITIES.get("identity") or {}),
         "modes": dict(OLLANA_CAPABILITIES.get("modes") or {}),
         "skills": visible[:12],
+        "permissions": permission_profile,
     }
 
 
@@ -2641,7 +2814,8 @@ def _execute_create_player_action(question: str, *, workspace=None, page_context
             "message": "No puedo crear el jugador sin un workspace activo.",
             "payload": payload,
         }
-    if not bool(page_context.get("can_manage_guard")):
+    auth = _authorize_guard_action("create_player", page_context=page_context)
+    if not auth.get("allowed"):
         return {
             "kind": "create_player",
             "executed": False,
@@ -2649,6 +2823,7 @@ def _execute_create_player_action(question: str, *, workspace=None, page_context
             "needs_input": False,
             "permission_required": True,
             "message": "Necesitas permisos de gestión para modificar la plantilla.",
+            "authorization": auth,
             "payload": payload,
         }
     team_id = _safe_int(page_context.get("team_id"), 0)
@@ -2843,7 +3018,7 @@ def _infer_intent(question: str) -> str:
         return "maintenance_previews"
     if re.search(r"\b(reindex|reindexa|reindexar)\b", text):
         return "maintenance_reindex"
-    if re.search(r"\b(auto[\s-]?fix|arregla|corrige|repara)\b", text):
+    if re.search(r"\b(auto[\s-]?fix|arregl\w*|corrig\w*|repar\w*)\b", text):
         return "repair"
     if re.search(r"\b(smoke|test|tests|suite)\b", text):
         return "diagnose_smoke"
@@ -2872,11 +3047,66 @@ def _tool_reason(tool_key: str, intent: str, question: str) -> str:
     return mapping.get(tool_key, f"Acción seleccionada para la intención {intent} en: {_truncate(question, 80)}")
 
 
+def _operator_blueprint(question: str, *, planner: dict, page_context=None, response=None) -> dict:
+    task = planner.get("task") if isinstance(planner.get("task"), dict) else {}
+    if str(task.get("scope") or "") != "code":
+        return {}
+    requested_tools = [str(item) for item in (planner.get("requested_tools") or []) if str(item or "").strip()]
+    executed_tools = [row for row in ((response or {}).get("executions") or []) if isinstance(row, dict)]
+    auth = _authorize_guard_action("repair_code", page_context=page_context)
+    publish_auth = _authorize_guard_action("publish_changes", page_context=page_context)
+    phases = [
+        {
+            "key": "inspect",
+            "label": "Inspección técnica",
+            "done": "inspect_repo_status" in requested_tools or any(str(row.get("tool") or "") == "inspect_repo_status" for row in executed_tools),
+        },
+        {
+            "key": "validate",
+            "label": "Validación",
+            "done": "run_operator_validation" in requested_tools or any(str(row.get("tool") or "") == "run_operator_validation" for row in executed_tools),
+        },
+        {
+            "key": "repair",
+            "label": "Intervención de código",
+            "done": any(str(row.get("kind") or "") == "repair" and bool(row.get("ok")) for row in executed_tools),
+        },
+        {
+            "key": "publish",
+            "label": "Publicación",
+            "done": any(str(row.get("tool") or "") == "git_push" and bool(row.get("ok")) for row in executed_tools),
+        },
+    ]
+    next_step = "Diagnosticar el repositorio antes de tocar código."
+    if not auth.get("allowed"):
+        next_step = "Esperar a un usuario operador autorizado para intervenir sobre código."
+    elif planner.get("confirm_required"):
+        next_step = "Esperar confirmación antes de ejecutar cambios sensibles."
+    elif "run_operator_validation" in requested_tools:
+        next_step = "Completar validación y revisar el diff antes de publicar."
+    elif "inspect_repo_status" in requested_tools:
+        next_step = "Revisar estado del repositorio y decidir si toca validar o reparar."
+    return {
+        "active": True,
+        "question": _truncate(question, 200),
+        "target_summary": str(task.get("target_summary") or _truncate(question, 200)),
+        "intervention_requested": str(task.get("kind") or "") in {"repair", "code_workflow", "publish"},
+        "authorized_for_code": bool(auth.get("allowed")),
+        "authorized_for_publish": bool(publish_auth.get("allowed")),
+        "needs_confirmation": bool(planner.get("confirm_required")),
+        "runbook_key": str((planner.get("runbook") or {}).get("key") or ""),
+        "phases": phases,
+        "publish_ready": bool(publish_auth.get("allowed")) and any(phase.get("key") == "validate" and phase.get("done") for phase in phases) and not bool(planner.get("confirm_required")),
+        "next_step": next_step,
+    }
+
+
 def _plan_tools(question: str, *, run_smoke: bool, auto_fix: bool, maintenance_action: str, autonomy_mode: str, page_context=None) -> dict:
     intent = _infer_intent(question)
     task = _build_task_profile(question, intent=intent, maintenance_action=maintenance_action, page_context=page_context)
     requested_tools = []
     steps = [{"step": "Diagnosticar estado base", "done": True}]
+    question_lower = str(question or "").lower()
     if maintenance_action == "git_commit_push":
         requested_tools.extend(["inspect_repo_status", "run_operator_validation", "git_commit", "git_push"])
     elif maintenance_action == "git_commit":
@@ -2895,6 +3125,8 @@ def _plan_tools(question: str, *, run_smoke: bool, auto_fix: bool, maintenance_a
         requested_tools.extend(["inspect_repo_status", "git_push"])
     elif intent == "inspect_repo":
         requested_tools.append("inspect_repo_status")
+        if re.search(r"\b(test|tests|check|valida|validacion|validación)\b", str(question or "").lower()):
+            requested_tools.append("run_operator_validation")
     elif intent == "operator_validate":
         requested_tools.extend(["inspect_repo_status", "run_operator_validation"])
     elif auto_fix:
@@ -2906,7 +3138,12 @@ def _plan_tools(question: str, *, run_smoke: bool, auto_fix: bool, maintenance_a
     elif intent == "maintenance_reindex":
         requested_tools.append("ai_trainer_reindex")
     elif intent == "repair":
-        requested_tools.append("auto_fix")
+        if str(task.get("scope") or "") == "code":
+            requested_tools.extend(["inspect_repo_status", "run_operator_validation", "auto_fix"])
+            if re.search(r"\b(error|errores|log|logs|traceback)\b", question_lower):
+                requested_tools.append("inspect_recent_errors")
+        else:
+            requested_tools.append("auto_fix")
     elif intent == "diagnose_smoke":
         requested_tools.append("run_smoke")
     elif intent == "inspect_errors":
@@ -2921,6 +3158,11 @@ def _plan_tools(question: str, *, run_smoke: bool, auto_fix: bool, maintenance_a
         requested_tools.extend(["check_status", "inspect_guard_history"])
     elif intent == "diagnose_status":
         requested_tools.append("check_status")
+    if str(task.get("kind") or "") == "code_workflow":
+        if "inspect_repo_status" not in requested_tools:
+            requested_tools.insert(0, "inspect_repo_status")
+        if re.search(r"\b(test|tests|check|valida|validacion|validación)\b", question_lower) and "run_operator_validation" not in requested_tools:
+            requested_tools.append("run_operator_validation")
     if intent == "guide_user" and "check_status" not in requested_tools:
         requested_tools.insert(0, "check_status")
     requested_tools = [tool for tool in requested_tools if tool in TOOL_SCHEMAS]
@@ -3341,6 +3583,7 @@ def _fallback_response(report: dict, *, question: str, planner: dict, audience: 
         "assistant_action": {},
         "improvement_proposals": [],
         "capabilities": {},
+        "operator_plan": {},
     }
 
 
@@ -3372,6 +3615,7 @@ def _normalize_llm_response(parsed, fallback: dict) -> dict:
         "assistant_action": fallback.get("assistant_action") or {},
         "improvement_proposals": fallback.get("improvement_proposals") or [],
         "capabilities": fallback.get("capabilities") or {},
+        "operator_plan": fallback.get("operator_plan") or {},
     })
     return merged
 
@@ -3485,6 +3729,7 @@ def run_system_guard_chat(
     fallback["assistant_action"] = assistant_action if isinstance(assistant_action, dict) else {}
     fallback["improvement_proposals"] = _build_improvement_proposals(report, page_context=page_context, workspace=workspace)
     fallback["capabilities"] = _capability_snapshot(page_context=page_context)
+    fallback["operator_plan"] = _operator_blueprint(question, planner=planner, page_context=page_context, response=fallback)
     if assistant_action:
         action_message = str(assistant_action.get("message") or "").strip()
         if action_message:
@@ -3511,6 +3756,13 @@ def run_system_guard_chat(
             }] + (fallback.get("actions") or [])
         if queue_event:
             fallback["highlights"] = (fallback.get("highlights") or []) + [f"Cola: {queue_event.get('status') or 'registrada'}"]
+    fallback["runbook"] = _runbook_execution_summary(
+        fallback.get("runbook") if isinstance(fallback.get("runbook"), dict) else {},
+        executed_tools=executed_tools,
+        assistant_action=assistant_action if isinstance(assistant_action, dict) else {},
+        status=str(fallback.get("status") or ""),
+        needs_confirmation=bool(fallback.get("needs_confirmation")),
+    )
     parsed = None
     error = ""
     llm_used = bool(cfg.get("enabled") and str(cfg.get("provider") or "").lower() == "ollama")
@@ -3536,11 +3788,53 @@ def run_system_guard_chat(
         "executed_tools": len(executed_tools),
     }
     response["capabilities"] = response.get("capabilities") or _capability_snapshot(page_context=page_context)
+    response["operator_plan"] = _operator_blueprint(question, planner=planner, page_context=page_context, response=response)
     response["memory_hint"] = _truncate(memory.get("summary"), 220)
+    response["runbook"] = _runbook_execution_summary(
+        response.get("runbook") if isinstance(response.get("runbook"), dict) else {},
+        executed_tools=executed_tools,
+        assistant_action=response.get("assistant_action") if isinstance(response.get("assistant_action"), dict) else {},
+        status=str(response.get("status") or ""),
+        needs_confirmation=bool(response.get("needs_confirmation")),
+    )
     if snapshot_diff.get("regressions"):
         response["highlights"] = (response.get("highlights") or []) + [f"Regresión: {item}" for item in snapshot_diff.get("regressions", [])[:2]]
     elif snapshot_diff.get("improvements"):
         response["highlights"] = (response.get("highlights") or []) + [f"Mejora: {item}" for item in snapshot_diff.get("improvements", [])[:2]]
+    for issue in (report.get("issues") or [])[:6]:
+        if not isinstance(issue, dict):
+            continue
+        _append_incident_ledger(workspace, {
+            "created_at": _now_iso(),
+            "issue_id": str(issue.get("id") or ""),
+            "status": str(response.get("status") or ""),
+            "runbook": str((response.get("runbook") or {}).get("key") or ""),
+            "summary": str(issue.get("detail") or issue.get("message") or issue.get("id") or ""),
+            "kind": "issue",
+        })
+    if assistant_action and assistant_action.get("success"):
+        _append_incident_ledger(workspace, {
+            "created_at": _now_iso(),
+            "issue_id": str(assistant_action.get("kind") or "assistant_action"),
+            "status": "resolved",
+            "runbook": str((response.get("runbook") or {}).get("key") or ""),
+            "summary": str(assistant_action.get("message") or ""),
+            "kind": "assistant_action",
+        })
+    for row in executed_tools:
+        if not isinstance(row, dict) or not row.get("ok"):
+            continue
+        kind = str(row.get("kind") or "")
+        if kind not in {"repair", "publish", "maintenance"}:
+            continue
+        _append_incident_ledger(workspace, {
+            "created_at": _now_iso(),
+            "issue_id": str(row.get("tool") or ""),
+            "status": "resolved",
+            "runbook": str((response.get("runbook") or {}).get("key") or ""),
+            "summary": str(row.get("label") or row.get("tool") or ""),
+            "kind": kind,
+        })
     _store_memory(workspace, report=report, response=response, executed_tools=executed_tools, question=question, page_context=page_context, actor_id=actor_id)
     _update_metrics(
         workspace,
