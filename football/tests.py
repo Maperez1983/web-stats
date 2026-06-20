@@ -553,6 +553,29 @@ class SystemGuardTests(TestCase):
         self.assertEqual(payload['weight_kg'], '72')
         self.assertEqual(str(payload['birth_date']), '2010-04-03')
 
+    def test_parse_session_request_extracts_core_fields(self):
+        payload = system_guard._parse_session_request(
+            'Crea una sesión nombre: Finalización + presión, fecha 2026-06-21, hora 18:30, duración 80, intensidad alta, md-2, velocidad, objetivo: activar presión tras pérdida'
+        )
+        self.assertEqual(payload['focus'], 'Finalización + presión')
+        self.assertEqual(str(payload['session_date']), '2026-06-21')
+        self.assertEqual(str(payload['start_time']), '18:30:00')
+        self.assertEqual(payload['duration_minutes'], 80)
+        self.assertEqual(payload['intensity'], TrainingSession.INTENSITY_HIGH)
+        self.assertEqual(payload['md_day'], TrainingSession.DAY_MD_MINUS_2)
+        self.assertEqual(payload['dominant_load'], TrainingSession.DOMINANT_LOAD_SPEED)
+        self.assertEqual(payload['notes'], 'activar presión tras pérdida')
+
+    def test_parse_task_request_extracts_core_fields(self):
+        payload = system_guard._parse_task_request(
+            'Crea una tarea título: Rondo 4x2, objetivo: activar tercer hombre, bloque iniciación, duración 14, repositorio ia trainer'
+        )
+        self.assertEqual(payload['title'], 'Rondo 4x2')
+        self.assertEqual(payload['objective'], 'activar tercer hombre')
+        self.assertEqual(payload['block'], 'iniciación')
+        self.assertEqual(payload['duration_minutes'], 14)
+        self.assertEqual(payload['repository'], system_guard.LIBRARY_REPOSITORY_AI_TRAINER)
+
     @patch('football.system_guard.local_llm_config', return_value={
         'enabled': False,
         'provider': 'ollama',
@@ -581,6 +604,66 @@ class SystemGuardTests(TestCase):
         self.assertTrue(response['assistant_action']['success'])
         self.assertEqual(response['assistant_action']['player']['name'], 'Juan Perez')
         self.assertTrue(response['improvement_proposals'])
+        self.assertTrue(response['capabilities']['skills'])
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    def test_run_system_guard_chat_can_create_session_from_conversation(self, *_mocks):
+        result = system_guard.run_system_guard_chat(
+            question='Crea una sesión nombre: Finalización + presión, fecha 2026-06-21, hora 18:30, duración 80, intensidad alta.',
+            workspace=self.workspace,
+            page_context={'page': 'sessions', 'team_id': self.team.id, 'can_manage_guard': True},
+            autonomy_mode='operator',
+            audience='guided',
+        )
+        session = TrainingSession.objects.filter(microcycle__team=self.team, focus='Finalización + presión').first()
+        self.assertIsNotNone(session)
+        self.assertEqual(str(session.session_date), '2026-06-21')
+        self.assertEqual(session.duration_minutes, 80)
+        response = result['chat']['response']
+        self.assertTrue(response['assistant_action']['success'])
+        self.assertEqual(response['assistant_action']['session']['focus'], 'Finalización + presión')
+        self.assertEqual(result['task_queue']['counts']['completed'], 1)
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    def test_run_system_guard_chat_can_create_task_from_conversation(self, *_mocks):
+        result = system_guard.run_system_guard_chat(
+            question='Crea una tarea título: Rondo 4x2, objetivo: activar tercer hombre, duración 14, repositorio ia trainer.',
+            workspace=self.workspace,
+            page_context={'page': 'sessions', 'team_id': self.team.id, 'can_manage_guard': True},
+            autonomy_mode='operator',
+            audience='guided',
+        )
+        task = SessionTask.objects.filter(title='Rondo 4x2').order_by('-id').first()
+        self.assertIsNotNone(task)
+        self.assertEqual(task.duration_minutes, 14)
+        response = result['chat']['response']
+        self.assertTrue(response['assistant_action']['success'])
+        self.assertEqual(response['assistant_action']['task']['title'], 'Rondo 4x2')
+        self.assertEqual(result['task_queue']['counts']['completed'], 1)
 
     def test_execute_create_player_action_requires_management_permission(self):
         result = system_guard._execute_create_player_action(
@@ -590,6 +673,36 @@ class SystemGuardTests(TestCase):
         )
         self.assertTrue(result['permission_required'])
         self.assertFalse(Player.objects.filter(team=self.team, name='Juan Perez').exists())
+
+    def test_execute_create_session_action_requires_management_permission(self):
+        result = system_guard._execute_create_session_action(
+            'Crea una sesión nombre: Finalización + presión, fecha 2026-06-21',
+            workspace=self.workspace,
+            page_context={'team_id': self.team.id, 'can_manage_guard': False},
+        )
+        self.assertTrue(result['permission_required'])
+        self.assertFalse(TrainingSession.objects.filter(microcycle__team=self.team, focus='Finalización + presión').exists())
+
+    def test_execute_create_task_action_requires_management_permission(self):
+        result = system_guard._execute_create_task_action(
+            'Crea una tarea título: Rondo 4x2',
+            workspace=self.workspace,
+            page_context={'team_id': self.team.id, 'can_manage_guard': False},
+        )
+        self.assertTrue(result['permission_required'])
+        self.assertFalse(SessionTask.objects.filter(title='Rondo 4x2').exists())
+
+    def test_match_route_target_applies_library_repository_filters(self):
+        route = system_guard._match_route_target(
+            'Quiero ir a biblioteca ia trainer con tareas creadas',
+            page_context={'team_id': self.team.id, 'workspace_id': self.workspace.id},
+        )
+        self.assertIsNotNone(route)
+        self.assertEqual(route['key'], 'library')
+        self.assertEqual(route['filters']['library_repo'], system_guard.LIBRARY_REPOSITORY_AI_TRAINER)
+        self.assertEqual(route['filters']['library_source'], 'created')
+        self.assertIn('library_repo=ai_trainer', route['url'])
+        self.assertIn('library_source=created', route['url'])
 
     def test_inspect_guard_history_summarizes_snapshots(self):
         system_guard._store_pref_value(self.workspace, system_guard.SNAPSHOTS_PREF_KEY, [
@@ -629,16 +742,25 @@ class SystemGuardTests(TestCase):
         self.assertTrue(summary['alerts'])
         self.assertTrue(summary['repeated_issues'])
 
+    @patch('football.system_guard.run_proactive_guard_cycle', return_value={'queue_counts': {'completed': 1}, 'detections': [{'id': 'demo'}]})
+    def test_maybe_run_scheduled_guard_cycle_respects_interval(self, mock_cycle):
+        first = system_guard._maybe_run_scheduled_guard_cycle(workspace=self.workspace, actor_id=self.user.id, force=False)
+        second = system_guard._maybe_run_scheduled_guard_cycle(workspace=self.workspace, actor_id=self.user.id, force=False)
+        self.assertTrue(first['ran'])
+        self.assertFalse(second['ran'])
+        mock_cycle.assert_called_once()
+
     def test_system_guard_page_requires_login(self):
         response = self.client.get(reverse('system-guard-page'))
         self.assertEqual(response.status_code, 302)
         self.assertIn('/login/', response['Location'])
 
+    @patch('football.system_guard._maybe_run_scheduled_guard_cycle', return_value={'ran': False, 'reason': 'interval_not_elapsed'})
     @patch('football.views._get_active_workspace')
     @patch('football.views._get_primary_team_for_request')
     @patch('football.views._can_manage_workspace', return_value=True)
     @patch('football.views._is_admin_user', return_value=False)
-    def test_system_guard_page_renders_for_workspace_manager(self, _is_admin, _can_manage, mock_team, mock_workspace):
+    def test_system_guard_page_renders_for_workspace_manager(self, _is_admin, _can_manage, mock_team, mock_workspace, _mock_cycle):
         mock_workspace.return_value = self.workspace
         mock_team.return_value = self.team
         system_guard._store_pref_value(self.workspace, system_guard.SNAPSHOTS_PREF_KEY, [
@@ -651,12 +773,13 @@ class SystemGuardTests(TestCase):
         self.assertContains(response, 'Estabilidad LLM')
         self.assertIn('guard_observability', response.context)
 
+    @patch('football.system_guard._maybe_run_scheduled_guard_cycle', return_value={'ran': False, 'reason': 'interval_not_elapsed'})
     @patch('football.views._get_active_workspace')
     @patch('football.views._get_primary_team_for_request')
     @patch('football.views._can_access_sessions_workspace', return_value=True)
     @patch('football.views._can_manage_workspace', return_value=True)
     @patch('football.views._is_admin_user', return_value=False)
-    def test_system_guard_chat_api_returns_observability(self, _is_admin, _can_manage, _can_access, mock_team, mock_workspace):
+    def test_system_guard_chat_api_returns_observability(self, _is_admin, _can_manage, _can_access, mock_team, mock_workspace, _mock_cycle):
         mock_workspace.return_value = self.workspace
         mock_team.return_value = self.team
         system_guard._store_pref_value(self.workspace, system_guard.SNAPSHOTS_PREF_KEY, [

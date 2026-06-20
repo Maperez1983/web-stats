@@ -742,7 +742,16 @@ def system_guard_chat_api(request):
         'can_operate_guard_code': can_operate_guard_code,
     }
     try:
-        from football.system_guard import _observability_summary, run_system_guard_chat
+        from football.system_guard import _maybe_run_scheduled_guard_cycle, _observability_summary, run_system_guard_chat
+
+        try:
+            _maybe_run_scheduled_guard_cycle(
+                workspace=workspace,
+                actor_id=int(getattr(request.user, 'id', 0) or 0),
+                page_context=page_context,
+            )
+        except Exception:
+            pass
 
         result = run_system_guard_chat(
             question=question,
@@ -783,7 +792,26 @@ def system_guard_page(request):
         return HttpResponse('Equipo no configurado.', status=400)
     guard_observability = {}
     try:
-        from football.system_guard import _observability_summary
+        from football.system_guard import _maybe_run_scheduled_guard_cycle, _observability_summary
+        try:
+            _maybe_run_scheduled_guard_cycle(
+                workspace=workspace,
+                actor_id=int(getattr(request.user, 'id', 0) or 0),
+                page_context={
+                    'page': str(request.resolver_match.url_name or '').strip()[:120],
+                    'path': str(request.path or '').strip()[:240],
+                    'title': 'System Guard',
+                    'team_id': int(getattr(team, 'id', 0) or 0),
+                    'team_name': str(getattr(team, 'name', '') or '')[:160],
+                    'workspace_id': int(getattr(workspace, 'id', 0) or 0),
+                    'workspace_name': str(getattr(workspace, 'name', '') or '')[:160],
+                    'user': str(getattr(request.user, 'username', '') or '')[:120],
+                    'can_manage_guard': True,
+                    'can_operate_guard_code': bool(_is_admin_user(request.user) or int(getattr(workspace, 'owner_user_id', 0) or 0) == int(getattr(request.user, 'id', 0) or 0)),
+                },
+            )
+        except Exception:
+            pass
         guard_observability = _observability_summary(workspace)
     except Exception:
         guard_observability = {}

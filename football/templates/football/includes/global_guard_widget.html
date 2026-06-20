@@ -170,6 +170,19 @@
                 <div class="guard-ob-detail" data-guard-ob-detail="memory">{% if guard_observability.repeated_issues %}Repite {{ guard_observability.repeated_issues.0.issue_id }} x{{ guard_observability.repeated_issues.0.count }}{% elif guard_observability.summary %}{{ guard_observability.summary }}{% else %}Sin incidencias persistentes registradas.{% endif %}</div>
               </div>
             </div>
+            <div class="guard-remediation" id="global-guard-queue-preview" style="margin-top:0.75rem;">
+              {% for row in guard_observability.task_queue_preview %}
+                <div class="guard-remediation-card">
+                  <strong>{{ row.title|default:"Tarea del guard" }}</strong>
+                  <div>{{ row.status|default:"pending" }} · {{ row.result_summary|default:row.summary|default:"Sin detalle" }}</div>
+                </div>
+              {% empty %}
+                <div class="guard-remediation-card">
+                  <strong>Cola silenciosa</strong>
+                  <div>Sin tareas recientes en la cola del guard.</div>
+                </div>
+              {% endfor %}
+            </div>
             <div class="guard-quick-actions" style="margin-top:0.75rem;">
               <button type="button" class="guard-btn" data-guard-action="status">Revisar estado</button>
               <button type="button" class="guard-btn" data-guard-action="smoke">Ejecutar smoke</button>
@@ -213,6 +226,7 @@
   const lastToolsEl = document.getElementById('global-guard-last-tools');
   const lastLatencyEl = document.getElementById('global-guard-last-latency');
   const observabilityEl = document.getElementById('global-guard-observability');
+  const queuePreviewEl = document.getElementById('global-guard-queue-preview');
   const healthPillEl = document.getElementById('global-guard-health-pill');
   const alertsEl = document.getElementById('global-guard-alerts');
   const apiUrl = "{% url 'system-guard-chat-api' %}";
@@ -550,7 +564,7 @@
       const card = document.createElement('div');
       card.className = 'guard-remediation-card';
       const title = document.createElement('strong');
-      title.textContent = action.kind === 'create_player' ? 'Acción asistida · Jugador' : 'Acción asistida';
+      title.textContent = action.kind === 'create_player' ? 'Acción asistida · Jugador' : (action.kind === 'create_session' ? 'Acción asistida · Sesión' : (action.kind === 'create_task' ? 'Acción asistida · Tarea' : 'Acción asistida'));
       const body = document.createElement('div');
       const lines = [];
       if (action.message) lines.push(String(action.message || ''));
@@ -563,6 +577,22 @@
         if (action.player.number) parts.push(`#${String(action.player.number || '')}`);
         if (action.player.position) parts.push(String(action.player.position || ''));
         if (action.player.team) parts.push(String(action.player.team || ''));
+        if (parts.length) lines.push(parts.join(' · '));
+      }
+      if (action.session && typeof action.session === 'object') {
+        const parts = [];
+        if (action.session.focus) parts.push(String(action.session.focus || ''));
+        if (action.session.date) parts.push(String(action.session.date || ''));
+        if (action.session.duration_minutes) parts.push(`${String(action.session.duration_minutes || '')} min`);
+        if (action.session.team) parts.push(String(action.session.team || ''));
+        if (parts.length) lines.push(parts.join(' · '));
+      }
+      if (action.task && typeof action.task === 'object') {
+        const parts = [];
+        if (action.task.title) parts.push(String(action.task.title || ''));
+        if (action.task.repository) parts.push(String(action.task.repository || ''));
+        if (action.task.duration_minutes) parts.push(`${String(action.task.duration_minutes || '')} min`);
+        if (action.task.team) parts.push(String(action.task.team || ''));
         if (parts.length) lines.push(parts.join(' · '));
       }
       if (action.permission_required) {
@@ -590,6 +620,20 @@
         proposalsEl.appendChild(card);
       });
       if (proposalsEl.childElementCount) wrap.appendChild(proposalsEl);
+    }
+    if (response && response.capabilities && typeof response.capabilities === 'object') {
+      const caps = Array.isArray(response.capabilities.skills) ? response.capabilities.skills : [];
+      if (caps.length) {
+        const capsEl = document.createElement('div');
+        capsEl.className = 'guard-badges';
+        caps.slice(0, 4).forEach((row) => {
+          const chip = document.createElement('span');
+          chip.className = 'guard-badge';
+          chip.textContent = String(row.label || row.key || '');
+          capsEl.appendChild(chip);
+        });
+        wrap.appendChild(capsEl);
+      }
     }
     logEl.appendChild(wrap);
     logEl.scrollTop = logEl.scrollHeight;
@@ -652,7 +696,8 @@
     setText('[data-guard-ob-value="llm"]', String(ob.llm_stability || 'unknown'));
     setText('[data-guard-ob-detail="llm"]', `Degradado ${Number(ob.degraded_rate_pct || 0)}%${llmStates.length ? ` · ${llmStates.map((row) => `${String(row.state || 'unknown')} x${Number(row.count || 0)}`).join(', ')}` : ''}`);
     setText('[data-guard-ob-value="ops"]', `${Number(ob.executed_tools || 0)} tools`);
-    setText('[data-guard-ob-detail="ops"]', `${Number(ob.turns || 0)} turnos · ${Number(ob.confirmations || 0)} confirmaciones${ob.last_latency_ms ? ` · ${Number(ob.last_latency_ms)} ms` : ''}`);
+    const queueCounts = ob.task_queue && typeof ob.task_queue === 'object' ? ob.task_queue : {};
+    setText('[data-guard-ob-detail="ops"]', `${Number(ob.turns || 0)} turnos · ${Number(ob.confirmations || 0)} confirmaciones${ob.last_latency_ms ? ` · ${Number(ob.last_latency_ms)} ms` : ''}${queueCounts.pending || queueCounts.running || queueCounts.completed || queueCounts.blocked ? ` · cola ${Number(queueCounts.pending || 0)}/${Number(queueCounts.running || 0)}/${Number(queueCounts.completed || 0)}/${Number(queueCounts.blocked || 0)}` : ''}`);
     setText('[data-guard-ob-value="memory"]', String(ob.last_status || 'sin_estado'));
     if (repeated.length) {
       setText('[data-guard-ob-detail="memory"]', `Repite ${String(repeated[0].issue_id || '')} x${Number(repeated[0].count || 0)}`);
@@ -660,6 +705,22 @@
       setText('[data-guard-ob-detail="memory"]', String(ob.summary));
     } else {
       setText('[data-guard-ob-detail="memory"]', 'Sin incidencias persistentes registradas.');
+    }
+    if (queuePreviewEl) {
+      const preview = Array.isArray(ob.task_queue_preview) ? ob.task_queue_preview : [];
+      queuePreviewEl.innerHTML = '';
+      const rows = preview.length ? preview : [{ title: 'Cola silenciosa', status: 'idle', result_summary: 'Sin tareas recientes en la cola del guard.' }];
+      rows.slice(0, 3).forEach((row) => {
+        const card = document.createElement('div');
+        card.className = 'guard-remediation-card';
+        const title = document.createElement('strong');
+        title.textContent = String(row.title || 'Tarea del guard');
+        const body = document.createElement('div');
+        body.textContent = `${String(row.status || 'pending')} · ${String(row.result_summary || row.summary || 'Sin detalle')}`;
+        card.appendChild(title);
+        card.appendChild(body);
+        queuePreviewEl.appendChild(card);
+      });
     }
   };
   const resetPending = () => {

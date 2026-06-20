@@ -17,11 +17,18 @@ from django.conf import settings
 from django.core.management import call_command
 from django.db import transaction
 from django.urls import NoReverseMatch, reverse
-from django.utils import timezone as django_timezone
 
 from football.healthchecks import run_system_healthcheck
+from football.library_repositories import (
+    LIBRARY_REPOSITORY_AI_TRAINER,
+    LIBRARY_REPOSITORY_INTERACTIVE,
+    LIBRARY_REPOSITORY_TRADITIONAL,
+    normalize_library_repository,
+)
 from football.local_llm import call_ollama_json, local_llm_config
-from football.models import Player, WorkspacePreference, WorkspaceSeason, WorkspaceTeam
+from football.models import Player, SessionTask, TrainingSession, WorkspacePreference, WorkspaceSeason, WorkspaceTeam
+from football.session_import_services import get_or_create_inbox_microcycle, get_or_create_library_session_with_repository
+from football.session_plan_fields import serialize_session_plan_fields
 from football.season_history_services import ensure_player_season_membership, ensure_workspace_player
 from webstats import settings as app_settings
 
@@ -248,6 +255,8 @@ SNAPSHOTS_PREF_KEY = "system_guard:snapshots:v1"
 AUDIT_PREF_KEY = "system_guard:audit:v1"
 TASK_QUEUE_PREF_KEY = "system_guard:task_queue:v1"
 PROACTIVE_STATE_PREF_KEY = "system_guard:proactive_state:v1"
+SCHEDULED_GUARD_STATE_PREF_KEY = "system_guard:scheduled_cycle:v1"
+SCHEDULED_GUARD_INTERVAL_SECONDS = 300
 RUNBOOK_LIBRARY = {
     "user_navigation": {
         "label": "Navegación guiada",
@@ -354,6 +363,30 @@ PROACTIVE_DETECTORS = {
         "tools": ["check_status", "inspect_guard_history", "inspect_recent_errors"],
         "auto_execute": True,
     },
+}
+OLLANA_CAPABILITY_VERSION = "v1"
+OLLANA_CAPABILITIES = {
+    "identity": {
+        "name": "Ollana",
+        "role": "system_copilot",
+        "version": OLLANA_CAPABILITY_VERSION,
+    },
+    "modes": {
+        "silent_operator": True,
+        "guided_assistant": True,
+        "functional_executor": True,
+        "code_operator": True,
+    },
+    "skills": [
+        {"key": "inspect_system", "label": "Inspección del sistema", "scope": "system", "requires_code_operator": False},
+        {"key": "guide_user", "label": "Guía de usuario", "scope": "user", "requires_code_operator": False},
+        {"key": "navigate_modules", "label": "Navegación por módulos", "scope": "user", "requires_code_operator": False},
+        {"key": "create_player", "label": "Alta de jugador", "scope": "business", "requires_code_operator": False},
+        {"key": "create_session", "label": "Crear sesión", "scope": "business", "requires_code_operator": False},
+        {"key": "create_task", "label": "Crear tarea", "scope": "business", "requires_code_operator": False},
+        {"key": "repair_code", "label": "Reparación técnica", "scope": "code", "requires_code_operator": True},
+        {"key": "publish_changes", "label": "Commit y push", "scope": "code", "requires_code_operator": True},
+    ],
 }
 KNOWN_FIXES = {
     "DisallowedHost": {
@@ -593,6 +626,29 @@ def _guard_route_catalog(page_context=None) -> list[dict]:
     return rows
 
 
+def _route_filters_for_question(question: str, route_key: str) -> dict:
+    text = str(question or "").strip().lower()
+    filters = {}
+    if route_key == "library":
+        if any(token in text for token in ["ia-trainer", "ia trainer", "ai trainer", "biblioteca ia"]):
+            filters["library_repo"] = LIBRARY_REPOSITORY_AI_TRAINER
+        elif any(token in text for token in ["interactiva", "interactive", "interactiva"]):
+            filters["library_repo"] = LIBRARY_REPOSITORY_INTERACTIVE
+        elif any(token in text for token in ["pdf", "tradicional", "clásica", "clasica"]):
+            filters["library_repo"] = LIBRARY_REPOSITORY_TRADITIONAL
+        if any(token in text for token in ["creadas", "creados", "nuevas", "nuevos"]):
+            filters["library_source"] = "created"
+    if route_key == "sessions":
+        if "microciclo" in text or "microciclos" in text:
+            filters["tab"] = "microcycles"
+        elif "editor" in text:
+            filters["sessions_view"] = "editor"
+    if route_key == "players":
+        if "stats" in text or "estad" in text:
+            filters["tab"] = "stats"
+    return filters
+
+
 def _match_route_target(question: str, page_context=None) -> dict | None:
     text = str(question or "").strip().lower()
     if not text:
@@ -605,8 +661,25 @@ def _match_route_target(question: str, page_context=None) -> dict | None:
             token = str(keyword or "").strip().lower()
             if token and token in text:
                 score += max(2, len(token.split()) * 2)
+        if str(route.get("key") or "") == "library" and any(token in text for token in ["biblioteca", "tareas", "ejercicios", "task library"]):
+            score += 5
         if score > 0 and (best is None or score > best.get("score", 0)):
-            best = {"score": score, **route}
+            route_copy = dict(route)
+            extra_filters = _route_filters_for_question(question, str(route.get("key") or ""))
+            if extra_filters:
+                base_url = str(route_copy.get("url") or "").split("?", 1)[0]
+                current_query = {}
+                raw_url = str(route_copy.get("url") or "")
+                if "?" in raw_url:
+                    for chunk in raw_url.split("?", 1)[1].split("&"):
+                        if "=" not in chunk:
+                            continue
+                        left, right = chunk.split("=", 1)
+                        current_query[left] = right
+                current_query.update({str(key): value for key, value in extra_filters.items() if value not in (None, "", 0, "0")})
+                route_copy["url"] = f"{base_url}{_compact_query(current_query)}"
+                route_copy["filters"] = extra_filters
+            best = {"score": score, **route_copy}
     return best if best and best.get("score", 0) > 0 else None
 
 
@@ -621,7 +694,7 @@ def _build_task_profile(question: str, *, intent: str, maintenance_action: str =
         scope = "user"
         silent_mode = False
         runbook_key = "user_navigation"
-    elif intent in {"create_player"}:
+    elif intent in {"create_player", "create_session", "create_task"}:
         kind = "execute"
         scope = "user"
         silent_mode = False
@@ -700,6 +773,14 @@ def _followup_actions(task: dict, planner: dict, *, page_context=None) -> list[d
                 "label": "Abrir plantilla",
                 "url": str(player_route.get("url") or ""),
                 "reason": "Acceso directo a la gestión de jugadores.",
+            })
+        sessions_route = next((row for row in _guard_route_catalog(page_context) if row.get("key") == "sessions"), None)
+        if sessions_route and sessions_route.get("url"):
+            actions.append({
+                "type": "navigate",
+                "label": "Abrir entrenamiento",
+                "url": str(sessions_route.get("url") or ""),
+                "reason": "Acceso directo a sesiones y microciclos.",
             })
     if planner.get("confirm_required"):
         actions.append({
@@ -1161,6 +1242,7 @@ def _observability_summary(workspace) -> dict:
         "task_queue": _task_state_counts(_load_task_queue(workspace)) if workspace else {"pending": 0, "running": 0, "completed": 0, "blocked": 0},
         "task_queue_preview": _load_task_queue(workspace)[:3] if workspace else [],
         "proactive_state": _load_proactive_state(workspace) if workspace else {},
+        "scheduled_state": _scheduled_guard_state(workspace) if workspace else {},
     }
 
 
@@ -1351,6 +1433,85 @@ def _task_state_counts(rows: list[dict]) -> dict:
         if state in counts:
             counts[state] += 1
     return counts
+
+
+def _record_task_queue_event(
+    workspace,
+    *,
+    title: str,
+    summary: str,
+    task_kind: str,
+    runbook: str,
+    tools: list[str] | None = None,
+    source: str = "manual",
+    status: str = "completed",
+    question: str = "",
+    result_summary: str = "",
+    executions: list[dict] | None = None,
+) -> dict:
+    if not workspace:
+        return {}
+    task = _new_task_entry(
+        detector="manual_request",
+        title=title,
+        summary=summary,
+        severity="info",
+        runbook=runbook,
+        task_kind=task_kind,
+        tools=list(tools or []),
+        source=source,
+        question=question,
+        auto_execute=False,
+    )
+    saved = _enqueue_task(workspace, task)
+    return _update_task_entry(
+        workspace,
+        str(saved.get("id") or ""),
+        status=status,
+        executions=list(executions or []),
+        result_summary=result_summary,
+        finished_at=_now_iso() if status in {"completed", "blocked"} else "",
+    ) or saved
+
+
+def _scheduled_guard_state(workspace) -> dict:
+    payload = _pref_value(workspace, SCHEDULED_GUARD_STATE_PREF_KEY, {})
+    return payload if isinstance(payload, dict) else {}
+
+
+def _store_scheduled_guard_state(workspace, payload: dict):
+    if not workspace:
+        return
+    _store_pref_value(workspace, SCHEDULED_GUARD_STATE_PREF_KEY, payload if isinstance(payload, dict) else {})
+
+
+def _maybe_run_scheduled_guard_cycle(*, workspace, actor_id=None, page_context=None, force: bool = False) -> dict:
+    if not workspace:
+        return {"ran": False, "reason": "workspace_required"}
+    state = _scheduled_guard_state(workspace)
+    now_ts = int(time.time())
+    last_started = _safe_int(state.get("last_started_ts"), 0)
+    if not force and last_started and (now_ts - last_started) < int(SCHEDULED_GUARD_INTERVAL_SECONDS):
+        return {"ran": False, "reason": "interval_not_elapsed", "state": state}
+    next_state = {
+        "last_started_ts": now_ts,
+        "last_started_at": _now_iso(),
+    }
+    _store_scheduled_guard_state(workspace, next_state)
+    result = run_proactive_guard_cycle(
+        workspace=workspace,
+        actor_id=actor_id,
+        allow_safe_repairs=True,
+        page_context=page_context or {"page": "scheduled-guard-cycle"},
+    )
+    next_state.update({
+        "last_finished_ts": int(time.time()),
+        "last_finished_at": _now_iso(),
+        "last_queue_counts": result.get("queue_counts") or {},
+        "last_detection_count": len(result.get("detections") or []),
+    })
+    _store_scheduled_guard_state(workspace, next_state)
+    return {"ran": True, "result": result, "state": next_state}
 
 
 def _new_task_entry(*, detector: str, title: str, summary: str, severity: str, runbook: str, task_kind: str, tools: list[str], source: str, question: str = "", auto_execute: bool = False) -> dict:
@@ -2057,6 +2218,416 @@ def _active_workspace_season(workspace):
     return WorkspaceSeason.objects.filter(workspace=workspace, is_active=True).order_by("-start_date", "-id").first()
 
 
+def _parse_session_request(question: str) -> dict:
+    text = str(question or "").strip()
+    lower = text.lower()
+    focus = _extract_labeled_value(text, ["nombre", "focus", "titulo", "título"])
+    if not focus:
+        free_focus = re.search(
+            r"(?:crea|crear|programa|planifica|monta|prepara)\s+(?:una\s+)?ses(?:i[oó]n)?(?:\s+de\s+entrenamiento)?\s+(.+?)(?=,| para | el | a las | hora| duración| intensidad| md| carga|$)",
+            text,
+            re.IGNORECASE,
+        )
+        focus = str(free_focus.group(1) if free_focus else "").strip(" .")
+    date_raw = _extract_labeled_value(text, ["fecha", "día", "dia", "para el", "para"])
+    if not date_raw:
+        date_match = re.search(r"\b(20\d{2}-\d{2}-\d{2})\b", text)
+        date_raw = str(date_match.group(1) if date_match else "").strip()
+    start_time_raw = _extract_labeled_value(text, ["hora", "a las", "inicio", "start"])
+    if not start_time_raw:
+        time_match = re.search(r"\b([01]?\d|2[0-3]):([0-5]\d)\b", text)
+        start_time_raw = str(time_match.group(0) if time_match else "").strip()
+    minutes_raw = _extract_labeled_value(text, ["duracion", "duración", "minutos", "minutes"])
+    intensity = _extract_labeled_value(text, ["intensidad", "intensity"]).lower()
+    notes = _extract_labeled_value(text, ["contenido", "notas", "notes", "objetivo"])
+    if not notes and "objetivo" in lower:
+        obj_match = re.search(r"objetivo\s*[:=]?\s*([^,;\n]+)", text, re.IGNORECASE)
+        notes = str(obj_match.group(1) if obj_match else "").strip(" .")
+    md_day = ""
+    if "md-4" in lower:
+        md_day = TrainingSession.DAY_MD_MINUS_4
+    elif "md-3" in lower:
+        md_day = TrainingSession.DAY_MD_MINUS_3
+    elif "md-2" in lower:
+        md_day = TrainingSession.DAY_MD_MINUS_2
+    elif "md-1" in lower:
+        md_day = TrainingSession.DAY_MD_MINUS_1
+    elif re.search(r"\bmd\b", lower):
+        md_day = TrainingSession.DAY_MD
+    elif "md+1" in lower:
+        md_day = TrainingSession.DAY_MD_PLUS_1
+    elif "md+2" in lower:
+        md_day = TrainingSession.DAY_MD_PLUS_2
+    dominant_load = ""
+    if "recuper" in lower:
+        dominant_load = TrainingSession.DOMINANT_LOAD_RECOVERY
+    elif "tension" in lower or "tensión" in lower:
+        dominant_load = TrainingSession.DOMINANT_LOAD_TENSION
+    elif "carga duracion" in lower or "carga duración" in lower or "dominant load: duration" in lower:
+        dominant_load = TrainingSession.DOMINANT_LOAD_DURATION
+    elif "velocidad" in lower:
+        dominant_load = TrainingSession.DOMINANT_LOAD_SPEED
+    elif "activacion" in lower or "activación" in lower:
+        dominant_load = TrainingSession.DOMINANT_LOAD_ACTIVATION
+    elif "mixta" in lower or "mixto" in lower:
+        dominant_load = TrainingSession.DOMINANT_LOAD_MIXED
+
+    session_date = None
+    if date_raw:
+        match = re.search(r"\d{4}-\d{2}-\d{2}", date_raw)
+        if match:
+            try:
+                session_date = datetime.strptime(match.group(0), "%Y-%m-%d").date()
+            except ValueError:
+                session_date = None
+    start_time = None
+    if start_time_raw:
+        match = re.search(r"([01]?\d|2[0-3]):([0-5]\d)", start_time_raw)
+        if match:
+            try:
+                start_time = datetime.strptime(match.group(0), "%H:%M").time()
+            except ValueError:
+                start_time = None
+    duration_minutes = _safe_int(re.sub(r"[^\d]", "", minutes_raw), 0) if minutes_raw else 90
+    if duration_minutes <= 0:
+        duration_minutes = 90
+    intensity_map = {
+        "baja": TrainingSession.INTENSITY_LOW,
+        "low": TrainingSession.INTENSITY_LOW,
+        "media": TrainingSession.INTENSITY_MEDIUM,
+        "medium": TrainingSession.INTENSITY_MEDIUM,
+        "alta": TrainingSession.INTENSITY_HIGH,
+        "high": TrainingSession.INTENSITY_HIGH,
+        "recuperacion": TrainingSession.INTENSITY_RECOVERY,
+        "recuperación": TrainingSession.INTENSITY_RECOVERY,
+        "recovery": TrainingSession.INTENSITY_RECOVERY,
+        "matchday": TrainingSession.INTENSITY_MATCHDAY,
+        "prepartido": TrainingSession.INTENSITY_MATCHDAY,
+    }
+    intensity_value = intensity_map.get(intensity, TrainingSession.INTENSITY_MEDIUM)
+    return {
+        "focus": _truncate(focus, 140),
+        "session_date": session_date,
+        "start_time": start_time,
+        "duration_minutes": max(30, min(duration_minutes, 180)),
+        "intensity": intensity_value,
+        "md_day": md_day,
+        "dominant_load": dominant_load,
+        "notes": _truncate(notes, 400),
+    }
+
+
+def _parse_task_request(question: str) -> dict:
+    text = str(question or "").strip()
+    lower = text.lower()
+    title = _extract_labeled_value(text, ["titulo", "título", "nombre"])
+    if not title:
+        free_title = re.search(
+            r"(?:crea|crear|genera|prepara|añade|agrega)\s+(?:una\s+)?tarea\s+(.+?)(?=,| con | para | objetivo| bloque| duraci[oó]n|minutos| repositorio| biblioteca|$)",
+            text,
+            re.IGNORECASE,
+        )
+        title = str(free_title.group(1) if free_title else "").strip(" .")
+    title = re.sub(r"^(?:t[ií]tulo|titulo|nombre|tarea|task)\s*[:=]?\s*", "", str(title or ""), flags=re.IGNORECASE).strip(" .")
+    objective = _extract_labeled_value(text, ["objetivo", "objetivos"])
+    block = _extract_labeled_value(text, ["bloque", "fase", "block"])
+    minutes_raw = _extract_labeled_value(text, ["duracion", "duración", "minutos", "minutes"])
+    repository_raw = _extract_labeled_value(text, ["repositorio", "biblioteca", "repository"])
+    repository_probe = f"{repository_raw} {text}".lower()
+    if "ia trainer" in repository_probe or "ia-trainer" in repository_probe or "ai trainer" in repository_probe:
+        repository = LIBRARY_REPOSITORY_AI_TRAINER
+    elif "interactiva" in repository_probe or "interactive" in repository_probe:
+        repository = LIBRARY_REPOSITORY_INTERACTIVE
+    elif any(token in repository_probe for token in ["pdf", "tradicional", "clásica", "clasica"]):
+        repository = LIBRARY_REPOSITORY_TRADITIONAL
+    else:
+        repository = normalize_library_repository(repository_raw or "")
+        if repository not in {
+            LIBRARY_REPOSITORY_TRADITIONAL,
+            LIBRARY_REPOSITORY_INTERACTIVE,
+            LIBRARY_REPOSITORY_AI_TRAINER,
+        }:
+            repository = LIBRARY_REPOSITORY_TRADITIONAL
+    duration_minutes = _safe_int(re.sub(r"[^\d]", "", minutes_raw), 0) if minutes_raw else 12
+    if duration_minutes <= 0:
+        duration_minutes = 12
+    return {
+        "title": _truncate(title, 180),
+        "objective": _truncate(objective, 300),
+        "block": _truncate(block, 120),
+        "duration_minutes": max(1, min(duration_minutes, 180)),
+        "repository": repository,
+        "scope_key": "coach",
+    }
+
+
+def _execute_create_session_action(question: str, *, workspace=None, page_context=None) -> dict:
+    page_context = page_context if isinstance(page_context, dict) else {}
+    payload = _parse_session_request(question)
+    if not workspace:
+        return {
+            "kind": "create_session",
+            "executed": False,
+            "success": False,
+            "needs_input": True,
+            "missing_fields": ["contexto_equipo"],
+            "message": "No puedo crear la sesión sin un workspace activo.",
+            "payload": payload,
+        }
+    if not bool(page_context.get("can_manage_guard")):
+        return {
+            "kind": "create_session",
+            "executed": False,
+            "success": False,
+            "needs_input": False,
+            "permission_required": True,
+            "message": "Necesitas permisos de gestión para crear sesiones.",
+            "payload": payload,
+        }
+    team_id = _safe_int(page_context.get("team_id"), 0)
+    team = None
+    if team_id and getattr(workspace, "teams", None) is not None:
+        link = workspace.teams.select_related("team").filter(team_id=team_id).first()
+        team = getattr(link, "team", None) if link else None
+    if team is None:
+        team = getattr(workspace, "primary_team", None)
+    missing_fields = []
+    if not payload.get("focus"):
+        missing_fields.append("nombre_sesion")
+    if not payload.get("session_date"):
+        missing_fields.append("fecha")
+    if not team:
+        missing_fields.append("equipo")
+    if missing_fields:
+        return {
+            "kind": "create_session",
+            "executed": False,
+            "success": False,
+            "needs_input": True,
+            "missing_fields": missing_fields,
+            "message": "Pásame al menos nombre y fecha para crear la sesión.",
+            "payload": payload,
+        }
+    microcycle = get_or_create_inbox_microcycle(team)
+    if not microcycle:
+        return {
+            "kind": "create_session",
+            "executed": False,
+            "success": False,
+            "needs_input": False,
+            "message": "No pude preparar el microciclo base para guardar la sesión.",
+            "payload": payload,
+        }
+    content = serialize_session_plan_fields({
+        "notes": payload.get("notes") or "",
+        "agenda_hidden": "",
+    })
+    with transaction.atomic():
+        session = (
+            TrainingSession.objects
+            .filter(microcycle=microcycle, session_date=payload.get("session_date"), focus__iexact=str(payload.get("focus") or ""))
+            .order_by("-id")
+            .first()
+        )
+        created = session is None
+        if created:
+            next_order = (
+                TrainingSession.objects.filter(microcycle=microcycle).order_by("-order").values_list("order", flat=True).first() or 0
+            ) + 1
+            session = TrainingSession.objects.create(
+                microcycle=microcycle,
+                club_season=_active_workspace_season(workspace),
+                session_date=payload.get("session_date"),
+                start_time=payload.get("start_time"),
+                duration_minutes=payload.get("duration_minutes") or 90,
+                intensity=payload.get("intensity") or TrainingSession.INTENSITY_MEDIUM,
+                md_day=payload.get("md_day") or "",
+                dominant_load=payload.get("dominant_load") or "",
+                focus=str(payload.get("focus") or "")[:140],
+                content=content,
+                status=TrainingSession.STATUS_PLANNED,
+                order=next_order,
+            )
+        else:
+            updates = []
+            for field in ("start_time", "duration_minutes", "intensity", "md_day", "dominant_load"):
+                value = payload.get(field)
+                if getattr(session, field) != value and value not in (None, ""):
+                    setattr(session, field, value)
+                    updates.append(field)
+            if content and str(getattr(session, "content", "") or "").strip() != str(content).strip():
+                session.content = content
+                updates.append("content")
+            if updates:
+                session.save(update_fields=sorted(set(updates)))
+    return {
+        "kind": "create_session",
+        "executed": True,
+        "success": True,
+        "needs_input": False,
+        "message": (
+            f"Sesión creada: {session.focus}."
+            if created else f"Sesión actualizada: {session.focus}."
+        ),
+        "session": {
+            "id": int(getattr(session, "id", 0) or 0),
+            "focus": str(getattr(session, "focus", "") or ""),
+            "date": str(getattr(session, "session_date", "") or ""),
+            "team": str(getattr(team, "name", "") or ""),
+            "duration_minutes": int(getattr(session, "duration_minutes", 0) or 0),
+        },
+        "payload": payload,
+    }
+
+
+def _execute_create_task_action(question: str, *, workspace=None, page_context=None) -> dict:
+    page_context = page_context if isinstance(page_context, dict) else {}
+    payload = _parse_task_request(question)
+    if not workspace:
+        return {
+            "kind": "create_task",
+            "executed": False,
+            "success": False,
+            "needs_input": True,
+            "missing_fields": ["contexto_equipo"],
+            "message": "No puedo crear la tarea sin un workspace activo.",
+            "payload": payload,
+        }
+    if not bool(page_context.get("can_manage_guard")):
+        return {
+            "kind": "create_task",
+            "executed": False,
+            "success": False,
+            "needs_input": False,
+            "permission_required": True,
+            "message": "Necesitas permisos de gestión para crear tareas de biblioteca.",
+            "payload": payload,
+        }
+    team_id = _safe_int(page_context.get("team_id"), 0)
+    team = None
+    if team_id and getattr(workspace, "teams", None) is not None:
+        link = workspace.teams.select_related("team").filter(team_id=team_id).first()
+        team = getattr(link, "team", None) if link else None
+    if team is None:
+        team = getattr(workspace, "primary_team", None)
+    missing_fields = []
+    if not payload.get("title"):
+        missing_fields.append("titulo_tarea")
+    if not team:
+        missing_fields.append("equipo")
+    if missing_fields:
+        return {
+            "kind": "create_task",
+            "executed": False,
+            "success": False,
+            "needs_input": True,
+            "missing_fields": missing_fields,
+            "message": "Pásame al menos el nombre de la tarea para guardarla en biblioteca.",
+            "payload": payload,
+        }
+    library_session = get_or_create_library_session_with_repository(
+        team,
+        str(payload.get("scope_key") or "coach"),
+        repository=str(payload.get("repository") or LIBRARY_REPOSITORY_TRADITIONAL),
+    )
+    if not library_session:
+        return {
+            "kind": "create_task",
+            "executed": False,
+            "success": False,
+            "needs_input": False,
+            "message": "No pude preparar la biblioteca donde guardar la tarea.",
+            "payload": payload,
+        }
+    with transaction.atomic():
+        task = (
+            SessionTask.objects
+            .filter(session=library_session, title__iexact=str(payload.get("title") or ""))
+            .order_by("-id")
+            .first()
+        )
+        created = task is None
+        next_order = (
+            SessionTask.objects.filter(session=library_session).order_by("-order").values_list("order", flat=True).first() or 0
+        ) + 1
+        meta = {
+            "scope": str(payload.get("scope_key") or "coach"),
+            "source": "manual-chat",
+            "repository": str(payload.get("repository") or LIBRARY_REPOSITORY_TRADITIONAL),
+            "is_template": True,
+        }
+        if created:
+            task = SessionTask.objects.create(
+                session=library_session,
+                title=str(payload.get("title") or "")[:180],
+                block=str(payload.get("block") or "")[:120],
+                duration_minutes=int(payload.get("duration_minutes") or 12),
+                objective=str(payload.get("objective") or "")[:300],
+                status="draft",
+                order=next_order,
+                tactical_layout={"meta": meta},
+            )
+        else:
+            updates = []
+            for field in ("block", "objective"):
+                value = str(payload.get(field) or "")
+                value = value[:120] if field == "block" else value[:300]
+                if value and getattr(task, field) != value:
+                    setattr(task, field, value)
+                    updates.append(field)
+            duration_value = int(payload.get("duration_minutes") or 12)
+            if int(getattr(task, "duration_minutes", 0) or 0) != duration_value:
+                task.duration_minutes = duration_value
+                updates.append("duration_minutes")
+            tactical_layout = getattr(task, "tactical_layout", None)
+            if not isinstance(tactical_layout, dict):
+                tactical_layout = {}
+            if tactical_layout.get("meta") != meta:
+                tactical_layout["meta"] = meta
+                task.tactical_layout = tactical_layout
+                updates.append("tactical_layout")
+            if updates:
+                task.save(update_fields=sorted(set(updates)))
+    return {
+        "kind": "create_task",
+        "executed": True,
+        "success": True,
+        "needs_input": False,
+        "message": (
+            f"Tarea creada en biblioteca: {task.title}."
+            if created else f"Tarea actualizada en biblioteca: {task.title}."
+        ),
+        "task": {
+            "id": int(getattr(task, "id", 0) or 0),
+            "title": str(getattr(task, "title", "") or ""),
+            "repository": str(payload.get("repository") or LIBRARY_REPOSITORY_TRADITIONAL),
+            "duration_minutes": int(getattr(task, "duration_minutes", 0) or 0),
+            "session": str(getattr(library_session, "focus", "") or ""),
+            "team": str(getattr(team, "name", "") or ""),
+        },
+        "payload": payload,
+    }
+
+
+def _capability_snapshot(*, page_context=None) -> dict:
+    context = page_context if isinstance(page_context, dict) else {}
+    can_code = bool(context.get("can_operate_guard_code"))
+    visible = []
+    for row in OLLANA_CAPABILITIES.get("skills") or []:
+        if bool(row.get("requires_code_operator")) and not can_code:
+            continue
+        visible.append({
+            "key": str(row.get("key") or ""),
+            "label": str(row.get("label") or ""),
+            "scope": str(row.get("scope") or ""),
+        })
+    return {
+        "identity": dict(OLLANA_CAPABILITIES.get("identity") or {}),
+        "modes": dict(OLLANA_CAPABILITIES.get("modes") or {}),
+        "skills": visible[:12],
+    }
+
+
 def _execute_create_player_action(question: str, *, workspace=None, page_context=None) -> dict:
     page_context = page_context if isinstance(page_context, dict) else {}
     payload = _parse_player_request(question)
@@ -2233,11 +2804,19 @@ def _resolve_assisted_action(question: str, *, workspace=None, page_context=None
     intent = _infer_intent(question)
     if intent == "create_player":
         return _execute_create_player_action(question, workspace=workspace, page_context=page_context)
+    if intent == "create_session":
+        return _execute_create_session_action(question, workspace=workspace, page_context=page_context)
+    if intent == "create_task":
+        return _execute_create_task_action(question, workspace=workspace, page_context=page_context)
     return {}
 
 
 def _infer_intent(question: str) -> str:
     text = str(question or "").strip().lower()
+    if re.search(r"\b(crea|crear|genera|prepara|añade|agrega)\b.*\b(tarea|task|ejercicio)\b", text):
+        return "create_task"
+    if re.search(r"\b(crea|crear|programa|planifica|prepara|monta)\b.*\b(sesion|sesión|entreno|entrenamiento)\b", text):
+        return "create_session"
     if re.search(r"\b(introduce|añade|agrega|crea|alta|incorpora)\b.*\b(jugador|player|plantilla|roster)\b", text):
         return "create_player"
     if re.search(r"\b(commit\s+y\s+push|haz\s+commit\s+y\s+push|publica\s+los?\s+cambios?|sube\s+los?\s+cambios?)\b", text):
@@ -2761,6 +3340,7 @@ def _fallback_response(report: dict, *, question: str, planner: dict, audience: 
         "snapshot_diff": snapshot_diff or {},
         "assistant_action": {},
         "improvement_proposals": [],
+        "capabilities": {},
     }
 
 
@@ -2791,6 +3371,7 @@ def _normalize_llm_response(parsed, fallback: dict) -> dict:
         "snapshot_diff": fallback.get("snapshot_diff") or {},
         "assistant_action": fallback.get("assistant_action") or {},
         "improvement_proposals": fallback.get("improvement_proposals") or [],
+        "capabilities": fallback.get("capabilities") or {},
     })
     return merged
 
@@ -2840,6 +3421,40 @@ def run_system_guard_chat(
         )
         run_smoke = bool(run_smoke or ("run_smoke" in (planner.get("requested_tools") or [])))
         auto_fix = bool(auto_fix or ("auto_fix" in (planner.get("requested_tools") or [])))
+    queue_event = {}
+    task_meta = planner.get("task") if isinstance(planner.get("task"), dict) else {}
+    runbook_meta = planner.get("runbook") if isinstance(planner.get("runbook"), dict) else {}
+    queue_title = str(task_meta.get("title") or "").strip() or _truncate(question, 120)
+    if assistant_action and workspace:
+        queue_status = "completed" if assistant_action.get("success") else ("blocked" if assistant_action.get("permission_required") else "pending")
+        queue_event = _record_task_queue_event(
+            workspace,
+            title=queue_title,
+            summary=str(assistant_action.get("message") or "Acción asistida manual.")[:280],
+            task_kind=str(task_meta.get("kind") or assistant_action.get("kind") or "execute"),
+            runbook=str(runbook_meta.get("key") or task_meta.get("runbook_key") or "user_execution"),
+            tools=list(planner.get("requested_tools") or []),
+            source="manual_assistant",
+            status=queue_status,
+            question=question,
+            result_summary=str(assistant_action.get("message") or "")[:280],
+            executions=[],
+        )
+    elif planner.get("requested_tools") and workspace:
+        queue_status = "pending" if planner.get("confirm_required") else ("completed" if all(bool(row.get("ok")) for row in executed_tools or []) else "blocked")
+        queue_event = _record_task_queue_event(
+            workspace,
+            title=queue_title,
+            summary=f"Runbook {str(runbook_meta.get('title') or runbook_meta.get('key') or 'guard')} para: {_truncate(question, 140)}",
+            task_kind=str(task_meta.get("kind") or "diagnose"),
+            runbook=str(runbook_meta.get("key") or task_meta.get("runbook_key") or "silent_diagnostics"),
+            tools=list(planner.get("requested_tools") or []),
+            source="manual_runbook",
+            status=queue_status,
+            question=question,
+            result_summary="Acciones completadas." if queue_status == "completed" else ("Pendiente de confirmación." if queue_status == "pending" else "Una o más acciones fallaron."),
+            executions=executed_tools,
+        )
     report = run_system_guard(
         run_smoke=run_smoke,
         smoke_verbosity=smoke_verbosity,
@@ -2869,6 +3484,7 @@ def run_system_guard_chat(
     fallback["remediation"] = _build_remediation_plan(report, executed_tools or [], snapshot_diff=snapshot_diff)
     fallback["assistant_action"] = assistant_action if isinstance(assistant_action, dict) else {}
     fallback["improvement_proposals"] = _build_improvement_proposals(report, page_context=page_context, workspace=workspace)
+    fallback["capabilities"] = _capability_snapshot(page_context=page_context)
     if assistant_action:
         action_message = str(assistant_action.get("message") or "").strip()
         if action_message:
@@ -2882,7 +3498,7 @@ def run_system_guard_chat(
         payload = assistant_action.get("payload") if isinstance(assistant_action.get("payload"), dict) else {}
         if payload:
             collected = []
-            for key in ("name", "number", "position", "dominant_foot"):
+            for key in ("name", "number", "position", "dominant_foot", "title", "repository", "duration_minutes"):
                 value = payload.get(key)
                 if value not in ("", None):
                     collected.append(f"{key}:{value}")
@@ -2890,9 +3506,11 @@ def run_system_guard_chat(
                 fallback["highlights"] = (fallback.get("highlights") or []) + [f"Datos capturados: {', '.join(collected[:4])}"]
         if assistant_action.get("missing_fields"):
             fallback["actions"] = [{
-                "label": "Completar datos del jugador",
+                "label": "Completar datos para ejecutar",
                 "reason": "Faltan campos mínimos para ejecutar la petición.",
             }] + (fallback.get("actions") or [])
+        if queue_event:
+            fallback["highlights"] = (fallback.get("highlights") or []) + [f"Cola: {queue_event.get('status') or 'registrada'}"]
     parsed = None
     error = ""
     llm_used = bool(cfg.get("enabled") and str(cfg.get("provider") or "").lower() == "ollama")
@@ -2917,6 +3535,7 @@ def run_system_guard_chat(
         "llm_available": isinstance(parsed, dict),
         "executed_tools": len(executed_tools),
     }
+    response["capabilities"] = response.get("capabilities") or _capability_snapshot(page_context=page_context)
     response["memory_hint"] = _truncate(memory.get("summary"), 220)
     if snapshot_diff.get("regressions"):
         response["highlights"] = (response.get("highlights") or []) + [f"Regresión: {item}" for item in snapshot_diff.get("regressions", [])[:2]]
