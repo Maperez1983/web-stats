@@ -5682,6 +5682,31 @@ def _team_stadium_palette(workspace, team):
     return palette
 
 
+def _task_pitch3d_asset_context(static_build_id=None, *, player_model_src=''):
+    def _asset(path_value):
+        try:
+            resolved = static(str(path_value or '').lstrip('/'))
+            if static_build_id:
+                resolved = f"{resolved}?v={quote(str(static_build_id))}"
+            return resolved
+        except Exception:
+            return ''
+
+    return {
+        'pitch3d_stadium_model_src': _asset('football/models/pitch3d/stadium_malaga_rosaleda.glb'),
+        'pitch3d_stadium_top_h_src': _asset('football/images/pitch3d/stadium_rosaleda_top_h.png'),
+        'pitch3d_stadium_top_v_src': _asset('football/images/pitch3d/stadium_rosaleda_top_v.png'),
+        'pitch3d_grass_albedo_src': _asset('football/images/pitch3d/grass_premium_albedo.png'),
+        'pitch3d_grass_bump_src': _asset('football/images/pitch3d/grass_premium_bump.png'),
+        'pitch3d_grass_normal_src': _asset('football/images/pitch3d/grass_premium_normal.png'),
+        'pitch3d_grass_roughness_src': _asset('football/images/pitch3d/grass_premium_roughness.png'),
+        'pitch3d_concrete_albedo_src': _asset('football/materials/pitch3d/ambientcg/Concrete034/Concrete034_1K-JPG_Color.jpg'),
+        'pitch3d_benagalbon_crest_src': _asset('football/images/kit_logos/benagalbon_crest_alpha.png'),
+        'pitch3d_goal_model_src': _asset('football/models/pitch3d/goal_premium.glb'),
+        'pitch3d_player_model_src': player_model_src or _asset('football/models/avatar/player_humanoid.glb'),
+    }
+
+
 def _team_stadium_ads(workspace, team):
     team_name = ''
     try:
@@ -28656,7 +28681,20 @@ def coach_tactics_page(request):
     model_value = _model_of_play_preference(_get_active_workspace(request))
     model_principle_options = _model_principle_options(model_value)
 
+    pitch3d_player_model_src = ''
+    try:
+        pitch3d_player_model_url = str(os.getenv('TASK_PLAYER_MODEL_URL') or '').strip()
+        pitch3d_player_model_static_path = str(os.getenv('TASK_PLAYER_MODEL_STATIC_PATH') or '').strip()
+        if pitch3d_player_model_url:
+            pitch3d_player_model_src = pitch3d_player_model_url
+        elif pitch3d_player_model_static_path:
+            pitch3d_player_model_src = static(pitch3d_player_model_static_path.lstrip('/'))
+            if static_build_id:
+                pitch3d_player_model_src = f"{pitch3d_player_model_src}?v={quote(str(static_build_id))}"
+    except Exception:
+        pitch3d_player_model_src = ''
 
+    pitch3d_assets = _task_pitch3d_asset_context(static_build_id, player_model_src=pitch3d_player_model_src)
     return render(
         request,
         'football/task_builder.html',
@@ -28705,6 +28743,7 @@ def coach_tactics_page(request):
             'back_url': back_url,
             'back_label': 'Volver al club',
             'pdf_preview_url': '',
+            **pitch3d_assets,
             'video_import_url': '',
             'task_preview_url': '',
             'show_session_selector': False,
@@ -40118,7 +40157,20 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
         pass
     model_value = _model_of_play_preference(_get_active_workspace(request))
     model_principle_options = _model_principle_options(model_value)
+    pitch3d_player_model_src = ''
+    try:
+        pitch3d_player_model_url = str(os.getenv('TASK_PLAYER_MODEL_URL') or '').strip()
+        pitch3d_player_model_static_path = str(os.getenv('TASK_PLAYER_MODEL_STATIC_PATH') or '').strip()
+        if pitch3d_player_model_url:
+            pitch3d_player_model_src = pitch3d_player_model_url
+        elif pitch3d_player_model_static_path:
+            pitch3d_player_model_src = static(pitch3d_player_model_static_path.lstrip('/'))
+            if static_build_id:
+                pitch3d_player_model_src = f"{pitch3d_player_model_src}?v={quote(str(static_build_id))}"
+    except Exception:
+        pitch3d_player_model_src = ''
 
+    pitch3d_assets = _task_pitch3d_asset_context(static_build_id, player_model_src=pitch3d_player_model_src)
     return render(
         request,
         'football/task_builder.html',
@@ -40174,6 +40226,7 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             'saved_task_info': saved_task_info,
             'show_dragon_nav': True,
             'confirmed_players_api_url': reverse('sessions-confirmed-players-api'),
+            **pitch3d_assets,
         },
     )
 
@@ -46677,6 +46730,7 @@ def analysis_video_report_item_tactical_page(request, item_id):
         analysis_item_title = f'Elemento {int(item.id)}'
 
     workspace = _get_active_workspace(request)
+    pitch3d_assets = _task_pitch3d_asset_context(static_build_id)
 
     return render(
         request,
@@ -46727,6 +46781,7 @@ def analysis_video_report_item_tactical_page(request, item_id):
             'analysis_item_mode': True,
             'analysis_item_title': analysis_item_title,
             'analysis_item_video_upload_url': reverse('analysis-video-report-item-tactical-video-upload-api', args=[int(item.id)]),
+            **pitch3d_assets,
         },
     )
 
