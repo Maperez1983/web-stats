@@ -35,6 +35,8 @@
   .guard-command-chip { display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start; gap:0.18rem; min-height:64px; border-radius:16px; padding:0.7rem 0.75rem; border:1px solid rgba(250,204,21,0.14); background:rgba(15,23,42,0.42); color:#f8fafc; cursor:pointer; text-align:left; }
   .guard-command-chip strong { display:block; font-size:0.72rem; font-weight:950; letter-spacing:0.08em; text-transform:uppercase; }
   .guard-command-chip span { display:block; font-size:0.73rem; font-weight:800; color:rgba(226,232,240,0.76); line-height:1.35; }
+  .guard-chip-group { margin-bottom:0.7rem; position:relative; z-index:1; }
+  .guard-chip-group strong { display:block; margin-bottom:0.38rem; font-size:0.68rem; font-weight:950; letter-spacing:0.1em; text-transform:uppercase; color:rgba(226,232,240,0.68); }
   .guard-tech-shell { margin-top:0.75rem; position:relative; z-index:1; }
   .guard-tech-shell summary { cursor:pointer; list-style:none; font-size:0.72rem; font-weight:950; letter-spacing:0.08em; text-transform:uppercase; color:rgba(226,232,240,0.78); }
   .guard-tech-shell summary::-webkit-details-marker { display:none; }
@@ -105,8 +107,8 @@
   <section class="guard-widget-panel" id="global-guard-widget-panel" aria-label="Chat global del guardián del sistema" style="width:min(420px, calc(100vw - 1.5rem)); max-height:min(78vh, 760px); overflow:hidden; display:flex; flex-direction:column; box-shadow:0 28px 80px rgba(2,6,23,0.45); border:1px solid rgba(163,230,53,0.16); background:radial-gradient(circle at top right, rgba(250,204,21,0.14), transparent 30%), linear-gradient(180deg, rgba(8,31,20,0.98) 0%, rgba(3,14,10,0.98) 100%); border-radius:22px; padding:0.9rem; color:#e5e7eb; font-family:var(--prod-font-ui, 'Avenir Next', 'Inter', 'Segoe UI', system-ui, sans-serif); position:relative; isolation:isolate;">
     <div class="guard-chat-header">
       <div>
-        <div class="section-title" style="margin:0 0 0.25rem; font-size:0.78rem; font-weight:950; letter-spacing:0.10em; text-transform:uppercase; color: rgba(226,232,240,0.9);">Cabina Técnica Ollana</div>
-        <p style="margin:0; color:rgba(226,232,240,0.72); font-weight:800;">Inspector del sistema, asistente transversal y analista de partido para cualquier duda o incidencia.</p>
+        <div class="section-title" style="margin:0 0 0.25rem; font-size:0.78rem; font-weight:950; letter-spacing:0.10em; text-transform:uppercase; color: rgba(226,232,240,0.9);">Ollana</div>
+        <p style="margin:0; color:rgba(226,232,240,0.72); font-weight:800;">Asistente del sistema para navegar, crear cosas y vigilar que todo siga funcionando.</p>
       </div>
       <button type="button" class="guard-chat-close" id="global-guard-widget-close" aria-label="Ocultar chat">×</button>
     </div>
@@ -131,12 +133,17 @@
         <strong>Modo silencioso</strong>
         <div id="global-guard-silent-copy">Ollana vigila el sistema en segundo plano y te resume solo lo importante.</div>
       </div>
-      <div class="guard-suggestion-row" id="global-guard-suggestions">
-        <button type="button" class="guard-suggestion-chip" data-guard-suggestion="Ayúdame con esta pantalla">Ayúdame con esta pantalla</button>
-        <button type="button" class="guard-suggestion-chip" data-guard-suggestion="Llévame a vídeo análisis">Llévame a vídeo análisis</button>
-        <button type="button" class="guard-suggestion-chip" data-guard-suggestion="Abre biblioteca de tareas">Abre biblioteca de tareas</button>
+      <div class="guard-chip-group">
+        <strong>Consultas rápidas</strong>
+        <div class="guard-suggestion-row" id="global-guard-suggestions">
+          <button type="button" class="guard-suggestion-chip" data-guard-suggestion="Ayúdame con esta pantalla">Ayúdame con esta pantalla</button>
+          <button type="button" class="guard-suggestion-chip" data-guard-suggestion="Llévame a vídeo análisis">Llévame a vídeo análisis</button>
+          <button type="button" class="guard-suggestion-chip" data-guard-suggestion="Abre biblioteca de tareas">Abre biblioteca de tareas</button>
+        </div>
       </div>
-      <div class="guard-command-grid" id="global-guard-command-grid">
+      <div class="guard-chip-group">
+        <strong>Acciones directas</strong>
+        <div class="guard-command-grid" id="global-guard-command-grid">
         <button type="button" class="guard-command-chip" data-guard-command="Llévame a vídeo análisis">
           <strong>Ir a vídeo</strong>
           <span>Abre análisis con una orden directa.</span>
@@ -153,6 +160,15 @@
           <strong>Crear tarea</strong>
           <span>Guarda una tarea en biblioteca.</span>
         </button>
+        <button type="button" class="guard-command-chip" data-guard-command="Introduce un jugador en plantilla nombre: Nuevo jugador, dorsal 8, posición mediocentro">
+          <strong>Crear jugador</strong>
+          <span>Da de alta una ficha básica desde el chat.</span>
+        </button>
+        <button type="button" class="guard-command-chip" data-guard-command="Abre jugadores y plantilla">
+          <strong>Ir a plantilla</strong>
+          <span>Abre la zona de jugadores y seguimiento.</span>
+        </button>
+        </div>
       </div>
       <div id="global-guard-chat-log" class="guard-chat-log">
         <div class="guard-msg assistant">
@@ -162,9 +178,10 @@
       </div>
       <div class="guard-controls">
         <div id="global-guard-quick-actions" class="guard-quick-actions">
-          <button type="button" class="guard-btn" data-guard-action="goto_library">Biblioteca de tareas</button>
-          <button type="button" class="guard-btn" data-guard-action="goto_analysis">Vídeo análisis</button>
-          <button type="button" class="guard-btn" data-guard-action="help">Ayúdame aquí</button>
+          <button type="button" class="guard-btn" data-guard-action="goto_library">Biblioteca</button>
+          <button type="button" class="guard-btn" data-guard-action="goto_analysis">Vídeo</button>
+          <button type="button" class="guard-btn" data-guard-action="create_player">Jugador</button>
+          <button type="button" class="guard-btn" data-guard-action="create_session">Sesión</button>
         </div>
         <label>Mensaje<textarea id="global-guard-chat-input" placeholder="Ej.: llévame a vídeo análisis, abre biblioteca de tareas, ayúdame con esta pantalla, no me deja guardar..."></textarea></label>
         <div class="guard-actions">
@@ -335,6 +352,7 @@
   const screenMarkers = ['esta pantalla', 'esta pagina', 'esta página', 'donde estoy', 'qué puedo hacer aquí', 'que puedo hacer aqui'];
   const issueMarkers = ['no me deja', 'no funciona', 'error', 'falla', 'fallo', 'problema', 'no aparece', 'no se muestra', 'va lento', 'se ha roto'];
   const complexTaskMarkers = ['codigo', 'código', 'trabaja hasta', 'arregla', 'mejora', 'haz que', 'consigue', 'profesional', '3d', 'estadio'];
+  const executeMarkers = ['introduce un jugador', 'jugador en plantilla', 'crea una sesion', 'crea una sesión', 'crea una tarea', 'alta de jugador'];
   const navigationVerbs = ['abre', 'abrir', 'abreme', 'abreme', 'llévame', 'llevame', 've a', 'ir a', 'quiero ir', 'quiero ver', 'quiero abrir', 'vamos a'];
   const pageGuideCatalog = {
     'dashboard-home': {
@@ -343,7 +361,7 @@
         'Aquí ves el resumen del equipo, agenda, briefing semanal y accesos a las áreas principales.',
         'Si buscas tareas o entrenamientos, la ruta más directa es Entrenamiento o Biblioteca de tareas.',
       ],
-      suggestions: ['Abre biblioteca de tareas', 'Llévame a vídeo análisis'],
+      suggestions: ['Abre biblioteca de tareas', 'Llévame a vídeo análisis', 'Introduce un jugador en plantilla'],
     },
     sessions: {
       title: 'Entrenamiento',
@@ -351,7 +369,7 @@
         'Desde aquí organizas microciclos, sesiones y tareas.',
         'Si quieres reutilizar ejercicios, te conviene abrir Biblioteca de tareas.',
       ],
-      suggestions: ['Abre biblioteca de tareas', 'Quiero crear una tarea'],
+      suggestions: ['Abre biblioteca ia trainer', 'Quiero crear una tarea', 'Crea una sesión para mañana'],
     },
     'match-hub': {
       title: 'Partido',
@@ -359,7 +377,7 @@
         'En esta zona preparas convocatoria, once inicial y seguimiento del día de partido.',
         'Si necesitas revisar acciones o incidencias, la ruta natural es Partido.',
       ],
-      suggestions: ['Ayúdame con esta pantalla', 'Llévame a vídeo análisis'],
+      suggestions: ['Ayúdame con esta pantalla', 'Llévame a vídeo análisis', 'Revisa una incidencia en esta pantalla'],
     },
     analysis: {
       title: 'Análisis',
@@ -367,7 +385,7 @@
         'Esta área está pensada para vídeo análisis, rival y elaboración de informes.',
         'Si quieres entrar directo a vídeo, te puedo llevar a Vídeo análisis.',
       ],
-      suggestions: ['Llévame a vídeo análisis', 'Ayúdame con esta pantalla'],
+      suggestions: ['Llévame a vídeo análisis', 'Ayúdame con esta pantalla', 'Abre biblioteca de tareas'],
     },
   };
   const syncSuggestionRow = () => {
@@ -391,7 +409,8 @@
     const placeholderMap = {
       sessions: 'Ej.: crea una tarea título: Rondo 4x2, abre biblioteca ia trainer, crea una sesión para mañana...',
       analysis: 'Ej.: llévame a vídeo análisis, ayúdame con esta pantalla, revisa una incidencia de clips...',
-      'dashboard-home': 'Ej.: ayúdame con esta pantalla, quiero ir a biblioteca de tareas, revisa el sistema...',
+      'dashboard-home': 'Ej.: introduce un jugador en plantilla, quiero ir a biblioteca de tareas, revisa el sistema...',
+      'match-hub': 'Ej.: ayúdame con esta pantalla, llévame a vídeo análisis, revisa una incidencia en partido...',
     };
     inputEl.placeholder = placeholderMap[page] || 'Ej.: llévame a vídeo análisis, abre biblioteca de tareas, ayúdame con esta pantalla, no me deja guardar...';
   };
@@ -464,6 +483,7 @@
     if (navigationRoute) return { kind: 'navigate', route: navigationRoute };
     if (screenMarkers.some((item) => text.includes(normalizeText(item)))) return { kind: 'help' };
     if (helpMarkers.some((item) => text.includes(normalizeText(item)))) return { kind: 'help' };
+    if (executeMarkers.some((item) => text.includes(normalizeText(item)))) return { kind: 'execute' };
     if (complexTaskMarkers.some((item) => text.includes(normalizeText(item)))) return { kind: 'task' };
     if (issueMarkers.some((item) => text.includes(normalizeText(item)))) return { kind: 'support' };
     return { kind: 'support' };
@@ -475,6 +495,8 @@
     auto_fix: { message: 'Propón y, si procede, ejecuta auto-fix seguro para la incidencia detectada.', runSmoke: false, autoFix: true, maintenanceAction: '' },
     goto_library: { navigation: 'library' },
     goto_analysis: { navigation: 'analysis' },
+    create_player: { message: 'Introduce un jugador en plantilla nombre: Nuevo jugador, dorsal 8, posición mediocentro.', runSmoke: false, autoFix: false, maintenanceAction: '' },
+    create_session: { message: 'Crea una sesión nombre: Activación prepartido, fecha 2026-06-21, hora 18:30, duración 60.', runSmoke: false, autoFix: false, maintenanceAction: '' },
   };
   const alertPresetFromRow = (row) => {
     const text = String((row && row.text) || '').trim();
@@ -855,7 +877,9 @@
       resetPending();
       return;
     }
-    if (intent.kind === 'task') {
+    if (intent.kind === 'execute') {
+      setStatus('Preparando acción asistida…');
+    } else if (intent.kind === 'task') {
       setStatus('Activando modo operador silencioso…');
     } else if (intent.kind === 'support') {
       setStatus('Revisando la incidencia en silencio…');

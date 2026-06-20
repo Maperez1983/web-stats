@@ -781,6 +781,8 @@ class SystemGuardTests(TestCase):
         self.assertContains(response, 'Estabilidad LLM')
         self.assertContains(response, 'Modo silencioso')
         self.assertContains(response, 'Crear tarea')
+        self.assertContains(response, 'Crear jugador')
+        self.assertContains(response, 'Acciones directas')
         self.assertIn('guard_observability', response.context)
 
     @patch('football.system_guard._maybe_run_scheduled_guard_cycle', return_value={'ran': False, 'reason': 'interval_not_elapsed'})
