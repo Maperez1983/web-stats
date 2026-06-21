@@ -9,10 +9,12 @@ from datetime import date, timedelta, time
 from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
+from io import StringIO
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.core.management import call_command
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpResponse
@@ -1830,6 +1832,46 @@ class SystemGuardTests(TestCase):
         self.assertEqual(result['executed_count'], 1)
         queue = system_guard._load_task_queue(self.workspace)
         self.assertEqual(queue[0]['status'], 'completed')
+
+    @patch('football.system_guard.run_system_guard', return_value={
+        'ok': True,
+        'issue_summary': {'blockers': 0, 'warnings': 0},
+        'issues': [],
+    })
+    @patch('football.system_guard._execute_tools', return_value=[])
+    def test_run_continuous_operator_cycle_persists_runtime_state(self, _exec, _guard):
+        result = system_guard.run_continuous_operator_cycle(
+            workspace=self.workspace,
+            actor_id=self.user.id,
+            page_context={'page': 'continuous-operator', 'is_admin_user': True, 'can_manage_guard': True, 'can_operate_guard_code': True},
+            holder='test-operator',
+            force=True,
+        )
+        self.assertTrue(result['ok'])
+        runtime = system_guard._load_operator_runtime_state(self.workspace)
+        self.assertFalse(runtime['running'])
+        self.assertEqual(runtime['holder'], 'test-operator')
+        self.assertIn('last_finished_at', runtime)
+        self.assertEqual(system_guard._load_operator_lease(self.workspace), {})
+
+    @patch('football.system_guard.run_continuous_operator_cycle', return_value={
+        'ok': True,
+        'runtime': {'last_status': 'ok', 'last_detection_count': 2, 'last_executed_tasks': 1},
+        'proactive': {'queue_counts': {'pending': 1, 'blocked': 0}},
+    })
+    def test_run_ollana_operator_command_executes_cycle(self, mock_cycle):
+        out = StringIO()
+        call_command(
+            'run_ollana_operator',
+            workspace_id=self.workspace.id,
+            actor_id=self.user.id,
+            iterations=1,
+            stdout=out,
+        )
+        output = out.getvalue()
+        self.assertIn('cycle 1/1', output)
+        self.assertIn('Operador continuo de Ollana completado.', output)
+        mock_cycle.assert_called_once()
 
     def test_detect_proactive_improvements_creates_stability_task_when_system_is_clean(self):
         report = {'issue_summary': {'blockers': 0, 'warnings': 0}}

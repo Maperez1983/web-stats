@@ -391,8 +391,11 @@ SCHEDULED_GUARD_STATE_PREF_KEY = "system_guard:scheduled_cycle:v1"
 INCIDENT_LEDGER_PREF_KEY = "system_guard:incident_ledger:v1"
 OPERATOR_PROFILE_PREF_KEY = "system_guard:operator_profile:v1"
 OBJECTIVE_MEMORY_PREF_KEY = "system_guard:objective_memory:v1"
+OPERATOR_RUNTIME_PREF_KEY = "system_guard:operator_runtime:v1"
+OPERATOR_LEASE_PREF_KEY = "system_guard:operator_lease:v1"
 SCHEDULED_GUARD_INTERVAL_SECONDS = 300
 AUTONOMOUS_BACKLOG_MAX_TASKS = 3
+OPERATOR_LEASE_SECONDS = 240
 ACTION_PERMISSION_MATRIX = {
     "inspect_system": {"requires_manage_guard": False, "requires_code_operator": False, "scope": "system"},
     "guide_user": {"requires_manage_guard": False, "requires_code_operator": False, "scope": "user"},
@@ -2129,6 +2132,8 @@ def _observability_summary(workspace) -> dict:
             "progress_percent": _safe_int(row.get("progress_percent"), 0),
             "next_step": str(row.get("next_step") or "")[:180],
         })
+    operator_runtime = _load_operator_runtime_state(workspace) if workspace else {}
+    operator_lease = _load_operator_lease(workspace) if workspace else {}
     return {
         "available": bool(rows or turns or memory),
         "history_count": len(rows),
@@ -2163,6 +2168,8 @@ def _observability_summary(workspace) -> dict:
         "timeline": timeline[:6],
         "task_memory": task_memory[:5],
         "objective_memory": objective_memory[:5],
+        "operator_runtime": operator_runtime,
+        "operator_lease": operator_lease,
         "proactive_state": _load_proactive_state(workspace) if workspace else {},
         "scheduled_state": _scheduled_guard_state(workspace) if workspace else {},
     }
@@ -2650,6 +2657,60 @@ def _store_scheduled_guard_state(workspace, payload: dict):
     if not workspace:
         return
     _store_pref_value(workspace, SCHEDULED_GUARD_STATE_PREF_KEY, payload if isinstance(payload, dict) else {})
+
+
+def _load_operator_runtime_state(workspace) -> dict:
+    payload = _pref_value(workspace, OPERATOR_RUNTIME_PREF_KEY, {})
+    return payload if isinstance(payload, dict) else {}
+
+
+def _store_operator_runtime_state(workspace, payload: dict):
+    if not workspace:
+        return
+    _store_pref_value(workspace, OPERATOR_RUNTIME_PREF_KEY, payload if isinstance(payload, dict) else {})
+
+
+def _load_operator_lease(workspace) -> dict:
+    payload = _pref_value(workspace, OPERATOR_LEASE_PREF_KEY, {})
+    return payload if isinstance(payload, dict) else {}
+
+
+def _store_operator_lease(workspace, payload: dict):
+    if not workspace:
+        return
+    _store_pref_value(workspace, OPERATOR_LEASE_PREF_KEY, payload if isinstance(payload, dict) else {})
+
+
+def _acquire_operator_lease(workspace, *, actor_id=None, holder: str = "ollana-operator", force: bool = False) -> dict:
+    if not workspace:
+        return {"ok": False, "reason": "workspace_required"}
+    now_ts = int(time.time())
+    current = _load_operator_lease(workspace)
+    expires_at_ts = _safe_int(current.get("expires_at_ts"), 0)
+    active = bool(expires_at_ts and expires_at_ts > now_ts)
+    if active and not force and str(current.get("holder") or "") != str(holder):
+        return {
+            "ok": False,
+            "reason": "lease_busy",
+            "lease": current,
+        }
+    lease = {
+        "holder": str(holder or "ollana-operator")[:80],
+        "actor_id": int(actor_id or 0),
+        "acquired_at": _now_iso(),
+        "expires_at_ts": now_ts + int(OPERATOR_LEASE_SECONDS),
+    }
+    _store_operator_lease(workspace, lease)
+    return {"ok": True, "lease": lease}
+
+
+def _release_operator_lease(workspace, *, holder: str = "ollana-operator"):
+    if not workspace:
+        return
+    current = _load_operator_lease(workspace)
+    if current and str(current.get("holder") or "") not in {"", str(holder or "")}:
+        return
+    _store_operator_lease(workspace, {})
 
 
 def _load_objective_memory(workspace) -> list[dict]:
@@ -6285,6 +6346,69 @@ def _build_admin_operator_console(
     }
 
 
+def _continuous_operator_snapshot(workspace, *, actor_id=None) -> dict:
+    runtime = _load_operator_runtime_state(workspace) if workspace else {}
+    lease = _load_operator_lease(workspace) if workspace else {}
+    objectives = _objective_orchestrator_snapshot(workspace, actor_id=actor_id) if workspace else {}
+    return {
+        "embedded": True,
+        "runtime": runtime,
+        "lease": lease,
+        "active_objectives": _safe_int(objectives.get("active_count"), 0),
+        "resumable_objectives": _safe_int(objectives.get("resumable_count"), 0),
+        "running": bool(runtime.get("running")),
+    }
+
+
+def run_continuous_operator_cycle(
+    *,
+    workspace,
+    actor_id=None,
+    page_context=None,
+    holder: str = "ollana-operator",
+    force: bool = False,
+) -> dict:
+    if not workspace:
+        return {"ok": False, "reason": "workspace_required"}
+    lease_result = _acquire_operator_lease(workspace, actor_id=actor_id, holder=holder, force=force)
+    if not lease_result.get("ok"):
+        return {"ok": False, "reason": str(lease_result.get("reason") or "lease_busy"), "lease": lease_result.get("lease") or {}}
+    started_at = _now_iso()
+    runtime = {
+        "running": True,
+        "holder": str(holder or "ollana-operator")[:80],
+        "actor_id": int(actor_id or 0),
+        "last_started_at": started_at,
+        "last_status": "running",
+    }
+    _store_operator_runtime_state(workspace, runtime)
+    try:
+        proactive = run_proactive_guard_cycle(
+            workspace=workspace,
+            actor_id=actor_id,
+            allow_safe_repairs=True,
+            page_context=page_context or {"page": "continuous-operator"},
+        )
+        queue_counts = proactive.get("queue_counts") or {}
+        runtime.update({
+            "running": False,
+            "last_finished_at": _now_iso(),
+            "last_status": "ok" if proactive.get("ok") else "watch",
+            "last_queue_counts": queue_counts,
+            "last_detection_count": len(proactive.get("detections") or []),
+            "last_executed_tasks": _safe_int((proactive.get("autonomous_backlog") or {}).get("executed_count"), 0),
+        })
+        _store_operator_runtime_state(workspace, runtime)
+        return {
+            "ok": True,
+            "runtime": runtime,
+            "lease": _load_operator_lease(workspace),
+            "proactive": proactive,
+        }
+    finally:
+        _release_operator_lease(workspace, holder=holder)
+
+
 def _maybe_trigger_automatic_rollback(
     *,
     workspace,
@@ -9105,6 +9229,7 @@ def run_system_guard_chat(
     objective_orchestrator = _objective_orchestrator_snapshot(workspace, actor_id=actor_id)
     domain_playbook = _domain_playbook_snapshot(question, page_context=page_context)
     autonomous_backlog = _run_autonomous_backlog_cycle(workspace=workspace, page_context=page_context)
+    continuous_operator = _continuous_operator_snapshot(workspace, actor_id=actor_id)
     admin_operator_console = _build_admin_operator_console(
         page_context=page_context,
         autonomy_policy=autonomy_policy,
@@ -9149,6 +9274,7 @@ def run_system_guard_chat(
     fallback["objective_orchestrator"] = objective_orchestrator
     fallback["domain_playbook"] = domain_playbook
     fallback["autonomous_backlog"] = autonomous_backlog
+    fallback["continuous_operator"] = continuous_operator
     fallback["admin_operator_console"] = admin_operator_console
     fallback["autonomous_closure"] = autonomous_closure
     fallback["request_contract"] = _build_request_contract(
@@ -9353,6 +9479,7 @@ def run_system_guard_chat(
     response["objective_orchestrator"] = response.get("objective_orchestrator") or objective_orchestrator
     response["domain_playbook"] = response.get("domain_playbook") or domain_playbook
     response["autonomous_backlog"] = response.get("autonomous_backlog") or autonomous_backlog
+    response["continuous_operator"] = response.get("continuous_operator") or continuous_operator
     response["admin_operator_console"] = response.get("admin_operator_console") or admin_operator_console
     response["autonomous_closure"] = response.get("autonomous_closure") or autonomous_closure
     response["request_contract"] = response.get("request_contract") or fallback.get("request_contract") or _build_request_contract(
