@@ -955,6 +955,11 @@ class SystemGuardTests(TestCase):
         self.assertEqual(response['assistant_action']['player']['name'], 'Juan Perez')
         self.assertTrue(response['improvement_proposals'])
         self.assertTrue(response['capabilities']['skills'])
+        self.assertTrue(response['intelligence_os']['layers']['knowledge']['modules'])
+        self.assertTrue(response['intelligence_os']['layers']['knowledge']['critical_routes'])
+        self.assertTrue(response['intelligence_os']['layers']['presence']['inside_system'])
+        self.assertEqual(response['intelligence_os']['layers']['domain']['workspace']['id'], self.workspace.id)
+        self.assertEqual(response['intelligence_os']['layers']['domain']['team']['id'], self.team.id)
         self.assertEqual(response['intelligence_os']['layers']['orchestration']['intent'], 'create_player')
         self.assertTrue(response['intelligence_os']['layers']['execution']['surface']['surfaces'])
         self.assertTrue(response['runbook']['stages'])
@@ -976,7 +981,7 @@ class SystemGuardTests(TestCase):
         result = system_guard.run_system_guard_chat(
             question='Crea una sesión nombre: Finalización + presión, fecha 2026-06-21, hora 18:30, duración 80, intensidad alta.',
             workspace=self.workspace,
-            page_context={'page': 'sessions', 'team_id': self.team.id, 'can_manage_guard': True},
+            page_context={'page': 'sessions', 'team_id': self.team.id, 'can_manage_guard': True, 'tab': 'sessions'},
             autonomy_mode='operator',
             audience='guided',
         )
@@ -987,6 +992,8 @@ class SystemGuardTests(TestCase):
         response = result['chat']['response']
         self.assertTrue(response['assistant_action']['success'])
         self.assertEqual(response['assistant_action']['session']['focus'], 'Finalización + presión')
+        self.assertEqual(response['intelligence_os']['layers']['runtime']['latest_session']['focus'], 'Finalización + presión')
+        self.assertEqual(response['intelligence_os']['layers']['live_workflow']['page_tab'], 'sessions')
         self.assertEqual(result['task_queue']['counts']['completed'], 1)
 
     @patch('football.system_guard.local_llm_config', return_value={
@@ -1006,7 +1013,7 @@ class SystemGuardTests(TestCase):
         result = system_guard.run_system_guard_chat(
             question='Crea una tarea título: Rondo 4x2, objetivo: activar tercer hombre, duración 14, repositorio ia trainer.',
             workspace=self.workspace,
-            page_context={'page': 'sessions', 'team_id': self.team.id, 'can_manage_guard': True},
+            page_context={'page': 'sessions', 'team_id': self.team.id, 'can_manage_guard': True, 'library_repo': 'ai_trainer'},
             autonomy_mode='operator',
             audience='guided',
         )
@@ -1016,6 +1023,8 @@ class SystemGuardTests(TestCase):
         response = result['chat']['response']
         self.assertTrue(response['assistant_action']['success'])
         self.assertEqual(response['assistant_action']['task']['title'], 'Rondo 4x2')
+        self.assertEqual(response['intelligence_os']['layers']['runtime']['library_repository'], 'ai_trainer')
+        self.assertGreaterEqual(int(response['intelligence_os']['layers']['runtime']['library_task_count']), 1)
         self.assertEqual(result['task_queue']['counts']['completed'], 1)
 
     def test_execute_create_player_action_requires_management_permission(self):
@@ -1386,11 +1395,75 @@ class SystemGuardTests(TestCase):
         self.assertTrue(response['ui_actions'])
         self.assertTrue(response['silent_operator']['continuous_enabled'])
         self.assertEqual(response['operator_profile']['preferred_route_key'], 'analysis')
+        self.assertGreaterEqual(int(response['intelligence_os']['layers']['knowledge']['route_count']), 1)
+        self.assertEqual(response['intelligence_os']['layers']['presence']['active_page'], 'dashboard-home')
+        self.assertTrue(response['intelligence_os']['layers']['presence']['nearby_modules'])
+        self.assertEqual(response['intelligence_os']['layers']['domain']['workspace']['id'], self.workspace.id)
+        self.assertEqual(response['intelligence_os']['layers']['domain']['team']['id'], self.team.id)
         self.assertEqual(response['intelligence_os']['layers']['orchestration']['intent'], 'navigate_module')
+        self.assertTrue(response['intelligence_os']['layers']['mission_control']['embedded'])
+        self.assertEqual(response['intelligence_os']['layers']['mission_control']['role'], 'central_system_intelligence')
+        self.assertTrue(response['intelligence_os']['layers']['mission_control']['recommended_next_actions'])
         self.assertTrue(response['intelligence_os']['layers']['governance']['auditable'])
         self.assertTrue(response['intelligence_os']['layers']['conversation']['widget_expected'])
         self.assertTrue(response['intelligence_os']['layers']['execution']['action_catalog']['items'])
         self.assertEqual(response['intelligence_os']['layers']['policy_decisions']['requested_action'], 'navigate_modules')
+        self.assertTrue(any(str(row.get('label') or '') == 'Analizar partido activo' for row in (system_guard._contextual_flow_actions({'page': 'match-hub', 'match_id': 99}) or []) if isinstance(row, dict)))
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    def test_run_system_guard_chat_exposes_live_workflow_for_selected_session_and_task(self, *_mocks):
+        microcycle = TrainingMicrocycle.objects.create(
+            team=self.team,
+            title='Micro foco',
+            week_start=date(2026, 6, 16),
+            week_end=date(2026, 6, 22),
+        )
+        session = TrainingSession.objects.create(
+            microcycle=microcycle,
+            club_season=self.workspace.active_season,
+            session_date=date(2026, 6, 21),
+            focus='Sesión foco',
+            duration_minutes=75,
+        )
+        task = SessionTask.objects.create(
+            session=session,
+            title='Tarea foco',
+            duration_minutes=16,
+        )
+        result = system_guard.run_system_guard_chat(
+            question='Explícame esta sesión',
+            workspace=self.workspace,
+            page_context={'page': 'sessions', 'team_id': self.team.id, 'session_id': session.id, 'task_id': task.id, 'tab': 'sessions'},
+            actor_id=self.user.id,
+            autonomy_mode='advisor',
+            audience='guided',
+        )
+        workflow = result['chat']['response']['intelligence_os']['layers']['live_workflow']
+        response = result['chat']['response']
+        self.assertTrue(workflow['is_focused_context'])
+        self.assertEqual(workflow['selected_session']['id'], session.id)
+        self.assertEqual(workflow['selected_task']['id'], task.id)
+        self.assertEqual(workflow['selected_microcycle']['id'], microcycle.id)
+        self.assertEqual(response['intelligence_os']['layers']['mission_control']['active_page'], 'sessions')
+        self.assertEqual(response['intelligence_os']['layers']['mission_control']['active_mission']['task_kind'], 'diagnose')
+        self.assertIn('Sesión activa:', ' | '.join(response.get('highlights') or []))
+        self.assertIn('Tarea activa:', ' | '.join(response.get('highlights') or []))
+        self.assertTrue(any(str(row.get('label') or '') == 'Analizar sesión abierta' for row in (response.get('ui_actions') or []) if isinstance(row, dict)))
+        self.assertTrue(any(str(row.get('label') or '') == 'Revisar tarea abierta' for row in (response.get('ui_actions') or []) if isinstance(row, dict)))
+        self.assertTrue(any(str(row.get('label') or '') == 'Optimizar sesión actual' for row in (response.get('ui_actions') or []) if isinstance(row, dict)))
+        self.assertTrue(any(str(row.get('label') or '') == 'Revisar tarea actual' for row in (response.get('ui_actions') or []) if isinstance(row, dict)))
 
     @patch('football.system_guard.run_proactive_guard_cycle', return_value={'queue_counts': {'completed': 1}, 'detections': [{'id': 'demo'}]})
     def test_maybe_run_scheduled_guard_cycle_respects_interval(self, mock_cycle):

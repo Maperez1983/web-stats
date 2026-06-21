@@ -26,7 +26,7 @@ from football.library_repositories import (
     normalize_library_repository,
 )
 from football.local_llm import call_ollama_json, local_llm_config
-from football.models import Player, SessionTask, TrainingSession, WorkspacePreference, WorkspaceSeason, WorkspaceTeam
+from football.models import Match, Player, SessionTask, TrainingMicrocycle, TrainingSession, WorkspaceCompetitionContext, WorkspacePreference, WorkspaceSeason, WorkspaceTeam
 from football.session_import_services import get_or_create_inbox_microcycle, get_or_create_library_session_with_repository
 from football.session_plan_fields import serialize_session_plan_fields
 from football.season_history_services import ensure_player_season_membership, ensure_workspace_player
@@ -918,8 +918,78 @@ def _runbook_payload(runbook_key: str, *, task: dict, requested_tools: list[str]
     }
 
 
-def _followup_actions(task: dict, planner: dict, *, page_context=None) -> list[dict]:
+def _contextual_flow_actions(page_context=None) -> list[dict]:
+    context = page_context if isinstance(page_context, dict) else {}
+    page = str(context.get("page") or "").strip().lower()
+    tab = str(context.get("tab") or "").strip().lower()
+    session_id = _safe_int(context.get("session_id") or context.get("selected_session_id"), 0)
+    task_id = _safe_int(context.get("task_id") or context.get("source_task_id"), 0)
+    match_id = _safe_int(context.get("match_id"), 0)
+    microcycle_id = _safe_int(context.get("microcycle_id") or context.get("prefill_microcycle_id"), 0)
     actions = []
+    if page == "sessions":
+        if session_id:
+            actions.append({
+                "type": "prompt",
+                "label": "Optimizar sesión actual",
+                "prompt": "Analiza la sesión abierta y dime el siguiente ajuste útil de carga, foco o tareas.",
+                "reason": "Trabajar sobre la sesión que ya está abierta.",
+            })
+        if task_id:
+            actions.append({
+                "type": "prompt",
+                "label": "Revisar tarea actual",
+                "prompt": "Revisa la tarea abierta y propón una mejora táctica, metodológica o visual.",
+                "reason": "Profundizar sobre la tarea en foco.",
+            })
+        if microcycle_id:
+            actions.append({
+                "type": "prompt",
+                "label": "Revisar microciclo",
+                "prompt": "Resume el microciclo abierto y dime la siguiente decisión útil.",
+                "reason": "Ayuda contextual sobre el microciclo activo.",
+            })
+        if tab == "library":
+            actions.append({
+                "type": "prompt",
+                "label": "Curar biblioteca",
+                "prompt": "Analiza la biblioteca actual y dime qué tarea falta o qué contenido conviene mejorar.",
+                "reason": "Aprovechar el contexto de biblioteca abierta.",
+            })
+    if page == "coach-roster":
+        actions.append({
+            "type": "prompt",
+            "label": "Revisar plantilla",
+            "prompt": "Analiza la plantilla actual y dime qué información falta o qué acción operativa conviene hacer ahora.",
+            "reason": "Contexto natural de gestión de plantilla.",
+        })
+    if page in {"match-hub", "match-action-page"} or match_id:
+        actions.append({
+            "type": "prompt",
+            "label": "Analizar partido activo",
+            "prompt": "Explica el partido activo, el rival y la siguiente decisión útil para el staff.",
+            "reason": "Contexto directo del flujo de partido.",
+        })
+    if page == "ai-trainer":
+        actions.append({
+            "type": "prompt",
+            "label": "Trabajar en IA Trainer",
+            "prompt": "Dime qué flujo de IA Trainer está más alineado con esta pantalla y qué debería hacer ahora.",
+            "reason": "Ayuda nativa sobre el módulo IA Trainer.",
+        })
+    seen = set()
+    deduped = []
+    for row in actions:
+        label = str((row or {}).get("label") or "").strip()
+        if not label or label in seen:
+            continue
+        seen.add(label)
+        deduped.append(row)
+    return deduped[:4]
+
+
+def _followup_actions(task: dict, planner: dict, *, page_context=None) -> list[dict]:
+    actions = list(_contextual_flow_actions(page_context))
     route_target = task.get("route_target") if isinstance(task, dict) else {}
     if isinstance(route_target, dict) and route_target.get("url"):
         actions.append({
@@ -986,7 +1056,17 @@ def _followup_actions(task: dict, planner: dict, *, page_context=None) -> list[d
             "prompt": "Desglosa la funcionalidad en archivos, impacto y validación mínima.",
             "reason": "Convertir la petición abierta en un cambio implementable.",
         })
-    return actions[:4]
+    seen = set()
+    deduped = []
+    for row in actions:
+        if not isinstance(row, dict):
+            continue
+        label = str(row.get("label") or "").strip()
+        if not label or label in seen:
+            continue
+        seen.add(label)
+        deduped.append(row)
+    return deduped[:6]
 
 
 def _environment_snapshot() -> dict:
@@ -3342,9 +3422,367 @@ def _execution_plan_snapshot(*, planner=None, assistant_action=None, technical_o
     }
 
 
+def _system_knowledge_snapshot(*, page_context=None) -> dict:
+    modules = _module_inventory()
+    routes = _route_inventory()
+    assets = _asset_inventory()
+    env = _environment_snapshot()
+    repo = _inspect_repo_status()
+    module_rows = []
+    for key, row in modules.items():
+        if not isinstance(row, dict):
+            continue
+        module_rows.append({
+            "key": str(key),
+            "label": str(row.get("label") or key),
+            "kind": str(row.get("kind") or ""),
+            "available": bool(row.get("available", row.get("exists", False))),
+        })
+    route_rows = []
+    for key, row in routes.items():
+        if not isinstance(row, dict):
+            continue
+        route_rows.append({
+            "key": str(key),
+            "label": str(row.get("label") or key),
+            "name": str(row.get("name") or ""),
+            "ok": bool(row.get("ok")),
+            "url": str(row.get("url") or "")[:220],
+        })
+    asset_rows = []
+    for key, row in assets.items():
+        if not isinstance(row, dict):
+            continue
+        asset_rows.append({
+            "key": str(key),
+            "label": str(row.get("label") or key),
+            "ok": bool(row.get("ok")),
+            "size": _safe_int(row.get("size"), 0),
+        })
+    return {
+        "workspace_page": str((page_context or {}).get("page") or "")[:120],
+        "environment": {
+            "debug": bool(env.get("debug")),
+            "base_dir": str(env.get("base_dir") or "")[:220],
+            "database_engine": str(env.get("database_engine") or "")[:160],
+            "static_root": str(env.get("static_root") or "")[:220],
+            "media_root": str(env.get("media_root") or "")[:220],
+        },
+        "module_count": len(module_rows),
+        "route_count": len(route_rows),
+        "asset_count": len(asset_rows),
+        "modules": module_rows[:8],
+        "critical_routes": route_rows[:8],
+        "critical_assets": asset_rows[:8],
+        "repo": {
+            "available": bool(repo.get("ok")),
+            "branch": str(repo.get("branch") or "")[:120],
+            "changed_count": _safe_int(repo.get("changed_count"), 0),
+            "last_commit": str(repo.get("last_commit") or "")[:220],
+        },
+    }
+
+
+def _presence_snapshot(*, page_context=None, planner=None, assistant_action=None, operator_profile=None) -> dict:
+    context = page_context if isinstance(page_context, dict) else {}
+    planner = planner if isinstance(planner, dict) else {}
+    assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
+    operator_profile = operator_profile if isinstance(operator_profile, dict) else {}
+    task = planner.get("task") if isinstance(planner.get("task"), dict) else {}
+    active_page = str(context.get("title") or context.get("page") or "").strip()[:120]
+    active_path = str(context.get("path") or "").strip()[:220]
+    active_team_id = _safe_int(context.get("team_id"), 0)
+    active_workspace_id = _safe_int(context.get("workspace_id"), 0)
+    route_rows = _guard_route_catalog(page_context)
+    current_target = task.get("route_target") if isinstance(task.get("route_target"), dict) else {}
+    if isinstance(assistant_action.get("navigate_to"), dict) and assistant_action.get("navigate_to", {}).get("key"):
+        current_target = assistant_action.get("navigate_to")
+    nearby = []
+    for row in route_rows[:5]:
+        if not isinstance(row, dict):
+            continue
+        nearby.append({
+            "key": str(row.get("key") or ""),
+            "label": str(row.get("label") or "")[:120],
+            "url": str(row.get("url") or "")[:220],
+        })
+    return {
+        "active_page": active_page,
+        "active_path": active_path,
+        "active_team_id": active_team_id,
+        "active_workspace_id": active_workspace_id,
+        "current_target": {
+            "key": str(current_target.get("key") or ""),
+            "label": str(current_target.get("label") or "")[:120],
+            "url": str(current_target.get("url") or "")[:220],
+        },
+        "nearby_modules": nearby,
+        "preferred_route": str(operator_profile.get("preferred_route_label") or "")[:120],
+        "inside_system": bool(active_page or active_workspace_id or active_team_id),
+    }
+
+
+def _domain_context_snapshot(workspace, *, page_context=None) -> dict:
+    context = page_context if isinstance(page_context, dict) else {}
+    team_id = _safe_int(context.get("team_id"), 0)
+    workspace_id = _safe_int(context.get("workspace_id"), 0)
+    active_team = None
+    active_season = _active_workspace_season(workspace)
+    competition_context = None
+    if workspace:
+        team_link_qs = workspace.teams.select_related("team", "team__group__season__competition")
+        if team_id:
+            team_link = team_link_qs.filter(team_id=team_id).first()
+        else:
+            team_link = team_link_qs.filter(is_default=True).first() or team_link_qs.first()
+        active_team = getattr(team_link, "team", None) if team_link else getattr(workspace, "primary_team", None)
+        if active_team:
+            competition_context = WorkspaceCompetitionContext.objects.filter(workspace=workspace, team=active_team).first()
+    team_group = getattr(active_team, "group", None) if active_team else None
+    team_season = getattr(team_group, "season", None) if team_group else None
+    team_competition = getattr(team_season, "competition", None) if team_season else None
+    roster_count = 0
+    session_count = 0
+    task_count = 0
+    if active_team:
+        roster_count = Player.objects.filter(team=active_team, is_active=True).count()
+        session_count = TrainingSession.objects.filter(microcycle__team=active_team).count()
+        task_count = SessionTask.objects.filter(session__microcycle__team=active_team, deleted_at__isnull=True).count()
+    workspace_team_count = workspace.teams.count() if workspace else 0
+    workspace_player_count = workspace.players.filter(is_active=True).count() if workspace and getattr(workspace, "players", None) is not None else 0
+    return {
+        "workspace": {
+            "id": int(getattr(workspace, "id", 0) or workspace_id or 0),
+            "name": str(getattr(workspace, "name", "") or "")[:160],
+            "kind": str(getattr(workspace, "kind", "") or "")[:32],
+            "team_count": workspace_team_count,
+            "player_count": workspace_player_count,
+        },
+        "team": {
+            "id": int(getattr(active_team, "id", 0) or team_id or 0),
+            "name": str(getattr(active_team, "display_name", "") or getattr(active_team, "name", "") or "")[:160],
+            "category": str(getattr(active_team, "category", "") or "")[:80],
+            "roster_count": roster_count,
+            "session_count": session_count,
+            "task_count": task_count,
+        },
+        "season": {
+            "workspace_label": str(getattr(active_season, "label", "") or "")[:80],
+            "competition_label": str(getattr(team_season, "name", "") or "")[:120],
+            "competition_name": str(getattr(team_competition, "name", "") or "")[:120],
+            "is_active": bool(getattr(active_season, "is_active", False)),
+        },
+        "competition_context": {
+            "provider": str(getattr(competition_context, "provider", "") or "")[:32],
+            "status": str(getattr(competition_context, "sync_status", "") or "")[:32],
+            "external_team_name": str(getattr(competition_context, "external_team_name", "") or "")[:160],
+            "auto_sync": bool(getattr(competition_context, "is_auto_sync_enabled", False)),
+        },
+        "inside_workspace": bool(workspace),
+    }
+
+
+def _runtime_business_snapshot(workspace, *, page_context=None) -> dict:
+    context = page_context if isinstance(page_context, dict) else {}
+    team_id = _safe_int(context.get("team_id"), 0)
+    library_repo = normalize_library_repository(str(context.get("library_repo") or context.get("repository") or "").strip())
+    active_team = None
+    if workspace:
+        team_link_qs = workspace.teams.select_related("team")
+        if team_id:
+            team_link = team_link_qs.filter(team_id=team_id).first()
+        else:
+            team_link = team_link_qs.filter(is_default=True).first() or team_link_qs.first()
+        active_team = getattr(team_link, "team", None) if team_link else getattr(workspace, "primary_team", None)
+    today = datetime.now(timezone.utc).date()
+    current_microcycle = None
+    next_session = None
+    latest_session = None
+    library_task_count = 0
+    if active_team:
+        current_microcycle = (
+            active_team.microcycles
+            .filter(week_start__lte=today, week_end__gte=today)
+            .order_by("-week_start", "-id")
+            .first()
+        )
+        next_session = (
+            TrainingSession.objects
+            .select_related("microcycle")
+            .filter(microcycle__team=active_team, session_date__gte=today)
+            .order_by("session_date", "start_time", "order", "id")
+            .first()
+        )
+        latest_session = (
+            TrainingSession.objects
+            .select_related("microcycle")
+            .filter(microcycle__team=active_team)
+            .order_by("-session_date", "-start_time", "-order", "-id")
+            .first()
+        )
+        library_task_qs = SessionTask.objects.filter(session__microcycle__team=active_team, deleted_at__isnull=True)
+        if library_repo:
+            repo_token = str(library_repo).strip().lower()
+            library_task_qs = library_task_qs.filter(tactical_layout__meta__repository=repo_token)
+        library_task_count = library_task_qs.count()
+    return {
+        "active_team_id": int(getattr(active_team, "id", 0) or team_id or 0),
+        "current_microcycle": {
+            "id": int(getattr(current_microcycle, "id", 0) or 0),
+            "title": str(getattr(current_microcycle, "title", "") or "")[:160],
+            "week_start": str(getattr(current_microcycle, "week_start", "") or "")[:32],
+            "week_end": str(getattr(current_microcycle, "week_end", "") or "")[:32],
+        },
+        "next_session": {
+            "id": int(getattr(next_session, "id", 0) or 0),
+            "focus": str(getattr(next_session, "focus", "") or "")[:140],
+            "date": str(getattr(next_session, "session_date", "") or "")[:32],
+            "duration_minutes": _safe_int(getattr(next_session, "duration_minutes", 0), 0),
+        },
+        "latest_session": {
+            "id": int(getattr(latest_session, "id", 0) or 0),
+            "focus": str(getattr(latest_session, "focus", "") or "")[:140],
+            "date": str(getattr(latest_session, "session_date", "") or "")[:32],
+            "duration_minutes": _safe_int(getattr(latest_session, "duration_minutes", 0), 0),
+        },
+        "library_repository": library_repo,
+        "library_task_count": library_task_count,
+        "page_tab": str(context.get("tab") or "")[:64],
+    }
+
+
+def _live_workflow_snapshot(workspace, *, page_context=None) -> dict:
+    context = page_context if isinstance(page_context, dict) else {}
+    session_id = _safe_int(context.get("session_id") or context.get("selected_session_id"), 0)
+    task_id = _safe_int(context.get("task_id") or context.get("source_task_id"), 0)
+    match_id = _safe_int(context.get("match_id"), 0)
+    microcycle_id = _safe_int(context.get("microcycle_id") or context.get("prefill_microcycle_id"), 0)
+    selected_session = None
+    selected_task = None
+    active_match = None
+    selected_microcycle = None
+    if session_id:
+        selected_session = TrainingSession.objects.select_related("microcycle", "microcycle__team").filter(id=session_id).first()
+    if task_id:
+        selected_task = SessionTask.objects.select_related("session", "session__microcycle", "session__microcycle__team").filter(id=task_id).first()
+    if match_id:
+        active_match = Match.objects.select_related("home_team", "away_team").filter(id=match_id).first()
+    if microcycle_id:
+        selected_microcycle = TrainingMicrocycle.objects.select_related("team").filter(id=microcycle_id).first()
+    if selected_microcycle is None and selected_session is not None:
+        selected_microcycle = getattr(selected_session, "microcycle", None)
+    if selected_session is None and selected_task is not None:
+        selected_session = getattr(selected_task, "session", None)
+    return {
+        "page_tab": str(context.get("tab") or "")[:64],
+        "selected_session": {
+            "id": int(getattr(selected_session, "id", 0) or 0),
+            "focus": str(getattr(selected_session, "focus", "") or "")[:140],
+            "date": str(getattr(selected_session, "session_date", "") or "")[:32],
+        },
+        "selected_task": {
+            "id": int(getattr(selected_task, "id", 0) or 0),
+            "title": str(getattr(selected_task, "title", "") or "")[:180],
+            "duration_minutes": _safe_int(getattr(selected_task, "duration_minutes", 0), 0),
+        },
+        "selected_microcycle": {
+            "id": int(getattr(selected_microcycle, "id", 0) or 0),
+            "title": str(getattr(selected_microcycle, "title", "") or "")[:160],
+            "week_start": str(getattr(selected_microcycle, "week_start", "") or "")[:32],
+        },
+        "active_match": {
+            "id": int(getattr(active_match, "id", 0) or 0),
+            "home_team": str(getattr(getattr(active_match, "home_team", None), "name", "") or "")[:120],
+            "away_team": str(getattr(getattr(active_match, "away_team", None), "name", "") or "")[:120],
+            "date": str(getattr(active_match, "date", "") or "")[:32],
+        },
+        "is_focused_context": bool(selected_session or selected_task or active_match or selected_microcycle),
+    }
+
+
+def _mission_control_snapshot(
+    workspace,
+    *,
+    page_context=None,
+    planner=None,
+    assistant_action=None,
+    technical_execution=None,
+    silent_operator=None,
+    improvement_proposals=None,
+    snapshot_diff=None,
+) -> dict:
+    observability = _observability_summary(workspace) if workspace else {}
+    planner = planner if isinstance(planner, dict) else {}
+    assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
+    technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
+    silent_operator = silent_operator if isinstance(silent_operator, dict) else {}
+    snapshot_diff = snapshot_diff if isinstance(snapshot_diff, dict) else {}
+    improvement_proposals = improvement_proposals if isinstance(improvement_proposals, list) else []
+    task = planner.get("task") if isinstance(planner.get("task"), dict) else {}
+    runbook = planner.get("runbook") if isinstance(planner.get("runbook"), dict) else {}
+    alerts = []
+    for row in (observability.get("alerts") or [])[:3]:
+        if not isinstance(row, dict):
+            continue
+        text = str(row.get("text") or "").strip()
+        if text:
+            alerts.append(text[:180])
+    for row in (snapshot_diff.get("regressions") or [])[:2]:
+        label = str(row or "").strip()
+        if label:
+            alerts.append(f"Regresión: {label}"[:180])
+    if assistant_action.get("permission_required"):
+        alerts.append("Hay una acción bloqueada por permisos.")
+    priority_queue = []
+    for row in improvement_proposals[:4]:
+        if not isinstance(row, dict):
+            continue
+        priority_queue.append({
+            "title": str(row.get("title") or "")[:140],
+            "priority": str(row.get("priority") or "next")[:24],
+            "kind": str(row.get("kind") or "assistant")[:32],
+        })
+    recommended = []
+    for row in (silent_operator.get("suggested_actions") or [])[:2]:
+        label = str(row or "").strip()
+        if label:
+            recommended.append(label[:160])
+    for row in improvement_proposals[:3]:
+        if not isinstance(row, dict):
+            continue
+        label = str(row.get("title") or "").strip()
+        if label and label not in recommended:
+            recommended.append(label[:160])
+    page = str((page_context or {}).get("page") or "").strip()[:120] if isinstance(page_context, dict) else ""
+    return {
+        "embedded": True,
+        "role": "central_system_intelligence",
+        "active_page": page,
+        "system_health": str(observability.get("health_state") or "amber")[:24],
+        "llm_stability": str(observability.get("llm_stability") or "unknown")[:24],
+        "active_mission": {
+            "task_kind": str(task.get("kind") or "")[:32],
+            "scope": str(task.get("scope") or "")[:32],
+            "runbook": str(runbook.get("key") or task.get("runbook_key") or "")[:64],
+            "target": str(task.get("target_summary") or "")[:220],
+        },
+        "autonomy": {
+            "silent_mode": bool(task.get("silent_mode")),
+            "publish_ready": bool(technical_execution.get("publish_ready")),
+            "queue_pending": _safe_int((silent_operator.get("queue_counts") or {}).get("pending"), 0),
+            "queue_blocked": _safe_int((silent_operator.get("queue_counts") or {}).get("blocked"), 0),
+            "continuous_enabled": bool(silent_operator.get("continuous_enabled")),
+        },
+        "alerts": alerts[:4],
+        "priority_queue": priority_queue,
+        "recommended_next_actions": recommended[:4],
+    }
+
+
 def _build_intelligence_os_snapshot(
     question: str,
     *,
+    workspace=None,
     page_context=None,
     planner=None,
     assistant_action=None,
@@ -3355,12 +3793,16 @@ def _build_intelligence_os_snapshot(
     autofix_runner=None,
     operator_profile=None,
     silent_operator=None,
+    improvement_proposals=None,
+    snapshot_diff=None,
 ) -> dict:
     technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
     change_blueprint = change_blueprint if isinstance(change_blueprint, dict) else {}
     autofix_runner = autofix_runner if isinstance(autofix_runner, dict) else {}
     operator_profile = operator_profile if isinstance(operator_profile, dict) else {}
     silent_operator = silent_operator if isinstance(silent_operator, dict) else {}
+    improvement_proposals = improvement_proposals if isinstance(improvement_proposals, list) else []
+    snapshot_diff = snapshot_diff if isinstance(snapshot_diff, dict) else {}
     return {
         "version": OLLANA_SYSTEM_OS_VERSION,
         "layers": {
@@ -3369,6 +3811,26 @@ def _build_intelligence_os_snapshot(
                 "guided_assistant": True,
                 "widget_expected": True,
             },
+            "knowledge": _system_knowledge_snapshot(page_context=page_context),
+            "domain": _domain_context_snapshot(workspace, page_context=page_context),
+            "runtime": _runtime_business_snapshot(workspace, page_context=page_context),
+            "live_workflow": _live_workflow_snapshot(workspace, page_context=page_context),
+            "mission_control": _mission_control_snapshot(
+                workspace,
+                page_context=page_context,
+                planner=planner,
+                assistant_action=assistant_action,
+                technical_execution=technical_execution,
+                silent_operator=silent_operator,
+                improvement_proposals=improvement_proposals,
+                snapshot_diff=snapshot_diff,
+            ),
+            "presence": _presence_snapshot(
+                page_context=page_context,
+                planner=planner,
+                assistant_action=assistant_action,
+                operator_profile=operator_profile,
+            ),
             "orchestration": _orchestration_snapshot(
                 question,
                 planner=planner,
@@ -4569,6 +5031,60 @@ def _build_remediation_plan(report: dict, executions: list[dict], snapshot_diff:
     }
 
 
+def _adapt_response_to_live_workflow(response: dict, *, page_context=None) -> dict:
+    response = dict(response or {})
+    intelligence_os = response.get("intelligence_os") if isinstance(response.get("intelligence_os"), dict) else {}
+    layers = intelligence_os.get("layers") if isinstance(intelligence_os.get("layers"), dict) else {}
+    workflow = layers.get("live_workflow") if isinstance(layers.get("live_workflow"), dict) else {}
+    if not workflow:
+        return response
+    selected_session = workflow.get("selected_session") if isinstance(workflow.get("selected_session"), dict) else {}
+    selected_task = workflow.get("selected_task") if isinstance(workflow.get("selected_task"), dict) else {}
+    selected_microcycle = workflow.get("selected_microcycle") if isinstance(workflow.get("selected_microcycle"), dict) else {}
+    active_match = workflow.get("active_match") if isinstance(workflow.get("active_match"), dict) else {}
+    page_tab = str(workflow.get("page_tab") or "")[:64]
+    highlights = list(response.get("highlights") or [])
+    ui_actions = list(response.get("ui_actions") or [])
+    message = str(response.get("message") or "")
+
+    if selected_session.get("id"):
+        highlights.append(f"Sesión activa: {selected_session.get('focus') or 'sesión'}")
+        ui_actions.insert(0, {
+            "type": "prompt",
+            "label": "Analizar sesión abierta",
+            "prompt": f"Analiza la sesión abierta {selected_session.get('focus') or ''} y dime el siguiente ajuste útil.",
+            "reason": "Trabajar sobre la sesión que el usuario tiene en foco.",
+        })
+        if "sesión" not in message.lower() and "session" not in message.lower():
+            message += f" Estoy situado sobre la sesión {selected_session.get('focus') or ''}."
+    if selected_task.get("id"):
+        highlights.append(f"Tarea activa: {selected_task.get('title') or 'tarea'}")
+        ui_actions.insert(0, {
+            "type": "prompt",
+            "label": "Revisar tarea abierta",
+            "prompt": f"Revisa la tarea abierta {selected_task.get('title') or ''} y propón mejora o corrección.",
+            "reason": "Trabajar sobre la tarea que está abierta ahora mismo.",
+        })
+    if selected_microcycle.get("id"):
+        highlights.append(f"Microciclo activo: {selected_microcycle.get('title') or 'microciclo'}")
+    if active_match.get("id"):
+        rival = str(active_match.get("away_team") or active_match.get("home_team") or "").strip()
+        highlights.append(f"Partido activo: {rival or active_match.get('id')}")
+        ui_actions.insert(0, {
+            "type": "prompt",
+            "label": "Trabajar sobre partido",
+            "prompt": "Explícame el partido activo, el contexto rival y la siguiente decisión útil.",
+            "reason": "Adaptar la ayuda al partido actualmente seleccionado.",
+        })
+    if page_tab:
+        highlights.append(f"Tab activa: {page_tab}")
+
+    response["message"] = _truncate(message.strip(), 1800)
+    response["highlights"] = highlights[:10]
+    response["ui_actions"] = ui_actions[:6]
+    return response
+
+
 def _fallback_response(report: dict, *, question: str, planner: dict, audience: str, autonomy_mode: str, degraded_reason: str = "", executions=None, snapshot_diff=None) -> dict:
     issues = report.get("issues") if isinstance(report.get("issues"), list) else []
     summary = report.get("issue_summary") if isinstance(report.get("issue_summary"), dict) else {}
@@ -4941,6 +5457,7 @@ def run_system_guard_chat(
     fallback["silent_operator"] = _build_silent_operator_state(workspace, response=fallback, actor_id=actor_id)
     fallback["intelligence_os"] = _build_intelligence_os_snapshot(
         question,
+        workspace=workspace,
         page_context=page_context,
         planner=planner,
         assistant_action=assistant_action if isinstance(assistant_action, dict) else {},
@@ -4951,7 +5468,10 @@ def run_system_guard_chat(
         autofix_runner=autofix_runner if isinstance(autofix_runner, dict) else {},
         operator_profile=operator_profile,
         silent_operator=fallback.get("silent_operator") if isinstance(fallback.get("silent_operator"), dict) else {},
+        improvement_proposals=fallback.get("improvement_proposals") if isinstance(fallback.get("improvement_proposals"), list) else [],
+        snapshot_diff=fallback.get("snapshot_diff") if isinstance(fallback.get("snapshot_diff"), dict) else {},
     )
+    fallback = _adapt_response_to_live_workflow(fallback, page_context=page_context)
     fallback["runbook"] = _runbook_execution_summary(
         fallback.get("runbook") if isinstance(fallback.get("runbook"), dict) else {},
         executed_tools=executed_tools,
@@ -5007,6 +5527,7 @@ def run_system_guard_chat(
     response["silent_operator"] = _build_silent_operator_state(workspace, response=response, actor_id=actor_id)
     response["intelligence_os"] = _build_intelligence_os_snapshot(
         question,
+        workspace=workspace,
         page_context=page_context,
         planner=planner,
         assistant_action=response.get("assistant_action") if isinstance(response.get("assistant_action"), dict) else {},
@@ -5017,7 +5538,15 @@ def run_system_guard_chat(
         autofix_runner=response.get("autofix_runner") if isinstance(response.get("autofix_runner"), dict) else {},
         operator_profile=response.get("operator_profile") if isinstance(response.get("operator_profile"), dict) else {},
         silent_operator=response.get("silent_operator") if isinstance(response.get("silent_operator"), dict) else {},
+        improvement_proposals=response.get("improvement_proposals") if isinstance(response.get("improvement_proposals"), list) else [],
+        snapshot_diff=response.get("snapshot_diff") if isinstance(response.get("snapshot_diff"), dict) else {},
     )
+    response = _adapt_response_to_live_workflow(response, page_context=page_context)
+    if isinstance(response.get("code_operator_mode"), dict) and response.get("code_operator_mode", {}).get("enabled"):
+        mode_label = f"Modo operador: {response.get('code_operator_mode', {}).get('mode')}"
+        current_highlights = [str(item) for item in (response.get("highlights") or []) if str(item or "").strip()]
+        if mode_label not in current_highlights:
+            response["highlights"] = [mode_label] + current_highlights
     for issue in (report.get("issues") or [])[:6]:
         if not isinstance(issue, dict):
             continue
