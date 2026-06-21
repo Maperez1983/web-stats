@@ -7742,6 +7742,10 @@ def _infer_intent(question: str) -> str:
         return "feature_request"
     if re.search(r"\b(commit\s+y\s+push|haz\s+commit\s+y\s+push|publica\s+los?\s+cambios?|sube\s+los?\s+cambios?)\b", text):
         return "publish_commit_push"
+    if re.search(r"\b(rollback|revertir|revierte|reversiona|reversi[oó]n)\b", text):
+        return "trigger_remote_rollback"
+    if re.search(r"\b(lanza|ejecuta|dispara|haz|inicia|fuerza)\b.*\b(deploy|deployment|despliegue)\b", text):
+        return "trigger_remote_deploy"
     if re.search(r"\b(haz\s+commit|crea\s+commit|committea|commitea)\b", text):
         return "publish_commit"
     if re.search(r"\b(haz\s+push|sube\s+el\s+commit|publica\s+el\s+commit|push)\b", text):
@@ -7874,6 +7878,10 @@ def _plan_tools(question: str, *, run_smoke: bool, auto_fix: bool, maintenance_a
         requested_tools.extend(["inspect_repo_status", "run_operator_validation", "git_commit"])
     elif intent == "publish_push":
         requested_tools.extend(["inspect_repo_status", "git_push"])
+    elif intent == "trigger_remote_deploy":
+        requested_tools.extend(["inspect_release_pipeline", "trigger_remote_deploy"])
+    elif intent == "trigger_remote_rollback":
+        requested_tools.extend(["inspect_release_pipeline", "inspect_remote_logs", "trigger_remote_rollback"])
     elif intent == "inspect_repo":
         requested_tools.append("inspect_repo_status")
         if re.search(r"\b(test|tests|check|valida|validacion|validación)\b", str(question or "").lower()):

@@ -439,6 +439,16 @@ class SystemGuardTests(TestCase):
         )
         self.assertEqual(intent, 'feature_request')
 
+    def test_infer_intent_detects_remote_deploy_and_rollback_requests(self):
+        self.assertEqual(
+            system_guard._infer_intent('Lanza un despliegue remoto gobernado'),
+            'trigger_remote_deploy',
+        )
+        self.assertEqual(
+            system_guard._infer_intent('Haz rollback del despliegue en producción'),
+            'trigger_remote_rollback',
+        )
+
     def test_planner_builds_code_task_for_feature_request(self):
         plan = system_guard._plan_tools(
             'Implementa una funcionalidad para que el widget lleve al usuario a biblioteca de tareas',
@@ -453,6 +463,28 @@ class SystemGuardTests(TestCase):
         self.assertEqual(plan['runbook']['key'], 'code_execution')
         self.assertIn('inspect_repo_status', plan['requested_tools'])
         self.assertIn('run_operator_validation', plan['requested_tools'])
+
+    def test_planner_builds_remote_release_actions_for_deploy_and_rollback(self):
+        deploy_plan = system_guard._plan_tools(
+            'Lanza un despliegue remoto gobernado',
+            run_smoke=False,
+            auto_fix=False,
+            maintenance_action='',
+            autonomy_mode='operator',
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+        )
+        rollback_plan = system_guard._plan_tools(
+            'Haz rollback del despliegue en producción',
+            run_smoke=False,
+            auto_fix=False,
+            maintenance_action='',
+            autonomy_mode='operator',
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+        )
+        self.assertIn('trigger_remote_deploy', deploy_plan['requested_tools'])
+        self.assertIn('inspect_release_pipeline', deploy_plan['requested_tools'])
+        self.assertIn('trigger_remote_rollback', rollback_plan['requested_tools'])
+        self.assertIn('inspect_remote_logs', rollback_plan['requested_tools'])
 
     def test_resolve_assisted_action_builds_code_intervention_request_for_pitch3d_issue(self):
         action = system_guard._resolve_assisted_action(

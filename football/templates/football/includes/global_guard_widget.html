@@ -192,6 +192,8 @@
           <button type="button" class="guard-btn" data-guard-action="goto_analysis">Vídeo</button>
           <button type="button" class="guard-btn" data-guard-action="create_player" data-operator-only="1">Jugador</button>
           <button type="button" class="guard-btn" data-guard-action="create_session" data-operator-only="1">Sesión</button>
+          <button type="button" class="guard-btn" data-guard-action="remote_deploy" data-operator-only="1">Deploy</button>
+          <button type="button" class="guard-btn" data-guard-action="remote_rollback" data-operator-only="1">Rollback</button>
         </div>
         <label>Mensaje<textarea id="global-guard-chat-input" placeholder="Ej.: llévame a vídeo análisis, abre biblioteca de tareas, ayúdame con esta pantalla, no me deja guardar..."></textarea></label>
         <div class="guard-actions">
@@ -312,6 +314,8 @@
   const lastLatencyEl = document.getElementById('global-guard-last-latency');
   const observabilityEl = document.getElementById('global-guard-observability');
   const queuePreviewEl = document.getElementById('global-guard-queue-preview');
+  const timelineEl = document.getElementById('global-guard-timeline');
+  const taskMemoryEl = document.getElementById('global-guard-task-memory');
   const healthPillEl = document.getElementById('global-guard-health-pill');
   const alertsEl = document.getElementById('global-guard-alerts');
   const storageKey = 'ollana-global-widget:v4';
@@ -320,6 +324,8 @@
     { key: 'dashboard', label: 'Portada', url: "{% url 'dashboard-home' %}{% if active_team %}?team={{ active_team.id }}{% endif %}", keywords: ['portada', 'inicio', 'home', 'dashboard'] },
     { key: 'analysis', label: 'Vídeo análisis', url: "{% url 'analysis' %}{% if active_team %}?team={{ active_team.id }}{% endif %}", keywords: ['video analisis', 'vídeo análisis', 'analisis', 'análisis', 'video', 'vídeo'] },
     { key: 'library', label: 'Biblioteca de tareas', url: "{% url 'sessions' %}?tab=library&library_repo=traditional{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca de tareas', 'biblioteca', 'tareas', 'ejercicios', 'task library'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
     { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
     { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
     { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
@@ -530,6 +536,8 @@
       if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
       if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
       if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
       if (route.key === 'match' && text.includes('partido')) score += 2;
       if (!best || score > best.score) best = { route, score };
     });
@@ -579,6 +587,8 @@
     goto_analysis: { navigation: 'analysis' },
     create_player: { message: 'Introduce un jugador en plantilla nombre: Nuevo jugador, dorsal 8, posición mediocentro.', runSmoke: false, autoFix: false, maintenanceAction: '' },
     create_session: { message: 'Crea una sesión nombre: Activación prepartido, fecha 2026-06-21, hora 18:30, duración 60.', runSmoke: false, autoFix: false, maintenanceAction: '' },
+    remote_deploy: { message: 'Lanza un despliegue remoto gobernado y resume el estado del pipeline.', runSmoke: false, autoFix: false, maintenanceAction: '' },
+    remote_rollback: { message: 'Lanza un rollback remoto gobernado y resume el estado de la reversión.', runSmoke: false, autoFix: false, maintenanceAction: '' },
   };
   const alertPresetFromRow = (row) => {
     const text = String((row && row.text) || '').trim();
@@ -965,6 +975,33 @@
         card.appendChild(title);
         card.appendChild(body);
         queuePreviewEl.appendChild(card);
+      });
+    }
+    if (timelineEl) {
+      const timeline = Array.isArray(ob.timeline) ? ob.timeline : [];
+      timelineEl.innerHTML = '';
+      const rows = timeline.length ? timeline : [{ kind: 'timeline', title: 'Timeline', detail: 'Sin actividad reciente registrada.' }];
+      rows.slice(0, 4).forEach((row) => {
+        const card = document.createElement('div');
+        card.className = 'guard-remediation-card';
+        const title = document.createElement('strong');
+        title.textContent = `${String(row.kind || 'evento')} · ${String(row.title || 'Actividad de Ollana')}`;
+        const body = document.createElement('div');
+        body.textContent = `${String(row.detail || 'Sin detalle')}${row.created_at ? ` · ${String(row.created_at)}` : ''}`;
+        card.appendChild(title);
+        card.appendChild(body);
+        timelineEl.appendChild(card);
+      });
+    }
+    if (taskMemoryEl) {
+      const taskMemory = Array.isArray(ob.task_memory) ? ob.task_memory : [];
+      taskMemoryEl.innerHTML = '';
+      const rows = taskMemory.length ? taskMemory : [{ title: 'Sin memoria de tareas', status: '' }];
+      rows.slice(0, 5).forEach((row) => {
+        const chip = document.createElement('span');
+        chip.className = 'guard-badge';
+        chip.textContent = `${String(row.title || 'Tarea')}${row.status ? ` · ${String(row.status)}` : ''}`;
+        taskMemoryEl.appendChild(chip);
       });
     }
     syncSilentCard(ob);
