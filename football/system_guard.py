@@ -3209,6 +3209,111 @@ def _capability_snapshot(*, page_context=None) -> dict:
     }
 
 
+def _execution_surface_snapshot(*, page_context=None) -> dict:
+    permissions = _permission_profile(page_context=page_context)
+    rows = []
+    visible_skills = _capability_snapshot(page_context=page_context).get("skills") or []
+    visible_keys = {str(row.get("key") or "") for row in visible_skills if isinstance(row, dict)}
+    for surface, skill_keys in OLLANA_ACTION_SURFACES.items():
+        rows.append({
+            "surface": str(surface),
+            "skills": [key for key in skill_keys if key in visible_keys],
+            "count": len([key for key in skill_keys if key in visible_keys]),
+        })
+    return {
+        "surfaces": rows,
+        "permissions": permissions,
+    }
+
+
+def _governance_snapshot(*, page_context=None, planner=None, technical_operation=None) -> dict:
+    planner = planner if isinstance(planner, dict) else {}
+    technical_operation = technical_operation if isinstance(technical_operation, dict) else {}
+    permissions = _permission_profile(page_context=page_context)
+    confirmation_required = bool(planner.get("confirm_required"))
+    return {
+        "permissions": permissions,
+        "confirmation_required": confirmation_required,
+        "publish_requires_confirmation": bool(technical_operation.get("publish_requires_confirmation")),
+        "authorized_for_code": bool(technical_operation.get("authorized_for_code")),
+        "authorized_for_publish": bool(technical_operation.get("authorized_for_publish")),
+        "auditable": True,
+    }
+
+
+def _orchestration_snapshot(question: str, *, planner=None, assistant_action=None, code_operator_mode=None) -> dict:
+    planner = planner if isinstance(planner, dict) else {}
+    assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
+    code_operator_mode = code_operator_mode if isinstance(code_operator_mode, dict) else {}
+    task = planner.get("task") if isinstance(planner.get("task"), dict) else {}
+    return {
+        "intent": str(planner.get("intent") or ""),
+        "task_kind": str(task.get("kind") or ""),
+        "task_scope": str(task.get("scope") or ""),
+        "silent_mode": bool(task.get("silent_mode")),
+        "runbook": str((planner.get("runbook") or {}).get("key") or ""),
+        "target_summary": _truncate(question, 220),
+        "assistant_action_kind": str(assistant_action.get("kind") or ""),
+        "code_mode": str(code_operator_mode.get("mode") or ""),
+        "requested_tools": [str(item) for item in (planner.get("requested_tools") or []) if str(item or "").strip()][:8],
+    }
+
+
+def _build_intelligence_os_snapshot(
+    question: str,
+    *,
+    page_context=None,
+    planner=None,
+    assistant_action=None,
+    technical_operation=None,
+    technical_execution=None,
+    code_operator_mode=None,
+    change_blueprint=None,
+    autofix_runner=None,
+    operator_profile=None,
+    silent_operator=None,
+) -> dict:
+    technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
+    change_blueprint = change_blueprint if isinstance(change_blueprint, dict) else {}
+    autofix_runner = autofix_runner if isinstance(autofix_runner, dict) else {}
+    operator_profile = operator_profile if isinstance(operator_profile, dict) else {}
+    silent_operator = silent_operator if isinstance(silent_operator, dict) else {}
+    return {
+        "version": OLLANA_SYSTEM_OS_VERSION,
+        "layers": {
+            "conversation": {
+                "enabled": True,
+                "guided_assistant": True,
+                "widget_expected": True,
+            },
+            "orchestration": _orchestration_snapshot(
+                question,
+                planner=planner,
+                assistant_action=assistant_action,
+                code_operator_mode=code_operator_mode,
+            ),
+            "execution": {
+                "surface": _execution_surface_snapshot(page_context=page_context),
+                "assistant_action_kind": str((assistant_action or {}).get("kind") or ""),
+                "technical_execution_status": str(technical_execution.get("status") or ""),
+                "publish_ready": bool(technical_execution.get("publish_ready")),
+                "autofix_runner": autofix_runner,
+            },
+            "supervision": {
+                "silent_operator": silent_operator,
+                "change_blueprint_enabled": bool(change_blueprint.get("enabled")),
+                "change_targets": len(change_blueprint.get("file_changes") or []),
+            },
+            "governance": _governance_snapshot(
+                page_context=page_context,
+                planner=planner,
+                technical_operation=technical_operation,
+            ),
+            "memory": operator_profile,
+        },
+    }
+
+
 def _execute_create_player_action(question: str, *, workspace=None, page_context=None) -> dict:
     page_context = page_context if isinstance(page_context, dict) else {}
     payload = _parse_player_request(question)
@@ -4452,6 +4557,7 @@ def _fallback_response(report: dict, *, question: str, planner: dict, audience: 
         "autofix_runner": {},
         "silent_operator": {},
         "operator_profile": {},
+        "intelligence_os": {},
     }
 
 
@@ -4487,6 +4593,7 @@ def _normalize_llm_response(parsed, fallback: dict) -> dict:
         "autofix_runner": fallback.get("autofix_runner") or {},
         "silent_operator": fallback.get("silent_operator") or {},
         "operator_profile": fallback.get("operator_profile") or {},
+        "intelligence_os": fallback.get("intelligence_os") or {},
     })
     return merged
 
@@ -4735,6 +4842,19 @@ def run_system_guard_chat(
     operator_profile = _load_operator_profile(workspace, actor_id=actor_id)
     fallback["operator_profile"] = operator_profile
     fallback["silent_operator"] = _build_silent_operator_state(workspace, response=fallback, actor_id=actor_id)
+    fallback["intelligence_os"] = _build_intelligence_os_snapshot(
+        question,
+        page_context=page_context,
+        planner=planner,
+        assistant_action=assistant_action if isinstance(assistant_action, dict) else {},
+        technical_operation=technical_operation if isinstance(technical_operation, dict) else {},
+        technical_execution=technical_execution if isinstance(technical_execution, dict) else {},
+        code_operator_mode=code_operator_mode if isinstance(code_operator_mode, dict) else {},
+        change_blueprint=change_blueprint if isinstance(change_blueprint, dict) else {},
+        autofix_runner=autofix_runner if isinstance(autofix_runner, dict) else {},
+        operator_profile=operator_profile,
+        silent_operator=fallback.get("silent_operator") if isinstance(fallback.get("silent_operator"), dict) else {},
+    )
     fallback["runbook"] = _runbook_execution_summary(
         fallback.get("runbook") if isinstance(fallback.get("runbook"), dict) else {},
         executed_tools=executed_tools,
@@ -4788,6 +4908,19 @@ def run_system_guard_chat(
     _store_operator_profile(workspace, actor_id=actor_id, planner=planner, assistant_action=response.get("assistant_action"), question=question, page_context=page_context)
     response["operator_profile"] = _load_operator_profile(workspace, actor_id=actor_id)
     response["silent_operator"] = _build_silent_operator_state(workspace, response=response, actor_id=actor_id)
+    response["intelligence_os"] = _build_intelligence_os_snapshot(
+        question,
+        page_context=page_context,
+        planner=planner,
+        assistant_action=response.get("assistant_action") if isinstance(response.get("assistant_action"), dict) else {},
+        technical_operation=response.get("technical_operation") if isinstance(response.get("technical_operation"), dict) else {},
+        technical_execution=response.get("technical_operation_execution") if isinstance(response.get("technical_operation_execution"), dict) else {},
+        code_operator_mode=response.get("code_operator_mode") if isinstance(response.get("code_operator_mode"), dict) else {},
+        change_blueprint=response.get("change_blueprint") if isinstance(response.get("change_blueprint"), dict) else {},
+        autofix_runner=response.get("autofix_runner") if isinstance(response.get("autofix_runner"), dict) else {},
+        operator_profile=response.get("operator_profile") if isinstance(response.get("operator_profile"), dict) else {},
+        silent_operator=response.get("silent_operator") if isinstance(response.get("silent_operator"), dict) else {},
+    )
     for issue in (report.get("issues") or [])[:6]:
         if not isinstance(issue, dict):
             continue
