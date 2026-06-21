@@ -723,6 +723,7 @@ class SystemGuardTests(TestCase):
             executions=[
                 {'tool': 'git_push', 'ok': True},
                 {'tool': 'check_critical_routes', 'ok': True, 'result': {'ok': True, 'ok_count': 12, 'failing': []}},
+                {'tool': 'inspect_public_deployment', 'ok': True, 'result': {'ok': True, 'base_url': 'https://app.example.com', 'healthz': {'ok': True, 'status_code': 200}}},
             ],
             release_guard={'verification_ready': True},
             publish_commander={'publish_ready': True},
@@ -732,6 +733,7 @@ class SystemGuardTests(TestCase):
         self.assertEqual(guard['status'], 'deployment_verified')
         self.assertTrue(guard['verification_window'])
         self.assertTrue(guard['critical_routes_ok'])
+        self.assertTrue(guard['public_deployment_ok'])
         self.assertTrue(guard['next_checks'])
 
     def test_build_self_healing_operator_prefers_catalog_replay_when_ready(self):
@@ -752,6 +754,23 @@ class SystemGuardTests(TestCase):
         self.assertTrue(operator['recommended_fix'])
         self.assertTrue(operator['next_actions'])
 
+    @patch.dict(os.environ, {'APP_PUBLIC_BASE_URL': 'https://app.example.com'}, clear=False)
+    @patch('football.system_guard.urllib.request.urlopen')
+    def test_inspect_public_deployment_checks_healthz_and_base(self, mock_urlopen):
+        class Resp:
+            status = 200
+            def __enter__(self):
+                return self
+            def __exit__(self, exc_type, exc, tb):
+                return False
+        mock_urlopen.side_effect = [Resp(), Resp()]
+        result = system_guard._inspect_public_deployment()
+        self.assertTrue(result['ok'])
+        self.assertEqual(result['base_url'], 'https://app.example.com')
+        self.assertEqual(len(result['checks']), 2)
+        first_url = mock_urlopen.call_args_list[0].args[0].full_url
+        self.assertEqual(first_url, 'https://app.example.com/healthz')
+
     @patch('football.system_guard._execute_tools', return_value=[{
         'tool': 'check_critical_routes',
         'label': 'Comprobar rutas críticas',
@@ -766,6 +785,13 @@ class SystemGuardTests(TestCase):
         'kind': 'inspect',
         'detail': 'ok',
         'result': {'ok': True, 'patterns': []},
+    }, {
+        'tool': 'inspect_public_deployment',
+        'label': 'Verificar despliegue público',
+        'ok': True,
+        'kind': 'observability',
+        'detail': 'ok',
+        'result': {'ok': True, 'base_url': 'https://app.example.com', 'healthz': {'ok': True, 'status_code': 200}},
     }])
     def test_run_post_publish_verification_loop_executes_safe_checks_after_push(self, _mock_exec):
         rows = system_guard._run_post_publish_verification_loop(
@@ -773,9 +799,10 @@ class SystemGuardTests(TestCase):
             workspace=self.workspace,
             question='Haz push',
         )
-        self.assertEqual(len(rows), 2)
+        self.assertEqual(len(rows), 3)
         self.assertEqual(rows[0]['tool'], 'check_critical_routes')
         self.assertEqual(rows[1]['tool'], 'inspect_recent_errors')
+        self.assertEqual(rows[2]['tool'], 'inspect_public_deployment')
 
     def test_build_request_contract_distinguishes_technical_operator_mode(self):
         contract = system_guard._build_request_contract(

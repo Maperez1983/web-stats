@@ -129,6 +129,13 @@ TOOL_SCHEMAS = {
         "confirmation_required": False,
         "runner": "runtime_config",
     },
+    "inspect_public_deployment": {
+        "label": "Verificar despliegue público",
+        "kind": "observability",
+        "risk": "low",
+        "confirmation_required": False,
+        "runner": "public_deployment",
+    },
     "inspect_critical_paths": {
         "label": "Inspeccionar paths críticos",
         "kind": "inspect",
@@ -1214,6 +1221,40 @@ def _inspect_runtime_config() -> dict:
         "render_external_hostname": render_host,
         "landing_hosts_env": landing_hosts,
         "warnings": warnings,
+    }
+
+
+def _inspect_public_deployment() -> dict:
+    base_url = str(os.getenv("APP_PUBLIC_BASE_URL") or "").strip()
+    render_host = str(os.getenv("RENDER_EXTERNAL_HOSTNAME") or "").strip()
+    if not base_url and render_host:
+        base_url = f"https://{render_host.strip('/')}"
+    base_url = base_url.rstrip("/")
+    if not base_url:
+        return {
+            "ok": False,
+            "action": "inspect_public_deployment",
+            "error": "public_base_url_not_configured",
+            "detail": "Falta APP_PUBLIC_BASE_URL o RENDER_EXTERNAL_HOSTNAME para verificar el despliegue público.",
+        }
+    checks = []
+    for target in (f"{base_url}/healthz", base_url):
+        req = urllib.request.Request(target, headers={"User-Agent": "OllanaGuard/1.0"}, method="GET")
+        try:
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                status_code = int(getattr(resp, "status", 200) or 200)
+                checks.append({"url": target, "ok": 200 <= status_code < 400, "status_code": status_code})
+        except urllib.error.HTTPError as exc:
+            checks.append({"url": target, "ok": False, "status_code": _safe_int(getattr(exc, "code", 0), 0), "error": str(exc)[:180]})
+        except Exception as exc:
+            checks.append({"url": target, "ok": False, "status_code": 0, "error": str(exc)[:180]})
+    primary = checks[0] if checks else {}
+    return {
+        "ok": bool(primary.get("ok")),
+        "action": "inspect_public_deployment",
+        "base_url": base_url,
+        "healthz": primary,
+        "checks": checks[:2],
     }
 
 
@@ -5041,16 +5082,18 @@ def _build_deployment_guard(
     report = report if isinstance(report, dict) else {}
     route_result = next((row.get("result") for row in executions if str(row.get("tool") or "") == "check_critical_routes" and isinstance(row.get("result"), dict)), {})
     recent_errors = next((row.get("result") for row in executions if str(row.get("tool") or "") == "inspect_recent_errors" and isinstance(row.get("result"), dict)), {})
+    public_deployment = next((row.get("result") for row in executions if str(row.get("tool") or "") == "inspect_public_deployment" and isinstance(row.get("result"), dict)), {})
     issue_summary = report.get("issue_summary") if isinstance(report.get("issue_summary"), dict) else {}
     blockers = _safe_int(issue_summary.get("blockers"), 0)
     push_done = any(str(row.get("tool") or "") == "git_push" and bool(row.get("ok")) for row in executions)
     route_ok = bool(route_result.get("ok")) if isinstance(route_result, dict) and route_result else False
+    public_ok = bool(public_deployment.get("ok")) if isinstance(public_deployment, dict) and public_deployment else False
     failing_routes = [row for row in (route_result.get("failing") or []) if isinstance(row, dict)] if isinstance(route_result, dict) else []
     error_patterns = [row for row in (recent_errors.get("patterns") or []) if isinstance(row, dict)] if isinstance(recent_errors, dict) else []
     status = "pending_release_window"
-    if blockers > 0 or failing_routes:
+    if blockers > 0 or failing_routes or (public_deployment and not public_ok):
         status = "deployment_risk"
-    elif push_done and route_ok:
+    elif push_done and route_ok and (not public_deployment or public_ok):
         status = "deployment_verified"
     elif push_done:
         status = "release_window_open"
@@ -5060,6 +5103,8 @@ def _build_deployment_guard(
     next_checks = []
     if failing_routes:
         next_checks.append(f"Corregir rutas críticas fallidas: {len(failing_routes)}")
+    if public_deployment and not public_ok:
+        next_checks.append("Revisar APP_PUBLIC_BASE_URL/healthz porque la comprobación pública ha fallado.")
     if error_patterns:
         top = error_patterns[0]
         next_checks.append(f"Revisar patrón reciente en logs: {top.get('name')}")
@@ -5077,6 +5122,8 @@ def _build_deployment_guard(
         "verification_window": verification_window,
         "push_done": push_done,
         "critical_routes_ok": route_ok,
+        "public_deployment_ok": public_ok,
+        "public_deployment": public_deployment if isinstance(public_deployment, dict) else {},
         "failing_routes": failing_routes[:4],
         "recent_error_patterns": [
             {
@@ -5149,7 +5196,7 @@ def _run_post_publish_verification_loop(executed_tools, *, workspace=None, quest
     if not pushed:
         return []
     existing = {str(row.get("tool") or "") for row in executed_tools}
-    post_tools = [tool for tool in ["check_critical_routes", "inspect_recent_errors"] if tool not in existing]
+    post_tools = [tool for tool in ["check_critical_routes", "inspect_recent_errors", "inspect_public_deployment"] if tool not in existing]
     if not post_tools:
         return []
     return _execute_tools(post_tools, smoke_verbosity=smoke_verbosity, workspace=workspace, question=question)
@@ -6839,6 +6886,8 @@ def _infer_intent(question: str) -> str:
         return "inspect_config"
     if re.search(r"\b(path|paths|carpeta|carpetas|directorio|directorios|static|media)\b", text):
         return "inspect_paths"
+    if re.search(r"\b(deploy|deployment|despliegue|produccion|producción|publica|publico|público|healthz)\b", text):
+        return "inspect_deployment"
     if re.search(r"\b(log|logs|error|errores|traceback|host|https)\b", text):
         return "inspect_errors"
     if re.search(r"\b(ruta|rutas|route|routes|endpoint|endpoints)\b", text):
@@ -6868,6 +6917,7 @@ def _tool_reason(tool_key: str, intent: str, question: str) -> str:
         "inspect_recent_errors": "La petición menciona errores, logs o síntomas recientes del sistema.",
         "check_critical_routes": "La petición pide revisar rutas o endpoints críticos.",
         "inspect_runtime_config": "La petición apunta a configuración efectiva de hosts, CSRF o settings.",
+        "inspect_public_deployment": "La petición pide comprobar el estado del despliegue público o su healthcheck.",
         "inspect_critical_paths": "La petición apunta a directorios y paths críticos del sistema.",
         "inspect_guard_history": "La petición pide comparar ejecuciones previas, regresiones o tendencias del guard.",
     }
@@ -6983,6 +7033,8 @@ def _plan_tools(question: str, *, run_smoke: bool, auto_fix: bool, maintenance_a
         requested_tools.extend(["check_status", "check_critical_routes"])
     elif intent == "inspect_config":
         requested_tools.extend(["check_status", "inspect_runtime_config"])
+    elif intent == "inspect_deployment":
+        requested_tools.extend(["check_status", "inspect_public_deployment", "check_critical_routes"])
     elif intent == "inspect_paths":
         requested_tools.extend(["check_status", "inspect_critical_paths"])
     elif intent == "inspect_history":
@@ -7070,6 +7122,8 @@ def _execute_tools(requested_tools: list[str], *, smoke_verbosity: int = 1, work
             result = _check_critical_routes()
         elif tool_key == "inspect_runtime_config":
             result = _inspect_runtime_config()
+        elif tool_key == "inspect_public_deployment":
+            result = _inspect_public_deployment()
         elif tool_key == "inspect_critical_paths":
             result = _inspect_critical_paths()
         elif tool_key == "inspect_guard_history":
