@@ -1932,14 +1932,15 @@
 			      if (isTacticsMode) {
 			        const ensurePitch3dButton = () => {
 			          try {
-			            if (document.getElementById('pitch-3d-open')) return;
+			            if (document.querySelector('[data-pitch3d-trigger="1"]')) return;
 			            const menu = document.getElementById('pitch-view-menu');
 			            const body = menu ? menu.querySelector('.pitch-view-menu-body') : null;
 			            if (!body) return;
 			            const btn = document.createElement('button');
 			            btn.type = 'button';
 			            btn.className = 'surface-trigger';
-			            btn.id = 'pitch-3d-open';
+			            btn.id = 'pitch-3d-open-tactics';
+			            btn.dataset.pitch3dTrigger = '1';
 			            btn.title = 'Representación 3D (presentación)';
 			            btn.setAttribute('aria-label', 'Representación 3D');
 			            btn.innerHTML = '<span>Representación 3D</span><span class="current">Presentar</span>';
@@ -2082,7 +2083,7 @@
 			      }
 			    } catch (e) { /* ignore */ }
 
-			    const pitch3dOpenBtn = document.getElementById('pitch-3d-open');
+			    const pitch3dOpenBtn = document.querySelector('[data-pitch3d-trigger="1"]');
 			    let pitch3dModal = document.getElementById('task-pitch-3d-modal');
 			    let pitch3dCloseBtn = document.getElementById('task-pitch-3d-close');
 			    let pitch3dCanvasEl = document.getElementById('task-pitch-3d-canvas');
@@ -15391,7 +15392,7 @@
 						    };
 						    pitch3dOpenBtn?.addEventListener('click', (ev) => { ev.preventDefault(); openPitch3dWhenReady(); });
 						    document.addEventListener('click', (ev) => {
-						      const trigger = ev.target?.closest?.('#pitch-3d-open');
+						      const trigger = ev.target?.closest?.('[data-pitch3d-trigger="1"]');
 						      if (!trigger) return;
 						      ev.preventDefault();
 						      openPitch3dWhenReady();

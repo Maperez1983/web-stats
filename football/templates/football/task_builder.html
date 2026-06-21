@@ -5682,7 +5682,7 @@
                     </div>
                   </details>
                   {% if not tactics_mode %}
-                  <button type="button" class="surface-trigger" id="pitch-3d-open" title="Representación 3D (presentación)" aria-label="Representación 3D">
+                  <button type="button" class="surface-trigger" id="pitch-3d-open-standard" data-pitch3d-trigger="1" title="Representación 3D (presentación)" aria-label="Representación 3D">
                     <span>Representación 3D</span>
                     <span class="current">Presentar</span>
                   </button>
@@ -5693,7 +5693,7 @@
                   {% endif %}
                   <button type="button" class="surface-trigger" id="task-focus-toggle" title="Modo presentación" aria-label="Modo presentación">Presentación</button>
                   {% if tactics_mode %}
-                  <button type="button" class="surface-trigger" id="pitch-3d-open" title="Representación 3D (presentación)" aria-label="Representación 3D">
+                  <button type="button" class="surface-trigger" id="pitch-3d-open-tactics" data-pitch3d-trigger="1" title="Representación 3D (presentación)" aria-label="Representación 3D">
                     <span>Representación 3D</span>
                     <span class="current">Presentar</span>
                   </button>
@@ -8527,7 +8527,8 @@
 		        hookClick('pitch-size-fit', ensureEditorStack, 'webstatsEditorReady');
 		        hookClick('task-sim-toggle', ensureEditorStack, 'webstatsEditorReady');
 		        hookClick('task-sim-open', ensureEditorStack, 'webstatsEditorReady');
-		        hookClick('pitch-3d-open', ensure3dStack, 'webstats3dReady');
+		        hookClick('pitch-3d-open-standard', ensure3dStack, 'webstats3dReady');
+		        hookClick('pitch-3d-open-tactics', ensure3dStack, 'webstats3dReady');
 		        hookClick('task-playbook-open-sim', ensureEditorStack, 'webstatsEditorReady');
 			        hookClick('task-playbook-open-video', ensureEditorStack, 'webstatsEditorReady');
 			        hookClick('task-playbook-export-pack', ensureEditorStack, 'webstatsEditorReady');
@@ -8587,7 +8588,12 @@
 
 		        // 3D de pizarra (usa Three.js dentro del editor TPad).
 		        hookClick(
-		          'pitch-3d-open',
+		          'pitch-3d-open-standard',
+		          () => ensureEditorStack().then((ok) => (ok ? ensureThree().then(() => true) : false)),
+		          'webstatsThreeReady'
+		        );
+		        hookClick(
+		          'pitch-3d-open-tactics',
 		          () => ensureEditorStack().then((ok) => (ok ? ensureThree().then(() => true) : false)),
 		          'webstatsThreeReady'
 		        );

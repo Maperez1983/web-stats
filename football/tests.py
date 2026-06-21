@@ -378,6 +378,295 @@ class SystemGuardTests(TestCase):
         self.assertIn('run_operator_validation', plan['requested_tools'])
         self.assertIn('auto_fix', plan['requested_tools'])
 
+    def test_planner_treats_pitch3d_visual_issue_as_code_repair(self):
+        plan = system_guard._plan_tools(
+            'Por que no se visualiza bien el estadio 3d y si lo puedes solucionar',
+            run_smoke=False,
+            auto_fix=False,
+            maintenance_action='',
+            autonomy_mode='operator',
+            page_context={'page': 'sessions-task-create'},
+        )
+        self.assertEqual(plan['task']['kind'], 'repair')
+        self.assertEqual(plan['task']['scope'], 'code')
+        self.assertEqual(plan['runbook']['key'], 'code_execution')
+        self.assertIn('inspect_repo_status', plan['requested_tools'])
+        self.assertIn('run_operator_validation', plan['requested_tools'])
+
+    def test_infer_intent_marks_visual_issue_as_repair_when_user_asks_to_solve_it(self):
+        intent = system_guard._infer_intent(
+            'Por que no se visualiza bien el estadio 3d y si lo puedes solucionar'
+        )
+        self.assertEqual(intent, 'repair')
+
+    def test_infer_intent_marks_open_feature_request_as_code_operator_work(self):
+        intent = system_guard._infer_intent(
+            'Implementa una funcionalidad para que el widget lleve al usuario a biblioteca de tareas'
+        )
+        self.assertEqual(intent, 'feature_request')
+
+    def test_planner_builds_code_task_for_feature_request(self):
+        plan = system_guard._plan_tools(
+            'Implementa una funcionalidad para que el widget lleve al usuario a biblioteca de tareas',
+            run_smoke=False,
+            auto_fix=False,
+            maintenance_action='',
+            autonomy_mode='operator',
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+        )
+        self.assertEqual(plan['task']['kind'], 'build')
+        self.assertEqual(plan['task']['scope'], 'code')
+        self.assertEqual(plan['runbook']['key'], 'code_execution')
+        self.assertIn('inspect_repo_status', plan['requested_tools'])
+        self.assertIn('run_operator_validation', plan['requested_tools'])
+
+    def test_resolve_assisted_action_builds_code_intervention_request_for_pitch3d_issue(self):
+        action = system_guard._resolve_assisted_action(
+            'Por que no se visualiza bien el estadio 3d y si lo puedes solucionar',
+            workspace=self.workspace,
+            page_context={'page': 'sessions-task-create', 'can_manage_guard': True, 'can_operate_guard_code': True},
+        )
+        self.assertEqual(action['kind'], 'code_intervention_request')
+        self.assertEqual(action['target_area'], 'Editor de tareas y capa visual del task builder')
+        self.assertIn('football/static/football/js/sessions_tactical_pad.js', action['candidate_files'])
+        self.assertIn('football/views.py', action['candidate_files'])
+        self.assertFalse(action['permission_required'])
+
+    def test_catalog_candidates_match_question_terms(self):
+        rows = system_guard._catalog_candidates_for_question(
+            'Tenemos un DisallowedHost con testserver, revisa allowed hosts'
+        )
+        self.assertTrue(rows)
+        self.assertEqual(rows[0]['key'], 'dev_testserver_allowed_host')
+        self.assertTrue(rows[0]['auto_apply'])
+
+    def test_catalog_candidates_include_widget_and_pitch3d_domains(self):
+        widget_rows = system_guard._catalog_candidates_for_question(
+            'El widget Ollana no aparece abajo a la derecha'
+        )
+        pitch_rows = system_guard._catalog_candidates_for_question(
+            'El estadio 3d no se muestra bien en la representacion 3d'
+        )
+        self.assertTrue(any(row['key'] == 'widget_visibility_and_mount' for row in widget_rows))
+        self.assertTrue(any(row['key'] == 'pitch3d_trigger_and_modal_flow' for row in pitch_rows))
+
+    def test_build_technical_operation_for_code_intervention_request(self):
+        action = system_guard._build_code_intervention_request(
+            'Por que no se visualiza bien el estadio 3d y si lo puedes solucionar',
+            workspace=self.workspace,
+            page_context={'page': 'sessions-task-create', 'can_manage_guard': True, 'can_operate_guard_code': True},
+        )
+        planner = system_guard._plan_tools(
+            'Por que no se visualiza bien el estadio 3d y si lo puedes solucionar',
+            run_smoke=False,
+            auto_fix=False,
+            maintenance_action='',
+            autonomy_mode='operator',
+            page_context={'page': 'sessions-task-create', 'can_manage_guard': True, 'can_operate_guard_code': True},
+        )
+        operation = system_guard._build_technical_operation(
+            action,
+            planner,
+            page_context={'page': 'sessions-task-create', 'can_manage_guard': True, 'can_operate_guard_code': True},
+        )
+        self.assertEqual(operation['kind'], 'technical_operation')
+        self.assertTrue(operation['authorized_for_code'])
+        self.assertIn('football/static/football/js/sessions_tactical_pad.js', operation['candidate_files'])
+        self.assertTrue(any(row['key'] == 'publish' for row in operation['phases']))
+
+    def test_execute_catalog_code_intervention_applies_exact_patch_in_temp_repo(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            base_dir = Path(tmpdir)
+            settings_path = base_dir / 'webstats'
+            settings_path.mkdir(parents=True, exist_ok=True)
+            file_path = settings_path / 'settings.py'
+            file_path.write_text(
+                "ALLOWED_HOSTS = [\n    host\n    for host in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')\n]\n",
+                encoding='utf-8',
+            )
+            catalog = {
+                'temp_allowed_hosts_fix': {
+                    'title': 'Fix temporal',
+                    'auto_apply': True,
+                    'patches': [{
+                        'path': 'webstats/settings.py',
+                        'search': "for host in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')",
+                        'replace': "for host in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver').split(',')",
+                    }],
+                },
+            }
+            with patch.object(system_guard, 'CODE_INTERVENTION_CATALOG', catalog), patch.object(system_guard.app_settings, 'BASE_DIR', base_dir):
+                result = system_guard._execute_catalog_code_intervention('temp_allowed_hosts_fix')
+            self.assertTrue(result['ok'])
+            self.assertEqual(result['applied_count'], 1)
+            self.assertIn('testserver', file_path.read_text(encoding='utf-8'))
+
+    def test_execute_controlled_technical_operation_skips_non_auto_apply_catalog_candidate(self):
+        operation = {
+            'kind': 'technical_operation',
+            'authorized_for_code': True,
+            'authorized_for_publish': True,
+            'publish_requires_confirmation': False,
+            'catalog_candidates': [{'key': 'widget_library_ai_navigation_keywords', 'title': 'Widget nav', 'auto_apply': False}],
+        }
+        executed_tools = [{
+            'tool': 'check_status',
+            'label': 'Revisar estado',
+            'ok': True,
+            'kind': 'inspect',
+            'detail': 'ok',
+            'result': {'ok': True},
+        }, {
+            'tool': 'inspect_repo_status',
+            'label': 'Inspeccionar repositorio',
+            'ok': True,
+            'kind': 'inspect',
+            'detail': 'ok',
+            'result': {'ok': True, 'changed_count': 1},
+        }, {
+            'tool': 'run_operator_validation',
+            'label': 'Validar operador',
+            'ok': True,
+            'kind': 'diagnostic',
+            'detail': 'ok',
+            'result': {'ok': True},
+        }]
+        result = system_guard._execute_controlled_technical_operation(
+            operation,
+            executed_tools=executed_tools,
+            workspace=self.workspace,
+            question='Implementa que el widget lleve a biblioteca IA Trainer',
+        )
+        self.assertTrue(result['ok'])
+        self.assertFalse(result['applied_interventions'])
+        self.assertNotIn('repair', result['completed_phases'])
+
+    def test_build_code_operator_mode_for_feature_request(self):
+        planner = system_guard._plan_tools(
+            'Implementa una funcionalidad para que el widget lleve al usuario a biblioteca de tareas',
+            run_smoke=False,
+            auto_fix=False,
+            maintenance_action='',
+            autonomy_mode='operator',
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id, 'can_manage_guard': True, 'can_operate_guard_code': True},
+        )
+        mode = system_guard._build_code_operator_mode(
+            'Implementa una funcionalidad para que el widget lleve al usuario a biblioteca de tareas',
+            planner,
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id, 'can_manage_guard': True, 'can_operate_guard_code': True},
+        )
+        self.assertTrue(mode['enabled'])
+        self.assertEqual(mode['mode'], 'build')
+        self.assertTrue(mode['authorized_for_code'])
+        self.assertTrue(mode['candidate_files'])
+        self.assertTrue(mode['objectives'])
+        self.assertTrue(mode['catalog_candidates'])
+
+    @patch('football.system_guard._execute_tools', return_value=[{
+        'tool': 'check_status',
+        'label': 'Revisar estado',
+        'ok': True,
+        'kind': 'inspect',
+        'detail': 'ok',
+        'result': {'ok': True},
+    }, {
+        'tool': 'inspect_repo_status',
+        'label': 'Inspeccionar repositorio',
+        'ok': True,
+        'kind': 'inspect',
+        'detail': 'ok',
+        'result': {'ok': True, 'changed_count': 2},
+    }, {
+        'tool': 'run_operator_validation',
+        'label': 'Validar operador',
+        'ok': True,
+        'kind': 'diagnostic',
+        'detail': 'ok',
+        'result': {'ok': True},
+    }])
+    def test_execute_controlled_technical_operation_completes_safe_phases(self, _mock_exec):
+        operation = {
+            'kind': 'technical_operation',
+            'authorized_for_code': True,
+            'authorized_for_publish': True,
+            'publish_requires_confirmation': True,
+        }
+        execution = system_guard._execute_controlled_technical_operation(
+            operation,
+            executed_tools=[],
+            workspace=self.workspace,
+            question='Arregla el estadio 3d',
+        )
+        self.assertEqual(execution['kind'], 'technical_operation_execution')
+        self.assertTrue(execution['ok'])
+        self.assertEqual(execution['status'], 'completed')
+        self.assertIn('triage', execution['completed_phases'])
+        self.assertIn('inspect_repo', execution['completed_phases'])
+        self.assertIn('validate', execution['completed_phases'])
+        self.assertTrue(execution['publish_ready'])
+
+    def test_execute_controlled_technical_operation_applies_catalog_fix_and_revalidates(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            base_dir = Path(tmpdir)
+            settings_path = base_dir / 'webstats'
+            settings_path.mkdir(parents=True, exist_ok=True)
+            file_path = settings_path / 'settings.py'
+            file_path.write_text(
+                "ALLOWED_HOSTS = [\n    host\n    for host in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')\n]\n",
+                encoding='utf-8',
+            )
+            catalog = {
+                'temp_allowed_hosts_fix': {
+                    'title': 'Fix temporal',
+                    'auto_apply': True,
+                    'patches': [{
+                        'path': 'webstats/settings.py',
+                        'search': "for host in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')",
+                        'replace': "for host in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver').split(',')",
+                    }],
+                },
+            }
+            operation = {
+                'kind': 'technical_operation',
+                'authorized_for_code': True,
+                'authorized_for_publish': True,
+                'publish_requires_confirmation': False,
+                'catalog_candidates': [{'key': 'temp_allowed_hosts_fix', 'title': 'Fix temporal'}],
+            }
+            executed_tools = [{
+                'tool': 'check_status',
+                'label': 'Revisar estado',
+                'ok': True,
+                'kind': 'inspect',
+                'detail': 'ok',
+                'result': {'ok': True},
+            }, {
+                'tool': 'inspect_repo_status',
+                'label': 'Inspeccionar repositorio',
+                'ok': True,
+                'kind': 'inspect',
+                'detail': 'ok',
+                'result': {'ok': True, 'changed_count': 1},
+            }, {
+                'tool': 'run_operator_validation',
+                'label': 'Validar operador',
+                'ok': True,
+                'kind': 'diagnostic',
+                'detail': 'ok',
+                'result': {'ok': True},
+            }]
+            with patch.object(system_guard, 'CODE_INTERVENTION_CATALOG', catalog), patch.object(system_guard.app_settings, 'BASE_DIR', base_dir), patch('football.system_guard._run_operator_validation', return_value={'ok': True, 'action': 'operator_validation'}):
+                result = system_guard._execute_controlled_technical_operation(
+                    operation,
+                    executed_tools=executed_tools,
+                    workspace=self.workspace,
+                    question='Tenemos un DisallowedHost con testserver',
+                )
+            self.assertTrue(result['ok'])
+            self.assertIn('repair', result['completed_phases'])
+            self.assertTrue(any(bool(row.get('ok')) for row in result['applied_interventions']))
+            self.assertIn('testserver', file_path.read_text(encoding='utf-8'))
+
     @patch('football.system_guard._run_repo_command')
     @patch('football.system_guard._inspect_repo_status', return_value={'ok': True, 'changed_count': 3})
     @patch('football.system_guard._operator_repo_path', return_value=Path('/tmp/repo'))
@@ -800,6 +1089,20 @@ class SystemGuardTests(TestCase):
         'dependencies': {},
     })
     @patch('football.system_guard._execute_tools', return_value=[{
+        'tool': 'inspect_repo_status',
+        'label': 'Inspeccionar repositorio',
+        'ok': True,
+        'kind': 'inspect',
+        'detail': 'ok',
+        'result': {'ok': True, 'changed_count': 2},
+    }, {
+        'tool': 'run_operator_validation',
+        'label': 'Validar operador',
+        'ok': True,
+        'kind': 'diagnostic',
+        'detail': 'ok',
+        'result': {'ok': True},
+    }, {
         'tool': 'auto_fix',
         'label': 'Auto-fix seguro',
         'ok': True,
@@ -895,6 +1198,110 @@ class SystemGuardTests(TestCase):
         self.assertTrue(operator_plan['authorized_for_code'])
         self.assertTrue(operator_plan['publish_ready'])
         self.assertIn('3d', operator_plan['target_summary'].lower())
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    @patch('football.system_guard._execute_tools', return_value=[{
+        'tool': 'inspect_repo_status',
+        'label': 'Inspeccionar repositorio',
+        'ok': True,
+        'kind': 'inspect',
+        'detail': 'ok',
+        'result': {'ok': True, 'changed_count': 2},
+    }, {
+        'tool': 'run_operator_validation',
+        'label': 'Validar operador',
+        'ok': True,
+        'kind': 'diagnostic',
+        'detail': 'ok',
+        'result': {'ok': True},
+    }, {
+        'tool': 'auto_fix',
+        'label': 'Auto-fix seguro',
+        'ok': True,
+        'kind': 'repair',
+        'detail': 'ok',
+        'result': {'ok': True},
+    }])
+    def test_run_system_guard_chat_surfaces_code_intervention_request_for_pitch3d_issue(self, _exec, *_mocks):
+        result = system_guard.run_system_guard_chat(
+            question='Por que no se visualiza bien el estadio 3d y si lo puedes solucionar',
+            workspace=self.workspace,
+            page_context={'page': 'sessions-task-create', 'can_manage_guard': True, 'can_operate_guard_code': True},
+            autonomy_mode='operator',
+            audience='technical',
+        )
+        response = result['chat']['response']
+        action = response['assistant_action']
+        self.assertEqual(action['kind'], 'code_intervention_request')
+        self.assertIn('football/static/football/js/sessions_tactical_pad.js', action['candidate_files'])
+        self.assertTrue(any('Ficheros candidatos:' in row for row in response['highlights']))
+        self.assertEqual(response['runbook']['key'], 'code_execution')
+        self.assertEqual(response['assistant_action']['authorization']['allowed'], True)
+        self.assertEqual(response['technical_operation']['kind'], 'technical_operation')
+        self.assertTrue(response['technical_operation']['authorized_for_publish'])
+        self.assertTrue(any(row['key'] == 'repair' for row in response['technical_operation']['phases']))
+        self.assertEqual(response['technical_operation_execution']['kind'], 'technical_operation_execution')
+        self.assertIn('validate', response['technical_operation_execution']['completed_phases'])
+        self.assertTrue(response['technical_operation_execution']['publish_ready'])
+        queue_rows = system_guard._load_task_queue(self.workspace)
+        self.assertTrue(queue_rows)
+        metadata = queue_rows[0].get('metadata') if isinstance(queue_rows[0].get('metadata'), dict) else {}
+        self.assertEqual((metadata.get('technical_operation') or {}).get('kind'), 'technical_operation')
+        self.assertEqual((metadata.get('technical_execution') or {}).get('kind'), 'technical_operation_execution')
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    @patch('football.system_guard._execute_tools', return_value=[{
+        'tool': 'inspect_repo_status',
+        'label': 'Inspeccionar repositorio',
+        'ok': True,
+        'kind': 'inspect',
+        'detail': 'ok',
+        'result': {'ok': True, 'changed_count': 2},
+    }, {
+        'tool': 'run_operator_validation',
+        'label': 'Validar operador',
+        'ok': True,
+        'kind': 'diagnostic',
+        'detail': 'ok',
+        'result': {'ok': True},
+    }])
+    def test_run_system_guard_chat_exposes_code_operator_mode_for_feature_request(self, _exec, *_mocks):
+        result = system_guard.run_system_guard_chat(
+            question='Implementa una funcionalidad para que el widget lleve al usuario a biblioteca de tareas',
+            workspace=self.workspace,
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id, 'can_manage_guard': True, 'can_operate_guard_code': True},
+            autonomy_mode='operator',
+            audience='technical',
+        )
+        response = result['chat']['response']
+        self.assertEqual(response['code_operator_mode']['mode'], 'build')
+        self.assertTrue(response['code_operator_mode']['authorized_for_code'])
+        self.assertTrue(response['code_operator_mode']['candidate_files'])
+        self.assertTrue(any('Modo operador:' in row for row in response['highlights']))
 
     @patch('football.system_guard.run_proactive_guard_cycle', return_value={'queue_counts': {'completed': 1}, 'detections': [{'id': 'demo'}]})
     def test_maybe_run_scheduled_guard_cycle_respects_interval(self, mock_cycle):
@@ -10001,6 +10408,26 @@ class StaffUserLinkingTests(TestCase):
         self.assertContains(response, 'id="task-device-view"')
         self.assertContains(response, 'Escritorio')
 
+    def test_task_builder_uses_distinct_pitch3d_trigger_in_standard_mode(self):
+        response = self.client.get(reverse('sessions-task-create'))
+
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode('utf-8')
+        self.assertIn('id="pitch-3d-open-standard"', html)
+        self.assertIn('data-pitch3d-trigger="1"', html)
+        self.assertNotIn('id="pitch-3d-open"', html)
+        self.assertNotIn('id="pitch-3d-open-tactics"', html)
+
+    def test_task_builder_uses_distinct_pitch3d_trigger_in_tactics_mode(self):
+        response = self.client.get(reverse('coach-tactics'))
+
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode('utf-8')
+        self.assertIn('id="pitch-3d-open-tactics"', html)
+        self.assertIn('data-pitch3d-trigger="1"', html)
+        self.assertNotIn('id="pitch-3d-open"', html)
+        self.assertNotIn('id="pitch-3d-open-standard"', html)
+
     def test_task_builder_prefills_age_group_from_team_category(self):
         self.team.category = 'Juvenil'
         self.team.save(update_fields=['category'])
@@ -11914,3 +12341,12 @@ class AiTrainerLibraryTests(TestCase):
         self.assertContains(response, 'Incidencia repetida')
         self.assertContains(response, 'data-guard-alert=')
         self.assertIn('guard_observability', response.context)
+
+    def test_ai_trainer_includes_global_guard_widget(self):
+        self.client.force_login(self.user)
+        self._activate_workspace()
+        url = reverse('ai-trainer') + f'?team={self.team.id}'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="global-guard-widget-shell"')
+        self.assertContains(response, 'id="global-guard-widget-toggle"')

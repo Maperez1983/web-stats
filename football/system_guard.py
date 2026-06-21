@@ -247,6 +247,93 @@ CHAT_ACTIONS = {
     },
 }
 
+CODE_INTERVENTION_CATALOG = {
+    "dev_testserver_allowed_host": {
+        "title": "Añadir `testserver` a ALLOWED_HOSTS de desarrollo",
+        "summary": "Evita DisallowedHost en validaciones y flujos locales controlados cuando Django usa `testserver`.",
+        "match_terms": ["disallowedhost", "testserver", "allowed hosts", "allowed_hosts", "host header"],
+        "auto_apply": True,
+        "files": ["webstats/settings.py"],
+        "patches": [{
+            "path": "webstats/settings.py",
+            "search": "for host in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')",
+            "replace": "for host in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver').split(',')",
+        }],
+    },
+    "widget_library_ai_navigation_keywords": {
+        "title": "Afinar navegación del widget hacia biblioteca IA Trainer",
+        "summary": "Refuerza las keywords del widget para que órdenes como `abre biblioteca ia trainer` resuelvan antes a biblioteca que a la portada de IA Trainer.",
+        "match_terms": ["biblioteca ia trainer", "biblioteca ai trainer", "widget ollana biblioteca", "navegacion widget biblioteca", "widget lleve al usuario a biblioteca", "widget biblioteca de tareas"],
+        "auto_apply": False,
+        "files": ["football/templates/football/includes/global_guard_widget.html"],
+        "patches": [{
+            "path": "football/templates/football/includes/global_guard_widget.html",
+            "search": "keywords: ['biblioteca de tareas', 'biblioteca', 'tareas', 'ejercicios', 'task library']",
+            "replace": "keywords: ['biblioteca de tareas', 'biblioteca ia trainer', 'biblioteca ai trainer', 'biblioteca', 'tareas', 'ejercicios', 'task library']",
+        }],
+    },
+    "widget_visibility_and_mount": {
+        "title": "Verificar visibilidad y montaje global del widget Ollana",
+        "summary": "Restaurar el include del widget en IA Trainer y revisar que el shell se monte en `body`, conserve `z-index` alto y no quede oculto por layouts o shell PWA.",
+        "match_terms": ["widget ollana no aparece", "widget no se ve", "chat abajo derecha", "montaje widget", "visibilidad ollana"],
+        "auto_apply": True,
+        "files": [
+            "football/templates/football/ai_trainer.html",
+            "football/templates/football/includes/global_guard_widget.html",
+            "football/templates/football/pwa_head.html",
+            "football/templates/football/includes/dragon_nav.html",
+        ],
+        "patches": [{
+            "path": "football/templates/football/ai_trainer.html",
+            "search": "  <body>\n    {% include 'football/includes/dragon_nav.html' with hide_global_guard_widget=True %}\n    <main class=\"page\">",
+            "replace": "  <body>\n    {% include 'football/includes/dragon_nav.html' with hide_global_guard_widget=True %}\n    {% include 'football/includes/global_guard_widget.html' %}\n    <main class=\"page\">",
+        }],
+    },
+    "pitch3d_trigger_and_modal_flow": {
+        "title": "Revisar disparadores y modal de pitch 3D",
+        "summary": "Inspeccionar si hay múltiples triggers, bindings parciales o modal 3D montado fuera de secuencia en task builder.",
+        "match_terms": ["pitch 3d", "pitch3d", "estadio 3d", "modal 3d", "representacion 3d", "representación 3d"],
+        "auto_apply": True,
+        "files": [
+            "football/templates/football/task_builder.html",
+            "football/static/football/js/sessions_tactical_pad.js",
+            "football/views.py",
+        ],
+        "patches": [
+            {
+                "path": "football/templates/football/task_builder.html",
+                "search": '<button type="button" class="surface-trigger" id="pitch-3d-open" title="Representación 3D (presentación)" aria-label="Representación 3D">',
+                "replace": '<button type="button" class="surface-trigger" id="pitch-3d-open-standard" data-pitch3d-trigger="1" title="Representación 3D (presentación)" aria-label="Representación 3D">',
+            },
+            {
+                "path": "football/templates/football/task_builder.html",
+                "search": '{% if tactics_mode %}\n                  <button type="button" class="surface-trigger" id="pitch-3d-open" title="Representación 3D (presentación)" aria-label="Representación 3D">',
+                "replace": '{% if tactics_mode %}\n                  <button type="button" class="surface-trigger" id="pitch-3d-open-tactics" data-pitch3d-trigger="1" title="Representación 3D (presentación)" aria-label="Representación 3D">',
+            },
+            {
+                "path": "football/static/football/js/sessions_tactical_pad.js",
+                "search": "if (document.getElementById('pitch-3d-open')) return;",
+                "replace": "if (document.querySelector('[data-pitch3d-trigger=\"1\"]')) return;",
+            },
+            {
+                "path": "football/static/football/js/sessions_tactical_pad.js",
+                "search": "btn.id = 'pitch-3d-open';",
+                "replace": "btn.id = 'pitch-3d-open-tactics';\n\t\t\t            btn.dataset.pitch3dTrigger = '1';",
+            },
+            {
+                "path": "football/static/football/js/sessions_tactical_pad.js",
+                "search": "const pitch3dOpenBtn = document.getElementById('pitch-3d-open');",
+                "replace": "const pitch3dOpenBtn = document.querySelector('[data-pitch3d-trigger=\"1\"]');",
+            },
+            {
+                "path": "football/static/football/js/sessions_tactical_pad.js",
+                "search": "const trigger = ev.target?.closest?.('#pitch-3d-open');",
+                "replace": "const trigger = ev.target?.closest?.('[data-pitch3d-trigger=\"1\"]');",
+            },
+        ],
+    },
+}
+
 AUTONOMY_MODES = {"advisor", "operator", "supervised"}
 AUDIENCE_MODES = {"technical", "guided"}
 MEMORY_PREF_KEY = "system_guard:memory:v3"
@@ -726,7 +813,10 @@ def _build_task_profile(question: str, *, intent: str, maintenance_action: str =
     silent_mode = True
     runbook_key = "silent_diagnostics"
     lower_question = str(question or "").lower()
-    code_markers = ["codigo", "código", "repo", "repositorio", "git", "commit", "push", "tests", "check"]
+    code_markers = [
+        "codigo", "código", "repo", "repositorio", "git", "commit", "push", "tests", "check",
+        "3d", "pitch3d", "estadio", "stadium", "render", "visualiza", "visualiza", "canvas", "glb",
+    ]
     code_related = any(token in lower_question for token in code_markers)
     if route_target and re.search(r"\b(abre|abrir|ll[ée]vame|llevame|ve a|ir a|quiero ir|quiero abrir|quiero ver)\b", str(question or "").lower()):
         kind = "navigate"
@@ -748,6 +838,11 @@ def _build_task_profile(question: str, *, intent: str, maintenance_action: str =
         scope = "code"
         silent_mode = True
         runbook_key = "operator_publish"
+    elif intent == "feature_request":
+        kind = "build"
+        scope = "code"
+        silent_mode = True
+        runbook_key = "code_execution"
     elif intent in {"repair"} or maintenance_action in {"regenerate_task_previews", "ai_trainer_reindex"}:
         kind = "repair" if intent == "repair" else "maintenance"
         scope = "code" if (kind == "repair" and code_related) else ("system" if kind == "repair" else "maintenance")
@@ -852,6 +947,13 @@ def _followup_actions(task: dict, planner: dict, *, page_context=None) -> list[d
             "label": "Validar cambios",
             "prompt": "Ejecuta validación técnica y dime si el cambio está listo para publicarse.",
             "reason": "Forzar un paso de validación antes de publicar.",
+        })
+    if task.get("kind") == "build":
+        actions.append({
+            "type": "prompt",
+            "label": "Diseñar cambio",
+            "prompt": "Desglosa la funcionalidad en archivos, impacto y validación mínima.",
+            "reason": "Convertir la petición abierta en un cambio implementable.",
         })
     return actions[:4]
 
@@ -1117,6 +1219,112 @@ def _store_pref_value(workspace, key: str, value):
         )
     except Exception:
         return
+
+
+def _json_safe_payload(value):
+    try:
+        return json.loads(json.dumps(value, ensure_ascii=False, default=str))
+    except Exception:
+        if isinstance(value, dict):
+            return {str(key): _json_safe_payload(item) for key, item in value.items()}
+        if isinstance(value, (list, tuple)):
+            return [_json_safe_payload(item) for item in value]
+        return str(value)
+
+
+def _catalog_candidates_for_question(question: str) -> list[dict]:
+    text = str(question or "").strip().lower()
+    if not text:
+        return []
+    rows = []
+    for key, item in CODE_INTERVENTION_CATALOG.items():
+        if not isinstance(item, dict):
+            continue
+        terms = [str(term or "").strip().lower() for term in (item.get("match_terms") or []) if str(term or "").strip()]
+        if not terms:
+            continue
+        score = sum(1 for term in terms if term in text)
+        if score <= 0:
+            continue
+        rows.append({
+            "key": str(key),
+            "score": score,
+            "title": str(item.get("title") or key),
+            "summary": str(item.get("summary") or ""),
+            "auto_apply": bool(item.get("auto_apply")),
+            "files": [str(path or "") for path in (item.get("files") or []) if str(path or "").strip()][:6],
+        })
+    rows.sort(key=lambda row: (-int(row.get("score") or 0), str(row.get("key") or "")))
+    return rows[:3]
+
+
+def _resolve_catalog_repo_path(relative_path: str) -> Path | None:
+    rel = str(relative_path or "").strip()
+    if not rel:
+        return None
+    base_dir = Path(app_settings.BASE_DIR).resolve()
+    target = (base_dir / rel).resolve()
+    try:
+        target.relative_to(base_dir)
+    except Exception:
+        return None
+    return target
+
+
+def _apply_exact_text_patch(relative_path: str, search: str, replace: str) -> dict:
+    target = _resolve_catalog_repo_path(relative_path)
+    if target is None:
+        return {"ok": False, "error": "invalid_patch_path", "path": str(relative_path or "")}
+    if not target.exists():
+        return {"ok": False, "error": "patch_target_missing", "path": str(target)}
+    try:
+        original = target.read_text(encoding="utf-8")
+    except Exception as exc:
+        return {"ok": False, "error": f"read_failed:{exc.__class__.__name__}", "path": str(target)}
+    if str(search or "") not in original:
+        return {"ok": False, "error": "search_not_found", "path": str(target), "applied": False}
+    updated = original.replace(str(search), str(replace), 1)
+    if updated == original:
+        return {"ok": True, "path": str(target), "applied": False, "detail": "already_up_to_date"}
+    try:
+        target.write_text(updated, encoding="utf-8")
+    except Exception as exc:
+        return {"ok": False, "error": f"write_failed:{exc.__class__.__name__}", "path": str(target)}
+    return {"ok": True, "path": str(target), "applied": True}
+
+
+def _execute_catalog_code_intervention(candidate_key: str) -> dict:
+    item = CODE_INTERVENTION_CATALOG.get(str(candidate_key or "").strip()) or {}
+    patches = [row for row in (item.get("patches") or []) if isinstance(row, dict)]
+    if not patches:
+        return {"ok": False, "error": "no_patches_defined", "candidate_key": str(candidate_key or "")}
+    results = []
+    applied = 0
+    for patch in patches:
+        result = _apply_exact_text_patch(
+            str(patch.get("path") or ""),
+            str(patch.get("search") or ""),
+            str(patch.get("replace") or ""),
+        )
+        results.append(result)
+        if result.get("applied"):
+            applied += 1
+        elif not result.get("ok") and result.get("error") != "search_not_found":
+            return {
+                "ok": False,
+                "candidate_key": str(candidate_key or ""),
+                "title": str(item.get("title") or candidate_key),
+                "results": results,
+                "error": str(result.get("error") or "catalog_patch_failed"),
+            }
+    return {
+        "ok": bool(applied > 0),
+        "candidate_key": str(candidate_key or ""),
+        "title": str(item.get("title") or candidate_key),
+        "results": results,
+        "applied_count": applied,
+        "noop": applied == 0,
+    }
 
 
 def _snapshot_payload(report: dict, response: dict, executions: list[dict]) -> dict:
@@ -1511,6 +1719,7 @@ def _record_task_queue_event(
     question: str = "",
     result_summary: str = "",
     executions: list[dict] | None = None,
+    metadata: dict | None = None,
 ) -> dict:
     if not workspace:
         return {}
@@ -1526,6 +1735,8 @@ def _record_task_queue_event(
         question=question,
         auto_execute=False,
     )
+    if isinstance(metadata, dict) and metadata:
+        task["metadata"] = _json_safe_payload(metadata)
     saved = _enqueue_task(workspace, task)
     return _update_task_entry(
         workspace,
@@ -1533,6 +1744,7 @@ def _record_task_queue_event(
         status=status,
         executions=list(executions or []),
         result_summary=result_summary,
+        metadata=_json_safe_payload(metadata) if isinstance(metadata, dict) and metadata else saved.get("metadata", {}),
         finished_at=_now_iso() if status in {"completed", "blocked"} else "",
     ) or saved
 
@@ -2975,8 +3187,326 @@ def _build_improvement_proposals(report: dict, *, page_context=None, workspace=N
     return proposals[:4]
 
 
+def _infer_code_area(question: str, *, page_context=None) -> dict:
+    text = str(question or "").strip().lower()
+    page = str((page_context or {}).get("page") or "").strip().lower()
+    area = "Código de la aplicación"
+    candidate_files: list[str] = []
+    suggested_checks: list[str] = []
+
+    def add_file(path: str):
+        cleaned = str(path or "").strip()
+        if cleaned and cleaned not in candidate_files:
+            candidate_files.append(cleaned)
+
+    def add_check(label: str):
+        cleaned = str(label or "").strip()
+        if cleaned and cleaned not in suggested_checks:
+            suggested_checks.append(cleaned)
+
+    if any(token in text for token in ["3d", "pitch3d", "estadio", "stadium", "glb", "render", "canvas", "visualiza"]):
+        area = "Render 3D del estadio y editor táctico"
+        add_file("football/static/football/js/sessions_tactical_pad.js")
+        add_file("football/views.py")
+        add_file("football/templates/football/task_builder.html")
+        add_check("Comprobar si cargan el modelo GLB, texturas y assets del estadio.")
+        add_check("Revisar la inicialización del renderer 3D y el montaje del canvas táctico.")
+        add_check("Ejecutar el smoke del task builder y revisar errores de consola/render.")
+
+    if any(token in text for token in ["chat", "widget", "ollana", "guard", "asistente"]):
+        area = "Widget conversacional y flujo del guard"
+        add_file("football/templates/football/includes/global_guard_widget.html")
+        add_file("football/system_guard.py")
+        add_check("Verificar el ciclo abrir/cerrar del widget y la respuesta del chat.")
+        add_check("Comprobar timeouts, fetch del endpoint y render del estado pendiente.")
+
+    if any(token in text for token in ["ia trainer", "ai trainer", "trainer"]):
+        add_file("football/templates/football/ai_trainer.html")
+        add_file("football/views.py")
+        add_check("Revisar contexto de página y montaje del guard dentro de IA Trainer.")
+
+    if page in {"sessions-task-create", "task_builder"}:
+        area = "Editor de tareas y capa visual del task builder"
+        add_file("football/templates/football/task_builder.html")
+        add_file("football/static/football/js/sessions_tactical_pad.js")
+        add_check("Validar el render del editor en la pantalla de creación de tareas.")
+
+    if not candidate_files:
+        add_file("football/system_guard.py")
+        add_check("Inspeccionar el diff, los errores recientes y la validación técnica del repositorio.")
+
+    return {
+        "area": area,
+        "candidate_files": candidate_files[:6],
+        "suggested_checks": suggested_checks[:4],
+        "summary": _truncate(question, 220),
+        "page": page,
+    }
+
+
+def _build_code_intervention_request(question: str, *, workspace=None, page_context=None) -> dict:
+    detail = _infer_code_area(question, page_context=page_context)
+    auth = _authorize_guard_action("repair_code", page_context=page_context)
+    publish_auth = _authorize_guard_action("publish_changes", page_context=page_context)
+    catalog_candidates = _catalog_candidates_for_question(question)
+    allowed = bool(auth.get("allowed"))
+    area = str(detail.get("area") or "código de la aplicación")
+    file_list = [str(item) for item in (detail.get("candidate_files") or []) if str(item or "").strip()]
+    check_list = [str(item) for item in (detail.get("suggested_checks") or []) if str(item or "").strip()]
+    message = (
+        f"He preparado una intervención técnica sobre {area.lower()}."
+        if allowed else
+        f"He preparado la intervención técnica para {area.lower()}, pero este usuario no tiene permiso para tocar código."
+    )
+    if file_list:
+        message += f" Empezaría por {', '.join(file_list[:2])}."
+    return {
+        "kind": "code_intervention_request",
+        "executed": False,
+        "success": False,
+        "needs_input": False,
+        "permission_required": not allowed,
+        "requires_operator_flow": True,
+        "message": message,
+        "target": str(detail.get("summary") or ""),
+        "target_area": area,
+        "candidate_files": file_list,
+        "suggested_checks": check_list,
+        "catalog_candidates": catalog_candidates,
+        "authorization": auth,
+        "publish_authorization": publish_auth,
+        "payload": {
+            "target": str(detail.get("summary") or ""),
+            "area": area,
+            "candidate_files": file_list,
+            "suggested_checks": check_list,
+            "catalog_candidates": catalog_candidates,
+            "workspace_id": int(getattr(workspace, "id", 0) or 0) if workspace else 0,
+            "page": str(detail.get("page") or ""),
+        },
+    }
+
+
+def _build_code_operator_mode(question: str, planner: dict, *, page_context=None) -> dict:
+    task = planner.get("task") if isinstance(planner.get("task"), dict) else {}
+    if str(task.get("scope") or "") != "code":
+        return {}
+    detail = _infer_code_area(question, page_context=page_context)
+    route_target = task.get("route_target") if isinstance(task.get("route_target"), dict) else {}
+    question_text = str(question or "").strip()
+    question_lower = question_text.lower()
+    auth = _authorize_guard_action("repair_code", page_context=page_context)
+    publish_auth = _authorize_guard_action("publish_changes", page_context=page_context)
+    requested_tools = [str(item) for item in (planner.get("requested_tools") or []) if str(item or "").strip()]
+    mode = "repair" if str(planner.get("intent") or "") == "repair" else ("build" if str(planner.get("intent") or "") == "feature_request" else "code_workflow")
+    objectives = []
+    if mode == "build":
+        objectives.append(f"Implementar: {_truncate(question_text, 180)}")
+        objectives.append("Localizar el punto de entrada funcional y definir el alcance mínimo viable.")
+        objectives.append("Validar que el cambio no rompe flujos existentes.")
+    elif mode == "repair":
+        objectives.append(f"Corregir: {_truncate(question_text, 180)}")
+        objectives.append("Aislar la causa raíz antes de tocar código.")
+        objectives.append("Validar el arreglo y preparar publicación si procede.")
+    else:
+        objectives.append(f"Revisar flujo técnico: {_truncate(question_text, 180)}")
+        objectives.append("Inspeccionar el repositorio y proponer el cambio correcto.")
+    constraints = [
+        "No tocar código fuera del alcance identificado.",
+        "Ejecutar validación antes de publicar.",
+        "Mantener trazabilidad en cola y auditoría.",
+    ]
+    if route_target.get("url"):
+        constraints.append(f"Preservar la navegación de {route_target.get('label')}.")
+    if "3d" in question_lower or "pitch3d" in question_lower or "estadio" in question_lower:
+        constraints.append("No degradar el render 3D ni la pizarra táctica.")
+    change_plan = [
+        {"step": "Inspeccionar archivos candidatos y contexto de pantalla.", "status": "pending"},
+        {"step": "Definir cambio mínimo viable o fix concreto.", "status": "pending"},
+        {"step": "Aplicar intervención segura o dejar blueprint exacto de edición.", "status": "pending"},
+        {"step": "Ejecutar validación técnica y decidir publicación.", "status": "pending"},
+    ]
+    return {
+        "enabled": True,
+        "mode": mode,
+        "target": _truncate(question_text, 220),
+        "area": str(detail.get("area") or ""),
+        "candidate_files": [str(item) for item in (detail.get("candidate_files") or []) if str(item or "").strip()][:8],
+        "suggested_checks": [str(item) for item in (detail.get("suggested_checks") or []) if str(item or "").strip()][:4],
+        "requested_tools": requested_tools[:8],
+        "objectives": objectives[:4],
+        "constraints": constraints[:5],
+        "change_plan": change_plan,
+        "authorized_for_code": bool(auth.get("allowed")),
+        "authorized_for_publish": bool(publish_auth.get("allowed")),
+        "catalog_candidates": [row for row in (_catalog_candidates_for_question(question) or []) if isinstance(row, dict)][:3],
+    }
+
+
+def _build_technical_operation(assistant_action: dict, planner: dict, *, page_context=None) -> dict:
+    if str((assistant_action or {}).get("kind") or "") != "code_intervention_request":
+        return {}
+    payload = assistant_action.get("payload") if isinstance(assistant_action.get("payload"), dict) else {}
+    files = [str(item) for item in (assistant_action.get("candidate_files") or payload.get("candidate_files") or []) if str(item or "").strip()]
+    checks = [str(item) for item in (assistant_action.get("suggested_checks") or payload.get("suggested_checks") or []) if str(item or "").strip()]
+    catalog_candidates = [row for row in (assistant_action.get("catalog_candidates") or payload.get("catalog_candidates") or []) if isinstance(row, dict)]
+    requested_tools = [str(item) for item in (planner.get("requested_tools") or []) if str(item or "").strip()]
+    auth = assistant_action.get("authorization") if isinstance(assistant_action.get("authorization"), dict) else _authorize_guard_action("repair_code", page_context=page_context)
+    publish_auth = assistant_action.get("publish_authorization") if isinstance(assistant_action.get("publish_authorization"), dict) else _authorize_guard_action("publish_changes", page_context=page_context)
+    phases = [
+        {
+            "key": "triage",
+            "label": "Triage técnico",
+            "objective": "Aislar la causa probable y confirmar el área afectada.",
+            "tools": ["check_status", "inspect_recent_errors"],
+        },
+        {
+            "key": "inspect_repo",
+            "label": "Inspección de repositorio",
+            "objective": "Revisar diff, riesgos y archivos implicados.",
+            "tools": ["inspect_repo_status"],
+        },
+        {
+            "key": "validate",
+            "label": "Validación previa",
+            "objective": "Ejecutar check/tests antes y después de tocar código.",
+            "tools": ["run_operator_validation"],
+        },
+        {
+            "key": "repair",
+            "label": "Intervención de código",
+            "objective": "Aplicar el ajuste necesario en los ficheros candidatos.",
+            "tools": ["auto_fix"],
+        },
+        {
+            "key": "publish",
+            "label": "Publicación",
+            "objective": "Crear commit y push cuando la validación sea correcta.",
+            "tools": ["git_commit", "git_push"],
+        },
+    ]
+    next_step = "Esperar autorización de código."
+    if auth.get("allowed"):
+        next_step = "Inspeccionar el repositorio y validar el área afectada."
+    if planner.get("confirm_required"):
+        next_step = "Esperar confirmación antes de publicar cambios sensibles."
+    return {
+        "kind": "technical_operation",
+        "active": True,
+        "target": str(assistant_action.get("target") or payload.get("target") or ""),
+        "area": str(assistant_action.get("target_area") or payload.get("area") or ""),
+        "candidate_files": files[:6],
+        "suggested_checks": checks[:4],
+        "catalog_candidates": catalog_candidates[:3],
+        "requested_tools": requested_tools[:8],
+        "phases": phases,
+        "next_step": next_step,
+        "authorized_for_code": bool(auth.get("allowed")),
+        "authorized_for_publish": bool(publish_auth.get("allowed")),
+        "publish_requires_confirmation": bool(planner.get("confirm_required")),
+    }
+
+
+def _execute_controlled_technical_operation(
+    operation: dict,
+    *,
+    executed_tools=None,
+    workspace=None,
+    question: str = "",
+    smoke_verbosity: int = 1,
+) -> dict:
+    if str((operation or {}).get("kind") or "") != "technical_operation":
+        return {}
+    if not bool(operation.get("authorized_for_code")):
+        return {
+            "kind": "technical_operation_execution",
+            "executed": False,
+            "ok": False,
+            "status": "blocked",
+            "reason": "not_authorized_for_code",
+            "new_executions": [],
+            "executions": [row for row in (executed_tools or []) if isinstance(row, dict)],
+            "completed_phases": [],
+            "next_step": "Esperar a un operador autorizado para intervenir sobre código.",
+            "publish_ready": False,
+        }
+    safe_tools = ["check_status", "inspect_repo_status", "run_operator_validation"]
+    if re.search(r"\b(error|errores|log|logs|traceback)\b", str(question or "").lower()):
+        safe_tools.append("inspect_recent_errors")
+    existing = [row for row in (executed_tools or []) if isinstance(row, dict)]
+    existing_keys = {str(row.get("tool") or "") for row in existing}
+    missing = [tool for tool in safe_tools if tool not in existing_keys]
+    new_executions = _execute_tools(missing, smoke_verbosity=smoke_verbosity, workspace=workspace, question=question) if missing else []
+    combined = existing + new_executions
+    tool_ok = {
+        str(row.get("tool") or ""): bool(row.get("ok"))
+        for row in combined
+        if isinstance(row, dict)
+    }
+    applied_interventions = []
+    completed_phases = []
+    if tool_ok.get("check_status"):
+        completed_phases.append("triage")
+    if tool_ok.get("inspect_repo_status"):
+        completed_phases.append("inspect_repo")
+    if tool_ok.get("run_operator_validation"):
+        completed_phases.append("validate")
+    repo_ok = bool(tool_ok.get("inspect_repo_status"))
+    validate_ok = bool(tool_ok.get("run_operator_validation"))
+    catalog_candidates = [row for row in (operation.get("catalog_candidates") or []) if isinstance(row, dict)]
+    auto_apply_candidate = next((
+        row for row in catalog_candidates
+        if bool(row.get("auto_apply")) or bool((CODE_INTERVENTION_CATALOG.get(str(row.get("key") or "").strip()) or {}).get("auto_apply"))
+    ), None)
+    if validate_ok and auto_apply_candidate:
+        catalog_result = _execute_catalog_code_intervention(str(auto_apply_candidate.get("key") or ""))
+        applied_interventions.append(catalog_result)
+        if catalog_result.get("ok"):
+            repair_execution = _serialize_execution(
+                f"catalog_fix:{catalog_result.get('candidate_key')}",
+                {
+                    "ok": True,
+                    "action": "catalog_code_intervention",
+                    "detail": catalog_result,
+                },
+            )
+            repair_execution["kind"] = "repair"
+            combined.append(repair_execution)
+            post_validation = _serialize_execution("run_operator_validation", _run_operator_validation())
+            combined.append(post_validation)
+            tool_ok["run_operator_validation"] = bool(post_validation.get("ok"))
+            validate_ok = bool(post_validation.get("ok"))
+            completed_phases.append("repair")
+    publish_ready = bool(repo_ok and validate_ok and operation.get("authorized_for_publish"))
+    next_step = "Revisar el repositorio y la validación antes de tocar código."
+    if validate_ok:
+        next_step = "La operación está lista para intervención manual de código y, si procede, para preparar publicación."
+    if publish_ready and bool(operation.get("publish_requires_confirmation")):
+        next_step = "La validación está correcta; falta confirmación para commit y push."
+    if any(bool(row.get("ok")) for row in applied_interventions):
+        next_step = "Se ha aplicado un fix catalogado y la validación posterior ha terminado."
+    if any(not bool(row.get("ok")) for row in new_executions):
+        next_step = "Resolver el fallo detectado en triage o validación antes de continuar."
+    status = "completed" if validate_ok else ("running" if (repo_ok or tool_ok.get("check_status")) else "blocked")
+    return {
+        "kind": "technical_operation_execution",
+        "executed": bool(new_executions),
+        "ok": bool(repo_ok and validate_ok),
+        "status": status,
+        "new_executions": new_executions,
+        "executions": combined,
+        "completed_phases": completed_phases,
+        "applied_interventions": applied_interventions,
+        "next_step": next_step,
+        "publish_ready": publish_ready,
+    }
+
+
 def _resolve_assisted_action(question: str, *, workspace=None, page_context=None) -> dict:
     intent = _infer_intent(question)
+    task = _build_task_profile(question, intent=intent, page_context=page_context)
+    if intent in {"repair", "feature_request"} and str(task.get("scope") or "") == "code":
+        return _build_code_intervention_request(question, workspace=workspace, page_context=page_context)
     if intent == "create_player":
         return _execute_create_player_action(question, workspace=workspace, page_context=page_context)
     if intent == "create_session":
@@ -2988,6 +3518,10 @@ def _resolve_assisted_action(question: str, *, workspace=None, page_context=None
 
 def _infer_intent(question: str) -> str:
     text = str(question or "").strip().lower()
+    if re.search(r"\b(auto[\s-]?fix|arregl\w*|corrig\w*|repar\w*|solucion\w*)\b", text):
+        return "repair"
+    if re.search(r"\b(añade|agrega|implementa|crea|construye|desarrolla|modifica|extiende)\b", text) and re.search(r"\b(funcionalidad|feature|modulo|módulo|flujo|pantalla|widget|sistema|codigo|código)\b", text):
+        return "feature_request"
     if re.search(r"\b(crea|crear|genera|prepara|añade|agrega)\b.*\b(tarea|task|ejercicio)\b", text):
         return "create_task"
     if re.search(r"\b(crea|crear|programa|planifica|prepara|monta)\b.*\b(sesion|sesión|entreno|entrenamiento)\b", text):
@@ -3018,8 +3552,6 @@ def _infer_intent(question: str) -> str:
         return "maintenance_previews"
     if re.search(r"\b(reindex|reindexa|reindexar)\b", text):
         return "maintenance_reindex"
-    if re.search(r"\b(auto[\s-]?fix|arregl\w*|corrig\w*|repar\w*)\b", text):
-        return "repair"
     if re.search(r"\b(smoke|test|tests|suite)\b", text):
         return "diagnose_smoke"
     if re.search(r"\b(guia|explica|como|qué|que pasa|por qué|por que)\b", text):
@@ -3129,6 +3661,10 @@ def _plan_tools(question: str, *, run_smoke: bool, auto_fix: bool, maintenance_a
             requested_tools.append("run_operator_validation")
     elif intent == "operator_validate":
         requested_tools.extend(["inspect_repo_status", "run_operator_validation"])
+    elif intent == "feature_request":
+        requested_tools.extend(["inspect_repo_status", "run_operator_validation"])
+        if re.search(r"\b(error|errores|traceback|logs?)\b", question_lower):
+            requested_tools.append("inspect_recent_errors")
     elif auto_fix:
         requested_tools.append("auto_fix")
     elif run_smoke:
@@ -3648,6 +4184,8 @@ def run_system_guard_chat(
         page_context=page_context,
     )
     assistant_action = _resolve_assisted_action(question, workspace=workspace, page_context=page_context)
+    code_operator_mode = _build_code_operator_mode(question, planner, page_context=page_context)
+    technical_operation = _build_technical_operation(assistant_action if isinstance(assistant_action, dict) else {}, planner, page_context=page_context)
     maintenance_result = None
     executed_tools = []
     if planner.get("confirm_required") and execute_confirmed:
@@ -3665,6 +4203,15 @@ def run_system_guard_chat(
         )
         run_smoke = bool(run_smoke or ("run_smoke" in (planner.get("requested_tools") or [])))
         auto_fix = bool(auto_fix or ("auto_fix" in (planner.get("requested_tools") or [])))
+    technical_execution = _execute_controlled_technical_operation(
+        technical_operation if isinstance(technical_operation, dict) else {},
+        executed_tools=executed_tools,
+        workspace=workspace,
+        question=question,
+        smoke_verbosity=smoke_verbosity,
+    )
+    if isinstance(technical_execution, dict) and technical_execution.get("new_executions"):
+        executed_tools = [row for row in (technical_execution.get("executions") or []) if isinstance(row, dict)]
     queue_event = {}
     task_meta = planner.get("task") if isinstance(planner.get("task"), dict) else {}
     runbook_meta = planner.get("runbook") if isinstance(planner.get("runbook"), dict) else {}
@@ -3683,6 +4230,7 @@ def run_system_guard_chat(
             question=question,
             result_summary=str(assistant_action.get("message") or "")[:280],
             executions=[],
+            metadata={"assistant_action": assistant_action, "technical_operation": technical_operation, "technical_execution": technical_execution, "code_operator_mode": code_operator_mode} if technical_operation else {"assistant_action": assistant_action, "code_operator_mode": code_operator_mode},
         )
     elif planner.get("requested_tools") and workspace:
         queue_status = "pending" if planner.get("confirm_required") else ("completed" if all(bool(row.get("ok")) for row in executed_tools or []) else "blocked")
@@ -3730,6 +4278,9 @@ def run_system_guard_chat(
     fallback["improvement_proposals"] = _build_improvement_proposals(report, page_context=page_context, workspace=workspace)
     fallback["capabilities"] = _capability_snapshot(page_context=page_context)
     fallback["operator_plan"] = _operator_blueprint(question, planner=planner, page_context=page_context, response=fallback)
+    fallback["code_operator_mode"] = code_operator_mode if isinstance(code_operator_mode, dict) else {}
+    fallback["technical_operation"] = technical_operation if isinstance(technical_operation, dict) else {}
+    fallback["technical_operation_execution"] = technical_execution if isinstance(technical_execution, dict) else {}
     if assistant_action:
         action_message = str(assistant_action.get("message") or "").strip()
         if action_message:
@@ -3740,6 +4291,36 @@ def run_system_guard_chat(
             fallback["status"] = "watch" if fallback.get("status") != "fail" else fallback.get("status")
         if assistant_action.get("permission_required"):
             fallback["status"] = "risk" if fallback.get("status") != "fail" else fallback.get("status")
+        if assistant_action.get("kind") == "code_intervention_request":
+            target_area = str(assistant_action.get("target_area") or "").strip()
+            candidate_files = [str(item) for item in (assistant_action.get("candidate_files") or []) if str(item or "").strip()]
+            suggested_checks = [str(item) for item in (assistant_action.get("suggested_checks") or []) if str(item or "").strip()]
+            catalog_candidates = [row for row in (assistant_action.get("catalog_candidates") or []) if isinstance(row, dict)]
+            if target_area:
+                fallback["highlights"] = (fallback.get("highlights") or []) + [f"Intervención técnica: {target_area}"]
+            if candidate_files:
+                fallback["highlights"] = (fallback.get("highlights") or []) + [f"Ficheros candidatos: {', '.join(candidate_files[:3])}"]
+            if catalog_candidates:
+                fallback["highlights"] = (fallback.get("highlights") or []) + [f"Fix catalogado candidato: {catalog_candidates[0].get('title') or catalog_candidates[0].get('key')}"]
+            if suggested_checks:
+                fallback["actions"] = [{
+                    "type": "prompt",
+                    "label": "Inspección técnica guiada",
+                    "prompt": f"Revisa {', '.join(candidate_files[:2]) or 'el área afectada'} y valida: {suggested_checks[0]}",
+                    "reason": "Arrancar una intervención concreta sobre código.",
+                }, {
+                    "type": "prompt",
+                    "label": "Preparar publicación",
+                    "prompt": "Cuando el cambio esté validado, prepara commit y push con un mensaje técnico claro.",
+                    "reason": "Cerrar el flujo técnico hasta publicación.",
+                }] + (fallback.get("actions") or [])
+            if isinstance(technical_execution, dict) and technical_execution.get("completed_phases"):
+                fallback["highlights"] = (fallback.get("highlights") or []) + [f"Fases completadas: {', '.join(technical_execution.get('completed_phases')[:4])}"]
+            applied_interventions = [row for row in (technical_execution.get("applied_interventions") or []) if isinstance(row, dict)] if isinstance(technical_execution, dict) else []
+            if any(bool(row.get("ok")) for row in applied_interventions):
+                fallback["highlights"] = (fallback.get("highlights") or []) + [f"Fix aplicado: {applied_interventions[0].get('title') or applied_interventions[0].get('candidate_key')}"]
+        if isinstance(code_operator_mode, dict) and code_operator_mode.get("enabled"):
+            fallback["highlights"] = (fallback.get("highlights") or []) + [f"Modo operador: {code_operator_mode.get('mode')}"]
         payload = assistant_action.get("payload") if isinstance(assistant_action.get("payload"), dict) else {}
         if payload:
             collected = []
@@ -3789,6 +4370,9 @@ def run_system_guard_chat(
     }
     response["capabilities"] = response.get("capabilities") or _capability_snapshot(page_context=page_context)
     response["operator_plan"] = _operator_blueprint(question, planner=planner, page_context=page_context, response=response)
+    response["code_operator_mode"] = response.get("code_operator_mode") or code_operator_mode
+    response["technical_operation"] = response.get("technical_operation") or technical_operation
+    response["technical_operation_execution"] = response.get("technical_operation_execution") or technical_execution
     response["memory_hint"] = _truncate(memory.get("summary"), 220)
     response["runbook"] = _runbook_execution_summary(
         response.get("runbook") if isinstance(response.get("runbook"), dict) else {},
@@ -3817,6 +4401,15 @@ def run_system_guard_chat(
             "created_at": _now_iso(),
             "issue_id": str(assistant_action.get("kind") or "assistant_action"),
             "status": "resolved",
+            "runbook": str((response.get("runbook") or {}).get("key") or ""),
+            "summary": str(assistant_action.get("message") or ""),
+            "kind": "assistant_action",
+        })
+    elif assistant_action and str(assistant_action.get("kind") or "") == "code_intervention_request":
+        _append_incident_ledger(workspace, {
+            "created_at": _now_iso(),
+            "issue_id": "code_intervention_request",
+            "status": "pending" if not assistant_action.get("permission_required") else "blocked",
             "runbook": str((response.get("runbook") or {}).get("key") or ""),
             "summary": str(assistant_action.get("message") or ""),
             "kind": "assistant_action",
