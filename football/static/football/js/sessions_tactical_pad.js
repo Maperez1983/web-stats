@@ -8298,6 +8298,19 @@
 						    };
 
 						    const __pitch3dTextureCache = new Map();
+						    const ensurePitch3dQualityPreference = () => {
+						      try {
+						        if (!document.body) return 'normal';
+						        const current = safeText(document.body.dataset?.pitch3dQuality, '');
+						        if (current) return current;
+						        const viewportMax = Math.max(window.innerWidth || 0, window.innerHeight || 0);
+						        const initial = viewportMax >= 1280 ? 'high' : 'normal';
+						        document.body.dataset.pitch3dQuality = initial;
+						        return initial;
+						      } catch (e) {
+						        return 'normal';
+						      }
+						    };
 						    const getPitch3dMaxAnisotropy = () => {
 						      try {
 						        const max = Number(pitch3dRenderer?.capabilities?.getMaxAnisotropy?.()) || 16;
@@ -8307,6 +8320,7 @@
 						      }
 						    };
 						    const getPitch3dRenderPixelRatio = () => {
+						      ensurePitch3dQualityPreference();
 						      const dpr = Math.max(1, Number(window.devicePixelRatio) || 1);
 						      const viewportMax = Math.max(window.innerWidth || 0, window.innerHeight || 0);
 						      const quality = safeText(document.body?.dataset?.pitch3dQuality, 'normal');
@@ -9352,6 +9366,7 @@
 						    const ensurePitch3d = () => {
 						      if (!canUsePitch3d()) return false;
 						      if (pitch3dRenderer && pitch3dScene && pitch3dCamera) return true;
+						      ensurePitch3dQualityPreference();
 						      try {
 						        const renderer = new THREE.WebGLRenderer({ canvas: pitch3dCanvasEl, antialias: true, alpha: false, preserveDrawingBuffer: true });
 						        renderer.setPixelRatio(getPitch3dRenderPixelRatio());
@@ -12152,10 +12167,12 @@
 						                  mat.color.multiplyScalar(jitter);
 						                  mat.map = mat.map || makeStadiumSurfaceTexture('seat');
 						                  mat.roughnessMap = mat.roughnessMap || mat.map || null;
-						                  mat.roughness = 0.58;
-						                  mat.metalness = 0.015;
+						                  mat.roughness = 0.48;
+						                  mat.metalness = 0.02;
+						                  mat.emissive = new THREE.Color(mat.color).multiplyScalar(0.045);
+						                  mat.emissiveIntensity = 0.55;
 						                } else if (semantic.concrete) {
-						                  mat.color.lerp(new THREE.Color(0xd8ded8), 0.24);
+						                  mat.color.lerp(new THREE.Color(0xdfe5de), 0.34);
 						                  mat.map = mat.map || makeStadiumSurfaceTexture('concrete');
 						                  __pitch3dLoadTextureAsset('pitch3dConcreteAlbedoSrc', (loaded) => {
 						                    try {
@@ -12167,32 +12184,32 @@
 						                    } catch (e) { /* ignore */ }
 						                  }, { wrap: 'repeat', repeat: [18, 3], anisotropy: 12 });
 						                  mat.bumpMap = mat.bumpMap || mat.map || null;
-						                  mat.bumpScale = 0.018;
+						                  mat.bumpScale = 0.024;
 						                  mat.roughnessMap = mat.roughnessMap || mat.map || null;
-						                  mat.roughness = 0.88;
+						                  mat.roughness = 0.82;
 						                  mat.metalness = 0.018;
 						                } else if (semantic.dark) {
 						                  mat.color.lerp(new THREE.Color(0x020617), 0.44);
 						                  mat.roughness = 0.92;
 						                  mat.metalness = 0.01;
 						                } else if (semantic.metal) {
-						                  mat.color.lerp(new THREE.Color(0xdbe3e1), 0.20);
+						                  mat.color.lerp(new THREE.Color(0xe3ece8), 0.28);
 						                  mat.map = mat.map || makeStadiumSurfaceTexture('metal');
 						                  mat.roughnessMap = mat.roughnessMap || mat.map || null;
-						                  mat.roughness = 0.36;
-						                  mat.metalness = 0.34;
+						                  mat.roughness = 0.28;
+						                  mat.metalness = 0.42;
 						                } else if (semantic.glass) {
-						                  mat.color.set(0xc7efff);
+						                  mat.color.set(0xdaf4ff);
 						                  mat.transparent = true;
-						                  mat.opacity = 0.36;
-						                  mat.roughness = 0.10;
+						                  mat.opacity = 0.30;
+						                  mat.roughness = 0.08;
 						                  mat.metalness = 0.02;
 						                  mat.side = THREE.DoubleSide;
-						                  if ('transmission' in mat) mat.transmission = 0.20;
+						                  if ('transmission' in mat) mat.transmission = 0.28;
 						                } else if (semantic.roof) {
-						                  mat.color.lerp(new THREE.Color(0xf3f5f1), 0.28);
-						                  mat.roughness = 0.42;
-						                  mat.metalness = 0.16;
+						                  mat.color.lerp(new THREE.Color(0xf5f7f3), 0.38);
+						                  mat.roughness = 0.34;
+						                  mat.metalness = 0.22;
 						                } else if (semantic.asphalt) {
 						                  mat.color.set(0x2d3335);
 						                  mat.roughness = 0.94;
@@ -12397,7 +12414,8 @@
 						                  return new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false, side: THREE.DoubleSide });
 						                };
 						                const scoreboardMat = makeCornerScoreboardMaterial();
-						                const railGlowMat = new THREE.MeshBasicMaterial({ color: 0xe0f2fe, transparent: true, opacity: 0.36, toneMapped: false, depthWrite: false });
+						                const railGlowMat = new THREE.MeshBasicMaterial({ color: 0xe0f2fe, transparent: true, opacity: 0.42, toneMapped: false, depthWrite: false });
+						                const skyBounceMat = new THREE.MeshBasicMaterial({ color: 0xbfe7ff, transparent: true, opacity: 0.12, toneMapped: false, depthWrite: false, side: THREE.DoubleSide });
 						                [
 						                  [0, metersH / 2 + 25.6, metersW + 48.0, 0.10],
 						                  [0, -(metersH / 2 + 25.6), metersW + 48.0, 0.10],
@@ -12408,6 +12426,16 @@
 						                  strip.position.set(x, 15.15, z);
 						                  strip.userData = { kind: 'pitch_3d_stadium_roof_light_continuity' };
 						                  atmosphere.add(strip);
+						                });
+						                [
+						                  [0, metersH / 2 + 30.6, metersW + 64.0, 11.0, -0.16],
+						                  [0, -(metersH / 2 + 30.6), metersW + 64.0, 11.0, 0.16],
+						                ].forEach(([x, z, w, h, rx]) => {
+						                  const bounce = new THREE.Mesh(new THREE.PlaneGeometry(w, h), skyBounceMat);
+						                  bounce.position.set(x, 13.6, z);
+						                  bounce.rotation.x = rx;
+						                  bounce.userData = { kind: 'pitch_3d_stadium_roof_sky_bounce' };
+						                  atmosphere.add(bounce);
 						                });
 						                const roofPanelLong = new THREE.BoxGeometry(Math.max(7.2, metersW / 12), 0.055, 4.8);
 						                const roofPanelEnd = new THREE.BoxGeometry(4.8, 0.055, Math.max(5.8, metersH / 10));
@@ -13025,6 +13053,17 @@
 						                };
 						                addRealLightInfluence();
 						                const addAnimatedAdFaceAndPitchsideLife = () => {
+						                  const liveAdMat = makeLiveAdMaterial();
+						                  [
+						                    [0, -(metersH / 2 + 2.86), metersW * 0.88, 0],
+						                    [0, metersH / 2 + 2.86, metersW * 0.88, Math.PI],
+						                  ].forEach(([x, z, w, ry]) => {
+						                    const face = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.92), liveAdMat);
+						                    face.position.set(x, 0.92, z);
+						                    face.rotation.y = ry;
+						                    face.userData = { kind: 'pitch_3d_stadium_live_led_ribbon_face' };
+						                    atmosphere.add(face);
+						                  });
 						                  [
 						                    [-metersW * 0.42, -(metersH / 2 + 3.8), 0],
 						                    [metersW * 0.42, -(metersH / 2 + 3.8), 0],
