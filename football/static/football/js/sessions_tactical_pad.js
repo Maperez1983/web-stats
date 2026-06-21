@@ -8235,7 +8235,29 @@
 						    const __pitch3dAssetUrl = (dataKey) => {
 						      try {
 						        const formEl = document.getElementById('task-builder-form');
-						        return safeText(formEl?.dataset?.[dataKey] || '').trim();
+						        const direct = safeText(formEl?.dataset?.[dataKey] || '').trim();
+						        if (direct) return direct;
+						        const tpadSrc = safeText(formEl?.dataset?.tpadSrc || '').trim();
+						        let versionSuffix = '';
+						        try {
+						          const parsed = new URL(tpadSrc || '', window.location.origin);
+						          const version = safeText(parsed.searchParams.get('v') || '').trim();
+						          if (version) versionSuffix = `?v=${encodeURIComponent(version)}`;
+						        } catch (e) { /* ignore */ }
+						        const fallbacks = {
+						          pitch3dStadiumModelSrc: `/static/football/models/pitch3d/stadium_malaga_rosaleda.glb${versionSuffix}`,
+						          pitch3dGrassAlbedoSrc: `/static/football/images/pitch3d/grass_premium_albedo.png${versionSuffix}`,
+						          pitch3dGrassBumpSrc: `/static/football/images/pitch3d/grass_premium_bump.png${versionSuffix}`,
+						          pitch3dGrassNormalSrc: `/static/football/images/pitch3d/grass_premium_normal.png${versionSuffix}`,
+						          pitch3dGrassRoughnessSrc: `/static/football/images/pitch3d/grass_premium_roughness.png${versionSuffix}`,
+						          pitch3dConcreteAlbedoSrc: `/static/football/materials/pitch3d/ambientcg/Concrete034/Concrete034_1K-JPG_Color.jpg${versionSuffix}`,
+						          pitch3dBenagalbonCrestSrc: `/static/football/images/kit_logos/benagalbon_crest_alpha.png${versionSuffix}`,
+						          pitch3dGoalModelSrc: `/static/football/models/pitch3d/goal_premium.glb${versionSuffix}`,
+						          pitch3dStadiumTopHSrc: `/static/football/images/pitch3d/stadium_rosaleda_top_h.png${versionSuffix}`,
+						          pitch3dStadiumTopVSrc: `/static/football/images/pitch3d/stadium_rosaleda_top_v.png${versionSuffix}`,
+						          pitch3dPlayerModelSrc: `/static/football/models/avatar/player_humanoid.glb${versionSuffix}`,
+						        };
+						        return safeText(fallbacks[dataKey] || '').trim();
 						      } catch (e) {
 						        return '';
 						      }
