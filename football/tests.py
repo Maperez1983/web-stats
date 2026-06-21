@@ -592,6 +592,45 @@ class SystemGuardTests(TestCase):
         self.assertTrue(blueprint['validation_plan'])
         self.assertTrue(blueprint['patch_drafts'])
 
+    def test_build_repair_commander_exposes_diagnosis_and_exit_criteria(self):
+        repair = system_guard._build_repair_commander(
+            'Por que no se visualiza bien el estadio 3d y si lo puedes solucionar',
+            technical_operation={
+                'kind': 'technical_operation',
+                'authorized_for_code': True,
+                'authorized_for_publish': True,
+                'area': 'Render 3D del estadio y editor táctico',
+                'candidate_files': ['football/static/football/js/sessions_tactical_pad.js', 'football/views.py'],
+                'suggested_checks': ['Comprobar si cargan el modelo GLB, texturas y assets del estadio.'],
+                'phases': [{'key': 'triage'}, {'key': 'inspect_repo'}, {'key': 'validate'}, {'key': 'repair'}],
+            },
+            technical_execution={
+                'status': 'completed',
+                'publish_ready': True,
+                'completed_phases': ['triage', 'inspect_repo', 'validate'],
+                'next_step': 'La operación está lista para intervención manual de código y, si procede, para preparar publicación.',
+            },
+            code_operator_mode={
+                'enabled': True,
+                'mode': 'repair',
+                'area': 'Render 3D del estadio y editor táctico',
+                'candidate_files': ['football/static/football/js/sessions_tactical_pad.js'],
+            },
+            change_blueprint={
+                'file_changes': [{'path': 'football/static/football/js/sessions_tactical_pad.js'}],
+                'validation_plan': ['Ejecutar `manage.py check` y validación técnica del operador.'],
+            },
+            autofix_runner={
+                'next_actions': ['Revisar diff final y decidir si el cambio queda listo para publicar.'],
+            },
+        )
+        self.assertTrue(repair['embedded'])
+        self.assertEqual(repair['status'], 'publish_ready')
+        self.assertGreaterEqual(repair['confidence_percent'], 70)
+        self.assertTrue(repair['diagnosis']['hypotheses'])
+        self.assertTrue(repair['next_actions'])
+        self.assertTrue(repair['exit_criteria'])
+
     @patch('football.system_guard._execute_tools', return_value=[{
         'tool': 'check_status',
         'label': 'Revisar estado',
@@ -1363,11 +1402,16 @@ class SystemGuardTests(TestCase):
         self.assertTrue(response['autofix_runner']['active'])
         self.assertTrue(response['autofix_runner']['executable'])
         self.assertTrue(response['autofix_runner']['pending_patch_drafts'])
+        self.assertEqual(response['repair_commander']['status'], 'publish_ready')
+        self.assertGreaterEqual(response['repair_commander']['confidence_percent'], 70)
+        self.assertTrue(response['repair_commander']['diagnosis']['hypotheses'])
         self.assertTrue(response['intelligence_os']['layers']['execution']['execution_plan']['stages'])
+        self.assertEqual(response['intelligence_os']['layers']['execution']['repair_commander']['status'], 'publish_ready')
         self.assertTrue(response['intelligence_os']['layers']['supervision']['code_operator']['embedded'])
         self.assertTrue(response['intelligence_os']['layers']['supervision']['code_operator']['enabled'])
         self.assertTrue(response['intelligence_os']['layers']['supervision']['code_operator']['candidate_files'])
         self.assertTrue(response['intelligence_os']['layers']['supervision']['autonomy_controller']['embedded'])
+        self.assertEqual(response['intelligence_os']['layers']['supervision']['repair_readiness'], 'publish_ready')
         self.assertIn(response['intelligence_os']['layers']['incident_commander']['status'], {'stable', 'running', 'blocked', 'awaiting_operator', 'regression_detected'})
         self.assertEqual(response['intelligence_os']['layers']['policy_decisions']['requested_action'], 'repair_code')
 

@@ -5007,6 +5007,7 @@ def _mission_control_snapshot(
     planner=None,
     assistant_action=None,
     technical_execution=None,
+    repair_commander=None,
     silent_operator=None,
     improvement_proposals=None,
     snapshot_diff=None,
@@ -5015,6 +5016,7 @@ def _mission_control_snapshot(
     planner = planner if isinstance(planner, dict) else {}
     assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
     technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
+    repair_commander = repair_commander if isinstance(repair_commander, dict) else {}
     silent_operator = silent_operator if isinstance(silent_operator, dict) else {}
     snapshot_diff = snapshot_diff if isinstance(snapshot_diff, dict) else {}
     improvement_proposals = improvement_proposals if isinstance(improvement_proposals, list) else []
@@ -5024,6 +5026,7 @@ def _mission_control_snapshot(
         technical_execution=technical_execution,
         operator_profile={},
         silent_operator=silent_operator,
+        repair_commander=repair_commander,
     )
     task = planner.get("task") if isinstance(planner.get("task"), dict) else {}
     runbook = planner.get("runbook") if isinstance(planner.get("runbook"), dict) else {}
@@ -5299,6 +5302,7 @@ def _build_intelligence_os_snapshot(
                 planner=planner,
                 assistant_action=assistant_action,
                 technical_execution=technical_execution,
+                repair_commander=repair_commander,
                 silent_operator=silent_operator,
                 improvement_proposals=improvement_proposals,
                 snapshot_diff=snapshot_diff,
@@ -7031,6 +7035,14 @@ def run_system_guard_chat(
         technical_execution=technical_execution if isinstance(technical_execution, dict) else {},
         change_blueprint=change_blueprint if isinstance(change_blueprint, dict) else {},
     )
+    repair_commander = _build_repair_commander(
+        question,
+        technical_operation=technical_operation if isinstance(technical_operation, dict) else {},
+        technical_execution=technical_execution if isinstance(technical_execution, dict) else {},
+        code_operator_mode=code_operator_mode if isinstance(code_operator_mode, dict) else {},
+        change_blueprint=change_blueprint if isinstance(change_blueprint, dict) else {},
+        autofix_runner=autofix_runner if isinstance(autofix_runner, dict) else {},
+    )
     queue_event = {}
     task_meta = planner.get("task") if isinstance(planner.get("task"), dict) else {}
     runbook_meta = planner.get("runbook") if isinstance(planner.get("runbook"), dict) else {}
@@ -7102,6 +7114,7 @@ def run_system_guard_chat(
     fallback["technical_operation"] = technical_operation if isinstance(technical_operation, dict) else {}
     fallback["technical_operation_execution"] = technical_execution if isinstance(technical_execution, dict) else {}
     fallback["autofix_runner"] = autofix_runner if isinstance(autofix_runner, dict) else {}
+    fallback["repair_commander"] = repair_commander if isinstance(repair_commander, dict) else {}
     if assistant_action:
         action_message = str(assistant_action.get("message") or "").strip()
         if action_message:
@@ -7144,6 +7157,13 @@ def run_system_guard_chat(
             fallback["highlights"] = (fallback.get("highlights") or []) + [f"Modo operador: {code_operator_mode.get('mode')}"]
         if isinstance(change_blueprint, dict) and change_blueprint.get("file_changes"):
             fallback["highlights"] = (fallback.get("highlights") or []) + [f"Blueprint de cambio: {len(change_blueprint.get('file_changes') or [])} archivos objetivo"]
+        if isinstance(repair_commander, dict) and repair_commander.get("diagnosis"):
+            diagnosis = repair_commander.get("diagnosis") if isinstance(repair_commander.get("diagnosis"), dict) else {}
+            primary = diagnosis.get("primary_hypothesis") if isinstance(diagnosis.get("primary_hypothesis"), dict) else {}
+            if primary.get("label"):
+                fallback["highlights"] = (fallback.get("highlights") or []) + [f"Hipótesis técnica: {primary.get('label')}"]
+            if repair_commander.get("confidence_percent"):
+                fallback["highlights"] = (fallback.get("highlights") or []) + [f"Confianza de reparación: {repair_commander.get('confidence_percent')}%"]
         if assistant_action.get("navigate_to") and isinstance(assistant_action.get("navigate_to"), dict):
             route = assistant_action.get("navigate_to") or {}
             fallback["ui_actions"] = [{
@@ -7182,6 +7202,7 @@ def run_system_guard_chat(
         code_operator_mode=code_operator_mode if isinstance(code_operator_mode, dict) else {},
         change_blueprint=change_blueprint if isinstance(change_blueprint, dict) else {},
         autofix_runner=autofix_runner if isinstance(autofix_runner, dict) else {},
+        repair_commander=repair_commander if isinstance(repair_commander, dict) else {},
         operator_profile=operator_profile,
         silent_operator=fallback.get("silent_operator") if isinstance(fallback.get("silent_operator"), dict) else {},
         improvement_proposals=fallback.get("improvement_proposals") if isinstance(fallback.get("improvement_proposals"), list) else [],
@@ -7226,6 +7247,7 @@ def run_system_guard_chat(
     response["technical_operation"] = response.get("technical_operation") or technical_operation
     response["technical_operation_execution"] = response.get("technical_operation_execution") or technical_execution
     response["autofix_runner"] = response.get("autofix_runner") or autofix_runner
+    response["repair_commander"] = response.get("repair_commander") or repair_commander
     response["memory_hint"] = _truncate(memory.get("summary"), 220)
     response["runbook"] = _runbook_execution_summary(
         response.get("runbook") if isinstance(response.get("runbook"), dict) else {},
@@ -7252,6 +7274,7 @@ def run_system_guard_chat(
         code_operator_mode=response.get("code_operator_mode") if isinstance(response.get("code_operator_mode"), dict) else {},
         change_blueprint=response.get("change_blueprint") if isinstance(response.get("change_blueprint"), dict) else {},
         autofix_runner=response.get("autofix_runner") if isinstance(response.get("autofix_runner"), dict) else {},
+        repair_commander=response.get("repair_commander") if isinstance(response.get("repair_commander"), dict) else {},
         operator_profile=response.get("operator_profile") if isinstance(response.get("operator_profile"), dict) else {},
         silent_operator=response.get("silent_operator") if isinstance(response.get("silent_operator"), dict) else {},
         improvement_proposals=response.get("improvement_proposals") if isinstance(response.get("improvement_proposals"), list) else [],
