@@ -390,6 +390,7 @@ PROACTIVE_STATE_PREF_KEY = "system_guard:proactive_state:v1"
 SCHEDULED_GUARD_STATE_PREF_KEY = "system_guard:scheduled_cycle:v1"
 INCIDENT_LEDGER_PREF_KEY = "system_guard:incident_ledger:v1"
 OPERATOR_PROFILE_PREF_KEY = "system_guard:operator_profile:v1"
+OBJECTIVE_MEMORY_PREF_KEY = "system_guard:objective_memory:v1"
 SCHEDULED_GUARD_INTERVAL_SECONDS = 300
 ACTION_PERMISSION_MATRIX = {
     "inspect_system": {"requires_manage_guard": False, "requires_code_operator": False, "scope": "system"},
@@ -1962,6 +1963,7 @@ def _observability_summary(workspace) -> dict:
     audit_rows = _load_audit_log(workspace) if workspace else []
     incident_ledger = _load_incident_ledger(workspace) if workspace else []
     queue_rows = _load_task_queue(workspace) if workspace else []
+    objective_rows = _load_objective_memory(workspace) if workspace else []
     history = _inspect_guard_history(workspace)
     llm_counter = {}
     for row in rows[:10]:
@@ -2035,6 +2037,16 @@ def _observability_summary(workspace) -> dict:
             "status": str(row.get("status") or "pending")[:24],
             "summary": str(row.get("result_summary") or row.get("summary") or "")[:180],
         })
+    objective_memory = []
+    for row in objective_rows[:5]:
+        if not isinstance(row, dict):
+            continue
+        objective_memory.append({
+            "title": str(row.get("title") or "Objetivo técnico")[:120],
+            "status": str(row.get("status") or "running")[:24],
+            "progress_percent": _safe_int(row.get("progress_percent"), 0),
+            "next_step": str(row.get("next_step") or "")[:180],
+        })
     return {
         "available": bool(rows or turns or memory),
         "history_count": len(rows),
@@ -2068,6 +2080,7 @@ def _observability_summary(workspace) -> dict:
         "task_queue_preview": queue_rows[:3] if workspace else [],
         "timeline": timeline[:6],
         "task_memory": task_memory[:5],
+        "objective_memory": objective_memory[:5],
         "proactive_state": _load_proactive_state(workspace) if workspace else {},
         "scheduled_state": _scheduled_guard_state(workspace) if workspace else {},
     }
@@ -2139,6 +2152,7 @@ def _operational_memory_snapshot(workspace, *, actor_id=None) -> dict:
     merged = _merge_memory(global_memory, actor_memory) if workspace else {}
     incident_ledger = _load_incident_ledger(workspace) if workspace else []
     queue_rows = _load_task_queue(workspace) if workspace else []
+    objectives = _objective_orchestrator_snapshot(workspace, actor_id=actor_id) if workspace else {}
     recurring = []
     counters = {}
     for row in incident_ledger[:30]:
@@ -2172,6 +2186,7 @@ def _operational_memory_snapshot(workspace, *, actor_id=None) -> dict:
             for row in queue_rows[:5]
             if isinstance(row, dict)
         ],
+        "objective_memory": list(objectives.get("objectives") or [])[:5],
         "turn_count": _safe_int(merged.get("turn_count"), 0),
         "last_status": str(merged.get("last_status") or "")[:32],
     }
@@ -2439,6 +2454,13 @@ def _store_task_queue(workspace, rows: list[dict]):
     _store_pref_value(workspace, TASK_QUEUE_PREF_KEY, cleaned)
 
 
+def _env_flag(name: str, default: bool = False) -> bool:
+    value = str(os.environ.get(name, "") or "").strip().lower()
+    if not value:
+        return default
+    return value in {"1", "true", "yes", "on", "enabled"}
+
+
 def _queue_signature(task: dict) -> str:
     if not isinstance(task, dict):
         return ""
@@ -2510,6 +2532,120 @@ def _store_scheduled_guard_state(workspace, payload: dict):
     if not workspace:
         return
     _store_pref_value(workspace, SCHEDULED_GUARD_STATE_PREF_KEY, payload if isinstance(payload, dict) else {})
+
+
+def _load_objective_memory(workspace) -> list[dict]:
+    payload = _pref_value(workspace, OBJECTIVE_MEMORY_PREF_KEY, [])
+    if not isinstance(payload, list):
+        return []
+    return [row for row in payload if isinstance(row, dict)][:24]
+
+
+def _store_objective_memory(workspace, rows: list[dict]):
+    if not workspace:
+        return
+    cleaned = [row for row in (rows or []) if isinstance(row, dict)][:24]
+    _store_pref_value(workspace, OBJECTIVE_MEMORY_PREF_KEY, cleaned)
+
+
+def _objective_memory_key(*, question: str, task_kind: str, runbook: str) -> str:
+    base = slugify(f"{task_kind}-{runbook}-{question}")[:96]
+    return base or f"objective-{abs(hash((task_kind, runbook, question))) % 100000}"
+
+
+def _should_track_objective(*, planner=None, technical_operation=None, assistant_action=None) -> bool:
+    planner = planner if isinstance(planner, dict) else {}
+    technical_operation = technical_operation if isinstance(technical_operation, dict) else {}
+    assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
+    task = planner.get("task") if isinstance(planner.get("task"), dict) else {}
+    if str(technical_operation.get("kind") or "") == "technical_operation":
+        return True
+    if str(task.get("scope") or "") in {"code", "system"}:
+        return True
+    return str(assistant_action.get("kind") or "") in {"code_intervention_request", "action_chain"}
+
+
+def _update_objective_memory(
+    workspace,
+    *,
+    question: str,
+    planner=None,
+    technical_operation=None,
+    technical_execution=None,
+    response=None,
+    assistant_action=None,
+    actor_id=None,
+) -> dict:
+    if not workspace or not _should_track_objective(planner=planner, technical_operation=technical_operation, assistant_action=assistant_action):
+        return {}
+    planner = planner if isinstance(planner, dict) else {}
+    technical_operation = technical_operation if isinstance(technical_operation, dict) else {}
+    technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
+    response = response if isinstance(response, dict) else {}
+    assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
+    task = planner.get("task") if isinstance(planner.get("task"), dict) else {}
+    runbook = planner.get("runbook") if isinstance(planner.get("runbook"), dict) else {}
+    completed = {str(item) for item in (technical_execution.get("completed_phases") or []) if str(item or "").strip()}
+    progress = max(10, min(100, len(completed) * 20))
+    if technical_execution.get("ok") or str(response.get("status") or "") in {"resolved", "ok"}:
+        progress = max(progress, 90)
+    objective_question = _truncate(question, 220)
+    key = _objective_memory_key(
+        question=objective_question,
+        task_kind=str(task.get("kind") or technical_operation.get("kind") or "objective"),
+        runbook=str(runbook.get("key") or task.get("runbook_key") or "guard"),
+    )
+    next_step = str(
+        technical_execution.get("next_step")
+        or response.get("next_step")
+        or ((response.get("request_contract") or {}).get("next_step") if isinstance(response.get("request_contract"), dict) else "")
+        or ""
+    )[:220]
+    objective_row = {
+        "id": key,
+        "title": str(task.get("title") or technical_operation.get("title") or objective_question)[:160],
+        "target": objective_question,
+        "scope": str(task.get("scope") or "code")[:32],
+        "task_kind": str(task.get("kind") or technical_operation.get("kind") or "technical_operation")[:48],
+        "runbook": str(runbook.get("key") or task.get("runbook_key") or "guard")[:64],
+        "status": str(technical_execution.get("status") or response.get("status") or "running")[:32],
+        "progress_percent": int(progress),
+        "completed_phases": sorted(completed)[:6],
+        "next_step": next_step,
+        "result_summary": str(response.get("summary") or response.get("message") or "")[:240],
+        "resume_token": f"{key}:{int(time.time())}",
+        "owner_scope": "actor" if actor_id else "workspace",
+        "updated_at": _now_iso(),
+    }
+    rows = _load_objective_memory(workspace)
+    updated_rows = [row for row in rows if str(row.get("id") or "") != key]
+    updated_rows.insert(0, objective_row)
+    _store_objective_memory(workspace, updated_rows)
+    return objective_row
+
+
+def _objective_orchestrator_snapshot(workspace, *, actor_id=None) -> dict:
+    rows = _load_objective_memory(workspace) if workspace else []
+    active = [row for row in rows if str((row or {}).get("status") or "") not in {"completed", "resolved"}]
+    resumable = [row for row in rows if str((row or {}).get("next_step") or "").strip()]
+    return {
+        "embedded": True,
+        "continuous_operator_ready": True,
+        "active_count": len(active),
+        "resumable_count": len(resumable),
+        "actor_scope": "actor" if actor_id else "workspace",
+        "objectives": [
+            {
+                "title": str(row.get("title") or "Objetivo técnico")[:140],
+                "status": str(row.get("status") or "running")[:24],
+                "progress_percent": _safe_int(row.get("progress_percent"), 0),
+                "next_step": str(row.get("next_step") or "")[:180],
+                "resume_token": str(row.get("resume_token") or "")[:120],
+            }
+            for row in rows[:6]
+            if isinstance(row, dict)
+        ],
+    }
 
 
 def _maybe_run_scheduled_guard_cycle(*, workspace, actor_id=None, page_context=None, force: bool = False) -> dict:
@@ -5776,6 +5912,8 @@ def _build_real_code_operator(
         execution_scope = "catalog_autofix_execution"
     elif bool(repository_operator.get("patch_bundle")):
         execution_scope = "patch_bundle_execution"
+    elif can_code and bool(repository_operator.get("execution_ready")):
+        execution_scope = "unbounded_repo_execution"
     remaining_gates = []
     if not can_code:
         remaining_gates.append("code_permission_required")
@@ -5828,9 +5966,16 @@ def _build_real_code_operator(
             "validate",
             "repair",
         ] if can_code else ["triage", "inspect_repo"],
+        "execution_modes": [
+            "catalog_autofix",
+            "patch_bundle",
+            "repo_wide_manual_edit",
+            "validation_publish",
+        ] if can_code else ["guided_diagnostics"],
         "execution_log": execution_log[:8],
         "owner_restricted": bool(page_context.get("can_manage_guard")) and not bool(page_context.get("can_operate_guard_code")),
         "publish_status": str(publish_commander.get("status") or "")[:32],
+        "continuous_handoff_ready": bool(repository_operator.get("execution_ready")),
     }
 
 
@@ -5934,6 +6079,14 @@ def _build_deployment_guard(
         next_checks.append("Preparar verificación de despliegue tras la publicación autorizada.")
     if not next_checks:
         next_checks.append("Esperar el siguiente cambio validado para abrir ventana de despliegue.")
+    connector_items = _external_connectors_snapshot(page_context={}).get("items") or []
+    rollback_connector = next((row for row in connector_items if isinstance(row, dict) and str(row.get("key") or "") == "rollback_trigger_api"), {})
+    auto_rollback_eligible = bool(
+        _env_flag("OLLANA_AUTO_ROLLBACK_ENABLED")
+        and status == "deployment_risk"
+        and push_done
+        and str((rollback_connector or {}).get("status") or "") == "armed"
+    )
     return {
         "embedded": True,
         "status": status,
@@ -5951,6 +6104,76 @@ def _build_deployment_guard(
             for row in error_patterns[:3]
         ],
         "next_checks": next_checks[:4],
+        "auto_rollback_eligible": auto_rollback_eligible,
+    }
+
+
+def _build_infrastructure_operator(*, external_connectors=None, deployment_guard=None, observability_mesh=None, autonomy_policy=None) -> dict:
+    external_connectors = external_connectors if isinstance(external_connectors, dict) else {}
+    deployment_guard = deployment_guard if isinstance(deployment_guard, dict) else {}
+    observability_mesh = observability_mesh if isinstance(observability_mesh, dict) else {}
+    autonomy_policy = autonomy_policy if isinstance(autonomy_policy, dict) else {}
+    items = [row for row in (external_connectors.get("items") or []) if isinstance(row, dict)]
+    armed = [row for row in items if str(row.get("status") or "") in {"ready", "armed"}]
+    return {
+        "embedded": True,
+        "connector_count": len(items),
+        "armed_connectors": [str(row.get("key") or "")[:64] for row in armed[:8]],
+        "can_operate_runtime": any(str(row.get("key") or "") == "render_runtime" for row in armed),
+        "can_operate_release": any(str(row.get("key") or "") == "release_pipeline_api" for row in armed),
+        "can_trigger_deploy": any(str(row.get("key") or "") == "deploy_trigger_api" for row in armed),
+        "can_trigger_rollback": any(str(row.get("key") or "") == "rollback_trigger_api" for row in armed),
+        "monitoring_ready": bool(observability_mesh.get("monitoring_ready")),
+        "deployment_status": str(deployment_guard.get("status") or "")[:32],
+        "continuous_mode": str(autonomy_policy.get("mode") or "") in {"technical_operator", "owner_code_operator"},
+        "auto_rollback_eligible": bool(deployment_guard.get("auto_rollback_eligible")),
+    }
+
+
+def _maybe_trigger_automatic_rollback(
+    *,
+    workspace,
+    deployment_guard=None,
+    release_guard=None,
+    question: str = "",
+) -> dict:
+    deployment_guard = deployment_guard if isinstance(deployment_guard, dict) else {}
+    release_guard = release_guard if isinstance(release_guard, dict) else {}
+    if not workspace or not _env_flag("OLLANA_AUTO_ROLLBACK_ENABLED"):
+        return {}
+    if not bool(deployment_guard.get("auto_rollback_eligible")):
+        return {}
+    if not bool(release_guard.get("push_done")):
+        return {}
+    result = _trigger_remote_rollback()
+    if not result.get("ok"):
+        return {}
+    summary = f"Rollback automático remoto lanzado: {str(result.get('status') or 'queued')}"
+    _record_task_queue_event(
+        workspace,
+        title="Rollback automático remoto",
+        summary=summary,
+        task_kind="rollback",
+        runbook="automatic_rollback",
+        tools=["trigger_remote_rollback"],
+        source="autonomous_guard",
+        status="completed",
+        question=question or "rollback automatico por riesgo de despliegue",
+        result_summary=summary,
+        executions=[{"tool": "trigger_remote_rollback", "ok": True, "result": result, "kind": "maintenance"}],
+    )
+    _append_incident_ledger(workspace, {
+        "created_at": _now_iso(),
+        "issue_id": "trigger_remote_rollback",
+        "status": "resolved",
+        "runbook": "automatic_rollback",
+        "summary": summary,
+        "kind": "maintenance",
+    })
+    return {
+        "triggered": True,
+        "mode": "automatic_rollback",
+        "result": result,
     }
 
 
@@ -8708,6 +8931,23 @@ def run_system_guard_chat(
         technical_operation=technical_operation if isinstance(technical_operation, dict) else {},
         technical_execution=technical_execution if isinstance(technical_execution, dict) else {},
     )
+    auto_rollback = _maybe_trigger_automatic_rollback(
+        workspace=workspace,
+        deployment_guard=deployment_guard if isinstance(deployment_guard, dict) else {},
+        release_guard=release_guard if isinstance(release_guard, dict) else {},
+        question=question,
+    )
+    if auto_rollback:
+        deployment_guard = dict(deployment_guard or {})
+        deployment_guard["auto_rollback_triggered"] = True
+        deployment_guard["auto_rollback_result"] = auto_rollback.get("result") or {}
+    infrastructure_operator = _build_infrastructure_operator(
+        external_connectors=external_connectors,
+        deployment_guard=deployment_guard if isinstance(deployment_guard, dict) else {},
+        observability_mesh=observability_mesh,
+        autonomy_policy=autonomy_policy,
+    )
+    objective_orchestrator = _objective_orchestrator_snapshot(workspace, actor_id=actor_id)
     autonomous_closure = _autonomous_closure_snapshot(
         planner=planner,
         technical_execution=technical_execution if isinstance(technical_execution, dict) else {},
@@ -8740,6 +8980,8 @@ def run_system_guard_chat(
     fallback["autonomy_policy"] = autonomy_policy
     fallback["observability_mesh"] = observability_mesh
     fallback["operational_memory"] = operational_memory
+    fallback["infrastructure_operator"] = infrastructure_operator
+    fallback["objective_orchestrator"] = objective_orchestrator
     fallback["autonomous_closure"] = autonomous_closure
     fallback["request_contract"] = _build_request_contract(
         question,
@@ -8822,6 +9064,8 @@ def run_system_guard_chat(
             fallback["highlights"] = (fallback.get("highlights") or []) + [f"Ejecución real: {real_code_operator.get('execution_scope')}"]
             if real_code_operator.get("self_applied_fix"):
                 fallback["highlights"] = (fallback.get("highlights") or []) + ["Ollana ya ha aplicado un fix sobre código"]
+        if isinstance(infrastructure_operator, dict) and infrastructure_operator.get("connector_count"):
+            fallback["highlights"] = (fallback.get("highlights") or []) + [f"Infra operable: {infrastructure_operator.get('connector_count')} conectores"]
         if isinstance(observability_mesh, dict) and observability_mesh.get("active_signals"):
             fallback["highlights"] = (fallback.get("highlights") or []) + [f"Observabilidad: {observability_mesh.get('active_signals')[0]}"]
         if isinstance(autonomous_closure, dict) and autonomous_closure.get("autonomous_resolution_ready"):
@@ -8830,6 +9074,8 @@ def run_system_guard_chat(
             fallback["highlights"] = (fallback.get("highlights") or []) + [f"Verificación post-cambio: {release_guard.get('status')}"]
         if isinstance(deployment_guard, dict) and deployment_guard.get("verification_window"):
             fallback["highlights"] = (fallback.get("highlights") or []) + [f"Despliegue: {deployment_guard.get('status')}"]
+            if deployment_guard.get("auto_rollback_triggered"):
+                fallback["highlights"] = (fallback.get("highlights") or []) + ["Rollback automático disparado por riesgo de producción"]
         if isinstance(self_healing, dict) and self_healing.get("ready"):
             fallback["highlights"] = (fallback.get("highlights") or []) + [f"Autocuración: {self_healing.get('strategy')}"]
         if assistant_action.get("navigate_to") and isinstance(assistant_action.get("navigate_to"), dict):
@@ -8933,6 +9179,8 @@ def run_system_guard_chat(
     response["autonomy_policy"] = response.get("autonomy_policy") or autonomy_policy
     response["observability_mesh"] = response.get("observability_mesh") or observability_mesh
     response["operational_memory"] = response.get("operational_memory") or operational_memory
+    response["infrastructure_operator"] = response.get("infrastructure_operator") or infrastructure_operator
+    response["objective_orchestrator"] = response.get("objective_orchestrator") or objective_orchestrator
     response["autonomous_closure"] = response.get("autonomous_closure") or autonomous_closure
     response["request_contract"] = response.get("request_contract") or fallback.get("request_contract") or _build_request_contract(
         question,
@@ -8958,6 +9206,19 @@ def run_system_guard_chat(
         response["highlights"] = (response.get("highlights") or []) + [f"Regresión: {item}" for item in snapshot_diff.get("regressions", [])[:2]]
     elif snapshot_diff.get("improvements"):
         response["highlights"] = (response.get("highlights") or []) + [f"Mejora: {item}" for item in snapshot_diff.get("improvements", [])[:2]]
+    objective_entry = _update_objective_memory(
+        workspace,
+        question=question,
+        planner=planner,
+        technical_operation=response.get("technical_operation") if isinstance(response.get("technical_operation"), dict) else {},
+        technical_execution=response.get("technical_operation_execution") if isinstance(response.get("technical_operation_execution"), dict) else {},
+        response=response,
+        assistant_action=response.get("assistant_action") if isinstance(response.get("assistant_action"), dict) else {},
+        actor_id=actor_id,
+    )
+    if objective_entry:
+        response["objective_orchestrator"] = _objective_orchestrator_snapshot(workspace, actor_id=actor_id)
+        response["highlights"] = [f"Objetivo persistido: {objective_entry.get('status')}"] + [str(item) for item in (response.get("highlights") or []) if str(item or "").strip()]
     _store_operator_profile(workspace, actor_id=actor_id, planner=planner, assistant_action=response.get("assistant_action"), question=question, page_context=page_context)
     response["operator_profile"] = _load_operator_profile(workspace, actor_id=actor_id)
     response["silent_operator"] = _build_silent_operator_state(workspace, response=response, actor_id=actor_id)
@@ -9089,5 +9350,6 @@ def run_system_guard_chat(
             "autonomy_modes": sorted(AUTONOMY_MODES),
             "audiences": sorted(AUDIENCE_MODES),
             "memory": _merge_memory(_load_memory(workspace), _load_memory_for_actor(workspace, actor_id=actor_id)),
+            "objective_orchestrator": _objective_orchestrator_snapshot(workspace, actor_id=actor_id),
         },
     }

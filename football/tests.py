@@ -762,6 +762,29 @@ class SystemGuardTests(TestCase):
         self.assertIn('publish_confirmation_required', operator['remaining_gates'])
         self.assertGreaterEqual(operator['completion_percent'], 80)
 
+    def test_build_real_code_operator_can_report_repo_wide_execution(self):
+        operator = system_guard._build_real_code_operator(
+            'Corrige cualquier parte del sistema sin limitarte a un patch catalogado',
+            page_context={'page': 'system-guard', 'can_manage_guard': True, 'can_operate_guard_code': True},
+            technical_operation={
+                'kind': 'technical_operation',
+                'authorized_for_code': True,
+                'authorized_for_publish': False,
+            },
+            technical_execution={
+                'status': 'running',
+                'ok': False,
+                'completed_phases': ['triage', 'inspect_repo'],
+                'applied_interventions': [],
+            },
+            repository_operator={'execution_ready': True, 'patch_bundle': []},
+            publish_commander={'publish_ready': False, 'confirmation_required': False, 'status': 'idle'},
+            autonomy_policy={'mode': 'owner_code_operator'},
+        )
+        self.assertEqual(operator['execution_scope'], 'unbounded_repo_execution')
+        self.assertIn('repo_wide_manual_edit', operator['execution_modes'])
+        self.assertTrue(operator['continuous_handoff_ready'])
+
     def test_build_release_guard_reports_verified_publish_state(self):
         guard = system_guard._build_release_guard(
             report={'issue_summary': {'blockers': 0, 'warnings': 1}},
@@ -1527,6 +1550,12 @@ class SystemGuardTests(TestCase):
             status='completed',
             result_summary='Ok',
         )
+        system_guard._store_pref_value(self.workspace, system_guard.OBJECTIVE_MEMORY_PREF_KEY, [{
+            'title': 'Objetivo técnico persistente',
+            'status': 'running',
+            'progress_percent': 60,
+            'next_step': 'Validar la corrección',
+        }])
         summary = system_guard._observability_summary(self.workspace)
         self.assertEqual(summary['trend'], 'empeora')
         self.assertEqual(summary['degraded_rate_pct'], 40)
@@ -1538,6 +1567,7 @@ class SystemGuardTests(TestCase):
         self.assertEqual(summary['recent_runbooks'][0], 'safe_repair')
         self.assertTrue(summary['timeline'])
         self.assertTrue(summary['task_memory'])
+        self.assertTrue(summary['objective_memory'])
 
     def test_observability_summary_exposes_scheduled_state(self):
         system_guard._store_pref_value(self.workspace, system_guard.SCHEDULED_GUARD_STATE_PREF_KEY, {
@@ -1642,12 +1672,37 @@ class SystemGuardTests(TestCase):
             'summary': 'Fallo en ruta crítica',
             'kind': 'repair',
         })
+        system_guard._store_pref_value(self.workspace, system_guard.OBJECTIVE_MEMORY_PREF_KEY, [{
+            'title': 'Objetivo largo',
+            'status': 'running',
+            'progress_percent': 40,
+            'next_step': 'Continuar intervención',
+            'resume_token': 'obj-1:1',
+        }])
         snapshot = system_guard._operational_memory_snapshot(self.workspace)
         self.assertTrue(snapshot['has_memory'])
         self.assertEqual(snapshot['recent_fixes'][0], 'auto_fix')
         self.assertEqual(snapshot['recurring_incidents'][0]['issue_id'], 'route_failure')
         self.assertIn('safe_repair', snapshot['suggested_playbooks'])
         self.assertIn('task_memory', snapshot)
+        self.assertTrue(snapshot['objective_memory'])
+
+    def test_objective_orchestrator_tracks_long_running_goal(self):
+        row = system_guard._update_objective_memory(
+            self.workspace,
+            question='Arregla el flujo 3D y deja el sistema estable',
+            planner={'task': {'scope': 'code', 'kind': 'repair', 'title': 'Corregir flujo 3D'}, 'runbook': {'key': 'safe_repair'}},
+            technical_operation={'kind': 'technical_operation'},
+            technical_execution={'status': 'running', 'completed_phases': ['triage', 'inspect_repo'], 'next_step': 'Aplicar patch'},
+            response={'status': 'watch', 'summary': 'Objetivo abierto'},
+            assistant_action={'kind': 'code_intervention_request'},
+            actor_id=self.user.id,
+        )
+        snapshot = system_guard._objective_orchestrator_snapshot(self.workspace, actor_id=self.user.id)
+        self.assertEqual(row['status'], 'running')
+        self.assertEqual(snapshot['active_count'], 1)
+        self.assertEqual(snapshot['resumable_count'], 1)
+        self.assertEqual(snapshot['objectives'][0]['title'], 'Corregir flujo 3D')
 
     def test_autonomous_closure_snapshot_reports_end_to_end_readiness(self):
         snapshot = system_guard._autonomous_closure_snapshot(
@@ -1680,6 +1735,41 @@ class SystemGuardTests(TestCase):
             observability_mesh={'monitoring_ready': True},
         )
         self.assertTrue(snapshot['rollback_ready'])
+
+    @patch.dict(os.environ, {
+        'OLLANA_AUTO_ROLLBACK_ENABLED': 'true',
+    }, clear=False)
+    @patch('football.system_guard._trigger_remote_rollback', return_value={'ok': True, 'status': 'queued', 'rollback_id': 'rb-99'})
+    def test_maybe_trigger_automatic_rollback_uses_policy_gate(self, mock_rollback):
+        result = system_guard._maybe_trigger_automatic_rollback(
+            workspace=self.workspace,
+            deployment_guard={'auto_rollback_eligible': True},
+            release_guard={'push_done': True},
+            question='Despliegue fallido',
+        )
+        self.assertTrue(result['triggered'])
+        self.assertEqual(result['result']['rollback_id'], 'rb-99')
+        mock_rollback.assert_called_once()
+
+    def test_build_infrastructure_operator_reports_armed_connectors(self):
+        operator = system_guard._build_infrastructure_operator(
+            external_connectors={
+                'items': [
+                    {'key': 'render_runtime', 'status': 'ready'},
+                    {'key': 'release_pipeline_api', 'status': 'ready'},
+                    {'key': 'deploy_trigger_api', 'status': 'armed'},
+                    {'key': 'rollback_trigger_api', 'status': 'armed'},
+                ],
+            },
+            deployment_guard={'status': 'deployment_risk', 'auto_rollback_eligible': True},
+            observability_mesh={'monitoring_ready': True},
+            autonomy_policy={'mode': 'owner_code_operator'},
+        )
+        self.assertTrue(operator['can_operate_runtime'])
+        self.assertTrue(operator['can_operate_release'])
+        self.assertTrue(operator['can_trigger_deploy'])
+        self.assertTrue(operator['can_trigger_rollback'])
+        self.assertTrue(operator['auto_rollback_eligible'])
 
     def test_detect_proactive_improvements_creates_stability_task_when_system_is_clean(self):
         report = {'issue_summary': {'blockers': 0, 'warnings': 0}}
