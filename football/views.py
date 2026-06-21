@@ -779,6 +779,46 @@ def system_guard_chat_api(request):
 
 
 @login_required
+@require_http_methods(["GET", "POST"])
+def system_guard_operator_api(request):
+    if not _can_access_sessions_workspace(request.user):
+        return HttpResponse('No tienes permisos para acceder al operador.', status=403)
+    try:
+        workspace = _get_active_workspace(request)
+    except Exception:
+        workspace = None
+    if not workspace or not (_is_admin_user(request.user) or _can_manage_workspace(request.user, workspace)):
+        return HttpResponse('No autorizado.', status=403)
+    try:
+        from football.system_guard import (
+            _continuous_operator_snapshot,
+            _load_operator_control,
+            _store_operator_control,
+        )
+        if request.method == "POST":
+            payload = json.loads(request.body.decode('utf-8') or '{}')
+            action = str(payload.get('action') or '').strip().lower()
+            control = _load_operator_control(workspace)
+            if action == 'stop':
+                control.update({
+                    'stop_requested': True,
+                    'updated_at': timezone.now().isoformat(),
+                    'updated_by': int(getattr(request.user, 'id', 0) or 0),
+                })
+            elif action == 'resume':
+                control.update({
+                    'stop_requested': False,
+                    'updated_at': timezone.now().isoformat(),
+                    'updated_by': int(getattr(request.user, 'id', 0) or 0),
+                })
+            _store_operator_control(workspace, control)
+        snapshot = _continuous_operator_snapshot(workspace, actor_id=int(getattr(request.user, 'id', 0) or 0))
+        return JsonResponse({'ok': True, 'operator': snapshot})
+    except Exception as exc:
+        return JsonResponse({'ok': False, 'error': f'{exc.__class__.__name__}: {exc}'}, status=500)
+
+
+@login_required
 @ensure_csrf_cookie
 def system_guard_page(request):
     if not _can_access_sessions_workspace(request.user):

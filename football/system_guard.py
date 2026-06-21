@@ -393,6 +393,7 @@ OPERATOR_PROFILE_PREF_KEY = "system_guard:operator_profile:v1"
 OBJECTIVE_MEMORY_PREF_KEY = "system_guard:objective_memory:v1"
 OPERATOR_RUNTIME_PREF_KEY = "system_guard:operator_runtime:v1"
 OPERATOR_LEASE_PREF_KEY = "system_guard:operator_lease:v1"
+OPERATOR_CONTROL_PREF_KEY = "system_guard:operator_control:v1"
 SCHEDULED_GUARD_INTERVAL_SECONDS = 300
 AUTONOMOUS_BACKLOG_MAX_TASKS = 3
 OPERATOR_LEASE_SECONDS = 240
@@ -2679,6 +2680,17 @@ def _store_operator_lease(workspace, payload: dict):
     if not workspace:
         return
     _store_pref_value(workspace, OPERATOR_LEASE_PREF_KEY, payload if isinstance(payload, dict) else {})
+
+
+def _load_operator_control(workspace) -> dict:
+    payload = _pref_value(workspace, OPERATOR_CONTROL_PREF_KEY, {})
+    return payload if isinstance(payload, dict) else {}
+
+
+def _store_operator_control(workspace, payload: dict):
+    if not workspace:
+        return
+    _store_pref_value(workspace, OPERATOR_CONTROL_PREF_KEY, payload if isinstance(payload, dict) else {})
 
 
 def _acquire_operator_lease(workspace, *, actor_id=None, holder: str = "ollana-operator", force: bool = False) -> dict:
@@ -6349,11 +6361,13 @@ def _build_admin_operator_console(
 def _continuous_operator_snapshot(workspace, *, actor_id=None) -> dict:
     runtime = _load_operator_runtime_state(workspace) if workspace else {}
     lease = _load_operator_lease(workspace) if workspace else {}
+    control = _load_operator_control(workspace) if workspace else {}
     objectives = _objective_orchestrator_snapshot(workspace, actor_id=actor_id) if workspace else {}
     return {
         "embedded": True,
         "runtime": runtime,
         "lease": lease,
+        "control": control,
         "active_objectives": _safe_int(objectives.get("active_count"), 0),
         "resumable_objectives": _safe_int(objectives.get("resumable_count"), 0),
         "running": bool(runtime.get("running")),
@@ -6370,6 +6384,16 @@ def run_continuous_operator_cycle(
 ) -> dict:
     if not workspace:
         return {"ok": False, "reason": "workspace_required"}
+    control = _load_operator_control(workspace)
+    if bool(control.get("stop_requested")) and not force:
+        runtime = _load_operator_runtime_state(workspace)
+        runtime.update({
+            "running": False,
+            "last_status": "stopped",
+            "last_finished_at": _now_iso(),
+        })
+        _store_operator_runtime_state(workspace, runtime)
+        return {"ok": False, "reason": "stop_requested", "runtime": runtime, "control": control}
     lease_result = _acquire_operator_lease(workspace, actor_id=actor_id, holder=holder, force=force)
     if not lease_result.get("ok"):
         return {"ok": False, "reason": str(lease_result.get("reason") or "lease_busy"), "lease": lease_result.get("lease") or {}}
@@ -6380,6 +6404,7 @@ def run_continuous_operator_cycle(
         "actor_id": int(actor_id or 0),
         "last_started_at": started_at,
         "last_status": "running",
+        "heartbeat_at": started_at,
     }
     _store_operator_runtime_state(workspace, runtime)
     try:
@@ -6397,6 +6422,7 @@ def run_continuous_operator_cycle(
             "last_queue_counts": queue_counts,
             "last_detection_count": len(proactive.get("detections") or []),
             "last_executed_tasks": _safe_int((proactive.get("autonomous_backlog") or {}).get("executed_count"), 0),
+            "heartbeat_at": _now_iso(),
         })
         _store_operator_runtime_state(workspace, runtime)
         return {

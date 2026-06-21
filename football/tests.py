@@ -1873,6 +1873,19 @@ class SystemGuardTests(TestCase):
         self.assertIn('Operador continuo de Ollana completado.', output)
         mock_cycle.assert_called_once()
 
+    def test_run_continuous_operator_cycle_stops_when_control_flag_is_set(self):
+        system_guard._store_operator_control(self.workspace, {
+            'stop_requested': True,
+            'updated_at': timezone.now().isoformat(),
+        })
+        result = system_guard.run_continuous_operator_cycle(
+            workspace=self.workspace,
+            actor_id=self.user.id,
+            page_context={'page': 'continuous-operator', 'is_admin_user': True, 'can_manage_guard': True, 'can_operate_guard_code': True},
+        )
+        self.assertFalse(result['ok'])
+        self.assertEqual(result['reason'], 'stop_requested')
+
     def test_detect_proactive_improvements_creates_stability_task_when_system_is_clean(self):
         report = {'issue_summary': {'blockers': 0, 'warnings': 0}}
         rows = system_guard._detect_proactive_improvements(report, workspace=self.workspace, actor_id=self.user.id)
@@ -2850,6 +2863,36 @@ class SystemGuardTests(TestCase):
         self.assertTrue(kwargs['page_context']['is_admin_user'])
         self.assertTrue(kwargs['page_context']['can_manage_guard'])
         self.assertTrue(kwargs['page_context']['can_operate_guard_code'])
+
+    @patch('football.views._get_active_workspace')
+    @patch('football.views._can_access_sessions_workspace', return_value=True)
+    @patch('football.views._can_manage_workspace', return_value=True)
+    @patch('football.views._is_admin_user', return_value=True)
+    def test_system_guard_operator_api_returns_snapshot(self, _is_admin, _can_manage, _can_access, mock_workspace):
+        mock_workspace.return_value = self.workspace
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('system-guard-operator-api'))
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload['ok'])
+        self.assertIn('operator', payload)
+        self.assertIn('runtime', payload['operator'])
+
+    @patch('football.views._get_active_workspace')
+    @patch('football.views._can_access_sessions_workspace', return_value=True)
+    @patch('football.views._can_manage_workspace', return_value=True)
+    @patch('football.views._is_admin_user', return_value=True)
+    def test_system_guard_operator_api_can_toggle_stop_flag(self, _is_admin, _can_manage, _can_access, mock_workspace):
+        mock_workspace.return_value = self.workspace
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('system-guard-operator-api'),
+            data=json.dumps({'action': 'stop'}),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 200)
+        control = system_guard._load_operator_control(self.workspace)
+        self.assertTrue(control['stop_requested'])
 
     def test_build_patch_proposals_returns_dry_run_entries(self):
         report = {

@@ -226,6 +226,7 @@ urlpatterns = [
     path('convocatoria/arbitro/pdf/', views.convocation_referee_pdf, name='convocation-referee-pdf'),
     path('pdf/viewer/', views.pdf_viewer_page, name='pdf-viewer'),
     path('api/system/guard-chat/', views.system_guard_chat_api, name='system-guard-chat-api'),
+    path('api/system/guard-operator/', views.system_guard_operator_api, name='system-guard-operator-api'),
     path('coach/cards/', views.coach_cards_page, name='coach-cards'),
     path('coach/staff/', views.staff_directory_page, name='staff-directory'),
     path('coach/staff/nuevo/', views.staff_member_create_page, name='staff-member-create'),
