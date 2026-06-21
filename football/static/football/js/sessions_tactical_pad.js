@@ -13082,9 +13082,35 @@
 						                });
 						                enhanceProfessionalStadiumAsset(stadiumAsset);
 						                root.add(stadiumAsset);
+						                try {
+						                  const bounds = new THREE.Box3().setFromObject(stadiumAsset);
+						                  const size = new THREE.Vector3();
+						                  const center = new THREE.Vector3();
+						                  bounds.getSize(size);
+						                  bounds.getCenter(center);
+						                  window.__WEBSTATS_PITCH3D_STADIUM_ATTACH_INFO = {
+						                    ok: true,
+						                    source: stadiumModelSrc || '',
+						                    dedicatedReference: !!isDedicatedReferenceStadium,
+						                    meshCount: (() => {
+						                      let count = 0;
+						                      stadiumAsset.traverse((node) => { if (node?.isMesh) count += 1; });
+						                      return count;
+						                    })(),
+						                    center: { x: Number(center.x) || 0, y: Number(center.y) || 0, z: Number(center.z) || 0 },
+						                    size: { x: Number(size.x) || 0, y: Number(size.y) || 0, z: Number(size.z) || 0 },
+						                  };
+						                } catch (e) { /* ignore */ }
 						                if (!isDedicatedReferenceStadium) addProfessionalStadiumAtmosphere(stadiumAsset, { dedicatedReference: false });
 						                return true;
 						              } catch (e) {
+						                try {
+						                  window.__WEBSTATS_PITCH3D_STADIUM_ATTACH_INFO = {
+						                    ok: false,
+						                    source: safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || ''),
+						                    error: safeText(e?.message || e || 'attach_failed'),
+						                  };
+						                } catch (err) { /* ignore */ }
 						                return false;
 						              }
 						            };
@@ -13092,7 +13118,19 @@
 						            const pendingStadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
 						            const pendingDedicatedReferenceStadium = isDedicatedPitch3dReferenceStadiumSrc(pendingStadiumModelSrc);
 						            __pitch3dLoadStadiumModel(() => {
-						              try { addProfessionalStadiumAsset(); } catch (e) { /* ignore */ }
+						              try {
+						                if (pitch3dOpen) {
+						                  window.setTimeout(() => {
+						                    try {
+						                      showPitch3dStep(activeStepIndex >= 0 ? activeStepIndex : pitch3dCurrentStep, { keepFollow: true });
+						                    } catch (e) {
+						                      try { addProfessionalStadiumAsset(); } catch (err) { /* ignore */ }
+						                    }
+						                  }, 0);
+						                } else {
+						                  addProfessionalStadiumAsset();
+						                }
+						              } catch (e) { /* ignore */ }
 						            });
 						            if (pendingDedicatedReferenceStadium) return;
 						            addGreenApron();
