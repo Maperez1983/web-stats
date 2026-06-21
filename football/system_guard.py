@@ -1799,6 +1799,129 @@ def _observability_summary(workspace) -> dict:
     }
 
 
+def _observability_mesh_snapshot(workspace, *, page_context=None) -> dict:
+    summary = _observability_summary(workspace) if workspace else {}
+    runtime = _inspect_runtime_config()
+    public_deployment = _inspect_public_deployment()
+    recent_errors = _inspect_recent_errors(max_lines=40)
+    patterns = [row for row in (recent_errors.get("patterns") or []) if isinstance(row, dict)]
+    top_pattern = patterns[0] if patterns else {}
+    signals = []
+    if summary.get("regression_count"):
+        signals.append(f"regresiones:{_safe_int(summary.get('regression_count'), 0)}")
+    if summary.get("incident_ledger_count"):
+        signals.append(f"incidentes:{_safe_int(summary.get('incident_ledger_count'), 0)}")
+    if top_pattern.get("name"):
+        signals.append(f"log:{str(top_pattern.get('name') or '')[:80]}")
+    if runtime.get("warnings"):
+        signals.append(f"runtime:{str((runtime.get('warnings') or [''])[0])[:80]}")
+    if public_deployment and not public_deployment.get("ok"):
+        signals.append("deploy:public_check_failed")
+    coverage = 0
+    coverage += 1 if summary else 0
+    coverage += 1 if runtime.get("ok") else 0
+    coverage += 1 if recent_errors.get("ok") else 0
+    coverage += 1 if public_deployment.get("ok") else 0
+    return {
+        "embedded": True,
+        "health_state": str(summary.get("health_state") or "amber")[:24],
+        "llm_stability": str(summary.get("llm_stability") or "unknown")[:24],
+        "runtime_warnings": [str(item) for item in (runtime.get("warnings") or [])[:4]],
+        "public_deployment_ok": bool(public_deployment.get("ok")),
+        "recent_error_patterns": [
+            {
+                "name": str(row.get("name") or "")[:80],
+                "count": _safe_int(row.get("count"), 0),
+            }
+            for row in patterns[:4]
+        ],
+        "signal_coverage": f"{coverage}/4",
+        "active_signals": signals[:6],
+        "monitoring_ready": coverage >= 3,
+    }
+
+
+def _operational_memory_snapshot(workspace, *, actor_id=None) -> dict:
+    global_memory = _load_memory(workspace) if workspace else {}
+    actor_memory = _load_memory_for_actor(workspace, actor_id=actor_id) if workspace and actor_id else {}
+    merged = _merge_memory(global_memory, actor_memory) if workspace else {}
+    incident_ledger = _load_incident_ledger(workspace) if workspace else []
+    recurring = []
+    counters = {}
+    for row in incident_ledger[:30]:
+        if not isinstance(row, dict):
+            continue
+        issue_id = str(row.get("issue_id") or "").strip()
+        if not issue_id:
+            continue
+        counters[issue_id] = counters.get(issue_id, 0) + 1
+    for key, count in sorted(counters.items(), key=lambda item: (-item[1], item[0]))[:4]:
+        recurring.append({"issue_id": key[:120], "count": int(count)})
+    suggested_playbooks = []
+    for item in (merged.get("recent_runbooks") or [])[:4]:
+        text = str(item or "").strip()
+        if text and text not in suggested_playbooks:
+            suggested_playbooks.append(text[:64])
+    return {
+        "embedded": True,
+        "has_memory": bool(merged.get("summary") or merged.get("recent_actions") or recurring),
+        "summary": str(merged.get("summary") or "").strip()[:280],
+        "recent_actions": [str(item) for item in (merged.get("recent_actions") or [])[:5]],
+        "recent_fixes": [str(item) for item in (merged.get("recent_fixes") or [])[:5]],
+        "recent_pages": [str(item) for item in (merged.get("recent_pages") or [])[:4]],
+        "recurring_incidents": recurring,
+        "suggested_playbooks": suggested_playbooks[:4],
+        "turn_count": _safe_int(merged.get("turn_count"), 0),
+        "last_status": str(merged.get("last_status") or "")[:32],
+    }
+
+
+def _autonomous_closure_snapshot(
+    *,
+    planner=None,
+    technical_execution=None,
+    real_code_operator=None,
+    release_guard=None,
+    deployment_guard=None,
+    self_healing=None,
+    observability_mesh=None,
+) -> dict:
+    planner = planner if isinstance(planner, dict) else {}
+    technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
+    real_code_operator = real_code_operator if isinstance(real_code_operator, dict) else {}
+    release_guard = release_guard if isinstance(release_guard, dict) else {}
+    deployment_guard = deployment_guard if isinstance(deployment_guard, dict) else {}
+    self_healing = self_healing if isinstance(self_healing, dict) else {}
+    observability_mesh = observability_mesh if isinstance(observability_mesh, dict) else {}
+    phases = {
+        "detect": bool(observability_mesh.get("monitoring_ready")),
+        "diagnose": bool(technical_execution.get("completed_phases")),
+        "repair": bool(real_code_operator.get("self_applied_fix") or self_healing.get("ready")),
+        "validate": bool(technical_execution.get("ok") or release_guard.get("verification_ready")),
+        "publish": bool(release_guard.get("push_done") or real_code_operator.get("can_self_publish_now")),
+        "monitor": bool(deployment_guard.get("verification_window") or observability_mesh.get("monitoring_ready")),
+    }
+    blockers = []
+    if not phases["detect"]:
+        blockers.append("observability_gap")
+    if not phases["repair"]:
+        blockers.append("repair_not_applied")
+    if not phases["validate"]:
+        blockers.append("validation_pending")
+    if not phases["publish"]:
+        blockers.append("publish_pending_or_restricted")
+    autonomous = phases["detect"] and phases["diagnose"] and phases["repair"] and phases["validate"] and phases["monitor"]
+    if bool((planner.get("task") or {}).get("silent_mode")) and blockers and "publish_pending_or_restricted" not in blockers:
+        autonomous = autonomous and True
+    return {
+        "embedded": True,
+        "phases": phases,
+        "autonomous_resolution_ready": autonomous,
+        "blocked_by": blockers[:4],
+        "completion_percent": int(round((sum(1 for ok in phases.values() if ok) / max(1, len(phases))) * 100)),
+    }
+
+
 def _load_audit_log(workspace) -> list[dict]:
     payload = _pref_value(workspace, AUDIT_PREF_KEY, [])
     if not isinstance(payload, list):
@@ -5085,6 +5208,15 @@ def _build_request_contract(
         technical_operation=technical_operation,
         technical_execution=technical_execution,
     )
+    autonomous_closure = _autonomous_closure_snapshot(
+        planner=planner,
+        technical_execution=technical_execution,
+        real_code_operator=real_code_operator,
+        release_guard={},
+        deployment_guard={},
+        self_healing={},
+        observability_mesh={},
+    )
     if repair_commander.get("next_actions"):
         next_step = str((repair_commander.get("next_actions") or [""])[0] or "")
     elif technical_execution.get("next_step"):
@@ -5117,6 +5249,7 @@ def _build_request_contract(
         "allowed_to_publish": bool(technical_execution.get("publish_ready")),
         "autonomy_policy_mode": str(autonomy_policy.get("mode") or "")[:32],
         "code_execution_live": bool(real_code_operator.get("active")),
+        "autonomous_resolution_ready": bool(autonomous_closure.get("autonomous_resolution_ready")),
         "silent_actions": list(autonomy_policy.get("silent_actions") or [])[:5],
         "confirmation_actions": list(autonomy_policy.get("confirmation_actions") or [])[:4],
         "guardrails": guardrails[:4],
@@ -5849,6 +5982,9 @@ def _mission_control_snapshot(
     silent_operator=None,
     improvement_proposals=None,
     snapshot_diff=None,
+    observability_mesh=None,
+    operational_memory=None,
+    autonomous_closure=None,
 ) -> dict:
     observability = _observability_summary(workspace) if workspace else {}
     planner = planner if isinstance(planner, dict) else {}
@@ -5863,6 +5999,9 @@ def _mission_control_snapshot(
     silent_operator = silent_operator if isinstance(silent_operator, dict) else {}
     snapshot_diff = snapshot_diff if isinstance(snapshot_diff, dict) else {}
     improvement_proposals = improvement_proposals if isinstance(improvement_proposals, list) else []
+    observability_mesh = observability_mesh if isinstance(observability_mesh, dict) else {}
+    operational_memory = operational_memory if isinstance(operational_memory, dict) else {}
+    autonomous_closure = autonomous_closure if isinstance(autonomous_closure, dict) else {}
     maturity = _ollana_maturity_snapshot(
         page_context=page_context,
         assistant_action=assistant_action,
@@ -5928,11 +6067,15 @@ def _mission_control_snapshot(
             "silent_mode": bool(task.get("silent_mode")),
             "publish_ready": bool(technical_execution.get("publish_ready")),
             "real_code_execution_live": bool(real_code_operator.get("active")),
+            "autonomous_resolution_ready": bool(autonomous_closure.get("autonomous_resolution_ready")),
             "queue_pending": _safe_int((silent_operator.get("queue_counts") or {}).get("pending"), 0),
             "queue_blocked": _safe_int((silent_operator.get("queue_counts") or {}).get("blocked"), 0),
             "continuous_enabled": bool(silent_operator.get("continuous_enabled")),
         },
         "maturity": maturity,
+        "observability_mesh": observability_mesh,
+        "operational_memory": operational_memory,
+        "autonomous_closure": autonomous_closure,
         "alerts": alerts[:4],
         "priority_queue": priority_queue,
         "recommended_next_actions": recommended[:4],
@@ -6141,12 +6284,23 @@ def _build_intelligence_os_snapshot(
     snapshot_diff = snapshot_diff if isinstance(snapshot_diff, dict) else {}
     external_connectors = _external_connectors_snapshot(page_context=page_context)
     safe_command_executor = _safe_command_executor_snapshot(page_context=page_context)
+    observability_mesh = _observability_mesh_snapshot(workspace, page_context=page_context)
+    operational_memory = _operational_memory_snapshot(workspace)
     autonomy_policy = _autonomy_policy_snapshot(
         page_context=page_context,
         planner=planner,
         assistant_action=assistant_action,
         technical_operation=technical_operation,
         technical_execution=technical_execution,
+    )
+    autonomous_closure = _autonomous_closure_snapshot(
+        planner=planner,
+        technical_execution=technical_execution,
+        real_code_operator=real_code_operator,
+        release_guard=release_guard,
+        deployment_guard=deployment_guard,
+        self_healing=self_healing,
+        observability_mesh=observability_mesh,
     )
     return {
         "version": OLLANA_SYSTEM_OS_VERSION,
@@ -6191,6 +6345,9 @@ def _build_intelligence_os_snapshot(
                 silent_operator=silent_operator,
                 improvement_proposals=improvement_proposals,
                 snapshot_diff=snapshot_diff,
+                observability_mesh=observability_mesh,
+                operational_memory=operational_memory,
+                autonomous_closure=autonomous_closure,
             ),
             "incident_commander": _incident_commander_snapshot(
                 page_context=page_context,
@@ -6221,6 +6378,8 @@ def _build_intelligence_os_snapshot(
                 "action_catalog": _action_catalog_snapshot(page_context=page_context),
                 "external_connectors": external_connectors,
                 "safe_command_executor": safe_command_executor,
+                "observability_mesh": observability_mesh,
+                "autonomous_closure": autonomous_closure,
                 "action_executor": _action_executor_snapshot(
                     assistant_action=assistant_action,
                     planner=planner,
@@ -6293,6 +6452,7 @@ def _build_intelligence_os_snapshot(
                 technical_operation=technical_operation,
             ),
             "memory": operator_profile,
+            "operational_memory": operational_memory,
         },
     }
 
@@ -8187,12 +8347,23 @@ def run_system_guard_chat(
     )
     external_connectors = _external_connectors_snapshot(page_context=page_context)
     safe_command_executor = _safe_command_executor_snapshot(page_context=page_context)
+    observability_mesh = _observability_mesh_snapshot(workspace, page_context=page_context)
+    operational_memory = _operational_memory_snapshot(workspace, actor_id=actor_id)
     autonomy_policy = _autonomy_policy_snapshot(
         page_context=page_context,
         planner=planner,
         assistant_action=assistant_action if isinstance(assistant_action, dict) else {},
         technical_operation=technical_operation if isinstance(technical_operation, dict) else {},
         technical_execution=technical_execution if isinstance(technical_execution, dict) else {},
+    )
+    autonomous_closure = _autonomous_closure_snapshot(
+        planner=planner,
+        technical_execution=technical_execution if isinstance(technical_execution, dict) else {},
+        real_code_operator=real_code_operator if isinstance(real_code_operator, dict) else {},
+        release_guard=release_guard if isinstance(release_guard, dict) else {},
+        deployment_guard=deployment_guard if isinstance(deployment_guard, dict) else {},
+        self_healing=self_healing if isinstance(self_healing, dict) else {},
+        observability_mesh=observability_mesh,
     )
     fallback["snapshot_diff"] = snapshot_diff
     fallback["remediation"] = _build_remediation_plan(report, executed_tools or [], snapshot_diff=snapshot_diff)
@@ -8215,6 +8386,9 @@ def run_system_guard_chat(
     fallback["external_connectors"] = external_connectors
     fallback["safe_command_executor"] = safe_command_executor
     fallback["autonomy_policy"] = autonomy_policy
+    fallback["observability_mesh"] = observability_mesh
+    fallback["operational_memory"] = operational_memory
+    fallback["autonomous_closure"] = autonomous_closure
     fallback["request_contract"] = _build_request_contract(
         question,
         planner=planner,
@@ -8296,6 +8470,10 @@ def run_system_guard_chat(
             fallback["highlights"] = (fallback.get("highlights") or []) + [f"Ejecución real: {real_code_operator.get('execution_scope')}"]
             if real_code_operator.get("self_applied_fix"):
                 fallback["highlights"] = (fallback.get("highlights") or []) + ["Ollana ya ha aplicado un fix sobre código"]
+        if isinstance(observability_mesh, dict) and observability_mesh.get("active_signals"):
+            fallback["highlights"] = (fallback.get("highlights") or []) + [f"Observabilidad: {observability_mesh.get('active_signals')[0]}"]
+        if isinstance(autonomous_closure, dict) and autonomous_closure.get("autonomous_resolution_ready"):
+            fallback["highlights"] = (fallback.get("highlights") or []) + ["Cierre autónomo listo para operar"]
         if isinstance(release_guard, dict) and release_guard.get("verification_ready"):
             fallback["highlights"] = (fallback.get("highlights") or []) + [f"Verificación post-cambio: {release_guard.get('status')}"]
         if isinstance(deployment_guard, dict) and deployment_guard.get("verification_window"):
@@ -8401,6 +8579,9 @@ def run_system_guard_chat(
     response["external_connectors"] = response.get("external_connectors") or external_connectors
     response["safe_command_executor"] = response.get("safe_command_executor") or safe_command_executor
     response["autonomy_policy"] = response.get("autonomy_policy") or autonomy_policy
+    response["observability_mesh"] = response.get("observability_mesh") or observability_mesh
+    response["operational_memory"] = response.get("operational_memory") or operational_memory
+    response["autonomous_closure"] = response.get("autonomous_closure") or autonomous_closure
     response["request_contract"] = response.get("request_contract") or fallback.get("request_contract") or _build_request_contract(
         question,
         planner=planner,

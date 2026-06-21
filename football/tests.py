@@ -1475,6 +1475,70 @@ class SystemGuardTests(TestCase):
         summary = system_guard._observability_summary(self.workspace)
         self.assertEqual(summary['scheduled_state']['last_finished_at'], '2026-06-20T09:00:00Z')
 
+    @patch.dict(os.environ, {'APP_PUBLIC_BASE_URL': 'https://app.example.com'}, clear=False)
+    @patch('football.system_guard.urllib.request.urlopen')
+    def test_observability_mesh_combines_runtime_logs_and_deployment(self, mock_urlopen):
+        class Resp:
+            status = 200
+            def __enter__(self): return self
+            def __exit__(self, exc_type, exc, tb): return False
+            def read(self): return b''
+        mock_urlopen.return_value = Resp()
+        system_guard._store_pref_value(self.workspace, system_guard.SNAPSHOTS_PREF_KEY, [
+            {'status': 'watch', 'blockers': 1, 'warnings': 1, 'issue_ids': ['route_failure'], 'llm_state': 'up'},
+        ])
+        mesh = system_guard._observability_mesh_snapshot(self.workspace, page_context={'page': 'dashboard-home'})
+        self.assertTrue(mesh['embedded'])
+        self.assertTrue(mesh['monitoring_ready'])
+        self.assertTrue(mesh['public_deployment_ok'])
+        self.assertTrue(mesh['signal_coverage'])
+
+    def test_operational_memory_snapshot_surfaces_recurring_incidents_and_playbooks(self):
+        system_guard._store_pref_value(self.workspace, system_guard.MEMORY_PREF_KEY, {
+            'summary': 'Estado reciente',
+            'recent_actions': ['check_status', 'inspect_recent_errors'],
+            'recent_fixes': ['auto_fix'],
+            'recent_runbooks': ['safe_repair', 'silent_diagnostics'],
+            'recent_pages': ['Dashboard'],
+            'turn_count': 7,
+            'last_status': 'watch',
+        })
+        system_guard._append_incident_ledger(self.workspace, {
+            'issue_id': 'route_failure',
+            'status': 'resolved',
+            'runbook': 'safe_repair',
+            'summary': 'Fallo en ruta crítica',
+            'kind': 'repair',
+        })
+        system_guard._append_incident_ledger(self.workspace, {
+            'issue_id': 'route_failure',
+            'status': 'resolved',
+            'runbook': 'safe_repair',
+            'summary': 'Fallo en ruta crítica',
+            'kind': 'repair',
+        })
+        snapshot = system_guard._operational_memory_snapshot(self.workspace)
+        self.assertTrue(snapshot['has_memory'])
+        self.assertEqual(snapshot['recent_fixes'][0], 'auto_fix')
+        self.assertEqual(snapshot['recurring_incidents'][0]['issue_id'], 'route_failure')
+        self.assertIn('safe_repair', snapshot['suggested_playbooks'])
+
+    def test_autonomous_closure_snapshot_reports_end_to_end_readiness(self):
+        snapshot = system_guard._autonomous_closure_snapshot(
+            planner={'task': {'silent_mode': True}},
+            technical_execution={'completed_phases': ['triage', 'inspect_repo', 'validate'], 'ok': True},
+            real_code_operator={'self_applied_fix': True, 'can_self_publish_now': False},
+            release_guard={'verification_ready': True},
+            deployment_guard={'verification_window': True},
+            self_healing={'ready': True},
+            observability_mesh={'monitoring_ready': True},
+        )
+        self.assertTrue(snapshot['embedded'])
+        self.assertTrue(snapshot['phases']['detect'])
+        self.assertTrue(snapshot['phases']['repair'])
+        self.assertTrue(snapshot['phases']['monitor'])
+        self.assertGreaterEqual(snapshot['completion_percent'], 80)
+
     def test_detect_proactive_improvements_creates_stability_task_when_system_is_clean(self):
         report = {'issue_summary': {'blockers': 0, 'warnings': 0}}
         rows = system_guard._detect_proactive_improvements(report, workspace=self.workspace, actor_id=self.user.id)
@@ -1733,6 +1797,10 @@ class SystemGuardTests(TestCase):
         self.assertGreaterEqual(response['safe_command_executor']['allowed_count'], 4)
         self.assertEqual(response['autonomy_policy']['mode'], 'technical_operator')
         self.assertIn('git_push', response['autonomy_policy']['confirmation_actions'])
+        self.assertTrue(response['observability_mesh']['embedded'])
+        self.assertTrue(response['operational_memory']['embedded'])
+        self.assertTrue(response['autonomous_closure']['embedded'])
+        self.assertTrue(response['autonomous_closure']['phases']['repair'])
         self.assertEqual(response['request_contract']['interaction_mode'], 'technical_operator')
         self.assertEqual(response['request_contract']['execution_mode'], 'code_execution')
         self.assertEqual(response['request_contract']['autonomy_policy_mode'], 'technical_operator')
@@ -1750,6 +1818,8 @@ class SystemGuardTests(TestCase):
             'connected',
         )
         self.assertGreaterEqual(response['intelligence_os']['layers']['execution']['safe_command_executor']['allowed_count'], 4)
+        self.assertTrue(response['intelligence_os']['layers']['execution']['observability_mesh']['embedded'])
+        self.assertTrue(response['intelligence_os']['layers']['execution']['autonomous_closure']['embedded'])
         self.assertTrue(response['intelligence_os']['layers']['supervision']['code_operator']['embedded'])
         self.assertTrue(response['intelligence_os']['layers']['supervision']['code_operator']['enabled'])
         self.assertTrue(response['intelligence_os']['layers']['supervision']['code_operator']['candidate_files'])
@@ -1765,6 +1835,9 @@ class SystemGuardTests(TestCase):
         self.assertTrue(response['intelligence_os']['layers']['supervision']['self_healing_ready'])
         self.assertIn(response['intelligence_os']['layers']['incident_commander']['status'], {'stable', 'running', 'blocked', 'awaiting_operator', 'regression_detected'})
         self.assertTrue(response['intelligence_os']['layers']['mission_control']['autonomy']['real_code_execution_live'])
+        self.assertTrue(response['intelligence_os']['layers']['mission_control']['observability_mesh']['embedded'])
+        self.assertTrue(response['intelligence_os']['layers']['mission_control']['operational_memory']['embedded'])
+        self.assertTrue(response['intelligence_os']['layers']['mission_control']['autonomous_closure']['embedded'])
         self.assertEqual(response['intelligence_os']['layers']['policy_decisions']['requested_action'], 'repair_code')
 
     @patch('football.system_guard.local_llm_config', return_value={
