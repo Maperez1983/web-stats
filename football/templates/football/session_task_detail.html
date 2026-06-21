@@ -1211,6 +1211,7 @@
                 <option value="tunnel">Túnel</option>
                 <option value="analyst">Analista</option>
                 <option value="coach">Entrenador</option>
+                <option value="rosaleda">Estadio</option>
               </select>
               <div class="sim-3d-progress" aria-hidden="true"><span id="task-detail-3d-progress-bar"></span></div>
             </div>
@@ -1222,6 +1223,7 @@
     <script id="task-detail-3d-payload" type="application/json">
       {
         "taskTitle": "{{ task.title|default:''|escapejs }}",
+        "stadiumModelUrl": "{% static 'football/models/stadium_architectural_complete.glb' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}",
         "graphicEditorState": {{ graphic_editor_state_json|safe }},
         "animationFrames": {{ animation_frames_json|safe }}
       }

@@ -17,6 +17,7 @@ from django.conf import settings
 from django.core.management import call_command
 from django.db import transaction
 from django.urls import NoReverseMatch, reverse
+from django.utils.text import slugify
 
 from football.healthchecks import run_system_healthcheck
 from football.library_repositories import (
@@ -26,7 +27,7 @@ from football.library_repositories import (
     normalize_library_repository,
 )
 from football.local_llm import call_ollama_json, local_llm_config
-from football.models import Match, Player, SessionTask, TrainingMicrocycle, TrainingSession, WorkspaceCompetitionContext, WorkspacePreference, WorkspaceSeason, WorkspaceTeam
+from football.models import Competition, ConvocationRecord, Group, Match, Player, RivalAnalysisReport, SessionTask, Team, TrainingMicrocycle, TrainingSession, WorkspaceCompetitionContext, WorkspacePreference, WorkspaceSeason, WorkspaceTeam
 from football.session_import_services import get_or_create_inbox_microcycle, get_or_create_library_session_with_repository
 from football.session_plan_fields import serialize_session_plan_fields
 from football.season_history_services import ensure_player_season_membership, ensure_workspace_player
@@ -360,6 +361,14 @@ ACTION_PERMISSION_MATRIX = {
     "create_player": {"requires_manage_guard": True, "requires_code_operator": False, "scope": "business"},
     "create_session": {"requires_manage_guard": True, "requires_code_operator": False, "scope": "business"},
     "create_task": {"requires_manage_guard": True, "requires_code_operator": False, "scope": "business"},
+    "create_microcycle": {"requires_manage_guard": True, "requires_code_operator": False, "scope": "business"},
+    "create_match": {"requires_manage_guard": True, "requires_code_operator": False, "scope": "business"},
+    "create_convocation": {"requires_manage_guard": True, "requires_code_operator": False, "scope": "business"},
+    "create_rival_analysis": {"requires_manage_guard": True, "requires_code_operator": False, "scope": "business"},
+    "create_session_bundle": {"requires_manage_guard": True, "requires_code_operator": False, "scope": "business"},
+    "create_matchday_bundle": {"requires_manage_guard": True, "requires_code_operator": False, "scope": "business"},
+    "update_session": {"requires_manage_guard": True, "requires_code_operator": False, "scope": "business"},
+    "update_convocation": {"requires_manage_guard": True, "requires_code_operator": False, "scope": "business"},
     "repair_code": {"requires_manage_guard": True, "requires_code_operator": True, "scope": "code"},
     "publish_changes": {"requires_manage_guard": True, "requires_code_operator": True, "scope": "code"},
     "inspect_repo": {"requires_manage_guard": True, "requires_code_operator": True, "scope": "code"},
@@ -507,8 +516,8 @@ PROACTIVE_IMPROVEMENT_CATALOG = {
         "tools": ["inspect_guard_history"],
     },
 }
-OLLANA_CAPABILITY_VERSION = "v2"
-OLLANA_SYSTEM_OS_VERSION = "v1"
+OLLANA_CAPABILITY_VERSION = "v3"
+OLLANA_SYSTEM_OS_VERSION = "v2"
 OLLANA_CAPABILITIES = {
     "identity": {
         "name": "Ollana",
@@ -529,6 +538,14 @@ OLLANA_CAPABILITIES = {
         {"key": "create_player", "label": "Alta de jugador", "scope": "business", "requires_code_operator": False},
         {"key": "create_session", "label": "Crear sesión", "scope": "business", "requires_code_operator": False},
         {"key": "create_task", "label": "Crear tarea", "scope": "business", "requires_code_operator": False},
+        {"key": "create_microcycle", "label": "Crear microciclo", "scope": "business", "requires_code_operator": False},
+        {"key": "create_match", "label": "Crear partido", "scope": "business", "requires_code_operator": False},
+        {"key": "create_convocation", "label": "Crear convocatoria", "scope": "business", "requires_code_operator": False},
+        {"key": "create_rival_analysis", "label": "Preparar análisis rival", "scope": "business", "requires_code_operator": False},
+        {"key": "create_session_bundle", "label": "Crear sesión con tareas", "scope": "business", "requires_code_operator": False},
+        {"key": "create_matchday_bundle", "label": "Preparar plan de partido", "scope": "business", "requires_code_operator": False},
+        {"key": "update_session", "label": "Editar sesión", "scope": "business", "requires_code_operator": False},
+        {"key": "update_convocation", "label": "Editar convocatoria", "scope": "business", "requires_code_operator": False},
         {"key": "monitor_incidents", "label": "Memoria de incidencias", "scope": "system", "requires_code_operator": False},
         {"key": "inspect_repo", "label": "Inspección de repositorio", "scope": "code", "requires_code_operator": True},
         {"key": "validate_changes", "label": "Validación técnica", "scope": "code", "requires_code_operator": True},
@@ -538,7 +555,7 @@ OLLANA_CAPABILITIES = {
 }
 OLLANA_ACTION_SURFACES = {
     "conversation": ["guide_user", "navigate_modules"],
-    "business": ["create_player", "create_session", "create_task"],
+    "business": ["create_player", "create_session", "create_task", "create_microcycle", "create_match", "create_convocation", "create_rival_analysis", "create_session_bundle", "create_matchday_bundle", "update_session", "update_convocation"],
     "system": ["inspect_system", "monitor_incidents"],
     "code": ["inspect_repo", "validate_changes", "repair_code", "publish_changes"],
 }
@@ -724,6 +741,20 @@ def _guard_route_catalog(page_context=None) -> list[dict]:
             "query": team_qs,
         },
         {
+            "key": "convocation",
+            "label": "Convocatoria",
+            "url_name": "convocation",
+            "keywords": ["convocatoria", "lista partido", "once inicial", "convocados"],
+            "query": team_qs,
+        },
+        {
+            "key": "rival_analysis",
+            "label": "Análisis rival",
+            "url_name": "coach-rival",
+            "keywords": ["rival", "analisis rival", "análisis rival", "preparar rival", "scouting rival"],
+            "query": team_qs,
+        },
+        {
             "key": "players",
             "label": "Jugadores",
             "url_name": "coach-roster",
@@ -854,7 +885,7 @@ def _build_task_profile(question: str, *, intent: str, maintenance_action: str =
         scope = "user"
         silent_mode = False
         runbook_key = "user_navigation"
-    elif intent in {"create_player", "create_session", "create_task"}:
+    elif intent in {"create_player", "create_session", "create_task", "create_microcycle", "create_match", "create_convocation", "create_rival_analysis", "create_session_bundle", "create_matchday_bundle", "update_session", "update_convocation"}:
         kind = "execute"
         scope = "user"
         silent_mode = False
@@ -1794,6 +1825,8 @@ def run_proactive_guard_cycle(*, workspace, actor_id=None, allow_safe_repairs: b
         "last_improvement_count": len(improvements),
         "last_created_count": len(created),
         "last_executed_count": len(executed),
+        "last_detections": detections[:6],
+        "last_improvements": improvements[:6],
     }
     _store_proactive_state(workspace, state_payload)
     _append_audit_log(workspace, {
@@ -2973,6 +3006,504 @@ def _parse_task_request(question: str) -> dict:
     }
 
 
+def _parse_microcycle_request(question: str) -> dict:
+    text = str(question or "").strip()
+    lower = text.lower()
+    title = _extract_labeled_value(text, ["titulo", "título", "nombre", "microciclo"])
+    if not title:
+        free_title = re.search(
+            r"(?:crea|crear|programa|planifica|monta|prepara)\s+(?:un\s+)?microciclo\s+(.+?)(?=,| del | desde | semana | para | objetivo| tipo|$)",
+            text,
+            re.IGNORECASE,
+        )
+        title = str(free_title.group(1) if free_title else "").strip(" .")
+    objective = _extract_labeled_value(text, ["objetivo", "notas", "notes"])
+    cycle_type = TrainingMicrocycle.TYPE_STANDARD
+    if "doble partido" in lower:
+        cycle_type = TrainingMicrocycle.TYPE_DOUBLE_MATCH
+    elif "carga" in lower:
+        cycle_type = TrainingMicrocycle.TYPE_LOAD
+    elif "afinar" in lower or "taper" in lower:
+        cycle_type = TrainingMicrocycle.TYPE_TAPER
+    elif "regener" in lower:
+        cycle_type = TrainingMicrocycle.TYPE_REGEN
+    elif "pretemporada" in lower:
+        cycle_type = TrainingMicrocycle.TYPE_PRESEASON
+    date_candidates = re.findall(r"\b(20\d{2}-\d{2}-\d{2})\b", text)
+    week_start = None
+    week_end = None
+    if date_candidates:
+        try:
+            week_start = datetime.strptime(date_candidates[0], "%Y-%m-%d").date()
+        except ValueError:
+            week_start = None
+    if len(date_candidates) > 1:
+        try:
+            week_end = datetime.strptime(date_candidates[1], "%Y-%m-%d").date()
+        except ValueError:
+            week_end = None
+    if week_start and week_end is None:
+        week_end = week_start
+    return {
+        "title": _truncate(title or "Microciclo semanal", 140),
+        "objective": _truncate(objective, 200),
+        "cycle_type": cycle_type,
+        "week_start": week_start,
+        "week_end": week_end,
+    }
+
+
+def _parse_match_request(question: str) -> dict:
+    text = str(question or "").strip()
+    lower = text.lower()
+    rival_match = re.search(
+        r"(?:partido|match|analisis rival|análisis rival|informe rival|preparar rival)?\s*(?:contra|vs\.?|frente a)\s+(.+?)(?=,| el | a las | en | lugar| jornada| sistema| plan| objetivo|$)",
+        text,
+        re.IGNORECASE,
+    )
+    rival = str(rival_match.group(1) if rival_match else "").strip(" .")
+    if not rival:
+        rival = _extract_labeled_value(text, ["rival", "oponente", "contrario"])
+    date_raw = _extract_labeled_value(text, ["fecha", "día", "dia", "el"])
+    if not date_raw:
+        date_match = re.search(r"\b(20\d{2}-\d{2}-\d{2})\b", text)
+        date_raw = str(date_match.group(1) if date_match else "").strip()
+    kickoff_raw = _extract_labeled_value(text, ["hora", "a las", "inicio"])
+    if not kickoff_raw:
+        time_match = re.search(r"\b([01]?\d|2[0-3]):([0-5]\d)\b", text)
+        kickoff_raw = str(time_match.group(0) if time_match else "").strip()
+    round_label = _extract_labeled_value(text, ["jornada", "ronda", "round"])
+    location = _extract_labeled_value(text, ["lugar", "campo", "estadio", "ubicacion", "ubicación"])
+    context = Match.CONTEXT_LEAGUE
+    if "amistoso" in lower:
+        context = Match.CONTEXT_FRIENDLY
+    elif "torneo" in lower or "copa" in lower:
+        context = Match.CONTEXT_TOURNAMENT
+    is_home = bool(re.search(r"\b(casa|local|home)\b", lower))
+    is_away = bool(re.search(r"\b(fuera|visitante|away)\b", lower))
+    match_date = None
+    if date_raw:
+        match = re.search(r"\d{4}-\d{2}-\d{2}", date_raw)
+        if match:
+            try:
+                match_date = datetime.strptime(match.group(0), "%Y-%m-%d").date()
+            except ValueError:
+                match_date = None
+    kickoff_time = None
+    if kickoff_raw:
+        match = re.search(r"([01]?\d|2[0-3]):([0-5]\d)", kickoff_raw)
+        if match:
+            try:
+                kickoff_time = datetime.strptime(match.group(0), "%H:%M").time()
+            except ValueError:
+                kickoff_time = None
+    return {
+        "rival": _truncate(rival, 150),
+        "date": match_date,
+        "kickoff_time": kickoff_time,
+        "round": _truncate(round_label, 50),
+        "location": _truncate(location, 200),
+        "context": context,
+        "is_home": is_home,
+        "is_away": is_away,
+    }
+
+
+def _parse_convocation_request(question: str) -> dict:
+    text = str(question or "").strip()
+    lower = text.lower()
+    payload = _parse_match_request(question)
+    include_full_roster = any(token in lower for token in ["plantilla completa", "toda la plantilla", "todos", "completa"])
+    players_match = re.search(r"(?:jugadores|convocados|lista)\s*[:=]\s*(.+?)(?=\s+(?:titulares|once|alineacion|alineación|capitan|capitán|portero)\s*:|$)", text, re.IGNORECASE)
+    starters_match = re.search(r"(?:titulares|once|alineacion|alineación)\s*[:=]\s*(.+?)(?=\s+(?:capitan|capitán|portero)\s*:|$)", text, re.IGNORECASE)
+    players_raw = str(players_match.group(1) if players_match else "").strip()
+    starters_raw = str(starters_match.group(1) if starters_match else "").strip()
+    captain_match = re.search(r"(?:capitan|capitán)\s*[:=]\s*(.+?)(?=\s+(?:portero|goalkeeper)\s*:|$)", text, re.IGNORECASE)
+    goalkeeper_match = re.search(r"(?:portero|goalkeeper)\s*[:=]\s*(.+?)$", text, re.IGNORECASE)
+    captain_raw = str(captain_match.group(1) if captain_match else "").strip()
+    goalkeeper_raw = str(goalkeeper_match.group(1) if goalkeeper_match else "").strip()
+
+    def split_tokens(raw: str) -> list[str]:
+        if not raw:
+            return []
+        parts = re.split(r";|/|,|\by\b", raw, flags=re.IGNORECASE)
+        return [_truncate(item.strip(" ."), 120) for item in parts if str(item or "").strip(" .")]
+
+    return {
+        **payload,
+        "include_full_roster": bool(include_full_roster or not re.search(r"\bsin jugadores\b", lower)),
+        "player_tokens": split_tokens(players_raw),
+        "starter_tokens": split_tokens(starters_raw),
+        "captain_token": _truncate(captain_raw, 120),
+        "goalkeeper_token": _truncate(goalkeeper_raw, 120),
+    }
+
+
+def _parse_rival_analysis_request(question: str) -> dict:
+    text = str(question or "").strip()
+    payload = _parse_match_request(question)
+    rival_name = str(payload.get("rival") or "").strip()
+    if rival_name:
+        rival_name = re.sub(r"^(?:contra|vs\.?|frente a)\s+", "", rival_name, flags=re.IGNORECASE).strip()
+        rival_name = re.split(r"\s+(?:el\s+20\d{2}-\d{2}-\d{2}|sistema|plan|objetivo)\b", rival_name, maxsplit=1, flags=re.IGNORECASE)[0].strip(" ,.")
+    system = _extract_labeled_value(text, ["sistema", "estructura", "dibujo"])
+    weaknesses = _extract_labeled_value(text, ["debilidades", "weaknesses", "alertas"])
+    match_plan = _extract_labeled_value(text, ["plan", "plan partido", "match plan"])
+    return {
+        **payload,
+        "rival": _truncate(rival_name, 150),
+        "tactical_system": _truncate(system, 80),
+        "weaknesses": _truncate(weaknesses, 600),
+        "match_plan": _truncate(match_plan, 600),
+    }
+
+
+def _parse_session_bundle_request(question: str) -> dict:
+    text = str(question or "").strip()
+    session_payload = _parse_session_request(question)
+    tasks_text = ""
+    explicit = re.search(r"(?:tareas|ejercicios)\s*[:=]\s*(.+)$", text, re.IGNORECASE)
+    if explicit:
+        tasks_text = str(explicit.group(1) or "").strip()
+    else:
+        inline = re.search(r"con\s+(?:las\s+)?(?:siguientes\s+)?(?:tareas|ejercicios)\s+(.+)$", text, re.IGNORECASE)
+        tasks_text = str(inline.group(1) if inline else "").strip()
+    task_chunks = []
+    if tasks_text:
+        if ";" in tasks_text:
+            raw_chunks = [item.strip() for item in tasks_text.split(";")]
+        elif " / " in tasks_text:
+            raw_chunks = [item.strip() for item in tasks_text.split(" / ")]
+        else:
+            raw_chunks = [item.strip() for item in re.split(r",(?=\s*[A-Za-zÁÉÍÓÚáéíóú0-9])", tasks_text)]
+        task_chunks = [item for item in raw_chunks if item]
+    tasks = []
+    for chunk in task_chunks[:8]:
+        row = _parse_task_request(f"crea tarea {chunk}")
+        if row.get("title"):
+            tasks.append(row)
+    return {
+        "session": session_payload,
+        "tasks": tasks,
+    }
+
+
+def _parse_matchday_bundle_request(question: str) -> dict:
+    text = str(question or "").strip()
+    analysis = _parse_rival_analysis_request(question)
+    session_bundle = _parse_session_bundle_request(question)
+    if not session_bundle.get("tasks"):
+        default_tasks = []
+        for seed in (
+            {"title": "Activación partido", "duration_minutes": 12, "objective": "Activar y orientar al equipo"},
+            {"title": "Plan rival aplicado", "duration_minutes": 18, "objective": "Trasladar ajustes del plan de partido"},
+            {"title": "ABP partido", "duration_minutes": 15, "objective": "Ensayar acciones a balón parado"},
+        ):
+            default_tasks.append(seed)
+        session_bundle["tasks"] = default_tasks
+    session = session_bundle.get("session") if isinstance(session_bundle.get("session"), dict) else {}
+    if not session.get("focus"):
+        session["focus"] = f"Sesión prepartido vs {analysis.get('rival') or 'rival'}"
+    if not session.get("notes"):
+        notes = []
+        if analysis.get("tactical_system"):
+            notes.append(f"Sistema rival: {analysis.get('tactical_system')}")
+        if analysis.get("match_plan"):
+            notes.append(f"Plan partido: {analysis.get('match_plan')}")
+        session["notes"] = " | ".join(notes)[:400]
+    return {
+        "analysis": analysis,
+        "session_bundle": session_bundle,
+    }
+
+
+def _ollana_maturity_snapshot(*, page_context=None, assistant_action=None, technical_execution=None, operator_profile=None, silent_operator=None, repair_commander=None) -> dict:
+    page_context = page_context if isinstance(page_context, dict) else {}
+    assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
+    technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
+    operator_profile = operator_profile if isinstance(operator_profile, dict) else {}
+    silent_operator = silent_operator if isinstance(silent_operator, dict) else {}
+    repair_commander = repair_commander if isinstance(repair_commander, dict) else {}
+    scores = {
+        "system_brain": 18,
+        "silent_operator": 16 if bool(silent_operator.get("continuous_enabled")) else 10,
+        "action_executor": 18 if bool(assistant_action.get("success") or assistant_action.get("executed")) else 14,
+        "code_operator": 16 if str((page_context or {}).get("can_operate_guard_code") or "").strip() else 8,
+        "user_copilot": 15 if str(page_context.get("page") or "").strip() else 10,
+        "memory": 8 if bool(operator_profile.get("recurring_intents")) else 5,
+        "autofix": 9 if bool(technical_execution.get("publish_ready") or technical_execution.get("status")) else 5,
+        "incident_commander": 8 if bool(assistant_action.get("kind") or technical_execution.get("status")) else 4,
+        "autonomy_controller": 8 if bool(silent_operator.get("continuous_enabled")) else 4,
+        "repair_commander": 8 if bool(repair_commander.get("embedded")) and bool(repair_commander.get("confidence_percent")) else 4,
+    }
+    achieved = sum(scores.values())
+    percent = max(1, min(100, achieved))
+    if percent >= 90:
+        stage = "near-parity"
+    elif percent >= 75:
+        stage = "advanced"
+    elif percent >= 60:
+        stage = "growing"
+    else:
+        stage = "foundation"
+    return {
+        "percent": percent,
+        "stage": stage,
+        "scores": scores,
+    }
+
+
+def _incident_commander_snapshot(*, page_context=None, assistant_action=None, technical_execution=None, snapshot_diff=None) -> dict:
+    page_context = page_context if isinstance(page_context, dict) else {}
+    assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
+    technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
+    snapshot_diff = snapshot_diff if isinstance(snapshot_diff, dict) else {}
+    regressions = [str(item) for item in (snapshot_diff.get("regressions") or []) if str(item or "").strip()]
+    status = "stable"
+    if regressions:
+        status = "regression_detected"
+    elif str(technical_execution.get("status") or "") in {"blocked", "running"}:
+        status = str(technical_execution.get("status") or "")
+    elif assistant_action.get("permission_required"):
+        status = "awaiting_operator"
+    next_steps = []
+    if regressions:
+        next_steps.append("Atacar la regresión más reciente antes de ampliar alcance.")
+    if technical_execution.get("next_step"):
+        next_steps.append(str(technical_execution.get("next_step") or "")[:180])
+    if assistant_action.get("permission_required"):
+        next_steps.append("Esperar a un usuario con permisos operativos para continuar.")
+    if not next_steps:
+        next_steps.append("Mantener vigilancia y validar el siguiente cambio antes de publicar.")
+    return {
+        "embedded": True,
+        "status": status,
+        "active_page": str(page_context.get("page") or "")[:120],
+        "assistant_action_kind": str(assistant_action.get("kind") or "")[:64],
+        "technical_status": str(technical_execution.get("status") or "")[:32],
+        "regression_count": len(regressions),
+        "next_steps": next_steps[:4],
+    }
+
+
+def _autonomy_controller_snapshot(*, planner=None, assistant_action=None, technical_execution=None, autofix_runner=None, silent_operator=None) -> dict:
+    planner = planner if isinstance(planner, dict) else {}
+    assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
+    technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
+    autofix_runner = autofix_runner if isinstance(autofix_runner, dict) else {}
+    silent_operator = silent_operator if isinstance(silent_operator, dict) else {}
+    task = planner.get("task") if isinstance(planner.get("task"), dict) else {}
+    ready = bool(
+        (assistant_action.get("success") and not assistant_action.get("needs_input"))
+        or technical_execution.get("publish_ready")
+        or autofix_runner.get("executable")
+    )
+    blockers = []
+    if assistant_action.get("needs_input"):
+        blockers.append("faltan_datos")
+    if assistant_action.get("permission_required"):
+        blockers.append("faltan_permisos")
+    if planner.get("confirm_required"):
+        blockers.append("requiere_confirmacion")
+    if str(technical_execution.get("status") or "") == "blocked":
+        blockers.append("bloqueo_tecnico")
+    closure_plan = []
+    if assistant_action.get("success"):
+        closure_plan.append("Registrar el cambio y mantener trazabilidad en memoria y cola.")
+    if technical_execution.get("next_step"):
+        closure_plan.append(str(technical_execution.get("next_step") or "")[:180])
+    if autofix_runner.get("executable"):
+        closure_plan.append("Preparar autofix o parche exacto antes de publicar.")
+    if not closure_plan:
+        closure_plan.append("Esperar una instrucción adicional o nuevo contexto operativo.")
+    return {
+        "embedded": True,
+        "task_kind": str(task.get("kind") or "")[:32],
+        "silent_mode": bool(task.get("silent_mode")),
+        "continuous_enabled": bool(silent_operator.get("continuous_enabled")),
+        "ready_for_closed_loop": ready and not blockers,
+        "blockers": blockers[:4],
+        "closure_plan": closure_plan[:4],
+    }
+
+
+def _ensure_team_competition_context(team, *, workspace=None):
+    if not team:
+        return None, None
+    group = getattr(team, "group", None)
+    season = getattr(group, "season", None) if group else None
+    if season:
+        return season, group
+    season_label = str(getattr(getattr(workspace, "active_season", None), "label", "") or "").strip() or f"{datetime.now(timezone.utc).year}/{datetime.now(timezone.utc).year + 1}"
+    competition_slug = slugify(f"{team.display_name or team.name or 'competicion'}-{season_label}")[:150] or f"competition-{int(team.id)}"
+    competition, _ = Competition.objects.get_or_create(
+        slug=competition_slug,
+        defaults={"name": f"Competición {team.display_name or team.name}", "region": "Sistema"},
+    )
+    season, _ = competition.seasons.get_or_create(
+        name=season_label,
+        defaults={"start_date": getattr(getattr(workspace, "active_season", None), "start_date", None), "is_current": True},
+    )
+    group_slug = slugify(f"{team.display_name or team.name}-grupo")[:80] or f"group-{int(team.id)}"
+    group, _ = Group.objects.get_or_create(
+        season=season,
+        slug=group_slug,
+        defaults={"name": f"Grupo {team.display_name or team.name}"},
+    )
+    if not getattr(team, "group_id", None):
+        team.group = group
+        team.save(update_fields=["group"])
+    return season, group
+
+
+def _resolve_workspace_team(workspace, *, page_context=None):
+    page_context = page_context if isinstance(page_context, dict) else {}
+    team_id = _safe_int(page_context.get("team_id"), 0)
+    if team_id and getattr(workspace, "teams", None) is not None:
+        link = workspace.teams.select_related("team").filter(team_id=team_id).first()
+        team = getattr(link, "team", None) if link else None
+        if team:
+            return team
+    return getattr(workspace, "primary_team", None)
+
+
+def _resolve_players_from_tokens(team, tokens: list[str]) -> list[Player]:
+    if not team:
+        return []
+    rows = []
+    seen = set()
+    for token in tokens or []:
+        text = str(token or "").strip()
+        if not text:
+            continue
+        player = None
+        digits = re.sub(r"[^\d]", "", text)
+        if digits:
+            player = Player.objects.filter(team=team, number=_safe_int(digits, 0), is_active=True).order_by("id").first()
+        if player is None:
+            compact = re.sub(r"\s+", " ", text).strip()
+            player = Player.objects.filter(team=team, name__icontains=compact, is_active=True).order_by("id").first()
+        if player is None:
+            continue
+        if int(player.id) in seen:
+            continue
+        seen.add(int(player.id))
+        rows.append(player)
+    return rows
+
+
+def _player_payload(player) -> dict:
+    return {
+        "id": str(int(getattr(player, "id", 0) or 0)),
+        "name": str(getattr(player, "name", "") or "")[:160],
+        "number": getattr(player, "number", None),
+    }
+
+
+def _build_lineup_payload(players: list[Player], starter_players: list[Player], *, starters_limit: int = 11) -> dict:
+    allowed = [player for player in players if getattr(player, "id", None)]
+    starters_limit = max(1, int(starters_limit or 11))
+    starter_ids = []
+    for player in starter_players or []:
+        pid = int(getattr(player, "id", 0) or 0)
+        if pid and pid not in starter_ids:
+            starter_ids.append(pid)
+    if not starter_ids:
+        starter_ids = [int(player.id) for player in allowed[:starters_limit]]
+    starter_ids = starter_ids[:starters_limit]
+    bench_ids = [int(player.id) for player in allowed if int(player.id) not in starter_ids]
+    by_id = {int(player.id): player for player in allowed}
+    return {
+        "starters": [_player_payload(by_id[pid]) for pid in starter_ids if pid in by_id],
+        "bench": [_player_payload(by_id[pid]) for pid in bench_ids if pid in by_id],
+    }
+
+
+def _resolve_active_session(workspace, *, page_context=None):
+    page_context = page_context if isinstance(page_context, dict) else {}
+    session_id = _safe_int(page_context.get("session_id") or page_context.get("selected_session_id"), 0)
+    if session_id:
+        session = TrainingSession.objects.select_related("microcycle", "microcycle__team").filter(id=session_id).first()
+        if session:
+            return session
+    team = _resolve_workspace_team(workspace, page_context=page_context) if workspace else None
+    if not team:
+        return None
+    return TrainingSession.objects.select_related("microcycle", "microcycle__team").filter(microcycle__team=team).order_by("-session_date", "-id").first()
+
+
+def _resolve_active_convocation(workspace, *, page_context=None):
+    page_context = page_context if isinstance(page_context, dict) else {}
+    match_id = _safe_int(page_context.get("match_id"), 0)
+    team = _resolve_workspace_team(workspace, page_context=page_context) if workspace else None
+    if not team:
+        return None
+    qs = ConvocationRecord.objects.filter(team=team)
+    if match_id:
+        record = qs.filter(match_id=match_id).order_by("-id").first()
+        if record:
+            return record
+    return qs.filter(is_current=True).order_by("-id").first() or qs.order_by("-id").first()
+
+
+def _ensure_match_from_payload(payload: dict, *, workspace=None, team=None) -> tuple[Match | None, bool]:
+    payload = payload if isinstance(payload, dict) else {}
+    if not workspace or not team:
+        return None, False
+    season, group = _ensure_team_competition_context(team, workspace=workspace)
+    if not season:
+        return None, False
+    rival_name = str(payload.get("rival") or "").strip()
+    rival = None
+    if rival_name:
+        rival = Team.objects.filter(name__iexact=rival_name).order_by("id").first()
+    if rival is None and rival_name:
+        rival_slug_base = slugify(rival_name)[:140] or f"rival-{int(team.id)}"
+        rival = Team.objects.create(
+            name=rival_name[:150],
+            slug=f"{rival_slug_base}-{int(time.time())}"[:150],
+            group=group,
+            is_primary=False,
+        )
+    is_home = bool(payload.get("is_home"))
+    is_away = bool(payload.get("is_away"))
+    home_team = team if is_home or not is_away else rival
+    away_team = rival if is_home or not is_away else team
+    if not home_team or not away_team or not payload.get("date"):
+        return None, False
+    match = Match.objects.filter(
+        season=season,
+        date=payload.get("date"),
+        home_team=home_team,
+        away_team=away_team,
+    ).order_by("-id").first()
+    created = match is None
+    if created:
+        match = Match.objects.create(
+            season=season,
+            club_season=_active_workspace_season(workspace),
+            group=group,
+            round=str(payload.get("round") or "")[:50],
+            context=payload.get("context") or Match.CONTEXT_LEAGUE,
+            date=payload.get("date"),
+            kickoff_time=payload.get("kickoff_time"),
+            location=str(payload.get("location") or getattr(team, "home_stadium", "") or "")[:200],
+            home_team=home_team,
+            away_team=away_team,
+            notes="Creado por Ollana desde el asistente.",
+        )
+    else:
+        updates = []
+        for field in ("round", "context", "kickoff_time", "location"):
+            value = payload.get(field)
+            if value not in (None, "") and getattr(match, field) != value:
+                setattr(match, field, value)
+                updates.append(field)
+        if updates:
+            match.save(update_fields=sorted(set(updates)))
+    return match, created
+
+
 def _execute_create_session_action(question: str, *, workspace=None, page_context=None) -> dict:
     page_context = page_context if isinstance(page_context, dict) else {}
     payload = _parse_session_request(question)
@@ -3089,6 +3620,107 @@ def _execute_create_session_action(question: str, *, workspace=None, page_contex
             "date": str(getattr(session, "session_date", "") or ""),
             "team": str(getattr(team, "name", "") or ""),
             "duration_minutes": int(getattr(session, "duration_minutes", 0) or 0),
+        },
+        "payload": payload,
+    }
+
+
+def _execute_create_microcycle_action(question: str, *, workspace=None, page_context=None) -> dict:
+    page_context = page_context if isinstance(page_context, dict) else {}
+    payload = _parse_microcycle_request(question)
+    if not workspace:
+        return {
+            "kind": "create_microcycle",
+            "executed": False,
+            "success": False,
+            "needs_input": True,
+            "missing_fields": ["contexto_equipo"],
+            "message": "No puedo crear el microciclo sin un workspace activo.",
+            "payload": payload,
+        }
+    auth = _authorize_guard_action("create_microcycle", page_context=page_context)
+    if not auth.get("allowed"):
+        return {
+            "kind": "create_microcycle",
+            "executed": False,
+            "success": False,
+            "needs_input": False,
+            "permission_required": True,
+            "message": "Necesitas permisos de gestión para crear microciclos.",
+            "authorization": auth,
+            "payload": payload,
+        }
+    team_id = _safe_int(page_context.get("team_id"), 0)
+    team = None
+    if team_id and getattr(workspace, "teams", None) is not None:
+        link = workspace.teams.select_related("team").filter(team_id=team_id).first()
+        team = getattr(link, "team", None) if link else None
+    if team is None:
+        team = getattr(workspace, "primary_team", None)
+    missing_fields = []
+    if not payload.get("week_start"):
+        missing_fields.append("fecha_inicio")
+    if not payload.get("week_end"):
+        missing_fields.append("fecha_fin")
+    if not team:
+        missing_fields.append("equipo")
+    if missing_fields:
+        return {
+            "kind": "create_microcycle",
+            "executed": False,
+            "success": False,
+            "needs_input": True,
+            "missing_fields": missing_fields,
+            "message": "Pásame al menos fecha de inicio y fin para crear el microciclo.",
+            "payload": payload,
+        }
+    if payload.get("week_end") < payload.get("week_start"):
+        return {
+            "kind": "create_microcycle",
+            "executed": False,
+            "success": False,
+            "needs_input": True,
+            "missing_fields": ["fecha_fin"],
+            "message": "La fecha de fin no puede ser anterior a la de inicio.",
+            "payload": payload,
+        }
+    with transaction.atomic():
+        microcycle = TrainingMicrocycle.objects.filter(team=team, week_start=payload.get("week_start")).order_by("-id").first()
+        created = microcycle is None
+        if created:
+            microcycle = TrainingMicrocycle.objects.create(
+                team=team,
+                title=str(payload.get("title") or "Microciclo semanal")[:140],
+                objective=str(payload.get("objective") or "")[:200],
+                cycle_type=payload.get("cycle_type") or TrainingMicrocycle.TYPE_STANDARD,
+                week_start=payload.get("week_start"),
+                week_end=payload.get("week_end"),
+                status=TrainingMicrocycle.STATUS_DRAFT,
+            )
+        else:
+            updates = []
+            for field in ("title", "objective", "cycle_type", "week_end"):
+                value = payload.get(field)
+                if value not in (None, "") and getattr(microcycle, field) != value:
+                    setattr(microcycle, field, value)
+                    updates.append(field)
+            if updates:
+                microcycle.save(update_fields=sorted(set(updates)))
+    return {
+        "kind": "create_microcycle",
+        "executed": True,
+        "success": True,
+        "needs_input": False,
+        "message": (
+            f"Microciclo creado: {microcycle.title}."
+            if created else f"Microciclo actualizado: {microcycle.title}."
+        ),
+        "microcycle": {
+            "id": int(getattr(microcycle, "id", 0) or 0),
+            "title": str(getattr(microcycle, "title", "") or ""),
+            "week_start": str(getattr(microcycle, "week_start", "") or ""),
+            "week_end": str(getattr(microcycle, "week_end", "") or ""),
+            "team": str(getattr(team, "name", "") or ""),
         },
         "payload": payload,
     }
@@ -3221,6 +3853,615 @@ def _execute_create_task_action(question: str, *, workspace=None, page_context=N
             "session": str(getattr(library_session, "focus", "") or ""),
             "team": str(getattr(team, "name", "") or ""),
         },
+        "payload": payload,
+    }
+
+
+def _execute_create_match_action(question: str, *, workspace=None, page_context=None) -> dict:
+    page_context = page_context if isinstance(page_context, dict) else {}
+    payload = _parse_match_request(question)
+    if not workspace:
+        return {
+            "kind": "create_match",
+            "executed": False,
+            "success": False,
+            "needs_input": True,
+            "missing_fields": ["contexto_equipo"],
+            "message": "No puedo crear el partido sin un workspace activo.",
+            "payload": payload,
+        }
+    auth = _authorize_guard_action("create_match", page_context=page_context)
+    if not auth.get("allowed"):
+        return {
+            "kind": "create_match",
+            "executed": False,
+            "success": False,
+            "needs_input": False,
+            "permission_required": True,
+            "message": "Necesitas permisos de gestión para crear partidos.",
+            "authorization": auth,
+            "payload": payload,
+        }
+    team = _resolve_workspace_team(workspace, page_context=page_context)
+    missing_fields = []
+    if not payload.get("rival"):
+        missing_fields.append("rival")
+    if not payload.get("date"):
+        missing_fields.append("fecha")
+    if not team:
+        missing_fields.append("equipo")
+    if missing_fields:
+        return {
+            "kind": "create_match",
+            "executed": False,
+            "success": False,
+            "needs_input": True,
+            "missing_fields": missing_fields,
+            "message": "Pásame al menos rival y fecha para crear el partido.",
+            "payload": payload,
+        }
+    match, created = _ensure_match_from_payload(payload, workspace=workspace, team=team)
+    if not match:
+        return {
+            "kind": "create_match",
+            "executed": False,
+            "success": False,
+            "needs_input": False,
+            "message": "No pude resolver la temporada competitiva o los datos base para crear el partido.",
+            "payload": payload,
+        }
+    home_team = getattr(match, "home_team", None)
+    away_team = getattr(match, "away_team", None)
+    return {
+        "kind": "create_match",
+        "executed": True,
+        "success": True,
+        "needs_input": False,
+        "message": (
+            f"Partido creado: {home_team.display_name} vs {away_team.display_name}."
+            if created else f"Partido actualizado: {home_team.display_name} vs {away_team.display_name}."
+        ),
+        "match": {
+            "id": int(getattr(match, "id", 0) or 0),
+            "date": str(getattr(match, "date", "") or ""),
+            "home_team": str(getattr(home_team, "display_name", "") or getattr(home_team, "name", "") or ""),
+            "away_team": str(getattr(away_team, "display_name", "") or getattr(away_team, "name", "") or ""),
+            "context": str(getattr(match, "context", "") or ""),
+        },
+        "payload": payload,
+    }
+
+
+def _infer_task_block(task_payload: dict, order: int) -> str:
+    title = str((task_payload or {}).get("title") or "").lower()
+    block = str((task_payload or {}).get("block") or "").strip()
+    if block in {row[0] for row in SessionTask.BLOCK_CHOICES}:
+        return block
+    if any(token in title for token in ["activ", "warm", "rondo inicial"]):
+        return SessionTask.BLOCK_ACTIVATION
+    if any(token in title for token in ["abp", "set piece", "córner", "corner", "falta"]):
+        return SessionTask.BLOCK_SET_PIECES
+    if any(token in title for token in ["video", "vídeo"]):
+        return SessionTask.BLOCK_VIDEO
+    if any(token in title for token in ["recuper", "vuelta calma", "cooldown"]):
+        return SessionTask.BLOCK_RECOVERY
+    if order <= 1:
+        return SessionTask.BLOCK_MAIN_1
+    return SessionTask.BLOCK_MAIN_2
+
+
+def _execute_create_convocation_action(question: str, *, workspace=None, page_context=None) -> dict:
+    page_context = page_context if isinstance(page_context, dict) else {}
+    payload = _parse_convocation_request(question)
+    if not workspace:
+        return {
+            "kind": "create_convocation",
+            "executed": False,
+            "success": False,
+            "needs_input": True,
+            "missing_fields": ["contexto_equipo"],
+            "message": "No puedo crear la convocatoria sin un workspace activo.",
+            "payload": payload,
+        }
+    auth = _authorize_guard_action("create_convocation", page_context=page_context)
+    if not auth.get("allowed"):
+        return {
+            "kind": "create_convocation",
+            "executed": False,
+            "success": False,
+            "needs_input": False,
+            "permission_required": True,
+            "message": "Necesitas permisos de gestión para crear convocatorias.",
+            "authorization": auth,
+            "payload": payload,
+        }
+    team = _resolve_workspace_team(workspace, page_context=page_context)
+    missing_fields = []
+    if not payload.get("rival"):
+        missing_fields.append("rival")
+    if not payload.get("date"):
+        missing_fields.append("fecha")
+    if not team:
+        missing_fields.append("equipo")
+    if missing_fields:
+        return {
+            "kind": "create_convocation",
+            "executed": False,
+            "success": False,
+            "needs_input": True,
+            "missing_fields": missing_fields,
+            "message": "Pásame al menos rival y fecha para crear la convocatoria.",
+            "payload": payload,
+        }
+    match, _ = _ensure_match_from_payload(payload, workspace=workspace, team=team)
+    if not match:
+        return {
+            "kind": "create_convocation",
+            "executed": False,
+            "success": False,
+            "needs_input": False,
+            "message": "No pude preparar el partido base para la convocatoria.",
+            "payload": payload,
+        }
+    active_season = _active_workspace_season(workspace)
+    roster_qs = Player.objects.filter(team=team, is_active=True).order_by("number", "name")
+    if active_season:
+        season_ids = list(
+            active_season.season_players.filter(team=team, status__in=["confirmed", "pending"]).values_list("player_id", flat=True)
+        )
+        if season_ids:
+            roster_qs = roster_qs.filter(id__in=season_ids)
+    full_roster = list(roster_qs[:40])
+    selected_players = _resolve_players_from_tokens(team, payload.get("player_tokens") or [])
+    if selected_players:
+        roster = selected_players
+    else:
+        roster = full_roster if payload.get("include_full_roster") else []
+    starter_players = _resolve_players_from_tokens(team, payload.get("starter_tokens") or [])
+    starters_limit = 7 if str(getattr(team, "game_format", "") or "").lower() == Team.GAME_FORMAT_F7 else 11
+    lineup_payload = _build_lineup_payload(roster, starter_players, starters_limit=starters_limit) if roster else {"starters": [], "bench": []}
+    captain_player = _resolve_players_from_tokens(team, [payload.get("captain_token") or ""])
+    goalkeeper_player = _resolve_players_from_tokens(team, [payload.get("goalkeeper_token") or ""])
+    captain = captain_player[0] if captain_player else (starter_players[0] if starter_players else None)
+    goalkeeper = goalkeeper_player[0] if goalkeeper_player else None
+    if goalkeeper is None:
+        for player in roster:
+            pos = str(getattr(player, "position", "") or "").lower()
+            if pos in {"por", "pt", "gk", "goalkeeper", "portero"} or "portero" in pos:
+                goalkeeper = player
+                break
+    with transaction.atomic():
+        ConvocationRecord.objects.filter(team=team, is_current=True).update(is_current=False)
+        record = ConvocationRecord.objects.filter(team=team, match=match).order_by("-id").first()
+        created = record is None
+        if created:
+            record = ConvocationRecord.objects.create(
+                team=team,
+                match=match,
+                round=str(payload.get("round") or getattr(match, "round", "") or "")[:60],
+                match_date=payload.get("date"),
+                match_time=payload.get("kickoff_time"),
+                location=str(payload.get("location") or getattr(match, "location", "") or "")[:200],
+                opponent_name=str(payload.get("rival") or "")[:150],
+                lineup_data=lineup_payload,
+                captain=captain,
+                goalkeeper=goalkeeper,
+                is_current=True,
+            )
+        else:
+            record.round = str(payload.get("round") or getattr(match, "round", "") or "")[:60]
+            record.match_date = payload.get("date")
+            record.match_time = payload.get("kickoff_time")
+            record.location = str(payload.get("location") or getattr(match, "location", "") or "")[:200]
+            record.opponent_name = str(payload.get("rival") or "")[:150]
+            record.lineup_data = lineup_payload
+            record.captain = captain
+            record.goalkeeper = goalkeeper
+            record.is_current = True
+            record.save(update_fields=["round", "match_date", "match_time", "location", "opponent_name", "lineup_data", "captain", "goalkeeper", "is_current"])
+        if roster:
+            record.players.set(roster)
+    return {
+        "kind": "create_convocation",
+        "executed": True,
+        "success": True,
+        "needs_input": False,
+        "message": (
+            f"Convocatoria creada para {payload.get('rival')}."
+            if created else f"Convocatoria actualizada para {payload.get('rival')}."
+        ),
+        "convocation": {
+            "id": int(getattr(record, "id", 0) or 0),
+            "match_id": int(getattr(match, "id", 0) or 0),
+            "opponent_name": str(getattr(record, "opponent_name", "") or ""),
+            "players_count": len(roster),
+            "starters_count": len(lineup_payload.get("starters") or []),
+            "captain_id": int(getattr(captain, "id", 0) or 0),
+            "goalkeeper_id": int(getattr(goalkeeper, "id", 0) or 0),
+        },
+        "navigate_to": {
+            "key": "convocation",
+            "label": "Convocatoria",
+            "url": f"{reverse('convocation')}{_compact_query({'team': int(team.id), 'match_id': int(match.id)})}",
+        },
+        "payload": payload,
+    }
+
+
+def _execute_create_rival_analysis_action(question: str, *, workspace=None, page_context=None) -> dict:
+    page_context = page_context if isinstance(page_context, dict) else {}
+    payload = _parse_rival_analysis_request(question)
+    if not workspace:
+        return {
+            "kind": "create_rival_analysis",
+            "executed": False,
+            "success": False,
+            "needs_input": True,
+            "missing_fields": ["contexto_equipo"],
+            "message": "No puedo preparar el análisis rival sin un workspace activo.",
+            "payload": payload,
+        }
+    auth = _authorize_guard_action("create_rival_analysis", page_context=page_context)
+    if not auth.get("allowed"):
+        return {
+            "kind": "create_rival_analysis",
+            "executed": False,
+            "success": False,
+            "needs_input": False,
+            "permission_required": True,
+            "message": "Necesitas permisos de gestión para preparar análisis rival.",
+            "authorization": auth,
+            "payload": payload,
+        }
+    team = _resolve_workspace_team(workspace, page_context=page_context)
+    missing_fields = []
+    if not payload.get("rival"):
+        missing_fields.append("rival")
+    if not team:
+        missing_fields.append("equipo")
+    if missing_fields:
+        return {
+            "kind": "create_rival_analysis",
+            "executed": False,
+            "success": False,
+            "needs_input": True,
+            "missing_fields": missing_fields,
+            "message": "Pásame al menos el rival para abrir el análisis.",
+            "payload": payload,
+        }
+    match = None
+    if payload.get("date"):
+        match, _ = _ensure_match_from_payload(payload, workspace=workspace, team=team)
+    rival_team = Team.objects.filter(name__iexact=str(payload.get("rival") or "")).order_by("id").first()
+    with transaction.atomic():
+        report = RivalAnalysisReport.objects.filter(
+            team=team,
+            rival_name__iexact=str(payload.get("rival") or ""),
+            club_season=_active_workspace_season(workspace),
+        ).order_by("-id").first()
+        created = report is None
+        if created:
+            report = RivalAnalysisReport.objects.create(
+                team=team,
+                club_season=_active_workspace_season(workspace),
+                rival_team=rival_team,
+                rival_name=str(payload.get("rival") or "")[:180],
+                report_title=f"Informe rival · {str(payload.get('rival') or '')[:120]}",
+                match_round=str(payload.get("round") or "")[:80],
+                match_date=str(payload.get("date") or "")[:60],
+                match_location=str(payload.get("location") or "")[:180],
+                tactical_system=str(payload.get("tactical_system") or "")[:80],
+                weaknesses=str(payload.get("weaknesses") or "")[:4000],
+                match_plan=str(payload.get("match_plan") or "")[:4000],
+                status=RivalAnalysisReport.STATUS_DRAFT,
+            )
+        else:
+            updates = []
+            for field, value in (
+                ("rival_team", rival_team),
+                ("match_round", str(payload.get("round") or "")[:80]),
+                ("match_date", str(payload.get("date") or "")[:60]),
+                ("match_location", str(payload.get("location") or "")[:180]),
+                ("tactical_system", str(payload.get("tactical_system") or "")[:80]),
+                ("weaknesses", str(payload.get("weaknesses") or "")[:4000]),
+                ("match_plan", str(payload.get("match_plan") or "")[:4000]),
+            ):
+                if value not in (None, "") and getattr(report, field) != value:
+                    setattr(report, field, value)
+                    updates.append(field)
+            if updates:
+                report.save(update_fields=sorted(set(updates)))
+    nav_params = {"team": int(team.id)}
+    if rival_team:
+        nav_url = f"{reverse('coach-rival-profile', args=[int(rival_team.id)])}{_compact_query(nav_params)}"
+    else:
+        nav_url = f"{reverse('coach-rival')}{_compact_query(nav_params)}"
+    return {
+        "kind": "create_rival_analysis",
+        "executed": True,
+        "success": True,
+        "needs_input": False,
+        "message": (
+            f"Análisis rival preparado para {payload.get('rival')}."
+            if created else f"Análisis rival actualizado para {payload.get('rival')}."
+        ),
+        "rival_analysis": {
+            "id": int(getattr(report, "id", 0) or 0),
+            "rival_name": str(getattr(report, "rival_name", "") or ""),
+            "match_id": int(getattr(match, "id", 0) or 0),
+            "status": str(getattr(report, "status", "") or ""),
+        },
+        "navigate_to": {
+            "key": "rival_analysis",
+            "label": "Análisis rival",
+            "url": nav_url,
+        },
+        "payload": payload,
+    }
+
+
+def _execute_create_session_bundle_action(question: str, *, workspace=None, page_context=None) -> dict:
+    page_context = page_context if isinstance(page_context, dict) else {}
+    bundle = _parse_session_bundle_request(question)
+    session_result = _execute_create_session_action(question, workspace=workspace, page_context=page_context)
+    if not session_result.get("success"):
+        failed = dict(session_result)
+        failed["kind"] = "create_session_bundle"
+        return failed
+    tasks_payload = [row for row in (bundle.get("tasks") or []) if isinstance(row, dict)]
+    session_id = _safe_int(((session_result.get("session") or {}).get("id")), 0)
+    session = TrainingSession.objects.filter(id=session_id).first() if session_id else None
+    if not session:
+        return {
+            "kind": "create_session_bundle",
+            "executed": False,
+            "success": False,
+            "needs_input": False,
+            "message": "La sesión se ha creado pero no he podido resolverla para añadir tareas.",
+            "payload": bundle,
+        }
+    created_tasks = []
+    with transaction.atomic():
+        next_order = (SessionTask.objects.filter(session=session).order_by("-order").values_list("order", flat=True).first() or 0)
+        for index, task_payload in enumerate(tasks_payload, start=1):
+            title = str(task_payload.get("title") or "").strip()
+            if not title:
+                continue
+            task = SessionTask.objects.filter(session=session, title__iexact=title, deleted_at__isnull=True).order_by("-id").first()
+            created = task is None
+            if created:
+                next_order += 1
+                task = SessionTask.objects.create(
+                    session=session,
+                    title=title[:160],
+                    block=_infer_task_block(task_payload, index),
+                    duration_minutes=_safe_int(task_payload.get("duration_minutes"), 12),
+                    objective=str(task_payload.get("objective") or "")[:4000],
+                    notes="Creada por Ollana desde un bundle de sesión.",
+                    order=next_order,
+                )
+            else:
+                updates = []
+                duration = _safe_int(task_payload.get("duration_minutes"), 12)
+                if duration and task.duration_minutes != duration:
+                    task.duration_minutes = duration
+                    updates.append("duration_minutes")
+                objective = str(task_payload.get("objective") or "")[:4000]
+                if objective and task.objective != objective:
+                    task.objective = objective
+                    updates.append("objective")
+                if updates:
+                    task.save(update_fields=sorted(set(updates)))
+            created_tasks.append({
+                "id": int(getattr(task, "id", 0) or 0),
+                "title": str(getattr(task, "title", "") or ""),
+                "duration_minutes": int(getattr(task, "duration_minutes", 0) or 0),
+                "created": created,
+            })
+    return {
+        "kind": "create_session_bundle",
+        "executed": True,
+        "success": True,
+        "needs_input": False,
+        "message": f"Sesión y tareas preparadas: {session.focus}.",
+        "session": session_result.get("session") or {},
+        "tasks": created_tasks,
+        "payload": bundle,
+    }
+
+
+def _execute_create_matchday_bundle_action(question: str, *, workspace=None, page_context=None) -> dict:
+    page_context = page_context if isinstance(page_context, dict) else {}
+    bundle = _parse_matchday_bundle_request(question)
+    analysis_result = _execute_create_rival_analysis_action(question, workspace=workspace, page_context=page_context)
+    if not analysis_result.get("success"):
+        failed = dict(analysis_result)
+        failed["kind"] = "create_matchday_bundle"
+        return failed
+    session_bundle = bundle.get("session_bundle") if isinstance(bundle.get("session_bundle"), dict) else {}
+    session_question_parts = []
+    session_payload = session_bundle.get("session") if isinstance(session_bundle.get("session"), dict) else {}
+    if session_payload.get("focus"):
+        session_question_parts.append(f"crea sesión {session_payload.get('focus')}")
+    if session_payload.get("session_date"):
+        session_question_parts.append(str(session_payload.get("session_date")))
+    if session_payload.get("start_time"):
+        session_question_parts.append(f"a las {session_payload.get('start_time')}")
+    if session_payload.get("notes"):
+        session_question_parts.append(f"objetivo {session_payload.get('notes')}")
+    tasks = [row for row in (session_bundle.get("tasks") or []) if isinstance(row, dict)]
+    if tasks:
+        task_text = "; ".join(
+            f"{str(row.get('title') or '')} {int(row.get('duration_minutes') or 0)}"
+            for row in tasks
+            if str(row.get("title") or "").strip()
+        )
+        session_question_parts.append(f"con tareas: {task_text}")
+    session_result = _execute_create_session_bundle_action(" ".join(session_question_parts).strip(), workspace=workspace, page_context=page_context)
+    if not session_result.get("success"):
+        failed = dict(session_result)
+        failed["kind"] = "create_matchday_bundle"
+        return failed
+    return {
+        "kind": "create_matchday_bundle",
+        "executed": True,
+        "success": True,
+        "needs_input": False,
+        "message": f"Plan de partido preparado para {((analysis_result.get('rival_analysis') or {}).get('rival_name') or 'rival')}.",
+        "rival_analysis": analysis_result.get("rival_analysis") or {},
+        "session": session_result.get("session") or {},
+        "tasks": session_result.get("tasks") or [],
+        "navigate_to": analysis_result.get("navigate_to") or {},
+        "payload": bundle,
+    }
+
+
+def _execute_update_session_action(question: str, *, workspace=None, page_context=None) -> dict:
+    page_context = page_context if isinstance(page_context, dict) else {}
+    payload = _parse_session_request(question)
+    if not workspace:
+        return {
+            "kind": "update_session",
+            "executed": False,
+            "success": False,
+            "needs_input": True,
+            "message": "No puedo editar la sesión sin un workspace activo.",
+            "payload": payload,
+        }
+    auth = _authorize_guard_action("update_session", page_context=page_context)
+    if not auth.get("allowed"):
+        return {
+            "kind": "update_session",
+            "executed": False,
+            "success": False,
+            "permission_required": True,
+            "message": "Necesitas permisos de gestión para editar sesiones.",
+            "authorization": auth,
+            "payload": payload,
+        }
+    session = _resolve_active_session(workspace, page_context=page_context)
+    if not session:
+        return {
+            "kind": "update_session",
+            "executed": False,
+            "success": False,
+            "needs_input": True,
+            "message": "No he encontrado una sesión activa que editar.",
+            "payload": payload,
+        }
+    updates = []
+    if payload.get("focus") and session.focus != payload.get("focus"):
+        session.focus = payload.get("focus")
+        updates.append("focus")
+    for field in ("session_date", "start_time", "duration_minutes", "intensity", "md_day", "dominant_load"):
+        value = payload.get(field)
+        if value not in (None, "", 0) and getattr(session, field) != value:
+            setattr(session, field, value)
+            updates.append(field)
+    if payload.get("notes"):
+        content = serialize_session_plan_fields({"notes": payload.get("notes"), "agenda_hidden": ""})
+        if str(getattr(session, "content", "") or "") != str(content):
+            session.content = content
+            updates.append("content")
+    if updates:
+        session.save(update_fields=sorted(set(updates)))
+    return {
+        "kind": "update_session",
+        "executed": True,
+        "success": True,
+        "needs_input": False,
+        "message": f"Sesión actualizada: {session.focus}.",
+        "session": {
+            "id": int(session.id),
+            "focus": str(session.focus or ""),
+            "date": str(session.session_date or ""),
+            "duration_minutes": int(session.duration_minutes or 0),
+        },
+        "updated_fields": updates,
+        "payload": payload,
+    }
+
+
+def _execute_update_convocation_action(question: str, *, workspace=None, page_context=None) -> dict:
+    page_context = page_context if isinstance(page_context, dict) else {}
+    payload = _parse_convocation_request(question)
+    if not workspace:
+        return {
+            "kind": "update_convocation",
+            "executed": False,
+            "success": False,
+            "needs_input": True,
+            "message": "No puedo editar la convocatoria sin un workspace activo.",
+            "payload": payload,
+        }
+    auth = _authorize_guard_action("update_convocation", page_context=page_context)
+    if not auth.get("allowed"):
+        return {
+            "kind": "update_convocation",
+            "executed": False,
+            "success": False,
+            "permission_required": True,
+            "message": "Necesitas permisos de gestión para editar convocatorias.",
+            "authorization": auth,
+            "payload": payload,
+        }
+    record = _resolve_active_convocation(workspace, page_context=page_context)
+    team = _resolve_workspace_team(workspace, page_context=page_context)
+    if not record or not team:
+        return {
+            "kind": "update_convocation",
+            "executed": False,
+            "success": False,
+            "needs_input": True,
+            "message": "No he encontrado una convocatoria activa que editar.",
+            "payload": payload,
+        }
+    roster = list(record.players.order_by("number", "name"))
+    selected_players = _resolve_players_from_tokens(team, payload.get("player_tokens") or [])
+    if selected_players:
+        roster = selected_players
+        record.players.set(roster)
+    starter_players = _resolve_players_from_tokens(team, payload.get("starter_tokens") or [])
+    starters_limit = 7 if str(getattr(team, "game_format", "") or "").lower() == Team.GAME_FORMAT_F7 else 11
+    lineup_payload = _build_lineup_payload(roster, starter_players, starters_limit=starters_limit) if roster else {"starters": [], "bench": []}
+    captain_rows = _resolve_players_from_tokens(team, [payload.get("captain_token") or ""])
+    goalkeeper_rows = _resolve_players_from_tokens(team, [payload.get("goalkeeper_token") or ""])
+    updates = []
+    if payload.get("rival") and record.opponent_name != payload.get("rival"):
+        record.opponent_name = payload.get("rival")
+        updates.append("opponent_name")
+    if payload.get("date") and record.match_date != payload.get("date"):
+        record.match_date = payload.get("date")
+        updates.append("match_date")
+    if payload.get("kickoff_time") and record.match_time != payload.get("kickoff_time"):
+        record.match_time = payload.get("kickoff_time")
+        updates.append("match_time")
+    if payload.get("location") and record.location != payload.get("location"):
+        record.location = payload.get("location")
+        updates.append("location")
+    record.lineup_data = lineup_payload
+    updates.append("lineup_data")
+    if captain_rows:
+        record.captain = captain_rows[0]
+        updates.append("captain")
+    if goalkeeper_rows:
+        record.goalkeeper = goalkeeper_rows[0]
+        updates.append("goalkeeper")
+    record.save(update_fields=sorted(set(updates)))
+    return {
+        "kind": "update_convocation",
+        "executed": True,
+        "success": True,
+        "needs_input": False,
+        "message": f"Convocatoria actualizada para {record.opponent_name or 'el partido activo'}.",
+        "convocation": {
+            "id": int(record.id),
+            "players_count": int(record.players.count()),
+            "starters_count": len(lineup_payload.get("starters") or []),
+            "captain_id": int(getattr(record.captain, "id", 0) or 0),
+            "goalkeeper_id": int(getattr(record.goalkeeper, "id", 0) or 0),
+        },
+        "updated_fields": updates,
         "payload": payload,
     }
 
@@ -3358,6 +4599,22 @@ def _policy_decisions_snapshot(*, page_context=None, planner=None, assistant_act
         requested_action = "create_session"
     elif action_kind == "create_task":
         requested_action = "create_task"
+    elif action_kind == "create_microcycle":
+        requested_action = "create_microcycle"
+    elif action_kind == "create_match":
+        requested_action = "create_match"
+    elif action_kind == "create_convocation":
+        requested_action = "create_convocation"
+    elif action_kind == "create_rival_analysis":
+        requested_action = "create_rival_analysis"
+    elif action_kind == "create_session_bundle":
+        requested_action = "create_session_bundle"
+    elif action_kind == "create_matchday_bundle":
+        requested_action = "create_matchday_bundle"
+    elif action_kind == "update_session":
+        requested_action = "update_session"
+    elif action_kind == "update_convocation":
+        requested_action = "update_convocation"
     elif str(technical_operation.get("kind") or "") == "technical_operation":
         requested_action = "repair_code"
     elif str(task.get("scope") or "") == "code":
@@ -3370,6 +4627,49 @@ def _policy_decisions_snapshot(*, page_context=None, planner=None, assistant_act
         "requested_action_reasons": list(requested_auth.get("reasons") or []),
         "publish_allowed": bool(publish_auth.get("allowed")),
         "confirm_required": bool(planner.get("confirm_required")),
+    }
+
+
+def _module_runbook_snapshot(*, page_context=None) -> dict:
+    context = page_context if isinstance(page_context, dict) else {}
+    page = str(context.get("page") or "").strip().lower()
+    catalog = {
+        "dashboard-home": {
+            "runbook": "user_navigation",
+            "goal": "Resolver accesos rápidos y detectar el siguiente flujo útil desde portada.",
+            "tools": ["check_status", "inspect_guard_history"],
+        },
+        "sessions": {
+            "runbook": "user_execution",
+            "goal": "Ayudar a crear y optimizar microciclos, sesiones y tareas abiertas.",
+            "tools": ["check_status", "inspect_repo_status"],
+        },
+        "match-hub": {
+            "runbook": "user_execution",
+            "goal": "Preparar el siguiente paso operativo de partido, rival y convocatoria.",
+            "tools": ["check_status", "inspect_guard_history"],
+        },
+        "coach-roster": {
+            "runbook": "user_execution",
+            "goal": "Guiar altas de jugadores y revisión operativa de plantilla.",
+            "tools": ["check_status"],
+        },
+        "ai-trainer": {
+            "runbook": "silent_diagnostics",
+            "goal": "Vigilar contexto de IA Trainer, biblioteca y respuesta del asistente.",
+            "tools": ["check_status", "inspect_recent_errors", "inspect_guard_history"],
+        },
+    }
+    selected = catalog.get(page) or {
+        "runbook": "silent_diagnostics",
+        "goal": "Mantener diagnóstico y guía operativa del módulo actual.",
+        "tools": ["check_status"],
+    }
+    return {
+        "page": page,
+        "runbook": str(selected.get("runbook") or "")[:64],
+        "goal": str(selected.get("goal") or "")[:220],
+        "tools": [str(item) for item in (selected.get("tools") or [])[:5]],
     }
 
 
@@ -3718,6 +5018,13 @@ def _mission_control_snapshot(
     silent_operator = silent_operator if isinstance(silent_operator, dict) else {}
     snapshot_diff = snapshot_diff if isinstance(snapshot_diff, dict) else {}
     improvement_proposals = improvement_proposals if isinstance(improvement_proposals, list) else []
+    maturity = _ollana_maturity_snapshot(
+        page_context=page_context,
+        assistant_action=assistant_action,
+        technical_execution=technical_execution,
+        operator_profile={},
+        silent_operator=silent_operator,
+    )
     task = planner.get("task") if isinstance(planner.get("task"), dict) else {}
     runbook = planner.get("runbook") if isinstance(planner.get("runbook"), dict) else {}
     alerts = []
@@ -3773,9 +5080,172 @@ def _mission_control_snapshot(
             "queue_blocked": _safe_int((silent_operator.get("queue_counts") or {}).get("blocked"), 0),
             "continuous_enabled": bool(silent_operator.get("continuous_enabled")),
         },
+        "maturity": maturity,
         "alerts": alerts[:4],
         "priority_queue": priority_queue,
         "recommended_next_actions": recommended[:4],
+    }
+
+
+def _system_brain_snapshot(
+    workspace,
+    *,
+    page_context=None,
+    operator_profile=None,
+    planner=None,
+) -> dict:
+    operator_profile = operator_profile if isinstance(operator_profile, dict) else {}
+    planner = planner if isinstance(planner, dict) else {}
+    observability = _observability_summary(workspace) if workspace else {}
+    memory = _merge_memory(_load_memory(workspace), {}) if workspace else {}
+    task = planner.get("task") if isinstance(planner.get("task"), dict) else {}
+    recurring = [row for row in (operator_profile.get("recurring_intents") or []) if isinstance(row, dict)]
+    maturity = _ollana_maturity_snapshot(
+        page_context=page_context,
+        assistant_action={},
+        technical_execution={},
+        operator_profile=operator_profile,
+        silent_operator={},
+    )
+    top_intents = [
+        {
+            "intent": str(row.get("intent") or "")[:64],
+            "count": _safe_int(row.get("count"), 0),
+        }
+        for row in recurring[:4]
+    ]
+    return {
+        "embedded": True,
+        "knows_system_map": True,
+        "active_page": str((page_context or {}).get("page") or "")[:120] if isinstance(page_context, dict) else "",
+        "memory_turn_count": _safe_int(memory.get("turn_count"), 0),
+        "recent_pages": [str(item) for item in (memory.get("recent_pages") or [])[:5]],
+        "recent_questions": [str(item) for item in (memory.get("recent_questions") or [])[:4]],
+        "recent_fixes": [str(item) for item in (memory.get("recent_fixes") or [])[:4]],
+        "top_intents": top_intents,
+        "preferred_route": str(operator_profile.get("preferred_route_label") or "")[:120],
+        "current_focus": str(task.get("target_summary") or "")[:220],
+        "similarity_percent": _safe_int(maturity.get("percent"), 0),
+        "incident_memory": {
+            "count": _safe_int(observability.get("incident_ledger_count"), 0),
+            "preview": [row for row in (observability.get("incident_ledger_preview") or [])[:3] if isinstance(row, dict)],
+        },
+    }
+
+
+def _silent_operator_snapshot(
+    workspace,
+    *,
+    silent_operator=None,
+    planner=None,
+    page_context=None,
+) -> dict:
+    silent_operator = silent_operator if isinstance(silent_operator, dict) else {}
+    planner = planner if isinstance(planner, dict) else {}
+    runbook = planner.get("runbook") if isinstance(planner.get("runbook"), dict) else {}
+    queue_counts = silent_operator.get("queue_counts") if isinstance(silent_operator.get("queue_counts"), dict) else {}
+    proactive = _load_proactive_state(workspace) if workspace else {}
+    detections = [row for row in (proactive.get("last_detections") or []) if isinstance(row, dict)]
+    return {
+        "embedded": True,
+        "enabled": bool(silent_operator.get("enabled", True)),
+        "continuous_enabled": bool(silent_operator.get("continuous_enabled")),
+        "active_runbook": str(runbook.get("key") or "")[:64],
+        "module_runbook": _module_runbook_snapshot(page_context=page_context),
+        "queue_counts": {
+            "pending": _safe_int(queue_counts.get("pending"), 0),
+            "running": _safe_int(queue_counts.get("running"), 0),
+            "completed": _safe_int(queue_counts.get("completed"), 0),
+            "blocked": _safe_int(queue_counts.get("blocked"), 0),
+        },
+        "last_cycle_at": str(silent_operator.get("last_cycle_at") or "")[:64],
+        "next_cycle_in_seconds": _safe_int(silent_operator.get("next_cycle_in_seconds"), 0),
+        "recent_detections": [
+            {
+                "detector": str(row.get("detector") or "")[:64],
+                "severity": str(row.get("severity") or "")[:24],
+                "title": str(row.get("title") or row.get("summary") or "")[:180],
+            }
+            for row in detections[:4]
+        ],
+        "suggested_actions": [str(item) for item in (silent_operator.get("suggested_actions") or [])[:4]],
+    }
+
+
+def _action_executor_snapshot(*, assistant_action=None, planner=None, page_context=None) -> dict:
+    assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
+    planner = planner if isinstance(planner, dict) else {}
+    task = planner.get("task") if isinstance(planner.get("task"), dict) else {}
+    visible_skills = _capability_snapshot(page_context=page_context).get("skills") or []
+    business_skills = [row for row in visible_skills if isinstance(row, dict) and str(row.get("scope") or "") in {"business", "user"}]
+    return {
+        "embedded": True,
+        "functional_executor": True,
+        "active_kind": str(assistant_action.get("kind") or "")[:64],
+        "executed": bool(assistant_action.get("executed")),
+        "success": bool(assistant_action.get("success")),
+        "needs_input": bool(assistant_action.get("needs_input")),
+        "permission_required": bool(assistant_action.get("permission_required")),
+        "current_task_kind": str(task.get("kind") or "")[:32],
+        "available_skills": [str(row.get("key") or "") for row in business_skills[:8]],
+    }
+
+
+def _code_operator_snapshot(
+    *,
+    code_operator_mode=None,
+    technical_operation=None,
+    technical_execution=None,
+    change_blueprint=None,
+    autofix_runner=None,
+    page_context=None,
+) -> dict:
+    code_operator_mode = code_operator_mode if isinstance(code_operator_mode, dict) else {}
+    technical_operation = technical_operation if isinstance(technical_operation, dict) else {}
+    technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
+    change_blueprint = change_blueprint if isinstance(change_blueprint, dict) else {}
+    autofix_runner = autofix_runner if isinstance(autofix_runner, dict) else {}
+    auth = _authorize_guard_action("repair_code", page_context=page_context)
+    publish_auth = _authorize_guard_action("publish_changes", page_context=page_context)
+    return {
+        "embedded": True,
+        "enabled": bool(code_operator_mode.get("enabled")),
+        "mode": str(code_operator_mode.get("mode") or "")[:32],
+        "authorized_for_code": bool(auth.get("allowed")),
+        "authorized_for_publish": bool(publish_auth.get("allowed")),
+        "candidate_files": [str(item) for item in (technical_operation.get("candidate_files") or code_operator_mode.get("candidate_files") or [])[:6]],
+        "suggested_checks": [str(item) for item in (technical_operation.get("suggested_checks") or [])[:4]],
+        "execution_status": str(technical_execution.get("status") or "")[:32],
+        "publish_ready": bool(technical_execution.get("publish_ready")),
+        "blueprint_targets": len(change_blueprint.get("file_changes") or []),
+        "autofix_executable": bool(autofix_runner.get("executable")),
+    }
+
+
+def _user_copilot_snapshot(*, page_context=None, assistant_action=None, planner=None) -> dict:
+    page_context = page_context if isinstance(page_context, dict) else {}
+    assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
+    planner = planner if isinstance(planner, dict) else {}
+    task = planner.get("task") if isinstance(planner.get("task"), dict) else {}
+    routes = _guard_route_catalog(page_context)
+    return {
+        "embedded": True,
+        "active_page": str(page_context.get("page") or "")[:120],
+        "guided_assistant": True,
+        "current_intent": str(planner.get("intent") or "")[:64],
+        "route_target": {
+            "key": str((task.get("route_target") or {}).get("key") or "")[:64],
+            "label": str((task.get("route_target") or {}).get("label") or "")[:120],
+        },
+        "assistant_action_kind": str(assistant_action.get("kind") or "")[:64],
+        "next_modules": [
+            {
+                "key": str(row.get("key") or "")[:64],
+                "label": str(row.get("label") or "")[:120],
+            }
+            for row in routes[:5]
+            if isinstance(row, dict)
+        ],
     }
 
 
@@ -3791,6 +5261,7 @@ def _build_intelligence_os_snapshot(
     code_operator_mode=None,
     change_blueprint=None,
     autofix_runner=None,
+    repair_commander=None,
     operator_profile=None,
     silent_operator=None,
     improvement_proposals=None,
@@ -3799,6 +5270,7 @@ def _build_intelligence_os_snapshot(
     technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
     change_blueprint = change_blueprint if isinstance(change_blueprint, dict) else {}
     autofix_runner = autofix_runner if isinstance(autofix_runner, dict) else {}
+    repair_commander = repair_commander if isinstance(repair_commander, dict) else {}
     operator_profile = operator_profile if isinstance(operator_profile, dict) else {}
     silent_operator = silent_operator if isinstance(silent_operator, dict) else {}
     improvement_proposals = improvement_proposals if isinstance(improvement_proposals, list) else []
@@ -3814,6 +5286,12 @@ def _build_intelligence_os_snapshot(
             "knowledge": _system_knowledge_snapshot(page_context=page_context),
             "domain": _domain_context_snapshot(workspace, page_context=page_context),
             "runtime": _runtime_business_snapshot(workspace, page_context=page_context),
+            "system_brain": _system_brain_snapshot(
+                workspace,
+                page_context=page_context,
+                operator_profile=operator_profile,
+                planner=planner,
+            ),
             "live_workflow": _live_workflow_snapshot(workspace, page_context=page_context),
             "mission_control": _mission_control_snapshot(
                 workspace,
@@ -3824,6 +5302,18 @@ def _build_intelligence_os_snapshot(
                 silent_operator=silent_operator,
                 improvement_proposals=improvement_proposals,
                 snapshot_diff=snapshot_diff,
+            ),
+            "incident_commander": _incident_commander_snapshot(
+                page_context=page_context,
+                assistant_action=assistant_action,
+                technical_execution=technical_execution,
+                snapshot_diff=snapshot_diff,
+            ),
+            "silent_operator_runtime": _silent_operator_snapshot(
+                workspace,
+                silent_operator=silent_operator,
+                planner=planner,
+                page_context=page_context,
             ),
             "presence": _presence_snapshot(
                 page_context=page_context,
@@ -3840,6 +5330,11 @@ def _build_intelligence_os_snapshot(
             "execution": {
                 "surface": _execution_surface_snapshot(page_context=page_context),
                 "action_catalog": _action_catalog_snapshot(page_context=page_context),
+                "action_executor": _action_executor_snapshot(
+                    assistant_action=assistant_action,
+                    planner=planner,
+                    page_context=page_context,
+                ),
                 "assistant_action_kind": str((assistant_action or {}).get("kind") or ""),
                 "technical_execution_status": str(technical_execution.get("status") or ""),
                 "publish_ready": bool(technical_execution.get("publish_ready")),
@@ -3851,12 +5346,34 @@ def _build_intelligence_os_snapshot(
                     change_blueprint=change_blueprint,
                 ),
                 "autofix_runner": autofix_runner,
+                "repair_commander": repair_commander,
             },
             "supervision": {
                 "silent_operator": silent_operator,
+                "autonomy_controller": _autonomy_controller_snapshot(
+                    planner=planner,
+                    assistant_action=assistant_action,
+                    technical_execution=technical_execution,
+                    autofix_runner=autofix_runner,
+                    silent_operator=silent_operator,
+                ),
+                "code_operator": _code_operator_snapshot(
+                    code_operator_mode=code_operator_mode,
+                    technical_operation=technical_operation,
+                    technical_execution=technical_execution,
+                    change_blueprint=change_blueprint,
+                    autofix_runner=autofix_runner,
+                    page_context=page_context,
+                ),
                 "change_blueprint_enabled": bool(change_blueprint.get("enabled")),
                 "change_targets": len(change_blueprint.get("file_changes") or []),
+                "repair_readiness": str(repair_commander.get("status") or "")[:32],
             },
+            "user_copilot": _user_copilot_snapshot(
+                page_context=page_context,
+                assistant_action=assistant_action,
+                planner=planner,
+            ),
             "governance": _governance_snapshot(
                 page_context=page_context,
                 planner=planner,
@@ -4330,6 +5847,173 @@ def _build_autofix_runner(question: str, *, technical_operation=None, technical_
     }
 
 
+def _build_technical_diagnosis(
+    question: str,
+    *,
+    technical_operation=None,
+    technical_execution=None,
+    code_operator_mode=None,
+    change_blueprint=None,
+) -> dict:
+    technical_operation = technical_operation if isinstance(technical_operation, dict) else {}
+    technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
+    code_operator_mode = code_operator_mode if isinstance(code_operator_mode, dict) else {}
+    change_blueprint = change_blueprint if isinstance(change_blueprint, dict) else {}
+    question_text = str(question or "").strip()
+    lower_question = question_text.lower()
+    candidate_files = [str(item) for item in (technical_operation.get("candidate_files") or code_operator_mode.get("candidate_files") or []) if str(item or "").strip()]
+    suggested_checks = [str(item) for item in (technical_operation.get("suggested_checks") or code_operator_mode.get("suggested_checks") or []) if str(item or "").strip()]
+    completed_phases = [str(item) for item in (technical_execution.get("completed_phases") or []) if str(item or "").strip()]
+    blueprint_targets = [row for row in (change_blueprint.get("file_changes") or []) if isinstance(row, dict)]
+    hypotheses = []
+
+    def add_hypothesis(key: str, label: str, confidence: int, evidence=None):
+        evidence = [str(item) for item in (evidence or []) if str(item or "").strip()]
+        hypotheses.append({
+            "key": key,
+            "label": label,
+            "confidence": max(1, min(100, _safe_int(confidence, 0))),
+            "evidence": evidence[:3],
+        })
+
+    if any(token in lower_question for token in ["3d", "pitch3d", "estadio", "stadium", "glb", "render", "canvas"]):
+        add_hypothesis(
+            "renderer_bootstrap",
+            "La inicialización del renderer 3D o del canvas táctico no está montando el estadio correctamente.",
+            84,
+            [candidate_files[0] if candidate_files else "", suggested_checks[1] if len(suggested_checks) > 1 else ""],
+        )
+        add_hypothesis(
+            "asset_pipeline",
+            "El modelo GLB, las texturas o los assets del estadio no están cargando como espera la vista.",
+            78,
+            [suggested_checks[0] if suggested_checks else "", "Validar carga de modelo y texturas en cliente."],
+        )
+    if any(token in lower_question for token in ["chat", "widget", "ollana", "guard", "asistente"]):
+        add_hypothesis(
+            "widget_mount_state",
+            "El widget puede estar montándose fuera de la pantalla o con el estado de visibilidad desincronizado.",
+            80,
+            [candidate_files[0] if candidate_files else "", suggested_checks[0] if suggested_checks else ""],
+        )
+        add_hypothesis(
+            "widget_runtime_flow",
+            "La UI abre el chat, pero el fetch o el render pendiente interrumpe la conversación visible.",
+            74,
+            [suggested_checks[1] if len(suggested_checks) > 1 else "", "Comprobar ciclo abrir/cerrar y respuesta del endpoint."],
+        )
+    if any(path.endswith(".py") for path in candidate_files):
+        add_hypothesis(
+            "backend_context",
+            "La vista o el contexto de servidor puede estar entregando datos incompletos al flujo afectado.",
+            66,
+            [next((path for path in candidate_files if path.endswith(".py")), ""), "Revisar contexto, routing y flags activos."],
+        )
+    if not hypotheses:
+        add_hypothesis(
+            "generic_regression",
+            "Hay una regresión funcional localizada en el área candidata y requiere triage de repositorio.",
+            62,
+            [candidate_files[0] if candidate_files else "", suggested_checks[0] if suggested_checks else ""],
+        )
+
+    confidence_percent = min(
+        97,
+        48
+        + min(len(hypotheses), 3) * 10
+        + min(len(candidate_files), 3) * 4
+        + min(len(completed_phases), 3) * 5
+        + (4 if blueprint_targets else 0),
+    )
+    if technical_execution.get("publish_ready"):
+        confidence_percent = min(99, confidence_percent + 6)
+    return {
+        "embedded": True,
+        "target": _truncate(question_text, 220),
+        "area": str(technical_operation.get("area") or code_operator_mode.get("area") or "")[:180],
+        "primary_hypothesis": hypotheses[0],
+        "hypotheses": hypotheses[:4],
+        "evidence": {
+            "candidate_files": candidate_files[:4],
+            "suggested_checks": suggested_checks[:3],
+            "completed_phases": completed_phases[:4],
+            "blueprint_targets": len(blueprint_targets),
+        },
+        "confidence_percent": confidence_percent,
+    }
+
+
+def _build_repair_commander(
+    question: str,
+    *,
+    technical_operation=None,
+    technical_execution=None,
+    code_operator_mode=None,
+    change_blueprint=None,
+    autofix_runner=None,
+) -> dict:
+    technical_operation = technical_operation if isinstance(technical_operation, dict) else {}
+    technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
+    code_operator_mode = code_operator_mode if isinstance(code_operator_mode, dict) else {}
+    change_blueprint = change_blueprint if isinstance(change_blueprint, dict) else {}
+    autofix_runner = autofix_runner if isinstance(autofix_runner, dict) else {}
+    diagnosis = _build_technical_diagnosis(
+        question,
+        technical_operation=technical_operation,
+        technical_execution=technical_execution,
+        code_operator_mode=code_operator_mode,
+        change_blueprint=change_blueprint,
+    )
+    completed_phases = [str(item) for item in (technical_execution.get("completed_phases") or []) if str(item or "").strip()]
+    pending_phase_keys = [
+        str(row.get("key") or "")
+        for row in (technical_operation.get("phases") or [])
+        if isinstance(row, dict) and str(row.get("key") or "") and str(row.get("key") or "") not in completed_phases
+    ]
+    status = "idle"
+    if str(technical_execution.get("status") or "") == "blocked":
+        status = "blocked"
+    elif bool(technical_execution.get("publish_ready")):
+        status = "publish_ready"
+    elif completed_phases:
+        status = "repair_in_progress"
+    elif bool(technical_operation.get("authorized_for_code")):
+        status = "ready_for_repair"
+    next_actions = []
+    if diagnosis.get("primary_hypothesis"):
+        next_actions.append(f"Hipótesis principal: {diagnosis['primary_hypothesis'].get('label')}")
+    for item in (change_blueprint.get("validation_plan") or [])[:2]:
+        if str(item or "").strip():
+            next_actions.append(str(item))
+    for item in (autofix_runner.get("next_actions") or [])[:2]:
+        if str(item or "").strip() and item not in next_actions:
+            next_actions.append(str(item))
+    if technical_execution.get("next_step"):
+        step = str(technical_execution.get("next_step") or "").strip()
+        if step and step not in next_actions:
+            next_actions.append(step)
+    if not next_actions:
+        next_actions.append("Completar triage, validación y reparación antes de publicar.")
+    exit_criteria = [
+        "La causa raíz queda aislada con evidencia suficiente.",
+        "La validación técnica termina en verde tras el cambio.",
+        "El diff final queda listo para publicar o para revisión autorizada.",
+    ]
+    if not bool(technical_operation.get("authorized_for_publish")):
+        exit_criteria[2] = "El diff final queda documentado para que un operador autorizado publique."
+    return {
+        "embedded": True,
+        "status": status,
+        "confidence_percent": _safe_int(diagnosis.get("confidence_percent"), 0),
+        "can_execute_now": bool(technical_operation.get("authorized_for_code")),
+        "can_publish_now": bool(technical_execution.get("publish_ready")),
+        "pending_phases": pending_phase_keys[:4],
+        "next_actions": next_actions[:4],
+        "exit_criteria": exit_criteria,
+        "diagnosis": diagnosis,
+    }
+
+
 def _build_technical_operation(assistant_action: dict, planner: dict, *, page_context=None) -> dict:
     if str((assistant_action or {}).get("kind") or "") != "code_intervention_request":
         return {}
@@ -4500,10 +6184,26 @@ def _resolve_assisted_action(question: str, *, workspace=None, page_context=None
         return _execute_guidance_action(question, page_context=page_context)
     if intent == "create_player":
         return _execute_create_player_action(question, workspace=workspace, page_context=page_context)
+    if intent == "create_microcycle":
+        return _execute_create_microcycle_action(question, workspace=workspace, page_context=page_context)
+    if intent == "create_convocation":
+        return _execute_create_convocation_action(question, workspace=workspace, page_context=page_context)
+    if intent == "create_rival_analysis":
+        return _execute_create_rival_analysis_action(question, workspace=workspace, page_context=page_context)
+    if intent == "create_session_bundle":
+        return _execute_create_session_bundle_action(question, workspace=workspace, page_context=page_context)
+    if intent == "create_matchday_bundle":
+        return _execute_create_matchday_bundle_action(question, workspace=workspace, page_context=page_context)
+    if intent == "update_session":
+        return _execute_update_session_action(question, workspace=workspace, page_context=page_context)
+    if intent == "update_convocation":
+        return _execute_update_convocation_action(question, workspace=workspace, page_context=page_context)
     if intent == "create_session":
         return _execute_create_session_action(question, workspace=workspace, page_context=page_context)
     if intent == "create_task":
         return _execute_create_task_action(question, workspace=workspace, page_context=page_context)
+    if intent == "create_match":
+        return _execute_create_match_action(question, workspace=workspace, page_context=page_context)
     return {}
 
 
@@ -4513,14 +6213,30 @@ def _infer_intent(question: str) -> str:
         return "navigate_module"
     if re.search(r"\b(auto[\s-]?fix|arregl\w*|corrig\w*|repar\w*|solucion\w*)\b", text):
         return "repair"
-    if re.search(r"\b(añade|agrega|implementa|crea|construye|desarrolla|modifica|extiende)\b", text) and re.search(r"\b(funcionalidad|feature|modulo|módulo|flujo|pantalla|widget|sistema|codigo|código)\b", text):
-        return "feature_request"
+    if re.search(r"\b(edita|actualiza|modifica|cambia)\b.*\b(convocatoria)\b", text):
+        return "update_convocation"
+    if re.search(r"\b(edita|actualiza|modifica|cambia)\b.*\b(sesion|sesión)\b", text):
+        return "update_session"
     if re.search(r"\b(crea|crear|genera|prepara|añade|agrega)\b.*\b(tarea|task|ejercicio)\b", text):
         return "create_task"
+    if re.search(r"\b(crea|crear|prepara|monta)\b.*\b(convocatoria|convocados)\b", text):
+        return "create_convocation"
+    if re.search(r"\b(crea|crear|prepara|abre|monta)\b.*\b(analisis rival|análisis rival|informe rival|scouting rival|preparar rival)\b", text):
+        return "create_rival_analysis"
+    if re.search(r"\b(crea|crear|prepara|monta)\b.*\b(plan de partido|matchday|partido)\b.*\b(sesion|sesión)\b", text):
+        return "create_matchday_bundle"
+    if re.search(r"\b(crea|crear|monta|prepara)\b.*\b(sesion|sesión)\b.*\b(tareas|ejercicios)\b", text):
+        return "create_session_bundle"
+    if re.search(r"\b(crea|crear|programa|planifica|prepara|monta)\b.*\b(microciclo)\b", text):
+        return "create_microcycle"
     if re.search(r"\b(crea|crear|programa|planifica|prepara|monta)\b.*\b(sesion|sesión|entreno|entrenamiento)\b", text):
         return "create_session"
+    if re.search(r"\b(crea|crear|programa|planifica|prepara|monta)\b.*\b(partido|match)\b", text):
+        return "create_match"
     if re.search(r"\b(introduce|añade|agrega|crea|alta|incorpora)\b.*\b(jugador|player|plantilla|roster)\b", text):
         return "create_player"
+    if re.search(r"\b(añade|agrega|implementa|crea|construye|desarrolla|modifica|extiende)\b", text) and re.search(r"\b(funcionalidad|feature|modulo|módulo|flujo|pantalla|widget|sistema|codigo|código)\b", text):
+        return "feature_request"
     if re.search(r"\b(commit\s+y\s+push|haz\s+commit\s+y\s+push|publica\s+los?\s+cambios?|sube\s+los?\s+cambios?)\b", text):
         return "publish_commit_push"
     if re.search(r"\b(haz\s+commit|crea\s+commit|committea|commitea)\b", text):

@@ -1364,6 +1364,11 @@ class SystemGuardTests(TestCase):
         self.assertTrue(response['autofix_runner']['executable'])
         self.assertTrue(response['autofix_runner']['pending_patch_drafts'])
         self.assertTrue(response['intelligence_os']['layers']['execution']['execution_plan']['stages'])
+        self.assertTrue(response['intelligence_os']['layers']['supervision']['code_operator']['embedded'])
+        self.assertTrue(response['intelligence_os']['layers']['supervision']['code_operator']['enabled'])
+        self.assertTrue(response['intelligence_os']['layers']['supervision']['code_operator']['candidate_files'])
+        self.assertTrue(response['intelligence_os']['layers']['supervision']['autonomy_controller']['embedded'])
+        self.assertIn(response['intelligence_os']['layers']['incident_commander']['status'], {'stable', 'running', 'blocked', 'awaiting_operator', 'regression_detected'})
         self.assertEqual(response['intelligence_os']['layers']['policy_decisions']['requested_action'], 'repair_code')
 
     @patch('football.system_guard.local_llm_config', return_value={
@@ -1401,9 +1406,20 @@ class SystemGuardTests(TestCase):
         self.assertEqual(response['intelligence_os']['layers']['domain']['workspace']['id'], self.workspace.id)
         self.assertEqual(response['intelligence_os']['layers']['domain']['team']['id'], self.team.id)
         self.assertEqual(response['intelligence_os']['layers']['orchestration']['intent'], 'navigate_module')
+        self.assertTrue(response['intelligence_os']['layers']['system_brain']['embedded'])
+        self.assertTrue(response['intelligence_os']['layers']['system_brain']['knows_system_map'])
         self.assertTrue(response['intelligence_os']['layers']['mission_control']['embedded'])
         self.assertEqual(response['intelligence_os']['layers']['mission_control']['role'], 'central_system_intelligence')
         self.assertTrue(response['intelligence_os']['layers']['mission_control']['recommended_next_actions'])
+        self.assertGreaterEqual(response['intelligence_os']['layers']['mission_control']['maturity']['percent'], 80)
+        self.assertTrue(response['intelligence_os']['layers']['incident_commander']['embedded'])
+        self.assertTrue(response['intelligence_os']['layers']['silent_operator_runtime']['embedded'])
+        self.assertTrue(response['intelligence_os']['layers']['silent_operator_runtime']['continuous_enabled'])
+        self.assertTrue(response['intelligence_os']['layers']['execution']['action_executor']['embedded'])
+        self.assertEqual(response['intelligence_os']['layers']['execution']['action_executor']['active_kind'], 'navigate_module')
+        self.assertTrue(response['intelligence_os']['layers']['supervision']['autonomy_controller']['embedded'])
+        self.assertTrue(response['intelligence_os']['layers']['user_copilot']['embedded'])
+        self.assertTrue(response['intelligence_os']['layers']['user_copilot']['next_modules'])
         self.assertTrue(response['intelligence_os']['layers']['governance']['auditable'])
         self.assertTrue(response['intelligence_os']['layers']['conversation']['widget_expected'])
         self.assertTrue(response['intelligence_os']['layers']['execution']['action_catalog']['items'])
@@ -1456,14 +1472,385 @@ class SystemGuardTests(TestCase):
         self.assertEqual(workflow['selected_session']['id'], session.id)
         self.assertEqual(workflow['selected_task']['id'], task.id)
         self.assertEqual(workflow['selected_microcycle']['id'], microcycle.id)
+        self.assertEqual(response['intelligence_os']['layers']['system_brain']['active_page'], 'sessions')
         self.assertEqual(response['intelligence_os']['layers']['mission_control']['active_page'], 'sessions')
         self.assertEqual(response['intelligence_os']['layers']['mission_control']['active_mission']['task_kind'], 'diagnose')
+        self.assertEqual(response['intelligence_os']['layers']['user_copilot']['active_page'], 'sessions')
         self.assertIn('Sesión activa:', ' | '.join(response.get('highlights') or []))
         self.assertIn('Tarea activa:', ' | '.join(response.get('highlights') or []))
         self.assertTrue(any(str(row.get('label') or '') == 'Analizar sesión abierta' for row in (response.get('ui_actions') or []) if isinstance(row, dict)))
         self.assertTrue(any(str(row.get('label') or '') == 'Revisar tarea abierta' for row in (response.get('ui_actions') or []) if isinstance(row, dict)))
         self.assertTrue(any(str(row.get('label') or '') == 'Optimizar sesión actual' for row in (response.get('ui_actions') or []) if isinstance(row, dict)))
         self.assertTrue(any(str(row.get('label') or '') == 'Revisar tarea actual' for row in (response.get('ui_actions') or []) if isinstance(row, dict)))
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    def test_run_system_guard_chat_can_create_microcycle(self, *_mocks):
+        result = system_guard.run_system_guard_chat(
+            question='Crea un microciclo Activación competitiva del 2026-06-23 al 2026-06-29 objetivo presión alta',
+            workspace=self.workspace,
+            page_context={'page': 'sessions', 'team_id': self.team.id, 'can_manage_guard': True},
+            actor_id=self.user.id,
+            autonomy_mode='advisor',
+            audience='guided',
+        )
+        response = result['chat']['response']
+        self.assertEqual(response['assistant_action']['kind'], 'create_microcycle')
+        self.assertTrue(response['assistant_action']['success'])
+        self.assertEqual(response['assistant_action']['microcycle']['team'], self.team.name)
+        self.assertEqual(response['intelligence_os']['layers']['policy_decisions']['requested_action'], 'create_microcycle')
+        self.assertEqual(response['intelligence_os']['layers']['execution']['action_executor']['active_kind'], 'create_microcycle')
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    def test_run_system_guard_chat_can_create_match_and_module_runbook(self, *_mocks):
+        competition = Competition.objects.create(name='Liga Test', slug='liga-test')
+        season = Season.objects.create(competition=competition, name='2026/2027', start_date=date(2026, 7, 1), is_current=True)
+        group = Group.objects.create(season=season, name='Grupo Test', slug='grupo-test')
+        self.team.group = group
+        self.team.save(update_fields=['group'])
+        club_season = WorkspaceSeason.objects.create(
+            workspace=self.workspace,
+            label='2026/2027',
+            start_date=date(2026, 7, 1),
+            is_active=True,
+        )
+        self.workspace.active_season = club_season
+        self.workspace.save(update_fields=['active_season', 'updated_at'])
+        result = system_guard.run_system_guard_chat(
+            question='Crea partido contra Atlético Demo el 2026-06-28 a las 12:30 en casa jornada 3',
+            workspace=self.workspace,
+            page_context={'page': 'match-hub', 'team_id': self.team.id, 'can_manage_guard': True},
+            actor_id=self.user.id,
+            autonomy_mode='advisor',
+            audience='guided',
+        )
+        response = result['chat']['response']
+        self.assertEqual(response['assistant_action']['kind'], 'create_match')
+        self.assertTrue(response['assistant_action']['success'])
+        self.assertEqual(response['assistant_action']['match']['home_team'], self.team.display_name)
+        self.assertEqual(response['intelligence_os']['layers']['policy_decisions']['requested_action'], 'create_match')
+        self.assertEqual(response['intelligence_os']['layers']['silent_operator_runtime']['module_runbook']['runbook'], 'user_execution')
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    def test_run_system_guard_chat_can_create_convocation(self, *_mocks):
+        competition = Competition.objects.create(name='Liga Conv Guard', slug='liga-conv-guard')
+        season = Season.objects.create(competition=competition, name='2026/2027', start_date=date(2026, 7, 1), is_current=True)
+        group = Group.objects.create(season=season, name='Grupo Conv Guard', slug='grupo-conv-guard')
+        self.team.group = group
+        self.team.save(update_fields=['group'])
+        club_season = WorkspaceSeason.objects.create(
+            workspace=self.workspace,
+            label='2026/2027',
+            start_date=date(2026, 7, 1),
+            is_active=True,
+        )
+        self.workspace.active_season = club_season
+        self.workspace.save(update_fields=['active_season', 'updated_at'])
+        player = Player.objects.create(team=self.team, name='Convocado Uno', number=8, is_active=True)
+        system_guard.ensure_workspace_player(self.workspace, player, current_team=self.team, is_active=True)
+        system_guard.ensure_player_season_membership(club_season, player, team=self.team, confirmed=True, status='confirmed')
+        result = system_guard.run_system_guard_chat(
+            question='Crea convocatoria contra Rival Guard el 2026-06-30 a las 18:00 en casa con toda la plantilla',
+            workspace=self.workspace,
+            page_context={'page': 'match-hub', 'team_id': self.team.id, 'can_manage_guard': True},
+            actor_id=self.user.id,
+            autonomy_mode='advisor',
+            audience='guided',
+        )
+        response = result['chat']['response']
+        self.assertEqual(response['assistant_action']['kind'], 'create_convocation')
+        self.assertTrue(response['assistant_action']['success'])
+        self.assertEqual(response['assistant_action']['convocation']['players_count'], 1)
+        self.assertEqual(response['assistant_action']['navigate_to']['key'], 'convocation')
+        self.assertEqual(response['intelligence_os']['layers']['policy_decisions']['requested_action'], 'create_convocation')
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    def test_run_system_guard_chat_can_create_partial_convocation_with_lineup(self, *_mocks):
+        competition = Competition.objects.create(name='Liga Conv Parcial', slug='liga-conv-parcial')
+        season = Season.objects.create(competition=competition, name='2026/2027', start_date=date(2026, 7, 1), is_current=True)
+        group = Group.objects.create(season=season, name='Grupo Conv Parcial', slug='grupo-conv-parcial')
+        self.team.group = group
+        self.team.save(update_fields=['group'])
+        club_season = WorkspaceSeason.objects.create(
+            workspace=self.workspace,
+            label='2026/2027',
+            start_date=date(2026, 7, 1),
+            is_active=True,
+        )
+        self.workspace.active_season = club_season
+        self.workspace.save(update_fields=['active_season', 'updated_at'])
+        p1 = Player.objects.create(team=self.team, name='Juan Perez', number=1, position='POR', is_active=True)
+        p2 = Player.objects.create(team=self.team, name='Mario Lopez', number=6, position='DFC', is_active=True)
+        p3 = Player.objects.create(team=self.team, name='Luis Ruiz', number=9, position='DEL', is_active=True)
+        for player in (p1, p2, p3):
+            system_guard.ensure_workspace_player(self.workspace, player, current_team=self.team, is_active=True)
+            system_guard.ensure_player_season_membership(club_season, player, team=self.team, confirmed=True, status='confirmed')
+        result = system_guard.run_system_guard_chat(
+            question='Crea convocatoria contra Rival Parcial el 2026-07-05 jugadores: Juan Perez, Mario Lopez, Luis Ruiz titulares: Juan Perez, Mario Lopez capitan: Mario Lopez portero: Juan Perez',
+            workspace=self.workspace,
+            page_context={'page': 'match-hub', 'team_id': self.team.id, 'can_manage_guard': True},
+            actor_id=self.user.id,
+            autonomy_mode='advisor',
+            audience='guided',
+        )
+        response = result['chat']['response']
+        self.assertEqual(response['assistant_action']['kind'], 'create_convocation')
+        self.assertTrue(response['assistant_action']['success'])
+        self.assertEqual(response['assistant_action']['convocation']['players_count'], 3)
+        self.assertEqual(response['assistant_action']['convocation']['starters_count'], 2)
+        self.assertEqual(response['assistant_action']['convocation']['captain_id'], p2.id)
+        self.assertEqual(response['assistant_action']['convocation']['goalkeeper_id'], p1.id)
+
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    def test_run_system_guard_chat_can_prepare_rival_analysis(self, *_mocks):
+        result = system_guard.run_system_guard_chat(
+            question='Prepara análisis rival contra Rival Scout el 2026-07-02 sistema 1-4-4-2 plan atacar su espalda',
+            workspace=self.workspace,
+            page_context={'page': 'coach-rival', 'team_id': self.team.id, 'can_manage_guard': True},
+            actor_id=self.user.id,
+            autonomy_mode='advisor',
+            audience='guided',
+        )
+        response = result['chat']['response']
+        self.assertEqual(response['assistant_action']['kind'], 'create_rival_analysis')
+        self.assertTrue(response['assistant_action']['success'])
+        self.assertEqual(response['assistant_action']['rival_analysis']['rival_name'], 'Rival Scout')
+        self.assertEqual(response['assistant_action']['navigate_to']['key'], 'rival_analysis')
+        self.assertEqual(response['intelligence_os']['layers']['policy_decisions']['requested_action'], 'create_rival_analysis')
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    def test_run_system_guard_chat_can_create_session_bundle(self, *_mocks):
+        result = system_guard.run_system_guard_chat(
+            question='Crea sesión presión tras pérdida el 2026-07-03 a las 19:00 con tareas: Rondo presión 12; Juego de posición 18; Finalizaciones 15',
+            workspace=self.workspace,
+            page_context={'page': 'sessions', 'team_id': self.team.id, 'can_manage_guard': True},
+            actor_id=self.user.id,
+            autonomy_mode='advisor',
+            audience='guided',
+        )
+        response = result['chat']['response']
+        self.assertEqual(response['assistant_action']['kind'], 'create_session_bundle')
+        self.assertTrue(response['assistant_action']['success'])
+        self.assertEqual(len(response['assistant_action']['tasks']), 3)
+        self.assertEqual(response['intelligence_os']['layers']['policy_decisions']['requested_action'], 'create_session_bundle')
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    def test_run_system_guard_chat_can_create_matchday_bundle(self, *_mocks):
+        result = system_guard.run_system_guard_chat(
+            question='Prepara plan de partido contra Rival Bundle el 2026-07-07 sistema 1-4-4-2 plan atacar amplitud y crea sesión con tareas',
+            workspace=self.workspace,
+            page_context={'page': 'coach-rival', 'team_id': self.team.id, 'can_manage_guard': True},
+            actor_id=self.user.id,
+            autonomy_mode='advisor',
+            audience='guided',
+        )
+        response = result['chat']['response']
+        self.assertEqual(response['assistant_action']['kind'], 'create_matchday_bundle')
+        self.assertTrue(response['assistant_action']['success'])
+        self.assertEqual(response['assistant_action']['rival_analysis']['rival_name'], 'Rival Bundle')
+        self.assertTrue(response['assistant_action']['session'])
+        self.assertGreaterEqual(len(response['assistant_action']['tasks']), 1)
+        self.assertEqual(response['intelligence_os']['layers']['policy_decisions']['requested_action'], 'create_matchday_bundle')
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    def test_run_system_guard_chat_can_update_session(self, *_mocks):
+        microcycle = TrainingMicrocycle.objects.create(
+            team=self.team,
+            title='Micro update',
+            week_start=date(2026, 7, 1),
+            week_end=date(2026, 7, 7),
+        )
+        session = TrainingSession.objects.create(
+            microcycle=microcycle,
+            session_date=date(2026, 7, 2),
+            focus='Sesión previa',
+            duration_minutes=60,
+        )
+        result = system_guard.run_system_guard_chat(
+            question='Actualiza la sesión a nombre Presión alta, duración 75, intensidad alta',
+            workspace=self.workspace,
+            page_context={'page': 'sessions', 'team_id': self.team.id, 'session_id': session.id, 'can_manage_guard': True},
+            actor_id=self.user.id,
+            autonomy_mode='advisor',
+            audience='guided',
+        )
+        response = result['chat']['response']
+        self.assertEqual(response['assistant_action']['kind'], 'update_session')
+        self.assertTrue(response['assistant_action']['success'])
+        self.assertIn('focus', response['assistant_action']['updated_fields'])
+        self.assertEqual(response['intelligence_os']['layers']['policy_decisions']['requested_action'], 'update_session')
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    def test_run_system_guard_chat_can_update_convocation(self, *_mocks):
+        competition = Competition.objects.create(name='Liga Update Conv', slug='liga-update-conv')
+        season = Season.objects.create(competition=competition, name='2026/2027', start_date=date(2026, 7, 1), is_current=True)
+        group = Group.objects.create(season=season, name='Grupo Update Conv', slug='grupo-update-conv')
+        self.team.group = group
+        self.team.save(update_fields=['group'])
+        club_season = WorkspaceSeason.objects.create(
+            workspace=self.workspace,
+            label='2026/2027',
+            start_date=date(2026, 7, 1),
+            is_active=True,
+        )
+        self.workspace.active_season = club_season
+        self.workspace.save(update_fields=['active_season', 'updated_at'])
+        p1 = Player.objects.create(team=self.team, name='Uno Keeper', number=1, position='POR', is_active=True)
+        p2 = Player.objects.create(team=self.team, name='Dos Captain', number=4, position='DFC', is_active=True)
+        for player in (p1, p2):
+            system_guard.ensure_workspace_player(self.workspace, player, current_team=self.team, is_active=True)
+            system_guard.ensure_player_season_membership(club_season, player, team=self.team, confirmed=True, status='confirmed')
+        match = Match.objects.create(season=season, club_season=club_season, group=group, date=date(2026, 7, 6), home_team=self.team, away_team=Team.objects.create(name='Rival Edit', slug='rival-edit', group=group))
+        record = ConvocationRecord.objects.create(team=self.team, match=match, opponent_name='Rival Edit', match_date=date(2026, 7, 6), is_current=True)
+        record.players.set([p1, p2])
+        result = system_guard.run_system_guard_chat(
+            question='Actualiza la convocatoria titulares: Dos Captain capitan: Dos Captain portero: Uno Keeper',
+            workspace=self.workspace,
+            page_context={'page': 'match-hub', 'team_id': self.team.id, 'match_id': match.id, 'can_manage_guard': True},
+            actor_id=self.user.id,
+            autonomy_mode='advisor',
+            audience='guided',
+        )
+        response = result['chat']['response']
+        self.assertEqual(response['assistant_action']['kind'], 'update_convocation')
+        self.assertTrue(response['assistant_action']['success'])
+        self.assertEqual(response['assistant_action']['convocation']['captain_id'], p2.id)
+        self.assertEqual(response['assistant_action']['convocation']['goalkeeper_id'], p1.id)
+        self.assertEqual(response['intelligence_os']['layers']['policy_decisions']['requested_action'], 'update_convocation')
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    def test_run_system_guard_chat_exposes_similarity_percent(self, *_mocks):
+        result = system_guard.run_system_guard_chat(
+            question='Quiero ir a vídeo análisis',
+            workspace=self.workspace,
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+            actor_id=self.user.id,
+            autonomy_mode='advisor',
+            audience='guided',
+        )
+        response = result['chat']['response']
+        self.assertGreaterEqual(response['intelligence_os']['layers']['mission_control']['maturity']['percent'], 1)
+        self.assertGreaterEqual(response['intelligence_os']['layers']['system_brain']['similarity_percent'], 1)
 
     @patch('football.system_guard.run_proactive_guard_cycle', return_value={'queue_counts': {'completed': 1}, 'detections': [{'id': 'demo'}]})
     def test_maybe_run_scheduled_guard_cycle_respects_interval(self, mock_cycle):
