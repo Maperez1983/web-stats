@@ -4722,6 +4722,147 @@ def _execution_plan_snapshot(*, planner=None, assistant_action=None, technical_o
     }
 
 
+def _build_request_contract(
+    question: str,
+    *,
+    planner=None,
+    assistant_action=None,
+    technical_operation=None,
+    technical_execution=None,
+    repair_commander=None,
+    page_context=None,
+    autonomy_mode: str = "operator",
+    audience: str = "technical",
+) -> dict:
+    planner = planner if isinstance(planner, dict) else {}
+    assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
+    technical_operation = technical_operation if isinstance(technical_operation, dict) else {}
+    technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
+    repair_commander = repair_commander if isinstance(repair_commander, dict) else {}
+    page_context = page_context if isinstance(page_context, dict) else {}
+    task = planner.get("task") if isinstance(planner.get("task"), dict) else {}
+    runbook = planner.get("runbook") if isinstance(planner.get("runbook"), dict) else {}
+    action_kind = str(assistant_action.get("kind") or "")[:64]
+    interaction_mode = "silent_operator" if bool(task.get("silent_mode")) else "conversational_assistant"
+    if action_kind == "code_intervention_request":
+        interaction_mode = "technical_operator"
+    elif action_kind == "action_chain":
+        interaction_mode = "composite_operator"
+    execution_mode = "guided"
+    if action_kind.startswith("publish_"):
+        execution_mode = "governed_publish"
+    elif action_kind == "code_intervention_request" or str(task.get("scope") or "") == "code":
+        execution_mode = "code_execution"
+    elif action_kind == "action_chain":
+        execution_mode = "composite_action"
+    elif bool(assistant_action.get("success")):
+        execution_mode = "direct_action"
+    elif planner.get("requested_tools"):
+        execution_mode = "runbook_assistance"
+    executable_now = bool(
+        (assistant_action.get("success") and not assistant_action.get("needs_input") and not assistant_action.get("permission_required"))
+        or technical_execution.get("publish_ready")
+        or repair_commander.get("can_execute_now")
+    )
+    blockers = []
+    if assistant_action.get("needs_input"):
+        blockers.append("missing_input")
+    if assistant_action.get("permission_required"):
+        blockers.append("missing_permissions")
+    if planner.get("confirm_required"):
+        blockers.append("confirmation_required")
+    if str(technical_execution.get("status") or "") == "blocked":
+        blockers.append("technical_block")
+    next_step = ""
+    if repair_commander.get("next_actions"):
+        next_step = str((repair_commander.get("next_actions") or [""])[0] or "")
+    elif technical_execution.get("next_step"):
+        next_step = str(technical_execution.get("next_step") or "")
+    elif assistant_action.get("message"):
+        next_step = str(assistant_action.get("message") or "")
+    guardrails = [
+        "No ejecutar acciones fuera del alcance detectado.",
+        "Mantener trazabilidad en memoria, cola y auditoría.",
+    ]
+    if action_kind == "code_intervention_request":
+        guardrails.append("Validar antes de publicar cambios en el repositorio.")
+    if not assistant_action.get("permission_required"):
+        guardrails.append("Aplicar el menor cambio seguro que cierre la petición.")
+    return {
+        "embedded": True,
+        "target": _truncate(question, 220),
+        "interaction_mode": interaction_mode,
+        "execution_mode": execution_mode,
+        "autonomy_mode": autonomy_mode[:24],
+        "audience": audience[:24],
+        "page": str(page_context.get("page") or "")[:120],
+        "assistant_action_kind": action_kind,
+        "runbook": str(runbook.get("key") or task.get("runbook_key") or "")[:64],
+        "executable_now": executable_now and not blockers,
+        "requires_permissions": bool(assistant_action.get("permission_required")),
+        "requires_input": bool(assistant_action.get("needs_input")),
+        "blockers": blockers[:4],
+        "next_step": next_step[:220],
+        "allowed_to_publish": bool(technical_execution.get("publish_ready")),
+        "guardrails": guardrails[:4],
+}
+
+
+def _build_publish_commander(*, planner=None, assistant_action=None, technical_execution=None, executed_tools=None, page_context=None) -> dict:
+    planner = planner if isinstance(planner, dict) else {}
+    assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
+    technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
+    executed_tools = [row for row in (executed_tools or []) if isinstance(row, dict)]
+    page_context = page_context if isinstance(page_context, dict) else {}
+    requested_tools = [str(item) for item in (planner.get("requested_tools") or []) if str(item or "").strip()]
+    action_kind = str(assistant_action.get("kind") or "")
+    publish_requested = bool(
+        action_kind.startswith("publish_")
+        or "git_commit" in requested_tools
+        or "git_push" in requested_tools
+        or any(str((row.get("action") or {}).get("kind") or "").startswith("publish_") for row in (assistant_action.get("steps") or []) if isinstance(row, dict))
+    )
+    publish_auth = _authorize_guard_action("publish_changes", page_context=page_context)
+    commit_done = any(str(row.get("tool") or "") == "git_commit" and bool(row.get("ok")) for row in executed_tools)
+    push_done = any(str(row.get("tool") or "") == "git_push" and bool(row.get("ok")) for row in executed_tools)
+    status = "idle"
+    if not publish_requested and not technical_execution.get("publish_ready"):
+        status = "idle"
+    elif not publish_auth.get("allowed"):
+        status = "blocked"
+    elif push_done:
+        status = "pushed"
+    elif commit_done:
+        status = "committed"
+    elif planner.get("confirm_required") and ("git_commit" in requested_tools or "git_push" in requested_tools or action_kind.startswith("publish_")):
+        status = "awaiting_confirmation"
+    elif technical_execution.get("publish_ready") or publish_requested:
+        status = "ready_for_publish"
+    next_step = "Seguir monitorizando el estado del repositorio."
+    if status == "blocked":
+        next_step = "Esperar a un usuario autorizado para publicar cambios."
+    elif status == "awaiting_confirmation":
+        next_step = "Solicitar confirmación antes de ejecutar commit y push."
+    elif status == "ready_for_publish":
+        next_step = "Ejecutar validación final y, con confirmación, lanzar commit y push."
+    elif status == "committed":
+        next_step = "El commit está hecho; falta el push al remoto."
+    elif status == "pushed":
+        next_step = "La publicación ha terminado y solo queda vigilar regresiones."
+    return {
+        "embedded": True,
+        "requested": publish_requested,
+        "authorized": bool(publish_auth.get("allowed")),
+        "status": status,
+        "requested_tools": requested_tools[:4],
+        "confirmation_required": bool(planner.get("confirm_required")) and publish_requested,
+        "publish_ready": bool(technical_execution.get("publish_ready") or status in {"ready_for_publish", "committed", "pushed"}),
+        "commit_done": commit_done,
+        "push_done": push_done,
+        "next_step": next_step,
+    }
+
+
 def _system_knowledge_snapshot(*, page_context=None) -> dict:
     modules = _module_inventory()
     routes = _route_inventory()
@@ -5265,6 +5406,7 @@ def _build_intelligence_os_snapshot(
     change_blueprint=None,
     autofix_runner=None,
     repair_commander=None,
+    publish_commander=None,
     operator_profile=None,
     silent_operator=None,
     improvement_proposals=None,
@@ -5274,6 +5416,7 @@ def _build_intelligence_os_snapshot(
     change_blueprint = change_blueprint if isinstance(change_blueprint, dict) else {}
     autofix_runner = autofix_runner if isinstance(autofix_runner, dict) else {}
     repair_commander = repair_commander if isinstance(repair_commander, dict) else {}
+    publish_commander = publish_commander if isinstance(publish_commander, dict) else {}
     operator_profile = operator_profile if isinstance(operator_profile, dict) else {}
     silent_operator = silent_operator if isinstance(silent_operator, dict) else {}
     improvement_proposals = improvement_proposals if isinstance(improvement_proposals, list) else []
@@ -5285,6 +5428,15 @@ def _build_intelligence_os_snapshot(
                 "enabled": True,
                 "guided_assistant": True,
                 "widget_expected": True,
+                "request_contract": _build_request_contract(
+                    question,
+                    planner=planner,
+                    assistant_action=assistant_action,
+                    technical_operation=technical_operation,
+                    technical_execution=technical_execution,
+                    repair_commander=repair_commander,
+                    page_context=page_context,
+                ),
             },
             "knowledge": _system_knowledge_snapshot(page_context=page_context),
             "domain": _domain_context_snapshot(workspace, page_context=page_context),
@@ -5351,6 +5503,7 @@ def _build_intelligence_os_snapshot(
                 ),
                 "autofix_runner": autofix_runner,
                 "repair_commander": repair_commander,
+                "publish_commander": publish_commander,
             },
             "supervision": {
                 "silent_operator": silent_operator,
@@ -5372,6 +5525,7 @@ def _build_intelligence_os_snapshot(
                 "change_blueprint_enabled": bool(change_blueprint.get("enabled")),
                 "change_targets": len(change_blueprint.get("file_changes") or []),
                 "repair_readiness": str(repair_commander.get("status") or "")[:32],
+                "publish_status": str(publish_commander.get("status") or "")[:32],
             },
             "user_copilot": _user_copilot_snapshot(
                 page_context=page_context,
@@ -6177,13 +6331,60 @@ def _execute_controlled_technical_operation(
     }
 
 
-def _resolve_assisted_action(question: str, *, workspace=None, page_context=None) -> dict:
+def _split_action_chain(question: str) -> list[str]:
+    text = str(question or "").strip()
+    if not text:
+        return []
+    normalized = re.sub(r"\s+", " ", text)
+    parts = re.split(r"\b(?:y luego|después|despues|luego)\b", normalized, flags=re.IGNORECASE)
+    cleaned = [str(item).strip(" ,.;") for item in parts if str(item or "").strip(" ,.;")]
+    return cleaned[:3]
+
+
+def _build_publish_assisted_action(question: str, *, page_context=None) -> dict:
+    intent = _infer_intent(question)
+    auth = _authorize_guard_action("publish_changes", page_context=page_context)
+    kinds = {
+        "publish_commit_push": ("publish_commit_push", "He preparado commit y push gobernados; falta confirmación antes de ejecutarlos."),
+        "publish_commit": ("publish_commit", "He preparado el commit gobernado; falta confirmación antes de ejecutarlo."),
+        "publish_push": ("publish_push", "He preparado el push gobernado; falta confirmación antes de ejecutarlo."),
+    }
+    kind, message = kinds.get(intent, ("publish_request", "He preparado la publicación gobernada; falta confirmación antes de ejecutarla."))
+    if not auth.get("allowed"):
+        message = "He detectado una petición de publicación, pero este usuario no tiene permiso para publicar cambios."
+    requested_tools = []
+    if intent == "publish_commit_push":
+        requested_tools = ["inspect_repo_status", "run_operator_validation", "git_commit", "git_push"]
+    elif intent == "publish_commit":
+        requested_tools = ["inspect_repo_status", "run_operator_validation", "git_commit"]
+    elif intent == "publish_push":
+        requested_tools = ["inspect_repo_status", "git_push"]
+    return {
+        "kind": kind,
+        "executed": False,
+        "success": False,
+        "needs_input": False,
+        "permission_required": not bool(auth.get("allowed")),
+        "requires_operator_flow": True,
+        "message": message,
+        "authorization": auth,
+        "requested_tools": requested_tools[:4],
+        "payload": {
+            "publish_intent": intent,
+            "requested_tools": requested_tools[:4],
+        },
+    }
+
+
+def _resolve_single_assisted_action(question: str, *, workspace=None, page_context=None) -> dict:
     intent = _infer_intent(question)
     task = _build_task_profile(question, intent=intent, page_context=page_context)
     if intent in {"repair", "feature_request"} and str(task.get("scope") or "") == "code":
         return _build_code_intervention_request(question, workspace=workspace, page_context=page_context)
     if str(task.get("kind") or "") == "navigate":
         return _execute_navigation_action(question, page_context=page_context)
+    if intent in {"publish_commit_push", "publish_commit", "publish_push"}:
+        return _build_publish_assisted_action(question, page_context=page_context)
     if intent == "guide_user":
         return _execute_guidance_action(question, page_context=page_context)
     if intent == "create_player":
@@ -6209,6 +6410,63 @@ def _resolve_assisted_action(question: str, *, workspace=None, page_context=None
     if intent == "create_match":
         return _execute_create_match_action(question, workspace=workspace, page_context=page_context)
     return {}
+
+
+def _build_action_chain(question: str, *, workspace=None, page_context=None) -> dict:
+    parts = _split_action_chain(question)
+    if len(parts) < 2:
+        return {}
+    steps = []
+    for index, part in enumerate(parts, start=1):
+        action = _resolve_single_assisted_action(part, workspace=workspace, page_context=page_context)
+        if not isinstance(action, dict) or not action.get("kind"):
+            continue
+        steps.append({
+            "index": index,
+            "question": _truncate(part, 220),
+            "kind": str(action.get("kind") or "")[:64],
+            "executed": bool(action.get("executed")),
+            "success": bool(action.get("success")),
+            "needs_input": bool(action.get("needs_input")),
+            "permission_required": bool(action.get("permission_required")),
+            "action": action,
+        })
+    if len(steps) < 2:
+        return {}
+    success = all(bool((row.get("action") or {}).get("success") or (row.get("action") or {}).get("executed") or str((row.get("action") or {}).get("kind") or "").startswith("publish_")) for row in steps)
+    needs_input = any(bool((row.get("action") or {}).get("needs_input")) for row in steps)
+    permission_required = any(bool((row.get("action") or {}).get("permission_required")) for row in steps)
+    publish_steps = [row for row in steps if str(row.get("kind") or "").startswith("publish_")]
+    navigation_step = next((row for row in steps if str(row.get("kind") or "") == "navigate_module"), None)
+    created_step = next((row for row in steps if str(row.get("kind") or "") in {"create_session", "create_task", "create_player", "create_microcycle", "create_match", "create_convocation", "create_rival_analysis", "create_session_bundle", "create_matchday_bundle"}), None)
+    messages = [str((row.get("action") or {}).get("message") or "").strip() for row in steps if str((row.get("action") or {}).get("message") or "").strip()]
+    summary = "He encadenado la petición en varios pasos operativos."
+    if publish_steps:
+        summary = "He preparado una cadena operativa con publicación gobernada al final."
+    elif created_step and navigation_step:
+        summary = "He resuelto la navegación y la acción operativa pedidas en una sola secuencia."
+    return {
+        "kind": "action_chain",
+        "executed": any(bool((row.get("action") or {}).get("executed")) for row in steps),
+        "success": success and not needs_input and not permission_required,
+        "needs_input": needs_input,
+        "permission_required": permission_required,
+        "message": summary,
+        "steps": steps,
+        "navigate_to": (navigation_step or {}).get("action", {}).get("navigate_to") if navigation_step else {},
+        "requested_tools": [tool for row in publish_steps for tool in ((row.get("action") or {}).get("requested_tools") or [])][:4],
+        "payload": {
+            "step_count": len(steps),
+            "messages": messages[:4],
+        },
+    }
+
+
+def _resolve_assisted_action(question: str, *, workspace=None, page_context=None) -> dict:
+    chained = _build_action_chain(question, workspace=workspace, page_context=page_context)
+    if chained:
+        return chained
+    return _resolve_single_assisted_action(question, workspace=workspace, page_context=page_context)
 
 
 def _infer_intent(question: str) -> str:
@@ -7043,6 +7301,13 @@ def run_system_guard_chat(
         change_blueprint=change_blueprint if isinstance(change_blueprint, dict) else {},
         autofix_runner=autofix_runner if isinstance(autofix_runner, dict) else {},
     )
+    publish_commander = _build_publish_commander(
+        planner=planner,
+        assistant_action=assistant_action if isinstance(assistant_action, dict) else {},
+        technical_execution=technical_execution if isinstance(technical_execution, dict) else {},
+        executed_tools=executed_tools,
+        page_context=page_context,
+    )
     queue_event = {}
     task_meta = planner.get("task") if isinstance(planner.get("task"), dict) else {}
     runbook_meta = planner.get("runbook") if isinstance(planner.get("runbook"), dict) else {}
@@ -7115,6 +7380,18 @@ def run_system_guard_chat(
     fallback["technical_operation_execution"] = technical_execution if isinstance(technical_execution, dict) else {}
     fallback["autofix_runner"] = autofix_runner if isinstance(autofix_runner, dict) else {}
     fallback["repair_commander"] = repair_commander if isinstance(repair_commander, dict) else {}
+    fallback["publish_commander"] = publish_commander if isinstance(publish_commander, dict) else {}
+    fallback["request_contract"] = _build_request_contract(
+        question,
+        planner=planner,
+        assistant_action=assistant_action if isinstance(assistant_action, dict) else {},
+        technical_operation=technical_operation if isinstance(technical_operation, dict) else {},
+        technical_execution=technical_execution if isinstance(technical_execution, dict) else {},
+        repair_commander=repair_commander if isinstance(repair_commander, dict) else {},
+        page_context=page_context,
+        autonomy_mode=autonomy_mode,
+        audience=audience,
+    )
     if assistant_action:
         action_message = str(assistant_action.get("message") or "").strip()
         if action_message:
@@ -7164,6 +7441,18 @@ def run_system_guard_chat(
                 fallback["highlights"] = (fallback.get("highlights") or []) + [f"Hipótesis técnica: {primary.get('label')}"]
             if repair_commander.get("confidence_percent"):
                 fallback["highlights"] = (fallback.get("highlights") or []) + [f"Confianza de reparación: {repair_commander.get('confidence_percent')}%"]
+        if isinstance(publish_commander, dict) and publish_commander.get("requested"):
+            fallback["highlights"] = (fallback.get("highlights") or []) + [f"Publicación gobernada: {publish_commander.get('status')}"]
+        if assistant_action.get("kind") == "action_chain":
+            steps = [row for row in (assistant_action.get("steps") or []) if isinstance(row, dict)]
+            if steps:
+                fallback["highlights"] = (fallback.get("highlights") or []) + [f"Cadena operativa: {len(steps)} pasos"]
+                fallback["actions"] = [{
+                    "type": "prompt",
+                    "label": "Revisar secuencia completa",
+                    "prompt": "Valida la secuencia completa y confirma la publicación solo si todos los pasos han quedado correctos.",
+                    "reason": "Cerrar la petición compuesta con trazabilidad.",
+                }] + (fallback.get("actions") or [])
         if assistant_action.get("navigate_to") and isinstance(assistant_action.get("navigate_to"), dict):
             route = assistant_action.get("navigate_to") or {}
             fallback["ui_actions"] = [{
@@ -7203,6 +7492,7 @@ def run_system_guard_chat(
         change_blueprint=change_blueprint if isinstance(change_blueprint, dict) else {},
         autofix_runner=autofix_runner if isinstance(autofix_runner, dict) else {},
         repair_commander=repair_commander if isinstance(repair_commander, dict) else {},
+        publish_commander=publish_commander if isinstance(publish_commander, dict) else {},
         operator_profile=operator_profile,
         silent_operator=fallback.get("silent_operator") if isinstance(fallback.get("silent_operator"), dict) else {},
         improvement_proposals=fallback.get("improvement_proposals") if isinstance(fallback.get("improvement_proposals"), list) else [],
@@ -7248,6 +7538,18 @@ def run_system_guard_chat(
     response["technical_operation_execution"] = response.get("technical_operation_execution") or technical_execution
     response["autofix_runner"] = response.get("autofix_runner") or autofix_runner
     response["repair_commander"] = response.get("repair_commander") or repair_commander
+    response["publish_commander"] = response.get("publish_commander") or publish_commander
+    response["request_contract"] = response.get("request_contract") or fallback.get("request_contract") or _build_request_contract(
+        question,
+        planner=planner,
+        assistant_action=response.get("assistant_action") if isinstance(response.get("assistant_action"), dict) else {},
+        technical_operation=response.get("technical_operation") if isinstance(response.get("technical_operation"), dict) else {},
+        technical_execution=response.get("technical_operation_execution") if isinstance(response.get("technical_operation_execution"), dict) else {},
+        repair_commander=response.get("repair_commander") if isinstance(response.get("repair_commander"), dict) else {},
+        page_context=page_context,
+        autonomy_mode=autonomy_mode,
+        audience=audience,
+    )
     response["memory_hint"] = _truncate(memory.get("summary"), 220)
     response["runbook"] = _runbook_execution_summary(
         response.get("runbook") if isinstance(response.get("runbook"), dict) else {},
@@ -7275,6 +7577,7 @@ def run_system_guard_chat(
         change_blueprint=response.get("change_blueprint") if isinstance(response.get("change_blueprint"), dict) else {},
         autofix_runner=response.get("autofix_runner") if isinstance(response.get("autofix_runner"), dict) else {},
         repair_commander=response.get("repair_commander") if isinstance(response.get("repair_commander"), dict) else {},
+        publish_commander=response.get("publish_commander") if isinstance(response.get("publish_commander"), dict) else {},
         operator_profile=response.get("operator_profile") if isinstance(response.get("operator_profile"), dict) else {},
         silent_operator=response.get("silent_operator") if isinstance(response.get("silent_operator"), dict) else {},
         improvement_proposals=response.get("improvement_proposals") if isinstance(response.get("improvement_proposals"), list) else [],
@@ -7286,6 +7589,19 @@ def run_system_guard_chat(
         current_highlights = [str(item) for item in (response.get("highlights") or []) if str(item or "").strip()]
         if mode_label not in current_highlights:
             response["highlights"] = [mode_label] + current_highlights
+    contract = response.get("request_contract") if isinstance(response.get("request_contract"), dict) else {}
+    contract_mode = str(contract.get("interaction_mode") or "").strip()
+    if contract_mode:
+        contract_label = f"Contrato de petición: {contract_mode}"
+        current_highlights = [str(item) for item in (response.get("highlights") or []) if str(item or "").strip()]
+        if contract_label not in current_highlights:
+            response["highlights"] = [contract_label] + current_highlights
+    publish_status = str(((response.get("publish_commander") or {}).get("status")) or "").strip()
+    if publish_status:
+        publish_label = f"Publicación: {publish_status}"
+        current_highlights = [str(item) for item in (response.get("highlights") or []) if str(item or "").strip()]
+        if publish_label not in current_highlights and publish_status != "idle":
+            response["highlights"] = [publish_label] + current_highlights
     for issue in (report.get("issues") or [])[:6]:
         if not isinstance(issue, dict):
             continue

@@ -271,6 +271,7 @@ class SystemGuardTests(TestCase):
         result = system_guard.run_system_guard_chat(
             question='Haz commit y push con mensaje: Fix guard widget',
             workspace=self.workspace,
+            page_context={'can_manage_guard': True, 'can_operate_guard_code': True},
             autonomy_mode='operator',
             audience='technical',
         )
@@ -278,6 +279,39 @@ class SystemGuardTests(TestCase):
         self.assertTrue(response['needs_confirmation'])
         self.assertIn('git_commit', response['confirmation_text'])
         self.assertIn('git_push', response['confirmation_text'])
+        self.assertEqual(response['publish_commander']['status'], 'awaiting_confirmation')
+        self.assertTrue(response['publish_commander']['requested'])
+        self.assertTrue(response['publish_commander']['confirmation_required'])
+        self.assertEqual(response['request_contract']['execution_mode'], 'governed_publish')
+
+    def test_resolve_assisted_action_builds_action_chain_for_navigation_and_session(self):
+        action = system_guard._resolve_assisted_action(
+            'Quiero ir a vídeo análisis y luego crea una sesión nombre: Activación prepartido, fecha 2026-06-21, hora 18:30, duración 60.',
+            workspace=self.workspace,
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id, 'can_manage_guard': True},
+        )
+        self.assertEqual(action['kind'], 'action_chain')
+        self.assertEqual(len(action['steps']), 2)
+        self.assertEqual(action['steps'][0]['kind'], 'navigate_module')
+        self.assertEqual(action['steps'][1]['kind'], 'create_session')
+        self.assertTrue(action['navigate_to'])
+
+    def test_build_publish_commander_tracks_confirmation_state(self):
+        commander = system_guard._build_publish_commander(
+            planner={
+                'requested_tools': ['inspect_repo_status', 'run_operator_validation', 'git_commit', 'git_push'],
+                'confirm_required': True,
+            },
+            assistant_action={'kind': 'publish_commit_push'},
+            technical_execution={},
+            executed_tools=[],
+            page_context={'can_manage_guard': True, 'can_operate_guard_code': True},
+        )
+        self.assertTrue(commander['embedded'])
+        self.assertEqual(commander['status'], 'awaiting_confirmation')
+        self.assertTrue(commander['requested'])
+        self.assertTrue(commander['authorized'])
+        self.assertTrue(commander['confirmation_required'])
 
     def test_planner_selects_recent_errors_tool_for_log_intent(self):
         plan = system_guard._plan_tools(
@@ -630,6 +664,32 @@ class SystemGuardTests(TestCase):
         self.assertTrue(repair['diagnosis']['hypotheses'])
         self.assertTrue(repair['next_actions'])
         self.assertTrue(repair['exit_criteria'])
+
+    def test_build_request_contract_distinguishes_technical_operator_mode(self):
+        contract = system_guard._build_request_contract(
+            'Por que no se visualiza bien el estadio 3d y si lo puedes solucionar',
+            planner={
+                'task': {'kind': 'repair', 'scope': 'code', 'silent_mode': False, 'runbook_key': 'code_execution'},
+                'runbook': {'key': 'code_execution'},
+            },
+            assistant_action={
+                'kind': 'code_intervention_request',
+                'permission_required': False,
+                'needs_input': False,
+                'message': 'He preparado una intervención técnica.',
+            },
+            technical_operation={'kind': 'technical_operation'},
+            technical_execution={'status': 'completed', 'publish_ready': True},
+            repair_commander={'can_execute_now': True, 'next_actions': ['Hipótesis principal: revisar renderer 3D.']},
+            page_context={'page': 'sessions-task-create'},
+            autonomy_mode='operator',
+            audience='technical',
+        )
+        self.assertTrue(contract['embedded'])
+        self.assertEqual(contract['interaction_mode'], 'technical_operator')
+        self.assertEqual(contract['execution_mode'], 'code_execution')
+        self.assertTrue(contract['executable_now'])
+        self.assertTrue(contract['allowed_to_publish'])
 
     @patch('football.system_guard._execute_tools', return_value=[{
         'tool': 'check_status',
@@ -1048,6 +1108,38 @@ class SystemGuardTests(TestCase):
         'paths': {},
         'dependencies': {},
     })
+    def test_run_system_guard_chat_can_execute_action_chain(self, *_mocks):
+        result = system_guard.run_system_guard_chat(
+            question='Quiero ir a vídeo análisis y luego crea una sesión nombre: Activación prepartido, fecha 2026-06-21, hora 18:30, duración 60.',
+            workspace=self.workspace,
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id, 'can_manage_guard': True},
+            autonomy_mode='operator',
+            audience='guided',
+        )
+        response = result['chat']['response']
+        session = TrainingSession.objects.filter(microcycle__team=self.team, focus='Activación prepartido').first()
+        self.assertIsNotNone(session)
+        self.assertEqual(response['assistant_action']['kind'], 'action_chain')
+        self.assertEqual(len(response['assistant_action']['steps']), 2)
+        self.assertEqual(response['request_contract']['interaction_mode'], 'composite_operator')
+        self.assertEqual(response['request_contract']['execution_mode'], 'composite_action')
+        self.assertEqual(response['intelligence_os']['layers']['conversation']['request_contract']['interaction_mode'], 'composite_operator')
+        self.assertTrue(response['ui_actions'])
+        self.assertIn('Cadena operativa:', ' '.join(response['highlights']))
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
     def test_run_system_guard_chat_can_create_task_from_conversation(self, *_mocks):
         result = system_guard.run_system_guard_chat(
             question='Crea una tarea título: Rondo 4x2, objetivo: activar tercer hombre, duración 14, repositorio ia trainer.',
@@ -1405,6 +1497,8 @@ class SystemGuardTests(TestCase):
         self.assertEqual(response['repair_commander']['status'], 'publish_ready')
         self.assertGreaterEqual(response['repair_commander']['confidence_percent'], 70)
         self.assertTrue(response['repair_commander']['diagnosis']['hypotheses'])
+        self.assertEqual(response['request_contract']['interaction_mode'], 'technical_operator')
+        self.assertEqual(response['request_contract']['execution_mode'], 'code_execution')
         self.assertTrue(response['intelligence_os']['layers']['execution']['execution_plan']['stages'])
         self.assertEqual(response['intelligence_os']['layers']['execution']['repair_commander']['status'], 'publish_ready')
         self.assertTrue(response['intelligence_os']['layers']['supervision']['code_operator']['embedded'])
@@ -1440,6 +1534,8 @@ class SystemGuardTests(TestCase):
         response = result['chat']['response']
         self.assertEqual(response['assistant_action']['kind'], 'navigate_module')
         self.assertTrue(response['assistant_action']['success'])
+        self.assertEqual(response['request_contract']['interaction_mode'], 'conversational_assistant')
+        self.assertEqual(response['request_contract']['execution_mode'], 'direct_action')
         self.assertEqual(response['assistant_action']['navigate_to']['key'], 'analysis')
         self.assertTrue(response['ui_actions'])
         self.assertTrue(response['silent_operator']['continuous_enabled'])
@@ -1466,6 +1562,7 @@ class SystemGuardTests(TestCase):
         self.assertTrue(response['intelligence_os']['layers']['user_copilot']['next_modules'])
         self.assertTrue(response['intelligence_os']['layers']['governance']['auditable'])
         self.assertTrue(response['intelligence_os']['layers']['conversation']['widget_expected'])
+        self.assertEqual(response['intelligence_os']['layers']['conversation']['request_contract']['interaction_mode'], 'conversational_assistant')
         self.assertTrue(response['intelligence_os']['layers']['execution']['action_catalog']['items'])
         self.assertEqual(response['intelligence_os']['layers']['policy_decisions']['requested_action'], 'navigate_modules')
         self.assertTrue(any(str(row.get('label') or '') == 'Analizar partido activo' for row in (system_guard._contextual_flow_actions({'page': 'match-hub', 'match_id': 99}) or []) if isinstance(row, dict)))
