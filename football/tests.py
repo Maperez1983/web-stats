@@ -718,6 +718,22 @@ class SystemGuardTests(TestCase):
         self.assertTrue(guard['push_done'])
         self.assertTrue(guard['next_checks'])
 
+    def test_build_deployment_guard_reports_verified_window(self):
+        guard = system_guard._build_deployment_guard(
+            executions=[
+                {'tool': 'git_push', 'ok': True},
+                {'tool': 'check_critical_routes', 'ok': True, 'result': {'ok': True, 'ok_count': 12, 'failing': []}},
+            ],
+            release_guard={'verification_ready': True},
+            publish_commander={'publish_ready': True},
+            report={'issue_summary': {'blockers': 0}},
+        )
+        self.assertTrue(guard['embedded'])
+        self.assertEqual(guard['status'], 'deployment_verified')
+        self.assertTrue(guard['verification_window'])
+        self.assertTrue(guard['critical_routes_ok'])
+        self.assertTrue(guard['next_checks'])
+
     def test_build_request_contract_distinguishes_technical_operator_mode(self):
         contract = system_guard._build_request_contract(
             'Por que no se visualiza bien el estadio 3d y si lo puedes solucionar',
@@ -1555,12 +1571,15 @@ class SystemGuardTests(TestCase):
         self.assertTrue(response['repository_operator']['command_plan'])
         self.assertTrue(response['release_guard']['embedded'])
         self.assertTrue(response['release_guard']['verification_ready'])
+        self.assertTrue(response['deployment_guard']['embedded'])
+        self.assertIn(response['deployment_guard']['status'], {'pre_deploy_check', 'pending_release_window', 'deployment_verified', 'release_window_open', 'deployment_risk'})
         self.assertEqual(response['request_contract']['interaction_mode'], 'technical_operator')
         self.assertEqual(response['request_contract']['execution_mode'], 'code_execution')
         self.assertTrue(response['intelligence_os']['layers']['execution']['execution_plan']['stages'])
         self.assertEqual(response['intelligence_os']['layers']['execution']['repair_commander']['status'], 'publish_ready')
         self.assertTrue(response['intelligence_os']['layers']['execution']['repository_operator']['execution_ready'])
         self.assertTrue(response['intelligence_os']['layers']['execution']['release_guard']['verification_ready'])
+        self.assertTrue(response['intelligence_os']['layers']['execution']['deployment_guard']['embedded'])
         self.assertTrue(response['intelligence_os']['layers']['supervision']['code_operator']['embedded'])
         self.assertTrue(response['intelligence_os']['layers']['supervision']['code_operator']['enabled'])
         self.assertTrue(response['intelligence_os']['layers']['supervision']['code_operator']['candidate_files'])
@@ -1568,6 +1587,7 @@ class SystemGuardTests(TestCase):
         self.assertEqual(response['intelligence_os']['layers']['supervision']['repair_readiness'], 'publish_ready')
         self.assertTrue(response['intelligence_os']['layers']['supervision']['repository_execution_ready'])
         self.assertIn(response['intelligence_os']['layers']['supervision']['release_status'], {'ready_for_release_check', 'published_verified', 'monitoring', 'regression_detected'})
+        self.assertIn(response['intelligence_os']['layers']['supervision']['deployment_status'], {'pre_deploy_check', 'pending_release_window', 'deployment_verified', 'release_window_open', 'deployment_risk'})
         self.assertIn(response['intelligence_os']['layers']['incident_commander']['status'], {'stable', 'running', 'blocked', 'awaiting_operator', 'regression_detected'})
         self.assertEqual(response['intelligence_os']['layers']['policy_decisions']['requested_action'], 'repair_code')
 

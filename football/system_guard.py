@@ -3217,7 +3217,7 @@ def _parse_matchday_bundle_request(question: str) -> dict:
     }
 
 
-def _ollana_maturity_snapshot(*, page_context=None, assistant_action=None, technical_execution=None, operator_profile=None, silent_operator=None, repair_commander=None, repository_operator=None, release_guard=None) -> dict:
+def _ollana_maturity_snapshot(*, page_context=None, assistant_action=None, technical_execution=None, operator_profile=None, silent_operator=None, repair_commander=None, repository_operator=None, release_guard=None, deployment_guard=None) -> dict:
     page_context = page_context if isinstance(page_context, dict) else {}
     assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
     technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
@@ -3226,6 +3226,7 @@ def _ollana_maturity_snapshot(*, page_context=None, assistant_action=None, techn
     repair_commander = repair_commander if isinstance(repair_commander, dict) else {}
     repository_operator = repository_operator if isinstance(repository_operator, dict) else {}
     release_guard = release_guard if isinstance(release_guard, dict) else {}
+    deployment_guard = deployment_guard if isinstance(deployment_guard, dict) else {}
     scores = {
         "system_brain": 18,
         "silent_operator": 16 if bool(silent_operator.get("continuous_enabled")) else 10,
@@ -3239,6 +3240,7 @@ def _ollana_maturity_snapshot(*, page_context=None, assistant_action=None, techn
         "repair_commander": 8 if bool(repair_commander.get("embedded")) and bool(repair_commander.get("confidence_percent")) else 4,
         "repository_operator": 8 if bool(repository_operator.get("embedded")) and bool(repository_operator.get("execution_ready")) else 4,
         "release_guard": 8 if bool(release_guard.get("embedded")) and bool(release_guard.get("verification_ready")) else 4,
+        "deployment_guard": 8 if bool(deployment_guard.get("embedded")) and bool(deployment_guard.get("verification_window")) else 4,
     }
     achieved = sum(scores.values())
     percent = max(1, min(100, achieved))
@@ -5024,6 +5026,67 @@ def _build_release_guard(
     }
 
 
+def _build_deployment_guard(
+    *,
+    executions=None,
+    release_guard=None,
+    publish_commander=None,
+    report=None,
+) -> dict:
+    executions = [row for row in (executions or []) if isinstance(row, dict)]
+    release_guard = release_guard if isinstance(release_guard, dict) else {}
+    publish_commander = publish_commander if isinstance(publish_commander, dict) else {}
+    report = report if isinstance(report, dict) else {}
+    route_result = next((row.get("result") for row in executions if str(row.get("tool") or "") == "check_critical_routes" and isinstance(row.get("result"), dict)), {})
+    recent_errors = next((row.get("result") for row in executions if str(row.get("tool") or "") == "inspect_recent_errors" and isinstance(row.get("result"), dict)), {})
+    issue_summary = report.get("issue_summary") if isinstance(report.get("issue_summary"), dict) else {}
+    blockers = _safe_int(issue_summary.get("blockers"), 0)
+    push_done = any(str(row.get("tool") or "") == "git_push" and bool(row.get("ok")) for row in executions)
+    route_ok = bool(route_result.get("ok")) if isinstance(route_result, dict) and route_result else False
+    failing_routes = [row for row in (route_result.get("failing") or []) if isinstance(row, dict)] if isinstance(route_result, dict) else []
+    error_patterns = [row for row in (recent_errors.get("patterns") or []) if isinstance(row, dict)] if isinstance(recent_errors, dict) else []
+    status = "pending_release_window"
+    if blockers > 0 or failing_routes:
+        status = "deployment_risk"
+    elif push_done and route_ok:
+        status = "deployment_verified"
+    elif push_done:
+        status = "release_window_open"
+    elif publish_commander.get("publish_ready") or release_guard.get("verification_ready"):
+        status = "pre_deploy_check"
+    verification_window = bool(push_done or publish_commander.get("publish_ready") or release_guard.get("verification_ready"))
+    next_checks = []
+    if failing_routes:
+        next_checks.append(f"Corregir rutas críticas fallidas: {len(failing_routes)}")
+    if error_patterns:
+        top = error_patterns[0]
+        next_checks.append(f"Revisar patrón reciente en logs: {top.get('name')}")
+    if push_done and route_ok:
+        next_checks.append("Mantener observación de smoke, rutas y errores recientes tras el despliegue.")
+    elif push_done:
+        next_checks.append("Ejecutar comprobación de rutas críticas y revisar logs justo después del push.")
+    elif publish_commander.get("publish_ready"):
+        next_checks.append("Preparar verificación de despliegue tras la publicación autorizada.")
+    if not next_checks:
+        next_checks.append("Esperar el siguiente cambio validado para abrir ventana de despliegue.")
+    return {
+        "embedded": True,
+        "status": status,
+        "verification_window": verification_window,
+        "push_done": push_done,
+        "critical_routes_ok": route_ok,
+        "failing_routes": failing_routes[:4],
+        "recent_error_patterns": [
+            {
+                "name": str(row.get("name") or "")[:80],
+                "count": _safe_int(row.get("count"), 0),
+            }
+            for row in error_patterns[:3]
+        ],
+        "next_checks": next_checks[:4],
+    }
+
+
 def _system_knowledge_snapshot(*, page_context=None) -> dict:
     modules = _module_inventory()
     routes = _route_inventory()
@@ -5312,6 +5375,7 @@ def _mission_control_snapshot(
     repair_commander=None,
     repository_operator=None,
     release_guard=None,
+    deployment_guard=None,
     silent_operator=None,
     improvement_proposals=None,
     snapshot_diff=None,
@@ -5323,6 +5387,7 @@ def _mission_control_snapshot(
     repair_commander = repair_commander if isinstance(repair_commander, dict) else {}
     repository_operator = repository_operator if isinstance(repository_operator, dict) else {}
     release_guard = release_guard if isinstance(release_guard, dict) else {}
+    deployment_guard = deployment_guard if isinstance(deployment_guard, dict) else {}
     silent_operator = silent_operator if isinstance(silent_operator, dict) else {}
     snapshot_diff = snapshot_diff if isinstance(snapshot_diff, dict) else {}
     improvement_proposals = improvement_proposals if isinstance(improvement_proposals, list) else []
@@ -5335,6 +5400,7 @@ def _mission_control_snapshot(
         repair_commander=repair_commander,
         repository_operator=repository_operator,
         release_guard=release_guard,
+        deployment_guard=deployment_guard,
     )
     task = planner.get("task") if isinstance(planner.get("task"), dict) else {}
     runbook = planner.get("runbook") if isinstance(planner.get("runbook"), dict) else {}
@@ -5576,6 +5642,7 @@ def _build_intelligence_os_snapshot(
     publish_commander=None,
     repository_operator=None,
     release_guard=None,
+    deployment_guard=None,
     operator_profile=None,
     silent_operator=None,
     improvement_proposals=None,
@@ -5588,6 +5655,7 @@ def _build_intelligence_os_snapshot(
     publish_commander = publish_commander if isinstance(publish_commander, dict) else {}
     repository_operator = repository_operator if isinstance(repository_operator, dict) else {}
     release_guard = release_guard if isinstance(release_guard, dict) else {}
+    deployment_guard = deployment_guard if isinstance(deployment_guard, dict) else {}
     operator_profile = operator_profile if isinstance(operator_profile, dict) else {}
     silent_operator = silent_operator if isinstance(silent_operator, dict) else {}
     improvement_proposals = improvement_proposals if isinstance(improvement_proposals, list) else []
@@ -5628,6 +5696,7 @@ def _build_intelligence_os_snapshot(
                 repair_commander=repair_commander,
                 repository_operator=repository_operator,
                 release_guard=release_guard,
+                deployment_guard=deployment_guard,
                 silent_operator=silent_operator,
                 improvement_proposals=improvement_proposals,
                 snapshot_diff=snapshot_diff,
@@ -5679,6 +5748,7 @@ def _build_intelligence_os_snapshot(
                 "publish_commander": publish_commander,
                 "repository_operator": repository_operator,
                 "release_guard": release_guard,
+                "deployment_guard": deployment_guard,
             },
             "supervision": {
                 "silent_operator": silent_operator,
@@ -5703,6 +5773,7 @@ def _build_intelligence_os_snapshot(
                 "publish_status": str(publish_commander.get("status") or "")[:32],
                 "repository_execution_ready": bool(repository_operator.get("execution_ready")),
                 "release_status": str(release_guard.get("status") or "")[:32],
+                "deployment_status": str(deployment_guard.get("status") or "")[:32],
             },
             "user_copilot": _user_copilot_snapshot(
                 page_context=page_context,
@@ -7561,6 +7632,12 @@ def run_system_guard_chat(
         snapshot_diff=snapshot_diff,
         executions=executed_tools,
     )
+    deployment_guard = _build_deployment_guard(
+        executions=executed_tools,
+        release_guard=release_guard if isinstance(release_guard, dict) else {},
+        publish_commander=publish_commander if isinstance(publish_commander, dict) else {},
+        report=report,
+    )
     fallback["snapshot_diff"] = snapshot_diff
     fallback["remediation"] = _build_remediation_plan(report, executed_tools or [], snapshot_diff=snapshot_diff)
     fallback["assistant_action"] = assistant_action if isinstance(assistant_action, dict) else {}
@@ -7576,6 +7653,7 @@ def run_system_guard_chat(
     fallback["publish_commander"] = publish_commander if isinstance(publish_commander, dict) else {}
     fallback["repository_operator"] = repository_operator if isinstance(repository_operator, dict) else {}
     fallback["release_guard"] = release_guard if isinstance(release_guard, dict) else {}
+    fallback["deployment_guard"] = deployment_guard if isinstance(deployment_guard, dict) else {}
     fallback["request_contract"] = _build_request_contract(
         question,
         planner=planner,
@@ -7654,6 +7732,8 @@ def run_system_guard_chat(
                 fallback["highlights"] = (fallback.get("highlights") or []) + ["Memoria técnica reutilizable detectada"]
         if isinstance(release_guard, dict) and release_guard.get("verification_ready"):
             fallback["highlights"] = (fallback.get("highlights") or []) + [f"Verificación post-cambio: {release_guard.get('status')}"]
+        if isinstance(deployment_guard, dict) and deployment_guard.get("verification_window"):
+            fallback["highlights"] = (fallback.get("highlights") or []) + [f"Despliegue: {deployment_guard.get('status')}"]
         if assistant_action.get("navigate_to") and isinstance(assistant_action.get("navigate_to"), dict):
             route = assistant_action.get("navigate_to") or {}
             fallback["ui_actions"] = [{
@@ -7696,6 +7776,7 @@ def run_system_guard_chat(
         publish_commander=publish_commander if isinstance(publish_commander, dict) else {},
         repository_operator=repository_operator if isinstance(repository_operator, dict) else {},
         release_guard=release_guard if isinstance(release_guard, dict) else {},
+        deployment_guard=deployment_guard if isinstance(deployment_guard, dict) else {},
         operator_profile=operator_profile,
         silent_operator=fallback.get("silent_operator") if isinstance(fallback.get("silent_operator"), dict) else {},
         improvement_proposals=fallback.get("improvement_proposals") if isinstance(fallback.get("improvement_proposals"), list) else [],
@@ -7744,6 +7825,7 @@ def run_system_guard_chat(
     response["publish_commander"] = response.get("publish_commander") or publish_commander
     response["repository_operator"] = response.get("repository_operator") or repository_operator
     response["release_guard"] = response.get("release_guard") or release_guard
+    response["deployment_guard"] = response.get("deployment_guard") or deployment_guard
     response["request_contract"] = response.get("request_contract") or fallback.get("request_contract") or _build_request_contract(
         question,
         planner=planner,
@@ -7785,6 +7867,7 @@ def run_system_guard_chat(
         publish_commander=response.get("publish_commander") if isinstance(response.get("publish_commander"), dict) else {},
         repository_operator=response.get("repository_operator") if isinstance(response.get("repository_operator"), dict) else {},
         release_guard=response.get("release_guard") if isinstance(response.get("release_guard"), dict) else {},
+        deployment_guard=response.get("deployment_guard") if isinstance(response.get("deployment_guard"), dict) else {},
         operator_profile=response.get("operator_profile") if isinstance(response.get("operator_profile"), dict) else {},
         silent_operator=response.get("silent_operator") if isinstance(response.get("silent_operator"), dict) else {},
         improvement_proposals=response.get("improvement_proposals") if isinstance(response.get("improvement_proposals"), list) else [],
