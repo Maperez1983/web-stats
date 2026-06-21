@@ -3226,6 +3226,26 @@ def _execution_surface_snapshot(*, page_context=None) -> dict:
     }
 
 
+def _action_catalog_snapshot(*, page_context=None) -> dict:
+    rows = []
+    for action_key, policy in ACTION_PERMISSION_MATRIX.items():
+        auth = _authorize_guard_action(action_key, page_context=page_context)
+        rows.append({
+            "key": str(action_key),
+            "scope": str((auth.get("policy") or {}).get("scope") or ""),
+            "allowed": bool(auth.get("allowed")),
+            "requires_manage_guard": bool((auth.get("policy") or {}).get("requires_manage_guard")),
+            "requires_code_operator": bool((auth.get("policy") or {}).get("requires_code_operator")),
+        })
+    grouped = {}
+    for row in rows:
+        grouped.setdefault(str(row.get("scope") or "other"), []).append(row)
+    return {
+        "items": rows,
+        "groups": grouped,
+    }
+
+
 def _governance_snapshot(*, page_context=None, planner=None, technical_operation=None) -> dict:
     planner = planner if isinstance(planner, dict) else {}
     technical_operation = technical_operation if isinstance(technical_operation, dict) else {}
@@ -3238,6 +3258,38 @@ def _governance_snapshot(*, page_context=None, planner=None, technical_operation
         "authorized_for_code": bool(technical_operation.get("authorized_for_code")),
         "authorized_for_publish": bool(technical_operation.get("authorized_for_publish")),
         "auditable": True,
+    }
+
+
+def _policy_decisions_snapshot(*, page_context=None, planner=None, assistant_action=None, technical_operation=None) -> dict:
+    planner = planner if isinstance(planner, dict) else {}
+    assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
+    technical_operation = technical_operation if isinstance(technical_operation, dict) else {}
+    task = planner.get("task") if isinstance(planner.get("task"), dict) else {}
+    action_kind = str(assistant_action.get("kind") or "")
+    requested_action = "inspect_system"
+    if action_kind == "navigate_module":
+        requested_action = "navigate_modules"
+    elif action_kind == "guide_user":
+        requested_action = "guide_user"
+    elif action_kind == "create_player":
+        requested_action = "create_player"
+    elif action_kind == "create_session":
+        requested_action = "create_session"
+    elif action_kind == "create_task":
+        requested_action = "create_task"
+    elif str(technical_operation.get("kind") or "") == "technical_operation":
+        requested_action = "repair_code"
+    elif str(task.get("scope") or "") == "code":
+        requested_action = "inspect_repo"
+    requested_auth = _authorize_guard_action(requested_action, page_context=page_context)
+    publish_auth = _authorize_guard_action("publish_changes", page_context=page_context)
+    return {
+        "requested_action": requested_action,
+        "requested_action_allowed": bool(requested_auth.get("allowed")),
+        "requested_action_reasons": list(requested_auth.get("reasons") or []),
+        "publish_allowed": bool(publish_auth.get("allowed")),
+        "confirm_required": bool(planner.get("confirm_required")),
     }
 
 
@@ -3256,6 +3308,37 @@ def _orchestration_snapshot(question: str, *, planner=None, assistant_action=Non
         "assistant_action_kind": str(assistant_action.get("kind") or ""),
         "code_mode": str(code_operator_mode.get("mode") or ""),
         "requested_tools": [str(item) for item in (planner.get("requested_tools") or []) if str(item or "").strip()][:8],
+    }
+
+
+def _execution_plan_snapshot(*, planner=None, assistant_action=None, technical_operation=None, technical_execution=None, change_blueprint=None) -> dict:
+    planner = planner if isinstance(planner, dict) else {}
+    assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
+    technical_operation = technical_operation if isinstance(technical_operation, dict) else {}
+    technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
+    change_blueprint = change_blueprint if isinstance(change_blueprint, dict) else {}
+    stages = []
+    for row in (planner.get("steps") or [])[:6]:
+        if not isinstance(row, dict):
+            continue
+        stages.append({
+            "step": str(row.get("step") or ""),
+            "done": bool(row.get("done")),
+        })
+    if str(technical_operation.get("kind") or "") == "technical_operation":
+        for phase in (technical_operation.get("phases") or [])[:5]:
+            if not isinstance(phase, dict):
+                continue
+            stages.append({
+                "step": str(phase.get("label") or phase.get("key") or ""),
+                "done": str(phase.get("key") or "") in {str(item) for item in (technical_execution.get("completed_phases") or [])},
+            })
+    return {
+        "target": str((change_blueprint.get("target") or assistant_action.get("message") or "") or "")[:220],
+        "assistant_action_kind": str(assistant_action.get("kind") or ""),
+        "status": str(technical_execution.get("status") or ("completed" if assistant_action.get("success") else "pending")),
+        "publish_ready": bool(technical_execution.get("publish_ready")),
+        "stages": stages[:10],
     }
 
 
@@ -3294,9 +3377,17 @@ def _build_intelligence_os_snapshot(
             ),
             "execution": {
                 "surface": _execution_surface_snapshot(page_context=page_context),
+                "action_catalog": _action_catalog_snapshot(page_context=page_context),
                 "assistant_action_kind": str((assistant_action or {}).get("kind") or ""),
                 "technical_execution_status": str(technical_execution.get("status") or ""),
                 "publish_ready": bool(technical_execution.get("publish_ready")),
+                "execution_plan": _execution_plan_snapshot(
+                    planner=planner,
+                    assistant_action=assistant_action,
+                    technical_operation=technical_operation,
+                    technical_execution=technical_execution,
+                    change_blueprint=change_blueprint,
+                ),
                 "autofix_runner": autofix_runner,
             },
             "supervision": {
@@ -3307,6 +3398,12 @@ def _build_intelligence_os_snapshot(
             "governance": _governance_snapshot(
                 page_context=page_context,
                 planner=planner,
+                technical_operation=technical_operation,
+            ),
+            "policy_decisions": _policy_decisions_snapshot(
+                page_context=page_context,
+                planner=planner,
+                assistant_action=assistant_action,
                 technical_operation=technical_operation,
             ),
             "memory": operator_profile,

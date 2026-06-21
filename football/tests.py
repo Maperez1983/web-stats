@@ -1354,6 +1354,8 @@ class SystemGuardTests(TestCase):
         self.assertTrue(response['autofix_runner']['active'])
         self.assertTrue(response['autofix_runner']['executable'])
         self.assertTrue(response['autofix_runner']['pending_patch_drafts'])
+        self.assertTrue(response['intelligence_os']['layers']['execution']['execution_plan']['stages'])
+        self.assertEqual(response['intelligence_os']['layers']['policy_decisions']['requested_action'], 'repair_code')
 
     @patch('football.system_guard.local_llm_config', return_value={
         'enabled': False,
@@ -1387,6 +1389,8 @@ class SystemGuardTests(TestCase):
         self.assertEqual(response['intelligence_os']['layers']['orchestration']['intent'], 'navigate_module')
         self.assertTrue(response['intelligence_os']['layers']['governance']['auditable'])
         self.assertTrue(response['intelligence_os']['layers']['conversation']['widget_expected'])
+        self.assertTrue(response['intelligence_os']['layers']['execution']['action_catalog']['items'])
+        self.assertEqual(response['intelligence_os']['layers']['policy_decisions']['requested_action'], 'navigate_modules')
 
     @patch('football.system_guard.run_proactive_guard_cycle', return_value={'queue_counts': {'completed': 1}, 'detections': [{'id': 'demo'}]})
     def test_maybe_run_scheduled_guard_cycle_respects_interval(self, mock_cycle):
