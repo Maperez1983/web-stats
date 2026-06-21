@@ -13536,16 +13536,11 @@
 						                addLightingRig();
 						                const addRoofArchitecturalDetail = () => {
 						                  const roofEdgeMat = new THREE.MeshStandardMaterial({ color: 0xe7ecef, roughness: 0.24, metalness: 0.54 });
-						                  const cableMat = new THREE.MeshStandardMaterial({ color: 0xcfd6dc, roughness: 0.34, metalness: 0.44 });
 						                  const roofShadowMat = new THREE.MeshBasicMaterial({ color: 0x020617, transparent: true, opacity: 0.09, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
 						                  [-1, 1].forEach((sign) => {
 						                    const frontZ = sign * (metersH / 2 + 20.55);
 						                    addBox(new THREE.BoxGeometry(metersW + 50.0, 0.18, 0.24), roofEdgeMat, 0, 13.98, frontZ, 0, 0, 0, 'pitch_3d_reference_roof_front_edge_chord_long');
 						                    addBox(new THREE.BoxGeometry(metersW + 46.0, 0.12, 0.18), roofEdgeMat, 0, 14.42, sign * (metersH / 2 + 23.72), 0, 0, 0, 'pitch_3d_reference_roof_rear_edge_chord_long');
-						                    for (let i = -10; i <= 10; i += 1) {
-						                      const x = i * ((metersW + 34.0) / 20);
-						                      addBox(new THREE.BoxGeometry(0.08, 1.26, 3.46), cableMat, x, 14.10, sign * (metersH / 2 + 22.15), sign * -0.54, 0, 0, 'pitch_3d_reference_roof_hanger_long');
-						                    }
 						                    const shadow = new THREE.Mesh(new THREE.PlaneGeometry(metersW + 36.0, 9.8), roofShadowMat);
 						                    shadow.position.set(0, 9.22, sign * (metersH / 2 + 14.18));
 						                    shadow.rotation.x = sign > 0 ? 1.30 : -1.30;
@@ -13556,10 +13551,6 @@
 						                    const frontX = sign * (metersW / 2 + 20.55);
 						                    addBox(new THREE.BoxGeometry(0.24, 0.18, metersH + 50.0), roofEdgeMat, frontX, 13.98, 0, 0, 0, 0, 'pitch_3d_reference_roof_front_edge_chord_end');
 						                    addBox(new THREE.BoxGeometry(0.18, 0.12, metersH + 46.0), roofEdgeMat, sign * (metersW / 2 + 23.72), 14.42, 0, 0, 0, 0, 'pitch_3d_reference_roof_rear_edge_chord_end');
-						                    for (let i = -8; i <= 8; i += 1) {
-						                      const z = i * ((metersH + 30.0) / 16);
-						                      addBox(new THREE.BoxGeometry(3.46, 1.26, 0.08), cableMat, sign * (metersW / 2 + 22.15), 14.10, z, 0, sign * 0.54, 0, 'pitch_3d_reference_roof_hanger_end');
-						                    }
 						                    const shadow = new THREE.Mesh(new THREE.PlaneGeometry(9.8, metersH + 36.0), roofShadowMat);
 						                    shadow.position.set(sign * (metersW / 2 + 14.18), 9.22, 0);
 						                    shadow.rotation.y = sign > 0 ? Math.PI / 2 : -Math.PI / 2;
@@ -13968,6 +13959,14 @@
 						                        };
 						                        if (Array.isArray(node.material)) node.material = node.material.map(applySeatFinish);
 						                        else if (node.material) node.material = applySeatFinish(node.material);
+						                      }
+						                      const floatingAisleLike =
+						                        meshName.includes('UPPER_STAIR_AISLE') ||
+						                        meshName.includes('AISLE_HANDRAIL_L') ||
+						                        meshName.includes('AISLE_HANDRAIL_R');
+						                      if (floatingAisleLike) {
+						                        node.visible = false;
+						                        node.userData.hidden_by_reference_stadium_cleanup = true;
 						                      }
 						                    }
 						                    if (isDedicatedReferenceStadium) {
