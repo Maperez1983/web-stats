@@ -264,13 +264,20 @@ CODE_INTERVENTION_CATALOG = {
         "title": "Afinar navegación del widget hacia biblioteca IA Trainer",
         "summary": "Refuerza las keywords del widget para que órdenes como `abre biblioteca ia trainer` resuelvan antes a biblioteca que a la portada de IA Trainer.",
         "match_terms": ["biblioteca ia trainer", "biblioteca ai trainer", "widget ollana biblioteca", "navegacion widget biblioteca", "widget lleve al usuario a biblioteca", "widget biblioteca de tareas"],
-        "auto_apply": False,
+        "auto_apply": True,
         "files": ["football/templates/football/includes/global_guard_widget.html"],
-        "patches": [{
-            "path": "football/templates/football/includes/global_guard_widget.html",
-            "search": "keywords: ['biblioteca de tareas', 'biblioteca', 'tareas', 'ejercicios', 'task library']",
-            "replace": "keywords: ['biblioteca de tareas', 'biblioteca ia trainer', 'biblioteca ai trainer', 'biblioteca', 'tareas', 'ejercicios', 'task library']",
-        }],
+        "patches": [
+            {
+                "path": "football/templates/football/includes/global_guard_widget.html",
+                "search": "    { key: 'library', label: 'Biblioteca de tareas', url: \"{% url 'sessions' %}?tab=library&library_repo=traditional{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}\", keywords: ['biblioteca de tareas', 'biblioteca', 'tareas', 'ejercicios', 'task library'] },",
+                "replace": "    { key: 'library', label: 'Biblioteca de tareas', url: \"{% url 'sessions' %}?tab=library&library_repo=traditional{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}\", keywords: ['biblioteca de tareas', 'biblioteca', 'tareas', 'ejercicios', 'task library'] },\n    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: \"{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}\", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },",
+            },
+            {
+                "path": "football/templates/football/includes/global_guard_widget.html",
+                "search": "      if (route.key === 'library' && text.includes('biblioteca')) score += 2;",
+                "replace": "      if (route.key === 'library' && text.includes('biblioteca')) score += 2;\n      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;",
+            },
+        ],
     },
     "widget_visibility_and_mount": {
         "title": "Verificar visibilidad y montaje global del widget Ollana",
@@ -344,6 +351,7 @@ TASK_QUEUE_PREF_KEY = "system_guard:task_queue:v1"
 PROACTIVE_STATE_PREF_KEY = "system_guard:proactive_state:v1"
 SCHEDULED_GUARD_STATE_PREF_KEY = "system_guard:scheduled_cycle:v1"
 INCIDENT_LEDGER_PREF_KEY = "system_guard:incident_ledger:v1"
+OPERATOR_PROFILE_PREF_KEY = "system_guard:operator_profile:v1"
 SCHEDULED_GUARD_INTERVAL_SECONDS = 300
 ACTION_PERMISSION_MATRIX = {
     "inspect_system": {"requires_manage_guard": False, "requires_code_operator": False, "scope": "system"},
@@ -481,6 +489,22 @@ PROACTIVE_DETECTORS = {
         "summary": "Hay regresiones repetidas que conviene analizar de forma continua.",
         "tools": ["check_status", "inspect_guard_history", "inspect_recent_errors"],
         "auto_execute": True,
+    },
+}
+PROACTIVE_IMPROVEMENT_CATALOG = {
+    "stability_hardening": {
+        "severity": "info",
+        "runbook": "silent_diagnostics",
+        "task_kind": "improve",
+        "summary": "El sistema está estable; conviene convertir este estado en prevención y cobertura.",
+        "tools": ["inspect_guard_history", "inspect_repo_status"],
+    },
+    "operator_memory_refresh": {
+        "severity": "info",
+        "runbook": "user_guidance",
+        "task_kind": "improve",
+        "summary": "Hay patrones repetidos del usuario y conviene reforzar accesos rápidos y memoria operativa.",
+        "tools": ["inspect_guard_history"],
     },
 }
 OLLANA_CAPABILITY_VERSION = "v2"
@@ -1580,6 +1604,40 @@ def _detect_proactive_incidents(report: dict, *, workspace=None) -> list[dict]:
     return detections[:8]
 
 
+def _detect_proactive_improvements(report: dict, *, workspace=None, actor_id=None) -> list[dict]:
+    summary = report.get("issue_summary") if isinstance(report.get("issue_summary"), dict) else {}
+    queue_counts = _task_state_counts(_load_task_queue(workspace)) if workspace else {"pending": 0, "running": 0, "completed": 0, "blocked": 0}
+    profile = _load_operator_profile(workspace, actor_id=actor_id) if workspace else {}
+    improvements = []
+    if _safe_int(summary.get("blockers"), 0) == 0 and _safe_int(summary.get("warnings"), 0) == 0 and queue_counts.get("pending", 0) == 0:
+        meta = PROACTIVE_IMPROVEMENT_CATALOG["stability_hardening"]
+        improvements.append({
+            "detector": "stability_hardening",
+            "severity": meta["severity"],
+            "runbook": meta["runbook"],
+            "task_kind": meta["task_kind"],
+            "title": "Consolidar estabilidad actual",
+            "summary": meta["summary"],
+            "tools": meta["tools"],
+            "auto_execute": False,
+        })
+    recurring = [row for row in (profile.get("recurring_intents") or []) if isinstance(row, dict)]
+    top_intent = next((row for row in recurring if _safe_int(row.get("count"), 0) >= 2), None)
+    if profile.get("preferred_route_key") and top_intent:
+        meta = PROACTIVE_IMPROVEMENT_CATALOG["operator_memory_refresh"]
+        improvements.append({
+            "detector": "operator_memory_refresh",
+            "severity": meta["severity"],
+            "runbook": meta["runbook"],
+            "task_kind": meta["task_kind"],
+            "title": f"Optimizar flujo frecuente: {top_intent.get('intent')}",
+            "summary": meta["summary"],
+            "tools": meta["tools"],
+            "auto_execute": False,
+        })
+    return improvements[:4]
+
+
 def _task_result_summary(executions: list[dict]) -> str:
     if not executions:
         return ""
@@ -1623,9 +1681,10 @@ def run_proactive_guard_cycle(*, workspace, actor_id=None, allow_safe_repairs: b
         memory=_merge_memory(_load_memory(workspace), _load_memory_for_actor(workspace, actor_id=actor_id)),
     )
     detections = _detect_proactive_incidents(report, workspace=workspace)
+    improvements = _detect_proactive_improvements(report, workspace=workspace, actor_id=actor_id)
     created = []
     executed = []
-    for detection in detections:
+    for detection in detections + improvements:
         task = _new_task_entry(
             detector=str(detection.get("detector") or ""),
             title=str(detection.get("title") or detection.get("summary") or ""),
@@ -1645,6 +1704,7 @@ def run_proactive_guard_cycle(*, workspace, actor_id=None, allow_safe_repairs: b
     state_payload = {
         "last_cycle_at": _now_iso(),
         "last_detection_count": len(detections),
+        "last_improvement_count": len(improvements),
         "last_created_count": len(created),
         "last_executed_count": len(executed),
     }
@@ -1665,6 +1725,7 @@ def run_proactive_guard_cycle(*, workspace, actor_id=None, allow_safe_repairs: b
         "ok": True,
         "report": report,
         "detections": detections,
+        "improvements": improvements,
         "created_tasks": created,
         "executed_tasks": executed,
         "queue": queue_rows[:20],
@@ -1929,6 +1990,91 @@ def _normalize_memory_payload(payload) -> dict:
         "turn_count": _safe_int(payload.get("turn_count"), 0),
         "last_updated": str(payload.get("last_updated") or "").strip()[:64],
     }
+
+
+def _operator_profile_pref_key(actor_id=None) -> str:
+    if actor_id:
+        return f"{OPERATOR_PROFILE_PREF_KEY}:user:{int(actor_id)}"
+    return OPERATOR_PROFILE_PREF_KEY
+
+
+def _normalize_operator_profile(payload) -> dict:
+    if not isinstance(payload, dict):
+        payload = {}
+    recurring = []
+    for row in (payload.get("recurring_intents") or [])[:6]:
+        if not isinstance(row, dict):
+            continue
+        recurring.append({
+            "intent": str(row.get("intent") or "").strip()[:64],
+            "count": _safe_int(row.get("count"), 0),
+        })
+    return {
+        "preferred_route_key": str(payload.get("preferred_route_key") or "").strip()[:64],
+        "preferred_route_label": str(payload.get("preferred_route_label") or "").strip()[:120],
+        "last_requested_module": str(payload.get("last_requested_module") or "").strip()[:120],
+        "recent_destinations": [str(x) for x in (payload.get("recent_destinations") or []) if str(x or "").strip()][:8],
+        "successful_actions": [str(x) for x in (payload.get("successful_actions") or []) if str(x or "").strip()][:8],
+        "code_focus_areas": [str(x) for x in (payload.get("code_focus_areas") or []) if str(x or "").strip()][:8],
+        "recurring_intents": recurring,
+        "last_updated": str(payload.get("last_updated") or "").strip()[:64],
+    }
+
+
+def _load_operator_profile(workspace, actor_id=None) -> dict:
+    payload = _pref_value(workspace, _operator_profile_pref_key(actor_id), {})
+    return _normalize_operator_profile(payload)
+
+
+def _bump_intent_counter(rows: list[dict], intent: str) -> list[dict]:
+    intent_key = str(intent or "").strip()
+    counters = []
+    found = False
+    for row in rows or []:
+        if not isinstance(row, dict):
+            continue
+        current_intent = str(row.get("intent") or "").strip()
+        count = _safe_int(row.get("count"), 0)
+        if intent_key and current_intent == intent_key:
+            count += 1
+            found = True
+        counters.append({"intent": current_intent[:64], "count": count})
+    if intent_key and not found:
+        counters.append({"intent": intent_key[:64], "count": 1})
+    counters.sort(key=lambda row: (-_safe_int(row.get("count"), 0), str(row.get("intent") or "")))
+    return counters[:6]
+
+
+def _store_operator_profile(workspace, *, actor_id=None, planner=None, assistant_action=None, question: str = "", page_context=None):
+    if not workspace:
+        return
+    planner = planner if isinstance(planner, dict) else {}
+    assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
+    current = _load_operator_profile(workspace, actor_id=actor_id)
+    task = planner.get("task") if isinstance(planner.get("task"), dict) else {}
+    route_target = task.get("route_target") if isinstance(task.get("route_target"), dict) else {}
+    candidate_route = route_target if route_target.get("key") else {}
+    if isinstance(assistant_action.get("navigate_to"), dict) and assistant_action.get("navigate_to", {}).get("key"):
+        candidate_route = assistant_action.get("navigate_to")
+    successful = []
+    if assistant_action.get("success") and str(assistant_action.get("kind") or "").strip():
+        successful.append(str(assistant_action.get("kind") or "").strip())
+    code_focus = []
+    if str(task.get("scope") or "") == "code":
+        area = str(assistant_action.get("target_area") or task.get("target_summary") or question or "").strip()
+        if area:
+            code_focus.append(_truncate(area, 140))
+    payload = {
+        "preferred_route_key": str(candidate_route.get("key") or current.get("preferred_route_key") or "").strip()[:64],
+        "preferred_route_label": str(candidate_route.get("label") or current.get("preferred_route_label") or "").strip()[:120],
+        "last_requested_module": str(candidate_route.get("label") or (page_context or {}).get("title") or (page_context or {}).get("page") or current.get("last_requested_module") or "").strip()[:120],
+        "recent_destinations": ([str(candidate_route.get("label") or "").strip()] if candidate_route.get("label") else []) + current.get("recent_destinations", []),
+        "successful_actions": successful + current.get("successful_actions", []),
+        "code_focus_areas": code_focus + current.get("code_focus_areas", []),
+        "recurring_intents": _bump_intent_counter(current.get("recurring_intents", []), str(planner.get("intent") or "")),
+        "last_updated": _now_iso(),
+    }
+    _store_pref_value(workspace, _operator_profile_pref_key(actor_id), _normalize_operator_profile(payload))
 
 
 def _load_memory_for_actor(workspace, actor_id=None) -> dict:
@@ -2992,6 +3138,49 @@ def _execute_create_task_action(question: str, *, workspace=None, page_context=N
     }
 
 
+def _execute_navigation_action(question: str, *, page_context=None) -> dict:
+    route = _match_route_target(question, page_context=page_context)
+    if not isinstance(route, dict) or not route.get("url"):
+        return {
+            "kind": "navigate_module",
+            "executed": False,
+            "success": False,
+            "needs_input": True,
+            "message": "No he identificado con precisión la pantalla destino. Dime el módulo y te llevo.",
+        }
+    return {
+        "kind": "navigate_module",
+        "executed": True,
+        "success": True,
+        "needs_input": False,
+        "message": f"Te llevo a {str(route.get('label') or 'la pantalla solicitada')}.",
+        "navigate_to": {
+            "key": str(route.get("key") or ""),
+            "label": str(route.get("label") or ""),
+            "url": str(route.get("url") or ""),
+        },
+    }
+
+
+def _execute_guidance_action(question: str, *, page_context=None) -> dict:
+    context = page_context if isinstance(page_context, dict) else {}
+    page_label = str(context.get("title") or context.get("page") or "esta pantalla").strip()
+    route_rows = _guard_route_catalog(page_context)
+    suggestions = [str(row.get("label") or "") for row in route_rows[:3] if str(row.get("label") or "").strip()]
+    return {
+        "kind": "guide_user",
+        "executed": True,
+        "success": True,
+        "needs_input": False,
+        "message": f"Te guío sobre {page_label}. Puedo explicarte la pantalla actual o llevarte a otro módulo.",
+        "guidance": {
+            "page": page_label,
+            "next_modules": suggestions[:3],
+            "question": _truncate(question, 160),
+        },
+    }
+
+
 def _capability_snapshot(*, page_context=None) -> dict:
     context = page_context if isinstance(page_context, dict) else {}
     can_code = bool(context.get("can_operate_guard_code"))
@@ -3343,6 +3532,133 @@ def _build_code_operator_mode(question: str, planner: dict, *, page_context=None
     }
 
 
+def _file_change_role(path: str, question: str) -> dict:
+    lower_path = str(path or "").lower()
+    lower_question = str(question or "").lower()
+    if lower_path.endswith(".html"):
+        return {
+            "change_type": "template",
+            "objective": "Ajustar markup, hooks de UI o estructura de pantalla.",
+            "risk": "medium",
+        }
+    if lower_path.endswith(".js"):
+        objective = "Refinar comportamiento cliente, listeners y navegación."
+        if "3d" in lower_question or "pitch3d" in lower_question or "estadio" in lower_question:
+            objective = "Corregir la lógica cliente del flujo 3D y sus triggers."
+        return {
+            "change_type": "frontend_logic",
+            "objective": objective,
+            "risk": "medium",
+        }
+    if lower_path.endswith(".py"):
+        return {
+            "change_type": "backend_logic",
+            "objective": "Modificar routing, contexto o lógica de servidor.",
+            "risk": "high",
+        }
+    return {
+        "change_type": "code",
+        "objective": "Aplicar el cambio técnico solicitado en este archivo.",
+        "risk": "medium",
+    }
+
+
+def _build_change_blueprint(question: str, code_operator_mode: dict, *, planner: dict, technical_execution=None) -> dict:
+    if not isinstance(code_operator_mode, dict) or not code_operator_mode.get("enabled"):
+        return {}
+    files = [str(item) for item in (code_operator_mode.get("candidate_files") or []) if str(item or "").strip()]
+    catalog_candidates = [row for row in (code_operator_mode.get("catalog_candidates") or []) if isinstance(row, dict)]
+    requested_tools = [str(item) for item in (code_operator_mode.get("requested_tools") or []) if str(item or "").strip()]
+    patch_drafts = []
+    for candidate in catalog_candidates[:2]:
+        item = CODE_INTERVENTION_CATALOG.get(str(candidate.get("key") or "").strip()) or {}
+        for patch in (item.get("patches") or [])[:3]:
+            if not isinstance(patch, dict):
+                continue
+            patch_drafts.append({
+                "path": str(patch.get("path") or ""),
+                "strategy": "exact_text_patch",
+                "search": _truncate(str(patch.get("search") or ""), 180),
+                "replace_preview": _truncate(str(patch.get("replace") or ""), 180),
+            })
+    file_changes = []
+    for path in files[:6]:
+        role = _file_change_role(path, question)
+        file_changes.append({
+            "path": path,
+            "change_type": role["change_type"],
+            "objective": role["objective"],
+            "risk": role["risk"],
+        })
+    validation_plan = []
+    if "inspect_repo_status" in requested_tools:
+        validation_plan.append("Revisar diff y archivos modificados en el repositorio.")
+    if "run_operator_validation" in requested_tools:
+        validation_plan.append("Ejecutar `manage.py check` y validación técnica del operador.")
+    if "inspect_recent_errors" in requested_tools:
+        validation_plan.append("Cruzar el cambio con errores recientes antes de publicar.")
+    if not validation_plan:
+        validation_plan.append("Ejecutar validación técnica mínima antes de publicar.")
+    publish_notes = []
+    if bool(code_operator_mode.get("authorized_for_publish")):
+        publish_notes.append("Si la validación termina correcta, preparar commit y push con mensaje técnico claro.")
+    else:
+        publish_notes.append("El cambio debe quedarse en revisión hasta que un operador autorizado publique.")
+    if isinstance(technical_execution, dict) and technical_execution.get("completed_phases"):
+        publish_notes.append(f"Fases ya completadas: {', '.join(technical_execution.get('completed_phases')[:4])}.")
+    return {
+        "enabled": True,
+        "mode": str(code_operator_mode.get("mode") or ""),
+        "target": str(code_operator_mode.get("target") or ""),
+        "file_changes": file_changes,
+        "patch_drafts": patch_drafts,
+        "validation_plan": validation_plan[:4],
+        "publish_notes": publish_notes[:3],
+        "requested_tools": requested_tools[:8],
+    }
+
+
+def _build_autofix_runner(question: str, *, technical_operation=None, technical_execution=None, change_blueprint=None) -> dict:
+    technical_operation = technical_operation if isinstance(technical_operation, dict) else {}
+    technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
+    change_blueprint = change_blueprint if isinstance(change_blueprint, dict) else {}
+    if str(technical_operation.get("kind") or "") != "technical_operation":
+        return {}
+    applied = [row for row in (technical_execution.get("applied_interventions") or []) if isinstance(row, dict)]
+    catalog_candidates = [row for row in (technical_operation.get("catalog_candidates") or []) if isinstance(row, dict)]
+    pending_patches = [row for row in (change_blueprint.get("patch_drafts") or []) if isinstance(row, dict)]
+    executable = bool(technical_operation.get("authorized_for_code")) and (
+        bool(applied) or any(bool(row.get("auto_apply")) for row in catalog_candidates)
+    )
+    next_actions = []
+    if executable and not applied and pending_patches:
+        next_actions.append("Aplicar parche catalogado o intervención exacta sobre el archivo objetivo.")
+    if technical_execution.get("ok"):
+        next_actions.append("Revisar diff final y decidir si el cambio queda listo para publicar.")
+    elif technical_execution.get("completed_phases"):
+        next_actions.append("Resolver la fase pendiente antes de ampliar la intervención.")
+    else:
+        next_actions.append("Completar triage y validación antes de tocar código.")
+    return {
+        "active": True,
+        "target": _truncate(question, 220),
+        "executable": executable,
+        "applied_catalog_fixes": [
+            {
+                "key": str(row.get("candidate_key") or ""),
+                "title": str(row.get("title") or row.get("candidate_key") or ""),
+                "ok": bool(row.get("ok")),
+                "applied_count": _safe_int(row.get("applied_count"), 0),
+            }
+            for row in applied[:3]
+        ],
+        "pending_patch_drafts": pending_patches[:4],
+        "validation_plan": [str(item) for item in (change_blueprint.get("validation_plan") or []) if str(item or "").strip()][:4],
+        "publish_ready": bool(technical_execution.get("publish_ready")),
+        "next_actions": next_actions[:3],
+    }
+
+
 def _build_technical_operation(assistant_action: dict, planner: dict, *, page_context=None) -> dict:
     if str((assistant_action or {}).get("kind") or "") != "code_intervention_request":
         return {}
@@ -3507,6 +3823,10 @@ def _resolve_assisted_action(question: str, *, workspace=None, page_context=None
     task = _build_task_profile(question, intent=intent, page_context=page_context)
     if intent in {"repair", "feature_request"} and str(task.get("scope") or "") == "code":
         return _build_code_intervention_request(question, workspace=workspace, page_context=page_context)
+    if str(task.get("kind") or "") == "navigate":
+        return _execute_navigation_action(question, page_context=page_context)
+    if intent == "guide_user":
+        return _execute_guidance_action(question, page_context=page_context)
     if intent == "create_player":
         return _execute_create_player_action(question, workspace=workspace, page_context=page_context)
     if intent == "create_session":
@@ -3518,6 +3838,8 @@ def _resolve_assisted_action(question: str, *, workspace=None, page_context=None
 
 def _infer_intent(question: str) -> str:
     text = str(question or "").strip().lower()
+    if re.search(r"\b(abre|abrir|ll[ée]vame|llevame|ve a|ir a|quiero ir|quiero abrir|quiero ver)\b", text):
+        return "navigate_module"
     if re.search(r"\b(auto[\s-]?fix|arregl\w*|corrig\w*|repar\w*|solucion\w*)\b", text):
         return "repair"
     if re.search(r"\b(añade|agrega|implementa|crea|construye|desarrolla|modifica|extiende)\b", text) and re.search(r"\b(funcionalidad|feature|modulo|módulo|flujo|pantalla|widget|sistema|codigo|código)\b", text):
@@ -4120,6 +4442,9 @@ def _fallback_response(report: dict, *, question: str, planner: dict, audience: 
         "improvement_proposals": [],
         "capabilities": {},
         "operator_plan": {},
+        "autofix_runner": {},
+        "silent_operator": {},
+        "operator_profile": {},
     }
 
 
@@ -4152,8 +4477,47 @@ def _normalize_llm_response(parsed, fallback: dict) -> dict:
         "improvement_proposals": fallback.get("improvement_proposals") or [],
         "capabilities": fallback.get("capabilities") or {},
         "operator_plan": fallback.get("operator_plan") or {},
+        "autofix_runner": fallback.get("autofix_runner") or {},
+        "silent_operator": fallback.get("silent_operator") or {},
+        "operator_profile": fallback.get("operator_profile") or {},
     })
     return merged
+
+
+def _build_silent_operator_state(workspace, *, response=None, actor_id=None) -> dict:
+    queue_rows = _load_task_queue(workspace)
+    proactive = _load_proactive_state(workspace)
+    scheduled = _scheduled_guard_state(workspace)
+    profile = _load_operator_profile(workspace, actor_id=actor_id)
+    queue_counts = _task_state_counts(queue_rows)
+    now_ts = int(time.time())
+    last_started = _safe_int(scheduled.get("last_started_ts"), 0)
+    elapsed = max(0, now_ts - last_started) if last_started else 0
+    next_cycle_in = max(0, int(SCHEDULED_GUARD_INTERVAL_SECONDS) - elapsed) if last_started else 0
+    suggested = []
+    if queue_counts.get("blocked", 0):
+        suggested.append("Revisar tareas bloqueadas del operador silencioso.")
+    if queue_counts.get("pending", 0):
+        suggested.append("Procesar backlog silencioso pendiente.")
+    if not suggested:
+        suggested.append("Mantener inspección continua y preparar la siguiente mejora preventiva.")
+    top_intent = ""
+    recurring = [row for row in (profile.get("recurring_intents") or []) if isinstance(row, dict)]
+    if recurring:
+        top_intent = str(recurring[0].get("intent") or "")[:64]
+    return {
+        "enabled": True,
+        "continuous_enabled": True,
+        "queue_counts": queue_counts,
+        "last_cycle_at": str(proactive.get("last_cycle_at") or scheduled.get("last_finished_at") or "")[:64],
+        "last_detection_count": _safe_int(proactive.get("last_detection_count"), 0),
+        "last_improvement_count": _safe_int(proactive.get("last_improvement_count"), 0),
+        "next_cycle_in_seconds": next_cycle_in,
+        "preferred_route": str(profile.get("preferred_route_label") or "")[:120],
+        "top_intent": top_intent,
+        "suggested_actions": suggested[:3],
+        "publish_ready": bool(((response or {}).get("technical_operation_execution") or {}).get("publish_ready")),
+    }
 
 
 def run_system_guard_chat(
@@ -4212,6 +4576,18 @@ def run_system_guard_chat(
     )
     if isinstance(technical_execution, dict) and technical_execution.get("new_executions"):
         executed_tools = [row for row in (technical_execution.get("executions") or []) if isinstance(row, dict)]
+    change_blueprint = _build_change_blueprint(
+        question,
+        code_operator_mode if isinstance(code_operator_mode, dict) else {},
+        planner=planner,
+        technical_execution=technical_execution if isinstance(technical_execution, dict) else {},
+    )
+    autofix_runner = _build_autofix_runner(
+        question,
+        technical_operation=technical_operation if isinstance(technical_operation, dict) else {},
+        technical_execution=technical_execution if isinstance(technical_execution, dict) else {},
+        change_blueprint=change_blueprint if isinstance(change_blueprint, dict) else {},
+    )
     queue_event = {}
     task_meta = planner.get("task") if isinstance(planner.get("task"), dict) else {}
     runbook_meta = planner.get("runbook") if isinstance(planner.get("runbook"), dict) else {}
@@ -4230,7 +4606,7 @@ def run_system_guard_chat(
             question=question,
             result_summary=str(assistant_action.get("message") or "")[:280],
             executions=[],
-            metadata={"assistant_action": assistant_action, "technical_operation": technical_operation, "technical_execution": technical_execution, "code_operator_mode": code_operator_mode} if technical_operation else {"assistant_action": assistant_action, "code_operator_mode": code_operator_mode},
+            metadata={"assistant_action": assistant_action, "technical_operation": technical_operation, "technical_execution": technical_execution, "code_operator_mode": code_operator_mode, "change_blueprint": change_blueprint} if technical_operation else {"assistant_action": assistant_action, "code_operator_mode": code_operator_mode, "change_blueprint": change_blueprint},
         )
     elif planner.get("requested_tools") and workspace:
         queue_status = "pending" if planner.get("confirm_required") else ("completed" if all(bool(row.get("ok")) for row in executed_tools or []) else "blocked")
@@ -4279,8 +4655,10 @@ def run_system_guard_chat(
     fallback["capabilities"] = _capability_snapshot(page_context=page_context)
     fallback["operator_plan"] = _operator_blueprint(question, planner=planner, page_context=page_context, response=fallback)
     fallback["code_operator_mode"] = code_operator_mode if isinstance(code_operator_mode, dict) else {}
+    fallback["change_blueprint"] = change_blueprint if isinstance(change_blueprint, dict) else {}
     fallback["technical_operation"] = technical_operation if isinstance(technical_operation, dict) else {}
     fallback["technical_operation_execution"] = technical_execution if isinstance(technical_execution, dict) else {}
+    fallback["autofix_runner"] = autofix_runner if isinstance(autofix_runner, dict) else {}
     if assistant_action:
         action_message = str(assistant_action.get("message") or "").strip()
         if action_message:
@@ -4321,6 +4699,16 @@ def run_system_guard_chat(
                 fallback["highlights"] = (fallback.get("highlights") or []) + [f"Fix aplicado: {applied_interventions[0].get('title') or applied_interventions[0].get('candidate_key')}"]
         if isinstance(code_operator_mode, dict) and code_operator_mode.get("enabled"):
             fallback["highlights"] = (fallback.get("highlights") or []) + [f"Modo operador: {code_operator_mode.get('mode')}"]
+        if isinstance(change_blueprint, dict) and change_blueprint.get("file_changes"):
+            fallback["highlights"] = (fallback.get("highlights") or []) + [f"Blueprint de cambio: {len(change_blueprint.get('file_changes') or [])} archivos objetivo"]
+        if assistant_action.get("navigate_to") and isinstance(assistant_action.get("navigate_to"), dict):
+            route = assistant_action.get("navigate_to") or {}
+            fallback["ui_actions"] = [{
+                "type": "navigate",
+                "label": f"Abrir {route.get('label') or 'destino'}",
+                "url": str(route.get("url") or ""),
+                "reason": "Navegación resuelta por Ollana.",
+            }] + (fallback.get("ui_actions") or [])
         payload = assistant_action.get("payload") if isinstance(assistant_action.get("payload"), dict) else {}
         if payload:
             collected = []
@@ -4337,6 +4725,9 @@ def run_system_guard_chat(
             }] + (fallback.get("actions") or [])
         if queue_event:
             fallback["highlights"] = (fallback.get("highlights") or []) + [f"Cola: {queue_event.get('status') or 'registrada'}"]
+    operator_profile = _load_operator_profile(workspace, actor_id=actor_id)
+    fallback["operator_profile"] = operator_profile
+    fallback["silent_operator"] = _build_silent_operator_state(workspace, response=fallback, actor_id=actor_id)
     fallback["runbook"] = _runbook_execution_summary(
         fallback.get("runbook") if isinstance(fallback.get("runbook"), dict) else {},
         executed_tools=executed_tools,
@@ -4371,8 +4762,10 @@ def run_system_guard_chat(
     response["capabilities"] = response.get("capabilities") or _capability_snapshot(page_context=page_context)
     response["operator_plan"] = _operator_blueprint(question, planner=planner, page_context=page_context, response=response)
     response["code_operator_mode"] = response.get("code_operator_mode") or code_operator_mode
+    response["change_blueprint"] = response.get("change_blueprint") or change_blueprint
     response["technical_operation"] = response.get("technical_operation") or technical_operation
     response["technical_operation_execution"] = response.get("technical_operation_execution") or technical_execution
+    response["autofix_runner"] = response.get("autofix_runner") or autofix_runner
     response["memory_hint"] = _truncate(memory.get("summary"), 220)
     response["runbook"] = _runbook_execution_summary(
         response.get("runbook") if isinstance(response.get("runbook"), dict) else {},
@@ -4385,6 +4778,9 @@ def run_system_guard_chat(
         response["highlights"] = (response.get("highlights") or []) + [f"Regresión: {item}" for item in snapshot_diff.get("regressions", [])[:2]]
     elif snapshot_diff.get("improvements"):
         response["highlights"] = (response.get("highlights") or []) + [f"Mejora: {item}" for item in snapshot_diff.get("improvements", [])[:2]]
+    _store_operator_profile(workspace, actor_id=actor_id, planner=planner, assistant_action=response.get("assistant_action"), question=question, page_context=page_context)
+    response["operator_profile"] = _load_operator_profile(workspace, actor_id=actor_id)
+    response["silent_operator"] = _build_silent_operator_state(workspace, response=response, actor_id=actor_id)
     for issue in (report.get("issues") or [])[:6]:
         if not isinstance(issue, dict):
             continue

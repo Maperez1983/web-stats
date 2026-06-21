@@ -439,6 +439,10 @@ class SystemGuardTests(TestCase):
         self.assertTrue(rows)
         self.assertEqual(rows[0]['key'], 'dev_testserver_allowed_host')
         self.assertTrue(rows[0]['auto_apply'])
+        widget_rows = system_guard._catalog_candidates_for_question(
+            'Implementa que el widget lleve a biblioteca IA Trainer'
+        )
+        self.assertTrue(any(row['key'] == 'widget_library_ai_navigation_keywords' and row['auto_apply'] for row in widget_rows))
 
     def test_catalog_candidates_include_widget_and_pitch3d_domains(self):
         widget_rows = system_guard._catalog_candidates_for_question(
@@ -501,13 +505,13 @@ class SystemGuardTests(TestCase):
             self.assertEqual(result['applied_count'], 1)
             self.assertIn('testserver', file_path.read_text(encoding='utf-8'))
 
-    def test_execute_controlled_technical_operation_skips_non_auto_apply_catalog_candidate(self):
+    def test_execute_controlled_technical_operation_applies_auto_apply_catalog_candidate(self):
         operation = {
             'kind': 'technical_operation',
             'authorized_for_code': True,
             'authorized_for_publish': True,
             'publish_requires_confirmation': False,
-            'catalog_candidates': [{'key': 'widget_library_ai_navigation_keywords', 'title': 'Widget nav', 'auto_apply': False}],
+            'catalog_candidates': [{'key': 'widget_library_ai_navigation_keywords', 'title': 'Widget nav', 'auto_apply': True}],
         }
         executed_tools = [{
             'tool': 'check_status',
@@ -538,8 +542,8 @@ class SystemGuardTests(TestCase):
             question='Implementa que el widget lleve a biblioteca IA Trainer',
         )
         self.assertTrue(result['ok'])
-        self.assertFalse(result['applied_interventions'])
-        self.assertNotIn('repair', result['completed_phases'])
+        self.assertTrue(result['applied_interventions'])
+        self.assertIn('repair', result['completed_phases'])
 
     def test_build_code_operator_mode_for_feature_request(self):
         planner = system_guard._plan_tools(
@@ -561,6 +565,32 @@ class SystemGuardTests(TestCase):
         self.assertTrue(mode['candidate_files'])
         self.assertTrue(mode['objectives'])
         self.assertTrue(mode['catalog_candidates'])
+
+    def test_build_change_blueprint_for_feature_request(self):
+        planner = system_guard._plan_tools(
+            'Implementa una funcionalidad para que el widget lleve al usuario a biblioteca IA Trainer',
+            run_smoke=False,
+            auto_fix=False,
+            maintenance_action='',
+            autonomy_mode='operator',
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id, 'can_manage_guard': True, 'can_operate_guard_code': True},
+        )
+        mode = system_guard._build_code_operator_mode(
+            'Implementa una funcionalidad para que el widget lleve al usuario a biblioteca IA Trainer',
+            planner,
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id, 'can_manage_guard': True, 'can_operate_guard_code': True},
+        )
+        blueprint = system_guard._build_change_blueprint(
+            'Implementa una funcionalidad para que el widget lleve al usuario a biblioteca IA Trainer',
+            mode,
+            planner=planner,
+            technical_execution={},
+        )
+        self.assertTrue(blueprint['enabled'])
+        self.assertEqual(blueprint['mode'], 'build')
+        self.assertTrue(blueprint['file_changes'])
+        self.assertTrue(blueprint['validation_plan'])
+        self.assertTrue(blueprint['patch_drafts'])
 
     @patch('football.system_guard._execute_tools', return_value=[{
         'tool': 'check_status',
@@ -857,8 +887,9 @@ class SystemGuardTests(TestCase):
         self.assertTrue(result['ok'])
         self.assertEqual(result['queue_counts']['completed'], 1)
         rows = system_guard._load_task_queue(self.workspace)
-        self.assertEqual(rows[0]['status'], 'completed')
-        self.assertTrue(rows[0]['executions'])
+        completed = next((row for row in rows if row.get('status') == 'completed'), None)
+        self.assertIsNotNone(completed)
+        self.assertTrue(completed['executions'])
 
     def test_parse_player_request_extracts_core_fields(self):
         payload = system_guard._parse_player_request(
@@ -1025,6 +1056,16 @@ class SystemGuardTests(TestCase):
         self.assertIn('library_repo=ai_trainer', route['url'])
         self.assertIn('library_source=created', route['url'])
 
+    def test_execute_navigation_action_resolves_target_url(self):
+        result = system_guard._execute_navigation_action(
+            'Llévame a vídeo análisis',
+            page_context={'team_id': self.team.id, 'workspace_id': self.workspace.id},
+        )
+        self.assertTrue(result['success'])
+        self.assertEqual(result['kind'], 'navigate_module')
+        self.assertEqual(result['navigate_to']['key'], 'analysis')
+        self.assertIn('analisis', result['navigate_to']['url'])
+
     def test_inspect_guard_history_summarizes_snapshots(self):
         system_guard._store_pref_value(self.workspace, system_guard.SNAPSHOTS_PREF_KEY, [
             {'status': 'watch', 'blockers': 1, 'warnings': 2, 'issue_ids': ['a', 'b']},
@@ -1074,6 +1115,12 @@ class SystemGuardTests(TestCase):
         })
         summary = system_guard._observability_summary(self.workspace)
         self.assertEqual(summary['scheduled_state']['last_finished_at'], '2026-06-20T09:00:00Z')
+
+    def test_detect_proactive_improvements_creates_stability_task_when_system_is_clean(self):
+        report = {'issue_summary': {'blockers': 0, 'warnings': 0}}
+        rows = system_guard._detect_proactive_improvements(report, workspace=self.workspace, actor_id=self.user.id)
+        self.assertTrue(rows)
+        self.assertEqual(rows[0]['detector'], 'stability_hardening')
 
     @patch('football.system_guard.local_llm_config', return_value={
         'enabled': False,
@@ -1302,6 +1349,39 @@ class SystemGuardTests(TestCase):
         self.assertTrue(response['code_operator_mode']['authorized_for_code'])
         self.assertTrue(response['code_operator_mode']['candidate_files'])
         self.assertTrue(any('Modo operador:' in row for row in response['highlights']))
+        self.assertTrue(response['autofix_runner']['active'])
+        self.assertTrue(response['autofix_runner']['executable'])
+        self.assertTrue(response['autofix_runner']['pending_patch_drafts'])
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    def test_run_system_guard_chat_returns_navigation_action_and_silent_operator_state(self, *_mocks):
+        result = system_guard.run_system_guard_chat(
+            question='Quiero ir a vídeo análisis',
+            workspace=self.workspace,
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+            actor_id=self.user.id,
+            autonomy_mode='advisor',
+            audience='guided',
+        )
+        response = result['chat']['response']
+        self.assertEqual(response['assistant_action']['kind'], 'navigate_module')
+        self.assertTrue(response['assistant_action']['success'])
+        self.assertEqual(response['assistant_action']['navigate_to']['key'], 'analysis')
+        self.assertTrue(response['ui_actions'])
+        self.assertTrue(response['silent_operator']['continuous_enabled'])
+        self.assertEqual(response['operator_profile']['preferred_route_key'], 'analysis')
 
     @patch('football.system_guard.run_proactive_guard_cycle', return_value={'queue_counts': {'completed': 1}, 'detections': [{'id': 'demo'}]})
     def test_maybe_run_scheduled_guard_cycle_respects_interval(self, mock_cycle):
@@ -1540,6 +1620,34 @@ class SystemGuardTests(TestCase):
         self.assertTrue(actor_memory['recent_questions'])
         self.assertIn('Sesiones', actor_memory['recent_pages'])
         self.assertIn('Dashboard', merged_memory['recent_pages'])
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    def test_system_guard_chat_persists_operator_profile_for_actor(self, *_mocks):
+        actor_id = int(self.user.id)
+        system_guard.run_system_guard_chat(
+            question='Quiero ir a vídeo análisis',
+            workspace=self.workspace,
+            page_context={'page': 'dashboard-home', 'title': 'Dashboard', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+            actor_id=actor_id,
+            autonomy_mode='advisor',
+            audience='guided',
+        )
+        profile = system_guard._load_operator_profile(self.workspace, actor_id=actor_id)
+        self.assertEqual(profile['preferred_route_key'], 'analysis')
+        self.assertTrue(profile['successful_actions'])
+        self.assertTrue(profile['recurring_intents'])
 
     @patch('football.views._get_active_workspace')
     @patch('football.views._get_primary_team_for_request')
@@ -12350,3 +12458,4 @@ class AiTrainerLibraryTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'id="global-guard-widget-shell"')
         self.assertContains(response, 'id="global-guard-widget-toggle"')
+        self.assertContains(response, 'library_repo=ai_trainer')

@@ -112,7 +112,8 @@ import * as THREE from '../../vendor/three/build/three.module.js';
     goal: { theta: Math.PI, phi: 0.76, radius: 74, targetX: 0, targetZ: 18 },
     drone: { theta: -0.01, phi: 0.16, radius: 70, targetX: 0, targetZ: 0 },
     tunnel: { theta: -1.55, phi: 1.08, radius: 88, targetX: -12, targetZ: 0 },
-    analyst: { theta: -0.68, phi: 0.98, radius: 92, targetX: -3, targetZ: 4 },
+    analyst: { theta: -0.72, phi: 1.18, radius: 88, targetX: -3, targetZ: 6 },
+    coach: { theta: -0.82, phi: 1.24, radius: 74, targetX: -4, targetZ: 9 },
   };
   const orbit = { ...cameraPresets.broadcast };
   let currentPreset = 'broadcast';
@@ -313,6 +314,11 @@ import * as THREE from '../../vendor/three/build/three.module.js';
       return new THREE.Color(fallback || '#ffffff');
     }
   };
+  const tintColor = (colorLike, amount = 0) => {
+    const color = colorLike instanceof THREE.Color ? colorLike.clone() : parseColor(colorLike, '#ffffff');
+    color.offsetHSL(0, 0, amount);
+    return color;
+  };
 
   const createLabelSprite = (text, fillHex = '#ffffff') => {
     const off = document.createElement('canvas');
@@ -364,13 +370,27 @@ import * as THREE from '../../vendor/three/build/three.module.js';
     ctx.fillText(label, off.width / 2, off.height / 2 + 2);
     const texture = new THREE.CanvasTexture(off);
     texture.needsUpdate = true;
-    const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
-    const sprite = new THREE.Sprite(material);
-    sprite.scale.set(8.6, 3.2, 1);
-    return sprite;
+    const group = new THREE.Group();
+    const plane = new THREE.Mesh(
+      new THREE.PlaneGeometry(8.6, 3.2),
+      new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false, side: THREE.DoubleSide })
+    );
+    plane.rotation.x = -Math.PI / 2;
+    plane.position.y = 0.12;
+    group.add(plane);
+    const shadow = new THREE.Mesh(
+      new THREE.PlaneGeometry(8.9, 3.45),
+      new THREE.MeshBasicMaterial({ color: 0x020617, transparent: true, opacity: 0.16, depthWrite: false })
+    );
+    shadow.rotation.x = -Math.PI / 2;
+    shadow.position.set(0.18, 0.05, 0.28);
+    group.add(shadow);
+    group.userData = { floatPhase: Math.random() * Math.PI * 2 };
+    return group;
   };
 
   const createGoalFrame = (color = 0xe5e7eb) => {
+    const group = new THREE.Group();
     const material = new THREE.LineBasicMaterial({ color });
     const geometry = new THREE.BufferGeometry().setFromPoints([
       new THREE.Vector3(-1.8, 0, 0),
@@ -384,7 +404,14 @@ import * as THREE from '../../vendor/three/build/three.module.js';
       new THREE.Vector3(1.2, 0, -1),
       new THREE.Vector3(1.8, 0, 0),
     ]);
-    return new THREE.Line(geometry, material);
+    group.add(new THREE.Line(geometry, material));
+    const net = new THREE.Mesh(
+      new THREE.PlaneGeometry(2.2, 1.05, 6, 4),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22, wireframe: true })
+    );
+    net.position.set(0, 0.58, -0.92);
+    group.add(net);
+    return group;
   };
 
   const createArrowCurve = (from, to) => {
@@ -547,6 +574,8 @@ import * as THREE from '../../vendor/three/build/three.module.js';
     const group = new THREE.Group();
     const fill = parseColor(entry.fill, '#2563eb');
     const accent = parseColor(entry.stroke, '#ffffff');
+    const darkerFill = tintColor(fill, -0.16);
+    const sockColor = accent.getHSL({ h: 0, s: 0, l: 0 }).l > 0.72 ? fill : accent;
     const baseGlow = new THREE.Mesh(
       new THREE.CircleGeometry(radius * 1.42, 28),
       new THREE.MeshBasicMaterial({ color: fill, transparent: true, opacity: 0.26, depthWrite: false })
@@ -566,7 +595,7 @@ import * as THREE from '../../vendor/three/build/three.module.js';
 
     const shorts = new THREE.Mesh(
       new THREE.BoxGeometry(radius * 1.3, 0.8, radius * 0.88),
-      new THREE.MeshStandardMaterial({ color: fill.clone().multiplyScalar(0.58), roughness: 0.66, metalness: 0.04 })
+      new THREE.MeshStandardMaterial({ color: darkerFill, roughness: 0.66, metalness: 0.04 })
     );
     shorts.position.y = 1.05;
     shorts.castShadow = true;
@@ -609,17 +638,34 @@ import * as THREE from '../../vendor/three/build/three.module.js';
     rightLeg.position.x = radius * 0.24;
     group.add(rightLeg);
 
+    const leftSock = new THREE.Mesh(
+      new THREE.CylinderGeometry(radius * 0.12, radius * 0.12, 0.54, 10),
+      new THREE.MeshStandardMaterial({ color: sockColor, roughness: 0.58 })
+    );
+    leftSock.position.set(-radius * 0.24, 0.06, 0);
+    group.add(leftSock);
+    const rightSock = leftSock.clone();
+    rightSock.position.x = radius * 0.24;
+    group.add(rightSock);
+
     const head = new THREE.Mesh(new THREE.SphereGeometry(radius * 0.38, 20, 18), skinMat);
     head.position.y = 2.85;
     head.castShadow = true;
     group.add(head);
+
+    const hair = new THREE.Mesh(
+      new THREE.SphereGeometry(radius * 0.26, 18, 12, 0, Math.PI * 2, 0, Math.PI / 2),
+      new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.82 })
+    );
+    hair.position.set(0, 2.96, -radius * 0.04);
+    group.add(hair);
 
     const badge = createLabelSprite(entry.label, '#ffffff');
     badge.scale.set(2.8, 1.4, 1);
     badge.position.set(0, 2.05, radius * 0.5);
     group.add(badge);
 
-    group.userData = { baseY: 0, radius };
+    group.userData = { baseY: 0, radius, leftArm, rightArm, leftLeg, rightLeg, badge };
     group.position.set(entry.x, 0, entry.z);
     return group;
   };
@@ -651,6 +697,7 @@ import * as THREE from '../../vendor/three/build/three.module.js';
       balls: new Map(),
       paths: [],
       notes: [],
+      trails: [],
     };
 
     frameData.zones.forEach((zone) => {
@@ -725,7 +772,8 @@ import * as THREE from '../../vendor/three/build/three.module.js';
 
     frameData.notes.forEach((noteData) => {
       const card = createCardLabel(noteData.label);
-      card.position.set(noteData.x, 0.42, noteData.z);
+      card.position.set(noteData.x, 0.14, noteData.z);
+      card.rotation.y = -0.12;
       dynamicRoot.add(card);
       world.notes.push(card);
     });
@@ -733,13 +781,31 @@ import * as THREE from '../../vendor/three/build/three.module.js';
     frameData.tokens.forEach((entry, uid) => {
       const actor = createTokenActor(entry);
       dynamicRoot.add(actor);
-      world.tokens.set(uid, { group: actor, entry });
+      const trail = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(entry.x, 0.16, entry.z),
+          new THREE.Vector3(entry.x, 0.16, entry.z),
+        ]),
+        new THREE.LineBasicMaterial({ color: tintColor(entry.fill, 0.12), transparent: true, opacity: 0.0 })
+      );
+      dynamicRoot.add(trail);
+      world.trails.push({ line: trail, type: 'token', entry });
+      world.tokens.set(uid, { group: actor, entry, trail });
     });
 
     frameData.balls.forEach((entry, uid) => {
       const actor = createBallActor(entry);
       dynamicRoot.add(actor);
-      world.balls.set(uid, { group: actor, entry });
+      const trail = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(entry.x, 0.18, entry.z),
+          new THREE.Vector3(entry.x, 0.18, entry.z),
+        ]),
+        new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.0 })
+      );
+      dynamicRoot.add(trail);
+      world.trails.push({ line: trail, type: 'ball', entry });
+      world.balls.set(uid, { group: actor, entry, trail });
     });
 
     return world;
@@ -765,15 +831,33 @@ import * as THREE from '../../vendor/three/build/three.module.js';
     const frameData = framesData[stepIndex] || framesData[0];
     const nextFrameData = framesData[(stepIndex + 1) % framesData.length] || frameData;
 
-    activeWorld.tokens.forEach(({ group, entry }, uid) => {
+    activeWorld.tokens.forEach(({ group, entry, trail }, uid) => {
       const next = nextFrameData.tokens.get(uid);
       const target = next || entry;
       const x = lerp(entry.x, target.x, next ? eased : 0);
       const z = lerp(entry.z, target.z, next ? eased : 0);
+      const dx = target.x - entry.x;
+      const dz = target.z - entry.z;
+      const moveStrength = clamp(Math.sqrt((dx * dx) + (dz * dz)) / 8, 0, 1);
+      const stride = Math.sin((elapsedSeconds * 8) + (x * 0.1) + (z * 0.06)) * moveStrength;
       group.position.x = x;
       group.position.z = z;
       group.position.y = Math.sin((elapsedSeconds * 3.2) + x * 0.08 + z * 0.08) * 0.06;
-      group.rotation.y = next ? Math.atan2(target.x - entry.x, target.z - entry.z) : 0;
+      group.rotation.y = next ? Math.atan2(dx, dz) : 0;
+      if (group.userData.leftArm) group.userData.leftArm.rotation.x = stride * 0.55;
+      if (group.userData.rightArm) group.userData.rightArm.rotation.x = -stride * 0.55;
+      if (group.userData.leftLeg) group.userData.leftLeg.rotation.x = -stride * 0.34;
+      if (group.userData.rightLeg) group.userData.rightLeg.rotation.x = stride * 0.34;
+      if (group.userData.badge) group.userData.badge.position.y = 2.03 + (Math.sin(elapsedSeconds * 5 + x * 0.08) * 0.04);
+      if (trail?.geometry) {
+        const trailPoints = [
+          new THREE.Vector3(x - (dx * 0.28), 0.14, z - (dz * 0.28)),
+          new THREE.Vector3(x, 0.14, z),
+        ];
+        trail.geometry.dispose?.();
+        trail.geometry = new THREE.BufferGeometry().setFromPoints(trailPoints);
+        trail.material.opacity = moveStrength * 0.52;
+      }
       group.children.forEach((child) => {
         if (child.material && typeof child.material.opacity === 'number' && child.geometry?.type === 'CircleGeometry') {
           child.material.opacity = 0.18 + Math.sin(elapsedSeconds * 4.6 + x * 0.06) * 0.06;
@@ -781,13 +865,25 @@ import * as THREE from '../../vendor/three/build/three.module.js';
       });
     });
 
-    activeWorld.balls.forEach(({ group, entry }, uid) => {
+    activeWorld.balls.forEach(({ group, entry, trail }, uid) => {
       const next = nextFrameData.balls.get(uid);
       const target = next || entry;
+      const dx = target.x - entry.x;
+      const dz = target.z - entry.z;
+      const moveStrength = clamp(Math.sqrt((dx * dx) + (dz * dz)) / 10, 0, 1);
       group.position.x = lerp(entry.x, target.x, next ? eased : 0);
       group.position.z = lerp(entry.z, target.z, next ? eased : 0);
       group.position.y = (next ? Math.sin(eased * Math.PI) * 1.1 : 0) + 0.02;
       group.rotation.y += 0.05;
+      if (trail?.geometry) {
+        const trailPoints = [
+          new THREE.Vector3(group.position.x - (dx * 0.38), 0.18, group.position.z - (dz * 0.38)),
+          new THREE.Vector3(group.position.x, 0.18, group.position.z),
+        ];
+        trail.geometry.dispose?.();
+        trail.geometry = new THREE.BufferGeometry().setFromPoints(trailPoints);
+        trail.material.opacity = moveStrength * 0.68;
+      }
     });
 
     activeWorld.paths.forEach(({ line, glow, dashed }, index) => {
@@ -801,7 +897,8 @@ import * as THREE from '../../vendor/three/build/three.module.js';
     });
 
     activeWorld.notes.forEach((note, index) => {
-      note.position.y = 0.42 + Math.sin(elapsedSeconds * 2 + index) * 0.03;
+      note.position.y = 0.14 + Math.sin(elapsedSeconds * 2 + index) * 0.02;
+      note.rotation.z = Math.sin(elapsedSeconds * 1.6 + note.userData.floatPhase) * 0.02;
     });
 
     updateHud(stepIndex, localProgress);
@@ -959,8 +1056,14 @@ import * as THREE from '../../vendor/three/build/three.module.js';
 
     if (isPlaying) {
       if (!playbackState) startPlayback();
-      if (currentPreset === 'broadcast' || currentPreset === 'analyst' || currentPreset === 'tactic') {
+      if (currentPreset === 'broadcast' || currentPreset === 'analyst' || currentPreset === 'tactic' || currentPreset === 'coach') {
         orbit.theta += 0.0008;
+      }
+      const frame = framesData[playbackState.stepIndex] || framesData[0];
+      const focusBall = frame.balls.values().next().value;
+      if (focusBall && (currentPreset === 'analyst' || currentPreset === 'coach')) {
+        orbit.targetX = lerp(orbit.targetX, focusBall.x * 0.45, 0.015);
+        orbit.targetZ = lerp(orbit.targetZ, focusBall.z * 0.45, 0.015);
       }
       const current = steps[playbackState.stepIndex] || steps[0];
       const durationMs = Math.max(1, toNumber(current.duration, 4)) * 1000;
@@ -1112,7 +1215,7 @@ import * as THREE from '../../vendor/three/build/three.module.js';
   });
 
   updateRecordButton();
-  setCameraPreset('analyst');
+  setCameraPreset('coach');
   buildWorldForStep(0);
   applyInterpolatedState(0, 0, 0);
 })();
