@@ -8248,7 +8248,7 @@
 						          if (version) versionSuffix = `?v=${encodeURIComponent(version)}`;
 						        } catch (e) { /* ignore */ }
 						        const fallbacks = {
-						          pitch3dStadiumModelSrc: `/static/football/models/pitch3d/stadium_bowl_premium.glb${versionSuffix}`,
+						          pitch3dStadiumModelSrc: `/static/football/models/pitch3d/stadium_architectural_complete.glb${versionSuffix}`,
 						          pitch3dGrassAlbedoSrc: `/static/football/images/pitch3d/grass_premium_albedo.png${versionSuffix}`,
 						          pitch3dGrassBumpSrc: `/static/football/images/pitch3d/grass_premium_bump.png${versionSuffix}`,
 						          pitch3dGrassNormalSrc: `/static/football/images/pitch3d/grass_premium_normal.png${versionSuffix}`,
@@ -8265,7 +8265,7 @@
 						        return '';
 						      }
 						    };
-						    const isDedicatedPitch3dReferenceStadiumSrc = (src) => /stadium_benagalbon_reference(?:\.[a-f0-9]+)?\.glb(?:[?#].*)?$/i.test(safeText(src || ''));
+						    const isDedicatedPitch3dReferenceStadiumSrc = (src) => /stadium_(?:benagalbon_reference|architectural_complete)(?:\.[a-f0-9]+)?\.glb(?:[?#].*)?$/i.test(safeText(src || ''));
 						    const ensurePitch3dGltfLoaderClass = async () => {
 						      try { if (window.__WEBSTATS_GLTF_LOADER_CLASS) return true; } catch (e) { /* ignore */ }
 						      if (window.__webstats_gltf_loader_promise) return !!(await window.__webstats_gltf_loader_promise);

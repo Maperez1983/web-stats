@@ -700,6 +700,36 @@ class SystemGuardTests(TestCase):
         self.assertTrue(operator['command_plan'])
         self.assertTrue(operator['autonomous_steps'])
 
+    def test_build_real_code_operator_reports_live_execution_capability(self):
+        operator = system_guard._build_real_code_operator(
+            'Por que no se visualiza bien el estadio 3d y si lo puedes solucionar',
+            page_context={'page': 'sessions-task-create', 'can_manage_guard': True, 'can_operate_guard_code': True},
+            technical_operation={
+                'kind': 'technical_operation',
+                'authorized_for_code': True,
+                'authorized_for_publish': True,
+            },
+            technical_execution={
+                'status': 'completed',
+                'ok': True,
+                'completed_phases': ['triage', 'inspect_repo', 'validate', 'repair'],
+                'applied_interventions': [{'ok': True, 'candidate_key': 'pitch3d_trigger_and_modal_flow', 'title': 'Pitch3D'}],
+            },
+            repository_operator={
+                'execution_ready': True,
+                'patch_bundle': [{'path': 'football/static/football/js/sessions_tactical_pad.js'}],
+            },
+            publish_commander={'publish_ready': True, 'confirmation_required': True, 'status': 'ready_for_publish'},
+            autonomy_policy={'mode': 'technical_operator'},
+        )
+        self.assertTrue(operator['embedded'])
+        self.assertTrue(operator['active'])
+        self.assertTrue(operator['can_modify_code_now'])
+        self.assertTrue(operator['self_applied_fix'])
+        self.assertEqual(operator['execution_scope'], 'catalog_autofix_execution')
+        self.assertIn('publish_confirmation_required', operator['remaining_gates'])
+        self.assertGreaterEqual(operator['completion_percent'], 80)
+
     def test_build_release_guard_reports_verified_publish_state(self):
         guard = system_guard._build_release_guard(
             report={'issue_summary': {'blockers': 0, 'warnings': 1}},
@@ -1687,6 +1717,10 @@ class SystemGuardTests(TestCase):
         self.assertTrue(response['repository_operator']['embedded'])
         self.assertTrue(response['repository_operator']['execution_ready'])
         self.assertTrue(response['repository_operator']['command_plan'])
+        self.assertTrue(response['real_code_operator']['embedded'])
+        self.assertTrue(response['real_code_operator']['active'])
+        self.assertTrue(response['real_code_operator']['can_modify_code_now'])
+        self.assertTrue(response['real_code_operator']['self_applied_fix'])
         self.assertTrue(response['release_guard']['embedded'])
         self.assertTrue(response['release_guard']['verification_ready'])
         self.assertTrue(response['deployment_guard']['embedded'])
@@ -1702,9 +1736,12 @@ class SystemGuardTests(TestCase):
         self.assertEqual(response['request_contract']['interaction_mode'], 'technical_operator')
         self.assertEqual(response['request_contract']['execution_mode'], 'code_execution')
         self.assertEqual(response['request_contract']['autonomy_policy_mode'], 'technical_operator')
+        self.assertTrue(response['request_contract']['code_execution_live'])
         self.assertTrue(response['intelligence_os']['layers']['execution']['execution_plan']['stages'])
         self.assertEqual(response['intelligence_os']['layers']['execution']['repair_commander']['status'], 'publish_ready')
         self.assertTrue(response['intelligence_os']['layers']['execution']['repository_operator']['execution_ready'])
+        self.assertTrue(response['intelligence_os']['layers']['execution']['real_code_operator']['active'])
+        self.assertTrue(response['intelligence_os']['layers']['execution']['real_code_operator']['self_applied_fix'])
         self.assertTrue(response['intelligence_os']['layers']['execution']['release_guard']['verification_ready'])
         self.assertTrue(response['intelligence_os']['layers']['execution']['deployment_guard']['embedded'])
         self.assertTrue(response['intelligence_os']['layers']['execution']['self_healing']['embedded'])
@@ -1720,12 +1757,14 @@ class SystemGuardTests(TestCase):
         self.assertEqual(response['intelligence_os']['layers']['supervision']['autonomy_policy']['mode'], 'technical_operator')
         self.assertEqual(response['intelligence_os']['layers']['supervision']['repair_readiness'], 'publish_ready')
         self.assertTrue(response['intelligence_os']['layers']['supervision']['repository_execution_ready'])
+        self.assertTrue(response['intelligence_os']['layers']['supervision']['real_code_execution_live'])
         self.assertFalse(response['intelligence_os']['layers']['supervision']['external_connectors_ready'])
         self.assertGreaterEqual(response['intelligence_os']['layers']['supervision']['safe_executor_allowed_count'], 4)
         self.assertIn(response['intelligence_os']['layers']['supervision']['release_status'], {'ready_for_release_check', 'published_verified', 'monitoring', 'regression_detected'})
         self.assertIn(response['intelligence_os']['layers']['supervision']['deployment_status'], {'pre_deploy_check', 'pending_release_window', 'deployment_verified', 'release_window_open', 'deployment_risk'})
         self.assertTrue(response['intelligence_os']['layers']['supervision']['self_healing_ready'])
         self.assertIn(response['intelligence_os']['layers']['incident_commander']['status'], {'stable', 'running', 'blocked', 'awaiting_operator', 'regression_detected'})
+        self.assertTrue(response['intelligence_os']['layers']['mission_control']['autonomy']['real_code_execution_live'])
         self.assertEqual(response['intelligence_os']['layers']['policy_decisions']['requested_action'], 'repair_code')
 
     @patch('football.system_guard.local_llm_config', return_value={

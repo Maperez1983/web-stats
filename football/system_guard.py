@@ -3357,7 +3357,7 @@ def _parse_matchday_bundle_request(question: str) -> dict:
     }
 
 
-def _ollana_maturity_snapshot(*, page_context=None, assistant_action=None, technical_execution=None, operator_profile=None, silent_operator=None, repair_commander=None, repository_operator=None, release_guard=None, deployment_guard=None, self_healing=None) -> dict:
+def _ollana_maturity_snapshot(*, page_context=None, assistant_action=None, technical_execution=None, operator_profile=None, silent_operator=None, repair_commander=None, repository_operator=None, release_guard=None, deployment_guard=None, self_healing=None, real_code_operator=None) -> dict:
     page_context = page_context if isinstance(page_context, dict) else {}
     assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
     technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
@@ -3368,6 +3368,7 @@ def _ollana_maturity_snapshot(*, page_context=None, assistant_action=None, techn
     release_guard = release_guard if isinstance(release_guard, dict) else {}
     deployment_guard = deployment_guard if isinstance(deployment_guard, dict) else {}
     self_healing = self_healing if isinstance(self_healing, dict) else {}
+    real_code_operator = real_code_operator if isinstance(real_code_operator, dict) else {}
     connectors = _external_connectors_snapshot(page_context=page_context)
     command_executor = _safe_command_executor_snapshot(page_context=page_context)
     autonomy_policy = _autonomy_policy_snapshot(
@@ -3393,6 +3394,7 @@ def _ollana_maturity_snapshot(*, page_context=None, assistant_action=None, techn
         "external_connectors": 8 if bool(connectors.get("ready")) else 4,
         "safe_command_executor": 8 if _safe_int(command_executor.get("allowed_count"), 0) >= 4 else 4,
         "autonomy_policy": 8 if bool(autonomy_policy.get("embedded")) and not autonomy_policy.get("requires_confirmation") else 5,
+        "real_code_operator": 8 if bool(real_code_operator.get("embedded")) and bool(real_code_operator.get("can_modify_code_now")) else 4,
     }
     achieved = sum(scores.values())
     percent = max(1, min(100, achieved))
@@ -5030,6 +5032,7 @@ def _build_request_contract(
     technical_operation=None,
     technical_execution=None,
     repair_commander=None,
+    real_code_operator=None,
     page_context=None,
     autonomy_mode: str = "operator",
     audience: str = "technical",
@@ -5039,6 +5042,7 @@ def _build_request_contract(
     technical_operation = technical_operation if isinstance(technical_operation, dict) else {}
     technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
     repair_commander = repair_commander if isinstance(repair_commander, dict) else {}
+    real_code_operator = real_code_operator if isinstance(real_code_operator, dict) else {}
     page_context = page_context if isinstance(page_context, dict) else {}
     task = planner.get("task") if isinstance(planner.get("task"), dict) else {}
     runbook = planner.get("runbook") if isinstance(planner.get("runbook"), dict) else {}
@@ -5112,6 +5116,7 @@ def _build_request_contract(
         "next_step": next_step[:220],
         "allowed_to_publish": bool(technical_execution.get("publish_ready")),
         "autonomy_policy_mode": str(autonomy_policy.get("mode") or "")[:32],
+        "code_execution_live": bool(real_code_operator.get("active")),
         "silent_actions": list(autonomy_policy.get("silent_actions") or [])[:5],
         "confirmation_actions": list(autonomy_policy.get("confirmation_actions") or [])[:4],
         "guardrails": guardrails[:4],
@@ -5274,6 +5279,93 @@ def _build_repository_operator(
         "command_plan": command_plan[:5],
         "autonomous_steps": autonomous_steps[:4],
         "memory": memory_snapshot,
+    }
+
+
+def _build_real_code_operator(
+    question: str,
+    *,
+    page_context=None,
+    technical_operation=None,
+    technical_execution=None,
+    repository_operator=None,
+    publish_commander=None,
+    autonomy_policy=None,
+) -> dict:
+    page_context = page_context if isinstance(page_context, dict) else {}
+    technical_operation = technical_operation if isinstance(technical_operation, dict) else {}
+    technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
+    repository_operator = repository_operator if isinstance(repository_operator, dict) else {}
+    publish_commander = publish_commander if isinstance(publish_commander, dict) else {}
+    autonomy_policy = autonomy_policy if isinstance(autonomy_policy, dict) else {}
+    if str(technical_operation.get("kind") or "") != "technical_operation":
+        return {}
+    applied = [row for row in (technical_execution.get("applied_interventions") or []) if isinstance(row, dict)]
+    completed = [str(item) for item in (technical_execution.get("completed_phases") or []) if str(item or "").strip()]
+    validated = bool(technical_execution.get("ok"))
+    can_code = bool(technical_operation.get("authorized_for_code"))
+    can_publish = bool(technical_operation.get("authorized_for_publish"))
+    self_applied = any(bool(row.get("ok")) for row in applied)
+    execution_scope = "guided_manual_patch"
+    if self_applied:
+        execution_scope = "catalog_autofix_execution"
+    elif bool(repository_operator.get("patch_bundle")):
+        execution_scope = "patch_bundle_execution"
+    remaining_gates = []
+    if not can_code:
+        remaining_gates.append("code_permission_required")
+    if publish_commander.get("confirmation_required"):
+        remaining_gates.append("publish_confirmation_required")
+    if can_publish and not bool(publish_commander.get("publish_ready")):
+        remaining_gates.append("publish_validation_pending")
+    if not can_publish:
+        remaining_gates.append("publish_permission_required")
+    completion = 0
+    completion += 25 if "triage" in completed else 0
+    completion += 25 if "inspect_repo" in completed else 0
+    completion += 25 if "validate" in completed else 0
+    completion += 15 if self_applied else 0
+    completion += 10 if bool(publish_commander.get("push_done")) else 0
+    execution_log = []
+    for phase in completed[:6]:
+        execution_log.append({
+            "phase": phase,
+            "status": "done",
+        })
+    if self_applied:
+        first_fix = next((row for row in applied if bool(row.get("ok"))), applied[0] if applied else {})
+        execution_log.append({
+            "phase": "repair",
+            "status": "done",
+            "detail": str(first_fix.get("title") or first_fix.get("candidate_key") or "fix catalogado aplicado")[:180],
+        })
+    if publish_commander.get("commit_done"):
+        execution_log.append({"phase": "commit", "status": "done"})
+    if publish_commander.get("push_done"):
+        execution_log.append({"phase": "push", "status": "done"})
+    return {
+        "embedded": True,
+        "target": _truncate(question, 220),
+        "active": True,
+        "execution_scope": execution_scope,
+        "can_modify_code_now": can_code and bool(repository_operator.get("execution_ready")),
+        "can_self_publish_now": bool(can_publish and publish_commander.get("publish_ready") and not publish_commander.get("confirmation_required")),
+        "self_applied_fix": self_applied,
+        "validated": validated,
+        "status": str(technical_execution.get("status") or "running")[:32],
+        "completed_phases": completed[:6],
+        "completion_percent": max(5, min(100, completion)),
+        "remaining_gates": remaining_gates[:4],
+        "autonomy_mode": str(autonomy_policy.get("mode") or "")[:32],
+        "autonomous_reach": [
+            "triage",
+            "inspect_repo",
+            "validate",
+            "repair",
+        ] if can_code else ["triage", "inspect_repo"],
+        "execution_log": execution_log[:8],
+        "owner_restricted": bool(page_context.get("can_manage_guard")) and not bool(page_context.get("can_operate_guard_code")),
+        "publish_status": str(publish_commander.get("status") or "")[:32],
     }
 
 
@@ -5750,6 +5842,7 @@ def _mission_control_snapshot(
     technical_execution=None,
     repair_commander=None,
     repository_operator=None,
+    real_code_operator=None,
     release_guard=None,
     deployment_guard=None,
     self_healing=None,
@@ -5763,6 +5856,7 @@ def _mission_control_snapshot(
     technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
     repair_commander = repair_commander if isinstance(repair_commander, dict) else {}
     repository_operator = repository_operator if isinstance(repository_operator, dict) else {}
+    real_code_operator = real_code_operator if isinstance(real_code_operator, dict) else {}
     release_guard = release_guard if isinstance(release_guard, dict) else {}
     deployment_guard = deployment_guard if isinstance(deployment_guard, dict) else {}
     self_healing = self_healing if isinstance(self_healing, dict) else {}
@@ -5780,6 +5874,7 @@ def _mission_control_snapshot(
         release_guard=release_guard,
         deployment_guard=deployment_guard,
         self_healing=self_healing,
+        real_code_operator=real_code_operator,
     )
     task = planner.get("task") if isinstance(planner.get("task"), dict) else {}
     runbook = planner.get("runbook") if isinstance(planner.get("runbook"), dict) else {}
@@ -5832,6 +5927,7 @@ def _mission_control_snapshot(
         "autonomy": {
             "silent_mode": bool(task.get("silent_mode")),
             "publish_ready": bool(technical_execution.get("publish_ready")),
+            "real_code_execution_live": bool(real_code_operator.get("active")),
             "queue_pending": _safe_int((silent_operator.get("queue_counts") or {}).get("pending"), 0),
             "queue_blocked": _safe_int((silent_operator.get("queue_counts") or {}).get("blocked"), 0),
             "continuous_enabled": bool(silent_operator.get("continuous_enabled")),
@@ -6020,6 +6116,7 @@ def _build_intelligence_os_snapshot(
     repair_commander=None,
     publish_commander=None,
     repository_operator=None,
+    real_code_operator=None,
     release_guard=None,
     deployment_guard=None,
     self_healing=None,
@@ -6034,6 +6131,7 @@ def _build_intelligence_os_snapshot(
     repair_commander = repair_commander if isinstance(repair_commander, dict) else {}
     publish_commander = publish_commander if isinstance(publish_commander, dict) else {}
     repository_operator = repository_operator if isinstance(repository_operator, dict) else {}
+    real_code_operator = real_code_operator if isinstance(real_code_operator, dict) else {}
     release_guard = release_guard if isinstance(release_guard, dict) else {}
     deployment_guard = deployment_guard if isinstance(deployment_guard, dict) else {}
     self_healing = self_healing if isinstance(self_healing, dict) else {}
@@ -6064,6 +6162,7 @@ def _build_intelligence_os_snapshot(
                     technical_operation=technical_operation,
                     technical_execution=technical_execution,
                     repair_commander=repair_commander,
+                    real_code_operator=real_code_operator,
                     page_context=page_context,
                 ),
             },
@@ -6085,6 +6184,7 @@ def _build_intelligence_os_snapshot(
                 technical_execution=technical_execution,
                 repair_commander=repair_commander,
                 repository_operator=repository_operator,
+                real_code_operator=real_code_operator,
                 release_guard=release_guard,
                 deployment_guard=deployment_guard,
                 self_healing=self_healing,
@@ -6140,6 +6240,7 @@ def _build_intelligence_os_snapshot(
                 "repair_commander": repair_commander,
                 "publish_commander": publish_commander,
                 "repository_operator": repository_operator,
+                "real_code_operator": real_code_operator,
                 "release_guard": release_guard,
                 "deployment_guard": deployment_guard,
                 "self_healing": self_healing,
@@ -6168,6 +6269,7 @@ def _build_intelligence_os_snapshot(
                 "repair_readiness": str(repair_commander.get("status") or "")[:32],
                 "publish_status": str(publish_commander.get("status") or "")[:32],
                 "repository_execution_ready": bool(repository_operator.get("execution_ready")),
+                "real_code_execution_live": bool(real_code_operator.get("active")),
                 "release_status": str(release_guard.get("status") or "")[:32],
                 "deployment_status": str(deployment_guard.get("status") or "")[:32],
                 "self_healing_ready": bool(self_healing.get("ready")),
@@ -7987,6 +8089,21 @@ def run_system_guard_chat(
         repair_commander=repair_commander if isinstance(repair_commander, dict) else {},
         publish_commander=publish_commander if isinstance(publish_commander, dict) else {},
     )
+    real_code_operator = _build_real_code_operator(
+        question,
+        page_context=page_context,
+        technical_operation=technical_operation if isinstance(technical_operation, dict) else {},
+        technical_execution=technical_execution if isinstance(technical_execution, dict) else {},
+        repository_operator=repository_operator if isinstance(repository_operator, dict) else {},
+        publish_commander=publish_commander if isinstance(publish_commander, dict) else {},
+        autonomy_policy=_autonomy_policy_snapshot(
+            page_context=page_context,
+            planner=planner,
+            assistant_action=assistant_action if isinstance(assistant_action, dict) else {},
+            technical_operation=technical_operation if isinstance(technical_operation, dict) else {},
+            technical_execution=technical_execution if isinstance(technical_execution, dict) else {},
+        ),
+    )
     queue_event = {}
     task_meta = planner.get("task") if isinstance(planner.get("task"), dict) else {}
     runbook_meta = planner.get("runbook") if isinstance(planner.get("runbook"), dict) else {}
@@ -8091,6 +8208,7 @@ def run_system_guard_chat(
     fallback["repair_commander"] = repair_commander if isinstance(repair_commander, dict) else {}
     fallback["publish_commander"] = publish_commander if isinstance(publish_commander, dict) else {}
     fallback["repository_operator"] = repository_operator if isinstance(repository_operator, dict) else {}
+    fallback["real_code_operator"] = real_code_operator if isinstance(real_code_operator, dict) else {}
     fallback["release_guard"] = release_guard if isinstance(release_guard, dict) else {}
     fallback["deployment_guard"] = deployment_guard if isinstance(deployment_guard, dict) else {}
     fallback["self_healing"] = self_healing if isinstance(self_healing, dict) else {}
@@ -8104,6 +8222,7 @@ def run_system_guard_chat(
         technical_operation=technical_operation if isinstance(technical_operation, dict) else {},
         technical_execution=technical_execution if isinstance(technical_execution, dict) else {},
         repair_commander=repair_commander if isinstance(repair_commander, dict) else {},
+        real_code_operator=real_code_operator if isinstance(real_code_operator, dict) else {},
         page_context=page_context,
         autonomy_mode=autonomy_mode,
         audience=audience,
@@ -8173,6 +8292,10 @@ def run_system_guard_chat(
             fallback["highlights"] = (fallback.get("highlights") or []) + [f"Repositorio listo: {repository_operator.get('execution_lane')}"]
             if (repository_operator.get("memory") or {}).get("has_history"):
                 fallback["highlights"] = (fallback.get("highlights") or []) + ["Memoria técnica reutilizable detectada"]
+        if isinstance(real_code_operator, dict) and real_code_operator.get("active"):
+            fallback["highlights"] = (fallback.get("highlights") or []) + [f"Ejecución real: {real_code_operator.get('execution_scope')}"]
+            if real_code_operator.get("self_applied_fix"):
+                fallback["highlights"] = (fallback.get("highlights") or []) + ["Ollana ya ha aplicado un fix sobre código"]
         if isinstance(release_guard, dict) and release_guard.get("verification_ready"):
             fallback["highlights"] = (fallback.get("highlights") or []) + [f"Verificación post-cambio: {release_guard.get('status')}"]
         if isinstance(deployment_guard, dict) and deployment_guard.get("verification_window"):
@@ -8220,6 +8343,7 @@ def run_system_guard_chat(
         repair_commander=repair_commander if isinstance(repair_commander, dict) else {},
         publish_commander=publish_commander if isinstance(publish_commander, dict) else {},
         repository_operator=repository_operator if isinstance(repository_operator, dict) else {},
+        real_code_operator=real_code_operator if isinstance(real_code_operator, dict) else {},
         release_guard=release_guard if isinstance(release_guard, dict) else {},
         deployment_guard=deployment_guard if isinstance(deployment_guard, dict) else {},
         self_healing=self_healing if isinstance(self_healing, dict) else {},
@@ -8270,6 +8394,7 @@ def run_system_guard_chat(
     response["repair_commander"] = response.get("repair_commander") or repair_commander
     response["publish_commander"] = response.get("publish_commander") or publish_commander
     response["repository_operator"] = response.get("repository_operator") or repository_operator
+    response["real_code_operator"] = response.get("real_code_operator") or real_code_operator
     response["release_guard"] = response.get("release_guard") or release_guard
     response["deployment_guard"] = response.get("deployment_guard") or deployment_guard
     response["self_healing"] = response.get("self_healing") or self_healing
@@ -8283,6 +8408,7 @@ def run_system_guard_chat(
         technical_operation=response.get("technical_operation") if isinstance(response.get("technical_operation"), dict) else {},
         technical_execution=response.get("technical_operation_execution") if isinstance(response.get("technical_operation_execution"), dict) else {},
         repair_commander=response.get("repair_commander") if isinstance(response.get("repair_commander"), dict) else {},
+        real_code_operator=response.get("real_code_operator") if isinstance(response.get("real_code_operator"), dict) else {},
         page_context=page_context,
         autonomy_mode=autonomy_mode,
         audience=audience,
@@ -8316,6 +8442,7 @@ def run_system_guard_chat(
         repair_commander=response.get("repair_commander") if isinstance(response.get("repair_commander"), dict) else {},
         publish_commander=response.get("publish_commander") if isinstance(response.get("publish_commander"), dict) else {},
         repository_operator=response.get("repository_operator") if isinstance(response.get("repository_operator"), dict) else {},
+        real_code_operator=response.get("real_code_operator") if isinstance(response.get("real_code_operator"), dict) else {},
         release_guard=response.get("release_guard") if isinstance(response.get("release_guard"), dict) else {},
         deployment_guard=response.get("deployment_guard") if isinstance(response.get("deployment_guard"), dict) else {},
         self_healing=response.get("self_healing") if isinstance(response.get("self_healing"), dict) else {},
