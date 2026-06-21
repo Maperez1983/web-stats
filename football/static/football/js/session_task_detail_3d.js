@@ -110,7 +110,7 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
   scene.add(dynamicRoot);
 
   const cameraPresets = {
-    broadcast: { theta: -0.64, phi: 1.02, radius: 134, targetX: -2, targetZ: 2 },
+    broadcast: { theta: -0.76, phi: 0.94, radius: 146, targetX: -6, targetZ: 4 },
     tactic: { theta: 0.02, phi: 0.48, radius: 84, targetX: 0, targetZ: 0 },
     corner: { theta: -0.95, phi: 0.92, radius: 104, targetX: 10, targetZ: -4 },
     goal: { theta: Math.PI, phi: 0.76, radius: 74, targetX: 0, targetZ: 18 },
@@ -118,7 +118,7 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
     tunnel: { theta: -1.55, phi: 1.08, radius: 88, targetX: -12, targetZ: 0 },
     analyst: { theta: -0.72, phi: 1.18, radius: 88, targetX: -3, targetZ: 6 },
     coach: { theta: -0.9, phi: 1.18, radius: 80, targetX: -6, targetZ: 10 },
-    rosaleda: { theta: -0.82, phi: 1.01, radius: 128, targetX: -5, targetZ: 4 },
+    rosaleda: { theta: -0.94, phi: 0.92, radius: 142, targetX: -8, targetZ: 6 },
   };
   const orbit = { ...cameraPresets.broadcast };
   let currentPreset = 'broadcast';
@@ -688,6 +688,7 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
     if (stadiumScene) return stadiumScene;
     if (stadiumLoadPromise) return stadiumLoadPromise;
     const modelUrl = safeText(payload.stadiumModelUrl);
+    const isArchitecturalReference = /stadium_architectural_complete(?:\.[a-f0-9]+)?\.glb(?:[?#].*)?$/i.test(modelUrl);
     if (!modelUrl) return null;
     const loader = new GLTFLoader();
     stadiumLoadPromise = new Promise((resolve) => {
@@ -705,8 +706,8 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
             const center = new THREE.Vector3();
             box.getSize(size);
             box.getCenter(center);
-            const scaleX = (stateMeta.fieldWidth * 2.12) / Math.max(size.x || 1, 1);
-            const scaleZ = (stateMeta.fieldHeight * 2.04) / Math.max(size.z || 1, 1);
+            const scaleX = ((stateMeta.fieldWidth * (isArchitecturalReference ? 2.22 : 2.12))) / Math.max(size.x || 1, 1);
+            const scaleZ = ((stateMeta.fieldHeight * (isArchitecturalReference ? 2.14 : 2.04))) / Math.max(size.z || 1, 1);
             const scale = Math.min(scaleX, scaleZ);
             group.position.sub(center);
             group.scale.setScalar(scale);
@@ -722,29 +723,29 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
                 const mats = Array.isArray(node.material) ? node.material : [node.material];
                 mats.forEach((mat) => {
                   const name = String(mat.name || '').toUpperCase();
-                  if ('envMapIntensity' in mat) mat.envMapIntensity = 0.5;
-                  if ('metalness' in mat && typeof mat.metalness === 'number') mat.metalness *= 0.92;
-                  if ('roughness' in mat && typeof mat.roughness === 'number') mat.roughness = Math.min(0.96, mat.roughness + 0.04);
+                  if ('envMapIntensity' in mat) mat.envMapIntensity = isArchitecturalReference ? 0.72 : 0.5;
+                  if ('metalness' in mat && typeof mat.metalness === 'number') mat.metalness *= isArchitecturalReference ? 0.98 : 0.92;
+                  if ('roughness' in mat && typeof mat.roughness === 'number') mat.roughness = Math.min(0.92, mat.roughness + (isArchitecturalReference ? 0.01 : 0.04));
                   if ('color' in mat && name.includes('TEAM_PRIMARY_DARKER_SEAT_FIELD')) mat.color.set('#174fba');
                   else if ('color' in mat && name.includes('TEAM_PRIMARY')) mat.color.set('#1f63d6');
                   else if ('color' in mat && name.includes('TEAM_ACCENT')) mat.color.set('#0d3f9c');
                   else if ('color' in mat && name.includes('TEAM_SECONDARY')) mat.color.set('#d6dde6');
-                  else if ('color' in mat && name.includes('ARCH_PRECAST_CONCRETE')) mat.color.set('#95a3b3');
-                  else if ('color' in mat && name.includes('ARCH_DARK_CONCRETE_STRUCTURE')) mat.color.set('#313b46');
-                  else if ('color' in mat && name.includes('ARCH_STEEL_TRUSS')) mat.color.set('#66768a');
+                  else if ('color' in mat && name.includes('ARCH_PRECAST_CONCRETE')) mat.color.set(isArchitecturalReference ? '#b8c4d1' : '#95a3b3');
+                  else if ('color' in mat && name.includes('ARCH_DARK_CONCRETE_STRUCTURE')) mat.color.set(isArchitecturalReference ? '#2a3542' : '#313b46');
+                  else if ('color' in mat && name.includes('ARCH_STEEL_TRUSS')) mat.color.set(isArchitecturalReference ? '#7b8da3' : '#66768a');
                   else if ('color' in mat && name.includes('ARCH_DARK_SERVICE_RING')) mat.color.set('#1b2631');
                   else if ('color' in mat && name.includes('ARCH_GLASS_GUARDRAIL')) {
                     mat.color.set('#d9efff');
-                    mat.opacity = 0.22;
+                    mat.opacity = isArchitecturalReference ? 0.18 : 0.22;
                     mat.transparent = true;
                   } else if ('color' in mat && name.includes('ARCH_FLOODLIGHT_LINE')) {
                     mat.color.set('#f4fbff');
                   } else if ('color' in mat && name.includes('ARCH_LED_RIBBON_FACE')) {
                     mat.color.set('#0b4fbe');
                     if ('emissive' in mat) mat.emissive.set('#1a66e8');
-                    if ('emissiveIntensity' in mat) mat.emissiveIntensity = 1.4;
+                    if ('emissiveIntensity' in mat) mat.emissiveIntensity = isArchitecturalReference ? 1.9 : 1.4;
                   } else if ('color' in mat && name.includes('ROOF')) {
-                    mat.color.offsetHSL(0, -0.02, 0.02);
+                    mat.color.offsetHSL(0, isArchitecturalReference ? -0.03 : -0.02, isArchitecturalReference ? 0.05 : 0.02);
                   }
                 });
               }

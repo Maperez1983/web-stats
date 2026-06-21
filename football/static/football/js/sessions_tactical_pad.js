@@ -9387,10 +9387,10 @@
 						          window.__WEBSTATS_PITCH3D_SCENE = pitch3dScene;
 						          window.__WEBSTATS_PITCH3D_CAMERA = pitch3dCamera;
 						        } catch (e) { /* ignore */ }
-						        const hemi = new THREE.HemisphereLight(0xfafcff, 0x35563d, 0.92);
+						        const hemi = new THREE.HemisphereLight(0xfafcff, 0x35563d, 1.08);
 						        hemi.userData = { kind: 'pitch_3d_theme_hemi_light' };
 						        pitch3dScene.add(hemi);
-						        const dir = new THREE.DirectionalLight(0xfff1cb, 4.85);
+						        const dir = new THREE.DirectionalLight(0xfff1cb, 5.35);
 						        dir.position.set(-155, 210, -118);
 						        dir.userData = { kind: 'pitch_3d_theme_key_light' };
 						        try {
@@ -9411,11 +9411,11 @@
 							          dir.shadow.normalBias = 0.014;
 						        } catch (e) { /* ignore */ }
 						        pitch3dScene.add(dir);
-						        const rim = new THREE.DirectionalLight(0xd8ecff, 0.76);
+						        const rim = new THREE.DirectionalLight(0xd8ecff, 1.02);
 						        rim.position.set(110, 80, 130);
 						        rim.userData = { kind: 'pitch_3d_theme_rim_light' };
 						        pitch3dScene.add(rim);
-						        const softFill = new THREE.DirectionalLight(0xffffff, 0.34);
+						        const softFill = new THREE.DirectionalLight(0xffffff, 0.52);
 						        softFill.position.set(70, 60, 105);
 						        softFill.userData = { kind: 'pitch_3d_theme_fill_light' };
 						        pitch3dScene.add(softFill);
@@ -9425,7 +9425,7 @@
 						          [-82, 24, 58],
 						          [82, 24, 58],
 						        ].forEach(([x, y, z]) => {
-						          const stadiumLight = new THREE.PointLight(0xeaf7ff, 0.42, 190, 1.45);
+						          const stadiumLight = new THREE.PointLight(0xeaf7ff, 0.58, 210, 1.45);
 						          stadiumLight.position.set(x, y, z);
 						          stadiumLight.userData = { kind: 'pitch_3d_professional_stadium_light_volume' };
 						          pitch3dScene.add(stadiumLight);
