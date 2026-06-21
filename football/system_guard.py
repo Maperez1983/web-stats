@@ -202,6 +202,14 @@ TOOL_SCHEMAS = {
         "runner": "maintenance",
         "maintenance_action": "trigger_remote_deploy",
     },
+    "trigger_remote_rollback": {
+        "label": "Lanzar rollback remoto",
+        "kind": "publish",
+        "risk": "high",
+        "confirmation_required": True,
+        "runner": "maintenance",
+        "maintenance_action": "trigger_remote_rollback",
+    },
     "inspect_repo_status": {
         "label": "Inspeccionar repositorio",
         "kind": "inspect",
@@ -614,6 +622,11 @@ EXTERNAL_CONNECTOR_CATALOG = {
         "kind": "deployment",
         "description": "Permite lanzar un despliegue remoto gobernado por permisos y confirmación.",
     },
+    "rollback_trigger_api": {
+        "label": "Trigger de rollback",
+        "kind": "deployment",
+        "description": "Permite revertir la última release remota de forma gobernada.",
+    },
     "local_llm": {
         "label": "Modelo local",
         "kind": "ai",
@@ -718,6 +731,13 @@ SAFE_COMMAND_CATALOG = {
     "trigger_remote_deploy": {
         "label": "Lanzar despliegue remoto",
         "tool": "trigger_remote_deploy",
+        "scope": "publish",
+        "permission_action": "publish_changes",
+        "silent_allowed": False,
+    },
+    "trigger_remote_rollback": {
+        "label": "Lanzar rollback remoto",
+        "tool": "trigger_remote_rollback",
         "scope": "publish",
         "permission_action": "publish_changes",
         "silent_allowed": False,
@@ -1551,6 +1571,35 @@ def _trigger_remote_deploy() -> dict:
     }
 
 
+def _trigger_remote_rollback() -> dict:
+    url, token = _connector_endpoint("rollback_trigger")
+    if not url:
+        return {
+            "ok": False,
+            "action": "trigger_remote_rollback",
+            "error": "rollback_trigger_connector_not_configured",
+        }
+    environment = str(os.getenv("OLLANA_ROLLBACK_TRIGGER_ENV") or "production").strip() or "production"
+    result = _connector_http_request(
+        url,
+        token=token,
+        method="POST",
+        payload={"environment": environment, "source": "ollana", "mode": "rollback"},
+        timeout=20,
+    )
+    payload = result.get("json") if isinstance(result.get("json"), dict) else {}
+    return {
+        "ok": bool(result.get("ok")),
+        "action": "trigger_remote_rollback",
+        "status_code": _safe_int(result.get("status_code"), 0),
+        "rollback_id": str(payload.get("rollback_id") or payload.get("id") or payload.get("release_id") or "")[:120],
+        "status": str(payload.get("status") or payload.get("state") or "requested")[:64],
+        "environment": environment,
+        "detail": payload if payload else {"text": str(result.get("text") or "")[:400]},
+        "error": str(result.get("error") or "")[:240],
+    }
+
+
 def _inspect_critical_paths() -> dict:
     candidates = {
         "base_dir": Path(settings.BASE_DIR),
@@ -1912,6 +1961,7 @@ def _observability_summary(workspace) -> dict:
     memory = _load_memory(workspace) if workspace else {}
     audit_rows = _load_audit_log(workspace) if workspace else []
     incident_ledger = _load_incident_ledger(workspace) if workspace else []
+    queue_rows = _load_task_queue(workspace) if workspace else []
     history = _inspect_guard_history(workspace)
     llm_counter = {}
     for row in rows[:10]:
@@ -1957,6 +2007,34 @@ def _observability_summary(workspace) -> dict:
             "level": "repeat",
             "text": f"Incidencia repetida: {repeated_items[0].get('issue_id')} x{repeated_items[0].get('count')}",
         })
+    timeline = []
+    for row in audit_rows[:4]:
+        if not isinstance(row, dict):
+            continue
+        timeline.append({
+            "kind": "audit",
+            "title": str(row.get("runbook") or row.get("task_kind") or "guard")[:80],
+            "detail": str(row.get("question") or row.get("status") or "")[:180],
+            "created_at": str(row.get("created_at") or "")[:64],
+        })
+    for row in incident_ledger[:4]:
+        if not isinstance(row, dict):
+            continue
+        timeline.append({
+            "kind": "incident",
+            "title": str(row.get("summary") or row.get("issue_id") or "incident")[:80],
+            "detail": f"{str(row.get('status') or '')[:32]} · {str(row.get('runbook') or '')[:64]}",
+            "created_at": str(row.get("created_at") or "")[:64],
+        })
+    task_memory = []
+    for row in queue_rows[:5]:
+        if not isinstance(row, dict):
+            continue
+        task_memory.append({
+            "title": str(row.get("title") or "Tarea del guard")[:120],
+            "status": str(row.get("status") or "pending")[:24],
+            "summary": str(row.get("result_summary") or row.get("summary") or "")[:180],
+        })
     return {
         "available": bool(rows or turns or memory),
         "history_count": len(rows),
@@ -1986,8 +2064,10 @@ def _observability_summary(workspace) -> dict:
         "recent_audits": audit_rows[:3],
         "incident_ledger_count": len(incident_ledger),
         "incident_ledger_preview": incident_ledger[:3],
-        "task_queue": _task_state_counts(_load_task_queue(workspace)) if workspace else {"pending": 0, "running": 0, "completed": 0, "blocked": 0},
-        "task_queue_preview": _load_task_queue(workspace)[:3] if workspace else [],
+        "task_queue": _task_state_counts(queue_rows) if workspace else {"pending": 0, "running": 0, "completed": 0, "blocked": 0},
+        "task_queue_preview": queue_rows[:3] if workspace else [],
+        "timeline": timeline[:6],
+        "task_memory": task_memory[:5],
         "proactive_state": _load_proactive_state(workspace) if workspace else {},
         "scheduled_state": _scheduled_guard_state(workspace) if workspace else {},
     }
@@ -2058,6 +2138,7 @@ def _operational_memory_snapshot(workspace, *, actor_id=None) -> dict:
     actor_memory = _load_memory_for_actor(workspace, actor_id=actor_id) if workspace and actor_id else {}
     merged = _merge_memory(global_memory, actor_memory) if workspace else {}
     incident_ledger = _load_incident_ledger(workspace) if workspace else []
+    queue_rows = _load_task_queue(workspace) if workspace else []
     recurring = []
     counters = {}
     for row in incident_ledger[:30]:
@@ -2083,6 +2164,14 @@ def _operational_memory_snapshot(workspace, *, actor_id=None) -> dict:
         "recent_pages": [str(item) for item in (merged.get("recent_pages") or [])[:4]],
         "recurring_incidents": recurring,
         "suggested_playbooks": suggested_playbooks[:4],
+        "task_memory": [
+            {
+                "title": str(row.get("title") or "Tarea del guard")[:120],
+                "status": str(row.get("status") or "pending")[:24],
+            }
+            for row in queue_rows[:5]
+            if isinstance(row, dict)
+        ],
         "turn_count": _safe_int(merged.get("turn_count"), 0),
         "last_status": str(merged.get("last_status") or "")[:32],
     }
@@ -2113,6 +2202,12 @@ def _autonomous_closure_snapshot(
         "publish": bool(release_guard.get("push_done") or real_code_operator.get("can_self_publish_now")),
         "monitor": bool(deployment_guard.get("verification_window") or observability_mesh.get("monitoring_ready")),
     }
+    connector_items = _external_connectors_snapshot(page_context={}).get("items") or []
+    rollback_connector = next((row for row in connector_items if isinstance(row, dict) and str(row.get("key") or "") == "rollback_trigger_api"), {})
+    rollback_ready = bool(
+        str(deployment_guard.get("status") or "") == "deployment_risk"
+        and str((rollback_connector or {}).get("status") or "") == "armed"
+    )
     blockers = []
     if not phases["detect"]:
         blockers.append("observability_gap")
@@ -2129,6 +2224,7 @@ def _autonomous_closure_snapshot(
         "embedded": True,
         "phases": phases,
         "autonomous_resolution_ready": autonomous,
+        "rollback_ready": rollback_ready,
         "blocked_by": blockers[:4],
         "completion_percent": int(round((sum(1 for ok in phases.values() if ok) / max(1, len(phases))) * 100)),
     }
@@ -3164,6 +3260,8 @@ def _run_named_maintenance_action(action_name: str) -> dict:
         return _autofix_ai_trainer_reindex()
     if action == "trigger_remote_deploy":
         return _trigger_remote_deploy()
+    if action == "trigger_remote_rollback":
+        return _trigger_remote_rollback()
     return {"ok": False, "error": "unknown_maintenance_action", "action": action}
 
 
@@ -5079,6 +5177,7 @@ def _external_connectors_snapshot(*, page_context=None) -> dict:
     release_url, release_token = _connector_endpoint("release_status")
     logs_url, logs_token = _connector_endpoint("remote_logs")
     deploy_url, deploy_token = _connector_endpoint("deploy_trigger")
+    rollback_url, rollback_token = _connector_endpoint("rollback_trigger")
     workspace_id = _safe_int(context.get("workspace_id"), 0)
     team_id = _safe_int(context.get("team_id"), 0)
     repo_path = Path(settings.BASE_DIR)
@@ -5112,6 +5211,10 @@ def _external_connectors_snapshot(*, page_context=None) -> dict:
             enabled = bool(deploy_url and deploy_token)
             status = "armed" if enabled else ("missing_token" if deploy_url else "missing")
             detail = deploy_url[:180]
+        elif key == "rollback_trigger_api":
+            enabled = bool(rollback_url and rollback_token)
+            status = "armed" if enabled else ("missing_token" if rollback_url else "missing")
+            detail = rollback_url[:180]
         elif key == "repository":
             enabled = (repo_path / ".git").exists()
             status = "connected" if enabled else "missing"
@@ -7690,6 +7793,7 @@ def _tool_reason(tool_key: str, intent: str, question: str) -> str:
         "inspect_critical_paths": "La petición apunta a directorios y paths críticos del sistema.",
         "inspect_guard_history": "La petición pide comparar ejecuciones previas, regresiones o tendencias del guard.",
         "trigger_remote_deploy": "La petición requiere lanzar un despliegue remoto gobernado.",
+        "trigger_remote_rollback": "La petición requiere revertir la última release remota de forma gobernada.",
     }
     return mapping.get(tool_key, f"Acción seleccionada para la intención {intent} en: {_truncate(question, 80)}")
 
@@ -7912,6 +8016,8 @@ def _execute_tools(requested_tools: list[str], *, smoke_verbosity: int = 1, work
             result = _autofix_ai_trainer_reindex()
         elif tool_key == "trigger_remote_deploy":
             result = _trigger_remote_deploy()
+        elif tool_key == "trigger_remote_rollback":
+            result = _trigger_remote_rollback()
         elif tool_key == "git_commit":
             result = _git_commit_changes(question)
         elif tool_key == "git_push":

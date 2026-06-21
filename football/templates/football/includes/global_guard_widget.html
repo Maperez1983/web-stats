@@ -244,6 +244,26 @@
                 </div>
               {% endfor %}
             </div>
+            <div class="guard-remediation" id="global-guard-timeline" style="margin-top:0.75rem;">
+              {% for row in guard_observability.timeline %}
+                <div class="guard-remediation-card">
+                  <strong>{{ row.kind|default:"evento" }} · {{ row.title|default:"Actividad de Ollana" }}</strong>
+                  <div>{{ row.detail|default:"Sin detalle" }}{% if row.created_at %} · {{ row.created_at }}{% endif %}</div>
+                </div>
+              {% empty %}
+                <div class="guard-remediation-card">
+                  <strong>Timeline</strong>
+                  <div>Sin actividad reciente registrada.</div>
+                </div>
+              {% endfor %}
+            </div>
+            <div class="guard-badges" id="global-guard-task-memory" style="margin-top:0.75rem;">
+              {% for row in guard_observability.task_memory %}
+                <span class="guard-badge">{{ row.title|default:"Tarea" }} · {{ row.status|default:"pending" }}</span>
+              {% empty %}
+                <span class="guard-badge">Sin memoria de tareas</span>
+              {% endfor %}
+            </div>
             <div class="guard-quick-actions" style="margin-top:0.75rem;">
               <button type="button" class="guard-btn" data-guard-action="status">Revisar estado</button>
               <button type="button" class="guard-btn" data-guard-action="smoke">Ejecutar smoke</button>
@@ -300,6 +320,8 @@
     { key: 'dashboard', label: 'Portada', url: "{% url 'dashboard-home' %}{% if active_team %}?team={{ active_team.id }}{% endif %}", keywords: ['portada', 'inicio', 'home', 'dashboard'] },
     { key: 'analysis', label: 'Vídeo análisis', url: "{% url 'analysis' %}{% if active_team %}?team={{ active_team.id }}{% endif %}", keywords: ['video analisis', 'vídeo análisis', 'analisis', 'análisis', 'video', 'vídeo'] },
     { key: 'library', label: 'Biblioteca de tareas', url: "{% url 'sessions' %}?tab=library&library_repo=traditional{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca de tareas', 'biblioteca', 'tareas', 'ejercicios', 'task library'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
     { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
     { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
     { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
@@ -473,6 +495,8 @@
       });
       if (route.key === 'analysis' && text.includes('video')) score += 2;
       if (route.key === 'library' && text.includes('biblioteca')) score += 2;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
       if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
       if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
       if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;

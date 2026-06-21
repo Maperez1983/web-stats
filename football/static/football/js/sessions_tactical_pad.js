@@ -12274,12 +12274,12 @@
 						              };
 						              try {
 						                if (semantic.seat) {
-						                  mat.map = getPitch3dSeatPatternTexture('#1f63d6', '#0d3f9c');
-						                  mat.color.set('#f8fbff');
-						                  mat.roughness = 0.70;
+						                  mat.map = getPitch3dSeatPatternTexture('#2d6cdf', '#1546a6');
+						                  mat.color.set('#dbeafe');
+						                  mat.roughness = 0.66;
 						                  mat.metalness = 0.03;
-						                  mat.emissive = new THREE.Color(0x0f2f6f);
-						                  mat.emissiveIntensity = 0.08;
+						                  mat.emissive = new THREE.Color(0x123a88);
+						                  mat.emissiveIntensity = 0.04;
 						                } else if (semantic.pitch) {
 						                  mat.color.set(0xffffff);
 						                  mat.map = mat.map || makeStadiumSurfaceTexture('grass');
@@ -12499,7 +12499,33 @@
 						                  const suiteSeatShellMat = new THREE.MeshStandardMaterial({ color: 0xe6eef6, roughness: 0.34, metalness: 0.14 });
 						                  const railMat = new THREE.MeshStandardMaterial({ color: 0xd9dee6, roughness: 0.22, metalness: 0.54 });
 						                  const fasciaLedMat = new THREE.MeshBasicMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0.86, toneMapped: false, depthWrite: false });
-						                  const bannerMat = new THREE.MeshBasicMaterial({ color: 0x123b68, transparent: true, opacity: 0.92, toneMapped: false });
+						                  const bannerTex = makePitch3dCanvasTexture((ctx, c) => {
+						                    const grad = ctx.createLinearGradient(0, 0, c.width, 0);
+						                    grad.addColorStop(0, '#0b2242');
+						                    grad.addColorStop(0.50, '#2159bf');
+						                    grad.addColorStop(1, '#0b2242');
+						                    ctx.fillStyle = grad;
+						                    ctx.fillRect(0, 0, c.width, c.height);
+						                    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+						                    for (let x = -80; x < c.width + 80; x += 96) {
+						                      ctx.save();
+						                      ctx.translate(x, 0);
+						                      ctx.rotate(-0.42);
+						                      ctx.fillRect(0, 0, 20, c.height * 1.7);
+						                      ctx.restore();
+						                    }
+						                    ctx.strokeStyle = 'rgba(255,255,255,0.24)';
+						                    ctx.lineWidth = 10;
+						                    ctx.strokeRect(16, 16, c.width - 32, c.height - 32);
+						                    ctx.fillStyle = '#f8fafc';
+						                    ctx.font = '900 108px Arial, sans-serif';
+						                    ctx.textAlign = 'center';
+						                    ctx.textBaseline = 'middle';
+						                    ctx.fillText('HOSPITALITY', c.width * 0.50, c.height * 0.48);
+						                    ctx.font = '800 42px Arial, sans-serif';
+						                    ctx.fillText('CLUB LEVEL · AUTHORITIES · MEDIA', c.width * 0.50, c.height * 0.78);
+						                  }, 1600, 256);
+						                  const bannerMat = new THREE.MeshBasicMaterial({ map: bannerTex?.tex || null, color: 0xffffff, transparent: true, opacity: 0.94, toneMapped: false });
 						                  const suite = new THREE.Group();
 						                  const frontZ = -(metersH / 2 + 9.2);
 						                  suite.userData = { kind: 'pitch_3d_reference_architectural_tunnel_hospitality' };
@@ -12521,6 +12547,19 @@
 						                  addSuiteBox(new THREE.BoxGeometry(29.2, 0.06, 0.10), fasciaLedMat, 0, 5.62, frontZ - 0.84, 0, 0, 0, 'pitch_3d_reference_tunnel_hospitality_led_strip');
 						                  for (let i = -5; i <= 5; i += 1) {
 						                    addSuiteBox(new THREE.BoxGeometry(0.10, 1.62, 0.22), vipFrameMat, i * 2.55, 4.72, frontZ - 0.90, 0, 0, 0, 'pitch_3d_reference_tunnel_hospitality_mullion');
+						                  }
+						                  for (let i = -5; i <= 5; i += 1) {
+						                    if (i === -1 || i === 0) continue;
+						                    addSuiteBox(new THREE.BoxGeometry(2.02, 0.08, 0.18), railMat, i * 2.55, 3.86, frontZ - 0.78, 0, 0, 0, 'pitch_3d_reference_tunnel_hospitality_suite_header');
+						                    const innerSeat = new THREE.Mesh(new THREE.BoxGeometry(1.34, 0.18, 0.52), suiteSeatMat);
+						                    innerSeat.position.set(i * 2.55, 3.56, frontZ - 1.92);
+						                    innerSeat.userData = { kind: 'pitch_3d_reference_tunnel_hospitality_inner_seat' };
+						                    suite.add(innerSeat);
+						                    const innerBack = new THREE.Mesh(new THREE.BoxGeometry(1.34, 0.74, 0.12), suiteSeatShellMat);
+						                    innerBack.position.set(i * 2.55, 3.92, frontZ - 1.58);
+						                    innerBack.rotation.x = -0.26;
+						                    innerBack.userData = { kind: 'pitch_3d_reference_tunnel_hospitality_inner_back' };
+						                    suite.add(innerBack);
 						                  }
 						                  [-12.8, 12.8].forEach((x) => {
 						                    addSuiteBox(new THREE.BoxGeometry(2.0, 2.72, 3.4), concreteMat, x, 4.48, frontZ - 2.62, 0, 0, 0, 'pitch_3d_reference_tunnel_hospitality_side_core');
@@ -12557,6 +12596,21 @@
 						                  addSuiteBox(new THREE.BoxGeometry(2.2, 2.42, 3.0), concreteMat, 0, 4.22, frontZ - 2.86, 0, 0, 0, 'pitch_3d_reference_tunnel_hospitality_central_authority_core');
 						                  addSuiteBox(new THREE.BoxGeometry(2.8, 1.44, 0.10), vipGlassMat, 0, 4.58, frontZ - 0.98, 0, 0, 0, 'pitch_3d_reference_tunnel_hospitality_central_authority_glass');
 						                  addSuiteBox(new THREE.BoxGeometry(3.0, 0.16, 3.18), slabMat, 0, 5.92, frontZ - 2.76, 0, 0, 0, 'pitch_3d_reference_tunnel_hospitality_central_authority_roof');
+						                  [-0.68, 0.68].forEach((x) => {
+						                    const authSeat = new THREE.Mesh(new THREE.BoxGeometry(0.84, 0.20, 0.58), suiteSeatMat);
+						                    authSeat.position.set(x, 3.68, frontZ - 1.88);
+						                    authSeat.userData = { kind: 'pitch_3d_reference_tunnel_hospitality_authority_seat' };
+						                    suite.add(authSeat);
+						                    const authBack = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.92, 0.12), suiteSeatShellMat);
+						                    authBack.position.set(x, 4.10, frontZ - 1.48);
+						                    authBack.rotation.x = -0.24;
+						                    authBack.userData = { kind: 'pitch_3d_reference_tunnel_hospitality_authority_back' };
+						                    suite.add(authBack);
+						                  });
+						                  [-10.4, 10.4].forEach((x) => {
+						                    addSuiteBox(new THREE.BoxGeometry(1.02, 2.34, 3.10), concreteMat, x, 4.26, frontZ - 2.72, 0, 0, 0, 'pitch_3d_reference_tunnel_hospitality_access_core');
+						                    addSuiteBox(new THREE.BoxGeometry(0.14, 1.78, 2.66), railMat, x + Math.sign(x) * 0.62, 4.16, frontZ - 2.70, 0, 0, 0, 'pitch_3d_reference_tunnel_hospitality_access_railing');
+						                  });
 						                  atmosphere.add(suite);
 						                };
 						                if (options.dedicatedReference) {
@@ -12908,6 +12962,7 @@
 						                  const voidMat = new THREE.MeshStandardMaterial({ color: 0x030712, roughness: 0.94, metalness: 0.01 });
 						                  const frontWallMat = new THREE.MeshStandardMaterial({ color: 0xb6c0bb, roughness: 0.80, metalness: 0.02 });
 						                  const blockEdgeMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.72, metalness: 0.02 });
+						                  const vomitoryLightMat = new THREE.MeshBasicMaterial({ color: 0xe0f2fe, transparent: true, opacity: 0.18, toneMapped: false, depthWrite: false });
 						                  [-34, -20, -6, 8, 22, 36].forEach((x) => {
 						                    addBox(new THREE.BoxGeometry(1.34, 0.09, 13.8), aisleConcreteMat, x, 5.32, metersH / 2 + 14.55, -0.10, 0, 0, 'pitch_3d_reference_main_stand_full_height_grey_aisle');
 						                    addBox(new THREE.BoxGeometry(1.34, 0.09, 13.8), aisleConcreteMat, x, 5.32, -(metersH / 2 + 14.55), 0.10, 0, 0, 'pitch_3d_reference_opposite_stand_full_height_grey_aisle');
@@ -12926,6 +12981,17 @@
 						                    [-28, -10, 10, 28].forEach((x) => {
 						                      addBox(new THREE.BoxGeometry(4.8, 2.0, 0.34), tunnelFrameMat, x, 4.20, sign * (metersH / 2 + 10.86), 0, 0, 0, 'pitch_3d_reference_vomitory_concrete_frame_long');
 						                      addBox(new THREE.BoxGeometry(3.5, 1.36, 0.38), voidMat, x, 4.02, sign * (metersH / 2 + 10.68), 0, 0, 0, 'pitch_3d_reference_dark_vomitory_opening_long');
+						                      addBox(new THREE.BoxGeometry(3.10, 0.14, 4.10), voidMat, x, 3.06, sign * (metersH / 2 + 12.84), sign * -0.10, 0, 0, 'pitch_3d_reference_vomitory_corridor_floor_long');
+						                      addBox(new THREE.BoxGeometry(0.20, 1.54, 4.0), tunnelFrameMat, x - 1.56, 3.84, sign * (metersH / 2 + 12.78), sign * -0.04, 0, 0, 'pitch_3d_reference_vomitory_corridor_wall_long');
+						                      addBox(new THREE.BoxGeometry(0.20, 1.54, 4.0), tunnelFrameMat, x + 1.56, 3.84, sign * (metersH / 2 + 12.78), sign * -0.04, 0, 0, 'pitch_3d_reference_vomitory_corridor_wall_long');
+						                      addBox(new THREE.BoxGeometry(2.82, 0.10, 0.18), metalMat, x, 4.92, sign * (metersH / 2 + 11.16), 0, 0, 0, 'pitch_3d_reference_vomitory_header_rail_long');
+						                      addBox(new THREE.BoxGeometry(0.08, 1.20, 3.52), metalMat, x - 1.10, 4.08, sign * (metersH / 2 + 12.48), 0, 0, 0, 'pitch_3d_reference_vomitory_inner_handrail_long');
+						                      addBox(new THREE.BoxGeometry(0.08, 1.20, 3.52), metalMat, x + 1.10, 4.08, sign * (metersH / 2 + 12.48), 0, 0, 0, 'pitch_3d_reference_vomitory_inner_handrail_long');
+						                      const glow = new THREE.Mesh(new THREE.PlaneGeometry(2.7, 1.0), vomitoryLightMat);
+						                      glow.position.set(x, 4.02, sign * (metersH / 2 + 10.58));
+						                      glow.rotation.y = sign > 0 ? Math.PI : 0;
+						                      glow.userData = { kind: 'pitch_3d_reference_vomitory_portal_glow_long' };
+						                      atmosphere.add(glow);
 						                    });
 						                  });
 						                  [1, -1].forEach((sign) => {
@@ -12936,6 +13002,17 @@
 						                    [-22, 0, 22].forEach((z) => {
 						                      addBox(new THREE.BoxGeometry(0.34, 2.0, 4.8), tunnelFrameMat, sign * (metersW / 2 + 10.86), 4.10, z, 0, 0, 0, 'pitch_3d_reference_vomitory_concrete_frame_end');
 						                      addBox(new THREE.BoxGeometry(0.38, 1.36, 3.5), voidMat, sign * (metersW / 2 + 10.68), 3.92, z, 0, 0, 0, 'pitch_3d_reference_dark_vomitory_opening_end');
+						                      addBox(new THREE.BoxGeometry(4.10, 0.14, 3.10), voidMat, sign * (metersW / 2 + 12.84), 3.06, z, -0.10, 0, 0, 'pitch_3d_reference_vomitory_corridor_floor_end');
+						                      addBox(new THREE.BoxGeometry(4.0, 1.54, 0.20), tunnelFrameMat, sign * (metersW / 2 + 12.78), 3.84, z - 1.56, 0, 0, 0, 'pitch_3d_reference_vomitory_corridor_wall_end');
+						                      addBox(new THREE.BoxGeometry(4.0, 1.54, 0.20), tunnelFrameMat, sign * (metersW / 2 + 12.78), 3.84, z + 1.56, 0, 0, 0, 'pitch_3d_reference_vomitory_corridor_wall_end');
+						                      addBox(new THREE.BoxGeometry(0.18, 0.10, 2.82), metalMat, sign * (metersW / 2 + 11.16), 4.92, z, 0, 0, 0, 'pitch_3d_reference_vomitory_header_rail_end');
+						                      addBox(new THREE.BoxGeometry(3.52, 1.20, 0.08), metalMat, sign * (metersW / 2 + 12.48), 4.08, z - 1.10, 0, 0, 0, 'pitch_3d_reference_vomitory_inner_handrail_end');
+						                      addBox(new THREE.BoxGeometry(3.52, 1.20, 0.08), metalMat, sign * (metersW / 2 + 12.48), 4.08, z + 1.10, 0, 0, 0, 'pitch_3d_reference_vomitory_inner_handrail_end');
+						                      const glow = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 2.7), vomitoryLightMat);
+						                      glow.position.set(sign * (metersW / 2 + 10.58), 4.00, z);
+						                      glow.rotation.y = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
+						                      glow.userData = { kind: 'pitch_3d_reference_vomitory_portal_glow_end' };
+						                      atmosphere.add(glow);
 						                    });
 						                  });
 						                };
@@ -13142,13 +13219,20 @@
 						                  if (!THREE.InstancedMesh || !THREE.Object3D) return false;
 						                  try {
 						                    const dummy = new THREE.Object3D();
-						                    const seatBaseGeo = new THREE.BoxGeometry(0.46, 0.12, 0.38);
-						                    const seatBackGeo = new THREE.BoxGeometry(0.46, 0.34, 0.08);
+						                    const seatShellGeo = new THREE.BoxGeometry(0.52, 0.08, 0.42);
+						                    const seatBaseGeo = new THREE.BoxGeometry(0.42, 0.12, 0.34);
+						                    const seatBackGeo = new THREE.BoxGeometry(0.42, 0.38, 0.08);
+						                    const seatBackShellGeo = new THREE.BoxGeometry(0.48, 0.42, 0.09);
+						                    const seatArmGeo = new THREE.BoxGeometry(0.05, 0.22, 0.30);
 						                    const railGeo = new THREE.BoxGeometry(0.05, 0.78, 0.05);
 						                    const maxSeats = 5600;
 						                    const maxRails = 440;
+						                    const seatShell = new THREE.InstancedMesh(seatShellGeo, stairMat, maxSeats);
 						                    const seatBase = new THREE.InstancedMesh(seatBaseGeo, seatAccentMat, maxSeats);
+						                    const seatBackShell = new THREE.InstancedMesh(seatBackShellGeo, stairMat, maxSeats);
 						                    const seatBack = new THREE.InstancedMesh(seatBackGeo, seatShadowMat, maxSeats);
+						                    const seatArmL = new THREE.InstancedMesh(seatArmGeo, stairMat, maxSeats);
+						                    const seatArmR = new THREE.InstancedMesh(seatArmGeo, stairMat, maxSeats);
 						                    const aisleRails = new THREE.InstancedMesh(railGeo, metalMat, maxRails);
 						                    const seatBlue = new THREE.Color(0x2563eb);
 						                    const seatRoyal = new THREE.Color(0x1d4ed8);
@@ -13185,7 +13269,7 @@
 						                    };
 						                    const mainStandLetterMap = buildLetterColumns('MALAGA CF');
 						                    const oppositeStandLetterMap = buildLetterColumns('MCF');
-						                    [seatBase, seatBack, aisleRails].forEach((mesh) => {
+						                    [seatShell, seatBase, seatBackShell, seatBack, seatArmL, seatArmR, aisleRails].forEach((mesh) => {
 						                      mesh.count = 0;
 						                      mesh.userData = { kind: 'pitch_3d_stadium_instanced_professional_seating' };
 						                      try { mesh.castShadow = true; mesh.receiveShadow = true; } catch (e) { /* ignore */ }
@@ -13233,11 +13317,19 @@
 						                          const accentColor = getSeatAccentColor(axis, sign, row, col, cols);
 						                          const seatColor = accentColor || ((row + col) % 11 === 0 ? seatNavy : (dark ? seatRoyal : seatBlue));
 						                          if (axis === 'z') {
+						                            place(seatShell, offset, y - 0.02, depth + sign * (stagger + 0.02), -0.08 * sign, 0, 0, 1, 1, 1);
 						                            place(seatBase, offset, y, depth + sign * stagger, -0.08 * sign, 0, 0, 1, 1, 1, seatColor);
-						                            place(seatBack, offset, y + 0.22, depth + sign * 0.22, -0.20 * sign, 0, 0, 1, dark ? 0.88 : 1, 1, seatColor);
+						                            place(seatBackShell, offset, y + 0.24, depth + sign * 0.24, -0.18 * sign, 0, 0, 1, dark ? 0.90 : 1, 1);
+						                            place(seatBack, offset, y + 0.24, depth + sign * 0.22, -0.20 * sign, 0, 0, 1, dark ? 0.88 : 1, 1, seatColor);
+						                            place(seatArmL, offset - 0.24, y + 0.07, depth + sign * 0.05, -0.08 * sign, 0, 0);
+						                            place(seatArmR, offset + 0.24, y + 0.07, depth + sign * 0.05, -0.08 * sign, 0, 0);
 						                          } else {
+						                            place(seatShell, depth + sign * (stagger + 0.02), y - 0.02, offset, 0, 0.08 * sign, 0, 1, 1, 1);
 						                            place(seatBase, depth + sign * stagger, y, offset, 0, 0.08 * sign, 0, 1, 1, 1, seatColor);
-						                            place(seatBack, depth + sign * 0.22, y + 0.22, offset, 0, 0.20 * sign, 0, 1, dark ? 0.88 : 1, 1, seatColor);
+						                            place(seatBackShell, depth + sign * 0.24, y + 0.24, offset, 0, 0.18 * sign, 0, 1, dark ? 0.90 : 1, 1);
+						                            place(seatBack, depth + sign * 0.22, y + 0.24, offset, 0, 0.20 * sign, 0, 1, dark ? 0.88 : 1, 1, seatColor);
+						                            place(seatArmL, depth + sign * 0.05, y + 0.07, offset - 0.24, 0, 0.08 * sign, 0);
+						                            place(seatArmR, depth + sign * 0.05, y + 0.07, offset + 0.24, 0, 0.08 * sign, 0);
 						                          }
 						                        }
 						                        aisleCols.forEach((col) => {
@@ -13257,7 +13349,7 @@
 						                    addStandSeats({ axis: 'z', sign: -1, rows: 18, cols: 86, span: metersW + 45.5, fixed: -(metersH / 2 + 10.0), baseY: 2.94, rowDepth: 0.55, rowRise: 0.28 });
 						                    addStandSeats({ axis: 'x', sign: 1, rows: 15, cols: 52, span: metersH + 35.0, fixed: metersW / 2 + 10.1, baseY: 3.10, rowDepth: 0.56, rowRise: 0.28 });
 						                    addStandSeats({ axis: 'x', sign: -1, rows: 15, cols: 52, span: metersH + 35.0, fixed: -(metersW / 2 + 10.1), baseY: 3.10, rowDepth: 0.56, rowRise: 0.28 });
-						                    [seatBase, seatBack, aisleRails].forEach((mesh) => {
+						                    [seatShell, seatBase, seatBackShell, seatBack, seatArmL, seatArmR, aisleRails].forEach((mesh) => {
 						                      mesh.instanceMatrix.needsUpdate = true;
 						                      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
 						                      atmosphere.add(mesh);
@@ -13427,11 +13519,22 @@
 						                    portal.userData = { kind: 'pitch_3d_stadium_vomitory_access_portal' };
 						                    const dark = new THREE.Mesh(new THREE.BoxGeometry(4.4, 2.0, 0.28), tunnelMat);
 						                    dark.position.set(0, 0.55, 0);
+						                    const sideL = new THREE.Mesh(new THREE.BoxGeometry(0.24, 1.66, 2.80), concreteMat);
+						                    sideL.position.set(-1.92, 0.46, -1.40);
+						                    const sideR = new THREE.Mesh(new THREE.BoxGeometry(0.24, 1.66, 2.80), concreteMat);
+						                    sideR.position.set(1.92, 0.46, -1.40);
+						                    const floor = new THREE.Mesh(new THREE.BoxGeometry(3.32, 0.12, 3.90), tunnelMat);
+						                    floor.position.set(0, -0.42, -1.86);
+						                    floor.rotation.x = -0.06;
 						                    const lip = new THREE.Mesh(new THREE.BoxGeometry(4.9, 0.24, 0.38), concreteMat);
 						                    lip.position.set(0, 1.70, -0.01);
 						                    const glow = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 1.22), portalGlowMat);
 						                    glow.position.set(0, 0.64, -0.18);
-						                    portal.add(dark, lip);
+						                    const railL = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.08, 2.90), metalMat);
+						                    railL.position.set(-1.16, 0.44, -1.52);
+						                    const railR = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.08, 2.90), metalMat);
+						                    railR.position.set(1.16, 0.44, -1.52);
+						                    portal.add(dark, sideL, sideR, floor, lip, railL, railR);
 						                    portal.add(glow);
 						                    atmosphere.add(portal);
 						                  });
@@ -13710,11 +13813,11 @@
 						                    if (Array.isArray(node.material)) {
 						                      node.material = node.material.map((mat) => {
 						                        const runtimeMat = normalizeOne(mat);
-						                        return isDedicatedReferenceStadium ? runtimeMat : tuneProfessionalStadiumMaterial(node, runtimeMat);
+						                        return isDedicatedReferenceStadium ? tuneDedicatedReferenceStadiumMaterial(node, runtimeMat) : tuneProfessionalStadiumMaterial(node, runtimeMat);
 						                      });
 						                    } else if (node.material) {
 						                      const runtimeMat = normalizeOne(node.material);
-						                      node.material = isDedicatedReferenceStadium ? runtimeMat : tuneProfessionalStadiumMaterial(node, runtimeMat);
+						                      node.material = isDedicatedReferenceStadium ? tuneDedicatedReferenceStadiumMaterial(node, runtimeMat) : tuneProfessionalStadiumMaterial(node, runtimeMat);
 						                    }
 						                  } catch (e) { /* ignore */ }
 						                  node.userData = Object.assign({}, node.userData || {}, { kind: isDedicatedReferenceStadium ? 'pitch_3d_dedicated_reference_stadium_mesh' : 'pitch_3d_professional_blender_stadium_mesh' });

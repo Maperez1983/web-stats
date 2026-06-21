@@ -792,6 +792,8 @@ class SystemGuardTests(TestCase):
         'OLLANA_REMOTE_LOGS_TOKEN': 'token-2',
         'OLLANA_DEPLOY_TRIGGER_URL': 'https://ops.example.com/deploy',
         'OLLANA_DEPLOY_TRIGGER_TOKEN': 'token-3',
+        'OLLANA_ROLLBACK_TRIGGER_URL': 'https://ops.example.com/rollback',
+        'OLLANA_ROLLBACK_TRIGGER_TOKEN': 'token-4',
     }, clear=False)
     @patch('football.system_guard.local_llm_config', return_value={
         'enabled': True,
@@ -816,6 +818,7 @@ class SystemGuardTests(TestCase):
         self.assertEqual(items['release_pipeline_api']['status'], 'configured')
         self.assertEqual(items['remote_logs_api']['status'], 'configured')
         self.assertEqual(items['deploy_trigger_api']['status'], 'armed')
+        self.assertEqual(items['rollback_trigger_api']['status'], 'armed')
 
     def test_safe_command_executor_snapshot_respects_code_permissions(self):
         snapshot = system_guard._safe_command_executor_snapshot(page_context={
@@ -1468,6 +1471,30 @@ class SystemGuardTests(TestCase):
             'recent_runbooks': ['safe_repair'],
             'last_status': 'watch',
         })
+        system_guard._append_audit_log(self.workspace, {
+            'created_at': '2026-06-18T11:00:00Z',
+            'question': 'Revisa despliegue',
+            'status': 'watch',
+            'task_kind': 'diagnose',
+            'runbook': 'silent_diagnostics',
+        })
+        system_guard._append_incident_ledger(self.workspace, {
+            'created_at': '2026-06-18T11:05:00Z',
+            'issue_id': 'route_failure',
+            'status': 'resolved',
+            'runbook': 'safe_repair',
+            'summary': 'Ruta crítica reparada',
+            'kind': 'repair',
+        })
+        system_guard._record_task_queue_event(
+            self.workspace,
+            title='Tarea observada',
+            summary='Resumen',
+            task_kind='diagnose',
+            runbook='silent_diagnostics',
+            status='completed',
+            result_summary='Ok',
+        )
         summary = system_guard._observability_summary(self.workspace)
         self.assertEqual(summary['trend'], 'empeora')
         self.assertEqual(summary['degraded_rate_pct'], 40)
@@ -1477,6 +1504,8 @@ class SystemGuardTests(TestCase):
         self.assertTrue(summary['repeated_issues'])
         self.assertEqual(summary['recent_fixes'][0], 'auto_fix')
         self.assertEqual(summary['recent_runbooks'][0], 'safe_repair')
+        self.assertTrue(summary['timeline'])
+        self.assertTrue(summary['task_memory'])
 
     def test_observability_summary_exposes_scheduled_state(self):
         system_guard._store_pref_value(self.workspace, system_guard.SCHEDULED_GUARD_STATE_PREF_KEY, {
@@ -1539,6 +1568,24 @@ class SystemGuardTests(TestCase):
         self.assertEqual(result['deploy_id'], 'dep-77')
         self.assertEqual(result['status'], 'queued')
 
+    @patch.dict(os.environ, {
+        'OLLANA_ROLLBACK_TRIGGER_URL': 'https://ops.example.com/rollback',
+        'OLLANA_ROLLBACK_TRIGGER_TOKEN': 'token-4',
+    }, clear=False)
+    @patch('football.system_guard.urllib.request.urlopen')
+    def test_trigger_remote_rollback_calls_configured_connector(self, mock_urlopen):
+        class Resp:
+            status = 200
+            headers = {'Content-Type': 'application/json'}
+            def __enter__(self): return self
+            def __exit__(self, exc_type, exc, tb): return False
+            def read(self): return json.dumps({'id': 'rb-44', 'status': 'queued'}).encode('utf-8')
+        mock_urlopen.return_value = Resp()
+        result = system_guard._trigger_remote_rollback()
+        self.assertTrue(result['ok'])
+        self.assertEqual(result['rollback_id'], 'rb-44')
+        self.assertEqual(result['status'], 'queued')
+
     def test_operational_memory_snapshot_surfaces_recurring_incidents_and_playbooks(self):
         system_guard._store_pref_value(self.workspace, system_guard.MEMORY_PREF_KEY, {
             'summary': 'Estado reciente',
@@ -1568,6 +1615,7 @@ class SystemGuardTests(TestCase):
         self.assertEqual(snapshot['recent_fixes'][0], 'auto_fix')
         self.assertEqual(snapshot['recurring_incidents'][0]['issue_id'], 'route_failure')
         self.assertIn('safe_repair', snapshot['suggested_playbooks'])
+        self.assertIn('task_memory', snapshot)
 
     def test_autonomous_closure_snapshot_reports_end_to_end_readiness(self):
         snapshot = system_guard._autonomous_closure_snapshot(
@@ -1584,6 +1632,22 @@ class SystemGuardTests(TestCase):
         self.assertTrue(snapshot['phases']['repair'])
         self.assertTrue(snapshot['phases']['monitor'])
         self.assertGreaterEqual(snapshot['completion_percent'], 80)
+
+    @patch.dict(os.environ, {
+        'OLLANA_ROLLBACK_TRIGGER_URL': 'https://ops.example.com/rollback',
+        'OLLANA_ROLLBACK_TRIGGER_TOKEN': 'token-4',
+    }, clear=False)
+    def test_autonomous_closure_snapshot_marks_rollback_ready_on_deployment_risk(self):
+        snapshot = system_guard._autonomous_closure_snapshot(
+            planner={'task': {'silent_mode': True}},
+            technical_execution={'completed_phases': ['triage', 'inspect_repo'], 'ok': False},
+            real_code_operator={},
+            release_guard={},
+            deployment_guard={'status': 'deployment_risk', 'verification_window': True},
+            self_healing={},
+            observability_mesh={'monitoring_ready': True},
+        )
+        self.assertTrue(snapshot['rollback_ready'])
 
     def test_detect_proactive_improvements_creates_stability_task_when_system_is_clean(self):
         report = {'issue_summary': {'blockers': 0, 'warnings': 0}}
