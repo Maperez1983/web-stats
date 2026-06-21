@@ -13492,11 +13492,11 @@
 						                  const hangerMat = new THREE.MeshStandardMaterial({ color: 0xd6dde6, roughness: 0.26, metalness: 0.58 });
 						                  const screenMat = makeCornerScoreboardMaterial('MCF', 'MATCHDAY');
 						                  const ribbonMat = makeStandWordmarkMaterial('SEGUNDA JUGADA · LIVE 3D · HOSPITALITY', { fill: '#f8fafc', stroke: 'rgba(7,17,31,0.94)', bg: 'rgba(29,78,216,0.46)' });
-						                  const topY = 14.86;
-						                  const boardY = 10.96;
+						                  const topY = 16.48;
+						                  const boardY = 12.52;
 						                  [-1.9, 1.9].forEach((x) => {
 						                    [-1.2, 1.2].forEach((z) => {
-						                      addBox(new THREE.BoxGeometry(0.08, 3.5, 0.08), hangerMat, x, 12.92, z, 0, 0, 0, 'pitch_3d_reference_hanging_scoreboard_hanger');
+						                      addBox(new THREE.BoxGeometry(0.08, 4.1, 0.08), hangerMat, x, 14.42, z, 0, 0, 0, 'pitch_3d_reference_hanging_scoreboard_hanger');
 						                    });
 						                  });
 						                  addBox(new THREE.BoxGeometry(5.8, 0.24, 3.4), coreFrameMat, 0, topY, 0, 0, 0, 0, 'pitch_3d_reference_hanging_scoreboard_top_frame');
@@ -13518,8 +13518,8 @@
 						                    ribbon.userData = { kind: 'pitch_3d_reference_hanging_scoreboard_ribbon' };
 						                    atmosphere.add(ribbon);
 						                  });
-						                  addBox(new THREE.BoxGeometry(0.10, 0.10, 8.6), hangerMat, 0, 15.18, 0, 0, 0, 0, 'pitch_3d_reference_hanging_scoreboard_truss_long');
-						                  addBox(new THREE.BoxGeometry(8.6, 0.10, 0.10), hangerMat, 0, 15.18, 0, 0, 0, 0, 'pitch_3d_reference_hanging_scoreboard_truss_cross');
+						                  addBox(new THREE.BoxGeometry(0.10, 0.10, 8.6), hangerMat, 0, 16.84, 0, 0, 0, 0, 'pitch_3d_reference_hanging_scoreboard_truss_long');
+						                  addBox(new THREE.BoxGeometry(8.6, 0.10, 0.10), hangerMat, 0, 16.84, 0, 0, 0, 0, 'pitch_3d_reference_hanging_scoreboard_truss_cross');
 						                };
 						                addCentralHangingScoreboard();
 						                const addPerimeterBoards = () => {
