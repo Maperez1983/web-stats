@@ -106,12 +106,13 @@ import * as THREE from '../../vendor/three/build/three.module.js';
   scene.add(dynamicRoot);
 
   const cameraPresets = {
-    broadcast: { theta: -0.18, phi: 0.86, radius: 118, targetX: 0, targetZ: 0 },
+    broadcast: { theta: -0.22, phi: 0.92, radius: 116, targetX: 0, targetZ: 0 },
     tactic: { theta: 0.02, phi: 0.48, radius: 84, targetX: 0, targetZ: 0 },
     corner: { theta: -0.95, phi: 0.92, radius: 104, targetX: 10, targetZ: -4 },
     goal: { theta: Math.PI, phi: 0.76, radius: 74, targetX: 0, targetZ: 18 },
     drone: { theta: -0.01, phi: 0.16, radius: 70, targetX: 0, targetZ: 0 },
     tunnel: { theta: -1.55, phi: 1.08, radius: 88, targetX: -12, targetZ: 0 },
+    analyst: { theta: -0.68, phi: 0.98, radius: 92, targetX: -3, targetZ: 4 },
   };
   const orbit = { ...cameraPresets.broadcast };
   let currentPreset = 'broadcast';
@@ -142,6 +143,14 @@ import * as THREE from '../../vendor/three/build/three.module.js';
     ctx.fillStyle = 'rgba(255,255,255,0.045)';
     for (let x = 0; x < offscreen.width; x += 112) {
       ctx.fillRect(x, 0, 2, offscreen.height);
+    }
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 3;
+    for (let y = 38; y < offscreen.height; y += 92) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(offscreen.width, y);
+      ctx.stroke();
     }
     return new THREE.CanvasTexture(offscreen);
   })();
@@ -175,6 +184,43 @@ import * as THREE from '../../vendor/three/build/three.module.js';
   );
   skyRing.position.y = 13;
   root.add(skyRing);
+
+  const addPitchBoards = () => {
+    const boardGroup = new THREE.Group();
+    const boardTexture = (() => {
+      const off = document.createElement('canvas');
+      off.width = 1024;
+      off.height = 96;
+      const ctx = off.getContext('2d');
+      ctx.fillStyle = '#dbeafe';
+      ctx.fillRect(0, 0, off.width, off.height);
+      ctx.fillStyle = '#0f172a';
+      ctx.font = '900 46px Montserrat, Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (let x = 96; x < off.width; x += 184) {
+        ctx.fillText('SEGUNDA JUGADA', x, off.height / 2);
+      }
+      const texture = new THREE.CanvasTexture(off);
+      texture.needsUpdate = true;
+      return texture;
+    })();
+    const boardMat = new THREE.MeshBasicMaterial({ map: boardTexture, side: THREE.DoubleSide });
+    const lengths = [
+      { width: stateMeta.fieldWidth + 8, z: -(stateMeta.fieldHeight / 2) - 2.1, rot: 0 },
+      { width: stateMeta.fieldWidth + 8, z: (stateMeta.fieldHeight / 2) + 2.1, rot: Math.PI },
+      { width: stateMeta.fieldHeight + 2, x: -(stateMeta.fieldWidth / 2) - 2.1, rot: Math.PI / 2 },
+      { width: stateMeta.fieldHeight + 2, x: (stateMeta.fieldWidth / 2) + 2.1, rot: -Math.PI / 2 },
+    ];
+    lengths.forEach((item) => {
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(item.width, 1.4), boardMat);
+      mesh.position.set(item.x || 0, 0.9, item.z || 0);
+      mesh.rotation.y = item.rot;
+      boardGroup.add(mesh);
+    });
+    root.add(boardGroup);
+  };
+  addPitchBoards();
 
   const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.92 });
   const makeLine = (points) => {
@@ -287,6 +333,43 @@ import * as THREE from '../../vendor/three/build/three.module.js';
     return sprite;
   };
 
+  const createCardLabel = (text) => {
+    const label = safeText(text, '');
+    const off = document.createElement('canvas');
+    off.width = 512;
+    off.height = 192;
+    const ctx = off.getContext('2d');
+    ctx.clearRect(0, 0, off.width, off.height);
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = 'rgba(15,23,42,0.24)';
+    ctx.lineWidth = 10;
+    const radius = 24;
+    ctx.beginPath();
+    ctx.moveTo(radius, 12);
+    ctx.lineTo(off.width - radius, 12);
+    ctx.quadraticCurveTo(off.width - 12, 12, off.width - 12, radius);
+    ctx.lineTo(off.width - 12, off.height - radius);
+    ctx.quadraticCurveTo(off.width - 12, off.height - 12, off.width - radius, off.height - 12);
+    ctx.lineTo(radius, off.height - 12);
+    ctx.quadraticCurveTo(12, off.height - 12, 12, off.height - radius);
+    ctx.lineTo(12, radius);
+    ctx.quadraticCurveTo(12, 12, radius, 12);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#111827';
+    ctx.font = '900 78px Montserrat, Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, off.width / 2, off.height / 2 + 2);
+    const texture = new THREE.CanvasTexture(off);
+    texture.needsUpdate = true;
+    const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
+    const sprite = new THREE.Sprite(material);
+    sprite.scale.set(8.6, 3.2, 1);
+    return sprite;
+  };
+
   const createGoalFrame = (color = 0xe5e7eb) => {
     const material = new THREE.LineBasicMaterial({ color });
     const geometry = new THREE.BufferGeometry().setFromPoints([
@@ -325,6 +408,22 @@ import * as THREE from '../../vendor/three/build/three.module.js';
     cone.position.y += 0.12;
     cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().setY(0.16).normalize());
     return cone;
+  };
+
+  const createShadowStreak = (radius) => {
+    const geometry = new THREE.PlaneGeometry(radius * 1.2, radius * 4.8);
+    const material = new THREE.MeshBasicMaterial({
+      color: 0x020617,
+      transparent: true,
+      opacity: 0.18,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.rotation.z = 0.26;
+    mesh.position.set(radius * 0.55, 0.035, radius * 1.55);
+    return mesh;
   };
 
   const disposeChild = (child) => {
@@ -447,42 +546,78 @@ import * as THREE from '../../vendor/three/build/three.module.js';
     const radius = entry.radius;
     const group = new THREE.Group();
     const fill = parseColor(entry.fill, '#2563eb');
-    const body = new THREE.Mesh(
-      new THREE.CylinderGeometry(radius, radius * 0.94, 2.45, 28),
-      new THREE.MeshStandardMaterial({ color: fill, roughness: 0.52, metalness: 0.06 })
+    const accent = parseColor(entry.stroke, '#ffffff');
+    const baseGlow = new THREE.Mesh(
+      new THREE.CircleGeometry(radius * 1.42, 28),
+      new THREE.MeshBasicMaterial({ color: fill, transparent: true, opacity: 0.26, depthWrite: false })
     );
-    body.position.y = 1.2;
-    body.castShadow = true;
-    body.receiveShadow = true;
-    group.add(body);
+    baseGlow.rotation.x = -Math.PI / 2;
+    baseGlow.position.y = 0.035;
+    group.add(baseGlow);
 
-    const rim = new THREE.Mesh(
-      new THREE.TorusGeometry(radius * 0.92, 0.08, 14, 36),
-      new THREE.MeshStandardMaterial({ color: parseColor(entry.stroke, '#ffffff'), roughness: 0.58 })
+    const feetShadow = new THREE.Mesh(
+      new THREE.CircleGeometry(radius * 0.92, 24),
+      new THREE.MeshBasicMaterial({ color: 0x020617, transparent: true, opacity: 0.22, depthWrite: false })
     );
-    rim.rotation.x = Math.PI / 2;
-    rim.position.y = 0.06;
-    group.add(rim);
+    feetShadow.rotation.x = -Math.PI / 2;
+    feetShadow.position.y = 0.04;
+    group.add(feetShadow);
+    group.add(createShadowStreak(radius));
 
-    const head = new THREE.Mesh(
-      new THREE.SphereGeometry(radius * 0.58, 24, 20),
-      new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.92, metalness: 0.01 })
+    const shorts = new THREE.Mesh(
+      new THREE.BoxGeometry(radius * 1.3, 0.8, radius * 0.88),
+      new THREE.MeshStandardMaterial({ color: fill.clone().multiplyScalar(0.58), roughness: 0.66, metalness: 0.04 })
     );
-    head.position.y = 2.66;
+    shorts.position.y = 1.05;
+    shorts.castShadow = true;
+    group.add(shorts);
+
+    const torso = new THREE.Mesh(
+      new THREE.CapsuleGeometry(radius * 0.45, 1.35, 6, 14),
+      new THREE.MeshStandardMaterial({ color: fill, roughness: 0.46, metalness: 0.04 })
+    );
+    torso.position.y = 1.9;
+    torso.castShadow = true;
+    group.add(torso);
+
+    const chestBand = new THREE.Mesh(
+      new THREE.BoxGeometry(radius * 1.1, 0.18, radius * 0.75),
+      new THREE.MeshStandardMaterial({ color: accent, roughness: 0.48 })
+    );
+    chestBand.position.y = 1.96;
+    chestBand.position.z = radius * 0.08;
+    group.add(chestBand);
+
+    const armGeo = new THREE.CapsuleGeometry(radius * 0.14, 0.85, 4, 10);
+    const skinMat = new THREE.MeshStandardMaterial({ color: 0xf1c27d, roughness: 0.9 });
+    const leftArm = new THREE.Mesh(armGeo, new THREE.MeshStandardMaterial({ color: fill, roughness: 0.5 }));
+    leftArm.position.set(-radius * 0.56, 1.86, 0);
+    leftArm.rotation.z = 0.3;
+    leftArm.castShadow = true;
+    group.add(leftArm);
+    const rightArm = leftArm.clone();
+    rightArm.position.x = radius * 0.56;
+    rightArm.rotation.z = -0.3;
+    group.add(rightArm);
+
+    const legGeo = new THREE.CapsuleGeometry(radius * 0.16, 1.18, 4, 10);
+    const leftLeg = new THREE.Mesh(legGeo, new THREE.MeshStandardMaterial({ color: 0xe5e7eb, roughness: 0.64 }));
+    leftLeg.position.set(-radius * 0.24, 0.42, 0);
+    leftLeg.castShadow = true;
+    group.add(leftLeg);
+    const rightLeg = leftLeg.clone();
+    rightLeg.position.x = radius * 0.24;
+    group.add(rightLeg);
+
+    const head = new THREE.Mesh(new THREE.SphereGeometry(radius * 0.38, 20, 18), skinMat);
+    head.position.y = 2.85;
     head.castShadow = true;
     group.add(head);
 
-    const shadow = new THREE.Mesh(
-      new THREE.CircleGeometry(radius * 1.16, 24),
-      new THREE.MeshBasicMaterial({ color: 0x020617, transparent: true, opacity: 0.24 })
-    );
-    shadow.rotation.x = -Math.PI / 2;
-    shadow.position.y = 0.03;
-    group.add(shadow);
-
-    const label = createLabelSprite(entry.label, '#ffffff');
-    label.position.set(0, 1.55, radius + 0.26);
-    group.add(label);
+    const badge = createLabelSprite(entry.label, '#ffffff');
+    badge.scale.set(2.8, 1.4, 1);
+    badge.position.set(0, 2.05, radius * 0.5);
+    group.add(badge);
 
     group.userData = { baseY: 0, radius };
     group.position.set(entry.x, 0, entry.z);
@@ -531,12 +666,26 @@ import * as THREE from '../../vendor/three/build/three.module.js';
       plane.rotation.x = -Math.PI / 2;
       plane.position.set(zone.x, 0.05, zone.z);
       dynamicRoot.add(plane);
-      const edges = new THREE.EdgesGeometry(new THREE.BoxGeometry(zone.width, 0.01, zone.depth));
-      const line = new THREE.LineSegments(
-        edges,
-        new THREE.LineBasicMaterial({ color: parseColor(zone.stroke, '#fde047') })
+      const edgePoints = [
+        new THREE.Vector3(-zone.width / 2, 0.08, -zone.depth / 2),
+        new THREE.Vector3(zone.width / 2, 0.08, -zone.depth / 2),
+        new THREE.Vector3(zone.width / 2, 0.08, zone.depth / 2),
+        new THREE.Vector3(-zone.width / 2, 0.08, zone.depth / 2),
+        new THREE.Vector3(-zone.width / 2, 0.08, -zone.depth / 2),
+      ];
+      const edgeGeometry = new THREE.BufferGeometry().setFromPoints(edgePoints);
+      const line = new THREE.Line(
+        edgeGeometry,
+        new THREE.LineDashedMaterial({
+          color: parseColor(zone.stroke, '#fde047'),
+          dashSize: 1.4,
+          gapSize: 0.6,
+          transparent: true,
+          opacity: 0.94,
+        })
       );
-      line.position.set(zone.x, 0.06, zone.z);
+      line.computeLineDistances();
+      line.position.set(zone.x, 0, zone.z);
       dynamicRoot.add(line);
     });
 
@@ -552,6 +701,12 @@ import * as THREE from '../../vendor/three/build/three.module.js';
       const points = curve.getPoints(36);
       const geometry = new THREE.BufferGeometry().setFromPoints(points);
       const color = parseColor(pathData.color, '#38bdf8');
+      const glow = new THREE.Line(
+        geometry.clone(),
+        new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.16 })
+      );
+      glow.scale.setScalar(1.004);
+      dynamicRoot.add(glow);
       let line;
       if (pathData.dashed) {
         line = new THREE.Line(
@@ -565,15 +720,14 @@ import * as THREE from '../../vendor/three/build/three.module.js';
       dynamicRoot.add(line);
       const arrowHead = createArrowHead(points[points.length - 2], points[points.length - 1], color);
       if (arrowHead) dynamicRoot.add(arrowHead);
-      world.paths.push({ line, dashed: !!pathData.dashed });
+      world.paths.push({ line, glow, dashed: !!pathData.dashed });
     });
 
     frameData.notes.forEach((noteData) => {
-      const label = createLabelSprite(noteData.label, '#dbeafe');
-      label.scale.set(7.2, 3.2, 1);
-      label.position.set(noteData.x, 1.8, noteData.z);
-      dynamicRoot.add(label);
-      world.notes.push(label);
+      const card = createCardLabel(noteData.label);
+      card.position.set(noteData.x, 0.42, noteData.z);
+      dynamicRoot.add(card);
+      world.notes.push(card);
     });
 
     frameData.tokens.forEach((entry, uid) => {
@@ -620,6 +774,11 @@ import * as THREE from '../../vendor/three/build/three.module.js';
       group.position.z = z;
       group.position.y = Math.sin((elapsedSeconds * 3.2) + x * 0.08 + z * 0.08) * 0.06;
       group.rotation.y = next ? Math.atan2(target.x - entry.x, target.z - entry.z) : 0;
+      group.children.forEach((child) => {
+        if (child.material && typeof child.material.opacity === 'number' && child.geometry?.type === 'CircleGeometry') {
+          child.material.opacity = 0.18 + Math.sin(elapsedSeconds * 4.6 + x * 0.06) * 0.06;
+        }
+      });
     });
 
     activeWorld.balls.forEach(({ group, entry }, uid) => {
@@ -631,17 +790,18 @@ import * as THREE from '../../vendor/three/build/three.module.js';
       group.rotation.y += 0.05;
     });
 
-    activeWorld.paths.forEach(({ line, dashed }, index) => {
+    activeWorld.paths.forEach(({ line, glow, dashed }, index) => {
       if (!line.material) return;
       const alpha = dashed ? 0.5 + (Math.sin(elapsedSeconds * 4 + index) * 0.18) : 0.82 + (Math.sin(elapsedSeconds * 3 + index) * 0.08);
       line.material.opacity = clamp(alpha, 0.28, 1);
+      if (glow?.material) glow.material.opacity = clamp(alpha * 0.28, 0.08, 0.36);
       if (dashed && typeof line.material.dashOffset === 'number') {
         line.material.dashOffset = -elapsedSeconds * 2.2;
       }
     });
 
     activeWorld.notes.forEach((note, index) => {
-      note.position.y = 1.8 + Math.sin(elapsedSeconds * 2 + index) * 0.08;
+      note.position.y = 0.42 + Math.sin(elapsedSeconds * 2 + index) * 0.03;
     });
 
     updateHud(stepIndex, localProgress);
@@ -799,6 +959,9 @@ import * as THREE from '../../vendor/three/build/three.module.js';
 
     if (isPlaying) {
       if (!playbackState) startPlayback();
+      if (currentPreset === 'broadcast' || currentPreset === 'analyst' || currentPreset === 'tactic') {
+        orbit.theta += 0.0008;
+      }
       const current = steps[playbackState.stepIndex] || steps[0];
       const durationMs = Math.max(1, toNumber(current.duration, 4)) * 1000;
       const raw = clamp((now - playbackState.startedAt) / durationMs, 0, 1);
@@ -949,7 +1112,7 @@ import * as THREE from '../../vendor/three/build/three.module.js';
   });
 
   updateRecordButton();
-  setCameraPreset('broadcast');
+  setCameraPreset('analyst');
   buildWorldForStep(0);
   applyInterpolatedState(0, 0, 0);
 })();
