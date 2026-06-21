@@ -3217,13 +3217,14 @@ def _parse_matchday_bundle_request(question: str) -> dict:
     }
 
 
-def _ollana_maturity_snapshot(*, page_context=None, assistant_action=None, technical_execution=None, operator_profile=None, silent_operator=None, repair_commander=None) -> dict:
+def _ollana_maturity_snapshot(*, page_context=None, assistant_action=None, technical_execution=None, operator_profile=None, silent_operator=None, repair_commander=None, repository_operator=None) -> dict:
     page_context = page_context if isinstance(page_context, dict) else {}
     assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
     technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
     operator_profile = operator_profile if isinstance(operator_profile, dict) else {}
     silent_operator = silent_operator if isinstance(silent_operator, dict) else {}
     repair_commander = repair_commander if isinstance(repair_commander, dict) else {}
+    repository_operator = repository_operator if isinstance(repository_operator, dict) else {}
     scores = {
         "system_brain": 18,
         "silent_operator": 16 if bool(silent_operator.get("continuous_enabled")) else 10,
@@ -3235,6 +3236,7 @@ def _ollana_maturity_snapshot(*, page_context=None, assistant_action=None, techn
         "incident_commander": 8 if bool(assistant_action.get("kind") or technical_execution.get("status")) else 4,
         "autonomy_controller": 8 if bool(silent_operator.get("continuous_enabled")) else 4,
         "repair_commander": 8 if bool(repair_commander.get("embedded")) and bool(repair_commander.get("confidence_percent")) else 4,
+        "repository_operator": 8 if bool(repository_operator.get("embedded")) and bool(repository_operator.get("execution_ready")) else 4,
     }
     achieved = sum(scores.values())
     percent = max(1, min(100, achieved))
@@ -4863,6 +4865,110 @@ def _build_publish_commander(*, planner=None, assistant_action=None, technical_e
     }
 
 
+def _recent_fix_memory_snapshot(workspace, *, catalog_candidates=None) -> dict:
+    memory = _load_memory(workspace) if workspace else {}
+    ledger = _load_incident_ledger(workspace) if workspace else []
+    catalog_candidates = [row for row in (catalog_candidates or []) if isinstance(row, dict)]
+    recent_fixes = [str(item) for item in (memory.get("recent_fixes") or []) if str(item or "").strip()]
+    similar_candidates = []
+    for row in catalog_candidates[:3]:
+        key = str(row.get("key") or "").strip()
+        if key:
+            similar_candidates.append(key)
+            title = str((CODE_INTERVENTION_CATALOG.get(key) or {}).get("title") or key).strip()
+            if title:
+                similar_candidates.append(title)
+    similar_candidates = list(dict.fromkeys(similar_candidates))
+    related_ledger = []
+    for row in ledger[:20]:
+        if not isinstance(row, dict):
+            continue
+        summary = str(row.get("summary") or "").strip()
+        if not summary:
+            continue
+        if any(token.lower() in summary.lower() for token in similar_candidates):
+            related_ledger.append({
+                "kind": str(row.get("kind") or "")[:32],
+                "status": str(row.get("status") or "")[:32],
+                "summary": summary[:180],
+            })
+    return {
+        "recent_fixes": recent_fixes[:6],
+        "related_ledger": related_ledger[:4],
+        "has_history": bool(recent_fixes or related_ledger),
+    }
+
+
+def _build_repository_operator(
+    question: str,
+    *,
+    workspace=None,
+    technical_operation=None,
+    technical_execution=None,
+    change_blueprint=None,
+    repair_commander=None,
+    publish_commander=None,
+) -> dict:
+    technical_operation = technical_operation if isinstance(technical_operation, dict) else {}
+    technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
+    change_blueprint = change_blueprint if isinstance(change_blueprint, dict) else {}
+    repair_commander = repair_commander if isinstance(repair_commander, dict) else {}
+    publish_commander = publish_commander if isinstance(publish_commander, dict) else {}
+    if str(technical_operation.get("kind") or "") != "technical_operation":
+        return {}
+    file_changes = [row for row in (change_blueprint.get("file_changes") or []) if isinstance(row, dict)]
+    patch_drafts = [row for row in (change_blueprint.get("patch_drafts") or []) if isinstance(row, dict)]
+    catalog_candidates = [row for row in (technical_operation.get("catalog_candidates") or []) if isinstance(row, dict)]
+    memory_snapshot = _recent_fix_memory_snapshot(workspace, catalog_candidates=catalog_candidates)
+    execution_lane = "manual_blueprint"
+    if any(bool(row.get("auto_apply")) for row in catalog_candidates):
+        execution_lane = "catalog_autofix"
+    if technical_execution.get("publish_ready"):
+        execution_lane = "validated_change"
+    command_plan = []
+    command_plan.append({"key": "inspect_repo", "command": "git status --short", "purpose": "Verificar el estado previo del repositorio."})
+    command_plan.append({"key": "validate", "command": ".venv/bin/python manage.py check", "purpose": "Asegurar que el proyecto valida antes y después del cambio."})
+    if technical_execution.get("publish_ready") or publish_commander.get("requested"):
+        command_plan.append({"key": "commit", "command": "git commit -m \"<mensaje técnico>\"", "purpose": "Consolidar el diff validado."})
+        command_plan.append({"key": "push", "command": "git push", "purpose": "Publicar el cambio autorizado."})
+    edit_targets = []
+    for row in file_changes[:6]:
+        edit_targets.append({
+            "path": str(row.get("path") or "")[:220],
+            "change_type": str(row.get("change_type") or "")[:40],
+            "risk": str(row.get("risk") or "")[:16],
+            "objective": str(row.get("objective") or "")[:220],
+        })
+    patch_bundle = []
+    for row in patch_drafts[:4]:
+        patch_bundle.append({
+            "path": str(row.get("path") or "")[:220],
+            "strategy": str(row.get("strategy") or "exact_text_patch")[:40],
+            "search": str(row.get("search") or "")[:180],
+            "replace_preview": str(row.get("replace_preview") or "")[:180],
+        })
+    autonomous_steps = [
+        "Inspeccionar targets y verificar si existe fix catalogado reutilizable.",
+        "Aplicar el menor cambio seguro posible sobre los archivos objetivo.",
+        "Revalidar con `manage.py check` y decidir publicación gobernada.",
+    ]
+    if publish_commander.get("requested"):
+        autonomous_steps.append("Si hay confirmación y validación verde, ejecutar commit y push.")
+    return {
+        "embedded": True,
+        "target": _truncate(question, 220),
+        "execution_lane": execution_lane,
+        "execution_ready": bool(technical_operation.get("authorized_for_code")) and bool(edit_targets or patch_bundle),
+        "validated": bool(technical_execution.get("publish_ready")),
+        "can_publish": bool(publish_commander.get("publish_ready")),
+        "edit_targets": edit_targets,
+        "patch_bundle": patch_bundle,
+        "command_plan": command_plan[:5],
+        "autonomous_steps": autonomous_steps[:4],
+        "memory": memory_snapshot,
+    }
+
+
 def _system_knowledge_snapshot(*, page_context=None) -> dict:
     modules = _module_inventory()
     routes = _route_inventory()
@@ -5149,6 +5255,7 @@ def _mission_control_snapshot(
     assistant_action=None,
     technical_execution=None,
     repair_commander=None,
+    repository_operator=None,
     silent_operator=None,
     improvement_proposals=None,
     snapshot_diff=None,
@@ -5158,6 +5265,7 @@ def _mission_control_snapshot(
     assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
     technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
     repair_commander = repair_commander if isinstance(repair_commander, dict) else {}
+    repository_operator = repository_operator if isinstance(repository_operator, dict) else {}
     silent_operator = silent_operator if isinstance(silent_operator, dict) else {}
     snapshot_diff = snapshot_diff if isinstance(snapshot_diff, dict) else {}
     improvement_proposals = improvement_proposals if isinstance(improvement_proposals, list) else []
@@ -5168,6 +5276,7 @@ def _mission_control_snapshot(
         operator_profile={},
         silent_operator=silent_operator,
         repair_commander=repair_commander,
+        repository_operator=repository_operator,
     )
     task = planner.get("task") if isinstance(planner.get("task"), dict) else {}
     runbook = planner.get("runbook") if isinstance(planner.get("runbook"), dict) else {}
@@ -5407,6 +5516,7 @@ def _build_intelligence_os_snapshot(
     autofix_runner=None,
     repair_commander=None,
     publish_commander=None,
+    repository_operator=None,
     operator_profile=None,
     silent_operator=None,
     improvement_proposals=None,
@@ -5417,6 +5527,7 @@ def _build_intelligence_os_snapshot(
     autofix_runner = autofix_runner if isinstance(autofix_runner, dict) else {}
     repair_commander = repair_commander if isinstance(repair_commander, dict) else {}
     publish_commander = publish_commander if isinstance(publish_commander, dict) else {}
+    repository_operator = repository_operator if isinstance(repository_operator, dict) else {}
     operator_profile = operator_profile if isinstance(operator_profile, dict) else {}
     silent_operator = silent_operator if isinstance(silent_operator, dict) else {}
     improvement_proposals = improvement_proposals if isinstance(improvement_proposals, list) else []
@@ -5455,6 +5566,7 @@ def _build_intelligence_os_snapshot(
                 assistant_action=assistant_action,
                 technical_execution=technical_execution,
                 repair_commander=repair_commander,
+                repository_operator=repository_operator,
                 silent_operator=silent_operator,
                 improvement_proposals=improvement_proposals,
                 snapshot_diff=snapshot_diff,
@@ -5504,6 +5616,7 @@ def _build_intelligence_os_snapshot(
                 "autofix_runner": autofix_runner,
                 "repair_commander": repair_commander,
                 "publish_commander": publish_commander,
+                "repository_operator": repository_operator,
             },
             "supervision": {
                 "silent_operator": silent_operator,
@@ -5526,6 +5639,7 @@ def _build_intelligence_os_snapshot(
                 "change_targets": len(change_blueprint.get("file_changes") or []),
                 "repair_readiness": str(repair_commander.get("status") or "")[:32],
                 "publish_status": str(publish_commander.get("status") or "")[:32],
+                "repository_execution_ready": bool(repository_operator.get("execution_ready")),
             },
             "user_copilot": _user_copilot_snapshot(
                 page_context=page_context,
@@ -7308,6 +7422,15 @@ def run_system_guard_chat(
         executed_tools=executed_tools,
         page_context=page_context,
     )
+    repository_operator = _build_repository_operator(
+        question,
+        workspace=workspace,
+        technical_operation=technical_operation if isinstance(technical_operation, dict) else {},
+        technical_execution=technical_execution if isinstance(technical_execution, dict) else {},
+        change_blueprint=change_blueprint if isinstance(change_blueprint, dict) else {},
+        repair_commander=repair_commander if isinstance(repair_commander, dict) else {},
+        publish_commander=publish_commander if isinstance(publish_commander, dict) else {},
+    )
     queue_event = {}
     task_meta = planner.get("task") if isinstance(planner.get("task"), dict) else {}
     runbook_meta = planner.get("runbook") if isinstance(planner.get("runbook"), dict) else {}
@@ -7381,6 +7504,7 @@ def run_system_guard_chat(
     fallback["autofix_runner"] = autofix_runner if isinstance(autofix_runner, dict) else {}
     fallback["repair_commander"] = repair_commander if isinstance(repair_commander, dict) else {}
     fallback["publish_commander"] = publish_commander if isinstance(publish_commander, dict) else {}
+    fallback["repository_operator"] = repository_operator if isinstance(repository_operator, dict) else {}
     fallback["request_contract"] = _build_request_contract(
         question,
         planner=planner,
@@ -7453,6 +7577,10 @@ def run_system_guard_chat(
                     "prompt": "Valida la secuencia completa y confirma la publicación solo si todos los pasos han quedado correctos.",
                     "reason": "Cerrar la petición compuesta con trazabilidad.",
                 }] + (fallback.get("actions") or [])
+        if isinstance(repository_operator, dict) and repository_operator.get("execution_ready"):
+            fallback["highlights"] = (fallback.get("highlights") or []) + [f"Repositorio listo: {repository_operator.get('execution_lane')}"]
+            if (repository_operator.get("memory") or {}).get("has_history"):
+                fallback["highlights"] = (fallback.get("highlights") or []) + ["Memoria técnica reutilizable detectada"]
         if assistant_action.get("navigate_to") and isinstance(assistant_action.get("navigate_to"), dict):
             route = assistant_action.get("navigate_to") or {}
             fallback["ui_actions"] = [{
@@ -7493,6 +7621,7 @@ def run_system_guard_chat(
         autofix_runner=autofix_runner if isinstance(autofix_runner, dict) else {},
         repair_commander=repair_commander if isinstance(repair_commander, dict) else {},
         publish_commander=publish_commander if isinstance(publish_commander, dict) else {},
+        repository_operator=repository_operator if isinstance(repository_operator, dict) else {},
         operator_profile=operator_profile,
         silent_operator=fallback.get("silent_operator") if isinstance(fallback.get("silent_operator"), dict) else {},
         improvement_proposals=fallback.get("improvement_proposals") if isinstance(fallback.get("improvement_proposals"), list) else [],
@@ -7539,6 +7668,7 @@ def run_system_guard_chat(
     response["autofix_runner"] = response.get("autofix_runner") or autofix_runner
     response["repair_commander"] = response.get("repair_commander") or repair_commander
     response["publish_commander"] = response.get("publish_commander") or publish_commander
+    response["repository_operator"] = response.get("repository_operator") or repository_operator
     response["request_contract"] = response.get("request_contract") or fallback.get("request_contract") or _build_request_contract(
         question,
         planner=planner,
@@ -7578,6 +7708,7 @@ def run_system_guard_chat(
         autofix_runner=response.get("autofix_runner") if isinstance(response.get("autofix_runner"), dict) else {},
         repair_commander=response.get("repair_commander") if isinstance(response.get("repair_commander"), dict) else {},
         publish_commander=response.get("publish_commander") if isinstance(response.get("publish_commander"), dict) else {},
+        repository_operator=response.get("repository_operator") if isinstance(response.get("repository_operator"), dict) else {},
         operator_profile=response.get("operator_profile") if isinstance(response.get("operator_profile"), dict) else {},
         silent_operator=response.get("silent_operator") if isinstance(response.get("silent_operator"), dict) else {},
         improvement_proposals=response.get("improvement_proposals") if isinstance(response.get("improvement_proposals"), list) else [],

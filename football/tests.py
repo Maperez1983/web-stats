@@ -665,6 +665,41 @@ class SystemGuardTests(TestCase):
         self.assertTrue(repair['next_actions'])
         self.assertTrue(repair['exit_criteria'])
 
+    def test_build_repository_operator_exposes_execution_package(self):
+        operator = system_guard._build_repository_operator(
+            'Por que no se visualiza bien el estadio 3d y si lo puedes solucionar',
+            workspace=self.workspace,
+            technical_operation={
+                'kind': 'technical_operation',
+                'authorized_for_code': True,
+                'catalog_candidates': [{'key': 'pitch3d_trigger_and_modal_flow', 'auto_apply': True}],
+            },
+            technical_execution={'publish_ready': True},
+            change_blueprint={
+                'file_changes': [{
+                    'path': 'football/static/football/js/sessions_tactical_pad.js',
+                    'change_type': 'frontend_logic',
+                    'risk': 'medium',
+                    'objective': 'Corregir la lógica cliente del flujo 3D y sus triggers.',
+                }],
+                'patch_drafts': [{
+                    'path': 'football/static/football/js/sessions_tactical_pad.js',
+                    'strategy': 'exact_text_patch',
+                    'search': "const pitch3dOpenBtn = document.getElementById('pitch-3d-open');",
+                    'replace_preview': "const pitch3dOpenBtn = document.querySelector('[data-pitch3d-trigger=\"1\"]');",
+                }],
+            },
+            repair_commander={'status': 'publish_ready'},
+            publish_commander={'publish_ready': True, 'requested': True},
+        )
+        self.assertTrue(operator['embedded'])
+        self.assertEqual(operator['execution_lane'], 'validated_change')
+        self.assertTrue(operator['execution_ready'])
+        self.assertTrue(operator['edit_targets'])
+        self.assertTrue(operator['patch_bundle'])
+        self.assertTrue(operator['command_plan'])
+        self.assertTrue(operator['autonomous_steps'])
+
     def test_build_request_contract_distinguishes_technical_operator_mode(self):
         contract = system_guard._build_request_contract(
             'Por que no se visualiza bien el estadio 3d y si lo puedes solucionar',
@@ -1497,15 +1532,20 @@ class SystemGuardTests(TestCase):
         self.assertEqual(response['repair_commander']['status'], 'publish_ready')
         self.assertGreaterEqual(response['repair_commander']['confidence_percent'], 70)
         self.assertTrue(response['repair_commander']['diagnosis']['hypotheses'])
+        self.assertTrue(response['repository_operator']['embedded'])
+        self.assertTrue(response['repository_operator']['execution_ready'])
+        self.assertTrue(response['repository_operator']['command_plan'])
         self.assertEqual(response['request_contract']['interaction_mode'], 'technical_operator')
         self.assertEqual(response['request_contract']['execution_mode'], 'code_execution')
         self.assertTrue(response['intelligence_os']['layers']['execution']['execution_plan']['stages'])
         self.assertEqual(response['intelligence_os']['layers']['execution']['repair_commander']['status'], 'publish_ready')
+        self.assertTrue(response['intelligence_os']['layers']['execution']['repository_operator']['execution_ready'])
         self.assertTrue(response['intelligence_os']['layers']['supervision']['code_operator']['embedded'])
         self.assertTrue(response['intelligence_os']['layers']['supervision']['code_operator']['enabled'])
         self.assertTrue(response['intelligence_os']['layers']['supervision']['code_operator']['candidate_files'])
         self.assertTrue(response['intelligence_os']['layers']['supervision']['autonomy_controller']['embedded'])
         self.assertEqual(response['intelligence_os']['layers']['supervision']['repair_readiness'], 'publish_ready')
+        self.assertTrue(response['intelligence_os']['layers']['supervision']['repository_execution_ready'])
         self.assertIn(response['intelligence_os']['layers']['incident_commander']['status'], {'stable', 'running', 'blocked', 'awaiting_operator', 'regression_detected'})
         self.assertEqual(response['intelligence_os']['layers']['policy_decisions']['requested_action'], 'repair_code')
 
