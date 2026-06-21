@@ -5310,7 +5310,7 @@
                 {% endif %}
 				        data-fabric-src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 				        data-tpad-src="{% static 'football/js/sessions_tactical_pad.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
-				        data-three-src="{% static 'vendor/three.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
+				        data-three-src="{% static 'vendor/three/build/three.module.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 				        data-three-gltf-loader-src="{% static 'vendor/three/examples/jsm/loaders/GLTFLoader.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 				        data-three-skeleton-utils-src="{% static 'vendor/three/examples/jsm/utils/SkeletonUtils.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 				        data-pitch3d-stadium-model-src="{{ pitch3d_stadium_model_src|default:'' }}"
@@ -8423,8 +8423,16 @@
 			        const ensureTpad = () => loadOnce(tpadSrc, '__webstats_tpad_promise', () => typeof window.initSessionsTacticalPad === 'function');
 
 			        const ensureThree = () => {
-			          try { if (window.THREE) return Promise.resolve(true); } catch (e) { /* ignore */ }
-			          return loadOnce(threeSrc, '__webstats_three_promise', () => !!window.THREE);
+			          try { if (window.THREE && window.THREE.WebGLRenderer) return Promise.resolve(true); } catch (e) { /* ignore */ }
+			          if (!threeSrc) return Promise.resolve(false);
+			          if (window.__webstats_three_promise) return window.__webstats_three_promise;
+			          window.__webstats_three_promise = import(threeSrc)
+			            .then((mod) => {
+			              try { window.THREE = mod; } catch (e) { /* ignore */ }
+			              return !!(mod && mod.WebGLRenderer);
+			            })
+			            .catch(() => false);
+			          return window.__webstats_three_promise;
 			        };
 			        const ensureGltfLoader = () => {
 			          if (!threeGltfLoaderSrc) return Promise.resolve(false);
