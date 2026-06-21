@@ -688,7 +688,28 @@
 	      }
 		      .task-trash:hover { border-color: rgba(248, 113, 113, 0.75); background: rgba(127, 29, 29, 0.7); }
 		      .task-trash svg { width: 18px; height: 18px; fill: currentColor; display: block; }
-      .task-more {
+      .task-preview-inline {
+        position: absolute;
+        top: 10px;
+        right: 52px;
+        z-index: 2;
+        border: 1px solid rgba(244, 180, 0, 0.42);
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.82);
+        color: rgba(255, 247, 210, 0.96);
+        width: 34px;
+        height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        cursor: pointer;
+      }
+      .task-preview-inline:hover {
+        border-color: rgba(244, 180, 0, 0.72);
+        background: rgba(36, 25, 6, 0.92);
+      }
+		      .task-more {
         position: relative;
         margin: 0;
       }
@@ -2867,15 +2888,30 @@
 				                  draggable="true"
 				                  data-task-id="{{ row.obj.id }}"
 				                  data-task-block="{{ row.obj.block }}"
+				                  data-detail-url="{% url 'session-task-detail' row.obj.id %}"
 				                  data-preview-title="{{ row.sheet.title|default:''|escape }}"
 				                  data-preview-meta="{{ row.sheet.block_label|default:''|escape }} · {{ row.sheet.minutes|default:0 }}'"
 				                  data-preview-summary="{{ row.obj.objective|default:''|truncatechars:220|escape }}"
 				                  data-preview-img-url="{% url 'session-task-preview-file' row.obj.id %}?hd=1&amp;v={% if row.obj.task_preview_image %}{{ row.obj.task_preview_image.name|urlencode }}{% else %}{{ row.obj.id }}{% endif %}"
 				                  data-preview-open-url="{% url 'session-task-detail' row.obj.id %}"
 				                  tabindex="0"
-				                  role="button"
-				                  aria-label="Vista previa de tarea {{ row.sheet.title }}"
+				                  role="link"
+				                  aria-label="Abrir ficha de tarea {{ row.sheet.title }}"
 				                >
+			                  <button
+			                    type="button"
+			                    class="task-preview-btn task-preview-inline"
+			                    data-title="{{ row.sheet.title|default:''|escape }}"
+			                    data-meta="{{ row.sheet.block_label|default:''|escape }} · {{ row.sheet.minutes|default:0 }}'"
+			                    data-summary="{{ row.obj.objective|default:''|truncatechars:220|escape }}"
+			                    data-img-url="{% url 'session-task-preview-file' row.obj.id %}?hd=1&amp;v={% if row.obj.task_preview_image %}{{ row.obj.task_preview_image.name|urlencode }}{% else %}{{ row.obj.id }}{% endif %}"
+			                    data-open-url="{% url 'session-task-detail' row.obj.id %}"
+			                    title="Vista previa"
+			                    aria-label="Vista previa"
+			                  >
+			                    <span class="emoji" aria-hidden="true">👁️</span>
+			                    <span class="sr-only">Vista previa</span>
+			                  </button>
 			                  <button type="button" class="task-trash" data-delete-task-id="{{ row.obj.id }}" title="Quitar de la sesión" aria-label="Quitar de la sesión">
 			                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
 			                      <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 6h2v9h-2V9Zm4 0h2v9h-2V9ZM7 9h2v9H7V9Zm-1 13h12a2 2 0 0 0 2-2V9H4v11a2 2 0 0 0 2 2Z" />

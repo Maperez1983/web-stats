@@ -139,40 +139,6 @@
 	            });
 	          });
 
-	          // Sesión → Tareas por bloque: al pulsar la card no navegamos (mantiene al usuario en Sesión).
-	          // Se abre la misma Vista previa y el botón "Abrir" ya decide si entrar en la tarea.
-	          document.addEventListener('click', (event) => {
-	            const card = event.target.closest('.session-task-card');
-	            if (!card) return;
-	            if (isInteractiveTarget(event.target)) return;
-	            // Si el usuario está arrastrando, no abrir preview.
-	            try { if (window.__webstatsSessionsDragging) return; } catch (e) { /* ignore */ }
-	            event.preventDefault();
-	            event.stopPropagation();
-	            openPreview({
-	              title: card.getAttribute('data-preview-title') || '',
-	              meta: card.getAttribute('data-preview-meta') || '',
-	              summary: card.getAttribute('data-preview-summary') || '',
-	              imgUrl: card.getAttribute('data-preview-img-url') || '',
-	              openUrl: card.getAttribute('data-preview-open-url') || '#',
-	              relatedUrl: '',
-	            });
-	          }, { capture: true });
-
-	          document.addEventListener('keydown', (event) => {
-	            const card = event.target?.closest?.('.session-task-card');
-	            if (!card) return;
-	            if (event.key !== 'Enter' && event.key !== ' ') return;
-	            event.preventDefault();
-	            openPreview({
-	              title: card.getAttribute('data-preview-title') || '',
-	              meta: card.getAttribute('data-preview-meta') || '',
-	              summary: card.getAttribute('data-preview-summary') || '',
-	              imgUrl: card.getAttribute('data-preview-img-url') || '',
-	              openUrl: card.getAttribute('data-preview-open-url') || '#',
-	              relatedUrl: '',
-	            });
-	          });
 	        })();
 
         (() => {
