@@ -39674,7 +39674,7 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
     forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
     if forbidden:
         return forbidden
-    primary_team = _get_primary_team_for_request(request)
+    primary_team = _get_primary_team_for_request(request) or _team_from_request_param(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
 
@@ -42282,13 +42282,13 @@ def session_task_detail_page(request, task_id):
     edit_graphic_url = ''
     try:
         if is_editable_task and not is_performed_task:
-            edit_graphic_url = reverse(_task_builder_edit_route_name(scope_key), args=[int(task.id)])
+            edit_graphic_url = reverse('session-task-detail', args=[int(task.id)])
             params = request.GET.copy()
             params.pop('legacy', None)
-            params['back_to'] = 'detail'
             encoded = params.urlencode()
             if encoded:
                 edit_graphic_url = f'{edit_graphic_url}?{encoded}'
+            edit_graphic_url = f'{edit_graphic_url}#graphic-editor'
     except Exception:
         edit_graphic_url = ''
     return render(
