@@ -29,6 +29,9 @@
   .guard-silent-card div { font-size:0.78rem; font-weight:850; color:rgba(248,250,252,0.86); line-height:1.45; white-space:pre-line; }
   .guard-controls { margin-top:0.7rem; }
   .guard-quick-actions { display:flex; flex-wrap:wrap; gap:0.45rem; margin-bottom:0.6rem; }
+  .guard-mode-tabs { display:flex; gap:0.45rem; margin:0.1rem 0 0.75rem; position:relative; z-index:1; }
+  .guard-mode-tab { border-radius:999px; border:1px solid rgba(255,255,255,0.14); background:rgba(255,255,255,0.05); color:#e5e7eb; padding:0.4rem 0.7rem; font-size:0.72rem; font-weight:950; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer; }
+  .guard-mode-tab.is-active { border-color:rgba(163,230,53,0.28); background:rgba(20,83,45,0.34); color:#bbf7d0; }
   .guard-suggestion-row { display:flex; flex-wrap:wrap; gap:0.45rem; margin-bottom:0.7rem; position:relative; z-index:1; }
   .guard-suggestion-chip { display:inline-flex; align-items:center; border-radius:999px; padding:0.38rem 0.68rem; font-size:0.73rem; font-weight:900; border:1px solid rgba(163,230,53,0.18); background:rgba(15,23,42,0.44); color:#e2e8f0; cursor:pointer; }
   .guard-command-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0.45rem; margin-bottom:0.75rem; position:relative; z-index:1; }
@@ -94,6 +97,9 @@
   .guard-score-center strong { display:block; font-size:1.15rem; font-weight:1000; color:#f8fafc; letter-spacing:0.08em; }
   .guard-score-center span { display:block; margin-top:0.18rem; font-size:0.62rem; font-weight:950; letter-spacing:0.12em; text-transform:uppercase; color:#bbf7d0; }
   .guard-widget-panel textarea::placeholder { color:rgba(226,232,240,0.46); }
+  .guard-widget-shell[data-ui-mode="assistant"] .guard-tech-shell { display:none; }
+  .guard-widget-shell[data-ui-mode="assistant"] .guard-command-grid .guard-command-chip[data-operator-only="1"] { display:none; }
+  .guard-widget-shell[data-ui-mode="assistant"] .guard-quick-actions .guard-btn[data-operator-only="1"] { display:none; }
   @media (max-width: 900px) { .guard-meta-grid, .guard-observability { grid-template-columns:1fr 1fr; } }
   @media (max-width: 700px) {
     .guard-meta-grid, .guard-observability { grid-template-columns:1fr; }
@@ -123,6 +129,10 @@
         <div class="guard-mini-copy">
           Pídeme algo en lenguaje natural: navegar, ayudarte con esta pantalla o revisar una incidencia.
         </div>
+      </div>
+      <div class="guard-mode-tabs" id="global-guard-mode-tabs" aria-label="Modo de interacción de Ollana">
+        <button type="button" class="guard-mode-tab is-active" data-guard-ui-mode="assistant">Asistente</button>
+        <button type="button" class="guard-mode-tab" data-guard-ui-mode="operator">Operador</button>
       </div>
       <div class="guard-silent-card" id="global-guard-silent-card"
            data-last-finished="{{ guard_observability.scheduled_state.last_finished_at|default:'' }}"
@@ -160,11 +170,11 @@
           <strong>Crear tarea</strong>
           <span>Guarda una tarea en biblioteca.</span>
         </button>
-        <button type="button" class="guard-command-chip" data-guard-command="Introduce un jugador en plantilla nombre: Nuevo jugador, dorsal 8, posición mediocentro">
+        <button type="button" class="guard-command-chip" data-guard-command="Introduce un jugador en plantilla nombre: Nuevo jugador, dorsal 8, posición mediocentro" data-operator-only="1">
           <strong>Crear jugador</strong>
           <span>Da de alta una ficha básica desde el chat.</span>
         </button>
-        <button type="button" class="guard-command-chip" data-guard-command="Abre jugadores y plantilla">
+        <button type="button" class="guard-command-chip" data-guard-command="Abre jugadores y plantilla" data-operator-only="1">
           <strong>Ir a plantilla</strong>
           <span>Abre la zona de jugadores y seguimiento.</span>
         </button>
@@ -180,8 +190,8 @@
         <div id="global-guard-quick-actions" class="guard-quick-actions">
           <button type="button" class="guard-btn" data-guard-action="goto_library">Biblioteca</button>
           <button type="button" class="guard-btn" data-guard-action="goto_analysis">Vídeo</button>
-          <button type="button" class="guard-btn" data-guard-action="create_player">Jugador</button>
-          <button type="button" class="guard-btn" data-guard-action="create_session">Sesión</button>
+          <button type="button" class="guard-btn" data-guard-action="create_player" data-operator-only="1">Jugador</button>
+          <button type="button" class="guard-btn" data-guard-action="create_session" data-operator-only="1">Sesión</button>
         </div>
         <label>Mensaje<textarea id="global-guard-chat-input" placeholder="Ej.: llévame a vídeo análisis, abre biblioteca de tareas, ayúdame con esta pantalla, no me deja guardar..."></textarea></label>
         <div class="guard-actions">
@@ -275,6 +285,7 @@
   const fixEl = document.getElementById('global-guard-auto-fix');
   const statusEl = document.getElementById('global-guard-chat-status');
   const quickActionsEl = document.getElementById('global-guard-quick-actions');
+  const modeTabsEl = document.getElementById('global-guard-mode-tabs');
   const autonomyEl = document.getElementById('global-guard-autonomy-mode');
   const audienceEl = document.getElementById('global-guard-audience-mode');
   const lastToolsEl = document.getElementById('global-guard-last-tools');
@@ -283,38 +294,12 @@
   const queuePreviewEl = document.getElementById('global-guard-queue-preview');
   const healthPillEl = document.getElementById('global-guard-health-pill');
   const alertsEl = document.getElementById('global-guard-alerts');
-  const storageKey = 'ollana-global-widget:v3';
+  const storageKey = 'ollana-global-widget:v4';
   const apiUrl = "{% url 'system-guard-chat-api' %}";
   const routeCatalog = [
     { key: 'dashboard', label: 'Portada', url: "{% url 'dashboard-home' %}{% if active_team %}?team={{ active_team.id }}{% endif %}", keywords: ['portada', 'inicio', 'home', 'dashboard'] },
     { key: 'analysis', label: 'Vídeo análisis', url: "{% url 'analysis' %}{% if active_team %}?team={{ active_team.id }}{% endif %}", keywords: ['video analisis', 'vídeo análisis', 'analisis', 'análisis', 'video', 'vídeo'] },
     { key: 'library', label: 'Biblioteca de tareas', url: "{% url 'sessions' %}?tab=library&library_repo=traditional{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca de tareas', 'biblioteca', 'tareas', 'ejercicios', 'task library'] },
-    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
-    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
-    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
-    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
-    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
-    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
-    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
-    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
-    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
-    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
-    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
-    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
-    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
-    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
-    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
-    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
-    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
-    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
-    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
-    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
-    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
-    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
-    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
-    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
-    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
-    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
     { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
     { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
     { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
@@ -350,6 +335,16 @@
       const nextState = { ...loadUiState(), ...patch };
       window.localStorage.setItem(storageKey, JSON.stringify(nextState));
     } catch (error) {}
+  };
+  const applyUiMode = (mode) => {
+    const nextMode = mode === 'operator' ? 'operator' : 'assistant';
+    if (shellEl) shellEl.dataset.uiMode = nextMode;
+    modeTabsEl?.querySelectorAll('[data-guard-ui-mode]').forEach((btn) => {
+      btn.classList.toggle('is-active', String(btn.getAttribute('data-guard-ui-mode') || '') === nextMode);
+    });
+    if (autonomyEl) autonomyEl.value = nextMode === 'operator' ? 'operator' : 'advisor';
+    if (audienceEl) audienceEl.value = nextMode === 'operator' ? 'technical' : 'guided';
+    saveUiState({ uiMode: nextMode });
   };
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', mountToBody, { once: true });
@@ -478,6 +473,8 @@
       });
       if (route.key === 'analysis' && text.includes('video')) score += 2;
       if (route.key === 'library' && text.includes('biblioteca')) score += 2;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
       if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
       if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
       if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
@@ -1015,10 +1012,10 @@
       const timeoutId = window.setTimeout(() => controller.abort(), 30000);
       const resolvedAutonomy = usePreset
         ? String(autonomyEl?.value || 'advisor')
-        : (intent.kind === 'task' ? 'operator' : String(autonomyEl?.value || 'advisor'));
+        : ((shellEl?.dataset.uiMode === 'operator' || intent.kind === 'task') ? 'operator' : String(autonomyEl?.value || 'advisor'));
       const resolvedAudience = usePreset
         ? String(audienceEl?.value || 'guided')
-        : (intent.kind === 'task' ? 'technical' : String(audienceEl?.value || 'guided'));
+        : ((shellEl?.dataset.uiMode === 'operator' || intent.kind === 'task') ? 'technical' : String(audienceEl?.value || 'guided'));
       const resp = await fetch(apiUrl, {
         method: 'POST',
         credentials: 'same-origin',
@@ -1176,6 +1173,15 @@
     inputEl.value = String(btn.getAttribute('data-guard-command') || '').trim();
     sendMessage();
   });
+  modeTabsEl?.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-guard-ui-mode]');
+    if (!btn) return;
+    const mode = String(btn.getAttribute('data-guard-ui-mode') || 'assistant');
+    applyUiMode(mode);
+    setStatus(mode === 'operator'
+      ? 'Modo operador activo: Ollana muestra consola técnica y acciones avanzadas.'
+      : 'Modo asistente activo: Ollana prioriza ayuda directa y navegación.');
+  });
   toggleEl?.addEventListener('click', () => setOpen(!shellEl?.classList.contains('is-open')));
   closeEl?.addEventListener('click', () => setOpen(false));
   syncSuggestionRow();
@@ -1191,6 +1197,7 @@
       last_finished_at: String(silentCardEl?.dataset.lastFinished || ''),
     },
   });
+  applyUiMode(String(loadUiState().uiMode || 'assistant'));
   setOpen(Boolean(loadUiState().open));
 })();
 </script>
