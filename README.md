@@ -165,3 +165,35 @@ Si NO usas Blueprint y configuras el servicio a mano en Render:
 - Build Command: `./build.sh`
 - Start Command: `./start_asgi.sh`
 - Pre-Deploy Command: vacío (recomendado; las migraciones ya van en el start)
+
+### Worker persistente de Ollana
+
+El blueprint incluye un worker separado `web-stats-ollana-operator` pensado para mantener a Ollana corriendo de forma continua en Render.
+
+Variables mínimas:
+
+- `OLLANA_OPERATOR_ENABLED=true`
+- `OLLANA_OPERATOR_WORKSPACE_ID=<workspace_id>`
+- `OLLANA_OPERATOR_ACTOR_ID=<user_id admin>`
+
+Variables útiles:
+
+- `OLLANA_OPERATOR_SLEEP_SECONDS=30`: pausa entre ciclos.
+- `OLLANA_OPERATOR_MAX_RUNTIME_SECONDS=0`: `0` significa sin límite y deja que Render supervise el proceso.
+- `OLLANA_OPERATOR_FORCE=true`: permite recuperar lease al reiniciar el worker.
+- `OLLANA_ADMIN_AUTONOMY_ENABLE_RELEASES=false`: deja desactivadas por defecto acciones autónomas de deploy/rollback.
+
+Script de arranque del worker:
+
+- `./scripts/start_ollana_operator_worker.sh`
+
+Comando subyacente:
+
+```bash
+./.venv/bin/python manage.py run_ollana_operator --workspace-id <id> --actor-id <admin_id> --daemon --sleep-seconds 30 --holder render-ollana-operator --force
+```
+
+Control desde la app:
+
+- `GET /api/system/guard-operator/`: estado, runtime, lease y control del operador.
+- `POST /api/system/guard-operator/` con `{"action":"stop"}` o `{"action":"resume"}`.

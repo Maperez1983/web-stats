@@ -59,3 +59,36 @@ services:
       # Seguridad: desactiva fallback monoclub en producción si no lo necesitas.
       - key: ALLOW_SINGLE_CLUB_FALLBACK
         value: "false"
+  - type: worker
+    name: web-stats-ollana-operator
+    runtime: python
+    plan: standard
+    branch: main
+    buildCommand: ./build.sh
+    startCommand: ./scripts/start_ollana_operator_worker.sh
+    autoDeploy: true
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: RUN_MIGRATIONS
+        value: "false"
+      - key: OLLANA_OPERATOR_ENABLED
+        value: "true"
+      - key: OLLANA_OPERATOR_WORKSPACE_ID
+        sync: false
+      - key: OLLANA_OPERATOR_ACTOR_ID
+        sync: false
+      - key: OLLANA_OPERATOR_SLEEP_SECONDS
+        value: "30"
+      - key: OLLANA_OPERATOR_MAX_RUNTIME_SECONDS
+        value: "0"
+      - key: OLLANA_OPERATOR_FORCE
+        value: "true"
+      - key: OLLANA_ADMIN_AUTONOMY_ENABLE_RELEASES
+        value: "false"
+      - key: SECRET_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DEBUG
+        value: "false"
