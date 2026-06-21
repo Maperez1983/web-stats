@@ -302,6 +302,7 @@
   ];
   const history = [];
   let pendingExecution = null;
+  let activeRequestId = 0;
 
   const mountToBody = () => {
     if (!shellEl || !document.body) return;
@@ -740,6 +741,54 @@
     }
     logEl.appendChild(wrap);
     logEl.scrollTop = logEl.scrollHeight;
+    return wrap;
+  };
+  const renderPendingMessage = (text = 'Ollana está preparando la respuesta…') => {
+    const node = renderMessage('assistant', text, ['Procesando']);
+    if (node) node.dataset.pendingGuardResponse = '1';
+    return node;
+  };
+  const replacePendingMessage = (pendingNode, text, extra = [], response = null) => {
+    if (!pendingNode || !pendingNode.parentNode) {
+      return renderMessage('assistant', text, extra, response);
+    }
+    const replacement = document.createElement('div');
+    replacement.className = 'guard-msg assistant';
+    const label = document.createElement('span');
+    label.className = 'role';
+    label.textContent = 'Guardián';
+    const body = document.createElement('div');
+    body.className = 'body';
+    body.textContent = text || '';
+    replacement.appendChild(label);
+    replacement.appendChild(body);
+    pendingNode.parentNode.replaceChild(replacement, pendingNode);
+    if (Array.isArray(extra) && extra.length) {
+      const badges = document.createElement('div');
+      badges.className = 'guard-badges';
+      extra.slice(0, 6).forEach((row) => {
+        const chip = document.createElement('span');
+        chip.className = 'guard-badge';
+        chip.textContent = String(row || '');
+        badges.appendChild(chip);
+      });
+      replacement.appendChild(badges);
+    }
+    if (response) {
+      renderMessage('assistant', text, extra, response);
+      replacement.remove();
+      return null;
+    }
+    logEl.scrollTop = logEl.scrollHeight;
+    return replacement;
+  };
+  const setSendingState = (sending) => {
+    if (!sendEl || !inputEl) return;
+    sendEl.disabled = Boolean(sending);
+    inputEl.disabled = Boolean(sending);
+    clearEl && (clearEl.disabled = Boolean(sending));
+    sendEl.style.opacity = sending ? '0.7' : '1';
+    sendEl.textContent = sending ? 'Pensando…' : (sendEl.dataset.confirming === '1' ? 'Confirmar ejecución' : 'Enviar');
   };
   const triggerUiAction = (button) => {
     if (!button) return;
@@ -860,6 +909,7 @@
       if (smokeEl) smokeEl.checked = Boolean(usePreset.runSmoke);
       if (fixEl) fixEl.checked = Boolean(usePreset.autoFix);
     }
+    const requestId = ++activeRequestId;
     setOpen(true);
     renderMessage('user', message);
     history.push({ role: 'user', content: message });
@@ -886,7 +936,11 @@
     } else {
       setStatus('Consultando guardián…');
     }
+    const pendingNode = renderPendingMessage();
+    setSendingState(true);
     try {
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 30000);
       const resolvedAutonomy = usePreset
         ? String(autonomyEl?.value || 'advisor')
         : (intent.kind === 'task' ? 'operator' : String(autonomyEl?.value || 'advisor'));
@@ -896,6 +950,7 @@
       const resp = await fetch(apiUrl, {
         method: 'POST',
         credentials: 'same-origin',
+        signal: controller.signal,
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken(), Accept: 'application/json' },
         body: JSON.stringify({
           message,
@@ -909,12 +964,15 @@
           page_context: currentPageContext(),
         }),
       });
+      window.clearTimeout(timeoutId);
+      if (requestId !== activeRequestId) return;
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok || !data?.ok) throw new Error(data?.error || `HTTP ${resp.status}`);
       const response = data?.chat?.response || {};
       const permissions = data?.permissions && typeof data.permissions === 'object' ? data.permissions : {};
       const text = String(response.message || 'Sin respuesta útil del guardián.');
       const highlights = Array.isArray(response.highlights) ? response.highlights : [];
+      if (pendingNode && pendingNode.parentNode) pendingNode.remove();
       renderMessage('assistant', text, highlights, response);
       history.push({ role: 'assistant', content: text });
       if (intent.kind === 'task' && permissions.can_operate_guard_code === false) {
@@ -958,11 +1016,20 @@
         resetPending();
       }
     } catch (error) {
-      const msg = error?.message || 'No se pudo consultar el guardián.';
+      if (requestId !== activeRequestId) return;
+      const isAbort = error?.name === 'AbortError';
+      const msg = isAbort ? 'Ollana tardó demasiado en responder. Puedes reintentar la consulta.' : (error?.message || 'No se pudo consultar el guardián.');
+      if (pendingNode && pendingNode.parentNode) {
+        pendingNode.remove();
+      }
       renderMessage('assistant', `Error: ${msg}`);
       history.push({ role: 'assistant', content: `Error: ${msg}` });
       setStatus(msg, true);
       resetPending();
+    } finally {
+      if (requestId === activeRequestId) {
+        setSendingState(false);
+      }
     }
   };
   sendEl?.addEventListener('click', () => {
