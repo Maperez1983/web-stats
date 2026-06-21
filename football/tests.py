@@ -734,6 +734,49 @@ class SystemGuardTests(TestCase):
         self.assertTrue(guard['critical_routes_ok'])
         self.assertTrue(guard['next_checks'])
 
+    def test_build_self_healing_operator_prefers_catalog_replay_when_ready(self):
+        operator = system_guard._build_self_healing_operator(
+            'El estadio 3d no se muestra bien',
+            workspace=self.workspace,
+            technical_operation={
+                'kind': 'technical_operation',
+                'catalog_candidates': [{'key': 'pitch3d_trigger_and_modal_flow', 'title': 'Pitch3D', 'auto_apply': True}],
+            },
+            technical_execution={'publish_ready': True},
+            repository_operator={'execution_ready': True},
+            snapshot_diff={'repeated_issues': ['pitch3d_render_regression']},
+        )
+        self.assertTrue(operator['embedded'])
+        self.assertTrue(operator['ready'])
+        self.assertEqual(operator['strategy'], 'catalog_autofix_replay')
+        self.assertTrue(operator['recommended_fix'])
+        self.assertTrue(operator['next_actions'])
+
+    @patch('football.system_guard._execute_tools', return_value=[{
+        'tool': 'check_critical_routes',
+        'label': 'Comprobar rutas críticas',
+        'ok': True,
+        'kind': 'inspect',
+        'detail': 'ok',
+        'result': {'ok': True, 'failing': []},
+    }, {
+        'tool': 'inspect_recent_errors',
+        'label': 'Inspeccionar errores recientes',
+        'ok': True,
+        'kind': 'inspect',
+        'detail': 'ok',
+        'result': {'ok': True, 'patterns': []},
+    }])
+    def test_run_post_publish_verification_loop_executes_safe_checks_after_push(self, _mock_exec):
+        rows = system_guard._run_post_publish_verification_loop(
+            [{'tool': 'git_push', 'ok': True}],
+            workspace=self.workspace,
+            question='Haz push',
+        )
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[0]['tool'], 'check_critical_routes')
+        self.assertEqual(rows[1]['tool'], 'inspect_recent_errors')
+
     def test_build_request_contract_distinguishes_technical_operator_mode(self):
         contract = system_guard._build_request_contract(
             'Por que no se visualiza bien el estadio 3d y si lo puedes solucionar',
@@ -1573,6 +1616,8 @@ class SystemGuardTests(TestCase):
         self.assertTrue(response['release_guard']['verification_ready'])
         self.assertTrue(response['deployment_guard']['embedded'])
         self.assertIn(response['deployment_guard']['status'], {'pre_deploy_check', 'pending_release_window', 'deployment_verified', 'release_window_open', 'deployment_risk'})
+        self.assertTrue(response['self_healing']['embedded'])
+        self.assertIn(response['self_healing']['strategy'], {'catalog_autofix_replay', 'memory_guided_repair', 'repeated_incident_repair'})
         self.assertEqual(response['request_contract']['interaction_mode'], 'technical_operator')
         self.assertEqual(response['request_contract']['execution_mode'], 'code_execution')
         self.assertTrue(response['intelligence_os']['layers']['execution']['execution_plan']['stages'])
@@ -1580,6 +1625,7 @@ class SystemGuardTests(TestCase):
         self.assertTrue(response['intelligence_os']['layers']['execution']['repository_operator']['execution_ready'])
         self.assertTrue(response['intelligence_os']['layers']['execution']['release_guard']['verification_ready'])
         self.assertTrue(response['intelligence_os']['layers']['execution']['deployment_guard']['embedded'])
+        self.assertTrue(response['intelligence_os']['layers']['execution']['self_healing']['embedded'])
         self.assertTrue(response['intelligence_os']['layers']['supervision']['code_operator']['embedded'])
         self.assertTrue(response['intelligence_os']['layers']['supervision']['code_operator']['enabled'])
         self.assertTrue(response['intelligence_os']['layers']['supervision']['code_operator']['candidate_files'])
@@ -1588,6 +1634,7 @@ class SystemGuardTests(TestCase):
         self.assertTrue(response['intelligence_os']['layers']['supervision']['repository_execution_ready'])
         self.assertIn(response['intelligence_os']['layers']['supervision']['release_status'], {'ready_for_release_check', 'published_verified', 'monitoring', 'regression_detected'})
         self.assertIn(response['intelligence_os']['layers']['supervision']['deployment_status'], {'pre_deploy_check', 'pending_release_window', 'deployment_verified', 'release_window_open', 'deployment_risk'})
+        self.assertTrue(response['intelligence_os']['layers']['supervision']['self_healing_ready'])
         self.assertIn(response['intelligence_os']['layers']['incident_commander']['status'], {'stable', 'running', 'blocked', 'awaiting_operator', 'regression_detected'})
         self.assertEqual(response['intelligence_os']['layers']['policy_decisions']['requested_action'], 'repair_code')
 

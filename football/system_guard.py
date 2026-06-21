@@ -3217,7 +3217,7 @@ def _parse_matchday_bundle_request(question: str) -> dict:
     }
 
 
-def _ollana_maturity_snapshot(*, page_context=None, assistant_action=None, technical_execution=None, operator_profile=None, silent_operator=None, repair_commander=None, repository_operator=None, release_guard=None, deployment_guard=None) -> dict:
+def _ollana_maturity_snapshot(*, page_context=None, assistant_action=None, technical_execution=None, operator_profile=None, silent_operator=None, repair_commander=None, repository_operator=None, release_guard=None, deployment_guard=None, self_healing=None) -> dict:
     page_context = page_context if isinstance(page_context, dict) else {}
     assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
     technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
@@ -3227,6 +3227,7 @@ def _ollana_maturity_snapshot(*, page_context=None, assistant_action=None, techn
     repository_operator = repository_operator if isinstance(repository_operator, dict) else {}
     release_guard = release_guard if isinstance(release_guard, dict) else {}
     deployment_guard = deployment_guard if isinstance(deployment_guard, dict) else {}
+    self_healing = self_healing if isinstance(self_healing, dict) else {}
     scores = {
         "system_brain": 18,
         "silent_operator": 16 if bool(silent_operator.get("continuous_enabled")) else 10,
@@ -3241,6 +3242,7 @@ def _ollana_maturity_snapshot(*, page_context=None, assistant_action=None, techn
         "repository_operator": 8 if bool(repository_operator.get("embedded")) and bool(repository_operator.get("execution_ready")) else 4,
         "release_guard": 8 if bool(release_guard.get("embedded")) and bool(release_guard.get("verification_ready")) else 4,
         "deployment_guard": 8 if bool(deployment_guard.get("embedded")) and bool(deployment_guard.get("verification_window")) else 4,
+        "self_healing": 8 if bool(self_healing.get("embedded")) and bool(self_healing.get("ready")) else 4,
     }
     achieved = sum(scores.values())
     percent = max(1, min(100, achieved))
@@ -5087,6 +5089,72 @@ def _build_deployment_guard(
     }
 
 
+def _build_self_healing_operator(
+    question: str,
+    *,
+    workspace=None,
+    technical_operation=None,
+    technical_execution=None,
+    repository_operator=None,
+    snapshot_diff=None,
+) -> dict:
+    technical_operation = technical_operation if isinstance(technical_operation, dict) else {}
+    technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
+    repository_operator = repository_operator if isinstance(repository_operator, dict) else {}
+    snapshot_diff = snapshot_diff if isinstance(snapshot_diff, dict) else {}
+    if str(technical_operation.get("kind") or "") != "technical_operation":
+        return {}
+    memory_snapshot = _recent_fix_memory_snapshot(
+        workspace,
+        catalog_candidates=technical_operation.get("catalog_candidates") if isinstance(technical_operation.get("catalog_candidates"), list) else [],
+    )
+    repeated = [str(item) for item in (snapshot_diff.get("repeated_issues") or []) if str(item or "").strip()]
+    catalog_candidates = [row for row in (technical_operation.get("catalog_candidates") or []) if isinstance(row, dict)]
+    recommended = next((row for row in catalog_candidates if bool(row.get("auto_apply"))), catalog_candidates[0] if catalog_candidates else {})
+    strategy = "memory_guided_repair"
+    if recommended and bool(recommended.get("auto_apply")):
+        strategy = "catalog_autofix_replay"
+    elif repeated:
+        strategy = "repeated_incident_repair"
+    next_actions = []
+    if recommended:
+        next_actions.append(f"Reutilizar fix sugerido: {recommended.get('title') or recommended.get('key')}")
+    if repeated:
+        next_actions.append(f"Atajar incidencia repetida: {repeated[0]}")
+    if repository_operator.get("execution_ready"):
+        next_actions.append("Aplicar el parche mínimo y revalidar antes de publicar.")
+    if not next_actions:
+        next_actions.append("Seguir recopilando memoria técnica antes de activar autocuración.")
+    return {
+        "embedded": True,
+        "ready": bool(repository_operator.get("execution_ready")) and bool(memory_snapshot.get("has_history") or recommended),
+        "strategy": strategy,
+        "recommended_fix": {
+            "key": str(recommended.get("key") or "")[:80],
+            "title": str(recommended.get("title") or recommended.get("key") or "")[:180],
+            "auto_apply": bool(recommended.get("auto_apply")),
+        } if recommended else {},
+        "repeated_issues": repeated[:4],
+        "memory_hits": len(memory_snapshot.get("related_ledger") or []),
+        "recent_fixes": [str(item) for item in (memory_snapshot.get("recent_fixes") or [])[:4]],
+        "next_actions": next_actions[:4],
+        "target": _truncate(question, 220),
+        "validated": bool(technical_execution.get("publish_ready")),
+    }
+
+
+def _run_post_publish_verification_loop(executed_tools, *, workspace=None, question: str = "", smoke_verbosity: int = 1) -> list[dict]:
+    executed_tools = [row for row in (executed_tools or []) if isinstance(row, dict)]
+    pushed = any(str(row.get("tool") or "") == "git_push" and bool(row.get("ok")) for row in executed_tools)
+    if not pushed:
+        return []
+    existing = {str(row.get("tool") or "") for row in executed_tools}
+    post_tools = [tool for tool in ["check_critical_routes", "inspect_recent_errors"] if tool not in existing]
+    if not post_tools:
+        return []
+    return _execute_tools(post_tools, smoke_verbosity=smoke_verbosity, workspace=workspace, question=question)
+
+
 def _system_knowledge_snapshot(*, page_context=None) -> dict:
     modules = _module_inventory()
     routes = _route_inventory()
@@ -5376,6 +5444,7 @@ def _mission_control_snapshot(
     repository_operator=None,
     release_guard=None,
     deployment_guard=None,
+    self_healing=None,
     silent_operator=None,
     improvement_proposals=None,
     snapshot_diff=None,
@@ -5388,6 +5457,7 @@ def _mission_control_snapshot(
     repository_operator = repository_operator if isinstance(repository_operator, dict) else {}
     release_guard = release_guard if isinstance(release_guard, dict) else {}
     deployment_guard = deployment_guard if isinstance(deployment_guard, dict) else {}
+    self_healing = self_healing if isinstance(self_healing, dict) else {}
     silent_operator = silent_operator if isinstance(silent_operator, dict) else {}
     snapshot_diff = snapshot_diff if isinstance(snapshot_diff, dict) else {}
     improvement_proposals = improvement_proposals if isinstance(improvement_proposals, list) else []
@@ -5401,6 +5471,7 @@ def _mission_control_snapshot(
         repository_operator=repository_operator,
         release_guard=release_guard,
         deployment_guard=deployment_guard,
+        self_healing=self_healing,
     )
     task = planner.get("task") if isinstance(planner.get("task"), dict) else {}
     runbook = planner.get("runbook") if isinstance(planner.get("runbook"), dict) else {}
@@ -5643,6 +5714,7 @@ def _build_intelligence_os_snapshot(
     repository_operator=None,
     release_guard=None,
     deployment_guard=None,
+    self_healing=None,
     operator_profile=None,
     silent_operator=None,
     improvement_proposals=None,
@@ -5656,6 +5728,7 @@ def _build_intelligence_os_snapshot(
     repository_operator = repository_operator if isinstance(repository_operator, dict) else {}
     release_guard = release_guard if isinstance(release_guard, dict) else {}
     deployment_guard = deployment_guard if isinstance(deployment_guard, dict) else {}
+    self_healing = self_healing if isinstance(self_healing, dict) else {}
     operator_profile = operator_profile if isinstance(operator_profile, dict) else {}
     silent_operator = silent_operator if isinstance(silent_operator, dict) else {}
     improvement_proposals = improvement_proposals if isinstance(improvement_proposals, list) else []
@@ -5697,6 +5770,7 @@ def _build_intelligence_os_snapshot(
                 repository_operator=repository_operator,
                 release_guard=release_guard,
                 deployment_guard=deployment_guard,
+                self_healing=self_healing,
                 silent_operator=silent_operator,
                 improvement_proposals=improvement_proposals,
                 snapshot_diff=snapshot_diff,
@@ -5749,6 +5823,7 @@ def _build_intelligence_os_snapshot(
                 "repository_operator": repository_operator,
                 "release_guard": release_guard,
                 "deployment_guard": deployment_guard,
+                "self_healing": self_healing,
             },
             "supervision": {
                 "silent_operator": silent_operator,
@@ -5774,6 +5849,7 @@ def _build_intelligence_os_snapshot(
                 "repository_execution_ready": bool(repository_operator.get("execution_ready")),
                 "release_status": str(release_guard.get("status") or "")[:32],
                 "deployment_status": str(deployment_guard.get("status") or "")[:32],
+                "self_healing_ready": bool(self_healing.get("ready")),
             },
             "user_copilot": _user_copilot_snapshot(
                 page_context=page_context,
@@ -7518,6 +7594,14 @@ def run_system_guard_chat(
             workspace=workspace,
             question=question,
         )
+        post_publish_executions = _run_post_publish_verification_loop(
+            executed_tools,
+            workspace=workspace,
+            question=question,
+            smoke_verbosity=smoke_verbosity,
+        )
+        if post_publish_executions:
+            executed_tools.extend(post_publish_executions)
         run_smoke = bool(run_smoke or ("run_smoke" in (planner.get("requested_tools") or [])))
         auto_fix = bool(auto_fix or ("auto_fix" in (planner.get("requested_tools") or [])))
     technical_execution = _execute_controlled_technical_operation(
@@ -7638,6 +7722,14 @@ def run_system_guard_chat(
         publish_commander=publish_commander if isinstance(publish_commander, dict) else {},
         report=report,
     )
+    self_healing = _build_self_healing_operator(
+        question,
+        workspace=workspace,
+        technical_operation=technical_operation if isinstance(technical_operation, dict) else {},
+        technical_execution=technical_execution if isinstance(technical_execution, dict) else {},
+        repository_operator=repository_operator if isinstance(repository_operator, dict) else {},
+        snapshot_diff=snapshot_diff,
+    )
     fallback["snapshot_diff"] = snapshot_diff
     fallback["remediation"] = _build_remediation_plan(report, executed_tools or [], snapshot_diff=snapshot_diff)
     fallback["assistant_action"] = assistant_action if isinstance(assistant_action, dict) else {}
@@ -7654,6 +7746,7 @@ def run_system_guard_chat(
     fallback["repository_operator"] = repository_operator if isinstance(repository_operator, dict) else {}
     fallback["release_guard"] = release_guard if isinstance(release_guard, dict) else {}
     fallback["deployment_guard"] = deployment_guard if isinstance(deployment_guard, dict) else {}
+    fallback["self_healing"] = self_healing if isinstance(self_healing, dict) else {}
     fallback["request_contract"] = _build_request_contract(
         question,
         planner=planner,
@@ -7734,6 +7827,8 @@ def run_system_guard_chat(
             fallback["highlights"] = (fallback.get("highlights") or []) + [f"Verificación post-cambio: {release_guard.get('status')}"]
         if isinstance(deployment_guard, dict) and deployment_guard.get("verification_window"):
             fallback["highlights"] = (fallback.get("highlights") or []) + [f"Despliegue: {deployment_guard.get('status')}"]
+        if isinstance(self_healing, dict) and self_healing.get("ready"):
+            fallback["highlights"] = (fallback.get("highlights") or []) + [f"Autocuración: {self_healing.get('strategy')}"]
         if assistant_action.get("navigate_to") and isinstance(assistant_action.get("navigate_to"), dict):
             route = assistant_action.get("navigate_to") or {}
             fallback["ui_actions"] = [{
@@ -7777,6 +7872,7 @@ def run_system_guard_chat(
         repository_operator=repository_operator if isinstance(repository_operator, dict) else {},
         release_guard=release_guard if isinstance(release_guard, dict) else {},
         deployment_guard=deployment_guard if isinstance(deployment_guard, dict) else {},
+        self_healing=self_healing if isinstance(self_healing, dict) else {},
         operator_profile=operator_profile,
         silent_operator=fallback.get("silent_operator") if isinstance(fallback.get("silent_operator"), dict) else {},
         improvement_proposals=fallback.get("improvement_proposals") if isinstance(fallback.get("improvement_proposals"), list) else [],
@@ -7826,6 +7922,7 @@ def run_system_guard_chat(
     response["repository_operator"] = response.get("repository_operator") or repository_operator
     response["release_guard"] = response.get("release_guard") or release_guard
     response["deployment_guard"] = response.get("deployment_guard") or deployment_guard
+    response["self_healing"] = response.get("self_healing") or self_healing
     response["request_contract"] = response.get("request_contract") or fallback.get("request_contract") or _build_request_contract(
         question,
         planner=planner,
@@ -7868,6 +7965,7 @@ def run_system_guard_chat(
         repository_operator=response.get("repository_operator") if isinstance(response.get("repository_operator"), dict) else {},
         release_guard=response.get("release_guard") if isinstance(response.get("release_guard"), dict) else {},
         deployment_guard=response.get("deployment_guard") if isinstance(response.get("deployment_guard"), dict) else {},
+        self_healing=response.get("self_healing") if isinstance(response.get("self_healing"), dict) else {},
         operator_profile=response.get("operator_profile") if isinstance(response.get("operator_profile"), dict) else {},
         silent_operator=response.get("silent_operator") if isinstance(response.get("silent_operator"), dict) else {},
         improvement_proposals=response.get("improvement_proposals") if isinstance(response.get("improvement_proposals"), list) else [],
