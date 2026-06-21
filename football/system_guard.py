@@ -508,6 +508,7 @@ PROACTIVE_IMPROVEMENT_CATALOG = {
     },
 }
 OLLANA_CAPABILITY_VERSION = "v2"
+OLLANA_SYSTEM_OS_VERSION = "v1"
 OLLANA_CAPABILITIES = {
     "identity": {
         "name": "Ollana",
@@ -534,6 +535,12 @@ OLLANA_CAPABILITIES = {
         {"key": "repair_code", "label": "Reparación técnica", "scope": "code", "requires_code_operator": True},
         {"key": "publish_changes", "label": "Commit y push", "scope": "code", "requires_code_operator": True},
     ],
+}
+OLLANA_ACTION_SURFACES = {
+    "conversation": ["guide_user", "navigate_modules"],
+    "business": ["create_player", "create_session", "create_task"],
+    "system": ["inspect_system", "monitor_incidents"],
+    "code": ["inspect_repo", "validate_changes", "repair_code", "publish_changes"],
 }
 KNOWN_FIXES = {
     "DisallowedHost": {
