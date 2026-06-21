@@ -12628,11 +12628,57 @@
 						                    addSuiteBox(new THREE.BoxGeometry(1.02, 2.34, 3.10), concreteMat, x, 4.26, frontZ - 2.72, 0, 0, 0, 'pitch_3d_reference_tunnel_hospitality_access_core');
 						                    addSuiteBox(new THREE.BoxGeometry(0.14, 1.78, 2.66), railMat, x + Math.sign(x) * 0.62, 4.16, frontZ - 2.70, 0, 0, 0, 'pitch_3d_reference_tunnel_hospitality_access_railing');
 						                  });
+						                  addSuiteBox(new THREE.BoxGeometry(14.8, 1.62, 2.26), vipDarkMat, 0, 9.64, frontZ - 6.88, -0.02, 0, 0, 'pitch_3d_reference_tunnel_hospitality_upper_lantern_body');
+						                  addSuiteBox(new THREE.BoxGeometry(13.9, 1.02, 0.10), vipGlassMat, 0, 9.72, frontZ - 5.78, 0, 0, 0, 'pitch_3d_reference_tunnel_hospitality_upper_lantern_glass_front');
+						                  addSuiteBox(new THREE.BoxGeometry(15.4, 0.16, 2.52), slabMat, 0, 10.58, frontZ - 6.90, 0, 0, 0, 'pitch_3d_reference_tunnel_hospitality_upper_lantern_roof');
+						                  [-5.4, -2.7, 0, 2.7, 5.4].forEach((x) => {
+						                    addSuiteBox(new THREE.BoxGeometry(0.08, 1.08, 0.18), railMat, x, 9.72, frontZ - 5.70, 0, 0, 0, 'pitch_3d_reference_tunnel_hospitality_upper_lantern_mullion');
+						                  });
+						                  addSuiteBox(new THREE.BoxGeometry(14.2, 0.06, 0.10), fasciaLedMat, 0, 10.14, frontZ - 5.64, 0, 0, 0, 'pitch_3d_reference_tunnel_hospitality_upper_lantern_led');
 						                  atmosphere.add(suite);
+						                };
+						                const addReferenceCornerGlassPavilions = () => {
+						                  const pavilionCoreMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.42, metalness: 0.18 });
+						                  const pavilionGlassMat = new THREE.MeshPhysicalMaterial({ color: 0xd7f0ff, roughness: 0.06, metalness: 0.02, transparent: true, opacity: 0.30, transmission: 0.28, clearcoat: 0.38, side: THREE.DoubleSide });
+						                  const pavilionFrameMat = new THREE.MeshStandardMaterial({ color: 0xd9e2ea, roughness: 0.26, metalness: 0.42 });
+						                  const pavilionLedMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.80, toneMapped: false, depthWrite: false });
+						                  [
+						                    [-1, -1, -82.4, -65.2, Math.PI / 4],
+						                    [1, -1, 82.4, -65.2, -Math.PI / 4],
+						                    [-1, 1, -82.4, 65.2, -Math.PI / 4],
+						                    [1, 1, 82.4, 65.2, Math.PI / 4],
+						                  ].forEach(([sx, sz, x, z, ry]) => {
+						                    const g = new THREE.Group();
+						                    g.position.set(x, 0, z);
+						                    g.rotation.y = ry;
+						                    g.userData = { kind: 'pitch_3d_reference_corner_glass_pavilion' };
+						                    const addLocal = (geo, mat, px, py, pz, rx = 0, lry = 0, rz = 0, kind = 'pitch_3d_reference_corner_glass_pavilion_piece') => {
+						                      const mesh = new THREE.Mesh(geo, mat);
+						                      mesh.position.set(px, py, pz);
+						                      mesh.rotation.set(rx, lry, rz);
+						                      mesh.userData = { kind };
+						                      try { mesh.castShadow = true; mesh.receiveShadow = true; } catch (e) { /* ignore */ }
+						                      g.add(mesh);
+						                      return mesh;
+						                    };
+						                    addLocal(new THREE.BoxGeometry(13.4, 0.22, 7.4), pavilionCoreMat, 0, 8.48, 0, 0, 0, 0, 'pitch_3d_reference_corner_pavilion_base');
+						                    addLocal(new THREE.BoxGeometry(11.8, 2.14, 6.0), pavilionCoreMat, 0, 9.74, 0, 0, 0, 0, 'pitch_3d_reference_corner_pavilion_body');
+						                    addLocal(new THREE.BoxGeometry(10.8, 1.34, 0.10), pavilionGlassMat, 0, 9.82, 2.96, 0, 0, 0, 'pitch_3d_reference_corner_pavilion_glass_front');
+						                    addLocal(new THREE.BoxGeometry(0.10, 1.34, 4.92), pavilionGlassMat, -5.36, 9.82, 0.20, 0, 0, 0, 'pitch_3d_reference_corner_pavilion_glass_side');
+						                    addLocal(new THREE.BoxGeometry(0.10, 1.34, 4.92), pavilionGlassMat, 5.36, 9.82, 0.20, 0, 0, 0, 'pitch_3d_reference_corner_pavilion_glass_side');
+						                    addLocal(new THREE.BoxGeometry(12.6, 0.14, 6.8), pavilionFrameMat, 0, 10.96, 0.22, 0, 0, 0, 'pitch_3d_reference_corner_pavilion_roof');
+						                    addLocal(new THREE.BoxGeometry(10.9, 0.06, 0.10), pavilionLedMat, 0, 10.34, 3.06, 0, 0, 0, 'pitch_3d_reference_corner_pavilion_led_front');
+						                    [-3.8, -1.9, 0, 1.9, 3.8].forEach((mx) => {
+						                      addLocal(new THREE.BoxGeometry(0.08, 1.42, 0.16), pavilionFrameMat, mx, 9.82, 2.84, 0, 0, 0, 'pitch_3d_reference_corner_pavilion_front_mullion');
+						                    });
+						                    atmosphere.add(g);
+						                    addShadow(x + sx * 0.2, z + sz * 0.2, 14.0, 8.0, 0.14);
+						                  });
 						                };
 						                if (options.dedicatedReference) {
 						                  addReferenceArchitecturalDugouts();
 						                  addReferenceArchitecturalTunnelHospitality();
+						                  addReferenceCornerGlassPavilions();
 						                  const sun = new THREE.DirectionalLight(0xfff1cf, 0.58);
 						                  sun.position.set(-metersW * 0.65, 34.0, -metersH * 0.85);
 						                  sun.target.position.set(0, 0.2, 0);
