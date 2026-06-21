@@ -785,6 +785,14 @@ class SystemGuardTests(TestCase):
         self.assertTrue(operator['next_actions'])
 
     @patch.dict(os.environ, {'APP_PUBLIC_BASE_URL': 'https://app.example.com', 'RENDER_EXTERNAL_HOSTNAME': 'app.example.com'}, clear=False)
+    @patch.dict(os.environ, {
+        'OLLANA_RELEASE_STATUS_URL': 'https://ops.example.com/release',
+        'OLLANA_RELEASE_STATUS_TOKEN': 'token-1',
+        'OLLANA_REMOTE_LOGS_URL': 'https://ops.example.com/logs',
+        'OLLANA_REMOTE_LOGS_TOKEN': 'token-2',
+        'OLLANA_DEPLOY_TRIGGER_URL': 'https://ops.example.com/deploy',
+        'OLLANA_DEPLOY_TRIGGER_TOKEN': 'token-3',
+    }, clear=False)
     @patch('football.system_guard.local_llm_config', return_value={
         'enabled': True,
         'provider': 'ollama',
@@ -805,6 +813,9 @@ class SystemGuardTests(TestCase):
         self.assertEqual(items['local_llm']['status'], 'enabled')
         self.assertEqual(items['repository']['status'], 'connected')
         self.assertEqual(items['workspace_context']['status'], 'bound')
+        self.assertEqual(items['release_pipeline_api']['status'], 'configured')
+        self.assertEqual(items['remote_logs_api']['status'], 'configured')
+        self.assertEqual(items['deploy_trigger_api']['status'], 'armed')
 
     def test_safe_command_executor_snapshot_respects_code_permissions(self):
         snapshot = system_guard._safe_command_executor_snapshot(page_context={
@@ -1475,15 +1486,29 @@ class SystemGuardTests(TestCase):
         summary = system_guard._observability_summary(self.workspace)
         self.assertEqual(summary['scheduled_state']['last_finished_at'], '2026-06-20T09:00:00Z')
 
-    @patch.dict(os.environ, {'APP_PUBLIC_BASE_URL': 'https://app.example.com'}, clear=False)
+    @patch.dict(os.environ, {
+        'APP_PUBLIC_BASE_URL': 'https://app.example.com',
+        'OLLANA_RELEASE_STATUS_URL': 'https://ops.example.com/release',
+        'OLLANA_RELEASE_STATUS_TOKEN': 'token-1',
+        'OLLANA_REMOTE_LOGS_URL': 'https://ops.example.com/logs',
+        'OLLANA_REMOTE_LOGS_TOKEN': 'token-2',
+    }, clear=False)
     @patch('football.system_guard.urllib.request.urlopen')
     def test_observability_mesh_combines_runtime_logs_and_deployment(self, mock_urlopen):
         class Resp:
-            status = 200
+            def __init__(self, body):
+                self.status = 200
+                self._body = body
+                self.headers = {'Content-Type': 'application/json'}
             def __enter__(self): return self
             def __exit__(self, exc_type, exc, tb): return False
-            def read(self): return b''
-        mock_urlopen.return_value = Resp()
+            def read(self): return self._body
+        mock_urlopen.side_effect = [
+            Resp(b''),
+            Resp(b''),
+            Resp(json.dumps({'status': 'healthy', 'release_id': 'rel-1'}).encode('utf-8')),
+            Resp(json.dumps({'patterns': [{'name': 'RemoteError', 'count': 3}]}).encode('utf-8')),
+        ]
         system_guard._store_pref_value(self.workspace, system_guard.SNAPSHOTS_PREF_KEY, [
             {'status': 'watch', 'blockers': 1, 'warnings': 1, 'issue_ids': ['route_failure'], 'llm_state': 'up'},
         ])
@@ -1491,7 +1516,28 @@ class SystemGuardTests(TestCase):
         self.assertTrue(mesh['embedded'])
         self.assertTrue(mesh['monitoring_ready'])
         self.assertTrue(mesh['public_deployment_ok'])
+        self.assertEqual(mesh['release_pipeline_state'], 'healthy')
+        self.assertTrue(mesh['remote_logs_ok'])
+        self.assertEqual(mesh['remote_error_patterns'][0]['name'], 'RemoteError')
         self.assertTrue(mesh['signal_coverage'])
+
+    @patch.dict(os.environ, {
+        'OLLANA_DEPLOY_TRIGGER_URL': 'https://ops.example.com/deploy',
+        'OLLANA_DEPLOY_TRIGGER_TOKEN': 'token-3',
+    }, clear=False)
+    @patch('football.system_guard.urllib.request.urlopen')
+    def test_trigger_remote_deploy_calls_configured_connector(self, mock_urlopen):
+        class Resp:
+            status = 200
+            headers = {'Content-Type': 'application/json'}
+            def __enter__(self): return self
+            def __exit__(self, exc_type, exc, tb): return False
+            def read(self): return json.dumps({'id': 'dep-77', 'status': 'queued'}).encode('utf-8')
+        mock_urlopen.return_value = Resp()
+        result = system_guard._trigger_remote_deploy()
+        self.assertTrue(result['ok'])
+        self.assertEqual(result['deploy_id'], 'dep-77')
+        self.assertEqual(result['status'], 'queued')
 
     def test_operational_memory_snapshot_surfaces_recurring_incidents_and_playbooks(self):
         system_guard._store_pref_value(self.workspace, system_guard.MEMORY_PREF_KEY, {

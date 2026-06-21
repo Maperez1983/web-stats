@@ -136,6 +136,20 @@ TOOL_SCHEMAS = {
         "confirmation_required": False,
         "runner": "public_deployment",
     },
+    "inspect_release_pipeline": {
+        "label": "Inspeccionar pipeline externo",
+        "kind": "observability",
+        "risk": "medium",
+        "confirmation_required": False,
+        "runner": "release_pipeline",
+    },
+    "inspect_remote_logs": {
+        "label": "Inspeccionar logs remotos",
+        "kind": "observability",
+        "risk": "medium",
+        "confirmation_required": False,
+        "runner": "remote_logs",
+    },
     "inspect_critical_paths": {
         "label": "Inspeccionar paths críticos",
         "kind": "inspect",
@@ -179,6 +193,14 @@ TOOL_SCHEMAS = {
         "confirmation_required": False,
         "runner": "maintenance",
         "maintenance_action": "ai_trainer_reindex",
+    },
+    "trigger_remote_deploy": {
+        "label": "Lanzar despliegue remoto",
+        "kind": "publish",
+        "risk": "high",
+        "confirmation_required": True,
+        "runner": "maintenance",
+        "maintenance_action": "trigger_remote_deploy",
     },
     "inspect_repo_status": {
         "label": "Inspeccionar repositorio",
@@ -577,6 +599,21 @@ EXTERNAL_CONNECTOR_CATALOG = {
         "kind": "deployment",
         "description": "Lee host y variables de despliegue para vigilar el entorno remoto.",
     },
+    "release_pipeline_api": {
+        "label": "Pipeline de release",
+        "kind": "deployment",
+        "description": "Consulta el estado del pipeline externo y las últimas releases.",
+    },
+    "remote_logs_api": {
+        "label": "Logs remotos",
+        "kind": "observability",
+        "description": "Consulta errores y patrones desde un endpoint remoto de logs.",
+    },
+    "deploy_trigger_api": {
+        "label": "Trigger de despliegue",
+        "kind": "deployment",
+        "description": "Permite lanzar un despliegue remoto gobernado por permisos y confirmación.",
+    },
     "local_llm": {
         "label": "Modelo local",
         "kind": "ai",
@@ -629,6 +666,20 @@ SAFE_COMMAND_CATALOG = {
         "permission_action": "monitor_incidents",
         "silent_allowed": True,
     },
+    "inspect_release_pipeline": {
+        "label": "Inspeccionar pipeline externo",
+        "tool": "inspect_release_pipeline",
+        "scope": "deployment",
+        "permission_action": "monitor_incidents",
+        "silent_allowed": True,
+    },
+    "inspect_remote_logs": {
+        "label": "Inspeccionar logs remotos",
+        "tool": "inspect_remote_logs",
+        "scope": "observability",
+        "permission_action": "monitor_incidents",
+        "silent_allowed": True,
+    },
     "inspect_repo_status": {
         "label": "Inspeccionar repositorio",
         "tool": "inspect_repo_status",
@@ -660,6 +711,13 @@ SAFE_COMMAND_CATALOG = {
     "git_push": {
         "label": "Hacer push",
         "tool": "git_push",
+        "scope": "publish",
+        "permission_action": "publish_changes",
+        "silent_allowed": False,
+    },
+    "trigger_remote_deploy": {
+        "label": "Lanzar despliegue remoto",
+        "tool": "trigger_remote_deploy",
         "scope": "publish",
         "permission_action": "publish_changes",
         "silent_allowed": False,
@@ -1357,6 +1415,142 @@ def _inspect_public_deployment() -> dict:
     }
 
 
+def _connector_endpoint(name: str) -> tuple[str, str]:
+    key = str(name or "").strip().upper()
+    return (
+        str(os.getenv(f"OLLANA_{key}_URL") or "").strip(),
+        str(os.getenv(f"OLLANA_{key}_TOKEN") or "").strip(),
+    )
+
+
+def _connector_http_request(url: str, *, token: str = "", method: str = "GET", payload: dict | None = None, timeout: int = 12) -> dict:
+    target = str(url or "").strip()
+    if not target:
+        return {"ok": False, "error": "missing_url"}
+    headers = {"User-Agent": "OllanaGuard/1.0"}
+    body = None
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    if payload is not None:
+        headers["Content-Type"] = "application/json"
+        body = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(target, headers=headers, data=body, method=str(method or "GET").upper())
+    try:
+        with urllib.request.urlopen(req, timeout=max(4, int(timeout or 12))) as resp:
+            raw = resp.read()
+            content_type = str(getattr(resp, "headers", {}).get("Content-Type", "") or "")
+            text = raw.decode("utf-8", errors="replace") if isinstance(raw, (bytes, bytearray)) else str(raw or "")
+            parsed = {}
+            if "json" in content_type.lower() or text[:1] in {"{", "["}:
+                try:
+                    parsed = json.loads(text or "{}")
+                except Exception:
+                    parsed = {}
+            return {
+                "ok": True,
+                "status_code": int(getattr(resp, "status", 200) or 200),
+                "url": target,
+                "json": parsed if isinstance(parsed, (dict, list)) else {},
+                "text": text[:4000],
+            }
+    except urllib.error.HTTPError as exc:
+        detail = ""
+        try:
+            detail = exc.read().decode("utf-8", errors="replace")[:2000]
+        except Exception:
+            detail = str(exc)[:2000]
+        return {"ok": False, "status_code": _safe_int(getattr(exc, "code", 0), 0), "url": target, "error": detail or str(exc)}
+    except Exception as exc:
+        return {"ok": False, "status_code": 0, "url": target, "error": f"{exc.__class__.__name__}: {exc}"}
+
+
+def _inspect_release_pipeline() -> dict:
+    url, token = _connector_endpoint("release_status")
+    if not url:
+        return {
+            "ok": False,
+            "action": "inspect_release_pipeline",
+            "error": "release_status_connector_not_configured",
+        }
+    result = _connector_http_request(url, token=token, method="GET", timeout=12)
+    payload = result.get("json") if isinstance(result.get("json"), dict) else {}
+    return {
+        "ok": bool(result.get("ok")),
+        "action": "inspect_release_pipeline",
+        "status_code": _safe_int(result.get("status_code"), 0),
+        "pipeline_state": str(payload.get("status") or payload.get("state") or payload.get("pipeline_state") or "")[:64],
+        "release_id": str(payload.get("release_id") or payload.get("deploy_id") or payload.get("id") or "")[:120],
+        "updated_at": str(payload.get("updated_at") or payload.get("finished_at") or payload.get("created_at") or "")[:64],
+        "detail": payload if payload else {"text": str(result.get("text") or "")[:400]},
+        "error": str(result.get("error") or "")[:240],
+    }
+
+
+def _inspect_remote_logs() -> dict:
+    url, token = _connector_endpoint("remote_logs")
+    if not url:
+        return {
+            "ok": False,
+            "action": "inspect_remote_logs",
+            "error": "remote_logs_connector_not_configured",
+        }
+    result = _connector_http_request(url, token=token, method="GET", timeout=12)
+    payload = result.get("json") if isinstance(result.get("json"), dict) else {}
+    patterns = payload.get("patterns") if isinstance(payload.get("patterns"), list) else []
+    log_rows = payload.get("logs") if isinstance(payload.get("logs"), list) else []
+    if not patterns and log_rows:
+        counters = {}
+        for row in log_rows[:40]:
+            if not isinstance(row, dict):
+                continue
+            level = str(row.get("level") or row.get("severity") or "info").strip().lower()[:24]
+            counters[level] = counters.get(level, 0) + 1
+        patterns = [{"name": key, "count": value} for key, value in sorted(counters.items(), key=lambda item: (-item[1], item[0]))]
+    return {
+        "ok": bool(result.get("ok")),
+        "action": "inspect_remote_logs",
+        "status_code": _safe_int(result.get("status_code"), 0),
+        "patterns": [
+            {"name": str(row.get("name") or row.get("level") or "")[:80], "count": _safe_int(row.get("count"), 0)}
+            for row in patterns[:6]
+            if isinstance(row, dict)
+        ],
+        "entries": log_rows[:8] if log_rows else [],
+        "error": str(result.get("error") or "")[:240],
+    }
+
+
+def _trigger_remote_deploy() -> dict:
+    url, token = _connector_endpoint("deploy_trigger")
+    if not url:
+        return {
+            "ok": False,
+            "action": "trigger_remote_deploy",
+            "error": "deploy_trigger_connector_not_configured",
+        }
+    branch = str(os.getenv("OLLANA_DEPLOY_TRIGGER_BRANCH") or "main").strip() or "main"
+    environment = str(os.getenv("OLLANA_DEPLOY_TRIGGER_ENV") or "production").strip() or "production"
+    result = _connector_http_request(
+        url,
+        token=token,
+        method="POST",
+        payload={"branch": branch, "environment": environment, "source": "ollana"},
+        timeout=20,
+    )
+    payload = result.get("json") if isinstance(result.get("json"), dict) else {}
+    return {
+        "ok": bool(result.get("ok")),
+        "action": "trigger_remote_deploy",
+        "status_code": _safe_int(result.get("status_code"), 0),
+        "deploy_id": str(payload.get("deploy_id") or payload.get("id") or payload.get("release_id") or "")[:120],
+        "status": str(payload.get("status") or payload.get("state") or "requested")[:64],
+        "branch": branch,
+        "environment": environment,
+        "detail": payload if payload else {"text": str(result.get("text") or "")[:400]},
+        "error": str(result.get("error") or "")[:240],
+    }
+
+
 def _inspect_critical_paths() -> dict:
     candidates = {
         "base_dir": Path(settings.BASE_DIR),
@@ -1803,8 +1997,11 @@ def _observability_mesh_snapshot(workspace, *, page_context=None) -> dict:
     summary = _observability_summary(workspace) if workspace else {}
     runtime = _inspect_runtime_config()
     public_deployment = _inspect_public_deployment()
+    release_pipeline = _inspect_release_pipeline()
     recent_errors = _inspect_recent_errors(max_lines=40)
+    remote_logs = _inspect_remote_logs()
     patterns = [row for row in (recent_errors.get("patterns") or []) if isinstance(row, dict)]
+    remote_patterns = [row for row in (remote_logs.get("patterns") or []) if isinstance(row, dict)]
     top_pattern = patterns[0] if patterns else {}
     signals = []
     if summary.get("regression_count"):
@@ -1817,17 +2014,25 @@ def _observability_mesh_snapshot(workspace, *, page_context=None) -> dict:
         signals.append(f"runtime:{str((runtime.get('warnings') or [''])[0])[:80]}")
     if public_deployment and not public_deployment.get("ok"):
         signals.append("deploy:public_check_failed")
+    if release_pipeline.get("pipeline_state"):
+        signals.append(f"pipeline:{str(release_pipeline.get('pipeline_state') or '')[:80]}")
+    if remote_patterns:
+        signals.append(f"remote-log:{str((remote_patterns[0] or {}).get('name') or '')[:80]}")
     coverage = 0
     coverage += 1 if summary else 0
     coverage += 1 if runtime.get("ok") else 0
     coverage += 1 if recent_errors.get("ok") else 0
     coverage += 1 if public_deployment.get("ok") else 0
+    coverage += 1 if release_pipeline.get("ok") else 0
+    coverage += 1 if remote_logs.get("ok") else 0
     return {
         "embedded": True,
         "health_state": str(summary.get("health_state") or "amber")[:24],
         "llm_stability": str(summary.get("llm_stability") or "unknown")[:24],
         "runtime_warnings": [str(item) for item in (runtime.get("warnings") or [])[:4]],
         "public_deployment_ok": bool(public_deployment.get("ok")),
+        "release_pipeline_state": str(release_pipeline.get("pipeline_state") or "")[:64],
+        "remote_logs_ok": bool(remote_logs.get("ok")),
         "recent_error_patterns": [
             {
                 "name": str(row.get("name") or "")[:80],
@@ -1835,9 +2040,16 @@ def _observability_mesh_snapshot(workspace, *, page_context=None) -> dict:
             }
             for row in patterns[:4]
         ],
-        "signal_coverage": f"{coverage}/4",
+        "remote_error_patterns": [
+            {
+                "name": str(row.get("name") or "")[:80],
+                "count": _safe_int(row.get("count"), 0),
+            }
+            for row in remote_patterns[:4]
+        ],
+        "signal_coverage": f"{coverage}/6",
         "active_signals": signals[:6],
-        "monitoring_ready": coverage >= 3,
+        "monitoring_ready": coverage >= 4,
     }
 
 
@@ -2950,6 +3162,8 @@ def _run_named_maintenance_action(action_name: str) -> dict:
         return _autofix_regenerate_task_previews()
     if action == "ai_trainer_reindex":
         return _autofix_ai_trainer_reindex()
+    if action == "trigger_remote_deploy":
+        return _trigger_remote_deploy()
     return {"ok": False, "error": "unknown_maintenance_action", "action": action}
 
 
@@ -4862,6 +5076,9 @@ def _external_connectors_snapshot(*, page_context=None) -> dict:
     llm_cfg = local_llm_config()
     public_base = str(os.getenv("APP_PUBLIC_BASE_URL") or "").strip()
     render_host = str(os.getenv("RENDER_EXTERNAL_HOSTNAME") or "").strip()
+    release_url, release_token = _connector_endpoint("release_status")
+    logs_url, logs_token = _connector_endpoint("remote_logs")
+    deploy_url, deploy_token = _connector_endpoint("deploy_trigger")
     workspace_id = _safe_int(context.get("workspace_id"), 0)
     team_id = _safe_int(context.get("team_id"), 0)
     repo_path = Path(settings.BASE_DIR)
@@ -4883,6 +5100,18 @@ def _external_connectors_snapshot(*, page_context=None) -> dict:
             provider = str(llm_cfg.get("provider") or "").strip()
             status = "enabled" if enabled else "disabled"
             detail = provider[:120]
+        elif key == "release_pipeline_api":
+            enabled = bool(release_url)
+            status = "configured" if enabled and release_token else ("public" if enabled else "missing")
+            detail = release_url[:180]
+        elif key == "remote_logs_api":
+            enabled = bool(logs_url)
+            status = "configured" if enabled and logs_token else ("public" if enabled else "missing")
+            detail = logs_url[:180]
+        elif key == "deploy_trigger_api":
+            enabled = bool(deploy_url and deploy_token)
+            status = "armed" if enabled else ("missing_token" if deploy_url else "missing")
+            detail = deploy_url[:180]
         elif key == "repository":
             enabled = (repo_path / ".git").exists()
             status = "connected" if enabled else "missing"
@@ -7456,8 +7685,11 @@ def _tool_reason(tool_key: str, intent: str, question: str) -> str:
         "check_critical_routes": "La petición pide revisar rutas o endpoints críticos.",
         "inspect_runtime_config": "La petición apunta a configuración efectiva de hosts, CSRF o settings.",
         "inspect_public_deployment": "La petición pide comprobar el estado del despliegue público o su healthcheck.",
+        "inspect_release_pipeline": "La petición requiere revisar el estado del pipeline externo o la última release.",
+        "inspect_remote_logs": "La petición requiere inspeccionar logs remotos o errores fuera del nodo local.",
         "inspect_critical_paths": "La petición apunta a directorios y paths críticos del sistema.",
         "inspect_guard_history": "La petición pide comparar ejecuciones previas, regresiones o tendencias del guard.",
+        "trigger_remote_deploy": "La petición requiere lanzar un despliegue remoto gobernado.",
     }
     return mapping.get(tool_key, f"Acción seleccionada para la intención {intent} en: {_truncate(question, 80)}")
 
@@ -7572,7 +7804,7 @@ def _plan_tools(question: str, *, run_smoke: bool, auto_fix: bool, maintenance_a
     elif intent == "inspect_config":
         requested_tools.extend(["check_status", "inspect_runtime_config"])
     elif intent == "inspect_deployment":
-        requested_tools.extend(["check_status", "inspect_public_deployment", "check_critical_routes"])
+        requested_tools.extend(["check_status", "inspect_public_deployment", "inspect_release_pipeline", "inspect_remote_logs"])
     elif intent == "inspect_paths":
         requested_tools.extend(["check_status", "inspect_critical_paths"])
     elif intent == "inspect_history":
@@ -7662,6 +7894,10 @@ def _execute_tools(requested_tools: list[str], *, smoke_verbosity: int = 1, work
             result = _inspect_runtime_config()
         elif tool_key == "inspect_public_deployment":
             result = _inspect_public_deployment()
+        elif tool_key == "inspect_release_pipeline":
+            result = _inspect_release_pipeline()
+        elif tool_key == "inspect_remote_logs":
+            result = _inspect_remote_logs()
         elif tool_key == "inspect_critical_paths":
             result = _inspect_critical_paths()
         elif tool_key == "inspect_guard_history":
@@ -7674,6 +7910,8 @@ def _execute_tools(requested_tools: list[str], *, smoke_verbosity: int = 1, work
             result = _autofix_regenerate_task_previews()
         elif tool_key == "ai_trainer_reindex":
             result = _autofix_ai_trainer_reindex()
+        elif tool_key == "trigger_remote_deploy":
+            result = _trigger_remote_deploy()
         elif tool_key == "git_commit":
             result = _git_commit_changes(question)
         elif tool_key == "git_push":
