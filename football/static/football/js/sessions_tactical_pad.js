@@ -12350,13 +12350,22 @@
 						                addShadow(0, -(metersH / 2 + 11.0), metersW + 62.0, 20.0, 0.18);
 						                addShadow(metersW / 2 + 11.0, 0, 20.0, metersH + 52.0, 0.14);
 						                addShadow(-(metersW / 2 + 11.0), 0, 20.0, metersH + 52.0, 0.14);
+						                const clubName = safeText(tokenTeamName || form?.dataset?.stadiumClubName || 'Benagalbon', 'Benagalbon');
+						                const upperClubName = clubName.toUpperCase();
+						                const clubAcronym = /BENAGALB[OÓ]N/i.test(clubName)
+						                  ? 'CDB'
+						                  : upperClubName
+						                      .split(/\s+/)
+						                      .filter(Boolean)
+						                      .slice(0, 3)
+						                      .map((part) => safeText(part).charAt(0))
+						                      .join('')
+						                      .slice(0, 3) || upperClubName.slice(0, 3);
 						                const makeCrestMaterial = () => {
 						                  const c = document.createElement('canvas');
 						                  c.width = 512;
 						                  c.height = 512;
 						                  const ctx = c.getContext('2d');
-						                  const clubName = safeText(tokenTeamName || form?.dataset?.stadiumClubName || 'CDB', 'CDB');
-						                  const club = /BENAGALB[OÓ]N/i.test(clubName) ? 'CDB' : clubName.slice(0, 3).toUpperCase();
 						                  ctx.clearRect(0, 0, c.width, c.height);
 						                  ctx.fillStyle = '#f8fafc';
 						                  ctx.beginPath();
@@ -12374,7 +12383,7 @@
 						                  ctx.font = '900 118px Arial, sans-serif';
 						                  ctx.textAlign = 'center';
 						                  ctx.textBaseline = 'middle';
-						                  ctx.fillText(club, 256, 252);
+						                  ctx.fillText(clubAcronym, 256, 252);
 						                  ctx.fillStyle = '#0f3b2f';
 						                  ctx.font = '800 34px Arial, sans-serif';
 						                  ctx.fillText('CD', 256, 340);
@@ -12383,7 +12392,7 @@
 						                  return new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false, side: THREE.DoubleSide });
 						                };
 						                const crestMat = makeCrestMaterial();
-						                const makeCornerScoreboardMaterial = () => {
+						                const makeCornerScoreboardMaterial = (heading, footer) => {
 						                  const c = document.createElement('canvas');
 						                  c.width = 768;
 						                  c.height = 432;
@@ -12397,23 +12406,54 @@
 						                  grd.addColorStop(1, '#05251f');
 						                  ctx.fillStyle = grd;
 						                  ctx.fillRect(18, 18, c.width - 36, c.height - 36);
+						                  ctx.fillStyle = 'rgba(248,250,252,0.08)';
+						                  for (let x = -64; x < c.width + 64; x += 76) {
+						                    ctx.save();
+						                    ctx.translate(x, 0);
+						                    ctx.rotate(-0.52);
+						                    ctx.fillRect(0, 0, 20, c.height * 1.7);
+						                    ctx.restore();
+						                  }
 						                  ctx.strokeStyle = 'rgba(248,250,252,0.74)';
 						                  ctx.lineWidth = 8;
 						                  ctx.strokeRect(26, 26, c.width - 52, c.height - 52);
 						                  ctx.fillStyle = '#f8fafc';
-						                  ctx.font = '900 86px Arial, sans-serif';
+						                  ctx.beginPath();
+						                  ctx.arc(126, 116, 62, 0, Math.PI * 2);
+						                  ctx.fill();
+						                  ctx.strokeStyle = primary;
+						                  ctx.lineWidth = 12;
+						                  ctx.stroke();
+						                  ctx.fillStyle = primary;
+						                  ctx.font = '900 46px Arial, sans-serif';
 						                  ctx.textAlign = 'center';
 						                  ctx.textBaseline = 'middle';
-						                  ctx.fillText('CDB', c.width / 2, c.height * 0.43);
-						                  ctx.font = '800 34px Arial, sans-serif';
-						                  ctx.fillText('MATCHDAY', c.width / 2, c.height * 0.66);
+						                  ctx.fillText(clubAcronym, 126, 118);
+						                  ctx.fillStyle = '#f8fafc';
+						                  ctx.textAlign = 'left';
+						                  ctx.font = '900 32px Arial, sans-serif';
+						                  ctx.fillText('LIVE', 216, 92);
+						                  ctx.font = '900 74px Arial, sans-serif';
+						                  ctx.fillText(String(heading || clubAcronym).toUpperCase(), 214, 160);
+						                  ctx.font = '800 30px Arial, sans-serif';
+						                  ctx.fillStyle = '#dbeafe';
+						                  ctx.fillText(String(footer || 'ESTADIO 3D').toUpperCase(), 216, 210);
+						                  ctx.textAlign = 'center';
+						                  ctx.fillStyle = '#f8fafc';
+						                  ctx.font = '900 132px Arial, sans-serif';
+						                  ctx.fillText('02', c.width * 0.83, c.height * 0.48);
+						                  ctx.font = '800 30px Arial, sans-serif';
+						                  ctx.fillStyle = '#d1fae5';
+						                  ctx.fillText('SEGUNDA JUGADA', c.width * 0.5, c.height * 0.80);
 						                  ctx.fillStyle = 'rgba(255,255,255,0.16)';
 						                  for (let x = 42; x < c.width - 42; x += 34) ctx.fillRect(x, c.height - 72, 16, 5);
 						                  const tex = new THREE.CanvasTexture(c);
 						                  tex.needsUpdate = true;
 						                  return new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false, side: THREE.DoubleSide });
 						                };
-						                const scoreboardMat = makeCornerScoreboardMaterial();
+						                const scoreboardMat = makeCornerScoreboardMaterial(clubAcronym, 'MATCHDAY');
+						                const scoreboardTacticalMat = makeCornerScoreboardMaterial('TACTICA', 'ESTADIO 3D');
+						                const scoreboardHeroMat = makeCornerScoreboardMaterial(clubAcronym, upperClubName);
 						                const makeStandWordmarkMaterial = (text, options = {}) => {
 						                  const c = document.createElement('canvas');
 						                  c.width = 2048;
@@ -12421,8 +12461,15 @@
 						                  const ctx = c.getContext('2d');
 						                  const primary = parseColorToHex(primaryHex, '#047857') || '#047857';
 						                  ctx.clearRect(0, 0, c.width, c.height);
-						                  ctx.fillStyle = options.bg || 'rgba(4,24,22,0.18)';
+						                  const bg = options.bg || 'rgba(4,24,22,0.18)';
+						                  ctx.fillStyle = bg;
 						                  ctx.fillRect(0, 0, c.width, c.height);
+						                  const band = ctx.createLinearGradient(0, 0, c.width, 0);
+						                  band.addColorStop(0, 'rgba(255,255,255,0.04)');
+						                  band.addColorStop(0.5, 'rgba(255,255,255,0)');
+						                  band.addColorStop(1, 'rgba(255,255,255,0.04)');
+						                  ctx.fillStyle = band;
+						                  ctx.fillRect(0, 24, c.width, c.height - 48);
 						                  ctx.fillStyle = options.fill || '#f8fafc';
 						                  ctx.font = '900 224px Arial, sans-serif';
 						                  ctx.textAlign = 'center';
@@ -12440,8 +12487,9 @@
 						                  tex.needsUpdate = true;
 						                  return new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false, side: THREE.DoubleSide, depthWrite: false });
 						                };
-						                const mainStandWordmarkMat = makeStandWordmarkMaterial(tokenTeamName || form?.dataset?.stadiumClubName || 'Benagalbon');
+						                const mainStandWordmarkMat = makeStandWordmarkMaterial(clubName);
 						                const oppositeStandWordmarkMat = makeStandWordmarkMaterial('Segunda Jugada', { fill: '#dbeafe', stroke: 'rgba(3,12,24,0.92)', bg: 'rgba(6,17,31,0.16)' });
+						                const sideRoundelMat = makeStandWordmarkMaterial(clubAcronym, { fill: '#f8fafc', stroke: 'rgba(4,24,22,0.92)', bg: 'rgba(4,24,22,0.30)' });
 						                const railGlowMat = new THREE.MeshBasicMaterial({ color: 0xe0f2fe, transparent: true, opacity: 0.42, toneMapped: false, depthWrite: false });
 						                const skyBounceMat = new THREE.MeshBasicMaterial({ color: 0xbfe7ff, transparent: true, opacity: 0.12, toneMapped: false, depthWrite: false, side: THREE.DoubleSide });
 						                [
@@ -12465,6 +12513,16 @@
 						                  sign.userData = { kind: 'pitch_3d_stadium_stand_wordmark' };
 						                  atmosphere.add(sign);
 						                });
+						                [
+						                  [metersW / 2 + 18.8, 10.8, 0, -Math.PI / 2],
+						                  [-(metersW / 2 + 18.8), 10.8, 0, Math.PI / 2],
+						                ].forEach(([x, y, z, ry]) => {
+						                  const roundel = new THREE.Mesh(new THREE.PlaneGeometry(10.2, 3.6), sideRoundelMat);
+						                  roundel.position.set(x, y, z);
+						                  roundel.rotation.y = ry;
+						                  roundel.userData = { kind: 'pitch_3d_stadium_side_roundel_wordmark' };
+						                  atmosphere.add(roundel);
+						                });
 						                const hangingBoard = new THREE.Group();
 						                hangingBoard.position.set(0, 21.2, metersH / 2 + 24.4);
 						                hangingBoard.userData = { kind: 'pitch_3d_stadium_hanging_main_scoreboard' };
@@ -12480,6 +12538,21 @@
 						                  hangingBoard.add(hanger);
 						                });
 						                atmosphere.add(hangingBoard);
+						                const roofCrest = new THREE.Group();
+						                roofCrest.position.set(0, 19.8, -(metersH / 2 + 33.7));
+						                roofCrest.userData = { kind: 'pitch_3d_stadium_roof_crown_crest' };
+						                const roofCrestBack = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.2, 0.38, 48), darkMetalMat);
+						                roofCrestBack.rotation.x = Math.PI / 2;
+						                roofCrest.add(roofCrestBack);
+						                const roofCrestFace = new THREE.Mesh(new THREE.CircleGeometry(2.95, 64), crestMat);
+						                roofCrestFace.position.z = 0.24;
+						                roofCrest.add(roofCrestFace);
+						                [-1.28, 1.28].forEach((x) => {
+						                  const mast = new THREE.Mesh(new THREE.BoxGeometry(0.14, 2.8, 0.14), metalMat);
+						                  mast.position.set(x, -1.86, -0.08);
+						                  roofCrest.add(mast);
+						                });
+						                atmosphere.add(roofCrest);
 						                [
 						                  [0, metersH / 2 + 30.6, metersW + 64.0, 11.0, -0.16],
 						                  [0, -(metersH / 2 + 30.6), metersW + 64.0, 11.0, 0.16],
@@ -12827,6 +12900,7 @@
 						                    const seatGreen = new THREE.Color(primaryInt);
 						                    const seatDeepGreen = new THREE.Color(0x064e3b);
 						                    const seatLetter = new THREE.Color(0xf8fafc);
+						                    const seatSky = new THREE.Color(0xbfdbfe);
 						                    const letterFont = {
 						                      A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'],
 						                      B: ['11110', '10001', '10001', '11110', '10001', '10001', '11110'],
@@ -12834,24 +12908,29 @@
 						                      D: ['11110', '10001', '10001', '10001', '10001', '10001', '11110'],
 						                      E: ['11111', '10000', '10000', '11110', '10000', '10000', '11111'],
 						                      G: ['01111', '10000', '10000', '10111', '10001', '10001', '01111'],
+						                      J: ['00111', '00010', '00010', '00010', '10010', '10010', '01100'],
 						                      L: ['10000', '10000', '10000', '10000', '10000', '10000', '11111'],
+						                      M: ['10001', '11011', '10101', '10101', '10001', '10001', '10001'],
 						                      N: ['10001', '11001', '10101', '10011', '10001', '10001', '10001'],
 						                      O: ['01110', '10001', '10001', '10001', '10001', '10001', '01110'],
+						                      S: ['01111', '10000', '10000', '01110', '00001', '00001', '11110'],
+						                      T: ['11111', '00100', '00100', '00100', '00100', '00100', '00100'],
 						                      ' ': ['00', '00', '00', '00', '00', '00', '00'],
 						                    };
-						                    const mainStandLetterMap = (() => {
-						                      const text = 'BENAGALBON CD';
+						                    const buildLetterColumns = (text) => {
 						                      const cols = [];
-						                      text.split('').forEach((char, charIdx) => {
+						                      String(text || '').split('').forEach((char, charIdx, source) => {
 						                        const glyph = letterFont[char] || letterFont[' '];
 						                        const width = glyph[0].length;
 						                        for (let x = 0; x < width; x += 1) {
 						                          cols.push(glyph.map((row) => row[x] === '1'));
 						                        }
-						                        if (charIdx < text.length - 1) cols.push([false, false, false, false, false, false, false]);
+						                        if (charIdx < source.length - 1) cols.push([false, false, false, false, false, false, false]);
 						                      });
 						                      return cols;
-						                    })();
+						                    };
+						                    const mainStandLetterMap = buildLetterColumns('BENAGALBON CD');
+						                    const oppositeStandLetterMap = buildLetterColumns('SEGUNDA JUGADA');
 						                    [seatBase, seatBack, aisleRails].forEach((mesh) => {
 						                      mesh.count = 0;
 						                      mesh.userData = { kind: 'pitch_3d_stadium_instanced_professional_seating' };
@@ -12867,12 +12946,18 @@
 						                      if (color && typeof mesh.setColorAt === 'function') mesh.setColorAt(mesh.count, color);
 						                      mesh.count += 1;
 						                    };
-						                    const isMainStandLetterSeat = (axis, sign, row, col, cols) => {
-						                      if (axis !== 'z' || sign !== 1 || row < 5 || row > 11) return false;
-						                      const start = Math.max(0, Math.floor((cols - mainStandLetterMap.length) / 2));
+						                    const readSeatWordPattern = (map, rowStart, rowEnd, row, col, cols) => {
+						                      if (row < rowStart || row > rowEnd) return false;
+						                      const start = Math.max(0, Math.floor((cols - map.length) / 2));
 						                      const letterCol = col - start;
-						                      if (letterCol < 0 || letterCol >= mainStandLetterMap.length) return false;
-						                      return !!mainStandLetterMap[letterCol][row - 5];
+						                      if (letterCol < 0 || letterCol >= map.length) return false;
+						                      return !!map[letterCol][row - rowStart];
+						                    };
+						                    const getSeatAccentColor = (axis, sign, row, col, cols) => {
+						                      if (axis === 'z' && sign === 1 && readSeatWordPattern(mainStandLetterMap, 5, 11, row, col, cols)) return seatLetter;
+						                      if (axis === 'z' && sign === -1 && readSeatWordPattern(oppositeStandLetterMap, 6, 12, row, col, cols)) return seatSky;
+						                      if (axis === 'x' && row >= 4 && row <= 10 && ((col + row) % 9 === 0 || (col > cols * 0.28 && col < cols * 0.72 && row % 2 === 0))) return seatLetter;
+						                      return null;
 						                    };
 						                    const addStandSeats = ({ axis, sign, rows, cols, span, fixed, baseY, rowDepth, rowRise }) => {
 						                      const aisleCols = axis === 'z'
@@ -12887,7 +12972,8 @@
 						                          const offset = t * span;
 						                          const stagger = ((row + col) % 2) * 0.035;
 						                          const dark = (row + col) % 7 === 0;
-						                          const seatColor = isMainStandLetterSeat(axis, sign, row, col, cols) ? seatLetter : (dark ? seatDeepGreen : seatGreen);
+						                          const accentColor = getSeatAccentColor(axis, sign, row, col, cols);
+						                          const seatColor = accentColor || (dark ? seatDeepGreen : seatGreen);
 						                          if (axis === 'z') {
 						                            place(seatBase, offset, y, depth + sign * stagger, -0.08 * sign, 0, 0, 1, 1, 1, seatColor);
 						                            place(seatBack, offset, y + 0.22, depth + sign * 0.22, -0.20 * sign, 0, 0, 1, dark ? 0.88 : 1, 1, seatColor);
@@ -12934,14 +13020,29 @@
 						                };
 						                addMainStandCrest();
 						                const addReferenceCornerScoreboard = () => {
-						                  const board = new THREE.Mesh(new THREE.PlaneGeometry(7.6, 4.25), scoreboardMat);
-						                  board.position.set(metersW / 2 + 8.0, 6.95, metersH / 2 + 8.6);
-						                  board.rotation.y = -Math.PI / 4;
-						                  board.userData = { kind: 'pitch_3d_reference_corner_scoreboard_screen' };
-						                  atmosphere.add(board);
-						                  addBox(new THREE.BoxGeometry(8.1, 4.7, 0.24), darkMetalMat, metersW / 2 + 8.25, 6.95, metersH / 2 + 8.85, 0, -Math.PI / 4, 0, 'pitch_3d_reference_corner_scoreboard_frame');
-						                  [-2.8, 2.8].forEach((sx) => {
-						                    addBox(new THREE.BoxGeometry(0.18, 4.8, 0.18), metalMat, metersW / 2 + 8.0 + sx * 0.72, 4.10, metersH / 2 + 8.6 - sx * 0.72, 0, -Math.PI / 4, 0, 'pitch_3d_reference_corner_scoreboard_support');
+						                  [
+						                    [1, 1, -Math.PI / 4, scoreboardMat],
+						                    [-1, 1, Math.PI / 4, scoreboardTacticalMat],
+						                    [1, -1, Math.PI / 4, scoreboardTacticalMat],
+						                    [-1, -1, -Math.PI / 4, scoreboardMat],
+						                  ].forEach(([sx, sz, ry, mat], index) => {
+						                    const bx = sx * (metersW / 2 + 8.0);
+						                    const bz = sz * (metersH / 2 + 8.6);
+						                    const board = new THREE.Mesh(new THREE.PlaneGeometry(7.6, 4.25), mat);
+						                    board.position.set(bx, 6.95, bz);
+						                    board.rotation.y = ry;
+						                    board.userData = { kind: 'pitch_3d_reference_corner_scoreboard_screen' };
+						                    atmosphere.add(board);
+						                    addBox(new THREE.BoxGeometry(8.1, 4.7, 0.24), darkMetalMat, bx + sx * 0.25, 6.95, bz + sz * 0.25, 0, ry, 0, 'pitch_3d_reference_corner_scoreboard_frame');
+						                    addBox(new THREE.BoxGeometry(8.9, 0.36, 0.42), metalMat, bx + sx * 0.34, 9.56, bz + sz * 0.34, 0, ry, 0, 'pitch_3d_reference_corner_scoreboard_header_canopy');
+						                    const topper = new THREE.Mesh(new THREE.PlaneGeometry(5.6, 0.72), index % 2 === 0 ? scoreboardHeroMat : scoreboardTacticalMat);
+						                    topper.position.set(bx + sx * 0.44, 9.62, bz + sz * 0.44);
+						                    topper.rotation.y = ry;
+						                    topper.userData = { kind: 'pitch_3d_reference_corner_scoreboard_topper' };
+						                    atmosphere.add(topper);
+						                    [-2.8, 2.8].forEach((offset) => {
+						                      addBox(new THREE.BoxGeometry(0.18, 4.8, 0.18), metalMat, bx + offset * 0.72, 4.10, bz - Math.sign(ry) * offset * 0.72, 0, ry, 0, 'pitch_3d_reference_corner_scoreboard_support');
+						                    });
 						                  });
 						                };
 						                addReferenceCornerScoreboard();
@@ -13161,6 +13262,7 @@
 						                  const gateMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.46, metalness: 0.35 });
 						                  const pavingMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.86, metalness: 0.02 });
 						                  const uplightMat = new THREE.MeshBasicMaterial({ color: 0xbfe7ff, transparent: true, opacity: 0.14, toneMapped: false, depthWrite: false, side: THREE.DoubleSide });
+						                  const fasciaMat = makeStandWordmarkMaterial(`${clubAcronym}  ${clubName}`, { fill: '#f8fafc', stroke: 'rgba(4,24,22,0.92)', bg: 'rgba(6,17,31,0.30)' });
 						                  [
 						                    [0, metersH / 2 + 36.6, metersW + 20.0, 5.2],
 						                    [0, -(metersH / 2 + 36.6), metersW + 20.0, 5.2],
@@ -13192,6 +13294,16 @@
 						                    wash.rotation.x = rx;
 						                    wash.userData = { kind: 'pitch_3d_stadium_facade_uplight_wash' };
 						                    atmosphere.add(wash);
+						                  });
+						                  [
+						                    [0, metersH / 2 + 24.0, metersW * 0.64, Math.PI],
+						                    [0, -(metersH / 2 + 24.0), metersW * 0.58, 0],
+						                  ].forEach(([x, z, w, ry]) => {
+						                    const fascia = new THREE.Mesh(new THREE.PlaneGeometry(w, 2.2), fasciaMat);
+						                    fascia.position.set(x, 8.2, z);
+						                    fascia.rotation.y = ry;
+						                    fascia.userData = { kind: 'pitch_3d_stadium_exterior_identity_fascia' };
+						                    atmosphere.add(fascia);
 						                  });
 						                  const horizonZ = metersH / 2 + 58.0;
 						                  const mountain = new THREE.Mesh(new THREE.PlaneGeometry(metersW + 120.0, 18.0), mountainMat);
