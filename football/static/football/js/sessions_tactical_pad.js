@@ -12639,8 +12639,6 @@
 						                  sun.userData = { kind: 'pitch_3d_reference_dedicated_model_sunlight' };
 						                  atmosphere.add(sun);
 						                  atmosphere.add(sun.target);
-						                  target.add(atmosphere);
-						                  return;
 						                }
 						                addShadow(0, metersH / 2 + 11.0, metersW + 62.0, 20.0, 0.16);
 						                addShadow(0, -(metersH / 2 + 11.0), metersW + 62.0, 20.0, 0.18);
@@ -14016,7 +14014,7 @@
 						                    size: { x: Number(size.x) || 0, y: Number(size.y) || 0, z: Number(size.z) || 0 },
 						                  };
 						                } catch (e) { /* ignore */ }
-						                if (!isDedicatedReferenceStadium) addProfessionalStadiumAtmosphere(stadiumAsset, { dedicatedReference: false });
+						                addProfessionalStadiumAtmosphere(stadiumAsset, { dedicatedReference: !!isDedicatedReferenceStadium });
 						                return true;
 						              } catch (e) {
 						                try {
