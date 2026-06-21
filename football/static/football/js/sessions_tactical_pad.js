@@ -8248,7 +8248,7 @@
 						          if (version) versionSuffix = `?v=${encodeURIComponent(version)}`;
 						        } catch (e) { /* ignore */ }
 						        const fallbacks = {
-						          pitch3dStadiumModelSrc: `/static/football/models/pitch3d/stadium_architectural_complete.glb${versionSuffix}`,
+						          pitch3dStadiumModelSrc: `/static/football/models/pitch3d/stadium_bowl_premium.glb${versionSuffix}`,
 						          pitch3dGrassAlbedoSrc: `/static/football/images/pitch3d/grass_premium_albedo.png${versionSuffix}`,
 						          pitch3dGrassBumpSrc: `/static/football/images/pitch3d/grass_premium_bump.png${versionSuffix}`,
 						          pitch3dGrassNormalSrc: `/static/football/images/pitch3d/grass_premium_normal.png${versionSuffix}`,
@@ -9119,25 +9119,27 @@
 						      const theme = resolvePitch3dTheme();
 						      const isNight = theme === 'night';
 						      try {
-						        const skyColor = isNight ? 0x07111f : 0xbddff6;
+						        const skyColor = isNight ? 0x050d18 : 0xaed6f3;
 						        pitch3dScene.background = new THREE.Color(skyColor);
-						        pitch3dScene.fog = new THREE.Fog(skyColor, isNight ? 240 : 330, isNight ? 530 : 640);
+						        pitch3dScene.fog = new THREE.Fog(skyColor, isNight ? 255 : 360, isNight ? 610 : 720);
 						        pitch3dRenderer.setClearColor(skyColor, 1);
-						        pitch3dRenderer.toneMappingExposure = isNight ? 0.92 : 1.08;
+						        pitch3dRenderer.toneMappingExposure = isNight ? 0.96 : 1.16;
 						        pitch3dScene.traverse((node) => {
 						          const kind = safeText(node?.userData?.kind);
 						          if (node?.isHemisphereLight) {
-						            node.intensity = isNight ? 0.24 : 0.68;
-						            node.color?.set?.(isNight ? 0xbdd7ff : 0xffffff);
-						            node.groundColor?.set?.(isNight ? 0x03131c : 0x385243);
+						            node.intensity = isNight ? 0.34 : 0.92;
+						            node.color?.set?.(isNight ? 0xb8d7ff : 0xfafcff);
+						            node.groundColor?.set?.(isNight ? 0x04101a : 0x35563d);
 						          } else if (node?.isDirectionalLight) {
-						            if (kind === 'pitch_3d_theme_key_light') node.intensity = isNight ? 1.15 : 4.20;
-						            else node.intensity = isNight ? 0.16 : 0.46;
+						            if (kind === 'pitch_3d_theme_key_light') node.intensity = isNight ? 1.28 : 4.85;
+						            else if (kind === 'pitch_3d_theme_rim_light') node.intensity = isNight ? 0.34 : 0.76;
+						            else if (kind === 'pitch_3d_theme_fill_light') node.intensity = isNight ? 0.18 : 0.34;
+						            else node.intensity = isNight ? 0.20 : 0.52;
 						          } else if (node?.isPointLight || node?.isSpotLight) {
 						            const base = kind === 'pitch_3d_professional_stadium_light_volume'
-						              ? 0.34
-						              : (kind === 'pitch_3d_stadium_real_spotlight_throw' ? 0.62 : 0.28);
-						            node.intensity = isNight ? Math.max(base, 0.82) : base;
+						              ? 0.42
+						              : (kind === 'pitch_3d_stadium_real_spotlight_throw' ? 0.74 : 0.32);
+						            node.intensity = isNight ? Math.max(base, 0.96) : base;
 						          }
 						        });
 						      } catch (e) { /* ignore */ }
@@ -9353,27 +9355,27 @@
 						      try {
 						        const renderer = new THREE.WebGLRenderer({ canvas: pitch3dCanvasEl, antialias: true, alpha: false, preserveDrawingBuffer: true });
 						        renderer.setPixelRatio(getPitch3dRenderPixelRatio());
-						        renderer.setClearColor(0xaed8f3, 1);
+						        renderer.setClearColor(0xaed6f3, 1);
 						        try {
 						          renderer.shadowMap.enabled = true;
 						          renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 						          if (THREE.SRGBColorSpace) renderer.outputColorSpace = THREE.SRGBColorSpace;
 						          if (THREE.ACESFilmicToneMapping) renderer.toneMapping = THREE.ACESFilmicToneMapping;
-						          renderer.toneMappingExposure = 1.08;
+						          renderer.toneMappingExposure = 1.16;
 						        } catch (e) { /* ignore */ }
 						        pitch3dRenderer = renderer;
 						        pitch3dScene = new THREE.Scene();
-						        pitch3dScene.background = new THREE.Color(0xbddff6);
-						        try { pitch3dScene.fog = new THREE.Fog(0xbddff6, 330, 640); } catch (e) { /* ignore */ }
+						        pitch3dScene.background = new THREE.Color(0xaed6f3);
+						        try { pitch3dScene.fog = new THREE.Fog(0xaed6f3, 360, 720); } catch (e) { /* ignore */ }
 						        pitch3dCamera = new THREE.PerspectiveCamera(48, 16 / 9, 0.1, 2000);
 						        try {
 						          window.__WEBSTATS_PITCH3D_SCENE = pitch3dScene;
 						          window.__WEBSTATS_PITCH3D_CAMERA = pitch3dCamera;
 						        } catch (e) { /* ignore */ }
-						        const hemi = new THREE.HemisphereLight(0xffffff, 0x385243, 0.68);
+						        const hemi = new THREE.HemisphereLight(0xfafcff, 0x35563d, 0.92);
 						        hemi.userData = { kind: 'pitch_3d_theme_hemi_light' };
 						        pitch3dScene.add(hemi);
-						        const dir = new THREE.DirectionalLight(0xfff0c8, 4.20);
+						        const dir = new THREE.DirectionalLight(0xfff1cb, 4.85);
 						        dir.position.set(-155, 210, -118);
 						        dir.userData = { kind: 'pitch_3d_theme_key_light' };
 						        try {
@@ -9394,11 +9396,11 @@
 							          dir.shadow.normalBias = 0.014;
 						        } catch (e) { /* ignore */ }
 						        pitch3dScene.add(dir);
-						        const rim = new THREE.DirectionalLight(0xdbeafe, 0.46);
+						        const rim = new THREE.DirectionalLight(0xd8ecff, 0.76);
 						        rim.position.set(110, 80, 130);
 						        rim.userData = { kind: 'pitch_3d_theme_rim_light' };
 						        pitch3dScene.add(rim);
-						        const softFill = new THREE.DirectionalLight(0xffffff, 0.18);
+						        const softFill = new THREE.DirectionalLight(0xffffff, 0.34);
 						        softFill.position.set(70, 60, 105);
 						        softFill.userData = { kind: 'pitch_3d_theme_fill_light' };
 						        pitch3dScene.add(softFill);
@@ -9408,7 +9410,7 @@
 						          [-82, 24, 58],
 						          [82, 24, 58],
 						        ].forEach(([x, y, z]) => {
-						          const stadiumLight = new THREE.PointLight(0xeaf7ff, 0.34, 170, 1.55);
+						          const stadiumLight = new THREE.PointLight(0xeaf7ff, 0.42, 190, 1.45);
 						          stadiumLight.position.set(x, y, z);
 						          stadiumLight.userData = { kind: 'pitch_3d_professional_stadium_light_volume' };
 						          pitch3dScene.add(stadiumLight);
@@ -9473,29 +9475,31 @@
 							        pitch3dOrbit.radius = Math.max(70, Math.max(metersW, metersH) * 1.25);
 						      } else if (k === 'reference_photo') {
 						        // Vista calibrada contra la foto de referencia: esquina alta, grada principal y banquillos visibles.
-							        pitch3dCamera.fov = 42;
-							        pitch3dOrbit.theta = -2.54;
-							        pitch3dOrbit.phi = 1.04;
-							        pitch3dOrbit.radius = Math.max(138, metersW * 1.28);
-							        targetX = -4.5;
-							        targetY = 7.9;
-							        targetZ = 4.8;
+						        pitch3dCamera.fov = 40;
+						        pitch3dOrbit.theta = -2.46;
+						        pitch3dOrbit.phi = 1.02;
+						        pitch3dOrbit.radius = Math.max(146, metersW * 1.36);
+						        targetX = -6.8;
+						        targetY = 8.8;
+						        targetZ = 6.2;
 						      } else if (k === 'render_original') {
 						        // Vista de referencia: esquina alta, menos recorte lateral y lectura completa del estadio.
-							        pitch3dOrbit.theta = -2.36;
-							        pitch3dOrbit.phi = 1.02;
-							        pitch3dOrbit.radius = Math.max(124, metersW * 1.13);
-							        targetX = 0.2;
-							        targetY = 8.6;
-							        targetZ = 0.4;
+						        pitch3dCamera.fov = 41;
+						        pitch3dOrbit.theta = -2.32;
+						        pitch3dOrbit.phi = 1.01;
+						        pitch3dOrbit.radius = Math.max(132, metersW * 1.22);
+						        targetX = -1.4;
+						        targetY = 8.7;
+						        targetZ = 1.6;
 						      } else if (k === 'clean_pitch_render') {
-							        // Composición de campo limpio: esquina alta y campo completo.
-							        pitch3dOrbit.theta = -2.26;
-							        pitch3dOrbit.phi = 1.18;
-							        pitch3dOrbit.radius = Math.max(112, metersW * 1.05);
-							        targetX = 1;
-							        targetY = 4.2;
-							        targetZ = -3;
+						        // Composición de campo limpio: esquina alta y campo completo.
+						        pitch3dCamera.fov = 43;
+						        pitch3dOrbit.theta = -2.28;
+						        pitch3dOrbit.phi = 1.14;
+						        pitch3dOrbit.radius = Math.max(118, metersW * 1.10);
+						        targetX = 0.5;
+						        targetY = 5.4;
+						        targetZ = -2.8;
 						      } else if (k === 'task_focus') {
 						        const focus = pitch3dCanvasFocus(Number(metersW) || 105, Number(metersH) || 68);
 						        pitch3dCamera.fov = 40;

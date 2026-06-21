@@ -97,11 +97,11 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.12;
+  renderer.toneMappingExposure = 1.16;
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xaed4fb);
-  scene.fog = new THREE.Fog(0x9fc6f0, 180, 360);
+  scene.background = new THREE.Color(0xaed6f3);
+  scene.fog = new THREE.Fog(0xa3cdef, 190, 420);
 
   const camera = new THREE.PerspectiveCamera(42, 16 / 9, 0.1, 500);
   const root = new THREE.Group();
@@ -110,7 +110,7 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
   scene.add(dynamicRoot);
 
   const cameraPresets = {
-    broadcast: { theta: -0.22, phi: 0.92, radius: 116, targetX: 0, targetZ: 0 },
+    broadcast: { theta: -0.64, phi: 1.02, radius: 134, targetX: -2, targetZ: 2 },
     tactic: { theta: 0.02, phi: 0.48, radius: 84, targetX: 0, targetZ: 0 },
     corner: { theta: -0.95, phi: 0.92, radius: 104, targetX: 10, targetZ: -4 },
     goal: { theta: Math.PI, phi: 0.76, radius: 74, targetX: 0, targetZ: 18 },
@@ -118,7 +118,7 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
     tunnel: { theta: -1.55, phi: 1.08, radius: 88, targetX: -12, targetZ: 0 },
     analyst: { theta: -0.72, phi: 1.18, radius: 88, targetX: -3, targetZ: 6 },
     coach: { theta: -0.9, phi: 1.18, radius: 80, targetX: -6, targetZ: 10 },
-    rosaleda: { theta: -0.92, phi: 0.98, radius: 108, targetX: -2, targetZ: 2 },
+    rosaleda: { theta: -0.82, phi: 1.01, radius: 128, targetX: -5, targetZ: 4 },
   };
   const orbit = { ...cameraPresets.broadcast };
   let currentPreset = 'broadcast';
@@ -422,11 +422,11 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
   };
   drawPitchMarkings();
 
-  const ambient = new THREE.HemisphereLight(0xf5fbff, 0x44643a, 1.9);
+  const ambient = new THREE.HemisphereLight(0xf8fcff, 0x3d5a3f, 2.2);
   scene.add(ambient);
 
-  const dirLight = new THREE.DirectionalLight(0xfffaf0, 2.3);
-  dirLight.position.set(-58, 88, 28);
+  const dirLight = new THREE.DirectionalLight(0xfffaf0, 2.9);
+  dirLight.position.set(-72, 102, 20);
   dirLight.castShadow = true;
   dirLight.shadow.mapSize.set(2048, 2048);
   dirLight.shadow.camera.left = -110;
@@ -436,12 +436,12 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
   dirLight.shadow.bias = -0.00015;
   scene.add(dirLight);
 
-  const rimLight = new THREE.DirectionalLight(0x9fd4ff, 0.62);
-  rimLight.position.set(40, 34, -26);
+  const rimLight = new THREE.DirectionalLight(0xb7dbff, 0.92);
+  rimLight.position.set(58, 42, -38);
   scene.add(rimLight);
 
-  const floodLight = new THREE.PointLight(0xeaf6ff, 0.72, 260, 2);
-  floodLight.position.set(0, 52, 0);
+  const floodLight = new THREE.PointLight(0xeaf6ff, 0.84, 300, 1.9);
+  floodLight.position.set(0, 58, 0);
   scene.add(floodLight);
 
   const sunShadow = new THREE.Mesh(
@@ -705,8 +705,8 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
             const center = new THREE.Vector3();
             box.getSize(size);
             box.getCenter(center);
-            const scaleX = (stateMeta.fieldWidth * 1.9) / Math.max(size.x || 1, 1);
-            const scaleZ = (stateMeta.fieldHeight * 1.85) / Math.max(size.z || 1, 1);
+            const scaleX = (stateMeta.fieldWidth * 2.12) / Math.max(size.x || 1, 1);
+            const scaleZ = (stateMeta.fieldHeight * 2.04) / Math.max(size.z || 1, 1);
             const scale = Math.min(scaleX, scaleZ);
             group.position.sub(center);
             group.scale.setScalar(scale);
