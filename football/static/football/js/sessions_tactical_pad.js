@@ -1963,6 +1963,7 @@
 			              '    </div>',
 			              '    <div class="sim-3d-body">',
 			              '      <canvas class="sim-3d-canvas" id="task-pitch-3d-canvas"></canvas>',
+			              '      <div class="sim-3d-fallback" id="task-pitch-3d-fallback" hidden style="position:absolute; inset:0; display:none; align-items:center; justify-content:center; padding:1rem; text-align:center; color:#e5eef6; background:rgba(6,12,20,0.24); font-weight:600; pointer-events:none;"></div>',
 			              '      <div class="pitch3d-hud" id="task-pitch-3d-hud">',
 			              '        <div class="hud-left">',
 			              '          <div class="pitch3d-step" id="task-pitch-3d-step">',
@@ -2114,6 +2115,7 @@
 			    let pitch3dStepMetaEl = document.getElementById('task-pitch-3d-step-meta');
 			    let pitch3dPrevBtn = document.getElementById('task-pitch-3d-prev');
 			    let pitch3dNextBtn = document.getElementById('task-pitch-3d-next');
+			    let pitch3dFallbackEl = document.getElementById('task-pitch-3d-fallback');
 			    const pitch3dTokenKinds = new Set(['player_local', 'player_rival', 'player_away', 'goalkeeper_local', 'goalkeeper_rival']);
 			    const labelForPitch3dInsert = (kind) => {
 			      const raw = RESOURCE_LABELS[kind] || kind;
@@ -9277,6 +9279,73 @@
 						      } catch (e) { /* ignore */ }
 						      pitch3dRoot = null;
 						    };
+						    const hidePitch3dFallback = () => {
+						      try {
+						        if (pitch3dFallbackEl) {
+						          pitch3dFallbackEl.hidden = true;
+						          pitch3dFallbackEl.style.display = 'none';
+						          pitch3dFallbackEl.textContent = '';
+						        }
+						      } catch (e) { /* ignore */ }
+						    };
+						    const drawPitch3dCanvasFallback = (message = '') => {
+						      try {
+						        if (!pitch3dCanvasEl) return false;
+						        const rect = pitch3dCanvasEl.getBoundingClientRect();
+						        const width = Math.max(960, Math.round(rect.width || 1280));
+						        const height = Math.max(540, Math.round(rect.height || 720));
+						        pitch3dCanvasEl.width = width;
+						        pitch3dCanvasEl.height = height;
+						        const ctx = pitch3dCanvasEl.getContext('2d');
+						        if (!ctx) return false;
+						        const bg = ctx.createLinearGradient(0, 0, 0, height);
+						        bg.addColorStop(0, '#a8d0ef');
+						        bg.addColorStop(1, '#d8eefb');
+						        ctx.fillStyle = bg;
+						        ctx.fillRect(0, 0, width, height);
+						        const margin = Math.round(Math.min(width, height) * 0.08);
+						        const fieldX = margin;
+						        const fieldY = Math.round(height * 0.16);
+						        const fieldW = width - margin * 2;
+						        const fieldH = height - fieldY - Math.round(height * 0.12);
+						        ctx.fillStyle = '#2d8d44';
+						        ctx.fillRect(fieldX, fieldY, fieldW, fieldH);
+						        for (let i = 0; i < 10; i += 1) {
+						          ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)';
+						          ctx.fillRect(fieldX + ((fieldW / 10) * i), fieldY, fieldW / 10, fieldH);
+						        }
+						        ctx.strokeStyle = 'rgba(255,255,255,0.88)';
+						        ctx.lineWidth = Math.max(2, Math.round(width / 420));
+						        ctx.strokeRect(fieldX, fieldY, fieldW, fieldH);
+						        ctx.beginPath();
+						        ctx.moveTo(fieldX + fieldW / 2, fieldY);
+						        ctx.lineTo(fieldX + fieldW / 2, fieldY + fieldH);
+						        ctx.stroke();
+						        ctx.beginPath();
+						        ctx.arc(fieldX + fieldW / 2, fieldY + fieldH / 2, Math.min(fieldW, fieldH) * 0.10, 0, Math.PI * 2);
+						        ctx.stroke();
+						        const boxW = fieldW * 0.16;
+						        const smallBoxW = fieldW * 0.07;
+						        const boxH = fieldH * 0.36;
+						        const smallBoxH = fieldH * 0.16;
+						        ctx.strokeRect(fieldX, fieldY + (fieldH - boxH) / 2, boxW, boxH);
+						        ctx.strokeRect(fieldX + fieldW - boxW, fieldY + (fieldH - boxH) / 2, boxW, boxH);
+						        ctx.strokeRect(fieldX, fieldY + (fieldH - smallBoxH) / 2, smallBoxW, smallBoxH);
+						        ctx.strokeRect(fieldX + fieldW - smallBoxW, fieldY + (fieldH - smallBoxH) / 2, smallBoxW, smallBoxH);
+						        ctx.fillStyle = '#0f1d2b';
+						        ctx.font = `${Math.max(14, Math.round(width / 52))}px Arial`;
+						        ctx.textAlign = 'center';
+						        ctx.fillText('Vista 3D no disponible en este entorno. Se muestra una previsualización del campo.', width / 2, Math.round(height * 0.08));
+						        if (pitch3dFallbackEl) {
+						          pitch3dFallbackEl.hidden = false;
+						          pitch3dFallbackEl.style.display = 'flex';
+						          pitch3dFallbackEl.textContent = safeText(message, 'Render 3D no disponible');
+						        }
+						        return true;
+						      } catch (e) {
+						        return false;
+						      }
+						    };
 
 						    const ensurePitch3d = () => {
 						      if (!canUsePitch3d()) return false;
@@ -15078,14 +15147,17 @@
 							        setStatus('Vista 3D no disponible en este dispositivo/navegador.', true);
 							        return;
 							      }
-							      if (!ensurePitch3d()) {
-							        setStatus('No se pudo inicializar la Vista 3D.', true);
-							        return;
-							      }
 							      pitch3dOpen = true;
 							      pitch3dModal.hidden = false;
 							      try { pitch3dModal.style.display = ''; } catch (e) { /* ignore */ }
 							      try { window.__WEBSTATS_PITCH3D_OPEN = true; } catch (e) { /* ignore */ }
+							      try { hidePitch3dFallback(); } catch (e) { /* ignore */ }
+							      try { resizePitch3d(); } catch (e) { /* ignore */ }
+							      if (!ensurePitch3d()) {
+							        try { drawPitch3dCanvasFallback('No se ha podido inicializar la vista 3D.'); } catch (e) { /* ignore */ }
+							        setStatus('No se pudo inicializar la Vista 3D.', true);
+							        return;
+							      }
 							      setPitch3dPresentation(false);
 							      pitch3dGhostsEnabled = pitch3dLayerGhostsInput ? !!pitch3dLayerGhostsInput.checked : pitch3dGhostsEnabled;
 							      pitch3dTrailsEnabled = pitch3dLayerTrailsInput ? !!pitch3dLayerTrailsInput.checked : pitch3dTrailsEnabled;
@@ -15093,6 +15165,7 @@
 							      try { syncPitch3dLayersUi(); } catch (e) { /* ignore */ }
 							      try { syncPitch3dInsertUi(); } catch (e) { /* ignore */ }
 							      try { syncPitch3dQualityUi(); } catch (e) { /* ignore */ }
+							      try { hidePitch3dFallback(); } catch (e) { /* ignore */ }
 							      try { resizePitch3d(); } catch (e) { /* ignore */ }
 							      try { applyPitch3dLightingTheme(); } catch (e) { /* ignore */ }
 							      stopPitch3dPlayback();
@@ -15117,6 +15190,7 @@
 						        try { window.cancelAnimationFrame(pitch3dAnimFrame); } catch (e) { /* ignore */ }
 						        pitch3dAnimFrame = null;
 						      }
+						      try { hidePitch3dFallback(); } catch (e) { /* ignore */ }
 						      if (pitch3dModal) pitch3dModal.hidden = true;
 						    };
 
