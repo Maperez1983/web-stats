@@ -754,6 +754,54 @@ class SystemGuardTests(TestCase):
         self.assertTrue(operator['recommended_fix'])
         self.assertTrue(operator['next_actions'])
 
+    @patch.dict(os.environ, {'APP_PUBLIC_BASE_URL': 'https://app.example.com', 'RENDER_EXTERNAL_HOSTNAME': 'app.example.com'}, clear=False)
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': True,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    def test_external_connectors_snapshot_reports_core_channels(self, _llm):
+        snapshot = system_guard._external_connectors_snapshot(page_context={
+            'page': 'dashboard-home',
+            'workspace_id': self.workspace.id,
+            'team_id': self.team.id,
+        })
+        self.assertTrue(snapshot['ready'])
+        self.assertGreaterEqual(snapshot['connected_count'], 4)
+        items = {row['key']: row for row in snapshot['items']}
+        self.assertEqual(items['public_app']['status'], 'configured')
+        self.assertEqual(items['local_llm']['status'], 'enabled')
+        self.assertEqual(items['repository']['status'], 'connected')
+        self.assertEqual(items['workspace_context']['status'], 'bound')
+
+    def test_safe_command_executor_snapshot_respects_code_permissions(self):
+        snapshot = system_guard._safe_command_executor_snapshot(page_context={
+            'page': 'dashboard-home',
+            'can_manage_guard': False,
+            'can_operate_guard_code': False,
+        })
+        commands = {row['key']: row for row in snapshot['commands']}
+        self.assertTrue(commands['check_status']['allowed'])
+        self.assertFalse(commands['inspect_repo_status']['allowed'])
+        self.assertFalse(commands['git_push']['allowed'])
+        self.assertGreaterEqual(snapshot['silent_allowed_count'], 3)
+
+    def test_autonomy_policy_snapshot_splits_silent_confirmed_and_reserved_actions(self):
+        policy = system_guard._autonomy_policy_snapshot(
+            page_context={'page': 'ai-trainer', 'can_manage_guard': True, 'can_operate_guard_code': False},
+            planner={'confirm_required': True, 'task': {'scope': 'code'}},
+            assistant_action={'kind': 'code_intervention_request'},
+            technical_operation={'authorized_for_publish': False},
+            technical_execution={'publish_ready': True},
+        )
+        self.assertEqual(policy['mode'], 'technical_operator')
+        self.assertIn('check_status', policy['silent_actions'])
+        self.assertIn('git_push', policy['confirmation_actions'])
+        self.assertIn('repair_code', policy['reserved_actions'])
+        self.assertFalse(policy['can_self_execute_code'])
+
     @patch.dict(os.environ, {'APP_PUBLIC_BASE_URL': 'https://app.example.com'}, clear=False)
     @patch('football.system_guard.urllib.request.urlopen')
     def test_inspect_public_deployment_checks_healthz_and_base(self, mock_urlopen):
@@ -1645,20 +1693,35 @@ class SystemGuardTests(TestCase):
         self.assertIn(response['deployment_guard']['status'], {'pre_deploy_check', 'pending_release_window', 'deployment_verified', 'release_window_open', 'deployment_risk'})
         self.assertTrue(response['self_healing']['embedded'])
         self.assertIn(response['self_healing']['strategy'], {'catalog_autofix_replay', 'memory_guided_repair', 'repeated_incident_repair'})
+        connector_items = {row['key']: row for row in response['external_connectors']['items']}
+        self.assertEqual(connector_items['repository']['status'], 'connected')
+        self.assertEqual(connector_items['workspace_context']['status'], 'bound')
+        self.assertGreaterEqual(response['safe_command_executor']['allowed_count'], 4)
+        self.assertEqual(response['autonomy_policy']['mode'], 'technical_operator')
+        self.assertIn('git_push', response['autonomy_policy']['confirmation_actions'])
         self.assertEqual(response['request_contract']['interaction_mode'], 'technical_operator')
         self.assertEqual(response['request_contract']['execution_mode'], 'code_execution')
+        self.assertEqual(response['request_contract']['autonomy_policy_mode'], 'technical_operator')
         self.assertTrue(response['intelligence_os']['layers']['execution']['execution_plan']['stages'])
         self.assertEqual(response['intelligence_os']['layers']['execution']['repair_commander']['status'], 'publish_ready')
         self.assertTrue(response['intelligence_os']['layers']['execution']['repository_operator']['execution_ready'])
         self.assertTrue(response['intelligence_os']['layers']['execution']['release_guard']['verification_ready'])
         self.assertTrue(response['intelligence_os']['layers']['execution']['deployment_guard']['embedded'])
         self.assertTrue(response['intelligence_os']['layers']['execution']['self_healing']['embedded'])
+        self.assertEqual(
+            {row['key']: row for row in response['intelligence_os']['layers']['execution']['external_connectors']['items']}['repository']['status'],
+            'connected',
+        )
+        self.assertGreaterEqual(response['intelligence_os']['layers']['execution']['safe_command_executor']['allowed_count'], 4)
         self.assertTrue(response['intelligence_os']['layers']['supervision']['code_operator']['embedded'])
         self.assertTrue(response['intelligence_os']['layers']['supervision']['code_operator']['enabled'])
         self.assertTrue(response['intelligence_os']['layers']['supervision']['code_operator']['candidate_files'])
         self.assertTrue(response['intelligence_os']['layers']['supervision']['autonomy_controller']['embedded'])
+        self.assertEqual(response['intelligence_os']['layers']['supervision']['autonomy_policy']['mode'], 'technical_operator')
         self.assertEqual(response['intelligence_os']['layers']['supervision']['repair_readiness'], 'publish_ready')
         self.assertTrue(response['intelligence_os']['layers']['supervision']['repository_execution_ready'])
+        self.assertFalse(response['intelligence_os']['layers']['supervision']['external_connectors_ready'])
+        self.assertGreaterEqual(response['intelligence_os']['layers']['supervision']['safe_executor_allowed_count'], 4)
         self.assertIn(response['intelligence_os']['layers']['supervision']['release_status'], {'ready_for_release_check', 'published_verified', 'monitoring', 'regression_detected'})
         self.assertIn(response['intelligence_os']['layers']['supervision']['deployment_status'], {'pre_deploy_check', 'pending_release_window', 'deployment_verified', 'release_window_open', 'deployment_risk'})
         self.assertTrue(response['intelligence_os']['layers']['supervision']['self_healing_ready'])

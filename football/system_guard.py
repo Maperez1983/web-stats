@@ -566,6 +566,105 @@ OLLANA_ACTION_SURFACES = {
     "system": ["inspect_system", "monitor_incidents"],
     "code": ["inspect_repo", "validate_changes", "repair_code", "publish_changes"],
 }
+EXTERNAL_CONNECTOR_CATALOG = {
+    "public_app": {
+        "label": "Aplicación pública",
+        "kind": "deployment",
+        "description": "Verifica la URL pública y el healthz del sistema desplegado.",
+    },
+    "render_runtime": {
+        "label": "Runtime Render",
+        "kind": "deployment",
+        "description": "Lee host y variables de despliegue para vigilar el entorno remoto.",
+    },
+    "local_llm": {
+        "label": "Modelo local",
+        "kind": "ai",
+        "description": "Consulta si el proveedor local de Ollana está configurado y operativo.",
+    },
+    "repository": {
+        "label": "Repositorio",
+        "kind": "code",
+        "description": "Acceso al árbol Git local para inspección, validación y publicación.",
+    },
+    "workspace_context": {
+        "label": "Contexto de workspace",
+        "kind": "business",
+        "description": "Identifica workspace, equipo y pantalla para actuar con contexto.",
+    },
+}
+SAFE_COMMAND_CATALOG = {
+    "check_status": {
+        "label": "Revisar estado base",
+        "tool": "check_status",
+        "scope": "system",
+        "permission_action": "inspect_system",
+        "silent_allowed": True,
+    },
+    "inspect_recent_errors": {
+        "label": "Leer errores recientes",
+        "tool": "inspect_recent_errors",
+        "scope": "system",
+        "permission_action": "inspect_system",
+        "silent_allowed": True,
+    },
+    "check_critical_routes": {
+        "label": "Comprobar rutas críticas",
+        "tool": "check_critical_routes",
+        "scope": "system",
+        "permission_action": "inspect_system",
+        "silent_allowed": True,
+    },
+    "inspect_runtime_config": {
+        "label": "Inspeccionar runtime",
+        "tool": "inspect_runtime_config",
+        "scope": "system",
+        "permission_action": "inspect_system",
+        "silent_allowed": True,
+    },
+    "inspect_public_deployment": {
+        "label": "Verificar despliegue público",
+        "tool": "inspect_public_deployment",
+        "scope": "deployment",
+        "permission_action": "monitor_incidents",
+        "silent_allowed": True,
+    },
+    "inspect_repo_status": {
+        "label": "Inspeccionar repositorio",
+        "tool": "inspect_repo_status",
+        "scope": "code",
+        "permission_action": "inspect_repo",
+        "silent_allowed": False,
+    },
+    "run_operator_validation": {
+        "label": "Validar operador",
+        "tool": "run_operator_validation",
+        "scope": "code",
+        "permission_action": "validate_changes",
+        "silent_allowed": False,
+    },
+    "auto_fix": {
+        "label": "Aplicar autofix seguro",
+        "tool": "auto_fix",
+        "scope": "code",
+        "permission_action": "repair_code",
+        "silent_allowed": False,
+    },
+    "git_commit": {
+        "label": "Crear commit",
+        "tool": "git_commit",
+        "scope": "publish",
+        "permission_action": "publish_changes",
+        "silent_allowed": False,
+    },
+    "git_push": {
+        "label": "Hacer push",
+        "tool": "git_push",
+        "scope": "publish",
+        "permission_action": "publish_changes",
+        "silent_allowed": False,
+    },
+}
 KNOWN_FIXES = {
     "DisallowedHost": {
         "title": "Corregir `DisallowedHost`",
@@ -3269,6 +3368,13 @@ def _ollana_maturity_snapshot(*, page_context=None, assistant_action=None, techn
     release_guard = release_guard if isinstance(release_guard, dict) else {}
     deployment_guard = deployment_guard if isinstance(deployment_guard, dict) else {}
     self_healing = self_healing if isinstance(self_healing, dict) else {}
+    connectors = _external_connectors_snapshot(page_context=page_context)
+    command_executor = _safe_command_executor_snapshot(page_context=page_context)
+    autonomy_policy = _autonomy_policy_snapshot(
+        page_context=page_context,
+        assistant_action=assistant_action,
+        technical_execution=technical_execution,
+    )
     scores = {
         "system_brain": 18,
         "silent_operator": 16 if bool(silent_operator.get("continuous_enabled")) else 10,
@@ -3284,6 +3390,9 @@ def _ollana_maturity_snapshot(*, page_context=None, assistant_action=None, techn
         "release_guard": 8 if bool(release_guard.get("embedded")) and bool(release_guard.get("verification_ready")) else 4,
         "deployment_guard": 8 if bool(deployment_guard.get("embedded")) and bool(deployment_guard.get("verification_window")) else 4,
         "self_healing": 8 if bool(self_healing.get("embedded")) and bool(self_healing.get("ready")) else 4,
+        "external_connectors": 8 if bool(connectors.get("ready")) else 4,
+        "safe_command_executor": 8 if _safe_int(command_executor.get("allowed_count"), 0) >= 4 else 4,
+        "autonomy_policy": 8 if bool(autonomy_policy.get("embedded")) and not autonomy_policy.get("requires_confirmation") else 5,
     }
     achieved = sum(scores.values())
     percent = max(1, min(100, achieved))
@@ -3335,7 +3444,7 @@ def _incident_commander_snapshot(*, page_context=None, assistant_action=None, te
     }
 
 
-def _autonomy_controller_snapshot(*, planner=None, assistant_action=None, technical_execution=None, autofix_runner=None, silent_operator=None) -> dict:
+def _autonomy_controller_snapshot(*, page_context=None, planner=None, assistant_action=None, technical_execution=None, autofix_runner=None, silent_operator=None) -> dict:
     planner = planner if isinstance(planner, dict) else {}
     assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
     technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
@@ -3365,6 +3474,12 @@ def _autonomy_controller_snapshot(*, planner=None, assistant_action=None, techni
         closure_plan.append("Preparar autofix o parche exacto antes de publicar.")
     if not closure_plan:
         closure_plan.append("Esperar una instrucción adicional o nuevo contexto operativo.")
+    policy = _autonomy_policy_snapshot(
+        page_context=page_context,
+        planner=planner,
+        assistant_action=assistant_action,
+        technical_execution=technical_execution,
+    )
     return {
         "embedded": True,
         "task_kind": str(task.get("kind") or "")[:32],
@@ -3373,6 +3488,7 @@ def _autonomy_controller_snapshot(*, planner=None, assistant_action=None, techni
         "ready_for_closed_loop": ready and not blockers,
         "blockers": blockers[:4],
         "closure_plan": closure_plan[:4],
+        "autonomy_policy_mode": str(policy.get("mode") or "")[:32],
     }
 
 
@@ -4616,17 +4732,144 @@ def _action_catalog_snapshot(*, page_context=None) -> dict:
     }
 
 
+def _external_connectors_snapshot(*, page_context=None) -> dict:
+    context = page_context if isinstance(page_context, dict) else {}
+    llm_cfg = local_llm_config()
+    public_base = str(os.getenv("APP_PUBLIC_BASE_URL") or "").strip()
+    render_host = str(os.getenv("RENDER_EXTERNAL_HOSTNAME") or "").strip()
+    workspace_id = _safe_int(context.get("workspace_id"), 0)
+    team_id = _safe_int(context.get("team_id"), 0)
+    repo_path = Path(settings.BASE_DIR)
+    items = []
+    for key, meta in EXTERNAL_CONNECTOR_CATALOG.items():
+        status = "available"
+        enabled = True
+        detail = ""
+        if key == "public_app":
+            enabled = bool(public_base or render_host)
+            status = "configured" if enabled else "missing"
+            detail = (public_base or (f"https://{render_host}" if render_host else ""))[:180]
+        elif key == "render_runtime":
+            enabled = bool(public_base or render_host)
+            status = "configured" if enabled else "missing"
+            detail = render_host[:180]
+        elif key == "local_llm":
+            enabled = bool(llm_cfg.get("enabled"))
+            provider = str(llm_cfg.get("provider") or "").strip()
+            status = "enabled" if enabled else "disabled"
+            detail = provider[:120]
+        elif key == "repository":
+            enabled = (repo_path / ".git").exists()
+            status = "connected" if enabled else "missing"
+            detail = str(repo_path)[:180]
+        elif key == "workspace_context":
+            enabled = bool(workspace_id or team_id or str(context.get("page") or "").strip())
+            status = "bound" if enabled else "context_missing"
+            detail = f"workspace:{workspace_id or '-'} team:{team_id or '-'} page:{str(context.get('page') or '-')[:80]}"
+        items.append({
+            "key": key,
+            "label": str(meta.get("label") or ""),
+            "kind": str(meta.get("kind") or ""),
+            "enabled": bool(enabled),
+            "status": status[:32],
+            "detail": detail,
+        })
+    connected = len([row for row in items if bool(row.get("enabled"))])
+    return {
+        "items": items,
+        "connected_count": connected,
+        "coverage": f"{connected}/{len(items)}",
+        "ready": connected >= 3,
+    }
+
+
+def _safe_command_executor_snapshot(*, page_context=None) -> dict:
+    permissions = _permission_profile(page_context=page_context)
+    commands = []
+    allowed_count = 0
+    silent_count = 0
+    for key, meta in SAFE_COMMAND_CATALOG.items():
+        auth = _authorize_guard_action(str(meta.get("permission_action") or "inspect_system"), page_context=page_context)
+        tool = str(meta.get("tool") or "")
+        tool_meta = TOOL_SCHEMAS.get(tool) or {}
+        allowed = bool(auth.get("allowed"))
+        if allowed:
+            allowed_count += 1
+        if allowed and bool(meta.get("silent_allowed")):
+            silent_count += 1
+        commands.append({
+            "key": key,
+            "label": str(meta.get("label") or ""),
+            "tool": tool,
+            "scope": str(meta.get("scope") or ""),
+            "allowed": allowed,
+            "silent_allowed": bool(meta.get("silent_allowed")) and allowed,
+            "confirmation_required": bool(tool_meta.get("confirmation_required")),
+            "risk": str(tool_meta.get("risk") or ""),
+        })
+    return {
+        "enabled": True,
+        "allowed_count": allowed_count,
+        "silent_allowed_count": silent_count,
+        "commands": commands,
+        "permissions": permissions,
+    }
+
+
+def _autonomy_policy_snapshot(*, page_context=None, planner=None, assistant_action=None, technical_operation=None, technical_execution=None) -> dict:
+    planner = planner if isinstance(planner, dict) else {}
+    assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
+    technical_operation = technical_operation if isinstance(technical_operation, dict) else {}
+    technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
+    silent_actions = []
+    if _authorize_guard_action("inspect_system", page_context=page_context).get("allowed"):
+        silent_actions.extend(["check_status", "inspect_recent_errors", "inspect_runtime_config"])
+    if _authorize_guard_action("monitor_incidents", page_context=page_context).get("allowed"):
+        silent_actions.extend(["check_critical_routes", "inspect_public_deployment"])
+    confirmation_actions = []
+    if bool(planner.get("confirm_required")) or bool(technical_execution.get("publish_ready")):
+        confirmation_actions.extend(["git_commit", "git_push"])
+    if bool(technical_operation.get("authorized_for_publish")):
+        confirmation_actions.extend(["publish_changes"])
+    reserved_actions = []
+    for action_key in ("repair_code", "publish_changes", "inspect_repo", "validate_changes"):
+        auth = _authorize_guard_action(action_key, page_context=page_context)
+        if not auth.get("allowed"):
+            reserved_actions.append(action_key)
+    mode = "silent_guard"
+    if assistant_action.get("kind") == "code_intervention_request" or str((planner.get("task") or {}).get("scope") or "") == "code":
+        mode = "technical_operator"
+    elif assistant_action.get("kind") in {"navigate_module", "guide_user"}:
+        mode = "guided_assistant"
+    return {
+        "embedded": True,
+        "mode": mode,
+        "silent_actions": sorted(set(silent_actions))[:6],
+        "confirmation_actions": sorted(set(confirmation_actions))[:4],
+        "reserved_actions": reserved_actions[:6],
+        "can_self_execute_code": bool(_authorize_guard_action("repair_code", page_context=page_context).get("allowed")),
+        "can_self_publish": bool(_authorize_guard_action("publish_changes", page_context=page_context).get("allowed")),
+        "requires_confirmation": bool(planner.get("confirm_required")),
+    }
+
+
 def _governance_snapshot(*, page_context=None, planner=None, technical_operation=None) -> dict:
     planner = planner if isinstance(planner, dict) else {}
     technical_operation = technical_operation if isinstance(technical_operation, dict) else {}
     permissions = _permission_profile(page_context=page_context)
     confirmation_required = bool(planner.get("confirm_required"))
+    autonomy_policy = _autonomy_policy_snapshot(
+        page_context=page_context,
+        planner=planner,
+        technical_operation=technical_operation,
+    )
     return {
         "permissions": permissions,
         "confirmation_required": confirmation_required,
         "publish_requires_confirmation": bool(technical_operation.get("publish_requires_confirmation")),
         "authorized_for_code": bool(technical_operation.get("authorized_for_code")),
         "authorized_for_publish": bool(technical_operation.get("authorized_for_publish")),
+        "autonomy_policy": autonomy_policy,
         "auditable": True,
     }
 
@@ -4670,12 +4913,20 @@ def _policy_decisions_snapshot(*, page_context=None, planner=None, assistant_act
         requested_action = "inspect_repo"
     requested_auth = _authorize_guard_action(requested_action, page_context=page_context)
     publish_auth = _authorize_guard_action("publish_changes", page_context=page_context)
+    autonomy_policy = _autonomy_policy_snapshot(
+        page_context=page_context,
+        planner=planner,
+        assistant_action=assistant_action,
+        technical_operation=technical_operation,
+    )
     return {
         "requested_action": requested_action,
         "requested_action_allowed": bool(requested_auth.get("allowed")),
         "requested_action_reasons": list(requested_auth.get("reasons") or []),
         "publish_allowed": bool(publish_auth.get("allowed")),
         "confirm_required": bool(planner.get("confirm_required")),
+        "autonomy_mode": str(autonomy_policy.get("mode") or "")[:32],
+        "reserved_actions": list(autonomy_policy.get("reserved_actions") or [])[:6],
     }
 
 
@@ -4823,6 +5074,13 @@ def _build_request_contract(
     if str(technical_execution.get("status") or "") == "blocked":
         blockers.append("technical_block")
     next_step = ""
+    autonomy_policy = _autonomy_policy_snapshot(
+        page_context=page_context,
+        planner=planner,
+        assistant_action=assistant_action,
+        technical_operation=technical_operation,
+        technical_execution=technical_execution,
+    )
     if repair_commander.get("next_actions"):
         next_step = str((repair_commander.get("next_actions") or [""])[0] or "")
     elif technical_execution.get("next_step"):
@@ -4853,8 +5111,11 @@ def _build_request_contract(
         "blockers": blockers[:4],
         "next_step": next_step[:220],
         "allowed_to_publish": bool(technical_execution.get("publish_ready")),
+        "autonomy_policy_mode": str(autonomy_policy.get("mode") or "")[:32],
+        "silent_actions": list(autonomy_policy.get("silent_actions") or [])[:5],
+        "confirmation_actions": list(autonomy_policy.get("confirmation_actions") or [])[:4],
         "guardrails": guardrails[:4],
-}
+    }
 
 
 def _build_publish_commander(*, planner=None, assistant_action=None, technical_execution=None, executed_tools=None, page_context=None) -> dict:
@@ -5780,6 +6041,15 @@ def _build_intelligence_os_snapshot(
     silent_operator = silent_operator if isinstance(silent_operator, dict) else {}
     improvement_proposals = improvement_proposals if isinstance(improvement_proposals, list) else []
     snapshot_diff = snapshot_diff if isinstance(snapshot_diff, dict) else {}
+    external_connectors = _external_connectors_snapshot(page_context=page_context)
+    safe_command_executor = _safe_command_executor_snapshot(page_context=page_context)
+    autonomy_policy = _autonomy_policy_snapshot(
+        page_context=page_context,
+        planner=planner,
+        assistant_action=assistant_action,
+        technical_operation=technical_operation,
+        technical_execution=technical_execution,
+    )
     return {
         "version": OLLANA_SYSTEM_OS_VERSION,
         "layers": {
@@ -5849,6 +6119,8 @@ def _build_intelligence_os_snapshot(
             "execution": {
                 "surface": _execution_surface_snapshot(page_context=page_context),
                 "action_catalog": _action_catalog_snapshot(page_context=page_context),
+                "external_connectors": external_connectors,
+                "safe_command_executor": safe_command_executor,
                 "action_executor": _action_executor_snapshot(
                     assistant_action=assistant_action,
                     planner=planner,
@@ -5875,12 +6147,14 @@ def _build_intelligence_os_snapshot(
             "supervision": {
                 "silent_operator": silent_operator,
                 "autonomy_controller": _autonomy_controller_snapshot(
+                    page_context=page_context,
                     planner=planner,
                     assistant_action=assistant_action,
                     technical_execution=technical_execution,
                     autofix_runner=autofix_runner,
                     silent_operator=silent_operator,
                 ),
+                "autonomy_policy": autonomy_policy,
                 "code_operator": _code_operator_snapshot(
                     code_operator_mode=code_operator_mode,
                     technical_operation=technical_operation,
@@ -5897,6 +6171,8 @@ def _build_intelligence_os_snapshot(
                 "release_status": str(release_guard.get("status") or "")[:32],
                 "deployment_status": str(deployment_guard.get("status") or "")[:32],
                 "self_healing_ready": bool(self_healing.get("ready")),
+                "external_connectors_ready": bool(external_connectors.get("ready")),
+                "safe_executor_allowed_count": _safe_int(safe_command_executor.get("allowed_count"), 0),
             },
             "user_copilot": _user_copilot_snapshot(
                 page_context=page_context,
@@ -7588,6 +7864,13 @@ def _build_silent_operator_state(workspace, *, response=None, actor_id=None) -> 
     recurring = [row for row in (profile.get("recurring_intents") or []) if isinstance(row, dict)]
     if recurring:
         top_intent = str(recurring[0].get("intent") or "")[:64]
+    autonomy_policy = _autonomy_policy_snapshot(
+        page_context={},
+        planner=(response or {}).get("planner") if isinstance((response or {}).get("planner"), dict) else {},
+        assistant_action=(response or {}).get("assistant_action") if isinstance((response or {}).get("assistant_action"), dict) else {},
+        technical_operation=(response or {}).get("technical_operation") if isinstance((response or {}).get("technical_operation"), dict) else {},
+        technical_execution=(response or {}).get("technical_operation_execution") if isinstance((response or {}).get("technical_operation_execution"), dict) else {},
+    )
     return {
         "enabled": True,
         "continuous_enabled": True,
@@ -7600,6 +7883,7 @@ def _build_silent_operator_state(workspace, *, response=None, actor_id=None) -> 
         "top_intent": top_intent,
         "suggested_actions": suggested[:3],
         "publish_ready": bool(((response or {}).get("technical_operation_execution") or {}).get("publish_ready")),
+        "silent_actions": list(autonomy_policy.get("silent_actions") or [])[:5],
     }
 
 
@@ -7784,6 +8068,15 @@ def run_system_guard_chat(
         repository_operator=repository_operator if isinstance(repository_operator, dict) else {},
         snapshot_diff=snapshot_diff,
     )
+    external_connectors = _external_connectors_snapshot(page_context=page_context)
+    safe_command_executor = _safe_command_executor_snapshot(page_context=page_context)
+    autonomy_policy = _autonomy_policy_snapshot(
+        page_context=page_context,
+        planner=planner,
+        assistant_action=assistant_action if isinstance(assistant_action, dict) else {},
+        technical_operation=technical_operation if isinstance(technical_operation, dict) else {},
+        technical_execution=technical_execution if isinstance(technical_execution, dict) else {},
+    )
     fallback["snapshot_diff"] = snapshot_diff
     fallback["remediation"] = _build_remediation_plan(report, executed_tools or [], snapshot_diff=snapshot_diff)
     fallback["assistant_action"] = assistant_action if isinstance(assistant_action, dict) else {}
@@ -7801,6 +8094,9 @@ def run_system_guard_chat(
     fallback["release_guard"] = release_guard if isinstance(release_guard, dict) else {}
     fallback["deployment_guard"] = deployment_guard if isinstance(deployment_guard, dict) else {}
     fallback["self_healing"] = self_healing if isinstance(self_healing, dict) else {}
+    fallback["external_connectors"] = external_connectors
+    fallback["safe_command_executor"] = safe_command_executor
+    fallback["autonomy_policy"] = autonomy_policy
     fallback["request_contract"] = _build_request_contract(
         question,
         planner=planner,
@@ -7977,6 +8273,9 @@ def run_system_guard_chat(
     response["release_guard"] = response.get("release_guard") or release_guard
     response["deployment_guard"] = response.get("deployment_guard") or deployment_guard
     response["self_healing"] = response.get("self_healing") or self_healing
+    response["external_connectors"] = response.get("external_connectors") or external_connectors
+    response["safe_command_executor"] = response.get("safe_command_executor") or safe_command_executor
+    response["autonomy_policy"] = response.get("autonomy_policy") or autonomy_policy
     response["request_contract"] = response.get("request_contract") or fallback.get("request_contract") or _build_request_contract(
         question,
         planner=planner,
