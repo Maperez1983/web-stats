@@ -392,6 +392,7 @@ INCIDENT_LEDGER_PREF_KEY = "system_guard:incident_ledger:v1"
 OPERATOR_PROFILE_PREF_KEY = "system_guard:operator_profile:v1"
 OBJECTIVE_MEMORY_PREF_KEY = "system_guard:objective_memory:v1"
 SCHEDULED_GUARD_INTERVAL_SECONDS = 300
+AUTONOMOUS_BACKLOG_MAX_TASKS = 3
 ACTION_PERMISSION_MATRIX = {
     "inspect_system": {"requires_manage_guard": False, "requires_code_operator": False, "scope": "system"},
     "guide_user": {"requires_manage_guard": False, "requires_code_operator": False, "scope": "user"},
@@ -412,6 +413,56 @@ ACTION_PERMISSION_MATRIX = {
     "inspect_repo": {"requires_manage_guard": True, "requires_code_operator": True, "scope": "code"},
     "validate_changes": {"requires_manage_guard": True, "requires_code_operator": True, "scope": "code"},
     "monitor_incidents": {"requires_manage_guard": True, "requires_code_operator": False, "scope": "system"},
+}
+SYSTEM_DOMAIN_PLAYBOOKS = {
+    "frontend_3d": {
+        "label": "Frontend 3D y experiencias visuales",
+        "keywords": ["3d", "estadio", "pitch3d", "canvas", "glb", "render", "visual"],
+        "files": [
+            "football/templates/football/task_builder.html",
+            "football/static/football/js/sessions_tactical_pad.js",
+            "football/templates/football/includes/global_guard_widget.html",
+        ],
+        "checks": ["run_operator_validation", "check_critical_routes"],
+    },
+    "guard_core": {
+        "label": "Núcleo Ollana / System Guard",
+        "keywords": ["ollana", "guard", "sistema", "autonomia", "autónoma", "operador"],
+        "files": [
+            "football/system_guard.py",
+            "football/views.py",
+            "football/templates/football/includes/global_guard_widget.html",
+        ],
+        "checks": ["check_status", "inspect_recent_errors", "run_operator_validation"],
+    },
+    "training_workflows": {
+        "label": "Flujos de entrenamiento y biblioteca",
+        "keywords": ["tarea", "sesion", "sesión", "microciclo", "biblioteca", "ia trainer"],
+        "files": [
+            "football/views.py",
+            "football/templates/football/task_builder.html",
+            "football/templates/football/includes/global_guard_widget.html",
+        ],
+        "checks": ["check_critical_routes", "run_operator_validation"],
+    },
+    "match_operations": {
+        "label": "Partido, convocatoria y rival",
+        "keywords": ["partido", "convocatoria", "rival", "once", "match"],
+        "files": [
+            "football/views.py",
+            "football/templates/football/dashboard.html",
+        ],
+        "checks": ["check_critical_routes", "inspect_recent_errors"],
+    },
+    "platform_runtime": {
+        "label": "Plataforma, despliegue y runtime",
+        "keywords": ["deploy", "rollback", "runtime", "logs", "infraestructura", "produccion", "producción"],
+        "files": [
+            "football/system_guard.py",
+            "football/views.py",
+        ],
+        "checks": ["inspect_public_deployment", "inspect_release_pipeline", "inspect_remote_logs"],
+    },
 }
 RUNBOOK_LIBRARY = {
     "user_navigation": {
@@ -1113,6 +1164,37 @@ def _build_task_profile(question: str, *, intent: str, maintenance_action: str =
         "runbook_key": runbook_key,
         "target_summary": _truncate(question, 220),
         "current_page": str((page_context or {}).get("page") or "").strip()[:120] if isinstance(page_context, dict) else "",
+    }
+
+
+def _domain_playbook_snapshot(question: str, *, page_context=None) -> dict:
+    text = str(question or "").strip().lower()
+    page = str((page_context or {}).get("page") or "").strip().lower() if isinstance(page_context, dict) else ""
+    rows = []
+    for key, meta in SYSTEM_DOMAIN_PLAYBOOKS.items():
+        score = 0
+        for keyword in meta.get("keywords") or []:
+            token = str(keyword or "").strip().lower()
+            if token and token in text:
+                score += 2
+            if token and token in page:
+                score += 1
+        if score <= 0 and key == "guard_core" and str((page_context or {}).get("can_operate_guard_code") or ""):
+            score = 1
+        if score <= 0:
+            continue
+        rows.append({
+            "key": key,
+            "label": str(meta.get("label") or key)[:120],
+            "score": score,
+            "files": [str(item)[:180] for item in (meta.get("files") or [])[:4]],
+            "checks": [str(item)[:64] for item in (meta.get("checks") or [])[:4]],
+        })
+    rows.sort(key=lambda item: (-_safe_int(item.get("score"), 0), str(item.get("key") or "")))
+    return {
+        "embedded": True,
+        "active_domain": (rows[0].get("key") if rows else "guard_core"),
+        "domains": rows[:4],
     }
 
 
@@ -2373,6 +2455,39 @@ def _execute_queued_task(workspace, task: dict) -> dict:
     return updated or task
 
 
+def _autonomous_task_is_allowed(task: dict, *, page_context=None) -> bool:
+    task = task if isinstance(task, dict) else {}
+    status = str(task.get("status") or "").strip().lower()
+    if status not in {"pending", "blocked"}:
+        return False
+    if not bool((_permission_profile(page_context=page_context).get("roles") or {}).get("admin_total_operator")):
+        return False
+    tools = [str(item) for item in (task.get("tools") or []) if str(item or "").strip()]
+    if not tools:
+        return False
+    if any(tool in {"git_commit", "git_push", "trigger_remote_deploy", "trigger_remote_rollback"} for tool in tools):
+        return _env_flag("OLLANA_ADMIN_AUTONOMY_ENABLE_RELEASES")
+    return True
+
+
+def _run_autonomous_backlog_cycle(*, workspace, page_context=None, max_tasks: int = AUTONOMOUS_BACKLOG_MAX_TASKS) -> dict:
+    if not workspace:
+        return {"enabled": False, "executed": []}
+    rows = _load_task_queue(workspace)
+    executed = []
+    for row in rows:
+        if len(executed) >= max(1, int(max_tasks or AUTONOMOUS_BACKLOG_MAX_TASKS)):
+            break
+        if not _autonomous_task_is_allowed(row, page_context=page_context):
+            continue
+        executed.append(_execute_queued_task(workspace, row))
+    return {
+        "enabled": bool((_permission_profile(page_context=page_context).get("roles") or {}).get("admin_total_operator")),
+        "executed_count": len(executed),
+        "executed": executed[:6],
+    }
+
+
 def run_proactive_guard_cycle(*, workspace, actor_id=None, allow_safe_repairs: bool = True, page_context=None) -> dict:
     if not workspace:
         return {"ok": False, "error": "workspace_required", "queue": []}
@@ -2414,6 +2529,8 @@ def run_proactive_guard_cycle(*, workspace, actor_id=None, allow_safe_repairs: b
         "last_detections": detections[:6],
         "last_improvements": improvements[:6],
     }
+    backlog_cycle = _run_autonomous_backlog_cycle(workspace=workspace, page_context=page_context)
+    state_payload["last_backlog_executed_count"] = _safe_int(backlog_cycle.get("executed_count"), 0)
     _store_proactive_state(workspace, state_payload)
     _append_audit_log(workspace, {
         "created_at": _now_iso(),
@@ -2437,6 +2554,7 @@ def run_proactive_guard_cycle(*, workspace, actor_id=None, allow_safe_repairs: b
         "queue": queue_rows[:20],
         "queue_counts": _task_state_counts(queue_rows),
         "state": state_payload,
+        "autonomous_backlog": backlog_cycle,
     }
 
 
@@ -2749,6 +2867,7 @@ def _permission_profile(page_context=None) -> dict:
     context = page_context if isinstance(page_context, dict) else {}
     can_manage = bool(context.get("can_manage_guard"))
     can_code = bool(context.get("can_operate_guard_code"))
+    is_admin = bool(context.get("is_admin_user"))
     policies = []
     for action_key, policy in ACTION_PERMISSION_MATRIX.items():
         requires_manage = bool(policy.get("requires_manage_guard"))
@@ -2765,6 +2884,8 @@ def _permission_profile(page_context=None) -> dict:
         "roles": {
             "can_manage_guard": can_manage,
             "can_operate_guard_code": can_code,
+            "is_admin_user": is_admin,
+            "admin_total_operator": bool(is_admin and can_manage and can_code),
         },
         "policies": policies,
     }
@@ -5265,6 +5386,7 @@ def _capability_snapshot(*, page_context=None) -> dict:
         "modes": dict(OLLANA_CAPABILITIES.get("modes") or {}),
         "skills": visible[:12],
         "permissions": permission_profile,
+        "admin_total_operator": bool((((permission_profile.get("roles") or {}).get("admin_total_operator")))),
     }
 
 
@@ -5424,13 +5546,17 @@ def _autonomy_policy_snapshot(*, page_context=None, planner=None, assistant_acti
         confirmation_actions.extend(["git_commit", "git_push"])
     if bool(technical_operation.get("authorized_for_publish")):
         confirmation_actions.extend(["publish_changes"])
+    roles = (_permission_profile(page_context=page_context).get("roles") or {})
+    admin_total_operator = bool(roles.get("admin_total_operator"))
     reserved_actions = []
     for action_key in ("repair_code", "publish_changes", "inspect_repo", "validate_changes"):
         auth = _authorize_guard_action(action_key, page_context=page_context)
         if not auth.get("allowed"):
             reserved_actions.append(action_key)
     mode = "silent_guard"
-    if assistant_action.get("kind") == "code_intervention_request" or str((planner.get("task") or {}).get("scope") or "") == "code":
+    if admin_total_operator and (assistant_action.get("kind") == "code_intervention_request" or str((planner.get("task") or {}).get("scope") or "") in {"code", "system"}):
+        mode = "owner_code_operator"
+    elif assistant_action.get("kind") == "code_intervention_request" or str((planner.get("task") or {}).get("scope") or "") == "code":
         mode = "technical_operator"
     elif assistant_action.get("kind") in {"navigate_module", "guide_user"}:
         mode = "guided_assistant"
@@ -5442,6 +5568,7 @@ def _autonomy_policy_snapshot(*, page_context=None, planner=None, assistant_acti
         "reserved_actions": reserved_actions[:6],
         "can_self_execute_code": bool(_authorize_guard_action("repair_code", page_context=page_context).get("allowed")),
         "can_self_publish": bool(_authorize_guard_action("publish_changes", page_context=page_context).get("allowed")),
+        "admin_total_operator": admin_total_operator,
         "requires_confirmation": bool(planner.get("confirm_required")),
     }
 
@@ -6127,6 +6254,34 @@ def _build_infrastructure_operator(*, external_connectors=None, deployment_guard
         "deployment_status": str(deployment_guard.get("status") or "")[:32],
         "continuous_mode": str(autonomy_policy.get("mode") or "") in {"technical_operator", "owner_code_operator"},
         "auto_rollback_eligible": bool(deployment_guard.get("auto_rollback_eligible")),
+    }
+
+
+def _build_admin_operator_console(
+    *,
+    page_context=None,
+    autonomy_policy=None,
+    objective_orchestrator=None,
+    infrastructure_operator=None,
+    domain_playbook=None,
+    autonomous_backlog=None,
+) -> dict:
+    roles = (_permission_profile(page_context=page_context).get("roles") or {})
+    autonomy_policy = autonomy_policy if isinstance(autonomy_policy, dict) else {}
+    objective_orchestrator = objective_orchestrator if isinstance(objective_orchestrator, dict) else {}
+    infrastructure_operator = infrastructure_operator if isinstance(infrastructure_operator, dict) else {}
+    domain_playbook = domain_playbook if isinstance(domain_playbook, dict) else {}
+    autonomous_backlog = autonomous_backlog if isinstance(autonomous_backlog, dict) else {}
+    return {
+        "embedded": True,
+        "enabled": bool(roles.get("admin_total_operator")),
+        "mode": str(autonomy_policy.get("mode") or "")[:32],
+        "can_operate_any_code_area": bool(roles.get("admin_total_operator")),
+        "can_run_autonomous_backlog": bool(roles.get("admin_total_operator")),
+        "active_domain": str(domain_playbook.get("active_domain") or "")[:64],
+        "armed_connectors": list(infrastructure_operator.get("armed_connectors") or [])[:6],
+        "objective_count": _safe_int(objective_orchestrator.get("active_count"), 0),
+        "backlog_executed_count": _safe_int(autonomous_backlog.get("executed_count"), 0),
     }
 
 
@@ -8948,6 +9103,16 @@ def run_system_guard_chat(
         autonomy_policy=autonomy_policy,
     )
     objective_orchestrator = _objective_orchestrator_snapshot(workspace, actor_id=actor_id)
+    domain_playbook = _domain_playbook_snapshot(question, page_context=page_context)
+    autonomous_backlog = _run_autonomous_backlog_cycle(workspace=workspace, page_context=page_context)
+    admin_operator_console = _build_admin_operator_console(
+        page_context=page_context,
+        autonomy_policy=autonomy_policy,
+        objective_orchestrator=objective_orchestrator,
+        infrastructure_operator=infrastructure_operator,
+        domain_playbook=domain_playbook,
+        autonomous_backlog=autonomous_backlog,
+    )
     autonomous_closure = _autonomous_closure_snapshot(
         planner=planner,
         technical_execution=technical_execution if isinstance(technical_execution, dict) else {},
@@ -8982,6 +9147,9 @@ def run_system_guard_chat(
     fallback["operational_memory"] = operational_memory
     fallback["infrastructure_operator"] = infrastructure_operator
     fallback["objective_orchestrator"] = objective_orchestrator
+    fallback["domain_playbook"] = domain_playbook
+    fallback["autonomous_backlog"] = autonomous_backlog
+    fallback["admin_operator_console"] = admin_operator_console
     fallback["autonomous_closure"] = autonomous_closure
     fallback["request_contract"] = _build_request_contract(
         question,
@@ -9066,6 +9234,8 @@ def run_system_guard_chat(
                 fallback["highlights"] = (fallback.get("highlights") or []) + ["Ollana ya ha aplicado un fix sobre código"]
         if isinstance(infrastructure_operator, dict) and infrastructure_operator.get("connector_count"):
             fallback["highlights"] = (fallback.get("highlights") or []) + [f"Infra operable: {infrastructure_operator.get('connector_count')} conectores"]
+        if isinstance(admin_operator_console, dict) and admin_operator_console.get("enabled"):
+            fallback["highlights"] = (fallback.get("highlights") or []) + ["Modo admin total activo para Ollana"]
         if isinstance(observability_mesh, dict) and observability_mesh.get("active_signals"):
             fallback["highlights"] = (fallback.get("highlights") or []) + [f"Observabilidad: {observability_mesh.get('active_signals')[0]}"]
         if isinstance(autonomous_closure, dict) and autonomous_closure.get("autonomous_resolution_ready"):
@@ -9181,6 +9351,9 @@ def run_system_guard_chat(
     response["operational_memory"] = response.get("operational_memory") or operational_memory
     response["infrastructure_operator"] = response.get("infrastructure_operator") or infrastructure_operator
     response["objective_orchestrator"] = response.get("objective_orchestrator") or objective_orchestrator
+    response["domain_playbook"] = response.get("domain_playbook") or domain_playbook
+    response["autonomous_backlog"] = response.get("autonomous_backlog") or autonomous_backlog
+    response["admin_operator_console"] = response.get("admin_operator_console") or admin_operator_console
     response["autonomous_closure"] = response.get("autonomous_closure") or autonomous_closure
     response["request_contract"] = response.get("request_contract") or fallback.get("request_contract") or _build_request_contract(
         question,

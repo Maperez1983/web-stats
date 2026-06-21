@@ -887,6 +887,15 @@ class SystemGuardTests(TestCase):
         self.assertFalse(commands['git_push']['allowed'])
         self.assertGreaterEqual(snapshot['silent_allowed_count'], 3)
 
+    def test_permission_profile_marks_admin_total_operator(self):
+        profile = system_guard._permission_profile(page_context={
+            'is_admin_user': True,
+            'can_manage_guard': True,
+            'can_operate_guard_code': True,
+        })
+        self.assertTrue(profile['roles']['is_admin_user'])
+        self.assertTrue(profile['roles']['admin_total_operator'])
+
     def test_autonomy_policy_snapshot_splits_silent_confirmed_and_reserved_actions(self):
         policy = system_guard._autonomy_policy_snapshot(
             page_context={'page': 'ai-trainer', 'can_manage_guard': True, 'can_operate_guard_code': False},
@@ -900,6 +909,26 @@ class SystemGuardTests(TestCase):
         self.assertIn('git_push', policy['confirmation_actions'])
         self.assertIn('repair_code', policy['reserved_actions'])
         self.assertFalse(policy['can_self_execute_code'])
+
+    def test_autonomy_policy_snapshot_promotes_admin_to_owner_code_operator(self):
+        policy = system_guard._autonomy_policy_snapshot(
+            page_context={'page': 'system-guard', 'is_admin_user': True, 'can_manage_guard': True, 'can_operate_guard_code': True},
+            planner={'confirm_required': False, 'task': {'scope': 'system'}},
+            assistant_action={'kind': 'code_intervention_request'},
+            technical_operation={'authorized_for_publish': True},
+            technical_execution={'publish_ready': True},
+        )
+        self.assertEqual(policy['mode'], 'owner_code_operator')
+        self.assertTrue(policy['admin_total_operator'])
+        self.assertTrue(policy['can_self_execute_code'])
+
+    def test_domain_playbook_snapshot_matches_guard_core_domain(self):
+        snapshot = system_guard._domain_playbook_snapshot(
+            'Ollana debe arreglar el sistema y mejorar el guard',
+            page_context={'page': 'system-guard', 'can_operate_guard_code': True},
+        )
+        self.assertEqual(snapshot['active_domain'], 'guard_core')
+        self.assertTrue(snapshot['domains'][0]['files'])
 
     @patch.dict(os.environ, {'APP_PUBLIC_BASE_URL': 'https://app.example.com'}, clear=False)
     @patch('football.system_guard.urllib.request.urlopen')
@@ -1770,6 +1799,37 @@ class SystemGuardTests(TestCase):
         self.assertTrue(operator['can_trigger_deploy'])
         self.assertTrue(operator['can_trigger_rollback'])
         self.assertTrue(operator['auto_rollback_eligible'])
+
+    @patch('football.system_guard._execute_tools', return_value=[{
+        'tool': 'inspect_recent_errors',
+        'label': 'Inspeccionar errores recientes',
+        'ok': True,
+        'kind': 'inspect',
+        'detail': 'ok',
+        'result': {'ok': True},
+    }])
+    def test_run_autonomous_backlog_cycle_executes_pending_admin_tasks(self, _exec):
+        task = system_guard._new_task_entry(
+            detector='manual_request',
+            title='Revisar errores',
+            summary='Backlog tecnico',
+            severity='warning',
+            runbook='silent_diagnostics',
+            task_kind='diagnose',
+            tools=['inspect_recent_errors'],
+            source='manual',
+            question='Revisa errores',
+            auto_execute=False,
+        )
+        system_guard._enqueue_task(self.workspace, task)
+        result = system_guard._run_autonomous_backlog_cycle(
+            workspace=self.workspace,
+            page_context={'is_admin_user': True, 'can_manage_guard': True, 'can_operate_guard_code': True},
+        )
+        self.assertTrue(result['enabled'])
+        self.assertEqual(result['executed_count'], 1)
+        queue = system_guard._load_task_queue(self.workspace)
+        self.assertEqual(queue[0]['status'], 'completed')
 
     def test_detect_proactive_improvements_creates_stability_task_when_system_is_clean(self):
         report = {'issue_summary': {'blockers': 0, 'warnings': 0}}
@@ -2723,6 +2783,31 @@ class SystemGuardTests(TestCase):
         self.assertTrue(kwargs['page_context']['can_operate_guard_code'])
         payload = response.json()
         self.assertTrue(payload['permissions']['can_operate_guard_code'])
+
+    @patch('football.system_guard._observability_summary', return_value={'history_count': 0})
+    @patch('football.system_guard.run_system_guard_chat', return_value={
+        'report': {'issue_summary': {'blockers': 0, 'warnings': 0}},
+        'chat': {'degraded': False, 'response': {'status': 'ok', 'message': 'ok', 'highlights': [], 'actions': [], 'metrics': {'executed_tools': 0, 'latency_ms': 0}}},
+    })
+    @patch('football.views._get_active_workspace')
+    @patch('football.views._get_primary_team_for_request')
+    @patch('football.views._can_access_sessions_workspace', return_value=True)
+    @patch('football.views._can_manage_workspace', return_value=False)
+    @patch('football.views._is_admin_user', return_value=True)
+    def test_system_guard_chat_api_marks_admin_total_operator_context(self, _is_admin, _can_manage, _can_access, mock_team, mock_workspace, mock_guard, _mock_ob):
+        mock_workspace.return_value = self.workspace
+        mock_team.return_value = self.team
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('system-guard-chat-api'),
+            data=json.dumps({'message': 'Arregla el sistema entero y mejora Ollana.'}),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 200)
+        kwargs = mock_guard.call_args.kwargs
+        self.assertTrue(kwargs['page_context']['is_admin_user'])
+        self.assertTrue(kwargs['page_context']['can_manage_guard'])
+        self.assertTrue(kwargs['page_context']['can_operate_guard_code'])
 
     def test_build_patch_proposals_returns_dry_run_entries(self):
         report = {
