@@ -5693,7 +5693,7 @@ def _task_pitch3d_asset_context(static_build_id=None, *, player_model_src=''):
             return ''
 
     return {
-        'pitch3d_stadium_model_src': _asset('football/models/pitch3d/stadium_malaga_rosaleda.glb'),
+        'pitch3d_stadium_model_src': _asset('football/models/pitch3d/stadium_architectural_complete.glb'),
         'pitch3d_stadium_top_h_src': _asset('football/images/pitch3d/stadium_rosaleda_top_h.png'),
         'pitch3d_stadium_top_v_src': _asset('football/images/pitch3d/stadium_rosaleda_top_v.png'),
         'pitch3d_grass_albedo_src': _asset('football/images/pitch3d/grass_premium_albedo.png'),

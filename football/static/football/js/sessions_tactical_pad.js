@@ -8248,7 +8248,7 @@
 						          if (version) versionSuffix = `?v=${encodeURIComponent(version)}`;
 						        } catch (e) { /* ignore */ }
 						        const fallbacks = {
-						          pitch3dStadiumModelSrc: `/static/football/models/pitch3d/stadium_malaga_rosaleda.glb${versionSuffix}`,
+						          pitch3dStadiumModelSrc: `/static/football/models/pitch3d/stadium_architectural_complete.glb${versionSuffix}`,
 						          pitch3dGrassAlbedoSrc: `/static/football/images/pitch3d/grass_premium_albedo.png${versionSuffix}`,
 						          pitch3dGrassBumpSrc: `/static/football/images/pitch3d/grass_premium_bump.png${versionSuffix}`,
 						          pitch3dGrassNormalSrc: `/static/football/images/pitch3d/grass_premium_normal.png${versionSuffix}`,
