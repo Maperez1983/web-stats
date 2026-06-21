@@ -26,9 +26,43 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
   const lerp = (a, b, t) => a + ((b - a) * t);
   const smooth = (t) => t * t * (3 - (2 * t));
   const safeText = (value, fallback = '') => String(value || '').trim() || fallback;
+  const __seatTextureCache = new Map();
   const toNumber = (value, fallback = 0) => {
     const num = Number(value);
     return Number.isFinite(num) ? num : fallback;
+  };
+  const getSeatPatternTexture = (baseHex = '#1f63d6', accentHex = '#0d3f9c') => {
+    const key = `${baseHex}|${accentHex}`;
+    if (__seatTextureCache.has(key)) return __seatTextureCache.get(key);
+    const offscreen = document.createElement('canvas');
+    offscreen.width = 256;
+    offscreen.height = 128;
+    const ctx = offscreen.getContext('2d');
+    ctx.clearRect(0, 0, offscreen.width, offscreen.height);
+    ctx.fillStyle = baseHex;
+    ctx.fillRect(0, 0, offscreen.width, offscreen.height);
+    for (let i = 0; i < 8; i += 1) {
+      const x = i * 32;
+      ctx.fillStyle = accentHex;
+      ctx.fillRect(x + 3, 22, 26, 72);
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      ctx.fillRect(x + 6, 26, 20, 5);
+      ctx.fillStyle = 'rgba(255,255,255,0.10)';
+      ctx.fillRect(x + 7, 54, 18, 18);
+      ctx.fillStyle = 'rgba(6,14,30,0.22)';
+      ctx.fillRect(x + 1, 22, 2, 72);
+      ctx.fillRect(x + 29, 22, 2, 72);
+      ctx.fillRect(x + 3, 94, 26, 4);
+    }
+    const texture = new THREE.CanvasTexture(offscreen);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(10, 2);
+    texture.anisotropy = 8;
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.needsUpdate = true;
+    __seatTextureCache.set(key, texture);
+    return texture;
   };
 
   let payload = {};
@@ -723,9 +757,18 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
                 const mats = Array.isArray(node.material) ? node.material : [node.material];
                 mats.forEach((mat) => {
                   const name = String(mat.name || '').toUpperCase();
+                  const meshName = String(node.name || '').toUpperCase();
                   if ('envMapIntensity' in mat) mat.envMapIntensity = isArchitecturalReference ? 0.72 : 0.5;
                   if ('metalness' in mat && typeof mat.metalness === 'number') mat.metalness *= isArchitecturalReference ? 0.98 : 0.92;
                   if ('roughness' in mat && typeof mat.roughness === 'number') mat.roughness = Math.min(0.92, mat.roughness + (isArchitecturalReference ? 0.01 : 0.04));
+                  const isSeatRow = meshName.includes('SEAT_ROW') || meshName.includes('SEAT_PLATE') || meshName.includes('SEATING_FIELD');
+                  if (isArchitecturalReference && isSeatRow && 'map' in mat) {
+                    mat.map = getSeatPatternTexture('#1f63d6', '#0d3f9c');
+                    mat.color.set('#ffffff');
+                    mat.needsUpdate = true;
+                    if ('roughness' in mat) mat.roughness = 0.72;
+                    if ('metalness' in mat) mat.metalness = 0.04;
+                  }
                   if ('color' in mat && name.includes('TEAM_PRIMARY_DARKER_SEAT_FIELD')) mat.color.set('#174fba');
                   else if ('color' in mat && name.includes('TEAM_PRIMARY')) mat.color.set('#1f63d6');
                   else if ('color' in mat && name.includes('TEAM_ACCENT')) mat.color.set('#0d3f9c');

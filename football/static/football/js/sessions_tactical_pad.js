@@ -8266,6 +8266,40 @@
 						      }
 						    };
 						    const isDedicatedPitch3dReferenceStadiumSrc = (src) => /stadium_(?:benagalbon_reference|architectural_complete)(?:\.[a-f0-9]+)?\.glb(?:[?#].*)?$/i.test(safeText(src || ''));
+						    const __pitch3dSeatPatternTextureCache = new Map();
+						    const getPitch3dSeatPatternTexture = (baseHex = '#1f63d6', accentHex = '#0d3f9c') => {
+						      const key = `${baseHex}|${accentHex}`;
+						      if (__pitch3dSeatPatternTextureCache.has(key)) return __pitch3dSeatPatternTextureCache.get(key);
+						      const offscreen = document.createElement('canvas');
+						      offscreen.width = 256;
+						      offscreen.height = 128;
+						      const ctx = offscreen.getContext('2d');
+						      ctx.clearRect(0, 0, offscreen.width, offscreen.height);
+						      ctx.fillStyle = baseHex;
+						      ctx.fillRect(0, 0, offscreen.width, offscreen.height);
+						      for (let i = 0; i < 8; i += 1) {
+						        const x = i * 32;
+						        ctx.fillStyle = accentHex;
+						        ctx.fillRect(x + 3, 22, 26, 72);
+						        ctx.fillStyle = 'rgba(255,255,255,0.18)';
+						        ctx.fillRect(x + 6, 26, 20, 5);
+						        ctx.fillStyle = 'rgba(255,255,255,0.10)';
+						        ctx.fillRect(x + 7, 54, 18, 18);
+						        ctx.fillStyle = 'rgba(6,14,30,0.22)';
+						        ctx.fillRect(x + 1, 22, 2, 72);
+						        ctx.fillRect(x + 29, 22, 2, 72);
+						        ctx.fillRect(x + 3, 94, 26, 4);
+						      }
+						      const texture = new THREE.CanvasTexture(offscreen);
+						      texture.wrapS = THREE.RepeatWrapping;
+						      texture.wrapT = THREE.RepeatWrapping;
+						      texture.repeat.set(10, 2);
+						      texture.anisotropy = 8;
+						      texture.colorSpace = THREE.SRGBColorSpace;
+						      texture.needsUpdate = true;
+						      __pitch3dSeatPatternTextureCache.set(key, texture);
+						      return texture;
+						    };
 						    const ensurePitch3dGltfLoaderClass = async () => {
 						      try { if (window.__WEBSTATS_GLTF_LOADER_CLASS) return true; } catch (e) { /* ignore */ }
 						      if (window.__webstats_gltf_loader_promise) return !!(await window.__webstats_gltf_loader_promise);
@@ -13498,6 +13532,22 @@
 						                    const materialName = Array.isArray(node.material)
 						                      ? node.material.map((m) => safeText(m?.name)).join(' ').toUpperCase()
 						                      : safeText(node.material?.name).toUpperCase();
+						                    if (isDedicatedReferenceStadium) {
+						                      const seatLike = meshName.includes('SEAT_ROW') || meshName.includes('SEAT_PLATE') || meshName.includes('SEATING_FIELD') || materialName.includes('TEAM_PRIMARY');
+						                      if (seatLike) {
+						                        const applySeatFinish = (mat) => {
+						                          if (!mat) return mat;
+						                          if ('map' in mat) mat.map = getPitch3dSeatPatternTexture('#1f63d6', '#0d3f9c');
+						                          if ('color' in mat) mat.color.set('#ffffff');
+						                          if ('roughness' in mat) mat.roughness = 0.72;
+						                          if ('metalness' in mat) mat.metalness = 0.04;
+						                          mat.needsUpdate = true;
+						                          return mat;
+						                        };
+						                        if (Array.isArray(node.material)) node.material = node.material.map(applySeatFinish);
+						                        else if (node.material) node.material = applySeatFinish(node.material);
+						                      }
+						                    }
 						                    if (isDedicatedReferenceStadium) {
 						                      const quality = safeText(document.body?.dataset?.pitch3dQuality || 'normal');
 						                      const compactViewport = Math.max(window.innerWidth || 0, window.innerHeight || 0) < 900;
