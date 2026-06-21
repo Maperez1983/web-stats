@@ -13286,8 +13286,8 @@
 						                    const seatBackShellGeo = new THREE.BoxGeometry(0.48, 0.42, 0.09);
 						                    const seatArmGeo = new THREE.BoxGeometry(0.05, 0.22, 0.30);
 						                    const railGeo = new THREE.BoxGeometry(0.05, 0.78, 0.05);
-						                    const maxSeats = 5600;
-						                    const maxRails = 440;
+						                    const maxSeats = 14000;
+						                    const maxRails = 1200;
 						                    const seatShell = new THREE.InstancedMesh(seatShellGeo, stairMat, maxSeats);
 						                    const seatBase = new THREE.InstancedMesh(seatBaseGeo, seatAccentMat, maxSeats);
 						                    const seatBackShell = new THREE.InstancedMesh(seatBackShellGeo, stairMat, maxSeats);
@@ -13410,6 +13410,10 @@
 						                    addStandSeats({ axis: 'z', sign: -1, rows: 18, cols: 86, span: metersW + 45.5, fixed: -(metersH / 2 + 10.0), baseY: 2.94, rowDepth: 0.55, rowRise: 0.28 });
 						                    addStandSeats({ axis: 'x', sign: 1, rows: 15, cols: 52, span: metersH + 35.0, fixed: metersW / 2 + 10.1, baseY: 3.10, rowDepth: 0.56, rowRise: 0.28 });
 						                    addStandSeats({ axis: 'x', sign: -1, rows: 15, cols: 52, span: metersH + 35.0, fixed: -(metersW / 2 + 10.1), baseY: 3.10, rowDepth: 0.56, rowRise: 0.28 });
+						                    addStandSeats({ axis: 'z', sign: 1, rows: 16, cols: 94, span: metersW + 38.0, fixed: metersH / 2 + 54.2, baseY: 10.86, rowDepth: 0.62, rowRise: 0.31 });
+						                    addStandSeats({ axis: 'z', sign: -1, rows: 16, cols: 94, span: metersW + 38.0, fixed: -(metersH / 2 + 54.2), baseY: 10.86, rowDepth: 0.62, rowRise: 0.31 });
+						                    addStandSeats({ axis: 'x', sign: 1, rows: 14, cols: 56, span: metersH + 28.0, fixed: metersW / 2 + 53.6, baseY: 11.10, rowDepth: 0.62, rowRise: 0.31 });
+						                    addStandSeats({ axis: 'x', sign: -1, rows: 14, cols: 56, span: metersH + 28.0, fixed: -(metersW / 2 + 53.6), baseY: 11.10, rowDepth: 0.62, rowRise: 0.31 });
 						                    [seatShell, seatBase, seatBackShell, seatBack, seatArmL, seatArmR, aisleRails].forEach((mesh) => {
 						                      mesh.instanceMatrix.needsUpdate = true;
 						                      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
@@ -14013,6 +14017,14 @@
 						                      if (floatingAisleLike) {
 						                        node.visible = false;
 						                        node.userData.hidden_by_reference_stadium_cleanup = true;
+						                      }
+						                      const replacedByInstancedUpperSeating =
+						                        meshName.includes('ARCH_UPPER_SEAT_ROW') ||
+						                        meshName.includes('ARCH_UPPER_SEAT_CARPET') ||
+						                        meshName.includes('ARCH_TUNNEL_OVERBUILD_SEAT_DECK_TEAM_PRIMARY');
+						                      if (replacedByInstancedUpperSeating) {
+						                        node.visible = false;
+						                        node.userData.hidden_by_reference_stadium_upper_instancing = true;
 						                      }
 						                    }
 						                    if (isDedicatedReferenceStadium) {
