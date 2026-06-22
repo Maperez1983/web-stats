@@ -2187,6 +2187,93 @@ class SystemGuardTests(TestCase):
         self.assertTrue(response['intelligence_os']['layers']['mission_control']['autonomous_closure']['embedded'])
         self.assertEqual(response['intelligence_os']['layers']['policy_decisions']['requested_action'], 'repair_code')
 
+    @patch('football.system_guard._execute_tools', return_value=[
+        {
+            'tool': 'inspect_repo_status',
+            'label': 'Inspeccionar repositorio',
+            'ok': True,
+            'kind': 'inspect',
+            'detail': 'ok',
+            'result': {'ok': True, 'changed_count': 0, 'branch': 'main'},
+        },
+        {
+            'tool': 'run_operator_validation',
+            'label': 'Validar operador',
+            'ok': True,
+            'kind': 'diagnostic',
+            'detail': 'ok',
+            'result': {'ok': True, 'action': 'operator_validation'},
+        },
+    ])
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    def test_run_system_guard_chat_exposes_agent_registry_planner_and_evaluator(self, _health, _cfg, _exec):
+        result = system_guard.run_system_guard_chat(
+            question='Valida cambios del operador y revisa el repo.',
+            workspace=self.workspace,
+            page_context={'can_manage_guard': True, 'can_operate_guard_code': True, 'page': 'system-guard'},
+            autonomy_mode='operator',
+            audience='technical',
+        )
+        response = result['chat']['response']
+        self.assertTrue(response['agent_tool_registry']['embedded'])
+        registry = {row['key']: row for row in response['agent_tool_registry']['items']}
+        self.assertTrue(registry['inspect_repo_status']['requested'])
+        self.assertEqual(registry['inspect_repo_status']['status'], 'executed_ok')
+        self.assertTrue(registry['run_operator_validation']['requested'])
+        self.assertEqual(response['agent_planner']['intent'], 'inspect_repo')
+        self.assertIn('run_operator_validation', response['agent_planner']['requested_tools'])
+        self.assertTrue(response['agent_planner']['checkpoints'])
+        self.assertEqual(response['agent_evaluator']['goal_status'], 'completed')
+        self.assertGreaterEqual(response['agent_evaluator']['score_percent'], 50)
+        self.assertEqual(
+            response['intelligence_os']['layers']['agent_core']['planner']['intent'],
+            'inspect_repo',
+        )
+        self.assertTrue(
+            response['intelligence_os']['layers']['execution']['tool_registry']['items']
+        )
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    def test_run_system_guard_chat_agent_evaluator_tracks_publish_confirmation(self, *_mocks):
+        result = system_guard.run_system_guard_chat(
+            question='Haz commit y push con mensaje: Guard upgrade',
+            workspace=self.workspace,
+            page_context={'can_manage_guard': True, 'can_operate_guard_code': True, 'page': 'system-guard'},
+            autonomy_mode='operator',
+            audience='technical',
+        )
+        response = result['chat']['response']
+        registry = {row['key']: row for row in response['agent_tool_registry']['items']}
+        self.assertTrue(response['agent_planner']['confirm_required'])
+        self.assertEqual(response['agent_evaluator']['goal_status'], 'pending_confirmation')
+        self.assertEqual(registry['git_commit']['status'], 'planned')
+        self.assertEqual(registry['git_push']['status'], 'planned')
+        self.assertTrue(registry['git_push']['allowed'])
+
     @patch('football.system_guard.local_llm_config', return_value={
         'enabled': False,
         'provider': 'ollama',

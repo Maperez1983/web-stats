@@ -572,7 +572,8 @@
         const href = String(window.location && window.location.href ? window.location.href : "");
         try {
           const isHttp = window.location && window.location.protocol === "http:";
-          if (isHttp && window.location.host) {
+          const isLocalDevHost = window.location && /^(localhost|127\.0\.0\.1)$/i.test(String(window.location.hostname || ""));
+          if (isHttp && window.location.host && !isLocalDevHost) {
             const httpsHref = "https://" + window.location.host + window.location.pathname + window.location.search + window.location.hash;
             window.location.replace(httpsHref);
             return;

@@ -7046,6 +7046,196 @@ def _action_executor_snapshot(*, assistant_action=None, planner=None, page_conte
     }
 
 
+def _tool_permission_action(tool_key: str) -> str:
+    tool_name = str(tool_key or "").strip()
+    for meta in SAFE_COMMAND_CATALOG.values():
+        if str(meta.get("tool") or "").strip() == tool_name:
+            permission_action = str(meta.get("permission_action") or "").strip()
+            if permission_action:
+                return permission_action
+    if tool_name in {"git_commit", "git_push", "trigger_remote_deploy", "trigger_remote_rollback"}:
+        return "publish_changes"
+    if tool_name in {"inspect_repo_status", "run_operator_validation", "auto_fix"}:
+        return "repair_code" if tool_name == "auto_fix" else ("validate_changes" if tool_name == "run_operator_validation" else "inspect_repo")
+    return "inspect_system"
+
+
+def _tool_silent_allowed(tool_key: str) -> bool:
+    tool_name = str(tool_key or "").strip()
+    for meta in SAFE_COMMAND_CATALOG.values():
+        if str(meta.get("tool") or "").strip() == tool_name:
+            return bool(meta.get("silent_allowed"))
+    return False
+
+
+def _agent_tool_registry_snapshot(*, page_context=None, planner=None, executed_tools=None) -> dict:
+    planner = planner if isinstance(planner, dict) else {}
+    executed_tools = [row for row in (executed_tools or []) if isinstance(row, dict)]
+    requested = {str(item) for item in (planner.get("requested_tools") or []) if str(item or "").strip()}
+    executed_map = {str(row.get("tool") or ""): row for row in executed_tools}
+    rows = []
+    for tool_key, schema in TOOL_SCHEMAS.items():
+        permission_action = _tool_permission_action(tool_key)
+        auth = _authorize_guard_action(permission_action, page_context=page_context)
+        execution = executed_map.get(str(tool_key))
+        status = "idle"
+        if execution:
+            status = "executed_ok" if bool(execution.get("ok")) else "executed_error"
+        elif tool_key in requested:
+            status = "planned" if bool(auth.get("allowed")) else "blocked"
+        rows.append({
+            "key": str(tool_key),
+            "label": str(schema.get("label") or tool_key),
+            "kind": str(schema.get("kind") or ""),
+            "risk": str(schema.get("risk") or ""),
+            "runner": str(schema.get("runner") or ""),
+            "permission_action": permission_action,
+            "allowed": bool(auth.get("allowed")),
+            "requested": tool_key in requested,
+            "executed": bool(execution),
+            "ok": bool(execution.get("ok")) if execution else None,
+            "status": status,
+            "confirmation_required": bool(schema.get("confirmation_required")),
+            "silent_allowed": bool(auth.get("allowed")) and _tool_silent_allowed(tool_key),
+            "maintenance_action": str(schema.get("maintenance_action") or ""),
+        })
+    return {
+        "embedded": True,
+        "requested_count": len(requested),
+        "executed_count": len(executed_map),
+        "allowed_count": len([row for row in rows if bool(row.get("allowed"))]),
+        "planned_count": len([row for row in rows if str(row.get("status") or "") == "planned"]),
+        "error_count": len([row for row in rows if str(row.get("status") or "") == "executed_error"]),
+        "items": rows,
+    }
+
+
+def _agent_planner_snapshot(
+    question: str,
+    *,
+    planner=None,
+    assistant_action=None,
+    technical_operation=None,
+    technical_execution=None,
+) -> dict:
+    planner = planner if isinstance(planner, dict) else {}
+    assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
+    technical_operation = technical_operation if isinstance(technical_operation, dict) else {}
+    technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
+    task = planner.get("task") if isinstance(planner.get("task"), dict) else {}
+    checkpoints = []
+    for row in (planner.get("steps") or [])[:6]:
+        if not isinstance(row, dict):
+            continue
+        checkpoints.append({
+            "label": str(row.get("step") or "")[:180],
+            "done": bool(row.get("done")),
+        })
+    for row in (technical_operation.get("phases") or [])[:4]:
+        if not isinstance(row, dict):
+            continue
+        phase_key = str(row.get("key") or "")
+        checkpoints.append({
+            "label": str(row.get("label") or phase_key)[:180],
+            "done": phase_key in {str(item) for item in (technical_execution.get("completed_phases") or [])},
+        })
+    next_step = str(
+        technical_execution.get("next_step")
+        or planner.get("confirmation_text")
+        or ((planner.get("followup_actions") or [{}])[0].get("reason") if isinstance((planner.get("followup_actions") or [{}])[0], dict) else "")
+        or ""
+    )[:220]
+    return {
+        "embedded": True,
+        "target": _truncate(question, 220),
+        "intent": str(planner.get("intent") or "")[:64],
+        "task_kind": str(task.get("kind") or "")[:32],
+        "task_scope": str(task.get("scope") or "")[:32],
+        "silent_mode": bool(task.get("silent_mode")),
+        "runbook_key": str((planner.get("runbook") or {}).get("key") or task.get("runbook_key") or "")[:64],
+        "requested_tools": [str(item) for item in (planner.get("requested_tools") or []) if str(item or "").strip()][:8],
+        "assistant_action_kind": str(assistant_action.get("kind") or "")[:64],
+        "technical_operation_kind": str(technical_operation.get("kind") or "")[:64],
+        "technical_status": str(technical_execution.get("status") or "")[:32],
+        "confirm_required": bool(planner.get("confirm_required")),
+        "next_step": next_step,
+        "checkpoints": checkpoints[:10],
+    }
+
+
+def _agent_evaluator_snapshot(
+    question: str,
+    *,
+    report=None,
+    planner=None,
+    executed_tools=None,
+    assistant_action=None,
+    technical_execution=None,
+    response_status: str = "",
+) -> dict:
+    report = report if isinstance(report, dict) else {}
+    planner = planner if isinstance(planner, dict) else {}
+    executed_tools = [row for row in (executed_tools or []) if isinstance(row, dict)]
+    assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
+    technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
+    summary = report.get("issue_summary") if isinstance(report.get("issue_summary"), dict) else {}
+    requested_tools = [str(item) for item in (planner.get("requested_tools") or []) if str(item or "").strip()]
+    ok_tools = [row for row in executed_tools if bool(row.get("ok"))]
+    failed_tools = [row for row in executed_tools if not bool(row.get("ok"))]
+    checks = [
+        {
+            "name": "tool_execution",
+            "status": "pass" if requested_tools and len(ok_tools) == len(requested_tools) and not failed_tools else ("fail" if failed_tools else ("pending" if requested_tools else "n/a")),
+            "detail": f"{len(ok_tools)}/{len(requested_tools)} herramientas correctas" if requested_tools else "Sin herramientas requeridas",
+        },
+        {
+            "name": "assistant_action",
+            "status": "pass" if bool(assistant_action.get("success")) else ("blocked" if bool(assistant_action.get("permission_required")) else ("pending" if bool(assistant_action.get("needs_input")) else "n/a")),
+            "detail": str(assistant_action.get("message") or "")[:220],
+        },
+        {
+            "name": "system_health",
+            "status": "pass" if _safe_int(summary.get("blockers"), 0) == 0 else "fail",
+            "detail": f"blockers={_safe_int(summary.get('blockers'), 0)} warnings={_safe_int(summary.get('warnings'), 0)}",
+        },
+        {
+            "name": "technical_validation",
+            "status": "pass" if bool(technical_execution.get("ok")) else ("blocked" if str(technical_execution.get("status") or "") == "blocked" else ("pending" if technical_execution else "n/a")),
+            "detail": str(technical_execution.get("next_step") or technical_execution.get("status") or "")[:220],
+        },
+    ]
+    goal_status = "in_progress"
+    if bool(planner.get("confirm_required")):
+        goal_status = "pending_confirmation"
+    elif bool(assistant_action.get("permission_required")) or failed_tools or _safe_int(summary.get("blockers"), 0) > 0 or str(technical_execution.get("status") or "") == "blocked":
+        goal_status = "blocked"
+    elif bool(assistant_action.get("needs_input")):
+        goal_status = "needs_input"
+    elif bool(assistant_action.get("success")) or (requested_tools and len(ok_tools) == len(requested_tools) and not failed_tools) or bool(technical_execution.get("ok")):
+        goal_status = "completed"
+    pass_count = len([row for row in checks if str(row.get("status") or "") == "pass"])
+    score = int(round((pass_count / max(1, len(checks))) * 100))
+    next_step = str(
+        technical_execution.get("next_step")
+        or planner.get("confirmation_text")
+        or assistant_action.get("message")
+        or ""
+    )[:220]
+    return {
+        "embedded": True,
+        "target": _truncate(question, 220),
+        "goal_status": goal_status,
+        "response_status": str(response_status or "")[:32],
+        "score_percent": score,
+        "requested_tools": len(requested_tools),
+        "executed_tools": len(executed_tools),
+        "successful_tools": len(ok_tools),
+        "failed_tools": len(failed_tools),
+        "checks": checks,
+        "next_step": next_step,
+    }
+
+
 def _code_operator_snapshot(
     *,
     code_operator_mode=None,
@@ -7236,6 +7426,11 @@ def _build_intelligence_os_snapshot(
             "execution": {
                 "surface": _execution_surface_snapshot(page_context=page_context),
                 "action_catalog": _action_catalog_snapshot(page_context=page_context),
+                "tool_registry": _agent_tool_registry_snapshot(
+                    page_context=page_context,
+                    planner=planner,
+                    executed_tools=(technical_execution or {}).get("executions") if isinstance(technical_execution, dict) else [],
+                ),
                 "external_connectors": external_connectors,
                 "safe_command_executor": safe_command_executor,
                 "observability_mesh": observability_mesh,
@@ -7305,6 +7500,20 @@ def _build_intelligence_os_snapshot(
                 planner=planner,
                 technical_operation=technical_operation,
             ),
+            "agent_core": {
+                "planner": _agent_planner_snapshot(
+                    question,
+                    planner=planner,
+                    assistant_action=assistant_action,
+                    technical_operation=technical_operation,
+                    technical_execution=technical_execution,
+                ),
+                "tool_registry": _agent_tool_registry_snapshot(
+                    page_context=page_context,
+                    planner=planner,
+                    executed_tools=(technical_execution or {}).get("executions") if isinstance(technical_execution, dict) else [],
+                ),
+            },
             "policy_decisions": _policy_decisions_snapshot(
                 page_context=page_context,
                 planner=planner,
@@ -9315,6 +9524,27 @@ def run_system_guard_chat(
         autonomy_mode=autonomy_mode,
         audience=audience,
     )
+    fallback["agent_tool_registry"] = _agent_tool_registry_snapshot(
+        page_context=page_context,
+        planner=planner,
+        executed_tools=executed_tools,
+    )
+    fallback["agent_planner"] = _agent_planner_snapshot(
+        question,
+        planner=planner,
+        assistant_action=assistant_action if isinstance(assistant_action, dict) else {},
+        technical_operation=technical_operation if isinstance(technical_operation, dict) else {},
+        technical_execution=technical_execution if isinstance(technical_execution, dict) else {},
+    )
+    fallback["agent_evaluator"] = _agent_evaluator_snapshot(
+        question,
+        report=report,
+        planner=planner,
+        executed_tools=executed_tools,
+        assistant_action=assistant_action if isinstance(assistant_action, dict) else {},
+        technical_execution=technical_execution if isinstance(technical_execution, dict) else {},
+        response_status=str(fallback.get("status") or ""),
+    )
     if assistant_action:
         action_message = str(assistant_action.get("message") or "").strip()
         if action_message:
@@ -9520,6 +9750,18 @@ def run_system_guard_chat(
         autonomy_mode=autonomy_mode,
         audience=audience,
     )
+    response["agent_tool_registry"] = response.get("agent_tool_registry") or _agent_tool_registry_snapshot(
+        page_context=page_context,
+        planner=planner,
+        executed_tools=executed_tools,
+    )
+    response["agent_planner"] = response.get("agent_planner") or _agent_planner_snapshot(
+        question,
+        planner=planner,
+        assistant_action=response.get("assistant_action") if isinstance(response.get("assistant_action"), dict) else {},
+        technical_operation=response.get("technical_operation") if isinstance(response.get("technical_operation"), dict) else {},
+        technical_execution=response.get("technical_operation_execution") if isinstance(response.get("technical_operation_execution"), dict) else {},
+    )
     response["memory_hint"] = _truncate(memory.get("summary"), 220)
     response["runbook"] = _runbook_execution_summary(
         response.get("runbook") if isinstance(response.get("runbook"), dict) else {},
@@ -9527,6 +9769,15 @@ def run_system_guard_chat(
         assistant_action=response.get("assistant_action") if isinstance(response.get("assistant_action"), dict) else {},
         status=str(response.get("status") or ""),
         needs_confirmation=bool(response.get("needs_confirmation")),
+    )
+    response["agent_evaluator"] = response.get("agent_evaluator") or _agent_evaluator_snapshot(
+        question,
+        report=report,
+        planner=planner,
+        executed_tools=executed_tools,
+        assistant_action=response.get("assistant_action") if isinstance(response.get("assistant_action"), dict) else {},
+        technical_execution=response.get("technical_operation_execution") if isinstance(response.get("technical_operation_execution"), dict) else {},
+        response_status=str(response.get("status") or ""),
     )
     if snapshot_diff.get("regressions"):
         response["highlights"] = (response.get("highlights") or []) + [f"Regresión: {item}" for item in snapshot_diff.get("regressions", [])[:2]]

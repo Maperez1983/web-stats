@@ -9,6 +9,8 @@ services:
     healthCheckPath: /healthz
     autoDeploy: true
     envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
       - key: PYTHONUNBUFFERED
         value: "1"
       - key: GUNICORN_TIMEOUT
@@ -68,6 +70,8 @@ services:
     startCommand: ./scripts/start_ollana_operator_worker.sh
     autoDeploy: true
     envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
       - key: PYTHONUNBUFFERED
         value: "1"
       - key: RUN_MIGRATIONS

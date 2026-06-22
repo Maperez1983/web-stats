@@ -325,6 +325,8 @@
     { key: 'analysis', label: 'Vídeo análisis', url: "{% url 'analysis' %}{% if active_team %}?team={{ active_team.id }}{% endif %}", keywords: ['video analisis', 'vídeo análisis', 'analisis', 'análisis', 'video', 'vídeo'] },
     { key: 'library', label: 'Biblioteca de tareas', url: "{% url 'sessions' %}?tab=library&library_repo=traditional{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca de tareas', 'biblioteca', 'tareas', 'ejercicios', 'task library'] },
     { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
     { key: 'task_builder', label: 'Crear tarea', url: "{% url 'sessions-task-create' %}{% if active_team %}?team={{ active_team.id }}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}{% endif %}", keywords: ['crear tarea', 'editor', 'pizarra'] },
     { key: 'sessions', label: 'Entrenamiento', url: "{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}", keywords: ['entrenamiento', 'entrenos', 'sesiones', 'microciclo'] },
     { key: 'match', label: 'Partido', url: "{% url 'match-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}", keywords: ['partido', 'match', 'convocatoria', 'once inicial'] },
@@ -495,6 +497,8 @@
       });
       if (route.key === 'analysis' && text.includes('video')) score += 2;
       if (route.key === 'library' && text.includes('biblioteca')) score += 2;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
       if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
       if (route.key === 'match' && text.includes('partido')) score += 2;
       if (!best || score > best.score) best = { route, score };

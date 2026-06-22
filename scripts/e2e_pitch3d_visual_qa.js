@@ -97,10 +97,11 @@ async function main() {
     await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => null);
     await page.screenshot({ path: path.join(outDir, '01-tactica.png'), fullPage: true });
 
-    const openButton = page.locator('#pitch-3d-open, button:has-text("Representación 3D")').first();
+    const openButton = page.locator('#pitch-3d-open-tactics, #pitch-3d-open-standard, #pitch-3d-open, button:has-text("Representación 3D")').first();
     await openButton.waitFor({ state: 'visible' });
     await openButton.click();
     await page.waitForSelector('#task-pitch-3d-canvas', { state: 'visible' });
+    await page.waitForSelector('#task-pitch-3d-modal:not([hidden])', { state: 'attached' });
     await page.waitForTimeout(2500);
     await page.screenshot({ path: path.join(outDir, '02-pitch3d-day-or-auto.png'), fullPage: true });
     log.checks.push({ name: 'auto_canvas', result: await sampleCanvas(page) });
