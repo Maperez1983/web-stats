@@ -10957,34 +10957,22 @@
 						                }
 						                addBox(finish, new THREE.BoxGeometry(16.4, 0.18, 0.20), railFinish, cx, 6.90, cz + (sz * 1.3), 0, sx * sz * 0.18, 0, 'pitch_3d_finished_corner_glass_guardrail');
 						              });
-						              const tunnelZ = -(metersH / 2 + 4.52);
-						              const tunnelPortalGlass = new THREE.MeshPhysicalMaterial({ color: 0xdff6ff, roughness: 0.10, metalness: 0.02, transparent: true, opacity: 0.30, transmission: 0.18, clearcoat: 0.24 });
-						              addBox(finish, new THREE.BoxGeometry(0.78, 2.28, 0.38), concreteFinish, -3.74, 1.20, tunnelZ + 0.02, 0, 0, 0, 'pitch_3d_finished_visible_tunnel_left_jamb');
-						              addBox(finish, new THREE.BoxGeometry(0.78, 2.28, 0.38), concreteFinish, 3.74, 1.20, tunnelZ + 0.02, 0, 0, 0, 'pitch_3d_finished_visible_tunnel_right_jamb');
-						              addBox(finish, new THREE.BoxGeometry(8.1, 0.34, 0.44), concreteFinish, 0, 2.30, tunnelZ + 0.04, 0, 0, 0, 'pitch_3d_finished_visible_tunnel_open_header');
-						              addBox(finish, new THREE.BoxGeometry(5.8, 1.58, 0.10), shadowFinish, 0, 1.08, tunnelZ - 0.24, 0, 0, 0, 'pitch_3d_finished_visible_tunnel_recess_shadow');
-						              addBox(finish, new THREE.BoxGeometry(6.10, 0.12, 4.9), shadowFinish, 0, 0.18, tunnelZ - 2.42, -0.10, 0, 0, 'pitch_3d_finished_visible_tunnel_open_ramp');
-						              addBox(finish, new THREE.BoxGeometry(0.24, 1.18, 4.5), concreteFinish, -2.92, 0.66, tunnelZ - 2.12, -0.05, 0, 0, 'pitch_3d_finished_visible_tunnel_side_wall_l');
-						              addBox(finish, new THREE.BoxGeometry(0.24, 1.18, 4.5), concreteFinish, 2.92, 0.66, tunnelZ - 2.12, -0.05, 0, 0, 'pitch_3d_finished_visible_tunnel_side_wall_r');
-						              addBox(finish, new THREE.BoxGeometry(0.08, 0.84, 4.10), metalMat, -3.26, 0.58, tunnelZ - 2.22, -0.05, 0, 0, 'pitch_3d_finished_visible_tunnel_handrail_l');
-						              addBox(finish, new THREE.BoxGeometry(0.08, 0.84, 4.10), metalMat, 3.26, 0.58, tunnelZ - 2.22, -0.05, 0, 0, 'pitch_3d_finished_visible_tunnel_handrail_r');
-						              addBox(finish, new THREE.BoxGeometry(4.9, 0.08, 0.08), railFinish, 0, 1.78, tunnelZ + 0.12, 0, 0, 0, 'pitch_3d_finished_visible_tunnel_header_trim');
-						              addBox(finish, new THREE.BoxGeometry(4.8, 0.86, 0.08), tunnelPortalGlass, 0, 1.14, tunnelZ + 0.10, 0, 0, 0, 'pitch_3d_finished_visible_tunnel_glass_screen');
-						              [-1, 1].forEach((sx) => {
-						                addBox(finish, new THREE.BoxGeometry(3.8, 1.18, 1.78), concreteFinish, sx * 5.55, 0.84, -(metersH / 2 + 6.78), -0.03, 0, 0, 'pitch_3d_finished_tunnel_side_podium');
-						                addBox(finish, new THREE.BoxGeometry(3.2, 0.10, 1.48), roofFinish, sx * 5.55, 1.46, -(metersH / 2 + 6.64), -0.03, 0, 0, 'pitch_3d_finished_tunnel_side_podium_cap');
-						              });
-						              addBox(finish, new THREE.BoxGeometry(14.4, 0.12, 1.18), concreteFinish, 0, 1.54, -(metersH / 2 + 6.52), -0.03, 0, 0, 'pitch_3d_finished_stand_over_tunnel_solid_base');
-						              addBox(finish, new THREE.BoxGeometry(16.0, 0.42, 0.22), fasciaFinish, 0, 1.48, -(metersH / 2 + 5.78), 0, 0, 0, 'pitch_3d_finished_stand_over_tunnel_green_fascia');
-						              for (let r = 0; r < 4; r += 1) {
-						                const y = 2.46 + r * 0.28;
-						                const z = -(metersH / 2 + 9.28) - r * 0.50;
-						                addBox(finish, new THREE.BoxGeometry(13.8 - r * 0.30, 0.14, 0.32), concreteFinish, 0, y, z, -0.070, 0, 0, 'pitch_3d_finished_stand_over_tunnel_riser');
-						                [-0.26, -0.08, 0.08, 0.26].forEach((ratio, idx) => {
-						                  addBox(finish, new THREE.BoxGeometry(1.68, 0.10, 0.18), idx === 1 || idx === 2 ? stairFinish : seatFinish, ratio * 14.0, y + 0.07, z - 0.03, -0.10, 0, 0, 'pitch_3d_finished_stand_over_tunnel_seats');
-						                });
-						              }
-						              addBox(finish, new THREE.BoxGeometry(14.8, 0.12, 0.16), railFinish, 0, 3.82, -(metersH / 2 + 10.62), 0, 0, 0, 'pitch_3d_finished_tunnel_stand_front_rail');
+						              const tunnelZ = -(metersH / 2 + 4.46);
+						              addBox(finish, new THREE.BoxGeometry(0.64, 2.36, 0.32), concreteFinish, -2.86, 1.18, tunnelZ + 0.02, 0, 0, 0, 'pitch_3d_finished_visible_tunnel_left_jamb');
+						              addBox(finish, new THREE.BoxGeometry(0.64, 2.36, 0.32), concreteFinish, 2.86, 1.18, tunnelZ + 0.02, 0, 0, 0, 'pitch_3d_finished_visible_tunnel_right_jamb');
+						              addBox(finish, new THREE.BoxGeometry(6.36, 0.26, 0.34), concreteFinish, 0, 2.34, tunnelZ + 0.02, 0, 0, 0, 'pitch_3d_finished_visible_tunnel_open_header');
+						              addBox(finish, new THREE.BoxGeometry(4.48, 1.92, 0.08), shadowFinish, 0, 1.18, tunnelZ - 0.16, 0, 0, 0, 'pitch_3d_finished_visible_tunnel_recess_shadow');
+						              addBox(finish, new THREE.BoxGeometry(4.40, 0.10, 5.80), shadowFinish, 0, 0.16, tunnelZ - 2.84, -0.11, 0, 0, 'pitch_3d_finished_visible_tunnel_open_ramp');
+						              addBox(finish, new THREE.BoxGeometry(0.22, 1.24, 5.42), concreteFinish, -2.18, 0.64, tunnelZ - 2.56, -0.06, 0, 0, 'pitch_3d_finished_visible_tunnel_side_wall_l');
+						              addBox(finish, new THREE.BoxGeometry(0.22, 1.24, 5.42), concreteFinish, 2.18, 0.64, tunnelZ - 2.56, -0.06, 0, 0, 'pitch_3d_finished_visible_tunnel_side_wall_r');
+						              addBox(finish, new THREE.BoxGeometry(1.42, 0.82, 2.86), concreteFinish, -4.22, 0.50, -(metersH / 2 + 6.18), -0.04, 0.22, 0, 'pitch_3d_finished_visible_tunnel_wingwall_l');
+						              addBox(finish, new THREE.BoxGeometry(1.42, 0.82, 2.86), concreteFinish, 4.22, 0.50, -(metersH / 2 + 6.18), -0.04, -0.22, 0, 'pitch_3d_finished_visible_tunnel_wingwall_r');
+						              addBox(finish, new THREE.BoxGeometry(0.08, 0.88, 5.04), metalMat, -2.48, 0.56, tunnelZ - 2.52, -0.06, 0, 0, 'pitch_3d_finished_visible_tunnel_handrail_l');
+						              addBox(finish, new THREE.BoxGeometry(0.08, 0.88, 5.04), metalMat, 2.48, 0.56, tunnelZ - 2.52, -0.06, 0, 0, 'pitch_3d_finished_visible_tunnel_handrail_r');
+						              addBox(finish, new THREE.BoxGeometry(5.12, 0.10, 0.12), railFinish, 0, 1.98, tunnelZ + 0.08, 0, 0, 0, 'pitch_3d_finished_visible_tunnel_header_trim');
+						              addBox(finish, new THREE.BoxGeometry(7.80, 0.10, 0.86), roofFinish, 0, 2.62, tunnelZ - 0.10, -0.06, 0, 0, 'pitch_3d_finished_visible_tunnel_canopy');
+						              addBox(finish, new THREE.BoxGeometry(8.90, 0.20, 0.22), fasciaFinish, 0, 2.42, tunnelZ + 0.16, 0, 0, 0, 'pitch_3d_finished_visible_tunnel_canopy_fascia');
+						              addBox(finish, new THREE.BoxGeometry(12.8, 0.10, 0.14), railFinish, 0, 3.12, -(metersH / 2 + 9.22), 0, 0, 0, 'pitch_3d_finished_tunnel_stand_front_rail');
 						              const sideBrandFinishMat = new THREE.MeshBasicMaterial({
 						                map: makePitch3dCanvasTexture((ctx, c) => {
 						                  const grad = ctx.createLinearGradient(0, 0, c.width, c.height);
