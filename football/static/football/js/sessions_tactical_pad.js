@@ -13242,10 +13242,12 @@
 						                  const blockEdgeMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.72, metalness: 0.02 });
 						                  const vomitoryLightMat = new THREE.MeshBasicMaterial({ color: 0xe0f2fe, transparent: true, opacity: 0.18, toneMapped: false, depthWrite: false });
 						                  [-34, -20, -6, 8, 22, 36].forEach((x) => {
-						                    addBox(new THREE.BoxGeometry(1.34, 0.09, 13.8), aisleConcreteMat, x, 5.32, metersH / 2 + 14.55, -0.10, 0, 0, 'pitch_3d_reference_main_stand_full_height_grey_aisle');
-						                    addBox(new THREE.BoxGeometry(1.34, 0.09, 13.8), aisleConcreteMat, x, 5.32, -(metersH / 2 + 14.55), 0.10, 0, 0, 'pitch_3d_reference_opposite_stand_full_height_grey_aisle');
-						                    addBox(new THREE.BoxGeometry(0.16, 2.8, 13.2), blockEdgeMat, x - 0.76, 5.08, metersH / 2 + 14.55, -0.10, 0, 0, 'pitch_3d_reference_white_aisle_side_stringer');
-						                    addBox(new THREE.BoxGeometry(0.16, 2.8, 13.2), blockEdgeMat, x + 0.76, 5.08, metersH / 2 + 14.55, -0.10, 0, 0, 'pitch_3d_reference_white_aisle_side_stringer');
+						                    addBox(new THREE.BoxGeometry(1.18, 0.08, 5.2), aisleConcreteMat, x, 5.18, metersH / 2 + 18.85, -0.10, 0, 0, 'pitch_3d_reference_main_stand_full_height_grey_aisle');
+						                    addBox(new THREE.BoxGeometry(1.18, 0.08, 5.2), aisleConcreteMat, x, 5.18, -(metersH / 2 + 18.85), 0.10, 0, 0, 'pitch_3d_reference_opposite_stand_full_height_grey_aisle');
+						                    addBox(new THREE.BoxGeometry(0.14, 2.5, 4.9), blockEdgeMat, x - 0.70, 5.00, metersH / 2 + 18.82, -0.10, 0, 0, 'pitch_3d_reference_white_aisle_side_stringer');
+						                    addBox(new THREE.BoxGeometry(0.14, 2.5, 4.9), blockEdgeMat, x + 0.70, 5.00, metersH / 2 + 18.82, -0.10, 0, 0, 'pitch_3d_reference_white_aisle_side_stringer');
+						                    addBox(new THREE.BoxGeometry(0.14, 2.5, 4.9), blockEdgeMat, x - 0.70, 5.00, -(metersH / 2 + 18.82), 0.10, 0, 0, 'pitch_3d_reference_white_aisle_side_stringer');
+						                    addBox(new THREE.BoxGeometry(0.14, 2.5, 4.9), blockEdgeMat, x + 0.70, 5.00, -(metersH / 2 + 18.82), 0.10, 0, 0, 'pitch_3d_reference_white_aisle_side_stringer');
 						                  });
 						                  [-24, 0, 24].forEach((z) => {
 						                    addBox(new THREE.BoxGeometry(12.8, 0.09, 1.22), aisleConcreteMat, metersW / 2 + 14.55, 5.08, z, 0, 0.10, 0, 'pitch_3d_reference_end_stand_full_height_grey_aisle');
