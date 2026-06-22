@@ -10978,6 +10978,39 @@
 						                });
 						              }
 						              addBox(finish, new THREE.BoxGeometry(33.0, 0.18, 0.24), railFinish, 0, 6.52, -(metersH / 2 + 11.50), 0, 0, 0, 'pitch_3d_finished_tunnel_stand_front_rail');
+						              const sideBrandFinishMat = new THREE.MeshBasicMaterial({
+						                map: makePitch3dCanvasTexture((ctx, c) => {
+						                  const grad = ctx.createLinearGradient(0, 0, c.width, c.height);
+						                  grad.addColorStop(0, '#0b2a6f');
+						                  grad.addColorStop(0.28, '#1450d2');
+						                  grad.addColorStop(0.78, '#1553dc');
+						                  grad.addColorStop(1, '#0a214f');
+						                  ctx.fillStyle = grad;
+						                  ctx.fillRect(0, 0, c.width, c.height);
+						                  ctx.strokeStyle = 'rgba(255,255,255,0.20)';
+						                  ctx.lineWidth = 6;
+						                  ctx.strokeRect(10, 10, c.width - 20, c.height - 20);
+						                  ctx.fillStyle = '#f8fafc';
+						                  ctx.textAlign = 'center';
+						                  ctx.textBaseline = 'middle';
+						                  ctx.font = '900 70px Arial, sans-serif';
+						                  ctx.fillText('MALAGA CF', c.width * 0.62, c.height * 0.56);
+						                  ctx.beginPath();
+						                  ctx.arc(c.width * 0.18, c.height * 0.52, 52, 0, Math.PI * 2);
+						                  ctx.fillStyle = 'rgba(255,255,255,0.10)';
+						                  ctx.fill();
+						                  ctx.lineWidth = 8;
+						                  ctx.strokeStyle = '#f8fafc';
+						                  ctx.stroke();
+						                  ctx.fillStyle = '#f8fafc';
+						                  ctx.font = '900 38px Arial, sans-serif';
+						                  ctx.fillText('MCF', c.width * 0.18, c.height * 0.54);
+						                }, 1024, 256)?.tex || null,
+						                toneMapped: false,
+						                transparent: true,
+						                opacity: 0.98,
+						                side: THREE.DoubleSide,
+						              });
 						              [-18.5, 18.5].forEach((x, idx) => {
 						                addBox(finish, new THREE.BoxGeometry(14.8, 0.16, 2.40), carbonMat, x, 0.20, -(metersH / 2 + 2.90), 0, 0, 0, 'pitch_3d_finished_dugout_platform_visible');
 						                addBox(finish, new THREE.BoxGeometry(14.9, 0.08, 2.18), glassMat, x, 2.20, -(metersH / 2 + 3.05), -0.42, 0, 0, 'pitch_3d_finished_dugout_curved_roof_visible');
@@ -10991,6 +11024,17 @@
 						                label.position.set(x, 1.22, -(metersH / 2 + 1.82));
 						                label.userData = { kind: 'pitch_3d_finished_dugout_label_visible' };
 						                finish.add(label);
+						              });
+						              [-1, 1].forEach((sign) => {
+						                addBox(finish, new THREE.BoxGeometry(5.8, 1.30, 0.26), shadowFinish, sign * 23.4, 0.66, -(metersH / 2 + 3.72), 0, 0, 0, 'pitch_3d_finished_dugout_side_brand_shell');
+						                addBox(finish, new THREE.BoxGeometry(5.92, 0.06, 0.30), roofFinish, sign * 23.4, 1.26, -(metersH / 2 + 3.70), 0, 0, 0, 'pitch_3d_finished_dugout_side_brand_top');
+						                addBox(finish, new THREE.BoxGeometry(5.92, 0.08, 0.34), roofFinish, sign * 23.4, 0.08, -(metersH / 2 + 3.70), 0, 0, 0, 'pitch_3d_finished_dugout_side_brand_base');
+						                addBox(finish, new THREE.BoxGeometry(4.30, 0.16, 0.92), concreteFinish, sign * 23.4, 0.08, -(metersH / 2 + 4.00), 0, 0, 0, 'pitch_3d_finished_dugout_side_brand_foot');
+						                const face = new THREE.Mesh(new THREE.PlaneGeometry(5.42, 1.00), sideBrandFinishMat);
+						                face.position.set(sign * 23.4, 0.68, -(metersH / 2 + 3.58));
+						                face.rotation.y = sign < 0 ? 0 : Math.PI;
+						                face.userData = { kind: 'pitch_3d_finished_dugout_side_brand_face' };
+						                finish.add(face);
 						              });
 						              addBox(finish, new THREE.BoxGeometry(metersW + 44.0, 0.32, 5.2), roofFinish, 0, 14.78, metersH / 2 + 27.9, -0.015, 0, 0, 'pitch_3d_finished_continuous_roof_north');
 						              addBox(finish, new THREE.BoxGeometry(metersW + 44.0, 0.32, 5.2), roofFinish, 0, 14.78, -(metersH / 2 + 27.9), 0.015, 0, 0, 'pitch_3d_finished_continuous_roof_south');
@@ -13285,7 +13329,45 @@
 						                  const dugoutSeatMat = new THREE.MeshStandardMaterial({ color: primaryInt, roughness: 0.48, metalness: 0.02 });
 						                  const shellMat = new THREE.MeshStandardMaterial({ color: 0xd6dedb, roughness: 0.36, metalness: 0.22 });
 						                  const technicalMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.42, metalness: 0.18 });
+						                  const sideBrandShellMat = new THREE.MeshStandardMaterial({ color: 0x0b1320, roughness: 0.40, metalness: 0.18 });
+						                  const sideBrandEdgeMat = new THREE.MeshStandardMaterial({ color: 0xd7e1ea, roughness: 0.26, metalness: 0.48 });
 						                  const dugoutLedMat = new THREE.MeshBasicMaterial({ color: 0xe0f2fe, transparent: true, opacity: 0.78, toneMapped: false, depthWrite: false });
+						                  const sideBrandFaceMat = new THREE.MeshBasicMaterial({
+						                    map: makePitch3dCanvasTexture((ctx, c) => {
+						                      const grad = ctx.createLinearGradient(0, 0, c.width, c.height);
+						                      grad.addColorStop(0, '#0b2a6f');
+						                      grad.addColorStop(0.26, '#1450d2');
+						                      grad.addColorStop(0.78, '#1553dc');
+						                      grad.addColorStop(1, '#0a214f');
+						                      ctx.fillStyle = grad;
+						                      ctx.fillRect(0, 0, c.width, c.height);
+						                      ctx.fillStyle = 'rgba(255,255,255,0.08)';
+						                      ctx.fillRect(0, 0, c.width, 12);
+						                      ctx.fillRect(0, c.height - 12, c.width, 12);
+						                      ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+						                      ctx.lineWidth = 6;
+						                      ctx.strokeRect(10, 10, c.width - 20, c.height - 20);
+						                      ctx.fillStyle = '#f8fafc';
+						                      ctx.textAlign = 'center';
+						                      ctx.textBaseline = 'middle';
+						                      ctx.font = '900 72px Arial, sans-serif';
+						                      ctx.fillText('MALAGA CF', c.width * 0.62, c.height * 0.56);
+						                      ctx.beginPath();
+						                      ctx.arc(c.width * 0.18, c.height * 0.52, 54, 0, Math.PI * 2);
+						                      ctx.fillStyle = 'rgba(255,255,255,0.10)';
+						                      ctx.fill();
+						                      ctx.lineWidth = 8;
+						                      ctx.strokeStyle = '#f8fafc';
+						                      ctx.stroke();
+						                      ctx.fillStyle = '#f8fafc';
+						                      ctx.font = '900 40px Arial, sans-serif';
+						                      ctx.fillText('MCF', c.width * 0.18, c.height * 0.54);
+						                    }, 1024, 256)?.tex || null,
+						                    toneMapped: false,
+						                    transparent: true,
+						                    opacity: 0.98,
+						                    side: THREE.DoubleSide,
+						                  });
 						                  [-20.5, 0, 20.5].forEach((x, idx) => {
 						                    const z = -(metersH / 2 + 5.42);
 						                    const g = new THREE.Group();
@@ -13355,6 +13437,25 @@
 						                    if (idx === 1) g.scale.set(0.72, 0.96, 0.92);
 						                    atmosphere.add(g);
 						                    addShadow(x, z + 0.18, 14.6, 3.0, 0.16);
+						                  });
+						                  [-1, 1].forEach((sign) => {
+						                    const brand = new THREE.Group();
+						                    brand.position.set(sign * 23.4, 0, -(metersH / 2 + 3.72));
+						                    brand.userData = { kind: 'pitch_3d_reference_dugout_side_brand_block' };
+						                    const shell = new THREE.Mesh(new THREE.BoxGeometry(5.6, 1.26, 0.24), sideBrandShellMat);
+						                    shell.position.set(0, 0.64, 0);
+						                    const top = new THREE.Mesh(new THREE.BoxGeometry(5.72, 0.06, 0.30), sideBrandEdgeMat);
+						                    top.position.set(0, 1.24, 0.02);
+						                    const base = new THREE.Mesh(new THREE.BoxGeometry(5.72, 0.08, 0.34), sideBrandEdgeMat);
+						                    base.position.set(0, 0.06, 0.02);
+						                    const foot = new THREE.Mesh(new THREE.BoxGeometry(4.20, 0.16, 0.90), technicalMat);
+						                    foot.position.set(0, 0.08, -0.28);
+						                    const face = new THREE.Mesh(new THREE.PlaneGeometry(5.32, 0.98), sideBrandFaceMat);
+						                    face.position.set(0, 0.66, 0.13);
+						                    face.rotation.y = sign < 0 ? 0 : Math.PI;
+						                    brand.add(shell, top, base, foot, face);
+						                    atmosphere.add(brand);
+						                    addShadow(sign * 23.4, -(metersH / 2 + 3.98), 5.8, 1.2, 0.12);
 						                  });
 						                  [-27.5, 27.5].forEach((x) => {
 						                    addBox(new THREE.BoxGeometry(5.2, 0.16, 1.55), technicalMat, x, 0.22, -(metersH / 2 + 3.86), 0, 0, 0, 'pitch_3d_reference_pitchside_analysis_platform');
