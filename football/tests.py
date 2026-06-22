@@ -1728,12 +1728,49 @@ class SystemGuardTests(TestCase):
             response={'status': 'watch', 'summary': 'Objetivo abierto'},
             assistant_action={'kind': 'code_intervention_request'},
             actor_id=self.user.id,
+            evaluator={'goal_status': 'in_progress', 'score_percent': 40, 'next_step': 'Aplicar patch'},
         )
         snapshot = system_guard._objective_orchestrator_snapshot(self.workspace, actor_id=self.user.id)
         self.assertEqual(row['status'], 'running')
+        self.assertEqual(row['goal_status'], 'in_progress')
         self.assertEqual(snapshot['active_count'], 1)
         self.assertEqual(snapshot['resumable_count'], 1)
+        self.assertEqual(snapshot['retryable_count'], 0)
         self.assertEqual(snapshot['objectives'][0]['title'], 'Corregir flujo 3D')
+
+    def test_objective_orchestrator_surfaces_retry_and_escalation_state(self):
+        system_guard._store_pref_value(self.workspace, system_guard.OBJECTIVE_MEMORY_PREF_KEY, [{
+            'id': 'obj-1',
+            'title': 'Diagnóstico continuo',
+            'status': 'blocked',
+            'goal_status': 'blocked',
+            'progress_percent': 35,
+            'next_step': 'Reintentar con más evidencia',
+            'resume_token': 'obj-1:1',
+            'retry_count': 1,
+            'blocked_count': 1,
+            'attempt_count': 1,
+            'escalation_level': 'watch',
+            'confirmation_pending': False,
+        }, {
+            'id': 'obj-2',
+            'title': 'Publicación pendiente',
+            'status': 'pending_confirmation',
+            'goal_status': 'pending_confirmation',
+            'progress_percent': 90,
+            'next_step': 'Esperar confirmación',
+            'resume_token': 'obj-2:1',
+            'retry_count': 0,
+            'blocked_count': 0,
+            'attempt_count': 1,
+            'escalation_level': 'operator_confirmation',
+            'confirmation_pending': True,
+        }])
+        snapshot = system_guard._objective_orchestrator_snapshot(self.workspace, actor_id=self.user.id)
+        self.assertEqual(snapshot['retryable_count'], 1)
+        self.assertEqual(snapshot['escalated_count'], 1)
+        self.assertEqual(snapshot['pending_confirmation_count'], 1)
+        self.assertEqual(snapshot['objectives'][0]['goal_status'], 'blocked')
 
     def test_autonomous_closure_snapshot_reports_end_to_end_readiness(self):
         snapshot = system_guard._autonomous_closure_snapshot(
@@ -1832,6 +1869,63 @@ class SystemGuardTests(TestCase):
         self.assertEqual(result['executed_count'], 1)
         queue = system_guard._load_task_queue(self.workspace)
         self.assertEqual(queue[0]['status'], 'completed')
+        self.assertEqual(queue[0]['goal_status'], 'completed')
+        self.assertEqual(queue[0]['attempt_count'], 1)
+
+    @patch('football.system_guard._execute_tools', return_value=[{
+        'tool': 'inspect_recent_errors',
+        'label': 'Inspeccionar errores recientes',
+        'ok': False,
+        'kind': 'inspect',
+        'detail': 'boom',
+        'result': {'ok': False},
+    }])
+    def test_execute_queued_task_persists_retry_and_objective_memory(self, _exec):
+        task = system_guard._new_task_entry(
+            detector='manual_request',
+            title='Revisar errores',
+            summary='Backlog tecnico',
+            severity='warning',
+            runbook='silent_diagnostics',
+            task_kind='diagnose',
+            tools=['inspect_recent_errors'],
+            source='manual',
+            question='Revisa errores',
+            auto_execute=False,
+        )
+        saved = system_guard._enqueue_task(self.workspace, task)
+        updated = system_guard._execute_queued_task(self.workspace, saved)
+        self.assertEqual(updated['status'], 'blocked')
+        self.assertEqual(updated['goal_status'], 'blocked')
+        self.assertEqual(updated['attempt_count'], 1)
+        self.assertEqual(updated['retry_count'], 1)
+        self.assertEqual(updated['blocked_count'], 1)
+        snapshot = system_guard._objective_orchestrator_snapshot(self.workspace, actor_id=self.user.id)
+        self.assertEqual(snapshot['active_count'], 1)
+        self.assertEqual(snapshot['retryable_count'], 1)
+        self.assertEqual(snapshot['objectives'][0]['retry_count'], 1)
+
+    def test_autonomous_task_is_not_allowed_after_retry_limit(self):
+        task = system_guard._new_task_entry(
+            detector='manual_request',
+            title='Revisar errores',
+            summary='Backlog tecnico',
+            severity='warning',
+            runbook='silent_diagnostics',
+            task_kind='diagnose',
+            tools=['inspect_recent_errors'],
+            source='manual',
+            question='Revisa errores',
+            auto_execute=False,
+        )
+        task['status'] = 'blocked'
+        task['retry_count'] = system_guard.OBJECTIVE_AUTONOMY_RETRY_LIMIT
+        task['escalation_level'] = 'operator_intervention'
+        allowed = system_guard._autonomous_task_is_allowed(
+            task,
+            page_context={'is_admin_user': True, 'can_manage_guard': True, 'can_operate_guard_code': True},
+        )
+        self.assertFalse(allowed)
 
     @patch('football.system_guard.run_system_guard', return_value={
         'ok': True,

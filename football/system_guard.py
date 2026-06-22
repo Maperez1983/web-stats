@@ -397,6 +397,7 @@ OPERATOR_CONTROL_PREF_KEY = "system_guard:operator_control:v1"
 SCHEDULED_GUARD_INTERVAL_SECONDS = 300
 AUTONOMOUS_BACKLOG_MAX_TASKS = 3
 OPERATOR_LEASE_SECONDS = 240
+OBJECTIVE_AUTONOMY_RETRY_LIMIT = 2
 ACTION_PERMISSION_MATRIX = {
     "inspect_system": {"requires_manage_guard": False, "requires_code_operator": False, "scope": "system"},
     "guide_user": {"requires_manage_guard": False, "requires_code_operator": False, "scope": "user"},
@@ -2449,9 +2450,13 @@ def _execute_queued_task(workspace, task: dict) -> dict:
     task_id = str(task.get("id") or "").strip()
     if not task_id:
         return task
-    _update_task_entry(workspace, task_id, status="running")
+    next_attempt_count = _safe_int(task.get("attempt_count"), 0) + 1
+    _update_task_entry(workspace, task_id, status="running", attempt_count=next_attempt_count)
     executions = _execute_tools(task.get("tools") or [], workspace=workspace, question=str(task.get("question") or task.get("title") or ""))
-    ok = all(bool(row.get("ok")) for row in executions if isinstance(row, dict)) if executions else False
+    evaluator = _task_execution_evaluator(task, executions)
+    retry_outcome = _task_retry_outcome(dict(task, attempt_count=next_attempt_count), evaluator=evaluator)
+    ok = str(evaluator.get("goal_status") or "") == "completed"
+    last_error = next((str(row.get("detail") or row.get("tool") or "") for row in executions if isinstance(row, dict) and not row.get("ok")), "")
     updated = _update_task_entry(
         workspace,
         task_id,
@@ -2459,6 +2464,19 @@ def _execute_queued_task(workspace, task: dict) -> dict:
         executions=executions,
         result_summary=_task_result_summary(executions),
         finished_at=_now_iso(),
+        attempt_count=next_attempt_count,
+        retry_count=_safe_int(retry_outcome.get("retry_count"), 0),
+        blocked_count=_safe_int(retry_outcome.get("blocked_count"), 0),
+        goal_status=str(retry_outcome.get("goal_status") or ""),
+        escalation_level=str(retry_outcome.get("escalation_level") or "none"),
+        last_error_summary=_truncate(last_error, 220),
+        last_evaluator=evaluator,
+    )
+    _sync_objective_memory_from_task(
+        workspace,
+        updated or dict(task, attempt_count=next_attempt_count),
+        evaluator=evaluator,
+        result_summary=str((updated or {}).get("result_summary") or _task_result_summary(executions)),
     )
     return updated or task
 
@@ -2472,6 +2490,10 @@ def _autonomous_task_is_allowed(task: dict, *, page_context=None) -> bool:
         return False
     tools = [str(item) for item in (task.get("tools") or []) if str(item or "").strip()]
     if not tools:
+        return False
+    if str(task.get("escalation_level") or "").strip() in {"operator_intervention", "operator_confirmation", "user_input"}:
+        return False
+    if _safe_int(task.get("retry_count"), 0) >= int(OBJECTIVE_AUTONOMY_RETRY_LIMIT) and status == "blocked":
         return False
     if any(tool in {"git_commit", "git_push", "trigger_remote_deploy", "trigger_remote_rollback"} for tool in tools):
         return _env_flag("OLLANA_ADMIN_AUTONOMY_ENABLE_RELEASES")
@@ -2744,6 +2766,95 @@ def _objective_memory_key(*, question: str, task_kind: str, runbook: str) -> str
     return base or f"objective-{abs(hash((task_kind, runbook, question))) % 100000}"
 
 
+def _objective_retry_policy(row: dict | None) -> dict:
+    row = row if isinstance(row, dict) else {}
+    goal_status = str(row.get("goal_status") or row.get("status") or "").strip().lower()
+    retry_count = _safe_int(row.get("retry_count"), 0)
+    blocked_count = _safe_int(row.get("blocked_count"), 0)
+    attempt_count = _safe_int(row.get("attempt_count"), 0)
+    confirmation_pending = bool(row.get("confirmation_pending"))
+    retry_allowed = goal_status == "blocked" and retry_count < int(OBJECTIVE_AUTONOMY_RETRY_LIMIT) and not confirmation_pending
+    escalation_level = "none"
+    if confirmation_pending:
+        escalation_level = "operator_confirmation"
+    elif goal_status == "blocked" and blocked_count >= int(OBJECTIVE_AUTONOMY_RETRY_LIMIT):
+        escalation_level = "operator_intervention"
+    elif goal_status == "blocked":
+        escalation_level = "watch"
+    elif goal_status == "needs_input":
+        escalation_level = "user_input"
+    return {
+        "goal_status": goal_status or "running",
+        "attempt_count": attempt_count,
+        "retry_count": retry_count,
+        "blocked_count": blocked_count,
+        "confirmation_pending": confirmation_pending,
+        "retry_allowed": retry_allowed,
+        "escalation_level": escalation_level,
+    }
+
+
+def _objective_memory_row_from_task(task: dict, *, evaluator=None, result_summary: str = "") -> dict:
+    task = task if isinstance(task, dict) else {}
+    evaluator = evaluator if isinstance(evaluator, dict) else {}
+    question = _truncate(str(task.get("question") or task.get("title") or ""), 220)
+    key = _objective_memory_key(
+        question=question,
+        task_kind=str(task.get("task_kind") or "objective"),
+        runbook=str(task.get("runbook") or "guard"),
+    )
+    retry_count = _safe_int(task.get("retry_count"), 0)
+    blocked_count = _safe_int(task.get("blocked_count"), 0)
+    goal_status = str(evaluator.get("goal_status") or task.get("goal_status") or task.get("status") or "running").strip()[:32]
+    confirmation_pending = goal_status == "pending_confirmation"
+    escalation_level = str(task.get("escalation_level") or "")[:32]
+    policy = _objective_retry_policy({
+        "goal_status": goal_status,
+        "retry_count": retry_count,
+        "blocked_count": blocked_count,
+        "attempt_count": _safe_int(task.get("attempt_count"), 0),
+        "confirmation_pending": confirmation_pending,
+    })
+    if not escalation_level:
+        escalation_level = str(policy.get("escalation_level") or "none")
+    return {
+        "id": key,
+        "title": str(task.get("title") or question or "Objetivo del operador")[:160],
+        "target": question,
+        "scope": "system" if str(task.get("task_kind") or "").strip() in {"diagnose", "maintenance"} else "code",
+        "task_kind": str(task.get("task_kind") or "diagnose")[:48],
+        "runbook": str(task.get("runbook") or "guard")[:64],
+        "status": "running" if goal_status in {"in_progress", "needs_input"} else goal_status,
+        "goal_status": goal_status,
+        "progress_percent": max(5, min(100, _safe_int(evaluator.get("score_percent"), 0) or (90 if goal_status == "completed" else 35 if goal_status == "blocked" else 20))),
+        "completed_phases": [],
+        "next_step": str(evaluator.get("next_step") or result_summary or task.get("result_summary") or "")[:220],
+        "result_summary": str(result_summary or task.get("result_summary") or "")[:240],
+        "resume_token": f"{key}:{int(time.time())}",
+        "owner_scope": "workspace",
+        "updated_at": _now_iso(),
+        "attempt_count": _safe_int(task.get("attempt_count"), 0),
+        "retry_count": retry_count,
+        "blocked_count": blocked_count,
+        "confirmation_pending": confirmation_pending,
+        "escalation_level": escalation_level,
+        "last_evaluator_score": _safe_int(evaluator.get("score_percent"), 0),
+        "last_queue_status": str(task.get("status") or "")[:32],
+        "last_error_summary": str(task.get("last_error_summary") or "")[:220],
+    }
+
+
+def _sync_objective_memory_from_task(workspace, task: dict, *, evaluator=None, result_summary: str = "") -> dict:
+    if not workspace or not isinstance(task, dict):
+        return {}
+    objective_row = _objective_memory_row_from_task(task, evaluator=evaluator, result_summary=result_summary)
+    rows = _load_objective_memory(workspace)
+    updated_rows = [row for row in rows if str(row.get("id") or "") != str(objective_row.get("id") or "")]
+    updated_rows.insert(0, objective_row)
+    _store_objective_memory(workspace, updated_rows)
+    return objective_row
+
+
 def _should_track_objective(*, planner=None, technical_operation=None, assistant_action=None) -> bool:
     planner = planner if isinstance(planner, dict) else {}
     technical_operation = technical_operation if isinstance(technical_operation, dict) else {}
@@ -2766,6 +2877,7 @@ def _update_objective_memory(
     response=None,
     assistant_action=None,
     actor_id=None,
+    evaluator=None,
 ) -> dict:
     if not workspace or not _should_track_objective(planner=planner, technical_operation=technical_operation, assistant_action=assistant_action):
         return {}
@@ -2774,6 +2886,7 @@ def _update_objective_memory(
     technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
     response = response if isinstance(response, dict) else {}
     assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
+    evaluator = evaluator if isinstance(evaluator, dict) else {}
     task = planner.get("task") if isinstance(planner.get("task"), dict) else {}
     runbook = planner.get("runbook") if isinstance(planner.get("runbook"), dict) else {}
     completed = {str(item) for item in (technical_execution.get("completed_phases") or []) if str(item or "").strip()}
@@ -2788,10 +2901,27 @@ def _update_objective_memory(
     )
     next_step = str(
         technical_execution.get("next_step")
+        or evaluator.get("next_step")
         or response.get("next_step")
         or ((response.get("request_contract") or {}).get("next_step") if isinstance(response.get("request_contract"), dict) else "")
         or ""
     )[:220]
+    previous_rows = _load_objective_memory(workspace)
+    previous_row = next((row for row in previous_rows if str(row.get("id") or "") == key), {})
+    goal_status = str(evaluator.get("goal_status") or technical_execution.get("status") or response.get("status") or "running").strip()[:32]
+    confirmation_pending = bool(evaluator.get("goal_status") == "pending_confirmation" or response.get("needs_confirmation"))
+    blocked_count = _safe_int(previous_row.get("blocked_count"), 0) + (1 if goal_status == "blocked" else 0)
+    retry_count = max(_safe_int(previous_row.get("retry_count"), 0), _safe_int(evaluator.get("failed_tools"), 0))
+    attempt_count = max(_safe_int(previous_row.get("attempt_count"), 0), 1 if evaluator else 0)
+    retry_policy = _objective_retry_policy({
+        "goal_status": goal_status,
+        "retry_count": retry_count,
+        "blocked_count": blocked_count,
+        "attempt_count": attempt_count,
+        "confirmation_pending": confirmation_pending,
+    })
+    if evaluator.get("score_percent"):
+        progress = max(progress, min(100, _safe_int(evaluator.get("score_percent"), 0)))
     objective_row = {
         "id": key,
         "title": str(task.get("title") or technical_operation.get("title") or objective_question)[:160],
@@ -2800,6 +2930,7 @@ def _update_objective_memory(
         "task_kind": str(task.get("kind") or technical_operation.get("kind") or "technical_operation")[:48],
         "runbook": str(runbook.get("key") or task.get("runbook_key") or "guard")[:64],
         "status": str(technical_execution.get("status") or response.get("status") or "running")[:32],
+        "goal_status": goal_status,
         "progress_percent": int(progress),
         "completed_phases": sorted(completed)[:6],
         "next_step": next_step,
@@ -2807,9 +2938,16 @@ def _update_objective_memory(
         "resume_token": f"{key}:{int(time.time())}",
         "owner_scope": "actor" if actor_id else "workspace",
         "updated_at": _now_iso(),
+        "attempt_count": attempt_count,
+        "retry_count": retry_count,
+        "blocked_count": blocked_count,
+        "confirmation_pending": confirmation_pending,
+        "escalation_level": str(retry_policy.get("escalation_level") or "none")[:32],
+        "last_evaluator_score": _safe_int(evaluator.get("score_percent"), 0),
+        "last_queue_status": str(goal_status or "")[:32],
+        "last_error_summary": str(response.get("degraded_reason") or response.get("message") or "")[:220],
     }
-    rows = _load_objective_memory(workspace)
-    updated_rows = [row for row in rows if str(row.get("id") or "") != key]
+    updated_rows = [row for row in previous_rows if str(row.get("id") or "") != key]
     updated_rows.insert(0, objective_row)
     _store_objective_memory(workspace, updated_rows)
     return objective_row
@@ -2819,19 +2957,30 @@ def _objective_orchestrator_snapshot(workspace, *, actor_id=None) -> dict:
     rows = _load_objective_memory(workspace) if workspace else []
     active = [row for row in rows if str((row or {}).get("status") or "") not in {"completed", "resolved"}]
     resumable = [row for row in rows if str((row or {}).get("next_step") or "").strip()]
+    retryable = [row for row in rows if _objective_retry_policy(row).get("retry_allowed")]
+    escalated = [row for row in rows if str((row or {}).get("escalation_level") or "") not in {"", "none", "watch"}]
+    pending_confirmation = [row for row in rows if bool((row or {}).get("confirmation_pending"))]
     return {
         "embedded": True,
         "continuous_operator_ready": True,
         "active_count": len(active),
         "resumable_count": len(resumable),
+        "retryable_count": len(retryable),
+        "escalated_count": len(escalated),
+        "pending_confirmation_count": len(pending_confirmation),
         "actor_scope": "actor" if actor_id else "workspace",
         "objectives": [
             {
                 "title": str(row.get("title") or "Objetivo técnico")[:140],
                 "status": str(row.get("status") or "running")[:24],
+                "goal_status": str(row.get("goal_status") or row.get("status") or "running")[:24],
                 "progress_percent": _safe_int(row.get("progress_percent"), 0),
                 "next_step": str(row.get("next_step") or "")[:180],
                 "resume_token": str(row.get("resume_token") or "")[:120],
+                "attempt_count": _safe_int(row.get("attempt_count"), 0),
+                "retry_count": _safe_int(row.get("retry_count"), 0),
+                "blocked_count": _safe_int(row.get("blocked_count"), 0),
+                "escalation_level": str(row.get("escalation_level") or "none")[:32],
             }
             for row in rows[:6]
             if isinstance(row, dict)
@@ -2887,10 +3036,84 @@ def _new_task_entry(*, detector: str, title: str, summary: str, severity: str, r
         "auto_execute": bool(auto_execute),
         "executions": [],
         "result_summary": "",
+        "attempt_count": 0,
+        "retry_count": 0,
+        "blocked_count": 0,
+        "goal_status": "pending",
+        "escalation_level": "none",
+        "last_error_summary": "",
         "signature": "",
     }
     row["signature"] = _queue_signature(row)
     return row
+
+
+def _task_execution_evaluator(task: dict, executions: list[dict]) -> dict:
+    task = task if isinstance(task, dict) else {}
+    executions = [row for row in (executions or []) if isinstance(row, dict)]
+    requested_tools = [str(item) for item in (task.get("tools") or []) if str(item or "").strip()]
+    ok_tools = [row for row in executions if bool(row.get("ok"))]
+    failed_tools = [row for row in executions if not bool(row.get("ok"))]
+    if requested_tools and len(ok_tools) == len(requested_tools) and not failed_tools:
+        goal_status = "completed"
+    elif failed_tools:
+        goal_status = "blocked"
+    elif requested_tools:
+        goal_status = "in_progress"
+    else:
+        goal_status = "completed"
+    score = 100 if goal_status == "completed" else (25 if goal_status == "blocked" else 60)
+    next_step = ""
+    if failed_tools:
+        next_step = _truncate(str((failed_tools[0].get("detail") or failed_tools[0].get("tool") or "Resolver fallo del backlog")), 220)
+    elif requested_tools:
+        next_step = "Continuar con la siguiente fase del objetivo."
+    checks = [
+        {
+            "name": "tool_execution",
+            "status": "pass" if goal_status == "completed" else ("fail" if failed_tools else "pending"),
+            "detail": f"{len(ok_tools)}/{len(requested_tools)} herramientas correctas" if requested_tools else "Sin herramientas requeridas",
+        },
+    ]
+    return {
+        "embedded": True,
+        "goal_status": goal_status,
+        "score_percent": score,
+        "requested_tools": len(requested_tools),
+        "executed_tools": len(executions),
+        "successful_tools": len(ok_tools),
+        "failed_tools": len(failed_tools),
+        "checks": checks,
+        "next_step": next_step,
+    }
+
+
+def _task_retry_outcome(task: dict, *, evaluator=None) -> dict:
+    task = task if isinstance(task, dict) else {}
+    evaluator = evaluator if isinstance(evaluator, dict) else {}
+    previous_retry_count = _safe_int(task.get("retry_count"), 0)
+    previous_blocked_count = _safe_int(task.get("blocked_count"), 0)
+    goal_status = str(evaluator.get("goal_status") or task.get("goal_status") or "pending").strip().lower()
+    retry_count = previous_retry_count
+    blocked_count = previous_blocked_count
+    if goal_status == "blocked":
+        blocked_count += 1
+        if retry_count < int(OBJECTIVE_AUTONOMY_RETRY_LIMIT):
+            retry_count += 1
+    policy = _objective_retry_policy({
+        "goal_status": goal_status,
+        "retry_count": retry_count,
+        "blocked_count": blocked_count,
+        "attempt_count": _safe_int(task.get("attempt_count"), 0),
+        "confirmation_pending": goal_status == "pending_confirmation",
+    })
+    return {
+        "retry_count": retry_count,
+        "blocked_count": blocked_count,
+        "escalation_level": str(policy.get("escalation_level") or "none")[:32],
+        "goal_status": goal_status or "pending",
+        "retry_allowed": bool(policy.get("retry_allowed")),
+    }
 
 
 def _enqueue_task(workspace, task: dict) -> dict:
@@ -6370,6 +6593,8 @@ def _continuous_operator_snapshot(workspace, *, actor_id=None) -> dict:
         "control": control,
         "active_objectives": _safe_int(objectives.get("active_count"), 0),
         "resumable_objectives": _safe_int(objectives.get("resumable_count"), 0),
+        "retryable_objectives": _safe_int(objectives.get("retryable_count"), 0),
+        "escalated_objectives": _safe_int(objectives.get("escalated_count"), 0),
         "running": bool(runtime.get("running")),
     }
 
@@ -6415,6 +6640,7 @@ def run_continuous_operator_cycle(
             page_context=page_context or {"page": "continuous-operator"},
         )
         queue_counts = proactive.get("queue_counts") or {}
+        objective_state = _objective_orchestrator_snapshot(workspace, actor_id=actor_id)
         runtime.update({
             "running": False,
             "last_finished_at": _now_iso(),
@@ -6422,6 +6648,8 @@ def run_continuous_operator_cycle(
             "last_queue_counts": queue_counts,
             "last_detection_count": len(proactive.get("detections") or []),
             "last_executed_tasks": _safe_int((proactive.get("autonomous_backlog") or {}).get("executed_count"), 0),
+            "last_retryable_objectives": _safe_int(objective_state.get("retryable_count"), 0),
+            "last_escalated_objectives": _safe_int(objective_state.get("escalated_count"), 0),
             "heartbeat_at": _now_iso(),
         })
         _store_operator_runtime_state(workspace, runtime)
@@ -9792,6 +10020,7 @@ def run_system_guard_chat(
         response=response,
         assistant_action=response.get("assistant_action") if isinstance(response.get("assistant_action"), dict) else {},
         actor_id=actor_id,
+        evaluator=response.get("agent_evaluator") if isinstance(response.get("agent_evaluator"), dict) else {},
     )
     if objective_entry:
         response["objective_orchestrator"] = _objective_orchestrator_snapshot(workspace, actor_id=actor_id)
