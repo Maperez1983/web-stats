@@ -2,46 +2,36 @@
   .guard-widget-shell { position:fixed; right:1rem; bottom:1rem; z-index:2147483000; display:flex; flex-direction:column; align-items:flex-end; gap:0.75rem; pointer-events:auto; }
   .guard-widget-toggle { border-radius:999px; border:1px solid rgba(250,204,21,0.35); background:linear-gradient(135deg, #14532d, #22c55e 60%, #facc15 140%); color:#f8fafc; padding:0.82rem 1.05rem; font-size:0.76rem; font-weight:950; letter-spacing:0.08em; text-transform:uppercase; box-shadow:0 24px 60px rgba(20,83,45,0.34); cursor:pointer; position:relative; overflow:hidden; }
   .guard-widget-toggle::before { content:""; position:absolute; inset:0; background:repeating-linear-gradient(90deg, transparent 0 18px, rgba(255,255,255,0.08) 18px 20px); opacity:0.35; pointer-events:none; }
-  .guard-widget-panel { width:min(420px, calc(100vw - 1.5rem)); max-height:min(78vh, 760px); overflow:hidden; display:flex; flex-direction:column; box-shadow:0 28px 80px rgba(2,6,23,0.45); border:1px solid rgba(163,230,53,0.16); background:
-    radial-gradient(circle at top right, rgba(250,204,21,0.14), transparent 30%),
-    linear-gradient(180deg, rgba(8,31,20,0.98) 0%, rgba(3,14,10,0.98) 100%);
-    border-radius:22px; padding:0.9rem; color:#e5e7eb; font-family:var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif); position:relative; isolation:isolate; }
-  .guard-widget-panel::before { content:""; position:absolute; inset:0; background:
-    linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-    background-size: 100% 36px, 36px 100%;
-    opacity:0.22; pointer-events:none; }
+  .guard-widget-panel { width:min(440px, calc(100vw - 1.5rem)); max-height:min(82vh, 840px); overflow:hidden; display:flex; flex-direction:column; box-shadow:0 28px 80px rgba(2,6,23,0.42); border:1px solid rgba(163,230,53,0.12); background:linear-gradient(180deg, rgba(7,19,14,0.98) 0%, rgba(4,12,9,0.98) 100%); border-radius:24px; padding:1rem; color:#e5e7eb; font-family:var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif); position:relative; isolation:isolate; }
   .guard-widget-shell:not(.is-open) .guard-widget-panel { display:none; }
-  .guard-chat-header { display:flex; justify-content:space-between; gap:0.8rem; align-items:flex-start; margin-bottom:0.35rem; }
-  .guard-chat-close { border:none; background:rgba(255,255,255,0.08); color:#f8fafc; border-radius:999px; width:2rem; height:2rem; font-size:1rem; font-weight:900; cursor:pointer; position:relative; z-index:1; }
-  .guard-chat-scroll { overflow:auto; padding-right:0.15rem; }
-  .guard-chat-log { display:grid; gap:0.45rem; margin-top:0.65rem; max-height:24vh; overflow:auto; padding-right:0.15rem; position:relative; z-index:1; }
-  .guard-msg { border:1px solid rgba(148,163,184,0.18); border-radius:16px; padding:0.7rem 0.8rem; background:rgba(255,255,255,0.04); backdrop-filter: blur(8px); }
-  .guard-msg.user { background:rgba(20,83,45,0.24); border-color:rgba(134,239,172,0.25); }
-  .guard-msg .role { display:block; font-size:0.7rem; font-weight:950; letter-spacing:0.08em; text-transform:uppercase; color:rgba(226,232,240,0.76); margin-bottom:0.3rem; }
-  .guard-msg .body { font-weight:800; line-height:1.5; }
+  .guard-chat-header { display:flex; justify-content:space-between; gap:0.8rem; align-items:flex-start; margin-bottom:0.55rem; padding-bottom:0.8rem; border-bottom:1px solid rgba(148,163,184,0.12); }
+  .guard-chat-close { border:none; background:rgba(255,255,255,0.06); color:#f8fafc; border-radius:999px; width:2rem; height:2rem; font-size:1rem; font-weight:900; cursor:pointer; position:relative; z-index:1; }
+  .guard-chat-scroll { overflow:auto; padding-right:0.05rem; }
+  .guard-chat-log { display:grid; gap:0.7rem; margin-top:0.8rem; max-height:40vh; overflow:auto; padding-right:0.05rem; padding-bottom:0.2rem; position:relative; z-index:1; }
+  .guard-msg { max-width:92%; border:1px solid rgba(148,163,184,0.1); border-radius:20px; padding:0.85rem 0.95rem; background:rgba(255,255,255,0.04); backdrop-filter: blur(8px); }
+  .guard-msg.assistant { justify-self:start; background:rgba(255,255,255,0.04); }
+  .guard-msg.user { justify-self:end; background:rgba(20,83,45,0.24); border-color:rgba(134,239,172,0.2); }
+  .guard-msg .role { display:none; }
+  .guard-msg .body { font-weight:650; line-height:1.6; }
   .guard-badges { display:flex; flex-wrap:wrap; gap:0.35rem; margin-top:0.55rem; }
-  .guard-badge { border-radius:999px; padding:0.2rem 0.5rem; border:1px solid rgba(255,255,255,0.16); background:rgba(255,255,255,0.05); font-size:0.72rem; font-weight:900; }
-  .guard-mini-status { display:flex; align-items:center; gap:0.55rem; margin-bottom:0.65rem; position:relative; z-index:1; }
-  .guard-mini-copy { font-size:0.8rem; font-weight:800; color:rgba(226,232,240,0.8); line-height:1.4; }
-  .guard-silent-card { margin-bottom:0.7rem; border:1px solid rgba(163,230,53,0.16); border-radius:18px; padding:0.7rem 0.8rem; background:linear-gradient(180deg, rgba(20,83,45,0.22), rgba(3,14,10,0.28)); position:relative; z-index:1; }
-  .guard-silent-card strong { display:block; font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; color:#bbf7d0; margin-bottom:0.22rem; }
-  .guard-silent-card div { font-size:0.78rem; font-weight:850; color:rgba(248,250,252,0.86); line-height:1.45; white-space:pre-line; }
-  .guard-controls { margin-top:0.7rem; }
+  .guard-badge { border-radius:999px; padding:0.2rem 0.5rem; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.045); font-size:0.71rem; font-weight:800; }
+  .guard-mini-status { display:flex; align-items:center; gap:0.55rem; margin-bottom:0.55rem; position:relative; z-index:1; }
+  .guard-mini-copy { font-size:0.79rem; font-weight:600; color:rgba(226,232,240,0.76); line-height:1.4; }
+  .guard-silent-card { margin-bottom:0.75rem; border:1px solid rgba(163,230,53,0.1); border-radius:16px; padding:0.72rem 0.82rem; background:rgba(20,83,45,0.08); position:relative; z-index:1; }
+  .guard-silent-card strong { display:none; }
+  .guard-silent-card div { font-size:0.77rem; font-weight:600; color:rgba(248,250,252,0.82); line-height:1.45; white-space:pre-line; }
+  .guard-controls { margin-top:0.95rem; }
   .guard-quick-actions { display:flex; flex-wrap:wrap; gap:0.45rem; margin-bottom:0.6rem; }
-  .guard-mode-tabs { display:flex; gap:0.45rem; margin:0.1rem 0 0.75rem; position:relative; z-index:1; }
-  .guard-mode-tab { border-radius:999px; border:1px solid rgba(255,255,255,0.14); background:rgba(255,255,255,0.05); color:#e5e7eb; padding:0.4rem 0.7rem; font-size:0.72rem; font-weight:950; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer; }
-  .guard-mode-tab.is-active { border-color:rgba(163,230,53,0.28); background:rgba(20,83,45,0.34); color:#bbf7d0; }
-  .guard-suggestion-row { display:flex; flex-wrap:wrap; gap:0.45rem; margin-bottom:0.7rem; position:relative; z-index:1; }
-  .guard-suggestion-chip { display:inline-flex; align-items:center; border-radius:999px; padding:0.38rem 0.68rem; font-size:0.73rem; font-weight:900; border:1px solid rgba(163,230,53,0.18); background:rgba(15,23,42,0.44); color:#e2e8f0; cursor:pointer; }
+  .guard-suggestion-row { display:flex; flex-wrap:wrap; gap:0.45rem; margin-bottom:0.45rem; position:relative; z-index:1; }
+  .guard-suggestion-chip { display:inline-flex; align-items:center; border-radius:999px; padding:0.42rem 0.72rem; font-size:0.72rem; font-weight:700; border:1px solid rgba(148,163,184,0.15); background:rgba(255,255,255,0.035); color:#e2e8f0; cursor:pointer; }
   .guard-command-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0.45rem; margin-bottom:0.75rem; position:relative; z-index:1; }
   .guard-command-chip { display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start; gap:0.18rem; min-height:64px; border-radius:16px; padding:0.7rem 0.75rem; border:1px solid rgba(250,204,21,0.14); background:rgba(15,23,42,0.42); color:#f8fafc; cursor:pointer; text-align:left; }
   .guard-command-chip strong { display:block; font-size:0.72rem; font-weight:950; letter-spacing:0.08em; text-transform:uppercase; }
   .guard-command-chip span { display:block; font-size:0.73rem; font-weight:800; color:rgba(226,232,240,0.76); line-height:1.35; }
-  .guard-chip-group { margin-bottom:0.7rem; position:relative; z-index:1; }
-  .guard-chip-group strong { display:block; margin-bottom:0.38rem; font-size:0.68rem; font-weight:950; letter-spacing:0.1em; text-transform:uppercase; color:rgba(226,232,240,0.68); }
-  .guard-tech-shell { margin-top:0.75rem; position:relative; z-index:1; }
-  .guard-tech-shell summary { cursor:pointer; list-style:none; font-size:0.72rem; font-weight:950; letter-spacing:0.08em; text-transform:uppercase; color:rgba(226,232,240,0.78); }
+  .guard-chip-group { margin-bottom:0.45rem; position:relative; z-index:1; }
+  .guard-chip-group strong { display:none; }
+  .guard-tech-shell { margin-top:0.75rem; position:relative; z-index:1; border-top:1px solid rgba(148,163,184,0.12); padding-top:0.75rem; }
+  .guard-tech-shell summary { cursor:pointer; list-style:none; font-size:0.76rem; font-weight:700; color:rgba(226,232,240,0.78); }
   .guard-tech-shell summary::-webkit-details-marker { display:none; }
   .guard-tech-shell[open] summary { color:#f8fafc; }
   .guard-tech-panel { margin-top:0.7rem; }
@@ -64,10 +54,12 @@
   .guard-ob-detail { margin-top:0.28rem; font-size:0.76rem; font-weight:800; color:rgba(226,232,240,0.8); line-height:1.45; }
   .guard-toggle-row { display:flex; flex-wrap:wrap; gap:0.9rem; margin:0.65rem 0 0.35rem; }
   .guard-toggle-row label { display:flex; flex-direction:row; align-items:center; gap:0.45rem; text-transform:none; letter-spacing:0.02em; font-size:0.76rem; color:rgba(226,232,240,0.86); }
-  .guard-widget-panel label { display:flex; flex-direction:column; gap:0.35rem; font-size:0.74rem; font-weight:950; letter-spacing:0.06em; text-transform:uppercase; color: rgba(226,232,240,0.86); position:relative; z-index:1; }
-  .guard-widget-panel input, .guard-widget-panel textarea, .guard-widget-panel select { width:100%; border:1px solid rgba(255,255,255,0.18); border-radius:14px; padding:0.65rem 0.75rem; background:rgba(2, 6, 23, 0.55); color:#e5e7eb; font:inherit; text-transform:none; }
-  .guard-widget-panel textarea { min-height:88px; }
-  .guard-statusline { margin-top:0.65rem; font-size:0.76rem; font-weight:900; color:rgba(226,232,240,0.78); }
+  .guard-widget-panel label { display:flex; flex-direction:column; gap:0.35rem; font-size:0.74rem; font-weight:700; color: rgba(226,232,240,0.86); position:relative; z-index:1; }
+  .guard-widget-panel input, .guard-widget-panel textarea, .guard-widget-panel select { width:100%; border:1px solid rgba(255,255,255,0.14); border-radius:16px; padding:0.82rem 0.95rem; background:rgba(255,255,255,0.035); color:#e5e7eb; font:inherit; text-transform:none; }
+  .guard-widget-panel textarea { min-height:74px; resize:none; }
+  .guard-composer { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:0.6rem; align-items:end; }
+  .guard-composer-actions { display:flex; flex-direction:column; gap:0.45rem; }
+  .guard-statusline { margin-top:0.6rem; font-size:0.75rem; font-weight:700; color:rgba(226,232,240,0.72); }
   .guard-plan { display:grid; gap:0.25rem; margin-top:0.55rem; }
   .guard-plan-row { font-size:0.76rem; font-weight:800; color:rgba(226,232,240,0.82); }
   .guard-remediation { display:grid; gap:0.35rem; margin-top:0.55rem; }
@@ -87,8 +79,8 @@
   .guard-ui-action[data-kind="confirm_execution"] { border-color:rgba(250,204,21,0.28); background:rgba(120,53,15,0.28); color:#fde68a; }
   .guard-ui-action[data-kind="navigate"] { border-color:rgba(74,222,128,0.26); background:rgba(20,83,45,0.24); color:#bbf7d0; }
   .guard-actions { display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; justify-content:flex-start; margin-top:0.75rem; }
-  .guard-btn { border-radius:999px; border:1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.65rem 0.9rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:0.4rem; }
-  .guard-btn.primary { background: linear-gradient(135deg, #14532d, #22c55e 68%, #facc15 140%); border:none; color:#f8fafc; }
+  .guard-btn { border-radius:999px; border:1px solid rgba(255,255,255,0.14); background:rgba(255,255,255,0.05); color:#f3f7ff; padding:0.72rem 0.95rem; font-weight:700; letter-spacing:0.01em; font-size:0.73rem; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:0.4rem; }
+  .guard-btn.primary { background:#f8fafc; border:none; color:#06110c; }
   .guard-score-strip { display:grid; grid-template-columns:1fr auto 1fr; gap:0.55rem; align-items:center; margin-bottom:0.7rem; position:relative; z-index:1; }
   .guard-score-side { border-radius:14px; padding:0.45rem 0.6rem; background:rgba(255,255,255,0.055); border:1px solid rgba(255,255,255,0.1); }
   .guard-score-side strong { display:block; font-size:0.68rem; letter-spacing:0.08em; text-transform:uppercase; color:rgba(226,232,240,0.68); }
@@ -96,15 +88,20 @@
   .guard-score-center { min-width:76px; text-align:center; border-radius:16px; padding:0.5rem 0.7rem; background:linear-gradient(180deg, rgba(20,83,45,0.9), rgba(10,35,25,0.92)); border:1px solid rgba(250,204,21,0.26); box-shadow: inset 0 1px 0 rgba(255,255,255,0.08); }
   .guard-score-center strong { display:block; font-size:1.15rem; font-weight:1000; color:#f8fafc; letter-spacing:0.08em; }
   .guard-score-center span { display:block; margin-top:0.18rem; font-size:0.62rem; font-weight:950; letter-spacing:0.12em; text-transform:uppercase; color:#bbf7d0; }
-  .guard-widget-panel textarea::placeholder { color:rgba(226,232,240,0.46); }
-  .guard-widget-shell[data-ui-mode="assistant"] .guard-tech-shell { display:none; }
+  .guard-widget-panel textarea::placeholder { color:rgba(226,232,240,0.44); }
+  .guard-widget-shell[data-ui-mode="assistant"] .guard-command-grid,
+  .guard-widget-shell[data-ui-mode="assistant"] .guard-quick-actions[data-guard-surface="advanced"],
+  .guard-widget-shell[data-ui-mode="assistant"] .guard-meta-grid,
+  .guard-widget-shell[data-ui-mode="assistant"] .guard-toggle-row { display:none; }
   .guard-widget-shell[data-ui-mode="assistant"] .guard-command-grid .guard-command-chip[data-operator-only="1"] { display:none; }
   .guard-widget-shell[data-ui-mode="assistant"] .guard-quick-actions .guard-btn[data-operator-only="1"] { display:none; }
   @media (max-width: 900px) { .guard-meta-grid, .guard-observability { grid-template-columns:1fr 1fr; } }
   @media (max-width: 700px) {
     .guard-meta-grid, .guard-observability { grid-template-columns:1fr; }
     .guard-widget-shell { right:0.75rem; left:0.75rem; bottom:0.75rem; align-items:stretch; }
-    .guard-widget-panel { width:auto; max-height:72vh; }
+    .guard-widget-panel { width:auto; max-height:74vh; }
+    .guard-composer { grid-template-columns:1fr; }
+    .guard-composer-actions { flex-direction:row; }
   }
 </style>
 
@@ -113,8 +110,8 @@
   <section class="guard-widget-panel" id="global-guard-widget-panel" aria-label="Chat global del guardián del sistema" style="width:min(420px, calc(100vw - 1.5rem)); max-height:min(78vh, 760px); overflow:hidden; display:flex; flex-direction:column; box-shadow:0 28px 80px rgba(2,6,23,0.45); border:1px solid rgba(163,230,53,0.16); background:radial-gradient(circle at top right, rgba(250,204,21,0.14), transparent 30%), linear-gradient(180deg, rgba(8,31,20,0.98) 0%, rgba(3,14,10,0.98) 100%); border-radius:22px; padding:0.9rem; color:#e5e7eb; font-family:var(--prod-font-ui, 'Avenir Next', 'Inter', 'Segoe UI', system-ui, sans-serif); position:relative; isolation:isolate;">
     <div class="guard-chat-header">
       <div>
-        <div class="section-title" style="margin:0 0 0.25rem; font-size:0.78rem; font-weight:950; letter-spacing:0.10em; text-transform:uppercase; color: rgba(226,232,240,0.9);">Ollana</div>
-        <p style="margin:0; color:rgba(226,232,240,0.72); font-weight:800;">Asistente del sistema para navegar, crear cosas y vigilar que todo siga funcionando.</p>
+        <div class="section-title" style="margin:0 0 0.2rem; font-size:0.95rem; font-weight:800; color:rgba(248,250,252,0.94);">Ollana</div>
+        <p style="margin:0; color:rgba(226,232,240,0.68); font-weight:600;">Pídeme ayuda con esta pantalla, una navegación o una incidencia.</p>
       </div>
       <button type="button" class="guard-chat-close" id="global-guard-widget-close" aria-label="Ocultar chat">×</button>
     </div>
@@ -127,12 +124,8 @@
           </span>
         </div>
         <div class="guard-mini-copy">
-          Pídeme algo en lenguaje natural: navegar, ayudarte con esta pantalla o revisar una incidencia.
+          Respondo y, si hace falta, sigo trabajando en segundo plano.
         </div>
-      </div>
-      <div class="guard-mode-tabs" id="global-guard-mode-tabs" aria-label="Modo de interacción de Ollana">
-        <button type="button" class="guard-mode-tab is-active" data-guard-ui-mode="assistant">Asistente</button>
-        <button type="button" class="guard-mode-tab" data-guard-ui-mode="operator">Operador</button>
       </div>
       <div class="guard-silent-card" id="global-guard-silent-card"
            data-last-finished="{{ guard_observability.scheduled_state.last_finished_at|default:'' }}"
@@ -140,7 +133,7 @@
            data-queue-running="{{ guard_observability.task_queue.running|default:0 }}"
            data-queue-completed="{{ guard_observability.task_queue.completed|default:0 }}"
            data-queue-blocked="{{ guard_observability.task_queue.blocked|default:0 }}">
-        <strong>Modo silencioso</strong>
+        <strong>Ollana</strong>
         <div id="global-guard-silent-copy">Ollana vigila el sistema en segundo plano y te resume solo lo importante.</div>
       </div>
       <div class="guard-chip-group">
@@ -151,59 +144,53 @@
           <button type="button" class="guard-suggestion-chip" data-guard-suggestion="Abre biblioteca de tareas">Abre biblioteca de tareas</button>
         </div>
       </div>
-      <div class="guard-chip-group">
-        <strong>Acciones directas</strong>
-        <div class="guard-command-grid" id="global-guard-command-grid">
-        <button type="button" class="guard-command-chip" data-guard-command="Llévame a vídeo análisis">
-          <strong>Ir a vídeo</strong>
-          <span>Abre análisis con una orden directa.</span>
-        </button>
-        <button type="button" class="guard-command-chip" data-guard-command="Abre biblioteca ia trainer">
-          <strong>Biblioteca IA</strong>
-          <span>Entra en tareas filtradas por IA-Trainer.</span>
-        </button>
-        <button type="button" class="guard-command-chip" data-guard-command="Crea una sesión nombre: Activación prepartido, fecha 2026-06-21, hora 18:30, duración 60">
-          <strong>Crear sesión</strong>
-          <span>Lanza una sesión desde el chat.</span>
-        </button>
-        <button type="button" class="guard-command-chip" data-guard-command="Crea una tarea título: Rondo 4x2, objetivo: activar tercer hombre, duración 14, repositorio ia trainer">
-          <strong>Crear tarea</strong>
-          <span>Guarda una tarea en biblioteca.</span>
-        </button>
-        <button type="button" class="guard-command-chip" data-guard-command="Introduce un jugador en plantilla nombre: Nuevo jugador, dorsal 8, posición mediocentro" data-operator-only="1">
-          <strong>Crear jugador</strong>
-          <span>Da de alta una ficha básica desde el chat.</span>
-        </button>
-        <button type="button" class="guard-command-chip" data-guard-command="Abre jugadores y plantilla" data-operator-only="1">
-          <strong>Ir a plantilla</strong>
-          <span>Abre la zona de jugadores y seguimiento.</span>
-        </button>
-        </div>
-      </div>
       <div id="global-guard-chat-log" class="guard-chat-log">
         <div class="guard-msg assistant">
           <span class="role">Guardián</span>
-          <div class="body">Estoy listo para ayudarte. Puedes pedirme que te lleve a una zona del sistema, que te explique esta pantalla o que revise un problema mientras trabajo en silencio.</div>
+          <div class="body">Estoy listo. Puedes pedirme una explicación, una navegación o que revise un problema.</div>
         </div>
       </div>
       <div class="guard-controls">
-        <div id="global-guard-quick-actions" class="guard-quick-actions">
-          <button type="button" class="guard-btn" data-guard-action="goto_library">Biblioteca</button>
-          <button type="button" class="guard-btn" data-guard-action="goto_analysis">Vídeo</button>
-          <button type="button" class="guard-btn" data-guard-action="create_player" data-operator-only="1">Jugador</button>
-          <button type="button" class="guard-btn" data-guard-action="create_session" data-operator-only="1">Sesión</button>
-          <button type="button" class="guard-btn" data-guard-action="remote_deploy" data-operator-only="1">Deploy</button>
-          <button type="button" class="guard-btn" data-guard-action="remote_rollback" data-operator-only="1">Rollback</button>
-        </div>
-        <label>Mensaje<textarea id="global-guard-chat-input" placeholder="Ej.: llévame a vídeo análisis, abre biblioteca de tareas, ayúdame con esta pantalla, no me deja guardar..."></textarea></label>
-        <div class="guard-actions">
-          <button type="button" class="guard-btn primary" id="global-guard-chat-send">Enviar</button>
-          <button type="button" class="guard-btn" id="global-guard-chat-clear">Limpiar</button>
+        <div class="guard-composer">
+          <label><textarea id="global-guard-chat-input" placeholder="Escribe a Ollana..."></textarea></label>
+          <div class="guard-composer-actions">
+            <button type="button" class="guard-btn primary" id="global-guard-chat-send">Enviar</button>
+            <button type="button" class="guard-btn" id="global-guard-chat-clear">Limpiar</button>
+          </div>
         </div>
         <div id="global-guard-chat-status" class="guard-statusline"></div>
         <details class="guard-tech-shell">
-          <summary>Consola técnica</summary>
+          <summary>Ver actividad</summary>
           <div class="guard-tech-panel">
+            <div class="guard-chip-group">
+              <strong>Atajos</strong>
+              <div class="guard-command-grid" id="global-guard-command-grid">
+              <button type="button" class="guard-command-chip" data-guard-command="Llévame a vídeo análisis">
+                <strong>Ir a vídeo</strong>
+                <span>Abre análisis con una orden directa.</span>
+              </button>
+              <button type="button" class="guard-command-chip" data-guard-command="Abre biblioteca ia trainer">
+                <strong>Biblioteca IA</strong>
+                <span>Entra en tareas filtradas por IA-Trainer.</span>
+              </button>
+              <button type="button" class="guard-command-chip" data-guard-command="Crea una sesión nombre: Activación prepartido, fecha 2026-06-21, hora 18:30, duración 60">
+                <strong>Crear sesión</strong>
+                <span>Lanza una sesión desde el chat.</span>
+              </button>
+              <button type="button" class="guard-command-chip" data-guard-command="Crea una tarea título: Rondo 4x2, objetivo: activar tercer hombre, duración 14, repositorio ia trainer">
+                <strong>Crear tarea</strong>
+                <span>Guarda una tarea en biblioteca.</span>
+              </button>
+              <button type="button" class="guard-command-chip" data-guard-command="Introduce un jugador en plantilla nombre: Nuevo jugador, dorsal 8, posición mediocentro" data-operator-only="1">
+                <strong>Crear jugador</strong>
+                <span>Da de alta una ficha básica desde el chat.</span>
+              </button>
+              <button type="button" class="guard-command-chip" data-guard-command="Abre jugadores y plantilla" data-operator-only="1">
+                <strong>Ir a plantilla</strong>
+                <span>Abre la zona de jugadores y seguimiento.</span>
+              </button>
+              </div>
+            </div>
             <div class="guard-alerts" id="global-guard-alerts">
               {% for row in guard_observability.alerts %}
                 <button type="button" class="guard-alert-chip" data-level="{{ row.level|default:'repeat' }}" data-guard-alert="{{ row.text|escape }}">{{ row.text }}</button>
@@ -218,31 +205,31 @@
                 <div class="guard-ob-detail" data-guard-ob-detail="trend">{{ guard_observability.history_count|default:0 }} snapshots{% if guard_observability.recent_statuses %}· {{ guard_observability.recent_statuses|join:", " }}{% endif %}</div>
               </div>
               <div class="guard-ob-card">
-                <span class="guard-ob-label">Estabilidad LLM</span>
+                <span class="guard-ob-label">Respuesta</span>
                 <div class="guard-ob-value" data-guard-ob-value="llm">{{ guard_observability.llm_stability|default:"unknown" }}</div>
                 <div class="guard-ob-detail" data-guard-ob-detail="llm">Degradado {{ guard_observability.degraded_rate_pct|default:0 }}%{% if guard_observability.llm_states %}· {% for row in guard_observability.llm_states %}{{ row.state }} x{{ row.count }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}</div>
               </div>
               <div class="guard-ob-card">
-                <span class="guard-ob-label">Operativa</span>
+                <span class="guard-ob-label">Actividad</span>
                 <div class="guard-ob-value" data-guard-ob-value="ops">{{ guard_observability.executed_tools|default:0 }} tools</div>
                 <div class="guard-ob-detail" data-guard-ob-detail="ops">{{ guard_observability.turns|default:0 }} turnos · {{ guard_observability.confirmations|default:0 }} confirmaciones{% if guard_observability.last_latency_ms %}· {{ guard_observability.last_latency_ms }} ms{% endif %}</div>
               </div>
               <div class="guard-ob-card">
-                <span class="guard-ob-label">Memoria útil</span>
+                <span class="guard-ob-label">Resumen</span>
                 <div class="guard-ob-value" data-guard-ob-value="memory">{{ guard_observability.last_status|default:"sin_estado" }}</div>
                 <div class="guard-ob-detail" data-guard-ob-detail="memory">{% if guard_observability.repeated_issues %}Repite {{ guard_observability.repeated_issues.0.issue_id }} x{{ guard_observability.repeated_issues.0.count }}{% elif guard_observability.summary %}{{ guard_observability.summary }}{% else %}Sin incidencias persistentes registradas.{% endif %}</div>
               </div>
             </div>
             <div class="guard-remediation" id="global-guard-queue-preview" style="margin-top:0.75rem;">
-              {% for row in guard_observability.task_queue_preview %}
+              {% for row in guard_observability.priority_queue_preview %}
                 <div class="guard-remediation-card">
-                  <strong>{{ row.title|default:"Tarea del guard" }}</strong>
-                  <div>{{ row.status|default:"pending" }} · {{ row.result_summary|default:row.summary|default:"Sin detalle" }}</div>
+                  <strong>{{ row.kind|default:"task" }} · {{ row.title|default:"Tarea del guard" }}</strong>
+                  <div>{{ row.priority_band|default:"next" }} · {{ row.status|default:"pending" }} · {{ row.priority_reason|default:row.result_summary|default:row.summary|default:"Sin detalle" }}</div>
                 </div>
               {% empty %}
                 <div class="guard-remediation-card">
-                  <strong>Cola silenciosa</strong>
-                  <div>Sin tareas recientes en la cola del guard.</div>
+                  <strong>Siguiente paso</strong>
+                  <div>No hay acciones activas ahora mismo.</div>
                 </div>
               {% endfor %}
             </div>
@@ -254,7 +241,7 @@
                 </div>
               {% empty %}
                 <div class="guard-remediation-card">
-                  <strong>Timeline</strong>
+                  <strong>Actividad reciente</strong>
                   <div>Sin actividad reciente registrada.</div>
                 </div>
               {% endfor %}
@@ -266,20 +253,26 @@
                 <span class="guard-badge">Sin memoria de tareas</span>
               {% endfor %}
             </div>
-            <div class="guard-quick-actions" style="margin-top:0.75rem;">
-              <button type="button" class="guard-btn" data-guard-action="status">Revisar estado</button>
-              <button type="button" class="guard-btn" data-guard-action="smoke">Ejecutar smoke</button>
-              <button type="button" class="guard-btn" data-guard-action="auto_fix">Auto-fix seguro</button>
+            <div class="guard-quick-actions" data-guard-surface="advanced" style="margin-top:0.75rem;">
+              <button type="button" class="guard-btn" data-guard-action="goto_library">Biblioteca</button>
+              <button type="button" class="guard-btn" data-guard-action="goto_analysis">Vídeo</button>
+              <button type="button" class="guard-btn" data-guard-action="create_player" data-operator-only="1">Jugador</button>
+              <button type="button" class="guard-btn" data-guard-action="create_session" data-operator-only="1">Sesión</button>
+              <button type="button" class="guard-btn" data-guard-action="remote_deploy" data-operator-only="1">Deploy</button>
+              <button type="button" class="guard-btn" data-guard-action="remote_rollback" data-operator-only="1">Rollback</button>
+              <button type="button" class="guard-btn" data-guard-action="status">Ver estado</button>
+              <button type="button" class="guard-btn" data-guard-action="smoke">Comprobar flujo</button>
+              <button type="button" class="guard-btn" data-guard-action="auto_fix">Intentar corrección</button>
             </div>
             <div class="guard-meta-grid">
-              <label>Autonomía<select id="global-guard-autonomy-mode"><option value="advisor" selected>Silent</option><option value="operator">Operador</option><option value="supervised">Supervisado</option></select></label>
-              <label>Audiencia<select id="global-guard-audience-mode"><option value="guided" selected>Usuario</option><option value="technical">Técnica</option></select></label>
-              <label>Acciones ejecutadas<input id="global-guard-last-tools" value="0" readonly /></label>
-              <label>Latencia<input id="global-guard-last-latency" value="-" readonly /></label>
+              <label>Modo<select id="global-guard-autonomy-mode"><option value="advisor" selected>Normal</option><option value="operator">Avanzado</option><option value="supervised">Supervisado</option></select></label>
+              <label>Respuesta<select id="global-guard-audience-mode"><option value="guided" selected>Clara</option><option value="technical">Técnica</option></select></label>
+              <label>Acciones<input id="global-guard-last-tools" value="0" readonly /></label>
+              <label>Tiempo<input id="global-guard-last-latency" value="-" readonly /></label>
             </div>
             <div class="guard-toggle-row">
-              <label><input type="checkbox" id="global-guard-run-smoke" /> Incluir smoke</label>
-              <label><input type="checkbox" id="global-guard-auto-fix" /> Auto-fix seguro</label>
+              <label><input type="checkbox" id="global-guard-run-smoke" /> Incluir comprobación</label>
+              <label><input type="checkbox" id="global-guard-auto-fix" /> Permitir corrección segura</label>
             </div>
           </div>
         </details>
@@ -307,7 +300,6 @@
   const fixEl = document.getElementById('global-guard-auto-fix');
   const statusEl = document.getElementById('global-guard-chat-status');
   const quickActionsEl = document.getElementById('global-guard-quick-actions');
-  const modeTabsEl = document.getElementById('global-guard-mode-tabs');
   const autonomyEl = document.getElementById('global-guard-autonomy-mode');
   const audienceEl = document.getElementById('global-guard-audience-mode');
   const lastToolsEl = document.getElementById('global-guard-last-tools');
@@ -324,6 +316,48 @@
     { key: 'dashboard', label: 'Portada', url: "{% url 'dashboard-home' %}{% if active_team %}?team={{ active_team.id }}{% endif %}", keywords: ['portada', 'inicio', 'home', 'dashboard'] },
     { key: 'analysis', label: 'Vídeo análisis', url: "{% url 'analysis' %}{% if active_team %}?team={{ active_team.id }}{% endif %}", keywords: ['video analisis', 'vídeo análisis', 'analisis', 'análisis', 'video', 'vídeo'] },
     { key: 'library', label: 'Biblioteca de tareas', url: "{% url 'sessions' %}?tab=library&library_repo=traditional{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca de tareas', 'biblioteca', 'tareas', 'ejercicios', 'task library'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
     { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
     { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
     { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: "{% url 'sessions' %}?tab=library&library_repo=ai_trainer&library_source=created{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}", keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
@@ -363,9 +397,6 @@
   const applyUiMode = (mode) => {
     const nextMode = mode === 'operator' ? 'operator' : 'assistant';
     if (shellEl) shellEl.dataset.uiMode = nextMode;
-    modeTabsEl?.querySelectorAll('[data-guard-ui-mode]').forEach((btn) => {
-      btn.classList.toggle('is-active', String(btn.getAttribute('data-guard-ui-mode') || '') === nextMode);
-    });
     if (autonomyEl) autonomyEl.value = nextMode === 'operator' ? 'operator' : 'advisor';
     if (audienceEl) audienceEl.value = nextMode === 'operator' ? 'technical' : 'guided';
     saveUiState({ uiMode: nextMode });
@@ -468,6 +499,8 @@
     const data = ob && typeof ob === 'object' ? ob : {};
     const scheduled = data.scheduled_state && typeof data.scheduled_state === 'object' ? data.scheduled_state : {};
     const queue = data.task_queue && typeof data.task_queue === 'object' ? data.task_queue : {};
+    const topPriority = data.top_priority && typeof data.top_priority === 'object' ? data.top_priority : {};
+    const strategy = data.strategy && typeof data.strategy === 'object' ? data.strategy : {};
     const pieces = [];
     if (scheduled.last_finished_at) {
       pieces.push(`Último barrido: ${String(scheduled.last_finished_at).replace('T', ' ').replace('Z', ' UTC')}`);
@@ -479,6 +512,12 @@
       pieces.push(`Cola ${Number(queue.pending || 0)} pendientes · ${Number(queue.running || 0)} en curso · ${Number(queue.completed || 0)} resueltas · ${Number(queue.blocked || 0)} bloqueadas.`);
     } else {
       pieces.push('Sin tareas silenciosas registradas todavía.');
+    }
+    if (topPriority.title) {
+      pieces.push(`Prioridad actual: ${String(topPriority.priority_band || 'next')} · ${String(topPriority.title)}.`);
+    }
+    if (strategy.mode) {
+      pieces.push(`Estrategia: ${String(strategy.mode)}.`);
     }
     silentCopyEl.textContent = pieces.join('\n');
   };
@@ -497,6 +536,48 @@
       });
       if (route.key === 'analysis' && text.includes('video')) score += 2;
       if (route.key === 'library' && text.includes('biblioteca')) score += 2;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
       if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
       if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
       if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
@@ -617,7 +698,7 @@
       if (stages.length) {
         bodyText.push(stages.slice(0, 3).map((row) => `${row && row.done ? 'OK' : 'PEND'} · ${String((row && row.label) || '')}`).join('\n'));
       }
-      if (response.silent_mode) bodyText.push('Modo silencioso activo: Ollana trabaja en segundo plano y solo te resume lo importante.');
+      if (response.silent_mode) bodyText.push('Ollana sigue trabajando en segundo plano y solo te trae lo importante.');
       const bodyNode = document.createElement('div');
       bodyNode.textContent = bodyText.join('\n');
       card.appendChild(title);
@@ -924,16 +1005,16 @@
       setText('[data-guard-ob-detail="memory"]', 'Sin incidencias persistentes registradas.');
     }
     if (queuePreviewEl) {
-      const preview = Array.isArray(ob.task_queue_preview) ? ob.task_queue_preview : [];
+      const preview = Array.isArray(ob.priority_queue_preview) ? ob.priority_queue_preview : [];
       queuePreviewEl.innerHTML = '';
-      const rows = preview.length ? preview : [{ title: 'Cola silenciosa', status: 'idle', result_summary: 'Sin tareas recientes en la cola del guard.' }];
-      rows.slice(0, 3).forEach((row) => {
+      const rows = preview.length ? preview : [{ kind: 'task', title: 'Siguiente paso', priority_band: 'next', status: 'idle', priority_reason: 'No hay acciones activas ahora mismo.' }];
+      rows.slice(0, 4).forEach((row) => {
         const card = document.createElement('div');
         card.className = 'guard-remediation-card';
         const title = document.createElement('strong');
-        title.textContent = String(row.title || 'Tarea del guard');
+        title.textContent = `${String(row.kind || 'task')} · ${String(row.title || 'Tarea del guard')}`;
         const body = document.createElement('div');
-        body.textContent = `${String(row.status || 'pending')} · ${String(row.result_summary || row.summary || 'Sin detalle')}`;
+        body.textContent = `${String(row.priority_band || 'next')} · ${String(row.status || 'pending')} · ${String(row.priority_reason || row.result_summary || row.summary || 'Sin detalle')}`;
         card.appendChild(title);
         card.appendChild(body);
         queuePreviewEl.appendChild(card);
@@ -942,7 +1023,7 @@
     if (timelineEl) {
       const timeline = Array.isArray(ob.timeline) ? ob.timeline : [];
       timelineEl.innerHTML = '';
-      const rows = timeline.length ? timeline : [{ kind: 'timeline', title: 'Timeline', detail: 'Sin actividad reciente registrada.' }];
+      const rows = timeline.length ? timeline : [{ kind: 'timeline', title: 'Actividad reciente', detail: 'Sin actividad reciente registrada.' }];
       rows.slice(0, 4).forEach((row) => {
         const card = document.createElement('div');
         card.className = 'guard-remediation-card';
@@ -975,7 +1056,471 @@
       sendEl.dataset.confirming = '0';
     }
   };
+  const isVisibleNode = (node) => {
+    if (!(node instanceof Element)) return false;
+    if (node.closest('#global-guard-widget-shell')) return false;
+    const style = window.getComputedStyle(node);
+    if (!style || style.display === 'none' || style.visibility === 'hidden') return false;
+    const rect = node.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
+  };
+  const compactTextList = (selector, limit = 6, maxLen = 120) => {
+    const rows = [];
+    document.querySelectorAll(selector).forEach((node) => {
+      if (rows.length >= limit || !isVisibleNode(node)) return;
+      const text = String(node.textContent || '').replace(/\s+/g, ' ').trim();
+      if (!text) return;
+      rows.push(text.slice(0, maxLen));
+    });
+    return rows;
+  };
+  const ensureRuntimeDiagnostics = () => {
+    const root = window.__ollanaRuntimeDiagnostics && typeof window.__ollanaRuntimeDiagnostics === 'object'
+      ? window.__ollanaRuntimeDiagnostics
+      : {};
+    if (!Array.isArray(root.js_errors)) root.js_errors = [];
+    if (!Array.isArray(root.promise_rejections)) root.promise_rejections = [];
+    if (!Array.isArray(root.resource_errors)) root.resource_errors = [];
+    if (!Array.isArray(root.failed_requests)) root.failed_requests = [];
+    if (!Array.isArray(root.console_errors)) root.console_errors = [];
+    root.request_totals = root.request_totals && typeof root.request_totals === 'object' ? root.request_totals : { total: 0, failed: 0 };
+    root.ready_state = String(document.readyState || '').trim();
+    root.last_updated_at = Date.now();
+    window.__ollanaRuntimeDiagnostics = root;
+    return root;
+  };
+  const pushRuntimeEvent = (bucket, row, limit = 12) => {
+    const root = ensureRuntimeDiagnostics();
+    if (!Array.isArray(root[bucket])) root[bucket] = [];
+    root[bucket].unshift({
+      ...row,
+      captured_at: Date.now(),
+    });
+    root[bucket] = root[bucket].slice(0, limit);
+    root.last_updated_at = Date.now();
+  };
+  const installRuntimeDiagnostics = () => {
+    if (window.__ollanaRuntimeDiagnosticsInstalled) return;
+    window.__ollanaRuntimeDiagnosticsInstalled = true;
+    ensureRuntimeDiagnostics();
+    window.addEventListener('error', (event) => {
+      const target = event.target;
+      if (target instanceof HTMLScriptElement || target instanceof HTMLLinkElement || target instanceof HTMLImageElement || target instanceof HTMLVideoElement) {
+        pushRuntimeEvent('resource_errors', {
+          tag: String(target.tagName || '').toLowerCase().slice(0, 24),
+          source: String(target.src || target.href || '').trim().slice(0, 220),
+          message: String(event.message || 'resource_load_failed').trim().slice(0, 160),
+        });
+        return;
+      }
+      pushRuntimeEvent('js_errors', {
+        message: String(event.message || 'javascript_error').trim().slice(0, 180),
+        source: String(event.filename || '').trim().slice(0, 220),
+        line: Math.max(0, Number(event.lineno || 0)),
+        column: Math.max(0, Number(event.colno || 0)),
+      });
+    }, true);
+    window.addEventListener('unhandledrejection', (event) => {
+      const reason = event && Object.prototype.hasOwnProperty.call(event, 'reason') ? event.reason : '';
+      const text = typeof reason === 'string'
+        ? reason
+        : String((reason && reason.message) || reason || 'promise_rejection');
+      pushRuntimeEvent('promise_rejections', {
+        message: text.trim().slice(0, 180),
+      });
+    });
+    const originalFetch = typeof window.fetch === 'function' ? window.fetch.bind(window) : null;
+    if (originalFetch) {
+      window.fetch = async (...args) => {
+        const root = ensureRuntimeDiagnostics();
+        root.request_totals.total += 1;
+        const url = String((args[0] && args[0].url) || args[0] || '').trim().slice(0, 220);
+        try {
+          const response = await originalFetch(...args);
+          if (!response.ok) {
+            root.request_totals.failed += 1;
+            pushRuntimeEvent('failed_requests', {
+              method: String((args[1] && args[1].method) || 'GET').trim().slice(0, 12),
+              url,
+              status: Math.max(0, Number(response.status || 0)),
+              kind: 'fetch_http_error',
+            });
+          }
+          return response;
+        } catch (error) {
+          root.request_totals.failed += 1;
+          pushRuntimeEvent('failed_requests', {
+            method: String((args[1] && args[1].method) || 'GET').trim().slice(0, 12),
+            url,
+            status: 0,
+            kind: 'fetch_network_error',
+            message: String((error && error.message) || error || 'network_error').trim().slice(0, 160),
+          });
+          throw error;
+        }
+      };
+    }
+    const originalOpen = window.XMLHttpRequest && window.XMLHttpRequest.prototype
+      ? window.XMLHttpRequest.prototype.open
+      : null;
+    const originalSend = window.XMLHttpRequest && window.XMLHttpRequest.prototype
+      ? window.XMLHttpRequest.prototype.send
+      : null;
+    if (originalOpen && originalSend) {
+      window.XMLHttpRequest.prototype.open = function patchedOpen(method, url, ...rest) {
+        this.__ollanaMethod = String(method || 'GET').trim().slice(0, 12);
+        this.__ollanaUrl = String(url || '').trim().slice(0, 220);
+        return originalOpen.call(this, method, url, ...rest);
+      };
+      window.XMLHttpRequest.prototype.send = function patchedSend(...args) {
+        const root = ensureRuntimeDiagnostics();
+        root.request_totals.total += 1;
+        this.addEventListener('loadend', () => {
+          const status = Math.max(0, Number(this.status || 0));
+          if (status >= 400 || status === 0) {
+            root.request_totals.failed += 1;
+            pushRuntimeEvent('failed_requests', {
+              method: String(this.__ollanaMethod || 'GET').trim().slice(0, 12),
+              url: String(this.__ollanaUrl || '').trim().slice(0, 220),
+              status,
+              kind: status === 0 ? 'xhr_network_error' : 'xhr_http_error',
+            });
+          }
+        }, { once: true });
+        return originalSend.call(this, ...args);
+      };
+    }
+  };
+  installRuntimeDiagnostics();
+  const normalizeCssColor = (value) => String(value || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+  const gatherRuntimeSnapshot = () => {
+    const root = ensureRuntimeDiagnostics();
+    root.ready_state = String(document.readyState || '').trim();
+    root.last_updated_at = Date.now();
+    const sectionStates = [];
+    document.querySelectorAll('main section, [role="main"] section, main [data-module], [role="main"] [data-module]').forEach((node) => {
+      if (sectionStates.length >= 8 || !(node instanceof Element) || !isVisibleNode(node)) return;
+      const text = String(node.textContent || '').replace(/\s+/g, ' ').trim();
+      const label = String(
+        node.getAttribute('data-module')
+        || node.getAttribute('aria-label')
+        || node.querySelector('h1, h2, h3, h4')?.textContent
+        || node.id
+        || node.className
+        || ''
+      ).replace(/\s+/g, ' ').trim().slice(0, 90);
+      if (!label) return;
+      sectionStates.push({
+        label,
+        visible: true,
+        text_density: Math.min(100, Math.trunc((text.length / 240) * 100)),
+      });
+    });
+    const alerts = [];
+    const jsErrors = Array.isArray(root.js_errors) ? root.js_errors : [];
+    const resourceErrors = Array.isArray(root.resource_errors) ? root.resource_errors : [];
+    const failedRequests = Array.isArray(root.failed_requests) ? root.failed_requests : [];
+    const promiseRejections = Array.isArray(root.promise_rejections) ? root.promise_rejections : [];
+    if (jsErrors.length) alerts.push(`Errores JS recientes: ${jsErrors.length}`);
+    if (promiseRejections.length) alerts.push(`Promesas rechazadas: ${promiseRejections.length}`);
+    if (resourceErrors.length) alerts.push(`Recursos que no cargan: ${resourceErrors.length}`);
+    if (failedRequests.length) alerts.push(`Peticiones fallidas: ${failedRequests.length}`);
+    return {
+      ready_state: String(root.ready_state || '').slice(0, 20),
+      request_totals: {
+        total: Math.max(0, Math.trunc((root.request_totals || {}).total || 0)),
+        failed: Math.max(0, Math.trunc((root.request_totals || {}).failed || 0)),
+      },
+      js_errors: jsErrors.slice(0, 4).map((row) => ({
+        message: String((row || {}).message || '').trim().slice(0, 180),
+        source: String((row || {}).source || '').trim().slice(0, 220),
+        line: Math.max(0, Math.trunc((row || {}).line || 0)),
+        column: Math.max(0, Math.trunc((row || {}).column || 0)),
+      })),
+      promise_rejections: promiseRejections.slice(0, 4).map((row) => ({
+        message: String((row || {}).message || '').trim().slice(0, 180),
+      })),
+      resource_errors: resourceErrors.slice(0, 4).map((row) => ({
+        tag: String((row || {}).tag || '').trim().slice(0, 24),
+        source: String((row || {}).source || '').trim().slice(0, 220),
+        message: String((row || {}).message || '').trim().slice(0, 160),
+      })),
+      failed_requests: failedRequests.slice(0, 5).map((row) => ({
+        method: String((row || {}).method || '').trim().slice(0, 12),
+        url: String((row || {}).url || '').trim().slice(0, 220),
+        status: Math.max(0, Math.trunc((row || {}).status || 0)),
+        kind: String((row || {}).kind || '').trim().slice(0, 32),
+        message: String((row || {}).message || '').trim().slice(0, 160),
+      })),
+      section_states: sectionStates,
+      alerts: alerts.slice(0, 4),
+    };
+  };
+  const gatherModuleSnapshot = () => {
+    const modules = [];
+    document.querySelectorAll('main section, [role="main"] section, main article, [role="main"] article, main .card, [role="main"] .card, main [data-module], [role="main"] [data-module]').forEach((node) => {
+      if (modules.length >= 10 || !(node instanceof Element) || !isVisibleNode(node)) return;
+      const label = String(
+        node.getAttribute('data-module')
+        || node.getAttribute('aria-label')
+        || node.querySelector('h1, h2, h3, h4, strong')?.textContent
+        || node.id
+        || ''
+      ).replace(/\s+/g, ' ').trim().slice(0, 90);
+      if (!label) return;
+      const buttons = node.querySelectorAll('button, a, [role="button"]').length;
+      const forms = node.querySelectorAll('input, select, textarea').length;
+      const media = node.querySelectorAll('img, canvas, svg, video').length;
+      const notices = node.querySelectorAll('.alert, .notice, .error, .toast, .messages li, [data-error], .form-error').length;
+      const text = String(node.textContent || '').replace(/\s+/g, ' ').trim();
+      const rect = node.getBoundingClientRect();
+      modules.push({
+        label,
+        kind: String(node.getAttribute('data-module-kind') || node.tagName || '').toLowerCase().slice(0, 24),
+        x: Math.max(0, Math.trunc(rect.left)),
+        y: Math.max(0, Math.trunc(rect.top)),
+        w: Math.max(0, Math.trunc(rect.width)),
+        h: Math.max(0, Math.trunc(rect.height)),
+        action_count: Math.max(0, buttons),
+        form_count: Math.max(0, forms),
+        media_count: Math.max(0, media),
+        notice_count: Math.max(0, notices),
+        text_density: Math.min(100, Math.trunc((text.length / 280) * 100)),
+      });
+    });
+    return { modules };
+  };
+  const gatherHealthSnapshot = (runtimeSnapshot, visualSnapshot, moduleSnapshot) => {
+    const notices = compactTextList('.alert, .notice, .error, .toast, .messages li, [data-error], .form-error', 8, 160);
+    const loadingHints = compactTextList('[aria-busy="true"], .loading, .spinner, .skeleton, [data-loading="true"]', 6, 120);
+    const emptyHints = compactTextList('.empty-state, [data-empty="true"], .no-data, .empty, .blank-state', 6, 140);
+    const disabledControls = Array.from(document.querySelectorAll('button:disabled, input:disabled, select:disabled, textarea:disabled'))
+      .filter((node) => isVisibleNode(node))
+      .slice(0, 8)
+      .map((node) => String(node.getAttribute('aria-label') || node.textContent || node.name || node.id || 'control').replace(/\s+/g, ' ').trim().slice(0, 80))
+      .filter(Boolean);
+    const moduleRows = Array.isArray((moduleSnapshot || {}).modules) ? moduleSnapshot.modules : [];
+    const alerts = [];
+    if (Array.isArray((runtimeSnapshot || {}).alerts) && runtimeSnapshot.alerts.length) alerts.push(...runtimeSnapshot.alerts);
+    if (Array.isArray((visualSnapshot || {}).render_alerts) && visualSnapshot.render_alerts.length) alerts.push(...visualSnapshot.render_alerts);
+    if (notices.length) alerts.push(`Avisos visibles: ${notices.length}`);
+    if (loadingHints.length) alerts.push(`Bloques en carga: ${loadingHints.length}`);
+    if (emptyHints.length) alerts.push(`Bloques vacios: ${emptyHints.length}`);
+    if (disabledControls.length >= 3) alerts.push(`Controles deshabilitados: ${disabledControls.length}`);
+    const degradedModules = moduleRows.filter((row) => Number(row.notice_count || 0) > 0 || (Number(row.media_count || 0) > 0 && Number(row.text_density || 0) < 8));
+    const blockedModules = moduleRows.filter((row) => Number(row.action_count || 0) === 0 && Number(row.form_count || 0) === 0 && Number(row.text_density || 0) < 10);
+    const healthyModules = Math.max(0, moduleRows.length - degradedModules.length - blockedModules.length);
+    const status = alerts.length
+      ? (degradedModules.length || blockedModules.length ? 'degraded' : 'watch')
+      : 'healthy';
+    return {
+      status,
+      notices,
+      loading_hints: loadingHints,
+      empty_hints: emptyHints,
+      disabled_controls: disabledControls,
+      module_counts: {
+        total: moduleRows.length,
+        healthy: healthyModules,
+        degraded: degradedModules.length,
+        blocked: blockedModules.length,
+      },
+      degraded_modules: degradedModules.slice(0, 6).map((row) => ({
+        label: String((row || {}).label || '').slice(0, 90),
+        notice_count: Math.max(0, Math.trunc((row || {}).notice_count || 0)),
+        media_count: Math.max(0, Math.trunc((row || {}).media_count || 0)),
+        text_density: Math.max(0, Math.trunc((row || {}).text_density || 0)),
+      })),
+      blocked_modules: blockedModules.slice(0, 6).map((row) => ({
+        label: String((row || {}).label || '').slice(0, 90),
+        action_count: Math.max(0, Math.trunc((row || {}).action_count || 0)),
+        form_count: Math.max(0, Math.trunc((row || {}).form_count || 0)),
+        text_density: Math.max(0, Math.trunc((row || {}).text_density || 0)),
+      })),
+      alerts: alerts.slice(0, 6),
+    };
+  };
+  const sampleCanvasDrawState = (node) => {
+    if (!(node instanceof HTMLCanvasElement)) return { mode: 'unknown', non_empty_samples: 0 };
+    const width = Math.max(0, Number(node.width || 0));
+    const height = Math.max(0, Number(node.height || 0));
+    if (!width || !height) return { mode: 'empty_buffer', non_empty_samples: 0 };
+    try {
+      const ctx2d = node.getContext('2d');
+      if (!ctx2d || typeof ctx2d.getImageData !== 'function') return { mode: 'unknown', non_empty_samples: 0 };
+      const samplePoints = [
+        [0.5, 0.5],
+        [0.25, 0.25],
+        [0.75, 0.25],
+        [0.25, 0.75],
+        [0.75, 0.75],
+      ];
+      let nonEmpty = 0;
+      samplePoints.forEach(([rx, ry]) => {
+        const x = Math.max(0, Math.min(width - 1, Math.round(width * rx)));
+        const y = Math.max(0, Math.min(height - 1, Math.round(height * ry)));
+        const alpha = Number((ctx2d.getImageData(x, y, 1, 1).data || [0, 0, 0, 0])[3] || 0);
+        if (alpha > 0) nonEmpty += 1;
+      });
+      return {
+        mode: nonEmpty ? 'painted' : 'blank',
+        non_empty_samples: nonEmpty,
+      };
+    } catch (error) {
+      return { mode: 'unknown', non_empty_samples: 0 };
+    }
+  };
+  const gatherRenderSurfaceSnapshot = () => {
+    const seen = new Set();
+    const diagnosticsRoot = window.__ollanaDiagnostics && typeof window.__ollanaDiagnostics === 'object'
+      ? window.__ollanaDiagnostics
+      : {};
+    const diagnosticSurfaces = diagnosticsRoot.render_surfaces && typeof diagnosticsRoot.render_surfaces === 'object'
+      ? diagnosticsRoot.render_surfaces
+      : {};
+    const surfaces = [];
+    document.querySelectorAll('canvas, svg').forEach((node) => {
+      if (!(node instanceof Element) || !isVisibleNode(node)) return;
+      const key = String(node.id || node.getAttribute('data-ollana-surface') || `${node.tagName}-${surfaces.length}`).trim();
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      const rect = node.getBoundingClientRect();
+      const row = diagnosticSurfaces[key] && typeof diagnosticSurfaces[key] === 'object' ? diagnosticSurfaces[key] : {};
+      const canvasState = sampleCanvasDrawState(node);
+      const isCanvas = node instanceof HTMLCanvasElement;
+      const typeHint = String(row.kind || node.getAttribute('data-ollana-surface') || (isCanvas ? 'canvas' : 'svg')).trim().slice(0, 40);
+      surfaces.push({
+        id: key.slice(0, 60),
+        tag: String(node.tagName || '').toLowerCase().slice(0, 24),
+        kind: typeHint,
+        label: String(row.label || node.getAttribute('aria-label') || node.getAttribute('data-ollana-label') || key).trim().slice(0, 90),
+        visible: true,
+        modal_open: Boolean(row.modal_open),
+        x: Math.max(0, Math.trunc(rect.left)),
+        y: Math.max(0, Math.trunc(rect.top)),
+        w: Math.max(0, Math.trunc(rect.width)),
+        h: Math.max(0, Math.trunc(rect.height)),
+        buffer_w: Math.max(0, Math.trunc(row.buffer_width || node.width || 0)),
+        buffer_h: Math.max(0, Math.trunc(row.buffer_height || node.height || 0)),
+        draw_state: String(row.draw_state || canvasState.mode || '').trim().slice(0, 32),
+        non_empty_samples: Math.max(0, Math.trunc(row.non_empty_samples || canvasState.non_empty_samples || 0)),
+        webgl_context: String(row.webgl_context || '').trim().slice(0, 20),
+        scene_status: String(row.scene_status || '').trim().slice(0, 40),
+        issue: String(row.issue || '').trim().slice(0, 60),
+        step_index: Math.max(0, Math.trunc(row.step_index || 0)),
+        step_count: Math.max(0, Math.trunc(row.step_count || 0)),
+        object_count: Math.max(0, Math.trunc(row.object_count || 0)),
+        player_count: Math.max(0, Math.trunc(row.player_count || 0)),
+        ball_count: Math.max(0, Math.trunc(row.ball_count || 0)),
+        path_count: Math.max(0, Math.trunc(row.path_count || 0)),
+        render_calls: Math.max(0, Math.trunc(row.render_calls || 0)),
+        rendered_frames: Math.max(0, Math.trunc(row.rendered_frames || 0)),
+      });
+    });
+    const alerts = [];
+    surfaces.forEach((row) => {
+      const kind = String(row.kind || '').toLowerCase();
+      if ((kind.includes('three') || kind.includes('3d')) && row.modal_open && !row.webgl_context) {
+        alerts.push(`Superficie ${row.label || row.id}: WebGL no disponible`);
+      } else if ((kind.includes('three') || kind.includes('3d')) && row.modal_open && row.object_count === 0) {
+        alerts.push(`Superficie ${row.label || row.id}: escena 3D abierta sin objetos`);
+      } else if (row.draw_state === 'blank' && row.w > 120 && row.h > 80) {
+        alerts.push(`Superficie ${row.label || row.id}: canvas visible sin trazo aparente`);
+      } else if (row.issue) {
+        alerts.push(`Superficie ${row.label || row.id}: ${row.issue.replace(/_/g, ' ')}`);
+      }
+    });
+    return {
+      surfaces: surfaces.slice(0, 6),
+      alerts: alerts.slice(0, 4),
+    };
+  };
+  const gatherVisualSnapshot = () => {
+    const blocks = [];
+    const palette = [];
+    let textNodeCount = 0;
+    let mediaCount = 0;
+    let interactiveCount = 0;
+    const sampleNodes = document.querySelectorAll('main * , [role="main"] *');
+    sampleNodes.forEach((node) => {
+      if (!(node instanceof Element) || !isVisibleNode(node)) return;
+      const rect = node.getBoundingClientRect();
+      if (rect.width < 24 || rect.height < 16) return;
+      const style = window.getComputedStyle(node);
+      const text = String(node.textContent || '').replace(/\s+/g, ' ').trim();
+      if (text && blocks.length < 12) {
+        blocks.push({
+          tag: String(node.tagName || '').toLowerCase(),
+          text: text.slice(0, 90),
+          x: Math.max(0, Math.trunc(rect.left)),
+          y: Math.max(0, Math.trunc(rect.top)),
+          w: Math.max(0, Math.trunc(rect.width)),
+          h: Math.max(0, Math.trunc(rect.height)),
+          emphasis: rect.width > window.innerWidth * 0.7 ? 'wide' : (rect.height > 120 ? 'tall' : 'normal'),
+        });
+      }
+      if (palette.length < 10) {
+        const bg = normalizeCssColor(style.backgroundColor);
+        const fg = normalizeCssColor(style.color);
+        if (bg && bg !== 'rgba(0, 0, 0, 0)' && !palette.includes(bg)) palette.push(bg);
+        if (fg && !palette.includes(fg)) palette.push(fg);
+      }
+      if (text) textNodeCount += 1;
+      if (['img', 'video', 'canvas', 'svg'].includes(String(node.tagName || '').toLowerCase())) mediaCount += 1;
+      if (['button', 'input', 'select', 'textarea', 'a'].includes(String(node.tagName || '').toLowerCase())) interactiveCount += 1;
+    });
+    const viewportArea = Math.max(1, Math.trunc((window.innerWidth || 0) * (window.innerHeight || 0)));
+    const coveredArea = blocks.reduce((acc, row) => acc + Math.max(0, Number(row.w || 0) * Number(row.h || 0)), 0);
+    const renderSurfaceSnapshot = gatherRenderSurfaceSnapshot();
+    return {
+      blocks,
+      palette: palette.slice(0, 8),
+      text_density: Math.min(100, Math.trunc((textNodeCount / 120) * 100)),
+      visual_density: Math.min(100, Math.trunc((coveredArea / viewportArea) * 100)),
+      media_count: mediaCount,
+      interactive_count: interactiveCount,
+      render_surfaces: renderSurfaceSnapshot.surfaces,
+      render_alerts: renderSurfaceSnapshot.alerts,
+      scroll: {
+        y: Math.max(0, Math.trunc(window.scrollY || 0)),
+        max_y: Math.max(0, Math.trunc((document.documentElement?.scrollHeight || 0) - (window.innerHeight || 0))),
+      },
+    };
+  };
+  const gatherUiSnapshot = () => {
+    const activeForms = [];
+    document.querySelectorAll('input, select, textarea, button').forEach((node) => {
+      if (activeForms.length >= 10 || !isVisibleNode(node)) return;
+      const labelNode = node.closest('label');
+      const rawLabel = labelNode ? String(labelNode.textContent || '') : String(node.getAttribute('aria-label') || node.getAttribute('placeholder') || node.getAttribute('name') || node.id || '');
+      const label = rawLabel.replace(/\s+/g, ' ').trim().slice(0, 80);
+      if (!label) return;
+      activeForms.push({
+        tag: String(node.tagName || '').toLowerCase(),
+        type: String(node.getAttribute('type') || '').toLowerCase().slice(0, 24),
+        label,
+      });
+    });
+    return {
+      headings: compactTextList('main h1, main h2, main h3, [role="main"] h1, [role="main"] h2, [role="main"] h3, h1:first-of-type', 6, 120),
+      primary_actions: compactTextList('main button, main a.btn, main [role="button"], [role="main"] button, [role="main"] a.btn, [role="main"] [role="button"]', 8, 80),
+      visible_forms: activeForms,
+      notices: compactTextList('.alert, .notice, .error, .toast, .messages li, [data-error], .form-error', 6, 140),
+      panels: compactTextList('main section h2, main .card h2, main .card h3, [role="main"] section h2, [role="main"] .card h2, [role="main"] .card h3', 8, 100),
+      body_excerpt: compactTextList('main p, [role="main"] p, main li, [role="main"] li', 8, 140),
+      viewport: {
+        width: Math.max(0, Math.trunc(window.innerWidth || 0)),
+        height: Math.max(0, Math.trunc(window.innerHeight || 0)),
+      },
+    };
+  };
   const currentPageContext = () => ({
+    ...(() => {
+      const runtimeSnapshot = gatherRuntimeSnapshot();
+      const visualSnapshot = gatherVisualSnapshot();
+      const moduleSnapshot = gatherModuleSnapshot();
+      const healthSnapshot = gatherHealthSnapshot(runtimeSnapshot, visualSnapshot, moduleSnapshot);
+      return {
     page: "{{ request.resolver_match.url_name|default:''|escapejs }}",
     path: window.location.pathname,
     title: document.title,
@@ -983,6 +1528,13 @@
     team_name: "{{ active_team.name|default:''|escapejs }}",
     workspace_id: Number("{{ active_workspace.id|default:0 }}") || 0,
     workspace_name: "{{ active_workspace.name|default:''|escapejs }}",
+        ui_snapshot: gatherUiSnapshot(),
+        visual_snapshot: visualSnapshot,
+        runtime_snapshot: runtimeSnapshot,
+        module_snapshot: moduleSnapshot,
+        health_snapshot: healthSnapshot,
+      };
+    })(),
   });
   const sendMessage = async (preset = null, options = {}) => {
     const usePreset = preset && typeof preset === 'object' ? preset : null;
@@ -1033,12 +1585,13 @@
     try {
       const controller = new AbortController();
       const timeoutId = window.setTimeout(() => controller.abort(), 30000);
+      const implicitOperator = intent.kind === 'task' || Boolean(usePreset && (usePreset.autoFix || usePreset.runSmoke || usePreset.maintenanceAction));
       const resolvedAutonomy = usePreset
         ? String(autonomyEl?.value || 'advisor')
-        : ((shellEl?.dataset.uiMode === 'operator' || intent.kind === 'task') ? 'operator' : String(autonomyEl?.value || 'advisor'));
+        : ((shellEl?.dataset.uiMode === 'operator' || implicitOperator) ? 'operator' : String(autonomyEl?.value || 'advisor'));
       const resolvedAudience = usePreset
         ? String(audienceEl?.value || 'guided')
-        : ((shellEl?.dataset.uiMode === 'operator' || intent.kind === 'task') ? 'technical' : String(audienceEl?.value || 'guided'));
+        : ((shellEl?.dataset.uiMode === 'operator' || implicitOperator) ? 'technical' : String(audienceEl?.value || 'guided'));
       const resp = await fetch(apiUrl, {
         method: 'POST',
         credentials: 'same-origin',
@@ -1196,15 +1749,6 @@
     inputEl.value = String(btn.getAttribute('data-guard-command') || '').trim();
     sendMessage();
   });
-  modeTabsEl?.addEventListener('click', (event) => {
-    const btn = event.target.closest('[data-guard-ui-mode]');
-    if (!btn) return;
-    const mode = String(btn.getAttribute('data-guard-ui-mode') || 'assistant');
-    applyUiMode(mode);
-    setStatus(mode === 'operator'
-      ? 'Modo operador activo: Ollana muestra consola técnica y acciones avanzadas.'
-      : 'Modo asistente activo: Ollana prioriza ayuda directa y navegación.');
-  });
   toggleEl?.addEventListener('click', () => setOpen(!shellEl?.classList.contains('is-open')));
   closeEl?.addEventListener('click', () => setOpen(false));
   syncSuggestionRow();
@@ -1220,7 +1764,7 @@
       last_finished_at: String(silentCardEl?.dataset.lastFinished || ''),
     },
   });
-  applyUiMode(String(loadUiState().uiMode || 'assistant'));
+  applyUiMode('assistant');
   setOpen(Boolean(loadUiState().open));
 })();
 </script>

@@ -729,6 +729,150 @@ def system_guard_chat_api(request):
         execute_confirmed = False
         if autonomy_mode == 'operator':
             autonomy_mode = 'supervised'
+    payload_ui_snapshot = payload_page_context.get('ui_snapshot') if isinstance(payload_page_context.get('ui_snapshot'), dict) else {}
+    payload_visual_snapshot = payload_page_context.get('visual_snapshot') if isinstance(payload_page_context.get('visual_snapshot'), dict) else {}
+    payload_runtime_snapshot = payload_page_context.get('runtime_snapshot') if isinstance(payload_page_context.get('runtime_snapshot'), dict) else {}
+    payload_module_snapshot = payload_page_context.get('module_snapshot') if isinstance(payload_page_context.get('module_snapshot'), dict) else {}
+    payload_health_snapshot = payload_page_context.get('health_snapshot') if isinstance(payload_page_context.get('health_snapshot'), dict) else {}
+    sanitized_ui_snapshot = {
+        'headings': [str(item).strip()[:120] for item in (payload_ui_snapshot.get('headings') or []) if str(item or '').strip()][:6],
+        'primary_actions': [str(item).strip()[:80] for item in (payload_ui_snapshot.get('primary_actions') or []) if str(item or '').strip()][:8],
+        'notices': [str(item).strip()[:140] for item in (payload_ui_snapshot.get('notices') or []) if str(item or '').strip()][:6],
+        'panels': [str(item).strip()[:100] for item in (payload_ui_snapshot.get('panels') or []) if str(item or '').strip()][:8],
+        'body_excerpt': [str(item).strip()[:140] for item in (payload_ui_snapshot.get('body_excerpt') or []) if str(item or '').strip()][:8],
+        'visible_forms': [{
+            'tag': str((row or {}).get('tag') or '')[:24],
+            'type': str((row or {}).get('type') or '')[:24],
+            'label': str((row or {}).get('label') or '')[:80],
+        } for row in (payload_ui_snapshot.get('visible_forms') or []) if isinstance(row, dict)][:10],
+        'viewport': {
+            'width': max(0, int(((payload_ui_snapshot.get('viewport') or {}).get('width') or 0))) if isinstance(payload_ui_snapshot.get('viewport'), dict) else 0,
+            'height': max(0, int(((payload_ui_snapshot.get('viewport') or {}).get('height') or 0))) if isinstance(payload_ui_snapshot.get('viewport'), dict) else 0,
+        },
+    }
+    sanitized_visual_snapshot = {
+        'blocks': [{
+            'tag': str((row or {}).get('tag') or '')[:24],
+            'text': str((row or {}).get('text') or '')[:90],
+            'x': max(0, int((row or {}).get('x') or 0)),
+            'y': max(0, int((row or {}).get('y') or 0)),
+            'w': max(0, int((row or {}).get('w') or 0)),
+            'h': max(0, int((row or {}).get('h') or 0)),
+            'emphasis': str((row or {}).get('emphasis') or '')[:24],
+        } for row in (payload_visual_snapshot.get('blocks') or []) if isinstance(row, dict)][:12],
+        'palette': [str(item).strip()[:40] for item in (payload_visual_snapshot.get('palette') or []) if str(item or '').strip()][:8],
+        'text_density': max(0, min(100, int(payload_visual_snapshot.get('text_density') or 0))),
+        'visual_density': max(0, min(100, int(payload_visual_snapshot.get('visual_density') or 0))),
+        'media_count': max(0, int(payload_visual_snapshot.get('media_count') or 0)),
+        'interactive_count': max(0, int(payload_visual_snapshot.get('interactive_count') or 0)),
+        'render_surfaces': [{
+            'id': str((row or {}).get('id') or '')[:60],
+            'tag': str((row or {}).get('tag') or '')[:24],
+            'kind': str((row or {}).get('kind') or '')[:40],
+            'label': str((row or {}).get('label') or '')[:90],
+            'visible': bool((row or {}).get('visible')),
+            'modal_open': bool((row or {}).get('modal_open')),
+            'x': max(0, int((row or {}).get('x') or 0)),
+            'y': max(0, int((row or {}).get('y') or 0)),
+            'w': max(0, int((row or {}).get('w') or 0)),
+            'h': max(0, int((row or {}).get('h') or 0)),
+            'buffer_w': max(0, int((row or {}).get('buffer_w') or 0)),
+            'buffer_h': max(0, int((row or {}).get('buffer_h') or 0)),
+            'draw_state': str((row or {}).get('draw_state') or '')[:32],
+            'non_empty_samples': max(0, int((row or {}).get('non_empty_samples') or 0)),
+            'webgl_context': str((row or {}).get('webgl_context') or '')[:20],
+            'scene_status': str((row or {}).get('scene_status') or '')[:40],
+            'issue': str((row or {}).get('issue') or '')[:60],
+            'step_index': max(0, int((row or {}).get('step_index') or 0)),
+            'step_count': max(0, int((row or {}).get('step_count') or 0)),
+            'object_count': max(0, int((row or {}).get('object_count') or 0)),
+            'player_count': max(0, int((row or {}).get('player_count') or 0)),
+            'ball_count': max(0, int((row or {}).get('ball_count') or 0)),
+            'path_count': max(0, int((row or {}).get('path_count') or 0)),
+            'render_calls': max(0, int((row or {}).get('render_calls') or 0)),
+            'rendered_frames': max(0, int((row or {}).get('rendered_frames') or 0)),
+        } for row in (payload_visual_snapshot.get('render_surfaces') or []) if isinstance(row, dict)][:6],
+        'render_alerts': [str(item).strip()[:140] for item in (payload_visual_snapshot.get('render_alerts') or []) if str(item or '').strip()][:4],
+        'scroll': {
+            'y': max(0, int(((payload_visual_snapshot.get('scroll') or {}).get('y') or 0))) if isinstance(payload_visual_snapshot.get('scroll'), dict) else 0,
+            'max_y': max(0, int(((payload_visual_snapshot.get('scroll') or {}).get('max_y') or 0))) if isinstance(payload_visual_snapshot.get('scroll'), dict) else 0,
+        },
+    }
+    sanitized_runtime_snapshot = {
+        'ready_state': str(payload_runtime_snapshot.get('ready_state') or '').strip()[:20],
+        'request_totals': {
+            'total': max(0, int(((payload_runtime_snapshot.get('request_totals') or {}).get('total') or 0))) if isinstance(payload_runtime_snapshot.get('request_totals'), dict) else 0,
+            'failed': max(0, int(((payload_runtime_snapshot.get('request_totals') or {}).get('failed') or 0))) if isinstance(payload_runtime_snapshot.get('request_totals'), dict) else 0,
+        },
+        'js_errors': [{
+            'message': str((row or {}).get('message') or '')[:180],
+            'source': str((row or {}).get('source') or '')[:220],
+            'line': max(0, int((row or {}).get('line') or 0)),
+            'column': max(0, int((row or {}).get('column') or 0)),
+        } for row in (payload_runtime_snapshot.get('js_errors') or []) if isinstance(row, dict)][:4],
+        'promise_rejections': [{
+            'message': str((row or {}).get('message') or '')[:180],
+        } for row in (payload_runtime_snapshot.get('promise_rejections') or []) if isinstance(row, dict)][:4],
+        'resource_errors': [{
+            'tag': str((row or {}).get('tag') or '')[:24],
+            'source': str((row or {}).get('source') or '')[:220],
+            'message': str((row or {}).get('message') or '')[:160],
+        } for row in (payload_runtime_snapshot.get('resource_errors') or []) if isinstance(row, dict)][:4],
+        'failed_requests': [{
+            'method': str((row or {}).get('method') or '')[:12],
+            'url': str((row or {}).get('url') or '')[:220],
+            'status': max(0, int((row or {}).get('status') or 0)),
+            'kind': str((row or {}).get('kind') or '')[:32],
+            'message': str((row or {}).get('message') or '')[:160],
+        } for row in (payload_runtime_snapshot.get('failed_requests') or []) if isinstance(row, dict)][:5],
+        'section_states': [{
+            'label': str((row or {}).get('label') or '')[:90],
+            'visible': bool((row or {}).get('visible')),
+            'text_density': max(0, min(100, int((row or {}).get('text_density') or 0))),
+        } for row in (payload_runtime_snapshot.get('section_states') or []) if isinstance(row, dict)][:8],
+        'alerts': [str(item).strip()[:140] for item in (payload_runtime_snapshot.get('alerts') or []) if str(item or '').strip()][:4],
+    }
+    sanitized_module_snapshot = {
+        'modules': [{
+            'label': str((row or {}).get('label') or '')[:90],
+            'kind': str((row or {}).get('kind') or '')[:24],
+            'x': max(0, int((row or {}).get('x') or 0)),
+            'y': max(0, int((row or {}).get('y') or 0)),
+            'w': max(0, int((row or {}).get('w') or 0)),
+            'h': max(0, int((row or {}).get('h') or 0)),
+            'action_count': max(0, int((row or {}).get('action_count') or 0)),
+            'form_count': max(0, int((row or {}).get('form_count') or 0)),
+            'media_count': max(0, int((row or {}).get('media_count') or 0)),
+            'notice_count': max(0, int((row or {}).get('notice_count') or 0)),
+            'text_density': max(0, min(100, int((row or {}).get('text_density') or 0))),
+        } for row in (payload_module_snapshot.get('modules') or []) if isinstance(row, dict)][:10],
+    }
+    sanitized_health_snapshot = {
+        'status': str(payload_health_snapshot.get('status') or '').strip()[:24],
+        'notices': [str(item).strip()[:160] for item in (payload_health_snapshot.get('notices') or []) if str(item or '').strip()][:8],
+        'loading_hints': [str(item).strip()[:120] for item in (payload_health_snapshot.get('loading_hints') or []) if str(item or '').strip()][:6],
+        'empty_hints': [str(item).strip()[:140] for item in (payload_health_snapshot.get('empty_hints') or []) if str(item or '').strip()][:6],
+        'disabled_controls': [str(item).strip()[:80] for item in (payload_health_snapshot.get('disabled_controls') or []) if str(item or '').strip()][:8],
+        'module_counts': {
+            'total': max(0, int(((payload_health_snapshot.get('module_counts') or {}).get('total') or 0))) if isinstance(payload_health_snapshot.get('module_counts'), dict) else 0,
+            'healthy': max(0, int(((payload_health_snapshot.get('module_counts') or {}).get('healthy') or 0))) if isinstance(payload_health_snapshot.get('module_counts'), dict) else 0,
+            'degraded': max(0, int(((payload_health_snapshot.get('module_counts') or {}).get('degraded') or 0))) if isinstance(payload_health_snapshot.get('module_counts'), dict) else 0,
+            'blocked': max(0, int(((payload_health_snapshot.get('module_counts') or {}).get('blocked') or 0))) if isinstance(payload_health_snapshot.get('module_counts'), dict) else 0,
+        },
+        'degraded_modules': [{
+            'label': str((row or {}).get('label') or '')[:90],
+            'notice_count': max(0, int((row or {}).get('notice_count') or 0)),
+            'media_count': max(0, int((row or {}).get('media_count') or 0)),
+            'text_density': max(0, min(100, int((row or {}).get('text_density') or 0))),
+        } for row in (payload_health_snapshot.get('degraded_modules') or []) if isinstance(row, dict)][:6],
+        'blocked_modules': [{
+            'label': str((row or {}).get('label') or '')[:90],
+            'action_count': max(0, int((row or {}).get('action_count') or 0)),
+            'form_count': max(0, int((row or {}).get('form_count') or 0)),
+            'text_density': max(0, min(100, int((row or {}).get('text_density') or 0))),
+        } for row in (payload_health_snapshot.get('blocked_modules') or []) if isinstance(row, dict)][:6],
+        'alerts': [str(item).strip()[:140] for item in (payload_health_snapshot.get('alerts') or []) if str(item or '').strip()][:6],
+    }
     page_context = {
         'page': str(payload_page_context.get('page') or request.resolver_match.url_name or '').strip()[:120],
         'path': str(payload_page_context.get('path') or request.path or '').strip()[:240],
@@ -742,6 +886,11 @@ def system_guard_chat_api(request):
         'is_admin_user': bool(_is_admin_user(request.user)),
         'can_manage_guard': can_manage_guard,
         'can_operate_guard_code': can_operate_guard_code,
+        'ui_snapshot': sanitized_ui_snapshot,
+        'visual_snapshot': sanitized_visual_snapshot,
+        'runtime_snapshot': sanitized_runtime_snapshot,
+        'module_snapshot': sanitized_module_snapshot,
+        'health_snapshot': sanitized_health_snapshot,
     }
     try:
         from football.system_guard import _maybe_run_scheduled_guard_cycle, _observability_summary, run_system_guard_chat
@@ -42205,6 +42354,8 @@ def session_task_detail_page(request, task_id):
         is_performed_task = str(meta0.get('source') or '').strip().lower() == 'performed' or bool(str(meta0.get('performed_on') or '').strip())
     except Exception:
         is_performed_task = False
+    detail_mode = str(request.GET.get('mode') or '').strip().lower()
+    show_edit_mode = bool(is_editable_task and not is_performed_task and detail_mode == 'edit')
 
     # UX: la ficha de tarea es la vista por defecto. El editor visual se abre desde un botón ("Editar pizarra").
 
@@ -42324,17 +42475,57 @@ def session_task_detail_page(request, task_id):
     except Exception:
         related_tasks = []
     edit_graphic_url = ''
+    presentation_url = ''
+    team = getattr(getattr(getattr(task, 'session', None), 'microcycle', None), 'team', None)
+    workspace = None
+    stadium_palette = {'primary': '#047857', 'secondary': '#f8fafc', 'accent': '#073b32'}
+    stadium_ads = {
+        'top': str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or 'Club').strip() or 'Club',
+        'right': '2J Football Intelligence',
+        'bottom': str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or 'Club').strip() or 'Club',
+        'left': 'Partner',
+    }
     try:
+        workspace = _get_active_workspace(request)
+    except Exception:
+        workspace = None
+    if not workspace and team:
+        try:
+            workspace = Workspace.objects.filter(primary_team=team).first()
+        except Exception:
+            workspace = None
+    try:
+        if team:
+            stadium_palette = _team_stadium_palette(workspace, team)
+            ads = _team_stadium_ads(workspace, team)
+            if isinstance(ads, dict):
+                stadium_ads.update({
+                    'top': str(ads.get('top') or stadium_ads['top']).strip() or stadium_ads['top'],
+                    'right': str(ads.get('right') or stadium_ads['right']).strip() or stadium_ads['right'],
+                    'bottom': str(ads.get('bottom') or stadium_ads['bottom']).strip() or stadium_ads['bottom'],
+                    'left': str(ads.get('left') or stadium_ads['left']).strip() or stadium_ads['left'],
+                })
+    except Exception:
+        pass
+    try:
+        base_detail_url = reverse('session-task-detail', args=[int(task.id)])
+        params = request.GET.copy()
+        params.pop('legacy', None)
+        params.pop('mode', None)
+        encoded_base = params.urlencode()
+        presentation_url = base_detail_url if not encoded_base else f'{base_detail_url}?{encoded_base}'
         if is_editable_task and not is_performed_task:
-            edit_graphic_url = reverse('session-task-detail', args=[int(task.id)])
-            params = request.GET.copy()
-            params.pop('legacy', None)
-            encoded = params.urlencode()
+            edit_params = request.GET.copy()
+            edit_params.pop('legacy', None)
+            edit_params['mode'] = 'edit'
+            encoded = edit_params.urlencode()
+            edit_graphic_url = base_detail_url
             if encoded:
                 edit_graphic_url = f'{edit_graphic_url}?{encoded}'
             edit_graphic_url = f'{edit_graphic_url}#graphic-editor'
     except Exception:
         edit_graphic_url = ''
+        presentation_url = ''
     return render(
         request,
         'football/session_task_detail.html',
@@ -42368,9 +42559,19 @@ def session_task_detail_page(request, task_id):
             'is_editable_task': is_editable_task,
             'is_imported_task': is_imported_task,
             'is_performed_task': is_performed_task,
+            'show_edit_mode': show_edit_mode,
             'session_context': session_context,
             'related_tasks': related_tasks,
             'edit_graphic_url': edit_graphic_url,
+            'presentation_url': presentation_url,
+            'task_pitch3d_context_json': json.dumps(
+                {
+                    'teamName': str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or '').strip(),
+                    'stadiumPalette': stadium_palette,
+                    'stadiumAds': stadium_ads,
+                },
+                ensure_ascii=False,
+            ),
             'is_bookmarked': SessionTaskBookmark.objects.filter(user=request.user, task=task).exists()
             if request.user and request.user.is_authenticated
             else False,

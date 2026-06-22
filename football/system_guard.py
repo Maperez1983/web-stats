@@ -9,13 +9,16 @@ import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
+from importlib import import_module
 from io import StringIO
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urljoin, urlparse
 
+from django.contrib.auth import BACKEND_SESSION_KEY, HASH_SESSION_KEY, SESSION_KEY, get_user_model
 from django.conf import settings
 from django.core.management import call_command
 from django.db import transaction
+from django.test import Client
 from django.urls import NoReverseMatch, reverse
 from django.utils.text import slugify
 
@@ -945,6 +948,7 @@ def _guard_route_catalog(page_context=None) -> list[dict]:
             "url_name": "dashboard-home",
             "keywords": ["portada", "inicio", "home", "dashboard"],
             "query": team_qs,
+            "expected_modules": ["agenda", "plantilla", "resumen", "dashboard", "metricas"],
         },
         {
             "key": "analysis",
@@ -952,6 +956,7 @@ def _guard_route_catalog(page_context=None) -> list[dict]:
             "url_name": "analysis",
             "keywords": ["video analisis", "vídeo análisis", "analisis", "análisis", "video", "vídeo"],
             "query": team_qs,
+            "expected_modules": ["video", "timeline", "clip", "analisis"],
         },
         {
             "key": "library",
@@ -959,6 +964,7 @@ def _guard_route_catalog(page_context=None) -> list[dict]:
             "url_name": "sessions",
             "keywords": ["biblioteca de tareas", "biblioteca", "tareas", "ejercicios", "task library"],
             "query": {"tab": "library", "library_repo": "traditional", **team_qs, **workspace_qs},
+            "expected_modules": ["biblioteca", "tareas", "filtros", "ejercicios"],
         },
         {
             "key": "task_builder",
@@ -966,6 +972,7 @@ def _guard_route_catalog(page_context=None) -> list[dict]:
             "url_name": "sessions-task-create",
             "keywords": ["crear tarea", "nueva tarea", "pizarra", "editor"],
             "query": {**team_qs, **workspace_qs},
+            "expected_modules": ["tarea", "editor", "pizarra", "canvas", "3d"],
         },
         {
             "key": "sessions",
@@ -973,6 +980,7 @@ def _guard_route_catalog(page_context=None) -> list[dict]:
             "url_name": "sessions",
             "keywords": ["entrenamiento", "sesiones", "microciclo", "entrenos"],
             "query": team_qs,
+            "expected_modules": ["sesion", "microciclo", "planificacion", "entrenamiento"],
         },
         {
             "key": "match",
@@ -980,6 +988,7 @@ def _guard_route_catalog(page_context=None) -> list[dict]:
             "url_name": "match-hub",
             "keywords": ["partido", "match", "convocatoria", "once inicial"],
             "query": team_qs,
+            "expected_modules": ["partido", "convocatoria", "rival", "once"],
         },
         {
             "key": "convocation",
@@ -987,6 +996,7 @@ def _guard_route_catalog(page_context=None) -> list[dict]:
             "url_name": "convocation",
             "keywords": ["convocatoria", "lista partido", "once inicial", "convocados"],
             "query": team_qs,
+            "expected_modules": ["convocatoria", "jugadores", "once", "partido"],
         },
         {
             "key": "rival_analysis",
@@ -994,6 +1004,7 @@ def _guard_route_catalog(page_context=None) -> list[dict]:
             "url_name": "coach-rival",
             "keywords": ["rival", "analisis rival", "análisis rival", "preparar rival", "scouting rival"],
             "query": team_qs,
+            "expected_modules": ["rival", "analisis", "scouting", "video"],
         },
         {
             "key": "players",
@@ -1001,6 +1012,7 @@ def _guard_route_catalog(page_context=None) -> list[dict]:
             "url_name": "coach-roster",
             "keywords": ["jugadores", "jugador", "plantilla", "roster"],
             "query": {"tab": "stats", **team_qs},
+            "expected_modules": ["jugadores", "plantilla", "stats", "perfil"],
         },
         {
             "key": "agenda",
@@ -1008,6 +1020,7 @@ def _guard_route_catalog(page_context=None) -> list[dict]:
             "url_name": "team-agenda",
             "keywords": ["agenda", "calendario"],
             "query": team_qs,
+            "expected_modules": ["agenda", "calendario", "eventos"],
         },
         {
             "key": "staff",
@@ -1015,6 +1028,7 @@ def _guard_route_catalog(page_context=None) -> list[dict]:
             "url_name": "staff-directory",
             "keywords": ["staff", "cuerpo tecnico", "cuerpo técnico"],
             "query": team_qs,
+            "expected_modules": ["staff", "directorio", "equipo"],
         },
         {
             "key": "tactics",
@@ -1022,6 +1036,7 @@ def _guard_route_catalog(page_context=None) -> list[dict]:
             "url_name": "coach-tactics",
             "keywords": ["tactica", "táctica", "abp", "playbook"],
             "query": team_qs,
+            "expected_modules": ["tactica", "abp", "3d", "pizarra", "playbook"],
         },
         {
             "key": "reports",
@@ -1029,6 +1044,7 @@ def _guard_route_catalog(page_context=None) -> list[dict]:
             "url_name": "reports-hub",
             "keywords": ["informes", "reporte", "reportes", "pdf"],
             "query": team_qs,
+            "expected_modules": ["informes", "reportes", "pdf", "exportar"],
         },
         {
             "key": "ai_trainer",
@@ -1036,6 +1052,7 @@ def _guard_route_catalog(page_context=None) -> list[dict]:
             "url_name": "ai-trainer",
             "keywords": ["ia trainer", "ai trainer", "trainer"],
             "query": {**team_qs, **workspace_qs},
+            "expected_modules": ["trainer", "ia", "biblioteca", "chat"],
         },
     ]
     for row in definitions:
@@ -1046,10 +1063,370 @@ def _guard_route_catalog(page_context=None) -> list[dict]:
         rows.append({
             "key": str(row.get("key") or ""),
             "label": str(row.get("label") or ""),
+            "url_name": str(row.get("url_name") or ""),
             "url": f"{base_url}{_compact_query(row.get('query') or {})}",
             "keywords": [str(item or "") for item in (row.get("keywords") or []) if str(item or "").strip()],
+            "expected_modules": [str(item or "")[:64] for item in (row.get("expected_modules") or []) if str(item or "").strip()][:6],
         })
     return rows
+
+
+def _route_health_snapshot(*, page_context=None) -> dict:
+    context = page_context if isinstance(page_context, dict) else {}
+    active_page = str(context.get("page") or "").strip().lower()
+    active_path = str(context.get("path") or "").strip().lower()
+    module_snapshot = context.get("module_snapshot") if isinstance(context.get("module_snapshot"), dict) else {}
+    health_snapshot = context.get("health_snapshot") if isinstance(context.get("health_snapshot"), dict) else {}
+    runtime_snapshot = context.get("runtime_snapshot") if isinstance(context.get("runtime_snapshot"), dict) else {}
+    visual_snapshot = context.get("visual_snapshot") if isinstance(context.get("visual_snapshot"), dict) else {}
+    route_rows = _guard_route_catalog(page_context)
+    active_route = next((
+        row for row in route_rows
+        if str(row.get("url_name") or "").strip().lower() == active_page
+        or f"/{str(row.get('key') or '').strip().lower()}" in active_path
+    ), None)
+    module_rows = [row for row in (module_snapshot.get("modules") or []) if isinstance(row, dict)]
+    visible_labels = [str(row.get("label") or "").strip().lower() for row in module_rows if str(row.get("label") or "").strip()]
+    expected_modules = [str(item or "").strip().lower() for item in (active_route or {}).get("expected_modules") or [] if str(item or "").strip()]
+    matched_modules = []
+    missing_modules = []
+    if visible_labels:
+        for token in expected_modules:
+            if any(token in label for label in visible_labels):
+                matched_modules.append(token)
+            else:
+                missing_modules.append(token)
+    degraded_modules = [row for row in (health_snapshot.get("degraded_modules") or []) if isinstance(row, dict)]
+    blocked_modules = [row for row in (health_snapshot.get("blocked_modules") or []) if isinstance(row, dict)]
+    alerts = []
+    alerts.extend([str(item) for item in (health_snapshot.get("alerts") or []) if str(item or "").strip()])
+    alerts.extend([str(item) for item in (runtime_snapshot.get("alerts") or []) if str(item or "").strip()])
+    alerts.extend([str(item) for item in (visual_snapshot.get("render_alerts") or []) if str(item or "").strip()])
+    runtime_signals = _runtime_js_error_signals(runtime_snapshot)
+    if runtime_signals.get("three_import_failure"):
+        alerts.append("Visor 3D bloqueado: import de three sin resolver")
+    alerts = list(dict.fromkeys(alerts))
+    failed_requests = _safe_int(((runtime_snapshot.get("request_totals") or {}).get("failed")), 0) if isinstance(runtime_snapshot.get("request_totals"), dict) else 0
+    js_error_count = len([row for row in (runtime_snapshot.get("js_errors") or []) if isinstance(row, dict)])
+    status = "unknown"
+    if active_route:
+        status = "healthy"
+        if blocked_modules or failed_requests > 0 or js_error_count > 0:
+            status = "blocked"
+        elif degraded_modules or (visible_labels and missing_modules) or alerts:
+            status = "degraded"
+    return {
+        "active_route": {
+            "key": str((active_route or {}).get("key") or "")[:64],
+            "label": str((active_route or {}).get("label") or "")[:120],
+            "url_name": str((active_route or {}).get("url_name") or "")[:120],
+        },
+        "status": status,
+        "expected_modules": expected_modules[:6],
+        "matched_modules": matched_modules[:6],
+        "missing_modules": missing_modules[:6],
+        "degraded_module_count": len(degraded_modules),
+        "blocked_module_count": len(blocked_modules),
+        "failed_request_count": failed_requests,
+        "js_error_count": js_error_count,
+        "three_import_failure": bool(runtime_signals.get("three_import_failure")),
+        "alerts": [str(item)[:140] for item in alerts[:6]],
+    }
+
+
+def _runtime_js_error_signals(runtime_snapshot=None) -> dict:
+    runtime_snapshot = runtime_snapshot if isinstance(runtime_snapshot, dict) else {}
+    js_errors = [row for row in (runtime_snapshot.get("js_errors") or []) if isinstance(row, dict)]
+    messages = [str(row.get("message") or "").strip() for row in js_errors if str(row.get("message") or "").strip()]
+    normalized = [msg.lower() for msg in messages]
+    return {
+        "messages": messages[:6],
+        "three_import_failure": any(
+            "failed to resolve module specifier" in msg and "three" in msg
+            for msg in normalized
+        ),
+    }
+
+
+def _internal_audit_host() -> str:
+    allowed_hosts = [str(item or "").strip() for item in list(getattr(app_settings, "ALLOWED_HOSTS", []) or []) if str(item or "").strip()]
+    for host in allowed_hosts:
+        token = host.lower()
+        if token in {"*", "testserver"}:
+            continue
+        if "0.0.0.0" in token:
+            continue
+        return host
+    return "localhost"
+
+
+def _guard_playwright_browser():
+    from football.preview_render import _acquire_playwright_browser
+
+    return _acquire_playwright_browser()
+
+
+def _browser_audit_base_url(page_context=None) -> str:
+    context = page_context if isinstance(page_context, dict) else {}
+    candidates = [
+        str(context.get("public_base_url") or "").strip(),
+        str(os.getenv("APP_PUBLIC_BASE_URL") or "").strip(),
+    ]
+    render_host = str(os.getenv("RENDER_EXTERNAL_HOSTNAME") or "").strip()
+    if render_host:
+        candidates.append(f"https://{render_host.strip('/')}")
+    for item in candidates:
+        if item.startswith("http://") or item.startswith("https://"):
+            return item.rstrip("/")
+    return ""
+
+
+def _prioritized_guard_routes(page_context=None, limit: int = 4) -> list[dict]:
+    route_health = _route_health_snapshot(page_context=page_context)
+    route_rows = [row for row in _guard_route_catalog(page_context) if isinstance(row, dict)]
+    prioritized_keys = []
+    active_key = str(((route_health.get("active_route") or {}).get("key")) or "").strip()
+    if active_key:
+        prioritized_keys.append(active_key)
+    prioritized_keys.extend(["dashboard", "sessions", "tactics", "players"])
+    selected_rows = []
+    seen = set()
+    for key in prioritized_keys:
+        row = next((item for item in route_rows if str(item.get("key") or "") == key), None)
+        if not row or key in seen:
+            continue
+        selected_rows.append(row)
+        seen.add(key)
+        if len(selected_rows) >= max(1, int(limit or 4)):
+            break
+    return selected_rows
+
+
+def _local_navigation_audit_snapshot(workspace, *, actor_id=None, page_context=None) -> dict:
+    context = page_context if isinstance(page_context, dict) else {}
+    if not workspace:
+        return {"enabled": False, "reason": "workspace_required", "routes": []}
+    if not actor_id:
+        return {"enabled": False, "reason": "actor_required", "routes": []}
+    if not (isinstance(context.get("ui_snapshot"), dict) or isinstance(context.get("module_snapshot"), dict)):
+        return {"enabled": False, "reason": "no_live_page_context", "routes": []}
+    user = get_user_model().objects.filter(id=int(actor_id or 0)).first()
+    if user is None:
+        return {"enabled": False, "reason": "actor_not_found", "routes": []}
+    route_rows = _prioritized_guard_routes(context, limit=4)
+    if not route_rows:
+        return {"enabled": False, "reason": "route_catalog_empty", "routes": []}
+    client = Client()
+    client.force_login(user)
+    audit_host = _internal_audit_host()
+    audited_rows = []
+    for row in route_rows:
+        expected_modules = [str(item or "").strip().lower() for item in (row.get("expected_modules") or []) if str(item or "").strip()]
+        try:
+            response = client.get(str(row.get("url") or ""), HTTP_HOST=audit_host, follow=True)
+            status_code = int(getattr(response, "status_code", 0) or 0)
+            body = ""
+            try:
+                body = bytes(getattr(response, "content", b"") or b"").decode("utf-8", errors="ignore").lower()
+            except Exception:
+                body = ""
+            matched_modules = [token for token in expected_modules if token in body]
+            missing_modules = [token for token in expected_modules if token not in body]
+            if status_code >= 400:
+                route_status = "blocked"
+            elif missing_modules:
+                route_status = "degraded"
+            else:
+                route_status = "healthy"
+            audited_rows.append({
+                "key": str(row.get("key") or "")[:64],
+                "label": str(row.get("label") or "")[:120],
+                "url": str(row.get("url") or "")[:220],
+                "status_code": status_code,
+                "status": route_status,
+                "matched_modules": matched_modules[:6],
+                "missing_modules": missing_modules[:6],
+                "redirect_count": len(list(getattr(response, "redirect_chain", []) or [])),
+            })
+        except Exception as exc:
+            audited_rows.append({
+                "key": str(row.get("key") or "")[:64],
+                "label": str(row.get("label") or "")[:120],
+                "url": str(row.get("url") or "")[:220],
+                "status_code": 0,
+                "status": "blocked",
+                "matched_modules": [],
+                "missing_modules": expected_modules[:6],
+                "redirect_count": 0,
+                "error": str(exc)[:180],
+            })
+    healthy = len([row for row in audited_rows if str(row.get("status") or "") == "healthy"])
+    degraded = len([row for row in audited_rows if str(row.get("status") or "") == "degraded"])
+    blocked = len([row for row in audited_rows if str(row.get("status") or "") == "blocked"])
+    return {
+        "enabled": True,
+        "reason": "audited",
+        "audit_host": audit_host,
+        "audited_count": len(audited_rows),
+        "healthy_count": healthy,
+        "degraded_count": degraded,
+        "blocked_count": blocked,
+        "routes": audited_rows[:4],
+    }
+
+
+def _browser_navigation_audit_snapshot(workspace, *, actor_id=None, page_context=None) -> dict:
+    context = page_context if isinstance(page_context, dict) else {}
+    if not workspace:
+        return {"enabled": False, "reason": "workspace_required", "routes": []}
+    if not actor_id:
+        return {"enabled": False, "reason": "actor_required", "routes": []}
+    if not (isinstance(context.get("ui_snapshot"), dict) or isinstance(context.get("module_snapshot"), dict)):
+        return {"enabled": False, "reason": "no_live_page_context", "routes": []}
+    base_url = _browser_audit_base_url(context)
+    if not base_url:
+        return {"enabled": False, "reason": "base_url_unavailable", "routes": []}
+    user = get_user_model().objects.filter(id=int(actor_id or 0)).first()
+    if user is None:
+        return {"enabled": False, "reason": "actor_not_found", "routes": []}
+    route_rows = _prioritized_guard_routes(context, limit=3)
+    if not route_rows:
+        return {"enabled": False, "reason": "route_catalog_empty", "routes": []}
+    parsed = urlparse(base_url)
+    try:
+        session_engine = import_module(settings.SESSION_ENGINE)
+        session_store = session_engine.SessionStore()
+        session_store[SESSION_KEY] = str(user.pk)
+        session_store[BACKEND_SESSION_KEY] = "django.contrib.auth.backends.ModelBackend"
+        session_store[HASH_SESSION_KEY] = user.get_session_auth_hash()
+        session_store.save()
+    except Exception as exc:
+        return {"enabled": False, "reason": f"session_cookie_failed:{str(exc)[:80]}", "routes": []}
+    cookie = {
+        "name": str(getattr(settings, "SESSION_COOKIE_NAME", "sessionid")),
+        "value": str(session_store.session_key or ""),
+        "domain": str(parsed.hostname or ""),
+        "path": "/",
+        "httpOnly": True,
+        "secure": str(parsed.scheme or "").lower() == "https",
+        "sameSite": "Lax",
+    }
+    audited_rows = []
+    try:
+        with _guard_playwright_browser() as (_pw, browser):
+            if browser is None:
+                return {"enabled": False, "reason": "browser_unavailable", "routes": []}
+            browser_context = browser.new_context(ignore_https_errors=True, java_script_enabled=True)
+            try:
+                browser_context.add_cookies([cookie])
+                for row in route_rows:
+                    page = browser_context.new_page()
+                    console_rows = []
+                    page_errors = []
+                    request_failed_rows = []
+                    page.on("console", lambda msg, bucket=console_rows: bucket.append({"type": str(msg.type() or "")[:24], "text": str(msg.text() or "")[:180]}) if str(msg.type() or "") in {"error", "warning"} else None)
+                    page.on("pageerror", lambda err, bucket=page_errors: bucket.append(str(err)[:180]))
+                    page.on("requestfailed", lambda req, bucket=request_failed_rows: bucket.append({"url": str(req.url or "")[:220], "error": str((req.failure() or {}).get("errorText") or "")[:160]}))
+                    expected_modules = [str(item or "").strip().lower() for item in (row.get("expected_modules") or []) if str(item or "").strip()]
+                    target_url = urljoin(f"{base_url}/", str(row.get("url") or "").lstrip("/"))
+                    result_row = {
+                        "key": str(row.get("key") or "")[:64],
+                        "label": str(row.get("label") or "")[:120],
+                        "url": target_url[:220],
+                        "status_code": 0,
+                        "status": "blocked",
+                        "matched_modules": [],
+                        "missing_modules": expected_modules[:6],
+                        "redirect_count": 0,
+                        "final_url": "",
+                        "console_count": 0,
+                        "page_error_count": 0,
+                        "request_failed_count": 0,
+                    }
+                    try:
+                        response = page.goto(target_url, wait_until="domcontentloaded", timeout=20000)
+                        try:
+                            page.wait_for_load_state("networkidle", timeout=3000)
+                        except Exception:
+                            pass
+                        final_url = str(page.url or "")[:220]
+                        payload = page.evaluate(
+                            """() => {
+                              const text = String(document.body?.innerText || '').replace(/\\s+/g, ' ').trim().toLowerCase();
+                              const modules = Array.from(document.querySelectorAll('main section, [role="main"] section, main article, [role="main"] article, main .card, [role="main"] .card'))
+                                .slice(0, 8)
+                                .map((node) => String(node.getAttribute('aria-label') || node.querySelector('h1,h2,h3,h4,strong')?.textContent || node.id || '').replace(/\\s+/g, ' ').trim().toLowerCase())
+                                .filter(Boolean);
+                              const runtime = window.__ollanaRuntimeDiagnostics && typeof window.__ollanaRuntimeDiagnostics === 'object'
+                                ? window.__ollanaRuntimeDiagnostics
+                                : {};
+                              const render = window.__ollanaDiagnostics && typeof window.__ollanaDiagnostics === 'object'
+                                ? window.__ollanaDiagnostics
+                                : {};
+                              return {
+                                title: String(document.title || '').trim(),
+                                body_text: text.slice(0, 4000),
+                                modules,
+                                js_errors: Array.isArray(runtime.js_errors) ? runtime.js_errors.length : 0,
+                                failed_requests: Array.isArray(runtime.failed_requests) ? runtime.failed_requests.length : 0,
+                                render_surfaces: render.render_surfaces && typeof render.render_surfaces === 'object' ? Object.keys(render.render_surfaces).length : 0,
+                              };
+                            }"""
+                        ) or {}
+                        body_text = str(payload.get("body_text") or "").lower()
+                        module_labels = [str(item or "").strip().lower() for item in (payload.get("modules") or []) if str(item or "").strip()]
+                        matched_modules = [token for token in expected_modules if token in body_text or any(token in label for label in module_labels)]
+                        missing_modules = [token for token in expected_modules if token not in matched_modules]
+                        status_code = int(getattr(response, "status", 0) or 0) if response is not None else 0
+                        route_status = "healthy"
+                        if status_code >= 400 or "/login" in final_url.lower():
+                            route_status = "blocked"
+                        elif page_errors or request_failed_rows or _safe_int(payload.get("js_errors"), 0) > 0 or _safe_int(payload.get("failed_requests"), 0) > 0 or missing_modules:
+                            route_status = "degraded"
+                        result_row.update({
+                            "status_code": status_code,
+                            "status": route_status,
+                            "matched_modules": matched_modules[:6],
+                            "missing_modules": missing_modules[:6],
+                            "redirect_count": 1 if final_url and final_url.rstrip("/") != target_url.rstrip("/") else 0,
+                            "final_url": final_url,
+                            "console_count": len(console_rows),
+                            "page_error_count": len(page_errors),
+                            "request_failed_count": len(request_failed_rows),
+                            "js_error_count": _safe_int(payload.get("js_errors"), 0),
+                            "render_surface_count": _safe_int(payload.get("render_surfaces"), 0),
+                        })
+                    except Exception as exc:
+                        result_row.update({
+                            "status": "blocked",
+                            "error": str(exc)[:180],
+                        })
+                    finally:
+                        audited_rows.append(result_row)
+                        try:
+                            page.close()
+                        except Exception:
+                            pass
+            finally:
+                try:
+                    browser_context.close()
+                except Exception:
+                    pass
+    except Exception as exc:
+        return {"enabled": False, "reason": f"playwright_error:{str(exc)[:80]}", "routes": []}
+    healthy = len([row for row in audited_rows if str(row.get("status") or "") == "healthy"])
+    degraded = len([row for row in audited_rows if str(row.get("status") or "") == "degraded"])
+    blocked = len([row for row in audited_rows if str(row.get("status") or "") == "blocked"])
+    return {
+        "enabled": True,
+        "reason": "audited",
+        "base_url": base_url,
+        "audited_count": len(audited_rows),
+        "healthy_count": healthy,
+        "degraded_count": degraded,
+        "blocked_count": blocked,
+        "routes": audited_rows[:3],
+    }
 
 
 def _route_filters_for_question(question: str, route_key: str) -> dict:
@@ -2049,8 +2426,10 @@ def _observability_summary(workspace) -> dict:
     memory = _load_memory(workspace) if workspace else {}
     audit_rows = _load_audit_log(workspace) if workspace else []
     incident_ledger = _load_incident_ledger(workspace) if workspace else []
-    queue_rows = _load_task_queue(workspace) if workspace else []
-    objective_rows = _load_objective_memory(workspace) if workspace else []
+    priority_state = _refresh_operator_priorities(workspace, page_context={}) if workspace else {"tasks": [], "objectives": []}
+    strategy = _autonomous_priority_strategy(workspace, page_context={}, priority_state=priority_state) if workspace else {}
+    queue_rows = priority_state.get("tasks") or []
+    objective_rows = priority_state.get("objectives") or []
     history = _inspect_guard_history(workspace)
     llm_counter = {}
     for row in rows[:10]:
@@ -2123,6 +2502,7 @@ def _observability_summary(workspace) -> dict:
             "title": str(row.get("title") or "Tarea del guard")[:120],
             "status": str(row.get("status") or "pending")[:24],
             "summary": str(row.get("result_summary") or row.get("summary") or "")[:180],
+            "priority_band": str(row.get("priority_band") or "")[:24],
         })
     objective_memory = []
     for row in objective_rows[:5]:
@@ -2133,7 +2513,35 @@ def _observability_summary(workspace) -> dict:
             "status": str(row.get("status") or "running")[:24],
             "progress_percent": _safe_int(row.get("progress_percent"), 0),
             "next_step": str(row.get("next_step") or "")[:180],
+            "priority_band": str(row.get("priority_band") or "")[:24],
         })
+    priority_queue = []
+    for row in queue_rows[:4]:
+        if not isinstance(row, dict):
+            continue
+        priority_queue.append({
+            "kind": "task",
+            "title": str(row.get("title") or "Tarea del guard")[:120],
+            "status": str(row.get("status") or "pending")[:24],
+            "priority_band": str(row.get("priority_band") or "next")[:24],
+            "priority_score": _safe_int(row.get("priority_score"), 0),
+            "priority_reason": str(row.get("priority_reason") or "")[:180],
+            "result_summary": str(row.get("result_summary") or row.get("summary") or "")[:180],
+        })
+    for row in objective_rows[:2]:
+        if not isinstance(row, dict):
+            continue
+        priority_queue.append({
+            "kind": "objective",
+            "title": str(row.get("title") or "Objetivo técnico")[:120],
+            "status": str(row.get("goal_status") or row.get("status") or "running")[:24],
+            "priority_band": str(row.get("priority_band") or "next")[:24],
+            "priority_score": _safe_int(row.get("priority_score"), 0),
+            "priority_reason": str(row.get("priority_reason") or "")[:180],
+            "result_summary": str(row.get("next_step") or row.get("result_summary") or "")[:180],
+        })
+    priority_queue.sort(key=lambda row: (-_safe_int(row.get("priority_score"), 0), str(row.get("title") or "")))
+    top_priority = priority_queue[0] if priority_queue else {}
     operator_runtime = _load_operator_runtime_state(workspace) if workspace else {}
     operator_lease = _load_operator_lease(workspace) if workspace else {}
     return {
@@ -2167,6 +2575,9 @@ def _observability_summary(workspace) -> dict:
         "incident_ledger_preview": incident_ledger[:3],
         "task_queue": _task_state_counts(queue_rows) if workspace else {"pending": 0, "running": 0, "completed": 0, "blocked": 0},
         "task_queue_preview": queue_rows[:3] if workspace else [],
+        "priority_queue_preview": priority_queue[:5],
+        "top_priority": top_priority if isinstance(top_priority, dict) else {},
+        "strategy": strategy,
         "timeline": timeline[:6],
         "task_memory": task_memory[:5],
         "objective_memory": objective_memory[:5],
@@ -2444,6 +2855,350 @@ def _task_result_summary(executions: list[dict]) -> str:
     return _truncate(f"{ok_count}/{total} herramientas completadas correctamente.", 220)
 
 
+def _parse_iso_datetime(value: str) -> datetime | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        normalized = text.replace("Z", "+00:00")
+        parsed = datetime.fromisoformat(normalized)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+    except Exception:
+        return None
+
+
+def _priority_age_bonus(value: str) -> int:
+    parsed = _parse_iso_datetime(value)
+    if parsed is None:
+        return 0
+    age_minutes = max(0, int((datetime.now(timezone.utc) - parsed).total_seconds() // 60))
+    return min(20, age_minutes // 30)
+
+
+def _priority_band(score: int) -> str:
+    value = _safe_int(score, 0)
+    if value >= 90:
+        return "critical"
+    if value >= 70:
+        return "high"
+    if value >= 45:
+        return "medium"
+    if value >= 20:
+        return "next"
+    return "deferred"
+
+
+def _priority_sort_key(row: dict) -> tuple:
+    row = row if isinstance(row, dict) else {}
+    severity_rank = {
+        "critical": 3,
+        "blocker": 3,
+        "warning": 2,
+        "info": 1,
+    }.get(str(row.get("severity") or row.get("priority_band") or "").strip().lower(), 0)
+    updated = _parse_iso_datetime(str(row.get("updated_at") or row.get("created_at") or "")) or datetime.now(timezone.utc)
+    return (
+        -_safe_int(row.get("priority_score"), 0),
+        -severity_rank,
+        updated,
+        str(row.get("id") or row.get("title") or ""),
+    )
+
+
+def _priority_inputs_snapshot(*, workspace=None, page_context=None) -> dict:
+    page_context = page_context if isinstance(page_context, dict) else {}
+    latest = (_load_snapshots(workspace)[:1] if workspace else [])
+    latest = latest[0] if latest else {}
+    history = _inspect_guard_history(workspace) if workspace else {}
+    repeated = history.get("top_repeated_issues") if isinstance(history.get("top_repeated_issues"), list) else []
+    return {
+        "blockers": _safe_int((latest or {}).get("blockers"), 0),
+        "warnings": _safe_int((latest or {}).get("warnings"), 0),
+        "repeated_issue_id": str((repeated[0] or {}).get("issue_id") or "")[:120] if repeated else "",
+        "active_page": str(page_context.get("page") or "")[:120],
+        "team_id": _safe_int(page_context.get("team_id"), 0),
+        "workspace_id": _safe_int(page_context.get("workspace_id"), 0),
+    }
+
+
+def _task_priority_profile(task: dict, *, workspace=None, page_context=None, inputs=None) -> dict:
+    task = task if isinstance(task, dict) else {}
+    inputs = inputs if isinstance(inputs, dict) else _priority_inputs_snapshot(workspace=workspace, page_context=page_context)
+    reasons = []
+    score = 0
+    status = str(task.get("status") or "").strip().lower()
+    goal_status = str(task.get("goal_status") or status or "").strip().lower()
+    detector = str(task.get("detector") or "").strip().lower()
+    severity = str(task.get("severity") or "").strip().lower()
+    tools = {str(item) for item in (task.get("tools") or []) if str(item or "").strip()}
+    title = str(task.get("title") or task.get("question") or "").strip().lower()
+    task_kind = str(task.get("task_kind") or "").strip().lower()
+    if _safe_int(inputs.get("blockers"), 0) > 0 and task_kind in {"diagnose", "repair", "maintenance", "rollback"}:
+        score += 20
+        reasons.append("hay blockers activos en el sistema")
+    if detector in {"runtime_blockers", "route_failure"}:
+        score += 55
+        reasons.append("incidencia crítica del runtime")
+    elif detector in {"repeated_regression"}:
+        score += 45
+        reasons.append("regresión repetida")
+    elif detector in {"ollama_unreachable", "path_missing_static_root"}:
+        score += 35
+        reasons.append("incidencia estable del sistema")
+    if severity == "warning":
+        score += 14
+    elif severity in {"critical", "blocker"}:
+        score += 30
+    if status == "blocked":
+        score += 28
+        reasons.append("tarea bloqueada con seguimiento pendiente")
+    if goal_status == "pending_confirmation":
+        score += 34
+        reasons.append("espera confirmación humana")
+    if status == "running":
+        score += 18
+        reasons.append("tarea ya en curso")
+    if _safe_int(task.get("retry_count"), 0) > 0 and _safe_int(task.get("retry_count"), 0) < int(OBJECTIVE_AUTONOMY_RETRY_LIMIT):
+        score += 22
+        reasons.append("reintento disponible")
+    if str(task.get("escalation_level") or "").strip() == "operator_intervention":
+        score += 32
+        reasons.append("requiere intervención operativa")
+    if any(tool in {"trigger_remote_rollback", "trigger_remote_deploy", "git_push"} for tool in tools):
+        score += 26
+        reasons.append("impacto de despliegue")
+    if any(tool in {"inspect_recent_errors", "check_critical_routes", "inspect_public_deployment"} for tool in tools):
+        score += 16
+        reasons.append("estabilidad primero")
+    if inputs.get("repeated_issue_id") and inputs.get("repeated_issue_id") in title:
+        score += 12
+        reasons.append("alineada con incidencia repetida")
+    active_page = str(inputs.get("active_page") or "").strip().lower()
+    if active_page and active_page in title:
+        score += 8
+        reasons.append("alineada con la pantalla activa")
+    score += _priority_age_bonus(str(task.get("updated_at") or task.get("created_at") or ""))
+    score = min(100, score)
+    band = _priority_band(score)
+    reason = _truncate("; ".join(dict.fromkeys(reasons)) or "prioridad operativa normal", 220)
+    return {
+        "priority_score": score,
+        "priority_band": band,
+        "priority_reason": reason,
+        "priority_inputs": {
+            "blockers": _safe_int(inputs.get("blockers"), 0),
+            "repeated_issue_id": str(inputs.get("repeated_issue_id") or "")[:120],
+            "goal_status": goal_status[:32],
+            "retry_count": _safe_int(task.get("retry_count"), 0),
+            "status": status[:24],
+        },
+        "last_priority_at": _now_iso(),
+    }
+
+
+def _objective_priority_profile(row: dict, *, workspace=None, page_context=None, inputs=None) -> dict:
+    row = row if isinstance(row, dict) else {}
+    inputs = inputs if isinstance(inputs, dict) else _priority_inputs_snapshot(workspace=workspace, page_context=page_context)
+    reasons = []
+    score = 0
+    status = str(row.get("status") or "").strip().lower()
+    goal_status = str(row.get("goal_status") or status or "").strip().lower()
+    task_kind = str(row.get("task_kind") or "").strip().lower()
+    escalation = str(row.get("escalation_level") or "").strip().lower()
+    if goal_status == "blocked":
+        score += 38
+        reasons.append("objetivo bloqueado")
+    if bool(row.get("confirmation_pending")):
+        score += 34
+        reasons.append("espera confirmación")
+    if _safe_int(row.get("retry_count"), 0) > 0 and _safe_int(row.get("retry_count"), 0) < int(OBJECTIVE_AUTONOMY_RETRY_LIMIT):
+        score += 24
+        reasons.append("reintento disponible")
+    if escalation in {"operator_intervention", "operator_confirmation"}:
+        score += 28
+        reasons.append("escalado operativo")
+    if task_kind in {"repair", "technical_operation", "rollback"}:
+        score += 18
+        reasons.append("impacto técnico")
+    if _safe_int(inputs.get("blockers"), 0) > 0 and task_kind in {"repair", "diagnose", "technical_operation"}:
+        score += 20
+        reasons.append("hay blockers activos")
+    score += _priority_age_bonus(str(row.get("updated_at") or ""))
+    score = min(100, score)
+    band = _priority_band(score)
+    reason = _truncate("; ".join(dict.fromkeys(reasons)) or "prioridad operativa normal", 220)
+    return {
+        "priority_score": score,
+        "priority_band": band,
+        "priority_reason": reason,
+        "priority_inputs": {
+            "blockers": _safe_int(inputs.get("blockers"), 0),
+            "goal_status": goal_status[:32],
+            "retry_count": _safe_int(row.get("retry_count"), 0),
+            "escalation_level": escalation[:32],
+        },
+        "last_priority_at": _now_iso(),
+    }
+
+
+def _refresh_operator_priorities(workspace, *, page_context=None) -> dict:
+    if not workspace:
+        return {"tasks": [], "objectives": []}
+    inputs = _priority_inputs_snapshot(workspace=workspace, page_context=page_context)
+    queue_rows = _load_task_queue(workspace)
+    prioritized_tasks = []
+    for row in queue_rows:
+        if not isinstance(row, dict):
+            continue
+        merged = dict(row)
+        merged.update(_task_priority_profile(merged, workspace=workspace, page_context=page_context, inputs=inputs))
+        prioritized_tasks.append(merged)
+    prioritized_tasks.sort(key=_priority_sort_key)
+    _store_task_queue(workspace, prioritized_tasks)
+    objective_rows = _load_objective_memory(workspace)
+    prioritized_objectives = []
+    for row in objective_rows:
+        if not isinstance(row, dict):
+            continue
+        merged = dict(row)
+        merged.update(_objective_priority_profile(merged, workspace=workspace, page_context=page_context, inputs=inputs))
+        prioritized_objectives.append(merged)
+    prioritized_objectives.sort(key=_priority_sort_key)
+    _store_objective_memory(workspace, prioritized_objectives)
+    return {
+        "tasks": prioritized_tasks,
+        "objectives": prioritized_objectives,
+    }
+
+
+def _priority_top_entry(priority_state: dict) -> dict:
+    priority_state = priority_state if isinstance(priority_state, dict) else {}
+    combined = []
+    for row in priority_state.get("tasks") or []:
+        if not isinstance(row, dict):
+            continue
+        combined.append({
+            "kind": "task",
+            "title": str(row.get("title") or "Tarea del guard")[:160],
+            "status": str(row.get("status") or "pending")[:24],
+            "task_kind": str(row.get("task_kind") or "")[:32],
+            "runbook": str(row.get("runbook") or "")[:64],
+            "priority_band": str(row.get("priority_band") or "next")[:24],
+            "priority_score": _safe_int(row.get("priority_score"), 0),
+            "priority_reason": str(row.get("priority_reason") or "")[:220],
+            "tools": [str(item) for item in (row.get("tools") or []) if str(item or "").strip()][:6],
+        })
+    for row in priority_state.get("objectives") or []:
+        if not isinstance(row, dict):
+            continue
+        combined.append({
+            "kind": "objective",
+            "title": str(row.get("title") or "Objetivo técnico")[:160],
+            "status": str(row.get("goal_status") or row.get("status") or "running")[:24],
+            "task_kind": str(row.get("task_kind") or "")[:32],
+            "runbook": str(row.get("runbook") or "")[:64],
+            "priority_band": str(row.get("priority_band") or "next")[:24],
+            "priority_score": _safe_int(row.get("priority_score"), 0),
+            "priority_reason": str(row.get("priority_reason") or "")[:220],
+            "tools": [],
+        })
+    combined.sort(key=lambda row: (-_safe_int(row.get("priority_score"), 0), str(row.get("title") or "")))
+    return combined[0] if combined else {}
+
+
+def _autonomous_priority_strategy(workspace, *, page_context=None, priority_state=None, deployment_guard=None) -> dict:
+    priority_state = priority_state if isinstance(priority_state, dict) else _refresh_operator_priorities(workspace, page_context=page_context)
+    deployment_guard = deployment_guard if isinstance(deployment_guard, dict) else {}
+    top = _priority_top_entry(priority_state)
+    band = str(top.get("priority_band") or "next").strip().lower()
+    task_kind = str(top.get("task_kind") or "").strip().lower()
+    tools = {str(item) for item in (top.get("tools") or []) if str(item or "").strip()}
+    rollback_ready = bool(deployment_guard.get("auto_rollback_eligible"))
+    rollback_bias = bool(
+        task_kind == "rollback"
+        or "trigger_remote_rollback" in tools
+        or (band == "critical" and rollback_ready and str(top.get("runbook") or "").strip() in {"automatic_rollback", "deployment_recovery"})
+    )
+    mode = "preventive_planning"
+    focus = "monitor"
+    max_tasks = 1
+    allow_safe_repairs = True
+    execute_task_kinds = ["diagnose", "maintenance"]
+    preferred_runbooks = ["silent_diagnostics"]
+    monitor_first = True
+    next_actions = []
+    if band == "critical":
+        mode = "rollback_and_monitor" if rollback_bias else "repair_and_monitor"
+        focus = "stability"
+        max_tasks = 2
+        execute_task_kinds = ["repair", "rollback", "diagnose", "maintenance", "technical_operation"]
+        preferred_runbooks = ["automatic_rollback", "safe_repair", "silent_diagnostics"] if rollback_bias else ["safe_repair", "silent_diagnostics", "automatic_rollback"]
+        next_actions.append("Atacar primero la estabilidad del sistema antes de nuevas mejoras.")
+        if rollback_bias:
+            next_actions.append("Preparar rollback gobernado y vigilar rutas críticas y logs remotos.")
+        else:
+            next_actions.append("Aplicar reparación mínima y lanzar monitorización post-fix.")
+    elif band == "high":
+        mode = "diagnose_and_fix"
+        focus = "repair"
+        max_tasks = 2
+        execute_task_kinds = ["diagnose", "repair", "maintenance", "technical_operation"]
+        preferred_runbooks = ["safe_repair", "silent_diagnostics"]
+        next_actions.append("Ejecutar diagnóstico técnico y cerrar el fix seguro en el mismo ciclo.")
+    elif band == "medium":
+        mode = "preventive_planning"
+        focus = "preventive"
+        max_tasks = 1
+        execute_task_kinds = ["diagnose", "maintenance", "repair"]
+        preferred_runbooks = ["silent_diagnostics", "safe_repair"]
+        next_actions.append("Priorizar diagnóstico preventivo y preparar el siguiente fix seguro.")
+    else:
+        mode = "monitor_only"
+        focus = "monitor"
+        max_tasks = 1
+        execute_task_kinds = ["diagnose", "maintenance"]
+        preferred_runbooks = ["silent_diagnostics"]
+        next_actions.append("Mantener observación silenciosa y acumular contexto antes de tocar código.")
+    return {
+        "embedded": True,
+        "band": band or "next",
+        "mode": mode,
+        "focus": focus,
+        "max_tasks": max_tasks,
+        "allow_safe_repairs": allow_safe_repairs,
+        "execute_task_kinds": execute_task_kinds[:5],
+        "preferred_runbooks": preferred_runbooks[:4],
+        "monitor_first": monitor_first,
+        "rollback_ready": rollback_ready,
+        "top_priority": top if isinstance(top, dict) else {},
+        "summary": _truncate(str(top.get("priority_reason") or "Sin prioridad operativa dominante."), 220) if top else "Sin prioridad operativa dominante.",
+        "next_actions": next_actions[:3],
+    }
+
+
+def _task_matches_autonomous_strategy(task: dict, strategy: dict) -> bool:
+    task = task if isinstance(task, dict) else {}
+    strategy = strategy if isinstance(strategy, dict) else {}
+    task_kind = str(task.get("task_kind") or "").strip().lower()
+    runbook = str(task.get("runbook") or "").strip()
+    tools = {str(item) for item in (task.get("tools") or []) if str(item or "").strip()}
+    allowed_kinds = {str(item).strip().lower() for item in (strategy.get("execute_task_kinds") or []) if str(item or "").strip()}
+    preferred_runbooks = {str(item).strip() for item in (strategy.get("preferred_runbooks") or []) if str(item or "").strip()}
+    monitor_tools = {"check_status", "inspect_recent_errors", "check_critical_routes", "inspect_public_deployment", "inspect_runtime_config"}
+    rollback_tools = {"trigger_remote_rollback"}
+    if task_kind in allowed_kinds:
+        return True
+    if runbook and runbook in preferred_runbooks:
+        return True
+    if tools & monitor_tools:
+        return True
+    if str(strategy.get("mode") or "") == "rollback_and_monitor" and tools & rollback_tools:
+        return True
+    return False
+
+
 def _execute_queued_task(workspace, task: dict) -> dict:
     if not workspace or not isinstance(task, dict):
         return task or {}
@@ -2500,21 +3255,49 @@ def _autonomous_task_is_allowed(task: dict, *, page_context=None) -> bool:
     return True
 
 
-def _run_autonomous_backlog_cycle(*, workspace, page_context=None, max_tasks: int = AUTONOMOUS_BACKLOG_MAX_TASKS) -> dict:
+def _run_autonomous_backlog_cycle(*, workspace, page_context=None, max_tasks: int = AUTONOMOUS_BACKLOG_MAX_TASKS, strategy=None) -> dict:
     if not workspace:
         return {"enabled": False, "executed": []}
-    rows = _load_task_queue(workspace)
+    refreshed = _refresh_operator_priorities(workspace, page_context=page_context)
+    strategy = strategy if isinstance(strategy, dict) else _autonomous_priority_strategy(workspace, page_context=page_context, priority_state=refreshed)
+    rows = [row for row in (refreshed.get("tasks") or []) if isinstance(row, dict)]
     executed = []
+    effective_max_tasks = max(1, min(int(max_tasks or AUTONOMOUS_BACKLOG_MAX_TASKS), _safe_int(strategy.get("max_tasks"), AUTONOMOUS_BACKLOG_MAX_TASKS)))
     for row in rows:
-        if len(executed) >= max(1, int(max_tasks or AUTONOMOUS_BACKLOG_MAX_TASKS)):
+        if len(executed) >= effective_max_tasks:
             break
         if not _autonomous_task_is_allowed(row, page_context=page_context):
             continue
+        if not _task_matches_autonomous_strategy(row, strategy):
+            continue
         executed.append(_execute_queued_task(workspace, row))
+    final_rows = _load_task_queue(workspace)
+    top_task = final_rows[0] if final_rows else {}
+    priority_queue = []
+    for row in final_rows[:5]:
+        if not isinstance(row, dict):
+            continue
+        priority_queue.append({
+            "id": str(row.get("id") or "")[:120],
+            "title": str(row.get("title") or "")[:160],
+            "status": str(row.get("status") or "")[:24],
+            "priority_score": _safe_int(row.get("priority_score"), 0),
+            "priority_band": str(row.get("priority_band") or "")[:24],
+            "priority_reason": str(row.get("priority_reason") or "")[:180],
+        })
     return {
         "enabled": bool((_permission_profile(page_context=page_context).get("roles") or {}).get("admin_total_operator")),
         "executed_count": len(executed),
         "executed": executed[:6],
+        "strategy": strategy,
+        "priority_queue": priority_queue,
+        "top_task": {
+            "id": str(top_task.get("id") or "")[:120],
+            "title": str(top_task.get("title") or "")[:160],
+            "priority_score": _safe_int(top_task.get("priority_score"), 0),
+            "priority_band": str(top_task.get("priority_band") or "")[:24],
+            "priority_reason": str(top_task.get("priority_reason") or "")[:220],
+        } if isinstance(top_task, dict) and top_task else {},
     }
 
 
@@ -2533,6 +3316,7 @@ def run_proactive_guard_cycle(*, workspace, actor_id=None, allow_safe_repairs: b
     improvements = _detect_proactive_improvements(report, workspace=workspace, actor_id=actor_id)
     created = []
     executed = []
+    auto_candidates = []
     for detection in detections + improvements:
         task = _new_task_entry(
             detector=str(detection.get("detector") or ""),
@@ -2548,7 +3332,14 @@ def run_proactive_guard_cycle(*, workspace, actor_id=None, allow_safe_repairs: b
         )
         saved = _enqueue_task(workspace, task)
         created.append(saved)
-        if allow_safe_repairs and bool(saved.get("auto_execute")) and str(saved.get("status") or "") == "pending":
+        if bool(saved.get("auto_execute")) and str(saved.get("status") or "") == "pending":
+            auto_candidates.append(saved)
+    priority_state = _refresh_operator_priorities(workspace, page_context=page_context)
+    strategy = _autonomous_priority_strategy(workspace, page_context=page_context, priority_state=priority_state)
+    if allow_safe_repairs and bool(strategy.get("allow_safe_repairs")):
+        for saved in auto_candidates:
+            if not _task_matches_autonomous_strategy(saved, strategy):
+                continue
             executed.append(_execute_queued_task(workspace, saved))
     state_payload = {
         "last_cycle_at": _now_iso(),
@@ -2558,8 +3349,10 @@ def run_proactive_guard_cycle(*, workspace, actor_id=None, allow_safe_repairs: b
         "last_executed_count": len(executed),
         "last_detections": detections[:6],
         "last_improvements": improvements[:6],
+        "last_strategy_mode": str(strategy.get("mode") or "")[:64],
+        "last_strategy_band": str(strategy.get("band") or "")[:24],
     }
-    backlog_cycle = _run_autonomous_backlog_cycle(workspace=workspace, page_context=page_context)
+    backlog_cycle = _run_autonomous_backlog_cycle(workspace=workspace, page_context=page_context, strategy=strategy)
     state_payload["last_backlog_executed_count"] = _safe_int(backlog_cycle.get("executed_count"), 0)
     _store_proactive_state(workspace, state_payload)
     _append_audit_log(workspace, {
@@ -2581,6 +3374,7 @@ def run_proactive_guard_cycle(*, workspace, actor_id=None, allow_safe_repairs: b
         "improvements": improvements,
         "created_tasks": created,
         "executed_tasks": executed,
+        "strategy": strategy,
         "queue": queue_rows[:20],
         "queue_counts": _task_state_counts(queue_rows),
         "state": state_payload,
@@ -2954,7 +3748,7 @@ def _update_objective_memory(
 
 
 def _objective_orchestrator_snapshot(workspace, *, actor_id=None) -> dict:
-    rows = _load_objective_memory(workspace) if workspace else []
+    rows = _refresh_operator_priorities(workspace, page_context={}).get("objectives") if workspace else []
     active = [row for row in rows if str((row or {}).get("status") or "") not in {"completed", "resolved"}]
     resumable = [row for row in rows if str((row or {}).get("next_step") or "").strip()]
     retryable = [row for row in rows if _objective_retry_policy(row).get("retry_allowed")]
@@ -2981,6 +3775,9 @@ def _objective_orchestrator_snapshot(workspace, *, actor_id=None) -> dict:
                 "retry_count": _safe_int(row.get("retry_count"), 0),
                 "blocked_count": _safe_int(row.get("blocked_count"), 0),
                 "escalation_level": str(row.get("escalation_level") or "none")[:32],
+                "priority_score": _safe_int(row.get("priority_score"), 0),
+                "priority_band": str(row.get("priority_band") or "next")[:24],
+                "priority_reason": str(row.get("priority_reason") or "")[:180],
             }
             for row in rows[:6]
             if isinstance(row, dict)
@@ -6578,6 +7375,7 @@ def _build_admin_operator_console(
         "armed_connectors": list(infrastructure_operator.get("armed_connectors") or [])[:6],
         "objective_count": _safe_int(objective_orchestrator.get("active_count"), 0),
         "backlog_executed_count": _safe_int(autonomous_backlog.get("executed_count"), 0),
+        "priority_queue": list((autonomous_backlog.get("priority_queue") or objective_orchestrator.get("objectives") or [])[:5]),
     }
 
 
@@ -6586,6 +7384,10 @@ def _continuous_operator_snapshot(workspace, *, actor_id=None) -> dict:
     lease = _load_operator_lease(workspace) if workspace else {}
     control = _load_operator_control(workspace) if workspace else {}
     objectives = _objective_orchestrator_snapshot(workspace, actor_id=actor_id) if workspace else {}
+    priority_state = _refresh_operator_priorities(workspace, page_context={}) if workspace else {}
+    strategy = _autonomous_priority_strategy(workspace, page_context={}, priority_state=priority_state) if workspace else {}
+    tasks = [row for row in (priority_state.get("tasks") or []) if isinstance(row, dict)]
+    top_task = tasks[0] if tasks else {}
     return {
         "embedded": True,
         "runtime": runtime,
@@ -6595,6 +7397,15 @@ def _continuous_operator_snapshot(workspace, *, actor_id=None) -> dict:
         "resumable_objectives": _safe_int(objectives.get("resumable_count"), 0),
         "retryable_objectives": _safe_int(objectives.get("retryable_count"), 0),
         "escalated_objectives": _safe_int(objectives.get("escalated_count"), 0),
+        "top_priority_task": {
+            "id": str(top_task.get("id") or "")[:120],
+            "title": str(top_task.get("title") or "")[:160],
+            "priority_score": _safe_int(top_task.get("priority_score"), 0),
+            "priority_band": str(top_task.get("priority_band") or "")[:24],
+            "priority_reason": str(top_task.get("priority_reason") or "")[:220],
+        } if isinstance(top_task, dict) and top_task else {},
+        "top_priority_objective": (objectives.get("objectives") or [{}])[0] if objectives.get("objectives") else {},
+        "strategy": strategy,
         "running": bool(runtime.get("running")),
     }
 
@@ -6641,6 +7452,7 @@ def run_continuous_operator_cycle(
         )
         queue_counts = proactive.get("queue_counts") or {}
         objective_state = _objective_orchestrator_snapshot(workspace, actor_id=actor_id)
+        strategy = proactive.get("strategy") if isinstance(proactive.get("strategy"), dict) else _autonomous_priority_strategy(workspace, page_context=page_context)
         runtime.update({
             "running": False,
             "last_finished_at": _now_iso(),
@@ -6650,6 +7462,8 @@ def run_continuous_operator_cycle(
             "last_executed_tasks": _safe_int((proactive.get("autonomous_backlog") or {}).get("executed_count"), 0),
             "last_retryable_objectives": _safe_int(objective_state.get("retryable_count"), 0),
             "last_escalated_objectives": _safe_int(objective_state.get("escalated_count"), 0),
+            "last_strategy_mode": str(strategy.get("mode") or "")[:64],
+            "last_strategy_band": str(strategy.get("band") or "")[:24],
             "heartbeat_at": _now_iso(),
         })
         _store_operator_runtime_state(workspace, runtime)
@@ -6718,11 +7532,13 @@ def _build_self_healing_operator(
     technical_execution=None,
     repository_operator=None,
     snapshot_diff=None,
+    autonomous_strategy=None,
 ) -> dict:
     technical_operation = technical_operation if isinstance(technical_operation, dict) else {}
     technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
     repository_operator = repository_operator if isinstance(repository_operator, dict) else {}
     snapshot_diff = snapshot_diff if isinstance(snapshot_diff, dict) else {}
+    autonomous_strategy = autonomous_strategy if isinstance(autonomous_strategy, dict) else {}
     if str(technical_operation.get("kind") or "") != "technical_operation":
         return {}
     memory_snapshot = _recent_fix_memory_snapshot(
@@ -6733,11 +7549,16 @@ def _build_self_healing_operator(
     catalog_candidates = [row for row in (technical_operation.get("catalog_candidates") or []) if isinstance(row, dict)]
     recommended = next((row for row in catalog_candidates if bool(row.get("auto_apply"))), catalog_candidates[0] if catalog_candidates else {})
     strategy = "memory_guided_repair"
+    strategy_mode = str(autonomous_strategy.get("mode") or "").strip()
     if recommended and bool(recommended.get("auto_apply")):
         strategy = "catalog_autofix_replay"
     elif repeated:
         strategy = "repeated_incident_repair"
+    if strategy_mode == "rollback_and_monitor":
+        strategy = "stability_first_repair"
     next_actions = []
+    if strategy_mode:
+        next_actions.append(f"Seguir estrategia autónoma {strategy_mode}.")
     if recommended:
         next_actions.append(f"Reutilizar fix sugerido: {recommended.get('title') or recommended.get('key')}")
     if repeated:
@@ -6761,6 +7582,7 @@ def _build_self_healing_operator(
         "next_actions": next_actions[:4],
         "target": _truncate(question, 220),
         "validated": bool(technical_execution.get("publish_ready")),
+        "priority_strategy_mode": strategy_mode[:64],
     }
 
 
@@ -6849,6 +7671,11 @@ def _presence_snapshot(*, page_context=None, planner=None, assistant_action=None
     active_workspace_id = _safe_int(context.get("workspace_id"), 0)
     route_rows = _guard_route_catalog(page_context)
     current_target = task.get("route_target") if isinstance(task.get("route_target"), dict) else {}
+    ui_snapshot = context.get("ui_snapshot") if isinstance(context.get("ui_snapshot"), dict) else {}
+    visual_snapshot = context.get("visual_snapshot") if isinstance(context.get("visual_snapshot"), dict) else {}
+    runtime_snapshot = context.get("runtime_snapshot") if isinstance(context.get("runtime_snapshot"), dict) else {}
+    health_snapshot = context.get("health_snapshot") if isinstance(context.get("health_snapshot"), dict) else {}
+    route_health = _route_health_snapshot(page_context=context)
     if isinstance(assistant_action.get("navigate_to"), dict) and assistant_action.get("navigate_to", {}).get("key"):
         current_target = assistant_action.get("navigate_to")
     nearby = []
@@ -6872,6 +7699,19 @@ def _presence_snapshot(*, page_context=None, planner=None, assistant_action=None
         },
         "nearby_modules": nearby,
         "preferred_route": str(operator_profile.get("preferred_route_label") or "")[:120],
+        "visible_headings": [str(item)[:120] for item in (ui_snapshot.get("headings") or [])[:4]],
+        "visible_actions": [str(item)[:80] for item in (ui_snapshot.get("primary_actions") or [])[:5]],
+        "visual_density": _safe_int(visual_snapshot.get("visual_density"), 0),
+        "visible_media_count": _safe_int(visual_snapshot.get("media_count"), 0),
+        "render_alerts": [str(item)[:140] for item in (visual_snapshot.get("render_alerts") or [])[:3]],
+        "runtime_alerts": [str(item)[:140] for item in (runtime_snapshot.get("alerts") or [])[:3]],
+        "failed_request_count": _safe_int(((runtime_snapshot.get("request_totals") or {}).get("failed")), 0) if isinstance(runtime_snapshot.get("request_totals"), dict) else 0,
+        "js_error_count": len([row for row in (runtime_snapshot.get("js_errors") or []) if isinstance(row, dict)]),
+        "health_status": str(health_snapshot.get("status") or "")[:24],
+        "health_alerts": [str(item)[:140] for item in (health_snapshot.get("alerts") or [])[:4]],
+        "route_health_status": str(route_health.get("status") or "")[:24],
+        "active_route_key": str(((route_health.get("active_route") or {}).get("key")) or "")[:64],
+        "missing_route_modules": [str(item)[:64] for item in (route_health.get("missing_modules") or [])[:4]],
         "inside_system": bool(active_page or active_workspace_id or active_team_id),
     }
 
@@ -7005,7 +7845,7 @@ def _runtime_business_snapshot(workspace, *, page_context=None) -> dict:
     }
 
 
-def _live_workflow_snapshot(workspace, *, page_context=None) -> dict:
+def _live_workflow_snapshot(workspace, *, page_context=None, actor_id=None) -> dict:
     context = page_context if isinstance(page_context, dict) else {}
     session_id = _safe_int(context.get("session_id") or context.get("selected_session_id"), 0)
     task_id = _safe_int(context.get("task_id") or context.get("source_task_id"), 0)
@@ -7027,6 +7867,14 @@ def _live_workflow_snapshot(workspace, *, page_context=None) -> dict:
         selected_microcycle = getattr(selected_session, "microcycle", None)
     if selected_session is None and selected_task is not None:
         selected_session = getattr(selected_task, "session", None)
+    ui_snapshot = context.get("ui_snapshot") if isinstance(context.get("ui_snapshot"), dict) else {}
+    visual_snapshot = context.get("visual_snapshot") if isinstance(context.get("visual_snapshot"), dict) else {}
+    runtime_snapshot = context.get("runtime_snapshot") if isinstance(context.get("runtime_snapshot"), dict) else {}
+    module_snapshot = context.get("module_snapshot") if isinstance(context.get("module_snapshot"), dict) else {}
+    health_snapshot = context.get("health_snapshot") if isinstance(context.get("health_snapshot"), dict) else {}
+    route_health = _route_health_snapshot(page_context=context)
+    route_audit = _local_navigation_audit_snapshot(workspace, actor_id=actor_id, page_context=context)
+    browser_audit = _browser_navigation_audit_snapshot(workspace, actor_id=actor_id, page_context=context)
     return {
         "page_tab": str(context.get("tab") or "")[:64],
         "selected_session": {
@@ -7049,6 +7897,200 @@ def _live_workflow_snapshot(workspace, *, page_context=None) -> dict:
             "home_team": str(getattr(getattr(active_match, "home_team", None), "name", "") or "")[:120],
             "away_team": str(getattr(getattr(active_match, "away_team", None), "name", "") or "")[:120],
             "date": str(getattr(active_match, "date", "") or "")[:32],
+        },
+        "ui_snapshot": {
+            "headings": [str(item)[:120] for item in (ui_snapshot.get("headings") or [])[:6]],
+            "primary_actions": [str(item)[:80] for item in (ui_snapshot.get("primary_actions") or [])[:8]],
+            "notices": [str(item)[:140] for item in (ui_snapshot.get("notices") or [])[:6]],
+            "panels": [str(item)[:100] for item in (ui_snapshot.get("panels") or [])[:8]],
+            "body_excerpt": [str(item)[:140] for item in (ui_snapshot.get("body_excerpt") or [])[:8]],
+            "visible_forms": [{
+                "tag": str((row or {}).get("tag") or "")[:24],
+                "type": str((row or {}).get("type") or "")[:24],
+                "label": str((row or {}).get("label") or "")[:80],
+            } for row in (ui_snapshot.get("visible_forms") or []) if isinstance(row, dict)][:10],
+            "viewport": {
+                "width": _safe_int(((ui_snapshot.get("viewport") or {}).get("width")), 0) if isinstance(ui_snapshot.get("viewport"), dict) else 0,
+                "height": _safe_int(((ui_snapshot.get("viewport") or {}).get("height")), 0) if isinstance(ui_snapshot.get("viewport"), dict) else 0,
+            },
+        },
+        "visual_snapshot": {
+            "blocks": [{
+                "tag": str((row or {}).get("tag") or "")[:24],
+                "text": str((row or {}).get("text") or "")[:90],
+                "x": _safe_int((row or {}).get("x"), 0),
+                "y": _safe_int((row or {}).get("y"), 0),
+                "w": _safe_int((row or {}).get("w"), 0),
+                "h": _safe_int((row or {}).get("h"), 0),
+                "emphasis": str((row or {}).get("emphasis") or "")[:24],
+            } for row in (visual_snapshot.get("blocks") or []) if isinstance(row, dict)][:12],
+            "palette": [str(item)[:40] for item in (visual_snapshot.get("palette") or [])[:8]],
+            "text_density": _safe_int(visual_snapshot.get("text_density"), 0),
+            "visual_density": _safe_int(visual_snapshot.get("visual_density"), 0),
+            "media_count": _safe_int(visual_snapshot.get("media_count"), 0),
+            "interactive_count": _safe_int(visual_snapshot.get("interactive_count"), 0),
+            "render_surfaces": [{
+                "id": str((row or {}).get("id") or "")[:60],
+                "tag": str((row or {}).get("tag") or "")[:24],
+                "kind": str((row or {}).get("kind") or "")[:40],
+                "label": str((row or {}).get("label") or "")[:90],
+                "visible": bool((row or {}).get("visible")),
+                "modal_open": bool((row or {}).get("modal_open")),
+                "draw_state": str((row or {}).get("draw_state") or "")[:32],
+                "webgl_context": str((row or {}).get("webgl_context") or "")[:20],
+                "scene_status": str((row or {}).get("scene_status") or "")[:40],
+                "issue": str((row or {}).get("issue") or "")[:60],
+                "object_count": _safe_int((row or {}).get("object_count"), 0),
+                "player_count": _safe_int((row or {}).get("player_count"), 0),
+                "ball_count": _safe_int((row or {}).get("ball_count"), 0),
+                "path_count": _safe_int((row or {}).get("path_count"), 0),
+                "step_index": _safe_int((row or {}).get("step_index"), 0),
+                "step_count": _safe_int((row or {}).get("step_count"), 0),
+                "render_calls": _safe_int((row or {}).get("render_calls"), 0),
+                "rendered_frames": _safe_int((row or {}).get("rendered_frames"), 0),
+                "w": _safe_int((row or {}).get("w"), 0),
+                "h": _safe_int((row or {}).get("h"), 0),
+            } for row in (visual_snapshot.get("render_surfaces") or []) if isinstance(row, dict)][:6],
+            "render_alerts": [str(item)[:140] for item in (visual_snapshot.get("render_alerts") or [])[:4]],
+            "scroll": {
+                "y": _safe_int(((visual_snapshot.get("scroll") or {}).get("y")), 0) if isinstance(visual_snapshot.get("scroll"), dict) else 0,
+                "max_y": _safe_int(((visual_snapshot.get("scroll") or {}).get("max_y")), 0) if isinstance(visual_snapshot.get("scroll"), dict) else 0,
+            },
+        },
+        "runtime_snapshot": {
+            "ready_state": str(runtime_snapshot.get("ready_state") or "")[:20],
+            "request_totals": {
+                "total": _safe_int(((runtime_snapshot.get("request_totals") or {}).get("total")), 0) if isinstance(runtime_snapshot.get("request_totals"), dict) else 0,
+                "failed": _safe_int(((runtime_snapshot.get("request_totals") or {}).get("failed")), 0) if isinstance(runtime_snapshot.get("request_totals"), dict) else 0,
+            },
+            "js_errors": [{
+                "message": str((row or {}).get("message") or "")[:180],
+                "source": str((row or {}).get("source") or "")[:220],
+                "line": _safe_int((row or {}).get("line"), 0),
+                "column": _safe_int((row or {}).get("column"), 0),
+            } for row in (runtime_snapshot.get("js_errors") or []) if isinstance(row, dict)][:4],
+            "promise_rejections": [{
+                "message": str((row or {}).get("message") or "")[:180],
+            } for row in (runtime_snapshot.get("promise_rejections") or []) if isinstance(row, dict)][:4],
+            "resource_errors": [{
+                "tag": str((row or {}).get("tag") or "")[:24],
+                "source": str((row or {}).get("source") or "")[:220],
+                "message": str((row or {}).get("message") or "")[:160],
+            } for row in (runtime_snapshot.get("resource_errors") or []) if isinstance(row, dict)][:4],
+            "failed_requests": [{
+                "method": str((row or {}).get("method") or "")[:12],
+                "url": str((row or {}).get("url") or "")[:220],
+                "status": _safe_int((row or {}).get("status"), 0),
+                "kind": str((row or {}).get("kind") or "")[:32],
+                "message": str((row or {}).get("message") or "")[:160],
+            } for row in (runtime_snapshot.get("failed_requests") or []) if isinstance(row, dict)][:5],
+            "section_states": [{
+                "label": str((row or {}).get("label") or "")[:90],
+                "visible": bool((row or {}).get("visible")),
+                "text_density": _safe_int((row or {}).get("text_density"), 0),
+            } for row in (runtime_snapshot.get("section_states") or []) if isinstance(row, dict)][:8],
+            "alerts": [str(item)[:140] for item in (runtime_snapshot.get("alerts") or [])[:4]],
+        },
+        "module_snapshot": {
+            "modules": [{
+                "label": str((row or {}).get("label") or "")[:90],
+                "kind": str((row or {}).get("kind") or "")[:24],
+                "action_count": _safe_int((row or {}).get("action_count"), 0),
+                "form_count": _safe_int((row or {}).get("form_count"), 0),
+                "media_count": _safe_int((row or {}).get("media_count"), 0),
+                "notice_count": _safe_int((row or {}).get("notice_count"), 0),
+                "text_density": _safe_int((row or {}).get("text_density"), 0),
+                "w": _safe_int((row or {}).get("w"), 0),
+                "h": _safe_int((row or {}).get("h"), 0),
+            } for row in (module_snapshot.get("modules") or []) if isinstance(row, dict)][:10],
+        },
+        "health_snapshot": {
+            "status": str(health_snapshot.get("status") or "")[:24],
+            "notices": [str(item)[:160] for item in (health_snapshot.get("notices") or [])[:8]],
+            "loading_hints": [str(item)[:120] for item in (health_snapshot.get("loading_hints") or [])[:6]],
+            "empty_hints": [str(item)[:140] for item in (health_snapshot.get("empty_hints") or [])[:6]],
+            "disabled_controls": [str(item)[:80] for item in (health_snapshot.get("disabled_controls") or [])[:8]],
+            "module_counts": {
+                "total": _safe_int(((health_snapshot.get("module_counts") or {}).get("total")), 0) if isinstance(health_snapshot.get("module_counts"), dict) else 0,
+                "healthy": _safe_int(((health_snapshot.get("module_counts") or {}).get("healthy")), 0) if isinstance(health_snapshot.get("module_counts"), dict) else 0,
+                "degraded": _safe_int(((health_snapshot.get("module_counts") or {}).get("degraded")), 0) if isinstance(health_snapshot.get("module_counts"), dict) else 0,
+                "blocked": _safe_int(((health_snapshot.get("module_counts") or {}).get("blocked")), 0) if isinstance(health_snapshot.get("module_counts"), dict) else 0,
+            },
+            "degraded_modules": [{
+                "label": str((row or {}).get("label") or "")[:90],
+                "notice_count": _safe_int((row or {}).get("notice_count"), 0),
+                "media_count": _safe_int((row or {}).get("media_count"), 0),
+                "text_density": _safe_int((row or {}).get("text_density"), 0),
+            } for row in (health_snapshot.get("degraded_modules") or []) if isinstance(row, dict)][:6],
+            "blocked_modules": [{
+                "label": str((row or {}).get("label") or "")[:90],
+                "action_count": _safe_int((row or {}).get("action_count"), 0),
+                "form_count": _safe_int((row or {}).get("form_count"), 0),
+                "text_density": _safe_int((row or {}).get("text_density"), 0),
+            } for row in (health_snapshot.get("blocked_modules") or []) if isinstance(row, dict)][:6],
+            "alerts": [str(item)[:140] for item in (health_snapshot.get("alerts") or [])[:6]],
+        },
+        "route_health": {
+            "active_route": {
+                "key": str(((route_health.get("active_route") or {}).get("key")) or "")[:64],
+                "label": str(((route_health.get("active_route") or {}).get("label")) or "")[:120],
+                "url_name": str(((route_health.get("active_route") or {}).get("url_name")) or "")[:120],
+            },
+            "status": str(route_health.get("status") or "")[:24],
+            "expected_modules": [str(item)[:64] for item in (route_health.get("expected_modules") or [])[:6]],
+            "matched_modules": [str(item)[:64] for item in (route_health.get("matched_modules") or [])[:6]],
+            "missing_modules": [str(item)[:64] for item in (route_health.get("missing_modules") or [])[:6]],
+            "degraded_module_count": _safe_int(route_health.get("degraded_module_count"), 0),
+            "blocked_module_count": _safe_int(route_health.get("blocked_module_count"), 0),
+            "failed_request_count": _safe_int(route_health.get("failed_request_count"), 0),
+            "js_error_count": _safe_int(route_health.get("js_error_count"), 0),
+            "alerts": [str(item)[:140] for item in (route_health.get("alerts") or [])[:6]],
+        },
+        "route_audit": {
+            "enabled": bool(route_audit.get("enabled")),
+            "reason": str(route_audit.get("reason") or "")[:64],
+            "audit_host": str(route_audit.get("audit_host") or "")[:120],
+            "audited_count": _safe_int(route_audit.get("audited_count"), 0),
+            "healthy_count": _safe_int(route_audit.get("healthy_count"), 0),
+            "degraded_count": _safe_int(route_audit.get("degraded_count"), 0),
+            "blocked_count": _safe_int(route_audit.get("blocked_count"), 0),
+            "routes": [{
+                "key": str((row or {}).get("key") or "")[:64],
+                "label": str((row or {}).get("label") or "")[:120],
+                "url": str((row or {}).get("url") or "")[:220],
+                "status_code": _safe_int((row or {}).get("status_code"), 0),
+                "status": str((row or {}).get("status") or "")[:24],
+                "matched_modules": [str(item)[:64] for item in ((row or {}).get("matched_modules") or [])[:6]],
+                "missing_modules": [str(item)[:64] for item in ((row or {}).get("missing_modules") or [])[:6]],
+                "redirect_count": _safe_int((row or {}).get("redirect_count"), 0),
+                "error": str((row or {}).get("error") or "")[:180],
+            } for row in (route_audit.get("routes") or []) if isinstance(row, dict)][:4],
+        },
+        "browser_audit": {
+            "enabled": bool(browser_audit.get("enabled")),
+            "reason": str(browser_audit.get("reason") or "")[:64],
+            "base_url": str(browser_audit.get("base_url") or "")[:220],
+            "audited_count": _safe_int(browser_audit.get("audited_count"), 0),
+            "healthy_count": _safe_int(browser_audit.get("healthy_count"), 0),
+            "degraded_count": _safe_int(browser_audit.get("degraded_count"), 0),
+            "blocked_count": _safe_int(browser_audit.get("blocked_count"), 0),
+            "routes": [{
+                "key": str((row or {}).get("key") or "")[:64],
+                "label": str((row or {}).get("label") or "")[:120],
+                "url": str((row or {}).get("url") or "")[:220],
+                "final_url": str((row or {}).get("final_url") or "")[:220],
+                "status_code": _safe_int((row or {}).get("status_code"), 0),
+                "status": str((row or {}).get("status") or "")[:24],
+                "matched_modules": [str(item)[:64] for item in ((row or {}).get("matched_modules") or [])[:6]],
+                "missing_modules": [str(item)[:64] for item in ((row or {}).get("missing_modules") or [])[:6]],
+                "redirect_count": _safe_int((row or {}).get("redirect_count"), 0),
+                "console_count": _safe_int((row or {}).get("console_count"), 0),
+                "page_error_count": _safe_int((row or {}).get("page_error_count"), 0),
+                "request_failed_count": _safe_int((row or {}).get("request_failed_count"), 0),
+                "js_error_count": _safe_int((row or {}).get("js_error_count"), 0),
+                "render_surface_count": _safe_int((row or {}).get("render_surface_count"), 0),
+                "error": str((row or {}).get("error") or "")[:180],
+            } for row in (browser_audit.get("routes") or []) if isinstance(row, dict)][:3],
         },
         "is_focused_context": bool(selected_session or selected_task or active_match or selected_microcycle),
     }
@@ -7118,15 +8160,20 @@ def _mission_control_snapshot(
             alerts.append(f"Regresión: {label}"[:180])
     if assistant_action.get("permission_required"):
         alerts.append("Hay una acción bloqueada por permisos.")
-    priority_queue = []
-    for row in improvement_proposals[:4]:
-        if not isinstance(row, dict):
-            continue
-        priority_queue.append({
-            "title": str(row.get("title") or "")[:140],
-            "priority": str(row.get("priority") or "next")[:24],
-            "kind": str(row.get("kind") or "assistant")[:32],
-        })
+    priority_queue = [
+        row for row in (observability.get("priority_queue_preview") or [])[:5]
+        if isinstance(row, dict)
+    ]
+    if not priority_queue:
+        for row in improvement_proposals[:4]:
+            if not isinstance(row, dict):
+                continue
+            priority_queue.append({
+                "title": str(row.get("title") or "")[:140],
+                "priority_band": str(row.get("priority") or "next")[:24],
+                "kind": str(row.get("kind") or "assistant")[:32],
+                "priority_reason": str(row.get("reason") or "")[:180],
+            })
     recommended = []
     for row in (silent_operator.get("suggested_actions") or [])[:2]:
         label = str(row or "").strip()
@@ -7228,6 +8275,9 @@ def _silent_operator_snapshot(
     runbook = planner.get("runbook") if isinstance(planner.get("runbook"), dict) else {}
     queue_counts = silent_operator.get("queue_counts") if isinstance(silent_operator.get("queue_counts"), dict) else {}
     proactive = _load_proactive_state(workspace) if workspace else {}
+    observability = _observability_summary(workspace) if workspace else {}
+    priority_state = _refresh_operator_priorities(workspace, page_context=page_context) if workspace else {"tasks": [], "objectives": []}
+    strategy = _autonomous_priority_strategy(workspace, page_context=page_context, priority_state=priority_state) if workspace else {}
     detections = [row for row in (proactive.get("last_detections") or []) if isinstance(row, dict)]
     return {
         "embedded": True,
@@ -7252,6 +8302,12 @@ def _silent_operator_snapshot(
             for row in detections[:4]
         ],
         "suggested_actions": [str(item) for item in (silent_operator.get("suggested_actions") or [])[:4]],
+        "priority_queue": [
+            row for row in (observability.get("priority_queue_preview") or [])[:5]
+            if isinstance(row, dict)
+        ],
+        "top_priority": observability.get("top_priority") if isinstance(observability.get("top_priority"), dict) else {},
+        "strategy": strategy,
     }
 
 
@@ -7526,6 +8582,7 @@ def _build_intelligence_os_snapshot(
     question: str,
     *,
     workspace=None,
+    actor_id=None,
     page_context=None,
     planner=None,
     assistant_action=None,
@@ -7607,7 +8664,7 @@ def _build_intelligence_os_snapshot(
                 operator_profile=operator_profile,
                 planner=planner,
             ),
-            "live_workflow": _live_workflow_snapshot(workspace, page_context=page_context),
+            "live_workflow": _live_workflow_snapshot(workspace, page_context=page_context, actor_id=actor_id),
             "mission_control": _mission_control_snapshot(
                 workspace,
                 page_context=page_context,
@@ -9254,6 +10311,9 @@ def _adapt_response_to_live_workflow(response: dict, *, page_context=None) -> di
     selected_microcycle = workflow.get("selected_microcycle") if isinstance(workflow.get("selected_microcycle"), dict) else {}
     active_match = workflow.get("active_match") if isinstance(workflow.get("active_match"), dict) else {}
     page_tab = str(workflow.get("page_tab") or "")[:64]
+    route_health = workflow.get("route_health") if isinstance(workflow.get("route_health"), dict) else {}
+    route_audit = workflow.get("route_audit") if isinstance(workflow.get("route_audit"), dict) else {}
+    browser_audit = workflow.get("browser_audit") if isinstance(workflow.get("browser_audit"), dict) else {}
     highlights = list(response.get("highlights") or [])
     ui_actions = list(response.get("ui_actions") or [])
     message = str(response.get("message") or "")
@@ -9289,6 +10349,46 @@ def _adapt_response_to_live_workflow(response: dict, *, page_context=None) -> di
         })
     if page_tab:
         highlights.append(f"Tab activa: {page_tab}")
+    if route_health.get("active_route", {}).get("label"):
+        highlights.append(f"Ruta activa: {route_health.get('active_route', {}).get('label')}")
+    if str(route_health.get("status") or "") in {"degraded", "blocked"}:
+        missing = [str(item) for item in (route_health.get("missing_modules") or []) if str(item or "").strip()]
+        if missing:
+            highlights.append(f"Módulos ausentes: {', '.join(missing[:3])}")
+        ui_actions.insert(0, {
+            "type": "prompt",
+            "label": "Diagnosticar ruta activa",
+            "prompt": "Revisa la ruta activa, identifica qué módulo falta o falla y propón la corrección técnica concreta.",
+            "reason": "Actuar sobre la pantalla degradada que el usuario tiene abierta.",
+        })
+    audited_routes = [row for row in (route_audit.get("routes") or []) if isinstance(row, dict)]
+    if audited_routes and bool(route_audit.get("enabled")):
+        failing_routes = [row for row in audited_routes if str(row.get("status") or "") in {"degraded", "blocked"}]
+        highlights.append(f"Auditoría rutas: {int(route_audit.get('healthy_count') or 0)}/{int(route_audit.get('audited_count') or 0)} sanas")
+        if failing_routes:
+            first = failing_routes[0]
+            if first.get("label"):
+                highlights.append(f"Ruta auditada con fallo: {first.get('label')}")
+            ui_actions.insert(0, {
+                "type": "prompt",
+                "label": "Auditar rutas críticas",
+                "prompt": "Resume la auditoría de rutas críticas, prioriza la pantalla con fallo y propone la corrección concreta.",
+                "reason": "Extender el diagnóstico más allá de la pantalla actual.",
+            })
+    browser_routes = [row for row in (browser_audit.get("routes") or []) if isinstance(row, dict)]
+    if browser_routes and bool(browser_audit.get("enabled")):
+        failing_browser_routes = [row for row in browser_routes if str(row.get("status") or "") in {"degraded", "blocked"}]
+        highlights.append(f"Auditoría browser: {int(browser_audit.get('healthy_count') or 0)}/{int(browser_audit.get('audited_count') or 0)} sanas")
+        if failing_browser_routes:
+            first = failing_browser_routes[0]
+            if first.get("label"):
+                highlights.append(f"Browser detecta fallo en: {first.get('label')}")
+            ui_actions.insert(0, {
+                "type": "prompt",
+                "label": "Revisar auditoría visual",
+                "prompt": "Resume la auditoría visual/browser de rutas críticas y prioriza el módulo roto por JavaScript o render.",
+                "reason": "Diagnóstico post-JS y post-render sobre varias rutas del sistema.",
+            })
 
     response["message"] = _truncate(message.strip(), 1800)
     response["highlights"] = highlights[:10]
@@ -9423,7 +10523,30 @@ def _normalize_llm_response(parsed, fallback: dict) -> dict:
 
 
 def _build_silent_operator_state(workspace, *, response=None, actor_id=None) -> dict:
-    queue_rows = _load_task_queue(workspace)
+    priority_state = _refresh_operator_priorities(workspace, page_context={}) if workspace else {}
+    queue_rows = [row for row in (priority_state.get("tasks") or []) if isinstance(row, dict)]
+    objective_rows = [row for row in (priority_state.get("objectives") or []) if isinstance(row, dict)]
+    strategy = _autonomous_priority_strategy(workspace, page_context={}, priority_state=priority_state) if workspace else {}
+    combined_priority = []
+    for row in queue_rows[:3]:
+        combined_priority.append({
+            "kind": "task",
+            "title": row.get("title"),
+            "status": row.get("status"),
+            "priority_band": row.get("priority_band"),
+            "priority_score": row.get("priority_score"),
+            "priority_reason": row.get("priority_reason"),
+        })
+    for row in objective_rows[:2]:
+        combined_priority.append({
+            "kind": "objective",
+            "title": row.get("title"),
+            "status": row.get("goal_status") or row.get("status"),
+            "priority_band": row.get("priority_band"),
+            "priority_score": row.get("priority_score"),
+            "priority_reason": row.get("priority_reason"),
+        })
+    combined_priority.sort(key=lambda row: (-_safe_int(row.get("priority_score"), 0), str(row.get("title") or "")))
     proactive = _load_proactive_state(workspace)
     scheduled = _scheduled_guard_state(workspace)
     profile = _load_operator_profile(workspace, actor_id=actor_id)
@@ -9437,6 +10560,10 @@ def _build_silent_operator_state(workspace, *, response=None, actor_id=None) -> 
         suggested.append("Revisar tareas bloqueadas del operador silencioso.")
     if queue_counts.get("pending", 0):
         suggested.append("Procesar backlog silencioso pendiente.")
+    if objective_rows and str((objective_rows[0] or {}).get("priority_band") or "") == "critical":
+        suggested.append("Atacar primero el objetivo tecnico de prioridad critica.")
+    if strategy.get("mode"):
+        suggested.append(f"Estrategia actual: {str(strategy.get('mode') or '')}.")
     if not suggested:
         suggested.append("Mantener inspección continua y preparar la siguiente mejora preventiva.")
     top_intent = ""
@@ -9461,6 +10588,26 @@ def _build_silent_operator_state(workspace, *, response=None, actor_id=None) -> 
         "preferred_route": str(profile.get("preferred_route_label") or "")[:120],
         "top_intent": top_intent,
         "suggested_actions": suggested[:3],
+        "priority_queue": [
+            {
+                "kind": str(row.get("kind") or "task")[:24],
+                "title": str(row.get("title") or "Tarea del guard")[:160],
+                "status": str(row.get("status") or "pending")[:24],
+                "priority_band": str(row.get("priority_band") or "next")[:24],
+                "priority_score": _safe_int(row.get("priority_score"), 0),
+                "priority_reason": str(row.get("priority_reason") or "")[:220],
+            }
+            for row in combined_priority[:5]
+            if isinstance(row, dict)
+        ],
+        "top_priority": {
+            "title": str((combined_priority[0] or {}).get("title") or "")[:160],
+            "status": str((combined_priority[0] or {}).get("status") or "")[:24],
+            "priority_band": str((combined_priority[0] or {}).get("priority_band") or "next")[:24],
+            "priority_score": _safe_int((combined_priority[0] or {}).get("priority_score"), 0),
+            "priority_reason": str((combined_priority[0] or {}).get("priority_reason") or "")[:220],
+        } if combined_priority else {},
+        "strategy": strategy,
         "publish_ready": bool(((response or {}).get("technical_operation_execution") or {}).get("publish_ready")),
         "silent_actions": list(autonomy_policy.get("silent_actions") or [])[:5],
     }
@@ -9654,6 +10801,13 @@ def run_system_guard_chat(
         publish_commander=publish_commander if isinstance(publish_commander, dict) else {},
         report=report,
     )
+    priority_state = _refresh_operator_priorities(workspace, page_context=page_context)
+    autonomous_strategy = _autonomous_priority_strategy(
+        workspace,
+        page_context=page_context,
+        priority_state=priority_state,
+        deployment_guard=deployment_guard if isinstance(deployment_guard, dict) else {},
+    )
     self_healing = _build_self_healing_operator(
         question,
         workspace=workspace,
@@ -9661,6 +10815,7 @@ def run_system_guard_chat(
         technical_execution=technical_execution if isinstance(technical_execution, dict) else {},
         repository_operator=repository_operator if isinstance(repository_operator, dict) else {},
         snapshot_diff=snapshot_diff,
+        autonomous_strategy=autonomous_strategy,
     )
     external_connectors = _external_connectors_snapshot(page_context=page_context)
     safe_command_executor = _safe_command_executor_snapshot(page_context=page_context)
@@ -9691,7 +10846,7 @@ def run_system_guard_chat(
     )
     objective_orchestrator = _objective_orchestrator_snapshot(workspace, actor_id=actor_id)
     domain_playbook = _domain_playbook_snapshot(question, page_context=page_context)
-    autonomous_backlog = _run_autonomous_backlog_cycle(workspace=workspace, page_context=page_context)
+    autonomous_backlog = _run_autonomous_backlog_cycle(workspace=workspace, page_context=page_context, strategy=autonomous_strategy)
     continuous_operator = _continuous_operator_snapshot(workspace, actor_id=actor_id)
     admin_operator_console = _build_admin_operator_console(
         page_context=page_context,
@@ -9888,6 +11043,7 @@ def run_system_guard_chat(
     fallback["intelligence_os"] = _build_intelligence_os_snapshot(
         question,
         workspace=workspace,
+        actor_id=actor_id,
         page_context=page_context,
         planner=planner,
         assistant_action=assistant_action if isinstance(assistant_action, dict) else {},
@@ -10023,6 +11179,7 @@ def run_system_guard_chat(
         evaluator=response.get("agent_evaluator") if isinstance(response.get("agent_evaluator"), dict) else {},
     )
     if objective_entry:
+        _refresh_operator_priorities(workspace, page_context=page_context if isinstance(page_context, dict) else {})
         response["objective_orchestrator"] = _objective_orchestrator_snapshot(workspace, actor_id=actor_id)
         response["highlights"] = [f"Objetivo persistido: {objective_entry.get('status')}"] + [str(item) for item in (response.get("highlights") or []) if str(item or "").strip()]
     _store_operator_profile(workspace, actor_id=actor_id, planner=planner, assistant_action=response.get("assistant_action"), question=question, page_context=page_context)
@@ -10031,6 +11188,7 @@ def run_system_guard_chat(
     response["intelligence_os"] = _build_intelligence_os_snapshot(
         question,
         workspace=workspace,
+        actor_id=actor_id,
         page_context=page_context,
         planner=planner,
         assistant_action=response.get("assistant_action") if isinstance(response.get("assistant_action"), dict) else {},

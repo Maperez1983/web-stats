@@ -1302,6 +1302,7 @@ class SystemGuardTests(TestCase):
             result = system_guard.run_proactive_guard_cycle(workspace=self.workspace, actor_id=self.user.id)
         self.assertTrue(result['ok'])
         self.assertEqual(result['queue_counts']['completed'], 1)
+        self.assertEqual(result['strategy']['mode'], 'preventive_planning')
         rows = system_guard._load_task_queue(self.workspace)
         completed = next((row for row in rows if row.get('status') == 'completed'), None)
         self.assertIsNotNone(completed)
@@ -1608,6 +1609,52 @@ class SystemGuardTests(TestCase):
         summary = system_guard._observability_summary(self.workspace)
         self.assertEqual(summary['scheduled_state']['last_finished_at'], '2026-06-20T09:00:00Z')
 
+    def test_observability_summary_exposes_priority_queue_preview(self):
+        low_task = system_guard._new_task_entry(
+            detector='manual_request',
+            title='Orden menor',
+            summary='Seguimiento general',
+            severity='info',
+            runbook='silent_diagnostics',
+            task_kind='diagnose',
+            tools=['check_status'],
+            source='manual',
+            question='Orden menor',
+            auto_execute=False,
+        )
+        high_task = system_guard._new_task_entry(
+            detector='route_failure',
+            title='Ruta critica caída',
+            summary='La portada falla',
+            severity='critical',
+            runbook='safe_repair',
+            task_kind='repair',
+            tools=['check_critical_routes'],
+            source='proactive',
+            question='Reparar ruta crítica',
+            auto_execute=False,
+        )
+        system_guard._enqueue_task(self.workspace, low_task)
+        system_guard._enqueue_task(self.workspace, high_task)
+        system_guard._store_pref_value(self.workspace, system_guard.OBJECTIVE_MEMORY_PREF_KEY, [{
+            'id': 'obj-priority',
+            'title': 'Rollback vigilado',
+            'status': 'blocked',
+            'goal_status': 'blocked',
+            'task_kind': 'rollback',
+            'retry_count': 1,
+            'escalation_level': 'operator_intervention',
+            'next_step': 'Confirmar reversión segura',
+        }])
+
+        summary = system_guard._observability_summary(self.workspace)
+
+        self.assertTrue(summary['priority_queue_preview'])
+        self.assertIn(summary['top_priority']['title'], {'Ruta critica caída', 'Rollback vigilado'})
+        self.assertEqual(summary['top_priority']['priority_band'], 'critical')
+        self.assertEqual(summary['priority_queue_preview'][0]['priority_band'], 'critical')
+        self.assertIn(summary['priority_queue_preview'][0]['kind'], {'task', 'objective'})
+
     @patch.dict(os.environ, {
         'APP_PUBLIC_BASE_URL': 'https://app.example.com',
         'OLLANA_RELEASE_STATUS_URL': 'https://ops.example.com/release',
@@ -1872,6 +1919,61 @@ class SystemGuardTests(TestCase):
         self.assertEqual(queue[0]['goal_status'], 'completed')
         self.assertEqual(queue[0]['attempt_count'], 1)
 
+    @patch('football.system_guard._execute_tools')
+    def test_run_autonomous_backlog_cycle_prioritizes_critical_runtime_tasks(self, mock_exec):
+        def execute_side_effect(tools, **kwargs):
+            tool = (tools or [''])[0]
+            return [{
+                'tool': tool,
+                'label': tool,
+                'ok': True,
+                'kind': 'inspect',
+                'detail': 'ok',
+                'result': {'ok': True},
+            }]
+
+        mock_exec.side_effect = execute_side_effect
+        low_task = system_guard._new_task_entry(
+            detector='manual_request',
+            title='Seguimiento menor',
+            summary='Backlog general',
+            severity='info',
+            runbook='silent_diagnostics',
+            task_kind='diagnose',
+            tools=['check_status'],
+            source='manual',
+            question='Seguimiento menor',
+            auto_execute=False,
+        )
+        high_task = system_guard._new_task_entry(
+            detector='runtime_blockers',
+            title='Runtime bloqueado',
+            summary='El sistema tiene blockers activos',
+            severity='critical',
+            runbook='safe_repair',
+            task_kind='repair',
+            tools=['inspect_recent_errors'],
+            source='proactive',
+            question='Arregla el runtime',
+            auto_execute=False,
+        )
+        system_guard._enqueue_task(self.workspace, low_task)
+        system_guard._enqueue_task(self.workspace, high_task)
+
+        result = system_guard._run_autonomous_backlog_cycle(
+            workspace=self.workspace,
+            page_context={'is_admin_user': True, 'can_manage_guard': True, 'can_operate_guard_code': True},
+            max_tasks=1,
+        )
+
+        self.assertEqual(result['executed_count'], 1)
+        self.assertEqual(result['executed'][0]['title'], 'Runtime bloqueado')
+        queue = system_guard._load_task_queue(self.workspace)
+        self.assertEqual(queue[0]['title'], 'Runtime bloqueado')
+        self.assertEqual(queue[0]['status'], 'completed')
+        self.assertEqual(queue[1]['title'], 'Seguimiento menor')
+        self.assertEqual(queue[1]['status'], 'pending')
+
     @patch('football.system_guard._execute_tools', return_value=[{
         'tool': 'inspect_recent_errors',
         'label': 'Inspeccionar errores recientes',
@@ -1927,6 +2029,62 @@ class SystemGuardTests(TestCase):
         )
         self.assertFalse(allowed)
 
+    def test_build_silent_operator_state_exposes_top_priority(self):
+        system_guard._enqueue_task(self.workspace, system_guard._new_task_entry(
+            detector='route_failure',
+            title='Corregir ruta crítica',
+            summary='Falla de portada',
+            severity='critical',
+            runbook='safe_repair',
+            task_kind='repair',
+            tools=['check_critical_routes'],
+            source='proactive',
+            question='Corregir ruta crítica',
+            auto_execute=False,
+        ))
+        system_guard._store_pref_value(self.workspace, system_guard.OBJECTIVE_MEMORY_PREF_KEY, [{
+            'id': 'obj-low',
+            'title': 'Mejora documental',
+            'status': 'running',
+            'goal_status': 'in_progress',
+            'task_kind': 'diagnose',
+            'retry_count': 0,
+            'escalation_level': 'watch',
+            'next_step': 'Documentar',
+        }])
+
+        state = system_guard._build_silent_operator_state(self.workspace, actor_id=self.user.id)
+
+        self.assertTrue(state['priority_queue'])
+        self.assertEqual(state['top_priority']['title'], 'Corregir ruta crítica')
+        self.assertEqual(state['top_priority']['priority_band'], 'critical')
+        self.assertEqual(state['strategy']['mode'], 'repair_and_monitor')
+
+    def test_autonomous_priority_strategy_prefers_rollback_for_critical_rollback_item(self):
+        system_guard._enqueue_task(self.workspace, system_guard._new_task_entry(
+            detector='runtime_blockers',
+            title='Rollback urgente de producción',
+            summary='Último deploy degradó rutas críticas',
+            severity='critical',
+            runbook='automatic_rollback',
+            task_kind='rollback',
+            tools=['trigger_remote_rollback'],
+            source='proactive',
+            question='Rollback urgente',
+            auto_execute=False,
+        ))
+
+        strategy = system_guard._autonomous_priority_strategy(
+            self.workspace,
+            page_context={'is_admin_user': True, 'can_manage_guard': True, 'can_operate_guard_code': True},
+            deployment_guard={'auto_rollback_eligible': True},
+        )
+
+        self.assertEqual(strategy['band'], 'critical')
+        self.assertEqual(strategy['mode'], 'rollback_and_monitor')
+        self.assertEqual(strategy['top_priority']['title'], 'Rollback urgente de producción')
+        self.assertIn('automatic_rollback', strategy['preferred_runbooks'])
+
     @patch('football.system_guard.run_system_guard', return_value={
         'ok': True,
         'issue_summary': {'blockers': 0, 'warnings': 0},
@@ -1946,6 +2104,8 @@ class SystemGuardTests(TestCase):
         self.assertFalse(runtime['running'])
         self.assertEqual(runtime['holder'], 'test-operator')
         self.assertIn('last_finished_at', runtime)
+        self.assertIn('last_strategy_mode', runtime)
+        self.assertIn('last_strategy_band', runtime)
         self.assertEqual(system_guard._load_operator_lease(self.workspace), {})
 
     @patch('football.system_guard.run_continuous_operator_cycle', return_value={
@@ -2880,11 +3040,11 @@ class SystemGuardTests(TestCase):
         response = self.client.get(reverse('system-guard-page'))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'System Guard')
-        self.assertContains(response, 'Estabilidad LLM')
-        self.assertContains(response, 'Modo silencioso')
+        self.assertContains(response, 'Respuesta')
+        self.assertContains(response, 'Ver actividad')
         self.assertContains(response, 'Crear tarea')
         self.assertContains(response, 'Crear jugador')
-        self.assertContains(response, 'Acciones directas')
+        self.assertContains(response, 'Ayúdame con esta pantalla')
         self.assertIn('guard_observability', response.context)
 
     @patch('football.system_guard._maybe_run_scheduled_guard_cycle', return_value={'ran': False, 'reason': 'interval_not_elapsed'})
@@ -2946,6 +3106,337 @@ class SystemGuardTests(TestCase):
         self.assertEqual(kwargs['page_context']['title'], 'Dashboard')
         self.assertFalse(kwargs['page_context']['can_manage_guard'])
         self.assertFalse(kwargs['page_context']['can_operate_guard_code'])
+
+    @patch('football.system_guard._observability_summary', return_value={'history_count': 0})
+    @patch('football.system_guard.run_system_guard_chat', return_value={
+        'report': {'issue_summary': {'blockers': 0, 'warnings': 0}},
+        'chat': {'degraded': False, 'response': {'status': 'ok', 'message': 'ok', 'highlights': [], 'actions': [], 'metrics': {'executed_tools': 0, 'latency_ms': 0}}},
+    })
+    @patch('football.views._get_active_workspace')
+    @patch('football.views._get_primary_team_for_request')
+    @patch('football.views._can_access_sessions_workspace', return_value=True)
+    @patch('football.views._can_manage_workspace', return_value=True)
+    @patch('football.views._is_admin_user', return_value=False)
+    def test_system_guard_chat_api_passes_sanitized_ui_snapshot(self, _is_admin, _can_manage, _can_access, mock_team, mock_workspace, mock_guard, _mock_ob):
+        mock_workspace.return_value = self.workspace
+        mock_team.return_value = self.team
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('system-guard-chat-api'),
+            data=json.dumps({
+                'message': 'Revisa esta pantalla.',
+                'page_context': {
+                    'page': 'dashboard-home',
+                    'title': 'Dashboard',
+                    'ui_snapshot': {
+                        'headings': ['Portada', 'Resumen semanal'],
+                        'primary_actions': ['Crear sesión', 'Abrir biblioteca'],
+                        'notices': ['Error al guardar borrador'],
+                        'panels': ['Agenda', 'Plantilla'],
+                        'body_excerpt': ['Texto visible de ejemplo'],
+                        'visible_forms': [{'tag': 'button', 'type': 'submit', 'label': 'Guardar cambios'}],
+                        'viewport': {'width': 1440, 'height': 900},
+                    },
+                    'visual_snapshot': {
+                        'blocks': [{'tag': 'section', 'text': 'Panel principal', 'x': 12, 'y': 20, 'w': 800, 'h': 220, 'emphasis': 'wide'}],
+                        'palette': ['rgb(20, 83, 45)', 'rgb(248, 250, 252)'],
+                        'text_density': 62,
+                        'visual_density': 48,
+                        'media_count': 2,
+                        'interactive_count': 7,
+                        'render_surfaces': [{
+                            'id': 'task-detail-3d-canvas',
+                            'tag': 'canvas',
+                            'kind': 'three_scene',
+                            'label': 'Representacion 3D de tarea',
+                            'visible': True,
+                            'modal_open': True,
+                            'x': 24,
+                            'y': 96,
+                            'w': 960,
+                            'h': 540,
+                            'buffer_w': 1920,
+                            'buffer_h': 1080,
+                            'draw_state': 'unknown',
+                            'non_empty_samples': 0,
+                            'webgl_context': 'webgl2',
+                            'scene_status': 'rendering',
+                            'issue': '',
+                            'step_index': 0,
+                            'step_count': 3,
+                            'object_count': 14,
+                            'player_count': 8,
+                            'ball_count': 1,
+                            'path_count': 5,
+                            'render_calls': 42,
+                            'rendered_frames': 12,
+                        }],
+                        'render_alerts': ['Superficie Representacion 3D de tarea: escena 3D abierta sin objetos'],
+                        'scroll': {'y': 120, 'max_y': 1400},
+                    },
+                    'runtime_snapshot': {
+                        'ready_state': 'complete',
+                        'request_totals': {'total': 9, 'failed': 2},
+                        'js_errors': [{
+                            'message': 'ReferenceError: tacticScene is not defined',
+                            'source': '/static/football/js/tactics.js',
+                            'line': 88,
+                            'column': 14,
+                        }],
+                        'promise_rejections': [{'message': 'AbortError: timeout'}],
+                        'resource_errors': [{
+                            'tag': 'script',
+                            'source': '/static/football/js/pitch3d.js',
+                            'message': 'resource_load_failed',
+                        }],
+                        'failed_requests': [{
+                            'method': 'GET',
+                            'url': '/api/tasks/3d/',
+                            'status': 500,
+                            'kind': 'fetch_http_error',
+                            'message': 'Internal Server Error',
+                        }],
+                        'section_states': [{'label': 'Tactica 3D', 'visible': True, 'text_density': 54}],
+                        'alerts': ['Errores JS recientes: 1', 'Peticiones fallidas: 1'],
+                    },
+                    'module_snapshot': {
+                        'modules': [{
+                            'label': 'Tactica 3D',
+                            'kind': 'section',
+                            'x': 20,
+                            'y': 80,
+                            'w': 980,
+                            'h': 620,
+                            'action_count': 4,
+                            'form_count': 0,
+                            'media_count': 1,
+                            'notice_count': 1,
+                            'text_density': 42,
+                        }],
+                    },
+                    'health_snapshot': {
+                        'status': 'degraded',
+                        'notices': ['Error al guardar borrador'],
+                        'loading_hints': [],
+                        'empty_hints': [],
+                        'disabled_controls': ['Guardar cambios', 'Exportar'],
+                        'module_counts': {'total': 3, 'healthy': 1, 'degraded': 1, 'blocked': 1},
+                        'degraded_modules': [{'label': 'Tactica 3D', 'notice_count': 1, 'media_count': 1, 'text_density': 42}],
+                        'blocked_modules': [{'label': 'Resumen rival', 'action_count': 0, 'form_count': 0, 'text_density': 4}],
+                        'alerts': ['Avisos visibles: 1', 'Peticiones fallidas: 1'],
+                    },
+                },
+            }),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 200)
+        kwargs = mock_guard.call_args.kwargs
+        self.assertEqual(kwargs['page_context']['ui_snapshot']['headings'][0], 'Portada')
+        self.assertEqual(kwargs['page_context']['ui_snapshot']['primary_actions'][0], 'Crear sesión')
+        self.assertEqual(kwargs['page_context']['ui_snapshot']['visible_forms'][0]['label'], 'Guardar cambios')
+        self.assertEqual(kwargs['page_context']['ui_snapshot']['viewport']['width'], 1440)
+        self.assertEqual(kwargs['page_context']['visual_snapshot']['blocks'][0]['text'], 'Panel principal')
+        self.assertEqual(kwargs['page_context']['visual_snapshot']['palette'][0], 'rgb(20, 83, 45)')
+        self.assertEqual(kwargs['page_context']['visual_snapshot']['media_count'], 2)
+        self.assertEqual(kwargs['page_context']['visual_snapshot']['render_surfaces'][0]['webgl_context'], 'webgl2')
+        self.assertEqual(kwargs['page_context']['visual_snapshot']['render_surfaces'][0]['object_count'], 14)
+        self.assertEqual(kwargs['page_context']['visual_snapshot']['render_alerts'][0], 'Superficie Representacion 3D de tarea: escena 3D abierta sin objetos')
+        self.assertEqual(kwargs['page_context']['runtime_snapshot']['ready_state'], 'complete')
+        self.assertEqual(kwargs['page_context']['runtime_snapshot']['request_totals']['failed'], 2)
+        self.assertEqual(kwargs['page_context']['runtime_snapshot']['js_errors'][0]['message'], 'ReferenceError: tacticScene is not defined')
+        self.assertEqual(kwargs['page_context']['runtime_snapshot']['failed_requests'][0]['status'], 500)
+        self.assertEqual(kwargs['page_context']['module_snapshot']['modules'][0]['label'], 'Tactica 3D')
+        self.assertEqual(kwargs['page_context']['health_snapshot']['status'], 'degraded')
+        self.assertEqual(kwargs['page_context']['health_snapshot']['module_counts']['blocked'], 1)
+        self.assertEqual(kwargs['page_context']['health_snapshot']['blocked_modules'][0]['label'], 'Resumen rival')
+        self.assertEqual(kwargs['page_context']['visual_snapshot']['scroll']['max_y'], 1400)
+
+    def test_route_health_snapshot_marks_tactics_route_blocked_when_runtime_and_modules_fail(self):
+        snapshot = system_guard._route_health_snapshot(page_context={
+            'page': 'coach-tactics',
+            'path': '/coach/tactics/',
+            'module_snapshot': {
+                'modules': [
+                    {'label': 'Tactica 3D', 'kind': 'section'},
+                    {'label': 'Resumen rival', 'kind': 'card'},
+                ],
+            },
+            'health_snapshot': {
+                'degraded_modules': [{'label': 'Tactica 3D'}],
+                'blocked_modules': [{'label': 'Resumen rival'}],
+                'alerts': ['Avisos visibles: 1'],
+            },
+            'runtime_snapshot': {
+                'request_totals': {'failed': 2},
+                'js_errors': [{'message': 'ReferenceError'}],
+                'alerts': ['Peticiones fallidas: 2'],
+            },
+            'visual_snapshot': {
+                'render_alerts': ['Superficie Representacion 3D de tarea: escena 3D abierta sin objetos'],
+            },
+            'team_id': self.team.id,
+            'workspace_id': self.workspace.id,
+        })
+
+        self.assertEqual(snapshot['active_route']['key'], 'tactics')
+        self.assertEqual(snapshot['status'], 'blocked')
+        self.assertIn('3d', snapshot['matched_modules'])
+        self.assertIn('abp', snapshot['missing_modules'])
+        self.assertEqual(snapshot['failed_request_count'], 2)
+        self.assertEqual(snapshot['js_error_count'], 1)
+        self.assertFalse(snapshot['three_import_failure'])
+
+    def test_route_health_snapshot_marks_three_import_failure_as_3d_blocker(self):
+        snapshot = system_guard._route_health_snapshot(page_context={
+            'page': 'coach-tactics',
+            'path': '/coach/tactics/',
+            'module_snapshot': {
+                'modules': [
+                    {'label': 'Tactica 3D', 'kind': 'section'},
+                ],
+            },
+            'health_snapshot': {
+                'degraded_modules': [{'label': 'Tactica 3D'}],
+                'blocked_modules': [],
+                'alerts': [],
+            },
+            'runtime_snapshot': {
+                'request_totals': {'failed': 0},
+                'js_errors': [{
+                    'message': 'Uncaught TypeError: Failed to resolve module specifier "three". Relative references must start with either "/", "./", or "../".',
+                }],
+                'alerts': [],
+            },
+            'visual_snapshot': {
+                'render_alerts': [],
+            },
+            'team_id': self.team.id,
+            'workspace_id': self.workspace.id,
+        })
+
+        self.assertEqual(snapshot['active_route']['key'], 'tactics')
+        self.assertEqual(snapshot['status'], 'blocked')
+        self.assertTrue(snapshot['three_import_failure'])
+        self.assertIn('Visor 3D bloqueado: import de three sin resolver', snapshot['alerts'])
+
+    @patch('football.system_guard.Client')
+    def test_local_navigation_audit_snapshot_audits_active_and_core_routes(self, mock_client_cls):
+        class FakeResponse:
+            def __init__(self, status_code, content, redirect_chain=None):
+                self.status_code = status_code
+                self.content = content
+                self.redirect_chain = redirect_chain or []
+
+        client = mock_client_cls.return_value
+
+        def get_side_effect(url, **kwargs):
+            if 'coach-tactics' in url or 'tactics' in url:
+                return FakeResponse(200, b'<html><body>Tactica 3D pizarra</body></html>')
+            if 'coach-roster' in url or 'roster' in url:
+                return FakeResponse(500, b'error')
+            return FakeResponse(200, b'<html><body>dashboard agenda resumen plantilla sesiones</body></html>')
+
+        client.get.side_effect = get_side_effect
+
+        snapshot = system_guard._local_navigation_audit_snapshot(
+            self.workspace,
+            actor_id=self.user.id,
+            page_context={
+                'page': 'coach-tactics',
+                'path': '/coach/tactics/',
+                'team_id': self.team.id,
+                'workspace_id': self.workspace.id,
+                'module_snapshot': {'modules': [{'label': 'Tactica 3D'}]},
+            },
+        )
+
+        self.assertTrue(snapshot['enabled'])
+        self.assertEqual(snapshot['reason'], 'audited')
+        self.assertGreaterEqual(snapshot['audited_count'], 1)
+        self.assertTrue(any(row['key'] == 'tactics' for row in snapshot['routes']))
+        self.assertTrue(any(row['status'] in {'degraded', 'blocked'} for row in snapshot['routes']))
+
+    @patch('football.system_guard._guard_playwright_browser')
+    def test_browser_navigation_audit_snapshot_reads_post_js_route_state(self, mock_browser_wrapper):
+        class FakePage:
+            def __init__(self):
+                self.url = ''
+
+            def on(self, *_args, **_kwargs):
+                return None
+
+            def goto(self, url, **_kwargs):
+                self.url = url
+                class Resp:
+                    status = 200
+                return Resp()
+
+            def wait_for_load_state(self, *_args, **_kwargs):
+                return None
+
+            def evaluate(self, _script):
+                if 'tactics' in self.url:
+                    return {
+                        'title': 'Tactica',
+                        'body_text': 'tactica 3d pizarra',
+                        'modules': ['tactica 3d'],
+                        'js_errors': 1,
+                        'failed_requests': 0,
+                        'render_surfaces': 1,
+                    }
+                return {
+                    'title': 'Dashboard',
+                    'body_text': 'dashboard agenda resumen plantilla',
+                    'modules': ['agenda'],
+                    'js_errors': 0,
+                    'failed_requests': 0,
+                    'render_surfaces': 0,
+                }
+
+            def close(self):
+                return None
+
+        class FakeBrowserContext:
+            def add_cookies(self, _cookies):
+                return None
+
+            def new_page(self):
+                return FakePage()
+
+            def close(self):
+                return None
+
+        class FakeBrowser:
+            def new_context(self, **_kwargs):
+                return FakeBrowserContext()
+
+        from contextlib import contextmanager
+
+        @contextmanager
+        def fake_wrapper():
+            yield None, FakeBrowser()
+
+        mock_browser_wrapper.side_effect = fake_wrapper
+
+        with patch.dict(os.environ, {'APP_PUBLIC_BASE_URL': 'https://app.example.com'}):
+            snapshot = system_guard._browser_navigation_audit_snapshot(
+                self.workspace,
+                actor_id=self.user.id,
+                page_context={
+                    'page': 'coach-tactics',
+                    'path': '/coach/tactics/',
+                    'team_id': self.team.id,
+                    'workspace_id': self.workspace.id,
+                    'ui_snapshot': {'headings': ['Tactica']},
+                },
+            )
+
+        self.assertTrue(snapshot['enabled'])
+        self.assertEqual(snapshot['reason'], 'audited')
+        self.assertTrue(any(row['key'] == 'tactics' for row in snapshot['routes']))
+        tactics_row = next(row for row in snapshot['routes'] if row['key'] == 'tactics')
+        self.assertEqual(tactics_row['status'], 'degraded')
+        self.assertTrue(tactics_row['missing_modules'] or tactics_row['page_error_count'] >= 0)
 
     @patch('football.system_guard._observability_summary', return_value={'history_count': 0})
     @patch('football.system_guard.run_system_guard_chat', return_value={

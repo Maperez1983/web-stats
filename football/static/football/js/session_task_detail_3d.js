@@ -3,13 +3,15 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
 
 (function () {
   const payloadEl = document.getElementById('task-detail-3d-payload');
-  const modal = document.getElementById('task-detail-3d-modal');
+  const sceneHost = document.getElementById('task-detail-3d-inline');
   const canvas = document.getElementById('task-detail-3d-canvas');
   const openBtn = document.getElementById('task-detail-3d-open');
-  if (!payloadEl || !modal || !canvas || !openBtn) return;
+  if (!payloadEl || !sceneHost || !canvas) return;
+  canvas.dataset.ollanaSurface = 'task-3d-scene';
+  canvas.dataset.ollanaLabel = 'Representacion 3D de tarea';
+  const sceneCard = canvas.closest('.sim-3d-card');
 
   const byId = (id) => document.getElementById(id);
-  const closeBtn = byId('task-detail-3d-close');
   const prevBtn = byId('task-detail-3d-prev');
   const nextBtn = byId('task-detail-3d-next');
   const playBtn = byId('task-detail-3d-play');
@@ -71,6 +73,32 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
   } catch (error) {
     payload = {};
   }
+  const pitch3dContext = payload.pitch3dContext && typeof payload.pitch3dContext === 'object'
+    ? payload.pitch3dContext
+    : {};
+  const stadiumPalette = (() => {
+    const palette = pitch3dContext.stadiumPalette && typeof pitch3dContext.stadiumPalette === 'object'
+      ? pitch3dContext.stadiumPalette
+      : {};
+    return {
+      primary: safeText(palette.primary, '#047857'),
+      secondary: safeText(palette.secondary, '#f8fafc'),
+      accent: safeText(palette.accent, '#073b32'),
+    };
+  })();
+  const stadiumAds = (() => {
+    const ads = pitch3dContext.stadiumAds && typeof pitch3dContext.stadiumAds === 'object'
+      ? pitch3dContext.stadiumAds
+      : {};
+    const teamName = safeText(pitch3dContext.teamName, 'Club');
+    return {
+      top: safeText(ads.top, teamName || 'Club'),
+      right: safeText(ads.right, '2J Football Intelligence'),
+      bottom: safeText(ads.bottom, teamName || 'Club'),
+      left: safeText(ads.left, 'Partner'),
+      teamName,
+    };
+  })();
 
   const buildSteps = () => {
     const steps = [];
@@ -109,11 +137,11 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
   const firstState = steps[0].state || {};
   const stateMeta = {
     width: Math.max(320, toNumber(
-      payload.canvasWidth || firstState.width || (payload.graphicEditorState || {}).width,
+      payload.canvasWidth || firstState.width || (payload.graphicEditorState || {}).canvas_width || (payload.graphicEditorState || {}).width,
       1280
     )),
     height: Math.max(180, toNumber(
-      payload.canvasHeight || firstState.height || (payload.graphicEditorState || {}).height,
+      payload.canvasHeight || firstState.height || (payload.graphicEditorState || {}).canvas_height || (payload.graphicEditorState || {}).height,
       720
     )),
     fieldWidth: 105,
@@ -157,7 +185,6 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
   const orbit = { ...cameraPresets.broadcast };
   let currentPreset = 'broadcast';
   let currentStepIndex = 0;
-  let isOpen = false;
   let isPlaying = false;
   let rafId = null;
   let dragging = null;
@@ -170,6 +197,85 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
   let isRecording = false;
   let stadiumLoadPromise = null;
   let stadiumScene = null;
+  let renderFrameCount = 0;
+  let lastRenderAt = 0;
+  const ollanaDiagnostics = (() => {
+    const root = window.__ollanaDiagnostics && typeof window.__ollanaDiagnostics === 'object'
+      ? window.__ollanaDiagnostics
+      : {};
+    if (!root.render_surfaces || typeof root.render_surfaces !== 'object') root.render_surfaces = {};
+    window.__ollanaDiagnostics = root;
+    return root;
+  })();
+
+  const publishRenderDiagnostics = (extra = {}) => {
+    const key = canvas.id || 'task-detail-3d-canvas';
+    const currentStep = steps[currentStepIndex] || steps[0] || {};
+    const currentState = currentStep && typeof currentStep.state === 'object' ? currentStep.state : {};
+    const stepObjects = Array.isArray(currentState.objects) ? currentState.objects : [];
+    const rect = canvas.getBoundingClientRect();
+    const renderCalls = Number(renderer?.info?.render?.calls || 0);
+    const triangleCount = Number(renderer?.info?.render?.triangles || 0);
+    const pointsCount = Number(renderer?.info?.render?.points || 0);
+    const linesCount = Number(renderer?.info?.render?.lines || 0);
+    const contextType = (() => {
+      try {
+        const gl = renderer.getContext?.();
+        if (!gl) return '';
+        const name = gl.constructor && gl.constructor.name ? String(gl.constructor.name) : '';
+        if (/webgl2/i.test(name)) return 'webgl2';
+        return 'webgl';
+      } catch (error) {
+        return '';
+      }
+    })();
+    const worldPlayers = activeWorld?.tokens instanceof Map ? activeWorld.tokens.size : 0;
+    const worldBalls = activeWorld?.balls instanceof Map ? activeWorld.balls.size : 0;
+    const worldCones = activeWorld?.cones instanceof Map ? activeWorld.cones.size : 0;
+    const worldPaths = Array.isArray(activeWorld?.paths) ? activeWorld.paths.length : 0;
+    const worldNotes = Array.isArray(activeWorld?.notes) ? activeWorld.notes.length : 0;
+    const sceneStatus = !steps.length
+      ? 'missing_steps'
+      : (!activeWorld
+        ? 'initializing'
+        : (stepObjects.length
+          ? 'rendering'
+          : 'empty_scene'));
+    let issue = '';
+    if (!steps.length) issue = 'no_3d_steps';
+    else if (!contextType) issue = 'webgl_unavailable';
+    else if (rect.width > 0 && rect.height > 0 && !stepObjects.length) issue = 'scene_has_no_objects';
+    else if (renderFrameCount < 2) issue = 'scene_not_rendering_yet';
+    ollanaDiagnostics.render_surfaces[key] = {
+      id: key,
+      label: 'Representacion 3D de tarea',
+      kind: 'three_scene',
+      modal_open: false,
+      visible: Boolean(rect.width > 0 && rect.height > 0),
+      webgl_context: contextType,
+      scene_status: sceneStatus,
+      issue,
+      step_index: currentStepIndex,
+      step_count: steps.length,
+      object_count: stepObjects.length,
+      player_count: worldPlayers,
+      ball_count: worldBalls,
+      cone_count: worldCones,
+      path_count: worldPaths,
+      note_count: worldNotes,
+      render_calls: renderCalls,
+      triangle_count: triangleCount,
+      points_count: pointsCount,
+      lines_count: linesCount,
+      rendered_frames: renderFrameCount,
+      canvas_width: Math.max(0, Math.round(rect.width || 0)),
+      canvas_height: Math.max(0, Math.round(rect.height || 0)),
+      buffer_width: Math.max(0, Math.round(canvas.width || 0)),
+      buffer_height: Math.max(0, Math.round(canvas.height || 0)),
+      last_render_at: lastRenderAt,
+      ...extra,
+    };
+  };
 
   const canvasTexture = (() => {
     const offscreen = document.createElement('canvas');
@@ -283,11 +389,11 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
   const addPitchBoards = () => {
     const boardGroup = new THREE.Group();
     const boardTextures = [
-      { bg: '#0a3b8f', fg: '#ffffff', text: '2J FOOTBALL INTELLIGENCE' },
-      { bg: '#0d4dbc', fg: '#ffffff', text: 'LA ROSALEDA' },
-      { bg: '#173b7a', fg: '#ffffff', text: 'MALAGA CF' },
-      { bg: '#15253d', fg: '#ffffff', text: 'SPONSOR' },
-      { bg: '#1a4fa8', fg: '#ffffff', text: 'PARTNER' },
+      { bg: stadiumPalette.primary, fg: stadiumPalette.secondary, text: stadiumAds.top || stadiumAds.teamName || 'Club' },
+      { bg: stadiumPalette.accent, fg: stadiumPalette.secondary, text: stadiumAds.right || '2J Football Intelligence' },
+      { bg: stadiumPalette.primary, fg: stadiumPalette.secondary, text: stadiumAds.bottom || stadiumAds.teamName || 'Club' },
+      { bg: stadiumPalette.accent, fg: stadiumPalette.secondary, text: stadiumAds.left || 'Partner' },
+      { bg: stadiumPalette.primary, fg: stadiumPalette.secondary, text: safeText(payload.taskTitle, stadiumAds.teamName || 'Task') },
     ].map((item) => {
       const off = document.createElement('canvas');
       off.width = 1024;
@@ -510,15 +616,23 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
       mesh.rotation.y = rotY;
       graphics.add(mesh);
     };
-    makeBanner('MALAGA CF', 42, 10, 0, 24, -36, 0, '#ffffff');
-    makeBanner('MCF', 16, 16, -28, 24, -35, 0, '#dbeafe');
+    const teamName = stadiumAds.teamName || 'Club';
+    const teamMark = teamName.split(/\s+/).map((chunk) => chunk[0] || '').join('').slice(0, 3).toUpperCase() || 'CLB';
+    makeBanner(teamName, 42, 10, 0, 24, -36, 0, stadiumPalette.secondary);
+    makeBanner(teamMark, 16, 16, -28, 24, -35, 0, stadiumPalette.secondary);
+    let crestColor;
+    try {
+      crestColor = new THREE.Color(stadiumPalette.primary || '#2563eb');
+    } catch (error) {
+      crestColor = new THREE.Color('#2563eb');
+    }
     const crest = new THREE.Mesh(
       new THREE.CircleGeometry(4.1, 48),
-      new THREE.MeshBasicMaterial({ color: 0x2563eb, transparent: true, opacity: 0.96 })
+      new THREE.MeshBasicMaterial({ color: crestColor, transparent: true, opacity: 0.96 })
     );
     crest.position.set(10, 35, -34.5);
     graphics.add(crest);
-    makeBanner('MCF', 6.2, 6.2, 10, 35, -34.3, 0, '#ffffff');
+    makeBanner(teamMark, 6.2, 6.2, 10, 35, -34.3, 0, stadiumPalette.secondary);
     root.add(graphics);
   };
   addStandGraphics();
@@ -821,6 +935,7 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
     const data = {
       tokens: new Map(),
       balls: new Map(),
+      cones: new Map(),
       zones: [],
       goals: [],
       paths: [],
@@ -828,6 +943,7 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
     };
     let tokenIndex = 0;
     let ballIndex = 0;
+    let coneIndex = 0;
     let goalIndex = 0;
     objects.forEach((obj, index) => {
       const extra = obj && typeof obj.data === 'object' ? obj.data : {};
@@ -869,6 +985,25 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
           z: world.z,
         });
         ballIndex += 1;
+        return;
+      }
+      if (
+        (obj.type === 'text' && kind === 'emoji_cone')
+        || ((obj.type === 'triangle' || obj.type === 'text') && (kind === 'cone' || kind === 'cone_striped'))
+      ) {
+        const world = canvasToWorld(obj.left, obj.top);
+        const baseRadius = kind === 'cone_striped' ? 0.62 : 0.58;
+        data.cones.set(`cone:${coneIndex}`, {
+          uid: `cone:${coneIndex}`,
+          x: world.x,
+          z: world.z,
+          radius: radiusToMeters((toNumber(obj.width, 30) + toNumber(obj.height, 30)) / 4) || baseRadius,
+          height: radiusToMeters(Math.max(toNumber(obj.height, 30), 22)) * 2.25 || 1.45,
+          fill: safeText(obj.fill, kind === 'cone_striped' ? '#f59e0b' : '#f97316'),
+          stroke: safeText(obj.stroke, '#fff7ed'),
+          striped: kind === 'cone_striped',
+        });
+        coneIndex += 1;
         return;
       }
       if (obj.type === 'text' && kind === 'emoji_mini_goal') {
@@ -1032,11 +1167,55 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
     return group;
   };
 
+  const createConeActor = (entry) => {
+    const group = new THREE.Group();
+    const fill = parseColor(entry.fill, entry.striped ? '#f59e0b' : '#f97316');
+    const stripe = parseColor(entry.stroke, '#fff7ed');
+
+    const shadow = new THREE.Mesh(
+      new THREE.CircleGeometry(entry.radius * 1.05, 20),
+      new THREE.MeshBasicMaterial({ color: 0x020617, transparent: true, opacity: 0.22, depthWrite: false })
+    );
+    shadow.rotation.x = -Math.PI / 2;
+    shadow.position.y = 0.035;
+    group.add(shadow);
+
+    const base = new THREE.Mesh(
+      new THREE.CylinderGeometry(entry.radius * 0.86, entry.radius * 0.94, 0.16, 18),
+      new THREE.MeshStandardMaterial({ color: tintColor(fill, -0.18), roughness: 0.78, metalness: 0.04 })
+    );
+    base.position.y = 0.08;
+    base.castShadow = true;
+    group.add(base);
+
+    const body = new THREE.Mesh(
+      new THREE.ConeGeometry(entry.radius * 0.72, entry.height, 20),
+      new THREE.MeshStandardMaterial({ color: fill, roughness: 0.44, metalness: 0.08 })
+    );
+    body.position.y = (entry.height / 2) + 0.12;
+    body.castShadow = true;
+    group.add(body);
+
+    if (entry.striped) {
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(entry.radius * 0.44, entry.radius * 0.1, 10, 24),
+        new THREE.MeshStandardMaterial({ color: stripe, roughness: 0.38, metalness: 0.05 })
+      );
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = Math.max(0.26, (entry.height * 0.52));
+      group.add(ring);
+    }
+
+    group.position.set(entry.x, 0, entry.z);
+    return group;
+  };
+
   const renderStaticWorld = (frameData) => {
     clearGroup(dynamicRoot);
     const world = {
       tokens: new Map(),
       balls: new Map(),
+      cones: new Map(),
       paths: [],
       notes: [],
       trails: [],
@@ -1083,6 +1262,12 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
       goal.position.set(goalData.x, 0.08, goalData.z);
       goal.rotation.y = goalData.rotationY;
       dynamicRoot.add(goal);
+    });
+
+    frameData.cones.forEach((entry, uid) => {
+      const actor = createConeActor(entry);
+      dynamicRoot.add(actor);
+      world.cones.set(uid, { group: actor, entry });
     });
 
     frameData.paths.forEach((pathData) => {
@@ -1228,6 +1413,14 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
       }
     });
 
+    activeWorld.cones.forEach(({ group, entry }, uid) => {
+      const next = nextFrameData.cones.get(uid);
+      const target = next || entry;
+      group.position.x = lerp(entry.x, target.x, next ? eased : 0);
+      group.position.z = lerp(entry.z, target.z, next ? eased : 0);
+      group.rotation.y = next ? Math.atan2(target.x - entry.x, target.z - entry.z) : 0;
+    });
+
     activeWorld.paths.forEach(({ line, glow, dashed }, index) => {
       if (!line.material) return;
       const alpha = dashed ? 0.5 + (Math.sin(elapsedSeconds * 4 + index) * 0.18) : 0.82 + (Math.sin(elapsedSeconds * 3 + index) * 0.08);
@@ -1278,6 +1471,7 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
     applyCamera();
+    publishRenderDiagnostics();
   };
 
   const stopPlayback = () => {
@@ -1296,6 +1490,7 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
     buildWorldForStep(currentStepIndex);
     applyInterpolatedState(currentStepIndex, 0, 0);
     applyCamera();
+    publishRenderDiagnostics();
   };
 
   const startPlayback = () => {
@@ -1319,11 +1514,10 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
   };
 
   const toggleFullscreen = async () => {
-    const card = modal.querySelector('.sim-3d-card');
-    if (!card) return;
+    if (!sceneCard) return;
     try {
       if (document.fullscreenElement) await document.exitFullscreen();
-      else await card.requestFullscreen?.();
+      else await sceneCard.requestFullscreen?.();
     } catch (error) {
       // ignore
     }
@@ -1391,7 +1585,6 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
   };
 
   const renderLoop = (timestamp) => {
-    if (!isOpen) return;
     const now = timestamp || performance.now();
     const elapsedSeconds = lastFrameTs ? (now / 1000) : 0;
     lastFrameTs = now;
@@ -1428,44 +1621,20 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
 
     applyCamera();
     renderer.render(scene, camera);
+    renderFrameCount += 1;
+    lastRenderAt = Date.now();
+    publishRenderDiagnostics();
     rafId = window.requestAnimationFrame(renderLoop);
   };
 
-  const open = () => {
-    modal.hidden = false;
-    isOpen = true;
-    lastFrameTs = 0;
-    resize();
-    ensureStadiumModel().then(() => {
-      if (isOpen) resize();
-    });
-    showStep(currentStepIndex);
-    stopPlayback();
-    if (rafId) window.cancelAnimationFrame(rafId);
-    rafId = window.requestAnimationFrame(renderLoop);
+  const focus3DPanel = () => {
+    sceneHost.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    canvas.focus?.();
   };
 
-  const close = () => {
-    modal.hidden = true;
-    isOpen = false;
-    stopPlayback();
-    if (isRecording) stopRecording();
-    if (rafId) {
-      window.cancelAnimationFrame(rafId);
-      rafId = null;
-    }
-  };
-
-  openBtn.addEventListener('click', (event) => {
+  openBtn?.addEventListener('click', (event) => {
     event.preventDefault();
-    open();
-  });
-  closeBtn?.addEventListener('click', (event) => {
-    event.preventDefault();
-    close();
-  });
-  modal.addEventListener('click', (event) => {
-    if (event.target === modal) close();
+    focus3DPanel();
   });
   prevBtn?.addEventListener('click', (event) => {
     event.preventDefault();
@@ -1535,11 +1704,10 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
   canvas.addEventListener('wheel', onWheel, { passive: false });
 
   window.addEventListener('resize', () => {
-    if (isOpen) resize();
+    resize();
   });
   window.addEventListener('keydown', (event) => {
-    if (!isOpen) return;
-    if (event.key === 'Escape') close();
+    if (/input|textarea|select/i.test(event.target?.tagName || '')) return;
     if (event.key === ' ') {
       event.preventDefault();
       togglePlayback();
@@ -1556,11 +1724,19 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
     }
   });
   document.addEventListener('fullscreenchange', () => {
-    if (isOpen) resize();
+    resize();
   });
 
   updateRecordButton();
   setCameraPreset('rosaleda');
   buildWorldForStep(0);
   applyInterpolatedState(0, 0, 0);
+  resize();
+  ensureStadiumModel().then(() => {
+    resize();
+    publishRenderDiagnostics();
+  });
+  if (rafId) window.cancelAnimationFrame(rafId);
+  rafId = window.requestAnimationFrame(renderLoop);
+  publishRenderDiagnostics();
 })();
