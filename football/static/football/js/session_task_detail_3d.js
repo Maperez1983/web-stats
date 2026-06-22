@@ -23,6 +23,9 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
   const recordBtn = byId('task-detail-3d-record');
   const progressBar = byId('task-detail-3d-progress-bar');
   const progressLabel = byId('task-detail-3d-progress-label');
+  const fallbackEl = byId('task-detail-3d-fallback');
+  const fallbackPreviewEl = byId('task-detail-3d-fallback-preview');
+  const fallbackStatusEl = byId('task-detail-3d-fallback-status');
 
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
   const lerp = (a, b, t) => a + ((b - a) * t);
@@ -148,12 +151,89 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
     fieldHeight: 68,
   };
 
-  const renderer = new THREE.WebGLRenderer({
-    canvas,
-    antialias: true,
-    alpha: true,
-    preserveDrawingBuffer: true,
-  });
+  const setFallbackStatus = (message) => {
+    if (fallbackStatusEl) fallbackStatusEl.textContent = safeText(message, 'Vista alternativa disponible.');
+  };
+  const setControlsDisabled = (disabled) => {
+    [prevBtn, nextBtn, playBtn, fullBtn, recordBtn, cameraSelect].forEach((control) => {
+      if (!control) return;
+      control.disabled = !!disabled;
+    });
+  };
+  const syncFallbackPreview = () => {
+    if (!fallbackPreviewEl) return false;
+    const sourceCanvas = document.getElementById('task-graphic-canvas');
+    if (!sourceCanvas || !sourceCanvas.width || !sourceCanvas.height) return false;
+    try {
+      fallbackPreviewEl.src = sourceCanvas.toDataURL('image/png');
+      fallbackPreviewEl.hidden = false;
+      return true;
+    } catch (error) {
+      return false;
+    }
+  };
+  const activateFallback = (reason) => {
+    canvas.hidden = true;
+    fallbackEl?.removeAttribute('hidden');
+    sceneCard?.setAttribute('data-render-mode', 'fallback');
+    titleEl && (titleEl.textContent = 'Vista alternativa');
+    metaEl && (metaEl.textContent = '3D no disponible');
+    progressLabel && (progressLabel.textContent = '-');
+    if (progressBar) progressBar.style.width = '0%';
+    setControlsDisabled(true);
+    recordBtn && (recordBtn.title = 'El modo 3D no está disponible en este dispositivo');
+    setFallbackStatus(reason || 'El visor 3D no pudo iniciarse. Se muestra la pizarra base como referencia.');
+    const copied = syncFallbackPreview();
+    if (!copied) {
+      window.setTimeout(syncFallbackPreview, 300);
+      window.setTimeout(syncFallbackPreview, 1200);
+    }
+    const root = window.__ollanaDiagnostics && typeof window.__ollanaDiagnostics === 'object'
+      ? window.__ollanaDiagnostics
+      : {};
+    if (!root.render_surfaces || typeof root.render_surfaces !== 'object') root.render_surfaces = {};
+    root.render_surfaces[canvas.id || 'task-detail-3d-canvas'] = {
+      id: canvas.id || 'task-detail-3d-canvas',
+      label: 'Representacion 3D de tarea',
+      kind: 'three_scene',
+      visible: true,
+      webgl_context: '',
+      scene_status: 'fallback_2d',
+      issue: 'webgl_unavailable',
+      step_index: 0,
+      step_count: steps.length,
+      object_count: Array.isArray((steps[0] || {}).state?.objects) ? steps[0].state.objects.length : 0,
+      reason: safeText(reason, 'webgl_unavailable'),
+    };
+    window.__ollanaDiagnostics = root;
+  };
+
+  let renderer = null;
+  try {
+    renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true,
+      alpha: true,
+      preserveDrawingBuffer: true,
+    });
+  } catch (error) {
+    activateFallback('Este navegador no ha podido crear el contexto WebGL necesario para la representación 3D.');
+    openBtn?.addEventListener('click', (event) => {
+      event.preventDefault();
+      sceneHost.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    snapBtn?.addEventListener('click', (event) => {
+      event.preventDefault();
+      syncFallbackPreview();
+      const src = fallbackPreviewEl?.getAttribute('src') || '';
+      if (!src) return;
+      const link = document.createElement('a');
+      link.href = src;
+      link.download = `tarea-vista-alternativa-${Date.now()}.png`;
+      link.click();
+    });
+    return;
+  }
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
