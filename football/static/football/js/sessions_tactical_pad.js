@@ -11102,6 +11102,52 @@
 						                  addBox(finish, new THREE.BoxGeometry(0.10, 1.55, 2.55), gateMetal, x - 2.14, 2.18, -(metersH / 2 + 6.20), 0, 0, 0, 'pitch_3d_professional_vomitory_side_rail');
 						                  addBox(finish, new THREE.BoxGeometry(0.10, 1.55, 2.55), gateMetal, x + 2.14, 2.18, -(metersH / 2 + 6.20), 0, 0, 0, 'pitch_3d_professional_vomitory_side_rail');
 						                });
+						                const makePitchsideHoardingMat = (title, {
+						                  bg = '#0f4fd6',
+						                  edge = '#07131f',
+						                  accent = '#f8fafc',
+						                  sub = '',
+						                  glow = 'rgba(255,255,255,0.18)',
+						                } = {}) => new THREE.MeshBasicMaterial({
+						                  map: makePitch3dCanvasTexture((ctx, c) => {
+						                    const grad = ctx.createLinearGradient(0, 0, c.width, 0);
+						                    grad.addColorStop(0, edge);
+						                    grad.addColorStop(0.08, bg);
+						                    grad.addColorStop(0.50, bg);
+						                    grad.addColorStop(0.92, bg);
+						                    grad.addColorStop(1, edge);
+						                    ctx.fillStyle = grad;
+						                    ctx.fillRect(0, 0, c.width, c.height);
+						                    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+						                    ctx.fillRect(0, 0, c.width, 14);
+						                    ctx.fillRect(0, c.height - 14, c.width, 14);
+						                    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+						                    for (let x = 0; x < c.width; x += 34) ctx.fillRect(x, 18, 2, c.height - 36);
+						                    const halo = ctx.createRadialGradient(c.width * 0.50, c.height * 0.52, 0, c.width * 0.50, c.height * 0.52, c.width * 0.44);
+						                    halo.addColorStop(0, glow);
+						                    halo.addColorStop(0.55, 'rgba(255,255,255,0.03)');
+						                    halo.addColorStop(1, 'rgba(255,255,255,0)');
+						                    ctx.fillStyle = halo;
+						                    ctx.fillRect(0, 0, c.width, c.height);
+						                    ctx.strokeStyle = 'rgba(255,255,255,0.20)';
+						                    ctx.lineWidth = 5;
+						                    ctx.strokeRect(10, 10, c.width - 20, c.height - 20);
+						                    ctx.fillStyle = accent;
+						                    ctx.textAlign = 'center';
+						                    ctx.textBaseline = 'middle';
+						                    ctx.font = '900 80px Arial, sans-serif';
+						                    ctx.fillText(title, c.width / 2, c.height * (sub ? 0.44 : 0.52));
+						                    if (sub) {
+						                      ctx.font = '700 30px Arial, sans-serif';
+						                      ctx.fillStyle = 'rgba(248,250,252,0.94)';
+						                      ctx.fillText(sub, c.width / 2, c.height * 0.74);
+						                    }
+						                  }, 2048, 256)?.tex || null,
+						                  toneMapped: false,
+						                  side: THREE.DoubleSide,
+						                  transparent: true,
+						                  opacity: 0.98,
+						                });
 						                const addInteriorFieldReferencePass = () => {
 						                  const addSeatBand = (axis, sign, row, center, span, mat, accent = false) => {
 						                    const y = 1.15 + (row * 0.48);
@@ -11111,6 +11157,36 @@
 						                    } else {
 						                      addBox(finish, new THREE.BoxGeometry(0.34, 0.13, span), mat, sign * (metersW / 2 + offset), y, center, -0.10, 0, 0, accent ? 'pitch_3d_professional_reference_seat_mosaic_accent_end' : 'pitch_3d_professional_reference_seat_mosaic_end');
 						                    }
+						                  };
+						                  const hoardingShellMat = new THREE.MeshStandardMaterial({ color: 0x08111d, roughness: 0.38, metalness: 0.26 });
+						                  const hoardingTrimMat = new THREE.MeshStandardMaterial({ color: 0xcdd7e2, roughness: 0.24, metalness: 0.54 });
+						                  const hoardingFootMat = new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 0.56, metalness: 0.18 });
+						                  const hoardingBlueMat = makePitchsideHoardingMat('MALAGA CF', { bg: '#1450d2', edge: '#09245a', sub: 'MCF', glow: 'rgba(255,255,255,0.22)' });
+						                  const hoardingPartnerMat = makePitchsideHoardingMat('PARTNER', { bg: '#1546b8', edge: '#081937' });
+						                  const hoardingRosaledaMat = makePitchsideHoardingMat('LA ROSALEDA', { bg: '#1250d9', edge: '#0a255d' });
+						                  const hoardingBlackMat = makePitchsideHoardingMat('2J FOOTBALL INTELLIGENCE', { bg: '#07131f', edge: '#020617', sub: 'MATCHDAY DATA', glow: 'rgba(255,255,255,0.08)' });
+						                  const hoardingSponsorMat = makePitchsideHoardingMat('SPONSOR', { bg: '#0b1320', edge: '#020617' });
+						                  const addPitchsideHoardingModule = (x, z, w, rotY, faceMat, kindBase) => {
+						                    const g = new THREE.Group();
+						                    g.position.set(x, 0, z);
+						                    g.rotation.y = rotY;
+						                    g.userData = { kind: kindBase };
+						                    addBox(g, new THREE.BoxGeometry(w + 0.18, 0.92, 0.18), hoardingShellMat, 0, 0.50, 0, 0, 0, 0, `${kindBase}_shell`);
+						                    addBox(g, new THREE.BoxGeometry(w + 0.08, 0.05, 0.24), hoardingTrimMat, 0, 0.93, 0.01, 0, 0, 0, `${kindBase}_top_trim`);
+						                    addBox(g, new THREE.BoxGeometry(w + 0.08, 0.05, 0.22), hoardingTrimMat, 0, 0.07, 0.01, 0, 0, 0, `${kindBase}_bottom_trim`);
+						                    [-0.34, 0.34].forEach((ratio) => {
+						                      addBox(g, new THREE.BoxGeometry(0.16, 0.22, 0.30), hoardingFootMat, ratio * w, 0.08, -0.20, -0.24, 0, 0, `${kindBase}_rear_foot`);
+						                    });
+						                    const face = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.68), faceMat);
+						                    face.position.set(0, 0.51, 0.10);
+						                    face.userData = { kind: `${kindBase}_face` };
+						                    g.add(face);
+						                    const back = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.68), faceMat);
+						                    back.position.set(0, 0.51, -0.10);
+						                    back.rotation.y = Math.PI;
+						                    back.userData = { kind: `${kindBase}_back` };
+						                    g.add(back);
+						                    finish.add(g);
 						                  };
 						                  [-1, 1].forEach((sign) => {
 						                    for (let row = 0; row < 11; row += 1) {
@@ -11125,17 +11201,26 @@
 						                        addSeatBand('end', sign, row, ratio * metersH, metersH * 0.125, mat, mat === seatWhite);
 						                      });
 						                    }
-						                    const boardZ = sign * (metersH / 2 + 2.28);
-						                    [-0.38, -0.19, 0, 0.19, 0.38].forEach((ratio, idx) => {
+						                    const boardZ = sign * (metersH / 2 + 2.18);
+						                    [
+						                      [-0.38, hoardingSponsorMat],
+						                      [-0.19, hoardingBlackMat],
+						                      [0, hoardingPartnerMat],
+						                      [0.19, hoardingBlackMat],
+						                      [0.38, hoardingRosaledaMat],
+						                    ].forEach(([ratio, mat], idx) => {
 						                      const x = ratio * metersW;
-						                      addBox(finish, new THREE.BoxGeometry(metersW * 0.15, 0.86, 0.16), pitchsideLedDark, x, 0.78, boardZ, 0, 0, 0, 'pitch_3d_professional_pitchside_led_board_shell_long');
-						                      addBox(finish, new THREE.BoxGeometry(metersW * 0.145, 0.58, 0.06), idx % 2 === 0 ? pitchsideLed : ledRibbon, x, 0.85, boardZ - sign * 0.09, 0, 0, 0, 'pitch_3d_professional_pitchside_led_board_face_long');
+						                      addPitchsideHoardingModule(x, boardZ, metersW * 0.148, 0, idx === 2 && sign < 0 ? hoardingBlueMat : mat, 'pitch_3d_professional_pitchside_hoarding_long');
 						                    });
-						                    const boardX = sign * (metersW / 2 + 2.28);
-						                    [-0.30, -0.10, 0.10, 0.30].forEach((ratio, idx) => {
+						                    const boardX = sign * (metersW / 2 + 2.18);
+						                    [
+						                      [-0.30, hoardingBlackMat],
+						                      [-0.10, hoardingPartnerMat],
+						                      [0.10, hoardingBlueMat],
+						                      [0.30, hoardingSponsorMat],
+						                    ].forEach(([ratio, mat]) => {
 						                      const z = ratio * metersH;
-						                      addBox(finish, new THREE.BoxGeometry(0.16, 0.86, metersH * 0.15), pitchsideLedDark, boardX, 0.78, z, 0, 0, 0, 'pitch_3d_professional_pitchside_led_board_shell_end');
-						                      addBox(finish, new THREE.BoxGeometry(0.06, 0.58, metersH * 0.145), idx % 2 === 0 ? pitchsideLed : ledRibbon, boardX - sign * 0.09, 0.85, z, 0, 0, 0, 'pitch_3d_professional_pitchside_led_board_face_end');
+						                      addPitchsideHoardingModule(boardX, z, metersH * 0.148, Math.PI / 2, mat, 'pitch_3d_professional_pitchside_hoarding_end');
 						                    });
 						                  });
 						                  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
