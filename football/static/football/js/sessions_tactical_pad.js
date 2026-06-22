@@ -13202,57 +13202,74 @@
 						                  const technicalMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.42, metalness: 0.18 });
 						                  const dugoutLedMat = new THREE.MeshBasicMaterial({ color: 0xe0f2fe, transparent: true, opacity: 0.78, toneMapped: false, depthWrite: false });
 						                  [-20.5, 0, 20.5].forEach((x, idx) => {
-						                    const z = -(metersH / 2 + 5.75);
+						                    const z = -(metersH / 2 + 5.42);
 						                    const g = new THREE.Group();
-						                    g.position.set(x, 0, z);
+						                    g.position.set(x, 0.04, z);
 						                    g.userData = { kind: 'pitch_3d_reference_curved_clear_dugout' };
-						                    const base = new THREE.Mesh(new THREE.BoxGeometry(13.8, 0.16, 2.1), darkMetalMat);
-						                    base.position.set(0, 0.18, 0);
+						                    const apron = new THREE.Mesh(new THREE.BoxGeometry(14.4, 0.08, 2.84), technicalMat);
+						                    apron.position.set(0, 0.08, 0.18);
+						                    g.add(apron);
+						                    const base = new THREE.Mesh(new THREE.BoxGeometry(13.6, 0.14, 1.92), darkMetalMat);
+						                    base.position.set(0, 0.16, 0.08);
 						                    g.add(base);
-						                    for (let r = 0; r < 6; r += 1) {
-						                      const t = r / 5;
-						                      const panel = new THREE.Mesh(new THREE.BoxGeometry(13.2, 0.055, 0.46), glassMat);
-						                      panel.position.set(0, 0.95 + Math.sin(t * Math.PI * 0.58) * 1.12, -0.82 + t * 1.48);
-						                      panel.rotation.x = -0.48 + t * 0.28;
+						                    const frontGlass = new THREE.Mesh(new THREE.BoxGeometry(13.0, 0.78, 0.08), glassMat);
+						                    frontGlass.position.set(0, 0.96, -0.88);
+						                    frontGlass.rotation.x = -0.10;
+						                    g.add(frontGlass);
+						                    for (let r = 0; r < 7; r += 1) {
+						                      const t = r / 6;
+						                      const panel = new THREE.Mesh(new THREE.BoxGeometry(13.1, 0.05, 0.34), glassMat);
+						                      panel.position.set(0, 0.96 + Math.sin(t * Math.PI * 0.68) * 1.02, -0.76 + t * 1.44);
+						                      panel.rotation.x = -0.58 + t * 0.32;
 						                      panel.userData = { kind: 'pitch_3d_reference_dugout_curved_glass_panel' };
 						                      g.add(panel);
 						                    }
-						                    [-6.4, 6.4].forEach((sx) => {
-						                      const side = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.82, 1.86), glassMat);
-						                      side.position.set(sx, 1.04, -0.04);
-						                      side.rotation.x = -0.08;
+						                    for (let rib = -6; rib <= 6; rib += 1) {
+						                      const ribMesh = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.58, 0.06), shellMat);
+						                      ribMesh.position.set(rib * 1.02, 1.18, -0.08);
+						                      ribMesh.rotation.x = -0.34;
+						                      g.add(ribMesh);
+						                    }
+						                    [-6.34, 6.34].forEach((sx) => {
+						                      const side = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.72, 1.70), glassMat);
+						                      side.position.set(sx, 0.98, -0.02);
+						                      side.rotation.x = -0.16;
 						                      side.userData = { kind: 'pitch_3d_reference_dugout_side_glass' };
 						                      g.add(side);
 						                    });
-						                    for (let s = 0; s < 8; s += 1) {
-						                      const sx = -4.85 + s * 1.38;
-						                      const seat = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.18, 0.58), dugoutSeatMat);
-						                      seat.position.set(sx, 0.62, 0.20);
+						                    for (let s = 0; s < 10; s += 1) {
+						                      const sx = -5.22 + s * 1.16;
+						                      const shell = new THREE.Mesh(new THREE.BoxGeometry(0.70, 0.08, 0.50), shellMat);
+						                      shell.position.set(sx, 0.50, 0.22);
+						                      const seat = new THREE.Mesh(new THREE.BoxGeometry(0.60, 0.12, 0.36), dugoutSeatMat);
+						                      seat.position.set(sx, 0.56, 0.22);
 						                      seat.userData = { kind: 'pitch_3d_reference_dugout_individual_seat' };
-						                      const back = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.72, 0.12), dugoutSeatMat);
-						                      back.position.set(sx, 0.98, 0.52);
-						                      back.rotation.x = -0.22;
+						                      const back = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.62, 0.08), dugoutSeatMat);
+						                      back.position.set(sx, 0.86, 0.50);
+						                      back.rotation.x = -0.26;
 						                      back.userData = { kind: 'pitch_3d_reference_dugout_individual_back' };
-						                      g.add(seat, back);
+						                      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.32, 0.10), shellMat);
+						                      leg.position.set(sx, 0.24, 0.16);
+						                      g.add(shell, seat, back, leg);
 						                    }
-						                    const spine = new THREE.Mesh(new THREE.BoxGeometry(13.6, 0.10, 0.16), shellMat);
-						                    spine.position.set(0, 2.30, 0.12);
+						                    const spine = new THREE.Mesh(new THREE.BoxGeometry(13.4, 0.10, 0.14), shellMat);
+						                    spine.position.set(0, 2.08, 0.10);
 						                    spine.userData = { kind: 'pitch_3d_reference_dugout_roof_spine' };
 						                    g.add(spine);
-						                    const ledBar = new THREE.Mesh(new THREE.BoxGeometry(13.0, 0.05, 0.08), dugoutLedMat);
-						                    ledBar.position.set(0, 2.04, -0.72);
+						                    const ledBar = new THREE.Mesh(new THREE.BoxGeometry(12.8, 0.05, 0.08), dugoutLedMat);
+						                    ledBar.position.set(0, 1.76, -0.62);
 						                    ledBar.userData = { kind: 'pitch_3d_reference_dugout_led_bar' };
 						                    g.add(ledBar);
-						                    [-6.12, 6.12].forEach((sx) => {
+						                    [-6.02, 6.02].forEach((sx) => {
 						                      const crest = new THREE.Mesh(new THREE.CircleGeometry(0.54, 32), crestMat);
-						                      crest.position.set(sx, 1.14, -0.98);
+						                      crest.position.set(sx, 1.04, -0.82);
 						                      crest.rotation.y = Math.PI;
 						                      crest.userData = { kind: 'pitch_3d_reference_dugout_end_crest_badge' };
 						                      g.add(crest);
 						                    });
 						                    if (idx === 1) g.scale.set(0.72, 0.96, 0.92);
 						                    atmosphere.add(g);
-						                    addShadow(x, z + 0.15, 14.2, 2.8, 0.16);
+						                    addShadow(x, z + 0.18, 14.6, 3.0, 0.16);
 						                  });
 						                  [-27.5, 27.5].forEach((x) => {
 						                    addBox(new THREE.BoxGeometry(5.2, 0.16, 1.55), technicalMat, x, 0.22, -(metersH / 2 + 3.86), 0, 0, 0, 'pitch_3d_reference_pitchside_analysis_platform');
@@ -13376,27 +13393,30 @@
 						                  if (!THREE.InstancedMesh || !THREE.Object3D) return false;
 						                  try {
 						                    const dummy = new THREE.Object3D();
-						                    const seatShellGeo = new THREE.BoxGeometry(0.52, 0.08, 0.42);
-						                    const seatBaseGeo = new THREE.BoxGeometry(0.42, 0.12, 0.34);
-						                    const seatBackGeo = new THREE.BoxGeometry(0.42, 0.38, 0.08);
-						                    const seatBackShellGeo = new THREE.BoxGeometry(0.48, 0.42, 0.09);
-						                    const seatArmGeo = new THREE.BoxGeometry(0.05, 0.22, 0.30);
+						                    const seatShellGeo = new THREE.BoxGeometry(0.42, 0.04, 0.38);
+						                    const seatBaseGeo = new THREE.BoxGeometry(0.34, 0.04, 0.24);
+						                    const seatBaseFrontGeo = new THREE.BoxGeometry(0.32, 0.035, 0.05);
+						                    const seatBackGeo = new THREE.BoxGeometry(0.32, 0.34, 0.045);
+						                    const seatBackShellGeo = new THREE.BoxGeometry(0.38, 0.40, 0.06);
+						                    const seatPedestalGeo = new THREE.BoxGeometry(0.06, 0.26, 0.10);
+						                    const seatBracketGeo = new THREE.BoxGeometry(0.035, 0.12, 0.16);
 						                    const railGeo = new THREE.BoxGeometry(0.05, 0.78, 0.05);
 						                    const maxSeats = 14000;
 						                    const maxRails = 1200;
 						                    const seatShell = new THREE.InstancedMesh(seatShellGeo, stairMat, maxSeats);
 						                    const seatBase = new THREE.InstancedMesh(seatBaseGeo, seatAccentMat, maxSeats);
+						                    const seatBaseFront = new THREE.InstancedMesh(seatBaseFrontGeo, seatShadowMat, maxSeats);
 						                    const seatBackShell = new THREE.InstancedMesh(seatBackShellGeo, stairMat, maxSeats);
-						                    const seatBack = new THREE.InstancedMesh(seatBackGeo, seatShadowMat, maxSeats);
-						                    const seatArmL = new THREE.InstancedMesh(seatArmGeo, stairMat, maxSeats);
-						                    const seatArmR = new THREE.InstancedMesh(seatArmGeo, stairMat, maxSeats);
+						                    const seatBack = new THREE.InstancedMesh(seatBackGeo, seatAccentMat, maxSeats);
+						                    const seatPedestal = new THREE.InstancedMesh(seatPedestalGeo, stairMat, maxSeats);
+						                    const seatBracketL = new THREE.InstancedMesh(seatBracketGeo, stairMat, maxSeats);
+						                    const seatBracketR = new THREE.InstancedMesh(seatBracketGeo, stairMat, maxSeats);
 						                    const aisleRails = new THREE.InstancedMesh(railGeo, metalMat, maxRails);
 						                    const seatBlue = new THREE.Color(0x2563eb);
 						                    const seatRoyal = new THREE.Color(0x1d4ed8);
 						                    const seatNavy = new THREE.Color(0x1e3a8a);
 						                    const seatLetter = new THREE.Color(0xf8fafc);
 						                    const seatSky = new THREE.Color(0x93c5fd);
-						                    const seatAccentAlt = new THREE.Color(0xfacc15);
 						                    const letterFont = {
 						                      A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'],
 						                      B: ['11110', '10001', '10001', '11110', '10001', '10001', '11110'],
@@ -13427,7 +13447,7 @@
 						                    };
 						                    const mainStandLetterMap = buildLetterColumns('MALAGA CF');
 						                    const oppositeStandLetterMap = buildLetterColumns('MCF');
-						                    [seatShell, seatBase, seatBackShell, seatBack, seatArmL, seatArmR, aisleRails].forEach((mesh) => {
+						                    [seatShell, seatBase, seatBaseFront, seatBackShell, seatBack, seatPedestal, seatBracketL, seatBracketR, aisleRails].forEach((mesh) => {
 						                      mesh.count = 0;
 						                      mesh.userData = { kind: 'pitch_3d_stadium_instanced_professional_seating' };
 						                      try { mesh.castShadow = true; mesh.receiveShadow = true; } catch (e) { /* ignore */ }
@@ -13452,11 +13472,9 @@
 						                    const getSeatAccentColor = (axis, sign, row, col, cols) => {
 						                      if (axis === 'z' && sign === 1 && readSeatWordPattern(mainStandLetterMap, 5, 11, row, col, cols)) return seatLetter;
 						                      if (axis === 'z' && sign === -1 && readSeatWordPattern(oppositeStandLetterMap, 6, 12, row, col, cols)) return seatLetter;
-						                      if (axis === 'z' && row >= 1 && row <= 3 && col > cols * 0.18 && col < cols * 0.82 && ((col + row) % 9 === 0)) return seatAccentAlt;
 						                      if (axis === 'x' && row >= 4 && row <= 10) {
 						                        const centerBand = col > cols * 0.24 && col < cols * 0.76;
 						                        if (centerBand && (row === 6 || row === 7 || (col + row) % 8 === 0)) return seatLetter;
-						                        if (!centerBand && row % 2 === 0 && col % 5 === 0) return seatSky;
 						                      }
 						                      return null;
 						                    };
@@ -13468,29 +13486,31 @@
 						                        const y = baseY + row * rowRise;
 						                        const depth = fixed + sign * row * rowDepth;
 						                        for (let col = 0; col < cols; col += 1) {
-						                          if (aisleCols.has(col) || ((col + 1) % 13 === 0 && row > 3)) continue;
-						                          if (axis === 'z' && sign === -1 && row >= 12 && row <= 14 && col > cols * 0.38 && col < cols * 0.62 && col % 3 === 0) continue;
-						                          if (axis === 'x' && row >= 9 && row <= 11 && ((col + row) % 11 === 0)) continue;
+						                          if (aisleCols.has(col)) continue;
 						                          const t = cols <= 1 ? 0 : (col / (cols - 1)) - 0.5;
 						                          const offset = t * span;
-						                          const stagger = ((row + col) % 2) * 0.035;
-						                          const dark = (row + col) % 7 === 0;
+						                          const stagger = ((row + col) % 2) * 0.004;
+						                          const dark = (row + col) % 22 === 0;
 						                          const accentColor = getSeatAccentColor(axis, sign, row, col, cols);
-						                          const seatColor = accentColor || ((row + col) % 11 === 0 ? seatNavy : (dark ? seatRoyal : seatBlue));
+						                          const seatColor = accentColor || (dark ? seatNavy : (((row + col) % 3 === 0) ? seatRoyal : seatBlue));
 						                          if (axis === 'z') {
-						                            place(seatShell, offset, y - 0.02, depth + sign * (stagger + 0.02), -0.08 * sign, 0, 0, 1, 1, 1);
-						                            place(seatBase, offset, y, depth + sign * stagger, -0.08 * sign, 0, 0, 1, 1, 1, seatColor);
-						                            place(seatBackShell, offset, y + 0.24, depth + sign * 0.24, -0.18 * sign, 0, 0, 1, dark ? 0.90 : 1, 1);
-						                            place(seatBack, offset, y + 0.24, depth + sign * 0.22, -0.20 * sign, 0, 0, 1, dark ? 0.88 : 1, 1, seatColor);
-						                            place(seatArmL, offset - 0.24, y + 0.07, depth + sign * 0.05, -0.08 * sign, 0, 0);
-						                            place(seatArmR, offset + 0.24, y + 0.07, depth + sign * 0.05, -0.08 * sign, 0, 0);
+						                            place(seatShell, offset, y - 0.005, depth + sign * (stagger + 0.01), -0.06 * sign, 0, 0, 1, 1, 1);
+						                            place(seatBase, offset, y + 0.015, depth + sign * 0.01, -0.06 * sign, 0, 0, 1, 1, 1, seatColor);
+						                            place(seatBaseFront, offset, y + 0.004, depth - sign * 0.10, -0.06 * sign, 0, 0, 1, 1, 1);
+						                            place(seatBackShell, offset, y + 0.21, depth + sign * 0.17, -0.18 * sign, 0, 0, 1, 1, 1);
+						                            place(seatBack, offset, y + 0.21, depth + sign * 0.16, -0.20 * sign, 0, 0, 1, 1, 1, seatColor);
+						                            place(seatPedestal, offset, y - 0.10, depth + sign * 0.01, -0.02 * sign, 0, 0);
+						                            place(seatBracketL, offset - 0.15, y + 0.03, depth + sign * 0.01, -0.10 * sign, 0, 0);
+						                            place(seatBracketR, offset + 0.15, y + 0.03, depth + sign * 0.01, -0.10 * sign, 0, 0);
 						                          } else {
-						                            place(seatShell, depth + sign * (stagger + 0.02), y - 0.02, offset, 0, 0.08 * sign, 0, 1, 1, 1);
-						                            place(seatBase, depth + sign * stagger, y, offset, 0, 0.08 * sign, 0, 1, 1, 1, seatColor);
-						                            place(seatBackShell, depth + sign * 0.24, y + 0.24, offset, 0, 0.18 * sign, 0, 1, dark ? 0.90 : 1, 1);
-						                            place(seatBack, depth + sign * 0.22, y + 0.24, offset, 0, 0.20 * sign, 0, 1, dark ? 0.88 : 1, 1, seatColor);
-						                            place(seatArmL, depth + sign * 0.05, y + 0.07, offset - 0.24, 0, 0.08 * sign, 0);
-						                            place(seatArmR, depth + sign * 0.05, y + 0.07, offset + 0.24, 0, 0.08 * sign, 0);
+						                            place(seatShell, depth + sign * (stagger + 0.01), y - 0.005, offset, 0, 0.06 * sign, 0, 1, 1, 1);
+						                            place(seatBase, depth + sign * 0.01, y + 0.015, offset, 0, 0.06 * sign, 0, 1, 1, 1, seatColor);
+						                            place(seatBaseFront, depth - sign * 0.10, y + 0.004, offset, 0, 0.06 * sign, 0, 1, 1, 1);
+						                            place(seatBackShell, depth + sign * 0.17, y + 0.21, offset, 0, 0.18 * sign, 0, 1, 1, 1);
+						                            place(seatBack, depth + sign * 0.16, y + 0.21, offset, 0, 0.20 * sign, 0, 1, 1, 1, seatColor);
+						                            place(seatPedestal, depth + sign * 0.01, y - 0.10, offset, 0, 0.02 * sign, 0);
+						                            place(seatBracketL, depth + sign * 0.01, y + 0.03, offset - 0.15, 0, 0.10 * sign, 0);
+						                            place(seatBracketR, depth + sign * 0.01, y + 0.03, offset + 0.15, 0, 0.10 * sign, 0);
 						                          }
 						                        }
 						                        aisleCols.forEach((col) => {
@@ -13514,7 +13534,7 @@
 						                    addStandSeats({ axis: 'z', sign: -1, rows: 16, cols: 94, span: metersW + 38.0, fixed: -(metersH / 2 + 54.2), baseY: 10.86, rowDepth: 0.62, rowRise: 0.31 });
 						                    addStandSeats({ axis: 'x', sign: 1, rows: 14, cols: 56, span: metersH + 28.0, fixed: metersW / 2 + 53.6, baseY: 11.10, rowDepth: 0.62, rowRise: 0.31 });
 						                    addStandSeats({ axis: 'x', sign: -1, rows: 14, cols: 56, span: metersH + 28.0, fixed: -(metersW / 2 + 53.6), baseY: 11.10, rowDepth: 0.62, rowRise: 0.31 });
-						                    [seatShell, seatBase, seatBackShell, seatBack, seatArmL, seatArmR, aisleRails].forEach((mesh) => {
+						                    [seatShell, seatBase, seatBaseFront, seatBackShell, seatBack, seatPedestal, seatBracketL, seatBracketR, aisleRails].forEach((mesh) => {
 						                      mesh.instanceMatrix.needsUpdate = true;
 						                      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
 						                      atmosphere.add(mesh);
@@ -13780,27 +13800,27 @@
 						                    portal.position.set(x, 4.05, z);
 						                    portal.rotation.y = ry;
 						                    portal.userData = { kind: 'pitch_3d_stadium_vomitory_access_portal' };
-						                    const dark = new THREE.Mesh(new THREE.BoxGeometry(4.4, 2.0, 0.28), tunnelMat);
-						                    dark.position.set(0, 0.55, 0);
-						                    const sideL = new THREE.Mesh(new THREE.BoxGeometry(0.24, 1.66, 2.80), concreteMat);
-						                    sideL.position.set(-1.92, 0.46, -1.40);
-						                    const sideR = new THREE.Mesh(new THREE.BoxGeometry(0.24, 1.66, 2.80), concreteMat);
-						                    sideR.position.set(1.92, 0.46, -1.40);
-						                    const floor = new THREE.Mesh(new THREE.BoxGeometry(3.32, 0.12, 3.90), tunnelMat);
-						                    floor.position.set(0, -0.42, -1.86);
-						                    floor.rotation.x = -0.06;
-						                    const lip = new THREE.Mesh(new THREE.BoxGeometry(4.9, 0.24, 0.38), concreteMat);
-						                    lip.position.set(0, 1.70, -0.01);
+						                    const dark = new THREE.Mesh(new THREE.BoxGeometry(4.0, 1.72, 0.22), tunnelMat);
+						                    dark.position.set(0, 0.44, -0.02);
+						                    const sideL = new THREE.Mesh(new THREE.BoxGeometry(0.28, 1.82, 3.28), concreteMat);
+						                    sideL.position.set(-1.74, 0.48, -1.66);
+						                    const sideR = new THREE.Mesh(new THREE.BoxGeometry(0.28, 1.82, 3.28), concreteMat);
+						                    sideR.position.set(1.74, 0.48, -1.66);
+						                    const floor = new THREE.Mesh(new THREE.BoxGeometry(3.08, 0.10, 4.36), tunnelMat);
+						                    floor.position.set(0, -0.46, -2.08);
+						                    floor.rotation.x = -0.07;
+						                    const lip = new THREE.Mesh(new THREE.BoxGeometry(4.35, 0.28, 0.42), concreteMat);
+						                    lip.position.set(0, 1.56, -0.02);
 						                    const glow = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 1.22), portalGlowMat);
-						                    glow.position.set(0, 0.64, -0.18);
-						                    const railL = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.08, 2.90), metalMat);
-						                    railL.position.set(-1.16, 0.44, -1.52);
-						                    const railR = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.08, 2.90), metalMat);
-						                    railR.position.set(1.16, 0.44, -1.52);
+						                    glow.position.set(0, 0.54, -0.16);
+						                    const railL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.92, 3.08), metalMat);
+						                    railL.position.set(-1.00, 0.28, -1.68);
+						                    const railR = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.92, 3.08), metalMat);
+						                    railR.position.set(1.00, 0.28, -1.68);
 						                    portal.add(dark, sideL, sideR, floor, lip, railL, railR);
 						                    portal.add(glow);
-						                    const grime = new THREE.Mesh(new THREE.PlaneGeometry(4.8, 2.4), grimePortalMat);
-						                    grime.position.set(0, 0.62, 0.16);
+						                    const grime = new THREE.Mesh(new THREE.PlaneGeometry(4.3, 2.1), grimePortalMat);
+						                    grime.position.set(0, 0.56, 0.12);
 						                    portal.add(grime);
 						                    atmosphere.add(portal);
 						                  });
