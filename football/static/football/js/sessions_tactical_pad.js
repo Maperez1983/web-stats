@@ -11020,16 +11020,31 @@
 						                label.userData = { kind: 'pitch_3d_finished_dugout_label_visible' };
 						                finish.add(label);
 						              });
-						              [-1, 1].forEach((sign) => {
-						                addBox(finish, new THREE.BoxGeometry(5.8, 1.30, 0.26), shadowFinish, sign * 23.4, 0.66, -(metersH / 2 + 3.72), 0, 0, 0, 'pitch_3d_finished_dugout_side_brand_shell');
-						                addBox(finish, new THREE.BoxGeometry(5.92, 0.06, 0.30), roofFinish, sign * 23.4, 1.26, -(metersH / 2 + 3.70), 0, 0, 0, 'pitch_3d_finished_dugout_side_brand_top');
-						                addBox(finish, new THREE.BoxGeometry(5.92, 0.08, 0.34), roofFinish, sign * 23.4, 0.08, -(metersH / 2 + 3.70), 0, 0, 0, 'pitch_3d_finished_dugout_side_brand_base');
-						                addBox(finish, new THREE.BoxGeometry(4.30, 0.16, 0.92), concreteFinish, sign * 23.4, 0.08, -(metersH / 2 + 4.00), 0, 0, 0, 'pitch_3d_finished_dugout_side_brand_foot');
-						                const face = new THREE.Mesh(new THREE.PlaneGeometry(5.42, 1.00), sideBrandFinishMat);
-						                face.position.set(sign * 23.4, 0.68, -(metersH / 2 + 3.58));
-						                face.rotation.y = sign < 0 ? 0 : Math.PI;
-						                face.userData = { kind: 'pitch_3d_finished_dugout_side_brand_face' };
-						                finish.add(face);
+						              addBox(finish, new THREE.BoxGeometry(5.40, 0.96, 0.24), shadowFinish, -23.6, 0.48, -(metersH / 2 + 3.62), 0, 0, 0, 'pitch_3d_finished_dugout_side_brand_shell');
+						              addBox(finish, new THREE.BoxGeometry(5.52, 0.05, 0.28), roofFinish, -23.6, 0.90, -(metersH / 2 + 3.60), 0, 0, 0, 'pitch_3d_finished_dugout_side_brand_top');
+						              addBox(finish, new THREE.BoxGeometry(5.52, 0.08, 0.34), roofFinish, -23.6, 0.08, -(metersH / 2 + 3.60), 0, 0, 0, 'pitch_3d_finished_dugout_side_brand_base');
+						              addBox(finish, new THREE.BoxGeometry(4.42, 0.12, 0.74), concreteFinish, -23.6, 0.06, -(metersH / 2 + 3.86), 0, 0, 0, 'pitch_3d_finished_dugout_side_brand_foot');
+						              const face = new THREE.Mesh(new THREE.PlaneGeometry(5.06, 0.72), sideBrandFinishMat);
+						              face.position.set(-23.6, 0.50, -(metersH / 2 + 3.50));
+						              face.userData = { kind: 'pitch_3d_finished_dugout_side_brand_face' };
+						              finish.add(face);
+						              const finishedCorridorMat = new THREE.MeshStandardMaterial({ color: 0x565f5c, roughness: 0.90, metalness: 0.02 });
+						              const finishedSlotMat = new THREE.MeshBasicMaterial({ color: 0x1f2937, transparent: true, opacity: 0.55, depthWrite: false, toneMapped: false });
+						              addBox(finish, new THREE.BoxGeometry(metersW + 7.2, 0.026, 1.12), finishedCorridorMat, 0, 0.132, -(metersH / 2 + 2.24), 0, 0, 0, 'pitch_3d_finished_touchline_service_corridor');
+						              [-26.0, -13.0, 0, 13.0, 26.0].forEach((x) => {
+						                addBox(finish, new THREE.BoxGeometry(2.6, 0.012, 0.10), finishedSlotMat, x, 0.166, -(metersH / 2 + 2.22), 0, 0, 0, 'pitch_3d_finished_touchline_drain_slot');
+						              });
+						              const finishedUtilityBlueMat = new THREE.MeshStandardMaterial({ color: 0x1d4ed8, roughness: 0.48, metalness: 0.08 });
+						              const finishedUtilityDarkMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.52, metalness: 0.14 });
+						              [
+						                [-26.9, -(metersH / 2 + 3.16), 0.82, finishedUtilityBlueMat],
+						                [-24.7, -(metersH / 2 + 2.94), 0.74, finishedUtilityDarkMat],
+						                [22.6, -(metersH / 2 + 1.96), 0.62, finishedUtilityBlueMat],
+						              ].forEach(([x, z, s, mat], idx) => {
+						                addBox(finish, new THREE.BoxGeometry(0.78 * s, 0.52 * s, 0.58 * s), mat, x, 0.26 * s / 0.82, z, 0, idx === 2 ? 0.26 : 0, 0, 'pitch_3d_finished_touchline_utility_case');
+						              });
+						              [-25.6, -23.7].forEach((x) => {
+						                addBox(finish, new THREE.BoxGeometry(0.26, 0.18, 0.26), finishedUtilityDarkMat, x, 0.12, -(metersH / 2 + 2.14), 0, 0, 0, 'pitch_3d_finished_pitchside_power_box');
 						              });
 						              addBox(finish, new THREE.BoxGeometry(metersW + 44.0, 0.32, 5.2), roofFinish, 0, 14.78, metersH / 2 + 27.9, -0.015, 0, 0, 'pitch_3d_finished_continuous_roof_north');
 						              addBox(finish, new THREE.BoxGeometry(metersW + 44.0, 0.32, 5.2), roofFinish, 0, 14.78, -(metersH / 2 + 27.9), 0.015, 0, 0, 'pitch_3d_finished_continuous_roof_south');
@@ -11289,6 +11304,7 @@
 						                      const x = ratio * metersW;
 						                      addBox(finish, new THREE.BoxGeometry(2.05, 0.42, 0.12), signMat, x, 3.42, standZ - standSign * 0.52, 0, 0, 0, 'pitch_3d_professional_real_sector_sign_long');
 						                      addBox(finish, new THREE.BoxGeometry(3.35, 0.90, 0.28), darkOpening, x, 2.15, standZ - standSign * 0.62, 0, 0, 0, 'pitch_3d_professional_real_vomitory_depth_frame_long');
+						                      addBox(finish, new THREE.BoxGeometry(2.05, 0.16, 1.66), aisleMat, x, 1.16, standZ - standSign * 2.00, -0.14 * standSign, 0, 0, 'pitch_3d_professional_real_vomitory_landing_long');
 						                      addBox(finish, new THREE.BoxGeometry(2.55, 0.20, 2.45), aisleMat, x + (idx % 2 === 0 ? -0.52 : 0.52), 1.65, standZ + standSign * 2.25, -0.23 * standSign, 0, 0, 'pitch_3d_professional_real_radial_aisle_long');
 						                    });
 						                    [2.55, 4.95, 7.35].forEach((height, level) => {
@@ -13251,6 +13267,11 @@
 						                  [1, -1].forEach((sign) => {
 						                    addBox(new THREE.BoxGeometry(metersW + 46.0, 0.92, 0.42), frontWallMat, 0, 2.34, sign * (metersH / 2 + 9.30), sign * -0.02, 0, 0, 'pitch_3d_reference_lower_stand_front_retaining_wall');
 						                    addBox(new THREE.BoxGeometry(metersW + 42.0, 0.12, 0.16), metalMat, 0, 3.02, sign * (metersH / 2 + 9.02), 0, 0, 0, 'pitch_3d_reference_front_stand_low_guardrail');
+						                    [-34, -20, -6, 8, 22, 36].forEach((x) => {
+						                      addBox(new THREE.BoxGeometry(2.24, 0.18, 2.10), aisleConcreteMat, x, 1.18, sign * (metersH / 2 + 6.58), sign * -0.22, 0, 0, 'pitch_3d_reference_lower_bowl_access_landing');
+						                      addBox(new THREE.BoxGeometry(0.14, 1.34, 2.02), blockEdgeMat, x - 1.16, 1.52, sign * (metersH / 2 + 6.54), sign * -0.18, 0, 0, 'pitch_3d_reference_lower_bowl_access_sidewall');
+						                      addBox(new THREE.BoxGeometry(0.14, 1.34, 2.02), blockEdgeMat, x + 1.16, 1.52, sign * (metersH / 2 + 6.54), sign * -0.18, 0, 0, 'pitch_3d_reference_lower_bowl_access_sidewall');
+						                    });
 						                    addBox(new THREE.BoxGeometry(metersW + 50.0, 0.42, 0.78), concourseMat, 0, 6.98, sign * (metersH / 2 + 15.65), sign * -0.02, 0, 0, 'pitch_3d_reference_horizontal_concourse_band_long');
 						                    addBox(new THREE.BoxGeometry(metersW + 50.0, 0.34, 0.48), metalMat, 0, 7.38, sign * (metersH / 2 + 15.25), 0, 0, 0, 'pitch_3d_reference_concourse_guardrail_long');
 						                    [-28, -10, 10, 28].forEach((x) => {
@@ -13435,25 +13456,24 @@
 						                    atmosphere.add(g);
 						                    addShadow(x, z + 0.18, 14.6, 3.0, 0.16);
 						                  });
-						                  [-1, 1].forEach((sign) => {
+						                  {
 						                    const brand = new THREE.Group();
-						                    brand.position.set(sign * 23.4, 0, -(metersH / 2 + 3.72));
+						                    brand.position.set(-23.6, 0, -(metersH / 2 + 3.62));
 						                    brand.userData = { kind: 'pitch_3d_reference_dugout_side_brand_block' };
-						                    const shell = new THREE.Mesh(new THREE.BoxGeometry(5.6, 1.26, 0.24), sideBrandShellMat);
-						                    shell.position.set(0, 0.64, 0);
-						                    const top = new THREE.Mesh(new THREE.BoxGeometry(5.72, 0.06, 0.30), sideBrandEdgeMat);
-						                    top.position.set(0, 1.24, 0.02);
-						                    const base = new THREE.Mesh(new THREE.BoxGeometry(5.72, 0.08, 0.34), sideBrandEdgeMat);
+						                    const shell = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.92, 0.22), sideBrandShellMat);
+						                    shell.position.set(0, 0.46, 0);
+						                    const top = new THREE.Mesh(new THREE.BoxGeometry(5.34, 0.05, 0.28), sideBrandEdgeMat);
+						                    top.position.set(0, 0.88, 0.02);
+						                    const base = new THREE.Mesh(new THREE.BoxGeometry(5.34, 0.08, 0.34), sideBrandEdgeMat);
 						                    base.position.set(0, 0.06, 0.02);
-						                    const foot = new THREE.Mesh(new THREE.BoxGeometry(4.20, 0.16, 0.90), technicalMat);
-						                    foot.position.set(0, 0.08, -0.28);
-						                    const face = new THREE.Mesh(new THREE.PlaneGeometry(5.32, 0.98), sideBrandFaceMat);
-						                    face.position.set(0, 0.66, 0.13);
-						                    face.rotation.y = sign < 0 ? 0 : Math.PI;
+						                    const foot = new THREE.Mesh(new THREE.BoxGeometry(4.40, 0.12, 0.72), technicalMat);
+						                    foot.position.set(0, 0.06, -0.22);
+						                    const face = new THREE.Mesh(new THREE.PlaneGeometry(4.96, 0.70), sideBrandFaceMat);
+						                    face.position.set(0, 0.48, 0.12);
 						                    brand.add(shell, top, base, foot, face);
 						                    atmosphere.add(brand);
-						                    addShadow(sign * 23.4, -(metersH / 2 + 3.98), 5.8, 1.2, 0.12);
-						                  });
+						                    addShadow(-23.6, -(metersH / 2 + 3.86), 5.3, 0.9, 0.10);
+						                  }
 						                  [-27.5, 27.5].forEach((x) => {
 						                    addBox(new THREE.BoxGeometry(5.2, 0.16, 1.55), technicalMat, x, 0.22, -(metersH / 2 + 3.86), 0, 0, 0, 'pitch_3d_reference_pitchside_analysis_platform');
 						                    addBox(new THREE.BoxGeometry(0.14, 1.08, 0.14), metalMat, x - 1.82, 0.72, -(metersH / 2 + 3.86), 0, 0, 0, 'pitch_3d_reference_pitchside_analysis_platform_leg');
@@ -13474,6 +13494,8 @@
 						                const addReferencePitchApron = () => {
 						                  const apronMat = new THREE.MeshStandardMaterial({ color: 0x6b756f, roughness: 0.88, metalness: 0.02 });
 						                  const curbMat = new THREE.MeshStandardMaterial({ color: 0xd7ded9, roughness: 0.72, metalness: 0.02 });
+						                  const corridorMat = new THREE.MeshStandardMaterial({ color: 0x565f5c, roughness: 0.90, metalness: 0.02 });
+						                  const slotMat = new THREE.MeshBasicMaterial({ color: 0x1f2937, transparent: true, opacity: 0.55, depthWrite: false, toneMapped: false });
 						                  const hatchMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc, transparent: true, opacity: 0.54, depthWrite: false });
 						                  const grimeMat = new THREE.MeshBasicMaterial({ color: 0x334155, transparent: true, opacity: 0.12, depthWrite: false, toneMapped: false });
 						                  [
@@ -13483,6 +13505,10 @@
 						                    [-(metersW / 2 + 1.45), 0, 1.25, metersH + 4.2],
 						                  ].forEach(([x, z, w, d]) => {
 						                    addBox(new THREE.BoxGeometry(w, 0.045, d), apronMat, x, 0.118, z, 0, 0, 0, 'pitch_3d_reference_grey_pitch_apron_runoff');
+						                  });
+						                  addBox(new THREE.BoxGeometry(metersW + 7.2, 0.026, 1.12), corridorMat, 0, 0.132, -(metersH / 2 + 2.24), 0, 0, 0, 'pitch_3d_reference_touchline_service_corridor');
+						                  [-26.0, -13.0, 0, 13.0, 26.0].forEach((x) => {
+						                    addBox(new THREE.BoxGeometry(2.6, 0.012, 0.10), slotMat, x, 0.166, -(metersH / 2 + 2.22), 0, 0, 0, 'pitch_3d_reference_touchline_drain_slot');
 						                  });
 						                  [
 						                    [0, metersH / 2 + 0.74, metersW + 1.4, 0.12],
@@ -13504,6 +13530,46 @@
 						                  });
 						                };
 						                addReferencePitchApron();
+						                const addReferenceTouchlineUtilityCluster = () => {
+						                  const goalFrameMat = new THREE.MeshStandardMaterial({ color: 0xe5edf5, roughness: 0.20, metalness: 0.18 });
+						                  const utilityBlueMat = new THREE.MeshStandardMaterial({ color: 0x1d4ed8, roughness: 0.48, metalness: 0.08 });
+						                  const utilityDarkMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.52, metalness: 0.14 });
+						                  const netMat = new THREE.MeshBasicMaterial({ color: 0xe2e8f0, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide });
+						                  [
+						                    [-33.6, -(metersH / 2 + 4.95), 0.18],
+						                    [-29.9, -(metersH / 2 + 5.72), 0.16],
+						                  ].forEach(([x, z, scale]) => {
+						                    const goal = new THREE.Group();
+						                    goal.position.set(x, 0, z);
+						                    goal.rotation.y = 0.24;
+						                    goal.userData = { kind: 'pitch_3d_reference_spare_goal_cluster' };
+						                    const postL = new THREE.Mesh(new THREE.BoxGeometry(0.10, 1.9 * scale / 0.18, 0.10), goalFrameMat);
+						                    postL.position.set(-1.5 * scale / 0.18, 0.95 * scale / 0.18, 0);
+						                    const postR = postL.clone();
+						                    postR.position.x *= -1;
+						                    const bar = new THREE.Mesh(new THREE.BoxGeometry(3.1 * scale / 0.18, 0.10, 0.10), goalFrameMat);
+						                    bar.position.set(0, 1.90 * scale / 0.18, 0);
+						                    const depthL = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.6 * scale / 0.18, 0.08), goalFrameMat);
+						                    depthL.position.set(-1.5 * scale / 0.18, 0.82 * scale / 0.18, 1.24 * scale / 0.18);
+						                    const depthR = depthL.clone();
+						                    depthR.position.x *= -1;
+						                    const roof = new THREE.Mesh(new THREE.BoxGeometry(3.1 * scale / 0.18, 0.06, 1.30 * scale / 0.18), netMat);
+						                    roof.position.set(0, 1.62 * scale / 0.18, 0.64 * scale / 0.18);
+						                    goal.add(postL, postR, bar, depthL, depthR, roof);
+						                    atmosphere.add(goal);
+						                  });
+						                  [
+						                    [-26.9, -(metersH / 2 + 3.16), 0.82, utilityBlueMat],
+						                    [-24.7, -(metersH / 2 + 2.94), 0.74, utilityDarkMat],
+						                    [22.6, -(metersH / 2 + 1.96), 0.62, utilityBlueMat],
+						                  ].forEach(([x, z, s, mat], idx) => {
+						                    addBox(new THREE.BoxGeometry(0.78 * s, 0.52 * s, 0.58 * s), mat, x, 0.26 * s / 0.82, z, 0, idx === 2 ? 0.26 : 0, 0, 'pitch_3d_reference_touchline_utility_case');
+						                  });
+						                  [-25.6, -23.7].forEach((x) => {
+						                    addBox(new THREE.BoxGeometry(0.26, 0.18, 0.26), utilityDarkMat, x, 0.12, -(metersH / 2 + 2.14), 0, 0, 0, 'pitch_3d_reference_pitchside_power_box');
+						                  });
+						                };
+						                addReferenceTouchlineUtilityCluster();
 						                const sprinklerMat = new THREE.MeshStandardMaterial({ color: 0xb7c6c2, roughness: 0.42, metalness: 0.24 });
 						                const waterMat = new THREE.MeshBasicMaterial({ color: 0xbfefff, transparent: true, opacity: 0.22, depthWrite: false, toneMapped: false });
 						                [
