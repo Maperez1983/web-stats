@@ -31,6 +31,20 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
   const lerp = (a, b, t) => a + ((b - a) * t);
   const smooth = (t) => t * t * (3 - (2 * t));
+  const normalizeAngle = (angle) => {
+    let value = angle % (Math.PI * 2);
+    if (value <= -Math.PI) value += Math.PI * 2;
+    if (value > Math.PI) value -= Math.PI * 2;
+    return value;
+  };
+  const lerpAngle = (from, to, t) => {
+    const normalizedFrom = normalizeAngle(from);
+    const normalizedTo = normalizeAngle(to);
+    let delta = normalizedTo - normalizedFrom;
+    if (delta > Math.PI) delta -= Math.PI * 2;
+    if (delta < -Math.PI) delta += Math.PI * 2;
+    return normalizeAngle(normalizedFrom + (delta * clamp(t, 0, 1)));
+  };
   const safeText = (value, fallback = '') => String(value || '').trim() || fallback;
   const __seatTextureCache = new Map();
   const toNumber = (value, fallback = 0) => {
@@ -2208,8 +2222,16 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
       const idleSwing = Math.sin((elapsedSeconds * 2.6) + (x * 0.04) + (z * 0.05)) * 0.06;
       group.position.x = x;
       group.position.z = z;
-      group.position.y = Math.sin((elapsedSeconds * 3.2) + x * 0.08 + z * 0.08) * 0.06;
-      group.rotation.y = next ? Math.atan2(dx, dz) : 0;
+      const isMoving = moveStrength > 0.032;
+      const targetRotation = next ? Math.atan2(dx, dz) : (group.userData?.heading ?? 0);
+      const currentHeading = typeof group.userData?.heading === 'number' ? group.userData.heading : targetRotation;
+      const smoothedHeading = isMoving ? lerpAngle(currentHeading, targetRotation, 0.22) : currentHeading;
+      const baseHeight = group.userData?.isHumanoidModel ? 0.018 : 0;
+      group.position.y = isMoving
+        ? (baseHeight + Math.sin((elapsedSeconds * 3.2) + x * 0.08 + z * 0.08) * 0.06)
+        : baseHeight;
+      group.userData = { ...(group.userData || {}), heading: smoothedHeading };
+      group.rotation.y = smoothedHeading;
       if (!group.userData?.humanoidMotion?.mixer) {
         if (group.userData.leftArm) group.userData.leftArm.rotation.x = stride * 0.55;
         if (group.userData.rightArm) group.userData.rightArm.rotation.x = -stride * 0.55;
