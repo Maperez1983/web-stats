@@ -204,6 +204,12 @@
         padding: 0.9rem;
         margin-bottom: 0.75rem;
       }
+      .task-inline-editor {
+        display: none;
+      }
+      .task-inline-editor.is-open {
+        display: block;
+      }
       .task-edit-tab-bar {
         display: none;
       }
@@ -916,11 +922,10 @@
           {% if not show_edit_mode %}
           <button type="button" class="button" id="task-detail-3d-open">Ver 3D</button>
           {% endif %}
-          {% if edit_graphic_url and not show_edit_mode %}
-          <a class="button" href="{{ edit_graphic_url }}">Editar ficha</a>
-          {% endif %}
-          {% if show_edit_mode and presentation_url %}
-          <a class="button" href="{{ presentation_url }}">Volver a ficha</a>
+          {% if can_edit_task %}
+          <button type="button" class="button" id="task-detail-edit-toggle" aria-expanded="{% if show_edit_mode %}true{% else %}false{% endif %}">
+            {% if show_edit_mode %}Cerrar edición{% else %}Editar ficha{% endif %}
+          </button>
           {% endif %}
           {% if show_edit_mode %}
           <button
@@ -930,7 +935,7 @@
             onclick="try{var f=document.getElementById('task-detail-form');if(!f)return;var b=f.querySelector('button[type=submit],input[type=submit]');if(f.requestSubmit){f.requestSubmit(b||undefined);}else if(b){b.click();}else{f.submit();}}catch(e){};return false;"
           >Guardar cambios</button>
           {% endif %}
-          {% if show_edit_mode %}
+          {% if can_edit_task %}
           <button
             type="button"
             class="button secondary"
@@ -942,7 +947,7 @@
           {% endif %}
           <a class="button" href="{% url 'session-task-pdf' task.id %}?style=uefa&one_page=1" target="_blank" rel="noopener">Imprimir UEFA</a>
           <a class="button" href="{% url 'session-task-pdf' task.id %}?style=club&one_page=1" target="_blank" rel="noopener">Imprimir Club</a>
-          {% if show_edit_mode %}
+          {% if can_edit_task %}
           {% if task.task_pdf %}
           <a class="button" href="{% url 'session-task-file' task.id %}" target="_blank" rel="noopener">Abrir PDF</a>
           {% endif %}
@@ -1103,7 +1108,8 @@
         </div>
       </section>
 
-      {% if show_edit_mode %}
+      {% if can_edit_task %}
+      <div id="task-inline-editor" class="task-inline-editor{% if show_edit_mode %} is-open{% endif %}">
       <section class="panel">
         <h2>Editar ficha</h2>
         <p class="meta">Los cambios se aplican sobre la ficha HTML anterior. La edición de la pizarra gráfica usa el mismo lienzo, no una pantalla aparte.</p>
@@ -1122,9 +1128,8 @@
           · {{ task.get_block_display }} · {{ task.duration_minutes }}'
         </p>
       </section>
-      {% endif %}
 
-      {% if show_edit_mode %}
+      {% if can_edit_task %}
         <section class="panel task-edit-panel task-edit-tab-descriptive" data-task-edit-panel="descriptive">
           <h2>Versionado de tarea</h2>
           {% if original_version %}
@@ -1346,7 +1351,7 @@
         </section>
       {% endif %}
 
-      {% if original_version and show_edit_mode %}
+      {% if original_version and can_edit_task %}
       <section class="panel task-edit-panel task-edit-tab-descriptive" data-task-edit-panel="descriptive">
         <h2>Versión original (solo lectura)</h2>
         <div class="compare-grid">
@@ -1396,7 +1401,7 @@
       </section>
       {% endif %}
 
-      {% if animation_frames %}
+      {% if animation_frames and can_edit_task %}
       <section class="panel task-edit-panel task-edit-tab-graphic" data-task-edit-panel="graphic">
         <h2>Secuenciación 2D</h2>
         <div class="animation-controls">
@@ -1418,7 +1423,7 @@
       </section>
       {% endif %}
 
-      {% if show_edit_mode %}
+      {% if can_edit_task %}
       <section class="panel task-edit-panel" id="graphic-editor">
         <h2>Herramientas de edición</h2>
         <p class="meta">Estas herramientas actúan sobre la ficha de arriba. El canvas es único para que lo que editas sea exactamente lo que ves.</p>
@@ -1498,7 +1503,7 @@
       </section>
       {% endif %}
 
-      {% if analysis_meta and show_edit_mode %}
+      {% if analysis_meta and can_edit_task %}
       <section class="panel task-edit-panel task-edit-tab-descriptive" data-task-edit-panel="descriptive">
         <h2>Análisis automático</h2>
         <div class="chips" style="margin-bottom:0.5rem;">
@@ -1521,7 +1526,7 @@
       </section>
       {% endif %}
 
-      {% if related_tasks and show_edit_mode %}
+      {% if related_tasks and can_edit_task %}
       <section class="panel task-edit-panel task-edit-tab-descriptive" data-task-edit-panel="descriptive">
         <h2>Relacionadas</h2>
         <p class="meta" style="margin-top:0;">Sugeridas por similitud (tipo, fase, objetivo y contexto).</p>
@@ -1550,11 +1555,14 @@
       </section>
       {% endif %}
 
-      {% if pdf_excerpt and show_edit_mode %}
+      {% if pdf_excerpt and can_edit_task %}
       <section class="panel task-edit-panel task-edit-tab-descriptive" data-task-edit-panel="descriptive">
         <h2>Extracto del PDF</h2>
         <pre>{{ pdf_excerpt }}</pre>
       </section>
+      {% endif %}
+
+      </div>
       {% endif %}
 
     </main>
@@ -1582,7 +1590,9 @@
         }
         const canvasEl = document.getElementById('task-graphic-canvas');
         if (!canvasEl) return;
-        const isEditable = "{{ show_edit_mode|yesno:'true,false' }}" === 'true';
+        const canEditTask = "{{ can_edit_task|yesno:'true,false' }}" === 'true';
+        const editorOpen = "{{ show_edit_mode|yesno:'true,false' }}" === 'true';
+        const isEditable = canEditTask;
         const stateRaw = "{{ graphic_editor_state_json|escapejs }}";
         let savedState = {};
         try {
@@ -1591,7 +1601,7 @@
           savedState = {};
         }
         const PRESENTATION_PITCH_BG = '#5b8f3f';
-        const isPresentationMode = !isEditable;
+        const isPresentationMode = !editorOpen;
         const statusEl = document.getElementById('graphic-status');
         const setStatus = (text, isError = false) => {
           if (!statusEl) return;
@@ -2456,6 +2466,25 @@
             bookmarkBtn.disabled = false;
           }
         });
+        const editToggleBtn = document.getElementById('task-detail-edit-toggle');
+        const inlineEditor = document.getElementById('task-inline-editor');
+        const syncInlineEditorState = (open) => {
+          if (inlineEditor) inlineEditor.classList.toggle('is-open', open);
+          if (editToggleBtn) {
+            editToggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            editToggleBtn.textContent = open ? 'Cerrar edición' : 'Editar ficha';
+          }
+        };
+        if (editToggleBtn && inlineEditor && canEditTask) {
+          syncInlineEditorState(editorOpen);
+          editToggleBtn.addEventListener('click', () => {
+            const nextOpen = !inlineEditor.classList.contains('is-open');
+            syncInlineEditorState(nextOpen);
+            if (nextOpen) {
+              inlineEditor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          });
+        }
         let resizeTimer = null;
       window.addEventListener('resize', () => {
           clearTimeout(resizeTimer);

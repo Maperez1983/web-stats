@@ -13214,7 +13214,8 @@ class StaffUserLinkingTests(TestCase):
         self.assertFalse(any('/coach/sesiones/tareas/' in str(url) and '/editar/' in str(url) for url, _ in chain))
         self.assertContains(response, 'Ficha visual')
         self.assertContains(response, 'Ficha táctica compartible')
-        self.assertContains(response, 'Editar ficha')
+        self.assertContains(response, 'task-detail-edit-toggle')
+        self.assertNotContains(response, 'mode=edit')
 
         edit_response = self.client.get(f"{reverse('session-task-detail', args=[task.id])}?mode=edit", follow=True)
 
