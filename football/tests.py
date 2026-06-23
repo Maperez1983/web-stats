@@ -13215,6 +13215,7 @@ class StaffUserLinkingTests(TestCase):
         self.assertContains(response, 'Ficha visual')
         self.assertContains(response, 'Ficha táctica compartible')
         self.assertContains(response, 'task-detail-edit-toggle')
+        self.assertContains(response, '__ollanaDiagnostics')
         self.assertNotContains(response, 'mode=edit')
 
         edit_response = self.client.get(f"{reverse('session-task-detail', args=[task.id])}?mode=edit", follow=True)

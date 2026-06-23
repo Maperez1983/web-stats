@@ -1592,6 +1592,7 @@
         if (!canvasEl) return;
         const canEditTask = "{{ can_edit_task|yesno:'true,false' }}" === 'true';
         const editorOpen = "{{ show_edit_mode|yesno:'true,false' }}" === 'true';
+        const hasTaskPreviewImage = "{{ task.task_preview_image|yesno:'true,false' }}" === 'true';
         const isEditable = canEditTask;
         const stateRaw = "{{ graphic_editor_state_json|escapejs }}";
         let savedState = {};
@@ -1603,6 +1604,90 @@
         const PRESENTATION_PITCH_BG = '#5b8f3f';
         const isPresentationMode = !editorOpen;
         const statusEl = document.getElementById('graphic-status');
+        const diagnosticsRoot = (() => {
+          const root = window.__ollanaDiagnostics && typeof window.__ollanaDiagnostics === 'object'
+            ? window.__ollanaDiagnostics
+            : {};
+          if (!root.render_surfaces || typeof root.render_surfaces !== 'object') root.render_surfaces = {};
+          window.__ollanaDiagnostics = root;
+          return root;
+        })();
+        const getSurfaceState = (surfaceId) => {
+          const row = diagnosticsRoot.render_surfaces && typeof diagnosticsRoot.render_surfaces === 'object'
+            ? diagnosticsRoot.render_surfaces[surfaceId]
+            : null;
+          return row && typeof row === 'object' ? row : {};
+        };
+        const collectCanvasCounts = () => {
+          const counts = {
+            object_count: 0,
+            player_count: 0,
+            ball_count: 0,
+            path_count: 0,
+          };
+          canvas.getObjects().forEach((obj) => {
+            if (!obj) return;
+            const kind = String((obj.data || {}).kind || '').trim().toLowerCase();
+            const type = String(obj.type || '').trim().toLowerCase();
+            counts.object_count += 1;
+            if (['player_red', 'player_blue', 'token'].includes(kind) || ['circle', 'group'].includes(type)) counts.player_count += 1;
+            if (kind === 'ball' || type === 'ball') counts.ball_count += 1;
+            if (kind === 'arrow' || ['line', 'path', 'polyline', 'polygon'].includes(type)) counts.path_count += 1;
+          });
+          return counts;
+        };
+        const publishTaskDetailDiagnostics = () => {
+          const inlineEditor = document.getElementById('task-inline-editor');
+          const editToggleBtn = document.getElementById('task-detail-edit-toggle');
+          const taskForm = document.getElementById('task-detail-form');
+          const visibleControls = Array.from(document.querySelectorAll('#task-inline-editor .graphic-toolbar button, #task-inline-editor .resource-grid button, #task-inline-editor .iconify-grid button, #task-inline-editor .layers-panel button'));
+          const hiddenControls = visibleControls.filter((node) => {
+            const rect = node.getBoundingClientRect();
+            return rect.width > 0 && rect.height > 0 ? false : true;
+          }).length;
+          const canvasRect = canvasEl.getBoundingClientRect();
+          const twoDSurface = getSurfaceState('task-detail-2d-canvas');
+          const threeDSurface = getSurfaceState('task-detail-3d-canvas');
+          const counts = collectCanvasCounts();
+          let issue = '';
+          if (!canvasEl) issue = 'missing_2d_canvas';
+          else if (counts.object_count === 0 && !hasTaskPreviewImage) issue = 'empty_2d_canvas';
+          else if (canEditTask && !editToggleBtn) issue = 'missing_inline_edit_toggle';
+          else if (canEditTask && !inlineEditor) issue = 'missing_inline_editor';
+          else if (editorOpen && inlineEditor && !inlineEditor.classList.contains('is-open')) issue = 'inline_editor_not_open';
+          else if (canEditTask && !taskForm) issue = 'missing_task_detail_form';
+          else if (hiddenControls > 0) issue = 'hidden_editor_controls';
+          else if (threeDSurface.issue) issue = `3d:${threeDSurface.issue}`;
+          diagnosticsRoot.render_surfaces['task-detail-2d-canvas'] = {
+            id: 'task-detail-2d-canvas',
+            label: 'Representacion 2D de tarea',
+            kind: 'task_board',
+            visible: Boolean(canvasRect.width > 0 && canvasRect.height > 0),
+            issue: issue || twoDSurface.issue || '',
+            object_count: counts.object_count,
+            player_count: counts.player_count,
+            ball_count: counts.ball_count,
+            path_count: counts.path_count,
+            canvas_width: Math.max(0, Math.round(canvasRect.width || 0)),
+            canvas_height: Math.max(0, Math.round(canvasRect.height || 0)),
+            rendered_frames: 0,
+          };
+          diagnosticsRoot.render_surfaces['task-detail-page'] = {
+            id: 'task-detail-page',
+            label: 'Ficha HTML de tarea',
+            kind: 'task_page',
+            visible: true,
+            issue,
+            object_count: counts.object_count,
+            player_count: counts.player_count,
+            ball_count: counts.ball_count,
+            path_count: counts.path_count,
+            rendered_frames: 0,
+            scene_status: editorOpen ? 'editor_open' : 'presentation',
+            step_index: 0,
+            step_count: 0,
+          };
+        };
         const setStatus = (text, isError = false) => {
           if (!statusEl) return;
           statusEl.textContent = text;
@@ -1927,11 +2012,21 @@
             }, { crossOrigin: 'anonymous' });
           }
         };
+        const scheduleDiagnosticsPublish = () => {
+          window.requestAnimationFrame(() => {
+            try {
+              publishTaskDetailDiagnostics();
+            } catch (error) {
+              // El widget de Ollana no debe romper la ficha.
+            }
+          });
+        };
         try {
           restoreState();
         } catch (err) {
           setStatus('No se pudo restaurar la pizarra principal.', true);
         }
+        scheduleDiagnosticsPublish();
 
         canvas.on('path:created', pushHistory);
         canvas.on('object:modified', pushHistory);
@@ -1943,12 +2038,25 @@
           if (!canvas.__loading) {
             pushHistory();
             refreshLayerList();
+            scheduleDiagnosticsPublish();
           }
         });
-        canvas.on('object:removed', refreshLayerList);
-        canvas.on('selection:created', refreshLayerList);
-        canvas.on('selection:updated', refreshLayerList);
-        canvas.on('selection:cleared', refreshLayerList);
+        canvas.on('object:removed', () => {
+          refreshLayerList();
+          scheduleDiagnosticsPublish();
+        });
+        canvas.on('selection:created', () => {
+          refreshLayerList();
+          scheduleDiagnosticsPublish();
+        });
+        canvas.on('selection:updated', () => {
+          refreshLayerList();
+          scheduleDiagnosticsPublish();
+        });
+        canvas.on('selection:cleared', () => {
+          refreshLayerList();
+          scheduleDiagnosticsPublish();
+        });
 
         const colorInput = document.getElementById('graphic-color');
         const widthInput = document.getElementById('graphic-width');
@@ -2264,6 +2372,7 @@
           canvas.add(text);
           setMode(false);
           setStatus('Texto añadido.');
+          scheduleDiagnosticsPublish();
         });
         document.getElementById('graphic-resource-grid')?.addEventListener('click', (event) => {
           if (!isEditable) return;
@@ -2303,6 +2412,7 @@
             canvas.renderAll();
             setStatus('Elemento duplicado.');
             refreshLayerList();
+            scheduleDiagnosticsPublish();
           });
         });
         document.getElementById('graphic-lock-btn')?.addEventListener('click', () => {
@@ -2317,6 +2427,7 @@
           canvas.renderAll();
           refreshLayerList();
           setStatus('Elemento bloqueado.');
+          scheduleDiagnosticsPublish();
         });
         document.getElementById('graphic-unlock-btn')?.addEventListener('click', () => {
           if (!isEditable) return;
@@ -2329,6 +2440,7 @@
           canvas.renderAll();
           refreshLayerList();
           setStatus('Elementos desbloqueados.');
+          scheduleDiagnosticsPublish();
         });
         document.getElementById('graphic-delete-btn')?.addEventListener('click', () => {
           if (!isEditable) return;
@@ -2346,6 +2458,7 @@
           canvas.renderAll();
           setStatus('Elemento eliminado.');
           refreshLayerList();
+          scheduleDiagnosticsPublish();
         });
         document.getElementById('graphic-front-btn')?.addEventListener('click', () => {
           if (!isEditable) return;
@@ -2355,6 +2468,7 @@
           canvas.renderAll();
           setStatus('Elemento subido de capa.');
           refreshLayerList();
+          scheduleDiagnosticsPublish();
         });
         document.getElementById('graphic-back-btn')?.addEventListener('click', () => {
           if (!isEditable) return;
@@ -2364,6 +2478,7 @@
           canvas.renderAll();
           setStatus('Elemento bajado de capa.');
           refreshLayerList();
+          scheduleDiagnosticsPublish();
         });
         document.getElementById('graphic-clear-btn')?.addEventListener('click', () => {
           if (!isEditable) return;
@@ -2373,6 +2488,7 @@
           pushHistory();
           setStatus('Lienzo limpio.');
           refreshLayerList();
+          scheduleDiagnosticsPublish();
         });
         document.getElementById('graphic-undo-btn')?.addEventListener('click', () => {
           if (!isEditable) return;
@@ -2389,6 +2505,7 @@
             canvas.renderAll();
             refreshLayerList();
             setStatus('Último cambio deshecho.');
+            scheduleDiagnosticsPublish();
           });
         });
 
@@ -2431,6 +2548,7 @@
               throw new Error(data.error || 'No se pudo guardar.');
             }
             setStatus('Representación gráfica guardada correctamente.');
+            scheduleDiagnosticsPublish();
           } catch (err) {
             setStatus(err.message || 'Error al guardar gráfico.', true);
           } finally {
@@ -2474,6 +2592,7 @@
             editToggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
             editToggleBtn.textContent = open ? 'Cerrar edición' : 'Editar ficha';
           }
+          scheduleDiagnosticsPublish();
         };
         if (editToggleBtn && inlineEditor && canEditTask) {
           syncInlineEditorState(editorOpen);
