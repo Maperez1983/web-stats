@@ -122,9 +122,42 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
   const buildSteps = () => {
     const steps = [];
     const animationFrames = Array.isArray(payload.animationFrames) ? payload.animationFrames : [];
+    const normalizeFrameState = (state) => {
+      if (!state || typeof state !== 'object') return null;
+      const objects = Array.isArray(state.objects) ? state.objects : (
+        Array.isArray(state._objects) ? state._objects : (Array.isArray(state.tokens) ? state.tokens : null)
+      );
+      return {
+        ...state,
+        objects: Array.isArray(objects) ? objects : [],
+      };
+    };
+    const parseCanvasState = (frame) => {
+      if (!frame || typeof frame !== 'object') return null;
+      let rawState = frame.canvas_state;
+      if (typeof rawState === 'string') {
+        try {
+          rawState = JSON.parse(rawState);
+        } catch (error) {
+          rawState = null;
+        }
+      }
+      if (!rawState || typeof rawState !== 'object') {
+        rawState = frame.state;
+        if (typeof rawState === 'string') {
+          try {
+            rawState = JSON.parse(rawState);
+          } catch (error) {
+            rawState = null;
+          }
+        }
+      }
+      if (!rawState || typeof rawState !== 'object') return null;
+      return normalizeFrameState(rawState);
+    };
     animationFrames.forEach((frame, index) => {
-      const state = frame && typeof frame.canvas_state === 'object' ? frame.canvas_state : null;
-      if (!state || !Array.isArray(state.objects)) return;
+      const state = parseCanvasState(frame);
+      if (!state) return;
       steps.push({
         title: safeText(frame.title, `Fase ${index + 1}`),
         duration: Math.max(1, toNumber(frame.duration, 4)),
@@ -135,8 +168,8 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
     const editor = payload.graphicEditorState && typeof payload.graphicEditorState === 'object'
       ? payload.graphicEditorState
       : {};
-    const state = editor.canvas_state && typeof editor.canvas_state === 'object' ? editor.canvas_state : null;
-    if (state && Array.isArray(state.objects)) {
+    const state = parseCanvasState(editor);
+    if (state && state.objects.length) {
       steps.push({
         title: safeText(payload.taskTitle, 'Pizarra'),
         duration: 4,
@@ -156,11 +189,19 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
   const firstState = steps[0].state || {};
   const stateMeta = {
     width: Math.max(320, toNumber(
-      payload.canvasWidth || firstState.width || (payload.graphicEditorState || {}).canvas_width || (payload.graphicEditorState || {}).width,
+      payload.canvasWidth
+      || firstState.width
+      || firstState.canvas_width
+      || (payload.graphicEditorState || {}).canvas_width
+      || (payload.graphicEditorState || {}).width,
       1280
     )),
     height: Math.max(180, toNumber(
-      payload.canvasHeight || firstState.height || (payload.graphicEditorState || {}).canvas_height || (payload.graphicEditorState || {}).height,
+      payload.canvasHeight
+      || firstState.height
+      || firstState.canvas_height
+      || (payload.graphicEditorState || {}).canvas_height
+      || (payload.graphicEditorState || {}).height,
       720
     )),
     fieldWidth: 105,
@@ -853,12 +894,24 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
     if (!channels) return false;
     return channels.r >= 170 && channels.r >= channels.g * 1.2 && channels.r >= channels.b * 1.3;
   };
+  const normalizeTextIconKind = (value) => {
+    const text = safeText(value);
+    if (!text) return '';
+    if (text.includes('🔺') || text.includes('◀') || text.includes('△') || text.includes('▲')) return 'emoji_cone';
+    if (text.includes('⚽') || text.includes('◯') || text.includes('⚪') || text.includes('⚫')) return 'emoji_ball';
+    if (text.includes('🥅') || text.includes('⚽️') || text.includes('🥅') || text.includes('⛳')) return 'emoji_goal';
+    if (text.includes('📍')) return 'cone';
+    if (text.includes('🚧')) return 'cone';
+    if (text.includes('🧱')) return 'cone';
+    return '';
+  };
   const normalizeObjectKind = (value) => safeText(value, '').toLowerCase().trim().replace(/[\s-]+/g, '_');
   const normalizeObjectKindAlias = (value) => {
     const normalized = normalizeObjectKind(value);
     if (normalized === 'cone_striped') return 'cone_striped';
     if (normalized === 'goalpost' || normalized === 'goal_post') return 'goal';
     if (normalized === 'player' || normalized === 'goalkeeper' || normalized.startsWith('player_') || normalized.startsWith('goalkeeper_')) return 'token';
+    if (normalized === 'cone-striped') return 'cone_striped';
     return normalized;
   };
   const isTokenObject = (value) => normalizeObjectKindAlias(value) === 'token';
@@ -884,6 +937,10 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
     const dataKind = data && typeof data === 'object' && data.kind ? data.kind : '';
     const directKind = normalizeObjectKindAlias(dataKind || obj?.kind || '');
     const tokenKind = normalizeObjectKindAlias(data.token_kind || data.playerKind || '');
+    if (!directKind) {
+      const iconKind = normalizeTextIconKind(obj?.text);
+      if (iconKind) return iconKind;
+    }
     if (directKind) return directKind;
     if (isTokenObject(tokenKind)) return 'token';
     const type = safeText(obj?.type).toLowerCase();

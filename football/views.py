@@ -38413,14 +38413,40 @@ def _normalize_animation_timeline(raw_timeline):
         if not isinstance(item, dict):
             continue
         canvas_state = item.get('canvas_state')
+        if isinstance(canvas_state, str):
+            canvas_state = _coerce_json_dict(canvas_state)
         if not isinstance(canvas_state, dict):
+            canvas_state = item.get('state')
+            if isinstance(canvas_state, str):
+                canvas_state = _coerce_json_dict(canvas_state)
+            if not isinstance(canvas_state, dict):
+                continue
+        normalized_objects = canvas_state.get('objects')
+        if not isinstance(normalized_objects, list):
+            normalized_objects = canvas_state.get('_objects')
+        if not isinstance(normalized_objects, list):
+            normalized_objects = canvas_state.get('tokens')
+        if not isinstance(normalized_objects, list):
+            normalized_objects = []
+        # Normalización defensiva: algunas versiones antiguas guardan una lista de objetos sueltos.
+        if not normalized_objects:
             continue
+        canvas_state = {
+            'version': str(canvas_state.get('version') or '5.3.0'),
+            'width': _parse_int(canvas_state.get('width')) or 0,
+            'height': _parse_int(canvas_state.get('height')) or 0,
+            'objects': normalized_objects,
+        }
         title = _sanitize_task_text(str(item.get('title') or '').strip(), multiline=False, max_len=80)
         duration = max(1, min(_parse_int(item.get('duration')) or 3, 20))
+        canvas_width = _parse_int(item.get('canvas_width')) or _parse_int(item.get('width')) or _parse_int(canvas_state.get('width')) or 0
+        canvas_height = _parse_int(item.get('canvas_height')) or _parse_int(item.get('height')) or _parse_int(canvas_state.get('height')) or 0
         normalized.append(
             {
                 'title': title or f'Paso {index + 1}',
                 'duration': duration,
+                'canvas_width': canvas_width,
+                'canvas_height': canvas_height,
                 'canvas_state': canvas_state,
             }
         )
@@ -42391,6 +42417,11 @@ def session_task_detail_page(request, task_id):
     if isinstance(graphic_editor_state, dict) and animation_frames:
         graphic_editor_state = dict(graphic_editor_state)
         graphic_editor_state['timeline'] = animation_frames
+        first_canvas = animation_frames[0].get('canvas_state') if animation_frames else {}
+        if not graphic_editor_state.get('canvas_width'):
+            graphic_editor_state['canvas_width'] = _parse_int(first_canvas.get('width')) if isinstance(first_canvas, dict) else 0
+        if not graphic_editor_state.get('canvas_height'):
+            graphic_editor_state['canvas_height'] = _parse_int(first_canvas.get('height')) if isinstance(first_canvas, dict) else 0
     if task.task_pdf and not task.task_preview_image:
         _ensure_task_preview_image(task)
 
