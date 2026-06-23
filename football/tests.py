@@ -3609,6 +3609,22 @@ class SystemGuardTests(TestCase):
         self.assertEqual(tactics_row['status'], 'degraded')
         self.assertIn('h1_color', tactics_row)
 
+    @patch('football.system_guard.fetch_web_research_with_browser')
+    @patch('football.system_guard.compact_web_research')
+    def test_operator_web_research_snapshot_uses_public_urls(self, mock_compact, mock_fetch):
+        mock_fetch.return_value = [{'url': 'https://example.com/', 'ok': True, 'method': 'browser', 'title': 'Example', 'text': 'Contenido'}]
+        mock_compact.return_value = [{'url': 'https://example.com/', 'ok': True, 'method': 'browser', 'title': 'Example', 'text': 'Contenido'}]
+        snapshot = system_guard._operator_web_research_snapshot(
+            page_context={'web_urls': 'https://example.com'}
+        )
+        self.assertTrue(snapshot['enabled'])
+        self.assertEqual(snapshot['reason'], 'fetched')
+        self.assertEqual(snapshot['ok_count'], 1)
+        self.assertEqual(snapshot['source_count'], 1)
+        self.assertTrue(snapshot['sources'])
+        mock_fetch.assert_called_once()
+        mock_compact.assert_called_once()
+
     @patch('football.system_guard._observability_summary', return_value={'history_count': 0})
     @patch('football.system_guard.run_system_guard_chat', return_value={
         'report': {'issue_summary': {'blockers': 0, 'warnings': 0}},

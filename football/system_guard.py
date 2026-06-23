@@ -31,6 +31,7 @@ from football.library_repositories import (
     normalize_library_repository,
 )
 from football.local_llm import call_ollama_json, local_llm_config
+from football.web_research import MAX_URLS, compact_web_research, fetch_web_research_with_browser, parse_research_urls
 from football.models import Competition, ConvocationRecord, Group, Match, Player, RivalAnalysisReport, SessionTask, Team, TrainingMicrocycle, TrainingSession, WorkspaceCompetitionContext, WorkspacePreference, WorkspaceSeason, WorkspaceTeam
 from football.task_backups import write_task_backup
 from football.session_import_services import get_or_create_inbox_microcycle, get_or_create_library_session_with_repository
@@ -701,6 +702,11 @@ EXTERNAL_CONNECTOR_CATALOG = {
         "label": "Modelo local",
         "kind": "ai",
         "description": "Consulta si el proveedor local de Ollana está configurado y operativo.",
+    },
+    "web_research": {
+        "label": "Investigación web",
+        "kind": "ai",
+        "description": "Obtiene y resume fuentes públicas externas para alimentar el razonamiento del operador.",
     },
     "repository": {
         "label": "Repositorio",
@@ -5109,9 +5115,10 @@ def _base_status_from_issues(issues: list[dict]) -> str:
 def _compact_evidence_for_llm(evidence: dict, issues: list[dict], memory: dict | None = None) -> dict:
     health = evidence.get("healthcheck") if isinstance(evidence.get("healthcheck"), dict) else {}
     smoke = evidence.get("smoke") if isinstance(evidence.get("smoke"), dict) else {}
+    page_context = evidence.get("page_context") if isinstance(evidence.get("page_context"), dict) else {}
     return {
         "environment": evidence.get("environment"),
-        "page_context": evidence.get("page_context"),
+        "page_context": page_context,
         "memory": memory or evidence.get("memory"),
         "healthcheck": {
             "database": health.get("database"),
@@ -5121,6 +5128,7 @@ def _compact_evidence_for_llm(evidence: dict, issues: list[dict], memory: dict |
         "route_inventory": {k: v for k, v in (evidence.get("route_inventory") or {}).items() if isinstance(v, dict) and not v.get("ok")},
         "asset_inventory": {k: v for k, v in (evidence.get("asset_inventory") or {}).items() if isinstance(v, dict) and not v.get("ok")},
         "local_llm": evidence.get("local_llm"),
+        "external_web_research": _operator_web_research_snapshot(page_context=page_context),
         "tool_catalog": evidence.get("tool_catalog"),
         "smoke_failures": {k: v for k, v in (smoke.get("results") or {}).items() if isinstance(v, dict) and not v.get("ok")},
         "issues": issues or [],
@@ -5167,6 +5175,7 @@ def build_system_guard_chat_prompt(report: dict, question: str, history=None, pl
         "status:string, message:string, highlights:list, actions:list. "
         "status debe ser ok, watch, risk o fail. "
         "actions debe listar objetos {label, reason}. "
+        "Si external_web_research contiene fuentes ok=true, trátalas como investigación externa aportada por el sistema. "
         "Usa solo el JSON recibido. Escribe en español.\n\n"
         f"CHAT_GUARD_JSON={payload}"
     )
@@ -7025,6 +7034,17 @@ def _external_connectors_snapshot(*, page_context=None) -> dict:
             provider = str(llm_cfg.get("provider") or "").strip()
             status = "enabled" if enabled else "disabled"
             detail = provider[:120]
+        elif key == "web_research":
+            enabled = True
+            status = "available"
+            web_urls = parse_research_urls(
+                "\n".join([
+                    str(context.get("web_urls") or "").strip(),
+                    str(context.get("web_research_urls") or "").strip(),
+                ]),
+                limit=MAX_URLS,
+            )
+            detail = f"urls:{len(web_urls)} browser:http".strip()[:180]
         elif key == "release_pipeline_api":
             enabled = bool(release_url)
             status = "configured" if enabled and release_token else ("public" if enabled else "missing")
@@ -7063,6 +7083,41 @@ def _external_connectors_snapshot(*, page_context=None) -> dict:
         "connected_count": connected,
         "coverage": f"{connected}/{len(items)}",
         "ready": connected >= 3,
+    }
+
+
+def _operator_web_research_snapshot(*, page_context=None) -> dict:
+    context = page_context if isinstance(page_context, dict) else {}
+    raw_urls = "\n".join([
+        str(context.get("web_urls") or "").strip(),
+        str(context.get("web_research_urls") or "").strip(),
+        str(context.get("web_url") or "").strip(),
+    ]).strip()
+    if not raw_urls:
+        return {
+            "enabled": False,
+            "reason": "no_web_urls",
+            "sources": [],
+        }
+    try:
+        rows = compact_web_research(
+            fetch_web_research_with_browser(raw_urls, prefer_browser=True),
+            max_sources=4,
+            max_text_chars=1400,
+        )
+    except Exception as exc:
+        return {
+            "enabled": False,
+            "reason": f"web_research_error:{str(exc)[:120]}",
+            "sources": [],
+        }
+    ok_count = len([row for row in rows if bool(row.get("ok"))])
+    return {
+        "enabled": True,
+        "reason": "fetched" if ok_count else "no_valid_sources",
+        "source_count": len(rows),
+        "ok_count": ok_count,
+        "sources": rows,
     }
 
 
