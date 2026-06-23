@@ -34730,11 +34730,19 @@
 	      window.visualViewport?.addEventListener('resize', scheduleResize);
 	    } catch (error) { /* ignore */ }
 
-			    let isSubmitting = false;
-			    const submitLockIds = [
-			      'task-submit-btn',
-			      'task-builder-save-top',
-			      'tactics-save-top',
+	    let isSubmitting = false;
+	    try {
+	      if (form.dataset && form.dataset.webstatsTpadSubmitBound === '1') {
+	        return;
+	      }
+	      if (form.dataset) form.dataset.webstatsTpadSubmitBound = '1';
+	    } catch (error) {
+	      /* ignore */
+	    }
+	    const submitLockIds = [
+	      'task-submit-btn',
+	      'task-builder-save-top',
+	      'tactics-save-top',
 			      'tactics-save-task-top',
 			      'tactics-save-task-system-top',
 			      'tactics-save-clip-top',
