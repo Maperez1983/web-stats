@@ -67,3 +67,81 @@ def list_render_services(*, timeout: int = DEFAULT_TIMEOUT, limit: int = 5) -> d
         "service_count": len(payload or []),
         "services": rows,
     }
+
+
+def _normalize_env_keys(payload) -> list[str]:
+    keys = []
+    seen = set()
+    for row in payload or []:
+        env = row.get("envVar") if isinstance(row, dict) else {}
+        if not isinstance(env, dict):
+            continue
+        key = str(env.get("key") or "").strip()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        keys.append(key)
+    return keys
+
+
+def _normalize_deploy_summary(payload) -> dict:
+    deploys = []
+    for row in payload or []:
+        deploy = row.get("deploy") if isinstance(row, dict) else row
+        if not isinstance(deploy, dict):
+            continue
+        deploys.append({
+            "id": str(deploy.get("id") or "")[:80],
+            "status": str(deploy.get("status") or "")[:40],
+            "trigger": str(deploy.get("trigger") or "")[:40],
+            "created_at": str(deploy.get("createdAt") or "")[:40],
+            "started_at": str(deploy.get("startedAt") or "")[:40],
+            "finished_at": str(deploy.get("finishedAt") or "")[:40],
+            "commit": str((deploy.get("commit") or {}).get("id") or "")[:64],
+        })
+    return {
+        "count": len(deploys),
+        "latest": deploys[0] if deploys else {},
+        "items": deploys[:3],
+    }
+
+
+def inspect_render_service(service_id: str, *, timeout: int = DEFAULT_TIMEOUT, env_limit: int = 40, deploy_limit: int = 3) -> dict:
+    service = str(service_id or "").strip()
+    if not service:
+        return {"enabled": False, "reason": "missing_service_id", "service": {}}
+    service_payload, meta = _request(f"/services/{urllib.parse.quote(service)}", timeout=timeout)
+    if not meta.get("ok"):
+        return {"enabled": False, "reason": meta.get("error") or "request_failed", "service": {"id": service}}
+    env_payload, env_meta = _request(f"/services/{urllib.parse.quote(service)}/env-vars", timeout=timeout)
+    deploy_payload, deploy_meta = _request(f"/services/{urllib.parse.quote(service)}/deploys", timeout=timeout)
+    service_obj = service_payload if isinstance(service_payload, dict) else {}
+    service_details = service_obj.get("serviceDetails") if isinstance(service_obj.get("serviceDetails"), dict) else service_obj.get("serviceDetails")
+    return {
+        "enabled": True,
+        "reason": "connected",
+        "service": {
+            "id": str(service_obj.get("id") or service)[:80],
+            "name": str(service_obj.get("name") or "")[:120],
+            "type": str(service_obj.get("type") or "")[:40],
+            "branch": str(service_obj.get("branch") or "")[:80],
+            "slug": str(service_obj.get("slug") or "")[:80],
+            "dashboard_url": str(service_obj.get("dashboardUrl") or "")[:220],
+            "suspended": str(service_obj.get("suspended") or "")[:40],
+            "repo": str(service_obj.get("repo") or "")[:220],
+            "root_dir": str(service_obj.get("rootDir") or "")[:120],
+            "service_details_type": type(service_details).__name__,
+        },
+        "env": {
+            "enabled": bool(env_meta.get("ok")),
+            "count": len(env_payload or []) if isinstance(env_payload, list) else 0,
+            "keys": _normalize_env_keys(env_payload)[:max(1, int(env_limit or 40))] if env_meta.get("ok") else [],
+            "reason": env_meta.get("error") or "",
+        },
+        "deploys": {
+            "enabled": bool(deploy_meta.get("ok")),
+            "count": len(deploy_payload or []) if isinstance(deploy_payload, list) else 0,
+            "summary": _normalize_deploy_summary(deploy_payload) if deploy_meta.get("ok") else {"count": 0, "latest": {}, "items": []},
+            "reason": deploy_meta.get("error") or "",
+        },
+    }

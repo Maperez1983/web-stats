@@ -31,7 +31,7 @@ from football.library_repositories import (
     normalize_library_repository,
 )
 from football.local_llm import call_ollama_json, local_llm_config
-from football.render_api import list_render_services, render_api_key
+from football.render_api import inspect_render_service, list_render_services, render_api_key
 from football.web_research import MAX_URLS, compact_web_research, fetch_web_research_with_browser, parse_research_urls, search_web_research
 from football.models import Competition, ConvocationRecord, Group, Match, Player, RivalAnalysisReport, SessionTask, Team, TrainingMicrocycle, TrainingSession, WorkspaceCompetitionContext, WorkspacePreference, WorkspaceSeason, WorkspaceTeam
 from football.task_backups import write_task_backup
@@ -7134,14 +7134,34 @@ def _external_connectors_snapshot(*, page_context=None) -> dict:
             enabled = bool(api_key)
             if enabled:
                 snapshot = list_render_services(limit=4)
+                service_rows = [row for row in (snapshot.get("services") or []) if isinstance(row, dict)]
+                focus_ids = [
+                    str(context.get("render_service_id") or "").strip(),
+                    *[str(item.get("id") or "").strip() for item in service_rows[:2]],
+                ]
+                inspections = []
+                seen_ids = set()
+                for service_id in focus_ids:
+                    if not service_id or service_id in seen_ids:
+                        continue
+                    seen_ids.add(service_id)
+                    inspection = inspect_render_service(service_id, env_limit=12, deploy_limit=2)
+                    if isinstance(inspection, dict) and inspection.get("enabled"):
+                        inspections.append(inspection)
                 status = "connected" if snapshot.get("enabled") else "degraded"
-                service_preview = ", ".join(
-                    [str(row.get("name") or row.get("id") or "") for row in (snapshot.get("services") or []) if isinstance(row, dict)][:4]
-                )
+                service_preview = ", ".join([str(row.get("name") or row.get("id") or "") for row in service_rows][:4])
                 detail = f"services:{_safe_int(snapshot.get('service_count'), 0)} {service_preview}".strip()[:180]
+                if inspections:
+                    detail = f"{detail} inspected:{len(inspections)}"[:180]
+                enabled = bool(snapshot.get("enabled"))
+                item_extra = {
+                    "services": service_rows[:4],
+                    "inspections": inspections[:2],
+                }
             else:
                 status = "missing_token"
                 detail = "OLLANA_RENDER_API_KEY"
+                item_extra = {}
         elif key == "local_llm":
             enabled = bool(llm_cfg.get("enabled"))
             provider = str(llm_cfg.get("provider") or "").strip()
@@ -7189,6 +7209,7 @@ def _external_connectors_snapshot(*, page_context=None) -> dict:
             "enabled": bool(enabled),
             "status": status[:32],
             "detail": detail,
+            **(item_extra if key == "render_api" and isinstance(item_extra, dict) else {}),
         })
     connected = len([row for row in items if bool(row.get("enabled"))])
     return {

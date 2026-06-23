@@ -878,8 +878,9 @@ class SystemGuardTests(TestCase):
         self.assertEqual(items['rollback_trigger_api']['status'], 'armed')
 
     @patch.dict(os.environ, {'OLLANA_RENDER_API_KEY': 'token-render'}, clear=False)
+    @patch('football.system_guard.inspect_render_service')
     @patch('football.system_guard.list_render_services')
-    def test_external_connectors_snapshot_reports_render_api(self, mock_list_render_services):
+    def test_external_connectors_snapshot_reports_render_api(self, mock_list_render_services, mock_inspect_render_service):
         mock_list_render_services.return_value = {
             'enabled': True,
             'reason': 'connected',
@@ -889,11 +890,31 @@ class SystemGuardTests(TestCase):
                 {'name': 'web-stats', 'id': 'srv-2', 'type': 'web_service'},
             ],
         }
+        mock_inspect_render_service.side_effect = [
+            {
+                'enabled': True,
+                'reason': 'connected',
+                'service': {'id': 'srv-1', 'name': 'web-stats-ollana-operator', 'type': 'background_worker', 'branch': 'main', 'slug': 'web-stats-ollana-operator'},
+                'env': {'enabled': True, 'count': 2, 'keys': ['OLLANA_RENDER_API_KEY', 'DATABASE_URL'], 'reason': ''},
+                'deploys': {'enabled': True, 'count': 1, 'summary': {'count': 1, 'latest': {'id': 'dep-1', 'status': 'live'}, 'items': []}, 'reason': ''},
+            },
+            {
+                'enabled': True,
+                'reason': 'connected',
+                'service': {'id': 'srv-2', 'name': 'web-stats', 'type': 'web_service', 'branch': 'main', 'slug': 'web-stats'},
+                'env': {'enabled': True, 'count': 2, 'keys': ['SECRET_KEY', 'DATABASE_URL'], 'reason': ''},
+                'deploys': {'enabled': True, 'count': 1, 'summary': {'count': 1, 'latest': {'id': 'dep-2', 'status': 'live'}, 'items': []}, 'reason': ''},
+            },
+        ]
         snapshot = system_guard._external_connectors_snapshot(page_context={'page': 'dashboard-home'})
         items = {row['key']: row for row in snapshot['items']}
         self.assertEqual(items['render_api']['status'], 'connected')
         self.assertIn('web-stats-ollana-operator', items['render_api']['detail'])
+        self.assertIn('services', items['render_api'])
+        self.assertIn('inspections', items['render_api'])
+        self.assertEqual(len(items['render_api']['inspections']), 2)
         mock_list_render_services.assert_called_once()
+        self.assertEqual(mock_inspect_render_service.call_count, 2)
 
     def test_safe_command_executor_snapshot_respects_code_permissions(self):
         snapshot = system_guard._safe_command_executor_snapshot(page_context={
