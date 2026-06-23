@@ -94,6 +94,12 @@
       body.session-task-detail-page.is-presentation .hero-note {
         color: rgba(18, 32, 51, 0.74);
       }
+      body.session-task-detail-page.is-presentation .coach-summary,
+      body.session-task-detail-page.is-presentation .presentation-workbench,
+      body.session-task-detail-page.is-presentation .task-edit-panel,
+      body.session-task-detail-page.is-presentation .task-detail-tab-panel {
+        color: #122033;
+      }
       .page { max-width: 980px; margin: 0 auto; padding: 1.1rem; }
       .top {
         display: flex;
@@ -609,6 +615,24 @@
       }
       body.session-task-detail-page.is-presentation .status-chip.ok { background: rgba(220, 252, 231, 0.95); }
       body.session-task-detail-page.is-presentation .status-chip.warn { background: rgba(254, 243, 199, 0.95); }
+      .coach-summary-alerts {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+      }
+      .coach-summary-alert {
+        margin: 0;
+        padding: 0.5rem 0.65rem;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.05);
+        font-size: 0.8rem;
+        line-height: 1.35;
+      }
+      body.session-task-detail-page.is-presentation .coach-summary-alert {
+        border-color: rgba(18, 32, 51, 0.12);
+        background: rgba(255, 255, 255, 0.9);
+      }
       .presentation-workbench-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -961,6 +985,40 @@
       .iconify-btn.is-hidden {
         display: none;
       }
+      @media (max-width: 720px) {
+        .page {
+          padding: 0.7rem;
+        }
+        .top {
+          padding: 0.85rem;
+        }
+        .top-actions {
+          width: 100%;
+        }
+        .top-actions .button {
+          flex: 1 1 auto;
+        }
+        .task-detail-tabs {
+          width: 100%;
+        }
+        .task-detail-tab {
+          flex: 1 1 0;
+          min-width: 0;
+        }
+        .coach-summary-head {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .coach-summary-grid {
+          grid-template-columns: 1fr;
+        }
+        .coach-summary-alerts {
+          flex-direction: column;
+        }
+        .presentation-workbench-grid {
+          grid-template-columns: 1fr;
+        }
+      }
       @media (max-width: 980px) {
         .hero-sheet {
           grid-template-columns: 1fr;
@@ -994,7 +1052,7 @@
             <span class="top-pill">{{ task.get_block_display }}</span>
             <span class="top-pill">{{ task.duration_minutes }} min</span>
             {% if task.category %}<span class="top-pill">{{ task.category }}</span>{% endif %}
-            <span class="top-pill">{% if active_task_tab == 'edit' %}Edición{% elif active_task_tab == 'export' %}Exportar{% elif is_editable_task %}Presentación{% else %}Solo lectura{% endif %}</span>
+            <span class="top-pill">{% if active_task_tab == 'edit' %}Configuración{% elif active_task_tab == 'export' %}Exportar{% elif is_editable_task %}Presentación{% else %}Solo lectura{% endif %}</span>
           </div>
         </div>
         <div class="top-actions">
@@ -1018,7 +1076,7 @@
         <div class="task-detail-tabs" role="tablist">
           <button type="button" class="button task-detail-tab{% if active_task_tab == 'presentation' %} is-active{% endif %}" data-task-tab="presentation" role="tab" aria-selected="{% if active_task_tab == 'presentation' %}true{% else %}false{% endif %}">Presentación</button>
           {% if can_edit_task %}
-          <button type="button" class="button task-detail-tab{% if active_task_tab == 'edit' %} is-active{% endif %}" data-task-tab="edit" role="tab" aria-selected="{% if active_task_tab == 'edit' %}true{% else %}false{% endif %}">Edición</button>
+          <button type="button" class="button task-detail-tab{% if active_task_tab == 'edit' %} is-active{% endif %}" data-task-tab="edit" role="tab" aria-selected="{% if active_task_tab == 'edit' %}true{% else %}false{% endif %}">Configuración</button>
           {% endif %}
           <button type="button" class="button task-detail-tab{% if active_task_tab == 'export' %} is-active{% endif %}" data-task-tab="export" role="tab" aria-selected="{% if active_task_tab == 'export' %}true{% else %}false{% endif %}">Exportar</button>
         </div>
@@ -1103,16 +1161,27 @@
         <p class="meta">Esta es la ficha HTML de la tarea. En modo edición, los controles viven debajo y actúan sobre esta misma vista.</p>
         {% endif %}
         <div class="coach-summary">
-          <div class="coach-summary-head">
-            <p class="coach-summary-note">Resumen rápido para decidir en segundos si la tarea está lista para entrenar, corregir o exportar.</p>
-            <div class="top-pills" aria-label="Estado rápido de la ficha">
-              <span class="status-chip {% if task.task_preview_image %}ok{% else %}warn{% endif %}">2D {% if task.task_preview_image %}listo{% else %}pendiente{% endif %}</span>
-              <span class="status-chip {% if animation_frames %}ok{% else %}warn{% endif %}">Secuencia {% if animation_frames %}lista{% else %}pendiente{% endif %}</span>
-              <span class="status-chip {% if task.task_pdf %}ok{% else %}neutral{% endif %}">PDF {% if task.task_pdf %}disponible{% else %}sin origen{% endif %}</span>
-              <span class="status-chip {% if task_meta.planned_rpe %}ok{% else %}neutral{% endif %}">Carga {% if task_meta.planned_rpe %}estimada{% else %}no definida{% endif %}</span>
-            </div>
+        <div class="coach-summary-head">
+          <p class="coach-summary-note">Resumen rápido para decidir en segundos si la tarea está lista para entrenar, corregir o exportar.</p>
+          <div class="top-pills" aria-label="Estado rápido de la ficha">
+            <span class="status-chip {% if task.task_preview_image %}ok{% else %}warn{% endif %}">2D {% if task.task_preview_image %}listo{% else %}pendiente{% endif %}</span>
+            <span class="status-chip {% if animation_frames %}ok{% else %}warn{% endif %}">Secuencia {% if animation_frames %}lista{% else %}pendiente{% endif %}</span>
+            <span class="status-chip {% if task.task_pdf %}ok{% else %}neutral{% endif %}">PDF {% if task.task_pdf %}disponible{% else %}sin origen{% endif %}</span>
+            <span class="status-chip {% if task_meta.planned_rpe %}ok{% else %}neutral{% endif %}">Carga {% if task_meta.planned_rpe %}estimada{% else %}no definida{% endif %}</span>
           </div>
-          <div class="coach-summary-grid">
+        </div>
+        <div class="coach-summary-alerts">
+          {% if not task.task_preview_image %}
+          <p class="coach-summary-alert">La ficha aún no tiene vista 2D guardada. El entrenador verá una tarea incompleta.</p>
+          {% endif %}
+          {% if not animation_frames %}
+          <p class="coach-summary-alert">No hay secuenciación 2D/3D activa. La explicación de la tarea queda más pobre para el staff.</p>
+          {% endif %}
+          {% if not task.task_pdf %}
+          <p class="coach-summary-alert">No existe PDF origen. La exportación dependerá del contenido HTML y del render actual.</p>
+          {% endif %}
+        </div>
+        <div class="coach-summary-grid">
             <div class="sheet-item">
               <strong>Objetivo</strong>
               <span>{{ task.objective|default:"-" }}</span>
