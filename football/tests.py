@@ -3625,6 +3625,23 @@ class SystemGuardTests(TestCase):
         mock_fetch.assert_called_once()
         mock_compact.assert_called_once()
 
+    @patch('football.system_guard.search_web_research')
+    @patch('football.system_guard.fetch_web_research_with_browser')
+    @patch('football.system_guard.compact_web_research')
+    def test_operator_web_research_snapshot_uses_search_query_when_no_urls(self, mock_compact, mock_fetch, mock_search):
+        mock_search.return_value = [{'url': 'https://example.com/doc', 'ok': True, 'method': 'search', 'title': 'Doc', 'snippet': 'Snippet'}]
+        mock_fetch.return_value = [{'url': 'https://example.com/doc', 'ok': True, 'method': 'browser', 'title': 'Doc', 'text': 'Contenido'}]
+        mock_compact.return_value = [{'url': 'https://example.com/doc', 'ok': True, 'method': 'browser', 'title': 'Doc', 'text': 'Contenido'}]
+        snapshot = system_guard._operator_web_research_snapshot(
+            page_context={'web_search_query': 'example query'}
+        )
+        self.assertTrue(snapshot['enabled'])
+        self.assertEqual(snapshot['reason'], 'fetched')
+        self.assertEqual(snapshot['ok_count'], 1)
+        mock_search.assert_called_once()
+        mock_fetch.assert_called_once()
+        mock_compact.assert_called_once()
+
     @patch('football.system_guard._observability_summary', return_value={'history_count': 0})
     @patch('football.system_guard.run_system_guard_chat', return_value={
         'report': {'issue_summary': {'blockers': 0, 'warnings': 0}},

@@ -31,7 +31,7 @@ from football.library_repositories import (
     normalize_library_repository,
 )
 from football.local_llm import call_ollama_json, local_llm_config
-from football.web_research import MAX_URLS, compact_web_research, fetch_web_research_with_browser, parse_research_urls
+from football.web_research import MAX_URLS, compact_web_research, fetch_web_research_with_browser, parse_research_urls, search_web_research
 from football.models import Competition, ConvocationRecord, Group, Match, Player, RivalAnalysisReport, SessionTask, Team, TrainingMicrocycle, TrainingSession, WorkspaceCompetitionContext, WorkspacePreference, WorkspaceSeason, WorkspaceTeam
 from football.task_backups import write_task_backup
 from football.session_import_services import get_or_create_inbox_microcycle, get_or_create_library_session_with_repository
@@ -7093,18 +7093,24 @@ def _operator_web_research_snapshot(*, page_context=None) -> dict:
         str(context.get("web_research_urls") or "").strip(),
         str(context.get("web_url") or "").strip(),
     ]).strip()
-    if not raw_urls:
+    web_query = str(context.get("web_search_query") or context.get("web_query") or context.get("search_query") or "").strip()
+    if not raw_urls and not web_query:
         return {
             "enabled": False,
-            "reason": "no_web_urls",
+            "reason": "no_web_inputs",
             "sources": [],
         }
     try:
-        rows = compact_web_research(
-            fetch_web_research_with_browser(raw_urls, prefer_browser=True),
-            max_sources=4,
-            max_text_chars=1400,
-        )
+        rows = []
+        if web_query:
+            search_rows = search_web_research(web_query, max_results=MAX_URLS)
+            rows.extend(search_rows)
+            search_urls = "\n".join([str(row.get("url") or "") for row in search_rows if isinstance(row, dict) and row.get("ok")])
+            if search_urls:
+                rows.extend(fetch_web_research_with_browser(search_urls, prefer_browser=True))
+        if raw_urls:
+            rows.extend(fetch_web_research_with_browser(raw_urls, prefer_browser=True))
+        rows = compact_web_research(rows, max_sources=4, max_text_chars=1400)
     except Exception as exc:
         return {
             "enabled": False,

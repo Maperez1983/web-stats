@@ -1,4 +1,6 @@
 import ipaddress
+import html
+import re
 import socket
 import urllib.error
 import urllib.parse
@@ -11,6 +13,7 @@ MAX_URLS = 4
 MAX_BYTES = 900_000
 MAX_TEXT_CHARS = 6000
 BROWSER_WAIT_MS = 2500
+SEARCH_ENGINE_URL = "https://html.duckduckgo.com/html/"
 
 
 class _ReadableHTMLParser(HTMLParser):
@@ -64,6 +67,146 @@ class _ReadableHTMLParser(HTMLParser):
             lines.append(clean)
             seen_blank = False
         return '\n'.join(lines).strip()
+
+
+class _DuckDuckGoSearchParser(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.results = []
+        self._capture_link = False
+        self._capture_snippet = False
+        self._current_href = ''
+        self._current_title = []
+        self._current_snippet = []
+
+    def _flush(self):
+        href = str(self._current_href or '').strip()
+        title = ' '.join(' '.join(self._current_title).split()).strip()
+        snippet = ' '.join(' '.join(self._current_snippet).split()).strip()
+        if href or title or snippet:
+            self.results.append({
+                'url': href,
+                'title': html.unescape(title)[:220],
+                'snippet': html.unescape(snippet)[:400],
+            })
+        self._capture_link = False
+        self._capture_snippet = False
+        self._current_href = ''
+        self._current_title = []
+        self._current_snippet = []
+
+    def handle_starttag(self, tag, attrs):
+        tag = str(tag or '').lower()
+        attrs = {str(k or '').lower(): str(v or '') for k, v in (attrs or [])}
+        if tag == 'a' and 'result__a' in str(attrs.get('class') or ''):
+            if self._capture_link or self._capture_snippet:
+                self._flush()
+            self._capture_link = True
+            self._current_href = str(attrs.get('href') or '')
+        elif tag in {'span', 'a'} and 'result__snippet' in str(attrs.get('class') or ''):
+            self._capture_snippet = True
+
+    def handle_endtag(self, tag):
+        tag = str(tag or '').lower()
+        if tag == 'a' and self._capture_link:
+            self._capture_link = False
+        if tag == 'span' and self._capture_snippet:
+            self._capture_snippet = False
+        if tag == 'div' and (self._current_href or self._current_title or self._current_snippet):
+            self._flush()
+
+    def handle_data(self, data):
+        text = str(data or '').strip()
+        if not text:
+            return
+        if self._capture_link:
+            self._current_title.append(text)
+        elif self._capture_snippet:
+            self._current_snippet.append(text)
+
+
+def _normalize_search_result_url(url: str) -> str:
+    parsed = urllib.parse.urlparse(str(url or '').strip())
+    if parsed.netloc == 'duckduckgo.com' and parsed.path.startswith('/l/'):
+        qs = urllib.parse.parse_qs(parsed.query)
+        uddg = str((qs.get('uddg') or [''])[0] or '').strip()
+        if uddg:
+            return urllib.parse.unquote(uddg)
+    if not parsed.scheme:
+        if parsed.netloc:
+            return urllib.parse.urlunparse(('https', parsed.netloc, parsed.path or '/', '', parsed.query, ''))
+        if str(url or '').startswith('//'):
+            return f"https:{url}"
+    return urllib.parse.urlunparse((parsed.scheme or 'https', parsed.netloc, parsed.path or '/', '', parsed.query, ''))
+
+
+def search_web_research(query, *, timeout=DEFAULT_TIMEOUT, max_results=MAX_URLS):
+    text = str(query or '').strip()
+    if not text:
+        return []
+    search_url = f"{SEARCH_ENGINE_URL}?{urllib.parse.urlencode({'q': text})}"
+    req = urllib.request.Request(
+        search_url,
+        headers={
+            'User-Agent': 'SegundaJugadaAITrainer/1.0 (+local coach research)',
+            'Accept': 'text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.2',
+        },
+        method='GET',
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=max(2, int(timeout or DEFAULT_TIMEOUT))) as resp:
+            raw = resp.read(MAX_BYTES + 1)
+            if len(raw) > MAX_BYTES:
+                return [{'url': search_url, 'ok': False, 'error': 'response_too_large', 'title': '', 'snippet': '', 'method': 'search'}]
+            charset = resp.headers.get_content_charset() or 'utf-8'
+    except Exception as exc:
+        return [{'url': search_url, 'ok': False, 'error': f'search_error:{str(exc)[:120]}', 'title': '', 'snippet': '', 'method': 'search'}]
+    decoded = raw.decode(charset, errors='replace')
+    anchors = list(re.finditer(
+        r'<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>(.*?)</a>',
+        decoded,
+        flags=re.IGNORECASE | re.DOTALL,
+    ))
+    snippets = [m.group(1) for m in re.finditer(
+        r'<span[^>]*class="[^"]*result__snippet[^"]*"[^>]*>(.*?)</span>',
+        decoded,
+        flags=re.IGNORECASE | re.DOTALL,
+    )]
+    results = []
+    for index, match in enumerate(anchors):
+        href, title_html = match.groups()
+        title = re.sub(r'<[^>]+>', ' ', title_html or '')
+        snippet_html = snippets[index] if index < len(snippets) else ''
+        snippet = re.sub(r'<[^>]+>', ' ', snippet_html or '')
+        results.append({
+            'url': href,
+            'title': title,
+            'snippet': snippet,
+        })
+    rows = []
+    seen = set()
+    for item in results:
+        url = _normalize_search_result_url(item.get('url') or '')
+        if not url:
+            continue
+        key = url.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        rows.append({
+            'url': url[:500],
+            'ok': True,
+            'error': '',
+            'title': str(item.get('title') or '')[:220],
+            'snippet': str(item.get('snippet') or '')[:400],
+            'method': 'search',
+            'query': text[:300],
+        })
+        if len(rows) >= max(1, int(max_results or MAX_URLS)):
+            break
+    if not rows:
+        rows.append({'url': search_url, 'ok': False, 'error': 'no_results', 'title': '', 'snippet': '', 'method': 'search'})
+    return rows
 
 
 def parse_research_urls(raw, *, limit=MAX_URLS):

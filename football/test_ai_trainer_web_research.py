@@ -9,6 +9,7 @@ from football.web_research import (
     compact_web_research,
     fetch_web_research_with_browser,
     parse_research_urls,
+    search_web_research,
 )
 
 
@@ -70,3 +71,35 @@ class AiTrainerWebResearchTests(SimpleTestCase):
     def test_compact_web_research_keeps_method(self):
         rows = compact_web_research([{'url': 'https://example.com/', 'ok': True, 'method': 'browser', 'title': 'T', 'text': 'abc'}])
         self.assertEqual(rows[0]['method'], 'browser')
+
+    def test_search_web_research_parses_public_results(self):
+        html = """
+        <html><body>
+          <a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Fdoc">Example doc</a>
+          <span class="result__snippet">Prueba de snippet</span>
+        </body></html>
+        """
+
+        class FakeResponse:
+            headers = mock.Mock()
+
+            def __init__(self, payload):
+                self._payload = payload.encode('utf-8')
+                self.headers.get_content_charset.return_value = 'utf-8'
+
+            def read(self, _limit):
+                return self._payload
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_exc):
+                return False
+
+        with mock.patch('football.web_research.urllib.request.urlopen', return_value=FakeResponse(html)):
+            rows = search_web_research('example query', max_results=4)
+
+        self.assertTrue(rows)
+        self.assertEqual(rows[0]['url'], 'https://example.com/doc')
+        self.assertEqual(rows[0]['title'], 'Example doc')
+        self.assertEqual(rows[0]['snippet'], 'Prueba de snippet')
