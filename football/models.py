@@ -1,6 +1,7 @@
 from django.db import models
 from django.db.models import Q
 from django.db.models.functions import Lower
+from django.contrib.auth.hashers import check_password, make_password
 from django.utils import timezone
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -3345,6 +3346,83 @@ class WorkspaceMembership(models.Model):
 
     def __str__(self):
         return f'{self.workspace.name} · {self.user.username}'
+
+
+class ServiceAccessToken(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='service_access_tokens')
+    name = models.CharField(max_length=140, blank=True)
+    token_prefix = models.CharField(max_length=16, db_index=True)
+    token_hash = models.CharField(max_length=180)
+    workspace = models.ForeignKey(
+        Workspace,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='service_access_tokens',
+    )
+    is_active = models.BooleanField(default=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.CharField(max_length=80, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        verbose_name = 'Token de acceso de servicio'
+        verbose_name_plural = 'Tokens de acceso de servicio'
+        indexes = [
+            models.Index(fields=['token_prefix', 'is_active']),
+            models.Index(fields=['user', 'is_active']),
+        ]
+
+    @classmethod
+    def generate_token(cls):
+        return secrets.token_urlsafe(32)
+
+    @staticmethod
+    def _token_prefix(raw_token: str) -> str:
+        return str(raw_token or '').strip()[:16]
+
+    @classmethod
+    def create_for_user(cls, *, user, name='', workspace=None, created_by='', expires_at=None):
+        raw_token = cls.generate_token()
+        token = cls(
+            user=user,
+            name=str(name or '').strip(),
+            token_prefix=cls._token_prefix(raw_token),
+            token_hash=make_password(raw_token),
+            workspace=workspace,
+            created_by=str(created_by or '').strip(),
+            expires_at=expires_at,
+            is_active=True,
+        )
+        token.save()
+        return token, raw_token
+
+    def set_token(self, raw_token: str):
+        raw_token = str(raw_token or '').strip()
+        self.token_prefix = self._token_prefix(raw_token)
+        self.token_hash = make_password(raw_token)
+
+    def check_token(self, raw_token: str) -> bool:
+        raw_token = str(raw_token or '').strip()
+        if not raw_token or not (self.token_hash or '').strip():
+            return False
+        try:
+            return check_password(raw_token, self.token_hash)
+        except Exception:
+            return False
+
+    def is_expired(self, now=None):
+        reference = now or timezone.now()
+        return bool(self.expires_at and self.expires_at <= reference)
+
+    def can_be_used(self, now=None):
+        return bool(self.is_active and not self.is_expired(now=now))
+
+    def __str__(self):
+        label = self.name or self.token_prefix or f'token-{self.id}'
+        return f'{self.user.username} · {label}'
 
 
 class TaskStudioProfile(models.Model):

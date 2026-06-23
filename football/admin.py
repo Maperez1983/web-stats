@@ -166,6 +166,18 @@ class AiTrainerDictionaryEntryAdmin(admin.ModelAdmin):
     search_fields = ('entry_key', 'label', 'keywords', 'coaching_points')
 
 
+@admin.register(models.ServiceAccessToken)
+class ServiceAccessTokenAdmin(admin.ModelAdmin):
+    list_display = ('created_at', 'user', 'name', 'workspace', 'token_prefix', 'is_active', 'expires_at', 'last_used_at')
+    list_filter = ('is_active', 'workspace')
+    search_fields = ('user__username', 'user__email', 'name', 'token_prefix')
+    autocomplete_fields = ('user', 'workspace')
+    readonly_fields = ('token_prefix', 'token_hash', 'created_at', 'last_used_at')
+
+    def has_add_permission(self, request):
+        return False
+
+
 @admin.register(models.AcademyMediaAsset)
 class AcademyMediaAssetAdmin(admin.ModelAdmin):
     list_display = ('created_at', 'kind', 'title', 'is_active')

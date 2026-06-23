@@ -5,15 +5,21 @@ import os
 import re
 from urllib.parse import quote, urlparse
 
+from django.conf import settings
+from django.contrib.auth import login as auth_login
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.forms import AuthenticationForm
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect
 from django.urls import Resolver404, resolve, reverse
 from django.utils.html import escape
+from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 
-from .models import AppUserRole
+from .models import AppUserRole, ServiceAccessToken
 from .workspace_context import can_access_platform as workspace_can_access_platform
+from .workspace_context import available_workspaces_for_user as workspace_available_workspaces_for_user
 from .workspace_context import get_user_role as workspace_get_user_role
 
 
@@ -120,6 +126,58 @@ def _should_login_js_redirect(request) -> bool:
         return True
     # iPadOS modernos a veces reportan "Macintosh" pero con AppleWebKit + Mobile.
     if "macintosh" in ua_l and "applewebkit" in ua_l and "mobile" in ua_l:
+        return True
+    return False
+
+
+def _post_login_redirect_target(request, user, requested_next: str = "") -> str:
+    requested_next = str(requested_next or "").strip()
+    if _is_blocked_next_for_user(user, requested_next):
+        return reverse("dashboard-home")
+    if requested_next:
+        try:
+            path = str(requested_next).split("?", 1)[0]
+        except Exception:
+            path = ""
+        if path and path.startswith(("/static/", "/media/")):
+            return requested_next
+        if path and path.startswith("/"):
+            try:
+                resolve(path)
+            except Resolver404:
+                requested_next = ""
+            except Exception:
+                logger.debug("No se pudo resolver next post-login %s", path, exc_info=True)
+    if requested_next:
+        return requested_next
+    if _can_access_platform(user):
+        try:
+            if hasattr(request, "session") and int(request.session.get("active_workspace_id") or 0) > 0:
+                return f"{reverse('dashboard-home')}?home=club"
+        except Exception:
+            logger.debug("No se pudo leer active_workspace_id post-login", exc_info=True)
+        return reverse("platform-overview")
+    return reverse("dashboard-home")
+
+
+def _is_blocked_next_for_user(user, next_url: str) -> bool:
+    if not next_url:
+        return False
+    path = str(next_url).split("?", 1)[0]
+    if not path.startswith("/"):
+        return False
+
+    # Siempre bloqueamos rutas de plataforma/admin si el usuario no es admin.
+    if path.startswith("/platform") or path.startswith("/admin-tools") or path.startswith("/admin/"):
+        return not _can_access_platform(user)
+
+    role = _get_user_role(user) or AppUserRole.ROLE_PLAYER
+    if role == AppUserRole.ROLE_PLAYER:
+        # Un jugador no debería aterrizar en módulos de staff por `next`.
+        if re.match(r"^/(coach|convocatoria|registro-acciones|incidencias)\b", path):
+            return True
+        if path.startswith("/player/") or path.startswith("/players/") or path == "/":
+            return False
         return True
     return False
 
@@ -270,55 +328,138 @@ class RoleAwareLoginView(auth_views.LoginView):
         return response
 
     def _is_blocked_next(self, user, next_url: str) -> bool:
-        if not next_url:
-            return False
-        path = str(next_url).split("?", 1)[0]
-        if not path.startswith("/"):
-            return False
-
-        # Siempre bloqueamos rutas de plataforma/admin si el usuario no es admin.
-        if path.startswith("/platform") or path.startswith("/admin-tools") or path.startswith("/admin/"):
-            return not _can_access_platform(user)
-
-        role = _get_user_role(user) or AppUserRole.ROLE_PLAYER
-        if role == AppUserRole.ROLE_PLAYER:
-            # Un jugador no debería aterrizar en módulos de staff por `next`.
-            if re.match(r"^/(coach|convocatoria|registro-acciones|incidencias)\b", path):
-                return True
-            if path.startswith("/player/") or path.startswith("/players/") or path == "/":
-                return False
-            return True
-        return False
+        return _is_blocked_next_for_user(user, next_url)
 
     def get_success_url(self):
-        requested_next = self.get_redirect_url()
-        if self._is_blocked_next(self.request.user, requested_next):
-            return reverse("dashboard-home")
-        if requested_next:
-            # Si `next` apunta a una ruta inexistente (links viejos, errores de JS),
-            # evitamos mandar al usuario a un 404 tras loguearse.
-            try:
-                path = str(requested_next).split("?", 1)[0]
-            except Exception:
-                path = ""
-            if path and path.startswith(("/static/", "/media/")):
-                return requested_next
-            if path and path.startswith("/"):
-                try:
-                    resolve(path)
-                except Resolver404:
-                    requested_next = ""
-                except Exception:
-                    logger.debug("No se pudo resolver next post-login %s", path, exc_info=True)
-        if requested_next:
-            return requested_next
-        # Producto: usuario de plataforma aterriza en /platform/ para elegir cliente/espacio.
-        if _can_access_platform(self.request.user):
-            # Si ya hay un cliente activo, evitamos “reiniciar” siempre en Platform al abrir la app.
-            try:
-                if hasattr(self.request, "session") and int(self.request.session.get("active_workspace_id") or 0) > 0:
-                    return f"{reverse('dashboard-home')}?home=club"
-            except Exception:
-                logger.debug("No se pudo leer active_workspace_id post-login", exc_info=True)
-            return reverse("platform-overview")
-        return reverse("dashboard-home")
+        return _post_login_redirect_target(self.request, self.request.user, self.get_redirect_url())
+
+
+def _extract_service_token(request) -> str:
+    header = str(getattr(request, "headers", {}).get("Authorization") or "").strip()
+    if header.lower().startswith("bearer "):
+        candidate = header.split(None, 1)[1].strip()
+        if candidate:
+            return candidate
+    for key in ("X-Service-Token", "X-Api-Key", "service_token", "token"):
+        candidate = str(getattr(request, "headers", {}).get(key) or request.POST.get(key) or request.GET.get(key) or "").strip()
+        if candidate:
+            return candidate
+    return ""
+
+
+def _service_login_get_form(request) -> HttpResponse:
+    next_url = escape(str(request.GET.get("next") or "").strip())
+    html = f"""<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Acceso de servicio</title>
+  <style>
+    body {{ font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; margin: 0; padding: 32px; background: #0f172a; color: #e2e8f0; }}
+    .card {{ max-width: 520px; margin: 0 auto; background: #111827; border: 1px solid #334155; border-radius: 16px; padding: 24px; }}
+    input {{ width: 100%; box-sizing: border-box; margin: 8px 0 16px; padding: 12px 14px; border-radius: 10px; border: 1px solid #475569; background: #020617; color: #f8fafc; }}
+    button {{ padding: 12px 16px; border: 0; border-radius: 10px; background: #22c55e; color: #052e16; font-weight: 700; cursor: pointer; }}
+    small {{ color: #94a3b8; }}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Acceso de servicio</h1>
+    <p>Pega un token de servicio para abrir una sesión de usuario en la app.</p>
+    <form method="post">
+      <input type="hidden" name="next" value="{next_url}">
+      <label for="service_token">Token</label>
+      <input id="service_token" name="service_token" type="password" autocomplete="off" spellcheck="false" autofocus>
+      <button type="submit">Entrar</button>
+    </form>
+    <p><small>Este endpoint intercambia un token de servicio por una sesión de Django.</small></p>
+  </div>
+</body>
+</html>"""
+    response = HttpResponse(html)
+    response["Cache-Control"] = "no-store"
+    return response
+
+
+def _service_login_failure(request, message: str, status_code: int = 403):
+    wants_json = "application/json" in str(getattr(request, "headers", {}).get("Accept") or "")
+    if wants_json:
+        return JsonResponse({"ok": False, "error": message}, status=status_code)
+    response = _service_login_get_form(request)
+    response.status_code = status_code
+    response.content = response.content.replace(b"</h1>", f"</h1><p style=\"color:#fca5a5;\">{escape(message)}</p>".encode("utf-8"))
+    return response
+
+
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
+def service_token_login_page(request):
+    if request.method == "GET":
+        return _service_login_get_form(request)
+
+    raw_token = _extract_service_token(request)
+    if not raw_token:
+        return _service_login_failure(request, "Falta el token de servicio.", status_code=400)
+
+    token_prefix = ServiceAccessToken._token_prefix(raw_token)
+    candidates = (
+        ServiceAccessToken.objects
+        .select_related("user", "workspace")
+        .filter(is_active=True, token_prefix=token_prefix)
+        .order_by("-created_at", "-id")
+    )
+    token_obj = None
+    for candidate in candidates[:10]:
+        if candidate.check_token(raw_token):
+            token_obj = candidate
+            break
+    if not token_obj:
+        return _service_login_failure(request, "Token de servicio inválido o desactivado.")
+    if token_obj.is_expired():
+        return _service_login_failure(request, "Token de servicio caducado.")
+
+    user = getattr(token_obj, "user", None)
+    if not user or not user.is_active:
+        return _service_login_failure(request, "El usuario asociado al token no está activo.")
+
+    auth_login(request, user, backend=settings.AUTHENTICATION_BACKENDS[0])
+
+    try:
+        if token_obj.expires_at:
+            remaining = int((token_obj.expires_at - timezone.now()).total_seconds())
+            if remaining > 0:
+                request.session.set_expiry(remaining)
+    except Exception:
+        logger.debug("No se pudo ajustar expiracion de sesion desde token", exc_info=True)
+
+    try:
+        available_qs = workspace_available_workspaces_for_user(user)
+        if token_obj.workspace_id and available_qs.filter(id=token_obj.workspace_id).exists():
+            request.session["active_workspace_id"] = int(token_obj.workspace_id)
+        else:
+            available_ids = list(available_qs.order_by("id").values_list("id", flat=True)[:2])
+            if len(available_ids) == 1:
+                request.session["active_workspace_id"] = int(available_ids[0])
+    except Exception:
+        logger.debug("No se pudo fijar active_workspace_id desde token", exc_info=True)
+
+    try:
+        token_obj.last_used_at = timezone.now()
+        token_obj.save(update_fields=["last_used_at"])
+    except Exception:
+        logger.debug("No se pudo actualizar last_used_at del token", exc_info=True)
+
+    next_url = str(request.POST.get("next") or request.GET.get("next") or "").strip()
+    redirect_url = _post_login_redirect_target(request, user, next_url)
+    wants_json = "application/json" in str(getattr(request, "headers", {}).get("Accept") or "")
+    if wants_json:
+        return JsonResponse(
+            {
+                "ok": True,
+                "redirect": redirect_url,
+                "username": getattr(user, "username", ""),
+                "workspace_id": int(request.session.get("active_workspace_id") or 0) or None,
+            }
+        )
+    return redirect(redirect_url)

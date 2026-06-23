@@ -22,7 +22,7 @@ from django.test import RequestFactory, SimpleTestCase, TestCase, TransactionTes
 from django.urls import reverse
 from django.utils import timezone
 
-from football.models import AnalystVideoFolder, AnalysisVideoReport, AiTrainerTaskIndex, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerEvaluation, PlayerFine, PlayerSeasonReport, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, StaffMember, TacticalPlaybookClip, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, TrainingSessionAttendance, UserInvitation, VideoClip, VideoTimelineEvent, VideoTelestrationProject, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspacePlayer, WorkspacePreference, WorkspaceSeason, WorkspaceSeasonPlayer, WorkspaceSeasonTeam, WorkspaceTeam, WorkspaceTeamAccess
+from football.models import AnalystVideoFolder, AnalysisVideoReport, AiTrainerTaskIndex, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerEvaluation, PlayerFine, PlayerSeasonReport, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, ServiceAccessToken, StaffMember, TacticalPlaybookClip, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, TrainingSessionAttendance, UserInvitation, VideoClip, VideoTimelineEvent, VideoTelestrationProject, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspacePlayer, WorkspacePreference, WorkspaceSeason, WorkspaceSeasonPlayer, WorkspaceSeasonTeam, WorkspaceTeam, WorkspaceTeamAccess
 from football import views as football_views
 from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.event_taxonomy import (
@@ -4628,6 +4628,64 @@ class LoginRememberSessionRedirectTests(TestCase):
         self.client.force_login(self.user)
         response = self.client.get(reverse('login'), secure=True)
         self.assertIn(response.status_code, {301, 302})
+
+
+class ServiceLoginTests(TestCase):
+    def setUp(self):
+        self.team = Team.objects.create(
+            name='Equipo servicio',
+            slug='equipo-servicio',
+            is_primary=True,
+        )
+        self.user = get_user_model().objects.create_user(
+            username='ollana-user',
+            email='ollana-user@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)
+        self.workspace = Workspace.objects.create(
+            name='Workspace Servicio',
+            slug='workspace-servicio',
+            kind=Workspace.KIND_CLUB,
+            is_active=True,
+            primary_team=self.team,
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.user,
+            role=WorkspaceMembership.ROLE_OWNER,
+        )
+        self.token_obj, self.raw_token = ServiceAccessToken.create_for_user(
+            user=self.user,
+            name='ollana',
+            workspace=self.workspace,
+            created_by='tests',
+        )
+
+    def test_service_login_exchanges_token_for_session(self):
+        response = self.client.post(
+            reverse('service-login'),
+            data={'service_token': self.raw_token},
+            secure=True,
+            HTTP_ACCEPT='text/html',
+        )
+
+        self.assertIn(response.status_code, {301, 302})
+        self.assertEqual(self.client.session.get('_auth_user_id'), str(self.user.id))
+        self.assertEqual(int(self.client.session.get('active_workspace_id') or 0), self.workspace.id)
+
+        self.token_obj.refresh_from_db()
+        self.assertIsNotNone(self.token_obj.last_used_at)
+
+    def test_service_login_rejects_invalid_token(self):
+        response = self.client.post(
+            reverse('service-login'),
+            data={'service_token': 'invalid-token'},
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertNotEqual(self.client.session.get('_auth_user_id'), str(self.user.id))
 
 
 @override_settings(ALLOWED_HOSTS=['testserver', 'localhost', '127.0.0.1', 'app.segundajugada.es'])
