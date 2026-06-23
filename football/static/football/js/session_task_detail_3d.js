@@ -911,10 +911,19 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
     if (normalized === 'cone_striped') return 'cone_striped';
     if (normalized === 'goalpost' || normalized === 'goal_post') return 'goal';
     if (normalized === 'player' || normalized === 'goalkeeper' || normalized.startsWith('player_') || normalized.startsWith('goalkeeper_')) return 'token';
+    if (normalized.endsWith('_arrow_head')) return 'arrow_head';
     if (normalized === 'cone-striped') return 'cone_striped';
     return normalized;
   };
   const isTokenObject = (value) => normalizeObjectKindAlias(value) === 'token';
+  const isArrowHeadKind = (value) => {
+    const normalized = normalizeObjectKindAlias(value);
+    return normalized === 'arrow_head' || normalized.endsWith('_arrow_head');
+  };
+  const isArrowKind = (value) => {
+    const normalized = normalizeObjectKindAlias(value);
+    return normalized.startsWith('arrow') || normalized.includes('arrow');
+  };
   const extractFacingDegrees = (obj, childObjects = []) => {
     const childFacing = Array.isArray(childObjects)
       ? childObjects
@@ -1857,7 +1866,7 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
       if (
         ((obj.type === 'text' || obj.type === 'i-text') && kind === 'emoji_cone')
         || ((obj.type === 'triangle' || obj.type === 'text' || obj.type === 'i-text') && (kind === 'cone' || kind === 'cone_striped'))
-        || (obj.type === 'triangle' && !['pass_arrow_head', 'press_arrow_head'].includes(kind))
+        || (obj.type === 'triangle' && !isArrowHeadKind(kind))
       ) {
         const world = canvasToWorld(center2d.x, center2d.y);
         const baseRadius = kind === 'cone_striped' ? 0.62 : 0.58;
@@ -1917,7 +1926,7 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
         });
         return;
       }
-      if (obj.type === 'group' && kind.startsWith('arrow')) {
+      if (obj.type === 'group' && (isArrowKind(kind) || kind === 'arrow_head')) {
         const lineNode = childObjects.find((child) => safeText(child?.type).toLowerCase() === 'line') || null;
         const start2d = lineNode
           ? childPointInGroup2d(obj, lineNode, lineNode.x1, lineNode.y1)
