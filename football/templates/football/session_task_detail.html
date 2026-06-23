@@ -205,10 +205,7 @@
         margin-bottom: 0.75rem;
       }
       .task-edit-tab-bar {
-        display: flex;
-        gap: 0.55rem;
-        flex-wrap: wrap;
-        margin-bottom: 0.7rem;
+        display: none;
       }
       .task-edit-tab {
         border: 1px solid rgba(255, 255, 255, 0.18);
@@ -228,19 +225,7 @@
       body.session-task-detail-page.is-presentation .task-edit-tab.is-active {
         background: rgba(14, 116, 144, 0.15) !important;
       }
-      .task-edit-panels {
-        display: block;
-      }
       .task-edit-panel {
-        display: none;
-      }
-      .task-edit-panel.is-active {
-        display: block;
-      }
-      body.session-task-detail-page.is-presentation .task-edit-panel {
-        display: block;
-      }
-      body.session-task-detail-page.is-presentation .task-edit-panel.is-active {
         display: block;
       }
       h1 {
@@ -923,19 +908,16 @@
             <span class="top-pill">{{ task.get_block_display }}</span>
             <span class="top-pill">{{ task.duration_minutes }} min</span>
             {% if task.category %}<span class="top-pill">{{ task.category }}</span>{% endif %}
-            <span class="top-pill">{% if show_edit_mode %}Edición{% elif is_editable_task %}Presentación{% else %}Solo lectura{% endif %}</span>
+            <span class="top-pill">{% if show_edit_mode %}Ficha editable{% elif is_editable_task %}Presentación{% else %}Solo lectura{% endif %}</span>
           </div>
         </div>
         <div class="top-actions">
           <a class="button" href="{{ back_url }}">{{ back_label }}</a>
-          {% if show_edit_mode %}
-          <a class="button" href="{% url 'task-studio-home' %}">Task Studio</a>
-          {% endif %}
           {% if not show_edit_mode %}
           <button type="button" class="button" id="task-detail-3d-open">Ver 3D</button>
           {% endif %}
           {% if edit_graphic_url and not show_edit_mode %}
-          <a class="button" href="{{ edit_graphic_url }}">Abrir editor</a>
+          <a class="button" href="{{ edit_graphic_url }}">Editar ficha</a>
           {% endif %}
           {% if show_edit_mode and presentation_url %}
           <a class="button" href="{{ presentation_url }}">Volver a ficha</a>
@@ -1041,9 +1023,11 @@
         </div>
       </section>
 
-      {% if not show_edit_mode %}
       <section class="panel" id="task-presentation-board">
         <h2>Ficha táctica compartible</h2>
+        {% if show_edit_mode %}
+        <p class="meta">Esta es la ficha HTML de la tarea. En modo edición, los controles viven debajo y actúan sobre esta misma vista.</p>
+        {% endif %}
         <div class="presentation-workbench">
           <p class="meta">Esta es la ficha HTML principal que luego se imprime o comparte. Reúne la representación 2D, la vista 3D y la secuenciación táctica de la tarea.</p>
           <div class="presentation-workbench-grid">
@@ -1118,18 +1102,12 @@
           </div>
         </div>
       </section>
-      {% endif %}
 
       {% if show_edit_mode %}
       <section class="panel">
-        <div class="task-edit-tab-bar" role="tablist" aria-label="Partes de la ficha de tarea">
-          <button type="button" class="button task-edit-tab is-active" data-task-edit-tab="graphic" role="tab" aria-selected="true">Parte gráfica</button>
-          <button type="button" class="button task-edit-tab" data-task-edit-tab="descriptive" role="tab" aria-selected="false">Parte descriptiva</button>
-        </div>
+        <h2>Editar ficha</h2>
+        <p class="meta">Los cambios se aplican sobre la ficha HTML anterior. La edición de la pizarra gráfica usa el mismo lienzo, no una pantalla aparte.</p>
       </section>
-      {% endif %}
-
-      {% if show_edit_mode %}
       <section class="panel task-edit-panel task-edit-tab-descriptive" data-task-edit-panel="descriptive">
         <h2>Contexto de uso</h2>
         <p class="meta">
@@ -1359,9 +1337,9 @@
       {% elif not is_imported_task %}
         <section class="panel">
           <h2>Modo presentación</h2>
-          <p class="meta">La card abre esta ficha HTML limpia. La edición avanzada queda fuera de la vista principal y solo aparece en modo edición.</p>
+          <p class="meta">La card abre esta ficha HTML limpia. La edición avanzada se integra en la misma ficha cuando se entra en modo edición.</p>
         </section>
-      {% elif show_edit_mode %}
+      {% elif is_imported_task %}
         <section class="panel">
           <h2>Tarea importada</h2>
           <p class="meta">Modo solo lectura: card pulsable + ficha de tarea + representación gráfica. Sin edición.</p>
@@ -1441,9 +1419,9 @@
       {% endif %}
 
       {% if show_edit_mode %}
-      <section class="panel task-edit-panel task-edit-tab-graphic" id="graphic-editor" data-task-edit-panel="graphic">
-        <h2>{% if show_edit_mode %}Representación gráfica editable{% else %}Representación gráfica de la tarea{% endif %}</h2>
-        {% if show_edit_mode %}
+      <section class="panel task-edit-panel" id="graphic-editor">
+        <h2>Herramientas de edición</h2>
+        <p class="meta">Estas herramientas actúan sobre la ficha de arriba. El canvas es único para que lo que editas sea exactamente lo que ves.</p>
         <div class="graphic-toolbar">
           <button type="button" class="button" id="graphic-draw-btn">Modo dibujo</button>
           <button type="button" class="button" id="graphic-select-btn">Modo selección</button>
@@ -1476,8 +1454,6 @@
           </label>
           <button type="button" class="button" id="graphic-save-btn">Guardar gráfico</button>
         </div>
-        {% endif %}
-        {% if show_edit_mode %}
         <div class="resource-library">
           <p class="resource-title">Biblioteca de iconos y recursos</p>
           <div class="resource-grid" id="graphic-resource-grid">
@@ -1515,19 +1491,10 @@
             <button type="button" class="iconify-btn" data-iconify="mdi:format-text" data-label="Texto"><iconify-icon icon="mdi:format-text"></iconify-icon><span>Texto</span></button>
           </div>
         </div>
-        {% endif %}
-        <div class="graphic-layout">
-          <div class="graphic-canvas-wrap">
-            <canvas id="task-graphic-canvas"></canvas>
-          </div>
-          {% if show_edit_mode %}
-          <aside class="layers-panel">
-            <h3>Capas</h3>
-            <div class="layers-list" id="graphic-layers-list"></div>
-          </aside>
-          {% endif %}
-        </div>
-        <p class="graphic-status" id="graphic-status">{% if show_edit_mode %}Editor listo.{% else %}Vista de tarea lista para presentación.{% endif %}</p>
+        <aside class="layers-panel">
+          <h3>Capas</h3>
+          <div class="layers-list" id="graphic-layers-list"></div>
+        </aside>
       </section>
       {% endif %}
 
@@ -2490,39 +2457,6 @@
           }
         });
         let resizeTimer = null;
-        const tabButtons = Array.from(document.querySelectorAll('.task-edit-tab'));
-        const tabPanelsByType = {
-          graphic: Array.from(document.querySelectorAll('.task-edit-panel.task-edit-tab-graphic')),
-          descriptive: Array.from(document.querySelectorAll('.task-edit-panel.task-edit-tab-descriptive')),
-        };
-        const setTaskEditTab = (tabName, focusCanvas = false) => {
-          if (!isEditable) return;
-          tabButtons.forEach((button) => {
-            const isActive = button.dataset.taskEditTab === tabName;
-            button.classList.toggle('is-active', isActive);
-            button.setAttribute('aria-selected', isActive ? 'true' : 'false');
-          });
-          tabPanelsByType.graphic.forEach((panel) => panel.classList.toggle('is-active', tabName === 'graphic'));
-          tabPanelsByType.descriptive.forEach((panel) => panel.classList.toggle('is-active', tabName === 'descriptive'));
-          if (focusCanvas && tabName === 'graphic') {
-            fitCanvasToContainer(true);
-            refreshLayerList();
-            setStatus('Panel gráfico activo.');
-          }
-        };
-        tabButtons.forEach((button) => {
-          button.addEventListener('click', () => {
-            const target = button.dataset.taskEditTab;
-            if (target === 'graphic' || target === 'descriptive') {
-              setTaskEditTab(target, true);
-            }
-          });
-        });
-        if (tabButtons.length && isEditable) {
-          const activeTab = tabPanelsByType.graphic.length > 0 ? 'graphic' : 'descriptive';
-          setTaskEditTab(activeTab);
-        }
-
       window.addEventListener('resize', () => {
           clearTimeout(resizeTimer);
           resizeTimer = setTimeout(() => {

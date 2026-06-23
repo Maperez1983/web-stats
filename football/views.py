@@ -42716,7 +42716,7 @@ def session_task_detail_page(request, task_id):
     detail_mode = str(request.GET.get('mode') or '').strip().lower()
     show_edit_mode = bool(is_editable_task and not is_performed_task and detail_mode == 'edit')
 
-    # UX: la ficha de tarea es la vista por defecto. El editor visual se abre desde un botón ("Editar pizarra").
+    # UX: la ficha de tarea es la vista principal; el modo edición reutiliza esa misma ficha y añade los controles debajo.
 
     if request.method == 'POST':
         detail_action = (request.POST.get('detail_action') or '').strip()
