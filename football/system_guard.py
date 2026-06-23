@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import re
 import socket
@@ -31,6 +32,7 @@ from football.library_repositories import (
 )
 from football.local_llm import call_ollama_json, local_llm_config
 from football.models import Competition, ConvocationRecord, Group, Match, Player, RivalAnalysisReport, SessionTask, Team, TrainingMicrocycle, TrainingSession, WorkspaceCompetitionContext, WorkspacePreference, WorkspaceSeason, WorkspaceTeam
+from football.task_backups import write_task_backup
 from football.session_import_services import get_or_create_inbox_microcycle, get_or_create_library_session_with_repository
 from football.session_plan_fields import serialize_session_plan_fields
 from football.season_history_services import ensure_player_season_membership, ensure_workspace_player
@@ -196,6 +198,14 @@ TOOL_SCHEMAS = {
         "confirmation_required": False,
         "runner": "maintenance",
         "maintenance_action": "ai_trainer_reindex",
+    },
+    "dedupe_session_tasks": {
+        "label": "Eliminar duplicados de tareas",
+        "kind": "maintenance",
+        "risk": "high",
+        "confirmation_required": True,
+        "runner": "maintenance",
+        "maintenance_action": "dedupe_session_tasks",
     },
     "trigger_remote_deploy": {
         "label": "Lanzar despliegue remoto",
@@ -4445,6 +4455,183 @@ def _autofix_ai_trainer_reindex() -> dict:
     return result
 
 
+def _task_duplicate_normalized_text(value) -> str:
+    raw = str(value or "").strip().lower()
+    if not raw:
+        return ""
+    raw = re.sub(r"[^\w\s]+", " ", raw, flags=re.UNICODE)
+    raw = re.sub(r"\s+", " ", raw)
+    return raw.strip()
+
+
+def _task_duplicate_profile(task) -> dict:
+    layout = task.tactical_layout if isinstance(getattr(task, "tactical_layout", None), dict) else {}
+    meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
+    analysis = meta.get("analysis") if isinstance(meta.get("analysis"), dict) else {}
+    sheet = analysis.get("task_sheet") if isinstance(analysis.get("task_sheet"), dict) else {}
+    graphic = meta.get("graphic_editor") if isinstance(meta.get("graphic_editor"), dict) else {}
+    canvas_state = graphic.get("canvas_state") if isinstance(graphic.get("canvas_state"), dict) else {}
+    timeline = layout.get("timeline") if isinstance(layout.get("timeline"), list) else []
+    bits = [
+        _task_duplicate_normalized_text(getattr(task, "title", "") or ""),
+        _task_duplicate_normalized_text(getattr(task, "objective", "") or ""),
+        _task_duplicate_normalized_text(getattr(task, "coaching_points", "") or ""),
+        _task_duplicate_normalized_text(getattr(task, "confrontation_rules", "") or ""),
+        _task_duplicate_normalized_text(sheet.get("description_html") or ""),
+        _task_duplicate_normalized_text(sheet.get("coaching_html") or ""),
+        _task_duplicate_normalized_text(sheet.get("rules_html") or ""),
+        _task_duplicate_normalized_text(layout.get("tokens") if isinstance(layout.get("tokens"), list) else ""),
+        _task_duplicate_normalized_text(canvas_state),
+        _task_duplicate_normalized_text(timeline),
+    ]
+    signature = hashlib.sha1("|".join(bits).encode("utf-8")).hexdigest()
+    return {
+        "title_norm": _task_duplicate_normalized_text(getattr(task, "title", "") or ""),
+        "objective_norm": _task_duplicate_normalized_text(getattr(task, "objective", "") or ""),
+        "coaching_norm": _task_duplicate_normalized_text(getattr(task, "coaching_points", "") or ""),
+        "rules_norm": _task_duplicate_normalized_text(getattr(task, "confrontation_rules", "") or ""),
+        "block": str(getattr(task, "block", "") or "").strip(),
+        "duration_minutes": int(getattr(task, "duration_minutes", 0) or 0),
+        "scope": str(meta.get("scope") or "coach").strip() or "coach",
+        "signature": signature,
+        "builder_payload_signature": str(meta.get("builder_payload_signature") or "").strip(),
+        "submission_uid": str(meta.get("submission_uid") or "").strip(),
+    }
+
+
+def _normalize_session_task_orders(session) -> None:
+    if not session:
+        return
+    try:
+        tasks = list(SessionTask.objects.filter(session=session, deleted_at__isnull=True).order_by("order", "id"))
+        for idx, task in enumerate(tasks, start=1):
+            if int(getattr(task, "order", 0) or 0) == idx:
+                continue
+            task.order = idx
+            task.save(update_fields=["order"])
+    except Exception:
+        return
+
+
+def _resolve_dedupe_target_team(*, workspace=None, page_context=None):
+    team_id = 0
+    if isinstance(page_context, dict):
+        team_id = _safe_int(page_context.get("team_id"), 0)
+    if not team_id and workspace:
+        team_id = _safe_int(getattr(workspace, "primary_team_id", 0), 0)
+    if not team_id:
+        return None
+    try:
+        return Team.objects.filter(id=int(team_id)).first()
+    except Exception:
+        return None
+
+
+def _autofix_dedupe_session_tasks(*, workspace=None, page_context=None) -> dict:
+    team = _resolve_dedupe_target_team(workspace=workspace, page_context=page_context)
+    if not team:
+        return {"ok": False, "action": "dedupe_session_tasks", "error": "team_not_resolved"}
+
+    try:
+        tasks = list(
+            SessionTask.objects
+            .select_related("session__microcycle")
+            .filter(session__microcycle__team=team, deleted_at__isnull=True)
+            .order_by("session_id", "block", "duration_minutes", "id")
+        )
+    except Exception as exc:
+        return {"ok": False, "action": "dedupe_session_tasks", "error": f"{exc.__class__.__name__}: {exc}"}
+
+    groups = {}
+    for task in tasks:
+        try:
+            profile = _task_duplicate_profile(task)
+            key = (
+                str(profile.get("scope") or "coach"),
+                str(profile.get("block") or ""),
+                int(profile.get("duration_minutes") or 0),
+                profile.get("title_norm") or "",
+                profile.get("objective_norm") or "",
+                profile.get("coaching_norm") or "",
+                profile.get("rules_norm") or "",
+                profile.get("signature") or "",
+            )
+            groups.setdefault(key, []).append((task, profile))
+        except Exception:
+            continue
+
+    deleted = []
+    survivors = []
+    touched_sessions = set()
+    for key, rows in groups.items():
+        if len(rows) < 2:
+            continue
+        def _rank(row):
+            task, profile = row
+            meta = task.tactical_layout.get("meta") if isinstance(task.tactical_layout, dict) and isinstance(task.tactical_layout.get("meta"), dict) else {}
+            score = 0
+            if getattr(task, "task_pdf", None):
+                score += 4
+            if getattr(task, "task_preview_image", None):
+                score += 2
+            if profile.get("builder_payload_signature"):
+                score += 2
+            if profile.get("submission_uid"):
+                score += 1
+            if meta.get("library_source_task_id"):
+                score += 1
+            score += min(3, int(getattr(task, "updated_at", None) is not None))
+            return (score, int(getattr(task, "updated_at", None).timestamp()) if getattr(task, "updated_at", None) else 0, int(getattr(task, "id", 0) or 0))
+
+        rows_sorted = sorted(rows, key=_rank, reverse=True)
+        keep_task, keep_profile = rows_sorted[0]
+        survivors.append({
+            "id": int(getattr(keep_task, "id", 0) or 0),
+            "title": str(getattr(keep_task, "title", "") or "")[:160],
+            "group_size": len(rows),
+        })
+        for task, profile in rows_sorted[1:]:
+            try:
+                write_task_backup(
+                    task,
+                    kind="session_task",
+                    reason="dedupe_delete",
+                    actor_username="system_guard",
+                )
+            except Exception:
+                pass
+            try:
+                task.deleted_at = datetime.now(timezone.utc)
+                task.deleted_by = None
+                task.save(update_fields=["deleted_at", "deleted_by"])
+                deleted.append({
+                    "id": int(getattr(task, "id", 0) or 0),
+                    "title": str(getattr(task, "title", "") or "")[:160],
+                })
+                if getattr(task, "session_id", None):
+                    touched_sessions.add(int(task.session_id))
+            except Exception:
+                continue
+
+    for session_id in sorted(touched_sessions):
+        try:
+            session_obj = TrainingSession.objects.filter(id=int(session_id)).first()
+            if session_obj:
+                _normalize_session_task_orders(session_obj)
+        except Exception:
+            pass
+
+    return {
+        "ok": True,
+        "action": "dedupe_session_tasks",
+        "team_id": int(getattr(team, "id", 0) or 0),
+        "deleted_count": len(deleted),
+        "deleted": deleted[:200],
+        "groups_collapsed": len(survivors),
+        "survivors": survivors[:200],
+    }
+
+
 def _autofix_ollama_pull(model_name: str) -> dict:
     model = str(model_name or "").strip()
     if not model:
@@ -4636,12 +4823,14 @@ def _apply_autofixes(issues: list[dict]) -> dict:
     return {"applied": applied, "skipped": skipped}
 
 
-def _run_named_maintenance_action(action_name: str) -> dict:
+def _run_named_maintenance_action(action_name: str, *, workspace=None, page_context=None) -> dict:
     action = str(action_name or "").strip()
     if action == "regenerate_task_previews":
         return _autofix_regenerate_task_previews()
     if action == "ai_trainer_reindex":
         return _autofix_ai_trainer_reindex()
+    if action == "dedupe_session_tasks":
+        return _autofix_dedupe_session_tasks(workspace=workspace, page_context=page_context)
     if action == "trigger_remote_deploy":
         return _trigger_remote_deploy()
     if action == "trigger_remote_rollback":
@@ -9843,6 +10032,7 @@ def _tool_reason(tool_key: str, intent: str, question: str) -> str:
         "auto_fix": "El usuario pide corrección segura sobre incidencias conocidas.",
         "regenerate_task_previews": "La petición apunta a regenerar previews de tareas.",
         "ai_trainer_reindex": "La petición apunta a reindexar la base de IA-Trainer.",
+        "dedupe_session_tasks": "La petición apunta a localizar y eliminar duplicados de tareas.",
         "check_status": "La petición requiere diagnóstico del estado actual.",
         "inspect_recent_errors": "La petición menciona errores, logs o síntomas recientes del sistema.",
         "check_critical_routes": "La petición pide revisar rutas o endpoints críticos.",
@@ -9928,6 +10118,8 @@ def _plan_tools(question: str, *, run_smoke: bool, auto_fix: bool, maintenance_a
         requested_tools.append("regenerate_task_previews")
     elif maintenance_action == "ai_trainer_reindex":
         requested_tools.append("ai_trainer_reindex")
+    elif maintenance_action == "dedupe_session_tasks":
+        requested_tools.append("dedupe_session_tasks")
     elif intent == "publish_commit_push":
         requested_tools.extend(["inspect_repo_status", "run_operator_validation", "git_commit", "git_push"])
     elif intent == "publish_commit":
@@ -9956,6 +10148,8 @@ def _plan_tools(question: str, *, run_smoke: bool, auto_fix: bool, maintenance_a
         requested_tools.append("regenerate_task_previews")
     elif intent == "maintenance_reindex":
         requested_tools.append("ai_trainer_reindex")
+    elif intent == "maintenance_dedupe":
+        requested_tools.append("dedupe_session_tasks")
     elif intent == "repair":
         if str(task.get("scope") or "") == "code":
             requested_tools.extend(["inspect_repo_status", "run_operator_validation", "auto_fix"])
@@ -10078,6 +10272,8 @@ def _execute_tools(requested_tools: list[str], *, smoke_verbosity: int = 1, work
             result = _autofix_regenerate_task_previews()
         elif tool_key == "ai_trainer_reindex":
             result = _autofix_ai_trainer_reindex()
+        elif tool_key == "dedupe_session_tasks":
+            result = _autofix_dedupe_session_tasks(workspace=workspace)
         elif tool_key == "trigger_remote_deploy":
             result = _trigger_remote_deploy()
         elif tool_key == "trigger_remote_rollback":
@@ -10683,7 +10879,7 @@ def run_system_guard_chat(
         planner["confirm_required"] = False
         planner["confirmation_text"] = ""
     if maintenance_action and not planner.get("confirm_required"):
-        maintenance_result = _run_named_maintenance_action(maintenance_action)
+        maintenance_result = _run_named_maintenance_action(maintenance_action, workspace=workspace, page_context=page_context)
         executed_tools.append(_serialize_execution(maintenance_action, maintenance_result))
     elif planner.get("requested_tools") and not planner.get("confirm_required"):
         executed_tools = _execute_tools(

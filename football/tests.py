@@ -1235,6 +1235,71 @@ class SystemGuardTests(TestCase):
         self.assertEqual(rows[0]['task_kind'], 'navigate')
         self.assertEqual(rows[0]['runbook'], 'user_navigation')
 
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    def test_system_guard_can_dedupe_session_tasks(self, *_mocks):
+        microcycle = TrainingMicrocycle.objects.create(
+            team=self.team,
+            title='Microciclo dedupe',
+            week_start=date(2026, 3, 1),
+            week_end=date(2026, 3, 7),
+        )
+        session = TrainingSession.objects.create(
+            microcycle=microcycle,
+            session_date=date(2026, 3, 4),
+            focus='Sesión dedupe',
+            duration_minutes=90,
+        )
+        SessionTask.objects.create(
+            session=session,
+            title='Juego lúdico preparación física',
+            block=SessionTask.BLOCK_CONDITIONING,
+            duration_minutes=20,
+            objective='Activación con carrera y movilidad.',
+            coaching_points='Consigna uno.',
+            confrontation_rules='Regla uno.',
+            tactical_layout={'meta': {'scope': 'fitness'}},
+        )
+        SessionTask.objects.create(
+            session=session,
+            title='Juego lúdico preparación física',
+            block=SessionTask.BLOCK_CONDITIONING,
+            duration_minutes=20,
+            objective='Activación con carrera y movilidad.',
+            coaching_points='Consigna uno.',
+            confrontation_rules='Regla uno.',
+            tactical_layout={'meta': {'scope': 'fitness'}},
+        )
+        keep = SessionTask.objects.create(
+            session=session,
+            title='Tarea distinta',
+            block=SessionTask.BLOCK_CONDITIONING,
+            duration_minutes=20,
+            objective='Otra tarea.',
+            coaching_points='Otra consigna.',
+            confrontation_rules='Otra regla.',
+            tactical_layout={'meta': {'scope': 'fitness'}},
+        )
+
+        result = system_guard.run_system_guard_chat(
+            question='Localiza y elimina duplicados de tareas.',
+            workspace=self.workspace,
+            page_context={'team_id': self.team.id, 'workspace_id': self.workspace.id},
+            maintenance_action='dedupe_session_tasks',
+            execute_confirmed=True,
+            autonomy_mode='operator',
+        )
+        self.assertTrue(result['report']['maintenance_action']['ok'])
+        self.assertEqual(result['report']['maintenance_action']['action'], 'dedupe_session_tasks')
+        self.assertEqual(result['report']['maintenance_action']['deleted_count'], 1)
+        self.assertEqual(SessionTask.objects.filter(session=session, deleted_at__isnull=True).count(), 2)
+        self.assertEqual(SessionTask.objects.filter(session=session, deleted_at__isnull=False).count(), 1)
+        self.assertTrue(SessionTask.objects.filter(id=keep.id, deleted_at__isnull=True).exists())
+
     def test_detect_proactive_incidents_builds_runtime_detector_rows(self):
         report = {
             'ok': False,
