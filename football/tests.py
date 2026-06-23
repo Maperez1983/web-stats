@@ -4886,6 +4886,114 @@ class SessionsAssignTaskSmokeTests(TestCase):
         self.assertTrue(SessionTask.objects.filter(session=self.session, title__icontains='Rondo').exists())
 
 
+class SessionsTaskBuilderSubmitTests(TestCase):
+    def setUp(self):
+        self.competition = Competition.objects.create(name='CompBuilder', slug='comp-builder',)
+        self.season = Season.objects.create(
+            competition=self.competition,
+            name='2026',
+            is_current=True,
+        )
+        self.group = Group.objects.create(
+            season=self.season,
+            name='Grupo Builder',
+            slug='grupo-builder',
+        )
+        self.team = Team.objects.create(
+            name='Equipo Builder',
+            slug='equipo-builder',
+            short_name='BUI',
+            is_primary=True,
+            group=self.group,
+        )
+        self.user = get_user_model().objects.create_user(
+            username='coach-builder',
+            email='coach-builder@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)
+        self.workspace = Workspace.objects.create(
+            name='WS Builder',
+            slug='ws-builder',
+            kind=Workspace.KIND_CLUB,
+            is_active=True,
+            primary_team=self.team,
+            enabled_modules={'sessions': True},
+        )
+        WorkspaceMembership.objects.create(workspace=self.workspace, user=self.user, role=WorkspaceMembership.ROLE_OWNER)
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.team, is_default=True)
+        self.client.force_login(self.user)
+        session = self.client.session
+        session['active_workspace_id'] = self.workspace.id
+        session.save()
+
+    def test_double_submit_with_same_uid_does_not_create_duplicates(self):
+        url = reverse('sessions-task-create')
+        payload = {
+            'draw_task_title': 'Juego lúdico',
+            'draw_task_block': SessionTask.BLOCK_MAIN_1,
+            'draw_task_minutes': '15',
+            'draw_canvas_state': '{}',
+            'draw_canvas_width': '1280',
+            'draw_canvas_height': '720',
+            'task_submit_uid': 'dup-check-uid-001',
+        }
+
+        response_first = self.client.post(url, data=payload, secure=True)
+        self.assertEqual(response_first.status_code, 200)
+        count_after_first = SessionTask.objects.count()
+        response_second = self.client.post(url, data=payload, secure=True)
+        self.assertEqual(response_second.status_code, 200)
+        self.assertEqual(SessionTask.objects.count(), count_after_first)
+
+    def test_edit_via_task_id_on_create_post_keeps_single_record(self):
+        microcycle = TrainingMicrocycle.objects.create(
+            team=self.team,
+            title='Microciclo test',
+            week_start=date(2026, 3, 1),
+            week_end=date(2026, 3, 7),
+        )
+        session = TrainingSession.objects.create(
+            microcycle=microcycle,
+            session_date=date(2026, 3, 3),
+            focus='Sesión de prueba',
+            duration_minutes=90,
+        )
+        task = SessionTask.objects.create(
+            session=session,
+            title='Tarea original',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=15,
+            tactical_layout={'meta': {'scope': 'coach', 'surface': 'natural_grass', 'pitch_format': '11v11_half'}},
+        )
+        url = reverse('sessions-task-create')
+        payload = {
+            'task_id': str(task.id),
+            'task_submit_uid': 'task-id-edit-uid-001',
+            'draw_task_title': 'Tarea modificada',
+            'draw_task_block': SessionTask.BLOCK_MAIN_2,
+            'draw_task_minutes': '18',
+            'draw_task_pitch_preset': 'full_pitch',
+            'draw_task_objective': 'Objetivo actualizado',
+            'draw_canvas_state': '{}',
+            'draw_canvas_width': '1280',
+            'draw_canvas_height': '720',
+        }
+
+        response_first = self.client.post(url, data=payload, secure=True)
+        self.assertEqual(response_first.status_code, 200)
+        count_after_first = SessionTask.objects.count()
+        self.assertEqual(count_after_first, 1)
+        task.refresh_from_db()
+        self.assertEqual(task.title, 'Tarea modificada')
+        self.assertEqual(task.block, SessionTask.BLOCK_MAIN_2)
+        self.assertEqual(task.duration_minutes, 18)
+
+        response_second = self.client.post(url, data=payload, secure=True)
+        self.assertEqual(response_second.status_code, 200)
+        self.assertEqual(SessionTask.objects.count(), 1)
+
+
 class CriticalPagesSmokeTests(TestCase):
     def setUp(self):
         self.team = Team.objects.create(name='Equipo Smoke', slug='equipo-smoke', short_name='SMK', is_primary=True)

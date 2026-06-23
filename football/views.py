@@ -38454,6 +38454,20 @@ def _normalize_animation_timeline(raw_timeline):
 
 
 def _save_task_builder_entry(request, primary_team, scope_key, existing_task=None):
+    if not existing_task:
+        raw_post_task_id = _parse_int(request.POST.get('task_id'))
+        if raw_post_task_id:
+            candidate_task = (
+                SessionTask.objects
+                .select_related('session__microcycle')
+                .filter(id=raw_post_task_id, session__microcycle__team=primary_team, deleted_at__isnull=True)
+                .first()
+            )
+            if not candidate_task:
+                raise ValueError('No se pudo identificar la tarea a guardar.')
+            if _task_scope_for_item(candidate_task) != scope_key:
+                raise ValueError('La tarea no pertenece a este espacio.')
+            existing_task = candidate_task
     existing_meta = _task_existing_meta(existing_task)
     existing_analysis = existing_meta.get('analysis') if isinstance(existing_meta.get('analysis'), dict) else {}
     existing_task_sheet = existing_analysis.get('task_sheet') if isinstance(existing_analysis.get('task_sheet'), dict) else {}
@@ -38466,6 +38480,8 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
     except Exception:
         pass
     target_session_id = _parse_int(request.POST.get('draw_target_session_id'))
+    raw_submission_uid = str(request.POST.get('task_submit_uid') or '').strip()[:64]
+    submission_uid = re.sub(r'[^0-9a-zA-Z_-]', '', raw_submission_uid)
     library_repository = _normalize_library_repository(
         request.POST.get('draw_library_repository') or request.POST.get('library_repo') or LIBRARY_REPOSITORY_TRADITIONAL
     )
@@ -39213,6 +39229,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
                 },
                 **({'opponent': opponent_meta} if opponent_meta else {}),
             },
+            **({'submission_uid': submission_uid[:64]} if submission_uid else {}),
             **(preserved_import_meta or {}),
         }
     }
@@ -39232,7 +39249,23 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
         task.save()
     else:
         recent_duplicate = None
-        if submission_signature:
+        if submission_uid:
+            try:
+                recent_duplicate = (
+                    SessionTask.objects
+                    .filter(
+                        session=target_session,
+                        deleted_at__isnull=True,
+                        status=SessionTask.STATUS_PLANNED,
+                        created_at__gte=timezone.localtime() - timedelta(seconds=80),
+                    )
+                    .filter(tactical_layout__meta__submission_uid=submission_uid)
+                    .order_by('-created_at', '-id')
+                    .first()
+                )
+            except Exception:
+                recent_duplicate = None
+        if not recent_duplicate and submission_signature:
             try:
                 recent_duplicate = (
                     SessionTask.objects
@@ -39266,7 +39299,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
             )
 
     # --- Separación Tarea (plantilla) vs Sesión (instancia) ---
-    # Si el usuario está guardando una tarea dentro de una sesión real, creamos (una vez)
+    # Si el usuario guarda una tarea nueva en una sesión real, creamos (si hace falta)
     # una plantilla en Biblioteca y enlazamos la copia con `meta.library_source_task_id`.
     try:
         if task and not is_target_library:
@@ -39275,70 +39308,90 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
             meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
             meta = dict(meta) if isinstance(meta, dict) else {}
             source_template_id = _parse_int(meta.get('library_source_task_id')) or 0
-            if not source_template_id:
-                # Crea plantilla en Biblioteca (repositorio elegido en el editor).
-                library_session = _get_or_create_library_session_with_repository(primary_team, scope_key, repository=library_repository)
-                template_layout = dict(layout)
-                template_meta = template_layout.get('meta') if isinstance(template_layout.get('meta'), dict) else {}
-                template_meta = dict(template_meta) if isinstance(template_meta, dict) else {}
-                template_meta['is_template'] = True
-                template_meta['repository'] = library_repository
-                template_layout['meta'] = template_meta
-                existing_template = None
-                if submission_signature:
-                    try:
-                        existing_template = (
-                            SessionTask.objects
-                            .filter(session=library_session, deleted_at__isnull=True)
-                            .filter(tactical_layout__meta__builder_payload_signature=submission_signature)
-                            .order_by('-created_at', '-id')
-                            .first()
-                        )
-                    except Exception:
-                        existing_template = None
-                if not existing_template:
-                    try:
-                        existing_template = (
-                            SessionTask.objects
-                            .filter(
-                                session=library_session,
-                                deleted_at__isnull=True,
-                                title=str(task.title or '')[:160],
-                                block=str(task.block or SessionTask.BLOCK_MAIN_1),
-                                duration_minutes=int(getattr(task, 'duration_minutes', 0) or 15),
-                                notes__icontains=f'tarea #{int(task.id)}',
+            if existing_task:
+                if source_template_id:
+                    meta['library_source_task_id'] = int(source_template_id)
+                    meta['is_template'] = False
+                    meta['repository'] = library_repository or meta.get('repository')
+                    layout['meta'] = meta
+                    task.tactical_layout = layout
+                    task.save(update_fields=['tactical_layout'])
+            else:
+                if not source_template_id:
+                    # Crea plantilla en Biblioteca (repositorio elegido en el editor).
+                    library_session = _get_or_create_library_session_with_repository(primary_team, scope_key, repository=library_repository)
+                    template_layout = dict(layout)
+                    template_meta = template_layout.get('meta') if isinstance(template_layout.get('meta'), dict) else {}
+                    template_meta = dict(template_meta) if isinstance(template_meta, dict) else {}
+                    template_meta['is_template'] = True
+                    template_meta['repository'] = library_repository
+                    template_layout['meta'] = template_meta
+                    existing_template = None
+                    if submission_signature:
+                        try:
+                            existing_template = (
+                                SessionTask.objects
+                                .filter(session=library_session, deleted_at__isnull=True)
+                                .filter(tactical_layout__meta__builder_payload_signature=submission_signature)
+                                .order_by('-created_at', '-id')
+                                .first()
                             )
-                            .order_by('-created_at', '-id')
-                            .first()
+                        except Exception:
+                            existing_template = None
+                    if not existing_template and submission_uid:
+                        try:
+                            existing_template = (
+                                SessionTask.objects
+                                .filter(session=library_session, deleted_at__isnull=True)
+                                .filter(tactical_layout__meta__submission_uid=submission_uid)
+                                .order_by('-created_at', '-id')
+                                .first()
+                            )
+                        except Exception:
+                            existing_template = None
+                    if not existing_template:
+                        try:
+                            existing_template = (
+                                SessionTask.objects
+                                .filter(
+                                    session=library_session,
+                                    deleted_at__isnull=True,
+                                    title=str(task.title or '')[:160],
+                                    block=str(task.block or SessionTask.BLOCK_MAIN_1),
+                                    duration_minutes=int(getattr(task, 'duration_minutes', 0) or 15),
+                                    notes__icontains=f'tarea #{int(task.id)}',
+                                )
+                                .order_by('-created_at', '-id')
+                                .first()
+                            )
+                        except Exception:
+                            existing_template = None
+                    if existing_template:
+                        source_template_id = int(getattr(existing_template, 'id', 0) or 0)
+                    else:
+                        template_task = SessionTask.objects.create(
+                            session=library_session,
+                            title=str(task.title or '')[:160],
+                            block=str(task.block or SessionTask.BLOCK_MAIN_1),
+                            duration_minutes=int(getattr(task, 'duration_minutes', 0) or 15),
+                            objective=str(getattr(task, 'objective', '') or '')[:8000],
+                            coaching_points=str(getattr(task, 'coaching_points', '') or ''),
+                            confrontation_rules=str(getattr(task, 'confrontation_rules', '') or ''),
+                            tactical_layout=template_layout,
+                            status=SessionTask.STATUS_PLANNED,
+                            order=SessionTask.objects.filter(session=library_session, deleted_at__isnull=True).count() + 1,
+                            notes=f'Plantilla creada desde sesión #{int(getattr(task.session, "id", 0) or 0)} · tarea #{int(task.id)}',
                         )
-                    except Exception:
-                        existing_template = None
-                if existing_template:
-                    source_template_id = int(getattr(existing_template, 'id', 0) or 0)
-                else:
-                    template_task = SessionTask.objects.create(
-                        session=library_session,
-                        title=str(task.title or '')[:160],
-                        block=str(task.block or SessionTask.BLOCK_MAIN_1),
-                        duration_minutes=int(getattr(task, 'duration_minutes', 0) or 15),
-                        objective=str(getattr(task, 'objective', '') or '')[:8000],
-                        coaching_points=str(getattr(task, 'coaching_points', '') or ''),
-                        confrontation_rules=str(getattr(task, 'confrontation_rules', '') or ''),
-                        tactical_layout=template_layout,
-                        status=SessionTask.STATUS_PLANNED,
-                        order=SessionTask.objects.filter(session=library_session, deleted_at__isnull=True).count() + 1,
-                        notes=f'Plantilla creada desde sesión #{int(getattr(task.session, "id", 0) or 0)} · tarea #{int(task.id)}',
-                    )
-                    # Copia referencias de archivos (si existen) sin duplicar el contenido.
-                    try:
-                        if getattr(task, 'task_pdf', None):
-                            template_task.task_pdf = task.task_pdf.name
-                        if getattr(task, 'task_preview_image', None):
-                            template_task.task_preview_image = task.task_preview_image.name
-                        template_task.save(update_fields=['task_pdf', 'task_preview_image'])
-                    except Exception:
-                        pass
-                    source_template_id = int(getattr(template_task, 'id', 0) or 0)
+                        # Copia referencias de archivos (si existen) sin duplicar el contenido.
+                        try:
+                            if getattr(task, 'task_pdf', None):
+                                template_task.task_pdf = task.task_pdf.name
+                            if getattr(task, 'task_preview_image', None):
+                                template_task.task_preview_image = task.task_preview_image.name
+                            template_task.save(update_fields=['task_pdf', 'task_preview_image'])
+                        except Exception:
+                            pass
+                        source_template_id = int(getattr(template_task, 'id', 0) or 0)
 
             if source_template_id and int(source_template_id) > 0:
                 meta['library_source_task_id'] = int(source_template_id)
@@ -40002,7 +40055,25 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             status=503,
         )
     task = None
-    if task_id:
+    posted_task_id = (
+        _parse_int(request.POST.get('task_id'))
+        if request.method == 'POST'
+        else _parse_int(request.GET.get('task_id'))
+    )
+    if not task_id and posted_task_id:
+        # Compatibilidad con casos donde el formulario se envía contra la URL de "crear"
+        # pero incluye el task_id de edición (útil para entornos con navegación híbrida).
+        task = (
+            SessionTask.objects
+            .select_related('session__microcycle')
+            .filter(id=posted_task_id, session__microcycle__team=primary_team, deleted_at__isnull=True)
+            .first()
+        )
+        if task:
+            if _task_scope_for_item(task) != scope_key:
+                return HttpResponse('La tarea no pertenece a este espacio.', status=403)
+            task_id = posted_task_id
+    if task_id and not task:
         task = (
             SessionTask.objects
             .select_related('session__microcycle')
@@ -40013,10 +40084,10 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             raise Http404('Tarea no encontrada')
         if _task_scope_for_item(task) != scope_key:
             return HttpResponse('La tarea no pertenece a este espacio.', status=403)
-
-        # Compat: las tareas del repositorio "realizadas" son clones. Si por algún motivo el clon perdió
-        # `meta.graphic_editor.canvas_state` (pero la original lo tiene), rehidratamos desde el origen
-        # para que "Editar pizarra" no abra en blanco.
+    # Compat: las tareas del repositorio "realizadas" son clones. Si por algún motivo el clon perdió
+    # `meta.graphic_editor.canvas_state` (pero la original lo tiene), rehidratamos desde el origen
+    # para que "Editar pizarra" no abra en blanco.
+    if task:
         try:
             raw_layout = getattr(task, 'tactical_layout', None)
             if isinstance(raw_layout, str):
@@ -40159,6 +40230,10 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
     feedback = ''
     error = ''
     saved_task_info = None
+    raw_submit_uid = str(request.POST.get('task_submit_uid') or '').strip()
+    task_submit_uid = re.sub(r'[^0-9a-zA-Z_-]', '', raw_submit_uid)[:64]
+    if not task_submit_uid:
+        task_submit_uid = uuid.uuid4().hex[:32]
     if request.method == 'GET':
         if str(request.GET.get('board_recreated') or '').strip() == '1':
             feedback = 'Pizarra reconstruida desde el PDF. Revisa la tarea y guarda.'
@@ -40503,6 +40578,7 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             'feedback': feedback,
             'error': error,
             'task_context_warning': task_context_warning,
+            'task_submit_uid': task_submit_uid,
             'can_restore_original': can_restore_original,
             'task_blocks': SessionTask.BLOCK_CHOICES,
             'all_sessions': all_sessions,
@@ -47137,6 +47213,7 @@ def analysis_video_report_item_tactical_page(request, item_id):
             'task': None,
             'feedback': message,
             'error': error,
+            'task_submit_uid': task_submit_uid,
             'can_restore_original': False,
             'task_blocks': SessionTask.BLOCK_CHOICES,
             'all_sessions': [],

@@ -5353,6 +5353,8 @@
 	        <input type="hidden" id="task-playbook-teams-url" value="{% url 'tactical-playbook-teams-api' %}" />
 	        <input type="hidden" id="task-playbook-versions-url" value="{% url 'tactical-playbook-versions-api' %}" />
 	        <input type="hidden" id="task-playbook-share-url" value="{% url 'share-tactical-playbook-clip-create' %}" />
+	        <input type="hidden" name="task_id" value="{{ task.id|default_if_none:'' }}" />
+	        <input type="hidden" name="task_submit_uid" id="task-submit-uid" value="{{ task_submit_uid|default:'' }}" />
 	        <input type="hidden" name="planner_action" value="create_draw_task" />
 	        <input type="hidden" name="draw_library_repository" value="{{ library_repository|default:'traditional' }}" />
 	        <input type="hidden" name="draw_canvas_state" id="draw-canvas-state" value="{{ initial.canvas_state|escape }}" />

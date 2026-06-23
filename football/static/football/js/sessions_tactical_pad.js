@@ -34731,79 +34731,118 @@
 	    } catch (error) { /* ignore */ }
 
 			    let isSubmitting = false;
+			    const submitLockIds = [
+			      'task-submit-btn',
+			      'task-builder-save-top',
+			      'tactics-save-top',
+			      'tactics-save-task-top',
+			      'tactics-save-task-system-top',
+			      'tactics-save-clip-top',
+			    ];
+			    const setSubmitLock = (locked) => {
+			      try {
+			        submitLockIds.forEach((buttonId) => {
+			          const node = document.getElementById(buttonId);
+			          if (node) node.disabled = locked;
+			        });
+			      } catch (error) {
+			        /* ignore */
+			      }
+			      return locked;
+			    };
+			    const resetSubmitState = () => {
+			      isSubmitting = false;
+			      setSubmitLock(false);
+			    };
 				    form.addEventListener('submit', async (event) => {
-	      // Segunda pasada: dejamos que el navegador envíe el POST (evita bucles con requestSubmit()).
-		      if (form.dataset.previewReady === '1') {
-		        form.dataset.previewReady = '';
-		        return;
-		      }
-		      if (isSubmitting) return;
-		      if (isSimulating) {
-		        event.preventDefault();
-		        setStatus('Modo simulación: sal del simulador para guardar la tarea.', true);
-		        __safeAlert('Estás en modo simulación. Sal del simulador para poder guardar la tarea.');
-		        return;
-		      }
-				      event.preventDefault();
+			      // Segunda pasada: dejamos que el navegador envíe el POST (evita bucles con requestSubmit()).
+			      if (form.dataset.previewReady === '1') {
+			        form.dataset.previewReady = '';
+			        return;
+			      }
+			      if (isSubmitting) {
+			        event.preventDefault();
+			        return;
+			      }
+			      if (isSimulating) {
+			        event.preventDefault();
+			        setStatus('Modo simulación: sal del simulador para guardar la tarea.', true);
+			        __safeAlert('Estás en modo simulación. Sal del simulador para poder guardar la tarea.');
+			        return;
+			      }
+			      event.preventDefault();
+			      isSubmitting = true;
+			      setSubmitLock(true);
 			      // Antes de cualquier comprobación de red, guardamos borrador local para no perder cambios
 			      // si el dispositivo reporta "offline" o se corta la conexión al pulsar Guardar.
-			      try { syncRichEditorsNow(); } catch (error) { /* ignore */ }
-			      try { persistDraftNow('submit'); } catch (error) { /* ignore */ }
-			      // Offline real: no intentamos enviar POST (en iPad puede parecer que "se guardó").
-			      // Nota: `navigator.onLine` no es fiable en iOS/WKWebView, así que si dice "offline"
-			      // hacemos una comprobación rápida contra el servidor antes de bloquear el guardado.
 			      try {
-			        const reportedOffline = (typeof navigator !== 'undefined' && navigator && navigator.onLine === false);
-			        if (reportedOffline) {
-			          let reachable = false;
-			          try {
-			            const url = '/api/session/keepalive/';
-			            const opts = { credentials: 'include', cache: 'no-store', headers: { Accept: 'application/json' } };
-			            if (typeof AbortController !== 'undefined') {
-			              const ctrl = new AbortController();
-			              const timer = window.setTimeout(() => { try { ctrl.abort(); } catch (e) { /* ignore */ } }, 2500);
-			              try {
-			                await fetch(url, { ...opts, signal: ctrl.signal });
+			        try {
+			          syncRichEditorsNow();
+			        } catch (error) { /* ignore */ }
+			        try {
+			          persistDraftNow('submit');
+			        } catch (error) { /* ignore */ }
+			        // Offline real: no intentamos enviar POST (en iPad puede parecer que "se guardó").
+			        // Nota: `navigator.onLine` no es fiable en iOS/WKWebView, así que si dice "offline"
+			        // hacemos una comprobación rápida contra el servidor antes de bloquear el guardado.
+			        try {
+			          const reportedOffline = (typeof navigator !== 'undefined' && navigator && navigator.onLine === false);
+			          if (reportedOffline) {
+			            let reachable = false;
+			            try {
+			              const url = '/api/session/keepalive/';
+			              const opts = { credentials: 'include', cache: 'no-store', headers: { Accept: 'application/json' } };
+			              if (typeof AbortController !== 'undefined') {
+			                const ctrl = new AbortController();
+			                const timer = window.setTimeout(() => { try { ctrl.abort(); } catch (e) { /* ignore */ } }, 2500);
+			                try {
+			                  await fetch(url, { ...opts, signal: ctrl.signal });
+			                  reachable = true;
+			                } catch (e) {
+			                  reachable = false;
+			                } finally {
+			                  try {
+			                    window.clearTimeout(timer);
+			                  } catch (e) { /* ignore */ }
+			                }
+			              } else {
+			                await fetch(url, opts);
 			                reachable = true;
-			              } catch (e) {
-			                reachable = false;
-			              } finally {
-			                try { window.clearTimeout(timer); } catch (e) { /* ignore */ }
 			              }
-			            } else {
-			              await fetch(url, opts);
-			              reachable = true;
+			            } catch (e) {
+			              reachable = false;
 			            }
-			          } catch (e) {
-			            reachable = false;
+			            if (!reachable) {
+			              try {
+			                persistDraftNow('submit-offline');
+			              } catch (error) { /* ignore */ }
+			              setStatus('Sin conexión: borrador local guardado. Conecta y vuelve a guardar.', true);
+			              __safeAlert('Sin conexión: se guardó un borrador local. Conecta a internet y vuelve a pulsar Guardar.');
+			              resetSubmitState();
+			              return;
+			            }
 			          }
-			          if (!reachable) {
-			            try { persistDraftNow('submit-offline'); } catch (error) { /* ignore */ }
-			            setStatus('Sin conexión: borrador local guardado. Conecta y vuelve a guardar.', true);
-			            __safeAlert('Sin conexión: se guardó un borrador local. Conecta a internet y vuelve a pulsar Guardar.');
-			            return;
+			        } catch (error) { /* ignore */ }
+			        if (pingKeepalive) {
+			          const ok = await pingKeepalive();
+			          if (!ok) {
+			            // Importante: NO forzamos navegación al login aquí porque en WKWebView pueden darse
+			            // falsos negativos (cookies no enviadas en fetch aunque el POST sí funcione).
+			            // Dejamos que el submit continúe; si realmente caducó, el servidor redirigirá.
+			            __safeAlert('No se pudo verificar la sesión. Se guardó un borrador local; si aparece login, vuelve y reintenta.');
 			          }
 			        }
-			      } catch (error) { /* ignore */ }
-	      if (pingKeepalive) {
-	        const ok = await pingKeepalive();
-	        if (!ok) {
-	          // Importante: NO forzamos navegación al login aquí porque en WKWebView pueden darse
-	          // falsos negativos (cookies no enviadas en fetch aunque el POST sí funcione).
-	          // Dejamos que el submit continúe; si realmente caducó, el servidor redirigirá.
-	          __safeAlert('No se pudo verificar la sesión. Se guardó un borrador local; si aparece login, vuelve y reintenta.');
-	        }
-	      }
-		      isSubmitting = true;
-						      // Enviar preview HD al guardar (se usa también en la card y en el PDF).
-						      // Usamos PNG para evitar artefactos en líneas/flechas dentro del PDF.
-						      await syncHiddenBuilderFields({
-						        previewOptions: { maxSide: 4096, mime: 'image/png', quality: 0.98 },
-						        applyLivePreview: false,
-						      });
-			      form.dataset.previewReady = '1';
-		      isSubmitting = false;
-			      form.requestSubmit();
+			        // Enviar preview HD al guardar (se usa también en la card y en el PDF).
+			        // Usamos PNG para evitar artefactos en líneas/flechas dentro del PDF.
+			        await syncHiddenBuilderFields({
+			          previewOptions: { maxSide: 4096, mime: 'image/png', quality: 0.98 },
+			          applyLivePreview: false,
+			        });
+			        form.dataset.previewReady = '1';
+			        form.requestSubmit();
+			      } catch (error) {
+			        resetSubmitState();
+			      }
 			    });
 		    // Rotación con snap (Shift): útil para flechas/líneas rectas delimitando zonas.
 		    const shouldSnapRotation = (obj) => {
