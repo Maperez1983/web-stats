@@ -973,6 +973,31 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
     if (filteredTracks.length === sourceTracks.length) return source;
     return new THREE.AnimationClip(source.name || 'PlayerAction', source.duration || -1, filteredTracks);
   };
+  const buildHumanoidMotion = (clip) => {
+    if (!clip) return null;
+    const name = String(clip.name || '').toLowerCase();
+    const isRun = name.includes('run') || name.includes('sprint') || name.includes('dash');
+    const isWalk = name.includes('walk') || name.includes('jog') || name.includes('move');
+    return {
+      speed: isRun ? 1.6 : isWalk ? 1.06 : 1,
+    };
+  };
+  const applyHumanoidAnimationState = (group, moveStrength) => {
+    const motion = group?.userData?.humanoidMotion;
+    if (!motion || !motion.action || !motion.mixer) return;
+    const moving = moveStrength > 0.032;
+    const speed = clamp(0.08 + (moveStrength * 2.2), 0.08, 2.1);
+    if (!moving) {
+      motion.action.timeScale = 0;
+      motion.action.time = 0;
+      motion.action.paused = true;
+      motion.isIdle = true;
+      return;
+    }
+    motion.action.paused = false;
+    motion.action.timeScale = speed * motion.speed;
+    motion.isIdle = !moving;
+  };
   const scaleClamped = (value, minScale, maxScale) => Math.max(minScale, Math.min(maxScale, value));
   const shouldSkipMaterialTint = (material) => {
     if (!material || typeof material !== 'object') return true;
@@ -1207,11 +1232,24 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
       group.add(clone);
 
       let mixer = null;
+      let humanoidMotion = null;
       if (Array.isArray(asset.clips) && asset.clips.length) {
         const selectedClip = getHumanoidAnimationClip(asset.clips[0], clone);
         if (selectedClip) {
           mixer = new THREE.AnimationMixer(clone);
-          mixer.clipAction(selectedClip).play();
+          const action = mixer.clipAction(selectedClip);
+          const profile = buildHumanoidMotion(selectedClip);
+          action.setLoop(THREE.LoopRepeat, Infinity);
+          action.play();
+          action.timeScale = 0;
+          action.paused = true;
+          action.enabled = true;
+          humanoidMotion = {
+            mixer,
+            action,
+            speed: profile?.speed || 1,
+            isIdle: true,
+          };
           modelMixers.add(mixer);
         }
       }
@@ -1243,6 +1281,7 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
         torsoPivot: resolveNodeByName(clone, ['spine_02', 'spine_01', 'spine', 'TorsoPivot']),
         modelRoot: clone,
         mixer,
+        humanoidMotion,
       };
     }).catch(() => {});
   };
@@ -1440,6 +1479,13 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
   };
 
   const clearGroup = (group) => {
+    const humanoidMotion = group?.userData?.humanoidMotion;
+    if (humanoidMotion?.mixer) {
+      humanoidMotion.action?.stop();
+      humanoidMotion.mixer.stopAllAction();
+      humanoidMotion.mixer.uncacheRoot(group.userData?.modelRoot || group);
+      modelMixers.delete(humanoidMotion.mixer);
+    }
     if (group?.userData?.mixer) modelMixers.delete(group.userData.mixer);
     while (group.children.length) {
       const child = group.children[0];
@@ -2164,11 +2210,13 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
       group.position.z = z;
       group.position.y = Math.sin((elapsedSeconds * 3.2) + x * 0.08 + z * 0.08) * 0.06;
       group.rotation.y = next ? Math.atan2(dx, dz) : 0;
-      if (group.userData.leftArm) group.userData.leftArm.rotation.x = stride * 0.55;
-      if (group.userData.rightArm) group.userData.rightArm.rotation.x = -stride * 0.55;
-      if (group.userData.leftLeg) group.userData.leftLeg.rotation.x = -stride * 0.34;
-      if (group.userData.rightLeg) group.userData.rightLeg.rotation.x = stride * 0.34;
-      if (group.userData.isPhotoPlayer || group.userData.isHumanoidModel) {
+      if (!group.userData?.humanoidMotion?.mixer) {
+        if (group.userData.leftArm) group.userData.leftArm.rotation.x = stride * 0.55;
+        if (group.userData.rightArm) group.userData.rightArm.rotation.x = -stride * 0.55;
+        if (group.userData.leftLeg) group.userData.leftLeg.rotation.x = -stride * 0.34;
+        if (group.userData.rightLeg) group.userData.rightLeg.rotation.x = stride * 0.34;
+      }
+      if (group.userData.isPhotoPlayer || (group.userData.isHumanoidModel && !group.userData?.humanoidMotion?.mixer)) {
         if (group.userData.leftArm) group.userData.leftArm.rotation.x = (stride * 0.66) + idleSwing;
         if (group.userData.rightArm) group.userData.rightArm.rotation.x = (-stride * 0.66) - idleSwing;
         if (group.userData.leftLeg) group.userData.leftLeg.rotation.x = (-stride * 0.46) + (idleSwing * 0.35);
@@ -2186,6 +2234,7 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
           group.userData.portrait.rotation.y = Math.sin(elapsedSeconds * 2.8 + z * 0.05) * 0.08;
         }
       }
+      applyHumanoidAnimationState(group, moveStrength);
       if (group.userData.badge) {
         group.userData.badge.position.y = (group.userData.isPhotoPlayer || group.userData.isHumanoidModel)
           ? 2.12 + (Math.sin(elapsedSeconds * 5 + x * 0.08) * 0.04)
