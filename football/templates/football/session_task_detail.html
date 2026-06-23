@@ -1505,6 +1505,7 @@
       {
         "taskTitle": "{{ task.title|default:''|escapejs }}",
         "stadiumModelUrl": "{% static 'football/models/pitch3d/stadium_architectural_complete.glb' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}",
+        "playerModelUrl": "{% static 'football/models/avatar/player_humanoid.glb' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}",
         "pitch3dContext": {{ task_pitch3d_context_json|safe }},
         "graphicEditorState": {{ graphic_editor_state_json|safe }},
         "animationFrames": {{ animation_frames_json|safe }}
@@ -1555,6 +1556,108 @@
             targetCanvas.backgroundColor = PRESENTATION_PITCH_BG;
           }
         };
+        const drawPitchMarkings = (ctx, width, height) => {
+          if (!ctx || width <= 0 || height <= 0) return;
+          const line = 'rgba(255,255,255,0.82)';
+          const minor = 'rgba(255,255,255,0.18)';
+          const pitchX = width * 0.06;
+          const pitchY = height * 0.08;
+          const pitchW = width * 0.88;
+          const pitchH = height * 0.84;
+          const halfW = pitchW / 2;
+          const centerX = pitchX + halfW;
+          const centerY = pitchY + (pitchH / 2);
+          const boxDepth = pitchW * 0.16;
+          const boxHeight = pitchH * 0.58;
+          const goalDepth = pitchW * 0.055;
+          const goalHeight = pitchH * 0.26;
+          const sixDepth = pitchW * 0.075;
+          const sixHeight = pitchH * 0.28;
+          const circleR = pitchH * 0.15;
+          const spotOffset = pitchW * 0.105;
+          ctx.save();
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          ctx.strokeStyle = line;
+          ctx.lineWidth = Math.max(1.5, Math.min(width, height) * 0.006);
+          for (let i = 1; i < 10; i += 1) {
+            const stripeX = pitchX + ((pitchW / 10) * i);
+            ctx.beginPath();
+            ctx.moveTo(stripeX, pitchY);
+            ctx.lineTo(stripeX, pitchY + pitchH);
+            ctx.strokeStyle = minor;
+            ctx.lineWidth = Math.max(1, Math.min(width, height) * 0.0025);
+            ctx.stroke();
+          }
+          ctx.strokeStyle = line;
+          ctx.lineWidth = Math.max(1.5, Math.min(width, height) * 0.006);
+          ctx.strokeRect(pitchX, pitchY, pitchW, pitchH);
+          ctx.beginPath();
+          ctx.moveTo(centerX, pitchY);
+          ctx.lineTo(centerX, pitchY + pitchH);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, circleR, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, Math.max(2, width * 0.0032), 0, Math.PI * 2);
+          ctx.fillStyle = line;
+          ctx.fill();
+          const drawBox = (leftSide) => {
+            const boxX = leftSide ? pitchX : pitchX + pitchW - boxDepth;
+            const sixX = leftSide ? pitchX : pitchX + pitchW - sixDepth;
+            const goalX = leftSide ? pitchX - goalDepth : pitchX + pitchW;
+            const boxY = centerY - (boxHeight / 2);
+            const sixY = centerY - (sixHeight / 2);
+            const goalY = centerY - (goalHeight / 2);
+            ctx.strokeRect(boxX, boxY, boxDepth, boxHeight);
+            ctx.strokeRect(sixX, sixY, sixDepth, sixHeight);
+            ctx.strokeRect(goalX, goalY, goalDepth, goalHeight);
+            ctx.beginPath();
+            ctx.arc(leftSide ? pitchX + spotOffset : pitchX + pitchW - spotOffset, centerY, Math.max(2, width * 0.0032), 0, Math.PI * 2);
+            ctx.fill();
+          };
+          drawBox(true);
+          drawBox(false);
+          ctx.restore();
+        };
+        const buildPitchBackdropDataUrl = (width, height) => {
+          const offscreen = document.createElement('canvas');
+          offscreen.width = Math.max(1, Math.round(width || 1));
+          offscreen.height = Math.max(1, Math.round(height || 1));
+          const ctx = offscreen.getContext('2d');
+          if (!ctx) return '';
+          const stripeColors = ['#6f9b4f', '#628f42'];
+          const stripeWidth = offscreen.width / 10;
+          for (let i = 0; i < 10; i += 1) {
+            ctx.fillStyle = stripeColors[i % stripeColors.length];
+            ctx.fillRect(i * stripeWidth, 0, stripeWidth + 1, offscreen.height);
+          }
+          drawPitchMarkings(ctx, offscreen.width, offscreen.height);
+          return offscreen.toDataURL('image/png');
+        };
+        const applyPresentationPitchBackdrop = () => {
+          if (!isPresentationMode) return;
+          const width = Math.max(1, canvas.getWidth() || canvasEl.width || 1);
+          const height = Math.max(1, canvas.getHeight() || canvasEl.height || 1);
+          const dataUrl = buildPitchBackdropDataUrl(width, height);
+          if (!dataUrl) return;
+          fabric.Image.fromURL(dataUrl, (img) => {
+            if (!img) return;
+            img.set({
+              left: 0,
+              top: 0,
+              originX: 'left',
+              originY: 'top',
+              selectable: false,
+              evented: false,
+              excludeFromExport: true,
+            });
+            img.scaleToWidth(width);
+            img.scaleToHeight(height);
+            canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas));
+          });
+        };
         const canvas = new fabric.Canvas(canvasEl, {
           isDrawingMode: isEditable,
           selection: false,
@@ -1590,6 +1693,7 @@
               obj.setCoords();
             });
           }
+          applyPresentationPitchBackdrop();
           canvas.renderAll();
         };
         const setObjectLocked = (obj, locked) => {
@@ -1712,6 +1816,7 @@
                 canvas.getObjects().forEach((obj) => setObjectLocked(obj, true));
               }
               normalizeCanvasBackground(canvas, isPresentationMode);
+              applyPresentationPitchBackdrop();
               canvas.renderAll();
               pushHistory();
               refreshLayerList();
@@ -1737,6 +1842,7 @@
               canvas.sendToBack(img);
               if (!isEditable) setObjectLocked(img, true);
               normalizeCanvasBackground(canvas, isPresentationMode);
+              applyPresentationPitchBackdrop();
               canvas.renderAll();
               pushHistory();
               refreshLayerList();
@@ -2299,6 +2405,7 @@
             animationCtx.clearRect(0, 0, width, height);
             animationCtx.fillStyle = PRESENTATION_PITCH_BG;
             animationCtx.fillRect(0, 0, width, height);
+            drawPitchMarkings(animationCtx, width, height);
             const objects = Array.isArray(frameState?.objects) ? frameState.objects : [];
             objects.forEach((obj) => {
               const kind = obj?.data && typeof obj.data === 'object' ? String(obj.data.kind || '') : '';

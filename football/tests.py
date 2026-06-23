@@ -3319,6 +3319,38 @@ class SystemGuardTests(TestCase):
         self.assertTrue(snapshot['three_import_failure'])
         self.assertIn('Visor 3D bloqueado: import de three sin resolver', snapshot['alerts'])
 
+    def test_run_system_guard_marks_visual_render_fallback_as_warning(self):
+        report = system_guard.run_system_guard(
+            run_smoke=False,
+            run_llm=False,
+            page_context={
+                'page': 'session-task-detail',
+                'path': '/coach/sesiones/tarea/340/',
+                'title': 'Salida de balón ante presión alta · Detalle tarea',
+                'visual_snapshot': {
+                    'render_surfaces': [{
+                        'id': 'task-detail-3d-canvas',
+                        'kind': 'three_scene',
+                        'label': 'Representacion 3D de tarea',
+                        'visible': True,
+                        'draw_state': 'blank',
+                        'non_empty_samples': 0,
+                        'scene_status': 'fallback_2d',
+                        'issue': 'webgl_unavailable',
+                        'step_count': 1,
+                        'object_count': 42,
+                    }],
+                    'render_alerts': ['Representacion 3D de tarea: webgl_unavailable'],
+                },
+            },
+        )
+
+        self.assertEqual(report['issue_summary']['blockers'], 0)
+        self.assertGreaterEqual(report['issue_summary']['warnings'], 1)
+        self.assertEqual(system_guard._base_status_from_issues(report['issues']), 'watch')
+        self.assertTrue(any(issue['area'] == 'visual_render' for issue in report['issues']))
+        self.assertTrue(any('webgl_unavailable' in str(issue.get('detail') or '') for issue in report['issues']))
+
     @patch('football.system_guard.Client')
     def test_local_navigation_audit_snapshot_audits_active_and_core_routes(self, mock_client_cls):
         class FakeResponse:

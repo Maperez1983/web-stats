@@ -4571,6 +4571,40 @@ def _derive_issues(evidence: dict) -> list[dict]:
     for key, item in (smoke.get("results") or {}).items():
         if isinstance(item, dict) and not item.get("ok"):
             issues.append(_issue(f"smoke_failed_{key}", severity="blocker", area="smoke", message=f"Ha fallado el smoke {key}.", detail=item.get("error") or item.get("exit_code") or item.get("stderr") or item.get("stdout")))
+    page_context = evidence.get("page_context") if isinstance(evidence.get("page_context"), dict) else {}
+    visual_snapshot = page_context.get("visual_snapshot") if isinstance(page_context.get("visual_snapshot"), dict) else {}
+    render_alerts = [str(item).strip() for item in (visual_snapshot.get("render_alerts") or []) if str(item or "").strip()]
+    render_surfaces = [row for row in (visual_snapshot.get("render_surfaces") or []) if isinstance(row, dict)]
+    visual_issue_signatures = set()
+    for alert in render_alerts:
+        lowered = alert.lower()
+        if "webgl_unavailable" in lowered or "fallback_2d" in lowered:
+            label = str(alert.split(":", 1)[0] or "superficie visual").strip()
+            visual_issue_signatures.add(f"{label}: fallback_2d / webgl_unavailable")
+        elif "blank" in lowered or "bloque negro" in lowered or "render roto" in lowered:
+            label = str(alert.split(":", 1)[0] or "superficie visual").strip()
+            visual_issue_signatures.add(f"{label}: blank_canvas")
+    for row in render_surfaces:
+        label = str(row.get("label") or row.get("id") or "superficie visual").strip()[:90]
+        issue = str(row.get("issue") or "").strip().lower()
+        scene_status = str(row.get("scene_status") or "").strip().lower()
+        draw_state = str(row.get("draw_state") or "").strip().lower()
+        non_empty_samples = _safe_int(row.get("non_empty_samples"), 0)
+        if issue == "webgl_unavailable" or scene_status == "fallback_2d":
+            visual_issue_signatures.add(f"{label}: fallback_2d / webgl_unavailable")
+        elif draw_state == "blank" and non_empty_samples == 0:
+            visual_issue_signatures.add(f"{label}: blank_canvas")
+    for signature in sorted(visual_issue_signatures):
+        issues.append(
+            _issue(
+                f"visual_surface_{slugify(signature) or 'render_issue'}",
+                severity="warning",
+                area="visual_render",
+                message="La pantalla inspeccionada muestra una superficie visual degradada o sin render correcto.",
+                detail=signature,
+                repairable=True,
+            )
+        )
     return issues
 
 

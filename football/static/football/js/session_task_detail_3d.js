@@ -1,5 +1,6 @@
 import * as THREE from '../../vendor/three/build/three.module.js';
 import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.js';
+import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUtils.js';
 
 (function () {
   const payloadEl = document.getElementById('task-detail-3d-payload');
@@ -76,6 +77,7 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
   } catch (error) {
     payload = {};
   }
+  const playerModelUrl = safeText(payload.playerModelUrl);
   const pitch3dContext = payload.pitch3dContext && typeof payload.pitch3dContext === 'object'
     ? payload.pitch3dContext
     : {};
@@ -277,8 +279,11 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
   let isRecording = false;
   let stadiumLoadPromise = null;
   let stadiumScene = null;
+  let playerModelLoadPromise = null;
+  let playerModelAsset = null;
   let renderFrameCount = 0;
   let lastRenderAt = 0;
+  const modelMixers = new Set();
   const ollanaDiagnostics = (() => {
     const root = window.__ollanaDiagnostics && typeof window.__ollanaDiagnostics === 'object'
       ? window.__ollanaDiagnostics
@@ -749,6 +754,52 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
     const z = ((toNumber(top) / stateMeta.height) - 0.5) * stateMeta.fieldHeight;
     return { x, z };
   };
+  const degToRad = (deg) => toNumber(deg, 0) * (Math.PI / 180);
+  const transformPoint2d = (localX, localY, obj) => {
+    const scaleX = Number.isFinite(Number(obj?.scaleX)) ? Number(obj.scaleX) : 1;
+    const scaleY = Number.isFinite(Number(obj?.scaleY)) ? Number(obj.scaleY) : 1;
+    const angle = degToRad(obj?.angle || 0);
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const x = toNumber(localX, 0) * scaleX;
+    const y = toNumber(localY, 0) * scaleY;
+    const rx = (x * cos) - (y * sin);
+    const ry = (x * sin) + (y * cos);
+    return {
+      x: toNumber(obj?.left, 0) + rx,
+      y: toNumber(obj?.top, 0) + ry,
+    };
+  };
+  const objectBaseWidth2d = (obj) => {
+    if (!obj || typeof obj !== 'object') return 0;
+    if (Number.isFinite(Number(obj.width)) && Number(obj.width) > 0) return Number(obj.width);
+    if (Number.isFinite(Number(obj.radius)) && Number(obj.radius) > 0) return Number(obj.radius) * 2;
+    if (Number.isFinite(Number(obj.rx)) && Number(obj.rx) > 0) return Number(obj.rx) * 2;
+    return 0;
+  };
+  const objectBaseHeight2d = (obj) => {
+    if (!obj || typeof obj !== 'object') return 0;
+    if (Number.isFinite(Number(obj.height)) && Number(obj.height) > 0) return Number(obj.height);
+    if (Number.isFinite(Number(obj.radius)) && Number(obj.radius) > 0) return Number(obj.radius) * 2;
+    if (Number.isFinite(Number(obj.ry)) && Number(obj.ry) > 0) return Number(obj.ry) * 2;
+    return 0;
+  };
+  const objectCenter2d = (obj) => {
+    if (!obj || typeof obj !== 'object') return { x: 0, y: 0 };
+    const ox = safeText(obj.originX, 'center');
+    const oy = safeText(obj.originY, 'center');
+    const width = objectBaseWidth2d(obj);
+    const height = objectBaseHeight2d(obj);
+    const localX = ox === 'left' ? (width / 2) : (ox === 'right' ? -(width / 2) : 0);
+    const localY = oy === 'top' ? (height / 2) : (oy === 'bottom' ? -(height / 2) : 0);
+    return transformPoint2d(localX, localY, obj);
+  };
+  const childPointInGroup2d = (groupObj, childObj, localX, localY) => {
+    const child = childObj && typeof childObj === 'object' ? childObj : {};
+    const childLocalX = toNumber(child.left, 0) + toNumber(localX, 0);
+    const childLocalY = toNumber(child.top, 0) + toNumber(localY, 0);
+    return transformPoint2d(childLocalX, childLocalY, groupObj);
+  };
   const sizeToMeters = (size, total, fieldTotal, minimum, maximum) => {
     return clamp((toNumber(size, minimum) / total) * fieldTotal, minimum, maximum);
   };
@@ -765,6 +816,42 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
     const color = colorLike instanceof THREE.Color ? colorLike.clone() : parseColor(colorLike, '#ffffff');
     color.offsetHSL(0, 0, amount);
     return color;
+  };
+  const normalizeNodeName = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const resolveNodeByName = (root, candidates) => {
+    if (!root || !Array.isArray(candidates)) return null;
+    const normalizedCandidates = candidates
+      .map((name) => String(name || '').trim())
+      .filter(Boolean)
+      .map((name) => ({
+        exact: name,
+        normalized: normalizeNodeName(name),
+      }));
+    const uniqueExact = [...new Set(normalizedCandidates.map((entry) => entry.exact))];
+    for (const candidate of uniqueExact) {
+      const found = root.getObjectByName ? root.getObjectByName(candidate, true) : null;
+      if (found) return found;
+    }
+    const targetSet = new Set(normalizedCandidates.map((entry) => entry.normalized));
+    let fallback = null;
+    root.traverse((node) => {
+      if (fallback || !node?.name) return;
+      if (targetSet.has(normalizeNodeName(node.name))) fallback = node;
+    });
+    return fallback;
+  };
+  const scaleClamped = (value, minScale, maxScale) => Math.max(minScale, Math.min(maxScale, value));
+  const resolveTokenPhotoUrl = (obj, childObjects = []) => {
+    const extra = obj && typeof obj.data === 'object' ? obj.data : {};
+    const childPhoto = childObjects.find((child) => String((child?.data || {}).role || '').trim() === 'token_photo');
+    return safeText(
+      extra.playerPhotoUrl
+      || extra.photo_url
+      || extra.photoUrl
+      || childPhoto?.src
+      || childPhoto?.crossOriginSrc
+      || childPhoto?._element?.src
+    );
   };
 
   const createLabelSprite = (text, fillHex = '#ffffff') => {
@@ -834,6 +921,180 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
     group.add(shadow);
     group.userData = { floatPhase: Math.random() * Math.PI * 2 };
     return group;
+  };
+
+  const createPlayerCutoutSprite = (photoUrl, radius, accentColor) => {
+    const src = safeText(photoUrl);
+    if (!src) return null;
+    const group = new THREE.Group();
+    group.userData = { kind: 'photo_cutout_group' };
+    const halo = new THREE.Mesh(
+      new THREE.CircleGeometry(radius * 1.02, 28),
+      new THREE.MeshBasicMaterial({ color: accentColor, transparent: true, opacity: 0.22, depthWrite: false })
+    );
+    halo.rotation.x = -Math.PI / 2;
+    halo.position.y = 0.04;
+    group.add(halo);
+
+    const loader = new THREE.TextureLoader();
+    try { loader.setCrossOrigin('anonymous'); } catch (error) {}
+    loader.load(src, (texture) => {
+      texture.needsUpdate = true;
+      texture.colorSpace = THREE.SRGBColorSpace;
+      const material = new THREE.SpriteMaterial({
+        map: texture,
+        transparent: true,
+        depthWrite: false,
+        alphaTest: 0.02,
+      });
+      const sprite = new THREE.Sprite(material);
+      sprite.center.set(0.5, 0);
+      const width = radius * 2.45;
+      const height = radius * 4.5;
+      sprite.scale.set(width, height, 1);
+      sprite.position.set(0, 0.06, 0);
+      sprite.renderOrder = 8;
+      group.userData.sprite = sprite;
+      group.add(sprite);
+    }, undefined, () => {});
+    return group;
+  };
+
+  const buildPhotoBadgeSprite = (photoUrl, radius) => {
+    const src = safeText(photoUrl);
+    if (!src) return null;
+    const group = new THREE.Group();
+    const loader = new THREE.TextureLoader();
+    try { loader.setCrossOrigin('anonymous'); } catch (error) {}
+    loader.load(src, (texture) => {
+      texture.needsUpdate = true;
+      texture.colorSpace = THREE.SRGBColorSpace;
+      const material = new THREE.SpriteMaterial({
+        map: texture,
+        transparent: true,
+        depthWrite: false,
+        alphaTest: 0.02,
+      });
+      const sprite = new THREE.Sprite(material);
+      sprite.center.set(0.5, 0);
+      sprite.scale.set(radius * 1.15, radius * 1.15, 1);
+      sprite.position.set(0, 0, radius * 0.42);
+      group.add(sprite);
+    }, undefined, () => {});
+    return group;
+  };
+
+  const upgradeActorToHumanoidModel = (group, entry, fillColor, accentColor) => {
+    ensurePlayerModel().then((asset) => {
+      if (!asset?.scene || !group?.parent) return;
+      const clone = SkeletonUtils.clone(asset.scene);
+      const fill = fillColor instanceof THREE.Color ? fillColor.clone() : parseColor(fillColor, '#2563eb');
+      const accent = accentColor instanceof THREE.Color ? accentColor.clone() : parseColor(accentColor, '#ffffff');
+      const darkerFill = tintColor(fill, -0.16);
+      const skin = parseColor('#f1c27d', '#f1c27d');
+      const strayNodes = [];
+      clone.traverse((node) => {
+        const nodeName = safeText(node.name).toLowerCase();
+        if (nodeName.includes('esfera geod') || nodeName === 'camera' || nodeName === 'light') {
+          strayNodes.push(node);
+          return;
+        }
+        if (!node.isMesh || !node.material) return;
+        node.material = Array.isArray(node.material)
+          ? node.material.map((item) => item.clone())
+          : node.material.clone();
+        const materials = Array.isArray(node.material) ? node.material : [node.material];
+        materials.forEach((material) => {
+          const materialName = safeText(material.name).toLowerCase();
+          if (!('color' in material)) return;
+          if (materialName.includes('skin') || materialName.includes('hair') || materialName.includes('face')) {
+            material.color.copy(skin);
+          } else if (materialName.includes('eyes') || materialName.includes('eye')) {
+            material.color.setHex(0x2f2f2f);
+          } else if (materialName.includes('short')) {
+            material.color.copy(darkerFill);
+          } else if (materialName.includes('sock')) {
+            material.color.copy(fill);
+          } else if (materialName.includes('kitlight')) {
+            material.color.copy(accent);
+          } else {
+            material.color.copy(fill);
+          }
+          if ('roughness' in material) material.roughness = 0.72;
+          if ('metalness' in material) material.metalness = 0.04;
+        });
+        node.castShadow = true;
+        node.receiveShadow = true;
+      });
+      strayNodes.forEach((node) => node.parent?.remove(node));
+
+      clearGroup(group);
+
+      const radius = Number(entry?.radius) || 1;
+      const baseGlow = new THREE.Mesh(
+        new THREE.CircleGeometry(radius * 1.36, 28),
+        new THREE.MeshBasicMaterial({ color: fill, transparent: true, opacity: 0.22, depthWrite: false })
+      );
+      baseGlow.rotation.x = -Math.PI / 2;
+      baseGlow.position.y = 0.035;
+      group.add(baseGlow);
+
+      const feetShadow = new THREE.Mesh(
+        new THREE.CircleGeometry(radius * 0.96, 24),
+        new THREE.MeshBasicMaterial({ color: 0x020617, transparent: true, opacity: 0.22, depthWrite: false })
+      );
+      feetShadow.rotation.x = -Math.PI / 2;
+      feetShadow.position.y = 0.04;
+      group.add(feetShadow);
+      group.add(createShadowStreak(radius));
+
+      const bounds = new THREE.Box3().setFromObject(clone);
+      const size = bounds.getSize(new THREE.Vector3());
+      const measuredWidth = Math.max(size.x, size.z, 0.01);
+      const targetRadius = radius * 0.95;
+      const normalizedScale = scaleClamped(targetRadius / measuredWidth, 0.35, 1.8);
+      clone.scale.setScalar(normalizedScale);
+      const normalizedBounds = new THREE.Box3().setFromObject(clone);
+      const normalizedMinY = normalizedBounds.min.y;
+      clone.position.y = normalizedMinY < 0 ? Math.abs(normalizedMinY) : 0;
+      group.add(clone);
+
+      let mixer = null;
+      if (Array.isArray(asset.clips) && asset.clips.length) {
+        mixer = new THREE.AnimationMixer(clone);
+        mixer.clipAction(asset.clips[0]).play();
+        modelMixers.add(mixer);
+      }
+
+      const badge = createLabelSprite(entry.label, '#ffffff');
+      badge.scale.set(2.8, 1.4, 1);
+      badge.position.set(0, 2.22, radius * 0.72);
+      group.add(badge);
+
+      if (safeText(entry.photoUrl)) {
+        const portrait = buildPhotoBadgeSprite(entry.photoUrl, radius);
+        if (portrait) {
+          portrait.position.set(0, 2.48, 0.04);
+          group.add(portrait);
+          group.userData.portrait = portrait;
+        }
+      }
+
+      group.userData = {
+        ...group.userData,
+        baseY: 0,
+        radius,
+        badge,
+        isHumanoidModel: true,
+        leftArm: resolveNodeByName(clone, ['upperarm_l', 'upper_arm_l', 'leftarm', 'LeftArmPivot']),
+        rightArm: resolveNodeByName(clone, ['upperarm_r', 'upper_arm_r', 'rightarm', 'RightArmPivot']),
+        leftLeg: resolveNodeByName(clone, ['thigh_l', 'thigh_left', 'LeftLegPivot']),
+        rightLeg: resolveNodeByName(clone, ['thigh_r', 'thigh_right', 'RightLegPivot']),
+        torsoPivot: resolveNodeByName(clone, ['spine_02', 'spine_01', 'spine', 'TorsoPivot']),
+        modelRoot: clone,
+        mixer,
+      };
+    }).catch(() => {});
   };
 
   const createGoalFrame = (color = 0xe5e7eb) => {
@@ -1001,7 +1262,35 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
     return stadiumLoadPromise;
   };
 
+  const ensurePlayerModel = async () => {
+    if (playerModelAsset) return playerModelAsset;
+    if (playerModelLoadPromise) return playerModelLoadPromise;
+    if (!playerModelUrl) return null;
+    const loader = new GLTFLoader();
+    playerModelLoadPromise = new Promise((resolve) => {
+      loader.load(
+        playerModelUrl,
+        (gltf) => {
+          const sceneRef = gltf.scene || gltf.scenes?.[0] || null;
+          if (!sceneRef) {
+            resolve(null);
+            return;
+          }
+          playerModelAsset = {
+            scene: sceneRef,
+            clips: Array.isArray(gltf.animations) ? gltf.animations : [],
+          };
+          resolve(playerModelAsset);
+        },
+        undefined,
+        () => resolve(null)
+      );
+    });
+    return playerModelLoadPromise;
+  };
+
   const clearGroup = (group) => {
+    if (group?.userData?.mixer) modelMixers.delete(group.userData.mixer);
     while (group.children.length) {
       const child = group.children[0];
       group.remove(child);
@@ -1017,6 +1306,7 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
       balls: new Map(),
       cones: new Map(),
       zones: [],
+      shapes: [],
       goals: [],
       paths: [],
       notes: [],
@@ -1028,22 +1318,76 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
     objects.forEach((obj, index) => {
       const extra = obj && typeof obj.data === 'object' ? obj.data : {};
       const kind = safeText(extra.kind);
+      const extractSolidColor = (value, fallback = '#2563eb') => {
+        if (typeof value === 'string' && value.trim()) return value.trim();
+        if (value && typeof value === 'object' && Array.isArray(value.colorStops) && value.colorStops.length) {
+          const first = value.colorStops.find((row) => row && typeof row.color === 'string' && row.color.trim());
+          if (first) return first.color.trim();
+        }
+        return fallback;
+      };
+      const childObjects = Array.isArray(obj.objects) ? obj.objects : [];
+      const childByRole = (role) => childObjects.find((child) => String((child?.data || {}).role || '').trim() === role);
+      const center2d = objectCenter2d(obj);
+      const measuredWidth = Math.max(
+        8,
+        objectBaseWidth2d(obj) * (Number(obj?.scaleX) || 1),
+        toNumber(obj.width, 0) * (Number(obj?.scaleX) || 1)
+      );
+      const measuredHeight = Math.max(
+        8,
+        objectBaseHeight2d(obj) * (Number(obj?.scaleY) || 1),
+        toNumber(obj.height, 0) * (Number(obj?.scaleY) || 1)
+      );
       if (obj.type === 'rect' && kind === 'zone') {
-        const world = canvasToWorld(obj.left, obj.top);
+        const world = canvasToWorld(center2d.x, center2d.y);
         data.zones.push({
           uid: `zone:${index}`,
           x: world.x,
           z: world.z,
-          width: sizeToMeters(obj.width, stateMeta.width, stateMeta.fieldWidth, 2, stateMeta.fieldWidth),
-          depth: sizeToMeters(obj.height, stateMeta.height, stateMeta.fieldHeight, 2, stateMeta.fieldHeight),
+          width: sizeToMeters(measuredWidth, stateMeta.width, stateMeta.fieldWidth, 2, stateMeta.fieldWidth),
+          depth: sizeToMeters(measuredHeight, stateMeta.height, stateMeta.fieldHeight, 2, stateMeta.fieldHeight),
           fill: safeText(obj.fill, '#0ea5e9'),
           stroke: safeText(obj.stroke, '#fde047'),
           opacity: String(obj.fill || '').includes('0.00') ? 0.04 : 0.18,
+          rotationY: -degToRad(obj.angle || 0),
+        });
+        return;
+      }
+      if (
+        ((obj.type === 'rect' || obj.type === 'triangle' || obj.type === 'circle') && (
+          kind === 'shape-square'
+          || kind === 'shape-rect'
+          || kind === 'shape-rect-long'
+          || kind === 'shape-circle'
+          || kind === 'shape-triangle'
+          || kind === 'shape-diamond'
+        ))
+        || (obj.type === 'group' && (
+          kind === 'shape-square'
+          || kind === 'shape-rect'
+          || kind === 'shape-rect-long'
+          || kind.startsWith('shape-lane-')
+          || kind.startsWith('shape-band-')
+        ))
+      ) {
+        const world = canvasToWorld(center2d.x, center2d.y);
+        data.shapes.push({
+          uid: `shape:${index}`,
+          x: world.x,
+          z: world.z,
+          width: sizeToMeters(measuredWidth, stateMeta.width, stateMeta.fieldWidth, 0.9, stateMeta.fieldWidth),
+          depth: sizeToMeters(measuredHeight, stateMeta.height, stateMeta.fieldHeight, 0.9, stateMeta.fieldHeight),
+          fill: safeText(obj.fill, safeText(extra.color, '#22d3ee')),
+          stroke: safeText(obj.stroke, safeText(extra.color, '#22d3ee')),
+          opacity: safeText(obj.fill).includes('rgba') ? 0.18 : 0.24,
+          rotationY: -degToRad(obj.angle || 0),
+          shapeKind: kind,
         });
         return;
       }
       if (obj.type === 'circle' && kind === 'token') {
-        const world = canvasToWorld(obj.left, obj.top);
+        const world = canvasToWorld(center2d.x, center2d.y);
         const label = safeText(extra.label, `J${tokenIndex + 1}`);
         data.tokens.set(`token:${label}:${tokenIndex}`, {
           uid: `token:${label}:${tokenIndex}`,
@@ -1053,12 +1397,35 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
           radius: radiusToMeters(obj.radius),
           fill: safeText(obj.fill, '#2563eb'),
           stroke: safeText(obj.stroke, '#ffffff'),
+          photoUrl: resolveTokenPhotoUrl(obj),
+        });
+        tokenIndex += 1;
+        return;
+      }
+      if (obj.type === 'group' && kind === 'token') {
+        const world = canvasToWorld(center2d.x, center2d.y);
+        const label = safeText(
+          extra.playerName || extra.label || childByRole('token_name')?.text || childByRole('token_number')?.text,
+          `J${tokenIndex + 1}`
+        );
+        const fillNode = childByRole('token_fill');
+        const ringNode = childByRole('token_outer_ring') || childByRole('token_base');
+        const measuredRadius = radiusToMeters(Math.max(toNumber(obj.width, 44), toNumber(obj.height, 44)) / 2.4) || 1.1;
+        data.tokens.set(`token:${label}:${tokenIndex}`, {
+          uid: `token:${label}:${tokenIndex}`,
+          label,
+          x: world.x,
+          z: world.z,
+          radius: measuredRadius,
+          fill: extractSolidColor(fillNode?.fill, safeText(extra.token_base_color, '#2563eb')),
+          stroke: extractSolidColor(ringNode?.stroke, safeText(ringNode?.fill, '#ffffff')),
+          photoUrl: resolveTokenPhotoUrl(obj, childObjects),
         });
         tokenIndex += 1;
         return;
       }
       if (obj.type === 'text' && kind === 'emoji_ball') {
-        const world = canvasToWorld(obj.left, obj.top);
+        const world = canvasToWorld(center2d.x, center2d.y);
         data.balls.set(`ball:${ballIndex}`, {
           uid: `ball:${ballIndex}`,
           x: world.x,
@@ -1070,8 +1437,9 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
       if (
         (obj.type === 'text' && kind === 'emoji_cone')
         || ((obj.type === 'triangle' || obj.type === 'text') && (kind === 'cone' || kind === 'cone_striped'))
+        || (obj.type === 'triangle' && !['pass_arrow_head', 'press_arrow_head'].includes(kind))
       ) {
-        const world = canvasToWorld(obj.left, obj.top);
+        const world = canvasToWorld(center2d.x, center2d.y);
         const baseRadius = kind === 'cone_striped' ? 0.62 : 0.58;
         data.cones.set(`cone:${coneIndex}`, {
           uid: `cone:${coneIndex}`,
@@ -1082,37 +1450,62 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
           fill: safeText(obj.fill, kind === 'cone_striped' ? '#f59e0b' : '#f97316'),
           stroke: safeText(obj.stroke, '#fff7ed'),
           striped: kind === 'cone_striped',
+          shape: obj.type === 'triangle' ? 'triangle_marker' : 'round_cone',
         });
         coneIndex += 1;
         return;
       }
-      if (obj.type === 'text' && kind === 'emoji_mini_goal') {
-        const world = canvasToWorld(obj.left, obj.top);
+      if (obj.type === 'text' && (kind === 'emoji_mini_goal' || kind === 'emoji_goal')) {
+        const world = canvasToWorld(center2d.x, center2d.y);
         data.goals.push({
           uid: `goal:${goalIndex}`,
           x: world.x,
           z: world.z,
           rotationY: world.x > 0 ? Math.PI / 2 : -Math.PI / 2,
+          scale: kind === 'emoji_goal' ? 1.28 : 1,
         });
         goalIndex += 1;
         return;
       }
       if (obj.type === 'line') {
-        const from = canvasToWorld(obj.x1, obj.y1);
-        const to = canvasToWorld(obj.x2, obj.y2);
+        const start2d = transformPoint2d(obj.x1, obj.y1, obj);
+        const end2d = transformPoint2d(obj.x2, obj.y2, obj);
+        const from = canvasToWorld(start2d.x, start2d.y);
+        const to = canvasToWorld(end2d.x, end2d.y);
         data.paths.push({
           uid: `path:${index}`,
           from,
           to,
           color: safeText(obj.stroke, '#38bdf8'),
           dashed: Array.isArray(obj.strokeDashArray) && obj.strokeDashArray.length > 0,
+          curved: false,
+        });
+        return;
+      }
+      if (obj.type === 'group' && kind.startsWith('arrow')) {
+        const lineNode = childObjects.find((child) => safeText(child?.type).toLowerCase() === 'line') || null;
+        const start2d = lineNode
+          ? childPointInGroup2d(obj, lineNode, lineNode.x1, lineNode.y1)
+          : transformPoint2d(-(measuredWidth / 2), 0, obj);
+        const end2d = lineNode
+          ? childPointInGroup2d(obj, lineNode, lineNode.x2, lineNode.y2)
+          : transformPoint2d(measuredWidth / 2, 0, obj);
+        const from = canvasToWorld(start2d.x, start2d.y);
+        const to = canvasToWorld(end2d.x, end2d.y);
+        data.paths.push({
+          uid: `path:${index}`,
+          from,
+          to,
+          color: safeText(lineNode?.stroke, safeText(obj.stroke, '#38bdf8')),
+          dashed: kind === 'arrow-dot' || kind === 'arrow-dash' || (Array.isArray(lineNode?.strokeDashArray) && lineNode.strokeDashArray.length > 0),
+          curved: kind === 'arrow-curve',
         });
         return;
       }
       if (obj.type === 'textbox' || obj.type === 'text') {
         const label = safeText(obj.text || extra.label);
         if (!label || kind.startsWith('emoji_')) return;
-        const world = canvasToWorld(obj.left, obj.top);
+        const world = canvasToWorld(center2d.x, center2d.y);
         data.notes.push({
           uid: `note:${index}`,
           label,
@@ -1131,6 +1524,95 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
     const group = new THREE.Group();
     const fill = parseColor(entry.fill, '#2563eb');
     const accent = parseColor(entry.stroke, '#ffffff');
+    const playerPhotoUrl = safeText(entry.photoUrl, '');
+    if (playerPhotoUrl) {
+      const darkerFill = tintColor(fill, -0.16);
+      const sockColor = accent.getHSL({ h: 0, s: 0, l: 0 }).l > 0.72 ? fill : accent;
+      const baseGlow = new THREE.Mesh(
+        new THREE.CircleGeometry(radius * 1.42, 28),
+        new THREE.MeshBasicMaterial({ color: fill, transparent: true, opacity: 0.24, depthWrite: false })
+      );
+      baseGlow.rotation.x = -Math.PI / 2;
+      baseGlow.position.y = 0.035;
+      group.add(baseGlow);
+
+      const feetShadow = new THREE.Mesh(
+        new THREE.CircleGeometry(radius * 0.96, 24),
+        new THREE.MeshBasicMaterial({ color: 0x020617, transparent: true, opacity: 0.24, depthWrite: false })
+      );
+      feetShadow.rotation.x = -Math.PI / 2;
+      feetShadow.position.y = 0.04;
+      group.add(feetShadow);
+      group.add(createShadowStreak(radius));
+
+      const shorts = new THREE.Mesh(
+        new THREE.BoxGeometry(radius * 1.18, 0.68, radius * 0.72),
+        new THREE.MeshStandardMaterial({ color: darkerFill, roughness: 0.66, metalness: 0.04 })
+      );
+      shorts.position.y = 0.98;
+      shorts.castShadow = true;
+      group.add(shorts);
+
+      const armGeo = new THREE.CapsuleGeometry(radius * 0.12, 0.82, 4, 10);
+      const leftArm = new THREE.Mesh(armGeo, new THREE.MeshStandardMaterial({ color: fill, roughness: 0.5 }));
+      leftArm.position.set(-radius * 0.56, 1.74, 0);
+      leftArm.rotation.z = 0.34;
+      leftArm.castShadow = true;
+      group.add(leftArm);
+      const rightArm = leftArm.clone();
+      rightArm.position.x = radius * 0.56;
+      rightArm.rotation.z = -0.34;
+      group.add(rightArm);
+
+      const legGeo = new THREE.CapsuleGeometry(radius * 0.15, 1.2, 4, 10);
+      const leftLeg = new THREE.Mesh(legGeo, new THREE.MeshStandardMaterial({ color: 0xe5e7eb, roughness: 0.64 }));
+      leftLeg.position.set(-radius * 0.22, 0.42, 0);
+      leftLeg.castShadow = true;
+      group.add(leftLeg);
+      const rightLeg = leftLeg.clone();
+      rightLeg.position.x = radius * 0.22;
+      group.add(rightLeg);
+
+      const leftSock = new THREE.Mesh(
+        new THREE.CylinderGeometry(radius * 0.11, radius * 0.11, 0.5, 10),
+        new THREE.MeshStandardMaterial({ color: sockColor, roughness: 0.58 })
+      );
+      leftSock.position.set(-radius * 0.22, 0.06, 0);
+      group.add(leftSock);
+      const rightSock = leftSock.clone();
+      rightSock.position.x = radius * 0.22;
+      group.add(rightSock);
+
+      const torsoPivot = new THREE.Group();
+      torsoPivot.position.y = 0.18;
+      group.add(torsoPivot);
+
+      const cutout = createPlayerCutoutSprite(playerPhotoUrl, radius, fill);
+      if (cutout) torsoPivot.add(cutout);
+
+      const badge = createLabelSprite(entry.label, '#ffffff');
+      badge.scale.set(2.8, 1.4, 1);
+      badge.position.set(0, 2.12, radius * 0.72);
+      group.add(badge);
+
+      group.userData = {
+        baseY: 0,
+        radius,
+        badge,
+        isPhotoPlayer: true,
+        leftArm,
+        rightArm,
+        leftLeg,
+        rightLeg,
+        leftSock,
+        rightSock,
+        torsoPivot,
+        cutout,
+      };
+      group.position.set(entry.x, 0, entry.z);
+      upgradeActorToHumanoidModel(group, entry, fill, accent);
+      return group;
+    }
     const darkerFill = tintColor(fill, -0.16);
     const sockColor = accent.getHSL({ h: 0, s: 0, l: 0 }).l > 0.72 ? fill : accent;
     const baseGlow = new THREE.Mesh(
@@ -1224,6 +1706,7 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
 
     group.userData = { baseY: 0, radius, leftArm, rightArm, leftLeg, rightLeg, badge };
     group.position.set(entry.x, 0, entry.z);
+    upgradeActorToHumanoidModel(group, entry, fill, accent);
     return group;
   };
 
@@ -1251,6 +1734,7 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
     const group = new THREE.Group();
     const fill = parseColor(entry.fill, entry.striped ? '#f59e0b' : '#f97316');
     const stripe = parseColor(entry.stroke, '#fff7ed');
+    const markerShape = safeText(entry.shape, 'round_cone');
 
     const shadow = new THREE.Mesh(
       new THREE.CircleGeometry(entry.radius * 1.05, 20),
@@ -1268,25 +1752,77 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
     base.castShadow = true;
     group.add(base);
 
+    const bodyGeometry = markerShape === 'triangle_marker'
+      ? new THREE.ConeGeometry(entry.radius * 0.88, entry.height, 3)
+      : new THREE.ConeGeometry(entry.radius * 0.72, entry.height, 20);
     const body = new THREE.Mesh(
-      new THREE.ConeGeometry(entry.radius * 0.72, entry.height, 20),
+      bodyGeometry,
       new THREE.MeshStandardMaterial({ color: fill, roughness: 0.44, metalness: 0.08 })
     );
     body.position.y = (entry.height / 2) + 0.12;
+    if (markerShape === 'triangle_marker') body.rotation.y = Math.PI / 3;
     body.castShadow = true;
     group.add(body);
 
-    if (entry.striped) {
+    if (entry.striped || markerShape === 'triangle_marker') {
       const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(entry.radius * 0.44, entry.radius * 0.1, 10, 24),
+        markerShape === 'triangle_marker'
+          ? new THREE.CylinderGeometry(entry.radius * 0.42, entry.radius * 0.5, 0.08, 3)
+          : new THREE.TorusGeometry(entry.radius * 0.44, entry.radius * 0.1, 10, 24),
         new THREE.MeshStandardMaterial({ color: stripe, roughness: 0.38, metalness: 0.05 })
       );
-      ring.rotation.x = Math.PI / 2;
+      if (markerShape === 'triangle_marker') {
+        ring.rotation.y = Math.PI / 3;
+      } else {
+        ring.rotation.x = Math.PI / 2;
+      }
       ring.position.y = Math.max(0.26, (entry.height * 0.52));
       group.add(ring);
     }
 
     group.position.set(entry.x, 0, entry.z);
+    return group;
+  };
+
+  const createShapePlane = (entry) => {
+    const shapeKind = safeText(entry.shapeKind, 'shape-rect');
+    const group = new THREE.Group();
+    const fill = parseColor(entry.fill, '#22d3ee');
+    const stroke = parseColor(entry.stroke, '#22d3ee');
+    const isCircle = shapeKind === 'shape-circle';
+    const planeGeometry = isCircle
+      ? new THREE.CircleGeometry(Math.max(entry.width, entry.depth) / 2, 36)
+      : new THREE.PlaneGeometry(entry.width, entry.depth);
+    const plane = new THREE.Mesh(
+      planeGeometry,
+      new THREE.MeshBasicMaterial({
+        color: fill,
+        transparent: true,
+        opacity: clamp(entry.opacity || 0.18, 0.08, 0.34),
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      })
+    );
+    plane.rotation.x = -Math.PI / 2;
+    plane.position.y = 0.055;
+    group.add(plane);
+
+    if (!isCircle) {
+      const edgePoints = [
+        new THREE.Vector3(-entry.width / 2, 0.085, -entry.depth / 2),
+        new THREE.Vector3(entry.width / 2, 0.085, -entry.depth / 2),
+        new THREE.Vector3(entry.width / 2, 0.085, entry.depth / 2),
+        new THREE.Vector3(-entry.width / 2, 0.085, entry.depth / 2),
+        new THREE.Vector3(-entry.width / 2, 0.085, -entry.depth / 2),
+      ];
+      group.add(new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(edgePoints),
+        new THREE.LineBasicMaterial({ color: stroke, transparent: true, opacity: 0.94 })
+      ));
+    }
+
+    group.position.set(entry.x, 0, entry.z);
+    group.rotation.y = toNumber(entry.rotationY, 0);
     return group;
   };
 
@@ -1313,6 +1849,8 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
       );
       plane.rotation.x = -Math.PI / 2;
       plane.position.set(zone.x, 0.05, zone.z);
+      plane.rotation.z = 0;
+      plane.rotation.y = toNumber(zone.rotationY, 0);
       dynamicRoot.add(plane);
       const edgePoints = [
         new THREE.Vector3(-zone.width / 2, 0.08, -zone.depth / 2),
@@ -1334,13 +1872,20 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
       );
       line.computeLineDistances();
       line.position.set(zone.x, 0, zone.z);
+      line.rotation.y = toNumber(zone.rotationY, 0);
       dynamicRoot.add(line);
+    });
+
+    frameData.shapes.forEach((shapeData) => {
+      const shape = createShapePlane(shapeData);
+      dynamicRoot.add(shape);
     });
 
     frameData.goals.forEach((goalData) => {
       const goal = createGoalFrame();
       goal.position.set(goalData.x, 0.08, goalData.z);
       goal.rotation.y = goalData.rotationY;
+      goal.scale.setScalar(toNumber(goalData.scale, 1));
       dynamicRoot.add(goal);
     });
 
@@ -1351,8 +1896,12 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
     });
 
     frameData.paths.forEach((pathData) => {
-      const curve = createArrowCurve(pathData.from, pathData.to);
-      const points = curve.getPoints(36);
+      const points = pathData.curved
+        ? createArrowCurve(pathData.from, pathData.to).getPoints(36)
+        : [
+          new THREE.Vector3(pathData.from.x, 0.36, pathData.from.z),
+          new THREE.Vector3(pathData.to.x, 0.36, pathData.to.z),
+        ];
       const geometry = new THREE.BufferGeometry().setFromPoints(points);
       const color = parseColor(pathData.color, '#38bdf8');
       const glow = new THREE.Line(
@@ -1447,6 +1996,7 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
       const dz = target.z - entry.z;
       const moveStrength = clamp(Math.sqrt((dx * dx) + (dz * dz)) / 8, 0, 1);
       const stride = Math.sin((elapsedSeconds * 8) + (x * 0.1) + (z * 0.06)) * moveStrength;
+      const idleSwing = Math.sin((elapsedSeconds * 2.6) + (x * 0.04) + (z * 0.05)) * 0.06;
       group.position.x = x;
       group.position.z = z;
       group.position.y = Math.sin((elapsedSeconds * 3.2) + x * 0.08 + z * 0.08) * 0.06;
@@ -1455,7 +2005,29 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
       if (group.userData.rightArm) group.userData.rightArm.rotation.x = -stride * 0.55;
       if (group.userData.leftLeg) group.userData.leftLeg.rotation.x = -stride * 0.34;
       if (group.userData.rightLeg) group.userData.rightLeg.rotation.x = stride * 0.34;
-      if (group.userData.badge) group.userData.badge.position.y = 2.03 + (Math.sin(elapsedSeconds * 5 + x * 0.08) * 0.04);
+      if (group.userData.isPhotoPlayer || group.userData.isHumanoidModel) {
+        if (group.userData.leftArm) group.userData.leftArm.rotation.x = (stride * 0.66) + idleSwing;
+        if (group.userData.rightArm) group.userData.rightArm.rotation.x = (-stride * 0.66) - idleSwing;
+        if (group.userData.leftLeg) group.userData.leftLeg.rotation.x = (-stride * 0.46) + (idleSwing * 0.35);
+        if (group.userData.rightLeg) group.userData.rightLeg.rotation.x = (stride * 0.46) - (idleSwing * 0.35);
+        if (group.userData.torsoPivot) {
+          group.userData.torsoPivot.position.y = 0.18 + Math.max(0, moveStrength) * 0.12 + Math.sin(elapsedSeconds * 6 + x * 0.08) * 0.03;
+          group.userData.torsoPivot.rotation.x = (-stride * 0.08) + (idleSwing * 0.16);
+          group.userData.torsoPivot.rotation.z = idleSwing * 0.12;
+        }
+        if (group.userData.cutout) {
+          group.userData.cutout.rotation.y = Math.sin(elapsedSeconds * 3.2 + z * 0.04) * 0.05;
+        }
+        if (group.userData.portrait) {
+          group.userData.portrait.position.y = 2.48 + Math.sin(elapsedSeconds * 4.2 + x * 0.08) * 0.04;
+          group.userData.portrait.rotation.y = Math.sin(elapsedSeconds * 2.8 + z * 0.05) * 0.08;
+        }
+      }
+      if (group.userData.badge) {
+        group.userData.badge.position.y = (group.userData.isPhotoPlayer || group.userData.isHumanoidModel)
+          ? 2.12 + (Math.sin(elapsedSeconds * 5 + x * 0.08) * 0.04)
+          : 2.03 + (Math.sin(elapsedSeconds * 5 + x * 0.08) * 0.04);
+      }
       if (trail?.geometry) {
         const trailPoints = [
           new THREE.Vector3(x - (dx * 0.28), 0.14, z - (dz * 0.28)),
@@ -1666,6 +2238,7 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
 
   const renderLoop = (timestamp) => {
     const now = timestamp || performance.now();
+    const deltaSeconds = lastFrameTs ? ((now - lastFrameTs) / 1000) : 0;
     const elapsedSeconds = lastFrameTs ? (now / 1000) : 0;
     lastFrameTs = now;
 
@@ -1700,6 +2273,7 @@ import { GLTFLoader } from '../../vendor/three/examples/jsm/loaders/GLTFLoader.j
     }
 
     applyCamera();
+    modelMixers.forEach((mixer) => mixer.update(deltaSeconds));
     renderer.render(scene, camera);
     renderFrameCount += 1;
     lastRenderAt = Date.now();
