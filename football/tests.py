@@ -22,7 +22,7 @@ from django.test import RequestFactory, SimpleTestCase, TestCase, TransactionTes
 from django.urls import reverse
 from django.utils import timezone
 
-from football.models import AnalystVideoFolder, AnalysisVideoReport, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerEvaluation, PlayerFine, PlayerSeasonReport, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, StaffMember, TacticalPlaybookClip, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, TrainingSessionAttendance, UserInvitation, VideoClip, VideoTimelineEvent, VideoTelestrationProject, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspacePlayer, WorkspacePreference, WorkspaceSeason, WorkspaceSeasonPlayer, WorkspaceSeasonTeam, WorkspaceTeam, WorkspaceTeamAccess
+from football.models import AnalystVideoFolder, AnalysisVideoReport, AiTrainerTaskIndex, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerEvaluation, PlayerFine, PlayerSeasonReport, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, StaffMember, TacticalPlaybookClip, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, TrainingSessionAttendance, UserInvitation, VideoClip, VideoTimelineEvent, VideoTelestrationProject, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspacePlayer, WorkspacePreference, WorkspaceSeason, WorkspaceSeasonPlayer, WorkspaceSeasonTeam, WorkspaceTeam, WorkspaceTeamAccess
 from football import views as football_views
 from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.event_taxonomy import (
@@ -4992,6 +4992,64 @@ class SessionsTaskBuilderSubmitTests(TestCase):
         response_second = self.client.post(url, data=payload, secure=True)
         self.assertEqual(response_second.status_code, 200)
         self.assertEqual(SessionTask.objects.count(), 1)
+
+    def test_task_builder_indexes_saved_task_for_ai_trainer(self):
+        url = reverse('sessions-task-create')
+        payload = {
+            'draw_task_title': 'Juego lúdico preparación física',
+            'draw_task_block': SessionTask.BLOCK_CONDITIONING,
+            'draw_task_minutes': '20',
+            'draw_task_objective': 'Activación con carrera y movilidad.',
+            'draw_canvas_state': '{}',
+            'draw_canvas_width': '1280',
+            'draw_canvas_height': '720',
+            'task_submit_uid': 'ai-index-uid-001',
+        }
+
+        response = self.client.post(url, data=payload, secure=True)
+        self.assertEqual(response.status_code, 200)
+        task = SessionTask.objects.order_by('-id').first()
+        self.assertIsNotNone(task)
+        self.assertTrue(AiTrainerTaskIndex.objects.filter(task=task, team=self.team).exists())
+
+    def test_duplicate_task_is_flagged_on_edit_page(self):
+        microcycle = TrainingMicrocycle.objects.create(
+            team=self.team,
+            title='Microciclo duplicados',
+            week_start=date(2026, 3, 1),
+            week_end=date(2026, 3, 7),
+        )
+        session = TrainingSession.objects.create(
+            microcycle=microcycle,
+            session_date=date(2026, 3, 4),
+            focus='Sesión duplicados',
+            duration_minutes=90,
+        )
+        first_task = SessionTask.objects.create(
+            session=session,
+            title='Juego lúdico preparación física',
+            block=SessionTask.BLOCK_CONDITIONING,
+            duration_minutes=20,
+            objective='Activación con carrera y movilidad.',
+            coaching_points='',
+            confrontation_rules='',
+            tactical_layout={'meta': {'scope': 'fitness'}},
+        )
+        SessionTask.objects.create(
+            session=session,
+            title='Juego lúdico preparación física',
+            block=SessionTask.BLOCK_CONDITIONING,
+            duration_minutes=20,
+            objective='Activación con carrera y movilidad.',
+            coaching_points='',
+            confrontation_rules='',
+            tactical_layout={'meta': {'scope': 'fitness'}},
+        )
+
+        response = self.client.get(reverse('sessions-fitness-task-edit', args=[first_task.id]), secure=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Duplicados detectados por Ollana')
+        self.assertContains(response, 'Juego lúdico preparación física')
 
 
 class CriticalPagesSmokeTests(TestCase):

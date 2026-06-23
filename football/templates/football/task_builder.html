@@ -5297,6 +5297,19 @@
       {% if feedback and not saved_task_info %}<div class="alert ok">{{ feedback }}</div>{% endif %}
       {% if error %}<div class="alert err">{{ error }}</div>{% endif %}
       {% if task_context_warning %}<div class="alert warn">{{ task_context_warning }}</div>{% endif %}
+      {% if duplicate_task_matches %}
+      <div class="alert warn" style="display:flex; flex-direction:column; gap:0.6rem;">
+        <div><strong>Duplicados detectados por Ollana:</strong> {{ duplicate_task_warning|default:'Hay coincidencias sospechosas en esta tarea.' }}</div>
+        <div style="display:grid; gap:0.35rem;">
+          {% for dup in duplicate_task_matches %}
+            <a class="button" href="{{ dup.url }}" style="justify-content:space-between; text-align:left;">
+              <span>#{{ dup.id }} · {{ dup.title|default:'Tarea' }}</span>
+              <span style="opacity:0.8;">{{ dup.session_label }} · {{ dup.reason }}</span>
+            </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
       <div class="alert warn" id="task-builder-draft-alert" hidden style="display:flex; align-items:center; justify-content:center; gap:0.75rem; flex-wrap:wrap;">
         <span id="task-builder-draft-text"></span>
       </div>

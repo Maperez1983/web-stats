@@ -39600,6 +39600,114 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
     return task
 
 
+def _task_builder_duplicate_text(value):
+    text = _sanitize_task_text(str(value or '').strip(), multiline=False, max_len=500)
+    if not text:
+        return ''
+    text = unicodedata.normalize('NFKD', text.lower())
+    text = ''.join(ch for ch in text if not unicodedata.combining(ch))
+    text = re.sub(r'[^a-z0-9]+', ' ', text)
+    return re.sub(r'\s+', ' ', text).strip()
+
+
+def _task_builder_duplicate_profile(task):
+    layout = task.tactical_layout if isinstance(getattr(task, 'tactical_layout', None), dict) else {}
+    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+    analysis = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
+    sheet = analysis.get('task_sheet') if isinstance(analysis.get('task_sheet'), dict) else {}
+    graphic = meta.get('graphic_editor') if isinstance(meta.get('graphic_editor'), dict) else {}
+    canvas_state = graphic.get('canvas_state') if isinstance(graphic.get('canvas_state'), dict) else {}
+    timeline = layout.get('timeline') if isinstance(layout.get('timeline'), list) else []
+    core_bits = [
+        _task_builder_duplicate_text(getattr(task, 'title', '') or ''),
+        _task_builder_duplicate_text(getattr(task, 'objective', '') or ''),
+        _task_builder_duplicate_text(getattr(task, 'coaching_points', '') or ''),
+        _task_builder_duplicate_text(getattr(task, 'confrontation_rules', '') or ''),
+        _task_builder_duplicate_text(sheet.get('description_html') or ''),
+        _task_builder_duplicate_text(sheet.get('coaching_html') or ''),
+        _task_builder_duplicate_text(sheet.get('rules_html') or ''),
+        _task_builder_duplicate_text(layout.get('tokens') if isinstance(layout.get('tokens'), list) else ''),
+        _task_builder_duplicate_text(canvas_state),
+        _task_builder_duplicate_text(timeline),
+    ]
+    core_signature = hashlib.sha1('|'.join(core_bits).encode('utf-8')).hexdigest()
+    return {
+        'title': str(getattr(task, 'title', '') or '').strip(),
+        'title_norm': _task_builder_duplicate_text(getattr(task, 'title', '') or ''),
+        'block': str(getattr(task, 'block', '') or '').strip(),
+        'duration_minutes': int(getattr(task, 'duration_minutes', 0) or 0),
+        'builder_payload_signature': str(meta.get('builder_payload_signature') or '').strip(),
+        'submission_uid': str(meta.get('submission_uid') or '').strip(),
+        'core_signature': core_signature,
+    }
+
+
+def _find_task_builder_duplicate_matches(primary_team, scope_key, task, *, limit=5):
+    if not primary_team or not task:
+        return []
+    try:
+        task_profile = _task_builder_duplicate_profile(task)
+    except Exception:
+        return []
+    try:
+        candidates = (
+            SessionTask.objects
+            .select_related('session__microcycle')
+            .filter(session__microcycle__team=primary_team, deleted_at__isnull=True)
+            .exclude(id=int(getattr(task, 'id', 0) or 0))
+            .filter(block=str(task_profile.get('block') or getattr(task, 'block', '') or '').strip())
+            .filter(duration_minutes=int(task_profile.get('duration_minutes') or getattr(task, 'duration_minutes', 0) or 0))
+            .order_by('-updated_at', '-id')[:250]
+        )
+    except Exception:
+        return []
+
+    matches = []
+    for candidate in candidates:
+        try:
+            if _task_scope_for_item(candidate) != scope_key:
+                continue
+            candidate_profile = _task_builder_duplicate_profile(candidate)
+            reason = ''
+            if task_profile['builder_payload_signature'] and candidate_profile['builder_payload_signature'] and task_profile['builder_payload_signature'] == candidate_profile['builder_payload_signature']:
+                reason = 'firma de guardado idéntica'
+            elif task_profile['submission_uid'] and candidate_profile['submission_uid'] and task_profile['submission_uid'] == candidate_profile['submission_uid']:
+                reason = 'mismo identificador de envío'
+            elif task_profile['core_signature'] == candidate_profile['core_signature']:
+                reason = 'mismo contenido normalizado'
+            elif task_profile['title_norm'] and task_profile['title_norm'] == candidate_profile['title_norm']:
+                reason = 'mismo título'
+            if not reason:
+                continue
+            session_obj = getattr(candidate, 'session', None)
+            session_label = ''
+            try:
+                if _is_library_session(session_obj):
+                    repo_label = _library_repository_for_task(candidate) or LIBRARY_REPOSITORY_TRADITIONAL
+                    session_label = f'Biblioteca · {repo_label}'
+                elif session_obj and getattr(session_obj, 'session_date', None):
+                    session_label = session_obj.session_date.strftime('%d/%m/%Y')
+                    focus = str(getattr(session_obj, 'focus', '') or '').strip()
+                    if focus:
+                        session_label = f'{session_label} · {focus}'
+                else:
+                    session_label = f'Tarea #{int(getattr(candidate, "id", 0) or 0)}'
+            except Exception:
+                session_label = f'Tarea #{int(getattr(candidate, "id", 0) or 0)}'
+            matches.append({
+                'id': int(getattr(candidate, 'id', 0) or 0),
+                'title': str(getattr(candidate, 'title', '') or '').strip(),
+                'session_label': session_label,
+                'reason': reason,
+                'url': reverse(_task_builder_edit_route_name(scope_key), args=[int(getattr(candidate, 'id', 0) or 0)]),
+            })
+            if len(matches) >= int(limit or 5):
+                break
+        except Exception:
+            continue
+    return matches
+
+
 def _save_task_studio_entry(request, owner, existing_task=None):
     workspace = _ensure_task_studio_workspace(owner)
     existing_meta = _task_existing_meta(existing_task)
@@ -40230,6 +40338,9 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
     feedback = ''
     error = ''
     saved_task_info = None
+    task_context_warning = ''
+    duplicate_task_matches = []
+    duplicate_task_warning = ''
     raw_submit_uid = str(request.POST.get('task_submit_uid') or '').strip()
     task_submit_uid = re.sub(r'[^0-9a-zA-Z_-]', '', raw_submit_uid)[:64]
     if not task_submit_uid:
@@ -40256,6 +40367,10 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
                 feedback = 'Se restauró la versión original de la tarea.'
             else:
                 task = _save_task_builder_entry(request, primary_team, scope_key, existing_task=task)
+                try:
+                    _ai_trainer_index_task(task, team=primary_team)
+                except Exception:
+                    pass
                 feedback = 'Tarea guardada correctamente.'
                 try:
                     dest_session = getattr(task, 'session', None)
@@ -40300,6 +40415,18 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             error = str(exc)
         except Exception:
             error = 'No se pudo guardar la tarea.'
+
+    try:
+        duplicate_task_matches = _find_task_builder_duplicate_matches(primary_team, scope_key, task, limit=4) if task else []
+        if duplicate_task_matches:
+            duplicate_task_warning = (
+                f'Ollana ha detectado {len(duplicate_task_matches)} posible(s) duplicado(s) de esta tarea.'
+            )
+            if not task_context_warning:
+                task_context_warning = duplicate_task_warning
+    except Exception:
+        duplicate_task_matches = []
+        duplicate_task_warning = ''
 
     try:
         initial = _task_builder_initial_values(task)
@@ -40488,10 +40615,10 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             library_repository = _library_repository_for_task(task)
     except Exception:
         pass
-    task_context_warning = ''
     if not all_sessions:
         # Biblioteca puede funcionar sin sesión destino. No lo tratamos como error bloqueante.
-        task_context_warning = 'No hay sesiones recientes para asignar como destino. Puedes guardar la tarea en Biblioteca y añadirla a una sesión más tarde.'
+        if not task_context_warning:
+            task_context_warning = 'No hay sesiones recientes para asignar como destino. Puedes guardar la tarea en Biblioteca y añadirla a una sesión más tarde.'
 
     def _sessions_library_back_url(*, source: str = '') -> str:
         base = reverse(_sessions_scope_route_name(scope_key))
@@ -40578,6 +40705,8 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             'feedback': feedback,
             'error': error,
             'task_context_warning': task_context_warning,
+            'duplicate_task_warning': duplicate_task_warning,
+            'duplicate_task_matches': duplicate_task_matches,
             'task_submit_uid': task_submit_uid,
             'can_restore_original': can_restore_original,
             'task_blocks': SessionTask.BLOCK_CHOICES,
