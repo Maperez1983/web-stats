@@ -1245,7 +1245,22 @@ def _prioritized_guard_routes(page_context=None, limit: int = 4) -> list[dict]:
     active_key = str(((route_health.get("active_route") or {}).get("key")) or "").strip()
     if active_key:
         prioritized_keys.append(active_key)
-    prioritized_keys.extend(["dashboard", "sessions", "tactics", "players"])
+    prioritized_keys.extend([
+        "dashboard",
+        "library",
+        "task_builder",
+        "sessions",
+        "match",
+        "convocation",
+        "rival_analysis",
+        "players",
+        "agenda",
+        "staff",
+        "tactics",
+        "reports",
+        "ai_trainer",
+        "analysis",
+    ])
     selected_rows = []
     seen = set()
     for key in prioritized_keys:
