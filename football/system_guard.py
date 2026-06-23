@@ -7094,6 +7094,8 @@ def _operator_web_research_snapshot(*, page_context=None) -> dict:
         str(context.get("web_url") or "").strip(),
     ]).strip()
     web_query = str(context.get("web_search_query") or context.get("web_query") or context.get("search_query") or "").strip()
+    web_search_domains = str(context.get("web_search_domains") or context.get("web_domains") or "").strip()
+    web_search_blocked_domains = str(context.get("web_search_blocked_domains") or context.get("web_blocked_domains") or "").strip()
     if not raw_urls and not web_query:
         return {
             "enabled": False,
@@ -7103,7 +7105,12 @@ def _operator_web_research_snapshot(*, page_context=None) -> dict:
     try:
         rows = []
         if web_query:
-            search_rows = search_web_research(web_query, max_results=MAX_URLS)
+            search_rows = search_web_research(
+                web_query,
+                max_results=MAX_URLS,
+                preferred_domains=web_search_domains,
+                blocked_domains=web_search_blocked_domains,
+            )
             rows.extend(search_rows)
             search_urls = "\n".join([str(row.get("url") or "") for row in search_rows if isinstance(row, dict) and row.get("ok")])
             if search_urls:

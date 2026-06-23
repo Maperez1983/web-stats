@@ -14,6 +14,7 @@ MAX_BYTES = 900_000
 MAX_TEXT_CHARS = 6000
 BROWSER_WAIT_MS = 2500
 SEARCH_ENGINE_URL = "https://html.duckduckgo.com/html/"
+SEARCH_ENGINE_LOCALE = "es-es"
 
 
 class _ReadableHTMLParser(HTMLParser):
@@ -140,11 +141,54 @@ def _normalize_search_result_url(url: str) -> str:
     return urllib.parse.urlunparse((parsed.scheme or 'https', parsed.netloc, parsed.path or '/', '', parsed.query, ''))
 
 
-def search_web_research(query, *, timeout=DEFAULT_TIMEOUT, max_results=MAX_URLS):
+def _parse_domain_list(raw):
+    domains = []
+    seen = set()
+    for piece in re.split(r'[\n,;]+', str(raw or '')):
+        value = str(piece or '').strip().lower().strip('.')
+        if not value:
+            continue
+        value = value.replace('https://', '').replace('http://', '')
+        value = value.split('/')[0].strip().strip('.')
+        if not value:
+            continue
+        if value.startswith('www.'):
+            value = value[4:]
+        if '.' not in value:
+            continue
+        if value in seen:
+            continue
+        seen.add(value)
+        domains.append(value)
+    return domains
+
+
+def _compose_search_query(query, *, preferred_domains=None, blocked_domains=None):
+    parts = [str(query or '').strip()]
+    for domain in _parse_domain_list(preferred_domains):
+        parts.append(f"site:{domain}")
+    for domain in _parse_domain_list(blocked_domains):
+        parts.append(f"-site:{domain}")
+    return ' '.join([piece for piece in parts if piece]).strip()
+
+
+def _domain_matches(url, domains):
+    if not domains:
+        return False
+    host = str(urllib.parse.urlparse(str(url or '')).hostname or '').lower().strip('.')
+    if host.startswith('www.'):
+        host = host[4:]
+    return any(host == domain or host.endswith(f".{domain}") for domain in domains)
+
+
+def search_web_research(query, *, timeout=DEFAULT_TIMEOUT, max_results=MAX_URLS, preferred_domains=None, blocked_domains=None):
     text = str(query or '').strip()
     if not text:
         return []
-    search_url = f"{SEARCH_ENGINE_URL}?{urllib.parse.urlencode({'q': text})}"
+    preferred = _parse_domain_list(preferred_domains)
+    blocked = _parse_domain_list(blocked_domains)
+    search_text = _compose_search_query(text, preferred_domains=preferred_domains, blocked_domains=blocked_domains)
+    search_url = f"{SEARCH_ENGINE_URL}?{urllib.parse.urlencode({'q': search_text, 'kl': SEARCH_ENGINE_LOCALE})}"
     req = urllib.request.Request(
         search_url,
         headers={
@@ -189,6 +233,8 @@ def search_web_research(query, *, timeout=DEFAULT_TIMEOUT, max_results=MAX_URLS)
         url = _normalize_search_result_url(item.get('url') or '')
         if not url:
             continue
+        if blocked and _domain_matches(url, blocked):
+            continue
         key = url.lower()
         if key in seen:
             continue
@@ -206,6 +252,9 @@ def search_web_research(query, *, timeout=DEFAULT_TIMEOUT, max_results=MAX_URLS)
             break
     if not rows:
         rows.append({'url': search_url, 'ok': False, 'error': 'no_results', 'title': '', 'snippet': '', 'method': 'search'})
+    else:
+        if preferred:
+            rows.sort(key=lambda row: (0 if _domain_matches(row.get('url') or '', preferred) else 1, str(row.get('title') or '').lower(), str(row.get('url') or '').lower()))
     return rows
 
 

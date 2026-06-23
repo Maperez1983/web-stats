@@ -42086,6 +42086,8 @@ def ai_trainer_page(request):
     goal = str(request.GET.get('goal') or '').strip()
     web_urls = str(request.GET.get('web_urls') or '').strip()
     web_search_query = str(request.GET.get('web_search_query') or '').strip()
+    web_search_domains = str(request.GET.get('web_search_domains') or '').strip()
+    web_search_blocked_domains = str(request.GET.get('web_search_blocked_domains') or '').strip()
     web_search_limit = _parse_int(request.GET.get('web_search_limit') or 4) or 4
     web_search_limit = max(1, min(web_search_limit, 8))
     web_browser = str(request.GET.get('web_browser') or '1').strip().lower() not in {'0', 'false', 'no', 'off'}
@@ -42130,6 +42132,8 @@ def ai_trainer_page(request):
         goal = str(request.POST.get('goal') or goal).strip()
         web_urls = str(request.POST.get('web_urls') or web_urls).strip()
         web_search_query = str(request.POST.get('web_search_query') or web_search_query).strip()
+        web_search_domains = str(request.POST.get('web_search_domains') or web_search_domains).strip()
+        web_search_blocked_domains = str(request.POST.get('web_search_blocked_domains') or web_search_blocked_domains).strip()
         web_search_limit = _parse_int(request.POST.get('web_search_limit') or web_search_limit) or web_search_limit
         web_search_limit = max(1, min(web_search_limit, 8))
         web_browser = str(request.POST.get('web_browser') or '').strip().lower() not in {'0', 'false', 'no', 'off'}
@@ -42212,7 +42216,12 @@ def ai_trainer_page(request):
             try:
                 research_rows = []
                 if web_search_query:
-                    search_rows = search_web_research(web_search_query, max_results=web_search_limit)
+                    search_rows = search_web_research(
+                        web_search_query,
+                        max_results=web_search_limit,
+                        preferred_domains=web_search_domains,
+                        blocked_domains=web_search_blocked_domains,
+                    )
                     research_rows.extend(search_rows)
                     result_urls = "\n".join([str(row.get('url') or '') for row in search_rows if isinstance(row, dict) and row.get('ok')])
                     if result_urls:
@@ -42266,6 +42275,8 @@ def ai_trainer_page(request):
                 'goal': goal[:800],
                 'web_urls': web_urls[:1000],
                 'web_search_query': web_search_query[:300],
+                'web_search_domains': web_search_domains[:300],
+                'web_search_blocked_domains': web_search_blocked_domains[:300],
                 'web_search_limit': web_search_limit,
                 'web_browser': bool(web_browser),
                 'web_research': [
@@ -42332,6 +42343,8 @@ def ai_trainer_page(request):
                         'goal': goal,
                         'web_urls': web_urls,
                         'web_search_query': web_search_query,
+                        'web_search_domains': web_search_domains,
+                        'web_search_blocked_domains': web_search_blocked_domains,
                         'web_search_limit': web_search_limit,
                         'web_browser': bool(web_browser),
                         'web_research': [
@@ -42503,6 +42516,8 @@ def ai_trainer_page(request):
             'goal': goal,
             'web_urls': web_urls,
             'web_search_query': web_search_query,
+            'web_search_domains': web_search_domains,
+            'web_search_blocked_domains': web_search_blocked_domains,
             'web_search_limit': web_search_limit,
             'web_browser': web_browser,
             'web_research': web_research,

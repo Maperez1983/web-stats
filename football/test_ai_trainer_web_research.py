@@ -103,3 +103,36 @@ class AiTrainerWebResearchTests(SimpleTestCase):
         self.assertEqual(rows[0]['url'], 'https://example.com/doc')
         self.assertEqual(rows[0]['title'], 'Example doc')
         self.assertEqual(rows[0]['snippet'], 'Prueba de snippet')
+
+    def test_search_web_research_applies_domain_filters(self):
+        html = """
+        <html><body>
+          <a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fother.com%2Fdoc">Other doc</a>
+          <span class="result__snippet">Snippet other</span>
+          <a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fuefa.com%2Fdoc">UEFA doc</a>
+          <span class="result__snippet">Snippet uefa</span>
+        </body></html>
+        """
+
+        class FakeResponse:
+            headers = mock.Mock()
+
+            def __init__(self, payload):
+                self._payload = payload.encode('utf-8')
+                self.headers.get_content_charset.return_value = 'utf-8'
+
+            def read(self, _limit):
+                return self._payload
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_exc):
+                return False
+
+        with mock.patch('football.web_research.urllib.request.urlopen', return_value=FakeResponse(html)):
+            rows = search_web_research('training session', preferred_domains='uefa.com', blocked_domains='other.com', max_results=4)
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['url'], 'https://uefa.com/doc')
+        self.assertEqual(rows[0]['title'], 'UEFA doc')

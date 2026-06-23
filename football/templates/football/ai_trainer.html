@@ -253,6 +253,16 @@
             </label>
             <div class="row" style="margin-top:0.55rem;">
               <label>
+                Dominios preferidos
+                <input type="text" name="web_search_domains" value="{{ web_search_domains|default:'' }}" placeholder="uefa.com, fifa.com, fmf.mx" />
+              </label>
+              <label>
+                Dominios a evitar
+                <input type="text" name="web_search_blocked_domains" value="{{ web_search_blocked_domains|default:'' }}" placeholder="reddit.com, pinterest.com" />
+              </label>
+            </div>
+            <div class="row" style="margin-top:0.55rem;">
+              <label>
                 Número de resultados
                 <select name="web_search_limit">
                   <option value="1" {% if web_search_limit == 1 %}selected{% endif %}>1</option>
@@ -384,6 +394,8 @@
                         <input type="hidden" name="phase" value="{{ phase }}" />
                         <input type="hidden" name="goal" value="{{ goal }}" />
                         <input type="hidden" name="web_search_query" value="{{ web_search_query }}" />
+                        <input type="hidden" name="web_search_domains" value="{{ web_search_domains }}" />
+                        <input type="hidden" name="web_search_blocked_domains" value="{{ web_search_blocked_domains }}" />
                         <input type="hidden" name="web_search_limit" value="{{ web_search_limit }}" />
                         <input type="hidden" name="web_urls" value="{{ web_urls }}" />
                         <input type="hidden" name="web_browser" value="{% if web_browser %}1{% else %}0{% endif %}" />
@@ -397,6 +409,8 @@
                         <input type="hidden" name="phase" value="{{ phase }}" />
                         <input type="hidden" name="goal" value="{{ goal }}" />
                         <input type="hidden" name="web_search_query" value="{{ web_search_query }}" />
+                        <input type="hidden" name="web_search_domains" value="{{ web_search_domains }}" />
+                        <input type="hidden" name="web_search_blocked_domains" value="{{ web_search_blocked_domains }}" />
                         <input type="hidden" name="web_search_limit" value="{{ web_search_limit }}" />
                         <input type="hidden" name="web_urls" value="{{ web_urls }}" />
                         <input type="hidden" name="web_browser" value="{% if web_browser %}1{% else %}0{% endif %}" />
@@ -411,6 +425,8 @@
                         <input type="hidden" name="phase" value="{{ phase }}" />
                         <input type="hidden" name="goal" value="{{ goal }}" />
                         <input type="hidden" name="web_search_query" value="{{ web_search_query }}" />
+                        <input type="hidden" name="web_search_domains" value="{{ web_search_domains }}" />
+                        <input type="hidden" name="web_search_blocked_domains" value="{{ web_search_blocked_domains }}" />
                         <input type="hidden" name="web_search_limit" value="{{ web_search_limit }}" />
                         <input type="hidden" name="web_urls" value="{{ web_urls }}" />
                         <input type="hidden" name="web_browser" value="{% if web_browser %}1{% else %}0{% endif %}" />
