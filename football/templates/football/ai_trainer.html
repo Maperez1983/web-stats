@@ -248,6 +248,22 @@
               <textarea name="goal" placeholder="Ej: Quiero trabajar 3er hombre en pasillo interior, ocupar 5 carriles y atacar zona 14 con pase atrás.">{{ goal }}</textarea>
             </label>
             <label style="margin-top:0.7rem;">
+              Búsqueda web inteligente
+              <input type="text" name="web_search_query" value="{{ web_search_query|default:'' }}" placeholder="Ej: UEFA training session overload in midfield, or rival analysis for [equipo]" />
+            </label>
+            <div class="row" style="margin-top:0.55rem;">
+              <label>
+                Número de resultados
+                <select name="web_search_limit">
+                  <option value="1" {% if web_search_limit == 1 %}selected{% endif %}>1</option>
+                  <option value="3" {% if web_search_limit == 3 %}selected{% endif %}>3</option>
+                  <option value="4" {% if web_search_limit == 4 %}selected{% endif %}>4</option>
+                  <option value="6" {% if web_search_limit == 6 %}selected{% endif %}>6</option>
+                  <option value="8" {% if web_search_limit == 8 %}selected{% endif %}>8</option>
+                </select>
+              </label>
+            </div>
+            <label style="margin-top:0.7rem;">
               Fuentes web para consultar
               <textarea name="web_urls" style="min-height:78px;" placeholder="Pega una URL por línea: rival, clasificación, noticia, informe o calendario.">{{ web_urls }}</textarea>
             </label>
@@ -367,6 +383,8 @@
                         <input type="hidden" name="profile" value="{{ profile }}" />
                         <input type="hidden" name="phase" value="{{ phase }}" />
                         <input type="hidden" name="goal" value="{{ goal }}" />
+                        <input type="hidden" name="web_search_query" value="{{ web_search_query }}" />
+                        <input type="hidden" name="web_search_limit" value="{{ web_search_limit }}" />
                         <input type="hidden" name="web_urls" value="{{ web_urls }}" />
                         <input type="hidden" name="web_browser" value="{% if web_browser %}1{% else %}0{% endif %}" />
                         <button type="submit" class="btn primary" title="Guardar en Biblioteca IA‑Trainer">Guardar</button>
@@ -378,6 +396,8 @@
                         <input type="hidden" name="profile" value="{{ profile }}" />
                         <input type="hidden" name="phase" value="{{ phase }}" />
                         <input type="hidden" name="goal" value="{{ goal }}" />
+                        <input type="hidden" name="web_search_query" value="{{ web_search_query }}" />
+                        <input type="hidden" name="web_search_limit" value="{{ web_search_limit }}" />
                         <input type="hidden" name="web_urls" value="{{ web_urls }}" />
                         <input type="hidden" name="web_browser" value="{% if web_browser %}1{% else %}0{% endif %}" />
                         <input type="hidden" name="rating" value="1" />
@@ -390,6 +410,8 @@
                         <input type="hidden" name="profile" value="{{ profile }}" />
                         <input type="hidden" name="phase" value="{{ phase }}" />
                         <input type="hidden" name="goal" value="{{ goal }}" />
+                        <input type="hidden" name="web_search_query" value="{{ web_search_query }}" />
+                        <input type="hidden" name="web_search_limit" value="{{ web_search_limit }}" />
                         <input type="hidden" name="web_urls" value="{{ web_urls }}" />
                         <input type="hidden" name="web_browser" value="{% if web_browser %}1{% else %}0{% endif %}" />
                         <input type="hidden" name="rating" value="-1" />

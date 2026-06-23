@@ -122,7 +122,7 @@ from .video_studio_services import (
 )
 from .ai_trainer import ai_trainer_index_task, ai_trainer_tokenize, normalize_ai_trainer_text
 from .local_llm import ai_trainer_senior_local_advice, local_llm_config
-from .web_research import compact_web_research, fetch_web_research_with_browser
+from .web_research import compact_web_research, fetch_web_research_with_browser, search_web_research
 from .library_repositories import (
     INBOX_MICROCYCLE_WEEK_END,
     INBOX_MICROCYCLE_WEEK_START,
@@ -42085,6 +42085,9 @@ def ai_trainer_page(request):
     phase = str(request.GET.get('phase') or '').strip()
     goal = str(request.GET.get('goal') or '').strip()
     web_urls = str(request.GET.get('web_urls') or '').strip()
+    web_search_query = str(request.GET.get('web_search_query') or '').strip()
+    web_search_limit = _parse_int(request.GET.get('web_search_limit') or 4) or 4
+    web_search_limit = max(1, min(web_search_limit, 8))
     web_browser = str(request.GET.get('web_browser') or '1').strip().lower() not in {'0', 'false', 'no', 'off'}
     web_research = []
     proposals = []
@@ -42126,6 +42129,9 @@ def ai_trainer_page(request):
         phase = str(request.POST.get('phase') or phase).strip()
         goal = str(request.POST.get('goal') or goal).strip()
         web_urls = str(request.POST.get('web_urls') or web_urls).strip()
+        web_search_query = str(request.POST.get('web_search_query') or web_search_query).strip()
+        web_search_limit = _parse_int(request.POST.get('web_search_limit') or web_search_limit) or web_search_limit
+        web_search_limit = max(1, min(web_search_limit, 8))
         web_browser = str(request.POST.get('web_browser') or '').strip().lower() not in {'0', 'false', 'no', 'off'}
         text_norm = _ai_trainer_normalize_text(goal)
         tokens = _ai_trainer_tokenize(text_norm, limit=32)
@@ -42204,7 +42210,16 @@ def ai_trainer_page(request):
         suggestions = _ai_trainer_suggest_library_tasks(team, text_norm=text_norm, signals=signals, limit=8)
         if post_action == 'generate' and goal:
             try:
-                web_research = compact_web_research(fetch_web_research_with_browser(web_urls, prefer_browser=web_browser)) if web_urls else []
+                research_rows = []
+                if web_search_query:
+                    search_rows = search_web_research(web_search_query, max_results=web_search_limit)
+                    research_rows.extend(search_rows)
+                    result_urls = "\n".join([str(row.get('url') or '') for row in search_rows if isinstance(row, dict) and row.get('ok')])
+                    if result_urls:
+                        research_rows.extend(fetch_web_research_with_browser(result_urls, prefer_browser=web_browser))
+                if web_urls:
+                    research_rows.extend(fetch_web_research_with_browser(web_urls, prefer_browser=web_browser))
+                web_research = compact_web_research(research_rows) if research_rows else []
             except Exception as exc:
                 web_research = [{'url': '', 'ok': False, 'error': f'web_research_error:{str(exc)[:120]}', 'title': '', 'text': ''}]
             senior_llm = ai_trainer_senior_local_advice(
@@ -42250,6 +42265,8 @@ def ai_trainer_page(request):
                 'phase': phase,
                 'goal': goal[:800],
                 'web_urls': web_urls[:1000],
+                'web_search_query': web_search_query[:300],
+                'web_search_limit': web_search_limit,
                 'web_browser': bool(web_browser),
                 'web_research': [
                     {
@@ -42314,6 +42331,8 @@ def ai_trainer_page(request):
                         'phase': phase,
                         'goal': goal,
                         'web_urls': web_urls,
+                        'web_search_query': web_search_query,
+                        'web_search_limit': web_search_limit,
                         'web_browser': bool(web_browser),
                         'web_research': [
                             {
@@ -42483,6 +42502,8 @@ def ai_trainer_page(request):
             'phase': phase,
             'goal': goal,
             'web_urls': web_urls,
+            'web_search_query': web_search_query,
+            'web_search_limit': web_search_limit,
             'web_browser': web_browser,
             'web_research': web_research,
             'signals': signals,
