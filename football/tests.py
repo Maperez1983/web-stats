@@ -13224,7 +13224,7 @@ class StaffUserLinkingTests(TestCase):
 
         self.assertEqual(edit_response.status_code, 200)
         self.assertContains(edit_response, 'Ficha táctica compartible')
-        self.assertContains(edit_response, 'Editar tarea y ficha interior')
+        self.assertContains(edit_response, 'Ficha base editable')
         self.assertContains(edit_response, 'task-export-panel')
 
     def test_task_builder_creates_task_with_extended_metadata_and_assignment(self):

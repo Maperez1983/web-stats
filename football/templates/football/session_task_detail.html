@@ -561,6 +561,54 @@
         display: grid;
         gap: 0.85rem;
       }
+      .coach-summary {
+        display: grid;
+        gap: 0.7rem;
+      }
+      .coach-summary-head {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .coach-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.6rem;
+      }
+      .coach-summary-note {
+        margin: 0;
+        color: rgba(225, 236, 255, 0.78);
+        font-size: 0.84rem;
+        line-height: 1.45;
+      }
+      body.session-task-detail-page.is-presentation .coach-summary-note {
+        color: rgba(18, 32, 51, 0.72);
+      }
+      .status-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        border-radius: 999px;
+        padding: 0.32rem 0.62rem;
+        font-size: 0.68rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--ink);
+      }
+      .status-chip.ok { border-color: rgba(74, 222, 128, 0.36); background: rgba(74, 222, 128, 0.12); }
+      .status-chip.warn { border-color: rgba(251, 191, 36, 0.42); background: rgba(251, 191, 36, 0.12); }
+      .status-chip.neutral { border-color: rgba(148, 163, 184, 0.34); background: rgba(148, 163, 184, 0.12); }
+      body.session-task-detail-page.is-presentation .status-chip {
+        color: #122033;
+        border-color: rgba(18, 32, 51, 0.14);
+        background: rgba(255, 255, 255, 0.9);
+      }
+      body.session-task-detail-page.is-presentation .status-chip.ok { background: rgba(220, 252, 231, 0.95); }
+      body.session-task-detail-page.is-presentation .status-chip.warn { background: rgba(254, 243, 199, 0.95); }
       .presentation-workbench-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1054,6 +1102,43 @@
         {% if show_edit_mode %}
         <p class="meta">Esta es la ficha HTML de la tarea. En modo edición, los controles viven debajo y actúan sobre esta misma vista.</p>
         {% endif %}
+        <div class="coach-summary">
+          <div class="coach-summary-head">
+            <p class="coach-summary-note">Resumen rápido para decidir en segundos si la tarea está lista para entrenar, corregir o exportar.</p>
+            <div class="top-pills" aria-label="Estado rápido de la ficha">
+              <span class="status-chip {% if task.task_preview_image %}ok{% else %}warn{% endif %}">2D {% if task.task_preview_image %}listo{% else %}pendiente{% endif %}</span>
+              <span class="status-chip {% if animation_frames %}ok{% else %}warn{% endif %}">Secuencia {% if animation_frames %}lista{% else %}pendiente{% endif %}</span>
+              <span class="status-chip {% if task.task_pdf %}ok{% else %}neutral{% endif %}">PDF {% if task.task_pdf %}disponible{% else %}sin origen{% endif %}</span>
+              <span class="status-chip {% if task_meta.planned_rpe %}ok{% else %}neutral{% endif %}">Carga {% if task_meta.planned_rpe %}estimada{% else %}no definida{% endif %}</span>
+            </div>
+          </div>
+          <div class="coach-summary-grid">
+            <div class="sheet-item">
+              <strong>Objetivo</strong>
+              <span>{{ task.objective|default:"-" }}</span>
+            </div>
+            <div class="sheet-item">
+              <strong>Duración</strong>
+              <span>{{ task.duration_minutes }} min</span>
+            </div>
+            <div class="sheet-item">
+              <strong>Jugadores</strong>
+              <span>{% firstof task_sheet.players task.tactical_layout.meta.player_count "-" %}</span>
+            </div>
+            <div class="sheet-item">
+              <strong>Material</strong>
+              <span>{% firstof task_sheet.materials task.tactical_layout.meta.resources_summary "-" %}</span>
+            </div>
+            <div class="sheet-item">
+              <strong>Espacio</strong>
+              <span>{% firstof task_sheet.space task.tactical_layout.meta.space "-" %}</span>
+            </div>
+            <div class="sheet-item">
+              <strong>Carga prevista</strong>
+              <span>{% if task_meta.planned_rpe %}RPE {{ task_meta.planned_rpe }}{% else %}-{% endif %}{% if task_meta.planned_srpe_load %} · sRPE {{ task_meta.planned_srpe_load }}{% endif %}</span>
+            </div>
+          </div>
+        </div>
         <div class="presentation-workbench">
           <p class="meta">Esta es la ficha HTML principal que luego se imprime o comparte. Reúne la representación 2D, la vista 3D y la secuenciación táctica de la tarea.</p>
           <div class="presentation-workbench-grid">
@@ -1066,7 +1151,7 @@
               <p class="graphic-status" id="graphic-status">Vista de tarea lista para presentación.</p>
             </div>
             <div class="presentation-slot">
-              <h3>Representación 3D y secuenciación 3D</h3>
+              <h3>Representación 3D y secuenciación</h3>
               <p class="presentation-note">La vista 3D queda integrada en la ficha y permite revisar profundidad, alturas y secuencia paso a paso sin salir de la página.</p>
               <div class="sim-3d-inline" id="task-detail-3d-inline">
                 <div class="sim-3d-card" aria-label="Representación 3D de la tarea">
@@ -1136,7 +1221,7 @@
         <p class="meta">La ficha editable vive aquí. Primero ves lo necesario para preparar la tarea; lo avanzado queda plegado para no saturar la pantalla.</p>
       </section>
       <section class="panel task-edit-panel task-edit-tab-descriptive" data-task-edit-panel="descriptive">
-        <h2>Contexto de uso</h2>
+        <h2>Resumen del entorno</h2>
         <p class="meta">
           {{ scope_title }}
           {% if session_context.session_date %}
@@ -1151,7 +1236,7 @@
       </section>
 
       {% if can_edit_task %}
-        <details class="edit-section">
+        <details class="edit-section" open>
           <summary>Versionado de tarea</summary>
           {% if original_version %}
           <p class="meta">La versión original está bloqueada y no se sobrescribe. Puedes restaurarla si hace falta.</p>
@@ -1166,7 +1251,7 @@
         </details>
 
           <section class="panel task-edit-panel task-edit-tab-descriptive" data-task-edit-panel="descriptive">
-          <h2>Editar tarea y ficha interior</h2>
+          <h2>Ficha base editable</h2>
           <form method="post" class="grid" id="task-detail-form">
             {% csrf_token %}
             <input type="hidden" name="detail_action" value="update_task_detail" />
@@ -1226,7 +1311,7 @@
               </div>
             </details>
             <details class="edit-section">
-              <summary>Táctica y metodología</summary>
+              <summary>Contexto táctico</summary>
               <div class="grid">
                 <label>
                   Momento del juego
@@ -1460,7 +1545,7 @@
 
       {% if can_edit_task %}
       <details class="edit-section task-edit-panel" id="graphic-editor">
-        <summary>Herramientas de edición avanzadas</summary>
+        <summary>Herramientas gráficas avanzadas</summary>
         <p class="meta">Actúan sobre la ficha de arriba. Déjalas plegadas cuando solo quieras revisar o ajustar la tarea.</p>
         <div class="graphic-toolbar">
           <button type="button" class="button" id="graphic-draw-btn">Modo dibujo</button>
