@@ -204,6 +204,45 @@
         padding: 0.9rem;
         margin-bottom: 0.75rem;
       }
+      .task-edit-tab-bar {
+        display: flex;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.7rem;
+      }
+      .task-edit-tab {
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(255, 255, 255, 0.06);
+      }
+      body.session-task-detail-page.is-presentation .task-edit-tab {
+        border-color: rgba(18, 32, 51, 0.16);
+        background: rgba(255, 255, 255, 0.88);
+        color: #122033 !important;
+      }
+      .task-edit-tab.is-active {
+        border-color: rgba(56, 189, 248, 0.58);
+        box-shadow: 0 12px 22px rgba(2, 6, 23, 0.2);
+        background: rgba(56, 189, 248, 0.14);
+        color: #fefefe;
+      }
+      body.session-task-detail-page.is-presentation .task-edit-tab.is-active {
+        background: rgba(14, 116, 144, 0.15) !important;
+      }
+      .task-edit-panels {
+        display: block;
+      }
+      .task-edit-panel {
+        display: none;
+      }
+      .task-edit-panel.is-active {
+        display: block;
+      }
+      body.session-task-detail-page.is-presentation .task-edit-panel {
+        display: block;
+      }
+      body.session-task-detail-page.is-presentation .task-edit-panel.is-active {
+        display: block;
+      }
       h1 {
         margin: 0;
         font-size: clamp(1.3rem, 2vw, 1.95rem);
@@ -1083,6 +1122,15 @@
 
       {% if show_edit_mode %}
       <section class="panel">
+        <div class="task-edit-tab-bar" role="tablist" aria-label="Partes de la ficha de tarea">
+          <button type="button" class="button task-edit-tab is-active" data-task-edit-tab="graphic" role="tab" aria-selected="true">Parte gráfica</button>
+          <button type="button" class="button task-edit-tab" data-task-edit-tab="descriptive" role="tab" aria-selected="false">Parte descriptiva</button>
+        </div>
+      </section>
+      {% endif %}
+
+      {% if show_edit_mode %}
+      <section class="panel task-edit-panel task-edit-tab-descriptive" data-task-edit-panel="descriptive">
         <h2>Contexto de uso</h2>
         <p class="meta">
           {{ scope_title }}
@@ -1099,7 +1147,7 @@
       {% endif %}
 
       {% if show_edit_mode %}
-        <section class="panel">
+        <section class="panel task-edit-panel task-edit-tab-descriptive" data-task-edit-panel="descriptive">
           <h2>Versionado de tarea</h2>
           {% if original_version %}
           <p class="meta">La versión original está bloqueada y no se sobrescribe. Puedes editar esta tarea y restaurarla cuando quieras.</p>
@@ -1113,7 +1161,7 @@
           {% endif %}
         </section>
 
-        <section class="panel">
+          <section class="panel task-edit-panel task-edit-tab-descriptive" data-task-edit-panel="descriptive">
           <h2>Editar tarea y ficha interior</h2>
           <form method="post" class="grid" id="task-detail-form">
             {% csrf_token %}
@@ -1321,7 +1369,7 @@
       {% endif %}
 
       {% if original_version and show_edit_mode %}
-      <section class="panel">
+      <section class="panel task-edit-panel task-edit-tab-descriptive" data-task-edit-panel="descriptive">
         <h2>Versión original (solo lectura)</h2>
         <div class="compare-grid">
           <div class="sheet-item muted">
@@ -1371,7 +1419,7 @@
       {% endif %}
 
       {% if animation_frames %}
-      <section class="panel">
+      <section class="panel task-edit-panel task-edit-tab-graphic" data-task-edit-panel="graphic">
         <h2>Secuenciación 2D</h2>
         <div class="animation-controls">
           <button type="button" class="button" id="animation-prev-btn">Paso anterior</button>
@@ -1393,7 +1441,7 @@
       {% endif %}
 
       {% if show_edit_mode %}
-      <section class="panel" id="graphic-editor">
+      <section class="panel task-edit-panel task-edit-tab-graphic" id="graphic-editor" data-task-edit-panel="graphic">
         <h2>{% if show_edit_mode %}Representación gráfica editable{% else %}Representación gráfica de la tarea{% endif %}</h2>
         {% if show_edit_mode %}
         <div class="graphic-toolbar">
@@ -1484,7 +1532,7 @@
       {% endif %}
 
       {% if analysis_meta and show_edit_mode %}
-      <section class="panel">
+      <section class="panel task-edit-panel task-edit-tab-descriptive" data-task-edit-panel="descriptive">
         <h2>Análisis automático</h2>
         <div class="chips" style="margin-bottom:0.5rem;">
           {% if analysis_meta.quality_score %}<span class="chip">Score {{ analysis_meta.quality_score }}/100</span>{% endif %}
@@ -1507,7 +1555,7 @@
       {% endif %}
 
       {% if related_tasks and show_edit_mode %}
-      <section class="panel">
+      <section class="panel task-edit-panel task-edit-tab-descriptive" data-task-edit-panel="descriptive">
         <h2>Relacionadas</h2>
         <p class="meta" style="margin-top:0;">Sugeridas por similitud (tipo, fase, objetivo y contexto).</p>
         <div class="grid" style="margin-top:0.6rem;">
@@ -1536,7 +1584,7 @@
       {% endif %}
 
       {% if pdf_excerpt and show_edit_mode %}
-      <section class="panel">
+      <section class="panel task-edit-panel task-edit-tab-descriptive" data-task-edit-panel="descriptive">
         <h2>Extracto del PDF</h2>
         <pre>{{ pdf_excerpt }}</pre>
       </section>
@@ -2442,6 +2490,39 @@
           }
         });
         let resizeTimer = null;
+        const tabButtons = Array.from(document.querySelectorAll('.task-edit-tab'));
+        const tabPanelsByType = {
+          graphic: Array.from(document.querySelectorAll('.task-edit-panel.task-edit-tab-graphic')),
+          descriptive: Array.from(document.querySelectorAll('.task-edit-panel.task-edit-tab-descriptive')),
+        };
+        const setTaskEditTab = (tabName, focusCanvas = false) => {
+          if (!isEditable) return;
+          tabButtons.forEach((button) => {
+            const isActive = button.dataset.taskEditTab === tabName;
+            button.classList.toggle('is-active', isActive);
+            button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+          });
+          tabPanelsByType.graphic.forEach((panel) => panel.classList.toggle('is-active', tabName === 'graphic'));
+          tabPanelsByType.descriptive.forEach((panel) => panel.classList.toggle('is-active', tabName === 'descriptive'));
+          if (focusCanvas && tabName === 'graphic') {
+            fitCanvasToContainer(true);
+            refreshLayerList();
+            setStatus('Panel gráfico activo.');
+          }
+        };
+        tabButtons.forEach((button) => {
+          button.addEventListener('click', () => {
+            const target = button.dataset.taskEditTab;
+            if (target === 'graphic' || target === 'descriptive') {
+              setTaskEditTab(target, true);
+            }
+          });
+        });
+        if (tabButtons.length && isEditable) {
+          const activeTab = tabPanelsByType.graphic.length > 0 ? 'graphic' : 'descriptive';
+          setTaskEditTab(activeTab);
+        }
+
       window.addEventListener('resize', () => {
           clearTimeout(resizeTimer);
           resizeTimer = setTimeout(() => {
