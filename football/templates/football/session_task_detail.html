@@ -1504,8 +1504,8 @@
     <script id="task-detail-3d-payload" type="application/json">
       {
         "taskTitle": "{{ task.title|default:''|escapejs }}",
-        "stadiumModelUrl": "{% static 'football/models/pitch3d/stadium_architectural_complete.glb' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}",
-        "playerModelUrl": "{% static 'football/models/avatar/player_humanoid.glb' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}",
+        "stadiumModelUrl": "{{ pitch3d_assets.pitch3d_stadium_model_src|default:''|escapejs }}",
+        "playerModelUrl": "{{ pitch3d_assets.pitch3d_player_model_src|default:''|escapejs }}",
         "pitch3dContext": {{ task_pitch3d_context_json|safe }},
         "graphicEditorState": {{ graphic_editor_state_json|safe }},
         "animationFrames": {{ animation_frames_json|safe }}

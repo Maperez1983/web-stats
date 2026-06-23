@@ -42478,6 +42478,7 @@ def session_task_detail_page(request, task_id):
     presentation_url = ''
     team = getattr(getattr(getattr(task, 'session', None), 'microcycle', None), 'team', None)
     workspace = None
+    static_build_id = _resolve_static_build_id()
     stadium_palette = {'primary': '#047857', 'secondary': '#f8fafc', 'accent': '#073b32'}
     stadium_ads = {
         'top': str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or 'Club').strip() or 'Club',
@@ -42526,6 +42527,20 @@ def session_task_detail_page(request, task_id):
     except Exception:
         edit_graphic_url = ''
         presentation_url = ''
+
+    pitch3d_player_model_src = ''
+    try:
+        pitch3d_player_model_url = str(os.getenv('TASK_PLAYER_MODEL_URL') or '').strip()
+        pitch3d_player_model_static_path = str(os.getenv('TASK_PLAYER_MODEL_STATIC_PATH') or '').strip()
+        if pitch3d_player_model_url:
+            pitch3d_player_model_src = pitch3d_player_model_url
+        elif pitch3d_player_model_static_path:
+            pitch3d_player_model_src = static(pitch3d_player_model_static_path.lstrip('/'))
+            if static_build_id:
+                pitch3d_player_model_src = f"{pitch3d_player_model_src}?v={quote(str(static_build_id))}"
+    except Exception:
+        pitch3d_player_model_src = ''
+    pitch3d_assets = _task_pitch3d_asset_context(static_build_id, player_model_src=pitch3d_player_model_src)
     return render(
         request,
         'football/session_task_detail.html',
@@ -42572,6 +42587,7 @@ def session_task_detail_page(request, task_id):
                 },
                 ensure_ascii=False,
             ),
+            'pitch3d_assets': pitch3d_assets,
             'is_bookmarked': SessionTaskBookmark.objects.filter(user=request.user, task=task).exists()
             if request.user and request.user.is_authenticated
             else False,

@@ -130,6 +130,23 @@ python3 manage.py sync_rival_rosters --provider universo_rfaf --load-file data/o
 
 Nota: para que el paso 2 actualice la BD de Render desde tu máquina, ejecuta el comando con `DATABASE_URL` apuntando a esa BD.
 
+## Avatar 3D de jugadores (configurable)
+
+La ficha de tareas (`session_task_detail`) y el editor táctico usan el modelo de jugador desde la misma configuración.
+
+Opciones:
+
+- `TASK_PLAYER_MODEL_URL=https://dominio/modelo.glb`: URL externa de un `.glb` con skinning/mallas de jugador.
+- `TASK_PLAYER_MODEL_STATIC_PATH=football/models/avatar/player_humanoid.glb`: ruta relativa en `static`.
+
+Prioridad:
+
+1. `TASK_PLAYER_MODEL_URL` (máxima prioridad)
+2. `TASK_PLAYER_MODEL_STATIC_PATH`
+3. fallback interno `football/models/avatar/player_humanoid.glb`
+
+Úsalo para probar un avatar más realista sin redeploy de código.
+
 Además, Playwright se puede usar para generar previews HD (WYSIWYG) del editor táctico:
 
 - `TPAD_SERVER_RENDER_PREVIEW=true`: intenta renderizar previews HD en servidor (fallback automático si Playwright/browsers no están disponibles).
