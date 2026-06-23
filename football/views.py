@@ -39249,6 +39249,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
         task.save()
     else:
         recent_duplicate = None
+        recent_duplicate_window = timezone.localtime() - timedelta(seconds=80)
         if submission_uid:
             try:
                 recent_duplicate = (
@@ -39257,7 +39258,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
                         session=target_session,
                         deleted_at__isnull=True,
                         status=SessionTask.STATUS_PLANNED,
-                        created_at__gte=timezone.localtime() - timedelta(seconds=80),
+                        created_at__gte=recent_duplicate_window,
                     )
                     .filter(tactical_layout__meta__submission_uid=submission_uid)
                     .order_by('-created_at', '-id')
@@ -39279,6 +39280,42 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
                     .order_by('-created_at', '-id')
                     .first()
                 )
+            except Exception:
+                recent_duplicate = None
+        if not recent_duplicate:
+            # Red de seguridad extra: si el frontend pierde el `task_id` o reenvía el mismo payload
+            # con una sesión recién abierta, evitamos crear una segunda fila idéntica.
+            try:
+                recent_candidates = (
+                    SessionTask.objects
+                    .filter(
+                        session=target_session,
+                        deleted_at__isnull=True,
+                        status=SessionTask.STATUS_PLANNED,
+                        created_at__gte=recent_duplicate_window,
+                        title=str(title or '')[:160],
+                        block=str(block or SessionTask.BLOCK_MAIN_1),
+                        duration_minutes=int(minutes or 15),
+                        objective=str(objective or '')[:8000],
+                        coaching_points=str(coaching_points or ''),
+                        confrontation_rules=str(confrontation_rules or ''),
+                    )
+                    .order_by('-created_at', '-id')
+                )
+                for candidate in recent_candidates:
+                    candidate_layout = candidate.tactical_layout if isinstance(getattr(candidate, 'tactical_layout', None), dict) else {}
+                    candidate_meta = candidate_layout.get('meta') if isinstance(candidate_layout.get('meta'), dict) else {}
+                    candidate_signature = str(candidate_meta.get('builder_payload_signature') or '').strip()
+                    candidate_uid = str(candidate_meta.get('submission_uid') or '').strip()
+                    if submission_signature and candidate_signature and candidate_signature == submission_signature:
+                        recent_duplicate = candidate
+                        break
+                    if submission_uid and candidate_uid and candidate_uid == submission_uid:
+                        recent_duplicate = candidate
+                        break
+                # Si no hay huellas guardadas, la coincidencia exacta del payload reciente ya es suficiente.
+                if not recent_duplicate:
+                    recent_duplicate = recent_candidates.first()
             except Exception:
                 recent_duplicate = None
         if recent_duplicate:

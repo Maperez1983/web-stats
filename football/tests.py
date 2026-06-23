@@ -5078,10 +5078,29 @@ class SessionsTaskBuilderSubmitTests(TestCase):
         }
 
         response_first = self.client.post(url, data=payload, secure=True)
-        self.assertEqual(response_first.status_code, 200)
+        self.assertEqual(response_first.status_code, 302)
         count_after_first = SessionTask.objects.count()
         response_second = self.client.post(url, data=payload, secure=True)
-        self.assertEqual(response_second.status_code, 200)
+        self.assertEqual(response_second.status_code, 302)
+        self.assertEqual(SessionTask.objects.count(), count_after_first)
+
+    def test_double_submit_without_task_id_still_reuses_recent_same_payload(self):
+        url = reverse('sessions-task-create')
+        payload = {
+            'draw_task_title': 'Juego lúdico repetido',
+            'draw_task_block': SessionTask.BLOCK_MAIN_1,
+            'draw_task_minutes': '15',
+            'draw_task_objective': 'Activación básica',
+            'draw_canvas_state': '{}',
+            'draw_canvas_width': '1280',
+            'draw_canvas_height': '720',
+        }
+
+        response_first = self.client.post(url, data=payload, secure=True)
+        self.assertEqual(response_first.status_code, 302)
+        count_after_first = SessionTask.objects.count()
+        response_second = self.client.post(url, data=payload, secure=True)
+        self.assertEqual(response_second.status_code, 302)
         self.assertEqual(SessionTask.objects.count(), count_after_first)
 
     def test_edit_via_task_id_on_create_post_keeps_single_record(self):
