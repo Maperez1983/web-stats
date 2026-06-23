@@ -31,6 +31,7 @@ from football.library_repositories import (
     normalize_library_repository,
 )
 from football.local_llm import call_ollama_json, local_llm_config
+from football.render_api import list_render_services, render_api_key
 from football.web_research import MAX_URLS, compact_web_research, fetch_web_research_with_browser, parse_research_urls, search_web_research
 from football.models import Competition, ConvocationRecord, Group, Match, Player, RivalAnalysisReport, SessionTask, Team, TrainingMicrocycle, TrainingSession, WorkspaceCompetitionContext, WorkspacePreference, WorkspaceSeason, WorkspaceTeam
 from football.task_backups import write_task_backup
@@ -677,6 +678,11 @@ EXTERNAL_CONNECTOR_CATALOG = {
         "label": "Runtime Render",
         "kind": "deployment",
         "description": "Lee host y variables de despliegue para vigilar el entorno remoto.",
+    },
+    "render_api": {
+        "label": "API de Render",
+        "kind": "deployment",
+        "description": "Consulta servicios de Render con una API key segura para auditar el despliegue.",
     },
     "release_pipeline_api": {
         "label": "Pipeline de release",
@@ -5019,6 +5025,7 @@ def collect_system_guard_evidence(*, run_smoke: bool = False, smoke_verbosity: i
         "route_inventory": route_inventory,
         "asset_inventory": asset_inventory,
         "tool_catalog": _tool_catalog(),
+        "external_connectors": _external_connectors_snapshot(page_context=page_context),
         "page_context": dict(page_context or {}),
         "memory": dict(memory or {}),
         "local_llm": {
@@ -5221,6 +5228,7 @@ def _compact_evidence_for_llm(evidence: dict, issues: list[dict], memory: dict |
         "asset_inventory": {k: v for k, v in (evidence.get("asset_inventory") or {}).items() if isinstance(v, dict) and not v.get("ok")},
         "local_llm": evidence.get("local_llm"),
         "external_web_research": _operator_web_research_snapshot(page_context=page_context),
+        "external_connectors": evidence.get("external_connectors"),
         "tool_catalog": evidence.get("tool_catalog"),
         "smoke_failures": {k: v for k, v in (smoke.get("results") or {}).items() if isinstance(v, dict) and not v.get("ok")},
         "issues": issues or [],
@@ -7121,6 +7129,19 @@ def _external_connectors_snapshot(*, page_context=None) -> dict:
             enabled = bool(public_base or render_host)
             status = "configured" if enabled else "missing"
             detail = render_host[:180]
+        elif key == "render_api":
+            api_key = render_api_key()
+            enabled = bool(api_key)
+            if enabled:
+                snapshot = list_render_services(limit=4)
+                status = "connected" if snapshot.get("enabled") else "degraded"
+                service_preview = ", ".join(
+                    [str(row.get("name") or row.get("id") or "") for row in (snapshot.get("services") or []) if isinstance(row, dict)][:4]
+                )
+                detail = f"services:{_safe_int(snapshot.get('service_count'), 0)} {service_preview}".strip()[:180]
+            else:
+                status = "missing_token"
+                detail = "OLLANA_RENDER_API_KEY"
         elif key == "local_llm":
             enabled = bool(llm_cfg.get("enabled"))
             provider = str(llm_cfg.get("provider") or "").strip()

@@ -199,6 +199,7 @@ Variables útiles:
 - `OLLANA_OPERATOR_MAX_RUNTIME_SECONDS=0`: `0` significa sin límite y deja que Render supervise el proceso.
 - `OLLANA_OPERATOR_FORCE=true`: permite recuperar lease al reiniciar el worker.
 - `OLLANA_ADMIN_AUTONOMY_ENABLE_RELEASES=false`: deja desactivadas por defecto acciones autónomas de deploy/rollback.
+- `OLLANA_RENDER_API_KEY=<token de Render>`: permite a Ollana consultar la API de Render y ver servicios del despliegue.
 
 Script de arranque del worker:
 

@@ -877,6 +877,24 @@ class SystemGuardTests(TestCase):
         self.assertEqual(items['deploy_trigger_api']['status'], 'armed')
         self.assertEqual(items['rollback_trigger_api']['status'], 'armed')
 
+    @patch.dict(os.environ, {'OLLANA_RENDER_API_KEY': 'token-render'}, clear=False)
+    @patch('football.system_guard.list_render_services')
+    def test_external_connectors_snapshot_reports_render_api(self, mock_list_render_services):
+        mock_list_render_services.return_value = {
+            'enabled': True,
+            'reason': 'connected',
+            'service_count': 2,
+            'services': [
+                {'name': 'web-stats-ollana-operator', 'id': 'srv-1', 'type': 'background_worker'},
+                {'name': 'web-stats', 'id': 'srv-2', 'type': 'web_service'},
+            ],
+        }
+        snapshot = system_guard._external_connectors_snapshot(page_context={'page': 'dashboard-home'})
+        items = {row['key']: row for row in snapshot['items']}
+        self.assertEqual(items['render_api']['status'], 'connected')
+        self.assertIn('web-stats-ollana-operator', items['render_api']['detail'])
+        mock_list_render_services.assert_called_once()
+
     def test_safe_command_executor_snapshot_respects_code_permissions(self):
         snapshot = system_guard._safe_command_executor_snapshot(page_context={
             'page': 'dashboard-home',

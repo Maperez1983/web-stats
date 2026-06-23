@@ -90,6 +90,8 @@ services:
         value: "true"
       - key: OLLANA_ADMIN_AUTONOMY_ENABLE_RELEASES
         value: "false"
+      - key: OLLANA_RENDER_API_KEY
+        sync: false
       - key: SECRET_KEY
         sync: false
       - key: DATABASE_URL
