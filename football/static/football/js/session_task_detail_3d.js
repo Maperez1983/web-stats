@@ -853,21 +853,57 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
     if (!channels) return false;
     return channels.r >= 170 && channels.r >= channels.g * 1.2 && channels.r >= channels.b * 1.3;
   };
-  const normalizeObjectKind = (value) => safeText(value, '').toLowerCase().trim().replace(/\s+/g, '_');
+  const normalizeObjectKind = (value) => safeText(value, '').toLowerCase().trim().replace(/[\s-]+/g, '_');
+  const normalizeObjectKindAlias = (value) => {
+    const normalized = normalizeObjectKind(value);
+    if (normalized === 'cone_striped') return 'cone_striped';
+    if (normalized === 'goalpost' || normalized === 'goal_post') return 'goal';
+    if (normalized === 'player' || normalized === 'goalkeeper' || normalized.startsWith('player_') || normalized.startsWith('goalkeeper_')) return 'token';
+    return normalized;
+  };
+  const isTokenObject = (value) => normalizeObjectKindAlias(value) === 'token';
+  const extractFacingDegrees = (obj, childObjects = []) => {
+    const childFacing = Array.isArray(childObjects)
+      ? childObjects
+        .map((child) => toNumber(child?.data?.facing_deg, Number.NaN))
+        .find((value) => Number.isFinite(value))
+      : Number.NaN;
+    const candidates = [
+      childFacing,
+      toNumber(obj?.data?.facing_deg, Number.NaN),
+      toNumber(obj?.data?.facingDeg, Number.NaN),
+      toNumber(obj?.facing_deg, Number.NaN),
+      toNumber(obj?.facingDeg, Number.NaN),
+    ];
+    const firstFacing = candidates.find((value) => Number.isFinite(value));
+    if (Number.isFinite(firstFacing)) return normalizeAngle(degToRad(firstFacing));
+    return NaN;
+  };
   const inferObjectKind = (obj, childObjects = []) => {
-    const dataKind = obj?.data && typeof obj.data === 'object' && obj.data.kind ? obj.data.kind : '';
-    const directKind = normalizeObjectKind(dataKind || obj?.kind || '');
+    const data = obj && typeof obj === 'object' ? obj.data || {} : {};
+    const dataKind = data && typeof data === 'object' && data.kind ? data.kind : '';
+    const directKind = normalizeObjectKindAlias(dataKind || obj?.kind || '');
+    const tokenKind = normalizeObjectKindAlias(data.token_kind || data.playerKind || '');
     if (directKind) return directKind;
+    if (isTokenObject(tokenKind)) return 'token';
     const type = safeText(obj?.type).toLowerCase();
     const fill = safeText(obj?.fill);
     const stroke = safeText(obj?.stroke);
     const width = toNumber(objectBaseWidth2d(obj), 0);
     const height = toNumber(objectBaseHeight2d(obj), 0);
     const radius = toNumber(obj?.radius, 0);
+    const childRoles = Array.isArray(childObjects)
+      ? childObjects.map((child) => safeText((child?.data || {}).role))
+      : [];
+    const hasConeRole = childRoles.some((role) => role.startsWith('cone_') || role === 'cone' || role === 'cone_shadow' || role === 'gate_cone');
+    const hasTokenRole = childRoles.some((role) => role.startsWith('token_') || role === 'token_name' || role === 'token_number');
     if (type === 'i-text') return 'note';
     if (type === 'group') {
       const hasCircle = Array.isArray(childObjects) && childObjects.some((child) => safeText(child?.type).toLowerCase() === 'circle');
+      if (hasConeRole && Array.isArray(childObjects)) return 'cone';
+      if (hasTokenRole && Array.isArray(childObjects)) return 'token';
       if (hasCircle && Array.isArray(childObjects)) return 'token';
+      if (tokenKind) return 'token';
     }
     if (type === 'circle') {
       if (isWhiteToneColor(fill) || isWhiteToneColor(stroke)) return 'emoji_ball';
@@ -1605,6 +1641,17 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
       const extra = obj && typeof obj.data === 'object' ? obj.data : {};
       const childObjects = Array.isArray(obj.objects) ? obj.objects : [];
       const kind = inferObjectKind(obj, childObjects);
+      const tokenFacingRad = extractFacingDegrees(obj, childObjects);
+      const tokenIdentity = safeText(
+        extra.token_id
+        || extra.tokenId
+        || extra.playerId
+        || extra.player_id
+        || extra.layer_uid
+        || extra.uid
+        || extra.id
+        || ''
+      );
       const extractSolidColor = (value, fallback = '#2563eb') => {
         if (typeof value === 'string' && value.trim()) return value.trim();
         if (value && typeof value === 'object' && Array.isArray(value.colorStops) && value.colorStops.length) {
@@ -1683,6 +1730,7 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
           radius: radiusToMeters(obj.radius),
           fill: safeText(obj.fill, '#2563eb'),
           stroke: safeText(obj.stroke, '#ffffff'),
+          facingRad: Number.isFinite(tokenFacingRad) ? tokenFacingRad : NaN,
           photoUrl: resolveTokenPhotoUrl(obj),
         });
         tokenIndex += 1;
@@ -1697,17 +1745,36 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
         const fillNode = childByRole('token_fill');
         const ringNode = childByRole('token_outer_ring') || childByRole('token_base');
         const measuredRadius = radiusToMeters(Math.max(toNumber(obj.width, 44), toNumber(obj.height, 44)) / 2.4) || 1.1;
-        data.tokens.set(`token:${label}:${tokenIndex}`, {
-          uid: `token:${label}:${tokenIndex}`,
+        const tokenKey = tokenIdentity ? `token:${tokenIdentity}` : `token:${label}:${tokenIndex}`;
+        data.tokens.set(tokenKey, {
+          uid: tokenKey,
           label,
           x: world.x,
           z: world.z,
           radius: measuredRadius,
           fill: extractSolidColor(fillNode?.fill, safeText(extra.token_base_color, '#2563eb')),
           stroke: extractSolidColor(ringNode?.stroke, safeText(ringNode?.fill, '#ffffff')),
+          facingRad: Number.isFinite(tokenFacingRad) ? tokenFacingRad : NaN,
           photoUrl: resolveTokenPhotoUrl(obj, childObjects),
         });
         tokenIndex += 1;
+        return;
+      }
+      if (obj.type === 'group' && (kind === 'cone' || kind === 'cone_striped')) {
+        const world = canvasToWorld(center2d.x, center2d.y);
+        const baseRadius = kind === 'cone_striped' ? 0.62 : 0.58;
+        data.cones.set(`cone:${coneIndex}`, {
+          uid: `cone:${coneIndex}`,
+          x: world.x,
+          z: world.z,
+          radius: radiusToMeters((toNumber(obj.width, 28) + toNumber(obj.height, 28)) / 4) || baseRadius,
+          height: radiusToMeters(Math.max(toNumber(obj.height, 28), 28)) * 2.25 || 1.45,
+          fill: safeText(obj.fill, kind === 'cone_striped' ? '#f59e0b' : '#ef4444'),
+          stroke: safeText(obj.stroke, '#fff7ed'),
+          striped: kind === 'cone_striped',
+          shape: 'round_cone',
+        });
+        coneIndex += 1;
         return;
       }
       if ((obj.type === 'circle' || obj.type === 'text' || obj.type === 'i-text') && kind === 'ball') {
@@ -1762,6 +1829,18 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
           z: world.z,
           rotationY: world.x > 0 ? Math.PI / 2 : -Math.PI / 2,
           scale: kind === 'emoji_goal' ? 1.28 : 1,
+        });
+        goalIndex += 1;
+        return;
+      }
+      if (obj.type === 'group' && (kind === 'goal' || kind === 'mini_goal')) {
+        const world = canvasToWorld(center2d.x, center2d.y);
+        data.goals.push({
+          uid: `goal:${goalIndex}`,
+          x: world.x,
+          z: world.z,
+          rotationY: world.x > 0 ? Math.PI / 2 : -Math.PI / 2,
+          scale: 1.03,
         });
         goalIndex += 1;
         return;
@@ -2294,14 +2373,21 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
       const dx = target.x - entry.x;
       const dz = target.z - entry.z;
       const moveStrength = clamp(Math.sqrt((dx * dx) + (dz * dz)) / 8, 0, 1);
+      const entryFacing = Number.isFinite(entry.facingRad) ? entry.facingRad : NaN;
+      const nextFacing = next && Number.isFinite(next.facingRad) ? next.facingRad : NaN;
       const stride = Math.sin((elapsedSeconds * 8) + (x * 0.1) + (z * 0.06)) * moveStrength;
       const idleSwing = Math.sin((elapsedSeconds * 2.6) + (x * 0.04) + (z * 0.05)) * 0.06;
       group.position.x = x;
       group.position.z = z;
       const isMoving = moveStrength > 0.032;
-      const targetRotation = next ? Math.atan2(dx, dz) : (group.userData?.heading ?? 0);
+      const movementTargetRotation = Math.atan2(dx, dz);
+      const explicitTargetRotation = Number.isFinite(nextFacing) ? nextFacing : (Number.isFinite(entryFacing) ? entryFacing : movementTargetRotation);
+      const shouldForceFacing = Number.isFinite(entryFacing) || Number.isFinite(nextFacing);
+      const targetRotation = shouldForceFacing ? explicitTargetRotation : (isMoving ? movementTargetRotation : (group.userData?.heading ?? explicitTargetRotation));
       const currentHeading = typeof group.userData?.heading === 'number' ? group.userData.heading : targetRotation;
-      const smoothedHeading = isMoving ? lerpAngle(currentHeading, targetRotation, 0.22) : currentHeading;
+      const smoothedHeading = (isMoving || shouldForceFacing)
+        ? lerpAngle(currentHeading, targetRotation, 0.22)
+        : currentHeading;
       const baseHeight = group.userData?.isHumanoidModel ? 0.018 : 0;
       group.position.y = isMoving
         ? (baseHeight + Math.sin((elapsedSeconds * 3.2) + x * 0.08 + z * 0.08) * 0.06)
