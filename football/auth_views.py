@@ -437,10 +437,6 @@ def service_token_login_page(request):
         available_qs = workspace_available_workspaces_for_user(user)
         if token_obj.workspace_id and available_qs.filter(id=token_obj.workspace_id).exists():
             request.session["active_workspace_id"] = int(token_obj.workspace_id)
-        else:
-            available_ids = list(available_qs.order_by("id").values_list("id", flat=True)[:2])
-            if len(available_ids) == 1:
-                request.session["active_workspace_id"] = int(available_ids[0])
     except Exception:
         logger.debug("No se pudo fijar active_workspace_id desde token", exc_info=True)
 

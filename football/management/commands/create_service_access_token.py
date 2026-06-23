@@ -5,7 +5,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
-from football.models import ServiceAccessToken, Workspace, WorkspaceMembership
+from football.models import AppUserRole, ServiceAccessToken, Workspace, WorkspaceMembership
 
 
 class Command(BaseCommand):
@@ -22,6 +22,11 @@ class Command(BaseCommand):
         parser.add_argument('--workspace-id', type=int, default=0, help='Workspace que debe quedar activo tras el login.')
         parser.add_argument('--created-by', default='cli', help='Etiqueta de auditoría de quién crea el token.')
         parser.add_argument('--days', type=int, default=30, help='Caducidad en días. Usa 0 para sin expiración.')
+        parser.add_argument(
+            '--platform-access',
+            action='store_true',
+            help='Eleva el usuario a acceso de plataforma si todavía no lo tiene, para ver todos los workspaces.',
+        )
 
     @transaction.atomic
     def handle(self, *args, **options):
@@ -39,6 +44,13 @@ class Command(BaseCommand):
         if not user:
             self.stdout.write(self.style.ERROR('No se encontró el usuario indicado.'))
             return
+
+        if bool(options.get('platform_access')) and not user.is_staff and not user.is_superuser:
+            AppUserRole.objects.update_or_create(
+                user=user,
+                defaults={'role': AppUserRole.ROLE_ADMIN},
+            )
+            self.stdout.write(self.style.SUCCESS(f'Rol de plataforma ajustado a administrador para {user.username}.'))
 
         workspace = None
         workspace_slug = str(options.get('workspace_slug') or '').strip()
