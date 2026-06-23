@@ -987,30 +987,75 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
     if (filteredTracks.length === sourceTracks.length) return source;
     return new THREE.AnimationClip(source.name || 'PlayerAction', source.duration || -1, filteredTracks);
   };
-  const buildHumanoidMotion = (clip) => {
-    if (!clip) return null;
+  const classifyHumanoidClip = (clip) => {
+    if (!clip) return 'generic';
     const name = String(clip.name || '').toLowerCase();
-    const isRun = name.includes('run') || name.includes('sprint') || name.includes('dash');
-    const isWalk = name.includes('walk') || name.includes('jog') || name.includes('move');
-    return {
-      speed: isRun ? 1.6 : isWalk ? 1.06 : 1,
-    };
+    if (name.includes('idle') || name.includes('stand') || name.includes('rest') || name.includes('wait')) return 'idle';
+    if (name.includes('run') || name.includes('sprint') || name.includes('dash')) return 'run';
+    if (name.includes('walk') || name.includes('jog') || name.includes('move')) return 'walk';
+    return 'generic';
   };
   const applyHumanoidAnimationState = (group, moveStrength) => {
     const motion = group?.userData?.humanoidMotion;
-    if (!motion || !motion.action || !motion.mixer) return;
-    const moving = moveStrength > 0.032;
-    const speed = clamp(0.08 + (moveStrength * 2.2), 0.08, 2.1);
+    if (!motion || !motion.mixer) return;
+    const actions = motion.actions || {};
+    const idleAction = actions.idle || actions.generic;
+    const walkAction = actions.walk || actions.generic;
+    const runAction = actions.run || actions.walk || actions.generic;
+    const target = moveStrength <= 0.06 ? 'idle' : moveStrength <= 0.3 ? 'walk' : 'run';
+    const action = target === 'run' ? runAction : target === 'walk' ? walkAction : idleAction;
+    if (!action) return;
+    if (motion.activeAction !== action) {
+      const previous = motion.activeAction;
+      action.enabled = true;
+      action.setLoop(THREE.LoopRepeat, Infinity);
+      action.play();
+      if (previous && previous !== action) {
+        action.crossFadeFrom(previous, 0.2, true);
+        action.time = previous.time;
+      } else {
+        action.time = 0;
+      }
+      motion.activeAction = action;
+      motion.state = target;
+    }
+
+    const moving = moveStrength > 0.06;
+    const walkSpeed = 0.55 + (moveStrength * 1.45);
+    const runSpeed = 0.88 + (moveStrength * 1.45);
     if (!moving) {
-      motion.action.timeScale = 0;
-      motion.action.time = 0;
-      motion.action.paused = true;
-      motion.isIdle = true;
+      motion.state = 'idle';
+      if (idleAction) {
+        idleAction.timeScale = 0;
+      }
+      if (motion.activeAction !== idleAction && idleAction) {
+        idleAction.reset();
+        idleAction.play();
+        motion.activeAction = idleAction;
+      }
+      if (motion.activeAction?.timeScale !== undefined) {
+        motion.activeAction.timeScale = 0;
+      }
+      motion.lastMoveStrength = 0;
       return;
     }
-    motion.action.paused = false;
-    motion.action.timeScale = speed * motion.speed;
-    motion.isIdle = !moving;
+    const speed = target === 'run' ? runSpeed : walkSpeed;
+    const profileSpeed = target === 'run' ? 1.22 : target === 'walk' ? 1.05 : 1;
+    if (motion.activeAction && motion.activeAction.timeScale !== undefined) {
+      motion.activeAction.timeScale = clamp(speed * profileSpeed, 0.08, 2.2);
+      if (motion.activeAction.paused) motion.activeAction.paused = false;
+    }
+    if (motion.lastMoveStrength !== undefined && moveStrength > 0.06) {
+      const phaseShift = motion.lastMoveStrength - moveStrength;
+      if (phaseShift > 0.2 && motion.activeAction?.timeScale !== undefined) {
+        motion.activeAction.timeScale = clamp(motion.activeAction.timeScale * 0.97, 0.12, 2.2);
+      }
+      if (phaseShift < -0.18 && motion.activeAction?.timeScale !== undefined) {
+        motion.activeAction.timeScale = clamp(motion.activeAction.timeScale * 1.03, 0.08, 2.2);
+      }
+    }
+    motion.isIdle = false;
+    motion.lastMoveStrength = moveStrength;
   };
   const scaleClamped = (value, minScale, maxScale) => Math.max(minScale, Math.min(maxScale, value));
   const shouldSkipMaterialTint = (material) => {
@@ -1248,20 +1293,46 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
       let mixer = null;
       let humanoidMotion = null;
       if (Array.isArray(asset.clips) && asset.clips.length) {
-        const selectedClip = getHumanoidAnimationClip(asset.clips[0], clone);
-        if (selectedClip) {
+        const prepared = [];
+        asset.clips.forEach((clip) => {
+          const matched = getHumanoidAnimationClip(clip, clone);
+          if (matched) prepared.push(matched);
+        });
+        if (prepared.length) {
           mixer = new THREE.AnimationMixer(clone);
-          const action = mixer.clipAction(selectedClip);
-          const profile = buildHumanoidMotion(selectedClip);
-          action.setLoop(THREE.LoopRepeat, Infinity);
-          action.play();
-          action.timeScale = 0;
-          action.paused = true;
-          action.enabled = true;
+          const actions = {};
+          prepared.forEach((clip) => {
+            const key = classifyHumanoidClip(clip);
+            const action = mixer.clipAction(clip);
+            if (key === 'generic' && actions.generic) return;
+            if (key === 'idle' && actions.idle) return;
+            if (key === 'walk' && actions.walk) return;
+            if (key === 'run' && actions.run) return;
+            action.setLoop(THREE.LoopRepeat, Infinity);
+            action.enabled = false;
+            action.clampWhenFinished = false;
+            action.weight = 0;
+            actions[key] = action;
+            action.play();
+          });
+          Object.values(actions).forEach((action) => {
+            if (action !== actions.generic && actions.generic) {
+              action.crossFadeFrom(actions.generic, 0, true);
+            }
+          });
+          const fallback = actions.idle || actions.walk || actions.run || actions.generic;
+          if (fallback) {
+            fallback.weight = 1;
+            fallback.timeScale = 0;
+            fallback.enabled = true;
+            fallback.paused = true;
+          }
           humanoidMotion = {
             mixer,
-            action,
-            speed: profile?.speed || 1,
+            actions,
+            activeAction: fallback || null,
+            state: fallback ? 'idle' : null,
+            lastMoveStrength: 0,
             isIdle: true,
           };
           modelMixers.add(mixer);
@@ -1495,7 +1566,12 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
   const clearGroup = (group) => {
     const humanoidMotion = group?.userData?.humanoidMotion;
     if (humanoidMotion?.mixer) {
-      humanoidMotion.action?.stop();
+      if (humanoidMotion?.activeAction) humanoidMotion.activeAction.stop();
+      if (humanoidMotion?.actions) {
+        Object.values(humanoidMotion.actions).forEach((action) => {
+          action.stop();
+        });
+      }
       humanoidMotion.mixer.stopAllAction();
       humanoidMotion.mixer.uncacheRoot(group.userData?.modelRoot || group);
       modelMixers.delete(humanoidMotion.mixer);
