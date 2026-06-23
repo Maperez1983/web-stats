@@ -3834,6 +3834,55 @@ class SystemGuardTests(TestCase):
         self.assertEqual(profile['preferred_route_key'], 'analysis')
         self.assertTrue(profile['successful_actions'])
         self.assertTrue(profile['recurring_intents'])
+        self.assertIn('roles', profile)
+        self.assertIn('knowledge', profile)
+
+    @patch('football.system_guard.local_llm_config', return_value={
+        'enabled': False,
+        'provider': 'ollama',
+        'model': 'qwen3:8b',
+        'base_url': 'http://127.0.0.1:11434',
+        'timeout': 8,
+    })
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    def test_system_guard_chat_records_operator_roles_and_capabilities(self, *_mocks):
+        actor_id = int(self.user.id)
+        page_context = {
+            'page': 'coach-tactics',
+            'title': 'Táctica',
+            'workspace_id': self.workspace.id,
+            'team_id': self.team.id,
+            'can_manage_guard': True,
+            'can_operate_guard_code': True,
+            'is_admin_user': True,
+        }
+        system_guard.run_system_guard_chat(
+            question='Revisa la táctica y detecta fallos visuales',
+            workspace=self.workspace,
+            page_context=page_context,
+            actor_id=actor_id,
+            autonomy_mode='operator',
+            audience='guided',
+        )
+        profile = system_guard._load_operator_profile(self.workspace, actor_id=actor_id)
+        self.assertIn('tactical_reviewer', profile['roles']['active_roles'])
+        self.assertIn('system_observer', profile['roles']['active_roles'])
+        self.assertTrue(profile['roles']['capabilities']['can_open_browser'])
+        self.assertTrue(profile['roles']['capabilities']['can_detect_visual_regressions'])
+        brain = system_guard._system_brain_snapshot(
+            self.workspace,
+            page_context=page_context,
+            operator_profile=profile,
+            planner={},
+        )
+        self.assertIn('role_profile', brain)
+        self.assertIn('tactical_reviewer', brain['role_profile']['active_roles'])
+        self.assertTrue(brain['role_profile']['observer_mode'])
 
     @patch('football.views._get_active_workspace')
     @patch('football.views._get_primary_team_for_request')

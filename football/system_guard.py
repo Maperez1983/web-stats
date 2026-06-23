@@ -4133,6 +4133,66 @@ def _operator_profile_pref_key(actor_id=None) -> str:
     return OPERATOR_PROFILE_PREF_KEY
 
 
+def _operator_role_context(*, page_context=None, operator_profile=None) -> dict:
+    context = page_context if isinstance(page_context, dict) else {}
+    operator_profile = operator_profile if isinstance(operator_profile, dict) else {}
+    permission_roles = (_permission_profile(page_context=context).get("roles") or {})
+    page = str(context.get("page") or "").strip().lower()
+    route = str(context.get("route") or page or "").strip().lower()
+    task_id = _safe_int(context.get("task_id") or context.get("selected_task_id"), 0)
+    session_id = _safe_int(context.get("session_id") or context.get("selected_session_id"), 0)
+    browser_target = str(context.get("browser_target_url") or "").strip()
+    active_roles = []
+    if bool(permission_roles.get("is_admin_user")):
+        active_roles.append("supervisor")
+    if bool(permission_roles.get("can_manage_guard")):
+        active_roles.append("system_observer")
+    if bool(permission_roles.get("can_operate_guard_code")):
+        active_roles.append("repair_operator")
+    if task_id or "task" in page or "task" in route:
+        active_roles.append("visual_auditor")
+    if session_id or "session" in page or "sessions" in route:
+        active_roles.append("training_coach")
+    if "library" in page or "library" in route:
+        active_roles.append("content_auditor")
+    if "tactic" in page or "tactic" in route or "pitch" in browser_target:
+        active_roles.append("tactical_reviewer")
+    if "ai-trainer" in page or "trainer" in route:
+        active_roles.append("knowledge_orchestrator")
+    if not active_roles:
+        active_roles.append("system_observer")
+    active_roles = list(dict.fromkeys(active_roles))[:8]
+    role_capabilities = {
+        "can_observe_system": True,
+        "can_open_browser": True,
+        "can_read_rendered_ui": True,
+        "can_detect_visual_regressions": True,
+        "can_detect_route_failures": bool(permission_roles.get("can_manage_guard") or permission_roles.get("is_admin_user")),
+        "can_repair_code": bool(permission_roles.get("can_operate_guard_code") or permission_roles.get("admin_total_operator")),
+        "can_manage_training_content": bool(permission_roles.get("can_manage_guard")),
+    }
+    knowledge_targets = [
+        "dashboard",
+        "task_library",
+        "task_detail",
+        "sessions",
+        "tactics",
+        "players",
+        "reports",
+        "ai_trainer",
+        "browser_audit",
+        "contrast_checks",
+    ]
+    if str(operator_profile.get("preferred_route_key") or "").strip():
+        knowledge_targets.insert(0, str(operator_profile.get("preferred_route_key") or "").strip())
+    return {
+        "active_roles": active_roles,
+        "capabilities": role_capabilities,
+        "knowledge_targets": list(dict.fromkeys(knowledge_targets))[:10],
+        "observer_mode": True,
+    }
+
+
 def _normalize_operator_profile(payload) -> dict:
     if not isinstance(payload, dict):
         payload = {}
@@ -4144,6 +4204,8 @@ def _normalize_operator_profile(payload) -> dict:
             "intent": str(row.get("intent") or "").strip()[:64],
             "count": _safe_int(row.get("count"), 0),
         })
+    roles = payload.get("roles") if isinstance(payload.get("roles"), dict) else {}
+    knowledge = payload.get("knowledge") if isinstance(payload.get("knowledge"), dict) else {}
     return {
         "preferred_route_key": str(payload.get("preferred_route_key") or "").strip()[:64],
         "preferred_route_label": str(payload.get("preferred_route_label") or "").strip()[:120],
@@ -4152,6 +4214,24 @@ def _normalize_operator_profile(payload) -> dict:
         "successful_actions": [str(x) for x in (payload.get("successful_actions") or []) if str(x or "").strip()][:8],
         "code_focus_areas": [str(x) for x in (payload.get("code_focus_areas") or []) if str(x or "").strip()][:8],
         "recurring_intents": recurring,
+        "roles": {
+            "active_roles": [str(x) for x in (roles.get("active_roles") or []) if str(x or "").strip()][:8],
+            "capabilities": {
+                "can_observe_system": bool((roles.get("capabilities") or {}).get("can_observe_system")),
+                "can_open_browser": bool((roles.get("capabilities") or {}).get("can_open_browser")),
+                "can_read_rendered_ui": bool((roles.get("capabilities") or {}).get("can_read_rendered_ui")),
+                "can_detect_visual_regressions": bool((roles.get("capabilities") or {}).get("can_detect_visual_regressions")),
+                "can_detect_route_failures": bool((roles.get("capabilities") or {}).get("can_detect_route_failures")),
+                "can_repair_code": bool((roles.get("capabilities") or {}).get("can_repair_code")),
+                "can_manage_training_content": bool((roles.get("capabilities") or {}).get("can_manage_training_content")),
+            },
+            "knowledge_targets": [str(x) for x in (roles.get("knowledge_targets") or []) if str(x or "").strip()][:10],
+            "observer_mode": bool(roles.get("observer_mode", True)),
+        },
+        "knowledge": {
+            "domains": [str(x) for x in (knowledge.get("domains") or []) if str(x or "").strip()][:10],
+            "visual_signals": [str(x) for x in (knowledge.get("visual_signals") or []) if str(x or "").strip()][:10],
+        },
         "last_updated": str(payload.get("last_updated") or "").strip()[:64],
     }
 
@@ -4186,6 +4266,7 @@ def _store_operator_profile(workspace, *, actor_id=None, planner=None, assistant
     planner = planner if isinstance(planner, dict) else {}
     assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
     current = _load_operator_profile(workspace, actor_id=actor_id)
+    role_context = _operator_role_context(page_context=page_context, operator_profile=current)
     task = planner.get("task") if isinstance(planner.get("task"), dict) else {}
     route_target = task.get("route_target") if isinstance(task.get("route_target"), dict) else {}
     candidate_route = route_target if route_target.get("key") else {}
@@ -4207,6 +4288,31 @@ def _store_operator_profile(workspace, *, actor_id=None, planner=None, assistant
         "successful_actions": successful + current.get("successful_actions", []),
         "code_focus_areas": code_focus + current.get("code_focus_areas", []),
         "recurring_intents": _bump_intent_counter(current.get("recurring_intents", []), str(planner.get("intent") or "")),
+        "roles": {
+            "active_roles": role_context.get("active_roles") or current.get("roles", {}).get("active_roles") or [],
+            "capabilities": role_context.get("capabilities") or current.get("roles", {}).get("capabilities") or {},
+            "knowledge_targets": role_context.get("knowledge_targets") or current.get("roles", {}).get("knowledge_targets") or [],
+            "observer_mode": bool((role_context.get("observer_mode") if role_context else None) is not False),
+        },
+        "knowledge": {
+            "domains": [
+                "football_platform",
+                "training_sessions",
+                "task_library",
+                "tactical_editor",
+                "browser_auditing",
+                "visual_regression_detection",
+                "repair_and_publish",
+            ],
+            "visual_signals": [
+                "contrast",
+                "layout_breaks",
+                "hidden_buttons",
+                "missing_canvas_content",
+                "render_failures",
+                "3d_visibility",
+            ],
+        },
         "last_updated": _now_iso(),
     }
     _store_pref_value(workspace, _operator_profile_pref_key(actor_id), _normalize_operator_profile(payload))
@@ -8045,6 +8151,7 @@ def _presence_snapshot(*, page_context=None, planner=None, assistant_action=None
     runtime_snapshot = context.get("runtime_snapshot") if isinstance(context.get("runtime_snapshot"), dict) else {}
     health_snapshot = context.get("health_snapshot") if isinstance(context.get("health_snapshot"), dict) else {}
     route_health = _route_health_snapshot(page_context=context)
+    role_profile = _operator_role_context(page_context=context, operator_profile=operator_profile)
     if isinstance(assistant_action.get("navigate_to"), dict) and assistant_action.get("navigate_to", {}).get("key"):
         current_target = assistant_action.get("navigate_to")
     nearby = []
@@ -8068,6 +8175,10 @@ def _presence_snapshot(*, page_context=None, planner=None, assistant_action=None
         },
         "nearby_modules": nearby,
         "preferred_route": str(operator_profile.get("preferred_route_label") or "")[:120],
+        "role_profile": {
+            "active_roles": [str(item)[:64] for item in (role_profile.get("active_roles") or [])[:8]],
+            "observer_mode": bool(role_profile.get("observer_mode")),
+        },
         "visible_headings": [str(item)[:120] for item in (ui_snapshot.get("headings") or [])[:4]],
         "visible_actions": [str(item)[:80] for item in (ui_snapshot.get("primary_actions") or [])[:5]],
         "visual_density": _safe_int(visual_snapshot.get("visual_density"), 0),
@@ -8599,6 +8710,7 @@ def _system_brain_snapshot(
     memory = _merge_memory(_load_memory(workspace), {}) if workspace else {}
     task = planner.get("task") if isinstance(planner.get("task"), dict) else {}
     recurring = [row for row in (operator_profile.get("recurring_intents") or []) if isinstance(row, dict)]
+    role_profile = _operator_role_context(page_context=page_context, operator_profile=operator_profile)
     maturity = _ollana_maturity_snapshot(
         page_context=page_context,
         assistant_action={},
@@ -8624,6 +8736,12 @@ def _system_brain_snapshot(
         "top_intents": top_intents,
         "preferred_route": str(operator_profile.get("preferred_route_label") or "")[:120],
         "current_focus": str(task.get("target_summary") or "")[:220],
+        "role_profile": {
+            "active_roles": [str(item)[:64] for item in (role_profile.get("active_roles") or [])[:8]],
+            "capabilities": role_profile.get("capabilities") or {},
+            "knowledge_targets": [str(item)[:64] for item in (role_profile.get("knowledge_targets") or [])[:10]],
+            "observer_mode": bool(role_profile.get("observer_mode")),
+        },
         "similarity_percent": _safe_int(maturity.get("percent"), 0),
         "incident_memory": {
             "count": _safe_int(observability.get("incident_ledger_count"), 0),
