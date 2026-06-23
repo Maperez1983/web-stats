@@ -3907,6 +3907,10 @@ class SystemGuardTests(TestCase):
         self.assertIn('system_observer', profile['roles']['active_roles'])
         self.assertTrue(profile['roles']['capabilities']['can_open_browser'])
         self.assertTrue(profile['roles']['capabilities']['can_detect_visual_regressions'])
+        self.assertIn('2d_tactics', profile['roles']['knowledge_domains'])
+        self.assertIn('2d/3d mismatch', profile['roles']['visual_signals'])
+        self.assertTrue(profile['roles']['guidance'])
+        self.assertIn('2d to 3d parity', profile['knowledge']['knowledge_targets'])
         brain = system_guard._system_brain_snapshot(
             self.workspace,
             page_context=page_context,

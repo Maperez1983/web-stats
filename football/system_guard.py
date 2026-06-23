@@ -4084,6 +4084,83 @@ def _permission_profile(page_context=None) -> dict:
     }
 
 
+ROLE_KNOWLEDGE_PACKS = {
+    "supervisor": {
+        "domains": ["governance", "traceability", "release_safety", "workspace_overview"],
+        "visual_signals": ["missing audit trail", "permission mismatch", "broken publish flow"],
+        "knowledge_targets": ["state coherence", "auditability", "high-level risk detection"],
+        "guidance": ["Prioriza integridad del sistema y trazabilidad antes que cambios cosméticos."],
+    },
+    "system_observer": {
+        "domains": ["page_health", "route_health", "rendered_ui", "browser_audit"],
+        "visual_signals": ["blank sections", "contrast regressions", "failed render surfaces", "hidden controls"],
+        "knowledge_targets": ["health checks", "route availability", "rendered ui inspection"],
+        "guidance": ["Compara lo que debería verse con lo que realmente se renderiza."],
+    },
+    "repair_operator": {
+        "domains": ["code_paths", "config", "safe_fixes", "deployment_flow"],
+        "visual_signals": ["stack traces", "failing tests", "broken imports"],
+        "knowledge_targets": ["safe code repair", "test-guided fixes", "publish readiness"],
+        "guidance": ["Solo aplica reparaciones que puedas verificar con pruebas o auditoría."],
+    },
+    "visual_auditor": {
+        "domains": ["contrast", "layout", "button_visibility", "3d_rendering"],
+        "visual_signals": ["low contrast text", "missing labels", "black panels", "unstyled controls"],
+        "knowledge_targets": ["visual contrast", "ui affordances", "task sheet legibility"],
+        "guidance": ["Señala con precisión qué elemento no se ve, dónde y por qué es problemático."],
+    },
+    "training_coach": {
+        "domains": ["session_structure", "microcycle", "load_management", "player_preparation"],
+        "visual_signals": ["task progression", "work-rest balance", "intensity blocks"],
+        "knowledge_targets": ["session design", "training load", "coaching objectives"],
+        "guidance": ["Valora si la sesión es útil para un entrenador real y si la carga está bien distribuida."],
+    },
+    "content_auditor": {
+        "domains": ["task_library", "templates", "pdf_export", "html_presentation"],
+        "visual_signals": ["duplicate content", "overloaded forms", "missing summary"],
+        "knowledge_targets": ["content structure", "task metadata", "export consistency"],
+        "guidance": ["Busca redundancia y exceso de información antes de aceptar la ficha como final."],
+    },
+    "tactical_reviewer": {
+        "domains": ["2d_tactics", "3d_tactics", "field_geometry", "player_object_mapping"],
+        "visual_signals": ["2d/3d mismatch", "missing cones", "player position drift", "field mismatch"],
+        "knowledge_targets": ["2d to 3d parity", "object mapping", "tactical scene validation"],
+        "guidance": ["Comprueba que el 3D conserva los mismos objetos, posiciones y lógica que la pizarra 2D."],
+    },
+    "knowledge_orchestrator": {
+        "domains": ["search_quality", "source_selection", "domain_filters", "research_compaction"],
+        "visual_signals": ["irrelevant sources", "duplicate results", "thin evidence"],
+        "knowledge_targets": ["web search planning", "source filtering", "evidence summarization"],
+        "guidance": ["Favorece fuentes relevantes, recientes y verificables; evita ruido y duplicados."],
+    },
+}
+
+
+def _merge_role_knowledge(active_roles: list[str], operator_profile=None) -> dict:
+    operator_profile = operator_profile if isinstance(operator_profile, dict) else {}
+    knowledge = operator_profile.get("knowledge") if isinstance(operator_profile.get("knowledge"), dict) else {}
+    domains = []
+    visual_signals = []
+    targets = []
+    guidance = []
+    for role in active_roles or []:
+        pack = ROLE_KNOWLEDGE_PACKS.get(str(role or "").strip(), {})
+        domains.extend([str(x) for x in (pack.get("domains") or []) if str(x or "").strip()])
+        visual_signals.extend([str(x) for x in (pack.get("visual_signals") or []) if str(x or "").strip()])
+        targets.extend([str(x) for x in (pack.get("knowledge_targets") or []) if str(x or "").strip()])
+        guidance.extend([str(x) for x in (pack.get("guidance") or []) if str(x or "").strip()])
+    domains.extend([str(x) for x in (knowledge.get("domains") or []) if str(x or "").strip()])
+    visual_signals.extend([str(x) for x in (knowledge.get("visual_signals") or []) if str(x or "").strip()])
+    targets.extend([str(x) for x in (knowledge.get("knowledge_targets") or knowledge.get("targets") or []) if str(x or "").strip()])
+    guidance.extend([str(x) for x in (knowledge.get("guidance") or []) if str(x or "").strip()])
+    return {
+        "domains": list(dict.fromkeys(domains))[:20],
+        "visual_signals": list(dict.fromkeys(visual_signals))[:20],
+        "knowledge_targets": list(dict.fromkeys(targets))[:20],
+        "guidance": list(dict.fromkeys(guidance))[:20],
+    }
+
+
 def _authorize_guard_action(action_key: str, *, page_context=None) -> dict:
     policy = ACTION_PERMISSION_MATRIX.get(str(action_key or "").strip()) or {}
     profile = _permission_profile(page_context=page_context)
@@ -4177,7 +4254,11 @@ def _operator_role_context(*, page_context=None, operator_profile=None) -> dict:
         "can_repair_code": bool(permission_roles.get("can_operate_guard_code") or permission_roles.get("admin_total_operator")),
         "can_manage_training_content": bool(permission_roles.get("can_manage_guard")),
     }
-    knowledge_targets = [
+    role_knowledge = _merge_role_knowledge(active_roles, operator_profile=operator_profile)
+    knowledge_targets = list(role_knowledge.get("knowledge_targets") or [])
+    if str(operator_profile.get("preferred_route_key") or "").strip():
+        knowledge_targets.insert(0, str(operator_profile.get("preferred_route_key") or "").strip())
+    knowledge_targets.extend([
         "dashboard",
         "task_library",
         "task_detail",
@@ -4188,13 +4269,14 @@ def _operator_role_context(*, page_context=None, operator_profile=None) -> dict:
         "ai_trainer",
         "browser_audit",
         "contrast_checks",
-    ]
-    if str(operator_profile.get("preferred_route_key") or "").strip():
-        knowledge_targets.insert(0, str(operator_profile.get("preferred_route_key") or "").strip())
+    ])
     return {
         "active_roles": active_roles,
         "capabilities": role_capabilities,
-        "knowledge_targets": list(dict.fromkeys(knowledge_targets))[:10],
+        "knowledge_targets": list(dict.fromkeys(knowledge_targets))[:12],
+        "knowledge_domains": role_knowledge.get("domains") or [],
+        "visual_signals": role_knowledge.get("visual_signals") or [],
+        "guidance": role_knowledge.get("guidance") or [],
         "observer_mode": True,
     }
 
@@ -4231,12 +4313,17 @@ def _normalize_operator_profile(payload) -> dict:
                 "can_repair_code": bool((roles.get("capabilities") or {}).get("can_repair_code")),
                 "can_manage_training_content": bool((roles.get("capabilities") or {}).get("can_manage_training_content")),
             },
-            "knowledge_targets": [str(x) for x in (roles.get("knowledge_targets") or []) if str(x or "").strip()][:10],
+            "knowledge_targets": [str(x) for x in (roles.get("knowledge_targets") or []) if str(x or "").strip()][:16],
+            "knowledge_domains": [str(x) for x in (roles.get("knowledge_domains") or []) if str(x or "").strip()][:16],
+            "visual_signals": [str(x) for x in (roles.get("visual_signals") or []) if str(x or "").strip()][:16],
+            "guidance": [str(x) for x in (roles.get("guidance") or []) if str(x or "").strip()][:16],
             "observer_mode": bool(roles.get("observer_mode", True)),
         },
         "knowledge": {
-            "domains": [str(x) for x in (knowledge.get("domains") or []) if str(x or "").strip()][:10],
-            "visual_signals": [str(x) for x in (knowledge.get("visual_signals") or []) if str(x or "").strip()][:10],
+            "domains": [str(x) for x in (knowledge.get("domains") or []) if str(x or "").strip()][:16],
+            "visual_signals": [str(x) for x in (knowledge.get("visual_signals") or []) if str(x or "").strip()][:16],
+            "knowledge_targets": [str(x) for x in (knowledge.get("knowledge_targets") or knowledge.get("targets") or []) if str(x or "").strip()][:16],
+            "guidance": [str(x) for x in (knowledge.get("guidance") or []) if str(x or "").strip()][:16],
         },
         "last_updated": str(payload.get("last_updated") or "").strip()[:64],
     }
@@ -4298,10 +4385,13 @@ def _store_operator_profile(workspace, *, actor_id=None, planner=None, assistant
             "active_roles": role_context.get("active_roles") or current.get("roles", {}).get("active_roles") or [],
             "capabilities": role_context.get("capabilities") or current.get("roles", {}).get("capabilities") or {},
             "knowledge_targets": role_context.get("knowledge_targets") or current.get("roles", {}).get("knowledge_targets") or [],
+            "knowledge_domains": role_context.get("knowledge_domains") or current.get("roles", {}).get("knowledge_domains") or [],
+            "visual_signals": role_context.get("visual_signals") or current.get("roles", {}).get("visual_signals") or [],
+            "guidance": role_context.get("guidance") or current.get("roles", {}).get("guidance") or [],
             "observer_mode": bool((role_context.get("observer_mode") if role_context else None) is not False),
         },
         "knowledge": {
-            "domains": [
+            "domains": role_context.get("knowledge_domains") or [
                 "football_platform",
                 "training_sessions",
                 "task_library",
@@ -4310,7 +4400,7 @@ def _store_operator_profile(workspace, *, actor_id=None, planner=None, assistant
                 "visual_regression_detection",
                 "repair_and_publish",
             ],
-            "visual_signals": [
+            "visual_signals": role_context.get("visual_signals") or [
                 "contrast",
                 "layout_breaks",
                 "hidden_buttons",
@@ -4318,6 +4408,8 @@ def _store_operator_profile(workspace, *, actor_id=None, planner=None, assistant
                 "render_failures",
                 "3d_visibility",
             ],
+            "knowledge_targets": role_context.get("knowledge_targets") or [],
+            "guidance": role_context.get("guidance") or [],
         },
         "last_updated": _now_iso(),
     }
