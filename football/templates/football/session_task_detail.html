@@ -546,6 +546,31 @@
         grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
         gap: 0.6rem;
       }
+      details.edit-section {
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 11px;
+        padding: 0.62rem 0.7rem 0.68rem;
+        background: rgba(3, 12, 25, 0.52);
+      }
+      details.edit-section summary {
+        cursor: pointer;
+        font-size: 0.74rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 820;
+        color: rgba(255, 255, 255, 0.92);
+        margin-bottom: 0.35rem;
+      }
+      details.edit-section[open] summary {
+        margin-bottom: 0.7rem;
+      }
+      body.session-task-detail-page.is-presentation details.edit-section {
+        border-color: rgba(18, 32, 51, 0.2);
+        background: rgba(255, 255, 255, 0.92);
+      }
+      body.session-task-detail-page.is-presentation details.edit-section summary {
+        color: #122033;
+      }
       label {
         display: flex;
         flex-direction: column;
@@ -1093,174 +1118,191 @@
           <form method="post" class="grid" id="task-detail-form">
             {% csrf_token %}
             <input type="hidden" name="detail_action" value="update_task_detail" />
-            <label>
-              Título
-              <input type="text" name="task_title" value="{{ task.title }}" maxlength="160" required />
-            </label>
-            <label>
-              Bloque
-              <select name="task_block">
-                {% for value, label in task_blocks %}
-                <option value="{{ value }}" {% if task.block == value %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label>
-              Minutos
-              <input type="number" name="task_minutes" min="5" max="90" value="{{ task.duration_minutes }}" />
-            </label>
-            <label style="grid-column:1/-1;">
-              Objetivo
-              <textarea name="task_objective" rows="2" style="min-height:52px; resize:vertical;">{{ task.objective }}</textarea>
-            </label>
-            <label style="grid-column:1/-1;">
-              Consignas
-              <textarea name="task_coaching_points">{{ task.coaching_points }}</textarea>
-            </label>
-            <label style="grid-column:1/-1;">
-              Reglas de confrontación
-              <textarea name="task_confrontation_rules">{{ task.confrontation_rules }}</textarea>
-            </label>
-            <label style="grid-column:1/-1;">
-              Descripción (ficha interior)
-              <textarea name="task_sheet_description">{{ task_sheet.description }}</textarea>
-            </label>
-            <label>
-              Jugadores (ficha interior)
-              <input type="text" name="task_sheet_players" value="{{ task_sheet.players }}" />
-            </label>
-            <label>
-              Espacio (ficha interior)
-              <input type="text" name="task_sheet_space" value="{{ task_sheet.space }}" />
-            </label>
-            <label>
-              Medidas (ficha interior)
-              <input type="text" name="task_sheet_dimensions" value="{{ task_sheet.dimensions }}" />
-            </label>
-            <label>
-              Materiales (ficha interior)
-              <input type="text" name="task_sheet_materials" value="{{ task_sheet.materials }}" />
-            </label>
-            <label>
-              Momento del juego
-              <select name="task_game_moment">
-                <option value="">-</option>
-                {% for value, label in game_moment_choices %}
-                <option value="{{ value }}" {% if task_meta.game_moment == value %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label>
-              Día microciclo
-              <select name="task_md_day">
-                <option value="">-</option>
-                {% for value, label in task_md_day_choices %}
-                <option value="{{ value }}" {% if task_meta.md_day == value %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label>
-              Carga dominante
-              <select name="task_dominant_load">
-                <option value="">-</option>
-                {% for value, label in task_dominant_load_choices %}
-                <option value="{{ value }}" {% if task_meta.dominant_load == value %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label>
-              Principio
-              <input type="text" name="task_principle" value="{{ task_meta.principle }}" maxlength="120" />
-            </label>
-            <label style="grid-column:1/-1;">
-              Subprincipio
-              <input type="text" name="task_subprinciple" value="{{ task_meta.subprinciple }}" maxlength="160" />
-            </label>
-            <label style="grid-column:1/-1;">
-              Regla provocadora
-              <textarea name="task_provocation_rule" rows="2" style="min-height:52px; resize:vertical;">{{ task_meta.provocation_rule }}</textarea>
-            </label>
-            <label>
-              Estructura dominante
-              <select name="task_dominant_structure">
-                <option value="">-</option>
-                {% for value, label in player_structure_choices %}
-                <option value="{{ value }}" {% if task_meta.dominant_structure == value %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label>
-              Estructura secundaria
-              <select name="task_secondary_structure">
-                <option value="">-</option>
-                {% for value, label in player_structure_choices %}
-                <option value="{{ value }}" {% if task_meta.secondary_structure == value %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label>
-              Carga física
-              <select name="task_physical_load">
-                <option value="">-</option>
-                {% for value, label in task_load_level_choices %}
-                <option value="{{ value }}" {% if task_meta.physical_load == value %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label>
-              Carga cognitiva
-              <select name="task_cognitive_load">
-                <option value="">-</option>
-                {% for value, label in task_load_level_choices %}
-                <option value="{{ value }}" {% if task_meta.cognitive_load == value %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label>
-              Carga emocional
-              <select name="task_emotional_load">
-                <option value="">-</option>
-                {% for value, label in task_load_level_choices %}
-                <option value="{{ value }}" {% if task_meta.emotional_load == value %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label>
-              Escala
-              <select name="task_rpe_scale">
-                {% for value, label in task_rpe_scale_choices %}
-                <option value="{{ value }}" {% if task_meta.rpe_scale == value %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label>
-              RPE previsto
-              <input type="number" name="task_planned_rpe" min="0" max="20" value="{{ task_meta.planned_rpe|default:'' }}" />
-            </label>
-            <label>
-              sRPE previsto
-              <input type="number" value="{{ task_meta.planned_srpe_load|default:'' }}" readonly />
-            </label>
-            <label>
-              Wellness objetivo
-              <input type="number" name="task_wellness_target" min="1" max="10" value="{{ task_meta.wellness_target|default:'' }}" />
-            </label>
-            <label>
-              Carga objetivo
-              <input type="text" name="task_load_target" value="{{ task_meta.load_target }}" maxlength="180" />
-            </label>
-            <label>
-              Monotony
-              <input type="text" name="task_monotony_target" value="{{ task_meta.monotony_target }}" maxlength="40" />
-            </label>
-            <label>
-              Strain
-              <input type="text" name="task_strain_target" value="{{ task_meta.strain_target }}" maxlength="60" />
-            </label>
-            <label style="grid-column:1/-1;">
-              Notas de carga
-              <textarea name="task_load_notes" rows="2" style="min-height:52px; resize:vertical;">{{ task_meta.load_notes }}</textarea>
-            </label>
+            <div class="grid">
+              <label>
+                Título
+                <input type="text" name="task_title" value="{{ task.title }}" maxlength="160" required />
+              </label>
+              <label>
+                Bloque
+                <select name="task_block">
+                  {% for value, label in task_blocks %}
+                  <option value="{{ value }}" {% if task.block == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                Minutos
+                <input type="number" name="task_minutes" min="5" max="90" value="{{ task.duration_minutes }}" />
+              </label>
+            </div>
+            <details class="edit-section" open>
+              <summary>Ficha base</summary>
+              <div class="grid">
+                <label style="grid-column:1/-1;">
+                  Objetivo
+                  <textarea name="task_objective" rows="2" style="min-height:52px; resize:vertical;">{{ task.objective }}</textarea>
+                </label>
+                <label style="grid-column:1/-1;">
+                  Consignas
+                  <textarea name="task_coaching_points">{{ task.coaching_points }}</textarea>
+                </label>
+                <label style="grid-column:1/-1;">
+                  Reglas de confrontación
+                  <textarea name="task_confrontation_rules">{{ task.confrontation_rules }}</textarea>
+                </label>
+                <label style="grid-column:1/-1;">
+                  Descripción (ficha interior)
+                  <textarea name="task_sheet_description">{{ task_sheet.description }}</textarea>
+                </label>
+                <label>
+                  Jugadores (ficha interior)
+                  <input type="text" name="task_sheet_players" value="{{ task_sheet.players }}" />
+                </label>
+                <label>
+                  Espacio (ficha interior)
+                  <input type="text" name="task_sheet_space" value="{{ task_sheet.space }}" />
+                </label>
+                <label>
+                  Medidas (ficha interior)
+                  <input type="text" name="task_sheet_dimensions" value="{{ task_sheet.dimensions }}" />
+                </label>
+                <label>
+                  Materiales (ficha interior)
+                  <input type="text" name="task_sheet_materials" value="{{ task_sheet.materials }}" />
+                </label>
+              </div>
+            </details>
+            <details class="edit-section">
+              <summary>Táctica y metodología</summary>
+              <div class="grid">
+                <label>
+                  Momento del juego
+                  <select name="task_game_moment">
+                    <option value="">-</option>
+                    {% for value, label in game_moment_choices %}
+                    <option value="{{ value }}" {% if task_meta.game_moment == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label>
+                  Día microciclo
+                  <select name="task_md_day">
+                    <option value="">-</option>
+                    {% for value, label in task_md_day_choices %}
+                    <option value="{{ value }}" {% if task_meta.md_day == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label>
+                  Carga dominante
+                  <select name="task_dominant_load">
+                    <option value="">-</option>
+                    {% for value, label in task_dominant_load_choices %}
+                    <option value="{{ value }}" {% if task_meta.dominant_load == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label>
+                  Principio
+                  <input type="text" name="task_principle" value="{{ task_meta.principle }}" maxlength="120" />
+                </label>
+                <label style="grid-column:1/-1;">
+                  Subprincipio
+                  <input type="text" name="task_subprinciple" value="{{ task_meta.subprinciple }}" maxlength="160" />
+                </label>
+                <label style="grid-column:1/-1;">
+                  Regla provocadora
+                  <textarea name="task_provocation_rule" rows="2" style="min-height:52px; resize:vertical;">{{ task_meta.provocation_rule }}</textarea>
+                </label>
+                <label>
+                  Estructura dominante
+                  <select name="task_dominant_structure">
+                    <option value="">-</option>
+                    {% for value, label in player_structure_choices %}
+                    <option value="{{ value }}" {% if task_meta.dominant_structure == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label>
+                  Estructura secundaria
+                  <select name="task_secondary_structure">
+                    <option value="">-</option>
+                    {% for value, label in player_structure_choices %}
+                    <option value="{{ value }}" {% if task_meta.secondary_structure == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+              </div>
+            </details>
+            <details class="edit-section">
+              <summary>Cargas y planificación</summary>
+              <div class="grid">
+                <label>
+                  Carga física
+                  <select name="task_physical_load">
+                    <option value="">-</option>
+                    {% for value, label in task_load_level_choices %}
+                    <option value="{{ value }}" {% if task_meta.physical_load == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label>
+                  Carga cognitiva
+                  <select name="task_cognitive_load">
+                    <option value="">-</option>
+                    {% for value, label in task_load_level_choices %}
+                    <option value="{{ value }}" {% if task_meta.cognitive_load == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label>
+                  Carga emocional
+                  <select name="task_emotional_load">
+                    <option value="">-</option>
+                    {% for value, label in task_load_level_choices %}
+                    <option value="{{ value }}" {% if task_meta.emotional_load == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label>
+                  Escala
+                  <select name="task_rpe_scale">
+                    {% for value, label in task_rpe_scale_choices %}
+                    <option value="{{ value }}" {% if task_meta.rpe_scale == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label>
+                  RPE previsto
+                  <input type="number" name="task_planned_rpe" min="0" max="20" value="{{ task_meta.planned_rpe|default:'' }}" />
+                </label>
+                <label>
+                  sRPE previsto
+                  <input type="number" value="{{ task_meta.planned_srpe_load|default:'' }}" readonly />
+                </label>
+                <label>
+                  Wellness objetivo
+                  <input type="number" name="task_wellness_target" min="1" max="10" value="{{ task_meta.wellness_target|default:'' }}" />
+                </label>
+                <label>
+                  Carga objetivo
+                  <input type="text" name="task_load_target" value="{{ task_meta.load_target }}" maxlength="180" />
+                </label>
+                <label>
+                  Monotony
+                  <input type="text" name="task_monotony_target" value="{{ task_meta.monotony_target }}" maxlength="40" />
+                </label>
+                <label>
+                  Strain
+                  <input type="text" name="task_strain_target" value="{{ task_meta.strain_target }}" maxlength="60" />
+                </label>
+                <label style="grid-column:1/-1;">
+                  Notas de carga
+                  <textarea name="task_load_notes" rows="2" style="min-height:52px; resize:vertical;">{{ task_meta.load_notes }}</textarea>
+                </label>
+              </div>
+            </details>
             <div style="display:flex; align-items:flex-end;">
               <button class="button" type="submit">Guardar cambios</button>
             </div>
