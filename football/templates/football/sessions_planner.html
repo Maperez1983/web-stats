@@ -3461,13 +3461,13 @@
                             <p>{{ task_row.sheet.success|default:"-" }}</p>
                           </div>
 	                        </div>
-		                        <div class="session-sheet-actions">
+                        <div class="session-sheet-actions">
 		                          <a class="button secondary" href="{% url 'session-task-detail' task_row.obj.id %}">Ficha</a>
 		                          {% if task_row.is_imported_task %}
 			                          <a class="button" href="{% url 'session-task-pdf' task_row.obj.id %}?style=club&one_page=0" target="_blank" rel="noopener">Imprimir PDF</a>
 			                          <a class="button secondary" href="{% url 'session-task-pdf' task_row.obj.id %}?style=uefa&one_page=0" target="_blank" rel="noopener">UEFA</a>
 			                          {% else %}
-		                          <a class="button" href="{% url 'session-task-detail' task_row.obj.id %}#graphic-editor">Editar pizarra</a>
+		                          <span class="session-chip">Edita desde la ficha</span>
 		                          {% endif %}
 	                          <form method="post" style="margin:0;">
 	                            {% csrf_token %}
@@ -4112,12 +4112,6 @@
                     <span class="emoji" aria-hidden="true">ℹ️</span>
                     <span class="sr-only">Ver ficha</span>
                   </a>
-	                {% if not t.is_imported and not t.is_performed %}
-	                <a class="button icon-btn small" href="{% url 'session-task-detail' t.id %}#graphic-editor" title="Editar pizarra" aria-label="Editar pizarra">
-                    <span class="emoji" aria-hidden="true">✏️</span>
-                    <span class="sr-only">Editar pizarra</span>
-                  </a>
-	                {% endif %}
                   <form method="post" style="margin:0;" onsubmit="return confirm('¿Enviar esta tarea a la papelera? (Se puede restaurar)');">
                     {% csrf_token %}
                     <input type="hidden" name="planner_action" value="delete_library_task" />
