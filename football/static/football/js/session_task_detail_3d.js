@@ -974,6 +974,14 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
     return new THREE.AnimationClip(source.name || 'PlayerAction', source.duration || -1, filteredTracks);
   };
   const scaleClamped = (value, minScale, maxScale) => Math.max(minScale, Math.min(maxScale, value));
+  const shouldSkipMaterialTint = (material) => {
+    if (!material || typeof material !== 'object') return true;
+    const hasColorMap = !!material.map;
+    const hasEmissiveMap = !!material.emissiveMap;
+    const hasNormalMap = !!material.normalMap;
+    const hasRoughnessMap = !!material.roughnessMap;
+    return hasColorMap || hasEmissiveMap || hasNormalMap || hasRoughnessMap;
+  };
   const resolveTokenPhotoUrl = (obj, childObjects = []) => {
     const extra = obj && typeof obj.data === 'object' ? obj.data : {};
     const childPhoto = childObjects.find((child) => String((child?.data || {}).role || '').trim() === 'token_photo');
@@ -1140,8 +1148,12 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
           : node.material.clone();
         const materials = Array.isArray(node.material) ? node.material : [node.material];
         materials.forEach((material) => {
+          const hasRichMap = shouldSkipMaterialTint(material);
           const materialName = safeText(material.name).toLowerCase();
           if (!('color' in material)) return;
+          if (hasRichMap) {
+            return;
+          }
           if (materialName.includes('skin') || materialName.includes('hair') || materialName.includes('face')) {
             material.color.copy(skin);
           } else if (materialName.includes('eyes') || materialName.includes('eye')) {
