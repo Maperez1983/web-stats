@@ -784,6 +784,91 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
     if (Number.isFinite(Number(obj.ry)) && Number(obj.ry) > 0) return Number(obj.ry) * 2;
     return 0;
   };
+  const parseColorChannels = (value) => {
+    const color = safeText(value, '').toLowerCase().trim();
+    if (!color) return null;
+    let match = color.match(/^#([0-9a-f]{3,8})$/i);
+    if (match) {
+      const hex = match[1];
+      const expand = (part) => {
+        if (hex.length === 3 || hex.length === 4) return parseInt(part.repeat(2), 16);
+        if (hex.length === 6 || hex.length === 8) return parseInt(part, 16);
+        return 0;
+      };
+      const isLong = hex.length > 4;
+      const r = expand(isLong ? hex.slice(0, 2) : hex[0]);
+      const g = expand(isLong ? hex.slice(2, 4) : hex[1]);
+      const b = expand(isLong ? hex.slice(4, 6) : hex[2]);
+      const a = hex.length > 6 ? (expand(hex.slice(6, 8)) / 255) : 1;
+      return { r, g, b, a };
+    }
+    match = color.match(/^rgba?\(([^)]+)\)/);
+    if (!match) {
+      if (color === 'white') return { r: 255, g: 255, b: 255, a: 1 };
+      if (color === 'black') return { r: 0, g: 0, b: 0, a: 1 };
+      return null;
+    }
+    const parts = match[1].split(',').map((entry) => Number(entry));
+    if (parts.some((part) => Number.isNaN(part))) return null;
+    return {
+      r: parts[0],
+      g: parts[1],
+      b: parts[2],
+      a: parts.length >= 4 ? parts[3] : 1,
+    };
+  };
+  const isWhiteToneColor = (value) => {
+    const channels = parseColorChannels(value);
+    if (!channels) return false;
+    return (channels.r >= 220 && channels.g >= 220 && channels.b >= 220 && channels.a > 0.28);
+  };
+  const isTokenTeamColor = (value) => {
+    const color = safeText(value).toLowerCase().trim();
+    if (!color) return false;
+    if (['#ef4444', '#3b82f6', '#2563eb', '#dc2626', '#fecaca', '#dbeafe', '#93c5fd'].includes(color)) return true;
+    if (color.includes('rgba(239,68,68') || color.includes('rgb(239,68,68)') || color.includes('rgba(14,165,233')) return true;
+    if (color.includes('rgba(37,99,235') || color.includes('rgb(37,99,235)')) return true;
+    return false;
+  };
+  const isOrangeConeColor = (value) => {
+    const color = safeText(value).toLowerCase().trim();
+    if (!color) return false;
+    if (['#f59e0b', '#f97316', '#fde68a', '#fcd34d', '#b45309', '#92400e'].includes(color)) return true;
+    if (color.includes('f59e0b') || color.includes('f97316') || color.includes('fcd34d') || color.includes('b45309')) return true;
+    const channels = parseColorChannels(value);
+    if (!channels) return false;
+    return channels.r >= 170 && channels.r >= channels.g * 1.2 && channels.r >= channels.b * 1.3;
+  };
+  const normalizeObjectKind = (value) => safeText(value, '').toLowerCase().trim().replace(/\s+/g, '_');
+  const inferObjectKind = (obj, childObjects = []) => {
+    const dataKind = obj?.data && typeof obj.data === 'object' && obj.data.kind ? obj.data.kind : '';
+    const directKind = normalizeObjectKind(dataKind || obj?.kind || '');
+    if (directKind) return directKind;
+    const type = safeText(obj?.type).toLowerCase();
+    const fill = safeText(obj?.fill);
+    const stroke = safeText(obj?.stroke);
+    const width = toNumber(objectBaseWidth2d(obj), 0);
+    const height = toNumber(objectBaseHeight2d(obj), 0);
+    const radius = toNumber(obj?.radius, 0);
+    if (type === 'i-text') return 'note';
+    if (type === 'group') {
+      const hasCircle = Array.isArray(childObjects) && childObjects.some((child) => safeText(child?.type).toLowerCase() === 'circle');
+      if (hasCircle && Array.isArray(childObjects)) return 'token';
+    }
+    if (type === 'circle') {
+      if (isWhiteToneColor(fill) || isWhiteToneColor(stroke)) return 'emoji_ball';
+      if (radius >= 6 || (width > 12 && height > 12)) return 'token';
+      if (isTokenTeamColor(fill) || isTokenTeamColor(stroke)) return 'token';
+    }
+    if (type === 'triangle') {
+      if (isOrangeConeColor(fill) || isOrangeConeColor(stroke)) return 'cone';
+    }
+    if (type === 'rect') {
+      if (isWhiteToneColor(fill) && width > 22 && width < 95 && height > 10 && height < 45) return 'emoji_mini_goal';
+      if ((fill.includes('rgba(14,165,233') || fill.includes('rgba(2,132,199')) || isTokenTeamColor(fill)) return 'zone';
+    }
+    return '';
+  };
   const objectCenter2d = (obj) => {
     if (!obj || typeof obj !== 'object') return { x: 0, y: 0 };
     const ox = safeText(obj.originX, 'center');
@@ -1370,7 +1455,8 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
     let goalIndex = 0;
     objects.forEach((obj, index) => {
       const extra = obj && typeof obj.data === 'object' ? obj.data : {};
-      const kind = safeText(extra.kind);
+      const childObjects = Array.isArray(obj.objects) ? obj.objects : [];
+      const kind = inferObjectKind(obj, childObjects);
       const extractSolidColor = (value, fallback = '#2563eb') => {
         if (typeof value === 'string' && value.trim()) return value.trim();
         if (value && typeof value === 'object' && Array.isArray(value.colorStops) && value.colorStops.length) {
@@ -1379,7 +1465,6 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
         }
         return fallback;
       };
-      const childObjects = Array.isArray(obj.objects) ? obj.objects : [];
       const childByRole = (role) => childObjects.find((child) => String((child?.data || {}).role || '').trim() === role);
       const center2d = objectCenter2d(obj);
       const measuredWidth = Math.max(
@@ -1439,7 +1524,7 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
         });
         return;
       }
-      if (obj.type === 'circle' && kind === 'token') {
+      if (obj.type === 'circle' && ['token', 'player', 'player_red', 'player_blue', 'ball_token'].includes(kind)) {
         const world = canvasToWorld(center2d.x, center2d.y);
         const label = safeText(extra.label, `J${tokenIndex + 1}`);
         data.tokens.set(`token:${label}:${tokenIndex}`, {
@@ -1455,7 +1540,7 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
         tokenIndex += 1;
         return;
       }
-      if (obj.type === 'group' && kind === 'token') {
+      if (obj.type === 'group' && ['token', 'player', 'player_red', 'player_blue'].includes(kind)) {
         const world = canvasToWorld(center2d.x, center2d.y);
         const label = safeText(
           extra.playerName || extra.label || childByRole('token_name')?.text || childByRole('token_number')?.text,
@@ -1477,7 +1562,17 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
         tokenIndex += 1;
         return;
       }
-      if (obj.type === 'text' && kind === 'emoji_ball') {
+      if ((obj.type === 'circle' || obj.type === 'text' || obj.type === 'i-text') && kind === 'ball') {
+        const world = canvasToWorld(center2d.x, center2d.y);
+        data.balls.set(`ball:${ballIndex}`, {
+          uid: `ball:${ballIndex}`,
+          x: world.x,
+          z: world.z,
+        });
+        ballIndex += 1;
+        return;
+      }
+      if ((obj.type === 'text' || obj.type === 'i-text') && kind === 'emoji_ball') {
         const world = canvasToWorld(center2d.x, center2d.y);
         data.balls.set(`ball:${ballIndex}`, {
           uid: `ball:${ballIndex}`,
@@ -1488,8 +1583,8 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
         return;
       }
       if (
-        (obj.type === 'text' && kind === 'emoji_cone')
-        || ((obj.type === 'triangle' || obj.type === 'text') && (kind === 'cone' || kind === 'cone_striped'))
+        ((obj.type === 'text' || obj.type === 'i-text') && kind === 'emoji_cone')
+        || ((obj.type === 'triangle' || obj.type === 'text' || obj.type === 'i-text') && (kind === 'cone' || kind === 'cone_striped'))
         || (obj.type === 'triangle' && !['pass_arrow_head', 'press_arrow_head'].includes(kind))
       ) {
         const world = canvasToWorld(center2d.x, center2d.y);
@@ -1508,7 +1603,10 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
         coneIndex += 1;
         return;
       }
-      if (obj.type === 'text' && (kind === 'emoji_mini_goal' || kind === 'emoji_goal')) {
+      if (
+        (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'rect')
+        && (kind === 'emoji_mini_goal' || kind === 'emoji_goal' || kind === 'goal' || kind === 'mini_goal')
+      ) {
         const world = canvasToWorld(center2d.x, center2d.y);
         data.goals.push({
           uid: `goal:${goalIndex}`,

@@ -1815,6 +1815,18 @@
               if (!isEditable) {
                 canvas.getObjects().forEach((obj) => setObjectLocked(obj, true));
               }
+              canvas.getObjects().forEach((obj) => {
+                const explicitKind = String((obj?.data || {}).kind || '').trim();
+                if (!explicitKind) {
+                  assignResourceKind(obj, inferLegacyObjectKind(obj));
+                }
+                if (Array.isArray(obj._objects)) {
+                  obj._objects.forEach((childObj) => {
+                    const childKind = String((childObj?.data || {}).kind || '').trim();
+                    if (!childKind) assignResourceKind(childObj, inferLegacyObjectKind(childObj));
+                  });
+                }
+              });
               normalizeCanvasBackground(canvas, isPresentationMode);
               applyPresentationPitchBackdrop();
               canvas.renderAll();
@@ -1940,6 +1952,30 @@
             setStatus(`No se pudo cargar ${name}.`, true);
           }
         };
+        function assignResourceKind(node, kind) {
+          const resourceKind = String(kind || '').trim();
+          if (!node || !resourceKind) return;
+          const current = node.data && typeof node.data === 'object' ? node.data : {};
+          node.set?.('data', { ...current, kind: resourceKind });
+        }
+        function inferLegacyObjectKind(obj) {
+          const explicitKind = String((obj?.data || {}).kind || '').trim().toLowerCase();
+          if (explicitKind) return explicitKind;
+          const type = String(obj?.type || '').toLowerCase();
+          const fill = String(obj?.fill || '').toLowerCase();
+          const stroke = String(obj?.stroke || '').toLowerCase();
+          const text = String(obj?.text || '').trim();
+          if (type === 'i-text' || type === 'textbox' || type === 'text') return 'note';
+          if (type === 'circle') {
+            if (fill.includes('white') || stroke.includes('white') || fill === '#ffffff' || stroke === '#ffffff') return 'ball';
+            if (fill.includes('#3b82f6') || fill.includes('#ef4444') || fill.includes('#2563eb') || fill.includes('rgb(59,130,246)')) return 'token';
+            return 'token';
+          }
+          if (type === 'triangle' || fill.includes('f59e0b') || stroke.includes('f59e0b') || fill.includes('f97316') || stroke.includes('f97316')) return 'cone';
+          if (type === 'rect' && (fill.includes('rgba(14,165,233') || fill.includes('0,165,233') || fill.includes('#0ea5e9') || fill.includes('#0284c7'))) return 'zone';
+          if (type === 'rect' && (fill.includes('1,1,1') || fill.includes('255,255,255') || fill.includes('ffffff'))) return 'goal';
+          return text ? 'note' : '';
+        }
         const addResource = (kind) => {
           if (!isEditable) return;
           const baseLeft = 180 + Math.floor(Math.random() * 180);
@@ -1954,6 +1990,7 @@
               stroke: '#0f172a',
               strokeWidth: 2,
             });
+            assignResourceKind(item, kind);
           } else if (kind === 'ball') {
             item = new fabric.Circle({
               left: baseLeft,
@@ -1963,6 +2000,7 @@
               stroke: '#111827',
               strokeWidth: 2,
             });
+            assignResourceKind(item, kind);
           } else if (kind === 'cone') {
             item = new fabric.Triangle({
               left: baseLeft,
@@ -1973,6 +2011,7 @@
               stroke: '#92400e',
               strokeWidth: 1.5,
             });
+            assignResourceKind(item, kind);
           } else if (kind === 'marker') {
             item = new fabric.Circle({
               left: baseLeft,
@@ -1982,6 +2021,7 @@
               stroke: '#92400e',
               strokeWidth: 2,
             });
+            assignResourceKind(item, kind);
           } else if (kind === 'pica') {
             item = new fabric.Rect({
               left: baseLeft,
@@ -1994,6 +2034,7 @@
               rx: 2,
               ry: 2,
             });
+            assignResourceKind(item, kind);
           } else if (kind === 'hurdle') {
             item = new fabric.Rect({
               left: baseLeft,
@@ -2004,6 +2045,7 @@
               stroke: '#6366f1',
               strokeWidth: 2,
             });
+            assignResourceKind(item, kind);
           } else if (kind === 'mini_goal' || kind === 'goal') {
             item = new fabric.Rect({
               left: baseLeft,
@@ -2014,6 +2056,7 @@
               stroke: '#e5e7eb',
               strokeWidth: 2,
             });
+            assignResourceKind(item, kind);
           } else if (kind === 'mannequin') {
             const head = new fabric.Circle({
               left: baseLeft + 10,
@@ -2034,7 +2077,10 @@
               rx: 5,
               ry: 5,
             });
+            assignResourceKind(head, kind);
+            assignResourceKind(body, kind);
             item = new fabric.Group([head, body], { left: baseLeft, top: baseTop });
+            assignResourceKind(item, kind);
           } else if (kind === 'bib') {
             item = new fabric.Rect({
               left: baseLeft,
@@ -2047,6 +2093,7 @@
               rx: 6,
               ry: 6,
             });
+            assignResourceKind(item, kind);
           } else if (kind === 'zone') {
             item = new fabric.Rect({
               left: baseLeft,
@@ -2059,6 +2106,7 @@
               rx: 8,
               ry: 8,
             });
+            assignResourceKind(item, kind);
           }
           if (!item) return;
           canvas.add(item);
@@ -2093,6 +2141,7 @@
             stroke: '#111827',
             strokeWidth: 2,
           });
+          assignResourceKind(circle, 'token');
           canvas.add(circle);
           setMode(false);
           setStatus('Jugador añadido.');
@@ -2110,6 +2159,7 @@
             rx: 8,
             ry: 8,
           });
+          assignResourceKind(rect, 'zone');
           canvas.add(rect);
           setMode(false);
           setStatus('Zona añadida.');
@@ -2129,6 +2179,9 @@
             angle: 115,
           });
           const arrow = new fabric.Group([line, head], { left: 0, top: 0 });
+          assignResourceKind(line, 'arrow');
+          assignResourceKind(head, 'arrow');
+          assignResourceKind(arrow, 'arrow');
           canvas.add(arrow);
           setMode(false);
           setStatus('Flecha añadida.');
@@ -2142,6 +2195,7 @@
             fill: '#111827',
             fontFamily: 'Arial',
           });
+          assignResourceKind(text, 'note');
           canvas.add(text);
           setMode(false);
           setStatus('Texto añadido.');
