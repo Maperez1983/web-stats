@@ -1132,8 +1132,8 @@
       {% if can_edit_task %}
       <div id="task-inline-editor" class="task-inline-editor task-detail-tab-panel{% if active_task_tab == 'edit' %} is-active{% endif %}{% if show_edit_mode %} is-open{% endif %}" data-task-tab-panel="edit">
       <section class="panel">
-        <h2>Editar ficha</h2>
-        <p class="meta">Los cambios se aplican sobre la ficha HTML anterior. La edición de la pizarra gráfica usa el mismo lienzo, no una pantalla aparte.</p>
+        <h2>Edición y configuración</h2>
+        <p class="meta">La ficha editable vive aquí. Primero ves lo necesario para preparar la tarea; lo avanzado queda plegado para no saturar la pantalla.</p>
       </section>
       <section class="panel task-edit-panel task-edit-tab-descriptive" data-task-edit-panel="descriptive">
         <h2>Contexto de uso</h2>
@@ -1151,10 +1151,10 @@
       </section>
 
       {% if can_edit_task %}
-        <section class="panel task-edit-panel task-edit-tab-descriptive" data-task-edit-panel="descriptive">
-          <h2>Versionado de tarea</h2>
+        <details class="edit-section">
+          <summary>Versionado de tarea</summary>
           {% if original_version %}
-          <p class="meta">La versión original está bloqueada y no se sobrescribe. Puedes editar esta tarea y restaurarla cuando quieras.</p>
+          <p class="meta">La versión original está bloqueada y no se sobrescribe. Puedes restaurarla si hace falta.</p>
           <form method="post" style="margin-top:0.45rem;">
             {% csrf_token %}
             <input type="hidden" name="detail_action" value="restore_original_version" />
@@ -1163,7 +1163,7 @@
           {% else %}
           <p class="meta">Todavía no hay snapshot original. Se crea automáticamente al primer cambio manual o al guardar el gráfico.</p>
           {% endif %}
-        </section>
+        </details>
 
           <section class="panel task-edit-panel task-edit-tab-descriptive" data-task-edit-panel="descriptive">
           <h2>Editar tarea y ficha interior</h2>
@@ -1373,8 +1373,8 @@
       {% endif %}
 
       {% if original_version and can_edit_task %}
-      <section class="panel task-edit-panel task-edit-tab-descriptive" data-task-edit-panel="descriptive">
-        <h2>Versión original (solo lectura)</h2>
+      <details class="edit-section task-edit-panel task-edit-tab-descriptive" data-task-edit-panel="descriptive">
+        <summary>Versión original</summary>
         <div class="compare-grid">
           <div class="sheet-item muted">
             <strong>Título original</strong>
@@ -1419,12 +1419,12 @@
           <img class="preview" src="{{ original_preview_url }}" alt="Gráfico original de {{ task.title }}" />
         </div>
         {% endif %}
-      </section>
+      </details>
       {% endif %}
 
       {% if animation_frames and can_edit_task %}
-      <section class="panel task-edit-panel task-edit-tab-graphic" data-task-edit-panel="graphic">
-        <h2>Secuenciación 2D</h2>
+      <details class="edit-section task-edit-panel task-edit-tab-graphic" data-task-edit-panel="graphic">
+        <summary>Secuenciación 2D</summary>
         <div class="animation-controls">
           <button type="button" class="button" id="animation-prev-btn">Paso anterior</button>
           <button type="button" class="button" id="animation-play-btn">Reproducir</button>
@@ -1441,7 +1441,7 @@
           <canvas id="task-animation-canvas"></canvas>
         </div>
         <p class="graphic-status" id="animation-status">Secuencia lista.</p>
-      </section>
+      </details>
       {% endif %}
 
       {% if can_edit_task %}
@@ -1459,9 +1459,9 @@
       {% endif %}
 
       {% if can_edit_task %}
-      <section class="panel task-edit-panel" id="graphic-editor">
-        <h2>Herramientas de edición</h2>
-        <p class="meta">Estas herramientas actúan sobre la ficha de arriba. El canvas es único para que lo que editas sea exactamente lo que ves.</p>
+      <details class="edit-section task-edit-panel" id="graphic-editor">
+        <summary>Herramientas de edición avanzadas</summary>
+        <p class="meta">Actúan sobre la ficha de arriba. Déjalas plegadas cuando solo quieras revisar o ajustar la tarea.</p>
         <div class="graphic-toolbar">
           <button type="button" class="button" id="graphic-draw-btn">Modo dibujo</button>
           <button type="button" class="button" id="graphic-select-btn">Modo selección</button>
@@ -1535,12 +1535,12 @@
           <h3>Capas</h3>
           <div class="layers-list" id="graphic-layers-list"></div>
         </aside>
-      </section>
+      </details>
       {% endif %}
 
       {% if analysis_meta and can_edit_task %}
-      <section class="panel task-edit-panel task-edit-tab-descriptive" data-task-edit-panel="descriptive">
-        <h2>Análisis automático</h2>
+      <details class="edit-section task-edit-panel task-edit-tab-descriptive" data-task-edit-panel="descriptive">
+        <summary>Análisis automático</summary>
         <div class="chips" style="margin-bottom:0.5rem;">
           {% if analysis_meta.quality_score %}<span class="chip">Score {{ analysis_meta.quality_score }}/100</span>{% endif %}
           {% for ctx in analysis_meta.work_contexts %}<span class="chip">{{ ctx }}</span>{% endfor %}
@@ -1558,12 +1558,12 @@
         <p style="margin-top:0.55rem;"><strong>Resumen extraído:</strong></p>
         <pre>{{ analysis_meta.summary }}</pre>
         {% endif %}
-      </section>
+      </details>
       {% endif %}
 
       {% if related_tasks and can_edit_task %}
-      <section class="panel task-edit-panel task-edit-tab-descriptive" data-task-edit-panel="descriptive">
-        <h2>Relacionadas</h2>
+      <details class="edit-section task-edit-panel task-edit-tab-descriptive" data-task-edit-panel="descriptive">
+        <summary>Relacionadas</summary>
         <p class="meta" style="margin-top:0;">Sugeridas por similitud (tipo, fase, objetivo y contexto).</p>
         <div class="grid" style="margin-top:0.6rem;">
           {% for rel in related_tasks %}
@@ -1587,14 +1587,14 @@
           </a>
           {% endfor %}
         </div>
-      </section>
+      </details>
       {% endif %}
 
       {% if pdf_excerpt and can_edit_task %}
-      <section class="panel task-edit-panel task-edit-tab-descriptive" data-task-edit-panel="descriptive">
-        <h2>Extracto del PDF</h2>
+      <details class="edit-section task-edit-panel task-edit-tab-descriptive" data-task-edit-panel="descriptive">
+        <summary>Extracto del PDF</summary>
         <pre>{{ pdf_excerpt }}</pre>
-      </section>
+      </details>
       {% endif %}
 
       </div>
@@ -1676,7 +1676,10 @@
           const inlineEditor = document.getElementById('task-inline-editor');
           const taskForm = document.getElementById('task-detail-form');
           const exportPanel = document.getElementById('task-export-panel');
-          const visibleControls = Array.from(document.querySelectorAll('#task-inline-editor .graphic-toolbar button, #task-inline-editor .resource-grid button, #task-inline-editor .iconify-grid button, #task-inline-editor .layers-panel button'));
+          const visibleControls = Array.from(document.querySelectorAll('#task-inline-editor .graphic-toolbar button, #task-inline-editor .resource-grid button, #task-inline-editor .iconify-grid button, #task-inline-editor .layers-panel button')).filter((node) => {
+            const details = node.closest('details');
+            return !details || details.open;
+          });
           const hiddenControls = visibleControls.filter((node) => {
             const rect = node.getBoundingClientRect();
             return rect.width > 0 && rect.height > 0 ? false : true;
