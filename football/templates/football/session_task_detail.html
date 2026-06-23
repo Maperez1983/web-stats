@@ -204,10 +204,41 @@
         padding: 0.9rem;
         margin-bottom: 0.75rem;
       }
+      .task-detail-tab-bar {
+        padding-bottom: 0.35rem;
+      }
+      .task-detail-tabs {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+      .task-detail-tab {
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(255, 255, 255, 0.05);
+      }
+      .task-detail-tab.is-active {
+        background: rgba(56, 189, 248, 0.16);
+        border-color: rgba(56, 189, 248, 0.56);
+        box-shadow: 0 12px 22px rgba(2, 6, 23, 0.2);
+      }
+      body.session-task-detail-page.is-presentation .task-detail-tab {
+        border-color: rgba(18, 32, 51, 0.16);
+        background: rgba(255, 255, 255, 0.9);
+        color: #122033 !important;
+      }
+      body.session-task-detail-page.is-presentation .task-detail-tab.is-active {
+        background: rgba(14, 116, 144, 0.15) !important;
+      }
       .task-inline-editor {
         display: none;
       }
       .task-inline-editor.is-open {
+        display: block;
+      }
+      .task-detail-tab-panel {
+        display: none;
+      }
+      .task-detail-tab-panel.is-active {
         display: block;
       }
       .task-edit-tab-bar {
@@ -903,7 +934,7 @@
       }
     </style>
   </head>
-  <body class="prod-commercial session-task-detail-page{% if not show_edit_mode %} is-presentation{% endif %}">
+  <body class="prod-commercial session-task-detail-page{% if active_task_tab != 'edit' %} is-presentation{% endif %}">
     <main class="page product-shell">
       {% include 'football/includes/dragon_nav.html' %}
       <header class="top">
@@ -914,26 +945,13 @@
             <span class="top-pill">{{ task.get_block_display }}</span>
             <span class="top-pill">{{ task.duration_minutes }} min</span>
             {% if task.category %}<span class="top-pill">{{ task.category }}</span>{% endif %}
-            <span class="top-pill">{% if show_edit_mode %}Ficha editable{% elif is_editable_task %}Presentación{% else %}Solo lectura{% endif %}</span>
+            <span class="top-pill">{% if active_task_tab == 'edit' %}Edición{% elif active_task_tab == 'export' %}Exportar{% elif is_editable_task %}Presentación{% else %}Solo lectura{% endif %}</span>
           </div>
         </div>
         <div class="top-actions">
           <a class="button" href="{{ back_url }}">{{ back_label }}</a>
           {% if not show_edit_mode %}
           <button type="button" class="button" id="task-detail-3d-open">Ver 3D</button>
-          {% endif %}
-          {% if can_edit_task %}
-          <button type="button" class="button" id="task-detail-edit-toggle" aria-expanded="{% if show_edit_mode %}true{% else %}false{% endif %}">
-            {% if show_edit_mode %}Cerrar edición{% else %}Editar ficha{% endif %}
-          </button>
-          {% endif %}
-          {% if show_edit_mode %}
-          <button
-            type="button"
-            class="button primary"
-            title="Guardar cambios de la tarea"
-            onclick="try{var f=document.getElementById('task-detail-form');if(!f)return;var b=f.querySelector('button[type=submit],input[type=submit]');if(f.requestSubmit){f.requestSubmit(b||undefined);}else if(b){b.click();}else{f.submit();}}catch(e){};return false;"
-          >Guardar cambios</button>
           {% endif %}
           {% if can_edit_task %}
           <button
@@ -945,15 +963,17 @@
             title="{% if is_bookmarked %}Quitar de favoritas{% else %}Marcar como favorita{% endif %}"
           >{% if is_bookmarked %}★ Favorita{% else %}☆ Favorita{% endif %}</button>
           {% endif %}
-          <a class="button" href="{% url 'session-task-pdf' task.id %}?style=uefa&one_page=1" target="_blank" rel="noopener">Imprimir UEFA</a>
-          <a class="button" href="{% url 'session-task-pdf' task.id %}?style=club&one_page=1" target="_blank" rel="noopener">Imprimir Club</a>
-          {% if can_edit_task %}
-          {% if task.task_pdf %}
-          <a class="button" href="{% url 'session-task-file' task.id %}" target="_blank" rel="noopener">Abrir PDF</a>
-          {% endif %}
-          {% endif %}
         </div>
       </header>
+      <section class="panel task-detail-tab-bar" aria-label="Vista de la ficha">
+        <div class="task-detail-tabs" role="tablist">
+          <button type="button" class="button task-detail-tab{% if active_task_tab == 'presentation' %} is-active{% endif %}" data-task-tab="presentation" role="tab" aria-selected="{% if active_task_tab == 'presentation' %}true{% else %}false{% endif %}">Presentación</button>
+          {% if can_edit_task %}
+          <button type="button" class="button task-detail-tab{% if active_task_tab == 'edit' %} is-active{% endif %}" data-task-tab="edit" role="tab" aria-selected="{% if active_task_tab == 'edit' %}true{% else %}false{% endif %}">Edición</button>
+          {% endif %}
+          <button type="button" class="button task-detail-tab{% if active_task_tab == 'export' %} is-active{% endif %}" data-task-tab="export" role="tab" aria-selected="{% if active_task_tab == 'export' %}true{% else %}false{% endif %}">Exportar</button>
+        </div>
+      </section>
       {% if feedback %}
       <div class="msg">{{ feedback }}</div>
       {% endif %}
@@ -1028,7 +1048,7 @@
         </div>
       </section>
 
-      <section class="panel" id="task-presentation-board">
+      <section class="panel task-detail-tab-panel{% if active_task_tab == 'presentation' %} is-active{% endif %}" id="task-presentation-board" data-task-tab-panel="presentation">
         <h2>Ficha táctica compartible</h2>
         {% if show_edit_mode %}
         <p class="meta">Esta es la ficha HTML de la tarea. En modo edición, los controles viven debajo y actúan sobre esta misma vista.</p>
@@ -1109,7 +1129,7 @@
       </section>
 
       {% if can_edit_task %}
-      <div id="task-inline-editor" class="task-inline-editor{% if show_edit_mode %} is-open{% endif %}">
+      <div id="task-inline-editor" class="task-inline-editor task-detail-tab-panel{% if active_task_tab == 'edit' %} is-active{% endif %}{% if show_edit_mode %} is-open{% endif %}" data-task-tab-panel="edit">
       <section class="panel">
         <h2>Editar ficha</h2>
         <p class="meta">Los cambios se aplican sobre la ficha HTML anterior. La edición de la pizarra gráfica usa el mismo lienzo, no una pantalla aparte.</p>
@@ -1424,6 +1444,20 @@
       {% endif %}
 
       {% if can_edit_task %}
+      <section class="panel task-detail-tab-panel{% if active_task_tab == 'export' %} is-active{% endif %}" id="task-export-panel" data-task-tab-panel="export">
+        <h2>Exportar</h2>
+        <p class="meta">Exporta la misma ficha HTML en PDF para compartirla o imprimirla sin salir de la tarea.</p>
+        <div class="grid">
+          <a class="button" href="{% url 'session-task-pdf' task.id %}?style=uefa&one_page=1" target="_blank" rel="noopener">PDF UEFA</a>
+          <a class="button" href="{% url 'session-task-pdf' task.id %}?style=club&one_page=1" target="_blank" rel="noopener">PDF Club</a>
+          {% if task.task_pdf %}
+          <a class="button" href="{% url 'session-task-file' task.id %}" target="_blank" rel="noopener">Abrir PDF original</a>
+          {% endif %}
+        </div>
+      </section>
+      {% endif %}
+
+      {% if can_edit_task %}
       <section class="panel task-edit-panel" id="graphic-editor">
         <h2>Herramientas de edición</h2>
         <p class="meta">Estas herramientas actúan sobre la ficha de arriba. El canvas es único para que lo que editas sea exactamente lo que ves.</p>
@@ -1591,7 +1625,8 @@
         const canvasEl = document.getElementById('task-graphic-canvas');
         if (!canvasEl) return;
         const canEditTask = "{{ can_edit_task|yesno:'true,false' }}" === 'true';
-        const editorOpen = "{{ show_edit_mode|yesno:'true,false' }}" === 'true';
+        let activeTaskTab = "{{ active_task_tab|escapejs }}";
+        let editorOpen = activeTaskTab === 'edit';
         const hasTaskPreviewImage = "{{ task.task_preview_image|yesno:'true,false' }}" === 'true';
         const isEditable = canEditTask;
         const stateRaw = "{{ graphic_editor_state_json|escapejs }}";
@@ -1602,7 +1637,7 @@
           savedState = {};
         }
         const PRESENTATION_PITCH_BG = '#5b8f3f';
-        const isPresentationMode = !editorOpen;
+        let isPresentationMode = activeTaskTab !== 'edit';
         const statusEl = document.getElementById('graphic-status');
         const diagnosticsRoot = (() => {
           const root = window.__ollanaDiagnostics && typeof window.__ollanaDiagnostics === 'object'
@@ -1638,8 +1673,8 @@
         };
         const publishTaskDetailDiagnostics = () => {
           const inlineEditor = document.getElementById('task-inline-editor');
-          const editToggleBtn = document.getElementById('task-detail-edit-toggle');
           const taskForm = document.getElementById('task-detail-form');
+          const exportPanel = document.getElementById('task-export-panel');
           const visibleControls = Array.from(document.querySelectorAll('#task-inline-editor .graphic-toolbar button, #task-inline-editor .resource-grid button, #task-inline-editor .iconify-grid button, #task-inline-editor .layers-panel button'));
           const hiddenControls = visibleControls.filter((node) => {
             const rect = node.getBoundingClientRect();
@@ -1651,18 +1686,21 @@
           const counts = collectCanvasCounts();
           let issue = '';
           if (!canvasEl) issue = 'missing_2d_canvas';
-          else if (counts.object_count === 0 && !hasTaskPreviewImage) issue = 'empty_2d_canvas';
-          else if (canEditTask && !editToggleBtn) issue = 'missing_inline_edit_toggle';
-          else if (canEditTask && !inlineEditor) issue = 'missing_inline_editor';
-          else if (editorOpen && inlineEditor && !inlineEditor.classList.contains('is-open')) issue = 'inline_editor_not_open';
-          else if (canEditTask && !taskForm) issue = 'missing_task_detail_form';
-          else if (hiddenControls > 0) issue = 'hidden_editor_controls';
-          else if (threeDSurface.issue) issue = `3d:${threeDSurface.issue}`;
+          else if (activeTaskTab === 'presentation') {
+            if (counts.object_count === 0 && !hasTaskPreviewImage) issue = 'empty_2d_canvas';
+            else if (threeDSurface.issue) issue = `3d:${threeDSurface.issue}`;
+          } else if (activeTaskTab === 'edit') {
+            if (canEditTask && !inlineEditor) issue = 'missing_inline_editor';
+            else if (canEditTask && !taskForm) issue = 'missing_task_detail_form';
+            else if (hiddenControls > 0) issue = 'hidden_editor_controls';
+          } else if (activeTaskTab === 'export') {
+            if (!exportPanel) issue = 'missing_export_panel';
+          }
           diagnosticsRoot.render_surfaces['task-detail-2d-canvas'] = {
             id: 'task-detail-2d-canvas',
             label: 'Representacion 2D de tarea',
             kind: 'task_board',
-            visible: Boolean(canvasRect.width > 0 && canvasRect.height > 0),
+            visible: Boolean(canvasRect.width > 0 && canvasRect.height > 0 && activeTaskTab === 'presentation'),
             issue: issue || twoDSurface.issue || '',
             object_count: counts.object_count,
             player_count: counts.player_count,
@@ -1683,7 +1721,7 @@
             ball_count: counts.ball_count,
             path_count: counts.path_count,
             rendered_frames: 0,
-            scene_status: editorOpen ? 'editor_open' : 'presentation',
+            scene_status: activeTaskTab,
             step_index: 0,
             step_count: 0,
           };
@@ -2584,26 +2622,36 @@
             bookmarkBtn.disabled = false;
           }
         });
-        const editToggleBtn = document.getElementById('task-detail-edit-toggle');
+        const tabButtons = Array.from(document.querySelectorAll('[data-task-tab]'));
+        const tabPanels = Array.from(document.querySelectorAll('[data-task-tab-panel]'));
         const inlineEditor = document.getElementById('task-inline-editor');
-        const syncInlineEditorState = (open) => {
-          if (inlineEditor) inlineEditor.classList.toggle('is-open', open);
-          if (editToggleBtn) {
-            editToggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
-            editToggleBtn.textContent = open ? 'Cerrar edición' : 'Editar ficha';
-          }
-          scheduleDiagnosticsPublish();
-        };
-        if (editToggleBtn && inlineEditor && canEditTask) {
-          syncInlineEditorState(editorOpen);
-          editToggleBtn.addEventListener('click', () => {
-            const nextOpen = !inlineEditor.classList.contains('is-open');
-            syncInlineEditorState(nextOpen);
-            if (nextOpen) {
-              inlineEditor.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
+        const syncTaskTab = (tabName, shouldScroll = false) => {
+          const nextTab = ['presentation', 'edit', 'export'].includes(tabName) ? tabName : 'presentation';
+          activeTaskTab = nextTab;
+          editorOpen = nextTab === 'edit';
+          isPresentationMode = nextTab !== 'edit';
+          if (inlineEditor) inlineEditor.classList.toggle('is-open', nextTab === 'edit');
+          tabButtons.forEach((button) => {
+            const isActive = button.dataset.taskTab === nextTab;
+            button.classList.toggle('is-active', isActive);
+            button.setAttribute('aria-selected', isActive ? 'true' : 'false');
           });
-        }
+          tabPanels.forEach((panel) => {
+            const isActive = panel.dataset.taskTabPanel === nextTab;
+            panel.classList.toggle('is-active', isActive);
+          });
+          scheduleDiagnosticsPublish();
+          if (shouldScroll) {
+            const activePanel = document.querySelector(`[data-task-tab-panel="${nextTab}"]`);
+            activePanel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        };
+        tabButtons.forEach((button) => {
+          button.addEventListener('click', () => {
+            syncTaskTab(button.dataset.taskTab || 'presentation', true);
+          });
+        });
+        syncTaskTab(activeTaskTab, false);
         let resizeTimer = null;
       window.addEventListener('resize', () => {
           clearTimeout(resizeTimer);

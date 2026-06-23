@@ -13214,7 +13214,9 @@ class StaffUserLinkingTests(TestCase):
         self.assertFalse(any('/coach/sesiones/tareas/' in str(url) and '/editar/' in str(url) for url, _ in chain))
         self.assertContains(response, 'Ficha visual')
         self.assertContains(response, 'Ficha táctica compartible')
-        self.assertContains(response, 'task-detail-edit-toggle')
+        self.assertContains(response, 'data-task-tab="presentation"')
+        self.assertContains(response, 'data-task-tab="edit"')
+        self.assertContains(response, 'data-task-tab="export"')
         self.assertContains(response, '__ollanaDiagnostics')
         self.assertNotContains(response, 'mode=edit')
 
@@ -13223,6 +13225,7 @@ class StaffUserLinkingTests(TestCase):
         self.assertEqual(edit_response.status_code, 200)
         self.assertContains(edit_response, 'Ficha táctica compartible')
         self.assertContains(edit_response, 'Editar tarea y ficha interior')
+        self.assertContains(edit_response, 'task-export-panel')
 
     def test_task_builder_creates_task_with_extended_metadata_and_assignment(self):
         session = TrainingSession.objects.create(

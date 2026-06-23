@@ -42714,8 +42714,14 @@ def session_task_detail_page(request, task_id):
     except Exception:
         is_performed_task = False
     detail_mode = str(request.GET.get('mode') or '').strip().lower()
+    detail_tab = str(request.GET.get('tab') or '').strip().lower()
     can_edit_task = bool(is_editable_task and not is_performed_task)
-    show_edit_mode = bool(can_edit_task and detail_mode == 'edit')
+    active_task_tab = 'presentation'
+    if can_edit_task and detail_mode == 'edit':
+        active_task_tab = 'edit'
+    elif can_edit_task and detail_tab in {'presentation', 'edit', 'export'}:
+        active_task_tab = detail_tab
+    show_edit_mode = bool(can_edit_task and active_task_tab == 'edit')
 
     # UX: la ficha de tarea es la vista principal; el modo edición reutiliza esa misma ficha y añade los controles debajo.
 
@@ -42940,6 +42946,7 @@ def session_task_detail_page(request, task_id):
             'is_imported_task': is_imported_task,
             'is_performed_task': is_performed_task,
             'can_edit_task': can_edit_task,
+            'active_task_tab': active_task_tab,
             'show_edit_mode': show_edit_mode,
             'session_context': session_context,
             'related_tasks': related_tasks,
