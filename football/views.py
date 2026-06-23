@@ -40389,6 +40389,7 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
     if request.method == 'POST':
         try:
             builder_action = (request.POST.get('builder_action') or '').strip()
+            is_new_task = task is None
             if builder_action == 'restore_original_version':
                 if not task:
                     raise ValueError('No se pudo identificar la tarea a restaurar.')
@@ -40401,6 +40402,9 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
                     _ai_trainer_index_task(task, team=primary_team)
                 except Exception:
                     pass
+                if is_new_task and task and getattr(task, 'id', None):
+                    edit_route = _task_builder_edit_route_name(scope_key)
+                    return redirect(reverse(edit_route, args=[int(task.id)]))
                 feedback = 'Tarea guardada correctamente.'
                 try:
                     dest_session = getattr(task, 'session', None)

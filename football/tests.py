@@ -13284,9 +13284,13 @@ class StaffUserLinkingTests(TestCase):
                 'draw_canvas_height': '720',
                 'draw_canvas_preview_data': preview_payload,
             },
+            follow=True,
         )
 
         self.assertEqual(response.status_code, 200)
+        chain = getattr(response, 'redirect_chain', []) or []
+        self.assertTrue(any('/coach/sesiones/tareas/' in str(url) and '/editar/' in str(url) for url, _ in chain))
+        self.assertContains(response, 'Editar tarea · Editor visual dedicado')
         # Al guardar dentro de una sesión real, el editor crea:
         # - 1 instancia dentro de la sesión
         # - 1 plantilla en Biblioteca (para reutilización)
@@ -13309,9 +13313,7 @@ class StaffUserLinkingTests(TestCase):
         template_meta = template_task.tactical_layout.get('meta') or {}
         self.assertNotEqual(template_task.session_id, session.id)
         self.assertTrue(bool(template_meta.get('is_template')))
-        self.assertContains(response, 'Guardada en sesión 25/03/2026')
-        self.assertContains(response, 'Imprimir UEFA')
-        self.assertContains(response, 'Imprimir Club')
+        self.assertContains(response, 'Editar tarea · Editor visual dedicado')
 
     def test_task_builder_creates_task_with_load_scale_metadata(self):
         session = TrainingSession.objects.create(
