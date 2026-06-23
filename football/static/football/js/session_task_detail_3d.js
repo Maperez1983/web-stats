@@ -840,6 +840,54 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
     });
     return fallback;
   };
+  const hasMeshInSubtree = (root) => {
+    if (!root || typeof root.traverse !== 'function') return false;
+    let hasMesh = false;
+    root.traverse((node) => {
+      if (hasMesh) return;
+      if (node?.isMesh) hasMesh = true;
+    });
+    return hasMesh;
+  };
+  const pickHumanoidPlayerSource = (root) => {
+    if (!root || typeof root.traverse !== 'function') return null;
+    const candidates = [];
+    const normalizedNames = (value) => safeText(value).toLowerCase();
+    root.traverse((node) => {
+      const nodeName = normalizedNames(node?.name);
+      if (!nodeName) return;
+      if (nodeName.includes('gltf_created') || nodeName.includes('object_')) return;
+      const isHumanoid = nodeName.includes('metarig') || nodeName.includes('soccer man') || nodeName.includes('soccer woman');
+      if (!isHumanoid || !Array.isArray(node.children) || !node.children.length) return;
+      candidates.push(node);
+    });
+    if (!candidates.length) return null;
+    const ranked = candidates.filter((node) => hasMeshInSubtree(node));
+    const normalizedPrefer = (node) => {
+      const name = normalizedNames(node.name);
+      if (name.includes('metarig')) return 0;
+      if (name.includes('soccer')) return 1;
+      return 2;
+    };
+    const filtered = ranked.length ? ranked : candidates;
+    filtered.sort((a, b) => normalizedPrefer(a) - normalizedPrefer(b));
+    return filtered[0];
+  };
+  const getHumanoidAnimationClip = (source, humanoidRoot) => {
+    if (!source || !humanoidRoot) return null;
+    const sourceTracks = Array.isArray(source.tracks) ? source.tracks : [];
+    const filteredTracks = sourceTracks.filter((track) => {
+      if (!track?.name) return false;
+      const trackName = String(track.name);
+      const lastDot = trackName.lastIndexOf('.');
+      if (lastDot <= 0) return false;
+      const nodeName = trackName.slice(0, lastDot);
+      return !!humanoidRoot.getObjectByName(nodeName, true);
+    });
+    if (!filteredTracks.length) return null;
+    if (filteredTracks.length === sourceTracks.length) return source;
+    return new THREE.AnimationClip(source.name || 'PlayerAction', source.duration || -1, filteredTracks);
+  };
   const scaleClamped = (value, minScale, maxScale) => Math.max(minScale, Math.min(maxScale, value));
   const resolveTokenPhotoUrl = (obj, childObjects = []) => {
     const extra = obj && typeof obj.data === 'object' ? obj.data : {};
@@ -987,7 +1035,9 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
   const upgradeActorToHumanoidModel = (group, entry, fillColor, accentColor) => {
     ensurePlayerModel().then((asset) => {
       if (!asset?.scene || !group?.parent) return;
-      const clone = SkeletonUtils.clone(asset.scene);
+      const sourceClone = SkeletonUtils.clone(asset.scene);
+      const selectedSource = pickHumanoidPlayerSource(sourceClone) || sourceClone;
+      const clone = selectedSource === sourceClone ? sourceClone : selectedSource.clone(true);
       const fill = fillColor instanceof THREE.Color ? fillColor.clone() : parseColor(fillColor, '#2563eb');
       const accent = accentColor instanceof THREE.Color ? accentColor.clone() : parseColor(accentColor, '#ffffff');
       const darkerFill = tintColor(fill, -0.16);
@@ -1061,9 +1111,12 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
 
       let mixer = null;
       if (Array.isArray(asset.clips) && asset.clips.length) {
-        mixer = new THREE.AnimationMixer(clone);
-        mixer.clipAction(asset.clips[0]).play();
-        modelMixers.add(mixer);
+        const selectedClip = getHumanoidAnimationClip(asset.clips[0], clone);
+        if (selectedClip) {
+          mixer = new THREE.AnimationMixer(clone);
+          mixer.clipAction(selectedClip).play();
+          modelMixers.add(mixer);
+        }
       }
 
       const badge = createLabelSprite(entry.label, '#ffffff');
