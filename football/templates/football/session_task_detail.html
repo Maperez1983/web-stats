@@ -1284,245 +1284,73 @@
       </section>
 
       {% if can_edit_task %}
-      <div id="task-inline-editor" class="task-inline-editor task-detail-tab-panel{% if active_task_tab == 'edit' %} is-active{% endif %}{% if show_edit_mode %} is-open{% endif %}" data-task-tab-panel="edit">
-      <section class="panel">
-        <h2>Edición y configuración</h2>
-        <p class="meta">La ficha editable vive aquí. Primero ves lo necesario para preparar la tarea; lo avanzado queda plegado para no saturar la pantalla.</p>
-      </section>
       <section class="panel task-edit-panel task-edit-tab-descriptive" data-task-edit-panel="descriptive">
-        <h2>Resumen del entorno</h2>
-        <p class="meta">
-          {{ scope_title }}
-          {% if session_context.session_date %}
-            · {{ session_context.session_date|date:"d/m/Y" }}{% if session_context.start_time %} · {{ session_context.start_time|time:"H:i" }}{% endif %}
-            {% if session_context.location %} · {{ session_context.location }}{% endif %}
-            {% if session_context.focus %} · {{ session_context.focus }}{% endif %}
-          {% else %}
-            · {{ task.session.session_date|date:"d/m/Y" }}
-          {% endif %}
-          · {{ task.get_block_display }} · {{ task.duration_minutes }}'
-        </p>
+        <h2>Ficha base editable</h2>
+        <form method="post" class="grid" id="task-detail-form">
+          {% csrf_token %}
+          <input type="hidden" name="detail_action" value="update_task_detail" />
+          <div class="grid">
+            <label>
+              Título
+              <input type="text" name="task_title" value="{{ task.title }}" maxlength="160" required />
+            </label>
+            <label>
+              Bloque
+              <select name="task_block">
+                {% for value, label in task_blocks %}
+                <option value="{{ value }}" {% if task.block == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              Minutos
+              <input type="number" name="task_minutes" min="5" max="90" value="{{ task.duration_minutes }}" />
+            </label>
+          </div>
+          <div class="grid">
+            <label style="grid-column:1/-1;">
+              Objetivo
+              <textarea name="task_objective" rows="2" style="min-height:52px; resize:vertical;">{{ task.objective }}</textarea>
+            </label>
+            <label style="grid-column:1/-1;">
+              Consignas
+              <textarea name="task_coaching_points">{{ task.coaching_points }}</textarea>
+            </label>
+            <label style="grid-column:1/-1;">
+              Reglas de confrontación
+              <textarea name="task_confrontation_rules">{{ task.confrontation_rules }}</textarea>
+            </label>
+            <label style="grid-column:1/-1;">
+              Descripción de la ficha
+              <textarea name="task_sheet_description">{{ task_sheet.description }}</textarea>
+            </label>
+            <label>
+              Jugadores
+              <input type="text" name="task_sheet_players" value="{{ task_sheet.players }}" />
+            </label>
+            <label>
+              Espacio
+              <input type="text" name="task_sheet_space" value="{{ task_sheet.space }}" />
+            </label>
+            <label>
+              Medidas
+              <input type="text" name="task_sheet_dimensions" value="{{ task_sheet.dimensions }}" />
+            </label>
+            <label>
+              Materiales
+              <input type="text" name="task_sheet_materials" value="{{ task_sheet.materials }}" />
+            </label>
+          </div>
+          <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+            <button class="button" type="submit">Guardar cambios</button>
+            <a class="button secondary" href="{% url 'sessions-task-edit' task.id %}">Abrir editor de pizarra</a>
+          </div>
+        </form>
       </section>
-
-      {% if can_edit_task %}
-        <details class="edit-section" open>
-          <summary>Versionado de tarea</summary>
-          {% if original_version %}
-          <p class="meta">La versión original está bloqueada y no se sobrescribe. Puedes restaurarla si hace falta.</p>
-          <form method="post" style="margin-top:0.45rem;">
-            {% csrf_token %}
-            <input type="hidden" name="detail_action" value="restore_original_version" />
-            <button class="button" type="submit">Restaurar versión original</button>
-          </form>
-          {% else %}
-          <p class="meta">Todavía no hay snapshot original. Se crea automáticamente al primer cambio manual o al guardar el gráfico.</p>
-          {% endif %}
-        </details>
-
-          <section class="panel task-edit-panel task-edit-tab-descriptive" data-task-edit-panel="descriptive">
-          <h2>Ficha base editable</h2>
-          <form method="post" class="grid" id="task-detail-form">
-            {% csrf_token %}
-            <input type="hidden" name="detail_action" value="update_task_detail" />
-            <div class="grid">
-              <label>
-                Título
-                <input type="text" name="task_title" value="{{ task.title }}" maxlength="160" required />
-              </label>
-              <label>
-                Bloque
-                <select name="task_block">
-                  {% for value, label in task_blocks %}
-                  <option value="{{ value }}" {% if task.block == value %}selected{% endif %}>{{ label }}</option>
-                  {% endfor %}
-                </select>
-              </label>
-              <label>
-                Minutos
-                <input type="number" name="task_minutes" min="5" max="90" value="{{ task.duration_minutes }}" />
-              </label>
-            </div>
-            <details class="edit-section" open>
-              <summary>Ficha base</summary>
-              <div class="grid">
-                <label style="grid-column:1/-1;">
-                  Objetivo
-                  <textarea name="task_objective" rows="2" style="min-height:52px; resize:vertical;">{{ task.objective }}</textarea>
-                </label>
-                <label style="grid-column:1/-1;">
-                  Consignas
-                  <textarea name="task_coaching_points">{{ task.coaching_points }}</textarea>
-                </label>
-                <label style="grid-column:1/-1;">
-                  Reglas de confrontación
-                  <textarea name="task_confrontation_rules">{{ task.confrontation_rules }}</textarea>
-                </label>
-                <label style="grid-column:1/-1;">
-                  Descripción (ficha interior)
-                  <textarea name="task_sheet_description">{{ task_sheet.description }}</textarea>
-                </label>
-                <label>
-                  Jugadores (ficha interior)
-                  <input type="text" name="task_sheet_players" value="{{ task_sheet.players }}" />
-                </label>
-                <label>
-                  Espacio (ficha interior)
-                  <input type="text" name="task_sheet_space" value="{{ task_sheet.space }}" />
-                </label>
-                <label>
-                  Medidas (ficha interior)
-                  <input type="text" name="task_sheet_dimensions" value="{{ task_sheet.dimensions }}" />
-                </label>
-                <label>
-                  Materiales (ficha interior)
-                  <input type="text" name="task_sheet_materials" value="{{ task_sheet.materials }}" />
-                </label>
-              </div>
-            </details>
-            <details class="edit-section">
-              <summary>Contexto táctico</summary>
-              <div class="grid">
-                <label>
-                  Momento del juego
-                  <select name="task_game_moment">
-                    <option value="">-</option>
-                    {% for value, label in game_moment_choices %}
-                    <option value="{{ value }}" {% if task_meta.game_moment == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                  </select>
-                </label>
-                <label>
-                  Día microciclo
-                  <select name="task_md_day">
-                    <option value="">-</option>
-                    {% for value, label in task_md_day_choices %}
-                    <option value="{{ value }}" {% if task_meta.md_day == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                  </select>
-                </label>
-                <label>
-                  Carga dominante
-                  <select name="task_dominant_load">
-                    <option value="">-</option>
-                    {% for value, label in task_dominant_load_choices %}
-                    <option value="{{ value }}" {% if task_meta.dominant_load == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                  </select>
-                </label>
-                <label>
-                  Principio
-                  <input type="text" name="task_principle" value="{{ task_meta.principle }}" maxlength="120" />
-                </label>
-                <label style="grid-column:1/-1;">
-                  Subprincipio
-                  <input type="text" name="task_subprinciple" value="{{ task_meta.subprinciple }}" maxlength="160" />
-                </label>
-                <label style="grid-column:1/-1;">
-                  Regla provocadora
-                  <textarea name="task_provocation_rule" rows="2" style="min-height:52px; resize:vertical;">{{ task_meta.provocation_rule }}</textarea>
-                </label>
-                <label>
-                  Estructura dominante
-                  <select name="task_dominant_structure">
-                    <option value="">-</option>
-                    {% for value, label in player_structure_choices %}
-                    <option value="{{ value }}" {% if task_meta.dominant_structure == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                  </select>
-                </label>
-                <label>
-                  Estructura secundaria
-                  <select name="task_secondary_structure">
-                    <option value="">-</option>
-                    {% for value, label in player_structure_choices %}
-                    <option value="{{ value }}" {% if task_meta.secondary_structure == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                  </select>
-                </label>
-              </div>
-            </details>
-            <details class="edit-section">
-              <summary>Cargas y planificación</summary>
-              <div class="grid">
-                <label>
-                  Carga física
-                  <select name="task_physical_load">
-                    <option value="">-</option>
-                    {% for value, label in task_load_level_choices %}
-                    <option value="{{ value }}" {% if task_meta.physical_load == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                  </select>
-                </label>
-                <label>
-                  Carga cognitiva
-                  <select name="task_cognitive_load">
-                    <option value="">-</option>
-                    {% for value, label in task_load_level_choices %}
-                    <option value="{{ value }}" {% if task_meta.cognitive_load == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                  </select>
-                </label>
-                <label>
-                  Carga emocional
-                  <select name="task_emotional_load">
-                    <option value="">-</option>
-                    {% for value, label in task_load_level_choices %}
-                    <option value="{{ value }}" {% if task_meta.emotional_load == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                  </select>
-                </label>
-                <label>
-                  Escala
-                  <select name="task_rpe_scale">
-                    {% for value, label in task_rpe_scale_choices %}
-                    <option value="{{ value }}" {% if task_meta.rpe_scale == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                  </select>
-                </label>
-                <label>
-                  RPE previsto
-                  <input type="number" name="task_planned_rpe" min="0" max="20" value="{{ task_meta.planned_rpe|default:'' }}" />
-                </label>
-                <label>
-                  sRPE previsto
-                  <input type="number" value="{{ task_meta.planned_srpe_load|default:'' }}" readonly />
-                </label>
-                <label>
-                  Wellness objetivo
-                  <input type="number" name="task_wellness_target" min="1" max="10" value="{{ task_meta.wellness_target|default:'' }}" />
-                </label>
-                <label>
-                  Carga objetivo
-                  <input type="text" name="task_load_target" value="{{ task_meta.load_target }}" maxlength="180" />
-                </label>
-                <label>
-                  Monotony
-                  <input type="text" name="task_monotony_target" value="{{ task_meta.monotony_target }}" maxlength="40" />
-                </label>
-                <label>
-                  Strain
-                  <input type="text" name="task_strain_target" value="{{ task_meta.strain_target }}" maxlength="60" />
-                </label>
-                <label style="grid-column:1/-1;">
-                  Notas de carga
-                  <textarea name="task_load_notes" rows="2" style="min-height:52px; resize:vertical;">{{ task_meta.load_notes }}</textarea>
-                </label>
-              </div>
-            </details>
-            <div style="display:flex; align-items:flex-end;">
-              <button class="button" type="submit">Guardar cambios</button>
-            </div>
-          </form>
-        </section>
-      {% elif not is_imported_task %}
+      {% else %}
         <section class="panel">
           <h2>Modo presentación</h2>
           <p class="meta">La card abre esta ficha HTML limpia. La edición avanzada se integra en la misma ficha cuando se entra en modo edición.</p>
-        </section>
-      {% elif is_imported_task %}
-        <section class="panel">
-          <h2>Tarea importada</h2>
-          <p class="meta">Modo solo lectura: card pulsable + ficha de tarea + representación gráfica. Sin edición.</p>
         </section>
       {% endif %}
 
@@ -1576,28 +1404,6 @@
       </details>
       {% endif %}
 
-      {% if animation_frames and can_edit_task %}
-      <details class="edit-section task-edit-panel task-edit-tab-graphic" data-task-edit-panel="graphic">
-        <summary>Secuenciación 2D</summary>
-        <div class="animation-controls">
-          <button type="button" class="button" id="animation-prev-btn">Paso anterior</button>
-          <button type="button" class="button" id="animation-play-btn">Reproducir</button>
-          <button type="button" class="button" id="animation-next-btn">Siguiente paso</button>
-        </div>
-        <div class="animation-strip" id="animation-step-strip">
-          {% for frame in animation_frames %}
-          <button type="button" class="animation-step-btn{% if forloop.first %} is-active{% endif %}" data-animation-step="{{ forloop.counter0 }}">
-            Paso {{ forloop.counter }} · {{ frame.title }} · {{ frame.duration }} s
-          </button>
-          {% endfor %}
-        </div>
-        <div class="animation-canvas-wrap">
-          <canvas id="task-animation-canvas"></canvas>
-        </div>
-        <p class="graphic-status" id="animation-status">Secuencia lista.</p>
-      </details>
-      {% endif %}
-
       {% if can_edit_task %}
       <section class="panel task-detail-tab-panel{% if active_task_tab == 'export' %} is-active{% endif %}" id="task-export-panel" data-task-tab-panel="export">
         <h2>Exportar</h2>
@@ -1610,86 +1416,6 @@
           {% endif %}
         </div>
       </section>
-      {% endif %}
-
-      {% if can_edit_task %}
-      <details class="edit-section task-edit-panel" id="graphic-editor">
-        <summary>Herramientas gráficas avanzadas</summary>
-        <p class="meta">Actúan sobre la ficha de arriba. Déjalas plegadas cuando solo quieras revisar o ajustar la tarea.</p>
-        <div class="graphic-toolbar">
-          <button type="button" class="button" id="graphic-draw-btn">Modo dibujo</button>
-          <button type="button" class="button" id="graphic-select-btn">Modo selección</button>
-          <button type="button" class="button" id="graphic-snap-btn">Snap ON</button>
-          <button type="button" class="button" id="graphic-add-circle-btn">Añadir jugador</button>
-          <button type="button" class="button" id="graphic-add-rect-btn">Añadir zona</button>
-          <button type="button" class="button" id="graphic-add-arrow-btn">Añadir flecha</button>
-          <button type="button" class="button" id="graphic-add-text-btn">Añadir texto</button>
-          <button type="button" class="button" id="graphic-align-left-btn">Alinear izq</button>
-          <button type="button" class="button" id="graphic-align-center-btn">Alinear centro</button>
-          <button type="button" class="button" id="graphic-align-right-btn">Alinear der</button>
-          <button type="button" class="button" id="graphic-align-top-btn">Alinear arriba</button>
-          <button type="button" class="button" id="graphic-align-middle-btn">Alinear medio</button>
-          <button type="button" class="button" id="graphic-align-bottom-btn">Alinear abajo</button>
-          <button type="button" class="button" id="graphic-duplicate-btn">Duplicar</button>
-          <button type="button" class="button" id="graphic-lock-btn">Bloquear</button>
-          <button type="button" class="button" id="graphic-unlock-btn">Desbloquear</button>
-          <button type="button" class="button" id="graphic-delete-btn">Borrar selección</button>
-          <button type="button" class="button" id="graphic-front-btn">Subir capa</button>
-          <button type="button" class="button" id="graphic-back-btn">Bajar capa</button>
-          <button type="button" class="button" id="graphic-undo-btn">Deshacer</button>
-          <button type="button" class="button" id="graphic-clear-btn">Limpiar</button>
-          <label style="min-width:140px;">
-            Color trazo
-            <input id="graphic-color" type="color" value="#e11d48" style="height:38px; padding:0.2rem;" />
-          </label>
-          <label style="min-width:140px;">
-            Grosor
-            <input id="graphic-width" type="range" min="1" max="18" step="1" value="4" />
-          </label>
-          <button type="button" class="button" id="graphic-save-btn">Guardar gráfico</button>
-        </div>
-        <div class="resource-library">
-          <p class="resource-title">Biblioteca de iconos y recursos</p>
-          <div class="resource-grid" id="graphic-resource-grid">
-            <button type="button" class="resource-btn" data-resource="player_red"><span class="ico">🔴</span><span>Jugador rojo</span></button>
-            <button type="button" class="resource-btn" data-resource="player_blue"><span class="ico">🔵</span><span>Jugador azul</span></button>
-            <button type="button" class="resource-btn" data-resource="ball"><span class="ico">⚽</span><span>Balón</span></button>
-            <button type="button" class="resource-btn" data-resource="cone"><span class="ico">△</span><span>Cono</span></button>
-            <button type="button" class="resource-btn" data-resource="marker"><span class="ico">◉</span><span>Seta</span></button>
-            <button type="button" class="resource-btn" data-resource="pica"><span class="ico">┃</span><span>Pica</span></button>
-            <button type="button" class="resource-btn" data-resource="hurdle"><span class="ico">⊓</span><span>Valla</span></button>
-            <button type="button" class="resource-btn" data-resource="mini_goal"><span class="ico">⌸</span><span>Mini portería</span></button>
-            <button type="button" class="resource-btn" data-resource="goal"><span class="ico">⌷</span><span>Portería</span></button>
-            <button type="button" class="resource-btn" data-resource="mannequin"><span class="ico">♞</span><span>Maniquí</span></button>
-            <button type="button" class="resource-btn" data-resource="bib"><span class="ico">▣</span><span>Peto</span></button>
-            <button type="button" class="resource-btn" data-resource="zone"><span class="ico">▭</span><span>Zona</span></button>
-          </div>
-        </div>
-        <div class="resource-library">
-          <p class="resource-title">Iconify · recursos extra (gratis)</p>
-          <div class="resource-search">
-            <input id="graphic-iconify-search" type="text" placeholder="Buscar icono (jugador, balón, cono, portería, flecha...)" />
-          </div>
-          <div class="iconify-grid" id="graphic-iconify-grid">
-            <button type="button" class="iconify-btn" data-iconify="mdi:account" data-label="Jugador"><iconify-icon icon="mdi:account"></iconify-icon><span>Jugador</span></button>
-            <button type="button" class="iconify-btn" data-iconify="mdi:account-group" data-label="Grupo"><iconify-icon icon="mdi:account-group"></iconify-icon><span>Grupo</span></button>
-            <button type="button" class="iconify-btn" data-iconify="mdi:soccer" data-label="Balón"><iconify-icon icon="mdi:soccer"></iconify-icon><span>Balón</span></button>
-            <button type="button" class="iconify-btn" data-iconify="mdi:cone" data-label="Cono"><iconify-icon icon="mdi:cone"></iconify-icon><span>Cono</span></button>
-            <button type="button" class="iconify-btn" data-iconify="mdi:map-marker" data-label="Marca"><iconify-icon icon="mdi:map-marker"></iconify-icon><span>Marca</span></button>
-            <button type="button" class="iconify-btn" data-iconify="mdi:whistle" data-label="Silbato"><iconify-icon icon="mdi:whistle"></iconify-icon><span>Silbato</span></button>
-            <button type="button" class="iconify-btn" data-iconify="mdi:target" data-label="Diana"><iconify-icon icon="mdi:target"></iconify-icon><span>Diana</span></button>
-            <button type="button" class="iconify-btn" data-iconify="mdi:shield-outline" data-label="Defensa"><iconify-icon icon="mdi:shield-outline"></iconify-icon><span>Defensa</span></button>
-            <button type="button" class="iconify-btn" data-iconify="mdi:tshirt-crew-outline" data-label="Peto"><iconify-icon icon="mdi:tshirt-crew-outline"></iconify-icon><span>Peto</span></button>
-            <button type="button" class="iconify-btn" data-iconify="mdi:arrow-right-bold" data-label="Flecha"><iconify-icon icon="mdi:arrow-right-bold"></iconify-icon><span>Flecha</span></button>
-            <button type="button" class="iconify-btn" data-iconify="mdi:arrow-split-horizontal" data-label="Desmarque"><iconify-icon icon="mdi:arrow-split-horizontal"></iconify-icon><span>Desmarque</span></button>
-            <button type="button" class="iconify-btn" data-iconify="mdi:format-text" data-label="Texto"><iconify-icon icon="mdi:format-text"></iconify-icon><span>Texto</span></button>
-          </div>
-        </div>
-        <aside class="layers-panel">
-          <h3>Capas</h3>
-          <div class="layers-list" id="graphic-layers-list"></div>
-        </aside>
-      </details>
       {% endif %}
 
       {% if analysis_meta and can_edit_task %}
@@ -1749,9 +1475,6 @@
         <summary>Extracto del PDF</summary>
         <pre>{{ pdf_excerpt }}</pre>
       </details>
-      {% endif %}
-
-      </div>
       {% endif %}
 
     </main>
@@ -1830,14 +1553,6 @@
           const inlineEditor = document.getElementById('task-inline-editor');
           const taskForm = document.getElementById('task-detail-form');
           const exportPanel = document.getElementById('task-export-panel');
-          const visibleControls = Array.from(document.querySelectorAll('#task-inline-editor .graphic-toolbar button, #task-inline-editor .resource-grid button, #task-inline-editor .iconify-grid button, #task-inline-editor .layers-panel button')).filter((node) => {
-            const details = node.closest('details');
-            return !details || details.open;
-          });
-          const hiddenControls = visibleControls.filter((node) => {
-            const rect = node.getBoundingClientRect();
-            return rect.width > 0 && rect.height > 0 ? false : true;
-          }).length;
           const canvasRect = canvasEl.getBoundingClientRect();
           const twoDSurface = getSurfaceState('task-detail-2d-canvas');
           const threeDSurface = getSurfaceState('task-detail-3d-canvas');
@@ -1850,7 +1565,6 @@
           } else if (activeTaskTab === 'edit') {
             if (canEditTask && !inlineEditor) issue = 'missing_inline_editor';
             else if (canEditTask && !taskForm) issue = 'missing_task_detail_form';
-            else if (hiddenControls > 0) issue = 'hidden_editor_controls';
           } else if (activeTaskTab === 'export') {
             if (!exportPanel) issue = 'missing_export_panel';
           }

@@ -13217,6 +13217,10 @@ class StaffUserLinkingTests(TestCase):
         self.assertContains(response, 'data-task-tab="presentation"')
         self.assertContains(response, 'data-task-tab="edit"')
         self.assertContains(response, 'data-task-tab="export"')
+        self.assertContains(response, 'Abrir editor de pizarra')
+        self.assertNotContains(response, 'id="graphic-editor"')
+        self.assertNotContains(response, 'id="graphic-save-btn"')
+        self.assertNotContains(response, 'id="animation-status"')
         self.assertContains(response, '__ollanaDiagnostics')
         self.assertNotContains(response, 'mode=edit')
 
