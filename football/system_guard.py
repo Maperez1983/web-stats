@@ -1191,6 +1191,53 @@ def _browser_audit_base_url(page_context=None) -> str:
     return ""
 
 
+def _browser_audit_target_rows(page_context=None) -> list[dict]:
+    context = page_context if isinstance(page_context, dict) else {}
+    rows = []
+    seen = set()
+
+    def _add_row(key: str, label: str, url: str, expected_modules=None):
+        key = str(key or "").strip()
+        url = str(url or "").strip()
+        if not key or not url or key in seen:
+            return
+        seen.add(key)
+        rows.append({
+            "key": key[:64],
+            "label": str(label or key)[:120],
+            "url": url[:220],
+            "expected_modules": [str(item or "")[:64] for item in (expected_modules or []) if str(item or "").strip()][:6],
+        })
+
+    base_url = _browser_audit_base_url(context)
+    browser_target_url = str(context.get("browser_target_url") or "").strip()
+    if browser_target_url:
+        target_url = browser_target_url if browser_target_url.startswith(("http://", "https://")) else urljoin(f"{base_url}/", browser_target_url.lstrip("/"))
+        _add_row("browser_target", "Destino de navegador", target_url, expected_modules=["tarea", "editor", "pizarra", "3d"])
+
+    task_id = _safe_int(context.get("task_id"), 0)
+    if task_id:
+        task = SessionTask.objects.select_related("session", "session__microcycle", "session__microcycle__team").filter(id=task_id).first()
+        if task:
+            _add_row(
+                f"task_{int(task.id)}",
+                f"Tarea {int(task.id)}",
+                urljoin(f"{base_url}/", reverse("session-task-detail", args=[int(task.id)]).lstrip("/")),
+                expected_modules=["ficha", "presentacion", "configuracion", "exportar", "3d"],
+            )
+
+    session_id = _safe_int(context.get("session_id") or context.get("selected_session_id"), 0)
+    if session_id:
+        _add_row(
+            f"session_{session_id}",
+            f"Sesión {session_id}",
+            urljoin(f"{base_url}/", reverse("session-detail", args=[session_id]).lstrip("/")) if "session-detail" in getattr(__import__('django.urls', fromlist=['reverse']), 'reverse').__name__ else "",
+            expected_modules=["sesion", "microciclo", "entrenamiento"],
+        )
+
+    return rows
+
+
 def _prioritized_guard_routes(page_context=None, limit: int = 4) -> list[dict]:
     route_health = _route_health_snapshot(page_context=page_context)
     route_rows = [row for row in _guard_route_catalog(page_context) if isinstance(row, dict)]
@@ -1291,15 +1338,24 @@ def _browser_navigation_audit_snapshot(workspace, *, actor_id=None, page_context
         return {"enabled": False, "reason": "workspace_required", "routes": []}
     if not actor_id:
         return {"enabled": False, "reason": "actor_required", "routes": []}
-    if not (isinstance(context.get("ui_snapshot"), dict) or isinstance(context.get("module_snapshot"), dict)):
-        return {"enabled": False, "reason": "no_live_page_context", "routes": []}
     base_url = _browser_audit_base_url(context)
     if not base_url:
         return {"enabled": False, "reason": "base_url_unavailable", "routes": []}
     user = get_user_model().objects.filter(id=int(actor_id or 0)).first()
     if user is None:
         return {"enabled": False, "reason": "actor_not_found", "routes": []}
-    route_rows = _prioritized_guard_routes(context, limit=3)
+    route_rows = _browser_audit_target_rows(context) + _prioritized_guard_routes(context, limit=3)
+    deduped_rows = []
+    seen_keys = set()
+    for row in route_rows:
+        if not isinstance(row, dict):
+            continue
+        key = str(row.get("key") or "").strip()
+        if not key or key in seen_keys:
+            continue
+        seen_keys.add(key)
+        deduped_rows.append(row)
+    route_rows = deduped_rows
     if not route_rows:
         return {"enabled": False, "reason": "route_catalog_empty", "routes": []}
     parsed = urlparse(base_url)
@@ -1362,6 +1418,10 @@ def _browser_navigation_audit_snapshot(workspace, *, actor_id=None, page_context
                         final_url = str(page.url or "")[:220]
                         payload = page.evaluate(
                             """() => {
+                              const h1 = document.querySelector('h1');
+                              const top = document.querySelector('.top, header, main header');
+                              const h1Style = h1 ? getComputedStyle(h1) : null;
+                              const topStyle = top ? getComputedStyle(top) : null;
                               const text = String(document.body?.innerText || '').replace(/\\s+/g, ' ').trim().toLowerCase();
                               const modules = Array.from(document.querySelectorAll('main section, [role="main"] section, main article, [role="main"] article, main .card, [role="main"] .card'))
                                 .slice(0, 8)
@@ -1375,6 +1435,11 @@ def _browser_navigation_audit_snapshot(workspace, *, actor_id=None, page_context
                                 : {};
                               return {
                                 title: String(document.title || '').trim(),
+                                h1_text: String(h1?.textContent || '').trim(),
+                                h1_color: String(h1Style?.color || ''),
+                                h1_bg: String(h1Style?.backgroundColor || ''),
+                                top_bg: String(topStyle?.backgroundImage || topStyle?.backgroundColor || ''),
+                                body_classes: String(document.body?.className || ''),
                                 body_text: text.slice(0, 4000),
                                 modules,
                                 js_errors: Array.isArray(runtime.js_errors) ? runtime.js_errors.length : 0,
@@ -1400,6 +1465,10 @@ def _browser_navigation_audit_snapshot(workspace, *, actor_id=None, page_context
                             "missing_modules": missing_modules[:6],
                             "redirect_count": 1 if final_url and final_url.rstrip("/") != target_url.rstrip("/") else 0,
                             "final_url": final_url,
+                            "h1_text": str(payload.get("h1_text") or "")[:160],
+                            "h1_color": str(payload.get("h1_color") or "")[:40],
+                            "body_classes": str(payload.get("body_classes") or "")[:120],
+                            "top_bg": str(payload.get("top_bg") or "")[:160],
                             "console_count": len(console_rows),
                             "page_error_count": len(page_errors),
                             "request_failed_count": len(request_failed_rows),

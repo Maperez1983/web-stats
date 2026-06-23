@@ -3597,16 +3597,17 @@ class SystemGuardTests(TestCase):
                     'path': '/coach/tactics/',
                     'team_id': self.team.id,
                     'workspace_id': self.workspace.id,
-                    'ui_snapshot': {'headings': ['Tactica']},
+                    'browser_target_url': '/coach/tactics/',
                 },
             )
 
         self.assertTrue(snapshot['enabled'])
         self.assertEqual(snapshot['reason'], 'audited')
+        self.assertTrue(any(row['key'] == 'browser_target' for row in snapshot['routes']))
         self.assertTrue(any(row['key'] == 'tactics' for row in snapshot['routes']))
         tactics_row = next(row for row in snapshot['routes'] if row['key'] == 'tactics')
         self.assertEqual(tactics_row['status'], 'degraded')
-        self.assertTrue(tactics_row['missing_modules'] or tactics_row['page_error_count'] >= 0)
+        self.assertIn('h1_color', tactics_row)
 
     @patch('football.system_guard._observability_summary', return_value={'history_count': 0})
     @patch('football.system_guard.run_system_guard_chat', return_value={

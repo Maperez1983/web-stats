@@ -14,6 +14,9 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--workspace-id", type=int, required=True, help="Workspace.id objetivo.")
         parser.add_argument("--actor-id", type=int, default=0, help="User.id que figura como actor del operador.")
+        parser.add_argument("--team-id", type=int, default=0, help="Team.id activo para priorizar rutas concretas.")
+        parser.add_argument("--task-id", type=int, default=0, help="SessionTask.id activo para priorizar la ficha visual.")
+        parser.add_argument("--browser-target-url", type=str, default="", help="URL absoluta o relativa que Ollana debe mirar primero.")
         parser.add_argument("--iterations", type=int, default=1, help="Número de ciclos a ejecutar.")
         parser.add_argument("--sleep-seconds", type=int, default=0, help="Espera entre ciclos.")
         parser.add_argument("--daemon", action="store_true", help="Mantiene el operador corriendo hasta stop flag o max runtime.")
@@ -24,12 +27,15 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         workspace_id = int(options.get("workspace_id") or 0)
         actor_id = int(options.get("actor_id") or 0)
+        team_id = int(options.get("team_id") or 0)
+        task_id = int(options.get("task_id") or 0)
         iterations = max(1, int(options.get("iterations") or 1))
         sleep_seconds = max(0, int(options.get("sleep_seconds") or 0))
         daemon = bool(options.get("daemon"))
         max_runtime_seconds = max(0, int(options.get("max_runtime_seconds") or 0))
         force = bool(options.get("force"))
         holder = str(options.get("holder") or "ollana-operator").strip() or "ollana-operator"
+        browser_target_url = str(options.get("browser_target_url") or "").strip()
 
         workspace = Workspace.objects.filter(id=workspace_id).first()
         if not workspace:
@@ -47,6 +53,9 @@ class Command(BaseCommand):
                     "workspace_id": int(workspace.id),
                     "workspace_name": str(workspace.name or "")[:160],
                     "user_id": actor_id,
+                    "team_id": team_id or None,
+                    "task_id": task_id or None,
+                    "browser_target_url": browser_target_url or None,
                     "is_admin_user": True,
                     "can_manage_guard": True,
                     "can_operate_guard_code": True,
