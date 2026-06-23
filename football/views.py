@@ -39642,18 +39642,38 @@ def _task_builder_duplicate_profile(task):
     }
 
 
-def _find_task_builder_duplicate_matches(primary_team, scope_key, task, *, limit=5):
-    if not primary_team or not task:
+def _find_task_builder_duplicate_matches(primary_team, scope_key, task, *, limit=5, workspace=None, user=None):
+    if not task:
         return []
     try:
         task_profile = _task_builder_duplicate_profile(task)
     except Exception:
         return []
+    target_team_ids = []
+    try:
+        if workspace:
+            links = []
+            try:
+                links = _workspace_team_links_for_user(workspace, user) if user else _workspace_team_links(workspace)
+            except Exception:
+                links = []
+            target_team_ids = [
+                int(getattr(link, "team_id", 0) or 0)
+                for link in links
+                if getattr(link, "team_id", None)
+            ]
+        if primary_team:
+            target_team_ids.insert(0, int(getattr(primary_team, "id", 0) or 0))
+    except Exception:
+        target_team_ids = [int(getattr(primary_team, "id", 0) or 0)] if primary_team else []
+    target_team_ids = [int(team_id) for team_id in dict.fromkeys(target_team_ids) if int(team_id or 0)]
+    if not target_team_ids and primary_team:
+        target_team_ids = [int(getattr(primary_team, "id", 0) or 0)]
     try:
         candidates = (
             SessionTask.objects
             .select_related('session__microcycle')
-            .filter(session__microcycle__team=primary_team, deleted_at__isnull=True)
+            .filter(session__microcycle__team_id__in=target_team_ids, deleted_at__isnull=True)
             .exclude(id=int(getattr(task, 'id', 0) or 0))
             .filter(block=str(task_profile.get('block') or getattr(task, 'block', '') or '').strip())
             .filter(duration_minutes=int(task_profile.get('duration_minutes') or getattr(task, 'duration_minutes', 0) or 0))
@@ -39682,6 +39702,7 @@ def _find_task_builder_duplicate_matches(primary_team, scope_key, task, *, limit
             session_obj = getattr(candidate, 'session', None)
             session_label = ''
             try:
+                candidate_team_name = ''
                 if _is_library_session(session_obj):
                     repo_label = _library_repository_for_task(candidate) or LIBRARY_REPOSITORY_TRADITIONAL
                     session_label = f'Biblioteca · {repo_label}'
@@ -39690,6 +39711,10 @@ def _find_task_builder_duplicate_matches(primary_team, scope_key, task, *, limit
                     focus = str(getattr(session_obj, 'focus', '') or '').strip()
                     if focus:
                         session_label = f'{session_label} · {focus}'
+                    candidate_team = getattr(getattr(session_obj, 'microcycle', None), 'team', None)
+                    candidate_team_name = str(getattr(candidate_team, 'display_name', '') or getattr(candidate_team, 'name', '') or '').strip()
+                    if candidate_team_name and (not primary_team or int(getattr(candidate_team, 'id', 0) or 0) != int(getattr(primary_team, 'id', 0) or 0)):
+                        session_label = f'{session_label} · {candidate_team_name}'
                 else:
                     session_label = f'Tarea #{int(getattr(candidate, "id", 0) or 0)}'
             except Exception:
@@ -39698,6 +39723,7 @@ def _find_task_builder_duplicate_matches(primary_team, scope_key, task, *, limit
                 'id': int(getattr(candidate, 'id', 0) or 0),
                 'title': str(getattr(candidate, 'title', '') or '').strip(),
                 'session_label': session_label,
+                'team_name': candidate_team_name,
                 'reason': reason,
                 'url': reverse(_task_builder_edit_route_name(scope_key), args=[int(getattr(candidate, 'id', 0) or 0)]),
             })
@@ -40148,6 +40174,10 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
     primary_team = _get_primary_team_for_request(request) or _team_from_request_param(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
+    try:
+        workspace = _get_active_workspace(request)
+    except Exception:
+        workspace = None
 
     # Guardrail: si hay un despliegue sin migraciones aplicadas, el editor puede caer en 500.
     # En lugar de eso, devolvemos un mensaje claro (y el traceback queda en logs).
@@ -40417,7 +40447,14 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             error = 'No se pudo guardar la tarea.'
 
     try:
-        duplicate_task_matches = _find_task_builder_duplicate_matches(primary_team, scope_key, task, limit=4) if task else []
+        duplicate_task_matches = _find_task_builder_duplicate_matches(
+            primary_team,
+            scope_key,
+            task,
+            limit=4,
+            workspace=workspace,
+            user=request.user,
+        ) if task else []
         if duplicate_task_matches:
             duplicate_task_warning = (
                 f'Ollana ha detectado {len(duplicate_task_matches)} posible(s) duplicado(s) de esta tarea.'

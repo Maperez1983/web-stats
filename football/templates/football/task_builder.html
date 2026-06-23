@@ -5304,7 +5304,11 @@
           {% for dup in duplicate_task_matches %}
             <a class="button" href="{{ dup.url }}" style="justify-content:space-between; text-align:left;">
               <span>#{{ dup.id }} · {{ dup.title|default:'Tarea' }}</span>
-              <span style="opacity:0.8;">{{ dup.session_label }} · {{ dup.reason }}</span>
+              <span style="opacity:0.8;">
+                {{ dup.session_label }}
+                {% if dup.team_name %} · {{ dup.team_name }}{% endif %}
+                · {{ dup.reason }}
+              </span>
             </a>
           {% endfor %}
         </div>

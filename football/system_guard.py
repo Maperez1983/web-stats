@@ -4513,38 +4513,69 @@ def _normalize_session_task_orders(session) -> None:
         return
 
 
-def _resolve_dedupe_target_team(*, workspace=None, page_context=None):
+def _resolve_dedupe_target_teams(*, workspace=None, page_context=None):
     team_id = 0
+    scan_all = False
     if isinstance(page_context, dict):
         team_id = _safe_int(page_context.get("team_id"), 0)
-    if not team_id and workspace:
-        team_id = _safe_int(getattr(workspace, "primary_team_id", 0), 0)
-    if not team_id:
-        return None
+        scan_all = bool(
+            page_context.get("scan_all_teams")
+            or page_context.get("workspace_wide")
+            or page_context.get("all_teams")
+        )
+    if team_id and not scan_all:
+        try:
+            team = Team.objects.filter(id=int(team_id)).first()
+        except Exception:
+            team = None
+        return [team] if team else []
+
+    team_ids = []
+    if workspace:
+        try:
+            team_ids.extend(
+                int(row.team_id)
+                for row in WorkspaceTeam.objects.filter(workspace=workspace).only("team_id")
+                if getattr(row, "team_id", None)
+            )
+        except Exception:
+            pass
+        if not team_ids and getattr(workspace, "primary_team_id", None):
+            team_ids.append(int(getattr(workspace, "primary_team_id", 0) or 0))
+    if team_id:
+        team_ids.insert(0, int(team_id))
+    team_ids = [int(tid) for tid in dict.fromkeys(team_ids) if int(tid or 0)]
+    if not team_ids:
+        return []
     try:
-        return Team.objects.filter(id=int(team_id)).first()
+        teams = list(Team.objects.filter(id__in=team_ids).order_by("name", "id"))
     except Exception:
-        return None
+        teams = []
+    if team_id and not scan_all:
+        teams = [team for team in teams if int(getattr(team, "id", 0) or 0) == int(team_id)]
+    return teams
 
 
 def _autofix_dedupe_session_tasks(*, workspace=None, page_context=None) -> dict:
-    team = _resolve_dedupe_target_team(workspace=workspace, page_context=page_context)
-    if not team:
+    teams = _resolve_dedupe_target_teams(workspace=workspace, page_context=page_context)
+    if not teams:
         return {"ok": False, "action": "dedupe_session_tasks", "error": "team_not_resolved"}
 
+    team_ids = [int(getattr(team, "id", 0) or 0) for team in teams if getattr(team, "id", None)]
     try:
         tasks = list(
             SessionTask.objects
             .select_related("session__microcycle")
-            .filter(session__microcycle__team=team, deleted_at__isnull=True)
-            .order_by("session_id", "block", "duration_minutes", "id")
+            .filter(session__microcycle__team_id__in=team_ids, deleted_at__isnull=True)
+            .order_by("session__microcycle__team_id", "session_id", "block", "duration_minutes", "id")
         )
     except Exception as exc:
         return {"ok": False, "action": "dedupe_session_tasks", "error": f"{exc.__class__.__name__}: {exc}"}
 
-    groups = {}
+    groups_by_team = {}
     for task in tasks:
         try:
+            team_id = int(getattr(getattr(getattr(task, "session", None), "microcycle", None), "team_id", 0) or 0)
             profile = _task_duplicate_profile(task)
             key = (
                 str(profile.get("scope") or "coach"),
@@ -4556,62 +4587,87 @@ def _autofix_dedupe_session_tasks(*, workspace=None, page_context=None) -> dict:
                 profile.get("rules_norm") or "",
                 profile.get("signature") or "",
             )
-            groups.setdefault(key, []).append((task, profile))
+            groups_by_team.setdefault(team_id, {}).setdefault(key, []).append((task, profile))
         except Exception:
             continue
 
     deleted = []
     survivors = []
+    team_results = []
     touched_sessions = set()
-    for key, rows in groups.items():
-        if len(rows) < 2:
-            continue
-        def _rank(row):
-            task, profile = row
-            meta = task.tactical_layout.get("meta") if isinstance(task.tactical_layout, dict) and isinstance(task.tactical_layout.get("meta"), dict) else {}
-            score = 0
-            if getattr(task, "task_pdf", None):
-                score += 4
-            if getattr(task, "task_preview_image", None):
-                score += 2
-            if profile.get("builder_payload_signature"):
-                score += 2
-            if profile.get("submission_uid"):
-                score += 1
-            if meta.get("library_source_task_id"):
-                score += 1
-            score += min(3, int(getattr(task, "updated_at", None) is not None))
-            return (score, int(getattr(task, "updated_at", None).timestamp()) if getattr(task, "updated_at", None) else 0, int(getattr(task, "id", 0) or 0))
-
-        rows_sorted = sorted(rows, key=_rank, reverse=True)
-        keep_task, keep_profile = rows_sorted[0]
-        survivors.append({
-            "id": int(getattr(keep_task, "id", 0) or 0),
-            "title": str(getattr(keep_task, "title", "") or "")[:160],
-            "group_size": len(rows),
-        })
-        for task, profile in rows_sorted[1:]:
-            try:
-                write_task_backup(
-                    task,
-                    kind="session_task",
-                    reason="dedupe_delete",
-                    actor_username="system_guard",
-                )
-            except Exception:
-                pass
-            try:
-                task.deleted_at = datetime.now(timezone.utc)
-                task.deleted_by = None
-                task.save(update_fields=["deleted_at", "deleted_by"])
-                deleted.append({
-                    "id": int(getattr(task, "id", 0) or 0),
-                    "title": str(getattr(task, "title", "") or "")[:160],
-                })
-                if getattr(task, "session_id", None):
-                    touched_sessions.add(int(task.session_id))
-            except Exception:
+    for team in teams:
+        team_id = int(getattr(team, "id", 0) or 0)
+        groups = groups_by_team.get(team_id, {})
+        team_deleted = []
+        team_survivors = []
+        for key, rows in groups.items():
+            if len(rows) < 2:
                 continue
+
+            def _rank(row):
+                task, profile = row
+                meta = task.tactical_layout.get("meta") if isinstance(task.tactical_layout, dict) and isinstance(task.tactical_layout.get("meta"), dict) else {}
+                score = 0
+                if getattr(task, "task_pdf", None):
+                    score += 4
+                if getattr(task, "task_preview_image", None):
+                    score += 2
+                if profile.get("builder_payload_signature"):
+                    score += 2
+                if profile.get("submission_uid"):
+                    score += 1
+                if meta.get("library_source_task_id"):
+                    score += 1
+                score += min(3, int(getattr(task, "updated_at", None) is not None))
+                return (
+                    score,
+                    int(getattr(task, "updated_at", None).timestamp()) if getattr(task, "updated_at", None) else 0,
+                    int(getattr(task, "id", 0) or 0),
+                )
+
+            rows_sorted = sorted(rows, key=_rank, reverse=True)
+            keep_task, keep_profile = rows_sorted[0]
+            team_survivors.append({
+                "team_id": team_id,
+                "id": int(getattr(keep_task, "id", 0) or 0),
+                "title": str(getattr(keep_task, "title", "") or "")[:160],
+                "group_size": len(rows),
+            })
+            for task, profile in rows_sorted[1:]:
+                try:
+                    write_task_backup(
+                        task,
+                        kind="session_task",
+                        reason="dedupe_delete",
+                        actor_username="system_guard",
+                    )
+                except Exception:
+                    pass
+                try:
+                    task.deleted_at = datetime.now(timezone.utc)
+                    task.deleted_by = None
+                    task.save(update_fields=["deleted_at", "deleted_by"])
+                    row_info = {
+                        "team_id": team_id,
+                        "id": int(getattr(task, "id", 0) or 0),
+                        "title": str(getattr(task, "title", "") or "")[:160],
+                    }
+                    deleted.append(row_info)
+                    team_deleted.append(row_info)
+                    if getattr(task, "session_id", None):
+                        touched_sessions.add(int(task.session_id))
+                except Exception:
+                    continue
+
+        survivors.extend(team_survivors)
+        team_results.append({
+            "team_id": team_id,
+            "team_name": str(getattr(team, "display_name", None) or getattr(team, "name", "") or "")[:160],
+            "deleted_count": len(team_deleted),
+            "groups_collapsed": len(team_survivors),
+            "survivors": team_survivors[:100],
+            "deleted": team_deleted[:100],
+        })
 
     for session_id in sorted(touched_sessions):
         try:
@@ -4621,15 +4677,21 @@ def _autofix_dedupe_session_tasks(*, workspace=None, page_context=None) -> dict:
         except Exception:
             pass
 
-    return {
+    scope_label = "workspace" if len(teams) > 1 else "team"
+    result = {
         "ok": True,
         "action": "dedupe_session_tasks",
-        "team_id": int(getattr(team, "id", 0) or 0),
+        "scope": scope_label,
+        "team_ids": team_ids,
         "deleted_count": len(deleted),
         "deleted": deleted[:200],
         "groups_collapsed": len(survivors),
         "survivors": survivors[:200],
+        "team_results": team_results[:100],
     }
+    if len(teams) == 1:
+        result["team_id"] = int(team_ids[0]) if team_ids else 0
+    return result
 
 
 def _autofix_ollama_pull(model_name: str) -> dict:
@@ -10032,7 +10094,7 @@ def _tool_reason(tool_key: str, intent: str, question: str) -> str:
         "auto_fix": "El usuario pide corrección segura sobre incidencias conocidas.",
         "regenerate_task_previews": "La petición apunta a regenerar previews de tareas.",
         "ai_trainer_reindex": "La petición apunta a reindexar la base de IA-Trainer.",
-        "dedupe_session_tasks": "La petición apunta a localizar y eliminar duplicados de tareas.",
+        "dedupe_session_tasks": "La petición apunta a localizar y eliminar duplicados de tareas en todos los equipos del workspace.",
         "check_status": "La petición requiere diagnóstico del estado actual.",
         "inspect_recent_errors": "La petición menciona errores, logs o síntomas recientes del sistema.",
         "check_critical_routes": "La petición pide revisar rutas o endpoints críticos.",
@@ -10239,7 +10301,7 @@ def _serialize_execution(tool_key: str, result: dict) -> dict:
     }
 
 
-def _execute_tools(requested_tools: list[str], *, smoke_verbosity: int = 1, workspace=None, question: str = "") -> list[dict]:
+def _execute_tools(requested_tools: list[str], *, smoke_verbosity: int = 1, workspace=None, question: str = "", page_context=None) -> list[dict]:
     executions = []
     for tool_key in requested_tools or []:
         if tool_key == "check_status":
@@ -10273,7 +10335,7 @@ def _execute_tools(requested_tools: list[str], *, smoke_verbosity: int = 1, work
         elif tool_key == "ai_trainer_reindex":
             result = _autofix_ai_trainer_reindex()
         elif tool_key == "dedupe_session_tasks":
-            result = _autofix_dedupe_session_tasks(workspace=workspace)
+            result = _autofix_dedupe_session_tasks(workspace=workspace, page_context=page_context)
         elif tool_key == "trigger_remote_deploy":
             result = _trigger_remote_deploy()
         elif tool_key == "trigger_remote_rollback":
@@ -10887,6 +10949,7 @@ def run_system_guard_chat(
             smoke_verbosity=smoke_verbosity,
             workspace=workspace,
             question=question,
+            page_context=page_context,
         )
         post_publish_executions = _run_post_publish_verification_loop(
             executed_tools,

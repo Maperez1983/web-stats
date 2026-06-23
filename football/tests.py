@@ -1300,6 +1300,79 @@ class SystemGuardTests(TestCase):
         self.assertEqual(SessionTask.objects.filter(session=session, deleted_at__isnull=False).count(), 1)
         self.assertTrue(SessionTask.objects.filter(id=keep.id, deleted_at__isnull=True).exists())
 
+    @patch('football.system_guard.run_system_healthcheck', return_value={
+        'ok': True,
+        'database': {'ok': True, 'detail': 'query ok'},
+        'paths': {},
+        'dependencies': {},
+    })
+    def test_system_guard_can_dedupe_session_tasks_across_workspace(self, *_mocks):
+        other_team = Team.objects.create(name='Guard Team 2', slug='guard-team-2', is_primary=False)
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=other_team, is_default=False)
+
+        microcycle_a = TrainingMicrocycle.objects.create(
+            team=self.team,
+            title='Microciclo dedupe A',
+            week_start=date(2026, 3, 1),
+            week_end=date(2026, 3, 7),
+        )
+        session_a = TrainingSession.objects.create(
+            microcycle=microcycle_a,
+            session_date=date(2026, 3, 4),
+            focus='Sesión dedupe A',
+            duration_minutes=90,
+        )
+        microcycle_b = TrainingMicrocycle.objects.create(
+            team=other_team,
+            title='Microciclo dedupe B',
+            week_start=date(2026, 3, 1),
+            week_end=date(2026, 3, 7),
+        )
+        session_b = TrainingSession.objects.create(
+            microcycle=microcycle_b,
+            session_date=date(2026, 3, 5),
+            focus='Sesión dedupe B',
+            duration_minutes=90,
+        )
+
+        for session in (session_a, session_b):
+            SessionTask.objects.create(
+                session=session,
+                title='Juego ludico preparación física',
+                block=SessionTask.BLOCK_CONDITIONING,
+                duration_minutes=20,
+                objective='Activación con carrera y movilidad.',
+                coaching_points='Consigna uno.',
+                confrontation_rules='Regla uno.',
+                tactical_layout={'meta': {'scope': 'fitness'}},
+            )
+            SessionTask.objects.create(
+                session=session,
+                title='Juego ludico preparación física',
+                block=SessionTask.BLOCK_CONDITIONING,
+                duration_minutes=20,
+                objective='Activación con carrera y movilidad.',
+                coaching_points='Consigna uno.',
+                confrontation_rules='Regla uno.',
+                tactical_layout={'meta': {'scope': 'fitness'}},
+            )
+
+        result = system_guard.run_system_guard_chat(
+            question='Localiza y elimina duplicados de tareas en todo el workspace.',
+            workspace=self.workspace,
+            page_context={'workspace_id': self.workspace.id, 'scan_all_teams': True},
+            maintenance_action='dedupe_session_tasks',
+            execute_confirmed=True,
+            autonomy_mode='operator',
+        )
+        maintenance = result['report']['maintenance_action']
+        self.assertTrue(maintenance['ok'])
+        self.assertEqual(maintenance['scope'], 'workspace')
+        self.assertEqual(maintenance['deleted_count'], 2)
+        self.assertEqual(sorted(maintenance['team_ids']), sorted([self.team.id, other_team.id]))
+        self.assertEqual(SessionTask.objects.filter(deleted_at__isnull=True, session__microcycle__team__in=[self.team, other_team]).count(), 2)
+        self.assertEqual(SessionTask.objects.filter(deleted_at__isnull=False, session__microcycle__team__in=[self.team, other_team]).count(), 2)
+
     def test_detect_proactive_incidents_builds_runtime_detector_rows(self):
         report = {
             'ok': False,
@@ -5115,6 +5188,62 @@ class SessionsTaskBuilderSubmitTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Duplicados detectados por Ollana')
         self.assertContains(response, 'Juego lúdico preparación física')
+
+    def test_duplicate_task_is_flagged_across_workspace_teams(self):
+        other_team = Team.objects.create(
+            name='Equipo Builder B',
+            slug='equipo-builder-b',
+            short_name='BUB',
+            is_primary=False,
+            group=self.group,
+        )
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=other_team, is_default=False)
+        other_microcycle = TrainingMicrocycle.objects.create(
+            team=other_team,
+            title='Microciclo alterno',
+            week_start=date(2026, 3, 1),
+            week_end=date(2026, 3, 7),
+        )
+        other_session = TrainingSession.objects.create(
+            microcycle=other_microcycle,
+            session_date=date(2026, 3, 5),
+            focus='Sesión alterna',
+            duration_minutes=90,
+        )
+        SessionTask.objects.create(
+            session=other_session,
+            title='Juego lúdico preparación física',
+            block=SessionTask.BLOCK_CONDITIONING,
+            duration_minutes=20,
+            objective='Activación con carrera y movilidad.',
+            coaching_points='',
+            confrontation_rules='',
+            tactical_layout={'meta': {'scope': 'fitness'}},
+        )
+        base_task = SessionTask.objects.create(
+            session=TrainingSession.objects.create(
+                microcycle=TrainingMicrocycle.objects.create(
+                    team=self.team,
+                    title='Microciclo principal',
+                    week_start=date(2026, 3, 1),
+                    week_end=date(2026, 3, 7),
+                ),
+                session_date=date(2026, 3, 4),
+                focus='Sesión principal',
+                duration_minutes=90,
+            ),
+            title='Juego lúdico preparación física',
+            block=SessionTask.BLOCK_CONDITIONING,
+            duration_minutes=20,
+            objective='Activación con carrera y movilidad.',
+            coaching_points='',
+            confrontation_rules='',
+            tactical_layout={'meta': {'scope': 'fitness'}},
+        )
+
+        response = self.client.get(reverse('sessions-fitness-task-edit', args=[base_task.id]), secure=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Duplicados detectados por Ollana')
 
 
 class CriticalPagesSmokeTests(TestCase):
