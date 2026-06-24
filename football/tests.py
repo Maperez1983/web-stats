@@ -4028,6 +4028,20 @@ class SystemGuardTests(TestCase):
         self.assertIn('databases', role_context['knowledge_domains'])
         self.assertIn('system diagnostics', ' '.join(role_context['knowledge_targets']))
 
+    def test_operator_role_context_includes_programador_senior_knowledge(self):
+        role_context = system_guard._operator_role_context(
+            page_context={
+                'page': 'dashboard-home',
+                'workspace_id': self.workspace.id,
+                'team_id': self.team.id,
+            },
+            operator_profile={},
+        )
+        self.assertIn('programador_senior', role_context['active_roles'])
+        self.assertIn('software_design', role_context['knowledge_domains'])
+        self.assertIn('refactoring', role_context['knowledge_domains'])
+        self.assertIn('test coverage', ' '.join(role_context['knowledge_targets']))
+
     def test_system_brain_snapshot_exposes_informatician_senior_role(self):
         brain = system_guard._system_brain_snapshot(
             self.workspace,
@@ -4036,6 +4050,16 @@ class SystemGuardTests(TestCase):
             planner={'task': {'target_summary': 'Revisar sistema', 'route_target': {}}},
         )
         self.assertIn('informatician_senior', brain['role_profile']['active_roles'])
+        self.assertTrue(brain['knows_system_map'])
+
+    def test_system_brain_snapshot_exposes_programador_senior_role(self):
+        brain = system_guard._system_brain_snapshot(
+            self.workspace,
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+            operator_profile={},
+            planner={'task': {'target_summary': 'Revisar sistema', 'route_target': {}}},
+        )
+        self.assertIn('programador_senior', brain['role_profile']['active_roles'])
         self.assertTrue(brain['knows_system_map'])
 
     @patch('football.system_guard.local_llm_config', return_value={
