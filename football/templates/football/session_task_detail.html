@@ -59,6 +59,13 @@
         --line: rgba(18, 32, 51, 0.12);
         --ui-button-text: #122033;
         --ui-button-muted-text: #4b5563;
+        --presentation-surface: rgba(255, 252, 247, 0.96);
+        --presentation-surface-strong: rgba(248, 251, 255, 0.98);
+        --presentation-border: rgba(18, 32, 51, 0.12);
+        --presentation-text: #122033;
+        --presentation-text-muted: rgba(18, 32, 51, 0.74);
+        --presentation-button-bg: rgba(255, 255, 255, 0.92);
+        --presentation-button-text: #122033;
         color: var(--ink);
         background:
           radial-gradient(circle at top left, rgba(15, 118, 110, 0.16), transparent 22%),
@@ -85,14 +92,18 @@
       body.session-task-detail-page.is-presentation .hero-card,
       body.session-task-detail-page.is-presentation .preview-stadium,
       body.session-task-detail-page.is-presentation pre,
-      body.session-task-detail-page.is-presentation .resource-library {
-        border-color: rgba(18, 32, 51, 0.12);
-        background: rgba(255, 252, 247, 0.94);
+      body.session-task-detail-page.is-presentation .resource-library,
+      body.session-task-detail-page.is-presentation .layers-panel,
+      body.session-task-detail-page.is-presentation details.edit-section {
+        border-color: var(--presentation-border);
+        background: var(--presentation-surface);
         box-shadow: 0 12px 28px rgba(82, 63, 35, 0.08);
       }
       body.session-task-detail-page.is-presentation .meta,
-      body.session-task-detail-page.is-presentation .hero-note {
-        color: rgba(18, 32, 51, 0.74);
+      body.session-task-detail-page.is-presentation .hero-note,
+      body.session-task-detail-page.is-presentation .resource-title,
+      body.session-task-detail-page.is-presentation .layers-panel h3 {
+        color: var(--presentation-text-muted);
       }
       body.session-task-detail-page.is-presentation .coach-summary,
       body.session-task-detail-page.is-presentation .presentation-workbench,
@@ -180,15 +191,18 @@
       }
       body.session-task-detail-page.is-presentation .button,
       body.session-task-detail-page.is-presentation .animation-step-btn,
-      body.session-task-detail-page.is-presentation .layer-item button {
-        color: #122033 !important;
+      body.session-task-detail-page.is-presentation .layer-item button,
+      body.session-task-detail-page.is-presentation .resource-btn {
+        color: var(--presentation-button-text) !important;
+        -webkit-text-fill-color: var(--presentation-button-text) !important;
         border-color: rgba(18, 32, 51, 0.16) !important;
-        background: rgba(255, 255, 255, 0.88) !important;
+        background: var(--presentation-button-bg) !important;
         box-shadow: 0 10px 22px rgba(82, 63, 35, 0.08);
       }
       body.session-task-detail-page.is-presentation .button:hover,
       body.session-task-detail-page.is-presentation .animation-step-btn:hover,
-      body.session-task-detail-page.is-presentation .layer-item button:hover {
+      body.session-task-detail-page.is-presentation .layer-item button:hover,
+      body.session-task-detail-page.is-presentation .resource-btn:hover {
         border-color: rgba(15, 118, 110, 0.34) !important;
         background: rgba(255, 255, 255, 0.98) !important;
         box-shadow: 0 12px 28px rgba(82, 63, 35, 0.14);
@@ -244,7 +258,7 @@
       }
       body.session-task-detail-page.is-presentation .task-detail-tab {
         border-color: rgba(18, 32, 51, 0.16);
-        background: rgba(255, 255, 255, 0.9);
+        background: rgba(255, 255, 255, 0.94);
         color: #122033 !important;
       }
       body.session-task-detail-page.is-presentation .task-detail-tab.is-active {
@@ -271,7 +285,7 @@
       }
       body.session-task-detail-page.is-presentation .task-edit-tab {
         border-color: rgba(18, 32, 51, 0.16);
-        background: rgba(255, 255, 255, 0.88);
+        background: rgba(255, 255, 255, 0.94);
         color: #122033 !important;
       }
       .task-edit-tab.is-active {
@@ -714,9 +728,15 @@
       }
       body.session-task-detail-page.is-presentation details.edit-section {
         border-color: rgba(18, 32, 51, 0.2);
-        background: rgba(255, 255, 255, 0.92);
+        background: var(--presentation-surface);
       }
       body.session-task-detail-page.is-presentation details.edit-section summary {
+        color: #122033;
+      }
+      body.session-task-detail-page.is-presentation label,
+      body.session-task-detail-page.is-presentation .sheet-item strong,
+      body.session-task-detail-page.is-presentation .hero-card h3,
+      body.session-task-detail-page.is-presentation h2 {
         color: #122033;
       }
       label {
@@ -829,6 +849,31 @@
         margin-top: 0.5rem;
         font-size: 0.8rem;
         color: rgba(225, 236, 255, 0.82);
+      }
+      body.session-task-detail-page.is-presentation .layers-panel,
+      body.session-task-detail-page.is-presentation .resource-library {
+        color: #122033;
+      }
+      body.session-task-detail-page.is-presentation .layer-item {
+        background: rgba(255, 255, 255, 0.9);
+        border-color: rgba(18, 32, 51, 0.12);
+        color: #122033;
+      }
+      body.session-task-detail-page.is-presentation .layer-item button,
+      body.session-task-detail-page.is-presentation .animation-step-btn,
+      body.session-task-detail-page.is-presentation .resource-btn {
+        font-weight: 800;
+      }
+      body.session-task-detail-page.is-presentation input,
+      body.session-task-detail-page.is-presentation textarea,
+      body.session-task-detail-page.is-presentation select {
+        background: rgba(255, 255, 255, 0.96);
+        color: #122033;
+        border-color: rgba(18, 32, 51, 0.16);
+      }
+      body.session-task-detail-page.is-presentation input::placeholder,
+      body.session-task-detail-page.is-presentation textarea::placeholder {
+        color: rgba(18, 32, 51, 0.52);
       }
       body.session-task-detail-page.is-presentation .graphic-status,
       body.session-task-detail-page.is-presentation #animation-status,
