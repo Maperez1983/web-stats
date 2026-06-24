@@ -436,6 +436,7 @@
     }
   };
   const helpMarkers = ['como', 'cómo', 'ayudame', 'ayúdame', 'explica', 'que hace', 'qué hace', 'para que sirve', 'guia', 'guía'];
+  const inspectMarkers = ['inspecciona', 'inspeccionar', 'observa', 'mira', 'comprueba', 'revisa esta ficha', 'revisa la ficha', 'qué ves', 'que ves', 'dime qué ves', 'dime que ves'];
   const screenMarkers = ['esta pantalla', 'esta pagina', 'esta página', 'donde estoy', 'qué puedo hacer aquí', 'que puedo hacer aqui'];
   const issueMarkers = ['no me deja', 'no funciona', 'error', 'falla', 'fallo', 'problema', 'no aparece', 'no se muestra', 'va lento', 'se ha roto'];
   const complexTaskMarkers = ['codigo', 'código', 'trabaja hasta', 'arregla', 'mejora', 'haz que', 'consigue', 'profesional', '3d', 'estadio'];
@@ -474,6 +475,14 @@
       ],
       suggestions: ['Llévame a vídeo análisis', 'Ayúdame con esta pantalla', 'Abre biblioteca de tareas'],
     },
+    'session-task-detail': {
+      title: 'Ficha de tarea',
+      tips: [
+        'Aquí revisas la ficha visible de la tarea, su presentación 2D/3D, la secuencia y el bloque editable.',
+        'Si algo no se ve bien, lo correcto es inspeccionar esta ficha antes de navegar a otro módulo.',
+      ],
+      suggestions: ['Inspecciona esta ficha', 'Revisa si el título se ve bien', 'Comprueba la representación 3D'],
+    },
   };
   const syncSuggestionRow = () => {
     if (!suggestionsEl) return;
@@ -498,6 +507,7 @@
       analysis: 'Ej.: llévame a vídeo análisis, ayúdame con esta pantalla, revisa una incidencia de clips...',
       'dashboard-home': 'Ej.: introduce un jugador en plantilla, quiero ir a biblioteca de tareas, revisa el sistema...',
       'match-hub': 'Ej.: ayúdame con esta pantalla, llévame a vídeo análisis, revisa una incidencia en partido...',
+      'session-task-detail': 'Ej.: inspecciona esta ficha, revisa el título, comprueba la representación 3D, dime qué falla visualmente...',
     };
     inputEl.placeholder = placeholderMap[page] || 'Ej.: llévame a vídeo análisis, abre biblioteca de tareas, ayúdame con esta pantalla, no me deja guardar...';
   };
@@ -532,6 +542,8 @@
     const text = normalizeText(message);
     if (!text) return null;
     const hasVerb = navigationVerbs.some((token) => text.includes(normalizeText(token)));
+    const pageKey = String(currentPageContext().page || '').trim();
+    if (pageKey === 'session-task-detail' && !hasVerb) return null;
     if (!hasVerb && !routeCatalog.some((route) => route.keywords.some((keyword) => text.includes(normalizeText(keyword))))) return null;
     let best = null;
     routeCatalog.forEach((route) => {
@@ -621,6 +633,10 @@
   };
   const classifyIntent = (message) => {
     const text = normalizeText(message);
+    const pageKey = String(currentPageContext().page || '').trim();
+    if (pageKey === 'session-task-detail' && inspectMarkers.some((item) => text.includes(normalizeText(item)))) {
+      return { kind: 'inspect' };
+    }
     const navigationRoute = detectNavigationIntent(message);
     if (navigationRoute) return { kind: 'navigate', route: navigationRoute };
     if (screenMarkers.some((item) => text.includes(normalizeText(item)))) return { kind: 'help' };
@@ -1620,11 +1636,20 @@
       const visualSnapshot = gatherVisualSnapshot();
       const moduleSnapshot = gatherModuleSnapshot();
       const healthSnapshot = gatherHealthSnapshot(runtimeSnapshot, visualSnapshot, moduleSnapshot);
+      const taskTitle = String(document.querySelector('main h1')?.textContent || document.title || '').trim().slice(0, 160);
+      const activeTab = String(document.querySelector('.task-detail-tab.is-active')?.textContent || '').trim().slice(0, 40);
+      const taskPanelHeading = String(document.querySelector('.presentation-workbench h2, .task-edit-panel h2')?.textContent || '').trim().slice(0, 80);
       return {
     page: "{{ request.resolver_match.url_name|default:''|escapejs }}",
     path: window.location.pathname,
     browser_target_url: window.location.href,
     title: document.title,
+    task_detail: {
+      title: taskTitle,
+      active_tab: activeTab,
+      panel_heading: taskPanelHeading,
+      analysis_block_open: Boolean(document.querySelector('details[open][data-task-edit-panel="descriptive"]')),
+    },
     team_id: Number("{{ active_team.id|default:0 }}") || 0,
     team_name: "{{ active_team.name|default:''|escapejs }}",
     workspace_id: Number("{{ active_workspace.id|default:0 }}") || 0,
@@ -1664,6 +1689,9 @@
       resetPending();
       return;
     }
+    if (intent.kind === 'inspect') {
+      setStatus('Inspeccionando la ficha visible…');
+    }
     if (intent.kind === 'help') {
       const text = buildHelpResponse(message, detectNavigationIntent(message));
       renderMessage('assistant', text);
@@ -1692,7 +1720,7 @@
         : ((shellEl?.dataset.uiMode === 'operator' || implicitOperator) ? 'operator' : String(autonomyEl?.value || 'advisor'));
       const resolvedAudience = usePreset
         ? String(audienceEl?.value || 'guided')
-        : ((shellEl?.dataset.uiMode === 'operator' || implicitOperator) ? 'technical' : String(audienceEl?.value || 'guided'));
+        : ((shellEl?.dataset.uiMode === 'operator' || implicitOperator || intent.kind === 'inspect') ? 'technical' : String(audienceEl?.value || 'guided'));
       const resp = await fetch(apiUrl, {
         method: 'POST',
         credentials: 'same-origin',
