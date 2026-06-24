@@ -38,6 +38,12 @@ services:
         value: "true"
       - key: AI_TRAINER_OLLAMA_URL
         value: "http://127.0.0.1:11434"
+      - key: AI_TRAINER_LOCAL_VISION_MODELS
+        value: "llama3.2-vision,qwen2.5-vl,minicpm-v"
+      - key: OLLAMA_VISION_MODELS
+        value: "llama3.2-vision,qwen2.5-vl,minicpm-v"
+      - key: OLLAMA_IMAGE_ANALYSIS_MODEL
+        value: "llama3.2-vision"
       # Render expone el hostname externo en esta variable; `webstats/settings.py`
       # lo usa para completar `ALLOWED_HOSTS` y CSRF trusted origins.
       - key: RENDER_EXTERNAL_HOSTNAME
@@ -92,6 +98,12 @@ services:
         value: "false"
       - key: OLLANA_RENDER_API_KEY
         sync: false
+      - key: AI_TRAINER_LOCAL_VISION_MODELS
+        value: "llama3.2-vision,qwen2.5-vl,minicpm-v"
+      - key: OLLAMA_VISION_MODELS
+        value: "llama3.2-vision,qwen2.5-vl,minicpm-v"
+      - key: OLLAMA_IMAGE_ANALYSIS_MODEL
+        value: "llama3.2-vision"
       - key: SECRET_KEY
         sync: false
       - key: DATABASE_URL
