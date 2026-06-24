@@ -1408,7 +1408,7 @@
           </div>
           <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
             <button class="button" type="submit">Guardar cambios</button>
-            <a class="button secondary" href="{% url task_builder_edit_route_name task.id %}">Abrir editor de pizarra</a>
+            <a class="button secondary" href="{{ edit_graphic_url|default:presentation_url }}">Abrir edición de pizarra</a>
           </div>
         </form>
         <form method="post" style="margin-top:0.7rem; display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
