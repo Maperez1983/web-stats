@@ -4154,6 +4154,36 @@ class SystemGuardTests(TestCase):
         self.assertIn('keyboard_navigation', role_context['knowledge_domains'])
         self.assertIn('accessible interactions', ' '.join(role_context['knowledge_targets']))
 
+    def test_operator_role_context_includes_head_coach_knowledge(self):
+        role_context = system_guard._operator_role_context(
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+            operator_profile={},
+        )
+        self.assertIn('head_coach', role_context['active_roles'])
+        self.assertIn('game_model', role_context['knowledge_domains'])
+        self.assertIn('session_design', role_context['knowledge_domains'])
+        self.assertIn('translate principles into tasks', ' '.join(role_context['knowledge_targets']))
+
+    def test_operator_role_context_includes_physical_preparator_knowledge(self):
+        role_context = system_guard._operator_role_context(
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+            operator_profile={},
+        )
+        self.assertIn('physical_preparator', role_context['active_roles'])
+        self.assertIn('conditioning', role_context['knowledge_domains'])
+        self.assertIn('periodization', role_context['knowledge_domains'])
+        self.assertIn('control load', ' '.join(role_context['knowledge_targets']))
+
+    def test_operator_role_context_includes_load_manager_knowledge(self):
+        role_context = system_guard._operator_role_context(
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+            operator_profile={},
+        )
+        self.assertIn('load_manager', role_context['active_roles'])
+        self.assertIn('workload_monitoring', role_context['knowledge_domains'])
+        self.assertIn('acute_chronic_load', role_context['knowledge_domains'])
+        self.assertIn('avoid spikes', ' '.join(role_context['knowledge_targets']))
+
     def test_operator_role_context_includes_incident_responder_knowledge(self):
         role_context = system_guard._operator_role_context(
             page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
@@ -4295,6 +4325,36 @@ class SystemGuardTests(TestCase):
             planner={'task': {'target_summary': 'Revisar sistema', 'route_target': {}}},
         )
         self.assertIn('accessibility_reviewer', brain['role_profile']['active_roles'])
+        self.assertTrue(brain['knows_system_map'])
+
+    def test_system_brain_snapshot_exposes_head_coach_role(self):
+        brain = system_guard._system_brain_snapshot(
+            self.workspace,
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+            operator_profile={},
+            planner={'task': {'target_summary': 'Revisar sistema', 'route_target': {}}},
+        )
+        self.assertIn('head_coach', brain['role_profile']['active_roles'])
+        self.assertTrue(brain['knows_system_map'])
+
+    def test_system_brain_snapshot_exposes_physical_preparator_role(self):
+        brain = system_guard._system_brain_snapshot(
+            self.workspace,
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+            operator_profile={},
+            planner={'task': {'target_summary': 'Revisar sistema', 'route_target': {}}},
+        )
+        self.assertIn('physical_preparator', brain['role_profile']['active_roles'])
+        self.assertTrue(brain['knows_system_map'])
+
+    def test_system_brain_snapshot_exposes_load_manager_role(self):
+        brain = system_guard._system_brain_snapshot(
+            self.workspace,
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+            operator_profile={},
+            planner={'task': {'target_summary': 'Revisar sistema', 'route_target': {}}},
+        )
+        self.assertIn('load_manager', brain['role_profile']['active_roles'])
         self.assertTrue(brain['knows_system_map'])
 
     def test_system_brain_snapshot_exposes_incident_responder_role(self):

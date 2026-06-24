@@ -4194,6 +4194,24 @@ ROLE_KNOWLEDGE_PACKS = {
         "knowledge_targets": ["accessible interactions", "visible focus", "sufficient contrast", "semantic clarity", "keyboard support"],
         "guidance": ["Piensa como revisor de accesibilidad: comprueba contraste, foco, semántica y navegación sin ratón."],
     },
+    "head_coach": {
+        "domains": ["game_model", "session_design", "methodology", "decision_making", "feedback_loop", "training_progression"],
+        "visual_signals": ["unclear objective", "disconnected tasks", "poor sequencing", "weak progression", "mixed message"],
+        "knowledge_targets": ["align sessions to game model", "translate principles into tasks", "make objectives explicit", "organize progression"],
+        "guidance": ["Piensa como entrenador principal: convierte la idea de juego en sesiones claras, progresivas y coherentes."],
+    },
+    "physical_preparator": {
+        "domains": ["conditioning", "periodization", "recovery", "injury_prevention", "warmup", "intensity_control", "monitoring"],
+        "visual_signals": ["fatigue build-up", "load spike", "poor recovery", "insufficient warmup", "overexertion"],
+        "knowledge_targets": ["control load", "protect players", "optimize recovery", "match intensity to objective"],
+        "guidance": ["Piensa como preparador físico: mide carga, controla fatiga y ajusta intensidad y recuperación a cada sesión."],
+    },
+    "load_manager": {
+        "domains": ["workload_monitoring", "acute_chronic_load", "session_balance", "player_fatigue", "readiness", "recovery_optimization"],
+        "visual_signals": ["load imbalance", "training spikes", "monotony", "insufficient rest", "readiness drop"],
+        "knowledge_targets": ["balance the microcycle", "detect fatigue early", "avoid spikes", "keep sessions sustainable"],
+        "guidance": ["Piensa como gestor de carga: distribuye el estímulo en la semana para rendir sin romper al jugador."],
+    },
     "incident_responder": {
         "domains": ["triage", "containment", "impact_analysis", "communication", "recovery", "postmortem"],
         "visual_signals": ["active incident", "widespread failure", "repeated error", "service degradation"],
@@ -4364,6 +4382,9 @@ def _operator_role_context(*, page_context=None, operator_profile=None) -> dict:
     active_roles.append("ux_technical_reviewer")
     active_roles.append("ui_designer")
     active_roles.append("accessibility_reviewer")
+    active_roles.append("head_coach")
+    active_roles.append("physical_preparator")
+    active_roles.append("load_manager")
     active_roles.append("incident_responder")
     if task_id or "task" in page or "task" in route:
         active_roles.append("visual_auditor")
