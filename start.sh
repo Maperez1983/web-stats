@@ -23,7 +23,7 @@ if [ -z "${RUN_COLLECTSTATIC+x}" ]; then
   fi
 fi
 
-# Playwright: instala Chromium en build (`build.sh`) con `INSTALL_PLAYWRIGHT_BROWSERS=true`.
+# Playwright: instala navegadores en build (`build.sh`) con `INSTALL_PLAYWRIGHT_BROWSERS=true`.
 # Runtime NO instala nada por defecto (evita arranques lentos / "No open ports detected").
 _pw_build_flag="$(echo "${INSTALL_PLAYWRIGHT_BROWSERS:-false}" | tr '[:upper:]' '[:lower:]' | xargs)"
 _pw_rt_flag="$(echo "${INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME:-false}" | tr '[:upper:]' '[:lower:]' | xargs)"
@@ -31,7 +31,7 @@ _pw_rt_install="false"
 if [ "${_pw_rt_flag}" = "true" ] || [ "${_pw_rt_flag}" = "1" ] || [ "${_pw_rt_flag}" = "yes" ] || [ "${_pw_rt_flag}" = "on" ]; then
   _pw_rt_install="true"
 elif [ "${_pw_build_flag}" = "true" ] || [ "${_pw_build_flag}" = "1" ] || [ "${_pw_build_flag}" = "yes" ] || [ "${_pw_build_flag}" = "on" ]; then
-  echo "[boot] Aviso: INSTALL_PLAYWRIGHT_BROWSERS está pensado para el build. Runtime no instalará Chromium; usa INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME=true (no recomendado) si lo necesitas." >&2
+  echo "[boot] Aviso: INSTALL_PLAYWRIGHT_BROWSERS está pensado para el build. Runtime no instalará navegadores; usa INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME=true (no recomendado) si lo necesitas." >&2
 fi
 
 # Media root (uploads). In Render the repo path can be read-only at runtime; default to /tmp.
@@ -72,7 +72,7 @@ server_pid="$!"
 # Si alguien insiste en instalar Chromium en runtime, lo hacemos DESPUÉS de abrir el puerto.
 if [ "${_pw_rt_install}" = "true" ]; then
   export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-0}"
-  python -m playwright install chromium || true
+  python -m playwright install chromium firefox webkit || true
 fi
 
 trap 'kill -TERM "${server_pid}" 2>/dev/null || true' TERM INT

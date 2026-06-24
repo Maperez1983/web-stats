@@ -62,8 +62,8 @@ if [ "${_pw_flag}" = "true" ] || [ "${_pw_flag}" = "1" ] || [ "${_pw_flag}" = "y
   # build/runtime or across instances. Default to an "hermetic" install path bundled with the app.
   #
   # Users can override by explicitly setting PLAYWRIGHT_BROWSERS_PATH in the service env.
-  echo "Instalando Chromium (Playwright) con PLAYWRIGHT_BROWSERS_PATH=${PLAYWRIGHT_BROWSERS_PATH:-0} ..."
-  PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-0}" python -m playwright install chromium
+  echo "Instalando navegadores Playwright (chromium, firefox, webkit) con PLAYWRIGHT_BROWSERS_PATH=${PLAYWRIGHT_BROWSERS_PATH:-0} ..."
+  PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-0}" python -m playwright install chromium firefox webkit
 fi
 
 _build_migrate_flag="$(echo "${RUN_MIGRATIONS_AT_BUILD:-false}" | tr '[:upper:]' '[:lower:]' | xargs)"

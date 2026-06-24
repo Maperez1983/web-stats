@@ -26,9 +26,9 @@ if [ -z "${RUN_COLLECTSTATIC+x}" ]; then
   fi
 fi
 
-# Playwright (Chromium) es pesado (descarga ~160MB) y en Render puede hacer que el deploy falle
+# Playwright (chromium/firefox/webkit) es pesado (descarga bastante) y en Render puede hacer que el deploy falle
 # por "No open ports detected" si se ejecuta ANTES del bind del puerto.
-# Recomendación: instala Chromium en build (`build.sh`) con `INSTALL_PLAYWRIGHT_BROWSERS=true` y
+# Recomendación: instala navegadores en build (`build.sh`) con `INSTALL_PLAYWRIGHT_BROWSERS=true` y
 # `PLAYWRIGHT_BROWSERS_PATH=0`. En runtime NO instalamos nada por defecto.
 _pw_build_flag="$(echo "${INSTALL_PLAYWRIGHT_BROWSERS:-false}" | tr '[:upper:]' '[:lower:]' | xargs)"
 _pw_rt_flag="$(echo "${INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME:-false}" | tr '[:upper:]' '[:lower:]' | xargs)"
@@ -36,7 +36,7 @@ _pw_rt_install="false"
 if [ "${_pw_rt_flag}" = "true" ] || [ "${_pw_rt_flag}" = "1" ] || [ "${_pw_rt_flag}" = "yes" ] || [ "${_pw_rt_flag}" = "on" ]; then
   _pw_rt_install="true"
 elif [ "${_pw_build_flag}" = "true" ] || [ "${_pw_build_flag}" = "1" ] || [ "${_pw_build_flag}" = "yes" ] || [ "${_pw_build_flag}" = "on" ]; then
-  echo "[boot] Aviso: INSTALL_PLAYWRIGHT_BROWSERS está pensado para el build. Runtime no instalará Chromium; usa INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME=true (no recomendado) si lo necesitas." >&2
+  echo "[boot] Aviso: INSTALL_PLAYWRIGHT_BROWSERS está pensado para el build. Runtime no instalará navegadores; usa INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME=true (no recomendado) si lo necesitas." >&2
 fi
 
 if [ "${RUN_MIGRATIONS}" = "true" ]; then
@@ -137,7 +137,7 @@ if [ "${_pw_rt_install}" = "true" ]; then
     echo "[boot] Aviso: INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME está activado en Render; puede ralentizar y consumir disco." >&2
   fi
   export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-0}"
-  python -m playwright install chromium || true
+  python -m playwright install chromium firefox webkit || true
 fi
 
 trap 'kill -TERM "${server_pid}" 2>/dev/null || true' TERM INT

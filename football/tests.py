@@ -3953,8 +3953,8 @@ class SystemGuardTests(TestCase):
 
         fake_browser_type = FakeBrowserType()
 
-        with patch('football.preview_render._chromium_executable_candidates', return_value=[executable_path]):
-            browser, selected_path = preview_render._launch_chromium_with_fallbacks(
+        with patch('football.preview_render._browser_executable_candidates', return_value=[executable_path]):
+            browser, selected_path = preview_render._launch_browser_with_fallbacks(
                 fake_browser_type,
                 launch_kwargs={'args': ['--no-sandbox']},
             )
@@ -3963,6 +3963,46 @@ class SystemGuardTests(TestCase):
         self.assertEqual(selected_path, executable_path)
         self.assertEqual(fake_browser_type.calls[0]['executable_path'], executable_path)
         self.assertEqual(fake_browser_type.calls[0]['args'], ['--no-sandbox'])
+
+    def test_preview_render_falls_back_to_next_browser_type(self):
+        class FailingBrowserType:
+            name = 'chromium'
+
+            def launch(self, **kwargs):
+                raise RuntimeError('chromium_failed')
+
+        class WorkingBrowserType:
+            name = 'firefox'
+
+            def __init__(self):
+                self.calls = []
+
+            def launch(self, **kwargs):
+                self.calls.append(kwargs)
+                return 'firefox-browser'
+
+        class FakePlaywright:
+            def __init__(self):
+                self.chromium = FailingBrowserType()
+                self.firefox = WorkingBrowserType()
+                self.webkit = type('WebKitType', (), {'name': 'webkit', 'launch': lambda self, **kwargs: (_ for _ in ()).throw(RuntimeError('webkit_failed'))})()
+                self.stopped = False
+
+            def stop(self):
+                self.stopped = True
+
+        fake_pw = FakePlaywright()
+
+        class FakeSyncPlaywright:
+            def start(self):
+                return fake_pw
+
+        with patch('playwright.sync_api.sync_playwright', return_value=FakeSyncPlaywright()):
+            with patch('football.preview_render._browser_executable_candidates', return_value=[]):
+                with preview_render._acquire_playwright_browser() as (_pw, browser):
+                    self.assertEqual(browser, 'firefox-browser')
+
+        self.assertTrue(fake_pw.stopped)
 
     @patch('football.system_guard.fetch_web_research_with_browser')
     @patch('football.system_guard.compact_web_research')

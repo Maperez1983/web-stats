@@ -129,13 +129,18 @@ def _rewrite_urls_to_data_urls(payload):
     return payload
 
 
-def _chromium_executable_candidates(browser_type=None) -> list[str]:
+def _browser_executable_candidates(browser_type=None) -> list[str]:
     candidates: list[str] = []
+    browser_name = str(getattr(browser_type, "name", "") or "").strip().lower()
     env_vars = (
-        "PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH",
+        "PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH" if browser_name == "chromium" else "",
+        "PLAYWRIGHT_FIREFOX_EXECUTABLE_PATH" if browser_name == "firefox" else "",
+        "PLAYWRIGHT_WEBKIT_EXECUTABLE_PATH" if browser_name == "webkit" else "",
         "PLAYWRIGHT_EXECUTABLE_PATH",
-        "CHROMIUM_PATH",
-        "CHROME_PATH",
+        "CHROMIUM_PATH" if browser_name == "chromium" else "",
+        "CHROME_PATH" if browser_name == "chromium" else "",
+        "FIREFOX_PATH" if browser_name == "firefox" else "",
+        "WEBKIT_PATH" if browser_name == "webkit" else "",
     )
     for key in env_vars:
         value = str(os.getenv(key) or "").strip()
@@ -154,6 +159,16 @@ def _chromium_executable_candidates(browser_type=None) -> list[str]:
         filter(
             None,
             [
+                shutil.which("firefox") if browser_name == "firefox" else None,
+                shutil.which("firefox-esr") if browser_name == "firefox" else None,
+                shutil.which("chromium") if browser_name == "chromium" else None,
+                shutil.which("chromium-browser") if browser_name == "chromium" else None,
+                shutil.which("google-chrome") if browser_name == "chromium" else None,
+                shutil.which("google-chrome-stable") if browser_name == "chromium" else None,
+                shutil.which("chrome") if browser_name == "chromium" else None,
+                shutil.which("msedge") if browser_name == "chromium" else None,
+                shutil.which("microsoft-edge") if browser_name == "chromium" else None,
+                "/Applications/Firefox.app/Contents/MacOS/firefox" if browser_name == "firefox" else None,
                 shutil.which("chromium"),
                 shutil.which("chromium-browser"),
                 shutil.which("google-chrome"),
@@ -165,6 +180,8 @@ def _chromium_executable_candidates(browser_type=None) -> list[str]:
                 "/usr/bin/chromium-browser",
                 "/usr/bin/google-chrome",
                 "/usr/bin/google-chrome-stable",
+                "/usr/bin/firefox",
+                "/usr/bin/firefox-esr",
                 "/snap/bin/chromium",
             ],
         )
@@ -181,10 +198,10 @@ def _chromium_executable_candidates(browser_type=None) -> list[str]:
     return deduped
 
 
-def _launch_chromium_with_fallbacks(browser_type, *, launch_kwargs=None):
+def _launch_browser_with_fallbacks(browser_type, *, launch_kwargs=None):
     launch_kwargs = dict(launch_kwargs or {})
     last_error = None
-    for executable_path in _chromium_executable_candidates(browser_type):
+    for executable_path in _browser_executable_candidates(browser_type):
         if not Path(executable_path).exists():
             continue
         try:
@@ -220,10 +237,23 @@ def _acquire_playwright_browser():
     browser = None
     try:
         pw = sync_playwright().start()
-        browser, _ = _launch_chromium_with_fallbacks(
-            pw.chromium,
-            launch_kwargs={"args": ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]},
-        )
+        browser_specs = [
+            (pw.chromium, {"args": ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]}),
+            (pw.firefox, {}),
+            (pw.webkit, {}),
+        ]
+        last_error = None
+        for browser_type, launch_kwargs in browser_specs:
+            try:
+                browser, _ = _launch_browser_with_fallbacks(browser_type, launch_kwargs=launch_kwargs)
+                break
+            except Exception as exc:
+                browser = None
+                last_error = exc
+        if browser is None:
+            if last_error is not None:
+                raise last_error
+            raise RuntimeError("No Playwright browser available")
         yield pw, browser
     finally:
         try:

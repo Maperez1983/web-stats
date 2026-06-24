@@ -55,13 +55,13 @@ services:
         sync: false
       - key: DEBUG
         value: "false"
-      # Recomendación: mantener instalado Chromium durante el build si usas previews HD.
+      # Recomendación: mantener instalados los navegadores Playwright durante el build si usas previews HD.
       - key: PLAYWRIGHT_BROWSERS_PATH
         value: "0"
-      # Opcional: instala chromium en build (coste CPU/tiempo). Desactivado por defecto.
+      # Opcional: instala chromium/firefox/webkit en build (coste CPU/tiempo). Desactivado por defecto.
       - key: INSTALL_PLAYWRIGHT_BROWSERS
         value: "true"
-      # Fallback: si el browser no quedó en caché tras el build, Render lo reinstala al arrancar.
+      # Fallback: si los navegadores no quedaron en caché tras el build, Render los reinstala al arrancar.
       - key: INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME
         value: "true"
       # Seguridad: desactiva fallback monoclub en producción si no lo necesitas.
