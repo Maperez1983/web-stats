@@ -14253,6 +14253,65 @@ class StaffUserLinkingTests(TestCase):
         self.assertNotContains(response, 'Análisis automático')
         self.assertContains(response, 'Abrir editor de pizarra')
 
+    @patch('football.views.call_ollama_json')
+    @patch('football.views.local_llm_config')
+    def test_session_task_detail_can_regenerate_analysis_with_ollana(self, mock_llm_config, mock_call_ollama_json):
+        mock_llm_config.return_value = {
+            'enabled': True,
+            'provider': 'ollama',
+            'model': 'qwen3:1.7b',
+            'base_url': 'http://127.0.0.1:11434',
+            'timeout': 8,
+        }
+        mock_call_ollama_json.return_value = (
+            {
+                'summary': 'Ollana detecta un juego de posesión con transición rápida.',
+                'work_contexts': ['posesion', 'transicion'],
+                'objective_tags': ['amplitud'],
+                'exercise_types': ['partido_reducido'],
+                'phase_tags': ['ataque'],
+                'detected_materials': [{'label': 'CONO', 'title': 'Cono alto', 'kind': 'cone', 'category': 'delimitacion'}],
+                'quality_score': 92,
+                'task_sheet': {
+                    'description': 'Tarea de posesión orientada a progresar por dentro.',
+                    'players': '8 jugadores',
+                    'space': 'medio campo',
+                    'dimensions': '40x30',
+                    'materials': 'Conos y petos',
+                },
+            },
+            '',
+        )
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 25),
+            focus='Sesión detalle tarea',
+            duration_minutes=90,
+        )
+        task = SessionTask.objects.create(
+            session=session,
+            title='Tarea sin análisis',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=18,
+            tactical_layout={'meta': {'scope': 'coach'}},
+        )
+
+        response = self.client.post(
+            reverse('session-task-detail', args=[task.id]),
+            {'detail_action': 'generate_ollana_analysis'},
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Análisis regenerado con Ollana.')
+        task.refresh_from_db()
+        analysis = task.tactical_layout.get('meta', {}).get('analysis', {})
+        self.assertEqual(analysis.get('generated_by'), 'ollana')
+        self.assertEqual(analysis.get('generation_mode'), 'llm')
+        self.assertEqual(analysis.get('quality_score'), 92)
+        self.assertContains(response, 'Análisis automático')
+        self.assertContains(response, 'Ollana')
+
     def test_task_builder_creates_task_with_extended_metadata_and_assignment(self):
         session = TrainingSession.objects.create(
             microcycle=self.microcycle,

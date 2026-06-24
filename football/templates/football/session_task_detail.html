@@ -1405,6 +1405,11 @@
             <a class="button secondary" href="{% url task_builder_edit_route_name task.id %}">Abrir editor de pizarra</a>
           </div>
         </form>
+        <form method="post" style="margin-top:0.7rem; display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+          {% csrf_token %}
+          <input type="hidden" name="detail_action" value="generate_ollana_analysis" />
+          <button class="button secondary" type="submit">Regenerar análisis con Ollana</button>
+        </form>
       </section>
       {% else %}
         <section class="panel">
@@ -1480,6 +1485,11 @@
       {% if can_edit_task and has_analysis_meta %}
       <details class="edit-section task-edit-panel task-edit-tab-descriptive" data-task-edit-panel="descriptive">
         <summary>Análisis automático</summary>
+        <div class="chips" style="margin:0.4rem 0 0.5rem;">
+          <span class="chip">{% firstof analysis_meta.generated_by "Ollana" %}</span>
+          {% if analysis_meta.generation_mode %}<span class="chip">{{ analysis_meta.generation_mode }}</span>{% endif %}
+          {% if analysis_meta.generated_at %}<span class="chip">{{ analysis_meta.generated_at }}</span>{% endif %}
+        </div>
         <div class="chips" style="margin-bottom:0.5rem;">
           {% if analysis_meta.quality_score %}<span class="chip">Score {{ analysis_meta.quality_score }}/100</span>{% endif %}
           {% for ctx in analysis_meta.work_contexts %}<span class="chip">{{ ctx }}</span>{% endfor %}

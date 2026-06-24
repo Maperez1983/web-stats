@@ -121,7 +121,7 @@ from .video_studio_services import (
     schedule_autocut_after_upload as _video_studio_schedule_autocut_after_upload,
 )
 from .ai_trainer import ai_trainer_index_task, ai_trainer_tokenize, normalize_ai_trainer_text
-from .local_llm import ai_trainer_senior_local_advice, local_llm_config
+from .local_llm import ai_trainer_senior_local_advice, call_ollama_json, local_llm_config
 from .web_research import compact_web_research, fetch_web_research_with_browser, search_web_research
 from .library_repositories import (
     INBOX_MICROCYCLE_WEEK_END,
@@ -31915,6 +31915,234 @@ def _analysis_quality_score(analysis):
     return min(100, score)
 
 
+def _generate_ollana_task_analysis(task, *, page_context=None) -> dict:
+    layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+    layout = dict(layout)
+    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+    meta = dict(meta)
+    analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
+    analysis_meta = dict(analysis_meta)
+    task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
+    task_sheet = dict(task_sheet)
+    pdf_excerpt = str(meta.get('pdf_segment_excerpt') or meta.get('extracted_text_excerpt') or '').strip()
+    detected_materials = analysis_meta.get('detected_materials') if isinstance(analysis_meta.get('detected_materials'), list) else []
+    if not detected_materials:
+        detected_materials = _detect_materials_in_text(
+            ' '.join(
+                part for part in [
+                    str(getattr(task, 'objective', '') or ''),
+                    str(getattr(task, 'coaching_points', '') or ''),
+                    str(getattr(task, 'confrontation_rules', '') or ''),
+                    str(task_sheet.get('description') or ''),
+                    str(task_sheet.get('materials') or ''),
+                    pdf_excerpt,
+                ]
+                if str(part or '').strip()
+            )
+        )
+    task_sheet_prompt = {
+        'description': str(task_sheet.get('description') or getattr(task, 'objective', '') or '').strip(),
+        'players': str(task_sheet.get('players') or '').strip(),
+        'space': str(task_sheet.get('space') or meta.get('space') or '').strip(),
+        'dimensions': str(task_sheet.get('dimensions') or '').strip(),
+        'materials': str(task_sheet.get('materials') or meta.get('resources_summary') or '').strip(),
+    }
+    base_analysis = {
+        'title': _polish_spanish_text(
+            _repair_joined_words_text(str(getattr(task, 'title', '') or '').strip()[:220]),
+            multiline=False,
+            max_len=160,
+        ),
+        'objective': _polish_spanish_text(
+            _repair_joined_words_text(str(getattr(task, 'objective', '') or '').strip()),
+            multiline=True,
+            max_len=8000,
+        ),
+        'minutes': max(5, min(_parse_int(getattr(task, 'duration_minutes', 0) or 0) or 15, 90)),
+        'coaching_points': _polish_spanish_text(
+            _repair_joined_words_text(str(getattr(task, 'coaching_points', '') or '').strip()),
+            multiline=True,
+        ),
+        'confrontation_rules': _polish_spanish_text(
+            _repair_joined_words_text(str(getattr(task, 'confrontation_rules', '') or '').strip()),
+            multiline=True,
+        ),
+        'summary': _polish_spanish_text(
+            _repair_joined_words_text(
+                ' '.join(
+                    part for part in [
+                        str(getattr(task, 'title', '') or '').strip(),
+                        str(getattr(task, 'objective', '') or '').strip(),
+                        str(getattr(task, 'coaching_points', '') or '').strip(),
+                        str(getattr(task, 'confrontation_rules', '') or '').strip(),
+                        pdf_excerpt,
+                    ]
+                    if str(part or '').strip()
+                )
+            ),
+            multiline=True,
+            max_len=1200,
+        ),
+        'work_contexts': _detect_keyword_tags(
+            ' '.join(
+                part for part in [
+                    str(getattr(task, 'title', '') or ''),
+                    str(getattr(task, 'objective', '') or ''),
+                    str(getattr(task, 'coaching_points', '') or ''),
+                    str(getattr(task, 'confrontation_rules', '') or ''),
+                    pdf_excerpt,
+                ]
+                if str(part or '').strip()
+            ),
+            TASK_CONTEXT_KEYWORDS,
+        ),
+        'objective_tags': _detect_keyword_tags(
+            ' '.join([str(getattr(task, 'objective', '') or ''), str(getattr(task, 'coaching_points', '') or ''), str(getattr(task, 'confrontation_rules', '') or '')]),
+            TASK_OBJECTIVE_KEYWORDS,
+        ),
+        'exercise_types': _detect_keyword_tags(
+            ' '.join(
+                part for part in [
+                    str(getattr(task, 'title', '') or ''),
+                    str(getattr(task, 'objective', '') or ''),
+                    pdf_excerpt,
+                ]
+                if str(part or '').strip()
+            ),
+            TASK_TYPE_KEYWORDS,
+        ),
+        'phase_tags': _detect_keyword_tags(
+            ' '.join(
+                part for part in [
+                    str(getattr(task, 'title', '') or ''),
+                    str(getattr(task, 'objective', '') or ''),
+                    str(getattr(task, 'coaching_points', '') or ''),
+                    pdf_excerpt,
+                ]
+                if str(part or '').strip()
+            ),
+            TASK_PHASE_KEYWORDS,
+        ),
+        'players_count_estimate': _estimate_players_count(task_sheet_prompt.get('players'), ' '.join([task_sheet_prompt.get('description'), pdf_excerpt])),
+        'players_band': _players_band_label(_estimate_players_count(task_sheet_prompt.get('players'), ' '.join([task_sheet_prompt.get('description'), pdf_excerpt]))),
+        'duration_band': _duration_band_label(getattr(task, 'duration_minutes', 0) or 0),
+        'detected_materials': detected_materials,
+        'task_sheet': task_sheet_prompt,
+        'pdf_template': str(meta.get('pdf_template') or meta.get('analysis_template') or 'ollana').strip() or 'ollana',
+        'reference_date': str(analysis_meta.get('reference_date') or '').strip(),
+        'generated_by': 'ollana',
+        'generated_by_source': 'task_detail',
+    }
+    cfg = local_llm_config()
+    llm_used = bool(cfg.get('enabled') and str(cfg.get('provider') or '').strip().lower() == 'ollama')
+    parsed = None
+    if llm_used:
+        payload = json.dumps(
+            {
+                'task': {
+                    'id': int(getattr(task, 'id', 0) or 0),
+                    'title': str(getattr(task, 'title', '') or '').strip(),
+                    'objective': str(getattr(task, 'objective', '') or '').strip(),
+                    'coaching_points': str(getattr(task, 'coaching_points', '') or '').strip(),
+                    'confrontation_rules': str(getattr(task, 'confrontation_rules', '') or '').strip(),
+                    'duration_minutes': int(getattr(task, 'duration_minutes', 0) or 0),
+                    'block': str(getattr(task, 'block', '') or '').strip(),
+                },
+                'analysis': base_analysis,
+                'page_context': page_context if isinstance(page_context, dict) else {},
+                'task_sheet': task_sheet_prompt,
+                'pdf_excerpt': pdf_excerpt[:1400],
+            },
+            ensure_ascii=False,
+            separators=(',', ':'),
+        )
+        prompt = (
+            'Eres Ollana, analista senior de tareas de entrenamiento de fútbol. '
+            'Debes reconstruir el análisis automático de una tarea a partir del JSON recibido. '
+            'Prioriza claridad para entrenador, detecta contexto, objetivo, tipo de ejercicio y materiales. '
+            'Devuelve SOLO JSON válido con estas claves exactas: '
+            'summary:string, coaching_points:string, confrontation_rules:string, work_contexts:list, objective_tags:list, '
+            'exercise_types:list, phase_tags:list, detected_materials:list, quality_score:number, task_sheet:object. '
+            'task_sheet debe incluir description, players, space, dimensions y materials. '
+            'Si faltan datos, conserva los valores ya aportados y no inventes información no presente.\n\n'
+            f'CONTEXTO_JSON={payload}'
+        )
+        try:
+            parsed, _error = call_ollama_json(
+                prompt,
+                model=cfg.get('model'),
+                base_url=cfg.get('base_url'),
+                timeout=min(max(_parse_int(cfg.get('timeout')) or 8, 2), 20),
+            )
+        except Exception:
+            parsed = None
+    if isinstance(parsed, dict):
+        quality_score_override = None
+        for key in ('summary', 'objective', 'coaching_points', 'confrontation_rules', 'title'):
+            value = str(parsed.get(key) or '').strip()
+            if value:
+                if key == 'title':
+                    base_analysis[key] = _polish_spanish_text(_repair_joined_words_text(value[:220]), multiline=False, max_len=160)
+                elif key == 'summary':
+                    base_analysis[key] = _polish_spanish_text(_repair_joined_words_text(value), multiline=True, max_len=1200)
+                else:
+                    base_analysis[key] = _polish_spanish_text(_repair_joined_words_text(value), multiline=True, max_len=8000 if key == 'objective' else 3000)
+        for key in ('work_contexts', 'objective_tags', 'exercise_types', 'phase_tags', 'detected_materials'):
+            value = parsed.get(key)
+            if isinstance(value, list) and value:
+                base_analysis[key] = value[:12]
+        parsed_sheet = parsed.get('task_sheet') if isinstance(parsed.get('task_sheet'), dict) else {}
+        if parsed_sheet:
+            merged_sheet = dict(base_analysis.get('task_sheet') or {})
+            for key in ('description', 'players', 'space', 'dimensions', 'materials'):
+                value = str(parsed_sheet.get(key) or '').strip()
+                if value:
+                    merged_sheet[key] = value
+            base_analysis['task_sheet'] = merged_sheet
+        quality_score = _parse_int(parsed.get('quality_score'))
+        if quality_score:
+            quality_score_override = max(0, min(100, int(quality_score)))
+    else:
+        quality_score_override = None
+    if not str(base_analysis.get('summary') or '').strip():
+        base_analysis['summary'] = _polish_spanish_text(
+            _repair_joined_words_text(
+                ' '.join(
+                    part for part in [
+                        str(getattr(task, 'title', '') or '').strip(),
+                        str(getattr(task, 'objective', '') or '').strip(),
+                        str(getattr(task, 'coaching_points', '') or '').strip(),
+                    ]
+                    if str(part or '').strip()
+                )
+            ),
+            multiline=True,
+            max_len=1200,
+        )
+    task_sheet_clean = base_analysis.get('task_sheet') if isinstance(base_analysis.get('task_sheet'), dict) else {}
+    task_sheet_clean = dict(task_sheet_clean)
+    if task_sheet_clean.get('description') and not task_sheet_clean.get('description_html'):
+        task_sheet_clean['description_html'] = _sanitize_task_rich_html(_rich_html_from_plain_text(task_sheet_clean.get('description')))
+    if str(getattr(task, 'coaching_points', '') or '').strip() and not task_sheet_clean.get('coaching_html'):
+        task_sheet_clean['coaching_html'] = _sanitize_task_rich_html(_rich_html_from_plain_text(str(getattr(task, 'coaching_points', '') or '').strip()))
+    if str(getattr(task, 'confrontation_rules', '') or '').strip() and not task_sheet_clean.get('rules_html'):
+        task_sheet_clean['rules_html'] = _sanitize_task_rich_html(_rich_html_from_plain_text(str(getattr(task, 'confrontation_rules', '') or '').strip()))
+    base_analysis['task_sheet'] = task_sheet_clean
+    base_analysis['quality_score'] = quality_score_override if quality_score_override is not None else _analysis_quality_score(base_analysis)
+    base_analysis['generated_at'] = timezone.now().isoformat()
+    base_analysis['generation_mode'] = 'llm' if llm_used and isinstance(parsed, dict) else 'heuristic'
+    base_analysis['analysis_source'] = 'ollana_task_detail'
+    meta['analysis'] = base_analysis
+    layout['meta'] = meta
+    task.tactical_layout = layout
+    task.save(update_fields=['tactical_layout'])
+    return {
+        'ok': True,
+        'used_llm': bool(llm_used and isinstance(parsed, dict)),
+        'analysis': base_analysis,
+    }
+
+
 def _analysis_confidence_scores(analysis):
     data = analysis if isinstance(analysis, dict) else {}
     sheet = data.get('task_sheet') if isinstance(data.get('task_sheet'), dict) else {}
@@ -42856,6 +43084,21 @@ def session_task_detail_page(request, task_id):
                 _update_library_task_from_post(task, request.POST, scope_key=scope_key)
                 feedback = 'Tarea actualizada correctamente.'
                 task.refresh_from_db()
+            elif detail_action == 'generate_ollana_analysis':
+                result = _generate_ollana_task_analysis(
+                    task,
+                    page_context={
+                        'page': 'session-task-detail',
+                        'task_id': int(task.id),
+                        'team_id': int(getattr(getattr(getattr(task, 'session', None), 'microcycle', None), 'team_id', 0) or 0),
+                        'scope_key': scope_key,
+                    },
+                )
+                if result.get('ok'):
+                    feedback = 'Análisis regenerado con Ollana.'
+                    task.refresh_from_db()
+                else:
+                    error = result.get('error') or 'No se pudo generar el análisis.'
             elif detail_action == 'restore_original_version':
                 _restore_task_from_original_snapshot(task, scope_key=scope_key)
                 feedback = 'Se restauró la versión original de la tarea.'
