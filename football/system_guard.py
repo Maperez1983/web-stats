@@ -4116,6 +4116,12 @@ def _permission_profile(page_context=None) -> dict:
 
 
 ROLE_KNOWLEDGE_PACKS = {
+    "informatician_senior": {
+        "domains": ["architecture", "debugging", "databases", "deployments", "apis", "testing", "security", "observability"],
+        "visual_signals": ["broken flow", "regression", "unexpected duplication", "slow response", "configuration mismatch"],
+        "knowledge_targets": ["system diagnostics", "root cause analysis", "safe remediation", "service boundaries"],
+        "guidance": ["Piensa como un informático senior: diagnostica primero, verifica después y cambia lo mínimo necesario."],
+    },
     "supervisor": {
         "domains": ["governance", "traceability", "release_safety", "workspace_overview"],
         "visual_signals": ["missing audit trail", "permission mismatch", "broken publish flow"],
@@ -4263,6 +4269,7 @@ def _operator_role_context(*, page_context=None, operator_profile=None) -> dict:
         active_roles.append("system_observer")
     if bool(permission_roles.get("can_operate_guard_code")):
         active_roles.append("repair_operator")
+    active_roles.append("informatician_senior")
     if task_id or "task" in page or "task" in route:
         active_roles.append("visual_auditor")
     if session_id or "session" in page or "sessions" in route:
