@@ -4056,6 +4056,19 @@ class SystemGuardTests(TestCase):
         self.assertIn('access_control', role_context['knowledge_domains'])
         self.assertIn('least privilege', ' '.join(role_context['knowledge_targets']))
 
+    def test_operator_role_context_includes_core_operative_baseline(self):
+        role_context = system_guard._operator_role_context(
+            page_context={
+                'page': 'dashboard-home',
+                'workspace_id': self.workspace.id,
+                'team_id': self.team.id,
+            },
+            operator_profile={},
+        )
+        self.assertIn('reasoning', role_context['knowledge_domains'])
+        self.assertIn('diagnose before acting', ' '.join(role_context['knowledge_targets']))
+        self.assertIn('choose the right tool', ' '.join(role_context['knowledge_targets']))
+
     def test_system_brain_snapshot_exposes_informatician_senior_role(self):
         brain = system_guard._system_brain_snapshot(
             self.workspace,

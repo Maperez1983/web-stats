@@ -4116,6 +4116,12 @@ def _permission_profile(page_context=None) -> dict:
 
 
 ROLE_KNOWLEDGE_PACKS = {
+    "core_operative": {
+        "domains": ["reasoning", "tool_selection", "verification", "root_cause_analysis", "safety", "communication"],
+        "visual_signals": ["ambiguous failure", "missing evidence", "unverified change", "tool mismatch", "unclear scope"],
+        "knowledge_targets": ["diagnose before acting", "verify after changes", "choose the right tool", "state assumptions explicitly"],
+        "guidance": ["Usa un ciclo operativo consistente: entender, inspeccionar, intervenir con el mínimo cambio y verificar el resultado."],
+    },
     "informatician_senior": {
         "domains": ["architecture", "debugging", "databases", "deployments", "apis", "testing", "security", "observability"],
         "visual_signals": ["broken flow", "regression", "unexpected duplication", "slow response", "configuration mismatch"],
@@ -4192,6 +4198,11 @@ def _merge_role_knowledge(active_roles: list[str], operator_profile=None) -> dic
     visual_signals = []
     targets = []
     guidance = []
+    core_pack = ROLE_KNOWLEDGE_PACKS.get("core_operative", {})
+    domains.extend([str(x) for x in (core_pack.get("domains") or []) if str(x or "").strip()])
+    visual_signals.extend([str(x) for x in (core_pack.get("visual_signals") or []) if str(x or "").strip()])
+    targets.extend([str(x) for x in (core_pack.get("knowledge_targets") or []) if str(x or "").strip()])
+    guidance.extend([str(x) for x in (core_pack.get("guidance") or []) if str(x or "").strip()])
     for role in active_roles or []:
         pack = ROLE_KNOWLEDGE_PACKS.get(str(role or "").strip(), {})
         domains.extend([str(x) for x in (pack.get("domains") or []) if str(x or "").strip()])
@@ -4203,10 +4214,10 @@ def _merge_role_knowledge(active_roles: list[str], operator_profile=None) -> dic
     targets.extend([str(x) for x in (knowledge.get("knowledge_targets") or knowledge.get("targets") or []) if str(x or "").strip()])
     guidance.extend([str(x) for x in (knowledge.get("guidance") or []) if str(x or "").strip()])
     return {
-        "domains": list(dict.fromkeys(domains))[:20],
-        "visual_signals": list(dict.fromkeys(visual_signals))[:20],
-        "knowledge_targets": list(dict.fromkeys(targets))[:20],
-        "guidance": list(dict.fromkeys(guidance))[:20],
+        "domains": list(dict.fromkeys(domains))[:32],
+        "visual_signals": list(dict.fromkeys(visual_signals))[:32],
+        "knowledge_targets": list(dict.fromkeys(targets))[:32],
+        "guidance": list(dict.fromkeys(guidance))[:32],
     }
 
 
@@ -4296,7 +4307,7 @@ def _operator_role_context(*, page_context=None, operator_profile=None) -> dict:
         active_roles.append("knowledge_orchestrator")
     if not active_roles:
         active_roles.append("system_observer")
-    active_roles = list(dict.fromkeys(active_roles))[:8]
+    active_roles = list(dict.fromkeys(active_roles))[:12]
     role_capabilities = {
         "can_observe_system": True,
         "can_open_browser": True,
@@ -4325,7 +4336,7 @@ def _operator_role_context(*, page_context=None, operator_profile=None) -> dict:
     return {
         "active_roles": active_roles,
         "capabilities": role_capabilities,
-        "knowledge_targets": list(dict.fromkeys(knowledge_targets))[:12],
+        "knowledge_targets": list(dict.fromkeys(knowledge_targets))[:24],
         "knowledge_domains": role_knowledge.get("domains") or [],
         "visual_signals": role_knowledge.get("visual_signals") or [],
         "guidance": role_knowledge.get("guidance") or [],
