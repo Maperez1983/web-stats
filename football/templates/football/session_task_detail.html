@@ -119,6 +119,20 @@
         -webkit-backdrop-filter: blur(14px);
       }
       .top-copy { display:flex; flex-direction:column; gap:0.34rem; max-width: 680px; }
+      .topbar h1 {
+        margin: 0;
+        font-size: clamp(1.3rem, 2vw, 1.95rem);
+        line-height: 1.02;
+        letter-spacing: -0.03em;
+        text-transform: none;
+        color: #f8fafc;
+        text-wrap: balance;
+        text-shadow: 0 1px 1px rgba(2, 6, 23, 0.28);
+      }
+      body.session-task-detail-page.is-presentation .topbar h1 {
+        color: #f8fafc;
+        text-shadow: 0 1px 1px rgba(2, 6, 23, 0.42);
+      }
       .top-kicker {
         color: rgba(125, 211, 252, 0.94);
         font-size: 0.72rem;
