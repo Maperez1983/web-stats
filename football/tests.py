@@ -4084,6 +4084,66 @@ class SystemGuardTests(TestCase):
         self.assertIn('cleanup', role_context['knowledge_domains'])
         self.assertIn('small reversible changes', ' '.join(role_context['knowledge_targets']))
 
+    def test_operator_role_context_includes_performance_engineer_knowledge(self):
+        role_context = system_guard._operator_role_context(
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+            operator_profile={},
+        )
+        self.assertIn('performance_engineer', role_context['active_roles'])
+        self.assertIn('profiling', role_context['knowledge_domains'])
+        self.assertIn('latency', role_context['knowledge_domains'])
+        self.assertIn('find bottlenecks', ' '.join(role_context['knowledge_targets']))
+
+    def test_operator_role_context_includes_qa_engineer_knowledge(self):
+        role_context = system_guard._operator_role_context(
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+            operator_profile={},
+        )
+        self.assertIn('qa_engineer', role_context['active_roles'])
+        self.assertIn('test_strategy', role_context['knowledge_domains'])
+        self.assertIn('edge_cases', role_context['knowledge_domains'])
+        self.assertIn('validate end-to-end flows', ' '.join(role_context['knowledge_targets']))
+
+    def test_operator_role_context_includes_data_quality_auditor_knowledge(self):
+        role_context = system_guard._operator_role_context(
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+            operator_profile={},
+        )
+        self.assertIn('data_quality_auditor', role_context['active_roles'])
+        self.assertIn('duplicate_detection', role_context['knowledge_domains'])
+        self.assertIn('referential_integrity', role_context['knowledge_domains'])
+        self.assertIn('detect duplicates', ' '.join(role_context['knowledge_targets']))
+
+    def test_operator_role_context_includes_deployment_engineer_knowledge(self):
+        role_context = system_guard._operator_role_context(
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+            operator_profile={},
+        )
+        self.assertIn('deployment_engineer', role_context['active_roles'])
+        self.assertIn('release_management', role_context['knowledge_domains'])
+        self.assertIn('healthchecks', role_context['knowledge_domains'])
+        self.assertIn('deployment readiness', ' '.join(role_context['knowledge_targets']))
+
+    def test_operator_role_context_includes_ux_technical_reviewer_knowledge(self):
+        role_context = system_guard._operator_role_context(
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+            operator_profile={},
+        )
+        self.assertIn('ux_technical_reviewer', role_context['active_roles'])
+        self.assertIn('usability', role_context['knowledge_domains'])
+        self.assertIn('contrast', role_context['knowledge_domains'])
+        self.assertIn('reduce friction', ' '.join(role_context['knowledge_targets']))
+
+    def test_operator_role_context_includes_incident_responder_knowledge(self):
+        role_context = system_guard._operator_role_context(
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+            operator_profile={},
+        )
+        self.assertIn('incident_responder', role_context['active_roles'])
+        self.assertIn('triage', role_context['knowledge_domains'])
+        self.assertIn('containment', role_context['knowledge_domains'])
+        self.assertIn('triage fast', ' '.join(role_context['knowledge_targets']))
+
     def test_operator_role_context_includes_core_operative_baseline(self):
         role_context = system_guard._operator_role_context(
             page_context={
@@ -4145,6 +4205,66 @@ class SystemGuardTests(TestCase):
             planner={'task': {'target_summary': 'Revisar sistema', 'route_target': {}}},
         )
         self.assertIn('maintenance_engineer', brain['role_profile']['active_roles'])
+        self.assertTrue(brain['knows_system_map'])
+
+    def test_system_brain_snapshot_exposes_performance_engineer_role(self):
+        brain = system_guard._system_brain_snapshot(
+            self.workspace,
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+            operator_profile={},
+            planner={'task': {'target_summary': 'Revisar sistema', 'route_target': {}}},
+        )
+        self.assertIn('performance_engineer', brain['role_profile']['active_roles'])
+        self.assertTrue(brain['knows_system_map'])
+
+    def test_system_brain_snapshot_exposes_qa_engineer_role(self):
+        brain = system_guard._system_brain_snapshot(
+            self.workspace,
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+            operator_profile={},
+            planner={'task': {'target_summary': 'Revisar sistema', 'route_target': {}}},
+        )
+        self.assertIn('qa_engineer', brain['role_profile']['active_roles'])
+        self.assertTrue(brain['knows_system_map'])
+
+    def test_system_brain_snapshot_exposes_data_quality_auditor_role(self):
+        brain = system_guard._system_brain_snapshot(
+            self.workspace,
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+            operator_profile={},
+            planner={'task': {'target_summary': 'Revisar sistema', 'route_target': {}}},
+        )
+        self.assertIn('data_quality_auditor', brain['role_profile']['active_roles'])
+        self.assertTrue(brain['knows_system_map'])
+
+    def test_system_brain_snapshot_exposes_deployment_engineer_role(self):
+        brain = system_guard._system_brain_snapshot(
+            self.workspace,
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+            operator_profile={},
+            planner={'task': {'target_summary': 'Revisar sistema', 'route_target': {}}},
+        )
+        self.assertIn('deployment_engineer', brain['role_profile']['active_roles'])
+        self.assertTrue(brain['knows_system_map'])
+
+    def test_system_brain_snapshot_exposes_ux_technical_reviewer_role(self):
+        brain = system_guard._system_brain_snapshot(
+            self.workspace,
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+            operator_profile={},
+            planner={'task': {'target_summary': 'Revisar sistema', 'route_target': {}}},
+        )
+        self.assertIn('ux_technical_reviewer', brain['role_profile']['active_roles'])
+        self.assertTrue(brain['knows_system_map'])
+
+    def test_system_brain_snapshot_exposes_incident_responder_role(self):
+        brain = system_guard._system_brain_snapshot(
+            self.workspace,
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+            operator_profile={},
+            planner={'task': {'target_summary': 'Revisar sistema', 'route_target': {}}},
+        )
+        self.assertIn('incident_responder', brain['role_profile']['active_roles'])
         self.assertTrue(brain['knows_system_map'])
 
     @patch('football.system_guard.local_llm_config', return_value={

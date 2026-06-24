@@ -4152,6 +4152,42 @@ ROLE_KNOWLEDGE_PACKS = {
         "knowledge_targets": ["safe improvements", "small reversible changes", "cleanup without breakage", "verification loops", "cleanup"],
         "guidance": ["Mejora el sistema con cambios pequeños, reversibles y comprobados; no conviertas mantenimiento en reescritura."],
     },
+    "performance_engineer": {
+        "domains": ["profiling", "latency", "throughput", "query_optimization", "render_performance", "caching", "resource_usage"],
+        "visual_signals": ["slow screen", "expensive query", "janky render", "high cpu", "heavy payload"],
+        "knowledge_targets": ["find bottlenecks", "reduce latency", "optimize expensive paths", "measure before and after"],
+        "guidance": ["Piensa como performance engineer: mide, localiza el cuello de botella y optimiza solo lo que mueve la aguja."],
+    },
+    "qa_engineer": {
+        "domains": ["test_strategy", "regression_testing", "edge_cases", "acceptance_criteria", "workflow_validation", "smoke_testing"],
+        "visual_signals": ["broken flow", "missing assertion", "uncovered edge case", "inconsistent behavior"],
+        "knowledge_targets": ["validate end-to-end flows", "cover edge cases", "prevent regressions", "assert expected outcomes"],
+        "guidance": ["Piensa como QA engineer: define criterios, recorre el flujo completo y confirma que el cambio no rompe nada."],
+    },
+    "data_quality_auditor": {
+        "domains": ["duplicate_detection", "consistency_checks", "referential_integrity", "schema_validation", "orphan_records", "normalization"],
+        "visual_signals": ["duplicate records", "missing foreign key", "orphan row", "mismatched counts", "dirty data"],
+        "knowledge_targets": ["detect duplicates", "validate consistency", "find orphan records", "measure data health"],
+        "guidance": ["Piensa como auditor de calidad de datos: detecta duplicados, incoherencias y relaciones rotas antes de tocar la información."],
+    },
+    "deployment_engineer": {
+        "domains": ["release_management", "env_vars", "healthchecks", "rollback", "configuration_drift", "runtime_parity"],
+        "visual_signals": ["deployment drift", "missing env var", "broken healthcheck", "runtime mismatch"],
+        "knowledge_targets": ["deployment readiness", "environment parity", "safe rollback", "health verification"],
+        "guidance": ["Piensa como deployment engineer: verifica entorno, release y salud del servicio antes y después de desplegar."],
+    },
+    "ux_technical_reviewer": {
+        "domains": ["usability", "accessibility", "contrast", "hierarchy", "navigation_friction", "interaction_design"],
+        "visual_signals": ["low contrast", "unclear button", "crowded layout", "hidden affordance"],
+        "knowledge_targets": ["readability", "interface clarity", "reduce friction", "accessible interactions"],
+        "guidance": ["Piensa como revisor UX técnico: simplifica, clarifica y elimina fricción sin romper el lenguaje visual."],
+    },
+    "incident_responder": {
+        "domains": ["triage", "containment", "impact_analysis", "communication", "recovery", "postmortem"],
+        "visual_signals": ["active incident", "widespread failure", "repeated error", "service degradation"],
+        "knowledge_targets": ["triage fast", "contain impact", "restore service", "document the cause"],
+        "guidance": ["Piensa como incident responder: prioriza impacto, contención, recuperación y evidencia para el postmortem."],
+    },
     "supervisor": {
         "domains": ["governance", "traceability", "release_safety", "workspace_overview"],
         "visual_signals": ["missing audit trail", "permission mismatch", "broken publish flow"],
@@ -4226,10 +4262,10 @@ def _merge_role_knowledge(active_roles: list[str], operator_profile=None) -> dic
     targets.extend([str(x) for x in (knowledge.get("knowledge_targets") or knowledge.get("targets") or []) if str(x or "").strip()])
     guidance.extend([str(x) for x in (knowledge.get("guidance") or []) if str(x or "").strip()])
     return {
-        "domains": list(dict.fromkeys(domains))[:48],
-        "visual_signals": list(dict.fromkeys(visual_signals))[:48],
-        "knowledge_targets": list(dict.fromkeys(targets))[:64],
-        "guidance": list(dict.fromkeys(guidance))[:48],
+        "domains": list(dict.fromkeys(domains))[:96],
+        "visual_signals": list(dict.fromkeys(visual_signals))[:96],
+        "knowledge_targets": list(dict.fromkeys(targets))[:96],
+        "guidance": list(dict.fromkeys(guidance))[:96],
     }
 
 
@@ -4309,6 +4345,12 @@ def _operator_role_context(*, page_context=None, operator_profile=None) -> dict:
     active_roles.append("maintenance_engineer")
     active_roles.append("cybersecurity_senior")
     active_roles.append("system_auditor")
+    active_roles.append("performance_engineer")
+    active_roles.append("qa_engineer")
+    active_roles.append("data_quality_auditor")
+    active_roles.append("deployment_engineer")
+    active_roles.append("ux_technical_reviewer")
+    active_roles.append("incident_responder")
     if task_id or "task" in page or "task" in route:
         active_roles.append("visual_auditor")
     if session_id or "session" in page or "sessions" in route:
@@ -4321,7 +4363,7 @@ def _operator_role_context(*, page_context=None, operator_profile=None) -> dict:
         active_roles.append("knowledge_orchestrator")
     if not active_roles:
         active_roles.append("system_observer")
-    active_roles = list(dict.fromkeys(active_roles))[:12]
+    active_roles = list(dict.fromkeys(active_roles))[:32]
     role_capabilities = {
         "can_observe_system": True,
         "can_open_browser": True,
@@ -4350,7 +4392,7 @@ def _operator_role_context(*, page_context=None, operator_profile=None) -> dict:
     return {
         "active_roles": active_roles,
         "capabilities": role_capabilities,
-        "knowledge_targets": list(dict.fromkeys(knowledge_targets))[:24],
+        "knowledge_targets": list(dict.fromkeys(knowledge_targets))[:96],
         "knowledge_domains": role_knowledge.get("domains") or [],
         "visual_signals": role_knowledge.get("visual_signals") or [],
         "guidance": role_knowledge.get("guidance") or [],
@@ -4380,7 +4422,7 @@ def _normalize_operator_profile(payload) -> dict:
         "code_focus_areas": [str(x) for x in (payload.get("code_focus_areas") or []) if str(x or "").strip()][:8],
         "recurring_intents": recurring,
         "roles": {
-            "active_roles": [str(x) for x in (roles.get("active_roles") or []) if str(x or "").strip()][:8],
+            "active_roles": [str(x) for x in (roles.get("active_roles") or []) if str(x or "").strip()][:20],
             "capabilities": {
                 "can_observe_system": bool((roles.get("capabilities") or {}).get("can_observe_system")),
                 "can_open_browser": bool((roles.get("capabilities") or {}).get("can_open_browser")),
@@ -4390,17 +4432,17 @@ def _normalize_operator_profile(payload) -> dict:
                 "can_repair_code": bool((roles.get("capabilities") or {}).get("can_repair_code")),
                 "can_manage_training_content": bool((roles.get("capabilities") or {}).get("can_manage_training_content")),
             },
-            "knowledge_targets": [str(x) for x in (roles.get("knowledge_targets") or []) if str(x or "").strip()][:16],
-            "knowledge_domains": [str(x) for x in (roles.get("knowledge_domains") or []) if str(x or "").strip()][:16],
-            "visual_signals": [str(x) for x in (roles.get("visual_signals") or []) if str(x or "").strip()][:16],
-            "guidance": [str(x) for x in (roles.get("guidance") or []) if str(x or "").strip()][:16],
+            "knowledge_targets": [str(x) for x in (roles.get("knowledge_targets") or []) if str(x or "").strip()][:32],
+            "knowledge_domains": [str(x) for x in (roles.get("knowledge_domains") or []) if str(x or "").strip()][:32],
+            "visual_signals": [str(x) for x in (roles.get("visual_signals") or []) if str(x or "").strip()][:32],
+            "guidance": [str(x) for x in (roles.get("guidance") or []) if str(x or "").strip()][:32],
             "observer_mode": bool(roles.get("observer_mode", True)),
         },
         "knowledge": {
-            "domains": [str(x) for x in (knowledge.get("domains") or []) if str(x or "").strip()][:16],
-            "visual_signals": [str(x) for x in (knowledge.get("visual_signals") or []) if str(x or "").strip()][:16],
-            "knowledge_targets": [str(x) for x in (knowledge.get("knowledge_targets") or knowledge.get("targets") or []) if str(x or "").strip()][:16],
-            "guidance": [str(x) for x in (knowledge.get("guidance") or []) if str(x or "").strip()][:16],
+            "domains": [str(x) for x in (knowledge.get("domains") or []) if str(x or "").strip()][:32],
+            "visual_signals": [str(x) for x in (knowledge.get("visual_signals") or []) if str(x or "").strip()][:32],
+            "knowledge_targets": [str(x) for x in (knowledge.get("knowledge_targets") or knowledge.get("targets") or []) if str(x or "").strip()][:32],
+            "guidance": [str(x) for x in (knowledge.get("guidance") or []) if str(x or "").strip()][:32],
         },
         "last_updated": str(payload.get("last_updated") or "").strip()[:64],
     }
@@ -9030,9 +9072,9 @@ def _system_brain_snapshot(
         "preferred_route": str(operator_profile.get("preferred_route_label") or "")[:120],
         "current_focus": str(task.get("target_summary") or "")[:220],
         "role_profile": {
-            "active_roles": [str(item)[:64] for item in (role_profile.get("active_roles") or [])[:8]],
+            "active_roles": [str(item)[:64] for item in (role_profile.get("active_roles") or [])[:20]],
             "capabilities": role_profile.get("capabilities") or {},
-            "knowledge_targets": [str(item)[:64] for item in (role_profile.get("knowledge_targets") or [])[:10]],
+            "knowledge_targets": [str(item)[:64] for item in (role_profile.get("knowledge_targets") or [])[:24]],
             "observer_mode": bool(role_profile.get("observer_mode")),
         },
         "similarity_percent": _safe_int(maturity.get("percent"), 0),
