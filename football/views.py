@@ -42971,6 +42971,7 @@ def session_task_detail_page(request, task_id):
         related_tasks = []
     edit_graphic_url = ''
     presentation_url = ''
+    task_builder_edit_route_name = _task_builder_edit_route_name(scope_key)
     team = getattr(getattr(getattr(task, 'session', None), 'microcycle', None), 'team', None)
     workspace = None
     static_build_id = _resolve_static_build_id()
@@ -43044,9 +43045,20 @@ def session_task_detail_page(request, task_id):
             'scope_key': scope_key,
             'scope_title': scope_title,
             'scope_route_name': scope_route_name,
+            'task_builder_edit_route_name': task_builder_edit_route_name,
             'back_url': back_url,
             'back_label': back_label,
             'analysis_meta': analysis_meta,
+            'has_analysis_meta': bool(
+                str(analysis_meta.get('summary') or '').strip()
+                or str(task_sheet.get('description') or '').strip()
+                or str(task_sheet.get('players') or '').strip()
+                or str(task_sheet.get('space') or '').strip()
+                or str(task_sheet.get('dimensions') or '').strip()
+                or str(task_sheet.get('materials') or '').strip()
+                or detected_materials
+                or pdf_excerpt
+            ),
             'task_meta': meta,
             'task_sheet': task_sheet,
             'pdf_excerpt': pdf_excerpt,

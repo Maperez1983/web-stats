@@ -14232,6 +14232,27 @@ class StaffUserLinkingTests(TestCase):
         self.assertContains(edit_response, 'Ficha base editable')
         self.assertContains(edit_response, 'task-export-panel')
 
+    def test_session_task_detail_hides_empty_analysis_block(self):
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 25),
+            focus='Sesión detalle tarea',
+            duration_minutes=90,
+        )
+        task = SessionTask.objects.create(
+            session=session,
+            title='Tarea sin análisis',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=18,
+            tactical_layout={'meta': {'scope': 'coach'}},
+        )
+
+        response = self.client.get(reverse('session-task-detail', args=[task.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'Análisis automático')
+        self.assertContains(response, 'Abrir editor de pizarra')
+
     def test_task_builder_creates_task_with_extended_metadata_and_assignment(self):
         session = TrainingSession.objects.create(
             microcycle=self.microcycle,
