@@ -186,6 +186,13 @@ TOOL_SCHEMAS = {
         "confirmation_required": False,
         "runner": "guard_history",
     },
+    "inspect_page_visual": {
+        "label": "Inspección visual de ficha",
+        "kind": "inspect",
+        "risk": "low",
+        "confirmation_required": False,
+        "runner": "page_visual",
+    },
     "run_smoke": {
         "label": "Ejecutar smoke",
         "kind": "diagnostic",
@@ -11146,6 +11153,7 @@ def _tool_reason(tool_key: str, intent: str, question: str) -> str:
         "inspect_database_readonly": "La petición requiere inspeccionar la base de datos en solo lectura.",
         "inspect_critical_paths": "La petición apunta a directorios y paths críticos del sistema.",
         "inspect_guard_history": "La petición pide comparar ejecuciones previas, regresiones o tendencias del guard.",
+        "inspect_page_visual": "La petición pide comprobar visualmente una ficha o pantalla concreta y verificar legibilidad, contraste o render.",
         "trigger_remote_deploy": "La petición requiere lanzar un despliegue remoto gobernado.",
         "trigger_remote_rollback": "La petición requiere revertir la última release remota de forma gobernada.",
     }
@@ -11277,6 +11285,8 @@ def _plan_tools(question: str, *, run_smoke: bool, auto_fix: bool, maintenance_a
         requested_tools.extend(["check_status", "inspect_critical_paths"])
     elif intent == "inspect_history":
         requested_tools.extend(["check_status", "inspect_guard_history"])
+    elif intent in {"guide_user", "diagnose_status"} and re.search(r"\b(titulo|título|legible|leer|se vea|ficha|pantalla|color|contraste)\b", question_lower):
+        requested_tools.extend(["check_status", "inspect_page_visual"])
     elif intent == "diagnose_status":
         requested_tools.append("check_status")
     if str(task.get("kind") or "") == "code_workflow":
@@ -11372,6 +11382,10 @@ def _execute_tools(requested_tools: list[str], *, smoke_verbosity: int = 1, work
             result = _inspect_critical_paths()
         elif tool_key == "inspect_guard_history":
             result = _inspect_guard_history(workspace)
+        elif tool_key == "inspect_page_visual":
+            result = _browser_visual_openai_analysis(page_context=page_context)
+            if isinstance(result, dict) and "ok" not in result:
+                result = dict(result, ok=bool(result.get("enabled")))
         elif tool_key == "run_smoke":
             result = _run_management_smoke("smoke", verbosity=smoke_verbosity)
         elif tool_key == "auto_fix":

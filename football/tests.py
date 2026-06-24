@@ -355,6 +355,17 @@ class SystemGuardTests(TestCase):
         )
         self.assertIn('inspect_critical_paths', plan['requested_tools'])
 
+    def test_planner_selects_visual_page_inspection_for_task_ficha_questions(self):
+        plan = system_guard._plan_tools(
+            'Entra en la ficha y comprueba que el título se vea bien',
+            run_smoke=False,
+            auto_fix=False,
+            maintenance_action='',
+            autonomy_mode='operator',
+            page_context={'page': 'session-task-detail', 'browser_target_url': 'https://app.example.com/coach/sesiones/tarea/90/'},
+        )
+        self.assertIn('inspect_page_visual', plan['requested_tools'])
+
     def test_planner_selects_database_readonly_tool_for_database_intent(self):
         plan = system_guard._plan_tools(
             'Revisa la base de datos y detecta duplicados en tareas',
@@ -483,6 +494,29 @@ class SystemGuardTests(TestCase):
         self.assertEqual(plan['runbook']['key'], 'code_execution')
         self.assertIn('inspect_repo_status', plan['requested_tools'])
         self.assertIn('run_operator_validation', plan['requested_tools'])
+
+    @patch('football.system_guard._browser_visual_openai_analysis', return_value={
+        'enabled': True,
+        'provider': 'openai',
+        'model': 'gpt-4o-mini',
+        'summary': 'El título se ve bien.',
+        'title_visibility': {'state': 'visible', 'detail': 'Buen contraste'},
+        'button_visibility': {'state': 'visible', 'detail': 'Los botones se leen'},
+        'render_surfaces': {'state': 'complete', 'detail': 'La ficha se ve completa'},
+        'issues': [],
+        'caveats': [],
+    })
+    def test_execute_tools_runs_visual_page_inspection(self, mock_visual):
+        rows = system_guard._execute_tools(
+            ['inspect_page_visual'],
+            workspace=self.workspace,
+            question='Comprueba que el título se vea bien',
+            page_context={'browser_visual_snapshot': {'screenshot_path': '/tmp/fake.png'}},
+        )
+        self.assertEqual(len(rows), 1)
+        self.assertTrue(rows[0]['ok'])
+        self.assertEqual(rows[0]['result']['title_visibility']['state'], 'visible')
+        mock_visual.assert_called_once()
 
     def test_planner_builds_remote_release_actions_for_deploy_and_rollback(self):
         deploy_plan = system_guard._plan_tools(
