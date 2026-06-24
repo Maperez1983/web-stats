@@ -1911,8 +1911,7 @@
           drawPitchMarkings(ctx, offscreen.width, offscreen.height);
           return offscreen.toDataURL('image/png');
         };
-        const applyPresentationPitchBackdrop = () => {
-          if (!isPresentationMode) return;
+        const applyPitchBackdrop = () => {
           const width = Math.max(1, canvas.getWidth() || canvasEl.width || 1);
           const height = Math.max(1, canvas.getHeight() || canvasEl.height || 1);
           const dataUrl = buildPitchBackdropDataUrl(width, height);
@@ -1968,7 +1967,7 @@
               obj.setCoords();
             });
           }
-          applyPresentationPitchBackdrop();
+          applyPitchBackdrop();
           canvas.renderAll();
         };
         const setObjectLocked = (obj, locked) => {
@@ -2056,6 +2055,7 @@
         };
         fitCanvasToContainer(false);
         normalizeCanvasBackground(canvas, isPresentationMode);
+        applyPitchBackdrop();
         canvas.freeDrawingBrush.width = 4;
         canvas.freeDrawingBrush.color = '#e11d48';
         const history = [];
@@ -2101,7 +2101,7 @@
                 }
               });
               normalizeCanvasBackground(canvas, isPresentationMode);
-              applyPresentationPitchBackdrop();
+              applyPitchBackdrop();
               canvas.renderAll();
               pushHistory();
               refreshLayerList();
@@ -2127,7 +2127,7 @@
               canvas.sendToBack(img);
               if (!isEditable) setObjectLocked(img, true);
               normalizeCanvasBackground(canvas, isPresentationMode);
-              applyPresentationPitchBackdrop();
+              applyPitchBackdrop();
               canvas.renderAll();
               pushHistory();
               refreshLayerList();
