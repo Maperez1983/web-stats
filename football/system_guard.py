@@ -1862,6 +1862,69 @@ def _browser_visual_openai_analysis(*, page_context=None) -> dict:
     return parsed
 
 
+def _ollana_assessment_snapshot(*, page_context=None, evidence=None) -> dict:
+    context = page_context if isinstance(page_context, dict) else {}
+    evidence = evidence if isinstance(evidence, dict) else {}
+    browser_visual_snapshot = context.get("browser_visual_snapshot") if isinstance(context.get("browser_visual_snapshot"), dict) else {}
+    browser_visual_ai = evidence.get("browser_visual_ai") if isinstance(evidence.get("browser_visual_ai"), dict) else {}
+    title_state = "unknown"
+    title_detail = ""
+    buttons_state = "unknown"
+    buttons_detail = ""
+    render_state = "unknown"
+    render_detail = ""
+    source = "heuristic"
+    if browser_visual_ai.get("enabled"):
+        source = str(browser_visual_ai.get("provider") or "openai")[:20]
+        title_state = str((browser_visual_ai.get("title_visibility") or {}).get("state") or "unknown").strip().lower()
+        title_detail = str((browser_visual_ai.get("title_visibility") or {}).get("detail") or "").strip()[:220]
+        buttons_state = str((browser_visual_ai.get("button_visibility") or {}).get("state") or "unknown").strip().lower()
+        buttons_detail = str((browser_visual_ai.get("button_visibility") or {}).get("detail") or "").strip()[:220]
+        render_state = str((browser_visual_ai.get("render_surfaces") or {}).get("state") or "unknown").strip().lower()
+        render_detail = str((browser_visual_ai.get("render_surfaces") or {}).get("detail") or "").strip()[:220]
+    else:
+        low_contrast_rows = []
+        for row in (browser_visual_snapshot.get("low_contrast") or []):
+            if not isinstance(row, dict):
+                continue
+            try:
+                ratio = float(row.get("ratio") or 0)
+            except Exception:
+                ratio = 0.0
+            low_contrast_rows.append(ratio)
+        title_state = "unreadable" if any(ratio < 2.7 for ratio in low_contrast_rows if ratio > 0) else "visible"
+        title_detail = str(browser_visual_snapshot.get("h1") or browser_visual_snapshot.get("title") or "").strip()[:220]
+        buttons_state = "visible" if (browser_visual_snapshot.get("buttons") or []) else "unknown"
+        buttons_detail = ", ".join([str(item).strip() for item in (browser_visual_snapshot.get("buttons") or []) if str(item or "").strip()][:8])[:220]
+        render_state = "complete" if browser_visual_snapshot.get("enabled") else "unknown"
+        render_detail = str(browser_visual_snapshot.get("reason") or "").strip()[:220]
+
+    if title_state in {"visible", "ok"}:
+        conclusion = "El título se ve bien."
+    elif title_state in {"unreadable", "missing"}:
+        conclusion = "El título no se ve bien."
+    else:
+        conclusion = "No puedo asegurar el estado del título."
+
+    return {
+        "enabled": bool(browser_visual_ai.get("enabled") or browser_visual_snapshot.get("enabled")),
+        "source": source,
+        "title": {
+            "state": title_state,
+            "detail": title_detail,
+        },
+        "buttons": {
+            "state": buttons_state,
+            "detail": buttons_detail,
+        },
+        "render_surfaces": {
+            "state": render_state,
+            "detail": render_detail,
+        },
+        "conclusion": conclusion,
+    }
+
+
 def _route_filters_for_question(question: str, route_key: str) -> dict:
     text = str(question or "").strip().lower()
     filters = {}
@@ -5804,9 +5867,11 @@ def _compact_evidence_for_llm(evidence: dict, issues: list[dict], memory: dict |
     page_context = evidence.get("page_context") if isinstance(evidence.get("page_context"), dict) else {}
     browser_visual_snapshot = page_context.get("browser_visual_snapshot") if isinstance(page_context.get("browser_visual_snapshot"), dict) else {}
     browser_visual_ai = evidence.get("browser_visual_ai") if isinstance(evidence.get("browser_visual_ai"), dict) else {}
+    ollana_assessment = _ollana_assessment_snapshot(page_context=page_context, evidence=evidence)
     return {
         "environment": evidence.get("environment"),
         "page_context": page_context,
+        "ollana_assessment": ollana_assessment,
         "browser_visual_snapshot": {
             "enabled": bool(browser_visual_snapshot.get("enabled")),
             "reason": str(browser_visual_snapshot.get("reason") or "")[:80],
@@ -12515,6 +12580,10 @@ def run_system_guard_chat(
         assistant_action=response.get("assistant_action") if isinstance(response.get("assistant_action"), dict) else {},
         technical_execution=response.get("technical_operation_execution") if isinstance(response.get("technical_operation_execution"), dict) else {},
         response_status=str(response.get("status") or ""),
+    )
+    response["ollana_assessment"] = _ollana_assessment_snapshot(
+        page_context=page_context,
+        evidence=report.get("evidence") if isinstance(report.get("evidence"), dict) else {},
     )
     if snapshot_diff.get("regressions"):
         response["highlights"] = (response.get("highlights") or []) + [f"Regresión: {item}" for item in snapshot_diff.get("regressions", [])[:2]]

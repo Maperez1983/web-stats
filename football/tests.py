@@ -3852,6 +3852,23 @@ class SystemGuardTests(TestCase):
         self.assertEqual(call_kwargs['json']['input'][1]['content'][1]['type'], 'input_image')
         self.assertEqual(call_kwargs['json']['input'][1]['content'][1]['detail'], 'original')
 
+    def test_ollana_assessment_snapshot_reports_low_contrast_title(self):
+        snapshot = system_guard._ollana_assessment_snapshot(page_context={
+            'browser_visual_snapshot': {
+                'enabled': True,
+                'title': 'Ficha de tarea',
+                'h1': 'Juego ludico preparación física',
+                'buttons': ['Editar', 'Exportar'],
+                'low_contrast': [{'tag': 'h1', 'text': 'Juego ludico preparación física', 'ratio': 1.42}],
+            }
+        })
+
+        self.assertTrue(snapshot['enabled'])
+        self.assertEqual(snapshot['source'], 'heuristic')
+        self.assertEqual(snapshot['title']['state'], 'unreadable')
+        self.assertEqual(snapshot['buttons']['state'], 'visible')
+        self.assertEqual(snapshot['conclusion'], 'El título no se ve bien.')
+
     @patch('football.system_guard.fetch_web_research_with_browser')
     @patch('football.system_guard.compact_web_research')
     def test_operator_web_research_snapshot_uses_public_urls(self, mock_compact, mock_fetch):
