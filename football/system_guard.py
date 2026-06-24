@@ -4128,6 +4128,12 @@ ROLE_KNOWLEDGE_PACKS = {
         "knowledge_targets": ["clean code", "safe refactor", "test coverage", "contract clarity", "performance-aware design"],
         "guidance": ["Piensa como programador senior: aísla el problema, reduce el cambio y valida con pruebas antes de cerrar."],
     },
+    "cybersecurity_senior": {
+        "domains": ["threat_modeling", "access_control", "authentication", "authorization", "secrets_management", "secure_coding", "incident_response", "network_security"],
+        "visual_signals": ["unexpected access", "token exposure", "weak permissions", "suspicious redirects", "insecure defaults"],
+        "knowledge_targets": ["least privilege", "secure-by-default", "attack surface reduction", "incident triage", "secret hygiene"],
+        "guidance": ["Piensa como experto senior en ciberseguridad: minimiza superficie de ataque, revisa permisos y trata credenciales como material sensible."],
+    },
     "supervisor": {
         "domains": ["governance", "traceability", "release_safety", "workspace_overview"],
         "visual_signals": ["missing audit trail", "permission mismatch", "broken publish flow"],
@@ -4277,6 +4283,7 @@ def _operator_role_context(*, page_context=None, operator_profile=None) -> dict:
         active_roles.append("repair_operator")
     active_roles.append("informatician_senior")
     active_roles.append("programador_senior")
+    active_roles.append("cybersecurity_senior")
     if task_id or "task" in page or "task" in route:
         active_roles.append("visual_auditor")
     if session_id or "session" in page or "sessions" in route:
