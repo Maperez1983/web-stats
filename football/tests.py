@@ -4056,6 +4056,34 @@ class SystemGuardTests(TestCase):
         self.assertIn('access_control', role_context['knowledge_domains'])
         self.assertIn('least privilege', ' '.join(role_context['knowledge_targets']))
 
+    def test_operator_role_context_includes_system_auditor_knowledge(self):
+        role_context = system_guard._operator_role_context(
+            page_context={
+                'page': 'dashboard-home',
+                'workspace_id': self.workspace.id,
+                'team_id': self.team.id,
+            },
+            operator_profile={},
+        )
+        self.assertIn('system_auditor', role_context['active_roles'])
+        self.assertIn('system_health', role_context['knowledge_domains'])
+        self.assertIn('regression_detection', role_context['knowledge_domains'])
+        self.assertIn('detect regressions', ' '.join(role_context['knowledge_targets']))
+
+    def test_operator_role_context_includes_maintenance_engineer_knowledge(self):
+        role_context = system_guard._operator_role_context(
+            page_context={
+                'page': 'dashboard-home',
+                'workspace_id': self.workspace.id,
+                'team_id': self.team.id,
+            },
+            operator_profile={},
+        )
+        self.assertIn('maintenance_engineer', role_context['active_roles'])
+        self.assertIn('safe_maintenance', role_context['knowledge_domains'])
+        self.assertIn('cleanup', role_context['knowledge_domains'])
+        self.assertIn('small reversible changes', ' '.join(role_context['knowledge_targets']))
+
     def test_operator_role_context_includes_core_operative_baseline(self):
         role_context = system_guard._operator_role_context(
             page_context={
@@ -4097,6 +4125,26 @@ class SystemGuardTests(TestCase):
             planner={'task': {'target_summary': 'Revisar sistema', 'route_target': {}}},
         )
         self.assertIn('cybersecurity_senior', brain['role_profile']['active_roles'])
+        self.assertTrue(brain['knows_system_map'])
+
+    def test_system_brain_snapshot_exposes_system_auditor_role(self):
+        brain = system_guard._system_brain_snapshot(
+            self.workspace,
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+            operator_profile={},
+            planner={'task': {'target_summary': 'Revisar sistema', 'route_target': {}}},
+        )
+        self.assertIn('system_auditor', brain['role_profile']['active_roles'])
+        self.assertTrue(brain['knows_system_map'])
+
+    def test_system_brain_snapshot_exposes_maintenance_engineer_role(self):
+        brain = system_guard._system_brain_snapshot(
+            self.workspace,
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+            operator_profile={},
+            planner={'task': {'target_summary': 'Revisar sistema', 'route_target': {}}},
+        )
+        self.assertIn('maintenance_engineer', brain['role_profile']['active_roles'])
         self.assertTrue(brain['knows_system_map'])
 
     @patch('football.system_guard.local_llm_config', return_value={

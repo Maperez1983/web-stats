@@ -4140,6 +4140,18 @@ ROLE_KNOWLEDGE_PACKS = {
         "knowledge_targets": ["least privilege", "secure-by-default", "attack surface reduction", "incident triage", "secret hygiene"],
         "guidance": ["Piensa como experto senior en ciberseguridad: minimiza superficie de ataque, revisa permisos y trata credenciales como material sensible."],
     },
+    "system_auditor": {
+        "domains": ["system_health", "regression_detection", "ui_audit", "route_audit", "data_consistency", "log_analysis", "workflow_validation"],
+        "visual_signals": ["broken screens", "duplicate records", "missing controls", "render mismatch", "unexpected error"],
+        "knowledge_targets": ["detect regressions", "compare expected vs actual", "find root cause", "validate fixes", "surface risks"],
+        "guidance": ["Audita el sistema con mentalidad de inspección continua: observa, compara, detecta y confirma antes de proponer cambios."],
+    },
+    "maintenance_engineer": {
+        "domains": ["safe_maintenance", "refinement", "operational_improvement", "cleanup", "verification", "rollback_readiness"],
+        "visual_signals": ["technical debt", "redundant flows", "brittle logic", "performance drag", "maintenance friction"],
+        "knowledge_targets": ["safe improvements", "small reversible changes", "cleanup without breakage", "verification loops", "cleanup"],
+        "guidance": ["Mejora el sistema con cambios pequeños, reversibles y comprobados; no conviertas mantenimiento en reescritura."],
+    },
     "supervisor": {
         "domains": ["governance", "traceability", "release_safety", "workspace_overview"],
         "visual_signals": ["missing audit trail", "permission mismatch", "broken publish flow"],
@@ -4214,10 +4226,10 @@ def _merge_role_knowledge(active_roles: list[str], operator_profile=None) -> dic
     targets.extend([str(x) for x in (knowledge.get("knowledge_targets") or knowledge.get("targets") or []) if str(x or "").strip()])
     guidance.extend([str(x) for x in (knowledge.get("guidance") or []) if str(x or "").strip()])
     return {
-        "domains": list(dict.fromkeys(domains))[:32],
-        "visual_signals": list(dict.fromkeys(visual_signals))[:32],
-        "knowledge_targets": list(dict.fromkeys(targets))[:32],
-        "guidance": list(dict.fromkeys(guidance))[:32],
+        "domains": list(dict.fromkeys(domains))[:48],
+        "visual_signals": list(dict.fromkeys(visual_signals))[:48],
+        "knowledge_targets": list(dict.fromkeys(targets))[:64],
+        "guidance": list(dict.fromkeys(guidance))[:48],
     }
 
 
@@ -4294,7 +4306,9 @@ def _operator_role_context(*, page_context=None, operator_profile=None) -> dict:
         active_roles.append("repair_operator")
     active_roles.append("informatician_senior")
     active_roles.append("programador_senior")
+    active_roles.append("maintenance_engineer")
     active_roles.append("cybersecurity_senior")
+    active_roles.append("system_auditor")
     if task_id or "task" in page or "task" in route:
         active_roles.append("visual_auditor")
     if session_id or "session" in page or "sessions" in route:
