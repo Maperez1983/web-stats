@@ -4212,6 +4212,66 @@ ROLE_KNOWLEDGE_PACKS = {
         "knowledge_targets": ["balance the microcycle", "detect fatigue early", "avoid spikes", "keep sessions sustainable"],
         "guidance": ["Piensa como gestor de carga: distribuye el estímulo en la semana para rendir sin romper al jugador."],
     },
+    "tactical_model_specialist": {
+        "domains": ["game_model", "principles", "subprinciples", "collective_behaviors", "contextual_coherence", "football_logic"],
+        "visual_signals": ["tactical mismatch", "principle drift", "incoherent task", "mixed message"],
+        "knowledge_targets": ["align tasks to game model", "keep principles coherent", "translate idea into behavior"],
+        "guidance": ["Piensa como especialista en modelo de juego: cada tarea debe reforzar una idea colectiva concreta."],
+    },
+    "game_analysis_specialist": {
+        "domains": ["opponent_analysis", "pattern_detection", "strengths", "weaknesses", "match_plan", "scouting"],
+        "visual_signals": ["unread opponent pattern", "late adjustment", "missing advantage", "repeated threat"],
+        "knowledge_targets": ["identify opponent patterns", "exploit weaknesses", "prepare match plan", "anticipate threats"],
+        "guidance": ["Piensa como analista de partido: detecta patrones del rival y tradúcelos en decisiones útiles para el staff."],
+    },
+    "training_methodologist": {
+        "domains": ["task_design", "progression", "transfer", "constraints", "methodology", "session_sequence"],
+        "visual_signals": ["poor exercise design", "weak transfer", "disconnected blocks", "flat progression"],
+        "knowledge_targets": ["design effective tasks", "increase transfer", "sequence methodology", "keep objectives clear"],
+        "guidance": ["Piensa como metodólogo del entrenamiento: diseña tareas que conecten objetivo, contexto y transferencia al juego."],
+    },
+    "microcycle_planner": {
+        "domains": ["weekly_planning", "microcycle_architecture", "load_distribution", "matchday_context", "recovery_windows"],
+        "visual_signals": ["bad weekly balance", "load stacking", "missing recovery", "poor day logic"],
+        "knowledge_targets": ["plan weekly structure", "balance loads", "respect match context", "build recovery windows"],
+        "guidance": ["Piensa como planificador de microciclo: organiza la semana según partido, carga y recuperación."],
+    },
+    "player_development_specialist": {
+        "domains": ["individual_progression", "profiles", "position_specific_development", "learning_curve", "talent_context"],
+        "visual_signals": ["stalled growth", "generic coaching", "misfit role", "ignored potential"],
+        "knowledge_targets": ["track individual growth", "adapt to profile", "support position-specific development", "identify next step"],
+        "guidance": ["Piensa como especialista en desarrollo: cada jugador necesita ajustes según perfil, posición y momento."],
+    },
+    "set_piece_specialist": {
+        "domains": ["abp_offense", "abp_defense", "blocks", "runs", "second_ball", "set_piece_plans"],
+        "visual_signals": ["poor marking", "late run", "blocked route", "lost second ball"],
+        "knowledge_targets": ["design set pieces", "coordinate roles", "attack second balls", "protect dead balls"],
+        "guidance": ["Piensa como especialista en ABP: ordena roles, trayectorias y segundas jugadas con precisión."],
+    },
+    "positional_play_specialist": {
+        "domains": ["possession_structure", "third_man", "occupy_space", "overloads", "side_switch", "ball_progression"],
+        "visual_signals": ["isolated player", "empty space", "stalled build-up", "late switch"],
+        "knowledge_targets": ["occupy spaces well", "create overloads", "use third man", "progress with purpose"],
+        "guidance": ["Piensa como especialista en juego de posición: crea superioridades y ocupa los espacios con intención."],
+    },
+    "transition_specialist": {
+        "domains": ["press_after_loss", "counterattack", "rest_defense", "recovery_sprint", "transition_triggers"],
+        "visual_signals": ["slow reaction", "broken rest defense", "open counter lane", "late recovery"],
+        "knowledge_targets": ["react after loss", "attack on recovery", "stabilize rest defense", "read transition triggers"],
+        "guidance": ["Piensa como especialista en transiciones: cada pérdida y recuperación debe activar una respuesta clara."],
+    },
+    "goalkeeper_coach": {
+        "domains": ["goalkeeper_play", "decision_making", "sweeper_actions", "distribution", "positioning", "coordination"],
+        "visual_signals": ["poor starting position", "late decision", "weak distribution", "disconnect with line"],
+        "knowledge_targets": ["improve goalkeeper decisions", "coordinate with back line", "optimize distribution", "manage depth"],
+        "guidance": ["Piensa como entrenador de porteros: el portero es parte activa del plan, no un actor aislado."],
+    },
+    "injury_prevention_fitness_specialist": {
+        "domains": ["injury_prevention", "load_control", "mobility", "strength_balance", "readiness", "return_to_play"],
+        "visual_signals": ["risky load", "poor mobility", "asymmetry", "repeated overload", "return-to-play gap"],
+        "knowledge_targets": ["prevent injury", "balance physical loads", "monitor readiness", "support return to play"],
+        "guidance": ["Piensa como especialista en prevención: la salud del jugador define cuánto y cómo se puede entrenar."],
+    },
     "incident_responder": {
         "domains": ["triage", "containment", "impact_analysis", "communication", "recovery", "postmortem"],
         "visual_signals": ["active incident", "widespread failure", "repeated error", "service degradation"],
@@ -4292,10 +4352,10 @@ def _merge_role_knowledge(active_roles: list[str], operator_profile=None) -> dic
     targets.extend([str(x) for x in (knowledge.get("knowledge_targets") or knowledge.get("targets") or []) if str(x or "").strip()])
     guidance.extend([str(x) for x in (knowledge.get("guidance") or []) if str(x or "").strip()])
     return {
-        "domains": list(dict.fromkeys(domains))[:96],
-        "visual_signals": list(dict.fromkeys(visual_signals))[:96],
-        "knowledge_targets": list(dict.fromkeys(targets))[:96],
-        "guidance": list(dict.fromkeys(guidance))[:96],
+        "domains": list(dict.fromkeys(domains))[:192],
+        "visual_signals": list(dict.fromkeys(visual_signals))[:192],
+        "knowledge_targets": list(dict.fromkeys(targets))[:192],
+        "guidance": list(dict.fromkeys(guidance))[:192],
     }
 
 
@@ -4385,6 +4445,16 @@ def _operator_role_context(*, page_context=None, operator_profile=None) -> dict:
     active_roles.append("head_coach")
     active_roles.append("physical_preparator")
     active_roles.append("load_manager")
+    active_roles.append("tactical_model_specialist")
+    active_roles.append("game_analysis_specialist")
+    active_roles.append("training_methodologist")
+    active_roles.append("microcycle_planner")
+    active_roles.append("player_development_specialist")
+    active_roles.append("set_piece_specialist")
+    active_roles.append("positional_play_specialist")
+    active_roles.append("transition_specialist")
+    active_roles.append("goalkeeper_coach")
+    active_roles.append("injury_prevention_fitness_specialist")
     active_roles.append("incident_responder")
     if task_id or "task" in page or "task" in route:
         active_roles.append("visual_auditor")
@@ -4398,7 +4468,7 @@ def _operator_role_context(*, page_context=None, operator_profile=None) -> dict:
         active_roles.append("knowledge_orchestrator")
     if not active_roles:
         active_roles.append("system_observer")
-    active_roles = list(dict.fromkeys(active_roles))[:32]
+    active_roles = list(dict.fromkeys(active_roles))[:64]
     role_capabilities = {
         "can_observe_system": True,
         "can_open_browser": True,
@@ -4427,7 +4497,7 @@ def _operator_role_context(*, page_context=None, operator_profile=None) -> dict:
     return {
         "active_roles": active_roles,
         "capabilities": role_capabilities,
-        "knowledge_targets": list(dict.fromkeys(knowledge_targets))[:96],
+        "knowledge_targets": list(dict.fromkeys(knowledge_targets))[:192],
         "knowledge_domains": role_knowledge.get("domains") or [],
         "visual_signals": role_knowledge.get("visual_signals") or [],
         "guidance": role_knowledge.get("guidance") or [],
@@ -4457,7 +4527,7 @@ def _normalize_operator_profile(payload) -> dict:
         "code_focus_areas": [str(x) for x in (payload.get("code_focus_areas") or []) if str(x or "").strip()][:8],
         "recurring_intents": recurring,
         "roles": {
-            "active_roles": [str(x) for x in (roles.get("active_roles") or []) if str(x or "").strip()][:20],
+            "active_roles": [str(x) for x in (roles.get("active_roles") or []) if str(x or "").strip()][:64],
             "capabilities": {
                 "can_observe_system": bool((roles.get("capabilities") or {}).get("can_observe_system")),
                 "can_open_browser": bool((roles.get("capabilities") or {}).get("can_open_browser")),
@@ -4467,17 +4537,17 @@ def _normalize_operator_profile(payload) -> dict:
                 "can_repair_code": bool((roles.get("capabilities") or {}).get("can_repair_code")),
                 "can_manage_training_content": bool((roles.get("capabilities") or {}).get("can_manage_training_content")),
             },
-            "knowledge_targets": [str(x) for x in (roles.get("knowledge_targets") or []) if str(x or "").strip()][:32],
-            "knowledge_domains": [str(x) for x in (roles.get("knowledge_domains") or []) if str(x or "").strip()][:32],
-            "visual_signals": [str(x) for x in (roles.get("visual_signals") or []) if str(x or "").strip()][:32],
-            "guidance": [str(x) for x in (roles.get("guidance") or []) if str(x or "").strip()][:32],
+            "knowledge_targets": [str(x) for x in (roles.get("knowledge_targets") or []) if str(x or "").strip()][:64],
+            "knowledge_domains": [str(x) for x in (roles.get("knowledge_domains") or []) if str(x or "").strip()][:64],
+            "visual_signals": [str(x) for x in (roles.get("visual_signals") or []) if str(x or "").strip()][:64],
+            "guidance": [str(x) for x in (roles.get("guidance") or []) if str(x or "").strip()][:64],
             "observer_mode": bool(roles.get("observer_mode", True)),
         },
         "knowledge": {
-            "domains": [str(x) for x in (knowledge.get("domains") or []) if str(x or "").strip()][:32],
-            "visual_signals": [str(x) for x in (knowledge.get("visual_signals") or []) if str(x or "").strip()][:32],
-            "knowledge_targets": [str(x) for x in (knowledge.get("knowledge_targets") or knowledge.get("targets") or []) if str(x or "").strip()][:32],
-            "guidance": [str(x) for x in (knowledge.get("guidance") or []) if str(x or "").strip()][:32],
+            "domains": [str(x) for x in (knowledge.get("domains") or []) if str(x or "").strip()][:64],
+            "visual_signals": [str(x) for x in (knowledge.get("visual_signals") or []) if str(x or "").strip()][:64],
+            "knowledge_targets": [str(x) for x in (knowledge.get("knowledge_targets") or knowledge.get("targets") or []) if str(x or "").strip()][:64],
+            "guidance": [str(x) for x in (knowledge.get("guidance") or []) if str(x or "").strip()][:64],
         },
         "last_updated": str(payload.get("last_updated") or "").strip()[:64],
     }
@@ -9107,9 +9177,9 @@ def _system_brain_snapshot(
         "preferred_route": str(operator_profile.get("preferred_route_label") or "")[:120],
         "current_focus": str(task.get("target_summary") or "")[:220],
         "role_profile": {
-            "active_roles": [str(item)[:64] for item in (role_profile.get("active_roles") or [])[:20]],
+            "active_roles": [str(item)[:64] for item in (role_profile.get("active_roles") or [])[:64]],
             "capabilities": role_profile.get("capabilities") or {},
-            "knowledge_targets": [str(item)[:64] for item in (role_profile.get("knowledge_targets") or [])[:24]],
+            "knowledge_targets": [str(item)[:64] for item in (role_profile.get("knowledge_targets") or [])[:64]],
             "observer_mode": bool(role_profile.get("observer_mode")),
         },
         "similarity_percent": _safe_int(maturity.get("percent"), 0),

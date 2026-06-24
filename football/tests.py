@@ -4184,6 +4184,34 @@ class SystemGuardTests(TestCase):
         self.assertIn('acute_chronic_load', role_context['knowledge_domains'])
         self.assertIn('avoid spikes', ' '.join(role_context['knowledge_targets']))
 
+    def test_operator_role_context_includes_advanced_football_roles(self):
+        role_context = system_guard._operator_role_context(
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+            operator_profile={},
+        )
+        expected_roles = {
+            'tactical_model_specialist',
+            'game_analysis_specialist',
+            'training_methodologist',
+            'microcycle_planner',
+            'player_development_specialist',
+            'set_piece_specialist',
+            'positional_play_specialist',
+            'transition_specialist',
+            'goalkeeper_coach',
+            'injury_prevention_fitness_specialist',
+        }
+        for role in expected_roles:
+            self.assertIn(role, role_context['active_roles'])
+        self.assertIn('game_model', role_context['knowledge_domains'])
+        self.assertIn('opponent_analysis', role_context['knowledge_domains'])
+        self.assertIn('weekly_planning', role_context['knowledge_domains'])
+        self.assertIn('set_piece_plans', role_context['knowledge_domains'])
+        self.assertIn('possession_structure', role_context['knowledge_domains'])
+        self.assertIn('press_after_loss', role_context['knowledge_domains'])
+        self.assertIn('goalkeeper_play', role_context['knowledge_domains'])
+        self.assertIn('injury_prevention', role_context['knowledge_domains'])
+
     def test_operator_role_context_includes_incident_responder_knowledge(self):
         role_context = system_guard._operator_role_context(
             page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
@@ -4355,6 +4383,28 @@ class SystemGuardTests(TestCase):
             planner={'task': {'target_summary': 'Revisar sistema', 'route_target': {}}},
         )
         self.assertIn('load_manager', brain['role_profile']['active_roles'])
+        self.assertTrue(brain['knows_system_map'])
+
+    def test_system_brain_snapshot_exposes_advanced_football_roles(self):
+        brain = system_guard._system_brain_snapshot(
+            self.workspace,
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+            operator_profile={},
+            planner={'task': {'target_summary': 'Revisar sistema', 'route_target': {}}},
+        )
+        for role in {
+            'tactical_model_specialist',
+            'game_analysis_specialist',
+            'training_methodologist',
+            'microcycle_planner',
+            'player_development_specialist',
+            'set_piece_specialist',
+            'positional_play_specialist',
+            'transition_specialist',
+            'goalkeeper_coach',
+            'injury_prevention_fitness_specialist',
+        }:
+            self.assertIn(role, brain['role_profile']['active_roles'])
         self.assertTrue(brain['knows_system_map'])
 
     def test_system_brain_snapshot_exposes_incident_responder_role(self):
