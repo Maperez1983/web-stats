@@ -714,6 +714,52 @@
         grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
         gap: 0.6rem;
       }
+      .editor-section {
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 14px;
+        padding: 0.82rem 0.82rem 0.9rem;
+        background: rgba(3, 12, 25, 0.52);
+        margin-bottom: 0.75rem;
+      }
+      .editor-section-head {
+        display:flex;
+        align-items:baseline;
+        justify-content:space-between;
+        gap:0.65rem;
+        margin: 0 0 0.15rem;
+      }
+      .editor-section-head h3 {
+        margin: 0;
+        font-size: 0.86rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        font-weight: 920;
+      }
+      .editor-section-head .meta {
+        margin: 0;
+        font-size: 0.78rem;
+      }
+      details.editor-section {
+        padding-top: 0.78rem;
+      }
+      details.editor-section summary {
+        list-style: none;
+      }
+      details.editor-section summary::-webkit-details-marker {
+        display: none;
+      }
+      details.editor-section summary.editor-section-head {
+        cursor: pointer;
+      }
+      .editor-grid {
+        display:grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 0.6rem;
+        margin-top: 0.65rem;
+      }
+      .editor-grid .full {
+        grid-column: 1 / -1;
+      }
       details.edit-section {
         border: 1px solid rgba(255, 255, 255, 0.15);
         border-radius: 11px;
@@ -1141,7 +1187,7 @@
         <div class="task-detail-tabs" role="tablist">
           <button type="button" class="button task-detail-tab{% if active_task_tab == 'presentation' %} is-active{% endif %}" data-task-tab="presentation" role="tab" aria-selected="{% if active_task_tab == 'presentation' %}true{% else %}false{% endif %}">Presentación</button>
           {% if can_edit_task %}
-          <button type="button" class="button task-detail-tab{% if active_task_tab == 'edit' %} is-active{% endif %}" data-task-tab="edit" role="tab" aria-selected="{% if active_task_tab == 'edit' %}true{% else %}false{% endif %}">Configuración</button>
+          <button type="button" class="button task-detail-tab{% if active_task_tab == 'edit' %} is-active{% endif %}" data-task-tab="edit" role="tab" aria-selected="{% if active_task_tab == 'edit' %}true{% else %}false{% endif %}">Edición</button>
           {% endif %}
           <button type="button" class="button task-detail-tab{% if active_task_tab == 'export' %} is-active{% endif %}" data-task-tab="export" role="tab" aria-selected="{% if active_task_tab == 'export' %}true{% else %}false{% endif %}">Exportar</button>
         </div>
@@ -1350,62 +1396,97 @@
 
       {% if can_edit_task %}
       <section class="panel task-edit-panel task-edit-tab-descriptive" data-task-edit-panel="descriptive">
-        <h2>Ficha base editable</h2>
+        <h2>Edición de la ficha</h2>
+        <p class="meta">Pensada para el entrenador: primero lo esencial, después el detalle operativo y por último lo técnico.</p>
+        <div class="coach-summary-grid" style="margin-bottom:0.85rem;">
+          <div class="sheet-item">
+            <strong>Primero</strong>
+            <span>Título, bloque, minutos y objetivo.</span>
+          </div>
+          <div class="sheet-item">
+            <strong>Después</strong>
+            <span>Consignas, descripción y organización.</span>
+          </div>
+          <div class="sheet-item">
+            <strong>Si hace falta</strong>
+            <span>Editar pizarra, regenerar análisis y revisar originales.</span>
+          </div>
+        </div>
         <form method="post" class="grid" id="task-detail-form">
           {% csrf_token %}
           <input type="hidden" name="detail_action" value="update_task_detail" />
-          <div class="grid">
-            <label>
-              Título
-              <input type="text" name="task_title" value="{{ task.title }}" maxlength="160" required />
-            </label>
-            <label>
-              Bloque
-              <select name="task_block">
-                {% for value, label in task_blocks %}
-                <option value="{{ value }}" {% if task.block == value %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label>
-              Minutos
-              <input type="number" name="task_minutes" min="5" max="90" value="{{ task.duration_minutes }}" />
-            </label>
+          <div class="editor-section">
+            <div class="editor-section-head">
+              <h3>Identidad de la tarea</h3>
+              <span class="meta">Lo que el entrenador ve y cambia primero.</span>
+            </div>
+            <div class="editor-grid">
+              <label>
+                Título
+                <input type="text" name="task_title" value="{{ task.title }}" maxlength="160" required />
+              </label>
+              <label>
+                Bloque
+                <select name="task_block">
+                  {% for value, label in task_blocks %}
+                  <option value="{{ value }}" {% if task.block == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                Minutos
+                <input type="number" name="task_minutes" min="5" max="90" value="{{ task.duration_minutes }}" />
+              </label>
+              <label class="full">
+                Objetivo
+                <textarea name="task_objective" rows="2" style="min-height:52px; resize:vertical;">{{ task.objective }}</textarea>
+              </label>
+            </div>
           </div>
-          <div class="grid">
-            <label style="grid-column:1/-1;">
-              Objetivo
-              <textarea name="task_objective" rows="2" style="min-height:52px; resize:vertical;">{{ task.objective }}</textarea>
-            </label>
-            <label style="grid-column:1/-1;">
-              Consignas
-              <textarea name="task_coaching_points">{{ task.coaching_points }}</textarea>
-            </label>
-            <label style="grid-column:1/-1;">
-              Reglas de confrontación
-              <textarea name="task_confrontation_rules">{{ task.confrontation_rules }}</textarea>
-            </label>
-            <label style="grid-column:1/-1;">
-              Descripción de la ficha
-              <textarea name="task_sheet_description">{{ task_sheet.description }}</textarea>
-            </label>
-            <label>
-              Jugadores
-              <input type="text" name="task_sheet_players" value="{{ task_sheet.players }}" />
-            </label>
-            <label>
-              Espacio
-              <input type="text" name="task_sheet_space" value="{{ task_sheet.space }}" />
-            </label>
-            <label>
-              Medidas
-              <input type="text" name="task_sheet_dimensions" value="{{ task_sheet.dimensions }}" />
-            </label>
-            <label>
-              Materiales
-              <input type="text" name="task_sheet_materials" value="{{ task_sheet.materials }}" />
-            </label>
-          </div>
+          <details class="editor-section" open>
+            <summary class="editor-section-head">
+              <h3>Contenido y consigna</h3>
+              <span class="meta">Lo que explica y ordena la tarea.</span>
+            </summary>
+            <div class="editor-grid">
+              <label class="full">
+                Consignas
+                <textarea name="task_coaching_points">{{ task.coaching_points }}</textarea>
+              </label>
+              <label class="full">
+                Reglas de confrontación
+                <textarea name="task_confrontation_rules">{{ task.confrontation_rules }}</textarea>
+              </label>
+              <label class="full">
+                Descripción de la ficha
+                <textarea name="task_sheet_description">{{ task_sheet.description }}</textarea>
+              </label>
+            </div>
+          </details>
+          <details class="editor-section">
+            <summary class="editor-section-head">
+              <h3>Contexto operativo</h3>
+              <span class="meta">Solo si necesitas afinar la estructura.</span>
+            </summary>
+            <div class="editor-grid">
+              <label>
+                Jugadores
+                <input type="text" name="task_sheet_players" value="{{ task_sheet.players }}" />
+              </label>
+              <label>
+                Espacio
+                <input type="text" name="task_sheet_space" value="{{ task_sheet.space }}" />
+              </label>
+              <label>
+                Medidas
+                <input type="text" name="task_sheet_dimensions" value="{{ task_sheet.dimensions }}" />
+              </label>
+              <label>
+                Materiales
+                <input type="text" name="task_sheet_materials" value="{{ task_sheet.materials }}" />
+              </label>
+            </div>
+          </details>
           <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
             <button class="button" type="submit">Guardar cambios</button>
             <a class="button secondary" href="{{ edit_graphic_url|default:presentation_url }}">Abrir edición de pizarra</a>
