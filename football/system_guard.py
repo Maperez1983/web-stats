@@ -37,7 +37,7 @@ from football.library_repositories import (
     LIBRARY_REPOSITORY_TRADITIONAL,
     normalize_library_repository,
 )
-from football.local_llm import call_ollama_json, local_llm_config
+from football.local_llm import call_ollama_json, call_ollama_vision_json, local_llm_config, local_vision_models
 from football.database_inspector import inspect_database_readonly
 from football.render_api import inspect_render_service, list_render_services, render_api_key
 from football.web_research import MAX_URLS, compact_web_research, fetch_web_research_with_browser, parse_research_urls, search_web_research
@@ -1718,6 +1718,33 @@ def _browser_visual_page_snapshot(workspace, *, actor_id=None, page_context=None
         return {"enabled": False, "reason": f"visual_capture_error:{str(exc)[:120]}"}
 
 
+def _browser_visual_analysis_payload(snapshot: dict) -> dict:
+    snapshot = snapshot if isinstance(snapshot, dict) else {}
+    return {
+        "target_url": str(snapshot.get("target_url") or "")[:220],
+        "title": str(snapshot.get("title") or "")[:140],
+        "h1": str(snapshot.get("h1") or "")[:140],
+        "h1_color": str(snapshot.get("h1_color") or "")[:40],
+        "top_bg": str(snapshot.get("top_bg") or "")[:80],
+        "body_classes": str(snapshot.get("body_classes") or "")[:120],
+        "buttons": [str(item).strip()[:80] for item in (snapshot.get("buttons") or []) if str(item or "").strip()][:12],
+        "low_contrast": [{
+            "tag": str((row or {}).get("tag") or "")[:24],
+            "text": str((row or {}).get("text") or "")[:80],
+            "ratio": max(0, float((row or {}).get("ratio") or 0)),
+        } for row in (snapshot.get("low_contrast") or []) if isinstance(row, dict)][:8],
+        "instruction": (
+            "Analiza la captura como un auditor visual. "
+            "Responde SOLO JSON válido con estas claves: summary, title_visibility, button_visibility, render_surfaces, contrast_issues, issues, caveats. "
+            "En title_visibility usa {state, detail}; state debe ser visible, unreadable o missing. "
+            "En button_visibility usa {state, missing_or_hidden, detail}. "
+            "En render_surfaces usa {state, detail} para indicar si la ficha se ve completa, negra, vacía o recortada. "
+            "En issues devuelve una lista de objetos {severity, area, message, detail}. "
+            "Si no puedes asegurarlo, dilo en caveats."
+        ),
+    }
+
+
 def _browser_visual_openai_analysis(*, page_context=None) -> dict:
     context = page_context if isinstance(page_context, dict) else {}
     snapshot = context.get("browser_visual_snapshot") if isinstance(context.get("browser_visual_snapshot"), dict) else {}
@@ -1744,29 +1771,7 @@ def _browser_visual_openai_analysis(*, page_context=None) -> dict:
     base_url = str(os.getenv("OPENAI_BASE_URL") or "https://api.openai.com/v1").strip().rstrip("/")
     model = str(os.getenv("OPENAI_IMAGE_ANALYSIS_MODEL") or os.getenv("OPENAI_MODEL") or "gpt-4o-mini").strip()
     data_url = "data:image/png;base64," + base64.b64encode(raw_bytes).decode("ascii")
-    prompt = {
-        "target_url": str(snapshot.get("target_url") or "")[:220],
-        "title": str(snapshot.get("title") or "")[:140],
-        "h1": str(snapshot.get("h1") or "")[:140],
-        "h1_color": str(snapshot.get("h1_color") or "")[:40],
-        "top_bg": str(snapshot.get("top_bg") or "")[:80],
-        "body_classes": str(snapshot.get("body_classes") or "")[:120],
-        "buttons": [str(item).strip()[:80] for item in (snapshot.get("buttons") or []) if str(item or "").strip()][:12],
-        "low_contrast": [{
-            "tag": str((row or {}).get("tag") or "")[:24],
-            "text": str((row or {}).get("text") or "")[:80],
-            "ratio": max(0, float((row or {}).get("ratio") or 0)),
-        } for row in (snapshot.get("low_contrast") or []) if isinstance(row, dict)][:8],
-        "instruction": (
-            "Analiza la captura como un auditor visual. "
-            "Responde SOLO JSON válido con estas claves: summary, title_visibility, button_visibility, render_surfaces, contrast_issues, issues, caveats. "
-            "En title_visibility usa {state, detail}; state debe ser visible, unreadable o missing. "
-            "En button_visibility usa {state, missing_or_hidden, detail}. "
-            "En render_surfaces usa {state, detail} para indicar si la ficha se ve completa, negra, vacía o recortada. "
-            "En issues devuelve una lista de objetos {severity, area, message, detail}. "
-            "Si no puedes asegurarlo, dilo en caveats."
-        ),
-    }
+    prompt = _browser_visual_analysis_payload(snapshot)
     try:
         resp = requests.post(
             f"{base_url}/responses",
@@ -1860,6 +1865,58 @@ def _browser_visual_openai_analysis(*, page_context=None) -> dict:
     parsed["provider"] = "openai"
     parsed["model"] = model
     return parsed
+
+
+def _browser_visual_ollama_analysis(*, page_context=None) -> dict:
+    context = page_context if isinstance(page_context, dict) else {}
+    snapshot = context.get("browser_visual_snapshot") if isinstance(context.get("browser_visual_snapshot"), dict) else {}
+    if not snapshot:
+        return {"enabled": False, "reason": "snapshot_unavailable"}
+    screenshot_path = str(snapshot.get("screenshot_path") or "").strip()
+    if not screenshot_path:
+        return {"enabled": False, "reason": "screenshot_missing"}
+    screenshot_file = Path(screenshot_path)
+    if not screenshot_file.is_file():
+        return {"enabled": False, "reason": "screenshot_not_found"}
+    try:
+        raw_bytes = screenshot_file.read_bytes()
+    except Exception as exc:
+        return {"enabled": False, "reason": f"screenshot_read_failed:{str(exc)[:80]}"}
+    if not raw_bytes:
+        return {"enabled": False, "reason": "screenshot_empty"}
+
+    cfg = local_llm_config()
+    if not cfg.get("enabled") or str(cfg.get("provider") or "").lower() != "ollama":
+        return {"enabled": False, "reason": "local_llm_disabled_or_unsupported"}
+    model = str(os.getenv("OLLAMA_IMAGE_ANALYSIS_MODEL") or os.getenv("AI_TRAINER_LOCAL_VISION_MODEL") or "").strip()
+    models = local_vision_models()
+    prompt = _browser_visual_analysis_payload(snapshot)
+    parsed, error = call_ollama_vision_json(
+        json.dumps(prompt, ensure_ascii=False),
+        raw_bytes,
+        model=model or None,
+        models=models,
+        base_url=cfg.get("base_url"),
+        timeout=cfg.get("timeout"),
+    )
+    if not isinstance(parsed, dict):
+        return {"enabled": False, "reason": str(error or "ollama_invalid_json"), "models": models[:3]}
+    parsed["enabled"] = True
+    parsed["provider"] = "ollama"
+    parsed["models_tried"] = models[:3]
+    return parsed
+
+
+def _browser_visual_ai_analysis(*, page_context=None) -> dict:
+    openai_result = _browser_visual_openai_analysis(page_context=page_context)
+    if isinstance(openai_result, dict) and openai_result.get("enabled"):
+        return openai_result
+    ollama_result = _browser_visual_ollama_analysis(page_context=page_context)
+    if isinstance(ollama_result, dict) and ollama_result.get("enabled"):
+        return ollama_result
+    if isinstance(ollama_result, dict) and ollama_result.get("reason"):
+        return ollama_result
+    return openai_result if isinstance(openai_result, dict) else {"enabled": False, "reason": "analysis_unavailable"}
 
 
 def _ollana_assessment_snapshot(*, page_context=None, evidence=None) -> dict:
@@ -5632,7 +5689,7 @@ def collect_system_guard_evidence(*, run_smoke: bool = False, smoke_verbosity: i
             "results": {},
         },
     }
-    browser_visual_ai = _browser_visual_openai_analysis(page_context=evidence.get("page_context"))
+    browser_visual_ai = _browser_visual_ai_analysis(page_context=evidence.get("page_context"))
     if isinstance(browser_visual_ai, dict):
         evidence["browser_visual_ai"] = browser_visual_ai
     if run_smoke:
@@ -5892,6 +5949,7 @@ def _compact_evidence_for_llm(evidence: dict, issues: list[dict], memory: dict |
             "enabled": bool(browser_visual_ai.get("enabled")),
             "provider": str(browser_visual_ai.get("provider") or "")[:20],
             "model": str(browser_visual_ai.get("model") or "")[:60],
+            "models_tried": [str(item).strip()[:40] for item in (browser_visual_ai.get("models_tried") or []) if str(item or "").strip()][:4],
             "summary": str(browser_visual_ai.get("summary") or "")[:300],
             "title_visibility": {
                 "state": str((browser_visual_ai.get("title_visibility") or {}).get("state") or "")[:20] if isinstance(browser_visual_ai.get("title_visibility"), dict) else "",
@@ -11448,7 +11506,7 @@ def _execute_tools(requested_tools: list[str], *, smoke_verbosity: int = 1, work
         elif tool_key == "inspect_guard_history":
             result = _inspect_guard_history(workspace)
         elif tool_key == "inspect_page_visual":
-            result = _browser_visual_openai_analysis(page_context=page_context)
+            result = _browser_visual_ai_analysis(page_context=page_context)
             if isinstance(result, dict) and "ok" not in result:
                 result = dict(result, ok=bool(result.get("enabled")))
         elif tool_key == "run_smoke":

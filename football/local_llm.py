@@ -1,3 +1,4 @@
+import base64
 import json
 import os
 import urllib.error
@@ -6,6 +7,11 @@ import urllib.request
 
 DEFAULT_OLLAMA_URL = 'http://127.0.0.1:11434'
 DEFAULT_QWEN_MODEL = 'qwen3:1.7b'
+DEFAULT_VISION_MODELS = (
+    'llama3.2-vision',
+    'qwen2.5-vl',
+    'minicpm-v',
+)
 
 
 def local_llm_config():
@@ -25,6 +31,21 @@ def local_llm_config():
         'base_url': base_url,
         'timeout': timeout,
     }
+
+
+def local_vision_models():
+    raw = str(
+        os.getenv('AI_TRAINER_LOCAL_VISION_MODELS')
+        or os.getenv('OLLAMA_VISION_MODELS')
+        or os.getenv('OLLAMA_IMAGE_MODELS')
+        or ''
+    ).strip()
+    if raw:
+        models = [str(item).strip() for item in raw.split(',')]
+        models = [item for item in models if item]
+        if models:
+            return models[:5]
+    return list(DEFAULT_VISION_MODELS)
 
 
 def _compact_list(items, *, limit=8, max_len=220):
@@ -178,6 +199,61 @@ def call_ollama_json(prompt, *, model=None, base_url=None, timeout=8):
     if not isinstance(parsed, dict):
         return None, 'ollama_invalid_json'
     return parsed, ''
+
+
+def call_ollama_vision_json(prompt, image_bytes, *, model=None, models=None, base_url=None, timeout=8):
+    candidates = []
+    if model:
+        candidates.append(str(model).strip())
+    for item in list(models or local_vision_models()):
+        text = str(item or '').strip()
+        if text and text not in candidates:
+            candidates.append(text)
+    if not candidates:
+        candidates = list(DEFAULT_VISION_MODELS)
+    base_url = str(base_url or DEFAULT_OLLAMA_URL).strip().rstrip('/') or DEFAULT_OLLAMA_URL
+    image_payload = base64.b64encode(bytes(image_bytes or b'')).decode('ascii')
+    last_error = 'ollama_invalid_json'
+    for candidate in candidates[:5]:
+        body = {
+            'model': candidate,
+            'prompt': str(prompt or ''),
+            'stream': False,
+            'format': 'json',
+            'images': [image_payload],
+            'options': {
+                'temperature': 0.2,
+                'num_ctx': 8192,
+            },
+        }
+        req = urllib.request.Request(
+            f'{base_url}/api/generate',
+            data=json.dumps(body).encode('utf-8'),
+            headers={'Content-Type': 'application/json'},
+            method='POST',
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=max(2, int(timeout or 8))) as resp:
+                data = json.loads(resp.read().decode('utf-8') or '{}')
+        except urllib.error.HTTPError as exc:
+            detail = ''
+            try:
+                detail = exc.read().decode('utf-8')[:300]
+            except Exception:
+                detail = ''
+            last_error = f'ollama_http_{exc.code}:{detail}'
+            continue
+        except Exception as exc:
+            last_error = f'ollama_unavailable:{exc}'
+            continue
+
+        response = str(data.get('response') or '').strip() if isinstance(data, dict) else ''
+        parsed = _json_from_text(response)
+        if isinstance(parsed, dict):
+            parsed['model'] = candidate
+            return parsed, ''
+        last_error = 'ollama_invalid_json'
+    return None, last_error
 
 
 def ai_trainer_senior_local_advice(*, team_name, profile, phase, goal, signals, club_model, learning_memory=None, suggestions, proposals, web_research=None):

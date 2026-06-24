@@ -200,6 +200,9 @@ Variables útiles:
 - `OLLANA_OPERATOR_FORCE=true`: permite recuperar lease al reiniciar el worker.
 - `OLLANA_ADMIN_AUTONOMY_ENABLE_RELEASES=false`: deja desactivadas por defecto acciones autónomas de deploy/rollback.
 - `OLLANA_RENDER_API_KEY=<token de Render>`: permite a Ollana consultar la API de Render y ver servicios del despliegue.
+- `AI_TRAINER_LOCAL_VISION_MODELS=llama3.2-vision,qwen2.5-vl,minicpm-v`: orden de fallback para el análisis visual local.
+- `OLLAMA_VISION_MODELS=...`: alias opcional para definir la misma lista de modelos.
+- `OLLAMA_IMAGE_ANALYSIS_MODEL=<modelo>`: fuerza un único modelo de visión si no quieres usar fallback.
 
 Script de arranque del worker:
 

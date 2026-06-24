@@ -51,6 +51,7 @@ from football.task_library import filter_task_library, prepare_task_library
 from football.stats_audit import run_stats_audit
 from football.dashboard_services import SCRAPE_LOCK_KEY, compute_player_cards_for_match, compute_player_dashboard, compute_player_metrics, compute_team_metrics_for_match
 from football import system_guard
+from football import local_llm
 from django.test import override_settings
 from unittest.mock import Mock, patch
 import requests
@@ -3868,6 +3869,73 @@ class SystemGuardTests(TestCase):
         self.assertEqual(snapshot['title']['state'], 'unreadable')
         self.assertEqual(snapshot['buttons']['state'], 'visible')
         self.assertEqual(snapshot['conclusion'], 'El título no se ve bien.')
+
+    def test_call_ollama_vision_json_falls_back_across_default_models(self):
+        png_bytes = base64.b64decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4////fwAJ+AP6XhB0AAAAAElFTkSuQmCC'
+        )
+        called_models = []
+
+        class FakeResponse:
+            def __init__(self, payload):
+                self._payload = payload
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def read(self):
+                return json.dumps(self._payload).encode('utf-8')
+
+        def fake_urlopen(request, timeout=0):
+            payload = json.loads(request.data.decode('utf-8'))
+            called_models.append(payload['model'])
+            if len(called_models) < 3:
+                raise Exception(f'model_down:{payload["model"]}')
+            return FakeResponse({
+                'response': json.dumps({
+                    'summary': 'La ficha se ve bien.',
+                    'title_visibility': {'state': 'visible', 'detail': 'Se lee correctamente.'},
+                    'button_visibility': {'state': 'visible', 'detail': 'Botones visibles.'},
+                    'render_surfaces': {'state': 'complete', 'detail': 'La pantalla está renderizada.'},
+                    'contrast_issues': [],
+                    'issues': [],
+                    'caveats': [],
+                }, ensure_ascii=False),
+            })
+
+        with patch('football.local_llm.urllib.request.urlopen', side_effect=fake_urlopen):
+            parsed, error = local_llm.call_ollama_vision_json(
+                'Analiza la captura',
+                png_bytes,
+                models=['llama3.2-vision', 'qwen2.5-vl', 'minicpm-v'],
+                base_url='http://127.0.0.1:11434',
+                timeout=2,
+            )
+
+        self.assertEqual(error, '')
+        self.assertEqual(called_models, ['llama3.2-vision', 'qwen2.5-vl', 'minicpm-v'])
+        self.assertIsInstance(parsed, dict)
+        self.assertEqual(parsed['model'], 'minicpm-v')
+        self.assertEqual(parsed['title_visibility']['state'], 'visible')
+
+    @patch('football.system_guard._browser_visual_openai_analysis', return_value={'enabled': False, 'reason': 'disabled'})
+    @patch('football.system_guard._browser_visual_ollama_analysis', return_value={'enabled': True, 'provider': 'ollama', 'model': 'llama3.2-vision'})
+    def test_browser_visual_ai_analysis_uses_local_fallback(self, mock_ollama, mock_openai):
+        result = system_guard._browser_visual_ai_analysis(page_context={
+            'browser_visual_snapshot': {
+                'enabled': True,
+                'screenshot_path': '/tmp/fake.png',
+            }
+        })
+
+        self.assertTrue(result['enabled'])
+        self.assertEqual(result['provider'], 'ollama')
+        self.assertEqual(result['model'], 'llama3.2-vision')
+        mock_openai.assert_called_once()
+        mock_ollama.assert_called_once()
 
     @patch('football.system_guard.fetch_web_research_with_browser')
     @patch('football.system_guard.compact_web_research')
