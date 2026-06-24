@@ -31,6 +31,7 @@ from football.library_repositories import (
     normalize_library_repository,
 )
 from football.local_llm import call_ollama_json, local_llm_config
+from football.database_inspector import inspect_database_readonly
 from football.render_api import inspect_render_service, list_render_services, render_api_key
 from football.web_research import MAX_URLS, compact_web_research, fetch_web_research_with_browser, parse_research_urls, search_web_research
 from football.models import Competition, ConvocationRecord, Group, Match, Player, RivalAnalysisReport, SessionTask, Team, TrainingMicrocycle, TrainingSession, WorkspaceCompetitionContext, WorkspacePreference, WorkspaceSeason, WorkspaceTeam
@@ -156,6 +157,13 @@ TOOL_SCHEMAS = {
         "risk": "medium",
         "confirmation_required": False,
         "runner": "remote_logs",
+    },
+    "inspect_database_readonly": {
+        "label": "Inspeccionar base de datos",
+        "kind": "inspect",
+        "risk": "low",
+        "confirmation_required": False,
+        "runner": "database_readonly",
     },
     "inspect_critical_paths": {
         "label": "Inspeccionar paths críticos",
@@ -694,6 +702,11 @@ EXTERNAL_CONNECTOR_CATALOG = {
         "kind": "observability",
         "description": "Consulta errores y patrones desde un endpoint remoto de logs.",
     },
+    "database_readonly": {
+        "label": "Base de datos en solo lectura",
+        "kind": "inspect",
+        "description": "Inspecciona tablas, filas y posibles duplicados sin modificar datos.",
+    },
     "deploy_trigger_api": {
         "label": "Trigger de despliegue",
         "kind": "deployment",
@@ -773,6 +786,13 @@ SAFE_COMMAND_CATALOG = {
         "tool": "inspect_remote_logs",
         "scope": "observability",
         "permission_action": "monitor_incidents",
+        "silent_allowed": True,
+    },
+    "inspect_database_readonly": {
+        "label": "Inspeccionar base de datos",
+        "tool": "inspect_database_readonly",
+        "scope": "database",
+        "permission_action": "inspect_system",
         "silent_allowed": True,
     },
     "inspect_repo_status": {
@@ -1624,6 +1644,11 @@ def _build_task_profile(question: str, *, intent: str, maintenance_action: str =
         scope = "code"
         silent_mode = True
         runbook_key = "operator_publish"
+    elif intent == "inspect_database":
+        kind = "diagnose"
+        scope = "system"
+        silent_mode = True
+        runbook_key = "silent_diagnostics"
     elif intent == "feature_request":
         kind = "build"
         scope = "code"
@@ -5015,6 +5040,7 @@ def collect_system_guard_evidence(*, run_smoke: bool = False, smoke_verbosity: i
     inventory = _module_inventory()
     route_inventory = _route_inventory()
     asset_inventory = _asset_inventory()
+    database_readonly = inspect_database_readonly(page_context=page_context)
     cfg = local_llm_config()
     probe = _probe_ollama(cfg)
     availability = _availability_snapshot(cfg, probe)
@@ -5024,6 +5050,7 @@ def collect_system_guard_evidence(*, run_smoke: bool = False, smoke_verbosity: i
         "module_inventory": inventory,
         "route_inventory": route_inventory,
         "asset_inventory": asset_inventory,
+        "database_readonly": database_readonly,
         "tool_catalog": _tool_catalog(),
         "external_connectors": _external_connectors_snapshot(page_context=page_context),
         "page_context": dict(page_context or {}),
@@ -5226,6 +5253,7 @@ def _compact_evidence_for_llm(evidence: dict, issues: list[dict], memory: dict |
         },
         "route_inventory": {k: v for k, v in (evidence.get("route_inventory") or {}).items() if isinstance(v, dict) and not v.get("ok")},
         "asset_inventory": {k: v for k, v in (evidence.get("asset_inventory") or {}).items() if isinstance(v, dict) and not v.get("ok")},
+        "database_readonly": evidence.get("database_readonly"),
         "local_llm": evidence.get("local_llm"),
         "external_web_research": _operator_web_research_snapshot(page_context=page_context),
         "external_connectors": evidence.get("external_connectors"),
@@ -7121,6 +7149,7 @@ def _external_connectors_snapshot(*, page_context=None) -> dict:
         status = "available"
         enabled = True
         detail = ""
+        item_extra = {}
         if key == "public_app":
             enabled = bool(public_base or render_host)
             status = "configured" if enabled else "missing"
@@ -7186,6 +7215,22 @@ def _external_connectors_snapshot(*, page_context=None) -> dict:
             enabled = bool(logs_url)
             status = "configured" if enabled and logs_token else ("public" if enabled else "missing")
             detail = logs_url[:180]
+        elif key == "database_readonly":
+            snapshot = inspect_database_readonly(page_context=context)
+            enabled = bool(snapshot.get("enabled"))
+            status = "connected" if enabled else "missing"
+            tables = [row for row in (snapshot.get("tables") or []) if isinstance(row, dict)]
+            focus = ", ".join([str(row.get("name") or "") for row in tables[:3] if str(row.get("name") or "").strip()])
+            detail = f"tables:{_safe_int(snapshot.get('table_count'), 0)} {focus}".strip()[:180]
+            item_extra = {
+                "snapshot": {
+                    "alias": str(snapshot.get("alias") or "")[:40],
+                    "vendor": str(snapshot.get("vendor") or "")[:40],
+                    "table_count": _safe_int(snapshot.get("table_count"), 0),
+                    "selected_count": _safe_int(snapshot.get("selected_count"), 0),
+                    "tables": tables[:4],
+                }
+            }
         elif key == "deploy_trigger_api":
             enabled = bool(deploy_url and deploy_token)
             status = "armed" if enabled else ("missing_token" if deploy_url else "missing")
@@ -7209,7 +7254,7 @@ def _external_connectors_snapshot(*, page_context=None) -> dict:
             "enabled": bool(enabled),
             "status": status[:32],
             "detail": detail,
-            **(item_extra if key == "render_api" and isinstance(item_extra, dict) else {}),
+            **(item_extra if isinstance(item_extra, dict) else {}),
         })
     connected = len([row for row in items if bool(row.get("enabled"))])
     return {
@@ -10481,6 +10526,8 @@ def _infer_intent(question: str) -> str:
         return "maintenance_previews"
     if re.search(r"\b(reindex|reindexa|reindexar)\b", text):
         return "maintenance_reindex"
+    if re.search(r"\b(base de datos|database|sql|tabla|tablas|registro|registros|duplicado|duplicados)\b", text):
+        return "inspect_database"
     if re.search(r"\b(smoke|test|tests|suite)\b", text):
         return "diagnose_smoke"
     if re.search(r"\b(guia|explica|como|qué|que pasa|por qué|por que)\b", text):
@@ -10506,6 +10553,7 @@ def _tool_reason(tool_key: str, intent: str, question: str) -> str:
         "inspect_public_deployment": "La petición pide comprobar el estado del despliegue público o su healthcheck.",
         "inspect_release_pipeline": "La petición requiere revisar el estado del pipeline externo o la última release.",
         "inspect_remote_logs": "La petición requiere inspeccionar logs remotos o errores fuera del nodo local.",
+        "inspect_database_readonly": "La petición requiere inspeccionar la base de datos en solo lectura.",
         "inspect_critical_paths": "La petición apunta a directorios y paths críticos del sistema.",
         "inspect_guard_history": "La petición pide comparar ejecuciones previas, regresiones o tendencias del guard.",
         "trigger_remote_deploy": "La petición requiere lanzar un despliegue remoto gobernado.",
@@ -10633,6 +10681,8 @@ def _plan_tools(question: str, *, run_smoke: bool, auto_fix: bool, maintenance_a
         requested_tools.extend(["check_status", "inspect_runtime_config"])
     elif intent == "inspect_deployment":
         requested_tools.extend(["check_status", "inspect_public_deployment", "inspect_release_pipeline", "inspect_remote_logs"])
+    elif intent == "inspect_database":
+        requested_tools.extend(["check_status", "inspect_database_readonly"])
     elif intent == "inspect_paths":
         requested_tools.extend(["check_status", "inspect_critical_paths"])
     elif intent == "inspect_history":
@@ -10726,6 +10776,8 @@ def _execute_tools(requested_tools: list[str], *, smoke_verbosity: int = 1, work
             result = _inspect_release_pipeline()
         elif tool_key == "inspect_remote_logs":
             result = _inspect_remote_logs()
+        elif tool_key == "inspect_database_readonly":
+            result = inspect_database_readonly(page_context=page_context)
         elif tool_key == "inspect_critical_paths":
             result = _inspect_critical_paths()
         elif tool_key == "inspect_guard_history":

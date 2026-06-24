@@ -355,6 +355,18 @@ class SystemGuardTests(TestCase):
         )
         self.assertIn('inspect_critical_paths', plan['requested_tools'])
 
+    def test_planner_selects_database_readonly_tool_for_database_intent(self):
+        plan = system_guard._plan_tools(
+            'Revisa la base de datos y detecta duplicados en tareas',
+            run_smoke=False,
+            auto_fix=False,
+            maintenance_action='',
+            autonomy_mode='operator',
+        )
+        self.assertEqual(plan['task']['kind'], 'diagnose')
+        self.assertEqual(plan['task']['scope'], 'system')
+        self.assertIn('inspect_database_readonly', plan['requested_tools'])
+
     def test_planner_builds_navigation_task_and_runbook(self):
         plan = system_guard._plan_tools(
             'Llévame a vídeo análisis',
@@ -449,6 +461,12 @@ class SystemGuardTests(TestCase):
         self.assertEqual(
             system_guard._infer_intent('Haz rollback del despliegue en producción'),
             'trigger_remote_rollback',
+        )
+
+    def test_infer_intent_detects_database_inspection_requests(self):
+        self.assertEqual(
+            system_guard._infer_intent('Inspecciona la base de datos y busca duplicados'),
+            'inspect_database',
         )
 
     def test_planner_builds_code_task_for_feature_request(self):
@@ -915,6 +933,93 @@ class SystemGuardTests(TestCase):
         self.assertEqual(len(items['render_api']['inspections']), 2)
         mock_list_render_services.assert_called_once()
         self.assertEqual(mock_inspect_render_service.call_count, 2)
+
+    @patch('football.system_guard.inspect_database_readonly')
+    def test_external_connectors_snapshot_reports_database_readonly(self, mock_inspect_database_readonly):
+        mock_inspect_database_readonly.return_value = {
+            'enabled': True,
+            'reason': 'connected',
+            'alias': 'default',
+            'vendor': 'sqlite',
+            'table_count': 8,
+            'selected_count': 2,
+            'tables': [
+                {'name': 'football_sesstask', 'row_count': 12, 'columns': ['id', 'title'], 'duplicate_values': {'title': [{'value': 'Juego ludico', 'count': 2}]}},
+                {'name': 'football_team', 'row_count': 3, 'columns': ['id', 'name'], 'duplicate_values': {}},
+            ],
+        }
+        snapshot = system_guard._external_connectors_snapshot(page_context={'page': 'dashboard-home'})
+        items = {row['key']: row for row in snapshot['items']}
+        self.assertEqual(items['database_readonly']['status'], 'connected')
+        self.assertIn('football_sesstask', items['database_readonly']['detail'])
+        self.assertIn('snapshot', items['database_readonly'])
+        self.assertEqual(items['database_readonly']['snapshot']['table_count'], 8)
+        mock_inspect_database_readonly.assert_called_once()
+
+    @patch('football.system_guard.inspect_database_readonly', return_value={'ok': True, 'enabled': True})
+    def test_execute_tools_runs_database_readonly_inspector(self, mock_inspect_database_readonly):
+        rows = system_guard._execute_tools(['inspect_database_readonly'], page_context={'page': 'dashboard-home'})
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['tool'], 'inspect_database_readonly')
+        mock_inspect_database_readonly.assert_called_once()
+
+    @patch('football.database_inspector.apps.get_app_config', side_effect=LookupError('missing app'))
+    @patch('football.database_inspector.connections')
+    def test_database_inspector_prioritizes_context_tables_and_detects_duplicates(self, mock_connections, _mock_app_config):
+        cursor = Mock()
+        cursor_context = Mock()
+        cursor_context.__enter__ = Mock(return_value=cursor)
+        cursor_context.__exit__ = Mock(return_value=False)
+        connection = Mock()
+        connection.vendor = 'sqlite'
+        connection.cursor.return_value = cursor_context
+        connection.ops.quote_name.side_effect = lambda value: f'"{value}"'
+        connection.introspection.table_names.return_value = ['football_sessiontask', 'football_team', 'other_table']
+        connection.introspection.get_table_description.side_effect = lambda cur, table: {
+            'football_sessiontask': [SimpleNamespace(name='id'), SimpleNamespace(name='title'), SimpleNamespace(name='slug')],
+            'football_team': [SimpleNamespace(name='id'), SimpleNamespace(name='name')],
+            'other_table': [SimpleNamespace(name='id')],
+        }.get(table, [])
+        state = {'sql': ''}
+
+        def execute(sql, params=None):
+            state['sql'] = str(sql)
+
+        def fetchone():
+            if 'SELECT 1' in state['sql']:
+                return [1]
+            if 'football_sessiontask' in state['sql']:
+                return [7]
+            if 'football_team' in state['sql']:
+                return [2]
+            return [0]
+
+        def fetchall():
+            if 'football_sessiontask' in state['sql'] and 'GROUP BY' in state['sql'] and 'title' in state['sql']:
+                return [('Duplicada', 2)]
+            return []
+
+        cursor.execute.side_effect = execute
+        cursor.fetchone.side_effect = fetchone
+        cursor.fetchall.side_effect = fetchall
+        mock_connections.__getitem__.return_value = connection
+
+        result = system_guard.inspect_database_readonly(
+            page_context={'db_table': 'football_sessiontask'},
+            max_tables=2,
+            column_limit=3,
+            duplicate_limit=3,
+        )
+
+        self.assertTrue(result['enabled'])
+        self.assertEqual(result['alias'], 'default')
+        self.assertEqual(result['selected_count'], 2)
+        self.assertEqual(result['focus_tables'], ['football_sessiontask'])
+        tables = {row['name']: row for row in result['tables']}
+        self.assertIn('football_sessiontask', tables)
+        self.assertEqual(tables['football_sessiontask']['row_count'], 7)
+        self.assertEqual(tables['football_sessiontask']['duplicate_values']['title'][0]['value'], 'Duplicada')
+        self.assertEqual(tables['football_sessiontask']['duplicate_values']['title'][0]['count'], 2)
 
     def test_safe_command_executor_snapshot_respects_code_permissions(self):
         snapshot = system_guard._safe_command_executor_snapshot(page_context={
