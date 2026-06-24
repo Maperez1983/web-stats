@@ -187,6 +187,62 @@ def _browser_executable_candidates(browser_type=None) -> list[str]:
         )
     )
 
+    def _playwright_cache_roots() -> tuple[Path, ...]:
+        roots: list[Path] = []
+        for raw in (
+            os.getenv("PLAYWRIGHT_BROWSERS_PATH"),
+            str(Path.home() / "Library/Caches/ms-playwright"),
+            "/Volumes/Mac Satecchi/Mac/Library/Caches/ms-playwright",
+            "/root/.cache/ms-playwright",
+            "/home/oai/.cache/ms-playwright",
+        ):
+            value = str(raw or "").strip()
+            if not value:
+                continue
+            root = Path(value).expanduser()
+            if root.exists() and root.is_dir():
+                roots.append(root)
+        deduped_roots: list[Path] = []
+        seen_roots = set()
+        for root in roots:
+            key = str(root.resolve() if root.exists() else root)
+            if key in seen_roots:
+                continue
+            seen_roots.add(key)
+            deduped_roots.append(root)
+        return tuple(deduped_roots)
+
+    def _add_existing_paths(paths):
+        for path in paths:
+            try:
+                path = Path(path)
+            except Exception:
+                continue
+            if path.exists() and path.is_file():
+                candidates.append(str(path))
+
+    cache_roots = _playwright_cache_roots()
+    if cache_roots:
+        if browser_name == "chromium":
+            for root in cache_roots:
+                _add_existing_paths([
+                    *root.glob("chromium_headless_shell-*/chrome-headless-shell"),
+                    *root.glob("chromium_headless_shell-*/chrome-headless-shell-mac-*/chrome-headless-shell"),
+                    *root.glob("chromium-*/chrome-mac/Chromium.app/Contents/MacOS/Chromium"),
+                    *root.glob("chromium-*/chrome-mac/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"),
+                ])
+        elif browser_name == "firefox":
+            for root in cache_roots:
+                _add_existing_paths([
+                    *root.glob("firefox-*/firefox/Nightly.app/Contents/MacOS/firefox"),
+                    *root.glob("firefox-*/firefox/firefox"),
+                ])
+        elif browser_name == "webkit":
+            for root in cache_roots:
+                _add_existing_paths([
+                    *root.glob("webkit-*/Playwright.app/Contents/MacOS/Playwright"),
+                ])
+
     deduped: list[str] = []
     seen = set()
     for value in candidates:
