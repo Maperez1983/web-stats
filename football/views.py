@@ -736,15 +736,29 @@ def system_guard_chat_api(request):
     payload_health_snapshot = payload_page_context.get('health_snapshot') if isinstance(payload_page_context.get('health_snapshot'), dict) else {}
     sanitized_ui_snapshot = {
         'headings': [str(item).strip()[:120] for item in (payload_ui_snapshot.get('headings') or []) if str(item or '').strip()][:6],
+        'heading_count': max(0, int(payload_ui_snapshot.get('heading_count') or 0)),
         'primary_actions': [str(item).strip()[:80] for item in (payload_ui_snapshot.get('primary_actions') or []) if str(item or '').strip()][:8],
+        'primary_action_count': max(0, int(payload_ui_snapshot.get('primary_action_count') or 0)),
         'notices': [str(item).strip()[:140] for item in (payload_ui_snapshot.get('notices') or []) if str(item or '').strip()][:6],
         'panels': [str(item).strip()[:100] for item in (payload_ui_snapshot.get('panels') or []) if str(item or '').strip()][:8],
         'body_excerpt': [str(item).strip()[:140] for item in (payload_ui_snapshot.get('body_excerpt') or []) if str(item or '').strip()][:8],
+        'low_contrast_elements': [{
+            'tag': str((row or {}).get('tag') or '')[:24],
+            'text': str((row or {}).get('text') or '')[:80],
+            'fg': str((row or {}).get('fg') or '')[:40],
+            'bg': str((row or {}).get('bg') or '')[:40],
+            'ratio': max(0, float((row or {}).get('ratio') or 0)),
+        } for row in (payload_ui_snapshot.get('low_contrast_elements') or []) if isinstance(row, dict)][:8],
         'visible_forms': [{
             'tag': str((row or {}).get('tag') or '')[:24],
             'type': str((row or {}).get('type') or '')[:24],
             'label': str((row or {}).get('label') or '')[:80],
         } for row in (payload_ui_snapshot.get('visible_forms') or []) if isinstance(row, dict)][:10],
+        'screen_summary': {
+            'title': str(((payload_ui_snapshot.get('screen_summary') or {}).get('title') or '')).strip()[:140] if isinstance(payload_ui_snapshot.get('screen_summary'), dict) else '',
+            'h1': str(((payload_ui_snapshot.get('screen_summary') or {}).get('h1') or '')).strip()[:120] if isinstance(payload_ui_snapshot.get('screen_summary'), dict) else '',
+            'controls': [str(item).strip()[:80] for item in ((payload_ui_snapshot.get('screen_summary') or {}).get('controls') or []) if str(item or '').strip()][:5] if isinstance(payload_ui_snapshot.get('screen_summary'), dict) else [],
+        },
         'viewport': {
             'width': max(0, int(((payload_ui_snapshot.get('viewport') or {}).get('width') or 0))) if isinstance(payload_ui_snapshot.get('viewport'), dict) else 0,
             'height': max(0, int(((payload_ui_snapshot.get('viewport') or {}).get('height') or 0))) if isinstance(payload_ui_snapshot.get('viewport'), dict) else 0,
@@ -765,6 +779,13 @@ def system_guard_chat_api(request):
         'visual_density': max(0, min(100, int(payload_visual_snapshot.get('visual_density') or 0))),
         'media_count': max(0, int(payload_visual_snapshot.get('media_count') or 0)),
         'interactive_count': max(0, int(payload_visual_snapshot.get('interactive_count') or 0)),
+        'low_contrast_elements': [{
+            'tag': str((row or {}).get('tag') or '')[:24],
+            'text': str((row or {}).get('text') or '')[:80],
+            'fg': str((row or {}).get('fg') or '')[:40],
+            'bg': str((row or {}).get('bg') or '')[:40],
+            'ratio': max(0, float((row or {}).get('ratio') or 0)),
+        } for row in (payload_visual_snapshot.get('low_contrast_elements') or []) if isinstance(row, dict)][:8],
         'render_surfaces': [{
             'id': str((row or {}).get('id') or '')[:60],
             'tag': str((row or {}).get('tag') or '')[:24],
@@ -876,6 +897,7 @@ def system_guard_chat_api(request):
     page_context = {
         'page': str(payload_page_context.get('page') or request.resolver_match.url_name or '').strip()[:120],
         'path': str(payload_page_context.get('path') or request.path or '').strip()[:240],
+        'browser_target_url': str(payload_page_context.get('browser_target_url') or request.build_absolute_uri(request.get_full_path()) or '').strip()[:300],
         'title': str(payload_page_context.get('title') or '').strip()[:200],
         'team_id': int(getattr(team, 'id', 0) or 0),
         'team_name': str(getattr(team, 'name', '') or '')[:160],
@@ -892,6 +914,31 @@ def system_guard_chat_api(request):
         'module_snapshot': sanitized_module_snapshot,
         'health_snapshot': sanitized_health_snapshot,
     }
+    try:
+        from football.system_guard import _browser_visual_page_snapshot
+        visual_browser_snapshot = _browser_visual_page_snapshot(workspace, actor_id=int(getattr(request.user, 'id', 0) or 0), page_context=page_context)
+    except Exception:
+        visual_browser_snapshot = {}
+    if isinstance(visual_browser_snapshot, dict):
+        page_context['browser_visual_snapshot'] = {
+            'enabled': bool(visual_browser_snapshot.get('enabled')),
+            'reason': str(visual_browser_snapshot.get('reason') or '')[:80],
+            'target_url': str(visual_browser_snapshot.get('target_url') or '')[:220],
+            'screenshot_path': str(visual_browser_snapshot.get('screenshot_path') or '')[:240],
+            'title': str(visual_browser_snapshot.get('title') or '')[:140],
+            'h1': str(visual_browser_snapshot.get('h1') or '')[:140],
+            'h1_color': str(visual_browser_snapshot.get('h1_color') or '')[:40],
+            'top_bg': str(visual_browser_snapshot.get('top_bg') or '')[:80],
+            'body_classes': str(visual_browser_snapshot.get('body_classes') or '')[:120],
+            'buttons': [str(item).strip()[:80] for item in (visual_browser_snapshot.get('buttons') or []) if str(item or '').strip()][:12],
+            'low_contrast': [{
+                'tag': str((row or {}).get('tag') or '')[:24],
+                'text': str((row or {}).get('text') or '')[:80],
+                'ratio': max(0, float((row or {}).get('ratio') or 0)),
+                'fg': str((row or {}).get('fg') or '')[:40],
+                'bg': str((row or {}).get('bg') or '')[:40],
+            } for row in (visual_browser_snapshot.get('low_contrast') or []) if isinstance(row, dict)][:8],
+        }
     try:
         from football.system_guard import _maybe_run_scheduled_guard_cycle, _observability_summary, run_system_guard_chat
 
@@ -64865,6 +64912,162 @@ def search_page(request):
     )
 
 
+def _search_api_team_url(*, request, workspace, team):
+    workspace_id = int(getattr(workspace, 'id', 0) or 0)
+    team_id = int(getattr(team, 'id', 0) or 0)
+    if not team_id:
+        return reverse('coach-roster')
+    if workspace_id:
+        if _can_manage_workspace(request.user, workspace) or _is_admin_user(request.user):
+            try:
+                return reverse('platform-workspace-team-detail', args=[workspace_id, team_id])
+            except Exception:
+                pass
+        try:
+            return f"{reverse('platform-workspace-enter', args=[workspace_id])}?team={team_id}"
+        except Exception:
+            pass
+    return f"{reverse('coach-roster')}?team={team_id}"
+
+
+def _score_team_search_candidate(*, team, workspace, query_norm, is_default=False, active_team_id=None):
+    if not query_norm:
+        return 0
+    values = [
+        getattr(team, 'name', '') or '',
+        getattr(team, 'short_name', '') or '',
+        getattr(team, 'slug', '') or '',
+        getattr(team, 'external_id', '') or '',
+        getattr(team, 'city', '') or '',
+        getattr(team, 'category', '') or '',
+        getattr(getattr(team, 'group', None), 'name', '') or '',
+        getattr(getattr(team, 'group', None), 'slug', '') or '',
+        getattr(getattr(team, 'group', None), 'external_id', '') or '',
+        getattr(workspace, 'name', '') or '',
+        getattr(workspace, 'slug', '') or '',
+    ]
+    normalized_values = [normalize_label(value) for value in values if str(value or '').strip()]
+    if not normalized_values:
+        return 0
+
+    score = 0
+    if query_norm in normalized_values:
+        score += 120
+    elif any(value.startswith(query_norm) for value in normalized_values):
+        score += 90
+    elif any(query_norm in value for value in normalized_values):
+        score += 60
+
+    tokens = [token for token in query_norm.split() if len(token) >= 2]
+    if tokens:
+        token_hits = 0
+        for token in tokens:
+            if any(token in value for value in normalized_values):
+                token_hits += 1
+        if token_hits == len(tokens):
+            score += 40
+        elif token_hits:
+            score += 10 + (token_hits * 4)
+
+    if normalize_label(getattr(team, 'category', '') or '') == query_norm:
+        score += 12
+    if normalize_label(getattr(team, 'slug', '') or '') == query_norm:
+        score += 10
+    if is_default:
+        score += 8
+    if active_team_id and int(getattr(team, 'id', 0) or 0) == int(active_team_id):
+        score += 6
+    if workspace and int(getattr(workspace, 'primary_team_id', 0) or 0) == int(getattr(team, 'id', 0) or 0):
+        score += 5
+    return score
+
+
+def _search_api_team_items(request, primary_team, q):
+    query_norm = normalize_label(q)
+    if len(query_norm) < 2:
+        return []
+
+    workspaces = []
+    active_workspace = _get_active_workspace(request)
+    if active_workspace and getattr(active_workspace, 'kind', None) == Workspace.KIND_CLUB:
+        workspaces = [active_workspace]
+    else:
+        try:
+            workspaces = list(
+                _available_workspaces_for_user(request.user)
+                .filter(kind=Workspace.KIND_CLUB)
+                .order_by('id')[:20]
+            )
+        except Exception:
+            workspaces = []
+        if not workspaces and primary_team:
+            try:
+                fallback_workspace = Workspace.objects.filter(primary_team=primary_team).first()
+            except Exception:
+                fallback_workspace = None
+            if fallback_workspace:
+                workspaces = [fallback_workspace]
+
+    items = []
+    seen_team_ids = set()
+    active_team_id = int(getattr(primary_team, 'id', 0) or 0)
+    for workspace in workspaces:
+        try:
+            links = _workspace_team_links_for_user(workspace, request.user)
+        except Exception:
+            links = []
+        for link in links:
+            team = getattr(link, 'team', None)
+            if not team or not getattr(team, 'id', None):
+                continue
+            team_id = int(team.id)
+            if team_id in seen_team_ids:
+                continue
+            score = _score_team_search_candidate(
+                team=team,
+                workspace=workspace,
+                query_norm=query_norm,
+                is_default=bool(getattr(link, 'is_default', False)),
+                active_team_id=active_team_id,
+            )
+            if score <= 0:
+                continue
+            seen_team_ids.add(team_id)
+            meta_parts = []
+            category = str(getattr(team, 'category', '') or '').strip()
+            if category:
+                meta_parts.append(category.title())
+            city = str(getattr(team, 'city', '') or '').strip()
+            if city:
+                meta_parts.append(city)
+            if getattr(workspace, 'name', ''):
+                meta_parts.append(str(workspace.name).strip())
+            items.append(
+                {
+                    'type': 'team',
+                    'id': str(team_id),
+                    'label': str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or '').strip() or f'Equipo {team_id}',
+                    'meta': ' · '.join(meta_parts),
+                    'url': _search_api_team_url(request=request, workspace=workspace, team=team),
+                    '_score': score,
+                    '_is_default': bool(getattr(link, 'is_default', False)),
+                }
+            )
+
+    items.sort(
+        key=lambda item: (
+            -int(item.get('_score', 0) or 0),
+            0 if item.get('_is_default') else 1,
+            str(item.get('label') or '').lower(),
+            int(item.get('id') or 0),
+        )
+    )
+    for item in items:
+        item.pop('_score', None)
+        item.pop('_is_default', None)
+    return items[:12]
+
+
 @login_required
 def search_api(request):
     primary_team = _get_primary_team_for_request(request)
@@ -64874,6 +65077,12 @@ def search_api(request):
     if len(q) < 2:
         return JsonResponse({'ok': True, 'q': q, 'groups': []})
     team_qs = f'?team={int(primary_team.id)}'
+
+    team_items = []
+    try:
+        team_items = _search_api_team_items(request, primary_team, q)
+    except Exception:
+        team_items = []
 
     player_items = []
     try:
@@ -65033,6 +65242,8 @@ def search_api(request):
     ]
 
     groups = []
+    if team_items:
+        groups.append({'key': 'teams', 'label': 'Equipos', 'items': team_items})
     if player_items:
         groups.append({'key': 'players', 'label': 'Jugadores', 'items': player_items})
     if match_items:

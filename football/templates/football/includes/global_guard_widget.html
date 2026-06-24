@@ -140,6 +140,7 @@
         <strong>Consultas rápidas</strong>
         <div class="guard-suggestion-row" id="global-guard-suggestions">
           <button type="button" class="guard-suggestion-chip" data-guard-suggestion="Ayúdame con esta pantalla">Ayúdame con esta pantalla</button>
+          <button type="button" class="guard-suggestion-chip" data-guard-suggestion="Inspecciona esta pantalla y dime qué falla visualmente">Inspecciona esta pantalla</button>
           <button type="button" class="guard-suggestion-chip" data-guard-suggestion="Llévame a vídeo análisis">Llévame a vídeo análisis</button>
           <button type="button" class="guard-suggestion-chip" data-guard-suggestion="Abre biblioteca de tareas">Abre biblioteca de tareas</button>
         </div>
@@ -168,6 +169,10 @@
               <button type="button" class="guard-command-chip" data-guard-command="Llévame a vídeo análisis">
                 <strong>Ir a vídeo</strong>
                 <span>Abre análisis con una orden directa.</span>
+              </button>
+              <button type="button" class="guard-command-chip" data-guard-command="Inspecciona esta pantalla y dime si hay problemas de visibilidad, contraste o botones ocultos">
+                <strong>Inspección visual</strong>
+                <span>Analiza la pantalla actual como si la viera el usuario.</span>
               </button>
               <button type="button" class="guard-command-chip" data-guard-command="Abre biblioteca ia trainer">
                 <strong>Biblioteca IA</strong>
@@ -1197,6 +1202,76 @@
   };
   installRuntimeDiagnostics();
   const normalizeCssColor = (value) => String(value || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+  const parseCssColor = (value) => {
+    const raw = String(value || '').trim().toLowerCase();
+    const match = raw.match(/^rgba?\(([^)]+)\)$/);
+    if (!match) return null;
+    const parts = match[1].split(',').map((item) => Number(String(item || '').trim()));
+    if (parts.length < 3) return null;
+    const [r, g, b, a = 1] = parts;
+    if ([r, g, b].some((item) => !Number.isFinite(item))) return null;
+    return {
+      r: Math.max(0, Math.min(255, Math.round(r))),
+      g: Math.max(0, Math.min(255, Math.round(g))),
+      b: Math.max(0, Math.min(255, Math.round(b))),
+      a: Math.max(0, Math.min(1, Number.isFinite(a) ? a : 1)),
+    };
+  };
+  const relativeLuminance = ({ r, g, b }) => {
+    const channels = [r, g, b].map((channel) => {
+      const value = Math.max(0, Math.min(255, Number(channel) || 0)) / 255;
+      return value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+    });
+    return (0.2126 * channels[0]) + (0.7152 * channels[1]) + (0.0722 * channels[2]);
+  };
+  const contrastRatio = (fg, bg) => {
+    const foreground = parseCssColor(fg);
+    const background = parseCssColor(bg);
+    if (!foreground || !background) return 0;
+    const l1 = relativeLuminance(foreground);
+    const l2 = relativeLuminance(background);
+    const lighter = Math.max(l1, l2);
+    const darker = Math.min(l1, l2);
+    return Number(((lighter + 0.05) / (darker + 0.05)).toFixed(2));
+  };
+  const resolveEffectiveBackground = (node) => {
+    let current = node instanceof Element ? node : null;
+    while (current && current !== document.documentElement) {
+      const bg = normalizeCssColor(window.getComputedStyle(current).backgroundColor);
+      if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') return bg;
+      current = current.parentElement;
+    }
+    return normalizeCssColor(window.getComputedStyle(document.body || document.documentElement).backgroundColor) || 'rgb(255,255,255)';
+  };
+  const lowContrastCandidate = (node) => {
+    if (!(node instanceof Element) || !isVisibleNode(node)) return null;
+    const text = String(node.textContent || '').replace(/\s+/g, ' ').trim();
+    if (!text) return null;
+    const style = window.getComputedStyle(node);
+    const fg = normalizeCssColor(style.color);
+    const bg = resolveEffectiveBackground(node);
+    const ratio = contrastRatio(fg, bg);
+    if (!ratio || ratio >= 3) return null;
+    return {
+      tag: String(node.tagName || '').toLowerCase().slice(0, 24),
+      text: text.slice(0, 80),
+      fg,
+      bg,
+      ratio,
+    };
+  };
+  const collectLowContrastSignals = () => {
+    const selectors = ['main h1', 'main h2', 'main .top-pill', 'main .button', 'main .task-detail-tab', 'main .chip', 'main a'];
+    const rows = [];
+    selectors.forEach((selector) => {
+      document.querySelectorAll(selector).forEach((node) => {
+        if (rows.length >= 8) return;
+        const row = lowContrastCandidate(node);
+        if (row) rows.push(row);
+      });
+    });
+    return rows;
+  };
   const gatherRuntimeSnapshot = () => {
     const root = ensureRuntimeDiagnostics();
     root.ready_state = String(document.readyState || '').trim();
@@ -1307,6 +1382,8 @@
     const alerts = [];
     if (Array.isArray((runtimeSnapshot || {}).alerts) && runtimeSnapshot.alerts.length) alerts.push(...runtimeSnapshot.alerts);
     if (Array.isArray((visualSnapshot || {}).render_alerts) && visualSnapshot.render_alerts.length) alerts.push(...visualSnapshot.render_alerts);
+    const lowContrastElements = Array.isArray((visualSnapshot || {}).low_contrast_elements) ? visualSnapshot.low_contrast_elements : [];
+    if (lowContrastElements.length) alerts.push(`Elementos con bajo contraste: ${lowContrastElements.length}`);
     if (notices.length) alerts.push(`Avisos visibles: ${notices.length}`);
     if (loadingHints.length) alerts.push(`Bloques en carga: ${loadingHints.length}`);
     if (emptyHints.length) alerts.push(`Bloques vacios: ${emptyHints.length}`);
@@ -1323,6 +1400,13 @@
       loading_hints: loadingHints,
       empty_hints: emptyHints,
       disabled_controls: disabledControls,
+      low_contrast_elements: lowContrastElements.slice(0, 8).map((row) => ({
+        tag: String((row || {}).tag || '').slice(0, 24),
+        text: String((row || {}).text || '').slice(0, 80),
+        fg: String((row || {}).fg || '').slice(0, 40),
+        bg: String((row || {}).bg || '').slice(0, 40),
+        ratio: Math.max(0, Number((row || {}).ratio || 0)),
+      })),
       module_counts: {
         total: moduleRows.length,
         healthy: healthyModules,
@@ -1476,6 +1560,7 @@
     const viewportArea = Math.max(1, Math.trunc((window.innerWidth || 0) * (window.innerHeight || 0)));
     const coveredArea = blocks.reduce((acc, row) => acc + Math.max(0, Number(row.w || 0) * Number(row.h || 0)), 0);
     const renderSurfaceSnapshot = gatherRenderSurfaceSnapshot();
+    const lowContrastElements = collectLowContrastSignals();
     return {
       blocks,
       palette: palette.slice(0, 8),
@@ -1483,6 +1568,7 @@
       visual_density: Math.min(100, Math.trunc((coveredArea / viewportArea) * 100)),
       media_count: mediaCount,
       interactive_count: interactiveCount,
+      low_contrast_elements: lowContrastElements,
       render_surfaces: renderSurfaceSnapshot.surfaces,
       render_alerts: renderSurfaceSnapshot.alerts,
       scroll: {
@@ -1493,6 +1579,8 @@
   };
   const gatherUiSnapshot = () => {
     const activeForms = [];
+    const headings = compactTextList('main h1, main h2, main h3, [role="main"] h1, [role="main"] h2, [role="main"] h3, h1:first-of-type', 6, 120);
+    const primaryActions = compactTextList('main button, main a.btn, main [role="button"], [role="main"] button, [role="main"] a.btn, [role="main"] [role="button"]', 8, 80);
     document.querySelectorAll('input, select, textarea, button').forEach((node) => {
       if (activeForms.length >= 10 || !isVisibleNode(node)) return;
       const labelNode = node.closest('label');
@@ -1506,12 +1594,20 @@
       });
     });
     return {
-      headings: compactTextList('main h1, main h2, main h3, [role="main"] h1, [role="main"] h2, [role="main"] h3, h1:first-of-type', 6, 120),
-      primary_actions: compactTextList('main button, main a.btn, main [role="button"], [role="main"] button, [role="main"] a.btn, [role="main"] [role="button"]', 8, 80),
+      headings,
+      heading_count: headings.length,
+      primary_actions: primaryActions,
+      primary_action_count: primaryActions.length,
+      low_contrast_elements: collectLowContrastSignals(),
       visible_forms: activeForms,
       notices: compactTextList('.alert, .notice, .error, .toast, .messages li, [data-error], .form-error', 6, 140),
       panels: compactTextList('main section h2, main .card h2, main .card h3, [role="main"] section h2, [role="main"] .card h2, [role="main"] .card h3', 8, 100),
       body_excerpt: compactTextList('main p, [role="main"] p, main li, [role="main"] li', 8, 140),
+      screen_summary: {
+        title: String(document.title || '').trim().slice(0, 140),
+        h1: headings[0] || '',
+        controls: primaryActions.slice(0, 5),
+      },
       viewport: {
         width: Math.max(0, Math.trunc(window.innerWidth || 0)),
         height: Math.max(0, Math.trunc(window.innerHeight || 0)),
@@ -1527,6 +1623,7 @@
       return {
     page: "{{ request.resolver_match.url_name|default:''|escapejs }}",
     path: window.location.pathname,
+    browser_target_url: window.location.href,
     title: document.title,
     team_id: Number("{{ active_team.id|default:0 }}") || 0,
     team_name: "{{ active_team.name|default:''|escapejs }}",

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import hashlib
 import os
@@ -7,6 +8,7 @@ import re
 import socket
 import subprocess
 import time
+import tempfile
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
@@ -14,6 +16,11 @@ from importlib import import_module
 from io import StringIO
 from pathlib import Path
 from urllib.parse import urlencode, urljoin, urlparse
+
+try:
+    import requests
+except Exception:  # pragma: no cover - optional dependency fallback
+    requests = None
 
 from django.contrib.auth import BACKEND_SESSION_KEY, HASH_SESSION_KEY, SESSION_KEY, get_user_model
 from django.conf import settings
@@ -1553,6 +1560,299 @@ def _browser_navigation_audit_snapshot(workspace, *, actor_id=None, page_context
         "blocked_count": blocked,
         "routes": audited_rows[:3],
     }
+
+
+def _browser_visual_page_snapshot(workspace, *, actor_id=None, page_context=None) -> dict:
+    context = page_context if isinstance(page_context, dict) else {}
+    if not workspace:
+        return {"enabled": False, "reason": "workspace_required"}
+    if not actor_id:
+        return {"enabled": False, "reason": "actor_required"}
+    base_url = _browser_audit_base_url(context)
+    if not base_url:
+        return {"enabled": False, "reason": "base_url_unavailable"}
+    user = get_user_model().objects.filter(id=int(actor_id or 0)).first()
+    if user is None:
+        return {"enabled": False, "reason": "actor_not_found"}
+    browser_target_url = str(context.get("browser_target_url") or "").strip()
+    path = str(context.get("path") or "").strip()
+    target_url = browser_target_url if browser_target_url.startswith(("http://", "https://")) else ""
+    if not target_url and path:
+        target_url = urljoin(f"{base_url}/", path.lstrip("/"))
+    if not target_url:
+        fallback_path = reverse("session-task-detail", args=[_safe_int(context.get("task_id"), 0)]) if _safe_int(context.get("task_id"), 0) else "/"
+        target_url = urljoin(f"{base_url}/", fallback_path.lstrip("/"))
+    parsed = urlparse(base_url)
+    try:
+        session_engine = import_module(settings.SESSION_ENGINE)
+        session_store = session_engine.SessionStore()
+        session_store[SESSION_KEY] = str(user.pk)
+        session_store[BACKEND_SESSION_KEY] = "django.contrib.auth.backends.ModelBackend"
+        session_store[HASH_SESSION_KEY] = user.get_session_auth_hash()
+        session_store.save()
+    except Exception as exc:
+        return {"enabled": False, "reason": f"session_cookie_failed:{str(exc)[:80]}"}
+    cookie = {
+        "name": str(getattr(settings, "SESSION_COOKIE_NAME", "sessionid")),
+        "value": str(session_store.session_key or ""),
+        "domain": str(parsed.hostname or ""),
+        "path": "/",
+        "httpOnly": True,
+        "secure": str(parsed.scheme or "").lower() == "https",
+        "sameSite": "Lax",
+    }
+    try:
+        with _guard_playwright_browser() as (_pw, browser):
+            if browser is None:
+                return {"enabled": False, "reason": "browser_unavailable"}
+            browser_context = browser.new_context(ignore_https_errors=True, java_script_enabled=True, viewport={"width": 1440, "height": 1200}, device_scale_factor=1.5)
+            try:
+                browser_context.add_cookies([cookie])
+                page = browser_context.new_page()
+                try:
+                    page.goto(target_url, wait_until="domcontentloaded", timeout=20000)
+                    try:
+                        page.wait_for_load_state("networkidle", timeout=3000)
+                    except Exception:
+                        pass
+                    screenshot_bytes = page.screenshot(type="png", full_page=False)
+                    screenshot_path = ""
+                    try:
+                        with tempfile.NamedTemporaryFile(prefix="ollana_visual_", suffix=".png", delete=False) as handle:
+                            handle.write(screenshot_bytes)
+                            screenshot_path = handle.name
+                    except Exception:
+                        screenshot_path = ""
+                    payload = page.evaluate(
+                        """() => {
+                          const h1 = document.querySelector('h1');
+                          const top = document.querySelector('.top, header, main header');
+                          const candidates = Array.from(document.querySelectorAll('main h1, main h2, main .button, main .task-detail-tab, main .top-pill, main a'))
+                            .filter((node) => node instanceof Element);
+                          const lowContrast = [];
+                          const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim().slice(0, 40);
+                          const parse = (value) => {
+                            const raw = String(value || '').trim().toLowerCase();
+                            const match = raw.match(/^rgba?\\(([^)]+)\\)$/);
+                            if (!match) return null;
+                            const parts = match[1].split(',').map((item) => Number(String(item || '').trim()));
+                            if (parts.length < 3) return null;
+                            const [r, g, b] = parts;
+                            const ch = [r, g, b].map((channel) => {
+                              const n = Math.max(0, Math.min(255, Number(channel) || 0)) / 255;
+                              return n <= 0.03928 ? n / 12.92 : Math.pow((n + 0.055) / 1.055, 2.4);
+                            });
+                            return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+                          };
+                          const bgFor = (node) => {
+                            let current = node instanceof Element ? node : null;
+                            while (current && current !== document.documentElement) {
+                              const bg = normalize(getComputedStyle(current).backgroundColor);
+                              if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') return bg;
+                              current = current.parentElement;
+                            }
+                            return normalize(getComputedStyle(document.body || document.documentElement).backgroundColor);
+                          };
+                          candidates.slice(0, 20).forEach((node) => {
+                            const text = String(node.textContent || '').replace(/\\s+/g, ' ').trim();
+                            if (!text) return;
+                            const style = getComputedStyle(node);
+                            const fg = normalize(style.color);
+                            const bg = bgFor(node);
+                            const l1 = parse(fg);
+                            const l2 = parse(bg);
+                            if (l1 == null || l2 == null) return;
+                            const lighter = Math.max(l1, l2);
+                            const darker = Math.min(l1, l2);
+                            const ratio = Number(((lighter + 0.05) / (darker + 0.05)).toFixed(2));
+                            if (ratio < 3) lowContrast.push({ tag: node.tagName.toLowerCase(), text: text.slice(0, 80), ratio, fg, bg });
+                          });
+                          return {
+                            title: String(document.title || '').trim(),
+                            h1: String(h1?.textContent || '').trim(),
+                            h1_color: String(getComputedStyle(h1 || document.body).color || ''),
+                            top_bg: String(getComputedStyle(top || document.body).backgroundColor || ''),
+                            body_classes: String(document.body?.className || ''),
+                            buttons: Array.from(document.querySelectorAll('main button, main a.button, main a.btn')).slice(0, 12).map((node) => String(node.textContent || '').replace(/\\s+/g, ' ').trim()).filter(Boolean),
+                            low_contrast: lowContrast.slice(0, 8),
+                          };
+                        }"""
+                    ) or {}
+                    return {
+                        "enabled": True,
+                        "reason": "captured",
+                        "target_url": target_url[:220],
+                        "screenshot_path": screenshot_path[:240],
+                        "title": str(payload.get("title") or "")[:140],
+                        "h1": str(payload.get("h1") or "")[:140],
+                        "h1_color": str(payload.get("h1_color") or "")[:40],
+                        "top_bg": str(payload.get("top_bg") or "")[:80],
+                        "body_classes": str(payload.get("body_classes") or "")[:120],
+                        "buttons": [str(item)[:80] for item in (payload.get("buttons") or []) if str(item or "").strip()][:12],
+                        "low_contrast": [{
+                            "tag": str((row or {}).get("tag") or "")[:24],
+                            "text": str((row or {}).get("text") or "")[:80],
+                            "ratio": max(0, float((row or {}).get("ratio") or 0)),
+                            "fg": str((row or {}).get("fg") or "")[:40],
+                            "bg": str((row or {}).get("bg") or "")[:40],
+                        } for row in (payload.get("low_contrast") or []) if isinstance(row, dict)][:8],
+                    }
+                finally:
+                    try:
+                        page.close()
+                    except Exception:
+                        pass
+            finally:
+                try:
+                    browser_context.close()
+                except Exception:
+                    pass
+    except Exception as exc:
+        return {"enabled": False, "reason": f"visual_capture_error:{str(exc)[:120]}"}
+
+
+def _browser_visual_openai_analysis(*, page_context=None) -> dict:
+    context = page_context if isinstance(page_context, dict) else {}
+    snapshot = context.get("browser_visual_snapshot") if isinstance(context.get("browser_visual_snapshot"), dict) else {}
+    if not snapshot:
+        return {"enabled": False, "reason": "snapshot_unavailable"}
+    if str(os.getenv("OPENAI_IMAGE_ANALYSIS_ENABLED") or "").strip().lower() not in {"1", "true", "yes", "on"}:
+        return {"enabled": False, "reason": "disabled"}
+    api_key = str(os.getenv("OPENAI_API_KEY") or "").strip()
+    if not api_key or requests is None:
+        return {"enabled": False, "reason": "openai_unavailable"}
+    screenshot_path = str(snapshot.get("screenshot_path") or "").strip()
+    if not screenshot_path:
+        return {"enabled": False, "reason": "screenshot_missing"}
+    screenshot_file = Path(screenshot_path)
+    if not screenshot_file.is_file():
+        return {"enabled": False, "reason": "screenshot_not_found"}
+    try:
+        raw_bytes = screenshot_file.read_bytes()
+    except Exception as exc:
+        return {"enabled": False, "reason": f"screenshot_read_failed:{str(exc)[:80]}"}
+    if not raw_bytes:
+        return {"enabled": False, "reason": "screenshot_empty"}
+
+    base_url = str(os.getenv("OPENAI_BASE_URL") or "https://api.openai.com/v1").strip().rstrip("/")
+    model = str(os.getenv("OPENAI_IMAGE_ANALYSIS_MODEL") or os.getenv("OPENAI_MODEL") or "gpt-4o-mini").strip()
+    data_url = "data:image/png;base64," + base64.b64encode(raw_bytes).decode("ascii")
+    prompt = {
+        "target_url": str(snapshot.get("target_url") or "")[:220],
+        "title": str(snapshot.get("title") or "")[:140],
+        "h1": str(snapshot.get("h1") or "")[:140],
+        "h1_color": str(snapshot.get("h1_color") or "")[:40],
+        "top_bg": str(snapshot.get("top_bg") or "")[:80],
+        "body_classes": str(snapshot.get("body_classes") or "")[:120],
+        "buttons": [str(item).strip()[:80] for item in (snapshot.get("buttons") or []) if str(item or "").strip()][:12],
+        "low_contrast": [{
+            "tag": str((row or {}).get("tag") or "")[:24],
+            "text": str((row or {}).get("text") or "")[:80],
+            "ratio": max(0, float((row or {}).get("ratio") or 0)),
+        } for row in (snapshot.get("low_contrast") or []) if isinstance(row, dict)][:8],
+        "instruction": (
+            "Analiza la captura como un auditor visual. "
+            "Responde SOLO JSON válido con estas claves: summary, title_visibility, button_visibility, render_surfaces, contrast_issues, issues, caveats. "
+            "En title_visibility usa {state, detail}; state debe ser visible, unreadable o missing. "
+            "En button_visibility usa {state, missing_or_hidden, detail}. "
+            "En render_surfaces usa {state, detail} para indicar si la ficha se ve completa, negra, vacía o recortada. "
+            "En issues devuelve una lista de objetos {severity, area, message, detail}. "
+            "Si no puedes asegurarlo, dilo en caveats."
+        ),
+    }
+    try:
+        resp = requests.post(
+            f"{base_url}/responses",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": model,
+                "input": [
+                    {
+                        "role": "system",
+                        "content": [
+                            {
+                                "type": "input_text",
+                                "text": "Eres un auditor visual de interfaces web. Responde siempre en español y devuelve solo JSON válido.",
+                            }
+                        ],
+                    },
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "input_text", "text": json.dumps(prompt, ensure_ascii=False)},
+                            {"type": "input_image", "image_url": data_url, "detail": "original"},
+                        ],
+                    },
+                ],
+                "max_output_tokens": 1200,
+            },
+            timeout=30,
+        )
+    except Exception as exc:
+        return {"enabled": False, "reason": f"openai_request:{str(exc)[:80]}", "model": model}
+
+    if not getattr(resp, "ok", False):
+        try:
+            detail = resp.json()
+        except Exception:
+            detail = {"error": {"message": getattr(resp, "text", "")[:300]}}
+        msg = ""
+        try:
+            msg = str(((detail or {}).get("error") or {}).get("message") or "").strip()
+        except Exception:
+            msg = ""
+        return {"enabled": False, "reason": msg or f"openai_http_{getattr(resp, 'status_code', 0)}", "model": model}
+
+    try:
+        data = resp.json()
+    except Exception:
+        return {"enabled": False, "reason": "openai_invalid_json", "model": model}
+
+    def _extract_text(obj):
+        if isinstance(obj, dict):
+            if isinstance(obj.get("output_text"), str) and obj.get("output_text").strip():
+                return obj.get("output_text").strip()
+            out = obj.get("output")
+            if isinstance(out, list):
+                for item in out:
+                    if isinstance(item, dict):
+                        content = item.get("content")
+                        if isinstance(content, list):
+                            for c in content:
+                                if isinstance(c, dict) and c.get("type") == "output_text" and isinstance(c.get("text"), str):
+                                    txt = c.get("text", "").strip()
+                                    if txt:
+                                        return txt
+                        if isinstance(item.get("text"), str) and item.get("text").strip():
+                            return item.get("text").strip()
+            if isinstance(obj.get("choices"), list):
+                for choice in obj.get("choices"):
+                    msg = (choice or {}).get("message") or {}
+                    content = msg.get("content")
+                    if isinstance(content, str) and content.strip():
+                        return content.strip()
+        return ""
+
+    raw_text = _extract_text(data)
+    if not raw_text:
+        return {"enabled": False, "reason": "openai_empty_output", "model": model}
+    raw_text = raw_text.strip().lstrip("\ufeff")
+    if raw_text.startswith("```"):
+        raw_text = re.sub(r"^```[a-zA-Z0-9_-]*\n", "", raw_text)
+        raw_text = raw_text.rsplit("```", 1)[0].strip()
+    try:
+        parsed = json.loads(raw_text)
+    except Exception:
+        return {"enabled": False, "reason": "openai_output_not_json", "model": model, "raw_text": raw_text[:400]}
+    if not isinstance(parsed, dict):
+        return {"enabled": False, "reason": "openai_output_not_object", "model": model}
+    parsed["enabled"] = True
+    parsed["provider"] = "openai"
+    parsed["model"] = model
+    return parsed
 
 
 def _route_filters_for_question(question: str, route_key: str) -> dict:
@@ -5262,6 +5562,9 @@ def collect_system_guard_evidence(*, run_smoke: bool = False, smoke_verbosity: i
             "results": {},
         },
     }
+    browser_visual_ai = _browser_visual_openai_analysis(page_context=evidence.get("page_context"))
+    if isinstance(browser_visual_ai, dict):
+        evidence["browser_visual_ai"] = browser_visual_ai
     if run_smoke:
         for key in ("django_smoke", "system_suite"):
             cmd = str(MODULE_SMOKE_MAP[key]["command"])
@@ -5337,6 +5640,8 @@ def _derive_issues(evidence: dict) -> list[dict]:
             issues.append(_issue(f"smoke_failed_{key}", severity="blocker", area="smoke", message=f"Ha fallado el smoke {key}.", detail=item.get("error") or item.get("exit_code") or item.get("stderr") or item.get("stdout")))
     page_context = evidence.get("page_context") if isinstance(evidence.get("page_context"), dict) else {}
     visual_snapshot = page_context.get("visual_snapshot") if isinstance(page_context.get("visual_snapshot"), dict) else {}
+    browser_visual_snapshot = page_context.get("browser_visual_snapshot") if isinstance(page_context.get("browser_visual_snapshot"), dict) else {}
+    browser_visual_ai = evidence.get("browser_visual_ai") if isinstance(evidence.get("browser_visual_ai"), dict) else {}
     render_alerts = [str(item).strip() for item in (visual_snapshot.get("render_alerts") or []) if str(item or "").strip()]
     render_surfaces = [row for row in (visual_snapshot.get("render_surfaces") or []) if isinstance(row, dict)]
     visual_issue_signatures = set()
@@ -5358,6 +5663,13 @@ def _derive_issues(evidence: dict) -> list[dict]:
             visual_issue_signatures.add(f"{label}: fallback_2d / webgl_unavailable")
         elif draw_state == "blank" and non_empty_samples == 0:
             visual_issue_signatures.add(f"{label}: blank_canvas")
+    low_contrast_rows = [row for row in (browser_visual_snapshot.get("low_contrast") or []) if isinstance(row, dict)]
+    for row in low_contrast_rows:
+        tag = str(row.get("tag") or "elemento").strip()[:24]
+        text = str(row.get("text") or "").strip()[:80]
+        ratio = float(row.get("ratio") or 0)
+        if ratio and ratio < 2.7:
+            visual_issue_signatures.add(f"{tag}: low_contrast({ratio:.2f}) {text}")
     for signature in sorted(visual_issue_signatures):
         issues.append(
             _issue(
@@ -5369,6 +5681,54 @@ def _derive_issues(evidence: dict) -> list[dict]:
                 repairable=True,
             )
         )
+    if browser_visual_ai.get("enabled"):
+        for row in (browser_visual_ai.get("issues") or []):
+            if not isinstance(row, dict):
+                continue
+            severity = str(row.get("severity") or "warning").strip().lower()
+            area = str(row.get("area") or "visual_render").strip()[:40]
+            message = str(row.get("message") or "Hallazgo visual detectado por visión nativa.").strip()[:220]
+            detail = str(row.get("detail") or "").strip()[:220]
+            issues.append(
+                _issue(
+                    f"browser_visual_ai_{slugify(message)[:48] or 'issue'}",
+                    severity="blocker" if severity in {"blocker", "critical", "high"} else "warning",
+                    area=area or "visual_render",
+                    message=message,
+                    detail=detail,
+                    repairable=severity not in {"blocker", "critical"},
+                )
+            )
+        title_visibility = browser_visual_ai.get("title_visibility") if isinstance(browser_visual_ai.get("title_visibility"), dict) else {}
+        button_visibility = browser_visual_ai.get("button_visibility") if isinstance(browser_visual_ai.get("button_visibility"), dict) else {}
+        render_surfaces_ai = browser_visual_ai.get("render_surfaces") if isinstance(browser_visual_ai.get("render_surfaces"), dict) else {}
+        if str(title_visibility.get("state") or "").lower() in {"missing", "unreadable"}:
+            issues.append(_issue(
+                "browser_visual_title_issue",
+                severity="warning",
+                area="visual_render",
+                message="La visión nativa detecta que el título no es legible o no se aprecia.",
+                detail=str(title_visibility.get("detail") or "")[:220],
+                repairable=True,
+            ))
+        if str(button_visibility.get("state") or "").lower() in {"missing", "unreadable"}:
+            issues.append(_issue(
+                "browser_visual_buttons_issue",
+                severity="warning",
+                area="visual_render",
+                message="La visión nativa detecta controles o botones invisibles o poco legibles.",
+                detail=str(button_visibility.get("detail") or "")[:220],
+                repairable=True,
+            ))
+        if str(render_surfaces_ai.get("state") or "").lower() in {"blank", "black", "empty", "partial"}:
+            issues.append(_issue(
+                "browser_visual_surface_issue",
+                severity="warning",
+                area="visual_render",
+                message="La visión nativa detecta una superficie de render degradada o vacía.",
+                detail=str(render_surfaces_ai.get("detail") or "")[:220],
+                repairable=True,
+            ))
     return issues
 
 
@@ -5435,9 +5795,46 @@ def _compact_evidence_for_llm(evidence: dict, issues: list[dict], memory: dict |
     health = evidence.get("healthcheck") if isinstance(evidence.get("healthcheck"), dict) else {}
     smoke = evidence.get("smoke") if isinstance(evidence.get("smoke"), dict) else {}
     page_context = evidence.get("page_context") if isinstance(evidence.get("page_context"), dict) else {}
+    browser_visual_snapshot = page_context.get("browser_visual_snapshot") if isinstance(page_context.get("browser_visual_snapshot"), dict) else {}
+    browser_visual_ai = evidence.get("browser_visual_ai") if isinstance(evidence.get("browser_visual_ai"), dict) else {}
     return {
         "environment": evidence.get("environment"),
         "page_context": page_context,
+        "browser_visual_snapshot": {
+            "enabled": bool(browser_visual_snapshot.get("enabled")),
+            "reason": str(browser_visual_snapshot.get("reason") or "")[:80],
+            "target_url": str(browser_visual_snapshot.get("target_url") or "")[:220],
+            "screenshot_path": str(browser_visual_snapshot.get("screenshot_path") or "")[:240],
+            "title": str(browser_visual_snapshot.get("title") or "")[:140],
+            "h1": str(browser_visual_snapshot.get("h1") or "")[:140],
+            "h1_color": str(browser_visual_snapshot.get("h1_color") or "")[:40],
+            "top_bg": str(browser_visual_snapshot.get("top_bg") or "")[:80],
+            "buttons": [str(item).strip()[:80] for item in (browser_visual_snapshot.get("buttons") or []) if str(item or "").strip()][:8],
+            "low_contrast": [{
+                "tag": str((row or {}).get("tag") or "")[:24],
+                "text": str((row or {}).get("text") or "")[:80],
+                "ratio": max(0, float((row or {}).get("ratio") or 0)),
+            } for row in (browser_visual_snapshot.get("low_contrast") or []) if isinstance(row, dict)][:6],
+        } if browser_visual_snapshot else {},
+        "browser_visual_ai": {
+            "enabled": bool(browser_visual_ai.get("enabled")),
+            "provider": str(browser_visual_ai.get("provider") or "")[:20],
+            "model": str(browser_visual_ai.get("model") or "")[:60],
+            "summary": str(browser_visual_ai.get("summary") or "")[:300],
+            "title_visibility": {
+                "state": str((browser_visual_ai.get("title_visibility") or {}).get("state") or "")[:20] if isinstance(browser_visual_ai.get("title_visibility"), dict) else "",
+                "detail": str((browser_visual_ai.get("title_visibility") or {}).get("detail") or "")[:220] if isinstance(browser_visual_ai.get("title_visibility"), dict) else "",
+            },
+            "button_visibility": {
+                "state": str((browser_visual_ai.get("button_visibility") or {}).get("state") or "")[:20] if isinstance(browser_visual_ai.get("button_visibility"), dict) else "",
+                "detail": str((browser_visual_ai.get("button_visibility") or {}).get("detail") or "")[:220] if isinstance(browser_visual_ai.get("button_visibility"), dict) else "",
+            },
+            "render_surfaces": {
+                "state": str((browser_visual_ai.get("render_surfaces") or {}).get("state") or "")[:20] if isinstance(browser_visual_ai.get("render_surfaces"), dict) else "",
+                "detail": str((browser_visual_ai.get("render_surfaces") or {}).get("detail") or "")[:220] if isinstance(browser_visual_ai.get("render_surfaces"), dict) else "",
+            },
+            "caveats": [str(item).strip()[:160] for item in (browser_visual_ai.get("caveats") or []) if str(item or "").strip()][:6],
+        } if browser_visual_ai else {},
         "memory": memory or evidence.get("memory"),
         "healthcheck": {
             "database": health.get("database"),

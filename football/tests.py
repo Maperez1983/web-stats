@@ -3753,6 +3753,71 @@ class SystemGuardTests(TestCase):
         self.assertEqual(tactics_row['status'], 'degraded')
         self.assertIn('h1_color', tactics_row)
 
+    @patch('football.system_guard.requests.post')
+    def test_browser_visual_openai_analysis_sends_real_image_input(self, mock_post):
+        png_bytes = base64.b64decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4////fwAJ+AP6XhB0AAAAAElFTkSuQmCC'
+        )
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as handle:
+            handle.write(png_bytes)
+            screenshot_path = Path(handle.name)
+        self.addCleanup(lambda: screenshot_path.unlink(missing_ok=True))
+
+        class FakeResponse:
+            ok = True
+            status_code = 200
+
+            def json(self):
+                return {
+                    'output_text': json.dumps({
+                        'summary': 'La ficha se ve pero el título está poco legible.',
+                        'title_visibility': {'state': 'unreadable', 'detail': 'Contraste insuficiente'},
+                        'button_visibility': {'state': 'visible', 'detail': 'Los controles principales se aprecian.'},
+                        'render_surfaces': {'state': 'black', 'detail': 'La zona 3D aparece como pantalla negra.'},
+                        'contrast_issues': ['Título con contraste bajo'],
+                        'issues': [{
+                            'severity': 'warning',
+                            'area': 'visual_render',
+                            'message': 'Título poco legible',
+                            'detail': 'El encabezado no destaca sobre el fondo.',
+                        }],
+                        'caveats': ['Captura reducida para la prueba.'],
+                    }, ensure_ascii=False)
+                }
+
+        mock_post.return_value = FakeResponse()
+
+        with patch.dict(os.environ, {
+            'OPENAI_IMAGE_ANALYSIS_ENABLED': '1',
+            'OPENAI_API_KEY': 'test-key',
+            'OPENAI_BASE_URL': 'https://api.openai.com/v1',
+            'OPENAI_IMAGE_ANALYSIS_MODEL': 'gpt-4o-mini',
+        }, clear=False):
+            result = system_guard._browser_visual_openai_analysis(page_context={
+                'browser_visual_snapshot': {
+                    'screenshot_path': str(screenshot_path),
+                    'target_url': 'https://app.example.com/coach/sesiones/tarea/90/',
+                    'title': 'Ficha de tarea',
+                    'h1': 'Juego lúdico',
+                    'h1_color': 'rgb(230, 230, 230)',
+                    'top_bg': 'rgb(12, 12, 12)',
+                    'buttons': ['Editar', 'Exportar'],
+                    'low_contrast': [{'tag': 'h1', 'text': 'Juego lúdico', 'ratio': 1.42}],
+                }
+            })
+
+        self.assertTrue(result['enabled'])
+        self.assertEqual(result['provider'], 'openai')
+        self.assertEqual(result['model'], 'gpt-4o-mini')
+        self.assertEqual(result['title_visibility']['state'], 'unreadable')
+        self.assertEqual(result['render_surfaces']['state'], 'black')
+        self.assertIn('poco legible', result['summary'])
+        self.assertTrue(mock_post.called)
+        call_kwargs = mock_post.call_args.kwargs
+        self.assertIn('/responses', mock_post.call_args.args[0])
+        self.assertEqual(call_kwargs['json']['input'][1]['content'][1]['type'], 'input_image')
+        self.assertEqual(call_kwargs['json']['input'][1]['content'][1]['detail'], 'original')
+
     @patch('football.system_guard.fetch_web_research_with_browser')
     @patch('football.system_guard.compact_web_research')
     def test_operator_web_research_snapshot_uses_public_urls(self, mock_compact, mock_fetch):
@@ -6284,6 +6349,28 @@ class SearchApiExtendedGroupsTests(TestCase):
             team=self.team,
             is_default=True,
         )
+        self.team_b = Team.objects.create(
+            name='Benjamin B',
+            slug='benjamin-b',
+            short_name='Benjamin B',
+            category='benjamin',
+            game_format=Team.GAME_FORMAT_F7,
+        )
+        self.team_a = Team.objects.create(
+            name='Benjamin A',
+            slug='benjamin-a',
+            short_name='Benjamin A',
+            category='benjamin',
+            game_format=Team.GAME_FORMAT_F7,
+        )
+        WorkspaceTeam.objects.create(
+            workspace=self.workspace,
+            team=self.team_b,
+        )
+        WorkspaceTeam.objects.create(
+            workspace=self.workspace,
+            team=self.team_a,
+        )
     def test_search_api_includes_staff_sessions_and_tasks(self):
         StaffMember.objects.create(
             workspace=self.workspace,
@@ -6351,6 +6438,23 @@ class SearchApiExtendedGroupsTests(TestCase):
         self.assertIsNotNone(label_staff)
         items = label_staff.get('items') or []
         self.assertTrue(any('Carlos' in str(it.get('label') or '') for it in items))
+
+    def test_search_api_prioritizes_exact_team_matches(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            f"{reverse('search-api')}?workspace={self.workspace.id}&team={self.team.id}&q=Benjamin B",
+            secure=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        groups = payload.get('groups') or []
+        teams_group = next((g for g in groups if g.get('label') == 'Equipos'), None)
+        self.assertIsNotNone(teams_group)
+        items = teams_group.get('items') or []
+        self.assertGreaterEqual(len(items), 2)
+        self.assertEqual(items[0].get('label'), 'Benjamin B')
+        self.assertEqual(items[0].get('url'), reverse('platform-workspace-team-detail', args=[self.workspace.id, self.team_b.id]))
+        self.assertTrue(any(item.get('label') == 'Benjamin A' for item in items))
 
 
 class CommercialIsolationTests(TestCase):
