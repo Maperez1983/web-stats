@@ -4182,6 +4182,18 @@ ROLE_KNOWLEDGE_PACKS = {
         "knowledge_targets": ["readability", "interface clarity", "reduce friction", "accessible interactions"],
         "guidance": ["Piensa como revisor UX técnico: simplifica, clarifica y elimina fricción sin romper el lenguaje visual."],
     },
+    "ui_designer": {
+        "domains": ["visual_design", "layout_systems", "typography", "spacing", "component_consistency", "design_hierarchy"],
+        "visual_signals": ["misaligned blocks", "visual noise", "weak hierarchy", "inconsistent spacing", "uneven rhythm"],
+        "knowledge_targets": ["clean composition", "clear hierarchy", "consistent spacing", "strong readability", "interface polish"],
+        "guidance": ["Piensa como UI designer: ordena la pantalla, establece jerarquía clara y reduce ruido visual sin perder identidad."],
+    },
+    "accessibility_reviewer": {
+        "domains": ["wcag", "keyboard_navigation", "screen_reader_support", "contrast", "focus_states", "semantic_controls"],
+        "visual_signals": ["poor contrast", "missing focus", "ambiguous controls", "unlabeled actions", "keyboard traps"],
+        "knowledge_targets": ["accessible interactions", "visible focus", "sufficient contrast", "semantic clarity", "keyboard support"],
+        "guidance": ["Piensa como revisor de accesibilidad: comprueba contraste, foco, semántica y navegación sin ratón."],
+    },
     "incident_responder": {
         "domains": ["triage", "containment", "impact_analysis", "communication", "recovery", "postmortem"],
         "visual_signals": ["active incident", "widespread failure", "repeated error", "service degradation"],
@@ -4350,6 +4362,8 @@ def _operator_role_context(*, page_context=None, operator_profile=None) -> dict:
     active_roles.append("data_quality_auditor")
     active_roles.append("deployment_engineer")
     active_roles.append("ux_technical_reviewer")
+    active_roles.append("ui_designer")
+    active_roles.append("accessibility_reviewer")
     active_roles.append("incident_responder")
     if task_id or "task" in page or "task" in route:
         active_roles.append("visual_auditor")

@@ -4134,6 +4134,26 @@ class SystemGuardTests(TestCase):
         self.assertIn('contrast', role_context['knowledge_domains'])
         self.assertIn('reduce friction', ' '.join(role_context['knowledge_targets']))
 
+    def test_operator_role_context_includes_ui_designer_knowledge(self):
+        role_context = system_guard._operator_role_context(
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+            operator_profile={},
+        )
+        self.assertIn('ui_designer', role_context['active_roles'])
+        self.assertIn('visual_design', role_context['knowledge_domains'])
+        self.assertIn('typography', role_context['knowledge_domains'])
+        self.assertIn('clear hierarchy', ' '.join(role_context['knowledge_targets']))
+
+    def test_operator_role_context_includes_accessibility_reviewer_knowledge(self):
+        role_context = system_guard._operator_role_context(
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+            operator_profile={},
+        )
+        self.assertIn('accessibility_reviewer', role_context['active_roles'])
+        self.assertIn('wcag', role_context['knowledge_domains'])
+        self.assertIn('keyboard_navigation', role_context['knowledge_domains'])
+        self.assertIn('accessible interactions', ' '.join(role_context['knowledge_targets']))
+
     def test_operator_role_context_includes_incident_responder_knowledge(self):
         role_context = system_guard._operator_role_context(
             page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
@@ -4255,6 +4275,26 @@ class SystemGuardTests(TestCase):
             planner={'task': {'target_summary': 'Revisar sistema', 'route_target': {}}},
         )
         self.assertIn('ux_technical_reviewer', brain['role_profile']['active_roles'])
+        self.assertTrue(brain['knows_system_map'])
+
+    def test_system_brain_snapshot_exposes_ui_designer_role(self):
+        brain = system_guard._system_brain_snapshot(
+            self.workspace,
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+            operator_profile={},
+            planner={'task': {'target_summary': 'Revisar sistema', 'route_target': {}}},
+        )
+        self.assertIn('ui_designer', brain['role_profile']['active_roles'])
+        self.assertTrue(brain['knows_system_map'])
+
+    def test_system_brain_snapshot_exposes_accessibility_reviewer_role(self):
+        brain = system_guard._system_brain_snapshot(
+            self.workspace,
+            page_context={'page': 'dashboard-home', 'workspace_id': self.workspace.id, 'team_id': self.team.id},
+            operator_profile={},
+            planner={'task': {'target_summary': 'Revisar sistema', 'route_target': {}}},
+        )
+        self.assertIn('accessibility_reviewer', brain['role_profile']['active_roles'])
         self.assertTrue(brain['knows_system_map'])
 
     def test_system_brain_snapshot_exposes_incident_responder_role(self):
