@@ -397,15 +397,17 @@ def fetch_web_research_browser(raw_urls, *, timeout=DEFAULT_TIMEOUT, max_urls=MA
 
     try:
         from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
-        from playwright.sync_api import sync_playwright
     except Exception as exc:
         for url in valid_urls:
             rows.append({'url': url, 'ok': False, 'error': f'playwright_unavailable:{str(exc)[:100]}', 'method': 'browser', 'title': '', 'text': ''})
         return rows
 
     try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+        from football.preview_render import _acquire_playwright_browser
+
+        with _acquire_playwright_browser() as (_pw, browser):
+            if browser is None:
+                raise RuntimeError('chromium_unavailable')
             try:
                 context = browser.new_context(
                     user_agent='SegundaJugadaAITrainer/1.0 (+local browser research)',

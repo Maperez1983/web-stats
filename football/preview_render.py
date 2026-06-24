@@ -5,6 +5,7 @@ import json
 import mimetypes
 import os
 import contextlib
+import shutil
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -128,6 +129,78 @@ def _rewrite_urls_to_data_urls(payload):
     return payload
 
 
+def _chromium_executable_candidates(browser_type=None) -> list[str]:
+    candidates: list[str] = []
+    env_vars = (
+        "PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH",
+        "PLAYWRIGHT_EXECUTABLE_PATH",
+        "CHROMIUM_PATH",
+        "CHROME_PATH",
+    )
+    for key in env_vars:
+        value = str(os.getenv(key) or "").strip()
+        if value:
+            candidates.append(value)
+
+    if browser_type is not None:
+        try:
+            value = str(getattr(browser_type, "executable_path", "") or "").strip()
+            if value:
+                candidates.append(value)
+        except Exception:
+            pass
+
+    candidates.extend(
+        filter(
+            None,
+            [
+                shutil.which("chromium"),
+                shutil.which("chromium-browser"),
+                shutil.which("google-chrome"),
+                shutil.which("google-chrome-stable"),
+                shutil.which("chrome"),
+                shutil.which("msedge"),
+                shutil.which("microsoft-edge"),
+                "/usr/bin/chromium",
+                "/usr/bin/chromium-browser",
+                "/usr/bin/google-chrome",
+                "/usr/bin/google-chrome-stable",
+                "/snap/bin/chromium",
+            ],
+        )
+    )
+
+    deduped: list[str] = []
+    seen = set()
+    for value in candidates:
+        value = str(value or "").strip()
+        if not value or value in seen:
+            continue
+        seen.add(value)
+        deduped.append(value)
+    return deduped
+
+
+def _launch_chromium_with_fallbacks(browser_type, *, launch_kwargs=None):
+    launch_kwargs = dict(launch_kwargs or {})
+    last_error = None
+    for executable_path in _chromium_executable_candidates(browser_type):
+        if not Path(executable_path).exists():
+            continue
+        try:
+            browser = browser_type.launch(executable_path=executable_path, **launch_kwargs)
+            return browser, executable_path
+        except Exception as exc:
+            last_error = exc
+    try:
+        browser = browser_type.launch(**launch_kwargs)
+        return browser, ""
+    except Exception as exc:
+        if last_error is not None:
+            raise last_error
+        raise exc
+
+
 @contextlib.contextmanager
 def _acquire_playwright_browser():
     """
@@ -147,24 +220,10 @@ def _acquire_playwright_browser():
     browser = None
     try:
         pw = sync_playwright().start()
-        try:
-            browser = pw.chromium.launch(args=["--no-sandbox"])
-        except Exception:
-            browser = None
-            for executable_path in [
-                "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-                "/Applications/Chromium.app/Contents/MacOS/Chromium",
-                "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
-            ]:
-                if not Path(executable_path).exists():
-                    continue
-                browser = pw.chromium.launch(
-                    executable_path=executable_path,
-                    args=["--headless=new", "--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage"],
-                )
-                break
-            if browser is None:
-                raise
+        browser, _ = _launch_chromium_with_fallbacks(
+            pw.chromium,
+            launch_kwargs={"args": ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]},
+        )
         yield pw, browser
     finally:
         try:

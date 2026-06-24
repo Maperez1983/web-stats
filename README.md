@@ -152,8 +152,9 @@ Además, Playwright se puede usar para generar previews HD (WYSIWYG) del editor 
 - `TPAD_SERVER_RENDER_PREVIEW=true`: intenta renderizar previews HD en servidor (fallback automático si Playwright/browsers no están disponibles).
 - `TPAD_SERVER_RENDER_PREVIEW_FORCE=true`: fuerza el render en cada guardado (más CPU).
 - `INSTALL_PLAYWRIGHT_BROWSERS=true`: en `build.sh`, instala Chromium durante el build.
-- `INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME=true`: instala Chromium en el arranque (no recomendado en Render; puede hacer el deploy inestable).
+- `INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME=true`: instala Chromium en el arranque; útil como fallback si la caché del build no está disponible.
 - `PLAYWRIGHT_BROWSERS_PATH=0`: recomendado en Render para que los binarios de Chromium queden “embebidos” en el deploy (evita depender de caches efímeras por instancia).
+- `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=<ruta>`: override manual si quieres forzar un binario concreto.
 
 Si esas dependencias no estan disponibles, la app sigue funcionando en partes del flujo, pero algunas exportaciones o capturas pueden degradarse.
 

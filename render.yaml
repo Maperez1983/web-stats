@@ -61,9 +61,9 @@ services:
       # Opcional: instala chromium en build (coste CPU/tiempo). Desactivado por defecto.
       - key: INSTALL_PLAYWRIGHT_BROWSERS
         value: "true"
-      # Seguridad: NO instalar Chromium en runtime (puede romper el deploy por "No open ports detected").
+      # Fallback: si el browser no quedó en caché tras el build, Render lo reinstala al arrancar.
       - key: INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME
-        value: "false"
+        value: "true"
       # Seguridad: desactiva fallback monoclub en producción si no lo necesitas.
       - key: ALLOW_SINGLE_CLUB_FALLBACK
         value: "false"
@@ -110,3 +110,6 @@ services:
         sync: false
       - key: DEBUG
         value: "false"
+      # Fallback: si el browser no quedó en caché tras el build, Render lo reinstala al arrancar.
+      - key: INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME
+        value: "true"

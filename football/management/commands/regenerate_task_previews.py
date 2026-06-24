@@ -6,7 +6,7 @@ from django.core.files.storage import default_storage
 from django.core.management.base import BaseCommand
 
 from football.models import SessionTask, TaskStudioTask, Team
-from football.preview_render import shutdown_preview_renderer
+from football.preview_render import _acquire_playwright_browser, shutdown_preview_renderer
 from football.task_library_services import (
     analyze_preview_image_bytes,
     ensure_library_task_preview,
@@ -40,22 +40,12 @@ def _check_playwright_chromium() -> str | None:
     """
     os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", "0")
     try:
-        from playwright.sync_api import sync_playwright
+        with _acquire_playwright_browser() as (_pw, browser):
+            if browser is None:
+                return "Chromium no disponible"
+            browser.close()
+            return None
     except Exception as exc:
-        return f"Playwright no importable: {exc!r}"
-    pw = None
-    try:
-        pw = sync_playwright().start()
-        browser = pw.chromium.launch(args=["--no-sandbox"])
-        browser.close()
-        pw.stop()
-        return None
-    except Exception as exc:
-        try:
-            if pw:
-                pw.stop()
-        except Exception:
-            pass
         return str(exc)
 
 

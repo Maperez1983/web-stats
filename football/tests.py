@@ -52,6 +52,7 @@ from football.stats_audit import run_stats_audit
 from football.dashboard_services import SCRAPE_LOCK_KEY, compute_player_cards_for_match, compute_player_dashboard, compute_player_metrics, compute_team_metrics_for_match
 from football import system_guard
 from football import local_llm
+from football import preview_render
 from django.test import override_settings
 from unittest.mock import Mock, patch
 import requests
@@ -3936,6 +3937,32 @@ class SystemGuardTests(TestCase):
         self.assertEqual(result['model'], 'llama3.2-vision')
         mock_openai.assert_called_once()
         mock_ollama.assert_called_once()
+
+    def test_preview_render_prefers_explicit_chromium_binary(self):
+        with tempfile.NamedTemporaryFile(delete=False) as handle:
+            executable_path = handle.name
+        self.addCleanup(lambda: Path(executable_path).unlink(missing_ok=True))
+
+        class FakeBrowserType:
+            def __init__(self):
+                self.calls = []
+
+            def launch(self, **kwargs):
+                self.calls.append(kwargs)
+                return 'browser'
+
+        fake_browser_type = FakeBrowserType()
+
+        with patch('football.preview_render._chromium_executable_candidates', return_value=[executable_path]):
+            browser, selected_path = preview_render._launch_chromium_with_fallbacks(
+                fake_browser_type,
+                launch_kwargs={'args': ['--no-sandbox']},
+            )
+
+        self.assertEqual(browser, 'browser')
+        self.assertEqual(selected_path, executable_path)
+        self.assertEqual(fake_browser_type.calls[0]['executable_path'], executable_path)
+        self.assertEqual(fake_browser_type.calls[0]['args'], ['--no-sandbox'])
 
     @patch('football.system_guard.fetch_web_research_with_browser')
     @patch('football.system_guard.compact_web_research')
