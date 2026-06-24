@@ -115,12 +115,25 @@
 	      .box { border: 1px solid var(--club-border); padding: 12px; background: #ffffff; line-height: 1.55; }
 	      .content { padding: 12px 14px 0; background: #f1f5f9; }
 	      .tasks { display:grid; grid-template-columns: 1fr; gap: 12px; }
-	      .task { border: 1px solid var(--club-border); border-radius: 14px; overflow:hidden; background:#ffffff; }
+	      .task { border: 1px solid var(--club-border); border-radius: 14px; overflow:hidden; background:#ffffff; color:#0f172a; }
 	      .task-head { background: #0f172a; color:#ffffff; padding: 7px 10px; display:flex; justify-content:space-between; gap: 10px; align-items:baseline; }
 	      .task-head strong { text-transform: uppercase; letter-spacing: 0.12em; font-size: 10px; }
 	      .task-head span { font-size: 10px; opacity: 0.92; font-weight: 850; }
-	      .task-body { padding: 9px 10px 10px; }
-	      .task-title { font-weight: 950; font-size: 12.5px; margin-bottom: 6px; }
+	      .task-body { padding: 9px 10px 10px; color:#0f172a; }
+	      .task-title { font-weight: 950; font-size: 12.5px; margin-bottom: 6px; color:#0f172a; }
+	      .task-body .box,
+	      .task-body .table td,
+	      .task-body .table th,
+	      .task-body .v,
+	      .task-body p,
+	      .task-body li,
+	      .task-body strong {
+	        color:#0f172a;
+	      }
+	      .task-body .box span[style*="var(--club-muted)"],
+	      .task-body .v span[style*="var(--club-muted)"] {
+	        color: var(--club-muted) !important;
+	      }
 		      .preview-frame {
 		        display: block;
 		        position: relative;
