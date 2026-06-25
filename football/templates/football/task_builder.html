@@ -4040,9 +4040,13 @@
       body.task-mode-ready.task-mode-board .builder > section.panel {
         grid-column: 1 / -1;
       }
+      body.task-mode-ready.task-mode-sheet .builder > section.panel,
+      body.task-mode-ready.task-mode-export .builder > section.panel,
       body.task-mode-ready.task-mode-text .builder > section.panel {
         display: none;
       }
+      body.task-mode-ready.task-mode-sheet .builder > aside.panel,
+      body.task-mode-ready.task-mode-export .builder > aside.panel,
       body.task-mode-ready.task-mode-text .builder > aside.panel {
         grid-column: 1 / -1;
       }
@@ -5201,11 +5205,10 @@
 	                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;text&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;capas&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Capas</button>
 	                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;text&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;exportar&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Exportar</button>
 	                    {% else %}
-		                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;text&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;ficha&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Ficha básica</button>
-		                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;text&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;avanzado&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Ficha avanzada</button>
-		                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;text&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;assistant&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Asistente</button>
-		                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;text&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;playbook&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Playbook</button>
-		                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;text&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;exportar&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Exportar</button>
+		                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;sheet&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;ficha&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Resumen</button>
+		                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;sheet&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;design&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Diseño</button>
+		                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;sheet&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;load&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Carga</button>
+		                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;export&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;exportar&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Exportar</button>
 		                    {% endif %}
 	                  </div>
 	                </div>
@@ -5412,8 +5415,9 @@
         {% if not tactics_mode %}
         <div class="task-mode-tabs" id="task-mode-tabs" role="tablist" aria-label="Vista de edición">
           <button type="button" class="is-active" data-task-mode="board" role="tab" aria-selected="true">Pizarra</button>
-          <button type="button" data-task-mode="text" role="tab" aria-selected="false">Contenido</button>
-          <span class="hint">Alterna para editar sin scroll.</span>
+          <button type="button" data-task-mode="sheet" role="tab" aria-selected="false">Ficha</button>
+          <button type="button" data-task-mode="export" role="tab" aria-selected="false">Exportar</button>
+          <span class="hint">Pizarra para diseñar, ficha para describir, exportar para compartir.</span>
         </div>
 	        {% endif %}
 
@@ -5450,11 +5454,11 @@
 		                  Abrir pizarra
 		                  <small>Colocar fichas, dibujar y simular</small>
 		                </button>
-		                <button type="button" class="task-landing-action" data-landing-go="text" aria-pressed="false">
-		                  Editar contenido
-		                  <small>Descripción, reglas, objetivos…</small>
+		                <button type="button" class="task-landing-action" data-landing-go="sheet" aria-pressed="false">
+		                  Editar ficha
+		                  <small>Resumen, diseño y carga</small>
 		                </button>
-		                <button type="button" class="task-landing-action" data-landing-go="exportar" aria-pressed="false">
+		                <button type="button" class="task-landing-action" data-landing-go="export" aria-pressed="false">
 		                  Exportar / imprimir
 		                  <small>PDF, PNG, compartir…</small>
 		                </button>
@@ -7236,14 +7240,9 @@
 					                <button type="button" class="side-tab" data-pane="capas" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">🧩</span><span class="tab-label">Capas</span></button>
 					                <button type="button" class="side-tab" data-pane="exportar" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">📤</span><span class="tab-label">Exportar</span></button>
 		                        {% else %}
-						                <button type="button" class="side-tab is-active" data-pane="ficha" role="tab" aria-selected="true"><span class="tab-emoji" aria-hidden="true">📝</span><span class="tab-label">Ficha básica</span></button>
-						                <button type="button" class="side-tab" data-pane="avanzado" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">📋</span><span class="tab-label">Ficha avanzada</span></button>
-	                            <button type="button" class="side-tab" data-pane="assistant" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">🤖</span><span class="tab-label">Asistente</span></button>
-							                <button type="button" class="side-tab" data-pane="playbook" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">📚</span><span class="tab-label">Playbook</span></button>
-						                <button type="button" class="side-tab" data-pane="animacion" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">🎬</span><span class="tab-label">Escenarios</span></button>
-						                <button type="button" class="side-tab" data-pane="capas" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">🧩</span><span class="tab-label">Capas</span></button>
-						                <button type="button" class="side-tab" data-pane="exportar" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">📤</span><span class="tab-label">Exportar</span></button>
-						                <button type="button" class="side-tab" data-pane="preview" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">👁️</span><span class="tab-label">Vista previa</span></button>
+						                <button type="button" class="side-tab is-active" data-pane="ficha" role="tab" aria-selected="true"><span class="tab-emoji" aria-hidden="true">🧾</span><span class="tab-label">Resumen</span></button>
+						                <button type="button" class="side-tab" data-pane="design" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">🧠</span><span class="tab-label">Diseño</span></button>
+						                <button type="button" class="side-tab" data-pane="load" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">📈</span><span class="tab-label">Carga</span></button>
 		                        {% endif %}
 						              </div>
 
@@ -7444,9 +7443,12 @@
               {% endif %}
 
               {% if not tactics_mode %}
-	              <div class="side-pane" data-pane="assistant" role="tabpanel">
+			              <div class="side-pane" data-pane="assistant" role="tabpanel">
 	                <div class="section">
-	                  <h3>Asistente de tareas</h3>
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:0.65rem; flex-wrap:wrap;">
+	                  <h3 style="margin:0;">Asistente de tareas</h3>
+                      <button type="button" class="button secondary" onclick="try{document.querySelector('#task-mode-tabs [data-task-mode=&quot;sheet&quot;]')?.click();document.querySelector('#task-side-tabs [data-pane=&quot;design&quot;]')?.click();}catch(e){};return false;">Volver a diseño</button>
+                    </div>
 	                  <p class="meta" style="margin-top:0.35rem;">
 	                    Plantillas guiadas para crear tareas rápido sin perder estructura. Ajusta siempre la carga y la técnica a tu grupo.
 	                  </p>
@@ -7637,9 +7639,17 @@
 		              </div>
 
               {% if not tactics_mode %}
-			              <div class="side-pane" data-pane="avanzado" role="tabpanel">
+			              <div class="side-pane" data-pane="design" role="tabpanel">
 			                <div class="section">
-			                  <h3>Ajustes avanzados</h3>
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:0.65rem; flex-wrap:wrap;">
+			                  <h3 style="margin:0;">Diseño y metodología</h3>
+                      <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
+                        <button type="button" class="button secondary" onclick="try{document.querySelector('#task-side-tabs [data-pane=&quot;assistant&quot;]')?.click();}catch(e){};return false;">Asistente</button>
+                        <button type="button" class="button secondary" onclick="try{document.querySelector('#task-side-tabs [data-pane=&quot;playbook&quot;]')?.click();}catch(e){};return false;">Playbook</button>
+                        <button type="button" class="button secondary" onclick="try{document.querySelector('#task-side-tabs [data-pane=&quot;preview&quot;]')?.click();}catch(e){};return false;">Vista previa</button>
+                      </div>
+                    </div>
+                    <p class="meta" style="margin:0.4rem 0 0.85rem;">Aquí defines la lógica metodológica de la tarea y sus variantes sin tocar la pizarra.</p>
 		                  <div class="meta" style="margin:-0.2rem 0 0.85rem;">
 		                    <label class="chip-toggle" style="display:inline-flex; gap:10px; align-items:center;">
 		                      <input type="checkbox" name="draw_task_multi_board" id="task-multi-board-toggle" value="1" {% if initial.multi_board_enabled %}checked{% endif %} />
@@ -7746,83 +7756,6 @@
 	                          {% endfor %}
 	                        </select>
 	                      </label>
-	                      <label>
-	                        Carga física
-	                        <select name="draw_task_physical_load">
-	                          <option value="">-</option>
-	                          {% for value, label in task_load_level_choices %}
-	                          <option value="{{ value }}" {% if initial.physical_load == value %}selected{% endif %}>{{ label }}</option>
-	                          {% endfor %}
-	                        </select>
-	                      </label>
-	                      <label>
-	                        Carga cognitiva
-	                        <select name="draw_task_cognitive_load">
-	                          <option value="">-</option>
-	                          {% for value, label in task_load_level_choices %}
-	                          <option value="{{ value }}" {% if initial.cognitive_load == value %}selected{% endif %}>{{ label }}</option>
-	                          {% endfor %}
-	                        </select>
-	                      </label>
-	                      <label>
-	                        Carga emocional
-	                        <select name="draw_task_emotional_load">
-	                          <option value="">-</option>
-	                          {% for value, label in task_load_level_choices %}
-	                          <option value="{{ value }}" {% if initial.emotional_load == value %}selected{% endif %}>{{ label }}</option>
-	                          {% endfor %}
-	                        </select>
-	                      </label>
-	                      <label>
-	                        Día microciclo
-	                        <select name="draw_task_md_day">
-	                          <option value="">-</option>
-	                          {% for value, label in task_md_day_choices %}
-	                          <option value="{{ value }}" {% if initial.md_day == value %}selected{% endif %}>{{ label }}</option>
-	                          {% endfor %}
-	                        </select>
-	                      </label>
-	                      <label>
-	                        Carga dominante
-	                        <select name="draw_task_dominant_load">
-	                          <option value="">-</option>
-	                          {% for value, label in task_dominant_load_choices %}
-	                          <option value="{{ value }}" {% if initial.dominant_load == value %}selected{% endif %}>{{ label }}</option>
-	                          {% endfor %}
-	                        </select>
-	                      </label>
-	                      <label>
-	                        Escala
-	                        <select name="draw_task_rpe_scale">
-	                          {% for value, label in task_rpe_scale_choices %}
-	                          <option value="{{ value }}" {% if initial.rpe_scale == value %}selected{% endif %}>{{ label }}</option>
-	                          {% endfor %}
-	                        </select>
-	                      </label>
-	                      <label>
-	                        RPE previsto
-	                        <input type="number" name="draw_task_planned_rpe" min="0" max="20" step="1" value="{{ initial.planned_rpe }}" placeholder="0-10" />
-	                      </label>
-	                      <label>
-	                        sRPE previsto
-	                        <input type="number" value="{{ initial.planned_srpe_load }}" placeholder="auto" readonly />
-	                      </label>
-	                      <label>
-	                        Wellness objetivo
-	                        <input type="number" name="draw_task_wellness_target" min="1" max="10" step="1" value="{{ initial.wellness_target }}" placeholder="1-10" />
-	                      </label>
-	                      <label>
-	                        Monotony
-	                        <input type="text" name="draw_task_monotony_target" value="{{ initial.monotony_target }}" maxlength="40" placeholder="Ej: <2.0" />
-	                      </label>
-	                      <label>
-	                        Strain
-	                        <input type="text" name="draw_task_strain_target" value="{{ initial.strain_target }}" maxlength="60" placeholder="Ej: semana controlada" />
-	                      </label>
-	                      <label style="grid-column:1 / -1;">
-	                        Notas de carga
-	                        <textarea name="draw_task_load_notes" rows="2" style="min-height:52px; resize:vertical;" placeholder="Ej: evitar picos tras partido, controlar aceleraciones y densidad decisional">{{ initial.load_notes }}</textarea>
-	                      </label>
 	                    </div>
 	                  </div>
 		                  <label style="grid-column:1 / -1;">
@@ -7861,10 +7794,6 @@
 	                    Trabajo/descanso
 	                    <input type="text" name="draw_task_work_rest" value="{{ initial.work_rest }}" placeholder="Ej: 15'' / 15''" />
 	                  </label>
-		                  <label>
-		                    Carga objetivo
-		                    <input type="text" name="draw_task_load_target" value="{{ initial.load_target }}" placeholder="Ej: RPE 7" />
-		                  </label>
                   <label>
                     Complejidad
                     <select name="draw_task_complexity">
@@ -7945,6 +7874,96 @@
               </div>
               </div>
 
+              <div class="side-pane" data-pane="load" role="tabpanel">
+                <div class="section">
+                  <h3>Carga y control</h3>
+                  <p class="meta" style="margin-top:0.35rem;">Concentra aquí la exigencia física, cognitiva y emocional de la tarea para que no se mezcle con la ficha principal.</p>
+                  <div class="compact-grid">
+                    <label>
+                      Carga física
+                      <select name="draw_task_physical_load">
+                        <option value="">-</option>
+                        {% for value, label in task_load_level_choices %}
+                        <option value="{{ value }}" {% if initial.physical_load == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                      </select>
+                    </label>
+                    <label>
+                      Carga cognitiva
+                      <select name="draw_task_cognitive_load">
+                        <option value="">-</option>
+                        {% for value, label in task_load_level_choices %}
+                        <option value="{{ value }}" {% if initial.cognitive_load == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                      </select>
+                    </label>
+                    <label>
+                      Carga emocional
+                      <select name="draw_task_emotional_load">
+                        <option value="">-</option>
+                        {% for value, label in task_load_level_choices %}
+                        <option value="{{ value }}" {% if initial.emotional_load == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                      </select>
+                    </label>
+                    <label>
+                      Día microciclo
+                      <select name="draw_task_md_day">
+                        <option value="">-</option>
+                        {% for value, label in task_md_day_choices %}
+                        <option value="{{ value }}" {% if initial.md_day == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                      </select>
+                    </label>
+                    <label>
+                      Carga dominante
+                      <select name="draw_task_dominant_load">
+                        <option value="">-</option>
+                        {% for value, label in task_dominant_load_choices %}
+                        <option value="{{ value }}" {% if initial.dominant_load == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                      </select>
+                    </label>
+                    <label>
+                      Escala
+                      <select name="draw_task_rpe_scale">
+                        {% for value, label in task_rpe_scale_choices %}
+                        <option value="{{ value }}" {% if initial.rpe_scale == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                      </select>
+                    </label>
+                    <label>
+                      RPE previsto
+                      <input type="number" name="draw_task_planned_rpe" min="0" max="20" step="1" value="{{ initial.planned_rpe }}" placeholder="0-10" />
+                    </label>
+                    <label>
+                      sRPE previsto
+                      <input type="number" value="{{ initial.planned_srpe_load }}" placeholder="auto" readonly />
+                    </label>
+                    <label>
+                      Wellness objetivo
+                      <input type="number" name="draw_task_wellness_target" min="1" max="10" step="1" value="{{ initial.wellness_target }}" placeholder="1-10" />
+                    </label>
+                    <label>
+                      Monotony
+                      <input type="text" name="draw_task_monotony_target" value="{{ initial.monotony_target }}" maxlength="40" placeholder="Ej: <2.0" />
+                    </label>
+                    <label>
+                      Strain
+                      <input type="text" name="draw_task_strain_target" value="{{ initial.strain_target }}" maxlength="60" placeholder="Ej: semana controlada" />
+                    </label>
+                    <label>
+                      Carga objetivo
+                      <input type="text" name="draw_task_load_target" value="{{ initial.load_target }}" placeholder="Ej: RPE 7" />
+                    </label>
+                    <label style="grid-column:1 / -1;">
+                      Notas de carga
+                      <textarea name="draw_task_load_notes" rows="2" style="min-height:52px; resize:vertical;" placeholder="Ej: evitar picos tras partido, controlar aceleraciones y densidad decisional">{{ initial.load_notes }}</textarea>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
 		              <div class="side-pane" data-pane="animacion" role="tabpanel">
 	                <div class="section">
 	                  <div class="timeline-head">
@@ -7994,7 +8013,12 @@
 
 			              <div class="side-pane{% if tactics_mode %} is-active{% endif %}" data-pane="playbook" role="tabpanel">
 		                <div class="section">
-		                  <h3>Playbook</h3>
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:0.65rem; flex-wrap:wrap;">
+		                  <h3 style="margin:0;">Playbook</h3>
+                      {% if not tactics_mode %}
+                      <button type="button" class="button secondary" onclick="try{document.querySelector('#task-mode-tabs [data-task-mode=&quot;sheet&quot;]')?.click();document.querySelector('#task-side-tabs [data-pane=&quot;design&quot;]')?.click();}catch(e){};return false;">Volver a diseño</button>
+                      {% endif %}
+                    </div>
 		                  {% if tactics_mode %}
 		                  <p>Clips reutilizables del equipo: plantillas tácticas, favoritos, versiones, compartir y clonar.</p>
 		                  {% else %}
@@ -8069,7 +8093,10 @@
               {% if not tactics_mode %}
 			              <div class="side-pane" data-pane="preview" role="tabpanel">
 			                <div class="section preview-card">
-			                  <h3>Vista previa</h3>
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:0.65rem; flex-wrap:wrap;">
+			                  <h3 style="margin:0;">Vista previa</h3>
+                      <button type="button" class="button secondary" onclick="try{document.querySelector('#task-mode-tabs [data-task-mode=&quot;sheet&quot;]')?.click();document.querySelector('#task-side-tabs [data-pane=&quot;design&quot;]')?.click();}catch(e){};return false;">Volver a diseño</button>
+                    </div>
 			                  <div class="live-preview-frame">
 	                    <img id="task-live-preview" src="{{ task_preview_url }}" alt="Preview de tarea" {% if not task_preview_url %}hidden{% endif %} />
 	                    <div id="task-live-preview-placeholder" class="live-preview-placeholder" {% if task_preview_url %}hidden{% endif %}>
@@ -8803,12 +8830,12 @@
 		            {
 		              anchor: '#task-side-tabs',
 		              title: '4) Panel lateral',
-		              body: 'Aquí están Ficha básica, Ficha avanzada, Asistente, Escenarios, Capas, Exportar y Vista previa.',
+		              body: 'Aquí organizas la ficha en tres bloques claros: Resumen, Diseño y Carga. Las utilidades extra quedan en segundo plano.',
 		            },
 		            {
 		              anchor: '#task-methodology-card',
 		              title: '5) Metodología',
-		              body: 'En Ficha avanzada usa “Añadir campo” para mostrar solo el momento, principio, subprincipio, regla provocadora o cargas que necesites.',
+		              body: 'En Diseño defines metodología, organización, progresiones y criterios de éxito sin mezclarlo con la carga.',
 		            },
 		            {
 		              anchor: 'button.side-tab[data-pane=\"preview\"]',
@@ -13289,7 +13316,9 @@
 
               const normalizeAction = (value) => {
                 const v = String(value || '').trim().toLowerCase();
-                if (v === 'assistant' || v === 'text' || v === 'exportar' || v === 'board') return v;
+                if (v === 'assistant' || v === 'sheet' || v === 'export' || v === 'board') return v;
+                if (v === 'text') return 'sheet';
+                if (v === 'exportar') return 'export';
                 return 'board';
               };
               const embeddedMode = document.body.classList.contains('embedded-task-builder');
@@ -13308,18 +13337,19 @@
 	                const action = normalizeAction(selectedAction);
 	                if (action === 'assistant') {
 	                  // En modo tácticas puede no existir "assistant": en ese caso solo cerramos.
-	                  activateTaskMode('text');
+	                  activateTaskMode('sheet');
 	                  activateSidePane('assistant');
 	                  closeLanding();
                   return;
                 }
-                if (action === 'text') {
-                  activateTaskMode('text');
+                if (action === 'sheet') {
+                  activateTaskMode('sheet');
+                  activateSidePane('ficha');
                   closeLanding();
                   return;
                 }
-                if (action === 'exportar') {
-                  activateTaskMode('text');
+                if (action === 'export') {
+                  activateTaskMode('export');
                   activateSidePane('exportar');
                   closeLanding();
                   return;

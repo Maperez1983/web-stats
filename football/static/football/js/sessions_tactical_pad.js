@@ -29472,7 +29472,8 @@
       const readMode = () => {
         try {
           const stored = safeText(window.localStorage.getItem(storageKey));
-          if (stored === 'text' || stored === 'board') return stored;
+          if (stored === 'board' || stored === 'sheet' || stored === 'export') return stored;
+          if (stored === 'text') return 'sheet';
         } catch (error) { /* ignore */ }
         return 'board';
       };
@@ -29480,9 +29481,13 @@
         try { window.localStorage.setItem(storageKey, mode); } catch (error) { /* ignore */ }
       };
       const apply = (mode, options = {}) => {
-        const next = mode === 'text' ? 'text' : 'board';
+        const next = mode === 'sheet' || mode === 'text'
+          ? 'sheet'
+          : (mode === 'export' ? 'export' : 'board');
         document.body.classList.toggle('task-mode-board', next === 'board');
-        document.body.classList.toggle('task-mode-text', next === 'text');
+        document.body.classList.toggle('task-mode-sheet', next === 'sheet');
+        document.body.classList.toggle('task-mode-export', next === 'export');
+        document.body.classList.toggle('task-mode-text', next === 'sheet' || next === 'export');
         document.body.classList.toggle('task-mode-both', false);
         document.body.classList.toggle('task-mode-ready', true);
         buttons.forEach((btn) => {
@@ -29491,10 +29496,20 @@
           btn.setAttribute('aria-selected', active ? 'true' : 'false');
         });
         if (!options.silent) writeMode(next);
-        if (next === 'text') {
+        if (next === 'sheet' || next === 'export') {
           try { syncRichEditorsNow?.(); } catch (error) { /* ignore */ }
           try { persistDraftNow('mode-switch'); } catch (error) { /* ignore */ }
-          if (!options.silent) setStatus('Vista: Contenido.');
+          if (next === 'export') {
+            try { activateSidePane('exportar'); } catch (error) { /* ignore */ }
+            if (!options.silent) setStatus('Vista: Exportar.');
+          } else {
+            const activePane = sidePanes.find((pane) => pane.classList.contains('is-active'));
+            const activeKey = safeText(activePane?.dataset?.pane);
+            if (!['ficha', 'design', 'load', 'assistant', 'preview', 'playbook'].includes(activeKey)) {
+              try { activateSidePane('ficha'); } catch (error) { /* ignore */ }
+            }
+            if (!options.silent) setStatus('Vista: Ficha.');
+          }
           return;
         }
         window.setTimeout(() => {
@@ -29568,13 +29583,15 @@
 		              try { activateSidePane('assistant'); } catch (e) { /* ignore */ }
 		              return;
 		            }
-		            if (go === 'exportar') {
+		            if (go === 'export' || go === 'exportar') {
+		              const exportBtn = document.querySelector('#task-mode-tabs button[data-task-mode="export"]');
+		              try { exportBtn?.click?.(); } catch (e) { /* ignore */ }
 		              try { activateSidePane('exportar'); } catch (e) { /* ignore */ }
 		              return;
 		            }
-		            if (go === 'text') {
-		              const textBtn = document.querySelector('#task-mode-tabs button[data-task-mode="text"]');
-		              try { textBtn?.click?.(); } catch (e) { /* ignore */ }
+		            if (go === 'sheet' || go === 'text') {
+		              const sheetBtn = document.querySelector('#task-mode-tabs button[data-task-mode="sheet"]');
+		              try { sheetBtn?.click?.(); } catch (e) { /* ignore */ }
 		              try { activateSidePane('ficha'); } catch (e) { /* ignore */ }
 		              return;
 		            }
