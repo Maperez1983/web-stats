@@ -56,12 +56,37 @@
 	        --accent-soft: rgba(34, 211, 238, 0.16);
 	      }
       * { box-sizing: border-box; }
-	      body {
-	        margin: 0;
-	        background: transparent;
-	        color: var(--ink);
-	        font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", sans-serif);
-	      }
+      body {
+        margin: 0;
+        background: transparent;
+        color: var(--ink);
+        font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", sans-serif);
+      }
+      body.embedded-task-builder {
+        background: transparent;
+      }
+      body.embedded-task-builder .page {
+        max-width: none;
+        margin: 0;
+        padding: 0;
+      }
+      body.embedded-task-builder .topbar,
+      body.embedded-task-builder #task-builder-draft-alert,
+      body.embedded-task-builder .task-landing,
+      body.embedded-task-builder .tpad-support-fab,
+      body.embedded-task-builder #tpad-overlay-backdrop,
+      body.embedded-task-builder #task-selection-dock {
+        display: none !important;
+      }
+      body.embedded-task-builder .builder {
+        margin: 0;
+      }
+      body.embedded-task-builder .builder > section.panel,
+      body.embedded-task-builder .builder > aside.panel {
+        border-radius: 0;
+        border-left: 0;
+        border-right: 0;
+      }
       /* overlay-backdrop: evita sensación de superposición en popovers/modales */
 	      .overlay-backdrop {
 	        position: fixed;
@@ -5018,7 +5043,7 @@
 	    </style>
 	  </head>
 				  <body
-			        class="prod-commercial{% if tactics_mode %} tactics-mode{% endif %} suppress-auto-tour"
+			        class="prod-commercial{% if tactics_mode %} tactics-mode{% endif %}{% if embedded_mode %} embedded-task-builder{% endif %} suppress-auto-tour"
 		        data-tpad-diagnostics="{% if tactics_mode and request.GET.diag == '1' %}1{% else %}0{% endif %}"
 		      >
 			    <div id="tpad-overlay-backdrop" class="overlay-backdrop" hidden></div>
@@ -13267,6 +13292,7 @@
                 if (v === 'assistant' || v === 'text' || v === 'exportar' || v === 'board') return v;
                 return 'board';
               };
+              const embeddedMode = document.body.classList.contains('embedded-task-builder');
 
               const setSelected = (actionRaw) => {
                 selectedAction = normalizeAction(actionRaw);
@@ -13340,18 +13366,31 @@
                 try { closeBtn.addEventListener('pointerdown', handler, { capture: true }); } catch (e) { /* ignore */ }
               }
 
-              // Default: sugerimos Asistente (el usuario puede cambiar con 1 toque).
-              try {
-                const params = new URLSearchParams(String(window.location.search || ''));
-                const pane = String(params.get('pane') || '').trim().toLowerCase();
-                if (pane === 'assistant') setSelected('assistant');
-                else setSelected('assistant');
-              } catch (e) {
-                setSelected('assistant');
-              }
+              // En modo embebido la ficha debe abrir directamente la pizarra real.
+              if (embeddedMode) {
+                setSelected('board');
+                try { activateTaskMode('board'); } catch (e) { /* ignore */ }
+                try { closeLanding(); } catch (e) { /* ignore */ }
+                try {
+                  window.requestAnimationFrame(() => {
+                    try { if (typeof window.__webstatsEnsureEditorStack === 'function') window.__webstatsEnsureEditorStack(); } catch (err) { /* ignore */ }
+                    try { document.getElementById('create-task-canvas')?.scrollIntoView({ block: 'start' }); } catch (err) { /* ignore */ }
+                  });
+                } catch (e) { /* ignore */ }
+              } else {
+                // Default: sugerimos Asistente (el usuario puede cambiar con 1 toque).
+                try {
+                  const params = new URLSearchParams(String(window.location.search || ''));
+                  const pane = String(params.get('pane') || '').trim().toLowerCase();
+                  if (pane === 'assistant') setSelected('assistant');
+                  else setSelected('assistant');
+                } catch (e) {
+                  setSelected('assistant');
+                }
 
-	              // Mostrar solo cuando viene desde flujo rápido (ej: Sesiones → crear/editar).
-	              openLandingIfNeeded();
+	                // Mostrar solo cuando viene desde flujo rápido (ej: Sesiones → crear/editar).
+	                openLandingIfNeeded();
+              }
 	            })();
 	          </script>
 						    {% endif %}

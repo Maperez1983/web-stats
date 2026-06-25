@@ -1353,93 +1353,24 @@
         </div>
 
         <section class="panel task-edit-tab-panel{% if active_task_edit_tab == 'graphic' %} is-active{% endif %}" data-task-edit-tab-panel="graphic">
-          <h2>Edición gráfica</h2>
-          <p class="meta">En este panel gestionas la pizarra 2D y la secuencia táctica de la tarea.</p>
-
-          <div class="graphic-toolbar">
-            <button type="button" class="button" id="graphic-draw-btn">Dibujar</button>
-            <button type="button" class="button secondary" id="graphic-select-btn">Seleccionar</button>
-            <button type="button" class="button" id="graphic-align-left-btn">Alinear izq.</button>
-            <button type="button" class="button secondary" id="graphic-align-center-btn">Cent.</button>
-            <button type="button" class="button" id="graphic-align-right-btn">Alinear der.</button>
-            <button type="button" class="button secondary" id="graphic-align-top-btn">Alinear arr.</button>
-            <button type="button" class="button" id="graphic-align-middle-btn">Alinear centro</button>
-            <button type="button" class="button secondary" id="graphic-align-bottom-btn">Alinear aba.</button>
-            <button type="button" class="button" id="graphic-add-circle-btn">Añadir jugador</button>
-            <button type="button" class="button secondary" id="graphic-add-rect-btn">Añadir zona</button>
-            <button type="button" class="button" id="graphic-add-arrow-btn">Añadir flecha</button>
-            <button type="button" class="button secondary" id="graphic-add-text-btn">Añadir texto</button>
-            <button type="button" class="button" id="graphic-duplicate-btn">Duplicar</button>
-            <button type="button" class="button secondary" id="graphic-clear-btn">Limpiar</button>
-            <button type="button" class="button" id="graphic-undo-btn">Deshacer</button>
-            <button type="button" class="button secondary" id="graphic-lock-btn">Bloquear</button>
-            <button type="button" class="button" id="graphic-unlock-btn">Desbloquear</button>
-            <button type="button" class="button secondary" id="graphic-delete-btn">Eliminar</button>
-            <button type="button" class="button" id="graphic-front-btn">Arriba</button>
-            <button type="button" class="button secondary" id="graphic-back-btn">Abajo</button>
-            <button type="button" class="button" id="graphic-snap-btn">Snap ON</button>
-            <label style="display:flex; flex-direction:column; gap:0.2rem; font-size:0.72rem; text-transform:uppercase;">
-              Color
-              <input type="color" id="graphic-color" value="#e11d48" />
-            </label>
-            <label style="display:flex; flex-direction:column; gap:0.2rem; font-size:0.72rem; text-transform:uppercase; min-width:118px;">
-              Grosor
-              <input type="range" id="graphic-width" min="1" max="18" value="4" />
-            </label>
-            <button type="button" class="button" id="graphic-save-btn">Guardar pizarra</button>
+          <h2>Editor de tareas</h2>
+          <p class="meta">Aquí se carga el editor real de pizarra y contenido que ya teníais antes, dentro de la propia ficha.</p>
+          <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; margin-bottom:0.7rem;">
+            {% if edit_graphic_url %}
+            <a class="button secondary" href="{{ edit_graphic_url }}">Abrir editor completo</a>
+            {% endif %}
           </div>
-
-          <section id="task-inline-editor" class="task-inline-editor{% if active_task_tab == 'edit' and active_task_edit_tab == 'graphic' %} is-open{% endif %}" aria-hidden="{% if active_task_tab == 'edit' and active_task_edit_tab == 'graphic' %}false{% else %}true{% endif %}">
-            <div class="graphic-layout">
-              <div class="graphic-canvas-wrap">
-                <div id="graphic-editor"></div>
-                <canvas id="task-graphic-canvas"></canvas>
-              </div>
-              <aside class="layers-panel" aria-label="Capas de la pizarra">
-                <h3>Capas</h3>
-                <div id="graphic-layers-list" class="layers-list"></div>
-                <div id="graphic-status" class="graphic-status" aria-live="polite"></div>
-              </aside>
-            </div>
-          </section>
-
-          <div class="resource-library">
-            <div class="resource-title">Objetos rápidos</div>
-            <div class="resource-grid" id="graphic-resource-grid">
-              <button type="button" class="resource-btn" data-resource="player_red">Jugador rojo</button>
-              <button type="button" class="resource-btn" data-resource="player_blue">Jugador azul</button>
-              <button type="button" class="resource-btn" data-resource="ball">Balón</button>
-              <button type="button" class="resource-btn" data-resource="cone">Cono</button>
-              <button type="button" class="resource-btn" data-resource="marker">Centro</button>
-              <button type="button" class="resource-btn" data-resource="goal">Portería</button>
-            </div>
+          {% if builder_embed_url %}
+          <div style="border:1px solid var(--line); border-radius:16px; overflow:hidden; background:rgba(255,255,255,0.02);">
+            <iframe
+              src="{{ builder_embed_url }}"
+              title="Editor de tareas"
+              loading="lazy"
+              style="width:100%; min-height:82vh; border:0; display:block; background:transparent;"
+            ></iframe>
           </div>
-
-          <div class="resource-library">
-            <div class="resource-title">Biblioteca iconos</div>
-            <div class="resource-search"><input type="text" id="graphic-iconify-search" placeholder="Buscar icono (fútbol, balón...)" aria-label="Buscar icono" /></div>
-            <div class="iconify-grid" id="graphic-iconify-grid">
-              <button type="button" class="iconify-btn" data-iconify="mdi:run-fast" data-label="Corredor"><iconify-icon icon="mdi:run-fast"></iconify-icon> Corredor</button>
-              <button type="button" class="iconify-btn" data-iconify="mdi:soccer-field" data-label="Campo"><iconify-icon icon="mdi:soccer-field"></iconify-icon> Campo</button>
-              <button type="button" class="iconify-btn" data-iconify="mdi:arrow-up" data-label="Flecha"><iconify-icon icon="mdi:arrow-up"></iconify-icon> Flecha</button>
-            </div>
-          </div>
-
-          {% if animation_frames %}
-          <div class="animation-controls">
-            <button type="button" class="button" id="animation-prev-btn">Anterior</button>
-            <button type="button" class="button" id="animation-play-btn">Reproducir</button>
-            <button type="button" class="button" id="animation-next-btn">Siguiente</button>
-          </div>
-          <div class="animation-strip">
-            {% for frame in animation_frames %}
-            <button class="animation-step-btn" type="button" data-animation-step="{{ forloop.counter0 }}">{{ forloop.counter }} · {{ frame.title|default:'Paso' }}</button>
-            {% endfor %}
-          </div>
-          <div class="animation-canvas-wrap">
-            <canvas id="task-animation-canvas"></canvas>
-          </div>
-          <p class="meta" id="animation-status" aria-live="polite"></p>
+          {% else %}
+          <div class="msg err">No se pudo cargar el editor real de tareas.</div>
           {% endif %}
         </section>
 

@@ -14225,7 +14225,9 @@ class StaffUserLinkingTests(TestCase):
         self.assertContains(response, 'data-task-tab="edit"')
         self.assertContains(response, 'data-task-tab="export"')
         self.assertContains(response, 'Abrir edición')
-        self.assertContains(response, 'id="graphic-editor"')
+        self.assertContains(response, 'Editor de tareas')
+        self.assertContains(response, '<iframe', html=False)
+        self.assertContains(response, 'embedded=1')
         self.assertContains(response, '__ollanaDiagnostics')
         self.assertNotContains(response, 'mode=edit')
 
@@ -14233,7 +14235,7 @@ class StaffUserLinkingTests(TestCase):
 
         self.assertEqual(edit_response.status_code, 200)
         self.assertContains(edit_response, 'Ficha táctica compartible')
-        self.assertContains(edit_response, 'Edición gráfica')
+        self.assertContains(edit_response, 'Editor de tareas')
         self.assertContains(edit_response, 'Configuración')
         self.assertContains(edit_response, 'task-export-panel')
 

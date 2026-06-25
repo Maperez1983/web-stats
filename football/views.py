@@ -40653,6 +40653,7 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
         workspace = _get_active_workspace(request)
     except Exception:
         workspace = None
+    embedded_mode = str(request.GET.get('embedded') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
 
     # Guardrail: si hay un despliegue sin migraciones aplicadas, el editor puede caer en 500.
     # En lugar de eso, devolvemos un mensaje claro (y el traceback queda en logs).
@@ -41237,6 +41238,7 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             'scope_key': scope_key,
             'scope_title': scope_title,
             'scope_route_name': _sessions_scope_route_name(scope_key),
+            'embedded_mode': embedded_mode,
             'task': task,
             'feedback': feedback,
             'error': error,
@@ -41286,7 +41288,7 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
                     'task_preview_url': (f"{reverse('session-task-preview-file', args=[task.id])}?hd=1&v={quote(str(task.task_preview_image.name or ''))}" if task and task.task_preview_image else ''),
             'show_session_selector': True,
             'saved_task_info': saved_task_info,
-            'show_dragon_nav': True,
+            'show_dragon_nav': not embedded_mode,
             'confirmed_players_api_url': reverse('sessions-confirmed-players-api'),
             **pitch3d_assets,
         },
@@ -43466,6 +43468,7 @@ def session_task_detail_page(request, task_id):
     except Exception:
         related_tasks = []
     edit_graphic_url = ''
+    builder_embed_url = ''
     presentation_url = ''
     task_builder_edit_route_name = _task_builder_edit_route_name(scope_key)
     team = getattr(getattr(getattr(task, 'session', None), 'microcycle', None), 'team', None)
@@ -43520,11 +43523,18 @@ def session_task_detail_page(request, task_id):
             except Exception:
                 pass
             edit_graphic_url = reverse(task_builder_edit_route_name, args=[int(task.id)])
+            builder_embed_url = edit_graphic_url
+            edit_params['back_to'] = 'detail'
+            embedded_params = dict(edit_params)
+            embedded_params['embedded'] = 1
             if edit_params:
                 edit_graphic_url = f"{edit_graphic_url}?{urlencode(edit_params)}"
+            if embedded_params:
+                builder_embed_url = f"{builder_embed_url}?{urlencode(embedded_params)}"
     except Exception:
         edit_graphic_url = ''
         presentation_url = ''
+        builder_embed_url = ''
 
     pitch3d_player_model_src = ''
     try:
@@ -43580,6 +43590,7 @@ def session_task_detail_page(request, task_id):
             'original_version': original_version,
             'original_task_sheet': original_task_sheet,
             'original_preview_url': original_preview_url,
+            'builder_embed_url': builder_embed_url,
             'is_editable_task': is_editable_task,
             'is_imported_task': is_imported_task,
             'is_performed_task': is_performed_task,
