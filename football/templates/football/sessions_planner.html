@@ -400,7 +400,7 @@
 	        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 	        gap: 0.85rem;
 	      }
-		      .task {
+	      .task {
 		        border-radius: 14px;
 		        border: 1px solid rgba(255, 255, 255, 0.14);
 		        background: rgba(255, 255, 255, 0.04);
@@ -424,6 +424,42 @@
 	      .task-body { padding: 0.75rem; }
 	      .task-body h3 { margin: 0; font-size: 0.88rem; letter-spacing: 0.01em; }
 	      .task-body .meta { margin: 0.25rem 0 0; }
+      .task-mainline {
+        display: grid;
+        gap: 0.22rem;
+      }
+      .task-mainline .task-title {
+        margin: 0;
+      }
+      .task-kpis {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        margin: 0.42rem 0 0.55rem;
+      }
+      .task-kpis .badge {
+        padding: 0.16rem 0.5rem;
+      }
+      .session-task-card-actions,
+      .library-task-actions,
+      .library-task-quick-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.35rem;
+      }
+      .session-task-card .task-media {
+        height: 180px;
+      }
+      .session-task-card .task-body {
+        padding-bottom: 0.6rem;
+      }
+      .session-task-card-actions .button.icon-btn,
+      .library-task-actions .button.icon-btn,
+      .library-task-quick-actions .button.icon-btn {
+        min-width: 2.4rem;
+        width: auto;
+      }
       .session-stack {
         display: grid;
         gap: 0.65rem;
@@ -3183,29 +3219,38 @@
 				                  role="link"
 				                  aria-label="Abrir ficha de tarea {{ row.sheet.title }}"
 				                >
-			                  <button
-			                    type="button"
-			                    class="task-preview-btn task-preview-inline"
-			                    data-title="{{ row.sheet.title|default:''|escape }}"
-			                    data-meta="{{ row.sheet.block_label|default:''|escape }} · {{ row.sheet.minutes|default:0 }}'"
-			                    data-summary="{{ row.obj.objective|default:''|truncatechars:220|escape }}"
-			                    data-img-url="{% url 'session-task-preview-file' row.obj.id %}?hd=1&amp;v={% if row.obj.task_preview_image %}{{ row.obj.task_preview_image.name|urlencode }}{% else %}{{ row.obj.id }}{% endif %}"
-			                    data-open-url="{% url 'session-task-detail' row.obj.id %}"
-			                    title="Vista previa"
-			                    aria-label="Vista previa"
-			                  >
-			                    <span class="emoji" aria-hidden="true">👁️</span>
-			                    <span class="sr-only">Vista previa</span>
-			                  </button>
-			                  <button type="button" class="task-trash" data-delete-task-id="{{ row.obj.id }}" title="Quitar de la sesión" aria-label="Quitar de la sesión">
-			                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-			                      <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 6h2v9h-2V9Zm4 0h2v9h-2V9ZM7 9h2v9H7V9Zm-1 13h12a2 2 0 0 0 2-2V9H4v11a2 2 0 0 0 2 2Z" />
-			                    </svg>
-			                  </button>
 					                <div class="task-media"><img src="{% url 'session-task-preview-file' row.obj.id %}?hd=1&amp;v={% if row.obj.task_preview_image %}{{ row.obj.task_preview_image.name|urlencode }}{% else %}{{ row.obj.id }}{% endif %}" alt="Representación gráfica" loading="lazy" /></div>
 		                  <div class="task-body">
-	                    <h3>{{ row.sheet.title }}</h3>
-	                    <p class="meta">{{ row.sheet.block_label }} · {{ row.sheet.minutes }}'</p>
+	                    <div class="task-mainline">
+	                      <h3 class="task-title">{{ row.sheet.title }}</h3>
+	                      <p class="meta">{{ row.sheet.block_label }} · {{ row.sheet.minutes }}'</p>
+	                    </div>
+	                    <div class="task-kpis">
+	                      <span class="badge">Bloque: {{ row.obj.block|default:'-' }}</span>
+	                      {% if row.obj.players_band %}<span class="badge">{{ row.obj.players_band }}</span>{% endif %}
+	                      {% if row.sheet.duration_band %}<span class="badge">{{ row.sheet.duration_band }}</span>{% endif %}
+	                      <span class="badge">Duración {{ row.sheet.minutes }}'</span>
+	                    </div>
+	                    <div class="session-task-card-actions">
+	                      <a class="button secondary" href="{% url 'session-task-detail' row.obj.id %}" title="Abrir ficha">Abrir ficha</a>
+	                      <button
+	                        type="button"
+	                        class="button secondary icon-btn"
+	                        data-title="{{ row.sheet.title|default:''|escape }}"
+	                        data-meta="{{ row.sheet.block_label|default:''|escape }} · {{ row.sheet.minutes|default:0 }}'"
+	                        data-summary="{{ row.obj.objective|default:''|truncatechars:220|escape }}"
+	                        data-img-url="{% url 'session-task-preview-file' row.obj.id %}?hd=1&amp;v={% if row.obj.task_preview_image %}{{ row.obj.task_preview_image.name|urlencode }}{% else %}{{ row.obj.id }}{% endif %}"
+	                        data-open-url="{% url 'session-task-detail' row.obj.id %}"
+	                        title="Vista previa"
+	                        aria-label="Vista previa"
+	                      >
+	                        <span class="emoji" aria-hidden="true">👁️</span>
+	                        <span>Vista</span>
+	                      </button>
+	                      <button type="button" class="button danger icon-btn" data-delete-task-id="{{ row.obj.id }}" title="Quitar de la sesión" aria-label="Quitar de la sesión">
+	                        <span class="emoji" aria-hidden="true">🗑️</span>
+	                      </button>
+	                    </div>
 	                  </div>
 		                </article>
 		                {% endfor %}
@@ -4346,7 +4391,7 @@
               <h3 class="task-title">{{ t.title }}</h3>
               <p class="task-objective">{{ t.objective_summary|truncatechars:140 }}</p>
               <p class="meta"><strong>{{ t.reference_date|date:"d/m/Y" }}</strong>{% if t.reference_date_is_detected %} · Fecha detectada{% endif %} · {{ t.get_block_display }} · {{ t.duration_minutes }}'</p>
-              <div style="display:flex; gap:0.35rem; flex-wrap:wrap; margin:0.35rem 0 0.55rem;">
+              <div class="task-kpis">
                 {% if t.completeness_score %}<span class="badge">Completa {{ t.completeness_score }}%</span>{% endif %}
                 {% if t.analysis_meta.quality_score %}<span class="badge">Score {{ t.analysis_meta.quality_score }}/100</span>{% endif %}
                 {% if t.analysis_confidence.overall %}<span class="badge">Conf {{ t.analysis_confidence.overall }}/100</span>{% endif %}
@@ -4393,37 +4438,27 @@
                     data-task-id="{{ t.id }}"
                     aria-pressed="{% if bookmarked_task_ids and t.id in bookmarked_task_ids %}true{% else %}false{% endif %}"
                     title="{% if bookmarked_task_ids and t.id in bookmarked_task_ids %}Quitar de favoritas{% else %}Marcar como favorita{% endif %}"
-                    style="min-width:3.1rem;"
+                    aria-label="{% if bookmarked_task_ids and t.id in bookmarked_task_ids %}Quitar de favoritas{% else %}Marcar como favorita{% endif %}"
                   >{% if bookmarked_task_ids and t.id in bookmarked_task_ids %}★{% else %}☆{% endif %}</button>
-				      <a class="button secondary" href="{% url 'session-task-detail' t.id %}" title="Ver ficha">Ficha</a>
-	                  <button
+                  <a class="button secondary" href="{% url 'session-task-detail' t.id %}" title="Ver ficha">Ficha</a>
+                  <button
                     type="button"
-                    class="button secondary icon-btn small task-preview-btn"
-	                    data-title="{{ t.title|escapejs }}"
-	                    data-summary="{{ t.objective_summary|escapejs }}"
-	                    data-meta="{{ t.get_block_display|escapejs }} · {{ t.duration_minutes }}' · {{ t.players_band|default:''|escapejs }}"
-		                    data-img-url="{% if t.task_preview_image or t.task_pdf or t.is_drawn %}{% url 'session-task-preview-file' t.id %}?hd=1&amp;v={% if t.task_preview_image %}{{ t.task_preview_image.name|urlencode }}{% else %}{{ t.id }}{% endif %}{% endif %}"
-	                    data-open-url="{% url 'session-task-detail' t.id %}"
-	                    data-related-url="{% url 'session-task-related' t.id %}"
-	                    title="Vista previa"
-	                    aria-label="Vista previa"
-	                  >
+                    class="button secondary task-preview-btn"
+                    data-title="{{ t.title|escapejs }}"
+                    data-summary="{{ t.objective_summary|escapejs }}"
+                    data-meta="{{ t.get_block_display|escapejs }} · {{ t.duration_minutes }}' · {{ t.players_band|default:''|escapejs }}"
+                    data-img-url="{% if t.task_preview_image or t.task_pdf or t.is_drawn %}{% url 'session-task-preview-file' t.id %}?hd=1&amp;v={% if t.task_preview_image %}{{ t.task_preview_image.name|urlencode }}{% else %}{{ t.id }}{% endif %}{% endif %}"
+                    data-open-url="{% url 'session-task-detail' t.id %}"
+                    data-related-url="{% url 'session-task-related' t.id %}"
+                    title="Vista previa"
+                    aria-label="Vista previa"
+                  >
                     <span class="emoji" aria-hidden="true">👁️</span>
-                    <span class="sr-only">Vista previa</span>
+                    <span>Vista</span>
                   </button>
-                {% if t.task_pdf %}
+                  {% if t.task_pdf %}
 				      <a class="button secondary" href="{% url 'session-task-file' t.id %}" data-pdf-viewer="1" data-pdf-title="Tarea · {{ t.title }}" title="Abrir PDF">PDF</a>
 	                {% endif %}
-                  <form method="post" style="margin:0;" onsubmit="return confirm('¿Enviar esta tarea a la papelera? (Se puede restaurar)');">
-                    {% csrf_token %}
-                    <input type="hidden" name="planner_action" value="delete_library_task" />
-                    <input type="hidden" name="planner_tab" value="library" />
-                    <input type="hidden" name="library_view" value="{{ library_view }}" />
-                    <input type="hidden" name="library_key" value="{{ library_key }}" />
-                    <input type="hidden" name="library_repo" value="{{ library_repository }}" />
-                    <input type="hidden" name="task_id" value="{{ t.id }}" />
-                      <button type="submit" class="button danger icon-btn small" title="Papelera" aria-label="Papelera">🗑️</button>
-                  </form>
 	                {% if planning_session_items %}
                   <details style="margin:0;">
                     <summary class="button secondary icon-btn small" style="display:inline-flex; width:max-content;" title="Añadir a sesión" aria-label="Añadir a sesión">
