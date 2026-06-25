@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import contextlib
 import json
 import hashlib
 import os
@@ -1608,15 +1609,77 @@ def _browser_visual_page_snapshot(workspace, *, actor_id=None, page_context=None
         "secure": str(parsed.scheme or "").lower() == "https",
         "sameSite": "Lax",
     }
+    service_token = str(
+        context.get("service_token")
+        or os.getenv("OLLANA_SERVICE_TOKEN")
+        or os.getenv("SERVICE_TOKEN")
+        or ""
+    ).strip()
+    login_username = str(
+        context.get("login_username")
+        or os.getenv("OLLANA_LOGIN_USERNAME")
+        or os.getenv("LOGIN_USERNAME")
+        or ""
+    ).strip()
+    login_password = str(
+        context.get("login_password")
+        or os.getenv("OLLANA_LOGIN_PASSWORD")
+        or os.getenv("LOGIN_PASSWORD")
+        or ""
+    ).strip()
     try:
         with _guard_playwright_browser() as (_pw, browser):
             if browser is None:
                 return {"enabled": False, "reason": "browser_unavailable"}
             browser_context = browser.new_context(ignore_https_errors=True, java_script_enabled=True, viewport={"width": 1440, "height": 1200}, device_scale_factor=1.5)
             try:
-                browser_context.add_cookies([cookie])
                 page = browser_context.new_page()
                 try:
+                    if login_username and login_password:
+                        login_url = urljoin(f"{base_url}/", "login/")
+                        page.goto(login_url, wait_until="domcontentloaded", timeout=20000)
+                        username_input = page.locator('input[name="username"]')
+                        password_input = page.locator('input[name="password"]')
+                        if username_input.count() > 0 and password_input.count() > 0:
+                            username_input.first.fill(login_username)
+                            password_input.first.fill(login_password)
+                            with contextlib.suppress(Exception):
+                                page.locator('button[type="submit"]').first.click()
+                            try:
+                                page.wait_for_load_state("domcontentloaded", timeout=15000)
+                            except Exception:
+                                pass
+                            try:
+                                page.wait_for_load_state("networkidle", timeout=3000)
+                            except Exception:
+                                pass
+                    elif service_token:
+                        browser_context.add_cookies([{
+                            "name": str(getattr(settings, "SESSION_COOKIE_NAME", "sessionid")),
+                            "value": "",
+                            "domain": str(parsed.hostname or ""),
+                            "path": "/",
+                            "httpOnly": True,
+                            "secure": str(parsed.scheme or "").lower() == "https",
+                            "sameSite": "Lax",
+                        }])
+                        login_url = urljoin(f"{base_url}/", "service-login/")
+                        page.goto(login_url, wait_until="domcontentloaded", timeout=20000)
+                        token_input = page.locator('input[name="service_token"]')
+                        if token_input.count() > 0:
+                            token_input.first.fill(service_token)
+                            with contextlib.suppress(Exception):
+                                page.locator('button[type="submit"]').first.click()
+                            try:
+                                page.wait_for_load_state("domcontentloaded", timeout=15000)
+                            except Exception:
+                                pass
+                            try:
+                                page.wait_for_load_state("networkidle", timeout=3000)
+                            except Exception:
+                                pass
+                    else:
+                        browser_context.add_cookies([cookie])
                     page.goto(target_url, wait_until="domcontentloaded", timeout=20000)
                     try:
                         page.wait_for_load_state("networkidle", timeout=3000)
