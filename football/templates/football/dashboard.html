@@ -166,7 +166,7 @@
           {% if demo_mode or setup_mode %}
           linear-gradient(135deg, rgba(70, 211, 255, 0.12), rgba(244, 180, 0, 0.10));
           {% else %}
-          var(--hero-image, url('{% static "football/campo-futbol.jpg" %}')) center/var(--hero-size, cover) no-repeat;
+          var(--hero-image, url('{% static "football/images/pitch3d/stadium_rosaleda_top_h.png" %}')) center/var(--hero-size, cover) no-repeat;
           {% endif %}
         box-shadow: 0 28px 55px rgba(0, 0, 0, 0.42);
         transition: background-image 0.4s ease;
@@ -210,7 +210,7 @@
         min-height: 320px;
         background:
           linear-gradient(180deg, rgba(3, 7, 18, 0.10), rgba(3, 7, 18, 0.92)),
-          var(--hero-image, url('{% static "football/campo-futbol.jpg" %}')) center/cover no-repeat;
+          var(--hero-image, url('{% static "football/images/pitch3d/stadium_rosaleda_top_h.png" %}')) center/cover no-repeat;
         display: flex;
         align-items: end;
       }
@@ -467,7 +467,7 @@
           {% if demo_mode or setup_mode %}
           linear-gradient(135deg, rgba(70, 211, 255, 0.12), rgba(244, 180, 0, 0.10));
           {% else %}
-          var(--hero-image, url('{% static "football/campo-futbol.jpg" %}')) center/var(--hero-size, cover) no-repeat;
+          var(--hero-image, url('{% static "football/images/pitch3d/stadium_rosaleda_top_h.png" %}')) center/var(--hero-size, cover) no-repeat;
           {% endif %}
         box-shadow: 0 28px 55px rgba(0, 0, 0, 0.4);
         display: flex;
@@ -1584,11 +1584,12 @@
 		      const heroFallbackPool = demoMode
 	          ? []
 	          : [
-		            '{% static "football/images/team-01.jpg" %}',
-		            '{% static "football/images/team-02.jpg" %}',
-		            '{% static "football/images/team-03.jpg" %}',
-		            '{% static "football/campo-futbol.jpg" %}',
-		          ];
+            '{% static "football/images/pitch3d/stadium_rosaleda_top_h.png" %}',
+            '{% static "football/images/team-01.jpg" %}',
+            '{% static "football/images/team-02.jpg" %}',
+            '{% static "football/images/team-03.jpg" %}',
+            '{% static "football/campo-futbol.jpg" %}',
+          ];
 
 	        function buildHeroFallbackCandidates() {
 	          if (demoMode || setupMode) return [];

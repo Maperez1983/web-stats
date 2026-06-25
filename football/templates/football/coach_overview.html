@@ -43,7 +43,7 @@
         background:
           linear-gradient(135deg, rgba(14, 24, 40, 0.72), rgba(8, 16, 28, 0.7)),
           linear-gradient(180deg, rgba(3, 7, 18, 0.16), rgba(3, 7, 18, 0.88)),
-          url('{% if hero_image_data_uri %}{{ hero_image_data_uri }}{% elif hero_image_url %}{{ hero_image_url|default_if_none:"" }}{% else %}{% static "football/campo-futbol.jpg" %}{% endif %}') center/contain no-repeat;
+          url('{% if hero_image_data_uri %}{{ hero_image_data_uri }}{% elif hero_image_url %}{{ hero_image_url|default_if_none:"" }}{% else %}{% static "football/images/pitch3d/stadium_rosaleda_top_h.png" %}{% endif %}') center/contain no-repeat;
         position: relative;
       }
       .hero::before {
@@ -195,7 +195,7 @@
         min-height: 280px;
         background:
           linear-gradient(180deg, rgba(3, 7, 18, 0.16), rgba(3, 7, 18, 0.88)),
-          url('{% if hero_image_data_uri %}{{ hero_image_data_uri }}{% elif hero_image_url %}{{ hero_image_url|default_if_none:"" }}{% else %}{% static "football/campo-futbol.jpg" %}{% endif %}') center/contain no-repeat;
+          url('{% if hero_image_data_uri %}{{ hero_image_data_uri }}{% elif hero_image_url %}{{ hero_image_url|default_if_none:"" }}{% else %}{% static "football/images/pitch3d/stadium_rosaleda_top_h.png" %}{% endif %}') center/contain no-repeat;
         display: flex;
         align-items: end;
       }
