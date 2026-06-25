@@ -17146,6 +17146,67 @@ def player_reports_zip(request):
     return response
 
 
+def _build_team_hero_payload(request, workspace, primary_team):
+    """Construye URL y data-uri del hero con imagen de equipo o fallback global."""
+    hero_image_url = ''
+    hero_image_data_uri = ''
+    if primary_team and _should_use_team_cover_image(request, workspace, primary_team):
+        try:
+            updated_at = getattr(primary_team, 'cover_updated_at', None)
+            version = str(int(updated_at.timestamp())) if updated_at else str(int(timezone.now().timestamp()))
+            hero_image_url = f'{reverse("team-cover-image-file", args=[primary_team.id])}?v={version}&w=1600&h=900&q=72'
+            cache_key = f'coach-overview:hero-data-uri:{int(primary_team.id)}:{version}'
+            cached_data_uri = None
+            try:
+                cached_data_uri = cache.get(cache_key)
+            except Exception:
+                cached_data_uri = None
+            if isinstance(cached_data_uri, str) and cached_data_uri.startswith('data:image/'):
+                hero_image_data_uri = cached_data_uri
+            else:
+                cover_field = getattr(primary_team, 'cover_image', None)
+                raw = b''
+                try:
+                    cover_field.open('rb')
+                    raw = cover_field.read() or b''
+                except Exception:
+                    raw = b''
+                try:
+                    cover_field.close()
+                except Exception:
+                    pass
+                if raw:
+                    ext = Path(getattr(cover_field, 'name', '') or '').suffix.lower()
+                    mime = {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp'}.get(ext, 'image/jpeg')
+                    hero_image_data_uri = _image_bytes_as_small_data_uri(
+                        raw_bytes=raw,
+                        mime_type=mime,
+                        max_width=1600,
+                        max_height=900,
+                        quality=70,
+                    ) or ''
+                if hero_image_data_uri:
+                    try:
+                        cache.set(cache_key, hero_image_data_uri, timeout=60 * 60 * 24)
+                    except Exception:
+                        pass
+        except Exception:
+            hero_image_url = ''
+    if not hero_image_url:
+        active_hero_items = list(HomeCarouselImage.objects.filter(is_active=True).order_by('order', '-created_at', '-id'))
+        hero_items = active_hero_items or list(HomeCarouselImage.objects.order_by('order', '-created_at', '-id'))
+        if hero_items and getattr(hero_items[0], 'image', None):
+            try:
+                item = hero_items[0]
+                version = str(int(getattr(item, 'created_at', None).timestamp())) if getattr(item, 'created_at', None) else str(int(timezone.now().timestamp()))
+                hero_image_url = f'{reverse("home-carousel-image-file", args=[item.id])}?v={version}'
+            except Exception:
+                hero_image_url = ''
+        else:
+            hero_image_url = ''
+    return hero_image_data_uri, hero_image_url
+
+
 @login_required
 def coach_overview_page(request):
     forbidden = _forbid_if_no_coach_access(request.user)
@@ -17282,62 +17343,7 @@ def coach_overview_page(request):
         next_match_date = parsed_next_match_date.strftime('%d/%m/%Y')
     elif isinstance(next_match, dict):
         next_match_date = str(next_match.get('date') or '').strip()
-    hero_image_url = ''
-    hero_image_data_uri = ''
-    if primary_team and _should_use_team_cover_image(request, workspace, primary_team):
-        try:
-            updated_at = getattr(primary_team, 'cover_updated_at', None)
-            version = str(int(updated_at.timestamp())) if updated_at else str(int(timezone.now().timestamp()))
-            hero_image_url = f'{reverse("team-cover-image-file", args=[primary_team.id])}?v={version}&w=1600&h=900&q=72'
-            cache_key = f'coach-overview:hero-data-uri:{int(primary_team.id)}:{version}'
-            cached_data_uri = None
-            try:
-                cached_data_uri = cache.get(cache_key)
-            except Exception:
-                cached_data_uri = None
-            if isinstance(cached_data_uri, str) and cached_data_uri.startswith('data:image/'):
-                hero_image_data_uri = cached_data_uri
-            else:
-                cover_field = getattr(primary_team, 'cover_image', None)
-                raw = b''
-                try:
-                    cover_field.open('rb')
-                    raw = cover_field.read() or b''
-                except Exception:
-                    raw = b''
-                try:
-                    cover_field.close()
-                except Exception:
-                    pass
-                if raw:
-                    ext = Path(getattr(cover_field, 'name', '') or '').suffix.lower()
-                    mime = {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp'}.get(ext, 'image/jpeg')
-                    hero_image_data_uri = _image_bytes_as_small_data_uri(
-                        raw_bytes=raw,
-                        mime_type=mime,
-                        max_width=1600,
-                        max_height=900,
-                        quality=70,
-                    ) or ''
-                if hero_image_data_uri:
-                    try:
-                        cache.set(cache_key, hero_image_data_uri, timeout=60 * 60 * 24)
-                    except Exception:
-                        pass
-        except Exception:
-            hero_image_url = ''
-    if not hero_image_url:
-        active_hero_items = list(HomeCarouselImage.objects.filter(is_active=True).order_by('order', '-created_at', '-id'))
-        hero_items = active_hero_items or list(HomeCarouselImage.objects.order_by('order', '-created_at', '-id'))
-        if hero_items and getattr(hero_items[0], 'image', None):
-            try:
-                item = hero_items[0]
-                version = str(int(getattr(item, 'created_at', None).timestamp())) if getattr(item, 'created_at', None) else str(int(timezone.now().timestamp()))
-                hero_image_url = f'{reverse("home-carousel-image-file", args=[item.id])}?v={version}'
-            except Exception:
-                hero_image_url = ''
-        else:
-            hero_image_url = ''
+    hero_image_data_uri, hero_image_url = _build_team_hero_payload(request, workspace, primary_team)
     team_name_folded = (primary_team.name or '').strip().lower() if primary_team else ''
     highlighted_standing = None
     for row in standings:
@@ -28609,6 +28615,8 @@ def coach_role_trainer_page(request):
                 'top_event_types': selected_match_team_metrics['top_event_types'],
             }
 
+    hero_image_data_uri, hero_image_url = _build_team_hero_payload(request, workspace, primary_team)
+
     modules = [
         {'title': 'Convocatoria', 'description': 'Define lista oficial y PDF del partido.', 'link': 'convocation'},
         {'title': '11 inicial', 'description': 'Pantalla táctica visual para construir la alineación titular y banquillo.', 'link': 'initial-eleven'},
@@ -28651,6 +28659,8 @@ def coach_role_trainer_page(request):
             'coach_selected_player_match_id': _parse_int(request.GET.get('player_match')),
             'coach_player_view': coach_player_view,
             'active_team': primary_team,
+            'hero_image_data_uri': hero_image_data_uri,
+            'hero_image_url': hero_image_url,
         },
     )
 
