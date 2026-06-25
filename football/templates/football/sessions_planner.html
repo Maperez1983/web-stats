@@ -471,6 +471,43 @@
         margin-top: 0.65rem;
         align-items: center;
       }
+      .session-library-toolbar {
+        display: grid;
+        gap: 0.45rem;
+        margin: 0 0 0.7rem;
+      }
+      .session-library-toolbar .filter-row {
+        align-items: stretch;
+      }
+      .session-library-toolbar .filter-meta {
+        margin: 0;
+        color: rgba(225, 236, 255, 0.78);
+      }
+      .session-library-toolbar .task-more-body .button {
+        font-size: 0.74rem;
+        text-transform: none;
+        letter-spacing: 0;
+        border-radius: 12px;
+      }
+      .session-library-card {
+        position: relative;
+      }
+      .session-library-card .session-card-actions {
+        display: flex;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .session-library-card .session-card-actions .button.icon-btn {
+        min-width: 2.6rem;
+        width: auto;
+        padding-left: 0.82rem;
+        padding-right: 0.82rem;
+        border-radius: 999px;
+      }
+      .session-library-card .session-card-actions form {
+        margin: 0;
+      }
       .session-actions > * { flex: 0 0 auto; }
       .microcycle-plan-grid {
         display: grid;
@@ -2487,32 +2524,77 @@
                 Vista limpia: toca una sesión para abrir su <strong>Ficha</strong>. El editor queda en “Editor”.
               </p>
               {% if sessions_source_tab == 'created' %}
-              <p class="meta" style="margin:-0.35rem 0 0.75rem;">
-                <a class="button" href="?tab=create&create_page=session&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">➕ Crear sesión</a>
-              </p>
+              <div class="session-library-toolbar">
+                <div class="filter-row">
+                  <a class="button" href="?tab=create&create_page=session&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">➕ Crear sesión</a>
+                  <a class="button secondary" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}#import-sesiones">📄 Importar PDF</a>
+                </div>
+                <div class="filter-row" role="search" aria-label="Búsqueda rápida de sesiones">
+                  <input
+                    id="session-library-search"
+                    type="search"
+                    placeholder="Buscar sesión por título, fecha o estado"
+                    aria-label="Buscar sesión"
+                  />
+                  <select id="session-library-status">
+                    <option value="">Estado: todos</option>
+                  </select>
+                  <select id="session-library-sort">
+                    <option value="recent">Más recientes</option>
+                    <option value="older">Más antiguas</option>
+                    <option value="long">Más largas</option>
+                    <option value="short">Más cortas</option>
+                    <option value="tasks">Más tareas</option>
+                    <option value="title">A-Z</option>
+                  </select>
+                </div>
+                <p class="filter-meta">Consejo: ordena y filtra para ubicar sesiones por estado, duración o fecha.</p>
+              </div>
               {% if session_library_rows %}
-              <div class="task-list">
+              <p id="session-library-empty" class="empty" hidden>No hay sesiones que coincidan con tu búsqueda.</p>
+              <div class="task-list" id="session-library-created-list">
                 {% for row in session_library_rows %}
-                <article class="task task-clickable" data-detail-url="{{ row.url_ficha }}" tabindex="0" role="link" aria-label="Abrir ficha sesión {{ row.title }}">
+                <article
+                  class="task task-clickable session-library-card"
+                  data-detail-url="{{ row.url_ficha }}"
+                  data-session-title="{{ row.title|escape }}"
+                  data-session-date="{{ row.session_date_iso|default:'' }}"
+                  data-session-duration="{{ row.duration|default:0 }}"
+                  data-session-tasks="{{ row.tasks_count|default:0 }}"
+                  data-session-status="{{ row.status|default:'' }}"
+                  tabindex="0"
+                  role="link"
+                  aria-label="Abrir ficha sesión {{ row.title }}"
+                >
                   <div class="task-content">
                     <h3 class="task-title" style="margin:0 0 0.35rem;">{{ row.title }}</h3>
                     <p class="meta" style="margin:0 0 0.35rem;">
                       <strong>{{ row.label }}</strong> · {{ row.duration }}' · {{ row.intensity }} · {{ row.status }}
                     </p>
                     <p class="meta" style="margin:0 0 0.55rem;">🧩 {{ row.tasks_count }} tareas · 👥 {{ row.attendance_label }}</p>
-                    <div style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center;">
-                      <a class="button icon-btn" href="{{ row.url_ficha }}" title="Ficha" aria-label="Ficha">📋</a>
-                      <a class="button secondary icon-btn" href="{{ row.url_editor }}" title="Editar en planificador" aria-label="Editar en planificador">✏️</a>
-                      <a class="button icon-btn" href="{% url 'session-plan-pdf' row.id %}?style=club" data-pdf-viewer="1" data-pdf-title="Sesión · {{ row.title }}" title="PDF" aria-label="PDF">📄</a>
-                      <form method="post" style="margin:0;" onsubmit="return confirm('¿Eliminar esta sesión? (Se borrarán tareas y asistencia)');">
-                        {% csrf_token %}
-                        <input type="hidden" name="planner_action" value="delete_session_plan" />
-                        <input type="hidden" name="planner_tab" value="sessions" />
-                        <input type="hidden" name="team" value="{{ primary_team_id }}" />
-                        {% if active_workspace_id %}<input type="hidden" name="workspace" value="{{ active_workspace_id }}" />{% endif %}
-                        <input type="hidden" name="delete_session_id" value="{{ row.id }}" />
-                        <button type="submit" class="button danger icon-btn" title="Eliminar" aria-label="Eliminar">🗑️</button>
-                      </form>
+                    <div class="session-card-actions">
+                      <a class="button" href="{{ row.url_ficha }}" title="Abrir ficha" aria-label="Abrir ficha">📋 Ficha</a>
+                      <a class="button secondary" href="{{ row.url_editor }}" title="Editar en planificador" aria-label="Editar en planificador">✏️ Editar</a>
+                      <details class="task-more">
+                        <summary class="button secondary icon-btn" title="Más acciones">
+                          <span class="emoji" aria-hidden="true">⋯</span>
+                          <span class="sr-only">Más acciones</span>
+                        </summary>
+                        <div class="task-more-body">
+                          <a class="button secondary" href="{% url 'session-plan-pdf' row.id %}?style=club" data-pdf-viewer="1" data-pdf-title="Sesión · {{ row.title }}" title="PDF Club" aria-label="Abrir PDF Club">📄 PDF Club</a>
+                          <a class="button secondary" href="{% url 'session-plan-pdf' row.id %}?style=uefa" data-pdf-viewer="1" data-pdf-title="Sesión · {{ row.title }} (UEFA)" title="PDF UEFA" aria-label="Abrir PDF UEFA">⚽ PDF UEFA</a>
+                          <a class="button secondary" href="{% url 'session-plan-pdf' row.id %}?style=team" data-pdf-viewer="1" data-pdf-title="Sesión · {{ row.title }} (Club)" title="PDF Equipo" aria-label="Abrir PDF Club 2">🧾 PDF Equipo</a>
+                          <form method="post" onsubmit="return confirm('¿Eliminar esta sesión? (Se borrarán tareas y asistencia)');">
+                            {% csrf_token %}
+                            <input type="hidden" name="planner_action" value="delete_session_plan" />
+                            <input type="hidden" name="planner_tab" value="sessions" />
+                            <input type="hidden" name="team" value="{{ primary_team_id }}" />
+                            {% if active_workspace_id %}<input type="hidden" name="workspace" value="{{ active_workspace_id }}" />{% endif %}
+                            <input type="hidden" name="delete_session_id" value="{{ row.id }}" />
+                            <button type="submit" class="button danger" title="Eliminar" aria-label="Eliminar sesión">🗑️ Eliminar sesión</button>
+                          </form>
+                        </div>
+                      </details>
                     </div>
                   </div>
                 </article>
@@ -2540,37 +2622,45 @@
                   <div class="task-content">
                     <h3 class="task-title">{{ doc.title }}</h3>
                     <p class="meta">{% if doc.session_date %}<strong>{{ doc.session_date|date:"d/m/Y" }}</strong>{% else %}<strong>Sin fecha</strong>{% endif %} · PDF original</p>
-                    <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
-	                      <a class="button icon-btn" href="{% url 'imported-session-file' doc.id %}" data-pdf-viewer="1" data-pdf-title="Sesión importada · {{ doc.title }}" title="Abrir PDF" aria-label="Abrir PDF">
+                    <div class="session-card-actions">
+	                      <a class="button" href="{% url 'imported-session-file' doc.id %}" data-pdf-viewer="1" data-pdf-title="Sesión importada · {{ doc.title }}" title="Abrir PDF" aria-label="Abrir PDF">
                           <span class="emoji" aria-hidden="true">📄</span>
-                          <span class="sr-only">Abrir PDF</span>
+                          Abrir PDF
                         </a>
-	                      <form method="post" style="margin:0;" onsubmit="return confirm('¿Crear un entreno real desde este PDF? (Generará tareas, convocatoria y asistencia)');">
-	                        {% csrf_token %}
-	                        <input type="hidden" name="planner_action" value="create_session_from_imported_doc" />
-	                        <input type="hidden" name="planner_tab" value="sessions" />
-	                        <input type="hidden" name="team" value="{{ primary_team_id }}" />
-	                        {% if active_workspace_id %}<input type="hidden" name="workspace" value="{{ active_workspace_id }}" />{% endif %}
-	                        <input type="hidden" name="library_repo" value="{{ library_repository }}" />
-	                        <input type="hidden" name="doc_id" value="{{ doc.id }}" />
-	                        <button type="submit" class="button secondary icon-btn" title="Crear entreno real" aria-label="Crear entreno real">
-                            <span class="emoji" aria-hidden="true">➕</span>
-                            <span class="sr-only">Crear entreno real</span>
-                          </button>
-	                      </form>
-	                      <form method="post" style="margin:0;" onsubmit="return confirm('¿Eliminar esta sesión importada? (Se borrará el PDF guardado)');">
-	                        {% csrf_token %}
-	                        <input type="hidden" name="planner_action" value="delete_imported_session_doc" />
-	                        <input type="hidden" name="planner_tab" value="sessions" />
-	                        <input type="hidden" name="team" value="{{ primary_team_id }}" />
-	                        {% if active_workspace_id %}<input type="hidden" name="workspace" value="{{ active_workspace_id }}" />{% endif %}
-	                        <input type="hidden" name="library_repo" value="{{ library_repository }}" />
-	                        <input type="hidden" name="doc_id" value="{{ doc.id }}" />
-	                        <button type="submit" class="button danger icon-btn" title="Eliminar" aria-label="Eliminar">
-                            <span class="emoji" aria-hidden="true">🗑️</span>
-                            <span class="sr-only">Eliminar</span>
-                          </button>
-	                      </form>
+                      <details class="task-more">
+                        <summary class="button secondary icon-btn" title="Más acciones">
+                          <span class="emoji" aria-hidden="true">⋯</span>
+                          <span class="sr-only">Más acciones</span>
+                        </summary>
+                        <div class="task-more-body">
+                          <form method="post" onsubmit="return confirm('¿Crear un entreno real desde este PDF? (Generará tareas, convocatoria y asistencia)');">
+                            {% csrf_token %}
+                            <input type="hidden" name="planner_action" value="create_session_from_imported_doc" />
+                            <input type="hidden" name="planner_tab" value="sessions" />
+                            <input type="hidden" name="team" value="{{ primary_team_id }}" />
+                            {% if active_workspace_id %}<input type="hidden" name="workspace" value="{{ active_workspace_id }}" />{% endif %}
+                            <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+                            <input type="hidden" name="doc_id" value="{{ doc.id }}" />
+                            <button type="submit" class="button secondary" title="Crear entreno real" aria-label="Crear entreno real">
+                              <span class="emoji" aria-hidden="true">➕</span>
+                              <span>Crear entreno real</span>
+                            </button>
+                          </form>
+                          <form method="post" onsubmit="return confirm('¿Eliminar esta sesión importada? (Se borrará el PDF guardado)');">
+                            {% csrf_token %}
+                            <input type="hidden" name="planner_action" value="delete_imported_session_doc" />
+                            <input type="hidden" name="planner_tab" value="sessions" />
+                            <input type="hidden" name="team" value="{{ primary_team_id }}" />
+                            {% if active_workspace_id %}<input type="hidden" name="workspace" value="{{ active_workspace_id }}" />{% endif %}
+                            <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+                            <input type="hidden" name="doc_id" value="{{ doc.id }}" />
+                            <button type="submit" class="button danger" title="Eliminar" aria-label="Eliminar">
+                              <span class="emoji" aria-hidden="true">🗑️</span>
+                              <span>Eliminar</span>
+                            </button>
+                          </form>
+                        </div>
+                      </details>
                     </div>
                   </div>
                 </article>
@@ -4583,6 +4673,116 @@
       window.sessionsPlannerBoot = {
         primaryTeamId: {{ primary_team_id|default:0 }},
       };
+    </script>
+    <script>
+      (function () {
+        const createdList = document.getElementById('session-library-created-list');
+        if (!createdList) return;
+
+        const searchInput = document.getElementById('session-library-search');
+        const statusFilter = document.getElementById('session-library-status');
+        const sortSelect = document.getElementById('session-library-sort');
+        const emptyHint = document.getElementById('session-library-empty');
+        const cards = Array.from(createdList.querySelectorAll('.session-library-card[data-detail-url]'));
+        if (!cards.length) return;
+
+        const normalize = (value) => String(value || '').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
+        const parseNumber = (value, fallback = 0) => {
+          const parsed = parseInt(String(value || '').trim(), 10);
+          return Number.isFinite(parsed) ? parsed : fallback;
+        };
+        const parseDate = (value) => {
+          const d = new Date(String(value || '').trim());
+          return Number.isNaN(d.getTime()) ? null : d.getTime();
+        };
+
+        const statusValues = new Set(['']);
+        cards.forEach((card) => {
+          const status = String(card.dataset.sessionStatus || '').trim();
+          if (status) statusValues.add(status);
+        });
+        const statusFilterCurrent = statusFilter ? String(statusFilter.value || '').trim().toLowerCase() : '';
+        const statusEntries = Array.from(statusValues)
+          .filter(Boolean)
+          .sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+        statusEntries.forEach((status) => {
+          if (!statusFilter) return;
+          const option = document.createElement('option');
+          option.value = status;
+          option.textContent = status;
+          statusFilter.appendChild(option);
+        });
+
+        const applyFilters = () => {
+          const query = normalize(searchInput ? searchInput.value : '');
+          const statusValue = normalize(statusFilter ? statusFilter.value : '');
+          const sortValue = sortSelect ? String(sortSelect.value || '').trim() : 'recent';
+          const cardsToRender = [];
+          let visibleCount = 0;
+
+          cards.forEach((card) => {
+            const title = normalize(card.dataset.sessionTitle || '');
+            const status = normalize(card.dataset.sessionStatus || '');
+            const label = normalize(card.textContent || '');
+            const statusMatch = !statusValue || status === statusValue;
+            const qMatch = !query || title.includes(query) || label.includes(query);
+            const visible = statusMatch && qMatch;
+            card.style.display = visible ? '' : 'none';
+            if (visible) {
+              visibleCount += 1;
+              cardsToRender.push(card);
+            }
+          });
+
+          if (!cardsToRender.length) {
+            if (emptyHint) emptyHint.hidden = false;
+          } else {
+            if (emptyHint) emptyHint.hidden = true;
+          }
+
+          cardsToRender.sort((a, b) => {
+            if (sortValue === 'older') {
+              return parseDate(a.dataset.sessionDate) - parseDate(b.dataset.sessionDate);
+            }
+            if (sortValue === 'long') {
+              return parseNumber(b.dataset.sessionDuration, 0) - parseNumber(a.dataset.sessionDuration, 0);
+            }
+            if (sortValue === 'short') {
+              return parseNumber(a.dataset.sessionDuration, 0) - parseNumber(b.dataset.sessionDuration, 0);
+            }
+            if (sortValue === 'tasks') {
+              return parseNumber(b.dataset.sessionTasks, 0) - parseNumber(a.dataset.sessionTasks, 0);
+            }
+            if (sortValue === 'title') {
+              const at = normalize(a.dataset.sessionTitle || '');
+              const bt = normalize(b.dataset.sessionTitle || '');
+              return at.localeCompare(bt, 'es', { sensitivity: 'base' });
+            }
+            const ad = parseDate(a.dataset.sessionDate);
+            const bd = parseDate(b.dataset.sessionDate);
+            if (ad === null && bd === null) return 0;
+            if (ad === null) return 1;
+            if (bd === null) return -1;
+            return bd - ad;
+          });
+
+          cardsToRender.forEach((card) => {
+            if (card) createdList.appendChild(card);
+          });
+        };
+
+        if (statusFilter) {
+          Array.from(statusFilter.querySelectorAll('option')).forEach((option) => {
+            const normalized = String(option.value || '').toLowerCase();
+            if (normalized && normalized === statusFilterCurrent) option.selected = true;
+          });
+        }
+
+        searchInput?.addEventListener('input', applyFilters);
+        statusFilter?.addEventListener('change', applyFilters);
+        sortSelect?.addEventListener('change', applyFilters);
+        applyFilters();
+      })();
     </script>
     <script>
       (function () {

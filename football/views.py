@@ -38189,6 +38189,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             session_library_rows.append(
                 {
                     'id': sid,
+                    'session_date_iso': str(getattr(s.session_date, 'isoformat', lambda: '')() or ''),
                     'title': f'{s.session_date:%d/%m/%Y} · S{seq} ({season_label}) · {str(s.focus or "").strip() or f"Sesión {sid}"}',
                     'label': label,
                     'duration': int(s.duration_minutes or 0),
