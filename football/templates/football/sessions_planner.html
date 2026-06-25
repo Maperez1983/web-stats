@@ -476,8 +476,14 @@
         gap: 0.45rem;
         margin: 0 0 0.7rem;
       }
+      .session-library-toolbar .session-library-stats {
+        margin: 0;
+        color: rgba(225, 236, 255, 0.78);
+        font-size: 0.78rem;
+      }
       .session-library-toolbar .filter-row {
         align-items: stretch;
+        justify-content: space-between;
       }
       .session-library-toolbar .filter-meta {
         margin: 0;
@@ -507,6 +513,16 @@
       }
       .session-library-card .session-card-actions form {
         margin: 0;
+      }
+      .session-library-card .session-kpis {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        margin: 0.35rem 0 0.55rem;
+      }
+      .session-library-card .session-kpis .badge {
+        padding: 0.17rem 0.5rem;
+        font-size: 0.63rem;
       }
       .session-actions > * { flex: 0 0 auto; }
       .microcycle-plan-grid {
@@ -2547,7 +2563,11 @@
                     <option value="tasks">Más tareas</option>
                     <option value="title">A-Z</option>
                   </select>
+                  <button type="button" id="session-library-reset" class="button secondary">Limpiar filtros</button>
                 </div>
+                <p class="session-library-stats">
+                  <span id="session-library-count">{{ session_library_rows|length }}</span> sesiones encontradas.
+                </p>
                 <p class="filter-meta">Consejo: ordena y filtra para ubicar sesiones por estado, duración o fecha.</p>
               </div>
               {% if session_library_rows %}
@@ -2558,20 +2578,28 @@
                   class="task task-clickable session-library-card"
                   data-detail-url="{{ row.url_ficha }}"
                   data-session-title="{{ row.title|escape }}"
+                  data-session-focus="{{ row.focus_title|escape }}"
                   data-session-date="{{ row.session_date_iso|default:'' }}"
                   data-session-duration="{{ row.duration|default:0 }}"
                   data-session-tasks="{{ row.tasks_count|default:0 }}"
                   data-session-status="{{ row.status|default:'' }}"
+                  data-session-attendance="{{ row.attendance_label|default:'' }}"
                   tabindex="0"
                   role="link"
                   aria-label="Abrir ficha sesión {{ row.title }}"
                 >
                   <div class="task-content">
-                    <h3 class="task-title" style="margin:0 0 0.35rem;">{{ row.title }}</h3>
+                    <h3 class="task-title" style="margin:0 0 0.35rem;">{{ row.focus_title }}</h3>
+                    <p class="meta" style="margin:0 0 0.35rem;">{{ row.session_badge }}</p>
                     <p class="meta" style="margin:0 0 0.35rem;">
                       <strong>{{ row.label }}</strong> · {{ row.duration }}' · {{ row.intensity }} · {{ row.status }}
                     </p>
-                    <p class="meta" style="margin:0 0 0.55rem;">🧩 {{ row.tasks_count }} tareas · 👥 {{ row.attendance_label }}</p>
+                    <div class="session-kpis">
+                      <span class="badge" title="Duración">⏱ {{ row.duration }}'</span>
+                      <span class="badge" title="Tareas">{{ row.tasks_label }}</span>
+                      <span class="badge" title="Asistencia">{{ row.attendance_label }}</span>
+                      <span class="badge" title="Estado">{{ row.status }}</span>
+                    </div>
                     <div class="session-card-actions">
                       <a class="button" href="{{ row.url_ficha }}" title="Abrir ficha" aria-label="Abrir ficha">📋 Ficha</a>
                       <a class="button secondary" href="{{ row.url_editor }}" title="Editar en planificador" aria-label="Editar en planificador">✏️ Editar</a>
@@ -4682,7 +4710,9 @@
         const searchInput = document.getElementById('session-library-search');
         const statusFilter = document.getElementById('session-library-status');
         const sortSelect = document.getElementById('session-library-sort');
+        const resetButton = document.getElementById('session-library-reset');
         const emptyHint = document.getElementById('session-library-empty');
+        const resultCount = document.getElementById('session-library-count');
         const cards = Array.from(createdList.querySelectorAll('.session-library-card[data-detail-url]'));
         if (!cards.length) return;
 
@@ -4712,24 +4742,30 @@
           option.textContent = status;
           statusFilter.appendChild(option);
         });
+        const defaultSort = 'recent';
+        const updateCount = (count) => {
+          if (resultCount) {
+            resultCount.textContent = String(count);
+          }
+        };
 
         const applyFilters = () => {
           const query = normalize(searchInput ? searchInput.value : '');
           const statusValue = normalize(statusFilter ? statusFilter.value : '');
-          const sortValue = sortSelect ? String(sortSelect.value || '').trim() : 'recent';
+          const sortValue = sortSelect ? String(sortSelect.value || defaultSort).trim() : defaultSort;
           const cardsToRender = [];
-          let visibleCount = 0;
 
           cards.forEach((card) => {
             const title = normalize(card.dataset.sessionTitle || '');
+            const focus = normalize(card.dataset.sessionFocus || '');
+            const attendance = normalize(card.dataset.sessionAttendance || '');
             const status = normalize(card.dataset.sessionStatus || '');
             const label = normalize(card.textContent || '');
             const statusMatch = !statusValue || status === statusValue;
-            const qMatch = !query || title.includes(query) || label.includes(query);
+            const qMatch = !query || title.includes(query) || focus.includes(query) || attendance.includes(query) || label.includes(query);
             const visible = statusMatch && qMatch;
             card.style.display = visible ? '' : 'none';
             if (visible) {
-              visibleCount += 1;
               cardsToRender.push(card);
             }
           });
@@ -4739,6 +4775,7 @@
           } else {
             if (emptyHint) emptyHint.hidden = true;
           }
+          updateCount(cardsToRender.length);
 
           cardsToRender.sort((a, b) => {
             if (sortValue === 'older') {
@@ -4777,10 +4814,22 @@
             if (normalized && normalized === statusFilterCurrent) option.selected = true;
           });
         }
+        if (sortSelect && !sortSelect.value) {
+          sortSelect.value = defaultSort;
+        }
+        if (resultCount) {
+          resultCount.textContent = String(cards.length);
+        }
 
         searchInput?.addEventListener('input', applyFilters);
         statusFilter?.addEventListener('change', applyFilters);
         sortSelect?.addEventListener('change', applyFilters);
+        resetButton?.addEventListener('click', () => {
+          if (searchInput) searchInput.value = '';
+          if (statusFilter) statusFilter.value = '';
+          if (sortSelect) sortSelect.value = defaultSort;
+          applyFilters();
+        });
         applyFilters();
       })();
     </script>
