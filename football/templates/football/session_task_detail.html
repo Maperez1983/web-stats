@@ -158,6 +158,24 @@
         text-transform: uppercase;
       }
       .top-actions { display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; }
+      .task-detail-quick-actions {
+        display: flex;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+        margin-top: 0.65rem;
+      }
+      .task-detail-empty {
+        border: 1px dashed rgba(255, 255, 255, 0.28);
+        background: rgba(15, 23, 42, 0.55);
+        border-radius: 10px;
+        padding: 0.62rem 0.72rem;
+        color: rgba(225, 236, 255, 0.85);
+      }
+      .sim-3d-fallback-reason {
+        font-size: 0.74rem;
+        color: rgba(254, 226, 226, 0.94);
+        letter-spacing: 0.01em;
+      }
       .top-pills { display:flex; flex-wrap:wrap; gap:0.45rem; }
       .top-pill {
         display:inline-flex;
@@ -305,6 +323,9 @@
       }
       .task-edit-panel {
         display: block;
+      }
+      .editor-core {
+        margin-bottom: 0.75rem;
       }
       h1 {
         margin: 0;
@@ -1005,6 +1026,9 @@
       body.session-task-detail-page.is-presentation .sim-3d-fallback-status {
         color: rgba(18, 32, 51, 0.76);
       }
+      body.session-task-detail-page.is-presentation .sim-3d-fallback-reason {
+        color: rgba(127, 29, 29, 0.84);
+      }
       body.session-task-detail-page.is-presentation .sim-3d-fallback-stage {
         border-color: rgba(18, 32, 51, 0.14);
         box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), 0 12px 28px rgba(82, 63, 35, 0.1);
@@ -1163,13 +1187,13 @@
             <span class="top-pill">{{ task.get_block_display }}</span>
             <span class="top-pill">{{ task.duration_minutes }} min</span>
             {% if task.category %}<span class="top-pill">{{ task.category }}</span>{% endif %}
-            <span class="top-pill">{% if active_task_tab == 'edit' %}Configuración{% elif active_task_tab == 'export' %}Exportar{% elif is_editable_task %}Presentación{% else %}Solo lectura{% endif %}</span>
+            <span class="top-pill">{% if active_task_tab == 'edit' %}Ajustes{% elif active_task_tab == 'export' %}Exportar{% elif is_editable_task %}Presentación{% else %}Solo lectura{% endif %}</span>
           </div>
         </div>
         <div class="top-actions">
           <a class="button" href="{{ back_url }}">{{ back_label }}</a>
-          {% if not show_edit_mode %}
-          <button type="button" class="button" id="task-detail-3d-open">Ver 3D</button>
+          {% if can_edit_task and not show_edit_mode %}
+          <button type="button" class="button" id="task-detail-enter-edit">Abrir ajustes</button>
           {% endif %}
           {% if can_edit_task %}
           <button
@@ -1187,7 +1211,7 @@
         <div class="task-detail-tabs" role="tablist">
           <button type="button" class="button task-detail-tab{% if active_task_tab == 'presentation' %} is-active{% endif %}" data-task-tab="presentation" role="tab" aria-selected="{% if active_task_tab == 'presentation' %}true{% else %}false{% endif %}">Presentación</button>
           {% if can_edit_task %}
-          <button type="button" class="button task-detail-tab{% if active_task_tab == 'edit' %} is-active{% endif %}" data-task-tab="edit" role="tab" aria-selected="{% if active_task_tab == 'edit' %}true{% else %}false{% endif %}">Edición</button>
+          <button type="button" class="button task-detail-tab{% if active_task_tab == 'edit' %} is-active{% endif %}" data-task-tab="edit" role="tab" aria-selected="{% if active_task_tab == 'edit' %}true{% else %}false{% endif %}">Ajustes</button>
           {% endif %}
           <button type="button" class="button task-detail-tab{% if active_task_tab == 'export' %} is-active{% endif %}" data-task-tab="export" role="tab" aria-selected="{% if active_task_tab == 'export' %}true{% else %}false{% endif %}">Exportar</button>
         </div>
@@ -1324,18 +1348,25 @@
           <div class="presentation-workbench-grid">
             <div class="presentation-slot">
               <h3>Representación 2D</h3>
-              <p class="presentation-note">Pizarra base de la tarea en formato limpio de presentación. La edición real vive en la pestaña Edición.</p>
+              <p class="presentation-note">Pizarra base de la tarea en formato limpio de presentación.</p>
               <div class="preview-stadium" style="min-height:280px;">
                 {% if task.task_preview_image %}
                 <img class="preview" src="{% url 'session-task-preview-file' task.id %}?hd=1&v={{ task.task_preview_image.name|urlencode }}" alt="Vista 2D de {{ task.title }}" />
                 {% else %}
-                <div style="height:100%; display:flex; align-items:center; justify-content:center; color:#122033; background:rgba(255,255,255,0.92); border-radius:12px; font-weight:850; text-align:center; padding:1rem;">
+                <div class="task-detail-empty">
                   No hay vista 2D guardada todavía.
                 </div>
                 {% endif %}
               </div>
-              <div style="margin-top:0.55rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
-                <a class="button secondary" href="{{ edit_graphic_url|default:presentation_url }}">Abrir Edición</a>
+              <div class="task-detail-quick-actions">
+                {% if task.task_preview_image %}
+                <button type="button" class="button" id="task-detail-3d-open">Ir a vista 3D</button>
+                {% elif can_edit_task %}
+                <button type="button" class="button secondary" id="task-detail-enter-edit-empty">Completar pizarra 2D</button>
+                {% endif %}
+                {% if animation_frames %}
+                <button type="button" class="button secondary" id="task-detail-open-sequence">Ver secuencia</button>
+                {% endif %}
               </div>
             </div>
             <div class="presentation-slot">
@@ -1361,6 +1392,7 @@
                         <img id="task-detail-3d-fallback-preview" alt="Vista táctica alternativa de la tarea" hidden />
                       </div>
                       <div class="sim-3d-fallback-status" id="task-detail-3d-fallback-status">Preparando vista alternativa…</div>
+                      <div class="sim-3d-fallback-reason" id="task-detail-3d-fallback-reason"></div>
                     </div>
                     <div class="sim-3d-hud">
                       <div class="sim-3d-chip">
@@ -1404,8 +1436,8 @@
 
       {% if can_edit_task %}
       <section class="panel task-edit-panel task-edit-tab-descriptive" data-task-edit-panel="descriptive">
-        <h2>Edición de la ficha</h2>
-        <p class="meta">Pensada para el entrenador: primero lo esencial, después el detalle operativo y por último lo técnico.</p>
+        <h2>Ajustes de la ficha</h2>
+        <p class="meta">Pensada para el entrenador: primero lo esencial y después el detalle técnico.</p>
         <div class="coach-summary-grid" style="margin-bottom:0.85rem;">
           <div class="sheet-item">
             <strong>Primero</strong>
@@ -1420,12 +1452,12 @@
             <span>Editar pizarra, regenerar análisis y revisar originales.</span>
           </div>
         </div>
-        <form method="post" class="grid" id="task-detail-form">
+        <form method="post" class="grid editor-core" id="task-detail-form">
           {% csrf_token %}
           <input type="hidden" name="detail_action" value="update_task_detail" />
           <div class="editor-section">
             <div class="editor-section-head">
-              <h3>Identidad de la tarea</h3>
+              <h3>Información esencial</h3>
               <span class="meta">Lo que el entrenador ve y cambia primero.</span>
             </div>
             <div class="editor-grid">
@@ -1453,7 +1485,7 @@
           </div>
           <details class="editor-section" open>
             <summary class="editor-section-head">
-              <h3>Contenido y consigna</h3>
+              <h3>Contenido y consigna (avanzado)</h3>
               <span class="meta">Lo que explica y ordena la tarea.</span>
             </summary>
             <div class="editor-grid">
@@ -1473,7 +1505,7 @@
           </details>
           <details class="editor-section">
             <summary class="editor-section-head">
-              <h3>Contexto operativo</h3>
+              <h3>Contexto operativo (avanzado)</h3>
               <span class="meta">Solo si necesitas afinar la estructura.</span>
             </summary>
             <div class="editor-grid">
@@ -1497,7 +1529,7 @@
           </details>
           <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
             <button class="button" type="submit">Guardar cambios</button>
-            <a class="button secondary" href="{{ edit_graphic_url|default:presentation_url }}">Abrir editor de pizarra</a>
+            <button type="button" class="button secondary" id="task-detail-focus-editor">Ir a pizarra</button>
           </div>
         </form>
         <form method="post" style="margin-top:0.7rem; display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">

@@ -7,6 +7,10 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
   const sceneHost = document.getElementById('task-detail-3d-inline');
   const canvas = document.getElementById('task-detail-3d-canvas');
   const openBtn = document.getElementById('task-detail-3d-open');
+  const enterEditBtn = document.getElementById('task-detail-enter-edit');
+  const enterEditEmptyBtn = document.getElementById('task-detail-enter-edit-empty');
+  const openSequenceBtn = document.getElementById('task-detail-open-sequence');
+  const focusEditorBtn = document.getElementById('task-detail-focus-editor');
   if (!payloadEl || !sceneHost || !canvas) return;
   canvas.dataset.ollanaSurface = 'task-3d-scene';
   canvas.dataset.ollanaLabel = 'Representacion 3D de tarea';
@@ -27,6 +31,7 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
   const fallbackEl = byId('task-detail-3d-fallback');
   const fallbackPreviewEl = byId('task-detail-3d-fallback-preview');
   const fallbackStatusEl = byId('task-detail-3d-fallback-status');
+  const fallbackReasonEl = byId('task-detail-3d-fallback-reason');
 
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
   const lerp = (a, b, t) => a + ((b - a) * t);
@@ -208,8 +213,14 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
     fieldHeight: 68,
   };
 
-  const setFallbackStatus = (message) => {
+  const setFallbackStatus = (message, reason = '') => {
     if (fallbackStatusEl) fallbackStatusEl.textContent = safeText(message, 'Vista alternativa disponible.');
+    if (fallbackReasonEl) {
+      const cleanReason = safeText(reason, '');
+      fallbackReasonEl.textContent = cleanReason ? `Motivo detectado: ${cleanReason}` : '';
+      fallbackReasonEl.hidden = !Boolean(cleanReason);
+      fallbackReasonEl.style.display = cleanReason ? 'block' : 'none';
+    }
   };
   const setControlsDisabled = (disabled) => {
     [prevBtn, nextBtn, playBtn, fullBtn, recordBtn, cameraSelect].forEach((control) => {
@@ -245,7 +256,10 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
     if (progressBar) progressBar.style.width = '0%';
     setControlsDisabled(true);
     recordBtn && (recordBtn.title = 'El modo 3D no está disponible en este dispositivo');
-    setFallbackStatus(reason || 'El visor 3D no pudo iniciarse. Se muestra la pizarra base como referencia.');
+    setFallbackStatus(
+      'El visor 3D no pudo iniciarse. Se muestra la pizarra base como referencia.',
+      safeText(reason, 'Recurso 3D no disponible en este entorno.')
+    );
     const copied = syncFallbackPreview();
     if (!copied) {
       window.setTimeout(syncFallbackPreview, 300);
@@ -2753,10 +2767,56 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
     sceneHost.scrollIntoView({ behavior: 'smooth', block: 'center' });
     canvas.focus?.();
   };
+  const switchTaskTab = (tabName) => {
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', tabName);
+      if (url.searchParams.get('mode')) url.searchParams.delete('mode');
+      window.location.href = url.toString();
+    } catch (error) {
+      const query = new URLSearchParams(window.location.search || '');
+      query.set('tab', tabName);
+      query.delete('mode');
+      const separator = query.toString() ? '?' : '';
+      window.location.href = `${window.location.pathname}${separator}${query.toString()}`;
+    }
+  };
+  const focusTaskInlineEditor = () => {
+    const editor = document.getElementById('task-inline-editor');
+    if (!editor) return false;
+    editor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return true;
+  };
 
   openBtn?.addEventListener('click', (event) => {
     event.preventDefault();
     focus3DPanel();
+  });
+  enterEditBtn?.addEventListener('click', (event) => {
+    event.preventDefault();
+    switchTaskTab('edit');
+  });
+  enterEditEmptyBtn?.addEventListener('click', (event) => {
+    event.preventDefault();
+    switchTaskTab('edit');
+  });
+  openSequenceBtn?.addEventListener('click', (event) => {
+    event.preventDefault();
+    switchTaskTab('presentation');
+    window.setTimeout(() => {
+      focus3DPanel();
+      if (playBtn && playBtn.hidden !== true && playBtn.getAttribute('disabled') === null) {
+        playBtn.click();
+      }
+    }, 180);
+  });
+  focusEditorBtn?.addEventListener('click', (event) => {
+    event.preventDefault();
+    if (!focusTaskInlineEditor()) {
+      switchTaskTab('edit');
+      return;
+    }
+    window.setTimeout(() => focusTaskInlineEditor(), 280);
   });
   prevBtn?.addEventListener('click', (event) => {
     event.preventDefault();
