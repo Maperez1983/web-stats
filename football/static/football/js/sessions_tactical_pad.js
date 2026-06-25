@@ -29472,8 +29472,8 @@
       const readMode = () => {
         try {
           const stored = safeText(window.localStorage.getItem(storageKey));
-          if (stored === 'board' || stored === 'sheet' || stored === 'export') return stored;
-          if (stored === 'text') return 'sheet';
+          if (['board', 'config', 'methodology', 'load', 'export'].includes(stored)) return stored;
+          if (stored === 'sheet' || stored === 'text') return 'config';
         } catch (error) { /* ignore */ }
         return 'board';
       };
@@ -29481,13 +29481,13 @@
         try { window.localStorage.setItem(storageKey, mode); } catch (error) { /* ignore */ }
       };
       const apply = (mode, options = {}) => {
-        const next = mode === 'sheet' || mode === 'text'
-          ? 'sheet'
-          : (mode === 'export' ? 'export' : 'board');
+        const next = ['config', 'methodology', 'load', 'export'].includes(mode)
+          ? mode
+          : ((mode === 'sheet' || mode === 'text') ? 'config' : 'board');
         document.body.classList.toggle('task-mode-board', next === 'board');
-        document.body.classList.toggle('task-mode-sheet', next === 'sheet');
+        document.body.classList.toggle('task-mode-sheet', ['config', 'methodology', 'load'].includes(next));
         document.body.classList.toggle('task-mode-export', next === 'export');
-        document.body.classList.toggle('task-mode-text', next === 'sheet' || next === 'export');
+        document.body.classList.toggle('task-mode-text', next !== 'board');
         document.body.classList.toggle('task-mode-both', false);
         document.body.classList.toggle('task-mode-ready', true);
         buttons.forEach((btn) => {
@@ -29496,19 +29496,23 @@
           btn.setAttribute('aria-selected', active ? 'true' : 'false');
         });
         if (!options.silent) writeMode(next);
-        if (next === 'sheet' || next === 'export') {
+        if (next !== 'board') {
           try { syncRichEditorsNow?.(); } catch (error) { /* ignore */ }
           try { persistDraftNow('mode-switch'); } catch (error) { /* ignore */ }
           if (next === 'export') {
             try { activateSidePane('exportar'); } catch (error) { /* ignore */ }
             if (!options.silent) setStatus('Vista: Exportar.');
+          } else if (next === 'config') {
+            try { activateSidePane('ficha'); } catch (error) { /* ignore */ }
+            if (!options.silent) setStatus('Vista: Configuración.');
+          } else if (next === 'methodology') {
+            try { activateSidePane('design'); } catch (error) { /* ignore */ }
+            if (!options.silent) setStatus('Vista: Metodología.');
+          } else if (next === 'load') {
+            try { activateSidePane('load'); } catch (error) { /* ignore */ }
+            if (!options.silent) setStatus('Vista: Carga.');
           } else {
-            const activePane = sidePanes.find((pane) => pane.classList.contains('is-active'));
-            const activeKey = safeText(activePane?.dataset?.pane);
-            if (!['ficha', 'design', 'load', 'assistant', 'preview', 'playbook'].includes(activeKey)) {
-              try { activateSidePane('ficha'); } catch (error) { /* ignore */ }
-            }
-            if (!options.silent) setStatus('Vista: Ficha.');
+            try { activateSidePane('ficha'); } catch (error) { /* ignore */ }
           }
           return;
         }
@@ -29580,6 +29584,8 @@
 		            const persist = !!hideToggle?.checked;
 		            closeLanding(persist);
 		            if (go === 'assistant') {
+		              const methodologyBtn = document.querySelector('#task-mode-tabs button[data-task-mode="methodology"]');
+		              try { methodologyBtn?.click?.(); } catch (e) { /* ignore */ }
 		              try { activateSidePane('assistant'); } catch (e) { /* ignore */ }
 		              return;
 		            }
@@ -29589,10 +29595,22 @@
 		              try { activateSidePane('exportar'); } catch (e) { /* ignore */ }
 		              return;
 		            }
-		            if (go === 'sheet' || go === 'text') {
-		              const sheetBtn = document.querySelector('#task-mode-tabs button[data-task-mode="sheet"]');
-		              try { sheetBtn?.click?.(); } catch (e) { /* ignore */ }
+		            if (go === 'config' || go === 'sheet' || go === 'text') {
+		              const configBtn = document.querySelector('#task-mode-tabs button[data-task-mode="config"]');
+		              try { configBtn?.click?.(); } catch (e) { /* ignore */ }
 		              try { activateSidePane('ficha'); } catch (e) { /* ignore */ }
+		              return;
+		            }
+		            if (go === 'methodology') {
+		              const methodologyBtn = document.querySelector('#task-mode-tabs button[data-task-mode="methodology"]');
+		              try { methodologyBtn?.click?.(); } catch (e) { /* ignore */ }
+		              try { activateSidePane('design'); } catch (e) { /* ignore */ }
+		              return;
+		            }
+		            if (go === 'load') {
+		              const loadBtn = document.querySelector('#task-mode-tabs button[data-task-mode="load"]');
+		              try { loadBtn?.click?.(); } catch (e) { /* ignore */ }
+		              try { activateSidePane('load'); } catch (e) { /* ignore */ }
 		              return;
 		            }
 		            if (go === 'board') {

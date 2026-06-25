@@ -4050,6 +4050,9 @@
       body.task-mode-ready.task-mode-text .builder > aside.panel {
         grid-column: 1 / -1;
       }
+      body:not(.tactics-mode) #task-side-tabs {
+        display: none;
+      }
       @media (max-width: 760px) {
         .page {
           padding: 0.75rem;
@@ -5205,9 +5208,9 @@
 	                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;text&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;capas&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Capas</button>
 	                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;text&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;exportar&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Exportar</button>
 	                    {% else %}
-		                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;sheet&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;ficha&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Resumen</button>
-		                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;sheet&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;design&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Diseño</button>
-		                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;sheet&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;load&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Carga</button>
+		                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;config&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;ficha&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Configuración</button>
+		                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;methodology&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;design&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Metodología</button>
+		                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;load&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;load&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Carga</button>
 		                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;export&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;exportar&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Exportar</button>
 		                    {% endif %}
 	                  </div>
@@ -5414,10 +5417,12 @@
 
         {% if not tactics_mode %}
         <div class="task-mode-tabs" id="task-mode-tabs" role="tablist" aria-label="Vista de edición">
-          <button type="button" class="is-active" data-task-mode="board" role="tab" aria-selected="true">Pizarra</button>
-          <button type="button" data-task-mode="sheet" role="tab" aria-selected="false">Ficha</button>
+          <button type="button" class="is-active" data-task-mode="board" role="tab" aria-selected="true">Edición gráfica</button>
+          <button type="button" data-task-mode="config" role="tab" aria-selected="false">Configuración</button>
+          <button type="button" data-task-mode="methodology" role="tab" aria-selected="false">Metodología</button>
+          <button type="button" data-task-mode="load" role="tab" aria-selected="false">Carga</button>
           <button type="button" data-task-mode="export" role="tab" aria-selected="false">Exportar</button>
-          <span class="hint">Pizarra para diseñar, ficha para describir, exportar para compartir.</span>
+          <span class="hint">Diseña, configura, afina metodología, controla carga y exporta sin mezclarlo todo.</span>
         </div>
 	        {% endif %}
 
@@ -5454,9 +5459,9 @@
 		                  Abrir pizarra
 		                  <small>Colocar fichas, dibujar y simular</small>
 		                </button>
-		                <button type="button" class="task-landing-action" data-landing-go="sheet" aria-pressed="false">
-		                  Editar ficha
-		                  <small>Resumen, diseño y carga</small>
+		                <button type="button" class="task-landing-action" data-landing-go="config" aria-pressed="false">
+		                  Configurar tarea
+		                  <small>Datos base, descripción y consignas</small>
 		                </button>
 		                <button type="button" class="task-landing-action" data-landing-go="export" aria-pressed="false">
 		                  Exportar / imprimir
@@ -7240,8 +7245,8 @@
 					                <button type="button" class="side-tab" data-pane="capas" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">🧩</span><span class="tab-label">Capas</span></button>
 					                <button type="button" class="side-tab" data-pane="exportar" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">📤</span><span class="tab-label">Exportar</span></button>
 		                        {% else %}
-						                <button type="button" class="side-tab is-active" data-pane="ficha" role="tab" aria-selected="true"><span class="tab-emoji" aria-hidden="true">🧾</span><span class="tab-label">Resumen</span></button>
-						                <button type="button" class="side-tab" data-pane="design" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">🧠</span><span class="tab-label">Diseño</span></button>
+						                <button type="button" class="side-tab is-active" data-pane="ficha" role="tab" aria-selected="true"><span class="tab-emoji" aria-hidden="true">⚙️</span><span class="tab-label">Configuración</span></button>
+						                <button type="button" class="side-tab" data-pane="design" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">🧠</span><span class="tab-label">Metodología</span></button>
 						                <button type="button" class="side-tab" data-pane="load" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">📈</span><span class="tab-label">Carga</span></button>
 		                        {% endif %}
 						              </div>
@@ -7249,7 +7254,8 @@
               {% if not tactics_mode %}
               <div class="side-pane is-active" data-pane="ficha" role="tabpanel">
                 <div class="section">
-                  <h3>Base de la tarea</h3>
+                  <h3>Configuración de la tarea</h3>
+                  <p class="meta" style="margin-top:0.35rem;">Define aquí la información que luego alimenta la ficha final: identidad, contexto, descripción y consignas.</p>
                   <div class="compact-grid">
                   {% if show_session_selector|default:True %}
 	                  <label>
@@ -7447,7 +7453,7 @@
 	                <div class="section">
                     <div style="display:flex; align-items:center; justify-content:space-between; gap:0.65rem; flex-wrap:wrap;">
 	                  <h3 style="margin:0;">Asistente de tareas</h3>
-                      <button type="button" class="button secondary" onclick="try{document.querySelector('#task-mode-tabs [data-task-mode=&quot;sheet&quot;]')?.click();document.querySelector('#task-side-tabs [data-pane=&quot;design&quot;]')?.click();}catch(e){};return false;">Volver a diseño</button>
+                      <button type="button" class="button secondary" onclick="try{document.querySelector('#task-mode-tabs [data-task-mode=&quot;methodology&quot;]')?.click();document.querySelector('#task-side-tabs [data-pane=&quot;design&quot;]')?.click();}catch(e){};return false;">Volver a metodología</button>
                     </div>
 	                  <p class="meta" style="margin-top:0.35rem;">
 	                    Plantillas guiadas para crear tareas rápido sin perder estructura. Ajusta siempre la carga y la técnica a tu grupo.
@@ -7642,14 +7648,14 @@
 			              <div class="side-pane" data-pane="design" role="tabpanel">
 			                <div class="section">
                     <div style="display:flex; align-items:center; justify-content:space-between; gap:0.65rem; flex-wrap:wrap;">
-			                  <h3 style="margin:0;">Diseño y metodología</h3>
+			                  <h3 style="margin:0;">Metodología</h3>
                       <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
                         <button type="button" class="button secondary" onclick="try{document.querySelector('#task-side-tabs [data-pane=&quot;assistant&quot;]')?.click();}catch(e){};return false;">Asistente</button>
                         <button type="button" class="button secondary" onclick="try{document.querySelector('#task-side-tabs [data-pane=&quot;playbook&quot;]')?.click();}catch(e){};return false;">Playbook</button>
                         <button type="button" class="button secondary" onclick="try{document.querySelector('#task-side-tabs [data-pane=&quot;preview&quot;]')?.click();}catch(e){};return false;">Vista previa</button>
                       </div>
                     </div>
-                    <p class="meta" style="margin:0.4rem 0 0.85rem;">Aquí defines la lógica metodológica de la tarea y sus variantes sin tocar la pizarra.</p>
+                    <p class="meta" style="margin:0.4rem 0 0.85rem;">Aquí defines la lógica metodológica de la tarea, sus principios y sus variantes sin tocar la pizarra.</p>
 		                  <div class="meta" style="margin:-0.2rem 0 0.85rem;">
 		                    <label class="chip-toggle" style="display:inline-flex; gap:10px; align-items:center;">
 		                      <input type="checkbox" name="draw_task_multi_board" id="task-multi-board-toggle" value="1" {% if initial.multi_board_enabled %}checked{% endif %} />
@@ -8016,7 +8022,7 @@
                     <div style="display:flex; align-items:center; justify-content:space-between; gap:0.65rem; flex-wrap:wrap;">
 		                  <h3 style="margin:0;">Playbook</h3>
                       {% if not tactics_mode %}
-                      <button type="button" class="button secondary" onclick="try{document.querySelector('#task-mode-tabs [data-task-mode=&quot;sheet&quot;]')?.click();document.querySelector('#task-side-tabs [data-pane=&quot;design&quot;]')?.click();}catch(e){};return false;">Volver a diseño</button>
+                      <button type="button" class="button secondary" onclick="try{document.querySelector('#task-mode-tabs [data-task-mode=&quot;methodology&quot;]')?.click();document.querySelector('#task-side-tabs [data-pane=&quot;design&quot;]')?.click();}catch(e){};return false;">Volver a metodología</button>
                       {% endif %}
                     </div>
 		                  {% if tactics_mode %}
@@ -8095,7 +8101,7 @@
 			                <div class="section preview-card">
                     <div style="display:flex; align-items:center; justify-content:space-between; gap:0.65rem; flex-wrap:wrap;">
 			                  <h3 style="margin:0;">Vista previa</h3>
-                      <button type="button" class="button secondary" onclick="try{document.querySelector('#task-mode-tabs [data-task-mode=&quot;sheet&quot;]')?.click();document.querySelector('#task-side-tabs [data-pane=&quot;design&quot;]')?.click();}catch(e){};return false;">Volver a diseño</button>
+                      <button type="button" class="button secondary" onclick="try{document.querySelector('#task-mode-tabs [data-task-mode=&quot;methodology&quot;]')?.click();document.querySelector('#task-side-tabs [data-pane=&quot;design&quot;]')?.click();}catch(e){};return false;">Volver a metodología</button>
                     </div>
 			                  <div class="live-preview-frame">
 	                    <img id="task-live-preview" src="{{ task_preview_url }}" alt="Preview de tarea" {% if not task_preview_url %}hidden{% endif %} />
@@ -8830,12 +8836,12 @@
 		            {
 		              anchor: '#task-side-tabs',
 		              title: '4) Panel lateral',
-		              body: 'Aquí organizas la ficha en tres bloques claros: Resumen, Diseño y Carga. Las utilidades extra quedan en segundo plano.',
+		              body: 'Aquí organizas la edición en bloques claros: Configuración, Metodología y Carga. Las utilidades extra quedan en segundo plano.',
 		            },
 		            {
 		              anchor: '#task-methodology-card',
 		              title: '5) Metodología',
-		              body: 'En Diseño defines metodología, organización, progresiones y criterios de éxito sin mezclarlo con la carga.',
+		              body: 'En Metodología defines principios, organización, progresiones y criterios de éxito sin mezclarlo con la carga.',
 		            },
 		            {
 		              anchor: 'button.side-tab[data-pane=\"preview\"]',
@@ -13316,8 +13322,8 @@
 
               const normalizeAction = (value) => {
                 const v = String(value || '').trim().toLowerCase();
-                if (v === 'assistant' || v === 'sheet' || v === 'export' || v === 'board') return v;
-                if (v === 'text') return 'sheet';
+                if (v === 'assistant' || v === 'config' || v === 'methodology' || v === 'load' || v === 'export' || v === 'board') return v;
+                if (v === 'sheet' || v === 'text') return 'config';
                 if (v === 'exportar') return 'export';
                 return 'board';
               };
@@ -13337,14 +13343,26 @@
 	                const action = normalizeAction(selectedAction);
 	                if (action === 'assistant') {
 	                  // En modo tácticas puede no existir "assistant": en ese caso solo cerramos.
-	                  activateTaskMode('sheet');
+	                  activateTaskMode('methodology');
 	                  activateSidePane('assistant');
 	                  closeLanding();
                   return;
                 }
-                if (action === 'sheet') {
-                  activateTaskMode('sheet');
+                if (action === 'config') {
+                  activateTaskMode('config');
                   activateSidePane('ficha');
+                  closeLanding();
+                  return;
+                }
+                if (action === 'methodology') {
+                  activateTaskMode('methodology');
+                  activateSidePane('design');
+                  closeLanding();
+                  return;
+                }
+                if (action === 'load') {
+                  activateTaskMode('load');
+                  activateSidePane('load');
                   closeLanding();
                   return;
                 }
