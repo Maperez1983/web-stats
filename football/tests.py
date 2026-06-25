@@ -14277,6 +14277,9 @@ class StaffUserLinkingTests(TestCase):
         self.assertEqual(uefa_response.status_code, 200)
         self.assertContains(uefa_response, 'data-task-format-panel=\"uefa\"')
         self.assertNotContains(uefa_response, 'data-task-format-panel=\"club\"')
+        self.assertContains(uefa_response, 'presentation-format-uefa')
+        self.assertContains(uefa_response, 'Entrega ejercicio')
+        self.assertContains(uefa_response, 'Detalles del ejercicio')
 
         club_response = self.client.get(f"{reverse('session-task-detail', args=[task.id])}?format=club")
         self.assertEqual(club_response.status_code, 200)

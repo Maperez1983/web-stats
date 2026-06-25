@@ -449,6 +449,488 @@
         </section>
         {% endif %}
       </div>
+{% elif presentation_format|lower == 'uefa' %}
+      <style>
+        .uefa-task-sheet {
+          --uefa-red: #b91c1c;
+          --uefa-red-deep: #991b1b;
+          --uefa-line: #6b7280;
+          --uefa-soft: #f8fafc;
+          --uefa-ink: #0f172a;
+          --uefa-muted: #475569;
+          display: grid;
+          gap: 0.9rem;
+          color: var(--uefa-ink);
+          border: 1px solid #cbd5e1;
+          border-radius: 16px;
+          padding: 0.9rem;
+          background: #ffffff;
+          box-shadow: 0 10px 32px rgba(15, 23, 42, 0.08);
+          background-size: cover;
+          background-repeat: no-repeat;
+          background-position: center;
+        }
+        .uefa-task-sheet.has-template-bg {
+          box-shadow: inset 0 0 0 9999px rgba(255, 255, 255, 0.9), 0 10px 32px rgba(15, 23, 42, 0.08);
+        }
+        .uefa-sheet-head {
+          display: flex;
+          align-items: center;
+          gap: 0.9rem;
+          padding: 0.85rem 1rem;
+          border-radius: 14px;
+          background: linear-gradient(135deg, var(--uefa-red), var(--uefa-red-deep));
+          color: #fff;
+        }
+        .uefa-sheet-head img {
+          width: 46px;
+          height: 46px;
+          object-fit: contain;
+          flex: 0 0 auto;
+        }
+        .uefa-sheet-head-kicker {
+          font-size: 0.68rem;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+          opacity: 0.84;
+        }
+        .uefa-sheet-head-title {
+          margin: 0.2rem 0 0;
+          font-size: clamp(1.3rem, 2vw, 1.75rem);
+          line-height: 1.06;
+          letter-spacing: -0.02em;
+          font-weight: 900;
+          text-transform: uppercase;
+        }
+        .uefa-sheet-head-meta {
+          margin: 0.28rem 0 0;
+          font-size: 0.84rem;
+          opacity: 0.92;
+        }
+        .uefa-sheet-badge {
+          margin-left: auto;
+          align-self: flex-start;
+          border: 1px solid rgba(255, 255, 255, 0.35);
+          border-radius: 999px;
+          padding: 0.38rem 0.7rem;
+          font-size: 0.74rem;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          white-space: nowrap;
+          background: rgba(255, 255, 255, 0.12);
+        }
+        .uefa-section-title {
+          margin: 0;
+          padding: 0.58rem 0.82rem;
+          border-radius: 10px 10px 0 0;
+          background: linear-gradient(135deg, var(--uefa-red), var(--uefa-red-deep));
+          color: #fff;
+          font-size: 0.78rem;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          font-weight: 900;
+        }
+        .uefa-table {
+          width: 100%;
+          border-collapse: collapse;
+          table-layout: fixed;
+          border: 1px solid var(--uefa-line);
+          background: rgba(255, 255, 255, 0.96);
+        }
+        .uefa-table td {
+          border: 1px solid var(--uefa-line);
+          padding: 0.55rem 0.7rem;
+          font-size: 0.85rem;
+          vertical-align: top;
+        }
+        .uefa-table td:nth-child(odd) {
+          background: var(--uefa-soft);
+          color: var(--uefa-muted);
+          font-weight: 800;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          font-size: 0.72rem;
+        }
+        .uefa-value {
+          color: var(--uefa-ink);
+          font-weight: 600;
+          line-height: 1.45;
+        }
+        .uefa-grid-2 {
+          display: grid;
+          grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+          gap: 0.85rem;
+        }
+        .uefa-box {
+          border: 1px solid var(--uefa-line);
+          background: rgba(255, 255, 255, 0.96);
+          padding: 0.8rem;
+          border-radius: 0 0 12px 12px;
+        }
+        .uefa-copy-box {
+          line-height: 1.55;
+          color: var(--uefa-ink);
+        }
+        .uefa-copy-box p:first-child,
+        .uefa-copy-box .task-copy:first-child {
+          margin-top: 0;
+        }
+        .uefa-pairs {
+          display: grid;
+          gap: 0.8rem;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .uefa-inline-note {
+          margin: 0 0 0.55rem;
+          color: var(--uefa-muted);
+          font-size: 0.82rem;
+          line-height: 1.45;
+        }
+        .uefa-material-chips {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.38rem;
+          margin-top: 0.45rem;
+        }
+        .uefa-material-chips .chip {
+          background: #fff;
+          border-color: #cbd5e1;
+          color: #122033;
+        }
+        @media (max-width: 980px) {
+          .uefa-grid-2,
+          .uefa-pairs {
+            grid-template-columns: 1fr;
+          }
+          .uefa-sheet-head {
+            flex-wrap: wrap;
+          }
+          .uefa-sheet-badge {
+            margin-left: 0;
+          }
+        }
+      </style>
+      <div
+        class="presentation-workbench presentation-task-sheet presentation-format-uefa uefa-task-sheet{% if pc.template_bg_src %} has-template-bg{% endif %}"
+        {% if pc.template_bg_src %}style="background-image:url('{{ pc.template_bg_src }}');"{% endif %}
+      >
+        <header class="uefa-sheet-head">
+          {% if pc.logo_url %}
+          <img src="{{ pc.logo_url }}" alt="Insignia UEFA" />
+          {% endif %}
+          <div>
+            <div class="uefa-sheet-head-kicker">Entrega ejercicio</div>
+            <div class="uefa-sheet-head-title">{{ task_obj.title|default:task.title|default:"Tarea táctica" }}</div>
+            <p class="uefa-sheet-head-meta">
+              {{ pc.team_name|default:"Equipo" }} · {{ pc.coach_name|default:user.get_full_name|default:user.username|default:"Entrenador" }}
+              {% if pc.generated_at %} · {{ pc.generated_at|date:"d/m/Y H:i" }}{% endif %}
+            </p>
+          </div>
+          <div class="uefa-sheet-badge">Formato UEFA</div>
+        </header>
+
+        <section>
+          <h3 class="uefa-section-title">Detalles del ejercicio</h3>
+          <table class="uefa-table">
+            <tr>
+              <td style="width:20%;">Titulo</td>
+              <td><div class="uefa-value">{{ task_obj.title|default:task.title|default:"-" }}</div></td>
+            </tr>
+            <tr>
+              <td>Estrategia</td>
+              <td><div class="uefa-value">{{ pc.strategy_label|default:"-" }}</div></td>
+            </tr>
+            <tr>
+              <td>Objetivos</td>
+              <td><div class="uefa-value">{{ task_obj.objective|default:task.objective|default:"-"|linebreaksbr }}</div></td>
+            </tr>
+          </table>
+          <table class="uefa-table" style="margin-top:0.55rem;">
+            <tr>
+              <td>Espacio</td>
+              <td>Tiempo</td>
+              <td>Situacion de juego</td>
+              <td>Coordinacion</td>
+            </tr>
+            <tr>
+              <td><div class="uefa-value">{{ pc.dimensions_label|default:pc.space_label|default:"-" }}</div></td>
+              <td><div class="uefa-value">{{ task_obj.duration_minutes|default:task.duration_minutes|default:"-" }} min</div></td>
+              <td><div class="uefa-value">{{ pc.structure_label|default:"-" }}</div></td>
+              <td><div class="uefa-value">{{ pc.coordination_label|default:"-" }}</div></td>
+            </tr>
+          </table>
+          <table class="uefa-table" style="margin-top:0.55rem;">
+            <tr>
+              <td style="width:50%;">Habilidades coordinativas</td>
+              <td>Intencion / accion tactica</td>
+            </tr>
+            <tr>
+              <td><div class="uefa-value">{{ pc.coordination_skills_label|default:"-" }}</div></td>
+              <td><div class="uefa-value">{{ pc.tactical_intent_label|default:"-" }}</div></td>
+            </tr>
+          </table>
+        </section>
+
+        <section class="uefa-grid-2">
+          <div>
+            <h3 class="uefa-section-title">Descripcion grafica</h3>
+            <div class="uefa-box">
+              {% if multi_board_enabled and tactic_frames %}
+              <div class="grid">
+                {% for frame in tactic_frames %}
+                <article class="sheet-item">
+                  <strong>Escena {{ forloop.counter }} · {{ frame.title|default:"Paso" }}</strong>
+                  {% if frame.preview_url %}
+                  <img src="{{ frame.preview_url }}" alt="Escena {{ forloop.counter }}" style="width:100%; border-radius:9px; border:1px solid rgba(2,6,23,0.13); margin-top:0.45rem;" />
+                  {% elif frame.tokens %}
+                  <div class="preview-stadium" style="margin-top:0.45rem; min-height:120px;">
+                    <div class="field" style="height:100%; min-height:140px;">
+                      <span class="mid-line"></span>
+                      <span class="mid-circle"></span>
+                      {% for token in frame.tokens %}
+                      <span class="mini-token {% if token.type == 'material' %}material{% else %}player{% endif %}" style="left:{{ token.x }}%; top:{{ token.y }}%;" title="{{ token.title|default:token.label|default:'' }}">
+                        {% if token.type == 'material' %}
+                        {% if token.asset_url %}<img src="{{ token.asset_url }}" alt="{{ token.title|default:token.label }}" />{% else %}{{ token.icon|default:token.label }}{% endif %}
+                        {% else %}
+                        {{ token.label|default:token.title|default:'?' }}
+                        {% endif %}
+                      </span>
+                      {% endfor %}
+                    </div>
+                  </div>
+                  {% else %}
+                  <p class="task-copy" style="margin-top:0.45rem;">Sin snapshot de pizarra para esta escena.</p>
+                  {% endif %}
+                </article>
+                {% endfor %}
+              </div>
+              {% elif pc.task_preview_url %}
+              <div class="presentation-graphic-wrap preview-stadium">
+                <img class="preview" id="task-preview-image" src="{{ pc.task_preview_url }}" alt="Vista 2D de {{ task_obj.title|default:task.title }}" />
+              </div>
+              {% elif has_2d %}
+              <div class="presentation-graphic-wrap preview-stadium">
+                <img class="preview" id="task-preview-image" src="{% url 'session-task-preview-file' task_obj.id %}?hd=1&v={{ task_obj.task_preview_image.name|urlencode }}" alt="Vista 2D de {{ task_obj.title|default:task.title }}" />
+              </div>
+              {% else %}
+              <div class="task-detail-empty">No hay vista 2D guardada todavia.</div>
+              {% endif %}
+
+              <div class="task-detail-quick-actions" style="margin-top:0.7rem;">
+                {% if task_obj.task_preview_image or pc.task_preview_url %}
+                <button type="button" class="button" id="task-detail-3d-open">Ir a vista 3D</button>
+                {% elif can_edit_task %}
+                <button type="button" class="button secondary" id="task-detail-enter-edit-empty">Completar pizarra 2D</button>
+                {% endif %}
+                {% if has_frames %}
+                <button type="button" class="button secondary" id="task-detail-open-sequence">Ver secuencia</button>
+                {% endif %}
+              </div>
+
+              {% if pc.task_drills %}
+              <div style="margin-top:0.75rem;">
+                <div class="uefa-inline-note" style="font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Secuencia</div>
+                <div class="drills-row">
+                  {% for drill in pc.task_drills %}
+                  <span class="chip">{{ drill.label }}</span>
+                  {% endfor %}
+                </div>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <aside>
+            <h3 class="uefa-section-title">Ficha tecnica</h3>
+            <div class="uefa-box">
+              <table class="uefa-table">
+                <tr>
+                  <td>Bloque</td>
+                  <td><div class="uefa-value">{{ task_obj.get_block_display|default:"-" }}</div></td>
+                </tr>
+                <tr>
+                  <td>Material</td>
+                  <td><div class="uefa-value">{{ pc.materials_label|default:"-" }}</div></td>
+                </tr>
+                <tr>
+                  <td>Series / repeticiones</td>
+                  <td><div class="uefa-value">{% if task_meta.series or task_meta.repetitions %}{{ task_meta.series|default:"-" }} · {{ task_meta.repetitions|default:"-" }}{% else %}-{% endif %}</div></td>
+                </tr>
+                <tr>
+                  <td>Trabajo / descanso</td>
+                  <td><div class="uefa-value">{% if task_meta.work_rest %}{{ task_meta.work_rest }}{% else %}-{% endif %}</div></td>
+                </tr>
+                <tr>
+                  <td>Metodologia</td>
+                  <td>
+                    <div class="uefa-value">
+                      {% if pc.methodology_rows %}
+                        {% for row in pc.methodology_rows %}
+                          {{ row.label }}: {{ row.value }}{% if not forloop.last %} · {% endif %}
+                        {% endfor %}
+                      {% else %}
+                        -
+                      {% endif %}
+                    </div>
+                  </td>
+                </tr>
+              </table>
+              {% if pc.materials_items %}
+              <div class="uefa-material-chips">
+                {% for material in pc.materials_items %}
+                <span class="chip">{{ material.emoji }} {{ material.label|default:"-" }}</span>
+                {% endfor %}
+              </div>
+              {% endif %}
+            </div>
+          </aside>
+        </section>
+
+        <section class="uefa-pairs">
+          <article>
+            <h3 class="uefa-section-title">Consigna / explicacion</h3>
+            <div class="uefa-box uefa-copy-box">
+              {% if pc.description_rich_html %}
+              <div class="task-copy">{{ pc.description_rich_html|striptags|linebreaksbr }}</div>
+              {% elif pc.description_lines %}
+              <div class="task-copy">{% for line in pc.description_lines %}{{ line }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</div>
+              {% else %}
+              <div class="task-copy">-</div>
+              {% endif %}
+
+              {% if pc.coaching_rich_html or task.coaching_points %}
+              <div style="margin-top:0.8rem;">
+                <strong style="display:block; margin-bottom:0.35rem;">Consignas</strong>
+                {% if pc.coaching_rich_html %}
+                <div class="task-copy">{{ pc.coaching_rich_html|striptags|linebreaksbr }}</div>
+                {% else %}
+                <div class="task-copy">{{ task.coaching_points|linebreaksbr }}</div>
+                {% endif %}
+              </div>
+              {% endif %}
+            </div>
+          </article>
+
+          <article>
+            <h3 class="uefa-section-title">Normas y variantes</h3>
+            <div class="uefa-box uefa-copy-box">
+              {% if pc.rules_rich_html %}
+              <div class="task-copy">{{ pc.rules_rich_html|striptags|linebreaksbr }}</div>
+              {% elif task.confrontation_rules %}
+              <div class="task-copy">{{ task.confrontation_rules|linebreaksbr }}</div>
+              {% else %}
+              <div class="task-copy">-</div>
+              {% endif %}
+
+              {% if task_meta.provocation_rule or task_meta.progression or task_meta.regression or task_meta.success_criteria %}
+              <div style="margin-top:0.8rem;">
+                {% if task_meta.provocation_rule %}<p><strong>Norma de provocacion:</strong> {{ task_meta.provocation_rule }}</p>{% endif %}
+                {% if task_meta.progression %}<p><strong>Progresion:</strong> {% if pc.progression_rich_html %}{{ pc.progression_rich_html|striptags|linebreaksbr }}{% else %}{{ task_meta.progression }}{% endif %}</p>{% endif %}
+                {% if task_meta.regression %}<p><strong>Regresion:</strong> {% if pc.regression_rich_html %}{{ pc.regression_rich_html|striptags|linebreaksbr }}{% else %}{{ task_meta.regression }}{% endif %}</p>{% endif %}
+                {% if task_meta.success_criteria %}<p><strong>Criterio de exito:</strong> {% if pc.success_criteria_rich_html %}{{ pc.success_criteria_rich_html|striptags|linebreaksbr }}{% else %}{{ task_meta.success_criteria }}{% endif %}</p>{% endif %}
+              </div>
+              {% endif %}
+            </div>
+          </article>
+        </section>
+
+        <section class="presentation-slot">
+          <h3>Representacion 3D y secuenciacion</h3>
+          <p class="uefa-inline-note">La vista 3D queda integrada para validar alturas, distancias y orientaciones sobre la misma tarea.</p>
+          <div class="sim-3d-inline" id="task-detail-3d-inline">
+            <div class="sim-3d-card" aria-label="Representación 3D de la tarea">
+              <div class="sim-3d-head">
+                <div style="display:flex; flex-direction:column; gap:0.15rem;">
+                  <strong>Representación 3D</strong>
+                  <span class="meta">Pizarra convertida a vista espacial para revisar ocupación, distancia y líneas.</span>
+                </div>
+                <button type="button" class="button" id="task-detail-3d-fullscreen">Pantalla completa</button>
+              </div>
+              <div class="sim-3d-body">
+                <canvas class="sim-3d-canvas" id="task-detail-3d-canvas"></canvas>
+                <div class="sim-3d-fallback" id="task-detail-3d-fallback" hidden>
+                  <div class="sim-3d-fallback-copy">
+                    <strong>Vista alternativa de la tarea</strong>
+                    <p>El visor 3D no ha podido iniciarse en este navegador o dispositivo. Se muestra la referencia base para no perder contexto.</p>
+                  </div>
+                  <div class="sim-3d-fallback-stage">
+                    <img id="task-detail-3d-fallback-preview" alt="Vista táctica alternativa de la tarea" hidden />
+                  </div>
+                  <div class="sim-3d-fallback-status" id="task-detail-3d-fallback-status">Preparando vista alternativa…</div>
+                  <div class="sim-3d-fallback-reason" id="task-detail-3d-fallback-reason"></div>
+                </div>
+                <div class="sim-3d-hud">
+                  <div class="sim-3d-chip">
+                    <strong id="task-detail-3d-step-title">Pizarra</strong>
+                    <span id="task-detail-3d-step-meta">Paso 1/1</span>
+                  </div>
+                  <div class="sim-3d-chip">
+                    <span>Progreso</span>
+                    <b id="task-detail-3d-progress-label">0%</b>
+                  </div>
+                </div>
+              </div>
+              <div class="sim-3d-foot">
+                <div class="sim-3d-controls">
+                  <button type="button" class="button" id="task-detail-3d-prev">Anterior</button>
+                  <button type="button" class="button primary" id="task-detail-3d-play">Reproducir</button>
+                  <button type="button" class="button" id="task-detail-3d-next">Siguiente</button>
+                  <button type="button" class="button" id="task-detail-3d-record">Grabar WebM</button>
+                  <button type="button" class="button" id="task-detail-3d-snap">Descargar PNG</button>
+                  <select id="task-detail-3d-camera" aria-label="Cámara 3D">
+                    <option value="broadcast">Broadcast</option>
+                    <option value="tactic">Táctica</option>
+                    <option value="corner">Esquina</option>
+                    <option value="goal">Portería</option>
+                    <option value="drone">Drone</option>
+                    <option value="tunnel">Túnel</option>
+                    <option value="analyst">Analista</option>
+                    <option value="coach">Entrenador</option>
+                    <option value="rosaleda">Estadio</option>
+                  </select>
+                  <div class="sim-3d-progress" aria-hidden="true"><span id="task-detail-3d-progress-bar"></span></div>
+                </div>
+                <div class="sim-3d-tip">Arrastra para girar. Usa anterior/siguiente o reproducir para seguir secuencia.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {% if tactic_frames and not multi_board_enabled %}
+        <section class="presentation-slot">
+          <h3>Secuencia de pizarra</h3>
+          <div class="grid">
+            {% for frame in tactic_frames %}
+            <article class="sheet-item">
+              <strong>Paso {{ forloop.counter }} · {{ frame.title|default:"Secuencia" }}</strong>
+              <span class="meta">{{ frame.duration|default:4 }}s</span>
+              {% if frame.preview_url %}
+              <img src="{{ frame.preview_url }}" alt="Paso {{ forloop.counter }}" style="width:100%; border-radius:9px; border:1px solid rgba(2,6,23,0.13); margin-top:0.45rem;" />
+              {% elif frame.tokens %}
+              <div class="preview-stadium" style="margin-top:0.45rem; min-height:110px;">
+                <div class="field" style="height:100%; min-height:120px;">
+                  <span class="mid-line"></span>
+                  <span class="mid-circle"></span>
+                  {% for token in frame.tokens %}
+                  <span class="mini-token {% if token.type == 'material' %}material{% else %}player{% endif %}" style="left:{{ token.x }}%; top:{{ token.y }}%;" title="{{ token.title|default:token.label|default:'' }}">
+                    {% if token.type == 'material' %}
+                    {% if token.asset_url %}<img src="{{ token.asset_url }}" alt="{{ token.title|default:token.label }}" />{% else %}{{ token.icon|default:token.label }}{% endif %}
+                    {% else %}
+                    {{ token.label|default:token.title|default:'?' }}
+                    {% endif %}
+                  </span>
+                  {% endfor %}
+                </div>
+              </div>
+              {% else %}
+              <p class="task-copy" style="margin-top:0.45rem;">Sin snapshot de pizarra para este paso.</p>
+              {% endif %}
+            </article>
+            {% endfor %}
+          </div>
+        </section>
+        {% endif %}
+      </div>
 {% else %}
       <div class="presentation-workbench presentation-task-sheet presentation-format-{{ presentation_format|lower }}">
         <div class="presentation-format-kicker">Formato {{ presentation_format }}</div>
