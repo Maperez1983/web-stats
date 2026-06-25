@@ -43180,6 +43180,40 @@ def session_task_detail_page(request, task_id):
     if task.task_pdf and not task.task_preview_image:
         _ensure_task_preview_image(task)
 
+    session_obj_for_pdf = getattr(task, 'session', None)
+    microcycle_obj_for_pdf = getattr(session_obj_for_pdf, 'microcycle', None) if session_obj_for_pdf else None
+    team_obj_for_pdf = getattr(microcycle_obj_for_pdf, 'team', None) if microcycle_obj_for_pdf else None
+    tactical_layout_for_pdf = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+    task_presentation_pdf_context_by_format = {'uefa': {}, 'club': {}}
+    try:
+        preview_url_for_pdf = ''
+        if getattr(task, 'task_preview_image', None):
+            preview_url_for_pdf = _file_field_as_data_url(task.task_preview_image)
+        task_presentation_pdf_context_by_format['uefa'] = _build_task_pdf_context(
+            request=request,
+            team=team_obj_for_pdf,
+            session=session_obj_for_pdf,
+            microcycle=microcycle_obj_for_pdf,
+            task=task,
+            tactical_layout=tactical_layout_for_pdf,
+            pdf_style='uefa',
+            preview_url=preview_url_for_pdf,
+            one_page=True,
+        )
+        task_presentation_pdf_context_by_format['club'] = _build_task_pdf_context(
+            request=request,
+            team=team_obj_for_pdf,
+            session=session_obj_for_pdf,
+            microcycle=microcycle_obj_for_pdf,
+            task=task,
+            tactical_layout=tactical_layout_for_pdf,
+            pdf_style='club',
+            preview_url=preview_url_for_pdf,
+            one_page=True,
+        )
+    except Exception:
+        task_presentation_pdf_context_by_format = {'uefa': {}, 'club': {}}
+
     session_context = {}
     try:
         session_obj = getattr(task, 'session', None)
@@ -43395,6 +43429,7 @@ def session_task_detail_page(request, task_id):
                 },
                 ensure_ascii=False,
             ),
+            'task_presentation_pdf_context_by_format': task_presentation_pdf_context_by_format,
             'pitch3d_assets': pitch3d_assets,
             'is_bookmarked': SessionTaskBookmark.objects.filter(user=request.user, task=task).exists()
             if request.user and request.user.is_authenticated

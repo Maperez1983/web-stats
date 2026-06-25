@@ -1,61 +1,96 @@
-      <p class="meta">Esta es la ficha HTML principal que luego se imprime o comparte. Reúne la representación 2D, la vista 3D y la secuenciación táctica de la tarea.</p>
-      <div class="presentation-workbench">
+{% with pc=presentation_context %}
+{% with task_obj=pc.task|default:task %}
+{% with task_meta=pc.task_meta %}
+{% with tactic_frames=pc.animation_frame_cards %}
+{% with
+  has_frames=pc.animation_frames|default:False
+  has_2d=task_obj.task_preview_image|default:task.task_preview_image
+  has_pdf=task_obj.task_pdf|default:task.task_pdf
+%}
+      <p class="meta">Esta es la ficha HTML principal que luego se imprime o comparte. Reúne el formato UEFA/Club con diseño técnico, representación 2D, 3D y secuencia táctica.</p>
+      <div class="presentation-workbench presentation-task-sheet presentation-format-{{ presentation_format|lower }}">
         <div class="presentation-format-kicker">Formato {{ presentation_format }}</div>
+        <header class="presentation-task-hero">
+          <div class="presentation-task-hero-copy">
+            <h3>{{ task_obj.title|default:task.title|default:"Tarea táctica" }}</h3>
+            <p class="coach-summary-note">
+              {{ pc.team_name|default:team.name|default:"Equipo" }} · {{ pc.coach_name|default:user.get_full_name|default:user.username|default:"Entrenador" }}
+              {% if pc.session %}
+              · {{ pc.session.session_date|date:"d/m/Y" }}
+              {% if pc.session.start_time %} · {{ pc.session.start_time|time:"H:i" }}{% endif %}
+              {% endif %}
+            </p>
+          </div>
+          <div class="top-pills">
+            <span class="status-chip {% if has_2d %}ok{% else %}warn{% endif %}">2D {% if has_2d %}listo{% else %}pendiente{% endif %}</span>
+            <span class="status-chip {% if has_frames %}ok{% else %}warn{% endif %}">Secuencia {% if has_frames %}lista{% else %}pendiente{% endif %}</span>
+            <span class="status-chip {% if has_pdf %}ok{% else %}neutral{% endif %}">PDF {% if has_pdf %}disponible{% else %}sin origen{% endif %}</span>
+          </div>
+        </header>
+
         <div class="coach-summary">
-          <div class="coach-summary-head">
-            <p class="coach-summary-note">Resumen rápido para decidir en segundos si la tarea está lista para entrenar, corregir o exportar.</p>
-            <div class="top-pills" aria-label="Estado rápido de la ficha">
-              <span class="status-chip {% if task.task_preview_image %}ok{% else %}warn{% endif %}">2D {% if task.task_preview_image %}listo{% else %}pendiente{% endif %}</span>
-              <span class="status-chip {% if animation_frames %}ok{% else %}warn{% endif %}">Secuencia {% if animation_frames %}lista{% else %}pendiente{% endif %}</span>
-              <span class="status-chip {% if task.task_pdf %}ok{% else %}neutral{% endif %}">PDF {% if task.task_pdf %}disponible{% else %}sin origen{% endif %}</span>
-              <span class="status-chip {% if task_meta.planned_rpe %}ok{% else %}neutral{% endif %}">Carga {% if task_meta.planned_rpe %}estimada{% else %}no definida{% endif %}</span>
-            </div>
-          </div>
-          <div class="coach-summary-alerts">
-            {% if not task.task_preview_image %}
-            <p class="coach-summary-alert">La ficha aún no tiene vista 2D guardada. El entrenador verá una tarea incompleta.</p>
-            {% endif %}
-            {% if not animation_frames %}
-            <p class="coach-summary-alert">No hay secuenciación 2D/3D activa. La explicación de la tarea queda más pobre para el staff.</p>
-            {% endif %}
-            {% if not task.task_pdf %}
-            <p class="coach-summary-alert">No existe PDF origen. La exportación dependerá del contenido HTML y del render actual.</p>
-            {% endif %}
-          </div>
           <div class="coach-summary-grid">
             <div class="sheet-item">
+              <strong>Título</strong>
+              <span>{{ task_obj.title|default:task.title|default:"-" }}</span>
+            </div>
+            <div class="sheet-item">
               <strong>Objetivo</strong>
-              <span>{{ task.objective|default:"-" }}</span>
+              <span>{{ task_obj.objective|default:task.objective|default:"-" }}</span>
             </div>
             <div class="sheet-item">
               <strong>Duración</strong>
-              <span>{{ task.duration_minutes }} min</span>
+              <span>{{ task_obj.duration_minutes|default:task.duration_minutes|default:"-" }} min</span>
             </div>
             <div class="sheet-item">
-              <strong>Jugadores</strong>
-              <span>{% firstof task_sheet.players task.tactical_layout.meta.player_count "-" %}</span>
-            </div>
-            <div class="sheet-item">
-              <strong>Material</strong>
-              <span>{% firstof task_sheet.materials task.tactical_layout.meta.resources_summary "-" %}</span>
+              <strong>Bloque</strong>
+              <span>{{ task_obj.get_block_display|default:"-" }}</span>
             </div>
             <div class="sheet-item">
               <strong>Espacio</strong>
-              <span>{% firstof task_sheet.space task.tactical_layout.meta.space "-" %}</span>
+              <span>{% firstof pc.space_label task_sheet.space task.tactical_layout.meta.space "-" %}</span>
             </div>
             <div class="sheet-item">
-              <strong>Carga prevista</strong>
-              <span>{% if task_meta.planned_rpe %}RPE {{ task_meta.planned_rpe }}{% else %}-{% endif %}{% if task_meta.planned_srpe_load %} · sRPE {{ task_meta.planned_srpe_load }}{% endif %}</span>
+              <strong>Tipo</strong>
+              <span>{{ pc.strategy_label|default:"-" }}</span>
+            </div>
+            <div class="sheet-item">
+              <strong>Jugadores</strong>
+              <span>{% firstof task_sheet.players task.tactical_layout.meta.player_count pc.task_meta.player_distribution task_meta.players|default:"-" %}</span>
+            </div>
+            <div class="sheet-item">
+              <strong>Material</strong>
+              <span>{% firstof pc.materials_label task_sheet.materials task.tactical_layout.meta.resources_summary "-" %}</span>
+            </div>
+            <div class="sheet-item">
+              <strong>Carga</strong>
+              <span>{% if task_meta.planned_rpe %}RPE {{ task_meta.planned_rpe }}{% else %}No definida{% endif %}</span>
             </div>
           </div>
+          <div class="coach-summary-alerts">
+            {% if not has_2d %}
+            <p class="coach-summary-alert">No hay vista 2D guardada. La tarea mostrará sólo texto y estructura.</p>
+            {% endif %}
+            {% if not has_frames %}
+            <p class="coach-summary-alert">No hay secuenciación 2D/3D. La explicación quedará más breve.</p>
+            {% endif %}
+            {% if has_frames and presentation_format|lower == 'uefa' %}
+            <p class="coach-summary-alert">Modo UEFA: prioriza la lectura táctica y secuencias.</p>
+            {% elif has_frames %}
+            <p class="coach-summary-alert">Modo Club: prioriza la ficha técnica visual para entrenadores.</p>
+            {% endif %}
+          </div>
         </div>
-        <div class="presentation-workbench-grid">
-          <div class="presentation-slot">
-            <h3>Representación 2D</h3>
-            <p class="presentation-note">Pizarra base de la tarea en formato limpio de presentación.</p>
-            <div class="preview-stadium" style="min-height:280px;">
-              {% if task.task_preview_image %}
-              <img class="preview" src="{% url 'session-task-preview-file' task.id %}?hd=1&v={{ task.task_preview_image.name|urlencode }}" alt="Vista 2D de {{ task.title }}" />
+
+        <section class="presentation-workbench-grid">
+          <div class="presentation-slot presentation-slot-graphic">
+            <h3>Diseño gráfico</h3>
+            <p class="presentation-note">Representación base de la tarea en perspectiva táctica.</p>
+            <div class="presentation-graphic-wrap preview-stadium">
+              {% if pc.task_preview_url %}
+              <img class="preview" id="task-preview-image" src="{{ pc.task_preview_url }}" alt="Vista 2D de {{ task_obj.title|default:task.title }}" />
+              {% elif has_2d %}
+              <img class="preview" id="task-preview-image" src="{% url 'session-task-preview-file' task_obj.id %}?hd=1&v={{ task_obj.task_preview_image.name|urlencode }}" alt="Vista 2D de {{ task_obj.title|default:task.title }}" />
               {% else %}
               <div class="task-detail-empty">
                 No hay vista 2D guardada todavía.
@@ -63,76 +98,229 @@
               {% endif %}
             </div>
             <div class="task-detail-quick-actions">
-              {% if task.task_preview_image %}
+              {% if task_obj.task_preview_image or pc.task_preview_url %}
               <button type="button" class="button" id="task-detail-3d-open">Ir a vista 3D</button>
               {% elif can_edit_task %}
               <button type="button" class="button secondary" id="task-detail-enter-edit-empty">Completar pizarra 2D</button>
               {% endif %}
-              {% if animation_frames %}
+              {% if has_frames %}
               <button type="button" class="button secondary" id="task-detail-open-sequence">Ver secuencia</button>
               {% endif %}
             </div>
           </div>
-          <div class="presentation-slot">
-            <h3>Representación 3D y secuenciación</h3>
-            <p class="presentation-note">La vista 3D queda integrada en la ficha y permite revisar profundidad, alturas y secuencia paso a paso sin salir de la página.</p>
-            <div class="sim-3d-inline" id="task-detail-3d-inline">
-              <div class="sim-3d-card" aria-label="Representación 3D de la tarea">
-                <div class="sim-3d-head">
-                  <div style="display:flex; flex-direction:column; gap:0.15rem;">
-                    <strong>Representación 3D</strong>
-                    <span class="meta">Pizarra convertida a vista espacial para explicar profundidad, altura y ocupación.</span>
-                  </div>
-                  <button type="button" class="button" id="task-detail-3d-fullscreen">Pantalla completa</button>
+
+          <aside class="presentation-slot presentation-slot-copy">
+            <h3>Ficha técnica</h3>
+            <div class="sheet-item">
+              <strong>Situación</strong>
+              <span>{{ pc.structure_label|default:pc.game_situation_label|default:"-" }}</span>
+            </div>
+            <div class="sheet-item">
+              <strong>Espacio y dimensiones</strong>
+              <span>{{ pc.space_label|default:"-" }}</span>
+            </div>
+            <div class="sheet-item">
+              <strong>Coordinación</strong>
+              <span>{{ pc.coordination_label|default:"-" }}</span>
+            </div>
+            <div class="sheet-item">
+              <strong>Intención táctica</strong>
+              <span>{{ pc.tactical_intent_label|default:"-" }}</span>
+            </div>
+            <div class="sheet-item">
+              <strong>Series / repeticiones</strong>
+              <span>{% if task_meta.series or task_meta.repetitions %}{{ task_meta.series|default:"-" }} · {{ task_meta.repetitions|default:"-" }}{% else %}-{% endif %}</span>
+            </div>
+            <div class="sheet-item">
+              <strong>Trabajo / descanso</strong>
+              <span>{% if task_meta.work_rest %}{{ task_meta.work_rest }}{% else %}-{% endif %}</span>
+            </div>
+            <div class="sheet-item">
+              <strong>Metodología</strong>
+              <span>
+                {% if pc.methodology_rows %}
+                  {% for row in pc.methodology_rows %}
+                    {{ row.label }}: {{ row.value }}{% if not forloop.last %} · {% endif %}
+                  {% endfor %}
+                {% else %}
+                  -
+                {% endif %}
+              </span>
+            </div>
+            {% if pc.materials_items %}
+            <div class="sheet-item">
+              <strong>Materiales</strong>
+              <div class="chips" style="margin-top:0.35rem;">
+                {% for material in pc.materials_items %}
+                <span class="chip">{{ material.emoji }} {{ material.label|default:"-" }}</span>
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
+          </aside>
+        </section>
+
+        <section class="presentation-slot">
+          <h3>Consignas y contenido</h3>
+          <div class="grid">
+            <article class="sheet-item full">
+              <strong>Descripción</strong>
+              {% if pc.description_rich_html %}
+              <div class="task-copy">{{ pc.description_rich_html|safe }}</div>
+              {% elif pc.description_lines %}
+              <div class="task-copy">
+                {% for line in pc.description_lines %}{{ line }}{% if not forloop.last %}<br>{% endif %}{% endfor %}
+              </div>
+              {% else %}
+              <div class="task-copy">Sin descripción detallada.</div>
+              {% endif %}
+            </article>
+            <article class="sheet-item full">
+              <strong>Consignas</strong>
+              {% if pc.coaching_rich_html %}
+              <div class="task-copy">{{ pc.coaching_rich_html|safe }}</div>
+              {% elif task.coaching_points %}
+              <div class="task-copy">{{ task.coaching_points|linebreaksbr }}</div>
+              {% else %}
+              <div class="task-copy">Sin consignas explícitas.</div>
+              {% endif %}
+            </article>
+            <article class="sheet-item full">
+              <strong>Reglas de confrontación</strong>
+              {% if pc.rules_rich_html %}
+              <div class="task-copy">{{ pc.rules_rich_html|safe }}</div>
+              {% elif task.confrontation_rules %}
+              <div class="task-copy">{{ task.confrontation_rules|linebreaksbr }}</div>
+              {% else %}
+              <div class="task-copy">Sin reglas específicas.</div>
+              {% endif %}
+            </article>
+            <article class="sheet-item full">
+              <strong>Progresión y variantes</strong>
+              {% if task_meta.progression or task_meta.success_criteria or task_meta.regression or task_meta.provocation_rule %}
+              <div class="task-copy">
+                {% if task_meta.provocation_rule %}<p><strong>Regla de provocación:</strong> {{ task_meta.provocation_rule }}</p>{% endif %}
+                {% if task_meta.progression %}<p><strong>Progresión:</strong> {{ task_meta.progression }}</p>{% endif %}
+                {% if task_meta.regression %}<p><strong>Regresión:</strong> {{ task_meta.regression }}</p>{% endif %}
+                {% if task_meta.success_criteria %}<p><strong>Criterio de éxito:</strong> {{ task_meta.success_criteria }}</p>{% endif %}
+              </div>
+              {% else %}
+              <div class="task-copy">No hay variantes especificadas.</div>
+              {% endif %}
+            </article>
+          </div>
+        </section>
+
+        <section class="presentation-slot">
+          <h3>Representación 3D y secuenciación</h3>
+          <p class="presentation-note">La vista 3D queda integrada para validar profundidad, orientaciones y distancias. También se usa la secuencia como guión de explicación.</p>
+          <div class="sim-3d-inline" id="task-detail-3d-inline">
+            <div class="sim-3d-card" aria-label="Representación 3D de la tarea">
+              <div class="sim-3d-head">
+                <div style="display:flex; flex-direction:column; gap:0.15rem;">
+                  <strong>Representación 3D</strong>
+                  <span class="meta">Pizarra convertida a vista espacial para revisar ocupación, distancia y líneas.</span>
                 </div>
-                <div class="sim-3d-body">
-                  <canvas class="sim-3d-canvas" id="task-detail-3d-canvas"></canvas>
-                  <div class="sim-3d-fallback" id="task-detail-3d-fallback" hidden>
-                    <div class="sim-3d-fallback-copy">
-                      <strong>Vista alternativa de la tarea</strong>
-                      <p>El visor 3D no ha podido iniciarse en este navegador o dispositivo. La ficha sigue mostrando la disposición táctica base para que puedas revisarla sin perder contexto.</p>
-                    </div>
-                    <div class="sim-3d-fallback-stage">
-                      <img id="task-detail-3d-fallback-preview" alt="Vista táctica alternativa de la tarea" hidden />
-                    </div>
-                    <div class="sim-3d-fallback-status" id="task-detail-3d-fallback-status">Preparando vista alternativa…</div>
-                    <div class="sim-3d-fallback-reason" id="task-detail-3d-fallback-reason"></div>
+                <button type="button" class="button" id="task-detail-3d-fullscreen">Pantalla completa</button>
+              </div>
+              <div class="sim-3d-body">
+                <canvas class="sim-3d-canvas" id="task-detail-3d-canvas"></canvas>
+                <div class="sim-3d-fallback" id="task-detail-3d-fallback" hidden>
+                  <div class="sim-3d-fallback-copy">
+                    <strong>Vista alternativa de la tarea</strong>
+                    <p>El visor 3D no ha podido iniciarse en este navegador o dispositivo. Se muestra la referencia base para no perder contexto.</p>
                   </div>
-                  <div class="sim-3d-hud">
-                    <div class="sim-3d-chip">
-                      <strong id="task-detail-3d-step-title">Pizarra</strong>
-                      <span id="task-detail-3d-step-meta">Paso 1/1</span>
-                    </div>
-                    <div class="sim-3d-chip">
-                      <span>Progreso</span>
-                      <b id="task-detail-3d-progress-label">0%</b>
-                    </div>
+                  <div class="sim-3d-fallback-stage">
+                    <img id="task-detail-3d-fallback-preview" alt="Vista táctica alternativa de la tarea" hidden />
+                  </div>
+                  <div class="sim-3d-fallback-status" id="task-detail-3d-fallback-status">Preparando vista alternativa…</div>
+                  <div class="sim-3d-fallback-reason" id="task-detail-3d-fallback-reason"></div>
+                </div>
+                <div class="sim-3d-hud">
+                  <div class="sim-3d-chip">
+                    <strong id="task-detail-3d-step-title">Pizarra</strong>
+                    <span id="task-detail-3d-step-meta">Paso 1/1</span>
+                  </div>
+                  <div class="sim-3d-chip">
+                    <span>Progreso</span>
+                    <b id="task-detail-3d-progress-label">0%</b>
                   </div>
                 </div>
-                <div class="sim-3d-foot">
-                  <div class="sim-3d-controls">
-                    <button type="button" class="button" id="task-detail-3d-prev">Anterior</button>
-                    <button type="button" class="button primary" id="task-detail-3d-play">Reproducir</button>
-                    <button type="button" class="button" id="task-detail-3d-next">Siguiente</button>
-                    <button type="button" class="button" id="task-detail-3d-record">Grabar WebM</button>
-                    <button type="button" class="button" id="task-detail-3d-snap">Descargar PNG</button>
-                    <select id="task-detail-3d-camera" aria-label="Cámara 3D">
-                      <option value="broadcast">Broadcast</option>
-                      <option value="tactic">Táctica</option>
-                      <option value="corner">Esquina</option>
-                      <option value="goal">Portería</option>
-                      <option value="drone">Drone</option>
-                      <option value="tunnel">Túnel</option>
-                      <option value="analyst">Analista</option>
-                      <option value="coach">Entrenador</option>
-                      <option value="rosaleda">Estadio</option>
-                    </select>
-                    <div class="sim-3d-progress" aria-hidden="true"><span id="task-detail-3d-progress-bar"></span></div>
-                  </div>
-                  <div class="sim-3d-tip">Arrastra para girar. Rueda o trackpad para zoom. Usa anterior/siguiente o reproducir para secuenciar la tarea en 3D.</div>
+              </div>
+              <div class="sim-3d-foot">
+                <div class="sim-3d-controls">
+                  <button type="button" class="button" id="task-detail-3d-prev">Anterior</button>
+                  <button type="button" class="button primary" id="task-detail-3d-play">Reproducir</button>
+                  <button type="button" class="button" id="task-detail-3d-next">Siguiente</button>
+                  <button type="button" class="button" id="task-detail-3d-record">Grabar WebM</button>
+                  <button type="button" class="button" id="task-detail-3d-snap">Descargar PNG</button>
+                  <select id="task-detail-3d-camera" aria-label="Cámara 3D">
+                    <option value="broadcast">Broadcast</option>
+                    <option value="tactic">Táctica</option>
+                    <option value="corner">Esquina</option>
+                    <option value="goal">Portería</option>
+                    <option value="drone">Drone</option>
+                    <option value="tunnel">Túnel</option>
+                    <option value="analyst">Analista</option>
+                    <option value="coach">Entrenador</option>
+                    <option value="rosaleda">Estadio</option>
+                  </select>
+                  <div class="sim-3d-progress" aria-hidden="true"><span id="task-detail-3d-progress-bar"></span></div>
                 </div>
+                <div class="sim-3d-tip">Arrastra para girar. Usa anterior/siguiente o reproducir para seguir secuencia.</div>
               </div>
             </div>
           </div>
-        </div>
+        </section>
+
+        {% if tactic_frames %}
+        <section class="presentation-slot">
+          <h3>Secuencia de pizarra (storyboard)</h3>
+          <div class="grid">
+            {% for frame in tactic_frames %}
+            <article class="sheet-item">
+              <strong>{% if frame.title %}{{ frame.title }}{% else %}Paso {{ forloop.counter }}{% endif %}</strong>
+              <span class="meta">{{ frame.duration|default:4 }}s</span>
+              {% if frame.preview_url %}
+              <img
+                src="{{ frame.preview_url }}"
+                alt="Escena {{ forloop.counter }} {{ frame.title|default:'' }}"
+                style="width:100%; border-radius:9px; border:1px solid rgba(2,6,23,0.13); margin-top:0.45rem;"
+              />
+              {% elif frame.tokens %}
+              <div class="preview-stadium" style="margin-top:0.45rem; min-height:110px;">
+                <div class="field" style="height:100%; min-height:120px;">
+                  <span class="mid-line"></span>
+                  <span class="mid-circle"></span>
+                  {% for token in frame.tokens %}
+                  <span
+                    class="mini-token {% if token.type == 'material' %}material{% else %}player{% endif %}"
+                    style="left:{{ token.x }}%; top:{{ token.y }}%;"
+                    title="{{ token.title|default:token.label|default:'' }}"
+                  >
+                    {% if token.type == 'material' %}
+                    {% if token.asset_url %}
+                    <img src="{{ token.asset_url }}" alt="{{ token.title|default:token.label }}" />
+                    {% else %}
+                    {{ token.icon|default:token.label }}
+                    {% endif %}
+                    {% else %}
+                    {{ token.label|default:token.title|default:'?' }}
+                    {% endif %}
+                  </span>
+                  {% endfor %}
+                </div>
+              </div>
+              {% else %}
+              <p class="task-copy" style="margin-top:0.45rem;">Sin snapshot de pizarra para este paso.</p>
+              {% endif %}
+            </article>
+            {% endfor %}
+          </div>
+        </section>
+        {% endif %}
       </div>
+{% endwith %}
+{% endwith %}
+{% endwith %}
+{% endwith %}
