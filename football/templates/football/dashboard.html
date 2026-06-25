@@ -156,7 +156,7 @@
         margin-top: 1rem;
         display: block;
       }
-      .dash-hero {
+        .dash-hero {
         border-radius: 28px;
         border: 1px solid var(--line);
         background:
@@ -166,7 +166,7 @@
           {% if demo_mode or setup_mode %}
           linear-gradient(135deg, rgba(70, 211, 255, 0.12), rgba(244, 180, 0, 0.10));
           {% else %}
-          var(--hero-image, url('{% static "football/images/pitch3d/stadium_rosaleda_top_h.png" %}')) center/var(--hero-size, cover) no-repeat;
+          var(--hero-image, url('{% static "football/campo-futbol-fallback.jpg" %}')) center/var(--hero-size, contain) no-repeat;
           {% endif %}
         box-shadow: 0 28px 55px rgba(0, 0, 0, 0.42);
         transition: background-image 0.4s ease;
@@ -210,7 +210,7 @@
         min-height: 320px;
         background:
           linear-gradient(180deg, rgba(3, 7, 18, 0.10), rgba(3, 7, 18, 0.92)),
-          var(--hero-image, url('{% static "football/images/pitch3d/stadium_rosaleda_top_h.png" %}')) center/cover no-repeat;
+          var(--hero-image, url('{% static "football/campo-futbol-fallback.jpg" %}')) center/contain no-repeat;
         display: flex;
         align-items: end;
       }
@@ -467,7 +467,7 @@
           {% if demo_mode or setup_mode %}
           linear-gradient(135deg, rgba(70, 211, 255, 0.12), rgba(244, 180, 0, 0.10));
           {% else %}
-          var(--hero-image, url('{% static "football/images/pitch3d/stadium_rosaleda_top_h.png" %}')) center/var(--hero-size, cover) no-repeat;
+          var(--hero-image, url('{% static "football/campo-futbol-fallback.jpg" %}')) center/var(--hero-size, contain) no-repeat;
           {% endif %}
         box-shadow: 0 28px 55px rgba(0, 0, 0, 0.4);
         display: flex;
@@ -1582,9 +1582,9 @@
 	        const effectiveTeamId = activeTeamId || String(urlParams.get('team') || urlParams.get('team_id') || '').trim();
 	        const effectiveHome = String(urlParams.get('home') || '').trim();
 		      const heroFallbackPool = demoMode
-	          ? []
-	          : [
-            '{% static "football/images/pitch3d/stadium_rosaleda_top_h.png" %}',
+        ? []
+        : [
+            '{% static "football/campo-futbol-fallback.jpg" %}',
             '{% static "football/images/team-01.jpg" %}',
             '{% static "football/images/team-02.jpg" %}',
             '{% static "football/images/team-03.jpg" %}',

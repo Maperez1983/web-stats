@@ -370,7 +370,7 @@
 			        min-height: 540px;
 		        box-shadow: var(--shadow);
         background-color: #050c17;
-        background-image: var(--hero-image, url('{% static "football/images/pitch3d/stadium_rosaleda_top_h.png" %}'));
+        background-image: var(--hero-image, url('{% static "football/campo-futbol-fallback.jpg" %}'));
         background-size: contain;
 		        background-position: center;
 		        background-repeat: no-repeat;
@@ -380,7 +380,7 @@
         content: "";
         position: absolute;
         inset: -12%;
-        background-image: var(--hero-image, url('{% static "football/images/pitch3d/stadium_rosaleda_top_h.png" %}'));
+        background-image: var(--hero-image, url('{% static "football/campo-futbol-fallback.jpg" %}'));
         background-size: contain;
         background-position: center;
         background-repeat: no-repeat;
@@ -1508,7 +1508,7 @@
       const heroFallbackPool = demoMode
         ? []
         : [
-            '{% static "football/images/pitch3d/stadium_rosaleda_top_h.png" %}',
+            '{% static "football/campo-futbol-fallback.jpg" %}',
             '{% static "football/images/team-01.jpg" %}',
             '{% static "football/images/team-02.jpg" %}',
             '{% static "football/images/team-03.jpg" %}',
