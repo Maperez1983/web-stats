@@ -324,12 +324,12 @@
         color: rgba(225, 236, 255, 0.78);
         font-size: 0.86rem;
       }
-	      .preview {
+      .preview {
 	        width: 100%;
 	        max-height: min(72vh, 680px);
 	        border-radius: 12px;
 	        border: 1px solid rgba(255, 255, 255, 0.16);
-	        object-fit: cover;
+	        object-fit: contain;
 	        object-position: center;
 	        background: rgba(255, 255, 255, 0.06);
 	        cursor: zoom-in;
@@ -1619,12 +1619,12 @@
             <strong style="opacity:0.9;">{{ rel.title|default:"(sin título)" }}</strong>
             <div style="margin-top:0.45rem;">
 	              {% if rel.task_preview_image or rel.task_pdf or rel.is_drawn %}
-	              <img
-	                src="{% url 'session-task-preview-file' rel.id %}?hd=1&amp;v={% if rel.task_preview_image %}{{ rel.task_preview_image.name|urlencode }}{% else %}{{ rel.id }}{% endif %}"
-	                alt="Vista previa de {{ rel.title }}"
-	                style="width:100%; aspect-ratio:16/9; border-radius:10px; border:1px solid rgba(255,255,255,0.14); object-fit:cover; background:rgba(255,255,255,0.05);"
-	                loading="lazy"
-	              />
+                <img
+                  src="{% url 'session-task-preview-file' rel.id %}?hd=1&amp;v={% if rel.task_preview_image %}{{ rel.task_preview_image.name|urlencode }}{% else %}{{ rel.id }}{% endif %}"
+                  alt="Vista previa de {{ rel.title }}"
+                  style="width:100%; aspect-ratio:16/9; border-radius:10px; border:1px solid rgba(255,255,255,0.14); object-fit:contain; object-position:center; background:rgba(255,255,255,0.05);"
+                  loading="lazy"
+                />
               {% else %}
               <div style="width:100%; aspect-ratio:16/9; border-radius:10px; border:1px dashed rgba(255,255,255,0.18); display:flex; align-items:center; justify-content:center; opacity:0.7;">
                 Sin gráfico
