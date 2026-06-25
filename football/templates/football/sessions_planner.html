@@ -786,7 +786,7 @@
       /* NUEVO layout: pizarra grande + lateral de módulos (comercial). */
       .create-landing {
         display: grid;
-        grid-template-columns: minmax(0, 1.05fr) minmax(300px, 0.95fr);
+        grid-template-columns: minmax(0, 1.25fr) minmax(260px, 0.75fr);
         gap: 0.9rem;
         align-items: start;
         margin-top: 0.65rem;
@@ -850,6 +850,8 @@
         border-radius: 16px;
         background: rgba(2, 10, 22, 0.44);
         overflow: hidden;
+        display: flex;
+        flex-direction: column;
       }
       .create-side-head {
 	        padding: 0.72rem 0.85rem;
@@ -862,25 +864,49 @@
       .create-modules {
         padding: 0.75rem;
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: 1fr;
         gap: 0.6rem;
       }
-	      .create-mod-btn {
+      .create-mod-btn {
         width: 100%;
         text-align: left;
         border-radius: 16px;
         border: 1px solid rgba(255,255,255,0.14);
         background: rgba(255,255,255,0.05);
-	        color: rgba(248,250,252,0.94);
-	        padding: 0.82rem 0.86rem;
-	        font: inherit;
-	        font-weight: 800;
-	        cursor: pointer;
-	        display: grid;
-	        gap: 0.15rem;
-	        min-height: 88px;
-	        align-content: start;
-	      }
+		color: rgba(248,250,252,0.94);
+		padding: 0.82rem 0.86rem;
+		font: inherit;
+		font-weight: 800;
+		cursor: pointer;
+		display: grid;
+		gap: 0.15rem;
+		min-height: 88px;
+		align-content: start;
+		position: relative;
+		padding-left: 1.1rem;
+      }
+
+      .create-mod-btn::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0.72rem;
+        bottom: 0.72rem;
+        width: 0.2rem;
+        border-radius: 999px;
+        background: linear-gradient(180deg, rgba(244, 180, 0, 0.65), rgba(16, 185, 129, 0.65));
+      }
+
+      .create-mod-btn strong {
+        display: inline;
+        font-size: 0.9rem;
+        letter-spacing: 0.03em;
+      }
+
+      .create-mod-btn small {
+        margin-left: 0.2rem;
+        color: rgba(203, 213, 225, 0.9);
+      }
 	      .create-mod-btn small { opacity: 0.85; font-weight: 600; }
       .create-mod-btn.is-active {
         border-color: rgba(244, 180, 0, 0.42);
@@ -1933,14 +1959,15 @@
 					            </div>
 						            <aside class="create-side">
 				              <div class="create-side-head">Módulos</div>
-				              <div class="create-modules" aria-label="Módulos">
-			                        <a class="create-mod-btn" href="{% url task_builder_route_name %}?repo=traditional&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Nueva tarea <small>Pizarra · ficha · PDF</small></a>
-		                        <a class="create-mod-btn" href="?tab=create&create_page=session&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Nueva sesión <small>Entreno por bloques</small></a>
-		                        <a class="create-mod-btn" href="?tab=create&create_page=microcycle&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Nuevo microciclo <small>Plan semanal</small></a>
-			                        <a class="create-mod-btn" href="{% url 'coach-tactics' %}?team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Pizarra táctica <small>Trabajo libre</small></a>
-		                        <a class="create-mod-btn" href="?tab=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Biblioteca <small>Reutilizar contenido</small></a>
-				              </div>
-				            </aside>
+
+            <div class="create-modules" aria-label="Módulos">
+	                        <a class="create-mod-btn" href="{% url task_builder_route_name %}?repo=traditional&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}"><strong>📝 Nueva tarea</strong> <small>Pizarra + ficha + PDF</small></a>
+	                        <a class="create-mod-btn" href="?tab=create&create_page=session&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}"><strong>🏃 Nueva sesión</strong> <small>Entreno por bloques</small></a>
+	                        <a class="create-mod-btn" href="?tab=create&create_page=microcycle&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}"><strong>🗓️ Nuevo microciclo</strong> <small>Plan semanal</small></a>
+	                        <a class="create-mod-btn" href="{% url 'coach-tactics' %}?team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}"><strong>🎯 Pizarra táctica</strong> <small>Trabajo libre de movimiento</small></a>
+	                        <a class="create-mod-btn" href="?tab=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}"><strong>📚 Biblioteca</strong> <small>Reutiliza tareas y sesiones</small></a>
+			              </div>
+			            </aside>
 				          </div>
 	                  {# Demo eliminado (ruido). Si lo reactivamos, lo hacemos como acción dentro de "Tarea". #}
                   {% else %}
