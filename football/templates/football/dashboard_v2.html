@@ -376,19 +376,19 @@
 		        background-repeat: no-repeat;
 			      }
 
-		      .hero-photo::before {
-		        content: "";
-		        position: absolute;
-		        inset: -12%;
-		        background-image: var(--hero-image);
-		        background-size: cover;
-		        background-position: center;
-		        background-repeat: no-repeat;
-		        filter: blur(18px) saturate(1.08) contrast(1.02);
-		        opacity: 0.42;
-		        transform: scale(1.06);
-		        pointer-events: none;
-		      }
+      .hero-photo::before {
+        content: "";
+        position: absolute;
+        inset: -12%;
+        background-image: var(--hero-image);
+        background-size: contain;
+        background-position: center;
+        background-repeat: no-repeat;
+        filter: blur(18px) saturate(1.08) contrast(1.02);
+        opacity: 0.42;
+        transform: scale(1.06);
+        pointer-events: none;
+      }
 
 	      .hero-photo::after {
 	        content: "";
