@@ -1589,6 +1589,17 @@
 	        color: rgba(226,232,240,0.82);
 	        font-weight: 900;
 	      }
+        .library-copy {
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 0.14rem;
+        }
+        .library-subtitle {
+          font-size: 0.76rem;
+          line-height: 1.35;
+          color: rgba(226,232,240,0.64);
+        }
 	      .library-current {
 	        margin-left: auto;
 	        font-size: 0.78rem;
@@ -1610,6 +1621,49 @@
 	        margin: 0 0 0.6rem;
 	      }
 	      .library-filter::placeholder { color: rgba(226,232,240,0.55); }
+        .library-helper-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 0.45rem;
+          margin: 0 0 0.75rem;
+        }
+        .library-helper-pill {
+          display: flex;
+          flex-direction: column;
+          gap: 0.12rem;
+          padding: 0.58rem 0.68rem;
+          border-radius: 14px;
+          border: 1px solid rgba(255,255,255,0.1);
+          background: rgba(255,255,255,0.035);
+        }
+        .library-helper-pill strong {
+          font-size: 0.68rem;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: rgba(248,250,252,0.94);
+        }
+        .library-helper-pill span {
+          font-size: 0.76rem;
+          color: rgba(226,232,240,0.66);
+          line-height: 1.32;
+        }
+        .command-cluster-head {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 0.5rem;
+          margin: 0.72rem 0 0.42rem;
+        }
+        .command-cluster-head strong {
+          font-size: 0.76rem;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          color: rgba(248,250,252,0.92);
+        }
+        .command-cluster-head span {
+          font-size: 0.74rem;
+          color: rgba(226,232,240,0.62);
+        }
 	      .resource-tabs {
 	        display: grid;
 	        grid-template-columns: 1fr;
@@ -5001,8 +5055,12 @@
         padding: 0.72rem;
         background: rgba(8, 18, 32, 0.72);
       }
+      body:not(.tactics-mode) .resource-tab-bar {
+        gap: 0.55rem;
+      }
       body:not(.tactics-mode) .library-head {
         margin-bottom: 0.48rem;
+        align-items: flex-start;
       }
       body:not(.tactics-mode) .library-toggle {
         width: 38px;
@@ -5012,7 +5070,10 @@
       body:not(.tactics-mode) .library-filter {
         padding: 0.54rem 0.68rem;
         border-radius: 12px;
-        margin-bottom: 0.48rem;
+        margin-bottom: 0;
+      }
+      body:not(.tactics-mode) .library-helper-grid {
+        grid-template-columns: 1fr;
       }
       body:not(.tactics-mode) .resource-tab {
         min-height: 44px;
@@ -5035,6 +5096,12 @@
       }
       body:not(.tactics-mode) .resource-panel {
         margin-top: 0.5rem;
+      }
+      body:not(.tactics-mode) .command-bar {
+        padding: 0.38rem;
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.03);
       }
       body:not(.tactics-mode) .pitch-side .resource-strip {
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -5199,6 +5266,9 @@
           justify-content: flex-start;
         }
         body:not(.tactics-mode) .pitch-side .resource-tabs {
+          grid-template-columns: 1fr;
+        }
+        .library-helper-grid {
           grid-template-columns: 1fr;
         }
         body:not(.tactics-mode) .board-workbench,
@@ -5955,18 +6025,35 @@
                         <button type="button" class="library-toggle" id="task-library-toggle" aria-label="Colapsar/expandir recursos" aria-pressed="false" title="Recursos">
                           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z"/></svg>
                         </button>
-                        <div class="library-title">Recursos</div>
-                        <div class="library-current" id="task-resource-summary-label">Base</div>
+                        <div class="library-copy">
+                          <div class="library-title">Biblioteca de pizarra</div>
+                          {% if not tactics_mode %}
+                          <div class="library-subtitle">Elige categoría, inserta recursos y ajusta el elemento seleccionado desde el inspector.</div>
+                          {% endif %}
+                        </div>
+                        <div class="library-current" id="task-resource-summary-label">{% if tactics_mode %}Base{% else %}Jugadores{% endif %}</div>
 	                      </div>
 	                      <input type="search" class="library-filter" id="task-library-filter" placeholder="Filtra recursos…" aria-label="Filtrar recursos" />
+                        {% if not tactics_mode %}
+                        <div class="library-helper-grid" aria-label="Guía rápida del lateral">
+                          <div class="library-helper-pill">
+                            <strong>Montaje</strong>
+                            <span>Empieza por Jugadores o Material para construir la tarea base.</span>
+                          </div>
+                          <div class="library-helper-pill">
+                            <strong>Lectura</strong>
+                            <span>Usa Trazos y Zonas para explicar recorridos, espacios y reglas.</span>
+                          </div>
+                        </div>
+                        {% endif %}
 		                      <div class="resource-tabs" aria-label="Categorías de recursos">
 		                        <button type="button" class="resource-tab" data-resource="base" title="Base">
 		                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7a3 3 0 0 1 3-3h2V3h6v1h2a3 3 0 0 1 3 3v2H4V7Zm0 4h20v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8Zm7-7h2v1h-2V4Z"/></svg></span>
-		                          <span class="lib-label">Elementos</span>
+		                          <span class="lib-label">{% if tactics_mode %}Elementos{% else %}Jugadores{% endif %}</span>
 		                        </button>
 		                        <button type="button" class="resource-tab" data-resource="pro" title="PRO">
 		                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2 15 9l7 .6-5.3 4.6 1.7 7-6.4-3.8L6.3 21l1.7-7L2.7 9.6 10 9l2-7Z"/></svg></span>
-		                          <span class="lib-label">Porterías</span>
+		                          <span class="lib-label">{% if tactics_mode %}Porterías{% else %}Material{% endif %}</span>
 		                        </button>
 		                        {% if tactics_mode %}
 		                        <button type="button" class="resource-tab" data-resource="plantilla" title="Plantilla">
@@ -5976,11 +6063,11 @@
 	                        {% endif %}
 	                        <button type="button" class="resource-tab" data-resource="importados" title="Importados">
 	                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3a1 1 0 0 1 1 1v8.59l2.3-2.3 1.4 1.42L12 16.4 7.3 11.7l1.4-1.42 2.3 2.3V4a1 1 0 0 1 1-1Zm-7 15h14v2H5v-2Z"/></svg></span>
-	                          <span class="lib-label">Assets</span>
+	                          <span class="lib-label">{% if tactics_mode %}Assets{% else %}Assets club{% endif %}</span>
 	                        </button>
                         <button type="button" class="resource-tab" data-resource="trazos" title="Trazos y flechas">
                           <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12h12.17l-3.58-3.59L14 7l7 7-7 7-1.41-1.41L16.17 14H4v-2Z"/></svg></span>
-                          <span class="lib-label">Flechas</span>
+                          <span class="lib-label">{% if tactics_mode %}Flechas{% else %}Trazos{% endif %}</span>
                         </button>
                         <button type="button" class="resource-tab" data-resource="figuras" title="Figuras geométricas">
                           <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 7h6v6H7V7Zm10 1a4 4 0 1 1-4 4 4 4 0 0 1 4-4ZM5 19h14v2H5v-2Z"/></svg></span>
@@ -5988,10 +6075,16 @@
                         </button>
 	                        <button type="button" class="resource-tab" data-resource="emoji" title="Recursos emoji">
 	                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm-3 9a1.5 1.5 0 1 1 1.5-1.5A1.5 1.5 0 0 1 9 11Zm6 0a1.5 1.5 0 1 1 1.5-1.5A1.5 1.5 0 0 1 15 11Zm-3 8a5.5 5.5 0 0 1-4.7-2.7l1.7-1a3.5 3.5 0 0 0 6 0l1.7 1A5.5 5.5 0 0 1 12 19Z"/></svg></span>
-	                          <span class="lib-label">Emoji</span>
+	                          <span class="lib-label">{% if tactics_mode %}Emoji{% else %}Apoyos{% endif %}</span>
 	                        </button>
 	                      </div>
 	                    </div>
+                      {% if not tactics_mode %}
+                      <div class="command-cluster-head">
+                        <strong>Acciones rápidas</strong>
+                        <span>Deshacer, rehacer, dibujar o duplicar sin salir del campo.</span>
+                      </div>
+                      {% endif %}
 				                  <div class="command-bar" id="task-command-bar" aria-label="Comandos rápidos">
 		                    <button type="button" class="icon-btn" data-action="undo" title="Deshacer" aria-label="Deshacer">
 		                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7V4L2 9l5 5v-3h7a4 4 0 1 1 0 8H9v2h5a6 6 0 1 0 0-12H7Z"/></svg>
