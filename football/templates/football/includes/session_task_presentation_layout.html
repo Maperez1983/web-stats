@@ -7,6 +7,434 @@
   has_2d=task_obj.task_preview_image|default:task.task_preview_image
   has_pdf=task_obj.task_pdf|default:task.task_pdf
 %}
+{% if presentation_format|lower == 'club' %}
+      <style>
+        .club-task-sheet {
+          display: grid;
+          gap: 0.85rem;
+          background: linear-gradient(180deg, #f8fafc, #f1f5f9);
+          color: #0b1220;
+          border: 1px solid #d5dde7;
+          border-radius: 14px;
+          padding: 0.9rem;
+          box-shadow: 0 10px 26px rgba(15, 23, 42, 0.07);
+        }
+        .club-sheet-hero {
+          padding: 0.7rem 0.85rem 0.55rem;
+          border-radius: 12px;
+          background: linear-gradient(135deg, {{ pc.pdf_palette.primary|default:'#086b34' }}, {{ pc.pdf_palette.accent|default:'#0f172a' }});
+          color: #fff;
+        }
+        .club-sheet-kicker {
+          font-size: 0.58rem;
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
+          opacity: .9;
+        }
+        .club-sheet-title {
+          font-size: clamp(1.35rem, 2.1vw, 1.9rem);
+          margin: 0.22rem 0 0.35rem;
+          letter-spacing: -0.02em;
+          font-weight: 900;
+          line-height: 1.05;
+          max-width: 70ch;
+          color: #fff;
+        }
+        .club-sheet-meta {
+          opacity: 0.9;
+          font-size: 0.84rem;
+          line-height: 1.35;
+          max-width: 70ch;
+        }
+        .club-sheet-badge {
+          border: 1px solid rgba(255, 255, 255, 0.4);
+          border-radius: 12px;
+          padding: 0.45rem 0.55rem;
+          background: rgba(255,255,255,0.12);
+          text-align: right;
+          font-size: 0.85rem;
+          width: fit-content;
+          margin-left: auto;
+        }
+        .club-sheet-grid {
+          width: 100%;
+          border-collapse: separate;
+          border-spacing: 0 0;
+          table-layout: fixed;
+        }
+        .club-sheet-grid > tbody > tr,
+        .club-sheet-grid > tr {
+          vertical-align: top;
+        }
+        .club-sheet-grid > tbody > tr > td,
+        .club-sheet-grid > tr > td {
+          padding: 0;
+          vertical-align: top;
+        }
+        .club-sheet-graphic,
+        .club-sheet-side {
+          padding: 0;
+        }
+        .club-sheet-graphic {
+          width: 66.2%;
+          padding-right: 0.6rem;
+        }
+        .club-sheet-side {
+          width: 33.8%;
+          padding-left: 0.6rem;
+        }
+        .club-panel {
+          border: 1px solid #d5dde7;
+          border-radius: 14px;
+          overflow: hidden;
+          background: #fff;
+          box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+          margin-bottom: 0.55rem;
+        }
+        .club-panel + .club-panel {
+          margin-top: 0.55rem;
+        }
+        .club-panel-head {
+          padding: 0.54rem 0.7rem;
+          background: linear-gradient(90deg, {{ pc.pdf_palette.primary|default:'#0f766e' }}, {{ pc.pdf_palette.accent|default:'#0f172a' }});
+          color: #fff;
+          font-weight: 900;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+        .club-panel-body {
+          padding: 0.65rem 0.75rem;
+        }
+        .club-panel-soft {
+          background: #eef2f7;
+          color: #1f2937;
+        }
+        .club-copy-grid {
+          display: grid;
+          gap: 0.5rem;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .club-copy-card {
+          border: 1px solid #d5dde7;
+          border-radius: 14px;
+          overflow: hidden;
+          background: #fff;
+        }
+        .club-copy-head {
+          padding: 0.52rem 0.68rem;
+          background: {{ pc.pdf_palette.accent|default:'#0f172a' }};
+          color: #fff;
+          font-size: 0.74rem;
+          letter-spacing: 0.07em;
+          text-transform: uppercase;
+          font-weight: 900;
+        }
+        .club-copy-body {
+          padding: 0.75rem;
+          color: #1f2937;
+          line-height: 1.45;
+          font-size: 0.86rem;
+        }
+        .club-label {
+          display: block;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          font-size: 0.67rem;
+          color: #334155;
+          font-weight: 800;
+          margin-bottom: 0.08rem;
+        }
+        .club-fact {
+          margin-bottom: 0.45rem;
+        }
+        .club-fact:last-child {
+          margin-bottom: 0;
+        }
+        .club-hero-logo {
+          max-width: 48px;
+          max-height: 48px;
+          width: 48px;
+          height: 48px;
+          object-fit: contain;
+          border-radius: 999px;
+          border: 1px solid rgba(255,255,255,0.45);
+          background: rgba(255,255,255,0.95);
+          padding: 3px;
+        }
+        .club-task-sheet .drills-row {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.32rem;
+        }
+      </style>
+      <p class="meta">Esta es la ficha HTML principal que luego se imprime o comparte. Aquí se replica el formato visual del PDF Club.</p>
+      <div class="presentation-workbench presentation-task-sheet presentation-format-club club-task-sheet">
+        <div class="club-sheet-hero">
+          <table class="club-sheet-grid">
+            <tr>
+              <td style="width:70px; padding:0; vertical-align:top;">
+                {% if pc.logo_url %}
+                <img src="{{ pc.logo_url }}" alt="Escudo {{ pc.team_name|default:'Club' }}" class="club-hero-logo" />
+                {% endif %}
+              </td>
+              <td style="vertical-align:top; padding:0 0.65rem 0 0;">
+                <div class="club-sheet-kicker">Planificación de tarea</div>
+                <div class="club-sheet-title">{{ task_obj.title|default:task.title|default:"Tarea táctica" }}</div>
+                <div class="club-sheet-meta">
+                  {{ pc.team_name|default:"Equipo" }} · {{ pc.coach_name|default:user.get_full_name|default:user.username|default:"Entrenador" }}
+                  · {{ pc.session.session_date|date:"d/m/Y"|default:"-" }}
+                  {% if pc.session.start_time %} · {{ pc.session.start_time|time:"H:i" }}{% endif %}
+                </div>
+              </td>
+              <td style="width:130px; padding:0; vertical-align:top; text-align:right;">
+                <div class="club-sheet-badge">Formato Club</div>
+              </td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="display:grid; gap:0.55rem;">
+          <table style="width:100%; border-collapse:collapse; border-spacing:7px 0;">
+            <tr>
+              <td style="width:25%; background:#fff; border:1px solid #d5dde7; border-radius:12px; padding:0.65rem;">
+                <span class="club-label">Duración</span>
+                <strong>{{ task_obj.duration_minutes|default:task.duration_minutes|default:"-" }} min</strong>
+              </td>
+              <td style="width:25%; background:#fff; border:1px solid #d5dde7; border-radius:12px; padding:0.65rem;">
+                <span class="club-label">Bloque</span>
+                <strong>{{ task_obj.get_block_display|default:"-" }}</strong>
+              </td>
+              <td style="width:25%; background:#fff; border:1px solid #d5dde7; border-radius:12px; padding:0.65rem;">
+                <span class="club-label">Tipo</span>
+                <strong>{{ pc.strategy_label|default:"-" }}</strong>
+              </td>
+              <td style="width:25%; background:#fff; border:1px solid #d5dde7; border-radius:12px; padding:0.65rem;">
+                <span class="club-label">Microciclo</span>
+                <strong>{{ pc.microcycle.title|default:"-" }}</strong>
+              </td>
+            </tr>
+          </table>
+        </div>
+
+        <table class="club-sheet-grid" role="presentation">
+          <tr>
+            <td class="club-sheet-graphic">
+              <div class="club-panel">
+                <div class="club-panel-head">Diseño gráfico</div>
+                <div class="club-panel-body" style="padding:0.7rem; background:#fff;">
+                  {% if pc.task_preview_url %}
+                  <div style="border:1px solid #e2e8f0; border-radius:12px; overflow:hidden;">
+                    <img class="preview" id="task-preview-image" src="{{ pc.task_preview_url }}" alt="Vista 2D de {{ task_obj.title|default:task.title }}" style="width:100%; display:block;" />
+                  </div>
+                  {% elif has_2d %}
+                  <div style="border:1px solid #e2e8f0; border-radius:12px; overflow:hidden;">
+                    <img class="preview" id="task-preview-image" src="{% url 'session-task-preview-file' task_obj.id %}?hd=1&v={{ task_obj.task_preview_image.name|urlencode }}" alt="Vista 2D de {{ task_obj.title|default:task.title }}" style="width:100%; display:block;" />
+                  </div>
+                  {% else %}
+                  <div class="task-detail-empty">No hay vista 2D guardada todavía.</div>
+                  {% endif %}
+
+                  <div class="task-detail-quick-actions" style="margin-top:0.55rem;">
+                    {% if task_obj.task_preview_image or pc.task_preview_url %}
+                    <button type="button" class="button" id="task-detail-3d-open">Ir a vista 3D</button>
+                    {% elif can_edit_task %}
+                    <button type="button" class="button secondary" id="task-detail-enter-edit-empty">Completar pizarra 2D</button>
+                    {% endif %}
+                    {% if has_frames %}
+                    <button type="button" class="button secondary" id="task-detail-open-sequence">Ver secuencia</button>
+                    {% endif %}
+                  </div>
+
+                  {% if pc.task_drills %}
+                  <div style="margin-top:0.6rem;">
+                    <div style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; color:{{ pc.pdf_palette.accent|default:'#0f766e' }}; margin-bottom:0.34rem;">Secuencia</div>
+                    <div class="drills-row">
+                      {% for drill in pc.task_drills %}
+                      <span style="display:inline-flex; align-items:center; gap:0.38rem; border-radius:999px; border:1px solid #cbd5e1; background:#fff; padding:0.28rem 0.5rem; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em; color:#0f172a;">
+                        {% if drill.icon_url %}<img src="{{ drill.icon_url }}" alt="" style="width:16px; height:16px; object-fit:contain; background:#fff; border-radius:5px;" />{% endif %}
+                        {{ drill.label }}
+                      </span>
+                      {% endfor %}
+                    </div>
+                  </div>
+                  {% endif %}
+                </div>
+              </div>
+            </td>
+            <td class="club-sheet-side">
+              <div class="club-panel">
+                <div class="club-panel-head club-panel-soft">Objetivo principal</div>
+                <div class="club-panel-body">{{ task_obj.objective|default:task.objective|default:"-"|linebreaksbr }}</div>
+              </div>
+              <div class="club-panel">
+                <div class="club-panel-head club-panel-soft">Ficha técnica</div>
+                <div class="club-panel-body">
+                  <div class="club-fact"><span class="club-label">Situación</span>{{ pc.structure_label|default:pc.game_situation_label|default:"-" }}</div>
+                  <div class="club-fact"><span class="club-label">Espacio</span>{{ pc.space_label|default:"-" }}</div>
+                  <div class="club-fact"><span class="club-label">Coordinación</span>{{ pc.coordination_label|default:"-" }}</div>
+                  <div class="club-fact"><span class="club-label">Intención</span>{{ pc.tactical_intent_label|default:"-" }}</div>
+                  <div class="club-fact"><span class="club-label">Material</span>{{ pc.materials_label|default:"-" }}</div>
+                  <div class="club-fact"><span class="club-label">Series / rep.</span>{% if task_meta.series or task_meta.repetitions %}{{ task_meta.series|default:"-" }} · {{ task_meta.repetitions|default:"-" }}{% else %}-{% endif %}</div>
+                  <div class="club-fact"><span class="club-label">Trabajo / descanso</span>{% if task_meta.work_rest %}{{ task_meta.work_rest }}{% else %}-{% endif %}</div>
+                  {% if pc.materials_items %}
+                  <div class="club-fact">
+                    <span class="club-label">Materiales</span>
+                    {% for material in pc.materials_items %}
+                    <span class="chip">{{ material.emoji }} {{ material.label|default:"-" }}</span>
+                    {% endfor %}
+                  </div>
+                  {% endif %}
+                  {% if pc.coordination_skills_label %}
+                  <div class="club-fact"><span class="club-label">Carga</span>{{ pc.coordination_skills_label }}</div>
+                  {% endif %}
+                </div>
+              </div>
+            </td>
+          </tr>
+        </table>
+
+        <div class="club-copy-grid">
+          <article class="club-copy-card">
+            <div class="club-copy-head">Contenido</div>
+            <div class="club-copy-body">
+              {% if pc.description_rich_html %}
+              <div class="task-copy">{{ pc.description_rich_html|safe }}</div>
+              {% elif pc.description_lines %}
+              <div class="task-copy">{% for line in pc.description_lines %}{{ line }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</div>
+              {% elif task.description %}
+              <div class="task-copy">{{ task.description|linebreaksbr }}</div>
+              {% else %}
+              <div class="task-copy">Sin descripción detallada.</div>
+              {% endif %}
+
+              {% if pc.coaching_rich_html %}
+              <div class="task-copy" style="margin-top:0.6rem;"><span class="club-label">Consignas</span>{{ pc.coaching_rich_html|safe }}</div>
+              {% elif task.coaching_points %}
+              <div class="task-copy" style="margin-top:0.6rem;"><span class="club-label">Consignas</span>{{ task.coaching_points|linebreaksbr }}</div>
+              {% endif %}
+            </div>
+          </article>
+          <article class="club-copy-card">
+            <div class="club-copy-head">Normas de confrontación</div>
+            <div class="club-copy-body">
+              {% if pc.rules_rich_html %}
+              <div class="task-copy">{{ pc.rules_rich_html|safe }}</div>
+              {% elif task.confrontation_rules %}
+              <div class="task-copy">{{ task.confrontation_rules|linebreaksbr }}</div>
+              {% else %}
+              <div class="task-copy">Sin reglas específicas.</div>
+              {% endif %}
+              {% if task_meta.success_criteria %}
+              <div style="margin-top:0.55rem;"><span class="club-label">Criterio de éxito</span>
+                {% if pc.success_criteria_rich_html %}<div class="task-copy">{{ pc.success_criteria_rich_html|safe }}</div>{% else %}<div class="task-copy">{{ task_meta.success_criteria }}</div>{% endif %}
+              </div>
+              {% endif %}
+              {% if task_meta.progression %}
+              <div style="margin-top:0.55rem;"><span class="club-label">Progresión</span>
+                {% if pc.progression_rich_html %}<div class="task-copy">{{ pc.progression_rich_html|safe }}</div>{% else %}<div class="task-copy">{{ task_meta.progression }}</div>{% endif %}
+              </div>
+              {% endif %}
+            </div>
+          </article>
+        </div>
+
+        <section class="presentation-slot">
+          <h3>Representación 3D y secuenciación</h3>
+          <div class="sim-3d-inline" id="task-detail-3d-inline">
+            <div class="sim-3d-card" aria-label="Representación 3D de la tarea">
+              <div class="sim-3d-head">
+                <div style="display:flex; flex-direction:column; gap:0.15rem;">
+                  <strong>Representación 3D</strong>
+                  <span class="meta">Pizarra convertida a vista espacial para revisar ocupación, distancia y líneas.</span>
+                </div>
+                <button type="button" class="button" id="task-detail-3d-fullscreen">Pantalla completa</button>
+              </div>
+              <div class="sim-3d-body">
+                <canvas class="sim-3d-canvas" id="task-detail-3d-canvas"></canvas>
+                <div class="sim-3d-fallback" id="task-detail-3d-fallback" hidden>
+                  <div class="sim-3d-fallback-copy">
+                    <strong>Vista alternativa de la tarea</strong>
+                    <p>El visor 3D no ha podido iniciarse en este navegador o dispositivo. Se muestra la referencia base para no perder contexto.</p>
+                  </div>
+                  <div class="sim-3d-fallback-stage">
+                    <img id="task-detail-3d-fallback-preview" alt="Vista táctica alternativa de la tarea" hidden />
+                  </div>
+                  <div class="sim-3d-fallback-status" id="task-detail-3d-fallback-status">Preparando vista alternativa…</div>
+                  <div class="sim-3d-fallback-reason" id="task-detail-3d-fallback-reason"></div>
+                </div>
+                <div class="sim-3d-hud">
+                  <div class="sim-3d-chip">
+                    <strong id="task-detail-3d-step-title">Pizarra</strong>
+                    <span id="task-detail-3d-step-meta">Paso 1/1</span>
+                  </div>
+                  <div class="sim-3d-chip">
+                    <span>Progreso</span>
+                    <b id="task-detail-3d-progress-label">0%</b>
+                  </div>
+                </div>
+              </div>
+              <div class="sim-3d-foot">
+                <div class="sim-3d-controls">
+                  <button type="button" class="button" id="task-detail-3d-prev">Anterior</button>
+                  <button type="button" class="button primary" id="task-detail-3d-play">Reproducir</button>
+                  <button type="button" class="button" id="task-detail-3d-next">Siguiente</button>
+                  <button type="button" class="button" id="task-detail-3d-record">Grabar WebM</button>
+                  <button type="button" class="button" id="task-detail-3d-snap">Descargar PNG</button>
+                  <select id="task-detail-3d-camera" aria-label="Cámara 3D">
+                    <option value="broadcast">Broadcast</option>
+                    <option value="tactic">Táctica</option>
+                    <option value="corner">Esquina</option>
+                    <option value="goal">Portería</option>
+                    <option value="drone">Drone</option>
+                    <option value="tunnel">Túnel</option>
+                    <option value="analyst">Analista</option>
+                    <option value="coach">Entrenador</option>
+                    <option value="rosaleda">Estadio</option>
+                  </select>
+                  <div class="sim-3d-progress" aria-hidden="true"><span id="task-detail-3d-progress-bar"></span></div>
+                </div>
+                <div class="sim-3d-tip">Arrastra para girar. Usa anterior/siguiente o reproducir para seguir secuencia.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {% if tactic_frames %}
+        <section class="presentation-slot">
+          <h3>Secuencia de pizarra (storyboard)</h3>
+          <div class="grid">
+            {% for frame in tactic_frames %}
+            <article class="sheet-item">
+              <strong>{% if frame.title %}{{ frame.title }}{% else %}Paso {{ forloop.counter }}{% endif %}</strong>
+              <span class="meta">{{ frame.duration|default:4 }}s</span>
+              {% if frame.preview_url %}
+              <img src="{{ frame.preview_url }}" alt="Escena {{ forloop.counter }} {{ frame.title|default:'' }}" style="width:100%; border-radius:9px; border:1px solid rgba(2,6,23,0.13); margin-top:0.45rem;" />
+              {% elif frame.tokens %}
+              <div class="preview-stadium" style="margin-top:0.45rem; min-height:110px;">
+                <div class="field" style="height:100%; min-height:120px;">
+                  <span class="mid-line"></span>
+                  <span class="mid-circle"></span>
+                  {% for token in frame.tokens %}
+                  <span class="mini-token {% if token.type == 'material' %}material{% else %}player{% endif %}" style="left:{{ token.x }}%; top:{{ token.y }}%;" title="{{ token.title|default:token.label|default:'' }}">
+                    {% if token.type == 'material' %}
+                    {% if token.asset_url %}<img src="{{ token.asset_url }}" alt="{{ token.title|default:token.label }}" />{% else %}{{ token.icon|default:token.label }}{% endif %}
+                    {% else %}
+                    {{ token.label|default:token.title|default:'?' }}
+                    {% endif %}
+                  </span>
+                  {% endfor %}
+                </div>
+              </div>
+              {% else %}
+              <p class="task-copy" style="margin-top:0.45rem;">Sin snapshot de pizarra para este paso.</p>
+              {% endif %}
+            </article>
+            {% endfor %}
+          </div>
+        </section>
+        {% endif %}
+      </div>
+{% else %}
       <p class="meta">Esta es la ficha HTML principal que luego se imprime o comparte. Reúne el formato UEFA/Club con diseño técnico, representación 2D, 3D y secuencia táctica.</p>
       <div class="presentation-workbench presentation-task-sheet presentation-format-{{ presentation_format|lower }}">
         <div class="presentation-format-kicker">Formato {{ presentation_format }}</div>
@@ -320,6 +748,7 @@
         </section>
         {% endif %}
       </div>
+{% endif %}
 {% endwith %}
 {% endwith %}
 {% endwith %}
