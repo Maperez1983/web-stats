@@ -4933,6 +4933,64 @@
         gap: 0.75rem;
         flex-wrap: wrap;
       }
+      body:not(.tactics-mode) .board-guide {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.5rem;
+      }
+      body:not(.tactics-mode) .board-guide-step {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        padding: 0.68rem 0.74rem;
+        border-radius: 16px;
+        border: 1px solid rgba(255,255,255,0.1);
+        background: rgba(255,255,255,0.035);
+      }
+      body:not(.tactics-mode) .board-guide-step strong {
+        width: 28px;
+        height: 28px;
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        background: rgba(244,180,0,0.18);
+        color: rgba(254, 240, 138, 0.96);
+        font-size: 0.76rem;
+        font-weight: 900;
+      }
+      body:not(.tactics-mode) .board-guide-step span {
+        display: block;
+        color: rgba(226,232,240,0.84);
+        font-size: 0.8rem;
+        line-height: 1.35;
+      }
+      body:not(.tactics-mode) .board-preset-strip {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 0.5rem;
+      }
+      body:not(.tactics-mode) .board-preset-card {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.16rem;
+        padding: 0.72rem 0.8rem;
+        border-radius: 16px;
+        border: 1px solid rgba(255,255,255,0.1);
+        background: rgba(15, 23, 42, 0.56);
+        text-align: left;
+      }
+      body:not(.tactics-mode) .board-preset-card strong {
+        color: rgba(248,250,252,0.95);
+        font-size: 0.82rem;
+      }
+      body:not(.tactics-mode) .board-preset-card span {
+        color: rgba(226,232,240,0.66);
+        font-size: 0.74rem;
+        line-height: 1.3;
+      }
       body:not(.tactics-mode) .board-workbench-copy {
         min-width: 0;
         display: flex;
@@ -5091,6 +5149,15 @@
         font-size: 0.8rem;
         line-height: 1.42;
       }
+      body:not(.tactics-mode) .editor-starter-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.45rem;
+      }
+      body:not(.tactics-mode) .editor-starter-actions button {
+        min-height: 46px;
+        border-radius: 14px;
+      }
       body:not(.tactics-mode) .editor-side-section-head {
         display: flex;
         justify-content: space-between;
@@ -5121,8 +5188,29 @@
       body:not(.tactics-mode) #task-side-selection-slot {
         min-height: 120px;
       }
-      body:not(.tactics-mode) #task-side-selection-slot .selection-toolbar[hidden] + .editor-pane-card {
-        display: block;
+      body:not(.tactics-mode) .selection-empty-state {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        padding: 0.85rem;
+        border-radius: 14px;
+        border: 1px dashed rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.02);
+      }
+      body:not(.tactics-mode) .selection-empty-state strong {
+        color: rgba(248,250,252,0.94);
+        font-size: 0.82rem;
+      }
+      body:not(.tactics-mode) .selection-empty-state span {
+        color: rgba(226,232,240,0.66);
+        font-size: 0.78rem;
+        line-height: 1.42;
+      }
+      body:not(.tactics-mode) #task-side-selection-slot.has-selection .selection-empty-state {
+        display: none;
+      }
+      body:not(.tactics-mode) #task-side-command-slot .command-bar > :nth-child(n+6):not(#task-command-more):not(.command-menu):not(.layers-popover):not(.scenarios-popover):not(.sim-popover) {
+        display: none;
       }
       body:not(.tactics-mode) .pitch-stage {
         max-width: min(var(--stage-max-user, 1680px), var(--stage-max-fit, 9999px));
@@ -5334,6 +5422,12 @@
         body:not(.tactics-mode) .board-quickbar-grid {
           grid-template-columns: repeat(3, minmax(0, 1fr));
         }
+        body:not(.tactics-mode) .board-guide {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        body:not(.tactics-mode) .board-preset-strip {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
         body:not(.tactics-mode) .pitch-side {
           position: relative;
           top: auto;
@@ -5363,6 +5457,11 @@
         }
         body:not(.tactics-mode) .board-quickbar-grid {
           grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        body:not(.tactics-mode) .board-guide,
+        body:not(.tactics-mode) .board-preset-strip,
+        body:not(.tactics-mode) .editor-starter-actions {
+          grid-template-columns: 1fr;
         }
         body:not(.tactics-mode) .board-chip {
           min-height: 52px;
@@ -6120,6 +6219,18 @@
                       </div>
                       <div class="editor-pane-card">
                         <div class="editor-side-section-head">
+                          <strong>Primeros pasos</strong>
+                          <span>Crear más rápido</span>
+                        </div>
+                        <div class="editor-starter-actions">
+                          <button type="button" class="button secondary" data-guide-action="surface">Elegir superficie</button>
+                          <button type="button" class="button secondary" data-guide-action="resources">Abrir recursos</button>
+                          <button type="button" class="button secondary" data-guide-action="players">Ir a plantilla</button>
+                          <button type="button" class="button secondary" data-guide-action="draw">Dibujar recorrido</button>
+                        </div>
+                      </div>
+                      <div class="editor-pane-card">
+                        <div class="editor-side-section-head">
                           <strong>Acciones</strong>
                           <span>Edición rápida</span>
                         </div>
@@ -6130,7 +6241,12 @@
                           <strong>Inspector</strong>
                           <span>Elemento seleccionado</span>
                         </div>
-                        <div id="task-side-selection-slot"></div>
+                        <div id="task-side-selection-slot">
+                          <div class="selection-empty-state" id="task-selection-empty">
+                            <strong>Ningún elemento seleccionado</strong>
+                            <span>Pulsa una chapa, flecha, cono o zona del campo y aquí aparecerán solo los ajustes relevantes. Mientras tanto, no mostramos opciones avanzadas.</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                     <div class="editor-side-pane" id="task-side-pane-resources" hidden>
@@ -7515,6 +7631,25 @@
                             <span>Trabaja primero sobre el campo: coloca jugadores, material, recorridos y zonas antes de completar la descripción.</span>
                           </div>
                           <span class="board-workbench-badge">Editor 2D</span>
+                        </div>
+                        <div class="board-guide" aria-label="Flujo guiado de creación">
+                          <div class="board-guide-step"><strong>1</strong><span>Elige la superficie que mejor encaja con tu tarea.</span></div>
+                          <div class="board-guide-step"><strong>2</strong><span>Usa un preset rápido o inserta material base.</span></div>
+                          <div class="board-guide-step"><strong>3</strong><span>Arrastra o coloca jugadores desde la plantilla inferior.</span></div>
+                          <div class="board-guide-step"><strong>4</strong><span>Ajusta detalles solo al final desde el inspector lateral.</span></div>
+                        </div>
+                        <div class="board-quickbar" aria-label="Arranques rápidos">
+                          <div class="board-quickbar-head">
+                            <strong>Arranques rápidos</strong>
+                            <span>Te preparan la superficie base más habitual para cada tipo de tarea.</span>
+                          </div>
+                          <div class="board-preset-strip">
+                            <button type="button" class="board-preset-card" data-guided-preset="seven_side_single" data-guided-resource="base"><strong>Rondo</strong><span>Espacio corto y mucho contacto.</span></button>
+                            <button type="button" class="board-preset-card" data-guided-preset="half_pitch" data-guided-resource="base"><strong>Posesión</strong><span>Campo medio para conservar y progresar.</span></button>
+                            <button type="button" class="board-preset-card" data-guided-preset="attacking_third" data-guided-resource="pro"><strong>Finalización</strong><span>Último tercio listo para remate.</span></button>
+                            <button type="button" class="board-preset-card" data-guided-preset="half_pitch" data-guided-resource="pro"><strong>Circuito</strong><span>Montaje rápido de material y recorridos.</span></button>
+                            <button type="button" class="board-preset-card" data-guided-preset="full_pitch" data-guided-resource="base"><strong>Partido</strong><span>Campo completo para estructura global.</span></button>
+                          </div>
                         </div>
                         <div class="board-quickbar" aria-label="Bandeja rápida de recursos">
                           <div class="board-quickbar-head">
@@ -14058,6 +14193,14 @@
           const selectionToolbar = document.getElementById('task-selection-toolbar');
           const commandSlot = document.getElementById('task-side-command-slot');
           const selectionSlot = document.getElementById('task-side-selection-slot');
+          const selectionEmpty = document.getElementById('task-selection-empty');
+          const guideButtons = Array.from(document.querySelectorAll('[data-guide-action]'));
+          const presetButtons = Array.from(document.querySelectorAll('[data-guided-preset]'));
+          const resourceTabs = Array.from(document.querySelectorAll('.resource-tab'));
+          const presetSelect = document.getElementById('draw-task-preset');
+          const surfaceTrigger = document.getElementById('surface-trigger');
+          const playerBank = document.getElementById('task-player-bank');
+          const quickDrawBtn = document.querySelector('#task-command-bar [data-action="draw_free"]');
           if (!sideTabs.length || !editPane || !resourcesPane) return;
 
           if (commandBar && commandSlot && commandBar.parentElement !== commandSlot) {
@@ -14067,11 +14210,25 @@
             try { selectionSlot.appendChild(selectionToolbar); } catch (e) { /* ignore */ }
           }
 
+          const syncSelectionState = () => {
+            if (!selectionSlot || !selectionToolbar) return;
+            const hasSelection = selectionToolbar.hidden === false;
+            selectionSlot.classList.toggle('has-selection', hasSelection);
+            if (selectionEmpty) selectionEmpty.hidden = hasSelection;
+          };
+
           const activate = (pane) => {
             const next = String(pane || 'edit').trim().toLowerCase() === 'resources' ? 'resources' : 'edit';
             sideTabs.forEach((tab) => tab.classList.toggle('is-active', String(tab.dataset.sidePane || '') === next));
             editPane.hidden = next !== 'edit';
             resourcesPane.hidden = next !== 'resources';
+          };
+
+          const activateResourceTab = (key) => {
+            const match = resourceTabs.find((tab) => String(tab.dataset.resource || '').trim() === String(key || '').trim());
+            if (match) {
+              try { match.click(); } catch (e) { /* ignore */ }
+            }
           };
 
           sideTabs.forEach((tab) => {
@@ -14080,6 +14237,52 @@
               activate(tab.dataset.sidePane || 'edit');
             });
           });
+
+          guideButtons.forEach((button) => {
+            button.addEventListener('click', (event) => {
+              try { event.preventDefault(); } catch (e) { /* ignore */ }
+              const action = String(button.dataset.guideAction || '').trim();
+              if (action === 'surface') {
+                try { surfaceTrigger?.click(); } catch (e) { /* ignore */ }
+                return;
+              }
+              if (action === 'resources') {
+                activate('resources');
+                activateResourceTab('base');
+                return;
+              }
+              if (action === 'players') {
+                try { playerBank?.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) { /* ignore */ }
+                return;
+              }
+              if (action === 'draw') {
+                activate('edit');
+                try { quickDrawBtn?.click(); } catch (e) { /* ignore */ }
+              }
+            });
+          });
+
+          presetButtons.forEach((button) => {
+            button.addEventListener('click', (event) => {
+              try { event.preventDefault(); } catch (e) { /* ignore */ }
+              const preset = String(button.dataset.guidedPreset || '').trim();
+              const resource = String(button.dataset.guidedResource || '').trim();
+              if (presetSelect && preset) {
+                try {
+                  presetSelect.value = preset;
+                  presetSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                } catch (e) { /* ignore */ }
+              }
+              activate('resources');
+              if (resource) activateResourceTab(resource);
+            });
+          });
+
+          syncSelectionState();
+          try {
+            const observer = new MutationObserver(syncSelectionState);
+            observer.observe(selectionToolbar, { attributes: true, attributeFilter: ['hidden'] });
+          } catch (e) { /* ignore */ }
 
           activate('edit');
         };
