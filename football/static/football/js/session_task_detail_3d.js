@@ -219,9 +219,15 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
   };
   const syncFallbackPreview = () => {
     if (!fallbackPreviewEl) return false;
-    const sourceCanvas = document.getElementById('task-graphic-canvas');
-    if (!sourceCanvas || !sourceCanvas.width || !sourceCanvas.height) return false;
     try {
+      const previewImg = document.getElementById('task-preview-image');
+      if (previewImg && previewImg.getAttribute('src')) {
+        fallbackPreviewEl.src = previewImg.getAttribute('src');
+        fallbackPreviewEl.hidden = false;
+        return true;
+      }
+      const sourceCanvas = document.getElementById('task-graphic-canvas');
+      if (!sourceCanvas || !sourceCanvas.width || !sourceCanvas.height) return false;
       fallbackPreviewEl.src = sourceCanvas.toDataURL('image/png');
       fallbackPreviewEl.hidden = false;
       return true;

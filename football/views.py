@@ -43255,14 +43255,7 @@ def session_task_detail_page(request, task_id):
         encoded_base = params.urlencode()
         presentation_url = base_detail_url if not encoded_base else f'{base_detail_url}?{encoded_base}'
         if is_editable_task and not is_performed_task:
-            edit_params = request.GET.copy()
-            edit_params.pop('legacy', None)
-            edit_params['mode'] = 'edit'
-            encoded = edit_params.urlencode()
-            edit_graphic_url = base_detail_url
-            if encoded:
-                edit_graphic_url = f'{edit_graphic_url}?{encoded}'
-            edit_graphic_url = f'{edit_graphic_url}#graphic-editor'
+            edit_graphic_url = reverse(task_builder_edit_route_name, args=[int(task.id)])
     except Exception:
         edit_graphic_url = ''
         presentation_url = ''

@@ -1497,7 +1497,7 @@
           </details>
           <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
             <button class="button" type="submit">Guardar cambios</button>
-            <a class="button secondary" href="{{ edit_graphic_url|default:presentation_url }}">Abrir edición de pizarra</a>
+            <a class="button secondary" href="{{ edit_graphic_url|default:presentation_url }}">Abrir editor de pizarra</a>
           </div>
         </form>
         <form method="post" style="margin-top:0.7rem; display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
@@ -1506,54 +1506,9 @@
           <button class="button secondary" type="submit">Regenerar análisis con Ollana</button>
         </form>
       </section>
-      <section class="panel task-inline-editor" id="task-inline-editor">
+      <section class="panel task-inline-editor" id="task-inline-editor" hidden aria-hidden="true">
         <div id="graphic-editor"></div>
-        <h2>Pizarra editable</h2>
-        <p class="meta">Crea la tarea sobre el césped añadiendo elementos, moviéndolos por capas y guardando la pizarra en esta misma ficha.</p>
-        <div class="graphic-toolbar">
-          <button type="button" class="button secondary" id="graphic-select-btn">Seleccionar</button>
-          <button type="button" class="button secondary" id="graphic-draw-btn">Dibujar</button>
-          <button type="button" class="button secondary" id="graphic-snap-btn">Snap ON</button>
-          <button type="button" class="button secondary" id="graphic-undo-btn">Deshacer</button>
-          <button type="button" class="button secondary" id="graphic-clear-btn">Limpiar</button>
-          <button type="button" class="button secondary" id="graphic-delete-btn">Borrar</button>
-          <button type="button" class="button secondary" id="graphic-lock-btn">Bloquear</button>
-          <button type="button" class="button secondary" id="graphic-unlock-btn">Desbloquear</button>
-          <button type="button" class="button primary" id="graphic-save-btn">Guardar pizarra</button>
-        </div>
-        <div class="graphic-layout">
-          <div>
-            <div class="graphic-canvas-wrap">
-              <canvas id="task-graphic-canvas"></canvas>
-            </div>
-            <p class="graphic-status" id="graphic-status">Abre Edición para crear o ajustar la pizarra sobre el césped.</p>
-          </div>
-          <aside class="layers-panel">
-            <h3>Capas</h3>
-            <div class="layers-list" id="graphic-layers-list"></div>
-          </aside>
-        </div>
-        <div class="resource-library">
-          <div class="resource-title">Añadir elementos</div>
-          <div class="resource-grid" id="graphic-resource-grid">
-            <button type="button" class="resource-btn" data-resource="player_red"><span class="ico">●</span><span>Jugador rojo</span></button>
-            <button type="button" class="resource-btn" data-resource="player_blue"><span class="ico">●</span><span>Jugador azul</span></button>
-            <button type="button" class="resource-btn" data-resource="ball"><span class="ico">◉</span><span>Balón</span></button>
-            <button type="button" class="resource-btn" data-resource="cone"><span class="ico">▲</span><span>Cono</span></button>
-            <button type="button" class="resource-btn" data-resource="marker"><span class="ico">●</span><span>Chapa</span></button>
-            <button type="button" class="resource-btn" data-resource="pica"><span class="ico">│</span><span>Pica</span></button>
-            <button type="button" class="resource-btn" data-resource="hurdle"><span class="ico">▭</span><span>Valla</span></button>
-            <button type="button" class="resource-btn" data-resource="mini_goal"><span class="ico">▭</span><span>Mini portería</span></button>
-            <button type="button" class="resource-btn" data-resource="goal"><span class="ico">▭</span><span>Portería</span></button>
-            <button type="button" class="resource-btn" data-resource="mannequin"><span class="ico">▮</span><span>Muñeco</span></button>
-            <button type="button" class="resource-btn" data-resource="bib"><span class="ico">▤</span><span>Peto</span></button>
-            <button type="button" class="resource-btn" data-resource="zone"><span class="ico">▭</span><span>Zona</span></button>
-            <button type="button" class="resource-btn" id="graphic-add-circle-btn"><span class="ico">＋</span><span>Jugador simple</span></button>
-            <button type="button" class="resource-btn" id="graphic-add-rect-btn"><span class="ico">▭</span><span>Zona rápida</span></button>
-            <button type="button" class="resource-btn" id="graphic-add-arrow-btn"><span class="ico">↗</span><span>Flecha</span></button>
-            <button type="button" class="resource-btn" id="graphic-add-text-btn"><span class="ico">T</span><span>Texto</span></button>
-          </div>
-        </div>
+        <canvas id="task-graphic-canvas"></canvas>
       </section>
       {% else %}
         <section class="panel">
