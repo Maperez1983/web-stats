@@ -14435,6 +14435,42 @@ class StaffUserLinkingTests(TestCase):
         self.assertNotContains(response, 'Esta es la ficha HTML principal')
         self.assertContains(response, 'Descripción de reserva para fallback')
 
+    def test_session_task_detail_strips_compacted_template_source_from_plain_text(self):
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 27),
+            focus='Sesión plantilla compactada',
+            duration_minutes=90,
+        )
+        raw_description = (
+            '{% with has_frames=pc.animation_frames|default:False '
+            'has_2d=task_obj.task_preview_image|default:task.task_preview_image '
+            'has_pdf=task_obj.task_pdf|default:task.task_pdf %}'
+        )
+        task = SessionTask.objects.create(
+            session=session,
+            title='Tarea plantilla compactada',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=12,
+            tactical_layout={
+                'meta': {
+                    'analysis': {
+                        'task_sheet': {
+                            'description': raw_description,
+                        },
+                    },
+                    'scope': 'coach',
+                },
+            },
+        )
+
+        response = self.client.get(f"{reverse('session-task-detail', args=[task.id])}?format=uefa")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'has_frames=pc.animation_frames')
+        self.assertNotContains(response, 'has_2d=task_obj.task_preview_image')
+        self.assertNotContains(response, 'has_pdf=task_obj.task_pdf')
+
     @patch('football.views.call_ollama_json')
     @patch('football.views.local_llm_config')
     def test_session_task_detail_can_regenerate_analysis_with_ollana(self, mock_llm_config, mock_call_ollama_json):

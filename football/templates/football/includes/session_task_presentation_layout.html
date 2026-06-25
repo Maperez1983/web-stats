@@ -2,11 +2,6 @@
 {% with task_obj=pc.task|default:task %}
 {% with task_meta=pc.task_meta %}
 {% with tactic_frames=pc.animation_frame_cards %}
-{% with
-  has_frames=pc.animation_frames|default:False
-  has_2d=task_obj.task_preview_image|default:task.task_preview_image
-  has_pdf=task_obj.task_pdf|default:task.task_pdf
-%}
 {% if presentation_format|lower == 'club' %}
       <style>
         .club-task-sheet {
@@ -241,7 +236,7 @@
                   <div style="border:1px solid var(--club-soft-line); border-radius:12px; overflow:hidden;">
                     <img class="preview" id="task-preview-image" src="{{ pc.task_preview_url }}" alt="Vista 2D de {{ task_obj.title|default:task.title }}" style="width:100%; display:block;" />
                   </div>
-                  {% elif has_2d %}
+                  {% elif task_obj.task_preview_image|default:task.task_preview_image %}
                   <div style="border:1px solid var(--club-soft-line); border-radius:12px; overflow:hidden;">
                     <img class="preview" id="task-preview-image" src="{% url 'session-task-preview-file' task_obj.id %}?hd=1&v={{ task_obj.task_preview_image.name|urlencode }}" alt="Vista 2D de {{ task_obj.title|default:task.title }}" style="width:100%; display:block;" />
                   </div>
@@ -255,7 +250,7 @@
                     {% elif can_edit_task %}
                     <button type="button" class="button secondary" id="task-detail-enter-edit-empty">Completar pizarra 2D</button>
                     {% endif %}
-                    {% if has_frames %}
+                    {% if pc.animation_frames|default:False %}
                     <button type="button" class="button secondary" id="task-detail-open-sequence">Ver secuencia</button>
                     {% endif %}
                   </div>
@@ -810,7 +805,7 @@
               <div class="presentation-graphic-wrap preview-stadium">
                 <img class="preview" id="task-preview-image" src="{{ pc.task_preview_url }}" alt="Vista 2D de {{ task_obj.title|default:task.title }}" />
               </div>
-              {% elif has_2d %}
+              {% elif task_obj.task_preview_image|default:task.task_preview_image %}
               <div class="presentation-graphic-wrap preview-stadium">
                 <img class="preview" id="task-preview-image" src="{% url 'session-task-preview-file' task_obj.id %}?hd=1&v={{ task_obj.task_preview_image.name|urlencode }}" alt="Vista 2D de {{ task_obj.title|default:task.title }}" />
               </div>
@@ -824,7 +819,7 @@
                 {% elif can_edit_task %}
                 <button type="button" class="button secondary" id="task-detail-enter-edit-empty">Completar pizarra 2D</button>
                 {% endif %}
-                {% if has_frames %}
+                {% if pc.animation_frames|default:False %}
                 <button type="button" class="button secondary" id="task-detail-open-sequence">Ver secuencia</button>
                 {% endif %}
               </div>
@@ -1104,9 +1099,9 @@
             </p>
           </div>
           <div class="top-pills">
-            <span class="status-chip {% if has_2d %}ok{% else %}warn{% endif %}">2D {% if has_2d %}listo{% else %}pendiente{% endif %}</span>
-            <span class="status-chip {% if has_frames %}ok{% else %}warn{% endif %}">Secuencia {% if has_frames %}lista{% else %}pendiente{% endif %}</span>
-            <span class="status-chip {% if has_pdf %}ok{% else %}neutral{% endif %}">PDF {% if has_pdf %}disponible{% else %}sin origen{% endif %}</span>
+            <span class="status-chip {% if task_obj.task_preview_image|default:task.task_preview_image %}ok{% else %}warn{% endif %}">2D {% if task_obj.task_preview_image|default:task.task_preview_image %}listo{% else %}pendiente{% endif %}</span>
+            <span class="status-chip {% if pc.animation_frames|default:False %}ok{% else %}warn{% endif %}">Secuencia {% if pc.animation_frames|default:False %}lista{% else %}pendiente{% endif %}</span>
+            <span class="status-chip {% if task_obj.task_pdf|default:task.task_pdf %}ok{% else %}neutral{% endif %}">PDF {% if task_obj.task_pdf|default:task.task_pdf %}disponible{% else %}sin origen{% endif %}</span>
           </div>
         </header>
 
@@ -1150,15 +1145,15 @@
             </div>
           </div>
           <div class="coach-summary-alerts">
-            {% if not has_2d %}
+            {% if not task_obj.task_preview_image|default:task.task_preview_image %}
             <p class="coach-summary-alert">No hay vista 2D guardada. La tarea mostrará sólo texto y estructura.</p>
             {% endif %}
-            {% if not has_frames %}
+            {% if not pc.animation_frames|default:False %}
             <p class="coach-summary-alert">No hay secuenciación 2D/3D. La explicación quedará más breve.</p>
             {% endif %}
-            {% if has_frames and presentation_format|lower == 'uefa' %}
+            {% if pc.animation_frames|default:False and presentation_format|lower == 'uefa' %}
             <p class="coach-summary-alert">Modo UEFA: prioriza la lectura táctica y secuencias.</p>
-            {% elif has_frames %}
+            {% elif pc.animation_frames|default:False %}
             <p class="coach-summary-alert">Modo Club: prioriza la ficha técnica visual para entrenadores.</p>
             {% endif %}
           </div>
@@ -1171,7 +1166,7 @@
             <div class="presentation-graphic-wrap preview-stadium">
               {% if pc.task_preview_url %}
               <img class="preview" id="task-preview-image" src="{{ pc.task_preview_url }}" alt="Vista 2D de {{ task_obj.title|default:task.title }}" />
-              {% elif has_2d %}
+              {% elif task_obj.task_preview_image|default:task.task_preview_image %}
               <img class="preview" id="task-preview-image" src="{% url 'session-task-preview-file' task_obj.id %}?hd=1&v={{ task_obj.task_preview_image.name|urlencode }}" alt="Vista 2D de {{ task_obj.title|default:task.title }}" />
               {% else %}
               <div class="task-detail-empty">
@@ -1185,7 +1180,7 @@
               {% elif can_edit_task %}
               <button type="button" class="button secondary" id="task-detail-enter-edit-empty">Completar pizarra 2D</button>
               {% endif %}
-              {% if has_frames %}
+              {% if pc.animation_frames|default:False %}
               <button type="button" class="button secondary" id="task-detail-open-sequence">Ver secuencia</button>
               {% endif %}
             </div>

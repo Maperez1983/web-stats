@@ -25611,6 +25611,9 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
     multi_board_enabled = bool(meta.get('multi_board') or meta.get('multi_board_enabled') or False)
     analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
     task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
+    task_sheet = _sanitize_task_sheet_for_display(task_sheet)
+    task_sheet = _sanitize_task_sheet_for_display(task_sheet)
+    task_sheet = _sanitize_task_sheet_for_display(task_sheet)
     description_text = str(task_sheet.get('description') or '').strip()
     description_html = str(task_sheet.get('description_html') or '').strip()
     coaching_html = str(task_sheet.get('coaching_html') or '').strip()
@@ -31690,6 +31693,16 @@ _TASK_RICH_TEMPLATE_HINTS = (
     'Esta es la ficha HTML principal que luego se imprime o comparte.',
     'Aquí se replica el formato visual del PDF Club.',
 )
+_TASK_RICH_TEMPLATE_SOURCE_PATTERNS = (
+    r'has_frames\s*=\s*pc\.animation_frames',
+    r'has_2d\s*=\s*task_obj\.task_preview_image',
+    r'has_pdf\s*=\s*task_obj\.task_pdf',
+    r'presentation_format\|lower\s*==\s*[\'"](?:club|uefa)[\'"]',
+    r'task_presentation_pdf_context_by_format',
+    r'presentation-task-sheet',
+    r'club-task-sheet',
+    r'uefa-task-sheet',
+)
 
 
 _RICH_ALLOWED_TAGS = {
@@ -31748,12 +31761,25 @@ class _RichTextSanitizer(HTMLParser):
 
 
 def _strip_task_rich_template_markers(value):
-    raw = str(value or '')
+    raw = html.unescape(str(value or ''))
     if not raw:
         return ''
     cleaned = _TASK_RICH_EDITOR_MARKER_PATTERN.sub('', raw)
     for marker in _TASK_RICH_TEMPLATE_HINTS:
         cleaned = re.sub(re.escape(marker), '', cleaned, flags=re.IGNORECASE)
+    lines = []
+    for line in cleaned.splitlines():
+        stripped = str(line or '').strip()
+        if not stripped:
+            continue
+        if any(re.search(pattern, stripped, flags=re.IGNORECASE) for pattern in _TASK_RICH_TEMPLATE_SOURCE_PATTERNS):
+            continue
+        if stripped.startswith(('{%', '{{', '{#')) or stripped.endswith(('%}', '}}', '#}')):
+            continue
+        lines.append(line)
+    cleaned = '\n'.join(lines).strip()
+    if cleaned.count('{%') >= 2 or cleaned.count('{{') >= 2:
+        return ''
     return cleaned.strip()
 
 
@@ -31788,6 +31814,20 @@ def _rich_task_text_html(raw_html, fallback_text, max_len=6000):
     if raw_rich:
         return raw_rich
     return _rich_html_from_plain_text(fallback_text, max_len=max_len)
+
+
+def _sanitize_task_sheet_for_display(task_sheet):
+    sheet = dict(task_sheet or {})
+    plain_multiline_keys = ('description',)
+    plain_singleline_keys = ('players', 'space', 'dimensions', 'materials')
+    rich_keys = ('description_html', 'coaching_html', 'rules_html')
+    for key in plain_multiline_keys:
+        sheet[key] = _strip_task_rich_template_markers(sheet.get(key))
+    for key in plain_singleline_keys:
+        sheet[key] = _strip_task_rich_template_markers(sheet.get(key)).replace('\n', ' ').strip()
+    for key in rich_keys:
+        sheet[key] = _sanitize_task_rich_html(sheet.get(key))
+    return sheet
 
 
 _text_has_quality_issues = task_library_services.text_has_quality_issues
@@ -32026,6 +32066,7 @@ def _analysis_quality_score(analysis):
     if analysis.get('phase_tags'):
         score += 5
     task_sheet = analysis.get('task_sheet') if isinstance(analysis.get('task_sheet'), dict) else {}
+    task_sheet = _sanitize_task_sheet_for_display(task_sheet)
     if task_sheet.get('description'):
         score += 5
     if task_sheet.get('players') or task_sheet.get('dimensions') or task_sheet.get('materials'):
@@ -43290,8 +43331,10 @@ def session_task_detail_page(request, task_id):
     meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
     analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
     task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
+    task_sheet = _sanitize_task_sheet_for_display(task_sheet)
     original_version = meta.get('original_version') if isinstance(meta.get('original_version'), dict) else {}
     original_task_sheet = original_version.get('task_sheet') if isinstance(original_version.get('task_sheet'), dict) else {}
+    original_task_sheet = _sanitize_task_sheet_for_display(original_task_sheet)
     original_preview_url = _storage_url_or_empty(original_version.get('task_preview_image') if isinstance(original_version, dict) else '')
     pdf_excerpt = str(meta.get('pdf_segment_excerpt') or meta.get('extracted_text_excerpt') or '').strip()
     detected_materials = analysis_meta.get('detected_materials') if isinstance(analysis_meta.get('detected_materials'), list) else []
