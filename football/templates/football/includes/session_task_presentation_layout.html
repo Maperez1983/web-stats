@@ -14,7 +14,7 @@
           <div class="presentation-task-hero-copy">
             <h3>{{ task_obj.title|default:task.title|default:"Tarea táctica" }}</h3>
             <p class="coach-summary-note">
-              {{ pc.team_name|default:team.name|default:"Equipo" }} · {{ pc.coach_name|default:user.get_full_name|default:user.username|default:"Entrenador" }}
+              {{ pc.team_name|default:"Equipo" }} · {{ pc.coach_name|default:user.get_full_name|default:user.username|default:"Entrenador" }}
               {% if pc.session %}
               · {{ pc.session.session_date|date:"d/m/Y" }}
               {% if pc.session.start_time %} · {{ pc.session.start_time|time:"H:i" }}{% endif %}
