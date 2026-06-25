@@ -31664,6 +31664,16 @@ _polish_spanish_text = task_library_services.polish_spanish_text
 _sanitize_task_text = task_library_services.sanitize_task_text
 
 
+_TASK_RICH_EDITOR_MARKER_PATTERN = re.compile(
+    r'{%[^%]*%}|{#[\s\S]*?#}|{\{[^}]*\}}',
+    re.IGNORECASE | re.DOTALL,
+)
+_TASK_RICH_TEMPLATE_HINTS = (
+    'Esta es la ficha HTML principal que luego se imprime o comparte.',
+    'Aquí se replica el formato visual del PDF Club.',
+)
+
+
 _RICH_ALLOWED_TAGS = {
     'b',
     'strong',
@@ -31719,8 +31729,18 @@ class _RichTextSanitizer(HTMLParser):
         self.out.append(html.escape(str(data)))
 
 
+def _strip_task_rich_template_markers(value):
+    raw = str(value or '')
+    if not raw:
+        return ''
+    cleaned = _TASK_RICH_EDITOR_MARKER_PATTERN.sub('', raw)
+    for marker in _TASK_RICH_TEMPLATE_HINTS:
+        cleaned = re.sub(re.escape(marker), '', cleaned, flags=re.IGNORECASE)
+    return cleaned.strip()
+
+
 def _sanitize_task_rich_html(value, max_len=6000):
-    raw = str(value or '').strip()
+    raw = _strip_task_rich_template_markers(value)
     if not raw:
         return ''
     sanitizer = _RichTextSanitizer(_RICH_ALLOWED_TAGS)
@@ -31741,6 +31761,7 @@ def _rich_html_from_plain_text(value, max_len=6000):
         return ''
     if max_len:
         raw = raw[: int(max_len)]
+    raw = _strip_task_rich_template_markers(raw)
     return html.escape(raw).replace('\n', '<br>')
 
 

@@ -14393,6 +14393,41 @@ class StaffUserLinkingTests(TestCase):
         self.assertNotContains(response, '<em>Consigna HTML</em>')
         self.assertNotContains(response, '<ul><li>Regla 1</li><li>Regla 2</li></ul>')
 
+    def test_session_task_detail_strips_template_markers_from_rich_text(self):
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 26),
+            focus='Sesión texto plantilla',
+            duration_minutes=90,
+        )
+        raw_description = (
+            '{% with test="1" %}'
+            'Esta es la ficha HTML principal que luego se imprime o comparte. '
+            '<strong>Descripción limpia</strong>{% endwith %}'
+        )
+        task = SessionTask.objects.create(
+            session=session,
+            title='Tarea texto con plantilla',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=12,
+            tactical_layout={
+                'meta': {
+                    'analysis': {
+                        'task_sheet': {
+                            'description_html': raw_description,
+                        },
+                    },
+                    'scope': 'coach',
+                },
+            },
+        )
+
+        response = self.client.get(f"{reverse('session-task-detail', args=[task.id])}?format=uefa")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'Esta es la ficha HTML principal')
+        self.assertContains(response, 'Descripción limpia')
+
     @patch('football.views.call_ollama_json')
     @patch('football.views.local_llm_config')
     def test_session_task_detail_can_regenerate_analysis_with_ollana(self, mock_llm_config, mock_call_ollama_json):
