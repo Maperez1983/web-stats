@@ -43217,6 +43217,7 @@ def session_task_detail_page(request, task_id):
     task_builder_edit_route_name = _task_builder_edit_route_name(scope_key)
     team = getattr(getattr(getattr(task, 'session', None), 'microcycle', None), 'team', None)
     workspace = None
+    active_team = None
     static_build_id = _resolve_static_build_id()
     stadium_palette = {'primary': '#047857', 'secondary': '#f8fafc', 'accent': '#073b32'}
     stadium_ads = {
@@ -43229,6 +43230,10 @@ def session_task_detail_page(request, task_id):
         workspace = _get_active_workspace(request)
     except Exception:
         workspace = None
+    try:
+        active_team = _get_active_team_for_request(request)
+    except Exception:
+        active_team = None
     if not workspace and team:
         try:
             workspace = Workspace.objects.filter(primary_team=team).first()
@@ -43255,7 +43260,20 @@ def session_task_detail_page(request, task_id):
         encoded_base = params.urlencode()
         presentation_url = base_detail_url if not encoded_base else f'{base_detail_url}?{encoded_base}'
         if is_editable_task and not is_performed_task:
+            edit_params = {}
+            try:
+                if active_team and getattr(active_team, 'id', None):
+                    edit_params['team'] = int(active_team.id)
+            except Exception:
+                pass
+            try:
+                if workspace and getattr(workspace, 'id', None):
+                    edit_params['workspace'] = int(workspace.id)
+            except Exception:
+                pass
             edit_graphic_url = reverse(task_builder_edit_route_name, args=[int(task.id)])
+            if edit_params:
+                edit_graphic_url = f"{edit_graphic_url}?{urlencode(edit_params)}"
     except Exception:
         edit_graphic_url = ''
         presentation_url = ''
