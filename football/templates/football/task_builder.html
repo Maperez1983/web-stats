@@ -4837,15 +4837,143 @@
         grid-column: 1 / -1;
       }
       body:not(.tactics-mode) .pitch-toolbar {
-        justify-content: flex-end;
+        justify-content: space-between;
         align-items: center;
         max-width: 100%;
+        gap: 0.55rem;
+        padding: 0.8rem 0.95rem;
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 18px;
+        background:
+          linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03)),
+          rgba(8, 18, 32, 0.78);
+        box-shadow: 0 18px 42px rgba(2, 6, 23, 0.22);
       }
       body:not(.tactics-mode) .pitch-toolbar > * {
         min-width: 0;
       }
       body:not(.tactics-mode) .pitch-toolbar .surface-trigger {
         min-width: min(220px, 100%);
+      }
+      body:not(.tactics-mode) .pitch-main {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+      body:not(.tactics-mode) .board-workbench {
+        display: flex;
+        flex-direction: column;
+        gap: 0.7rem;
+        padding: 0.9rem;
+        border-radius: 24px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background:
+          radial-gradient(circle at top left, rgba(34, 197, 94, 0.18), transparent 28%),
+          linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(8, 18, 32, 0.88));
+        box-shadow: 0 22px 56px rgba(2, 6, 23, 0.34);
+      }
+      body:not(.tactics-mode) .board-workbench-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+      body:not(.tactics-mode) .board-workbench-copy {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+      }
+      body:not(.tactics-mode) .board-workbench-copy strong {
+        font-size: 1rem;
+        color: rgba(248, 250, 252, 0.96);
+      }
+      body:not(.tactics-mode) .board-workbench-copy span {
+        color: rgba(226, 232, 240, 0.72);
+        font-size: 0.84rem;
+      }
+      body:not(.tactics-mode) .board-workbench-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.44rem 0.72rem;
+        border-radius: 999px;
+        border: 1px solid rgba(134, 239, 172, 0.24);
+        background: rgba(21, 128, 61, 0.2);
+        color: rgba(220, 252, 231, 0.94);
+        font-size: 0.75rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      body:not(.tactics-mode) .board-quickbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.55rem;
+        padding: 0.78rem 0.82rem;
+        border-radius: 18px;
+        border: 1px solid rgba(255,255,255,0.1);
+        background: rgba(255,255,255,0.04);
+      }
+      body:not(.tactics-mode) .board-quickbar-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+      }
+      body:not(.tactics-mode) .board-quickbar-head strong {
+        font-size: 0.9rem;
+        color: rgba(248,250,252,0.96);
+      }
+      body:not(.tactics-mode) .board-quickbar-head span {
+        color: rgba(226,232,240,0.68);
+        font-size: 0.78rem;
+      }
+      body:not(.tactics-mode) .board-quickbar-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.5rem;
+      }
+      body:not(.tactics-mode) .board-chip {
+        width: 100%;
+        min-width: 0;
+        min-height: 56px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 0.55rem;
+        padding: 0.65rem 0.78rem;
+        border-radius: 16px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(15, 23, 42, 0.62);
+      }
+      body:not(.tactics-mode) .board-chip .tool-emoji {
+        width: 28px;
+        height: 28px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        background: rgba(255,255,255,0.08);
+        font-size: 1rem;
+      }
+      body:not(.tactics-mode) .board-chip .tool-label {
+        font-size: 0.8rem;
+        font-weight: 800;
+        color: rgba(248,250,252,0.95);
+      }
+      body:not(.tactics-mode) .board-stage-shell {
+        display: flex;
+        flex-direction: column;
+        gap: 0.7rem;
+        padding: 0.8rem;
+        border-radius: 20px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background:
+          linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)),
+          rgba(2, 6, 23, 0.34);
       }
       body:not(.tactics-mode) .pitch-side .resource-tabs {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4860,6 +4988,8 @@
       }
       body:not(.tactics-mode) .pitch-stage {
         max-width: min(var(--stage-max-user, 1680px), var(--stage-max-fit, 9999px));
+        border-radius: 22px;
+        box-shadow: 0 24px 50px rgba(0, 0, 0, 0.24);
       }
       body:not(.tactics-mode) .pitch-side {
         top: 0.55rem;
@@ -4926,6 +5056,36 @@
       }
       body:not(.tactics-mode) .pitch-main > .section {
         margin-top: 0.65rem;
+      }
+      body:not(.tactics-mode) .board-status-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+      body:not(.tactics-mode) .pitch-status {
+        margin: 0;
+        padding: 0.72rem 0.85rem;
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.04);
+        color: rgba(226,232,240,0.82);
+        flex: 1 1 260px;
+      }
+      body:not(.tactics-mode) .board-flow-note {
+        display: flex;
+        gap: 0.55rem;
+        align-items: center;
+        flex-wrap: wrap;
+        color: rgba(226,232,240,0.72);
+        font-size: 0.78rem;
+      }
+      body:not(.tactics-mode) .board-flow-note strong {
+        color: rgba(248,250,252,0.94);
+        font-size: 0.78rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
       }
       body:not(.tactics-mode) .pitch-main .player-bank-head {
         margin-bottom: 0.45rem;
@@ -5020,6 +5180,9 @@
         body:not(.tactics-mode) .pitch-toolbar {
           justify-content: flex-start;
         }
+        body:not(.tactics-mode) .board-quickbar-grid {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
         body:not(.tactics-mode) .pitch-side {
           position: relative;
           top: auto;
@@ -5037,6 +5200,19 @@
         }
         body:not(.tactics-mode) .pitch-side .resource-tabs {
           grid-template-columns: 1fr;
+        }
+        body:not(.tactics-mode) .board-workbench,
+        body:not(.tactics-mode) .board-stage-shell,
+        body:not(.tactics-mode) .pitch-toolbar {
+          padding: 0.75rem;
+          border-radius: 18px;
+        }
+        body:not(.tactics-mode) .board-quickbar-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        body:not(.tactics-mode) .board-chip {
+          min-height: 52px;
+          padding: 0.58rem 0.68rem;
         }
         .library-head {
           grid-template-columns: auto minmax(0, 1fr);
@@ -7120,6 +7296,58 @@
 				              </div>
 
 			              <div class="pitch-main">
+                      {% if not tactics_mode %}
+                      <div class="board-workbench">
+                        <div class="board-workbench-head">
+                          <div class="board-workbench-copy">
+                            <strong>Superficie gráfica de la tarea</strong>
+                            <span>Trabaja primero sobre el campo: coloca jugadores, material, recorridos y zonas antes de completar la descripción.</span>
+                          </div>
+                          <span class="board-workbench-badge">Editor 2D</span>
+                        </div>
+                        <div class="board-quickbar" aria-label="Bandeja rápida de recursos">
+                          <div class="board-quickbar-head">
+                            <strong>Recursos rápidos</strong>
+                            <span>Los 8 elementos que más se usan para montar una tarea desde cero.</span>
+                          </div>
+                          <div class="board-quickbar-grid">
+                            <button type="button" class="board-chip" data-add="player_local" title="Jugador local" aria-label="Jugador local"><span class="tool-emoji" aria-hidden="true">🔵</span><span class="tool-label">Jugador local</span></button>
+                            <button type="button" class="board-chip" data-add="player_rival" title="Jugador rival" aria-label="Jugador rival"><span class="tool-emoji" aria-hidden="true">🔴</span><span class="tool-label">Jugador rival</span></button>
+                            <button type="button" class="board-chip" data-add="goalkeeper_local" title="Portero" aria-label="Portero"><span class="tool-emoji" aria-hidden="true">🧤</span><span class="tool-label">Portero</span></button>
+                            <button type="button" class="board-chip" data-add="ball" title="Balón" aria-label="Balón"><span class="tool-emoji" aria-hidden="true">⚽</span><span class="tool-label">Balón</span></button>
+                            <button type="button" class="board-chip" data-add="cone" title="Cono" aria-label="Cono"><span class="tool-emoji" aria-hidden="true">🔺</span><span class="tool-label">Cono</span></button>
+                            <button type="button" class="board-chip" data-add="goal" title="Portería" aria-label="Portería"><span class="tool-emoji" aria-hidden="true">🥅</span><span class="tool-label">Portería</span></button>
+                            <button type="button" class="board-chip" data-add="arrow_solid" title="Flecha" aria-label="Flecha"><span class="tool-emoji" aria-hidden="true">➡️</span><span class="tool-label">Flecha</span></button>
+                            <button type="button" class="board-chip" data-add="zone" title="Zona" aria-label="Zona"><span class="tool-emoji" aria-hidden="true">🟩</span><span class="tool-label">Zona</span></button>
+                          </div>
+                        </div>
+                        <div class="board-stage-shell">
+				                  <div class="pitch-viewport" id="task-pitch-viewport">
+			                    <div class="pitch-stage" id="task-pitch-stage">
+			                      <svg id="task-pitch-surface" viewBox="-2 -2 1054 684" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
+			                      <canvas id="create-task-canvas"></canvas>
+			                      <button type="button" class="pitch-resize-handle" id="pitch-resize-handle" aria-label="Redimensionar campo">
+			                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3v6h-2V6.41l-6.29 6.3-1.42-1.42 6.3-6.29H15V3h6ZM5 21h6v-2H6.41l6.3-6.29-1.42-1.42-6.29 6.3V13H3v8h2Z"/></svg>
+			                      </button>
+			                    </div>
+				                  </div>
+			                  <div class="pitch-drills-strip" id="task-drills-strip" hidden></div>
+                          <div class="board-status-row">
+				                    <p class="pitch-status" id="task-builder-status">Pizarra lista.</p>
+                            <div style="display:flex; gap:0.5rem; align-items:center; justify-content:flex-end; flex-wrap:wrap;">
+                              <button type="button" class="button secondary" id="task-destination-open" title="Elige sesión destino para que la tarea quede añadida al entreno">➕ Añadir a sesión</button>
+                              <span class="meta" id="task-destination-current" style="opacity:0.9;"></span>
+                            </div>
+                          </div>
+                          <div class="board-flow-note">
+                            <strong>Flujo</strong>
+                            <span>1) Monta la acción en el campo.</span>
+                            <span>2) Ajusta tamaños, colores y texto desde el inspector.</span>
+                            <span>3) Después completa metodología, carga y exportación.</span>
+                          </div>
+                        </div>
+                      </div>
+                      {% else %}
 				              <div class="pitch-viewport" id="task-pitch-viewport">
 			                <div class="pitch-stage" id="task-pitch-stage">
 			                  <svg id="task-pitch-surface" viewBox="-2 -2 1054 684" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
@@ -7131,20 +7359,13 @@
 				              </div>
 			              <div class="pitch-drills-strip" id="task-drills-strip" hidden></div>
 				              <p class="pitch-status" id="task-builder-status">Pizarra lista.</p>
-	                    {% if tactics_mode %}
 	                    <div style="display:flex; gap:0.5rem; align-items:center; justify-content:center; flex-wrap:wrap; margin-top:-0.15rem;">
 	                        {% if request.GET.diag == '1' %}
 		                        <button type="button" class="button" id="tpad-diag-copy" title="Copia el diagnóstico (errores + estado) para soporte">Copiar diagnóstico</button>
 	                        {% endif %}
 	                      <button type="button" class="button secondary" id="tpad-reinit" title="Reinicia el motor de pizarra (si el canvas se quedó en blanco)">Reiniciar pizarra</button>
 		                    </div>
-		                    {% endif %}
-	                    {% if not tactics_mode %}
-	                    <div style="display:flex; gap:0.5rem; align-items:center; justify-content:center; flex-wrap:wrap; margin-top:-0.15rem;">
-	                      <button type="button" class="button secondary" id="task-destination-open" title="Elige sesión destino para que la tarea quede añadida al entreno">➕ Añadir a sesión</button>
-	                      <span class="meta" id="task-destination-current" style="opacity:0.9;"></span>
-	                    </div>
-                    {% endif %}
+                      {% endif %}
 		              <div class="simple-hint" id="task-simple-hint" hidden>
 		                <strong>Guía rápida:</strong>
 		                {% if tactics_mode %}
