@@ -1521,15 +1521,16 @@
           .map((src) => String(src || '').trim())
           .filter(Boolean);
         if (!pool.length) return [];
-        const teamImgs = pool.slice(0, 3);
-        const rest = pool.slice(3);
+        const baseHero = pool[0];
+        const teamImgs = pool.slice(1, 4);
+        const rest = pool.slice(4);
         const teamNum = Number.parseInt(String(effectiveTeamId || '').trim(), 10);
         const baseIdx = Number.isFinite(teamNum) ? Math.abs(teamNum) % Math.max(1, teamImgs.length) : 0;
         const rotated = [];
         for (let i = 0; i < teamImgs.length; i += 1) {
           rotated.push(teamImgs[(baseIdx + i) % teamImgs.length]);
         }
-        return [...rotated, ...rest];
+        return [baseHero, ...rotated, ...rest];
       }
 
       function buildDashboardUrl({ fresh = false } = {}) {
