@@ -9348,6 +9348,42 @@
 						        pitch3dCanvasEl.height = height;
 						        const ctx = pitch3dCanvasEl.getContext('2d');
 						        if (!ctx) return false;
+						        const isVertical = width > 0 && height / width > 1.05;
+						        const fallbackImageSrc = __pitch3dAssetUrl(isVertical ? 'pitch3dStadiumTopVSrc' : 'pitch3dStadiumTopHSrc');
+						        const fallbackImage = __pitch3dLoadStaticImage(isVertical ? 'pitch3d_fallback_top_v' : 'pitch3d_fallback_top_h', fallbackImageSrc);
+						        if (fallbackImage && (fallbackImage.naturalWidth || fallbackImage.width)) {
+						          const imgW = fallbackImage.naturalWidth || fallbackImage.width || width;
+						          const imgH = fallbackImage.naturalHeight || fallbackImage.height || height;
+						          const scale = Math.max(width / imgW, height / imgH);
+						          const drawnW = Math.max(1, Math.round(imgW * scale));
+						          const drawnH = Math.max(1, Math.round(imgH * scale));
+						          const x = Math.round((width - drawnW) / 2);
+						          const y = Math.round((height - drawnH) / 2);
+						          ctx.drawImage(fallbackImage, x, y, drawnW, drawnH);
+						          try {
+						            if (pitch3dFallbackEl) {
+						              pitch3dFallbackEl.hidden = false;
+						              pitch3dFallbackEl.style.display = 'flex';
+						              pitch3dFallbackEl.textContent = safeText(message, 'Render 3D no disponible');
+						            }
+						          } catch (error) {
+						            // ignore
+						          }
+						          return true;
+						        }
+						        if (!fallbackImage && fallbackImageSrc) {
+						          try {
+						            if (!window.__pitch3dFallbackRetryScheduled) {
+						              window.__pitch3dFallbackRetryScheduled = true;
+						              window.setTimeout(() => {
+						                window.__pitch3dFallbackRetryScheduled = false;
+						                drawPitch3dCanvasFallback(message);
+						              }, 250);
+						            }
+						          } catch (error) {
+						            // ignore
+						          }
+						        }
 						        const bg = ctx.createLinearGradient(0, 0, 0, height);
 						        bg.addColorStop(0, '#a8d0ef');
 						        bg.addColorStop(1, '#d8eefb');
