@@ -14284,6 +14284,80 @@ class StaffUserLinkingTests(TestCase):
         self.assertContains(club_response, 'presentation-format-club')
         self.assertContains(club_response, 'Planificación de tarea')
 
+    def test_session_task_detail_uses_benagalbon_club_colors_for_linked_subteam(self):
+        linked_benagalbon_category = Team.objects.create(
+            name='T',
+            slug='benagalbon-categoria-t',
+            is_primary=False,
+        )
+        WorkspaceTeam.objects.get_or_create(workspace=self.workspace, team=self.team, defaults={'is_default': True})
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=linked_benagalbon_category)
+        linked_microcycle = TrainingMicrocycle.objects.create(
+            team=linked_benagalbon_category,
+            title='Microciclo Infantil',
+            week_start=date(2026, 4, 1),
+            week_end=date(2026, 4, 7),
+        )
+        linked_session = TrainingSession.objects.create(
+            microcycle=linked_microcycle,
+            session_date=date(2026, 4, 2),
+            focus='Sesión subequipo',
+            duration_minutes=90,
+        )
+        linked_task = SessionTask.objects.create(
+            session=linked_session,
+            title='Tarea subequipo',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=18,
+            tactical_layout={'meta': {'scope': 'coach', 'space': 'Pauta media'}},
+        )
+
+        response = self.client.get(f"{reverse('session-task-detail', args=[linked_task.id])}?format=club")
+
+        self.assertEqual(response.status_code, 200)
+        response_html = response.content.decode('utf-8', errors='ignore')
+        self.assertIn('--club-primary: #007050', response_html)
+        self.assertIn('--club-secondary: #ffffff', response_html)
+        self.assertIn('--club-accent: #044a37', response_html)
+
+    def test_session_task_detail_uses_primary_team_palette_when_linked_workspace_is_not_active(self):
+        linked_benagalbon_category = Team.objects.create(
+            name='T',
+            slug='benagalbon-categoria-t-inactive',
+            is_primary=False,
+        )
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=linked_benagalbon_category)
+        self.workspace.is_active = False
+        self.workspace.save(update_fields=['is_active'])
+
+        linked_microcycle = TrainingMicrocycle.objects.create(
+            team=linked_benagalbon_category,
+            title='Microciclo Benagalbon',
+            week_start=date(2026, 4, 1),
+            week_end=date(2026, 4, 7),
+        )
+        linked_session = TrainingSession.objects.create(
+            microcycle=linked_microcycle,
+            session_date=date(2026, 4, 3),
+            focus='Tarea subequipo en workspace inactivo',
+            duration_minutes=90,
+        )
+        linked_task = SessionTask.objects.create(
+            session=linked_session,
+            title='Tarea subequipo inactiva',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=18,
+            tactical_layout={'meta': {'scope': 'coach', 'space': 'Pauta media'}},
+        )
+
+        response = self.client.get(f"{reverse('session-task-detail', args=[linked_task.id])}?format=club")
+
+        self.assertEqual(response.status_code, 200)
+        response_html = response.content.decode('utf-8', errors='ignore')
+        self.assertIn('--club-primary: #007050', response_html)
+        self.assertIn('--club-secondary: #ffffff', response_html)
+        self.assertIn('--club-accent: #044a37', response_html)
+
     def test_session_task_detail_escapes_rich_text_fields_in_presentation(self):
         session = TrainingSession.objects.create(
             microcycle=self.microcycle,

@@ -25393,6 +25393,65 @@ def _task_pdf_lines(value):
 _team_pdf_palette = team_media_services.team_pdf_palette
 
 
+def _resolve_club_palette_team(team, request=None):
+    """Devuelve el equipo de identidad de paleta para formato Club.
+
+    En clubes multiequipo, algunas categorías usan nombres cortos (por ejemplo,
+    "T", "Alevín B") que no identifican a nivel de nombre el club principal.
+    Si la categoría pertenece a un workspace cuyo `primary_team` está marcado como
+    Benagalbón, devolvemos ese team para que el formato Club conserve identidad.
+    """
+    if not team:
+        return team
+    if _is_benagalbon_team(team):
+        return team
+    if getattr(team, 'is_primary', False):
+        return team
+    team_id = int(getattr(team, 'id', 0) or 0)
+    if not team_id:
+        return team
+
+    link_queries = (
+        WorkspaceTeam.objects.filter(
+            team_id=team_id,
+            workspace__kind=Workspace.KIND_CLUB,
+            workspace__is_active=True,
+            workspace__primary_team_id__isnull=False,
+        ).select_related('workspace__primary_team', 'workspace'),
+        WorkspaceTeam.objects.filter(
+            team_id=team_id,
+            workspace__kind=Workspace.KIND_CLUB,
+            workspace__primary_team_id__isnull=False,
+        ).select_related('workspace__primary_team', 'workspace'),
+    )
+    try:
+        for links_qs in link_queries:
+            for link in links_qs:
+                primary_team = getattr(link.workspace, 'primary_team', None)
+                if primary_team:
+                    return primary_team
+    except Exception:
+        logger.debug('No se pudo resolver equipo de paleta de club para task team %s', team_id, exc_info=True)
+
+    try:
+        if request is not None:
+            active_workspace = workspace_context.get_active_workspace(request)
+            if active_workspace and getattr(active_workspace, 'kind', None) == Workspace.KIND_CLUB:
+                has_link_in_active_workspace = WorkspaceTeam.objects.filter(
+                    workspace=active_workspace,
+                    team=team,
+                ).exists()
+                if not has_link_in_active_workspace:
+                    return team
+            primary_team = getattr(active_workspace, 'primary_team', None) if active_workspace else None
+            if primary_team:
+                return primary_team
+    except Exception:
+        logger.debug('No se pudo resolver workspace activo para task team %s', team_id, exc_info=True)
+
+    return team
+
+
 def _build_task_pdf_tokens(request, tactical_layout):
     material_icon_by_kind = {
         'cone': '△',
@@ -25675,10 +25734,13 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
     club_logo_url = resolve_team_crest_url(request, primary_club_team, sync=True) if primary_club_team else ''
     uefa_badge_url = _static_data_url('football/images/uefa-badge.svg', 'image/svg+xml') or request.build_absolute_uri(static('football/images/uefa-badge.svg'))
     team_crest_url = resolve_team_crest_url(request, team, sync=True)
+    palette_team = team
+    if pdf_style in {'club', 'hybrid'}:
+        palette_team = _resolve_club_palette_team(team, request=request)
     logo_url = team_crest_url if pdf_style in {'club', 'hybrid'} else uefa_badge_url
     club_dragon_url = (
         _static_data_url('football/images/cdb-dragon-watermark.png', 'image/png')
-        if (pdf_style in {'club', 'hybrid'} and _is_benagalbon_team(team))
+        if (pdf_style in {'club', 'hybrid'} and _is_benagalbon_team(palette_team))
         else ''
     )
     rich_description = _sanitize_task_rich_html(description_html) if description_html else _rich_html_from_plain_text(description_text)
@@ -25858,7 +25920,7 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         'animation_frame_cards': animation_frame_cards,
         'pdf_style': pdf_style,
         'template_bg_src': _system_pdf_template_bg_src('pdf_template_session_bg_asset_id', max_width=2200, max_height=3100, quality=72) if pdf_style == 'uefa' else '',
-        'pdf_palette': _team_pdf_palette(team, pdf_style),
+        'pdf_palette': _team_pdf_palette(palette_team, pdf_style),
         'coach_name': coach_name,
         'animation_frames_count': len(animation_frames),
         'logo_url': logo_url,
