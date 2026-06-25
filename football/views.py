@@ -40733,6 +40733,8 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
                     detail_params = {
                         'mode': 'edit',
                         'tab': 'edit',
+                        'edit_tab': 'graphic',
+                        'format': 'uefa',
                     }
                     if primary_team and getattr(primary_team, 'id', None):
                         detail_params['team'] = int(primary_team.id)
@@ -66465,8 +66467,16 @@ def tactical_playbook_task_save_api(request):
         pass
 
     try:
-        edit_route = _task_builder_edit_route_name('coach')
-        url = f"{reverse(edit_route, args=[int(created_task.id)])}?repo=interactive&created_from=tactics"
+        task_detail_url = reverse('session-task-detail', args=[int(created_task.id)])
+        params = {
+            'mode': 'edit',
+            'tab': 'edit',
+            'edit_tab': 'graphic',
+            'format': 'uefa',
+            'repo': 'interactive',
+            'created_from': 'tactics',
+        }
+        url = f"{task_detail_url}?{urlencode(params)}"
     except Exception:
         url = ''
     return JsonResponse({'ok': True, 'id': int(created_task.id), 'url': url})
