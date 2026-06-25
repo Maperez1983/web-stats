@@ -40729,8 +40729,26 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
                 except Exception:
                     pass
                 if is_new_task and task and getattr(task, 'id', None):
-                    edit_route = _task_builder_edit_route_name(scope_key)
-                    return redirect(reverse(edit_route, args=[int(task.id)]))
+                    detail_url = reverse('session-task-detail', args=[int(task.id)])
+                    detail_params = {
+                        'mode': 'edit',
+                        'tab': 'edit',
+                    }
+                    if primary_team and getattr(primary_team, 'id', None):
+                        detail_params['team'] = int(primary_team.id)
+                    try:
+                        task_session_id = _parse_int(getattr(task, 'session_id', None))
+                        if task_session_id:
+                            detail_params['from_session'] = task_session_id
+                    except Exception:
+                        pass
+                    try:
+                        workspace = _parse_int(request.GET.get('workspace') or '')
+                        if workspace:
+                            detail_params['workspace'] = workspace
+                    except Exception:
+                        pass
+                    return redirect(f"{detail_url}?{urlencode(detail_params)}")
                 feedback = 'Tarea guardada correctamente.'
                 try:
                     dest_session = getattr(task, 'session', None)
@@ -43081,12 +43099,26 @@ def session_task_detail_page(request, task_id):
         is_performed_task = False
     detail_mode = str(request.GET.get('mode') or '').strip().lower()
     detail_tab = str(request.GET.get('tab') or '').strip().lower()
+    detail_edit_tab = str(request.GET.get('edit_tab') or '').strip().lower()
+    detail_format_tab = str(request.GET.get('format') or '').strip().lower()
     can_edit_task = bool(is_editable_task and not is_performed_task)
     active_task_tab = 'presentation'
+    active_task_edit_tab = 'graphic'
+    active_task_format_tab = 'uefa'
     if can_edit_task and detail_mode == 'edit':
         active_task_tab = 'edit'
+        active_task_edit_tab = 'graphic'
     elif can_edit_task and detail_tab in {'presentation', 'edit', 'export'}:
         active_task_tab = detail_tab
+    elif detail_tab:
+        active_task_tab = 'presentation'
+
+    if detail_edit_tab in {'graphic', 'settings'}:
+        active_task_edit_tab = detail_edit_tab
+    elif not can_edit_task:
+        active_task_edit_tab = ''
+    if detail_format_tab in {'uefa', 'club'}:
+        active_task_format_tab = detail_format_tab
     show_edit_mode = bool(can_edit_task and active_task_tab == 'edit')
 
     # UX: la ficha de tarea es la vista principal; el modo edición reutiliza esa misma ficha y añade los controles debajo.
@@ -43346,6 +43378,8 @@ def session_task_detail_page(request, task_id):
             'is_performed_task': is_performed_task,
             'can_edit_task': can_edit_task,
             'active_task_tab': active_task_tab,
+            'active_task_edit_tab': active_task_edit_tab,
+            'active_task_format_tab': active_task_format_tab,
             'show_edit_mode': show_edit_mode,
             'session_context': session_context,
             'related_tasks': related_tasks,

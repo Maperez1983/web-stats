@@ -14213,15 +14213,12 @@ class StaffUserLinkingTests(TestCase):
         chain = getattr(response, 'redirect_chain', []) or []
         # No debe redirigir al editor visual (la ficha es la vista por defecto).
         self.assertFalse(any('/coach/sesiones/tareas/' in str(url) and '/editar/' in str(url) for url, _ in chain))
-        self.assertContains(response, 'Ficha visual')
         self.assertContains(response, 'Ficha táctica compartible')
         self.assertContains(response, 'data-task-tab="presentation"')
         self.assertContains(response, 'data-task-tab="edit"')
         self.assertContains(response, 'data-task-tab="export"')
-        self.assertContains(response, 'Abrir editor de pizarra')
-        self.assertNotContains(response, 'id="graphic-editor"')
-        self.assertNotContains(response, 'id="graphic-save-btn"')
-        self.assertNotContains(response, 'id="animation-status"')
+        self.assertContains(response, 'Abrir edición')
+        self.assertContains(response, 'id="graphic-editor"')
         self.assertContains(response, '__ollanaDiagnostics')
         self.assertNotContains(response, 'mode=edit')
 
@@ -14229,7 +14226,8 @@ class StaffUserLinkingTests(TestCase):
 
         self.assertEqual(edit_response.status_code, 200)
         self.assertContains(edit_response, 'Ficha táctica compartible')
-        self.assertContains(edit_response, 'Ficha base editable')
+        self.assertContains(edit_response, 'Edición gráfica')
+        self.assertContains(edit_response, 'Configuración')
         self.assertContains(edit_response, 'task-export-panel')
 
     def test_session_task_detail_hides_empty_analysis_block(self):
@@ -14251,7 +14249,7 @@ class StaffUserLinkingTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'Análisis automático')
-        self.assertContains(response, 'Abrir editor de pizarra')
+        self.assertContains(response, 'Abrir edición')
 
     @patch('football.views.call_ollama_json')
     @patch('football.views.local_llm_config')
@@ -14370,8 +14368,8 @@ class StaffUserLinkingTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         chain = getattr(response, 'redirect_chain', []) or []
-        self.assertTrue(any('/coach/sesiones/tareas/' in str(url) and '/editar/' in str(url) for url, _ in chain))
-        self.assertContains(response, 'Editar tarea · Editor visual dedicado')
+        self.assertTrue(any('/coach/sesiones/tarea/' in str(url) and 'mode=edit' in str(url) for url, _ in chain))
+        self.assertContains(response, 'Edición gráfica')
         # Al guardar dentro de una sesión real, el editor crea:
         # - 1 instancia dentro de la sesión
         # - 1 plantilla en Biblioteca (para reutilización)
@@ -14394,7 +14392,7 @@ class StaffUserLinkingTests(TestCase):
         template_meta = template_task.tactical_layout.get('meta') or {}
         self.assertNotEqual(template_task.session_id, session.id)
         self.assertTrue(bool(template_meta.get('is_template')))
-        self.assertContains(response, 'Editar tarea · Editor visual dedicado')
+        self.assertContains(response, 'Edición gráfica')
 
     def test_task_builder_creates_task_with_load_scale_metadata(self):
         session = TrainingSession.objects.create(
@@ -14797,8 +14795,16 @@ class StaffUserLinkingTests(TestCase):
             duration_minutes=18,
             tactical_layout={
                 'timeline': [
-                    {'title': 'Salida', 'duration': 2, 'canvas_state': {'version': '5.3.0', 'objects': []}},
-                    {'title': 'Llegada', 'duration': 3, 'canvas_state': {'version': '5.3.0', 'objects': []}},
+                    {
+                        'title': 'Salida',
+                        'duration': 2,
+                        'canvas_state': {'version': '5.3.0', 'objects': [{'type': 'circle', 'left': 120, 'top': 130, 'radius': 8}]},
+                    },
+                    {
+                        'title': 'Llegada',
+                        'duration': 3,
+                        'canvas_state': {'version': '5.3.0', 'objects': [{'type': 'circle', 'left': 300, 'top': 130, 'radius': 8}]},
+                    },
                 ],
                 'meta': {'scope': 'coach', 'graphic_editor': {'canvas_state': {'version': '5.3.0', 'objects': []}}},
             },
@@ -14807,7 +14813,7 @@ class StaffUserLinkingTests(TestCase):
         response = self.client.get(reverse('session-task-detail', args=[task.id]) + '?legacy=1')
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Secuencia animada')
+        self.assertContains(response, 'data-animation-step="0"')
         self.assertContains(response, 'Paso 1')
         self.assertContains(response, 'Reproducir')
 
