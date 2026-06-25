@@ -132,6 +132,25 @@
         grid-template-columns: minmax(0, 1fr) minmax(300px, 0.7fr);
         gap: 1rem;
         padding: 1.3rem;
+        align-items: stretch;
+      }
+      .hero-sidebar {
+        display: grid;
+        gap: 0.9rem;
+      }
+      .hero-media {
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        background: #020917;
+        overflow: hidden;
+        min-height: 220px;
+      }
+      .hero-media img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        object-position: center;
       }
       .eyebrow {
         display: inline-flex;
@@ -395,19 +414,24 @@
             <a class="pill" href="{% url 'task-studio-roster' %}">Gestionar plantilla</a>
           </div>
         </div>
-        <div class="stats">
-          <article class="stat">
-            <span>Tareas activas</span>
-            <strong>{{ tasks|length }}</strong>
-          </article>
-          <article class="stat">
-            <span>Perfil</span>
-            <strong>{% if profile %}Configurado{% else %}Pendiente{% endif %}</strong>
-          </article>
-          <article class="stat">
-            <span>Acceso</span>
-            <strong>{% if is_admin_user %}Admin / Staff{% else %}Privado{% endif %}</strong>
-          </article>
+        <div class="hero-sidebar">
+          <div class="stats">
+            <article class="stat">
+              <span>Tareas activas</span>
+              <strong>{{ tasks|length }}</strong>
+            </article>
+            <article class="stat">
+              <span>Perfil</span>
+              <strong>{% if profile %}Configurado{% else %}Pendiente{% endif %}</strong>
+            </article>
+            <article class="stat">
+              <span>Acceso</span>
+              <strong>{% if is_admin_user %}Admin / Staff{% else %}Privado{% endif %}</strong>
+            </article>
+          </div>
+          <div class="hero-media">
+            <img src="{% static 'football/images/marketing/task-studio-home-hero.png' %}" alt="Portada del estadio 3D del Task Studio" loading="lazy" />
+          </div>
         </div>
       </section>
 
