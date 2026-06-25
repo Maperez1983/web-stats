@@ -831,9 +831,16 @@
         background: rgba(255, 255, 255, 0.04);
         color: #e2e8f0;
         padding: 0.62rem 0.72rem;
+        transition: border-color 140ms ease, transform 140ms ease, background 140ms ease;
+      }
+      .folder-card.is-current {
+        border-color: rgba(244, 180, 0, 0.56);
+        background: linear-gradient(135deg, rgba(244, 180, 0, 0.15), rgba(16, 185, 129, 0.08));
+        transform: translateY(-1px);
       }
       .folder-card:hover {
         border-color: rgba(244, 180, 0, 0.44);
+        transform: translateY(-1px);
       }
       .folder-card strong {
         display: block;
@@ -844,6 +851,45 @@
         margin-top: 0.2rem;
         font-size: 0.74rem;
         color: rgba(225, 236, 255, 0.82);
+      }
+      .library-strip {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.55rem;
+        margin: 0.4rem 0 0.75rem;
+      }
+      .library-strip-item {
+        border: 1px solid rgba(255,255,255,0.14);
+        border-radius: 12px;
+        padding: 0.65rem 0.7rem;
+        background: rgba(2, 10, 22, 0.52);
+      }
+      .library-strip-item small {
+        display: block;
+        text-transform: uppercase;
+        letter-spacing: 0.09em;
+        color: rgba(226, 232, 240, 0.78);
+        font-size: 0.66rem;
+      }
+      .library-strip-item strong {
+        display: block;
+        margin-top: 0.15rem;
+        font-size: 1.12rem;
+      }
+      .library-quick-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.5rem;
+      }
+      .library-task-actions {
+        display: flex;
+        gap: 0.35rem;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .task-preview-empty {
+        border: 1px solid rgba(244, 180, 0, 0.24);
+        background: rgba(244, 180, 0, 0.09);
       }
       /* NUEVO layout: pizarra grande + lateral de módulos (comercial). */
       .create-landing {
@@ -3817,44 +3863,67 @@
         </section>
       </div>
 
-	      <div class="tab-panel {% if main_tab == 'library' and active_tab == 'library' %}is-active{% endif %}" data-tab="library">
-				      <section class="panel">
-				        <h2>Biblioteca de tareas</h2>
-				        <p class="meta" style="margin-top:0;">Tareas importadas/creadas, organizadas para reutilizar rápido.</p>
-	                <div class="folder-grid" aria-label="Carpetas de Biblioteca">
-	                  <a
-	                    class="folder-card"
-	                    href="?{% qs_replace tab='library' library_source='created' library_view='overview' library_key=None lib_page=None %}"
-	                    {% if library_source_tab == 'created' %}aria-current="page"{% endif %}
-	                  >
-	                    <strong>📝 Creadas</strong>
-	                    <span>{{ library_source_counts.created|default:0 }} tareas · editor/pizarra</span>
-	                  </a>
-	                  <a
-	                    class="folder-card"
-	                    href="?{% qs_replace tab='library' library_source='imported' library_view='overview' library_key=None lib_page=None %}"
-	                    {% if library_source_tab == 'imported' %}aria-current="page"{% endif %}
-	                  >
-	                    <strong>📥 Importadas</strong>
-	                    <span>{{ library_source_counts.imported|default:0 }} tareas · PDF tal cual</span>
-	                  </a>
-	                  <a
-	                    class="folder-card"
-	                    href="?{% qs_replace tab='library' library_source='performed' library_view='overview' library_key=None lib_page=None %}"
-	                    {% if library_source_tab == 'performed' %}aria-current="page"{% endif %}
-	                  >
-	                    <strong>✅ Realizadas</strong>
-	                    <span>{{ library_source_counts.performed|default:0 }} tareas · con fecha</span>
-	                  </a>
-	                </div>
-	                <p class="meta" style="margin:-0.1rem 0 0.9rem;">
-	                  Estás viendo la carpeta:
-	                  <strong>{% if library_source_tab == 'imported' %}Importadas{% elif library_source_tab == 'performed' %}Realizadas{% else %}Creadas{% endif %}</strong>.
-	                </p>
+      <div class="tab-panel {% if main_tab == 'library' and active_tab == 'library' %}is-active{% endif %}" data-tab="library">
+			      <section class="panel">
+			        <h2>Biblioteca de tareas</h2>
+			        <p class="meta" style="margin-top:0;">Punto de entrada del entrenador: busca tareas por ficha, filtra y monta sesiones sin perder contexto.</p>
+			        <div class="library-strip">
+			          <div class="library-strip-item">
+			            <small>Total visibles</small>
+			            <strong>{{ library_total|default:0 }}</strong>
+			          </div>
+			          <div class="library-strip-item">
+			            <small>En carpeta</small>
+			            <strong>
+			              {% if library_source_tab == 'imported' %}{{ library_source_counts.imported|default:0 }}{% elif library_source_tab == 'performed' %}{{ library_source_counts.performed|default:0 }}{% else %}{{ library_source_counts.created|default:0 }}{% endif %}
+			            </strong>
+			          </div>
+			          <div class="library-strip-item">
+			            <small>Filtro activo</small>
+			            <strong>
+			              {% if library_filters_active %}Sí{% else %}No{% endif %}
+			            </strong>
+			          </div>
+			        </div>
+			        <div class="library-quick-row">
+			          <a class="button" href="{% url task_builder_route_name %}?repo=traditional&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Nueva tarea táctica</a>
+			          <a class="button secondary" href="?tab=import&library_repo={{ library_repository }}#import-tareas">Importar tareas</a>
+			          <a class="button secondary" href="?tab=sessions&sessions_view=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Añadir a sesión</a>
+			        </div>
+			        <div class="folder-grid" aria-label="Carpetas de Biblioteca">
+			          <a
+			            class="folder-card {% if library_source_tab == 'created' %}is-current{% endif %}"
+			            href="?{% qs_replace tab='library' library_source='created' library_view='overview' library_key=None lib_page=None %}"
+			            {% if library_source_tab == 'created' %}aria-current="page"{% endif %}
+			          >
+			            <strong>📝 Creadas</strong>
+			            <span>{{ library_source_counts.created|default:0 }} tareas · editor/pizarra</span>
+			          </a>
+			          <a
+			            class="folder-card {% if library_source_tab == 'imported' %}is-current{% endif %}"
+			            href="?{% qs_replace tab='library' library_source='imported' library_view='overview' library_key=None lib_page=None %}"
+			            {% if library_source_tab == 'imported' %}aria-current="page"{% endif %}
+			          >
+			            <strong>📥 Importadas</strong>
+			            <span>{{ library_source_counts.imported|default:0 }} tareas · PDF tal cual</span>
+			          </a>
+			          <a
+			            class="folder-card {% if library_source_tab == 'performed' %}is-current{% endif %}"
+			            href="?{% qs_replace tab='library' library_source='performed' library_view='overview' library_key=None lib_page=None %}"
+			            {% if library_source_tab == 'performed' %}aria-current="page"{% endif %}
+			          >
+			            <strong>✅ Realizadas</strong>
+			            <span>{{ library_source_counts.performed|default:0 }} tareas · con fecha</span>
+			          </a>
+			        </div>
+			        <p class="meta" style="margin:-0.1rem 0 0.9rem;">
+			          Estás viendo la carpeta:
+			          <strong>{% if library_source_tab == 'imported' %}Importadas{% elif library_source_tab == 'performed' %}Realizadas{% else %}Creadas{% endif %}</strong>.
+			        </p>
 
                 <details class="box" style="margin:0 0 1rem;">
                   <summary style="cursor:pointer; font-weight:900;">
-                    🔎 Filtros CoachLab
+                    🔎 Filtros de búsqueda
                     {% if library_filters_active %}<span class="badge" style="margin-left:0.35rem; opacity:0.95;">Activos</span>{% endif %}
                   </summary>
                   <form method="get" style="margin:0.8rem 0 0; display:grid; gap:0.65rem;">
@@ -4119,8 +4188,8 @@
           </form>
         </div>
         {% endif %}
-        <div class="task-list">
-          {% for t in task_library_page_items %}
+                <div class="task-list">
+                  {% for t in task_library_page_items %}
 			          <article
 			            class="task task-clickable"
 			            {% if task_pick_mode %}style="position:relative;"{% endif %}
@@ -4198,7 +4267,7 @@
                 </div>
               </details>
 	              {% endif %}
-	              <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+              <div class="library-task-actions">
                   <button
                     type="button"
                     class="button secondary icon-btn small bookmark-btn"
@@ -4207,9 +4276,10 @@
                     title="{% if bookmarked_task_ids and t.id in bookmarked_task_ids %}Quitar de favoritas{% else %}Marcar como favorita{% endif %}"
                     style="min-width:3.1rem;"
                   >{% if bookmarked_task_ids and t.id in bookmarked_task_ids %}★{% else %}☆{% endif %}</button>
+				      <a class="button secondary" href="{% url 'session-task-detail' t.id %}" title="Ver ficha">Ficha</a>
 	                  <button
-	                    type="button"
-	                    class="button secondary icon-btn small task-preview-btn"
+                    type="button"
+                    class="button secondary icon-btn small task-preview-btn"
 	                    data-title="{{ t.title|escapejs }}"
 	                    data-summary="{{ t.objective_summary|escapejs }}"
 	                    data-meta="{{ t.get_block_display|escapejs }} · {{ t.duration_minutes }}' · {{ t.players_band|default:''|escapejs }}"
@@ -4222,16 +4292,9 @@
                     <span class="emoji" aria-hidden="true">👁️</span>
                     <span class="sr-only">Vista previa</span>
                   </button>
-	                {% if t.task_pdf %}
-		                <a class="button icon-btn small" href="{% url 'session-task-file' t.id %}" data-pdf-viewer="1" data-pdf-title="Tarea · {{ t.title }}" title="Abrir PDF" aria-label="Abrir PDF">
-                      <span class="emoji" aria-hidden="true">📄</span>
-                      <span class="sr-only">Abrir PDF</span>
-                    </a>
-		                {% endif %}
-	                <a class="button icon-btn small" href="{% url 'session-task-detail' t.id %}" title="Ver ficha" aria-label="Ver ficha">
-                    <span class="emoji" aria-hidden="true">ℹ️</span>
-                    <span class="sr-only">Ver ficha</span>
-                  </a>
+                {% if t.task_pdf %}
+				      <a class="button secondary" href="{% url 'session-task-file' t.id %}" data-pdf-viewer="1" data-pdf-title="Tarea · {{ t.title }}" title="Abrir PDF">PDF</a>
+	                {% endif %}
                   <form method="post" style="margin:0;" onsubmit="return confirm('¿Enviar esta tarea a la papelera? (Se puede restaurar)');">
                     {% csrf_token %}
                     <input type="hidden" name="planner_action" value="delete_library_task" />
@@ -4240,10 +4303,7 @@
                     <input type="hidden" name="library_key" value="{{ library_key }}" />
                     <input type="hidden" name="library_repo" value="{{ library_repository }}" />
                     <input type="hidden" name="task_id" value="{{ t.id }}" />
-                    <button type="submit" class="button danger icon-btn small" title="Papelera" aria-label="Papelera">
-                      <span class="emoji" aria-hidden="true">🗑️</span>
-                      <span class="sr-only">Papelera</span>
-                    </button>
+                      <button type="submit" class="button danger icon-btn small" title="Papelera" aria-label="Papelera">🗑️</button>
                   </form>
 	                {% if planning_session_items %}
                   <details style="margin:0;">
