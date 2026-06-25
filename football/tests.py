@@ -14403,7 +14403,7 @@ class StaffUserLinkingTests(TestCase):
         raw_description = (
             '{% with test="1" %}'
             'Esta es la ficha HTML principal que luego se imprime o comparte. '
-            '<strong>Descripción limpia</strong>{% endwith %}'
+            'Aquí se replica el formato visual del PDF Club.{% endwith %}'
         )
         task = SessionTask.objects.create(
             session=session,
@@ -14415,6 +14415,7 @@ class StaffUserLinkingTests(TestCase):
                     'analysis': {
                         'task_sheet': {
                             'description_html': raw_description,
+                            'description': 'Descripción de reserva para fallback',
                         },
                     },
                     'scope': 'coach',
@@ -14426,7 +14427,7 @@ class StaffUserLinkingTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'Esta es la ficha HTML principal')
-        self.assertContains(response, 'Descripción limpia')
+        self.assertContains(response, 'Descripción de reserva para fallback')
 
     @patch('football.views.call_ollama_json')
     @patch('football.views.local_llm_config')

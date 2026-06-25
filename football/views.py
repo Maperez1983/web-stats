@@ -25743,13 +25743,31 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         if (pdf_style in {'club', 'hybrid'} and _is_benagalbon_team(palette_team))
         else ''
     )
-    rich_description = _sanitize_task_rich_html(description_html) if description_html else _rich_html_from_plain_text(description_text)
-    rich_coaching = _sanitize_task_rich_html(coaching_html) if coaching_html else _rich_html_from_plain_text(getattr(task, 'coaching_points', '') or '')
-    rich_rules = _sanitize_task_rich_html(rules_html) if rules_html else _rich_html_from_plain_text(getattr(task, 'confrontation_rules', '') or '')
-    rich_progression = _sanitize_task_rich_html(progression_html) if progression_html else _rich_html_from_plain_text(str(meta.get('progression') or ''))
-    rich_regression = _sanitize_task_rich_html(regression_html) if regression_html else _rich_html_from_plain_text(str(meta.get('regression') or ''))
-    rich_success = _sanitize_task_rich_html(success_criteria_html) if success_criteria_html else _rich_html_from_plain_text(str(meta.get('success_criteria') or ''))
-    rich_organization = _sanitize_task_rich_html(organization_html) if organization_html else _rich_html_from_plain_text(str(meta.get('organization') or ''))
+    rich_description = _rich_task_text_html(description_html, str(task_sheet.get('description') or getattr(task, 'description', '') or ''))
+    rich_coaching = _rich_task_text_html(
+        coaching_html,
+        str(getattr(task, 'coaching_points', '') or ''),
+    )
+    rich_rules = _rich_task_text_html(
+        rules_html,
+        str(getattr(task, 'confrontation_rules', '') or ''),
+    )
+    rich_progression = _rich_task_text_html(
+        progression_html,
+        str(meta.get('progression') or ''),
+    )
+    rich_regression = _rich_task_text_html(
+        regression_html,
+        str(meta.get('regression') or ''),
+    )
+    rich_success = _rich_task_text_html(
+        success_criteria_html,
+        str(meta.get('success_criteria') or ''),
+    )
+    rich_organization = _rich_task_text_html(
+        organization_html,
+        str(meta.get('organization') or ''),
+    )
     copy_len = sum(
         len(str(part or '').strip())
         for part in [
@@ -31763,6 +31781,13 @@ def _rich_html_from_plain_text(value, max_len=6000):
         raw = raw[: int(max_len)]
     raw = _strip_task_rich_template_markers(raw)
     return html.escape(raw).replace('\n', '<br>')
+
+
+def _rich_task_text_html(raw_html, fallback_text, max_len=6000):
+    raw_rich = _sanitize_task_rich_html(raw_html, max_len=max_len)
+    if raw_rich:
+        return raw_rich
+    return _rich_html_from_plain_text(fallback_text, max_len=max_len)
 
 
 _text_has_quality_issues = task_library_services.text_has_quality_issues
