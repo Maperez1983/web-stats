@@ -14281,6 +14281,8 @@ class StaffUserLinkingTests(TestCase):
         self.assertContains(uefa_response, 'Entrega ejercicio')
         self.assertContains(uefa_response, 'Resumen del ejercicio')
         self.assertContains(uefa_response, 'Indicaciones del entrenador')
+        self.assertContains(uefa_response, 'Guia de intervencion')
+        self.assertContains(uefa_response, 'Lectura rapida')
 
         club_response = self.client.get(f"{reverse('session-task-detail', args=[task.id])}?format=club")
         self.assertEqual(club_response.status_code, 200)

@@ -647,8 +647,44 @@
           color: var(--uefa-ink);
           line-height: 1.45;
         }
+        .uefa-coach-grid {
+          display: grid;
+          gap: 0.8rem;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .uefa-coach-card {
+          border: 1px solid #d5dde7;
+          border-radius: 14px;
+          background: rgba(255, 255, 255, 0.96);
+          padding: 0.8rem;
+        }
+        .uefa-coach-card h4 {
+          margin: 0 0 0.45rem;
+          color: var(--uefa-ink);
+          font-size: 0.76rem;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+        .uefa-bullet-list {
+          margin: 0;
+          padding-left: 1rem;
+          color: var(--uefa-ink);
+        }
+        .uefa-bullet-list li {
+          margin: 0 0 0.32rem;
+          line-height: 1.45;
+        }
+        .uefa-plain-stack {
+          display: grid;
+          gap: 0.42rem;
+        }
+        .uefa-plain-stack p {
+          margin: 0;
+          line-height: 1.48;
+        }
         @media (max-width: 980px) {
           .uefa-quick-grid,
+          .uefa-coach-grid,
           .uefa-grid-2,
           .uefa-pairs {
             grid-template-columns: 1fr;
@@ -857,6 +893,55 @@
               {% endif %}
             </div>
           </aside>
+        </section>
+
+        <section>
+          <h3 class="uefa-section-title">Guia de intervencion</h3>
+          <div class="uefa-box">
+            <div class="uefa-coach-grid">
+              <article class="uefa-coach-card">
+                <h4>Lectura rapida</h4>
+                <ul class="uefa-bullet-list">
+                  <li><strong>Objetivo:</strong> {{ task_obj.objective|default:task.objective|default:"No definido" }}</li>
+                  <li><strong>Escenario:</strong> {{ pc.structure_label|default:"Sin situacion de juego" }}</li>
+                  <li><strong>Espacio:</strong> {{ pc.dimensions_label|default:pc.space_label|default:"Sin espacio definido" }}</li>
+                  <li><strong>Intencion:</strong> {{ pc.tactical_intent_label|default:"Sin intencion tactica" }}</li>
+                </ul>
+              </article>
+              <article class="uefa-coach-card">
+                <h4>Organizacion</h4>
+                <div class="uefa-plain-stack">
+                  <p><strong>Duracion:</strong> {{ task_obj.duration_minutes|default:task.duration_minutes|default:"-" }} min</p>
+                  <p><strong>Series / repeticiones:</strong> {% if task_meta.series or task_meta.repetitions %}{{ task_meta.series|default:"-" }} / {{ task_meta.repetitions|default:"-" }}{% else %}No definidas{% endif %}</p>
+                  <p><strong>Trabajo / descanso:</strong> {% if task_meta.work_rest %}{{ task_meta.work_rest }}{% else %}No definido{% endif %}</p>
+                  <p><strong>Material clave:</strong> {{ pc.materials_label|default:"No definido" }}</p>
+                </div>
+              </article>
+              <article class="uefa-coach-card">
+                <h4>Correcciones del entrenador</h4>
+                <div class="uefa-plain-stack">
+                  {% if pc.coaching_rich_html %}
+                  <div class="task-copy">{{ pc.coaching_rich_html|striptags|linebreaksbr }}</div>
+                  {% elif task.coaching_points %}
+                  <div class="task-copy">{{ task.coaching_points|linebreaksbr }}</div>
+                  {% else %}
+                  <p>Sin consignas concretas registradas todavia.</p>
+                  {% endif %}
+                </div>
+              </article>
+              <article class="uefa-coach-card">
+                <h4>Evolucion de la tarea</h4>
+                <div class="uefa-plain-stack">
+                  {% if task_meta.progression %}<p><strong>Progresion:</strong> {% if pc.progression_rich_html %}{{ pc.progression_rich_html|striptags|linebreaksbr }}{% else %}{{ task_meta.progression }}{% endif %}</p>{% endif %}
+                  {% if task_meta.regression %}<p><strong>Regresion:</strong> {% if pc.regression_rich_html %}{{ pc.regression_rich_html|striptags|linebreaksbr }}{% else %}{{ task_meta.regression }}{% endif %}</p>{% endif %}
+                  {% if task_meta.success_criteria %}<p><strong>Criterio de exito:</strong> {% if pc.success_criteria_rich_html %}{{ pc.success_criteria_rich_html|striptags|linebreaksbr }}{% else %}{{ task_meta.success_criteria }}{% endif %}</p>{% endif %}
+                  {% if not task_meta.progression and not task_meta.regression and not task_meta.success_criteria %}
+                  <p>Sin progresiones, regresiones ni criterio de exito definidos todavia.</p>
+                  {% endif %}
+                </div>
+              </article>
+            </div>
+          </div>
         </section>
 
         <section class="uefa-pairs">
