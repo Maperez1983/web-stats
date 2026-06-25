@@ -43103,6 +43103,22 @@ def session_task_detail_page(request, task_id):
     detail_tab = str(request.GET.get('tab') or '').strip().lower()
     detail_edit_tab = str(request.GET.get('edit_tab') or '').strip().lower()
     detail_format_tab = str(request.GET.get('format') or '').strip().lower()
+    task_detail_format_session_key = f'session_task_detail_format:{int(task_id)}'
+
+    def _normalize_task_detail_format(raw_format):
+        normalized = str(raw_format or '').strip().lower()
+        return 'club' if normalized == 'club' else 'uefa'
+
+    if not detail_format_tab:
+        try:
+            detail_format_tab = (
+                request.session.get(task_detail_format_session_key)
+                or request.session.get('session_task_detail_format')
+                or ''
+            )
+        except Exception:
+            detail_format_tab = ''
+    detail_format_tab = _normalize_task_detail_format(detail_format_tab)
     can_edit_task = bool(is_editable_task and not is_performed_task)
     active_task_tab = 'presentation'
     active_task_edit_tab = 'graphic'
@@ -43119,8 +43135,12 @@ def session_task_detail_page(request, task_id):
         active_task_edit_tab = detail_edit_tab
     elif not can_edit_task:
         active_task_edit_tab = ''
-    if detail_format_tab in {'uefa', 'club'}:
-        active_task_format_tab = detail_format_tab
+    active_task_format_tab = _normalize_task_detail_format(detail_format_tab)
+    try:
+        request.session[task_detail_format_session_key] = active_task_format_tab
+        request.session['session_task_detail_format'] = active_task_format_tab
+    except Exception:
+        pass
     show_edit_mode = bool(can_edit_task and active_task_tab == 'edit')
 
     # UX: la ficha de tarea es la vista principal; el modo edición reutiliza esa misma ficha y añade los controles debajo.
@@ -43198,7 +43218,7 @@ def session_task_detail_page(request, task_id):
             tactical_layout=tactical_layout_for_pdf,
             pdf_style='uefa',
             preview_url=preview_url_for_pdf,
-            one_page=True,
+            one_page=False,
         )
         task_presentation_pdf_context_by_format['club'] = _build_task_pdf_context(
             request=request,
@@ -43209,7 +43229,7 @@ def session_task_detail_page(request, task_id):
             tactical_layout=tactical_layout_for_pdf,
             pdf_style='club',
             preview_url=preview_url_for_pdf,
-            one_page=True,
+            one_page=False,
         )
     except Exception:
         task_presentation_pdf_context_by_format = {'uefa': {}, 'club': {}}

@@ -10,11 +10,23 @@
 {% if presentation_format|lower == 'club' %}
       <style>
         .club-task-sheet {
+          --club-primary: {{ pc.pdf_palette.primary|default:'#086b34' }};
+          --club-secondary: {{ pc.pdf_palette.secondary|default:'#f8fafc' }};
+          --club-accent: {{ pc.pdf_palette.accent|default:'#0f172a' }};
+          --club-ink: {{ pc.pdf_palette.ink|default:'#0f172a' }};
+          --club-panel: {{ pc.pdf_palette.panel|default:'#f5fbf6' }};
+          --club-sheet: {{ pc.pdf_palette.sheet|default:'#ffffff' }};
+          --club-muted: {{ pc.pdf_palette.muted|default:'#3f4f5d' }};
+          --club-border: #d5dde7;
+          --club-soft-line: #f0f6f1;
+          --club-soft-fill: #eff5f1;
+        }
+        .club-task-sheet {
           display: grid;
           gap: 0.85rem;
-          background: linear-gradient(180deg, #f8fafc, #f1f5f9);
-          color: #0b1220;
-          border: 1px solid #d5dde7;
+          background: linear-gradient(180deg, var(--club-panel), var(--club-sheet));
+          color: var(--club-ink);
+          border: 1px solid var(--club-border);
           border-radius: 14px;
           padding: 0.9rem;
           box-shadow: 0 10px 26px rgba(15, 23, 42, 0.07);
@@ -22,7 +34,7 @@
         .club-sheet-hero {
           padding: 0.7rem 0.85rem 0.55rem;
           border-radius: 12px;
-          background: linear-gradient(135deg, {{ pc.pdf_palette.primary|default:'#086b34' }}, {{ pc.pdf_palette.accent|default:'#0f172a' }});
+          background: linear-gradient(135deg, var(--club-primary), var(--club-accent));
           color: #fff;
         }
         .club-sheet-kicker {
@@ -47,10 +59,10 @@
           max-width: 70ch;
         }
         .club-sheet-badge {
-          border: 1px solid rgba(255, 255, 255, 0.4);
+          border: 1px solid rgba(255, 255, 255, 0.48);
           border-radius: 12px;
           padding: 0.45rem 0.55rem;
-          background: rgba(255,255,255,0.12);
+          background: linear-gradient(180deg, rgba(255,255,255,0.32), rgba(255,255,255,0.11));
           text-align: right;
           font-size: 0.85rem;
           width: fit-content;
@@ -84,11 +96,11 @@
           padding-left: 0.6rem;
         }
         .club-panel {
-          border: 1px solid #d5dde7;
+          border: 1px solid var(--club-border);
           border-radius: 14px;
           overflow: hidden;
-          background: #fff;
-          box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+          background: var(--club-sheet);
+          box-shadow: 0 3px 12px rgba(3, 29, 14, 0.12);
           margin-bottom: 0.55rem;
         }
         .club-panel + .club-panel {
@@ -96,7 +108,7 @@
         }
         .club-panel-head {
           padding: 0.54rem 0.7rem;
-          background: linear-gradient(90deg, {{ pc.pdf_palette.primary|default:'#0f766e' }}, {{ pc.pdf_palette.accent|default:'#0f172a' }});
+          background: linear-gradient(90deg, var(--club-primary), var(--club-accent));
           color: #fff;
           font-weight: 900;
           letter-spacing: 0.08em;
@@ -106,8 +118,8 @@
           padding: 0.65rem 0.75rem;
         }
         .club-panel-soft {
-          background: #eef2f7;
-          color: #1f2937;
+          background: var(--club-panel);
+          color: var(--club-ink);
         }
         .club-copy-grid {
           display: grid;
@@ -115,14 +127,14 @@
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
         .club-copy-card {
-          border: 1px solid #d5dde7;
+          border: 1px solid var(--club-border);
           border-radius: 14px;
           overflow: hidden;
-          background: #fff;
+          background: var(--club-sheet);
         }
         .club-copy-head {
           padding: 0.52rem 0.68rem;
-          background: {{ pc.pdf_palette.accent|default:'#0f172a' }};
+          background: var(--club-accent);
           color: #fff;
           font-size: 0.74rem;
           letter-spacing: 0.07em;
@@ -131,7 +143,7 @@
         }
         .club-copy-body {
           padding: 0.75rem;
-          color: #1f2937;
+          color: var(--club-ink);
           line-height: 1.45;
           font-size: 0.86rem;
         }
@@ -140,7 +152,7 @@
           text-transform: uppercase;
           letter-spacing: 0.08em;
           font-size: 0.67rem;
-          color: #334155;
+          color: var(--club-muted);
           font-weight: 800;
           margin-bottom: 0.08rem;
         }
@@ -158,13 +170,17 @@
           object-fit: contain;
           border-radius: 999px;
           border: 1px solid rgba(255,255,255,0.45);
-          background: rgba(255,255,255,0.95);
+          background: var(--club-sheet);
           padding: 3px;
         }
         .club-task-sheet .drills-row {
           display: flex;
           flex-wrap: wrap;
           gap: 0.32rem;
+        }
+        .club-task-sheet .task-copy,
+        .club-task-sheet .task-copy p {
+          color: var(--club-ink);
         }
       </style>
       <p class="meta">Esta es la ficha HTML principal que luego se imprime o comparte. Aquí se replica el formato visual del PDF Club.</p>
@@ -196,19 +212,19 @@
         <div style="display:grid; gap:0.55rem;">
           <table style="width:100%; border-collapse:collapse; border-spacing:7px 0;">
             <tr>
-              <td style="width:25%; background:#fff; border:1px solid #d5dde7; border-radius:12px; padding:0.65rem;">
+              <td style="width:25%; background:var(--club-sheet); border:1px solid var(--club-border); border-radius:12px; padding:0.65rem;">
                 <span class="club-label">Duración</span>
                 <strong>{{ task_obj.duration_minutes|default:task.duration_minutes|default:"-" }} min</strong>
               </td>
-              <td style="width:25%; background:#fff; border:1px solid #d5dde7; border-radius:12px; padding:0.65rem;">
+              <td style="width:25%; background:var(--club-sheet); border:1px solid var(--club-border); border-radius:12px; padding:0.65rem;">
                 <span class="club-label">Bloque</span>
                 <strong>{{ task_obj.get_block_display|default:"-" }}</strong>
               </td>
-              <td style="width:25%; background:#fff; border:1px solid #d5dde7; border-radius:12px; padding:0.65rem;">
+              <td style="width:25%; background:var(--club-sheet); border:1px solid var(--club-border); border-radius:12px; padding:0.65rem;">
                 <span class="club-label">Tipo</span>
                 <strong>{{ pc.strategy_label|default:"-" }}</strong>
               </td>
-              <td style="width:25%; background:#fff; border:1px solid #d5dde7; border-radius:12px; padding:0.65rem;">
+              <td style="width:25%; background:var(--club-sheet); border:1px solid var(--club-border); border-radius:12px; padding:0.65rem;">
                 <span class="club-label">Microciclo</span>
                 <strong>{{ pc.microcycle.title|default:"-" }}</strong>
               </td>
@@ -221,13 +237,13 @@
             <td class="club-sheet-graphic">
               <div class="club-panel">
                 <div class="club-panel-head">Diseño gráfico</div>
-                <div class="club-panel-body" style="padding:0.7rem; background:#fff;">
+                <div class="club-panel-body" style="padding:0.7rem; background:var(--club-sheet);">
                   {% if pc.task_preview_url %}
-                  <div style="border:1px solid #e2e8f0; border-radius:12px; overflow:hidden;">
+                  <div style="border:1px solid var(--club-soft-line); border-radius:12px; overflow:hidden;">
                     <img class="preview" id="task-preview-image" src="{{ pc.task_preview_url }}" alt="Vista 2D de {{ task_obj.title|default:task.title }}" style="width:100%; display:block;" />
                   </div>
                   {% elif has_2d %}
-                  <div style="border:1px solid #e2e8f0; border-radius:12px; overflow:hidden;">
+                  <div style="border:1px solid var(--club-soft-line); border-radius:12px; overflow:hidden;">
                     <img class="preview" id="task-preview-image" src="{% url 'session-task-preview-file' task_obj.id %}?hd=1&v={{ task_obj.task_preview_image.name|urlencode }}" alt="Vista 2D de {{ task_obj.title|default:task.title }}" style="width:100%; display:block;" />
                   </div>
                   {% else %}
@@ -247,11 +263,11 @@
 
                   {% if pc.task_drills %}
                   <div style="margin-top:0.6rem;">
-                    <div style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; color:{{ pc.pdf_palette.accent|default:'#0f766e' }}; margin-bottom:0.34rem;">Secuencia</div>
+                    <div style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; color:var(--club-accent); margin-bottom:0.34rem;">Secuencia</div>
                     <div class="drills-row">
                       {% for drill in pc.task_drills %}
-                      <span style="display:inline-flex; align-items:center; gap:0.38rem; border-radius:999px; border:1px solid #cbd5e1; background:#fff; padding:0.28rem 0.5rem; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em; color:#0f172a;">
-                        {% if drill.icon_url %}<img src="{{ drill.icon_url }}" alt="" style="width:16px; height:16px; object-fit:contain; background:#fff; border-radius:5px;" />{% endif %}
+                      <span style="display:inline-flex; align-items:center; gap:0.38rem; border-radius:999px; border:1px solid var(--club-soft-line); background:var(--club-sheet); padding:0.28rem 0.5rem; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--club-ink);">
+                    {% if drill.icon_url %}<img src="{{ drill.icon_url }}" alt="" style="width:16px; height:16px; object-fit:contain; background:var(--club-soft-fill); border-radius:5px;" />{% endif %}
                         {{ drill.label }}
                       </span>
                       {% endfor %}
@@ -298,7 +314,7 @@
             <div class="club-copy-head">Contenido</div>
             <div class="club-copy-body">
               {% if pc.description_rich_html %}
-              <div class="task-copy">{{ pc.description_rich_html|safe }}</div>
+                  <div class="task-copy">{{ pc.description_rich_html|striptags|linebreaksbr }}</div>
               {% elif pc.description_lines %}
               <div class="task-copy">{% for line in pc.description_lines %}{{ line }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</div>
               {% elif task.description %}
@@ -308,7 +324,7 @@
               {% endif %}
 
               {% if pc.coaching_rich_html %}
-              <div class="task-copy" style="margin-top:0.6rem;"><span class="club-label">Consignas</span>{{ pc.coaching_rich_html|safe }}</div>
+              <div class="task-copy" style="margin-top:0.6rem;"><span class="club-label">Consignas</span>{{ pc.coaching_rich_html|striptags|linebreaksbr }}</div>
               {% elif task.coaching_points %}
               <div class="task-copy" style="margin-top:0.6rem;"><span class="club-label">Consignas</span>{{ task.coaching_points|linebreaksbr }}</div>
               {% endif %}
@@ -318,7 +334,7 @@
             <div class="club-copy-head">Normas de confrontación</div>
             <div class="club-copy-body">
               {% if pc.rules_rich_html %}
-              <div class="task-copy">{{ pc.rules_rich_html|safe }}</div>
+              <div class="task-copy">{{ pc.rules_rich_html|striptags|linebreaksbr }}</div>
               {% elif task.confrontation_rules %}
               <div class="task-copy">{{ task.confrontation_rules|linebreaksbr }}</div>
               {% else %}
@@ -326,12 +342,12 @@
               {% endif %}
               {% if task_meta.success_criteria %}
               <div style="margin-top:0.55rem;"><span class="club-label">Criterio de éxito</span>
-                {% if pc.success_criteria_rich_html %}<div class="task-copy">{{ pc.success_criteria_rich_html|safe }}</div>{% else %}<div class="task-copy">{{ task_meta.success_criteria }}</div>{% endif %}
+                {% if pc.success_criteria_rich_html %}<div class="task-copy">{{ pc.success_criteria_rich_html|striptags|linebreaksbr }}</div>{% else %}<div class="task-copy">{{ task_meta.success_criteria }}</div>{% endif %}
               </div>
               {% endif %}
               {% if task_meta.progression %}
               <div style="margin-top:0.55rem;"><span class="club-label">Progresión</span>
-                {% if pc.progression_rich_html %}<div class="task-copy">{{ pc.progression_rich_html|safe }}</div>{% else %}<div class="task-copy">{{ task_meta.progression }}</div>{% endif %}
+                {% if pc.progression_rich_html %}<div class="task-copy">{{ pc.progression_rich_html|striptags|linebreaksbr }}</div>{% else %}<div class="task-copy">{{ task_meta.progression }}</div>{% endif %}
               </div>
               {% endif %}
             </div>
@@ -594,7 +610,7 @@
             <article class="sheet-item full">
               <strong>Descripción</strong>
               {% if pc.description_rich_html %}
-              <div class="task-copy">{{ pc.description_rich_html|safe }}</div>
+              <div class="task-copy">{{ pc.description_rich_html|striptags|linebreaksbr }}</div>
               {% elif pc.description_lines %}
               <div class="task-copy">
                 {% for line in pc.description_lines %}{{ line }}{% if not forloop.last %}<br>{% endif %}{% endfor %}
@@ -606,7 +622,7 @@
             <article class="sheet-item full">
               <strong>Consignas</strong>
               {% if pc.coaching_rich_html %}
-              <div class="task-copy">{{ pc.coaching_rich_html|safe }}</div>
+              <div class="task-copy">{{ pc.coaching_rich_html|striptags|linebreaksbr }}</div>
               {% elif task.coaching_points %}
               <div class="task-copy">{{ task.coaching_points|linebreaksbr }}</div>
               {% else %}
@@ -616,7 +632,7 @@
             <article class="sheet-item full">
               <strong>Reglas de confrontación</strong>
               {% if pc.rules_rich_html %}
-              <div class="task-copy">{{ pc.rules_rich_html|safe }}</div>
+              <div class="task-copy">{{ pc.rules_rich_html|striptags|linebreaksbr }}</div>
               {% elif task.confrontation_rules %}
               <div class="task-copy">{{ task.confrontation_rules|linebreaksbr }}</div>
               {% else %}

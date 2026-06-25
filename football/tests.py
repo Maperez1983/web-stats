@@ -97,6 +97,13 @@ class TeamMediaServicesTests(TestCase):
         team = Team(name='C.D. Benagalbón', slug='cd-benagalbon')
         self.assertTrue(team_media_services.is_benagalbon_team(team))
 
+    def test_benagalbon_pdf_palette_is_green_and_white(self):
+        team = Team(name='C.D. Benagalbón', slug='cd-benagalbon')
+        palette = team_media_services.team_pdf_palette(team, 'club')
+        self.assertEqual(palette['primary'], '#007050')
+        self.assertEqual(palette['secondary'], '#ffffff')
+        self.assertEqual(palette['accent'], '#044a37')
+
     def test_player_pdf_palette_uses_malaga_identity(self):
         team = Team(name='Málaga Club de Fútbol', slug='malaga-cf', is_primary=True)
         palette = team_media_services.team_pdf_palette(team, 'club')
@@ -14250,6 +14257,67 @@ class StaffUserLinkingTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'Análisis automático')
         self.assertContains(response, 'Abrir edición')
+
+    def test_session_task_detail_respects_selected_format(self):
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 25),
+            focus='Sesión con formato',
+            duration_minutes=90,
+        )
+        task = SessionTask.objects.create(
+            session=session,
+            title='Tarea formato',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=18,
+            tactical_layout={'meta': {'scope': 'coach', 'space': 'Pauta media'}},
+        )
+
+        uefa_response = self.client.get(f"{reverse('session-task-detail', args=[task.id])}?format=uefa")
+        self.assertEqual(uefa_response.status_code, 200)
+        self.assertContains(uefa_response, 'data-task-format-panel=\"uefa\"')
+        self.assertNotContains(uefa_response, 'data-task-format-panel=\"club\"')
+
+        club_response = self.client.get(f"{reverse('session-task-detail', args=[task.id])}?format=club")
+        self.assertEqual(club_response.status_code, 200)
+        self.assertContains(club_response, 'Formato Club')
+        self.assertContains(club_response, 'presentation-format-club')
+        self.assertContains(club_response, 'Planificación de tarea')
+
+    def test_session_task_detail_escapes_rich_text_fields_in_presentation(self):
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 25),
+            focus='Sesión texto limpio',
+            duration_minutes=90,
+        )
+        task = SessionTask.objects.create(
+            session=session,
+            title='Tarea texto',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=12,
+            tactical_layout={
+                'meta': {
+                    'analysis': {
+                        'task_sheet': {
+                            'description_html': '<strong>Descripción en negrita</strong><p>Con salto</p>',
+                            'coaching_html': '<em>Consigna HTML</em>',
+                            'rules_html': '<ul><li>Regla 1</li><li>Regla 2</li></ul>',
+                        },
+                    },
+                    'scope': 'coach',
+                },
+            },
+        )
+
+        response = self.client.get(f"{reverse('session-task-detail', args=[task.id])}?format=club")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Descripción en negrita')
+        self.assertContains(response, 'Con salto')
+        self.assertContains(response, 'Regla 1')
+        self.assertNotContains(response, '<strong>Descripción en negrita</strong>')
+        self.assertNotContains(response, '<em>Consigna HTML</em>')
+        self.assertNotContains(response, '<ul><li>Regla 1</li><li>Regla 2</li></ul>')
 
     @patch('football.views.call_ollama_json')
     @patch('football.views.local_llm_config')

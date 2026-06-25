@@ -389,10 +389,10 @@ def team_pdf_palette(team_obj, style_key='uefa'):
         if is_benagalbon_team(team_obj):
             return {
                 'primary': '#007050',
-                'secondary': '#008048',
-                'accent': '#063b31',
-                'panel': '#eff7f4',
-                'sheet': '#f6f7f5' if style_key == 'hybrid' else '#ffffff',
+                'secondary': '#ffffff',
+                'accent': '#044a37',
+                'panel': '#f1f7f3',
+                'sheet': '#f8fbf8' if style_key == 'hybrid' else '#ffffff',
                 'ink': '#0b1f1a',
                 'muted': '#3b5a54',
             }
