@@ -221,11 +221,73 @@
         gap:.8rem;
         margin-bottom: 1rem;
       }
+      .workflow-grid.flow-steps {
+        align-items: stretch;
+      }
       .workflow-card {
         border-radius: 18px;
         border: 1px solid rgba(255,255,255,.14);
         background: rgba(255,255,255,.04);
         padding: .95rem 1rem;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .workflow-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 0.23rem;
+        border-radius: 18px 0 0 18px;
+        background: linear-gradient(180deg, rgba(244, 180, 0, 0.7), rgba(16, 185, 129, 0.7));
+      }
+
+      .workflow-step {
+        font-size: 0.64rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.66);
+        margin-bottom: 0.22rem;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+      }
+
+      .workflow-card .step-number {
+        display: inline-flex;
+        width: 1.35rem;
+        height: 1.35rem;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        background: rgba(244, 180, 0, 0.22);
+        color: #fff;
+        font-size: 0.72rem;
+      }
+
+      .workflow-card .button {
+        margin-top: auto;
+      }
+
+      .panel.intro-strip {
+        border: 1px solid rgba(244, 180, 0, 0.22);
+        background: linear-gradient(130deg, rgba(244, 180, 0, 0.08), rgba(2, 10, 22, 0.35));
+      }
+
+      .intro-strip .panel-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        margin: 0 0 0.35rem;
+        text-transform: uppercase;
+        letter-spacing: 0.11em;
+        font-size: 0.72rem;
+        color: #f8fafc;
+      }
       }
       .workflow-card strong {
         display:block;
@@ -1855,23 +1917,34 @@
       <div class="panel"><p class="empty">El módulo no está listo por migraciones pendientes.</p></div>
       {% else %}
 
-	      <section class="panel">
-	        <h2>Planificación</h2>
-	        <div class="workflow-grid" style="margin-bottom:0;">
-	          <div class="workflow-card">
-	            <strong>Tareas</strong>
-	            <p>Abre el editor y crea una pizarra reutilizable con ficha y PDF.</p>
-	          </div>
-	          <div class="workflow-card">
-	            <strong>Sesiones</strong>
-	            <p>Agrupa tareas por bloques y monta el entreno del día.</p>
-	          </div>
-	          <div class="workflow-card">
-	            <strong>Microciclos</strong>
-	            <p>Ordena la semana y reparte el trabajo sin perder contexto.</p>
-	          </div>
-	        </div>
-	      </section>
+      <section class="panel intro-strip">
+        <p class="panel-kicker">Guía rápida</p>
+        <h2>Planificación</h2>
+        <p class="meta" style="margin-top: -0.1rem; margin-bottom: 0.7rem;">Crea primero la base táctica y luego programa la estructura semanal.</p>
+        <div class="workflow-grid flow-steps" style="margin-bottom:0;">
+          <div class="workflow-card">
+            <div class="workflow-step"><span class="step-number">1</span> Tareas</div>
+            <strong>Plantilla + Pizarra</strong>
+            <p>Define la tarea en el editor, valida ficha técnica y prepara los recursos reutilizables.</p>
+            <a
+              class="button secondary"
+              href="{% url task_builder_route_name %}?repo=traditional&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}"
+            >Abrir creador</a>
+          </div>
+          <div class="workflow-card">
+            <div class="workflow-step"><span class="step-number">2</span> Sesiones</div>
+            <strong>Componer el entreno</strong>
+            <p>Selecciona tareas y bloques para construir una sesión completa.</p>
+            <a class="button secondary" href="?tab=create&create_page=session&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Crear sesión</a>
+          </div>
+          <div class="workflow-card">
+            <div class="workflow-step"><span class="step-number">3</span> Microciclos</div>
+            <strong>Planificar la semana</strong>
+            <p>Distribuye el volumen semanal y ajusta cargas para mantener coherencia.</p>
+            <a class="button secondary" href="?tab=create&create_page=microcycle&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Abrir microciclo</a>
+          </div>
+        </div>
+      </section>
 
 			      <div class="tabs" id="planner-tabs">
 			        <a class="tab-link {% if main_tab == 'create' %}is-active{% endif %}" href="?tab=create&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Crear</a>
