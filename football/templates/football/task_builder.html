@@ -4869,10 +4869,10 @@
         min-width: 0;
       }
       body:not(.tactics-mode) .builder {
-        grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+        grid-template-columns: minmax(0, 1fr) minmax(360px, 420px);
       }
       body:not(.tactics-mode) .page {
-        max-width: 1720px;
+        max-width: 1860px;
       }
       body:not(.tactics-mode) .panel-body {
         padding: clamp(0.75rem, 1vw, 1rem);
@@ -5037,8 +5037,92 @@
         grid-template-columns: 1fr;
       }
       body:not(.tactics-mode) .pitch-layout {
-        grid-template-columns: minmax(0, 1fr) clamp(300px, 20vw, 350px);
+        grid-template-columns: minmax(0, 1fr) clamp(360px, 24vw, 430px);
         gap: 0.72rem;
+      }
+      body:not(.tactics-mode) .editor-side-tabs {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.42rem;
+        margin-bottom: 0.58rem;
+      }
+      body:not(.tactics-mode) .editor-side-tab {
+        min-height: 42px;
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.04);
+        color: rgba(226,232,240,0.82);
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+      }
+      body:not(.tactics-mode) .editor-side-tab.is-active {
+        border-color: rgba(244,180,0,0.46);
+        background: rgba(244,180,0,0.14);
+        color: rgba(248,250,252,0.96);
+      }
+      body:not(.tactics-mode) .editor-side-pane[hidden] {
+        display: none !important;
+      }
+      body:not(.tactics-mode) .editor-side-pane {
+        min-width: 0;
+      }
+      body:not(.tactics-mode) .editor-edit-pane {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+      }
+      body:not(.tactics-mode) .editor-pane-card {
+        padding: 0.8rem;
+        border-radius: 16px;
+        border: 1px solid rgba(255,255,255,0.1);
+        background: rgba(255,255,255,0.035);
+      }
+      body:not(.tactics-mode) .editor-pane-card h4 {
+        margin: 0 0 0.3rem;
+        font-size: 0.82rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(248,250,252,0.94);
+      }
+      body:not(.tactics-mode) .editor-pane-card p {
+        margin: 0;
+        color: rgba(226,232,240,0.68);
+        font-size: 0.8rem;
+        line-height: 1.42;
+      }
+      body:not(.tactics-mode) .editor-side-section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.55rem;
+        margin-bottom: 0.42rem;
+      }
+      body:not(.tactics-mode) .editor-side-section-head strong {
+        font-size: 0.78rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(248,250,252,0.94);
+      }
+      body:not(.tactics-mode) .editor-side-section-head span {
+        font-size: 0.75rem;
+        color: rgba(226,232,240,0.64);
+      }
+      body:not(.tactics-mode) #task-side-command-slot .command-bar,
+      body:not(.tactics-mode) #task-side-selection-slot .selection-toolbar {
+        margin: 0;
+      }
+      body:not(.tactics-mode) #task-side-command-slot .command-bar {
+        padding: 0.38rem;
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.03);
+      }
+      body:not(.tactics-mode) #task-side-selection-slot {
+        min-height: 120px;
+      }
+      body:not(.tactics-mode) #task-side-selection-slot .selection-toolbar[hidden] + .editor-pane-card {
+        display: block;
       }
       body:not(.tactics-mode) .pitch-stage {
         max-width: min(var(--stage-max-user, 1680px), var(--stage-max-fit, 9999px));
@@ -5933,6 +6017,8 @@
 			                      <span>Césped</span>
 			                      <span class="current" id="pitch-grass-label">
 			                        {% if initial.pitch_grass_style == 'broadcast' %}Broadcast
+                                  {% elif initial.pitch_grass_style == 'broadcast_premium' %}Broadcast Premium
+                                  {% elif initial.pitch_grass_style == 'stadium_top' %}Estadio HD
 			                        {% elif initial.pitch_grass_style == 'realistic' %}Realista
 			                        {% elif initial.pitch_grass_style == 'pro' %}PRO
 			                        {% elif initial.pitch_grass_style == 'uefa_b' %}UEFA B
@@ -5954,6 +6040,8 @@
 		                      <select id="pitch-grass-select" class="pitch-grass-select" aria-label="Tipo de césped">
 		                        <option value="classic" {% if initial.pitch_grass_style == 'classic' %}selected{% endif %}>Césped</option>
 		                        <option value="broadcast" {% if initial.pitch_grass_style == 'broadcast' %}selected{% endif %}>Broadcast</option>
+                                <option value="broadcast_premium" {% if initial.pitch_grass_style == 'broadcast_premium' %}selected{% endif %}>Broadcast Premium</option>
+                                <option value="stadium_top" {% if initial.pitch_grass_style == 'stadium_top' %}selected{% endif %}>Estadio HD</option>
 		                        <option value="realistic" {% if initial.pitch_grass_style == 'realistic' %}selected{% endif %}>Realista</option>
 		                        <option value="pro" {% if initial.pitch_grass_style == 'pro' %}selected{% endif %}>PRO</option>
 		                        <option value="uefa_b" {% if initial.pitch_grass_style == 'uefa_b' %}selected{% endif %}>UEFA B</option>
@@ -6020,6 +6108,33 @@
               <div class="pitch-layout">
 		              <div class="section resource-section pitch-side">
 		                <div class="resource-tab-bar">
+                    {% if not tactics_mode %}
+                    <div class="editor-side-tabs" id="task-side-tabs" aria-label="Panel lateral de edición">
+                      <button type="button" class="editor-side-tab is-active" data-side-pane="edit">Editar</button>
+                      <button type="button" class="editor-side-tab" data-side-pane="resources">Recursos</button>
+                    </div>
+                    <div class="editor-side-pane editor-edit-pane" id="task-side-pane-edit">
+                      <div class="editor-pane-card">
+                        <h4>Edición de pizarra</h4>
+                        <p>Selecciona un elemento en el campo para ajustar tamaño, color, nombre, capas o lectura táctica. Los jugadores quedan abajo para no robar espacio al campo.</p>
+                      </div>
+                      <div class="editor-pane-card">
+                        <div class="editor-side-section-head">
+                          <strong>Acciones</strong>
+                          <span>Edición rápida</span>
+                        </div>
+                        <div id="task-side-command-slot"></div>
+                      </div>
+                      <div class="editor-pane-card">
+                        <div class="editor-side-section-head">
+                          <strong>Inspector</strong>
+                          <span>Elemento seleccionado</span>
+                        </div>
+                        <div id="task-side-selection-slot"></div>
+                      </div>
+                    </div>
+                    <div class="editor-side-pane" id="task-side-pane-resources" hidden>
+                    {% endif %}
                     <div class="resource-details" id="task-resource-details">
                       <div class="library-head">
                         <button type="button" class="library-toggle" id="task-library-toggle" aria-label="Colapsar/expandir recursos" aria-pressed="false" title="Recursos">
@@ -7386,6 +7501,9 @@
 				                  {% if not tactics_mode %}
 				                  <div class="roster-bank-slot" id="task-roster-bank-slot" hidden></div>
 				                  {% endif %}
+                      {% if not tactics_mode %}
+                    </div>
+                    {% endif %}
 				              </div>
 
 			              <div class="pitch-main">
@@ -13929,5 +14047,46 @@
         else boot();
       })();
     </script>
+    {% if not tactics_mode %}
+    <script>
+      (function () {
+        const boot = () => {
+          const sideTabs = Array.from(document.querySelectorAll('#task-side-tabs .editor-side-tab'));
+          const editPane = document.getElementById('task-side-pane-edit');
+          const resourcesPane = document.getElementById('task-side-pane-resources');
+          const commandBar = document.getElementById('task-command-bar');
+          const selectionToolbar = document.getElementById('task-selection-toolbar');
+          const commandSlot = document.getElementById('task-side-command-slot');
+          const selectionSlot = document.getElementById('task-side-selection-slot');
+          if (!sideTabs.length || !editPane || !resourcesPane) return;
+
+          if (commandBar && commandSlot && commandBar.parentElement !== commandSlot) {
+            try { commandSlot.appendChild(commandBar); } catch (e) { /* ignore */ }
+          }
+          if (selectionToolbar && selectionSlot && selectionToolbar.parentElement !== selectionSlot) {
+            try { selectionSlot.appendChild(selectionToolbar); } catch (e) { /* ignore */ }
+          }
+
+          const activate = (pane) => {
+            const next = String(pane || 'edit').trim().toLowerCase() === 'resources' ? 'resources' : 'edit';
+            sideTabs.forEach((tab) => tab.classList.toggle('is-active', String(tab.dataset.sidePane || '') === next));
+            editPane.hidden = next !== 'edit';
+            resourcesPane.hidden = next !== 'resources';
+          };
+
+          sideTabs.forEach((tab) => {
+            tab.addEventListener('click', (event) => {
+              try { event.preventDefault(); } catch (e) { /* ignore */ }
+              activate(tab.dataset.sidePane || 'edit');
+            });
+          });
+
+          activate('edit');
+        };
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
+        else boot();
+      })();
+    </script>
+    {% endif %}
   </body>
 </html>

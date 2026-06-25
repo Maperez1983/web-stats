@@ -302,7 +302,7 @@
 		  const __grassTextureCache = new Map();
 		  const __buildGrassTextureDataUrl = (styleKey) => {
 		    const style = safeText(styleKey, 'classic').toLowerCase();
-		    const allowed = new Set(['realistic', 'pro', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'broadcast']);
+		    const allowed = new Set(['realistic', 'pro', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'broadcast', 'broadcast_premium']);
 		    if (!allowed.has(style)) return '';
 		    if (__grassTextureCache.has(style)) return __grassTextureCache.get(style);
 		    try {
@@ -327,6 +327,7 @@
 		        natural: '#3f7a34',
 		        pro: '#2f6a3a',
 		        broadcast: '#155e3a',
+		        broadcast_premium: '#0f5a39',
 		        artificial: '#2fb46d',
 		        albero: '#c99042',
 		        dirt: '#8f5c38',
@@ -339,11 +340,11 @@
 
 		      // Mowing stripes / bands (subtle, varies by style).
 		      try {
-		        const stripeCount = style === 'artificial' ? 10 : style === 'broadcast' ? 12 : (style === 'albero' || style === 'dirt' || style === 'indoor') ? 0 : 8;
+		        const stripeCount = style === 'artificial' ? 10 : (style === 'broadcast' || style === 'broadcast_premium') ? 12 : (style === 'albero' || style === 'dirt' || style === 'indoor') ? 0 : 8;
 		        if (stripeCount > 0) {
 		          const stripeW = size / stripeCount;
 		          for (let i = 0; i < stripeCount; i += 1) {
-		            const alpha = style === 'broadcast' ? 0.10 : style === 'pro' ? 0.08 : style === 'wet' ? 0.06 : style === 'dry' ? 0.04 : 0.05;
+		            const alpha = style === 'broadcast_premium' ? 0.14 : style === 'broadcast' ? 0.10 : style === 'pro' ? 0.08 : style === 'wet' ? 0.06 : style === 'dry' ? 0.04 : 0.05;
 		            ctx.fillStyle = i % 2 === 0 ? `rgba(255,255,255,${alpha})` : `rgba(0,0,0,${alpha})`;
 		            ctx.fillRect(i * stripeW, 0, stripeW + 1, size);
 		          }
@@ -354,7 +355,7 @@
 		      for (let i = 0; i < 9000; i += 1) {
 		        const x = (Math.random() * size) | 0;
 		        const y = (Math.random() * size) | 0;
-		        const noiseMax = style === 'artificial' ? 18 : (style === 'albero' || style === 'dirt') ? 110 : 70;
+		        const noiseMax = style === 'artificial' ? 18 : (style === 'albero' || style === 'dirt') ? 110 : style === 'broadcast_premium' ? 85 : 70;
 		        const g = (style === 'dry')
 		          ? (90 + ((Math.random() * 45) | 0))
 		          : (110 + ((Math.random() * noiseMax) | 0));
@@ -373,17 +374,17 @@
 		      }
 
 		      // Subtle blades / streaks.
-		      ctx.globalAlpha = style === 'pro' ? 0.14 : style === 'artificial' ? 0.08 : (style === 'albero' || style === 'dirt' || style === 'indoor') ? 0.10 : 0.12;
-		      const streaks = style === 'artificial' ? 140 : (style === 'albero' || style === 'dirt') ? 260 : 220;
+		      ctx.globalAlpha = style === 'broadcast_premium' ? 0.18 : style === 'pro' ? 0.14 : style === 'artificial' ? 0.08 : (style === 'albero' || style === 'dirt' || style === 'indoor') ? 0.10 : 0.12;
+		      const streaks = style === 'artificial' ? 140 : (style === 'albero' || style === 'dirt') ? 260 : style === 'broadcast_premium' ? 280 : 220;
 		      for (let i = 0; i < streaks; i += 1) {
 		        const x = Math.random() * size;
 		        const y = Math.random() * size;
 		        const len = 12 + Math.random() * 44;
-		        const angleSpan = style === 'artificial' ? (Math.PI / 8) : (Math.PI / 5);
+		        const angleSpan = style === 'artificial' ? (Math.PI / 8) : style === 'broadcast_premium' ? (Math.PI / 6) : (Math.PI / 5);
 		        const angle = (-Math.PI / 3) + (Math.random() * angleSpan);
 		        const x2 = x + Math.cos(angle) * len;
 		        const y2 = y + Math.sin(angle) * len;
-		        ctx.lineWidth = 1 + Math.random() * (style === 'pro' ? 2.4 : 2);
+		        ctx.lineWidth = 1 + Math.random() * (style === 'broadcast_premium' ? 2.8 : style === 'pro' ? 2.4 : 2);
 		        const c = (style === 'dry')
 		          ? (120 + ((Math.random() * 40) | 0))
 		          : (120 + ((Math.random() * 60) | 0));
@@ -404,7 +405,7 @@
 		      // Soft vignette (makes it feel less flat when scaled).
 		      const grad = ctx.createRadialGradient(size / 2, size / 2, size / 4, size / 2, size / 2, size * 0.9);
 		      grad.addColorStop(0, 'rgba(255,255,255,0)');
-		      grad.addColorStop(1, style === 'wet' ? 'rgba(0,0,0,0.26)' : 'rgba(0,0,0,0.18)');
+		      grad.addColorStop(1, style === 'broadcast_premium' ? 'rgba(0,0,0,0.24)' : style === 'wet' ? 'rgba(0,0,0,0.26)' : 'rgba(0,0,0,0.18)');
 		      ctx.fillStyle = grad;
 		      ctx.fillRect(0, 0, size, size);
 
@@ -420,7 +421,7 @@
 			    const preset = String(presetKey || 'full_pitch').trim();
 			    const orientation = safeText(orientationKey, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
 			    const normalizedGrass = safeText(grassStyleKey, 'classic').toLowerCase();
-			    let grassStyle = (['classic', 'realistic', 'pro', 'broadcast', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'].includes(normalizedGrass))
+			    let grassStyle = (['classic', 'realistic', 'pro', 'broadcast', 'broadcast_premium', 'stadium_top', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'].includes(normalizedGrass))
 			      ? normalizedGrass
 			      : 'classic';
 			    try {
@@ -465,6 +466,8 @@
 		      realistic: ['#4f7f3a', '#3f6e35'],
 		      pro: ['#2f6a3a', '#245934'],
 		      broadcast: ['#155e3a', '#0f4d2f'],
+		      broadcast_premium: ['#0f5a39', '#0a4029'],
+		      stadium_top: ['#194b34', '#102e22'],
 		      artificial: ['#2fb46d', '#1f8d55'],
 		      dry: ['#7b9a45', '#6b8a3a'],
 		      wet: ['#1f5a46', '#163f35'],
@@ -509,6 +512,37 @@
 			        'stroke-width': 1,
 			      }));
 			      pattern.appendChild(createSvgNode(doc, 'rect', { x: 0, y: 0, width: 96, height: 96, fill: 'rgba(0,0,0,0.04)' }));
+			      defs.appendChild(pattern);
+			    } else if (grassStyle === 'stadium_top') {
+			      grassFillId = 'pitch-stadium-top';
+			      const pattern = createSvgNode(doc, 'pattern', {
+			        id: grassFillId,
+			        patternUnits: 'userSpaceOnUse',
+			        x: -bleed,
+			        y: -bleed,
+			        width: stageW + (bleed * 2),
+			        height: stageH + (bleed * 2),
+			      });
+			      const href = orientation === 'portrait'
+			        ? '/static/football/images/pitch3d/stadium_rosaleda_top_v.png'
+			        : '/static/football/images/pitch3d/stadium_rosaleda_top_h.png';
+			      const image = createSvgNode(doc, 'image', {
+			        href,
+			        x: -bleed,
+			        y: -bleed,
+			        width: stageW + (bleed * 2),
+			        height: stageH + (bleed * 2),
+			        preserveAspectRatio: 'xMidYMid slice',
+			      });
+			      try { image.setAttribute('xlink:href', href); } catch (e) { /* ignore */ }
+			      pattern.appendChild(image);
+			      pattern.appendChild(createSvgNode(doc, 'rect', {
+			        x: -bleed,
+			        y: -bleed,
+			        width: stageW + (bleed * 2),
+			        height: stageH + (bleed * 2),
+			        fill: 'rgba(3, 7, 18, 0.22)',
+			      }));
 			      defs.appendChild(pattern);
 			    } else if (grassStyle !== 'classic') {
 			      const dataUrl = __buildGrassTextureDataUrl(grassStyle);
@@ -599,8 +633,8 @@
     // y evitar márgenes vacíos enormes en superficies parciales (tercios, medio campo, futsal, etc).
     let pitchBox = { x: stage.x, y: stage.y, width: stage.width, height: stage.height };
     const scale = stage.width / 105;
-	    const line = (grassStyle === 'whiteboard') ? '#0f172a' : '#f8fafc';
-	    const soft = (grassStyle === 'whiteboard') ? 'rgba(15,23,42,0.55)' : 'rgba(248,250,252,0.66)';
+	    const line = (grassStyle === 'whiteboard') ? '#0f172a' : (grassStyle === 'stadium_top' ? 'rgba(255,255,255,0.96)' : '#f8fafc');
+	    const soft = (grassStyle === 'whiteboard') ? 'rgba(15,23,42,0.55)' : (grassStyle === 'stadium_top' ? 'rgba(255,255,255,0.78)' : 'rgba(248,250,252,0.66)');
 
 	    const drawFrame = (x, y, width, height, lineWidth = 4) => {
 	      const isCoachBoard = grassStyle === 'coachboard';
@@ -632,6 +666,19 @@
 	        stroke: line,
 	        'stroke-width': lineWidth,
 	      }));
+
+	      if (grassStyle === 'broadcast_premium' || grassStyle === 'stadium_top') {
+	        drawRoot.appendChild(createSvgNode(doc, 'rect', {
+	          x,
+	          y,
+	          width,
+	          height,
+	          rx: corner,
+	          ry: corner,
+	          fill: grassStyle === 'stadium_top' ? 'rgba(15,23,42,0.12)' : 'rgba(255,255,255,0.03)',
+	          stroke: 'none',
+	        }));
+	      }
 
 	      if (isCoachBoard) {
 	        // Rejilla de entrenador: divisiones con línea discontinua.
@@ -666,7 +713,7 @@
 	        }
 	      }
 
-	      const showStripes = !(grassStyle === 'whiteboard' || grassStyle === 'blackboard' || grassStyle === 'coachboard');
+	      const showStripes = !(grassStyle === 'whiteboard' || grassStyle === 'blackboard' || grassStyle === 'coachboard' || grassStyle === 'stadium_top');
 	      if (showStripes) {
 	        const stripeW = width / 12;
 	        for (let index = 0; index < 12; index += 1) {
@@ -675,7 +722,9 @@
 	            y,
 	            width: stripeW + 1,
 	            height,
-	            fill: index % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+	            fill: index % 2 === 0
+	              ? (grassStyle === 'broadcast_premium' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.05)')
+	              : (grassStyle === 'broadcast_premium' ? 'rgba(0,0,0,0.08)' : 'rgba(0,0,0,0.05)'),
 	            stroke: 'none',
 	          }));
 	        }
@@ -4205,6 +4254,8 @@
 					    const GRASS_STYLE_LABEL = {
 					      classic: 'Césped',
 					      broadcast: 'Broadcast',
+					      broadcast_premium: 'Broadcast Premium',
+					      stadium_top: 'Estadio HD',
 					      realistic: 'Realista',
 					      pro: 'PRO',
 					      uefa_b: 'UEFA B',
@@ -4216,7 +4267,7 @@
 					      dry: 'Seco',
 					      wet: 'Mojado',
 					    };
-					    const GRASS_STYLE_ORDER = ['classic', 'broadcast', 'realistic', 'pro', 'uefa_b', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet'];
+					    const GRASS_STYLE_ORDER = ['classic', 'broadcast', 'broadcast_premium', 'stadium_top', 'realistic', 'pro', 'uefa_b', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet'];
 					    const normalizeGrassStyleForMode = (value) => {
 					      const next = safeText(value, 'classic').toLowerCase();
 					      if (!GRASS_STYLE_ORDER.includes(next)) return 'classic';
