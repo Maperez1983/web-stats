@@ -411,6 +411,42 @@
       .task-edit-tab-panel.is-active {
         display: block;
       }
+      .task-settings-tab-bar {
+        display: flex;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+        margin: 0.75rem 0 0.95rem;
+      }
+      .task-settings-tab {
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 999px;
+        padding: 0.45rem 0.78rem;
+        color: var(--ink);
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+      .task-settings-tab.is-active {
+        border-color: rgba(56, 189, 248, 0.58);
+        background: rgba(56, 189, 248, 0.14);
+        color: #fefefe;
+      }
+      body.session-task-detail-page.is-presentation .task-settings-tab {
+        border-color: rgba(18, 32, 51, 0.16);
+        background: rgba(255, 255, 255, 0.94);
+        color: #122033 !important;
+      }
+      body.session-task-detail-page.is-presentation .task-settings-tab.is-active {
+        background: rgba(14, 116, 144, 0.15) !important;
+      }
+      .task-settings-pane {
+        display: none;
+      }
+      .task-settings-pane.is-active {
+        display: block;
+      }
       .task-detail-format-bar {
         display: flex;
         gap: 0.45rem;
@@ -1452,82 +1488,349 @@
 
         <section class="panel task-edit-tab-panel{% if active_task_edit_tab == 'settings' %} is-active{% endif %}" data-task-edit-tab-panel="settings">
           <h2>Configuración</h2>
-          <p class="meta">Ajusta aquí el texto, métricas y opciones de compartición para la tarea.</p>
+          <p class="meta">Aquí se edita toda la parte técnica, descriptiva y metodológica que luego alimenta la ficha de presentación.</p>
           <form method="post" class="grid editor-core" id="task-detail-form">
             {% csrf_token %}
             <input type="hidden" name="detail_action" value="update_task_detail" />
-            <div class="editor-section">
-              <div class="editor-section-head">
-                <h3>Información esencial</h3>
-                <span class="meta">Lo que el entrenador ve y cambia primero.</span>
-              </div>
-              <div class="editor-grid">
-                <label>
-                  Título
-                  <input type="text" name="task_title" value="{{ task.title }}" maxlength="160" required />
-                </label>
-                <label>
-                  Bloque
-                  <select name="task_block">
-                    {% for value, label in task_blocks %}
-                    <option value="{{ value }}" {% if task.block == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                  </select>
-                </label>
-                <label>
-                  Minutos
-                  <input type="number" name="task_minutes" min="5" max="90" value="{{ task.duration_minutes }}" />
-                </label>
-                <label class="full">
-                  Objetivo
-                  <textarea name="task_objective" rows="2" style="min-height:52px; resize:vertical;">{{ task.objective }}</textarea>
-                </label>
-              </div>
+            <div class="task-settings-tab-bar" role="tablist" aria-label="Secciones de configuración">
+              <button type="button" class="button task-settings-tab is-active" data-task-settings-tab="sheet" aria-selected="true">Ficha</button>
+              <button type="button" class="button task-settings-tab" data-task-settings-tab="content" aria-selected="false">Contenido</button>
+              <button type="button" class="button task-settings-tab" data-task-settings-tab="methodology" aria-selected="false">Metodología</button>
+              <button type="button" class="button task-settings-tab" data-task-settings-tab="load" aria-selected="false">Carga</button>
             </div>
-            <details class="editor-section" open>
-              <summary class="editor-section-head">
-                <h3>Contenido y consigna</h3>
-                <span class="meta">Lo que explica y ordena la tarea.</span>
-              </summary>
-              <div class="editor-grid">
-                <label class="full">
-                  Consignas
-                  <textarea name="task_coaching_points">{{ task.coaching_points }}</textarea>
-                </label>
-                <label class="full">
-                  Reglas de confrontación
-                  <textarea name="task_confrontation_rules">{{ task.confrontation_rules }}</textarea>
-                </label>
-                <label class="full">
-                  Descripción de la ficha
-                  <textarea name="task_sheet_description">{{ task_sheet.description }}</textarea>
-                </label>
+
+            <section class="task-settings-pane is-active" data-task-settings-pane="sheet">
+              <div class="editor-section">
+                <div class="editor-section-head">
+                  <h3>Ficha técnica base</h3>
+                  <span class="meta">Lo que define la tarea antes de entrar en detalle.</span>
+                </div>
+                <div class="editor-grid">
+                  <label>
+                    Título
+                    <input type="text" name="task_title" value="{{ task.title }}" maxlength="160" required />
+                  </label>
+                  <label>
+                    Bloque
+                    <select name="task_block">
+                      {% for value, label in task_blocks %}
+                      <option value="{{ value }}" {% if task.block == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Minutos
+                    <input type="number" name="task_minutes" min="5" max="90" value="{{ task.duration_minutes }}" />
+                  </label>
+                  <label>
+                    Nº jugadores
+                    <input type="text" name="task_player_count" value="{{ task_meta.player_count|default:'' }}" placeholder="Ej: 6v6 + 2 porteros" />
+                  </label>
+                  <label>
+                    Espacio
+                    <input type="text" name="task_sheet_space" value="{{ task_sheet.space|default:'' }}" placeholder="Ej: Medio campo / 40x30 m" />
+                  </label>
+                  <label>
+                    Medidas
+                    <input type="text" name="task_sheet_dimensions" value="{{ task_sheet.dimensions }}" placeholder="Ej: 40x30 m" />
+                  </label>
+                  <label>
+                    Materiales
+                    <input type="text" name="task_sheet_materials" value="{{ task_sheet.materials }}" placeholder="Ej: 10 conos, 2 porterías, 8 petos" />
+                  </label>
+                  <label>
+                    Edad / categoría
+                    <input type="text" name="task_age_group" value="{{ task_meta.age_group }}" placeholder="Ej: Benjamín / Cadete" />
+                  </label>
+                  <label>
+                    Tipo de tarea
+                    <input type="text" name="task_training_type" value="{{ task_meta.training_type }}" placeholder="Ej: Conservación / Finalización" />
+                  </label>
+                  <label>
+                    Superficie
+                    <select name="task_surface">
+                      <option value="">-</option>
+                      {% for value, label in task_surface_choices %}
+                      <option value="{{ value }}" {% if task_meta.surface == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Formato de campo
+                    <select name="task_pitch_format">
+                      <option value="">-</option>
+                      {% for value, label in task_pitch_choices %}
+                      <option value="{{ value }}" {% if task_meta.pitch_format == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label class="full">
+                    Objetivo
+                    <textarea name="task_objective" rows="2" style="min-height:52px; resize:vertical;">{{ task.objective }}</textarea>
+                  </label>
+                  <label class="full">
+                    Jugadores / organización base
+                    <input type="text" name="task_sheet_players" value="{{ task_sheet.players }}" placeholder="Ej: 12 jugadores + 2 porteros / 3 equipos de 4" />
+                  </label>
+                </div>
               </div>
-            </details>
-            <details class="editor-section">
-              <summary class="editor-section-head">
-                <h3>Contexto operativo</h3>
-                <span class="meta">Solo si necesitas afinar la estructura.</span>
-              </summary>
-              <div class="editor-grid">
-                <label>
-                  Jugadores
-                  <input type="text" name="task_sheet_players" value="{{ task_sheet.players }}" />
-                </label>
-                <label>
-                  Espacio
-                  <input type="text" name="task_sheet_space" value="{{ task_sheet.space }}" />
-                </label>
-                <label>
-                  Medidas
-                  <input type="text" name="task_sheet_dimensions" value="{{ task_sheet.dimensions }}" />
-                </label>
-                <label>
-                  Materiales
-                  <input type="text" name="task_sheet_materials" value="{{ task_sheet.materials }}" />
-                </label>
+            </section>
+
+            <section class="task-settings-pane" data-task-settings-pane="content">
+              <div class="editor-section">
+                <div class="editor-section-head">
+                  <h3>Contenido descriptivo</h3>
+                  <span class="meta">Lo que el entrenador explica, corrige y ordena.</span>
+                </div>
+                <div class="editor-grid">
+                  <label class="full">
+                    Descripción de la tarea
+                    <textarea name="task_sheet_description">{{ task_sheet.description }}</textarea>
+                  </label>
+                  <label class="full">
+                    Organización
+                    <textarea name="task_organization">{{ task_meta.organization }}</textarea>
+                  </label>
+                  <label class="full">
+                    Consignas
+                    <textarea name="task_coaching_points">{{ task.coaching_points }}</textarea>
+                  </label>
+                  <label class="full">
+                    Reglas de confrontación
+                    <textarea name="task_confrontation_rules">{{ task.confrontation_rules }}</textarea>
+                  </label>
+                </div>
               </div>
-            </details>
+            </section>
+
+            <section class="task-settings-pane" data-task-settings-pane="methodology">
+              <div class="editor-section">
+                <div class="editor-section-head">
+                  <h3>Metodología y variantes</h3>
+                  <span class="meta">Todo lo que luego se refleja en la ficha club/UEFA.</span>
+                </div>
+                <div class="editor-grid">
+                  <label>
+                    Estrategia
+                    <select name="task_strategy">
+                      <option value="">-</option>
+                      {% for value, label in task_strategy_choices %}
+                      <option value="{{ value }}" {% if task_meta.strategy == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Dinámica
+                    <select name="task_dynamics">
+                      <option value="">-</option>
+                      {% for value, label in task_dynamics_choices %}
+                      <option value="{{ value }}" {% if task_meta.dynamics == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Situación de juego
+                    <select name="task_structure">
+                      <option value="">-</option>
+                      {% for value, label in task_structure_choices %}
+                      <option value="{{ value }}" {% if task_meta.structure == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Coordinación
+                    <select name="task_coordination">
+                      <option value="">-</option>
+                      {% for value, label in task_coordination_choices %}
+                      <option value="{{ value }}" {% if task_meta.coordination == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Habilidades coordinativas
+                    <select name="task_coordination_skills">
+                      <option value="">-</option>
+                      {% for value, label in task_coordination_skills_choices %}
+                      <option value="{{ value }}" {% if task_meta.coordination_skills == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Intención táctica
+                    <select name="task_tactical_intent">
+                      <option value="">-</option>
+                      {% for value, label in task_tactical_intent_choices %}
+                      <option value="{{ value }}" {% if task_meta.tactical_intent == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Momento del juego
+                    <select name="task_game_moment">
+                      <option value="">-</option>
+                      {% for value, label in game_moment_choices %}
+                      <option value="{{ value }}" {% if task_meta.game_moment == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Complejidad
+                    <select name="task_complexity">
+                      <option value="">-</option>
+                      {% for value, label in task_complexity_choices %}
+                      <option value="{{ value }}" {% if task_meta.complexity == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Principio
+                    <input type="text" name="task_principle" value="{{ task_meta.principle }}" />
+                  </label>
+                  <label>
+                    Subprincipio
+                    <input type="text" name="task_subprinciple" value="{{ task_meta.subprinciple }}" />
+                  </label>
+                  <label>
+                    Estructura dominante
+                    <select name="task_dominant_structure">
+                      <option value="">-</option>
+                      {% for value, label in player_structure_choices %}
+                      <option value="{{ value }}" {% if task_meta.dominant_structure == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Estructura secundaria
+                    <select name="task_secondary_structure">
+                      <option value="">-</option>
+                      {% for value, label in player_structure_choices %}
+                      <option value="{{ value }}" {% if task_meta.secondary_structure == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Reparto de jugadores
+                    <input type="text" name="task_players_distribution" value="{{ task_meta.players_distribution }}" />
+                  </label>
+                  <label>
+                    Series
+                    <input type="text" name="task_series" value="{{ task_meta.series }}" />
+                  </label>
+                  <label>
+                    Repeticiones
+                    <input type="text" name="task_repetitions" value="{{ task_meta.repetitions }}" />
+                  </label>
+                  <label>
+                    Trabajo / descanso
+                    <input type="text" name="task_work_rest" value="{{ task_meta.work_rest }}" />
+                  </label>
+                  <label class="full">
+                    Regla provocadora
+                    <textarea name="task_provocation_rule" rows="2" style="min-height:52px; resize:vertical;">{{ task_meta.provocation_rule }}</textarea>
+                  </label>
+                  <label class="full">
+                    Progresión
+                    <textarea name="task_progression">{{ task_meta.progression }}</textarea>
+                  </label>
+                  <label class="full">
+                    Regresión
+                    <textarea name="task_regression">{{ task_meta.regression }}</textarea>
+                  </label>
+                  <label class="full">
+                    Criterio de éxito
+                    <textarea name="task_success_criteria">{{ task_meta.success_criteria }}</textarea>
+                  </label>
+                </div>
+              </div>
+            </section>
+
+            <section class="task-settings-pane" data-task-settings-pane="load">
+              <div class="editor-section">
+                <div class="editor-section-head">
+                  <h3>Carga y control</h3>
+                  <span class="meta">Exigencia prevista, contexto de microciclo y notas de control.</span>
+                </div>
+                <div class="editor-grid">
+                  <label>
+                    Carga física
+                    <select name="task_physical_load">
+                      <option value="">-</option>
+                      {% for value, label in task_load_level_choices %}
+                      <option value="{{ value }}" {% if task_meta.physical_load == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Carga cognitiva
+                    <select name="task_cognitive_load">
+                      <option value="">-</option>
+                      {% for value, label in task_load_level_choices %}
+                      <option value="{{ value }}" {% if task_meta.cognitive_load == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Carga emocional
+                    <select name="task_emotional_load">
+                      <option value="">-</option>
+                      {% for value, label in task_load_level_choices %}
+                      <option value="{{ value }}" {% if task_meta.emotional_load == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Día microciclo
+                    <select name="task_md_day">
+                      <option value="">-</option>
+                      {% for value, label in task_md_day_choices %}
+                      <option value="{{ value }}" {% if task_meta.md_day == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Carga dominante
+                    <select name="task_dominant_load">
+                      <option value="">-</option>
+                      {% for value, label in task_dominant_load_choices %}
+                      <option value="{{ value }}" {% if task_meta.dominant_load == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Escala RPE
+                    <select name="task_rpe_scale">
+                      {% for value, label in task_rpe_scale_choices %}
+                      <option value="{{ value }}" {% if task_meta.rpe_scale == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    RPE previsto
+                    <input type="number" name="task_planned_rpe" min="0" max="20" value="{{ task_meta.planned_rpe }}" />
+                  </label>
+                  <label>
+                    Bienestar objetivo
+                    <input type="number" name="task_wellness_target" min="1" max="10" value="{{ task_meta.wellness_target }}" />
+                  </label>
+                  <label>
+                    Objetivo de carga
+                    <input type="text" name="task_load_target" value="{{ task_meta.load_target }}" />
+                  </label>
+                  <label>
+                    Monotonía objetivo
+                    <input type="text" name="task_monotony_target" value="{{ task_meta.monotony_target }}" />
+                  </label>
+                  <label>
+                    Strain objetivo
+                    <input type="text" name="task_strain_target" value="{{ task_meta.strain_target }}" />
+                  </label>
+                  <label class="full">
+                    Notas de carga
+                    <textarea name="task_load_notes">{{ task_meta.load_notes }}</textarea>
+                  </label>
+                </div>
+              </div>
+            </section>
             <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
               <button class="button" type="submit">Guardar cambios</button>
               <button type="button" class="button secondary" id="task-detail-focus-editor">Ir a pizarra</button>
@@ -2738,6 +3041,8 @@
         const tabButtons = Array.from(document.querySelectorAll('[data-task-tab]'));
         const editTabButtons = Array.from(document.querySelectorAll('[data-task-edit-tab]'));
         const editTabPanels = Array.from(document.querySelectorAll('[data-task-edit-tab-panel]'));
+        const settingsTabButtons = Array.from(document.querySelectorAll('[data-task-settings-tab]'));
+        const settingsTabPanels = Array.from(document.querySelectorAll('[data-task-settings-pane]'));
         const formatTabButtons = Array.from(document.querySelectorAll('[data-task-format-tab]'));
         const formatTabPanels = Array.from(document.querySelectorAll('[data-task-format-panel]'));
         const tabPanels = Array.from(document.querySelectorAll('[data-task-tab-panel]'));
@@ -2745,6 +3050,7 @@
         const enterEditButton = document.getElementById('task-detail-enter-edit');
         let activeTaskEditTab = activeTaskEditTabFromServer;
         let activeTaskFormatTab = activeTaskFormatFromServer;
+        let activeTaskSettingsTab = 'sheet';
         const syncTaskTab = (tabName, shouldScroll = false) => {
           const nextTab = canEditTask && ['presentation', 'edit', 'export'].includes(tabName)
             ? tabName
@@ -2864,6 +3170,20 @@
             }
           }
         };
+        const syncTaskSettingsTab = (tabName) => {
+          const nextTab = ['sheet', 'content', 'methodology', 'load'].includes(tabName) ? tabName : 'sheet';
+          activeTaskSettingsTab = nextTab;
+          settingsTabButtons.forEach((button) => {
+            const isActive = button.dataset.taskSettingsTab === nextTab;
+            button.classList.toggle('is-active', isActive);
+            button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+          });
+          settingsTabPanels.forEach((panel) => {
+            const isActive = panel.dataset.taskSettingsPane === nextTab;
+            panel.classList.toggle('is-active', isActive);
+            panel.hidden = !isActive;
+          });
+        };
         tabButtons.forEach((button) => {
           button.addEventListener('click', () => {
             const directUrl = String(button.dataset.directUrl || '').trim();
@@ -2882,6 +3202,11 @@
               return;
             }
             syncTaskEditTab(button.dataset.taskEditTab || 'graphic', true);
+          });
+        });
+        settingsTabButtons.forEach((button) => {
+          button.addEventListener('click', () => {
+            syncTaskSettingsTab(button.dataset.taskSettingsTab || 'sheet');
           });
         });
         formatTabButtons.forEach((button) => {
@@ -3291,6 +3616,7 @@
         syncTaskTab(activeTaskTab, false);
         syncTaskEditTab(activeTaskEditTab, false);
         syncTaskFormatTab(activeTaskFormatTab);
+        syncTaskSettingsTab(activeTaskSettingsTab);
       })();
     </script>
     <script type="importmap">

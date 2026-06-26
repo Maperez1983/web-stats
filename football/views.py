@@ -33609,6 +33609,15 @@ def _update_library_task_from_post(task, post_data, scope_key=None):
             task_sheet_touched = True
     meta_field_touched = False
     choice_meta_fields = [
+        ('task_surface', 'surface', TASK_SURFACE_CHOICES, 32),
+        ('task_pitch_format', 'pitch_format', TASK_PITCH_FORMAT_CHOICES, 32),
+        ('task_complexity', 'complexity', TASK_COMPLEXITY_CHOICES, 24),
+        ('task_strategy', 'strategy', TASK_STRATEGY_CHOICES, 40),
+        ('task_dynamics', 'dynamics', TASK_DYNAMICS_CHOICES, 40),
+        ('task_structure', 'structure', TASK_STRUCTURE_CHOICES, 40),
+        ('task_coordination', 'coordination', TASK_COORDINATION_CHOICES, 40),
+        ('task_coordination_skills', 'coordination_skills', TASK_COORDINATION_SKILLS_CHOICES, 40),
+        ('task_tactical_intent', 'tactical_intent', TASK_TACTICAL_INTENT_CHOICES, 40),
         ('task_game_moment', 'game_moment', GAME_MOMENT_CHOICES, 40),
         ('task_dominant_structure', 'dominant_structure', PLAYER_STRUCTURE_CHOICES, 40),
         ('task_secondary_structure', 'secondary_structure', PLAYER_STRUCTURE_CHOICES, 40),
@@ -33626,6 +33635,13 @@ def _update_library_task_from_post(task, post_data, scope_key=None):
                 meta[meta_key] = 'cr10'
             meta_field_touched = True
     text_meta_fields = [
+        ('task_player_count', 'player_count', 120, False),
+        ('task_age_group', 'age_group', 80, False),
+        ('task_training_type', 'training_type', 120, False),
+        ('task_players_distribution', 'players_distribution', 180, False),
+        ('task_series', 'series', 40, False),
+        ('task_repetitions', 'repetitions', 40, False),
+        ('task_work_rest', 'work_rest', 120, False),
         ('task_principle', 'principle', 120, False),
         ('task_subprinciple', 'subprinciple', 160, False),
         ('task_provocation_rule', 'provocation_rule', 500, True),
@@ -33641,6 +33657,22 @@ def _update_library_task_from_post(task, post_data, scope_key=None):
                 multiline=bool(multiline),
                 max_len=max_len,
             )
+            meta_field_touched = True
+    rich_meta_fields = [
+        ('task_organization', 'organization', 'organization_html'),
+        ('task_progression', 'progression', 'progression_html'),
+        ('task_regression', 'regression', 'regression_html'),
+        ('task_success_criteria', 'success_criteria', 'success_criteria_html'),
+    ]
+    for post_key, meta_key, html_key in rich_meta_fields:
+        if post_key in post_data:
+            plain_value = _polish_spanish_text(
+                _repair_joined_words_text(str(post_data.get(post_key) or '').strip()),
+                multiline=True,
+                max_len=8000,
+            )
+            meta[meta_key] = plain_value
+            meta[html_key] = _sanitize_task_rich_html(_rich_html_from_plain_text(plain_value)) if plain_value else ''
             meta_field_touched = True
     if 'task_planned_rpe' in post_data:
         meta['planned_rpe'] = _bounded_optional_int(post_data.get('task_planned_rpe'), min_value=0, max_value=20)
@@ -43574,12 +43606,21 @@ def session_task_detail_page(request, task_id):
             'feedback': feedback,
             'error': error,
             'task_blocks': SessionTask.BLOCK_CHOICES,
+            'task_surface_choices': TASK_SURFACE_CHOICES,
+            'task_pitch_choices': TASK_PITCH_FORMAT_CHOICES,
             'game_moment_choices': GAME_MOMENT_CHOICES,
             'player_structure_choices': PLAYER_STRUCTURE_CHOICES,
             'task_load_level_choices': TASK_LOAD_LEVEL_CHOICES,
             'task_rpe_scale_choices': TASK_RPE_SCALE_CHOICES,
             'task_dominant_load_choices': TASK_DOMINANT_LOAD_CHOICES,
             'task_md_day_choices': TASK_MD_DAY_CHOICES,
+            'task_complexity_choices': TASK_COMPLEXITY_CHOICES,
+            'task_strategy_choices': TASK_STRATEGY_CHOICES,
+            'task_coordination_skills_choices': TASK_COORDINATION_SKILLS_CHOICES,
+            'task_tactical_intent_choices': TASK_TACTICAL_INTENT_CHOICES,
+            'task_dynamics_choices': TASK_DYNAMICS_CHOICES,
+            'task_structure_choices': TASK_STRUCTURE_CHOICES,
+            'task_coordination_choices': TASK_COORDINATION_CHOICES,
             'graphic_editor_state_json': json.dumps(graphic_editor_state, ensure_ascii=False),
             'animation_frames': animation_frames,
             'animation_frames_json': json.dumps(animation_frames, ensure_ascii=False),
