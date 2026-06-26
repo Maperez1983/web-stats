@@ -7231,39 +7231,15 @@
                   {% endif %}
                   {% if not tactics_mode %}
                   <div class="board-overlay-controls" aria-label="Paneles de edición">
-                    <button type="button" class="surface-trigger" id="task-board-resources-toggle" aria-pressed="false">Recursos</button>
-                    <button type="button" class="surface-trigger" id="task-board-inspector-toggle" aria-pressed="false">Inspector</button>
-                    <button type="button" class="surface-trigger is-active" id="task-board-roster-toggle" aria-pressed="true">Plantilla</button>
-                  </div>
-                  <div class="board-resource-family-bar" aria-label="Familias de recursos">
-                    <button type="button" class="board-resource-family-btn is-active" data-top-resource="base">Jugadores</button>
-                    <button type="button" class="board-resource-family-btn" data-top-resource="pro">Material</button>
-                    <button type="button" class="board-resource-family-btn" data-top-resource="trazos">Trazos</button>
-                    <button type="button" class="board-resource-family-btn" data-top-resource="figuras">Figuras</button>
-                    <button type="button" class="board-resource-family-btn" data-top-resource="emoji">Emoji</button>
-                    <button type="button" class="board-resource-family-btn" data-top-resource="importados">Assets</button>
-                    <details class="pitch-view-menu board-lanes-menu">
-                      <summary class="board-resource-family-btn" aria-label="Dividir el campo en carriles o zonas">Carriles</summary>
-                      <div class="pitch-view-menu-body">
-                        <button type="button" class="surface-trigger" data-lane-template="shape_lane_3">
-                          <span>3 carriles</span>
-                          <span class="current">División vertical</span>
-                        </button>
-                        <button type="button" class="surface-trigger" data-lane-template="shape_lane_5">
-                          <span>5 carriles</span>
-                          <span class="current">Análisis por pasillos</span>
-                        </button>
-                        <button type="button" class="surface-trigger" data-lane-template="shape_grid_120">
-                          <span>120 zonas</span>
-                          <span class="current">Malla completa</span>
-                        </button>
-                      </div>
-                    </details>
+                    <button type="button" class="surface-trigger is-active" id="task-board-roster-toggle" aria-pressed="true">Jugadores</button>
+                    <button type="button" class="surface-trigger" id="task-board-resources-toggle" aria-pressed="false">Material</button>
+                    <button type="button" class="surface-trigger" id="task-board-inspector-toggle" aria-pressed="false">Editar</button>
+                    <button type="button" class="surface-trigger" id="task-board-present-toggle" aria-pressed="false">Explicar</button>
                   </div>
                   {% endif %}
                   <div class="surface-picker" id="surface-picker">
                     <button type="button" class="surface-trigger" id="surface-trigger">
-                      <span>Superficie</span>
+                      <span>Campo</span>
                       <span class="current" id="surface-trigger-label">Campo completo</span>
                     </button>
                     <div class="surface-menu" id="surface-menu">
@@ -7331,36 +7307,10 @@
 	                  </button>
 	                  <details class="pitch-view-menu" id="pitch-view-menu">
 	                    <summary class="surface-trigger button" aria-label="Opciones de vista">
-	                      <span>Vista</span>
-	                      <span class="current">Zoom / césped</span>
+	                      <span>Visual</span>
+	                      <span class="current">Césped / zoom</span>
 	                    </summary>
                     <div class="pitch-view-menu-body">
-	                    <button type="button" class="surface-trigger" id="pitch-orientation-toggle">
-	                      <span>Orientación</span>
-	                      <span class="current" id="pitch-orientation-label">{% if initial.pitch_orientation == 'portrait' %}Vertical{% else %}Horizontal{% endif %}</span>
-	                    </button>
-			                    <button type="button" class="surface-trigger" id="pitch-grass-toggle" title="Cambiar césped (clic para ir pasando estilos)">
-			                      <span>Césped</span>
-			                      <span class="current" id="pitch-grass-label">
-			                        {% if initial.pitch_grass_style == 'broadcast' %}Broadcast
-                                  {% elif initial.pitch_grass_style == 'broadcast_premium' %}Broadcast Premium
-                                  {% elif initial.pitch_grass_style == 'stadium_top' %}Estadio HD
-			                        {% elif initial.pitch_grass_style == 'realistic' %}Realista
-			                        {% elif initial.pitch_grass_style == 'pro' %}PRO
-			                        {% elif initial.pitch_grass_style == 'uefa_b' %}UEFA B
-			                        {% elif initial.pitch_grass_style == 'natural' %}Natural
-			                        {% elif initial.pitch_grass_style == 'artificial' %}Artificial
-			                        {% elif initial.pitch_grass_style == 'albero' %}Albero
-			                        {% elif initial.pitch_grass_style == 'dirt' %}Tierra
-			                        {% elif initial.pitch_grass_style == 'indoor' %}Indoor
-			                        {% elif initial.pitch_grass_style == 'dry' %}Seco
-				                        {% elif initial.pitch_grass_style == 'wet' %}Mojado
-				                        {% elif initial.pitch_grass_style == 'coachboard' %}Tablero
-				                        {% elif initial.pitch_grass_style == 'whiteboard' %}Blanca
-				                        {% elif initial.pitch_grass_style == 'blackboard' %}Negra
-				                        {% else %}Estadio HD{% endif %}
-				                      </span>
-				                    </button>
 		                    <span class="pitch-grass-select-wrap">
 		                      <label class="sr-only" for="pitch-grass-select">Tipo de césped</label>
 		                      <select id="pitch-grass-select" class="pitch-grass-select" aria-label="Tipo de césped">
@@ -7395,16 +7345,27 @@
                     </div>
                   </details>
                   {% if not tactics_mode %}
-                  <button type="button" class="surface-trigger" id="pitch-3d-open-standard" data-pitch3d-trigger="1" title="Representación 3D (presentación)" aria-label="Representación 3D">
-                    <span>Representación 3D</span>
-                    <span class="current">Presentar</span>
-                  </button>
+                  <details class="pitch-view-menu" id="pitch-present-menu">
+                    <summary class="surface-trigger button" aria-label="Opciones de presentación">
+                      <span>Explicar</span>
+                      <span class="current">Pizarra / 3D</span>
+                    </summary>
+                    <div class="pitch-view-menu-body">
+                      <button type="button" class="surface-trigger" id="task-focus-toggle" title="Modo presentación" aria-label="Modo presentación">Solo pizarra</button>
+                      <button type="button" class="surface-trigger" id="pitch-3d-open-standard" data-pitch3d-trigger="1" title="Representación 3D (presentación)" aria-label="Representación 3D">
+                        <span>Vista 3D</span>
+                        <span class="current">Explicar</span>
+                      </button>
+                    </div>
+                  </details>
                   {% endif %}
                   {% if tactics_mode %}
                   </div>
                   <div class="tactics-toolbar-group tactics-toolbar-output" aria-label="Presentación">
                   {% endif %}
+                  {% if tactics_mode %}
                   <button type="button" class="surface-trigger" id="task-focus-toggle" title="Modo presentación" aria-label="Modo presentación">Presentación</button>
+                  {% endif %}
                   {% if tactics_mode %}
                   <button type="button" class="surface-trigger" id="pitch-3d-open-tactics" data-pitch3d-trigger="1" title="Representación 3D (presentación)" aria-label="Representación 3D">
                     <span>Representación 3D</span>
@@ -7435,11 +7396,11 @@
 		              <div class="section resource-section pitch-side">
 		                <div class="resource-tab-bar">
                     {% if not tactics_mode %}
-                    <div class="editor-side-tabs" id="task-board-side-tabs" aria-label="Panel lateral de edición">
+                    <div class="editor-side-tabs" id="task-board-side-tabs" aria-label="Panel lateral de edición" hidden>
                       <button type="button" class="editor-side-tab is-active" data-side-pane="edit">Editar</button>
-                      <button type="button" class="editor-side-tab" data-side-pane="resources">Recursos</button>
+                      <button type="button" class="editor-side-tab" data-side-pane="resources">Material</button>
                     </div>
-                    <div class="editor-side-pane editor-edit-pane" id="task-side-pane-edit">
+                    <div class="editor-side-pane editor-edit-pane" id="task-side-pane-edit" hidden>
                       <div class="editor-pane-card">
                         <h4>Edición de pizarra</h4>
                         <p>Selecciona un elemento en el campo para ajustar tamaño, color, nombre, capas o lectura táctica. Los jugadores quedan abajo para no robar espacio al campo.</p>
@@ -7487,7 +7448,7 @@
                         <div class="library-copy">
                           <div class="library-title">Biblioteca de pizarra</div>
                           {% if not tactics_mode %}
-                          <div class="library-subtitle">Elige categoría, inserta recursos y ajusta el elemento seleccionado desde el inspector.</div>
+                          <div class="library-subtitle">Elige categoría, inserta recursos y edita en este mismo lateral el elemento que selecciones en el campo.</div>
                           {% endif %}
                         </div>
                         <div class="library-current" id="task-resource-summary-label">{% if tactics_mode %}Base{% else %}Jugadores{% endif %}</div>
@@ -7497,11 +7458,11 @@
                         <div class="library-helper-grid" aria-label="Guía rápida del lateral">
                           <div class="library-helper-pill">
                             <strong>Montaje</strong>
-                            <span>Empieza por Jugadores o Material para construir la tarea base.</span>
+                            <span>Abre una categoría y verás solo sus recursos. No mezclamos opciones fuera de contexto.</span>
                           </div>
                           <div class="library-helper-pill">
-                            <strong>Lectura</strong>
-                            <span>Usa Trazos y Zonas para explicar recorridos, espacios y reglas.</span>
+                            <strong>Edición</strong>
+                            <span>Al tocar una chapa, flecha, cono o zona, este mismo lateral cambia a sus ajustes útiles.</span>
                           </div>
                         </div>
                         {% endif %}
@@ -7520,10 +7481,6 @@
 		                          <span class="lib-label">Plantilla</span>
 		                        </button>
 	                        {% endif %}
-	                        <button type="button" class="resource-tab" data-resource="importados" title="Importados">
-	                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3a1 1 0 0 1 1 1v8.59l2.3-2.3 1.4 1.42L12 16.4 7.3 11.7l1.4-1.42 2.3 2.3V4a1 1 0 0 1 1-1Zm-7 15h14v2H5v-2Z"/></svg></span>
-	                          <span class="lib-label">{% if tactics_mode %}Assets{% else %}Assets club{% endif %}</span>
-	                        </button>
                         <button type="button" class="resource-tab" data-resource="trazos" title="Trazos y flechas">
                           <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12h12.17l-3.58-3.59L14 7l7 7-7 7-1.41-1.41L16.17 14H4v-2Z"/></svg></span>
                           <span class="lib-label">{% if tactics_mode %}Flechas{% else %}Trazos{% endif %}</span>
@@ -7532,10 +7489,6 @@
                           <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 7h6v6H7V7Zm10 1a4 4 0 1 1-4 4 4 4 0 0 1 4-4ZM5 19h14v2H5v-2Z"/></svg></span>
                           <span class="lib-label">Zonas</span>
                         </button>
-	                        <button type="button" class="resource-tab" data-resource="emoji" title="Recursos emoji">
-	                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm-3 9a1.5 1.5 0 1 1 1.5-1.5A1.5 1.5 0 0 1 9 11Zm6 0a1.5 1.5 0 1 1 1.5-1.5A1.5 1.5 0 0 1 15 11Zm-3 8a5.5 5.5 0 0 1-4.7-2.7l1.7-1a3.5 3.5 0 0 0 6 0l1.7 1A5.5 5.5 0 0 1 12 19Z"/></svg></span>
-	                          <span class="lib-label">{% if tactics_mode %}Emoji{% else %}Apoyos{% endif %}</span>
-	                        </button>
 	                      </div>
 	                    </div>
                       {% if not tactics_mode %}
@@ -8657,6 +8610,11 @@
                   <p class="meta" style="margin:0 0 0.65rem; font-size:0.78rem;">
                     Recursos “de pizarra” listos para tareas y táctica. Tip: tras colocar, selecciona el elemento para ajustar tamaño/color y usa “Capas” para reordenar/bloquear.
                   </p>
+                  <div class="selection-actions" style="margin-bottom:0.7rem;">
+                    <span class="preset-label">Borrado</span>
+                    <button type="button" data-action="delete" title="Borra el recurso seleccionado">Borrar seleccionado</button>
+                    <button type="button" class="danger" data-action="clear_material" title="Elimina del campo material, emojis e importados">Limpiar material</button>
+                  </div>
 
                   <div class="meta" style="margin:0.65rem 0 0.35rem;">Equipamiento</div>
                   <div class="resource-strip">
@@ -8703,63 +8661,77 @@
                     <button type="button" class="tool-icon" data-add="line_defensive" title="Línea defensiva" aria-label="Línea defensiva"><span class="tool-emoji" aria-hidden="true">╌</span><span class="sr-only">Línea defensiva</span></button>
                     <button type="button" class="tool-icon" data-add="line_offside" title="Línea de fuera de juego" aria-label="Línea de fuera de juego"><span class="tool-emoji" aria-hidden="true">╌</span><span class="sr-only">Fuera de juego</span></button>
                   </div>
+                  <div class="meta" style="margin:0.85rem 0 0.35rem;">Apoyos visuales</div>
+                  <div class="resource-strip" id="task-emoji-tools">
+                  <button type="button" class="tool-icon" data-add="emoji_ball" title="Balón" aria-label="Balón"><span class="tool-emoji" aria-hidden="true">⚽</span><span class="sr-only">Balón</span></button>
+                  <button type="button" class="tool-icon" data-add="emoji_cone" title="Cono" aria-label="Cono"><span class="tool-emoji" aria-hidden="true">🔺</span><span class="sr-only">Cono</span></button>
+                  <button type="button" class="tool-icon" data-add="emoji_pole" title="Pica" aria-label="Pica"><span class="tool-emoji" aria-hidden="true">📍</span><span class="sr-only">Pica</span></button>
+                  <button type="button" class="tool-icon" data-add="emoji_ladder" title="Escalera" aria-label="Escalera"><span class="tool-emoji" aria-hidden="true">🪜</span><span class="sr-only">Escalera</span></button>
+                  <button type="button" class="tool-icon" data-add="emoji_ring" title="Aro" aria-label="Aro"><span class="tool-emoji" aria-hidden="true">⭕</span><span class="sr-only">Aro</span></button>
+                  <button type="button" class="tool-icon" data-add="emoji_hurdle" title="Valla" aria-label="Valla"><span class="tool-emoji" aria-hidden="true">🚧</span><span class="sr-only">Valla</span></button>
+                  <button type="button" class="tool-icon" data-add="emoji_bib" title="Peto" aria-label="Peto"><span class="tool-emoji" aria-hidden="true">🦺</span><span class="sr-only">Peto</span></button>
+                  <button type="button" class="tool-icon" data-add="emoji_mannequin" title="Maniquí" aria-label="Maniquí"><span class="tool-emoji" aria-hidden="true">🧍</span><span class="sr-only">Maniquí</span></button>
+                  <button type="button" class="tool-icon" data-add="emoji_wall" title="Muro" aria-label="Muro"><span class="tool-emoji" aria-hidden="true">🧱</span><span class="sr-only">Muro</span></button>
+                  <button type="button" class="tool-icon" data-add="emoji_goal" title="Portería" aria-label="Portería"><span class="tool-emoji" aria-hidden="true">🥅</span><span class="sr-only">Portería</span></button>
+                  <button type="button" class="tool-icon" data-add="emoji_mini_goal" title="Mini portería" aria-label="Mini portería"><span class="tool-emoji" aria-hidden="true">🥅</span><span class="sr-only">Mini portería</span></button>
+                  <button type="button" class="tool-icon" data-add="emoji_coach" title="Entrenador" aria-label="Entrenador"><span class="tool-emoji" aria-hidden="true">🧑‍🏫</span><span class="sr-only">Entrenador</span></button>
+                  <button type="button" class="tool-icon" data-add="emoji_staff" title="Staff" aria-label="Staff"><span class="tool-emoji" aria-hidden="true">👥</span><span class="sr-only">Staff</span></button>
+                  <button type="button" class="tool-icon" data-add="emoji_whistle" title="Silbato" aria-label="Silbato"><span class="tool-emoji" aria-hidden="true">📣</span><span class="sr-only">Silbato</span></button>
+                  <button type="button" class="tool-icon" data-add="emoji_stopwatch" title="Crono" aria-label="Crono"><span class="tool-emoji" aria-hidden="true">⏱️</span><span class="sr-only">Crono</span></button>
+                  </div>
+                  <div class="meta" style="margin:0.85rem 0 0.35rem;">Importados (PDF/PPT)</div>
+                  <p class="meta" style="margin:0 0 0.65rem; font-size:0.78rem;">
+                    Aquí aparecen los recursos del sistema, los del equipo y los extraídos al importar tareas desde PDF.
+                  </p>
+                  {% if not pdf_assets and not ppt_icons %}
+                    <span class="meta">Aún no hay recursos disponibles. Sube un PPTX/PNG en Platform → Asistente o importa tareas desde PDF.</span>
+                  {% endif %}
+                  {% if pdf_assets %}
+                  <div class="meta" style="margin:0.5rem 0 0.35rem;">Recursos extraídos de PDFs</div>
+                  <div class="resource-strip pdf-assets-strip">
+                    {% for asset in pdf_assets|slice:":24" %}
+                      {% if asset.file %}
+                        <button
+                          type="button"
+                          class="pdf-asset-btn"
+                          data-add="pdf_asset:{{ asset.id }}"
+                          title="{{ asset.title|default:'Recurso importado' }}"
+                          aria-label="{{ asset.title|default:'Recurso importado' }}"
+                        >
+                          <img src="{% url 'pdf-graphic-asset-file' asset.id %}" alt="{{ asset.title|default:'Recurso importado' }}" loading="lazy" />
+                        </button>
+                      {% endif %}
+                    {% endfor %}
+                  </div>
+                  {% if pdf_assets|length > 24 %}
+                  <div class="meta" style="margin-top:0.4rem;">
+                    Mostrando 24 de {{ pdf_assets|length }}.
+                  </div>
+                  {% endif %}
+                  {% endif %}
+                  {% if ppt_icons %}
+                  <div class="meta" style="margin:0.7rem 0 0.35rem;">Iconos (catálogo PPT)</div>
+                  <div class="resource-strip pdf-assets-strip">
+                    {% for icon in ppt_icons|slice:":24" %}
+                      <button
+                        type="button"
+                        class="pdf-asset-btn"
+                        data-add="image_url:{% static icon.static_path %}"
+                        title="{{ icon.label|default:'Icono' }}"
+                        aria-label="{{ icon.label|default:'Icono' }}"
+                      >
+                        <img src="{% static icon.static_path %}" alt="{{ icon.label|default:'Icono' }}" loading="lazy" />
+                      </button>
+                    {% endfor %}
+                  </div>
+                  {% if ppt_icons|length > 24 %}
+                  <div class="meta" style="margin-top:0.4rem;">
+                    Mostrando 24 de {{ ppt_icons|length }}.
+                  </div>
+                  {% endif %}
+                  {% endif %}
+                  <div data-inspector-slot="pro"></div>
                 </div>
-
-		                <div class="resource-panel" data-panel="importados" hidden>
-		                  <h3 class="tool-group-title">Importados (PDF/PPT)</h3>
-		                  <p class="meta" style="margin:0 0 0.65rem; font-size:0.78rem;">
-		                    Aquí aparecen los recursos del sistema (Platform → Asistente), los del equipo y los extraídos al importar tareas desde PDF (Sesiones → Biblioteca).
-		                  </p>
-	                  {% if not pdf_assets and not ppt_icons %}
-	                    <span class="meta">Aún no hay recursos disponibles. Sube un PPTX/PNG en Platform → Asistente o importa tareas desde PDF.</span>
-	                  {% endif %}
-
-	                  {% if pdf_assets %}
-	                  <div class="meta" style="margin:0.5rem 0 0.35rem;">Recursos extraídos de PDFs</div>
-	                  <div class="resource-strip pdf-assets-strip">
-	                    {% for asset in pdf_assets|slice:":24" %}
-	                      {% if asset.file %}
-	                        <button
-	                          type="button"
-	                          class="pdf-asset-btn"
-	                          data-add="pdf_asset:{{ asset.id }}"
-	                          title="{{ asset.title|default:'Recurso importado' }}"
-	                          aria-label="{{ asset.title|default:'Recurso importado' }}"
-	                        >
-	                          <img src="{% url 'pdf-graphic-asset-file' asset.id %}" alt="{{ asset.title|default:'Recurso importado' }}" loading="lazy" />
-	                        </button>
-	                      {% endif %}
-	                    {% endfor %}
-	                  </div>
-                    {% if pdf_assets|length > 24 %}
-                      <div class="meta" style="margin-top:0.4rem;">
-                        Mostrando 24 de {{ pdf_assets|length }}.
-                      </div>
-                    {% endif %}
-	                  {% endif %}
-
-	                  {% if ppt_icons %}
-	                  <div class="meta" style="margin:0.7rem 0 0.35rem;">Iconos (catálogo PPT)</div>
-	                  <div class="resource-strip pdf-assets-strip">
-	                    {% for icon in ppt_icons|slice:":24" %}
-	                      <button
-	                        type="button"
-	                        class="pdf-asset-btn"
-	                        data-add="image_url:{% static icon.static_path %}"
-	                        title="{{ icon.label|default:'Icono' }}"
-	                        aria-label="{{ icon.label|default:'Icono' }}"
-	                      >
-	                        <img src="{% static icon.static_path %}" alt="{{ icon.label|default:'Icono' }}" loading="lazy" />
-	                      </button>
-	                    {% endfor %}
-	                  </div>
-                    {% if ppt_icons|length > 24 %}
-                      <div class="meta" style="margin-top:0.4rem;">
-                        Mostrando 24 de {{ ppt_icons|length }}.
-                      </div>
-                    {% endif %}
-	                  {% endif %}
-	                </div>
 	                <div class="resource-panel" data-panel="trazos" hidden>
 	                  <h3 class="tool-group-title" style="margin-top:0.85rem;">Trazos y flechas</h3>
 	                  <div class="resource-strip" id="task-lines-tools">
@@ -8813,27 +8785,6 @@
 		                  <button type="button" class="tool-icon" data-add="shape_grid_120" title="Malla de 120 zonas" aria-label="Malla de 120 zonas"><span class="tool-emoji" aria-hidden="true">#</span><span class="sr-only">Malla de 120 zonas</span></button>
 		                </div>
 		                  <div data-inspector-slot="figuras"></div>
-		                </div>
-	                <div class="resource-panel" data-panel="emoji" hidden>
-	                  <h3 class="tool-group-title" style="margin-top:0.85rem;">Recursos emoji</h3>
-	                  <div class="resource-strip" id="task-emoji-tools">
-	                  <button type="button" class="tool-icon" data-add="emoji_ball" title="Balón" aria-label="Balón"><span class="tool-emoji" aria-hidden="true">⚽</span><span class="sr-only">Balón</span></button>
-	                  <button type="button" class="tool-icon" data-add="emoji_cone" title="Cono" aria-label="Cono"><span class="tool-emoji" aria-hidden="true">🔺</span><span class="sr-only">Cono</span></button>
-	                  <button type="button" class="tool-icon" data-add="emoji_pole" title="Pica" aria-label="Pica"><span class="tool-emoji" aria-hidden="true">📍</span><span class="sr-only">Pica</span></button>
-	                  <button type="button" class="tool-icon" data-add="emoji_ladder" title="Escalera" aria-label="Escalera"><span class="tool-emoji" aria-hidden="true">🪜</span><span class="sr-only">Escalera</span></button>
-	                  <button type="button" class="tool-icon" data-add="emoji_ring" title="Aro" aria-label="Aro"><span class="tool-emoji" aria-hidden="true">⭕</span><span class="sr-only">Aro</span></button>
-	                  <button type="button" class="tool-icon" data-add="emoji_hurdle" title="Valla" aria-label="Valla"><span class="tool-emoji" aria-hidden="true">🚧</span><span class="sr-only">Valla</span></button>
-	                  <button type="button" class="tool-icon" data-add="emoji_bib" title="Peto" aria-label="Peto"><span class="tool-emoji" aria-hidden="true">🦺</span><span class="sr-only">Peto</span></button>
-	                  <button type="button" class="tool-icon" data-add="emoji_mannequin" title="Maniquí" aria-label="Maniquí"><span class="tool-emoji" aria-hidden="true">🧍</span><span class="sr-only">Maniquí</span></button>
-	                  <button type="button" class="tool-icon" data-add="emoji_wall" title="Muro" aria-label="Muro"><span class="tool-emoji" aria-hidden="true">🧱</span><span class="sr-only">Muro</span></button>
-		                  <button type="button" class="tool-icon" data-add="emoji_goal" title="Portería" aria-label="Portería"><span class="tool-emoji" aria-hidden="true">🥅</span><span class="sr-only">Portería</span></button>
-		                  <button type="button" class="tool-icon" data-add="emoji_mini_goal" title="Mini portería" aria-label="Mini portería"><span class="tool-emoji" aria-hidden="true">🥅</span><span class="sr-only">Mini portería</span></button>
-		                  <button type="button" class="tool-icon" data-add="emoji_coach" title="Entrenador" aria-label="Entrenador"><span class="tool-emoji" aria-hidden="true">🧑‍🏫</span><span class="sr-only">Entrenador</span></button>
-		                  <button type="button" class="tool-icon" data-add="emoji_staff" title="Staff" aria-label="Staff"><span class="tool-emoji" aria-hidden="true">👥</span><span class="sr-only">Staff</span></button>
-		                  <button type="button" class="tool-icon" data-add="emoji_whistle" title="Silbato" aria-label="Silbato"><span class="tool-emoji" aria-hidden="true">📣</span><span class="sr-only">Silbato</span></button>
-		                  <button type="button" class="tool-icon" data-add="emoji_stopwatch" title="Crono" aria-label="Crono"><span class="tool-emoji" aria-hidden="true">⏱️</span><span class="sr-only">Crono</span></button>
-		                </div>
-		                  <div data-inspector-slot="emoji"></div>
 		                </div>
 				                  {% if not tactics_mode %}
 				                  <div class="roster-bank-slot" id="task-roster-bank-slot" hidden></div>
@@ -15449,6 +15400,9 @@
           const resourcesToggle = document.getElementById('task-board-resources-toggle');
           const inspectorToggle = document.getElementById('task-board-inspector-toggle');
           const rosterToggle = document.getElementById('task-board-roster-toggle');
+          const presentToggle = document.getElementById('task-board-present-toggle');
+          const presentMenu = document.getElementById('pitch-present-menu');
+          const presentMenuSummary = presentMenu ? presentMenu.querySelector('summary') : null;
           const quickAddStep = document.getElementById('task-step-add-quick');
           const quickDuplicateStep = document.getElementById('task-step-duplicate-quick');
           const quickRemoveStep = document.getElementById('task-step-remove-quick');
@@ -15464,7 +15418,7 @@
           const pitch3dOpenBtn = document.getElementById('pitch-3d-open-standard');
           const exportModeBtn = document.querySelector('#task-mode-tabs [data-task-mode="export"]');
           const boardModeBtn = document.querySelector('#task-mode-tabs [data-task-mode="board"]');
-          if (!sideTabs.length || !editPane || !resourcesPane) return;
+          if (!resourcesPane) return;
 
           if (commandBar && commandSlot && commandBar.parentElement !== commandSlot) {
             try { commandSlot.appendChild(commandBar); } catch (e) { /* ignore */ }
@@ -15524,11 +15478,11 @@
           const resourceLabelMap = {
             base: 'Jugadores',
             pro: 'Material',
-            trazos: 'Trazos',
-            figuras: 'Figuras',
+            trazos: 'Flechas',
+            figuras: 'Zonas',
             emoji: 'Emoji',
-            importados: 'Assets',
-            plantilla: 'Plantilla',
+            importados: 'Extras',
+            plantilla: 'Jugadores',
           };
 
           const syncTopResourceButtons = (key) => {
@@ -15541,8 +15495,8 @@
           const activate = (pane) => {
             const next = String(pane || 'edit').trim().toLowerCase() === 'resources' ? 'resources' : 'edit';
             sideTabs.forEach((tab) => tab.classList.toggle('is-active', String(tab.dataset.sidePane || '') === next));
-            editPane.hidden = next !== 'edit';
-            resourcesPane.hidden = next !== 'resources';
+            if (editPane) editPane.hidden = true;
+            resourcesPane.hidden = false;
           };
 
           const openBoardDrawer = (pane) => {
@@ -15568,6 +15522,12 @@
           const proxyClick = (source) => {
             if (!source) return;
             try { source.click(); } catch (e) { /* ignore */ }
+          };
+
+          const openPresentMenu = () => {
+            if (!presentMenu) return;
+            try { presentMenu.open = true; } catch (e) { /* ignore */ }
+            try { presentMenuSummary?.focus?.(); } catch (e) { /* ignore */ }
           };
 
           const openTimelineDock = () => {
@@ -15603,6 +15563,10 @@
             tab.addEventListener('click', () => {
               syncTopResourceButtons(String(tab.dataset.resource || '').trim());
             });
+          });
+          window.addEventListener('webstats:tpad:resource-panel-change', (event) => {
+            const key = String(event?.detail?.key || '').trim();
+            if (key) syncTopResourceButtons(key);
           });
 
           topResourceButtons.forEach((button) => {
@@ -15642,8 +15606,9 @@
 
           resourcesToggle?.addEventListener('click', (event) => {
             try { event.preventDefault(); } catch (e) { /* ignore */ }
-            if (document.body.classList.contains('task-board-resources-open')) closeBoardDrawers();
-            else openBoardDrawer('resources');
+            openBoardDrawer('resources');
+            activateResourceTab('pro');
+            syncTopResourceButtons('pro');
           });
           inspectorToggle?.addEventListener('click', (event) => {
             try { event.preventDefault(); } catch (e) { /* ignore */ }
@@ -15656,8 +15621,13 @@
           });
           rosterToggle?.addEventListener('click', (event) => {
             try { event.preventDefault(); } catch (e) { /* ignore */ }
-            document.body.classList.toggle('task-board-roster-collapsed');
+            document.body.classList.remove('task-board-roster-collapsed');
             syncBoardDrawerButtons();
+            try { playerBank?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' }); } catch (e) { /* ignore */ }
+          });
+          presentToggle?.addEventListener('click', (event) => {
+            try { event.preventDefault(); } catch (e) { /* ignore */ }
+            openPresentMenu();
           });
           complexityToggle?.addEventListener('click', (event) => {
             try { event.preventDefault(); } catch (e) { /* ignore */ }

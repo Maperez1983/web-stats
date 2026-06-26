@@ -284,6 +284,40 @@
 	      items: ['emoji_ball', 'emoji_cone', 'emoji_pole', 'emoji_ladder', 'emoji_ring', 'emoji_hurdle', 'emoji_bib', 'emoji_mannequin', 'emoji_wall', 'emoji_goal', 'emoji_mini_goal', 'emoji_coach', 'emoji_staff', 'emoji_whistle', 'emoji_stopwatch'],
 	    },
 	  ];
+	  const CLEARABLE_RESOURCE_KINDS = new Set([
+	    'cone',
+	    'cone_striped',
+	    'pole_marker',
+	    'ring',
+	    'tape',
+	    'gate',
+	    'ladder',
+	    'ladder_L',
+	    'ladder_zigzag',
+	    'hurdle',
+	    'mini_hurdle',
+	    'mannequin',
+	    'barrier',
+	    'wall',
+	    'rebounder',
+	    'goal',
+	    'goal_posts',
+	    'goal_mini',
+	    'goal_target',
+	    'goal_popup',
+	    'goal_futsal',
+	    'marker_start',
+	    'marker_end',
+	    'marker_pass',
+	    'marker_shot',
+	    'marker_support',
+	    'measure',
+	    'line_pressure',
+	    'line_defensive',
+	    'line_offside',
+	    'pdf_asset',
+	    'url_asset',
+	  ]);
 
   const createSvgNode = (doc, tag, attrs) => {
     const node = doc.createElementNS('http://www.w3.org/2000/svg', tag);
@@ -32462,6 +32496,20 @@
         setStatus('Pizarra limpiada.');
         return true;
       }
+      if (action === 'clear_material') {
+        const removable = canvas.getObjects().slice().filter((item) => isClearableBoardResource(item));
+        if (!removable.length) {
+          setStatus('No hay material colocado para limpiar.', true);
+          return false;
+        }
+        canvas.discardActiveObject();
+        removable.forEach((item) => canvas.remove(item));
+        canvas.requestRenderAll();
+        pushHistory();
+        syncInspector();
+        setStatus(`Material limpiado (${removable.length}).`);
+        return true;
+      }
       return false;
     };
 
@@ -35541,6 +35589,11 @@
 	      if (resourceHelper) {
 	        resourceHelper.hidden = !!normalized;
 	      }
+        try {
+          window.dispatchEvent(new CustomEvent('webstats:tpad:resource-panel-change', {
+            detail: { key: normalized },
+          }));
+        } catch (e) { /* ignore */ }
 	      // Plantilla: asegura que el banco de jugadores se reubica y se pinta al abrir la pestaña.
 	      if (normalized === 'plantilla') {
 	        try { if (libraryCollapsed) applyLibraryCollapsed(false); } catch (e) { /* ignore */ }
@@ -35587,9 +35640,15 @@
       if (!kind) return 'base';
       if (kind.startsWith('line') || kind.startsWith('arrow')) return 'trazos';
       if (kind.startsWith('shape')) return 'figuras';
-      if (kind.startsWith('emoji_')) return 'emoji';
+      if (kind.startsWith('emoji_')) return 'pro';
       return 'base';
     };
+	    const isClearableBoardResource = (object) => {
+	      const kind = safeText(object?.data?.kind);
+	      if (!kind) return false;
+	      if (kind.startsWith('emoji_')) return true;
+	      return CLEARABLE_RESOURCE_KINDS.has(kind);
+	    };
 	    const dockInspectorIntoPanel = (panelKey) => {
 	      if (!selectionToolbar) return;
 	      try { if (typeof shouldDockSelectionInspector === 'function' && shouldDockSelectionInspector()) return; } catch (e) { /* ignore */ }
