@@ -4188,6 +4188,44 @@
       body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-toolbar > * {
         min-width: 0;
       }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-workflow-strip,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-kind-strip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.34rem;
+        flex-wrap: wrap;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-workflow-label,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-kind-label {
+        display: inline-flex;
+        align-items: center;
+        min-height: 34px;
+        padding: 0 0.18rem;
+        color: rgba(226,232,240,0.68);
+        font-size: 0.65rem;
+        font-weight: 900;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-workflow-strip button,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-kind-strip button {
+        min-height: 34px;
+        padding: 0.34rem 0.62rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.04);
+        color: rgba(240,249,255,0.94);
+        font-size: 0.68rem;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-workflow-strip button.is-active,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-kind-strip button.is-active,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #task-editor-complexity-toggle.is-active {
+        border-color: rgba(244, 180, 0, 0.42);
+        background: rgba(244, 180, 0, 0.14);
+        color: rgba(255,255,255,0.96);
+      }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-toolbar .surface-picker {
         min-width: 0;
       }
@@ -4370,6 +4408,67 @@
         box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
         overflow: hidden;
       }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-timeline-dock {
+        position: absolute;
+        left: 0.5rem;
+        right: 0.5rem;
+        top: 0.5rem;
+        z-index: 64;
+        display: grid;
+        gap: 0.38rem;
+        padding: 0.46rem 0.54rem;
+        border-radius: 18px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(6, 14, 26, 0.84);
+        box-shadow: 0 18px 34px rgba(2, 6, 23, 0.3);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-timeline-dock-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-timeline-dock-head strong {
+        font-size: 0.72rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: rgba(248,250,252,0.94);
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-timeline-dock-head span {
+        color: rgba(226,232,240,0.7);
+        font-size: 0.72rem;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-timeline-dock-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        flex-wrap: wrap;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-timeline-dock-actions button {
+        min-height: 32px;
+        padding: 0.3rem 0.56rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.04);
+        color: rgba(248,250,252,0.94);
+        font-size: 0.66rem;
+        font-weight: 900;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-timeline-quick {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(196px, 1fr);
+        gap: 0.36rem;
+        overflow-x: auto;
+        overflow-y: hidden;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-timeline-quick .timeline-step {
+        min-height: 52px;
+        border-radius: 14px;
+      }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-viewport {
         flex: 1 1 auto;
         height: 100%;
@@ -4517,6 +4616,16 @@
         height: 24px;
         font-size: 1rem;
       }
+      body:not(.tactics-mode):not(.task-editor-advanced).task-mode-ready.task-mode-board .resource-tab[data-resource="pro"],
+      body:not(.tactics-mode):not(.task-editor-advanced).task-mode-ready.task-mode-board .resource-tab[data-resource="importados"],
+      body:not(.tactics-mode):not(.task-editor-advanced).task-mode-ready.task-mode-board .resource-tab[data-resource="emoji"] {
+        display: none;
+      }
+      body:not(.tactics-mode):not(.task-editor-advanced).task-mode-ready.task-mode-board .resource-panel[data-panel="pro"],
+      body:not(.tactics-mode):not(.task-editor-advanced).task-mode-ready.task-mode-board .resource-panel[data-panel="importados"],
+      body:not(.tactics-mode):not(.task-editor-advanced).task-mode-ready.task-mode-board .resource-panel[data-panel="emoji"] {
+        display: none !important;
+      }
       body:not(.tactics-mode).task-mode-ready.task-mode-board #task-destination-open {
         min-height: 38px;
         padding: 0.42rem 0.7rem;
@@ -4549,6 +4658,11 @@
         }
         body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-toolbar {
           grid-template-columns: 1fr;
+        }
+        body:not(.tactics-mode).task-mode-ready.task-mode-board .task-timeline-dock {
+          top: 0.42rem;
+          left: 0.42rem;
+          right: 0.42rem;
         }
         body:not(.tactics-mode).task-mode-ready.task-mode-board .board-status-row {
           left: 0.42rem;
@@ -6510,6 +6624,22 @@
 	                  </div>
 	                </div>
                 <div class="pitch-toolbar">
+                  {% if not tactics_mode %}
+                  <div class="task-workflow-strip" aria-label="Flujo de trabajo del entrenador">
+                    <span class="task-workflow-label">Flujo</span>
+                    <button type="button" class="is-active" data-workflow-action="build">Montar</button>
+                    <button type="button" data-workflow-action="animate">Animar</button>
+                    <button type="button" data-workflow-action="present3d">3D</button>
+                    <button type="button" data-workflow-action="export">Exportar</button>
+                  </div>
+                  <div class="task-kind-strip" aria-label="Tipo de tarea">
+                    <span class="task-kind-label">Tipo</span>
+                    <button type="button" class="is-active" data-task-kind="2d">2D</button>
+                    <button type="button" data-task-kind="interactive">Interactiva</button>
+                    <button type="button" data-task-kind="3d">3D</button>
+                    <button type="button" id="task-editor-complexity-toggle" aria-pressed="false">Modo simple</button>
+                  </div>
+                  {% endif %}
                   {% if tactics_mode %}
                   <div class="tactics-toolbar-group tactics-toolbar-primary" aria-label="Área de trabajo táctico">
                   <button type="button" class="surface-trigger" id="task-tactics-panel-toggle" title="Abrir/cerrar Playbook" aria-label="Abrir/cerrar Playbook">Playbook</button>
@@ -8264,6 +8394,23 @@
                           </div>
                         </div>
                         <div class="board-stage-shell">
+                          {% if not tactics_mode %}
+                          <div class="task-timeline-dock" id="task-timeline-dock">
+                            <div class="task-timeline-dock-head">
+                              <div>
+                                <strong>Secuencia</strong>
+                                <span>Diseña pasos interactivos sin salir de la pizarra.</span>
+                              </div>
+                              <div class="task-timeline-dock-actions">
+                                <button type="button" id="task-step-add-quick">+ Paso</button>
+                                <button type="button" id="task-step-duplicate-quick">Duplicar</button>
+                                <button type="button" id="task-step-remove-quick">Eliminar</button>
+                                <button type="button" id="task-step-play-quick">Previsualizar</button>
+                              </div>
+                            </div>
+                            <div class="timeline-list task-timeline-quick" id="task-timeline-list-quick"></div>
+                          </div>
+                          {% endif %}
 				                  <div class="pitch-viewport" id="task-pitch-viewport">
 			                    <div class="pitch-stage" id="task-pitch-stage">
 			                      <svg id="task-pitch-surface" viewBox="-2 -2 1054 684" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
@@ -14793,6 +14940,9 @@
           const guideButtons = Array.from(document.querySelectorAll('[data-guide-action]'));
           const presetButtons = Array.from(document.querySelectorAll('[data-guided-preset]'));
           const resourceTabs = Array.from(document.querySelectorAll('.resource-tab'));
+          const workflowButtons = Array.from(document.querySelectorAll('[data-workflow-action]'));
+          const kindButtons = Array.from(document.querySelectorAll('[data-task-kind]'));
+          const complexityToggle = document.getElementById('task-editor-complexity-toggle');
           const presetSelect = document.getElementById('draw-task-preset');
           const surfaceTrigger = document.getElementById('surface-trigger');
           const playerBank = document.getElementById('task-player-bank');
@@ -14800,6 +14950,18 @@
           const resourcesToggle = document.getElementById('task-board-resources-toggle');
           const inspectorToggle = document.getElementById('task-board-inspector-toggle');
           const rosterToggle = document.getElementById('task-board-roster-toggle');
+          const quickAddStep = document.getElementById('task-step-add-quick');
+          const quickDuplicateStep = document.getElementById('task-step-duplicate-quick');
+          const quickRemoveStep = document.getElementById('task-step-remove-quick');
+          const quickPlayStep = document.getElementById('task-step-play-quick');
+          const baseAddStep = document.getElementById('task-step-add');
+          const baseDuplicateStep = document.getElementById('task-step-duplicate');
+          const baseRemoveStep = document.getElementById('task-step-remove');
+          const basePlayStep = document.getElementById('task-step-play');
+          const stepListQuick = document.getElementById('task-timeline-list-quick');
+          const pitch3dOpenBtn = document.getElementById('pitch-3d-open-standard');
+          const exportModeBtn = document.querySelector('#task-mode-tabs [data-task-mode="export"]');
+          const boardModeBtn = document.querySelector('#task-mode-tabs [data-task-mode="board"]');
           if (!sideTabs.length || !editPane || !resourcesPane) return;
 
           if (commandBar && commandSlot && commandBar.parentElement !== commandSlot) {
@@ -14826,6 +14988,23 @@
             resourcesToggle?.setAttribute('aria-pressed', resourcesOpen ? 'true' : 'false');
             inspectorToggle?.setAttribute('aria-pressed', inspectorOpen ? 'true' : 'false');
             rosterToggle?.setAttribute('aria-pressed', rosterOpen ? 'true' : 'false');
+          };
+
+          const syncComplexityUi = () => {
+            const advanced = document.body.classList.contains('task-editor-advanced');
+            complexityToggle?.classList.toggle('is-active', advanced);
+            complexityToggle?.setAttribute('aria-pressed', advanced ? 'true' : 'false');
+            if (complexityToggle) complexityToggle.textContent = advanced ? 'Modo Pro' : 'Modo simple';
+          };
+
+          const syncWorkflowUi = (key) => {
+            const next = String(key || 'build').trim();
+            workflowButtons.forEach((btn) => btn.classList.toggle('is-active', String(btn.dataset.workflowAction || '') === next));
+          };
+
+          const syncKindUi = (key) => {
+            const next = String(key || '2d').trim();
+            kindButtons.forEach((btn) => btn.classList.toggle('is-active', String(btn.dataset.taskKind || '') === next));
           };
 
           const activate = (pane) => {
@@ -14855,6 +15034,11 @@
             }
           };
 
+          const proxyClick = (source) => {
+            if (!source) return;
+            try { source.click(); } catch (e) { /* ignore */ }
+          };
+
           sideTabs.forEach((tab) => {
             tab.addEventListener('click', (event) => {
               try { event.preventDefault(); } catch (e) { /* ignore */ }
@@ -14877,8 +15061,66 @@
             document.body.classList.toggle('task-board-roster-collapsed');
             syncBoardDrawerButtons();
           });
+          complexityToggle?.addEventListener('click', (event) => {
+            try { event.preventDefault(); } catch (e) { /* ignore */ }
+            document.body.classList.toggle('task-editor-advanced');
+            syncComplexityUi();
+          });
           document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') closeBoardDrawers();
+          });
+
+          quickAddStep?.addEventListener('click', () => proxyClick(baseAddStep));
+          quickDuplicateStep?.addEventListener('click', () => proxyClick(baseDuplicateStep));
+          quickRemoveStep?.addEventListener('click', () => proxyClick(baseRemoveStep));
+          quickPlayStep?.addEventListener('click', () => proxyClick(basePlayStep));
+
+          workflowButtons.forEach((btn) => {
+            btn.addEventListener('click', () => {
+              const action = String(btn.dataset.workflowAction || '').trim();
+              if (action === 'build') {
+                proxyClick(boardModeBtn);
+                openBoardDrawer('resources');
+                syncWorkflowUi('build');
+                syncKindUi('2d');
+                return;
+              }
+              if (action === 'animate') {
+                proxyClick(boardModeBtn);
+                closeBoardDrawers();
+                if (stepListQuick && !stepListQuick.children.length) proxyClick(baseAddStep);
+                try { stepListQuick?.scrollIntoView({ block: 'nearest', inline: 'start' }); } catch (e) { /* ignore */ }
+                syncWorkflowUi('animate');
+                syncKindUi('interactive');
+                return;
+              }
+              if (action === 'present3d') {
+                proxyClick(boardModeBtn);
+                proxyClick(pitch3dOpenBtn);
+                syncWorkflowUi('present3d');
+                syncKindUi('3d');
+                return;
+              }
+              if (action === 'export') {
+                proxyClick(exportModeBtn);
+                syncWorkflowUi('export');
+              }
+            });
+          });
+
+          kindButtons.forEach((btn) => {
+            btn.addEventListener('click', () => {
+              const kind = String(btn.dataset.taskKind || '').trim();
+              if (kind === 'interactive') {
+                workflowButtons.find((node) => node.dataset.workflowAction === 'animate')?.click();
+                return;
+              }
+              if (kind === '3d') {
+                workflowButtons.find((node) => node.dataset.workflowAction === 'present3d')?.click();
+                return;
+              }
+              workflowButtons.find((node) => node.dataset.workflowAction === 'build')?.click();
+            });
           });
 
           guideButtons.forEach((button) => {
@@ -14938,6 +15180,9 @@
           });
 
           syncSelectionState();
+          syncComplexityUi();
+          syncWorkflowUi('build');
+          syncKindUi('2d');
           try {
             const observer = new MutationObserver(syncSelectionState);
             observer.observe(selectionToolbar, { attributes: true, attributeFilter: ['hidden'] });

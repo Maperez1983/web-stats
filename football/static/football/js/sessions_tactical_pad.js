@@ -2345,6 +2345,7 @@
 		    const layersListPopover = document.getElementById('task-layers-list-popover');
 		    const timelineList = document.getElementById('task-timeline-list');
 		    const timelineListPopover = document.getElementById('task-timeline-list-popover');
+        const timelineListQuick = document.getElementById('task-timeline-list-quick');
 	    const stepTitleInput = document.getElementById('task-step-title');
 	    const stepDurationInput = document.getElementById('task-step-duration');
     const addStepButton = document.getElementById('task-step-add');
@@ -24241,7 +24242,7 @@
       }
     };
     const renderTimeline = () => {
-      const targets = [timelineList, timelineListPopover].filter(Boolean);
+      const targets = [timelineList, timelineListPopover, timelineListQuick].filter(Boolean);
       if (!targets.length) return;
       if (!timeline.length) {
         targets.forEach((node) => {
@@ -31030,7 +31031,7 @@
       addPayloadAtPointer(payload, pointerFromStageEvent(event));
     });
 
-    [timelineList, timelineListPopover].filter(Boolean).forEach((listEl) => {
+    [timelineList, timelineListPopover, timelineListQuick].filter(Boolean).forEach((listEl) => {
       listEl.addEventListener('click', (event) => {
         const button = event.target.closest('button[data-step-index]');
         if (!button) return;
