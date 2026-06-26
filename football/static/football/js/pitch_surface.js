@@ -88,6 +88,8 @@
       'realistic',
       'pro',
       'broadcast',
+      'broadcast_premium',
+      'stadium_top',
       'artificial',
       'dry',
       'wet',
@@ -113,6 +115,16 @@
     root.setAttribute('viewBox', `${-bleed} ${-bleed} ${stageW + (bleed * 2)} ${stageH + (bleed * 2)}`);
     root.setAttribute('preserveAspectRatio', orientation === 'portrait' ? 'xMidYMid slice' : 'xMidYMid meet');
 
+    const resolvePitch3dTopImageHref = () => {
+      try {
+        const globalImages = window.__WEBSTATS_PITCH3D_TOP_IMAGES || {};
+        const preferred = orientation === 'portrait' ? safeText(globalImages.v) : safeText(globalImages.h);
+        if (preferred) return preferred;
+      } catch (e) { /* ignore */ }
+      return orientation === 'portrait'
+        ? '/static/football/images/pitch3d/stadium_rosaleda_top_v.png'
+        : '/static/football/images/pitch3d/stadium_rosaleda_top_h.png';
+    };
     const defs = createSvgNode(doc, 'defs');
     const gradient = createSvgNode(doc, 'linearGradient', { id: 'pitch-bg', x1: '0%', y1: '0%', x2: '0%', y2: '100%' });
     const gradientStopsByStyle = {
@@ -120,6 +132,8 @@
       realistic: ['#4f7f3a', '#3f6e35'],
       pro: ['#2f6a3a', '#245934'],
       broadcast: ['#155e3a', '#0f4d2f'],
+      broadcast_premium: ['#0f5a39', '#0a4029'],
+      stadium_top: ['#194b34', '#102e22'],
       artificial: ['#2fb46d', '#1f8d55'],
       dry: ['#7b9a45', '#6b8a3a'],
       wet: ['#1f5a46', '#163f35'],
@@ -166,6 +180,15 @@
         'stroke-width': 1,
       }));
       pattern.appendChild(createSvgNode(doc, 'rect', { x: 0, y: 0, width: 96, height: 96, fill: 'rgba(0,0,0,0.04)' }));
+      defs.appendChild(pattern);
+    } else if (grassStyle === 'stadium_top') {
+      grassFillId = 'pitch-stadium-top';
+      const pattern = createSvgNode(doc, 'pattern', { id: grassFillId, patternUnits: 'userSpaceOnUse', x: -bleed, y: -bleed, width: stageW + (bleed * 2), height: stageH + (bleed * 2) });
+      const href = resolvePitch3dTopImageHref();
+      const image = createSvgNode(doc, 'image', { href, x: -bleed, y: -bleed, width: stageW + (bleed * 2), height: stageH + (bleed * 2), preserveAspectRatio: 'xMidYMid slice' });
+      try { image.setAttribute('xlink:href', href); } catch (e) { /* ignore */ }
+      pattern.appendChild(image);
+      pattern.appendChild(createSvgNode(doc, 'rect', { x: -bleed, y: -bleed, width: stageW + (bleed * 2), height: stageH + (bleed * 2), fill: 'rgba(3, 7, 18, 0.22)' }));
       defs.appendChild(pattern);
     } else if (grassStyle !== 'classic') {
       const dataUrl = __buildGrassTextureDataUrl(grassStyle);
@@ -238,8 +261,8 @@
     let pitchBox = { x: stage.x, y: stage.y, width: stage.width, height: stage.height };
     const scale = stage.width / 105;
 
-    const line = (grassStyle === 'whiteboard') ? '#0f172a' : '#f8fafc';
-    const soft = (grassStyle === 'whiteboard') ? 'rgba(15,23,42,0.55)' : 'rgba(248,250,252,0.66)';
+    const line = (grassStyle === 'whiteboard') ? '#0f172a' : (grassStyle === 'stadium_top' ? 'rgba(255,255,255,0.96)' : '#f8fafc');
+    const soft = (grassStyle === 'whiteboard') ? 'rgba(15,23,42,0.55)' : (grassStyle === 'stadium_top' ? 'rgba(255,255,255,0.78)' : 'rgba(248,250,252,0.66)';
 
     const drawFrame = (x, y, width, height, lineWidth = 4) => {
       drawRoot.appendChild(createSvgNode(doc, 'rect', {

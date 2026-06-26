@@ -811,8 +811,8 @@ def build_session_pdf_context(request, team, session, pdf_style='uefa'):
                 pitch_preset = str(meta.get('pitch_preset') or 'full_pitch').strip() or 'full_pitch'
                 pitch_orientation = str(meta.get('pitch_orientation') or 'landscape').strip().lower()
                 pitch_grass_style = str(meta.get('pitch_grass_style') or 'classic').strip().lower()
-                if pitch_grass_style not in {'classic', 'broadcast', 'realistic', 'pro', 'artificial', 'dry', 'wet', 'uefa_b', 'whiteboard', 'blackboard'}:
-                    pitch_grass_style = 'classic'
+                if pitch_grass_style not in {'classic', 'broadcast', 'broadcast_premium', 'stadium_top', 'realistic', 'pro', 'artificial', 'dry', 'wet', 'uefa_b', 'whiteboard', 'blackboard'}:
+                    pitch_grass_style = 'stadium_top'
                 # En PDF no queremos recortes por zoom: forzamos a 1.0.
                 pitch_zoom = 1.0
                 canvas_width = max(320, min(_parse_int(canvas_width) or 1280, 3840))

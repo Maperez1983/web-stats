@@ -346,9 +346,9 @@ def render_task_preview_png(
 
     orientation = "portrait" if str(pitch_orientation).strip().lower() == "portrait" else "landscape"
     preset = str(pitch_preset or "full_pitch").strip() or "full_pitch"
-    grass_style = str(pitch_grass_style or "classic").strip().lower()
-    if grass_style not in {"classic", "broadcast", "realistic", "pro", "artificial", "dry", "wet", "uefa_b", "whiteboard", "blackboard"}:
-        grass_style = "classic"
+    grass_style = str(pitch_grass_style or "stadium_top").strip().lower()
+    if grass_style not in {"classic", "broadcast", "broadcast_premium", "stadium_top", "realistic", "pro", "artificial", "dry", "wet", "uefa_b", "whiteboard", "blackboard"}:
+        grass_style = "stadium_top"
     try:
         zoom = float(pitch_zoom or 1.0)
     except Exception:
@@ -445,6 +445,18 @@ def render_task_preview_png(
                 grass_tiles["uefa_b"] = "data:image/png;base64," + base64.b64encode(tile_path.read_bytes()).decode("ascii")
         except Exception:
             grass_tiles = {}
+    pitch3d_top_images = {}
+    if grass_style == "stadium_top":
+        try:
+            base_path = Path(settings.BASE_DIR) / "football" / "static" / "football" / "images" / "pitch3d"
+            top_h = base_path / "stadium_rosaleda_top_h.png"
+            top_v = base_path / "stadium_rosaleda_top_v.png"
+            if top_h.exists():
+                pitch3d_top_images["h"] = "data:image/png;base64," + base64.b64encode(top_h.read_bytes()).decode("ascii")
+            if top_v.exists():
+                pitch3d_top_images["v"] = "data:image/png;base64," + base64.b64encode(top_v.read_bytes()).decode("ascii")
+        except Exception:
+            pitch3d_top_images = {}
 
     html = f"""<!doctype html>
 <html lang="es">
@@ -495,6 +507,9 @@ def render_task_preview_png(
 
 	  <script>
 	    window.__WEBSTATS_GRASS_TILES = {json.dumps(grass_tiles, ensure_ascii=False)};
+	  </script>
+	  <script>
+	    window.__WEBSTATS_PITCH3D_TOP_IMAGES = {json.dumps(pitch3d_top_images, ensure_ascii=False)};
 	  </script>
 	  <script>
 		    window.__TPAD_RENDER__ = {json.dumps({
@@ -576,7 +591,7 @@ def render_task_preview_png(
 	                const preset = String(cfg.preset || 'full_pitch');
 	                const orientation = String(cfg.orientation || 'landscape') === 'portrait' ? 'portrait' : 'landscape';
 		                const rawGrass = String(cfg.grass_style || 'classic').trim().toLowerCase();
-		                const grassStyle = ['classic', 'broadcast', 'realistic', 'pro', 'artificial', 'dry', 'wet', 'uefa_b', 'whiteboard', 'blackboard'].includes(rawGrass) ? rawGrass : 'classic';
+		                const grassStyle = ['classic', 'broadcast', 'broadcast_premium', 'stadium_top', 'realistic', 'pro', 'artificial', 'dry', 'wet', 'uefa_b', 'whiteboard', 'blackboard'].includes(rawGrass) ? rawGrass : 'stadium_top';
 	                const zoom = Number(cfg.zoom || 1);
 	                const world = cfg.world || {};
 	                const state = cfg.state || {};

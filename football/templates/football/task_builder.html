@@ -6879,7 +6879,7 @@
 	        <input type="hidden" name="draw_canvas_timeline_previews" id="draw-canvas-timeline-previews" />
 	        <input type="hidden" name="draw_task_pitch_orientation" id="draw-task-pitch-orientation" value="{{ initial.pitch_orientation|default:'landscape' }}" />
 	        <input type="hidden" name="draw_task_pitch_zoom" id="draw-task-pitch-zoom" value="{{ initial.pitch_zoom|default:'1.00' }}" />
-	        <input type="hidden" name="draw_task_pitch_grass_style" id="draw-task-pitch-grass-style" value="{{ initial.pitch_grass_style|default:'classic' }}" />
+	        <input type="hidden" name="draw_task_pitch_grass_style" id="draw-task-pitch-grass-style" value="{{ initial.pitch_grass_style|default:'stadium_top' }}" />
 	        <div id="assigned-players-hidden" style="display:none;"></div>
 
         {% if not tactics_mode %}
@@ -7192,7 +7192,7 @@
 				                        {% elif initial.pitch_grass_style == 'coachboard' %}Tablero
 				                        {% elif initial.pitch_grass_style == 'whiteboard' %}Blanca
 				                        {% elif initial.pitch_grass_style == 'blackboard' %}Negra
-				                        {% else %}Césped{% endif %}
+				                        {% else %}Estadio HD{% endif %}
 				                      </span>
 				                    </button>
 		                    <span class="pitch-grass-select-wrap">

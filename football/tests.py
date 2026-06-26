@@ -13973,6 +13973,13 @@ class StaffUserLinkingTests(TestCase):
         self.assertContains(response, '__tpadApplyRecommendedTokenStyle')
         self.assertContains(response, 'data-resource="emoji"')
 
+    def test_task_builder_defaults_to_stadium_hd_surface(self):
+        response = self.client.get(reverse('sessions-task-create'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="draw-task-pitch-grass-style" value="stadium_top"')
+        self.assertContains(response, 'option value="stadium_top" selected')
+
     def test_task_builder_prefills_age_group_from_team_category(self):
         self.team.category = 'Juvenil'
         self.team.save(update_fields=['category'])
@@ -14761,6 +14768,7 @@ class StaffUserLinkingTests(TestCase):
                 'draw_task_minutes': '22',
                 'draw_task_objective': 'Ajustar alturas',
                 'draw_task_pitch_preset': 'full_pitch',
+                'draw_task_pitch_grass_style': 'stadium_top',
                 'draw_canvas_state': json.dumps({'version': '5.3.0', 'objects': []}),
                 'draw_canvas_width': '1280',
                 'draw_canvas_height': '720',
@@ -14773,6 +14781,7 @@ class StaffUserLinkingTests(TestCase):
         self.assertEqual(task.session, other_session)
         self.assertEqual(task.duration_minutes, 22)
         self.assertEqual(task.block, SessionTask.BLOCK_MAIN_2)
+        self.assertEqual((task.tactical_layout.get('meta') or {}).get('pitch_grass_style'), 'stadium_top')
 
     def test_task_builder_edit_partial_post_does_not_wipe_existing_fields(self):
         session = TrainingSession.objects.create(

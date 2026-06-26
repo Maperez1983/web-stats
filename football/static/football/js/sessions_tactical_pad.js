@@ -459,6 +459,23 @@
     // priorizar llenar el viewport y minimizar esos márgenes.
     root.setAttribute('preserveAspectRatio', orientation === 'portrait' ? 'xMidYMid slice' : 'xMidYMid meet');
 
+		    const resolvePitch3dTopImageHref = () => {
+		      try {
+		        const globalImages = window.__WEBSTATS_PITCH3D_TOP_IMAGES || {};
+		        const preferred = orientation === 'portrait' ? safeText(globalImages.v) : safeText(globalImages.h);
+		        if (preferred) return preferred;
+		      } catch (e) { /* ignore */ }
+		      try {
+		        const formEl = document.getElementById('task-builder-form');
+		        const preferred = orientation === 'portrait'
+		          ? safeText(formEl?.dataset?.pitch3dStadiumTopVSrc)
+		          : safeText(formEl?.dataset?.pitch3dStadiumTopHSrc);
+		        if (preferred) return preferred;
+		      } catch (e) { /* ignore */ }
+		      return orientation === 'portrait'
+		        ? '/static/football/images/pitch3d/stadium_rosaleda_top_v.png'
+		        : '/static/football/images/pitch3d/stadium_rosaleda_top_h.png';
+		    };
 		    const defs = createSvgNode(doc, 'defs');
 		    const gradient = createSvgNode(doc, 'linearGradient', { id: 'pitch-bg', x1: '0%', y1: '0%', x2: '0%', y2: '100%' });
 		    const gradientStopsByStyle = {
@@ -523,9 +540,7 @@
 			        width: stageW + (bleed * 2),
 			        height: stageH + (bleed * 2),
 			      });
-			      const href = orientation === 'portrait'
-			        ? '/static/football/images/pitch3d/stadium_rosaleda_top_v.png'
-			        : '/static/football/images/pitch3d/stadium_rosaleda_top_h.png';
+			      const href = resolvePitch3dTopImageHref();
 			      const image = createSvgNode(doc, 'image', {
 			        href,
 			        x: -bleed,
@@ -747,9 +762,85 @@
       const topY = centerY - (goalHeight / 2);
       const bottomY = centerY + (goalHeight / 2);
       const postX = side === 'left' ? x - goalDepth : x + goalDepth;
+      if (grassStyle === 'stadium_top' || grassStyle === 'broadcast_premium') {
+        const netStroke = grassStyle === 'stadium_top' ? 'rgba(255,255,255,0.42)' : 'rgba(255,255,255,0.34)';
+        const meshStroke = grassStyle === 'stadium_top' ? 'rgba(255,255,255,0.24)' : 'rgba(255,255,255,0.18)';
+        const shadowX = side === 'left' ? 3.8 : -3.8;
+        drawRoot.appendChild(createSvgNode(doc, 'polygon', {
+          points: `${x},${topY} ${postX},${topY + 3} ${postX},${bottomY - 3} ${x},${bottomY}`,
+          fill: grassStyle === 'stadium_top' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.05)',
+          stroke: 'none',
+        }));
+        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x, y1: topY, x2: postX, y2: topY + 3, stroke: netStroke, 'stroke-width': 3 }));
+        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x, y1: bottomY, x2: postX, y2: bottomY - 3, stroke: netStroke, 'stroke-width': 3 }));
+        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: postX, y1: topY + 3, x2: postX, y2: bottomY - 3, stroke: netStroke, 'stroke-width': 3 }));
+        for (let i = 1; i <= 4; i += 1) {
+          const ratio = i / 5;
+          const y1 = topY + ((bottomY - topY) * ratio);
+          drawRoot.appendChild(createSvgNode(doc, 'line', {
+            x1: x,
+            y1,
+            x2: postX,
+            y2: y1 + ((side === 'left' ? 1 : -1) * 1.8),
+            stroke: meshStroke,
+            'stroke-width': 1.2,
+          }));
+        }
+        for (let i = 1; i <= 3; i += 1) {
+          const ratio = i / 4;
+          const gx = x + ((postX - x) * ratio);
+          drawRoot.appendChild(createSvgNode(doc, 'line', {
+            x1: gx,
+            y1: topY + (ratio * 3),
+            x2: gx,
+            y2: bottomY - (ratio * 3),
+            stroke: meshStroke,
+            'stroke-width': 1.2,
+          }));
+        }
+        drawRoot.appendChild(createSvgNode(doc, 'line', {
+          x1: x + shadowX,
+          y1: bottomY + 3,
+          x2: postX + shadowX,
+          y2: bottomY + 5,
+          stroke: 'rgba(2,6,23,0.18)',
+          'stroke-width': 4,
+        }));
+        return;
+      }
       drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x, y1: topY, x2: postX, y2: topY, stroke: line, 'stroke-width': 3 }));
       drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x, y1: bottomY, x2: postX, y2: bottomY, stroke: line, 'stroke-width': 3 }));
       drawRoot.appendChild(createSvgNode(doc, 'line', { x1: postX, y1: topY, x2: postX, y2: bottomY, stroke: line, 'stroke-width': 3 }));
+    };
+
+    const drawAdvertisingBoards = (x, y, width, height) => {
+      if (grassStyle !== 'stadium_top' && grassStyle !== 'broadcast_premium') return;
+      const offset = grassStyle === 'stadium_top' ? 18 : 12;
+      const bandH = grassStyle === 'stadium_top' ? 12 : 9;
+      const palette = grassStyle === 'stadium_top'
+        ? ['#0f172a', '#0ea5e9', '#16a34a', '#f8fafc', '#0ea5e9', '#0f172a']
+        : ['rgba(15,23,42,0.76)', 'rgba(34,211,238,0.64)', 'rgba(255,255,255,0.74)', 'rgba(34,197,94,0.62)', 'rgba(255,255,255,0.74)', 'rgba(15,23,42,0.76)'];
+      const segments = 6;
+      const segmentW = width / segments;
+      const topY = y - offset - bandH;
+      const bottomY = y + height + offset;
+      for (let i = 0; i < segments; i += 1) {
+        const segX = x + (i * segmentW) + 4;
+        const segW = Math.max(14, segmentW - 8);
+        [topY, bottomY].forEach((bandY) => {
+          drawRoot.appendChild(createSvgNode(doc, 'rect', {
+            x: segX,
+            y: bandY,
+            width: segW,
+            height: bandH,
+            rx: 5,
+            ry: 5,
+            fill: palette[i % palette.length],
+            stroke: 'rgba(255,255,255,0.18)',
+            'stroke-width': 1,
+          }));
+        });
+      }
     };
 
     const drawCornerArcs = (x, y, width, height, radius) => {
@@ -838,6 +929,7 @@
       drawGoal(stage.x, centerY, goalDepth, goalHeight, 'left');
       drawGoal(stage.x + stage.width, centerY, goalDepth, goalHeight, 'right');
       drawCornerArcs(stage.x, stage.y, stage.width, stage.height, cornerRadius);
+      drawAdvertisingBoards(stage.x, stage.y, stage.width, stage.height);
     };
 
     const drawHalfPitch = () => {
@@ -871,6 +963,7 @@
       drawRoot.appendChild(createSvgNode(doc, 'circle', { cx: rightX - spotDist, cy: centerY, r: 4, fill: line }));
       drawRoot.appendChild(createSvgNode(doc, 'path', { d: `M ${rightX - penaltyDepth} ${centerY - arcYOffset} A ${arcRadius} ${arcRadius} 0 0 0 ${rightX - penaltyDepth} ${centerY + arcYOffset}`, fill: 'none', stroke: soft, 'stroke-width': 3 }));
       drawGoal(rightX, centerY, goalDepth, goalHeight, 'right');
+      drawAdvertisingBoards(x, y, width, height);
     };
 
     const drawThirdZone = (side = 'attacking') => {
@@ -910,6 +1003,7 @@
         drawRoot.appendChild(createSvgNode(doc, 'path', { d: `M ${x + penaltyDepth} ${centerY - arcYOffset} A ${arcRadius} ${arcRadius} 0 0 1 ${x + penaltyDepth} ${centerY + arcYOffset}`, fill: 'none', stroke: soft, 'stroke-width': 3 }));
         drawGoal(x, centerY, goalDepth, goalHeight, 'left');
       }
+      drawAdvertisingBoards(x, y, width, height);
     };
 
     const drawMiddleThird = () => {
@@ -977,6 +1071,7 @@
       drawGoal(x, centerY, goalDepth, goalHeightMeters * localScale, 'left');
       drawGoal(x + width, centerY, goalDepth, goalHeightMeters * localScale, 'right');
       drawCornerArcs(x, y, width, height, cornerRadius);
+      drawAdvertisingBoards(x, y, width, height);
     };
 
     if (preset === 'half_pitch') drawHalfPitch();
