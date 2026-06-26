@@ -4866,6 +4866,29 @@
         gap: 0.3rem;
         margin-bottom: 0;
       }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .board-resource-family-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.42rem;
+        align-items: center;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .board-resource-family-btn {
+        min-height: 34px;
+        padding: 0.42rem 0.72rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.04);
+        color: rgba(226,232,240,0.88);
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .board-resource-family-btn.is-active {
+        background: linear-gradient(180deg, rgba(34,197,94,0.22), rgba(34,197,94,0.12));
+        border-color: rgba(74, 222, 128, 0.42);
+        color: rgba(248,250,252,0.98);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 12px 24px rgba(15, 23, 42, 0.18);
+      }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .editor-side-tab {
         min-height: 34px;
         padding: 0.36rem 0.44rem;
@@ -4883,6 +4906,18 @@
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .editor-pane-card[data-board-pane="starter"] {
         display: none;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board.task-board-has-selection .editor-pane-card[data-board-pane="starter"],
+      body:not(.tactics-mode).task-mode-ready.task-mode-board.task-board-has-selection .editor-pane-card[data-board-pane="actions"] {
+        display: none;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board:not(.task-board-has-selection) .editor-pane-card[data-board-pane="inspector"] .editor-side-section-head strong::after {
+        content: " · selecciona un recurso";
+        color: rgba(148, 163, 184, 0.82);
+        font-weight: 700;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board.task-board-has-selection .editor-pane-card[data-board-pane="inspector"] {
+        flex: 1 1 auto;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .resource-details {
         flex: 1 1 auto;
@@ -4924,6 +4959,9 @@
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .resource-details {
         min-height: 0;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .resource-tabs {
+        display: none;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .resource-panel.is-visible {
         display: grid;
@@ -4971,6 +5009,9 @@
         text-align: center;
         min-height: 72px;
         padding: 0.5rem 0.58rem;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board.task-board-has-selection .selection-empty-state {
+        display: none;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-side .resource-strip {
         display: grid;
@@ -7194,6 +7235,14 @@
                     <button type="button" class="surface-trigger" id="task-board-inspector-toggle" aria-pressed="false">Inspector</button>
                     <button type="button" class="surface-trigger is-active" id="task-board-roster-toggle" aria-pressed="true">Plantilla</button>
                   </div>
+                  <div class="board-resource-family-bar" aria-label="Familias de recursos">
+                    <button type="button" class="board-resource-family-btn is-active" data-top-resource="base">Jugadores</button>
+                    <button type="button" class="board-resource-family-btn" data-top-resource="pro">Material</button>
+                    <button type="button" class="board-resource-family-btn" data-top-resource="trazos">Trazos</button>
+                    <button type="button" class="board-resource-family-btn" data-top-resource="figuras">Figuras</button>
+                    <button type="button" class="board-resource-family-btn" data-top-resource="emoji">Emoji</button>
+                    <button type="button" class="board-resource-family-btn" data-top-resource="importados">Assets</button>
+                  </div>
                   {% endif %}
                   <div class="surface-picker" id="surface-picker">
                     <button type="button" class="surface-trigger" id="surface-trigger">
@@ -7391,14 +7440,14 @@
                           <button type="button" class="button secondary" data-guide-action="advanced" id="task-guide-advanced-toggle">Ver avanzado</button>
                         </div>
                       </div>
-                      <div class="editor-pane-card">
+                      <div class="editor-pane-card" data-board-pane="actions">
                         <div class="editor-side-section-head">
                           <strong>Acciones</strong>
                           <span>Edición rápida</span>
                         </div>
                         <div id="task-side-command-slot"></div>
                       </div>
-                      <div class="editor-pane-card">
+                      <div class="editor-pane-card" data-board-pane="inspector">
                         <div class="editor-side-section-head">
                           <strong>Inspector</strong>
                           <span>Elemento seleccionado</span>
@@ -8280,7 +8329,7 @@
 			                </div>
 		                {% endif %}
 				                <div class="resource-panel is-visible" data-panel="base">
-			                  <h3 class="tool-group-title">Elementos rápidos</h3>
+			                  <h3 class="tool-group-title">{% if tactics_mode %}Elementos rápidos{% else %}Jugadores{% endif %}</h3>
 			                  {% if tactics_mode %}
 			                  <div class="token-global-style" id="task-token-style-global-tactics" aria-label="Colores rápidos de fichas">
 			                    <span class="label">Colores</span>
@@ -8318,32 +8367,8 @@
 			                  <button type="button" class="tool-icon" data-add="player_rival" title="Jugador rival" aria-label="Jugador rival"><span class="tool-emoji" aria-hidden="true">🔴</span><span class="sr-only">Jugador rival</span></button>
 			                  <button type="button" class="tool-icon" data-add="player_away" title="Jugador 2ª equipación" aria-label="Jugador 2ª equipación"><span class="tool-emoji" aria-hidden="true">🟡</span><span class="sr-only">Jugador 2ª equipación</span></button>
 			                  <button type="button" class="tool-icon" data-add="goalkeeper_local" title="Portero" aria-label="Portero"><span class="tool-emoji" aria-hidden="true">🧤</span><span class="sr-only">Portero</span></button>
+			                  <button type="button" class="tool-icon" data-add="goalkeeper_rival" title="Portero rival" aria-label="Portero rival"><span class="tool-emoji" aria-hidden="true">🧤</span><span class="sr-only">Portero rival</span></button>
 			                  <button type="button" class="tool-icon" data-add="ball" title="Balón" aria-label="Balón"><span class="tool-emoji" aria-hidden="true">⚽</span><span class="sr-only">Balón</span></button>
-			                  <button type="button" class="tool-icon" data-add="goal" title="Portería" aria-label="Portería"><span class="tool-emoji" aria-hidden="true">🥅</span><span class="sr-only">Portería</span></button>
-			                  <button type="button" class="tool-icon" data-add="goal_posts" title="Portería (marco)" aria-label="Portería (marco)"><span class="tool-emoji" aria-hidden="true">🧱</span><span class="sr-only">Portería (marco)</span></button>
-			                  <button type="button" class="tool-icon" data-add="goal_3d" title="Portería 3D" aria-label="Portería 3D"><span class="tool-emoji" aria-hidden="true">🧊</span><span class="sr-only">Portería 3D</span></button>
-				                  <button type="button" class="tool-icon" data-add="goal_mini" title="Mini portería" aria-label="Mini portería"><span class="tool-emoji" aria-hidden="true">🥅</span><span class="sr-only">Mini portería</span></button>
-				                  <button type="button" class="tool-icon" data-add="goal_target" title="Portería con dianas (finalización)" aria-label="Portería con dianas (finalización)"><span class="tool-emoji" aria-hidden="true">🎯</span><span class="sr-only">Portería con dianas (finalización)</span></button>
-				                  <button type="button" class="tool-icon" data-add="goal_popup" title="Portería pop-up (portable)" aria-label="Portería pop-up (portable)"><span class="tool-emoji" aria-hidden="true">⛺</span><span class="sr-only">Portería pop-up (portable)</span></button>
-				                  <button type="button" class="tool-icon" data-add="goal_futsal" title="Portería futsal / handball" aria-label="Portería futsal / handball"><span class="tool-emoji" aria-hidden="true">🤾</span><span class="sr-only">Portería futsal / handball</span></button>
-			                  <button type="button" class="tool-icon" data-add="cone" title="Cono" aria-label="Cono"><span class="tool-emoji" aria-hidden="true">🔺</span><span class="sr-only">Cono</span></button>
-			                  <button type="button" class="tool-icon" data-add="cone_striped" title="Cono (a rayas)" aria-label="Cono (a rayas)"><span class="tool-emoji" aria-hidden="true">🔶</span><span class="sr-only">Cono (a rayas)</span></button>
-				                  <button type="button" class="tool-icon" data-add="pole_marker" title="Pica / poste de slalom" aria-label="Pica / poste de slalom"><span class="tool-emoji" aria-hidden="true">📍</span><span class="sr-only">Pica / poste de slalom</span></button>
-				                  <button type="button" class="tool-icon" data-add="ring" title="Aro" aria-label="Aro"><span class="tool-emoji" aria-hidden="true">⭕</span><span class="sr-only">Aro</span></button>
-				                  <button type="button" class="tool-icon" data-add="ladder" title="Escalera de coordinación" aria-label="Escalera de coordinación"><span class="tool-emoji" aria-hidden="true">🪜</span><span class="sr-only">Escalera de coordinación</span></button>
-				                  <button type="button" class="tool-icon" data-add="ladder_L" title="Escalera en L" aria-label="Escalera en L"><span class="tool-emoji" aria-hidden="true">↪️</span><span class="sr-only">Escalera en L</span></button>
-				                  <button type="button" class="tool-icon" data-add="ladder_zigzag" title="Escalera en zigzag" aria-label="Escalera en zigzag"><span class="tool-emoji" aria-hidden="true">〰️</span><span class="sr-only">Escalera en zigzag</span></button>
-				                  <button type="button" class="tool-icon" data-add="hurdle" title="Valla" aria-label="Valla"><span class="tool-emoji" aria-hidden="true">🚧</span><span class="sr-only">Valla</span></button>
-				                  <button type="button" class="tool-icon" data-add="mini_hurdle" title="Mini valla" aria-label="Mini valla"><span class="tool-emoji" aria-hidden="true">🪧</span><span class="sr-only">Mini valla</span></button>
-				                  <button type="button" class="tool-icon" data-add="tape" title="Cinta / línea de suelo" aria-label="Cinta / línea de suelo"><span class="tool-emoji" aria-hidden="true">🧵</span><span class="sr-only">Cinta / línea de suelo</span></button>
-				                  <button type="button" class="tool-icon" data-add="gate" title="Puerta (2 conos)" aria-label="Puerta (2 conos)"><span class="tool-emoji" aria-hidden="true">🚪</span><span class="sr-only">Puerta (2 conos)</span></button>
-				                  <button type="button" class="tool-icon" data-add="mannequin" title="Maniquí" aria-label="Maniquí"><span class="tool-emoji" aria-hidden="true">🧍</span><span class="sr-only">Maniquí</span></button>
-				                  <button type="button" class="tool-icon" data-add="wall" title="Muro / panel" aria-label="Muro / panel"><span class="tool-emoji" aria-hidden="true">🧱</span><span class="sr-only">Muro / panel</span></button>
-				                  <button type="button" class="tool-icon" data-add="rebounder" title="Rebounder" aria-label="Rebounder"><span class="tool-emoji" aria-hidden="true">🧲</span><span class="sr-only">Rebounder</span></button>
-				                  <button type="button" class="tool-icon" data-add="barrier" title="Barrera (4 maniquíes)" aria-label="Barrera (4 maniquíes)"><span class="tool-emoji" aria-hidden="true">🚧</span><span class="sr-only">Barrera (4 maniquíes)</span></button>
-				                  <button type="button" class="tool-icon" data-add="zone" title="Zona" aria-label="Zona"><span class="tool-emoji" aria-hidden="true">🟩</span><span class="sr-only">Zona</span></button>
-				                  <button type="button" class="tool-icon" data-add="text" title="Texto" aria-label="Texto"><span class="tool-emoji" aria-hidden="true">🔤</span><span class="sr-only">Texto</span></button>
-						                  <button type="button" class="tool-icon" data-action="duplicate" title="Duplicar" aria-label="Duplicar"><span class="tool-emoji" aria-hidden="true">📄</span><span class="sr-only">Duplicar</span></button>
 		                </div>
 		                {% endif %}
                   <div data-inspector-slot="base">
@@ -8596,7 +8621,7 @@
 	              </div>
 
                 <div class="resource-panel" data-panel="pro" hidden>
-                  <h3 class="tool-group-title">Recursos PRO</h3>
+                  <h3 class="tool-group-title">{% if tactics_mode %}Recursos PRO{% else %}Material{% endif %}</h3>
                   <p class="meta" style="margin:0 0 0.65rem; font-size:0.78rem;">
                     Recursos “de pizarra” listos para tareas y táctica. Tip: tras colocar, selecciona el elemento para ajustar tamaño/color y usa “Capas” para reordenar/bloquear.
                   </p>
@@ -15373,9 +15398,11 @@
           const commandSlot = document.getElementById('task-side-command-slot');
           const selectionSlot = document.getElementById('task-side-selection-slot');
           const selectionEmpty = document.getElementById('task-selection-empty');
+          const selectionDockClose = document.getElementById('task-selection-dock-close');
           const guideButtons = Array.from(document.querySelectorAll('[data-guide-action]'));
           const presetButtons = Array.from(document.querySelectorAll('[data-guided-preset]'));
           const resourceTabs = Array.from(document.querySelectorAll('.resource-tab'));
+          const topResourceButtons = Array.from(document.querySelectorAll('[data-top-resource]'));
           const workflowButtons = Array.from(document.querySelectorAll('[data-workflow-action]'));
           const kindButtons = Array.from(document.querySelectorAll('[data-task-kind]'));
           const complexityToggle = document.getElementById('task-editor-complexity-toggle');
@@ -15414,7 +15441,14 @@
             if (!selectionSlot || !selectionToolbar) return;
             const hasSelection = selectionToolbar.hidden === false;
             selectionSlot.classList.toggle('has-selection', hasSelection);
+            document.body.classList.toggle('task-board-has-selection', hasSelection);
             if (selectionEmpty) selectionEmpty.hidden = hasSelection;
+            if (hasSelection) {
+              activate('edit');
+              document.body.classList.remove('task-board-resources-open');
+              document.body.classList.add('task-board-inspector-open');
+              syncBoardDrawerButtons();
+            }
           };
 
           const syncBoardDrawerButtons = () => {
@@ -15449,6 +15483,23 @@
                 window.__tpadApplyRecommendedTokenStyle(next);
               }
             } catch (e) { /* ignore */ }
+          };
+
+          const resourceLabelMap = {
+            base: 'Jugadores',
+            pro: 'Material',
+            trazos: 'Trazos',
+            figuras: 'Figuras',
+            emoji: 'Emoji',
+            importados: 'Assets',
+            plantilla: 'Plantilla',
+          };
+
+          const syncTopResourceButtons = (key) => {
+            const next = String(key || 'base').trim();
+            topResourceButtons.forEach((btn) => btn.classList.toggle('is-active', String(btn.dataset.topResource || '').trim() === next));
+            const summary = document.getElementById('task-resource-summary-label');
+            if (summary && resourceLabelMap[next]) summary.textContent = resourceLabelMap[next];
           };
 
           const activate = (pane) => {
@@ -15512,6 +15563,23 @@
             });
           });
 
+          resourceTabs.forEach((tab) => {
+            tab.addEventListener('click', () => {
+              syncTopResourceButtons(String(tab.dataset.resource || '').trim());
+            });
+          });
+
+          topResourceButtons.forEach((button) => {
+            button.addEventListener('click', (event) => {
+              try { event.preventDefault(); } catch (e) { /* ignore */ }
+              const key = String(button.dataset.topResource || '').trim();
+              if (!key) return;
+              openBoardDrawer('resources');
+              activateResourceTab(key);
+              syncTopResourceButtons(key);
+            });
+          });
+
           resourcesToggle?.addEventListener('click', (event) => {
             try { event.preventDefault(); } catch (e) { /* ignore */ }
             if (document.body.classList.contains('task-board-resources-open')) closeBoardDrawers();
@@ -15521,6 +15589,10 @@
             try { event.preventDefault(); } catch (e) { /* ignore */ }
             if (document.body.classList.contains('task-board-inspector-open')) closeBoardDrawers();
             else openBoardDrawer('edit');
+          });
+          selectionDockClose?.addEventListener('click', (event) => {
+            try { event.preventDefault(); } catch (e) { /* ignore */ }
+            closeBoardDrawers();
           });
           rosterToggle?.addEventListener('click', (event) => {
             try { event.preventDefault(); } catch (e) { /* ignore */ }
@@ -15689,6 +15761,7 @@
             activate('resources');
           }
           activateResourceTab('base');
+          syncTopResourceButtons('base');
         };
         if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
         else boot();
