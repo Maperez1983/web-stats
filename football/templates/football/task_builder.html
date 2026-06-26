@@ -7242,6 +7242,23 @@
                     <button type="button" class="board-resource-family-btn" data-top-resource="figuras">Figuras</button>
                     <button type="button" class="board-resource-family-btn" data-top-resource="emoji">Emoji</button>
                     <button type="button" class="board-resource-family-btn" data-top-resource="importados">Assets</button>
+                    <details class="pitch-view-menu board-lanes-menu">
+                      <summary class="board-resource-family-btn" aria-label="Dividir el campo en carriles o zonas">Carriles</summary>
+                      <div class="pitch-view-menu-body">
+                        <button type="button" class="surface-trigger" data-lane-template="shape_lane_3">
+                          <span>3 carriles</span>
+                          <span class="current">División vertical</span>
+                        </button>
+                        <button type="button" class="surface-trigger" data-lane-template="shape_lane_5">
+                          <span>5 carriles</span>
+                          <span class="current">Análisis por pasillos</span>
+                        </button>
+                        <button type="button" class="surface-trigger" data-lane-template="shape_grid_120">
+                          <span>120 zonas</span>
+                          <span class="current">Malla completa</span>
+                        </button>
+                      </div>
+                    </details>
                   </div>
                   {% endif %}
                   <div class="surface-picker" id="surface-picker">
@@ -8777,6 +8794,8 @@
 		                  <button type="button" class="tool-icon" data-add="shape_band_v" title="Bloque vertical (highlight)" aria-label="Bloque vertical"><span class="tool-emoji" aria-hidden="true">🟩</span><span class="sr-only">Bloque vertical</span></button>
 		                  <button type="button" class="tool-icon" data-add="shape_lane_3" title="Zona 3 carriles" aria-label="Zona 3 carriles"><span class="tool-emoji" aria-hidden="true">🟩</span><span class="sr-only">Zona 3 carriles</span></button>
 		                  <button type="button" class="tool-icon" data-add="shape_lane_4" title="Zona 4 carriles" aria-label="Zona 4 carriles"><span class="tool-emoji" aria-hidden="true">🟩</span><span class="sr-only">Zona 4 carriles</span></button>
+		                  <button type="button" class="tool-icon" data-add="shape_lane_5" title="Zona 5 carriles" aria-label="Zona 5 carriles"><span class="tool-emoji" aria-hidden="true">🟩</span><span class="sr-only">Zona 5 carriles</span></button>
+		                  <button type="button" class="tool-icon" data-add="shape_grid_120" title="Malla de 120 zonas" aria-label="Malla de 120 zonas"><span class="tool-emoji" aria-hidden="true">#</span><span class="sr-only">Malla de 120 zonas</span></button>
 		                </div>
 		                  <div data-inspector-slot="figuras"></div>
 		                </div>
@@ -14369,7 +14388,8 @@
 									                    let baseW = 76;
 									                    let baseH = 52;
 									                    if (k === 'shape_rect_long') { baseW = 110; baseH = 44; }
-									                    if (k === 'shape_lane_3') { baseW = 64; baseH = 150; shape.classList.add('is-lane'); }
+					                    if (k === 'shape_lane_3' || k === 'shape_lane_4' || k === 'shape_lane_5') { baseW = 64; baseH = 150; shape.classList.add('is-lane'); }
+					                    if (k === 'shape_grid_120') { baseW = 148; baseH = 122; shape.classList.add('is-lane'); }
 									                    shape.style.width = `${Math.round(baseW * s)}px`;
 									                    shape.style.height = `${Math.round(baseH * s)}px`;
 									                    return shape;
@@ -15403,6 +15423,7 @@
           const presetButtons = Array.from(document.querySelectorAll('[data-guided-preset]'));
           const resourceTabs = Array.from(document.querySelectorAll('.resource-tab'));
           const topResourceButtons = Array.from(document.querySelectorAll('[data-top-resource]'));
+          const laneTemplateButtons = Array.from(document.querySelectorAll('[data-lane-template]'));
           const workflowButtons = Array.from(document.querySelectorAll('[data-workflow-action]'));
           const kindButtons = Array.from(document.querySelectorAll('[data-task-kind]'));
           const complexityToggle = document.getElementById('task-editor-complexity-toggle');
@@ -15577,6 +15598,30 @@
               openBoardDrawer('resources');
               activateResourceTab(key);
               syncTopResourceButtons(key);
+            });
+          });
+
+          laneTemplateButtons.forEach((button) => {
+            button.addEventListener('click', (event) => {
+              try { event.preventDefault(); } catch (e) { /* ignore */ }
+              const kind = String(button.dataset.laneTemplate || '').trim();
+              if (!kind) return;
+              const item = { payload: { kind }, x: 0.5, y: 0.5 };
+              if (kind === 'shape_lane_3') {
+                item.scaleX = 5.1;
+                item.scaleY = 12.0;
+              } else if (kind === 'shape_lane_5') {
+                item.scaleX = 5.1;
+                item.scaleY = 12.0;
+              } else if (kind === 'shape_grid_120') {
+                item.scaleX = 4.1;
+                item.scaleY = 4.0;
+              }
+              try {
+                window.dispatchEvent(new CustomEvent('webstats:tpad:assistant-board', {
+                  detail: { clear: false, items: [item] },
+                }));
+              } catch (e) { /* ignore */ }
             });
           });
 

@@ -215,6 +215,8 @@
 	    shape_u: 'una U',
 		    shape_lane_3: 'una zona (3 carriles)',
 		    shape_lane_4: 'una zona (4 carriles)',
+		    shape_lane_5: 'una zona (5 carriles)',
+		    shape_grid_120: 'una malla (120 zonas)',
 		    shape_lane_divider_v: 'un divisor vertical (carriles)',
 		    shape_lane_divider_h: 'un divisor horizontal (carriles)',
 		    shape_band_h: 'un bloque (horizontal)',
@@ -271,7 +273,7 @@
 	    },
 	    {
 	      label: 'Zonas y formas',
-	      items: ['zone', 'shape_circle', 'shape_square', 'shape_rect', 'shape_rect_long', 'shape_triangle', 'shape_diamond', 'shape_u', 'shape_lane_3', 'shape_lane_4', 'shape_lane_divider_v', 'shape_lane_divider_h', 'shape_band_h', 'shape_band_v'],
+	      items: ['zone', 'shape_circle', 'shape_square', 'shape_rect', 'shape_rect_long', 'shape_triangle', 'shape_diamond', 'shape_u', 'shape_lane_3', 'shape_lane_4', 'shape_lane_5', 'shape_grid_120', 'shape_lane_divider_v', 'shape_lane_divider_h', 'shape_band_h', 'shape_band_v'],
 	    },
 	    {
 	      label: 'Marcadores',
@@ -16287,7 +16289,7 @@
 						        }
 
 						        // Zonas (grupo).
-						        if (type === 'group' && (kind === 'zone' || kind === 'shape-rect' || kind === 'shape-rect-long' || kind === 'shape-square' || kind.startsWith('shape-lane-') || kind.startsWith('shape-band-'))) {
+						        if (type === 'group' && (kind === 'zone' || kind === 'shape-rect' || kind === 'shape-rect-long' || kind === 'shape-square' || kind.startsWith('shape-lane-') || kind.startsWith('shape-band-') || kind.startsWith('shape-grid-'))) {
 						          const wPx = Math.max(12, groupWidthPx || 0);
 						          const hPx = Math.max(12, groupHeightPx || 0);
 						          const center2d = { x: Number(o?.left) || 0, y: Number(o?.top) || 0 };
@@ -28372,8 +28374,74 @@
 	        try { group.noScaleCache = true; } catch (e) { /* ignore */ }
 	        return group;
 	      };
+	      const buildZoneGridShape = (left, top, columns = 12, rows = 10) => {
+	        const colCount = clamp(Number(columns) || 12, 2, 20);
+	        const rowCount = clamp(Number(rows) || 10, 2, 20);
+	        const width = 236;
+	        const height = 156;
+	        const stroke = '#f8fafc';
+	        const gridStroke = 'rgba(248,250,252,0.34)';
+	        const outer = new fabric.Rect({
+	          left: 0,
+	          top: 0,
+	          originX: 'center',
+	          originY: 'center',
+	          width,
+	          height,
+	          rx: 10,
+	          ry: 10,
+	          fill: 'rgba(15,118,110,0.10)',
+	          stroke,
+	          strokeWidth: 2,
+	          strokeDashArray: [7, 5],
+	          selectable: false,
+	          evented: false,
+	        });
+	        const lines = [];
+	        for (let i = 1; i < colCount; i += 1) {
+	          const x = -width / 2 + (width * (i / colCount));
+	          lines.push(new fabric.Line([x, -height / 2, x, height / 2], {
+	            stroke: gridStroke,
+	            strokeWidth: 1.4,
+	            selectable: false,
+	            evented: false,
+	          }));
+	        }
+	        for (let i = 1; i < rowCount; i += 1) {
+	          const y = -height / 2 + (height * (i / rowCount));
+	          lines.push(new fabric.Line([-width / 2, y, width / 2, y], {
+	            stroke: gridStroke,
+	            strokeWidth: 1.4,
+	            selectable: false,
+	            evented: false,
+	          }));
+	        }
+	        const badge = new fabric.Text(`${colCount * rowCount} zonas`, {
+	          left: 0,
+	          top: 0,
+	          originX: 'center',
+	          originY: 'center',
+	          fontSize: 18,
+	          fontWeight: '800',
+	          fill: 'rgba(248,250,252,0.92)',
+	          selectable: false,
+	          evented: false,
+	        });
+	        const group = new fabric.Group([outer, ...lines, badge], {
+	          left,
+	          top,
+	          originX: 'center',
+	          originY: 'center',
+	          data: { kind: `shape-grid-${colCount * rowCount}` },
+	        });
+	        try { group.objectCaching = false; } catch (e) { /* ignore */ }
+	        try { group.noScaleCache = true; } catch (e) { /* ignore */ }
+	        return group;
+	      };
 	      if (kind === 'shape_lane_3') return (left, top) => buildLaneShape(left, top, 3);
 	      if (kind === 'shape_lane_4') return (left, top) => buildLaneShape(left, top, 4);
+	      if (kind === 'shape_lane_5') return (left, top) => buildLaneShape(left, top, 5);
+	      if (kind === 'shape_grid_120') return (left, top) => buildZoneGridShape(left, top, 12, 10);
 
 	      if (kind === 'line_curve') {
 	        return (left, top) => new fabric.Path('M -70 22 Q 0 -34 70 22', {
