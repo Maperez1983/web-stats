@@ -4132,21 +4132,80 @@
         display: flex;
         flex-direction: column;
       }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-toolbar {
+        position: sticky;
+        top: 0;
+        z-index: 90;
+        margin-bottom: 0.45rem;
+        padding: 0.48rem 0.58rem;
+        border-radius: 16px;
+        background: rgba(6, 14, 26, 0.88);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-toolbar .surface-picker {
+        min-width: 0;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .board-overlay-controls {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.38rem;
+        flex-wrap: wrap;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .board-overlay-controls .surface-trigger {
+        min-height: 38px;
+        padding: 0.42rem 0.64rem;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .board-overlay-controls .surface-trigger.is-active {
+        border-color: rgba(34, 211, 238, 0.48);
+        background: rgba(34, 211, 238, 0.16);
+        color: rgba(240, 249, 255, 0.96);
+      }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-layout {
         flex: 1 1 auto;
         min-height: 0;
         height: 100%;
-        grid-template-columns: minmax(260px, 300px) minmax(0, 1fr);
-        gap: 0.55rem;
+        position: relative;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-side {
-        position: relative;
-        top: auto;
-        align-self: stretch;
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: min(320px, 28vw);
+        min-width: 280px;
+        max-width: 86vw;
+        z-index: 70;
+        opacity: 0;
+        pointer-events: none;
+        transform: translate3d(-108%, 0, 0);
+        transition: transform 180ms ease, opacity 160ms ease;
+        align-self: auto;
         max-height: none;
-        height: 100%;
         overflow-x: hidden;
         overflow-y: auto;
+        border: 1px solid rgba(255,255,255,0.14);
+        box-shadow: 0 20px 46px rgba(2, 6, 23, 0.36);
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board.task-board-resources-open .pitch-side,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board.task-board-inspector-open .pitch-side {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board.task-board-resources-open .pitch-side {
+        left: 0;
+        right: auto;
+        transform: translate3d(0, 0, 0);
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board.task-board-inspector-open .pitch-side {
+        left: auto;
+        right: 0;
+        transform: translate3d(0, 0, 0);
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-side.section {
+        padding: 0.52rem;
+        background: rgba(8, 18, 32, 0.94);
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-main,
       body:not(.tactics-mode).task-mode-ready.task-mode-board .board-workbench,
@@ -4160,12 +4219,16 @@
         flex: 1 1 auto;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .board-workbench {
-        padding: 0.56rem;
+        padding: 0.28rem;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .board-workbench-copy span,
       body:not(.tactics-mode).task-mode-ready.task-mode-board .board-quickbar-head span,
       body:not(.tactics-mode).task-mode-ready.task-mode-board .board-flow-note,
-      body:not(.tactics-mode).task-mode-ready.task-mode-board .board-guide {
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .board-guide,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .board-quickbar {
         display: none;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .board-workbench-head {
@@ -4175,17 +4238,46 @@
       body:not(.tactics-mode).task-mode-ready.task-mode-board .board-workbench-copy strong {
         font-size: 0.88rem;
       }
-      body:not(.tactics-mode).task-mode-ready.task-mode-board .board-quickbar {
-        padding: 0.42rem 0.52rem;
-      }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .board-stage-shell {
-        padding: 0.58rem;
+        padding: 0;
+        border: 0;
+        background: transparent;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-status {
         padding: 0.56rem 0.68rem;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-main > .section {
         margin-top: 0.45rem;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .editor-side-tabs {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: rgba(8, 18, 32, 0.96);
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .editor-pane-card[data-board-pane="starter"] {
+        display: none;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .editor-edit-pane {
+        gap: 0.35rem;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-main .player-bank {
+        max-height: 132px;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-main .player-bank > button.player-token-bank {
+        padding: 0.4rem 0.48rem;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .board-workbench-badge {
+        display: none;
+      }
+      @media (max-width: 980px) {
+        body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-side {
+          width: min(340px, 86vw);
+          min-width: 0;
+        }
+        body:not(.tactics-mode).task-mode-ready.task-mode-board .board-overlay-controls {
+          width: 100%;
+        }
       }
       @media (max-width: 760px) {
         .page {
@@ -6227,6 +6319,12 @@
                   </div>
                   <div class="tactics-toolbar-group tactics-toolbar-surface" aria-label="Superficie y vista">
                   {% endif %}
+                  {% if not tactics_mode %}
+                  <div class="board-overlay-controls" aria-label="Paneles de edición">
+                    <button type="button" class="surface-trigger" id="task-board-resources-toggle" aria-pressed="false">Recursos</button>
+                    <button type="button" class="surface-trigger" id="task-board-inspector-toggle" aria-pressed="false">Inspector</button>
+                  </div>
+                  {% endif %}
                   <div class="surface-picker" id="surface-picker">
                     <button type="button" class="surface-trigger" id="surface-trigger">
                       <span>Superficie</span>
@@ -6410,7 +6508,7 @@
                         <h4>Edición de pizarra</h4>
                         <p>Selecciona un elemento en el campo para ajustar tamaño, color, nombre, capas o lectura táctica. Los jugadores quedan abajo para no robar espacio al campo.</p>
                       </div>
-                      <div class="editor-pane-card">
+                      <div class="editor-pane-card" data-board-pane="starter">
                         <div class="editor-side-section-head">
                           <strong>Primeros pasos</strong>
                           <span>Crear más rápido</span>
@@ -14395,6 +14493,8 @@
           const surfaceTrigger = document.getElementById('surface-trigger');
           const playerBank = document.getElementById('task-player-bank');
           const quickDrawBtn = document.querySelector('#task-command-bar [data-action="draw_free"]');
+          const resourcesToggle = document.getElementById('task-board-resources-toggle');
+          const inspectorToggle = document.getElementById('task-board-inspector-toggle');
           if (!sideTabs.length || !editPane || !resourcesPane) return;
 
           if (commandBar && commandSlot && commandBar.parentElement !== commandSlot) {
@@ -14411,11 +14511,33 @@
             if (selectionEmpty) selectionEmpty.hidden = hasSelection;
           };
 
+          const syncBoardDrawerButtons = () => {
+            const resourcesOpen = document.body.classList.contains('task-board-resources-open');
+            const inspectorOpen = document.body.classList.contains('task-board-inspector-open');
+            resourcesToggle?.classList.toggle('is-active', resourcesOpen);
+            inspectorToggle?.classList.toggle('is-active', inspectorOpen);
+            resourcesToggle?.setAttribute('aria-pressed', resourcesOpen ? 'true' : 'false');
+            inspectorToggle?.setAttribute('aria-pressed', inspectorOpen ? 'true' : 'false');
+          };
+
           const activate = (pane) => {
             const next = String(pane || 'edit').trim().toLowerCase() === 'resources' ? 'resources' : 'edit';
             sideTabs.forEach((tab) => tab.classList.toggle('is-active', String(tab.dataset.sidePane || '') === next));
             editPane.hidden = next !== 'edit';
             resourcesPane.hidden = next !== 'resources';
+          };
+
+          const openBoardDrawer = (pane) => {
+            const next = String(pane || 'edit').trim().toLowerCase() === 'resources' ? 'resources' : 'edit';
+            activate(next);
+            document.body.classList.toggle('task-board-resources-open', next === 'resources');
+            document.body.classList.toggle('task-board-inspector-open', next === 'edit');
+            syncBoardDrawerButtons();
+          };
+
+          const closeBoardDrawers = () => {
+            document.body.classList.remove('task-board-resources-open', 'task-board-inspector-open');
+            syncBoardDrawerButtons();
           };
 
           const activateResourceTab = (key) => {
@@ -14428,8 +14550,22 @@
           sideTabs.forEach((tab) => {
             tab.addEventListener('click', (event) => {
               try { event.preventDefault(); } catch (e) { /* ignore */ }
-              activate(tab.dataset.sidePane || 'edit');
+              openBoardDrawer(tab.dataset.sidePane || 'edit');
             });
+          });
+
+          resourcesToggle?.addEventListener('click', (event) => {
+            try { event.preventDefault(); } catch (e) { /* ignore */ }
+            if (document.body.classList.contains('task-board-resources-open')) closeBoardDrawers();
+            else openBoardDrawer('resources');
+          });
+          inspectorToggle?.addEventListener('click', (event) => {
+            try { event.preventDefault(); } catch (e) { /* ignore */ }
+            if (document.body.classList.contains('task-board-inspector-open')) closeBoardDrawers();
+            else openBoardDrawer('edit');
+          });
+          document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') closeBoardDrawers();
           });
 
           guideButtons.forEach((button) => {
@@ -14441,16 +14577,18 @@
                 return;
               }
               if (action === 'resources') {
-                activate('resources');
+                openBoardDrawer('resources');
                 activateResourceTab('base');
                 return;
               }
               if (action === 'players') {
+                openBoardDrawer('resources');
+                activateResourceTab('base');
                 try { playerBank?.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) { /* ignore */ }
                 return;
               }
               if (action === 'draw') {
-                activate('edit');
+                openBoardDrawer('edit');
                 try { quickDrawBtn?.click(); } catch (e) { /* ignore */ }
                 return;
               }
@@ -14481,7 +14619,7 @@
               if (template && typeof window.__webstatsTaskBuilderApplyLocalTemplate === 'function') {
                 try { window.__webstatsTaskBuilderApplyLocalTemplate(template); } catch (e) { /* ignore */ }
               }
-              activate('resources');
+              openBoardDrawer('resources');
               if (resource) activateResourceTab(resource);
             });
           });
@@ -14493,6 +14631,7 @@
           } catch (e) { /* ignore */ }
 
           activate('edit');
+          closeBoardDrawers();
         };
         if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
         else boot();
