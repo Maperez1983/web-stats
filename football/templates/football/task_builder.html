@@ -4137,6 +4137,17 @@
       body:not(.tactics-mode).task-mode-ready.task-mode-board .saved-task-info {
         display: none !important;
       }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .panel-head {
+        display: flex;
+        flex-direction: column;
+        gap: 0.12rem;
+        margin: 0;
+        padding: 0;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .panel-head > div:first-child,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #tpad-hint {
+        display: none !important;
+      }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .builder {
         flex: 1 1 auto;
         min-height: 0;
@@ -4172,52 +4183,58 @@
         top: auto;
         flex: 0 0 auto;
         z-index: 90;
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
+        display: flex;
+        flex-wrap: nowrap;
         align-items: center;
-        gap: 0.38rem 0.5rem;
-        margin: 0 0 0.16rem;
-        padding: 0.34rem 0.42rem;
+        gap: 0.34rem;
+        margin: 0 0 0.12rem;
+        padding: 0.26rem 0.34rem;
         border-radius: 18px;
         border: 1px solid rgba(255,255,255,0.09);
         background: rgba(6, 14, 26, 0.9);
         box-shadow: 0 18px 34px rgba(2, 6, 23, 0.28);
         backdrop-filter: blur(14px);
         -webkit-backdrop-filter: blur(14px);
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-gutter: stable both-edges;
+        overscroll-behavior-x: contain;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-toolbar > * {
         min-width: 0;
+        flex: 0 0 auto;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .task-workflow-strip,
       body:not(.tactics-mode).task-mode-ready.task-mode-board .task-kind-strip {
         display: inline-flex;
         align-items: center;
         gap: 0.34rem;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .task-workflow-label,
       body:not(.tactics-mode).task-mode-ready.task-mode-board .task-kind-label {
         display: inline-flex;
         align-items: center;
-        min-height: 34px;
+        min-height: 32px;
         padding: 0 0.18rem;
         color: rgba(226,232,240,0.68);
-        font-size: 0.65rem;
+        font-size: 0.62rem;
         font-weight: 900;
         letter-spacing: 0.1em;
         text-transform: uppercase;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .task-workflow-strip button,
       body:not(.tactics-mode).task-mode-ready.task-mode-board .task-kind-strip button {
-        min-height: 34px;
-        padding: 0.34rem 0.62rem;
+        min-height: 32px;
+        padding: 0.28rem 0.56rem;
         border-radius: 999px;
         border: 1px solid rgba(255,255,255,0.12);
         background: rgba(255,255,255,0.04);
         color: rgba(240,249,255,0.94);
-        font-size: 0.68rem;
+        font-size: 0.64rem;
         font-weight: 900;
         letter-spacing: 0.04em;
+        white-space: nowrap;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .task-workflow-strip button.is-active,
       body:not(.tactics-mode).task-mode-ready.task-mode-board .task-kind-strip button.is-active,
@@ -4233,7 +4250,7 @@
         display: inline-flex;
         align-items: center;
         gap: 0.28rem;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         justify-content: flex-end;
         margin-left: auto;
       }
@@ -4244,11 +4261,12 @@
       body:not(.tactics-mode).task-mode-ready.task-mode-board #pitch-3d-open-standard,
       body:not(.tactics-mode).task-mode-ready.task-mode-board #pitch-view-menu > .surface-trigger {
         min-width: 0;
-        min-height: 34px;
-        padding: 0.34rem 0.5rem;
+        min-height: 32px;
+        padding: 0.28rem 0.44rem;
         border-radius: 10px;
-        font-size: 0.64rem;
+        font-size: 0.61rem;
         letter-spacing: 0.04em;
+        white-space: nowrap;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .board-overlay-controls .surface-trigger {
         justify-content: center;
@@ -4526,6 +4544,15 @@
         -webkit-backdrop-filter: blur(14px);
         box-shadow: 0 20px 48px rgba(2, 6, 23, 0.34);
       }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #task-roster-bank::before {
+        content: "Jugadores";
+        display: none;
+        font-size: 0.7rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(226,232,240,0.78);
+      }
       body:not(.tactics-mode).task-mode-ready.task-mode-board #task-roster-bank .player-bank-head {
         margin-bottom: 0.35rem;
         gap: 0.45rem;
@@ -4558,6 +4585,12 @@
         width: auto;
         min-width: 0;
         padding: 0.3rem 0.42rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board.task-board-roster-collapsed #task-roster-bank::before {
+        display: inline-flex;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board.task-board-roster-collapsed #task-roster-bank .player-bank {
         display: none;
@@ -15180,6 +15213,9 @@
           });
 
           syncSelectionState();
+          if (!window.matchMedia('(max-width: 980px)').matches) {
+            document.body.classList.add('task-board-roster-collapsed');
+          }
           syncComplexityUi();
           syncWorkflowUi('build');
           syncKindUi('2d');
