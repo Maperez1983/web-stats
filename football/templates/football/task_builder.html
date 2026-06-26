@@ -4131,7 +4131,8 @@
         height: 100dvh;
         display: flex;
         flex-direction: column;
-        overflow: hidden;
+        overflow-x: hidden;
+        overflow-y: auto;
         box-sizing: border-box;
         background:
           radial-gradient(circle at top, rgba(34, 197, 94, 0.12), transparent 32%),
@@ -4159,7 +4160,7 @@
       body:not(.tactics-mode).task-mode-ready.task-mode-board .builder {
         flex: 1 1 auto;
         min-height: 0;
-        height: 100%;
+        height: auto;
         width: 100%;
         max-width: none;
         grid-template-columns: 1fr;
@@ -4170,8 +4171,8 @@
       body:not(.tactics-mode).task-mode-ready.task-mode-board .builder > section.panel {
         display: flex;
         flex-direction: column;
-        height: 100%;
-        min-height: 0;
+        height: auto;
+        min-height: 100%;
         border-radius: 22px;
         border: 0;
         background: transparent;
@@ -4179,10 +4180,9 @@
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .builder > section.panel > .panel-body {
         flex: 1 1 auto;
-        height: 100%;
-        min-height: 0;
-        overflow-x: hidden;
-        overflow-y: auto;
+        height: auto;
+        min-height: 100%;
+        overflow: visible;
         display: flex;
         flex-direction: column;
         padding: 0;
