@@ -4114,9 +4114,9 @@
         width: 100vw;
         max-width: none;
         margin: 0;
-        padding: 0.35rem 0.35rem 0.4rem;
+        padding: 0.12rem 0.18rem 0.18rem;
         height: 100vh;
-        height: 100svh;
+        height: 100dvh;
         display: flex;
         flex-direction: column;
         overflow: hidden;
@@ -4148,7 +4148,7 @@
       body:not(.tactics-mode).task-mode-ready.task-mode-board .builder > section.panel > .panel-body {
         height: 100%;
         min-height: 0;
-        overflow: hidden;
+        overflow: auto;
         display: flex;
         flex-direction: column;
         padding: 0;
@@ -4255,6 +4255,7 @@
         position: relative;
         grid-template-columns: minmax(0, 1fr);
         gap: 0;
+        overflow: hidden;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-side {
         position: absolute;
@@ -4308,7 +4309,7 @@
         flex: 1 1 auto;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .board-workbench {
-        padding: 0.28rem;
+        padding: 0.12rem;
         border: 0;
         background: transparent;
         box-shadow: none;
@@ -4334,6 +4335,7 @@
         padding: 0;
         border: 0;
         background: transparent;
+        overflow: hidden;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-viewport {
         border-radius: 20px;

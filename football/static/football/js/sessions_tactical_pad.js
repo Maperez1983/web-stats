@@ -23949,6 +23949,10 @@
 	    // Guardamos un baseline del offset superior para que el campo no “respire” al hacer scroll.
 	    let stageFitTopBaseline = null;
 	    let stageFitLayoutVhBaseline = null;
+	    const resetStageFitBaseline = () => {
+	      stageFitTopBaseline = null;
+	      stageFitLayoutVhBaseline = null;
+	    };
 	    const setStageUserMaxWidth = (valuePx) => {
 	      if (!stage) return;
 	      const maxW = Math.max(220, Math.round(Number(valuePx) || 0));
@@ -24051,6 +24055,23 @@
 	        try { fitCanvas(!useViewportMapping); } catch (e) { /* ignore */ }
 	        try { canvas.calcOffset(); } catch (e) { /* ignore */ }
 	      }
+	    };
+	    const fitStageForBoardViewport = () => {
+	      if (!stage) return;
+	      const boardShell = stage.closest('.board-stage-shell') || viewportEl?.closest?.('.pitch-main') || viewportEl || stage.parentElement;
+	      if (!boardShell) {
+	        applyStageSizeUi();
+	        return;
+	      }
+	      const shellRect = boardShell.getBoundingClientRect?.() || { width: 0, height: 0 };
+	      const availableWidth = Math.max(320, Math.floor((Number(shellRect.width) || boardShell.clientWidth || 0) - 8));
+	      const availableHeight = Math.max(220, Math.floor((Number(shellRect.height) || boardShell.clientHeight || 0) - 8));
+	      const aspect = pitchOrientation === 'portrait' ? (684 / 1054) : (1054 / 684); // width/height
+	      const desiredWidth = Math.max(320, Math.min(availableWidth, availableHeight * aspect));
+	      const base = stageBaseMaxWidth();
+	      writeStageFactor(desiredWidth / Math.max(1, base));
+	      resetStageFitBaseline();
+	      applyStageSizeUi();
 	    };
 
 	    // Redimensionado libre (drag) del campo en pantalla.
@@ -29570,10 +29591,17 @@
           return;
         }
         window.setTimeout(() => {
+          try { fitStageForBoardViewport(); } catch (error) { /* ignore */ }
           try { fitCanvas(); } catch (error) { /* ignore */ }
           try { canvas.calcOffset(); } catch (error) { /* ignore */ }
           try { canvas.requestRenderAll(); } catch (error) { /* ignore */ }
         }, 50);
+        window.setTimeout(() => {
+          try { fitStageForBoardViewport(); } catch (error) { /* ignore */ }
+          try { fitCanvas(); } catch (error) { /* ignore */ }
+          try { canvas.calcOffset(); } catch (error) { /* ignore */ }
+          try { canvas.requestRenderAll(); } catch (error) { /* ignore */ }
+        }, 220);
         if (!options.silent) setStatus('Vista: Pizarra.');
       };
 
