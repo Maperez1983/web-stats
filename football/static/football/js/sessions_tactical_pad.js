@@ -614,12 +614,13 @@
       // Deja margen suficiente para que el trazo del borde no se recorte en miniaturas / contenedores con overflow hidden.
       // Margen de seguridad para que los bordes no se recorten con overflow hidden,
       // pero lo más pequeño posible para que el campo ocupe pantalla.
-      const margin = 0;
+      const marginX = (grassStyle === 'stadium_top') ? 62 : ((grassStyle === 'broadcast_premium') ? 32 : 0);
+      const marginY = (grassStyle === 'stadium_top') ? 52 : ((grassStyle === 'broadcast_premium') ? 22 : 0);
       const portrait = orientation === 'portrait';
       const effectiveW = portrait ? stageH : stageW;
       const effectiveH = portrait ? stageW : stageH;
-      const availableWidth = effectiveW - margin * 2;
-      const availableHeight = effectiveH - margin * 2;
+      const availableWidth = effectiveW - marginX * 2;
+      const availableHeight = effectiveH - marginY * 2;
 
       const fit = safeText(fitMode, 'contain') === 'cover' ? 'cover' : 'contain';
       let width = availableWidth;
@@ -815,8 +816,8 @@
 
     const drawAdvertisingBoards = (x, y, width, height) => {
       if (grassStyle !== 'stadium_top' && grassStyle !== 'broadcast_premium') return;
-      const offset = grassStyle === 'stadium_top' ? 18 : 12;
-      const bandH = grassStyle === 'stadium_top' ? 12 : 9;
+      const offset = grassStyle === 'stadium_top' ? 30 : 16;
+      const bandH = grassStyle === 'stadium_top' ? 18 : 11;
       const palette = grassStyle === 'stadium_top'
         ? ['#0f172a', '#0ea5e9', '#16a34a', '#f8fafc', '#0ea5e9', '#0f172a']
         : ['rgba(15,23,42,0.76)', 'rgba(34,211,238,0.64)', 'rgba(255,255,255,0.74)', 'rgba(34,197,94,0.62)', 'rgba(255,255,255,0.74)', 'rgba(15,23,42,0.76)'];
@@ -833,14 +834,144 @@
             y: bandY,
             width: segW,
             height: bandH,
-            rx: 5,
-            ry: 5,
+            rx: 7,
+            ry: 7,
             fill: palette[i % palette.length],
-            stroke: 'rgba(255,255,255,0.18)',
-            'stroke-width': 1,
+            stroke: 'rgba(255,255,255,0.3)',
+            'stroke-width': 1.3,
           }));
+          if (grassStyle === 'stadium_top') {
+            drawRoot.appendChild(createSvgNode(doc, 'rect', {
+              x: segX + 3,
+              y: bandY + 3,
+              width: Math.max(8, segW - 6),
+              height: Math.max(6, bandH - 6),
+              rx: 5,
+              ry: 5,
+              fill: 'rgba(255,255,255,0.12)',
+              stroke: 'none',
+            }));
+          }
         });
       }
+    };
+
+    const drawStadiumContext = (x, y, width, height) => {
+      if (grassStyle !== 'stadium_top') return;
+      const runoff = 20;
+      const concourseH = 34;
+      const standH = 68;
+      const sideW = 48;
+      const drawConcourse = (bandY) => {
+        drawRoot.appendChild(createSvgNode(doc, 'rect', {
+          x: x - 10,
+          y: bandY,
+          width: width + 20,
+          height: concourseH,
+          rx: 6,
+          ry: 6,
+          fill: 'rgba(15,23,42,0.72)',
+          stroke: 'rgba(226,232,240,0.14)',
+          'stroke-width': 1.4,
+        }));
+        drawRoot.appendChild(createSvgNode(doc, 'rect', {
+          x: x - 10,
+          y: bandY + 8,
+          width: width + 20,
+          height: 6,
+          fill: 'rgba(148,163,184,0.22)',
+          stroke: 'none',
+        }));
+      };
+      const drawStand = (bandY, fillColor, strokeColor) => {
+        drawRoot.appendChild(createSvgNode(doc, 'rect', {
+          x: x - sideW,
+          y: bandY,
+          width: width + (sideW * 2),
+          height: standH,
+          fill: fillColor,
+          stroke: 'rgba(255,255,255,0.08)',
+          'stroke-width': 1,
+        }));
+        for (let i = 0; i < 9; i += 1) {
+          const rowY = bandY + 8 + (i * 6.4);
+          drawRoot.appendChild(createSvgNode(doc, 'line', {
+            x1: x - sideW,
+            y1: rowY,
+            x2: x + width + sideW,
+            y2: rowY,
+            stroke: strokeColor,
+            'stroke-width': 1,
+          }));
+        }
+      };
+      const drawDugout = (cx, cy, flip = false) => {
+        drawRoot.appendChild(createSvgNode(doc, 'rect', {
+          x: cx - 64,
+          y: cy - 10,
+          width: 128,
+          height: 20,
+          rx: 10,
+          ry: 10,
+          fill: 'rgba(15,23,42,0.84)',
+          stroke: 'rgba(255,255,255,0.2)',
+          'stroke-width': 1.2,
+        }));
+        drawRoot.appendChild(createSvgNode(doc, 'rect', {
+          x: cx - 58,
+          y: cy - 6,
+          width: 116,
+          height: 12,
+          rx: 7,
+          ry: 7,
+          fill: 'rgba(148,163,184,0.18)',
+          stroke: 'rgba(255,255,255,0.12)',
+          'stroke-width': 1,
+        }));
+        for (let i = -44; i <= 44; i += 22) {
+          drawRoot.appendChild(createSvgNode(doc, 'rect', {
+            x: cx + i - 8,
+            y: cy - 4,
+            width: 16,
+            height: 8,
+            rx: 3,
+            ry: 3,
+            fill: 'rgba(14,165,233,0.55)',
+            stroke: 'none',
+          }));
+        }
+        drawRoot.appendChild(createSvgNode(doc, 'line', {
+          x1: cx - 70,
+          y1: cy + (flip ? -16 : 16),
+          x2: cx + 70,
+          y2: cy + (flip ? -16 : 16),
+          stroke: 'rgba(226,232,240,0.18)',
+          'stroke-width': 2,
+          'stroke-dasharray': '10 8',
+        }));
+      };
+
+      drawConcourse(y - runoff - concourseH - 4);
+      drawStand(y - runoff - concourseH - standH - 8, 'rgba(134,239,172,0.18)', 'rgba(240,253,244,0.10)');
+      drawConcourse(y + height + runoff + 4);
+      drawStand(y + height + runoff + concourseH + 8, 'rgba(163,230,53,0.16)', 'rgba(236,252,203,0.08)');
+
+      drawRoot.appendChild(createSvgNode(doc, 'rect', {
+        x: x - runoff,
+        y: y - runoff,
+        width: width + (runoff * 2),
+        height: height + (runoff * 2),
+        rx: 18,
+        ry: 18,
+        fill: 'none',
+        stroke: 'rgba(255,255,255,0.12)',
+        'stroke-width': 8,
+      }));
+
+      drawDugout(x + (width * 0.28), y + height + 46, false);
+      drawDugout(x + (width * 0.72), y + height + 46, false);
+      drawDugout(x + (width * 0.28), y - 46, true);
+      drawDugout(x + (width * 0.72), y - 46, true);
     };
 
     const drawCornerArcs = (x, y, width, height, radius) => {
@@ -899,6 +1030,7 @@
 
     const drawFullPitch = () => {
       pitchBox = { x: stage.x, y: stage.y, width: stage.width, height: stage.height };
+      drawStadiumContext(stage.x, stage.y, stage.width, stage.height);
       drawFrame(stage.x, stage.y, stage.width, stage.height, 4);
       const centerX = stage.x + (stage.width / 2);
       const centerY = stage.y + (stage.height / 2);
@@ -942,6 +1074,7 @@
       const width = pitch.width;
       const height = pitch.height;
       const localScale = width / metersW;
+      drawStadiumContext(x, y, width, height);
       drawFrame(x, y, width, height, 4);
       const centerY = y + (height / 2);
       const penaltyDepth = 16.5 * localScale;
@@ -976,6 +1109,7 @@
       const width = pitch.width;
       const height = pitch.height;
       const localScale = width / metersW;
+      drawStadiumContext(x, y, width, height);
       drawFrame(x, y, width, height, 4);
       const centerY = y + (height / 2);
       const penaltyDepth = 16.5 * localScale;
@@ -1016,6 +1150,7 @@
       const width = pitch.width;
       const height = pitch.height;
       const localScale = width / metersW;
+      drawStadiumContext(x, y, width, height);
       drawFrame(x, y, width, height, 4);
       const centerX = x + (width / 2);
       const centerY = y + (height / 2);
@@ -1036,6 +1171,7 @@
       const width = pitch.width;
       const height = pitch.height;
       const localScale = width / metersW;
+      drawStadiumContext(x, y, width, height);
       drawFrame(x, y, width, height, 4);
       const centerX = x + (width / 2);
       const centerY = y + (height / 2);

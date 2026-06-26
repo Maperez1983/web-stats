@@ -234,8 +234,10 @@
       const portrait = orientation === 'portrait';
       const effectiveW = portrait ? stageH : stageW;
       const effectiveH = portrait ? stageW : stageH;
-      const availableWidth = effectiveW;
-      const availableHeight = effectiveH;
+      const marginX = (grassStyle === 'stadium_top') ? 62 : ((grassStyle === 'broadcast_premium') ? 32 : 0);
+      const marginY = (grassStyle === 'stadium_top') ? 52 : ((grassStyle === 'broadcast_premium') ? 22 : 0);
+      const availableWidth = effectiveW - marginX * 2;
+      const availableHeight = effectiveH - marginY * 2;
       const fit = safeText(fitMode, 'contain') === 'cover' ? 'cover' : 'contain';
       let width = availableWidth;
       let height = width / desiredAspect;
@@ -262,7 +264,7 @@
     const scale = stage.width / 105;
 
     const line = (grassStyle === 'whiteboard') ? '#0f172a' : (grassStyle === 'stadium_top' ? 'rgba(255,255,255,0.96)' : '#f8fafc');
-    const soft = (grassStyle === 'whiteboard') ? 'rgba(15,23,42,0.55)' : (grassStyle === 'stadium_top' ? 'rgba(255,255,255,0.78)' : 'rgba(248,250,252,0.66)';
+    const soft = (grassStyle === 'whiteboard') ? 'rgba(15,23,42,0.55)' : (grassStyle === 'stadium_top' ? 'rgba(255,255,255,0.78)' : 'rgba(248,250,252,0.66)');
 
     const drawFrame = (x, y, width, height, lineWidth = 4) => {
       drawRoot.appendChild(createSvgNode(doc, 'rect', {
@@ -287,6 +289,100 @@
         stroke: soft,
         'stroke-width': 3,
       }));
+    };
+
+    const drawStadiumContext = (x, y, width, height) => {
+      if (grassStyle !== 'stadium_top') return;
+      const runoff = 20;
+      const concourseH = 34;
+      const standH = 68;
+      const sideW = 48;
+      const drawBand = (bandY, fillColor, stripeColor) => {
+        drawRoot.appendChild(createSvgNode(doc, 'rect', {
+          x: x - sideW,
+          y: bandY,
+          width: width + (sideW * 2),
+          height: standH,
+          fill: fillColor,
+          stroke: 'rgba(255,255,255,0.08)',
+          'stroke-width': 1,
+        }));
+        for (let i = 0; i < 9; i += 1) {
+          const rowY = bandY + 8 + (i * 6.4);
+          drawRoot.appendChild(createSvgNode(doc, 'line', {
+            x1: x - sideW,
+            y1: rowY,
+            x2: x + width + sideW,
+            y2: rowY,
+            stroke: stripeColor,
+            'stroke-width': 1,
+          }));
+        }
+      };
+      const drawDugout = (cx, cy) => {
+        drawRoot.appendChild(createSvgNode(doc, 'rect', {
+          x: cx - 64,
+          y: cy - 10,
+          width: 128,
+          height: 20,
+          rx: 10,
+          ry: 10,
+          fill: 'rgba(15,23,42,0.84)',
+          stroke: 'rgba(255,255,255,0.2)',
+          'stroke-width': 1.2,
+        }));
+        drawRoot.appendChild(createSvgNode(doc, 'rect', {
+          x: cx - 58,
+          y: cy - 6,
+          width: 116,
+          height: 12,
+          rx: 7,
+          ry: 7,
+          fill: 'rgba(148,163,184,0.18)',
+          stroke: 'rgba(255,255,255,0.12)',
+          'stroke-width': 1,
+        }));
+      };
+
+      drawRoot.appendChild(createSvgNode(doc, 'rect', {
+        x: x - 10,
+        y: y - runoff - concourseH - 4,
+        width: width + 20,
+        height: concourseH,
+        rx: 6,
+        ry: 6,
+        fill: 'rgba(15,23,42,0.72)',
+        stroke: 'rgba(226,232,240,0.14)',
+        'stroke-width': 1.4,
+      }));
+      drawRoot.appendChild(createSvgNode(doc, 'rect', {
+        x: x - 10,
+        y: y + height + runoff + 4,
+        width: width + 20,
+        height: concourseH,
+        rx: 6,
+        ry: 6,
+        fill: 'rgba(15,23,42,0.72)',
+        stroke: 'rgba(226,232,240,0.14)',
+        'stroke-width': 1.4,
+      }));
+      drawBand(y - runoff - concourseH - standH - 8, 'rgba(134,239,172,0.18)', 'rgba(240,253,244,0.10)');
+      drawBand(y + height + runoff + concourseH + 8, 'rgba(163,230,53,0.16)', 'rgba(236,252,203,0.08)');
+      drawRoot.appendChild(createSvgNode(doc, 'rect', {
+        x: x - runoff,
+        y: y - runoff,
+        width: width + (runoff * 2),
+        height: height + (runoff * 2),
+        rx: 18,
+        ry: 18,
+        fill: 'none',
+        stroke: 'rgba(255,255,255,0.12)',
+        'stroke-width': 8,
+      }));
+      drawDugout(x + (width * 0.28), y + height + 46);
+      drawDugout(x + (width * 0.72), y + height + 46);
+      drawDugout(x + (width * 0.28), y - 46);
+      drawDugout(x + (width * 0.72), y - 46);
     };
 
     const drawCenter = () => {
@@ -334,6 +430,7 @@
       const desiredAspect = 45 / 65;
       stage = createStage(desiredAspect, 'contain');
       pitchBox = { x: stage.x, y: stage.y, width: stage.width, height: stage.height };
+      drawStadiumContext(stage.x, stage.y, stage.width, stage.height);
       // Frame + center line + circle (scaled to stage).
       drawFrame(stage.x, stage.y, stage.width, stage.height, 4);
       drawRoot.appendChild(createSvgNode(doc, 'line', {
@@ -360,6 +457,7 @@
       // Half pitch: keep top half.
       const halfHeight = stage.height / 2;
       pitchBox = { x: stage.x, y: stage.y, width: stage.width, height: halfHeight };
+      drawStadiumContext(stage.x, stage.y, stage.width, halfHeight);
       drawFrame(stage.x, stage.y, stage.width, halfHeight, 4);
       // penalty only in top.
       const scaleHalf = stage.width / 105;
@@ -376,6 +474,7 @@
       pitchBox = { x: stage.x, y: stage.y, width: stage.width, height: stage.height };
     } else {
       // full_pitch + default
+      drawStadiumContext(stage.x, stage.y, stage.width, stage.height);
       drawFrame(stage.x, stage.y, stage.width, stage.height, 4);
       drawCenter();
       drawPenaltyAreas();
