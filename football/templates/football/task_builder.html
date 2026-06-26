@@ -8496,6 +8496,10 @@
 		                          Grosor de línea
 		                          <input type="range" id="task-stroke-width" min="1" max="14" step="1" value="3" />
 		                        </label>
+		                        <label style="grid-column:1 / -1;" id="task-lane-opacity-row" hidden>
+		                          Opacidad
+		                          <input type="range" id="task-lane-opacity" min="10" max="100" step="5" value="100" />
+		                        </label>
 		                        <div class="selection-actions" id="task-curve-actions" hidden style="grid-column:1 / -1; justify-content:flex-start;">
 		                          <span class="preset-label">Curva</span>
 		                          <button type="button" id="task-curve-flip" title="Cambiar lado de la curva (flecha/curva seleccionada)">Cambiar lado</button>
@@ -8625,6 +8629,17 @@
 	                        <button type="button" data-zone-style="hatch">Rayado</button>
 	                        <button type="button" data-zone-style="solid">Sólido</button>
 	                        <button type="button" data-zone-style="outline">Contorno</button>
+	                      </div>
+	                      <div class="selection-actions" id="task-lane-template-actions" hidden>
+	                        <span class="preset-label">Carriles</span>
+	                        <button type="button" data-lane-template="shape_lane_3">3</button>
+	                        <button type="button" data-lane-template="shape_lane_5">5</button>
+	                        <button type="button" data-lane-template="shape_grid_120">120</button>
+	                      </div>
+	                      <div class="selection-actions" id="task-lane-label-actions" hidden>
+	                        <span class="preset-label">Etiqueta</span>
+	                        <button type="button" data-lane-label="show">Mostrar</button>
+	                        <button type="button" data-lane-label="hide">Ocultar</button>
 	                      </div>
 	                      <div class="selection-actions" id="task-background-edit-actions" hidden>
 	                        <span class="preset-label">Fondo</span>

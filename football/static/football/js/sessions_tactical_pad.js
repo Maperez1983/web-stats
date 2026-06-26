@@ -1461,7 +1461,9 @@
 			    const strokeWidthInput = document.getElementById('task-stroke-width');
 			    const curveActionsRow = document.getElementById('task-curve-actions');
 			    const curveFlipBtn = document.getElementById('task-curve-flip');
-			    const strokePresetsRow = document.getElementById('task-stroke-presets');
+	    const strokePresetsRow = document.getElementById('task-stroke-presets');
+	    const laneOpacityRow = document.getElementById('task-lane-opacity-row');
+	    const laneOpacityInput = document.getElementById('task-lane-opacity');
 			    const tokenMetaRow = document.getElementById('task-token-meta');
 		    const tokenNameInput = document.getElementById('task-token-name');
 				    const tokenNumberInput = document.getElementById('task-token-number');
@@ -1481,6 +1483,8 @@
 		    const tokenDisplayPresets = document.getElementById('task-token-display-presets');
 		    const tokenFocusActions = document.getElementById('task-token-focus-actions');
 		    const zoneStyleActions = document.getElementById('task-zone-style-actions');
+		    const laneTemplateActions = document.getElementById('task-lane-template-actions');
+		    const laneLabelActions = document.getElementById('task-lane-label-actions');
 		    const backgroundEditActions = document.getElementById('task-background-edit-actions');
 				    const tokenGlobalStyleActions = document.getElementById('task-token-style-global') || document.getElementById('task-token-style-global-tactics');
 				    const commandBar = document.getElementById('task-command-bar');
@@ -5053,6 +5057,121 @@
 	      if (!object || typeof object !== 'object') return;
 	      object.data = { ...(object.data || {}), ...(patch || {}) };
     };
+    const isLaneOverlayObject = (object) => {
+      const kind = safeText(object?.data?.kind).toLowerCase();
+      return kind.startsWith('shape-lane-') || kind.startsWith('shape-grid-');
+    };
+    const laneOverlayTemplateKind = (object) => {
+      const kind = safeText(object?.data?.kind).toLowerCase();
+      if (kind.startsWith('shape-lane-3')) return 'shape_lane_3';
+      if (kind.startsWith('shape-lane-4')) return 'shape_lane_4';
+      if (kind.startsWith('shape-lane-5')) return 'shape_lane_5';
+      if (kind.startsWith('shape-grid-120')) return 'shape_grid_120';
+      return '';
+    };
+    const findLaneOverlayLabel = (object) => {
+      if (!Array.isArray(object?._objects)) return null;
+      return object._objects.find((child) => safeText(child?.data?.role) === 'lane_overlay_label') || null;
+    };
+    const laneOverlayLabelVisible = (object) => {
+      if (!isLaneOverlayObject(object)) return false;
+      const label = findLaneOverlayLabel(object);
+      if (label) return label.visible !== false && Number(label.opacity ?? 1) > 0.02;
+      return !!object?.data?.show_label;
+    };
+    const ensureLaneOverlayLabel = (object) => {
+      if (!object || !isLaneOverlayObject(object)) return null;
+      let label = findLaneOverlayLabel(object);
+      if (label) return label;
+      const kind = safeText(object?.data?.kind).toLowerCase();
+      let text = '';
+      if (kind.startsWith('shape-lane-')) {
+        const columns = Number(kind.split('-').pop()) || 3;
+        text = `${columns} carriles`;
+      } else if (kind.startsWith('shape-grid-120')) {
+        text = '120 zonas';
+      }
+      if (!text) return null;
+      label = new fabric.Text(text, {
+        left: 0,
+        top: 0,
+        originX: 'center',
+        originY: 'center',
+        fontSize: kind.startsWith('shape-grid-') ? 18 : 16,
+        fontWeight: '800',
+        fill: 'rgba(248,250,252,0.92)',
+        selectable: false,
+        evented: false,
+        visible: false,
+        opacity: 0,
+      });
+      label.data = { role: 'lane_overlay_label' };
+      try {
+        if (typeof object.addWithUpdate === 'function') object.addWithUpdate(label);
+        else if (Array.isArray(object._objects)) object._objects.push(label);
+        object.dirty = true;
+        object.setCoords?.();
+      } catch (e) {
+        return null;
+      }
+      return label;
+    };
+    const setLaneOverlayLabelVisibility = (object, visible) => {
+      if (!object || !isLaneOverlayObject(object)) return false;
+      const label = ensureLaneOverlayLabel(object);
+      if (!label) return false;
+      try {
+        label.set({ visible: !!visible, opacity: visible ? 1 : 0 });
+        object.dirty = true;
+        setObjectData(object, { show_label: !!visible });
+        return true;
+      } catch (e) {
+        return false;
+      }
+    };
+    const replaceLaneOverlayObject = (object, nextTemplateKind) => {
+      if (!object || !isLaneOverlayObject(object)) return null;
+      const factory = simpleFactory(nextTemplateKind);
+      if (typeof factory !== 'function') return null;
+      const fresh = factory(Number(object.left) || 0, Number(object.top) || 0);
+      if (!fresh) return null;
+      normalizeEditableObject(fresh);
+      const angle = Number(object.angle) || 0;
+      const scaleX = Number(object.scaleX) || 1;
+      const scaleY = Number(object.scaleY) || 1;
+      const opacity = clamp(Number(object.opacity) || 1, 0.1, 1);
+      const locked = !!object?.data?.locked;
+      const backgroundEdit = !!object?.data?.background_edit;
+      const color = objectPreferredColor(object);
+      const strokeWidth = getObjectStrokeWidth(object);
+      const showLabel = laneOverlayLabelVisible(object);
+      try {
+        fresh.set({ angle, scaleX, scaleY, opacity });
+        setObjectData(fresh, {
+          locked,
+          background_edit: backgroundEdit,
+          show_label: showLabel,
+          color,
+          stroke_width: strokeWidth,
+        });
+        applyObjectColor(fresh, color);
+        if (strokeWidth > 0) applyObjectStrokeWidth(fresh, strokeWidth);
+        setLaneOverlayLabelVisibility(fresh, showLabel);
+        if (locked) {
+          fresh.set({ lockMovementX: true, lockMovementY: true, lockScalingX: true, lockScalingY: true, lockRotation: true });
+        }
+        if (backgroundEdit) setBackgroundEditMode(fresh, true, { force: true });
+        canvas.remove(object);
+        canvas.add(fresh);
+        canvas.setActiveObject(fresh);
+        fresh.setCoords?.();
+        canvas.requestRenderAll();
+        return fresh;
+      } catch (e) {
+        try { canvas.remove(fresh); } catch (err) { /* ignore */ }
+        return null;
+      }
+    };
     const objectPreferredColor = (object) => {
       if (!object) return '#22d3ee';
       const stored = parseColorToHex(object?.data?.color, '');
@@ -5953,6 +6072,30 @@
 	        object.dirty = true;
 	        return;
 	      }
+	      if (kind.startsWith('shape-grid-') && Array.isArray(object._objects) && object._objects.length) {
+	        object._objects.forEach((child) => {
+	          if (!child) return;
+	          const role = safeText(child?.data?.role);
+	          if (role === 'lane_outer') {
+	            try {
+	              child.set({
+	                stroke: colorHex,
+	                fill: rgbaFromHex(colorHex, 0.10),
+	              });
+	            } catch (e) { /* ignore */ }
+	            return;
+	          }
+	          if (role === 'lane_divider') {
+	            try { child.set({ stroke: rgbaFromHex(colorHex, 0.34) }); } catch (e) { /* ignore */ }
+	            return;
+	          }
+	          if (role === 'lane_overlay_label' && child.fill !== undefined) {
+	            try { child.set({ fill: contrastTextForFill(colorHex) === '#000000' ? 'rgba(15,23,42,0.92)' : 'rgba(248,250,252,0.92)' }); } catch (e) { /* ignore */ }
+	          }
+	        });
+	        object.dirty = true;
+	        return;
+	      }
 	      if (kind === 'cone-striped' && Array.isArray(object._objects) && object._objects.length) {
 	        const triangle = object._objects.find((child) => child && child.type === 'triangle');
 	        if (triangle) {
@@ -6128,9 +6271,11 @@
 		          try { colorHexInput.value = '#22d3ee'; } catch (e) { /* ignore */ }
 		        }
 		        if (strokeWidthRow) strokeWidthRow.hidden = true;
+		        if (laneOpacityRow) laneOpacityRow.hidden = true;
 		        if (curveActionsRow) curveActionsRow.hidden = true;
 		        if (strokePresetsRow) strokePresetsRow.hidden = true;
 		        if (strokeWidthInput) strokeWidthInput.value = '3';
+		        if (laneOpacityInput) laneOpacityInput.value = '100';
 		        if (tokenStyleActions) tokenStyleActions.hidden = true;
 			        if (tokenColorGrid) tokenColorGrid.hidden = true;
 			        if (tokenPatternActions) tokenPatternActions.hidden = true;
@@ -6138,6 +6283,8 @@
 			        if (tokenNameTagActions) tokenNameTagActions.hidden = true;
 			        if (tokenDisplayPresets) tokenDisplayPresets.hidden = true;
 			        if (zoneStyleActions) zoneStyleActions.hidden = true;
+			        if (laneTemplateActions) laneTemplateActions.hidden = true;
+			        if (laneLabelActions) laneLabelActions.hidden = true;
 			        if (backgroundEditActions) backgroundEditActions.hidden = true;
 			        selectionDockDismissed = false;
 			        selectionDockDismissedUid = '';
@@ -6194,12 +6341,18 @@
         try { colorHexInput.value = String(colorInput.value || '').trim() || '#22d3ee'; } catch (e) { /* ignore */ }
       }
 	      const strokeWidth = getObjectStrokeWidth(active);
+	      const isLaneOverlay = isLaneOverlayObject(active);
 		      if (strokeWidthRow && strokeWidthInput) {
-		        const canStroke = strokeWidth > 0;
+		        const canStroke = strokeWidth > 0 || isLaneOverlay;
 		        strokeWidthRow.hidden = !canStroke;
 		        if (strokePresetsRow) strokePresetsRow.hidden = !canStroke;
 		        strokeWidthInput.disabled = !canStroke;
-		        if (canStroke) strokeWidthInput.value = String(Math.round(strokeWidth));
+		        if (canStroke) strokeWidthInput.value = String(Math.round(strokeWidth || Number(active?.data?.stroke_width) || 3));
+		      }
+		      if (laneOpacityRow && laneOpacityInput) {
+		        laneOpacityRow.hidden = !isLaneOverlay;
+		        laneOpacityInput.disabled = !isLaneOverlay;
+		        if (isLaneOverlay) laneOpacityInput.value = String(Math.round(clamp(Number(active.opacity) || 1, 0.1, 1) * 100));
 		      }
 		      if (curveActionsRow) {
 		        const k = safeText(active?.data?.kind).toLowerCase();
@@ -6272,6 +6425,29 @@
 		            const btnStyle = normalizeZoneStyle(btn.dataset.zoneStyle);
 		            btn.classList.toggle('is-active', btnStyle === style);
 		            try { btn.setAttribute('aria-pressed', btnStyle === style ? 'true' : 'false'); } catch (e) { /* ignore */ }
+		          });
+		        }
+		      }
+		      if (laneTemplateActions) {
+		        laneTemplateActions.hidden = !isLaneOverlay;
+		        if (isLaneOverlay) {
+		          const activeTemplate = laneOverlayTemplateKind(active);
+		          Array.from(laneTemplateActions.querySelectorAll('button[data-lane-template]') || []).forEach((btn) => {
+		            const isActive = safeText(btn.dataset.laneTemplate) === activeTemplate;
+		            btn.classList.toggle('is-active', isActive);
+		            try { btn.setAttribute('aria-pressed', isActive ? 'true' : 'false'); } catch (e) { /* ignore */ }
+		          });
+		        }
+		      }
+		      if (laneLabelActions) {
+		        laneLabelActions.hidden = !isLaneOverlay;
+		        if (isLaneOverlay) {
+		          const visible = laneOverlayLabelVisible(active);
+		          Array.from(laneLabelActions.querySelectorAll('button[data-lane-label]') || []).forEach((btn) => {
+		            const mode = safeText(btn.dataset.laneLabel);
+		            const isActive = (mode === 'show' && visible) || (mode === 'hide' && !visible);
+		            btn.classList.toggle('is-active', isActive);
+		            try { btn.setAttribute('aria-pressed', isActive ? 'true' : 'false'); } catch (e) { /* ignore */ }
 		          });
 		        }
 		      }
@@ -28356,19 +28532,35 @@
 	        const lines = [];
 	        for (let i = 1; i < colCount; i += 1) {
 	          const x = -width / 2 + (width * (i / colCount));
-	          lines.push(new fabric.Line([x, -height / 2, x, height / 2], {
+	          const divider = new fabric.Line([x, -height / 2, x, height / 2], {
 	            stroke,
 	            strokeWidth: 3,
 	            selectable: false,
 	            evented: false,
-	          }));
+	          });
+	          divider.data = { role: 'lane_divider' };
+	          lines.push(divider);
 	        }
-	        const group = new fabric.Group([outer, hatch, ...lines], {
+	        const badge = new fabric.Text(`${colCount} carriles`, {
+	          left: 0,
+	          top: 0,
+	          originX: 'center',
+	          originY: 'center',
+	          fontSize: 16,
+	          fontWeight: '800',
+	          fill: 'rgba(248,250,252,0.92)',
+	          selectable: false,
+	          evented: false,
+	          visible: false,
+	          opacity: 0,
+	        });
+	        badge.data = { role: 'lane_overlay_label' };
+	        const group = new fabric.Group([outer, hatch, ...lines, badge], {
 	          left,
 	          top,
 	          originX: 'center',
 	          originY: 'center',
-	          data: { kind: `shape-lane-${colCount}` },
+	          data: { kind: `shape-lane-${colCount}`, show_label: false, color: stroke, stroke_width: 3 },
 	        });
 	        try { group.objectCaching = false; } catch (e) { /* ignore */ }
 	        try { group.noScaleCache = true; } catch (e) { /* ignore */ }
@@ -28397,24 +28589,29 @@
 	          selectable: false,
 	          evented: false,
 	        });
+	        outer.data = { role: 'lane_outer' };
 	        const lines = [];
 	        for (let i = 1; i < colCount; i += 1) {
 	          const x = -width / 2 + (width * (i / colCount));
-	          lines.push(new fabric.Line([x, -height / 2, x, height / 2], {
+	          const divider = new fabric.Line([x, -height / 2, x, height / 2], {
 	            stroke: gridStroke,
 	            strokeWidth: 1.4,
 	            selectable: false,
 	            evented: false,
-	          }));
+	          });
+	          divider.data = { role: 'lane_divider' };
+	          lines.push(divider);
 	        }
 	        for (let i = 1; i < rowCount; i += 1) {
 	          const y = -height / 2 + (height * (i / rowCount));
-	          lines.push(new fabric.Line([-width / 2, y, width / 2, y], {
+	          const divider = new fabric.Line([-width / 2, y, width / 2, y], {
 	            stroke: gridStroke,
 	            strokeWidth: 1.4,
 	            selectable: false,
 	            evented: false,
-	          }));
+	          });
+	          divider.data = { role: 'lane_divider' };
+	          lines.push(divider);
 	        }
 	        const badge = new fabric.Text(`${colCount * rowCount} zonas`, {
 	          left: 0,
@@ -28427,12 +28624,13 @@
 	          selectable: false,
 	          evented: false,
 	        });
+	        badge.data = { role: 'lane_overlay_label' };
 	        const group = new fabric.Group([outer, ...lines, badge], {
 	          left,
 	          top,
 	          originX: 'center',
 	          originY: 'center',
-	          data: { kind: `shape-grid-${colCount * rowCount}` },
+	          data: { kind: `shape-grid-${colCount * rowCount}`, show_label: true, color: stroke, stroke_width: 2 },
 	        });
 	        try { group.objectCaching = false; } catch (e) { /* ignore */ }
 	        try { group.noScaleCache = true; } catch (e) { /* ignore */ }
@@ -31863,6 +32061,12 @@
 		        try { canvas.freeDrawingBrush.width = clamp(Number(strokeWidthInput.value) || 4, 1, 26); } catch (e) { /* ignore */ }
 		      }
 		    });
+		    laneOpacityInput?.addEventListener('input', () => {
+		      applyToActiveFlexibleObject((active) => {
+		        if (!isLaneOverlayObject(active)) return;
+		        active.set({ opacity: clamp((Number(laneOpacityInput.value) || 100) / 100, 0.1, 1) });
+		      }, 'Opacidad actualizada.');
+		    });
 		    curveFlipBtn?.addEventListener('click', () => {
 		      applyToActiveFlexibleObject((active) => {
 		        flipCurveSideForObject(active);
@@ -32005,6 +32209,26 @@
 			          if (safeText(active?.data?.kind) !== 'zone') return;
 			          applyZoneStyle(active, zoneStyle);
 			        }, `Zona: ${ZONE_STYLE_LABEL[normalizeZoneStyle(zoneStyle)] || normalizeZoneStyle(zoneStyle)}.`);
+			        return;
+			      }
+			      const laneTemplate = safeText(button.dataset.laneTemplate);
+			      if (laneTemplate) {
+			        const active = activeInspectableObject();
+			        if (!isLaneOverlayObject(active)) return;
+			        const replaced = replaceLaneOverlayObject(active, laneTemplate);
+			        if (replaced) {
+			          commitObjectChange('Carriles actualizados.');
+			          syncInspector();
+			        }
+			        return;
+			      }
+			      const laneLabel = safeText(button.dataset.laneLabel);
+			      if (laneLabel) {
+			        applyToActiveFlexibleObject((active) => {
+			          if (!isLaneOverlayObject(active)) return;
+			          setLaneOverlayLabelVisibility(active, laneLabel === 'show');
+			        }, laneLabel === 'show' ? 'Etiqueta visible.' : 'Etiqueta oculta.');
+			        syncInspector();
 			        return;
 			      }
 			      const scalePreset = Number(button.dataset.scalePreset);
