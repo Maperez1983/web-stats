@@ -35643,6 +35643,17 @@
       if (kind.startsWith('emoji_')) return 'pro';
       return 'base';
     };
+	    const materialFamilyForObject = (object) => {
+	      const kind = safeText(object?.data?.kind);
+	      if (!kind) return '';
+	      if (kind.startsWith('emoji_')) return 'apoyos';
+	      if (kind === 'pdf_asset' || kind === 'url_asset') return 'importados';
+	      if (kind === 'goal' || kind === 'goal_posts' || kind === 'goal_mini' || kind === 'goal_target' || kind === 'goal_popup' || kind === 'goal_futsal') return 'porterias';
+	      if (kind === 'marker_start' || kind === 'marker_end' || kind === 'marker_pass' || kind === 'marker_shot' || kind === 'marker_support' || kind === 'measure') return 'marcadores';
+	      if (kind === 'line_pressure' || kind === 'line_defensive' || kind === 'line_offside') return 'apoyos';
+	      if (CLEARABLE_RESOURCE_KINDS.has(kind)) return 'equipamiento';
+	      return '';
+	    };
 	    const isClearableBoardResource = (object) => {
 	      const kind = safeText(object?.data?.kind);
 	      if (!kind) return false;
@@ -35656,6 +35667,17 @@
 	      if (!slot) return;
 	      if (selectionToolbar.parentElement !== slot) slot.appendChild(selectionToolbar);
 	      activateResourcePanel(panelKey);
+	      if (panelKey === 'pro') {
+	        try {
+	          const active = canvas.getActiveObject();
+	          const family = materialFamilyForObject(active);
+	          if (family) {
+	            window.dispatchEvent(new CustomEvent('webstats:tpad:material-family-change', {
+	              detail: { family },
+	            }));
+	          }
+	        } catch (e) { /* ignore */ }
+	      }
 	    };
 
 	    let resizeTimer = null;

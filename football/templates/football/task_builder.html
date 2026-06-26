@@ -8610,12 +8610,21 @@
                   <p class="meta" style="margin:0 0 0.65rem; font-size:0.78rem;">
                     Recursos “de pizarra” listos para tareas y táctica. Tip: tras colocar, selecciona el elemento para ajustar tamaño/color y usa “Capas” para reordenar/bloquear.
                   </p>
+                  <div class="selection-actions" id="task-material-family-tabs" style="margin-bottom:0.7rem;">
+                    <span class="preset-label">Familia</span>
+                    <button type="button" data-material-family-toggle="equipamiento">Equipamiento</button>
+                    <button type="button" data-material-family-toggle="porterias">Porterías</button>
+                    <button type="button" data-material-family-toggle="marcadores">Marcadores</button>
+                    <button type="button" data-material-family-toggle="apoyos">Apoyos</button>
+                    <button type="button" data-material-family-toggle="importados">Importados</button>
+                  </div>
                   <div class="selection-actions" style="margin-bottom:0.7rem;">
                     <span class="preset-label">Borrado</span>
                     <button type="button" data-action="delete" title="Borra el recurso seleccionado">Borrar seleccionado</button>
                     <button type="button" class="danger" data-action="clear_material" title="Elimina del campo material, emojis e importados">Limpiar material</button>
                   </div>
 
+                  <div class="task-material-family" data-material-family="equipamiento">
                   <div class="meta" style="margin:0.65rem 0 0.35rem;">Equipamiento</div>
                   <div class="resource-strip">
                     <button type="button" class="tool-icon" data-add="cone" title="Cono" aria-label="Cono"><span class="tool-emoji" aria-hidden="true">🔺</span><span class="sr-only">Cono</span></button>
@@ -8634,7 +8643,9 @@
                     <button type="button" class="tool-icon" data-add="wall" title="Muro / panel" aria-label="Muro / panel"><span class="tool-emoji" aria-hidden="true">🧱</span><span class="sr-only">Muro</span></button>
                     <button type="button" class="tool-icon" data-add="rebounder" title="Rebounder" aria-label="Rebounder"><span class="tool-emoji" aria-hidden="true">🧲</span><span class="sr-only">Rebounder</span></button>
                   </div>
+                  </div>
 
+                  <div class="task-material-family" data-material-family="porterias" hidden>
                   <div class="meta" style="margin:0.85rem 0 0.35rem;">Porterías</div>
                   <div class="resource-strip">
                     <button type="button" class="tool-icon" data-add="goal" title="Portería" aria-label="Portería"><span class="tool-emoji" aria-hidden="true">🥅</span><span class="sr-only">Portería</span></button>
@@ -8644,7 +8655,9 @@
                     <button type="button" class="tool-icon" data-add="goal_popup" title="Portería pop-up" aria-label="Portería pop-up"><span class="tool-emoji" aria-hidden="true">⛺</span><span class="sr-only">Portería pop-up</span></button>
                     <button type="button" class="tool-icon" data-add="goal_futsal" title="Portería futsal" aria-label="Portería futsal"><span class="tool-emoji" aria-hidden="true">🥅</span><span class="sr-only">Portería futsal</span></button>
                   </div>
+                  </div>
 
+                  <div class="task-material-family" data-material-family="marcadores" hidden>
                   <div class="meta" style="margin:0.85rem 0 0.35rem;">Marcadores</div>
                   <div class="resource-strip">
                     <button type="button" class="tool-icon" data-add="marker_start" title="Marcador: inicio" aria-label="Marcador: inicio"><span class="tool-emoji" aria-hidden="true">I</span><span class="sr-only">Marcador inicio</span></button>
@@ -8654,7 +8667,9 @@
                     <button type="button" class="tool-icon" data-add="marker_support" title="Marcador: apoyo" aria-label="Marcador: apoyo"><span class="tool-emoji" aria-hidden="true">A</span><span class="sr-only">Marcador apoyo</span></button>
                     <button type="button" class="tool-icon" data-add="measure" title="Regla de medida" aria-label="Regla de medida"><span class="tool-emoji" aria-hidden="true">📏</span><span class="sr-only">Medida</span></button>
                   </div>
+                  </div>
 
+                  <div class="task-material-family" data-material-family="apoyos" hidden>
                   <div class="meta" style="margin:0.85rem 0 0.35rem;">Líneas tácticas</div>
                   <div class="resource-strip">
                     <button type="button" class="tool-icon" data-add="line_pressure" title="Línea de presión" aria-label="Línea de presión"><span class="tool-emoji" aria-hidden="true">╌</span><span class="sr-only">Línea de presión</span></button>
@@ -8679,6 +8694,9 @@
                   <button type="button" class="tool-icon" data-add="emoji_whistle" title="Silbato" aria-label="Silbato"><span class="tool-emoji" aria-hidden="true">📣</span><span class="sr-only">Silbato</span></button>
                   <button type="button" class="tool-icon" data-add="emoji_stopwatch" title="Crono" aria-label="Crono"><span class="tool-emoji" aria-hidden="true">⏱️</span><span class="sr-only">Crono</span></button>
                   </div>
+                  </div>
+
+                  <div class="task-material-family" data-material-family="importados" hidden>
                   <div class="meta" style="margin:0.85rem 0 0.35rem;">Importados (PDF/PPT)</div>
                   <p class="meta" style="margin:0 0 0.65rem; font-size:0.78rem;">
                     Aquí aparecen los recursos del sistema, los del equipo y los extraídos al importar tareas desde PDF.
@@ -8730,6 +8748,7 @@
                   </div>
                   {% endif %}
                   {% endif %}
+                  </div>
                   <div data-inspector-slot="pro"></div>
                 </div>
 	                <div class="resource-panel" data-panel="trazos" hidden>
@@ -15388,6 +15407,8 @@
           const guideButtons = Array.from(document.querySelectorAll('[data-guide-action]'));
           const presetButtons = Array.from(document.querySelectorAll('[data-guided-preset]'));
           const resourceTabs = Array.from(document.querySelectorAll('.resource-tab'));
+          const materialFamilyButtons = Array.from(document.querySelectorAll('[data-material-family-toggle]'));
+          const materialFamilyPanels = Array.from(document.querySelectorAll('[data-material-family]'));
           const topResourceButtons = Array.from(document.querySelectorAll('[data-top-resource]'));
           const laneTemplateButtons = Array.from(document.querySelectorAll('[data-lane-template]'));
           const workflowButtons = Array.from(document.querySelectorAll('[data-workflow-action]'));
@@ -15484,6 +15505,31 @@
             importados: 'Extras',
             plantilla: 'Jugadores',
           };
+          let activeMaterialFamily = 'equipamiento';
+
+          const activateMaterialFamily = (family, options = {}) => {
+            const next = String(family || '').trim() || 'equipamiento';
+            const available = materialFamilyPanels.some((panel) => String(panel.dataset.materialFamily || '').trim() === next);
+            const resolved = available ? next : 'equipamiento';
+            activeMaterialFamily = resolved;
+            materialFamilyButtons.forEach((button) => {
+              const isActive = String(button.dataset.materialFamilyToggle || '').trim() === resolved;
+              button.classList.toggle('is-active', isActive);
+              button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+            });
+            materialFamilyPanels.forEach((panel) => {
+              const visible = String(panel.dataset.materialFamily || '').trim() === resolved;
+              panel.hidden = !visible;
+              panel.classList.toggle('is-visible', visible);
+            });
+            if (!options.silent) {
+              try {
+                window.dispatchEvent(new CustomEvent('webstats:tpad:material-family-ui-change', {
+                  detail: { family: resolved },
+                }));
+              } catch (e) { /* ignore */ }
+            }
+          };
 
           const syncTopResourceButtons = (key) => {
             const next = String(key || 'base').trim();
@@ -15567,6 +15613,19 @@
           window.addEventListener('webstats:tpad:resource-panel-change', (event) => {
             const key = String(event?.detail?.key || '').trim();
             if (key) syncTopResourceButtons(key);
+            if (key === 'pro') activateMaterialFamily(activeMaterialFamily, { silent: true });
+          });
+          window.addEventListener('webstats:tpad:material-family-change', (event) => {
+            const family = String(event?.detail?.family || '').trim();
+            if (family) activateMaterialFamily(family, { silent: true });
+          });
+          materialFamilyButtons.forEach((button) => {
+            button.addEventListener('click', (event) => {
+              try { event.preventDefault(); } catch (e) { /* ignore */ }
+              const family = String(button.dataset.materialFamilyToggle || '').trim();
+              if (!family) return;
+              activateMaterialFamily(family);
+            });
           });
 
           topResourceButtons.forEach((button) => {
@@ -15609,6 +15668,7 @@
             openBoardDrawer('resources');
             activateResourceTab('pro');
             syncTopResourceButtons('pro');
+            activateMaterialFamily(activeMaterialFamily, { silent: true });
           });
           inspectorToggle?.addEventListener('click', (event) => {
             try { event.preventDefault(); } catch (e) { /* ignore */ }
@@ -15779,6 +15839,7 @@
           syncComplexityUi();
           syncWorkflowUi('build');
           syncKindUi('2d');
+          activateMaterialFamily('equipamiento', { silent: true });
           try {
             const observer = new MutationObserver(syncSelectionState);
             observer.observe(selectionToolbar, { attributes: true, attributeFilter: ['hidden'] });
