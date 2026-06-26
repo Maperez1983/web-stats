@@ -4137,11 +4137,14 @@
         top: 0;
         z-index: 90;
         margin-bottom: 0.45rem;
-        padding: 0.48rem 0.58rem;
+        padding: 0.38rem 0.46rem;
         border-radius: 16px;
         background: rgba(6, 14, 26, 0.88);
         backdrop-filter: blur(14px);
         -webkit-backdrop-filter: blur(14px);
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-toolbar > * {
+        min-width: 0;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-toolbar .surface-picker {
         min-width: 0;
@@ -4149,12 +4152,24 @@
       body:not(.tactics-mode).task-mode-ready.task-mode-board .board-overlay-controls {
         display: inline-flex;
         align-items: center;
-        gap: 0.38rem;
+        gap: 0.28rem;
         flex-wrap: wrap;
       }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .board-overlay-controls .surface-trigger,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #surface-trigger,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #pitch-orientation-toggle-quick,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #task-focus-toggle,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #pitch-3d-open-standard,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #pitch-view-menu > .surface-trigger {
+        min-width: 0;
+        min-height: 34px;
+        padding: 0.34rem 0.5rem;
+        border-radius: 10px;
+        font-size: 0.64rem;
+        letter-spacing: 0.04em;
+      }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .board-overlay-controls .surface-trigger {
-        min-height: 38px;
-        padding: 0.42rem 0.64rem;
+        justify-content: center;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .board-overlay-controls .surface-trigger.is-active {
         border-color: rgba(34, 211, 238, 0.48);
@@ -4163,6 +4178,54 @@
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .surface-trigger .current {
         display: none;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #surface-trigger span:first-child,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #pitch-orientation-toggle-quick span:first-child,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #task-focus-toggle,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #pitch-3d-open-standard span:first-child,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #pitch-view-menu > summary span:first-child {
+        display: none;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #surface-trigger::before {
+        content: "▦";
+        font-size: 0.92rem;
+        line-height: 1;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #pitch-orientation-toggle-quick::before {
+        content: "↕";
+        font-size: 0.92rem;
+        line-height: 1;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #pitch-view-menu > summary::before {
+        content: "◎";
+        font-size: 0.92rem;
+        line-height: 1;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #pitch-3d-open-standard::before {
+        content: "3D";
+        font-size: 0.72rem;
+        font-weight: 900;
+        line-height: 1;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #task-focus-toggle::before {
+        content: "▶";
+        font-size: 0.82rem;
+        line-height: 1;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #task-board-resources-toggle::before {
+        content: "☰";
+        font-size: 0.92rem;
+        line-height: 1;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #task-board-inspector-toggle::before {
+        content: "⌘";
+        font-size: 0.92rem;
+        line-height: 1;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #task-board-roster-toggle::before {
+        content: "👥";
+        font-size: 0.82rem;
+        line-height: 1;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-layout {
         flex: 1 1 auto;
@@ -4317,6 +4380,23 @@
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .editor-edit-pane {
         gap: 0.35rem;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .editor-side-section-head span {
+        display: none;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #task-side-command-slot .command-bar {
+        padding: 0.22rem;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #task-side-command-slot .command-bar > button {
+        min-width: 34px;
+        min-height: 34px;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .selection-empty-state {
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        min-height: 72px;
+        padding: 0.5rem 0.58rem;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-main .player-bank {
         max-height: 132px;
