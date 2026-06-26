@@ -4736,12 +4736,12 @@
         display: none !important;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board #task-roster-bank .player-bank {
-        display: flex;
-        flex-wrap: nowrap;
-        gap: 0.5rem;
-        overflow-x: auto;
-        overflow-y: hidden;
-        padding: 0.1rem 0.02rem 0.12rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(172px, 1fr));
+        gap: 0.42rem;
+        overflow: visible;
+        padding: 0.08rem 0.02rem 0.12rem;
+        align-content: start;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board #task-roster-bank .player-bank.is-empty {
         display: block;
@@ -4749,11 +4749,11 @@
         min-height: 96px;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board #task-roster-bank .player-bank > button.player-token-bank {
-        flex: 0 0 auto;
-        min-width: 198px;
-        min-height: 72px;
-        border-radius: 18px;
-        padding: 0.52rem 0.62rem;
+        width: 100%;
+        min-width: 0;
+        min-height: 64px;
+        border-radius: 16px;
+        padding: 0.42rem 0.5rem;
         border: 1px solid rgba(255,255,255,0.08);
         background:
           linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03)),
@@ -4797,6 +4797,9 @@
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board #task-roster-bank .player-bank-quickbar {
         justify-content: space-between;
+        width: 100%;
+        gap: 0.42rem;
+        flex-wrap: wrap;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board.task-board-roster-collapsed #task-roster-bank {
         width: auto;
@@ -4820,6 +4823,14 @@
         margin-bottom: 0.06rem;
         background: linear-gradient(180deg, rgba(8, 18, 32, 0.99), rgba(8, 18, 32, 0.88));
       }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .resource-tab-bar {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+        gap: 0.3rem;
+        margin-bottom: 0;
+      }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .editor-side-tab {
         min-height: 34px;
         padding: 0.36rem 0.44rem;
@@ -4827,6 +4838,8 @@
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .editor-side-pane {
         flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
         min-height: 0;
         overflow-x: hidden;
         overflow-y: auto;
@@ -4838,6 +4851,8 @@
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .resource-details {
         flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
         min-height: 0;
         overflow-x: hidden;
         overflow-y: auto;
@@ -4858,6 +4873,11 @@
         opacity: 0.82;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .resource-panel.is-visible {
+        display: grid;
+        align-content: start;
+        gap: 0.34rem;
+        flex: 1 1 auto;
+        min-height: 0;
         overflow-y: auto;
         overflow-x: hidden;
       }
@@ -4871,14 +4891,19 @@
         min-height: 0;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .resource-panel.is-visible {
+        display: grid;
+        align-content: start;
+        gap: 0.34rem;
+        flex: 1 1 auto;
+        min-height: 0;
         overflow-y: auto;
         overflow-x: hidden;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .editor-edit-pane {
-        gap: 0.28rem;
+        gap: 0.22rem;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .editor-pane-card {
-        padding: 0.44rem 0.48rem;
+        padding: 0.36rem 0.4rem;
         border-radius: 12px;
         border: 1px solid rgba(255,255,255,0.08);
         background:
@@ -4893,17 +4918,17 @@
         display: none;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .editor-side-section-head {
-        margin-bottom: 0.18rem;
+        margin-bottom: 0.12rem;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .editor-side-section-head strong {
         font-size: 0.68rem;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board #task-side-command-slot .command-bar {
-        padding: 0.22rem;
+        padding: 0.18rem;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board #task-side-command-slot .command-bar > button {
-        min-width: 34px;
-        min-height: 34px;
+        min-width: 32px;
+        min-height: 32px;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .selection-empty-state {
         align-items: center;
@@ -4914,22 +4939,22 @@
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-side .resource-strip {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(68px, 1fr));
-        gap: 0.42rem;
+        grid-template-columns: repeat(auto-fit, minmax(62px, 1fr));
+        gap: 0.3rem;
         overflow: visible;
         padding-bottom: 0;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-side .resource-strip button.tool-icon,
       body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-side .resource-strip button[data-add],
       body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-side .resource-strip button[data-action] {
-        min-height: 54px;
-        padding: 0.28rem 0.18rem;
-        border-radius: 12px;
+        min-height: 46px;
+        padding: 0.22rem 0.16rem;
+        border-radius: 10px;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-side .resource-strip button.tool-icon .tool-emoji {
-        width: 24px;
-        height: 24px;
-        font-size: 1rem;
+        width: 20px;
+        height: 20px;
+        font-size: 0.92rem;
       }
       body:not(.tactics-mode):not(.task-editor-advanced).task-mode-ready.task-mode-board .resource-tab[data-resource="importados"] {
         display: none;
@@ -4951,10 +4976,10 @@
         font-size: 0.72rem;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-main .player-bank {
-        max-height: 132px;
+        max-height: none;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-main .player-bank > button.player-token-bank {
-        padding: 0.4rem 0.48rem;
+        padding: 0.38rem 0.46rem;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .board-workbench-badge {
         display: none;
@@ -6241,6 +6266,9 @@
       body:not(.tactics-mode) .pitch-side {
         top: 0.55rem;
         max-height: calc(100vh - 1.4rem);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
         padding-right: 0;
       }
       body:not(.tactics-mode) .pitch-side.section {
@@ -6294,6 +6322,12 @@
       }
       body:not(.tactics-mode) .resource-panel {
         margin-top: 0.56rem;
+      }
+      body:not(.tactics-mode) .resource-details {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        gap: 0.35rem;
       }
       body:not(.tactics-mode) .command-bar {
         padding: 0.38rem;
@@ -6375,22 +6409,18 @@
       }
       body:not(.tactics-mode) .pitch-main .player-bank {
         display: grid;
-        grid-auto-flow: column;
-        grid-auto-columns: 204px;
-        grid-template-rows: repeat(1, auto);
-        gap: 0.5rem;
-        overflow-x: auto;
-        overflow-y: hidden;
+        grid-template-columns: repeat(auto-fit, minmax(172px, 1fr));
+        gap: 0.42rem;
+        overflow: visible;
         padding: 0.08rem 0.04rem 0.14rem;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-gutter: stable both-edges;
-        max-height: 126px;
+        max-height: none;
       }
       body:not(.tactics-mode) .pitch-main .player-bank > button.player-token-bank {
-        width: auto;
+        width: 100%;
         min-width: 0;
-        padding: 0.52rem 0.62rem;
-        border-radius: 18px;
+        min-height: 64px;
+        padding: 0.42rem 0.5rem;
+        border-radius: 16px;
       }
       body:not(.tactics-mode) .pitch-main .player-bank-nav {
         display: inline-flex;

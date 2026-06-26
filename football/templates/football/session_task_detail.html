@@ -1435,12 +1435,7 @@
 
         <section class="panel task-edit-tab-panel{% if active_task_edit_tab == 'graphic' %} is-active{% endif %}" data-task-edit-tab-panel="graphic">
           <h2>Editor de tareas</h2>
-          <p class="meta">Aquí se carga el editor real de pizarra y contenido que ya teníais antes, dentro de la propia ficha.</p>
-          <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; margin-bottom:0.7rem;">
-            {% if edit_graphic_url %}
-            <a class="button secondary" href="{{ edit_graphic_url }}">Abrir editor completo</a>
-            {% endif %}
-          </div>
+          <p class="meta">Aquí se carga directamente el editor real de pizarra y contenido de la tarea, dentro de la propia ficha.</p>
           {% if builder_embed_url %}
           <div class="task-graphic-embed-shell">
             <iframe
