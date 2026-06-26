@@ -188,7 +188,7 @@
       const image = createSvgNode(doc, 'image', { href, x: -bleed, y: -bleed, width: stageW + (bleed * 2), height: stageH + (bleed * 2), preserveAspectRatio: 'xMidYMid slice' });
       try { image.setAttribute('xlink:href', href); } catch (e) { /* ignore */ }
       pattern.appendChild(image);
-      pattern.appendChild(createSvgNode(doc, 'rect', { x: -bleed, y: -bleed, width: stageW + (bleed * 2), height: stageH + (bleed * 2), fill: 'rgba(3, 7, 18, 0.22)' }));
+      pattern.appendChild(createSvgNode(doc, 'rect', { x: -bleed, y: -bleed, width: stageW + (bleed * 2), height: stageH + (bleed * 2), fill: 'rgba(3, 7, 18, 0.12)' }));
       defs.appendChild(pattern);
     } else if (grassStyle !== 'classic') {
       const dataUrl = __buildGrassTextureDataUrl(grassStyle);
@@ -234,8 +234,8 @@
       const portrait = orientation === 'portrait';
       const effectiveW = portrait ? stageH : stageW;
       const effectiveH = portrait ? stageW : stageH;
-      const marginX = (grassStyle === 'stadium_top') ? 62 : ((grassStyle === 'broadcast_premium') ? 32 : 0);
-      const marginY = (grassStyle === 'stadium_top') ? 52 : ((grassStyle === 'broadcast_premium') ? 22 : 0);
+      const marginX = (grassStyle === 'stadium_top') ? 84 : ((grassStyle === 'broadcast_premium') ? 32 : 0);
+      const marginY = (grassStyle === 'stadium_top') ? 74 : ((grassStyle === 'broadcast_premium') ? 22 : 0);
       const availableWidth = effectiveW - marginX * 2;
       const availableHeight = effectiveH - marginY * 2;
       const fit = safeText(fitMode, 'contain') === 'cover' ? 'cover' : 'contain';
@@ -293,11 +293,32 @@
 
     const drawStadiumContext = (x, y, width, height) => {
       if (grassStyle !== 'stadium_top') return;
-      const runoff = 20;
-      const concourseH = 34;
-      const standH = 68;
-      const sideW = 48;
-      const drawBand = (bandY, fillColor, stripeColor) => {
+      const runoff = 26;
+      const concourseH = 38;
+      const standH = 84;
+      const sideW = 74;
+      const drawConcourse = (bandY) => {
+        drawRoot.appendChild(createSvgNode(doc, 'rect', {
+          x: x - 10,
+          y: bandY,
+          width: width + 20,
+          height: concourseH,
+          rx: 6,
+          ry: 6,
+          fill: 'rgba(15,23,42,0.72)',
+          stroke: 'rgba(226,232,240,0.14)',
+          'stroke-width': 1.4,
+        }));
+        drawRoot.appendChild(createSvgNode(doc, 'rect', {
+          x: x - 10,
+          y: bandY + 8,
+          width: width + 20,
+          height: 6,
+          fill: 'rgba(148,163,184,0.22)',
+          stroke: 'none',
+        }));
+      };
+      const drawStand = (bandY, fillColor, stripeColor) => {
         drawRoot.appendChild(createSvgNode(doc, 'rect', {
           x: x - sideW,
           y: bandY,
@@ -319,7 +340,42 @@
           }));
         }
       };
-      const drawDugout = (cx, cy) => {
+      const drawSideStand = (sideX, concourseX, fillColor, strokeColor) => {
+        drawRoot.appendChild(createSvgNode(doc, 'rect', {
+          x: sideX,
+          y: y - 18,
+          width: sideW - 18,
+          height: height + 36,
+          rx: 14,
+          ry: 14,
+          fill: fillColor,
+          stroke: 'rgba(255,255,255,0.08)',
+          'stroke-width': 1,
+        }));
+        for (let i = 0; i < 10; i += 1) {
+          const rowX = sideX + 8 + (i * 4.8);
+          drawRoot.appendChild(createSvgNode(doc, 'line', {
+            x1: rowX,
+            y1: y - 14,
+            x2: rowX,
+            y2: y + height + 14,
+            stroke: strokeColor,
+            'stroke-width': 1,
+          }));
+        }
+        drawRoot.appendChild(createSvgNode(doc, 'rect', {
+          x: concourseX,
+          y: y - 12,
+          width: 12,
+          height: height + 24,
+          rx: 6,
+          ry: 6,
+          fill: 'rgba(15,23,42,0.74)',
+          stroke: 'rgba(226,232,240,0.14)',
+          'stroke-width': 1,
+        }));
+      };
+      const drawDugout = (cx, cy, flip = false) => {
         drawRoot.appendChild(createSvgNode(doc, 'rect', {
           x: cx - 64,
           y: cy - 10,
@@ -342,32 +398,57 @@
           stroke: 'rgba(255,255,255,0.12)',
           'stroke-width': 1,
         }));
+        for (let i = -44; i <= 44; i += 22) {
+          drawRoot.appendChild(createSvgNode(doc, 'rect', {
+            x: cx + i - 8,
+            y: cy - 4,
+            width: 16,
+            height: 8,
+            rx: 3,
+            ry: 3,
+            fill: 'rgba(14,165,233,0.55)',
+            stroke: 'none',
+          }));
+        }
+        drawRoot.appendChild(createSvgNode(doc, 'line', {
+          x1: cx - 70,
+          y1: cy + (flip ? -16 : 16),
+          x2: cx + 70,
+          y2: cy + (flip ? -16 : 16),
+          stroke: 'rgba(226,232,240,0.18)',
+          'stroke-width': 2,
+          'stroke-dasharray': '10 8',
+        }));
+      };
+      const drawTechnicalArea = (cx, topY, flip = false) => {
+        drawRoot.appendChild(createSvgNode(doc, 'rect', {
+          x: cx - 86,
+          y: topY - 14,
+          width: 172,
+          height: 28,
+          rx: 12,
+          ry: 12,
+          fill: 'rgba(8,15,28,0.58)',
+          stroke: 'rgba(255,255,255,0.10)',
+          'stroke-width': 1,
+        }));
+        drawRoot.appendChild(createSvgNode(doc, 'line', {
+          x1: cx - 76,
+          y1: topY + (flip ? 18 : -18),
+          x2: cx + 76,
+          y2: topY + (flip ? 18 : -18),
+          stroke: 'rgba(255,255,255,0.24)',
+          'stroke-width': 2,
+          'stroke-dasharray': '12 8',
+        }));
       };
 
-      drawRoot.appendChild(createSvgNode(doc, 'rect', {
-        x: x - 10,
-        y: y - runoff - concourseH - 4,
-        width: width + 20,
-        height: concourseH,
-        rx: 6,
-        ry: 6,
-        fill: 'rgba(15,23,42,0.72)',
-        stroke: 'rgba(226,232,240,0.14)',
-        'stroke-width': 1.4,
-      }));
-      drawRoot.appendChild(createSvgNode(doc, 'rect', {
-        x: x - 10,
-        y: y + height + runoff + 4,
-        width: width + 20,
-        height: concourseH,
-        rx: 6,
-        ry: 6,
-        fill: 'rgba(15,23,42,0.72)',
-        stroke: 'rgba(226,232,240,0.14)',
-        'stroke-width': 1.4,
-      }));
-      drawBand(y - runoff - concourseH - standH - 8, 'rgba(134,239,172,0.18)', 'rgba(240,253,244,0.10)');
-      drawBand(y + height + runoff + concourseH + 8, 'rgba(163,230,53,0.16)', 'rgba(236,252,203,0.08)');
+      drawConcourse(y - runoff - concourseH - 4);
+      drawStand(y - runoff - concourseH - standH - 8, 'rgba(134,239,172,0.18)', 'rgba(240,253,244,0.10)');
+      drawConcourse(y + height + runoff + 4);
+      drawStand(y + height + runoff + concourseH + 8, 'rgba(163,230,53,0.16)', 'rgba(236,252,203,0.08)');
+      drawSideStand(x - sideW + 8, x - 16, 'rgba(134,239,172,0.14)', 'rgba(240,253,244,0.08)');
+      drawSideStand(x + width + 10, x + width + 4, 'rgba(163,230,53,0.12)', 'rgba(236,252,203,0.08)');
       drawRoot.appendChild(createSvgNode(doc, 'rect', {
         x: x - runoff,
         y: y - runoff,
@@ -379,10 +460,25 @@
         stroke: 'rgba(255,255,255,0.12)',
         'stroke-width': 8,
       }));
-      drawDugout(x + (width * 0.28), y + height + 46);
-      drawDugout(x + (width * 0.72), y + height + 46);
-      drawDugout(x + (width * 0.28), y - 46);
-      drawDugout(x + (width * 0.72), y - 46);
+      drawRoot.appendChild(createSvgNode(doc, 'rect', {
+        x: x - 6,
+        y: y - 6,
+        width: width + 12,
+        height: height + 12,
+        rx: 18,
+        ry: 18,
+        fill: 'none',
+        stroke: 'rgba(255,255,255,0.08)',
+        'stroke-width': 14,
+      }));
+      drawDugout(x + (width * 0.28), y + height + 46, false);
+      drawDugout(x + (width * 0.72), y + height + 46, false);
+      drawDugout(x + (width * 0.28), y - 46, true);
+      drawDugout(x + (width * 0.72), y - 46, true);
+      drawTechnicalArea(x + (width * 0.28), y + height + 34, false);
+      drawTechnicalArea(x + (width * 0.72), y + height + 34, false);
+      drawTechnicalArea(x + (width * 0.28), y - 34, true);
+      drawTechnicalArea(x + (width * 0.72), y - 34, true);
     };
 
     const drawCenter = () => {
