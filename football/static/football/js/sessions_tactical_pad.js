@@ -29719,15 +29719,23 @@
 		      }
 		    } catch (e) { /* ignore */ }
 		    restoreState();
-		    try { scheduleTacticalOverlayRefresh(); } catch (e) { /* ignore */ }
 		    renderLayers();
-		    runWhenIdle(() => renderPlayerBank(), 1100);
     try {
-      syncAssignedPlayersHidden(serializeState());
+      window.requestAnimationFrame(() => {
+        try { syncAssignedPlayersHidden(serializeState()); } catch (error) { /* ignore */ }
+      });
     } catch (error) {
       // ignore
     }
-    runWhenIdle(() => refreshLivePreview(), 1100);
+    runWhenIdle(() => {
+      try { scheduleTacticalOverlayRefresh(); } catch (e) { /* ignore */ }
+    }, 1400);
+    runWhenIdle(() => {
+      try { renderPlayerBank(); } catch (e) { /* ignore */ }
+    }, 1600);
+    runWhenIdle(() => {
+      try { refreshLivePreview(); } catch (e) { /* ignore */ }
+    }, 2200);
 
 	    let draftSaveTimer = null;
 	    const persistDraftNow = (reason) => {
