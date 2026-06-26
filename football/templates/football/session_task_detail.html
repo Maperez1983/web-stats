@@ -116,7 +116,32 @@
         width: 100%;
         max-width: none;
         margin: 0;
-        padding: 0.55rem 0.65rem 0.75rem;
+        padding: 0.22rem 0.32rem 0.32rem;
+        min-height: 100vh;
+        min-height: 100dvh;
+      }
+      body.session-task-detail-page.task-detail-graphic-edit .top {
+        margin-bottom: 0.38rem;
+        padding: 0.55rem 0.7rem;
+        border-radius: 16px;
+      }
+      body.session-task-detail-page.task-detail-graphic-edit .top-copy {
+        gap: 0.18rem;
+      }
+      body.session-task-detail-page.task-detail-graphic-edit .top h1 {
+        font-size: clamp(1.02rem, 1.35vw, 1.32rem);
+      }
+      body.session-task-detail-page.task-detail-graphic-edit .top-kicker,
+      body.session-task-detail-page.task-detail-graphic-edit .top-pills {
+        display: none;
+      }
+      body.session-task-detail-page.task-detail-graphic-edit .top-actions {
+        gap: 0.34rem;
+      }
+      body.session-task-detail-page.task-detail-graphic-edit .top-actions .button {
+        min-height: 36px;
+        padding: 0.42rem 0.72rem;
+        font-size: 0.68rem;
       }
       .top {
         display: flex;
@@ -282,8 +307,12 @@
         margin-bottom: 0;
       }
       body.session-task-detail-page.task-detail-graphic-edit .task-edit-panel > .task-edit-tab-bar {
-        margin-bottom: 0.55rem;
+        margin-bottom: 0.24rem;
         padding: 0 0.15rem;
+      }
+      body.session-task-detail-page.task-detail-graphic-edit .task-edit-tab-panel[data-task-edit-tab-panel="graphic"] > h2,
+      body.session-task-detail-page.task-detail-graphic-edit .task-edit-tab-panel[data-task-edit-tab-panel="graphic"] > .meta {
+        display: none;
       }
       body.session-task-detail-page.task-detail-graphic-edit .task-graphic-embed-shell {
         width: 100%;
@@ -295,14 +324,28 @@
       }
       body.session-task-detail-page.task-detail-graphic-edit .task-graphic-embed-frame {
         width: 100%;
-        min-height: calc(100vh - 210px);
-        min-height: calc(100dvh - 210px);
+        min-height: calc(100vh - 132px);
+        min-height: calc(100dvh - 132px);
         border: 0;
         display: block;
         background: transparent;
       }
       .task-detail-tab-bar {
         padding-bottom: 0.35rem;
+      }
+      body.session-task-detail-page.task-detail-graphic-edit .task-detail-tab-bar {
+        margin-bottom: 0.2rem;
+        padding: 0.42rem 0.5rem;
+      }
+      body.session-task-detail-page.task-detail-graphic-edit .task-detail-tabs,
+      body.session-task-detail-page.task-detail-graphic-edit .task-edit-tab-bar {
+        gap: 0.34rem;
+      }
+      body.session-task-detail-page.task-detail-graphic-edit .task-detail-tab,
+      body.session-task-detail-page.task-detail-graphic-edit .task-edit-tab {
+        min-height: 36px;
+        padding: 0.4rem 0.68rem;
+        font-size: 0.68rem;
       }
       .task-detail-tabs {
         display: flex;
