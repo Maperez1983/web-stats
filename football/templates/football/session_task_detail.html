@@ -2666,6 +2666,7 @@
         const formatTabPanels = Array.from(document.querySelectorAll('[data-task-format-panel]'));
         const tabPanels = Array.from(document.querySelectorAll('[data-task-tab-panel]'));
         const inlineEditor = document.getElementById('task-inline-editor');
+        const enterEditButton = document.getElementById('task-detail-enter-edit');
         let activeTaskEditTab = activeTaskEditTabFromServer;
         let activeTaskFormatTab = activeTaskFormatFromServer;
         const syncTaskTab = (tabName, shouldScroll = false) => {
@@ -2675,6 +2676,9 @@
           activeTaskTab = nextTab;
           editorOpen = nextTab === 'edit';
           isPresentationMode = nextTab !== 'edit';
+          try {
+            document.body.classList.toggle('is-presentation', nextTab !== 'edit');
+          } catch (error) {}
           if (inlineEditor) inlineEditor.classList.toggle('is-open', nextTab === 'edit');
           tabButtons.forEach((button) => {
             const isActive = button.dataset.taskTab === nextTab;
@@ -2798,6 +2802,10 @@
           button.addEventListener('click', () => {
             syncTaskFormatTab(button.dataset.taskFormatTab || 'uefa');
           });
+        });
+        enterEditButton?.addEventListener('click', () => {
+          syncTaskTab('edit', true);
+          syncTaskEditTab('graphic', false);
         });
         syncTaskTab(activeTaskTab, false);
         syncTaskFormatTab(activeTaskFormatTab, false);
