@@ -4104,8 +4104,88 @@
       body.task-mode-ready.task-mode-text .builder > aside.panel {
         grid-column: 1 / -1;
       }
-      body:not(.tactics-mode) #task-side-tabs {
+      body:not(.tactics-mode) .side-tabs#task-side-tabs {
         display: none;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board {
+        overflow: hidden;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .page {
+        height: 100vh;
+        height: 100svh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .builder {
+        flex: 1 1 auto;
+        min-height: 0;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .builder > section.panel {
+        height: 100%;
+        min-height: 0;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .builder > section.panel > .panel-body {
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-layout {
+        flex: 1 1 auto;
+        min-height: 0;
+        height: 100%;
+        grid-template-columns: minmax(260px, 300px) minmax(0, 1fr);
+        gap: 0.55rem;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-side {
+        position: relative;
+        top: auto;
+        align-self: stretch;
+        max-height: none;
+        height: 100%;
+        overflow-x: hidden;
+        overflow-y: auto;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-main,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .board-workbench,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .board-stage-shell,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-viewport {
+        min-height: 0;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-main,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .board-workbench,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .board-stage-shell {
+        flex: 1 1 auto;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .board-workbench {
+        padding: 0.56rem;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .board-workbench-copy span,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .board-quickbar-head span,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .board-flow-note,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .board-guide {
+        display: none;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .board-workbench-head {
+        align-items: center;
+        margin-bottom: 0.1rem;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .board-workbench-copy strong {
+        font-size: 0.88rem;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .board-quickbar {
+        padding: 0.42rem 0.52rem;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .board-stage-shell {
+        padding: 0.58rem;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-status {
+        padding: 0.56rem 0.68rem;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-main > .section {
+        margin-top: 0.45rem;
       }
       @media (max-width: 760px) {
         .page {
@@ -6321,7 +6401,7 @@
 		              <div class="section resource-section pitch-side">
 		                <div class="resource-tab-bar">
                     {% if not tactics_mode %}
-                    <div class="editor-side-tabs" id="task-side-tabs" aria-label="Panel lateral de edición">
+                    <div class="editor-side-tabs" id="task-board-side-tabs" aria-label="Panel lateral de edición">
                       <button type="button" class="editor-side-tab is-active" data-side-pane="edit">Editar</button>
                       <button type="button" class="editor-side-tab" data-side-pane="resources">Recursos</button>
                     </div>
@@ -14300,7 +14380,7 @@
     <script>
       (function () {
         const boot = () => {
-          const sideTabs = Array.from(document.querySelectorAll('#task-side-tabs .editor-side-tab'));
+          const sideTabs = Array.from(document.querySelectorAll('#task-board-side-tabs .editor-side-tab'));
           const editPane = document.getElementById('task-side-pane-edit');
           const resourcesPane = document.getElementById('task-side-pane-resources');
           const commandBar = document.getElementById('task-command-bar');
