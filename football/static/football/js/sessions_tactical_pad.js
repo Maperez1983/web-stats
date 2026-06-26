@@ -3089,10 +3089,12 @@
 		    };
 		    let tokenGlobalStyle = 'disk';
 		    let tokenGlobalStyleStored = false;
+        let tokenGlobalStyleUserSelected = false;
 		    try {
 		      const storedTokenStyle = window.localStorage?.getItem(TOKEN_STYLE_STORAGE_KEY);
 		      if (safeText(storedTokenStyle).trim()) {
 		        tokenGlobalStyleStored = true;
+            tokenGlobalStyleUserSelected = true;
 		        tokenGlobalStyle = normalizeTokenStyle(storedTokenStyle);
 		      }
 		    } catch (e) { /* ignore */ }
@@ -24244,6 +24246,10 @@
     const renderTimeline = () => {
       const targets = [timelineList, timelineListPopover, timelineListQuick].filter(Boolean);
       if (!targets.length) return;
+      try {
+        const dock = document.getElementById('task-timeline-dock');
+        if (dock) dock.classList.toggle('is-empty', !timeline.length);
+      } catch (e) { /* ignore */ }
       if (!timeline.length) {
         targets.forEach((node) => {
           node.innerHTML = '<div class="timeline-empty">Todavía no hay escenarios. Diseña el primer escenario y pulsa “+ Escenario”.</div>';
@@ -28375,6 +28381,7 @@
 		      });
 		    }
 		    let playerBankUpdateTimer = null;
+        let rosterViewFilter = 'all';
 		    const updatePlayerBankVisibility = () => {
 		      if (!playerBank) return;
 		      const used = hideUsedPlayersEnabled ? computeUsedPlayerIds() : new Set();
@@ -28387,15 +28394,146 @@
 		      window.clearTimeout(playerBankUpdateTimer);
 		      playerBankUpdateTimer = window.setTimeout(updatePlayerBankVisibility, 120);
 		    };
+        const quickBar = document.getElementById('task-player-bank-quickbar');
+        const syncQuickBarUi = () => {
+          if (!quickBar) return;
+          Array.from(quickBar.querySelectorAll('button[data-roster-filter]') || []).forEach((btn) => {
+            const active = safeText(btn.dataset.rosterFilter) === rosterViewFilter;
+            btn.classList.toggle('is-active', active);
+            try { btn.setAttribute('aria-pressed', active ? 'true' : 'false'); } catch (e) { /* ignore */ }
+          });
+          Array.from(quickBar.querySelectorAll('button[data-bank-style]') || []).forEach((btn) => {
+            const active = normalizeTokenStyle(btn.dataset.bankStyle) === tokenGlobalStyle;
+            btn.classList.toggle('is-active', active);
+            try { btn.setAttribute('aria-pressed', active ? 'true' : 'false'); } catch (e) { /* ignore */ }
+          });
+        };
+        const recommendedTokenStyleForKind = (kind) => {
+          const normalized = safeText(kind).trim().toLowerCase();
+          if (normalized === '3d') return 'photo';
+          if (normalized === 'interactive') return 'photo';
+          return 'jersey';
+        };
+        const applyRecommendedTokenStyle = (kind, { force = false } = {}) => {
+          if (tokenGlobalStyleUserSelected && !force) return;
+          const nextStyle = normalizeTokenStyle(recommendedTokenStyleForKind(kind));
+          if (nextStyle === tokenGlobalStyle && !force) {
+            syncQuickBarUi();
+            return;
+          }
+          tokenGlobalStyle = nextStyle;
+          tokenGlobalStyleStored = true;
+          try { window.localStorage?.setItem(TOKEN_STYLE_STORAGE_KEY, tokenGlobalStyle); } catch (e) { /* ignore */ }
+          syncTokenGlobalStyleUi();
+          syncQuickBarUi();
+          try { renderPlayerBank(); } catch (e) { /* ignore */ }
+        };
+        try { window.__tpadApplyRecommendedTokenStyle = applyRecommendedTokenStyle; } catch (e) { /* ignore */ }
+        const buildBankJerseyPreview = (player, kind, numberText) => {
+          const badge = document.createElement('span');
+          badge.className = 'token-jersey is-preview';
+          if (kind === 'goalkeeper_local') badge.classList.add('is-goalkeeper');
+          const kit2dBadgeUrl = kit2dDataUrlForTokenKind(kind);
+          const useKit2d = !!kit2dBadgeUrl;
+          if (useKit2d) {
+            badge.classList.add('is-kit2d');
+            badge.innerHTML = `<img class="token-jersey-img" src="${escapeHtml(kit2dBadgeUrl)}" alt="" aria-hidden="true" />`;
+          } else {
+          const clipId = `tpad-bank-shirt-clip-${String(player?.id || '').replace(/[^a-zA-Z0-9_-]/g, '') || 'x'}`;
+          const gkGradId = `tpad-bank-gk-grad-${String(player?.id || '').replace(/[^a-zA-Z0-9_-]/g, '') || 'x'}`;
+            badge.innerHTML = `
+            <svg class="token-jersey-svg" viewBox="-26 -30 52 60" aria-hidden="true" focusable="false">
+              <defs>
+                <clipPath id="${clipId}">
+                  <path d="${JERSEY_PATH_DEF}"></path>
+                </clipPath>
+                <linearGradient id="${gkGradId}" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#1d4ed8"></stop>
+                  <stop offset="1" stop-color="#0ea5e9"></stop>
+                </linearGradient>
+              </defs>
+              <g clip-path="url(#${clipId})">
+                <rect x="-28" y="-32" width="56" height="64" fill="${kind === 'goalkeeper_local' ? `url(#${gkGradId})` : '#f8fafc'}"></rect>
+                ${kind === 'goalkeeper_local' ? '' : `
+                  <g>
+                    <rect x="-28" y="-32" width="8" height="64" fill="#0f7a35"></rect>
+                    <rect x="-20" y="-32" width="8" height="64" fill="#f8fafc"></rect>
+                    <rect x="-12" y="-32" width="8" height="64" fill="#0f7a35"></rect>
+                    <rect x="-4" y="-32" width="8" height="64" fill="#f8fafc"></rect>
+                    <rect x="4" y="-32" width="8" height="64" fill="#0f7a35"></rect>
+                    <rect x="12" y="-32" width="8" height="64" fill="#f8fafc"></rect>
+                    <rect x="20" y="-32" width="8" height="64" fill="#0f7a35"></rect>
+                  </g>
+                `}
+                <path d="${JERSEY_COLLAR_DEF}" fill="rgba(15,23,42,0.22)" stroke="rgba(255,255,255,0.18)" stroke-width="1"></path>
+              </g>
+              <path d="${JERSEY_PATH_DEF}" fill="none" stroke="rgba(255,255,255,0.92)" stroke-width="2"></path>
+            </svg>
+          `.trim();
+          }
+          const number = document.createElement('span');
+          number.className = 'token-number';
+          number.textContent = numberText;
+          badge.appendChild(number);
+          return badge;
+        };
+        const buildBankPhotoPreview = (player, kind, numberText) => {
+          const badge = document.createElement('span');
+          badge.className = 'token-photo is-preview';
+          if (kind === 'goalkeeper_local') badge.classList.add('is-goalkeeper');
+          const photoUrl = resolvePlayerPhotoUrl(player?.photo_url);
+          if (photoUrl) {
+            badge.style.backgroundImage = `url("${photoUrl.replace(/"/g, '\\"')}")`;
+          } else {
+            const initials = document.createElement('span');
+            initials.className = 'token-initials';
+            initials.textContent = computeInitials(safeText(player?.nickname || player?.name), numberText);
+            badge.appendChild(initials);
+          }
+          const number = document.createElement('span');
+          number.className = 'token-number';
+          number.textContent = numberText;
+          badge.appendChild(number);
+          return badge;
+        };
+        const buildBankDiskPreview = (kind, numberText) => {
+          const badge = document.createElement('span');
+          badge.className = 'token-disk is-preview';
+          if (kind === 'goalkeeper_local') badge.classList.add('is-goalkeeper');
+          const number = document.createElement('span');
+          number.className = 'token-number';
+          number.textContent = numberText;
+          badge.appendChild(number);
+          return badge;
+        };
 
 		    const renderPlayerBank = () => {
 		      if (!playerBank) return;
 		      playerBank.innerHTML = '';
+          try { playerBank.classList.remove('is-empty'); } catch (e) { /* ignore */ }
 		      let roster = (Array.isArray(players) ? players.slice() : []);
+          if (rosterViewFilter === 'field') {
+            roster = roster.filter((p) => !isGoalkeeperPlayer(p));
+          } else if (rosterViewFilter === 'goalkeepers') {
+            roster = roster.filter((p) => isGoalkeeperPlayer(p));
+          }
 		      if (onlyConfirmedPlayersEnabled && confirmedPlayerIdSet.size > 0) {
 		        roster = roster.filter((p) => confirmedPlayerIdSet.has(String(p?.id || '')));
 		      }
+          if (!roster.length) {
+            try { playerBank.classList.add('is-empty'); } catch (e) { /* ignore */ }
+            const empty = document.createElement('div');
+            empty.className = 'player-bank-empty';
+            empty.innerHTML = '<div><strong>Sin jugadores disponibles</strong><span>Revisa la plantilla activa, cambia el filtro o selecciona otra sesión para empezar a colocar fichas en el campo.</span></div>';
+            playerBank.appendChild(empty);
+            syncQuickBarUi();
+            schedulePlayerBankUpdate();
+            return;
+          }
 		      roster.sort((a, b) => {
+            const aGk = isGoalkeeperPlayer(a) ? 1 : 0;
+            const bGk = isGoalkeeperPlayer(b) ? 1 : 0;
+            if (aGk !== bGk) return bGk - aGk;
 		        const na = Number.parseInt(String(a?.number || ''), 10);
 		        const nb = Number.parseInt(String(b?.number || ''), 10);
 		        if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb;
@@ -28409,14 +28547,22 @@
 		        button.type = 'button';
 		        button.className = 'player-token-bank';
 		        button.dataset.playerId = String(player.id || '');
+			        const copy = document.createElement('span');
+			        copy.className = 'player-token-bank-copy';
 			        const name = document.createElement('span');
 			        name.className = 'token-name';
 			        name.textContent = shortPlayerName(safeText(player?.nickname || player?.name));
+              const meta = document.createElement('span');
+              meta.className = 'token-meta';
+              meta.textContent = safeText(player?.position || 'Jugador');
+	        const visuals = document.createElement('span');
+	        visuals.className = 'player-token-bank-visuals';
 	        const style = normalizeTokenStyle(tokenGlobalStyle);
 	        const badge = document.createElement('span');
 	        const number = document.createElement('span');
 	        number.className = 'token-number';
 	        number.textContent = kind === 'goalkeeper_local' ? 'GK' : (player.number ? String(player.number).slice(0, 2) : 'J');
+              const numberText = number.textContent;
 
 		        if (style === 'jersey') {
 		          const inlineNumber = document.createElement('span');
@@ -28487,9 +28633,19 @@
 	          if (kind === 'goalkeeper_local') badge.classList.add('is-goalkeeper');
 	          badge.appendChild(number);
 	        }
-
-	        button.appendChild(name);
-	        button.appendChild(badge);
+              const diskPreview = buildBankDiskPreview(kind, numberText);
+              const jerseyPreview = buildBankJerseyPreview(player, kind, numberText);
+              const photoPreview = buildBankPhotoPreview(player, kind, numberText);
+              if (tokenGlobalStyle === 'disk') diskPreview.classList.add('is-active');
+              else if (tokenGlobalStyle === 'photo') photoPreview.classList.add('is-active');
+              else jerseyPreview.classList.add('is-active');
+              visuals.appendChild(diskPreview);
+              visuals.appendChild(jerseyPreview);
+              visuals.appendChild(photoPreview);
+              copy.appendChild(name);
+              copy.appendChild(meta);
+	        button.appendChild(visuals);
+	        button.appendChild(copy);
 	        registerDraggableButton(button, () => ({ kind, playerId: String(player.id) }));
 			        button.addEventListener('click', () => {
 			          if (freeDrawMode) handleCanvasAction('draw_free');
@@ -28499,8 +28655,39 @@
 				        });
 		        playerBank.appendChild(button);
 		      });
+          if (rosterViewFilter === 'all') {
+            const gkCount = roster.filter((player) => isGoalkeeperPlayer(player)).length;
+            if (gkCount > 0 && gkCount < roster.length) {
+              const divider = document.createElement('div');
+              divider.className = 'player-bank-divider';
+              divider.textContent = 'Jugadores de campo';
+              const anchor = playerBank.children[gkCount];
+              if (anchor) playerBank.insertBefore(divider, anchor);
+              else playerBank.appendChild(divider);
+            }
+          }
+          syncQuickBarUi();
 		      schedulePlayerBankUpdate();
 		    };
+        quickBar?.addEventListener('click', (event) => {
+          const filterBtn = event.target.closest('button[data-roster-filter]');
+          if (filterBtn) {
+            event.preventDefault();
+            rosterViewFilter = safeText(filterBtn.dataset.rosterFilter) || 'all';
+            renderPlayerBank();
+            return;
+          }
+          const styleBtn = event.target.closest('button[data-bank-style]');
+          if (styleBtn) {
+            event.preventDefault();
+            tokenGlobalStyleUserSelected = true;
+            tokenGlobalStyle = normalizeTokenStyle(styleBtn.dataset.bankStyle);
+            try { window.localStorage?.setItem(TOKEN_STYLE_STORAGE_KEY, tokenGlobalStyle); } catch (e) { /* ignore */ }
+            syncTokenGlobalStyleUi();
+            renderPlayerBank();
+            setStatus(`Estilo de fichas: ${tokenGlobalStyle === 'disk' ? 'chapa' : (tokenGlobalStyle === 'jersey' ? 'camiseta' : 'foto')}.`);
+          }
+        });
 	    const selectTimelineStep = (index) => {
 	      if (index < 0 || index >= timeline.length) return;
 	      if (playbackTimer) return;

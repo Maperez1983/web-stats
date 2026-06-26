@@ -28932,11 +28932,7 @@ def coach_tactics_page(request):
     except Exception:
         player_catalog = []
     try:
-        available_players = list(
-            Player.objects
-            .filter(team=primary_team, is_active=True)
-            .order_by('number', 'name')[:60]
-        )
+        available_players = list(player_catalog or [])
     except Exception:
         available_players = []
 
@@ -47946,11 +47942,7 @@ def analysis_video_report_item_tactical_page(request, item_id):
     except Exception:
         player_catalog = []
     try:
-        available_players = list(
-            Player.objects
-            .filter(team=primary_team, is_active=True)
-            .order_by('number', 'name')[:60]
-        )
+        available_players = list(player_catalog or [])
     except Exception:
         available_players = []
 

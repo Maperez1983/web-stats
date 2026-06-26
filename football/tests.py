@@ -13951,6 +13951,28 @@ class StaffUserLinkingTests(TestCase):
         self.assertNotIn('id="pitch-3d-open"', html)
         self.assertNotIn('id="pitch-3d-open-standard"', html)
 
+    def test_task_builder_shows_roster_bank_with_visual_player_cards(self):
+        Player.objects.create(
+            team=self.team,
+            name='Jugador Banco',
+            nickname='Banco',
+            number=8,
+            position='MC',
+            is_active=True,
+        )
+
+        response = self.client.get(reverse('sessions-task-create'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'player-token-bank-visuals')
+        self.assertContains(response, 'token-meta')
+        self.assertContains(response, 'Jugador Banco')
+        self.assertContains(response, '"photo_url":')
+        self.assertContains(response, 'data-roster-filter="goalkeepers"')
+        self.assertContains(response, 'data-bank-style="photo"')
+        self.assertContains(response, '__tpadApplyRecommendedTokenStyle')
+        self.assertContains(response, 'data-resource="emoji"')
+
     def test_task_builder_prefills_age_group_from_team_category(self):
         self.team.category = 'Juvenil'
         self.team.save(update_fields=['category'])

@@ -1264,10 +1264,11 @@
 	        color: rgba(224, 242, 254, 0.95);
 	      }
       .player-bank button.player-token-bank {
-        padding: 0.48rem 0.42rem 0.62rem;
-        display: grid;
-        justify-items: center;
-        gap: 0.3rem;
+        padding: 0.58rem 0.6rem;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 0.58rem;
         background: rgba(255, 255, 255, 0.04);
       }
       .player-bank.is-opponent button.player-token-bank {
@@ -1277,13 +1278,92 @@
       .player-bank button.player-token-bank .token-name {
         display: block;
         max-width: 100%;
-        font-size: 0.66rem;
-        line-height: 1.15;
-        text-align: center;
-        color: #e2e8f0;
+        font-size: 0.82rem;
+        line-height: 1.12;
+        text-align: left;
+        color: #f8fafc;
+        font-weight: 800;
+        letter-spacing: 0.01em;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+      }
+      .player-bank button.player-token-bank .player-token-bank-copy {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 0.14rem;
+        min-width: 0;
+        flex: 1 1 auto;
+      }
+      .player-bank button.player-token-bank .player-token-bank-visuals {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        flex: 0 0 auto;
+      }
+      .player-bank button.player-token-bank .token-meta {
+        display: block;
+        max-width: 100%;
+        font-size: 0.65rem;
+        line-height: 1.15;
+        text-align: left;
+        color: rgba(186, 230, 253, 0.8);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .player-bank-quickbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.55rem;
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+      .player-bank-filter-group,
+      .player-bank-style-group {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        flex-wrap: wrap;
+      }
+      .player-bank-quickbar button {
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.05);
+        color: rgba(226,232,240,0.82);
+        border-radius: 999px;
+        padding: 0.28rem 0.62rem;
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .player-bank-quickbar button.is-active {
+        background: rgba(15,122,53,0.24);
+        border-color: rgba(52,211,153,0.5);
+        color: rgba(240,253,244,0.96);
+        box-shadow: 0 10px 22px rgba(2, 6, 23, 0.18);
+      }
+      .player-bank-divider {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 72px;
+        min-height: 72px;
+        padding: 0.35rem 0.45rem;
+        border-radius: 16px;
+        border: 1px dashed rgba(148, 163, 184, 0.34);
+        background: rgba(15, 23, 42, 0.22);
+        color: rgba(191, 219, 254, 0.74);
+        font-size: 0.62rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        text-align: center;
       }
       .player-bank button.player-token-bank .token-name.is-numbered {
         display: inline-flex;
@@ -1329,6 +1409,26 @@
           0 8px 16px rgba(2, 6, 23, 0.34);
         overflow: hidden;
       }
+      .player-bank button.player-token-bank .token-disk.is-preview,
+      .player-bank button.player-token-bank .token-jersey.is-preview,
+      .player-bank button.player-token-bank .token-photo.is-preview {
+        width: 34px;
+        height: 34px;
+        min-width: 34px;
+        min-height: 34px;
+        border-width: 1px;
+        box-shadow: 0 6px 14px rgba(15, 23, 42, 0.24);
+        opacity: 0.42;
+        transform: scale(0.92);
+        transition: opacity 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+      }
+      .player-bank button.player-token-bank .token-disk.is-preview.is-active,
+      .player-bank button.player-token-bank .token-jersey.is-preview.is-active,
+      .player-bank button.player-token-bank .token-photo.is-preview.is-active {
+        opacity: 1;
+        transform: scale(1.06);
+        box-shadow: 0 10px 18px rgba(15, 23, 42, 0.28);
+      }
       .player-bank button.player-token-bank .token-disk::after {
         content: "";
         position: absolute;
@@ -1368,10 +1468,17 @@
       .player-bank button.player-token-bank .token-jersey {
         border-radius: 16px;
       }
+      .player-bank button.player-token-bank .token-jersey.is-preview {
+        border-radius: 12px;
+      }
       .player-bank button.player-token-bank .token-jersey svg.token-jersey-svg {
         width: 56px;
         height: 56px;
         display: block;
+      }
+      .player-bank button.player-token-bank .token-jersey.is-preview svg.token-jersey-svg {
+        width: 38px;
+        height: 38px;
       }
       .player-bank button.player-token-bank .token-jersey.is-kit2d {
         background: transparent;
@@ -1395,6 +1502,9 @@
         inset: 0;
         background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.22), transparent 46%);
         pointer-events: none;
+      }
+      .player-bank button.player-token-bank .token-photo.is-preview::after {
+        inset: 0;
       }
       .player-bank button.player-token-bank .token-photo .token-initials {
         position: absolute;
@@ -1429,6 +1539,13 @@
         border: 1px solid rgba(255,255,255,0.14);
         text-shadow: none;
         z-index: 2;
+      }
+      .player-bank button.player-token-bank .token-disk.is-preview .token-number,
+      .player-bank button.player-token-bank .token-jersey.is-preview .token-number,
+      .player-bank button.player-token-bank .token-photo.is-preview .token-number {
+        font-size: 0.5rem;
+        padding: 1px 4px;
+        bottom: 2px;
       }
       .surface-picker {
         position: relative;
@@ -4342,9 +4459,9 @@
         height: 100%;
         position: relative;
         display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(320px, 360px);
+        grid-template-columns: minmax(0, 1fr) minmax(286px, 324px);
         grid-template-areas: "main side";
-        gap: 0.72rem;
+        gap: 0.82rem;
         overflow: hidden;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-side {
@@ -4370,9 +4487,11 @@
         box-shadow: 0 20px 46px rgba(2, 6, 23, 0.36);
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-side.section {
-        padding: 0.58rem;
-        border-radius: 18px;
-        background: rgba(8, 18, 32, 0.96);
+        padding: 0.48rem;
+        border-radius: 20px;
+        background:
+          linear-gradient(180deg, rgba(10, 20, 36, 0.98), rgba(7, 15, 28, 0.96)),
+          rgba(8, 18, 32, 0.96);
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-main,
       body:not(.tactics-mode).task-mode-ready.task-mode-board .board-workbench,
@@ -4446,12 +4565,30 @@
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
       }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-timeline-dock.is-empty {
+        gap: 0.18rem;
+        padding: 0.34rem 0.48rem;
+        background: rgba(6, 14, 26, 0.78);
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-timeline-dock.is-empty .task-timeline-dock-head {
+        min-height: 34px;
+        align-items: center;
+      }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .task-timeline-dock-head {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 0.5rem;
         flex-wrap: wrap;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-timeline-dock.is-empty .task-timeline-dock-head span {
+        display: none;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-timeline-dock.is-empty .task-timeline-dock-actions button:not(#task-step-add-quick) {
+        display: none;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-timeline-dock.is-empty .task-timeline-dock-actions {
+        gap: 0;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .task-timeline-dock-head strong {
         font-size: 0.72rem;
@@ -4490,6 +4627,16 @@
       body:not(.tactics-mode).task-mode-ready.task-mode-board .task-timeline-quick .timeline-step {
         min-height: 52px;
         border-radius: 14px;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-timeline-quick .timeline-empty {
+        min-height: 44px;
+        margin: 0;
+        padding: 0.58rem 0.75rem;
+        border-radius: 14px;
+        border: 1px dashed rgba(255,255,255,0.12);
+        background: rgba(34, 197, 94, 0.06);
+        color: rgba(226,232,240,0.76);
+        font-size: 0.78rem;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-viewport {
         flex: 1 1 auto;
@@ -4550,13 +4697,17 @@
         bottom: auto;
         z-index: 10;
         margin-top: 0.72rem;
-        padding: 0.48rem 0.6rem 0.52rem;
-        border-radius: 18px;
+        padding: 0.58rem 0.68rem 0.62rem;
+        border-radius: 22px;
         border: 1px solid rgba(255,255,255,0.14);
-        background: rgba(6, 14, 26, 0.88);
+        background:
+          radial-gradient(circle at top left, rgba(34, 197, 94, 0.14), transparent 32%),
+          linear-gradient(180deg, rgba(7, 16, 30, 0.96), rgba(4, 10, 22, 0.92));
         backdrop-filter: blur(14px);
         -webkit-backdrop-filter: blur(14px);
-        box-shadow: 0 20px 48px rgba(2, 6, 23, 0.34);
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.06),
+          0 22px 52px rgba(2, 6, 23, 0.36);
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board #task-roster-bank::before {
         content: "Jugadores";
@@ -4568,8 +4719,8 @@
         color: rgba(226,232,240,0.78);
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board #task-roster-bank .player-bank-head {
-        margin-bottom: 0.35rem;
-        gap: 0.45rem;
+        margin-bottom: 0.46rem;
+        gap: 0.52rem;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board #task-roster-bank h3,
       body:not(.tactics-mode).task-mode-ready.task-mode-board #task-roster-bank .player-bank-tools,
@@ -4581,17 +4732,65 @@
       body:not(.tactics-mode).task-mode-ready.task-mode-board #task-roster-bank .player-bank {
         display: flex;
         flex-wrap: nowrap;
-        gap: 0.38rem;
+        gap: 0.66rem;
         overflow-x: auto;
         overflow-y: hidden;
-        padding-bottom: 0.08rem;
+        padding: 0.16rem 0.04rem 0.22rem;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #task-roster-bank .player-bank.is-empty {
+        display: block;
+        overflow: visible;
+        min-height: 96px;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board #task-roster-bank .player-bank > button.player-token-bank {
         flex: 0 0 auto;
-        min-width: 96px;
-        min-height: 42px;
-        border-radius: 12px;
-        padding: 0.28rem 0.36rem;
+        min-width: 198px;
+        min-height: 84px;
+        border-radius: 18px;
+        padding: 0.66rem 0.74rem;
+        border: 1px solid rgba(255,255,255,0.08);
+        background:
+          linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03)),
+          rgba(255,255,255,0.03);
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.05),
+          0 14px 26px rgba(2, 6, 23, 0.18);
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #task-roster-bank .player-bank > button.player-token-bank.is-active {
+        border-color: rgba(52, 211, 153, 0.52);
+        background:
+          linear-gradient(180deg, rgba(16, 185, 129, 0.18), rgba(15, 23, 42, 0.1)),
+          rgba(255,255,255,0.04);
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.08),
+          0 18px 30px rgba(5, 150, 105, 0.18);
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #task-roster-bank .player-bank-empty {
+        display: grid;
+        place-items: center;
+        min-height: 88px;
+        width: 100%;
+        padding: 0.8rem 1rem;
+        border-radius: 18px;
+        border: 1px dashed rgba(148, 163, 184, 0.28);
+        background: rgba(15, 23, 42, 0.22);
+        color: rgba(191, 219, 254, 0.78);
+        text-align: center;
+        box-sizing: border-box;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #task-roster-bank .player-bank-empty strong {
+        display: block;
+        color: rgba(248,250,252,0.95);
+        font-size: 0.82rem;
+        letter-spacing: 0.04em;
+        margin-bottom: 0.18rem;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #task-roster-bank .player-bank-empty span {
+        font-size: 0.72rem;
+        line-height: 1.35;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #task-roster-bank .player-bank-quickbar {
+        justify-content: space-between;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board.task-board-roster-collapsed #task-roster-bank {
         width: auto;
@@ -4611,8 +4810,9 @@
         position: sticky;
         top: 0;
         z-index: 2;
-        padding-bottom: 0.22rem;
-        background: linear-gradient(180deg, rgba(8, 18, 32, 0.98), rgba(8, 18, 32, 0.84));
+        padding-bottom: 0.32rem;
+        margin-bottom: 0.12rem;
+        background: linear-gradient(180deg, rgba(8, 18, 32, 0.99), rgba(8, 18, 32, 0.88));
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .editor-pane-card[data-board-pane="starter"] {
         display: none;
@@ -4620,9 +4820,29 @@
       body:not(.tactics-mode).task-mode-ready.task-mode-board .resource-details {
         min-height: 0;
       }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .library-copy {
+        display: flex;
+        flex-direction: column;
+        gap: 0.18rem;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .library-title {
+        font-size: 0.72rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .library-current {
+        font-size: 0.68rem;
+        opacity: 0.82;
+      }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .resource-panel.is-visible {
         overflow-y: auto;
         overflow-x: hidden;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .tool-group-title {
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 0.45rem;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .resource-details {
         min-height: 0;
@@ -4635,9 +4855,12 @@
         gap: 0.35rem;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .editor-pane-card {
-        padding: 0.56rem;
-        border-radius: 14px;
-        background: rgba(255,255,255,0.028);
+        padding: 0.6rem;
+        border-radius: 16px;
+        border: 1px solid rgba(255,255,255,0.08);
+        background:
+          linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.018)),
+          rgba(255,255,255,0.022);
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .editor-side-section-head span {
         display: none;
@@ -4675,12 +4898,10 @@
         height: 24px;
         font-size: 1rem;
       }
-      body:not(.tactics-mode):not(.task-editor-advanced).task-mode-ready.task-mode-board .resource-tab[data-resource="importados"],
-      body:not(.tactics-mode):not(.task-editor-advanced).task-mode-ready.task-mode-board .resource-tab[data-resource="emoji"] {
+      body:not(.tactics-mode):not(.task-editor-advanced).task-mode-ready.task-mode-board .resource-tab[data-resource="importados"] {
         display: none;
       }
-      body:not(.tactics-mode):not(.task-editor-advanced).task-mode-ready.task-mode-board .resource-panel[data-panel="importados"],
-      body:not(.tactics-mode):not(.task-editor-advanced).task-mode-ready.task-mode-board .resource-panel[data-panel="emoji"] {
+      body:not(.tactics-mode):not(.task-editor-advanced).task-mode-ready.task-mode-board .resource-panel[data-panel="importados"] {
         display: none !important;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board #task-destination-open {
@@ -5866,6 +6087,10 @@
         background: rgba(244,180,0,0.14);
         color: rgba(248,250,252,0.96);
       }
+      body:not(.tactics-mode) .editor-side-tab {
+        min-height: 40px;
+        border-radius: 12px;
+      }
       body:not(.tactics-mode) .editor-side-pane[hidden] {
         display: none !important;
       }
@@ -5911,12 +6136,10 @@
         text-transform: none;
         letter-spacing: 0.02em;
       }
-      body:not(.tactics-mode):not(.task-editor-advanced) .resource-tab[data-resource="importados"],
-      body:not(.tactics-mode):not(.task-editor-advanced) .resource-tab[data-resource="emoji"] {
+      body:not(.tactics-mode):not(.task-editor-advanced) .resource-tab[data-resource="importados"] {
         display: none;
       }
-      body:not(.tactics-mode):not(.task-editor-advanced) .resource-panel[data-panel="importados"],
-      body:not(.tactics-mode):not(.task-editor-advanced) .resource-panel[data-panel="emoji"] {
+      body:not(.tactics-mode):not(.task-editor-advanced) .resource-panel[data-panel="importados"] {
         display: none !important;
       }
       body:not(.tactics-mode) .editor-side-section-head {
@@ -5996,7 +6219,7 @@
         gap: 0.38rem;
       }
       body:not(.tactics-mode) .library-head {
-        margin-bottom: 0.32rem;
+        margin-bottom: 0.4rem;
         align-items: flex-start;
       }
       body:not(.tactics-mode) .library-subtitle,
@@ -6018,11 +6241,11 @@
         grid-template-columns: 1fr;
       }
       body:not(.tactics-mode) .resource-tab {
-        min-height: 40px;
+        min-height: 44px;
         justify-content: flex-start;
-        border-radius: 12px;
-        padding: 0.36rem 0.44rem;
-        background: rgba(255,255,255,0.035);
+        border-radius: 14px;
+        padding: 0.42rem 0.48rem;
+        background: rgba(255,255,255,0.04);
         border-color: rgba(255,255,255,0.12);
         letter-spacing: 0.03em;
       }
@@ -6037,7 +6260,7 @@
         border-radius: 10px;
       }
       body:not(.tactics-mode) .resource-panel {
-        margin-top: 0.5rem;
+        margin-top: 0.56rem;
       }
       body:not(.tactics-mode) .command-bar {
         padding: 0.38rem;
@@ -6047,15 +6270,15 @@
       }
       body:not(.tactics-mode) .pitch-side .resource-strip {
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 0.32rem;
+        gap: 0.38rem;
       }
       body:not(.tactics-mode) .pitch-side .resource-strip button.tool-icon,
       body:not(.tactics-mode) .pitch-side .resource-strip button[data-add],
       body:not(.tactics-mode) .pitch-side .resource-strip button[data-action] {
         min-width: 0;
-        min-height: 44px;
-        padding: 0.34rem;
-        border-radius: 10px;
+        min-height: 52px;
+        padding: 0.38rem;
+        border-radius: 12px;
         justify-content: center;
       }
       body:not(.tactics-mode) .pitch-side .resource-strip button.tool-icon .tool-emoji {
@@ -6065,6 +6288,21 @@
       }
       body:not(.tactics-mode) .pitch-main > .section {
         margin-top: 0.65rem;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #task-simple-hint {
+        margin-top: 0.42rem;
+        padding: 0.6rem 0.8rem;
+        border-radius: 16px;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(6, 14, 26, 0.72);
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #task-simple-hint .quick-start {
+        display: none;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #task-simple-hint strong {
+        font-size: 0.74rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
       }
       body:not(.tactics-mode) .board-status-row {
         display: flex;
@@ -6097,26 +6335,29 @@
         text-transform: uppercase;
       }
       body:not(.tactics-mode) .pitch-main .player-bank-head {
-        margin-bottom: 0.45rem;
+        margin-bottom: 0.5rem;
+      }
+      body:not(.tactics-mode) .pitch-main .player-bank-quickbar {
+        margin-left: auto;
       }
       body:not(.tactics-mode) .pitch-main .player-bank {
         display: grid;
         grid-auto-flow: column;
-        grid-auto-columns: 118px;
-        grid-template-rows: repeat(2, auto);
-        gap: 0.42rem;
+        grid-auto-columns: 204px;
+        grid-template-rows: repeat(1, auto);
+        gap: 0.68rem;
         overflow-x: auto;
         overflow-y: hidden;
-        padding: 0.05rem 0.05rem 0.35rem;
+        padding: 0.16rem 0.06rem 0.38rem;
         -webkit-overflow-scrolling: touch;
         scrollbar-gutter: stable both-edges;
-        max-height: 190px;
+        max-height: 148px;
       }
       body:not(.tactics-mode) .pitch-main .player-bank > button.player-token-bank {
         width: auto;
         min-width: 0;
-        padding: 0.48rem 0.55rem;
-        border-radius: 14px;
+        padding: 0.7rem 0.78rem;
+        border-radius: 18px;
       }
       body:not(.tactics-mode) .pitch-main .player-bank-nav {
         display: inline-flex;
@@ -6125,6 +6366,15 @@
         width: 38px;
         height: 34px;
         font-size: 17px;
+      }
+      @media (max-width: 900px) {
+        .player-bank-head {
+          flex-wrap: wrap;
+        }
+        .player-bank-quickbar {
+          width: 100%;
+          justify-content: space-between;
+        }
       }
       .library-head {
         display: grid;
@@ -10318,12 +10568,12 @@
 	            if (guideBtn) guideBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
 	            if (guideHint) guideHint.hidden = !on;
 	          };
-		          let guideOn = !isTacticsMode;
+		          let guideOn = false;
 		          try {
 		            const raw = window.localStorage?.getItem(guideKey);
-		            guideOn = raw == null ? !isTacticsMode : raw === '1';
+		            guideOn = raw == null ? false : raw === '1';
 		          } catch (e) {
-		            guideOn = !isTacticsMode;
+		            guideOn = false;
 		          }
 	          applyGuide(guideOn);
 	          if (guideBtn) {
@@ -15090,6 +15340,11 @@
           const syncKindUi = (key) => {
             const next = String(key || '2d').trim();
             kindButtons.forEach((btn) => btn.classList.toggle('is-active', String(btn.dataset.taskKind || '') === next));
+            try {
+              if (typeof window.__tpadApplyRecommendedTokenStyle === 'function') {
+                window.__tpadApplyRecommendedTokenStyle(next);
+              }
+            } catch (e) { /* ignore */ }
           };
 
           const activate = (pane) => {
@@ -15265,9 +15520,7 @@
           });
 
           syncSelectionState();
-          if (!window.matchMedia('(max-width: 980px)').matches) {
-            document.body.classList.add('task-board-roster-collapsed');
-          }
+          document.body.classList.remove('task-board-roster-collapsed');
           syncComplexityUi();
           syncWorkflowUi('build');
           syncKindUi('2d');
