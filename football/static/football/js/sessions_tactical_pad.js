@@ -24693,6 +24693,7 @@
 	        setStatus(`Superficie preparada: ${PRESET_LABEL[preset] || 'campo'} en ${ORIENTATION_LABEL[pitchOrientation]}.`);
 	      }
 	    };
+	    try { window.__webstatsTaskBuilderSetPreset = setPreset; } catch (e) { /* ignore */ }
 				    const applyPitchOrientation = (nextOrientation, options = {}) => {
 				      const normalized = safeText(nextOrientation, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
 				      if (normalized === pitchOrientation && !options.force) return;
@@ -25502,6 +25503,7 @@
 
 			      return applyAssistantBoardTemplate({ items, clear: false });
 			    };
+			    try { window.__webstatsTaskBuilderApplyLocalTemplate = applyLocalTemplate; } catch (e) { /* ignore */ }
 			    const registerDraggableButton = (button, payloadBuilder) => {
 			      if (!button) return;
 			      button.draggable = true;

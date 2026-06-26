@@ -5158,6 +5158,14 @@
         min-height: 46px;
         border-radius: 14px;
       }
+      body:not(.tactics-mode):not(.task-editor-advanced) .resource-tab[data-resource="importados"],
+      body:not(.tactics-mode):not(.task-editor-advanced) .resource-tab[data-resource="emoji"] {
+        display: none;
+      }
+      body:not(.tactics-mode):not(.task-editor-advanced) .resource-panel[data-panel="importados"],
+      body:not(.tactics-mode):not(.task-editor-advanced) .resource-panel[data-panel="emoji"] {
+        display: none !important;
+      }
       body:not(.tactics-mode) .editor-side-section-head {
         display: flex;
         justify-content: space-between;
@@ -6227,6 +6235,7 @@
                           <button type="button" class="button secondary" data-guide-action="resources">Abrir recursos</button>
                           <button type="button" class="button secondary" data-guide-action="players">Ir a plantilla</button>
                           <button type="button" class="button secondary" data-guide-action="draw">Dibujar recorrido</button>
+                          <button type="button" class="button secondary" data-guide-action="advanced" id="task-guide-advanced-toggle">Ver avanzado</button>
                         </div>
                       </div>
                       <div class="editor-pane-card">
@@ -7644,11 +7653,11 @@
                             <span>Te preparan la superficie base más habitual para cada tipo de tarea.</span>
                           </div>
                           <div class="board-preset-strip">
-                            <button type="button" class="board-preset-card" data-guided-preset="seven_side_single" data-guided-resource="base"><strong>Rondo</strong><span>Espacio corto y mucho contacto.</span></button>
-                            <button type="button" class="board-preset-card" data-guided-preset="half_pitch" data-guided-resource="base"><strong>Posesión</strong><span>Campo medio para conservar y progresar.</span></button>
-                            <button type="button" class="board-preset-card" data-guided-preset="attacking_third" data-guided-resource="pro"><strong>Finalización</strong><span>Último tercio listo para remate.</span></button>
-                            <button type="button" class="board-preset-card" data-guided-preset="half_pitch" data-guided-resource="pro"><strong>Circuito</strong><span>Montaje rápido de material y recorridos.</span></button>
-                            <button type="button" class="board-preset-card" data-guided-preset="full_pitch" data-guided-resource="base"><strong>Partido</strong><span>Campo completo para estructura global.</span></button>
+                            <button type="button" class="board-preset-card" data-guided-preset="seven_side_single" data-guided-resource="base" data-guided-template="zone_14"><strong>Rondo</strong><span>Espacio corto y mucho contacto.</span></button>
+                            <button type="button" class="board-preset-card" data-guided-preset="half_pitch" data-guided-resource="base" data-guided-template="formation_433"><strong>Posesión</strong><span>Campo medio para conservar y progresar.</span></button>
+                            <button type="button" class="board-preset-card" data-guided-preset="attacking_third" data-guided-resource="pro" data-guided-template="abp_fk_frontal"><strong>Finalización</strong><span>Último tercio listo para remate.</span></button>
+                            <button type="button" class="board-preset-card" data-guided-preset="half_pitch" data-guided-resource="pro" data-guided-template="halfspace_left"><strong>Circuito</strong><span>Montaje rápido de material y recorridos.</span></button>
+                            <button type="button" class="board-preset-card" data-guided-preset="full_pitch" data-guided-resource="base" data-guided-template="formation_4231"><strong>Partido</strong><span>Campo completo para estructura global.</span></button>
                           </div>
                         </div>
                         <div class="board-quickbar" aria-label="Bandeja rápida de recursos">
@@ -14258,6 +14267,12 @@
               if (action === 'draw') {
                 activate('edit');
                 try { quickDrawBtn?.click(); } catch (e) { /* ignore */ }
+                return;
+              }
+              if (action === 'advanced') {
+                const advanced = !document.body.classList.contains('task-editor-advanced');
+                document.body.classList.toggle('task-editor-advanced', advanced);
+                button.textContent = advanced ? 'Ocultar avanzado' : 'Ver avanzado';
               }
             });
           });
@@ -14269,9 +14284,17 @@
               const resource = String(button.dataset.guidedResource || '').trim();
               if (presetSelect && preset) {
                 try {
-                  presetSelect.value = preset;
-                  presetSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                  if (typeof window.__webstatsTaskBuilderSetPreset === 'function') {
+                    window.__webstatsTaskBuilderSetPreset(preset);
+                  } else {
+                    presetSelect.value = preset;
+                    presetSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                  }
                 } catch (e) { /* ignore */ }
+              }
+              const template = String(button.dataset.guidedTemplate || '').trim();
+              if (template && typeof window.__webstatsTaskBuilderApplyLocalTemplate === 'function') {
+                try { window.__webstatsTaskBuilderApplyLocalTemplate(template); } catch (e) { /* ignore */ }
               }
               activate('resources');
               if (resource) activateResourceTab(resource);
