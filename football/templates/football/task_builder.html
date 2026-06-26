@@ -5238,11 +5238,27 @@
         min-width: 0;
       }
       body:not(.tactics-mode) .builder {
+        width: 100%;
+        max-width: none;
         grid-template-columns: minmax(0, 2.15fr) minmax(320px, 380px);
+        align-items: stretch;
       }
       body:not(.tactics-mode) .page {
-        max-width: 2320px;
-        padding-top: 0.8rem;
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        padding: 0.8rem 0.8rem 1rem;
+        min-height: 100vh;
+        min-height: 100dvh;
+      }
+      body:not(.tactics-mode) main.page {
+        width: 100%;
+        max-width: none;
+      }
+      body:not(.tactics-mode) .builder > section.panel,
+      body:not(.tactics-mode) .builder > aside.panel {
+        width: 100%;
+        max-width: none;
       }
       body:not(.tactics-mode) .topbar {
         position: sticky;
