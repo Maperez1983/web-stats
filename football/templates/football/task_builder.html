@@ -4557,19 +4557,34 @@
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .task-timeline-dock {
         position: absolute;
-        left: 0.5rem;
-        right: 0.5rem;
-        top: 0.5rem;
-        z-index: 64;
+        top: 1rem;
+        right: 1rem;
+        z-index: 72;
         display: grid;
-        gap: 0.38rem;
-        padding: 0.46rem 0.54rem;
-        border-radius: 18px;
-        border: 1px solid rgba(255,255,255,0.12);
-        background: rgba(6, 14, 26, 0.84);
-        box-shadow: 0 18px 34px rgba(2, 6, 23, 0.3);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
+        gap: 0.5rem;
+        width: min(420px, calc(100% - 2rem));
+        max-height: min(52vh, 420px);
+        padding: 0.7rem;
+        border-radius: 22px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: linear-gradient(180deg, rgba(7, 16, 30, 0.94), rgba(5, 11, 21, 0.88));
+        box-shadow:
+          0 22px 44px rgba(2, 6, 23, 0.36),
+          inset 0 1px 0 rgba(255,255,255,0.08);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        opacity: 0;
+        pointer-events: none;
+        transform: translate3d(0, -12px, 0) scale(0.98);
+        transition: opacity 160ms ease, transform 180ms ease;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-timeline-dock[hidden] {
+        display: grid;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board.task-sequence-open .task-timeline-dock {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translate3d(0, 0, 0) scale(1);
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .task-timeline-dock.is-empty {
         gap: 0.18rem;
@@ -4585,7 +4600,14 @@
         align-items: center;
         justify-content: space-between;
         gap: 0.5rem;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-timeline-dock-title {
+        min-width: 0;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-timeline-dock-title strong,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-timeline-dock-title span {
+        display: block;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .task-timeline-dock.is-empty .task-timeline-dock-head span {
         display: none;
@@ -4611,6 +4633,7 @@
         align-items: center;
         gap: 0.3rem;
         flex-wrap: wrap;
+        justify-content: flex-end;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .task-timeline-dock-actions button {
         min-height: 32px;
@@ -4622,13 +4645,25 @@
         font-size: 0.66rem;
         font-weight: 900;
       }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-timeline-dock-close {
+        width: 32px;
+        min-width: 32px;
+        min-height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+      }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .task-timeline-quick {
         display: grid;
         grid-auto-flow: column;
         grid-auto-columns: minmax(196px, 1fr);
         gap: 0.36rem;
         overflow-x: auto;
-        overflow-y: hidden;
+        overflow-y: auto;
+        max-height: min(34vh, 260px);
+        padding-right: 0.12rem;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .task-timeline-quick .timeline-step {
         min-height: 52px;
@@ -4653,7 +4688,7 @@
         justify-content: center;
         overflow-x: hidden;
         overflow-y: auto;
-        padding: 5.25rem 0 1rem;
+        padding: 0.4rem 0 1rem;
         box-sizing: border-box;
         scrollbar-gutter: stable both-edges;
       }
@@ -5027,9 +5062,11 @@
           grid-template-columns: 1fr;
         }
         body:not(.tactics-mode).task-mode-ready.task-mode-board .task-timeline-dock {
-          top: 0.42rem;
-          left: 0.42rem;
-          right: 0.42rem;
+          top: 0.55rem;
+          left: 0.55rem;
+          right: 0.55rem;
+          width: auto;
+          max-height: min(58vh, 460px);
         }
         body:not(.tactics-mode).task-mode-ready.task-mode-board .board-status-row {
           left: 0.42rem;
@@ -8794,9 +8831,9 @@
                         </div>
                         <div class="board-stage-shell">
                           {% if not tactics_mode %}
-                          <div class="task-timeline-dock" id="task-timeline-dock">
+                          <div class="task-timeline-dock" id="task-timeline-dock" hidden aria-hidden="true">
                             <div class="task-timeline-dock-head">
-                              <div>
+                              <div class="task-timeline-dock-title">
                                 <strong>Secuencia</strong>
                                 <span>Diseña pasos interactivos sin salir de la pizarra.</span>
                               </div>
@@ -8805,6 +8842,7 @@
                                 <button type="button" id="task-step-duplicate-quick">Duplicar</button>
                                 <button type="button" id="task-step-remove-quick">Eliminar</button>
                                 <button type="button" id="task-step-play-quick">Previsualizar</button>
+                                <button type="button" class="task-timeline-dock-close" id="task-timeline-close" aria-label="Cerrar secuencia">×</button>
                               </div>
                             </div>
                             <div class="timeline-list task-timeline-quick" id="task-timeline-list-quick"></div>
@@ -15352,6 +15390,9 @@
           const quickDuplicateStep = document.getElementById('task-step-duplicate-quick');
           const quickRemoveStep = document.getElementById('task-step-remove-quick');
           const quickPlayStep = document.getElementById('task-step-play-quick');
+          const timelineDock = document.getElementById('task-timeline-dock');
+          const timelineClose = document.getElementById('task-timeline-close');
+          const scenariosBtn = document.getElementById('task-scenarios-btn');
           const baseAddStep = document.getElementById('task-step-add');
           const baseDuplicateStep = document.getElementById('task-step-duplicate');
           const baseRemoveStep = document.getElementById('task-step-remove');
@@ -15442,6 +15483,28 @@
             try { source.click(); } catch (e) { /* ignore */ }
           };
 
+          const openTimelineDock = () => {
+            if (!timelineDock) return;
+            timelineDock.hidden = false;
+            timelineDock.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('task-sequence-open');
+          };
+
+          const closeTimelineDock = () => {
+            if (!timelineDock) return;
+            document.body.classList.remove('task-sequence-open');
+            timelineDock.setAttribute('aria-hidden', 'true');
+            window.setTimeout(() => {
+              if (!document.body.classList.contains('task-sequence-open')) timelineDock.hidden = true;
+            }, 180);
+          };
+
+          const toggleTimelineDock = () => {
+            if (!timelineDock) return;
+            if (document.body.classList.contains('task-sequence-open')) closeTimelineDock();
+            else openTimelineDock();
+          };
+
           sideTabs.forEach((tab) => {
             tab.addEventListener('click', (event) => {
               try { event.preventDefault(); } catch (e) { /* ignore */ }
@@ -15470,13 +15533,39 @@
             syncComplexityUi();
           });
           document.addEventListener('keydown', (event) => {
-            if (event.key === 'Escape') closeBoardDrawers();
+            if (event.key === 'Escape') {
+              closeBoardDrawers();
+              closeTimelineDock();
+            }
           });
 
-          quickAddStep?.addEventListener('click', () => proxyClick(baseAddStep));
+          quickAddStep?.addEventListener('click', () => {
+            openTimelineDock();
+            proxyClick(baseAddStep);
+          });
           quickDuplicateStep?.addEventListener('click', () => proxyClick(baseDuplicateStep));
           quickRemoveStep?.addEventListener('click', () => proxyClick(baseRemoveStep));
           quickPlayStep?.addEventListener('click', () => proxyClick(basePlayStep));
+          timelineClose?.addEventListener('click', (event) => {
+            try { event.preventDefault(); } catch (e) { /* ignore */ }
+            closeTimelineDock();
+          });
+          scenariosBtn?.addEventListener('click', (event) => {
+            try { event.preventDefault(); } catch (e) { /* ignore */ }
+            toggleTimelineDock();
+          });
+          timelineDock?.addEventListener('click', (event) => {
+            try { event.stopPropagation(); } catch (e) { /* ignore */ }
+          });
+          document.addEventListener('click', (event) => {
+            if (!timelineDock || timelineDock.hidden) return;
+            if (!document.body.classList.contains('task-sequence-open')) return;
+            const target = event.target;
+            if (!(target instanceof Element)) return;
+            if (timelineDock.contains(target)) return;
+            if (scenariosBtn && (target === scenariosBtn || scenariosBtn.contains(target))) return;
+            closeTimelineDock();
+          });
 
           workflowButtons.forEach((btn) => {
             btn.addEventListener('click', () => {
@@ -15491,6 +15580,7 @@
               if (action === 'animate') {
                 proxyClick(boardModeBtn);
                 closeBoardDrawers();
+                openTimelineDock();
                 if (stepListQuick && !stepListQuick.children.length) proxyClick(baseAddStep);
                 try { stepListQuick?.scrollIntoView({ block: 'nearest', inline: 'start' }); } catch (e) { /* ignore */ }
                 syncWorkflowUi('animate');

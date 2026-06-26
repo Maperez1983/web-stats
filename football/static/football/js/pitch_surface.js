@@ -279,7 +279,51 @@
     };
 
     const drawGoal = (x, y, width, depth, atTop) => {
-      const goalY = atTop ? (y - depth) : (y + (stage.height));
+      const goalY = atTop ? (y - depth) : (y + stage.height);
+      if (grassStyle === 'stadium_top' || grassStyle === 'broadcast_premium') {
+        const frameStroke = grassStyle === 'stadium_top' ? 'rgba(255,255,255,0.44)' : 'rgba(255,255,255,0.34)';
+        const meshStroke = grassStyle === 'stadium_top' ? 'rgba(255,255,255,0.24)' : 'rgba(255,255,255,0.18)';
+        drawRoot.appendChild(createSvgNode(doc, 'rect', {
+          x,
+          y: goalY,
+          width,
+          height: depth,
+          fill: grassStyle === 'stadium_top' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.05)',
+          stroke: frameStroke,
+          'stroke-width': 3,
+        }));
+        for (let i = 1; i <= 4; i += 1) {
+          const yy = goalY + ((depth * i) / 5);
+          drawRoot.appendChild(createSvgNode(doc, 'line', {
+            x1: x,
+            y1: yy,
+            x2: x + width,
+            y2: yy,
+            stroke: meshStroke,
+            'stroke-width': 1,
+          }));
+        }
+        for (let i = 1; i <= 3; i += 1) {
+          const xx = x + ((width * i) / 4);
+          drawRoot.appendChild(createSvgNode(doc, 'line', {
+            x1: xx,
+            y1: goalY,
+            x2: xx,
+            y2: goalY + depth,
+            stroke: meshStroke,
+            'stroke-width': 1,
+          }));
+        }
+        drawRoot.appendChild(createSvgNode(doc, 'line', {
+          x1: x + 3,
+          y1: atTop ? goalY - 2 : goalY + depth + 2,
+          x2: x + width - 3,
+          y2: atTop ? goalY - 2 : goalY + depth + 2,
+          stroke: 'rgba(2,6,23,0.18)',
+          'stroke-width': 3,
+        }));
+        return;
+      }
       drawRoot.appendChild(createSvgNode(doc, 'rect', {
         x,
         y: goalY,
@@ -289,6 +333,48 @@
         stroke: soft,
         'stroke-width': 3,
       }));
+    };
+
+    const drawAdvertisingBoards = (x, y, width, height) => {
+      if (grassStyle !== 'stadium_top' && grassStyle !== 'broadcast_premium') return;
+      const offset = grassStyle === 'stadium_top' ? 30 : 16;
+      const bandH = grassStyle === 'stadium_top' ? 18 : 11;
+      const palette = grassStyle === 'stadium_top'
+        ? ['#0f172a', '#0ea5e9', '#16a34a', '#f8fafc', '#0ea5e9', '#0f172a']
+        : ['rgba(15,23,42,0.76)', 'rgba(34,211,238,0.64)', 'rgba(255,255,255,0.74)', 'rgba(34,197,94,0.62)', 'rgba(255,255,255,0.74)', 'rgba(15,23,42,0.76)'];
+      const segments = 6;
+      const segmentW = width / segments;
+      const topY = y - offset - bandH;
+      const bottomY = y + height + offset;
+      for (let i = 0; i < segments; i += 1) {
+        const segX = x + (i * segmentW) + 4;
+        const segW = Math.max(14, segmentW - 8);
+        [topY, bottomY].forEach((bandY) => {
+          drawRoot.appendChild(createSvgNode(doc, 'rect', {
+            x: segX,
+            y: bandY,
+            width: segW,
+            height: bandH,
+            rx: 7,
+            ry: 7,
+            fill: palette[i % palette.length],
+            stroke: 'rgba(255,255,255,0.3)',
+            'stroke-width': 1.3,
+          }));
+          if (grassStyle === 'stadium_top') {
+            drawRoot.appendChild(createSvgNode(doc, 'rect', {
+              x: segX + 3,
+              y: bandY + 3,
+              width: Math.max(8, segW - 6),
+              height: Math.max(6, bandH - 6),
+              rx: 5,
+              ry: 5,
+              fill: 'rgba(255,255,255,0.12)',
+              stroke: 'none',
+            }));
+          }
+        });
+      }
     };
 
     const drawStadiumContext = (x, y, width, height) => {
@@ -549,6 +635,7 @@
       const goalDepth = 22;
       drawGoal(stage.x + stage.width * 0.42, stage.y, stage.width * 0.16, goalDepth, true);
       drawGoal(stage.x + stage.width * 0.42, stage.y, stage.width * 0.16, goalDepth, false);
+      drawAdvertisingBoards(stage.x, stage.y, stage.width, stage.height);
     } else if (preset === 'half_pitch') {
       // Half pitch: keep top half.
       const halfHeight = stage.height / 2;
@@ -565,6 +652,7 @@
       const xGoal = stage.x + (stage.width - goalW) / 2;
       drawRoot.appendChild(createSvgNode(doc, 'rect', { x: xBox, y: stage.y, width: boxW, height: boxH, fill: 'none', stroke: line, 'stroke-width': 3 }));
       drawRoot.appendChild(createSvgNode(doc, 'rect', { x: xGoal, y: stage.y, width: goalW, height: goalH, fill: 'none', stroke: line, 'stroke-width': 3 }));
+      drawAdvertisingBoards(stage.x, stage.y, stage.width, halfHeight);
     } else if (preset === 'blank') {
       // Surface free: keep only grass rect already drawn.
       pitchBox = { x: stage.x, y: stage.y, width: stage.width, height: stage.height };
@@ -577,6 +665,7 @@
       const goalDepth = 22;
       drawGoal(stage.x + stage.width * 0.42, stage.y, stage.width * 0.16, goalDepth, true);
       drawGoal(stage.x + stage.width * 0.42, stage.y, stage.width * 0.16, goalDepth, false);
+      drawAdvertisingBoards(stage.x, stage.y, stage.width, stage.height);
     }
 
     // For downstream consumers (export), expose pitch box.
