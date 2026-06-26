@@ -3091,6 +3091,108 @@
         refreshLayerList();
       })();
     </script>
+    <script>
+      (() => {
+        const canEditTask = "{{ can_edit_task|yesno:'true,false' }}" === 'true';
+        const tabButtons = Array.from(document.querySelectorAll('[data-task-tab]'));
+        const tabPanels = Array.from(document.querySelectorAll('[data-task-tab-panel]'));
+        const editTabButtons = Array.from(document.querySelectorAll('[data-task-edit-tab]'));
+        const editTabPanels = Array.from(document.querySelectorAll('[data-task-edit-tab-panel]'));
+        const formatTabButtons = Array.from(document.querySelectorAll('[data-task-format-tab]'));
+        const formatTabPanels = Array.from(document.querySelectorAll('[data-task-format-panel]'));
+        const enterEditButton = document.getElementById('task-detail-enter-edit');
+        if (!tabButtons.length || !tabPanels.length) return;
+
+        let activeTaskTab = "{{ active_task_tab|escapejs }}" || 'presentation';
+        let activeTaskEditTab = "{{ active_task_edit_tab|default:'graphic'|escapejs }}" || 'graphic';
+        let activeTaskFormatTab = "{{ active_task_format_tab|default:'uefa'|escapejs }}" || 'uefa';
+
+        const writeQueryState = () => {
+          try {
+            const url = new URL(window.location.href);
+            url.searchParams.set('tab', activeTaskTab);
+            if (activeTaskTab === 'edit') url.searchParams.set('edit_tab', activeTaskEditTab);
+            else url.searchParams.delete('edit_tab');
+            if (activeTaskFormatTab) url.searchParams.set('format', activeTaskFormatTab);
+            window.history.replaceState({}, '', url.toString());
+          } catch (e) { /* ignore */ }
+        };
+
+        const syncTaskEditTab = (nextTab, shouldScroll = false) => {
+          if (!canEditTask || !editTabButtons.length || !editTabPanels.length) return;
+          activeTaskEditTab = nextTab === 'settings' ? 'settings' : 'graphic';
+          editTabButtons.forEach((button) => {
+            const isActive = button.dataset.taskEditTab === activeTaskEditTab;
+            button.classList.toggle('is-active', isActive);
+            button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+          });
+          editTabPanels.forEach((panel) => {
+            const isActive = panel.dataset.taskEditTabPanel === activeTaskEditTab;
+            panel.classList.toggle('is-active', isActive);
+            panel.hidden = !isActive;
+          });
+          writeQueryState();
+          if (shouldScroll) {
+            document.querySelector(`[data-task-edit-tab-panel="${activeTaskEditTab}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        };
+
+        const syncTaskFormatTab = (nextTab) => {
+          activeTaskFormatTab = nextTab === 'club' ? 'club' : 'uefa';
+          formatTabButtons.forEach((button) => {
+            const isActive = button.dataset.taskFormatTab === activeTaskFormatTab;
+            button.classList.toggle('is-active', isActive);
+            button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+          });
+          formatTabPanels.forEach((panel) => {
+            const isActive = panel.dataset.taskFormatPanel === activeTaskFormatTab;
+            panel.classList.toggle('is-active', isActive);
+            panel.hidden = !isActive;
+          });
+          writeQueryState();
+        };
+
+        const syncTaskTab = (nextTab, shouldScroll = false) => {
+          const normalized = canEditTask && ['presentation', 'edit', 'export'].includes(nextTab)
+            ? nextTab
+            : (!canEditTask && ['presentation', 'export'].includes(nextTab) ? nextTab : 'presentation');
+          activeTaskTab = normalized;
+          document.body.classList.toggle('is-presentation', activeTaskTab !== 'edit');
+          tabButtons.forEach((button) => {
+            const isActive = button.dataset.taskTab === activeTaskTab;
+            button.classList.toggle('is-active', isActive);
+            button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+          });
+          tabPanels.forEach((panel) => {
+            const isActive = panel.dataset.taskTabPanel === activeTaskTab;
+            panel.classList.toggle('is-active', isActive);
+          });
+          if (activeTaskTab === 'edit') syncTaskEditTab(activeTaskEditTab, false);
+          writeQueryState();
+          if (shouldScroll) {
+            document.querySelector(`[data-task-tab-panel="${activeTaskTab}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        };
+
+        tabButtons.forEach((button) => {
+          button.addEventListener('click', () => syncTaskTab(button.dataset.taskTab || 'presentation', true));
+        });
+        editTabButtons.forEach((button) => {
+          button.addEventListener('click', () => syncTaskEditTab(button.dataset.taskEditTab || 'graphic', true));
+        });
+        formatTabButtons.forEach((button) => {
+          button.addEventListener('click', () => syncTaskFormatTab(button.dataset.taskFormatTab || 'uefa'));
+        });
+        enterEditButton?.addEventListener('click', () => {
+          syncTaskTab('edit', true);
+          syncTaskEditTab('graphic', false);
+        });
+
+        syncTaskTab(activeTaskTab, false);
+        syncTaskEditTab(activeTaskEditTab, false);
+        syncTaskFormatTab(activeTaskFormatTab);
+      })();
+    </script>
     <script type="importmap">
       {
         "imports": {
