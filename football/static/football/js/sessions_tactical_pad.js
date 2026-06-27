@@ -535,6 +535,7 @@
 		    defs.appendChild(gradient);
 
 		    let grassFillId = 'pitch-bg';
+        let stageBackgroundImageHref = '';
 		    if (grassStyle === 'blackboard') {
 		      grassFillId = 'pitch-blackboard';
 		      const pattern = createSvgNode(doc, 'pattern', { id: grassFillId, patternUnits: 'userSpaceOnUse', width: 120, height: 120 });
@@ -567,34 +568,7 @@
 			      pattern.appendChild(createSvgNode(doc, 'rect', { x: 0, y: 0, width: 96, height: 96, fill: 'rgba(0,0,0,0.04)' }));
 			      defs.appendChild(pattern);
 			    } else if (grassStyle === 'stadium_top') {
-			      grassFillId = 'pitch-stadium-top';
-			      const pattern = createSvgNode(doc, 'pattern', {
-			        id: grassFillId,
-			        patternUnits: 'userSpaceOnUse',
-			        x: -bleed,
-			        y: -bleed,
-			        width: stageW + (bleed * 2),
-			        height: stageH + (bleed * 2),
-			      });
-			      const href = resolvePitch3dTopImageHref();
-			      const image = createSvgNode(doc, 'image', {
-			        href,
-			        x: -bleed,
-			        y: -bleed,
-			        width: stageW + (bleed * 2),
-			        height: stageH + (bleed * 2),
-			        preserveAspectRatio: 'xMidYMid slice',
-			      });
-			      try { image.setAttribute('xlink:href', href); } catch (e) { /* ignore */ }
-			      pattern.appendChild(image);
-			      pattern.appendChild(createSvgNode(doc, 'rect', {
-			        x: -bleed,
-			        y: -bleed,
-			        width: stageW + (bleed * 2),
-			        height: stageH + (bleed * 2),
-			        fill: 'rgba(3, 7, 18, 0.12)',
-			      }));
-			      defs.appendChild(pattern);
+            stageBackgroundImageHref = resolvePitch3dTopImageHref();
 			    } else if (grassStyle !== 'classic') {
 			      const dataUrl = __buildGrassTextureDataUrl(grassStyle);
 			      if (dataUrl) {
@@ -628,16 +602,34 @@
     //   (en editor se verá el fondo del panel; en PDF quedará blanco).
     // En el editor rellenamos el exterior con césped para que no parezca que hay “huecos” alrededor.
     // El recorte para PDF/cards ya se hace al exportar la preview (data-pitch-box).
-    const fillOutside = `url(#${grassFillId})`;
-    root.appendChild(createSvgNode(doc, 'rect', {
-      x: -bleed,
-      y: -bleed,
-      width: stageW + (bleed * 2),
-      height: stageH + (bleed * 2),
-      // En el editor siempre rellenamos el exterior con césped para evitar que la superficie
-      // parezca “negra” o vacía al cambiar de preset (la exportación ya recorta por `data-pitch-box`).
-      fill: fillOutside,
-    }));
+    if (grassStyle === 'stadium_top' && stageBackgroundImageHref) {
+      const stageImage = createSvgNode(doc, 'image', {
+        href: stageBackgroundImageHref,
+        x: -bleed,
+        y: -bleed,
+        width: stageW + (bleed * 2),
+        height: stageH + (bleed * 2),
+        preserveAspectRatio: 'xMidYMid slice',
+      });
+      try { stageImage.setAttribute('xlink:href', stageBackgroundImageHref); } catch (e) { /* ignore */ }
+      root.appendChild(stageImage);
+      root.appendChild(createSvgNode(doc, 'rect', {
+        x: -bleed,
+        y: -bleed,
+        width: stageW + (bleed * 2),
+        height: stageH + (bleed * 2),
+        fill: 'rgba(6, 12, 22, 0.10)',
+      }));
+    } else {
+      const fillOutside = `url(#${grassFillId})`;
+      root.appendChild(createSvgNode(doc, 'rect', {
+        x: -bleed,
+        y: -bleed,
+        width: stageW + (bleed * 2),
+        height: stageH + (bleed * 2),
+        fill: fillOutside,
+      }));
+    }
     const drawRoot = createSvgNode(doc, 'g');
     if (orientation === 'portrait') {
       drawRoot.setAttribute('transform', `translate(${stageW} 0) rotate(90)`);
