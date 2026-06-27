@@ -5583,20 +5583,20 @@
 	        gap: 0.5rem;
 	        align-items: center;
 	        justify-content: flex-start;
-	        flex-wrap: nowrap;
-	        max-height: min(96px, 16dvh);
-	        overflow: hidden;
+	        flex-wrap: wrap;
+	        max-height: min(180px, 28dvh);
+	        overflow-x: hidden;
+	        overflow-y: auto;
 	        scrollbar-width: thin;
 	      }
 	      .sim-3d-controls {
 	        display:flex;
 	        gap:0.42rem;
 	        flex: 1 1 auto;
-	        flex-wrap:nowrap;
+	        flex-wrap:wrap;
 	        align-items:center;
 	        min-width:0;
-	        overflow-x:auto;
-	        overflow-y:hidden;
+	        overflow:visible;
 	        padding-bottom:0.18rem;
 	        scrollbar-width: thin;
 	      }
@@ -5608,6 +5608,13 @@
 	        padding-inline: 0.72rem;
 	        flex: 0 0 auto;
 	      }
+	      #task-pitch-3d-camera {
+	        order: -20;
+	        min-width: min(240px, 58vw);
+	      }
+	      #task-pitch-3d-follow { order: -19; }
+	      #task-pitch-3d-format { order: -18; }
+	      #task-pitch-3d-surface { order: -17; }
 	      .sim-3d-note { display:none; }
 	      .pitch3d-hud {
 	        position: absolute;
