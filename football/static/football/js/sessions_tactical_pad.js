@@ -12318,6 +12318,7 @@
 						                  const hospitalityGlowMat = new THREE.MeshBasicMaterial({ color: 0xfff1bf, transparent: true, opacity: 0.22, toneMapped: false, depthWrite: false, side: THREE.DoubleSide });
 						                  const sectorGlowMat = new THREE.MeshBasicMaterial({ color: 0xe7f5ff, transparent: true, opacity: 0.18, toneMapped: false, depthWrite: false, side: THREE.DoubleSide });
 						                  const broadcastGlowMat = new THREE.MeshBasicMaterial({ color: 0xcfeeff, transparent: true, opacity: 0.22, toneMapped: false, depthWrite: false, side: THREE.DoubleSide });
+						                  const crowdGlowMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc, transparent: true, opacity: 0.10, toneMapped: false, depthWrite: false, side: THREE.DoubleSide });
 						                  const mainStandZ = -(metersH / 2 + 15.40);
 						                  addBox(finish, new THREE.BoxGeometry(metersW * 0.52, 0.88, 0.96), suiteDark, 0, 6.68, mainStandZ, -0.010, 0, 0, 'pitch_3d_professional_real_main_press_suite_volume');
 						                  addBox(finish, new THREE.BoxGeometry(metersW * 0.48, 0.58, 0.08), suiteGlass, 0, 6.70, mainStandZ + 0.50, 0, 0, 0, 'pitch_3d_professional_real_main_press_suite_glass');
@@ -12448,6 +12449,13 @@
 						                    matchdayRibbon.rotation.y = sign > 0 ? Math.PI : 0;
 						                    matchdayRibbon.userData = { kind: 'pitch_3d_professional_real_matchday_ribbon_long' };
 						                    finish.add(matchdayRibbon);
+						                  });
+						                  [-1, 1].forEach((sign) => {
+						                    const crowdWash = new THREE.Mesh(new THREE.PlaneGeometry(metersW * 0.90, 4.2), crowdGlowMat);
+						                    crowdWash.position.set(0, 6.2, sign * (metersH / 2 + 12.8));
+						                    crowdWash.rotation.y = sign > 0 ? Math.PI : 0;
+						                    crowdWash.userData = { kind: 'pitch_3d_professional_real_crowd_ambience_wash_long' };
+						                    finish.add(crowdWash);
 						                  });
 						                };
 						                addRealStadiumInteriorPolishPass();
@@ -15413,6 +15421,7 @@
 						                  const shellBeltMat = new THREE.MeshStandardMaterial({ color: 0xbfc7d1, roughness: 0.34, metalness: 0.36 });
 						                  const plazaLightMat = new THREE.MeshBasicMaterial({ color: 0xa7e2ff, transparent: true, opacity: 0.32, toneMapped: false, depthWrite: false, side: THREE.DoubleSide });
 						                  const reflectiveWaterMat = new THREE.MeshPhysicalMaterial({ color: 0xaadfff, roughness: 0.02, metalness: 0.02, transparent: true, opacity: 0.34, transmission: 0.40, clearcoat: 0.80, side: THREE.DoubleSide });
+						                  const cityGlowMat = new THREE.MeshBasicMaterial({ color: 0xffe7b8, transparent: true, opacity: 0.22, toneMapped: false, depthWrite: false, side: THREE.DoubleSide });
 						                  const addHorizontalLouverSkin = () => {
 						                    const longSpan = metersW + 56.0;
 						                    const endSpan = metersH + 56.0;
@@ -15676,6 +15685,46 @@
 						                      atmosphere.add(pool);
 						                    });
 						                  };
+						                  const addLayeredNightScene = () => {
+						                    [-1, 1].forEach((sign) => {
+						                      const longGlow = new THREE.Mesh(new THREE.PlaneGeometry(metersW + 48.0, 16.0), shellGlowMat);
+						                      longGlow.position.set(0, 9.6, sign * (metersH / 2 + 33.8));
+						                      longGlow.rotation.y = sign > 0 ? Math.PI : 0;
+						                      longGlow.userData = { kind: 'pitch_3d_stadium_exterior_layered_night_glow_long' };
+						                      atmosphere.add(longGlow);
+						                    });
+						                    [-1, 1].forEach((sign) => {
+						                      const endGlow = new THREE.Mesh(new THREE.PlaneGeometry(metersH + 48.0, 16.0), shellGlowMat);
+						                      endGlow.position.set(sign * (metersW / 2 + 33.8), 9.6, 0);
+						                      endGlow.rotation.y = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
+						                      endGlow.userData = { kind: 'pitch_3d_stadium_exterior_layered_night_glow_end' };
+						                      atmosphere.add(endGlow);
+						                    });
+						                  };
+						                  const addUrbanNightPerimeter = () => {
+						                    [-1, 1].forEach((sign) => {
+						                      for (let i = -5; i <= 5; i += 1) {
+						                        const x = i * 10.8;
+						                        addBox(new THREE.CylinderGeometry(0.10, 0.10, 4.2, 12), shellBeltMat, x, 2.10, sign * (metersH / 2 + 58.8), 0, 0, 0, 'pitch_3d_stadium_exterior_urban_lightmast_long');
+						                        const wash = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 3.8), cityGlowMat);
+						                        wash.position.set(x, 2.06, sign * (metersH / 2 + 58.2));
+						                        wash.rotation.y = sign > 0 ? Math.PI : 0;
+						                        wash.userData = { kind: 'pitch_3d_stadium_exterior_urban_lightmast_glow_long' };
+						                        atmosphere.add(wash);
+						                      }
+						                    });
+						                    [-1, 1].forEach((sign) => {
+						                      for (let i = -4; i <= 4; i += 1) {
+						                        const z = i * 10.2;
+						                        addBox(new THREE.CylinderGeometry(0.10, 0.10, 4.2, 12), shellBeltMat, sign * (metersW / 2 + 58.8), 2.10, z, 0, 0, 0, 'pitch_3d_stadium_exterior_urban_lightmast_end');
+						                        const wash = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 3.8), cityGlowMat);
+						                        wash.position.set(sign * (metersW / 2 + 58.2), 2.06, z);
+						                        wash.rotation.y = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
+						                        wash.userData = { kind: 'pitch_3d_stadium_exterior_urban_lightmast_glow_end' };
+						                        atmosphere.add(wash);
+						                      }
+						                    });
+						                  };
 						                  const addArchitecturalForecourtCanopies = () => {
 						                    [-1, 1].forEach((sign) => {
 						                      [-0.22, 0.22].forEach((ratio) => {
@@ -15835,6 +15884,8 @@
 						                  addCeremonialArrivalAxis();
 						                  addReflectiveForecourt();
 						                  addArchitecturalForecourtCanopies();
+						                  addLayeredNightScene();
+						                  addUrbanNightPerimeter();
 						                  const horizonZ = metersH / 2 + 58.0;
 						                  const mountain = new THREE.Mesh(new THREE.PlaneGeometry(metersW + 120.0, 18.0), mountainMat);
 						                  mountain.position.set(0, 11.0, horizonZ + 5.0);
