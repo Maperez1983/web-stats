@@ -15254,6 +15254,10 @@
 						                  const shellShadowMat = new THREE.MeshStandardMaterial({ color: 0x403a31, roughness: 0.56, metalness: 0.18 });
 						                  const shellGlassMat = new THREE.MeshPhysicalMaterial({ color: 0xe8f1ef, roughness: 0.08, metalness: 0.02, transparent: true, opacity: 0.24, transmission: 0.30, clearcoat: 0.40, side: THREE.DoubleSide });
 						                  const shellLedMat = new THREE.MeshBasicMaterial({ color: 0x52c6ff, transparent: true, opacity: 0.86, toneMapped: false, depthWrite: false });
+						                  const perimeterMat = new THREE.MeshStandardMaterial({ color: 0x7f8a96, roughness: 0.54, metalness: 0.30 });
+						                  const mobilityMat = new THREE.MeshStandardMaterial({ color: 0x1f3f78, roughness: 0.48, metalness: 0.16 });
+						                  const queueGlowMat = new THREE.MeshBasicMaterial({ color: 0xa5dbff, transparent: true, opacity: 0.20, toneMapped: false, depthWrite: false, side: THREE.DoubleSide });
+						                  const eventPlazaMat = new THREE.MeshStandardMaterial({ color: 0xc2baaa, roughness: 0.88, metalness: 0.02 });
 						                  const addRosaledaShellFront = () => {
 						                    [-1, 1].forEach((sign) => {
 						                      const z = sign * (metersH / 2 + 24.8);
@@ -15295,6 +15299,46 @@
 						                    });
 						                    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
 						                      addBox(new THREE.CylinderGeometry(0.44, 0.44, 0.20, 18), shellFrameMat, sx * (metersW / 2 + 36.8), 17.64, sz * (metersH / 2 + 36.8), Math.PI / 2, 0, 0, 'pitch_3d_stadium_exterior_shell_crown_corner');
+						                    });
+						                  };
+						                  const addMajorEventPerimeter = () => {
+						                    const addQueueWash = (x, y, z, w, h, ry = 0) => {
+						                      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), queueGlowMat);
+						                      mesh.position.set(x, y, z);
+						                      mesh.rotation.y = ry;
+						                      mesh.userData = { kind: 'pitch_3d_stadium_exterior_queue_wash' };
+						                      atmosphere.add(mesh);
+						                    };
+						                    [-1, 1].forEach((sign) => {
+						                      const outerZ = sign * (metersH / 2 + 48.8);
+						                      addBox(new THREE.BoxGeometry(metersW + 86.0, 0.10, 1.10), perimeterMat, 0, 1.04, outerZ, 0, 0, 0, 'pitch_3d_stadium_exterior_outer_security_line_long');
+						                      addBox(new THREE.BoxGeometry(metersW + 72.0, 0.08, 6.6), eventPlazaMat, 0, 0.05, sign * (metersH / 2 + 46.0), 0, 0, 0, 'pitch_3d_stadium_exterior_presecurity_event_plaza');
+						                      [-34, -17, 0, 17, 34].forEach((x) => {
+						                        addBox(new THREE.BoxGeometry(4.4, 2.9, 0.22), shellFrameMat, x, 1.62, sign * (metersH / 2 + 43.8), 0, 0, 0, 'pitch_3d_stadium_exterior_secondary_screening_portal');
+						                        addQueueWash(x, 1.36, sign * (metersH / 2 + 40.6), 6.2, 2.2, sign > 0 ? Math.PI : 0);
+						                      });
+						                    });
+						                    [-1, 1].forEach((sign) => {
+						                      const outerX = sign * (metersW / 2 + 48.8);
+						                      addBox(new THREE.BoxGeometry(1.10, 0.10, metersH + 86.0), perimeterMat, outerX, 1.04, 0, 0, 0, 0, 'pitch_3d_stadium_exterior_outer_security_line_end');
+						                      [-26, 0, 26].forEach((z) => {
+						                        addBox(new THREE.BoxGeometry(0.22, 2.9, 4.4), shellFrameMat, sign * (metersW / 2 + 43.8), 1.62, z, 0, 0, 0, 'pitch_3d_stadium_exterior_secondary_screening_portal_end');
+						                        addQueueWash(sign * (metersW / 2 + 40.6), 1.36, z, 2.2, 6.2, sign > 0 ? -Math.PI / 2 : Math.PI / 2);
+						                      });
+						                    });
+						                    for (let i = -8; i <= 8; i += 1) {
+						                      addBox(new THREE.CylinderGeometry(0.14, 0.14, 0.86, 12), perimeterMat, i * 6.6, 0.43, -(metersH / 2 + 37.0), 0, 0, 0, 'pitch_3d_stadium_exterior_security_bollard');
+						                      addBox(new THREE.CylinderGeometry(0.14, 0.14, 0.86, 12), perimeterMat, i * 6.6, 0.43, metersH / 2 + 37.0, 0, 0, 0, 'pitch_3d_stadium_exterior_security_bollard');
+						                    }
+						                  };
+						                  const addMobilityCampusEdge = () => {
+						                    addBox(new THREE.BoxGeometry(metersW * 0.70, 0.08, 4.8), mobilityMat, 0, 0.07, -(metersH / 2 + 55.0), 0, 0, 0, 'pitch_3d_stadium_exterior_mobility_spine');
+						                    addBox(new THREE.BoxGeometry(metersW * 0.68, 0.04, 0.22), shellLedMat, 0, 0.18, -(metersH / 2 + 57.1), 0, 0, 0, 'pitch_3d_stadium_exterior_mobility_led_wayfinding');
+						                    [-30, -10, 10, 30].forEach((x, idx) => {
+						                      addBox(new THREE.BoxGeometry(7.8, 2.7, 3.1), mobilityMat, x, 1.40, -(metersH / 2 + 60.8), 0, 0, 0, 'pitch_3d_stadium_exterior_transit_pavilion');
+						                      addBox(new THREE.BoxGeometry(6.9, 0.12, 2.5), shellFrameMat, x, 2.82, -(metersH / 2 + 60.0), 0, 0, 0, 'pitch_3d_stadium_exterior_transit_pavilion_canopy');
+						                      addBox(new THREE.BoxGeometry(6.3, 1.22, 0.12), shellGlassMat, x, 1.62, -(metersH / 2 + 59.18), 0, 0, 0, 'pitch_3d_stadium_exterior_transit_pavilion_glass');
+						                      if (idx % 2 === 0) addBox(new THREE.BoxGeometry(1.4, 1.8, 0.16), premiumBlueMat, x, 1.44, -(metersH / 2 + 62.42), 0, 0, 0, 'pitch_3d_stadium_exterior_transit_pylon');
 						                    });
 						                  };
 						                  [
@@ -15431,6 +15475,8 @@
 						                  addRosaledaShellFront();
 						                  addRosaledaEndShell();
 						                  addContinuousCrown();
+						                  addMajorEventPerimeter();
+						                  addMobilityCampusEdge();
 						                  const horizonZ = metersH / 2 + 58.0;
 						                  const mountain = new THREE.Mesh(new THREE.PlaneGeometry(metersW + 120.0, 18.0), mountainMat);
 						                  mountain.position.set(0, 11.0, horizonZ + 5.0);
