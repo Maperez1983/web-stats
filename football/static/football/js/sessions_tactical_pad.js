@@ -35507,30 +35507,16 @@
 				    const resourceTabs = Array.from(document.querySelectorAll('.resource-tab'));
 				    const resourcePanels = Array.from(document.querySelectorAll('.resource-panel'));
 				    const resourceDetails = document.getElementById('task-resource-details');
-				    const resourceSummaryLabel = document.getElementById('task-resource-summary-label');
+            const resourceSummaryLabel = document.getElementById('task-resource-summary-label');
 					    const resourceSelect = document.getElementById('task-resource-select');
 					    const resourceHelper = document.querySelector('.resource-helper');
             const libraryToggleBtn = document.getElementById('task-library-toggle');
             const libraryFilterInput = document.getElementById('task-library-filter');
-            const libraryRepositoryToggleBtn = document.getElementById('task-library-repository-toggle');
-            const libraryManageToggleBtn = document.getElementById('task-library-manage-toggle');
-            const libraryManageResetBtn = document.getElementById('task-library-manage-reset');
-            const libraryManageNote = document.getElementById('task-library-manage-note');
-            const libraryRepositoryBox = document.getElementById('task-library-repository-box');
-            const libraryRepositoryList = document.getElementById('task-library-repository-list');
             const libraryAddUrlInput = document.getElementById('task-library-add-url');
             const libraryAddLabelInput = document.getElementById('task-library-add-label');
             const libraryAddSubmitBtn = document.getElementById('task-library-add-submit');
-            const libraryHiddenBox = document.getElementById('task-library-hidden-box');
-            const libraryHiddenList = document.getElementById('task-library-hidden-list');
-            const libraryHiddenEmpty = document.getElementById('task-library-hidden-empty');
             const customLibraryAssetsStrip = document.getElementById('task-custom-library-assets');
             const CUSTOM_LIBRARY_RESOURCES_KEY = 'webstats:tpad:custom-library-resources-v1';
-            let libraryManageMode = false;
-            // La visibilidad de recursos ya se gobierna desde la Biblioteca de recursos del club.
-            // No persistimos ocultaciones por navegador para evitar diferencias entre dispositivos.
-            const hiddenLibraryResources = new Set();
-            const persistHiddenLibraryResources = () => {};
             let customLibraryResources = (() => {
               try {
                 const raw = safeText(window.localStorage?.getItem(CUSTOM_LIBRARY_RESOURCES_KEY));
@@ -35550,66 +35536,11 @@
               try { window.localStorage?.setItem(CUSTOM_LIBRARY_RESOURCES_KEY, JSON.stringify(customLibraryResources)); } catch (e) { /* ignore */ }
             };
             const customResourceAddKey = (item) => `image_url:${safeText(item?.url)}`;
-            const libraryResourceMeta = new Map();
-            const resourcePanelLabel = (panelKey, familyKey = '') => {
-              const panel = safeText(panelKey);
-              const family = safeText(familyKey);
-              if (family === 'equipamiento') return 'Equipamiento';
-              if (family === 'porterias') return 'Porterías';
-              if (family === 'marcadores') return 'Marcadores';
-              if (family === 'apoyos') return 'Apoyos';
-              if (family === 'importados') return 'Importados';
-              if (panel === 'base') return 'Base';
-              if (panel === 'pro') return 'Material';
-              if (panel === 'trazos') return 'Trazos';
-              if (panel === 'figuras') return 'Zonas';
-              if (panel === 'plantilla') return 'Plantilla';
-              return 'Biblioteca';
-            };
-            const rememberLibraryResourceMeta = (add, meta = {}) => {
-              const key = safeText(add);
-              if (!key) return;
-              const current = libraryResourceMeta.get(key) || {};
-              libraryResourceMeta.set(key, {
-                ...current,
-                ...meta,
-                add: key,
-                label: safeText(meta.label || current.label || RESOURCE_LABELS[key] || key),
-                panel: safeText(meta.panel || current.panel),
-                family: safeText(meta.family || current.family),
-              });
-            };
-            const libraryResourceLabel = (add) => {
-              const key = safeText(add);
-              const meta = libraryResourceMeta.get(key);
-              return safeText(meta?.label || RESOURCE_LABELS[key] || key);
-            };
-            const isLibraryResourceHidden = (add) => !!(add && hiddenLibraryResources.has(safeText(add)));
-            const setLibraryManageMode = (enabled) => {
-              libraryManageMode = !!enabled;
-              resourceSection?.classList.toggle('is-library-managing', libraryManageMode);
-              libraryManageToggleBtn?.classList.toggle('is-active', libraryManageMode);
-              try { libraryManageToggleBtn?.setAttribute('aria-pressed', libraryManageMode ? 'true' : 'false'); } catch (e) { /* ignore */ }
-              if (libraryManageToggleBtn) libraryManageToggleBtn.textContent = libraryManageMode ? 'Salir edición' : 'Editar biblioteca';
-              if (libraryManageNote) {
-                libraryManageNote.textContent = libraryManageMode
-                  ? 'Pulsa cualquier recurso para ocultarlo de la biblioteca. No se borra del sistema.'
-                  : 'Oculta recursos que no vas a utilizar en este dispositivo.';
-              }
-            };
-            const setLibraryRepositoryOpen = (enabled) => {
-              if (!libraryRepositoryBox) return;
-              const open = !!enabled;
-              libraryRepositoryBox.hidden = !open;
-              libraryRepositoryToggleBtn?.classList.toggle('is-active', open);
-              try { libraryRepositoryToggleBtn?.setAttribute('aria-pressed', open ? 'true' : 'false'); } catch (e) { /* ignore */ }
-            };
             const renderCustomLibraryResources = () => {
               if (!customLibraryAssetsStrip) return;
               customLibraryAssetsStrip.textContent = '';
               customLibraryResources.forEach((item) => {
                 const add = customResourceAddKey(item);
-                rememberLibraryResourceMeta(add, { label: item.label || 'Recurso externo', panel: 'pro', family: 'importados' });
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.className = 'pdf-asset-btn';
@@ -35622,96 +35553,6 @@
                 img.loading = 'lazy';
                 button.appendChild(img);
                 customLibraryAssetsStrip.appendChild(button);
-              });
-            };
-            const collectLibraryResourceCatalog = () => {
-              const seen = new Set();
-              const catalog = [];
-              const buttons = Array.from(resourceSection?.querySelectorAll('.resource-panel button[data-add]') || []);
-              buttons.forEach((button) => {
-                const add = safeText(button.dataset.add);
-                if (!add || seen.has(add)) return;
-                seen.add(add);
-                const panel = safeText(button.closest('.resource-panel')?.dataset?.panel);
-                const family = safeText(button.closest('[data-material-family]')?.dataset?.materialFamily);
-                const label = safeText(button.getAttribute('title') || button.getAttribute('aria-label') || button.textContent || RESOURCE_LABELS[add] || add);
-                rememberLibraryResourceMeta(add, { label, panel, family });
-                catalog.push({ add, label, panel, family });
-              });
-              return catalog.sort((a, b) => a.label.localeCompare(b.label, 'es'));
-            };
-            const renderLibraryRepository = () => {
-              if (!libraryRepositoryList) return;
-              libraryRepositoryList.textContent = '';
-              collectLibraryResourceCatalog().forEach((item) => {
-                const row = document.createElement('div');
-                row.className = 'library-repository-item';
-                const main = document.createElement('div');
-                main.className = 'library-repository-main';
-                const visual = document.createElement('div');
-                visual.className = 'library-repository-visual';
-                try {
-                  const source = resourceSection?.querySelector(`button[data-add="${CSS.escape(item.add)}"]`);
-                  const img = source?.querySelector('img');
-                  const emoji = source?.querySelector('.tool-emoji');
-                  if (img) {
-                    const clone = document.createElement('img');
-                    clone.src = img.currentSrc || img.src || '';
-                    clone.alt = '';
-                    clone.loading = 'lazy';
-                    visual.appendChild(clone);
-                  } else if (emoji) {
-                    const clone = emoji.cloneNode(true);
-                    visual.appendChild(clone);
-                  } else {
-                    visual.textContent = item.label.slice(0, 1).toUpperCase();
-                  }
-                } catch (e) {
-                  visual.textContent = item.label.slice(0, 1).toUpperCase();
-                }
-                const meta = document.createElement('div');
-                meta.className = 'library-repository-meta';
-                const strong = document.createElement('strong');
-                strong.textContent = item.label;
-                const small = document.createElement('span');
-                small.textContent = resourcePanelLabel(item.panel, item.family);
-                meta.appendChild(strong);
-                meta.appendChild(small);
-                main.appendChild(visual);
-                main.appendChild(meta);
-                const toggle = document.createElement('button');
-                toggle.type = 'button';
-                toggle.className = `library-resource-toggle ${isLibraryResourceHidden(item.add) ? 'is-disabled' : 'is-enabled'}`;
-                toggle.dataset.libraryResourceToggle = item.add;
-                toggle.textContent = isLibraryResourceHidden(item.add) ? 'Oculto' : 'Activo';
-                row.appendChild(main);
-                row.appendChild(toggle);
-                libraryRepositoryList.appendChild(row);
-              });
-            };
-            const sortLibraryResources = (values) => values
-              .map((value) => safeText(value))
-              .filter(Boolean)
-              .sort((a, b) => libraryResourceLabel(a).localeCompare(libraryResourceLabel(b), 'es'));
-            const renderHiddenLibraryResources = () => {
-              if (!libraryHiddenBox || !libraryHiddenList || !libraryHiddenEmpty) return;
-              const items = sortLibraryResources(Array.from(hiddenLibraryResources));
-              libraryHiddenList.textContent = '';
-              libraryHiddenBox.hidden = items.length === 0;
-              libraryHiddenEmpty.hidden = items.length !== 0;
-              items.forEach((add) => {
-                const pill = document.createElement('div');
-                pill.className = 'library-hidden-item';
-                const name = document.createElement('span');
-                name.textContent = libraryResourceLabel(add);
-                pill.appendChild(name);
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.dataset.libraryRestore = add;
-                btn.textContent = 'Mostrar';
-                btn.title = `Volver a mostrar ${libraryResourceLabel(add)}`;
-                pill.appendChild(btn);
-                libraryHiddenList.appendChild(pill);
               });
             };
 						    const isTacticsModeUi = document.body.classList.contains('tactics-mode');
@@ -35870,54 +35711,13 @@
               const activePanel = resourcePanels.find((panel) => panel && panel.hidden === false) || null;
               const buttons = Array.from(resourceSection?.querySelectorAll('button[data-add]') || []);
               buttons.forEach((btn) => {
-                const add = safeText(btn.dataset.add);
                 const hay = normalizeLookupText(btn.getAttribute('title') || btn.textContent || '');
                 const parentPanel = btn.closest('.resource-panel');
                 const matchesFilter = !q || !activePanel || parentPanel !== activePanel || hay.includes(q);
-                const hiddenByLibrary = isLibraryResourceHidden(add);
-                btn.hidden = hiddenByLibrary || !matchesFilter;
-                btn.dataset.libraryHidden = hiddenByLibrary ? '1' : '0';
+                btn.hidden = !matchesFilter;
               });
-              renderHiddenLibraryResources();
-              renderLibraryRepository();
             };
             libraryFilterInput?.addEventListener('input', applyLibraryFilter);
-            libraryRepositoryToggleBtn?.addEventListener('click', () => {
-              setLibraryRepositoryOpen(!!libraryRepositoryBox?.hidden);
-            });
-            libraryManageToggleBtn?.addEventListener('click', () => {
-              setLibraryManageMode(!libraryManageMode);
-            });
-            libraryManageResetBtn?.addEventListener('click', () => {
-              hiddenLibraryResources.clear();
-              persistHiddenLibraryResources();
-              setLibraryManageMode(false);
-              applyLibraryFilter();
-              setStatus('Biblioteca restaurada. Vuelven a mostrarse todos los recursos.');
-            });
-            libraryRepositoryList?.addEventListener('click', (event) => {
-              const button = event.target.closest('button[data-library-resource-toggle]');
-              if (!button) return;
-              const add = safeText(button.dataset.libraryResourceToggle);
-              if (!add) return;
-              if (hiddenLibraryResources.has(add)) hiddenLibraryResources.delete(add);
-              else hiddenLibraryResources.add(add);
-              persistHiddenLibraryResources();
-              applyLibraryFilter();
-              setStatus(hiddenLibraryResources.has(add)
-                ? `Recurso desactivado en biblioteca: ${libraryResourceLabel(add)}.`
-                : `Recurso activado en biblioteca: ${libraryResourceLabel(add)}.`);
-            });
-            libraryHiddenList?.addEventListener('click', (event) => {
-              const button = event.target.closest('button[data-library-restore]');
-              if (!button) return;
-              const add = safeText(button.dataset.libraryRestore);
-              if (!add) return;
-              hiddenLibraryResources.delete(add);
-              persistHiddenLibraryResources();
-              applyLibraryFilter();
-              setStatus(`Recurso reactivado en la biblioteca: ${libraryResourceLabel(add)}.`);
-            });
             libraryAddSubmitBtn?.addEventListener('click', () => {
               const url = safeText(libraryAddUrlInput?.value);
               const label = safeText(libraryAddLabelInput?.value);
