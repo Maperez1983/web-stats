@@ -35515,10 +35515,16 @@
             const libraryManageToggleBtn = document.getElementById('task-library-manage-toggle');
             const libraryManageResetBtn = document.getElementById('task-library-manage-reset');
             const libraryManageNote = document.getElementById('task-library-manage-note');
+            const libraryRepositoryList = document.getElementById('task-library-repository-list');
+            const libraryAddUrlInput = document.getElementById('task-library-add-url');
+            const libraryAddLabelInput = document.getElementById('task-library-add-label');
+            const libraryAddSubmitBtn = document.getElementById('task-library-add-submit');
             const libraryHiddenBox = document.getElementById('task-library-hidden-box');
             const libraryHiddenList = document.getElementById('task-library-hidden-list');
             const libraryHiddenEmpty = document.getElementById('task-library-hidden-empty');
+            const customLibraryAssetsStrip = document.getElementById('task-custom-library-assets');
             const HIDDEN_LIBRARY_RESOURCES_KEY = 'webstats:tpad:hidden-library-resources-v1';
+            const CUSTOM_LIBRARY_RESOURCES_KEY = 'webstats:tpad:custom-library-resources-v1';
             let libraryManageMode = false;
             const hiddenLibraryResources = (() => {
               try {
@@ -35533,6 +35539,59 @@
             const persistHiddenLibraryResources = () => {
               try { window.localStorage?.setItem(HIDDEN_LIBRARY_RESOURCES_KEY, JSON.stringify(Array.from(hiddenLibraryResources))); } catch (e) { /* ignore */ }
             };
+            let customLibraryResources = (() => {
+              try {
+                const raw = safeText(window.localStorage?.getItem(CUSTOM_LIBRARY_RESOURCES_KEY));
+                const parsed = raw ? JSON.parse(raw) : [];
+                if (!Array.isArray(parsed)) return [];
+                return parsed
+                  .map((item) => ({
+                    url: safeText(item?.url),
+                    label: safeText(item?.label),
+                  }))
+                  .filter((item) => item.url);
+              } catch (e) {
+                return [];
+              }
+            })();
+            const persistCustomLibraryResources = () => {
+              try { window.localStorage?.setItem(CUSTOM_LIBRARY_RESOURCES_KEY, JSON.stringify(customLibraryResources)); } catch (e) { /* ignore */ }
+            };
+            const customResourceAddKey = (item) => `image_url:${safeText(item?.url)}`;
+            const libraryResourceMeta = new Map();
+            const resourcePanelLabel = (panelKey, familyKey = '') => {
+              const panel = safeText(panelKey);
+              const family = safeText(familyKey);
+              if (family === 'equipamiento') return 'Equipamiento';
+              if (family === 'porterias') return 'Porterías';
+              if (family === 'marcadores') return 'Marcadores';
+              if (family === 'apoyos') return 'Apoyos';
+              if (family === 'importados') return 'Importados';
+              if (panel === 'base') return 'Base';
+              if (panel === 'pro') return 'Material';
+              if (panel === 'trazos') return 'Trazos';
+              if (panel === 'figuras') return 'Zonas';
+              if (panel === 'plantilla') return 'Plantilla';
+              return 'Biblioteca';
+            };
+            const rememberLibraryResourceMeta = (add, meta = {}) => {
+              const key = safeText(add);
+              if (!key) return;
+              const current = libraryResourceMeta.get(key) || {};
+              libraryResourceMeta.set(key, {
+                ...current,
+                ...meta,
+                add: key,
+                label: safeText(meta.label || current.label || RESOURCE_LABELS[key] || key),
+                panel: safeText(meta.panel || current.panel),
+                family: safeText(meta.family || current.family),
+              });
+            };
+            const libraryResourceLabel = (add) => {
+              const key = safeText(add);
+              const meta = libraryResourceMeta.get(key);
+              return safeText(meta?.label || RESOURCE_LABELS[key] || key);
+            };
             const isLibraryResourceHidden = (add) => !!(add && hiddenLibraryResources.has(safeText(add)));
             const setLibraryManageMode = (enabled) => {
               libraryManageMode = !!enabled;
@@ -35546,10 +35605,70 @@
                   : 'Oculta recursos que no vas a utilizar en este dispositivo.';
               }
             };
+            const renderCustomLibraryResources = () => {
+              if (!customLibraryAssetsStrip) return;
+              customLibraryAssetsStrip.textContent = '';
+              customLibraryResources.forEach((item) => {
+                const add = customResourceAddKey(item);
+                rememberLibraryResourceMeta(add, { label: item.label || 'Recurso externo', panel: 'pro', family: 'importados' });
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'pdf-asset-btn';
+                button.dataset.add = add;
+                button.title = item.label || 'Recurso externo';
+                button.setAttribute('aria-label', item.label || 'Recurso externo');
+                const img = document.createElement('img');
+                img.src = item.url;
+                img.alt = item.label || 'Recurso externo';
+                img.loading = 'lazy';
+                button.appendChild(img);
+                customLibraryAssetsStrip.appendChild(button);
+              });
+            };
+            const collectLibraryResourceCatalog = () => {
+              const seen = new Set();
+              const catalog = [];
+              const buttons = Array.from(resourceSection?.querySelectorAll('.resource-panel button[data-add]') || []);
+              buttons.forEach((button) => {
+                const add = safeText(button.dataset.add);
+                if (!add || seen.has(add)) return;
+                seen.add(add);
+                const panel = safeText(button.closest('.resource-panel')?.dataset?.panel);
+                const family = safeText(button.closest('[data-material-family]')?.dataset?.materialFamily);
+                const label = safeText(button.getAttribute('title') || button.getAttribute('aria-label') || button.textContent || RESOURCE_LABELS[add] || add);
+                rememberLibraryResourceMeta(add, { label, panel, family });
+                catalog.push({ add, label, panel, family });
+              });
+              return catalog.sort((a, b) => a.label.localeCompare(b.label, 'es'));
+            };
+            const renderLibraryRepository = () => {
+              if (!libraryRepositoryList) return;
+              libraryRepositoryList.textContent = '';
+              collectLibraryResourceCatalog().forEach((item) => {
+                const row = document.createElement('div');
+                row.className = 'library-repository-item';
+                const meta = document.createElement('div');
+                meta.className = 'library-repository-meta';
+                const strong = document.createElement('strong');
+                strong.textContent = item.label;
+                const small = document.createElement('span');
+                small.textContent = resourcePanelLabel(item.panel, item.family);
+                meta.appendChild(strong);
+                meta.appendChild(small);
+                const toggle = document.createElement('button');
+                toggle.type = 'button';
+                toggle.className = `library-resource-toggle ${isLibraryResourceHidden(item.add) ? 'is-disabled' : 'is-enabled'}`;
+                toggle.dataset.libraryResourceToggle = item.add;
+                toggle.textContent = isLibraryResourceHidden(item.add) ? 'Oculto' : 'Activo';
+                row.appendChild(meta);
+                row.appendChild(toggle);
+                libraryRepositoryList.appendChild(row);
+              });
+            };
             const sortLibraryResources = (values) => values
               .map((value) => safeText(value))
               .filter(Boolean)
-              .sort((a, b) => safeText(RESOURCE_LABELS[a] || a).localeCompare(safeText(RESOURCE_LABELS[b] || b), 'es'));
+              .sort((a, b) => libraryResourceLabel(a).localeCompare(libraryResourceLabel(b), 'es'));
             const renderHiddenLibraryResources = () => {
               if (!libraryHiddenBox || !libraryHiddenList || !libraryHiddenEmpty) return;
               const items = sortLibraryResources(Array.from(hiddenLibraryResources));
@@ -35560,13 +35679,13 @@
                 const pill = document.createElement('div');
                 pill.className = 'library-hidden-item';
                 const name = document.createElement('span');
-                name.textContent = RESOURCE_LABELS[add] || add;
+                name.textContent = libraryResourceLabel(add);
                 pill.appendChild(name);
                 const btn = document.createElement('button');
                 btn.type = 'button';
                 btn.dataset.libraryRestore = add;
                 btn.textContent = 'Mostrar';
-                btn.title = `Volver a mostrar ${RESOURCE_LABELS[add] || add}`;
+                btn.title = `Volver a mostrar ${libraryResourceLabel(add)}`;
                 pill.appendChild(btn);
                 libraryHiddenList.appendChild(pill);
               });
@@ -35736,6 +35855,7 @@
                 btn.dataset.libraryHidden = hiddenByLibrary ? '1' : '0';
               });
               renderHiddenLibraryResources();
+              renderLibraryRepository();
             };
             libraryFilterInput?.addEventListener('input', applyLibraryFilter);
             libraryManageToggleBtn?.addEventListener('click', () => {
@@ -35748,6 +35868,19 @@
               applyLibraryFilter();
               setStatus('Biblioteca restaurada. Vuelven a mostrarse todos los recursos.');
             });
+            libraryRepositoryList?.addEventListener('click', (event) => {
+              const button = event.target.closest('button[data-library-resource-toggle]');
+              if (!button) return;
+              const add = safeText(button.dataset.libraryResourceToggle);
+              if (!add) return;
+              if (hiddenLibraryResources.has(add)) hiddenLibraryResources.delete(add);
+              else hiddenLibraryResources.add(add);
+              persistHiddenLibraryResources();
+              applyLibraryFilter();
+              setStatus(hiddenLibraryResources.has(add)
+                ? `Recurso desactivado en biblioteca: ${libraryResourceLabel(add)}.`
+                : `Recurso activado en biblioteca: ${libraryResourceLabel(add)}.`);
+            });
             libraryHiddenList?.addEventListener('click', (event) => {
               const button = event.target.closest('button[data-library-restore]');
               if (!button) return;
@@ -35756,7 +35889,31 @@
               hiddenLibraryResources.delete(add);
               persistHiddenLibraryResources();
               applyLibraryFilter();
-              setStatus(`Recurso reactivado en la biblioteca: ${RESOURCE_LABELS[add] || add}.`);
+              setStatus(`Recurso reactivado en la biblioteca: ${libraryResourceLabel(add)}.`);
+            });
+            libraryAddSubmitBtn?.addEventListener('click', () => {
+              const url = safeText(libraryAddUrlInput?.value);
+              const label = safeText(libraryAddLabelInput?.value);
+              if (!url) {
+                setStatus('Indica la URL del recurso externo.', true);
+                return;
+              }
+              try {
+                new URL(url);
+              } catch (e) {
+                setStatus('La URL del recurso no es válida.', true);
+                return;
+              }
+              const fallback = url.split('/').pop()?.split('?')[0] || 'Recurso externo';
+              const next = { url, label: label || fallback };
+              customLibraryResources = customLibraryResources.filter((item) => safeText(item.url) !== url);
+              customLibraryResources.unshift(next);
+              persistCustomLibraryResources();
+              renderCustomLibraryResources();
+              applyLibraryFilter();
+              try { if (libraryAddUrlInput) libraryAddUrlInput.value = ''; } catch (e) { /* ignore */ }
+              try { if (libraryAddLabelInput) libraryAddLabelInput.value = ''; } catch (e) { /* ignore */ }
+              setStatus(`Recurso añadido a la biblioteca: ${next.label}.`);
             });
 					    let activeResourceKey = '';
 	    const resourceLabelForKey = (key) => {
@@ -35812,6 +35969,7 @@
 	      const key = safeText(resourceSelect.value);
 	      activateResourcePanel(key);
 	    });
+            renderCustomLibraryResources();
 				    if (resourceTabs.length && resourcePanels.length) {
 				      // Por defecto arrancamos en “Recursos base” para que siempre sea operativa la pizarra
 				      // aunque no haya importaciones (y para que sea evidente dónde están flechas/figuras).

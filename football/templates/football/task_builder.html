@@ -1860,6 +1860,89 @@
           font-size: 0.73rem;
           color: rgba(226,232,240,0.66);
         }
+        .library-repository-box {
+          margin: 0 0 0.8rem;
+          padding: 0.82rem 0.85rem;
+          border-radius: 18px;
+          border: 1px solid rgba(255,255,255,0.1);
+          background: rgba(15,23,42,0.5);
+        }
+        .library-repository-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.6rem;
+          margin-bottom: 0.6rem;
+        }
+        .library-repository-head strong {
+          font-size: 0.8rem;
+          color: rgba(248,250,252,0.95);
+        }
+        .library-repository-head span {
+          font-size: 0.72rem;
+          color: rgba(226,232,240,0.62);
+        }
+        .library-repository-list {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+          gap: 0.45rem;
+        }
+        .library-repository-item {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.55rem;
+          border-radius: 14px;
+          border: 1px solid rgba(255,255,255,0.08);
+          background: rgba(255,255,255,0.04);
+          padding: 0.48rem 0.58rem;
+        }
+        .library-repository-meta {
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 0.08rem;
+        }
+        .library-repository-meta strong {
+          font-size: 0.75rem;
+          color: rgba(248,250,252,0.94);
+          line-height: 1.1;
+        }
+        .library-repository-meta span {
+          font-size: 0.68rem;
+          color: rgba(226,232,240,0.56);
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+        }
+        .library-resource-toggle {
+          border: 0;
+          border-radius: 999px;
+          padding: 0.28rem 0.62rem;
+          font-size: 0.7rem;
+          font-weight: 800;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+        .library-resource-toggle.is-enabled {
+          background: rgba(34,197,94,0.16);
+          color: #bbf7d0;
+        }
+        .library-resource-toggle.is-disabled {
+          background: rgba(148,163,184,0.14);
+          color: rgba(226,232,240,0.82);
+        }
+        .library-add-form {
+          margin-top: 0.7rem;
+          display: grid;
+          grid-template-columns: 1.2fr 0.9fr auto;
+          gap: 0.45rem;
+        }
+        .library-add-form input {
+          min-width: 0;
+        }
+        .library-add-form button {
+          white-space: nowrap;
+        }
         .library-hidden-box {
           margin: 0 0 0.75rem;
           padding: 0.75rem 0.8rem;
@@ -7590,6 +7673,18 @@
 	                          </div>
 	                          <div class="library-manage-note" id="task-library-manage-note">Oculta recursos que no vas a utilizar en este dispositivo.</div>
 	                        </div>
+                        <div class="library-repository-box" id="task-library-repository-box">
+                          <div class="library-repository-head">
+                            <strong>Repositorio de recursos</strong>
+                            <span>Marca qué recursos estarán disponibles al crear tareas</span>
+                          </div>
+                          <div class="library-repository-list" id="task-library-repository-list"></div>
+                          <div class="library-add-form">
+                            <input type="url" id="task-library-add-url" placeholder="https://.../recurso.png" aria-label="URL del recurso" />
+                            <input type="text" id="task-library-add-label" placeholder="Nombre del recurso" aria-label="Nombre del recurso" />
+                            <button type="button" class="library-manage-chip" id="task-library-add-submit">Añadir</button>
+                          </div>
+                        </div>
                         <div class="library-hidden-box" id="task-library-hidden-box" hidden>
                           <div class="library-hidden-head">
                             <strong>Recursos ocultos</strong>
@@ -8841,14 +8936,16 @@
                   </div>
                   </div>
 
-                  <div class="task-material-family" data-material-family="importados" hidden>
-                  <div class="meta" style="margin:0.85rem 0 0.35rem;">Importados (PDF/PPT)</div>
-                  <p class="meta" style="margin:0 0 0.65rem; font-size:0.78rem;">
-                    Aquí aparecen los recursos del sistema, los del equipo y los extraídos al importar tareas desde PDF.
-                  </p>
-                  {% if not pdf_assets and not ppt_icons %}
-                    <span class="meta">Aún no hay recursos disponibles. Sube un PPTX/PNG en Platform → Asistente o importa tareas desde PDF.</span>
-                  {% endif %}
+	                  <div class="task-material-family" data-material-family="importados" hidden>
+	                  <div class="meta" style="margin:0.85rem 0 0.35rem;">Importados (PDF/PPT)</div>
+	                  <p class="meta" style="margin:0 0 0.65rem; font-size:0.78rem;">
+	                    Aquí aparecen los recursos del sistema, los del equipo y los extraídos al importar tareas desde PDF.
+	                  </p>
+                    <div class="meta" style="margin:0.5rem 0 0.35rem;">Biblioteca externa</div>
+                    <div class="resource-strip pdf-assets-strip" id="task-custom-library-assets"></div>
+	                  {% if not pdf_assets and not ppt_icons %}
+	                    <span class="meta">Aún no hay recursos disponibles. Sube un PPTX/PNG en Platform → Asistente o importa tareas desde PDF.</span>
+	                  {% endif %}
                   {% if pdf_assets %}
                   <div class="meta" style="margin:0.5rem 0 0.35rem;">Recursos extraídos de PDFs</div>
                   <div class="resource-strip pdf-assets-strip">
