@@ -5577,17 +5577,16 @@
 	        color: rgba(240, 253, 250, 0.96);
 	      }
 	      .sim-3d-foot {
-	        padding: 0.52rem 0.72rem;
+	        padding: 0.7rem 0.82rem;
 	        border-top: 1px solid rgba(255,255,255,0.10);
 	        display: flex;
+	        flex-direction: column;
 	        gap: 0.5rem;
-	        align-items: center;
+	        align-items: stretch;
 	        justify-content: flex-start;
-	        flex-wrap: wrap;
-	        max-height: min(180px, 28dvh);
-	        overflow-x: hidden;
-	        overflow-y: auto;
-	        scrollbar-width: thin;
+	        flex-wrap: nowrap;
+	        max-height: none;
+	        overflow: visible;
 	      }
 	      .sim-3d-controls {
 	        display:flex;
@@ -5608,14 +5607,50 @@
 	        padding-inline: 0.72rem;
 	        flex: 0 0 auto;
 	      }
+	      .pitch3d-primary-controls {
+	        display: grid;
+	        grid-template-columns: repeat(4, minmax(0, 1fr));
+	        gap: 0.7rem;
+	        width: 100%;
+	        align-items: end;
+	      }
+	      .pitch3d-control-group {
+	        display: grid;
+	        gap: 0.38rem;
+	        min-width: 0;
+	      }
+	      .pitch3d-control-label {
+	        font-size: 0.68rem;
+	        font-weight: 900;
+	        letter-spacing: 0.12em;
+	        text-transform: uppercase;
+	        color: rgba(226, 232, 240, 0.72);
+	        padding-left: 0.18rem;
+	      }
+	      .pitch3d-control-group .button,
+	      .pitch3d-control-group button,
+	      .pitch3d-control-group select {
+	        width: 100%;
+	        min-width: 0;
+	        max-width: none;
+	      }
+	      .pitch3d-hidden-controls {
+	        display: none;
+	      }
 	      #task-pitch-3d-camera {
-	        order: -20;
 	        min-width: min(240px, 58vw);
 	      }
-	      #task-pitch-3d-follow { order: -19; }
-	      #task-pitch-3d-format { order: -18; }
-	      #task-pitch-3d-surface { order: -17; }
 	      .sim-3d-note { display:none; }
+	      @media (max-width: 980px) {
+	        .pitch3d-primary-controls {
+	          grid-template-columns: repeat(2, minmax(0, 1fr));
+	        }
+	      }
+	      @media (max-width: 620px) {
+	        .pitch3d-primary-controls {
+	          grid-template-columns: minmax(0, 1fr);
+	        }
+	      }
 	      .pitch3d-hud {
 	        position: absolute;
 	        inset: 0;
@@ -8243,9 +8278,14 @@
 				                          </div>
 				                        </div>
 				                        <div class="sim-3d-foot">
-				                          <div class="sim-3d-controls">
-				                            <button type="button" class="button" id="task-pitch-3d-snap" title="Descargar captura PNG">Descargar PNG</button>
-				                            <select id="task-pitch-3d-camera" title="Cámara" aria-label="Cámara">
+				                          <div class="sim-3d-controls pitch3d-primary-controls">
+				                            <div class="pitch3d-control-group">
+				                              <span class="pitch3d-control-label">Captura HD</span>
+				                              <button type="button" class="button" id="task-pitch-3d-snap" title="Descargar captura HD PNG">Captura HD</button>
+				                            </div>
+				                            <div class="pitch3d-control-group">
+				                              <span class="pitch3d-control-label">Tipo de cámara</span>
+				                              <select id="task-pitch-3d-camera" title="Tipo de cámara" aria-label="Tipo de cámara">
 				                                <option value="render_original" selected>Render original</option>
 				                                <option value="reference_photo">Referencia estadio</option>
 				                                <option value="clean_pitch_render">Campo limpio</option>
@@ -8263,6 +8303,33 @@
 				                                <option value="top_h">Top H</option>
 				                                <option value="top_v">Top V</option>
 				                              </select>
+				                            </div>
+				                            <div class="pitch3d-control-group">
+				                              <span class="pitch3d-control-label">Superficie de juego</span>
+				                              <select id="task-pitch-3d-format" title="Superficie de juego" aria-label="Superficie de juego">
+				                                <option value="f11" selected>Fútbol 11</option>
+				                                <option value="f7">Fútbol 7</option>
+				                              </select>
+				                            </div>
+				                            <div class="pitch3d-control-group">
+				                              <span class="pitch3d-control-label">Tipo de césped</span>
+				                              <select id="task-pitch-3d-surface" title="Tipo de césped" aria-label="Tipo de césped">
+				                                <option value="classic">Césped</option>
+				                                <option value="broadcast">Broadcast</option>
+				                                <option value="realistic">Realista</option>
+				                                <option value="pro">PRO</option>
+				                                <option value="uefa_b">UEFA B</option>
+				                                <option value="natural">Natural</option>
+				                                <option value="artificial">Artificial</option>
+				                                <option value="albero">Albero</option>
+				                                <option value="dirt">Tierra</option>
+				                                <option value="indoor">Indoor</option>
+				                                <option value="dry">Seco</option>
+				                                <option value="wet">Mojado</option>
+				                              </select>
+				                            </div>
+				                          </div>
+				                          <div class="sim-3d-controls pitch3d-hidden-controls" aria-hidden="true">
 				                            <select id="task-pitch-3d-follow" title="Seguimiento" aria-label="Seguimiento">
 				                                <option value="off" selected>Off</option>
 				                                <option value="ball">Balón</option>
@@ -8287,10 +8354,6 @@
 				                                <option value="goal_3d">Portería 3D</option>
 				                                <option value="zone">Zona</option>
 				                              </select>
-				                            <select id="task-pitch-3d-format" title="Formato" aria-label="Formato">
-				                                <option value="f11" selected>Fútbol 11</option>
-				                                <option value="f7">Fútbol 7</option>
-				                              </select>
 				                            <button type="button" class="button" id="task-pitch-3d-refresh" title="Sincroniza con la pizarra actual">Actualizar</button>
 				                            <button type="button" class="button primary" id="task-pitch-3d-snap-tactic" title="Descarga PNG enfocando la táctica">PNG táctica</button>
 				                            <button type="button" class="button" id="task-pitch-3d-play" title="Reproduce escenarios (si existen)">▶</button>
@@ -8310,6 +8373,11 @@
 				                            <button type="button" class="button" id="task-pitch-3d-validate" title="Revisa límites y coherencia básica">Validar</button>
 				                            <button type="button" class="button" id="task-pitch-3d-clamp" title="Ajusta jugadores/material al campo">Ajustar límites</button>
 				                            <button type="button" class="button" id="task-pitch-3d-quality" title="Alterna calidad visual alta">Calidad</button>
+				                            <select id="task-pitch-3d-theme" title="Iluminación del estadio">
+				                              <option value="auto" selected>Auto luz</option>
+				                              <option value="day">Día</option>
+				                              <option value="night">Noche</option>
+				                            </select>
 				                          </div>
 				                          <div class="sim-3d-note">Tip: arrastra para girar; rueda/pinch para zoom; Shift + arrastre o botón derecho desplaza el foco.</div>
 				                        </div>
