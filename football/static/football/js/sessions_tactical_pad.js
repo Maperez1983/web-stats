@@ -646,7 +646,7 @@
         y: -bleed,
         width: stageW + (bleed * 2),
         height: stageH + (bleed * 2),
-        fill: 'rgba(6, 12, 22, 0.10)',
+        fill: 'rgba(6, 12, 22, 0.02)',
       }));
     } else {
       const fillOutside = `url(#${grassFillId})`;
@@ -705,8 +705,8 @@
     // y evitar márgenes vacíos enormes en superficies parciales (tercios, medio campo, futsal, etc).
     let pitchBox = { x: stage.x, y: stage.y, width: stage.width, height: stage.height };
     const scale = stage.width / 105;
-	    const line = (grassStyle === 'whiteboard') ? '#0f172a' : (isStadiumTopFamily ? 'rgba(255,255,255,0.96)' : '#f8fafc');
-	    const soft = (grassStyle === 'whiteboard') ? 'rgba(15,23,42,0.55)' : (isStadiumTopFamily ? 'rgba(255,255,255,0.78)' : 'rgba(248,250,252,0.66)');
+	    const line = (grassStyle === 'whiteboard') ? '#0f172a' : (isStadiumTopFamily ? 'rgba(255,255,255,0.98)' : '#f8fafc');
+	    const soft = (grassStyle === 'whiteboard') ? 'rgba(15,23,42,0.55)' : (isStadiumTopFamily ? 'rgba(255,255,255,0.88)' : 'rgba(248,250,252,0.66)');
 
 	    const drawFrame = (x, y, width, height, lineWidth = 4) => {
 	      const isCoachBoard = grassStyle === 'coachboard';
@@ -747,7 +747,7 @@
 	          height,
 	          rx: corner,
 	          ry: corner,
-          fill: isStadiumTopFamily ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.03)',
+          fill: isStadiumTopFamily ? 'rgba(255,255,255,0.01)' : 'rgba(255,255,255,0.03)',
           stroke: 'none',
         }));
           if (isStadiumTopFamily) {
@@ -759,16 +759,8 @@
               rx: Math.max(0, corner - 4),
               ry: Math.max(0, corner - 4),
               fill: 'none',
-              stroke: 'rgba(255,255,255,0.10)',
-              'stroke-width': 2.2,
-            }));
-            drawRoot.appendChild(createSvgNode(doc, 'ellipse', {
-              cx: x + (width / 2),
-              cy: y + (height / 2),
-              rx: width * 0.46,
-              ry: height * 0.42,
-              fill: 'rgba(255,255,255,0.08)',
-              stroke: 'none',
+              stroke: 'rgba(255,255,255,0.18)',
+              'stroke-width': 1.6,
             }));
           }
 	      }
