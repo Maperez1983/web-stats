@@ -36009,9 +36009,7 @@
             renderCustomLibraryResources();
             setLibraryRepositoryOpen(false);
 				    if (resourceTabs.length && resourcePanels.length) {
-				      // Por defecto arrancamos en “Recursos base” para que siempre sea operativa la pizarra
-				      // aunque no haya importaciones (y para que sea evidente dónde están flechas/figuras).
-				      activateResourcePanel('base');
+				      activateResourcePanel('');
 				    }
             setLibraryManageMode(false);
             applyLibraryFilter();
@@ -36020,8 +36018,8 @@
 		      window.addEventListener('webstats:tpad:device-change', () => {
 		        try {
 		          if (resourceDetails && isDesktopUi()) resourceDetails.open = false;
-		          if (!activeResourceKey) activateResourcePanel(isWideUi() ? 'base' : '');
-		          else activateResourcePanel(activeResourceKey);
+			          if (!activeResourceKey) activateResourcePanel('');
+			          else activateResourcePanel(activeResourceKey);
 		        } catch (error) { /* ignore */ }
 		      });
 		    } catch (error) { /* ignore */ }

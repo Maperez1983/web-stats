@@ -1805,6 +1805,9 @@
 	        text-transform: none;
 	        cursor: pointer;
 	      }
+	      .resource-tab[href] {
+	        text-decoration: none;
+	      }
 	      .resource-tab .lib-ico {
 	        width: 30px;
 	        height: 30px;
@@ -5176,7 +5179,7 @@
         flex-direction: column;
         min-height: 0;
         overflow-x: hidden;
-        overflow-y: auto;
+        overflow-y: hidden;
         padding-right: 0.08rem;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .library-copy {
@@ -5194,12 +5197,12 @@
         opacity: 0.82;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .resource-panel.is-visible {
-        display: grid;
-        align-content: start;
+        display: flex;
+        flex-direction: column;
         gap: 0.34rem;
         flex: 1 1 auto;
         min-height: 0;
-        overflow-y: auto;
+        overflow-y: hidden;
         overflow-x: hidden;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .tool-group-title {
@@ -5213,15 +5216,6 @@
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .resource-tabs {
         display: none;
-      }
-      body:not(.tactics-mode).task-mode-ready.task-mode-board .resource-panel.is-visible {
-        display: grid;
-        align-content: start;
-        gap: 0.34rem;
-        flex: 1 1 auto;
-        min-height: 0;
-        overflow-y: auto;
-        overflow-x: hidden;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .editor-edit-pane {
         gap: 0.22rem;
@@ -6633,6 +6627,26 @@
       body:not(.tactics-mode) .library-helper-grid {
         grid-template-columns: 1fr;
       }
+      body:not(.tactics-mode) .resource-empty-state,
+      body:not(.tactics-mode) .material-empty-state {
+        display: flex;
+        flex-direction: column;
+        gap: 0.28rem;
+        padding: 0.72rem 0.78rem;
+        border-radius: 14px;
+        border: 1px dashed rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.025);
+        color: rgba(226,232,240,0.74);
+        font-size: 0.74rem;
+        line-height: 1.38;
+      }
+      body:not(.tactics-mode) .resource-empty-state strong,
+      body:not(.tactics-mode) .material-empty-state strong {
+        color: rgba(248,250,252,0.94);
+        font-size: 0.76rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
       body:not(.tactics-mode) .resource-tab {
         min-height: 44px;
         justify-content: flex-start;
@@ -6642,11 +6656,17 @@
         border-color: rgba(255,255,255,0.12);
         letter-spacing: 0.03em;
       }
-      body:not(.tactics-mode) .resource-tab.is-active {
-        background: rgba(244,180,0,0.14);
-        border-color: rgba(244,180,0,0.48);
-        color: rgba(255,255,255,0.96);
-      }
+	      body:not(.tactics-mode) .resource-tab.is-active {
+	        background: rgba(244,180,0,0.14);
+	        border-color: rgba(244,180,0,0.48);
+	        color: rgba(255,255,255,0.96);
+	      }
+	      body:not(.tactics-mode) .resource-tab.resource-tab-link {
+	        border-style: dashed;
+	        border-color: rgba(74, 222, 128, 0.34);
+	        background: rgba(34,197,94,0.08);
+	        color: rgba(240,253,244,0.96);
+	      }
       body:not(.tactics-mode) .resource-tab .lib-ico {
         width: 28px;
         height: 28px;
@@ -6717,6 +6737,9 @@
       body:not(.tactics-mode).task-mode-ready.task-mode-board .task-material-family.is-visible {
         display: flex;
       }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board #task-material-empty-state[hidden] {
+        display: none !important;
+      }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .resource-panel[data-panel="pro"].is-visible {
         display: flex;
         flex-direction: column;
@@ -6734,12 +6757,16 @@
         padding-bottom: 0;
         flex: 1 1 auto;
         min-height: 0;
-        height: min(42vh, 320px);
-        max-height: min(42vh, 320px);
+        height: auto;
+        max-height: none;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .task-material-family[data-material-columns="3"] .resource-strip,
       body:not(.tactics-mode).task-mode-ready.task-mode-board .task-material-family[data-material-columns="3"] .pdf-assets-strip {
         grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-material-family[data-material-columns="4"] .resource-strip,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-material-family[data-material-columns="4"] .pdf-assets-strip {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .task-material-family .resource-strip > button,
       body:not(.tactics-mode).task-mode-ready.task-mode-board .task-material-family .pdf-assets-strip > button {
@@ -6755,6 +6782,13 @@
         padding: 0.42rem 0.3rem;
         border-radius: 12px;
         justify-content: center;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-material-family[data-material-density="compact"] .resource-strip button.tool-icon,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-material-family[data-material-density="compact"] .resource-strip button[data-add],
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-material-family[data-material-density="compact"] .resource-strip button[data-action],
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-material-family[data-material-density="compact"] .pdf-assets-strip .pdf-asset-btn {
+        min-height: 48px;
+        padding: 0.28rem 0.24rem;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .task-material-family .pdf-assets-strip .pdf-asset-btn img {
         width: 40px;
@@ -7781,7 +7815,7 @@
 	                      </div>
 	                      <input type="search" class="library-filter" id="task-library-filter" placeholder="Filtra recursos…" aria-label="Filtrar recursos" />
 		                        {% if not tactics_mode %}
-		                        <div class="library-helper-grid" aria-label="Guía rápida del lateral">
+			                        <div class="library-helper-grid resource-helper" aria-label="Guía rápida del lateral">
                           <div class="library-helper-pill">
                             <strong>Montaje</strong>
                             <span>Abre una categoría y verás solo sus recursos. No mezclamos opciones fuera de contexto.</span>
@@ -7790,9 +7824,9 @@
                             <strong>Edición</strong>
                             <span>Al tocar una chapa, flecha, cono o zona, este mismo lateral cambia a sus ajustes útiles.</span>
                           </div>
-                        </div>
-                        {% endif %}
-		                      <div class="resource-tabs" aria-label="Categorías de recursos">
+		                        </div>
+		                        {% endif %}
+			                      <div class="resource-tabs" aria-label="Categorías de recursos">
 		                        <button type="button" class="resource-tab" data-resource="base" title="Base">
 		                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7a3 3 0 0 1 3-3h2V3h6v1h2a3 3 0 0 1 3 3v2H4V7Zm0 4h20v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8Zm7-7h2v1h-2V4Z"/></svg></span>
 		                          <span class="lib-label">{% if tactics_mode %}Elementos{% else %}Jugadores{% endif %}</span>
@@ -7801,8 +7835,14 @@
 		                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2 15 9l7 .6-5.3 4.6 1.7 7-6.4-3.8L6.3 21l1.7-7L2.7 9.6 10 9l2-7Z"/></svg></span>
 		                          <span class="lib-label">{% if tactics_mode %}Porterías{% else %}Material{% endif %}</span>
 		                        </button>
-		                        {% if tactics_mode %}
-		                        <button type="button" class="resource-tab" data-resource="plantilla" title="Plantilla">
+		                        {% if not tactics_mode %}
+		                        <a href="{{ task_resource_library_url|default:'#' }}" class="resource-tab resource-tab-link" title="Biblioteca de recursos">
+		                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h3.5a2 2 0 0 1 1.6.8l.8 1.1A2 2 0 0 0 13.5 6H18a2 2 0 0 1 2 2v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V5Zm3 4h10v2H7V9Zm0 4h7v2H7v-2Z"/></svg></span>
+		                          <span class="lib-label">Biblioteca</span>
+		                        </a>
+		                        {% endif %}
+			                        {% if tactics_mode %}
+			                        <button type="button" class="resource-tab" data-resource="plantilla" title="Plantilla">
 		                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z"/></svg></span>
 		                          <span class="lib-label">Plantilla</span>
 		                        </button>
@@ -7811,12 +7851,16 @@
                           <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12h12.17l-3.58-3.59L14 7l7 7-7 7-1.41-1.41L16.17 14H4v-2Z"/></svg></span>
                           <span class="lib-label">{% if tactics_mode %}Flechas{% else %}Trazos{% endif %}</span>
                         </button>
-                        <button type="button" class="resource-tab" data-resource="figuras" title="Figuras geométricas">
-                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 7h6v6H7V7Zm10 1a4 4 0 1 1-4 4 4 4 0 0 1 4-4ZM5 19h14v2H5v-2Z"/></svg></span>
-                          <span class="lib-label">Zonas</span>
-                        </button>
-	                      </div>
-	                    </div>
+		                        <button type="button" class="resource-tab" data-resource="figuras" title="Figuras geométricas">
+		                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 7h6v6H7V7Zm10 1a4 4 0 1 1-4 4 4 4 0 0 1 4-4ZM5 19h14v2H5v-2Z"/></svg></span>
+		                          <span class="lib-label">Zonas</span>
+		                        </button>
+		                      </div>
+		                      <div class="resource-empty-state" id="task-resource-empty-state">
+		                        <strong>Barra lateral en espera</strong>
+		                        <span>Pulsa una categoría para cargar solo ese bloque. Si eliges Material, primero verás sus tipos y luego los recursos de la familia seleccionada.</span>
+		                      </div>
+		                    </div>
                       {% if not tactics_mode %}
                       <div class="command-cluster-head">
                         <strong>Acciones rápidas</strong>
@@ -8937,9 +8981,9 @@
                   <p class="meta" style="margin:0 0 0.65rem; font-size:0.78rem;">
                     Recursos “de pizarra” listos para tareas y táctica. Tip: tras colocar, selecciona el elemento para ajustar tamaño/color y usa “Capas” para reordenar/bloquear.
                   </p>
-                  <div class="selection-actions" id="task-material-family-tabs" style="margin-bottom:0.7rem;">
-                    <span class="preset-label">Familia</span>
-                    <button type="button" data-material-family-toggle="equipamiento">🔺 Equipamiento</button>
+	                  <div class="selection-actions" id="task-material-family-tabs" style="margin-bottom:0.7rem;">
+	                    <span class="preset-label">Familia</span>
+	                    <button type="button" data-material-family-toggle="equipamiento">🔺 Equipamiento</button>
                     <button type="button" data-material-family-toggle="porterias">🥅 Porterías</button>
                     <button type="button" data-material-family-toggle="marcadores">🏷 Marcadores</button>
                     <button type="button" data-material-family-toggle="apoyos">⚽ Apoyos</button>
@@ -8948,10 +8992,14 @@
                   <div class="selection-actions" style="margin-bottom:0.7rem;">
                     <span class="preset-label">Borrado</span>
                     <button type="button" data-action="delete" title="Borra el recurso seleccionado">Borrar seleccionado</button>
-                    <button type="button" class="danger" data-action="clear_material" title="Elimina del campo material, emojis e importados">Limpiar material</button>
-                  </div>
+	                    <button type="button" class="danger" data-action="clear_material" title="Elimina del campo material, emojis e importados">Limpiar material</button>
+	                  </div>
+	                  <div class="material-empty-state" id="task-material-empty-state">
+	                    <strong>Selecciona un tipo de material</strong>
+	                    <span>Primero elige Equipamiento, Porterías, Marcadores, Apoyos o Importados. Solo entonces mostraremos los recursos de esa familia.</span>
+	                  </div>
 
-                  <div class="task-material-family" data-material-family="equipamiento">
+	                  <div class="task-material-family" data-material-family="equipamiento">
                   <div class="meta" style="margin:0.65rem 0 0.35rem;">Equipamiento</div>
                   <div class="resource-strip">
                     <button type="button" class="tool-icon" data-add="cone" title="Cono" aria-label="Cono"><span class="tool-emoji" aria-hidden="true">🔺</span><span class="sr-only">Cono</span></button>
@@ -15739,6 +15787,8 @@
           const resourceTabs = Array.from(document.querySelectorAll('.resource-tab'));
           const materialFamilyButtons = Array.from(document.querySelectorAll('[data-material-family-toggle]'));
           const materialFamilyPanels = Array.from(document.querySelectorAll('[data-material-family]'));
+          const materialEmptyState = document.getElementById('task-material-empty-state');
+          const resourceEmptyState = document.getElementById('task-resource-empty-state');
           const topResourceButtons = Array.from(document.querySelectorAll('[data-top-resource]'));
           const laneTemplateButtons = Array.from(document.querySelectorAll('[data-lane-template]'));
           const workflowButtons = Array.from(document.querySelectorAll('[data-workflow-action]'));
@@ -15823,7 +15873,7 @@
             importados: 'Extras',
             plantilla: 'Jugadores',
           };
-          let activeMaterialFamily = 'equipamiento';
+          let activeMaterialFamily = '';
 
           const updateMaterialFamilyLayout = () => {
             materialFamilyPanels.forEach((panel) => {
@@ -15831,6 +15881,7 @@
               const strip = panel.querySelector('.resource-strip, .pdf-assets-strip');
               if (!strip) return;
               panel.dataset.materialColumns = '2';
+              panel.dataset.materialDensity = 'regular';
               strip.style.maxHeight = '';
               strip.style.height = '';
               const host = resourcesPane || panel.closest('.editor-side-pane') || panel.closest('.pitch-side') || panel.closest('.resource-panel');
@@ -15840,24 +15891,25 @@
               if (hostRect && stripRect) {
                 availableHeight = Math.floor(hostRect.bottom - stripRect.top - 14);
               }
-              availableHeight = Math.max(320, availableHeight || 0);
+              availableHeight = Math.max(140, availableHeight || 0);
               const resourceCount = strip.querySelectorAll('button').length;
+              const compactDensity = availableHeight < 250;
+              panel.dataset.materialDensity = compactDensity ? 'compact' : 'regular';
               if (availableHeight) {
                 strip.style.maxHeight = `${availableHeight}px`;
                 strip.style.height = resourceCount ? `${availableHeight}px` : 'auto';
               }
-              const needsThreeColumns = strip.scrollHeight > availableHeight + 6;
-              panel.dataset.materialColumns = needsThreeColumns ? '3' : '2';
-              if (needsThreeColumns) {
-                strip.style.maxHeight = `${availableHeight}px`;
-              }
+              const estimatedItemHeight = compactDensity ? 56 : 68;
+              const rowsAvailable = Math.max(1, Math.floor((availableHeight + 6) / estimatedItemHeight));
+              const requiredColumns = resourceCount ? Math.ceil(resourceCount / rowsAvailable) : 2;
+              panel.dataset.materialColumns = String(Math.max(2, Math.min(4, requiredColumns)));
             });
           };
 
           const activateMaterialFamily = (family, options = {}) => {
-            const next = String(family || '').trim() || 'equipamiento';
-            const available = materialFamilyPanels.some((panel) => String(panel.dataset.materialFamily || '').trim() === next);
-            const resolved = available ? next : 'equipamiento';
+            const next = String(family || '').trim();
+            const available = next && materialFamilyPanels.some((panel) => String(panel.dataset.materialFamily || '').trim() === next);
+            const resolved = available ? next : '';
             activeMaterialFamily = resolved;
             materialFamilyButtons.forEach((button) => {
               const isActive = String(button.dataset.materialFamilyToggle || '').trim() === resolved;
@@ -15869,6 +15921,7 @@
               panel.hidden = !visible;
               panel.classList.toggle('is-visible', visible);
             });
+            if (materialEmptyState) materialEmptyState.hidden = !!resolved;
             try { window.requestAnimationFrame(updateMaterialFamilyLayout); } catch (e) { updateMaterialFamilyLayout(); }
             if (!options.silent) {
               try {
@@ -15883,7 +15936,8 @@
             const next = String(key || 'base').trim();
             topResourceButtons.forEach((btn) => btn.classList.toggle('is-active', String(btn.dataset.topResource || '').trim() === next));
             const summary = document.getElementById('task-resource-summary-label');
-            if (summary && resourceLabelMap[next]) summary.textContent = resourceLabelMap[next];
+            if (summary) summary.textContent = resourceLabelMap[next] || 'Selecciona…';
+            if (resourceEmptyState) resourceEmptyState.hidden = !!next;
           };
 
           const activate = (pane) => {
@@ -15958,6 +16012,7 @@
             const key = String(event?.detail?.key || '').trim();
             if (key) syncTopResourceButtons(key);
             if (key === 'pro') activateMaterialFamily(activeMaterialFamily, { silent: true });
+            else activateMaterialFamily('', { silent: true });
           });
           window.addEventListener('webstats:tpad:material-family-change', (event) => {
             const family = String(event?.detail?.family || '').trim();
@@ -16010,9 +16065,9 @@
           resourcesToggle?.addEventListener('click', (event) => {
             try { event.preventDefault(); } catch (e) { /* ignore */ }
             openBoardDrawer('resources');
-            activateResourceTab('pro');
-            syncTopResourceButtons('pro');
-            activateMaterialFamily(activeMaterialFamily, { silent: true });
+            activateResourceTab('');
+            syncTopResourceButtons('');
+            activateMaterialFamily('', { silent: true });
           });
           selectionDockClose?.addEventListener('click', (event) => {
             try { event.preventDefault(); } catch (e) { /* ignore */ }
@@ -16065,6 +16120,8 @@
               if (action === 'build') {
                 proxyClick(boardModeBtn);
                 openBoardDrawer('resources');
+                activateResourceTab('');
+                syncTopResourceButtons('');
                 syncWorkflowUi('build');
                 syncKindUi('2d');
                 return;
@@ -16112,8 +16169,8 @@
               }
               closeTimelineDock();
               openBoardDrawer('resources');
-              activateResourceTab('base');
-              syncTopResourceButtons('base');
+              activateResourceTab('');
+              syncTopResourceButtons('');
             });
           });
 
@@ -16172,9 +16229,13 @@
           document.body.classList.remove('task-board-roster-collapsed');
           syncWorkflowUi('build');
           syncKindUi('2d');
-          activateMaterialFamily('equipamiento', { silent: true });
+          activateMaterialFamily('', { silent: true });
           try {
             window.addEventListener('resize', updateMaterialFamilyLayout, { passive: true });
+          } catch (e) { /* ignore */ }
+          try {
+            const resizeObserver = new ResizeObserver(() => updateMaterialFamilyLayout());
+            if (resourcesPane) resizeObserver.observe(resourcesPane);
           } catch (e) { /* ignore */ }
           try { window.requestAnimationFrame(updateMaterialFamilyLayout); } catch (e) { updateMaterialFamilyLayout(); }
           try {
@@ -16188,8 +16249,8 @@
           } else {
             activate('resources');
           }
-          activateResourceTab('base');
-          syncTopResourceButtons('base');
+          activateResourceTab('');
+          syncTopResourceButtons('');
         };
         if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
         else boot();
