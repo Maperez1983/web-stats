@@ -7536,7 +7536,8 @@
 				                    <button type="button" class="icon-btn" id="task-scenarios-btn" title="Escenarios" aria-label="Escenarios">
 				                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1h2v2h-2v2h2v2h-2v2h2v2h-2v1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6Zm2 0v12h10V6H6Z"/></svg>
 				                    </button>
-				                    <button type="button" class="button" id="task-zones-btn" title="Zonas / carriles y plantillas">Zonas</button>
+				                    <button type="button" class="button" id="task-zones-btn" title="Carriles / zonas y plantillas">Carriles</button>
+				                    <button type="button" class="button" id="task-export-surface-btn" title="Descargar imagen HD de la superficie gráfica">Imagen</button>
 				                    <button type="button" class="icon-btn" id="task-sim-btn" title="Simular (no guarda)" aria-label="Simular">
 				                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7v10l10-5-10-5Z"/></svg>
 				                    </button>
@@ -8382,15 +8383,15 @@
 	                            <input type="text" id="task-token-number" placeholder="Ej. 9" inputmode="numeric" maxlength="2" />
 	                          </label>
 	                        </div>
-	                        <label>
+	                        <label id="task-scale-x-row">
 	                          Longitud / ancho
 	                          <input type="range" id="task-scale-x" min="40" max="260" step="5" value="100" />
 	                        </label>
-                        <label>
+                        <label id="task-scale-y-row">
                           Altura / grosor
                           <input type="range" id="task-scale-y" min="40" max="260" step="5" value="100" />
                         </label>
-                        <label style="grid-column:1 / -1;">
+                        <label style="grid-column:1 / -1;" id="task-rotation-row">
                           Giro
                           <input type="range" id="task-rotation" min="0" max="359" step="1" value="0" />
                         </label>
@@ -8438,7 +8439,7 @@
                           <input type="range" id="task-ball-strike-timing" min="0" max="100" step="5" value="50" />
                         </label>
                         </details>
-                        <label style="grid-column:1 / -1;">
+                        <label style="grid-column:1 / -1;" id="task-style-color-row">
                           Color
                           <div style="display:flex; gap:0.6rem; align-items:center;">
                             <input type="color" id="task-style-color" value="#22d3ee" />
@@ -8469,7 +8470,7 @@
 		                          <button type="button" id="task-curve-flip" title="Cambiar lado de la curva (flecha/curva seleccionada)">Cambiar lado</button>
 		                        </div>
 		                      </div>
-	                      <div class="selection-actions" id="task-scale-presets">
+		                      <div class="selection-actions" id="task-scale-presets">
 	                        <span class="preset-label">Tamaño</span>
 	                        <button type="button" data-scale-preset="65">Pequeño</button>
 	                        <button type="button" data-scale-preset="80">S</button>
@@ -8490,7 +8491,7 @@
 	                        <button type="button" data-stroke-preset="5">L</button>
 	                        <button type="button" data-stroke-preset="8">XL</button>
 	                      </div>
-		                      <div class="selection-actions">
+		                      <div class="selection-actions" id="task-color-presets-row">
 		                        <button type="button" data-color="#22d3ee">Cian</button>
 		                        <button type="button" data-color="#f97316">Naranja</button>
 	                        <button type="button" data-color="#ef4444">Rojo</button>

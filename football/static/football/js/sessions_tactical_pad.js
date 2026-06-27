@@ -1463,6 +1463,10 @@
     const selectionPreview = document.getElementById('task-selection-preview');
     const inspectorAdvanced = document.getElementById('task-inspector-advanced');
     const selectionSummary = document.getElementById('task-selection-summary');
+    const scaleXRow = document.getElementById('task-scale-x-row');
+    const scaleYRow = document.getElementById('task-scale-y-row');
+    const rotationRow = document.getElementById('task-rotation-row');
+    const colorRow = document.getElementById('task-style-color-row');
     const scaleXInput = document.getElementById('task-scale-x');
     const scaleYInput = document.getElementById('task-scale-y');
 	    const rotationInput = document.getElementById('task-rotation');
@@ -1482,6 +1486,7 @@
 		    const colorInput = document.getElementById('task-style-color');
 		    const colorHexInput = document.getElementById('task-style-color-hex');
 	    const scalePresetsRow = document.getElementById('task-scale-presets');
+	    const colorPresetsRow = document.getElementById('task-color-presets-row');
 		    const tokenSizePresetsRow = document.getElementById('task-token-size-presets');
 		    const strokeWidthRow = document.getElementById('task-stroke-width-row');
 			    const strokeWidthInput = document.getElementById('task-stroke-width');
@@ -1514,6 +1519,7 @@
 		    const backgroundEditActions = document.getElementById('task-background-edit-actions');
 				    const tokenGlobalStyleActions = document.getElementById('task-token-style-global') || document.getElementById('task-token-style-global-tactics');
 				    const commandBar = document.getElementById('task-command-bar');
+				    const exportSurfaceBtn = document.getElementById('task-export-surface-btn');
 				    const commandMoreBtn = document.getElementById('task-command-more');
 				    const commandMenu = document.getElementById('task-command-menu');
 				    const uiModeLabel = document.getElementById('task-ui-mode-label');
@@ -6171,6 +6177,130 @@
 	      const kind = safeText(object?.data?.kind).replace(/-/g, '_');
 	      return RESOURCE_LABELS[kind] || 'el elemento';
 	    };
+	    const inspectorProfileForObject = (object) => {
+	      const kind = safeText(object?.data?.kind).toLowerCase();
+	      const isToken = kind === 'token';
+	      const isBall = kind === 'ball';
+	      const isZone = kind === 'zone';
+	      const isLaneOverlay = isLaneOverlayObject(object);
+	      const isShape = isZone || kind.startsWith('shape');
+	      const isTrace = kind.startsWith('line') || kind.startsWith('arrow') || isLongStrokeObject(object);
+	      const isText = kind === 'text';
+	      const canColor = isColorizableObject(object);
+	      const canStroke = isTrace || isLaneOverlay || isZone;
+	      const longStroke = isLongStrokeObject(object);
+	      const profile = {
+	        canColor,
+	        isToken,
+	        isBall,
+	        isZone,
+	        isLaneOverlay,
+	        isShape,
+	        isTrace,
+	        isText,
+	        summary: `Ajustando ${objectLabel(object)} seleccionado.`,
+	        showScaleX: true,
+	        showScaleY: true,
+	        showRotation: true,
+	        showColor: canColor,
+	        showScalePresets: true,
+	        showTokenSizePresets: false,
+	        showColorPresets: canColor,
+	        showStrokeWidth: canStroke,
+	        showStrokePresets: canStroke,
+	        showLaneOpacity: isLaneOverlay,
+	        showCurveActions: kind === 'arrow-curve' || kind === 'line-curve',
+	        showTokenMeta: false,
+	        showAdvanced: false,
+	        showTokenFacing: false,
+	        showTokenFov: false,
+	        showBallDirection: false,
+	        showBallStrike: false,
+	        showBallStrikeTiming: false,
+	        showTokenColors: false,
+	        showTokenPattern: false,
+	        showTokenKit: false,
+	        showTokenFocus: false,
+	        showZoneStyle: false,
+	        showLaneTemplate: false,
+	        showLaneLabel: false,
+	        showBackgroundEdit: isBackgroundShape(object),
+	        scaleXLabel: 'Longitud / ancho',
+	        scaleYLabel: 'Altura / grosor',
+	        scaleXMax: longStroke ? '1200' : '260',
+	        scaleYMax: longStroke ? '520' : '260',
+	      };
+	      if (isToken) {
+	        profile.summary = 'Chapa: ajusta nombre, dorsal, tamaño y colores del jugador seleccionado.';
+	        profile.showScaleY = false;
+	        profile.showRotation = false;
+	        profile.showColor = false;
+	        profile.showScalePresets = false;
+	        profile.showTokenSizePresets = true;
+	        profile.showColorPresets = false;
+	        profile.showStrokeWidth = false;
+	        profile.showStrokePresets = false;
+	        profile.showTokenMeta = true;
+	        profile.showAdvanced = true;
+	        profile.showTokenFacing = true;
+	        profile.showTokenFov = true;
+	        profile.showTokenColors = true;
+	        profile.scaleXLabel = 'Tamaño';
+	        return profile;
+	      }
+	      if (isBall) {
+	        profile.summary = 'Balón: ajusta tamaño y lectura de dirección/golpeo.';
+	        profile.showScaleY = false;
+	        profile.showColor = false;
+	        profile.showColorPresets = false;
+	        profile.showAdvanced = true;
+	        profile.showBallDirection = true;
+	        profile.showBallStrike = true;
+	        profile.showBallStrikeTiming = true;
+	        profile.scaleXLabel = 'Tamaño';
+	        return profile;
+	      }
+	      if (isLaneOverlay) {
+	        profile.summary = 'Carriles: cambia plantilla, opacidad, color y visibilidad de la etiqueta.';
+	        profile.showScalePresets = false;
+	        profile.showStrokeWidth = true;
+	        profile.showStrokePresets = true;
+	        profile.showLaneOpacity = true;
+	        profile.showLaneTemplate = true;
+	        profile.showLaneLabel = true;
+	        profile.scaleXLabel = 'Ancho';
+	        profile.scaleYLabel = 'Alto';
+	        return profile;
+	      }
+	      if (isZone) {
+	        profile.summary = 'Zona: ajusta ancho, alto, giro, color y estilo de relleno.';
+	        profile.showZoneStyle = true;
+	        profile.scaleXLabel = 'Ancho';
+	        profile.scaleYLabel = 'Alto';
+	        return profile;
+	      }
+	      if (isTrace) {
+	        profile.summary = 'Trazo: ajusta longitud, grosor, orientación y color.';
+	        profile.scaleXLabel = 'Longitud';
+	        profile.scaleYLabel = 'Altura / curvatura';
+	        return profile;
+	      }
+	      if (isText) {
+	        profile.summary = 'Texto: ajusta tamaño, giro y color para mejorar la lectura.';
+	        profile.showScaleY = false;
+	        profile.showScalePresets = false;
+	        profile.scaleXLabel = 'Tamaño';
+	        return profile;
+	      }
+	      if (isShape) {
+	        profile.summary = 'Figura: ajusta ancho, alto, giro y color.';
+	        profile.scaleXLabel = 'Ancho';
+	        profile.scaleYLabel = 'Alto';
+	        return profile;
+	      }
+	      profile.summary = 'Recurso: ajusta tamaño, orientación y, cuando aplica, color.';
+	      return profile;
+	    };
 	    const renderLayers = () => {
 	      const layerTargets = [layersList, layersListPopover].filter(Boolean);
 	      if (!layerTargets.length) return;
@@ -6266,12 +6396,19 @@
 	      if (!selectionToolbar || !selectionSummary || !scaleXInput || !scaleYInput || !rotationInput || !colorInput) return;
 	      const active = activeInspectableObject();
 	      const enabled = !!active;
+	      const setRowCopy = (row, label) => {
+	        try {
+	          const node = row?.childNodes?.[0];
+	          if (node && node.nodeType === Node.TEXT_NODE) node.textContent = `${label}\n`;
+	        } catch (e) { /* ignore */ }
+	      };
 		      if (!enabled) {
 		        selectionToolbar.hidden = true;
 		        selectionToolbar.querySelectorAll('input,button').forEach((node) => { node.disabled = true; });
 	        if (tokenMetaRow) tokenMetaRow.hidden = true;
 	        if (tokenSizePresetsRow) tokenSizePresetsRow.hidden = true;
 	        if (scalePresetsRow) scalePresetsRow.hidden = false;
+	        if (colorPresetsRow) colorPresetsRow.hidden = false;
 	        if (tokenFacingRow) tokenFacingRow.hidden = true;
 	        if (tokenFacingActions) tokenFacingActions.hidden = true;
 	        if (tokenFovRow) tokenFovRow.hidden = true;
@@ -6300,6 +6437,12 @@
 		        if (laneOpacityRow) laneOpacityRow.hidden = true;
 		        if (curveActionsRow) curveActionsRow.hidden = true;
 		        if (strokePresetsRow) strokePresetsRow.hidden = true;
+		        if (scaleXRow) scaleXRow.hidden = false;
+		        if (scaleYRow) scaleYRow.hidden = false;
+		        if (rotationRow) rotationRow.hidden = false;
+		        if (colorRow) colorRow.hidden = false;
+		        setRowCopy(scaleXRow, 'Longitud / ancho');
+		        setRowCopy(scaleYRow, 'Altura / grosor');
 		        if (strokeWidthInput) strokeWidthInput.value = '3';
 		        if (laneOpacityInput) laneOpacityInput.value = '100';
 		        if (tokenStyleActions) tokenStyleActions.hidden = true;
@@ -6334,31 +6477,34 @@
 				      selectionToolbar.hidden = false;
 			      try { syncSelectionInspectorDock(); } catch (e) { /* ignore */ }
 			      try { if (selectionDockEl) selectionDockEl.hidden = !shouldDockSelectionInspector(); } catch (e) { /* ignore */ }
-	      const canColor = isColorizableObject(active);
-      const isStrokeLike = isLongStrokeObject(active);
+	      const activeKind = safeText(active?.data?.kind);
+	      const profile = inspectorProfileForObject(active);
+	      const canColor = profile.canColor;
+	      const isToken = profile.isToken;
+	      const isBall = profile.isBall;
+	      const isZone = profile.isZone;
+	      const isLaneOverlay = profile.isLaneOverlay;
 	      selectionToolbar.querySelectorAll('input,button').forEach((node) => { node.disabled = false; });
 	      if (selectionPreview) {
-	        const kind = safeText(active?.data?.kind);
 	        const label = objectLabel(active);
-	        let previewText = (label || kind || '•').slice(0, 1).toUpperCase();
-	        if (kind === 'token') previewText = safeText(active?.data?.playerNumber, '') || safeText(active?.data?.playerName, 'J').slice(0, 1).toUpperCase();
-	        if (kind === 'ball') previewText = '⚽';
-	        if (kind === 'zone') previewText = '▧';
-	        if (kind === 'text') previewText = 'T';
+	        let previewText = (label || activeKind || '•').slice(0, 1).toUpperCase();
+	        if (activeKind === 'token') previewText = safeText(active?.data?.playerNumber, '') || safeText(active?.data?.playerName, 'J').slice(0, 1).toUpperCase();
+	        if (activeKind === 'ball') previewText = '⚽';
+	        if (activeKind === 'zone') previewText = '▧';
+	        if (activeKind === 'text') previewText = 'T';
 	        selectionPreview.textContent = previewText || '•';
 	        try {
 	          const color = objectPreferredColor(active);
 	          selectionPreview.style.background = `radial-gradient(circle at 30% 20%, rgba(255,255,255,0.24), transparent 42%), linear-gradient(135deg, ${color}, rgba(15,23,42,0.92))`;
 	        } catch (e) { /* ignore */ }
 	      }
-	      colorInput.disabled = !canColor;
-	      if (colorHexInput) colorHexInput.disabled = !canColor;
-	      selectionToolbar.querySelectorAll('button[data-color]').forEach((node) => { node.disabled = !canColor; });
-	      selectionSummary.textContent = `Ajustando ${objectLabel(active)} seleccionado.`;
+	      colorInput.disabled = !profile.showColor;
+	      if (colorHexInput) colorHexInput.disabled = !profile.showColor;
+	      selectionToolbar.querySelectorAll('button[data-color]').forEach((node) => { node.disabled = !profile.showColor; });
+	      selectionSummary.textContent = profile.summary;
 	      try {
-	        const longStroke = isLongStrokeObject(active);
-	        if (scaleXInput) scaleXInput.max = longStroke ? '1200' : '260';
-	        if (scaleYInput) scaleYInput.max = longStroke ? '520' : '260';
+	        if (scaleXInput) scaleXInput.max = profile.scaleXMax;
+	        if (scaleYInput) scaleYInput.max = profile.scaleYMax;
 	      } catch (e) { /* ignore */ }
 	      scaleXInput.value = String(Math.round((Number(active.scaleX) || 1) * 100));
 	      scaleYInput.value = String(Math.round((Number(active.scaleY) || 1) * 100));
@@ -6368,67 +6514,66 @@
         try { colorHexInput.value = String(colorInput.value || '').trim() || '#22d3ee'; } catch (e) { /* ignore */ }
       }
 	      const strokeWidth = getObjectStrokeWidth(active);
-	      const isLaneOverlay = isLaneOverlayObject(active);
-      if (scaleXInput) scaleXInput.disabled = false;
-      if (scaleYInput) scaleYInput.disabled = false;
-      if (scalePresetsRow) scalePresetsRow.hidden = false;
-      if (isStrokeLike) {
-        selectionSummary.textContent = `Ajustando ${objectLabel(active)}: longitud, altura y grosor.`;
-      }
+      if (scaleXInput) scaleXInput.disabled = !profile.showScaleX;
+      if (scaleYInput) scaleYInput.disabled = !profile.showScaleY;
+      if (rotationInput) rotationInput.disabled = !profile.showRotation;
+      if (scalePresetsRow) scalePresetsRow.hidden = !profile.showScalePresets;
+      if (tokenSizePresetsRow) tokenSizePresetsRow.hidden = !profile.showTokenSizePresets;
+      if (colorPresetsRow) colorPresetsRow.hidden = !profile.showColorPresets;
+      if (scaleXRow) scaleXRow.hidden = !profile.showScaleX;
+      if (scaleYRow) scaleYRow.hidden = !profile.showScaleY;
+      if (rotationRow) rotationRow.hidden = !profile.showRotation;
+      if (colorRow) colorRow.hidden = !profile.showColor;
+      setRowCopy(scaleXRow, profile.scaleXLabel);
+      setRowCopy(scaleYRow, profile.scaleYLabel);
 		      if (strokeWidthRow && strokeWidthInput) {
-		        const canStroke = strokeWidth > 0 || isLaneOverlay || isStrokeLike;
-		        strokeWidthRow.hidden = !canStroke;
-		        if (strokePresetsRow) strokePresetsRow.hidden = !canStroke;
-		        strokeWidthInput.disabled = !canStroke;
-		        if (canStroke) strokeWidthInput.value = String(Math.round(strokeWidth || Number(active?.data?.stroke_width) || 3));
+		        strokeWidthRow.hidden = !profile.showStrokeWidth;
+		        if (strokePresetsRow) strokePresetsRow.hidden = !profile.showStrokePresets;
+		        strokeWidthInput.disabled = !profile.showStrokeWidth;
+		        if (profile.showStrokeWidth) strokeWidthInput.value = String(Math.round(strokeWidth || Number(active?.data?.stroke_width) || 3));
 		      }
 		      if (laneOpacityRow && laneOpacityInput) {
-		        laneOpacityRow.hidden = !isLaneOverlay;
-		        laneOpacityInput.disabled = !isLaneOverlay;
-		        if (isLaneOverlay) laneOpacityInput.value = String(Math.round(clamp(Number(active.opacity) || 1, 0.1, 1) * 100));
+		        laneOpacityRow.hidden = !profile.showLaneOpacity;
+		        laneOpacityInput.disabled = !profile.showLaneOpacity;
+		        if (profile.showLaneOpacity) laneOpacityInput.value = String(Math.round(clamp(Number(active.opacity) || 1, 0.1, 1) * 100));
 		      }
 		      if (curveActionsRow) {
-		        const k = safeText(active?.data?.kind).toLowerCase();
-		        curveActionsRow.hidden = !(k === 'arrow-curve' || k === 'line-curve');
+		        curveActionsRow.hidden = !profile.showCurveActions;
 		      }
-			      const isToken = safeText(active?.data?.kind) === 'token';
-			      const isBall = safeText(active?.data?.kind) === 'ball';
-			      if (inspectorAdvanced) inspectorAdvanced.hidden = !(isToken || isBall);
-			      if (tokenSizePresetsRow) tokenSizePresetsRow.hidden = !isToken;
-			      if (scalePresetsRow) scalePresetsRow.hidden = !!isToken;
-		      if (tokenStyleActions) tokenStyleActions.hidden = !isToken;
-		      if (tokenFacingRow) tokenFacingRow.hidden = !isToken;
-		      if (tokenFacingActions) tokenFacingActions.hidden = !isToken;
+			      if (inspectorAdvanced) inspectorAdvanced.hidden = !profile.showAdvanced;
+		      if (tokenStyleActions) tokenStyleActions.hidden = true;
+		      if (tokenFacingRow) tokenFacingRow.hidden = !profile.showTokenFacing;
+		      if (tokenFacingActions) tokenFacingActions.hidden = !profile.showTokenFacing;
 		      if (tokenFacingInput) {
-		        tokenFacingInput.disabled = !isToken;
-		        tokenFacingInput.value = isToken ? String(Math.round(normalizeAngle(active?.data?.facing_deg, 0))) : '0';
+		        tokenFacingInput.disabled = !profile.showTokenFacing;
+		        tokenFacingInput.value = profile.showTokenFacing ? String(Math.round(normalizeAngle(active?.data?.facing_deg, 0))) : '0';
 		      }
-		      if (tokenFovRow) tokenFovRow.hidden = !isToken;
+		      if (tokenFovRow) tokenFovRow.hidden = !profile.showTokenFov;
 		      if (tokenFovWidthInput) {
-		        tokenFovWidthInput.disabled = !isToken;
-		        tokenFovWidthInput.value = isToken ? String(Math.round(clamp(Number(active?.data?.fov_width_deg) || 70, 20, 160))) : '70';
+		        tokenFovWidthInput.disabled = !profile.showTokenFov;
+		        tokenFovWidthInput.value = profile.showTokenFov ? String(Math.round(clamp(Number(active?.data?.fov_width_deg) || 70, 20, 160))) : '70';
 		      }
-		      if (ballDirectionRow) ballDirectionRow.hidden = !isBall;
-		      if (ballDirectionActions) ballDirectionActions.hidden = !isBall;
+		      if (ballDirectionRow) ballDirectionRow.hidden = !profile.showBallDirection;
+		      if (ballDirectionActions) ballDirectionActions.hidden = !profile.showBallDirection;
 		      if (ballDirectionInput) {
-		        ballDirectionInput.disabled = !isBall;
-		        ballDirectionInput.value = isBall ? String(Math.round(normalizeAngle(active?.data?.ball_dir_deg, 0))) : '0';
+		        ballDirectionInput.disabled = !profile.showBallDirection;
+		        ballDirectionInput.value = profile.showBallDirection ? String(Math.round(normalizeAngle(active?.data?.ball_dir_deg, 0))) : '0';
 		      }
-		      if (ballStrikeRow) ballStrikeRow.hidden = !isBall;
-		      if (ballStrikeActions) ballStrikeActions.hidden = !isBall;
+		      if (ballStrikeRow) ballStrikeRow.hidden = !profile.showBallStrike;
+		      if (ballStrikeActions) ballStrikeActions.hidden = !profile.showBallStrike;
 		      if (ballStrikeContactInput) {
-		        ballStrikeContactInput.disabled = !isBall;
-		        ballStrikeContactInput.value = isBall ? String(Math.round(normalizeAngle(active?.data?.strike_contact_deg, 0))) : '0';
+		        ballStrikeContactInput.disabled = !profile.showBallStrike;
+		        ballStrikeContactInput.value = profile.showBallStrike ? String(Math.round(normalizeAngle(active?.data?.strike_contact_deg, 0))) : '0';
 		      }
-		      if (ballStrikeTimingRow) ballStrikeTimingRow.hidden = !isBall;
+		      if (ballStrikeTimingRow) ballStrikeTimingRow.hidden = !profile.showBallStrikeTiming;
 		      if (ballStrikeTimingInput) {
-		        ballStrikeTimingInput.disabled = !isBall;
+		        ballStrikeTimingInput.disabled = !profile.showBallStrikeTiming;
 		        const pct = clamp(Number(active?.data?.strike_timing_pct) || 50, 0, 100);
-		        ballStrikeTimingInput.value = isBall ? String(Math.round(pct)) : '50';
+		        ballStrikeTimingInput.value = profile.showBallStrikeTiming ? String(Math.round(pct)) : '50';
 		      }
 		      if (tokenNameTagActions) {
 		        const hasNameTag = isToken ? tokenHasNameTagBg(active) : false;
-		        tokenNameTagActions.hidden = !hasNameTag;
+		        tokenNameTagActions.hidden = true;
 		        if (hasNameTag) {
 		          const mode = normalizeTokenNameTagMode(active?.data?.token_name_tag);
 		          Array.from(tokenNameTagActions.querySelectorAll('button[data-token-name-tag]') || []).forEach((btn) => {
@@ -6439,7 +6584,7 @@
 		        }
 		      }
 		      if (tokenDisplayPresets) {
-		        tokenDisplayPresets.hidden = !isToken;
+		        tokenDisplayPresets.hidden = true;
 		        if (isToken) {
 		          const mode = safeText(active?.data?.token_display, 'name_number') === 'number_only' ? 'number_only' : 'name_number';
 		          Array.from(tokenDisplayPresets.querySelectorAll('button[data-token-display-preset]') || []).forEach((btn) => {
@@ -6449,10 +6594,25 @@
 		          });
 		        }
 		      }
+		      if (tokenBaseColorInput) {
+		        try { tokenBaseColorInput.value = isToken ? parseColorToHex(active?.data?.token_base_color, '#ffffff') : '#ffffff'; } catch (e) { /* ignore */ }
+		      }
+		      if (tokenBaseColorHexInput && tokenBaseColorInput) {
+		        try { tokenBaseColorHexInput.value = String(tokenBaseColorInput.value || '').trim() || '#ffffff'; } catch (e) { /* ignore */ }
+		      }
+		      if (tokenStripeColorInput) {
+		        try { tokenStripeColorInput.value = isToken ? parseColorToHex(active?.data?.token_stripe_color, '#0f7a35') : '#0f7a35'; } catch (e) { /* ignore */ }
+		      }
+		      if (tokenStripeColorHexInput && tokenStripeColorInput) {
+		        try { tokenStripeColorHexInput.value = String(tokenStripeColorInput.value || '').trim() || '#0f7a35'; } catch (e) { /* ignore */ }
+		      }
+		      if (tokenColorGrid) tokenColorGrid.hidden = !profile.showTokenColors;
+		      if (tokenPatternActions) tokenPatternActions.hidden = !profile.showTokenPattern;
+		      if (tokenKitActions) tokenKitActions.hidden = !profile.showTokenKit;
+		      if (tokenFocusActions) tokenFocusActions.hidden = !profile.showTokenFocus;
 		      if (zoneStyleActions) {
-		        const isZone = safeText(active?.data?.kind) === 'zone';
-		        zoneStyleActions.hidden = !isZone;
-		        if (isZone) {
+		        zoneStyleActions.hidden = !profile.showZoneStyle;
+		        if (profile.showZoneStyle) {
 		          const style = normalizeZoneStyle(active?.data?.zone_style);
 		          Array.from(zoneStyleActions.querySelectorAll('button[data-zone-style]') || []).forEach((btn) => {
 		            const btnStyle = normalizeZoneStyle(btn.dataset.zoneStyle);
@@ -6462,8 +6622,8 @@
 		        }
 		      }
 		      if (laneTemplateActions) {
-		        laneTemplateActions.hidden = !isLaneOverlay;
-		        if (isLaneOverlay) {
+		        laneTemplateActions.hidden = !profile.showLaneTemplate;
+		        if (profile.showLaneTemplate) {
 		          const activeTemplate = laneOverlayTemplateKind(active);
 		          Array.from(laneTemplateActions.querySelectorAll('button[data-lane-template]') || []).forEach((btn) => {
 		            const isActive = safeText(btn.dataset.laneTemplate) === activeTemplate;
@@ -6473,8 +6633,8 @@
 		        }
 		      }
 		      if (laneLabelActions) {
-		        laneLabelActions.hidden = !isLaneOverlay;
-		        if (isLaneOverlay) {
+		        laneLabelActions.hidden = !profile.showLaneLabel;
+		        if (profile.showLaneLabel) {
 		          const visible = laneOverlayLabelVisible(active);
 		          Array.from(laneLabelActions.querySelectorAll('button[data-lane-label]') || []).forEach((btn) => {
 		            const mode = safeText(btn.dataset.laneLabel);
@@ -6485,9 +6645,8 @@
 		        }
 		      }
 		      if (backgroundEditActions) {
-		        const isBg = isBackgroundShape(active);
-		        backgroundEditActions.hidden = !isBg;
-		        if (isBg) {
+		        backgroundEditActions.hidden = !profile.showBackgroundEdit;
+		        if (profile.showBackgroundEdit) {
 		          const inEdit = !!active?.data?.background_edit;
 		          const btn = backgroundEditActions.querySelector('button[data-inspector-action="toggle_background_edit"]');
 		          if (btn) {
@@ -34476,12 +34635,15 @@
 			    viewportEl?.addEventListener('touchend', stopTouchPan, { capture: true, passive: true });
 			    viewportEl?.addEventListener('touchcancel', stopTouchPan, { capture: true, passive: true });
 
-	    commandBar?.addEventListener('click', (event) => {
+    commandBar?.addEventListener('click', (event) => {
 	      const button = event.target.closest('button');
 	      if (!button) return;
       const action = safeText(button.dataset.action);
       if (!action) return;
       handleCanvasAction(action);
+    });
+    exportSurfaceBtn?.addEventListener('click', () => {
+      try { exportPngHdBtn?.click(); } catch (e) { /* ignore */ }
     });
 
     Array.from(document.querySelectorAll('[data-print-style]')).forEach((button) => {
@@ -34578,75 +34740,6 @@
 		        } catch (err) {
 		          return '';
 		        }
-		      }
-
-		      if (isToken) {
-		        const style = normalizeTokenStyle(active?.data?.token_style);
-		        if (tokenStyleActions) {
-		          Array.from(tokenStyleActions.querySelectorAll('button[data-token-style]') || []).forEach((btn) => {
-		            const btnStyle = normalizeTokenStyle(btn.dataset.tokenStyle);
-		            btn.classList.toggle('is-active', btnStyle === style);
-		            try { btn.setAttribute('aria-pressed', btnStyle === style ? 'true' : 'false'); } catch (e) { /* ignore */ }
-		          });
-		        }
-		        const hasStripes = tokenHasStripeRoles(active);
-		        if (tokenColorGrid) tokenColorGrid.hidden = style === 'photo';
-		        if (tokenPatternActions) tokenPatternActions.hidden = !hasStripes || style === 'photo';
-		        if (tokenFocusActions) {
-		          tokenFocusActions.hidden = safeText(active?.data?.token_style || 'disk') !== 'disk';
-		          Array.from(tokenFocusActions.querySelectorAll('button[data-token-focus-toggle]') || []).forEach((btn) => {
-		            const activeFocus = !!active?.data?.token_focus;
-		            btn.classList.toggle('is-active', activeFocus);
-		            try { btn.setAttribute('aria-pressed', activeFocus ? 'true' : 'false'); } catch (e) { /* ignore */ }
-		          });
-		          Array.from(tokenFocusActions.querySelectorAll('button[data-token-possession-toggle]') || []).forEach((btn) => {
-		            const activePossession = !!active?.data?.token_possession;
-		            btn.classList.toggle('is-active', activePossession);
-		            try { btn.setAttribute('aria-pressed', activePossession ? 'true' : 'false'); } catch (e) { /* ignore */ }
-		          });
-		          Array.from(tokenFocusActions.querySelectorAll('button[data-token-role]') || []).forEach((btn) => {
-		            const role = safeText(btn.dataset.tokenRole);
-		            const activeRole = safeText(active?.data?.token_role);
-		            const pressed = role && role !== 'clear' && role === activeRole;
-		            btn.classList.toggle('is-active', pressed);
-		            try { btn.setAttribute('aria-pressed', pressed ? 'true' : 'false'); } catch (e) { /* ignore */ }
-		          });
-		        }
-		        if (tokenKitActions) {
-		          tokenKitActions.hidden = style === 'photo';
-		          const currentKitSlot = normalizeKit2dSlot(active?.data?.token_kit_slot || '') || kit2dSlotForTokenKind(safeText(active?.data?.token_kind));
-		          Array.from(tokenKitActions.querySelectorAll('button[data-token-kit-slot]') || []).forEach((btn) => {
-		            const btnSlot = normalizeKit2dSlot(btn.dataset.tokenKitSlot);
-		            btn.classList.toggle('is-active', btnSlot === currentKitSlot);
-		            try { btn.setAttribute('aria-pressed', btnSlot === currentKitSlot ? 'true' : 'false'); } catch (e) { /* ignore */ }
-		          });
-		        }
-		        if (tokenBaseColorInput) {
-		          try { tokenBaseColorInput.value = parseColorToHex(active?.data?.token_base_color, '#ffffff'); } catch (e) { /* ignore */ }
-		        }
-		        if (tokenBaseColorHexInput && tokenBaseColorInput) {
-		          try { tokenBaseColorHexInput.value = String(tokenBaseColorInput.value || '').trim() || '#ffffff'; } catch (e) { /* ignore */ }
-		        }
-		        if (tokenStripeColorInput) {
-		          try { tokenStripeColorInput.value = parseColorToHex(active?.data?.token_stripe_color, objectPreferredColor(active)); } catch (e) { /* ignore */ }
-		        }
-		        if (tokenStripeColorHexInput && tokenStripeColorInput) {
-		          try { tokenStripeColorHexInput.value = String(tokenStripeColorInput.value || '').trim() || '#0f7a35'; } catch (e) { /* ignore */ }
-		        }
-		        if (tokenPatternActions) {
-		          const pattern = normalizeTokenPattern(active?.data?.token_pattern);
-		          Array.from(tokenPatternActions.querySelectorAll('button[data-token-pattern]') || []).forEach((btn) => {
-		            const btnPattern = normalizeTokenPattern(btn.dataset.tokenPattern);
-		            btn.classList.toggle('is-active', btnPattern === pattern);
-		            try { btn.setAttribute('aria-pressed', btnPattern === pattern ? 'true' : 'false'); } catch (e) { /* ignore */ }
-		          });
-		        }
-		      } else {
-		        if (tokenStyleActions) tokenStyleActions.hidden = true;
-		        if (tokenColorGrid) tokenColorGrid.hidden = true;
-		        if (tokenPatternActions) tokenPatternActions.hidden = true;
-		        if (tokenKitActions) tokenKitActions.hidden = true;
-		        if (tokenFocusActions) tokenFocusActions.hidden = true;
 		      }
 		    };
 
