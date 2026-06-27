@@ -15236,6 +15236,53 @@
 						                  const sponsorMat = makeStandWordmarkMaterial('LA ROSALEDA', { fill: '#f8fafc', stroke: 'rgba(7,17,31,0.94)', bg: 'rgba(29,78,216,0.50)' });
 						                  const ribbonMat = new THREE.MeshBasicMaterial({ color: 0x1d4ed8, transparent: true, opacity: 0.92, toneMapped: false, depthWrite: false });
 						                  const stainMat = new THREE.MeshBasicMaterial({ color: 0x334155, transparent: true, opacity: 0.12, toneMapped: false, depthWrite: false, side: THREE.DoubleSide });
+						                  const shellFrameMat = new THREE.MeshStandardMaterial({ color: 0xe5dbc7, roughness: 0.40, metalness: 0.26 });
+						                  const shellShadowMat = new THREE.MeshStandardMaterial({ color: 0x403a31, roughness: 0.56, metalness: 0.18 });
+						                  const shellGlassMat = new THREE.MeshPhysicalMaterial({ color: 0xe8f1ef, roughness: 0.08, metalness: 0.02, transparent: true, opacity: 0.24, transmission: 0.30, clearcoat: 0.40, side: THREE.DoubleSide });
+						                  const shellLedMat = new THREE.MeshBasicMaterial({ color: 0x52c6ff, transparent: true, opacity: 0.86, toneMapped: false, depthWrite: false });
+						                  const addRosaledaShellFront = () => {
+						                    [-1, 1].forEach((sign) => {
+						                      const z = sign * (metersH / 2 + 24.8);
+						                      [-24, 0, 24].forEach((x) => {
+						                        addBox(new THREE.BoxGeometry(8.8, 6.8, 0.44), shellFrameMat, x, 6.44, z, 0, 0, 0, 'pitch_3d_stadium_exterior_shell_portal_frame');
+						                        addBox(new THREE.BoxGeometry(6.6, 4.9, 0.18), shellGlassMat, x, 6.28, z + sign * 0.20, 0, 0, 0, 'pitch_3d_stadium_exterior_shell_portal_glass');
+						                        addBox(new THREE.BoxGeometry(10.2, 0.22, 3.6), shellFrameMat, x, 10.12, z + sign * 0.92, sign * -0.10, 0, 0, 'pitch_3d_stadium_exterior_shell_portal_canopy');
+						                        addBox(new THREE.BoxGeometry(8.8, 0.06, 0.16), shellLedMat, x, 9.88, z + sign * 2.54, 0, 0, 0, 'pitch_3d_stadium_exterior_shell_portal_led');
+						                      });
+						                      for (let i = -7; i <= 7; i += 1) {
+						                        const x = i * 6.2;
+						                        const height = 8.6 - Math.abs(i) * 0.22;
+						                        addBox(new THREE.BoxGeometry(0.20, height, 0.28), shellFrameMat, x, 6.8, sign * (metersH / 2 + 31.2), sign * -0.18, 0, i % 2 ? 0.04 : -0.04, 'pitch_3d_stadium_exterior_shell_colonnade_fin');
+						                      }
+						                      addBox(new THREE.BoxGeometry(metersW * 0.78, 0.20, 1.22), shellShadowMat, 0, 11.36, sign * (metersH / 2 + 23.76), 0, 0, 0, 'pitch_3d_stadium_exterior_shell_shadow_band');
+						                    });
+						                  };
+						                  const addRosaledaEndShell = () => {
+						                    [-1, 1].forEach((sign) => {
+						                      const x = sign * (metersW / 2 + 24.8);
+						                      [-0.32, 0, 0.32].forEach((ratio) => {
+						                        const z = ratio * metersH;
+						                        addBox(new THREE.BoxGeometry(0.44, 6.8, 8.8), shellFrameMat, x, 6.44, z, 0, 0, 0, 'pitch_3d_stadium_exterior_end_shell_portal_frame');
+						                        addBox(new THREE.BoxGeometry(0.18, 4.9, 6.6), shellGlassMat, x - sign * 0.20, 6.28, z, 0, 0, 0, 'pitch_3d_stadium_exterior_end_shell_portal_glass');
+						                        addBox(new THREE.BoxGeometry(3.6, 0.22, 10.2), shellFrameMat, x + sign * 0.92, 10.12, z, 0, sign * 0.10, 0, 'pitch_3d_stadium_exterior_end_shell_portal_canopy');
+						                      });
+						                      for (let i = -6; i <= 6; i += 1) {
+						                        const z = i * 5.8;
+						                        const height = 8.2 - Math.abs(i) * 0.20;
+						                        addBox(new THREE.BoxGeometry(0.28, height, 0.20), shellFrameMat, sign * (metersW / 2 + 31.2), 6.7, z, 0.04, sign * 0.18, i % 2 ? 0.03 : -0.03, 'pitch_3d_stadium_exterior_end_shell_colonnade_fin');
+						                      }
+						                      addBox(new THREE.BoxGeometry(1.22, 0.20, metersH * 0.68), shellShadowMat, sign * (metersW / 2 + 23.76), 11.36, 0, 0, 0, 0, 'pitch_3d_stadium_exterior_end_shell_shadow_band');
+						                    });
+						                  };
+						                  const addContinuousCrown = () => {
+						                    [-1, 1].forEach((sign) => {
+						                      addBox(new THREE.BoxGeometry(metersW + 60.0, 0.16, 0.42), shellFrameMat, 0, 17.64, sign * (metersH / 2 + 36.8), 0, 0, 0, 'pitch_3d_stadium_exterior_shell_crown_long');
+						                      addBox(new THREE.BoxGeometry(0.42, 0.16, metersH + 60.0), shellFrameMat, sign * (metersW / 2 + 36.8), 17.64, 0, 0, 0, 0, 'pitch_3d_stadium_exterior_shell_crown_end');
+						                    });
+						                    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
+						                      addBox(new THREE.CylinderGeometry(0.44, 0.44, 0.20, 18), shellFrameMat, sx * (metersW / 2 + 36.8), 17.64, sz * (metersH / 2 + 36.8), Math.PI / 2, 0, 0, 'pitch_3d_stadium_exterior_shell_crown_corner');
+						                    });
+						                  };
 						                  [
 						                    [0, metersH / 2 + 36.6, metersW + 20.0, 5.2],
 						                    [0, -(metersH / 2 + 36.6), metersW + 20.0, 5.2],
@@ -15367,6 +15414,9 @@
 						                  [-26, -13, 0, 13, 26].forEach((x) => {
 						                    addBox(new THREE.BoxGeometry(1.8, 0.42, 0.52), premiumBlueMat, x, 0.34, -(metersH / 2 + 33.7), 0, 0, 0, 'pitch_3d_stadium_exterior_wayfinding_plinth');
 						                  });
+						                  addRosaledaShellFront();
+						                  addRosaledaEndShell();
+						                  addContinuousCrown();
 						                  const horizonZ = metersH / 2 + 58.0;
 						                  const mountain = new THREE.Mesh(new THREE.PlaneGeometry(metersW + 120.0, 18.0), mountainMat);
 						                  mountain.position.set(0, 11.0, horizonZ + 5.0);
