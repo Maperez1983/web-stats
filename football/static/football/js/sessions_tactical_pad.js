@@ -10139,27 +10139,38 @@
 						      const theme = resolvePitch3dTheme();
 						      const isNight = theme === 'night';
 						      try {
-						        const skyColor = isNight ? 0x050d18 : 0xaed6f3;
+						        const skyColor = isNight ? 0x020814 : 0xaed6f3;
 						        pitch3dScene.background = new THREE.Color(skyColor);
-						        pitch3dScene.fog = new THREE.Fog(skyColor, isNight ? 255 : 360, isNight ? 610 : 720);
+						        pitch3dScene.fog = new THREE.Fog(skyColor, isNight ? 225 : 360, isNight ? 560 : 720);
 						        pitch3dRenderer.setClearColor(skyColor, 1);
-						        pitch3dRenderer.toneMappingExposure = isNight ? 0.96 : 1.16;
+						        pitch3dRenderer.toneMappingExposure = isNight ? 1.08 : 1.16;
 						        pitch3dScene.traverse((node) => {
 						          const kind = safeText(node?.userData?.kind);
 						          if (node?.isHemisphereLight) {
-						            node.intensity = isNight ? 0.34 : 0.92;
-						            node.color?.set?.(isNight ? 0xb8d7ff : 0xfafcff);
-						            node.groundColor?.set?.(isNight ? 0x04101a : 0x35563d);
+						            node.intensity = isNight ? 0.26 : 0.92;
+						            node.color?.set?.(isNight ? 0x9fc6ff : 0xfafcff);
+						            node.groundColor?.set?.(isNight ? 0x020b12 : 0x35563d);
 						          } else if (node?.isDirectionalLight) {
-						            if (kind === 'pitch_3d_theme_key_light') node.intensity = isNight ? 1.28 : 4.85;
-						            else if (kind === 'pitch_3d_theme_rim_light') node.intensity = isNight ? 0.34 : 0.76;
-						            else if (kind === 'pitch_3d_theme_fill_light') node.intensity = isNight ? 0.18 : 0.34;
+						            if (kind === 'pitch_3d_theme_key_light') node.intensity = isNight ? 1.42 : 4.85;
+						            else if (kind === 'pitch_3d_theme_rim_light') node.intensity = isNight ? 0.46 : 0.76;
+						            else if (kind === 'pitch_3d_theme_fill_light') node.intensity = isNight ? 0.20 : 0.34;
 						            else node.intensity = isNight ? 0.20 : 0.52;
 						          } else if (node?.isPointLight || node?.isSpotLight) {
 						            const base = kind === 'pitch_3d_professional_stadium_light_volume'
 						              ? 0.42
 						              : (kind === 'pitch_3d_stadium_real_spotlight_throw' ? 0.74 : 0.32);
-						            node.intensity = isNight ? Math.max(base, 0.96) : base;
+						            node.intensity = isNight ? Math.max(base, kind === 'pitch_3d_stadium_real_spotlight_throw' ? 1.24 : 1.02) : base;
+						          } else if (node?.isMesh && node.material) {
+						            const mats = Array.isArray(node.material) ? node.material : [node.material];
+						            mats.forEach((mat) => {
+						              if (!mat || !('emissiveIntensity' in mat)) return;
+						              const boost = kind.includes('roof_ring_light') || kind.includes('halo') || kind.includes('led')
+						                ? 1.38
+						                : (kind.includes('floodlight') || kind.includes('facade') ? 1.18 : 1.0);
+						              mat.emissiveIntensity = isNight
+						                ? Math.max(Number(mat.emissiveIntensity) || 0, 0.14) * boost
+						                : Math.min(Number(mat.emissiveIntensity) || 0, 0.46);
+						            });
 						          }
 						        });
 						      } catch (e) { /* ignore */ }
@@ -12087,9 +12098,9 @@
 						                const transitBlue = new THREE.MeshStandardMaterial({ color: 0x1d4ed8, roughness: 0.42, metalness: 0.08 });
 						                const solarMat = new THREE.MeshStandardMaterial({ color: 0x0f2733, roughness: 0.30, metalness: 0.18 });
 						                const ledRibbon = new THREE.MeshBasicMaterial({ color: 0x55c7ff, transparent: true, opacity: 0.78, toneMapped: false });
-						                const seatGreen = new THREE.MeshStandardMaterial({ color: toColorInt(stadiumPalette3d.primary, 0x047857), roughness: 0.50, metalness: 0.02 });
+						                const seatGreen = new THREE.MeshStandardMaterial({ color: 0x1959d1, roughness: 0.50, metalness: 0.02 });
 						                const seatWhite = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.46, metalness: 0.02 });
-						                const seatDark = new THREE.MeshStandardMaterial({ color: 0x0f3f34, roughness: 0.50, metalness: 0.02 });
+						                const seatDark = new THREE.MeshStandardMaterial({ color: 0x0b1f52, roughness: 0.50, metalness: 0.02 });
 						                const pitchsideLed = new THREE.MeshBasicMaterial({ color: 0x4fc3ff, transparent: true, opacity: 0.82, toneMapped: false });
 						                const pitchsideLedDark = new THREE.MeshStandardMaterial({ color: 0x07131f, roughness: 0.36, metalness: 0.22 });
 						                const suiteDark = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.48, metalness: 0.08 });
@@ -12250,16 +12261,23 @@
 						                    g.add(back);
 						                    finish.add(g);
 						                  };
+						                  const seatPatternForBand = (row, idx, ratio) => {
+						                    const absRatio = Math.abs(Number(ratio) || 0);
+						                    if (row % 4 === 0 && absRatio < 0.12) return seatWhite;
+						                    if ((row + idx) % 6 === 0) return seatWhite;
+						                    if (absRatio > 0.30 && row % 2 === 0) return seatDark;
+						                    return seatGreen;
+						                  };
 						                  [-1, 1].forEach((sign) => {
 						                    for (let row = 0; row < 11; row += 1) {
 						                      [-0.34, -0.17, 0, 0.17, 0.34].forEach((ratio, idx) => {
-						                        const mat = (row + idx) % 7 === 0 ? seatWhite : ((row + idx) % 5 === 0 ? seatDark : seatGreen);
+						                        const mat = seatPatternForBand(row, idx, ratio);
 						                        addSeatBand('long', sign, row, ratio * metersW, metersW * 0.115, mat, mat === seatWhite);
 						                      });
 						                    }
 						                    for (let row = 0; row < 9; row += 1) {
 						                      [-0.28, -0.10, 0.10, 0.28].forEach((ratio, idx) => {
-						                        const mat = (row + idx) % 6 === 0 ? seatWhite : ((row + idx) % 4 === 0 ? seatDark : seatGreen);
+						                        const mat = seatPatternForBand(row, idx, ratio);
 						                        addSeatBand('end', sign, row, ratio * metersH, metersH * 0.125, mat, mat === seatWhite);
 						                      });
 						                    }
