@@ -1690,6 +1690,7 @@
 				    const tokenGlobalStyleActions = document.getElementById('task-token-style-global') || document.getElementById('task-token-style-global-tactics');
 				    const commandBar = document.getElementById('task-command-bar');
 				    const exportSurfaceBtn = document.getElementById('task-export-surface-btn');
+            const exportJpgInlineBtn = document.getElementById('task-export-jpg-inline');
 				    const commandMoreBtn = document.getElementById('task-command-more');
 				    const commandMenu = document.getElementById('task-command-menu');
 				    const uiModeLabel = document.getElementById('task-ui-mode-label');
@@ -4794,15 +4795,16 @@
 					      wet: 'Mojado',
 					    };
 					    const GRASS_STYLE_ORDER = ['classic', 'broadcast', 'broadcast_premium', 'stadium_top', 'stadium_top_h', 'stadium_top_v', 'realistic', 'pro', 'uefa_b', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet'];
-					    const normalizeGrassStyleForMode = (value) => {
-					      const next = safeText(value, 'classic').toLowerCase();
-					      if (!GRASS_STYLE_ORDER.includes(next)) return 'classic';
-					      return next;
-					    };
-              const isStadiumCameraStyle = (value) => ['stadium_top', 'stadium_top_h', 'stadium_top_v'].includes(safeText(value).toLowerCase());
               const stadiumCameraStyleForOrientation = (orientationValue) => (
                 safeText(orientationValue, 'landscape') === 'portrait' ? 'stadium_top_v' : 'stadium_top_h'
               );
+					    const normalizeGrassStyleForMode = (value) => {
+					      const next = safeText(value, 'classic').toLowerCase();
+					      if (!GRASS_STYLE_ORDER.includes(next)) return 'classic';
+                if (next === 'stadium_top') return stadiumCameraStyleForOrientation(pitchOrientation);
+					      return next;
+					    };
+              const isStadiumCameraStyle = (value) => ['stadium_top', 'stadium_top_h', 'stadium_top_v'].includes(safeText(value).toLowerCase());
 					    let pitchGrassStyle = normalizeGrassStyleForMode(grassStyleInput?.value);
 					    const syncGrassUi = () => {
 					      if (grassStyleInput) grassStyleInput.value = pitchGrassStyle;
@@ -31952,6 +31954,23 @@
 	      setStatus(options.status || 'PNG descargado.');
 	    };
 
+      const exportCurrentJpg = async (maxWidth, options = {}) => {
+        const title = fileSafeSlug(form.querySelector('[name="draw_task_title"]')?.value);
+        const composite = await buildCompositeCanvas({ maxWidth, maxArea: options.maxArea });
+        if (!composite) {
+          setStatus('No se pudo generar la imagen.', true);
+          return;
+        }
+        const blob = await canvasToBlob(composite, 'image/jpeg', 0.92);
+        if (!blob) {
+          setStatus('No se pudo generar el JPG.', true);
+          return;
+        }
+        const suffix = safeText(options.suffix);
+        downloadBlob(blob, `${title}${suffix ? `_${suffix}` : ''}.jpg`);
+        setStatus(options.status || 'JPG descargado.');
+      };
+
 			    const exportStateJson = () => {
 		      const title = fileSafeSlug(form.querySelector('[name="draw_task_title"]')?.value);
 		      const payload = (() => {
@@ -34866,6 +34885,22 @@
     });
     exportSurfaceBtn?.addEventListener('click', () => {
       try { exportPngHdBtn?.click(); } catch (e) { /* ignore */ }
+    });
+    exportJpgInlineBtn?.addEventListener('click', async () => {
+      if (exportInFlight) return;
+      exportInFlight = true;
+      stopPlayback(true);
+      try {
+        setStatus('Generando JPG…');
+        await exportCurrentJpg(4096, {
+          maxArea: 24000000,
+          suffix: 'pizarra',
+          status: 'JPG descargado.',
+        });
+      } finally {
+        exportInFlight = false;
+        refreshLivePreview();
+      }
     });
 
     Array.from(document.querySelectorAll('[data-print-style]')).forEach((button) => {
