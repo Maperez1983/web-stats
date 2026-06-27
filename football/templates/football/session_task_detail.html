@@ -1430,7 +1430,7 @@
         <div class="task-detail-tabs" role="tablist">
           <button type="button" class="button task-detail-tab{% if active_task_tab == 'presentation' %} is-active{% endif %}" data-task-tab="presentation" role="tab" aria-selected="{% if active_task_tab == 'presentation' %}true{% else %}false{% endif %}">Presentación</button>
           {% if can_edit_task %}
-          <button type="button" class="button task-detail-tab{% if active_task_tab == 'edit' %} is-active{% endif %}" data-task-tab="edit"{% if edit_graphic_url %} data-direct-url="{{ edit_graphic_url }}"{% endif %} role="tab" aria-selected="{% if active_task_tab == 'edit' %}true{% else %}false{% endif %}">Edición</button>
+          <button type="button" class="button task-detail-tab{% if active_task_tab == 'edit' %} is-active{% endif %}" data-task-tab="edit" role="tab" aria-selected="{% if active_task_tab == 'edit' %}true{% else %}false{% endif %}">Edición</button>
           {% endif %}
           <button type="button" class="button task-detail-tab{% if active_task_tab == 'export' %} is-active{% endif %}" data-task-tab="export" role="tab" aria-selected="{% if active_task_tab == 'export' %}true{% else %}false{% endif %}">Exportar</button>
         </div>
@@ -1465,7 +1465,7 @@
       {% if can_edit_task %}
       <section class="panel task-detail-tab-panel{% if active_task_tab == 'edit' %} is-active{% endif %}" id="task-edit-panel" data-task-tab-panel="edit">
         <div class="task-edit-tab-bar" role="tablist" aria-label="Edición de la tarea">
-          <button type="button" class="button task-edit-tab{% if active_task_edit_tab == 'graphic' %} is-active{% endif %}" data-task-edit-tab="graphic"{% if edit_graphic_url %} data-direct-url="{{ edit_graphic_url }}"{% endif %} role="tab" aria-selected="{% if active_task_edit_tab == 'graphic' %}true{% else %}false{% endif %}">Edición gráfica</button>
+          <button type="button" class="button task-edit-tab{% if active_task_edit_tab == 'graphic' %} is-active{% endif %}" data-task-edit-tab="graphic" role="tab" aria-selected="{% if active_task_edit_tab == 'graphic' %}true{% else %}false{% endif %}">Edición gráfica</button>
           <button type="button" class="button task-edit-tab{% if active_task_edit_tab == 'settings' %} is-active{% endif %}" data-task-edit-tab="settings" role="tab" aria-selected="{% if active_task_edit_tab == 'settings' %}true{% else %}false{% endif %}">Configuración</button>
         </div>
 
@@ -3186,21 +3186,11 @@
         };
         tabButtons.forEach((button) => {
           button.addEventListener('click', () => {
-            const directUrl = String(button.dataset.directUrl || '').trim();
-            if ((button.dataset.taskTab || '') === 'edit' && directUrl) {
-              window.location.href = directUrl;
-              return;
-            }
             syncTaskTab(button.dataset.taskTab || 'presentation', true);
           });
         });
         editTabButtons.forEach((button) => {
           button.addEventListener('click', () => {
-            const directUrl = String(button.dataset.directUrl || '').trim();
-            if ((button.dataset.taskEditTab || '') === 'graphic' && directUrl) {
-              window.location.href = directUrl;
-              return;
-            }
             syncTaskEditTab(button.dataset.taskEditTab || 'graphic', true);
           });
         });
@@ -3587,21 +3577,11 @@
 
         tabButtons.forEach((button) => {
           button.addEventListener('click', () => {
-            const directUrl = String(button.dataset.directUrl || '').trim();
-            if ((button.dataset.taskTab || '') === 'edit' && directUrl) {
-              window.location.href = directUrl;
-              return;
-            }
             syncTaskTab(button.dataset.taskTab || 'presentation', true);
           });
         });
         editTabButtons.forEach((button) => {
           button.addEventListener('click', () => {
-            const directUrl = String(button.dataset.directUrl || '').trim();
-            if ((button.dataset.taskEditTab || '') === 'graphic' && directUrl) {
-              window.location.href = directUrl;
-              return;
-            }
             syncTaskEditTab(button.dataset.taskEditTab || 'graphic', true);
           });
         });
