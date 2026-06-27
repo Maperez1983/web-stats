@@ -334,6 +334,8 @@ import { SkeletonUtils } from '../../vendor/three/examples/jsm/utils/SkeletonUti
     corner: { theta: -0.95, phi: 0.92, radius: 104, targetX: 10, targetZ: -4 },
     goal: { theta: Math.PI, phi: 0.76, radius: 74, targetX: 0, targetZ: 18 },
     drone: { theta: -0.01, phi: 0.16, radius: 70, targetX: 0, targetZ: 0 },
+    top_h: { theta: 0, phi: 0.14, radius: 128, targetX: 0, targetZ: 0 },
+    top_v: { theta: Math.PI / 2, phi: 0.14, radius: 128, targetX: 0, targetZ: 0 },
     tunnel: { theta: -1.55, phi: 1.08, radius: 88, targetX: -12, targetZ: 0 },
     analyst: { theta: -0.72, phi: 1.18, radius: 88, targetX: -3, targetZ: 6 },
     coach: { theta: -0.9, phi: 1.18, radius: 80, targetX: -6, targetZ: 10 },
