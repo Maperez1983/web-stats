@@ -569,6 +569,28 @@
 			      defs.appendChild(pattern);
 			    } else if (grassStyle === 'stadium_top') {
             stageBackgroundImageHref = resolvePitch3dTopImageHref();
+            if (stageBackgroundImageHref) {
+              grassFillId = 'pitch-stadium-top';
+              const pattern = createSvgNode(doc, 'pattern', {
+                id: grassFillId,
+                patternUnits: 'userSpaceOnUse',
+                x: -bleed,
+                y: -bleed,
+                width: stageW + (bleed * 2),
+                height: stageH + (bleed * 2),
+              });
+              const image = createSvgNode(doc, 'image', {
+                href: stageBackgroundImageHref,
+                x: -bleed,
+                y: -bleed,
+                width: stageW + (bleed * 2),
+                height: stageH + (bleed * 2),
+                preserveAspectRatio: 'xMidYMid slice',
+              });
+              try { image.setAttribute('xlink:href', stageBackgroundImageHref); } catch (e) { /* ignore */ }
+              pattern.appendChild(image);
+              defs.appendChild(pattern);
+            }
 			    } else if (grassStyle !== 'classic') {
 			      const dataUrl = __buildGrassTextureDataUrl(grassStyle);
 			      if (dataUrl) {
@@ -719,9 +741,9 @@
 	          height,
 	          rx: corner,
 	          ry: corner,
-	          fill: grassStyle === 'stadium_top' ? 'rgba(8,15,28,0.08)' : 'rgba(255,255,255,0.03)',
-	          stroke: 'none',
-	        }));
+          fill: grassStyle === 'stadium_top' ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.03)',
+          stroke: 'none',
+        }));
           if (grassStyle === 'stadium_top') {
             drawRoot.appendChild(createSvgNode(doc, 'rect', {
               x: x + 8,
@@ -739,7 +761,7 @@
               cy: y + (height / 2),
               rx: width * 0.46,
               ry: height * 0.42,
-              fill: 'rgba(255,255,255,0.05)',
+              fill: 'rgba(255,255,255,0.08)',
               stroke: 'none',
             }));
           }
