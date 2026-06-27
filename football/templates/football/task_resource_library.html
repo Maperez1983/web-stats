@@ -304,7 +304,7 @@
             </div>
             <div class="asset-grid">
               {% for item in group.items %}
-              <article class="asset-card" data-resource-card data-resource-key="{{ item.add_key }}">
+              <article class="asset-card" data-resource-card data-resource-key="{{ item.add_key }}" data-delete-mode="hide">
                 <div class="asset-preview">
                   {% if item.static_path %}
                   <img src="{% static item.static_path %}" alt="{{ item.label }}" loading="lazy" />
@@ -324,6 +324,7 @@
                     <button type="button" class="button{% if item.is_hidden %} is-hidden{% endif %}" data-visibility-toggle data-visible="{% if item.is_hidden %}0{% else %}1{% endif %}">
                       {% if item.is_hidden %}Mostrar en editor{% else %}Ocultar en editor{% endif %}
                     </button>
+                    <button type="button" class="button danger" data-delete-asset>Eliminar</button>
                   </div>
                 </div>
               </article>
@@ -358,7 +359,7 @@
         {% if pdf_assets %}
         <div class="asset-grid">
           {% for asset in pdf_assets %}
-          <article class="asset-card" data-resource-card data-resource-key="{{ asset.add_key }}" data-delete-scope="{% if asset.is_system %}system{% else %}team{% endif %}" data-asset-id="{{ asset.id }}">
+          <article class="asset-card" data-resource-card data-resource-key="{{ asset.add_key }}" data-delete-mode="destroy" data-delete-scope="{% if asset.is_system %}system{% else %}team{% endif %}" data-asset-id="{{ asset.id }}">
             <div class="asset-preview">
               <img src="{{ asset.url }}" alt="{{ asset.title|default:'Recurso gráfico' }}" loading="lazy" />
             </div>
@@ -401,7 +402,7 @@
         {% if ppt_icons %}
         <div class="asset-grid">
           {% for icon in ppt_icons %}
-          <article class="asset-card" data-resource-card data-resource-key="{{ icon.add_key }}">
+          <article class="asset-card" data-resource-card data-resource-key="{{ icon.add_key }}" data-delete-mode="hide">
             <div class="asset-preview">
               <img src="{% static icon.static_path %}" alt="{{ icon.label }}" loading="lazy" />
             </div>
@@ -415,6 +416,7 @@
                 <button type="button" class="button{% if icon.is_hidden %} is-hidden{% endif %}" data-visibility-toggle data-visible="{% if icon.is_hidden %}0{% else %}1{% endif %}">
                   {% if icon.is_hidden %}Mostrar en editor{% else %}Ocultar en editor{% endif %}
                 </button>
+                <button type="button" class="button danger" data-delete-asset>Eliminar</button>
               </div>
             </div>
           </article>
@@ -442,7 +444,7 @@
             </div>
             <div class="asset-grid">
               {% for item in group.items %}
-              <article class="asset-card" data-resource-card data-resource-key="{{ item.add_key }}">
+              <article class="asset-card" data-resource-card data-resource-key="{{ item.add_key }}" data-delete-mode="hide">
                 <div class="asset-preview">
                   <img src="{% static item.icon_static_path %}" alt="{{ item.label }}" loading="lazy" />
                 </div>
@@ -456,6 +458,7 @@
                     <button type="button" class="button{% if item.is_hidden %} is-hidden{% endif %}" data-visibility-toggle data-visible="{% if item.is_hidden %}0{% else %}1{% endif %}">
                       {% if item.is_hidden %}Mostrar en editor{% else %}Ocultar en editor{% endif %}
                     </button>
+                    <button type="button" class="button danger" data-delete-asset>Eliminar</button>
                   </div>
                 </div>
               </article>
@@ -572,32 +575,57 @@
           const deleteButton = event.target.closest('[data-delete-asset]');
           if (!deleteButton) return;
           const card = deleteButton.closest('[data-resource-card]');
+          const resourceKey = String(card?.dataset.resourceKey || '').trim();
+          const deleteMode = String(card?.dataset.deleteMode || 'hide').trim();
           const assetId = String(card?.dataset.assetId || '').trim();
           const scope = String(card?.dataset.deleteScope || 'team').trim();
-          if (!assetId) return;
-          if (!window.confirm('Este recurso se eliminará de la biblioteca. ¿Continuar?')) return;
+          if (!resourceKey) return;
+          if (deleteMode === 'destroy' && !assetId) return;
+          if (!window.confirm(deleteMode === 'destroy' ? 'Este recurso se eliminará permanentemente de la biblioteca. ¿Continuar?' : 'Este recurso se quitará de tu biblioteca y dejará de verse en el editor. ¿Continuar?')) return;
           deleteButton.disabled = true;
           feedback.textContent = 'Eliminando recurso...';
           try {
-            const body = new URLSearchParams();
-            body.set('asset_id', assetId);
-            body.set('scope', scope);
-            const response = await fetch('{{ delete_api_url }}', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                'X-CSRFToken': csrfToken,
-              },
-              body: body.toString(),
-              credentials: 'same-origin',
-            });
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok || !data.ok) {
-              feedback.textContent = data.error || 'No se pudo eliminar el recurso.';
-              return;
+            if (deleteMode === 'destroy') {
+              const body = new URLSearchParams();
+              body.set('asset_id', assetId);
+              body.set('scope', scope);
+              const response = await fetch('{{ delete_api_url }}', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                  'X-CSRFToken': csrfToken,
+                },
+                body: body.toString(),
+                credentials: 'same-origin',
+              });
+              const data = await response.json().catch(() => ({}));
+              if (!response.ok || !data.ok) {
+                feedback.textContent = data.error || 'No se pudo eliminar el recurso.';
+                return;
+              }
+              card?.remove();
+              feedback.textContent = 'Recurso eliminado correctamente. Recarga la biblioteca si quieres actualizar los contadores.';
+            } else {
+              const body = new URLSearchParams();
+              body.set('resource_key', resourceKey);
+              body.set('visible', '0');
+              const response = await fetch('{{ visibility_api_url }}', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                  'X-CSRFToken': csrfToken,
+                },
+                body: body.toString(),
+                credentials: 'same-origin',
+              });
+              const data = await response.json().catch(() => ({}));
+              if (!response.ok || !data.ok) {
+                feedback.textContent = data.error || 'No se pudo eliminar el recurso.';
+                return;
+              }
+              card?.remove();
+              feedback.textContent = 'Recurso eliminado de tu biblioteca y ocultado en el editor.';
             }
-            card?.remove();
-            feedback.textContent = 'Recurso eliminado correctamente. Recarga la biblioteca si quieres actualizar los contadores.';
           } catch (error) {
             feedback.textContent = 'No se pudo eliminar el recurso.';
           } finally {
