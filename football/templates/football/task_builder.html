@@ -4596,8 +4596,7 @@
         white-space: nowrap;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .task-workflow-strip button.is-active,
-      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-kind-strip button.is-active,
-      body:not(.tactics-mode).task-mode-ready.task-mode-board #task-editor-complexity-toggle.is-active {
+      body:not(.tactics-mode).task-mode-ready.task-mode-board .task-kind-strip button.is-active {
         border-color: rgba(244, 180, 0, 0.42);
         background: rgba(244, 180, 0, 0.14);
         color: rgba(255,255,255,0.96);
@@ -5288,12 +5287,6 @@
         width: 20px;
         height: 20px;
         font-size: 0.92rem;
-      }
-      body:not(.tactics-mode):not(.task-editor-advanced).task-mode-ready.task-mode-board .resource-tab[data-resource="importados"] {
-        display: none;
-      }
-      body:not(.tactics-mode):not(.task-editor-advanced).task-mode-ready.task-mode-board .resource-panel[data-panel="importados"] {
-        display: none !important;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board #task-destination-open {
         min-height: 38px;
@@ -6542,12 +6535,6 @@
         text-transform: none;
         letter-spacing: 0.02em;
       }
-      body:not(.tactics-mode):not(.task-editor-advanced) .resource-tab[data-resource="importados"] {
-        display: none;
-      }
-      body:not(.tactics-mode):not(.task-editor-advanced) .resource-panel[data-panel="importados"] {
-        display: none !important;
-      }
       body:not(.tactics-mode) .editor-side-section-head {
         display: flex;
         justify-content: space-between;
@@ -7463,7 +7450,6 @@
                     <button type="button" class="is-active" data-task-kind="2d">2D</button>
                     <button type="button" data-task-kind="3d">3D</button>
                     <button type="button" data-task-kind="interactive">Táctica interactiva</button>
-                    <button type="button" id="task-editor-complexity-toggle" aria-pressed="false">Modo simple</button>
                   </div>
                   {% endif %}
                   {% if tactics_mode %}
@@ -7756,7 +7742,6 @@
                           <button type="button" class="button secondary" data-guide-action="resources">Abrir recursos</button>
                           <button type="button" class="button secondary" data-guide-action="players">Ir a plantilla</button>
                           <button type="button" class="button secondary" data-guide-action="draw">Dibujar recorrido</button>
-                          <button type="button" class="button secondary" data-guide-action="advanced" id="task-guide-advanced-toggle">Ver avanzado</button>
                         </div>
                       </div>
                       <div class="editor-pane-card" data-board-pane="actions">
@@ -15758,7 +15743,6 @@
           const laneTemplateButtons = Array.from(document.querySelectorAll('[data-lane-template]'));
           const workflowButtons = Array.from(document.querySelectorAll('[data-workflow-action]'));
           const kindButtons = Array.from(document.querySelectorAll('[data-task-kind]'));
-          const complexityToggle = document.getElementById('task-editor-complexity-toggle');
           const presetSelect = document.getElementById('draw-task-preset');
           const surfaceTrigger = document.getElementById('surface-trigger');
           const playerBank = document.getElementById('task-player-bank');
@@ -15811,13 +15795,6 @@
             rosterToggle?.classList.toggle('is-active', rosterOpen);
             resourcesToggle?.setAttribute('aria-pressed', resourcesOpen ? 'true' : 'false');
             rosterToggle?.setAttribute('aria-pressed', rosterOpen ? 'true' : 'false');
-          };
-
-          const syncComplexityUi = () => {
-            const advanced = document.body.classList.contains('task-editor-advanced');
-            complexityToggle?.classList.toggle('is-active', advanced);
-            complexityToggle?.setAttribute('aria-pressed', advanced ? 'true' : 'false');
-            if (complexityToggle) complexityToggle.textContent = advanced ? 'Modo Pro' : 'Modo simple';
           };
 
           const syncWorkflowUi = (key) => {
@@ -16047,11 +16024,6 @@
             syncBoardDrawerButtons();
             try { playerBank?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' }); } catch (e) { /* ignore */ }
           });
-          complexityToggle?.addEventListener('click', (event) => {
-            try { event.preventDefault(); } catch (e) { /* ignore */ }
-            document.body.classList.toggle('task-editor-advanced');
-            syncComplexityUi();
-          });
           document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') {
               closeBoardDrawers();
@@ -16169,11 +16141,6 @@
                 try { quickDrawBtn?.click(); } catch (e) { /* ignore */ }
                 return;
               }
-              if (action === 'advanced') {
-                const advanced = !document.body.classList.contains('task-editor-advanced');
-                document.body.classList.toggle('task-editor-advanced', advanced);
-                button.textContent = advanced ? 'Ocultar avanzado' : 'Ver avanzado';
-              }
             });
           });
 
@@ -16203,7 +16170,6 @@
 
           syncSelectionState();
           document.body.classList.remove('task-board-roster-collapsed');
-          syncComplexityUi();
           syncWorkflowUi('build');
           syncKindUi('2d');
           activateMaterialFamily('equipamiento', { silent: true });
