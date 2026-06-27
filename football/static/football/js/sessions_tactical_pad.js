@@ -12314,6 +12314,7 @@
 						                };
 						                addInteriorFieldReferencePass();
 						                const addRealStadiumInteriorPolishPass = () => {
+						                  const bowlRibbonMat = new THREE.MeshBasicMaterial({ color: 0x8fd8ff, transparent: true, opacity: 0.82, toneMapped: false, depthWrite: false });
 						                  const mainStandZ = -(metersH / 2 + 15.40);
 						                  addBox(finish, new THREE.BoxGeometry(metersW * 0.52, 0.88, 0.96), suiteDark, 0, 6.68, mainStandZ, -0.010, 0, 0, 'pitch_3d_professional_real_main_press_suite_volume');
 						                  addBox(finish, new THREE.BoxGeometry(metersW * 0.48, 0.58, 0.08), suiteGlass, 0, 6.70, mainStandZ + 0.50, 0, 0, 0, 'pitch_3d_professional_real_main_press_suite_glass');
@@ -12361,6 +12362,20 @@
 						                    addBox(finish, new THREE.BoxGeometry(0.10, 0.045, 6.6), technicalLine, -10.4 * sign, 0.09, -(metersH / 2 + 4.7), 0, 0, 0, 'pitch_3d_professional_real_technical_area_line_side');
 						                    addBox(finish, new THREE.BoxGeometry(6.2, 0.42, 3.8), suiteDark, sign * (metersW / 2 + 9.4), 6.50, -(metersH * 0.25), -0.06, 0, 0, 'pitch_3d_professional_real_media_platform_high');
 						                    addBox(finish, new THREE.BoxGeometry(5.5, 0.10, 0.12), gateMetal, sign * (metersW / 2 + 9.4), 6.88, -(metersH * 0.25 - 1.95), 0, 0, 0, 'pitch_3d_professional_real_media_platform_guardrail');
+						                  });
+						                  [-1, 1].forEach((sign) => {
+						                    const ribbon = new THREE.Mesh(new THREE.PlaneGeometry(metersW * 0.86, 0.36), bowlRibbonMat);
+						                    ribbon.position.set(0, 8.94, sign * (metersH / 2 + 21.75));
+						                    ribbon.rotation.y = sign > 0 ? Math.PI : 0;
+						                    ribbon.userData = { kind: 'pitch_3d_professional_real_bowl_light_ribbon_long' };
+						                    finish.add(ribbon);
+						                  });
+						                  [-1, 1].forEach((sign) => {
+						                    const ribbon = new THREE.Mesh(new THREE.PlaneGeometry(metersH * 0.76, 0.36), bowlRibbonMat);
+						                    ribbon.position.set(sign * (metersW / 2 + 21.75), 8.94, 0);
+						                    ribbon.rotation.y = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
+						                    ribbon.userData = { kind: 'pitch_3d_professional_real_bowl_light_ribbon_end' };
+						                    finish.add(ribbon);
 						                  });
 						                };
 						                addRealStadiumInteriorPolishPass();
@@ -14167,6 +14182,8 @@
 						                  const haloRoofMat = new THREE.MeshPhysicalMaterial({ color: 0xf6f2e9, roughness: 0.08, metalness: 0.03, transparent: true, opacity: 0.18, transmission: 0.26, clearcoat: 0.26, side: THREE.DoubleSide });
 						                  const haloEdgeMat = new THREE.MeshStandardMaterial({ color: 0xe4d7c2, roughness: 0.26, metalness: 0.30 });
 						                  const ringLightMat = new THREE.MeshBasicMaterial({ color: 0x8ed8ff, transparent: true, opacity: 0.82, toneMapped: false, depthWrite: false });
+						                  const oculusMat = new THREE.MeshPhysicalMaterial({ color: 0xf5f1e8, roughness: 0.10, metalness: 0.06, transparent: true, opacity: 0.22, transmission: 0.30, clearcoat: 0.36, side: THREE.DoubleSide });
+						                  const oculusLightMat = new THREE.MeshBasicMaterial({ color: 0xbcecff, transparent: true, opacity: 0.42, toneMapped: false, depthWrite: false, side: THREE.DoubleSide });
 						                  [
 						                    [0, metersH / 2 + 33.9, metersW + 66.0, 3.2, -0.045],
 						                    [0, -(metersH / 2 + 33.9), metersW + 66.0, 3.2, 0.045],
@@ -14204,6 +14221,25 @@
 						                  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
 						                    addBox(new THREE.CylinderGeometry(1.28, 1.28, 0.06, 24), haloRoofMat, sx * (metersW / 2 + 37.2), 17.48, sz * (metersH / 2 + 37.2), Math.PI / 2, 0, 0, 'pitch_3d_reference_upper_roof_halo_corner');
 						                    addBox(new THREE.CylinderGeometry(0.18, 0.18, 4.0, 12), haloEdgeMat, sx * (metersW / 2 + 37.2), 16.48, sz * (metersH / 2 + 37.2), sx * 0.18, 0, sz * 0.18, 'pitch_3d_reference_upper_roof_halo_pylon');
+						                  });
+						                  addBox(new THREE.BoxGeometry(metersW + 18.0, 0.20, 1.40), oculusMat, 0, 15.26, -(metersH / 2 + 20.6), -0.28, 0, 0, 'pitch_3d_reference_oculus_edge_long_north');
+						                  addBox(new THREE.BoxGeometry(metersW + 18.0, 0.20, 1.40), oculusMat, 0, 15.26, metersH / 2 + 20.6, 0.28, 0, 0, 'pitch_3d_reference_oculus_edge_long_south');
+						                  addBox(new THREE.BoxGeometry(1.40, 0.20, metersH + 18.0), oculusMat, metersW / 2 + 20.6, 15.26, 0, 0, 0.28, 0, 'pitch_3d_reference_oculus_edge_end_east');
+						                  addBox(new THREE.BoxGeometry(1.40, 0.20, metersH + 18.0), oculusMat, -(metersW / 2 + 20.6), 15.26, 0, 0, -0.28, 0, 'pitch_3d_reference_oculus_edge_end_west');
+						                  [-1, 1].forEach((sign) => {
+						                    const glow = new THREE.Mesh(new THREE.PlaneGeometry(metersW + 8.0, 1.8), oculusLightMat);
+						                    glow.position.set(0, 15.18, sign * (metersH / 2 + 19.2));
+						                    glow.rotation.x = sign > 0 ? -0.42 : 0.42;
+						                    glow.userData = { kind: 'pitch_3d_reference_oculus_glow_long' };
+						                    atmosphere.add(glow);
+						                  });
+						                  [-1, 1].forEach((sign) => {
+						                    const glow = new THREE.Mesh(new THREE.PlaneGeometry(metersH + 8.0, 1.8), oculusLightMat);
+						                    glow.position.set(sign * (metersW / 2 + 19.2), 15.18, 0);
+						                    glow.rotation.z = Math.PI / 2;
+						                    glow.rotation.y = sign > 0 ? -0.42 : 0.42;
+						                    glow.userData = { kind: 'pitch_3d_reference_oculus_glow_end' };
+						                    atmosphere.add(glow);
 						                  });
 						                  const roofSig = new THREE.Mesh(new THREE.PlaneGeometry(12.0, 2.1), makeStandWordmarkMaterial(`${clubAcronym} ROOF`, { fill: '#f8fafc', stroke: 'rgba(7,17,31,0.96)', bg: 'rgba(29,78,216,0.34)' }));
 						                  roofSig.position.set(0, 19.44, -(metersH / 2 + 35.65));
@@ -15295,6 +15331,8 @@
 						                  const eventPlazaMat = new THREE.MeshStandardMaterial({ color: 0xc2baaa, roughness: 0.88, metalness: 0.02 });
 						                  const louverMat = new THREE.MeshStandardMaterial({ color: 0x8f98a8, roughness: 0.38, metalness: 0.34 });
 						                  const baseGlassMat = new THREE.MeshPhysicalMaterial({ color: 0xdff2ff, roughness: 0.05, metalness: 0.02, transparent: true, opacity: 0.34, transmission: 0.34, clearcoat: 0.44, side: THREE.DoubleSide });
+						                  const shellRibbonMat = new THREE.MeshBasicMaterial({ color: 0x93d9ff, transparent: true, opacity: 0.78, toneMapped: false, depthWrite: false, side: THREE.DoubleSide });
+						                  const shellVeilMat = new THREE.MeshPhysicalMaterial({ color: 0xf0f4f8, roughness: 0.18, metalness: 0.10, transparent: true, opacity: 0.12, transmission: 0.16, clearcoat: 0.22, side: THREE.DoubleSide });
 						                  const addHorizontalLouverSkin = () => {
 						                    const longSpan = metersW + 56.0;
 						                    const endSpan = metersH + 56.0;
@@ -15320,6 +15358,32 @@
 						                    });
 						                    [-1, 1].forEach((sign) => {
 						                      addBox(new THREE.BoxGeometry(0.14, 2.2, metersH + 48.0), baseGlassMat, sign * (metersW / 2 + 24.4), 1.42, 0, 0, 0, 0, 'pitch_3d_stadium_exterior_glass_base_end');
+						                    });
+						                  };
+						                  const addUnifiedShellVeil = () => {
+						                    [-1, 1].forEach((sign) => {
+						                      const veil = new THREE.Mesh(new THREE.PlaneGeometry(metersW + 44.0, 9.4), shellVeilMat);
+						                      veil.position.set(0, 7.2, sign * (metersH / 2 + 29.4));
+						                      veil.rotation.y = sign > 0 ? Math.PI : 0;
+						                      veil.userData = { kind: 'pitch_3d_stadium_exterior_unified_shell_veil_long' };
+						                      atmosphere.add(veil);
+						                      const ribbon = new THREE.Mesh(new THREE.PlaneGeometry(metersW + 34.0, 0.30), shellRibbonMat);
+						                      ribbon.position.set(0, 8.66, sign * (metersH / 2 + 28.56));
+						                      ribbon.rotation.y = sign > 0 ? Math.PI : 0;
+						                      ribbon.userData = { kind: 'pitch_3d_stadium_exterior_unified_shell_ribbon_long' };
+						                      atmosphere.add(ribbon);
+						                    });
+						                    [-1, 1].forEach((sign) => {
+						                      const veil = new THREE.Mesh(new THREE.PlaneGeometry(metersH + 44.0, 9.2), shellVeilMat);
+						                      veil.position.set(sign * (metersW / 2 + 29.4), 7.2, 0);
+						                      veil.rotation.y = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
+						                      veil.userData = { kind: 'pitch_3d_stadium_exterior_unified_shell_veil_end' };
+						                      atmosphere.add(veil);
+						                      const ribbon = new THREE.Mesh(new THREE.PlaneGeometry(metersH + 34.0, 0.30), shellRibbonMat);
+						                      ribbon.position.set(sign * (metersW / 2 + 28.56), 8.66, 0);
+						                      ribbon.rotation.y = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
+						                      ribbon.userData = { kind: 'pitch_3d_stadium_exterior_unified_shell_ribbon_end' };
+						                      atmosphere.add(ribbon);
 						                    });
 						                  };
 						                  const addRosaledaShellFront = () => {
@@ -15437,6 +15501,18 @@
 						                      addBox(new THREE.BoxGeometry(6.9, 0.12, 2.5), shellFrameMat, x, 2.82, -(metersH / 2 + 60.0), 0, 0, 0, 'pitch_3d_stadium_exterior_transit_pavilion_canopy');
 						                      addBox(new THREE.BoxGeometry(6.3, 1.22, 0.12), shellGlassMat, x, 1.62, -(metersH / 2 + 59.18), 0, 0, 0, 'pitch_3d_stadium_exterior_transit_pavilion_glass');
 						                      if (idx % 2 === 0) addBox(new THREE.BoxGeometry(1.4, 1.8, 0.16), premiumBlueMat, x, 1.44, -(metersH / 2 + 62.42), 0, 0, 0, 'pitch_3d_stadium_exterior_transit_pylon');
+						                    });
+						                  };
+						                  const addCivicArrivalLandscape = () => {
+						                    [-1, 1].forEach((sign) => {
+						                      addBox(new THREE.BoxGeometry(metersW * 0.42, 0.05, 5.2), plazaGreenMat, 0, 0.05, sign * (metersH / 2 + 51.2), 0, 0, 0, 'pitch_3d_stadium_exterior_civic_garden_strip');
+						                      [-22, -8, 8, 22].forEach((x, idx) => {
+						                        addBox(new THREE.CylinderGeometry(1.10, 1.34, 0.42, 18), eventPlazaMat, x, 0.18, sign * (metersH / 2 + 51.2), 0, 0, 0, 'pitch_3d_stadium_exterior_civic_planter');
+						                        addBox(new THREE.BoxGeometry(1.74, 1.22 + (idx % 2) * 0.18, 1.74), treeLeafMat, x, 1.08, sign * (metersH / 2 + 51.2), 0, idx * 0.12, 0, 'pitch_3d_stadium_exterior_civic_planter_tree');
+						                      });
+						                    });
+						                    [-1, 1].forEach((sign) => {
+						                      addBox(new THREE.BoxGeometry(4.2, 0.05, metersH * 0.34), plazaGreenMat, sign * (metersW / 2 + 51.2), 0.05, 0, 0, 0, 0, 'pitch_3d_stadium_exterior_civic_garden_edge');
 						                    });
 						                  };
 						                  [
@@ -15575,10 +15651,12 @@
 						                  addContinuousCrown();
 						                  addHorizontalLouverSkin();
 						                  addGlassBaseRibbon();
+						                  addUnifiedShellVeil();
 						                  addCurvedFacadeRead();
 						                  addMonumentalMainPortal();
 						                  addMajorEventPerimeter();
 						                  addMobilityCampusEdge();
+						                  addCivicArrivalLandscape();
 						                  const horizonZ = metersH / 2 + 58.0;
 						                  const mountain = new THREE.Mesh(new THREE.PlaneGeometry(metersW + 120.0, 18.0), mountainMat);
 						                  mountain.position.set(0, 11.0, horizonZ + 5.0);
