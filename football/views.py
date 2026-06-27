@@ -1271,6 +1271,84 @@ UNIVERSO_STORAGE_STATE_PATH = _env_path(
     Path(settings.BASE_DIR) / 'data' / 'input' / 'rfaf_storage_state.json',
 )
 TASK_RESOURCE_LIBRARY_PATH = Path(settings.BASE_DIR) / "data" / "input" / "task-resource-library.json"
+TASK_RESOURCE_LIBRARY_BASE_GROUPS = [
+    {
+        'category': 'Equipamiento',
+        'items': [
+            {'label': 'Cono', 'add_key': 'cone', 'preview_emoji': '🔺'},
+            {'label': 'Cono (rayas)', 'add_key': 'cone_striped', 'preview_emoji': '🔶'},
+            {'label': 'Pica', 'add_key': 'pole_marker', 'preview_emoji': '📍'},
+            {'label': 'Aro', 'add_key': 'ring', 'preview_emoji': '⭕'},
+            {'label': 'Cinta / línea de suelo', 'add_key': 'tape', 'preview_emoji': '🧵'},
+            {'label': 'Puerta (2 conos)', 'add_key': 'gate', 'preview_emoji': '🚪'},
+            {'label': 'Escalera de coordinación', 'add_key': 'ladder', 'preview_emoji': '🪜'},
+            {'label': 'Escalera en L', 'add_key': 'ladder_L', 'preview_emoji': '↪️'},
+            {'label': 'Escalera en zigzag', 'add_key': 'ladder_zigzag', 'preview_emoji': '〰️'},
+            {'label': 'Valla', 'add_key': 'hurdle', 'preview_emoji': '🚧'},
+            {'label': 'Mini valla', 'add_key': 'mini_hurdle', 'preview_emoji': '🪧'},
+            {'label': 'Maniquí', 'add_key': 'mannequin', 'preview_emoji': '🧍'},
+            {'label': 'Barrera (4 maniquíes)', 'add_key': 'barrier', 'preview_emoji': '🚧'},
+            {'label': 'Muro / panel', 'add_key': 'wall', 'preview_emoji': '🧱'},
+            {'label': 'Rebounder', 'add_key': 'rebounder', 'preview_emoji': '🧲'},
+        ],
+    },
+    {
+        'category': 'Porterías',
+        'items': [
+            {'label': 'Portería', 'add_key': 'goal', 'preview_emoji': '🥅'},
+            {'label': 'Portería (marco)', 'add_key': 'goal_posts', 'preview_emoji': '🧱'},
+            {'label': 'Mini portería', 'add_key': 'goal_mini', 'preview_emoji': '🥅'},
+            {'label': 'Portería con dianas', 'add_key': 'goal_target', 'preview_emoji': '🎯'},
+            {'label': 'Portería pop-up', 'add_key': 'goal_popup', 'preview_emoji': '⛺'},
+            {'label': 'Portería futsal', 'add_key': 'goal_futsal', 'preview_emoji': '🥅'},
+        ],
+    },
+    {
+        'category': 'Marcadores',
+        'items': [
+            {'label': 'Marcador inicio', 'add_key': 'marker_start', 'preview_emoji': 'I'},
+            {'label': 'Marcador fin', 'add_key': 'marker_end', 'preview_emoji': 'F'},
+            {'label': 'Marcador pase', 'add_key': 'marker_pass', 'preview_emoji': 'P'},
+            {'label': 'Marcador tiro', 'add_key': 'marker_shot', 'preview_emoji': 'T'},
+            {'label': 'Marcador apoyo', 'add_key': 'marker_support', 'preview_emoji': 'A'},
+            {'label': 'Regla de medida', 'add_key': 'measure', 'preview_emoji': '📏'},
+        ],
+    },
+    {
+        'category': 'Apoyos visuales',
+        'items': [
+            {'label': 'Línea de presión', 'add_key': 'line_pressure', 'preview_emoji': '╌'},
+            {'label': 'Línea defensiva', 'add_key': 'line_defensive', 'preview_emoji': '╌'},
+            {'label': 'Línea de fuera de juego', 'add_key': 'line_offside', 'preview_emoji': '╌'},
+            {'label': 'Emoji balón', 'add_key': 'emoji_ball', 'preview_emoji': '⚽'},
+            {'label': 'Emoji cono', 'add_key': 'emoji_cone', 'preview_emoji': '🔺'},
+            {'label': 'Emoji pica', 'add_key': 'emoji_pole', 'preview_emoji': '📍'},
+            {'label': 'Emoji escalera', 'add_key': 'emoji_ladder', 'preview_emoji': '🪜'},
+            {'label': 'Emoji aro', 'add_key': 'emoji_ring', 'preview_emoji': '⭕'},
+            {'label': 'Emoji valla', 'add_key': 'emoji_hurdle', 'preview_emoji': '🚧'},
+            {'label': 'Emoji peto', 'add_key': 'emoji_bib', 'preview_emoji': '🦺'},
+            {'label': 'Emoji maniquí', 'add_key': 'emoji_mannequin', 'preview_emoji': '🧍'},
+            {'label': 'Emoji muro', 'add_key': 'emoji_wall', 'preview_emoji': '🧱'},
+            {'label': 'Emoji portería', 'add_key': 'emoji_goal', 'preview_emoji': '🥅'},
+            {'label': 'Emoji mini portería', 'add_key': 'emoji_mini_goal', 'preview_emoji': '🥅'},
+            {'label': 'Emoji entrenador', 'add_key': 'emoji_coach', 'preview_emoji': '🧑‍🏫'},
+            {'label': 'Emoji staff', 'add_key': 'emoji_staff', 'preview_emoji': '👥'},
+            {'label': 'Emoji silbato', 'add_key': 'emoji_whistle', 'preview_emoji': '📣'},
+            {'label': 'Emoji crono', 'add_key': 'emoji_stopwatch', 'preview_emoji': '⏱️'},
+        ],
+    },
+    {
+        'category': 'Sprites 3D',
+        'items': [
+            {'label': 'Estadio 3D cenital horizontal', 'add_key': f'image_url:{static("football/images/pitch3d/stadium_rosaleda_top_h.png")}', 'static_path': 'football/images/pitch3d/stadium_rosaleda_top_h.png'},
+            {'label': 'Estadio 3D cenital vertical', 'add_key': f'image_url:{static("football/images/pitch3d/stadium_rosaleda_top_v.png")}', 'static_path': 'football/images/pitch3d/stadium_rosaleda_top_v.png'},
+            {'label': 'Jugador recortado Aitor', 'add_key': f'image_url:{static("football/images/players/aitor-n10-cut.png")}', 'static_path': 'football/images/players/aitor-n10-cut.png'},
+            {'label': 'Jugador recortado Cristian', 'add_key': f'image_url:{static("football/images/players/cristian-n16-cut.png")}', 'static_path': 'football/images/players/cristian-n16-cut.png'},
+            {'label': 'Jugador recortado Iván', 'add_key': f'image_url:{static("football/images/players/ivan-n9-cut.png")}', 'static_path': 'football/images/players/ivan-n9-cut.png'},
+            {'label': 'Jugador recortado Tadeo', 'add_key': f'image_url:{static("football/images/players/tadeo-n1-cut.png")}', 'static_path': 'football/images/players/tadeo-n1-cut.png'},
+        ],
+    },
+]
 SCRAPE_LOCK_KEY = "football:refresh_scraping_running"
 SCRAPE_LOCK_TIMEOUT_SECONDS = 900
 DASHBOARD_CACHE_KEY_PREFIX = "football:dashboard_payload"
@@ -38618,6 +38696,28 @@ def _save_task_builder_resource_library_hidden_keys(request, primary_team, hidde
 
 def _task_builder_resource_library_context(request, primary_team, *, context_cache_seconds=300, include_hidden=False):
     hidden_resource_keys = _task_builder_resource_library_hidden_keys(request, primary_team)
+    board_resource_groups = []
+    board_resource_count = 0
+    try:
+        for group in TASK_RESOURCE_LIBRARY_BASE_GROUPS:
+            group_items = []
+            for item in list(group.get('items') or []):
+                prepared = dict(item)
+                prepared['is_hidden'] = prepared.get('add_key') in hidden_resource_keys
+                if include_hidden or not prepared['is_hidden']:
+                    group_items.append(prepared)
+            if group_items:
+                board_resource_groups.append(
+                    {
+                        'category': str(group.get('category') or '').strip() or 'General',
+                        'items': group_items,
+                    }
+                )
+        board_resource_count = sum(len(group.get('items') or []) for group in board_resource_groups)
+    except Exception:
+        board_resource_groups = []
+        board_resource_count = 0
+
     pdf_assets = []
     try:
         cache_key = _task_builder_pdf_assets_cache_key(primary_team.id, int(getattr(request.user, 'id', 0) or 0))
@@ -38740,6 +38840,8 @@ def _task_builder_resource_library_context(request, primary_team, *, context_cac
         logger.exception('task_resource_library: no se pudo construir catálogo de drills', extra={'team_id': getattr(primary_team, 'id', None)})
 
     return {
+        'board_resource_groups': board_resource_groups,
+        'board_resource_count': board_resource_count,
         'pdf_assets': pdf_assets,
         'ppt_icons': ppt_icons,
         'drills_catalog': drills_catalog,
@@ -41533,6 +41635,7 @@ def session_task_resource_library_page(request, scope_key='coach', scope_title='
             'upload_api_url': reverse('pdf-graphic-asset-upload'),
             'visibility_api_url': reverse('task-resource-library-visibility-api'),
             'delete_api_url': reverse('pdf-graphic-asset-delete-api'),
+            'board_resource_count': int(resource_library_context.get('board_resource_count') or 0),
             'pdf_asset_count': len(resource_library_context.get('pdf_assets') or []),
             'ppt_icon_count': len(resource_library_context.get('ppt_icons') or []),
             'drill_count': len(resource_library_context.get('drills_catalog') or []),

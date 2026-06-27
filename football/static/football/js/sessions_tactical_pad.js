@@ -520,7 +520,7 @@
 		      pro: ['#2f6a3a', '#245934'],
 		      broadcast: ['#155e3a', '#0f4d2f'],
 		      broadcast_premium: ['#0f5a39', '#0a4029'],
-		      stadium_top: ['#194b34', '#102e22'],
+	      stadium_top: ['#1b563a', '#0d261c'],
 		      artificial: ['#2fb46d', '#1f8d55'],
 		      dry: ['#7b9a45', '#6b8a3a'],
 		      wet: ['#1f5a46', '#163f35'],
@@ -642,8 +642,8 @@
       // Deja margen suficiente para que el trazo del borde no se recorte en miniaturas / contenedores con overflow hidden.
       // Margen de seguridad para que los bordes no se recorten con overflow hidden,
       // pero lo más pequeño posible para que el campo ocupe pantalla.
-      const marginX = (grassStyle === 'stadium_top') ? 84 : ((grassStyle === 'broadcast_premium') ? 32 : 0);
-      const marginY = (grassStyle === 'stadium_top') ? 74 : ((grassStyle === 'broadcast_premium') ? 22 : 0);
+      const marginX = (grassStyle === 'stadium_top') ? 78 : ((grassStyle === 'broadcast_premium') ? 32 : 0);
+      const marginY = (grassStyle === 'stadium_top') ? 68 : ((grassStyle === 'broadcast_premium') ? 22 : 0);
       const portrait = orientation === 'portrait';
       const effectiveW = portrait ? stageH : stageW;
       const effectiveH = portrait ? stageW : stageH;
@@ -719,9 +719,30 @@
 	          height,
 	          rx: corner,
 	          ry: corner,
-	          fill: grassStyle === 'stadium_top' ? 'rgba(15,23,42,0.12)' : 'rgba(255,255,255,0.03)',
+	          fill: grassStyle === 'stadium_top' ? 'rgba(8,15,28,0.08)' : 'rgba(255,255,255,0.03)',
 	          stroke: 'none',
 	        }));
+          if (grassStyle === 'stadium_top') {
+            drawRoot.appendChild(createSvgNode(doc, 'rect', {
+              x: x + 8,
+              y: y + 8,
+              width: Math.max(10, width - 16),
+              height: Math.max(10, height - 16),
+              rx: Math.max(0, corner - 4),
+              ry: Math.max(0, corner - 4),
+              fill: 'none',
+              stroke: 'rgba(255,255,255,0.10)',
+              'stroke-width': 2.2,
+            }));
+            drawRoot.appendChild(createSvgNode(doc, 'ellipse', {
+              cx: x + (width / 2),
+              cy: y + (height / 2),
+              rx: width * 0.46,
+              ry: height * 0.42,
+              fill: 'rgba(255,255,255,0.05)',
+              stroke: 'none',
+            }));
+          }
 	      }
 
 	      if (isCoachBoard) {
@@ -795,14 +816,24 @@
         const netStroke = grassStyle === 'stadium_top' ? 'rgba(255,255,255,0.42)' : 'rgba(255,255,255,0.34)';
         const meshStroke = grassStyle === 'stadium_top' ? 'rgba(255,255,255,0.24)' : 'rgba(255,255,255,0.18)';
         const shadowX = side === 'left' ? 3.8 : -3.8;
+        if (grassStyle === 'stadium_top') {
+          drawRoot.appendChild(createSvgNode(doc, 'line', {
+            x1: x + shadowX,
+            y1: topY + 1,
+            x2: x + shadowX,
+            y2: bottomY + 4,
+            stroke: 'rgba(2,6,23,0.22)',
+            'stroke-width': 5,
+          }));
+        }
         drawRoot.appendChild(createSvgNode(doc, 'polygon', {
           points: `${x},${topY} ${postX},${topY + 3} ${postX},${bottomY - 3} ${x},${bottomY}`,
-          fill: grassStyle === 'stadium_top' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.05)',
+          fill: grassStyle === 'stadium_top' ? 'rgba(255,255,255,0.11)' : 'rgba(255,255,255,0.05)',
           stroke: 'none',
         }));
-        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x, y1: topY, x2: postX, y2: topY + 3, stroke: netStroke, 'stroke-width': 3 }));
-        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x, y1: bottomY, x2: postX, y2: bottomY - 3, stroke: netStroke, 'stroke-width': 3 }));
-        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: postX, y1: topY + 3, x2: postX, y2: bottomY - 3, stroke: netStroke, 'stroke-width': 3 }));
+        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x, y1: topY, x2: postX, y2: topY + 3, stroke: netStroke, 'stroke-width': grassStyle === 'stadium_top' ? 3.5 : 3 }));
+        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x, y1: bottomY, x2: postX, y2: bottomY - 3, stroke: netStroke, 'stroke-width': grassStyle === 'stadium_top' ? 3.5 : 3 }));
+        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: postX, y1: topY + 3, x2: postX, y2: bottomY - 3, stroke: netStroke, 'stroke-width': grassStyle === 'stadium_top' ? 3.5 : 3 }));
         for (let i = 1; i <= 4; i += 1) {
           const ratio = i / 5;
           const y1 = topY + ((bottomY - topY) * ratio);
@@ -853,6 +884,8 @@
       const segmentW = width / segments;
       const topY = y - offset - bandH;
       const bottomY = y + height + offset;
+      const leftX = x - offset - bandH;
+      const rightX = x + width + offset;
       for (let i = 0; i < segments; i += 1) {
         const segX = x + (i * segmentW) + 4;
         const segW = Math.max(14, segmentW - 8);
@@ -882,14 +915,76 @@
           }
         });
       }
+      if (grassStyle === 'stadium_top') {
+        const verticalSegments = 4;
+        const verticalSegmentH = height / verticalSegments;
+        for (let i = 0; i < verticalSegments; i += 1) {
+          const segY = y + (i * verticalSegmentH) + 4;
+          const segH = Math.max(18, verticalSegmentH - 8);
+          [leftX, rightX].forEach((bandX) => {
+            drawRoot.appendChild(createSvgNode(doc, 'rect', {
+              x: bandX,
+              y: segY,
+              width: bandH,
+              height: segH,
+              rx: 7,
+              ry: 7,
+              fill: palette[(i + 1) % palette.length],
+              stroke: 'rgba(255,255,255,0.26)',
+              'stroke-width': 1.2,
+            }));
+            drawRoot.appendChild(createSvgNode(doc, 'rect', {
+              x: bandX + 3,
+              y: segY + 3,
+              width: Math.max(6, bandH - 6),
+              height: Math.max(10, segH - 6),
+              rx: 5,
+              ry: 5,
+              fill: 'rgba(255,255,255,0.10)',
+              stroke: 'none',
+            }));
+          });
+        }
+        const railColor = 'rgba(226,232,240,0.26)';
+        drawRoot.appendChild(createSvgNode(doc, 'rect', {
+          x: x - offset - 6,
+          y: y - offset - 6,
+          width: width + ((offset + 6) * 2),
+          height: height + ((offset + 6) * 2),
+          rx: 20,
+          ry: 20,
+          fill: 'none',
+          stroke: railColor,
+          'stroke-width': 2.4,
+        }));
+        for (let i = 0; i <= 9; i += 1) {
+          const px = x + ((width / 9) * i);
+          drawRoot.appendChild(createSvgNode(doc, 'line', {
+            x1: px,
+            y1: y - offset - 6,
+            x2: px,
+            y2: y - offset + 6,
+            stroke: railColor,
+            'stroke-width': 1.6,
+          }));
+          drawRoot.appendChild(createSvgNode(doc, 'line', {
+            x1: px,
+            y1: y + height + offset - 6,
+            x2: px,
+            y2: y + height + offset + 6,
+            stroke: railColor,
+            'stroke-width': 1.6,
+          }));
+        }
+      }
     };
 
     const drawStadiumContext = (x, y, width, height) => {
       if (grassStyle !== 'stadium_top') return;
       const runoff = 26;
-      const concourseH = 38;
-      const standH = 84;
-      const sideW = 74;
+      const concourseH = 42;
+      const standH = 92;
+      const sideW = 82;
       const drawConcourse = (bandY) => {
         drawRoot.appendChild(createSvgNode(doc, 'rect', {
           x: x - 10,
@@ -898,7 +993,7 @@
           height: concourseH,
           rx: 6,
           ry: 6,
-          fill: 'rgba(15,23,42,0.72)',
+          fill: 'rgba(15,23,42,0.78)',
           stroke: 'rgba(226,232,240,0.14)',
           'stroke-width': 1.4,
         }));
@@ -910,6 +1005,20 @@
           fill: 'rgba(148,163,184,0.22)',
           stroke: 'none',
         }));
+        for (let i = 0; i < 5; i += 1) {
+          const tunnelX = x + ((width / 5) * i) + 18;
+          drawRoot.appendChild(createSvgNode(doc, 'rect', {
+            x: tunnelX,
+            y: bandY + 18,
+            width: 22,
+            height: 16,
+            rx: 4,
+            ry: 4,
+            fill: 'rgba(2,6,23,0.34)',
+            stroke: 'rgba(255,255,255,0.08)',
+            'stroke-width': 0.8,
+          }));
+        }
       };
       const drawStand = (bandY, fillColor, strokeColor) => {
         drawRoot.appendChild(createSvgNode(doc, 'rect', {
@@ -932,6 +1041,22 @@
             'stroke-width': 1,
           }));
         }
+        for (let i = 0; i < 30; i += 1) {
+          const seatX = x - sideW + 10 + ((i % 15) * ((width + (sideW * 2) - 20) / 15));
+          const seatY = bandY + 12 + (Math.floor(i / 15) * 18);
+          drawRoot.appendChild(createSvgNode(doc, 'circle', {
+            cx: seatX,
+            cy: seatY,
+            r: 1.5,
+            fill: 'rgba(248,250,252,0.22)',
+          }));
+        }
+        drawRoot.appendChild(createSvgNode(doc, 'path', {
+          d: `M ${x - sideW} ${bandY + standH - 4} L ${x - sideW + 26} ${bandY + 12} L ${x + width + sideW - 26} ${bandY + 12} L ${x + width + sideW} ${bandY + standH - 4} Z`,
+          fill: 'rgba(15,23,42,0.18)',
+          stroke: 'rgba(255,255,255,0.06)',
+          'stroke-width': 1,
+        }));
       };
       const drawSideStand = (sideX, concourseX, fillColor, strokeColor) => {
         drawRoot.appendChild(createSvgNode(doc, 'rect', {
@@ -956,6 +1081,12 @@
             'stroke-width': 1,
           }));
         }
+        drawRoot.appendChild(createSvgNode(doc, 'path', {
+          d: `M ${sideX + 2} ${y - 18} L ${sideX + sideW - 20} ${y + 8} L ${sideX + sideW - 20} ${y + height - 8} L ${sideX + 2} ${y + height + 18} Z`,
+          fill: 'rgba(15,23,42,0.16)',
+          stroke: 'rgba(255,255,255,0.05)',
+          'stroke-width': 1,
+        }));
         drawRoot.appendChild(createSvgNode(doc, 'rect', {
           x: concourseX,
           y: y - 12,
@@ -1050,7 +1181,7 @@
         height: height + (runoff * 2),
         rx: 18,
         ry: 18,
-        fill: 'none',
+        fill: 'rgba(255,255,255,0.03)',
         stroke: 'rgba(255,255,255,0.12)',
         'stroke-width': 8,
       }));
@@ -1064,6 +1195,17 @@
         fill: 'none',
         stroke: 'rgba(255,255,255,0.08)',
         'stroke-width': 14,
+      }));
+      drawRoot.appendChild(createSvgNode(doc, 'rect', {
+        x: x - 2,
+        y: y - 2,
+        width: width + 4,
+        height: height + 4,
+        rx: 16,
+        ry: 16,
+        fill: 'none',
+        stroke: 'rgba(2,6,23,0.16)',
+        'stroke-width': 10,
       }));
 
       drawDugout(x + (width * 0.28), y + height + 46, false);
@@ -4601,7 +4743,7 @@
 					      classic: 'Césped',
 					      broadcast: 'Broadcast',
 					      broadcast_premium: 'Broadcast Premium',
-					      stadium_top: 'Estadio HD',
+					      stadium_top: 'Estadio táctico HD',
 					      realistic: 'Realista',
 					      pro: 'PRO',
 					      uefa_b: 'UEFA B',
@@ -25762,7 +25904,19 @@
 				      const key = normalizeUrlAsset(url);
 				      const img = urlAssetImages.get(key);
 				      const title = safeText(options?.title);
-				      const desired = clamp(Number(options.desiredSize) || 56, 28, 220);
+              const inferUrlAssetMeta = (assetUrl, assetTitle = '') => {
+                const normalizedUrl = safeText(assetUrl).toLowerCase();
+                const normalizedTitle = safeText(assetTitle).toLowerCase();
+                if (normalizedUrl.includes('/football/images/pitch3d/') || normalizedTitle.includes('estadio 3d')) {
+                  return { family: 'premium3d', desiredSize: 184 };
+                }
+                if (normalizedUrl.includes('/football/images/players/') || normalizedTitle.includes('jugador recortado')) {
+                  return { family: 'premium3d', desiredSize: 124 };
+                }
+                return { family: '', desiredSize: 56 };
+              };
+              const inferredMeta = inferUrlAssetMeta(key, title);
+				      const desired = clamp(Number(options.desiredSize) || inferredMeta.desiredSize || 56, 28, 220);
 				      if (img && (img.naturalWidth || img.width)) {
 				        const naturalW = Number(img.naturalWidth || img.width || 1);
 				        const naturalH = Number(img.naturalHeight || img.height || 1);
@@ -25774,7 +25928,7 @@
 				          originY: 'center',
 				          scaleX: baseScale,
 				          scaleY: baseScale,
-				          data: { kind: 'url_asset', url: key, title },
+				          data: { kind: 'url_asset', url: key, title, asset_family: inferredMeta.family },
 				        });
 				        try { imageObj.objectCaching = false; } catch (e) { /* ignore */ }
 				        try { imageObj.noScaleCache = true; } catch (e) { /* ignore */ }
@@ -25808,7 +25962,7 @@
 				        top,
 				        originX: 'center',
 				        originY: 'center',
-				        data: { kind: 'url_asset', url: key, placeholder: true, desiredSize: desired, title },
+				        data: { kind: 'url_asset', url: key, placeholder: true, desiredSize: desired, title, asset_family: inferredMeta.family },
 				      });
 				      try { group.objectCaching = false; } catch (e) { /* ignore */ }
 				      try { group.noScaleCache = true; } catch (e) { /* ignore */ }
@@ -25879,7 +26033,7 @@
 				          angle: Number(obj.angle) || 0,
 				          scaleX: baseScale * (Number(obj.scaleX) || 1),
 				          scaleY: baseScale * (Number(obj.scaleY) || 1),
-				          data: { kind: 'url_asset', url: key, title: safeText(obj.data.title) },
+				          data: { kind: 'url_asset', url: key, title: safeText(obj.data.title), asset_family: safeText(obj.data.asset_family) },
 				        });
 				        try { next.objectCaching = false; } catch (e) { /* ignore */ }
 				        try { next.noScaleCache = true; } catch (e) { /* ignore */ }
@@ -35826,7 +35980,8 @@
 	      const kind = safeText(object?.data?.kind);
 	      if (!kind) return '';
 	      if (kind.startsWith('emoji_')) return 'apoyos';
-	      if (kind === 'pdf_asset' || kind === 'url_asset') return 'importados';
+	      if (kind === 'url_asset') return safeText(object?.data?.asset_family) || 'importados';
+	      if (kind === 'pdf_asset') return 'importados';
 	      if (kind === 'goal' || kind === 'goal_posts' || kind === 'goal_mini' || kind === 'goal_target' || kind === 'goal_popup' || kind === 'goal_futsal') return 'porterias';
 	      if (kind === 'marker_start' || kind === 'marker_end' || kind === 'marker_pass' || kind === 'marker_shot' || kind === 'marker_support' || kind === 'measure') return 'marcadores';
 	      if (kind === 'line_pressure' || kind === 'line_defensive' || kind === 'line_offside') return 'apoyos';

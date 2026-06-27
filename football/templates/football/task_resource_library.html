@@ -270,6 +270,10 @@
 
       <section class="hero-grid">
         <article class="hero-card">
+          <span>Recursos base pizarra</span>
+          <strong>{{ board_resource_count }}</strong>
+        </article>
+        <article class="hero-card">
           <span>Recursos importados</span>
           <strong>{{ pdf_asset_count }}</strong>
         </article>
@@ -281,6 +285,56 @@
           <span>Drills e iconos técnicos</span>
           <strong>{{ drill_count }}</strong>
         </article>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <h2>Recursos nativos del editor</h2>
+            <small>Aquí aparecen las familias base de la pizarra: equipamiento, porterías, marcadores, apoyos y sprites 3D. También puedes ocultarlos o volver a mostrarlos en el editor.</small>
+          </div>
+        </div>
+        {% if board_resource_groups %}
+        <div class="group-stack">
+          {% for group in board_resource_groups %}
+          <section>
+            <div class="section-head">
+              <h2>{{ group.category }}</h2>
+              <small>{{ group.items|length }} recursos</small>
+            </div>
+            <div class="asset-grid">
+              {% for item in group.items %}
+              <article class="asset-card" data-resource-card data-resource-key="{{ item.add_key }}">
+                <div class="asset-preview">
+                  {% if item.static_path %}
+                  <img src="{% static item.static_path %}" alt="{{ item.label }}" loading="lazy" />
+                  {% else %}
+                  <div style="display:grid;place-items:center;width:100%;height:100%;font-size:2rem;font-weight:800;color:rgba(248,250,252,0.92);">
+                    {{ item.preview_emoji|default:"•" }}
+                  </div>
+                  {% endif %}
+                </div>
+                <div class="asset-body">
+                  <p class="asset-title">{{ item.label }}</p>
+                  <div class="asset-tag-row">
+                    <span class="asset-tag system">Pizarra</span>
+                    {% if item.is_hidden %}<span class="asset-tag hidden" data-hidden-chip>Oculto en editor</span>{% endif %}
+                  </div>
+                  <div class="asset-actions">
+                    <button type="button" class="button{% if item.is_hidden %} is-hidden{% endif %}" data-visibility-toggle data-visible="{% if item.is_hidden %}0{% else %}1{% endif %}">
+                      {% if item.is_hidden %}Mostrar en editor{% else %}Ocultar en editor{% endif %}
+                    </button>
+                  </div>
+                </div>
+              </article>
+              {% endfor %}
+            </div>
+          </section>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty">No se ha podido construir el catálogo base de la pizarra.</div>
+        {% endif %}
       </section>
 
       <section class="panel">

@@ -7374,6 +7374,7 @@
                   <div class="board-overlay-controls" aria-label="Paneles de edición">
                     <button type="button" class="surface-trigger" id="task-board-roster-toggle" aria-pressed="false">Jugadores</button>
                     <button type="button" class="surface-trigger" id="task-board-resources-toggle" aria-pressed="false">Material</button>
+                    <button type="button" class="surface-trigger" id="task-zones-btn" title="Carriles / zonas y plantillas">Carriles</button>
                     <a href="{{ task_resource_library_url|default:'#' }}" class="surface-trigger" id="task-resource-library-inline" aria-label="Abrir biblioteca de recursos">Biblioteca</a>
                   </div>
                   {% endif %}
@@ -7457,7 +7458,7 @@
 		                        <option value="classic" {% if initial.pitch_grass_style == 'classic' %}selected{% endif %}>Césped</option>
 		                        <option value="broadcast" {% if initial.pitch_grass_style == 'broadcast' %}selected{% endif %}>Broadcast</option>
                                 <option value="broadcast_premium" {% if initial.pitch_grass_style == 'broadcast_premium' %}selected{% endif %}>Broadcast Premium</option>
-                                <option value="stadium_top" {% if initial.pitch_grass_style == 'stadium_top' %}selected{% endif %}>Estadio HD</option>
+                                <option value="stadium_top" {% if initial.pitch_grass_style == 'stadium_top' %}selected{% endif %}>Estadio táctico HD</option>
 		                        <option value="realistic" {% if initial.pitch_grass_style == 'realistic' %}selected{% endif %}>Realista</option>
 		                        <option value="pro" {% if initial.pitch_grass_style == 'pro' %}selected{% endif %}>PRO</option>
 		                        <option value="uefa_b" {% if initial.pitch_grass_style == 'uefa_b' %}selected{% endif %}>UEFA B</option>
@@ -7661,7 +7662,6 @@
 				                    <button type="button" class="icon-btn" id="task-scenarios-btn" title="Escenarios" aria-label="Escenarios">
 				                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1h2v2h-2v2h2v2h-2v2h2v2h-2v1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6Zm2 0v12h10V6H6Z"/></svg>
 				                    </button>
-				                    <button type="button" class="button" id="task-zones-btn" title="Carriles / zonas y plantillas">Carriles</button>
 				                    <button type="button" class="button" id="task-export-surface-btn" title="Descargar imagen HD de la superficie gráfica">Imagen</button>
 				                    <button type="button" class="icon-btn" id="task-sim-btn" title="Simular (no guarda)" aria-label="Simular">
 				                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7v10l10-5-10-5Z"/></svg>
@@ -8753,6 +8753,7 @@
                     <button type="button" data-material-family-toggle="porterias">🥅 Porterías</button>
                     <button type="button" data-material-family-toggle="marcadores">🏷 Marcadores</button>
                     <button type="button" data-material-family-toggle="apoyos">⚽ Apoyos</button>
+                    <button type="button" data-material-family-toggle="premium3d">🏟 Sprites 3D</button>
                     <button type="button" data-material-family-toggle="importados">🖼 Importados</button>
                   </div>
                   <div class="selection-actions" style="margin-bottom:0.7rem;">
@@ -8762,7 +8763,7 @@
 	                  </div>
 	                  <div class="material-empty-state" id="task-material-empty-state">
 	                    <strong>Selecciona un tipo de material</strong>
-	                    <span>Primero elige Equipamiento, Porterías, Marcadores, Apoyos o Importados. Solo entonces mostraremos los recursos de esa familia.</span>
+	                    <span>Primero elige Equipamiento, Porterías, Marcadores, Apoyos, Sprites 3D o Importados. Solo entonces mostraremos los recursos de esa familia.</span>
 	                  </div>
 
 	                  <div class="task-material-family" data-material-family="equipamiento">
@@ -8834,6 +8835,73 @@
                   <button type="button" class="tool-icon" data-add="emoji_staff" title="Staff" aria-label="Staff"><span class="tool-emoji" aria-hidden="true">👥</span><span class="sr-only">Staff</span></button>
                   <button type="button" class="tool-icon" data-add="emoji_whistle" title="Silbato" aria-label="Silbato"><span class="tool-emoji" aria-hidden="true">📣</span><span class="sr-only">Silbato</span></button>
                   <button type="button" class="tool-icon" data-add="emoji_stopwatch" title="Crono" aria-label="Crono"><span class="tool-emoji" aria-hidden="true">⏱️</span><span class="sr-only">Crono</span></button>
+                  </div>
+                  </div>
+
+                  <div class="task-material-family" data-material-family="premium3d" hidden>
+                  <div class="meta" style="margin:0.85rem 0 0.35rem;">Sprites derivados del 3D</div>
+                  <p class="meta" style="margin:0 0 0.65rem; font-size:0.78rem;">
+                    Renders 2D premium tomados del estadio y de recortes visuales para enriquecer la pizarra sin salir del editor 2D.
+                  </p>
+                  <div class="meta" style="margin:0.5rem 0 0.35rem;">Fondos / vistas de estadio</div>
+                  <div class="resource-strip pdf-assets-strip">
+                    <button
+                      type="button"
+                      class="pdf-asset-btn"
+                      data-add="image_url:{% static 'football/images/pitch3d/stadium_rosaleda_top_h.png' %}"
+                      title="Estadio 3D cenital horizontal"
+                      aria-label="Estadio 3D cenital horizontal"
+                    >
+                      <img src="{% static 'football/images/pitch3d/stadium_rosaleda_top_h.png' %}" alt="Estadio 3D cenital horizontal" loading="lazy" />
+                    </button>
+                    <button
+                      type="button"
+                      class="pdf-asset-btn"
+                      data-add="image_url:{% static 'football/images/pitch3d/stadium_rosaleda_top_v.png' %}"
+                      title="Estadio 3D cenital vertical"
+                      aria-label="Estadio 3D cenital vertical"
+                    >
+                      <img src="{% static 'football/images/pitch3d/stadium_rosaleda_top_v.png' %}" alt="Estadio 3D cenital vertical" loading="lazy" />
+                    </button>
+                  </div>
+                  <div class="meta" style="margin:0.7rem 0 0.35rem;">Recortes de jugador</div>
+                  <div class="resource-strip pdf-assets-strip">
+                    <button
+                      type="button"
+                      class="pdf-asset-btn"
+                      data-add="image_url:{% static 'football/images/players/aitor-n10-cut.png' %}"
+                      title="Jugador recortado Aitor"
+                      aria-label="Jugador recortado Aitor"
+                    >
+                      <img src="{% static 'football/images/players/aitor-n10-cut.png' %}" alt="Jugador recortado Aitor" loading="lazy" />
+                    </button>
+                    <button
+                      type="button"
+                      class="pdf-asset-btn"
+                      data-add="image_url:{% static 'football/images/players/cristian-n16-cut.png' %}"
+                      title="Jugador recortado Cristian"
+                      aria-label="Jugador recortado Cristian"
+                    >
+                      <img src="{% static 'football/images/players/cristian-n16-cut.png' %}" alt="Jugador recortado Cristian" loading="lazy" />
+                    </button>
+                    <button
+                      type="button"
+                      class="pdf-asset-btn"
+                      data-add="image_url:{% static 'football/images/players/ivan-n9-cut.png' %}"
+                      title="Jugador recortado Iván"
+                      aria-label="Jugador recortado Iván"
+                    >
+                      <img src="{% static 'football/images/players/ivan-n9-cut.png' %}" alt="Jugador recortado Iván" loading="lazy" />
+                    </button>
+                    <button
+                      type="button"
+                      class="pdf-asset-btn"
+                      data-add="image_url:{% static 'football/images/players/tadeo-n1-cut.png' %}"
+                      title="Jugador recortado Tadeo"
+                      aria-label="Jugador recortado Tadeo"
+                    >
+                      <img src="{% static 'football/images/players/tadeo-n1-cut.png' %}" alt="Jugador recortado Tadeo" loading="lazy" />
+                    </button>
                   </div>
                   </div>
 
