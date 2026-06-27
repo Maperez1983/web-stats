@@ -12316,6 +12316,7 @@
 						                const addRealStadiumInteriorPolishPass = () => {
 						                  const bowlRibbonMat = new THREE.MeshBasicMaterial({ color: 0x8fd8ff, transparent: true, opacity: 0.82, toneMapped: false, depthWrite: false });
 						                  const hospitalityGlowMat = new THREE.MeshBasicMaterial({ color: 0xfff1bf, transparent: true, opacity: 0.22, toneMapped: false, depthWrite: false, side: THREE.DoubleSide });
+						                  const sectorGlowMat = new THREE.MeshBasicMaterial({ color: 0xe7f5ff, transparent: true, opacity: 0.18, toneMapped: false, depthWrite: false, side: THREE.DoubleSide });
 						                  const mainStandZ = -(metersH / 2 + 15.40);
 						                  addBox(finish, new THREE.BoxGeometry(metersW * 0.52, 0.88, 0.96), suiteDark, 0, 6.68, mainStandZ, -0.010, 0, 0, 'pitch_3d_professional_real_main_press_suite_volume');
 						                  addBox(finish, new THREE.BoxGeometry(metersW * 0.48, 0.58, 0.08), suiteGlass, 0, 6.70, mainStandZ + 0.50, 0, 0, 0, 'pitch_3d_professional_real_main_press_suite_glass');
@@ -12385,6 +12386,31 @@
 						                    for (let i = -6; i <= 6; i += 1) {
 						                      addBox(finish, new THREE.BoxGeometry(0.14, 0.78, 0.12), gateMetal, i * (metersW / 12), 11.92, catwalkZ, 0, 0, 0, 'pitch_3d_professional_real_roof_catwalk_hanger');
 						                    }
+						                  });
+						                  [-1, 1].forEach((sign) => {
+						                    [-0.36, -0.12, 0.12, 0.36].forEach((ratio, idx) => {
+						                      const x = ratio * metersW;
+						                      const banner = new THREE.Mesh(new THREE.PlaneGeometry(6.0, 1.34), idx % 2 === 0 ? signMat : suiteBanner);
+						                      banner.position.set(x, 5.86, sign * (metersH / 2 + 11.9));
+						                      banner.rotation.y = sign > 0 ? Math.PI : 0;
+						                      banner.userData = { kind: 'pitch_3d_professional_real_sector_banner_long' };
+						                      finish.add(banner);
+						                      const glow = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 1.8), sectorGlowMat);
+						                      glow.position.set(x, 5.84, sign * (metersH / 2 + 11.55));
+						                      glow.rotation.y = sign > 0 ? Math.PI : 0;
+						                      glow.userData = { kind: 'pitch_3d_professional_real_sector_banner_glow_long' };
+						                      finish.add(glow);
+						                    });
+						                  });
+						                  [-1, 1].forEach((sign) => {
+						                    [-0.28, 0, 0.28].forEach((ratio, idx) => {
+						                      const z = ratio * metersH;
+						                      const banner = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 1.20), idx === 1 ? signMat : suiteBanner);
+						                      banner.position.set(sign * (metersW / 2 + 11.9), 5.74, z);
+						                      banner.rotation.y = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
+						                      banner.userData = { kind: 'pitch_3d_professional_real_sector_banner_end' };
+						                      finish.add(banner);
+						                    });
 						                  });
 						                  [-1, 1].forEach((sign) => {
 						                    const ribbon = new THREE.Mesh(new THREE.PlaneGeometry(metersW * 0.86, 0.36), bowlRibbonMat);
@@ -15358,6 +15384,7 @@
 						                  const shellVeilMat = new THREE.MeshPhysicalMaterial({ color: 0xf0f4f8, roughness: 0.18, metalness: 0.10, transparent: true, opacity: 0.12, transmission: 0.16, clearcoat: 0.22, side: THREE.DoubleSide });
 						                  const shellPlinthMat = new THREE.MeshStandardMaterial({ color: 0x6a7280, roughness: 0.62, metalness: 0.20 });
 						                  const shellGlowMat = new THREE.MeshBasicMaterial({ color: 0xd9f2ff, transparent: true, opacity: 0.24, toneMapped: false, depthWrite: false, side: THREE.DoubleSide });
+						                  const shellBeltMat = new THREE.MeshStandardMaterial({ color: 0xbfc7d1, roughness: 0.34, metalness: 0.36 });
 						                  const addHorizontalLouverSkin = () => {
 						                    const longSpan = metersW + 56.0;
 						                    const endSpan = metersH + 56.0;
@@ -15409,6 +15436,17 @@
 						                      ribbon.rotation.y = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
 						                      ribbon.userData = { kind: 'pitch_3d_stadium_exterior_unified_shell_ribbon_end' };
 						                      atmosphere.add(ribbon);
+						                    });
+						                  };
+						                  const addContinuousBaseBelt = () => {
+						                    [-1, 1].forEach((sign) => {
+						                      addBox(new THREE.BoxGeometry(metersW + 52.0, 0.42, 0.52), shellBeltMat, 0, 2.18, sign * (metersH / 2 + 26.8), 0, 0, 0, 'pitch_3d_stadium_exterior_base_belt_long');
+						                    });
+						                    [-1, 1].forEach((sign) => {
+						                      addBox(new THREE.BoxGeometry(0.52, 0.42, metersH + 52.0), shellBeltMat, sign * (metersW / 2 + 26.8), 2.18, 0, 0, 0, 0, 'pitch_3d_stadium_exterior_base_belt_end');
+						                    });
+						                    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
+						                      addBox(new THREE.CylinderGeometry(0.54, 0.54, 0.42, 22), shellBeltMat, sx * (metersW / 2 + 26.8), 2.18, sz * (metersH / 2 + 26.8), Math.PI / 2, 0, 0, 'pitch_3d_stadium_exterior_base_belt_corner');
 						                    });
 						                  };
 						                  const addRosaledaShellFront = () => {
@@ -15523,6 +15561,14 @@
 						                      wash.rotation.y = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
 						                      wash.userData = { kind: 'pitch_3d_stadium_exterior_night_facade_wash_end' };
 						                      atmosphere.add(wash);
+						                    });
+						                  };
+						                  const addUnifiedUpperShellBand = () => {
+						                    [-1, 1].forEach((sign) => {
+						                      addBox(new THREE.BoxGeometry(metersW + 46.0, 0.24, 0.30), shellBeltMat, 0, 13.44, sign * (metersH / 2 + 30.9), 0, 0, 0, 'pitch_3d_stadium_exterior_upper_shell_band_long');
+						                    });
+						                    [-1, 1].forEach((sign) => {
+						                      addBox(new THREE.BoxGeometry(0.30, 0.24, metersH + 46.0), shellBeltMat, sign * (metersW / 2 + 30.9), 13.44, 0, 0, 0, 0, 'pitch_3d_stadium_exterior_upper_shell_band_end');
 						                    });
 						                  };
 						                  const addMajorEventPerimeter = () => {
@@ -15713,7 +15759,9 @@
 						                  addContinuousCrown();
 						                  addHorizontalLouverSkin();
 						                  addGlassBaseRibbon();
+						                  addContinuousBaseBelt();
 						                  addUnifiedShellVeil();
+						                  addUnifiedUpperShellBand();
 						                  addContinuousMegaCanopy();
 						                  addCurvedFacadeRead();
 						                  addMonumentalMainPortal();
