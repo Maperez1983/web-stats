@@ -14146,6 +14146,9 @@
 						                  const trussMat = new THREE.MeshStandardMaterial({ color: 0x263238, roughness: 0.38, metalness: 0.42 });
 						                  const roofEquipmentMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.42, metalness: 0.30 });
 						                  const crestGlowMat = new THREE.MeshBasicMaterial({ color: 0xe0f2fe, transparent: true, opacity: 0.16, toneMapped: false, depthWrite: false, side: THREE.DoubleSide });
+						                  const haloRoofMat = new THREE.MeshPhysicalMaterial({ color: 0xf6f2e9, roughness: 0.08, metalness: 0.03, transparent: true, opacity: 0.18, transmission: 0.26, clearcoat: 0.26, side: THREE.DoubleSide });
+						                  const haloEdgeMat = new THREE.MeshStandardMaterial({ color: 0xe4d7c2, roughness: 0.26, metalness: 0.30 });
+						                  const ringLightMat = new THREE.MeshBasicMaterial({ color: 0x8ed8ff, transparent: true, opacity: 0.82, toneMapped: false, depthWrite: false });
 						                  [
 						                    [0, metersH / 2 + 33.9, metersW + 66.0, 3.2, -0.045],
 						                    [0, -(metersH / 2 + 33.9), metersW + 66.0, 3.2, 0.045],
@@ -14169,6 +14172,20 @@
 						                  ].forEach(([x, z, w, d, ry]) => {
 						                    addBox(new THREE.BoxGeometry(w, 0.18, d), eaveMat, x, 16.96, z, 0, ry, 0, 'pitch_3d_reference_end_thin_roof_eave');
 						                    addBox(new THREE.BoxGeometry(0.18, 0.09, d - 7.0), lightBarMat, x - Math.sign(x) * 2.02, 16.18, z, 0, ry, 0, 'pitch_3d_reference_end_floodlight_strip');
+						                  });
+						                  [-1, 1].forEach((sign) => {
+						                    addBox(new THREE.BoxGeometry(metersW + 74.0, 0.06, 2.4), haloRoofMat, 0, 17.48, sign * (metersH / 2 + 37.2), sign * -0.11, 0, 0, 'pitch_3d_reference_upper_roof_halo_long');
+						                    addBox(new THREE.BoxGeometry(metersW + 78.0, 0.12, 0.20), haloEdgeMat, 0, 17.86, sign * (metersH / 2 + 38.72), 0, 0, 0, 'pitch_3d_reference_upper_roof_halo_edge_long');
+						                    addBox(new THREE.BoxGeometry(metersW + 70.0, 0.04, 0.14), ringLightMat, 0, 17.66, sign * (metersH / 2 + 37.84), 0, 0, 0, 'pitch_3d_reference_roof_ring_light_long');
+						                  });
+						                  [-1, 1].forEach((sign) => {
+						                    addBox(new THREE.BoxGeometry(2.4, 0.06, metersH + 66.0), haloRoofMat, sign * (metersW / 2 + 37.2), 17.48, 0, 0, sign * 0.11, 0, 'pitch_3d_reference_upper_roof_halo_end');
+						                    addBox(new THREE.BoxGeometry(0.20, 0.12, metersH + 70.0), haloEdgeMat, sign * (metersW / 2 + 38.72), 17.86, 0, 0, 0, 0, 'pitch_3d_reference_upper_roof_halo_edge_end');
+						                    addBox(new THREE.BoxGeometry(0.14, 0.04, metersH + 62.0), ringLightMat, sign * (metersW / 2 + 37.84), 17.66, 0, 0, 0, 0, 'pitch_3d_reference_roof_ring_light_end');
+						                  });
+						                  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
+						                    addBox(new THREE.CylinderGeometry(1.28, 1.28, 0.06, 24), haloRoofMat, sx * (metersW / 2 + 37.2), 17.48, sz * (metersH / 2 + 37.2), Math.PI / 2, 0, 0, 'pitch_3d_reference_upper_roof_halo_corner');
+						                    addBox(new THREE.CylinderGeometry(0.18, 0.18, 4.0, 12), haloEdgeMat, sx * (metersW / 2 + 37.2), 16.48, sz * (metersH / 2 + 37.2), sx * 0.18, 0, sz * 0.18, 'pitch_3d_reference_upper_roof_halo_pylon');
 						                  });
 						                  const roofSig = new THREE.Mesh(new THREE.PlaneGeometry(12.0, 2.1), makeStandWordmarkMaterial(`${clubAcronym} ROOF`, { fill: '#f8fafc', stroke: 'rgba(7,17,31,0.96)', bg: 'rgba(29,78,216,0.34)' }));
 						                  roofSig.position.set(0, 19.44, -(metersH / 2 + 35.65));
