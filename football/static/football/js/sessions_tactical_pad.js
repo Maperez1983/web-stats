@@ -10139,37 +10139,40 @@
 						      const theme = resolvePitch3dTheme();
 						      const isNight = theme === 'night';
 						      try {
-						        const skyColor = isNight ? 0x020814 : 0xaed6f3;
+						        const skyColor = isNight ? 0x010611 : 0xc3def4;
 						        pitch3dScene.background = new THREE.Color(skyColor);
-						        pitch3dScene.fog = new THREE.Fog(skyColor, isNight ? 225 : 360, isNight ? 560 : 720);
+						        pitch3dScene.fog = new THREE.Fog(skyColor, isNight ? 210 : 340, isNight ? 600 : 760);
 						        pitch3dRenderer.setClearColor(skyColor, 1);
-						        pitch3dRenderer.toneMappingExposure = isNight ? 1.08 : 1.16;
+						        pitch3dRenderer.toneMappingExposure = isNight ? 1.16 : 1.10;
 						        pitch3dScene.traverse((node) => {
 						          const kind = safeText(node?.userData?.kind);
 						          if (node?.isHemisphereLight) {
-						            node.intensity = isNight ? 0.26 : 0.92;
-						            node.color?.set?.(isNight ? 0x9fc6ff : 0xfafcff);
-						            node.groundColor?.set?.(isNight ? 0x020b12 : 0x35563d);
+						            node.intensity = isNight ? 0.30 : 0.88;
+						            node.color?.set?.(isNight ? 0xb7d5ff : 0xf6fbff);
+						            node.groundColor?.set?.(isNight ? 0x031019 : 0x42644a);
 						          } else if (node?.isDirectionalLight) {
-						            if (kind === 'pitch_3d_theme_key_light') node.intensity = isNight ? 1.42 : 4.85;
-						            else if (kind === 'pitch_3d_theme_rim_light') node.intensity = isNight ? 0.46 : 0.76;
-						            else if (kind === 'pitch_3d_theme_fill_light') node.intensity = isNight ? 0.20 : 0.34;
+						            if (kind === 'pitch_3d_theme_key_light') node.intensity = isNight ? 1.56 : 4.52;
+						            else if (kind === 'pitch_3d_theme_rim_light') node.intensity = isNight ? 0.62 : 0.82;
+						            else if (kind === 'pitch_3d_theme_fill_light') node.intensity = isNight ? 0.26 : 0.30;
 						            else node.intensity = isNight ? 0.20 : 0.52;
 						          } else if (node?.isPointLight || node?.isSpotLight) {
 						            const base = kind === 'pitch_3d_professional_stadium_light_volume'
 						              ? 0.42
 						              : (kind === 'pitch_3d_stadium_real_spotlight_throw' ? 0.74 : 0.32);
-						            node.intensity = isNight ? Math.max(base, kind === 'pitch_3d_stadium_real_spotlight_throw' ? 1.24 : 1.02) : base;
+						            node.intensity = isNight ? Math.max(base, kind === 'pitch_3d_stadium_real_spotlight_throw' ? 1.34 : 1.10) : base;
 						          } else if (node?.isMesh && node.material) {
 						            const mats = Array.isArray(node.material) ? node.material : [node.material];
 						            mats.forEach((mat) => {
 						              if (!mat || !('emissiveIntensity' in mat)) return;
 						              const boost = kind.includes('roof_ring_light') || kind.includes('halo') || kind.includes('led')
 						                ? 1.38
-						                : (kind.includes('floodlight') || kind.includes('facade') ? 1.18 : 1.0);
+						                : (kind.includes('floodlight') || kind.includes('facade') || kind.includes('glass') ? 1.24 : 1.0);
 						              mat.emissiveIntensity = isNight
 						                ? Math.max(Number(mat.emissiveIntensity) || 0, 0.14) * boost
 						                : Math.min(Number(mat.emissiveIntensity) || 0, 0.46);
+						              if ('roughness' in mat && kind.includes('glass')) mat.roughness = isNight ? 0.08 : Math.min(Number(mat.roughness) || 0.18, 0.16);
+						              if ('opacity' in mat && kind.includes('glass')) mat.opacity = isNight ? Math.max(Number(mat.opacity) || 0, 0.30) : Math.max(Number(mat.opacity) || 0, 0.24);
+						              if ('color' in mat && kind.includes('facade')) mat.color?.set?.(isNight ? 0xd8dde8 : 0xe5e0d2);
 						            });
 						          }
 						        });
@@ -10543,31 +10546,31 @@
 							        pitch3dOrbit.radius = Math.max(70, Math.max(metersW, metersH) * 1.25);
 						      } else if (k === 'reference_photo') {
 						        // Vista calibrada contra la foto de referencia: esquina alta, grada principal y banquillos visibles.
-						        pitch3dCamera.fov = 40;
-						        pitch3dOrbit.theta = -2.46;
-						        pitch3dOrbit.phi = 1.02;
-						        pitch3dOrbit.radius = Math.max(146, metersW * 1.36);
-						        targetX = -6.8;
-						        targetY = 8.8;
-						        targetZ = 6.2;
+						        pitch3dCamera.fov = 39;
+						        pitch3dOrbit.theta = -2.40;
+						        pitch3dOrbit.phi = 0.96;
+						        pitch3dOrbit.radius = Math.max(150, metersW * 1.40);
+						        targetX = -4.8;
+						        targetY = 10.4;
+						        targetZ = 4.6;
 						      } else if (k === 'render_original') {
 						        // Vista de referencia: esquina alta, menos recorte lateral y lectura completa del estadio.
-						        pitch3dCamera.fov = 41;
-						        pitch3dOrbit.theta = -2.32;
-						        pitch3dOrbit.phi = 1.01;
-						        pitch3dOrbit.radius = Math.max(132, metersW * 1.22);
-						        targetX = -1.4;
-						        targetY = 8.7;
-						        targetZ = 1.6;
+						        pitch3dCamera.fov = 38;
+						        pitch3dOrbit.theta = -2.24;
+						        pitch3dOrbit.phi = 0.94;
+						        pitch3dOrbit.radius = Math.max(138, metersW * 1.28);
+						        targetX = 1.2;
+						        targetY = 10.8;
+						        targetZ = 0.8;
 						      } else if (k === 'clean_pitch_render') {
 						        // Composición de campo limpio: esquina alta y campo completo.
-						        pitch3dCamera.fov = 43;
-						        pitch3dOrbit.theta = -2.28;
-						        pitch3dOrbit.phi = 1.14;
-						        pitch3dOrbit.radius = Math.max(118, metersW * 1.10);
-						        targetX = 0.5;
-						        targetY = 5.4;
-						        targetZ = -2.8;
+						        pitch3dCamera.fov = 41;
+						        pitch3dOrbit.theta = -2.18;
+						        pitch3dOrbit.phi = 1.02;
+						        pitch3dOrbit.radius = Math.max(124, metersW * 1.14);
+						        targetX = 1.4;
+						        targetY = 6.8;
+						        targetZ = -1.6;
 						      } else if (k === 'task_focus') {
 						        const focus = pitch3dCanvasFocus(Number(metersW) || 105, Number(metersH) || 68);
 						        pitch3dCamera.fov = 40;
@@ -10580,17 +10583,19 @@
 						      } else if (k === 'broadcast') {
 						        // “TV”: cámara desde banda, baja, mirando el campo.
 							        pitch3dOrbit.theta = Math.PI / 2;
-							        pitch3dOrbit.phi = 1.51;
-							        pitch3dOrbit.radius = Math.max(42, metersW * 0.43);
-							        targetX = 8;
-							        targetY = 0.85;
-							        targetZ = -18;
+							        pitch3dOrbit.phi = 1.44;
+							        pitch3dOrbit.radius = Math.max(48, metersW * 0.48);
+							        targetX = 12;
+							        targetY = 1.45;
+							        targetZ = -15;
 						      } else if (k === 'broadcast_high') {
 						        // “TV alto”: ligeramente más cenital para explicar espacios.
-							        pitch3dOrbit.theta = 0.82;
-							        pitch3dOrbit.phi = 1.24;
-							        pitch3dOrbit.radius = Math.max(72, metersW * 0.82);
-							        targetY = 1.2;
+							        pitch3dOrbit.theta = 0.94;
+							        pitch3dOrbit.phi = 1.10;
+							        pitch3dOrbit.radius = Math.max(84, metersW * 0.92);
+							        targetX = 4.0;
+							        targetY = 3.2;
+							        targetZ = -2.0;
 						      } else if (k === 'coach_sideline') {
 						        pitch3dOrbit.theta = Math.PI / 2;
 						        pitch3dOrbit.phi = 1.36;
@@ -13652,22 +13657,22 @@
 						                const shadowMat = new THREE.MeshBasicMaterial({ color: 0x020617, transparent: true, opacity: 0.18, depthWrite: false });
 						                const primaryInt = toColorInt(primaryHex, 0x047857);
 						                const accentInt = toColorInt(accentHex, 0x073b32);
-						                const metalMat = new THREE.MeshStandardMaterial({ color: 0xdccfb6, roughness: 0.40, metalness: 0.28 });
-						                const darkMetalMat = new THREE.MeshStandardMaterial({ color: 0x4a4338, roughness: 0.52, metalness: 0.22 });
+						                const metalMat = new THREE.MeshStandardMaterial({ color: 0xd7dde8, roughness: 0.34, metalness: 0.34 });
+						                const darkMetalMat = new THREE.MeshStandardMaterial({ color: 0x2a3547, roughness: 0.42, metalness: 0.30 });
 						                const glassMat = new THREE.MeshPhysicalMaterial({
-						                  color: 0xe9f2f2,
-						                  roughness: 0.18,
+						                  color: 0xe8f4ff,
+						                  roughness: 0.12,
 						                  metalness: 0.02,
 						                  transparent: true,
-						                  opacity: 0.24,
-						                  transmission: 0.24,
-						                  clearcoat: 0.28,
-						                  clearcoatRoughness: 0.18,
+						                  opacity: 0.28,
+						                  transmission: 0.32,
+						                  clearcoat: 0.42,
+						                  clearcoatRoughness: 0.12,
 						                  side: THREE.DoubleSide,
 						                });
-						                const facadePanelMatA = new THREE.MeshStandardMaterial({ color: 0xe7decb, roughness: 0.56, metalness: 0.12 });
-						                const facadePanelMatB = new THREE.MeshStandardMaterial({ color: 0xc9bcaa, roughness: 0.60, metalness: 0.10 });
-						                const concreteMat = new THREE.MeshStandardMaterial({ color: 0xc8c2b6, roughness: 0.84, metalness: 0.02 });
+						                const facadePanelMatA = new THREE.MeshStandardMaterial({ color: 0xd7dfeb, roughness: 0.42, metalness: 0.18 });
+						                const facadePanelMatB = new THREE.MeshStandardMaterial({ color: 0xaeb8cb, roughness: 0.46, metalness: 0.22 });
+						                const concreteMat = new THREE.MeshStandardMaterial({ color: 0xc9d0d6, roughness: 0.78, metalness: 0.03 });
 						                const seatAccentMat = new THREE.MeshStandardMaterial({ color: primaryInt, roughness: 0.56, metalness: 0.015 });
 						                const seatShadowMat = new THREE.MeshStandardMaterial({ color: 0x17211f, roughness: 0.68, metalness: 0.01 });
 						                const stairMat = new THREE.MeshStandardMaterial({ color: 0xe2e8e4, roughness: 0.80, metalness: 0.02 });
