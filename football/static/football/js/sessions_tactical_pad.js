@@ -4802,9 +4802,17 @@
               const stadiumCameraStyleForOrientation = (orientationValue) => (
                 safeText(orientationValue, 'landscape') === 'portrait' ? 'stadium_top_v' : 'stadium_top_h'
               );
+              const shouldPreferStadiumTopSurface = () => {
+                try { return !document.body.classList.contains('tactics-mode'); } catch (e) { return true; }
+              };
 					    const normalizeGrassStyleForMode = (value) => {
 					      const next = safeText(value, 'classic').toLowerCase();
-					      if (!GRASS_STYLE_ORDER.includes(next)) return 'classic';
+					      if (!GRASS_STYLE_ORDER.includes(next)) {
+                  return shouldPreferStadiumTopSurface() ? stadiumCameraStyleForOrientation(pitchOrientation) : 'classic';
+                }
+                if (next === 'classic' && shouldPreferStadiumTopSurface()) {
+                  return stadiumCameraStyleForOrientation(pitchOrientation);
+                }
                 if (next === 'stadium_top') return stadiumCameraStyleForOrientation(pitchOrientation);
 					      return next;
 					    };
