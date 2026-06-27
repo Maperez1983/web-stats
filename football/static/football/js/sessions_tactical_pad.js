@@ -32847,11 +32847,20 @@
 					    resourceSection?.addEventListener('click', (event) => {
 				      const button = event.target.closest('.resource-panel button');
 				      if (!button) return;
+				      const add = safeText(button.dataset.add);
+              if (libraryManageMode && add) {
+                try { event.preventDefault(); } catch (e) { /* ignore */ }
+                try { event.stopPropagation(); } catch (e) { /* ignore */ }
+                hiddenLibraryResources.add(add);
+                persistHiddenLibraryResources();
+                applyLibraryFilter();
+                setStatus(`Recurso ocultado de la biblioteca: ${RESOURCE_LABELS[add] || add}.`);
+                return;
+              }
 				      if (button.closest('#task-basic-tools')) return;
 				      if (button.closest('#task-command-bar') || button.closest('#task-command-menu')) return;
 				      if (button.closest('#task-selection-toolbar')) return;
 				      const action = safeText(button.dataset.action);
-				      const add = safeText(button.dataset.add);
 				      if (action && handleCanvasAction(action)) return;
 					      if (!add) return;
 					      if (freeDrawMode) handleCanvasAction('draw_free');
@@ -34297,10 +34306,19 @@
 				        try { event.stopPropagation(); } catch (e) { /* ignore */ }
 				        return;
 				      }
-				      const button = event.target.closest('button[data-add]');
-				      if (!button) return;
+					      const button = event.target.closest('button[data-add]');
+					      if (!button) return;
 						      const add = safeText(button.dataset.add);
 						      if (!add) return;
+                if (libraryManageMode) {
+                  try { event.preventDefault(); } catch (e) { /* ignore */ }
+                  try { event.stopPropagation(); } catch (e) { /* ignore */ }
+                  hiddenLibraryResources.add(add);
+                  persistHiddenLibraryResources();
+                  applyLibraryFilter();
+                  setStatus(`Recurso ocultado de la biblioteca: ${RESOURCE_LABELS[add] || add}.`);
+                  return;
+                }
 					      if (freeDrawMode) handleCanvasAction('draw_free');
 					      if (add.startsWith('image_url:')) {
 				        const url = add.slice('image_url:'.length);
@@ -35494,6 +35512,65 @@
 					    const resourceHelper = document.querySelector('.resource-helper');
             const libraryToggleBtn = document.getElementById('task-library-toggle');
             const libraryFilterInput = document.getElementById('task-library-filter');
+            const libraryManageToggleBtn = document.getElementById('task-library-manage-toggle');
+            const libraryManageResetBtn = document.getElementById('task-library-manage-reset');
+            const libraryManageNote = document.getElementById('task-library-manage-note');
+            const libraryHiddenBox = document.getElementById('task-library-hidden-box');
+            const libraryHiddenList = document.getElementById('task-library-hidden-list');
+            const libraryHiddenEmpty = document.getElementById('task-library-hidden-empty');
+            const HIDDEN_LIBRARY_RESOURCES_KEY = 'webstats:tpad:hidden-library-resources-v1';
+            let libraryManageMode = false;
+            const hiddenLibraryResources = (() => {
+              try {
+                const raw = safeText(window.localStorage?.getItem(HIDDEN_LIBRARY_RESOURCES_KEY));
+                const parsed = raw ? JSON.parse(raw) : [];
+                if (!Array.isArray(parsed)) return new Set();
+                return new Set(parsed.map((value) => safeText(value)).filter(Boolean));
+              } catch (e) {
+                return new Set();
+              }
+            })();
+            const persistHiddenLibraryResources = () => {
+              try { window.localStorage?.setItem(HIDDEN_LIBRARY_RESOURCES_KEY, JSON.stringify(Array.from(hiddenLibraryResources))); } catch (e) { /* ignore */ }
+            };
+            const isLibraryResourceHidden = (add) => !!(add && hiddenLibraryResources.has(safeText(add)));
+            const setLibraryManageMode = (enabled) => {
+              libraryManageMode = !!enabled;
+              resourceSection?.classList.toggle('is-library-managing', libraryManageMode);
+              libraryManageToggleBtn?.classList.toggle('is-active', libraryManageMode);
+              try { libraryManageToggleBtn?.setAttribute('aria-pressed', libraryManageMode ? 'true' : 'false'); } catch (e) { /* ignore */ }
+              if (libraryManageToggleBtn) libraryManageToggleBtn.textContent = libraryManageMode ? 'Salir edición' : 'Editar biblioteca';
+              if (libraryManageNote) {
+                libraryManageNote.textContent = libraryManageMode
+                  ? 'Pulsa cualquier recurso para ocultarlo de la biblioteca. No se borra del sistema.'
+                  : 'Oculta recursos que no vas a utilizar en este dispositivo.';
+              }
+            };
+            const sortLibraryResources = (values) => values
+              .map((value) => safeText(value))
+              .filter(Boolean)
+              .sort((a, b) => safeText(RESOURCE_LABELS[a] || a).localeCompare(safeText(RESOURCE_LABELS[b] || b), 'es'));
+            const renderHiddenLibraryResources = () => {
+              if (!libraryHiddenBox || !libraryHiddenList || !libraryHiddenEmpty) return;
+              const items = sortLibraryResources(Array.from(hiddenLibraryResources));
+              libraryHiddenList.textContent = '';
+              libraryHiddenBox.hidden = items.length === 0;
+              libraryHiddenEmpty.hidden = items.length !== 0;
+              items.forEach((add) => {
+                const pill = document.createElement('div');
+                pill.className = 'library-hidden-item';
+                const name = document.createElement('span');
+                name.textContent = RESOURCE_LABELS[add] || add;
+                pill.appendChild(name);
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.dataset.libraryRestore = add;
+                btn.textContent = 'Mostrar';
+                btn.title = `Volver a mostrar ${RESOURCE_LABELS[add] || add}`;
+                pill.appendChild(btn);
+                libraryHiddenList.appendChild(pill);
+              });
+            };
 						    const isTacticsModeUi = document.body.classList.contains('tactics-mode');
 	            // iPad portrait UX: cuando la biblioteca es un bottom-sheet, puede tapar la "Plantilla disponible"
 	            // (banco de jugadores). Movemos esa sección dentro del panel de Recursos mientras el sheet esté abierto
@@ -35646,17 +35723,41 @@
               }
             };
             const applyLibraryFilter = () => {
-              if (!libraryFilterInput) return;
-              const q = normalizeLookupText(libraryFilterInput.value);
+              const q = normalizeLookupText(libraryFilterInput?.value || '');
               const activePanel = resourcePanels.find((panel) => panel && panel.hidden === false) || null;
-              if (!activePanel) return;
-              const buttons = Array.from(activePanel.querySelectorAll('button') || []);
+              const buttons = Array.from(resourceSection?.querySelectorAll('button[data-add]') || []);
               buttons.forEach((btn) => {
+                const add = safeText(btn.dataset.add);
                 const hay = normalizeLookupText(btn.getAttribute('title') || btn.textContent || '');
-                btn.hidden = !!q && !hay.includes(q);
+                const parentPanel = btn.closest('.resource-panel');
+                const matchesFilter = !q || !activePanel || parentPanel !== activePanel || hay.includes(q);
+                const hiddenByLibrary = isLibraryResourceHidden(add);
+                btn.hidden = hiddenByLibrary || !matchesFilter;
+                btn.dataset.libraryHidden = hiddenByLibrary ? '1' : '0';
               });
+              renderHiddenLibraryResources();
             };
             libraryFilterInput?.addEventListener('input', applyLibraryFilter);
+            libraryManageToggleBtn?.addEventListener('click', () => {
+              setLibraryManageMode(!libraryManageMode);
+            });
+            libraryManageResetBtn?.addEventListener('click', () => {
+              hiddenLibraryResources.clear();
+              persistHiddenLibraryResources();
+              setLibraryManageMode(false);
+              applyLibraryFilter();
+              setStatus('Biblioteca restaurada. Vuelven a mostrarse todos los recursos.');
+            });
+            libraryHiddenList?.addEventListener('click', (event) => {
+              const button = event.target.closest('button[data-library-restore]');
+              if (!button) return;
+              const add = safeText(button.dataset.libraryRestore);
+              if (!add) return;
+              hiddenLibraryResources.delete(add);
+              persistHiddenLibraryResources();
+              applyLibraryFilter();
+              setStatus(`Recurso reactivado en la biblioteca: ${RESOURCE_LABELS[add] || add}.`);
+            });
 					    let activeResourceKey = '';
 	    const resourceLabelForKey = (key) => {
 	      const normalized = safeText(key);
@@ -35716,6 +35817,8 @@
 				      // aunque no haya importaciones (y para que sea evidente dónde están flechas/figuras).
 				      activateResourcePanel('base');
 				    }
+            setLibraryManageMode(false);
+            applyLibraryFilter();
 		    // Permite alternar el modo (Ordenador/iPad/Auto) sin recargar ni perder trabajo.
 		    try {
 		      window.addEventListener('webstats:tpad:device-change', () => {
