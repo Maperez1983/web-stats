@@ -3690,6 +3690,7 @@ def pdf_graphic_asset_delete_api(request):
 
     scope = str(request.POST.get('scope') or '').strip().lower()
     qs = PdfGraphicAsset.objects.select_related('team', 'owner').filter(id=int(asset_id))
+    primary_team = None
 
     if scope == 'system':
         if not bool(getattr(request.user, 'is_superuser', False)):
@@ -3702,8 +3703,12 @@ def pdf_graphic_asset_delete_api(request):
             return JsonResponse({'ok': False, 'error': 'Repositorio del sistema no inicializado.'}, status=500)
         qs = qs.filter(team=system_team)
     else:
-        # Por ahora, restringimos el borrado desde UI a scope=system para evitar borrados accidentales.
-        return JsonResponse({'ok': False, 'error': 'Scope no soportado.'}, status=400)
+        if not _can_access_sessions_workspace(request.user):
+            return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+        primary_team = _get_primary_team_for_request(request)
+        if not primary_team:
+            return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+        qs = qs.filter(Q(team=primary_team) | Q(owner=request.user))
 
     asset = qs.first()
     if not asset:
@@ -3715,7 +3720,18 @@ def pdf_graphic_asset_delete_api(request):
                 asset.file.delete(save=False)
             except Exception:
                 pass
+        if primary_team:
+            try:
+                hidden_keys = _task_builder_resource_library_hidden_keys(request, primary_team)
+                hidden_keys.discard(f'pdf_asset:{int(asset.id)}')
+                _save_task_builder_resource_library_hidden_keys(request, primary_team, hidden_keys)
+            except Exception:
+                pass
         asset.delete()
+        try:
+            cache.delete(_task_builder_pdf_assets_cache_key(getattr(asset, 'team_id', 0) or getattr(primary_team, 'id', 0) or 0, getattr(request.user, 'id', 0) or 0))
+        except Exception:
+            pass
     except Exception:
         return JsonResponse({'ok': False, 'error': 'No se pudo borrar el recurso.'}, status=500)
 
@@ -38530,10 +38546,81 @@ def _task_builder_library_route_name(scope_key):
     }.get(scope_key, 'sessions-task-library')
 
 
-def _task_builder_resource_library_context(request, primary_team, *, context_cache_seconds=300):
+def _task_builder_pdf_assets_cache_key(team_id, user_id):
+    return f"task_builder:v3:pdf_assets:{int(team_id)}:{int(user_id)}"
+
+
+def _task_builder_resource_library_pref_workspace(request, primary_team):
+    workspace = None
+    try:
+        workspace = _get_active_workspace(request)
+    except Exception:
+        workspace = None
+    if workspace or not primary_team:
+        return workspace
+    try:
+        return Workspace.objects.filter(primary_team=primary_team).first()
+    except Exception:
+        return None
+
+
+def _task_builder_resource_library_pref_key(primary_team):
+    return f'task_builder_resource_library:v1:team:{int(getattr(primary_team, "id", 0) or 0)}'
+
+
+def _task_builder_resource_library_hidden_keys(request, primary_team):
+    workspace = _task_builder_resource_library_pref_workspace(request, primary_team)
+    if not workspace or not primary_team:
+        return set()
+    try:
+        pref = WorkspacePreference.objects.filter(
+            workspace=workspace,
+            key=_task_builder_resource_library_pref_key(primary_team),
+        ).only('value').first()
+        value = pref.value if pref else {}
+        if isinstance(value, str):
+            value = _coerce_json_dict(value) or {}
+        raw = value.get('hidden_resources') if isinstance(value, dict) else []
+        if not isinstance(raw, list):
+            return set()
+        return {
+            str(item or '').strip()
+            for item in raw
+            if str(item or '').strip()
+        }
+    except Exception:
+        return set()
+
+
+def _save_task_builder_resource_library_hidden_keys(request, primary_team, hidden_keys):
+    workspace = _task_builder_resource_library_pref_workspace(request, primary_team)
+    if not workspace or not primary_team:
+        return False
+    cleaned = sorted({
+        str(item or '').strip()
+        for item in (hidden_keys or [])
+        if str(item or '').strip()
+    })
+    try:
+        WorkspacePreference.objects.update_or_create(
+            workspace=workspace,
+            key=_task_builder_resource_library_pref_key(primary_team),
+            defaults={'value': {'hidden_resources': cleaned}},
+        )
+        return True
+    except Exception:
+        logger.exception(
+            'task_resource_library: no se pudo guardar visibilidad',
+            extra={'team_id': getattr(primary_team, 'id', None), 'workspace_id': getattr(workspace, 'id', None)},
+        )
+        return False
+
+
+def _task_builder_resource_library_context(request, primary_team, *, context_cache_seconds=300, include_hidden=False):
+    hidden_resource_keys = _task_builder_resource_library_hidden_keys(request, primary_team)
     pdf_assets = []
     try:
-        cache_key = f"task_builder:v3:pdf_assets:{int(primary_team.id)}:{int(getattr(request.user, 'id', 0) or 0)}"
+        cache_key = _task_builder_pdf_assets_cache_key(primary_team.id, int(getattr(request.user, 'id', 0) or 0))
         cached = cache.get(cache_key)
         if isinstance(cached, list):
             pdf_assets = cached
@@ -38564,12 +38651,21 @@ def _task_builder_resource_library_context(request, primary_team, *, context_cac
                         'url': reverse('pdf-graphic-asset-file', args=[int(asset.id)]),
                         'is_system': bool(system_team and getattr(asset, 'team_id', None) == getattr(system_team, 'id', None)),
                         'is_personal': bool(getattr(asset, 'owner_id', None) == getattr(request.user, 'id', None)),
+                        'add_key': f'pdf_asset:{int(asset.id)}',
                     }
                 )
             cache.set(cache_key, pdf_assets, context_cache_seconds)
     except Exception:
         pdf_assets = []
         logger.exception('task_resource_library: no se pudieron cargar assets PDF', extra={'team_id': getattr(primary_team, 'id', None)})
+    if hidden_resource_keys:
+        for item in pdf_assets:
+            item['is_hidden'] = item.get('add_key') in hidden_resource_keys
+    else:
+        for item in pdf_assets:
+            item['is_hidden'] = False
+    if not include_hidden:
+        pdf_assets = [item for item in pdf_assets if not item.get('is_hidden')]
 
     ppt_icons = []
     try:
@@ -38587,11 +38683,20 @@ def _task_builder_resource_library_context(request, primary_team, *, context_cac
                         {
                             'label': str(p.stem or '').strip()[:80],
                             'static_path': f'football/images/task-materials/ppt/{p.name}',
+                            'add_key': f'image_url:{static(f"football/images/task-materials/ppt/{p.name}")}',
                         }
                     )
             cache.set(cache_key, ppt_icons, context_cache_seconds)
     except Exception:
         ppt_icons = []
+    if hidden_resource_keys:
+        for item in ppt_icons:
+            item['is_hidden'] = item.get('add_key') in hidden_resource_keys
+    else:
+        for item in ppt_icons:
+            item['is_hidden'] = False
+    if not include_hidden:
+        ppt_icons = [item for item in ppt_icons if not item.get('is_hidden')]
 
     drills_catalog = []
     drill_groups = []
@@ -38607,12 +38712,21 @@ def _task_builder_resource_library_context(request, primary_team, *, context_cac
                     'label': item.label,
                     'category': item.category,
                     'icon_static_path': item.icon_static_path,
+                    'add_key': f'image_url:{static(item.icon_static_path)}',
                     'age_min': item.age_min,
                     'age_max': item.age_max,
                 }
                 for item in DRILL_CATALOG
             ]
             cache.set(cache_key, drills_catalog, context_cache_seconds)
+        if hidden_resource_keys:
+            for item in drills_catalog:
+                item['is_hidden'] = item.get('add_key') in hidden_resource_keys
+        else:
+            for item in drills_catalog:
+                item['is_hidden'] = False
+        if not include_hidden:
+            drills_catalog = [item for item in drills_catalog if not item.get('is_hidden')]
         grouped = defaultdict(list)
         for item in drills_catalog:
             grouped[str(item.get('category') or 'General').strip() or 'General'].append(item)
@@ -38630,6 +38744,7 @@ def _task_builder_resource_library_context(request, primary_team, *, context_cac
         'ppt_icons': ppt_icons,
         'drills_catalog': drills_catalog,
         'drill_groups': drill_groups,
+        'hidden_resource_keys': sorted(hidden_resource_keys),
     }
 
 
@@ -41395,6 +41510,7 @@ def session_task_resource_library_page(request, scope_key='coach', scope_title='
         request,
         primary_team,
         context_cache_seconds=context_cache_seconds,
+        include_hidden=True,
     )
 
     back_url = str(request.GET.get('next') or '').strip() or reverse(_task_builder_route_name(scope_key))
@@ -41415,12 +41531,40 @@ def session_task_resource_library_page(request, scope_key='coach', scope_title='
             'team_name': str(getattr(primary_team, 'name', '') or '').strip(),
             'upload_scope': upload_scope,
             'upload_api_url': reverse('pdf-graphic-asset-upload'),
+            'visibility_api_url': reverse('task-resource-library-visibility-api'),
+            'delete_api_url': reverse('pdf-graphic-asset-delete-api'),
             'pdf_asset_count': len(resource_library_context.get('pdf_assets') or []),
             'ppt_icon_count': len(resource_library_context.get('ppt_icons') or []),
             'drill_count': len(resource_library_context.get('drills_catalog') or []),
             **resource_library_context,
         },
     )
+
+
+@login_required
+@require_POST
+def task_resource_library_visibility_api(request):
+    if not _can_access_sessions_workspace(request.user):
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    if forbidden:
+        return JsonResponse({'ok': False, 'error': 'Módulo sesiones desactivado.'}, status=403)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+    resource_key = str(request.POST.get('resource_key') or request.POST.get('add_key') or '').strip()
+    if not resource_key:
+        return JsonResponse({'ok': False, 'error': 'resource_key requerido.'}, status=400)
+    visible_raw = str(request.POST.get('visible') or '').strip().lower()
+    visible = visible_raw in {'1', 'true', 'yes', 'on'}
+    hidden_keys = _task_builder_resource_library_hidden_keys(request, primary_team)
+    if visible:
+        hidden_keys.discard(resource_key)
+    else:
+        hidden_keys.add(resource_key)
+    if not _save_task_builder_resource_library_hidden_keys(request, primary_team, hidden_keys):
+        return JsonResponse({'ok': False, 'error': 'No se pudo guardar la visibilidad.'}, status=500)
+    return JsonResponse({'ok': True, 'resource_key': resource_key, 'visible': visible})
 
 
 @login_required

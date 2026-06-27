@@ -179,6 +179,7 @@ urlpatterns = [
     path('api/analysis/rival-videos/import-youtube/', views.analysis_rival_video_import_youtube_api, name='analysis-rival-video-import-youtube-api'),
     path('api/pdf-assets/upload/', views.pdf_graphic_asset_upload, name='pdf-graphic-asset-upload'),
     path('api/pdf-assets/delete/', views.pdf_graphic_asset_delete_api, name='pdf-graphic-asset-delete-api'),
+    path('api/task-resource-library/visibility/', views.task_resource_library_visibility_api, name='task-resource-library-visibility-api'),
     path('api/task-assistant/blueprints/', tactical_views.task_assistant_blueprints_api, name='task-assistant-blueprints-api'),
     path('api/task-assistant/blueprints/save/', tactical_views.task_assistant_blueprint_save_api, name='task-assistant-blueprint-save-api'),
     path('api/task-assistant/knowledge/', tactical_views.task_assistant_knowledge_api, name='task-assistant-knowledge-api'),

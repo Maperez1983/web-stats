@@ -35525,22 +35525,12 @@
             const libraryHiddenList = document.getElementById('task-library-hidden-list');
             const libraryHiddenEmpty = document.getElementById('task-library-hidden-empty');
             const customLibraryAssetsStrip = document.getElementById('task-custom-library-assets');
-            const HIDDEN_LIBRARY_RESOURCES_KEY = 'webstats:tpad:hidden-library-resources-v1';
             const CUSTOM_LIBRARY_RESOURCES_KEY = 'webstats:tpad:custom-library-resources-v1';
             let libraryManageMode = false;
-            const hiddenLibraryResources = (() => {
-              try {
-                const raw = safeText(window.localStorage?.getItem(HIDDEN_LIBRARY_RESOURCES_KEY));
-                const parsed = raw ? JSON.parse(raw) : [];
-                if (!Array.isArray(parsed)) return new Set();
-                return new Set(parsed.map((value) => safeText(value)).filter(Boolean));
-              } catch (e) {
-                return new Set();
-              }
-            })();
-            const persistHiddenLibraryResources = () => {
-              try { window.localStorage?.setItem(HIDDEN_LIBRARY_RESOURCES_KEY, JSON.stringify(Array.from(hiddenLibraryResources))); } catch (e) { /* ignore */ }
-            };
+            // La visibilidad de recursos ya se gobierna desde la Biblioteca de recursos del club.
+            // No persistimos ocultaciones por navegador para evitar diferencias entre dispositivos.
+            const hiddenLibraryResources = new Set();
+            const persistHiddenLibraryResources = () => {};
             let customLibraryResources = (() => {
               try {
                 const raw = safeText(window.localStorage?.getItem(CUSTOM_LIBRARY_RESOURCES_KEY));
