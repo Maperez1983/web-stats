@@ -12047,14 +12047,14 @@
 						              addBox(finish, new THREE.BoxGeometry(metersW + 30.0, 0.12, 0.18), lightFinish, 0, 13.10, metersH / 2 + 23.4, 0, 0, 0, 'pitch_3d_finished_north_light_bar');
 						              addBox(finish, new THREE.BoxGeometry(metersW + 30.0, 0.12, 0.18), lightFinish, 0, 13.10, -(metersH / 2 + 23.4), 0, 0, 0, 'pitch_3d_finished_south_light_bar');
 						              const addProfessionalDesignPass = () => {
-						                const facadeDark = new THREE.MeshStandardMaterial({ color: 0x2f3a3d, roughness: 0.70, metalness: 0.05 });
-						                const facadePanel = new THREE.MeshStandardMaterial({ color: 0xe4e9e5, roughness: 0.62, metalness: 0.04 });
-						                const glazing = new THREE.MeshPhysicalMaterial({ color: 0x9fd7e8, roughness: 0.18, metalness: 0.02, transparent: true, opacity: 0.38, transmission: 0.12, clearcoat: 0.18 });
+						                const facadeDark = new THREE.MeshStandardMaterial({ color: 0x4c463d, roughness: 0.72, metalness: 0.04 });
+						                const facadePanel = new THREE.MeshStandardMaterial({ color: 0xe5dcca, roughness: 0.64, metalness: 0.04 });
+						                const glazing = new THREE.MeshPhysicalMaterial({ color: 0xd9e8ea, roughness: 0.18, metalness: 0.02, transparent: true, opacity: 0.30, transmission: 0.16, clearcoat: 0.18 });
 						                const wayfinding = new THREE.MeshStandardMaterial({ color: toColorInt(stadiumPalette3d.primary, 0x047857), roughness: 0.44, metalness: 0.06 });
 						                const darkOpening = new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.90, metalness: 0.01 });
 						                const gateMetal = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.46, metalness: 0.30 });
-						                const roofEdge = new THREE.MeshStandardMaterial({ color: 0xdce4e1, roughness: 0.48, metalness: 0.14 });
-						                const roofGlass = new THREE.MeshPhysicalMaterial({ color: 0xd7f3ff, roughness: 0.16, metalness: 0.02, transparent: true, opacity: 0.28, transmission: 0.18, side: THREE.DoubleSide });
+						                const roofEdge = new THREE.MeshStandardMaterial({ color: 0xd8cdb6, roughness: 0.50, metalness: 0.14 });
+						                const roofGlass = new THREE.MeshPhysicalMaterial({ color: 0xf0ede6, roughness: 0.18, metalness: 0.02, transparent: true, opacity: 0.20, transmission: 0.22, side: THREE.DoubleSide });
 						                const roadMat = new THREE.MeshStandardMaterial({ color: 0x2b3033, roughness: 0.92, metalness: 0.01 });
 						                const roadPaint = new THREE.MeshBasicMaterial({ color: 0xf8fafc, transparent: true, opacity: 0.82 });
 						                const pavement = new THREE.MeshStandardMaterial({ color: 0xb8c1bd, roughness: 0.86, metalness: 0.02 });
@@ -12072,11 +12072,11 @@
 						                const windowStrip = new THREE.MeshStandardMaterial({ color: 0x5f7f92, roughness: 0.34, metalness: 0.05, transparent: true, opacity: 0.58 });
 						                const transitBlue = new THREE.MeshStandardMaterial({ color: 0x1d4ed8, roughness: 0.42, metalness: 0.08 });
 						                const solarMat = new THREE.MeshStandardMaterial({ color: 0x0f2733, roughness: 0.30, metalness: 0.18 });
-						                const ledRibbon = new THREE.MeshBasicMaterial({ color: 0x99f6e4, transparent: true, opacity: 0.62, toneMapped: false });
+						                const ledRibbon = new THREE.MeshBasicMaterial({ color: 0x55c7ff, transparent: true, opacity: 0.78, toneMapped: false });
 						                const seatGreen = new THREE.MeshStandardMaterial({ color: toColorInt(stadiumPalette3d.primary, 0x047857), roughness: 0.50, metalness: 0.02 });
 						                const seatWhite = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.46, metalness: 0.02 });
 						                const seatDark = new THREE.MeshStandardMaterial({ color: 0x0f3f34, roughness: 0.50, metalness: 0.02 });
-						                const pitchsideLed = new THREE.MeshBasicMaterial({ color: 0x67e8f9, transparent: true, opacity: 0.78, toneMapped: false });
+						                const pitchsideLed = new THREE.MeshBasicMaterial({ color: 0x4fc3ff, transparent: true, opacity: 0.82, toneMapped: false });
 						                const pitchsideLedDark = new THREE.MeshStandardMaterial({ color: 0x07131f, roughness: 0.36, metalness: 0.22 });
 						                const suiteDark = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.48, metalness: 0.08 });
 						                const suiteGlass = new THREE.MeshPhysicalMaterial({ color: 0xb8e6f3, roughness: 0.12, metalness: 0.02, transparent: true, opacity: 0.42, transmission: 0.14, clearcoat: 0.24 });
@@ -12821,15 +12821,15 @@
 						              const upgrade = new THREE.Group();
 						              upgrade.userData = { kind: 'pitch_3d_ref_architectural_inspiration_upgrade' };
 						              const roofGlass = new THREE.MeshStandardMaterial({
-						                color: 0xdff7ff,
+						                color: 0xf0eee8,
 						                roughness: 0.20,
 						                metalness: 0.04,
 						                transparent: true,
-						                opacity: 0.34,
+						                opacity: 0.22,
 						                side: THREE.DoubleSide,
 						              });
-						              const roofMetal = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.38, metalness: 0.18 });
-						              const pillarMat = new THREE.MeshStandardMaterial({ color: 0xd9e1dd, roughness: 0.66, metalness: 0.04 });
+						              const roofMetal = new THREE.MeshStandardMaterial({ color: 0xd7c9ac, roughness: 0.42, metalness: 0.18 });
+						              const pillarMat = new THREE.MeshStandardMaterial({ color: 0xbbb19c, roughness: 0.68, metalness: 0.04 });
 						              const lightHousing = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.34, metalness: 0.32 });
 						              const lightGlow = new THREE.MeshBasicMaterial({ color: 0xe0f2fe, transparent: true, opacity: 0.72, toneMapped: false });
 						              const premiumSeatA = new THREE.MeshStandardMaterial({ color: toColorInt(stadiumPalette3d.primary, 0x047857), roughness: 0.48, metalness: 0.03 });
@@ -13525,22 +13525,22 @@
 						                const shadowMat = new THREE.MeshBasicMaterial({ color: 0x020617, transparent: true, opacity: 0.18, depthWrite: false });
 						                const primaryInt = toColorInt(primaryHex, 0x047857);
 						                const accentInt = toColorInt(accentHex, 0x073b32);
-						                const metalMat = new THREE.MeshStandardMaterial({ color: 0xd9e2df, roughness: 0.38, metalness: 0.30 });
-						                const darkMetalMat = new THREE.MeshStandardMaterial({ color: 0x1f2933, roughness: 0.48, metalness: 0.28 });
+						                const metalMat = new THREE.MeshStandardMaterial({ color: 0xdccfb6, roughness: 0.40, metalness: 0.28 });
+						                const darkMetalMat = new THREE.MeshStandardMaterial({ color: 0x4a4338, roughness: 0.52, metalness: 0.22 });
 						                const glassMat = new THREE.MeshPhysicalMaterial({
-						                  color: 0xdff7ff,
-						                  roughness: 0.16,
+						                  color: 0xe9f2f2,
+						                  roughness: 0.18,
 						                  metalness: 0.02,
 						                  transparent: true,
-						                  opacity: 0.30,
-						                  transmission: 0.18,
-						                  clearcoat: 0.38,
-						                  clearcoatRoughness: 0.22,
+						                  opacity: 0.24,
+						                  transmission: 0.24,
+						                  clearcoat: 0.28,
+						                  clearcoatRoughness: 0.18,
 						                  side: THREE.DoubleSide,
 						                });
-						                const facadePanelMatA = new THREE.MeshStandardMaterial({ color: 0xf4f8fb, roughness: 0.52, metalness: 0.14 });
-						                const facadePanelMatB = new THREE.MeshStandardMaterial({ color: 0xd7e3ea, roughness: 0.58, metalness: 0.10 });
-						                const concreteMat = new THREE.MeshStandardMaterial({ color: 0xcbd5d1, roughness: 0.82, metalness: 0.02 });
+						                const facadePanelMatA = new THREE.MeshStandardMaterial({ color: 0xe7decb, roughness: 0.56, metalness: 0.12 });
+						                const facadePanelMatB = new THREE.MeshStandardMaterial({ color: 0xc9bcaa, roughness: 0.60, metalness: 0.10 });
+						                const concreteMat = new THREE.MeshStandardMaterial({ color: 0xc8c2b6, roughness: 0.84, metalness: 0.02 });
 						                const seatAccentMat = new THREE.MeshStandardMaterial({ color: primaryInt, roughness: 0.56, metalness: 0.015 });
 						                const seatShadowMat = new THREE.MeshStandardMaterial({ color: 0x17211f, roughness: 0.68, metalness: 0.01 });
 						                const stairMat = new THREE.MeshStandardMaterial({ color: 0xe2e8e4, roughness: 0.80, metalness: 0.02 });
@@ -13549,13 +13549,13 @@
 						                const touchlineWearMat = new THREE.MeshBasicMaterial({ color: 0xd6c987, transparent: true, opacity: 0.10, depthWrite: false });
 						                const stewardMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.55, metalness: 0.02 });
 						                const cameraMat = new THREE.MeshStandardMaterial({ color: 0x05070b, roughness: 0.38, metalness: 0.32 });
-						                const ledMat = new THREE.MeshBasicMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0.62, toneMapped: false, depthWrite: false });
-						                const warmLedMat = new THREE.MeshBasicMaterial({ color: 0xfff7d6, transparent: true, opacity: 0.72, toneMapped: false, depthWrite: false });
+						                const ledMat = new THREE.MeshBasicMaterial({ color: 0x5cc7ff, transparent: true, opacity: 0.82, toneMapped: false, depthWrite: false });
+						                const warmLedMat = new THREE.MeshBasicMaterial({ color: 0xffe0a6, transparent: true, opacity: 0.68, toneMapped: false, depthWrite: false });
 						                const paintMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc, transparent: true, opacity: 0.66, depthWrite: false });
 						                const turfLightMat = new THREE.MeshBasicMaterial({ color: 0x4ade80, transparent: true, opacity: 0.13, depthWrite: false });
 						                const turfDarkMat = new THREE.MeshBasicMaterial({ color: 0x064e3b, transparent: true, opacity: 0.11, depthWrite: false });
-						                const skylineMat = new THREE.MeshBasicMaterial({ color: 0x9bb4c7, transparent: true, opacity: 0.34, depthWrite: false });
-						                const mountainMat = new THREE.MeshBasicMaterial({ color: 0x78909c, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide });
+						                const skylineMat = new THREE.MeshBasicMaterial({ color: 0xc1b59f, transparent: true, opacity: 0.26, depthWrite: false });
+						                const mountainMat = new THREE.MeshBasicMaterial({ color: 0x8c7f69, transparent: true, opacity: 0.18, depthWrite: false, side: THREE.DoubleSide });
 						                const addBox = (geo, mat, x, y, z, rx = 0, ry = 0, rz = 0, kind = 'pitch_3d_stadium_realism_detail') => {
 						                  const mesh = new THREE.Mesh(geo, mat);
 						                  mesh.position.set(x, y, z);
@@ -14167,11 +14167,11 @@
 						                };
 						                addReferenceRoofEaves();
 						                const addProfessionalRoofTrusses = () => {
-						                  const trussMat = new THREE.MeshStandardMaterial({ color: 0xd9e2df, roughness: 0.32, metalness: 0.46 });
+						                  const trussMat = new THREE.MeshStandardMaterial({ color: 0xd5cab6, roughness: 0.34, metalness: 0.42 });
 						                  const cableMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.40, metalness: 0.38 });
-						                  const columnMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.44, metalness: 0.34 });
-						                  const crownBeamMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.30, metalness: 0.42 });
-						                  const latticeMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.28, metalness: 0.48 });
+						                  const columnMat = new THREE.MeshStandardMaterial({ color: 0x5b5348, roughness: 0.46, metalness: 0.28 });
+						                  const crownBeamMat = new THREE.MeshStandardMaterial({ color: 0xe6dbc7, roughness: 0.32, metalness: 0.38 });
+						                  const latticeMat = new THREE.MeshStandardMaterial({ color: 0xd9cfbf, roughness: 0.30, metalness: 0.42 });
 						                  const beamLong = new THREE.BoxGeometry(0.18, 0.18, 10.4);
 						                  const beamCross = new THREE.BoxGeometry(10.4, 0.18, 0.18);
 						                  for (let i = -7; i <= 7; i += 1) {
