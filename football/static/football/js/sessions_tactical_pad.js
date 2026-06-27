@@ -457,9 +457,10 @@
 			    const preset = String(presetKey || 'full_pitch').trim();
 			    const orientation = safeText(orientationKey, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
 			    const normalizedGrass = safeText(grassStyleKey, 'classic').toLowerCase();
-			    let grassStyle = (['classic', 'realistic', 'pro', 'broadcast', 'broadcast_premium', 'stadium_top', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'].includes(normalizedGrass))
+			    let grassStyle = (['classic', 'realistic', 'pro', 'broadcast', 'broadcast_premium', 'stadium_top', 'stadium_top_h', 'stadium_top_v', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'].includes(normalizedGrass))
 			      ? normalizedGrass
 			      : 'classic';
+          const isStadiumTopFamily = ['stadium_top', 'stadium_top_h', 'stadium_top_v'].includes(grassStyle);
 			    try {
 			      if (window.__WEBSTATS_TACTICS_MODE === true && ['coachboard', 'whiteboard', 'blackboard'].includes(grassStyle)) {
 			        grassStyle = 'classic';
@@ -496,19 +497,22 @@
     root.setAttribute('preserveAspectRatio', orientation === 'portrait' ? 'xMidYMid slice' : 'xMidYMid meet');
 
 		    const resolvePitch3dTopImageHref = () => {
+          const forcePortrait = grassStyle === 'stadium_top_v';
+          const forceLandscape = grassStyle === 'stadium_top_h';
+          const usePortraitImage = forcePortrait || (!forceLandscape && orientation === 'portrait');
 		      try {
 		        const globalImages = window.__WEBSTATS_PITCH3D_TOP_IMAGES || {};
-		        const preferred = orientation === 'portrait' ? safeText(globalImages.v) : safeText(globalImages.h);
+		        const preferred = usePortraitImage ? safeText(globalImages.v) : safeText(globalImages.h);
 		        if (preferred) return preferred;
 		      } catch (e) { /* ignore */ }
 		      try {
 		        const formEl = document.getElementById('task-builder-form');
-		        const preferred = orientation === 'portrait'
+		        const preferred = usePortraitImage
 		          ? safeText(formEl?.dataset?.pitch3dStadiumTopVSrc)
 		          : safeText(formEl?.dataset?.pitch3dStadiumTopHSrc);
 		        if (preferred) return preferred;
 		      } catch (e) { /* ignore */ }
-		      return orientation === 'portrait'
+		      return usePortraitImage
 		        ? '/static/football/images/pitch3d/stadium_rosaleda_top_v.png'
 		        : '/static/football/images/pitch3d/stadium_rosaleda_top_h.png';
 		    };
@@ -521,6 +525,8 @@
 		      broadcast: ['#155e3a', '#0f4d2f'],
 		      broadcast_premium: ['#0f5a39', '#0a4029'],
 	      stadium_top: ['#1b563a', '#0d261c'],
+	      stadium_top_h: ['#1b563a', '#0d261c'],
+	      stadium_top_v: ['#1b563a', '#0d261c'],
 		      artificial: ['#2fb46d', '#1f8d55'],
 		      dry: ['#7b9a45', '#6b8a3a'],
 		      wet: ['#1f5a46', '#163f35'],
@@ -567,7 +573,7 @@
 			      }));
 			      pattern.appendChild(createSvgNode(doc, 'rect', { x: 0, y: 0, width: 96, height: 96, fill: 'rgba(0,0,0,0.04)' }));
 			      defs.appendChild(pattern);
-			    } else if (grassStyle === 'stadium_top') {
+			    } else if (isStadiumTopFamily) {
             stageBackgroundImageHref = resolvePitch3dTopImageHref();
             if (stageBackgroundImageHref) {
               grassFillId = 'pitch-stadium-top';
@@ -624,7 +630,7 @@
     //   (en editor se verá el fondo del panel; en PDF quedará blanco).
     // En el editor rellenamos el exterior con césped para que no parezca que hay “huecos” alrededor.
     // El recorte para PDF/cards ya se hace al exportar la preview (data-pitch-box).
-    if (grassStyle === 'stadium_top' && stageBackgroundImageHref) {
+    if (isStadiumTopFamily && stageBackgroundImageHref) {
       const stageImage = createSvgNode(doc, 'image', {
         href: stageBackgroundImageHref,
         x: -bleed,
@@ -664,8 +670,8 @@
       // Deja margen suficiente para que el trazo del borde no se recorte en miniaturas / contenedores con overflow hidden.
       // Margen de seguridad para que los bordes no se recorten con overflow hidden,
       // pero lo más pequeño posible para que el campo ocupe pantalla.
-      const marginX = (grassStyle === 'stadium_top') ? 78 : ((grassStyle === 'broadcast_premium') ? 32 : 0);
-      const marginY = (grassStyle === 'stadium_top') ? 68 : ((grassStyle === 'broadcast_premium') ? 22 : 0);
+      const marginX = isStadiumTopFamily ? 78 : ((grassStyle === 'broadcast_premium') ? 32 : 0);
+      const marginY = isStadiumTopFamily ? 68 : ((grassStyle === 'broadcast_premium') ? 22 : 0);
       const portrait = orientation === 'portrait';
       const effectiveW = portrait ? stageH : stageW;
       const effectiveH = portrait ? stageW : stageH;
@@ -699,8 +705,8 @@
     // y evitar márgenes vacíos enormes en superficies parciales (tercios, medio campo, futsal, etc).
     let pitchBox = { x: stage.x, y: stage.y, width: stage.width, height: stage.height };
     const scale = stage.width / 105;
-	    const line = (grassStyle === 'whiteboard') ? '#0f172a' : (grassStyle === 'stadium_top' ? 'rgba(255,255,255,0.96)' : '#f8fafc');
-	    const soft = (grassStyle === 'whiteboard') ? 'rgba(15,23,42,0.55)' : (grassStyle === 'stadium_top' ? 'rgba(255,255,255,0.78)' : 'rgba(248,250,252,0.66)');
+	    const line = (grassStyle === 'whiteboard') ? '#0f172a' : (isStadiumTopFamily ? 'rgba(255,255,255,0.96)' : '#f8fafc');
+	    const soft = (grassStyle === 'whiteboard') ? 'rgba(15,23,42,0.55)' : (isStadiumTopFamily ? 'rgba(255,255,255,0.78)' : 'rgba(248,250,252,0.66)');
 
 	    const drawFrame = (x, y, width, height, lineWidth = 4) => {
 	      const isCoachBoard = grassStyle === 'coachboard';
@@ -733,7 +739,7 @@
 	        'stroke-width': lineWidth,
 	      }));
 
-	      if (grassStyle === 'broadcast_premium' || grassStyle === 'stadium_top') {
+	      if (grassStyle === 'broadcast_premium' || isStadiumTopFamily) {
 	        drawRoot.appendChild(createSvgNode(doc, 'rect', {
 	          x,
 	          y,
@@ -741,10 +747,10 @@
 	          height,
 	          rx: corner,
 	          ry: corner,
-          fill: grassStyle === 'stadium_top' ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.03)',
+          fill: isStadiumTopFamily ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.03)',
           stroke: 'none',
         }));
-          if (grassStyle === 'stadium_top') {
+          if (isStadiumTopFamily) {
             drawRoot.appendChild(createSvgNode(doc, 'rect', {
               x: x + 8,
               y: y + 8,
@@ -800,7 +806,7 @@
 	        }
 	      }
 
-	      const showStripes = !(grassStyle === 'whiteboard' || grassStyle === 'blackboard' || grassStyle === 'coachboard' || grassStyle === 'stadium_top');
+	      const showStripes = !(grassStyle === 'whiteboard' || grassStyle === 'blackboard' || grassStyle === 'coachboard' || isStadiumTopFamily);
 	      if (showStripes) {
 	        const stripeW = width / 12;
 	        for (let index = 0; index < 12; index += 1) {
@@ -834,11 +840,11 @@
       const topY = centerY - (goalHeight / 2);
       const bottomY = centerY + (goalHeight / 2);
       const postX = side === 'left' ? x - goalDepth : x + goalDepth;
-      if (grassStyle === 'stadium_top' || grassStyle === 'broadcast_premium') {
-        const netStroke = grassStyle === 'stadium_top' ? 'rgba(255,255,255,0.42)' : 'rgba(255,255,255,0.34)';
-        const meshStroke = grassStyle === 'stadium_top' ? 'rgba(255,255,255,0.24)' : 'rgba(255,255,255,0.18)';
+      if (isStadiumTopFamily || grassStyle === 'broadcast_premium') {
+        const netStroke = isStadiumTopFamily ? 'rgba(255,255,255,0.42)' : 'rgba(255,255,255,0.34)';
+        const meshStroke = isStadiumTopFamily ? 'rgba(255,255,255,0.24)' : 'rgba(255,255,255,0.18)';
         const shadowX = side === 'left' ? 3.8 : -3.8;
-        if (grassStyle === 'stadium_top') {
+        if (isStadiumTopFamily) {
           drawRoot.appendChild(createSvgNode(doc, 'line', {
             x1: x + shadowX,
             y1: topY + 1,
@@ -850,12 +856,12 @@
         }
         drawRoot.appendChild(createSvgNode(doc, 'polygon', {
           points: `${x},${topY} ${postX},${topY + 3} ${postX},${bottomY - 3} ${x},${bottomY}`,
-          fill: grassStyle === 'stadium_top' ? 'rgba(255,255,255,0.11)' : 'rgba(255,255,255,0.05)',
+          fill: isStadiumTopFamily ? 'rgba(255,255,255,0.11)' : 'rgba(255,255,255,0.05)',
           stroke: 'none',
         }));
-        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x, y1: topY, x2: postX, y2: topY + 3, stroke: netStroke, 'stroke-width': grassStyle === 'stadium_top' ? 3.5 : 3 }));
-        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x, y1: bottomY, x2: postX, y2: bottomY - 3, stroke: netStroke, 'stroke-width': grassStyle === 'stadium_top' ? 3.5 : 3 }));
-        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: postX, y1: topY + 3, x2: postX, y2: bottomY - 3, stroke: netStroke, 'stroke-width': grassStyle === 'stadium_top' ? 3.5 : 3 }));
+        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x, y1: topY, x2: postX, y2: topY + 3, stroke: netStroke, 'stroke-width': isStadiumTopFamily ? 3.5 : 3 }));
+        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x, y1: bottomY, x2: postX, y2: bottomY - 3, stroke: netStroke, 'stroke-width': isStadiumTopFamily ? 3.5 : 3 }));
+        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: postX, y1: topY + 3, x2: postX, y2: bottomY - 3, stroke: netStroke, 'stroke-width': isStadiumTopFamily ? 3.5 : 3 }));
         for (let i = 1; i <= 4; i += 1) {
           const ratio = i / 5;
           const y1 = topY + ((bottomY - topY) * ratio);
@@ -896,10 +902,10 @@
     };
 
     const drawAdvertisingBoards = (x, y, width, height) => {
-      if (grassStyle !== 'stadium_top' && grassStyle !== 'broadcast_premium') return;
-      const offset = grassStyle === 'stadium_top' ? 30 : 16;
-      const bandH = grassStyle === 'stadium_top' ? 18 : 11;
-      const palette = grassStyle === 'stadium_top'
+      if (!isStadiumTopFamily && grassStyle !== 'broadcast_premium') return;
+      const offset = isStadiumTopFamily ? 30 : 16;
+      const bandH = isStadiumTopFamily ? 18 : 11;
+      const palette = isStadiumTopFamily
         ? ['#0f172a', '#0ea5e9', '#16a34a', '#f8fafc', '#0ea5e9', '#0f172a']
         : ['rgba(15,23,42,0.76)', 'rgba(34,211,238,0.64)', 'rgba(255,255,255,0.74)', 'rgba(34,197,94,0.62)', 'rgba(255,255,255,0.74)', 'rgba(15,23,42,0.76)'];
       const segments = 6;
@@ -923,7 +929,7 @@
             stroke: 'rgba(255,255,255,0.3)',
             'stroke-width': 1.3,
           }));
-          if (grassStyle === 'stadium_top') {
+          if (isStadiumTopFamily) {
             drawRoot.appendChild(createSvgNode(doc, 'rect', {
               x: segX + 3,
               y: bandY + 3,
@@ -937,7 +943,7 @@
           }
         });
       }
-      if (grassStyle === 'stadium_top') {
+      if (isStadiumTopFamily) {
         const verticalSegments = 4;
         const verticalSegmentH = height / verticalSegments;
         for (let i = 0; i < verticalSegments; i += 1) {
@@ -1002,7 +1008,7 @@
     };
 
     const drawStadiumContext = (x, y, width, height) => {
-      if (grassStyle !== 'stadium_top') return;
+      if (!isStadiumTopFamily) return;
       const runoff = 26;
       const concourseH = 42;
       const standH = 92;
@@ -4773,7 +4779,9 @@
 					      classic: 'Césped',
 					      broadcast: 'Broadcast',
 					      broadcast_premium: 'Broadcast Premium',
-					      stadium_top: 'Estadio táctico HD',
+					      stadium_top: 'Estadio táctico auto',
+					      stadium_top_h: 'Cámara cenital H',
+					      stadium_top_v: 'Cámara cenital V',
 					      realistic: 'Realista',
 					      pro: 'PRO',
 					      uefa_b: 'UEFA B',
@@ -4785,12 +4793,16 @@
 					      dry: 'Seco',
 					      wet: 'Mojado',
 					    };
-					    const GRASS_STYLE_ORDER = ['classic', 'broadcast', 'broadcast_premium', 'stadium_top', 'realistic', 'pro', 'uefa_b', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet'];
+					    const GRASS_STYLE_ORDER = ['classic', 'broadcast', 'broadcast_premium', 'stadium_top', 'stadium_top_h', 'stadium_top_v', 'realistic', 'pro', 'uefa_b', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet'];
 					    const normalizeGrassStyleForMode = (value) => {
 					      const next = safeText(value, 'classic').toLowerCase();
 					      if (!GRASS_STYLE_ORDER.includes(next)) return 'classic';
 					      return next;
 					    };
+              const isStadiumCameraStyle = (value) => ['stadium_top', 'stadium_top_h', 'stadium_top_v'].includes(safeText(value).toLowerCase());
+              const stadiumCameraStyleForOrientation = (orientationValue) => (
+                safeText(orientationValue, 'landscape') === 'portrait' ? 'stadium_top_v' : 'stadium_top_h'
+              );
 					    let pitchGrassStyle = normalizeGrassStyleForMode(grassStyleInput?.value);
 					    const syncGrassUi = () => {
 					      if (grassStyleInput) grassStyleInput.value = pitchGrassStyle;
@@ -25574,6 +25586,7 @@
 				      if (normalized === pitchOrientation && !options.force) return;
 				      const fromOrientation = pitchOrientation;
 				      const fromWorld = worldSize();
+              const preserveZones = options.preserveZones === true;
 				      const toWorld = (normalized !== fromOrientation)
 				        ? { w: Math.max(1, Number(fromWorld.h) || 0), h: Math.max(1, Number(fromWorld.w) || 0) }
 				        : { w: Math.max(1, Number(fromWorld.w) || 0), h: Math.max(1, Number(fromWorld.h) || 0) };
@@ -25584,6 +25597,9 @@
 				        const toH = Math.max(1, Number(toWorld.h) || 1);
 				        const rx = clamp(Number(x) / fromW, 0, 1);
 				        const ry = clamp(Number(y) / fromH, 0, 1);
+                if (preserveZones) {
+                  return { x: rx * toW, y: ry * toH };
+                }
 				        if (fromOrientation === 'landscape' && normalized === 'portrait') {
 				          // Rotación 90º CCW: derecha -> arriba.
 				          return { x: ry * toW, y: (1 - rx) * toH };
@@ -25605,7 +25621,7 @@
 				        if (kind.startsWith('emoji_')) return false;
 				        return true;
 				      };
-				      const deltaAngle = (fromOrientation === 'landscape' && normalized === 'portrait') ? -90 : 90;
+				      const deltaAngle = preserveZones ? 0 : ((fromOrientation === 'landscape' && normalized === 'portrait') ? -90 : 90);
 				      const remapCanvasObjects = () => {
 				        if (!options.preserveObjects) return false;
 				        if (normalized === fromOrientation) return false;
@@ -25689,6 +25705,10 @@
 				      viewportPanY = 0;
 
 				      pitchOrientation = normalized;
+              if (preserveZones && isStadiumCameraStyle(pitchGrassStyle)) {
+                pitchGrassStyle = stadiumCameraStyleForOrientation(normalized);
+                syncGrassUi();
+              }
 				      syncOrientationUi();
 				      applyStageSizeUi({ noFit: true });
 				      if (!zoomTouched) {
@@ -35620,7 +35640,10 @@
     });
 	    presetSelect.addEventListener('change', () => setPreset(presetSelect.value || 'full_pitch'));
 	    const togglePitchOrientation = () => {
-	      applyPitchOrientation(pitchOrientation === 'portrait' ? 'landscape' : 'portrait', { preserveObjects: true, pushHistory: true });
+	      applyPitchOrientation(
+          pitchOrientation === 'portrait' ? 'landscape' : 'portrait',
+          { preserveObjects: true, preserveZones: true, pushHistory: true }
+        );
 	    };
 	    orientationToggle?.addEventListener('click', togglePitchOrientation);
 	    orientationToggleQuick?.addEventListener('click', togglePitchOrientation);
