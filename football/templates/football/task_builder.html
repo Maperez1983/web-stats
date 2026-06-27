@@ -4380,6 +4380,25 @@
         justify-content: flex-end;
         margin-left: auto;
       }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board.task-editor-kind-2d .task-workflow-strip {
+        display: none;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board.task-editor-kind-2d #task-scenarios-btn,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board.task-editor-kind-2d #task-step-add-quick,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board.task-editor-kind-2d #task-step-duplicate-quick,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board.task-editor-kind-2d #task-step-remove-quick,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board.task-editor-kind-2d #task-step-play-quick {
+        display: none !important;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board.task-editor-kind-2d .task-timeline-dock {
+        opacity: 0 !important;
+        pointer-events: none !important;
+        transform: translate3d(0, -12px, 0) scale(0.98) !important;
+      }
+      body:not(.tactics-mode).task-mode-ready.task-mode-board.task-editor-kind-interactive .task-workflow-strip,
+      body:not(.tactics-mode).task-mode-ready.task-mode-board.task-editor-kind-3d .task-workflow-strip {
+        display: none;
+      }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .board-overlay-controls .surface-trigger,
       body:not(.tactics-mode).task-mode-ready.task-mode-board #surface-trigger,
       body:not(.tactics-mode).task-mode-ready.task-mode-board #pitch-orientation-toggle-quick,
@@ -7095,14 +7114,14 @@
 	                <div class="alert warn" id="tpad-hint" hidden>
 	                  <div style="display:flex; gap:0.75rem; align-items:center; justify-content:space-between; flex-wrap:wrap;">
 	                    <div style="min-width:240px;">
-	                      <strong>Flujo rápido:</strong> 1) Arrastra recursos al campo · 2) Ajusta tamaño/color en el inspector (flotante en iPad) · 3) Usa “Presentación” · 4) Guarda y exporta.
+	                      <strong>Flujo rápido:</strong> 1) Arrastra recursos al campo · 2) Ajusta tamaño/color en el inspector · 3) Cambia entre 2D, 3D o táctica interactiva · 4) Guarda y exporta.
 	                    </div>
 	                    <button type="button" class="button" id="tpad-hint-close">Entendido</button>
 	                  </div>
 	                </div>
                 <div class="pitch-toolbar">
                   {% if not tactics_mode %}
-                  <div class="task-workflow-strip" aria-label="Flujo de trabajo del entrenador">
+                  <div class="task-workflow-strip" aria-label="Flujo de trabajo del entrenador" hidden>
                     <span class="task-workflow-label">Flujo</span>
                     <button type="button" class="is-active" data-workflow-action="build">Montar</button>
                     <button type="button" data-workflow-action="animate">Animar</button>
@@ -7112,8 +7131,8 @@
                   <div class="task-kind-strip" aria-label="Tipo de tarea">
                     <span class="task-kind-label">Tipo</span>
                     <button type="button" class="is-active" data-task-kind="2d">2D</button>
-                    <button type="button" data-task-kind="interactive">Interactiva</button>
                     <button type="button" data-task-kind="3d">3D</button>
+                    <button type="button" data-task-kind="interactive">Táctica interactiva</button>
                     <button type="button" id="task-editor-complexity-toggle" aria-pressed="false">Modo simple</button>
                   </div>
                   {% endif %}
@@ -7233,8 +7252,6 @@
                   <div class="board-overlay-controls" aria-label="Paneles de edición">
                     <button type="button" class="surface-trigger is-active" id="task-board-roster-toggle" aria-pressed="true">Jugadores</button>
                     <button type="button" class="surface-trigger" id="task-board-resources-toggle" aria-pressed="false">Material</button>
-                    <button type="button" class="surface-trigger" id="task-board-inspector-toggle" aria-pressed="false">Editar</button>
-                    <button type="button" class="surface-trigger" id="task-board-present-toggle" aria-pressed="false">Explicar</button>
                   </div>
                   {% endif %}
                   <div class="surface-picker" id="surface-picker">
@@ -7345,19 +7362,13 @@
                     </div>
                   </details>
                   {% if not tactics_mode %}
-                  <details class="pitch-view-menu" id="pitch-present-menu">
-                    <summary class="surface-trigger button" aria-label="Opciones de presentación">
-                      <span>Explicar</span>
-                      <span class="current">Pizarra / 3D</span>
-                    </summary>
-                    <div class="pitch-view-menu-body">
-                      <button type="button" class="surface-trigger" id="task-focus-toggle" title="Modo presentación" aria-label="Modo presentación">Solo pizarra</button>
-                      <button type="button" class="surface-trigger" id="pitch-3d-open-standard" data-pitch3d-trigger="1" title="Representación 3D (presentación)" aria-label="Representación 3D">
-                        <span>Vista 3D</span>
-                        <span class="current">Explicar</span>
-                      </button>
-                    </div>
-                  </details>
+                  <div class="task-hidden-present-actions" hidden aria-hidden="true">
+                    <button type="button" class="surface-trigger" id="task-focus-toggle" title="Modo presentación" aria-label="Modo presentación">Solo pizarra</button>
+                    <button type="button" class="surface-trigger" id="pitch-3d-open-standard" data-pitch3d-trigger="1" title="Representación 3D" aria-label="Representación 3D">
+                      <span>Vista 3D</span>
+                      <span class="current">3D</span>
+                    </button>
+                  </div>
                   {% endif %}
                   {% if tactics_mode %}
                   </div>
@@ -7369,7 +7380,7 @@
                   {% if tactics_mode %}
                   <button type="button" class="surface-trigger" id="pitch-3d-open-tactics" data-pitch3d-trigger="1" title="Representación 3D (presentación)" aria-label="Representación 3D">
                     <span>Representación 3D</span>
-                    <span class="current">Presentar</span>
+                    <span class="current">3D</span>
                   </button>
                   <button type="button" class="surface-trigger" id="task-tactics-fullscreen" title="Pantalla completa" aria-label="Pantalla completa">Pantalla completa</button>
                   </div>
@@ -15419,11 +15430,7 @@
           const playerBank = document.getElementById('task-player-bank');
           const quickDrawBtn = document.querySelector('#task-command-bar [data-action="draw_free"]');
           const resourcesToggle = document.getElementById('task-board-resources-toggle');
-          const inspectorToggle = document.getElementById('task-board-inspector-toggle');
           const rosterToggle = document.getElementById('task-board-roster-toggle');
-          const presentToggle = document.getElementById('task-board-present-toggle');
-          const presentMenu = document.getElementById('pitch-present-menu');
-          const presentMenuSummary = presentMenu ? presentMenu.querySelector('summary') : null;
           const quickAddStep = document.getElementById('task-step-add-quick');
           const quickDuplicateStep = document.getElementById('task-step-duplicate-quick');
           const quickRemoveStep = document.getElementById('task-step-remove-quick');
@@ -15467,10 +15474,8 @@
             const inspectorOpen = document.body.classList.contains('task-board-inspector-open');
             const rosterOpen = !document.body.classList.contains('task-board-roster-collapsed');
             resourcesToggle?.classList.toggle('is-active', resourcesOpen);
-            inspectorToggle?.classList.toggle('is-active', inspectorOpen);
             rosterToggle?.classList.toggle('is-active', rosterOpen);
             resourcesToggle?.setAttribute('aria-pressed', resourcesOpen ? 'true' : 'false');
-            inspectorToggle?.setAttribute('aria-pressed', inspectorOpen ? 'true' : 'false');
             rosterToggle?.setAttribute('aria-pressed', rosterOpen ? 'true' : 'false');
           };
 
@@ -15489,6 +15494,8 @@
           const syncKindUi = (key) => {
             const next = String(key || '2d').trim();
             kindButtons.forEach((btn) => btn.classList.toggle('is-active', String(btn.dataset.taskKind || '') === next));
+            document.body.classList.remove('task-editor-kind-2d', 'task-editor-kind-interactive', 'task-editor-kind-3d');
+            document.body.classList.add(`task-editor-kind-${next}`);
             try {
               if (typeof window.__tpadApplyRecommendedTokenStyle === 'function') {
                 window.__tpadApplyRecommendedTokenStyle(next);
@@ -15568,12 +15575,6 @@
           const proxyClick = (source) => {
             if (!source) return;
             try { source.click(); } catch (e) { /* ignore */ }
-          };
-
-          const openPresentMenu = () => {
-            if (!presentMenu) return;
-            try { presentMenu.open = true; } catch (e) { /* ignore */ }
-            try { presentMenuSummary?.focus?.(); } catch (e) { /* ignore */ }
           };
 
           const openTimelineDock = () => {
@@ -15670,11 +15671,6 @@
             syncTopResourceButtons('pro');
             activateMaterialFamily(activeMaterialFamily, { silent: true });
           });
-          inspectorToggle?.addEventListener('click', (event) => {
-            try { event.preventDefault(); } catch (e) { /* ignore */ }
-            if (document.body.classList.contains('task-board-inspector-open')) closeBoardDrawers();
-            else openBoardDrawer('edit');
-          });
           selectionDockClose?.addEventListener('click', (event) => {
             try { event.preventDefault(); } catch (e) { /* ignore */ }
             closeBoardDrawers();
@@ -15684,10 +15680,6 @@
             document.body.classList.remove('task-board-roster-collapsed');
             syncBoardDrawerButtons();
             try { playerBank?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' }); } catch (e) { /* ignore */ }
-          });
-          presentToggle?.addEventListener('click', (event) => {
-            try { event.preventDefault(); } catch (e) { /* ignore */ }
-            openPresentMenu();
           });
           complexityToggle?.addEventListener('click', (event) => {
             try { event.preventDefault(); } catch (e) { /* ignore */ }
@@ -15766,15 +15758,24 @@
           kindButtons.forEach((btn) => {
             btn.addEventListener('click', () => {
               const kind = String(btn.dataset.taskKind || '').trim();
+              syncKindUi(kind || '2d');
               if (kind === 'interactive') {
-                workflowButtons.find((node) => node.dataset.workflowAction === 'animate')?.click();
+                openTimelineDock();
+                document.body.classList.remove('task-board-resources-open');
+                document.body.classList.add('task-board-inspector-open');
+                syncBoardDrawerButtons();
                 return;
               }
               if (kind === '3d') {
-                workflowButtons.find((node) => node.dataset.workflowAction === 'present3d')?.click();
+                closeTimelineDock();
+                closeBoardDrawers();
+                proxyClick(pitch3dOpenBtn);
                 return;
               }
-              workflowButtons.find((node) => node.dataset.workflowAction === 'build')?.click();
+              closeTimelineDock();
+              openBoardDrawer('resources');
+              activateResourceTab('base');
+              syncTopResourceButtons('base');
             });
           });
 

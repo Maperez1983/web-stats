@@ -6342,7 +6342,8 @@
 				      selectionToolbar.hidden = false;
 			      try { syncSelectionInspectorDock(); } catch (e) { /* ignore */ }
 			      try { if (selectionDockEl) selectionDockEl.hidden = !shouldDockSelectionInspector(); } catch (e) { /* ignore */ }
-			      const canColor = isColorizableObject(active);
+	      const canColor = isColorizableObject(active);
+      const isStrokeLike = isLongStrokeObject(active);
 	      selectionToolbar.querySelectorAll('input,button').forEach((node) => { node.disabled = false; });
 	      if (selectionPreview) {
 	        const kind = safeText(active?.data?.kind);
@@ -6376,8 +6377,14 @@
       }
 	      const strokeWidth = getObjectStrokeWidth(active);
 	      const isLaneOverlay = isLaneOverlayObject(active);
+      if (scaleXInput) scaleXInput.disabled = false;
+      if (scaleYInput) scaleYInput.disabled = false;
+      if (scalePresetsRow) scalePresetsRow.hidden = false;
+      if (isStrokeLike) {
+        selectionSummary.textContent = `Ajustando ${objectLabel(active)}: longitud, altura y grosor.`;
+      }
 		      if (strokeWidthRow && strokeWidthInput) {
-		        const canStroke = strokeWidth > 0 || isLaneOverlay;
+		        const canStroke = strokeWidth > 0 || isLaneOverlay || isStrokeLike;
 		        strokeWidthRow.hidden = !canStroke;
 		        if (strokePresetsRow) strokePresetsRow.hidden = !canStroke;
 		        strokeWidthInput.disabled = !canStroke;
