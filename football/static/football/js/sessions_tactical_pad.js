@@ -4353,7 +4353,7 @@
 		        strokeDashArray: opts.dash || undefined,
 		        selectable: false,
 		        evented: false,
-		        excludeFromExport: true,
+		        excludeFromExport: false,
 		        opacity: Number.isFinite(Number(opts.opacity)) ? Number(opts.opacity) : 1,
 		      });
 		      line.data = { base: true, kind: 'tactical-overlay', overlay: safeText(opts.overlay || '') };
@@ -4374,7 +4374,7 @@
 		        strokeDashArray: opts.dash || undefined,
 		        selectable: false,
 		        evented: false,
-		        excludeFromExport: true,
+		        excludeFromExport: false,
 		        opacity: Number.isFinite(Number(opts.opacity)) ? Number(opts.opacity) : 1,
 		      });
 		      rect.data = { base: true, kind: 'tactical-overlay', overlay: safeText(opts.overlay || '') };
@@ -4392,7 +4392,7 @@
 		        fill: opts.fill || 'rgba(226,232,240,0.92)',
 		        selectable: false,
 		        evented: false,
-		        excludeFromExport: true,
+		        excludeFromExport: false,
 		      });
 		      label.data = { base: true, kind: 'tactical-overlay', overlay: safeText(opts.overlay || '') };
 		      try { label.objectCaching = false; } catch (e) { /* ignore */ }
@@ -4505,7 +4505,7 @@
 		          originY: 'top',
 		          selectable: false,
 		          evented: false,
-		          excludeFromExport: true,
+		          excludeFromExport: false,
 		        });
 		        group.data = { base: true, kind: 'tactical-overlay', overlay: 'zone14-group' };
 		        try { group.objectCaching = false; } catch (e) { /* ignore */ }
