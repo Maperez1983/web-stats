@@ -30080,9 +30080,25 @@
 			            return null;
 			          }
 			        })();
-				        // Recorta a la caja real del rectángulo de juego (evita grandes márgenes vacíos
-				        // en superficies parciales que luego hacen que en el PDF el campo salga "pequeñísimo").
-				        try {
+			        // Recorta a la caja real del rectángulo de juego (evita grandes márgenes vacíos
+			        // en superficies parciales que luego hacen que en el PDF el campo salga "pequeñísimo").
+			        // Excepción importante: en las vistas cenitales del estadio 3D queremos conservar
+			        // el contexto completo (gradas/borde/publicidad). Si recortamos al rectángulo de
+			        // juego, el resultado vuelve a parecer la pizarra verde de siempre.
+			        try {
+			          const exportGrassStyle = safeText(grassStyleInput?.value || '').toLowerCase();
+			          const preserveFullStadiumFrame = exportGrassStyle === 'stadium_top'
+			            || exportGrassStyle === 'stadium_top_h'
+			            || exportGrassStyle === 'stadium_top_v';
+			          if (preserveFullStadiumFrame) {
+			            try {
+			              resolve(output.toDataURL(mime === 'image/jpeg' ? 'image/jpeg' : 'image/png', quality));
+			              return;
+			            } catch (error) {
+			              resolve(output.toDataURL('image/png', 0.92));
+			              return;
+			            }
+			          }
 				          const pitchBoxRaw = safeText(svgSurface.getAttribute('data-pitch-box'));
 				          const viewBoxRaw = safeText(svgSurface.getAttribute('viewBox'));
 			          const boxParts = pitchBoxRaw.split(/\s+/).map((v) => Number(v)).filter((n) => Number.isFinite(n));
