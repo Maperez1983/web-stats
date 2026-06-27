@@ -38522,6 +38522,117 @@ def _task_builder_edit_route_name(scope_key):
     }.get(scope_key, 'sessions-task-edit')
 
 
+def _task_builder_library_route_name(scope_key):
+    return {
+        'coach': 'sessions-task-library',
+        'goalkeeper': 'sessions-goalkeeper-task-library',
+        'fitness': 'sessions-fitness-task-library',
+    }.get(scope_key, 'sessions-task-library')
+
+
+def _task_builder_resource_library_context(request, primary_team, *, context_cache_seconds=300):
+    pdf_assets = []
+    try:
+        cache_key = f"task_builder:v3:pdf_assets:{int(primary_team.id)}:{int(getattr(request.user, 'id', 0) or 0)}"
+        cached = cache.get(cache_key)
+        if isinstance(cached, list):
+            pdf_assets = cached
+        else:
+            system_team = None
+            try:
+                system_team = Team.objects.filter(slug='pizarra').first()
+            except Exception:
+                system_team = None
+            assets_filter = Q(team=primary_team) | Q(owner=request.user)
+            if system_team:
+                assets_filter |= Q(team=system_team)
+            pdf_assets = []
+            for asset in (
+                PdfGraphicAsset.objects
+                .filter(assets_filter)
+                .exclude(file='')
+                .only('id', 'title', 'width', 'height', 'source_pdf_name', 'created_at', 'team_id', 'owner_id')
+                .order_by('-created_at', '-id')[:220]
+            ):
+                pdf_assets.append(
+                    {
+                        'id': int(asset.id),
+                        'title': str(asset.title or '').strip(),
+                        'width': int(asset.width or 0),
+                        'height': int(asset.height or 0),
+                        'source_pdf_name': str(asset.source_pdf_name or '').strip(),
+                        'url': reverse('pdf-graphic-asset-file', args=[int(asset.id)]),
+                        'is_system': bool(system_team and getattr(asset, 'team_id', None) == getattr(system_team, 'id', None)),
+                        'is_personal': bool(getattr(asset, 'owner_id', None) == getattr(request.user, 'id', None)),
+                    }
+                )
+            cache.set(cache_key, pdf_assets, context_cache_seconds)
+    except Exception:
+        pdf_assets = []
+        logger.exception('task_resource_library: no se pudieron cargar assets PDF', extra={'team_id': getattr(primary_team, 'id', None)})
+
+    ppt_icons = []
+    try:
+        cache_key = "task_builder:v3:ppt_icons"
+        cached = cache.get(cache_key)
+        if isinstance(cached, list):
+            ppt_icons = cached
+        else:
+            if TASK_MATERIAL_PPT_DIR and TASK_MATERIAL_PPT_DIR.exists():
+                allowed = {'.png', '.jpg', '.jpeg', '.webp', '.gif'}
+                files = [p for p in TASK_MATERIAL_PPT_DIR.iterdir() if p.is_file() and p.suffix.lower() in allowed]
+                files = sorted(files, key=lambda p: p.name.lower())[:180]
+                for p in files:
+                    ppt_icons.append(
+                        {
+                            'label': str(p.stem or '').strip()[:80],
+                            'static_path': f'football/images/task-materials/ppt/{p.name}',
+                        }
+                    )
+            cache.set(cache_key, ppt_icons, context_cache_seconds)
+    except Exception:
+        ppt_icons = []
+
+    drills_catalog = []
+    drill_groups = []
+    try:
+        cache_key = "task_builder:v3:drills_catalog"
+        cached = cache.get(cache_key)
+        if isinstance(cached, list):
+            drills_catalog = cached
+        else:
+            drills_catalog = [
+                {
+                    'id': item.id,
+                    'label': item.label,
+                    'category': item.category,
+                    'icon_static_path': item.icon_static_path,
+                    'age_min': item.age_min,
+                    'age_max': item.age_max,
+                }
+                for item in DRILL_CATALOG
+            ]
+            cache.set(cache_key, drills_catalog, context_cache_seconds)
+        grouped = defaultdict(list)
+        for item in drills_catalog:
+            grouped[str(item.get('category') or 'General').strip() or 'General'].append(item)
+        drill_groups = [
+            {'category': category, 'items': items}
+            for category, items in sorted(grouped.items(), key=lambda kv: kv[0].lower())
+        ]
+    except Exception:
+        drills_catalog = []
+        drill_groups = []
+        logger.exception('task_resource_library: no se pudo construir catálogo de drills', extra={'team_id': getattr(primary_team, 'id', None)})
+
+    return {
+        'pdf_assets': pdf_assets,
+        'ppt_icons': ppt_icons,
+        'drills_catalog': drills_catalog,
+        'drill_groups': drill_groups,
+    }
+
+
 def _build_tactical_player_catalog(request, primary_team):
     catalog = []
     if not primary_team:
@@ -41100,80 +41211,14 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
     except Exception:
         confirmed_player_ids = []
         confirmed_only_default = False
-    # Recursos gráficos extraídos de PDFs importados (y/o subidos por el usuario en su estudio).
-    # En sesiones (coach/club) mostramos:
-    # - assets del equipo (team=primary_team)
-    # - assets globales del sistema (team slug="pizarra")
-    # - assets privados del usuario (owner=request.user), útil si los subió en Task Studio.
-    pdf_assets = []
-    try:
-        cache_key = f"task_builder:v2:pdf_assets:{int(primary_team.id)}:{int(getattr(request.user, 'id', 0) or 0)}"
-        cached = cache.get(cache_key)
-        if isinstance(cached, list):
-            pdf_assets = cached
-        else:
-            system_team = None
-            try:
-                system_team = Team.objects.filter(slug='pizarra').first()
-            except Exception:
-                system_team = None
-            assets_filter = Q(team=primary_team) | Q(owner=request.user)
-            if system_team:
-                assets_filter |= Q(team=system_team)
-            pdf_assets = list(
-                PdfGraphicAsset.objects
-                .filter(assets_filter)
-                .exclude(file='')
-                .values('id', 'title', 'width', 'height', 'file')
-                .order_by('-created_at', '-id')[:80]
-            )
-            cache.set(cache_key, pdf_assets, context_cache_seconds)
-    except Exception:
-        pdf_assets = []
-        logger.exception('sessions_task_builder: no se pudieron cargar assets PDF', extra={'team_id': getattr(primary_team, 'id', None)})
-    ppt_icons = []
-    try:
-        cache_key = "task_builder:v2:ppt_icons"
-        cached = cache.get(cache_key)
-        if isinstance(cached, list):
-            ppt_icons = cached
-        else:
-            if TASK_MATERIAL_PPT_DIR and TASK_MATERIAL_PPT_DIR.exists():
-                allowed = {'.png', '.jpg', '.jpeg', '.webp', '.gif'}
-                files = [p for p in TASK_MATERIAL_PPT_DIR.iterdir() if p.is_file() and p.suffix.lower() in allowed]
-                files = sorted(files, key=lambda p: p.name.lower())[:90]
-                for p in files:
-                    ppt_icons.append(
-                        {
-                            'label': str(p.stem or '').strip()[:80],
-                            'static_path': f'football/images/task-materials/ppt/{p.name}',
-                        }
-                    )
-            cache.set(cache_key, ppt_icons, context_cache_seconds)
-    except Exception:
-        ppt_icons = []
-    drills_catalog = []
-    try:
-        cache_key = "task_builder:v2:drills_catalog"
-        cached = cache.get(cache_key)
-        if isinstance(cached, list):
-            drills_catalog = cached
-        else:
-            drills_catalog = [
-                {
-                    'id': item.id,
-                    'label': item.label,
-                    'category': item.category,
-                    'icon_static_path': item.icon_static_path,
-                    'age_min': item.age_min,
-                    'age_max': item.age_max,
-                }
-                for item in DRILL_CATALOG
-            ]
-            cache.set(cache_key, drills_catalog, context_cache_seconds)
-    except Exception:
-        drills_catalog = []
-        logger.exception('sessions_task_builder: no se pudo construir catálogo de drills', extra={'team_id': getattr(primary_team, 'id', None)})
+    resource_library_context = _task_builder_resource_library_context(
+        request,
+        primary_team,
+        context_cache_seconds=context_cache_seconds,
+    )
+    pdf_assets = list(resource_library_context.get('pdf_assets') or [])
+    ppt_icons = list(resource_library_context.get('ppt_icons') or [])
+    drills_catalog = list(resource_library_context.get('drills_catalog') or [])
     library_repository = _normalize_library_repository(request.GET.get('repo') or request.GET.get('library_repo') or LIBRARY_REPOSITORY_TRADITIONAL)
     try:
         if task and _is_library_session(getattr(task, 'session', None)):
@@ -41259,6 +41304,13 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
         pitch3d_player_model_src = ''
 
     pitch3d_assets = _task_pitch3d_asset_context(static_build_id, player_model_src=pitch3d_player_model_src)
+    task_resource_library_url = reverse(_task_builder_library_route_name(scope_key))
+    try:
+        next_target = request.get_full_path()
+        if next_target:
+            task_resource_library_url = f'{task_resource_library_url}?{urlencode({"next": next_target})}'
+    except Exception:
+        pass
     return render(
         request,
         'football/task_builder.html',
@@ -41318,7 +41370,55 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             'saved_task_info': saved_task_info,
             'show_dragon_nav': not embedded_mode,
             'confirmed_players_api_url': reverse('sessions-confirmed-players-api'),
+            'task_resource_library_url': task_resource_library_url,
             **pitch3d_assets,
+        },
+    )
+
+
+def session_task_resource_library_page(request, scope_key='coach', scope_title='Sesiones · Entrenador'):
+    if not _can_access_sessions_workspace(request.user):
+        return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+
+    try:
+        context_cache_seconds = int(str(os.getenv('TASK_BUILDER_CONTEXT_CACHE_SECONDS', '600') or '600').strip() or 600)
+    except Exception:
+        context_cache_seconds = 600
+    context_cache_seconds = max(15, min(900, int(context_cache_seconds or 120)))
+    resource_library_context = _task_builder_resource_library_context(
+        request,
+        primary_team,
+        context_cache_seconds=context_cache_seconds,
+    )
+
+    back_url = str(request.GET.get('next') or '').strip() or reverse(_task_builder_route_name(scope_key))
+    upload_scope = 'coach'
+    try:
+        if bool(getattr(request.user, 'is_superuser', False)) and str(request.GET.get('scope') or '').strip().lower() == 'system':
+            upload_scope = 'system'
+    except Exception:
+        upload_scope = 'coach'
+
+    return render(
+        request,
+        'football/task_resource_library.html',
+        {
+            'scope_key': scope_key,
+            'scope_title': scope_title,
+            'back_url': back_url,
+            'team_name': str(getattr(primary_team, 'name', '') or '').strip(),
+            'upload_scope': upload_scope,
+            'upload_api_url': reverse('pdf-graphic-asset-upload'),
+            'pdf_asset_count': len(resource_library_context.get('pdf_assets') or []),
+            'ppt_icon_count': len(resource_library_context.get('ppt_icons') or []),
+            'drill_count': len(resource_library_context.get('drills_catalog') or []),
+            **resource_library_context,
         },
     )
 
@@ -43150,6 +43250,11 @@ def sessions_task_edit_page(request, task_id):
 
 
 @login_required
+def sessions_task_library_page(request):
+    return session_task_resource_library_page(request, scope_key='coach', scope_title='Sesiones · Entrenador')
+
+
+@login_required
 @ensure_csrf_cookie
 def sessions_goalkeeper_page(request):
     response = _sessions_workspace_page(request, scope_key='goalkeeper', scope_title='Sesiones · Porteros')
@@ -43169,6 +43274,11 @@ def sessions_goalkeeper_task_edit_page(request, task_id):
 
 
 @login_required
+def sessions_goalkeeper_task_library_page(request):
+    return session_task_resource_library_page(request, scope_key='goalkeeper', scope_title='Sesiones · Porteros')
+
+
+@login_required
 @ensure_csrf_cookie
 def sessions_fitness_page(request):
     response = _sessions_workspace_page(request, scope_key='fitness', scope_title='Sesiones · Preparacion fisica')
@@ -43185,6 +43295,11 @@ def sessions_fitness_task_create_page(request):
 @login_required
 def sessions_fitness_task_edit_page(request, task_id):
     return session_task_builder_page(request, scope_key='fitness', scope_title='Sesiones · Preparacion fisica', task_id=task_id)
+
+
+@login_required
+def sessions_fitness_task_library_page(request):
+    return session_task_resource_library_page(request, scope_key='fitness', scope_title='Sesiones · Preparacion fisica')
 
 
 @login_required

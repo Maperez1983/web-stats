@@ -5153,7 +5153,7 @@
         min-height: 0;
         overflow-x: hidden;
         overflow-y: auto;
-        padding-right: 0.08rem;
+        padding-right: 0.18rem;
         scrollbar-gutter: stable;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board .editor-pane-card[data-board-pane="starter"] {
@@ -5249,7 +5249,12 @@
         font-size: 0.68rem;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board #task-side-command-slot .command-bar {
-        padding: 0.18rem;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.24rem;
+        overflow: visible;
+        padding: 0.26rem;
       }
       body:not(.tactics-mode).task-mode-ready.task-mode-board #task-side-command-slot .command-bar > button {
         min-width: 32px;
@@ -6581,9 +6586,6 @@
       body:not(.tactics-mode) #task-side-selection-slot.has-selection .selection-empty-state {
         display: none;
       }
-      body:not(.tactics-mode) #task-side-command-slot .command-bar > :nth-child(n+6):not(#task-command-more):not(.command-menu):not(.layers-popover):not(.scenarios-popover):not(.sim-popover) {
-        display: none;
-      }
       body:not(.tactics-mode) .pitch-stage {
         max-width: min(var(--stage-max-user, 1960px), var(--stage-max-fit, 9999px));
         border-radius: 22px;
@@ -7013,9 +7015,10 @@
 		                class="button primary"
 		                id="task-builder-save-top"
 	                title="{% if task %}Guardar tarea{% else %}Crear tarea{% endif %}"
-	                onclick="try{var f=document.getElementById('task-builder-form');if(!f)return;var b=document.getElementById('task-submit-btn');if(f.requestSubmit){f.requestSubmit(b||undefined);}else if(b){b.click();}else{f.submit();}}catch(e){};return false;"
-	              >{% if task %}Guardar tarea{% else %}Crear tarea{% endif %}</button>
-	              {% endif %}
+		                onclick="try{var f=document.getElementById('task-builder-form');if(!f)return;var b=document.getElementById('task-submit-btn');if(f.requestSubmit){f.requestSubmit(b||undefined);}else if(b){b.click();}else{f.submit();}}catch(e){};return false;"
+		              >{% if task %}Guardar tarea{% else %}Crear tarea{% endif %}</button>
+		              <a href="{{ task_resource_library_url|default:'#' }}" class="button">Biblioteca de recursos</a>
+		              {% endif %}
               {% if request.user.is_staff or request.user.is_superuser %}
               <a href="{% url 'platform-overview' %}" class="button">Platform</a>
               {% endif %}
@@ -7698,36 +7701,8 @@
                         <div class="library-current" id="task-resource-summary-label">{% if tactics_mode %}Base{% else %}Jugadores{% endif %}</div>
 	                      </div>
 	                      <input type="search" class="library-filter" id="task-library-filter" placeholder="Filtra recursos…" aria-label="Filtrar recursos" />
-	                        <div class="library-manage-bar">
-	                          <div class="library-manage-actions">
-                            <button type="button" class="library-manage-chip" id="task-library-repository-toggle">Biblioteca de recursos</button>
-	                            <button type="button" class="library-manage-chip" id="task-library-manage-toggle">Editar biblioteca</button>
-	                            <button type="button" class="library-manage-chip" id="task-library-manage-reset">Restaurar todo</button>
-	                          </div>
-	                          <div class="library-manage-note" id="task-library-manage-note">Oculta recursos que no vas a utilizar en este dispositivo.</div>
-	                        </div>
-                        <div class="library-repository-box" id="task-library-repository-box" hidden>
-                          <div class="library-repository-head">
-                            <strong>Repositorio de recursos</strong>
-                            <span>Marca qué recursos estarán disponibles al crear tareas</span>
-                          </div>
-                          <div class="library-repository-list" id="task-library-repository-list"></div>
-                          <div class="library-add-form">
-                            <input type="url" id="task-library-add-url" placeholder="https://.../recurso.png" aria-label="URL del recurso" />
-                            <input type="text" id="task-library-add-label" placeholder="Nombre del recurso" aria-label="Nombre del recurso" />
-                            <button type="button" class="library-manage-chip" id="task-library-add-submit">Añadir</button>
-                          </div>
-                        </div>
-                        <div class="library-hidden-box" id="task-library-hidden-box" hidden>
-                          <div class="library-hidden-head">
-                            <strong>Recursos ocultos</strong>
-                            <span>Reactívalos uno a uno</span>
-                          </div>
-                          <div class="library-hidden-list" id="task-library-hidden-list"></div>
-                          <div class="library-hidden-empty" id="task-library-hidden-empty">No hay recursos ocultos.</div>
-                        </div>
-	                        {% if not tactics_mode %}
-	                        <div class="library-helper-grid" aria-label="Guía rápida del lateral">
+		                        {% if not tactics_mode %}
+		                        <div class="library-helper-grid" aria-label="Guía rápida del lateral">
                           <div class="library-helper-pill">
                             <strong>Montaje</strong>
                             <span>Abre una categoría y verás solo sus recursos. No mezclamos opciones fuera de contexto.</span>
@@ -8983,7 +8958,7 @@
                   <div class="meta" style="margin:0.5rem 0 0.35rem;">Recursos extraídos de PDFs</div>
                   <div class="resource-strip pdf-assets-strip">
                     {% for asset in pdf_assets|slice:":24" %}
-                      {% if asset.file %}
+                      {% if asset.url %}
                         <button
                           type="button"
                           class="pdf-asset-btn"
@@ -8991,7 +8966,7 @@
                           title="{{ asset.title|default:'Recurso importado' }}"
                           aria-label="{{ asset.title|default:'Recurso importado' }}"
                         >
-                          <img src="{% url 'pdf-graphic-asset-file' asset.id %}" alt="{{ asset.title|default:'Recurso importado' }}" loading="lazy" />
+                          <img src="{{ asset.url }}" alt="{{ asset.title|default:'Recurso importado' }}" loading="lazy" />
                         </button>
                       {% endif %}
                     {% endfor %}
@@ -15813,8 +15788,10 @@
           const activate = (pane) => {
             const next = String(pane || 'edit').trim().toLowerCase() === 'resources' ? 'resources' : 'edit';
             sideTabs.forEach((tab) => tab.classList.toggle('is-active', String(tab.dataset.sidePane || '') === next));
-            if (editPane) editPane.hidden = true;
-            resourcesPane.hidden = false;
+            const sideTabsWrap = document.getElementById('task-board-side-tabs');
+            if (sideTabsWrap) sideTabsWrap.hidden = false;
+            if (editPane) editPane.hidden = next !== 'edit';
+            if (resourcesPane) resourcesPane.hidden = next !== 'resources';
           };
 
           const openBoardDrawer = (pane) => {

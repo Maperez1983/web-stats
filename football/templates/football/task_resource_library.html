@@ -1,0 +1,414 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Biblioteca de recursos · {{ scope_title }}</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #081220;
+        --panel: rgba(15, 23, 42, 0.86);
+        --panel-2: rgba(15, 23, 42, 0.68);
+        --line: rgba(255,255,255,0.1);
+        --text: #f8fafc;
+        --muted: rgba(226,232,240,0.76);
+        --accent: #22c55e;
+        --accent-2: #f4b400;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, sans-serif;
+        background:
+          radial-gradient(circle at top, rgba(34,197,94,0.16), transparent 30%),
+          linear-gradient(180deg, #081220 0%, #0f172a 100%);
+        color: var(--text);
+      }
+      .page {
+        width: min(1520px, calc(100vw - 32px));
+        margin: 0 auto;
+        padding: 28px 0 48px;
+      }
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: flex-start;
+        margin-bottom: 1.25rem;
+      }
+      .eyebrow {
+        font-size: 0.78rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(148,163,184,0.9);
+        margin-bottom: 0.45rem;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(1.9rem, 2vw, 2.6rem);
+      }
+      .meta {
+        margin: 0.55rem 0 0;
+        max-width: 860px;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+      .actions {
+        display: flex;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        padding: 0.7rem 1rem;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        background: rgba(255,255,255,0.05);
+        color: var(--text);
+        text-decoration: none;
+        font-weight: 700;
+      }
+      .button.primary {
+        background: linear-gradient(180deg, rgba(34,197,94,0.28), rgba(34,197,94,0.16));
+        border-color: rgba(74,222,128,0.4);
+      }
+      .hero-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.9rem;
+        margin-bottom: 1.15rem;
+      }
+      .hero-card,
+      .panel {
+        border: 1px solid var(--line);
+        background: var(--panel);
+        border-radius: 22px;
+        box-shadow: 0 18px 46px rgba(0,0,0,0.22);
+      }
+      .hero-card {
+        padding: 1rem 1.1rem;
+      }
+      .hero-card strong {
+        display: block;
+        font-size: 1.8rem;
+        margin-top: 0.25rem;
+      }
+      .hero-card span {
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+      .panel {
+        padding: 1rem 1.1rem 1.15rem;
+        margin-bottom: 1rem;
+      }
+      .panel h2 {
+        margin: 0 0 0.35rem;
+        font-size: 1.05rem;
+      }
+      .panel p {
+        margin: 0;
+        color: var(--muted);
+      }
+      .upload-form {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.8rem;
+        margin-top: 1rem;
+        align-items: center;
+      }
+      .upload-form input[type="file"] {
+        width: 100%;
+        padding: 0.85rem 0.95rem;
+        border-radius: 16px;
+        border: 1px dashed rgba(255,255,255,0.2);
+        background: var(--panel-2);
+        color: var(--text);
+      }
+      .upload-feedback {
+        margin-top: 0.75rem;
+        font-size: 0.92rem;
+        color: var(--muted);
+      }
+      .section-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: baseline;
+        margin-bottom: 0.9rem;
+      }
+      .section-head small {
+        color: var(--muted);
+      }
+      .asset-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+        gap: 0.8rem;
+      }
+      .asset-card {
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.035);
+        border-radius: 18px;
+        overflow: hidden;
+      }
+      .asset-preview {
+        aspect-ratio: 1 / 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background:
+          linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015)),
+          #0b1424;
+        padding: 0.8rem;
+      }
+      .asset-preview img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+      }
+      .asset-body {
+        padding: 0.75rem 0.8rem 0.85rem;
+      }
+      .asset-title {
+        font-size: 0.9rem;
+        font-weight: 700;
+        margin: 0 0 0.25rem;
+      }
+      .asset-meta {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.8rem;
+        line-height: 1.35;
+      }
+      .asset-tag-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        margin-top: 0.55rem;
+      }
+      .asset-tag {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.28rem 0.48rem;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        background: rgba(255,255,255,0.07);
+        color: rgba(248,250,252,0.94);
+      }
+      .asset-tag.system {
+        background: rgba(244,180,0,0.16);
+        color: #fde68a;
+      }
+      .asset-tag.personal {
+        background: rgba(34,197,94,0.16);
+        color: #bbf7d0;
+      }
+      .group-stack {
+        display: grid;
+        gap: 1rem;
+      }
+      .empty {
+        padding: 1rem;
+        border-radius: 16px;
+        border: 1px dashed rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.02);
+        color: var(--muted);
+      }
+      @media (max-width: 980px) {
+        .page { width: min(100vw - 20px, 1520px); }
+        .topbar { flex-direction: column; }
+        .hero-grid { grid-template-columns: 1fr; }
+        .upload-form { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <div class="topbar">
+        <div>
+          <div class="eyebrow">Biblioteca de recursos</div>
+          <h1>Repositorio visual para la pizarra</h1>
+          <p class="meta">Aquí se gestionan los recursos del editor en una página propia. El lateral de la tarea queda reservado para insertar material y editar lo que ya está en el campo, sin mezclar administración de biblioteca.</p>
+        </div>
+        <div class="actions">
+          <a class="button primary" href="{{ back_url }}">Volver al editor</a>
+        </div>
+      </div>
+
+      <section class="hero-grid">
+        <article class="hero-card">
+          <span>Recursos importados</span>
+          <strong>{{ pdf_asset_count }}</strong>
+        </article>
+        <article class="hero-card">
+          <span>Material del sistema</span>
+          <strong>{{ ppt_icon_count }}</strong>
+        </article>
+        <article class="hero-card">
+          <span>Drills e iconos técnicos</span>
+          <strong>{{ drill_count }}</strong>
+        </article>
+      </section>
+
+      <section class="panel">
+        <h2>Subir nuevos recursos</h2>
+        <p>Puedes cargar `png`, `jpg`, `webp`, `gif`, `zip` o `pptx`. Los recursos quedarán disponibles para tu equipo en el editor.</p>
+        <form class="upload-form" id="resource-library-upload-form">
+          {% csrf_token %}
+          <input type="file" id="resource-library-files" name="assets" multiple accept=".png,.jpg,.jpeg,.webp,.gif,.zip,.pptx" />
+          <button type="submit" class="button">Subir recursos</button>
+        </form>
+        <div class="upload-feedback" id="resource-library-upload-feedback">Sin cargas en curso.</div>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <h2>Importados y personalizados</h2>
+            <small>Recursos extraídos de PDFs, subidos por el usuario o guardados para este equipo.</small>
+          </div>
+        </div>
+        {% if pdf_assets %}
+        <div class="asset-grid">
+          {% for asset in pdf_assets %}
+          <article class="asset-card">
+            <div class="asset-preview">
+              <img src="{{ asset.url }}" alt="{{ asset.title|default:'Recurso gráfico' }}" loading="lazy" />
+            </div>
+            <div class="asset-body">
+              <p class="asset-title">{{ asset.title|default:"Recurso sin nombre" }}</p>
+              <p class="asset-meta">
+                {% if asset.width and asset.height %}{{ asset.width }} × {{ asset.height }} px{% else %}Dimensiones no disponibles{% endif %}
+                {% if asset.source_pdf_name %}<br>{{ asset.source_pdf_name }}{% endif %}
+              </p>
+              <div class="asset-tag-row">
+                {% if asset.is_system %}<span class="asset-tag system">Sistema</span>{% endif %}
+                {% if asset.is_personal %}<span class="asset-tag personal">Personal</span>{% endif %}
+                {% if not asset.is_system and not asset.is_personal %}<span class="asset-tag">Equipo</span>{% endif %}
+              </div>
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty">Todavía no hay recursos importados en este espacio.</div>
+        {% endif %}
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <h2>Material del sistema</h2>
+            <small>Iconos listos para usar en porterías, conos, material y apoyo visual.</small>
+          </div>
+        </div>
+        {% if ppt_icons %}
+        <div class="asset-grid">
+          {% for icon in ppt_icons %}
+          <article class="asset-card">
+            <div class="asset-preview">
+              <img src="{% static icon.static_path %}" alt="{{ icon.label }}" loading="lazy" />
+            </div>
+            <div class="asset-body">
+              <p class="asset-title">{{ icon.label }}</p>
+              <div class="asset-tag-row">
+                <span class="asset-tag system">Sistema</span>
+              </div>
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty">No hay iconos de sistema publicados en este entorno.</div>
+        {% endif %}
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <h2>Drills e iconografía técnica</h2>
+            <small>Recursos por categoría para calentamientos, carrera, fuerza y trabajo físico.</small>
+          </div>
+        </div>
+        {% if drill_groups %}
+        <div class="group-stack">
+          {% for group in drill_groups %}
+          <section>
+            <div class="section-head">
+              <h2>{{ group.category }}</h2>
+              <small>{{ group.items|length }} recursos</small>
+            </div>
+            <div class="asset-grid">
+              {% for item in group.items %}
+              <article class="asset-card">
+                <div class="asset-preview">
+                  <img src="{% static item.icon_static_path %}" alt="{{ item.label }}" loading="lazy" />
+                </div>
+                <div class="asset-body">
+                  <p class="asset-title">{{ item.label }}</p>
+                  <p class="asset-meta">Edad recomendada: {% if item.age_min %}{{ item.age_min }}{% else %}-{% endif %} · {% if item.age_max %}{{ item.age_max }}{% else %}-{% endif %}</p>
+                </div>
+              </article>
+              {% endfor %}
+            </div>
+          </section>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty">No se ha podido construir el catálogo técnico.</div>
+        {% endif %}
+      </section>
+    </main>
+
+    <script>
+      (function () {
+        const form = document.getElementById('resource-library-upload-form');
+        const filesInput = document.getElementById('resource-library-files');
+        const feedback = document.getElementById('resource-library-upload-feedback');
+        if (!form || !filesInput || !feedback) return;
+        form.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const files = Array.from(filesInput.files || []);
+          if (!files.length) {
+            feedback.textContent = 'Selecciona al menos un archivo.';
+            return;
+          }
+          const formData = new FormData();
+          files.forEach((file) => formData.append('assets', file));
+          formData.append('scope_key', '{{ scope_key }}');
+          formData.append('scope', '{{ upload_scope }}');
+          feedback.textContent = 'Subiendo recursos...';
+          try {
+            const response = await fetch('{{ upload_api_url }}', {
+              method: 'POST',
+              body: formData,
+              headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
+              },
+              credentials: 'same-origin',
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || !data.ok) {
+              feedback.textContent = data.error || 'No se pudieron subir los recursos.';
+              return;
+            }
+            const saved = Number(data.saved?.length || 0);
+            const skipped = Number(data.skipped || 0);
+            const errors = Number(data.errors || 0);
+            feedback.textContent = `Subida completada: ${saved} nuevos, ${skipped} repetidos, ${errors} errores. Recargando...`;
+            window.setTimeout(() => window.location.reload(), 650);
+          } catch (error) {
+            feedback.textContent = 'No se pudo conectar con la subida de recursos.';
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>
