@@ -15293,6 +15293,35 @@
 						                  const mobilityMat = new THREE.MeshStandardMaterial({ color: 0x1f3f78, roughness: 0.48, metalness: 0.16 });
 						                  const queueGlowMat = new THREE.MeshBasicMaterial({ color: 0xa5dbff, transparent: true, opacity: 0.20, toneMapped: false, depthWrite: false, side: THREE.DoubleSide });
 						                  const eventPlazaMat = new THREE.MeshStandardMaterial({ color: 0xc2baaa, roughness: 0.88, metalness: 0.02 });
+						                  const louverMat = new THREE.MeshStandardMaterial({ color: 0x8f98a8, roughness: 0.38, metalness: 0.34 });
+						                  const baseGlassMat = new THREE.MeshPhysicalMaterial({ color: 0xdff2ff, roughness: 0.05, metalness: 0.02, transparent: true, opacity: 0.34, transmission: 0.34, clearcoat: 0.44, side: THREE.DoubleSide });
+						                  const addHorizontalLouverSkin = () => {
+						                    const longSpan = metersW + 56.0;
+						                    const endSpan = metersH + 56.0;
+						                    for (let row = 0; row < 18; row += 1) {
+						                      const y = 2.10 + row * 0.42;
+						                      const depthBias = 0.18 + Math.min(row, 10) * 0.015;
+						                      [-1, 1].forEach((sign) => {
+						                        addBox(new THREE.BoxGeometry(longSpan, 0.05, 0.10), louverMat, 0, y, sign * (metersH / 2 + 31.8 + depthBias), 0, 0, 0, 'pitch_3d_stadium_exterior_louver_band_long');
+						                      });
+						                      [-1, 1].forEach((sign) => {
+						                        addBox(new THREE.BoxGeometry(0.10, 0.05, endSpan), louverMat, sign * (metersW / 2 + 31.8 + depthBias), y, 0, 0, 0, 0, 'pitch_3d_stadium_exterior_louver_band_end');
+						                      });
+						                    }
+						                    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
+						                      for (let row = 0; row < 16; row += 1) {
+						                        addBox(new THREE.CylinderGeometry(0.26 + row * 0.012, 0.26 + row * 0.012, 0.05, 24), louverMat, sx * (metersW / 2 + 31.9), 2.32 + row * 0.42, sz * (metersH / 2 + 31.9), Math.PI / 2, 0, 0, 'pitch_3d_stadium_exterior_louver_corner_ring');
+						                      }
+						                    });
+						                  };
+						                  const addGlassBaseRibbon = () => {
+						                    [-1, 1].forEach((sign) => {
+						                      addBox(new THREE.BoxGeometry(metersW + 48.0, 2.2, 0.14), baseGlassMat, 0, 1.42, sign * (metersH / 2 + 24.4), 0, 0, 0, 'pitch_3d_stadium_exterior_glass_base_long');
+						                    });
+						                    [-1, 1].forEach((sign) => {
+						                      addBox(new THREE.BoxGeometry(0.14, 2.2, metersH + 48.0), baseGlassMat, sign * (metersW / 2 + 24.4), 1.42, 0, 0, 0, 0, 'pitch_3d_stadium_exterior_glass_base_end');
+						                    });
+						                  };
 						                  const addRosaledaShellFront = () => {
 						                    [-1, 1].forEach((sign) => {
 						                      const z = sign * (metersH / 2 + 24.8);
@@ -15544,6 +15573,8 @@
 						                  addRosaledaShellFront();
 						                  addRosaledaEndShell();
 						                  addContinuousCrown();
+						                  addHorizontalLouverSkin();
+						                  addGlassBaseRibbon();
 						                  addCurvedFacadeRead();
 						                  addMonumentalMainPortal();
 						                  addMajorEventPerimeter();
