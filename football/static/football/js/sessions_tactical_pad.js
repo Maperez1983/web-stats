@@ -3885,6 +3885,14 @@
 		      if (canvas.lowerCanvasEl && canvas.lowerCanvasEl.style) canvas.lowerCanvasEl.style.background = 'transparent';
 		      if (canvas.upperCanvasEl && canvas.upperCanvasEl.style) canvas.upperCanvasEl.style.background = 'transparent';
 		      if (canvas.wrapperEl && canvas.wrapperEl.style) canvas.wrapperEl.style.background = 'transparent';
+          const applyHiDpiCanvasQuality = (ctx) => {
+            if (!ctx) return;
+            try { ctx.imageSmoothingEnabled = true; } catch (e) { /* ignore */ }
+            try { ctx.imageSmoothingQuality = 'high'; } catch (e) { /* ignore */ }
+          };
+          try { applyHiDpiCanvasQuality(canvas.getContext && canvas.getContext()); } catch (e) { /* ignore */ }
+          try { applyHiDpiCanvasQuality(canvas.lowerCanvasEl?.getContext?.('2d')); } catch (e) { /* ignore */ }
+          try { applyHiDpiCanvasQuality(canvas.upperCanvasEl?.getContext?.('2d')); } catch (e) { /* ignore */ }
 		    } catch (error) {
 		      // ignore
 		    }
@@ -29787,7 +29795,7 @@
 			      // En iPad/Safari hay límites duros de canvas (área/dimensiones). Si solo limitamos por ancho,
 			      // en vertical podemos terminar exportando una imagen altísima y la exportación falla o devuelve
 			      // previews "vacías" (solo césped). Por eso limitamos por el lado mayor + área.
-			      const maxPreviewSide = clamp(Number(options.maxSide) || Number(options.maxWidth) || 720, 480, 4096);
+			      const maxPreviewSide = clamp(Number(options.maxSide) || Number(options.maxWidth) || 720, 480, 6144);
 			      // Para PDF necesitamos HD real: si el lienzo en pantalla mide 1200-1800px, queremos
 			      // generar una imagen de 3200-4096px (ratio > 1). Con Fabric, usamos `multiplier`
 			      // para renderizar nítido (no un simple upscale).
@@ -29800,7 +29808,7 @@
 		      // (16,777,216 px es un límite común en Safari iOS; usamos un margen).
 		      let outW = Math.max(320, Math.round(sourceWidth * ratio));
 		      let outH = Math.max(180, Math.round(sourceHeight * ratio));
-		      const maxArea = 16000000;
+		      const maxArea = 24000000;
 		      const area = outW * outH;
 		      if (area > maxArea) {
 		        const scale = Math.sqrt(maxArea / Math.max(1, area));
@@ -31755,7 +31763,7 @@
 	      const output = document.createElement('canvas');
 	      let outputWidth = Math.max(320, Math.round(sourceWidth * ratio));
 	      let outputHeight = Math.max(180, Math.round(sourceHeight * ratio));
-	      const maxArea = clamp(Number(options.maxArea) || 16000000, 1000000, 32000000);
+	      const maxArea = clamp(Number(options.maxArea) || 24000000, 1000000, 32000000);
 	      const area = outputWidth * outputHeight;
 	      if (area > maxArea) {
 	        const areaScale = Math.sqrt(maxArea / Math.max(1, area));
@@ -34873,7 +34881,7 @@
 	        persistActiveStepSnapshot();
 	        if (!timeline.length) {
 	          setStatus('No hay pasos. Descargando PNG actual…');
-	          await exportCurrentPng(4096);
+	          await exportCurrentPng(5120);
 	          return;
 	        }
 	        const title = fileSafeSlug(form.querySelector('[name="draw_task_title"]')?.value);
@@ -34881,7 +34889,7 @@
 	          const step = timeline[i];
 	          setStatus(`Exportando PNG ${i + 1}/${timeline.length}…`);
 	          await loadCanvasSnapshotAsync(step.canvas_state, { sourceWidth: parseIntSafe(step.canvas_width), sourceHeight: parseIntSafe(step.canvas_height) });
-	          const composite = await buildCompositeCanvas({ maxWidth: 4096 });
+	          const composite = await buildCompositeCanvas({ maxWidth: 5120 });
 	          if (!composite) continue;
 	          const blob = await canvasToBlob(composite, 'image/png', 0.92);
 	          if (blob) downloadBlob(blob, `${title}_paso_${String(i + 1).padStart(2, '0')}.png`);
@@ -34924,7 +34932,7 @@
 		        const title = fileSafeSlug(form.querySelector('[name="draw_task_title"]')?.value);
 		        const stepTitle = safeText(simulationSteps[simulationActiveIndex]?.title, `paso_${simulationActiveIndex + 1}`);
 		        setStatus('Generando PNG del paso…');
-		        const dataUrl = await buildPreviewData({ maxWidth: 4096, mime: 'image/png', quality: 0.92 });
+		        const dataUrl = await buildPreviewData({ maxWidth: 5120, mime: 'image/png', quality: 0.96 });
 		        const blob = await dataUrlToBlob(dataUrl);
 		        if (!blob) {
 		          setStatus('No se pudo generar el PNG del paso.', true);
@@ -34954,7 +34962,7 @@
 		          setStatus(`Exportando PNG ${i + 1}/${simulationSteps.length}…`);
 		          await selectSimulationStep(i);
 		          const stepTitle = safeText(step?.title, `paso_${i + 1}`);
-		          const dataUrl = await buildPreviewData({ maxWidth: 4096, mime: 'image/png', quality: 0.92 });
+		          const dataUrl = await buildPreviewData({ maxWidth: 5120, mime: 'image/png', quality: 0.96 });
 		          const blob = await dataUrlToBlob(dataUrl);
 		          if (blob) {
 		            downloadBlob(blob, `${title}_sim_${String(i + 1).padStart(2, '0')}_${fileSafeSlug(stepTitle)}.png`);
@@ -34992,7 +35000,7 @@
 		          const step = simulationSteps[i];
 		          setStatus(`Pack: render ${i + 1}/${count}…`);
 		          await selectSimulationStep(i);
-		          const img = await buildPreviewData({ maxWidth: 3200, mime: 'image/jpeg', quality: 0.9 });
+		          const img = await buildPreviewData({ maxWidth: 4096, mime: 'image/jpeg', quality: 0.94 });
 		          slides.push({
 		            i,
 		            title: safeText(step?.title, `Paso ${i + 1}`),
