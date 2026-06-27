@@ -35512,9 +35512,11 @@
 					    const resourceHelper = document.querySelector('.resource-helper');
             const libraryToggleBtn = document.getElementById('task-library-toggle');
             const libraryFilterInput = document.getElementById('task-library-filter');
+            const libraryRepositoryToggleBtn = document.getElementById('task-library-repository-toggle');
             const libraryManageToggleBtn = document.getElementById('task-library-manage-toggle');
             const libraryManageResetBtn = document.getElementById('task-library-manage-reset');
             const libraryManageNote = document.getElementById('task-library-manage-note');
+            const libraryRepositoryBox = document.getElementById('task-library-repository-box');
             const libraryRepositoryList = document.getElementById('task-library-repository-list');
             const libraryAddUrlInput = document.getElementById('task-library-add-url');
             const libraryAddLabelInput = document.getElementById('task-library-add-label');
@@ -35605,6 +35607,13 @@
                   : 'Oculta recursos que no vas a utilizar en este dispositivo.';
               }
             };
+            const setLibraryRepositoryOpen = (enabled) => {
+              if (!libraryRepositoryBox) return;
+              const open = !!enabled;
+              libraryRepositoryBox.hidden = !open;
+              libraryRepositoryToggleBtn?.classList.toggle('is-active', open);
+              try { libraryRepositoryToggleBtn?.setAttribute('aria-pressed', open ? 'true' : 'false'); } catch (e) { /* ignore */ }
+            };
             const renderCustomLibraryResources = () => {
               if (!customLibraryAssetsStrip) return;
               customLibraryAssetsStrip.textContent = '';
@@ -35647,6 +35656,29 @@
               collectLibraryResourceCatalog().forEach((item) => {
                 const row = document.createElement('div');
                 row.className = 'library-repository-item';
+                const main = document.createElement('div');
+                main.className = 'library-repository-main';
+                const visual = document.createElement('div');
+                visual.className = 'library-repository-visual';
+                try {
+                  const source = resourceSection?.querySelector(`button[data-add="${CSS.escape(item.add)}"]`);
+                  const img = source?.querySelector('img');
+                  const emoji = source?.querySelector('.tool-emoji');
+                  if (img) {
+                    const clone = document.createElement('img');
+                    clone.src = img.currentSrc || img.src || '';
+                    clone.alt = '';
+                    clone.loading = 'lazy';
+                    visual.appendChild(clone);
+                  } else if (emoji) {
+                    const clone = emoji.cloneNode(true);
+                    visual.appendChild(clone);
+                  } else {
+                    visual.textContent = item.label.slice(0, 1).toUpperCase();
+                  }
+                } catch (e) {
+                  visual.textContent = item.label.slice(0, 1).toUpperCase();
+                }
                 const meta = document.createElement('div');
                 meta.className = 'library-repository-meta';
                 const strong = document.createElement('strong');
@@ -35655,12 +35687,14 @@
                 small.textContent = resourcePanelLabel(item.panel, item.family);
                 meta.appendChild(strong);
                 meta.appendChild(small);
+                main.appendChild(visual);
+                main.appendChild(meta);
                 const toggle = document.createElement('button');
                 toggle.type = 'button';
                 toggle.className = `library-resource-toggle ${isLibraryResourceHidden(item.add) ? 'is-disabled' : 'is-enabled'}`;
                 toggle.dataset.libraryResourceToggle = item.add;
                 toggle.textContent = isLibraryResourceHidden(item.add) ? 'Oculto' : 'Activo';
-                row.appendChild(meta);
+                row.appendChild(main);
                 row.appendChild(toggle);
                 libraryRepositoryList.appendChild(row);
               });
@@ -35858,6 +35892,9 @@
               renderLibraryRepository();
             };
             libraryFilterInput?.addEventListener('input', applyLibraryFilter);
+            libraryRepositoryToggleBtn?.addEventListener('click', () => {
+              setLibraryRepositoryOpen(!!libraryRepositoryBox?.hidden);
+            });
             libraryManageToggleBtn?.addEventListener('click', () => {
               setLibraryManageMode(!libraryManageMode);
             });
@@ -35970,6 +36007,7 @@
 	      activateResourcePanel(key);
 	    });
             renderCustomLibraryResources();
+            setLibraryRepositoryOpen(false);
 				    if (resourceTabs.length && resourcePanels.length) {
 				      // Por defecto arrancamos en “Recursos base” para que siempre sea operativa la pizarra
 				      // aunque no haya importaciones (y para que sea evidente dónde están flechas/figuras).

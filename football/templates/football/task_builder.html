@@ -1867,6 +1867,9 @@
           border: 1px solid rgba(255,255,255,0.1);
           background: rgba(15,23,42,0.5);
         }
+        .library-repository-box[hidden] {
+          display: none !important;
+        }
         .library-repository-head {
           display: flex;
           align-items: center;
@@ -1897,11 +1900,40 @@
           background: rgba(255,255,255,0.04);
           padding: 0.48rem 0.58rem;
         }
+        .library-repository-visual {
+          width: 42px;
+          height: 42px;
+          flex: 0 0 42px;
+          border-radius: 12px;
+          border: 1px solid rgba(255,255,255,0.08);
+          background: rgba(255,255,255,0.05);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+        }
+        .library-repository-visual img {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          display: block;
+        }
+        .library-repository-visual .tool-emoji {
+          font-size: 1.2rem;
+          line-height: 1;
+        }
         .library-repository-meta {
           min-width: 0;
           display: flex;
           flex-direction: column;
           gap: 0.08rem;
+        }
+        .library-repository-main {
+          min-width: 0;
+          display: flex;
+          align-items: center;
+          gap: 0.6rem;
+          flex: 1;
         }
         .library-repository-meta strong {
           font-size: 0.75rem;
@@ -7668,12 +7700,13 @@
 	                      <input type="search" class="library-filter" id="task-library-filter" placeholder="Filtra recursos…" aria-label="Filtrar recursos" />
 	                        <div class="library-manage-bar">
 	                          <div class="library-manage-actions">
+                            <button type="button" class="library-manage-chip" id="task-library-repository-toggle">Biblioteca de recursos</button>
 	                            <button type="button" class="library-manage-chip" id="task-library-manage-toggle">Editar biblioteca</button>
 	                            <button type="button" class="library-manage-chip" id="task-library-manage-reset">Restaurar todo</button>
 	                          </div>
 	                          <div class="library-manage-note" id="task-library-manage-note">Oculta recursos que no vas a utilizar en este dispositivo.</div>
 	                        </div>
-                        <div class="library-repository-box" id="task-library-repository-box">
+                        <div class="library-repository-box" id="task-library-repository-box" hidden>
                           <div class="library-repository-head">
                             <strong>Repositorio de recursos</strong>
                             <span>Marca qué recursos estarán disponibles al crear tareas</span>
