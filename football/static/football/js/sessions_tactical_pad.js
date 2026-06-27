@@ -2820,6 +2820,10 @@
 				    const overlayGridInput = document.getElementById('task-overlay-grid');
 				    const overlayGridRowsInput = document.getElementById('task-overlay-grid-rows');
 				    const overlayGridColsInput = document.getElementById('task-overlay-grid-cols');
+				    const overlayQuickSectorsBtn = document.getElementById('task-overlays-quick-sectors');
+				    const overlayQuickLanesBtn = document.getElementById('task-overlays-quick-lanes');
+				    const overlayQuickGrid120Btn = document.getElementById('task-overlays-quick-grid120');
+				    const overlayQuickClearBtn = document.getElementById('task-overlays-quick-clear');
 				    const overlaysApplyBtn = document.getElementById('task-overlays-apply');
 				    const zonesPopover = document.getElementById('task-zones-popover');
 				    const zonesCloseBtn = document.getElementById('task-zones-close');
@@ -8636,6 +8640,7 @@
 				      setCommandMenuOpen(false);
 				      closePatternPopover();
 				      closeFormationPopover();
+				      closeZonesPopover();
 				      try { syncTacticalOverlaysUi(); } catch (e) { /* ignore */ }
 				      setOverlaysPopoverOpen(true, { anchor });
 				    };
@@ -8644,7 +8649,7 @@
 				    try { window.__tpadOpenOverlaysPopover = openOverlaysPopover; } catch (e) { /* ignore */ }
 				    zonesBtn?.addEventListener('click', (event) => {
 				      event.preventDefault();
-				      openZonesPopover();
+				      openOverlaysPopover(zonesBtn);
 				    });
 				    zonesCloseBtn?.addEventListener('click', (event) => {
 				      event.preventDefault();
@@ -8863,6 +8868,44 @@
 		      closeOverlaysPopover();
 		      renderTacticalOverlays();
 		      setStatus('Overlays actualizados.');
+		    });
+		    const applyOverlayQuickMode = (mode) => {
+		      if (mode === 'grid120') {
+		        tacticalGridRows = 10;
+		        tacticalGridCols = 12;
+		      }
+		      if (overlaySnapInput) overlaySnapInput.checked = false;
+		      if (overlayPassLinesInput) overlayPassLinesInput.checked = false;
+		      if (overlaySuperioritiesInput) overlaySuperioritiesInput.checked = false;
+		      if (overlayHalfspacesInput) overlayHalfspacesInput.checked = false;
+		      if (overlayOffsideInput) overlayOffsideInput.checked = false;
+		      if (overlayZone14Input) overlayZone14Input.checked = false;
+		      if (overlayLanesInput) overlayLanesInput.checked = mode === 'lanes';
+		      if (overlaySectorsInput) overlaySectorsInput.checked = mode === 'sectors';
+		      if (overlayGridInput) overlayGridInput.checked = mode === 'grid120';
+		      if (overlayGridRowsInput) {
+		        overlayGridRowsInput.value = String(mode === 'grid120' ? 10 : clamp(Number.parseInt(String(overlayGridRowsInput.value || tacticalGridRows || 4), 10) || 4, 2, 12));
+		      }
+		      if (overlayGridColsInput) {
+		        overlayGridColsInput.value = String(mode === 'grid120' ? 12 : clamp(Number.parseInt(String(overlayGridColsInput.value || tacticalGridCols || 6), 10) || 6, 2, 12));
+		      }
+		      try { overlaysApplyBtn?.click?.(); } catch (e) { /* ignore */ }
+		    };
+		    overlayQuickSectorsBtn?.addEventListener('click', (event) => {
+		      event.preventDefault();
+		      applyOverlayQuickMode('sectors');
+		    });
+		    overlayQuickLanesBtn?.addEventListener('click', (event) => {
+		      event.preventDefault();
+		      applyOverlayQuickMode('lanes');
+		    });
+		    overlayQuickGrid120Btn?.addEventListener('click', (event) => {
+		      event.preventDefault();
+		      applyOverlayQuickMode('grid120');
+		    });
+		    overlayQuickClearBtn?.addEventListener('click', (event) => {
+		      event.preventDefault();
+		      applyOverlayQuickMode('clear');
 		    });
 		    const OVERLAY_PRESETS = {
 		      clean: { snap: false, lanes: false, sectors: false, passlines: false, superiorities: false, halfspaces: false, offside: false, zone14: false, grid: false, grid_rows: 4, grid_cols: 6 },
