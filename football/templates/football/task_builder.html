@@ -1276,17 +1276,21 @@
         border-color: rgba(239, 68, 68, 0.18);
       }
       .player-bank button.player-token-bank .token-name {
-        display: block;
+        display: -webkit-box;
         max-width: 100%;
         font-size: 0.82rem;
-        line-height: 1.12;
+        line-height: 1.14;
         text-align: left;
         color: #f8fafc;
         font-weight: 800;
         letter-spacing: 0.01em;
-        white-space: nowrap;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
         overflow: hidden;
-        text-overflow: ellipsis;
+        text-overflow: initial;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
       }
       .player-bank button.player-token-bank .player-token-bank-copy {
         display: flex;
@@ -4820,7 +4824,7 @@
       body:not(.tactics-mode).task-mode-ready.task-mode-board #task-roster-bank .player-bank > button.player-token-bank {
         width: 100%;
         min-width: 0;
-        min-height: 64px;
+        min-height: 70px;
         border-radius: 16px;
         padding: 0.42rem 0.5rem;
         border: 1px solid rgba(255,255,255,0.08);
@@ -7368,7 +7372,7 @@
                   {% endif %}
                   {% if not tactics_mode %}
                   <div class="board-overlay-controls" aria-label="Paneles de edición">
-                    <button type="button" class="surface-trigger is-active" id="task-board-roster-toggle" aria-pressed="true">Jugadores</button>
+                    <button type="button" class="surface-trigger" id="task-board-roster-toggle" aria-pressed="false">Jugadores</button>
                     <button type="button" class="surface-trigger" id="task-board-resources-toggle" aria-pressed="false">Material</button>
                     <a href="{{ task_resource_library_url|default:'#' }}" class="surface-trigger" id="task-resource-library-inline" aria-label="Abrir biblioteca de recursos">Biblioteca</a>
                   </div>
@@ -11106,14 +11110,6 @@
 					              return norm.slice(0, 40);
 					            };
 
-                      const shortTokenName = (name) => {
-                        const raw = String(name || '').trim();
-                        if (!raw) return '';
-                        const parts = raw.split(/\s+/).filter(Boolean);
-                        const pick = parts.length >= 2 ? parts.slice(-2).join(' ') : raw;
-                        return pick.slice(0, 22);
-                      };
-
                       const renderTokenBank = (items) => {
                         if (!tokenBank) return;
                         const list = Array.isArray(items) ? items : [];
@@ -11136,7 +11132,7 @@
                           btn.setAttribute('title', name);
                           const label = document.createElement('span');
                           label.className = 'token-name';
-                          label.textContent = shortTokenName(name) || name;
+                          label.textContent = name;
                           const badge = document.createElement('span');
                           badge.className = 'token-disk';
                           const number = document.createElement('span');
@@ -15602,7 +15598,7 @@
           const syncBoardDrawerButtons = () => {
             const resourcesOpen = document.body.classList.contains('task-board-resources-open');
             const inspectorOpen = document.body.classList.contains('task-board-inspector-open');
-            const rosterOpen = !document.body.classList.contains('task-board-roster-collapsed');
+            const rosterOpen = resourcesOpen && !document.body.classList.contains('task-board-roster-collapsed');
             resourcesToggle?.classList.toggle('is-active', resourcesOpen);
             rosterToggle?.classList.toggle('is-active', rosterOpen);
             resourcesToggle?.setAttribute('aria-pressed', resourcesOpen ? 'true' : 'false');
@@ -15720,7 +15716,11 @@
           };
 
           const closeBoardDrawers = () => {
+            const sideTabsWrap = document.getElementById('task-board-side-tabs');
             document.body.classList.remove('task-board-resources-open', 'task-board-inspector-open');
+            if (sideTabsWrap) sideTabsWrap.hidden = true;
+            if (editPane) editPane.hidden = true;
+            if (resourcesPane) resourcesPane.hidden = true;
             syncBoardDrawerButtons();
           };
 
@@ -15838,6 +15838,9 @@
           rosterToggle?.addEventListener('click', (event) => {
             try { event.preventDefault(); } catch (e) { /* ignore */ }
             document.body.classList.remove('task-board-roster-collapsed');
+            openBoardDrawer('resources');
+            activateResourceTab('base');
+            syncTopResourceButtons('base');
             syncBoardDrawerButtons();
             try { playerBank?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' }); } catch (e) { /* ignore */ }
           });
@@ -16007,10 +16010,8 @@
 
           if (window.matchMedia('(max-width: 980px)').matches) {
             activate('edit');
-            closeBoardDrawers();
-          } else {
-            activate('resources');
           }
+          closeBoardDrawers();
           activateResourceTab('');
           syncTopResourceButtons('');
         };
