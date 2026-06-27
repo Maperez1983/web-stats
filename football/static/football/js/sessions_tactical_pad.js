@@ -15301,6 +15301,40 @@
 						                      addBox(new THREE.CylinderGeometry(0.44, 0.44, 0.20, 18), shellFrameMat, sx * (metersW / 2 + 36.8), 17.64, sz * (metersH / 2 + 36.8), Math.PI / 2, 0, 0, 'pitch_3d_stadium_exterior_shell_crown_corner');
 						                    });
 						                  };
+						                  const addCurvedFacadeRead = () => {
+						                    [-1, 1].forEach((sign) => {
+						                      for (let i = -8; i <= 8; i += 1) {
+						                        const t = i / 8;
+						                        const x = t * metersW * 0.46;
+						                        const bow = (1 - Math.abs(t)) * 2.8;
+						                        const height = 7.8 + (1 - Math.abs(t)) * 1.8;
+						                        addBox(new THREE.BoxGeometry(0.18, height, 0.24), shellFrameMat, x, 8.0, sign * (metersH / 2 + 32.8 + bow), sign * -0.22, 0, t * 0.08, 'pitch_3d_stadium_exterior_curved_facade_rib_long');
+						                        if (i < 8) {
+						                          addBox(new THREE.BoxGeometry(metersW * 0.05, 0.12, 0.14), shellGlassMat, x + (metersW * 0.028), 10.24 + (1 - Math.abs(t)) * 0.38, sign * (metersH / 2 + 31.65 + bow), sign * -0.08, 0, 0, 'pitch_3d_stadium_exterior_curved_facade_glass_band_long');
+						                        }
+						                      }
+						                    });
+						                    [-1, 1].forEach((sign) => {
+						                      for (let i = -7; i <= 7; i += 1) {
+						                        const t = i / 7;
+						                        const z = t * metersH * 0.42;
+						                        const bow = (1 - Math.abs(t)) * 2.4;
+						                        const height = 7.2 + (1 - Math.abs(t)) * 1.5;
+						                        addBox(new THREE.BoxGeometry(0.24, height, 0.18), shellFrameMat, sign * (metersW / 2 + 32.8 + bow), 7.9, z, 0.08, sign * 0.22, t * 0.08, 'pitch_3d_stadium_exterior_curved_facade_rib_end');
+						                      }
+						                    });
+						                  };
+						                  const addMonumentalMainPortal = () => {
+						                    const portalZ = -(metersH / 2 + 26.4);
+						                    addBox(new THREE.BoxGeometry(metersW * 0.28, 8.2, 0.34), shellFrameMat, 0, 5.2, portalZ, 0, 0, 0, 'pitch_3d_stadium_exterior_monumental_main_portal_frame');
+						                    addBox(new THREE.BoxGeometry(metersW * 0.22, 6.0, 0.14), shellGlassMat, 0, 5.1, portalZ + 0.18, 0, 0, 0, 'pitch_3d_stadium_exterior_monumental_main_portal_glass');
+						                    addBox(new THREE.BoxGeometry(metersW * 0.34, 0.20, 5.8), shellFrameMat, 0, 10.26, portalZ + 1.8, -0.16, 0, 0, 'pitch_3d_stadium_exterior_monumental_main_portal_canopy');
+						                    addBox(new THREE.BoxGeometry(metersW * 0.30, 0.06, 0.18), shellLedMat, 0, 9.94, portalZ + 4.54, 0, 0, 0, 'pitch_3d_stadium_exterior_monumental_main_portal_led');
+						                    [-1, 1].forEach((sign) => {
+						                      addBox(new THREE.BoxGeometry(0.28, 8.8, 3.2), shellFrameMat, sign * (metersW * 0.17), 5.48, portalZ + 1.1, 0, sign * 0.08, 0, 'pitch_3d_stadium_exterior_monumental_main_portal_side_blade');
+						                    });
+						                    addBox(new THREE.BoxGeometry(metersW * 0.18, 0.08, 7.8), eventPlazaMat, 0, 0.07, -(metersH / 2 + 31.2), 0, 0, 0, 'pitch_3d_stadium_exterior_monumental_main_portal_forecourt');
+						                  };
 						                  const addMajorEventPerimeter = () => {
 						                    const addQueueWash = (x, y, z, w, h, ry = 0) => {
 						                      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), queueGlowMat);
@@ -15475,6 +15509,8 @@
 						                  addRosaledaShellFront();
 						                  addRosaledaEndShell();
 						                  addContinuousCrown();
+						                  addCurvedFacadeRead();
+						                  addMonumentalMainPortal();
 						                  addMajorEventPerimeter();
 						                  addMobilityCampusEdge();
 						                  const horizonZ = metersH / 2 + 58.0;
