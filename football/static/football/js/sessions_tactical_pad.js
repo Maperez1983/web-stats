@@ -15834,6 +15834,107 @@
 						                      });
 						                    });
 						                  };
+						                  const addUnifiedArchvizExteriorSuite = () => {
+						                    const shellLongGeo = new THREE.PlaneGeometry(metersW + 52.0, 12.6);
+						                    const shellEndGeo = new THREE.PlaneGeometry(metersH + 52.0, 12.6);
+						                    [-1, 1].forEach((sign) => {
+						                      const shellLong = new THREE.Mesh(shellLongGeo, shellVeilMat);
+						                      shellLong.position.set(0, 8.2, sign * (metersH / 2 + 29.6));
+						                      shellLong.rotation.y = sign > 0 ? Math.PI : 0;
+						                      shellLong.userData = { kind: 'pitch_3d_stadium_exterior_unified_archviz_shell_long' };
+						                      atmosphere.add(shellLong);
+						                      const shellEnd = new THREE.Mesh(shellEndGeo, shellVeilMat);
+						                      shellEnd.position.set(sign * (metersW / 2 + 29.6), 8.2, 0);
+						                      shellEnd.rotation.y = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
+						                      shellEnd.userData = { kind: 'pitch_3d_stadium_exterior_unified_archviz_shell_end' };
+						                      atmosphere.add(shellEnd);
+						                    });
+						                    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
+						                      addBox(new THREE.CylinderGeometry(7.1, 7.1, 12.8, 48), shellFrameMat, sx * (metersW / 2 + 29.6), 8.2, sz * (metersH / 2 + 29.6), 0, 0, 0, 'pitch_3d_stadium_exterior_unified_archviz_corner_shell');
+						                    });
+						                    for (let row = 0; row < 20; row += 1) {
+						                      const y = 2.2 + row * 0.46;
+						                      const inset = 0.10 + row * 0.018;
+						                      [-1, 1].forEach((sign) => {
+						                        addBox(new THREE.BoxGeometry(metersW + 50.0, 0.05, 0.08), louverMat, 0, y, sign * (metersH / 2 + 31.2 + inset), 0, 0, 0, 'pitch_3d_stadium_exterior_unified_archviz_louver_long');
+						                        addBox(new THREE.BoxGeometry(0.08, 0.05, metersH + 50.0), louverMat, sign * (metersW / 2 + 31.2 + inset), y, 0, 0, 0, 0, 'pitch_3d_stadium_exterior_unified_archviz_louver_end');
+						                        if (row % 5 === 2) {
+						                          addBox(new THREE.BoxGeometry(metersW + 42.0, 0.018, 0.06), shellLedMat, 0, y + 0.06, sign * (metersH / 2 + 31.6 + inset), 0, 0, 0, 'pitch_3d_stadium_exterior_unified_archviz_led_long');
+						                          addBox(new THREE.BoxGeometry(0.06, 0.018, metersH + 42.0), shellLedMat, sign * (metersW / 2 + 31.6 + inset), y + 0.06, 0, 0, 0, 0, 'pitch_3d_stadium_exterior_unified_archviz_led_end');
+						                        }
+						                      });
+						                    }
+						                    [-1, 1].forEach((sign) => {
+						                      addBox(new THREE.BoxGeometry(metersW + 48.0, 2.8, 0.18), shellGlassMat, 0, 1.82, sign * (metersH / 2 + 24.0), 0, 0, 0, 'pitch_3d_stadium_exterior_unified_archviz_podium_long');
+						                      addBox(new THREE.BoxGeometry(0.18, 2.8, metersH + 48.0), shellGlassMat, sign * (metersW / 2 + 24.0), 1.82, 0, 0, 0, 0, 'pitch_3d_stadium_exterior_unified_archviz_podium_end');
+						                      const longWarm = new THREE.Mesh(new THREE.PlaneGeometry(metersW + 42.0, 2.2), warmLobbyMat);
+						                      longWarm.position.set(0, 1.78, sign * (metersH / 2 + 23.6));
+						                      longWarm.rotation.y = sign > 0 ? Math.PI : 0;
+						                      longWarm.userData = { kind: 'pitch_3d_stadium_exterior_unified_archviz_podium_glow_long' };
+						                      atmosphere.add(longWarm);
+						                    });
+						                    addBox(new THREE.BoxGeometry(metersW * 0.30, 7.6, 0.28), shellFrameMat, 0, 4.8, -(metersH / 2 + 24.7), 0, 0, 0, 'pitch_3d_stadium_exterior_unified_archviz_main_portal_frame');
+						                    addBox(new THREE.BoxGeometry(metersW * 0.24, 5.8, 0.12), shellGlassMat, 0, 4.6, -(metersH / 2 + 24.3), 0, 0, 0, 'pitch_3d_stadium_exterior_unified_archviz_main_portal_glass');
+						                    addBox(new THREE.BoxGeometry(metersW * 0.34, 0.22, 6.6), shellFrameMat, 0, 9.68, -(metersH / 2 + 22.2), -0.14, 0, 0, 'pitch_3d_stadium_exterior_unified_archviz_main_portal_canopy');
+						                    const heroPortalGlow = new THREE.Mesh(new THREE.PlaneGeometry(metersW * 0.28, 7.8), shellHaloMat);
+						                    heroPortalGlow.position.set(0, 5.0, -(metersH / 2 + 24.0));
+						                    heroPortalGlow.userData = { kind: 'pitch_3d_stadium_exterior_unified_archviz_main_portal_glow' };
+						                    atmosphere.add(heroPortalGlow);
+						                    addBox(new THREE.BoxGeometry(metersW * 0.36, 0.08, 18.0), eventPlazaMat, 0, 0.05, -(metersH / 2 + 41.0), 0, 0, 0, 'pitch_3d_stadium_exterior_unified_archviz_arrival_axis');
+						                    [-1, 1].forEach((sign) => {
+						                      const pool = new THREE.Mesh(new THREE.PlaneGeometry(8.6, 17.0), reflectiveWaterMat);
+						                      pool.position.set(sign * (metersW * 0.20), 0.07, -(metersH / 2 + 42.2));
+						                      pool.rotation.x = -Math.PI / 2;
+						                      pool.userData = { kind: 'pitch_3d_stadium_exterior_unified_archviz_pool' };
+						                      atmosphere.add(pool);
+						                    });
+						                    [[0, metersH / 2 + 39.0, metersW + 34.0, 8.2], [0, -(metersH / 2 + 39.0), metersW + 34.0, 8.2], [metersW / 2 + 39.0, 0, 8.2, metersH + 34.0], [-(metersW / 2 + 39.0), 0, 8.2, metersH + 34.0]].forEach(([x, z, w, d]) => {
+						                      addBox(new THREE.BoxGeometry(w, 0.05, d), pavingMat, x, 0.045, z, 0, 0, 0, 'pitch_3d_stadium_exterior_unified_archviz_paving');
+						                    });
+						                    [-1, 1].forEach((sign) => {
+						                      const longWash = new THREE.Mesh(new THREE.PlaneGeometry(metersW + 56.0, 14.6), shellHaloMat);
+						                      longWash.position.set(0, 9.1, sign * (metersH / 2 + 30.6));
+						                      longWash.rotation.y = sign > 0 ? Math.PI : 0;
+						                      longWash.userData = { kind: 'pitch_3d_stadium_exterior_unified_archviz_lightwash_long' };
+						                      atmosphere.add(longWash);
+						                      const endWash = new THREE.Mesh(new THREE.PlaneGeometry(metersH + 56.0, 14.6), shellHaloMat);
+						                      endWash.position.set(sign * (metersW / 2 + 30.6), 9.1, 0);
+						                      endWash.rotation.y = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
+						                      endWash.userData = { kind: 'pitch_3d_stadium_exterior_unified_archviz_lightwash_end' };
+						                      atmosphere.add(endWash);
+						                    });
+						                    [-1, 1].forEach((sign) => {
+						                      for (let i = -5; i <= 5; i += 1) {
+						                        const x = i * 11.4;
+						                        addBox(new THREE.CylinderGeometry(0.10, 0.10, 4.4, 12), shellBeltMat, x, 2.20, sign * (metersH / 2 + 59.0), 0, 0, 0, 'pitch_3d_stadium_exterior_unified_archviz_lightmast');
+						                      }
+						                    });
+						                    [-1, 1].forEach((sign) => {
+						                      for (let i = -6; i <= 6; i += 1) {
+						                        const x = i * 12.8;
+						                        const h = 8.8 + (Math.abs(i) % 4) * 2.2;
+						                        addBox(new THREE.BoxGeometry(6.6, h, 6.8), shellShadowMat, x, h / 2, sign * (metersH / 2 + 77.0), 0, i * 0.02, 0, 'pitch_3d_stadium_exterior_unified_archviz_city_block');
+						                      }
+						                    });
+						                    [-0.26, -0.12, 0.12, 0.26].forEach((ratio, idx) => {
+						                      const person = new THREE.Group();
+						                      person.position.set(ratio * metersW, 0, -(metersH / 2 + 37.2 + idx * 2.6));
+						                      person.userData = { kind: 'pitch_3d_stadium_exterior_unified_archviz_person' };
+						                      const body = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.92, 0.22), idx % 2 ? plazaPeopleMat : plazaPeopleAccentMat);
+						                      body.position.set(0, 0.62, 0);
+						                      const head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), plazaPeopleMat);
+						                      head.position.set(0, 1.18, 0);
+						                      person.add(body, head);
+						                      atmosphere.add(person);
+						                    });
+						                    [-20, 0, 20].forEach((x, idx) => {
+						                      const trunkH = 1.92 + (idx % 2) * 0.22;
+						                      addBox(new THREE.BoxGeometry(0.24, trunkH, 0.24), treeTrunkMat, x, 0.40 + trunkH / 2, metersH / 2 + 43.0, 0, 0, 0, 'pitch_3d_stadium_exterior_unified_archviz_tree_trunk');
+						                      addBox(new THREE.BoxGeometry(2.4, 1.8, 2.2), treeLeafMat, x, 2.44, metersH / 2 + 43.0, 0, idx * 0.08, 0, 'pitch_3d_stadium_exterior_unified_archviz_tree_canopy');
+						                    });
+						                  };
+						                  const useUnifiedArchvizExterior = true;
+						                  if (!useUnifiedArchvizExterior) {
 						                  [
 						                    [0, metersH / 2 + 36.6, metersW + 20.0, 5.2],
 						                    [0, -(metersH / 2 + 36.6), metersW + 20.0, 5.2],
@@ -15989,6 +16090,7 @@
 						                  addLayeredNightScene();
 						                  addUrbanNightPerimeter();
 						                  addExpandedUrbanContext();
+						                  } else addUnifiedArchvizExteriorSuite();
 						                  const horizonZ = metersH / 2 + 58.0;
 						                  const mountain = new THREE.Mesh(new THREE.PlaneGeometry(metersW + 120.0, 18.0), mountainMat);
 						                  mountain.position.set(0, 11.0, horizonZ + 5.0);
