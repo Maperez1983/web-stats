@@ -29136,7 +29136,7 @@
 		      // Estilo "chapa" (igual que en la plantilla de abajo): disco con dorsal centrado y nombre simple.
 		      // Evitamos el "jersey" y los cartuchos para que dentro del campo se vea igual que fuera.
       if (kind === 'player_local' || kind === 'player_away' || kind === 'player_rival' || kind === 'goalkeeper_local' || kind === 'goalkeeper_rival') {
-		        const radius = 22;
+		        const radius = 23;
 		        baseRadius = radius;
 		        const isAway = kind === 'player_away';
         const isGoalkeeper = isGoalkeeperKind;
@@ -29546,13 +29546,13 @@
 			          tokenParts.push(nameText);
 			        } else {
 			          const tokenShadow = new fabric.Ellipse({
-			            rx: radius + 6,
-			            ry: 9,
-			            fill: 'rgba(2,6,23,0.26)',
+			            rx: radius + 7,
+			            ry: 10,
+			            fill: 'rgba(2,6,23,0.24)',
 			            originX: 'center',
 			            originY: 'center',
 			            left: 2,
-			            top: 18,
+			            top: 19,
 			            strokeWidth: 0,
 			            selectable: false,
 			            evented: false,
@@ -29564,7 +29564,7 @@
 			            radius: radius + 2,
 			            fill: '',
 			            stroke: 'rgba(2,6,23,0.64)',
-			            strokeWidth: 2.4,
+			            strokeWidth: 2.8,
 			            originX: 'center',
 			            originY: 'center',
 			            left: 0,
@@ -29579,12 +29579,12 @@
 			            radius,
 			            fill: isAway ? stripeColor : effectiveBase,
 			            stroke: 'rgba(248,250,252,0.96)',
-			            strokeWidth: 2.2,
+			            strokeWidth: 2.4,
 			            originX: 'center',
 			            originY: 'center',
 			            left: 0,
 			            top: 0,
-			            shadow: 'rgba(15,23,42,0.26) 0 7px 15px',
+			            shadow: 'rgba(15,23,42,0.24) 0 8px 18px',
 			          });
 			          baseCircle.data = { role: isAway ? 'token_fill' : 'token_base' };
 			          tokenParts.push(baseCircle);
@@ -29592,8 +29592,8 @@
 			          const rimLight = new fabric.Circle({
 			            radius: radius - 1.5,
 			            fill: '',
-			            stroke: 'rgba(255,255,255,0.26)',
-			            strokeWidth: 1.2,
+			            stroke: 'rgba(255,255,255,0.32)',
+			            strokeWidth: 1.3,
 			            originX: 'center',
 			            originY: 'center',
 			            left: 0,
@@ -29609,7 +29609,7 @@
 			          const innerRing = new fabric.Circle({
 			            radius: Math.max(2, radius - 5),
 			            fill: '',
-			            stroke: 'rgba(255,255,255,0.24)',
+			            stroke: 'rgba(255,255,255,0.22)',
 			            strokeWidth: 1.2,
 			            originX: 'center',
 			            originY: 'center',
@@ -29622,7 +29622,7 @@
 			          tokenParts.push(innerRing);
 			          const lowerShade = new fabric.Ellipse({
 			            rx: radius - 5,
-			            ry: 7,
+			            ry: 7.5,
 			            originX: 'center',
 			            originY: 'center',
 			            left: 0,
@@ -29821,32 +29821,45 @@
 			        roleDot.data = { role: 'token_role_dot' };
 			        tokenParts.push(roleDot);
 			        // Brillo común para look premium sin perder lectura táctica.
-			        const gloss = new fabric.Ellipse({
-			          rx: 11,
-			          ry: 7,
+			          const gloss = new fabric.Ellipse({
+			          rx: 12,
+			          ry: 7.5,
 			          originX: 'center',
 			          originY: 'center',
-			          left: -7,
-			          top: -11,
-			          fill: 'rgba(255,255,255,0.22)',
+			          left: -7.5,
+			          top: -11.5,
+			          fill: 'rgba(255,255,255,0.24)',
 			          strokeWidth: 0,
 			          selectable: false,
 			          evented: false,
 			        });
 			        gloss.data = { role: 'token_gloss' };
 			        tokenParts.push(gloss);
+			        const centerGlow = new fabric.Circle({
+			          radius: radius - 8,
+			          originX: 'center',
+			          originY: 'center',
+			          left: 0,
+			          top: -1,
+			          fill: 'rgba(255,255,255,0.055)',
+			          strokeWidth: 0,
+			          selectable: false,
+			          evented: false,
+			        });
+			        centerGlow.data = { role: 'token_center_glow' };
+			        tokenParts.push(centerGlow);
 			        const numberText = new fabric.Text(isGoalkeeper ? 'GK' : label, {
 		          originX: 'center',
 		          originY: 'center',
 		          left: 0,
 		          top: 0,
-		          fontSize: 16,
+		          fontSize: 17,
 		          fontWeight: '900',
 		          fill: isAway ? '#0b1220' : '#ffffff',
 		          stroke: isAway ? 'rgba(255,255,255,0.75)' : 'rgba(2,6,23,0.65)',
-		          strokeWidth: 2.4,
+		          strokeWidth: 2.6,
 		          paintFirst: 'stroke',
-		          shadow: 'rgba(15,23,42,0.55) 0 1px 2px',
+		          shadow: 'rgba(15,23,42,0.52) 0 1px 2px',
 		        });
 		        numberText.data = { role: 'token_number' };
 		        tokenParts.push(numberText);
@@ -29854,13 +29867,13 @@
 		          originX: 'center',
 		          originY: 'center',
 		          left: 0,
-		          top: -35,
+		          top: -36,
 		          width: Math.max(54, Math.min(124, (displayName.length * 6.5) + 22)),
 		          height: 17,
 		          rx: 8,
 		          ry: 8,
-		          fill: 'rgba(2,6,23,0.74)',
-		          stroke: 'rgba(255,255,255,0.18)',
+		          fill: 'rgba(2,6,23,0.68)',
+		          stroke: 'rgba(255,255,255,0.2)',
 		          strokeWidth: 1,
 		          selectable: false,
 		          evented: false,
@@ -29872,8 +29885,8 @@
 		          originX: 'center',
 		          originY: 'center',
 		          left: 0,
-		          top: -35,
-		          fontSize: 9.6,
+		          top: -36,
+		          fontSize: 9.8,
 		          fontWeight: '800',
 		          fill: '#f8fafc',
 		          shadow: 'rgba(15,23,42,0.55) 0 1px 2px',
@@ -30218,11 +30231,11 @@
 		          const r = 10;
 		          const shadow = new fabric.Circle({
 		            left: 0,
-		            top: 0,
+		            top: 1.5,
 		            originX: 'center',
 		            originY: 'center',
-		            radius: r + 1.2,
-		            fill: 'rgba(2,6,23,0.35)',
+		            radius: r + 1.8,
+		            fill: 'rgba(2,6,23,0.24)',
 		            strokeWidth: 0,
 		            selectable: false,
 		            evented: false,
@@ -30236,22 +30249,34 @@
 		            radius: r,
 		            fill: '#ffffff',
 		            stroke: '#0f172a',
-		            strokeWidth: 2,
+		            strokeWidth: 2.2,
 		            selectable: false,
 		            evented: false,
 		          });
 		          base.data = { role: 'ball_base' };
-		          const seam1 = new fabric.Line([-6, -2, 6, -2], {
+		          const seam1 = new fabric.Line([-6.5, -2, 6.5, -2], {
 		            stroke: 'rgba(15,23,42,0.55)',
-		            strokeWidth: 1.4,
+		            strokeWidth: 1.5,
 		            strokeLineCap: 'round',
 		            selectable: false,
 		            evented: false,
 		          });
-		          const seam2 = new fabric.Line([-4, 4, 4, 4], {
+		          const seam2 = new fabric.Line([-4.5, 4.3, 4.5, 4.3], {
 		            stroke: 'rgba(15,23,42,0.55)',
-		            strokeWidth: 1.4,
+		            strokeWidth: 1.5,
 		            strokeLineCap: 'round',
+		            selectable: false,
+		            evented: false,
+		          });
+		          const seam3 = new fabric.Circle({
+		            left: 0,
+		            top: 0.2,
+		            originX: 'center',
+		            originY: 'center',
+		            radius: 2.9,
+		            fill: 'rgba(15,23,42,0.14)',
+		            stroke: 'rgba(15,23,42,0.52)',
+		            strokeWidth: 1.2,
 		            selectable: false,
 		            evented: false,
 		          });
@@ -30267,7 +30292,7 @@
 		            evented: false,
 		          });
 		          highlight.data = { role: 'ball_highlight' };
-		          const group = new fabric.Group([shadow, base, seam1, seam2, highlight], {
+		          const group = new fabric.Group([shadow, base, seam1, seam2, seam3, highlight], {
 		            left,
 		            top,
 		            originX: 'center',
@@ -30295,6 +30320,19 @@
 		        return (left, top) => {
 		          const fill = '#f97316';
 		          const stroke = '#7c2d12';
+		          const foot = new fabric.Ellipse({
+		            left: 0,
+		            top: 15,
+		            originX: 'center',
+		            originY: 'center',
+		            rx: 13,
+		            ry: 4.3,
+		            fill: 'rgba(2,6,23,0.18)',
+		            strokeWidth: 0,
+		            selectable: false,
+		            evented: false,
+		          });
+		          foot.data = { role: 'cone_shadow' };
 		          const base = new fabric.Triangle({
 		            left: 0,
 		            top: -1,
@@ -30304,9 +30342,10 @@
 		            height: 28,
 		            fill,
 		            stroke,
-		            strokeWidth: 1.6,
+		            strokeWidth: 1.8,
 		            selectable: false,
 		            evented: false,
+		            shadow: 'rgba(15,23,42,0.18) 0 5px 10px',
 		          });
 		          base.data = { role: 'cone_base' };
 		          const highlight = new fabric.Path('M -6 6 L 0 -10 L 6 6 Z', {
@@ -30320,20 +30359,15 @@
 		            evented: false,
 		          });
 		          highlight.data = { role: 'cone_highlight' };
-		          const foot = new fabric.Ellipse({
-		            left: 0,
-		            top: 14,
-		            originX: 'center',
-		            originY: 'center',
-		            rx: 12,
-		            ry: 3.8,
-		            fill: 'rgba(2,6,23,0.22)',
-		            strokeWidth: 0,
+		          const band = new fabric.Line([-7, 4, 7, 4], {
+		            stroke: 'rgba(255,248,240,0.55)',
+		            strokeWidth: 2.2,
+		            strokeLineCap: 'round',
 		            selectable: false,
 		            evented: false,
 		          });
-		          foot.data = { role: 'cone_shadow' };
-		          const group = new fabric.Group([foot, base, highlight], {
+		          band.data = { role: 'cone_band' };
+		          const group = new fabric.Group([foot, base, highlight, band], {
 		            left,
 		            top,
 		            originX: 'center',
@@ -30349,18 +30383,31 @@
 	        return (left, top) => {
 	          const fill = '#ef4444';
 	          const stroke = '#7f1d1d';
+	          const foot = new fabric.Ellipse({
+	            left: 0,
+	            top: 15,
+	            originX: 'center',
+	            originY: 'center',
+	            rx: 13,
+	            ry: 4.3,
+	            fill: 'rgba(2,6,23,0.18)',
+	            strokeWidth: 0,
+	            selectable: false,
+	            evented: false,
+	          });
 	          const tri = new fabric.Triangle({
 	            left: 0,
-	            top: 0,
+	            top: -1,
 	            originX: 'center',
 	            originY: 'center',
 	            width: 26,
 	            height: 26,
 	            fill,
 	            stroke,
-	            strokeWidth: 1.5,
+	            strokeWidth: 1.7,
 	            selectable: false,
 	            evented: false,
+	            shadow: 'rgba(15,23,42,0.18) 0 5px 10px',
 	          });
 	          const stripe1 = new fabric.Line([-10, -2, 10, -2], {
 	            stroke: 'rgba(255,255,255,0.92)',
@@ -30376,7 +30423,7 @@
 	            selectable: false,
 	            evented: false,
 	          });
-	          const group = new fabric.Group([tri, stripe1, stripe2], {
+	          const group = new fabric.Group([foot, tri, stripe1, stripe2], {
 	            left,
 	            top,
 	            originX: 'center',
@@ -31055,12 +31102,12 @@
 	      if (kind === 'goal_mini') return (left, top) => buildGoalGroup(left, top, 'mini', { width: 96, height: 56 });
 	      if (kind === 'goal_popup') return (left, top) => buildGoalGroup(left, top, 'popup', { width: 104, height: 62, stroke: '#fbbf24', strokeWidth: 4 });
 	      if (kind === 'goal_futsal') return (left, top) => buildGoalGroup(left, top, 'futsal', { width: 140, height: 92, stroke: '#e2e8f0', strokeWidth: 4 });
-		      if (kind === 'line' || kind === 'line_solid') {
-		        return (left, top) => new fabric.Line([-220, 0, 220, 0], {
-		          left, top, originX: 'center', originY: 'center',
-		          stroke: '#f8fafc', strokeWidth: 3, data: { kind: 'line' },
-		        });
-		      }
+	      if (kind === 'line' || kind === 'line_solid') {
+	        return (left, top) => new fabric.Line([-220, 0, 220, 0], {
+	          left, top, originX: 'center', originY: 'center',
+	          stroke: '#f8fafc', strokeWidth: 3.2, strokeLineCap: 'round', shadow: 'rgba(2,6,23,0.24) 0 2px 6px', data: { kind: 'line' },
+	        });
+	      }
 		      if (kind === 'line_thick') {
 		        return (left, top) => new fabric.Line([-240, 0, 240, 0], {
 		          left,
@@ -31069,25 +31116,27 @@
 	          originY: 'center',
 	          stroke: '#f8fafc',
 	          strokeWidth: 7,
+	          strokeLineCap: 'round',
+	          shadow: 'rgba(2,6,23,0.24) 0 2px 6px',
 	          data: { kind: 'line-thick' },
 	        });
 		      }
 		      if (kind === 'line_dash') {
 		        return (left, top) => new fabric.Line([-220, 0, 220, 0], {
 		          left, top, originX: 'center', originY: 'center',
-		          stroke: '#f8fafc', strokeWidth: 3, strokeDashArray: [12, 8], data: { kind: 'line-dash' },
+		          stroke: '#f8fafc', strokeWidth: 3.2, strokeDashArray: [12, 8], strokeLineCap: 'round', shadow: 'rgba(2,6,23,0.24) 0 2px 6px', data: { kind: 'line-dash' },
 		        });
 		      }
 		      if (kind === 'line_dot') {
 		        return (left, top) => new fabric.Line([-220, 0, 220, 0], {
 		          left, top, originX: 'center', originY: 'center',
-		          stroke: '#f8fafc', strokeWidth: 3, strokeDashArray: [2, 9], strokeLineCap: 'round', data: { kind: 'line-dot' },
+		          stroke: '#f8fafc', strokeWidth: 3.2, strokeDashArray: [2, 9], strokeLineCap: 'round', shadow: 'rgba(2,6,23,0.24) 0 2px 6px', data: { kind: 'line-dot' },
 		        });
 		      }
 			      if (kind === 'line_double') {
 			        return (left, top) => new fabric.Group([
-			          new fabric.Line([-220, -10, 220, -10], { stroke: '#f8fafc', strokeWidth: 3 }),
-			          new fabric.Line([-220, 10, 220, 10], { stroke: '#f8fafc', strokeWidth: 3 }),
+			          new fabric.Line([-220, -10, 220, -10], { stroke: '#f8fafc', strokeWidth: 3.2, strokeLineCap: 'round', shadow: 'rgba(2,6,23,0.22) 0 2px 6px' }),
+			          new fabric.Line([-220, 10, 220, 10], { stroke: '#f8fafc', strokeWidth: 3.2, strokeLineCap: 'round', shadow: 'rgba(2,6,23,0.22) 0 2px 6px' }),
 			        ], { left, top, originX: 'center', originY: 'center', data: { kind: 'line-double' } });
 			      }
 			      // Divisores de carril (libres): líneas a pantalla completa para crear carriles/espacios personalizados.
@@ -31201,11 +31250,34 @@
 		        const baseLen = clamp(Number(options.baseLen) || 320, 60, 520);
 	        const kind = safeText(options.kind, 'arrow');
 
+	        const underLine = new fabric.Line([-(baseLen / 2), 0, (baseLen / 2) - (headSize / 2), 0], {
+	          stroke: 'rgba(2,6,23,0.34)',
+	          strokeWidth: strokeWidth + 3.2,
+	          strokeDashArray: dash || undefined,
+	          strokeLineCap: cap,
+	          originX: 'center',
+	          originY: 'center',
+	          selectable: false,
+	          evented: false,
+	        });
 	        const line = new fabric.Line([-(baseLen / 2), 0, (baseLen / 2) - (headSize / 2), 0], {
 	          stroke,
 	          strokeWidth,
 	          strokeDashArray: dash || undefined,
 	          strokeLineCap: cap,
+	          originX: 'center',
+	          originY: 'center',
+	          shadow: 'rgba(2,6,23,0.18) 0 2px 6px',
+	          selectable: false,
+	          evented: false,
+	        });
+	        const headUnder = new fabric.Triangle({
+	          left: (baseLen / 2) - (headSize / 2) + headOffset,
+	          top: 0,
+	          width: headSize + 5,
+	          height: headSize + 5,
+	          angle: 90,
+	          fill: 'rgba(2,6,23,0.34)',
 	          originX: 'center',
 	          originY: 'center',
 	          selectable: false,
@@ -31223,7 +31295,7 @@
 	          selectable: false,
 	          evented: false,
 	        });
-	        const group = new fabric.Group([line, head], { left, top, originX: 'center', originY: 'center', data: { kind } });
+	        const group = new fabric.Group([underLine, line, headUnder, head], { left, top, originX: 'center', originY: 'center', data: { kind } });
 	        try { group.objectCaching = false; } catch (e) { /* ignore */ }
 	        try { group.noScaleCache = true; } catch (e) { /* ignore */ }
 	        return group;
@@ -31248,12 +31320,24 @@
 	            top: 0,
 	            originX: 'center',
 	            originY: 'center',
+	            stroke: 'rgba(2,6,23,0.34)',
+	            fill: '',
+	            strokeWidth: 7,
+	            strokeLineCap: 'round',
+	            strokeLineJoin: 'round',
+		          }),
+			          new fabric.Path('M -50 22 Q -8 -30 46 10', {
+		            left: 0,
+	            top: 0,
+	            originX: 'center',
+	            originY: 'center',
 	            stroke: '#22d3ee',
 	            fill: '',
 	            strokeWidth: 4,
 	            strokeLineCap: 'round',
 	            strokeLineJoin: 'round',
 		          }),
+		          new fabric.Triangle({ left: 58, top: 10, width: 23, height: 23, angle: 122, fill: 'rgba(2,6,23,0.34)', originX: 'center', originY: 'center' }),
 		          new fabric.Triangle({ left: 58, top: 10, width: 18, height: 18, angle: 122, fill: '#22d3ee', originX: 'center', originY: 'center' }),
 		        ], { left, top, originX: 'center', originY: 'center', data: { kind: 'arrow-curve', curve_sign: 1 } });
 		      }
@@ -31265,12 +31349,24 @@
 		            top: 0,
 		            originX: 'center',
 		            originY: 'center',
+		            stroke: 'rgba(2,6,23,0.34)',
+		            fill: '',
+		            strokeWidth: 7,
+		            strokeLineCap: 'round',
+		            strokeLineJoin: 'round',
+		          }),
+		          new fabric.Path('M -50 -22 Q -8 30 46 -10', {
+		            left: 0,
+		            top: 0,
+		            originX: 'center',
+		            originY: 'center',
 		            stroke: '#22d3ee',
 		            fill: '',
 		            strokeWidth: 4,
 		            strokeLineCap: 'round',
 		            strokeLineJoin: 'round',
 		          }),
+		          new fabric.Triangle({ left: 58, top: -10, width: 23, height: 23, angle: 238, fill: 'rgba(2,6,23,0.34)', originX: 'center', originY: 'center' }),
 		          new fabric.Triangle({ left: 58, top: -10, width: 18, height: 18, angle: 238, fill: '#22d3ee', originX: 'center', originY: 'center' }),
 		        ], { left, top, originX: 'center', originY: 'center', data: { kind: 'arrow-curve', curve_sign: -1 } });
 		      }
