@@ -79,7 +79,46 @@
     }
   };
 
+  const buildEmergencyPitchSvg = (orientationKey = 'landscape') => {
+    const portrait = safeText(orientationKey, 'landscape') === 'portrait';
+    const viewW = 1200;
+    const viewH = 820;
+    const pitchW = 900;
+    const pitchH = 584;
+    const x = (viewW - pitchW) / 2;
+    const y = (viewH - pitchH) / 2;
+    const cx = x + pitchW / 2;
+    const cy = y + pitchH / 2;
+    const goalW = pitchH * 0.172;
+    const goalY = cy - goalW / 2;
+    const goalDepth = 42;
+    const line = '#fdfefe';
+    const stripes = Array.from({ length: 12 }, (_, index) => {
+      const width = pitchW / 12;
+      return `<rect x="${x + index * width}" y="${y}" width="${width + 1}" height="${pitchH}" fill="${index % 2 === 0 ? '#a7c564' : '#8ab04f'}" opacity="0.96"/>`;
+    }).join('');
+    const grain = Array.from({ length: 7 }, (_, index) => {
+      const yy = y + ((pitchH / 8) * (index + 1));
+      return `<line x1="${x + 10}" y1="${yy}" x2="${x + pitchW - 10}" y2="${yy}" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>`;
+    }).join('');
+    const net = (left) => {
+      const frontX = left ? x : x + pitchW;
+      const backX = left ? x - goalDepth : x + pitchW + goalDepth;
+      const points = left
+        ? `${frontX},${goalY} ${backX},${goalY + 9} ${backX},${goalY + goalW - 9} ${frontX},${goalY + goalW}`
+        : `${frontX},${goalY} ${backX},${goalY + 9} ${backX},${goalY + goalW - 9} ${frontX},${goalY + goalW}`;
+      return `<ellipse cx="${left ? frontX - goalDepth * 0.54 : frontX + goalDepth * 0.54}" cy="${cy}" rx="${goalDepth * 0.9}" ry="${goalW * 0.42}" fill="rgba(9,18,28,0.12)"/><polygon points="${points}" fill="url(#fallback-net)" opacity="0.88"/><line x1="${frontX}" y1="${goalY}" x2="${backX}" y2="${goalY + 9}" stroke="rgba(248,251,255,0.95)" stroke-width="3"/><line x1="${frontX}" y1="${goalY + goalW}" x2="${backX}" y2="${goalY + goalW - 9}" stroke="rgba(248,251,255,0.95)" stroke-width="3"/><line x1="${backX}" y1="${goalY + 9}" x2="${backX}" y2="${goalY + goalW - 9}" stroke="rgba(226,232,240,0.92)" stroke-width="2.4"/><line x1="${frontX}" y1="${goalY}" x2="${frontX}" y2="${goalY + goalW}" stroke="#ffffff" stroke-width="3.4"/>`;
+    };
+    const scene = `<defs><linearGradient id="fallback-bg" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#6b8d3f"/><stop offset="100%" stop-color="#799946"/></linearGradient><radialGradient id="fallback-light" cx="50%" cy="48%" r="66%"><stop offset="0%" stop-color="rgba(255,255,255,0.08)"/><stop offset="100%" stop-color="rgba(255,255,255,0)"/></radialGradient><pattern id="fallback-net" width="14" height="14" patternUnits="userSpaceOnUse"><path d="M 0 0 L 14 14 M 14 0 L 0 14" stroke="rgba(248,251,255,0.56)" stroke-width="0.9"/></pattern></defs><rect width="${viewW}" height="${viewH}" fill="#6b8d3f"/><rect x="${x - 26}" y="${y - 26}" width="${pitchW + 52}" height="${pitchH + 52}" rx="30" ry="30" fill="#a6c15d"/><rect x="${x - 12}" y="${y - 12}" width="${pitchW + 24}" height="${pitchH + 24}" rx="22" ry="22" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="1.4"/><rect x="${x}" y="${y}" width="${pitchW}" height="${pitchH}" rx="16" ry="16" fill="#96b758"/>${stripes}${grain}<ellipse cx="${x + pitchW * 0.16}" cy="${cy}" rx="${pitchW * 0.26}" ry="${pitchH * 0.34}" fill="rgba(255,255,255,0.05)"/><ellipse cx="${x + pitchW * 0.84}" cy="${cy}" rx="${pitchW * 0.26}" ry="${pitchH * 0.34}" fill="rgba(255,255,255,0.05)"/><rect x="${x}" y="${y}" width="${pitchW}" height="${pitchH}" rx="16" ry="16" fill="url(#fallback-light)"/><rect x="${x + 6}" y="${y + 6}" width="${pitchW - 12}" height="${pitchH - 12}" rx="12" ry="12" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1.2"/><rect x="${x}" y="${y}" width="${pitchW}" height="${pitchH}" rx="16" ry="16" fill="none" stroke="rgba(9,18,28,0.11)" stroke-width="6.1"/><line x1="${cx}" y1="${y}" x2="${cx}" y2="${y + pitchH}" stroke="rgba(9,18,28,0.11)" stroke-width="5.5"/><circle cx="${cx}" cy="${cy}" r="${pitchH * 0.145}" fill="none" stroke="rgba(9,18,28,0.11)" stroke-width="5.5"/><rect x="${x}" y="${cy - pitchH * 0.2575}" width="${pitchW * 0.205}" height="${pitchH * 0.515}" fill="none" stroke="rgba(9,18,28,0.11)" stroke-width="5.5"/><rect x="${x}" y="${cy - pitchH * 0.1125}" width="${pitchW * 0.092}" height="${pitchH * 0.225}" fill="none" stroke="rgba(9,18,28,0.11)" stroke-width="5.5"/><rect x="${x + pitchW - pitchW * 0.205}" y="${cy - pitchH * 0.2575}" width="${pitchW * 0.205}" height="${pitchH * 0.515}" fill="none" stroke="rgba(9,18,28,0.11)" stroke-width="5.5"/><rect x="${x + pitchW - pitchW * 0.092}" y="${cy - pitchH * 0.1125}" width="${pitchW * 0.092}" height="${pitchH * 0.225}" fill="none" stroke="rgba(9,18,28,0.11)" stroke-width="5.5"/>${net(true)}${net(false)}<rect x="${x}" y="${y}" width="${pitchW}" height="${pitchH}" rx="16" ry="16" fill="none" stroke="${line}" stroke-width="4.7"/><line x1="${cx}" y1="${y}" x2="${cx}" y2="${y + pitchH}" stroke="${line}" stroke-width="4.1"/><circle cx="${cx}" cy="${cy}" r="${pitchH * 0.145}" fill="none" stroke="${line}" stroke-width="4.1"/><circle cx="${cx}" cy="${cy}" r="4.8" fill="${line}"/><rect x="${x}" y="${cy - pitchH * 0.2575}" width="${pitchW * 0.205}" height="${pitchH * 0.515}" fill="none" stroke="${line}" stroke-width="4.1"/><rect x="${x}" y="${cy - pitchH * 0.1125}" width="${pitchW * 0.092}" height="${pitchH * 0.225}" fill="none" stroke="${line}" stroke-width="4.1"/><rect x="${x + pitchW - pitchW * 0.205}" y="${cy - pitchH * 0.2575}" width="${pitchW * 0.205}" height="${pitchH * 0.515}" fill="none" stroke="${line}" stroke-width="4.1"/><rect x="${x + pitchW - pitchW * 0.092}" y="${cy - pitchH * 0.1125}" width="${pitchW * 0.092}" height="${pitchH * 0.225}" fill="none" stroke="${line}" stroke-width="4.1"/><circle cx="${x + pitchW * 0.165}" cy="${cy}" r="4.2" fill="${line}"/><circle cx="${x + pitchW * 0.835}" cy="${cy}" r="4.2" fill="${line}"/><path d="M ${x + 2} ${y + 16} A 14 14 0 0 1 ${x + 16} ${y + 2}" fill="none" stroke="${line}" stroke-width="3"/><path d="M ${x + pitchW - 16} ${y + 2} A 14 14 0 0 1 ${x + pitchW - 2} ${y + 16}" fill="none" stroke="${line}" stroke-width="3"/><path d="M ${x + 16} ${y + pitchH - 2} A 14 14 0 0 1 ${x + 2} ${y + pitchH - 16}" fill="none" stroke="${line}" stroke-width="3"/><path d="M ${x + pitchW - 2} ${y + pitchH - 16} A 14 14 0 0 1 ${x + pitchW - 16} ${y + pitchH - 2}" fill="none" stroke="${line}" stroke-width="3"/></svg>`;
+    if (!portrait) return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${viewW} ${viewH}" preserveAspectRatio="xMidYMid meet">${scene}`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${viewH} ${viewW}" preserveAspectRatio="xMidYMid meet"><g transform="translate(${viewH} 0) rotate(90)">${scene}</g></svg>`;
+  };
+
   const buildPitchSvg = (presetKey, orientationKey = 'landscape', grassStyleKey = 'classic') => {
+    if (window.WebstatsPitch25D && typeof window.WebstatsPitch25D.buildPitchSvg === 'function') {
+      return window.WebstatsPitch25D.buildPitchSvg(presetKey, orientationKey, grassStyleKey);
+    }
+    return buildEmergencyPitchSvg(orientationKey);
     const preset = String(presetKey || 'full_pitch').trim();
     const orientation = safeText(orientationKey, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
     const normalizedGrass = safeText(grassStyleKey, 'classic').toLowerCase();
@@ -90,6 +129,8 @@
       'broadcast',
       'broadcast_premium',
       'stadium_top',
+      'stadium_top_h',
+      'stadium_top_v',
       'artificial',
       'dry',
       'wet',
@@ -100,6 +141,8 @@
     ].includes(normalizedGrass))
       ? normalizedGrass
       : 'classic';
+    const isStadiumTopFamily = ['stadium_top', 'stadium_top_h', 'stadium_top_v'].includes(grassStyle);
+    const renderStadiumOverlay = preset !== 'blank' && !['coachboard', 'whiteboard', 'blackboard'].includes(grassStyle);
 
     const stageW = orientation === 'portrait' ? 680 : 1050;
     const stageH = orientation === 'portrait' ? 1050 : 680;
@@ -115,15 +158,25 @@
     root.setAttribute('viewBox', `${-bleed} ${-bleed} ${stageW + (bleed * 2)} ${stageH + (bleed * 2)}`);
     root.setAttribute('preserveAspectRatio', orientation === 'portrait' ? 'xMidYMid slice' : 'xMidYMid meet');
 
-    const resolvePitch3dTopImageHref = () => {
+    const resolvePitch3dOverlayImageHref = () => {
+      const forcePortrait = grassStyle === 'stadium_top_v';
+      const forceLandscape = grassStyle === 'stadium_top_h';
+      const usePortraitImage = forcePortrait || (!forceLandscape && orientation === 'portrait');
       try {
-        const globalImages = window.__WEBSTATS_PITCH3D_TOP_IMAGES || {};
-        const preferred = orientation === 'portrait' ? safeText(globalImages.v) : safeText(globalImages.h);
+        const globalImages = window.__WEBSTATS_PITCH3D_OVERLAY_IMAGES || {};
+        const preferred = usePortraitImage ? safeText(globalImages.v) : safeText(globalImages.h);
         if (preferred) return preferred;
       } catch (e) { /* ignore */ }
-      return orientation === 'portrait'
-        ? '/static/football/images/pitch3d/stadium_rosaleda_top_v.png'
-        : '/static/football/images/pitch3d/stadium_rosaleda_top_h.png';
+      try {
+        const formEl = document.getElementById('task-builder-form');
+        const preferred = usePortraitImage
+          ? safeText(formEl?.dataset?.pitch3dStadiumOverlayVSrc)
+          : safeText(formEl?.dataset?.pitch3dStadiumOverlayHSrc);
+        if (preferred) return preferred;
+      } catch (e) { /* ignore */ }
+      return usePortraitImage
+        ? '/static/football/images/pitch3d/stadium_taskboard_overlay_v.png'
+        : '/static/football/images/pitch3d/stadium_taskboard_overlay_h.png';
     };
     const defs = createSvgNode(doc, 'defs');
     const gradient = createSvgNode(doc, 'linearGradient', { id: 'pitch-bg', x1: '0%', y1: '0%', x2: '0%', y2: '100%' });
@@ -181,16 +234,7 @@
       }));
       pattern.appendChild(createSvgNode(doc, 'rect', { x: 0, y: 0, width: 96, height: 96, fill: 'rgba(0,0,0,0.04)' }));
       defs.appendChild(pattern);
-    } else if (grassStyle === 'stadium_top') {
-      grassFillId = 'pitch-stadium-top';
-      const pattern = createSvgNode(doc, 'pattern', { id: grassFillId, patternUnits: 'userSpaceOnUse', x: -bleed, y: -bleed, width: stageW + (bleed * 2), height: stageH + (bleed * 2) });
-      const href = resolvePitch3dTopImageHref();
-      const image = createSvgNode(doc, 'image', { href, x: -bleed, y: -bleed, width: stageW + (bleed * 2), height: stageH + (bleed * 2), preserveAspectRatio: 'xMidYMid slice' });
-      try { image.setAttribute('xlink:href', href); } catch (e) { /* ignore */ }
-      pattern.appendChild(image);
-      pattern.appendChild(createSvgNode(doc, 'rect', { x: -bleed, y: -bleed, width: stageW + (bleed * 2), height: stageH + (bleed * 2), fill: 'rgba(3, 7, 18, 0.12)' }));
-      defs.appendChild(pattern);
-    } else if (grassStyle !== 'classic') {
+    } else if (grassStyle !== 'classic' && !isStadiumTopFamily) {
       const dataUrl = __buildGrassTextureDataUrl(grassStyle);
       if (dataUrl) {
         grassFillId = 'pitch-grass-img';
@@ -223,6 +267,21 @@
       height: stageH + (bleed * 2),
       fill: preset === 'blank' ? 'transparent' : fillOutside,
     }));
+    if (renderStadiumOverlay) {
+      const overlayHref = resolvePitch3dOverlayImageHref();
+      if (overlayHref) {
+        const overlay = createSvgNode(doc, 'image', {
+          href: overlayHref,
+          x: -bleed,
+          y: -bleed,
+          width: stageW + (bleed * 2),
+          height: stageH + (bleed * 2),
+          preserveAspectRatio: 'xMidYMid slice',
+        });
+        try { overlay.setAttribute('xlink:href', overlayHref); } catch (e) { /* ignore */ }
+        root.appendChild(overlay);
+      }
+    }
 
     const drawRoot = createSvgNode(doc, 'g');
     if (orientation === 'portrait') {
@@ -234,8 +293,8 @@
       const portrait = orientation === 'portrait';
       const effectiveW = portrait ? stageH : stageW;
       const effectiveH = portrait ? stageW : stageH;
-      const marginX = (grassStyle === 'stadium_top') ? 84 : ((grassStyle === 'broadcast_premium') ? 32 : 0);
-      const marginY = (grassStyle === 'stadium_top') ? 74 : ((grassStyle === 'broadcast_premium') ? 22 : 0);
+      const marginX = renderStadiumOverlay ? 84 : ((grassStyle === 'broadcast_premium') ? 32 : 0);
+      const marginY = renderStadiumOverlay ? 74 : ((grassStyle === 'broadcast_premium') ? 22 : 0);
       const availableWidth = effectiveW - marginX * 2;
       const availableHeight = effectiveH - marginY * 2;
       const fit = safeText(fitMode, 'contain') === 'cover' ? 'cover' : 'contain';
@@ -263,8 +322,8 @@
     let pitchBox = { x: stage.x, y: stage.y, width: stage.width, height: stage.height };
     const scale = stage.width / 105;
 
-    const line = (grassStyle === 'whiteboard') ? '#0f172a' : (grassStyle === 'stadium_top' ? 'rgba(255,255,255,0.96)' : '#f8fafc');
-    const soft = (grassStyle === 'whiteboard') ? 'rgba(15,23,42,0.55)' : (grassStyle === 'stadium_top' ? 'rgba(255,255,255,0.78)' : 'rgba(248,250,252,0.66)');
+    const line = (grassStyle === 'whiteboard') ? '#0f172a' : (renderStadiumOverlay ? 'rgba(255,255,255,0.96)' : '#f8fafc');
+    const soft = (grassStyle === 'whiteboard') ? 'rgba(15,23,42,0.55)' : (renderStadiumOverlay ? 'rgba(255,255,255,0.78)' : 'rgba(248,250,252,0.66)');
 
     const drawFrame = (x, y, width, height, lineWidth = 4) => {
       drawRoot.appendChild(createSvgNode(doc, 'rect', {
@@ -280,15 +339,15 @@
 
     const drawGoal = (x, y, width, depth, atTop) => {
       const goalY = atTop ? (y - depth) : (y + stage.height);
-      if (grassStyle === 'stadium_top' || grassStyle === 'broadcast_premium') {
-        const frameStroke = grassStyle === 'stadium_top' ? 'rgba(255,255,255,0.44)' : 'rgba(255,255,255,0.34)';
-        const meshStroke = grassStyle === 'stadium_top' ? 'rgba(255,255,255,0.24)' : 'rgba(255,255,255,0.18)';
+      if (renderStadiumOverlay || grassStyle === 'broadcast_premium') {
+        const frameStroke = renderStadiumOverlay ? 'rgba(255,255,255,0.44)' : 'rgba(255,255,255,0.34)';
+        const meshStroke = renderStadiumOverlay ? 'rgba(255,255,255,0.24)' : 'rgba(255,255,255,0.18)';
         drawRoot.appendChild(createSvgNode(doc, 'rect', {
           x,
           y: goalY,
           width,
           height: depth,
-          fill: grassStyle === 'stadium_top' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.05)',
+          fill: renderStadiumOverlay ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.05)',
           stroke: frameStroke,
           'stroke-width': 3,
         }));
@@ -336,12 +395,10 @@
     };
 
     const drawAdvertisingBoards = (x, y, width, height) => {
-      if (grassStyle !== 'stadium_top' && grassStyle !== 'broadcast_premium') return;
-      const offset = grassStyle === 'stadium_top' ? 30 : 16;
-      const bandH = grassStyle === 'stadium_top' ? 18 : 11;
-      const palette = grassStyle === 'stadium_top'
-        ? ['#0f172a', '#0ea5e9', '#16a34a', '#f8fafc', '#0ea5e9', '#0f172a']
-        : ['rgba(15,23,42,0.76)', 'rgba(34,211,238,0.64)', 'rgba(255,255,255,0.74)', 'rgba(34,197,94,0.62)', 'rgba(255,255,255,0.74)', 'rgba(15,23,42,0.76)'];
+      if (renderStadiumOverlay || grassStyle !== 'broadcast_premium') return;
+      const offset = 16;
+      const bandH = 11;
+      const palette = ['rgba(15,23,42,0.76)', 'rgba(34,211,238,0.64)', 'rgba(255,255,255,0.74)', 'rgba(34,197,94,0.62)', 'rgba(255,255,255,0.74)', 'rgba(15,23,42,0.76)'];
       const segments = 6;
       const segmentW = width / segments;
       const topY = y - offset - bandH;
@@ -361,24 +418,12 @@
             stroke: 'rgba(255,255,255,0.3)',
             'stroke-width': 1.3,
           }));
-          if (grassStyle === 'stadium_top') {
-            drawRoot.appendChild(createSvgNode(doc, 'rect', {
-              x: segX + 3,
-              y: bandY + 3,
-              width: Math.max(8, segW - 6),
-              height: Math.max(6, bandH - 6),
-              rx: 5,
-              ry: 5,
-              fill: 'rgba(255,255,255,0.12)',
-              stroke: 'none',
-            }));
-          }
         });
       }
     };
 
     const drawStadiumContext = (x, y, width, height) => {
-      if (grassStyle !== 'stadium_top') return;
+      if (renderStadiumOverlay || !isStadiumTopFamily) return;
       const runoff = 26;
       const concourseH = 38;
       const standH = 84;
@@ -613,7 +658,6 @@
       stage = createStage(desiredAspect, 'contain');
       pitchBox = { x: stage.x, y: stage.y, width: stage.width, height: stage.height };
       drawStadiumContext(stage.x, stage.y, stage.width, stage.height);
-      // Frame + center line + circle (scaled to stage).
       drawFrame(stage.x, stage.y, stage.width, stage.height, 4);
       drawRoot.appendChild(createSvgNode(doc, 'line', {
         x1: stage.x,
@@ -631,7 +675,6 @@
         stroke: line,
         'stroke-width': 3,
       }));
-      // Small goals.
       const goalDepth = 22;
       drawGoal(stage.x + stage.width * 0.42, stage.y, stage.width * 0.16, goalDepth, true);
       drawGoal(stage.x + stage.width * 0.42, stage.y, stage.width * 0.16, goalDepth, false);
@@ -642,7 +685,6 @@
       pitchBox = { x: stage.x, y: stage.y, width: stage.width, height: halfHeight };
       drawStadiumContext(stage.x, stage.y, stage.width, halfHeight);
       drawFrame(stage.x, stage.y, stage.width, halfHeight, 4);
-      // penalty only in top.
       const scaleHalf = stage.width / 105;
       const boxW = 40.32 * scaleHalf;
       const boxH = 16.5 * scaleHalf;

@@ -453,7 +453,163 @@
 		    }
 		  };
 
-			  const buildPitchSvg = (presetKey, orientationKey = 'landscape', grassStyleKey = 'classic') => {
+      let __pitch25dRuntimePromise = null;
+      const ensurePitch25dRuntime = () => {
+        try {
+          if (window.WebstatsPitch25D && typeof window.WebstatsPitch25D.buildPitchSvg === 'function') {
+            return Promise.resolve(true);
+          }
+        } catch (e) { /* ignore */ }
+        if (__pitch25dRuntimePromise) return __pitch25dRuntimePromise;
+        __pitch25dRuntimePromise = new Promise((resolve) => {
+          const finish = (ok) => {
+            try {
+              if (ok) window.dispatchEvent(new CustomEvent('webstats:pitch25d-ready'));
+            } catch (e) { /* ignore */ }
+            resolve(!!ok);
+          };
+          const isReady = () => {
+            try { return !!(window.WebstatsPitch25D && typeof window.WebstatsPitch25D.buildPitchSvg === 'function'); } catch (e) { return false; }
+          };
+          if (isReady()) { finish(true); return; }
+          let src = '';
+          try {
+            const formEl = document.getElementById('task-builder-form');
+            src = safeText(formEl?.dataset?.pitch25dSrc);
+          } catch (e) { /* ignore */ }
+          if (!src) src = '/static/football/js/pitch_surface_25d.js';
+          try {
+            const existing = Array.from(document.scripts || []).find((node) => safeText(node.src) === src);
+            if (!existing) {
+              const script = document.createElement('script');
+              script.src = src;
+              script.defer = true;
+              script.dataset.webstatsPitch25dInjected = '1';
+              document.head.appendChild(script);
+            }
+          } catch (e) { /* ignore */ }
+          const startTs = Date.now();
+          const maxWaitMs = 12000;
+          const poll = () => {
+            if (isReady()) { finish(true); return; }
+            if ((Date.now() - startTs) >= maxWaitMs) { finish(false); return; }
+            window.setTimeout(poll, 250);
+          };
+          window.setTimeout(poll, 50);
+        });
+        return __pitch25dRuntimePromise;
+      };
+
+      const buildEmergencyPitchSvg = (orientationKey = 'landscape') => {
+        const portrait = safeText(orientationKey, 'landscape') === 'portrait';
+        const sceneW = 1200;
+        const sceneH = 820;
+        const pitchW = 900;
+        const pitchH = 584;
+        const x = (sceneW - pitchW) / 2;
+        const y = (sceneH - pitchH) / 2;
+        const cx = x + pitchW / 2;
+        const cy = y + pitchH / 2;
+        const line = '#fdfefe';
+        const outer = 26;
+        const lane = 12;
+        const areaW = pitchW * 0.205;
+        const areaH = pitchH * 0.515;
+        const sixW = pitchW * 0.092;
+        const sixH = pitchH * 0.225;
+        const goalDepth = 42;
+        const goalW = pitchH * 0.172;
+        const goalY = cy - goalW / 2;
+        const stripes = Array.from({ length: 12 }, (_, index) => {
+          const width = pitchW / 12;
+          const fill = index % 2 === 0 ? '#a7c564' : '#8ab04f';
+          return `<rect x="${x + index * width}" y="${y}" width="${width + 1}" height="${pitchH}" fill="${fill}" opacity="0.96"/>`;
+        }).join('');
+        const grain = Array.from({ length: 7 }, (_, index) => {
+          const gy = y + ((index + 1) * pitchH / 8);
+          return `<line x1="${x + 10}" y1="${gy}" x2="${x + pitchW - 10}" y2="${gy}" stroke="rgba(255,255,255,0.035)" stroke-width="1"/>`;
+        }).join('');
+        const net = (left) => {
+          const frontX = left ? x : x + pitchW;
+          const backX = left ? x - goalDepth : x + pitchW + goalDepth;
+          const points = left
+            ? `${frontX},${goalY} ${backX},${goalY + 9} ${backX},${goalY + goalW - 9} ${frontX},${goalY + goalW}`
+            : `${frontX},${goalY} ${backX},${goalY + 9} ${backX},${goalY + goalW - 9} ${frontX},${goalY + goalW}`;
+          return `
+            <ellipse cx="${left ? frontX - goalDepth * 0.54 : frontX + goalDepth * 0.54}" cy="${cy}" rx="${goalDepth * 0.9}" ry="${goalW * 0.42}" fill="rgba(9,18,28,0.12)"/>
+            <polygon points="${points}" fill="url(#fallback-net)" opacity="0.88"/>
+            <line x1="${frontX}" y1="${goalY}" x2="${backX}" y2="${goalY + 9}" stroke="rgba(248,251,255,0.95)" stroke-width="3"/>
+            <line x1="${frontX}" y1="${goalY + goalW}" x2="${backX}" y2="${goalY + goalW - 9}" stroke="rgba(248,251,255,0.95)" stroke-width="3"/>
+            <line x1="${backX}" y1="${goalY + 9}" x2="${backX}" y2="${goalY + goalW - 9}" stroke="rgba(226,232,240,0.92)" stroke-width="2.4"/>
+            <line x1="${frontX}" y1="${goalY}" x2="${frontX}" y2="${goalY + goalW}" stroke="#ffffff" stroke-width="3.4"/>
+          `;
+        };
+        const scene = `
+          <defs>
+            <linearGradient id="fallback-bg" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#6b8d3f"/>
+              <stop offset="100%" stop-color="#799946"/>
+            </linearGradient>
+            <radialGradient id="fallback-light" cx="50%" cy="48%" r="66%">
+              <stop offset="0%" stop-color="rgba(255,255,255,0.08)"/>
+              <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+            </radialGradient>
+            <pattern id="fallback-net" width="14" height="14" patternUnits="userSpaceOnUse">
+              <path d="M 0 0 L 14 14 M 14 0 L 0 14" stroke="rgba(248,251,255,0.56)" stroke-width="0.9"/>
+            </pattern>
+          </defs>
+          <rect width="${sceneW}" height="${sceneH}" fill="#6b8d3f"/>
+          <rect x="${x - outer}" y="${y - outer}" width="${pitchW + outer * 2}" height="${pitchH + outer * 2}" rx="30" ry="30" fill="#a6c15d"/>
+          <rect x="${x - lane}" y="${y - lane}" width="${pitchW + lane * 2}" height="${pitchH + lane * 2}" rx="22" ry="22" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="1.4"/>
+          <rect x="${x}" y="${y}" width="${pitchW}" height="${pitchH}" rx="16" ry="16" fill="#96b758"/>
+          ${stripes}
+          ${grain}
+          <ellipse cx="${x + pitchW * 0.16}" cy="${cy}" rx="${pitchW * 0.26}" ry="${pitchH * 0.34}" fill="rgba(255,255,255,0.05)"/>
+          <ellipse cx="${x + pitchW * 0.84}" cy="${cy}" rx="${pitchW * 0.26}" ry="${pitchH * 0.34}" fill="rgba(255,255,255,0.05)"/>
+          <rect x="${x}" y="${y}" width="${pitchW}" height="${pitchH}" rx="16" ry="16" fill="url(#fallback-light)"/>
+          <rect x="${x + 6}" y="${y + 6}" width="${pitchW - 12}" height="${pitchH - 12}" rx="12" ry="12" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1.2"/>
+          <rect x="${x}" y="${y}" width="${pitchW}" height="${pitchH}" rx="16" ry="16" fill="none" stroke="rgba(9,18,28,0.11)" stroke-width="6.1"/>
+          <line x1="${cx}" y1="${y}" x2="${cx}" y2="${y + pitchH}" stroke="rgba(9,18,28,0.11)" stroke-width="5.5"/>
+          <circle cx="${cx}" cy="${cy}" r="${pitchH * 0.145}" fill="none" stroke="rgba(9,18,28,0.11)" stroke-width="5.5"/>
+          <rect x="${x}" y="${cy - areaH / 2}" width="${areaW}" height="${areaH}" fill="none" stroke="rgba(9,18,28,0.11)" stroke-width="5.5"/>
+          <rect x="${x}" y="${cy - sixH / 2}" width="${sixW}" height="${sixH}" fill="none" stroke="rgba(9,18,28,0.11)" stroke-width="5.5"/>
+          <rect x="${x + pitchW - areaW}" y="${cy - areaH / 2}" width="${areaW}" height="${areaH}" fill="none" stroke="rgba(9,18,28,0.11)" stroke-width="5.5"/>
+          <rect x="${x + pitchW - sixW}" y="${cy - sixH / 2}" width="${sixW}" height="${sixH}" fill="none" stroke="rgba(9,18,28,0.11)" stroke-width="5.5"/>
+          ${net(true)}
+          ${net(false)}
+          <rect x="${x}" y="${y}" width="${pitchW}" height="${pitchH}" rx="16" ry="16" fill="none" stroke="${line}" stroke-width="4.7"/>
+          <line x1="${cx}" y1="${y}" x2="${cx}" y2="${y + pitchH}" stroke="${line}" stroke-width="4.1"/>
+          <circle cx="${cx}" cy="${cy}" r="${pitchH * 0.145}" fill="none" stroke="${line}" stroke-width="4.1"/>
+          <circle cx="${cx}" cy="${cy}" r="4.8" fill="${line}"/>
+          <rect x="${x}" y="${cy - areaH / 2}" width="${areaW}" height="${areaH}" fill="none" stroke="${line}" stroke-width="4.1"/>
+          <rect x="${x}" y="${cy - sixH / 2}" width="${sixW}" height="${sixH}" fill="none" stroke="${line}" stroke-width="4.1"/>
+          <rect x="${x + pitchW - areaW}" y="${cy - areaH / 2}" width="${areaW}" height="${areaH}" fill="none" stroke="${line}" stroke-width="4.1"/>
+          <rect x="${x + pitchW - sixW}" y="${cy - sixH / 2}" width="${sixW}" height="${sixH}" fill="none" stroke="${line}" stroke-width="4.1"/>
+          <circle cx="${x + pitchW * 0.165}" cy="${cy}" r="4.2" fill="${line}"/>
+          <circle cx="${x + pitchW * 0.835}" cy="${cy}" r="4.2" fill="${line}"/>
+          <path d="M ${x + 2} ${y + 16} A 14 14 0 0 1 ${x + 16} ${y + 2}" fill="none" stroke="${line}" stroke-width="3"/>
+          <path d="M ${x + pitchW - 16} ${y + 2} A 14 14 0 0 1 ${x + pitchW - 2} ${y + 16}" fill="none" stroke="${line}" stroke-width="3"/>
+          <path d="M ${x + 16} ${y + pitchH - 2} A 14 14 0 0 1 ${x + 2} ${y + pitchH - 16}" fill="none" stroke="${line}" stroke-width="3"/>
+          <path d="M ${x + pitchW - 2} ${y + pitchH - 16} A 14 14 0 0 1 ${x + pitchW - 16} ${y + pitchH - 2}" fill="none" stroke="${line}" stroke-width="3"/>
+        `;
+        if (!portrait) {
+          return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${sceneW} ${sceneH}" preserveAspectRatio="xMidYMid meet">${scene}</svg>`;
+        }
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${sceneH} ${sceneW}" preserveAspectRatio="xMidYMid meet"><g transform="translate(${sceneH} 0) rotate(90)">${scene}</g></svg>`;
+      };
+
+		  const buildPitchSvg = (presetKey, orientationKey = 'landscape', grassStyleKey = 'classic') => {
+        if (window.WebstatsPitch25D && typeof window.WebstatsPitch25D.buildPitchSvg === 'function') {
+          return window.WebstatsPitch25D.buildPitchSvg(presetKey, orientationKey, grassStyleKey);
+        }
+        try {
+          ensurePitch25dRuntime().then((ok) => {
+            if (!ok) return;
+            try { window.__webstatsTpadLastError = ''; } catch (e) { /* ignore */ }
+          });
+          try { window.__webstatsTpadLastError = 'pitch25d-runtime-pending'; } catch (e) { /* ignore */ }
+        } catch (e) { /* ignore */ }
+        return buildEmergencyPitchSvg(orientationKey);
 			    const preset = String(presetKey || 'full_pitch').trim();
 			    const orientation = safeText(orientationKey, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
 			    const normalizedGrass = safeText(grassStyleKey, 'classic').toLowerCase();
@@ -461,6 +617,7 @@
 			      ? normalizedGrass
 			      : 'classic';
           const isStadiumTopFamily = ['stadium_top', 'stadium_top_h', 'stadium_top_v'].includes(grassStyle);
+          const renderStadiumOverlay = preset !== 'blank' && !['coachboard', 'whiteboard', 'blackboard'].includes(grassStyle);
 			    try {
 			      if (window.__WEBSTATS_TACTICS_MODE === true && ['coachboard', 'whiteboard', 'blackboard'].includes(grassStyle)) {
 			        grassStyle = 'classic';
@@ -496,25 +653,25 @@
     // priorizar llenar el viewport y minimizar esos márgenes.
     root.setAttribute('preserveAspectRatio', orientation === 'portrait' ? 'xMidYMid slice' : 'xMidYMid meet');
 
-		    const resolvePitch3dTopImageHref = () => {
+		    const resolvePitch3dOverlayImageHref = () => {
           const forcePortrait = grassStyle === 'stadium_top_v';
           const forceLandscape = grassStyle === 'stadium_top_h';
           const usePortraitImage = forcePortrait || (!forceLandscape && orientation === 'portrait');
 		      try {
-		        const globalImages = window.__WEBSTATS_PITCH3D_TOP_IMAGES || {};
+		        const globalImages = window.__WEBSTATS_PITCH3D_OVERLAY_IMAGES || {};
 		        const preferred = usePortraitImage ? safeText(globalImages.v) : safeText(globalImages.h);
 		        if (preferred) return preferred;
 		      } catch (e) { /* ignore */ }
 		      try {
 		        const formEl = document.getElementById('task-builder-form');
 		        const preferred = usePortraitImage
-		          ? safeText(formEl?.dataset?.pitch3dStadiumTopVSrc)
-		          : safeText(formEl?.dataset?.pitch3dStadiumTopHSrc);
+		          ? safeText(formEl?.dataset?.pitch3dStadiumOverlayVSrc)
+		          : safeText(formEl?.dataset?.pitch3dStadiumOverlayHSrc);
 		        if (preferred) return preferred;
 		      } catch (e) { /* ignore */ }
 		      return usePortraitImage
-		        ? '/static/football/images/pitch3d/stadium_rosaleda_top_v.png'
-		        : '/static/football/images/pitch3d/stadium_rosaleda_top_h.png';
+		        ? '/static/football/images/pitch3d/stadium_taskboard_overlay_v.png'
+		        : '/static/football/images/pitch3d/stadium_taskboard_overlay_h.png';
 		    };
 		    const defs = createSvgNode(doc, 'defs');
 		    const gradient = createSvgNode(doc, 'linearGradient', { id: 'pitch-bg', x1: '0%', y1: '0%', x2: '0%', y2: '100%' });
@@ -541,7 +698,6 @@
 		    defs.appendChild(gradient);
 
 		    let grassFillId = 'pitch-bg';
-        let stageBackgroundImageHref = '';
 		    if (grassStyle === 'blackboard') {
 		      grassFillId = 'pitch-blackboard';
 		      const pattern = createSvgNode(doc, 'pattern', { id: grassFillId, patternUnits: 'userSpaceOnUse', width: 120, height: 120 });
@@ -573,31 +729,7 @@
 			      }));
 			      pattern.appendChild(createSvgNode(doc, 'rect', { x: 0, y: 0, width: 96, height: 96, fill: 'rgba(0,0,0,0.04)' }));
 			      defs.appendChild(pattern);
-			    } else if (isStadiumTopFamily) {
-            stageBackgroundImageHref = resolvePitch3dTopImageHref();
-            if (stageBackgroundImageHref) {
-              grassFillId = 'pitch-stadium-top';
-              const pattern = createSvgNode(doc, 'pattern', {
-                id: grassFillId,
-                patternUnits: 'userSpaceOnUse',
-                x: -bleed,
-                y: -bleed,
-                width: stageW + (bleed * 2),
-                height: stageH + (bleed * 2),
-              });
-              const image = createSvgNode(doc, 'image', {
-                href: stageBackgroundImageHref,
-                x: -bleed,
-                y: -bleed,
-                width: stageW + (bleed * 2),
-                height: stageH + (bleed * 2),
-                preserveAspectRatio: 'xMidYMid slice',
-              });
-              try { image.setAttribute('xlink:href', stageBackgroundImageHref); } catch (e) { /* ignore */ }
-              pattern.appendChild(image);
-              defs.appendChild(pattern);
-            }
-			    } else if (grassStyle !== 'classic') {
+			    } else if (grassStyle !== 'classic' && !isStadiumTopFamily) {
 			      const dataUrl = __buildGrassTextureDataUrl(grassStyle);
 			      if (dataUrl) {
 			        grassFillId = 'pitch-grass-img';
@@ -630,33 +762,28 @@
     //   (en editor se verá el fondo del panel; en PDF quedará blanco).
     // En el editor rellenamos el exterior con césped para que no parezca que hay “huecos” alrededor.
     // El recorte para PDF/cards ya se hace al exportar la preview (data-pitch-box).
-    if (isStadiumTopFamily && stageBackgroundImageHref) {
-      const stageImage = createSvgNode(doc, 'image', {
-        href: stageBackgroundImageHref,
-        x: -bleed,
-        y: -bleed,
-        width: stageW + (bleed * 2),
-        height: stageH + (bleed * 2),
-        preserveAspectRatio: 'xMidYMid slice',
-      });
-      try { stageImage.setAttribute('xlink:href', stageBackgroundImageHref); } catch (e) { /* ignore */ }
-      root.appendChild(stageImage);
-      root.appendChild(createSvgNode(doc, 'rect', {
-        x: -bleed,
-        y: -bleed,
-        width: stageW + (bleed * 2),
-        height: stageH + (bleed * 2),
-        fill: 'rgba(6, 12, 22, 0.02)',
-      }));
-    } else {
-      const fillOutside = `url(#${grassFillId})`;
-      root.appendChild(createSvgNode(doc, 'rect', {
-        x: -bleed,
-        y: -bleed,
-        width: stageW + (bleed * 2),
-        height: stageH + (bleed * 2),
-        fill: fillOutside,
-      }));
+    const fillOutside = `url(#${grassFillId})`;
+    root.appendChild(createSvgNode(doc, 'rect', {
+      x: -bleed,
+      y: -bleed,
+      width: stageW + (bleed * 2),
+      height: stageH + (bleed * 2),
+      fill: fillOutside,
+    }));
+    if (renderStadiumOverlay) {
+      const overlayHref = resolvePitch3dOverlayImageHref();
+      if (overlayHref) {
+        const overlay = createSvgNode(doc, 'image', {
+          href: overlayHref,
+          x: -bleed,
+          y: -bleed,
+          width: stageW + (bleed * 2),
+          height: stageH + (bleed * 2),
+          preserveAspectRatio: 'xMidYMid slice',
+        });
+        try { overlay.setAttribute('xlink:href', overlayHref); } catch (e) { /* ignore */ }
+        root.appendChild(overlay);
+      }
     }
     const drawRoot = createSvgNode(doc, 'g');
     if (orientation === 'portrait') {
@@ -670,8 +797,8 @@
       // Deja margen suficiente para que el trazo del borde no se recorte en miniaturas / contenedores con overflow hidden.
       // Margen de seguridad para que los bordes no se recorten con overflow hidden,
       // pero lo más pequeño posible para que el campo ocupe pantalla.
-      const marginX = isStadiumTopFamily ? 78 : ((grassStyle === 'broadcast_premium') ? 32 : 0);
-      const marginY = isStadiumTopFamily ? 68 : ((grassStyle === 'broadcast_premium') ? 22 : 0);
+      const marginX = renderStadiumOverlay ? 78 : ((grassStyle === 'broadcast_premium') ? 32 : 0);
+      const marginY = renderStadiumOverlay ? 68 : ((grassStyle === 'broadcast_premium') ? 22 : 0);
       const portrait = orientation === 'portrait';
       const effectiveW = portrait ? stageH : stageW;
       const effectiveH = portrait ? stageW : stageH;
@@ -705,8 +832,8 @@
     // y evitar márgenes vacíos enormes en superficies parciales (tercios, medio campo, futsal, etc).
     let pitchBox = { x: stage.x, y: stage.y, width: stage.width, height: stage.height };
     const scale = stage.width / 105;
-	    const line = (grassStyle === 'whiteboard') ? '#0f172a' : (isStadiumTopFamily ? 'rgba(255,255,255,0.98)' : '#f8fafc');
-	    const soft = (grassStyle === 'whiteboard') ? 'rgba(15,23,42,0.55)' : (isStadiumTopFamily ? 'rgba(255,255,255,0.88)' : 'rgba(248,250,252,0.66)');
+	    const line = (grassStyle === 'whiteboard') ? '#0f172a' : (renderStadiumOverlay ? 'rgba(255,255,255,0.98)' : '#f8fafc');
+	    const soft = (grassStyle === 'whiteboard') ? 'rgba(15,23,42,0.55)' : (renderStadiumOverlay ? 'rgba(255,255,255,0.88)' : 'rgba(248,250,252,0.66)');
 
 	    const drawFrame = (x, y, width, height, lineWidth = 4) => {
 	      const isCoachBoard = grassStyle === 'coachboard';
@@ -798,7 +925,7 @@
 	        }
 	      }
 
-	      const showStripes = !(grassStyle === 'whiteboard' || grassStyle === 'blackboard' || grassStyle === 'coachboard' || isStadiumTopFamily);
+	      const showStripes = !(grassStyle === 'whiteboard' || grassStyle === 'blackboard' || grassStyle === 'coachboard');
 	      if (showStripes) {
 	        const stripeW = width / 12;
 	        for (let index = 0; index < 12; index += 1) {
@@ -832,11 +959,11 @@
       const topY = centerY - (goalHeight / 2);
       const bottomY = centerY + (goalHeight / 2);
       const postX = side === 'left' ? x - goalDepth : x + goalDepth;
-      if (isStadiumTopFamily || grassStyle === 'broadcast_premium') {
-        const netStroke = isStadiumTopFamily ? 'rgba(255,255,255,0.42)' : 'rgba(255,255,255,0.34)';
-        const meshStroke = isStadiumTopFamily ? 'rgba(255,255,255,0.24)' : 'rgba(255,255,255,0.18)';
+      if (renderStadiumOverlay || grassStyle === 'broadcast_premium') {
+        const netStroke = renderStadiumOverlay ? 'rgba(255,255,255,0.42)' : 'rgba(255,255,255,0.34)';
+        const meshStroke = renderStadiumOverlay ? 'rgba(255,255,255,0.24)' : 'rgba(255,255,255,0.18)';
         const shadowX = side === 'left' ? 3.8 : -3.8;
-        if (isStadiumTopFamily) {
+        if (renderStadiumOverlay) {
           drawRoot.appendChild(createSvgNode(doc, 'line', {
             x1: x + shadowX,
             y1: topY + 1,
@@ -848,12 +975,12 @@
         }
         drawRoot.appendChild(createSvgNode(doc, 'polygon', {
           points: `${x},${topY} ${postX},${topY + 3} ${postX},${bottomY - 3} ${x},${bottomY}`,
-          fill: isStadiumTopFamily ? 'rgba(255,255,255,0.11)' : 'rgba(255,255,255,0.05)',
+          fill: renderStadiumOverlay ? 'rgba(255,255,255,0.11)' : 'rgba(255,255,255,0.05)',
           stroke: 'none',
         }));
-        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x, y1: topY, x2: postX, y2: topY + 3, stroke: netStroke, 'stroke-width': isStadiumTopFamily ? 3.5 : 3 }));
-        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x, y1: bottomY, x2: postX, y2: bottomY - 3, stroke: netStroke, 'stroke-width': isStadiumTopFamily ? 3.5 : 3 }));
-        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: postX, y1: topY + 3, x2: postX, y2: bottomY - 3, stroke: netStroke, 'stroke-width': isStadiumTopFamily ? 3.5 : 3 }));
+        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x, y1: topY, x2: postX, y2: topY + 3, stroke: netStroke, 'stroke-width': renderStadiumOverlay ? 3.5 : 3 }));
+        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x, y1: bottomY, x2: postX, y2: bottomY - 3, stroke: netStroke, 'stroke-width': renderStadiumOverlay ? 3.5 : 3 }));
+        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: postX, y1: topY + 3, x2: postX, y2: bottomY - 3, stroke: netStroke, 'stroke-width': renderStadiumOverlay ? 3.5 : 3 }));
         for (let i = 1; i <= 4; i += 1) {
           const ratio = i / 5;
           const y1 = topY + ((bottomY - topY) * ratio);
@@ -894,12 +1021,10 @@
     };
 
     const drawAdvertisingBoards = (x, y, width, height) => {
-      if (!isStadiumTopFamily && grassStyle !== 'broadcast_premium') return;
-      const offset = isStadiumTopFamily ? 30 : 16;
-      const bandH = isStadiumTopFamily ? 18 : 11;
-      const palette = isStadiumTopFamily
-        ? ['#0f172a', '#0ea5e9', '#16a34a', '#f8fafc', '#0ea5e9', '#0f172a']
-        : ['rgba(15,23,42,0.76)', 'rgba(34,211,238,0.64)', 'rgba(255,255,255,0.74)', 'rgba(34,197,94,0.62)', 'rgba(255,255,255,0.74)', 'rgba(15,23,42,0.76)'];
+      if (renderStadiumOverlay || grassStyle !== 'broadcast_premium') return;
+      const offset = 16;
+      const bandH = 11;
+      const palette = ['rgba(15,23,42,0.76)', 'rgba(34,211,238,0.64)', 'rgba(255,255,255,0.74)', 'rgba(34,197,94,0.62)', 'rgba(255,255,255,0.74)', 'rgba(15,23,42,0.76)'];
       const segments = 6;
       const segmentW = width / segments;
       const topY = y - offset - bandH;
@@ -921,86 +1046,12 @@
             stroke: 'rgba(255,255,255,0.3)',
             'stroke-width': 1.3,
           }));
-          if (isStadiumTopFamily) {
-            drawRoot.appendChild(createSvgNode(doc, 'rect', {
-              x: segX + 3,
-              y: bandY + 3,
-              width: Math.max(8, segW - 6),
-              height: Math.max(6, bandH - 6),
-              rx: 5,
-              ry: 5,
-              fill: 'rgba(255,255,255,0.12)',
-              stroke: 'none',
-            }));
-          }
         });
-      }
-      if (isStadiumTopFamily) {
-        const verticalSegments = 4;
-        const verticalSegmentH = height / verticalSegments;
-        for (let i = 0; i < verticalSegments; i += 1) {
-          const segY = y + (i * verticalSegmentH) + 4;
-          const segH = Math.max(18, verticalSegmentH - 8);
-          [leftX, rightX].forEach((bandX) => {
-            drawRoot.appendChild(createSvgNode(doc, 'rect', {
-              x: bandX,
-              y: segY,
-              width: bandH,
-              height: segH,
-              rx: 7,
-              ry: 7,
-              fill: palette[(i + 1) % palette.length],
-              stroke: 'rgba(255,255,255,0.26)',
-              'stroke-width': 1.2,
-            }));
-            drawRoot.appendChild(createSvgNode(doc, 'rect', {
-              x: bandX + 3,
-              y: segY + 3,
-              width: Math.max(6, bandH - 6),
-              height: Math.max(10, segH - 6),
-              rx: 5,
-              ry: 5,
-              fill: 'rgba(255,255,255,0.10)',
-              stroke: 'none',
-            }));
-          });
-        }
-        const railColor = 'rgba(226,232,240,0.26)';
-        drawRoot.appendChild(createSvgNode(doc, 'rect', {
-          x: x - offset - 6,
-          y: y - offset - 6,
-          width: width + ((offset + 6) * 2),
-          height: height + ((offset + 6) * 2),
-          rx: 20,
-          ry: 20,
-          fill: 'none',
-          stroke: railColor,
-          'stroke-width': 2.4,
-        }));
-        for (let i = 0; i <= 9; i += 1) {
-          const px = x + ((width / 9) * i);
-          drawRoot.appendChild(createSvgNode(doc, 'line', {
-            x1: px,
-            y1: y - offset - 6,
-            x2: px,
-            y2: y - offset + 6,
-            stroke: railColor,
-            'stroke-width': 1.6,
-          }));
-          drawRoot.appendChild(createSvgNode(doc, 'line', {
-            x1: px,
-            y1: y + height + offset - 6,
-            x2: px,
-            y2: y + height + offset + 6,
-            stroke: railColor,
-            'stroke-width': 1.6,
-          }));
-        }
       }
     };
 
     const drawStadiumContext = (x, y, width, height) => {
-      if (!isStadiumTopFamily) return;
+      if (renderStadiumOverlay || !isStadiumTopFamily) return;
       const runoff = 26;
       const concourseH = 42;
       const standH = 92;
@@ -1250,7 +1301,7 @@
       });
     };
 
-	    const drawSevenSideOverlay = (fieldX, fieldY, fieldWidth, fieldHeight) => {
+    const drawSevenSideOverlay = (fieldX, fieldY, fieldWidth, fieldHeight) => {
 	      const halfWidth = fieldWidth / 2;
 	      const sevenHeight = fieldHeight * 0.84;
 	      const sevenWidth = sevenHeight * 45 / 65;
@@ -4793,9 +4844,6 @@
 					      classic: 'Césped',
 					      broadcast: 'Broadcast',
 					      broadcast_premium: 'Broadcast Premium',
-					      stadium_top: 'Estadio táctico auto',
-					      stadium_top_h: 'Cámara cenital H',
-					      stadium_top_v: 'Cámara cenital V',
 					      realistic: 'Realista',
 					      pro: 'PRO',
 					      uefa_b: 'UEFA B',
@@ -4807,25 +4855,14 @@
 					      dry: 'Seco',
 					      wet: 'Mojado',
 					    };
-					    const GRASS_STYLE_ORDER = ['classic', 'broadcast', 'broadcast_premium', 'stadium_top', 'stadium_top_h', 'stadium_top_v', 'realistic', 'pro', 'uefa_b', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet'];
-              const stadiumCameraStyleForOrientation = (orientationValue) => (
-                safeText(orientationValue, 'landscape') === 'portrait' ? 'stadium_top_v' : 'stadium_top_h'
-              );
-              const shouldPreferStadiumTopSurface = () => {
-                try { return !document.body.classList.contains('tactics-mode'); } catch (e) { return true; }
-              };
+					    const GRASS_STYLE_ORDER = ['classic', 'broadcast', 'broadcast_premium', 'realistic', 'pro', 'uefa_b', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet'];
 					    const normalizeGrassStyleForMode = (value) => {
 					      const next = safeText(value, 'classic').toLowerCase();
 					      if (!GRASS_STYLE_ORDER.includes(next)) {
-                  return shouldPreferStadiumTopSurface() ? stadiumCameraStyleForOrientation(pitchOrientation) : 'classic';
+                  return 'classic';
                 }
-                if (next === 'classic' && shouldPreferStadiumTopSurface()) {
-                  return stadiumCameraStyleForOrientation(pitchOrientation);
-                }
-                if (next === 'stadium_top') return stadiumCameraStyleForOrientation(pitchOrientation);
 					      return next;
 					    };
-              const isStadiumCameraStyle = (value) => ['stadium_top', 'stadium_top_h', 'stadium_top_v'].includes(safeText(value).toLowerCase());
 					    let pitchGrassStyle = normalizeGrassStyleForMode(grassStyleInput?.value);
 					    const syncGrassUi = () => {
 					      if (grassStyleInput) grassStyleInput.value = pitchGrassStyle;
@@ -9224,6 +9261,8 @@
 						        } catch (e) { /* ignore */ }
 						        const fallbacks = {
 						          pitch3dStadiumModelSrc: `/static/football/models/pitch3d/stadium_architectural_complete.glb${versionSuffix}`,
+						          pitch3dRealSeatObjSrc: `/static/football/models/pitch3d/free_seat_real.obj${versionSuffix}`,
+						          pitch3dSeatTextureSrc: `/static/football/images/pitch3d/stadium_tanger_seats.png${versionSuffix}`,
 						          pitch3dGrassAlbedoSrc: `/static/football/images/pitch3d/grass_premium_albedo.png${versionSuffix}`,
 						          pitch3dGrassBumpSrc: `/static/football/images/pitch3d/grass_premium_bump.png${versionSuffix}`,
 						          pitch3dGrassNormalSrc: `/static/football/images/pitch3d/grass_premium_normal.png${versionSuffix}`,
@@ -9231,9 +9270,12 @@
 						          pitch3dConcreteAlbedoSrc: `/static/football/materials/pitch3d/ambientcg/Concrete034/Concrete034_1K-JPG_Color.jpg${versionSuffix}`,
 						          pitch3dBenagalbonCrestSrc: `/static/football/images/kit_logos/benagalbon_crest_alpha.png${versionSuffix}`,
 						          pitch3dGoalModelSrc: `/static/football/models/pitch3d/goal_premium.glb${versionSuffix}`,
-						          pitch3dStadiumTopHSrc: `/static/football/images/pitch3d/stadium_rosaleda_top_h.png${versionSuffix}`,
-						          pitch3dStadiumTopVSrc: `/static/football/images/pitch3d/stadium_rosaleda_top_v.png${versionSuffix}`,
+						          pitch3dStadiumTopHSrc: `/static/football/images/pitch3d/stadium_taskboard_top_h.png${versionSuffix}`,
+						          pitch3dStadiumTopVSrc: `/static/football/images/pitch3d/stadium_taskboard_top_v.png${versionSuffix}`,
+						          pitch3dStadiumOverlayHSrc: `/static/football/images/pitch3d/stadium_taskboard_overlay_h.png${versionSuffix}`,
+						          pitch3dStadiumOverlayVSrc: `/static/football/images/pitch3d/stadium_taskboard_overlay_v.png${versionSuffix}`,
 						          pitch3dPlayerModelSrc: `/static/football/models/avatar/player_humanoid.glb${versionSuffix}`,
+						          threeObjLoaderSrc: `/static/vendor/three/examples/jsm/loaders/OBJLoader.js${versionSuffix}`,
 						        };
 						        return safeText(fallbacks[dataKey] || '').trim();
 						      } catch (e) {
@@ -9241,6 +9283,7 @@
 						      }
 						    };
 						    const isDedicatedPitch3dReferenceStadiumSrc = (src) => /stadium_(?:benagalbon_reference|architectural_complete)(?:\.[a-f0-9]+)?\.glb(?:[?#].*)?$/i.test(safeText(src || ''));
+						    const isCleanPitch3dBowlStadiumSrc = (src) => /stadium_bowl_premium(?:\.[a-f0-9]+)?\.glb(?:[?#].*)?$/i.test(safeText(src || ''));
 						    const __pitch3dSeatPatternTextureCache = new Map();
 						    const getPitch3dSeatPatternTexture = (baseHex = '#1f63d6', accentHex = '#0d3f9c') => {
 						      const key = `${baseHex}|${accentHex}`;
@@ -9284,6 +9327,19 @@
 						        const mod = await import(src);
 						        window.__WEBSTATS_GLTF_LOADER_CLASS = mod && mod.GLTFLoader;
 						        return !!window.__WEBSTATS_GLTF_LOADER_CLASS;
+						      } catch (e) {
+						        return false;
+						      }
+						    };
+						    const ensurePitch3dObjLoaderClass = async () => {
+						      try { if (window.__WEBSTATS_OBJ_LOADER_CLASS) return true; } catch (e) { /* ignore */ }
+						      if (window.__webstats_obj_loader_promise) return !!(await window.__webstats_obj_loader_promise);
+						      const src = __pitch3dAssetUrl('threeObjLoaderSrc');
+						      if (!src) return false;
+						      try {
+						        const mod = await import(src);
+						        window.__WEBSTATS_OBJ_LOADER_CLASS = mod && mod.OBJLoader;
+						        return !!window.__WEBSTATS_OBJ_LOADER_CLASS;
 						      } catch (e) {
 						        return false;
 						      }
@@ -9375,6 +9431,118 @@
 						    };
 
 						    const __pitch3dGoalModelCache = { loading: false, scene: null, failed: false, callbacks: [] };
+						    const __pitch3dRealSeatModelCache = { loading: false, template: null, failed: false, callbacks: [] };
+						    const __pitch3dMakeBlueSeatTextureVariant = (baseTexture) => {
+						      try {
+						        if (!baseTexture) return null;
+						        const texture = baseTexture.clone();
+						        texture.wrapS = THREE.ClampToEdgeWrapping;
+						        texture.wrapT = THREE.ClampToEdgeWrapping;
+						        if (texture.repeat?.set) texture.repeat.set(0.25, 1);
+						        if (texture.offset?.set) texture.offset.set(0, 0);
+						        texture.needsUpdate = true;
+						        return texture;
+						      } catch (e) {
+						        return null;
+						      }
+						    };
+						    const __pitch3dBuildRealSeatTemplate = (root) => {
+						      try {
+						        let sourceMesh = null;
+						        root?.traverse?.((node) => {
+						          if (!sourceMesh && node?.isMesh && node.geometry?.attributes?.position) sourceMesh = node;
+						        });
+						        if (!sourceMesh?.geometry) return null;
+						        const geometry = sourceMesh.geometry.clone();
+						        geometry.computeBoundingBox();
+						        const bounds = geometry.boundingBox;
+						        if (!bounds) return null;
+						        const size = new THREE.Vector3();
+						        const center = new THREE.Vector3();
+						        bounds.getSize(size);
+						        bounds.getCenter(center);
+						        geometry.translate(-center.x, -bounds.min.y, -center.z);
+						        const targetWidth = 0.72;
+						        const targetHeight = 1.08;
+						        const scaleX = targetWidth / Math.max(0.001, size.x || 1);
+						        const scaleY = targetHeight / Math.max(0.001, size.y || 1);
+						        const scale = Math.min(scaleX, scaleY);
+						        geometry.scale(scale, scale, scale);
+						        geometry.rotateY(Math.PI);
+						        geometry.computeVertexNormals();
+						        const baseSeatTexture = __pitch3dTextureCache.get(__pitch3dAssetUrl('pitch3dSeatTextureSrc'))?.texture || null;
+						        const seatTexture = __pitch3dMakeBlueSeatTextureVariant(baseSeatTexture);
+						        return {
+						          geometry,
+						          material: new THREE.MeshStandardMaterial({
+						            color: 0xffffff,
+						            roughness: 0.68,
+						            metalness: 0.04,
+						            map: seatTexture || null,
+						          }),
+						        };
+						      } catch (e) {
+						        return null;
+						      }
+						    };
+						    const __pitch3dLoadRealSeatModel = (onLoad) => {
+						      const src = __pitch3dAssetUrl('pitch3dRealSeatObjSrc');
+						      if (!src || !window.THREE) return null;
+						      if (__pitch3dRealSeatModelCache.template) {
+						        try { if (typeof onLoad === 'function') onLoad(__pitch3dRealSeatModelCache.template); } catch (e) { /* ignore */ }
+						        return __pitch3dRealSeatModelCache.template;
+						      }
+						      if (typeof onLoad === 'function') __pitch3dRealSeatModelCache.callbacks.push(onLoad);
+						      if (__pitch3dRealSeatModelCache.loading || __pitch3dRealSeatModelCache.failed) return null;
+						      const LoaderClass = window.__WEBSTATS_OBJ_LOADER_CLASS;
+						      if (typeof LoaderClass !== 'function') {
+						        try {
+						          if (!__pitch3dRealSeatModelCache.loaderRetryScheduled) {
+						            __pitch3dRealSeatModelCache.loaderRetryScheduled = true;
+						            window.setTimeout(() => {
+						              __pitch3dRealSeatModelCache.loaderRetryScheduled = false;
+						              __pitch3dLoadRealSeatModel();
+						            }, 120);
+						          }
+						        } catch (e) { /* ignore */ }
+						        return null;
+						      }
+						      __pitch3dRealSeatModelCache.loading = true;
+						      __pitch3dLoadTextureAsset('pitch3dSeatTextureSrc', (baseSeatTexture) => {
+						        try {
+						          if (!__pitch3dRealSeatModelCache.template?.material) return;
+						          const seatTexture = __pitch3dMakeBlueSeatTextureVariant(baseSeatTexture);
+						          if (!seatTexture) return;
+						          __pitch3dRealSeatModelCache.template.material.map = seatTexture;
+						          __pitch3dRealSeatModelCache.template.material.color?.set?.(0xffffff);
+						          __pitch3dRealSeatModelCache.template.material.needsUpdate = true;
+						          const callbacks = __pitch3dRealSeatModelCache.callbacks.slice(0);
+						          callbacks.forEach((cb) => {
+						            try { cb(__pitch3dRealSeatModelCache.template); } catch (e) { /* ignore */ }
+						          });
+						        } catch (e) { /* ignore */ }
+						      }, { colorSpace: THREE.SRGBColorSpace, anisotropy: 16 });
+						      try {
+						        const loader = new LoaderClass();
+						        loader.load(src, (root) => {
+						          const template = __pitch3dBuildRealSeatTemplate(root);
+						          __pitch3dRealSeatModelCache.template = template;
+						          __pitch3dRealSeatModelCache.loading = false;
+						          if (!template) __pitch3dRealSeatModelCache.failed = true;
+						          const callbacks = __pitch3dRealSeatModelCache.callbacks.splice(0);
+						          callbacks.forEach((cb) => {
+						            try { cb(template); } catch (e) { /* ignore */ }
+						          });
+						        }, undefined, () => {
+						          __pitch3dRealSeatModelCache.loading = false;
+						          __pitch3dRealSeatModelCache.failed = true;
+						          __pitch3dRealSeatModelCache.callbacks.splice(0);
+						        });
+						      } catch (e) {
+						        __pitch3dRealSeatModelCache.loading = false;
+						      }
+						      return null;
+						    };
 						    const __pitch3dLoadGoalModel = (onLoad) => {
 						      const src = __pitch3dAssetUrl('pitch3dGoalModelSrc');
 						      if (!src || !window.THREE) return null;
@@ -9451,7 +9619,6 @@
 						      }
 						      return null;
 						    };
-
 						    try {
 						      const premiumGrassSrc = __pitch3dAssetUrl('pitch3dGrassAlbedoSrc');
 						      if (premiumGrassSrc) __pitch3dLoadStaticImage('premium_grass_albedo', premiumGrassSrc);
@@ -10627,14 +10794,14 @@
 						        targetY = 1.70;
 						        targetZ = -(metersH / 2 + 6.2);
 						      } else if (k === 'lower_bowl_interior') {
-						        // Vista interior para leer mejor butacas, pasillos y fachada interior.
-						        pitch3dCamera.fov = 36;
-						        pitch3dOrbit.theta = 1.02;
-						        pitch3dOrbit.phi = 1.08;
-						        pitch3dOrbit.radius = Math.max(40, metersW * 0.32);
+						        // Enfoca la nueva grada visible de primera línea para leer butaca real.
+						        pitch3dCamera.fov = 22;
+						        pitch3dOrbit.theta = 0.92;
+						        pitch3dOrbit.phi = 1.00;
+						        pitch3dOrbit.radius = Math.max(18, metersW * 0.16);
 						        targetX = 0;
-						        targetY = 2.10;
-						        targetZ = -(metersH / 2 + 7.0);
+						        targetY = 3.10;
+						        targetZ = -(metersH / 2 + 8.2);
 						      } else if (k === 'goal_behind') {
 						        pitch3dOrbit.theta = 0;
 						        pitch3dOrbit.phi = 1.42;
@@ -11902,9 +12069,11 @@
 						              addBox(module, new THREE.BoxGeometry(w * 0.86, 0.12, 0.18), roofLightMat, 0, 9.18, 10.35, 0, 0, 0, `${kind}_roof_light_bar`);
 						              g.add(module);
 						            };
-						            addHeroStandModule(0, metersH / 2 + 8.95, Math.min(92, metersW + 18), 10, 0, 'pitch_3d_archviz_hero_north_stand');
-						            addHeroStandModule(-(metersW / 2 + 8.80), 0, Math.min(70, metersH + 12), 8, -Math.PI / 2, 'pitch_3d_archviz_hero_west_stand');
-						            addHeroStandModule(metersW / 2 + 8.80, 0, Math.min(70, metersH + 12), 8, Math.PI / 2, 'pitch_3d_archviz_hero_east_stand');
+						            if (!(typeof options !== 'undefined' && options?.dedicatedReference)) {
+						              addHeroStandModule(0, metersH / 2 + 8.95, Math.min(92, metersW + 18), 10, 0, 'pitch_3d_archviz_hero_north_stand');
+						              addHeroStandModule(-(metersW / 2 + 8.80), 0, Math.min(70, metersH + 12), 8, -Math.PI / 2, 'pitch_3d_archviz_hero_west_stand');
+						              addHeroStandModule(metersW / 2 + 8.80, 0, Math.min(70, metersH + 12), 8, Math.PI / 2, 'pitch_3d_archviz_hero_east_stand');
+						            }
 						            root.add(g);
 						          };
 						          const addVisibleTechnicalArea = () => {
@@ -11982,6 +12151,9 @@
 						              const tunnelWallFinish = new THREE.MeshStandardMaterial({ color: 0x0e3873, roughness: 0.52, metalness: 0.06 });
 						              const tunnelTrimFinish = new THREE.MeshStandardMaterial({ color: 0xbfd0df, roughness: 0.34, metalness: 0.24 });
 						              const tunnelGlowFinish = new THREE.MeshBasicMaterial({ color: 0x93e6ff, transparent: true, opacity: 0.84, toneMapped: false, depthWrite: false });
+						              const tunnelDoorFinish = new THREE.MeshStandardMaterial({ color: 0xe4ebf2, roughness: 0.42, metalness: 0.14 });
+						              const tunnelVoidFinish = new THREE.MeshStandardMaterial({ color: 0x0b1220, roughness: 0.92, metalness: 0.02 });
+						              const tunnelWarmLightFinish = new THREE.MeshBasicMaterial({ color: 0xffefc2, transparent: true, opacity: 0.68, toneMapped: false, depthWrite: false });
 						              const hideKinds = [
 						                'pitch_3d_reference_dugout_technical_slab',
 						                'pitch_3d_reference_dugout_low_glass_barrier',
@@ -12050,6 +12222,16 @@
 						              addBox(finish, new THREE.BoxGeometry(9.48, 0.24, 0.34), fasciaFinish, 0, 2.72, tunnelZ + 0.22, 0, 0, 0, 'pitch_3d_finished_visible_tunnel_canopy_fascia');
 						              addBox(finish, new THREE.BoxGeometry(7.96, 0.05, 0.10), dugoutLedFinish, 0, 2.78, tunnelZ + 0.30, 0, 0, 0, 'pitch_3d_finished_visible_tunnel_canopy_led');
 						              addBox(finish, new THREE.BoxGeometry(2.30, 2.18, 0.14), glassFinish, 0, 1.44, tunnelZ + 0.14, 0, 0, 0, 'pitch_3d_finished_visible_tunnel_glass_portal');
+						              addBox(finish, new THREE.BoxGeometry(1.36, 2.02, 0.08), tunnelDoorFinish, -1.48, 1.26, tunnelZ - 1.02, 0, 0, 0, 'pitch_3d_finished_visible_tunnel_side_door_l');
+						              addBox(finish, new THREE.BoxGeometry(1.36, 2.02, 0.08), tunnelDoorFinish, 1.48, 1.26, tunnelZ - 1.02, 0, 0, 0, 'pitch_3d_finished_visible_tunnel_side_door_r');
+						              addBox(finish, new THREE.BoxGeometry(0.10, 0.88, 0.02), tunnelTrimFinish, -1.48, 1.34, tunnelZ - 0.96, 0, 0, 0, 'pitch_3d_finished_visible_tunnel_side_door_handle_l');
+						              addBox(finish, new THREE.BoxGeometry(0.10, 0.88, 0.02), tunnelTrimFinish, 1.48, 1.34, tunnelZ - 0.96, 0, 0, 0, 'pitch_3d_finished_visible_tunnel_side_door_handle_r');
+						              addBox(finish, new THREE.BoxGeometry(4.12, 0.08, 2.46), tunnelVoidFinish, 0, 2.06, tunnelZ - 1.26, -0.10, 0, 0, 'pitch_3d_finished_visible_tunnel_internal_ceiling');
+						              [-1.32, 0, 1.32].forEach((x) => {
+						                addBox(finish, new THREE.BoxGeometry(0.72, 0.04, 0.10), tunnelWarmLightFinish, x, 1.94, tunnelZ - 1.08, 0, 0, 0, 'pitch_3d_finished_visible_tunnel_internal_ceiling_light');
+						              });
+						              addBox(finish, new THREE.BoxGeometry(0.06, 0.10, 5.62), tunnelGlowFinish, -2.08, 1.22, tunnelZ - 3.02, -0.08, 0, 0, 'pitch_3d_finished_visible_tunnel_internal_led_l');
+						              addBox(finish, new THREE.BoxGeometry(0.06, 0.10, 5.62), tunnelGlowFinish, 2.08, 1.22, tunnelZ - 3.02, -0.08, 0, 0, 'pitch_3d_finished_visible_tunnel_internal_led_r');
 						              addBox(finish, new THREE.BoxGeometry(12.8, 0.10, 0.14), railFinish, 0, 3.12, -(metersH / 2 + 9.22), 0, 0, 0, 'pitch_3d_finished_tunnel_stand_front_rail');
 						              const sideBrandFinishMat = new THREE.MeshBasicMaterial({
 						                map: makePitch3dCanvasTexture((ctx, c) => {
@@ -12108,7 +12290,19 @@
 						                  addBox(finish, new THREE.BoxGeometry(0.78, 0.20, 0.58), dugoutSeatBlueFinish, sx, 0.68, -(metersH / 2 + 2.54), 0, 0, 0, 'pitch_3d_finished_dugout_seat_visible');
 						                  addBox(finish, new THREE.BoxGeometry(0.82, 1.00, 0.14), dugoutSeatBlueFinish, sx, 1.08, -(metersH / 2 + 2.14), -0.24, 0, 0, 'pitch_3d_finished_dugout_back_visible');
 						                  addBox(finish, new THREE.BoxGeometry(0.58, 0.18, 0.14), dugoutSeatShellFinish, sx, 1.56, -(metersH / 2 + 2.02), -0.16, 0, 0, 'pitch_3d_finished_dugout_headrest_visible');
+						                  addBox(finish, new THREE.BoxGeometry(0.06, 0.24, 0.42), dugoutSeatShellFinish, sx - 0.40, 0.82, -(metersH / 2 + 2.56), 0, 0, 0, 'pitch_3d_finished_dugout_armrest_l_visible');
+						                  addBox(finish, new THREE.BoxGeometry(0.06, 0.24, 0.42), dugoutSeatShellFinish, sx + 0.40, 0.82, -(metersH / 2 + 2.56), 0, 0, 0, 'pitch_3d_finished_dugout_armrest_r_visible');
+						                  addBox(finish, new THREE.BoxGeometry(0.12, 0.36, 0.12), dugoutFrameFinish, sx, 0.34, -(metersH / 2 + 2.42), 0, 0, 0, 'pitch_3d_finished_dugout_seat_pedestal_visible');
 						                }
+						                [-5.96, 5.96].forEach((sx) => {
+						                  addBox(finish, new THREE.BoxGeometry(0.78, 0.34, 0.24), dugoutShellFinish, x + sx, 0.42, -(metersH / 2 + 1.94), -0.14, 0, 0, 'pitch_3d_finished_dugout_monitor_visible');
+						                  addBox(finish, new THREE.BoxGeometry(0.62, 0.03, 0.18), tunnelGlowFinish, x + sx, 0.48, -(metersH / 2 + 1.82), -0.14, 0, 0, 'pitch_3d_finished_dugout_monitor_screen_visible');
+						                });
+						                addBox(finish, new THREE.BoxGeometry(0.82, 0.50, 0.66), roofFinish, x - 6.64, 0.30, -(metersH / 2 + 2.06), 0, 0, 0, 'pitch_3d_finished_dugout_cooler_visible');
+						                addBox(finish, new THREE.BoxGeometry(0.80, 0.42, 0.62), concreteFinish, x + 6.62, 0.26, -(metersH / 2 + 2.04), 0, 0, 0, 'pitch_3d_finished_dugout_medical_case_visible');
+						                [-1, 1].forEach((stepSign) => {
+						                  addBox(finish, new THREE.BoxGeometry(0.72, 0.14, 0.44), dugoutShellFinish, x + stepSign * 3.84, 0.22, -(metersH / 2 + 1.88), 0, 0, 0, 'pitch_3d_finished_dugout_access_step_visible');
+						                });
 						                const label = new THREE.Mesh(new THREE.PlaneGeometry(5.8, 0.66), adMats[(idx + 1) % adMats.length]);
 						                label.position.set(x, 1.18, -(metersH / 2 + 1.78));
 						                label.userData = { kind: 'pitch_3d_finished_dugout_label_visible' };
@@ -12299,6 +12493,32 @@
 						                  opacity: 0.98,
 						                });
 						                const addInteriorFieldReferencePass = () => {
+						                  const seatWallSkinMat = new THREE.MeshStandardMaterial({
+						                    color: 0xffffff,
+						                    map: getPitch3dSeatPatternTexture('#1e40af', '#2563eb'),
+						                    roughness: 0.62,
+						                    metalness: 0.03,
+						                    side: THREE.DoubleSide,
+						                  });
+						                  try {
+						                    if (seatWallSkinMat.map) {
+						                      seatWallSkinMat.map = seatWallSkinMat.map.clone();
+						                      seatWallSkinMat.map.wrapS = THREE.RepeatWrapping;
+						                      seatWallSkinMat.map.wrapT = THREE.RepeatWrapping;
+						                      seatWallSkinMat.map.repeat.set(22, 8);
+						                      seatWallSkinMat.map.offset.set(0, 0);
+						                      if ('colorSpace' in seatWallSkinMat.map) seatWallSkinMat.map.colorSpace = THREE.SRGBColorSpace;
+						                      seatWallSkinMat.map.needsUpdate = true;
+						                    }
+						                  } catch (e) { /* ignore */ }
+						                  const addSeatWallSkin = (axis, sign, x, y, z, w, h, rx, ry, kind) => {
+						                    const panel = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.34), seatWallSkinMat);
+						                    panel.position.set(x, y, z);
+						                    panel.rotation.set(rx, ry, 0);
+						                    panel.userData = { kind };
+						                    try { panel.castShadow = true; panel.receiveShadow = true; } catch (e) { /* ignore */ }
+						                    finish.add(panel);
+						                  };
 						                  const addSeatBand = (axis, sign, row, center, span, mat, accent = false) => {
 						                    const y = 1.15 + (row * 0.48);
 						                    const offset = 7.5 + (row * 0.82);
@@ -12306,6 +12526,13 @@
 						                      addBox(finish, new THREE.BoxGeometry(span, 0.13, 0.34), mat, center, y, sign * (metersH / 2 + offset), -0.10, 0, 0, accent ? 'pitch_3d_professional_reference_seat_mosaic_accent_long' : 'pitch_3d_professional_reference_seat_mosaic_long');
 						                    } else {
 						                      addBox(finish, new THREE.BoxGeometry(0.34, 0.13, span), mat, sign * (metersW / 2 + offset), y, center, -0.10, 0, 0, accent ? 'pitch_3d_professional_reference_seat_mosaic_accent_end' : 'pitch_3d_professional_reference_seat_mosaic_end');
+						                    }
+						                  };
+						                  const addSectorDivider = (axis, sign, center, height, depth, kind) => {
+						                    if (axis === 'long') {
+						                      addBox(finish, new THREE.BoxGeometry(0.14, height, depth), gateMetal, center, height / 2 + 0.92, sign * (metersH / 2 + 11.8), -0.12, 0, 0, kind);
+						                    } else {
+						                      addBox(finish, new THREE.BoxGeometry(depth, height, 0.14), gateMetal, sign * (metersW / 2 + 11.8), height / 2 + 0.92, center, -0.12, 0, 0, kind);
 						                    }
 						                  };
 						                  const hoardingShellMat = new THREE.MeshStandardMaterial({ color: 0x08111d, roughness: 0.38, metalness: 0.26 });
@@ -12338,26 +12565,67 @@
 						                    g.add(back);
 						                    finish.add(g);
 						                  };
-						                  const seatPatternForBand = (row, idx, ratio) => {
+						                  const seatPatternForBand = (row, idx, ratio, axis = 'long') => {
 						                    const absRatio = Math.abs(Number(ratio) || 0);
-						                    if (row % 4 === 0 && absRatio < 0.12) return seatWhite;
-						                    if ((row + idx) % 6 === 0) return seatWhite;
-						                    if (absRatio > 0.30 && row % 2 === 0) return seatDark;
+						                    if (axis === 'long') {
+						                      if (absRatio < 0.08 && row >= 2 && row <= 8) return seatSky;
+						                      if (absRatio >= 0.08 && absRatio < 0.16 && row % 3 === 0) return seatRoyal;
+						                      if (absRatio > 0.30 && row % 2 === 0) return seatDark;
+						                      if ((row + idx) % 7 === 0) return seatSky;
+						                      return seatGreen;
+						                    }
+						                    if (absRatio < 0.10 && row >= 1 && row <= 6) return seatSky;
+						                    if (absRatio > 0.24 && row % 2 === 1) return seatDark;
+						                    if ((row + idx) % 6 === 0) return seatRoyal;
 						                    return seatGreen;
 						                  };
 						                  [-1, 1].forEach((sign) => {
 						                    for (let row = 0; row < 11; row += 1) {
 						                      [-0.34, -0.17, 0, 0.17, 0.34].forEach((ratio, idx) => {
-						                        const mat = seatPatternForBand(row, idx, ratio);
-						                        addSeatBand('long', sign, row, ratio * metersW, metersW * 0.115, mat, mat === seatWhite);
+						                        const mat = seatPatternForBand(row, idx, ratio, 'long');
+						                        addSeatBand('long', sign, row, ratio * metersW, metersW * 0.115, mat, false);
+						                      });
+						                      [-0.255, 0, 0.255].forEach((ratio, aisleIdx) => {
+						                        addBox(
+						                          finish,
+						                          new THREE.BoxGeometry(1.82, 0.14, 1.28),
+						                          aisleMat,
+						                          ratio * metersW,
+						                          1.18 + row * 0.48,
+						                          sign * (metersH / 2 + 7.48 + row * 0.82),
+						                          -0.14,
+						                          0,
+						                          0,
+						                          aisleIdx === 1 ? 'pitch_3d_professional_real_central_stair_long' : 'pitch_3d_professional_real_radial_stair_long'
+						                        );
 						                      });
 						                    }
+						                    [-0.43, -0.26, -0.09, 0.09, 0.26, 0.43].forEach((ratio) => {
+						                      addSectorDivider('long', sign, ratio * metersW, 6.4, 7.8, 'pitch_3d_professional_real_sector_divider_long');
+						                    });
 						                    for (let row = 0; row < 9; row += 1) {
 						                      [-0.28, -0.10, 0.10, 0.28].forEach((ratio, idx) => {
-						                        const mat = seatPatternForBand(row, idx, ratio);
-						                        addSeatBand('end', sign, row, ratio * metersH, metersH * 0.125, mat, mat === seatWhite);
+						                        const mat = seatPatternForBand(row, idx, ratio, 'end');
+						                        addSeatBand('end', sign, row, ratio * metersH, metersH * 0.125, mat, false);
+						                      });
+						                      [-0.18, 0.18].forEach((ratio) => {
+						                        addBox(
+						                          finish,
+						                          new THREE.BoxGeometry(1.24, 0.14, 1.92),
+						                          aisleMat,
+						                          sign * (metersW / 2 + 7.48 + row * 0.82),
+						                          1.18 + row * 0.48,
+						                          ratio * metersH,
+						                          -0.14,
+						                          0,
+						                          0,
+						                          'pitch_3d_professional_real_radial_stair_end'
+						                        );
 						                      });
 						                    }
+						                    [-0.32, 0, 0.32].forEach((ratio) => {
+						                      addSectorDivider('end', sign, ratio * metersH, 5.8, 7.0, 'pitch_3d_professional_real_sector_divider_end');
+						                    });
 						                    const boardZ = sign * (metersH / 2 + 2.18);
 						                    [
 						                      [-0.38, hoardingSponsorMat],
@@ -12388,8 +12656,30 @@
 						                    addBox(finish, new THREE.BoxGeometry(8.8, 0.13, 0.34), seatWhite, x + sx * 1.4, 4.68, z - sz * 1.8, -0.10, sx * sz * 0.18, 0, 'pitch_3d_professional_corner_wrapped_seat_band_white');
 						                    addBox(finish, new THREE.BoxGeometry(10.5, 0.12, 0.18), gateMetal, x, 5.38, z + sz * 2.6, 0, sx * sz * 0.18, 0, 'pitch_3d_professional_corner_clean_guardrail');
 						                  });
+						                  addSeatWallSkin('long', -1, 0, 5.85, -(metersH / 2 + 15.8), metersW * 0.96, 8.4, -0.58, 0, 'pitch_3d_professional_visible_seat_wall_south_lower');
+						                  addSeatWallSkin('long', 1, 0, 5.85, metersH / 2 + 15.8, metersW * 0.96, 8.4, 0.58, Math.PI, 'pitch_3d_professional_visible_seat_wall_north_lower');
+						                  addSeatWallSkin('long', -1, 0, 10.40, -(metersH / 2 + 24.8), metersW * 0.88, 7.2, -0.42, 0, 'pitch_3d_professional_visible_seat_wall_south_upper');
+						                  addSeatWallSkin('long', 1, 0, 10.40, metersH / 2 + 24.8, metersW * 0.88, 7.2, 0.42, Math.PI, 'pitch_3d_professional_visible_seat_wall_north_upper');
+						                  addSeatWallSkin('end', -1, -(metersW / 2 + 15.8), 5.70, 0, metersH * 0.62, 7.4, 0, Math.PI / 2, 'pitch_3d_professional_visible_seat_wall_west_lower');
+						                  addSeatWallSkin('end', 1, metersW / 2 + 15.8, 5.70, 0, metersH * 0.62, 7.4, 0, -Math.PI / 2, 'pitch_3d_professional_visible_seat_wall_east_lower');
+						                  addSeatWallSkin('end', -1, -(metersW / 2 + 24.4), 10.00, 0, metersH * 0.52, 6.4, 0, Math.PI / 2, 'pitch_3d_professional_visible_seat_wall_west_upper');
+						                  addSeatWallSkin('end', 1, metersW / 2 + 24.4, 10.00, 0, metersH * 0.52, 6.4, 0, -Math.PI / 2, 'pitch_3d_professional_visible_seat_wall_east_upper');
+						                  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz], idx) => {
+						                    addSeatWallSkin(
+						                      'corner',
+						                      0,
+						                      sx * (metersW / 2 + 18.2),
+						                      6.10,
+						                      sz * (metersH / 2 + 18.2),
+						                      9.4,
+						                      6.0,
+						                      -0.44,
+						                      sx * sz * (Math.PI / 4),
+						                      `pitch_3d_professional_visible_seat_wall_corner_${idx}`
+						                    );
+						                  });
 						                };
-						                addInteriorFieldReferencePass();
+						                if (!options?.dedicatedReference) addInteriorFieldReferencePass();
 						                const addRealStadiumInteriorPolishPass = () => {
 						                  const bowlRibbonMat = new THREE.MeshBasicMaterial({ color: 0x8fd8ff, transparent: true, opacity: 0.82, toneMapped: false, depthWrite: false });
 						                  const hospitalityGlowMat = new THREE.MeshBasicMaterial({ color: 0xfff1bf, transparent: true, opacity: 0.22, toneMapped: false, depthWrite: false, side: THREE.DoubleSide });
@@ -12397,8 +12687,15 @@
 						                  const broadcastGlowMat = new THREE.MeshBasicMaterial({ color: 0xcfeeff, transparent: true, opacity: 0.22, toneMapped: false, depthWrite: false, side: THREE.DoubleSide });
 						                  const crowdGlowMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc, transparent: true, opacity: 0.10, toneMapped: false, depthWrite: false, side: THREE.DoubleSide });
 						                  const mainStandZ = -(metersH / 2 + 15.40);
+						                  addBox(finish, new THREE.BoxGeometry(metersW * 0.62, 0.18, 2.10), facadePanel, 0, 5.02, mainStandZ + 0.84, -0.06, 0, 0, 'pitch_3d_professional_real_main_tv_deck');
+						                  addBox(finish, new THREE.BoxGeometry(metersW * 0.60, 0.10, 0.16), gateMetal, 0, 5.56, mainStandZ + 0.14, 0, 0, 0, 'pitch_3d_professional_real_main_tv_deck_guardrail');
 						                  addBox(finish, new THREE.BoxGeometry(metersW * 0.52, 0.88, 0.96), suiteDark, 0, 6.68, mainStandZ, -0.010, 0, 0, 'pitch_3d_professional_real_main_press_suite_volume');
 						                  addBox(finish, new THREE.BoxGeometry(metersW * 0.48, 0.58, 0.08), suiteGlass, 0, 6.70, mainStandZ + 0.50, 0, 0, 0, 'pitch_3d_professional_real_main_press_suite_glass');
+						                  addBox(finish, new THREE.BoxGeometry(metersW * 0.28, 0.22, 0.44), roofFinish, 0, 5.54, mainStandZ + 0.22, 0, 0, 0, 'pitch_3d_professional_real_tunnel_club_deck');
+						                  [-0.16, 0.16].forEach((ratio) => {
+						                    addBox(finish, new THREE.BoxGeometry(4.8, 0.26, 0.52), dugoutSeatBlueFinish, ratio * metersW, 5.66, mainStandZ + 0.22, 0, 0, 0, 'pitch_3d_professional_real_tunnel_club_lounge_seat_base');
+						                    addBox(finish, new THREE.BoxGeometry(4.8, 0.72, 0.18), dugoutSeatShellFinish, ratio * metersW, 6.08, mainStandZ - 0.06, -0.18, 0, 0, 'pitch_3d_professional_real_tunnel_club_lounge_seat_back');
+						                  });
 						                  [-0.42, -0.30, -0.18, -0.06, 0.06, 0.18, 0.30, 0.42].forEach((ratio) => {
 						                    addBox(finish, new THREE.BoxGeometry(0.08, 0.62, 0.12), gateMetal, ratio * metersW * 0.90, 6.72, mainStandZ + 0.54, 0, 0, 0, 'pitch_3d_professional_real_main_press_suite_mullion');
 						                  });
@@ -12412,6 +12709,9 @@
 						                      const x = ratio * metersW;
 						                      addBox(finish, new THREE.BoxGeometry(2.05, 0.42, 0.12), signMat, x, 3.42, standZ - standSign * 0.52, 0, 0, 0, 'pitch_3d_professional_real_sector_sign_long');
 						                      addBox(finish, new THREE.BoxGeometry(3.35, 0.90, 0.28), darkOpening, x, 2.15, standZ - standSign * 0.62, 0, 0, 0, 'pitch_3d_professional_real_vomitory_depth_frame_long');
+						                      addBox(finish, new THREE.BoxGeometry(2.78, 1.68, 1.54), tunnelVoidFinish, x, 1.56, standZ + standSign * 0.18, 0, 0, 0, 'pitch_3d_professional_real_vomitory_void_long');
+						                      addBox(finish, new THREE.BoxGeometry(0.16, 1.26, 1.66), concreteFinish, x - 1.30, 1.42, standZ + standSign * 0.10, 0, 0, 0, 'pitch_3d_professional_real_vomitory_jamb_long_l');
+						                      addBox(finish, new THREE.BoxGeometry(0.16, 1.26, 1.66), concreteFinish, x + 1.30, 1.42, standZ + standSign * 0.10, 0, 0, 0, 'pitch_3d_professional_real_vomitory_jamb_long_r');
 						                      addBox(finish, new THREE.BoxGeometry(2.05, 0.16, 1.66), aisleMat, x, 1.16, standZ - standSign * 2.00, -0.14 * standSign, 0, 0, 'pitch_3d_professional_real_vomitory_landing_long');
 						                      addBox(finish, new THREE.BoxGeometry(2.55, 0.20, 2.45), aisleMat, x + (idx % 2 === 0 ? -0.52 : 0.52), 1.65, standZ + standSign * 2.25, -0.23 * standSign, 0, 0, 'pitch_3d_professional_real_radial_aisle_long');
 						                    });
@@ -12428,6 +12728,9 @@
 						                      const z = ratio * metersH;
 						                      addBox(finish, new THREE.BoxGeometry(0.12, 0.42, 2.05), signMat, standX - standSign * 0.52, 3.42, z, 0, 0, 0, 'pitch_3d_professional_real_sector_sign_end');
 						                      addBox(finish, new THREE.BoxGeometry(0.28, 0.90, 3.35), darkOpening, standX - standSign * 0.62, 2.15, z, 0, 0, 0, 'pitch_3d_professional_real_vomitory_depth_frame_end');
+						                      addBox(finish, new THREE.BoxGeometry(1.54, 1.68, 2.78), tunnelVoidFinish, standX + standSign * 0.18, 1.56, z, 0, 0, 0, 'pitch_3d_professional_real_vomitory_void_end');
+						                      addBox(finish, new THREE.BoxGeometry(1.66, 1.26, 0.16), concreteFinish, standX + standSign * 0.10, 1.42, z - 1.30, 0, 0, 0, 'pitch_3d_professional_real_vomitory_jamb_end_l');
+						                      addBox(finish, new THREE.BoxGeometry(1.66, 1.26, 0.16), concreteFinish, standX + standSign * 0.10, 1.42, z + 1.30, 0, 0, 0, 'pitch_3d_professional_real_vomitory_jamb_end_r');
 						                      addBox(finish, new THREE.BoxGeometry(2.45, 0.20, 2.25), aisleMat, standX + standSign * 2.20, 1.60, z + (idx % 2 === 0 ? -0.50 : 0.50), -0.16, standSign * 0.20, 0, 'pitch_3d_professional_real_radial_aisle_end');
 						                    });
 						                    [2.55, 4.95, 7.35].forEach((height, level) => {
@@ -12451,12 +12754,17 @@
 						                      addBox(finish, new THREE.BoxGeometry(5.2, 1.16, 0.78), suiteDark, x, 8.18, boxZ, 0, 0, 0, 'pitch_3d_professional_real_hospitality_box_volume');
 						                      addBox(finish, new THREE.BoxGeometry(4.7, 0.78, 0.10), suiteGlass, x, 8.26, boxZ - sign * 0.36, 0, 0, 0, 'pitch_3d_professional_real_hospitality_box_glass');
 						                      addBox(finish, new THREE.BoxGeometry(5.6, 0.10, 0.24), gateMetal, x, 8.90, boxZ + sign * 0.16, 0, 0, 0, 'pitch_3d_professional_real_hospitality_box_header');
+						                      addBox(finish, new THREE.BoxGeometry(5.4, 0.14, 1.48), roofFinish, x, 7.58, boxZ + sign * 0.22, 0, 0, 0, 'pitch_3d_professional_real_hospitality_box_floor');
 						                      const glow = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 1.16), hospitalityGlowMat);
 						                      glow.position.set(x, 8.26, boxZ - sign * 0.28);
 						                      glow.rotation.y = sign > 0 ? Math.PI : 0;
 						                      glow.userData = { kind: 'pitch_3d_professional_real_hospitality_box_glow' };
 						                      finish.add(glow);
 						                      if (idx % 2 === 0) addBox(finish, new THREE.BoxGeometry(0.12, 0.86, 0.14), gateMetal, x, 8.20, boxZ - sign * 0.34, 0, 0, 0, 'pitch_3d_professional_real_hospitality_box_mullion');
+						                      [-0.86, 0.86].forEach((sx) => {
+						                        addBox(finish, new THREE.BoxGeometry(0.92, 0.22, 0.42), dugoutSeatBlueFinish, x + sx, 7.96, boxZ + sign * 0.10, 0, 0, 0, 'pitch_3d_professional_real_hospitality_box_seat_base');
+						                        addBox(finish, new THREE.BoxGeometry(0.90, 0.62, 0.12), dugoutSeatShellFinish, x + sx, 8.26, boxZ - sign * 0.12, -0.20 * sign, 0, 0, 'pitch_3d_professional_real_hospitality_box_seat_back');
+						                      });
 						                    });
 						                  });
 						                  [-1, 1].forEach((sign) => {
@@ -12667,6 +12975,9 @@
 						            } catch (e) { /* ignore */ }
 						          };
 						          const addFromScratchReferenceStadium = () => {
+						            const fromScratchModelSrc = safeText(stadiumModelSrc || __pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
+						            const buildProceduralFromScratch = true;
+						            if (!buildProceduralFromScratch && isDedicatedPitch3dReferenceStadiumSrc(fromScratchModelSrc)) return;
 						            const stadium = new THREE.Group();
 						            stadium.userData = { kind: 'pitch_3d_from_scratch_reference_stadium' };
 						            const primaryHex = stadiumPalette3d.primary;
@@ -14304,10 +14615,122 @@
 						                    addShadow(x + sx * 0.2, z + sz * 0.2, 14.0, 8.0, 0.14);
 						                  });
 						                };
+						                const addArchitectedDedicatedReferenceBowl = () => {
+						                  const concourseMat = new THREE.MeshStandardMaterial({ color: 0x2b3644, roughness: 0.9, metalness: 0.02 });
+						                  const structureMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.88, metalness: 0.03 });
+						                  const aisleMat = new THREE.MeshStandardMaterial({ color: 0xd7dee7, roughness: 0.78, metalness: 0.02 });
+						                  const voidMat = new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.94, metalness: 0.02 });
+						                  const railMat = new THREE.MeshStandardMaterial({ color: 0xdbe4ec, roughness: 0.34, metalness: 0.32 });
+						                  const ledMat = new THREE.MeshStandardMaterial({ color: 0x07152d, roughness: 0.38, metalness: 0.16 });
+						                  const seatSkinMat = new THREE.MeshBasicMaterial({ color: 0x1e3a8a, toneMapped: false, side: THREE.DoubleSide });
+						                  const seatSkinHeroMat = new THREE.MeshBasicMaterial({ color: 0x2563eb, toneMapped: false, side: THREE.DoubleSide });
+						                  const seatRowGapMat = new THREE.MeshBasicMaterial({ color: 0x0f172a, toneMapped: false, side: THREE.DoubleSide });
+						                  const seatWordmarkMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc, toneMapped: false, side: THREE.DoubleSide });
+						                  const addStand = (axis, sign, width, offset, tiers, kind, hero = false) => {
+						                    const stand = new THREE.Group();
+						                    stand.userData = { kind };
+						                    if (axis === 'long') {
+						                      stand.position.set(0, 0, sign * (metersH / 2 + offset));
+						                      if (sign > 0) stand.rotation.y = Math.PI;
+						                    } else {
+						                      stand.position.set(sign * (metersW / 2 + offset), 0, 0);
+						                      stand.rotation.y = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
+						                    }
+						                    const addLocal = (geo, mat, x, y, z, rx = 0, ry = 0, rz = 0, localKind = kind) => {
+						                      const mesh = new THREE.Mesh(geo, mat);
+						                      mesh.position.set(x, y, z);
+						                      mesh.rotation.set(rx, ry, rz);
+						                      mesh.userData = { kind: localKind };
+						                      try { mesh.castShadow = true; mesh.receiveShadow = true; } catch (e) { /* ignore */ }
+						                      stand.add(mesh);
+						                      return mesh;
+						                    };
+						                    addLocal(new THREE.BoxGeometry(width + 4.0, 0.60, 5.0), ledMat, 0, 0.30, -1.4, 0, 0, 0, `${kind}_pitchside_led`);
+						                    let zCursor = 1.8;
+						                    let yCursor = 0.28;
+						                    tiers.forEach((tier, tierIndex) => {
+						                      const tierWidth = width * tier.widthScale;
+						                      const depth = tier.depth;
+						                      const rise = tier.rise;
+						                      const rows = tier.rows;
+						                      const skinMat = hero && tierIndex === 0 ? seatSkinHeroMat : seatSkinMat;
+						                      addLocal(new THREE.BoxGeometry(tierWidth + 2.4, 0.32, depth + 1.0), structureMat, 0, yCursor + rise * 0.18, zCursor + depth * 0.56, -0.34, 0, 0, `${kind}_terrace_mass`);
+						                      const skin = addLocal(new THREE.PlaneGeometry(tierWidth, depth), skinMat, 0, yCursor + rise * 0.44, zCursor + depth * 0.48, -0.34, 0, 0, `${kind}_seat_skin`);
+						                      try { skin.renderOrder = 24; } catch (e) { /* ignore */ }
+						                      const rowDepth = depth / rows;
+						                      for (let rowIndex = 1; rowIndex < rows; rowIndex += 1) {
+						                        const rowMark = addLocal(
+						                          new THREE.PlaneGeometry(tierWidth * 0.992, Math.max(0.05, rowDepth * 0.11)),
+						                          seatRowGapMat,
+						                          0,
+						                          yCursor + (rise / rows) * rowIndex + 0.06,
+						                          zCursor + rowDepth * rowIndex,
+						                          -0.34,
+						                          0,
+						                          0,
+						                          `${kind}_row_mark`
+						                        );
+						                        try { rowMark.renderOrder = 25; } catch (e) { /* ignore */ }
+						                      }
+						                      if (hero && tierIndex === 0) {
+						                        const label = addLocal(new THREE.PlaneGeometry(tierWidth * 0.38, depth * 0.18), seatWordmarkMat, 0, yCursor + rise * 0.56, zCursor + depth * 0.44, -0.34, 0, 0, `${kind}_seat_wordmark`);
+						                        try { label.renderOrder = 26; } catch (e) { /* ignore */ }
+						                      }
+						                      tier.aisles.forEach((ratio) => {
+						                        const aisle = addLocal(new THREE.PlaneGeometry(0.42, depth * 0.94), aisleMat, ratio * tierWidth, yCursor + rise * 0.46, zCursor + depth * 0.48, -0.34, 0, 0, `${kind}_aisle_skin`);
+						                        try { aisle.renderOrder = 26; } catch (e) { /* ignore */ }
+						                      });
+						                      tier.vomitories.forEach((ratio) => {
+						                        addLocal(new THREE.BoxGeometry(2.2, 1.56, 1.5), voidMat, ratio * tierWidth, yCursor + rise + 0.54, zCursor + depth - 0.82, 0, 0, 0, `${kind}_vomitory`);
+						                      });
+						                      addLocal(new THREE.BoxGeometry(tierWidth + 0.8, 0.1, 0.14), railMat, 0, yCursor + rise + 0.08, zCursor + depth - 0.38, 0, 0, 0, `${kind}_front_rail`);
+						                      zCursor += depth + tier.gap;
+						                      yCursor += rise + 0.72;
+						                    });
+						                    atmosphere.add(stand);
+						                  };
+						                  addStand('long', 1, metersW + 26, 7.2, [
+						                    { widthScale: 1.0, depth: 12.4, rise: 5.4, rows: 18, aisles: [-0.32, 0, 0.32], vomitories: [-0.32, 0, 0.32], gap: 1.8 },
+						                    { widthScale: 0.92, depth: 10.8, rise: 4.8, rows: 16, aisles: [-0.24, 0.24], vomitories: [-0.24, 0.24], gap: 2.4 },
+						                  ], 'pitch_3d_reference_bowl_north', true);
+						                  addStand('long', -1, metersW + 22, 6.0, [
+						                    { widthScale: 0.94, depth: 9.4, rise: 4.4, rows: 14, aisles: [-0.22, 0.22], vomitories: [-0.22, 0.22], gap: 1.4 },
+						                    { widthScale: 0.86, depth: 7.8, rise: 3.8, rows: 12, aisles: [0], vomitories: [0], gap: 1.8 },
+						                  ], 'pitch_3d_reference_bowl_south', false);
+						                  addStand('end', -1, metersH + 20, 6.0, [
+						                    { widthScale: 0.94, depth: 9.2, rise: 4.2, rows: 14, aisles: [-0.26, 0.26], vomitories: [-0.26, 0.26], gap: 1.4 },
+						                    { widthScale: 0.84, depth: 7.4, rise: 3.6, rows: 12, aisles: [0], vomitories: [0], gap: 1.8 },
+						                  ], 'pitch_3d_reference_bowl_west', false);
+						                  addStand('end', 1, metersH + 20, 6.0, [
+						                    { widthScale: 0.94, depth: 9.2, rise: 4.2, rows: 14, aisles: [-0.26, 0.26], vomitories: [-0.26, 0.26], gap: 1.4 },
+						                    { widthScale: 0.84, depth: 7.4, rise: 3.6, rows: 12, aisles: [0], vomitories: [0], gap: 1.8 },
+						                  ], 'pitch_3d_reference_bowl_east', false);
+						                  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
+						                    const corner = new THREE.Group();
+						                    corner.position.set(sx * (metersW / 2 + 7.0), 0, sz * (metersH / 2 + 7.0));
+						                    corner.rotation.y = sx * sz > 0 ? Math.PI * 0.25 : -Math.PI * 0.25;
+						                    corner.userData = { kind: 'pitch_3d_reference_corner_bowl' };
+						                    const mass = new THREE.Mesh(new THREE.BoxGeometry(10.0, 0.56, 10.8), structureMat);
+						                    mass.position.set(0, 2.8, 5.2);
+						                    mass.rotation.x = -0.34;
+						                    mass.userData = { kind: 'pitch_3d_reference_corner_bowl_mass' };
+						                    corner.add(mass);
+						                    const skin = new THREE.Mesh(new THREE.PlaneGeometry(9.0, 9.6), seatSkinMat);
+						                    skin.position.set(0, 2.96, 5.12);
+						                    skin.rotation.x = -0.34;
+						                    skin.userData = { kind: 'pitch_3d_reference_corner_bowl_skin' };
+						                    try { skin.renderOrder = 24; } catch (e) { /* ignore */ }
+						                    corner.add(skin);
+						                    const aisle = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 9.8), aisleMat);
+						                    aisle.position.set(0, 3.0, 5.12);
+						                    aisle.rotation.x = -0.34;
+						                    aisle.userData = { kind: 'pitch_3d_reference_corner_bowl_aisle' };
+						                    try { aisle.renderOrder = 26; } catch (e) { /* ignore */ }
+						                    corner.add(aisle);
+						                    atmosphere.add(corner);
+						                  });
+						                };
 						                if (options.dedicatedReference) {
-						                  addReferenceArchitecturalDugouts();
-						                  addReferenceArchitecturalTunnelHospitality();
-						                  addReferenceCornerGlassPavilions();
 						                  const sun = new THREE.DirectionalLight(0xfff1cf, 0.58);
 						                  sun.position.set(-metersW * 0.65, 34.0, -metersH * 0.85);
 						                  sun.target.position.set(0, 0.2, 0);
@@ -14319,6 +14742,10 @@
 						                addShadow(0, -(metersH / 2 + 11.0), metersW + 62.0, 20.0, 0.18);
 						                addShadow(metersW / 2 + 11.0, 0, 20.0, metersH + 52.0, 0.14);
 						                addShadow(-(metersW / 2 + 11.0), 0, 20.0, metersH + 52.0, 0.14);
+						                if (options.dedicatedReference) {
+						                  target.add(atmosphere);
+						                  return;
+						                }
 						                const clubName = safeText(tokenTeamName || form?.dataset?.stadiumClubName || 'Benagalbon', 'Benagalbon');
 						                const upperClubName = clubName.toUpperCase();
 						                const clubAcronym = /BENAGALB[OÓ]N/i.test(clubName)
@@ -15121,18 +15548,28 @@
 						                  }
 						                };
 						                addPitchCarePattern();
+						                const seatBowlRoot = new THREE.Group();
+						                seatBowlRoot.userData = { kind: 'pitch_3d_stadium_seat_bowl_root' };
+						                atmosphere.add(seatBowlRoot);
+						                const clearSeatBowlRoot = () => {
+						                  while (seatBowlRoot.children.length) {
+						                    const child = seatBowlRoot.children[0];
+						                    seatBowlRoot.remove(child);
+						                  }
+						                };
 						                const addInstancedSeatBowl = () => {
 						                  if (!THREE.InstancedMesh || !THREE.Object3D) return false;
 						                  try {
 						                    const dummy = new THREE.Object3D();
-						                    const seatShellGeo = new THREE.BoxGeometry(0.46, 0.05, 0.42);
-						                    const seatBaseGeo = new THREE.BoxGeometry(0.38, 0.05, 0.30);
-						                    const seatBaseFrontGeo = new THREE.BoxGeometry(0.34, 0.04, 0.06);
-						                    const seatBackGeo = new THREE.BoxGeometry(0.36, 0.42, 0.05);
-						                    const seatBackShellGeo = new THREE.BoxGeometry(0.42, 0.50, 0.07);
-						                    const seatHeadrestGeo = new THREE.BoxGeometry(0.22, 0.10, 0.12);
-						                    const seatPedestalGeo = new THREE.BoxGeometry(0.06, 0.26, 0.10);
-						                    const seatBracketGeo = new THREE.BoxGeometry(0.035, 0.12, 0.16);
+						                    const seatShellGeo = new THREE.BoxGeometry(0.58, 0.08, 0.52);
+						                    const seatBaseGeo = new THREE.BoxGeometry(0.46, 0.08, 0.40);
+						                    const seatBaseFrontGeo = new THREE.BoxGeometry(0.44, 0.06, 0.08);
+						                    const seatBackGeo = new THREE.BoxGeometry(0.42, 0.58, 0.06);
+						                    const seatBackShellGeo = new THREE.BoxGeometry(0.54, 0.68, 0.10);
+						                    const seatHeadrestGeo = new THREE.BoxGeometry(0.30, 0.12, 0.16);
+						                    const seatPedestalGeo = new THREE.BoxGeometry(0.08, 0.34, 0.14);
+						                    const seatBracketGeo = new THREE.BoxGeometry(0.05, 0.18, 0.24);
+						                    const seatWingGeo = new THREE.BoxGeometry(0.05, 0.34, 0.18);
 						                    const railGeo = new THREE.BoxGeometry(0.05, 0.78, 0.05);
 						                    const maxSeats = 14000;
 						                    const maxRails = 1200;
@@ -15145,43 +15582,14 @@
 						                    const seatPedestal = new THREE.InstancedMesh(seatPedestalGeo, seatPedestalMat, maxSeats);
 						                    const seatBracketL = new THREE.InstancedMesh(seatBracketGeo, seatBracketMat, maxSeats);
 						                    const seatBracketR = new THREE.InstancedMesh(seatBracketGeo, seatBracketMat, maxSeats);
+						                    const seatWingL = new THREE.InstancedMesh(seatWingGeo, seatShellMat, maxSeats);
+						                    const seatWingR = new THREE.InstancedMesh(seatWingGeo, seatShellMat, maxSeats);
 						                    const aisleRails = new THREE.InstancedMesh(railGeo, metalMat, maxRails);
 						                    const seatBlue = new THREE.Color(0x2563eb);
 						                    const seatRoyal = new THREE.Color(0x1d4ed8);
 						                    const seatNavy = new THREE.Color(0x1e3a8a);
-						                    const seatLetter = new THREE.Color(0xf8fafc);
 						                    const seatSky = new THREE.Color(0x93c5fd);
-						                    const letterFont = {
-						                      A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'],
-						                      B: ['11110', '10001', '10001', '11110', '10001', '10001', '11110'],
-						                      C: ['01111', '10000', '10000', '10000', '10000', '10000', '01111'],
-						                      D: ['11110', '10001', '10001', '10001', '10001', '10001', '11110'],
-						                      E: ['11111', '10000', '10000', '11110', '10000', '10000', '11111'],
-						                      G: ['01111', '10000', '10000', '10111', '10001', '10001', '01111'],
-						                      J: ['00111', '00010', '00010', '00010', '10010', '10010', '01100'],
-						                      L: ['10000', '10000', '10000', '10000', '10000', '10000', '11111'],
-						                      M: ['10001', '11011', '10101', '10101', '10001', '10001', '10001'],
-						                      N: ['10001', '11001', '10101', '10011', '10001', '10001', '10001'],
-						                      O: ['01110', '10001', '10001', '10001', '10001', '10001', '01110'],
-						                      S: ['01111', '10000', '10000', '01110', '00001', '00001', '11110'],
-						                      T: ['11111', '00100', '00100', '00100', '00100', '00100', '00100'],
-						                      ' ': ['00', '00', '00', '00', '00', '00', '00'],
-						                    };
-						                    const buildLetterColumns = (text) => {
-						                      const cols = [];
-						                      String(text || '').split('').forEach((char, charIdx, source) => {
-						                        const glyph = letterFont[char] || letterFont[' '];
-						                        const width = glyph[0].length;
-						                        for (let x = 0; x < width; x += 1) {
-						                          cols.push(glyph.map((row) => row[x] === '1'));
-						                        }
-						                        if (charIdx < source.length - 1) cols.push([false, false, false, false, false, false, false]);
-						                      });
-						                      return cols;
-						                    };
-						                    const mainStandLetterMap = buildLetterColumns('MALAGA CF');
-						                    const oppositeStandLetterMap = buildLetterColumns('MCF');
-						                    [seatShell, seatBase, seatBaseFront, seatBackShell, seatBack, seatHeadrest, seatPedestal, seatBracketL, seatBracketR, aisleRails].forEach((mesh) => {
+						                    [seatShell, seatBase, seatBaseFront, seatBackShell, seatBack, seatHeadrest, seatPedestal, seatBracketL, seatBracketR, seatWingL, seatWingR, aisleRails].forEach((mesh) => {
 						                      mesh.count = 0;
 						                      mesh.userData = { kind: 'pitch_3d_stadium_instanced_professional_seating' };
 						                      try { mesh.castShadow = true; mesh.receiveShadow = true; } catch (e) { /* ignore */ }
@@ -15196,91 +15604,312 @@
 						                      if (color && typeof mesh.setColorAt === 'function') mesh.setColorAt(mesh.count, color);
 						                      mesh.count += 1;
 						                    };
-						                    const readSeatWordPattern = (map, rowStart, rowEnd, row, col, cols) => {
-						                      if (row < rowStart || row > rowEnd) return false;
-						                      const start = Math.max(0, Math.floor((cols - map.length) / 2));
-						                      const letterCol = col - start;
-						                      if (letterCol < 0 || letterCol >= map.length) return false;
-						                      return !!map[letterCol][row - rowStart];
-						                    };
-						                    const getSeatAccentColor = (axis, sign, row, col, cols) => {
-						                      if (axis === 'z' && sign === 1 && readSeatWordPattern(mainStandLetterMap, 5, 11, row, col, cols)) return seatLetter;
-						                      if (axis === 'z' && sign === -1 && readSeatWordPattern(oppositeStandLetterMap, 6, 12, row, col, cols)) return seatLetter;
-						                      if (axis === 'x' && row >= 4 && row <= 10) {
-						                        const centerBand = col > cols * 0.24 && col < cols * 0.76;
-						                        if (centerBand && (row === 6 || row === 7 || (col + row) % 8 === 0)) return seatLetter;
+						                    const sectorBreaksLong = [0.00, 0.12, 0.26, 0.40, 0.60, 0.74, 0.88, 1.00];
+						                    const sectorBreaksEnd = [0.00, 0.22, 0.50, 0.78, 1.00];
+						                    const getSectorIndex = (axis, col, cols) => {
+						                      const ratio = cols <= 1 ? 0 : col / (cols - 1);
+						                      const breaks = axis === 'z' ? sectorBreaksLong : sectorBreaksEnd;
+						                      for (let i = 0; i < breaks.length - 1; i += 1) {
+						                        if (ratio >= breaks[i] && ratio <= breaks[i + 1]) return i;
 						                      }
-						                      return null;
+						                      return 0;
 						                    };
-						                    const addStandSeats = ({ axis, sign, rows, cols, span, fixed, baseY, rowDepth, rowRise }) => {
-						                      const aisleCols = axis === 'z'
-						                        ? new Set([5, Math.floor(cols * 0.20), Math.floor(cols * 0.36), Math.floor(cols * 0.50), Math.floor(cols * 0.64), Math.floor(cols * 0.80), cols - 6])
-						                        : new Set([4, Math.floor(cols * 0.28), Math.floor(cols * 0.50), Math.floor(cols * 0.72), cols - 5]);
+						                    const addStandSeats = ({ axis, sign, rows, cols, span, fixed, baseY, rowDepth, rowRise, palette = null, premiumRows = 0, upperTier = false }) => {
+						                      const breaks = axis === 'z' ? sectorBreaksLong : sectorBreaksEnd;
+						                      const aisleCols = new Set(
+						                        breaks
+						                          .slice(1, -1)
+						                          .map((ratio) => Math.max(2, Math.min(cols - 3, Math.round((cols - 1) * ratio))))
+						                      );
+						                      aisleCols.add(5);
+						                      aisleCols.add(cols - 6);
+						                      const outerBuffer = axis === 'z' ? 4 : 3;
+						                      const crossAisleRow = rows >= 12 ? Math.max(3, Math.min(rows - 4, Math.round(rows * (upperTier ? 0.44 : 0.58)))) : -1;
+						                      const crossAisleDepth = upperTier ? 1.28 : 1.04;
+						                      const seatPitch = span / Math.max(1, cols - 1);
 						                      for (let row = 0; row < rows; row += 1) {
 						                        const y = baseY + row * rowRise;
 						                        const depth = fixed + sign * row * rowDepth;
+						                        const rowIsCrossAisle = row === crossAisleRow;
+						                        if (rowIsCrossAisle) {
+						                          if (axis === 'z') {
+						                            addBox(new THREE.BoxGeometry(span + 1.4, 0.10, crossAisleDepth), stairMat, 0, y + 0.02, depth, -0.05 * sign, 0, 0, 'pitch_3d_stadium_professional_cross_aisle_long');
+						                            addBox(new THREE.BoxGeometry(span + 1.0, 0.05, 0.12), metalMat, 0, y + 0.44, depth - sign * (crossAisleDepth * 0.48), 0, 0, 0, 'pitch_3d_stadium_professional_cross_aisle_guardrail_long');
+						                            breaks.slice(1, -1).forEach((ratio) => {
+						                              const x = ((ratio - 0.5) * span);
+						                              addBox(new THREE.BoxGeometry(1.65, 0.16, crossAisleDepth + 0.26), stairMat, x, y + 0.07, depth, -0.06 * sign, 0, 0, 'pitch_3d_stadium_professional_vomitory_landing_long');
+						                              place(aisleRails, x - 0.72, y + 0.45, depth, 0, 0, 0);
+						                              place(aisleRails, x + 0.72, y + 0.45, depth, 0, 0, 0);
+						                            });
+						                          } else {
+						                            addBox(new THREE.BoxGeometry(crossAisleDepth, 0.10, span + 1.4), stairMat, depth, y + 0.02, 0, 0, 0.05 * sign, 0, 'pitch_3d_stadium_professional_cross_aisle_end');
+						                            addBox(new THREE.BoxGeometry(0.12, 0.05, span + 1.0), metalMat, depth - sign * (crossAisleDepth * 0.48), y + 0.44, 0, 0, 0, 0, 'pitch_3d_stadium_professional_cross_aisle_guardrail_end');
+						                            breaks.slice(1, -1).forEach((ratio) => {
+						                              const z = ((ratio - 0.5) * span);
+						                              addBox(new THREE.BoxGeometry(crossAisleDepth + 0.26, 0.16, 1.65), stairMat, depth, y + 0.07, z, 0, 0.06 * sign, 0, 'pitch_3d_stadium_professional_vomitory_landing_end');
+						                              place(aisleRails, depth, y + 0.45, z - 0.72, 0, 0, 0);
+						                              place(aisleRails, depth, y + 0.45, z + 0.72, 0, 0, 0);
+						                            });
+						                          }
+						                          continue;
+						                        }
 						                        for (let col = 0; col < cols; col += 1) {
+						                          if (col < outerBuffer || col > cols - outerBuffer - 1) continue;
 						                          if (aisleCols.has(col)) continue;
+						                          if (aisleCols.has(col - 1) || aisleCols.has(col + 1)) {
+						                            const ratio = cols <= 1 ? 0 : (col / (cols - 1));
+						                            const nearCenterVomitory = Math.abs(ratio - 0.5) < (axis === 'z' ? 0.055 : 0.08);
+						                            if (nearCenterVomitory && row > Math.max(1, premiumRows - 1) && row < Math.max(2, rows - 2)) continue;
+						                          }
 						                          const t = cols <= 1 ? 0 : (col / (cols - 1)) - 0.5;
 						                          const offset = t * span;
 						                          const stagger = ((row + col) % 2) * 0.004;
 						                          const dark = (row + col) % 22 === 0;
-						                          const accentColor = getSeatAccentColor(axis, sign, row, col, cols);
-						                          const seatColor = accentColor || (dark ? seatNavy : (((row + col) % 3 === 0) ? seatRoyal : seatBlue));
+						                          const sectorIndex = getSectorIndex(axis, col, cols);
+						                          const colorPalette = palette || [seatRoyal, seatBlue, seatSky, seatNavy];
+						                          const sectorColor = colorPalette[(sectorIndex + (upperTier ? 1 : 0)) % colorPalette.length];
+						                          const isPremiumRow = row < premiumRows;
+						                          const rowBandLight = row % 4 === 0;
+						                          const edgeAccent = Math.abs(t) > 0.40;
+						                          const headrestColor = isPremiumRow ? seatShellMat.color.clone() : seatSky;
+						                          const seatScaleY = isPremiumRow ? 1.10 : 1;
+						                          const backScaleY = isPremiumRow ? 1.14 : 1.04;
+						                          const rowLift = upperTier ? 0.02 : 0;
+						                          const seatDepthScale = isPremiumRow ? 1.10 : (upperTier ? 1.02 : 1.04);
+						                          const headrestScaleX = isPremiumRow ? 1.32 : 1.20;
+						                          let seatColor = dark ? seatNavy : sectorColor;
+						                          if (rowBandLight && !dark) seatColor = seatColor.clone().lerp(seatSky, 0.16);
+						                          if (edgeAccent && !dark) seatColor = seatColor.clone().lerp(seatNavy, 0.12);
 						                          if (axis === 'z') {
-						                            place(seatShell, offset, y - 0.005, depth + sign * (stagger + 0.01), -0.06 * sign, 0, 0, 1, 1, 1);
-						                            place(seatBase, offset, y + 0.024, depth + sign * 0.02, -0.06 * sign, 0, 0, 1, 1, 1, seatColor);
+						                            place(seatShell, offset, y - 0.005 + rowLift, depth + sign * (stagger + 0.01), -0.06 * sign, 0, 0, 1, seatScaleY, seatDepthScale);
+						                            place(seatBase, offset, y + 0.026 + rowLift, depth + sign * 0.03, -0.06 * sign, 0, 0, 1, seatScaleY, seatDepthScale, seatColor);
 						                            place(seatBaseFront, offset, y + 0.008, depth - sign * 0.11, -0.06 * sign, 0, 0, 1, 1, 1);
-						                            place(seatBackShell, offset, y + 0.26, depth + sign * 0.19, -0.19 * sign, 0, 0, 1, 1, 1);
-						                            place(seatBack, offset, y + 0.25, depth + sign * 0.18, -0.21 * sign, 0, 0, 1, 1, 1, seatColor);
-						                            place(seatHeadrest, offset, y + 0.50, depth + sign * 0.27, -0.15 * sign, 0, 0, 1.14, 1.02, 1, accentColor ? seatLetter : seatSky);
-						                            place(seatPedestal, offset, y - 0.10, depth + sign * 0.01, -0.02 * sign, 0, 0);
-						                            place(seatBracketL, offset - 0.15, y + 0.03, depth + sign * 0.01, -0.10 * sign, 0, 0);
-						                            place(seatBracketR, offset + 0.15, y + 0.03, depth + sign * 0.01, -0.10 * sign, 0, 0);
+						                            place(seatBackShell, offset, y + 0.34 + rowLift, depth + sign * 0.24, -0.20 * sign, 0, 0, 1, backScaleY, 1);
+						                            place(seatBack, offset, y + 0.33 + rowLift, depth + sign * 0.23, -0.22 * sign, 0, 0, 1, backScaleY, 1, seatColor);
+						                            place(seatHeadrest, offset, y + 0.64 + rowLift, depth + sign * 0.34, -0.16 * sign, 0, 0, headrestScaleX, 1.04, 1, headrestColor);
+						                            place(seatPedestal, offset, y - 0.12, depth + sign * 0.02, -0.02 * sign, 0, 0);
+						                            place(seatBracketL, offset - 0.20, y + 0.04, depth + sign * 0.02, -0.10 * sign, 0, 0);
+						                            place(seatBracketR, offset + 0.20, y + 0.04, depth + sign * 0.02, -0.10 * sign, 0, 0);
+						                            place(seatWingL, offset - 0.24, y + 0.32 + rowLift, depth + sign * 0.20, -0.20 * sign, 0, 0, 1, backScaleY * 0.82, 1);
+						                            place(seatWingR, offset + 0.24, y + 0.32 + rowLift, depth + sign * 0.20, -0.20 * sign, 0, 0, 1, backScaleY * 0.82, 1);
 						                          } else {
-						                            place(seatShell, depth + sign * (stagger + 0.01), y - 0.005, offset, 0, 0.06 * sign, 0, 1, 1, 1);
-						                            place(seatBase, depth + sign * 0.02, y + 0.024, offset, 0, 0.06 * sign, 0, 1, 1, 1, seatColor);
+						                            place(seatShell, depth + sign * (stagger + 0.01), y - 0.005 + rowLift, offset, 0, 0.06 * sign, 0, 1, seatScaleY, seatDepthScale);
+						                            place(seatBase, depth + sign * 0.03, y + 0.026 + rowLift, offset, 0, 0.06 * sign, 0, 1, seatScaleY, seatDepthScale, seatColor);
 						                            place(seatBaseFront, depth - sign * 0.11, y + 0.008, offset, 0, 0.06 * sign, 0, 1, 1, 1);
-						                            place(seatBackShell, depth + sign * 0.19, y + 0.26, offset, 0, 0.19 * sign, 0, 1, 1, 1);
-						                            place(seatBack, depth + sign * 0.18, y + 0.25, offset, 0, 0.21 * sign, 0, 1, 1, 1, seatColor);
-						                            place(seatHeadrest, depth + sign * 0.27, y + 0.50, offset, 0, 0.15 * sign, 0, 1.14, 1.02, 1, accentColor ? seatLetter : seatSky);
-						                            place(seatPedestal, depth + sign * 0.01, y - 0.10, offset, 0, 0.02 * sign, 0);
-						                            place(seatBracketL, depth + sign * 0.01, y + 0.03, offset - 0.15, 0, 0.10 * sign, 0);
-						                            place(seatBracketR, depth + sign * 0.01, y + 0.03, offset + 0.15, 0, 0.10 * sign, 0);
+						                            place(seatBackShell, depth + sign * 0.24, y + 0.34 + rowLift, offset, 0, 0.20 * sign, 0, 1, backScaleY, 1);
+						                            place(seatBack, depth + sign * 0.23, y + 0.33 + rowLift, offset, 0, 0.22 * sign, 0, 1, backScaleY, 1, seatColor);
+						                            place(seatHeadrest, depth + sign * 0.34, y + 0.64 + rowLift, offset, 0, 0.16 * sign, 0, headrestScaleX, 1.04, 1, headrestColor);
+						                            place(seatPedestal, depth + sign * 0.02, y - 0.12, offset, 0, 0.02 * sign, 0);
+						                            place(seatBracketL, depth + sign * 0.02, y + 0.04, offset - 0.20, 0, 0.10 * sign, 0);
+						                            place(seatBracketR, depth + sign * 0.02, y + 0.04, offset + 0.20, 0, 0.10 * sign, 0);
+						                            place(seatWingL, depth + sign * 0.20, y + 0.32 + rowLift, offset - 0.24, 0, 0.20 * sign, 0, 1, backScaleY * 0.82, 1);
+						                            place(seatWingR, depth + sign * 0.20, y + 0.32 + rowLift, offset + 0.24, 0, 0.20 * sign, 0, 1, backScaleY * 0.82, 1);
 						                          }
 						                        }
 						                        aisleCols.forEach((col) => {
 						                          const t = cols <= 1 ? 0 : (col / (cols - 1)) - 0.5;
 						                          const offset = t * span;
+						                          const stepWidth = Math.max(0.78, seatPitch * 1.55);
 						                          if (axis === 'z') {
-						                            addBox(new THREE.BoxGeometry(0.90, 0.08, 0.70), stairMat, offset, y + 0.01, depth, -0.08 * sign, 0, 0, 'pitch_3d_stadium_professional_aisle_step');
-						                            if (row % 3 === 0) place(aisleRails, offset - 0.52, y + 0.42, depth, 0, 0, 0);
+						                            addBox(new THREE.BoxGeometry(stepWidth, 0.08, 0.70), stairMat, offset, y + 0.01, depth, -0.08 * sign, 0, 0, 'pitch_3d_stadium_professional_aisle_step');
+						                            addBox(new THREE.BoxGeometry(stepWidth, 0.04, 0.10), stairMat, offset, y + 0.06, depth - sign * 0.24, -0.08 * sign, 0, 0, 'pitch_3d_stadium_professional_aisle_nosing');
+						                            if (row % 3 === 0) {
+						                              place(aisleRails, offset - stepWidth * 0.56, y + 0.42, depth, 0, 0, 0);
+						                              place(aisleRails, offset + stepWidth * 0.56, y + 0.42, depth, 0, 0, 0);
+						                            }
 						                          } else {
-						                            addBox(new THREE.BoxGeometry(0.70, 0.08, 0.90), stairMat, depth, y + 0.01, offset, 0, 0.08 * sign, 0, 'pitch_3d_stadium_professional_aisle_step');
-						                            if (row % 3 === 0) place(aisleRails, depth, y + 0.42, offset - 0.52, 0, 0, 0);
+						                            addBox(new THREE.BoxGeometry(0.70, 0.08, stepWidth), stairMat, depth, y + 0.01, offset, 0, 0.08 * sign, 0, 'pitch_3d_stadium_professional_aisle_step');
+						                            addBox(new THREE.BoxGeometry(0.10, 0.04, stepWidth), stairMat, depth - sign * 0.24, y + 0.06, offset, 0, 0.08 * sign, 0, 'pitch_3d_stadium_professional_aisle_nosing');
+						                            if (row % 3 === 0) {
+						                              place(aisleRails, depth, y + 0.42, offset - stepWidth * 0.56, 0, 0, 0);
+						                              place(aisleRails, depth, y + 0.42, offset + stepWidth * 0.56, 0, 0, 0);
+						                            }
 						                          }
 						                        });
 						                      }
 						                    };
-						                    addStandSeats({ axis: 'z', sign: 1, rows: 18, cols: 86, span: metersW + 45.5, fixed: metersH / 2 + 10.0, baseY: 2.94, rowDepth: 0.55, rowRise: 0.28 });
-						                    addStandSeats({ axis: 'z', sign: -1, rows: 18, cols: 86, span: metersW + 45.5, fixed: -(metersH / 2 + 10.0), baseY: 2.94, rowDepth: 0.55, rowRise: 0.28 });
-						                    addStandSeats({ axis: 'x', sign: 1, rows: 15, cols: 52, span: metersH + 35.0, fixed: metersW / 2 + 10.1, baseY: 3.10, rowDepth: 0.56, rowRise: 0.28 });
-						                    addStandSeats({ axis: 'x', sign: -1, rows: 15, cols: 52, span: metersH + 35.0, fixed: -(metersW / 2 + 10.1), baseY: 3.10, rowDepth: 0.56, rowRise: 0.28 });
-						                    addStandSeats({ axis: 'z', sign: 1, rows: 16, cols: 94, span: metersW + 38.0, fixed: metersH / 2 + 54.2, baseY: 10.86, rowDepth: 0.62, rowRise: 0.31 });
-						                    addStandSeats({ axis: 'z', sign: -1, rows: 16, cols: 94, span: metersW + 38.0, fixed: -(metersH / 2 + 54.2), baseY: 10.86, rowDepth: 0.62, rowRise: 0.31 });
-						                    addStandSeats({ axis: 'x', sign: 1, rows: 14, cols: 56, span: metersH + 28.0, fixed: metersW / 2 + 53.6, baseY: 11.10, rowDepth: 0.62, rowRise: 0.31 });
-						                    addStandSeats({ axis: 'x', sign: -1, rows: 14, cols: 56, span: metersH + 28.0, fixed: -(metersW / 2 + 53.6), baseY: 11.10, rowDepth: 0.62, rowRise: 0.31 });
-						                    [seatShell, seatBase, seatBaseFront, seatBackShell, seatBack, seatHeadrest, seatPedestal, seatBracketL, seatBracketR, aisleRails].forEach((mesh) => {
+						                    const addHeroVisibleSeatBank = ({ axis, sign, rows, cols, span, fixed, baseY, rowDepth, rowRise, scale = 1.18 }) => {
+						                      const start = -span / 2;
+						                      const pitch = span / Math.max(1, cols - 1);
+						                      for (let row = 0; row < rows; row += 1) {
+						                        const y = baseY + row * rowRise;
+						                        const depth = fixed + sign * row * rowDepth;
+						                        for (let col = 0; col < cols; col += 1) {
+						                          const offset = start + (pitch * col);
+						                          const color = (col + row) % 5 === 0 ? seatSky : ((col + row) % 2 === 0 ? seatBlue : seatRoyal);
+						                          if (axis === 'z') {
+						                            place(seatMesh, offset, y, depth, -0.16 * sign, sign > 0 ? Math.PI : 0, 0, scale, color);
+						                          } else {
+						                            place(seatMesh, depth, y, offset, 0, sign > 0 ? (Math.PI / 2) : (-Math.PI / 2), 0, scale, color);
+						                          }
+						                        }
+						                      }
+						                    };
+						                    addStandSeats({ axis: 'z', sign: 1, rows: 19, cols: 92, span: metersW + 46.0, fixed: metersH / 2 + 9.8, baseY: 2.92, rowDepth: 0.55, rowRise: 0.28, palette: [seatSky, seatRoyal, seatBlue, seatNavy], premiumRows: 3 });
+						                    addStandSeats({ axis: 'z', sign: -1, rows: 18, cols: 88, span: metersW + 45.0, fixed: -(metersH / 2 + 10.0), baseY: 2.94, rowDepth: 0.55, rowRise: 0.28, palette: [seatBlue, seatRoyal, seatSky, seatNavy], premiumRows: 2 });
+						                    addStandSeats({ axis: 'x', sign: 1, rows: 16, cols: 56, span: metersH + 36.0, fixed: metersW / 2 + 10.1, baseY: 3.10, rowDepth: 0.56, rowRise: 0.28, palette: [seatRoyal, seatBlue, seatNavy, seatSky], premiumRows: 2 });
+						                    addStandSeats({ axis: 'x', sign: -1, rows: 16, cols: 56, span: metersH + 36.0, fixed: -(metersW / 2 + 10.1), baseY: 3.10, rowDepth: 0.56, rowRise: 0.28, palette: [seatBlue, seatSky, seatRoyal, seatNavy], premiumRows: 2 });
+						                    addStandSeats({ axis: 'z', sign: 1, rows: 17, cols: 98, span: metersW + 40.0, fixed: metersH / 2 + 54.2, baseY: 10.86, rowDepth: 0.62, rowRise: 0.31, palette: [seatSky, seatBlue, seatRoyal, seatNavy], upperTier: true });
+						                    addStandSeats({ axis: 'z', sign: -1, rows: 17, cols: 98, span: metersW + 40.0, fixed: -(metersH / 2 + 54.2), baseY: 10.86, rowDepth: 0.62, rowRise: 0.31, palette: [seatBlue, seatRoyal, seatSky, seatNavy], upperTier: true });
+						                    addStandSeats({ axis: 'x', sign: 1, rows: 15, cols: 60, span: metersH + 30.0, fixed: metersW / 2 + 53.6, baseY: 11.10, rowDepth: 0.62, rowRise: 0.31, palette: [seatRoyal, seatBlue, seatSky, seatNavy], upperTier: true });
+						                    addStandSeats({ axis: 'x', sign: -1, rows: 15, cols: 60, span: metersH + 30.0, fixed: -(metersW / 2 + 53.6), baseY: 11.10, rowDepth: 0.62, rowRise: 0.31, palette: [seatBlue, seatSky, seatRoyal, seatNavy], upperTier: true });
+						                    [seatShell, seatBase, seatBaseFront, seatBackShell, seatBack, seatHeadrest, seatPedestal, seatBracketL, seatBracketR, seatWingL, seatWingR, aisleRails].forEach((mesh) => {
 						                      mesh.instanceMatrix.needsUpdate = true;
 						                      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-						                      atmosphere.add(mesh);
+						                      seatBowlRoot.add(mesh);
 						                    });
 						                    return true;
 						                  } catch (e) {
 						                    return false;
 						                  }
 						                };
-						                addInstancedSeatBowl();
+						                const addRealInstancedSeatBowl = (seatTemplate) => {
+						                  if (!seatTemplate?.geometry || !THREE.InstancedMesh || !THREE.Object3D) return false;
+						                  try {
+						                    const dummy = new THREE.Object3D();
+						                    const railGeo = new THREE.BoxGeometry(0.05, 0.78, 0.05);
+						                    const maxSeats = 14000;
+						                    const maxRails = 1200;
+						                    const seatMat = seatTemplate.material?.clone?.() || new THREE.MeshStandardMaterial({ color: 0x2563eb, roughness: 0.68, metalness: 0.04 });
+						                    seatMat.vertexColors = true;
+						                    const seatMesh = new THREE.InstancedMesh(seatTemplate.geometry, seatMat, maxSeats);
+						                    const aisleRails = new THREE.InstancedMesh(railGeo, metalMat, maxRails);
+						                    const seatBlue = new THREE.Color(0x2563eb);
+						                    const seatRoyal = new THREE.Color(0x1d4ed8);
+						                    const seatNavy = new THREE.Color(0x1e3a8a);
+						                    const seatSky = new THREE.Color(0x93c5fd);
+						                    [seatMesh, aisleRails].forEach((mesh) => {
+						                      mesh.count = 0;
+						                      mesh.userData = { kind: 'pitch_3d_stadium_real_seat_instances' };
+						                      try { mesh.castShadow = true; mesh.receiveShadow = true; } catch (e) { /* ignore */ }
+						                    });
+						                    const place = (mesh, x, y, z, rx, ry, rz, scale = 1, color = null) => {
+						                      if (!mesh || mesh.count >= mesh.instanceMatrix.count) return;
+						                      dummy.position.set(x, y, z);
+						                      dummy.rotation.set(rx, ry, rz);
+						                      dummy.scale.setScalar(scale);
+						                      dummy.updateMatrix();
+						                      mesh.setMatrixAt(mesh.count, dummy.matrix);
+						                      if (color && typeof mesh.setColorAt === 'function') mesh.setColorAt(mesh.count, color);
+						                      mesh.count += 1;
+						                    };
+						                    const sectorBreaksLong = [0.00, 0.12, 0.26, 0.40, 0.60, 0.74, 0.88, 1.00];
+						                    const sectorBreaksEnd = [0.00, 0.22, 0.50, 0.78, 1.00];
+						                    const getSectorIndex = (axis, col, cols) => {
+						                      const ratio = cols <= 1 ? 0 : col / (cols - 1);
+						                      const breaks = axis === 'z' ? sectorBreaksLong : sectorBreaksEnd;
+						                      for (let i = 0; i < breaks.length - 1; i += 1) {
+						                        if (ratio >= breaks[i] && ratio <= breaks[i + 1]) return i;
+						                      }
+						                      return 0;
+						                    };
+						                    const addStandSeats = ({ axis, sign, rows, cols, span, fixed, baseY, rowDepth, rowRise, palette = null, premiumRows = 0, upperTier = false }) => {
+						                      const breaks = axis === 'z' ? sectorBreaksLong : sectorBreaksEnd;
+						                      const aisleCols = new Set(
+						                        breaks
+						                          .slice(1, -1)
+						                          .map((ratio) => Math.max(2, Math.min(cols - 3, Math.round((cols - 1) * ratio))))
+						                      );
+						                      aisleCols.add(5);
+						                      aisleCols.add(cols - 6);
+						                      const outerBuffer = axis === 'z' ? 4 : 3;
+						                      const crossAisleRow = rows >= 12 ? Math.max(3, Math.min(rows - 4, Math.round(rows * (upperTier ? 0.44 : 0.58)))) : -1;
+						                      const crossAisleDepth = upperTier ? 1.28 : 1.04;
+						                      const seatPitch = span / Math.max(1, cols - 1);
+						                      for (let row = 0; row < rows; row += 1) {
+						                        const y = baseY + row * rowRise;
+						                        const depth = fixed + sign * row * rowDepth;
+						                        const rowIsCrossAisle = row === crossAisleRow;
+						                        if (rowIsCrossAisle) {
+						                          if (axis === 'z') {
+						                            addBox(new THREE.BoxGeometry(span + 1.4, 0.10, crossAisleDepth), stairMat, 0, y + 0.02, depth, -0.05 * sign, 0, 0, 'pitch_3d_stadium_professional_cross_aisle_long');
+						                            addBox(new THREE.BoxGeometry(span + 1.0, 0.05, 0.12), metalMat, 0, y + 0.44, depth - sign * (crossAisleDepth * 0.48), 0, 0, 0, 'pitch_3d_stadium_professional_cross_aisle_guardrail_long');
+						                          } else {
+						                            addBox(new THREE.BoxGeometry(crossAisleDepth, 0.10, span + 1.4), stairMat, depth, y + 0.02, 0, 0, 0.05 * sign, 0, 'pitch_3d_stadium_professional_cross_aisle_end');
+						                            addBox(new THREE.BoxGeometry(0.12, 0.05, span + 1.0), metalMat, depth - sign * (crossAisleDepth * 0.48), y + 0.44, 0, 0, 0, 0, 'pitch_3d_stadium_professional_cross_aisle_guardrail_end');
+						                          }
+						                          continue;
+						                        }
+						                        for (let col = 0; col < cols; col += 1) {
+						                          if (col < outerBuffer || col > cols - outerBuffer - 1) continue;
+						                          if (aisleCols.has(col)) continue;
+						                          if (aisleCols.has(col - 1) || aisleCols.has(col + 1)) {
+						                            const ratio = cols <= 1 ? 0 : (col / (cols - 1));
+						                            const nearCenterVomitory = Math.abs(ratio - 0.5) < (axis === 'z' ? 0.055 : 0.08);
+						                            if (nearCenterVomitory && row > Math.max(1, premiumRows - 1) && row < Math.max(2, rows - 2)) continue;
+						                          }
+						                          const t = cols <= 1 ? 0 : (col / (cols - 1)) - 0.5;
+						                          const offset = t * span;
+						                          const dark = (row + col) % 22 === 0;
+						                          const sectorIndex = getSectorIndex(axis, col, cols);
+						                          const colorPalette = palette || [seatRoyal, seatBlue, seatSky, seatNavy];
+						                          let seatColor = dark ? seatNavy : colorPalette[(sectorIndex + (upperTier ? 1 : 0)) % colorPalette.length];
+						                          if (row % 4 === 0 && !dark) seatColor = seatColor.clone().lerp(seatSky, 0.16);
+						                          if (Math.abs(t) > 0.40 && !dark) seatColor = seatColor.clone().lerp(seatNavy, 0.12);
+						                          const isPremiumRow = row < premiumRows;
+						                          const rowLift = upperTier ? 0.02 : 0;
+						                          const seatScale = isPremiumRow ? 1.20 : (upperTier ? 1.12 : 1.10);
+						                          if (axis === 'z') {
+						                            place(seatMesh, offset, y - 0.02 + rowLift, depth + sign * 0.08, -0.07 * sign, sign > 0 ? Math.PI : 0, 0, seatScale, seatColor);
+						                          } else {
+						                            place(seatMesh, depth + sign * 0.08, y - 0.02 + rowLift, offset, 0, sign > 0 ? (Math.PI / 2) : (-Math.PI / 2), 0, seatScale, seatColor);
+						                          }
+						                        }
+						                        aisleCols.forEach((col) => {
+						                          const t = cols <= 1 ? 0 : (col / (cols - 1)) - 0.5;
+						                          const offset = t * span;
+						                          const stepWidth = Math.max(0.78, seatPitch * 1.55);
+						                          if (axis === 'z') {
+						                            addBox(new THREE.BoxGeometry(stepWidth, 0.08, 0.70), stairMat, offset, y + 0.01, depth, -0.08 * sign, 0, 0, 'pitch_3d_stadium_professional_aisle_step');
+						                            addBox(new THREE.BoxGeometry(stepWidth, 0.04, 0.10), stairMat, offset, y + 0.06, depth - sign * 0.24, -0.08 * sign, 0, 0, 'pitch_3d_stadium_professional_aisle_nosing');
+						                            if (row % 3 === 0) {
+						                              place(aisleRails, offset - stepWidth * 0.56, y + 0.42, depth, 0, 0, 0, 1);
+						                              place(aisleRails, offset + stepWidth * 0.56, y + 0.42, depth, 0, 0, 0, 1);
+						                            }
+						                          } else {
+						                            addBox(new THREE.BoxGeometry(0.70, 0.08, stepWidth), stairMat, depth, y + 0.01, offset, 0, 0.08 * sign, 0, 'pitch_3d_stadium_professional_aisle_step');
+						                            addBox(new THREE.BoxGeometry(0.10, 0.04, stepWidth), stairMat, depth - sign * 0.24, y + 0.06, offset, 0, 0.08 * sign, 0, 'pitch_3d_stadium_professional_aisle_nosing');
+						                            if (row % 3 === 0) {
+						                              place(aisleRails, depth, y + 0.42, offset - stepWidth * 0.56, 0, 0, 0, 1);
+						                              place(aisleRails, depth, y + 0.42, offset + stepWidth * 0.56, 0, 0, 0, 1);
+						                            }
+						                          }
+						                        });
+						                      }
+						                    };
+						                    addStandSeats({ axis: 'z', sign: 1, rows: 19, cols: 92, span: metersW + 46.0, fixed: metersH / 2 + 9.8, baseY: 2.92, rowDepth: 0.55, rowRise: 0.28, palette: [seatSky, seatRoyal, seatBlue, seatNavy], premiumRows: 3 });
+						                    addStandSeats({ axis: 'z', sign: -1, rows: 18, cols: 88, span: metersW + 45.0, fixed: -(metersH / 2 + 10.0), baseY: 2.94, rowDepth: 0.55, rowRise: 0.28, palette: [seatBlue, seatRoyal, seatSky, seatNavy], premiumRows: 2 });
+						                    addStandSeats({ axis: 'x', sign: 1, rows: 16, cols: 56, span: metersH + 36.0, fixed: metersW / 2 + 10.1, baseY: 3.10, rowDepth: 0.56, rowRise: 0.28, palette: [seatRoyal, seatBlue, seatNavy, seatSky], premiumRows: 2 });
+						                    addStandSeats({ axis: 'x', sign: -1, rows: 16, cols: 56, span: metersH + 36.0, fixed: -(metersW / 2 + 10.1), baseY: 3.10, rowDepth: 0.56, rowRise: 0.28, palette: [seatBlue, seatSky, seatRoyal, seatNavy], premiumRows: 2 });
+						                    addStandSeats({ axis: 'z', sign: 1, rows: 17, cols: 98, span: metersW + 40.0, fixed: metersH / 2 + 54.2, baseY: 10.86, rowDepth: 0.62, rowRise: 0.31, palette: [seatSky, seatBlue, seatRoyal, seatNavy], upperTier: true });
+						                    addStandSeats({ axis: 'z', sign: -1, rows: 17, cols: 98, span: metersW + 40.0, fixed: -(metersH / 2 + 54.2), baseY: 10.86, rowDepth: 0.62, rowRise: 0.31, palette: [seatBlue, seatRoyal, seatSky, seatNavy], upperTier: true });
+						                    addStandSeats({ axis: 'x', sign: 1, rows: 15, cols: 60, span: metersH + 30.0, fixed: metersW / 2 + 53.6, baseY: 11.10, rowDepth: 0.62, rowRise: 0.31, palette: [seatRoyal, seatBlue, seatSky, seatNavy], upperTier: true });
+						                    addStandSeats({ axis: 'x', sign: -1, rows: 15, cols: 60, span: metersH + 30.0, fixed: -(metersW / 2 + 53.6), baseY: 11.10, rowDepth: 0.62, rowRise: 0.31, palette: [seatBlue, seatSky, seatRoyal, seatNavy], upperTier: true });
+						                    addHeroVisibleSeatBank({ axis: 'z', sign: -1, rows: 10, cols: 42, span: metersW * 0.90, fixed: -(metersH / 2 + 5.9), baseY: 1.00, rowDepth: 0.72, rowRise: 0.32, scale: 1.30 });
+						                    addHeroVisibleSeatBank({ axis: 'z', sign: 1, rows: 10, cols: 42, span: metersW * 0.90, fixed: metersH / 2 + 5.9, baseY: 1.00, rowDepth: 0.72, rowRise: 0.32, scale: 1.30 });
+						                    addHeroVisibleSeatBank({ axis: 'x', sign: -1, rows: 8, cols: 24, span: metersH * 0.66, fixed: -(metersW / 2 + 6.3), baseY: 1.02, rowDepth: 0.76, rowRise: 0.32, scale: 1.22 });
+						                    addHeroVisibleSeatBank({ axis: 'x', sign: 1, rows: 8, cols: 24, span: metersH * 0.66, fixed: metersW / 2 + 6.3, baseY: 1.02, rowDepth: 0.76, rowRise: 0.32, scale: 1.22 });
+						                    [seatMesh, aisleRails].forEach((mesh) => {
+						                      mesh.instanceMatrix.needsUpdate = true;
+						                      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+						                      seatBowlRoot.add(mesh);
+						                    });
+						                    return true;
+						                  } catch (e) {
+						                    return false;
+						                  }
+						                };
+						                const mountSeatBowl = (seatTemplate = null) => {
+						                  clearSeatBowlRoot();
+						                  return seatTemplate ? addRealInstancedSeatBowl(seatTemplate) : addInstancedSeatBowl();
+						                };
+						                mountSeatBowl();
+						                __pitch3dLoadRealSeatModel((seatTemplate) => {
+						                  if (!seatTemplate?.geometry) return;
+						                  if (mountSeatBowl(seatTemplate)) {
+						                    try { if (typeof renderPitch3dFrame === 'function') renderPitch3dFrame(); } catch (e) { /* ignore */ }
+						                  }
+						                });
 						                const addMainStandCrest = () => {
 						                  const crest = new THREE.Mesh(new THREE.CircleGeometry(3.6, 96), crestMat);
 						                  crest.position.set(0, 8.25, metersH / 2 + 11.45);
@@ -17069,48 +17698,52 @@
 						                  addUrbanNightPerimeter();
 						                  addExpandedUrbanContext();
 						                  } else addUnifiedArchvizExteriorSuite();
-						                  const horizonZ = metersH / 2 + 58.0;
-						                  const mountain = new THREE.Mesh(new THREE.PlaneGeometry(metersW + 120.0, 18.0), mountainMat);
-						                  mountain.position.set(0, 11.0, horizonZ + 5.0);
-						                  mountain.rotation.y = Math.PI;
-						                  mountain.userData = { kind: 'pitch_3d_reference_soft_mountain_horizon' };
-						                  atmosphere.add(mountain);
-						                  const mountainFar = new THREE.Mesh(new THREE.PlaneGeometry(metersW + 170.0, 14.0), skylineMidMat);
-						                  mountainFar.position.set(0, 14.8, horizonZ + 18.0);
-						                  mountainFar.rotation.y = Math.PI;
-						                  mountainFar.userData = { kind: 'pitch_3d_reference_far_mountain_horizon' };
-						                  atmosphere.add(mountainFar);
-						                  const coastalBand = new THREE.Mesh(new THREE.PlaneGeometry(metersW + 220.0, 8.8), skylineNearMat);
-						                  coastalBand.position.set(0, 4.4, horizonZ + 26.0);
-						                  coastalBand.rotation.y = Math.PI;
-						                  coastalBand.userData = { kind: 'pitch_3d_reference_coastal_band_horizon' };
-						                  atmosphere.add(coastalBand);
-						                  for (let i = -12; i <= 12; i += 1) {
-						                    const h = 2.8 + ((i * i) % 7) * 0.62;
-						                    const w = 2.2 + (Math.abs(i) % 4) * 0.52;
-						                    addBox(new THREE.BoxGeometry(w, h, 0.42), skylineMat, i * 5.6, h / 2, horizonZ, 0, 0, 0, 'pitch_3d_reference_distant_city_skyline_block');
-						                  }
-						                  for (let i = -10; i <= 10; i += 1) {
-						                    const h = 4.8 + ((Math.abs(i) + 1) % 5) * 1.18;
-						                    const w = 1.1 + (Math.abs(i) % 3) * 0.28;
-						                    addBox(new THREE.BoxGeometry(w, h, 0.30), skylineMidMat, i * 7.4, h / 2 + 0.4, horizonZ + 7.8 + (Math.abs(i) % 2) * 0.6, 0, 0, 0, 'pitch_3d_reference_mid_city_skyline_tower');
-						                  }
-						                  for (let i = -8; i <= 8; i += 1) {
-						                    const h = 6.8 + (Math.abs(i) % 4) * 1.42;
-						                    const w = 2.0 + ((Math.abs(i) + 1) % 2) * 0.44;
-						                    addBox(new THREE.BoxGeometry(w, h, 0.36), skylineNearMat, i * 9.8, h / 2 + 0.8, horizonZ - 1.2 + (Math.abs(i) % 2) * 0.8, 0, 0, 0, 'pitch_3d_reference_near_city_skyline_block');
+						                  if (!(typeof options !== 'undefined' && options?.dedicatedReference)) {
+						                    const horizonZ = metersH / 2 + 58.0;
+						                    const mountain = new THREE.Mesh(new THREE.PlaneGeometry(metersW + 120.0, 18.0), mountainMat);
+						                    mountain.position.set(0, 11.0, horizonZ + 5.0);
+						                    mountain.rotation.y = Math.PI;
+						                    mountain.userData = { kind: 'pitch_3d_reference_soft_mountain_horizon' };
+						                    atmosphere.add(mountain);
+						                    const mountainFar = new THREE.Mesh(new THREE.PlaneGeometry(metersW + 170.0, 14.0), skylineMidMat);
+						                    mountainFar.position.set(0, 14.8, horizonZ + 18.0);
+						                    mountainFar.rotation.y = Math.PI;
+						                    mountainFar.userData = { kind: 'pitch_3d_reference_far_mountain_horizon' };
+						                    atmosphere.add(mountainFar);
+						                    const coastalBand = new THREE.Mesh(new THREE.PlaneGeometry(metersW + 220.0, 8.8), skylineNearMat);
+						                    coastalBand.position.set(0, 4.4, horizonZ + 26.0);
+						                    coastalBand.rotation.y = Math.PI;
+						                    coastalBand.userData = { kind: 'pitch_3d_reference_coastal_band_horizon' };
+						                    atmosphere.add(coastalBand);
+						                    for (let i = -12; i <= 12; i += 1) {
+						                      const h = 2.8 + ((i * i) % 7) * 0.62;
+						                      const w = 2.2 + (Math.abs(i) % 4) * 0.52;
+						                      addBox(new THREE.BoxGeometry(w, h, 0.42), skylineMat, i * 5.6, h / 2, horizonZ, 0, 0, 0, 'pitch_3d_reference_distant_city_skyline_block');
+						                    }
+						                    for (let i = -10; i <= 10; i += 1) {
+						                      const h = 4.8 + ((Math.abs(i) + 1) % 5) * 1.18;
+						                      const w = 1.1 + (Math.abs(i) % 3) * 0.28;
+						                      addBox(new THREE.BoxGeometry(w, h, 0.30), skylineMidMat, i * 7.4, h / 2 + 0.4, horizonZ + 7.8 + (Math.abs(i) % 2) * 0.6, 0, 0, 0, 'pitch_3d_reference_mid_city_skyline_tower');
+						                    }
+						                    for (let i = -8; i <= 8; i += 1) {
+						                      const h = 6.8 + (Math.abs(i) % 4) * 1.42;
+						                      const w = 2.0 + ((Math.abs(i) + 1) % 2) * 0.44;
+						                      addBox(new THREE.BoxGeometry(w, h, 0.36), skylineNearMat, i * 9.8, h / 2 + 0.8, horizonZ - 1.2 + (Math.abs(i) % 2) * 0.8, 0, 0, 0, 'pitch_3d_reference_near_city_skyline_block');
+						                    }
 						                  }
 						                };
-						                addExteriorApproachDetail();
+						                if (!(typeof options !== 'undefined' && options?.dedicatedReference)) addExteriorApproachDetail();
 						                target.add(atmosphere);
 						              } catch (e) { /* ignore */ }
 						            };
 						            const addProfessionalStadiumAsset = () => {
 						              try {
+						                __pitch3dLoadTextureAsset('pitch3dSeatTextureSrc', null, { colorSpace: THREE.SRGBColorSpace, anisotropy: 16 });
 						                const asset = __pitch3dStadiumModelCache.scene || __pitch3dLoadStadiumModel();
 						                if (!asset) return false;
 						                const stadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
 						                const isDedicatedReferenceStadium = isDedicatedPitch3dReferenceStadiumSrc(stadiumModelSrc);
+						                const isCleanBowlStadium = isCleanPitch3dBowlStadiumSrc(stadiumModelSrc);
 						                removeProceduralStadiumParts();
 						                const stadiumAsset = asset.clone(true);
 						                stadiumAsset.name = 'stadium_bowl_premium_asset';
@@ -17123,49 +17756,47 @@
 						                    if (Array.isArray(node.material)) {
 						                      node.material = node.material.map((mat) => {
 						                        const runtimeMat = normalizeOne(mat);
-						                        return isDedicatedReferenceStadium ? tuneDedicatedReferenceStadiumMaterial(node, runtimeMat) : tuneProfessionalStadiumMaterial(node, runtimeMat);
+						                        return isDedicatedReferenceStadium
+						                          ? tuneDedicatedReferenceStadiumMaterial(node, runtimeMat)
+						                          : tuneProfessionalStadiumMaterial(node, runtimeMat);
 						                      });
 						                    } else if (node.material) {
 						                      const runtimeMat = normalizeOne(node.material);
-						                      node.material = isDedicatedReferenceStadium ? tuneDedicatedReferenceStadiumMaterial(node, runtimeMat) : tuneProfessionalStadiumMaterial(node, runtimeMat);
+						                      node.material = isDedicatedReferenceStadium
+						                        ? tuneDedicatedReferenceStadiumMaterial(node, runtimeMat)
+						                        : tuneProfessionalStadiumMaterial(node, runtimeMat);
 						                    }
 						                  } catch (e) { /* ignore */ }
-						                  node.userData = Object.assign({}, node.userData || {}, { kind: isDedicatedReferenceStadium ? 'pitch_3d_dedicated_reference_stadium_mesh' : 'pitch_3d_professional_blender_stadium_mesh' });
+						                  node.userData = Object.assign({}, node.userData || {}, {
+						                    kind: isDedicatedReferenceStadium
+						                      ? 'pitch_3d_dedicated_reference_stadium_mesh'
+						                      : (isCleanBowlStadium ? 'pitch_3d_clean_bowl_stadium_mesh' : 'pitch_3d_professional_blender_stadium_mesh')
+						                  });
 						                  try {
 						                    const meshName = safeText(node?.name || '').toUpperCase();
 						                    const materialName = Array.isArray(node.material)
 						                      ? node.material.map((m) => safeText(m?.name)).join(' ').toUpperCase()
 						                      : safeText(node.material?.name).toUpperCase();
 						                    if (isDedicatedReferenceStadium) {
-						                      const seatLike = meshName.includes('SEAT_ROW') || meshName.includes('SEAT_PLATE') || meshName.includes('SEATING_FIELD') || materialName.includes('TEAM_PRIMARY');
-						                      if (seatLike) {
-						                        const applySeatFinish = (mat) => {
-						                          if (!mat) return mat;
-						                          if ('map' in mat) mat.map = getPitch3dSeatPatternTexture('#1f63d6', '#0d3f9c');
-						                          if ('color' in mat) mat.color.set('#ffffff');
-						                          if ('roughness' in mat) mat.roughness = 0.72;
-						                          if ('metalness' in mat) mat.metalness = 0.04;
-						                          mat.needsUpdate = true;
-						                          return mat;
-						                        };
-						                        if (Array.isArray(node.material)) node.material = node.material.map(applySeatFinish);
-						                        else if (node.material) node.material = applySeatFinish(node.material);
-						                      }
-						                      const floatingAisleLike =
-						                        meshName.includes('UPPER_STAIR_AISLE') ||
-						                        meshName.includes('AISLE_HANDRAIL_L') ||
-						                        meshName.includes('AISLE_HANDRAIL_R');
-						                      if (floatingAisleLike) {
+						                      const keepExteriorLike =
+						                        meshName.includes('ROOF_') ||
+						                        meshName.includes('FACADE_') ||
+						                        meshName.includes('OUTER_') ||
+						                        meshName.includes('OUTER_WALL') ||
+						                        meshName.includes('SIDE_WALL') ||
+						                        meshName.includes('REAR_FACADE_WRAP') ||
+						                        meshName.includes('LOWER_BUILDING_MASS') ||
+						                        meshName.includes('CORNER_LOWER_MASS') ||
+						                        meshName.includes('CORNER_DEEP_FOUNDATION_BLOCK') ||
+						                        meshName.includes('PLAYERS_TUNNEL_BLACK_MOUTH') ||
+						                        meshName.includes('PLAYERS_TUNNEL_LEFT_CHEEK') ||
+						                        meshName.includes('PLAYERS_TUNNEL_RIGHT_CHEEK') ||
+						                        meshName.includes('MAIN_SCOREBOARD_') ||
+						                        meshName.includes('FLOODLIGHT_BANK') ||
+						                        meshName.includes('OUTER_SERVICE_ROAD');
+						                      if (!keepExteriorLike) {
 						                        node.visible = false;
-						                        node.userData.hidden_by_reference_stadium_cleanup = true;
-						                      }
-						                      const replacedByInstancedUpperSeating =
-						                        meshName.includes('ARCH_UPPER_SEAT_ROW') ||
-						                        meshName.includes('ARCH_UPPER_SEAT_CARPET') ||
-						                        meshName.includes('ARCH_TUNNEL_OVERBUILD_SEAT_DECK_TEAM_PRIMARY');
-						                      if (replacedByInstancedUpperSeating) {
-						                        node.visible = false;
-						                        node.userData.hidden_by_reference_stadium_upper_instancing = true;
+						                        node.userData.hidden_by_reference_stadium_exterior_only = true;
 						                      }
 						                    }
 						                    if (isDedicatedReferenceStadium) {
@@ -17184,7 +17815,7 @@
 						                        node.userData.hidden_by_reference_stadium_lod = true;
 						                      }
 						                    }
-						                    if (!isDedicatedReferenceStadium && (meshName.includes('SEAT') || materialName.includes('SEAT') || meshName.includes('TEAM_PRIMARY') || materialName.includes('TEAM_PRIMARY'))) {
+						                    if (!isDedicatedReferenceStadium && !isCleanBowlStadium && (meshName.includes('SEAT') || materialName.includes('SEAT') || meshName.includes('TEAM_PRIMARY') || materialName.includes('TEAM_PRIMARY'))) {
 						                      node.visible = false;
 						                      node.userData.replaced_by_instanced_professional_seating = true;
 						                    }
@@ -17211,6 +17842,7 @@
 						                });
 						                enhanceProfessionalStadiumAsset(stadiumAsset);
 						                root.add(stadiumAsset);
+						                try { /* reserved for dedicated-reference stadium seat overrides */ } catch (e) { /* ignore */ }
 						                try {
 						                  const bounds = new THREE.Box3().setFromObject(stadiumAsset);
 						                  const size = new THREE.Vector3();
@@ -17243,25 +17875,28 @@
 						                return false;
 						              }
 						            };
-						            if (addProfessionalStadiumAsset()) return;
+						            const forceProceduralReferenceStadium = true;
+						            if (!forceProceduralReferenceStadium && addProfessionalStadiumAsset()) return;
 						            const pendingStadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
 						            const pendingDedicatedReferenceStadium = isDedicatedPitch3dReferenceStadiumSrc(pendingStadiumModelSrc);
-						            __pitch3dLoadStadiumModel(() => {
-						              try {
-						                if (pitch3dOpen) {
-						                  window.setTimeout(() => {
-						                    try {
-						                      showPitch3dStep(activeStepIndex >= 0 ? activeStepIndex : pitch3dCurrentStep, { keepFollow: true });
-						                    } catch (e) {
-						                      try { addProfessionalStadiumAsset(); } catch (err) { /* ignore */ }
-						                    }
-						                  }, 0);
-						                } else {
-						                  addProfessionalStadiumAsset();
-						                }
-						              } catch (e) { /* ignore */ }
-						            });
-						            if (pendingDedicatedReferenceStadium) return;
+						            if (!forceProceduralReferenceStadium) {
+						              __pitch3dLoadStadiumModel(() => {
+						                try {
+						                  if (pitch3dOpen) {
+						                    window.setTimeout(() => {
+						                      try {
+						                        showPitch3dStep(activeStepIndex >= 0 ? activeStepIndex : pitch3dCurrentStep, { keepFollow: true });
+						                      } catch (e) {
+						                        try { addProfessionalStadiumAsset(); } catch (err) { /* ignore */ }
+						                      }
+						                    }, 0);
+						                  } else {
+						                    addProfessionalStadiumAsset();
+						                  }
+						                } catch (e) { /* ignore */ }
+						              });
+						            }
+						            if (!forceProceduralReferenceStadium && pendingDedicatedReferenceStadium) return;
 						            addGreenApron();
 						            addGroundedExteriorStructure();
 						            addExteriorCompletion();
@@ -17311,9 +17946,8 @@
 						            badge.userData = { kind: 'pitch_3d_ref_main_badge' };
 						            stadium.add(badge);
 						            root.add(stadium);
-						            addFinishedStadiumClosure();
 						          };
-						          addFromScratchReferenceStadium();
+						          if (!(typeof options !== 'undefined' && options?.dedicatedReference)) addFromScratchReferenceStadium();
 						          const addCornerFlag = (x, z, flipX, flipZ) => {
 						            const group = new THREE.Group();
 						            group.position.set(x, 0, z);
@@ -19520,6 +20154,7 @@
 						    const openPitch3dWhenReady = async () => {
 						      try {
 						        await ensurePitch3dGltfLoaderClass();
+						        await ensurePitch3dObjLoaderClass();
 						      } catch (e) { /* ignore */ }
 						      openPitch3d();
 						    };
@@ -26942,6 +27577,30 @@
       });
       return true;
     };
+    const removeLegacyCanvasPreviewLayers = () => {
+      const canvasW = Math.max(1, Number(canvas.getWidth()) || 1);
+      const canvasH = Math.max(1, Number(canvas.getHeight()) || 1);
+      const removable = [];
+      canvas.getObjects().forEach((item) => {
+        if (!item || safeText(item.type).toLowerCase() !== 'image') return;
+        const explicitKind = safeText(item?.data?.kind).toLowerCase();
+        if (explicitKind === 'preview-background' || explicitKind === 'pdf-background') {
+          removable.push(item);
+          return;
+        }
+        if (explicitKind) return;
+        const scaledW = Math.abs((Number(item.width) || 0) * (Number(item.scaleX) || 1));
+        const scaledH = Math.abs((Number(item.height) || 0) * (Number(item.scaleY) || 1));
+        if (scaledW < canvasW * 0.72 || scaledH < canvasH * 0.72) return;
+        const areaRatio = (scaledW * scaledH) / (canvasW * canvasH);
+        if (areaRatio < 0.58) return;
+        removable.push(item);
+      });
+      removable.forEach((item) => {
+        try { canvas.remove(item); } catch (e) { /* ignore */ }
+      });
+      return removable.length;
+    };
 	    const loadCanvasSnapshot = (rawState, callback, options = {}) => {
 	      const parsed = sanitizeLoadedState(rawState);
 	      const sourceWidth = Number(options?.sourceWidth) || 0;
@@ -27034,6 +27693,7 @@
           // ignore conversion errors
         }
 	        canvas.getObjects().forEach((item) => normalizeEditableObject(item));
+	        try { removeLegacyCanvasPreviewLayers(); } catch (e) { /* ignore */ }
 	        // Compat: garantiza marcadores de orientación (cuerpo / dirección de balón) en tareas antiguas.
 	        try {
 	          canvas.getObjects().forEach((item) => {
@@ -27366,6 +28026,15 @@
 	      }
 	    };
 	    try { window.__webstatsTaskBuilderSetPreset = setPreset; } catch (e) { /* ignore */ }
+      try {
+        window.addEventListener('webstats:pitch25d-ready', () => {
+          try { applyPitchSurface(pitchPreset || presetSelect.value || 'full_pitch', pitchOrientation, pitchGrassStyle); } catch (e) { /* ignore */ }
+          try { fitCanvas(!useViewportMapping); } catch (e) { /* ignore */ }
+          try { canvas.calcOffset(); } catch (e) { /* ignore */ }
+          try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+          try { refreshLivePreview(); } catch (e) { /* ignore */ }
+        });
+      } catch (e) { /* ignore */ }
 				    const applyPitchOrientation = (nextOrientation, options = {}) => {
 				      const normalized = safeText(nextOrientation, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
 				      if (normalized === pitchOrientation && !options.force) return;
@@ -27500,8 +28169,22 @@
 				        pitchZoom = 1.0;
 				        syncZoomUi();
 				      }
+				      try { applyPitchSurface(pitchPreset || presetSelect.value || 'full_pitch', pitchOrientation, pitchGrassStyle); } catch (error) { /* ignore */ }
 				      fitCanvas(!useViewportMapping && options.preserveObjects !== false);
-				      setPreset(presetSelect.value || 'full_pitch');
+				      setPreset(pitchPreset || presetSelect.value || 'full_pitch', { silent: true });
+              try {
+                window.requestAnimationFrame(() => {
+                  try { applyStageSizeUi({ noFit: true }); } catch (error) { /* ignore */ }
+                  try { fitCanvas(!useViewportMapping && options.preserveObjects !== false); } catch (error) { /* ignore */ }
+                  try { canvas.calcOffset(); } catch (error) { /* ignore */ }
+                  try { canvas.requestRenderAll(); } catch (error) { /* ignore */ }
+                  try { refreshLivePreview(); } catch (error) { /* ignore */ }
+                });
+              } catch (error) {
+                try { canvas.calcOffset(); } catch (e) { /* ignore */ }
+                try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+                try { refreshLivePreview(); } catch (e) { /* ignore */ }
+              }
 				      if (!options.silent) setStatus(`Campo en ${ORIENTATION_LABEL[pitchOrientation]}.`);
 				      if (options.pushHistory) {
 				        if (didRemapCanvas || didRemapTimeline) {
@@ -27539,12 +28222,10 @@
 
 		    const sanitizeLoadedState = (raw) => {
 		      if (!raw || typeof raw !== 'object') return { version: '5.3.0', objects: [] };
-		      const keepBaseKinds = new Set(['pdf-background', 'preview-background']);
 		      const objects = Array.isArray(raw.objects)
 		        ? raw.objects.filter((item) => {
 		            const kind = safeText(item?.data?.kind);
-		            // Compat: no eliminamos fondos "base" (p.ej. recreados desde PDF/preview).
-		            if (item?.data?.base && keepBaseKinds.has(kind)) return true;
+		            if (kind === 'pdf-background' || kind === 'preview-background') return false;
 		            // Por defecto eliminamos los objetos marcados como base (plantillas/auxiliares).
 		            if (item?.data?.base) return false;
 		            // No filtramos por `selectable/evented`: algunos objetos bloqueados legítimos usan eso.
@@ -31827,9 +32508,7 @@
 			        // juego, el resultado vuelve a parecer la pizarra verde de siempre.
 			        try {
 			          const exportGrassStyle = safeText(grassStyleInput?.value || '').toLowerCase();
-			          const preserveFullStadiumFrame = exportGrassStyle === 'stadium_top'
-			            || exportGrassStyle === 'stadium_top_h'
-			            || exportGrassStyle === 'stadium_top_v';
+			          const preserveFullStadiumFrame = !['whiteboard', 'blackboard', 'coachboard'].includes(exportGrassStyle);
 			          if (preserveFullStadiumFrame) {
 			            try {
 			              resolve(output.toDataURL(mime === 'image/jpeg' ? 'image/jpeg' : 'image/png', quality));
@@ -32002,6 +32681,9 @@
 	        tab.setAttribute('aria-selected', active ? 'true' : 'false');
 	      });
 	      sidePanes.forEach((pane) => pane.classList.toggle('is-active', safeText(pane.dataset.pane) === key));
+        if (key === 'preview') {
+          try { refreshLivePreview(); } catch (e) { /* ignore */ }
+        }
 	    };
 	    sideTabs.forEach((tab) => {
 	      tab.addEventListener('click', () => {
@@ -32237,7 +32919,7 @@
 
 				      await syncHiddenBuilderFields({
 				        // PNG para mantener líneas nítidas y sin artefactos JPEG en el PDF.
-				        previewOptions: { maxSide: 4096, mime: 'image/png', quality: 0.98 },
+				        previewOptions: { maxSide: 6144, mime: 'image/png', quality: 0.98 },
 				        applyLivePreview: false,
 				      });
       // actionUrl puede incluir query (?user=... o ?workspace=...). Si concatenamos "?style="
@@ -36278,7 +36960,7 @@
                 if (exportInFlight || isSimulating) return;
                 exportInFlight = true;
                 (async () => {
-                  try { await exportCurrentPng(4096); } catch (e) { /* ignore */ }
+                  try { await exportCurrentPng(6144); } catch (e) { /* ignore */ }
                   exportInFlight = false;
                 })();
               });
@@ -36691,7 +37373,7 @@
       stopPlayback(true);
       try {
         setStatus('Generando JPG…');
-        await exportCurrentJpg(4096, {
+        await exportCurrentJpg(6144, {
           maxArea: 24000000,
           suffix: 'pizarra',
           status: 'JPG descargado.',
@@ -36737,7 +37419,7 @@
 	      stopPlayback(true);
 	      try {
 	        setStatus('Generando PNG (HD)…');
-	        await exportCurrentPng(4096);
+	        await exportCurrentPng(6144);
 	      } finally {
 	        exportInFlight = false;
 	        refreshLivePreview();
@@ -36876,7 +37558,7 @@
 		          const step = simulationSteps[i];
 		          setStatus(`Pack: render ${i + 1}/${count}…`);
 		          await selectSimulationStep(i);
-		          const img = await buildPreviewData({ maxWidth: 4096, mime: 'image/jpeg', quality: 0.94 });
+		          const img = await buildPreviewData({ maxWidth: 6144, mime: 'image/jpeg', quality: 0.94 });
 		          slides.push({
 		            i,
 		            title: safeText(step?.title, `Paso ${i + 1}`),
@@ -38090,7 +38772,7 @@
 			        // Enviar preview HD al guardar (se usa también en la card y en el PDF).
 			        // Usamos PNG para evitar artefactos en líneas/flechas dentro del PDF.
 			        await syncHiddenBuilderFields({
-			          previewOptions: { maxSide: 4096, mime: 'image/png', quality: 0.98 },
+			          previewOptions: { maxSide: 6144, mime: 'image/png', quality: 0.98 },
 			          applyLivePreview: false,
 			        });
 			        form.dataset.previewReady = '1';

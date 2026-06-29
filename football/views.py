@@ -1340,8 +1340,6 @@ TASK_RESOURCE_LIBRARY_BASE_GROUPS = [
     {
         'category': 'Sprites 3D',
         'items': [
-            {'label': 'Estadio 3D cenital horizontal', 'add_key': f'image_url:{static("football/images/pitch3d/stadium_rosaleda_top_h.png")}', 'static_path': 'football/images/pitch3d/stadium_rosaleda_top_h.png'},
-            {'label': 'Estadio 3D cenital vertical', 'add_key': f'image_url:{static("football/images/pitch3d/stadium_rosaleda_top_v.png")}', 'static_path': 'football/images/pitch3d/stadium_rosaleda_top_v.png'},
             {'label': 'Jugador recortado Aitor', 'add_key': f'image_url:{static("football/images/players/aitor-n10-cut.png")}', 'static_path': 'football/images/players/aitor-n10-cut.png'},
             {'label': 'Jugador recortado Cristian', 'add_key': f'image_url:{static("football/images/players/cristian-n16-cut.png")}', 'static_path': 'football/images/players/cristian-n16-cut.png'},
             {'label': 'Jugador recortado Iván', 'add_key': f'image_url:{static("football/images/players/ivan-n9-cut.png")}', 'static_path': 'football/images/players/ivan-n9-cut.png'},
@@ -6028,8 +6026,10 @@ def _task_pitch3d_asset_context(static_build_id=None, *, player_model_src=''):
 
     return {
         'pitch3d_stadium_model_src': _asset('football/models/pitch3d/stadium_architectural_complete.glb'),
-        'pitch3d_stadium_top_h_src': _asset('football/images/pitch3d/stadium_rosaleda_top_h.png'),
-        'pitch3d_stadium_top_v_src': _asset('football/images/pitch3d/stadium_rosaleda_top_v.png'),
+        'pitch3d_stadium_top_h_src': _asset('football/images/pitch3d/stadium_taskboard_top_h.png'),
+        'pitch3d_stadium_top_v_src': _asset('football/images/pitch3d/stadium_taskboard_top_v.png'),
+        'pitch3d_stadium_overlay_h_src': _asset('football/images/pitch3d/stadium_taskboard_overlay_h.png'),
+        'pitch3d_stadium_overlay_v_src': _asset('football/images/pitch3d/stadium_taskboard_overlay_v.png'),
         'pitch3d_grass_albedo_src': _asset('football/images/pitch3d/grass_premium_albedo.png'),
         'pitch3d_grass_bump_src': _asset('football/images/pitch3d/grass_premium_bump.png'),
         'pitch3d_grass_normal_src': _asset('football/images/pitch3d/grass_premium_normal.png'),
@@ -25787,9 +25787,11 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
             return ''
         pitch_preset = str(meta.get('pitch_preset') or 'full_pitch').strip() or 'full_pitch'
         pitch_orientation = str(meta.get('pitch_orientation') or 'landscape').strip().lower()
-        pitch_grass_style = str(meta.get('pitch_grass_style') or 'stadium_top').strip().lower()
-        if pitch_grass_style not in {'classic', 'broadcast', 'broadcast_premium', 'stadium_top', 'stadium_top_h', 'stadium_top_v', 'realistic', 'pro', 'artificial', 'dry', 'wet', 'uefa_b', 'whiteboard', 'blackboard'}:
-            pitch_grass_style = 'stadium_top'
+        pitch_grass_style = str(meta.get('pitch_grass_style') or 'classic').strip().lower()
+        if pitch_grass_style in {'stadium_top', 'stadium_top_h', 'stadium_top_v'}:
+            pitch_grass_style = 'classic'
+        if pitch_grass_style not in {'classic', 'broadcast', 'broadcast_premium', 'realistic', 'pro', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'}:
+            pitch_grass_style = 'classic'
         try:
             png_bytes = render_task_preview_png(
                 canvas_state=frame_state,
@@ -26219,9 +26221,11 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa', one_p
         try:
             pitch_preset = (request.POST.get('draw_task_pitch_preset') or 'full_pitch').strip()
             pitch_orientation = (request.POST.get('draw_task_pitch_orientation') or 'landscape').strip().lower()
-            pitch_grass_style = (request.POST.get('draw_task_pitch_grass_style') or 'stadium_top').strip().lower()
-            if pitch_grass_style not in {'classic', 'broadcast', 'broadcast_premium', 'stadium_top', 'stadium_top_h', 'stadium_top_v', 'realistic', 'pro', 'artificial', 'dry', 'wet', 'uefa_b', 'whiteboard', 'blackboard'}:
-                pitch_grass_style = 'stadium_top'
+            pitch_grass_style = (request.POST.get('draw_task_pitch_grass_style') or 'classic').strip().lower()
+            if pitch_grass_style in {'stadium_top', 'stadium_top_h', 'stadium_top_v'}:
+                pitch_grass_style = 'classic'
+            if pitch_grass_style not in {'classic', 'broadcast', 'broadcast_premium', 'realistic', 'pro', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'}:
+                pitch_grass_style = 'classic'
             try:
                 pitch_zoom = float(str(request.POST.get('draw_task_pitch_zoom') or '1.0').strip())
             except Exception:
@@ -35162,7 +35166,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                         'repository': LIBRARY_REPOSITORY_INTERACTIVE,
                         'pitch_preset': 'full_pitch',
                         'pitch_orientation': 'landscape',
-                        'pitch_grass_style': 'stadium_top',
+                        'pitch_grass_style': 'classic',
                         'pitch_zoom': 1.0,
                         'multi_board': bool(len(timeline) >= 2),
                         'player_count': player_count,
@@ -39135,7 +39139,7 @@ def _task_builder_initial_values(task):
         'pitch_preset': str(meta.get('pitch_preset') or 'full_pitch'),
         'pitch_orientation': str(meta.get('pitch_orientation') or 'landscape'),
         'pitch_zoom': str(meta.get('pitch_zoom') or '1.00'),
-        'pitch_grass_style': str(meta.get('pitch_grass_style') or 'stadium_top'),
+        'pitch_grass_style': 'classic' if str(meta.get('pitch_grass_style') or '').strip().lower() in {'', 'stadium_top', 'stadium_top_h', 'stadium_top_v'} else str(meta.get('pitch_grass_style') or 'classic'),
         'series': str(meta.get('series') or ''),
         'repetitions': str(meta.get('repetitions') or ''),
         'player_count': str(meta.get('player_count') or ''),
@@ -39609,7 +39613,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
     raw_pitch_orientation = request.POST.get('draw_task_pitch_orientation')
     pitch_orientation = (raw_pitch_orientation or '').strip().lower() if raw_pitch_orientation is not None else str(existing_meta.get('pitch_orientation') or 'landscape')
     raw_pitch_grass_style = request.POST.get('draw_task_pitch_grass_style')
-    pitch_grass_style = (raw_pitch_grass_style or '').strip().lower() if raw_pitch_grass_style is not None else str(existing_meta.get('pitch_grass_style') or 'stadium_top')
+    pitch_grass_style = (raw_pitch_grass_style or '').strip().lower() if raw_pitch_grass_style is not None else str(existing_meta.get('pitch_grass_style') or 'classic')
     raw_pitch_zoom = request.POST.get('draw_task_pitch_zoom')
     pitch_zoom = None
     if raw_pitch_zoom is None:
@@ -39760,8 +39764,10 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
         pitch_preset = 'full_pitch'
     if pitch_orientation not in {'landscape', 'portrait'}:
         pitch_orientation = 'landscape'
-    if pitch_grass_style not in {'classic', 'broadcast', 'broadcast_premium', 'stadium_top', 'stadium_top_h', 'stadium_top_v', 'realistic', 'pro', 'artificial', 'dry', 'wet', 'uefa_b', 'whiteboard', 'blackboard'}:
-        pitch_grass_style = 'stadium_top'
+    if pitch_grass_style in {'stadium_top', 'stadium_top_h', 'stadium_top_v'}:
+        pitch_grass_style = 'classic'
+    if pitch_grass_style not in {'classic', 'broadcast', 'broadcast_premium', 'realistic', 'pro', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'}:
+        pitch_grass_style = 'classic'
     try:
         pitch_zoom = float(pitch_zoom or 1.0)
     except Exception:
@@ -42172,9 +42178,11 @@ def _build_task_studio_draft_pdf_context(request, owner, pdf_style='uefa'):
         try:
             pitch_preset = (request.POST.get('draw_task_pitch_preset') or 'full_pitch').strip()
             pitch_orientation = (request.POST.get('draw_task_pitch_orientation') or 'landscape').strip().lower()
-            pitch_grass_style = (request.POST.get('draw_task_pitch_grass_style') or 'stadium_top').strip().lower()
-            if pitch_grass_style not in {'classic', 'broadcast', 'broadcast_premium', 'stadium_top', 'stadium_top_h', 'stadium_top_v', 'realistic', 'pro', 'artificial', 'dry', 'wet', 'uefa_b', 'whiteboard', 'blackboard'}:
-                pitch_grass_style = 'stadium_top'
+            pitch_grass_style = (request.POST.get('draw_task_pitch_grass_style') or 'classic').strip().lower()
+            if pitch_grass_style in {'stadium_top', 'stadium_top_h', 'stadium_top_v'}:
+                pitch_grass_style = 'classic'
+            if pitch_grass_style not in {'classic', 'broadcast', 'broadcast_premium', 'realistic', 'pro', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'}:
+                pitch_grass_style = 'classic'
             try:
                 pitch_zoom = float(str(request.POST.get('draw_task_pitch_zoom') or '1.0').strip())
             except Exception:
@@ -48267,7 +48275,7 @@ def analysis_video_report_item_tactical_page(request, item_id):
         if pitch_orientation not in {'landscape', 'portrait'}:
             pitch_orientation = 'landscape'
         pitch_zoom = (request.POST.get('draw_task_pitch_zoom') or '').strip() or '1.00'
-        pitch_grass_style = (request.POST.get('draw_task_pitch_grass_style') or '').strip() or 'stadium_top'
+        pitch_grass_style = (request.POST.get('draw_task_pitch_grass_style') or '').strip() or 'classic'
         pitch_preset = (request.POST.get('draw_task_pitch_preset') or '').strip() or 'full_pitch'
 
         tactical_layout = {
@@ -48333,7 +48341,7 @@ def analysis_video_report_item_tactical_page(request, item_id):
         'canvas_height': int(_parse_int(graphic.get('canvas_height')) or 720),
         'pitch_orientation': str(meta.get('pitch_orientation') or 'landscape'),
         'pitch_zoom': str(meta.get('pitch_zoom') or '1.00'),
-        'pitch_grass_style': str(meta.get('pitch_grass_style') or 'stadium_top'),
+        'pitch_grass_style': 'classic' if str(meta.get('pitch_grass_style') or '').strip().lower() in {'', 'stadium_top', 'stadium_top_h', 'stadium_top_v'} else str(meta.get('pitch_grass_style') or 'classic'),
         'pitch_preset': str(meta.get('pitch_preset') or 'full_pitch'),
     }
 

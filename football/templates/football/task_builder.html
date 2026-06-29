@@ -7149,6 +7149,7 @@
 				        data-analysis-board-video-upload-url="{{ analysis_item_video_upload_url|default:'' }}"
                 {% endif %}
 				        data-fabric-src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
+				        data-pitch-25d-src="{% static 'football/js/pitch_surface_25d.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 				        data-tpad-src="{% static 'football/js/sessions_tactical_pad.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 				        data-three-src="{% static 'vendor/three/build/three.module.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 				        data-three-gltf-loader-src="{% static 'vendor/three/examples/jsm/loaders/GLTFLoader.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
@@ -7163,6 +7164,8 @@
 				        data-pitch3d-goal-model-src="{{ pitch3d_goal_model_src|default:'' }}"
 				        data-pitch3d-stadium-top-h-src="{{ pitch3d_stadium_top_h_src|default:'' }}"
 				        data-pitch3d-stadium-top-v-src="{{ pitch3d_stadium_top_v_src|default:'' }}"
+				        data-pitch3d-stadium-overlay-h-src="{{ pitch3d_stadium_overlay_h_src|default:'' }}"
+				        data-pitch3d-stadium-overlay-v-src="{{ pitch3d_stadium_overlay_v_src|default:'' }}"
 				        data-pitch3d-player-model-src="{{ pitch3d_player_model_src|default:'' }}"
 				        data-stadium-primary-color="{{ stadium_palette.primary|default:'#047857' }}"
 				        data-stadium-secondary-color="{{ stadium_palette.secondary|default:'#f8fafc' }}"
@@ -7204,7 +7207,7 @@
 	        <input type="hidden" name="draw_canvas_timeline_previews" id="draw-canvas-timeline-previews" />
 	        <input type="hidden" name="draw_task_pitch_orientation" id="draw-task-pitch-orientation" value="{{ initial.pitch_orientation|default:'landscape' }}" />
 	        <input type="hidden" name="draw_task_pitch_zoom" id="draw-task-pitch-zoom" value="{{ initial.pitch_zoom|default:'1.00' }}" />
-	        <input type="hidden" name="draw_task_pitch_grass_style" id="draw-task-pitch-grass-style" value="{{ initial.pitch_grass_style|default:'stadium_top' }}" />
+	        <input type="hidden" name="draw_task_pitch_grass_style" id="draw-task-pitch-grass-style" value="{{ initial.pitch_grass_style|default:'classic' }}" />
 	        <div id="assigned-players-hidden" style="display:none;"></div>
 
         {% if not tactics_mode %}
@@ -7222,9 +7225,6 @@
 		          <div class="task-landing" id="task-landing" hidden aria-label="Inicio de tarea" role="dialog" data-landing-v2="1">
 		            <div class="task-landing-card">
 		              <div class="task-landing-pitch" aria-hidden="true">
-		                {% if task_preview_url %}
-		                  <img src="{{ task_preview_url }}" alt="Vista previa de la tarea" loading="lazy" />
-	                {% else %}
 	                  <svg viewBox="0 0 105 68" fill="none" xmlns="http://www.w3.org/2000/svg">
 	                    <rect x="1" y="1" width="103" height="66" stroke="rgba(248,250,252,0.92)" stroke-width="1.2"/>
 	                    <line x1="52.5" y1="1" x2="52.5" y2="67" stroke="rgba(248,250,252,0.75)" stroke-width="0.9"/>
@@ -7235,7 +7235,6 @@
 	                    <rect x="1" y="26" width="6" height="16" stroke="rgba(248,250,252,0.75)" stroke-width="0.9"/>
 	                    <rect x="98" y="26" width="6" height="16" stroke="rgba(248,250,252,0.75)" stroke-width="0.9"/>
 	                  </svg>
-	                {% endif %}
 		              </div>
 			              <div class="task-landing-actions">
 			                <h2>¿Qué quieres hacer?</h2>
@@ -7501,9 +7500,6 @@
 		                        <option value="classic" {% if initial.pitch_grass_style == 'classic' %}selected{% endif %}>Césped</option>
 		                        <option value="broadcast" {% if initial.pitch_grass_style == 'broadcast' %}selected{% endif %}>Broadcast</option>
                                 <option value="broadcast_premium" {% if initial.pitch_grass_style == 'broadcast_premium' %}selected{% endif %}>Broadcast Premium</option>
-                                <option value="stadium_top" {% if initial.pitch_grass_style == 'stadium_top' %}selected{% endif %}>Estadio táctico auto</option>
-                                <option value="stadium_top_h" {% if initial.pitch_grass_style == 'stadium_top_h' %}selected{% endif %}>Cámara cenital H</option>
-                                <option value="stadium_top_v" {% if initial.pitch_grass_style == 'stadium_top_v' %}selected{% endif %}>Cámara cenital V</option>
 		                        <option value="realistic" {% if initial.pitch_grass_style == 'realistic' %}selected{% endif %}>Realista</option>
 		                        <option value="pro" {% if initial.pitch_grass_style == 'pro' %}selected{% endif %}>PRO</option>
 		                        <option value="uefa_b" {% if initial.pitch_grass_style == 'uefa_b' %}selected{% endif %}>UEFA B</option>
@@ -8925,29 +8921,8 @@
                   <div class="task-material-family" data-material-family="premium3d" hidden>
                   <div class="meta" style="margin:0.85rem 0 0.35rem;">Sprites derivados del 3D</div>
                   <p class="meta" style="margin:0 0 0.65rem; font-size:0.78rem;">
-                    Renders 2D premium tomados del estadio y de recortes visuales para enriquecer la pizarra sin salir del editor 2D.
+                    Recursos extra para enriquecer la pizarra. El fondo del campo ya lo genera el renderer 2.5D nuevo.
                   </p>
-                  <div class="meta" style="margin:0.5rem 0 0.35rem;">Fondos / vistas de estadio</div>
-                  <div class="resource-strip pdf-assets-strip">
-                    <button
-                      type="button"
-                      class="pdf-asset-btn"
-                      data-add="image_url:{% static 'football/images/pitch3d/stadium_rosaleda_top_h.png' %}"
-                      title="Estadio 3D cenital horizontal"
-                      aria-label="Estadio 3D cenital horizontal"
-                    >
-                      <img src="{% static 'football/images/pitch3d/stadium_rosaleda_top_h.png' %}" alt="Estadio 3D cenital horizontal" loading="lazy" />
-                    </button>
-                    <button
-                      type="button"
-                      class="pdf-asset-btn"
-                      data-add="image_url:{% static 'football/images/pitch3d/stadium_rosaleda_top_v.png' %}"
-                      title="Estadio 3D cenital vertical"
-                      aria-label="Estadio 3D cenital vertical"
-                    >
-                      <img src="{% static 'football/images/pitch3d/stadium_rosaleda_top_v.png' %}" alt="Estadio 3D cenital vertical" loading="lazy" />
-                    </button>
-                  </div>
                   <div class="meta" style="margin:0.7rem 0 0.35rem;">Recortes de jugador</div>
                   <div class="resource-strip pdf-assets-strip">
                     <button
@@ -10174,8 +10149,8 @@
                       <button type="button" class="button secondary" onclick="try{document.querySelector('#task-mode-tabs [data-task-mode=&quot;methodology&quot;]')?.click();document.querySelector('#task-side-tabs [data-pane=&quot;design&quot;]')?.click();}catch(e){};return false;">Volver a metodología</button>
                     </div>
 			                  <div class="live-preview-frame">
-	                    <img id="task-live-preview" src="{{ task_preview_url }}" alt="Preview de tarea" {% if not task_preview_url %}hidden{% endif %} />
-	                    <div id="task-live-preview-placeholder" class="live-preview-placeholder" {% if task_preview_url %}hidden{% endif %}>
+	                    <img id="task-live-preview" alt="Preview de tarea" hidden />
+	                    <div id="task-live-preview-placeholder" class="live-preview-placeholder">
 	                      La preview se genera mientras diseñas la tarea.
 			                </div>
 			              </div>
@@ -10230,6 +10205,7 @@
 				    <script src="{% static 'football/js/ui_tour.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
 				    {% if tactics_mode %}
 				    <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+				    <script src="{% static 'football/js/pitch_surface_25d.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
 				    <script src="{% static 'football/js/sessions_tactical_pad.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
 					    <script>
 					      (function () {
@@ -10553,20 +10529,45 @@
 			            const s = document.createElement('script');
 			            s.src = src;
 			            s.defer = true;
-			            s.onload = () => {
+                  s.onload = () => {
+                    const finish = () => {
 			              try { s.dataset.webstatsLoaded = '1'; } catch (e) { /* ignore */ }
 			              resolve(true);
-			            };
+                    };
+                    try {
+                      if (typeof isReady !== 'function') { finish(); return; }
+                      if (isReady()) { finish(); return; }
+                    } catch (e) { /* ignore */ }
+                    const startTs = Date.now();
+                    const maxWaitMs = 12000;
+                    const poll = () => {
+                      try {
+                        if (isReady()) { finish(); return; }
+                      } catch (e) { /* ignore */ }
+                      if ((Date.now() - startTs) >= maxWaitMs) {
+                        reject(new Error('load-ready-timeout'));
+                        return;
+                      }
+                      window.setTimeout(poll, 300);
+                    };
+                    window.setTimeout(poll, 50);
+                  };
 			            s.onerror = () => reject(new Error('load-failed'));
 			            document.head.appendChild(s);
 			          });
 			          return window[key];
 			        };
 
+              const pitch25dSrc = form?.dataset?.pitch25dSrc || '';
 			        const ensureFabric = () => {
 			          try { if (window.fabric) return Promise.resolve(true); } catch (e) { /* ignore */ }
 			          return loadOnce(fabricSrc, '__webstats_fabric_promise', () => !!window.fabric);
 			        };
+              const ensurePitch25d = () => {
+                try { if (window.WebstatsPitch25D && typeof window.WebstatsPitch25D.buildPitchSvg === 'function') return Promise.resolve(true); } catch (e) { /* ignore */ }
+                if (!pitch25dSrc) return Promise.resolve(false);
+                return loadOnce(pitch25dSrc, '__webstats_pitch25d_promise', () => !!(window.WebstatsPitch25D && typeof window.WebstatsPitch25D.buildPitchSvg === 'function'));
+              };
 			        const ensureTpad = () => loadOnce(tpadSrc, '__webstats_tpad_promise', () => typeof window.initSessionsTacticalPad === 'function');
 
 			        const ensureThree = () => {
@@ -10611,7 +10612,8 @@
 
 			        const ensureEditorStack = () => {
 			          setStatus('Cargando editor…');
-			          return ensureFabric()
+			          return ensurePitch25d()
+                  .then(() => ensureFabric())
 			            .then(() => ensureTpad())
 			            .then(() => {
 			              try {

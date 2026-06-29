@@ -2014,6 +2014,17 @@
         } catch (e) {
           savedState = {};
         }
+        const rawPitchGrassStyle = "{{ task_meta.pitch_grass_style|default:'classic'|escapejs }}".trim().toLowerCase() || 'classic';
+        const pitchGrassStyle = ['stadium_top', 'stadium_top_h', 'stadium_top_v'].includes(rawPitchGrassStyle) ? 'classic' : rawPitchGrassStyle;
+        const pitchOrientationMeta = "{{ task_meta.pitch_orientation|default:''|escapejs }}".trim().toLowerCase();
+        const stadiumTopImages = {
+          h: "{{ pitch3d_assets.pitch3d_stadium_top_h_src|default:''|escapejs }}".trim(),
+          v: "{{ pitch3d_assets.pitch3d_stadium_top_v_src|default:''|escapejs }}".trim(),
+        };
+        const stadiumOverlayImages = {
+          h: "{{ pitch3d_assets.pitch3d_stadium_overlay_h_src|default:''|escapejs }}".trim(),
+          v: "{{ pitch3d_assets.pitch3d_stadium_overlay_v_src|default:''|escapejs }}".trim(),
+        };
         const PRESENTATION_PITCH_BG = '#5b8f3f';
         let isPresentationMode = activeTaskTab !== 'edit';
         const statusEl = document.getElementById('graphic-status');
@@ -2175,6 +2186,24 @@
             ctx.strokeRect(boxX, boxY, boxDepth, boxHeight);
             ctx.strokeRect(sixX, sixY, sixDepth, sixHeight);
             ctx.strokeRect(goalX, goalY, goalDepth, goalHeight);
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255,255,255,0.24)';
+            ctx.lineWidth = Math.max(1, Math.min(width, height) * 0.0022);
+            for (let i = 1; i <= 3; i += 1) {
+              const yy = goalY + ((goalHeight * i) / 4);
+              ctx.beginPath();
+              ctx.moveTo(goalX, yy);
+              ctx.lineTo(goalX + (leftSide ? goalDepth : -goalDepth), yy);
+              ctx.stroke();
+            }
+            for (let i = 1; i <= 2; i += 1) {
+              const xx = leftSide ? (goalX + ((goalDepth * i) / 3)) : (goalX - ((goalDepth * i) / 3));
+              ctx.beginPath();
+              ctx.moveTo(xx, goalY);
+              ctx.lineTo(xx, goalY + goalHeight);
+              ctx.stroke();
+            }
+            ctx.restore();
             ctx.beginPath();
             ctx.arc(leftSide ? pitchX + spotOffset : pitchX + pitchW - spotOffset, centerY, Math.max(2, width * 0.0032), 0, Math.PI * 2);
             ctx.fill();
@@ -2183,13 +2212,45 @@
           drawBox(false);
           ctx.restore();
         };
+        const shouldUsePortraitBackdrop = (width, height) => {
+          if (pitchOrientationMeta === 'portrait') return true;
+          if (pitchOrientationMeta === 'landscape') return false;
+          const savedW = Number(savedState.canvas_width || 0) || 0;
+          const savedH = Number(savedState.canvas_height || 0) || 0;
+          if (savedW > 0 && savedH > 0) return savedH > savedW;
+          return Number(height || 0) > Number(width || 0);
+        };
+        const shouldRenderStadiumOverlay = !['whiteboard', 'blackboard', 'coachboard'].includes(pitchGrassStyle);
+        const resolvePitchBackdropUrl = (width, height, sourceMap) => {
+          const assetMap = sourceMap && typeof sourceMap === 'object' ? sourceMap : stadiumOverlayImages;
+          if (!shouldRenderStadiumOverlay) return '';
+          if (pitchGrassStyle === 'stadium_top_v') return assetMap.v || stadiumOverlayImages.v || stadiumTopImages.v;
+          if (pitchGrassStyle === 'stadium_top_h') return assetMap.h || stadiumOverlayImages.h || stadiumTopImages.h;
+          return shouldUsePortraitBackdrop(width, height)
+            ? (assetMap.v || stadiumOverlayImages.v || stadiumTopImages.v)
+            : (assetMap.h || stadiumOverlayImages.h || stadiumTopImages.h);
+        };
         const buildPitchBackdropDataUrl = (width, height) => {
           const offscreen = document.createElement('canvas');
           offscreen.width = Math.max(1, Math.round(width || 1));
           offscreen.height = Math.max(1, Math.round(height || 1));
           const ctx = offscreen.getContext('2d');
           if (!ctx) return '';
-          const stripeColors = ['#6f9b4f', '#628f42'];
+          const stripePaletteByStyle = {
+            classic: ['#6f9b4f', '#628f42'],
+            stadium_top: ['#5f8f42', '#557f3c'],
+            stadium_top_h: ['#5f8f42', '#557f3c'],
+            stadium_top_v: ['#5f8f42', '#557f3c'],
+            broadcast: ['#4f8638', '#447732'],
+            broadcast_premium: ['#3e7a30', '#346628'],
+            realistic: ['#577f40', '#476d37'],
+            pro: ['#3d7138', '#2f5e31'],
+            artificial: ['#2ea45f', '#24864d'],
+            dry: ['#7a9547', '#67803c'],
+            wet: ['#315f49', '#274b3b'],
+            uefa_b: ['#46763d', '#355e33'],
+          };
+          const stripeColors = stripePaletteByStyle[pitchGrassStyle] || stripePaletteByStyle.classic;
           const stripeWidth = offscreen.width / 10;
           for (let i = 0; i < 10; i += 1) {
             ctx.fillStyle = stripeColors[i % stripeColors.length];
@@ -2201,23 +2262,66 @@
         const applyPitchBackdrop = () => {
           const width = Math.max(1, canvas.getWidth() || canvasEl.width || 1);
           const height = Math.max(1, canvas.getHeight() || canvasEl.height || 1);
-          const dataUrl = buildPitchBackdropDataUrl(width, height);
-          if (!dataUrl) return;
-          fabric.Image.fromURL(dataUrl, (img) => {
-            if (!img) return;
-            img.set({
-              left: 0,
-              top: 0,
-              originX: 'left',
-              originY: 'top',
-              selectable: false,
-              evented: false,
-              excludeFromExport: true,
-            });
-            img.scaleToWidth(width);
-            img.scaleToHeight(height);
-            canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas));
-          });
+          const baseDataUrl = buildPitchBackdropDataUrl(width, height);
+          const overlayUrl = resolvePitchBackdropUrl(width, height, stadiumOverlayImages);
+          const setBackgroundFromDataUrl = (src) => {
+            if (!src) return;
+            fabric.Image.fromURL(src, (img) => {
+              if (!img) return;
+              img.set({
+                left: 0,
+                top: 0,
+                originX: 'left',
+                originY: 'top',
+                selectable: false,
+                evented: false,
+                excludeFromExport: true,
+              });
+              img.scaleToWidth(width);
+              img.scaleToHeight(height);
+              canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas));
+            }, /^data:/i.test(src) ? undefined : { crossOrigin: 'anonymous' });
+          };
+          if (!overlayUrl) {
+            setBackgroundFromDataUrl(baseDataUrl);
+            return;
+          }
+          const composed = document.createElement('canvas');
+          composed.width = Math.max(1, Math.round(width || 1));
+          composed.height = Math.max(1, Math.round(height || 1));
+          const composedCtx = composed.getContext('2d');
+          if (!composedCtx) {
+            setBackgroundFromDataUrl(baseDataUrl);
+            return;
+          }
+          const baseImage = new Image();
+          const overlayImage = new Image();
+          let settled = false;
+          const finishWithBase = () => {
+            if (settled) return;
+            settled = true;
+            setBackgroundFromDataUrl(baseDataUrl);
+          };
+          const tryCompose = () => {
+            if (settled) return;
+            if (!baseImage.complete || !overlayImage.complete) return;
+            settled = true;
+            try {
+              composedCtx.clearRect(0, 0, composed.width, composed.height);
+              composedCtx.drawImage(baseImage, 0, 0, composed.width, composed.height);
+              composedCtx.drawImage(overlayImage, 0, 0, composed.width, composed.height);
+              setBackgroundFromDataUrl(composed.toDataURL('image/png'));
+            } catch (error) {
+              setBackgroundFromDataUrl(baseDataUrl);
+            }
+          };
+          baseImage.onload = tryCompose;
+          overlayImage.onload = tryCompose;
+          baseImage.onerror = finishWithBase;
+          overlayImage.onerror = finishWithBase;
+          baseImage.src = baseDataUrl;
+          overlayImage.crossOrigin = 'anonymous';
+          overlayImage.src = overlayUrl;
         };
         const canvas = new fabric.Canvas(canvasEl, {
           isDrawingMode: isEditable,
@@ -2279,6 +2383,26 @@
           obj.left = Math.round((obj.left || 0) / gridSize) * gridSize;
           obj.top = Math.round((obj.top || 0) / gridSize) * gridSize;
           obj.setCoords();
+        };
+        const removeLegacyBackdropObjects = () => {
+          const cW = Math.max(1, Number(canvas.getWidth()) || 1);
+          const cH = Math.max(1, Number(canvas.getHeight()) || 1);
+          const removable = [];
+          canvas.getObjects().forEach((obj) => {
+            if (!obj || String(obj.type || '').toLowerCase() !== 'image') return;
+            const explicitKind = String((obj?.data || {}).kind || '').trim().toLowerCase();
+            if (explicitKind) return;
+            const scaledW = Math.abs((Number(obj.width) || 0) * (Number(obj.scaleX) || 1));
+            const scaledH = Math.abs((Number(obj.height) || 0) * (Number(obj.scaleY) || 1));
+            if (scaledW < cW * 0.72 || scaledH < cH * 0.72) return;
+            const areaRatio = (scaledW * scaledH) / (cW * cH);
+            if (areaRatio < 0.58) return;
+            removable.push(obj);
+          });
+          removable.forEach((obj) => {
+            try { canvas.remove(obj); } catch (error) { /* ignore */ }
+          });
+          return removable.length;
         };
         const alignSelected = (mode) => {
           const objects = getSelectedObjects().filter((obj) => !obj.__locked);
@@ -2387,6 +2511,7 @@
                   });
                 }
               });
+              removeLegacyBackdropObjects();
               normalizeCanvasBackground(canvas, isPresentationMode);
               applyPitchBackdrop();
               canvas.renderAll();
@@ -2396,31 +2521,10 @@
             });
             return;
           }
-          if (previewUrl) {
-            fabric.Image.fromURL(previewUrl, (img) => {
-              if (!img) return;
-              const cW = canvas.getWidth();
-              const cH = canvas.getHeight();
-              const scale = Math.min(cW / img.width, cH / img.height);
-              img.set({
-                left: (cW - (img.width * scale)) / 2,
-                top: (cH - (img.height * scale)) / 2,
-                selectable: false,
-                evented: false,
-                excludeFromExport: false,
-              });
-              img.scale(scale);
-              canvas.add(img);
-              canvas.sendToBack(img);
-              if (!isEditable) setObjectLocked(img, true);
-              normalizeCanvasBackground(canvas, isPresentationMode);
-              applyPitchBackdrop();
-              canvas.renderAll();
-              pushHistory();
-              refreshLayerList();
-              setStatus('Preview cargada como base editable.');
-            }, { crossOrigin: 'anonymous' });
-          }
+          normalizeCanvasBackground(canvas, isPresentationMode);
+          applyPitchBackdrop();
+          canvas.renderAll();
+          refreshLayerList();
         };
         const scheduleDiagnosticsPublish = () => {
           window.requestAnimationFrame(() => {
@@ -2933,7 +3037,7 @@
             saveBtn.disabled = true;
             setStatus('Guardando gráfico...');
             const sourceSide = Math.max(1, canvas.getWidth(), canvas.getHeight());
-            const previewMultiplier = Math.max(1, Math.min(4, 4096 / sourceSide));
+            const previewMultiplier = Math.max(1, Math.min(4, 6144 / sourceSide));
             const payload = {
               canvas_state: canvas.toJSON(),
               canvas_width: canvas.getWidth(),
@@ -3626,7 +3730,6 @@
         syncTaskTab(activeTaskTab, false);
         syncTaskEditTab(activeTaskEditTab, false);
         syncTaskFormatTab(activeTaskFormatTab);
-        syncTaskSettingsTab(activeTaskSettingsTab);
       })();
     </script>
     <script type="importmap">
@@ -3636,6 +3739,6 @@
         }
       }
     </script>
-    <script type="module" src="{% static 'football/js/session_task_detail_3d.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>
+    <script type="module" src="{% static 'football/js/session_task_detail_3d.js' %}?v=task-detail-3d-stadium-v4-debug{% if static_build_id %}-{{ static_build_id|urlencode }}{% endif %}"></script>
   </body>
 </html>

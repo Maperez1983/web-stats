@@ -112,7 +112,42 @@
     }
   };
 
+  const buildEmergencyPitchSvg = (orientationKey = 'landscape') => {
+    const portrait = safeText(orientationKey, 'landscape') === 'portrait';
+    const viewW = 1200;
+    const viewH = 820;
+    const pitchW = 920;
+    const pitchH = 596;
+    const x = (viewW - pitchW) / 2;
+    const y = (viewH - pitchH) / 2;
+    const cx = x + pitchW / 2;
+    const cy = y + pitchH / 2;
+    const goalW = pitchH * 0.185;
+    const goalY = cy - goalW / 2;
+    const goalDepth = 30;
+    const line = '#f8fbff';
+    const stripes = Array.from({ length: 12 }, (_, index) => {
+      const width = pitchW / 12;
+      return `<rect x="${x + index * width}" y="${y}" width="${width + 1}" height="${pitchH}" fill="${index % 2 === 0 ? '#95b74b' : '#7ea43d'}" opacity="0.96"/>`;
+    }).join('');
+    const net = (left) => {
+      const frontX = left ? x : x + pitchW;
+      const backX = left ? x - goalDepth : x + pitchW + goalDepth;
+      const points = left
+        ? `${backX},${goalY + 8} ${frontX},${goalY} ${frontX},${goalY + goalW} ${backX},${goalY + goalW - 8}`
+        : `${frontX},${goalY} ${backX},${goalY + 8} ${backX},${goalY + goalW - 8} ${frontX},${goalY + goalW}`;
+      return `<polygon points="${points}" fill="url(#fallback-net)" opacity="0.58"/><line x1="${frontX}" y1="${goalY}" x2="${backX}" y2="${goalY + 8}" stroke="rgba(248,251,255,0.9)" stroke-width="3"/><line x1="${frontX}" y1="${goalY + goalW}" x2="${backX}" y2="${goalY + goalW - 8}" stroke="rgba(248,251,255,0.9)" stroke-width="3"/><line x1="${backX}" y1="${goalY + 8}" x2="${backX}" y2="${goalY + goalW - 8}" stroke="rgba(248,251,255,0.9)" stroke-width="3"/>`;
+    };
+    const scene = `<defs><linearGradient id="fallback-bg" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#1f6c46"/><stop offset="100%" stop-color="#185339"/></linearGradient><radialGradient id="fallback-light" cx="50%" cy="46%" r="70%"><stop offset="0%" stop-color="rgba(255,255,255,0.16)"/><stop offset="100%" stop-color="rgba(255,255,255,0)"/></radialGradient><pattern id="fallback-net" width="16" height="16" patternUnits="userSpaceOnUse"><path d="M 0 0 L 16 16 M 16 0 L 0 16" stroke="rgba(248,251,255,0.38)" stroke-width="1"/></pattern></defs><rect width="${viewW}" height="${viewH}" fill="#5f8f42"/><ellipse cx="${cx}" cy="${cy + 16}" rx="${pitchW * 0.56}" ry="${pitchH * 0.42}" fill="rgba(0,0,0,0.10)"/><rect x="${x - 54}" y="${y - 54}" width="${pitchW + 108}" height="${pitchH + 108}" rx="28" ry="28" fill="rgba(255,255,255,0.08)"/><rect x="${x - 22}" y="${y - 22}" width="${pitchW + 44}" height="${pitchH + 44}" rx="22" ry="22" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.12)" stroke-width="2"/><rect x="${x}" y="${y}" width="${pitchW}" height="${pitchH}" rx="16" ry="16" fill="url(#fallback-bg)"/>${stripes}<rect x="${x}" y="${y}" width="${pitchW}" height="${pitchH}" rx="16" ry="16" fill="url(#fallback-light)"/><rect x="${x + 8}" y="${y + 8}" width="${pitchW - 16}" height="${pitchH - 16}" rx="12" ry="12" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="2"/><rect x="${x}" y="${y}" width="${pitchW}" height="${pitchH}" rx="16" ry="16" fill="none" stroke="${line}" stroke-width="5"/><line x1="${cx}" y1="${y}" x2="${cx}" y2="${y + pitchH}" stroke="${line}" stroke-width="4.4"/><circle cx="${cx}" cy="${cy}" r="${pitchH * 0.145}" fill="none" stroke="${line}" stroke-width="4.4"/><circle cx="${cx}" cy="${cy}" r="5" fill="${line}"/><rect x="${x}" y="${cy - pitchH * 0.2575}" width="${pitchW * 0.205}" height="${pitchH * 0.515}" fill="none" stroke="${line}" stroke-width="4.4"/><rect x="${x}" y="${cy - pitchH * 0.1125}" width="${pitchW * 0.092}" height="${pitchH * 0.225}" fill="none" stroke="${line}" stroke-width="4.4"/><rect x="${x + pitchW - pitchW * 0.205}" y="${cy - pitchH * 0.2575}" width="${pitchW * 0.205}" height="${pitchH * 0.515}" fill="none" stroke="${line}" stroke-width="4.4"/><rect x="${x + pitchW - pitchW * 0.092}" y="${cy - pitchH * 0.1125}" width="${pitchW * 0.092}" height="${pitchH * 0.225}" fill="none" stroke="${line}" stroke-width="4.4"/><circle cx="${x + pitchW * 0.165}" cy="${cy}" r="4.2" fill="${line}"/><circle cx="${x + pitchW * 0.835}" cy="${cy}" r="4.2" fill="${line}"/>${net(true)}${net(false)}</svg>`;
+    if (!portrait) return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${viewW} ${viewH}" preserveAspectRatio="xMidYMid meet">${scene}`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${viewH} ${viewW}" preserveAspectRatio="xMidYMid meet"><g transform="translate(${viewH} 0) rotate(90)">${scene}</g></svg>`;
+  };
+
   const buildPitchSvg = (presetKey, orientationKey = 'landscape', grassStyleKey = 'classic') => {
+    if (window.WebstatsPitch25D && typeof window.WebstatsPitch25D.buildPitchSvg === 'function') {
+      return window.WebstatsPitch25D.buildPitchSvg(presetKey, orientationKey, grassStyleKey);
+    }
+    return buildEmergencyPitchSvg(orientationKey);
     const preset = String(presetKey || 'full_pitch').trim();
     const orientation = safeText(orientationKey, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
     const normalizedGrass = safeText(grassStyleKey, 'classic').toLowerCase();
