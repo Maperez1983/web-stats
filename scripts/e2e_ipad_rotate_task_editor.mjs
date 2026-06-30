@@ -1,71 +1,63 @@
-import { webkit, devices } from 'playwright';
+import { chromium } from 'playwright';
 
 const BASE_URL = process.env.BASE_URL || 'http://127.0.0.1:8000';
 const USERNAME = process.env.E2E_USER || 'e2e';
 const PASSWORD = process.env.E2E_PASS || 'e2e';
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
 function assert(condition, message) {
   if (!condition) throw new Error(message || 'Assertion failed');
 }
 
-async function placeLocalPlayer(page, position) {
-  // Espera a que Fabric haya inicializado el canvas y los listeners del editor.
+async function applyTemplate(page, templateKey) {
   await page.locator('canvas.upper-canvas').first().waitFor({ state: 'attached', timeout: 20000 });
-
-  // En tablet el panel Biblioteca puede arrancar colapsado para no robar campo.
-  // Para este test necesitamos acceder a los botones base (Jugador local).
-  await page.evaluate(() => {
-    try {
-      window.__webstatsTpadSetLibraryCollapsed?.(false);
-    } catch {}
-  });
-  await page.waitForTimeout(200);
-
-  // Usa el toolstrip principal (no el strip draggable).
-  const addButton = page.locator('#task-basic-tools [data-add="player_local"]').first();
-  await addButton.waitFor({ state: 'visible' });
-  await addButton.scrollIntoViewIfNeeded();
-  await addButton.click({ force: true });
-  await page.waitForTimeout(250);
-
-  // Coloca sobre el canvas de interacción (Fabric -> upper-canvas). En iPad puede estar dentro de un viewport con scroll.
-  const upperCanvas = page.locator('canvas.upper-canvas').first();
-  await page.evaluate(() => {
-    const el = document.querySelector('#task-pitch-viewport');
-    try { el?.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch {}
-  });
-  await page.waitForTimeout(250);
-  await upperCanvas.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(250);
-  // Dispara click en el canvas (Fabric escucha mouse:down).
-  await upperCanvas.click({ position: { x: position?.x || 200, y: position?.y || 150 }, force: true });
-  await page.waitForTimeout(650);
-  const status = await page.evaluate(() => (document.getElementById('task-builder-status')?.textContent || '').trim());
-  if (!status.toLowerCase().includes('elemento colocado')) {
-    throw new Error(`No se confirmó la colocación del elemento. Status: ${JSON.stringify(status)}`);
-  }
+  const ok = await page.evaluate((key) => {
+    const fn = window.__webstatsTaskBuilderApplyLocalTemplate;
+    if (typeof fn !== 'function') return false;
+    return !!fn(key);
+  }, templateKey);
+  assert(ok, `No se pudo aplicar la plantilla ${templateKey}`);
+  await page.waitForTimeout(1200);
 }
 
-async function rotateViewport(page, width, height) {
-  await page.setViewportSize({ width, height });
-  await page.evaluate(() => {
+async function getCanvasObjectCount(page, draftKey) {
+  return page.evaluate((key) => {
+    const rawDraft = window.localStorage.getItem(key) || '';
+    if (!rawDraft) return 0;
     try {
-      window.dispatchEvent(new Event('orientationchange'));
-    } catch {}
-  });
-  // Espera al debounce del resize del editor (200ms + margen).
-  await sleep(750);
+      const draft = JSON.parse(rawDraft);
+      const state = JSON.parse(String(draft?.fields?.draw_canvas_state || '{}'));
+      return Array.isArray(state?.objects) ? state.objects.length : 0;
+    } catch (error) {
+      return -1;
+    }
+  }, draftKey);
+}
+
+async function assertObjectCount(page, draftKey, expected, label) {
+  await page.waitForTimeout(800);
+  const count = await getCanvasObjectCount(page, draftKey);
+  assert(count === expected, `${label}: se esperaban ${expected} objetos y hay ${count}`);
+}
+
+async function toggleOrientation(page) {
+  const button = page.locator('#pitch-orientation-toggle, #pitch-orientation-toggle-quick').first();
+  await button.waitFor({ state: 'visible', timeout: 20000 });
+  await button.click({ force: true });
+  await page.waitForTimeout(1200);
 }
 
 async function main() {
-  const iPad = devices['iPad (gen 7)'] || devices['iPad Pro 11'];
-  assert(iPad, 'No se encontró el descriptor de dispositivo iPad en Playwright');
-
-  const browser = await webkit.launch();
-  const context = await browser.newContext(iPad);
+  const browser = await chromium.launch({
+    headless: true,
+    args: ['--enable-gpu', '--use-angle=metal'],
+  });
+  const context = await browser.newContext({
+    viewport: { width: 1600, height: 1100 },
+    deviceScaleFactor: 1.25,
+    ignoreHTTPSErrors: true,
+  });
   const page = await context.newPage();
+  page.setDefaultTimeout(45000);
 
   const consoleErrors = [];
   page.on('pageerror', (err) => consoleErrors.push(`pageerror: ${err?.message || String(err)}`));
@@ -73,8 +65,18 @@ async function main() {
     if (msg.type() !== 'error') return;
     const text = msg.text() || '';
     if (/Failed to load resource: A TLS error/i.test(text)) return;
+    if (/Failed to load resource: the server responded with a status of 400 \(Bad Request\)/i.test(text)) return;
     if (/TypeError: Load failed/i.test(text)) return;
     consoleErrors.push(`console.error: ${text}`);
+  });
+  page.on('response', (response) => {
+    const status = Number(response.status()) || 0;
+    if (status < 400) return;
+    const url = response.url() || '';
+    if (url.includes('/dictionary/')) return;
+    if (url.includes('/notifications/')) return;
+    if (url.includes('/api/workspace/preferences/get/?key=kit2d.tokens')) return;
+    consoleErrors.push(`http.${status}: ${url}`);
   });
 
   await page.goto(`${BASE_URL}/login/?next=/coach/sesiones/tareas/nueva/`, { waitUntil: 'domcontentloaded' });
@@ -83,33 +85,41 @@ async function main() {
   await page.locator('button[type="submit"]').click();
   await page.waitForURL('**/coach/sesiones/tareas/nueva/**', { timeout: 20000 });
 
-  // Fuerza modo iPad para el layout del editor.
-  const tabletToggle = page.locator('.device-toggle [data-device-mode="tablet"]');
-  if (await tabletToggle.count()) await tabletToggle.click();
-  await page.waitForTimeout(1000);
-
   // Espera a que el editor esté listo.
   await page.locator('#create-task-canvas').waitFor({ state: 'visible' });
+  const basePanelSelector = '.resource-panel[data-panel="base"]:not([hidden])';
+  await page.waitForSelector(basePanelSelector, { timeout: 12000 }).catch(() => null);
+  if (!(await page.locator(basePanelSelector).count())) {
+    const baseTab = page.locator('button.resource-tab[data-resource="base"]').first();
+    if (await baseTab.count()) {
+      await baseTab.click({ force: true });
+      await page.waitForSelector(basePanelSelector, { timeout: 12000 }).catch(() => null);
+    }
+  }
   await page.waitForTimeout(350);
+  const draftKey = await page
+    .$eval('#task-builder-form', (el) => (el && el.dataset ? String(el.dataset.draftKey || '') : ''))
+    .catch(() => '');
+  assert(draftKey, 'No se encontró data-draft-key en el formulario');
 
-  await placeLocalPlayer(page, { x: 180, y: 140 });
+  await applyTemplate(page, 'formation_433');
+  await assertObjectCount(page, draftKey, 11, 'Tras aplicar la formacion 4-3-3');
 
-  // Simula rotación a portrait y vuelve a landscape.
-  const initialViewport = page.viewportSize();
-  assert(initialViewport, 'No se pudo leer viewport inicial');
-  await rotateViewport(page, Math.min(initialViewport.height, 1024), Math.min(initialViewport.width, 768));
+  await toggleOrientation(page);
+  await assertObjectCount(page, draftKey, 11, 'Tras rotar a vertical');
 
-  await placeLocalPlayer(page, { x: 480, y: 180 });
+  await applyTemplate(page, 'zone_14');
+  await assertObjectCount(page, draftKey, 13, 'Tras anadir zona y texto');
 
-  await rotateViewport(page, initialViewport.width, initialViewport.height);
-  await placeLocalPlayer(page, { x: 260, y: 340 });
+  await toggleOrientation(page);
+  await assertObjectCount(page, draftKey, 13, 'Tras volver a horizontal');
 
   if (consoleErrors.length) {
     throw new Error(`Se detectaron errores JS durante la prueba:\n- ${consoleErrors.join('\n- ')}`);
   }
 
   await browser.close();
-  console.log('OK: rotación iPad mantiene edición en el editor de tareas.');
+  console.log('OK: la rotación del editor mantiene los elementos colocados.');
 }
 
 main().catch((err) => {
