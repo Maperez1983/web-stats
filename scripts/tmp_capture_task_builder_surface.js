@@ -25,6 +25,7 @@ async function main() {
   const deviceScaleFactor = Number(process.env.E2E_DEVICE_SCALE_FACTOR || 2);
   const viewportWidth = Number(process.env.E2E_VIEWPORT_WIDTH || 1720);
   const viewportHeight = Number(process.env.E2E_VIEWPORT_HEIGHT || 1180);
+  const placeSample = String(process.env.E2E_PLACE_SAMPLE || '').trim() === '1';
   const browser = await chromium.launch({
     headless: true,
     args: ['--enable-gpu', '--use-angle=metal'],
@@ -64,6 +65,20 @@ async function main() {
       }
     }, { requestedGrassStyle: grassStyle, requestedOrientationValue: requestedOrientation });
     await page.waitForTimeout(1800);
+    if (placeSample) {
+      const stage = page.locator('#task-pitch-stage');
+      const placeWithTool = async (selector, x, y) => {
+        await page.click(selector).catch(() => null);
+        await page.waitForTimeout(120);
+        await stage.click({ position: { x, y } }).catch(() => null);
+        await page.waitForTimeout(180);
+      };
+      await placeWithTool('#tactics-tool-local', 520, 420);
+      await placeWithTool('#tactics-tool-rival', 980, 420);
+      await placeWithTool('#tactics-tool-cone', 750, 300);
+      await placeWithTool('#tactics-tool-arrow', 760, 530);
+      await page.waitForTimeout(800);
+    }
     const info = await page.evaluate(() => {
       const stage = document.getElementById('task-pitch-stage');
       const viewport = document.getElementById('task-pitch-viewport');

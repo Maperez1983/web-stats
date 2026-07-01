@@ -11759,66 +11759,70 @@
 						            addAdPanel(adXLeft, i * (endW + 1.05), endW, Math.PI / 2, i + 2);
 						            addAdPanel(adXRight, i * (endW + 1.05), endW, -Math.PI / 2, i + 5);
 						          }
-						          const addBench = (x, z, labelIndex) => {
-						            const g = new THREE.Group();
-						            const shellLen = 11.4;
-						            const shellDepth = 2.8;
-						            const seatCount = 8;
-						            g.position.set(x, 0, z);
-						            g.userData = { kind: 'pitch_3d_dugout' };
-						            addBox(g, new THREE.BoxGeometry(shellLen + 0.95, 0.22, shellDepth + 0.50), darkMat, 0, 0.12, 0.08, 0, 0, 0, 'pitch_3d_dugout_concrete_plinth');
-						            addBox(g, new THREE.BoxGeometry(shellLen + 0.28, 0.10, shellDepth + 0.12), concreteMat, 0, 0.26, 0.08, 0, 0, 0, 'pitch_3d_dugout_platform_cap');
-						            addBox(g, new THREE.BoxGeometry(shellLen + 0.75, 0.54, 0.30), carbonMat, 0, 0.48, -(shellDepth / 2 + 0.14), 0, 0, 0, 'pitch_3d_dugout_pitchside_barrier');
-						            addBox(g, new THREE.BoxGeometry(shellLen + 0.75, 0.08, 0.18), metalMat, 0, 0.84, -(shellDepth / 2 + 0.02), 0, 0, 0, 'pitch_3d_dugout_pitchside_barrier_top');
-						            addBox(g, new THREE.BoxGeometry(0.24, 1.56, shellDepth + 0.12), carbonMat, -(shellLen / 2 + 0.08), 0.86, 0.08, 0, 0, 0, 'pitch_3d_dugout_side_frame_left');
-						            addBox(g, new THREE.BoxGeometry(0.24, 1.56, shellDepth + 0.12), carbonMat, shellLen / 2 + 0.08, 0.86, 0.08, 0, 0, 0, 'pitch_3d_dugout_side_frame_right');
-						            addBox(g, new THREE.BoxGeometry(shellLen + 0.15, 0.12, 0.20), metalMat, 0, 2.08, -0.32, 0, 0, 0, 'pitch_3d_dugout_top_spine');
-						            try {
-						              const canopyOuter = new THREE.Mesh(
-						                new THREE.CylinderGeometry(1.56, 1.56, shellLen, 28, 1, false, Math.PI, Math.PI),
-						                glassMat
-						              );
-						              canopyOuter.rotation.z = Math.PI / 2;
-						              canopyOuter.position.set(0, 1.58, -0.10);
-						              canopyOuter.userData = { kind: 'pitch_3d_dugout_canopy_outer' };
-						              try { canopyOuter.castShadow = true; canopyOuter.receiveShadow = true; } catch (e) { /* ignore */ }
-						              g.add(canopyOuter);
-						              const canopyInner = new THREE.Mesh(
-						                new THREE.CylinderGeometry(1.42, 1.42, shellLen - 0.18, 28, 1, false, Math.PI, Math.PI),
-						                glassMat
-						              );
-						              canopyInner.rotation.z = Math.PI / 2;
-						              canopyInner.position.set(0, 1.56, -0.12);
-						              canopyInner.userData = { kind: 'pitch_3d_dugout_canopy_inner' };
-						              try { canopyInner.castShadow = true; canopyInner.receiveShadow = true; } catch (e) { /* ignore */ }
-						              g.add(canopyInner);
-						            } catch (e) { /* ignore */ }
-						            for (let i = -5; i <= 5; i += 1) {
-						              addBox(g, new THREE.BoxGeometry(0.08, 1.50, 0.08), metalMat, i * 1.02, 1.04, -0.10, -0.06, 0, 0, 'pitch_3d_dugout_canopy_rib');
-						            }
-						            addBox(g, new THREE.BoxGeometry(0.14, 1.42, 2.38), glassMat, -(shellLen / 2 - 0.10), 1.04, 0.14, 0, 0, 0, 'pitch_3d_dugout_side_glass_left');
-						            addBox(g, new THREE.BoxGeometry(0.14, 1.42, 2.38), glassMat, shellLen / 2 - 0.10, 1.04, 0.14, 0, 0, 0, 'pitch_3d_dugout_side_glass_right');
-						            addBox(g, new THREE.BoxGeometry(shellLen - 0.34, 0.96, 0.10), glassMat, 0, 1.06, -(shellDepth / 2 + 0.02), -0.08, 0, 0, 'pitch_3d_dugout_front_glass');
-						            addBox(g, new THREE.BoxGeometry(shellLen - 0.12, 0.06, 0.10), metalMat, 0, 1.56, -(shellDepth / 2 + 0.01), 0, 0, 0, 'pitch_3d_dugout_front_header');
-						            addBox(g, new THREE.BoxGeometry(shellLen + 0.06, 0.06, 0.10), ledTrimMat, 0, 1.92, -1.02, 0, 0, 0, 'pitch_3d_dugout_brand_band');
-						            for (let i = 0; i < seatCount; i += 1) {
-						              const sx = -4.10 + (i * 1.17);
-						              addBox(g, new THREE.BoxGeometry(0.94, 0.24, 0.76), carbonMat, sx, 0.46, 0.64, 0, 0, 0, 'pitch_3d_dugout_seat_shell');
-						              addBox(g, new THREE.BoxGeometry(0.78, 0.18, 0.54), benchSeatMat, sx, 0.60, 0.58, 0, 0, 0, 'pitch_3d_dugout_seat_pad');
-						              addBox(g, new THREE.BoxGeometry(0.78, 0.98, 0.18), benchPadMat, sx, 1.02, 0.92, -0.26, 0, 0, 'pitch_3d_dugout_back_pad');
-						              addBox(g, new THREE.BoxGeometry(0.10, 0.38, 0.10), metalMat, sx - 0.36, 0.30, 0.52, 0, 0, 0, 'pitch_3d_dugout_seat_leg_left');
-						              addBox(g, new THREE.BoxGeometry(0.10, 0.38, 0.10), metalMat, sx + 0.36, 0.30, 0.52, 0, 0, 0, 'pitch_3d_dugout_seat_leg_right');
-						            }
-						            addBox(g, new THREE.BoxGeometry(shellLen - 1.25, 0.08, 0.28), metalMat, 0, 0.82, 1.16, 0, 0, 0, 'pitch_3d_dugout_rear_bench_beam');
-						            const label = new THREE.Mesh(new THREE.PlaneGeometry(4.9, 0.56), adMats[labelIndex % adMats.length]);
-						            label.position.set(0, 1.23, -(shellDepth / 2 + 0.085));
-						            label.userData = { kind: 'pitch_3d_dugout_brand' };
-						            g.add(label);
-						            addBox(g, new THREE.BoxGeometry(2.20, 0.20, 0.40), carbonMat, 0, 0.26, shellDepth / 2 + 0.42, 0, 0, 0, 'pitch_3d_dugout_rear_step');
-						            root.add(g);
-						          };
-						          addBench(-17.6, -(metersH / 2 + 6.85), 0);
-						          addBench(17.6, -(metersH / 2 + 6.85), 1);
+					          const addBench = (x, z, labelIndex) => {
+					            const g = new THREE.Group();
+					            const shellLen = 10.8;
+					            const shellDepth = 2.9;
+					            const seatCount = 7;
+					            g.position.set(x, 0, z);
+					            g.userData = { kind: 'pitch_3d_dugout' };
+					            addBox(g, new THREE.BoxGeometry(shellLen + 2.10, 0.10, shellDepth + 2.20), concreteMat, 0, 0.05, 0.24, 0, 0, 0, 'pitch_3d_dugout_technical_area_slab');
+					            addBox(g, new THREE.BoxGeometry(shellLen + 1.55, 0.08, shellDepth + 1.30), darkMat, 0, 0.09, 0.18, 0, 0, 0, 'pitch_3d_dugout_rubber_pad');
+					            addBox(g, new THREE.BoxGeometry(shellLen + 0.82, 0.24, shellDepth + 0.54), darkMat, 0, 0.16, 0.06, 0, 0, 0, 'pitch_3d_dugout_concrete_plinth');
+					            addBox(g, new THREE.BoxGeometry(shellLen + 0.18, 0.10, shellDepth + 0.08), concreteMat, 0, 0.31, 0.06, 0, 0, 0, 'pitch_3d_dugout_platform_cap');
+					            addBox(g, new THREE.BoxGeometry(shellLen + 0.46, 0.14, 0.22), metalMat, 0, 0.92, -(shellDepth / 2 + 0.08), 0, 0, 0, 'pitch_3d_dugout_pitchside_barrier_top');
+					            addBox(g, new THREE.BoxGeometry(shellLen + 0.36, 0.46, 0.16), carbonMat, 0, 0.54, -(shellDepth / 2 + 0.18), 0, 0, 0, 'pitch_3d_dugout_pitchside_barrier');
+					            addBox(g, new THREE.BoxGeometry(0.20, 1.72, shellDepth + 0.18), carbonMat, -(shellLen / 2 + 0.05), 0.94, 0.04, 0, 0, 0, 'pitch_3d_dugout_side_frame_left');
+					            addBox(g, new THREE.BoxGeometry(0.20, 1.72, shellDepth + 0.18), carbonMat, shellLen / 2 + 0.05, 0.94, 0.04, 0, 0, 0, 'pitch_3d_dugout_side_frame_right');
+					            addBox(g, new THREE.BoxGeometry(shellLen + 0.08, 0.10, 0.18), metalMat, 0, 2.10, -0.20, 0, 0, 0, 'pitch_3d_dugout_top_spine');
+					            try {
+					              const canopyOuter = new THREE.Mesh(
+					                new THREE.CylinderGeometry(1.72, 1.72, shellLen, 32, 1, false, Math.PI * 0.96, Math.PI * 1.08),
+					                glassMat
+					              );
+					              canopyOuter.rotation.z = Math.PI / 2;
+					              canopyOuter.position.set(0, 1.62, -0.02);
+					              canopyOuter.userData = { kind: 'pitch_3d_dugout_canopy_outer' };
+					              try { canopyOuter.castShadow = true; canopyOuter.receiveShadow = true; } catch (e) { /* ignore */ }
+					              g.add(canopyOuter);
+					              const canopyInner = new THREE.Mesh(
+					                new THREE.CylinderGeometry(1.56, 1.56, shellLen - 0.26, 32, 1, false, Math.PI * 0.96, Math.PI * 1.08),
+					                glassMat
+					              );
+					              canopyInner.rotation.z = Math.PI / 2;
+					              canopyInner.position.set(0, 1.60, -0.02);
+					              canopyInner.userData = { kind: 'pitch_3d_dugout_canopy_inner' };
+					              try { canopyInner.castShadow = true; canopyInner.receiveShadow = true; } catch (e) { /* ignore */ }
+					              g.add(canopyInner);
+					            } catch (e) { /* ignore */ }
+					            for (let i = -4; i <= 4; i += 1) {
+					              addBox(g, new THREE.BoxGeometry(0.08, 1.58, 0.08), metalMat, i * 1.06, 1.08, 0.02, -0.08, 0, 0, 'pitch_3d_dugout_canopy_rib');
+					            }
+					            addBox(g, new THREE.BoxGeometry(0.12, 1.54, 2.56), glassMat, -(shellLen / 2 - 0.06), 1.08, 0.10, 0, 0, 0, 'pitch_3d_dugout_side_glass_left');
+					            addBox(g, new THREE.BoxGeometry(0.12, 1.54, 2.56), glassMat, shellLen / 2 - 0.06, 1.08, 0.10, 0, 0, 0, 'pitch_3d_dugout_side_glass_right');
+					            addBox(g, new THREE.BoxGeometry(shellLen - 0.22, 1.02, 0.08), glassMat, 0, 1.04, -(shellDepth / 2 + 0.02), -0.06, 0, 0, 'pitch_3d_dugout_front_glass');
+					            addBox(g, new THREE.BoxGeometry(shellLen - 0.04, 0.06, 0.10), metalMat, 0, 1.54, -(shellDepth / 2 + 0.01), 0, 0, 0, 'pitch_3d_dugout_front_header');
+					            addBox(g, new THREE.BoxGeometry(shellLen - 0.24, 0.10, 0.10), ledTrimMat, 0, 1.84, -0.96, 0, 0, 0, 'pitch_3d_dugout_brand_band');
+					            for (let i = 0; i < seatCount; i += 1) {
+					              const sx = -3.42 + (i * 1.14);
+					              addBox(g, new THREE.BoxGeometry(0.92, 0.26, 0.82), carbonMat, sx, 0.50, 0.64, 0, 0, 0, 'pitch_3d_dugout_seat_shell');
+					              addBox(g, new THREE.BoxGeometry(0.72, 0.18, 0.54), benchSeatMat, sx, 0.63, 0.54, 0, 0, 0, 'pitch_3d_dugout_seat_pad');
+					              addBox(g, new THREE.BoxGeometry(0.68, 0.76, 0.16), benchPadMat, sx, 1.04, 0.94, -0.30, 0, 0, 'pitch_3d_dugout_back_pad');
+					              addBox(g, new THREE.BoxGeometry(0.58, 0.12, 0.18), benchSeatMat, sx, 1.34, 0.90, -0.44, 0, 0, 'pitch_3d_dugout_headrest');
+					              addBox(g, new THREE.BoxGeometry(0.08, 0.40, 0.08), metalMat, sx - 0.32, 0.32, 0.50, 0, 0, 0, 'pitch_3d_dugout_seat_leg_left');
+					              addBox(g, new THREE.BoxGeometry(0.08, 0.40, 0.08), metalMat, sx + 0.32, 0.32, 0.50, 0, 0, 0, 'pitch_3d_dugout_seat_leg_right');
+					            }
+					            addBox(g, new THREE.BoxGeometry(shellLen - 1.05, 0.10, 0.24), metalMat, 0, 0.82, 1.18, 0, 0, 0, 'pitch_3d_dugout_rear_bench_beam');
+					            addBox(g, new THREE.BoxGeometry(shellLen - 0.60, 0.18, 0.38), concreteMat, 0, 0.30, 1.08, 0, 0, 0, 'pitch_3d_dugout_rear_step');
+					            const label = new THREE.Mesh(new THREE.PlaneGeometry(4.9, 0.56), adMats[labelIndex % adMats.length]);
+					            label.position.set(0, 1.22, -(shellDepth / 2 + 0.085));
+					            label.userData = { kind: 'pitch_3d_dugout_brand' };
+					            g.add(label);
+					            addBox(g, new THREE.BoxGeometry(1.86, 0.18, 0.32), carbonMat, 0, 0.24, shellDepth / 2 + 0.44, 0, 0, 0, 'pitch_3d_dugout_service_plinth');
+					            root.add(g);
+					          };
+					          addBench(-17.4, -(metersH / 2 + 5.95), 0);
+					          addBench(17.4, -(metersH / 2 + 5.95), 1);
 						          // La capa final de estadio añade el área técnica canónica.
 						          // Evitamos duplicar banquillos en la banda.
 						          const addTechnicalStandWithTunnel = () => {
@@ -29945,6 +29949,28 @@
 			      } catch (e) { /* ignore */ }
 			    };
 
+            const applyRenderableQuality = (object, options = {}) => {
+              if (!object || typeof object.set !== 'function') return object;
+              try { object.objectCaching = false; } catch (e) { /* ignore */ }
+              try { object.noScaleCache = true; } catch (e) { /* ignore */ }
+              try { object.strokeUniform = options.strokeUniform !== false; } catch (e) { /* ignore */ }
+              try {
+                if (options.excludeFromExport === true) object.excludeFromExport = true;
+              } catch (e) { /* ignore */ }
+              return object;
+            };
+
+            const applyRenderableQualityToGroup = (group, parts = []) => {
+              try { applyRenderableQuality(group); } catch (e) { /* ignore */ }
+              try {
+                (Array.isArray(parts) ? parts : []).forEach((part) => {
+                  if (!part) return;
+                  applyRenderableQuality(part);
+                });
+              } catch (e) { /* ignore */ }
+              return group;
+            };
+
 				    const playerTokenFactory = (kind, player, options = {}) => (left, top) => {
 		      const preferredName = safeText(player?.nickname || player?.name, '');
 		      const playerNameLower = preferredName.toLowerCase();
@@ -29983,18 +30009,18 @@
 		      // Estilo "chapa" (igual que en la plantilla de abajo): disco con dorsal centrado y nombre simple.
 		      // Evitamos el "jersey" y los cartuchos para que dentro del campo se vea igual que fuera.
       if (kind === 'player_local' || kind === 'player_away' || kind === 'player_rival' || kind === 'goalkeeper_local' || kind === 'goalkeeper_rival') {
-		        const radius = 23;
+		        const radius = 24;
 		        baseRadius = radius;
 		        const isAway = kind === 'player_away';
         const isGoalkeeper = isGoalkeeperKind;
 		        if (style === 'photo') {
 		          const tokenShadow = new fabric.Circle({
-		            radius: radius + 4,
-		            fill: 'rgba(2,6,23,0.26)',
+		            radius: radius + 4.5,
+		            fill: 'rgba(2,6,23,0.30)',
 		            originX: 'center',
 		            originY: 'center',
-		            left: 2,
-		            top: 4,
+		            left: 2.4,
+		            top: 4.8,
 		            strokeWidth: 0,
 		            selectable: false,
 		            evented: false,
@@ -30004,18 +30030,18 @@
 		          const border = new fabric.Circle({
 		            radius,
 		            fill: effectiveBase,
-		            stroke: 'rgba(255,255,255,0.92)',
-		            strokeWidth: 2,
+		            stroke: 'rgba(255,255,255,0.96)',
+		            strokeWidth: 2.4,
 		            originX: 'center',
 		            originY: 'center',
 		            left: 0,
 		            top: 0,
-		            shadow: 'rgba(15,23,42,0.28) 0 6px 14px',
+		            shadow: 'rgba(15,23,42,0.34) 0 8px 18px',
 		          });
 		          border.data = { role: 'token_base' };
 		          tokenParts.push(border);
 		          const placeholder = new fabric.Circle({
-		            radius: radius - 2.5,
+		            radius: radius - 2.6,
 		            fill: 'rgba(15,23,42,0.22)',
 		            originX: 'center',
 		            originY: 'center',
@@ -30044,10 +30070,13 @@
 			            originY: 'center',
 			            left: 0,
 			            top: 18,
-			            fontSize: 10,
+			            fontSize: 10.6,
 			            fontWeight: '800',
 			            fill: tokenNumberFill,
 			            backgroundColor: tokenNumberBg,
+                  stroke: tokenNumberFill === '#000000' ? 'rgba(255,255,255,0.65)' : 'rgba(2,6,23,0.52)',
+                  strokeWidth: 0.7,
+                  paintFirst: 'stroke',
 			          });
 			          numberText.data = { role: 'token_number' };
 			          tokenParts.push(numberText);
@@ -30056,12 +30085,12 @@
 		            originY: 'center',
 		            left: 0,
 		            top: -34,
-		            width: Math.max(48, Math.min(120, (displayName.length * 6.6) + 18)),
-		            height: 18,
-		            rx: 8,
-		            ry: 8,
-		            fill: 'rgba(2,6,23,0.68)',
-		            stroke: 'rgba(255,255,255,0.14)',
+		            width: Math.max(52, Math.min(126, (displayName.length * 6.8) + 20)),
+		            height: 19,
+		            rx: 9,
+		            ry: 9,
+		            fill: 'rgba(2,6,23,0.72)',
+		            stroke: 'rgba(255,255,255,0.18)',
 		            strokeWidth: 1,
 		            selectable: false,
 		            evented: false,
@@ -30074,10 +30103,10 @@
 		            originY: 'center',
 		            left: 0,
 		            top: -34,
-		            fontSize: 10,
-		            fontWeight: '700',
-		            fill: '#e2e8f0',
-		            shadow: 'rgba(15,23,42,0.55) 0 1px 2px',
+		            fontSize: 10.4,
+		            fontWeight: '800',
+		            fill: '#f8fafc',
+		            shadow: 'rgba(15,23,42,0.58) 0 1px 2px',
 		          });
 		          nameText.data = { role: 'token_name' };
 			          tokenParts.push(nameText);
@@ -30098,7 +30127,7 @@
 				              scaleY: baseScale,
 				              selectable: false,
 				              evented: false,
-				              shadow: 'rgba(15,23,42,0.28) 0 6px 14px',
+				              shadow: 'rgba(15,23,42,0.34) 0 8px 18px',
 				            });
 				            try { imgObj.objectCaching = false; } catch (e) { /* ignore */ }
 				            try { imgObj.noScaleCache = true; } catch (e) { /* ignore */ }
@@ -30112,9 +30141,9 @@
 				              originX: 'center',
 				              originY: 'center',
 				              fill: effectiveBase,
-				              stroke: 'rgba(255,255,255,0.92)',
-				              strokeWidth: 2,
-				              shadow: 'rgba(15,23,42,0.28) 0 6px 14px',
+				              stroke: 'rgba(255,255,255,0.96)',
+				              strokeWidth: 2.2,
+				              shadow: 'rgba(15,23,42,0.34) 0 8px 18px',
 				            });
 				            shirtPath.data = { role: 'token_base' };
 				            tokenParts.push(shirtPath);
@@ -30176,11 +30205,11 @@
 		            left: 0,
 		            top: -34,
 		            width: nameTagWidth,
-		            height: 18,
-		            rx: 8,
-		            ry: 8,
-		            fill: 'rgba(2,6,23,0.68)',
-		            stroke: 'rgba(255,255,255,0.14)',
+		            height: 19,
+		            rx: 9,
+		            ry: 9,
+		            fill: 'rgba(2,6,23,0.72)',
+		            stroke: 'rgba(255,255,255,0.18)',
 		            strokeWidth: 1,
 		            selectable: false,
 		            evented: false,
@@ -30193,11 +30222,11 @@
 		            originY: 'center',
 		            left: (-nameTagWidth / 2) + 13,
 		            top: -34,
-		            width: 22,
-		            height: 16,
-		            rx: 8,
-		            ry: 8,
-		            fill: 'rgba(244,180,0,0.96)',
+		            width: 24,
+		            height: 16.8,
+		            rx: 8.4,
+		            ry: 8.4,
+		            fill: 'rgba(244,180,0,0.98)',
 		            stroke: 'rgba(2,6,23,0.45)',
 		            strokeWidth: 1,
 		            selectable: false,
@@ -30210,7 +30239,7 @@
 		            originY: 'center',
 		            left: (-nameTagWidth / 2) + 13,
 		            top: -34,
-		            fontSize: 9,
+		            fontSize: 9.4,
 		            fontWeight: '800',
 		            fill: 'rgba(2,6,23,0.96)',
 		            shadow: '',
@@ -30222,9 +30251,9 @@
 		            originY: 'center',
 		            left: 12,
 		            top: -34,
-		            fontSize: 10,
-		            fontWeight: '700',
-		            fill: '#e2e8f0',
+		            fontSize: 10.4,
+		            fontWeight: '800',
+		            fill: '#f8fafc',
 		            shadow: 'rgba(15,23,42,0.55) 0 1px 2px',
 		          });
 		          nameText.data = { role: 'token_name' };
@@ -30233,7 +30262,7 @@
 			          const tokenShadow = new fabric.Ellipse({
 			            rx: 18,
 			            ry: 6,
-			            fill: 'rgba(2,6,23,0.28)',
+			            fill: 'rgba(2,6,23,0.32)',
 			            originX: 'center',
 			            originY: 'center',
 			            left: 2,
@@ -30269,7 +30298,7 @@
 			            rx: 7,
 			            ry: 7,
 			            fill: shirtFill,
-			            stroke: 'rgba(255,255,255,0.22)',
+			            stroke: 'rgba(255,255,255,0.28)',
 			            strokeWidth: 1.2,
 			            originX: 'center',
 			            originY: 'center',
@@ -30334,7 +30363,7 @@
 			            originY: 'center',
 			            left: 0,
 			            top: -2,
-			            fontSize: 12,
+			            fontSize: 12.6,
 			            fontWeight: '900',
 			            fill: numberFill,
 			            stroke: numberStroke,
@@ -30364,12 +30393,12 @@
 			            originY: 'center',
 			            left: 0,
 			            top: -34,
-			            width: Math.max(48, Math.min(120, (displayName.length * 6.6) + 18)),
-			            height: 18,
-			            rx: 8,
-			            ry: 8,
-			            fill: 'rgba(2,6,23,0.68)',
-			            stroke: 'rgba(255,255,255,0.14)',
+			            width: Math.max(52, Math.min(126, (displayName.length * 6.8) + 20)),
+			            height: 19,
+			            rx: 9,
+			            ry: 9,
+			            fill: 'rgba(2,6,23,0.72)',
+			            stroke: 'rgba(255,255,255,0.18)',
 			            strokeWidth: 1,
 			            selectable: false,
 			            evented: false,
@@ -30382,9 +30411,9 @@
 			            originY: 'center',
 			            left: 0,
 			            top: -34,
-			            fontSize: 10,
-			            fontWeight: '700',
-			            fill: '#e2e8f0',
+			            fontSize: 10.4,
+			            fontWeight: '800',
+			            fill: '#f8fafc',
 			            shadow: 'rgba(15,23,42,0.55) 0 1px 2px',
 			            selectable: false,
 			            evented: false,
@@ -30395,7 +30424,7 @@
 			          const tokenShadow = new fabric.Ellipse({
 			            rx: radius + 7,
 			            ry: 10,
-			            fill: 'rgba(2,6,23,0.24)',
+			            fill: 'rgba(2,6,23,0.30)',
 			            originX: 'center',
 			            originY: 'center',
 			            left: 2,
@@ -30410,8 +30439,8 @@
 			          const outerRing = new fabric.Circle({
 			            radius: radius + 2,
 			            fill: '',
-			            stroke: 'rgba(2,6,23,0.64)',
-			            strokeWidth: 2.8,
+			            stroke: 'rgba(2,6,23,0.76)',
+			            strokeWidth: 3.2,
 			            originX: 'center',
 			            originY: 'center',
 			            left: 0,
@@ -30425,13 +30454,13 @@
 			          const baseCircle = new fabric.Circle({
 			            radius,
 			            fill: isAway ? stripeColor : effectiveBase,
-			            stroke: 'rgba(248,250,252,0.96)',
-			            strokeWidth: 2.4,
+			            stroke: 'rgba(248,250,252,0.98)',
+			            strokeWidth: 2.7,
 			            originX: 'center',
 			            originY: 'center',
 			            left: 0,
 			            top: 0,
-			            shadow: 'rgba(15,23,42,0.24) 0 8px 18px',
+			            shadow: 'rgba(15,23,42,0.32) 0 10px 22px',
 			          });
 			          baseCircle.data = { role: isAway ? 'token_fill' : 'token_base' };
 			          tokenParts.push(baseCircle);
@@ -30439,8 +30468,8 @@
 			          const rimLight = new fabric.Circle({
 			            radius: radius - 1.5,
 			            fill: '',
-			            stroke: 'rgba(255,255,255,0.32)',
-			            strokeWidth: 1.3,
+			            stroke: 'rgba(255,255,255,0.38)',
+			            strokeWidth: 1.45,
 			            originX: 'center',
 			            originY: 'center',
 			            left: 0,
@@ -30457,7 +30486,7 @@
 			            radius: Math.max(2, radius - 5),
 			            fill: '',
 			            stroke: 'rgba(255,255,255,0.22)',
-			            strokeWidth: 1.2,
+			            strokeWidth: 1.4,
 			            originX: 'center',
 			            originY: 'center',
 			            left: 0,
@@ -30474,7 +30503,7 @@
 			            originY: 'center',
 			            left: 0,
 			            top: 9,
-			            fill: 'rgba(2,6,23,0.13)',
+			            fill: 'rgba(2,6,23,0.16)',
 			            strokeWidth: 0,
 			            selectable: false,
 			            evented: false,
@@ -30669,13 +30698,13 @@
 			        tokenParts.push(roleDot);
 			        // Brillo común para look premium sin perder lectura táctica.
 			          const gloss = new fabric.Ellipse({
-			          rx: 12,
-			          ry: 7.5,
+			          rx: 13,
+			          ry: 8,
 			          originX: 'center',
 			          originY: 'center',
 			          left: -7.5,
 			          top: -11.5,
-			          fill: 'rgba(255,255,255,0.24)',
+			          fill: 'rgba(255,255,255,0.28)',
 			          strokeWidth: 0,
 			          selectable: false,
 			          evented: false,
@@ -30688,7 +30717,7 @@
 			          originY: 'center',
 			          left: 0,
 			          top: -1,
-			          fill: 'rgba(255,255,255,0.055)',
+			          fill: 'rgba(255,255,255,0.07)',
 			          strokeWidth: 0,
 			          selectable: false,
 			          evented: false,
@@ -30700,11 +30729,11 @@
 		          originY: 'center',
 		          left: 0,
 		          top: 0,
-		          fontSize: 17,
+		          fontSize: 17.6,
 		          fontWeight: '900',
 		          fill: isAway ? '#0b1220' : '#ffffff',
 		          stroke: isAway ? 'rgba(255,255,255,0.75)' : 'rgba(2,6,23,0.65)',
-		          strokeWidth: 2.6,
+		          strokeWidth: 2.9,
 		          paintFirst: 'stroke',
 		          shadow: 'rgba(15,23,42,0.52) 0 1px 2px',
 		        });
@@ -30714,13 +30743,13 @@
 		          originX: 'center',
 		          originY: 'center',
 		          left: 0,
-		          top: -36,
-		          width: Math.max(54, Math.min(124, (displayName.length * 6.5) + 22)),
-		          height: 17,
-		          rx: 8,
-		          ry: 8,
-		          fill: 'rgba(2,6,23,0.68)',
-		          stroke: 'rgba(255,255,255,0.2)',
+		          top: -36.5,
+		          width: Math.max(58, Math.min(130, (displayName.length * 6.7) + 24)),
+		          height: 18.4,
+		          rx: 9,
+		          ry: 9,
+		          fill: 'rgba(2,6,23,0.72)',
+		          stroke: 'rgba(255,255,255,0.22)',
 		          strokeWidth: 1,
 		          selectable: false,
 		          evented: false,
@@ -30732,8 +30761,8 @@
 		          originX: 'center',
 		          originY: 'center',
 		          left: 0,
-		          top: -36,
-		          fontSize: 9.8,
+		          top: -36.5,
+		          fontSize: 10.2,
 		          fontWeight: '800',
 		          fill: '#f8fafc',
 		          shadow: 'rgba(15,23,42,0.55) 0 1px 2px',
@@ -30840,15 +30869,7 @@
 		        applyTokenPalette(group, { base: baseColor, stripe: stripeColor, pattern });
 		      } catch (e) { /* ignore */ }
 		      // Evita blur por cache rasterizado al escalar/zoomear; los tokens son vectoriales.
-		      try { group.objectCaching = false; } catch (error) { /* ignore */ }
-		      try { group.noScaleCache = true; } catch (error) { /* ignore */ }
-		      try {
-		        tokenParts.forEach((part) => {
-		          if (!part) return;
-		          try { part.objectCaching = false; } catch (e) { /* ignore */ }
-		          try { part.noScaleCache = true; } catch (e) { /* ignore */ }
-		        });
-		      } catch (error) { /* ignore */ }
+          applyRenderableQualityToGroup(group, tokenParts);
 			      if (style === 'photo' && photoUrl) {
 			        try { loadPhotoIntoGroup(group, photoUrl, 19.2); } catch (e) { /* ignore */ }
 			      }
@@ -31169,12 +31190,12 @@
 		          const stroke = '#7c2d12';
 		          const foot = new fabric.Ellipse({
 		            left: 0,
-		            top: 15,
+		            top: 16,
 		            originX: 'center',
 		            originY: 'center',
-		            rx: 13,
-		            ry: 4.3,
-		            fill: 'rgba(2,6,23,0.18)',
+		            rx: 14,
+		            ry: 4.8,
+		            fill: 'rgba(2,6,23,0.22)',
 		            strokeWidth: 0,
 		            selectable: false,
 		            evented: false,
@@ -31182,47 +31203,57 @@
 		          foot.data = { role: 'cone_shadow' };
 		          const base = new fabric.Triangle({
 		            left: 0,
-		            top: -1,
+		            top: -1.5,
 		            originX: 'center',
 		            originY: 'center',
-		            width: 28,
-		            height: 28,
+		            width: 30,
+		            height: 30,
 		            fill,
 		            stroke,
-		            strokeWidth: 1.8,
+		            strokeWidth: 2,
 		            selectable: false,
 		            evented: false,
-		            shadow: 'rgba(15,23,42,0.18) 0 5px 10px',
+		            shadow: 'rgba(15,23,42,0.22) 0 6px 14px',
 		          });
 		          base.data = { role: 'cone_base' };
+              const sideShade = new fabric.Path('M 0 -12 L 11 10 L 0 10 Z', {
+                left: 0,
+                top: -0.5,
+                originX: 'center',
+                originY: 'center',
+                fill: 'rgba(124,45,18,0.18)',
+                strokeWidth: 0,
+                selectable: false,
+                evented: false,
+              });
+              sideShade.data = { role: 'cone_side_shade' };
 		          const highlight = new fabric.Path('M -6 6 L 0 -10 L 6 6 Z', {
 		            left: 0,
 		            top: -2,
 		            originX: 'center',
 		            originY: 'center',
-		            fill: 'rgba(255,255,255,0.22)',
+		            fill: 'rgba(255,255,255,0.26)',
 		            strokeWidth: 0,
 		            selectable: false,
 		            evented: false,
 		          });
 		          highlight.data = { role: 'cone_highlight' };
 		          const band = new fabric.Line([-7, 4, 7, 4], {
-		            stroke: 'rgba(255,248,240,0.55)',
-		            strokeWidth: 2.2,
+		            stroke: 'rgba(255,248,240,0.68)',
+		            strokeWidth: 2.5,
 		            strokeLineCap: 'round',
 		            selectable: false,
 		            evented: false,
 		          });
 		          band.data = { role: 'cone_band' };
-		          const group = new fabric.Group([foot, base, highlight, band], {
+		          const group = new fabric.Group([foot, base, sideShade, highlight, band], {
 		            left,
 		            top,
 		            originX: 'center',
 		            originY: 'center',
 		            data: { kind: 'cone', color: fill, stroke_color: stroke },
 		          });
-		          try { group.objectCaching = false; } catch (e) { /* ignore */ }
-		          try { group.noScaleCache = true; } catch (e) { /* ignore */ }
+              applyRenderableQualityToGroup(group, [foot, base, sideShade, highlight, band]);
 		          return group;
 		        };
 		      }
@@ -31232,30 +31263,40 @@
 	          const stroke = '#7f1d1d';
 	          const foot = new fabric.Ellipse({
 	            left: 0,
-	            top: 15,
+	            top: 16,
 	            originX: 'center',
 	            originY: 'center',
-	            rx: 13,
-	            ry: 4.3,
-	            fill: 'rgba(2,6,23,0.18)',
+	            rx: 14,
+	            ry: 4.8,
+	            fill: 'rgba(2,6,23,0.22)',
 	            strokeWidth: 0,
 	            selectable: false,
 	            evented: false,
 	          });
 	          const tri = new fabric.Triangle({
 	            left: 0,
-	            top: -1,
+	            top: -1.5,
 	            originX: 'center',
 	            originY: 'center',
-	            width: 26,
-	            height: 26,
+	            width: 30,
+	            height: 30,
 	            fill,
 	            stroke,
-	            strokeWidth: 1.7,
+	            strokeWidth: 2,
 	            selectable: false,
 	            evented: false,
-	            shadow: 'rgba(15,23,42,0.18) 0 5px 10px',
+	            shadow: 'rgba(15,23,42,0.22) 0 6px 14px',
 	          });
+            const sideShade = new fabric.Path('M 0 -12 L 11 10 L 0 10 Z', {
+              left: 0,
+              top: -0.5,
+              originX: 'center',
+              originY: 'center',
+              fill: 'rgba(127,29,29,0.18)',
+              strokeWidth: 0,
+              selectable: false,
+              evented: false,
+            });
 	          const stripe1 = new fabric.Line([-10, -2, 10, -2], {
 	            stroke: 'rgba(255,255,255,0.92)',
 	            strokeWidth: 4,
@@ -31270,15 +31311,24 @@
 	            selectable: false,
 	            evented: false,
 	          });
-	          const group = new fabric.Group([foot, tri, stripe1, stripe2], {
+            const highlight = new fabric.Path('M -6 6 L 0 -10 L 6 6 Z', {
+              left: 0,
+              top: -2,
+              originX: 'center',
+              originY: 'center',
+              fill: 'rgba(255,255,255,0.18)',
+              strokeWidth: 0,
+              selectable: false,
+              evented: false,
+            });
+	          const group = new fabric.Group([foot, tri, sideShade, highlight, stripe1, stripe2], {
 	            left,
 	            top,
 	            originX: 'center',
 	            originY: 'center',
 	            data: { kind: 'cone-striped', color: fill, stroke_color: stroke },
 	          });
-	          try { group.objectCaching = false; } catch (e) { /* ignore */ }
-	          try { group.noScaleCache = true; } catch (e) { /* ignore */ }
+            applyRenderableQualityToGroup(group, [foot, tri, sideShade, highlight, stripe1, stripe2]);
 	          return group;
 	        };
 	      }
@@ -32087,7 +32137,7 @@
 		      };
 		      if (kind === 'shape_band_h') return (left, top) => buildHighlightBand(left, top, 'h');
 		      if (kind === 'shape_band_v') return (left, top) => buildHighlightBand(left, top, 'v');
-		      const buildArrowGroup = (left, top, options = {}) => {
+	      const buildArrowGroup = (left, top, options = {}) => {
 	        const stroke = safeText(options.stroke, '#22d3ee');
 	        const strokeWidth = clamp(Number(options.strokeWidth) || 4, 2, 18);
 	        const dash = Array.isArray(options.dash) ? options.dash : null;
@@ -32096,10 +32146,11 @@
 	        const headOffset = clamp(Number(options.headOffset) || (headSize / 2 + 6), 14, 60);
 		        const baseLen = clamp(Number(options.baseLen) || 320, 60, 520);
 	        const kind = safeText(options.kind, 'arrow');
+          const accentStroke = safeText(options.accentStroke, '#f8fafc');
 
 	        const underLine = new fabric.Line([-(baseLen / 2), 0, (baseLen / 2) - (headSize / 2), 0], {
-	          stroke: 'rgba(2,6,23,0.34)',
-	          strokeWidth: strokeWidth + 3.2,
+	          stroke: 'rgba(2,6,23,0.42)',
+	          strokeWidth: strokeWidth + 4.4,
 	          strokeDashArray: dash || undefined,
 	          strokeLineCap: cap,
 	          originX: 'center',
@@ -32118,13 +32169,23 @@
 	          selectable: false,
 	          evented: false,
 	        });
+          const shine = new fabric.Line([-(baseLen / 2) + 4, -Math.max(0.7, strokeWidth * 0.1), (baseLen / 2) - (headSize / 2) - 4, -Math.max(0.7, strokeWidth * 0.1)], {
+            stroke: rgbaFromHex(accentStroke, 0.92),
+            strokeWidth: Math.max(1.4, strokeWidth * 0.24),
+            strokeDashArray: dash || undefined,
+            strokeLineCap: cap,
+            originX: 'center',
+            originY: 'center',
+            selectable: false,
+            evented: false,
+          });
 	        const headUnder = new fabric.Triangle({
 	          left: (baseLen / 2) - (headSize / 2) + headOffset,
 	          top: 0,
-	          width: headSize + 5,
-	          height: headSize + 5,
+	          width: headSize + 6,
+	          height: headSize + 6,
 	          angle: 90,
-	          fill: 'rgba(2,6,23,0.34)',
+	          fill: 'rgba(2,6,23,0.42)',
 	          originX: 'center',
 	          originY: 'center',
 	          selectable: false,
@@ -32137,14 +32198,15 @@
 	          height: headSize,
 	          angle: 90,
 	          fill: stroke,
+            stroke: rgbaFromHex(accentStroke, 0.86),
+            strokeWidth: Math.max(1, strokeWidth * 0.16),
 	          originX: 'center',
 	          originY: 'center',
 	          selectable: false,
 	          evented: false,
 	        });
-	        const group = new fabric.Group([underLine, line, headUnder, head], { left, top, originX: 'center', originY: 'center', data: { kind } });
-	        try { group.objectCaching = false; } catch (e) { /* ignore */ }
-	        try { group.noScaleCache = true; } catch (e) { /* ignore */ }
+	        const group = new fabric.Group([underLine, line, shine, headUnder, head], { left, top, originX: 'center', originY: 'center', data: { kind } });
+          applyRenderableQualityToGroup(group, [underLine, line, shine, headUnder, head]);
 	        return group;
 	      };
 
@@ -32161,19 +32223,19 @@
 		        return (left, top) => buildArrowGroup(left, top, { kind: 'arrow-dot', dash: [2, 10], cap: 'round' });
 		      }
 			      if (kind === 'arrow_curve') {
-			        return (left, top) => new fabric.Group([
-			          new fabric.Path('M -50 22 Q -8 -30 46 10', {
+			        return (left, top) => {
+                const under = new fabric.Path('M -50 22 Q -8 -30 46 10', {
 		            left: 0,
 	            top: 0,
 	            originX: 'center',
 	            originY: 'center',
-	            stroke: 'rgba(2,6,23,0.34)',
+	            stroke: 'rgba(2,6,23,0.42)',
 	            fill: '',
-	            strokeWidth: 7,
+	            strokeWidth: 8,
 	            strokeLineCap: 'round',
 	            strokeLineJoin: 'round',
-		          }),
-			          new fabric.Path('M -50 22 Q -8 -30 46 10', {
+		          });
+                const curve = new fabric.Path('M -50 22 Q -8 -30 46 10', {
 		            left: 0,
 	            top: 0,
 	            originX: 'center',
@@ -32183,26 +32245,40 @@
 	            strokeWidth: 4,
 	            strokeLineCap: 'round',
 	            strokeLineJoin: 'round',
-		          }),
-		          new fabric.Triangle({ left: 58, top: 10, width: 23, height: 23, angle: 122, fill: 'rgba(2,6,23,0.34)', originX: 'center', originY: 'center' }),
-		          new fabric.Triangle({ left: 58, top: 10, width: 18, height: 18, angle: 122, fill: '#22d3ee', originX: 'center', originY: 'center' }),
-		        ], { left, top, originX: 'center', originY: 'center', data: { kind: 'arrow-curve', curve_sign: 1 } });
+		          });
+                const shine = new fabric.Path('M -49 21 Q -8 -28 44 8', {
+                  left: 0,
+                  top: 0,
+                  originX: 'center',
+                  originY: 'center',
+                  stroke: 'rgba(248,250,252,0.86)',
+                  fill: '',
+                  strokeWidth: 1.4,
+                  strokeLineCap: 'round',
+                  strokeLineJoin: 'round',
+                });
+                const headUnder = new fabric.Triangle({ left: 58, top: 10, width: 24, height: 24, angle: 122, fill: 'rgba(2,6,23,0.42)', originX: 'center', originY: 'center' });
+                const head = new fabric.Triangle({ left: 58, top: 10, width: 18, height: 18, angle: 122, fill: '#22d3ee', stroke: 'rgba(248,250,252,0.82)', strokeWidth: 1, originX: 'center', originY: 'center' });
+                const group = new fabric.Group([under, curve, shine, headUnder, head], { left, top, originX: 'center', originY: 'center', data: { kind: 'arrow-curve', curve_sign: 1 } });
+                applyRenderableQualityToGroup(group, [under, curve, shine, headUnder, head]);
+                return group;
+              };
 		      }
 		      if (kind === 'arrow_curve_left') {
 		        // Mismo objeto (arrow-curve) pero curvado hacia el lado contrario desde el inicio.
-		        return (left, top) => new fabric.Group([
-		          new fabric.Path('M -50 -22 Q -8 30 46 -10', {
+		        return (left, top) => {
+              const under = new fabric.Path('M -50 -22 Q -8 30 46 -10', {
 		            left: 0,
 		            top: 0,
 		            originX: 'center',
 		            originY: 'center',
-		            stroke: 'rgba(2,6,23,0.34)',
+		            stroke: 'rgba(2,6,23,0.42)',
 		            fill: '',
-		            strokeWidth: 7,
+		            strokeWidth: 8,
 		            strokeLineCap: 'round',
 		            strokeLineJoin: 'round',
-		          }),
-		          new fabric.Path('M -50 -22 Q -8 30 46 -10', {
+		          });
+		          const curve = new fabric.Path('M -50 -22 Q -8 30 46 -10', {
 		            left: 0,
 		            top: 0,
 		            originX: 'center',
@@ -32212,10 +32288,24 @@
 		            strokeWidth: 4,
 		            strokeLineCap: 'round',
 		            strokeLineJoin: 'round',
-		          }),
-		          new fabric.Triangle({ left: 58, top: -10, width: 23, height: 23, angle: 238, fill: 'rgba(2,6,23,0.34)', originX: 'center', originY: 'center' }),
-		          new fabric.Triangle({ left: 58, top: -10, width: 18, height: 18, angle: 238, fill: '#22d3ee', originX: 'center', originY: 'center' }),
-		        ], { left, top, originX: 'center', originY: 'center', data: { kind: 'arrow-curve', curve_sign: -1 } });
+		          });
+              const shine = new fabric.Path('M -49 -21 Q -8 28 44 -8', {
+                left: 0,
+                top: 0,
+                originX: 'center',
+                originY: 'center',
+                stroke: 'rgba(248,250,252,0.86)',
+                fill: '',
+                strokeWidth: 1.4,
+                strokeLineCap: 'round',
+                strokeLineJoin: 'round',
+              });
+		          const headUnder = new fabric.Triangle({ left: 58, top: -10, width: 24, height: 24, angle: 238, fill: 'rgba(2,6,23,0.42)', originX: 'center', originY: 'center' });
+		          const head = new fabric.Triangle({ left: 58, top: -10, width: 18, height: 18, angle: 238, fill: '#22d3ee', stroke: 'rgba(248,250,252,0.82)', strokeWidth: 1, originX: 'center', originY: 'center' });
+              const group = new fabric.Group([under, curve, shine, headUnder, head], { left, top, originX: 'center', originY: 'center', data: { kind: 'arrow-curve', curve_sign: -1 } });
+              applyRenderableQualityToGroup(group, [under, curve, shine, headUnder, head]);
+              return group;
+            };
 		      }
 	      if (kind === 'shape_circle') {
 	        return (left, top) => new fabric.Circle({
