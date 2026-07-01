@@ -2014,8 +2014,8 @@
         } catch (e) {
           savedState = {};
         }
-        const rawPitchGrassStyle = "{{ task_meta.pitch_grass_style|default:'classic'|escapejs }}".trim().toLowerCase() || 'classic';
-        const pitchGrassStyle = ['stadium_top', 'stadium_top_h', 'stadium_top_v'].includes(rawPitchGrassStyle) ? 'classic' : rawPitchGrassStyle;
+        const rawPitchGrassStyle = "{{ task_meta.pitch_grass_style|default:'stadium_native'|escapejs }}".trim().toLowerCase() || 'stadium_native';
+        const pitchGrassStyle = ['stadium_top', 'stadium_top_h', 'stadium_top_v'].includes(rawPitchGrassStyle) ? 'stadium_native' : rawPitchGrassStyle;
         const pitchOrientationMeta = "{{ task_meta.pitch_orientation|default:''|escapejs }}".trim().toLowerCase();
         const stadiumTopImages = {
           h: "{{ pitch3d_assets.pitch3d_stadium_top_h_src|default:''|escapejs }}".trim(),
@@ -3739,6 +3739,6 @@
         }
       }
     </script>
-    <script type="module" src="{% static 'football/js/session_task_detail_3d.js' %}?v=task-detail-3d-stadium-v4-debug{% if static_build_id %}-{{ static_build_id|urlencode }}{% endif %}"></script>
+    <script type="module" src="{% static 'football/js/session_task_detail_3d.js' %}?v=task-detail-3d-stadium-v7-debug-portal{% if static_build_id %}-{{ static_build_id|urlencode }}{% endif %}"></script>
   </body>
 </html>

@@ -7232,7 +7232,7 @@
 	        <input type="hidden" name="draw_canvas_timeline_previews" id="draw-canvas-timeline-previews" />
 	        <input type="hidden" name="draw_task_pitch_orientation" id="draw-task-pitch-orientation" value="{{ initial.pitch_orientation|default:'landscape' }}" />
 	        <input type="hidden" name="draw_task_pitch_zoom" id="draw-task-pitch-zoom" value="{{ initial.pitch_zoom|default:'1.00' }}" />
-	        <input type="hidden" name="draw_task_pitch_grass_style" id="draw-task-pitch-grass-style" value="{{ initial.pitch_grass_style|default:'classic' }}" />
+	        <input type="hidden" name="draw_task_pitch_grass_style" id="draw-task-pitch-grass-style" value="{{ initial.pitch_grass_style|default:'stadium_native' }}" />
           <input type="hidden" name="draw_task_pitch_ad_preset" id="draw-task-pitch-ad-preset" value="{{ initial.pitch_ad_preset|default:'mixed' }}" />
 	        <div id="assigned-players-hidden" style="display:none;"></div>
 
@@ -7526,6 +7526,7 @@
 		                        <option value="classic" {% if initial.pitch_grass_style == 'classic' %}selected{% endif %}>Césped</option>
 		                        <option value="broadcast" {% if initial.pitch_grass_style == 'broadcast' %}selected{% endif %}>Broadcast</option>
                                 <option value="broadcast_premium" {% if initial.pitch_grass_style == 'broadcast_premium' %}selected{% endif %}>Broadcast Premium</option>
+                                <option value="stadium_native" {% if initial.pitch_grass_style == 'stadium_native' %}selected{% endif %}>Estadio 3D</option>
 		                        <option value="realistic" {% if initial.pitch_grass_style == 'realistic' %}selected{% endif %}>Realista</option>
 		                        <option value="pro" {% if initial.pitch_grass_style == 'pro' %}selected{% endif %}>PRO</option>
 		                        <option value="uefa_b" {% if initial.pitch_grass_style == 'uefa_b' %}selected{% endif %}>UEFA B</option>

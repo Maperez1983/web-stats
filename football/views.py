@@ -6024,8 +6024,17 @@ def _task_pitch3d_asset_context(static_build_id=None, *, player_model_src=''):
         except Exception:
             return ''
 
+    rebuilt_candidate = Path(settings.BASE_DIR) / 'football' / 'static' / 'football' / 'models' / 'pitch3d' / 'stadium_zero_rebuild.glb'
+    local_candidate = Path(settings.BASE_DIR) / 'football' / 'static' / 'football' / 'models' / 'pitch3d' / 'stadium_real_candidate.glb'
+    if local_candidate.exists():
+        stadium_asset_path = 'football/models/pitch3d/stadium_real_candidate.glb'
+    elif rebuilt_candidate.exists():
+        stadium_asset_path = 'football/models/pitch3d/stadium_zero_rebuild.glb'
+    else:
+        stadium_asset_path = 'football/models/pitch3d/stadium_architectural_complete.glb'
+
     return {
-        'pitch3d_stadium_model_src': _asset('football/models/pitch3d/stadium_architectural_complete.glb'),
+        'pitch3d_stadium_model_src': _asset(stadium_asset_path),
         'pitch3d_stadium_top_h_src': _asset('football/images/pitch3d/stadium_taskboard_top_h.png'),
         'pitch3d_stadium_top_v_src': _asset('football/images/pitch3d/stadium_taskboard_top_v.png'),
         'pitch3d_stadium_overlay_h_src': _asset('football/images/pitch3d/stadium_taskboard_overlay_h.png'),
@@ -25787,11 +25796,11 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
             return ''
         pitch_preset = str(meta.get('pitch_preset') or 'full_pitch').strip() or 'full_pitch'
         pitch_orientation = str(meta.get('pitch_orientation') or 'landscape').strip().lower()
-        pitch_grass_style = str(meta.get('pitch_grass_style') or 'classic').strip().lower()
+        pitch_grass_style = str(meta.get('pitch_grass_style') or 'stadium_native').strip().lower()
         if pitch_grass_style in {'stadium_top', 'stadium_top_h', 'stadium_top_v'}:
-            pitch_grass_style = 'classic'
-        if pitch_grass_style not in {'classic', 'broadcast', 'broadcast_premium', 'realistic', 'pro', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'}:
-            pitch_grass_style = 'classic'
+            pitch_grass_style = 'stadium_native'
+        if pitch_grass_style not in {'classic', 'broadcast', 'broadcast_premium', 'stadium_native', 'realistic', 'pro', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'}:
+            pitch_grass_style = 'stadium_native'
         try:
             png_bytes = render_task_preview_png(
                 canvas_state=frame_state,
@@ -26221,11 +26230,11 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa', one_p
         try:
             pitch_preset = (request.POST.get('draw_task_pitch_preset') or 'full_pitch').strip()
             pitch_orientation = (request.POST.get('draw_task_pitch_orientation') or 'landscape').strip().lower()
-            pitch_grass_style = (request.POST.get('draw_task_pitch_grass_style') or 'classic').strip().lower()
+            pitch_grass_style = (request.POST.get('draw_task_pitch_grass_style') or 'stadium_native').strip().lower()
             if pitch_grass_style in {'stadium_top', 'stadium_top_h', 'stadium_top_v'}:
-                pitch_grass_style = 'classic'
-            if pitch_grass_style not in {'classic', 'broadcast', 'broadcast_premium', 'realistic', 'pro', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'}:
-                pitch_grass_style = 'classic'
+                pitch_grass_style = 'stadium_native'
+            if pitch_grass_style not in {'classic', 'broadcast', 'broadcast_premium', 'stadium_native', 'realistic', 'pro', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'}:
+                pitch_grass_style = 'stadium_native'
             try:
                 pitch_zoom = float(str(request.POST.get('draw_task_pitch_zoom') or '1.0').strip())
             except Exception:
@@ -31061,6 +31070,8 @@ def _initial_eleven_page_impl(request):
             'realistic',
             'pro',
             'broadcast',
+            'broadcast_premium',
+            'stadium_native',
             'artificial',
             'dry',
             'wet',
@@ -31069,9 +31080,9 @@ def _initial_eleven_page_impl(request):
             'whiteboard',
             'blackboard',
         }
-        lineup_grass_style = requested_grass if requested_grass in allowed_grass else 'uefa_b'
+        lineup_grass_style = requested_grass if requested_grass in allowed_grass else 'stadium_native'
     except Exception:
-        lineup_grass_style = 'uefa_b'
+        lineup_grass_style = 'stadium_native'
 
     lineup_seed_payload = _safe_lineup_script_payload(lineup_seed)
     rival_lineup_seed_payload = _safe_lineup_script_payload(rival_lineup_seed)
@@ -35166,7 +35177,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                         'repository': LIBRARY_REPOSITORY_INTERACTIVE,
                         'pitch_preset': 'full_pitch',
                         'pitch_orientation': 'landscape',
-                        'pitch_grass_style': 'classic',
+                        'pitch_grass_style': 'stadium_native',
                         'pitch_zoom': 1.0,
                         'multi_board': bool(len(timeline) >= 2),
                         'player_count': player_count,
@@ -39139,7 +39150,7 @@ def _task_builder_initial_values(task):
         'pitch_preset': str(meta.get('pitch_preset') or 'full_pitch'),
         'pitch_orientation': str(meta.get('pitch_orientation') or 'landscape'),
         'pitch_zoom': str(meta.get('pitch_zoom') or '1.00'),
-        'pitch_grass_style': 'classic' if str(meta.get('pitch_grass_style') or '').strip().lower() in {'', 'stadium_top', 'stadium_top_h', 'stadium_top_v'} else str(meta.get('pitch_grass_style') or 'classic'),
+        'pitch_grass_style': 'stadium_native' if str(meta.get('pitch_grass_style') or '').strip().lower() in {'', 'stadium_top', 'stadium_top_h', 'stadium_top_v'} else str(meta.get('pitch_grass_style') or 'stadium_native'),
         'series': str(meta.get('series') or ''),
         'repetitions': str(meta.get('repetitions') or ''),
         'player_count': str(meta.get('player_count') or ''),
@@ -39613,7 +39624,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
     raw_pitch_orientation = request.POST.get('draw_task_pitch_orientation')
     pitch_orientation = (raw_pitch_orientation or '').strip().lower() if raw_pitch_orientation is not None else str(existing_meta.get('pitch_orientation') or 'landscape')
     raw_pitch_grass_style = request.POST.get('draw_task_pitch_grass_style')
-    pitch_grass_style = (raw_pitch_grass_style or '').strip().lower() if raw_pitch_grass_style is not None else str(existing_meta.get('pitch_grass_style') or 'classic')
+    pitch_grass_style = (raw_pitch_grass_style or '').strip().lower() if raw_pitch_grass_style is not None else str(existing_meta.get('pitch_grass_style') or 'stadium_native')
     raw_pitch_zoom = request.POST.get('draw_task_pitch_zoom')
     pitch_zoom = None
     if raw_pitch_zoom is None:
@@ -39765,9 +39776,9 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
     if pitch_orientation not in {'landscape', 'portrait'}:
         pitch_orientation = 'landscape'
     if pitch_grass_style in {'stadium_top', 'stadium_top_h', 'stadium_top_v'}:
-        pitch_grass_style = 'classic'
-    if pitch_grass_style not in {'classic', 'broadcast', 'broadcast_premium', 'realistic', 'pro', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'}:
-        pitch_grass_style = 'classic'
+        pitch_grass_style = 'stadium_native'
+    if pitch_grass_style not in {'classic', 'broadcast', 'broadcast_premium', 'stadium_native', 'realistic', 'pro', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'}:
+        pitch_grass_style = 'stadium_native'
     try:
         pitch_zoom = float(pitch_zoom or 1.0)
     except Exception:
@@ -42178,11 +42189,11 @@ def _build_task_studio_draft_pdf_context(request, owner, pdf_style='uefa'):
         try:
             pitch_preset = (request.POST.get('draw_task_pitch_preset') or 'full_pitch').strip()
             pitch_orientation = (request.POST.get('draw_task_pitch_orientation') or 'landscape').strip().lower()
-            pitch_grass_style = (request.POST.get('draw_task_pitch_grass_style') or 'classic').strip().lower()
+            pitch_grass_style = (request.POST.get('draw_task_pitch_grass_style') or 'stadium_native').strip().lower()
             if pitch_grass_style in {'stadium_top', 'stadium_top_h', 'stadium_top_v'}:
-                pitch_grass_style = 'classic'
-            if pitch_grass_style not in {'classic', 'broadcast', 'broadcast_premium', 'realistic', 'pro', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'}:
-                pitch_grass_style = 'classic'
+                pitch_grass_style = 'stadium_native'
+            if pitch_grass_style not in {'classic', 'broadcast', 'broadcast_premium', 'stadium_native', 'realistic', 'pro', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'}:
+                pitch_grass_style = 'stadium_native'
             try:
                 pitch_zoom = float(str(request.POST.get('draw_task_pitch_zoom') or '1.0').strip())
             except Exception:
@@ -48275,7 +48286,7 @@ def analysis_video_report_item_tactical_page(request, item_id):
         if pitch_orientation not in {'landscape', 'portrait'}:
             pitch_orientation = 'landscape'
         pitch_zoom = (request.POST.get('draw_task_pitch_zoom') or '').strip() or '1.00'
-        pitch_grass_style = (request.POST.get('draw_task_pitch_grass_style') or '').strip() or 'classic'
+        pitch_grass_style = (request.POST.get('draw_task_pitch_grass_style') or '').strip() or 'stadium_native'
         pitch_preset = (request.POST.get('draw_task_pitch_preset') or '').strip() or 'full_pitch'
 
         tactical_layout = {
@@ -48341,7 +48352,7 @@ def analysis_video_report_item_tactical_page(request, item_id):
         'canvas_height': int(_parse_int(graphic.get('canvas_height')) or 720),
         'pitch_orientation': str(meta.get('pitch_orientation') or 'landscape'),
         'pitch_zoom': str(meta.get('pitch_zoom') or '1.00'),
-        'pitch_grass_style': 'classic' if str(meta.get('pitch_grass_style') or '').strip().lower() in {'', 'stadium_top', 'stadium_top_h', 'stadium_top_v'} else str(meta.get('pitch_grass_style') or 'classic'),
+        'pitch_grass_style': 'stadium_native' if str(meta.get('pitch_grass_style') or '').strip().lower() in {'', 'stadium_top', 'stadium_top_h', 'stadium_top_v'} else str(meta.get('pitch_grass_style') or 'stadium_native'),
         'pitch_preset': str(meta.get('pitch_preset') or 'full_pitch'),
     }
 
@@ -67009,7 +67020,7 @@ def tactical_playbook_task_save_api(request):
         pitch_preset = 'full_pitch'
     pitch_orientation = str(first_step.get('orientation') or 'landscape').strip().lower()
     pitch_orientation = pitch_orientation if pitch_orientation in {'landscape', 'portrait'} else 'landscape'
-    pitch_grass_style = str(first_step.get('grass_style') or 'classic').strip().lower() or 'classic'
+    pitch_grass_style = str(first_step.get('grass_style') or 'stadium_native').strip().lower() or 'stadium_native'
     try:
         pitch_zoom = float(first_step.get('zoom') or 1.0)
     except Exception:
