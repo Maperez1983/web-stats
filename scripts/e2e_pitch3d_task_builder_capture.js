@@ -94,11 +94,27 @@ async function main() {
   const teamId = process.env.E2E_TEAM_ID || '151';
   const username = process.env.E2E_USERNAME || 'e2e';
   const password = process.env.E2E_PASSWORD || 'e2e1234';
+  const cameraValue = process.env.E2E_CAMERA || 'lower_bowl_interior';
+  const themeValue = process.env.E2E_THEME || 'day';
+  const downloadSnap = String(process.env.E2E_DOWNLOAD_SNAP || '').trim() === '1';
   const outBefore = process.env.E2E_OUT_BEFORE || '/Volumes/Mac Satecchi/Mac/Downloads/estadio_editor_local_before_modal.png';
   const outModal = process.env.E2E_OUT_MODAL || '/Volumes/Mac Satecchi/Mac/Downloads/estadio_editor_local_modal.png';
   const outCanvas = process.env.E2E_OUT_CANVAS || '/Volumes/Mac Satecchi/Mac/Downloads/estadio_editor_local_canvas.png';
+  const outSnap = process.env.E2E_OUT_SNAP || '/Volumes/Mac Satecchi/Mac/Downloads/estadio_editor_local_snap.png';
+  const headlessValue = String(process.env.E2E_HEADLESS || 'false').trim().toLowerCase();
+  const isHeadless = !['0', 'false', 'no', 'off'].includes(headlessValue);
 
-  const browser = await chromium.launch({ headless: String(process.env.E2E_HEADLESS || 'false') !== 'false' ? true : false });
+  const browser = await chromium.launch({
+    headless: isHeadless,
+    args: [
+      '--use-angle=swiftshader',
+      '--enable-unsafe-swiftshader',
+      '--ignore-gpu-blocklist',
+      '--enable-webgl',
+      '--enable-accelerated-2d-canvas',
+      '--disable-gpu-sandbox',
+    ],
+  });
   const page = await browser.newPage({ viewport: { width: 1440, height: 920 }, deviceScaleFactor: 1.25 });
   page.setDefaultTimeout(45_000);
   page.setDefaultNavigationTimeout(60_000);
@@ -110,15 +126,30 @@ async function main() {
     await page.screenshot({ path: outBefore, fullPage: true });
 
     await openPitch3dModal(page);
-    await page.selectOption('#task-pitch-3d-camera', 'lower_bowl_interior').catch(() => null);
+    await page.selectOption('#task-pitch-3d-camera', cameraValue).catch(() => null);
     await page.waitForTimeout(1200);
-    await page.selectOption('#task-pitch-3d-theme', 'night').catch(() => null);
-    await page.waitForTimeout(3_500);
+    await page.selectOption('#task-pitch-3d-theme', themeValue).catch(() => null);
+    await page.waitForFunction(() => {
+      const canvas = document.getElementById('task-pitch-3d-canvas');
+      if (!canvas) return false;
+      const width = Number(canvas.getAttribute('width') || 0);
+      const height = Number(canvas.getAttribute('height') || 0);
+      return width > 0 && height > 0;
+    }, { timeout: 15000 }).catch(() => null);
+    await page.waitForTimeout(6_500);
     const modal = page.locator('#task-pitch-3d-modal .sim-3d-card').first();
     await modal.screenshot({ path: outModal });
     const canvas = page.locator('#task-pitch-3d-canvas').first();
     await canvas.screenshot({ path: outCanvas });
-    console.log(`[pitch3d-capture] ok ${outModal} ${outCanvas}`);
+    if (downloadSnap) {
+      const downloadPromise = page.waitForEvent('download', { timeout: 20000 }).catch(() => null);
+      await page.click('#task-pitch-3d-snap').catch(() => null);
+      const download = await downloadPromise;
+      if (download) {
+        await download.saveAs(outSnap).catch(() => null);
+      }
+    }
+    console.log(`[pitch3d-capture] ok ${outModal} ${outCanvas} ${downloadSnap ? outSnap : ''}`.trim());
   } finally {
     await browser.close().catch(() => null);
   }

@@ -6026,10 +6026,10 @@ def _task_pitch3d_asset_context(static_build_id=None, *, player_model_src=''):
 
     rebuilt_candidate = Path(settings.BASE_DIR) / 'football' / 'static' / 'football' / 'models' / 'pitch3d' / 'stadium_zero_rebuild.glb'
     local_candidate = Path(settings.BASE_DIR) / 'football' / 'static' / 'football' / 'models' / 'pitch3d' / 'stadium_real_candidate.glb'
-    if local_candidate.exists():
-        stadium_asset_path = 'football/models/pitch3d/stadium_real_candidate.glb'
-    elif rebuilt_candidate.exists():
+    if rebuilt_candidate.exists():
         stadium_asset_path = 'football/models/pitch3d/stadium_zero_rebuild.glb'
+    elif local_candidate.exists():
+        stadium_asset_path = 'football/models/pitch3d/stadium_real_candidate.glb'
     else:
         stadium_asset_path = 'football/models/pitch3d/stadium_architectural_complete.glb'
 

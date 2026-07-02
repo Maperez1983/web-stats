@@ -272,20 +272,79 @@ def add_architectural_stadium():
             cube(f"arch_corner_outer_wall_TEAM_ACCENT_{sx}_{sy}", (sx * 91.0, sy * 72.0, 12.0), (12.0, 1.0, 11.0), accent, bevel=0.02)
             cube(f"arch_corner_side_wall_TEAM_ACCENT_{sx}_{sy}", (sx * 96.0, sy * 62.0, 12.0), (1.0, 18.0, 11.0), accent, bevel=0.02)
 
-    # Main stand tunnel and integrated grandstand over it.
-    cube("arch_players_tunnel_black_mouth", (0, -39.2, 2.7), (13.2, 1.0, 3.3), black, bevel=0.03)
-    cube("arch_players_tunnel_left_cheek", (-16.0, -47.0, 5.1), (20.0, 17.0, 9.6), dark_concrete, (0.035, 0, 0), bevel=0.04)
-    cube("arch_players_tunnel_right_cheek", (16.0, -47.0, 5.1), (20.0, 17.0, 9.6), dark_concrete, (0.035, 0, 0), bevel=0.04)
-    cube("arch_tunnel_lintel_and_vomitory_frame", (0, -40.0, 5.1), (20.0, 1.2, 1.0), concrete, bevel=0.03)
-    cube("arch_tunnel_structural_roof_slab", (0, -43.4, 6.9), (34.0, 10.0, 1.15), dark_concrete, bevel=0.025)
-    cube("arch_tunnel_integrated_lower_stand_slab", (0, -45.8, 8.4), (56.0, 15.0, 0.85), concrete, (0.07, 0, 0), bevel=0.018)
-    cube("arch_tunnel_integrated_lower_seats_TEAM_PRIMARY", (0, -45.8, 9.05), (52.0, 13.2, 0.46), primary, (0.07, 0, 0), bevel=0.012)
-    cube("arch_tunnel_integrated_upper_stand_slab", (0, -55.0, 13.0), (104.0, 19.5, 0.85), concrete, (0.13, 0, 0), bevel=0.018)
-    cube("arch_tunnel_overbuild_seat_deck_TEAM_PRIMARY", (0, -54.0, 13.65), (100.0, 18.0, 0.58), primary, (0.13, 0, 0), bevel=0.015)
-    cube("arch_tunnel_left_vertical_support", (-31.0, -47.0, 6.2), (2.2, 19.0, 11.8), dark_concrete, bevel=0.025)
-    cube("arch_tunnel_right_vertical_support", (31.0, -47.0, 6.2), (2.2, 19.0, 11.8), dark_concrete, bevel=0.025)
-    cube("arch_tunnel_back_wall_solid", (0, -58.5, 8.6), (62.0, 1.6, 11.2), dark_concrete, bevel=0.025)
-    cube("arch_tunnel_rear_opaque_wall_TEAM_ACCENT", (0, -63.5, 13.6), (106.0, 1.2, 10.8), accent, bevel=0.03)
+    # Main stand tunnel rebuilt as a compact rounded mouth with stepped seating around it.
+    cube("arch_players_tunnel_entry_plaza", (0, -39.9, 0.20), (18.0, 2.8, 0.24), concrete, bevel=0.012)
+    cube("arch_players_tunnel_ramp_floor", (0, -43.8, 0.32), (6.6, 7.4, 0.22), black, bevel=0.008)
+    cube("arch_players_tunnel_left_wall", (-3.45, -43.8, 1.30), (0.34, 7.2, 2.10), dark_concrete, (0.10, 0, 0), bevel=0.012)
+    cube("arch_players_tunnel_right_wall", (3.45, -43.8, 1.30), (0.34, 7.2, 2.10), dark_concrete, (0.10, 0, 0), bevel=0.012)
+    cube("arch_players_tunnel_void", (0, -40.0, 2.05), (6.0, 1.0, 3.2), black, bevel=0.02)
+    bpy.ops.mesh.primitive_cylinder_add(vertices=48, radius=3.55, depth=6.8, location=(0, -40.55, 3.45), rotation=(0, math.pi / 2, 0))
+    tunnel_shell = bpy.context.object
+    tunnel_shell.name = "arch_players_tunnel_rounded_shell"
+    tunnel_shell.data.materials.append(concrete)
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    bpy.ops.mesh.primitive_cylinder_add(vertices=48, radius=3.18, depth=6.0, location=(0, -40.75, 3.28), rotation=(0, math.pi / 2, 0))
+    tunnel_inner = bpy.context.object
+    tunnel_inner.name = "arch_players_tunnel_rounded_inner_void"
+    tunnel_inner.data.materials.append(black)
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    cube("arch_players_tunnel_rounded_trim_TEAM_ACCENT", (0, -39.55, 6.20), (8.0, 0.52, 0.18), accent, bevel=0.012)
+    cube("arch_players_tunnel_rounded_led", (0, -39.48, 5.92), (6.6, 0.14, 0.08), led, bevel=0.004)
+    for sx in (-1, 1):
+        cube(f"arch_players_tunnel_side_wing_{sx}", (sx * 5.3, -41.9, 1.22), (3.0, 4.8, 2.0), concrete, (0.10, -0.22 * sx, 0), bevel=0.015)
+    for row in range(8):
+        z = 1.1 + row * 0.68
+        y = -41.2 - row * 1.20
+        width = 17.6 + row * 2.1
+        depth = 1.18
+        cube(f"arch_tunnel_lower_step_{row:02d}", (0, y, z), (width, depth, 0.22), concrete, (0.11 + row * 0.012, 0, 0), bevel=0.008)
+        for side in (-1, 1):
+            x_positions = [4.8, 6.1, 7.4, 8.7]
+            if row >= 3:
+                x_positions.append(10.0)
+            if row >= 5:
+                x_positions.append(11.3)
+            for idx, base_x in enumerate(x_positions):
+                sx = side * base_x
+                cube(
+                    f"arch_tunnel_lower_seat_shell_{row:02d}_{side}_{idx}",
+                    (sx, y - 0.06, z + 0.22),
+                    (0.92, 0.66, 0.18),
+                    secondary,
+                    (0.36, 0, 0),
+                    bevel=0.006,
+                )
+                cube(
+                    f"arch_tunnel_lower_seat_pad_{row:02d}_{side}_{idx}_TEAM_PRIMARY",
+                    (sx, y - 0.14, z + 0.32),
+                    (0.80, 0.54, 0.12),
+                    primary,
+                    (0.36, 0, 0),
+                    bevel=0.005,
+                )
+    for row in range(5):
+        z = 7.2 + row * 0.96
+        y = -52.4 - row * 1.44
+        cube(f"arch_tunnel_upper_step_{row:02d}", (0, y, z), (28.0 + row * 4.0, 1.40, 0.24), concrete, (0.20 + row * 0.014, 0, 0), bevel=0.008)
+        for side in (-1, 1):
+            for idx, base_x in enumerate((5.8, 7.2, 8.6, 10.0, 11.4, 12.8, 14.2)):
+                sx = side * base_x
+                cube(
+                    f"arch_tunnel_upper_seat_shell_{row:02d}_{side}_{idx}",
+                    (sx, y - 0.10, z + 0.26),
+                    (1.00, 0.74, 0.18),
+                    secondary,
+                    (0.42, 0, 0),
+                    bevel=0.006,
+                )
+                cube(
+                    f"arch_tunnel_upper_seat_pad_{row:02d}_{side}_{idx}_TEAM_PRIMARY",
+                    (sx, y - 0.18, z + 0.36),
+                    (0.88, 0.62, 0.12),
+                    primary,
+                    (0.42, 0, 0),
+                    bevel=0.005,
+                )
 
     # Vomitories, stairs, handrails and sector breaks.
     for x in (-54, -36, -18, 0, 18, 36, 54):

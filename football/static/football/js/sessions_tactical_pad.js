@@ -3849,9 +3849,17 @@
 		    const JERSEY_COLLAR_DEF = 'M -9 -26 L -5 -30 C -3 -32 3 -32 5 -30 L 9 -26 L 6 -23 L 0 -26 L -6 -23 Z';
 		    const normalizeTokenStyle = (value) => {
 		      const v = safeText(value).trim().toLowerCase();
-		      if (v === 'jersey' || v === 'photo') return v;
+		      if (v === 'jersey' || v === 'photo' || v === 'sprite' || v === 'figure') return v;
 		      return 'disk';
 		    };
+        const tokenStyleLabel = (styleRaw) => {
+          const style = normalizeTokenStyle(styleRaw);
+          if (style === 'jersey') return 'camiseta';
+          if (style === 'photo') return 'foto';
+          if (style === 'sprite') return 'avatar';
+          if (style === 'figure') return 'figura';
+          return 'chapa';
+        };
 	    const normalizeTokenPattern = (value) => {
 	      const v = safeText(value).trim().toLowerCase();
 	      if (v === 'solid' || v === 'half' || v === 'sash') return v;
@@ -3981,7 +3989,7 @@
 			      tokenGlobalStyle = normalizeTokenStyle(btn.dataset.globalTokenStyle);
 		      try { window.localStorage?.setItem(TOKEN_STYLE_STORAGE_KEY, tokenGlobalStyle); } catch (e) { /* ignore */ }
 		      syncTokenGlobalStyleUi();
-		      setStatus(`Estilo de fichas: ${tokenGlobalStyle === 'disk' ? 'chapa' : (tokenGlobalStyle === 'jersey' ? 'camiseta' : 'foto')}.`);
+		      setStatus(`Estilo de fichas: ${tokenStyleLabel(tokenGlobalStyle)}.`);
 		      // Refresca el banco de jugadores para que el estilo se vea inmediatamente.
 			      runWhenIdle(() => {
 			        try { renderPlayerBank(); } catch (e) { /* ignore */ }
@@ -6515,12 +6523,16 @@
 	      const stripeNodes = [];
 	      const baseStripeNodes = [];
 	      const baseNodes = [];
+	      const shortsNodes = [];
+	      const socksNodes = [];
 	      walkTokenObjects(group, (child) => {
 	        if (!child) return;
 	        const role = safeText(child?.data?.role);
 	        if (role === 'token_base' || role === 'token_fill') baseNodes.push(child);
 	        if (role === 'token_stripe') stripeNodes.push(child);
 	        if (role === 'token_stripe_base') baseStripeNodes.push(child);
+	        if (role === 'token_figure_shorts' || role === 'token_sprite_shorts') shortsNodes.push(child);
+	        if (role === 'token_figure_socks' || role === 'token_sprite_socks') socksNodes.push(child);
 	        // Compat: stripes "blancas" antiguas sin role.
 	        if (!role && child.type === 'rect') {
 	          const current = parseColorToHex(child.fill, '');
@@ -6536,7 +6548,11 @@
 	      });
 
 	      const effectiveBase = pattern === 'solid' ? stripeHex : baseHex;
+        const shortsFill = darkenHex(stripeHex, 0.58);
+        const socksFill = darkenHex(stripeHex, 0.42);
 	      baseNodes.forEach((node) => { try { node.set({ fill: effectiveBase }); } catch (e) { /* ignore */ } });
+        shortsNodes.forEach((node) => { try { node.set({ fill: shortsFill }); } catch (e) { /* ignore */ } });
+        socksNodes.forEach((node) => { try { node.set({ fill: socksFill }); } catch (e) { /* ignore */ } });
 
 	      // Modo patrón:
 	      // - striped: alterna franjas
@@ -7877,7 +7893,7 @@
 		      applyTokenPalette(fresh, palette);
 		      keepTokenAtCenter(fresh, center);
 		      canvas.setActiveObject(fresh);
-		      commitObjectChange(`Token: ${nextStyle === 'disk' ? 'chapa' : (nextStyle === 'jersey' ? 'camiseta' : 'foto')}.`);
+		      commitObjectChange(`Token: ${tokenStyleLabel(nextStyle)}.`);
 		    };
 
 		    const setActiveTokenKitSlot = (rawSlot) => {
@@ -9654,7 +9670,7 @@
 						          if (version) versionSuffix = `?v=${encodeURIComponent(version)}`;
 						        } catch (e) { /* ignore */ }
 						        const fallbacks = {
-						          pitch3dStadiumModelSrc: `/static/football/models/pitch3d/stadium_architectural_complete.glb${versionSuffix}`,
+						          pitch3dStadiumModelSrc: `/static/football/models/pitch3d/stadium_zero_rebuild.glb${versionSuffix}`,
 						          pitch3dRealSeatObjSrc: `/static/football/models/pitch3d/free_seat_real.obj${versionSuffix}`,
 						          pitch3dSeatTextureSrc: `/static/football/images/pitch3d/stadium_tanger_seats.png${versionSuffix}`,
 						          pitch3dGrassAlbedoSrc: `/static/football/images/pitch3d/grass_premium_albedo.png${versionSuffix}`,
@@ -29437,6 +29453,33 @@
 		      return object;
 			    };
 
+          window.__webstatsTpadPlaceToken = (payload = {}) => {
+            try {
+              const kindRaw = safeText(payload.kind || 'player_local', 'player_local');
+              const styleRaw = normalizeTokenStyle(payload.style || tokenGlobalStyle || 'disk');
+              const kind = ['player_local', 'player_rival', 'player_away', 'goalkeeper_local', 'goalkeeper_rival'].includes(kindRaw)
+                ? kindRaw
+                : 'player_local';
+              const left = clamp(Number(payload.left) || worldWidth * 0.5, 24, worldWidth - 24);
+              const top = clamp(Number(payload.top) || worldHeight * 0.5, 24, worldHeight - 24);
+              const pseudo = {
+                name: safeText(payload.name || ''),
+                number: safeText(payload.number || '').slice(0, 6),
+              };
+              const factory = playerTokenFactory(kind, pseudo, {
+                style: styleRaw,
+                facing_deg: normalizeAngle(payload.facing_deg, 0),
+              });
+              if (typeof factory !== 'function') return null;
+              const token = factory(left, top);
+              if (!token) return null;
+              return addObject(token);
+            } catch (e) {
+              try { window.__webstatsTpadLastError = String(e && e.message ? e.message : e || 'token-place-error'); } catch (err) { /* ignore */ }
+              return null;
+            }
+          };
+
 				    const buildPdfAssetObject = (assetId, left, top, options = {}) => {
 				      const id = normalizePdfAssetId(assetId);
 				      const img = pdfAssetImages.get(id);
@@ -30604,7 +30647,7 @@
 			            top: 0,
 			            selectable: false,
 			            evented: false,
-			            angle: snapAngle(options?.facing_deg, 45),
+			            angle: normalizeAngle(options?.facing_deg, 0),
 			          });
 			          sprite.data = { role: 'token_sprite' };
 			          tokenParts.push(sprite);
@@ -30641,6 +30684,350 @@
 			          });
 			          nameText.data = { role: 'token_name' };
 			          tokenParts.push(nameText);
+			        } else if (style === 'figure') {
+			          const badgeLabel = isGoalkeeper ? 'GK' : label;
+			          const shirtBase = isGoalkeeper
+			            ? parseColorToHex(stripeColor, '#16a34a')
+			            : parseColorToHex(baseColor || '#f8fafc', '#f8fafc');
+			          const shirtStripe = parseColorToHex(stripeColor || '#15803d', '#15803d');
+			          const shortsFill = darkenHex(shirtStripe, 0.78);
+			          const socksFill = isGoalkeeper ? darkenHex(shirtStripe, 0.46) : shirtBase;
+                const auraFill = isGoalkeeper ? 'rgba(96,165,250,0.24)' : 'rgba(132,204,22,0.28)';
+
+			          const groundAura = new fabric.Ellipse({
+			            rx: 24,
+			            ry: 10,
+			            fill: auraFill,
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: 25,
+			            selectable: false,
+			            evented: false,
+			          });
+			          groundAura.data = { role: 'token_shadow' };
+			          tokenParts.push(groundAura);
+                const groundDisc = new fabric.Ellipse({
+                  rx: 14,
+                  ry: 5.2,
+                  fill: isGoalkeeper ? 'rgba(37,99,235,0.32)' : 'rgba(101,163,13,0.34)',
+                  originX: 'center',
+                  originY: 'center',
+                  left: 0,
+                  top: 25,
+                  selectable: false,
+                  evented: false,
+                });
+                groundDisc.data = { role: 'token_shadow' };
+                tokenParts.push(groundDisc);
+			          const groundShadow = new fabric.Ellipse({
+			            rx: 12.6,
+			            ry: 4.4,
+			            fill: 'rgba(15,23,42,0.22)',
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: 24,
+			            selectable: false,
+			            evented: false,
+			          });
+			          groundShadow.data = { role: 'token_shadow' };
+			          tokenParts.push(groundShadow);
+
+			          const bodyParts = [];
+			          const head = new fabric.Circle({
+			            radius: 6.9,
+			            fill: '#f1c6a4',
+			            stroke: 'rgba(70,42,24,0.26)',
+			            strokeWidth: 1,
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: -16,
+			            selectable: false,
+			            evented: false,
+			            shadow: 'rgba(255,255,255,0.22) 0 -1px 0',
+			          });
+			          head.data = { role: 'token_figure_head' };
+			          bodyParts.push(head);
+                const hair = new fabric.Path('M -5 -20 Q 0 -24 5 -20 L 4 -16 Q 0 -18 -4 -16 Z', {
+                  fill: isGoalkeeper ? '#1f2937' : '#3f2a20',
+                  originX: 'center',
+                  originY: 'center',
+                  left: 0,
+                  top: 0,
+                  selectable: false,
+                  evented: false,
+                });
+                hair.data = { role: 'token_figure_hair' };
+                bodyParts.push(hair);
+
+			          const neck = new fabric.Rect({
+			            width: 4.8,
+			            height: 4,
+			            rx: 1.8,
+			            ry: 1.8,
+			            fill: '#e9b28f',
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: -10.2,
+			            selectable: false,
+			            evented: false,
+			          });
+			          neck.data = { role: 'token_figure_neck' };
+			          bodyParts.push(neck);
+
+			          const armLeft = new fabric.Path('M -8 -7 Q -15 -2 -14 7 Q -12 10 -8 7 L -5 2 L -5 -4 Z', {
+			            fill: '#efc29d',
+			            stroke: 'rgba(90,60,40,0.18)',
+			            strokeWidth: 0.8,
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: 0,
+			            selectable: false,
+			            evented: false,
+			          });
+			          armLeft.data = { role: 'token_figure_skin' };
+			          const armRight = new fabric.Path('M 8 -7 Q 15 -2 14 7 Q 12 10 8 7 L 5 2 L 5 -4 Z', {
+			            fill: '#efc29d',
+			            stroke: 'rgba(90,60,40,0.18)',
+			            strokeWidth: 0.8,
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: 0,
+			            selectable: false,
+			            evented: false,
+			          });
+			          armRight.data = { role: 'token_figure_skin' };
+			          bodyParts.push(armLeft, armRight);
+
+			          const torsoBase = new fabric.Path('M -10 -9 Q -7 -13 0 -13 Q 7 -13 10 -9 L 10 8 Q 7 13 0 14 Q -7 13 -10 8 Z', {
+			            fill: shirtBase,
+			            stroke: 'rgba(255,255,255,0.36)',
+			            strokeWidth: 1.1,
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: 0,
+			            selectable: false,
+			            evented: false,
+			            shadow: 'rgba(15,23,42,0.16) 0 2px 6px',
+			          });
+			          torsoBase.data = { role: 'token_base' };
+			          bodyParts.push(torsoBase);
+
+			          if (!isAway && !isGoalkeeper) {
+			            const stripeRects = [];
+			            const stripeXs = [-5.2, 0, 5.2];
+			            stripeXs.forEach((x) => {
+			              const stripe = new fabric.Rect({
+			                left: x,
+			                top: 0,
+			                width: 3.6,
+			                height: 25,
+			                rx: 1.8,
+			                ry: 1.8,
+			                originX: 'center',
+			                originY: 'center',
+			                fill: shirtStripe,
+			                selectable: false,
+			                evented: false,
+			              });
+			              stripe.data = { role: 'token_stripe' };
+			              stripeRects.push(stripe);
+			            });
+			            const stripeGroup = new fabric.Group(stripeRects, {
+			              originX: 'center',
+			              originY: 'center',
+			              left: 0,
+			              top: 0,
+			              selectable: false,
+			              evented: false,
+			            });
+			            stripeGroup.clipPath = new fabric.Path('M -10 -9 Q -7 -13 0 -13 Q 7 -13 10 -9 L 10 8 Q 7 13 0 14 Q -7 13 -10 8 Z', {
+			              originX: 'center',
+			              originY: 'center',
+			              left: 0,
+			              top: 0,
+			            });
+			            stripeGroup.data = { role: 'token_stripes' };
+			            bodyParts.push(stripeGroup);
+			          }
+
+			          const sleeveLeft = new fabric.Path('M -10 -8 Q -14 -6 -15 0 Q -13 4 -9 3 L -6 -3 Z', {
+			            fill: shirtBase,
+			            stroke: 'rgba(255,255,255,0.22)',
+			            strokeWidth: 0.8,
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: 0,
+			            selectable: false,
+			            evented: false,
+			          });
+			          sleeveLeft.data = { role: 'token_base' };
+			          const sleeveRight = new fabric.Path('M 10 -8 Q 14 -6 15 0 Q 13 4 9 3 L 6 -3 Z', {
+			            fill: shirtBase,
+			            stroke: 'rgba(255,255,255,0.22)',
+			            strokeWidth: 0.8,
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: 0,
+			            selectable: false,
+			            evented: false,
+			          });
+			          sleeveRight.data = { role: 'token_base' };
+			          bodyParts.push(sleeveLeft, sleeveRight);
+
+			          const shorts = new fabric.Path('M -8 11 L 8 11 L 7 20 Q 3 22 0 22 Q -3 22 -7 20 Z', {
+			            fill: shortsFill,
+			            stroke: 'rgba(255,255,255,0.14)',
+			            strokeWidth: 0.7,
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: 0,
+			            selectable: false,
+			            evented: false,
+			          });
+			          shorts.data = { role: 'token_figure_shorts' };
+			          bodyParts.push(shorts);
+
+			          const thighLeft = new fabric.Path('M -6 20 L -1.5 20 L -1 27 L -6 27 Z', {
+			            fill: '#efc29d',
+			            stroke: 'rgba(90,60,40,0.14)',
+			            strokeWidth: 0.6,
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: 0,
+			            selectable: false,
+			            evented: false,
+			          });
+			          thighLeft.data = { role: 'token_figure_skin' };
+			          const thighRight = new fabric.Path('M 1.5 20 L 6 20 L 6 27 L 1 27 Z', {
+			            fill: '#efc29d',
+			            stroke: 'rgba(90,60,40,0.14)',
+			            strokeWidth: 0.6,
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: 0,
+			            selectable: false,
+			            evented: false,
+			          });
+			          thighRight.data = { role: 'token_figure_skin' };
+			          bodyParts.push(thighLeft, thighRight);
+
+			          const sockLeft = new fabric.Path('M -6 26 L -1 26 L -1 35 Q -2 37 -4 37 L -6 37 Q -7 36 -6 34 Z', {
+			            fill: socksFill,
+			            stroke: 'rgba(255,255,255,0.14)',
+			            strokeWidth: 0.7,
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: 0,
+			            selectable: false,
+			            evented: false,
+			          });
+			          sockLeft.data = { role: 'token_figure_socks' };
+			          const sockRight = new fabric.Path('M 1 26 L 6 26 L 6 34 Q 7 36 6 37 L 4 37 Q 2 37 1 35 Z', {
+			            fill: socksFill,
+			            stroke: 'rgba(255,255,255,0.14)',
+			            strokeWidth: 0.7,
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: 0,
+			            selectable: false,
+			            evented: false,
+			          });
+			          sockRight.data = { role: 'token_figure_socks' };
+			          bodyParts.push(sockLeft, sockRight);
+
+			          const bootLeft = new fabric.Path('M -7 35 L -1 35 Q 1 37 -1 38 L -6 38 Q -8 37 -7 35 Z', {
+			            fill: '#111827',
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: 0,
+			            selectable: false,
+			            evented: false,
+			          });
+			          const bootRight = new fabric.Path('M 1 35 L 7 35 Q 8 37 6 38 L 1 38 Q -1 37 1 35 Z', {
+			            fill: '#111827',
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: 0,
+			            selectable: false,
+			            evented: false,
+			          });
+			          bootLeft.data = { role: 'token_figure_boot' };
+			          bootRight.data = { role: 'token_figure_boot' };
+			          bodyParts.push(bootLeft, bootRight);
+
+			          const torsoNumber = new fabric.Text(isGoalkeeper ? '' : badgeLabel, {
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: 1,
+			            fontSize: 8.2,
+			            fontWeight: '900',
+			            fill: contrastTextForFill(shirtStripe),
+			            stroke: contrastTextForFill(shirtStripe) === '#000000' ? 'rgba(255,255,255,0.72)' : 'rgba(2,6,23,0.60)',
+			            strokeWidth: 1.1,
+			            paintFirst: 'stroke',
+			            selectable: false,
+			            evented: false,
+			          });
+			          torsoNumber.data = { role: 'token_number' };
+			          bodyParts.push(torsoNumber);
+
+			          const figure = new fabric.Group(bodyParts, {
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: 0,
+			            selectable: false,
+			            evented: false,
+			            angle: normalizeAngle(options?.facing_deg, 0),
+			          });
+			          figure.data = { role: 'token_sprite' };
+			          tokenParts.push(figure);
+
+			          const badgeBg = new fabric.Circle({
+			            radius: 8.2,
+			            fill: 'rgba(15,23,42,0.92)',
+			            stroke: 'rgba(255,255,255,0.14)',
+			            strokeWidth: 1,
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: -31.5,
+			            selectable: false,
+			            evented: false,
+			            shadow: 'rgba(15,23,42,0.26) 0 4px 10px',
+			          });
+			          badgeBg.data = { role: 'token_number_bg' };
+			          tokenParts.push(badgeBg);
+			          const badgeText = new fabric.Text(badgeLabel, {
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: -31.5,
+			            fontSize: 8.8,
+			            fontWeight: '900',
+			            fill: '#f8fafc',
+			            selectable: false,
+			            evented: false,
+			          });
+			          badgeText.data = { role: 'token_number' };
+			          tokenParts.push(badgeText);
 			        } else {
 			          const tokenShadow = new fabric.Ellipse({
 			            rx: radius + 7,
@@ -33218,6 +33605,35 @@
           badge.appendChild(number);
           return badge;
         };
+        const buildBankFigurePreview = (kind, numberText) => {
+          const badge = document.createElement('span');
+          badge.className = 'token-photo is-preview';
+          badge.style.background = 'radial-gradient(circle at 50% 78%, rgba(2,6,23,0.18), rgba(2,6,23,0) 34%), linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0))';
+          const isGoalkeeper = kind === 'goalkeeper_local';
+          const shirt = isGoalkeeper ? '#1d4ed8' : '#0f7a35';
+          const shorts = isGoalkeeper ? '#1e40af' : '#14532d';
+          const socks = isGoalkeeper ? '#0f3a94' : '#166534';
+          badge.innerHTML = `
+            <svg viewBox="-28 -44 56 88" aria-hidden="true" focusable="false" style="width:100%;height:100%;">
+              <ellipse cx="0" cy="31" rx="16" ry="5" fill="rgba(2,6,23,0.22)"></ellipse>
+              <circle cx="0" cy="-18" r="6.8" fill="#f4c7a1" stroke="rgba(64,38,22,0.26)" stroke-width="1"></circle>
+              <path d="M -15 -8 Q -11 -15 -4 -16 L 4 -16 Q 11 -15 15 -8 L 12 3 Q 8 10 0 10 Q -8 10 -12 3 Z" fill="${shirt}" stroke="rgba(255,255,255,0.34)" stroke-width="1.1"></path>
+              <path d="M -15 -8 Q -19 -6 -20 1 Q -18 6 -13 5 L -10 1 L -10 -5 Z" fill="${shirt}" opacity="0.95"></path>
+              <path d="M 15 -8 Q 19 -6 20 1 Q 18 6 13 5 L 10 1 L 10 -5 Z" fill="${shirt}" opacity="0.95"></path>
+              <path d="M -8 10 L -1 10 L -3 19 L -10 18 Z" fill="${shorts}"></path>
+              <path d="M 1 10 L 8 10 L 10 18 L 3 19 Z" fill="${shorts}"></path>
+              <path d="M -6 18 L -10 31 Q -10 34 -7 35 L -3 35 Q -1 35 -1 32 L -1 18 Z" fill="${socks}"></path>
+              <path d="M 1 18 L 1 32 Q 1 35 3 35 L 7 35 Q 10 34 10 31 L 6 18 Z" fill="${socks}"></path>
+              <path d="M -9 34 L -1 34 Q 0 36 -2 38 L -7 38 Q -10 37 -9 34 Z" fill="#111827"></path>
+              <path d="M 1 34 L 9 34 Q 10 37 7 38 L 2 38 Q 0 36 1 34 Z" fill="#111827"></path>
+            </svg>
+          `.trim();
+          const number = document.createElement('span');
+          number.className = 'token-number';
+          number.textContent = numberText;
+          badge.appendChild(number);
+          return badge;
+        };
 
 		    const renderPlayerBank = () => {
 		      if (!playerBank) return;
@@ -33327,7 +33743,7 @@
 			              </svg>
 		            `.trim();
 		          }
-		        } else if (style === 'photo') {
+	        } else if (style === 'photo') {
 	          badge.className = 'token-photo';
 	          if (kind === 'goalkeeper_local') badge.classList.add('is-goalkeeper');
 	          const photoUrl = resolvePlayerPhotoUrl(player?.photo_url);
@@ -33340,7 +33756,12 @@
 	            badge.appendChild(initials);
 	          }
 	          badge.appendChild(number);
-	        } else {
+	        } else if (style === 'figure' || style === 'sprite') {
+            badge.className = 'token-photo';
+            const figurePreview = buildBankFigurePreview(kind, number.textContent);
+            badge.style.cssText = figurePreview.style.cssText;
+            badge.innerHTML = figurePreview.innerHTML;
+          } else {
 	          badge.className = 'token-disk';
 	          if (kind === 'goalkeeper_local') badge.classList.add('is-goalkeeper');
 	          badge.appendChild(number);
@@ -33348,12 +33769,15 @@
               const diskPreview = buildBankDiskPreview(kind, numberText);
               const jerseyPreview = buildBankJerseyPreview(player, kind, numberText);
               const photoPreview = buildBankPhotoPreview(player, kind, numberText);
+              const figurePreview = buildBankFigurePreview(kind, numberText);
               if (tokenGlobalStyle === 'disk') diskPreview.classList.add('is-active');
               else if (tokenGlobalStyle === 'photo') photoPreview.classList.add('is-active');
+              else if (tokenGlobalStyle === 'figure' || tokenGlobalStyle === 'sprite') figurePreview.classList.add('is-active');
               else jerseyPreview.classList.add('is-active');
               visuals.appendChild(diskPreview);
               visuals.appendChild(jerseyPreview);
               visuals.appendChild(photoPreview);
+              visuals.appendChild(figurePreview);
               copy.appendChild(name);
               copy.appendChild(meta);
 	        button.appendChild(visuals);
@@ -33397,7 +33821,7 @@
             try { window.localStorage?.setItem(TOKEN_STYLE_STORAGE_KEY, tokenGlobalStyle); } catch (e) { /* ignore */ }
             syncTokenGlobalStyleUi();
             renderPlayerBank();
-            setStatus(`Estilo de fichas: ${tokenGlobalStyle === 'disk' ? 'chapa' : (tokenGlobalStyle === 'jersey' ? 'camiseta' : 'foto')}.`);
+            setStatus(`Estilo de fichas: ${tokenStyleLabel(tokenGlobalStyle)}.`);
           }
         });
 	    const selectTimelineStep = (index) => {
