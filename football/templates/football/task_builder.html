@@ -3966,21 +3966,69 @@
 	      .selection-toolbar .selection-dock-actions {
 	        display: none;
 	      }
-			      .selection-dock {
-			        position: fixed;
-			        left: calc(12px + env(safe-area-inset-left));
-			        bottom: calc(90px + env(safe-area-inset-bottom));
-			        width: min(460px, calc(100vw - 24px));
+	      .selection-dock {
+	        position: fixed;
+	        left: calc(12px + env(safe-area-inset-left));
+	        bottom: calc(90px + env(safe-area-inset-bottom));
+	        width: min(460px, calc(100vw - 24px));
 			        max-height: min(62vh, calc(100vh - 180px));
 			        max-height: min(62vh, calc(100svh - 180px));
 			        overflow-x: hidden;
 			        overflow-y: auto;
-			        z-index: 1100;
-			        pointer-events: auto;
-			      }
+	        z-index: 1100;
+	        pointer-events: auto;
+	      }
+        .selection-dock.is-contextual {
+          left: 0;
+          top: 0;
+          bottom: auto;
+          width: min(340px, calc(100vw - 32px));
+          max-height: min(72vh, 560px);
+          overflow: hidden auto;
+          border-radius: 20px;
+          box-shadow: 0 24px 64px rgba(2, 6, 23, 0.42);
+          backdrop-filter: blur(18px);
+          -webkit-backdrop-filter: blur(18px);
+        }
 	      .selection-dock .selection-toolbar {
 	        margin: 0;
 	      }
+        .selection-dock.is-contextual .selection-toolbar {
+          padding: 0.85rem 0.95rem;
+          gap: 0.72rem;
+          border-radius: 20px;
+          border: 1px solid rgba(255,255,255,0.12);
+          background:
+            linear-gradient(180deg, rgba(8,15,29,0.92), rgba(8,15,29,0.86)),
+            radial-gradient(circle at top left, rgba(70,211,255,0.12), transparent 42%);
+        }
+        .selection-dock.is-contextual .selection-header {
+          gap: 0.55rem;
+        }
+        .selection-dock.is-contextual .selection-preview {
+          width: 42px;
+          height: 42px;
+          border-radius: 14px;
+          font-size: 1.1rem;
+        }
+        .selection-dock.is-contextual .selection-toolbar h3 {
+          font-size: 0.82rem;
+        }
+        .selection-dock.is-contextual .selection-toolbar p {
+          font-size: 0.78rem;
+        }
+        .selection-dock.is-contextual .selection-grid {
+          gap: 0.65rem;
+        }
+        .selection-dock.is-contextual .selection-actions button {
+          padding: 0.42rem 0.68rem;
+          font-size: 0.74rem;
+        }
+        .selection-dock.is-contextual .selection-toolbar .selection-dock-actions {
+          display: flex;
+          justify-content: flex-end;
+          align-items: center;
+        }
 	      .selection-dock .selection-toolbar .selection-dock-actions {
 	        display: flex;
 	        justify-content: flex-end;

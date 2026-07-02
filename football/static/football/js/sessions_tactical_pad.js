@@ -2152,12 +2152,22 @@
 							    let selectionDockDismissed = false;
 							    let selectionDockDismissedUid = '';
 							    const selectionDockDismissedFor = new Set();
-							    const selectionDockUidFor = (obj) => {
-							      if (!obj) return '';
-							      const uid = safeText(obj?.data?.layer_uid);
-							      if (uid) return uid;
-						      return `${safeText(obj?.data?.kind)}:${safeText(obj?.data?.token_kind)}:${safeText(obj?.type)}`;
-						    };
+						    const selectionDockUidFor = (obj) => {
+						      if (!obj) return '';
+						      const uid = safeText(obj?.data?.layer_uid);
+						      if (uid) return uid;
+					      return `${safeText(obj?.data?.kind)}:${safeText(obj?.data?.token_kind)}:${safeText(obj?.type)}`;
+					    };
+              const shouldUseContextualSelectionInspector = () => {
+                try {
+                  if (document.body.classList.contains('ui-tablet')) return false;
+                  const boardReady = document.body.classList.contains('task-mode-ready') && document.body.classList.contains('task-mode-board');
+                  if (!boardReady) return false;
+                  return !!(window.matchMedia && window.matchMedia('(min-width: 980px)').matches);
+                } catch (e) {
+                  return false;
+                }
+              };
 						    const shouldDockSelectionInspector = () => {
 						      try {
 						        const raw = safeText(document.body?.dataset?.deviceMode);
@@ -2174,13 +2184,66 @@
 					        return false;
 					      }
 					    };
+              const positionContextualSelectionDock = () => {
+                if (!selectionDockEl || !selectionToolbar || !stage || !shouldUseContextualSelectionInspector()) return;
+                const active = activeInspectableObject();
+                if (!active) return;
+                const stageRect = stage.getBoundingClientRect?.();
+                if (!stageRect || !(stageRect.width > 0) || !(stageRect.height > 0)) return;
+                let bbox = null;
+                try { bbox = typeof active.getBoundingRect === 'function' ? active.getBoundingRect(true, true) : null; } catch (e) { bbox = null; }
+                const toViewportPoint = (pt) => {
+                  const local = worldPointToStageXY(pt);
+                  if (!local) return null;
+                  return {
+                    x: stageRect.left + (Number(local.x) || 0),
+                    y: stageRect.top + (Number(local.y) || 0),
+                  };
+                };
+                const centerWorld = (() => {
+                  try { return active.getCenterPoint ? active.getCenterPoint() : { x: Number(active.left) || 0, y: Number(active.top) || 0 }; } catch (e) { return { x: Number(active.left) || 0, y: Number(active.top) || 0 }; }
+                })();
+                const topLeft = bbox ? toViewportPoint({ x: Number(bbox.left) || centerWorld.x, y: Number(bbox.top) || centerWorld.y }) : toViewportPoint(centerWorld);
+                const bottomRight = bbox ? toViewportPoint({ x: (Number(bbox.left) || 0) + (Number(bbox.width) || 0), y: (Number(bbox.top) || 0) + (Number(bbox.height) || 0) }) : toViewportPoint(centerWorld);
+                const center = toViewportPoint(centerWorld);
+                if (!center) return;
+                const objLeft = topLeft ? topLeft.x : center.x;
+                const objTop = topLeft ? topLeft.y : center.y;
+                const objRight = bottomRight ? bottomRight.x : center.x;
+                const objBottom = bottomRight ? bottomRight.y : center.y;
+                const dockRect = selectionDockEl.getBoundingClientRect?.() || { width: 320, height: 320 };
+                const gap = 14;
+                const viewportPad = 12;
+                const placeRight = (objRight + gap + dockRect.width) <= (stageRect.right - viewportPad);
+                const placeAbove = (objTop - gap - dockRect.height) >= (stageRect.top + viewportPad);
+                let left = placeRight ? (objRight + gap) : (objLeft - dockRect.width - gap);
+                if (!placeRight && left < stageRect.left + viewportPad) {
+                  left = Math.min(stageRect.right - dockRect.width - viewportPad, Math.max(stageRect.left + viewportPad, center.x - (dockRect.width / 2)));
+                }
+                let top = placeAbove ? (objTop - dockRect.height - gap) : (objTop + gap);
+                if (!placeAbove && (top + dockRect.height) > (stageRect.bottom - viewportPad)) {
+                  top = Math.max(stageRect.top + viewportPad, stageRect.bottom - dockRect.height - viewportPad);
+                }
+                left = clamp(left, stageRect.left + viewportPad, Math.max(stageRect.left + viewportPad, stageRect.right - dockRect.width - viewportPad));
+                top = clamp(top, stageRect.top + viewportPad, Math.max(stageRect.top + viewportPad, stageRect.bottom - dockRect.height - viewportPad));
+                try {
+                  selectionDockEl.style.left = `${Math.round(left)}px`;
+                  selectionDockEl.style.top = `${Math.round(top)}px`;
+                  selectionDockEl.style.bottom = 'auto';
+                } catch (e) { /* ignore */ }
+              };
 					    const syncSelectionInspectorDock = () => {
 					      if (!selectionDockEl || !selectionToolbar || !selectionDockState) return;
+                const wantsContextual = shouldUseContextualSelectionInspector();
 					      const wantsDock = shouldDockSelectionInspector();
-					      if (wantsDock) {
+                try { selectionDockEl.classList.toggle('is-contextual', !!wantsContextual); } catch (e) { /* ignore */ }
+					      if (wantsDock || wantsContextual) {
 					        if (selectionToolbar.parentElement !== selectionDockEl) {
 					          try { selectionDockEl.appendChild(selectionToolbar); } catch (e) { /* ignore */ }
 					        }
+                  if (wantsContextual) {
+                    try { window.requestAnimationFrame(positionContextualSelectionDock); } catch (e) { positionContextualSelectionDock(); }
+                  }
 					        return;
 					      }
 					      // Undock: devolver el inspector a su padre original (side panel).
@@ -2194,6 +2257,12 @@
 						    try {
 						      syncSelectionInspectorDock();
 						      window.addEventListener('webstats:tpad:device-change', syncSelectionInspectorDock);
+                  window.addEventListener('resize', () => {
+                    try {
+                      syncSelectionInspectorDock();
+                      if (shouldUseContextualSelectionInspector()) positionContextualSelectionDock();
+                    } catch (e) { /* ignore */ }
+                  });
 							    } catch (e) { /* ignore */ }
 							    selectionDockCloseBtn?.addEventListener('click', (ev) => {
 							      try { ev.preventDefault(); } catch (e) { /* ignore */ }
@@ -4440,7 +4509,71 @@
 		    const urlAssetImages = new Map();
 		    const urlAssetLoading = new Set();
 		    const urlAssetPendingRefresh = new Set();
+        const hiResRasterSourceCache = new WeakMap();
 		    const normalizeUrlAsset = (value) => safeText(value || '');
+        const getHiResRasterSource = (img, options = {}) => {
+          if (!img) return img;
+          const naturalW = Math.max(1, Number(img.naturalWidth || img.width || 1));
+          const naturalH = Math.max(1, Number(img.naturalHeight || img.height || 1));
+          const desiredDisplay = clamp(Number(options.desiredDisplay) || Math.max(naturalW, naturalH), 24, 1200);
+          const maxSide = clamp(Number(options.maxSide) || 3072, 256, 4096);
+          const dpr = clamp(Number(window.devicePixelRatio) || 1, 1, 3);
+          const preferredSide = clamp(Math.max(desiredDisplay * dpr * 3, Math.max(naturalW, naturalH)), 64, maxSide);
+          if (naturalW >= preferredSide * 0.98 && naturalH >= preferredSide * 0.98) return img;
+          let cacheForImage = hiResRasterSourceCache.get(img);
+          if (!cacheForImage) {
+            cacheForImage = new Map();
+            hiResRasterSourceCache.set(img, cacheForImage);
+          }
+          const cacheKey = `${Math.round(desiredDisplay)}:${Math.round(maxSide)}:${Math.round(dpr * 100)}`;
+          if (cacheForImage.has(cacheKey)) return cacheForImage.get(cacheKey);
+          try {
+            const scale = preferredSide / Math.max(1, Math.max(naturalW, naturalH));
+            const outW = clamp(Math.round(naturalW * scale), 1, maxSide);
+            const outH = clamp(Math.round(naturalH * scale), 1, maxSide);
+            const off = document.createElement('canvas');
+            off.width = outW;
+            off.height = outH;
+            const ctx = off.getContext('2d');
+            if (!ctx) return img;
+            try { ctx.imageSmoothingEnabled = true; } catch (e) { /* ignore */ }
+            try { ctx.imageSmoothingQuality = 'high'; } catch (e) { /* ignore */ }
+            ctx.clearRect(0, 0, outW, outH);
+            ctx.drawImage(img, 0, 0, outW, outH);
+            cacheForImage.set(cacheKey, off);
+            return off;
+          } catch (e) {
+            return img;
+          }
+        };
+        const buildHiResFabricImage = (img, left, top, displaySize, data = {}, options = {}) => {
+          if (!img) return null;
+          const source = getHiResRasterSource(img, {
+            desiredDisplay: displaySize,
+            maxSide: Number(options.maxSide) || 3072,
+          });
+          const sourceW = Math.max(1, Number(source?.naturalWidth || source?.width || img.naturalWidth || img.width || 1));
+          const sourceH = Math.max(1, Number(source?.naturalHeight || source?.height || img.naturalHeight || img.width || 1));
+          const baseScale = Number(displaySize) / Math.max(1, Math.max(sourceW, sourceH));
+          const imageObj = new fabric.Image(source, {
+            left,
+            top,
+            originX: 'center',
+            originY: 'center',
+            scaleX: baseScale,
+            scaleY: baseScale,
+            selectable: options.selectable === true,
+            evented: options.evented === true,
+            angle: Number(options.angle) || 0,
+            data,
+          });
+          try { imageObj.objectCaching = false; } catch (e) { /* ignore */ }
+          try { imageObj.noScaleCache = true; } catch (e) { /* ignore */ }
+          try { imageObj.minimumScaleTrigger = 0; } catch (e) { /* ignore */ }
+          try { imageObj.strokeUniform = false; } catch (e) { /* ignore */ }
+          try { imageObj.imageSmoothing = true; } catch (e) { /* ignore */ }
+          return imageObj;
+        };
 		    const ensureUrlAssetLoaded = (url) => {
 		      const key = normalizeUrlAsset(url);
 		      if (!key || urlAssetImages.has(key) || urlAssetLoading.has(key)) return;
@@ -6914,7 +7047,9 @@
 			      selectionDockDismissedUid = '';
 				      selectionToolbar.hidden = false;
 			      try { syncSelectionInspectorDock(); } catch (e) { /* ignore */ }
-			      try { if (selectionDockEl) selectionDockEl.hidden = !shouldDockSelectionInspector(); } catch (e) { /* ignore */ }
+            try {
+              if (selectionDockEl) selectionDockEl.hidden = !(shouldDockSelectionInspector() || shouldUseContextualSelectionInspector());
+            } catch (e) { /* ignore */ }
 	      const activeKind = safeText(active?.data?.kind);
 	      const profile = inspectorProfileForObject(active);
 	      const canColor = profile.canColor;
@@ -12579,7 +12714,6 @@
 						              ];
 						              const hideKindPatterns = [
 						                /^pitch_3d_dugout/,
-						                /^pitch_3d_visible_/,
 						                /^pitch_3d_technical_stand_/,
 						                /^pitch_3d_tunnel_/,
 						                /^pitch_3d_ref_tunnel_/,
@@ -15928,6 +16062,7 @@
 						                  });
 						                };
 						                addReferenceTouchlineUtilityCluster();
+						                addVisibleTechnicalArea();
 						                const sprinklerMat = new THREE.MeshStandardMaterial({ color: 0xb7c6c2, roughness: 0.42, metalness: 0.24 });
 						                const waterMat = new THREE.MeshBasicMaterial({ color: 0xbfefff, transparent: true, opacity: 0.22, depthWrite: false, toneMapped: false });
 						                [
@@ -29235,26 +29370,21 @@
 		      return object;
 			    };
 
-					    const buildPdfAssetObject = (assetId, left, top, options = {}) => {
+				    const buildPdfAssetObject = (assetId, left, top, options = {}) => {
 				      const id = normalizePdfAssetId(assetId);
 				      const img = pdfAssetImages.get(id);
 				      const title = safeText(options?.title);
 				      const desired = clamp(Number(options.desiredSize) || 56, 28, 180);
 				      if (img && (img.naturalWidth || img.width)) {
-				        const naturalW = Number(img.naturalWidth || img.width || 1);
-				        const naturalH = Number(img.naturalHeight || img.height || 1);
-				        const baseScale = desired / Math.max(1, Math.max(naturalW, naturalH));
-				        const imageObj = new fabric.Image(img, {
-				          left,
-				          top,
-				          originX: 'center',
-				          originY: 'center',
-				          scaleX: baseScale,
-				          scaleY: baseScale,
-				          data: { kind: 'pdf_asset', asset_id: id, title },
-				        });
-				        try { imageObj.objectCaching = false; } catch (e) { /* ignore */ }
-				        try { imageObj.noScaleCache = true; } catch (e) { /* ignore */ }
+                const imageObj = buildHiResFabricImage(
+                  img,
+                  left,
+                  top,
+                  desired,
+                  { kind: 'pdf_asset', asset_id: id, title },
+                  { maxSide: 3072 },
+                );
+                if (!imageObj) return null;
 				        return imageObj;
 				      }
 			      // Placeholder: se reemplaza cuando la imagen termine de cargar.
@@ -29311,20 +29441,15 @@
               const inferredMeta = inferUrlAssetMeta(key, title);
 				      const desired = clamp(Number(options.desiredSize) || inferredMeta.desiredSize || 56, 28, 220);
 				      if (img && (img.naturalWidth || img.width)) {
-				        const naturalW = Number(img.naturalWidth || img.width || 1);
-				        const naturalH = Number(img.naturalHeight || img.height || 1);
-				        const baseScale = desired / Math.max(1, Math.max(naturalW, naturalH));
-				        const imageObj = new fabric.Image(img, {
-				          left,
-				          top,
-				          originX: 'center',
-				          originY: 'center',
-				          scaleX: baseScale,
-				          scaleY: baseScale,
-				          data: { kind: 'url_asset', url: key, title, asset_family: inferredMeta.family },
-				        });
-				        try { imageObj.objectCaching = false; } catch (e) { /* ignore */ }
-				        try { imageObj.noScaleCache = true; } catch (e) { /* ignore */ }
+                const imageObj = buildHiResFabricImage(
+                  img,
+                  left,
+                  top,
+                  desired,
+                  { kind: 'url_asset', url: key, title, asset_family: inferredMeta.family },
+                  { maxSide: inferredMeta.family === 'premium3d' ? 4096 : 3072 },
+                );
+                if (!imageObj) return null;
 				        return imageObj;
 				      }
 				      ensureUrlAssetLoaded(key);
@@ -29374,21 +29499,21 @@
 			        if (!obj.data.placeholder) return;
 			        const center = obj.getCenterPoint();
 			        const desired = clamp(Number(obj.data.desiredSize) || 56, 28, 180);
-			        const naturalW = Number(img.naturalWidth || img.width || 1);
-			        const naturalH = Number(img.naturalHeight || img.height || 1);
-			        const baseScale = desired / Math.max(1, Math.max(naturalW, naturalH));
-			        const next = new fabric.Image(img, {
-			          left: center.x,
-			          top: center.y,
-			          originX: 'center',
-			          originY: 'center',
-			          angle: Number(obj.angle) || 0,
-			          scaleX: baseScale * (Number(obj.scaleX) || 1),
-			          scaleY: baseScale * (Number(obj.scaleY) || 1),
-			          data: { kind: 'pdf_asset', asset_id: id, title: safeText(obj.data.title) },
-			        });
-			        try { next.objectCaching = false; } catch (e) { /* ignore */ }
-			        try { next.noScaleCache = true; } catch (e) { /* ignore */ }
+              const next = buildHiResFabricImage(
+                img,
+                center.x,
+                center.y,
+                desired,
+                { kind: 'pdf_asset', asset_id: id, title: safeText(obj.data.title) },
+                { angle: Number(obj.angle) || 0, maxSide: 3072 },
+              );
+              if (!next) return;
+              try {
+                next.set({
+                  scaleX: (Number(next.scaleX) || 1) * (Number(obj.scaleX) || 1),
+                  scaleY: (Number(next.scaleY) || 1) * (Number(obj.scaleY) || 1),
+                });
+              } catch (e) { /* ignore */ }
 			        normalizeEditableObject(next);
 			        canvas.remove(obj);
 			        canvas.add(next);
@@ -29415,21 +29540,22 @@
 				        if (!obj.data.placeholder) return;
 				        const center = obj.getCenterPoint();
 				        const desired = clamp(Number(obj.data.desiredSize) || 56, 28, 220);
-				        const naturalW = Number(img.naturalWidth || img.width || 1);
-				        const naturalH = Number(img.naturalHeight || img.height || 1);
-				        const baseScale = desired / Math.max(1, Math.max(naturalW, naturalH));
-				        const next = new fabric.Image(img, {
-				          left: center.x,
-				          top: center.y,
-				          originX: 'center',
-				          originY: 'center',
-				          angle: Number(obj.angle) || 0,
-				          scaleX: baseScale * (Number(obj.scaleX) || 1),
-				          scaleY: baseScale * (Number(obj.scaleY) || 1),
-				          data: { kind: 'url_asset', url: key, title: safeText(obj.data.title), asset_family: safeText(obj.data.asset_family) },
-				        });
-				        try { next.objectCaching = false; } catch (e) { /* ignore */ }
-				        try { next.noScaleCache = true; } catch (e) { /* ignore */ }
+                const assetFamily = safeText(obj.data.asset_family);
+                const next = buildHiResFabricImage(
+                  img,
+                  center.x,
+                  center.y,
+                  desired,
+                  { kind: 'url_asset', url: key, title: safeText(obj.data.title), asset_family: assetFamily },
+                  { angle: Number(obj.angle) || 0, maxSide: assetFamily === 'premium3d' ? 4096 : 3072 },
+                );
+                if (!next) return;
+                try {
+                  next.set({
+                    scaleX: (Number(next.scaleX) || 1) * (Number(obj.scaleX) || 1),
+                    scaleY: (Number(next.scaleY) || 1) * (Number(obj.scaleY) || 1),
+                  });
+                } catch (e) { /* ignore */ }
 				        normalizeEditableObject(next);
 				        canvas.remove(obj);
 				        canvas.add(next);
@@ -29941,11 +30067,12 @@
 			        }
 			        img.onload = () => {
 			          try {
-			            const naturalW = Number(img.naturalWidth || img.width || 1);
-			            const naturalH = Number(img.naturalHeight || img.height || 1);
 			            const targetSize = Math.max(1, radius * 2);
-			            const scale = targetSize / Math.max(1, Math.min(naturalW, naturalH));
-			            const photo = new fabric.Image(img, {
+                  const source = getHiResRasterSource(img, { desiredDisplay: targetSize, maxSide: 2048 });
+                  const naturalW = Number(source?.naturalWidth || source?.width || img.naturalWidth || img.width || 1);
+                  const naturalH = Number(source?.naturalHeight || source?.height || img.naturalHeight || img.height || 1);
+                  const scale = targetSize / Math.max(1, Math.min(naturalW, naturalH));
+			            const photo = new fabric.Image(source, {
 			              left: 0,
 			              top: 0,
 			              originX: 'center',
@@ -29955,8 +30082,8 @@
 			              scaleX: scale,
 			              scaleY: scale,
 			            });
-			            try { photo.objectCaching = false; } catch (e) { /* ignore */ }
-			            try { photo.noScaleCache = true; } catch (e) { /* ignore */ }
+                  applyRenderableQuality(photo, { strokeUniform: false });
+                  try { photo.minimumScaleTrigger = 0; } catch (e) { /* ignore */ }
 			            photo.clipPath = new fabric.Circle({
 			              radius,
 			              originX: 'center',
@@ -30140,25 +30267,26 @@
 				          const kit2dImageEl = kit2dImageForTokenKind(kind, tokenKitSlot);
 				          const canUseKit2d = kit2dImageEl && (kit2dImageEl.naturalWidth || kit2dImageEl.width);
 				          if (canUseKit2d) {
-				            const naturalW = Number(kit2dImageEl.naturalWidth || kit2dImageEl.width || 1);
-				            const naturalH = Number(kit2dImageEl.naturalHeight || kit2dImageEl.height || 1);
 				            const desired = 54; // similar al SVG (56px) usado en el banco.
-				            const baseScale = desired / Math.max(1, Math.max(naturalW, naturalH));
-				            const imgObj = new fabric.Image(kit2dImageEl, {
-				              left: 0,
-				              top: 0,
-				              originX: 'center',
-				              originY: 'center',
-				              scaleX: baseScale,
-				              scaleY: baseScale,
-				              selectable: false,
-				              evented: false,
-				              shadow: 'rgba(15,23,42,0.34) 0 8px 18px',
-				            });
-				            try { imgObj.objectCaching = false; } catch (e) { /* ignore */ }
-				            try { imgObj.noScaleCache = true; } catch (e) { /* ignore */ }
+                    const imgObj = buildHiResFabricImage(
+                      kit2dImageEl,
+                      0,
+                      0,
+                      desired,
+                      {},
+                      { maxSide: 2048 },
+                    );
+                    if (imgObj) {
+                      try {
+                        imgObj.set({
+                          selectable: false,
+                          evented: false,
+                          shadow: 'rgba(15,23,42,0.34) 0 8px 18px',
+                        });
+                      } catch (e) { /* ignore */ }
 				            imgObj.data = { role: 'token_kit2d' };
 				            tokenParts.push(imgObj);
+                    }
 				          } else {
 				            const shirtDef = JERSEY_PATH_DEF;
 				            const shirtPath = new fabric.Path(shirtDef, {
@@ -33443,17 +33571,18 @@
 	          canvas.requestRenderAll();
 	        } catch (e) { /* ignore */ }
 	      };
-	      try {
-	        addStrikeFlashForExport();
-	        // Siempre generamos la capa como PNG para conservar transparencia (si la hacemos JPEG,
-	        // la pizarra pierde alpha y tapa el césped al componer).
-	        const format = 'png';
-	        overlayUrl = canvas.toDataURL({
-	          format,
-	          quality,
-	          multiplier: ratio,
-	          enableRetinaScaling: false,
-	        });
+		      try {
+		        addStrikeFlashForExport();
+		        // Siempre generamos la capa como PNG para conservar transparencia (si la hacemos JPEG,
+		        // la pizarra pierde alpha y tapa el césped al componer).
+		        const format = 'png';
+            const exportDpr = clamp(Number(window.devicePixelRatio) || 1, 1, 3);
+		        overlayUrl = canvas.toDataURL({
+		          format,
+		          quality,
+		          multiplier: clamp(ratio * exportDpr, ratio, 6),
+		          enableRetinaScaling: true,
+		        });
 		      } catch (error) {
 		        overlayUrl = '';
 		      } finally {
@@ -35424,10 +35553,11 @@
 	        } catch (e) { /* ignore */ }
 	      }
 	      try {
+          const exportDpr = clamp(Number(window.devicePixelRatio) || 1, 1, 3);
 	        const overlayUrl = canvas.toDataURL({
 	          format: 'png',
-	          multiplier: exportRatio,
-	          enableRetinaScaling: false,
+	          multiplier: clamp(exportRatio * exportDpr, exportRatio, 6),
+	          enableRetinaScaling: true,
 	        });
 	        if (overlayUrl && overlayUrl.startsWith('data:image/')) {
 	          overlayImage = new Image();
@@ -35602,8 +35732,12 @@
 	      if (!active) return;
 	      dockInspectorIntoPanel(panelKeyForObject(active));
 	    };
-    canvas.on('selection:created', syncInspectorDock);
-    canvas.on('selection:updated', syncInspectorDock);
+	    canvas.on('selection:created', syncInspectorDock);
+	    canvas.on('selection:updated', syncInspectorDock);
+      canvas.on('object:moving', () => { try { if (shouldUseContextualSelectionInspector()) positionContextualSelectionDock(); } catch (e) { /* ignore */ } });
+      canvas.on('object:scaling', () => { try { if (shouldUseContextualSelectionInspector()) positionContextualSelectionDock(); } catch (e) { /* ignore */ } });
+      canvas.on('object:rotating', () => { try { if (shouldUseContextualSelectionInspector()) positionContextualSelectionDock(); } catch (e) { /* ignore */ } });
+      canvas.on('object:modified', () => { try { if (shouldUseContextualSelectionInspector()) positionContextualSelectionDock(); } catch (e) { /* ignore */ } });
     const autoDisableBackgroundEdits = () => {
       const active = canvas.getActiveObject();
       const keep = (active && isBackgroundShape(active) && active?.data?.background_edit) ? active : null;
