@@ -6360,51 +6360,138 @@
 	      return '1ª equipación';
 	    };
 
-	    const normalizeZoneStyle = (value) => {
+	    const normalizeBackgroundFillStyle = (value) => {
 	      const v = safeText(value).toLowerCase();
-	      if (v === 'solid' || v === 'outline') return v;
+	      if (v === 'solid' || v === 'outline' || v === 'cross' || v === 'dots') return v;
 	      return 'hatch';
 	    };
-	    const ZONE_STYLE_LABEL = { hatch: 'rayado', solid: 'sólido', outline: 'contorno' };
-	    const applyZoneStyle = (zoneObject, styleRaw) => {
-	      if (!zoneObject || safeText(zoneObject?.data?.kind) !== 'zone') return false;
-	      const style = normalizeZoneStyle(styleRaw);
-	      setObjectData(zoneObject, { zone_style: style });
-	      const colorHex = parseColorToHex(zoneObject?.data?.color, objectPreferredColor(zoneObject));
-	      const fillAlpha = style === 'outline' ? 0 : (style === 'solid' ? 0.18 : 0.12);
-	      const borderDash = style === 'solid' ? null : [10, 8];
-	      if (zoneObject.type === 'rect') {
-	        zoneObject.set({
-	          fill: fillAlpha ? rgbaFromHex(colorHex, fillAlpha) : 'rgba(0,0,0,0)',
-	          stroke: colorHex,
-	          strokeDashArray: borderDash || undefined,
+	    const normalizeZoneStyle = normalizeBackgroundFillStyle;
+	    const ZONE_STYLE_LABEL = {
+	      hatch: 'rayado',
+	      cross: 'doble rayado',
+	      dots: 'punteado',
+	      solid: 'sólido',
+	      outline: 'contorno',
+	    };
+	    const backgroundFillStyleForObject = (object) => {
+	      const kind = safeText(object?.data?.kind);
+	      if (kind === 'zone') return normalizeBackgroundFillStyle(object?.data?.zone_style);
+	      const stored = safeText(object?.data?.fill_style || object?.data?.zone_style);
+	      if (!stored) return 'solid';
+	      return normalizeBackgroundFillStyle(stored);
+	    };
+	    const buildBackgroundPatternSource = (styleRaw, colorHex) => {
+	      const style = normalizeBackgroundFillStyle(styleRaw);
+	      if (style === 'solid' || style === 'outline') return null;
+	      const source = document.createElement('canvas');
+	      source.width = 36;
+	      source.height = 36;
+	      const ctx = source.getContext('2d');
+	      if (!ctx) return null;
+	      ctx.clearRect(0, 0, source.width, source.height);
+	      ctx.fillStyle = rgbaFromHex(colorHex, 0.10);
+	      ctx.fillRect(0, 0, source.width, source.height);
+	      if (style === 'dots') {
+	        ctx.fillStyle = rgbaFromHex(colorHex, 0.34);
+	        [
+	          [8, 8, 2.4],
+	          [24, 12, 2.2],
+	          [14, 24, 2.1],
+	          [30, 28, 2.4],
+	        ].forEach(([x, y, r]) => {
+	          ctx.beginPath();
+	          ctx.arc(x, y, r, 0, Math.PI * 2);
+	          ctx.fill();
 	        });
-	        zoneObject.dirty = true;
-	        return true;
+	        return source;
 	      }
-	      if (!Array.isArray(zoneObject._objects)) return false;
-	      zoneObject._objects.forEach((child) => {
-	        if (!child) return;
-	        const role = safeText(child?.data?.role);
-	        if (role === 'zone_base') {
-	          try { child.set({ fill: fillAlpha ? rgbaFromHex(colorHex, fillAlpha) : 'rgba(0,0,0,0)' }); } catch (e) { /* ignore */ }
-	        } else if (role === 'zone_border') {
-	          try { child.set({ stroke: colorHex, strokeDashArray: borderDash || undefined }); } catch (e) { /* ignore */ }
-	        } else if (role === 'zone_hatch_group') {
-	          try { child.set({ visible: style === 'hatch' }); } catch (e) { /* ignore */ }
-	          try {
-	            if (Array.isArray(child._objects)) {
-	              child._objects.forEach((ln) => {
-	                if (!ln) return;
-	                if (ln.stroke !== undefined) ln.set({ stroke: rgbaFromHex(colorHex, 0.38) });
-	              });
-	            }
-	          } catch (e) { /* ignore */ }
+	      ctx.strokeStyle = rgbaFromHex(colorHex, 0.34);
+	      ctx.lineWidth = style === 'cross' ? 2.4 : 2.2;
+	      ctx.lineCap = 'round';
+	      const drawDiagonal = (invert = false) => {
+	        for (let x = -source.height; x <= source.width + source.height; x += 12) {
+	          ctx.beginPath();
+	          if (invert) {
+	            ctx.moveTo(x, 0);
+	            ctx.lineTo(x - source.height, source.height);
+	          } else {
+	            ctx.moveTo(x, 0);
+	            ctx.lineTo(x + source.height, source.height);
+	          }
+	          ctx.stroke();
 	        }
+	      };
+	      drawDiagonal(false);
+	      if (style === 'cross') drawDiagonal(true);
+	      return source;
+	    };
+	    const resolveBackgroundFill = (styleRaw, colorHex) => {
+	      const style = normalizeBackgroundFillStyle(styleRaw);
+	      if (style === 'outline') return 'rgba(0,0,0,0)';
+	      if (style === 'solid') return rgbaFromHex(colorHex, 0.18);
+	      const source = buildBackgroundPatternSource(style, colorHex);
+	      if (!source || typeof fabric.Pattern !== 'function') return rgbaFromHex(colorHex, 0.12);
+	      return new fabric.Pattern({
+	        source,
+	        repeat: 'repeat',
 	      });
-	      zoneObject.dirty = true;
+	    };
+	    const objectSupportsBackgroundFillStyle = (object) => {
+	      const kind = safeText(object?.data?.kind);
+	      if (kind === 'zone') return true;
+	      if (!kind.startsWith('shape')) return false;
+	      if (kind === 'shape-u') return false;
+	      if (kind.startsWith('shape-lane-')) return false;
+	      if (kind.startsWith('shape-grid-')) return false;
+	      if (kind.startsWith('shape-lane-divider-')) return false;
+	      if (kind.startsWith('shape-band-')) return false;
 	      return true;
 	    };
+	    const applyBackgroundFillStyle = (object, styleRaw) => {
+	      if (!object || !objectSupportsBackgroundFillStyle(object)) return false;
+	      const kind = safeText(object?.data?.kind);
+	      const style = normalizeBackgroundFillStyle(styleRaw);
+	      const colorHex = parseColorToHex(object?.data?.color, objectPreferredColor(object));
+	      const fill = resolveBackgroundFill(style, colorHex);
+	      if (kind === 'zone') {
+	        setObjectData(object, { zone_style: style });
+	      } else {
+	        setObjectData(object, { fill_style: style });
+	      }
+	      if (kind === 'zone' && object.type === 'rect') {
+	        object.set({
+	          fill,
+	          stroke: colorHex,
+	          strokeDashArray: undefined,
+	        });
+	        object.dirty = true;
+	        return true;
+	      }
+	      if (kind === 'zone' && Array.isArray(object._objects)) {
+	        object._objects.forEach((child) => {
+	          if (!child) return;
+	          const role = safeText(child?.data?.role);
+	          if (role === 'zone_base') {
+	            try { child.set({ fill }); } catch (e) { /* ignore */ }
+	          } else if (role === 'zone_border') {
+	            try { child.set({ stroke: colorHex, strokeDashArray: undefined }); } catch (e) { /* ignore */ }
+	          } else if (role === 'zone_hatch_group') {
+	            try { child.set({ visible: false }); } catch (e) { /* ignore */ }
+	          }
+	        });
+	        object.dirty = true;
+	        return true;
+	      }
+	      try {
+	        object.set({
+	          fill,
+	          stroke: colorHex,
+	        });
+	      } catch (e) { /* ignore */ }
+	      object.dirty = true;
+	      return true;
+	    };
+	    const applyZoneStyle = (zoneObject, styleRaw) => applyBackgroundFillStyle(zoneObject, styleRaw);
 
 	    const applyTokenPalette = (group, options = {}) => {
 	      if (!group) return false;
@@ -6606,39 +6693,8 @@
 		      }
 		      if (kind === 'zone') {
 		        setObjectData(object, { color: colorHex });
-		        const style = normalizeZoneStyle(object?.data?.zone_style);
-		        const fillAlpha = style === 'outline' ? 0 : (style === 'solid' ? 0.18 : 0.12);
-	        const borderDash = style === 'solid' ? null : [10, 8];
-	        if (object.type === 'rect') {
-	          object.set({
-	            stroke: colorHex,
-	            fill: fillAlpha ? rgbaFromHex(colorHex, fillAlpha) : 'rgba(0,0,0,0)',
-	            strokeDashArray: borderDash || undefined,
-	          });
-	          return;
-	        }
-	        if (Array.isArray(object._objects)) {
-	          object._objects.forEach((child) => {
-	            if (!child) return;
-	            const role = safeText(child?.data?.role);
-	            if (role === 'zone_base') {
-	              try { child.set({ fill: fillAlpha ? rgbaFromHex(colorHex, fillAlpha) : 'rgba(0,0,0,0)' }); } catch (e) { /* ignore */ }
-	            } else if (role === 'zone_border') {
-	              try { child.set({ stroke: colorHex, strokeDashArray: borderDash || undefined }); } catch (e) { /* ignore */ }
-	            } else if (role === 'zone_hatch_group') {
-	              try {
-	                if (Array.isArray(child._objects)) {
-	                  child._objects.forEach((ln) => {
-	                    if (!ln) return;
-	                    if (ln.stroke !== undefined) ln.set({ stroke: rgbaFromHex(colorHex, 0.38) });
-	                  });
-	                }
-	              } catch (e) { /* ignore */ }
-	            }
-	          });
-	          object.dirty = true;
-	        }
-	        return;
+		        applyBackgroundFillStyle(object, backgroundFillStyleForObject(object));
+		        return;
 	      }
 	      if (kind.startsWith('shape-lane-') && Array.isArray(object._objects) && object._objects.length) {
 	        object._objects.forEach((child) => {
@@ -6729,6 +6785,11 @@
 	        return;
 	      }
 	      if (kind.startsWith('shape')) {
+	        if (objectSupportsBackgroundFillStyle(object)) {
+	          setObjectData(object, { color: colorHex });
+	          applyBackgroundFillStyle(object, backgroundFillStyleForObject(object));
+	          return;
+	        }
 	        object.set({ stroke: colorHex, fill: rgbaFromHex(colorHex, 0.12) });
 	        return;
 	      }
@@ -6755,6 +6816,7 @@
 	      const isZone = kind === 'zone';
 	      const isLaneOverlay = isLaneOverlayObject(object);
 	      const isShape = isZone || kind.startsWith('shape');
+	      const supportsFillStyle = objectSupportsBackgroundFillStyle(object);
 	      const isTrace = kind.startsWith('line') || kind.startsWith('arrow') || isLongStrokeObject(object);
 	      const isText = kind === 'text';
 	      const canColor = isColorizableObject(object);
@@ -6864,7 +6926,10 @@
 	        return profile;
 	      }
 	      if (isShape) {
-	        profile.summary = 'Figura: ajusta ancho, alto, giro y color.';
+	        profile.summary = supportsFillStyle
+	          ? 'Figura: ajusta ancho, alto, giro, color y relleno interior.'
+	          : 'Figura: ajusta ancho, alto, giro y color.';
+	        profile.showZoneStyle = supportsFillStyle;
 	        profile.scaleXLabel = 'Ancho';
 	        profile.scaleYLabel = 'Alto';
 	        return profile;
@@ -7186,9 +7251,9 @@
 		      if (zoneStyleActions) {
 		        zoneStyleActions.hidden = !profile.showZoneStyle;
 		        if (profile.showZoneStyle) {
-		          const style = normalizeZoneStyle(active?.data?.zone_style);
+		          const style = backgroundFillStyleForObject(active);
 		          Array.from(zoneStyleActions.querySelectorAll('button[data-zone-style]') || []).forEach((btn) => {
-		            const btnStyle = normalizeZoneStyle(btn.dataset.zoneStyle);
+		            const btnStyle = normalizeBackgroundFillStyle(btn.dataset.zoneStyle);
 		            btn.classList.toggle('is-active', btnStyle === style);
 		            try { btn.setAttribute('aria-pressed', btnStyle === style ? 'true' : 'false'); } catch (e) { /* ignore */ }
 		          });
@@ -18513,7 +18578,9 @@
 						                return false;
 						              }
 						            };
-						            const forceProceduralReferenceStadium = true;
+						            // Allow the runtime to use the configured GLB stadium asset.
+						            // The procedural reference stadium remains only as a fallback path.
+						            const forceProceduralReferenceStadium = false;
 						            if (!forceProceduralReferenceStadium && addProfessionalStadiumAsset()) return;
 						            const pendingStadiumModelSrc = safeText(__pitch3dAssetUrl('pitch3dStadiumModelSrc') || '');
 						            const pendingDedicatedReferenceStadium = isDedicatedPitch3dReferenceStadiumSrc(pendingStadiumModelSrc) || isRealCandidatePitch3dStadiumSrc(pendingStadiumModelSrc);
@@ -32144,6 +32211,7 @@
 		          });
 		          try { group.objectCaching = false; } catch (e) { /* ignore */ }
 		          try { group.noScaleCache = true; } catch (e) { /* ignore */ }
+		          try { applyBackgroundFillStyle(group, 'hatch'); } catch (e) { /* ignore */ }
 		          return group;
 		        };
 		      }
@@ -32462,25 +32530,38 @@
             };
 		      }
 	      if (kind === 'shape_circle') {
-	        return (left, top) => new fabric.Circle({
+	        return (left, top) => {
+	          const shape = new fabric.Circle({
 	          left, top, originX: 'center', originY: 'center',
-	          radius: 46, fill: 'rgba(34,211,238,0.12)', stroke: '#22d3ee', strokeWidth: 3, data: { kind: 'shape-circle' },
+	          radius: 46, fill: 'rgba(34,211,238,0.12)', stroke: '#22d3ee', strokeWidth: 3, data: { kind: 'shape-circle', color: '#22d3ee', fill_style: 'solid' },
         });
+	          try { applyBackgroundFillStyle(shape, 'solid'); } catch (e) { /* ignore */ }
+	          return shape;
+	        };
       }
       if (kind === 'shape_square') {
-        return (left, top) => new fabric.Rect({
+        return (left, top) => {
+          const shape = new fabric.Rect({
           left, top, originX: 'center', originY: 'center',
-          width: 96, height: 96, fill: 'rgba(34,211,238,0.12)', stroke: '#22d3ee', strokeWidth: 3, data: { kind: 'shape-square' },
+          width: 96, height: 96, fill: 'rgba(34,211,238,0.12)', stroke: '#22d3ee', strokeWidth: 3, data: { kind: 'shape-square', color: '#22d3ee', fill_style: 'solid' },
         });
+          try { applyBackgroundFillStyle(shape, 'solid'); } catch (e) { /* ignore */ }
+          return shape;
+        };
       }
 	      if (kind === 'shape_rect') {
-	        return (left, top) => new fabric.Rect({
+	        return (left, top) => {
+	          const shape = new fabric.Rect({
 	          left, top, originX: 'center', originY: 'center',
-	          width: 126, height: 78, rx: 10, ry: 10, fill: 'rgba(34,211,238,0.12)', stroke: '#22d3ee', strokeWidth: 3, data: { kind: 'shape-rect' },
+	          width: 126, height: 78, rx: 10, ry: 10, fill: 'rgba(34,211,238,0.12)', stroke: '#22d3ee', strokeWidth: 3, data: { kind: 'shape-rect', color: '#22d3ee', fill_style: 'solid' },
 	        });
+	          try { applyBackgroundFillStyle(shape, 'solid'); } catch (e) { /* ignore */ }
+	          return shape;
+	        };
 	      }
 	      if (kind === 'shape_rect_long') {
-	        return (left, top) => new fabric.Rect({
+	        return (left, top) => {
+	          const shape = new fabric.Rect({
 	          left,
 	          top,
 	          originX: 'center',
@@ -32492,20 +32573,31 @@
 	          fill: 'rgba(34,211,238,0.08)',
 	          stroke: '#22d3ee',
 	          strokeWidth: 3,
-	          data: { kind: 'shape-rect-long' },
+	          data: { kind: 'shape-rect-long', color: '#22d3ee', fill_style: 'solid' },
 	        });
+	          try { applyBackgroundFillStyle(shape, 'solid'); } catch (e) { /* ignore */ }
+	          return shape;
+	        };
 	      }
       if (kind === 'shape_triangle') {
-        return (left, top) => new fabric.Triangle({
+        return (left, top) => {
+          const shape = new fabric.Triangle({
           left, top, originX: 'center', originY: 'center',
-          width: 106, height: 92, fill: 'rgba(34,211,238,0.12)', stroke: '#22d3ee', strokeWidth: 3, data: { kind: 'shape-triangle' },
+          width: 106, height: 92, fill: 'rgba(34,211,238,0.12)', stroke: '#22d3ee', strokeWidth: 3, data: { kind: 'shape-triangle', color: '#22d3ee', fill_style: 'solid' },
         });
+          try { applyBackgroundFillStyle(shape, 'solid'); } catch (e) { /* ignore */ }
+          return shape;
+        };
       }
 	      if (kind === 'shape_diamond') {
-	        return (left, top) => new fabric.Rect({
+	        return (left, top) => {
+	          const shape = new fabric.Rect({
 	          left, top, originX: 'center', originY: 'center',
-	          width: 94, height: 94, angle: 45, fill: 'rgba(34,211,238,0.12)', stroke: '#22d3ee', strokeWidth: 3, data: { kind: 'shape-diamond' },
+	          width: 94, height: 94, angle: 45, fill: 'rgba(34,211,238,0.12)', stroke: '#22d3ee', strokeWidth: 3, data: { kind: 'shape-diamond', color: '#22d3ee', fill_style: 'solid' },
 	        });
+	          try { applyBackgroundFillStyle(shape, 'solid'); } catch (e) { /* ignore */ }
+	          return shape;
+	        };
 	      }
 	      if (kind === 'shape_u') {
 	        return (left, top) => new fabric.Path('M -60 -34 L -60 34 L 60 34 L 60 -34', {
@@ -36321,9 +36413,9 @@
 			      const zoneStyle = safeText(button.dataset.zoneStyle);
 			      if (zoneStyle) {
 			        applyToActiveFlexibleObject((active) => {
-			          if (safeText(active?.data?.kind) !== 'zone') return;
-			          applyZoneStyle(active, zoneStyle);
-			        }, `Zona: ${ZONE_STYLE_LABEL[normalizeZoneStyle(zoneStyle)] || normalizeZoneStyle(zoneStyle)}.`);
+			          if (!objectSupportsBackgroundFillStyle(active)) return;
+			          applyBackgroundFillStyle(active, zoneStyle);
+			        }, `Relleno: ${ZONE_STYLE_LABEL[normalizeBackgroundFillStyle(zoneStyle)] || normalizeBackgroundFillStyle(zoneStyle)}.`);
 			        return;
 			      }
 			      const laneTemplate = safeText(button.dataset.laneTemplate);
@@ -36388,6 +36480,8 @@
 	          active.left = clamp((Number(active.left) || 0) + (Number.isNaN(nudgeX) ? 0 : nudgeX), 12, w - 12);
 	          active.top = clamp((Number(active.top) || 0) + (Number.isNaN(nudgeY) ? 0 : nudgeY), 12, h - 12);
 	        }, 'Posición actualizada.');
+	        syncInspector();
+	        return;
 	      }
     });
 
@@ -39800,6 +39894,7 @@
 	    const dockInspectorIntoPanel = (panelKey) => {
 	      if (!selectionToolbar) return;
 	      try { if (typeof shouldDockSelectionInspector === 'function' && shouldDockSelectionInspector()) return; } catch (e) { /* ignore */ }
+	      try { if (typeof shouldUseContextualSelectionInspector === 'function' && shouldUseContextualSelectionInspector()) return; } catch (e) { /* ignore */ }
 	      const slot = inspectorSlots.get(panelKey);
 	      if (!slot) return;
 	      if (selectionToolbar.parentElement !== slot) slot.appendChild(selectionToolbar);

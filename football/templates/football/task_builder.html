@@ -4130,6 +4130,11 @@
         opacity: 0.45;
         cursor: not-allowed;
       }
+      .selection-actions button.danger {
+        border-color: rgba(248, 113, 113, 0.34);
+        background: rgba(127, 29, 29, 0.18);
+        color: rgba(254, 226, 226, 0.96);
+      }
       .selection-note {
         font-size: 0.84rem;
         color: var(--muted);
@@ -8655,6 +8660,7 @@
 	                      </div>
 	                      <div class="selection-actions is-primary" aria-label="Acciones rápidas">
 	                        <button type="button" data-inspector-action="duplicate" title="Duplicar">Duplicar</button>
+	                        <button type="button" data-command-proxy="delete" class="danger" title="Borrar">Borrar</button>
 	                        <button type="button" data-command-proxy="front" title="Traer delante">Delante</button>
 	                        <button type="button" data-command-proxy="back" title="Enviar detrás">Detrás</button>
 	                        <button type="button" data-command-proxy="lock" title="Bloquear o desbloquear">Bloquear</button>
@@ -8765,6 +8771,12 @@
 	                        <button type="button" data-scale-preset="100">M</button>
 	                        <button type="button" data-scale-preset="125">L</button>
 	                        <button type="button" data-scale-preset="150">XL</button>
+	                        <button type="button" data-rotate-step="-15" title="Girar 15 grados a la izquierda">↺ 15°</button>
+	                        <button type="button" data-rotate-step="15" title="Girar 15 grados a la derecha">↻ 15°</button>
+	                        <button type="button" data-nudge-x="-8" title="Mover a la izquierda">←</button>
+	                        <button type="button" data-nudge-y="-8" title="Mover arriba">↑</button>
+	                        <button type="button" data-nudge-y="8" title="Mover abajo">↓</button>
+	                        <button type="button" data-nudge-x="8" title="Mover a la derecha">→</button>
 	                      </div>
 	                      <div class="selection-actions" id="task-token-size-presets" hidden>
 	                        <span class="preset-label">Chapa</span>
@@ -8878,8 +8890,10 @@
 	                        <button type="button" data-token-focus-clear="1">Quitar foco</button>
 	                      </div>
 	                      <div class="selection-actions" id="task-zone-style-actions" hidden>
-	                        <span class="preset-label">Zona</span>
+	                        <span class="preset-label">Relleno</span>
 	                        <button type="button" data-zone-style="hatch">Rayado</button>
+	                        <button type="button" data-zone-style="cross">Doble</button>
+	                        <button type="button" data-zone-style="dots">Puntos</button>
 	                        <button type="button" data-zone-style="solid">Sólido</button>
 	                        <button type="button" data-zone-style="outline">Contorno</button>
 	                      </div>
