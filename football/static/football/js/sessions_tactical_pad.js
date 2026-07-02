@@ -28080,6 +28080,30 @@
 	      const maxW = Math.max(220, Math.round(Number(valuePx) || 0));
 	      try { stage.style.setProperty('--stage-max-fit', `${maxW}px`); } catch (e) { /* ignore */ }
 	    };
+	    const readStageCssPx = (name) => {
+	      if (!stage || !name) return 0;
+	      try {
+	        const inline = Number.parseFloat(String(stage.style.getPropertyValue(name) || '').replace('px', '').trim());
+	        if (Number.isFinite(inline) && inline > 0) return inline;
+	      } catch (e) { /* ignore */ }
+	      try {
+	        const computed = Number.parseFloat(String(window.getComputedStyle(stage).getPropertyValue(name) || '').replace('px', '').trim());
+	        if (Number.isFinite(computed) && computed > 0) return computed;
+	      } catch (e) { /* ignore */ }
+	      return 0;
+	    };
+	    const stageResponsiveBaseWidth = () => {
+	      const fitWidth = readStageCssPx('--stage-max-fit');
+	      if (Number.isFinite(fitWidth) && fitWidth >= 320) return fitWidth;
+	      const rectWidth = Number(stage?.getBoundingClientRect?.()?.width || 0);
+	      if (Number.isFinite(rectWidth) && rectWidth >= 320) return rectWidth;
+	      return stageBaseMaxWidth();
+	    };
+	    const stageFactorMax = () => {
+	      const fitWidth = readStageCssPx('--stage-max-fit');
+	      if (Number.isFinite(fitWidth) && fitWidth >= 320) return 1;
+	      return 1.15;
+	    };
 	    const applyStageFitConstraint = () => {
 	      if (!stage || !viewportEl) return;
 	      // Importante: NO podemos usar solo `viewportEl.height` como "alto disponible".
@@ -28139,7 +28163,7 @@
 	      setStageFitMaxWidth(fitW);
 	    };
 	    const writeStageFactor = (value) => {
-	      const factor = clamp(Number(value) || 1, 0.55, 1.15);
+	      const factor = clamp(Number(value) || 1, 0.55, stageFactorMax());
 	      if (pitchOrientation === 'portrait') stageFactorPortrait = factor;
 	      else stageFactorLandscape = factor;
 	      try {
@@ -28152,11 +28176,11 @@
 	    };
 	    const applyStageSizeUi = (options = {}) => {
 	      if (!stage) return;
-	      const factor = getStageFactor();
-	      const base = stageBaseMaxWidth();
+	      try { applyStageFitConstraint(); } catch (e) { /* ignore */ }
+	      const factor = writeStageFactor(getStageFactor());
+	      const base = stageResponsiveBaseWidth();
 	      const maxW = Math.round(base * factor);
 	      setStageUserMaxWidth(maxW);
-	      try { applyStageFitConstraint(); } catch (e) { /* ignore */ }
 	      if (stageSizeLabel) stageSizeLabel.textContent = `Campo ${Math.round(factor * 100)}%`;
 	      if (options.noFit) return;
 	      try {
@@ -28183,7 +28207,8 @@
 	      const availableHeight = Math.max(220, Math.floor((Number(shellRect.height) || boardShell.clientHeight || 0) - 8));
 	      const aspect = pitchOrientation === 'portrait' ? (684 / 1054) : (1054 / 684); // width/height
 	      const desiredWidth = Math.max(320, Math.min(availableWidth, availableHeight * aspect));
-	      const base = stageBaseMaxWidth();
+	      try { applyStageFitConstraint(); } catch (e) { /* ignore */ }
+	      const base = stageResponsiveBaseWidth();
 	      writeStageFactor(desiredWidth / Math.max(1, base));
 	      resetStageFitBaseline();
 	      applyStageSizeUi();
@@ -28217,7 +28242,8 @@
 	        const dx = (Number(event.clientX) || 0) - start.x;
 	        // Solo controlamos el ancho (mantiene aspect ratio vía CSS).
 	        const desiredW = clamp(start.width + dx, 320, 2400);
-	        const base = stageBaseMaxWidth();
+	        try { applyStageFitConstraint(); } catch (e) { /* ignore */ }
+	        const base = stageResponsiveBaseWidth();
 	        const next = writeStageFactor(desiredW / Math.max(1, base));
 	        // Actualiza sin reflow pesado: escribe variable CSS (y el layoutManager limitará por viewport).
 	        setStageUserMaxWidth(Math.round(base * next));
@@ -39256,12 +39282,14 @@
 		      setStatus('Zoom restablecido.');
 		    });
 	    stageSizeDownButton?.addEventListener('click', () => {
-	      const next = writeStageFactor(getStageFactor() - 0.06);
+	      const current = writeStageFactor(getStageFactor());
+	      const next = writeStageFactor(current - 0.06);
 	      applyStageSizeUi();
 	      setStatus(`Campo: ${Math.round(next * 100)}%.`);
 	    });
 	    stageSizeUpButton?.addEventListener('click', () => {
-	      const next = writeStageFactor(getStageFactor() + 0.06);
+	      const current = writeStageFactor(getStageFactor());
+	      const next = writeStageFactor(current + 0.06);
 	      applyStageSizeUi();
 	      setStatus(`Campo: ${Math.round(next * 100)}%.`);
 	    });
@@ -39274,7 +39302,8 @@
 	        const room = Math.max(260, window.innerHeight - top - 240);
 	        const aspect = pitchOrientation === 'portrait' ? (684 / 1054) : (1054 / 684); // width/height
 	        const desiredW = room * aspect;
-	        const base = stageBaseMaxWidth();
+	        try { applyStageFitConstraint(); } catch (e) { /* ignore */ }
+	        const base = stageResponsiveBaseWidth();
 	        const next = writeStageFactor(desiredW / Math.max(1, base));
 	        applyStageSizeUi();
 	        setStatus('Campo ajustado a pantalla.');
@@ -39587,12 +39616,16 @@
 	      activateResourcePanel(key);
 	    });
             renderCustomLibraryResources();
-            setLibraryRepositoryOpen(false);
+            try {
+              if (typeof setLibraryRepositoryOpen === 'function') setLibraryRepositoryOpen(false);
+            } catch (e) { /* ignore */ }
 				    if (resourceTabs.length && resourcePanels.length) {
 				      activateResourcePanel('');
 				    }
-            setLibraryManageMode(false);
-            applyLibraryFilter();
+            try {
+              if (typeof setLibraryManageMode === 'function') setLibraryManageMode(false);
+            } catch (e) { /* ignore */ }
+            try { applyLibraryFilter(); } catch (e) { /* ignore */ }
 		    // Permite alternar el modo (Ordenador/iPad/Auto) sin recargar ni perder trabajo.
 		    try {
 		      window.addEventListener('webstats:tpad:device-change', () => {

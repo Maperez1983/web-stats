@@ -4758,7 +4758,6 @@
       body:not(.tactics-mode).task-mode-ready.task-mode-board .pitch-stage {
         height: auto;
         min-height: 0;
-        max-width: none;
         width: 100%;
         border-radius: 18px;
         flex: 0 0 auto;
@@ -10757,16 +10756,25 @@
 		        try {
 		          if (typeof window.__webstatsScheduleIdle !== 'function') window.__webstatsScheduleIdle = __webstatsScheduleIdleLocal;
 		        } catch (e) { /* ignore */ }
-		        (window.__webstatsScheduleIdle || __webstatsScheduleIdleLocal)(() => {
-		          // Si ya hay una tarea cargada o estamos editando, precarga editor en background.
+		        const preloadEditorIfNeeded = () => {
 		          const hasTaskId = !!String(form.dataset.taskId || '').trim();
               const isTacticsMode = String(form.dataset.tacticsMode || '').trim() === '1';
 		          const hasGraphicalSurface = !!document.querySelector('.pitch-stage, #task-pitch-surface');
 		          const wantsBoard = !!document.querySelector('#task-mode-tabs [data-task-mode=\"board\"].is-active,#task-mode-tabs [data-task-mode=\"both\"].is-active');
-		          // Nota: en esta página la pizarra es el modo por defecto; si el usuario está en "Pizarra",
-		          // precargamos siempre para que la superficie aparezca sin clicks extra.
 		          if (isTacticsMode || hasGraphicalSurface || hasTaskId || wantsBoard) ensureEditorStack();
-		        }, 2200);
+		        };
+		        (window.__webstatsScheduleIdle || __webstatsScheduleIdleLocal)(preloadEditorIfNeeded, 2200);
+
+            // Editor normal: si la superficie gráfica ya está visible, cargamos la pizarra en cuanto la UI
+            // esté montada para que los controles (orientación, césped, tamaño, etc.) respondan al primer click.
+            try {
+              const isTacticsModeNow = String(form.dataset.tacticsMode || '').trim() === '1';
+              const hasGraphicalSurfaceNow = !!document.querySelector('.pitch-stage, #task-pitch-surface');
+              if (!isTacticsModeNow && hasGraphicalSurfaceNow) {
+                ensureEditorStack();
+                window.setTimeout(() => { try { ensureEditorStack(); } catch (e) { /* ignore */ } }, 650);
+              }
+            } catch (e) { /* ignore */ }
 
             // En Táctica, la pizarra es el producto: cargamos el editor inmediatamente para evitar
             // que el usuario vea un campo oscuro (placeholder) varios segundos.
