@@ -32,12 +32,12 @@ scene.background = new THREE.Color(0xd7e9fb);
 const mats = {
   grassLight: new THREE.MeshStandardMaterial({ name: 'ZR_GRASS_LIGHT', color: 0x86cd61, roughness: 0.95 }),
   grassDark: new THREE.MeshStandardMaterial({ name: 'ZR_GRASS_DARK', color: 0x5ca13d, roughness: 0.97 }),
-  grassFiber: new THREE.MeshStandardMaterial({ name: 'ZR_GRASS_FIBER', color: 0xbfe49e, roughness: 0.93 }),
+  grassFiber: new THREE.MeshStandardMaterial({ name: 'ZR_GRASS_FIBER', color: 0x9dd37c, roughness: 0.98 }),
   line: new THREE.MeshStandardMaterial({ name: 'ZR_LINE', color: 0xf5f7f1, roughness: 0.8 }),
   apron: new THREE.MeshStandardMaterial({ name: 'ZR_APRON', color: 0x324047, roughness: 0.96 }),
   board: new THREE.MeshStandardMaterial({ name: 'ZR_BOARD', color: 0x143943, roughness: 0.24, emissive: 0x1c6870, emissiveIntensity: 0.25 }),
   concrete: new THREE.MeshStandardMaterial({ name: 'ZR_CONCRETE', color: 0xe7edf1, roughness: 0.94 }),
-  concreteDark: new THREE.MeshStandardMaterial({ name: 'ZR_CONCRETE_DARK', color: 0x264a88, roughness: 0.82 }),
+  concreteDark: new THREE.MeshStandardMaterial({ name: 'ZR_CONCRETE_DARK', color: 0x596774, roughness: 0.86 }),
   aisle: new THREE.MeshStandardMaterial({ name: 'ZR_AISLE', color: 0xcfd7de, roughness: 0.9 }),
   seatBlue: new THREE.MeshStandardMaterial({ name: 'ZR_SEAT_BLUE', color: 0x2d71f0, roughness: 0.54 }),
   seatBlueDark: new THREE.MeshStandardMaterial({ name: 'ZR_SEAT_BLUE_DARK', color: 0x153f9c, roughness: 0.58 }),
@@ -67,7 +67,7 @@ const rowRise = 0.24;
 const lowerFrontGap = 5.5;
 const concourseGap = 4.8;
 const upperGap = 12.0;
-const roofOverhang = 10.8;
+const roofOverhang = 6.8;
 const bowlCornerRadius = 12.0;
 const lowerStartY = 0.18;
 const upperStartY = lowerStartY + lowerRows * rowRise + 1.4;
@@ -157,10 +157,10 @@ function addPitch() {
     const z = -halfH + (pitchH / 14) * (i + 0.5);
     box(`pitch_band_${i}`, i % 2 ? mats.grassDark : mats.grassLight, [0, 0.015, z], [pitchW, 0.03, pitchH / 14 + 0.04]);
   }
-  for (let i = 0; i < 120; i += 1) {
-    const x = -halfW + 1.2 + (i % 20) * 5.2;
-    const z = -halfH + 0.6 + ((i * 11) % 68);
-    box(`grass_fiber_${i}`, mats.grassFiber, [x, 0.035, z], [1.14, 0.006, 0.035], [0, 0.08 + (i % 7) * 0.03, 0]);
+  for (let i = 0; i < 56; i += 1) {
+    const x = -halfW + 1.8 + (i % 14) * 7.4;
+    const z = -halfH + 1.1 + ((i * 9) % 64);
+    box(`grass_fiber_${i}`, mats.grassFiber, [x, 0.031, z], [0.64, 0.003, 0.02], [0, 0.06 + (i % 5) * 0.02, 0]);
   }
 
   const y = 0.07;
@@ -371,12 +371,16 @@ function addRoundedTunnelAndDugouts() {
   box('tunnel_shadow', mats.darkMetal, [0, 0.84, tunnelZ + 0.72], [2.0, 1.2, 0.06]);
 
   const addDugout = (label, x) => {
-    const z = -(halfH + apron - 0.6);
-    box(`dugout_${label}_platform`, mats.concrete, [x, 0.14, z], [10.2, 0.16, 1.34]);
-    cylinder(`dugout_${label}_canopy`, mats.glass, [x, 1.1, z + 0.16], 1.18, 1.18, 9.4, [0, 0, Math.PI / 2], 28, true, 0, Math.PI);
-    box(`dugout_${label}_rear`, mats.darkMetal, [x, 0.94, z + 0.74], [9.1, 0.48, 0.08]);
-    box(`dugout_${label}_front_rail`, mats.metal, [x, 0.82, z - 0.56], [8.9, 0.08, 0.08]);
-    box(`dugout_${label}_base_shadow`, mats.darkMetal, [x, 0.10, z + 0.58], [9.4, 0.06, 0.18]);
+    const z = -(halfH + apron - 0.58);
+    box(`dugout_${label}_platform`, mats.concrete, [x, 0.14, z], [10.6, 0.16, 1.48]);
+    cylinder(`dugout_${label}_canopy`, mats.glass, [x, 1.16, z + 0.14], 1.34, 1.34, 9.8, [0, 0, Math.PI / 2], 32, true, 0, Math.PI);
+    box(`dugout_${label}_rear`, mats.darkMetal, [x, 0.98, z + 0.86], [9.4, 0.52, 0.08]);
+    box(`dugout_${label}_front_rail`, mats.metal, [x, 0.84, z - 0.62], [9.2, 0.08, 0.08]);
+    box(`dugout_${label}_base_shadow`, mats.darkMetal, [x, 0.10, z + 0.62], [9.8, 0.06, 0.18]);
+    box(`dugout_${label}_branding`, mats.seatBlueDark, [x, 0.32, z - 0.74], [9.5, 0.18, 0.12]);
+    [-4.1, 4.1].forEach((offset, idx) => {
+      box(`dugout_${label}_side_${idx}`, mats.metal, [x + offset, 0.92, z + 0.18], [0.08, 1.32, 1.98]);
+    });
     for (let i = 0; i < 7; i += 1) {
       const sx = x - 3.6 + i * 1.2;
       box(`dugout_${label}_seat_${i}`, mats.seatBlue, [sx, 0.44, z + 0.18], [0.56, 0.12, 0.40]);
@@ -393,24 +397,24 @@ function addReadableStandPlanes() {
     box(
       `display_lower_${label}`,
       mats.seatBlueDark,
-      [0, 3.0, zSign * (pitchBorderH / 2 + lowerFrontGap + 9.4)],
-      [pitchW + 34, 0.22, 18.5],
-      [zSign * 0.58, 0, 0],
+      [0, 3.3, zSign * (pitchBorderH / 2 + lowerFrontGap + 9.8)],
+      [pitchW + 28, 0.20, 15.0],
+      [zSign * 0.52, 0, 0],
     );
     box(
       `display_upper_${label}`,
       mats.seatBlue,
-      [0, 8.0, zSign * (pitchBorderH / 2 + upperFrontGapInner + 12.8)],
-      [pitchW + 26, 0.22, 15.2],
-      [zSign * 0.66, 0, 0],
+      [0, 8.3, zSign * (pitchBorderH / 2 + upperFrontGapInner + 12.2)],
+      [pitchW + 20, 0.20, 11.8],
+      [zSign * 0.61, 0, 0],
     );
     [-32, -12, 12, 32].forEach((x, idx) => {
       box(
         `display_aisle_${label}_${idx}`,
         mats.seatWhite,
-        [x, 5.1, zSign * (pitchBorderH / 2 + lowerFrontGap + 12.2)],
-        [1.24, 0.42, 22.5],
-        [zSign * 0.61, 0, 0],
+        [x, 5.2, zSign * (pitchBorderH / 2 + lowerFrontGap + 10.7)],
+        [1.16, 0.36, 18.6],
+        [zSign * 0.56, 0, 0],
       );
     });
   };
@@ -419,24 +423,24 @@ function addReadableStandPlanes() {
     box(
       `display_lower_${label}`,
       mats.seatBlueDark,
-      [xSign * (pitchBorderW / 2 + lowerFrontGap + 10.0), 3.0, 0],
-      [18.5, 0.22, pitchH + 20],
-      [0, 0, xSign * -0.58],
+      [xSign * (pitchBorderW / 2 + lowerFrontGap + 10.1), 3.3, 0],
+      [15.0, 0.20, pitchH + 15],
+      [0, 0, xSign * -0.52],
     );
     box(
       `display_upper_${label}`,
       mats.seatBlue,
-      [xSign * (pitchBorderW / 2 + upperFrontGapInner + 13.0), 8.0, 0],
-      [15.2, 0.22, pitchH + 14],
-      [0, 0, xSign * -0.66],
+      [xSign * (pitchBorderW / 2 + upperFrontGapInner + 12.6), 8.3, 0],
+      [11.8, 0.20, pitchH + 10],
+      [0, 0, xSign * -0.61],
     );
     [-18, 0, 18].forEach((z, idx) => {
       box(
         `display_aisle_${label}_${idx}`,
         mats.seatWhite,
-        [xSign * (pitchBorderW / 2 + lowerFrontGap + 12.4), 5.2, z],
-        [22.8, 0.42, 1.16],
-        [0, 0, xSign * -0.61],
+        [xSign * (pitchBorderW / 2 + lowerFrontGap + 10.9), 5.2, z],
+        [18.4, 0.36, 1.1],
+        [0, 0, xSign * -0.56],
       );
     });
   };
@@ -445,6 +449,102 @@ function addReadableStandPlanes() {
   addLongStand('south', -1);
   addShortStand('east', 1);
   addShortStand('west', -1);
+}
+
+function addCornerStandCaps() {
+  const specs = [
+    { name: 'ne', x: 1, z: 1, rot: -Math.PI * 0.25 },
+    { name: 'nw', x: -1, z: 1, rot: Math.PI * 0.25 },
+    { name: 'sw', x: -1, z: -1, rot: Math.PI * 0.75 },
+    { name: 'se', x: 1, z: -1, rot: -Math.PI * 0.75 },
+  ];
+  specs.forEach((spec) => {
+    cylinder(
+      `corner_lower_${spec.name}`,
+      mats.seatBlueDark,
+      [
+        spec.x * (pitchBorderW / 2 + lowerFrontGap + 7.8),
+        3.5,
+        spec.z * (pitchBorderH / 2 + lowerFrontGap + 7.8),
+      ],
+      4.8,
+      4.8,
+      10.4,
+      [Math.PI / 2, 0, 0],
+      40,
+      true,
+      spec.rot,
+      Math.PI / 2,
+    );
+    cylinder(
+      `corner_upper_${spec.name}`,
+      mats.seatBlue,
+      [
+        spec.x * (pitchBorderW / 2 + upperFrontGapInner + 8.6),
+        8.4,
+        spec.z * (pitchBorderH / 2 + upperFrontGapInner + 8.6),
+      ],
+      3.9,
+      3.9,
+      8.4,
+      [Math.PI / 2, 0, 0],
+      40,
+      true,
+      spec.rot,
+      Math.PI / 2,
+    );
+  });
+}
+
+function addContinuousOuterEnvelope() {
+  const outerOffset = upperFrontGapOuter + roofOverhang - 0.8;
+  const shellHalfW = pitchBorderW / 2 + outerOffset;
+  const shellHalfH = pitchBorderH / 2 + outerOffset;
+  const shellY = upperStartY + upperRows * rowRise + 0.9;
+  const shellHeight = 7.0;
+  const shellThickness = 2.2;
+
+  box('shell_north', mats.facade, [0, shellY, shellHalfH], [shellHalfW * 2 - 14, shellHeight, shellThickness], [-0.05, 0, 0]);
+  box('shell_south', mats.facade, [0, shellY, -shellHalfH], [shellHalfW * 2 - 14, shellHeight, shellThickness], [0.05, 0, 0]);
+  box('shell_east', mats.facade, [shellHalfW, shellY, 0], [shellThickness, shellHeight, shellHalfH * 2 - 14], [0, 0, -0.05]);
+  box('shell_west', mats.facade, [-shellHalfW, shellY, 0], [shellThickness, shellHeight, shellHalfH * 2 - 14], [0, 0, 0.05]);
+
+  [[1, 1, Math.PI * 1.5], [-1, 1, Math.PI], [-1, -1, Math.PI * 0.5], [1, -1, 0]].forEach(([sx, sz, theta], idx) => {
+    cylinder(
+      `shell_corner_${idx}`,
+      mats.facade,
+      [sx * shellHalfW, shellY, sz * shellHalfH],
+      6.0,
+      6.0,
+      shellHeight,
+      [0, 0, 0],
+      40,
+      false,
+      theta,
+      Math.PI / 2,
+    );
+  });
+
+  [-1, 1].forEach((sign) => {
+    for (let i = -5; i <= 5; i += 1) {
+      box(
+        `shell_rib_long_${sign}_${i + 5}`,
+        mats.metal,
+        [i * 11.6, shellY + 0.7, sign * (shellHalfH + 0.76)],
+        [0.22, 2.2, 0.18],
+        [sign * 0.09, 0, 0],
+      );
+    }
+    for (let i = -3; i <= 3; i += 1) {
+      box(
+        `shell_rib_short_${sign}_${i + 3}`,
+        mats.metal,
+        [sign * (shellHalfW + 0.76), shellY + 0.7, i * 10.8],
+        [0.18, 2.2, 0.22],
+        [0, 0, sign * -0.09],
+      );
+    }
+  });
 }
 
 function addFacadeAndRoof() {
@@ -545,7 +645,7 @@ function addExteriorPlinth() {
 function addPitchEdgeShadow() {
   addRingSurface(
     'pitch_edge_shadow',
-    new THREE.MeshBasicMaterial({ name: 'ZR_EDGE_SHADOW', color: 0x17222a, transparent: true, opacity: 0.22 }),
+    new THREE.MeshBasicMaterial({ name: 'ZR_EDGE_SHADOW', color: 0x17222a, transparent: true, opacity: 0.08 }),
     0.055,
     pitchBorderW / 2 + 0.32,
     pitchBorderH / 2 + 0.32,
@@ -569,7 +669,9 @@ addConcourseBands();
 addBowlTier('upper', upperRows, upperStartY, lowerFrontGap + lowerRows * rowDepth + concourseGap);
 addRoundedTunnelAndDugouts();
 addReadableStandPlanes();
+addCornerStandCaps();
 addFacadeAndRoof();
+addContinuousOuterEnvelope();
 addExteriorPlinth();
 addPitchEdgeShadow();
 
