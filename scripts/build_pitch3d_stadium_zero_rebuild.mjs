@@ -67,7 +67,7 @@ const rowRise = 0.24;
 const lowerFrontGap = 5.5;
 const concourseGap = 4.8;
 const upperGap = 12.0;
-const roofOverhang = 6.8;
+const roofOverhang = 4.8;
 const bowlCornerRadius = 12.0;
 const lowerStartY = 0.18;
 const upperStartY = lowerStartY + lowerRows * rowRise + 1.4;
@@ -157,10 +157,10 @@ function addPitch() {
     const z = -halfH + (pitchH / 14) * (i + 0.5);
     box(`pitch_band_${i}`, i % 2 ? mats.grassDark : mats.grassLight, [0, 0.015, z], [pitchW, 0.03, pitchH / 14 + 0.04]);
   }
-  for (let i = 0; i < 56; i += 1) {
-    const x = -halfW + 1.8 + (i % 14) * 7.4;
-    const z = -halfH + 1.1 + ((i * 9) % 64);
-    box(`grass_fiber_${i}`, mats.grassFiber, [x, 0.031, z], [0.64, 0.003, 0.02], [0, 0.06 + (i % 5) * 0.02, 0]);
+  for (let i = 0; i < 24; i += 1) {
+    const x = -halfW + 3.4 + (i % 12) * 8.2;
+    const z = -halfH + 2.1 + ((i * 7) % 60);
+    box(`grass_fiber_${i}`, mats.grassFiber, [x, 0.025, z], [0.48, 0.0012, 0.018], [0, 0.04 + (i % 4) * 0.016, 0]);
   }
 
   const y = 0.07;
@@ -362,6 +362,15 @@ function addConcourseBands() {
     box(`east_aisle_${idx}`, mats.aisle, [pitchBorderW / 2 + upperFrontGapInner + upperRows * rowDepth * 0.48, upperStartY + upperRows * rowRise * 0.62, z], [2.2, 3.6, 1.2], [0, 0, -0.44]);
     box(`west_aisle_${idx}`, mats.aisle, [-(pitchBorderW / 2 + upperFrontGapInner + upperRows * rowDepth * 0.48), upperStartY + upperRows * rowRise * 0.62, z], [2.2, 3.6, 1.2], [0, 0, 0.44]);
   });
+
+  [-38, -12, 12, 38].forEach((x, idx) => {
+    box(`lower_vertical_cut_north_${idx}`, mats.aisle, [x, 2.7, pitchBorderH / 2 + lowerFrontGap + 10.2], [1.05, 4.4, 10.2], [-0.56, 0, 0]);
+    box(`lower_vertical_cut_south_${idx}`, mats.aisle, [x, 2.7, -(pitchBorderH / 2 + lowerFrontGap + 10.2)], [1.05, 4.4, 10.2], [0.56, 0, 0]);
+  });
+  [-24, 0, 24].forEach((z, idx) => {
+    box(`lower_vertical_cut_east_${idx}`, mats.aisle, [pitchBorderW / 2 + lowerFrontGap + 10.2, 2.7, z], [10.2, 4.4, 1.05], [0, 0, -0.56]);
+    box(`lower_vertical_cut_west_${idx}`, mats.aisle, [-(pitchBorderW / 2 + lowerFrontGap + 10.2), 2.7, z], [10.2, 4.4, 1.05], [0, 0, 0.56]);
+  });
 }
 
 function addRoundedTunnelAndDugouts() {
@@ -417,6 +426,13 @@ function addReadableStandPlanes() {
         [zSign * 0.56, 0, 0],
       );
     });
+    box(
+      `display_midgap_${label}`,
+      mats.darkMetal,
+      [0, 5.95, zSign * (pitchBorderH / 2 + lowerFrontGap + 12.9)],
+      [pitchW + 18, 0.5, 1.2],
+      [zSign * 0.60, 0, 0],
+    );
   };
 
   const addShortStand = (label, xSign) => {
@@ -443,6 +459,13 @@ function addReadableStandPlanes() {
         [0, 0, xSign * -0.56],
       );
     });
+    box(
+      `display_midgap_${label}`,
+      mats.darkMetal,
+      [xSign * (pitchBorderW / 2 + lowerFrontGap + 13.1), 5.95, 0],
+      [1.2, 0.5, pitchH + 9],
+      [0, 0, xSign * -0.60],
+    );
   };
 
   addLongStand('north', 1);
@@ -462,11 +485,7 @@ function addCornerStandCaps() {
     cylinder(
       `corner_lower_${spec.name}`,
       mats.seatBlueDark,
-      [
-        spec.x * (pitchBorderW / 2 + lowerFrontGap + 7.8),
-        3.5,
-        spec.z * (pitchBorderH / 2 + lowerFrontGap + 7.8),
-      ],
+      [spec.x * (pitchBorderW / 2 + lowerFrontGap + 7.4), 3.5, spec.z * (pitchBorderH / 2 + lowerFrontGap + 7.4)],
       4.8,
       4.8,
       10.4,
@@ -479,11 +498,7 @@ function addCornerStandCaps() {
     cylinder(
       `corner_upper_${spec.name}`,
       mats.seatBlue,
-      [
-        spec.x * (pitchBorderW / 2 + upperFrontGapInner + 8.6),
-        8.4,
-        spec.z * (pitchBorderH / 2 + upperFrontGapInner + 8.6),
-      ],
+      [spec.x * (pitchBorderW / 2 + upperFrontGapInner + 8.0), 8.4, spec.z * (pitchBorderH / 2 + upperFrontGapInner + 8.0)],
       3.9,
       3.9,
       8.4,
@@ -545,6 +560,18 @@ function addContinuousOuterEnvelope() {
       );
     }
   });
+}
+
+function addFacadeGlazing() {
+  const outerOffset = upperFrontGapOuter + roofOverhang - 1.1;
+  const shellHalfW = pitchBorderW / 2 + outerOffset;
+  const shellHalfH = pitchBorderH / 2 + outerOffset;
+  const glassY = upperStartY + upperRows * rowRise - 0.8;
+
+  box('glass_north', mats.glass, [0, glassY, shellHalfH - 1.06], [pitchW + 34, 2.8, 0.12], [0, 0, 0]);
+  box('glass_south', mats.glass, [0, glassY, -(shellHalfH - 1.06)], [pitchW + 34, 2.8, 0.12], [0, 0, 0]);
+  box('glass_east', mats.glass, [shellHalfW - 1.06, glassY, 0], [0.12, 2.8, pitchH + 26], [0, 0, 0]);
+  box('glass_west', mats.glass, [-(shellHalfW - 1.06), glassY, 0], [0.12, 2.8, pitchH + 26], [0, 0, 0]);
 }
 
 function addFacadeAndRoof() {
@@ -628,7 +655,7 @@ function addFacadeAndRoof() {
 }
 
 function addExteriorPlinth() {
-  const plinthOffset = lowerFrontGapOuter + 7.2;
+  const plinthOffset = lowerFrontGapOuter + 4.8;
   addRingSurface(
     'outer_plinth',
     mats.plinth,
@@ -672,6 +699,7 @@ addReadableStandPlanes();
 addCornerStandCaps();
 addFacadeAndRoof();
 addContinuousOuterEnvelope();
+addFacadeGlazing();
 addExteriorPlinth();
 addPitchEdgeShadow();
 
