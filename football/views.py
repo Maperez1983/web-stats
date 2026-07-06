@@ -76,7 +76,7 @@ from .task_choices import (
     TASK_TACTICAL_INTENT_CHOICES,
     TASK_USEFULNESS_CHOICES,
 )
-from .preview_render import render_html_selector_png, render_task_preview_png
+from .preview_render import render_html_selector_png, render_task_detail_3d_scene_png, render_task_preview_png
 from .drills import DRILL_CATALOG, drill_cards, normalize_drill_ids
 from .competition_sync import sync_workspace_competition_context
 from . import permissions
@@ -115,6 +115,12 @@ from .ops_logging import log_exception
 from .session_plan_fields import parse_session_plan_fields, serialize_session_plan_fields
 from . import session_import_services
 from . import universo_client
+from .premium_surface_preview import (
+    render_flat_tactical_preview_data_url,
+    render_stadium_native_preview_data_url,
+    render_stadium_native_perspective_preview_data_url,
+    render_stadium_taskboard_preview_data_url,
+)
 from .video_studio_services import (
     apply_autocut_suggestions as _video_studio_apply_autocut_suggestions,
     autocut_enabled as _video_studio_autocut_enabled,
@@ -146,9 +152,10 @@ from .library_repositories import (
 )
 
 try:
-    from PIL import Image, ImageEnhance, ImageFilter, ImageOps
+    from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageOps
 except Exception:  # pragma: no cover
     Image = None
+    ImageDraw = None
     ImageEnhance = None
     ImageFilter = None
     ImageOps = None
@@ -6024,14 +6031,11 @@ def _task_pitch3d_asset_context(static_build_id=None, *, player_model_src=''):
         except Exception:
             return ''
 
-    rebuilt_candidate = Path(settings.BASE_DIR) / 'football' / 'static' / 'football' / 'models' / 'pitch3d' / 'stadium_zero_rebuild.glb'
-    local_candidate = Path(settings.BASE_DIR) / 'football' / 'static' / 'football' / 'models' / 'pitch3d' / 'stadium_real_candidate.glb'
-    if rebuilt_candidate.exists():
-        stadium_asset_path = 'football/models/pitch3d/stadium_zero_rebuild.glb'
-    elif local_candidate.exists():
-        stadium_asset_path = 'football/models/pitch3d/stadium_real_candidate.glb'
-    else:
-        stadium_asset_path = 'football/models/pitch3d/stadium_architectural_complete.glb'
+    # El estadio correcto para tareas es el cenital histórico de la ficha:
+    # la geometría 3D comercial queda desactivada hasta que exista una versión
+    # equivalente y estable. El frontend reconoce este identificador y renderiza
+    # exclusivamente la base/overlay cenital.
+    stadium_asset_path = 'football/models/pitch3d/stadium_taskboard_reference.glb'
 
     return {
         'pitch3d_stadium_model_src': _asset(stadium_asset_path),
@@ -25784,47 +25788,299 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         text = str(value or '').strip()
         if text:
             methodology_rows.append({'label': label, 'value': text})
+    principle_label = ' · '.join(
+        part for part in [
+            str(meta.get('principle') or '').strip(),
+            str(meta.get('subprinciple') or '').strip(),
+        ] if part
+    ) or '-'
+    session_cycle_label = ' · '.join(
+        part for part in [
+            _choice_label(TASK_MD_DAY_CHOICES, meta.get('md_day')),
+            _choice_label(TASK_DOMINANT_LOAD_CHOICES, meta.get('dominant_load')),
+        ] if str(part or '').strip()
+    ) or '-'
+    player_count_label = (
+        str(meta.get('player_count') or '').strip()
+        or str(task_sheet.get('players') or '').strip()
+        or '-'
+    )
+    structure_summary_label = ' · '.join(
+        part for part in [
+            str(meta.get('organization') or '').strip(),
+            str(meta.get('players_distribution') or '').strip(),
+            str(meta.get('dominant_structure') or '').strip(),
+            str(meta.get('secondary_structure') or '').strip(),
+        ] if part
+    ) or structure_label or '-'
+    load_summary_label = ' · '.join(
+        part for part in [
+            _choice_label(TASK_LOAD_LEVEL_CHOICES, meta.get('physical_load')),
+            _choice_label(TASK_LOAD_LEVEL_CHOICES, meta.get('cognitive_load')),
+            _choice_label(TASK_LOAD_LEVEL_CHOICES, meta.get('emotional_load')),
+            ('RPE ' + str(meta.get('planned_rpe')).strip()) if str(meta.get('planned_rpe') or '').strip() else '',
+        ] if str(part or '').strip()
+    ) or '-'
+    workload_recipe_label = ' · '.join(
+        part for part in [
+            ('Series ' + str(meta.get('series')).strip()) if str(meta.get('series') or '').strip() else '',
+            ('Rep. ' + str(meta.get('repetitions')).strip()) if str(meta.get('repetitions') or '').strip() else '',
+            ('T/D ' + str(meta.get('work_rest')).strip()) if str(meta.get('work_rest') or '').strip() else '',
+        ] if str(part or '').strip()
+    ) or '-'
+    provocation_rule_label = str(meta.get('provocation_rule') or '').strip() or '-'
+    regression_label = str(meta.get('regression') or '').strip() or '-'
+    session_plan_fields = _parse_session_plan_fields(getattr(session, 'content', '')) if session else {}
     animation_frames = _normalize_animation_timeline(
         tactical_layout.get('timeline') if isinstance(tactical_layout, dict) else []
     )
     graphic_editor = meta.get('graphic_editor') if isinstance(meta.get('graphic_editor'), dict) else {}
-    frame_canvas_width = _parse_int(graphic_editor.get('canvas_width')) or 1280
-    frame_canvas_height = _parse_int(graphic_editor.get('canvas_height')) or 720
+    orientation_key = str(meta.get('pitch_orientation') or 'landscape').strip().lower()
+    default_canvas_width = 684 if orientation_key == 'portrait' else 1054
+    default_canvas_height = 1054 if orientation_key == 'portrait' else 684
+    frame_canvas_width = _parse_int(graphic_editor.get('canvas_width')) or default_canvas_width
+    frame_canvas_height = _parse_int(graphic_editor.get('canvas_height')) or default_canvas_height
+    resolver_name = str(getattr(getattr(request, 'resolver_match', None), 'url_name', '') or '').strip()
+    pdf_live_preview_mode = resolver_name in {'sessions-task-pdf-preview', 'task-studio-task-pdf-preview'}
+    if not pdf_live_preview_mode:
+        pdf_live_preview_mode = str(request.GET.get('live_preview_3d') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
 
-    def _render_frame_preview_url(frame_state):
-        if not isinstance(frame_state, dict) or not isinstance(frame_state.get('objects'), list) or not frame_state.get('objects'):
-            return ''
-        pitch_preset = str(meta.get('pitch_preset') or 'full_pitch').strip() or 'full_pitch'
-        pitch_orientation = str(meta.get('pitch_orientation') or 'landscape').strip().lower()
-        pitch_grass_style = str(meta.get('pitch_grass_style') or 'stadium_native').strip().lower()
-        if pitch_grass_style in {'stadium_top', 'stadium_top_h', 'stadium_top_v'}:
-            pitch_grass_style = 'stadium_native'
-        if pitch_grass_style not in {'classic', 'broadcast', 'broadcast_premium', 'stadium_native', 'realistic', 'pro', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'}:
-            pitch_grass_style = 'stadium_native'
+    def _normalize_preview_grass_style(variant: str = '2d') -> str:
+        raw_grass_style = str(meta.get('pitch_grass_style') or 'broadcast_premium').strip().lower()
+        normalized_variant = '3d' if str(variant or '').strip().lower() == '3d' else '2d'
+        if normalized_variant == '3d':
+            return 'stadium_top'
+        if raw_grass_style in {'stadium_top', 'stadium_top_h', 'stadium_top_v', 'stadium_native'}:
+            return 'stadium_native'
+        if raw_grass_style in {'classic', 'broadcast', 'broadcast_premium', 'realistic', 'pro', 'artificial', 'dry', 'wet', 'uefa_b', 'whiteboard', 'blackboard'}:
+            return raw_grass_style
+        return 'stadium_native'
+
+    static_build_id = _resolve_static_build_id()
+    pitch3d_player_model_src = ''
+    try:
+        pitch3d_player_model_url = str(os.getenv('TASK_PLAYER_MODEL_URL') or '').strip()
+        pitch3d_player_model_static_path = str(os.getenv('TASK_PLAYER_MODEL_STATIC_PATH') or '').strip()
+        if pitch3d_player_model_url:
+            pitch3d_player_model_src = pitch3d_player_model_url
+        elif pitch3d_player_model_static_path:
+            pitch3d_player_model_src = static(pitch3d_player_model_static_path.lstrip('/'))
+            if static_build_id:
+                pitch3d_player_model_src = f"{pitch3d_player_model_src}?v={quote(str(static_build_id))}"
+    except Exception:
+        pitch3d_player_model_src = ''
+    pitch3d_assets = _task_pitch3d_asset_context(static_build_id, player_model_src=pitch3d_player_model_src)
+    stadium_palette = {'primary': '#047857', 'secondary': '#f8fafc', 'accent': '#073b32'}
+    stadium_ads = {
+        'top': str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or 'Club').strip() or 'Club',
+        'right': '2J Football Intelligence',
+        'bottom': str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or 'Club').strip() or 'Club',
+        'left': 'Partner',
+    }
+    workspace = None
+    try:
+        workspace = _get_active_workspace(request)
+    except Exception:
+        workspace = None
+    if not workspace and team:
         try:
-            png_bytes = render_task_preview_png(
-                canvas_state=frame_state,
-                pitch_preset=pitch_preset,
-                pitch_orientation='portrait' if pitch_orientation == 'portrait' else 'landscape',
-                pitch_grass_style=pitch_grass_style,
-                world_width=frame_canvas_width,
-                world_height=frame_canvas_height,
-                max_side=2200,
+            workspace = Workspace.objects.filter(primary_team=team).first()
+        except Exception:
+            workspace = None
+    try:
+        if team:
+            stadium_palette = _team_stadium_palette(workspace, team)
+            ads = _team_stadium_ads(workspace, team)
+            if isinstance(ads, dict):
+                stadium_ads.update({
+                    'top': str(ads.get('top') or stadium_ads['top']).strip() or stadium_ads['top'],
+                    'right': str(ads.get('right') or stadium_ads['right']).strip() or stadium_ads['right'],
+                    'bottom': str(ads.get('bottom') or stadium_ads['bottom']).strip() or stadium_ads['bottom'],
+                    'left': str(ads.get('left') or stadium_ads['left']).strip() or stadium_ads['left'],
+                })
+    except Exception:
+        pass
+    pitch3d_context_payload = {
+        'teamName': str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or '').strip(),
+        'stadiumPalette': stadium_palette,
+        'stadiumAds': stadium_ads,
+    }
+
+    def _color_to_rgba(value, default):
+        raw = str(value or '').strip()
+        if not raw:
+            return default
+        if raw.startswith('#'):
+            hex_value = raw[1:]
+            if len(hex_value) == 3:
+                hex_value = ''.join(ch * 2 for ch in hex_value)
+            if len(hex_value) == 6:
+                try:
+                    return tuple(int(hex_value[i:i + 2], 16) for i in (0, 2, 4)) + (255,)
+                except Exception:
+                    return default
+        if raw.startswith('rgba(') and raw.endswith(')'):
+            try:
+                parts = [part.strip() for part in raw[5:-1].split(',')]
+                if len(parts) == 4:
+                    alpha = float(parts[3])
+                    return (
+                        max(0, min(255, int(float(parts[0])))),
+                        max(0, min(255, int(float(parts[1])))),
+                        max(0, min(255, int(float(parts[2])))),
+                        max(0, min(255, int(round(alpha * 255 if alpha <= 1 else alpha)))),
+                    )
+            except Exception:
+                return default
+        if raw.startswith('rgb(') and raw.endswith(')'):
+            try:
+                parts = [part.strip() for part in raw[4:-1].split(',')]
+                if len(parts) == 3:
+                    return (
+                        max(0, min(255, int(float(parts[0])))),
+                        max(0, min(255, int(float(parts[1])))),
+                        max(0, min(255, int(float(parts[2])))),
+                        255,
+                    )
+            except Exception:
+                return default
+        return default
+
+    def _pdf_3d_camera_preset() -> str:
+        normalized_orientation = str(meta.get('pitch_orientation') or 'landscape').strip().lower()
+        return 'coach' if normalized_orientation == 'portrait' else 'analyst'
+
+    def _render_perspective_preview_url(canvas_state):
+        safe_state = canvas_state if isinstance(canvas_state, dict) else {}
+        native_stadium_url = render_stadium_native_preview_data_url(
+            safe_state,
+            canvas_width=frame_canvas_width or default_canvas_width,
+            canvas_height=frame_canvas_height or default_canvas_height,
+            pitch_orientation=str(meta.get('pitch_orientation') or 'landscape').strip().lower(),
+        )
+        if native_stadium_url:
+            return native_stadium_url
+        snapshot_state = {
+            'version': str(safe_state.get('version') or graphic_editor.get('version') or '5.3.0'),
+            'objects': list(safe_state.get('objects') or []),
+            'canvas_width': frame_canvas_width or default_canvas_width,
+            'canvas_height': frame_canvas_height or default_canvas_height,
+        }
+        snapshot_frames = [{
+            'title': str(task.title or '').strip() or 'Situación base',
+            'duration': 4,
+            'canvas_state': snapshot_state,
+        }]
+        try:
+            png_bytes = render_task_detail_3d_scene_png(
+                task_title=str(task.title or '').strip(),
+                stadium_model_url=pitch3d_assets.get('pitch3d_stadium_model_src') or '',
+                player_model_url=pitch3d_assets.get('pitch3d_player_model_src') or '',
+                pitch3d_context=pitch3d_context_payload,
+                graphic_editor_state=snapshot_state,
+                animation_frames=snapshot_frames,
+                pitch_orientation=str(meta.get('pitch_orientation') or 'landscape').strip().lower(),
+                camera_preset=_pdf_3d_camera_preset(),
+                viewport_width=1200 if str(meta.get('pitch_orientation') or 'landscape').strip().lower() == 'portrait' else 1500,
+                viewport_height=1800 if str(meta.get('pitch_orientation') or 'landscape').strip().lower() == 'portrait' else 1100,
+                device_scale_factor=2.0,
+                timeout_ms=35000,
             )
         except Exception:
-            return ''
-        if not png_bytes:
-            return ''
-        return 'data:image/png;base64,' + base64.b64encode(png_bytes).decode('ascii')
+            png_bytes = None
+        if png_bytes:
+            return 'data:image/png;base64,' + base64.b64encode(png_bytes).decode('ascii')
+        return render_stadium_native_preview_data_url(
+            safe_state,
+            canvas_width=frame_canvas_width or default_canvas_width,
+            canvas_height=frame_canvas_height or default_canvas_height,
+            pitch_orientation=str(meta.get('pitch_orientation') or 'landscape').strip().lower(),
+        )
+
+    def _render_explicit_2d_preview_url(canvas_state):
+        normalized_orientation = str(meta.get('pitch_orientation') or 'landscape').strip().lower()
+        safe_state = canvas_state if isinstance(canvas_state, dict) else {'objects': []}
+        raw_grass_style = str(meta.get('pitch_grass_style') or 'broadcast_premium').strip().lower()
+        if raw_grass_style in {'stadium_top', 'stadium_top_h', 'stadium_top_v', 'stadium_native'}:
+            pitch_grass_style = 'stadium_native'
+        elif raw_grass_style in {'classic', 'broadcast', 'broadcast_premium', 'realistic', 'pro', 'artificial', 'dry', 'wet', 'uefa_b', 'whiteboard', 'blackboard'}:
+            pitch_grass_style = raw_grass_style
+        else:
+            pitch_grass_style = 'broadcast_premium'
+        return render_flat_tactical_preview_data_url(
+            safe_state,
+            canvas_width=frame_canvas_width or default_canvas_width,
+            canvas_height=frame_canvas_height or default_canvas_height,
+            pitch_orientation=normalized_orientation,
+            grass_style=pitch_grass_style,
+        )
+
+    def _render_variant_preview_url(canvas_state, variant: str = '2d', *, fallback_to_primary: bool = False):
+        normalized_variant = '3d' if str(variant or '').strip().lower() == '3d' else '2d'
+        has_objects = isinstance(canvas_state, dict) and isinstance(canvas_state.get('objects'), list) and bool(canvas_state.get('objects'))
+        if not has_objects:
+            if normalized_variant == '2d':
+                explicit_2d_url = _render_explicit_2d_preview_url(canvas_state if isinstance(canvas_state, dict) else {})
+                if explicit_2d_url:
+                    return explicit_2d_url
+            if normalized_variant == '3d':
+                perspective_preview_url = _render_perspective_preview_url(canvas_state if isinstance(canvas_state, dict) else {})
+                if perspective_preview_url:
+                    return perspective_preview_url
+            return preview_url if (fallback_to_primary and normalized_variant == '2d') else ''
+        if normalized_variant == '3d':
+            perspective_preview_url = _render_perspective_preview_url(canvas_state)
+            if perspective_preview_url:
+                return perspective_preview_url
+        if normalized_variant == '2d':
+            explicit_2d_url = _render_explicit_2d_preview_url(canvas_state)
+            if explicit_2d_url:
+                return explicit_2d_url
+        pitch_preset = str(meta.get('pitch_preset') or 'full_pitch').strip() or 'full_pitch'
+        pitch_orientation = str(meta.get('pitch_orientation') or 'landscape').strip().lower()
+        try:
+            png_bytes = render_task_preview_png(
+                canvas_state=canvas_state,
+                pitch_preset=pitch_preset,
+                pitch_orientation='portrait' if pitch_orientation == 'portrait' else 'landscape',
+                pitch_grass_style=_normalize_preview_grass_style(variant),
+                world_width=frame_canvas_width,
+                world_height=frame_canvas_height,
+                max_side=2400,
+            )
+        except Exception:
+            png_bytes = None
+        if png_bytes:
+            return 'data:image/png;base64,' + base64.b64encode(png_bytes).decode('ascii')
+        if normalized_variant == '3d':
+            return _render_perspective_preview_url(canvas_state if isinstance(canvas_state, dict) else {}) or ''
+        if fallback_to_primary:
+            return preview_url or ''
+        return ''
+
+    def _render_frame_preview_url(frame_state, variant: str = '2d', *, fallback_to_task: bool = False):
+        return _render_variant_preview_url(frame_state, variant, fallback_to_primary=fallback_to_task)
 
     animation_frame_cards = []
     for index, frame in enumerate(animation_frames):
         frame_state = frame.get('canvas_state')
+        frame_preview_2d_url = _render_frame_preview_url(frame_state, '2d', fallback_to_task=True)
+        frame_preview_3d_url = _render_frame_preview_url(frame_state, '3d', fallback_to_task=True)
+        frame_preview_3d_embed_url = ''
+        if pdf_live_preview_mode and getattr(task, 'id', None):
+            try:
+                frame_camera = _pdf_3d_camera_preset()
+                frame_preview_3d_embed_url = reverse('session-task-pdf-3d-embed', args=[int(task.id)]) + f'?frame={index + 1}&camera={frame_camera}'
+            except Exception:
+                frame_preview_3d_embed_url = ''
         animation_frame_cards.append(
             {
                 'title': str(frame.get('title') or f'Paso {index + 1}').strip() or f'Paso {index + 1}',
                 'duration': max(1, min(_parse_int(frame.get('duration')) or 3, 20)),
-                'preview_url': _render_frame_preview_url(frame_state),
+                'preview_url': frame_preview_2d_url or frame_preview_3d_url,
+                'preview_2d_url': frame_preview_2d_url,
+                'preview_3d_url': frame_preview_3d_url,
+                'preview_3d_embed_url': frame_preview_3d_embed_url,
                 'tokens': _build_task_pdf_tokens_from_canvas_state(
                     request,
                     frame_state,
@@ -25833,6 +26089,59 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
                 ),
             }
         )
+    task_canvas_state = {}
+    if isinstance(tactical_layout, dict):
+        if isinstance(tactical_layout.get('objects'), list) and tactical_layout.get('objects'):
+            task_canvas_state = {
+                'version': str(tactical_layout.get('version') or '5.3.0'),
+                'objects': tactical_layout.get('objects'),
+            }
+    if not isinstance(task_canvas_state.get('objects'), list) or not task_canvas_state.get('objects'):
+        try:
+            extracted_canvas_state, extracted_canvas_width, extracted_canvas_height = _extract_canvas_state_for_preview(task)
+        except Exception:
+            extracted_canvas_state, extracted_canvas_width, extracted_canvas_height = {}, 0, 0
+        if isinstance(extracted_canvas_state, dict) and isinstance(extracted_canvas_state.get('objects'), list) and extracted_canvas_state.get('objects'):
+            task_canvas_state = extracted_canvas_state
+            if extracted_canvas_width:
+                frame_canvas_width = extracted_canvas_width
+            if extracted_canvas_height:
+                frame_canvas_height = extracted_canvas_height
+    task_preview_2d_url = _render_variant_preview_url(task_canvas_state, '2d', fallback_to_primary=True) or preview_url
+    task_preview_3d_url = _render_variant_preview_url(task_canvas_state, '3d') or ''
+    task_preview_3d_embed_url = ''
+    if pdf_live_preview_mode and getattr(task, 'id', None):
+        try:
+            task_camera = _pdf_3d_camera_preset()
+            task_preview_3d_embed_url = reverse('session-task-pdf-3d-embed', args=[int(task.id)]) + f'?camera={task_camera}'
+        except Exception:
+            task_preview_3d_embed_url = ''
+    if not animation_frame_cards and (task_preview_2d_url or task_preview_3d_url):
+        animation_frame_cards = [
+            {
+                'title': 'Situación base',
+                'duration': 0,
+                'preview_url': task_preview_2d_url or task_preview_3d_url,
+                'preview_2d_url': task_preview_2d_url,
+                'preview_3d_url': task_preview_3d_url,
+                'preview_3d_embed_url': task_preview_3d_embed_url,
+                'tokens': [],
+                'is_fallback': True,
+            }
+        ]
+
+    def _first_real_animation_frame_card():
+        for frame_card in animation_frame_cards:
+            if isinstance(frame_card, dict) and not frame_card.get('is_fallback'):
+                return frame_card
+        return {}
+
+    first_real_animation_frame = _first_real_animation_frame_card()
+    graphic_view_2d_url = task_preview_2d_url or ''
+    graphic_view_3d_url = task_preview_3d_url or task_preview_3d_embed_url or ''
+    recreation_2d_url = str(first_real_animation_frame.get('preview_2d_url') or '').strip()
+    recreation_3d_url = str(first_real_animation_frame.get('preview_3d_url') or '').strip()
+    recreation_3d_embed_url = str(first_real_animation_frame.get('preview_3d_embed_url') or '').strip()
     coach_name = (
         request.user.get_full_name().strip()
         if hasattr(request.user, 'get_full_name') and request.user.get_full_name().strip()
@@ -26041,6 +26350,15 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         'coordination_label': coordination_label or '-',
         'coordination_skills_label': coordination_skills_label or '-',
         'tactical_intent_label': tactical_intent_label or '-',
+        'principle_label': principle_label,
+        'session_cycle_label': session_cycle_label,
+        'player_count_label': player_count_label,
+        'structure_summary_label': structure_summary_label,
+        'load_summary_label': load_summary_label,
+        'workload_recipe_label': workload_recipe_label,
+        'provocation_rule_label': provocation_rule_label,
+        'regression_label': regression_label,
+        'session_plan_fields': session_plan_fields,
         'methodology_rows': methodology_rows,
         'animation_frames': animation_frames,
         'animation_frame_cards': animation_frame_cards,
@@ -26053,7 +26371,16 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         'brand_mark_url': request.build_absolute_uri(static('football/images/2j-mark.svg')),
         'club_dragon_url': club_dragon_url,
         'club_logo_url': club_logo_url,
-        'task_preview_url': preview_url,
+        'task_preview_url': task_preview_2d_url or task_preview_3d_url or preview_url,
+        'task_preview_2d_url': task_preview_2d_url or preview_url,
+        'task_preview_3d_url': task_preview_3d_url,
+        'task_preview_3d_embed_url': task_preview_3d_embed_url,
+        'graphic_view_2d_url': graphic_view_2d_url,
+        'graphic_view_3d_url': graphic_view_3d_url,
+        'recreation_2d_url': recreation_2d_url,
+        'recreation_3d_url': recreation_3d_url,
+        'recreation_3d_embed_url': recreation_3d_embed_url,
+        'pdf_live_preview_mode': pdf_live_preview_mode,
         'template_bg_src': _system_pdf_template_bg_src('pdf_template_task_bg_asset_id', max_width=2200, max_height=3100, quality=72) if pdf_style == 'uefa' else '',
         'pdf_text_heavy': pdf_text_heavy,
         'pdf_text_superheavy': pdf_text_superheavy,
@@ -26712,7 +27039,29 @@ def training_session_detail_page(request, session_id):
 
                 # Campos estructurados (presentación)
                 next_fields = plan_fields.copy()
-                for key in ['warmup', 'activation', 'main', 'cooldown', 'objective', 'success_criteria', 'rpe_target', 'player_count', 'location', 'materials', 'absences', 'notes']:
+                for key in [
+                    'warmup',
+                    'activation',
+                    'main',
+                    'cooldown',
+                    'objective',
+                    'objective_physical',
+                    'objective_tactical',
+                    'success_criteria',
+                    'coaching_keys',
+                    'main_rule',
+                    'key_principles',
+                    'indicators',
+                    'variations',
+                    'weekly_plan',
+                    'recommended_duration',
+                    'rpe_target',
+                    'player_count',
+                    'location',
+                    'materials',
+                    'absences',
+                    'notes',
+                ]:
                     next_fields[key] = str(request.POST.get(key) or '').strip()
                 show_in_agenda_raw = str(request.POST.get('show_in_agenda') or '').strip().lower()
                 show_in_agenda = show_in_agenda_raw in {'1', 'true', 'yes', 'on', 'si'}
@@ -27557,6 +27906,8 @@ def session_task_pdf(request, task_id):
     )
     html = render_to_string('football/session_task_pdf.html', context)
     filename = slugify(f'tarea-{task.session.session_date}-{task.title}') or f'tarea-{task.id}'
+    if str(request.GET.get('html') or '').strip().lower() in {'1', 'true', 'yes', 'on'}:
+        return HttpResponse(html, content_type='text/html; charset=utf-8')
     return _build_pdf_response_or_html_fallback(request, html, filename)
 
 
@@ -41738,9 +42089,137 @@ def session_task_pdf_preview(request):
     one_page = one_page_raw.strip().lower() not in {'0', 'false', 'no', 'off'}
     context = _build_task_draft_pdf_context(request, primary_team, pdf_style=pdf_style, one_page=one_page)
     html = render_to_string('football/session_task_pdf.html', context)
-    filename = slugify(f"borrador-{context['task'].title}") or 'borrador-tarea'
-    # Previsualización: devolver inline para que Safari/iOS WebView lo renderice en pantalla.
-    return _build_pdf_response_or_html_fallback(request, html, filename, inline=True)
+    return HttpResponse(html, content_type='text/html; charset=utf-8')
+
+
+@login_required
+def session_task_pdf_3d_embed(request, task_id):
+    if not _can_access_sessions_workspace(request.user):
+        return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    if forbidden:
+        return forbidden
+    task = (
+        SessionTask.objects
+        .select_related('session__microcycle__team')
+        .filter(id=task_id, deleted_at__isnull=True)
+        .first()
+    )
+    if not task:
+        raise Http404('Tarea no encontrada')
+
+    static_build_id = _resolve_static_build_id()
+    team = getattr(getattr(getattr(task, 'session', None), 'microcycle', None), 'team', None)
+    workspace = None
+    try:
+        workspace = _get_active_workspace(request)
+    except Exception:
+        workspace = None
+    if not workspace and team:
+        try:
+            workspace = Workspace.objects.filter(primary_team=team).first()
+        except Exception:
+            workspace = None
+
+    pitch3d_player_model_src = ''
+    try:
+        pitch3d_player_model_url = str(os.getenv('TASK_PLAYER_MODEL_URL') or '').strip()
+        pitch3d_player_model_static_path = str(os.getenv('TASK_PLAYER_MODEL_STATIC_PATH') or '').strip()
+        if pitch3d_player_model_url:
+            pitch3d_player_model_src = pitch3d_player_model_url
+        elif pitch3d_player_model_static_path:
+            pitch3d_player_model_src = static(pitch3d_player_model_static_path.lstrip('/'))
+            if static_build_id:
+                pitch3d_player_model_src = f"{pitch3d_player_model_src}?v={quote(str(static_build_id))}"
+    except Exception:
+        pitch3d_player_model_src = ''
+
+    pitch3d_assets = _task_pitch3d_asset_context(static_build_id, player_model_src=pitch3d_player_model_src)
+    stadium_palette = {'primary': '#047857', 'secondary': '#f8fafc', 'accent': '#073b32'}
+    stadium_ads = {
+        'top': str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or 'Club').strip() or 'Club',
+        'right': '2J Football Intelligence',
+        'bottom': str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or 'Club').strip() or 'Club',
+        'left': 'Partner',
+    }
+    try:
+        if team:
+            stadium_palette = _team_stadium_palette(workspace, team)
+            ads = _team_stadium_ads(workspace, team)
+            if isinstance(ads, dict):
+                stadium_ads.update({
+                    'top': str(ads.get('top') or stadium_ads['top']).strip() or stadium_ads['top'],
+                    'right': str(ads.get('right') or stadium_ads['right']).strip() or stadium_ads['right'],
+                    'bottom': str(ads.get('bottom') or stadium_ads['bottom']).strip() or stadium_ads['bottom'],
+                    'left': str(ads.get('left') or stadium_ads['left']).strip() or stadium_ads['left'],
+                })
+    except Exception:
+        pass
+
+    tactical_layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+    meta = _normalize_task_pdf_meta(tactical_layout.get('meta') if isinstance(tactical_layout, dict) else {})
+    pitch_orientation = str(meta.get('pitch_orientation') or 'landscape').strip().lower()
+    graphic_editor_state = {}
+    if isinstance(tactical_layout.get('objects'), list) and tactical_layout.get('objects'):
+        graphic_editor_state = {
+            'version': str(tactical_layout.get('version') or '5.3.0'),
+            'objects': list(tactical_layout.get('objects') or []),
+        }
+    if not isinstance(graphic_editor_state.get('objects'), list) or not graphic_editor_state.get('objects'):
+        try:
+            extracted_canvas_state, _, _ = _extract_canvas_state_for_preview(task)
+        except Exception:
+            extracted_canvas_state = {}
+        if isinstance(extracted_canvas_state, dict) and isinstance(extracted_canvas_state.get('objects'), list):
+            graphic_editor_state = extracted_canvas_state
+
+    animation_frames = _normalize_animation_timeline(
+        tactical_layout.get('timeline') if isinstance(tactical_layout, dict) else []
+    )
+    frame_index = _parse_int(request.GET.get('frame'))
+    if animation_frames and frame_index:
+        safe_index = max(0, min(len(animation_frames) - 1, int(frame_index) - 1))
+        selected_frame = animation_frames[safe_index]
+        frame_state = selected_frame.get('canvas_state') if isinstance(selected_frame, dict) else None
+        if isinstance(frame_state, dict) and isinstance(frame_state.get('objects'), list):
+            graphic_editor_state = frame_state
+        animation_frames = [selected_frame]
+    elif not animation_frames:
+        animation_frames = [{
+            'title': str(task.title or '').strip() or 'Situación base',
+            'duration': 4,
+            'canvas_state': graphic_editor_state,
+        }]
+
+    fallback_preview_url = render_stadium_native_preview_data_url(
+        graphic_editor_state if isinstance(graphic_editor_state, dict) else {},
+        canvas_width=1054,
+        canvas_height=684,
+        pitch_orientation='portrait' if pitch_orientation == 'portrait' else 'landscape',
+    )
+    default_camera_preset = 'coach' if pitch_orientation == 'portrait' else 'broadcast'
+    camera_preset = str(request.GET.get('camera') or '').strip().lower()
+    if camera_preset not in {'broadcast', 'tactic', 'top_h', 'top_v', 'corner', 'goal', 'drone', 'tunnel', 'analyst', 'coach', 'rosaleda'}:
+        camera_preset = default_camera_preset
+
+    context = {
+        'task_title': str(task.title or '').strip() or 'Vista 3D',
+        'pitch3d_assets': pitch3d_assets,
+        'task_pitch3d_context_json': json.dumps(
+            {
+                'teamName': str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or '').strip(),
+                'stadiumPalette': stadium_palette,
+                'stadiumAds': stadium_ads,
+            },
+            ensure_ascii=False,
+        ),
+        'graphic_editor_state_json': json.dumps(graphic_editor_state, ensure_ascii=False),
+        'animation_frames_json': json.dumps(animation_frames, ensure_ascii=False),
+        'camera_preset': camera_preset,
+        'fallback_preview_url': fallback_preview_url,
+        'static_build_id': static_build_id,
+    }
+    return render(request, 'football/session_task_pdf_3d_embed.html', context)
 
 
 @login_required

@@ -147,6 +147,85 @@
         font-weight: 800;
         line-height: 1.34;
       }
+      .club-summary-grid {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 8px;
+        margin-top: 8px;
+      }
+      .club-summary-card {
+        padding: 10px 11px;
+        border-radius: 13px;
+        border: 1px solid #d5dde7;
+        background: linear-gradient(180deg, #ffffff, #f8fbff);
+        box-shadow: 0 6px 16px rgba(15, 23, 42, 0.05);
+      }
+      .club-summary-card .value {
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1.4;
+      }
+      .club-method-list,
+      .club-chip-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .club-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 8px;
+        border-radius: 999px;
+        background: rgba(15, 122, 53, 0.08);
+        border: 1px solid rgba(15, 122, 53, 0.18);
+        color: #0f5132;
+        font-size: 8.5px;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+      .club-method-row {
+        padding: 7px 8px;
+        border-radius: 10px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        font-size: 9.6px;
+        line-height: 1.35;
+      }
+      .club-method-row strong {
+        color: {{ pdf_palette.accent }};
+      }
+      .club-editorial-grid {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 8px;
+        margin-top: 8px;
+      }
+      .club-editorial-card {
+        width: 50%;
+        vertical-align: top;
+      }
+      .club-mini-list {
+        margin: 0;
+        padding-left: 16px;
+      }
+      .club-mini-list li {
+        margin-bottom: 4px;
+      }
+      .club-plan-stack {
+        display: grid;
+        gap: 8px;
+      }
+      .club-plan-item {
+        padding: 7px 8px;
+        border-radius: 10px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+      }
+      .club-plan-item .label {
+        margin-bottom: 2px;
+      }
       .club-facts {
         width: 100%;
         border-collapse: collapse;
@@ -165,8 +244,8 @@
       }
       body.pdf-club .preview-frame,
       body.pdf-club .field {
-        height: 410px;
-        min-height: 410px;
+        height: auto;
+        min-height: 0;
       }
       body.pdf-one-page.pdf-club .preview-frame,
       body.pdf-one-page.pdf-club .field {
@@ -223,11 +302,16 @@
         border: 0 !important;
         border-radius: 0 !important;
         outline: 0 !important;
+        height: auto !important;
       }
       body.pdf-club .club-graphic-body .preview-img img {
         display: block !important;
         opacity: 1 !important;
         background: #ffffff !important;
+        width: 100% !important;
+        height: auto !important;
+        object-fit: unset !important;
+        object-position: top center !important;
       }
       body.pdf-one-page .sheet {
         height: 297mm;
@@ -429,6 +513,22 @@
         object-position: center center;
         border: 0;
       }
+      .preview-frame .preview-embed {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        height: 100%;
+        display: block;
+        border: 0;
+        background: #ffffff;
+      }
+      .preview-frame .preview-embed iframe {
+        width: 100%;
+        height: 100%;
+        display: block;
+        border: 0;
+        background: #ffffff;
+      }
       .field {
         position: relative;
         height: 380px;
@@ -568,6 +668,50 @@
         line-height: 1.55;
         white-space: normal;
       }
+      .uefa-overview-grid {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 8px;
+        margin-bottom: 12px;
+      }
+      .uefa-overview-card {
+        width: 25%;
+        vertical-align: top;
+        border: 1px solid #d5dde7;
+        background: #ffffff;
+        padding: 8px 9px;
+      }
+      .uefa-overview-card .value {
+        font-size: 10.2px;
+        font-weight: 700;
+        line-height: 1.35;
+      }
+      .uefa-chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .uefa-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 7px;
+        border-radius: 999px;
+        border: 1px solid #d5dde7;
+        background: #f8fafc;
+        font-size: 8.2px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .uefa-editorial-grid {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 8px;
+      }
+      .uefa-editorial-card {
+        width: 50%;
+        vertical-align: top;
+      }
       body.pdf-text-heavy .uefa-table {
         margin-bottom: 9px;
       }
@@ -667,6 +811,88 @@
         display: block;
         font-size: 9px;
         color: #475569;
+      }
+      .dual-preview-grid {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .dual-preview-card {
+        border: 1px solid #d5dde7;
+        border-radius: 10px;
+        background: #ffffff;
+        overflow: hidden;
+      }
+      .dual-preview-card .tag {
+        display: block;
+        padding: 6px 10px;
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #0f172a;
+        background: rgba(15, 23, 42, 0.04);
+      }
+      .dual-preview-card .preview-frame {
+        border: none;
+        border-radius: 0;
+        height: 240px;
+      }
+      .stacked-preview-list {
+        display: grid;
+        gap: 10px;
+      }
+      .stacked-preview-row {
+        border: 1px solid #d5dde7;
+        border-radius: 10px;
+        background: #ffffff;
+        overflow: hidden;
+      }
+      .stacked-preview-row .tag {
+        display: block;
+        padding: 6px 10px;
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #0f172a;
+        background: rgba(15, 23, 42, 0.04);
+      }
+      .stacked-preview-row .preview-frame {
+        border: none;
+        border-radius: 0;
+        height: auto;
+        min-height: 0;
+      }
+      .stacked-preview-row.is-sequence .preview-frame {
+        height: auto;
+        padding: 10px;
+        background: #ffffff;
+      }
+      .stacked-sequence-strip {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .stacked-sequence-item {
+        border: 1px solid #d5dde7;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #fff;
+      }
+      .stacked-sequence-item .mini-tag {
+        display: block;
+        padding: 5px 8px;
+        font-size: 8px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #475569;
+        background: rgba(15, 23, 42, 0.04);
+      }
+      .stacked-sequence-item .preview-frame {
+        height: auto;
+        min-height: 0;
       }
       .mini-field {
         position: relative;
@@ -874,7 +1100,56 @@
               <div class="club-panel">
                 <div class="club-panel-head">Diseño gráfico</div>
                 <div class="club-graphic-body" style="padding:10px; background:#fff;">
-                  {% if task_preview_url %}
+                  {% if graphic_view_2d_url or graphic_view_3d_url or task_preview_3d_embed_url or recreation_2d_url or recreation_3d_url or recreation_3d_embed_url %}
+                    <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;">
+                      <div>
+                        <span class="tag">Vista 2D</span>
+                        <div class="preview-frame" aria-label="Vista 2D de la tarea">
+                          {% if graphic_view_2d_url %}
+                          <div class="preview-img"><img src="{{ graphic_view_2d_url }}" alt="Vista 2D de la tarea" /></div>
+                          {% else %}
+                          <div style="display:flex; align-items:center; justify-content:center; height:100%; min-height:180px; color:#6b7280; font-weight:700;">Sin vista 2D</div>
+                          {% endif %}
+                        </div>
+                      </div>
+                      <div>
+                        <span class="tag">Vista 3D (plasmado automático)</span>
+                        <div class="preview-frame" aria-label="Vista 3D de la tarea">
+                          {% if pdf_live_preview_mode and task_preview_3d_embed_url %}
+                          <div class="preview-embed"><iframe src="{{ task_preview_3d_embed_url }}" loading="lazy" referrerpolicy="same-origin" title="Vista 3D (plasmado automático)"></iframe></div>
+                          {% elif task_preview_3d_url %}
+                          <div class="preview-img"><img src="{{ task_preview_3d_url }}" alt="Vista 3D (plasmado automático)" /></div>
+                          {% elif graphic_view_3d_url and graphic_view_3d_url != task_preview_3d_embed_url %}
+                          <div class="preview-img"><img src="{{ graphic_view_3d_url }}" alt="Vista 3D (plasmado automático)" /></div>
+                          {% else %}
+                          <div style="display:flex; align-items:center; justify-content:center; height:100%; min-height:180px; color:#6b7280; font-weight:700;">Sin vista 3D</div>
+                          {% endif %}
+                        </div>
+                      </div>
+                      <div>
+                        <span class="tag">Recreación 2D</span>
+                        <div class="preview-frame" aria-label="Recreación 2D">
+                          {% if recreation_2d_url %}
+                          <div class="preview-img"><img src="{{ recreation_2d_url }}" alt="Recreación 2D" /></div>
+                          {% else %}
+                          <div style="display:flex; align-items:center; justify-content:center; height:100%; min-height:180px; color:#6b7280; font-weight:700;">Sin recreación configurada</div>
+                          {% endif %}
+                        </div>
+                      </div>
+                      <div>
+                        <span class="tag">Recreación 3D</span>
+                        <div class="preview-frame" aria-label="Recreación 3D">
+                          {% if pdf_live_preview_mode and recreation_3d_embed_url %}
+                          <div class="preview-embed"><iframe src="{{ recreation_3d_embed_url }}" loading="lazy" referrerpolicy="same-origin" title="Recreación 3D"></iframe></div>
+                          {% elif recreation_3d_url %}
+                          <div class="preview-img"><img src="{{ recreation_3d_url }}" alt="Recreación 3D" /></div>
+                          {% else %}
+                          <div style="display:flex; align-items:center; justify-content:center; height:100%; min-height:180px; color:#6b7280; font-weight:700;">Sin recreación configurada</div>
+                          {% endif %}
+                        </div>
+                      </div>
+                    </div>
+                  {% elif task_preview_url %}
 	                  <div class="preview-frame" style="border:none;" aria-label="Vista gráfica de la tarea">
                       <div class="preview-img"><img src="{{ task_preview_url }}" alt="Vista gráfica de la tarea" /></div>
                     </div>
@@ -930,174 +1205,189 @@
                     </tr>
                     <tr>
                       <td><span class="label">Coordinación</span><div class="value">{{ coordination_label }}</div></td>
-                      <td><span class="label">Carga</span><div class="value">{{ coordination_skills_label }}</div></td>
+                      <td><span class="label">Carga</span><div class="value">{{ load_summary_label }}</div></td>
                     </tr>
                     <tr>
                       <td><span class="label">Material</span><div class="value">{{ materials_label }}</div></td>
                       <td><span class="label">Intención</span><div class="value">{{ tactical_intent_label }}</div></td>
                     </tr>
                     <tr>
-                      <td><span class="label">Series / rep.</span><div class="value">{% if task_meta.series or task_meta.repetitions %}{{ task_meta.series|default:"-" }} · {{ task_meta.repetitions|default:"-" }}{% else %}-{% endif %}</div></td>
-                      <td><span class="label">Trabajo / descanso</span><div class="value">{% if task_meta.work_rest %}{{ task_meta.work_rest }}{% else %}-{% endif %}</div></td>
+                      <td><span class="label">Series / carga</span><div class="value">{{ workload_recipe_label }}</div></td>
+                      <td><span class="label">Ciclo</span><div class="value">{{ session_cycle_label }}</div></td>
                     </tr>
                   </table>
-                  {% if methodology_rows %}
-                  <table class="club-facts" style="margin-top:6px;">
-                    <tr>
-                      <td colspan="2"><span class="label">Metodología</span><div class="value">
-                        {% for row in methodology_rows %}
-                        <strong>{{ row.label }}:</strong> {{ row.value }}{% if not forloop.last %} · {% endif %}
-                        {% endfor %}
-                      </div></td>
-                    </tr>
-                  </table>
+                </div>
+              </div>
+
+              <table class="club-summary-grid">
+                <tr>
+                  <td>
+                    <div class="club-summary-card">
+                      <span class="label">Principio táctico</span>
+                      <div class="value">{{ principle_label }}</div>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="club-summary-card">
+                      <span class="label">Jugadores</span>
+                      <div class="value">{{ player_count_label }}</div>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="club-summary-card">
+                      <span class="label">Organización</span>
+                      <div class="value">{{ structure_summary_label }}</div>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="club-summary-card">
+                      <span class="label">Regla principal</span>
+                      <div class="value">{{ provocation_rule_label }}</div>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+
+        <table class="club-editorial-grid">
+          <tr>
+            <td class="club-editorial-card">
+              <div class="club-copy-card" style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden;">
+                <div class="club-copy-card-head" style="padding:8px 12px; background:{{ pdf_palette.accent }}; color:#fff; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Contenido y coaching</div>
+                <div class="club-copy-card-body" style="padding:10px 14px; background:#fff;">
+                  {% if description_rich_html %}
+                  <div class="rich-text">{{ description_rich_html|safe }}</div>
+                  {% elif description_lines and description_lines.0 != '-' %}
+                  <div class="text-block">{% for line in description_lines %}{{ line }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</div>
+                  {% else %}
+                  <div class="text-block">-</div>
                   {% endif %}
+                  <div style="margin-top:10px;">
+                    <span class="label">Claves de coaching</span>
+                    {% if coaching_rich_html %}
+                    <div class="rich-text">{{ coaching_rich_html|safe }}</div>
+                    {% elif coaching_lines and coaching_lines.0 != '-' %}
+                    <ul class="club-mini-list">
+                      {% for line in coaching_lines %}
+                      <li>{{ line }}</li>
+                      {% endfor %}
+                    </ul>
+                    {% else %}
+                    <div class="text-block">-</div>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            </td>
+            <td class="club-editorial-card">
+              <div class="club-copy-card" style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden;">
+                <div class="club-copy-card-head" style="padding:8px 12px; background:{{ pdf_palette.accent }}; color:#fff; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Normas y éxito</div>
+                <div class="club-copy-card-body" style="padding:10px 14px; background:#fff;">
+                  <span class="label">Normas de confrontación</span>
+                  {% if rules_rich_html %}
+                  <div class="rich-text">{{ rules_rich_html|safe }}</div>
+                  {% elif rules_lines and rules_lines.0 != '-' %}
+                  <ul class="club-mini-list">
+                    {% for line in rules_lines %}
+                    <li>{{ line }}</li>
+                    {% endfor %}
+                  </ul>
+                  {% else %}
+                  <div class="text-block">-</div>
+                  {% endif %}
+                  <div style="margin-top:10px;">
+                    <span class="label">Criterio de éxito</span>
+                    {% if success_criteria_rich_html %}
+                    <div class="rich-text">{{ success_criteria_rich_html|safe }}</div>
+                    {% elif task_meta.success_criteria %}
+                    <div class="text-block">{{ task_meta.success_criteria }}</div>
+                    {% else %}
+                    <div class="text-block">-</div>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td class="club-editorial-card">
+              <div class="club-copy-card" style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden;">
+                <div class="club-copy-card-head" style="padding:8px 12px; background:{{ pdf_palette.accent }}; color:#fff; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Variantes y metodología</div>
+                <div class="club-copy-card-body" style="padding:10px 14px; background:#fff;">
+                  <span class="label">Progresión</span>
+                  {% if progression_rich_html %}
+                  <div class="rich-text">{{ progression_rich_html|safe }}</div>
+                  {% elif task_meta.progression %}
+                  <div class="text-block">{{ task_meta.progression }}</div>
+                  {% else %}
+                  <div class="text-block">-</div>
+                  {% endif %}
+                  <div style="margin-top:10px;">
+                    <span class="label">Regresión</span>
+                    {% if regression_rich_html %}
+                    <div class="rich-text">{{ regression_rich_html|safe }}</div>
+                    {% else %}
+                    <div class="text-block">{{ regression_label }}</div>
+                    {% endif %}
+                  </div>
+                  {% if methodology_rows %}
+                  <div style="margin-top:10px;">
+                    <span class="label">Marco metodológico</span>
+                    <div class="club-method-list">
+                      {% for row in methodology_rows %}
+                      <div class="club-method-row"><strong>{{ row.label }}:</strong> {{ row.value }}</div>
+                      {% endfor %}
+                    </div>
+                  </div>
+                  {% endif %}
+                </div>
+              </div>
+            </td>
+            <td class="club-editorial-card">
+              <div class="club-copy-card" style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden;">
+                <div class="club-copy-card-head" style="padding:8px 12px; background:{{ pdf_palette.accent }}; color:#fff; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Plan operativo</div>
+                <div class="club-copy-card-body" style="padding:10px 14px; background:#fff;">
+                  <div class="club-plan-stack">
+                    <div class="club-plan-item">
+                      <span class="label">Bloque de sesión</span>
+                      <div class="value">{{ task.get_block_display }}</div>
+                    </div>
+                    <div class="club-plan-item">
+                      <span class="label">Microciclo / jornada</span>
+                      <div class="value">{{ microcycle.title }}{% if session_cycle_label and session_cycle_label != '-' %} · {{ session_cycle_label }}{% endif %}</div>
+                    </div>
+                    <div class="club-plan-item">
+                      <span class="label">Plan de la sesión</span>
+                      <div class="text-block">
+                        {% if session_plan_fields.warmup %}<strong>Calentamiento:</strong> {{ session_plan_fields.warmup }}<br>{% endif %}
+                        {% if session_plan_fields.activation %}<strong>Activación:</strong> {{ session_plan_fields.activation }}<br>{% endif %}
+                        {% if session_plan_fields.main %}<strong>Parte principal:</strong> {{ session_plan_fields.main }}<br>{% endif %}
+                        {% if session_plan_fields.cooldown %}<strong>Vuelta a la calma:</strong> {{ session_plan_fields.cooldown }}{% endif %}
+                        {% if not session_plan_fields.warmup and not session_plan_fields.activation and not session_plan_fields.main and not session_plan_fields.cooldown %}-{% endif %}
+                      </div>
+                    </div>
+                    <div class="club-plan-item">
+                      <span class="label">Material destacado</span>
+                      {% if materials_items %}
+                      <div class="club-chip-list">
+                        {% for item in materials_items %}
+                        <span class="club-chip">{{ item.emoji }} {{ item.label }}</span>
+                        {% endfor %}
+                      </div>
+                      {% else %}
+                      <div class="text-block">-</div>
+                      {% endif %}
+                    </div>
+                  </div>
                 </div>
               </div>
             </td>
           </tr>
         </table>
-
-        {% if pdf_text_heavy or pdf_text_superheavy %}
-        <div style="margin-top:2px;">
-          <div class="pdf-block club-copy-card" style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden;">
-            <div class="club-copy-card-head" style="padding:8px 12px; background:{{ pdf_palette.accent }}; color:#fff; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Contenido</div>
-            <div class="club-copy-card-body" style="padding:10px 14px; background:#fff;">
-              <span class="label">Descripción</span>
-              {% if description_rich_html %}
-              <div class="rich-text">{{ description_rich_html|safe }}</div>
-              {% elif description_lines and description_lines.0 != '-' %}
-              <div class="text-block">{% for line in description_lines %}{{ line }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</div>
-              {% else %}
-              <div class="text-block">-</div>
-              {% endif %}
-              {% if coaching_rich_html %}
-              <div style="margin-top:10px;">
-                <span class="label">Consignas</span>
-                <div class="rich-text">{{ coaching_rich_html|safe }}</div>
-              </div>
-              {% elif coaching_lines and coaching_lines.0 != '-' %}
-              <div style="margin-top:10px;">
-                <span class="label">Consignas</span>
-                <ul class="bullet-list">
-                  {% for line in coaching_lines %}
-                  <li>{{ line }}</li>
-                  {% endfor %}
-                </ul>
-              </div>
-              {% endif %}
-            </div>
-          </div>
-
-          <div class="pdf-block club-copy-card" style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden;">
-            <div class="club-copy-card-head" style="padding:8px 12px; background:{{ pdf_palette.accent }}; color:#fff; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Normas de confrontación</div>
-            <div class="club-copy-card-body" style="padding:10px 14px; background:#fff;">
-              {% if rules_rich_html %}
-              <div class="rich-text">{{ rules_rich_html|safe }}</div>
-              {% elif rules_lines and rules_lines.0 != '-' %}
-              <ul class="bullet-list">
-                {% for line in rules_lines %}
-                <li>{{ line }}</li>
-                {% endfor %}
-              </ul>
-              {% else %}
-              <div class="text-block">-</div>
-              {% endif %}
-              {% if task_meta.success_criteria %}
-              <div style="margin-top:10px;">
-                <span class="label">Criterio de éxito</span>
-                {% if success_criteria_rich_html %}
-                <div class="rich-text">{{ success_criteria_rich_html|safe }}</div>
-                {% else %}
-                <div class="text-block">{{ task_meta.success_criteria }}</div>
-                {% endif %}
-              </div>
-              {% endif %}
-              {% if task_meta.progression %}
-              <div style="margin-top:10px;">
-                <span class="label">Progresión</span>
-                {% if progression_rich_html %}
-                <div class="rich-text">{{ progression_rich_html|safe }}</div>
-                {% else %}
-                <div class="text-block">{{ task_meta.progression }}</div>
-                {% endif %}
-              </div>
-              {% endif %}
-            </div>
-          </div>
-        </div>
-        {% else %}
-        <div class="pdf-columns" style="margin-top:2px;">
-          <div class="pdf-col">
-            <div class="club-copy-card" style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden;">
-              <div class="club-copy-card-head" style="padding:8px 12px; background:{{ pdf_palette.accent }}; color:#fff; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Contenido</div>
-              <div class="club-copy-card-body" style="padding:10px 14px; background:#fff;">
-                {% if description_rich_html %}
-                <div class="rich-text">{{ description_rich_html|safe }}</div>
-                {% elif description_lines and description_lines.0 != '-' %}
-                <div class="text-block">{% for line in description_lines %}{{ line }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</div>
-                {% else %}
-                <div class="text-block">-</div>
-                {% endif %}
-                {% if coaching_rich_html %}
-                <div style="margin-top:10px;">
-                  <span class="label">Consignas</span>
-                  <div class="rich-text">{{ coaching_rich_html|safe }}</div>
-                </div>
-                {% elif coaching_lines and coaching_lines.0 != '-' %}
-                <div style="margin-top:10px;">
-                  <span class="label">Consignas</span>
-                  <ul class="bullet-list">
-                    {% for line in coaching_lines %}
-                    <li>{{ line }}</li>
-                    {% endfor %}
-                  </ul>
-                </div>
-                {% endif %}
-              </div>
-            </div>
-          </div>
-
-          <div class="pdf-col">
-            <div class="club-copy-card" style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden;">
-              <div class="club-copy-card-head" style="padding:8px 12px; background:{{ pdf_palette.accent }}; color:#fff; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Normas de confrontación</div>
-              <div class="club-copy-card-body" style="padding:10px 14px; background:#fff;">
-                {% if rules_rich_html %}
-                <div class="rich-text">{{ rules_rich_html|safe }}</div>
-                {% elif rules_lines and rules_lines.0 != '-' %}
-                <ul class="bullet-list">
-                  {% for line in rules_lines %}
-                  <li>{{ line }}</li>
-                  {% endfor %}
-                </ul>
-                {% else %}
-                <div class="text-block">-</div>
-                {% endif %}
-                {% if task_meta.success_criteria %}
-                <div style="margin-top:10px;">
-                  <span class="label">Criterio de éxito</span>
-                  {% if success_criteria_rich_html %}
-                  <div class="rich-text">{{ success_criteria_rich_html|safe }}</div>
-                  {% else %}
-                  <div class="text-block">{{ task_meta.success_criteria }}</div>
-                  {% endif %}
-                </div>
-                {% endif %}
-                {% if task_meta.progression %}
-                <div style="margin-top:10px;">
-                  <span class="label">Progresión</span>
-                  {% if progression_rich_html %}
-                  <div class="rich-text">{{ progression_rich_html|safe }}</div>
-                  {% else %}
-                  <div class="text-block">{{ task_meta.progression }}</div>
-                  {% endif %}
-                </div>
-                {% endif %}
-              </div>
-            </div>
-          </div>
-        </div>
-        {% endif %}
       </div>
 
 	      <div class="club-footer">
@@ -1175,6 +1465,26 @@
 	            <td><div class="uefa-value">{{ tactical_intent_label }}</div></td>
 	          </tr>
 	        </table>
+          <table class="uefa-overview-grid">
+            <tr>
+              <td class="uefa-overview-card">
+                <span class="label">Principio</span>
+                <div class="value">{{ principle_label }}</div>
+              </td>
+              <td class="uefa-overview-card">
+                <span class="label">Jugadores</span>
+                <div class="value">{{ player_count_label }}</div>
+              </td>
+              <td class="uefa-overview-card">
+                <span class="label">Carga</span>
+                <div class="value">{{ load_summary_label }}</div>
+              </td>
+              <td class="uefa-overview-card">
+                <span class="label">Ciclo</span>
+                <div class="value">{{ session_cycle_label }}</div>
+              </td>
+            </tr>
+          </table>
 
         <div class="uefa-section">Descripción Gráfica</div>
 		        <div class="uefa-box" style="min-height:{% if pdf_text_superheavy %}240px{% elif pdf_text_heavy %}300px{% else %}340px{% endif %};">
@@ -1185,9 +1495,32 @@
               <div class="sequence-frame-head">
                 <strong>Escena {{ forloop.counter }} · {{ frame.title }}</strong>
               </div>
-              {% if frame.preview_url %}
-              <div class="preview-frame" aria-label="Pizarra {{ forloop.counter }}">
-                <div class="preview-img"><img src="{{ frame.preview_url }}" alt="Pizarra {{ forloop.counter }}" /></div>
+              {% if frame.preview_2d_url or frame.preview_3d_url or frame.preview_url %}
+              <div class="dual-preview-grid">
+                <div class="dual-preview-card">
+                  <span class="tag">Vista 2D</span>
+                  <div class="preview-frame" aria-label="Pizarra 2D {{ forloop.counter }}">
+                    {% if frame.preview_2d_url %}
+                    <div class="preview-img"><img src="{{ frame.preview_2d_url }}" alt="Pizarra 2D {{ forloop.counter }}" /></div>
+                    {% elif frame.preview_url %}
+                    <div class="preview-img"><img src="{{ frame.preview_url }}" alt="Pizarra {{ forloop.counter }}" /></div>
+                    {% endif %}
+                  </div>
+                </div>
+                <div class="dual-preview-card">
+                  <span class="tag">Vista 3D</span>
+                  <div class="preview-frame" aria-label="Pizarra 3D {{ forloop.counter }}">
+                    {% if frame.preview_3d_url %}
+                    <div class="preview-img"><img src="{{ frame.preview_3d_url }}" alt="Pizarra 3D {{ forloop.counter }}" /></div>
+                    {% elif pdf_live_preview_mode and frame.preview_3d_embed_url %}
+                    <div class="preview-embed"><iframe src="{{ frame.preview_3d_embed_url }}" loading="lazy" referrerpolicy="same-origin" title="Pizarra 3D {{ forloop.counter }}"></iframe></div>
+                    {% elif frame.preview_2d_url %}
+                    <div class="preview-img"><img src="{{ frame.preview_2d_url }}" alt="Pizarra 2D de respaldo {{ forloop.counter }}" /></div>
+                    {% elif frame.preview_url %}
+                    <div class="preview-img"><img src="{{ frame.preview_url }}" alt="Pizarra {{ forloop.counter }}" /></div>
+                    {% endif %}
+                  </div>
+                </div>
               </div>
               {% else %}
               <div class="mini-field">
@@ -1207,6 +1540,27 @@
             </div>
             {% endfor %}
           </div>
+		          {% elif task_preview_2d_url or task_preview_3d_url %}
+              <div class="dual-preview-grid">
+                <div class="dual-preview-card">
+                  <span class="tag">Vista 2D</span>
+                  <div class="preview-frame" style="height:{{ pdf_graphic_height_px|default:380 }}px;" aria-label="Vista 2D de la tarea">
+                    {% if task_preview_2d_url %}
+                    <div class="preview-img"><img src="{{ task_preview_2d_url }}" alt="Vista 2D de la tarea" /></div>
+                    {% endif %}
+                  </div>
+                </div>
+                <div class="dual-preview-card">
+                  <span class="tag">Vista 3D</span>
+                  <div class="preview-frame" style="height:{{ pdf_graphic_height_px|default:380 }}px;" aria-label="Vista 3D de la tarea">
+                    {% if pdf_live_preview_mode and task_preview_3d_embed_url %}
+                    <div class="preview-embed"><iframe src="{{ task_preview_3d_embed_url }}" loading="lazy" referrerpolicy="same-origin" title="Vista 3D de la tarea"></iframe></div>
+                    {% elif task_preview_3d_url %}
+                    <div class="preview-img"><img src="{{ task_preview_3d_url }}" alt="Vista 3D de la tarea" /></div>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
 		          {% elif task_preview_url %}
 		          <div class="preview-frame" style="border:1px solid #d5dde7; height:{{ pdf_graphic_height_px|default:380 }}px;" aria-label="Vista gráfica de la tarea">
                 <div class="preview-img"><img src="{{ task_preview_url }}" alt="Vista gráfica de la tarea" /></div>
@@ -1253,11 +1607,30 @@
             <div class="sequence-frame">
               <div class="sequence-frame-head">
                 <strong>{% if multi_board_enabled %}Escena{% else %}Paso{% endif %} {{ forloop.counter }} · {{ frame.title }}</strong>
-                {% if not multi_board_enabled %}<span>Duración estimada: {{ frame.duration }} s</span>{% endif %}
+                {% if not multi_board_enabled and frame.duration %}<span>Duración estimada: {{ frame.duration }} s</span>{% endif %}
               </div>
-              {% if frame.preview_url %}
-              <div class="preview-frame" aria-label="Paso {{ forloop.counter }}">
-                <div class="preview-img"><img src="{{ frame.preview_url }}" alt="Paso {{ forloop.counter }}" /></div>
+              {% if frame.preview_2d_url or frame.preview_3d_url or frame.preview_url %}
+              <div class="dual-preview-grid">
+                <div class="dual-preview-card">
+                  <span class="tag">Vista 2D</span>
+                  <div class="preview-frame" aria-label="Paso 2D {{ forloop.counter }}">
+                    {% if frame.preview_2d_url %}
+                    <div class="preview-img"><img src="{{ frame.preview_2d_url }}" alt="Paso 2D {{ forloop.counter }}" /></div>
+                    {% elif frame.preview_url %}
+                    <div class="preview-img"><img src="{{ frame.preview_url }}" alt="Paso {{ forloop.counter }}" /></div>
+                    {% endif %}
+                  </div>
+                </div>
+                <div class="dual-preview-card">
+                  <span class="tag">Vista 3D</span>
+                  <div class="preview-frame" aria-label="Paso 3D {{ forloop.counter }}">
+                    {% if pdf_live_preview_mode and frame.preview_3d_embed_url %}
+                    <div class="preview-embed"><iframe src="{{ frame.preview_3d_embed_url }}" loading="lazy" referrerpolicy="same-origin" title="Paso 3D {{ forloop.counter }}"></iframe></div>
+                    {% elif frame.preview_3d_url %}
+                    <div class="preview-img"><img src="{{ frame.preview_3d_url }}" alt="Paso 3D {{ forloop.counter }}" /></div>
+                    {% endif %}
+                  </div>
+                </div>
               </div>
               {% else %}
               <div class="mini-field">
@@ -1348,6 +1721,62 @@
 	          </div>
 	        </div>
 	          {% endif %}
+
+          <div style="margin-top:12px;" class="uefa-section">Síntesis operativa</div>
+          <table class="uefa-editorial-grid">
+            <tr>
+              <td class="uefa-editorial-card">
+                <div class="uefa-box uefa-long-copy">
+                  <strong>Regla principal</strong>
+                  <div class="text-block" style="margin-top:6px;">{{ provocation_rule_label }}</div>
+                  <div style="margin-top:10px;"><strong>Organización</strong></div>
+                  <div class="text-block" style="margin-top:6px;">{{ structure_summary_label }}</div>
+                </div>
+              </td>
+              <td class="uefa-editorial-card">
+                <div class="uefa-box uefa-long-copy">
+                  <strong>Planificación</strong>
+                  <div class="text-block" style="margin-top:6px;">
+                    {% if session_plan_fields.warmup %}<strong>Calentamiento:</strong> {{ session_plan_fields.warmup }}<br>{% endif %}
+                    {% if session_plan_fields.activation %}<strong>Activación:</strong> {{ session_plan_fields.activation }}<br>{% endif %}
+                    {% if session_plan_fields.main %}<strong>Parte principal:</strong> {{ session_plan_fields.main }}<br>{% endif %}
+                    {% if session_plan_fields.cooldown %}<strong>Vuelta a la calma:</strong> {{ session_plan_fields.cooldown }}{% endif %}
+                    {% if not session_plan_fields.warmup and not session_plan_fields.activation and not session_plan_fields.main and not session_plan_fields.cooldown %}-{% endif %}
+                  </div>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td class="uefa-editorial-card">
+                <div class="uefa-box uefa-long-copy">
+                  <strong>Receta de carga</strong>
+                  <div class="text-block" style="margin-top:6px;">{{ workload_recipe_label }}</div>
+                  {% if methodology_rows %}
+                  <div style="margin-top:10px;"><strong>Metodología</strong></div>
+                  <div class="uefa-chip-row" style="margin-top:6px;">
+                    {% for row in methodology_rows %}
+                    <span class="uefa-chip">{{ row.label }}: {{ row.value }}</span>
+                    {% endfor %}
+                  </div>
+                  {% endif %}
+                </div>
+              </td>
+              <td class="uefa-editorial-card">
+                <div class="uefa-box uefa-long-copy">
+                  <strong>Variantes y material</strong>
+                  <div class="text-block" style="margin-top:6px;"><strong>Progresión:</strong> {{ task_meta.progression|default:"-" }}</div>
+                  <div class="text-block" style="margin-top:6px;"><strong>Regresión:</strong> {{ regression_label }}</div>
+                  {% if materials_items %}
+                  <div class="uefa-chip-row" style="margin-top:8px;">
+                    {% for item in materials_items %}
+                    <span class="uefa-chip">{{ item.emoji }} {{ item.label }}</span>
+                    {% endfor %}
+                  </div>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          </table>
       </div>
 
 	      <div class="footer" style="background:#ffffff;">
