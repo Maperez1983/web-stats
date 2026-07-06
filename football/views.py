@@ -26148,8 +26148,17 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         else getattr(request.user, 'username', '') or 'Entrenador'
     )
     primary_club_team = team or _get_primary_team_for_request(request) or Team.objects.filter(is_primary=True).first()
+    def _pdf_static_asset_url(static_path: str, mime_type: str = '') -> str:
+        data_url = _static_data_url(static_path, mime_type) if mime_type else ''
+        if data_url:
+            return data_url
+        try:
+            return static(static_path)
+        except Exception:
+            return ''
+
     club_logo_url = resolve_team_crest_url(request, primary_club_team, sync=True) if primary_club_team else ''
-    uefa_badge_url = _static_data_url('football/images/uefa-badge.svg', 'image/svg+xml') or request.build_absolute_uri(static('football/images/uefa-badge.svg'))
+    uefa_badge_url = _pdf_static_asset_url('football/images/uefa-badge.svg', 'image/svg+xml')
     team_crest_url = resolve_team_crest_url(request, team, sync=True)
     palette_team = team
     if pdf_style in {'club', 'hybrid'}:
@@ -26368,7 +26377,7 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         'coach_name': coach_name,
         'animation_frames_count': len(animation_frames),
         'logo_url': logo_url,
-        'brand_mark_url': request.build_absolute_uri(static('football/images/2j-mark.svg')),
+        'brand_mark_url': _pdf_static_asset_url('football/images/2j-mark.svg', 'image/svg+xml'),
         'club_dragon_url': club_dragon_url,
         'club_logo_url': club_logo_url,
         'task_preview_url': task_preview_2d_url or task_preview_3d_url or preview_url,
