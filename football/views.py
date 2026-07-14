@@ -27,7 +27,7 @@ from pathlib import Path
 import unicodedata
 import re
 from types import SimpleNamespace
-from urllib.parse import quote, urlparse, parse_qs, urlencode
+from urllib.parse import quote, urlparse, parse_qs, urlencode, unquote_to_bytes
 
 from django.conf import settings
 from django.contrib import messages
@@ -55292,24 +55292,23 @@ def analysis_video_studio_export_pdf_api(request):
     </html>
     """
 
+    def _decode_data_url(data_url: str):
+        raw_url = str(data_url or '')
+        if not raw_url.startswith('data:image/') or ',' not in raw_url:
+            return None
+        header, payload = raw_url.split(',', 1)
+        if ';base64' in header:
+            return base64.b64decode(payload.encode('ascii'), validate=False)
+        return unquote_to_bytes(payload)
+
     pdf_bytes, pdf_error = _render_pdf_bytes_with_error(request, html_doc)
     if not pdf_bytes:
         # Fallback local/CI: reportlab (no depende de weasyprint/cairo).
         try:
-            from reportlab.pdfgen import canvas  # noqa: WPS433
             from reportlab.lib.pagesizes import A4, landscape  # noqa: WPS433
-            from reportlab.lib.utils import ImageReader  # noqa: WPS433
             from reportlab.lib.units import mm  # noqa: WPS433
-            import urllib.parse  # noqa: WPS433
-
-            def _decode_data_url(data_url: str):
-                raw_url = str(data_url or '')
-                if not raw_url.startswith('data:image/') or ',' not in raw_url:
-                    return None
-                header, payload = raw_url.split(',', 1)
-                if ';base64' in header:
-                    return base64.b64decode(payload.encode('ascii'), validate=False)
-                return urllib.parse.unquote_to_bytes(payload)
+            from reportlab.lib.utils import ImageReader  # noqa: WPS433
+            from reportlab.pdfgen import canvas  # noqa: WPS433
 
             buf = io.BytesIO()
             page_w, page_h = landscape(A4)
@@ -55349,6 +55348,47 @@ def analysis_video_studio_export_pdf_api(request):
             pdf_error = ''
         except Exception as exc:
             pdf_error = (pdf_error or '').strip() or f'reportlab:{exc}'
+
+    if not pdf_bytes:
+        try:
+            from PIL import Image  # noqa: WPS433
+
+            pages = []
+            for slide in cleaned:
+                raw = _decode_data_url(slide.get('image') or '')
+                if not raw:
+                    continue
+                with Image.open(io.BytesIO(raw)) as frame_src:
+                    frame = frame_src.copy()
+                if frame.mode in ('RGBA', 'LA') or (frame.mode == 'P' and 'transparency' in frame.info):
+                    rgba = frame.convert('RGBA')
+                    rgb = Image.new('RGB', rgba.size, (255, 255, 255))
+                    rgb.paste(rgba, mask=rgba.getchannel('A'))
+                    frame.close()
+                    frame = rgb
+                    rgba.close()
+                elif frame.mode != 'RGB':
+                    converted = frame.convert('RGB')
+                    frame.close()
+                    frame = converted
+                pages.append(frame)
+
+            if pages:
+                buf = io.BytesIO()
+                first_page, *other_pages = pages
+                first_page.save(buf, format='PDF', save_all=True, append_images=other_pages)
+                pdf_bytes = buf.getvalue()
+                pdf_error = ''
+            else:
+                pdf_error = (pdf_error or '').strip() or 'pillow:no-valid-images'
+        except Exception as exc:
+            pdf_error = (pdf_error or '').strip() or f'pillow:{exc}'
+        finally:
+            for page in locals().get('pages', []):
+                try:
+                    page.close()
+                except Exception:
+                    pass
 
     if not pdf_bytes:
         detail = (pdf_error or '').strip() or 'unknown'
