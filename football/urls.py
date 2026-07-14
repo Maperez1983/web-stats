@@ -10,6 +10,7 @@ from . import kit2d_views
 from . import academy_views
 from . import pwa as pwa_views
 from . import session_pdf
+from . import task_editor_pro_views
 
 urlpatterns = [
     path('manifest.webmanifest', pwa_views.pwa_manifest, name='pwa-manifest'),
@@ -276,6 +277,11 @@ urlpatterns = [
     path('coach/sesiones/tarea/<int:task_id>/graphic/recreate/', views.recreate_session_task_graphic, name='session-task-graphic-recreate'),
     path('coach/sesiones/tarea/<int:task_id>/archivo/', views.session_task_file, name='session-task-file'),
     path('coach/sesiones/tarea/<int:task_id>/preview/', views.session_task_preview_file, name='session-task-preview-file'),
+    path('coach/sesiones/tarea/<int:task_id>/pdf-3d-embed/', views.session_task_pdf_3d_embed, name='session-task-pdf-3d-embed'),
+    path('coach/sesiones/tarea/<int:task_id>/editor-pro/', task_editor_pro_views.session_task_editor_pro_page, name='session-task-editor-pro'),
+    path('coach/sesiones/tarea/<int:task_id>/editor-pro/document/', task_editor_pro_views.session_task_editor_document_api, name='session-task-editor-document-api'),
+    path('coach/sesiones/tarea/<int:task_id>/editor-pro/export-jobs/', task_editor_pro_views.session_task_export_jobs_api, name='session-task-export-jobs-api'),
+    path('coach/sesiones/tarea/<int:task_id>/editor-pro/ai-preview/', task_editor_pro_views.session_task_ai_preview_file, name='session-task-ai-preview-file'),
     path('coach/sesiones/sesion-importada/<int:doc_id>/archivo/', views.imported_session_file, name='imported-session-file'),
     path('coach/sesiones/sesion-importada/<int:doc_id>/preview/', views.imported_session_preview_file, name='imported-session-preview-file'),
     path('coach/sesiones/tarea/<int:task_id>/pdf/', views.session_task_pdf, name='session-task-pdf'),
