@@ -1,0 +1,15 @@
+.venv/
+artifacts/
+media/
+mobile/
+node_modules/
+output/
+outputs/
+staticfiles/
+tmp/
+football/migrations/
+football/static/vendor/
+football/static/football/editor-pro/
+package-lock.json
+frontend/tactical-editor/package-lock.json
+mobile/package-lock.json

@@ -1,0 +1,123 @@
+[tool.black]
+line-length = 120
+target-version = ["py39"]
+extend-exclude = '''
+(
+  ^/(\.venv|artifacts|audits|media|mobile|node_modules|output|outputs|scripts|staticfiles|tmp|tools)/ |
+  ^/tmp_.*\.py$ |
+  ^/football/migrations/ |
+  ^/football/static/vendor/ |
+  ^/football/static/football/editor-pro/
+)
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 120
+skip_gitignore = true
+extend_skip_glob = [
+  ".venv/*",
+  "artifacts/*",
+  "audits/*",
+  "media/*",
+  "mobile/*",
+  "node_modules/*",
+  "output/*",
+  "outputs/*",
+  "scripts/*",
+  "staticfiles/*",
+  "tmp/*",
+  "tools/*",
+  "tmp_*.py",
+  "football/migrations/*",
+  "football/static/vendor/*",
+  "football/static/football/editor-pro/*",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+extend-exclude = [
+  ".venv",
+  "artifacts",
+  "audits",
+  "media",
+  "mobile",
+  "node_modules",
+  "output",
+  "outputs",
+  "scripts",
+  "staticfiles",
+  "tmp",
+  "tools",
+  "tmp_*.py",
+  "football/migrations",
+  "football/static/vendor",
+  "football/static/football/editor-pro",
+]
+
+[tool.ruff.lint]
+select = ["F", "I"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "webstats.settings"
+python_files = ["tests.py", "test_*.py", "*_tests.py"]
+testpaths = ["football"]
+addopts = "--strict-markers --tb=short"
+env = [
+  "DEBUG=false",
+  "SECRET_KEY=dev-insecure-change-me", # pragma: allowlist secret
+  "ALLOW_SQLITE_IN_PROD=true",
+  "ALLOW_SINGLE_CLUB_FALLBACK=true",
+  "SECURE_SSL_REDIRECT=false",
+  "USE_PYTEST_SIMPLE_STATICFILES_STORAGE=true",
+]
+norecursedirs = [
+  ".git",
+  ".venv",
+  "artifacts",
+  "audits",
+  "media",
+  "mobile",
+  "node_modules",
+  "output",
+  "outputs",
+  "scripts",
+  "staticfiles",
+  "tmp",
+  "tools",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["football", "webstats"]
+omit = [
+  "manage.py",
+  "football/migrations/*",
+  "football/static/*",
+  "football/tests.py",
+  "football/test_*.py",
+  "tmp/*",
+]
+
+[tool.coverage.report]
+skip_empty = true
+show_missing = true
+omit = [
+  "manage.py",
+  "football/migrations/*",
+  "football/static/*",
+  "football/tests.py",
+  "football/test_*.py",
+  "tmp/*",
+]
+
+[tool.mypy]
+python_version = "3.9"
+ignore_missing_imports = true
+warn_unused_configs = true
+check_untyped_defs = false
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+follow_imports = "skip"
+exclude = "(^\\.venv/|^artifacts/|^audits/|^media/|^mobile/|^node_modules/|^output/|^outputs/|^scripts/|^staticfiles/|^tmp/|^tools/|^tmp_.*\\.py$|^football/migrations/|^football/static/)"

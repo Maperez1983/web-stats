@@ -1,6 +1,11 @@
 {
   "scripts": {
     "qa": "bash scripts/qa_suite.sh",
+    "lint": "eslint eslint.config.mjs \"frontend/tactical-editor/**/*.{ts,tsx}\"",
+    "lint:legacy": "eslint \"football/static/football/js/pitch_surface_25d.js\" \"football/static/football/js/session_task_detail_3d.js\" \"football/static/football/js/sessions_tactical_pad.js\"",
+    "format": "prettier --write package.json .prettierrc .pre-commit-config.yaml eslint.config.mjs \"frontend/tactical-editor/**/*.{ts,tsx,js,json,css,md}\"",
+    "format:check": "prettier --check package.json .prettierrc .pre-commit-config.yaml eslint.config.mjs \"frontend/tactical-editor/**/*.{ts,tsx,js,json,css,md}\"",
+    "test:e2e": "playwright test",
     "e2e:audit": "node scripts/e2e_audit_playwright.js",
     "e2e:task-layout": "node scripts/e2e_task_builder_layout_smoke.mjs",
     "e2e:video-studio": "node scripts/e2e_video_studio_smoke.js",
@@ -10,8 +15,16 @@
     "stadium:inspect": "gltf-transform inspect football/static/football/models/stadium/premium-bowl-stadium.glb"
   },
   "devDependencies": {
+    "@eslint/js": "^9.34.0",
+    "@typescript-eslint/eslint-plugin": "^8.41.0",
+    "@typescript-eslint/parser": "^8.41.0",
     "@gltf-transform/cli": "^4.3.0",
+    "eslint": "^9.34.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "globals": "^16.3.0",
     "playwright": "^1.58.2",
+    "prettier": "^3.6.2",
     "three": "^0.160.0"
   }
 }
