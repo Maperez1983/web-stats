@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 import os
+import sys
+from importlib.util import find_spec
 from urllib.parse import urlparse
 import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
@@ -41,6 +43,7 @@ def _env_int(name, default):
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'false').lower() == 'true'
+IS_PYTEST = 'PYTEST_CURRENT_TEST' in os.environ or any('pytest' in str(arg) for arg in sys.argv)
 
 # Hard safety switch: allow ORM in async contexts (NOT recommended).
 # Only enable temporarily to unblock production if the environment forces an event loop.
@@ -52,7 +55,7 @@ if DJANGO_ALLOW_ASYNC_UNSAFE_ENV in {'1', 'true', 'yes', 'on'}:
 SECRET_KEY = os.getenv('SECRET_KEY', '').strip()
 if not SECRET_KEY:
     if DEBUG:
-        SECRET_KEY = 'dev-insecure-change-me'
+        SECRET_KEY = 'dev-insecure-change-me'  # pragma: allowlist secret
     else:
         raise ImproperlyConfigured('SECRET_KEY es obligatorio cuando DEBUG=False')
 
@@ -203,6 +206,12 @@ INSTALLED_APPS = [
     'football',
 ]
 
+if DEBUG and find_spec('django_extensions') is not None:
+    INSTALLED_APPS.append('django_extensions')
+
+if DEBUG and find_spec('debug_toolbar') is not None:
+    INSTALLED_APPS.append('debug_toolbar')
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     # Fuerza host canónico para evitar mezcla de dominios (p.ej. Render hostname vs dominio público).
@@ -222,6 +231,13 @@ MIDDLEWARE = [
     'football.middleware.SlowRequestLoggingMiddleware',
     # Diagnóstico (opcional): Server-Timing (Network panel), activable con `PERF_SERVER_TIMING`.
     'football.middleware.ServerTimingMiddleware',
+]
+
+if DEBUG and 'debug_toolbar' in INSTALLED_APPS:
+    MIDDLEWARE.insert(4, 'debug_toolbar.middleware.DebugToolbarMiddleware')
+
+INTERNAL_IPS = [
+    value.strip() for value in str(os.getenv('INTERNAL_IPS') or '127.0.0.1,::1').split(',') if value.strip()
 ]
 
 # Rendimiento en producción: comprime HTML/JSON (Cloudflare suele hacerlo, pero esto ayuda si se accede
@@ -319,6 +335,11 @@ if not DEBUG:
     SECURE_HSTS_SECONDS = int(os.getenv('SECURE_HSTS_SECONDS', '31536000'))
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
+
+if IS_PYTEST:
+    SECURE_SSL_REDIRECT = False
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
 
 ROOT_URLCONF = 'webstats.urls'
 
@@ -522,6 +543,24 @@ elif not DEBUG:
         },
         'staticfiles': {
             'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+        },
+    }
+
+if 'STORAGES' not in globals():
+    STORAGES = {
+        'default': {
+            'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        },
+        'staticfiles': {
+            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+        },
+    }
+
+if IS_PYTEST:
+    STORAGES = {
+        **STORAGES,
+        'staticfiles': {
+            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
         },
     }
 

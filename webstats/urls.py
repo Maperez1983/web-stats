@@ -18,8 +18,6 @@ from django.contrib import admin
 from django.conf import settings
 from django.urls import include, path
 from django.urls import re_path
-from django.views.static import serve
-from django.contrib.auth.decorators import login_required
 from django.contrib.auth import views as auth_views
 
 from football.auth_views import RoleAwareLoginView, service_token_login_page
@@ -38,6 +36,14 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('football.urls')),
 ]
+
+if settings.DEBUG and 'debug_toolbar' in settings.INSTALLED_APPS:
+    import debug_toolbar
+
+    urlpatterns = [
+        path('__debug__/', include(debug_toolbar.urls)),
+        *urlpatterns,
+    ]
 
 # En producción sin S3, seguimos sirviendo MEDIA_URL desde la app (Render no sirve /media/ por defecto).
 # Se protege con login para que las fotos/archivos solo se vean con sesión iniciada.
