@@ -47,6 +47,29 @@ fi
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 
+if ! command -v node >/dev/null 2>&1; then
+  echo "Node.js is required to build the tactical editor frontend." >&2
+  exit 1
+fi
+if ! command -v npm >/dev/null 2>&1; then
+  echo "npm is required to build the tactical editor frontend." >&2
+  exit 1
+fi
+
+npm --prefix frontend/tactical-editor ci
+npm --prefix frontend/tactical-editor run build
+
+for tactical_asset in \
+  football/static/football/editor-pro/index.html \
+  football/static/football/editor-pro/tactical-editor.js \
+  football/static/football/editor-pro/tactical-editor.css
+do
+  if [ ! -f "${tactical_asset}" ]; then
+    echo "Missing tactical editor asset after build: ${tactical_asset}" >&2
+    exit 1
+  fi
+done
+
 _ollama_install_flag="$(echo "${INSTALL_OLLAMA:-false}" | tr '[:upper:]' '[:lower:]' | xargs)"
 if [ "${_ollama_install_flag}" = "true" ] || [ "${_ollama_install_flag}" = "1" ] || [ "${_ollama_install_flag}" = "yes" ] || [ "${_ollama_install_flag}" = "on" ]; then
   bash scripts/install_ollama.sh || {
