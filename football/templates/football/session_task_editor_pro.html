@@ -1,0 +1,21 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>{{ task.title }} · Editor Pro</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/editor-pro/tactical-editor.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+  </head>
+  <body>
+    <div
+      id="tactical-editor-root"
+      data-document-url="{{ editor_document_api_url }}"
+      data-detail-url="{{ detail_url }}"
+      data-builder-url="{{ builder_url }}"
+    ></div>
+    <script id="task-editor-pro-bootstrap" type="application/json">{{ document_payload_json|safe }}</script>
+    <script type="module" src="{% static 'football/editor-pro/tactical-editor.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>
+  </body>
+</html>
