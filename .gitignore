@@ -26,3 +26,9 @@ data/video_ai/**/*.cache
 db.sqlite3.bak-*
 stats-/
 web-stats/
+# Tactical editor TypeScript cache
+frontend/tactical-editor/tsconfig.tsbuildinfo
+# Tactical editor generated bundle
+football/static/football/editor-pro/
+# Local QA outputs
+output/qa/
