@@ -1,0 +1,339 @@
+:root {
+  color-scheme: dark;
+  font-family: 'Avenir Next', 'Inter', 'Segoe UI', sans-serif;
+  background: #020817;
+  color: #f8fafc;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at top left, rgba(34, 197, 94, 0.12), transparent 24%),
+    radial-gradient(circle at top right, rgba(56, 189, 248, 0.14), transparent 18%),
+    linear-gradient(180deg, #020817 0%, #08101d 100%);
+}
+
+.te-app {
+  display: grid;
+  min-height: 100vh;
+  padding: 1rem;
+  gap: 1rem;
+  grid-template-columns: 280px minmax(0, 1fr) 320px;
+  grid-template-rows: auto minmax(0, 1fr) 180px;
+}
+
+.te-panel {
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 24px;
+  background: rgba(9, 18, 34, 0.9);
+  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.24);
+}
+
+.te-topbar {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.2rem;
+}
+
+.te-topbar-actions {
+  display: grid;
+  gap: 0.65rem;
+  justify-items: end;
+}
+
+.te-kicker {
+  color: #86efac;
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.te-topbar h1 {
+  margin: 0.18rem 0;
+  font-size: clamp(1.5rem, 2.6vw, 2.4rem);
+}
+
+.te-pills,
+.te-segmented {
+  display: flex;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.te-topbar-error {
+  margin-top: 0.45rem;
+  color: #fecaca;
+  font-weight: 700;
+}
+
+.te-pills span,
+.te-segmented button,
+.te-tool-btn {
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  min-height: 38px;
+  padding: 0 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.te-segmented button:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.te-segmented button.is-active {
+  background: linear-gradient(135deg, rgba(21, 128, 61, 0.85), rgba(34, 197, 94, 0.95));
+  border-color: transparent;
+}
+
+.te-segmented.small button {
+  min-height: 34px;
+  font-size: 0.72rem;
+}
+
+.te-sidebar,
+.te-inspector,
+.te-canvas,
+.te-timeline {
+  overflow: hidden;
+}
+
+.te-sidebar {
+  padding: 1rem;
+}
+
+.te-callout {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+  padding: 0.9rem;
+  border-radius: 18px;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.22);
+}
+
+.te-callout code {
+  font-family: 'SFMono-Regular', 'Menlo', monospace;
+}
+
+.te-tool-family + .te-tool-family {
+  margin-top: 1rem;
+}
+
+.te-tool-family h3,
+.te-panel-head h2 {
+  margin: 0 0 0.6rem;
+  font-size: 0.88rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.te-tool-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.te-tool-btn.is-active {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(34, 197, 94, 0.18));
+  border-color: rgba(56, 189, 248, 0.4);
+}
+
+.te-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 1rem 1rem 0.85rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.te-canvas {
+  padding: 0;
+}
+
+.te-canvas-stage {
+  position: relative;
+  min-height: 520px;
+  margin: 1rem;
+  border-radius: 24px;
+  overflow: hidden;
+  background: rgba(2, 6, 23, 0.8);
+  border: 1px dashed rgba(56, 189, 248, 0.18);
+}
+
+.te-konva-stage {
+  touch-action: none;
+}
+
+.te-konva-stage.is-hidden {
+  display: none;
+}
+
+.te-canvas-alt {
+  min-height: 520px;
+  margin: 1rem;
+  border-radius: 24px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.te-canvas-image {
+  width: 100%;
+  height: 100%;
+  min-height: 520px;
+  object-fit: cover;
+  display: block;
+}
+
+.te-canvas-iframe {
+  width: 100%;
+  height: 100%;
+  min-height: 520px;
+  display: block;
+  border: 0;
+  background: #020617;
+}
+
+.te-board-svg {
+  width: 100%;
+  height: 100%;
+  min-height: 520px;
+  display: block;
+  background: #0a3b1e;
+  cursor: default;
+}
+
+.te-canvas-overlay {
+  position: absolute;
+  left: 1rem;
+  bottom: 1rem;
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.85rem 1rem;
+  border-radius: 18px;
+  background: rgba(2, 6, 23, 0.72);
+  backdrop-filter: blur(16px);
+  z-index: 2;
+}
+
+.te-error-text {
+  color: #fca5a5;
+  font-weight: 700;
+}
+
+.te-inspector-body,
+.te-timeline-ruler {
+  display: grid;
+  gap: 0.7rem;
+  padding: 1rem;
+}
+
+.te-form-grid {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.te-form-grid label {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 700;
+  color: #cbd5e1;
+}
+
+.te-form-grid input,
+.te-form-grid select {
+  min-height: 38px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: #f8fafc;
+  padding: 0 0.7rem;
+}
+
+.te-form-grid input[type='color'] {
+  padding: 0.25rem;
+}
+
+.te-action-row,
+.te-layer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.te-action-row button,
+.te-layer-actions button {
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  min-height: 34px;
+  padding: 0 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.te-layer-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.9rem;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 18px;
+  padding: 0.8rem 0.9rem;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.te-layer-row strong,
+.te-layer-row span {
+  display: block;
+}
+
+.te-canvas-footer {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 0 1rem 1rem;
+}
+
+.te-stat-card,
+.te-tick {
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 18px;
+  padding: 0.8rem 0.9rem;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.te-stat-card strong,
+.te-tick strong {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.te-timeline {
+  grid-column: 1 / -1;
+}
+
+.te-timeline-ruler {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+@media (max-width: 1180px) {
+  .te-app {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto auto auto;
+  }
+
+  .te-canvas-footer {
+    grid-template-columns: 1fr;
+  }
+}
