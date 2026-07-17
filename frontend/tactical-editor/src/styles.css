@@ -194,6 +194,7 @@ body {
   flex-direction: column;
   min-height: 0;
   padding: 0;
+  position: relative;
 }
 
 .te-canvas-stage {
@@ -261,6 +262,38 @@ body {
   background: rgba(2, 6, 23, 0.72);
   backdrop-filter: blur(16px);
   z-index: 2;
+}
+
+.te-context-menu {
+  position: absolute;
+  z-index: 6;
+  display: grid;
+  gap: 0.4rem;
+  width: min(240px, calc(100% - 16px));
+  padding: 0.7rem;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(2, 6, 23, 0.96);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(16px);
+}
+
+.te-context-menu button {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(255, 255, 255, 0.05);
+  color: #f8fafc;
+  min-height: 34px;
+  padding: 0 0.8rem;
+  text-align: left;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.te-context-menu button:hover {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.35);
 }
 
 .te-error-text {

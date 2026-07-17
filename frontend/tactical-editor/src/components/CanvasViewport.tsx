@@ -3,7 +3,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { drawPitchLayer } from '../editor/pitch/PitchRenderer';
 import { normalizeSelectionBox } from '../editor/core/SelectionManager';
-import { projectSceneAtTime, snapObjectPosition, selectableObjects } from '../editor/core/editorOperations';
+import {
+  isSelectableObject,
+  projectSceneAtTime,
+  snapObjectPosition,
+  selectableObjects,
+} from '../editor/core/editorOperations';
 import { createKonvaNode } from '../editor/objects/ObjectRenderer';
 import { useEditorStore } from '../store/editorStore';
 import type { CanvasApi } from '../store/editorStore';
@@ -35,12 +40,21 @@ type SelectionBoxState = {
   startY: number;
   endX: number;
   endY: number;
+  additive: boolean;
+} | null;
+
+type ContextMenuState = {
+  x: number;
+  y: number;
 } | null;
 
 type StagePointerLikeEvent = {
   clientX: number;
   clientY: number;
+  button?: number;
   shiftKey: boolean;
+  metaKey?: boolean;
+  ctrlKey?: boolean;
 };
 
 function layerOrder(sceneLayers: Array<{ id: SceneLayerId; order: number }>): SceneLayerId[] {
@@ -457,13 +471,25 @@ export function CanvasViewport() {
   const activeTool = useEditorStore((state) => state.activeTool);
   const scene = useEditorStore((state) => state.scene);
   const selectedIds = useEditorStore((state) => state.selectedIds);
+  const snapGuides = useEditorStore((state) => state.snapGuides);
   const error = useEditorStore((state) => state.error);
   const selectSingle = useEditorStore((state) => state.selectSingle);
   const setSelection = useEditorStore((state) => state.setSelection);
   const toggleObjectSelection = useEditorStore((state) => state.toggleObjectSelection);
   const addSceneObject = useEditorStore((state) => state.addSceneObject);
   const replaceSceneObject = useEditorStore((state) => state.replaceSceneObject);
+  const copySelectedObjects = useEditorStore((state) => state.copySelectedObjects);
+  const pasteClipboard = useEditorStore((state) => state.pasteClipboard);
+  const duplicateSelectedObjects = useEditorStore((state) => state.duplicateSelectedObjects);
+  const removeSelectedObjects = useEditorStore((state) => state.removeSelectedObjects);
+  const setSelectionVisibility = useEditorStore((state) => state.setSelectionVisibility);
+  const setSelectionLock = useEditorStore((state) => state.setSelectionLock);
+  const moveSelectionToLayer = useEditorStore((state) => state.moveSelectionToLayer);
+  const groupSelected = useEditorStore((state) => state.groupSelected);
+  const ungroupSelected = useEditorStore((state) => state.ungroupSelected);
+  const reorderSelected = useEditorStore((state) => state.reorderSelected);
   const setSnapGuides = useEditorStore((state) => state.setSnapGuides);
+  const setInspector = useEditorStore((state) => state.setInspector);
   const beginTransaction = useEditorStore((state) => state.beginTransaction);
   const commitTransaction = useEditorStore((state) => state.commitTransaction);
   const setSceneViewport = useEditorStore((state) => state.setSceneViewport);
@@ -473,6 +499,7 @@ export function CanvasViewport() {
   const layersRef = useRef<Record<string, Konva.Layer>>({});
   const transformerRef = useRef<Konva.Transformer | null>(null);
   const selectionRectRef = useRef<Konva.Rect | null>(null);
+  const snapGuideGroupRef = useRef<Konva.Group | null>(null);
   const nodeMapRef = useRef(new Map<string, Konva.Node>());
   const sizeRef = useRef({ width: 0, height: 0 });
   const stageModeRef = useRef<StageMode>('idle');
@@ -486,7 +513,9 @@ export function CanvasViewport() {
   } | null>(null);
   const isSpacePressedRef = useRef(false);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const [contextMenu, setContextMenu] = useState<ContextMenuState>(null);
   const lastAutoFitSignatureRef = useRef<string>('');
+  const contextMenuRef = useRef<HTMLDivElement | null>(null);
   const previewImageUrl = document?.graphic.preview_2d_url || document?.ai.preview_url || '';
   const embed3dUrl = document?.graphic.preview_3d_embed_url || '';
   const renderScene = useMemo(
@@ -550,6 +579,10 @@ export function CanvasViewport() {
     const textsLayer = new Konva.Layer();
     const annotationsLayer = new Konva.Layer();
     const uiLayer = new Konva.Layer();
+    const snapGuideGroup = new Konva.Group({
+      visible: false,
+      listening: false,
+    });
     const transformer = new Konva.Transformer({
       rotateEnabled: true,
       enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
@@ -569,6 +602,7 @@ export function CanvasViewport() {
     });
 
     uiLayer.add(selectionRect);
+    uiLayer.add(snapGuideGroup);
     uiLayer.add(transformer);
     stage.add(
       pitchLayer,
@@ -594,6 +628,7 @@ export function CanvasViewport() {
     };
     transformerRef.current = transformer;
     selectionRectRef.current = selectionRect;
+    snapGuideGroupRef.current = snapGuideGroup;
 
     const handleMouseDown = (event: Konva.KonvaEventObject<MouseEvent>) => {
       handleStagePointerDown(event.evt as StagePointerLikeEvent);
@@ -619,6 +654,7 @@ export function CanvasViewport() {
       layersRef.current = {};
       transformerRef.current = null;
       selectionRectRef.current = null;
+      snapGuideGroupRef.current = null;
     };
   }, [featureEnabled, containerSize]);
 
@@ -652,12 +688,15 @@ export function CanvasViewport() {
         const stage = stageRef.current;
         const transformer = transformerRef.current;
         const selectionRect = selectionRectRef.current;
+        const snapGuideGroup = snapGuideGroupRef.current;
         if (!stage) return null;
         const previousTransformerVisible = transformer?.visible() ?? false;
         const previousSelectionVisible = selectionRect?.visible() ?? false;
+        const previousGuidesVisible = snapGuideGroup?.visible() ?? false;
         if (!options?.includeUi) {
           transformer?.hide();
           selectionRect?.hide();
+          snapGuideGroup?.hide();
         }
         const dataUrl = stage.toDataURL({
           pixelRatio: options?.pixelRatio || 2,
@@ -666,6 +705,7 @@ export function CanvasViewport() {
         if (!options?.includeUi) {
           if (previousTransformerVisible) transformer?.show();
           if (previousSelectionVisible) selectionRect?.show();
+          if (previousGuidesVisible) snapGuideGroup?.show();
           layersRef.current.ui?.batchDraw();
         }
         return dataUrl;
@@ -772,7 +812,7 @@ export function CanvasViewport() {
             basePositions,
           };
         });
-        node.on('dragmove', () => {
+        node.on('dragmove', (dragEvent) => {
           const drag = nodeDragRef.current;
           const currentStore = useEditorStore.getState();
           const currentScene = currentStore.scene;
@@ -791,7 +831,7 @@ export function CanvasViewport() {
                   y: node.y(),
                 },
                 currentScene.metadata.preferences,
-                { movingIds: drag.ids }
+                { movingIds: drag.ids, ignore: Boolean(dragEvent.evt.altKey) }
               )
             : { x: node.x(), y: node.y(), guides: [] };
           const deltaX = snapped.x - anchorBase.x;
@@ -874,6 +914,36 @@ export function CanvasViewport() {
   }, [featureEnabled, selectedIds, scene]);
 
   useEffect(() => {
+    if (!featureEnabled || !scene || !stageRef.current) {
+      return;
+    }
+    const guideGroup = snapGuideGroupRef.current;
+    if (!guideGroup) {
+      return;
+    }
+    guideGroup.destroyChildren();
+    const showGuides = Boolean(scene.metadata.preferences.showGuides);
+    if (showGuides && snapGuides.length) {
+      snapGuides.forEach((guide) => {
+        guideGroup.add(
+          new Konva.Line({
+            points: [guide.x1, guide.y1, guide.x2, guide.y2],
+            stroke: '#f59e0b',
+            strokeWidth: 1.5,
+            dash: [10, 6],
+            opacity: 0.92,
+            listening: false,
+          })
+        );
+      });
+      guideGroup.visible(true);
+    } else {
+      guideGroup.visible(false);
+    }
+    layersRef.current.ui?.batchDraw();
+  }, [featureEnabled, scene?.metadata.preferences.showGuides, snapGuides]);
+
+  useEffect(() => {
     if (!featureEnabled || !stageRef.current) {
       return undefined;
     }
@@ -894,6 +964,29 @@ export function CanvasViewport() {
       window.removeEventListener('keyup', handleKeyUp);
     };
   }, [featureEnabled]);
+
+  useEffect(() => {
+    if (!contextMenu) {
+      return undefined;
+    }
+    const closeMenu = (event: MouseEvent) => {
+      if (contextMenuRef.current && event.target instanceof Node && contextMenuRef.current.contains(event.target)) {
+        return;
+      }
+      setContextMenu(null);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setContextMenu(null);
+      }
+    };
+    window.addEventListener('mousedown', closeMenu, true);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('mousedown', closeMenu, true);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [contextMenu]);
 
   useEffect(() => {
     if (!featureEnabled || !scene || !stageRef.current) {
@@ -925,6 +1018,9 @@ export function CanvasViewport() {
     (event: StagePointerLikeEvent) => {
       const store = useEditorStore.getState();
       if (!store.featureEnabled || !stageRef.current || !store.scene || store.activeViewport !== 'board2d') {
+        return;
+      }
+      if (event.button === 2) {
         return;
       }
       const stage = stageRef.current;
@@ -983,12 +1079,14 @@ export function CanvasViewport() {
         }
         return;
       }
+      setContextMenu(null);
       stageModeRef.current = 'selecting';
       dragSelectionRef.current = {
         startX: pointer.x,
         startY: pointer.y,
         endX: pointer.x,
         endY: pointer.y,
+        additive: Boolean(event.shiftKey || event.metaKey || event.ctrlKey),
       };
       if (selectionRectRef.current) {
         selectionRectRef.current.visible(true);
@@ -996,9 +1094,43 @@ export function CanvasViewport() {
         selectionRectRef.current.size({ width: 0, height: 0 });
         layersRef.current.ui?.batchDraw();
       }
-      if (!event.shiftKey) {
+      if (!(event.shiftKey || event.metaKey || event.ctrlKey)) {
         store.selectSingle(null);
       }
+    },
+    []
+  );
+
+  const openContextMenu = useCallback(
+    (event: StagePointerLikeEvent) => {
+      const store = useEditorStore.getState();
+      if (!store.featureEnabled || !store.scene || store.activeViewport !== 'board2d') {
+        return;
+      }
+      const stage = stageRef.current;
+      const container = containerRef.current;
+      if (!stage || !container) return;
+      const pointer = pointerFromEvent(stage, container, event);
+      if (!pointer) return;
+      const target = findInteractiveNodeAtPointer(
+        stage,
+        pointer,
+        nodeMapRef.current,
+        store.scene.objects
+      );
+      if (target) {
+        const objectId = String(target.name());
+        const object = store.scene.objects.find((item) => item.id === objectId);
+        if (object && isSelectableObject(store.scene, object) && !store.selectedIds.includes(objectId)) {
+          store.selectSingle(objectId);
+        }
+      } else if (!event.shiftKey && !event.metaKey && !event.ctrlKey) {
+        store.selectSingle(null);
+      }
+      setContextMenu({
+        x: Math.min(pointer.x + 8, Math.max(8, container.clientWidth - 260)),
+        y: Math.min(pointer.y + 8, Math.max(8, container.clientHeight - 260)),
+      });
     },
     []
   );
@@ -1082,8 +1214,9 @@ export function CanvasViewport() {
           width: dragSelectionRef.current.endX - dragSelectionRef.current.startX,
           height: dragSelectionRef.current.endY - dragSelectionRef.current.startY,
         });
+        const selectableIds = new Set(selectableObjects(store.scene).map((object) => object.id));
         const ids = store.scene.objects
-          .filter((object) => object.visible && !object.locked)
+          .filter((object) => selectableIds.has(object.id))
           .map((object) => nodeMapRef.current.get(object.id))
           .filter((node): node is Konva.Node => Boolean(node))
           .filter((node) =>
@@ -1091,7 +1224,10 @@ export function CanvasViewport() {
           )
           .map((node) => String(node.name()))
           .filter(Boolean);
-        store.setSelection(ids);
+        const nextSelection = dragSelectionRef.current.additive
+          ? [...new Set([...store.selectedIds, ...ids])]
+          : ids;
+        store.setSelection(nextSelection);
       }
       if (stageModeRef.current === 'dragging' && nodeDragRef.current) {
         const drag = nodeDragRef.current;
@@ -1116,6 +1252,28 @@ export function CanvasViewport() {
   );
 
   const boardObjectsCount = renderScene?.objects.length || 0;
+  const selectedLayerId = scene && selectedIds.length
+    ? scene.objects.find((object) => object.id === selectedIds[0])?.layerId || 'players'
+    : 'players';
+
+  const handleMoveToLayer = () => {
+    const store = useEditorStore.getState();
+    if (!store.selectedIds.length || !store.scene) {
+      return;
+    }
+    const targetLayer = window.prompt(
+      'Mover selección a capa',
+      String(
+        store.scene.objects.find((object) => object.id === store.selectedIds[0])?.layerId ||
+          selectedLayerId
+      )
+    );
+    if (!targetLayer) {
+      return;
+    }
+    moveSelectionToLayer(targetLayer as SceneLayerId);
+    setContextMenu(null);
+  };
 
   if (!featureEnabled) {
     return <LegacyCanvasViewport />;
@@ -1130,6 +1288,16 @@ export function CanvasViewport() {
       <div
         ref={containerRef}
         className={`te-canvas-stage te-konva-stage ${activeViewport === 'board2d' ? '' : 'is-hidden'}`}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          openContextMenu({
+            clientX: event.clientX,
+            clientY: event.clientY,
+            shiftKey: event.shiftKey,
+            metaKey: event.metaKey,
+            ctrlKey: event.ctrlKey,
+          });
+        }}
       />
       {activeViewport === 'board3d' && embed3dUrl ? (
         <iframe
@@ -1170,6 +1338,117 @@ export function CanvasViewport() {
           <span>{document?.graphic.preview_3d_embed_url ? 'Sincronizable' : 'Pendiente'}</span>
         </div>
       </div>
+      {contextMenu ? (
+        <div
+          ref={contextMenuRef}
+          className="te-context-menu"
+          style={{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }}
+          onContextMenu={(event) => event.preventDefault()}
+        >
+          <button
+            type="button"
+            onClick={() => {
+              copySelectedObjects();
+              setContextMenu(null);
+            }}
+          >
+            Copiar
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              pasteClipboard();
+              setContextMenu(null);
+            }}
+          >
+            Pegar
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              duplicateSelectedObjects();
+              setContextMenu(null);
+            }}
+          >
+            Duplicar
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              removeSelectedObjects();
+              setContextMenu(null);
+            }}
+          >
+            Eliminar
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectionLock(true);
+              setContextMenu(null);
+            }}
+          >
+            Bloquear
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectionVisibility(false);
+              setContextMenu(null);
+            }}
+          >
+            Ocultar
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              groupSelected();
+              setContextMenu(null);
+            }}
+          >
+            Agrupar
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              ungroupSelected();
+              setContextMenu(null);
+            }}
+          >
+            Desagrupar
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              reorderSelected('front');
+              setContextMenu(null);
+            }}
+          >
+            Traer al frente
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              reorderSelected('back');
+              setContextMenu(null);
+            }}
+          >
+            Enviar al fondo
+          </button>
+          <button type="button" onClick={handleMoveToLayer}>
+            Mover a capa
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setInspector('properties');
+              setContextMenu(null);
+            }}
+          >
+            Abrir inspector
+          </button>
+        </div>
+      ) : null}
     </section>
   );
 }

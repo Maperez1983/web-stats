@@ -171,6 +171,9 @@ test('selection helpers respect visibility locking layers and groups', () => {
   assert.deepEqual(editorOperations.selectByLayer(scene, 'players'), [player.id]);
   assert.deepEqual(editorOperations.expandSelectionByGroups(scene, [player.id]).sort(), [player.id, cone.id].sort());
   assert.deepEqual(editorOperations.invertSelection(scene, [player.id]), [cone.id]);
+  const reordered = editorOperations.moveSelectionOrder(scene, [player.id], 'front');
+  const reorderedPlayer = reordered.objects.find((object) => object.id === player.id);
+  assert.ok(reorderedPlayer.zIndex >= cone.zIndex);
 });
 
 test('snapping alignment grouping and timeline projection stay deterministic', () => {
@@ -204,6 +207,14 @@ test('snapping alignment grouping and timeline projection stay deterministic', (
   );
   assert.equal(snapped.x, pitchGeometry.getPitchRect(snapScene).x - snapObject.width / 2);
   assert.ok(snapped.guides.length > 0);
+  const ignoredSnap = editorOperations.snapObjectPosition(
+    snapScene,
+    { ...snapObject, x: 31, y: 31 },
+    { snapEnabled: true, snapDistance: 20, gridVisible: false, gridSize: 10, showGuides: true },
+    { ignore: true }
+  );
+  assert.equal(ignoredSnap.x, 31);
+  assert.equal(ignoredSnap.guides.length, 0);
 
   const keyframeScene = sceneSchema.createDefaultScene('doc-4', 'Timeline');
   keyframeScene.objects.push(objectFactory.createObject('player', { x: 20, y: 20 }));

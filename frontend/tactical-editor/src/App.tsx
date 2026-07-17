@@ -40,6 +40,10 @@ export function App({ documentUrl }: AppProps) {
   const duplicateSelectedObjects = useEditorStore((state) => state.duplicateSelectedObjects);
   const removeSelectedObjects = useEditorStore((state) => state.removeSelectedObjects);
   const clearSelection = useEditorStore((state) => state.clearSelection);
+  const selectAllObjects = useEditorStore((state) => state.selectAllObjects);
+  const groupSelected = useEditorStore((state) => state.groupSelected);
+  const ungroupSelected = useEditorStore((state) => state.ungroupSelected);
+  const reorderSelected = useEditorStore((state) => state.reorderSelected);
   const saveStart = useEditorStore((state) => state.saveStart);
   const saveSuccess = useEditorStore((state) => state.saveSuccess);
   const saveError = useEditorStore((state) => state.saveError);
@@ -131,6 +135,15 @@ export function App({ documentUrl }: AppProps) {
       } else if (key === 'z') {
         event.preventDefault();
         undo();
+      } else if (key === 'a' && featureEnabled) {
+        event.preventDefault();
+        selectAllObjects();
+      } else if (key === 'g' && event.shiftKey && featureEnabled) {
+        event.preventDefault();
+        ungroupSelected();
+      } else if (key === 'g' && featureEnabled) {
+        event.preventDefault();
+        groupSelected();
       } else if (key === 'c' && featureEnabled) {
         event.preventDefault();
         copySelectedObjects();
@@ -140,6 +153,12 @@ export function App({ documentUrl }: AppProps) {
       } else if (key === 'd' && featureEnabled) {
         event.preventDefault();
         duplicateSelectedObjects();
+      } else if (key === ']' && featureEnabled) {
+        event.preventDefault();
+        reorderSelected('forward');
+      } else if (key === '[' && featureEnabled) {
+        event.preventDefault();
+        reorderSelected('backward');
       } else if (key === 's') {
         event.preventDefault();
         void handleSaveBoard();
@@ -156,6 +175,10 @@ export function App({ documentUrl }: AppProps) {
     copySelectedObjects,
     pasteClipboard,
     duplicateSelectedObjects,
+    selectAllObjects,
+    groupSelected,
+    ungroupSelected,
+    reorderSelected,
     saving,
     canvasApi,
     documentData,

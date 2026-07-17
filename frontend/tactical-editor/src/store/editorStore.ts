@@ -8,20 +8,44 @@ import {
   undoHistory,
 } from '../editor/core/HistoryManager';
 import {
+  alignObjects,
+  captureTimelineKeyframe,
+  distributeObjects,
+  equalizeObjectSize,
+  expandSelectionByGroups,
+  getSelectionBounds,
+  groupObjects,
+  invertSelection,
+  isSelectableObject,
+  moveSelectionOrder,
+  projectSceneAtTime,
+  selectAllIds,
+  selectByLayer,
+  selectByType,
+  snapObjectPosition,
+  ungroupObjects,
+} from '../editor/core/editorOperations';
+import {
   createDefaultLayers,
+  createLayer,
+  duplicateLayer,
   moveLayer,
+  moveObjectsToLayer,
+  removeLayer,
+  renameLayer,
   toggleLayerLock,
   toggleLayerVisibility,
 } from '../editor/core/LayerManager';
-import { toggleSelection } from '../editor/core/SelectionManager';
 import { createDefaultScene, createUuid, deepClone } from '../editor/core/sceneSchema';
 import type { HistoryState } from '../editor/core/HistoryManager';
 import type {
+  EditorPreferences,
   PitchType,
   SceneLayerId,
   SceneObject,
   SceneObjectType,
   TacticalScene,
+  SceneTimelineKeyframe,
 } from '../editor/core/sceneSchema';
 import { createObject } from '../editor/objects/ObjectFactory';
 import {
@@ -36,17 +60,47 @@ export type EditorTool =
   | 'select'
   | 'pan'
   | 'player'
+  | 'player-home'
+  | 'player-away'
+  | 'player-joker'
   | 'goalkeeper'
+  | 'goalkeeper-home'
+  | 'goalkeeper-away'
+  | 'coach'
+  | 'referee'
+  | 'injured-player'
+  | 'ball-carrier'
+  | 'numbered-player'
   | 'ball'
   | 'cone'
+  | 'high-cone'
   | 'pole'
+  | 'goal'
   | 'hoop'
   | 'mini-goal'
+  | 'bench'
+  | 'marker'
+  | 'flag'
+  | 'mannequin'
+  | 'bib'
   | 'arrow-straight'
   | 'arrow-curved'
+  | 'arrow-segmented'
+  | 'arrow-double'
+  | 'arrow-pass'
+  | 'arrow-run'
+  | 'trajectory'
   | 'line-dashed'
+  | 'line'
   | 'zone-rect'
   | 'zone-circle'
+  | 'zone-ellipse'
+  | 'zone-polygon'
+  | 'zone-free'
+  | 'lane'
+  | 'stripe-h'
+  | 'stripe-v'
+  | 'sector'
   | 'text'
   | 'label';
 
@@ -75,6 +129,7 @@ type EditorStore = {
   clipboard: SceneObject[];
   revision: number;
   canvasApi: CanvasApi | null;
+  snapGuides: Array<{ id: string; x1: number; y1: number; x2: number; y2: number }>;
   featureEnabled: boolean;
   setDocument: (document: TaskEditorDocument) => void;
   setViewport: (viewport: EditorViewport) => void;
@@ -85,6 +140,10 @@ type EditorStore = {
   selectSingle: (id: string | null) => void;
   toggleObjectSelection: (id: string, additive: boolean) => void;
   setSelection: (ids: string[]) => void;
+  selectAllObjects: () => void;
+  invertSelection: () => void;
+  selectObjectsByType: (type: SceneObjectType) => void;
+  selectObjectsByLayer: (layerId: SceneLayerId) => void;
   addSceneObject: (type: SceneObjectType, options?: { x?: number; y?: number }) => void;
   patchSceneObject: (
     id: string,
@@ -98,15 +157,40 @@ type EditorStore = {
   pasteClipboard: () => void;
   setObjectVisibility: (id: string, visible: boolean) => void;
   setObjectLock: (id: string, locked: boolean) => void;
+  setSelectionVisibility: (visible: boolean) => void;
+  setSelectionLock: (locked: boolean) => void;
   setObjectColor: (id: string, fill: string) => void;
+  setObjectStrokeColor: (id: string, stroke: string) => void;
+  setObjectOpacity: (id: string, opacity: number) => void;
+  setObjectRotation: (id: string, rotation: number) => void;
+  setObjectSize: (id: string, width: number, height: number) => void;
+  setObjectPoints: (id: string, points: number[]) => void;
   setObjectLabel: (id: string, label: string) => void;
+  setObjectName: (id: string, name: string) => void;
   setObjectTeam: (id: string, team: 'home' | 'away' | 'neutral' | 'joker') => void;
-  reorderSelected: (direction: 'forward' | 'backward') => void;
+  setObjectLayer: (id: string, layerId: SceneLayerId) => void;
+  reorderSelected: (direction: 'front' | 'forward' | 'backward' | 'back') => void;
+  alignSelected: (mode: 'left' | 'center-x' | 'right' | 'top' | 'center-y' | 'bottom') => void;
+  distributeSelected: (mode: 'horizontal' | 'vertical', gap?: number) => void;
+  equalizeSelectedSize: (mode: 'width' | 'height' | 'both') => void;
+  centerSelectedInField: () => void;
+  groupSelected: () => void;
+  ungroupSelected: () => void;
   setPitchType: (pitchType: PitchType) => void;
   setSceneViewport: (patch: Partial<TacticalScene['viewport']>) => void;
   setLayerVisibility: (layerId: SceneLayerId) => void;
   setLayerLock: (layerId: SceneLayerId) => void;
   moveLayerOrder: (layerId: SceneLayerId, direction: -1 | 1) => void;
+  createLayer: (name: string) => void;
+  renameLayer: (layerId: SceneLayerId, name: string) => void;
+  duplicateLayer: (layerId: SceneLayerId) => void;
+  removeLayer: (layerId: SceneLayerId) => void;
+  moveSelectionToLayer: (layerId: SceneLayerId) => void;
+  setSnapGuides: (guides: Array<{ id: string; x1: number; y1: number; x2: number; y2: number }>) => void;
+  updatePreferences: (patch: Partial<EditorPreferences>) => void;
+  addTimelineKeyframe: (time?: number, label?: string) => void;
+  removeTimelineKeyframe: (keyframeId: string) => void;
+  setTimelineTime: (time: number) => void;
   beginTransaction: () => void;
   commitTransaction: () => void;
   undo: () => void;
@@ -190,6 +274,49 @@ function sameSelection(left: string[], right: string[]): boolean {
   return left.length === right.length && left.every((item, index) => item === right[index]);
 }
 
+function getPreferences(scene: TacticalScene | null): EditorPreferences {
+  return scene?.metadata.preferences || {
+    snapEnabled: true,
+    snapDistance: 8,
+    gridVisible: false,
+    gridSize: 20,
+    showGuides: true,
+  };
+}
+
+function updateScenePreferences(scene: TacticalScene, patch: Partial<EditorPreferences>): TacticalScene {
+  return {
+    ...scene,
+    metadata: {
+      ...scene.metadata,
+      preferences: {
+        ...getPreferences(scene),
+        ...patch,
+      },
+    },
+  };
+}
+
+function normalizeGroupSelection(scene: TacticalScene, ids: string[]): string[] {
+  return expandSelectionByGroups(scene, ids).filter((id, index, array) => array.indexOf(id) === index);
+}
+
+function mutateSelectedSceneObjects(
+  scene: TacticalScene,
+  ids: string[],
+  mutator: (object: SceneObject) => SceneObject
+): TacticalScene {
+  const selected = new Set(ids);
+  return {
+    ...scene,
+    objects: scene.objects.map((object) => (selected.has(object.id) ? mutator(object) : object)),
+  };
+}
+
+function reorderSceneObjects(scene: TacticalScene, ids: string[], mode: 'front' | 'forward' | 'backward' | 'back'): TacticalScene {
+  return moveSelectionOrder(scene, ids, mode);
+}
+
 export const useEditorStore = create<EditorStore>((set, get) => ({
   document: null,
   scene: null,
@@ -204,6 +331,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   clipboard: [],
   revision: 0,
   canvasApi: null,
+  snapGuides: [],
   featureEnabled: isFeatureEnabled(),
   setDocument: (document) =>
     set({
@@ -214,6 +342,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       saving: false,
       error: null,
       history: createHistoryState(),
+      snapGuides: [],
     }),
   setViewport: (activeViewport) => set({ activeViewport }),
   setInspector: (activeInspector) => set({ activeInspector }),
@@ -222,16 +351,50 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   clearSelection: () => set({ selectedIds: [] }),
   selectSingle: (id) =>
     set((state) => {
-      const nextSelectedIds = id ? [id] : [];
+      const nextSelectedIds = id && state.scene ? normalizeGroupSelection(state.scene, [id]) : [];
       return sameSelection(state.selectedIds, nextSelectedIds) ? {} : { selectedIds: nextSelectedIds };
     }),
   toggleObjectSelection: (id, additive) =>
     set((state) => {
-      const nextSelectedIds = toggleSelection(state.selectedIds, id, additive);
+      const expanded = state.scene ? normalizeGroupSelection(state.scene, [id]) : [id];
+      const nextSelectedIds = additive
+        ? [...new Set([...state.selectedIds, ...expanded])]
+        : expanded;
       return sameSelection(state.selectedIds, nextSelectedIds) ? {} : { selectedIds: nextSelectedIds };
     }),
   setSelection: (selectedIds) =>
-    set((state) => (sameSelection(state.selectedIds, selectedIds) ? {} : { selectedIds })),
+    set((state) => {
+      const nextSelectedIds = state.scene ? normalizeGroupSelection(state.scene, selectedIds) : selectedIds;
+      return sameSelection(state.selectedIds, nextSelectedIds) ? {} : { selectedIds: nextSelectedIds };
+    }),
+  selectAllObjects: () =>
+    set((state) => {
+      if (!state.scene) {
+        return {};
+      }
+      return { selectedIds: selectAllIds(state.scene) };
+    }),
+  invertSelection: () =>
+    set((state) => {
+      if (!state.scene) {
+        return {};
+      }
+      return { selectedIds: invertSelection(state.scene, state.selectedIds) };
+    }),
+  selectObjectsByType: (type) =>
+    set((state) => {
+      if (!state.scene) {
+        return {};
+      }
+      return { selectedIds: selectByType(state.scene, type) };
+    }),
+  selectObjectsByLayer: (layerId) =>
+    set((state) => {
+      if (!state.scene) {
+        return {};
+      }
+      return { selectedIds: selectByLayer(state.scene, layerId) };
+    }),
   addSceneObject: (type, options) =>
     set((state) => {
       if (!state.scene) return {};
@@ -240,11 +403,24 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         y: options?.y,
         zIndex: state.scene.objects.length,
       });
+      const preferences = getPreferences(state.scene);
+      const snapped = snapObjectPosition(
+        state.scene,
+        { ...nextObject, x: Number(nextObject.x), y: Number(nextObject.y) },
+        preferences
+      );
       return withSceneMutation(
         state,
         (scene) => ({
           ...scene,
-          objects: [...scene.objects, nextObject],
+          objects: [
+            ...scene.objects,
+            {
+              ...nextObject,
+              x: snapped.x,
+              y: snapped.y,
+            },
+          ],
         }),
         { history: true, selectionIds: [nextObject.id] }
       );
@@ -283,11 +459,12 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   removeSelectedObjects: () =>
     set((state) => {
       if (!state.scene || !state.selectedIds.length) return {};
+      const selectedIds = normalizeGroupSelection(state.scene, state.selectedIds);
       return withSceneMutation(
         state,
         (scene) => ({
           ...scene,
-          objects: scene.objects.filter((object) => !state.selectedIds.includes(object.id)),
+          objects: scene.objects.filter((object) => !selectedIds.includes(object.id)),
         }),
         { history: true, clearSelection: true }
       );
@@ -295,13 +472,23 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   duplicateSelectedObjects: () =>
     set((state) => {
       if (!state.scene || !state.selectedIds.length) return {};
-      const copies = selectedObjects(state.scene, state.selectedIds).map((object, index) => ({
-        ...deepClone(object),
-        id: createUuid('dup'),
-        x: object.x + 28,
-        y: object.y + 28,
-        zIndex: state.scene ? state.scene.objects.length + index : index,
-      }));
+      const selectedIds = normalizeGroupSelection(state.scene, state.selectedIds);
+      const groupMap = new Map<string, string>();
+      const copies = selectedObjects(state.scene, selectedIds).map((object, index) => {
+        const copy = deepClone(object);
+        copy.id = createUuid('dup');
+        copy.x = object.x + 28;
+        copy.y = object.y + 28;
+        copy.zIndex = state.scene ? state.scene.objects.length + index : index;
+        if (copy.data?.groupId) {
+          const originalGroupId = String(copy.data.groupId);
+          if (!groupMap.has(originalGroupId)) {
+            groupMap.set(originalGroupId, createUuid('group'));
+          }
+          copy.data.groupId = groupMap.get(originalGroupId);
+        }
+        return copy;
+      });
       return withSceneMutation(
         state,
         (scene) => ({
@@ -313,18 +500,31 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     }),
   copySelectedObjects: () =>
     set((state) => ({
-      clipboard: selectedObjects(state.scene, state.selectedIds).map((object) => deepClone(object)),
+      clipboard: state.scene
+        ? selectedObjects(state.scene, normalizeGroupSelection(state.scene, state.selectedIds)).map(
+            (object) => deepClone(object)
+          )
+        : [],
     })),
   pasteClipboard: () =>
     set((state) => {
       if (!state.scene || !state.clipboard.length) return {};
-      const pasted = state.clipboard.map((object, index) => ({
-        ...deepClone(object),
-        id: createUuid('paste'),
-        x: object.x + 24,
-        y: object.y + 24,
-        zIndex: state.scene ? state.scene.objects.length + index : index,
-      }));
+      const groupMap = new Map<string, string>();
+      const pasted = state.clipboard.map((object, index) => {
+        const copy = deepClone(object);
+        copy.id = createUuid('paste');
+        copy.x = object.x + 24;
+        copy.y = object.y + 24;
+        copy.zIndex = state.scene ? state.scene.objects.length + index : index;
+        if (copy.data?.groupId) {
+          const originalGroupId = String(copy.data.groupId);
+          if (!groupMap.has(originalGroupId)) {
+            groupMap.set(originalGroupId, createUuid('group'));
+          }
+          copy.data.groupId = groupMap.get(originalGroupId);
+        }
+        return copy;
+      });
       return withSceneMutation(
         state,
         (scene) => ({
@@ -360,6 +560,40 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         { history: true }
       )
     ),
+  setSelectionVisibility: (visible) =>
+    set((state) => {
+      if (!state.scene || !state.selectedIds.length) {
+        return {};
+      }
+      const selectedIds = normalizeGroupSelection(state.scene, state.selectedIds);
+      return withSceneMutation(
+        state,
+        (scene) => ({
+          ...scene,
+          objects: scene.objects.map((object) =>
+            selectedIds.includes(object.id) ? { ...object, visible } : object
+          ),
+        }),
+        { history: true }
+      );
+    }),
+  setSelectionLock: (locked) =>
+    set((state) => {
+      if (!state.scene || !state.selectedIds.length) {
+        return {};
+      }
+      const selectedIds = normalizeGroupSelection(state.scene, state.selectedIds);
+      return withSceneMutation(
+        state,
+        (scene) => ({
+          ...scene,
+          objects: scene.objects.map((object) =>
+            selectedIds.includes(object.id) ? { ...object, locked } : object
+          ),
+        }),
+        { history: true }
+      );
+    }),
   setObjectColor: (id, fill) =>
     set((state) =>
       withSceneMutation(
@@ -368,6 +602,73 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
           ...scene,
           objects: scene.objects.map((object) =>
             object.id === id ? { ...object, style: { ...object.style, fill } } : object
+          ),
+        }),
+        { history: true }
+      )
+    ),
+  setObjectStrokeColor: (id, stroke) =>
+    set((state) =>
+      withSceneMutation(
+        state,
+        (scene) => ({
+          ...scene,
+          objects: scene.objects.map((object) =>
+            object.id === id ? { ...object, style: { ...object.style, stroke } } : object
+          ),
+        }),
+        { history: true }
+      )
+    ),
+  setObjectOpacity: (id, opacity) =>
+    set((state) =>
+      withSceneMutation(
+        state,
+        (scene) => ({
+          ...scene,
+          objects: scene.objects.map((object) =>
+            object.id === id ? { ...object, style: { ...object.style, opacity } } : object
+          ),
+        }),
+        { history: true }
+      )
+    ),
+  setObjectRotation: (id, rotation) =>
+    set((state) =>
+      withSceneMutation(
+        state,
+        (scene) => ({
+          ...scene,
+          objects: scene.objects.map((object) =>
+            object.id === id ? { ...object, rotation } : object
+          ),
+        }),
+        { history: true }
+      )
+    ),
+  setObjectSize: (id, width, height) =>
+    set((state) =>
+      withSceneMutation(
+        state,
+        (scene) => ({
+          ...scene,
+          objects: scene.objects.map((object) =>
+            object.id === id ? { ...object, width, height } : object
+          ),
+        }),
+        { history: true }
+      )
+    ),
+  setObjectPoints: (id, points) =>
+    set((state) =>
+      withSceneMutation(
+        state,
+        (scene) => ({
+          ...scene,
+          objects: scene.objects.map((object) =>
+            object.id === id
+              ? { ...object, data: { ...object.data, points: points.map((value) => Number(value)) } }
+              : object
           ),
         }),
         { history: true }
@@ -386,6 +687,19 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         { history: true }
       )
     ),
+  setObjectName: (id, name) =>
+    set((state) =>
+      withSceneMutation(
+        state,
+        (scene) => ({
+          ...scene,
+          objects: scene.objects.map((object) =>
+            object.id === id ? { ...object, data: { ...object.data, name } } : object
+          ),
+        }),
+        { history: true }
+      )
+    ),
   setObjectTeam: (id, team) =>
     set((state) =>
       withSceneMutation(
@@ -399,25 +713,93 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         { history: true }
       )
     ),
-  reorderSelected: (direction) =>
-    set((state) => {
-      if (!state.scene || !state.selectedIds.length) return {};
-      const delta = direction === 'forward' ? 1 : -1;
-      return withSceneMutation(
+  setObjectLayer: (id, layerId) =>
+    set((state) =>
+      withSceneMutation(
         state,
         (scene) => ({
           ...scene,
-          objects: scene.objects
-            .map((object) =>
-              state.selectedIds.includes(object.id)
-                ? { ...object, zIndex: object.zIndex + delta }
-                : object
-            )
-            .sort((a, b) => a.zIndex - b.zIndex)
-            .map((object, index) => ({ ...object, zIndex: index })),
+          objects: scene.objects.map((object) =>
+            object.id === id ? { ...object, layerId } : object
+          ),
         }),
         { history: true }
+      )
+    ),
+  reorderSelected: (direction) =>
+    set((state) => {
+      if (!state.scene || !state.selectedIds.length) return {};
+      const selectedIds = normalizeGroupSelection(state.scene, state.selectedIds);
+      return withSceneMutation(
+        state,
+        (scene) => reorderSceneObjects(scene, selectedIds, direction),
+        { history: true }
       );
+    }),
+  alignSelected: (mode) =>
+    set((state) => {
+      if (!state.scene || state.selectedIds.length < 2) return {};
+      const selectedIds = normalizeGroupSelection(state.scene, state.selectedIds);
+      return withSceneMutation(
+        state,
+        (scene) => alignObjects(scene, selectedIds, mode),
+        { history: true }
+      );
+    }),
+  distributeSelected: (mode, gap) =>
+    set((state) => {
+      if (!state.scene || state.selectedIds.length < 3) return {};
+      const selectedIds = normalizeGroupSelection(state.scene, state.selectedIds);
+      return withSceneMutation(
+        state,
+        (scene) => distributeObjects(scene, selectedIds, mode, gap),
+        { history: true }
+      );
+    }),
+  equalizeSelectedSize: (mode) =>
+    set((state) => {
+      if (!state.scene || state.selectedIds.length < 2) return {};
+      const selectedIds = normalizeGroupSelection(state.scene, state.selectedIds);
+      return withSceneMutation(
+        state,
+        (scene) => equalizeObjectSize(scene, selectedIds, mode),
+        { history: true }
+      );
+    }),
+  centerSelectedInField: () =>
+    set((state) => {
+      if (!state.scene || !state.selectedIds.length) return {};
+      const bounds = getSelectionBounds(state.scene, normalizeGroupSelection(state.scene, state.selectedIds));
+      if (!bounds) return {};
+      const field = state.scene.canvas;
+      const dx = field.width / 2 - (bounds.x + bounds.width / 2);
+      const dy = field.height / 2 - (bounds.y + bounds.height / 2);
+      return withSceneMutation(
+        state,
+        (scene) =>
+          mutateSelectedSceneObjects(scene, normalizeGroupSelection(scene, state.selectedIds), (object) => ({
+            ...object,
+            x: object.x + dx,
+            y: object.y + dy,
+          })),
+        { history: true }
+      );
+    }),
+  groupSelected: () =>
+    set((state) => {
+      if (!state.scene || state.selectedIds.length < 2) return {};
+      const selectedIds = normalizeGroupSelection(state.scene, state.selectedIds);
+      return withSceneMutation(state, (scene) => groupObjects(scene, selectedIds), {
+        history: true,
+      });
+    }),
+  ungroupSelected: () =>
+    set((state) => {
+      if (!state.scene || !state.selectedIds.length) return {};
+      const selectedIds = normalizeGroupSelection(state.scene, state.selectedIds);
+      return withSceneMutation(state, (scene) => ungroupObjects(scene, selectedIds), {
+        history: true,
+      });
     }),
   setPitchType: (pitchType) =>
     set((state) =>
@@ -430,6 +812,73 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         { history: true }
       )
     ),
+  createLayer: (name) =>
+    set((state) =>
+      withSceneMutation(
+        state,
+        (scene) => ({
+          ...scene,
+          layers: createLayer(scene.layers, name),
+        }),
+        { history: true }
+      )
+    ),
+  renameLayer: (layerId, name) =>
+    set((state) =>
+      withSceneMutation(
+        state,
+        (scene) => ({
+          ...scene,
+          layers: renameLayer(scene.layers, layerId, name),
+        }),
+        { history: true }
+      )
+    ),
+  duplicateLayer: (layerId) =>
+    set((state) =>
+      withSceneMutation(
+        state,
+        (scene) => ({
+          ...scene,
+          layers: duplicateLayer(scene.layers, layerId),
+        }),
+        { history: true }
+      )
+    ),
+  removeLayer: (layerId) =>
+    set((state) => {
+      if (!state.scene) {
+        return {};
+      }
+      return withSceneMutation(
+        state,
+        (scene) => {
+          const result = removeLayer(scene.layers, layerId, scene.objects);
+          return {
+            ...scene,
+            layers: result.layers,
+            objects: result.movedObjects.length
+              ? scene.objects.map((object) =>
+                  object.layerId === layerId
+                    ? { ...object, layerId: result.movedObjects[0].layerId }
+                    : object
+                )
+              : scene.objects,
+          };
+        },
+        { history: true }
+      );
+    }),
+  moveSelectionToLayer: (layerId) =>
+    set((state) => {
+      if (!state.scene || !state.selectedIds.length) {
+        return {};
+      }
+      const selectedIds = normalizeGroupSelection(state.scene, state.selectedIds);
+      return withSceneMutation(state, (scene) => moveObjectsToLayer(scene, selectedIds, layerId), {
+        history: true,
+      });
+    }),
   setSceneViewport: (patch) =>
     set((state) =>
       withSceneMutation(state, (scene) => ({
@@ -470,6 +919,82 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         { history: true }
       )
     ),
+  setSnapGuides: (guides) => set({ snapGuides: guides }),
+  updatePreferences: (patch) =>
+    set((state) => {
+      if (!state.scene) {
+        return {};
+      }
+      return withSceneMutation(
+        state,
+        (scene) => updateScenePreferences(scene, patch),
+        { history: true }
+      );
+    }),
+  addTimelineKeyframe: (time, label) =>
+    set((state) => {
+      if (!state.scene) {
+        return {};
+      }
+      const sceneTime = typeof time === 'number' ? time : state.scene.timeline.currentTime;
+      return withSceneMutation(
+        state,
+        (scene) => {
+          const keyframe = captureTimelineKeyframe(scene, sceneTime, {
+            label,
+            objectIds: normalizeGroupSelection(scene, state.selectedIds).length
+              ? normalizeGroupSelection(scene, state.selectedIds)
+              : undefined,
+          });
+          return {
+            ...scene,
+            timeline: {
+              ...scene.timeline,
+              duration: Math.max(scene.timeline.duration, sceneTime),
+              currentTime: sceneTime,
+              keyframes: [...scene.timeline.keyframes.filter((item) => item.id !== keyframe.id), keyframe].sort(
+                (left, right) => left.time - right.time
+              ),
+            },
+          };
+        },
+        { history: true }
+      );
+    }),
+  removeTimelineKeyframe: (keyframeId) =>
+    set((state) => {
+      if (!state.scene) {
+        return {};
+      }
+      return withSceneMutation(
+        state,
+        (scene) => ({
+          ...scene,
+          timeline: {
+            ...scene.timeline,
+            keyframes: scene.timeline.keyframes.filter((keyframe) => keyframe.id !== keyframeId),
+          },
+        }),
+        { history: true }
+      );
+    }),
+  setTimelineTime: (time) =>
+    set((state) => {
+      if (!state.scene) {
+        return {};
+      }
+      return withSceneMutation(
+        state,
+        (scene) => ({
+          ...scene,
+          timeline: {
+            ...scene.timeline,
+            currentTime: Math.max(0, time),
+          },
+        }),
+        { history: false }
+      );
+    }),
   beginTransaction: () =>
     set((state) => ({
       history: state.scene ? beginHistoryTransaction(state.history, state.scene) : state.history,

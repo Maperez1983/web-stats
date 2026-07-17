@@ -38,6 +38,14 @@ export function TopBar({
   const document = useEditorStore((state) => state.document);
   const activeViewport = useEditorStore((state) => state.activeViewport);
   const setViewport = useEditorStore((state) => state.setViewport);
+  const scene = useEditorStore((state) => state.scene);
+  const selectAllObjects = useEditorStore((state) => state.selectAllObjects);
+  const invertSelection = useEditorStore((state) => state.invertSelection);
+  const groupSelected = useEditorStore((state) => state.groupSelected);
+  const ungroupSelected = useEditorStore((state) => state.ungroupSelected);
+  const updatePreferences = useEditorStore((state) => state.updatePreferences);
+  const addTimelineKeyframe = useEditorStore((state) => state.addTimelineKeyframe);
+  const preferences = scene?.metadata.preferences;
 
   return (
     <header className="te-topbar te-panel">
@@ -72,6 +80,31 @@ export function TopBar({
             Ficha UEFA
           </button>
         </nav>
+        <div className="te-segmented">
+          <button onClick={() => selectAllObjects()}>Todo</button>
+          <button onClick={() => invertSelection()}>Invertir</button>
+          <button onClick={() => groupSelected()}>Agrupar</button>
+          <button onClick={() => ungroupSelected()}>Desagrupar</button>
+          <button
+            className={preferences?.snapEnabled ? 'is-active' : ''}
+            onClick={() => updatePreferences({ snapEnabled: !preferences?.snapEnabled })}
+          >
+            Snap
+          </button>
+          <button
+            className={preferences?.gridVisible ? 'is-active' : ''}
+            onClick={() => updatePreferences({ gridVisible: !preferences?.gridVisible })}
+          >
+            Grid
+          </button>
+          <button
+            className={preferences?.showGuides ? 'is-active' : ''}
+            onClick={() => updatePreferences({ showGuides: !preferences?.showGuides })}
+          >
+            Guías
+          </button>
+          <button onClick={() => addTimelineKeyframe()}>Keyframe</button>
+        </div>
         <div className="te-segmented">
           <button onClick={onUndo} disabled={!canUndo}>
             Deshacer
