@@ -3,10 +3,17 @@
   font-family: 'Avenir Next', 'Inter', 'Segoe UI', sans-serif;
   background: #020817;
   color: #f8fafc;
+  height: 100%;
 }
 
 * {
   box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
 }
 
 body {
@@ -15,15 +22,18 @@ body {
     radial-gradient(circle at top left, rgba(34, 197, 94, 0.12), transparent 24%),
     radial-gradient(circle at top right, rgba(56, 189, 248, 0.14), transparent 18%),
     linear-gradient(180deg, #020817 0%, #08101d 100%);
+  overflow: hidden;
 }
 
 .te-app {
   display: grid;
-  min-height: 100vh;
+  height: 100dvh;
+  min-height: 100dvh;
   padding: 1rem;
   gap: 1rem;
   grid-template-columns: 280px minmax(0, 1fr) 320px;
   grid-template-rows: auto minmax(0, 1fr) 180px;
+  overflow: hidden;
 }
 
 .te-panel {
@@ -110,6 +120,13 @@ body {
 
 .te-sidebar {
   padding: 1rem;
+  overflow: auto;
+  min-height: 0;
+}
+
+.te-inspector {
+  overflow: auto;
+  min-height: 0;
 }
 
 .te-callout {
@@ -158,13 +175,17 @@ body {
 }
 
 .te-canvas {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   padding: 0;
 }
 
 .te-canvas-stage {
+  flex: 1 1 auto;
+  min-height: 0;
   position: relative;
-  min-height: 520px;
-  margin: 1rem;
+  margin: 1rem 1rem 0.75rem;
   border-radius: 24px;
   overflow: hidden;
   background: rgba(2, 6, 23, 0.8);
@@ -180,8 +201,9 @@ body {
 }
 
 .te-canvas-alt {
-  min-height: 520px;
-  margin: 1rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 1rem 1rem 0.75rem;
   border-radius: 24px;
   overflow: hidden;
   border: 1px solid rgba(148, 163, 184, 0.16);
@@ -302,7 +324,7 @@ body {
   display: grid;
   gap: 0.8rem;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  padding: 0 1rem 1rem;
+  margin: 0 1rem 1rem;
 }
 
 .te-stat-card,
@@ -321,6 +343,11 @@ body {
 
 .te-timeline {
   grid-column: 1 / -1;
+}
+
+.te-timeline {
+  min-height: 0;
+  overflow: auto;
 }
 
 .te-timeline-ruler {

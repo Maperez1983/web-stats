@@ -16,6 +16,8 @@ const sceneSchema = load('editor/core/sceneSchema.js');
 const historyManager = load('editor/core/HistoryManager.js');
 const layerManager = load('editor/core/LayerManager.js');
 const selectionManager = load('editor/core/SelectionManager.js');
+const editorOperations = load('editor/core/editorOperations.js');
+const pitchGeometry = load('editor/pitch/pitchGeometry.js');
 const objectFactory = load('editor/objects/ObjectFactory.js');
 const serializer = load('editor/serialization/SceneSerializer.js');
 
@@ -148,4 +150,70 @@ test('serializer migrates legacy payloads and round-trips modern scene data', ()
   assert.equal(imported.objects.length, 1);
   assert.equal(imported.objects[0].type, 'player');
   assert.equal(imported.timeline.keyframes.length, 1);
+});
+
+test('selection helpers respect visibility locking layers and groups', () => {
+  const scene = sceneSchema.createDefaultScene('doc-2', 'Profesional');
+  const player = objectFactory.createObject('player', { x: 120, y: 160 });
+  const cone = objectFactory.createObject('cone', { x: 220, y: 160 });
+  const hiddenBall = objectFactory.createObject('ball', { x: 320, y: 160 });
+  hiddenBall.visible = false;
+  const lockedMarker = objectFactory.createObject('marker', { x: 420, y: 160 });
+  lockedMarker.locked = true;
+  player.data.groupId = 'group-1';
+  player.data.groupLabel = 'Bloque';
+  cone.data.groupId = 'group-1';
+  cone.data.groupLabel = 'Bloque';
+  scene.objects.push(player, cone, hiddenBall, lockedMarker);
+
+  assert.deepEqual(editorOperations.selectAllIds(scene).sort(), [player.id, cone.id].sort());
+  assert.deepEqual(editorOperations.selectByType(scene, 'cone'), [cone.id]);
+  assert.deepEqual(editorOperations.selectByLayer(scene, 'players'), [player.id]);
+  assert.deepEqual(editorOperations.expandSelectionByGroups(scene, [player.id]).sort(), [player.id, cone.id].sort());
+  assert.deepEqual(editorOperations.invertSelection(scene, [player.id]), [cone.id]);
+});
+
+test('snapping alignment grouping and timeline projection stay deterministic', () => {
+  const scene = sceneSchema.createDefaultScene('doc-3', 'Profesional');
+  const left = objectFactory.createObject('player', { x: 100, y: 140 });
+  const middle = objectFactory.createObject('player', { x: 220, y: 180 });
+  const right = objectFactory.createObject('player', { x: 340, y: 220 });
+  scene.objects.push(left, middle, right);
+
+  const aligned = editorOperations.alignObjects(scene, [left.id, middle.id, right.id], 'left');
+  assert.equal(aligned.objects.find((object) => object.id === left.id).x, 100);
+  assert.equal(aligned.objects.find((object) => object.id === middle.id).x, 100);
+
+  const distributed = editorOperations.distributeObjects(scene, [left.id, middle.id, right.id], 'horizontal', 40);
+  const distributedObjects = [left.id, middle.id, right.id].map((id) => distributed.objects.find((object) => object.id === id));
+  assert.ok(distributedObjects[1].x > distributedObjects[0].x);
+  assert.ok(distributedObjects[2].x > distributedObjects[1].x);
+
+  const grouped = editorOperations.groupObjects(scene, [left.id, middle.id], 'Ataque');
+  assert.ok(String(grouped.objects.find((object) => object.id === left.id).data.groupId).startsWith('group-'));
+  const ungrouped = editorOperations.ungroupObjects(grouped, [left.id]);
+  assert.equal(ungrouped.objects.find((object) => object.id === left.id).data.groupId, undefined);
+
+  const snapScene = sceneSchema.createDefaultScene('doc-5', 'Snap');
+  const snapObject = objectFactory.createObject('cone', { x: 31, y: 31 });
+  snapScene.objects.push(snapObject);
+  const snapped = editorOperations.snapObjectPosition(
+    snapScene,
+    { ...snapObject, x: 31, y: 31 },
+    { snapEnabled: true, snapDistance: 20, gridVisible: false, gridSize: 10, showGuides: true }
+  );
+  assert.equal(snapped.x, pitchGeometry.getPitchRect(snapScene).x - snapObject.width / 2);
+  assert.ok(snapped.guides.length > 0);
+
+  const keyframeScene = sceneSchema.createDefaultScene('doc-4', 'Timeline');
+  keyframeScene.objects.push(objectFactory.createObject('player', { x: 20, y: 20 }));
+  const moving = keyframeScene.objects[0];
+  const start = editorOperations.captureTimelineKeyframe(keyframeScene, 0, { objectIds: [moving.id], label: 'Inicio' });
+  moving.x = 120;
+  moving.y = 160;
+  const end = editorOperations.captureTimelineKeyframe(keyframeScene, 10, { objectIds: [moving.id], label: 'Fin' });
+  keyframeScene.timeline.keyframes.push(start, end);
+  const projected = editorOperations.projectSceneAtTime(keyframeScene, 5);
+  assert.equal(projected.objects[0].x, 70);
+  assert.equal(projected.objects[0].y, 90);
 });
