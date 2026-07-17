@@ -214,6 +214,10 @@ async function selectTool(page, name, options = {}) {
   await page.getByRole('button', { name, ...options }).click();
 }
 
+async function selectAsset(page, label) {
+  await page.locator('.te-asset-card').filter({ hasText: label }).first().click();
+}
+
 async function readSceneJson(page) {
   await page.getByRole('button', { name: /Copiar JSON/i }).click();
   return page.evaluate(() => navigator.clipboard.readText());
@@ -298,13 +302,13 @@ async function main() {
     await savePng(page, outDir, '01-editor-open.png');
     record('editor-open', { result: 'ok' });
 
-    await selectTool(page, 'Jugador', { exact: true });
+    await selectAsset(page, 'Jugador local');
     await clickCanvas(page, await canvasBox(page), 0.34, 0.36);
-    await selectTool(page, 'Jugador visitante', { exact: true });
+    await selectAsset(page, 'Jugador visitante');
     await clickCanvas(page, await canvasBox(page), 0.48, 0.42);
-    await selectTool(page, 'Cono', { exact: true });
+    await selectAsset(page, 'Cono');
     await clickCanvas(page, await canvasBox(page), 0.58, 0.48);
-    await selectTool(page, 'Flecha curva', { exact: true });
+    await selectAsset(page, 'Flecha curva');
     await clickCanvas(page, await canvasBox(page), 0.72, 0.38);
     await savePng(page, outDir, '02-objects-inserted.png');
 
@@ -360,13 +364,13 @@ async function main() {
       .locator('.te-stat-card')
       .filter({ hasText: 'Selección por tipo' })
       .locator('select');
-    await selectionTypeSelect.selectOption({ label: 'Jugador' });
-    const nameInput = inspector.getByLabel('Nombre');
+    await selectionTypeSelect.selectOption({ label: 'Jugador local' });
+    const nameInput = inspector.getByRole('textbox', { name: 'Nombre' });
     await nameInput.waitFor({ state: 'visible', timeout: 10_000 });
     await nameInput.fill('Jugador eje');
-    const numberInput = inspector.getByLabel('Dorsal');
+    const numberInput = inspector.getByRole('textbox', { name: 'Dorsal' });
     await numberInput.fill('10');
-    await inspector.getByLabel('Color').fill('#16a34a');
+    await inspector.getByLabel('Color').first().fill('#16a34a');
     await savePng(page, outDir, '07-inspector-editing.png');
 
     await page.getByRole('button', { name: /Guardar pizarra|Guardando\.\.\.|Pizarra guardada/ }).click();
