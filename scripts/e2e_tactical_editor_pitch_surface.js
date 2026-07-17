@@ -226,36 +226,67 @@ async function analyzePitchBounds(page) {
           }
         }
       }
+      const rect = canvas.getBoundingClientRect();
       return {
         width,
         height,
+        rect: {
+          left: rect.left,
+          top: rect.top,
+          right: rect.right,
+          bottom: rect.bottom,
+          width: rect.width,
+          height: rect.height,
+        },
         greenCount,
         bounds: greenCount ? { left: minX, top: minY, right: maxX, bottom: maxY } : null,
       };
     };
     const analyzed = canvases.map(analyzeCanvas).filter(Boolean);
     analyzed.sort((a, b) => b.greenCount - a.greenCount);
-    return analyzed[0] || null;
+    return {
+      viewport: {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      },
+      topbar: document.querySelector('.te-topbar')?.getBoundingClientRect()?.toJSON?.() || null,
+      canvasRect: document.querySelector('.te-canvas-stage')?.getBoundingClientRect()?.toJSON?.() || null,
+      timeline: document.querySelector('.te-timeline')?.getBoundingClientRect()?.toJSON?.() || null,
+      analyzed: analyzed[0] || null,
+    };
   });
 }
 
 async function assertPitchFits(page, label) {
   const result = await analyzePitchBounds(page);
-  if (!result || !result.bounds) {
+  if (!result?.analyzed?.bounds || !result.canvasRect || !result.timeline || !result.topbar) {
     throw new Error(`[${label}] pitch bounds not detected`);
   }
-  const { width, height, bounds } = result;
-  const margin = 6;
-  if (bounds.left < margin || bounds.top < margin) {
+  const { width, height, bounds, rect } = result.analyzed;
+  const { canvasRect, timeline, topbar, viewport } = result;
+  const margin = 12;
+  const canvasPitch = {
+    left: rect.left + (bounds.left / width) * rect.width,
+    top: rect.top + (bounds.top / height) * rect.height,
+    right: rect.left + ((bounds.right + 1) / width) * rect.width,
+    bottom: rect.top + ((bounds.bottom + 1) / height) * rect.height,
+  };
+  if (canvasPitch.left < margin || canvasPitch.top < topbar.bottom + margin) {
     throw new Error(`[${label}] pitch touches top/left edge: ${JSON.stringify(result)}`);
   }
-  if (bounds.right > width - margin || bounds.bottom > height - margin) {
+  if (canvasPitch.right > viewport.width - margin || canvasPitch.bottom > timeline.top - margin) {
     throw new Error(`[${label}] pitch touches bottom/right edge: ${JSON.stringify(result)}`);
   }
-  const pitchWidth = bounds.right - bounds.left + 1;
-  const pitchHeight = bounds.bottom - bounds.top + 1;
+  if (canvasRect.bottom > timeline.top - margin) {
+    throw new Error(`[${label}] canvas overlaps timeline: ${JSON.stringify(result)}`);
+  }
+  if (canvasRect.top < topbar.bottom + margin) {
+    throw new Error(`[${label}] canvas overlaps topbar: ${JSON.stringify(result)}`);
+  }
+  const pitchWidth = canvasPitch.right - canvasPitch.left;
+  const pitchHeight = canvasPitch.bottom - canvasPitch.top;
   const ratio = pitchWidth / pitchHeight;
-  if (ratio < 1.35 || ratio > 1.8) {
+  if (ratio < 1.45 || ratio > 1.7) {
     throw new Error(`[${label}] pitch ratio out of bounds: ${ratio.toFixed(3)} · ${JSON.stringify(result)}`);
   }
   return result;
@@ -332,7 +363,8 @@ async function main() {
     { name: '1440x900', width: 1440, height: 900 },
     { name: '1280x800', width: 1280, height: 800 },
     { name: '1024x768', width: 1024, height: 768 },
-    { name: 'responsive', width: 920, height: 940 },
+    { name: '900x700', width: 900, height: 700 },
+    { name: 'responsive', width: 860, height: 760 },
   ];
 
   try {

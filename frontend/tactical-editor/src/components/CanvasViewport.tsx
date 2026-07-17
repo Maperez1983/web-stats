@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { drawPitchLayer } from '../editor/pitch/PitchRenderer';
 import { normalizeSelectionBox } from '../editor/core/SelectionManager';
+import { projectSceneAtTime, snapObjectPosition, selectableObjects } from '../editor/core/editorOperations';
 import { createKonvaNode } from '../editor/objects/ObjectRenderer';
 import { useEditorStore } from '../store/editorStore';
 import type { CanvasApi } from '../store/editorStore';
@@ -20,8 +21,13 @@ type StageMode = 'idle' | 'selecting' | 'panning' | 'dragging';
 
 type NodeDragState = {
   id: string;
+  ids: string[];
+  anchorId: string;
   offsetX: number;
   offsetY: number;
+  startPointerX: number;
+  startPointerY: number;
+  basePositions: Map<string, { x: number; y: number }>;
 };
 
 type SelectionBoxState = {
@@ -37,8 +43,29 @@ type StagePointerLikeEvent = {
   shiftKey: boolean;
 };
 
-function layerOrder(): SceneLayerId[] {
-  return ['pitch', 'zones', 'paths', 'equipment', 'players', 'texts'];
+function layerOrder(sceneLayers: Array<{ id: SceneLayerId; order: number }>): SceneLayerId[] {
+  return ['pitch', ...[...sceneLayers].sort((left, right) => left.order - right.order).map((layer) => layer.id)]
+    .filter((layerId, index, all) => all.indexOf(layerId) === index) as SceneLayerId[];
+}
+
+function computeFitViewport(scene: {
+  canvas: { width: number; height: number };
+  viewport: { zoom: number; x: number; y: number };
+} | null, width: number, height: number) {
+  if (!scene || !width || !height) {
+    return null;
+  }
+  const padding = Math.max(32, Math.round(Math.min(width, height) * 0.05));
+  const availableWidth = Math.max(1, width - padding * 2);
+  const availableHeight = Math.max(1, height - padding * 2);
+  const scale = Math.min(availableWidth / scene.canvas.width, availableHeight / scene.canvas.height);
+  const fittedWidth = scene.canvas.width * scale;
+  const fittedHeight = scene.canvas.height * scale;
+  return {
+    zoom: scale,
+    x: padding + (availableWidth - fittedWidth) / 2,
+    y: padding + (availableHeight - fittedHeight) / 2,
+  };
 }
 
 function resolveInteractiveNode(node: Konva.Node | null, nodeMap: Map<string, Konva.Node>) {
@@ -436,6 +463,7 @@ export function CanvasViewport() {
   const toggleObjectSelection = useEditorStore((state) => state.toggleObjectSelection);
   const addSceneObject = useEditorStore((state) => state.addSceneObject);
   const replaceSceneObject = useEditorStore((state) => state.replaceSceneObject);
+  const setSnapGuides = useEditorStore((state) => state.setSnapGuides);
   const beginTransaction = useEditorStore((state) => state.beginTransaction);
   const commitTransaction = useEditorStore((state) => state.commitTransaction);
   const setSceneViewport = useEditorStore((state) => state.setSceneViewport);
@@ -458,8 +486,13 @@ export function CanvasViewport() {
   } | null>(null);
   const isSpacePressedRef = useRef(false);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const lastAutoFitSignatureRef = useRef<string>('');
   const previewImageUrl = document?.graphic.preview_2d_url || document?.ai.preview_url || '';
   const embed3dUrl = document?.graphic.preview_3d_embed_url || '';
+  const renderScene = useMemo(
+    () => (scene ? projectSceneAtTime(scene, scene.timeline.currentTime) : null),
+    [scene]
+  );
 
   useEffect(() => {
     if (!featureEnabled || !containerRef.current) {
@@ -468,13 +501,27 @@ export function CanvasViewport() {
     const resizeObserver = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (!entry) return;
-      const width = Math.max(320, Math.round(entry.contentRect.width));
-      const height = Math.max(420, Math.round(entry.contentRect.height));
+      const width = Math.max(1, Math.round(entry.contentRect.width));
+      const height = Math.max(1, Math.round(entry.contentRect.height));
       setContainerSize({ width, height });
     });
     resizeObserver.observe(containerRef.current);
     return () => resizeObserver.disconnect();
   }, [featureEnabled]);
+
+  useEffect(() => {
+    if (!featureEnabled || !containerRef.current) {
+      return;
+    }
+    const rect = containerRef.current.getBoundingClientRect();
+    if (!rect.width || !rect.height) {
+      return;
+    }
+    setContainerSize({
+      width: Math.max(1, Math.round(rect.width)),
+      height: Math.max(1, Math.round(rect.height)),
+    });
+  }, [featureEnabled, activeViewport]);
 
   useEffect(() => {
     if (
@@ -499,7 +546,9 @@ export function CanvasViewport() {
     const pathsLayer = new Konva.Layer();
     const equipmentLayer = new Konva.Layer();
     const playersLayer = new Konva.Layer();
+    const ballLayer = new Konva.Layer();
     const textsLayer = new Konva.Layer();
+    const annotationsLayer = new Konva.Layer();
     const uiLayer = new Konva.Layer();
     const transformer = new Konva.Transformer({
       rotateEnabled: true,
@@ -527,7 +576,9 @@ export function CanvasViewport() {
       pathsLayer,
       equipmentLayer,
       playersLayer,
+      ballLayer,
       textsLayer,
+      annotationsLayer,
       uiLayer
     );
     layersRef.current = {
@@ -536,7 +587,9 @@ export function CanvasViewport() {
       paths: pathsLayer,
       equipment: equipmentLayer,
       players: playersLayer,
+      ball: ballLayer,
       texts: textsLayer,
+      annotations: annotationsLayer,
       ui: uiLayer,
     };
     transformerRef.current = transformer;
@@ -578,6 +631,18 @@ export function CanvasViewport() {
     }
   }, [featureEnabled, containerSize, scene]);
 
+  const fitToScene = useCallback(() => {
+    const currentScene = useEditorStore.getState().scene;
+    if (!currentScene || !containerSize.width || !containerSize.height) {
+      return;
+    }
+    const viewport = computeFitViewport(currentScene, containerSize.width, containerSize.height);
+    if (!viewport) {
+      return;
+    }
+    setSceneViewport(viewport);
+  }, [containerSize.width, containerSize.height, setSceneViewport]);
+
   useEffect(() => {
     if (!featureEnabled) {
       return;
@@ -605,50 +670,52 @@ export function CanvasViewport() {
         }
         return dataUrl;
       },
-      fitToScene: () => {
-        if (!scene || !containerSize.width || !containerSize.height) return;
-        const scale =
-          Math.min(
-            containerSize.width / scene.canvas.width,
-            containerSize.height / scene.canvas.height
-          ) * 0.94;
-        const x = (containerSize.width - scene.canvas.width * scale) / 2;
-        const y = (containerSize.height - scene.canvas.height * scale) / 2;
-        setSceneViewport({ zoom: scale, x, y });
-      },
+      fitToScene,
     };
     setCanvasApi(canvasApi);
     return () => {
       setCanvasApi(null);
     };
-  }, [featureEnabled, scene, containerSize, setCanvasApi, setSceneViewport]);
+  }, [featureEnabled, fitToScene, setCanvasApi]);
 
   useEffect(() => {
-    if (!featureEnabled || !scene || !stageRef.current) {
+    if (!featureEnabled || !scene || !containerSize.width || !containerSize.height) {
+      return;
+    }
+    const signature = `${scene.documentId}:${scene.canvas.width}x${scene.canvas.height}:${containerSize.width}x${containerSize.height}`;
+    if (lastAutoFitSignatureRef.current === signature) {
+      return;
+    }
+    lastAutoFitSignatureRef.current = signature;
+    fitToScene();
+  }, [featureEnabled, scene?.documentId, scene?.canvas.width, scene?.canvas.height, containerSize.width, containerSize.height, fitToScene]);
+
+  useEffect(() => {
+    if (!featureEnabled || !renderScene || !stageRef.current) {
       return;
     }
     if (stageModeRef.current === 'dragging' && nodeDragRef.current) {
       return;
     }
 
-    layerOrder().forEach((layerId) => {
+    layerOrder(renderScene.layers).forEach((layerId) => {
       const layer = layersRef.current[layerId];
       if (!layer) return;
-      layer.position({ x: scene.viewport.x, y: scene.viewport.y });
-      layer.scale({ x: scene.viewport.zoom, y: scene.viewport.zoom });
+      layer.position({ x: renderScene.viewport.x, y: renderScene.viewport.y });
+      layer.scale({ x: renderScene.viewport.zoom, y: renderScene.viewport.zoom });
     });
-    drawPitchLayer(layersRef.current.pitch, scene);
-    const layerMeta = new Map(scene.layers.map((layer) => [layer.id, layer]));
+    drawPitchLayer(layersRef.current.pitch, renderScene);
+    const layerMeta = new Map(renderScene.layers.map((layer) => [layer.id, layer]));
     nodeMapRef.current.clear();
 
-    layerOrder().forEach((layerId) => {
+    layerOrder(renderScene.layers).forEach((layerId) => {
       if (layerId === 'pitch') return;
       const layer = layersRef.current[layerId];
       if (!layer) return;
       layer.destroyChildren();
     });
 
-    scene.objects
+    renderScene.objects
       .slice()
       .sort((a, b) => {
         const layerA = layerMeta.get(a.layerId)?.order ?? 0;
@@ -667,17 +734,107 @@ export function CanvasViewport() {
         });
         node.draggable(!(object.locked || Boolean(layerInfo.locked)));
         node.on('mousedown touchstart', (event) => {
-          toggleObjectSelection(object.id, Boolean(event.evt.shiftKey));
+          const additive = Boolean(event.evt.shiftKey || event.evt.metaKey || event.evt.ctrlKey);
+          const currentStore = useEditorStore.getState();
+          if (additive) {
+            toggleObjectSelection(object.id, true);
+            return;
+          }
+          if (currentStore.selectedIds.includes(object.id) && currentStore.selectedIds.length > 1) {
+            return;
+          }
+          currentStore.selectSingle(object.id);
         });
         node.on('dragstart', () => {
           stageModeRef.current = 'dragging';
           beginTransaction();
+          const currentStore = useEditorStore.getState();
+          const selectedIds = currentStore.scene
+            ? selectableObjects(renderScene)
+                .map((item) => item.id)
+                .filter((id) => currentStore.selectedIds.includes(id))
+            : [object.id];
+          const ids = selectedIds.includes(object.id) && selectedIds.length > 1 ? selectedIds : [object.id];
+          const basePositions = new Map(
+            ids.map((id) => {
+              const current = currentStore.scene?.objects.find((item) => item.id === id);
+              return [id, { x: current?.x ?? 0, y: current?.y ?? 0 }];
+            })
+          );
+          nodeDragRef.current = {
+            id: object.id,
+            ids,
+            anchorId: object.id,
+            offsetX: node.x() - object.x,
+            offsetY: node.y() - object.y,
+            startPointerX: node.x(),
+            startPointerY: node.y(),
+            basePositions,
+          };
         });
         node.on('dragmove', () => {
-          replaceSceneObject(object.id, sceneObjectFromNode(object, node), { history: false });
+          const drag = nodeDragRef.current;
+          const currentStore = useEditorStore.getState();
+          const currentScene = currentStore.scene;
+          if (!drag || !currentScene) {
+            replaceSceneObject(object.id, sceneObjectFromNode(object, node), { history: false });
+            return;
+          }
+          const anchorBase = drag.basePositions.get(drag.anchorId) || { x: object.x, y: object.y };
+          const anchorObject = currentScene.objects.find((item) => item.id === drag.anchorId);
+          const snapped = anchorObject
+            ? snapObjectPosition(
+                currentScene,
+                {
+                  ...anchorObject,
+                  x: node.x(),
+                  y: node.y(),
+                },
+                currentScene.metadata.preferences,
+                { movingIds: drag.ids }
+              )
+            : { x: node.x(), y: node.y(), guides: [] };
+          const deltaX = snapped.x - anchorBase.x;
+          const deltaY = snapped.y - anchorBase.y;
+          setSnapGuides(snapped.guides);
+          drag.ids.forEach((id) => {
+            const base = drag.basePositions.get(id);
+            const item = currentScene.objects.find((entry) => entry.id === id);
+            if (!base || !item) {
+              return;
+            }
+            const nextNode = nodeMapRef.current.get(id);
+            const nextX = base.x + deltaX;
+            const nextY = base.y + deltaY;
+            if (nextNode) {
+              nextNode.position({ x: nextX, y: nextY });
+            }
+            replaceSceneObject(
+              id,
+              {
+                ...item,
+                x: nextX,
+                y: nextY,
+              },
+              { history: false }
+            );
+          });
         });
         node.on('dragend', () => {
-          replaceSceneObject(object.id, sceneObjectFromNode(object, node), { history: false });
+          const drag = nodeDragRef.current;
+          const currentStore = useEditorStore.getState();
+          if (drag && currentStore.scene) {
+            drag.ids.forEach((id) => {
+              const item = currentStore.scene?.objects.find((entry) => entry.id === id);
+              const nextNode = nodeMapRef.current.get(id);
+              if (item && nextNode) {
+                replaceSceneObject(id, sceneObjectFromNode(item, nextNode), { history: false });
+              }
+            });
+          } else {
+            replaceSceneObject(object.id, sceneObjectFromNode(object, node), { history: false });
+          }
+          setSnapGuides([]);
           commitTransaction();
           stageModeRef.current = 'idle';
         });
@@ -690,18 +847,19 @@ export function CanvasViewport() {
         nodeMapRef.current.set(object.id, node);
       });
 
-    layerOrder().forEach((layerId) => {
+    layerOrder(renderScene.layers).forEach((layerId) => {
       if (layerId === 'pitch') return;
       layersRef.current[layerId]?.batchDraw();
     });
     layersRef.current.ui?.batchDraw();
   }, [
     featureEnabled,
-    scene,
+    renderScene,
     toggleObjectSelection,
     beginTransaction,
     commitTransaction,
     replaceSceneObject,
+    setSnapGuides,
   ]);
 
   useEffect(() => {
@@ -813,8 +971,13 @@ export function CanvasViewport() {
           stageModeRef.current = 'dragging';
           nodeDragRef.current = {
             id: objectId,
+            ids: [objectId],
+            anchorId: objectId,
             offsetX: scenePoint.x - node.x(),
             offsetY: scenePoint.y - node.y(),
+            startPointerX: scenePoint.x,
+            startPointerY: scenePoint.y,
+            basePositions: new Map([[objectId, { x: node.x(), y: node.y() }]]),
           };
           beginTransaction();
         }
@@ -932,10 +1095,10 @@ export function CanvasViewport() {
       }
       if (stageModeRef.current === 'dragging' && nodeDragRef.current) {
         const drag = nodeDragRef.current;
-        const node = nodeMapRef.current.get(drag.id);
-        const object = store.scene.objects.find((item) => item.id === drag.id);
+        const node = nodeMapRef.current.get(drag.anchorId);
+        const object = store.scene.objects.find((item) => item.id === drag.anchorId);
         if (node && object) {
-          replaceSceneObject(drag.id, sceneObjectFromNode(object, node), { history: false });
+          replaceSceneObject(drag.anchorId, sceneObjectFromNode(object, node), { history: false });
         }
         commitTransaction();
       }
@@ -943,6 +1106,7 @@ export function CanvasViewport() {
       panOriginRef.current = null;
       nodeDragRef.current = null;
       dragSelectionRef.current = null;
+      setSnapGuides([]);
       if (selectionRectRef.current) {
         selectionRectRef.current.visible(false);
         layersRef.current.ui?.batchDraw();
@@ -951,7 +1115,7 @@ export function CanvasViewport() {
     []
   );
 
-  const boardObjectsCount = scene?.objects.length || 0;
+  const boardObjectsCount = renderScene?.objects.length || 0;
 
   if (!featureEnabled) {
     return <LegacyCanvasViewport />;
