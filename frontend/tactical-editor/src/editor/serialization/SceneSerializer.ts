@@ -6,6 +6,7 @@ import {
   ensureScene,
   normalizeLayerId,
 } from '../core/sceneSchema';
+import { resolveAssetId } from '../assets/assetRegistry';
 import type {
   SceneLayerId,
   SceneObject,
@@ -100,12 +101,21 @@ function normalizeLegacyObject(rawObject: TacticalCanvasObject, index: number): 
     },
     data: {
       ...(rawObject.data || {}),
+      assetId: resolveAssetId(
+        rawObject.data?.assetId as string | undefined,
+        type,
+        rawObject.data?.variant as string | undefined
+      ),
       label:
         typeof rawObject.text === 'string'
           ? rawObject.text
           : typeof rawObject.data?.label === 'string'
             ? rawObject.data.label
             : undefined,
+      orientation:
+        typeof rawObject.data?.orientation === 'string'
+          ? rawObject.data.orientation
+          : undefined,
       points:
         typeof rawObject.x1 === 'number' &&
         typeof rawObject.y1 === 'number' &&

@@ -14,6 +14,7 @@ function objectFill(object: SceneObject): string {
 }
 
 function renderPlayer(object: SceneObject, isGoalkeeper: boolean) {
+  const orientation = String(object.data.orientation || object.data.variant || 'front');
   const group = new Konva.Group({
     x: object.x,
     y: object.y,
@@ -28,10 +29,12 @@ function renderPlayer(object: SceneObject, isGoalkeeper: boolean) {
   const width = object.width;
   const height = object.height;
   group.add(
-    new Konva.Circle({
-      x: width / 2,
-      y: height / 2,
-      radius: Math.min(width, height) / 2,
+    new Konva.Rect({
+      x: width * 0.17,
+      y: height * 0.18,
+      width: width * 0.66,
+      height: height * 0.68,
+      cornerRadius: Math.min(width, height) * 0.12,
       fill: objectFill(object),
       stroke: objectStroke(object),
       strokeWidth: object.style.strokeWidth ?? 3,
@@ -40,10 +43,26 @@ function renderPlayer(object: SceneObject, isGoalkeeper: boolean) {
   );
   group.add(
     new Konva.Line({
-      points: [width / 2, -8, width / 2 + 10, 4, width / 2 - 10, 4],
+      points:
+        orientation === 'side'
+          ? [width * 0.22, height * 0.26, width * 0.12, height * 0.42, width * 0.22, height * 0.58]
+          : [width * 0.18, height * 0.28, width / 2, height * 0.1, width * 0.82, height * 0.28],
       closed: true,
       fill: isGoalkeeper ? '#bbf7d0' : '#bfdbfe',
+      stroke: objectStroke(object),
+      strokeWidth: 1.2,
       opacity: 0.9,
+      listening: false,
+    })
+  );
+  group.add(
+    new Konva.Circle({
+      x: width / 2,
+      y: height * 0.18,
+      radius: Math.max(6, Math.min(width, height) * 0.12),
+      fill: '#f8fafc',
+      stroke: objectStroke(object),
+      strokeWidth: 1.2,
       listening: false,
     })
   );
@@ -60,6 +79,16 @@ function renderPlayer(object: SceneObject, isGoalkeeper: boolean) {
       listening: false,
     })
   );
+  if (orientation !== 'front' && orientation !== 'back') {
+    group.add(
+      new Konva.Line({
+        points: [width * 0.56, height * 0.28, width * 0.86, height * 0.52],
+        stroke: objectStroke(object),
+        strokeWidth: 1.8,
+        listening: false,
+      })
+    );
+  }
   if (object.data.name) {
     group.add(
       new Konva.Text({
@@ -327,32 +356,201 @@ function renderMiniGoal(object: SceneObject) {
   return group;
 }
 
+function renderGoal(object: SceneObject) {
+  const group = renderRect(object, { cornerRadius: 6 });
+  group.add(
+    new Konva.Line({
+      points: [8, object.height - 6, 16, 6, object.width - 16, 6, object.width - 8, object.height - 6],
+      stroke: objectStroke(object),
+      strokeWidth: 2,
+      listening: false,
+    })
+  );
+  return group;
+}
+
+function renderPoleLike(object: SceneObject, flag = false) {
+  const group = new Konva.Group({
+    x: object.x,
+    y: object.y,
+    rotation: object.rotation,
+    scaleX: object.scaleX,
+    scaleY: object.scaleY,
+    opacity: object.style.opacity ?? 1,
+    visible: object.visible,
+    draggable: !object.locked,
+    name: object.id,
+  });
+  group.add(
+    new Konva.Line({
+      points: [object.width / 2, object.height, object.width / 2, 4],
+      stroke: objectStroke(object),
+      strokeWidth: 3,
+      listening: false,
+    })
+  );
+  if (flag) {
+    group.add(
+      new Konva.Line({
+        points: [object.width / 2, 8, object.width - 6, 14, object.width / 2, 20],
+        closed: true,
+        fill: objectFill(object),
+        stroke: objectStroke(object),
+        strokeWidth: 2,
+        listening: false,
+      })
+    );
+  } else {
+    group.add(
+      new Konva.Rect({
+        x: object.width / 2 - 6,
+        y: object.height - 14,
+        width: 12,
+        height: 10,
+        fill: objectFill(object),
+        stroke: objectStroke(object),
+        strokeWidth: 2,
+        listening: false,
+      })
+    );
+  }
+  return group;
+}
+
+function renderPolygonZone(object: SceneObject) {
+  const points =
+    Array.isArray(object.data.points) && object.data.points.length >= 6
+      ? object.data.points.map((value) => Number(value))
+      : [0, object.height * 0.72, object.width * 0.2, object.height * 0.18, object.width * 0.55, 0, object.width, object.height * 0.25, object.width * 0.85, object.height, object.width * 0.15, object.height];
+  const group = new Konva.Group({
+    x: object.x,
+    y: object.y,
+    rotation: object.rotation,
+    scaleX: object.scaleX,
+    scaleY: object.scaleY,
+    opacity: object.style.opacity ?? 1,
+    visible: object.visible,
+    draggable: !object.locked,
+    name: object.id,
+  });
+  group.add(
+    new Konva.Line({
+      points,
+      closed: true,
+      fill: objectFill(object),
+      stroke: objectStroke(object),
+      strokeWidth: object.style.strokeWidth ?? 2,
+      dash: object.style.dash,
+      tension: object.type === 'zone-free' ? 0.4 : 0,
+      listening: false,
+    })
+  );
+  return group;
+}
+
+function renderSector(object: SceneObject) {
+  const group = new Konva.Group({
+    x: object.x,
+    y: object.y,
+    rotation: object.rotation,
+    scaleX: object.scaleX,
+    scaleY: object.scaleY,
+    opacity: object.style.opacity ?? 1,
+    visible: object.visible,
+    draggable: !object.locked,
+    name: object.id,
+  });
+  group.add(
+    new Konva.Line({
+      points: [
+        0,
+        object.height,
+        object.width * 0.25,
+        18,
+        object.width * 0.5,
+        0,
+        object.width * 0.75,
+        18,
+        object.width,
+        object.height,
+      ],
+      closed: true,
+      fill: objectFill(object),
+      stroke: objectStroke(object),
+      strokeWidth: object.style.strokeWidth ?? 2,
+      listening: false,
+    })
+  );
+  return group;
+}
+
 export function createKonvaNode(object: SceneObject): Konva.Group {
   switch (object.type) {
     case 'player':
+    case 'player-home':
+    case 'player-away':
+    case 'player-joker':
+    case 'coach':
+    case 'referee':
+    case 'injured-player':
+    case 'ball-carrier':
+    case 'numbered-player':
       return renderPlayer(object, false);
     case 'goalkeeper':
+    case 'goalkeeper-home':
+    case 'goalkeeper-away':
       return renderPlayer(object, true);
     case 'ball':
       return renderBall(object);
     case 'cone':
+    case 'high-cone':
       return renderCone(object);
     case 'pole':
-      return renderRect(object, { cornerRadius: 6 });
+      return renderPoleLike(object);
+    case 'flag':
+      return renderPoleLike(object, true);
     case 'hoop':
       return renderCircle({ ...object, style: { ...object.style, fill: 'rgba(0,0,0,0)' } });
     case 'mini-goal':
       return renderMiniGoal(object);
+    case 'goal':
+      return renderGoal(object);
+    case 'bench':
+    case 'bib':
+      return renderRect(object, { cornerRadius: 10 });
+    case 'marker':
+      return renderCircle({
+        ...object,
+        width: 18,
+        height: 18,
+        style: { ...object.style, fill: objectFill(object), stroke: objectStroke(object) },
+      });
     case 'arrow-straight':
+    case 'arrow-pass':
+    case 'arrow-run':
       return renderArrowLike(object, false, false);
     case 'arrow-curved':
+    case 'trajectory':
       return renderArrowLike(object, true, false);
+    case 'arrow-segmented':
+    case 'arrow-double':
+      return renderArrowLike(object, false, false);
     case 'line-dashed':
+    case 'line':
       return renderArrowLike(object, false, true);
     case 'zone-rect':
+    case 'lane':
+    case 'stripe-h':
+    case 'stripe-v':
       return renderRect(object, { cornerRadius: 18 });
     case 'zone-circle':
+    case 'zone-ellipse':
       return renderCircle(object);
+    case 'zone-polygon':
+    case 'zone-free':
+      return renderPolygonZone(object);
+    case 'sector':
+      return renderSector(object);
     case 'text':
       return renderText(object, false);
     case 'label':

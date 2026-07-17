@@ -1,6 +1,7 @@
 import Konva from 'konva';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { PointerEvent as ReactPointerEvent } from 'react';
+import type { DragEvent as ReactDragEvent, PointerEvent as ReactPointerEvent } from 'react';
+import { getAssetDefinition } from '../editor/assets/assetRegistry';
 import { drawPitchLayer } from '../editor/pitch/PitchRenderer';
 import { normalizeSelectionBox } from '../editor/core/SelectionManager';
 import {
@@ -11,7 +12,7 @@ import {
 } from '../editor/core/editorOperations';
 import { createKonvaNode } from '../editor/objects/ObjectRenderer';
 import { useEditorStore } from '../store/editorStore';
-import type { CanvasApi } from '../store/editorStore';
+import type { CanvasApi, EditorTool } from '../store/editorStore';
 import type { SceneLayerId, SceneObject } from '../editor/core/sceneSchema';
 import type { TacticalCanvasObject } from '../domain/taskDocument';
 import { sceneToLegacyCanvasState } from '../editor/serialization/SceneSerializer';
@@ -469,6 +470,7 @@ export function CanvasViewport() {
   const document = useEditorStore((state) => state.document);
   const activeViewport = useEditorStore((state) => state.activeViewport);
   const activeTool = useEditorStore((state) => state.activeTool);
+  const activeAssetId = useEditorStore((state) => state.activeAssetId);
   const scene = useEditorStore((state) => state.scene);
   const selectedIds = useEditorStore((state) => state.selectedIds);
   const snapGuides = useEditorStore((state) => state.snapGuides);
@@ -1040,8 +1042,9 @@ export function CanvasViewport() {
           y: (pointer.y - store.scene.viewport.y) / store.scene.viewport.zoom,
         };
         store.addSceneObject(store.activeTool as SceneObject['type'], {
-          x: scenePoint.x - 20,
-          y: scenePoint.y - 20,
+          x: scenePoint.x,
+          y: scenePoint.y,
+          assetId: store.activeAssetId || undefined,
         });
         return;
       }
@@ -1251,6 +1254,41 @@ export function CanvasViewport() {
     []
   );
 
+  const handleCanvasDrop = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const store = useEditorStore.getState();
+    if (!store.featureEnabled || !store.scene || store.activeViewport !== 'board2d') {
+      return;
+    }
+    const assetId =
+      event.dataTransfer.getData('application/x-tactical-editor-asset') ||
+      event.dataTransfer.getData('text/plain') ||
+      activeAssetId ||
+      '';
+    const asset = assetId ? getAssetDefinition(assetId) : null;
+    if (!asset) {
+      return;
+    }
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+    const rect = container.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const scenePoint = {
+      x: (x - store.scene.viewport.x) / store.scene.viewport.zoom,
+      y: (y - store.scene.viewport.y) / store.scene.viewport.zoom,
+    };
+    store.setTool(asset.type as EditorTool);
+    store.setActiveAssetId(asset.assetId);
+    store.addSceneObject(asset.type as SceneObject['type'], {
+      x: scenePoint.x,
+      y: scenePoint.y,
+      assetId: asset.assetId,
+    });
+  }, [activeAssetId]);
+
   const boardObjectsCount = renderScene?.objects.length || 0;
   const selectedLayerId = scene && selectedIds.length
     ? scene.objects.find((object) => object.id === selectedIds[0])?.layerId || 'players'
@@ -1288,6 +1326,8 @@ export function CanvasViewport() {
       <div
         ref={containerRef}
         className={`te-canvas-stage te-konva-stage ${activeViewport === 'board2d' ? '' : 'is-hidden'}`}
+        onDragOver={(event) => event.preventDefault()}
+        onDrop={handleCanvasDrop}
         onContextMenu={(event) => {
           event.preventDefault();
           openContextMenu({

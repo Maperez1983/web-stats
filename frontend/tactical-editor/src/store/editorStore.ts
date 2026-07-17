@@ -47,11 +47,12 @@ import type {
   TacticalScene,
   SceneTimelineKeyframe,
 } from '../editor/core/sceneSchema';
-import { createObject } from '../editor/objects/ObjectFactory';
+import { createAssetObject, createObject } from '../editor/objects/ObjectFactory';
 import {
   createSceneFromDocument,
   sceneToLegacyCanvasState,
 } from '../editor/serialization/SceneSerializer';
+import { resolveAssetDefinition } from '../editor/assets/assetRegistry';
 import type { TaskEditorDocument } from '../domain/taskDocument';
 
 export type EditorViewport = 'board2d' | 'board3d' | 'uefa';
@@ -121,6 +122,7 @@ type EditorStore = {
   activeViewport: EditorViewport;
   activeInspector: EditorInspector;
   activeTool: EditorTool;
+  activeAssetId: string | null;
   selectedIds: string[];
   dirty: boolean;
   saving: boolean;
@@ -135,6 +137,7 @@ type EditorStore = {
   setViewport: (viewport: EditorViewport) => void;
   setInspector: (inspector: EditorInspector) => void;
   setTool: (tool: EditorTool) => void;
+  setActiveAssetId: (assetId: string | null) => void;
   setCanvasApi: (api: CanvasApi | null) => void;
   clearSelection: () => void;
   selectSingle: (id: string | null) => void;
@@ -144,7 +147,10 @@ type EditorStore = {
   invertSelection: () => void;
   selectObjectsByType: (type: SceneObjectType) => void;
   selectObjectsByLayer: (layerId: SceneLayerId) => void;
-  addSceneObject: (type: SceneObjectType, options?: { x?: number; y?: number }) => void;
+  addSceneObject: (
+    type: SceneObjectType,
+    options?: { x?: number; y?: number; assetId?: string; assetVariant?: string; orientation?: string }
+  ) => void;
   patchSceneObject: (
     id: string,
     patch: Partial<SceneObject>,
@@ -168,6 +174,7 @@ type EditorStore = {
   setObjectLabel: (id: string, label: string) => void;
   setObjectName: (id: string, name: string) => void;
   setObjectTeam: (id: string, team: 'home' | 'away' | 'neutral' | 'joker') => void;
+  setObjectAsset: (id: string, assetId: string) => void;
   setObjectLayer: (id: string, layerId: SceneLayerId) => void;
   reorderSelected: (direction: 'front' | 'forward' | 'backward' | 'back') => void;
   alignSelected: (mode: 'left' | 'center-x' | 'right' | 'top' | 'center-y' | 'bottom') => void;
@@ -323,6 +330,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   activeViewport: 'board2d',
   activeInspector: 'properties',
   activeTool: 'select',
+  activeAssetId: null,
   selectedIds: [],
   dirty: false,
   saving: false,
@@ -338,6 +346,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       document,
       scene: normalizeScene(document),
       selectedIds: [],
+      activeAssetId: null,
       dirty: false,
       saving: false,
       error: null,
@@ -347,6 +356,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   setViewport: (activeViewport) => set({ activeViewport }),
   setInspector: (activeInspector) => set({ activeInspector }),
   setTool: (activeTool) => set({ activeTool }),
+  setActiveAssetId: (activeAssetId) => set({ activeAssetId }),
   setCanvasApi: (canvasApi) => set({ canvasApi }),
   clearSelection: () => set({ selectedIds: [] }),
   selectSingle: (id) =>
@@ -398,15 +408,31 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   addSceneObject: (type, options) =>
     set((state) => {
       if (!state.scene) return {};
-      const nextObject = createObject(type, {
-        x: options?.x,
-        y: options?.y,
-        zIndex: state.scene.objects.length,
-      });
+      const nextObject = options?.assetId
+        ? createAssetObject(options.assetId, {
+            x: options?.x,
+            y: options?.y,
+            zIndex: state.scene.objects.length,
+            assetVariant: options?.assetVariant,
+            orientation: options?.orientation,
+          })
+        : createObject(type, {
+            x: options?.x,
+            y: options?.y,
+            zIndex: state.scene.objects.length,
+            assetId: options?.assetId,
+            assetVariant: options?.assetVariant,
+            orientation: options?.orientation,
+          });
+      const centeredObject = {
+        ...nextObject,
+        x: typeof options?.x === 'number' ? options.x - nextObject.width / 2 : nextObject.x,
+        y: typeof options?.y === 'number' ? options.y - nextObject.height / 2 : nextObject.y,
+      };
       const preferences = getPreferences(state.scene);
       const snapped = snapObjectPosition(
         state.scene,
-        { ...nextObject, x: Number(nextObject.x), y: Number(nextObject.y) },
+        { ...centeredObject, x: Number(centeredObject.x), y: Number(centeredObject.y) },
         preferences
       );
       return withSceneMutation(
@@ -416,7 +442,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
           objects: [
             ...scene.objects,
             {
-              ...nextObject,
+              ...centeredObject,
               x: snapped.x,
               y: snapped.y,
             },
@@ -709,6 +735,47 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
           objects: scene.objects.map((object) =>
             object.id === id ? { ...object, data: { ...object.data, team } } : object
           ),
+        }),
+        { history: true }
+      )
+    ),
+  setObjectAsset: (id, assetId) =>
+    set((state) =>
+      withSceneMutation(
+        state,
+        (scene) => ({
+          ...scene,
+          objects: scene.objects.map((object) => {
+            if (object.id !== id) {
+              return object;
+            }
+            const asset = resolveAssetDefinition(
+              assetId,
+              object.type,
+              typeof object.data.variant === 'string' ? object.data.variant : undefined
+            );
+            return {
+              ...object,
+              type: asset.type,
+              layerId: asset.layerId,
+              width: asset.defaultSize.width,
+              height: asset.defaultSize.height,
+              style: { ...object.style, ...asset.defaultStyle },
+              data: {
+                ...asset.defaultData,
+                ...object.data,
+                assetId: asset.assetId,
+                variant:
+                  typeof object.data.variant === 'string'
+                    ? object.data.variant
+                    : (asset.defaultData.variant as string | undefined),
+                orientation:
+                  typeof object.data.orientation === 'string'
+                    ? object.data.orientation
+                    : (asset.defaultData.orientation as string | undefined),
+              },
+            };
+          }),
         }),
         { history: true }
       )
@@ -1036,6 +1103,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       scene: cloneScene(scene),
       dirty: true,
       selectedIds: [],
+      activeAssetId: null,
       history: pushHistorySnapshot(state.history, state.scene || createDefaultScene('', '')),
       revision: state.revision + 1,
     })),

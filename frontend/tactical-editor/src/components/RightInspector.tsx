@@ -1,4 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
+import {
+  assetCategoryLabel,
+  getAssetDefinition,
+  getAssetPreviewIcon,
+  listAssets,
+} from '../editor/assets/assetRegistry';
 import { createObject } from '../editor/objects/ObjectFactory';
 import { createDefaultScene } from '../editor/core/sceneSchema';
 import type { SceneLayerId, SceneObjectType } from '../editor/core/sceneSchema';
@@ -148,6 +154,68 @@ function saveTemplates(templates: LocalTemplate[]) {
   window.localStorage.setItem(LOCAL_TEMPLATE_STORAGE_KEY, JSON.stringify(templates));
 }
 
+function assetCategoryForObjectType(type: SceneObjectType) {
+  if (
+    type === 'player' ||
+    type === 'player-home' ||
+    type === 'player-away' ||
+    type === 'player-joker' ||
+    type === 'goalkeeper' ||
+    type === 'goalkeeper-home' ||
+    type === 'goalkeeper-away' ||
+    type === 'coach' ||
+    type === 'referee' ||
+    type === 'injured-player' ||
+    type === 'ball-carrier' ||
+    type === 'numbered-player'
+  ) {
+    return type.includes('goalkeeper') ? 'goalkeepers' : 'players';
+  }
+  if (
+    type === 'ball' ||
+    type === 'cone' ||
+    type === 'high-cone' ||
+    type === 'pole' ||
+    type === 'goal' ||
+    type === 'mini-goal' ||
+    type === 'bench' ||
+    type === 'marker' ||
+    type === 'flag' ||
+    type === 'mannequin' ||
+    type === 'bib' ||
+    type === 'hoop'
+  ) {
+    return 'equipment';
+  }
+  if (
+    type === 'arrow-straight' ||
+    type === 'arrow-curved' ||
+    type === 'arrow-segmented' ||
+    type === 'arrow-double' ||
+    type === 'arrow-pass' ||
+    type === 'arrow-run' ||
+    type === 'trajectory' ||
+    type === 'line-dashed' ||
+    type === 'line'
+  ) {
+    return 'arrows';
+  }
+  if (
+    type === 'zone-rect' ||
+    type === 'zone-circle' ||
+    type === 'zone-ellipse' ||
+    type === 'zone-polygon' ||
+    type === 'zone-free' ||
+    type === 'lane' ||
+    type === 'stripe-h' ||
+    type === 'stripe-v' ||
+    type === 'sector'
+  ) {
+    return 'zones';
+  }
+  return 'graphics';
+}
+
 export function RightInspector() {
   const document = useEditorStore((state) => state.document);
   const scene = useEditorStore((state) => state.scene);
@@ -163,6 +231,7 @@ export function RightInspector() {
   const setObjectLabel = useEditorStore((state) => state.setObjectLabel);
   const setObjectName = useEditorStore((state) => state.setObjectName);
   const setObjectTeam = useEditorStore((state) => state.setObjectTeam);
+  const setObjectAsset = useEditorStore((state) => state.setObjectAsset);
   const setObjectLock = useEditorStore((state) => state.setObjectLock);
   const setObjectVisibility = useEditorStore((state) => state.setObjectVisibility);
   const setObjectLayer = useEditorStore((state) => state.setObjectLayer);
@@ -270,6 +339,15 @@ export function RightInspector() {
   };
 
   const selectedLayerId = selectedObject?.layerId || selectedSceneObjects[0]?.layerId || 'players';
+  const currentAsset = selectedObject
+    ? getAssetDefinition(String(selectedObject.data.assetId || ''))
+    : null;
+  const assetCategory = selectedObject ? assetCategoryForObjectType(selectedObject.type) : null;
+  const assetOptions = selectedObject
+    ? listAssets(assetCategory || undefined).filter((asset) =>
+        assetCategory ? asset.category === assetCategory : true
+      )
+    : [];
 
   return (
     <aside className="te-panel te-inspector">
@@ -409,6 +487,20 @@ export function RightInspector() {
                   <span>{selectedObject.type}</span>
                 </div>
                 <div className="te-form-grid">
+                  <label className="te-asset-selector">
+                    Asset
+                    <select
+                      value={String(selectedObject.data.assetId || currentAsset?.assetId || '')}
+                      onChange={(event) => setObjectAsset(selectedObject.id, event.target.value)}
+                    >
+                      <option value="">Automático</option>
+                      {assetOptions.map((asset) => (
+                        <option key={asset.assetId} value={asset.assetId}>
+                          {assetCategoryLabel(asset.category)} · {asset.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <label>
                     Nombre
                     <input
@@ -526,6 +618,17 @@ export function RightInspector() {
                     />
                   </label>
                 </div>
+                {currentAsset ? (
+                  <div className="te-asset-detail">
+                    <span className="te-asset-preview is-inline" aria-hidden="true">
+                      {getAssetPreviewIcon(currentAsset)}
+                    </span>
+                    <div>
+                      <strong>{currentAsset.label}</strong>
+                      <span>{currentAsset.assetId}</span>
+                    </div>
+                  </div>
+                ) : null}
                 {selectedObject.type === 'player' ||
                 selectedObject.type === 'goalkeeper' ||
                 selectedObject.type === 'player-home' ||

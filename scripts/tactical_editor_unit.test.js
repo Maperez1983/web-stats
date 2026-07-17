@@ -18,6 +18,7 @@ const layerManager = load('editor/core/LayerManager.js');
 const selectionManager = load('editor/core/SelectionManager.js');
 const editorOperations = load('editor/core/editorOperations.js');
 const pitchGeometry = load('editor/pitch/pitchGeometry.js');
+const assetRegistry = load('editor/assets/assetRegistry.js');
 const objectFactory = load('editor/objects/ObjectFactory.js');
 const serializer = load('editor/serialization/SceneSerializer.js');
 
@@ -108,6 +109,21 @@ test('object factory returns object defaults per tool', () => {
   assert.deepEqual(objectFactory.defaultLayerForObject('zone-rect'), 'zones');
 });
 
+test('asset registry exposes categories search and defaults for training objects', () => {
+  const categories = assetRegistry.listAssetCategories();
+  assert.ok(categories.find((item) => item.id === 'players'));
+  assert.ok(categories.find((item) => item.id === 'equipment'));
+  assert.ok(assetRegistry.searchAssets('jugador').some((asset) => asset.assetId === 'player.home.front'));
+  const playerAsset = assetRegistry.getAssetDefinition('player.home.front');
+  assert.equal(playerAsset.label, 'Jugador local');
+  assert.equal(assetRegistry.resolveAssetId(undefined, 'player-home'), 'player.home.front');
+  assert.equal(assetRegistry.resolveAssetLayer('player.home.front'), 'players');
+  const created = objectFactory.createAssetObject('cone.high', { x: 120, y: 160 });
+  assert.equal(created.data.assetId, 'cone.high');
+  assert.equal(created.data.variant, 'high');
+  assert.equal(created.layerId, 'equipment');
+});
+
 test('serializer migrates legacy payloads and round-trips modern scene data', () => {
   const legacyDocument = {
     task: { id: 99, title: 'Legacy task', block_label: 'Principal 1', duration_minutes: 15 },
@@ -136,19 +152,21 @@ test('serializer migrates legacy payloads and round-trips modern scene data', ()
   assert.equal(scene.objects[0].layerId, 'equipment');
 
   const modernScene = sceneSchema.createDefaultScene('99', 'Legacy task', 1280, 720);
-  modernScene.objects.push(objectFactory.createObject('player', { x: 400, y: 240 }));
+  modernScene.objects.push(objectFactory.createAssetObject('player.home.back', { x: 400, y: 240 }));
   modernScene.objects[0].data.label = '9';
   modernScene.objects[0].data.team = 'away';
   modernScene.timeline.keyframes.push({ title: 'Paso 1', canvas_state: { objects: [] } });
   const serialized = serializer.sceneToLegacyCanvasState(modernScene);
   assert.equal(serialized.sceneObjects.length, 1);
   assert.equal(serialized.objects.length, 1);
-  assert.equal(serialized.objects[0].data.sceneType, 'player');
+  assert.equal(serialized.objects[0].data.sceneType, 'player-home');
+  assert.equal(serialized.objects[0].data.assetId, 'player.home.back');
   assert.ok(String(serialized.metadata.updatedAt).length > 0);
 
   const imported = serializer.parseImportedScene(JSON.stringify(modernScene), legacyDocument);
   assert.equal(imported.objects.length, 1);
-  assert.equal(imported.objects[0].type, 'player');
+  assert.equal(imported.objects[0].type, 'player-home');
+  assert.equal(imported.objects[0].data.assetId, 'player.home.back');
   assert.equal(imported.timeline.keyframes.length, 1);
 });
 
