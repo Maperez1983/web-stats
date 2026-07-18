@@ -220,6 +220,8 @@ export function RightInspector() {
   const document = useEditorStore((state) => state.document);
   const scene = useEditorStore((state) => state.scene);
   const selectedIds = useEditorStore((state) => state.selectedIds);
+  const tacticalRecreation = useEditorStore((state) => state.tacticalRecreation);
+  const generateRecreation = useEditorStore((state) => state.generateRecreation);
   const activeInspector = useEditorStore((state) => state.activeInspector);
   const setInspector = useEditorStore((state) => state.setInspector);
   const setObjectColor = useEditorStore((state) => state.setObjectColor);
@@ -244,6 +246,7 @@ export function RightInspector() {
   const ungroupSelected = useEditorStore((state) => state.ungroupSelected);
   const selectAllObjects = useEditorStore((state) => state.selectAllObjects);
   const invertSelection = useEditorStore((state) => state.invertSelection);
+  const selectSingle = useEditorStore((state) => state.selectSingle);
   const selectObjectsByType = useEditorStore((state) => state.selectObjectsByType);
   const selectObjectsByLayer = useEditorStore((state) => state.selectObjectsByLayer);
   const setPitchType = useEditorStore((state) => state.setPitchType);
@@ -266,6 +269,21 @@ export function RightInspector() {
   );
   const hasSelection = selectedSceneObjects.length > 0;
   const hasMultipleSelection = selectedSceneObjects.length > 1;
+  const selectableSceneObjects = useMemo(
+    () =>
+      (scene?.objects || [])
+        .filter(
+          (object) =>
+            object.visible &&
+            !object.locked &&
+            object.layerId !== 'pitch' &&
+            (scene?.layers || []).find((layer) => layer.id === object.layerId)?.visible !== false &&
+            (scene?.layers || []).find((layer) => layer.id === object.layerId)?.locked !== true
+        )
+        .slice()
+        .sort((left, right) => left.zIndex - right.zIndex),
+    [scene?.layers, scene?.objects]
+  );
   const exportJobs = document?.exports.jobs || [];
   const layerRows = useMemo(
     () => (scene?.layers || []).slice().sort((a, b) => a.order - b.order),
@@ -385,6 +403,36 @@ export function RightInspector() {
                   : 'Ningún objeto seleccionado'}
               </span>
             </div>
+            <div className="te-stat-card">
+              <strong>Recreación automática</strong>
+              <span>
+                {tacticalRecreation
+                  ? `${tacticalRecreation.language.statements.length} acciones · ${tacticalRecreation.plan.executionOrder.length} pasos`
+                  : 'Pendiente de generar'}
+              </span>
+              {tacticalRecreation ? (
+                <div className="te-metadata-list">
+                  <div>
+                    <strong>Posesión</strong>
+                    <span>
+                      {tacticalRecreation.possession.carrierId || 'Sin portador'} ·{' '}
+                      {tacticalRecreation.possession.state}
+                    </span>
+                  </div>
+                  <div>
+                    <strong>Warnings</strong>
+                    <span>{tacticalRecreation.plan.warnings.length}</span>
+                  </div>
+                  <div>
+                    <strong>Keyframes</strong>
+                    <span>{tacticalRecreation.keyframeCount}</span>
+                  </div>
+                </div>
+              ) : null}
+              <button type="button" data-testid="inspector-generate-recreation" onClick={() => generateRecreation()}>
+                Generar recreación
+              </button>
+            </div>
             <div className="te-action-row wrap">
               <button type="button" onClick={() => selectAllObjects()}>
                 Seleccionar todo
@@ -392,7 +440,7 @@ export function RightInspector() {
               <button type="button" onClick={() => invertSelection()}>
                 Invertir
               </button>
-              <button type="button" onClick={() => setTimelineTime(scene?.timeline.currentTime || 0)}>
+              <button type="button" onClick={() => setTimelineTime(scene?.timeline?.currentTime || 0)}>
                 Reset tiempo
               </button>
             </div>
@@ -420,6 +468,27 @@ export function RightInspector() {
                   ))}
                 </select>
               </label>
+            </div>
+            <div className="te-stat-card">
+              <strong>Selección por objeto</strong>
+              <span>Objetos visibles y desbloqueados</span>
+              <div className="te-layer-objects" aria-label="Objetos de la escena">
+                {selectableSceneObjects.map((object) => (
+                  <button
+                    key={object.id}
+                    type="button"
+                    data-testid={`scene-object-${object.id}`}
+                    className={selectedIds.includes(object.id) ? 'is-active is-selected' : ''}
+                    aria-label={`Seleccionar ${object.data.name || object.data.label || object.type}`}
+                    aria-pressed={selectedIds.includes(object.id)}
+                    aria-selected={selectedIds.includes(object.id)}
+                    onClick={() => selectSingle(object.id)}
+                  >
+                    <span>{object.data.name || object.data.label || object.type}</span>
+                    <small>{object.type}</small>
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="te-stat-card">
               <strong>Tipo de campo</strong>
@@ -855,6 +924,27 @@ export function RightInspector() {
                     ↓
                   </button>
                 </div>
+                <div className="te-layer-objects" aria-label={`Objetos de ${layer.name}`}>
+                  {(scene?.objects || [])
+                    .filter((object) => object.layerId === layer.id)
+                    .slice()
+                    .sort((left, right) => left.zIndex - right.zIndex)
+                    .map((object) => (
+                      <button
+                        key={object.id}
+                        type="button"
+                        data-testid={`scene-object-${object.id}`}
+                        className={selectedIds.includes(object.id) ? 'is-active is-selected' : ''}
+                        aria-label={`Seleccionar ${object.data.name || object.data.label || object.type}`}
+                        aria-pressed={selectedIds.includes(object.id)}
+                        aria-selected={selectedIds.includes(object.id)}
+                        onClick={() => selectSingle(object.id)}
+                      >
+                        <span>{object.data.name || object.data.label || object.type}</span>
+                        <small>{object.type}</small>
+                      </button>
+                    ))}
+                </div>
               </div>
             ))}
           </>
@@ -873,7 +963,7 @@ export function RightInspector() {
             </div>
             <div className="te-stat-card">
               <strong>Escena</strong>
-              <span>{scene?.timeline.keyframes.length || 0} keyframes guardados</span>
+              <span>{scene?.timeline?.keyframes?.length || 0} keyframes guardados</span>
             </div>
             <div className="te-stat-card">
               <strong>Plantillas locales</strong>

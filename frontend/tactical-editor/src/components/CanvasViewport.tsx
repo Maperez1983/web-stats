@@ -521,7 +521,7 @@ export function CanvasViewport() {
   const previewImageUrl = document?.graphic.preview_2d_url || document?.ai.preview_url || '';
   const embed3dUrl = document?.graphic.preview_3d_embed_url || '';
   const renderScene = useMemo(
-    () => (scene ? projectSceneAtTime(scene, scene.timeline.currentTime) : null),
+    () => (scene ? projectSceneAtTime(scene, scene.timeline?.currentTime || 0) : null),
     [scene]
   );
 
@@ -1371,7 +1371,9 @@ export function CanvasViewport() {
         </div>
         <div className="te-stat-card">
           <strong>Selección</strong>
-          <span>{selectedIds.length ? `${selectedIds.length} activos` : 'Sin selección'}</span>
+          <span data-testid="canvas-selection-count">
+            {selectedIds.length ? `${selectedIds.length} activos` : 'Sin selección'}
+          </span>
         </div>
         <div className="te-stat-card">
           <strong>3D</strong>

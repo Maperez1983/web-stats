@@ -9,7 +9,6 @@ import {
 } from '../editor/core/HistoryManager';
 import {
   alignObjects,
-  captureTimelineKeyframe,
   distributeObjects,
   equalizeObjectSize,
   expandSelectionByGroups,
@@ -18,13 +17,19 @@ import {
   invertSelection,
   isSelectableObject,
   moveSelectionOrder,
-  projectSceneAtTime,
   selectAllIds,
   selectByLayer,
   selectByType,
   snapObjectPosition,
   ungroupObjects,
 } from '../editor/core/editorOperations';
+import {
+  applyAnimationKeyframeCapture,
+  duplicateAnimationSelection,
+  moveAnimationKeyframe,
+  normalizeSceneAnimation,
+  removeAnimationKeyframe,
+} from '../editor/animation/AnimationCommands';
 import {
   createDefaultLayers,
   createLayer,
@@ -45,7 +50,6 @@ import type {
   SceneObject,
   SceneObjectType,
   TacticalScene,
-  SceneTimelineKeyframe,
 } from '../editor/core/sceneSchema';
 import { createAssetObject, createObject } from '../editor/objects/ObjectFactory';
 import {
@@ -53,6 +57,7 @@ import {
   sceneToLegacyCanvasState,
 } from '../editor/serialization/SceneSerializer';
 import { resolveAssetDefinition } from '../editor/assets/assetRegistry';
+import { compileTacticalRecreation } from '../tactical-language';
 import type { TaskEditorDocument } from '../domain/taskDocument';
 
 export type EditorViewport = 'board2d' | 'board3d' | 'uefa';
@@ -133,6 +138,8 @@ type EditorStore = {
   canvasApi: CanvasApi | null;
   snapGuides: Array<{ id: string; x1: number; y1: number; x2: number; y2: number }>;
   featureEnabled: boolean;
+  tacticalRecreation: ReturnType<typeof compileTacticalRecreation> | null;
+  tacticalRecreationToken: number;
   setDocument: (document: TaskEditorDocument) => void;
   setViewport: (viewport: EditorViewport) => void;
   setInspector: (inspector: EditorInspector) => void;
@@ -195,8 +202,12 @@ type EditorStore = {
   moveSelectionToLayer: (layerId: SceneLayerId) => void;
   setSnapGuides: (guides: Array<{ id: string; x1: number; y1: number; x2: number; y2: number }>) => void;
   updatePreferences: (patch: Partial<EditorPreferences>) => void;
+  generateRecreation: () => void;
   addTimelineKeyframe: (time?: number, label?: string) => void;
   removeTimelineKeyframe: (keyframeId: string) => void;
+  moveTimelineKeyframe: (keyframeId: string, time: number) => void;
+  duplicateTimelineKeyframes: (keyframeIds: string[], offset?: number) => void;
+  setTimelineDuration: (duration: number) => void;
   setTimelineTime: (time: number) => void;
   beginTransaction: () => void;
   commitTransaction: () => void;
@@ -240,10 +251,10 @@ function markSceneDirty(scene: TacticalScene): TacticalScene {
 
 function normalizeScene(document: TaskEditorDocument): TacticalScene {
   const parsed = createSceneFromDocument(document);
-  return {
+  return normalizeSceneAnimation({
     ...parsed,
     layers: parsed.layers.length ? parsed.layers : createDefaultLayers(),
-  };
+  });
 }
 
 function withSceneMutation(
@@ -341,6 +352,8 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   canvasApi: null,
   snapGuides: [],
   featureEnabled: isFeatureEnabled(),
+  tacticalRecreation: null,
+  tacticalRecreationToken: 0,
   setDocument: (document) =>
     set({
       document,
@@ -352,6 +365,8 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       error: null,
       history: createHistoryState(),
       snapGuides: [],
+      tacticalRecreation: null,
+      tacticalRecreationToken: 0,
     }),
   setViewport: (activeViewport) => set({ activeViewport }),
   setInspector: (activeInspector) => set({ activeInspector }),
@@ -998,33 +1013,44 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         { history: true }
       );
     }),
+  generateRecreation: () =>
+    set((state) => {
+      if (!state.scene) {
+        return {};
+      }
+      try {
+        const result = compileTacticalRecreation(state.scene);
+        return {
+          scene: result.scene,
+          history: pushHistorySnapshot(state.history, state.scene),
+          dirty: true,
+          revision: state.revision + 1,
+          tacticalRecreation: result,
+          tacticalRecreationToken: state.tacticalRecreationToken + 1,
+          error: null,
+        };
+      } catch (error) {
+        return {
+          tacticalRecreation: null,
+          error: error instanceof Error ? error.message : 'No se pudo generar la recreación táctica.',
+        };
+      }
+    }),
   addTimelineKeyframe: (time, label) =>
     set((state) => {
       if (!state.scene) {
         return {};
       }
-      const sceneTime = typeof time === 'number' ? time : state.scene.timeline.currentTime;
+      const sceneTime = typeof time === 'number' ? time : state.scene.timeline?.currentTime || 0;
       return withSceneMutation(
         state,
-        (scene) => {
-          const keyframe = captureTimelineKeyframe(scene, sceneTime, {
-            label,
-            objectIds: normalizeGroupSelection(scene, state.selectedIds).length
-              ? normalizeGroupSelection(scene, state.selectedIds)
-              : undefined,
-          });
-          return {
-            ...scene,
-            timeline: {
-              ...scene.timeline,
-              duration: Math.max(scene.timeline.duration, sceneTime),
-              currentTime: sceneTime,
-              keyframes: [...scene.timeline.keyframes.filter((item) => item.id !== keyframe.id), keyframe].sort(
-                (left, right) => left.time - right.time
-              ),
-            },
-          };
-        },
+        (scene) => applyAnimationKeyframeCapture(scene, sceneTime, {
+          label,
+          objectIds: normalizeGroupSelection(scene, state.selectedIds).length
+            ? normalizeGroupSelection(scene, state.selectedIds)
+            : undefined,
+          source: 'manual',
+        }),
         { history: true }
       );
     }),
@@ -1035,11 +1061,46 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       }
       return withSceneMutation(
         state,
+        (scene) => removeAnimationKeyframe(scene, keyframeId),
+        { history: true }
+      );
+    }),
+  moveTimelineKeyframe: (keyframeId, time) =>
+    set((state) => {
+      if (!state.scene) {
+        return {};
+      }
+      return withSceneMutation(state, (scene) => moveAnimationKeyframe(scene, keyframeId, time), {
+        history: true,
+      });
+    }),
+  duplicateTimelineKeyframes: (keyframeIds, offset) =>
+    set((state) => {
+      if (!state.scene || !keyframeIds.length) {
+        return {};
+      }
+      return withSceneMutation(
+        state,
+        (scene) => duplicateAnimationSelection(scene, keyframeIds, offset),
+        { history: true }
+      );
+    }),
+  setTimelineDuration: (duration) =>
+    set((state) => {
+      if (!state.scene) {
+        return {};
+      }
+      const timeline = state.scene.timeline ?? { duration: 0, currentTime: 0, keyframes: [], tracks: [], sequences: [], currentSequenceId: null };
+      if (Math.abs(timeline.duration - duration) < 0.001) {
+        return {};
+      }
+      return withSceneMutation(
+        state,
         (scene) => ({
           ...scene,
           timeline: {
-            ...scene.timeline,
-            keyframes: scene.timeline.keyframes.filter((keyframe) => keyframe.id !== keyframeId),
+            ...(scene.timeline ?? { duration: 0, currentTime: 0, keyframes: [], tracks: [], sequences: [], currentSequenceId: null }),
+            duration: Math.max(0, duration),
           },
         }),
         { history: true }
@@ -1050,12 +1111,13 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       if (!state.scene) {
         return {};
       }
+      const timeline = state.scene.timeline ?? { duration: 0, currentTime: 0, keyframes: [], tracks: [], sequences: [], currentSequenceId: null };
       return withSceneMutation(
         state,
         (scene) => ({
           ...scene,
           timeline: {
-            ...scene.timeline,
+            ...(scene.timeline ?? timeline),
             currentTime: Math.max(0, time),
           },
         }),
@@ -1106,6 +1168,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       activeAssetId: null,
       history: pushHistorySnapshot(state.history, state.scene || createDefaultScene('', '')),
       revision: state.revision + 1,
+      tacticalRecreation: null,
     })),
   getSavePayload: () => {
     const state = get();

@@ -35,6 +35,7 @@ export function App({ documentUrl }: AppProps) {
   const featureEnabled = useEditorStore((state) => state.featureEnabled);
   const undo = useEditorStore((state) => state.undo);
   const redo = useEditorStore((state) => state.redo);
+  const generateRecreation = useEditorStore((state) => state.generateRecreation);
   const copySelectedObjects = useEditorStore((state) => state.copySelectedObjects);
   const pasteClipboard = useEditorStore((state) => state.pasteClipboard);
   const duplicateSelectedObjects = useEditorStore((state) => state.duplicateSelectedObjects);
@@ -67,6 +68,18 @@ export function App({ documentUrl }: AppProps) {
       mounted = false;
     };
   }, [documentUrl, setDocument]);
+
+  useEffect(() => {
+    const globalWindow = window as Window & {
+      __TACTICAL_EDITOR_STORE__?: typeof useEditorStore;
+    };
+    globalWindow.__TACTICAL_EDITOR_STORE__ = useEditorStore;
+    return () => {
+      if (globalWindow.__TACTICAL_EDITOR_STORE__ === useEditorStore) {
+        delete globalWindow.__TACTICAL_EDITOR_STORE__;
+      }
+    };
+  }, []);
 
   const handleSaveBoard = async () => {
     const payload = useEditorStore.getState().getSavePayload();
@@ -260,6 +273,7 @@ export function App({ documentUrl }: AppProps) {
         canUndo={history.past.length > 0}
         canRedo={history.future.length > 0}
         featureEnabled={featureEnabled}
+        onGenerateRecreation={generateRecreation}
         onSaveBoard={handleSaveBoard}
         onGenerateAiPreview={handleGenerateAiPreview}
         onUndo={undo}
