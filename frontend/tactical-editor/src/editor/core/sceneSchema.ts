@@ -115,6 +115,81 @@ export type SceneTimelineKeyframe = {
   >;
 };
 
+export type AnimationInterpolation = 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'step';
+
+export type AnimationKeyframeValues = {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  rotation?: number;
+  scaleX?: number;
+  scaleY?: number;
+  visible?: boolean;
+  locked?: boolean;
+  zIndex?: number;
+  layerId?: SceneLayerId;
+  type?: SceneObjectType;
+  style?: Partial<SceneObjectStyle>;
+  data?: Partial<SceneObjectData>;
+};
+
+export type AnimationKeyframe = {
+  id: string;
+  time: number;
+  values: AnimationKeyframeValues;
+  interpolation: AnimationInterpolation;
+  easing: AnimationInterpolation;
+  metadata: {
+    objectId: string;
+    trackId: string;
+    label?: string;
+    createdAt: string;
+    updatedAt: string;
+    source: 'manual' | 'legacy' | 'imported';
+  };
+};
+
+export type AnimationTrack = {
+  id: string;
+  objectId: string;
+  objectType: SceneObjectType;
+  layerId: SceneLayerId;
+  label: string;
+  visible: boolean;
+  locked: boolean;
+  keyframes: AnimationKeyframe[];
+  metadata: {
+    createdAt: string;
+    updatedAt: string;
+    comments?: string;
+    sequenceIds: string[];
+  };
+};
+
+export type AnimationSequence = {
+  id: string;
+  name: string;
+  duration: number;
+  transition: number;
+  comments: string;
+  trackIds: string[];
+  keyframeIds: string[];
+  metadata: {
+    createdAt: string;
+    updatedAt: string;
+  };
+};
+
+export type AnimationTimeline = {
+  duration: number;
+  currentTime: number;
+  keyframes: SceneTimelineKeyframe[];
+  tracks: AnimationTrack[];
+  sequences: AnimationSequence[];
+  currentSequenceId: string | null;
+};
+
 export type EditorPreferences = {
   snapEnabled: boolean;
   snapDistance: number;
@@ -167,6 +242,9 @@ export type TacticalScene = {
     duration: number;
     currentTime: number;
     keyframes: SceneTimelineKeyframe[];
+    tracks: AnimationTrack[];
+    sequences: AnimationSequence[];
+    currentSequenceId: string | null;
   };
   metadata: {
     title: string;
@@ -184,6 +262,17 @@ export const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
   gridSize: 20,
   showGuides: true,
 };
+
+export function createDefaultAnimationTimeline(): AnimationTimeline {
+  return {
+    duration: 0,
+    currentTime: 0,
+    keyframes: [],
+    tracks: [],
+    sequences: [],
+    currentSequenceId: null,
+  };
+}
 
 export const DEFAULT_LAYERS: SceneLayer[] = [
   { id: 'pitch', name: 'Campo', visible: true, locked: true, order: 0 },
@@ -254,9 +343,7 @@ export function createDefaultScene(
     layers: deepClone(DEFAULT_LAYERS),
     objects: [],
     timeline: {
-      duration: 0,
-      currentTime: 0,
-      keyframes: [],
+      ...createDefaultAnimationTimeline(),
     },
     metadata: {
       title,
@@ -304,6 +391,8 @@ export function ensureScene(
   }
   const safeLayers = Array.isArray(input.layers) ? input.layers : base.layers;
   const safeObjects = Array.isArray(input.objects) ? input.objects : [];
+  const timelineDuration = clampNumber(input.timeline?.duration, base.timeline.duration, 0);
+  const timelineCurrentTime = clampNumber(input.timeline?.currentTime, base.timeline.currentTime, 0, timelineDuration);
   return {
     schemaVersion: clampNumber(input.schemaVersion, SCENE_SCHEMA_VERSION, 1),
     documentId: String(input.documentId || base.documentId),
@@ -371,9 +460,19 @@ export function ensureScene(
       })(),
     })),
     timeline: {
-      duration: clampNumber(input.timeline?.duration, 0, 0),
-      currentTime: clampNumber(input.timeline?.currentTime, 0, 0),
+      duration: timelineDuration,
+      currentTime: timelineCurrentTime,
       keyframes: Array.isArray(input.timeline?.keyframes) ? input.timeline?.keyframes : [],
+      tracks: Array.isArray((input.timeline as AnimationTimeline | undefined)?.tracks)
+        ? ((input.timeline as AnimationTimeline).tracks || [])
+        : [],
+      sequences: Array.isArray((input.timeline as AnimationTimeline | undefined)?.sequences)
+        ? ((input.timeline as AnimationTimeline).sequences || [])
+        : [],
+      currentSequenceId:
+        typeof (input.timeline as AnimationTimeline | undefined)?.currentSequenceId === 'string'
+          ? (input.timeline as AnimationTimeline).currentSequenceId
+          : null,
     },
     metadata: {
       title: String(input.metadata?.title || base.metadata.title),

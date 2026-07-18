@@ -412,13 +412,35 @@ async function configureSelectedPlayer(page, spec) {
 }
 
 async function setTimelineTime(page, value) {
-  const slider = page.getByLabel('Tiempo');
-  await slider.evaluate((input, nextValue) => {
-    const element = input;
-    element.value = String(nextValue);
-    element.dispatchEvent(new Event('input', { bubbles: true }));
-    element.dispatchEvent(new Event('change', { bubbles: true }));
-  }, value);
+  const slider = page.getByTestId('timeline-time');
+  await slider.waitFor({ state: 'visible', timeout: 15_000 });
+  const target = Number(value);
+  const clamped = await slider.evaluate((element, nextValue) => {
+    const input = element;
+    const targetValue = Number(nextValue);
+    const min = Number(input.min || input.getAttribute('min') || 0);
+    const max = Number(input.max || input.getAttribute('max') || targetValue);
+    return Math.max(min, Math.min(max, targetValue));
+  }, target);
+  await page.evaluate((nextValue) => {
+    const store = window.__TACTICAL_EDITOR_STORE__;
+    if (!store || typeof store.getState !== 'function') {
+      throw new Error('Tactical editor store unavailable');
+    }
+    const state = store.getState();
+    if (typeof state.setTimelineTime !== 'function') {
+      throw new Error('setTimelineTime action unavailable');
+    }
+    state.setTimelineTime(nextValue);
+  }, clamped);
+  await page.waitForFunction(
+    (target) => {
+      const store = window.__TACTICAL_EDITOR_STORE__;
+      const state = store?.getState();
+      return Math.abs((state?.scene?.timeline?.currentTime || 0) - target) < 0.05;
+    },
+    clamped
+  );
 }
 
 async function setTimelineDuration(page, seconds) {
