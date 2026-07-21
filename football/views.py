@@ -28977,7 +28977,52 @@ def coach_role_trainer_page(request):
             ),
         )
     ]
-    selected_player = Player.objects.filter(id=selected_player_id, team=primary_team).first() if selected_player_id else None
+    active_player_ids = set()
+    if primary_team:
+        try:
+            active_player_ids = set(Player.objects.filter(team=primary_team, is_active=True).values_list('id', flat=True))
+        except Exception:
+            active_player_ids = set()
+    if active_player_ids:
+        player_option_rows = [
+            item
+            for item in player_option_rows
+            if _parse_int(item.get('player_id') or item.get('id')) in active_player_ids
+        ]
+        coach_player_options = [
+            {
+                'id': item.get('player_id') or item.get('id'),
+                'name': item.get('name'),
+                'number': item.get('number'),
+            }
+            for item in sorted(player_option_rows, key=lambda row: (str(row.get('name') or '').lower(), row.get('player_id') or row.get('id') or 0))
+        ]
+        coach_player_cards_all = [
+            {
+                'id': item.get('player_id') or item.get('id'),
+                'name': item.get('name'),
+                'number': item.get('number'),
+                'minutes': int(item.get('minutes', 0) or 0),
+                'matches': int(item.get('pj', 0) or 0),
+                'goals': int(item.get('goals', 0) or 0),
+                'assists': int(item.get('assists', 0) or 0),
+                'position': item.get('position') or '-',
+                'photo_url': item.get('photo_url') or '',
+            }
+            for item in sorted(
+                player_option_rows,
+                key=lambda row: (
+                    -int(row.get('minutes', 0) or 0),
+                    int(row.get('number') or 9999),
+                    str(row.get('name') or '').lower(),
+                ),
+            )
+        ]
+    selected_player = (
+        Player.objects.filter(id=selected_player_id, team=primary_team, is_active=True).first()
+        if selected_player_id
+        else None
+    )
     selected_player_stats = next((item for item in player_dashboard_rows if item.get('player_id') == selected_player_id), None) if selected_player_id else None
     coach_player_match_options = []
     coach_player_view = None
