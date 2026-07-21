@@ -2432,9 +2432,7 @@
           </article>
         </div>
       </section>
-      {% endif %}
-      {% if role_key == 'trainer' %}
-      <section id="coach-squad" class="summary-card coach-card-shell trainer-squad-section">
+      <section id="coach-squad" class="summary-card coach-card-shell trainer-squad-section" style="margin-top:1rem;">
         <div class="trainer-squad-header">
           <div>
             <h3>Configuración de plantilla</h3>
@@ -2466,7 +2464,7 @@
               {% for player in trainer_pitch_players %}
               <a
                 class="trainer-pitch-player is-{{ player.accent }}"
-                href="{% url 'coach-role-trainer' %}?player={{ player.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}"
+                href="{% url 'player-detail' player.id %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% elif active_team %}?team={{ active_team.id }}{% endif %}"
                 title="{{ player.name }}{% if player.number %} · {{ player.number }}{% endif %}"
                 style="left: {{ player.left }}%; top: {{ player.top }}%;"
               >
@@ -2547,6 +2545,8 @@
           </aside>
         </div>
       </section>
+      {% endif %}
+      {% if role_key == 'trainer' %}
       {% endif %}
       {% if role_key == 'trainer' and module_groups %}
       <section id="coach-modules" class="summary-card coach-card-shell">
