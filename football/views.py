@@ -10057,9 +10057,8 @@ def dashboard_page(request):
         if current_player:
             return redirect('player-detail', player_id=current_player.id)
         return redirect('player-dashboard')
-    # Home de staff: mostrar el hub de entrenador con estilo "coach" (sin redirección),
-    # para evitar el "flash" de una pantalla y vuelta a la home anterior.
-    # Permite forzar el dashboard JS con `/?home=dashboard`.
+    # Home de staff: el punto de entrada es el hub de entrenador.
+    # La portada clásica queda como vista legacy explícita, no como inicio.
     forced_home = str(request.GET.get('home') or '').strip().lower()
     staff_roles = {AppUserRole.ROLE_COACH, AppUserRole.ROLE_FITNESS, AppUserRole.ROLE_GOALKEEPER, AppUserRole.ROLE_ANALYST}
     if current_role in staff_roles:
@@ -10069,21 +10068,10 @@ def dashboard_page(request):
             preserved_qs = raw_params.urlencode()
         except Exception:
             preserved_qs = ''
-        if forced_home in {'club', 'compact', 'overview'}:
-            compact_url = reverse('coach-detail')
-            if compact_url:
-                compact_url = f'{compact_url}?view=legacy'
-                if preserved_qs:
-                    compact_url = f'{compact_url}&{preserved_qs}'
-            return redirect(compact_url or reverse('coach-detail'))
-        if forced_home in {'dashboard', 'pro', 'legacy'}:
-            # Mantener disponible el dashboard clásico si se pide explícitamente.
-            pass
-        else:
-            trainer_url = reverse('coach-role-trainer')
-            if preserved_qs:
-                trainer_url = f'{trainer_url}?{preserved_qs}'
-            return redirect(trainer_url)
+        trainer_url = reverse('coach-role-trainer')
+        if preserved_qs:
+            trainer_url = f'{trainer_url}?{preserved_qs}'
+        return redirect(trainer_url)
     if current_role in {AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST}:
         if _can_access_task_studio(request.user):
             return redirect('task-studio-home')
@@ -17664,19 +17652,19 @@ def coach_overview_page(request):
     forbidden = _forbid_if_workspace_module_disabled(request, 'coach_overview', label='portada staff')
     if forbidden:
         return forbidden
-    # UX: la "portada" principal del staff es el dashboard (/) para evitar dos home distintos.
-    # Mantener esta vista accesible con `?view=legacy` (comparación/fallback).
     try:
         view = str(request.GET.get('view') or '').strip().lower()
     except Exception:
         view = ''
     if view not in {'legacy', 'overview'}:
         try:
-            target = reverse('dashboard-home')
+            target = reverse('coach-role-trainer')
         except Exception:
             target = '/'
         try:
-            qs = str(getattr(request, 'META', {}).get('QUERY_STRING') or '').strip()
+            raw_params = request.GET.copy()
+            raw_params.pop('view', None)
+            qs = raw_params.urlencode()
         except Exception:
             qs = ''
         return redirect(f'{target}?{qs}' if qs else target)
