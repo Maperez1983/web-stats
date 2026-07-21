@@ -154,6 +154,32 @@
         justify-content: flex-end;
         align-items: center;
       }
+      .role-workspace-switcher {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+      .role-workspace-switcher label {
+        display: grid;
+        gap: 0.22rem;
+        color: rgba(226, 232, 240, 0.75);
+        font-size: 0.65rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-weight: 900;
+      }
+      .role-workspace-switcher select {
+        min-width: 250px;
+        border-radius: 999px;
+        padding: 0.5rem 0.85rem;
+        border: 1px solid rgba(201, 162, 58, 0.18);
+        background: rgba(2, 6, 23, 0.72);
+        color: #f8fafc;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+      }
       .premium-rail {
         display: grid;
         grid-template-columns: minmax(0, 1.25fr) repeat(2, minmax(220px, 0.92fr)) minmax(260px, 1fr);
@@ -428,12 +454,347 @@
         letter-spacing: 0.08em;
         text-transform: uppercase;
       }
+      .trainer-squad-section {
+        margin-top: 1rem;
+      }
+      .trainer-squad-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: flex-start;
+        margin-bottom: 0.9rem;
+      }
+      .trainer-squad-header h3 {
+        margin: 0;
+        font-size: 0.9rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(225, 231, 240, 0.84);
+      }
+      .trainer-squad-header p {
+        margin: 0.35rem 0 0;
+        color: var(--hub-card-muted);
+        line-height: 1.5;
+        max-width: 70ch;
+      }
+      .trainer-squad-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        justify-content: flex-end;
+      }
+      .trainer-squad-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
+        gap: 1rem;
+        align-items: start;
+      }
+      .trainer-squad-pitch,
+      .trainer-squad-panel {
+        border-radius: 22px;
+        border: 1px solid var(--hub-card-border);
+        background:
+          radial-gradient(circle at top right, rgba(201, 162, 58, 0.05), transparent 28%),
+          linear-gradient(180deg, rgba(10, 17, 29, 0.96), rgba(5, 12, 21, 0.99));
+        box-shadow: 0 18px 36px rgba(0, 0, 0, 0.18);
+        overflow: hidden;
+      }
+      .trainer-squad-pitch {
+        padding: 1rem;
+        display: grid;
+        gap: 0.85rem;
+      }
+      .trainer-squad-pitch-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+      .trainer-squad-pitch-head .pitch-title {
+        display: grid;
+        gap: 0.2rem;
+      }
+      .trainer-squad-pitch-head .pitch-title strong {
+        font-size: 1.08rem;
+        color: #f8fafc;
+        letter-spacing: -0.02em;
+      }
+      .trainer-squad-pitch-head .pitch-title span {
+        color: var(--hub-card-muted);
+        line-height: 1.4;
+      }
+      .trainer-squad-metrics {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        justify-content: flex-end;
+      }
+      .trainer-squad-metric {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 0.35rem;
+        padding: 0.35rem 0.6rem;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(2, 6, 23, 0.28);
+        color: rgba(226, 232, 240, 0.9);
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .trainer-squad-metric strong {
+        color: #fff8e1;
+        font-size: 1rem;
+      }
+      .trainer-squad-field {
+        min-height: 540px;
+        padding-bottom: 0;
+        border-radius: 22px;
+        overflow: hidden;
+      }
+      .trainer-squad-field img {
+        opacity: 0.34;
+        mix-blend-mode: screen;
+      }
+      .trainer-pitch-player {
+        position: absolute;
+        transform: translate(-50%, -50%);
+        width: min(120px, 18vw);
+        display: grid;
+        gap: 0.16rem;
+        align-items: center;
+        justify-items: center;
+        text-decoration: none;
+        color: #f8fafc;
+        padding: 0.48rem 0.42rem 0.52rem;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(2, 6, 23, 0.54);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 18px 32px rgba(0, 0, 0, 0.18);
+      }
+      .trainer-pitch-player::before {
+        content: "";
+        position: absolute;
+        inset: auto auto 0.32rem auto;
+        width: 1.7rem;
+        height: 0.25rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.18);
+        opacity: 0.7;
+      }
+      .trainer-pitch-player.is-goalkeeper {
+        border-color: rgba(59, 130, 246, 0.42);
+      }
+      .trainer-pitch-player.is-defense {
+        border-color: rgba(34, 197, 94, 0.34);
+      }
+      .trainer-pitch-player.is-midfield {
+        border-color: rgba(244, 180, 0, 0.32);
+      }
+      .trainer-pitch-player.is-attack {
+        border-color: rgba(248, 113, 113, 0.34);
+      }
+      .trainer-pitch-player-number {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.65rem;
+        height: 1.65rem;
+        border-radius: 999px;
+        border: 1px solid rgba(244, 180, 0, 0.36);
+        background: rgba(244, 180, 0, 0.12);
+        color: rgba(255, 242, 199, 0.98);
+        font-size: 0.72rem;
+        font-weight: 950;
+        letter-spacing: 0.04em;
+      }
+      .trainer-pitch-player-name {
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        text-align: center;
+        line-height: 1.05;
+      }
+      .trainer-pitch-player-role {
+        color: rgba(226, 232, 240, 0.72);
+        font-size: 0.62rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        text-align: center;
+        line-height: 1.2;
+      }
+      .trainer-squad-legend {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.45rem;
+      }
+      .trainer-squad-legend .trainer-squad-metric {
+        justify-content: space-between;
+      }
+      .trainer-squad-panel {
+        padding: 1rem;
+        display: grid;
+        gap: 0.9rem;
+      }
+      .trainer-squad-panel-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.65rem;
+        align-items: center;
+      }
+      .trainer-squad-panel-head strong {
+        font-size: 1rem;
+        color: #f8fafc;
+      }
+      .trainer-squad-panel-head span {
+        color: var(--hub-card-muted);
+      }
+      .trainer-squad-list {
+        display: grid;
+        gap: 0.55rem;
+        max-height: 430px;
+        overflow: auto;
+        padding-right: 0.15rem;
+      }
+      .trainer-squad-player {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 0.65rem;
+        align-items: center;
+        text-decoration: none;
+        color: inherit;
+        padding: 0.6rem;
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        background: rgba(2, 6, 23, 0.24);
+        transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+      }
+      .trainer-squad-player:hover {
+        transform: translateY(-1px);
+        border-color: rgba(244, 180, 0, 0.34);
+        background: rgba(2, 6, 23, 0.34);
+      }
+      .trainer-squad-player-media {
+        position: relative;
+        width: 54px;
+        height: 54px;
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background:
+          radial-gradient(circle at top, rgba(244, 180, 0, 0.18), transparent 44%),
+          rgba(2, 6, 23, 0.7);
+        flex: 0 0 auto;
+      }
+      .trainer-squad-player-media img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .trainer-squad-player-number {
+        position: absolute;
+        right: 0.18rem;
+        bottom: 0.18rem;
+        min-width: 1.18rem;
+        height: 1.18rem;
+        padding: 0 0.2rem;
+        border-radius: 999px;
+        border: 1px solid rgba(244, 180, 0, 0.34);
+        background: rgba(244, 180, 0, 0.12);
+        color: rgba(255, 242, 199, 0.98);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.66rem;
+        font-weight: 950;
+      }
+      .trainer-squad-player-copy {
+        min-width: 0;
+        display: grid;
+        gap: 0.12rem;
+      }
+      .trainer-squad-player-copy strong {
+        display: block;
+        color: #f8fafc;
+        font-size: 0.88rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .trainer-squad-player-copy span {
+        color: var(--hub-card-muted);
+        font-size: 0.72rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .trainer-squad-reinforcement {
+        display: grid;
+        gap: 0.55rem;
+      }
+      .trainer-squad-reinforcement h4 {
+        margin: 0;
+        color: rgba(225, 231, 240, 0.84);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 0.72rem;
+      }
+      .trainer-squad-reinforcement-row {
+        display: grid;
+        gap: 0.18rem;
+        padding: 0.66rem 0.75rem;
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        background: rgba(2, 6, 23, 0.22);
+      }
+      .trainer-squad-reinforcement-row.is-critical {
+        border-color: rgba(248, 113, 113, 0.32);
+        background: rgba(248, 113, 113, 0.08);
+      }
+      .trainer-squad-reinforcement-row.is-warning {
+        border-color: rgba(244, 180, 0, 0.28);
+        background: rgba(244, 180, 0, 0.08);
+      }
+      .trainer-squad-reinforcement-row.is-ok {
+        border-color: rgba(34, 197, 94, 0.24);
+        background: rgba(34, 197, 94, 0.06);
+      }
+      .trainer-squad-reinforcement-row .label {
+        color: var(--hub-card-muted);
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 900;
+      }
+      .trainer-squad-reinforcement-row .value {
+        color: #f8fafc;
+        font-weight: 900;
+      }
+      .trainer-squad-reinforcement-row .meta {
+        color: var(--hub-card-muted);
+        font-size: 0.78rem;
+        line-height: 1.35;
+      }
       @media (max-width: 900px) {
         .role-header {
           grid-template-columns: 1fr;
         }
         .role-actions {
           justify-content: flex-start;
+        }
+        .role-workspace-switcher {
+          justify-content: flex-start;
+        }
+        .role-workspace-switcher select {
+          min-width: 0;
+          width: min(100%, 320px);
         }
         .trainer-hero-grid {
           grid-template-columns: 1fr;
@@ -451,6 +812,21 @@
         }
         .trainer-info-meta {
           grid-template-columns: 1fr;
+        }
+        .trainer-squad-layout {
+          grid-template-columns: 1fr;
+        }
+        .trainer-squad-field {
+          min-height: 400px;
+        }
+        .trainer-squad-legend {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .trainer-pitch-player {
+          width: min(110px, 30vw);
+        }
+        .trainer-squad-list {
+          max-height: none;
         }
       }
       .section-nav {
@@ -1707,7 +2083,7 @@
   </head>
   <body class="prod-commercial">
     <div class="page product-shell">
-      {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/dragon_nav.html' with compact_workspace_tabs=True %}
       <header class="role-header">
         <div class="title">
           <p class="product-kicker">Workspace por rol</p>
@@ -1723,10 +2099,24 @@
           {% endif %}
         </div>
         <div class="role-actions">
-          {% if role_key == 'trainer' %}
-          <a class="pill-button" style="border-radius:12px; text-decoration:none;" href="{% url 'reports-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" title="Biblioteca de informes PDF (club y jugador)">Informes</a>
+          {% if role_key == 'trainer' and is_admin_user %}
+          <form class="role-workspace-switcher" method="post" action="{% url 'workspace-active' %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'coach-role-trainer' %}" />
+            <label>
+              Club
+              <select name="workspace_id" onchange="this.form.submit()">
+                {% for option in trainer_workspace_options %}
+                  {% if option.kind == 'club' %}
+                  <option value="{{ option.id }}" {% if active_workspace and option.id == active_workspace.id %}selected{% endif %}>
+                    {{ option.label }}
+                  </option>
+                  {% endif %}
+                {% endfor %}
+              </select>
+            </label>
+          </form>
           {% endif %}
-          <a class="pill-button" style="border-radius:12px;" href="{% url 'coach-cards' %}">Volver</a>
         </div>
       </header>
       {% if role_key == 'trainer' %}
@@ -1801,6 +2191,107 @@
               </div>
             </article>
           </div>
+        </div>
+      </section>
+      {% endif %}
+      {% if role_key == 'trainer' %}
+      <section id="coach-squad" class="summary-card coach-card-shell trainer-squad-section">
+        <div class="trainer-squad-header">
+          <div>
+            <h3>Configuración de plantilla</h3>
+            <p>
+              Campo de trabajo para leer la plantilla activa, ver la ocupación por líneas y detectar qué perfiles faltan
+              o están más justos de lo ideal.
+            </p>
+          </div>
+          <div class="trainer-squad-badges">
+            <span class="role-meta-chip">Altas activas: {{ trainer_squad_active_count }}</span>
+            <span class="role-meta-chip">Once base</span>
+            <span class="role-meta-chip">Refuerzos</span>
+          </div>
+        </div>
+        <div class="trainer-squad-layout">
+          <article class="trainer-squad-pitch" aria-label="Campo de configuración de plantilla">
+            <div class="trainer-squad-pitch-head">
+              <div class="pitch-title">
+                <strong>Campo de fútbol</strong>
+                <span>Las piezas sobre el campo son la fotografía operativa del once base que tienes disponible ahora.</span>
+              </div>
+              <div class="trainer-squad-metrics" aria-label="Resumen de plantilla">
+                <span class="trainer-squad-metric">Activos <strong>{{ trainer_squad_active_count }}</strong></span>
+                <span class="trainer-squad-metric">Titulares <strong>{{ trainer_pitch_players|length }}</strong></span>
+              </div>
+            </div>
+            <div class="field-diagram trainer-squad-field">
+              <img src="{% static 'football/campo-futbol.jpg' %}" alt="Campo de fútbol" />
+              {% for player in trainer_pitch_players %}
+              <a
+                class="trainer-pitch-player is-{{ player.accent }}"
+                href="{% url 'coach-role-trainer' %}?player={{ player.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}"
+                title="{{ player.name }}{% if player.number %} · {{ player.number }}{% endif %}"
+                style="left: {{ player.left }}%; top: {{ player.top }}%;"
+              >
+                <span class="trainer-pitch-player-number">{% if player.number %}{{ player.number }}{% else %}--{% endif %}</span>
+                <span class="trainer-pitch-player-name">{{ player.name }}</span>
+                <span class="trainer-pitch-player-role">{{ player.position|default:'-' }}</span>
+              </a>
+              {% empty %}
+              <div style="position:absolute; inset:50% auto auto 50%; transform:translate(-50%, -50%); text-align:center; max-width: 18rem; z-index:2;">
+                <div style="display:inline-flex; padding:0.45rem 0.7rem; border-radius:999px; background:rgba(2,6,23,0.62); border:1px solid rgba(244,180,0,0.24); color:rgba(255,242,199,0.94); font-size:0.72rem; font-weight:900; letter-spacing:0.12em; text-transform:uppercase;">Sin once base</div>
+                <p style="margin:0.75rem 0 0; color:rgba(226,232,240,0.82); line-height:1.5;">Cuando haya jugadores activos, aquí se proyectará la configuración de la plantilla sobre el campo.</p>
+              </div>
+              {% endfor %}
+            </div>
+            <div class="trainer-squad-legend" aria-label="Lectura rápida por líneas">
+              {% for row in trainer_squad_reinforcement_rows %}
+              <span class="trainer-squad-metric">
+                {{ row.label }} <strong>{{ row.current }}</strong>
+              </span>
+              {% endfor %}
+            </div>
+          </article>
+          <aside class="trainer-squad-panel" aria-label="Plantilla activa y posiciones a reforzar">
+            <div class="trainer-squad-panel-head">
+              <div>
+                <strong>Plantilla activa</strong><br />
+                <span>{{ trainer_squad_active_count }} jugadores dados de alta</span>
+              </div>
+            </div>
+            <div class="trainer-squad-list">
+              {% for item in coach_player_cards_all %}
+              <a
+                class="trainer-squad-player"
+                href="{% url 'coach-role-trainer' %}?player={{ item.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}"
+                title="{{ item.name }}{% if item.number %} · {{ item.number }}{% endif %}"
+              >
+                <div class="trainer-squad-player-media" aria-hidden="true">
+                  <img src="{% if item.photo_url %}{{ item.photo_url }}{% else %}{% static 'football/images/player-avatar.svg' %}{% endif %}" alt="{{ item.name }}" loading="lazy" />
+                  {% if item.number %}<span class="trainer-squad-player-number">{{ item.number }}</span>{% endif %}
+                </div>
+                <div class="trainer-squad-player-copy">
+                  <strong>{% if item.number %}#{{ item.number }} · {% endif %}{{ item.name }}</strong>
+                  <span>{{ item.position|default:'-' }}</span>
+                </div>
+              </a>
+              {% endfor %}
+            </div>
+            <div class="trainer-squad-reinforcement">
+              <h4>Posiciones a reforzar</h4>
+              {% for row in trainer_squad_reinforcement_rows %}
+              <div class="trainer-squad-reinforcement-row is-{{ row.tone }}">
+                <span class="label">{{ row.label }}</span>
+                <span class="value">{{ row.current }} disponibles</span>
+                <span class="meta">
+                  {% if row.missing %}
+                    Falta {{ row.missing }} para tener una estructura más sólida. {{ row.status }}
+                  {% else %}
+                    Estructura cubierta para un once base competitivo.
+                  {% endif %}
+                </span>
+              </div>
+              {% endfor %}
+            </div>
+          </aside>
         </div>
       </section>
       {% endif %}

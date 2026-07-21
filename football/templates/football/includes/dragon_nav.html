@@ -106,7 +106,23 @@
 </script>
 {% endif %}
 {% endif %}
-{% if not hide_product_shortcuts %}
+{% if compact_workspace_tabs|default:False %}
+<nav class="product-nav-shortcuts product-nav-shortcuts--compact" aria-label="Navegación principal">
+  {% with nav_path=request.path|default:'' nav_url_name=request.resolver_match.url_name|default:'' %}
+  <a href="{% if can_manage_workspace or is_admin_user %}{% url 'coach-roster' %}{% else %}{% url 'player-dashboard' %}{% endif %}{% if active_team %}?team={{ active_team.id }}{% endif %}" data-help="Plantilla del equipo: jugadores, fichas, estadísticas y seguimiento individual." class="{% if nav_url_name == 'coach-roster' or nav_url_name == 'player-dashboard' or 'coach/plantilla' in nav_path %}is-active{% endif %}" {% if nav_url_name == 'coach-roster' or nav_url_name == 'player-dashboard' or 'coach/plantilla' in nav_path %}aria-current="page"{% endif %}>Plantilla</a>
+  <a href="{% url 'scouting-board' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" data-help="Dirección deportiva: ojeo, seguimiento y fichas de jugadores observados." class="{% if nav_url_name == 'scouting-board' or nav_url_name == 'scouting-target-detail' %}is-active{% endif %}" {% if nav_url_name == 'scouting-board' or nav_url_name == 'scouting-target-detail' %}aria-current="page"{% endif %}>Dirección</a>
+  {% if workspace_module_access.sessions|default:True %}
+  <a href="{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" data-help="Entrenamiento: tareas, sesiones, microciclos y táctica." class="{% if 'coach/sesiones' in nav_path %}is-active{% endif %}" {% if 'coach/sesiones' in nav_path %}aria-current="page"{% endif %}>Entrenamiento</a>
+  {% endif %}
+  {% if workspace_module_access.convocation|default:True %}
+  <a href="{% url 'match-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" data-help="Partido: convocatoria, 11 inicial, acciones e informes." class="{% if nav_url_name == 'match-hub' or 'convocatoria' in nav_path or '11-inicial' in nav_path or 'registro-acciones' in nav_path or nav_path|slice:":7" == '/match/' %}is-active{% endif %}" {% if nav_url_name == 'match-hub' or 'convocatoria' in nav_path or '11-inicial' in nav_path or 'registro-acciones' in nav_path or nav_path|slice:":7" == '/match/' %}aria-current="page"{% endif %}>Partido</a>
+  {% endif %}
+  {% if can_configure_active_team and active_workspace and active_workspace.kind == 'club' %}
+  <a href="{% url 'club-onboarding' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" data-help="Configuración del club: temporada, identidad, permisos y staff." class="{% if nav_url_name == 'club-onboarding' or nav_url_name == 'club-season-wizard' %}is-active{% endif %}" {% if nav_url_name == 'club-onboarding' or nav_url_name == 'club-season-wizard' %}aria-current="page"{% endif %}>Configuración</a>
+  {% endif %}
+  {% endwith %}
+</nav>
+{% elif not hide_product_shortcuts %}
 <nav class="product-nav-shortcuts" aria-label="Accesos rápidos">
   {% if active_workspace %}
   <div class="nav-context" aria-label="Contexto actual">

@@ -360,6 +360,134 @@
         font-weight: 800;
       }
       .step a:hover { text-decoration: underline; }
+      .config-index {
+        margin-top: 0.9rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+      }
+      .config-index a,
+      .config-chip-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 38px;
+        padding: 0.42rem 0.72rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--ink);
+        text-decoration: none;
+        font-size: 0.75rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .config-section {
+        margin-top: 1rem;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(2, 6, 23, 0.22);
+        padding: 0.95rem;
+      }
+      .config-section-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        align-items: flex-start;
+      }
+      .config-section-kicker {
+        margin: 0;
+        color: rgba(125, 211, 252, 0.92);
+        font-size: 0.72rem;
+        font-weight: 950;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+      .config-section-title {
+        margin: 0.2rem 0 0;
+        font-size: 1.1rem;
+        letter-spacing: -0.02em;
+      }
+      .config-section-desc {
+        margin: 0.3rem 0 0;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+      .config-section-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+      }
+      .config-section-grid {
+        margin-top: 0.85rem;
+        display: grid;
+        gap: 0.75rem;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      }
+      .config-mini-card {
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(18, 28, 48, 0.45);
+        padding: 0.85rem;
+      }
+      .config-mini-card h3 {
+        margin: 0;
+        font-size: 0.9rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .config-mini-card p {
+        margin: 0.45rem 0 0;
+        color: rgba(226, 232, 240, 0.78);
+        line-height: 1.45;
+      }
+      .config-module-grid {
+        margin-top: 0.85rem;
+        display: grid;
+        gap: 0.75rem;
+      }
+      .config-module-card {
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(18, 28, 48, 0.45);
+        padding: 0.85rem;
+      }
+      .config-module-card.is-enabled {
+        border-color: rgba(244, 180, 0, 0.28);
+        box-shadow: inset 0 0 0 1px rgba(244, 180, 0, 0.08);
+      }
+      .config-module-card h4 {
+        margin: 0;
+        font-size: 0.95rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .config-module-card .meta-line {
+        margin-top: 0.3rem;
+        color: rgba(226, 232, 240, 0.76);
+        line-height: 1.45;
+      }
+      .config-module-pill {
+        display: inline-flex;
+        margin-top: 0.55rem;
+        padding: 0.2rem 0.55rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.14);
+        font-size: 0.68rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-weight: 900;
+      }
+      .config-module-pill.on {
+        border-color: rgba(34, 197, 94, 0.34);
+        color: rgba(187, 247, 208, 0.98);
+      }
+      .config-module-pill.off {
+        border-color: rgba(148, 163, 184, 0.24);
+        color: rgba(148, 163, 184, 0.92);
+      }
       .season-status-row {
         margin-top: 0.8rem;
         display: grid;
@@ -479,6 +607,9 @@
         {% if workspace.id %}
         <div class="actions" style="margin-top:0.85rem;">
           <a class="btn btn-ghost" href="{% url 'coach-roster' %}">Ir a Plantilla</a>
+          {% if workspace.primary_team_id %}
+          <a class="btn btn-ghost" href="{% url 'staff-directory' %}?team={{ workspace.primary_team_id }}">Staff</a>
+          {% endif %}
           <a class="btn btn-ghost" href="{% url 'platform-workspace-detail' workspace.id %}">Usuarios y roles</a>
         </div>
         {% endif %}
@@ -497,8 +628,60 @@
           {% endif %}
         </div>
 
-        {% if setup_checklist %}
-        <section class="stepper" aria-label="Checklist de activación">
+        <nav class="config-index" aria-label="Secciones de configuración">
+          <a href="#config-staff">Staff</a>
+          <a href="#config-permissions">Permisos</a>
+          <a href="#config-branding">Branding</a>
+          <a href="#config-competition">Competición</a>
+          <a href="#config-modules">Módulos</a>
+        </nav>
+
+        <section class="config-section" id="config-staff">
+          <div class="config-section-head">
+            <div>
+              <p class="config-section-kicker">Configuración</p>
+              <h2 class="config-section-title">Staff</h2>
+              <p class="config-section-desc">Acceso operativo al cuerpo técnico del club. Desde aquí se gestionan fichas, altas y documentación del staff.</p>
+            </div>
+            <div class="config-section-actions">
+              {% if workspace.primary_team_id %}
+              <a class="config-chip-link" href="{% url 'staff-directory' %}?team={{ workspace.primary_team_id }}">Abrir staff</a>
+              {% endif %}
+              <a class="config-chip-link" href="{% url 'coach-roster' %}">Ir a plantilla</a>
+            </div>
+          </div>
+          <div class="config-section-grid">
+            <article class="config-mini-card">
+              <h3>Personal técnico</h3>
+              <p>Consulta el directorio del staff, edita perfiles y vincula cada miembro a su equipo o rol operativo.</p>
+              <div class="config-section-actions" style="margin-top:0.65rem;">
+                {% if workspace.primary_team_id %}
+                <a class="config-chip-link" href="{% url 'staff-directory' %}?team={{ workspace.primary_team_id }}">Ver staff</a>
+                {% endif %}
+                <a class="config-chip-link" href="{% url 'platform-workspace-detail' workspace.id %}">Usuarios y roles</a>
+              </div>
+            </article>
+            <article class="config-mini-card" id="config-permissions">
+              <h3>Permisos</h3>
+              <p>Revisa quién puede configurar el club, quién puede editar plantilla y qué accesos técnicos tiene cada rol.</p>
+              <div class="config-section-actions" style="margin-top:0.65rem;">
+                <a class="config-chip-link" href="{% url 'platform-workspace-detail' workspace.id %}">Abrir permisos</a>
+                <a class="config-chip-link" href="{% url 'club-season-wizard' %}">Temporada</a>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="config-section" id="config-competition">
+          <div class="config-section-head">
+            <div>
+              <p class="config-section-kicker">Configuración</p>
+              <h2 class="config-section-title">Competición</h2>
+              <p class="config-section-desc">Define el equipo, la fuente competitiva, el roster inicial y el estado de activación de la temporada.</p>
+            </div>
+          </div>
+          {% if setup_checklist %}
+        <section class="stepper" aria-label="Checklist de activación" style="margin-top:0.85rem;">
           <div class="stepper-head">
             <p class="stepper-title">Checklist de activación</p>
             <p class="stepper-count">Requeridos: {{ setup_progress.required_done }}/{{ setup_progress.required_total }}</p>
@@ -573,15 +756,18 @@
             </div>
           </div>
 
-          <div class="actions">
-            <button class="btn btn-primary" type="submit" name="action" value="save_and_sync">Guardar y sincronizar</button>
-            <button class="btn btn-ghost" type="submit" name="action" value="save">Guardar</button>
-            <button class="btn btn-ghost" type="submit" name="action" value="search_universo">Buscar en Universo</button>
-            <button class="btn btn-ghost" type="submit" name="action" value="import_roster">Importar plantilla</button>
-            <button class="btn btn-ghost" type="submit" name="action" value="seed_demo">Cargar datos demo</button>
-            <a class="btn btn-ghost" href="{% url 'dashboard-home' %}">Volver a Home</a>
-          </div>
-        </form>
+        <div class="actions">
+          <button class="btn btn-primary" type="submit" name="action" value="save_and_sync">Guardar y sincronizar</button>
+          <button class="btn btn-ghost" type="submit" name="action" value="save">Guardar</button>
+          <button class="btn btn-ghost" type="submit" name="action" value="search_universo">Buscar en Universo</button>
+          <button class="btn btn-ghost" type="submit" name="action" value="import_roster">Importar plantilla</button>
+          <button class="btn btn-ghost" type="submit" name="action" value="seed_demo">Cargar datos demo</button>
+          {% if workspace.primary_team_id %}
+          <a class="btn btn-ghost" href="{% url 'staff-directory' %}?team={{ workspace.primary_team_id }}">Gestionar Staff</a>
+          {% endif %}
+          <a class="btn btn-ghost" href="{% url 'dashboard-home' %}">Volver a Home</a>
+        </div>
+      </form>
 
         <div class="notice" style="margin-top:1rem;">
           <strong>Temporada del club:</strong> al iniciar una nueva temporada, todo lo anterior queda como histórico.
@@ -599,7 +785,16 @@
           {% endif %}
           <a class="btn btn-primary" href="{% url 'club-season-wizard' %}">Finalizar temporada / Nueva temporada</a>
         </div>
+        </section>
 
+        <section class="config-section" id="config-branding">
+          <div class="config-section-head">
+            <div>
+              <p class="config-section-kicker">Configuración</p>
+              <h2 class="config-section-title">Branding</h2>
+              <p class="config-section-desc">Escudo, portada, equipaciones y estilo visual del club. Todo lo que define la identidad del equipo.</p>
+            </div>
+          </div>
         <div class="notice" style="margin-top:1rem;">
           <strong>Escudo y foto del estadio:</strong> personaliza la identidad visual del club. La foto del estadio/portada se usa en Home, vista de equipo e infografía del 11 inicial.
         </div>
@@ -1000,6 +1195,45 @@
             <a class="btn btn-ghost" href="{% url 'dashboard-home' %}">Ver Home</a>
           </div>
         </form>
+        </section>
+
+        <section class="config-section" id="config-modules">
+          <div class="config-section-head">
+            <div>
+              <p class="config-section-kicker">Configuración</p>
+              <h2 class="config-section-title">Módulos</h2>
+              <p class="config-section-desc">Estado de los bloques funcionales del club. Aquí ves qué está activo y qué puedes habilitar o revisar.</p>
+            </div>
+            {% if workspace.id %}
+            <div class="config-section-actions">
+              <a class="config-chip-link" href="{% url 'platform-workspace-detail' workspace.id %}">Abrir configuración global</a>
+            </div>
+            {% endif %}
+          </div>
+          {% if workspace_module_rows %}
+          <div class="config-module-grid">
+            {% for module in workspace_module_rows %}
+            <article class="config-module-card {% if module.enabled %}is-enabled{% endif %}">
+              <h4>{{ module.label }}</h4>
+              <div class="meta-line">{{ module.description }}</div>
+              <span class="config-module-pill {% if module.enabled %}on{% else %}off{% endif %}">
+                {% if module.enabled %}Activo{% else %}Inactivo{% endif %}
+              </span>
+              {% if module.deliverables %}
+              <div class="config-module-grid" style="margin-top:0.75rem;">
+                {% for deliverable in module.deliverables %}
+                <article class="config-mini-card" style="padding:0.7rem 0.75rem;">
+                  <h3 style="font-size:0.78rem;">{{ deliverable.label }}</h3>
+                  <p>{{ deliverable.description }}</p>
+                </article>
+                {% endfor %}
+              </div>
+              {% endif %}
+            </article>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </section>
 
         {% if universo_candidates %}
         <div class="notice" style="margin-top:0.9rem;">

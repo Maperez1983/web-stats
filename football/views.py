@@ -10449,6 +10449,16 @@ def club_onboarding_page(request):
     except Exception:
         pass
 
+    workspace_module_rows = []
+    try:
+        if workspace:
+            workspace_module_rows = _workspace_module_catalog_for_template(
+                workspace.kind,
+                _workspace_enabled_modules(workspace),
+            )
+    except Exception:
+        workspace_module_rows = []
+
     crest_preview_url = ''
     cover_preview_url = ''
     try:
@@ -10520,6 +10530,7 @@ def club_onboarding_page(request):
                 'form': form,
                 'theme_form': theme_form,
                 'kit_form': kit_form,
+                'workspace_module_rows': workspace_module_rows,
                 'setup_checklist': setup_checklist or [],
                 'setup_progress': setup_progress,
                 'error': error,
@@ -17840,6 +17851,21 @@ def coach_overview_page(request):
                         pass
         except Exception:
             hero_image_url = ''
+    trainer_workspace_options = []
+    if _is_admin_user(request.user):
+        try:
+            trainer_workspace_options = [
+                {
+                    'id': int(ws.id),
+                    'label': str(getattr(ws, 'name', '') or '').strip() or f'Workspace {ws.id}',
+                    'kind': str(getattr(ws, 'kind', '') or '').strip(),
+                }
+                for ws in workspace_context.available_workspaces_for_user(request.user)
+                .filter(kind=Workspace.KIND_CLUB, is_active=True)
+                .order_by('name', 'id')
+            ]
+        except Exception:
+            trainer_workspace_options = []
     if not hero_image_url:
         active_hero_items = list(HomeCarouselImage.objects.filter(is_active=True).order_by('order', '-created_at', '-id'))
         hero_items = active_hero_items or list(HomeCarouselImage.objects.order_by('order', '-created_at', '-id'))
@@ -17852,6 +17878,21 @@ def coach_overview_page(request):
                 hero_image_url = ''
         else:
             hero_image_url = ''
+    trainer_workspace_options = []
+    if _is_admin_user(request.user):
+        try:
+            trainer_workspace_options = [
+                {
+                    'id': int(ws.id),
+                    'label': str(getattr(ws, 'name', '') or '').strip() or f'Workspace {ws.id}',
+                    'kind': str(getattr(ws, 'kind', '') or '').strip(),
+                }
+                for ws in workspace_context.available_workspaces_for_user(request.user)
+                .filter(kind=Workspace.KIND_CLUB, is_active=True)
+                .order_by('name', 'id')
+            ]
+        except Exception:
+            trainer_workspace_options = []
     team_name_folded = (primary_team.name or '').strip().lower() if primary_team else ''
     highlighted_standing = None
     for row in standings:
@@ -28670,6 +28711,21 @@ def coach_role_trainer_page(request):
                 hero_image_url = ''
         else:
             hero_image_url = ''
+    trainer_workspace_options = []
+    if _is_admin_user(request.user):
+        try:
+            trainer_workspace_options = [
+                {
+                    'id': int(ws.id),
+                    'label': str(getattr(ws, 'name', '') or '').strip() or f'Workspace {ws.id}',
+                    'kind': str(getattr(ws, 'kind', '') or '').strip(),
+                }
+                for ws in workspace_context.available_workspaces_for_user(request.user)
+                .filter(kind=Workspace.KIND_CLUB, is_active=True)
+                .order_by('name', 'id')
+            ]
+        except Exception:
+            trainer_workspace_options = []
     preferred_sources = preferred_event_source_by_match(primary_team, scope=stats_scope) if primary_team else {}
     base_events_qs = (
         confirmed_events_queryset()
@@ -29078,6 +29134,74 @@ def coach_role_trainer_page(request):
                 ),
             )
         ]
+    squad_pitch_targets = [
+        {'key': 'goalkeeper', 'label': 'Portería', 'target': 2},
+        {'key': 'defense', 'label': 'Defensa', 'target': 6},
+        {'key': 'midfield', 'label': 'Centro del campo', 'target': 6},
+        {'key': 'attack', 'label': 'Ataque', 'target': 4},
+    ]
+
+    def _coach_squad_bucket(position_text: str) -> str:
+        text = normalize_label(position_text or '')
+        if any(token in text for token in ('portero', 'goalkeeper', 'guardameta', 'porteria')):
+            return 'goalkeeper'
+        if any(token in text for token in ('defensa', 'central', 'lateral', 'carrilero', 'defensive')):
+            return 'defense'
+        if any(token in text for token in ('medio', 'centro', 'pivote', 'pivot', 'interior', 'volante', 'medio centro')):
+            return 'midfield'
+        if any(token in text for token in ('delantero', 'extremo', 'punta', 'ataque', 'media punta', 'segundo punta')):
+            return 'attack'
+        return 'midfield'
+
+    squad_pitch_slots = {
+        'goalkeeper': [{'left': 50, 'top': 83}],
+        'defense': [{'left': 16, 'top': 66}, {'left': 37, 'top': 68}, {'left': 63, 'top': 68}, {'left': 84, 'top': 66}],
+        'midfield': [{'left': 13, 'top': 47}, {'left': 31, 'top': 44}, {'left': 50, 'top': 43}, {'left': 69, 'top': 44}, {'left': 87, 'top': 47}],
+        'attack': [{'left': 22, 'top': 26}, {'left': 42, 'top': 23}, {'left': 58, 'top': 23}, {'left': 78, 'top': 26}],
+    }
+    squad_role_counts = {item['key']: 0 for item in squad_pitch_targets}
+    for item in coach_player_cards_all:
+        bucket = _coach_squad_bucket(item.get('position') or '')
+        squad_role_counts[bucket] = squad_role_counts.get(bucket, 0) + 1
+    trainer_pitch_players = []
+    pitch_role_counts = {item['key']: 0 for item in squad_pitch_targets}
+    for item in coach_player_cards_all[:11]:
+        bucket = _coach_squad_bucket(item.get('position') or '')
+        bucket_index = pitch_role_counts.get(bucket, 0)
+        pitch_role_counts[bucket] = bucket_index + 1
+        slot_pool = squad_pitch_slots.get(bucket) or squad_pitch_slots['midfield']
+        slot = slot_pool[bucket_index % len(slot_pool)]
+        row = bucket_index // len(slot_pool)
+        left = max(5, min(90, slot['left'] + (row * 3 if bucket != 'goalkeeper' else 0)))
+        top = max(6, min(88, slot['top'] + (row * 7 if bucket != 'goalkeeper' else 0)))
+        trainer_pitch_players.append(
+            {
+                **item,
+                'bucket': bucket,
+                'left': left,
+                'top': top,
+                'accent': {
+                    'goalkeeper': 'keeper',
+                    'defense': 'defense',
+                    'midfield': 'midfield',
+                    'attack': 'attack',
+                }.get(bucket, 'midfield'),
+            }
+        )
+    trainer_squad_active_count = len(coach_player_cards_all)
+    trainer_squad_reinforcement_rows = []
+    for target in squad_pitch_targets:
+        current = squad_role_counts.get(target['key'], 0)
+        missing = max(0, int(target['target']) - int(current))
+        trainer_squad_reinforcement_rows.append(
+            {
+                **target,
+                'current': current,
+                'missing': missing,
+                'tone': 'critical' if missing >= 2 else 'warning' if missing == 1 else 'ok',
+                'status': 'Refuerzo urgente' if missing >= 2 else 'Revisar' if missing == 1 else 'Cubierto',
+            }
+        )
     selected_player = (
         Player.objects.filter(id=selected_player_id, team=primary_team, is_active=True).first()
         if selected_player_id
@@ -29419,10 +29543,14 @@ def coach_role_trainer_page(request):
             'coach_measured_matches': measured_matches,
             'coach_player_options': coach_player_options,
             'coach_player_cards_all': coach_player_cards_all,
+            'trainer_pitch_players': trainer_pitch_players,
+            'trainer_squad_active_count': trainer_squad_active_count,
+            'trainer_squad_reinforcement_rows': trainer_squad_reinforcement_rows,
             'coach_selected_player_id': selected_player_id,
             'coach_player_match_options': coach_player_match_options,
             'coach_selected_player_match_id': _parse_int(request.GET.get('player_match')),
             'coach_player_view': coach_player_view,
+            'trainer_workspace_options': trainer_workspace_options,
             'active_team': primary_team,
         },
     )
