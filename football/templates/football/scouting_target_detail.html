@@ -324,6 +324,9 @@
           <div class="status-line">
             <span class="badge {% if target.priority == 'urgent' %}critical{% elif target.priority == 'high' %}warning{% else %}ok{% endif %}">{{ target.get_priority_display }}</span>
             <span class="badge cyan">{{ target.get_status_display }}</span>
+            {% if target.player_id %}
+            <span class="badge ok">En plantilla</span>
+            {% endif %}
             {% if target.assigned_to %}
             <span class="badge">Asignado: {{ target.assigned_to.get_full_name|default:target.assigned_to.username }}</span>
             {% endif %}
@@ -336,6 +339,15 @@
           <a class="btn" href="{% url 'scouting-board' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Volver</a>
           {% if player_detail_url %}
           <a class="btn primary" href="{{ player_detail_url }}">Ficha jugador</a>
+          {% endif %}
+          {% if can_manage_workspace %}
+          <form method="post" style="margin:0; display:inline-flex;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="promote-to-player" />
+            <button class="btn primary" type="submit">
+              {% if target.player_id %}Sincronizar plantilla{% else %}Convertir a plantilla{% endif %}
+            </button>
+          </form>
           {% endif %}
         </div>
       </header>

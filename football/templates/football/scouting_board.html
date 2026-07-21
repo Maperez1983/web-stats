@@ -203,6 +203,39 @@
         gap: 0.55rem;
         flex-wrap: wrap;
       }
+      .workspace-tabs {
+        margin-top: 1rem;
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+      .workspace-tab {
+        appearance: none;
+        border-radius: 999px;
+        border: 1px solid rgba(244, 180, 0, 0.24);
+        background: rgba(15, 23, 42, 0.62);
+        color: rgba(245, 247, 250, 0.94);
+        text-decoration: none;
+        font-weight: 900;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        white-space: nowrap;
+        min-height: 38px;
+        padding: 0.56rem 0.9rem;
+        cursor: pointer;
+      }
+      .workspace-tab.is-active {
+        border-color: rgba(244, 180, 0, 0.45);
+        background: linear-gradient(135deg, rgba(244, 180, 0, 0.22), rgba(47, 125, 50, 0.16));
+      }
+      .workspace-panel {
+        display: none;
+        margin-top: 1rem;
+      }
+      .workspace-panel.is-active {
+        display: block;
+      }
       .grid {
         margin-top: 1rem;
         display: grid;
@@ -216,7 +249,6 @@
         background: rgba(7, 16, 30, 0.78);
         padding: 0.95rem;
         color: rgba(245,247,250,0.94);
-        text-decoration: none;
         box-shadow: 0 18px 40px rgba(0,0,0,0.26);
       }
       .card:hover {
@@ -244,6 +276,39 @@
         flex-wrap: wrap;
         gap: 0.4rem;
         margin-top: 0.8rem;
+      }
+      .card-meta {
+        margin-top: 0.75rem;
+        color: rgba(226,232,240,0.72);
+        font-size: 0.8rem;
+        line-height: 1.45;
+      }
+      .card-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin-top: 0.85rem;
+      }
+      .card-action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 34px;
+        padding: 0.4rem 0.75rem;
+        border-radius: 999px;
+        border: 1px solid rgba(148,163,184,0.18);
+        background: rgba(255,255,255,0.04);
+        color: rgba(245,247,250,0.94);
+        text-decoration: none;
+        font-size: 0.68rem;
+        font-weight: 900;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+      }
+      .card-action.primary {
+        border-color: rgba(244, 180, 0, 0.38);
+        background: rgba(244, 180, 0, 0.12);
+        color: #fff7dd;
       }
       .badge {
         display: inline-flex;
@@ -337,172 +402,236 @@
             <span class="pill">{{ urgent_targets }} urgentes</span>
           </div>
         </div>
-        <div class="actions">
+          <div class="actions">
           <a class="btn" href="{% url 'coach-cards' %}">Áreas</a>
           <a class="btn" href="{% url 'staff-directory' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Staff</a>
         </div>
       </header>
 
-      <form class="filters" method="get">
-        {% if active_team %}<input type="hidden" name="team" value="{{ active_team.id }}" />{% endif %}
-        <label>
-          Buscar
-          <input type="search" name="q" value="{{ search_filter|default:'' }}" placeholder="Nombre, club, posición..." />
-        </label>
-        <label>
-          Estado
-          <select name="status">
-            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>Todos</option>
-            {% for value,label in status_choices %}
-            <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </label>
-        <label>
-          Prioridad
-          <select name="priority">
-            <option value="all" {% if priority_filter == 'all' %}selected{% endif %}>Todas</option>
-            {% for value,label in priority_choices %}
-            <option value="{{ value }}" {% if priority_filter == value %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </label>
-        <label>
-          Asignación
-          <select name="assigned">
-            <option value="all" {% if assigned_filter == 'all' %}selected{% endif %}>Todos</option>
-            <option value="me" {% if assigned_filter == 'me' %}selected{% endif %}>Mis ojeados</option>
-            <option value="unassigned" {% if assigned_filter == 'unassigned' %}selected{% endif %}>Sin asignar</option>
-          </select>
-        </label>
-        <div style="grid-column:1 / -1;display:flex;gap:0.55rem;flex-wrap:wrap;">
-          <button class="btn primary" type="submit">Filtrar</button>
-          <a class="btn" href="{% url 'scouting-board' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Limpiar</a>
-        </div>
-      </form>
+      <div class="workspace-tabs" role="tablist" aria-label="Vistas de dirección deportiva">
+        {% if can_manage_workspace %}
+        <button class="workspace-tab is-active" type="button" data-scout-tab-target="create">Crear</button>
+        {% endif %}
+        <button class="workspace-tab" type="button" data-scout-tab-target="list">Listado</button>
+      </div>
 
       {% if can_manage_workspace %}
-      <section class="create-panel">
-        <h2>Nuevo ojeado</h2>
-        <p>Alta rápida para meter un jugador en la bandeja y empezar a seguirlo desde hoy.</p>
-        <form method="post">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="create" />
-          <div class="create-grid">
-            <label>
-              Nombre
-              <input type="text" name="subject_name" maxlength="160" required />
-            </label>
-            <label>
-              Club
-              <input type="text" name="subject_team_name" maxlength="160" />
-            </label>
-            <label>
-              Posición
-              <input type="text" name="position" maxlength="60" placeholder="Extremo, central..." />
-            </label>
-            <label>
-              Pie
-              <input type="text" name="dominant_foot" maxlength="16" placeholder="Derecho, izquierdo..." />
-            </label>
-            <label>
-              Fecha nacimiento
-              <input type="date" name="birth_date" />
-            </label>
-            <label>
-              Prioridad
-              <select name="priority">
-                {% for value,label in priority_choices %}
-                <option value="{{ value }}"{% if value == 'medium' %} selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label>
-              Estado
-              <select name="status">
-                {% for value,label in status_choices %}
-                <option value="{{ value }}"{% if value == 'watchlist' %} selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label>
-              Asignado a ID
-              <input type="number" name="assigned_to_id" min="1" />
-            </label>
-            <label>
-              Próxima revisión
-              <input type="date" name="next_review_on" />
-            </label>
-            <label style="grid-column:1 / -1;">
-              Nota de presupuesto
-              <input type="text" name="budget_note" maxlength="160" />
-            </label>
-            <label style="grid-column:1 / -1;">
-              Resumen inicial
-              <textarea name="summary" placeholder="Qué nos interesa ver, riesgo, encaje y siguiente observación..."></textarea>
-            </label>
-          </div>
-          <div class="create-actions">
-            <button class="btn primary" type="submit">Crear seguimiento</button>
-          </div>
-        </form>
-        {% if feedback %}<div class="feedback">{{ feedback }}</div>{% endif %}
-        {% if error %}<div class="error">{{ error }}</div>{% endif %}
+      <section class="workspace-panel" data-scout-panel="create">
+        <section class="create-panel">
+          <h2>Nuevo ojeado</h2>
+          <p>Alta rápida para meter un jugador en la bandeja y empezar a seguirlo desde hoy.</p>
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create" />
+            <div class="create-grid">
+              <label>
+                Nombre
+                <input type="text" name="subject_name" maxlength="160" required />
+              </label>
+              <label>
+                Club
+                <input type="text" name="subject_team_name" maxlength="160" />
+              </label>
+              <label>
+                Posición
+                <input type="text" name="position" maxlength="60" placeholder="Extremo, central..." />
+              </label>
+              <label>
+                Pie
+                <input type="text" name="dominant_foot" maxlength="16" placeholder="Derecho, izquierdo..." />
+              </label>
+              <label>
+                Fecha nacimiento
+                <input type="date" name="birth_date" />
+              </label>
+              <label>
+                Prioridad
+                <select name="priority">
+                  {% for value,label in priority_choices %}
+                  <option value="{{ value }}"{% if value == 'medium' %} selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                Estado
+                <select name="status">
+                  {% for value,label in status_choices %}
+                  <option value="{{ value }}"{% if value == 'watchlist' %} selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                Asignado a ID
+                <input type="number" name="assigned_to_id" min="1" />
+              </label>
+              <label>
+                Próxima revisión
+                <input type="date" name="next_review_on" />
+              </label>
+              <label style="grid-column:1 / -1;">
+                Nota de presupuesto
+                <input type="text" name="budget_note" maxlength="160" />
+              </label>
+              <label style="grid-column:1 / -1;">
+                Resumen inicial
+                <textarea name="summary" placeholder="Qué nos interesa ver, riesgo, encaje y siguiente observación..."></textarea>
+              </label>
+            </div>
+            <div class="create-actions">
+              <button class="btn primary" type="submit">Crear seguimiento</button>
+            </div>
+          </form>
+          {% if feedback %}<div class="feedback">{{ feedback }}</div>{% endif %}
+          {% if error %}<div class="error">{{ error }}</div>{% endif %}
+        </section>
       </section>
       {% endif %}
 
-      {% if items %}
-      <section class="grid" aria-label="Jugadores ojeados">
-        {% for target in items %}
-        <a class="card" href="{% url 'scouting-target-detail' target.id %}">
-          <div class="card-head">
-            <div>
-              <h3 class="card-title">{{ target.display_name }}</h3>
-              <div class="card-sub">
-                {% if target.subject_team_name %}{{ target.subject_team_name }} · {% endif %}
-                {{ target.position|default:"Sin posición" }}
+      <section class="workspace-panel is-active" data-scout-panel="list">
+        <form class="filters" method="get">
+          {% if active_team %}<input type="hidden" name="team" value="{{ active_team.id }}" />{% endif %}
+          <label>
+            Buscar
+            <input type="search" name="q" value="{{ search_filter|default:'' }}" placeholder="Nombre, club, posición..." />
+          </label>
+          <label>
+            Estado
+            <select name="status">
+              <option value="all" {% if status_filter == 'all' %}selected{% endif %}>Todos</option>
+              {% for value,label in status_choices %}
+              <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Prioridad
+            <select name="priority">
+              <option value="all" {% if priority_filter == 'all' %}selected{% endif %}>Todas</option>
+              {% for value,label in priority_choices %}
+              <option value="{{ value }}" {% if priority_filter == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Asignación
+            <select name="assigned">
+              <option value="all" {% if assigned_filter == 'all' %}selected{% endif %}>Todos</option>
+              <option value="me" {% if assigned_filter == 'me' %}selected{% endif %}>Mis ojeados</option>
+              <option value="unassigned" {% if assigned_filter == 'unassigned' %}selected{% endif %}>Sin asignar</option>
+            </select>
+          </label>
+          <div style="grid-column:1 / -1;display:flex;gap:0.55rem;flex-wrap:wrap;">
+            <button class="btn primary" type="submit">Filtrar</button>
+            <a class="btn" href="{% url 'scouting-board' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Limpiar</a>
+          </div>
+        </form>
+
+        <section class="stats" aria-label="Resumen de ojeados">
+          <article class="stat">
+            <div class="label">Ojeados</div>
+            <div class="value">{{ total_targets }}</div>
+          </article>
+          <article class="stat">
+            <div class="label">Activos</div>
+            <div class="value">{{ active_targets }}</div>
+          </article>
+          <article class="stat">
+            <div class="label">Revisar</div>
+            <div class="value">{{ review_targets }}</div>
+          </article>
+          <article class="stat">
+            <div class="label">Urgentes</div>
+            <div class="value">{{ urgent_targets }}</div>
+          </article>
+        </section>
+
+        {% if items %}
+        <section class="grid" aria-label="Jugadores ojeados">
+          {% for target in items %}
+          <article class="card">
+            <div class="card-head">
+              <div>
+                <h3 class="card-title">{{ target.display_name }}</h3>
+                <div class="card-sub">
+                  {% if target.subject_team_name %}{{ target.subject_team_name }} · {% endif %}
+                  {{ target.position|default:"Sin posición" }}
+                </div>
+              </div>
+              <span class="badge {% if target.priority == 'urgent' %}critical{% elif target.priority == 'high' %}warning{% else %}ok{% endif %}">{{ target.get_priority_display }}</span>
+            </div>
+            <div class="card-badges">
+              <span class="badge">{{ target.get_status_display }}</span>
+              {% if target.player_id %}
+              <span class="badge ok">En plantilla</span>
+              {% endif %}
+              {% if target.assigned_to %}
+              <span class="badge">Asignado: {{ target.assigned_to.get_full_name|default:target.assigned_to.username }}</span>
+              {% endif %}
+              {% if target.next_review_on %}
+              <span class="badge">Revisión {{ target.next_review_on|date:"d/m/Y" }}</span>
+              {% endif %}
+            </div>
+            <div class="mini-grid">
+              <div class="mini">
+                <div class="label">Informes</div>
+                <div class="value">{{ target.report_count|default:0 }}</div>
+              </div>
+              <div class="mini">
+                <div class="label">Abiertos</div>
+                <div class="value">{{ target.followups_open|length|default:0 }}</div>
+              </div>
+              <div class="mini">
+                <div class="label">Última nota</div>
+                <div class="value">
+                  {% if target.latest_report %}
+                    {{ target.latest_report.observed_on|date:"d/m" }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </div>
               </div>
             </div>
-            <span class="badge {% if target.priority == 'urgent' %}critical{% elif target.priority == 'high' %}warning{% else %}ok{% endif %}">{{ target.get_priority_display }}</span>
-          </div>
-          <div class="card-badges">
-            <span class="badge">{{ target.get_status_display }}</span>
-            {% if target.assigned_to %}
-            <span class="badge">Asignado: {{ target.assigned_to.get_full_name|default:target.assigned_to.username }}</span>
+            {% if target.summary %}
+            <div class="card-meta">{{ target.summary|truncatechars:160 }}</div>
             {% endif %}
-            {% if target.next_review_on %}
-            <span class="badge">Revisión {{ target.next_review_on|date:"d/m/Y" }}</span>
-            {% endif %}
-          </div>
-          <div class="mini-grid">
-            <div class="mini">
-              <div class="label">Informes</div>
-              <div class="value">{{ target.report_count|default:0 }}</div>
+            <div class="card-actions">
+              <a class="card-action primary" href="{% url 'scouting-target-detail' target.id %}">Abrir ficha</a>
+              {% if target.player_id %}
+              <a class="card-action" href="{% url 'player-detail' target.player_id %}">Ficha jugador</a>
+              {% endif %}
             </div>
-            <div class="mini">
-              <div class="label">Abiertos</div>
-              <div class="value">{{ target.followups_open|length|default:0 }}</div>
-            </div>
-            <div class="mini">
-              <div class="label">Última nota</div>
-              <div class="value">
-                {% if target.latest_report %}
-                  {{ target.latest_report.observed_on|date:"d/m" }}
-                {% else %}
-                  -
-                {% endif %}
-              </div>
-            </div>
-          </div>
-          {% if target.summary %}
-          <div class="card-sub" style="margin-top:0.85rem;">{{ target.summary|truncatechars:160 }}</div>
-          {% endif %}
-        </a>
-        {% endfor %}
+          </article>
+          {% endfor %}
+        </section>
+        {% else %}
+        <div class="empty">No hay jugadores ojeados con estos filtros.</div>
+        {% endif %}
       </section>
-      {% else %}
-      <div class="empty">No hay jugadores ojeados con estos filtros.</div>
-      {% endif %}
     </div>
+    <script>
+      (() => {
+        const tabs = Array.from(document.querySelectorAll('[data-scout-tab-target]'));
+        const panels = Array.from(document.querySelectorAll('[data-scout-panel]'));
+        if (!tabs.length || !panels.length) return;
+        const storageKey = 'scouting-board-tab';
+        const hasCreatePanel = panels.some((panel) => panel.dataset.scoutPanel === 'create');
+        const activate = (name) => {
+          tabs.forEach((tab) => tab.classList.toggle('is-active', tab.dataset.scoutTabTarget === name));
+          panels.forEach((panel) => panel.classList.toggle('is-active', panel.dataset.scoutPanel === name));
+          try { window.localStorage.setItem(storageKey, name); } catch (e) {}
+        };
+        tabs.forEach((tab) => {
+          tab.addEventListener('click', () => activate(tab.dataset.scoutTabTarget || 'list'));
+        });
+        let initial = 'list';
+        try {
+          initial = window.localStorage.getItem(storageKey) || 'list';
+        } catch (e) {}
+        if (initial === 'create' && !hasCreatePanel) {
+          initial = 'list';
+        }
+        activate(initial === 'create' ? 'create' : 'list');
+      })();
+    </script>
   </body>
 </html>

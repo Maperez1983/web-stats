@@ -2847,6 +2847,20 @@ def scouting_target_detail_page(request, target_id):
         raise Http404('Jugador ojeado no encontrado')
     can_manage = bool(_can_manage_workspace(request.user, workspace))
     active_team = _get_active_team_for_request(request)
+    primary_team = active_team or getattr(workspace, 'primary_team', None)
+    active_club_season = None
+    active_club_season_is_current = False
+    try:
+        active_club_season = selected_club_season_for_request(request, workspace=workspace)
+        workspace_current_season_id = int(getattr(workspace, 'active_season_id', 0) or 0)
+        active_club_season_is_current = bool(
+            active_club_season
+            and int(getattr(active_club_season, 'id', 0) or 0) == workspace_current_season_id
+            and bool(getattr(active_club_season, 'is_active', False))
+        )
+    except Exception:
+        active_club_season = None
+        active_club_season_is_current = False
     feedback = ''
     error = ''
 
@@ -2921,6 +2935,62 @@ def scouting_target_detail_page(request, target_id):
                     followup.completed_on = timezone.localdate() if followup.is_done else None
                     followup.save(update_fields=['is_done', 'completed_on', 'updated_at'])
                     feedback = 'Estado de seguimiento actualizado.'
+            elif action == 'promote-to-player':
+                if not primary_team:
+                    raise ValueError('No hay equipo activo para convertir al jugador.')
+                source_name = str(target.subject_name or getattr(target.player, 'name', '') or '').strip()
+                if not source_name:
+                    raise ValueError('Falta el nombre del jugador.')
+                player = target.player
+                if player and int(getattr(player, 'team_id', 0) or 0) != int(primary_team.id):
+                    player.team = primary_team
+                elif not player:
+                    player = (
+                        Player.objects
+                        .filter(team=primary_team, name__iexact=source_name)
+                        .order_by('id')
+                        .first()
+                    )
+                    if not player:
+                        player = Player(team=primary_team)
+                    player.team = primary_team
+                player.name = source_name[:120]
+                if target.subject_name and not getattr(player, 'full_name', '').strip():
+                    player.full_name = source_name[:180]
+                if target.subject_name:
+                    player.full_name = source_name[:180]
+                if target.position:
+                    player.position = target.position[:60]
+                    player.preferred_position = target.position[:60]
+                if target.dominant_foot:
+                    player.dominant_foot = target.dominant_foot[:16]
+                if target.birth_date:
+                    player.birth_date = target.birth_date
+                if target.subject_team_name:
+                    player.origin_team = target.subject_team_name[:160]
+                player.is_active = True
+                updates = ['team', 'name', 'full_name', 'position', 'preferred_position', 'dominant_foot', 'birth_date', 'origin_team', 'is_active']
+                if not player.pk:
+                    player.save()
+                else:
+                    existing_updates = [field for field in updates if hasattr(player, field)]
+                    player.save(update_fields=sorted(set(existing_updates)))
+                ensure_workspace_player(workspace, player, current_team=primary_team, is_active=True)
+                if active_club_season and active_club_season_is_current:
+                    try:
+                        ensure_player_season_membership(
+                            active_club_season,
+                            player,
+                            team=primary_team,
+                            confirmed=True,
+                            status=WorkspaceSeasonPlayer.STATUS_CONFIRMED,
+                        )
+                    except Exception:
+                        pass
+                target.player = player
+                target.status = ScoutingTarget.STATUS_SIGNED
+                target.save(update_fields=['player', 'status', 'updated_at'])
+                feedback = 'Jugador convertido en miembro de la plantilla.'
         except Exception:
             logger.exception('No se pudo actualizar el scouting target %s', target_id)
             error = 'No se pudo guardar la información.'
