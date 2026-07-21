@@ -11494,6 +11494,35 @@ class PlayerDetailStatsFallbackTests(TestCase):
         self.assertEqual(str(self.player.weight_kg), '76.50')
         self.assertContains(response, 'name="weight_kg_base" value="76.50"', html=False)
 
+    def test_player_detail_injury_form_creates_record_in_injuries_tab(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse('player-detail', args=[self.player.id]),
+            {
+                'form_action': 'injuries',
+                'injury': 'Sobrecarga muscular',
+                'injury_type': 'Muscular',
+                'injury_zone': 'Isquios',
+                'injury_side': 'izquierdo',
+                'injury_date': '2026-07-01',
+                'injury_return_date': '2026-07-10',
+                'injury_notes': 'Carga alta en pretemporada',
+                'injury_record_mode': 'new',
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.player.refresh_from_db()
+        self.assertEqual(self.player.injury, 'Sobrecarga muscular')
+        self.assertEqual(self.player.injury_type, 'Muscular')
+        self.assertEqual(self.player.injury_zone, 'Isquios')
+        self.assertEqual(self.player.injury_side, 'izquierdo')
+        self.assertEqual(str(self.player.injury_date), '2026-07-01')
+        self.assertContains(response, 'Historial de lesiones')
+        self.assertContains(response, 'Sobrecarga muscular')
+
     @patch('football.views.compute_player_dashboard')
     @override_settings(MEDIA_URL='/media-test/')
     def test_player_pdf_html_uses_player_team_branding(self, mocked_dashboard):

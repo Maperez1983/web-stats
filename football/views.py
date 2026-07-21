@@ -57923,6 +57923,73 @@ def player_detail_page(request, player_id):
                 return primary_team.group.season
             return Season.objects.filter(is_current=True).order_by('-start_date', '-id').first()
 
+        def _save_injury_record(*, injury_name, injury_type, injury_zone, injury_side, injury_date, injury_return_date, injury_notes, force_new=False):
+            active_injury = (
+                PlayerInjuryRecord.objects
+                .filter(player=player, is_active=True)
+                .order_by('-injury_date', '-id')
+                .first()
+            )
+            if injury_name and injury_date:
+                same_record = None
+                if not force_new:
+                    same_record = (
+                        PlayerInjuryRecord.objects
+                        .filter(
+                            player=player,
+                            injury__iexact=injury_name,
+                            injury_date=injury_date,
+                        )
+                        .order_by('-id')
+                        .first()
+                    )
+                if same_record:
+                    updated_fields = []
+                    if injury_type != same_record.injury_type:
+                        same_record.injury_type = injury_type
+                        updated_fields.append('injury_type')
+                    if injury_zone != same_record.injury_zone:
+                        same_record.injury_zone = injury_zone
+                        updated_fields.append('injury_zone')
+                    if injury_side != same_record.injury_side:
+                        same_record.injury_side = injury_side
+                        updated_fields.append('injury_side')
+                    if injury_notes != same_record.notes:
+                        same_record.notes = injury_notes
+                        updated_fields.append('notes')
+                    if injury_return_date != same_record.return_date:
+                        same_record.return_date = injury_return_date
+                        updated_fields.append('return_date')
+                    should_be_active = not injury_return_date or injury_return_date > timezone.localdate()
+                    if same_record.is_active != should_be_active:
+                        same_record.is_active = should_be_active
+                        updated_fields.append('is_active')
+                    if updated_fields:
+                        same_record.save(update_fields=updated_fields + ['updated_at'])
+                else:
+                    PlayerInjuryRecord.objects.create(
+                        player=player,
+                        injury=injury_name,
+                        injury_type=injury_type,
+                        injury_zone=injury_zone,
+                        injury_side=injury_side,
+                        injury_date=injury_date,
+                        return_date=injury_return_date,
+                        notes=injury_notes,
+                        is_active=(not injury_return_date or injury_return_date > timezone.localdate()),
+                    )
+                if active_injury and active_injury.injury.lower() != injury_name.lower():
+                    active_injury.is_active = False
+                    if not active_injury.return_date:
+                        active_injury.return_date = injury_return_date or timezone.localdate()
+                        active_injury.save(update_fields=['is_active', 'return_date', 'updated_at'])
+                    else:
+                        active_injury.save(update_fields=['is_active', 'updated_at'])
+            elif active_injury and injury_return_date:
+                active_injury.return_date = injury_return_date
+                active_injury.is_active = False
+                active_injury.save(update_fields=['return_date', 'is_active', 'updated_at'])
+
         if request.method == 'POST' and not is_player_readonly:
             form_action = (request.POST.get('form_action') or 'profile').strip().lower()
 
@@ -57930,18 +57997,9 @@ def player_detail_page(request, player_id):
                 uploaded_photo = request.FILES.get('player_photo')
                 uploaded_license = request.FILES.get('player_license')
                 number = request.POST.get('number', '').strip()
-                injury_name = request.POST.get('injury', '').strip()
-                injury_type = request.POST.get('injury_type', '').strip()
-                injury_zone = request.POST.get('injury_zone', '').strip()
-                injury_side = request.POST.get('injury_side', '').strip()
-                injury_notes = request.POST.get('injury_notes', '').strip()
-                injury_date = _parse_date_value(request.POST.get('injury_date'))
-                injury_return_date = _parse_date_value(request.POST.get('injury_return_date'))
                 manual_sanction_active = str(request.POST.get('manual_sanction_active') or '').lower() in {'1', 'true', 'on', 'yes'}
                 manual_sanction_reason = request.POST.get('manual_sanction_reason', '').strip()
                 manual_sanction_until = _parse_date_value(request.POST.get('manual_sanction_until'))
-                injury_record_mode = (request.POST.get('injury_record_mode') or '').strip().lower()
-                force_new_injury_record = injury_record_mode in {'new', 'add', 'create'}
                 player.number = _parse_int(number) if number else None
                 player.position = request.POST.get('position', '').strip()
                 player.full_name = request.POST.get('full_name', '').strip()
@@ -57949,11 +58007,9 @@ def player_detail_page(request, player_id):
                 player.birth_date = _parse_date_value(request.POST.get('birth_date'))
                 player.height_cm = _parse_int(request.POST.get('height_cm'))
                 player.weight_kg = _parse_decimal_value(request.POST.get('weight_kg_base'))
-                player.injury = injury_name
-                player.injury_type = injury_type
-                player.injury_zone = injury_zone
-                player.injury_side = injury_side
-                player.injury_date = injury_date
+                player.dominant_foot = request.POST.get('dominant_foot', '').strip()
+                player.preferred_position = request.POST.get('preferred_position', '').strip()
+                player.previous_season_position = request.POST.get('previous_season_position', '').strip()
                 player.manual_sanction_active = manual_sanction_active
                 player.manual_sanction_reason = manual_sanction_reason
                 player.manual_sanction_until = manual_sanction_until
@@ -57963,74 +58019,35 @@ def player_detail_page(request, player_id):
                 if uploaded_license:
                     save_player_license(player, uploaded_license)
                 _invalidate_team_dashboard_caches(primary_team)
+                return redirect(f"{reverse('player-detail', args=[player.id])}?tab=personal")
 
-                active_injury = (
-                    PlayerInjuryRecord.objects
-                    .filter(player=player, is_active=True)
-                    .order_by('-injury_date', '-id')
-                    .first()
+            if form_action == 'injuries':
+                injury_name = request.POST.get('injury', '').strip()
+                injury_type = request.POST.get('injury_type', '').strip()
+                injury_zone = request.POST.get('injury_zone', '').strip()
+                injury_side = request.POST.get('injury_side', '').strip()
+                injury_notes = request.POST.get('injury_notes', '').strip()
+                injury_date = _parse_date_value(request.POST.get('injury_date'))
+                injury_return_date = _parse_date_value(request.POST.get('injury_return_date'))
+                injury_record_mode = (request.POST.get('injury_record_mode') or '').strip().lower()
+                force_new_injury_record = injury_record_mode in {'new', 'add', 'create'}
+                player.injury = injury_name
+                player.injury_type = injury_type
+                player.injury_zone = injury_zone
+                player.injury_side = injury_side
+                player.injury_date = injury_date
+                player.save(update_fields=['injury', 'injury_type', 'injury_zone', 'injury_side', 'injury_date'])
+                _save_injury_record(
+                    injury_name=injury_name,
+                    injury_type=injury_type,
+                    injury_zone=injury_zone,
+                    injury_side=injury_side,
+                    injury_date=injury_date,
+                    injury_return_date=injury_return_date,
+                    injury_notes=injury_notes,
+                    force_new=force_new_injury_record,
                 )
-                if injury_name and injury_date:
-                    same_record = None
-                    if not force_new_injury_record:
-                        same_record = (
-                            PlayerInjuryRecord.objects
-                            .filter(
-                                player=player,
-                                injury__iexact=injury_name,
-                                injury_date=injury_date,
-                            )
-                            .order_by('-id')
-                            .first()
-                        )
-                    if same_record:
-                        updated_fields = []
-                        if injury_type != same_record.injury_type:
-                            same_record.injury_type = injury_type
-                            updated_fields.append('injury_type')
-                        if injury_zone != same_record.injury_zone:
-                            same_record.injury_zone = injury_zone
-                            updated_fields.append('injury_zone')
-                        if injury_side != same_record.injury_side:
-                            same_record.injury_side = injury_side
-                            updated_fields.append('injury_side')
-                        if injury_notes != same_record.notes:
-                            same_record.notes = injury_notes
-                            updated_fields.append('notes')
-                        if injury_return_date != same_record.return_date:
-                            same_record.return_date = injury_return_date
-                            updated_fields.append('return_date')
-                        should_be_active = not injury_return_date or injury_return_date > timezone.localdate()
-                        if same_record.is_active != should_be_active:
-                            same_record.is_active = should_be_active
-                            updated_fields.append('is_active')
-                        if updated_fields:
-                            same_record.save(update_fields=updated_fields + ['updated_at'])
-                    else:
-                        PlayerInjuryRecord.objects.create(
-                            player=player,
-                            injury=injury_name,
-                            injury_type=injury_type,
-                            injury_zone=injury_zone,
-                            injury_side=injury_side,
-                            injury_date=injury_date,
-                            return_date=injury_return_date,
-                            notes=injury_notes,
-                            is_active=(not injury_return_date or injury_return_date > timezone.localdate()),
-                        )
-                    if active_injury and active_injury.injury.lower() != injury_name.lower():
-                        active_injury.is_active = False
-                        if not active_injury.return_date:
-                            active_injury.return_date = injury_return_date or timezone.localdate()
-                            active_injury.save(update_fields=['is_active', 'return_date', 'updated_at'])
-                        else:
-                            active_injury.save(update_fields=['is_active', 'updated_at'])
-                elif active_injury and injury_return_date:
-                    active_injury.return_date = injury_return_date
-                    active_injury.is_active = False
-                    active_injury.save(update_fields=['return_date', 'is_active', 'updated_at'])
-
-                return redirect(f"{reverse('player-detail', args=[player.id])}?tab=general")
+                return redirect(f"{reverse('player-detail', args=[player.id])}?tab=injuries")
 
             if form_action == 'manual_stats':
                 season = _resolve_season()

@@ -1429,6 +1429,7 @@
           <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
             <input type="hidden" name="form_action" value="profile" />
+            <p class="subtle" style="margin:0 0 0.75rem;">Ficha editable para el staff técnico: identidad, perfil deportivo y documentación básica del jugador.</p>
             <div class="form-grid">
               <label>Nombre completo
                 <input type="text" name="full_name" value="{{ player.full_name|default:player.name }}" />
@@ -1436,28 +1437,10 @@
               <label>Apodo
                 <input type="text" name="nickname" value="{{ player.nickname|default:'' }}" placeholder="Ej. Pepe" />
               </label>
-              <label>Fecha nacimiento
-                <input type="date" name="birth_date" value="{{ player.birth_date|date:'Y-m-d' }}" />
-              </label>
-              <label>Altura (cm)
-                <input type="number" name="height_cm" min="100" max="240" value="{{ player.height_cm|default:'' }}" />
-              </label>
-              <label>Peso base (kg)
-                <input type="number" step="0.01" min="0" name="weight_kg_base" value="{{ player.weight_kg|unlocalize|default:'' }}" />
-              </label>
-              <label>Foto del jugador
-                <input type="file" name="player_photo" accept="image/*" />
-              </label>
-              <label>Licencia federativa (PDF/JPG)
-                <input type="file" name="player_license" accept="application/pdf,image/*" />
-                {% if player_license_url %}
-                <a href="{{ player_license_url }}" target="_blank" rel="noopener" class="subtle" style="margin-top:0.4rem;">Ver licencia actual</a>
-                {% endif %}
-              </label>
               <label>Dorsal
                 <input type="number" name="number" min="0" value="{{ player.number|default:'' }}" />
               </label>
-              <label>Posición
+              <label>Posición actual
                 {% with current_position=player.position|default:stats.position %}
                 <select name="position">
                   <option value="" {% if not current_position %}selected{% endif %}>Sin definir</option>
@@ -1482,6 +1465,38 @@
                 </select>
                 {% endwith %}
               </label>
+              <label>Posición preferida
+                <input type="text" name="preferred_position" value="{{ player.preferred_position|default:'' }}" placeholder="Ej. MC" />
+              </label>
+              <label>Posición temporada anterior
+                <input type="text" name="previous_season_position" value="{{ player.previous_season_position|default:'' }}" placeholder="Ej. LD" />
+              </label>
+              <label>Fecha nacimiento
+                <input type="date" name="birth_date" value="{{ player.birth_date|date:'Y-m-d' }}" />
+              </label>
+              <label>Pie dominante
+                <select name="dominant_foot">
+                  <option value="" {% if not player.dominant_foot %}selected{% endif %}>Sin definir</option>
+                  <option value="izquierdo" {% if player.dominant_foot == 'izquierdo' %}selected{% endif %}>Izquierdo</option>
+                  <option value="derecho" {% if player.dominant_foot == 'derecho' %}selected{% endif %}>Derecho</option>
+                  <option value="ambidiestro" {% if player.dominant_foot == 'ambidiestro' %}selected{% endif %}>Ambidiestro</option>
+                </select>
+              </label>
+              <label>Altura (cm)
+                <input type="number" name="height_cm" min="100" max="240" value="{{ player.height_cm|default:'' }}" />
+              </label>
+              <label>Peso base (kg)
+                <input type="number" step="0.01" min="0" name="weight_kg_base" value="{{ player.weight_kg|unlocalize|default:'' }}" />
+              </label>
+              <label>Foto del jugador
+                <input type="file" name="player_photo" accept="image/*" />
+              </label>
+              <label>Licencia federativa (PDF/JPG)
+                <input type="file" name="player_license" accept="application/pdf,image/*" />
+                {% if player_license_url %}
+                <a href="{{ player_license_url }}" target="_blank" rel="noopener" class="subtle" style="margin-top:0.4rem;">Ver licencia actual</a>
+                {% endif %}
+              </label>
               <label>Sanción manual
                 <select name="manual_sanction_active">
                   <option value="0" {% if not player.manual_sanction_active %}selected{% endif %}>No</option>
@@ -1496,8 +1511,7 @@
               </label>
             </div>
             <div style="margin-top:0.85rem;display:flex;gap:0.55rem;flex-wrap:wrap;">
-              <button type="submit" name="injury_record_mode" value="update">Guardar ficha</button>
-              <button type="submit" name="injury_record_mode" value="new">Añadir lesión al historial</button>
+              <button type="submit">Guardar ficha</button>
             </div>
           </form>
           {% else %}
@@ -1523,6 +1537,18 @@
               <article class="info-item">
                 <span class="info-label">Posición</span>
                 <span class="info-value">{{ player.position|default:stats.position|default:'--' }}</span>
+              </article>
+              <article class="info-item">
+                <span class="info-label">Posición preferida</span>
+                <span class="info-value">{{ player.preferred_position|default:'--' }}</span>
+              </article>
+              <article class="info-item">
+                <span class="info-label">Posición anterior</span>
+                <span class="info-value">{{ player.previous_season_position|default:'--' }}</span>
+              </article>
+              <article class="info-item">
+                <span class="info-label">Pie dominante</span>
+                <span class="info-value">{{ player.dominant_foot|default:'--' }}</span>
               </article>
               <article class="info-item">
                 <span class="info-label">Altura</span>
@@ -2244,7 +2270,7 @@
         <h3 style="margin-top:1rem;">Registrar o actualizar lesión</h3>
         <form method="post" enctype="multipart/form-data">
           {% csrf_token %}
-          <input type="hidden" name="form_action" value="profile" />
+          <input type="hidden" name="form_action" value="injuries" />
           <div class="form-grid">
             <label>Lesión
               <select name="injury">
