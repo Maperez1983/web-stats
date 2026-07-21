@@ -2500,7 +2500,7 @@
               {% for item in coach_player_cards_all %}
               <a
                 class="card-link"
-                href="{% url 'coach-role-trainer' %}?player={{ item.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}"
+                href="{% url 'player-detail' item.id %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% elif active_team %}?team={{ active_team.id }}{% endif %}"
                 title="{{ item.name }}{% if item.number %} · {{ item.number }}{% endif %}"
               >
                 <article class="card broadcast-card{% if coach_selected_player_id == item.id %} is-selected{% endif %}">
@@ -3283,7 +3283,7 @@
 	            {% for item in coach_player_cards_all %}
 	            <a
 	              class="card-link"
-	              href="{% url 'coach-role-trainer' %}?player={{ item.id }}{% if stats_scope %}&scope={{ stats_scope }}{% endif %}{% if stats_scope == 'tournament' and tournament_filter %}&tournament={{ tournament_filter|urlencode }}{% endif %}{% if coach_selected_match %}&match={{ coach_selected_match.match_id }}{% endif %}"
+	              href="{% url 'player-detail' item.id %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% elif active_team %}?team={{ active_team.id }}{% endif %}"
 	              data-player-card
 	              data-player-name="{{ item.name|lower }}"
 	              data-player-number="{{ item.number|default:'' }}"
