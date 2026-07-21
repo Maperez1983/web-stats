@@ -2697,6 +2697,65 @@ def scouting_board_page(request):
     feedback = ''
     error = ''
 
+    def _promote_scouting_target_to_player(target, *, team, workspace, request_user):
+        if not team:
+            raise ValueError('No hay equipo activo para convertir el jugador.')
+        source_name = str(getattr(target, 'subject_name', '') or getattr(getattr(target, 'player', None), 'name', '') or '').strip()
+        if not source_name:
+            raise ValueError('Falta el nombre del jugador.')
+        player = getattr(target, 'player', None)
+        if player and int(getattr(player, 'team_id', 0) or 0) != int(team.id):
+            player.team = team
+        elif not player:
+            player = (
+                Player.objects
+                .filter(team=team, name__iexact=source_name)
+                .order_by('id')
+                .first()
+            )
+            if not player:
+                player = Player(team=team)
+            player.team = team
+        player.name = source_name[:120]
+        player.full_name = source_name[:180]
+        if getattr(target, 'position', ''):
+            player.position = target.position[:60]
+            player.preferred_position = target.position[:60]
+        if getattr(target, 'dominant_foot', ''):
+            player.dominant_foot = target.dominant_foot[:16]
+        if getattr(target, 'birth_date', None):
+            player.birth_date = target.birth_date
+        if getattr(target, 'subject_team_name', ''):
+            player.origin_team = target.subject_team_name[:160]
+        player.is_active = True
+        if not player.pk:
+            player.save()
+        else:
+            player.save(update_fields=['team', 'name', 'full_name', 'position', 'preferred_position', 'dominant_foot', 'birth_date', 'origin_team', 'is_active'])
+        ensure_workspace_player(workspace, player, current_team=team, is_active=True)
+        try:
+            active_club_season = selected_club_season_for_request(request, workspace=workspace)
+            workspace_current_season_id = int(getattr(workspace, 'active_season_id', 0) or 0)
+            active_club_season_is_current = bool(
+                active_club_season
+                and int(getattr(active_club_season, 'id', 0) or 0) == workspace_current_season_id
+                and bool(getattr(active_club_season, 'is_active', False))
+            )
+            if active_club_season and active_club_season_is_current:
+                ensure_player_season_membership(
+                    active_club_season,
+                    player,
+                    team=team,
+                    confirmed=True,
+                    status=WorkspaceSeasonPlayer.STATUS_CONFIRMED,
+                )
+        except Exception:
+            pass
+        target.player = player
+        target.status = ScoutingTarget.STATUS_SIGNED
+        target.save(update_fields=['player', 'status', 'updated_at'])
+        return player
+
     if request.method == 'POST':
         if not can_manage:
             return HttpResponse('No tienes permisos para editar.', status=403)
@@ -2704,6 +2763,7 @@ def scouting_board_page(request):
         if action == 'create':
             subject_name = str(request.POST.get('subject_name') or '').strip()[:160]
             player_id = _parse_int(request.POST.get('player_id'))
+            create_player = str(request.POST.get('create_player') or '').strip().lower() in {'1', 'true', 'yes', 'on', 'si'}
             linked_player = None
             if player_id:
                 linked_player = (
@@ -2751,6 +2811,13 @@ def scouting_board_page(request):
                 if not target.created_by_id and request.user.is_authenticated:
                     target.created_by = request.user
                 target.save()
+                if create_player:
+                    _promote_scouting_target_to_player(
+                        target,
+                        team=primary_team,
+                        workspace=workspace,
+                        request_user=request.user,
+                    )
                 return redirect(reverse('scouting-target-detail', args=[target.id]))
 
     targets_qs = (
@@ -2936,60 +3003,12 @@ def scouting_target_detail_page(request, target_id):
                     followup.save(update_fields=['is_done', 'completed_on', 'updated_at'])
                     feedback = 'Estado de seguimiento actualizado.'
             elif action == 'promote-to-player':
-                if not primary_team:
-                    raise ValueError('No hay equipo activo para convertir al jugador.')
-                source_name = str(target.subject_name or getattr(target.player, 'name', '') or '').strip()
-                if not source_name:
-                    raise ValueError('Falta el nombre del jugador.')
-                player = target.player
-                if player and int(getattr(player, 'team_id', 0) or 0) != int(primary_team.id):
-                    player.team = primary_team
-                elif not player:
-                    player = (
-                        Player.objects
-                        .filter(team=primary_team, name__iexact=source_name)
-                        .order_by('id')
-                        .first()
-                    )
-                    if not player:
-                        player = Player(team=primary_team)
-                    player.team = primary_team
-                player.name = source_name[:120]
-                if target.subject_name and not getattr(player, 'full_name', '').strip():
-                    player.full_name = source_name[:180]
-                if target.subject_name:
-                    player.full_name = source_name[:180]
-                if target.position:
-                    player.position = target.position[:60]
-                    player.preferred_position = target.position[:60]
-                if target.dominant_foot:
-                    player.dominant_foot = target.dominant_foot[:16]
-                if target.birth_date:
-                    player.birth_date = target.birth_date
-                if target.subject_team_name:
-                    player.origin_team = target.subject_team_name[:160]
-                player.is_active = True
-                updates = ['team', 'name', 'full_name', 'position', 'preferred_position', 'dominant_foot', 'birth_date', 'origin_team', 'is_active']
-                if not player.pk:
-                    player.save()
-                else:
-                    existing_updates = [field for field in updates if hasattr(player, field)]
-                    player.save(update_fields=sorted(set(existing_updates)))
-                ensure_workspace_player(workspace, player, current_team=primary_team, is_active=True)
-                if active_club_season and active_club_season_is_current:
-                    try:
-                        ensure_player_season_membership(
-                            active_club_season,
-                            player,
-                            team=primary_team,
-                            confirmed=True,
-                            status=WorkspaceSeasonPlayer.STATUS_CONFIRMED,
-                        )
-                    except Exception:
-                        pass
-                target.player = player
-                target.status = ScoutingTarget.STATUS_SIGNED
-                target.save(update_fields=['player', 'status', 'updated_at'])
+                _promote_scouting_target_to_player(
+                    target,
+                    team=primary_team,
+                    workspace=workspace,
+                    request_user=request.user,
+                )
                 feedback = 'Jugador convertido en miembro de la plantilla.'
         except Exception:
             logger.exception('No se pudo actualizar el scouting target %s', target_id)
