@@ -2812,12 +2812,21 @@ def scouting_board_page(request):
                     target.created_by = request.user
                 target.save()
                 if create_player:
-                    _promote_scouting_target_to_player(
+                    player = _promote_scouting_target_to_player(
                         target,
                         team=primary_team,
                         workspace=workspace,
                         request_user=request.user,
                     )
+                    player_detail_url = reverse('player-detail', args=[player.id])
+                    qs = []
+                    if workspace and getattr(workspace, 'id', None):
+                        qs.append(f'workspace={int(workspace.id)}')
+                    if primary_team and getattr(primary_team, 'id', None):
+                        qs.append(f'team={int(primary_team.id)}')
+                    if qs:
+                        player_detail_url = f"{player_detail_url}?{'&'.join(qs)}"
+                    return redirect(player_detail_url)
                 return redirect(reverse('scouting-target-detail', args=[target.id]))
 
     targets_qs = (
