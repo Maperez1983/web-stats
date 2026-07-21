@@ -181,6 +181,63 @@
       .workspace-panel.is-active {
         display: block;
       }
+      .module-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+        margin-top: 0.9rem;
+      }
+      .module-tab {
+        appearance: none;
+        border: 1px solid rgba(244, 180, 0, 0.22);
+        background: rgba(244, 180, 0, 0.08);
+        color: rgba(255, 242, 199, 0.96);
+        border-radius: 999px;
+        padding: 0.55rem 0.85rem;
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      .module-tab.is-active {
+        background: rgba(244, 180, 0, 0.92);
+        border-color: rgba(244, 180, 0, 0.7);
+        color: #0a1520;
+      }
+      .module-panels {
+        margin-top: 1rem;
+      }
+      .module-panel {
+        display: none;
+        border-radius: 18px;
+        padding: 1rem;
+        border: 1px solid var(--hub-card-border);
+        background: var(--hub-card-bg);
+        color: var(--hub-card-ink);
+      }
+      .module-panel.is-active {
+        display: block;
+      }
+      .module-panel h4 {
+        margin: 0;
+        font-size: 1rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .module-panel p {
+        margin: 0.4rem 0 0;
+        color: var(--hub-card-muted);
+      }
+      .module-panel .panel-actions {
+        margin-top: 0.85rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+      }
+      .module-panel .panel-actions .workspace-tab {
+        text-decoration: none;
+      }
       .workspace-stack {
         display: grid;
         gap: 1rem;
@@ -980,6 +1037,159 @@
         color: rgba(226, 232, 240, 0.78);
         font-size: 0.84rem;
       }
+      .broadcast-card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+        border-radius: 16px;
+        padding: 0.9rem;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(15, 23, 42, 0.9);
+        transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+      }
+      .broadcast-card:hover {
+        transform: translateY(-2px);
+        border-color: rgba(244, 180, 0, 0.42);
+        background: rgba(15, 23, 42, 0.96);
+      }
+      .broadcast-card.is-selected {
+        border-color: rgba(244, 180, 0, 0.62);
+        box-shadow: 0 0 0 1px rgba(244, 180, 0, 0.12), 0 18px 36px rgba(0, 0, 0, 0.2);
+      }
+      .broadcast-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.75rem;
+      }
+      .broadcast-head-left {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        min-width: 0;
+      }
+      .broadcast-head-right {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        flex: 0 0 auto;
+      }
+      .broadcast-name {
+        margin: 0;
+        font-size: 1rem;
+        line-height: 1.15;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .broadcast-sub {
+        margin-top: 0.15rem;
+        color: rgba(226, 232, 240, 0.72);
+        font-size: 0.78rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .broadcast-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 42px;
+        padding: 0.25rem 0.5rem;
+        border-radius: 999px;
+        border: 1px solid rgba(244, 180, 0, 0.24);
+        background: rgba(244, 180, 0, 0.12);
+        color: rgba(255, 242, 199, 0.96);
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.06em;
+      }
+      .broadcast-mini {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+      }
+      .mini-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.28rem 0.5rem;
+        border-radius: 999px;
+        background: rgba(2, 6, 23, 0.28);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        color: rgba(226, 232, 240, 0.9);
+        font-size: 0.7rem;
+        font-weight: 800;
+      }
+      .mini-pill strong {
+        color: #fff8e1;
+      }
+      .broadcast-kpis {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+        gap: 0.45rem;
+      }
+      .broadcast-kpi {
+        display: grid;
+        gap: 0.08rem;
+        padding: 0.55rem 0.6rem;
+        border-radius: 12px;
+        background: rgba(2, 6, 23, 0.22);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+      }
+      .broadcast-kpi .k {
+        font-size: 0.66rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: rgba(226, 232, 240, 0.72);
+      }
+      .broadcast-kpi .v {
+        font-size: 0.92rem;
+        font-weight: 900;
+        color: rgba(245, 247, 250, 0.96);
+      }
+      .broadcast-kpi.is-accent {
+        border-color: rgba(244, 180, 0, 0.26);
+        background: rgba(244, 180, 0, 0.09);
+      }
+      .broadcast-kpi.is-cool {
+        border-color: rgba(56, 189, 248, 0.24);
+        background: rgba(56, 189, 248, 0.08);
+      }
+      .avatar-wrap {
+        position: relative;
+        width: 54px;
+        flex: 0 0 auto;
+      }
+      .avatar-wrap .avatar {
+        width: 54px;
+        height: 54px;
+        border-radius: 14px;
+        object-fit: contain;
+        object-position: center;
+        padding: 2px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(2, 6, 23, 0.35);
+      }
+      .dorsal-badge {
+        position: absolute;
+        right: -4px;
+        bottom: -4px;
+        min-width: 24px;
+        height: 24px;
+        padding: 0 0.35rem;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.72rem;
+        font-weight: 950;
+        border: 1px solid rgba(250, 204, 21, 0.78);
+        background: rgba(250, 204, 21, 0.22);
+        color: rgba(255, 248, 228, 0.98);
+      }
       .coach-tag-list {
         display: flex;
         flex-wrap: wrap;
@@ -1764,12 +1974,27 @@
 	            <p class="summary-meta">Acciones y tasa de éxito por jugador (solo sobre acciones medidas).</p>
 		            <div class="coach-player-card-grid">
 		              {% for player in coach_match_view.player_cards %}
-		              <article class="coach-player-card">
-		                <strong>{% if player.number %}#{{ player.number }} {% endif %}{{ player.name }}</strong>
+		              <article class="card broadcast-card">
+		                <div class="broadcast-head">
+		                  <div class="broadcast-head-left">
+		                    <div class="avatar-wrap" aria-hidden="true">
+		                      <img class="avatar" src="{% if player.photo_url %}{{ player.photo_url }}{% else %}{% static 'football/images/player-avatar.svg' %}{% endif %}" alt="{{ player.name }}" loading="lazy" />
+		                      {% if player.number %}<span class="dorsal-badge">{{ player.number }}</span>{% endif %}
+		                    </div>
+		                    <div>
+		                      <h2 class="broadcast-name">{{ player.name }}</h2>
+		                      <div class="broadcast-sub">{{ player.position|default:'-' }}</div>
+		                    </div>
+		                  </div>
+		                  <div class="broadcast-head-right">
+		                    <div class="broadcast-pill">Acc {{ player.actions|default:0 }}</div>
+		                    <div class="broadcast-pill">Éx {{ player.successes|default:0 }}</div>
+		                  </div>
+		                </div>
 		                <div class="broadcast-kpis" aria-label="KPIs del partido">
-		                  <div class="broadcast-kpi"><div class="k">Acc</div><div class="v">{{ player.actions|default:0 }}</div></div>
-		                  <div class="broadcast-kpi is-cool"><div class="k">Éxitos</div><div class="v">{{ player.successes|default:0 }}</div></div>
-		                  <div class="broadcast-kpi is-accent"><div class="k">% Éx.</div><div class="v">{{ player.success_rate|default:0|floatformat:-1 }}%</div></div>
+		                  <div class="broadcast-kpi"><span class="k">Acc</span><span class="v">{{ player.actions|default:0 }}</span></div>
+		                  <div class="broadcast-kpi is-cool"><span class="k">Éxitos</span><span class="v">{{ player.successes|default:0 }}</span></div>
+		                  <div class="broadcast-kpi is-accent"><span class="k">% Éx.</span><span class="v">{{ player.success_rate|default:0|floatformat:-1 }}%</span></div>
 		                </div>
 		              </article>
 		              {% endfor %}
@@ -1833,41 +2058,44 @@
 	          <div class="individual-grid" id="individual-player-grid">
 	            {% for item in coach_player_cards_all %}
 	            <a
-	              class="individual-card{% if coach_selected_player_id == item.id %} is-selected{% endif %}"
+	              class="card-link"
 	              href="{% url 'coach-role-trainer' %}?player={{ item.id }}{% if stats_scope %}&scope={{ stats_scope }}{% endif %}{% if stats_scope == 'tournament' and tournament_filter %}&tournament={{ tournament_filter|urlencode }}{% endif %}{% if coach_selected_match %}&match={{ coach_selected_match.match_id }}{% endif %}"
 	              data-player-card
 	              data-player-name="{{ item.name|lower }}"
 	              data-player-number="{{ item.number|default:'' }}"
 	              {% if forloop.counter > 6 %}hidden{% endif %}
             >
-              <div class="individual-head">
-                <img class="individual-avatar" src="{{ item.photo_url|default:'' }}" alt="{{ item.name }}" />
-                <div>
-                  <strong>{% if item.number %}#{{ item.number }} {% endif %}{{ item.name }}</strong>
-                  <span class="meta">{{ item.position }}</span>
+              <article class="card broadcast-card{% if coach_selected_player_id == item.id %} is-selected{% endif %}">
+                <div class="broadcast-head">
+                  <div class="broadcast-head-left">
+                    <div class="avatar-wrap" aria-hidden="true">
+                      <img class="avatar" src="{% if item.photo_url %}{{ item.photo_url }}{% else %}{% static 'football/images/player-avatar.svg' %}{% endif %}" alt="{{ item.name }}" loading="lazy" />
+                      {% if item.number %}<span class="dorsal-badge">{{ item.number }}</span>{% endif %}
+                    </div>
+                    <div>
+                      <h2 class="broadcast-name">{{ item.name }}</h2>
+                      <div class="broadcast-sub">{{ item.position|default:'-' }}</div>
+                    </div>
+                  </div>
+                  <div class="broadcast-head-right">
+                    <div class="broadcast-pill">Min {{ item.minutes }}</div>
+                    <div class="broadcast-pill">PJ {{ item.matches }}</div>
+                  </div>
                 </div>
-              </div>
-              <div class="individual-kpis">
-                <article class="individual-kpi">
-                  <div class="label">Minutos</div>
-                  <div class="value">{{ item.minutes }}</div>
-                </article>
-                <article class="individual-kpi">
-                  <div class="label">Partidos</div>
-                  <div class="value">{{ item.matches }}</div>
-                </article>
-                <article class="individual-kpi">
-                  <div class="label">Goles</div>
-                  <div class="value">{{ item.goals }}</div>
-                </article>
-                <article class="individual-kpi">
-                  <div class="label">Asistencias</div>
-                  <div class="value">{{ item.assists }}</div>
-                </article>
-              </div>
+                <div class="broadcast-mini">
+                  <span class="mini-pill">G <strong>{{ item.goals }}</strong></span>
+                  <span class="mini-pill">A <strong>{{ item.assists }}</strong></span>
+                </div>
+                <div class="broadcast-kpis" aria-label="KPIs resumidos">
+                  <div class="broadcast-kpi"><span class="k">Minutos</span><span class="v">{{ item.minutes }}</span></div>
+                  <div class="broadcast-kpi"><span class="k">Partidos</span><span class="v">{{ item.matches }}</span></div>
+                  <div class="broadcast-kpi is-accent"><span class="k">Goles</span><span class="v">{{ item.goals }}</span></div>
+                  <div class="broadcast-kpi is-cool"><span class="k">Asist.</span><span class="v">{{ item.assists }}</span></div>
+                </div>
+              </article>
             </a>
-            {% endfor %}
-          </div>
+	            {% endfor %}
+	          </div>
           {% if coach_player_view %}
           <form method="get" class="coach-player-toolbar" style="margin-top:1rem;">
             {% if stats_scope %}<input type="hidden" name="scope" value="{{ stats_scope }}" />{% endif %}
@@ -2292,15 +2520,25 @@
       </nav>
       {% endif %}
 
-      <section id="coach-modules" class="grid">
-        {% for module in modules %}
-        <a class="card-link" href="{% url module.link %}">
-          <article class="card">
-            <h3>{{ module.title }}</h3>
+      <section id="coach-modules" class="summary-card">
+        <h3>Módulos</h3>
+        <p class="summary-meta">Accesos del entrenador en formato pestaña para navegar sin mezclarlo con tarjetas sueltas.</p>
+        <div class="module-tabs" role="tablist" aria-label="Módulos del entrenador">
+          {% for module in modules %}
+          <button class="module-tab{% if forloop.first %} is-active{% endif %}" type="button" data-module-target="module-{{ forloop.counter0 }}">{{ module.title }}</button>
+          {% endfor %}
+        </div>
+        <div class="module-panels">
+          {% for module in modules %}
+          <article class="module-panel{% if forloop.first %} is-active{% endif %}" data-module-panel="module-{{ forloop.counter0 }}">
+            <h4>{{ module.title }}</h4>
             <p>{{ module.description }}</p>
+            <div class="panel-actions">
+              <a class="workspace-tab" href="{% url module.link %}">Abrir módulo</a>
+            </div>
           </article>
-        </a>
-        {% endfor %}
+          {% endfor %}
+        </div>
       </section>
     </div>
     {% if role_key == 'trainer' %}
@@ -2343,6 +2581,16 @@
           };
           searchInput.addEventListener('input', filterCards);
           filterCards();
+        }
+        const moduleTabs = Array.from(document.querySelectorAll('[data-module-target]'));
+        const modulePanels = Array.from(document.querySelectorAll('[data-module-panel]'));
+        if (moduleTabs.length && modulePanels.length) {
+          const activateModule = (target) => {
+            moduleTabs.forEach((tab) => tab.classList.toggle('is-active', tab.dataset.moduleTarget === target));
+            modulePanels.forEach((panel) => panel.classList.toggle('is-active', panel.dataset.modulePanel === target));
+          };
+          moduleTabs.forEach((tab) => tab.addEventListener('click', () => activateModule(tab.dataset.moduleTarget)));
+          activateModule(moduleTabs[0].dataset.moduleTarget);
         }
 
         // Configurador de gráficas PDF (por club / por jugador).

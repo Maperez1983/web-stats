@@ -1482,69 +1482,6 @@
                 </select>
                 {% endwith %}
               </label>
-              <label>Lesión
-                <select name="injury">
-                  <option value="" {% if not player.injury %}selected{% endif %}>Sin lesión</option>
-                  <option value="Rotura fibrilar" {% if player.injury == 'Rotura fibrilar' %}selected{% endif %}>Rotura fibrilar</option>
-                  <option value="Sobrecarga muscular" {% if player.injury == 'Sobrecarga muscular' %}selected{% endif %}>Sobrecarga muscular</option>
-                  <option value="Contractura" {% if player.injury == 'Contractura' %}selected{% endif %}>Contractura</option>
-                  <option value="Esguince" {% if player.injury == 'Esguince' %}selected{% endif %}>Esguince</option>
-                  <option value="Tendinopatia" {% if player.injury == 'Tendinopatia' %}selected{% endif %}>Tendinopatía</option>
-                  <option value="Contusion" {% if player.injury == 'Contusion' %}selected{% endif %}>Contusión</option>
-                  <option value="Fractura" {% if player.injury == 'Fractura' %}selected{% endif %}>Fractura</option>
-                  <option value="Lumbalgia" {% if player.injury == 'Lumbalgia' %}selected{% endif %}>Lumbalgia</option>
-                  <option value="Pubalgia" {% if player.injury == 'Pubalgia' %}selected{% endif %}>Pubalgia</option>
-                  <option value="Otra" {% if player.injury == 'Otra' %}selected{% endif %}>Otra (detallar en notas)</option>
-                </select>
-              </label>
-              <label>Tipo lesión
-                <select name="injury_type">
-                  <option value="" {% if not player.injury_type %}selected{% endif %}>No aplica</option>
-                  <option value="Muscular" {% if player.injury_type == 'Muscular' %}selected{% endif %}>Muscular</option>
-                  <option value="Articular" {% if player.injury_type == 'Articular' %}selected{% endif %}>Articular</option>
-                  <option value="Tendinosa" {% if player.injury_type == 'Tendinosa' %}selected{% endif %}>Tendinosa</option>
-                  <option value="Ligamentosa" {% if player.injury_type == 'Ligamentosa' %}selected{% endif %}>Ligamentosa</option>
-                  <option value="Osea" {% if player.injury_type == 'Osea' %}selected{% endif %}>Ósea</option>
-                  <option value="Neuromuscular" {% if player.injury_type == 'Neuromuscular' %}selected{% endif %}>Neuromuscular</option>
-                </select>
-              </label>
-              <label>Zona lesión
-                <select name="injury_zone">
-                  <option value="" {% if not player.injury_zone %}selected{% endif %}>No aplica</option>
-                  <option value="Isquios" {% if player.injury_zone == 'Isquios' %}selected{% endif %}>Isquios</option>
-                  <option value="Aductor" {% if player.injury_zone == 'Aductor' %}selected{% endif %}>Aductor</option>
-                  <option value="Cuadriceps" {% if player.injury_zone == 'Cuadriceps' %}selected{% endif %}>Cuádriceps</option>
-                  <option value="Gemelo" {% if player.injury_zone == 'Gemelo' %}selected{% endif %}>Gemelo</option>
-                  <option value="Soleo" {% if player.injury_zone == 'Soleo' %}selected{% endif %}>Sóleo</option>
-                  <option value="Rodilla" {% if player.injury_zone == 'Rodilla' %}selected{% endif %}>Rodilla</option>
-                  <option value="Tobillo" {% if player.injury_zone == 'Tobillo' %}selected{% endif %}>Tobillo</option>
-                  <option value="Planta del pie" {% if player.injury_zone == 'Planta del pie' %}selected{% endif %}>Planta del pie</option>
-                  <option value="Cadera" {% if player.injury_zone == 'Cadera' %}selected{% endif %}>Cadera</option>
-                  <option value="Pubis" {% if player.injury_zone == 'Pubis' %}selected{% endif %}>Pubis</option>
-                  <option value="Lumbar" {% if player.injury_zone == 'Lumbar' %}selected{% endif %}>Lumbar</option>
-                  <option value="Hombro" {% if player.injury_zone == 'Hombro' %}selected{% endif %}>Hombro</option>
-                  <option value="Muñeca" {% if player.injury_zone == 'Muñeca' %}selected{% endif %}>Muñeca</option>
-                  <option value="Radio" {% if player.injury_zone == 'Radio' %}selected{% endif %}>Radio</option>
-                  <option value="Húmero" {% if player.injury_zone == 'Húmero' %}selected{% endif %}>Húmero</option>
-                </select>
-              </label>
-              <label>Lado
-                <select name="injury_side">
-                  <option value="" {% if not player.injury_side %}selected{% endif %}>No aplica</option>
-                  <option value="izquierdo" {% if player.injury_side == 'izquierdo' %}selected{% endif %}>Izquierdo</option>
-                  <option value="derecho" {% if player.injury_side == 'derecho' %}selected{% endif %}>Derecho</option>
-                  <option value="bilateral" {% if player.injury_side == 'bilateral' %}selected{% endif %}>Bilateral</option>
-                </select>
-              </label>
-              <label>Fecha lesión
-                <input type="date" name="injury_date" value="{{ player.injury_date|date:'Y-m-d' }}" />
-              </label>
-              <label>Fecha de alta
-                <input type="date" name="injury_return_date" value="{% if latest_injury_record and latest_injury_record.is_active == False and latest_injury_record.return_date %}{{ latest_injury_record.return_date|date:'Y-m-d' }}{% endif %}" />
-              </label>
-              <label>Notas lesión
-                <input type="text" name="injury_notes" value="{% if latest_injury_record %}{{ latest_injury_record.notes|default:'' }}{% endif %}" placeholder="Contexto, diagnóstico, limitaciones..." />
-              </label>
               <label>Sanción manual
                 <select name="manual_sanction_active">
                   <option value="0" {% if not player.manual_sanction_active %}selected{% endif %}>No</option>
@@ -2303,6 +2240,82 @@
             <div class="value">{% if latest_injury_record %}{{ latest_injury_record.injury|default:'--' }}{% else %}--{% endif %}</div>
           </article>
         </div>
+        {% if not is_player_readonly %}
+        <h3 style="margin-top:1rem;">Registrar o actualizar lesión</h3>
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <input type="hidden" name="form_action" value="profile" />
+          <div class="form-grid">
+            <label>Lesión
+              <select name="injury">
+                <option value="" {% if not player.injury %}selected{% endif %}>Sin lesión</option>
+                <option value="Rotura fibrilar" {% if player.injury == 'Rotura fibrilar' %}selected{% endif %}>Rotura fibrilar</option>
+                <option value="Sobrecarga muscular" {% if player.injury == 'Sobrecarga muscular' %}selected{% endif %}>Sobrecarga muscular</option>
+                <option value="Contractura" {% if player.injury == 'Contractura' %}selected{% endif %}>Contractura</option>
+                <option value="Esguince" {% if player.injury == 'Esguince' %}selected{% endif %}>Esguince</option>
+                <option value="Tendinopatia" {% if player.injury == 'Tendinopatia' %}selected{% endif %}>Tendinopatía</option>
+                <option value="Contusion" {% if player.injury == 'Contusion' %}selected{% endif %}>Contusión</option>
+                <option value="Fractura" {% if player.injury == 'Fractura' %}selected{% endif %}>Fractura</option>
+                <option value="Lumbalgia" {% if player.injury == 'Lumbalgia' %}selected{% endif %}>Lumbalgia</option>
+                <option value="Pubalgia" {% if player.injury == 'Pubalgia' %}selected{% endif %}>Pubalgia</option>
+                <option value="Otra" {% if player.injury == 'Otra' %}selected{% endif %}>Otra (detallar en notas)</option>
+              </select>
+            </label>
+            <label>Tipo lesión
+              <select name="injury_type">
+                <option value="" {% if not player.injury_type %}selected{% endif %}>No aplica</option>
+                <option value="Muscular" {% if player.injury_type == 'Muscular' %}selected{% endif %}>Muscular</option>
+                <option value="Articular" {% if player.injury_type == 'Articular' %}selected{% endif %}>Articular</option>
+                <option value="Tendinosa" {% if player.injury_type == 'Tendinosa' %}selected{% endif %}>Tendinosa</option>
+                <option value="Ligamentosa" {% if player.injury_type == 'Ligamentosa' %}selected{% endif %}>Ligamentosa</option>
+                <option value="Osea" {% if player.injury_type == 'Osea' %}selected{% endif %}>Ósea</option>
+                <option value="Neuromuscular" {% if player.injury_type == 'Neuromuscular' %}selected{% endif %}>Neuromuscular</option>
+              </select>
+            </label>
+            <label>Zona lesión
+              <select name="injury_zone">
+                <option value="" {% if not player.injury_zone %}selected{% endif %}>No aplica</option>
+                <option value="Isquios" {% if player.injury_zone == 'Isquios' %}selected{% endif %}>Isquios</option>
+                <option value="Aductor" {% if player.injury_zone == 'Aductor' %}selected{% endif %}>Aductor</option>
+                <option value="Cuadriceps" {% if player.injury_zone == 'Cuadriceps' %}selected{% endif %}>Cuádriceps</option>
+                <option value="Gemelo" {% if player.injury_zone == 'Gemelo' %}selected{% endif %}>Gemelo</option>
+                <option value="Soleo" {% if player.injury_zone == 'Soleo' %}selected{% endif %}>Sóleo</option>
+                <option value="Rodilla" {% if player.injury_zone == 'Rodilla' %}selected{% endif %}>Rodilla</option>
+                <option value="Tobillo" {% if player.injury_zone == 'Tobillo' %}selected{% endif %}>Tobillo</option>
+                <option value="Planta del pie" {% if player.injury_zone == 'Planta del pie' %}selected{% endif %}>Planta del pie</option>
+                <option value="Cadera" {% if player.injury_zone == 'Cadera' %}selected{% endif %}>Cadera</option>
+                <option value="Pubis" {% if player.injury_zone == 'Pubis' %}selected{% endif %}>Pubis</option>
+                <option value="Lumbar" {% if player.injury_zone == 'Lumbar' %}selected{% endif %}>Lumbar</option>
+                <option value="Hombro" {% if player.injury_zone == 'Hombro' %}selected{% endif %}>Hombro</option>
+                <option value="Muñeca" {% if player.injury_zone == 'Muñeca' %}selected{% endif %}>Muñeca</option>
+                <option value="Radio" {% if player.injury_zone == 'Radio' %}selected{% endif %}>Radio</option>
+                <option value="Húmero" {% if player.injury_zone == 'Húmero' %}selected{% endif %}>Húmero</option>
+              </select>
+            </label>
+            <label>Lado
+              <select name="injury_side">
+                <option value="" {% if not player.injury_side %}selected{% endif %}>No aplica</option>
+                <option value="izquierdo" {% if player.injury_side == 'izquierdo' %}selected{% endif %}>Izquierdo</option>
+                <option value="derecho" {% if player.injury_side == 'derecho' %}selected{% endif %}>Derecho</option>
+                <option value="bilateral" {% if player.injury_side == 'bilateral' %}selected{% endif %}>Bilateral</option>
+              </select>
+            </label>
+            <label>Fecha lesión
+              <input type="date" name="injury_date" value="{{ player.injury_date|date:'Y-m-d' }}" />
+            </label>
+            <label>Fecha de alta
+              <input type="date" name="injury_return_date" value="{% if latest_injury_record and latest_injury_record.is_active == False and latest_injury_record.return_date %}{{ latest_injury_record.return_date|date:'Y-m-d' }}{% endif %}" />
+            </label>
+            <label>Notas lesión
+              <input type="text" name="injury_notes" value="{% if latest_injury_record %}{{ latest_injury_record.notes|default:'' }}{% endif %}" placeholder="Contexto, diagnóstico, limitaciones..." />
+            </label>
+          </div>
+          <div style="margin-top:0.85rem;display:flex;gap:0.55rem;flex-wrap:wrap;">
+            <button type="submit" name="injury_record_mode" value="update">Guardar ficha</button>
+            <button type="submit" name="injury_record_mode" value="new">Añadir lesión al historial</button>
+          </div>
+        </form>
+        {% endif %}
         <table>
           <thead>
             <tr><th>Lesión</th><th>Tipo · Zona · Lado</th><th>Fecha lesión</th><th>Alta est.</th><th>Alta real</th><th>Días</th><th>Estado</th></tr>

@@ -10062,13 +10062,28 @@ def dashboard_page(request):
     # Permite forzar el dashboard JS con `/?home=dashboard`.
     forced_home = str(request.GET.get('home') or '').strip().lower()
     staff_roles = {AppUserRole.ROLE_COACH, AppUserRole.ROLE_FITNESS, AppUserRole.ROLE_GOALKEEPER, AppUserRole.ROLE_ANALYST}
-    # Nuevo default: staff aterriza en el dashboard "pro" (JS) y puede alternar a vista compacta con `?home=club`.
-    if current_role in staff_roles and forced_home in {'club', 'compact', 'overview'}:
+    if current_role in staff_roles:
         try:
-            return coach_overview_page(request)
+            raw_params = request.GET.copy()
+            raw_params.pop('home', None)
+            preserved_qs = raw_params.urlencode()
         except Exception:
-            # Fallback defensivo: si algo falla en coach_overview, seguir al dashboard normal.
+            preserved_qs = ''
+        if forced_home in {'club', 'compact', 'overview'}:
+            compact_url = reverse('coach-detail')
+            if compact_url:
+                compact_url = f'{compact_url}?view=legacy'
+                if preserved_qs:
+                    compact_url = f'{compact_url}&{preserved_qs}'
+            return redirect(compact_url or reverse('coach-detail'))
+        if forced_home in {'dashboard', 'pro', 'legacy'}:
+            # Mantener disponible el dashboard clásico si se pide explícitamente.
             pass
+        else:
+            trainer_url = reverse('coach-role-trainer')
+            if preserved_qs:
+                trainer_url = f'{trainer_url}?{preserved_qs}'
+            return redirect(trainer_url)
     if current_role in {AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST}:
         if _can_access_task_studio(request.user):
             return redirect('task-studio-home')
